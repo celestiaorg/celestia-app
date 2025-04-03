@@ -8,6 +8,7 @@ ARG BUILDER_IMAGE=docker.io/golang:1.23.6-alpine3.20
 ARG RUNTIME_IMAGE=docker.io/alpine:3.19
 ARG TARGETOS
 ARG TARGETARCH
+
 # Use build args to override the maximum square size of the docker image e.g.
 # docker build --build-arg MAX_SQUARE_SIZE=64 -t celestia-app:latest .
 ARG MAX_SQUARE_SIZE
@@ -15,7 +16,7 @@ ARG MAX_SQUARE_SIZE
 # docker build --build-arg UPGRADE_HEIGHT_DELAY=1000 -t celestia-app:latest .
 ARG UPGRADE_HEIGHT_DELAY
 # the tag used for the embedded v3 binary.
-# TODO: this is an image built from this PR https://github.com/celestiaorg/celestia-app/pull/4497
+# TODO: this is an image built from this PR https://github.com/celestiaorg/celestia-app/pull/4497 use a tag instead.
 ARG CELESTIA_VERSION="d433a4c"
 # the docker registry used for the embedded v3 binary.
 ARG CELESTIA_APP_REPOSITORY=ghcr.io/celestiaorg/celestia-app
@@ -32,6 +33,11 @@ FROM --platform=$BUILDPLATFORM ${BUILDER_IMAGE} AS builder
 # must be specified for this build step.
 ARG TARGETOS
 ARG TARGETARCH
+
+# The multiplexer must be built with both TARGETOS and TARGETARCH build argumets
+# as the location of the embedded binary is derived from these values.
+RUN test -n "$TARGETOS" || (echo "TARGETOS is required but not set" && exit 1)
+RUN test -n "$TARGETARCH" || (echo "TARGETARCH is required but not set" && exit 1)
 
 ENV CGO_ENABLED=0
 ENV GO111MODULE=on

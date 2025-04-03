@@ -42,7 +42,6 @@ func MajorUpgradeToV4(logger *log.Logger) error {
 
 	latestVersion, err := testnet.GetLatestVersion()
 	testnet.NoError("failed to get latest version", err)
-	latestVersion = "pr-82"
 
 	consensusParams := app.DefaultConsensusParams()
 	consensusParams.Version.App = 3 // Start the test on v3
@@ -51,13 +50,13 @@ func MajorUpgradeToV4(logger *log.Logger) error {
 	preloader, err := testNet.NewPreloader()
 	testnet.NoError("failed to create preloader", err)
 
-	err = preloader.AddImage(ctx, "ghcr.io/01builders/celestia-app-multiplexer:"+latestVersion)
+	err = preloader.AddImage(ctx, testnet.DockerMultiplexerImageName(latestVersion))
 	testnet.NoError("failed to add image", err)
 	defer func() { _ = preloader.EmptyImages(ctx) }()
 
 	logger.Println("Creating genesis nodes")
 	for i := 0; i < numNodes; i++ {
-		err := testNet.CreateGenesisNode(ctx, latestVersion, 10000000, 0, testnet.DefaultResources, true)
+		err := testNet.CreateGenesisNode(ctx, testnet.DockerMultiplexerImageName(latestVersion), 10000000, 0, testnet.DefaultResources, true)
 		testnet.NoError("failed to create genesis node", err)
 	}
 
@@ -73,7 +72,7 @@ func MajorUpgradeToV4(logger *log.Logger) error {
 
 	logger.Println("Setting up testnet")
 
-	testnet.NoError("Failed to setup testnet", testNet.Setup(ctx, testnet.WithPrometheus(false)))
+	testnet.NoError("Failed to setup testnet", testNet.Setup(ctx, testnet.WithPrometheus(false))) // TODO: re-enable prometheus once fixed in comet
 	logger.Println("Starting testnet")
 	testnet.NoError("Failed to start testnet", testNet.Start(ctx))
 

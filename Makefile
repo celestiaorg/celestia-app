@@ -2,6 +2,8 @@ VERSION := $(shell echo $(shell git describe --tags 2>/dev/null || git log -1 --
 COMMIT := $(shell git rev-parse --short HEAD)
 DOCKER := $(shell which docker)
 PROJECTNAME=$(shell basename "$(PWD)")
+GOOS ?= linux
+GOARCH ?= amd64
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v4
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
@@ -123,7 +125,11 @@ docker-build: build-docker
 
 build-docker-multiplexer:
 	@echo "--> Building Multiplexer Docker image"
-	$(DOCKER) build -t celestiaorg/celestia-app-multiplexer:$(COMMIT) -f docker/multiplexer.Dockerfile .
+	$(DOCKER) build \
+		--build-arg TARGETOS=$(GOOS) \
+		--build-arg TARGETARCH=$(GOARCH) \
+		-t celestiaorg/celestia-app-multiplexer:$(COMMIT) \
+		-f docker/multiplexer.Dockerfile .
 .PHONY: build-docker-multiplexer
 
 

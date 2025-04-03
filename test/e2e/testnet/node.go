@@ -28,16 +28,17 @@ import (
 )
 
 const (
-	rpcPort        = 26657
-	p2pPort        = 26656
-	grpcPort       = 9090
-	prometheusPort = 26660
-	tracingPort    = 26661
-	dockerSrcURL   = "ghcr.io/01builders/celestia-app" // TODO: revert to celestiaorg
-	secp256k1Type  = "secp256k1"
-	ed25519Type    = "ed25519"
-	remoteRootDir  = "/home/celestia/.celestia-app"
-	txsimRootDir   = "/home/celestia"
+	rpcPort                         = 26657
+	p2pPort                         = 26656
+	grpcPort                        = 9090
+	prometheusPort                  = 26660
+	tracingPort                     = 26661
+	celestiaAppDockerSrcURL         = "ghcr.io/01builders/celestia-app"             // TODO: revert to celestiaorg
+	celestiaMultiplexerDockerSrcURL = "ghcr.io/01builders/celestia-app-multiplexer" // TODO: revert to celestiaorg
+	secp256k1Type                   = "secp256k1"
+	ed25519Type                     = "ed25519"
+	remoteRootDir                   = "/home/celestia/.celestia-app"
+	txsimRootDir                    = "/home/celestia"
 )
 
 type Node struct {
@@ -102,7 +103,7 @@ func NewNode(
 	ctx context.Context,
 	logger *log.Logger,
 	name string,
-	version string,
+	image string,
 	startHeight int64,
 	selfDelegation int64,
 	peers []string,
@@ -118,7 +119,7 @@ func NewNode(
 	if err != nil {
 		return nil, err
 	}
-	err = knInstance.Build().SetImage(ctx, "ghcr.io/01builders/celestia-app-multiplexer:"+version)
+	err = knInstance.Build().SetImage(ctx, image)
 	if err != nil {
 		return nil, err
 	}
@@ -402,6 +403,12 @@ func (n *Node) Upgrade(ctx context.Context, version string) error {
 	return n.Instance.Execution().Start(ctx)
 }
 
+// DockerImageName constructs a full Docker image using the default celestia-app image and the specified version.
 func DockerImageName(version string) string {
-	return fmt.Sprintf("%s:%s", dockerSrcURL, version)
+	return fmt.Sprintf("%s:%s", celestiaAppDockerSrcURL, version)
+}
+
+// DockerMultiplexerImageName constructs a full Docker image using the default celestia-app-multiplexer image and the specified version.
+func DockerMultiplexerImageName(version string) string {
+	return fmt.Sprintf("%s:%s", celestiaMultiplexerDockerSrcURL, version)
 }

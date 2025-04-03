@@ -31,6 +31,7 @@ jobs:
     permissions:
       contents: write
       packages: write
+      # TODO: update once https://github.com/celestiaorg/.github/pull/130 is merged.
     uses: chatton/.github/.github/workflows/reusable_dockerfile_pipeline.yml@ebcec699689ec2e5cd0330e50c770416a9e451b0
     with:
       dockerfile: docker/multiplexer.Dockerfile
