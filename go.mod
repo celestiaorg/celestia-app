@@ -295,11 +295,12 @@ require (
 )
 
 replace (
-	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.0.0-20250320145042-6d8b2a52fbb2
-	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.38.11-0.20250321105625-57e36546e8a3 // marko/core_changes_v3
-	// github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.50.0-beta.0.0.20250320145042-6d8b2a52fbb2 // release/v0.50.x-celestia
-	// TODO: temporarily pinned to https://github.com/celestiaorg/cosmos-sdk/pull/435
-	github.com/cosmos/cosmos-sdk => github.com/01builders/cosmos-sdk v0.0.0-20250326090942-c30caa50cbee
+	// x/upgrade: release/v0.50.x-celestia
+	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.0.0-20250402072731-9d04f7ac424a
+	// celestia-core: release/v0.38.x-celestia
+	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.38.11-0.20250331172655-bbd3b9bdd1ee
+	// cosmos-sdk: release/v0.50.x-celestia
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.50.0-beta.0.0.20250402072731-9d04f7ac424a
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.45.0-tm-v0.34.35
 )
