@@ -137,7 +137,7 @@ func DefaultConfig() *Config {
 		WithAppCreator(DefaultAppCreator()).
 		WithAppConfig(DefaultAppConfig()).
 		WithAppOptions(DefaultAppOptions()).
-		WithSuppressLogs(true)
+		WithSuppressLogs(false)
 }
 
 func DefaultConsensusParams() *tmproto.ConsensusParams {
@@ -172,7 +172,7 @@ func DefaultAppCreator(opts ...AppCreationOptions) srvtypes.AppCreator {
 		app := app.New(
 			log.NewNopLogger(),
 			dbm.NewMemDB(),
-			nil, // trace store
+			nil,                                               // trace store
 			appOptions.Get(TimeoutCommitFlag).(time.Duration), // timeout commit
 			simtestutil.EmptyAppOptions{},
 			baseAppOptions...,

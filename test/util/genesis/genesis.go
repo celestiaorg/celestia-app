@@ -219,7 +219,7 @@ func (g *Genesis) getGenTxs() ([]json.RawMessage, error) {
 			return nil, err
 		}
 
-		gentxs = append(gentxs, bz)
+		gentxs = append(gentxs, json.RawMessage(bz))
 	}
 	return gentxs, nil
 }
