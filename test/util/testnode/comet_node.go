@@ -28,6 +28,7 @@ func NewCometNode(baseDir string, config *UniversalTestingConfig) (*node.Node, s
 	}
 
 	config.AppOptions.Set(flags.FlagHome, baseDir)
+	config.AppOptions.Set(TimeoutCommitFlag, config.TmConfig.Consensus.TimeoutCommit)
 	app := config.AppCreator(logger, db, nil, config.AppOptions)
 
 	nodeKey, err := p2p.LoadOrGenNodeKey(config.TmConfig.NodeKeyFile())

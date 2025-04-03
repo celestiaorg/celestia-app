@@ -15,10 +15,11 @@ var (
 	DefaultTxSizeCostPerByte    = v4.TxSizeCostPerByte
 	DefaultGasPerBlobByte       = v4.GasPerBlobByte
 	DefaultVersion              = v4.Version
-	DefaultTimeoutCommit        = v4.TimeoutCommit
 	DefaultUpgradeHeightDelay   = v4.UpgradeHeightDelay
 	DefaultMaxTxSize            = v4.MaxTxSize
 	SubtreeRootThreshold        = v4.SubtreeRootThreshold
+	TimeoutCommit               = v4.TimeoutCommit
+	TimeoutPropose              = v4.TimeoutPropose
 )
 
 func GetTimeoutCommit(_ uint64) time.Duration {

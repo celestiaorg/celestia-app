@@ -26,6 +26,8 @@ const (
 	mebibyte                    = 1_048_576 // bytes
 	DefaultValidatorAccountName = "validator"
 	DefaultInitialBalance       = genesis.DefaultInitialBalance
+	// TimeoutCommit is a flag that can be used to override the timeout_commit.
+	TimeoutCommitFlag = "timeout-commit"
 )
 
 type UniversalTestingConfig struct {
@@ -171,7 +173,7 @@ func DefaultAppCreator(opts ...AppCreationOptions) srvtypes.AppCreator {
 			log.NewNopLogger(),
 			dbm.NewMemDB(),
 			nil, // trace store
-			0,   // timeout commit
+			appOptions.Get(TimeoutCommitFlag).(time.Duration), // timeout commit
 			simtestutil.EmptyAppOptions{},
 			baseAppOptions...,
 		)
