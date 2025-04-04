@@ -44,10 +44,6 @@ func TestNew(t *testing.T) {
 		// will panic.
 		assert.Panics(t, func() { got.StakingKeeper.SetHooks(nil) })
 	})
-	// TODO: baseapp is now sealed in baseapp.Init() called by LoadLatestVersion in app.go
-	// t.Run("should not have sealed the baseapp", func(t *testing.T) {
-	// 	assert.False(t, got.IsSealed())
-	// })
 	t.Run("should have set the minfee key table", func(t *testing.T) {
 		subspace := got.GetSubspace(minfeetypes.ModuleName)
 		hasKeyTable := subspace.HasKeyTable()
@@ -73,12 +69,6 @@ func TestInitChain(t *testing.T) {
 		wantPanic bool
 	}
 	testCases := []testCase{
-		// TODO: don't think we want this?
-		// {
-		// 	name:      "should panic if consensus params not set",
-		// 	request:   abci.RequestInitChain{},
-		// 	wantPanic: true,
-		// },
 		{
 			name: "should not panic on a genesis that does not contain an app version",
 			request: abci.RequestInitChain{

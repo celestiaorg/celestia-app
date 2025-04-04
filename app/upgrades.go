@@ -72,7 +72,6 @@ func (app App) RegisterUpgradeHandlers() {
 			keyTable, set = minfeetypes.ParamKeyTable(), true //nolint:staticcheck
 		default:
 			set = false
-			// TODO add params migration for celestia modules after https://linear.app/binarybuilders/issue/CEL-5
 		}
 
 		if !subspace.HasKeyTable() && set {
