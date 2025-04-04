@@ -23,7 +23,7 @@ var (
 )
 
 func GetTimeoutCommit(_ uint64) time.Duration {
-	return v4.TimeoutCommit // TODO: remove this fn currently just used in tests, those tests should fail with this currently logic.
+	return v4.TimeoutCommit
 }
 
 // UpgradeHeightDelay returns the delay in blocks after a quorum has been reached that the chain should upgrade to the new version.
