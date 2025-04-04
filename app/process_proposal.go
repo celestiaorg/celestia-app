@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v3/app/ante"
+	apperr "github.com/celestiaorg/celestia-app/v3/app/errors"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/da"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
@@ -54,10 +56,21 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 	sdkCtx := app.NewProposalContext(req.Header)
 	subtreeRootThreshold := appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion())
 
-	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed and non
-	// blobTxs have no PFBs present
+	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
+	// blobTxs have no PFBs present and all txs are less than or equal to the max tx size limit
 	for idx, rawTx := range req.BlockData.Txs {
 		tx := rawTx
+
+		// all txs must be less than or equal to the max tx size limit for app version v4 and greater
+		if app.AppVersion() >= v4 {
+			maxTxSize := appconsts.MaxTxSize(app.AppVersion())
+			currentTxSize := len(tx)
+			if currentTxSize > maxTxSize {
+				logInvalidPropBlockError(app.Logger(), req.Header, fmt.Sprintf("err with tx %d", idx), errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes for version %d", currentTxSize, maxTxSize, app.AppVersion()))
+				return reject()
+			}
+		}
+
 		blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(rawTx)
 		if isBlobTx {
 			if err != nil {
@@ -67,12 +80,9 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 			tx = blobTx.Tx
 		}
 
-		// todo: uncomment once we're sure this isn't consensus breaking
-		// sdkCtx = sdkCtx.WithTxBytes(tx)
-
 		sdkTx, err := app.txConfig.TxDecoder()(tx)
-		// Set the tx bytes in the context for app version v3 and greater
-		if sdkCtx.BlockHeader().Version.App >= 3 {
+		// Set the SDK tx bytes in the context for app version v3 and greater
+		if sdkCtx.BlockHeader().Version.App >= v3 {
 			sdkCtx = sdkCtx.WithTxBytes(tx)
 		}
 
