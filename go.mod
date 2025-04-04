@@ -296,11 +296,13 @@ require (
 
 replace (
 	// x/upgrade: release/v0.50.x-celestia
-	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.0.0-20250402072731-9d04f7ac424a
-	// celestia-core: release/v0.38.x-celestia
-	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.38.11-0.20250331172655-bbd3b9bdd1ee
+	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.0.0-20250404104218-ebcbe9dbe555
+	// celestia-core: v1.52.0-tm-v0.38.17
+	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.52.0-tm-v0.38.17
 	// cosmos-sdk: release/v0.50.x-celestia
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.50.0-beta.0.0.20250402072731-9d04f7ac424a
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.50.0-beta.0.0.20250404104218-ebcbe9dbe555
+	// goleveldb: cannonical version
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
+	// celestia-core(v0.34.x): used for multiplexing abci v1 requests
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.45.0-tm-v0.34.35
 )
