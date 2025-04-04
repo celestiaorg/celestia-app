@@ -172,7 +172,7 @@ Merkle trees are used to authenticate various pieces of data across the Celestia
 
 ### Binary Merkle Tree
 
-Binary Merkle trees are constructed in the same fashion as described in [Certificate Transparency (RFC-6962)](https://tools.ietf.org/html/rfc6962), except for using [a different hashing function](#hashing). Leaves are hashed once to get leaf node values and internal node values are the hash of the concatenation of their children (either leaf nodes or other internal nodes).
+Binary Merkle trees are constructed in the same fashion as described in [Certificate Transparency (RFC-6962)](https://datatracker.ietf.org/doc/html/rfc6962), except for using [a different hashing function](#hashing). Leaves are hashed once to get leaf node values and internal node values are the hash of the concatenation of their children (either leaf nodes or other internal nodes).
 
 Nodes contain a single field:
 
