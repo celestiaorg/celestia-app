@@ -2,6 +2,8 @@ module github.com/celestiaorg/celestia-app/v3
 
 go 1.23.6
 
+toolchain go1.24.1
+
 require (
 	cosmossdk.io/errors v1.0.2
 	cosmossdk.io/math v1.5.1
@@ -17,7 +19,7 @@ require (
 	github.com/cosmos/gogoproto v1.7.0
 	github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6 v6.1.2
 	github.com/cosmos/ibc-go/v6 v6.2.2
-	github.com/ethereum/go-ethereum v1.15.6
+	github.com/ethereum/go-ethereum v1.15.7
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.4
