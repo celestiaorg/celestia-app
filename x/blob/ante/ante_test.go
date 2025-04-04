@@ -1,6 +1,7 @@
 package ante_test
 
 import (
+	"math"
 	"testing"
 
 	"cosmossdk.io/log"
@@ -8,6 +9,8 @@ import (
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proto/tendermint/version"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/go-square/v2/share"
@@ -109,6 +112,7 @@ func TestPFBAnteHandler(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			anteHandler := ante.NewMinGasPFBDecorator(mockBlobKeeper{})
 			header := tmproto.Header{
+				Height: 1,
 				Version: version.Consensus{
 					App: appconsts.LatestVersion,
 				},
@@ -129,6 +133,49 @@ func TestPFBAnteHandler(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestMinGasPFBDecoratorWithMsgExec tests that the MinGasPFBDecorator rejects a
+// MsgExec that contains a MsgExec with a MsgPayForBlob where the MsgPayForBlob
+// gas cost is greater than the tx's gas limit.
+func TestMinGasPFBDecoratorWithMsgExec(t *testing.T) {
+	anteHandler := ante.NewMinGasPFBDecorator(mockBlobKeeper{})
+	txConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig
+
+	// Create a context with a gas meter with a high gas limit
+	gasLimit := uint64(100_000_000)
+	ctx := sdk.NewContext(nil, tmproto.Header{
+		Version: version.Consensus{
+			App: appconsts.LatestVersion,
+		},
+		Height: 1,
+	}, true, nil).WithGasMeter(storetypes.NewGasMeter(gasLimit)).WithIsCheckTx(true)
+
+	// Build a tx with a MsgExec containing a MsgPayForBlobs with a huge gas cost
+	txBuilder := txConfig.NewTxBuilder()
+	msgExec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{
+		&blob.MsgPayForBlobs{
+			Signer:    "celestia...",
+			BlobSizes: []uint32{uint32(math.MaxUint32)},
+		},
+	})
+	require.NoError(t, txBuilder.SetMsgs(&msgExec))
+	tx := txBuilder.GetTx()
+
+	// Run the ante handler
+	_, err := anteHandler.AnteHandle(ctx, tx, false, mockNext)
+	require.Error(t, err)
+	require.ErrorIs(t, err, sdkerrors.ErrInsufficientFee)
+
+	// Create a MsgExec that wraps a MsgExec that contains a MsgPayForBlobs with a huge gas cost
+	nestedMsgExec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&msgExec})
+	require.NoError(t, txBuilder.SetMsgs(&nestedMsgExec))
+	tx = txBuilder.GetTx()
+
+	// Run the ante handler
+	_, err = anteHandler.AnteHandle(ctx, tx, false, mockNext)
+	require.Error(t, err)
+	require.ErrorIs(t, err, sdkerrors.ErrInsufficientFee)
 }
 
 type mockBlobKeeper struct{}

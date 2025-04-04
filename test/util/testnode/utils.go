@@ -94,8 +94,8 @@ func GenerateAccounts(count int) []string {
 	return accs
 }
 
-// getFreePort returns a free port and optionally an error.
-func getFreePort() (int, error) {
+// GetFreePort returns a free port and optionally an error.
+func GetFreePort() (int, error) {
 	a, err := net.ResolveTCPAddr("tcp", "localhost:0")
 	if err != nil {
 		return 0, err
@@ -112,7 +112,7 @@ func getFreePort() (int, error) {
 // mustGetFreePort returns a free port. Panics if no free ports are available or
 // an error is encountered.
 func mustGetFreePort() int {
-	port, err := getFreePort()
+	port, err := GetFreePort()
 	if err != nil {
 		panic(err)
 	}

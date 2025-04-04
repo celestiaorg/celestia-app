@@ -39,3 +39,8 @@ func StrR(r *rand.Rand, n int) string {
 	}
 	return string(bz)
 }
+
+// Float64 generates a random float64 using stdlib math/rand.
+func Float64() float64 {
+	return rand.Float64()
+}
