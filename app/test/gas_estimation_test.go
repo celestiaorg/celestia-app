@@ -205,7 +205,6 @@ func TestEstimateGasUsed(t *testing.T) {
 	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	txClient, err := user.SetupTxClient(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, enc)
 	require.NoError(t, err)
-	txClient.SetGasMultiplier(1)
 	addr := testfactory.GetAddress(cctx.Keyring, "test")
 
 	// create a transfer transaction

@@ -1,8 +1,11 @@
 package ante
 
 import (
+	"math"
+
 	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 
 	"github.com/celestiaorg/go-square/v2/share"
 
@@ -29,16 +32,42 @@ func (d BlobShareDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 		return next(ctx, tx, simulate)
 	}
 
+	txBytes := ctx.TxBytes()
+	if len(txBytes) > math.MaxUint32 {
+		return ctx, errors.Wrapf(blobtypes.ErrBlobsTooLarge, "the tx size %d exceeds the max uint32", txBytes)
+	}
+	txSize := uint32(len(txBytes))
 	maxBlobShares := d.getMaxBlobShares(ctx)
-	for _, m := range tx.GetMsgs() {
-		if pfb, ok := m.(*blobtypes.MsgPayForBlobs); ok {
-			if sharesNeeded := getSharesNeeded(uint32(len(ctx.TxBytes())), pfb.BlobSizes); sharesNeeded > maxBlobShares {
-				return ctx, errors.Wrapf(blobtypes.ErrBlobsTooLarge, "the number of shares occupied by blobs in this MsgPayForBlobs %d exceeds the max number of shares available for blob data %d", sharesNeeded, maxBlobShares)
-			}
-		}
+
+	err := d.validateMsgs(tx.GetMsgs(), txSize, maxBlobShares)
+	if err != nil {
+		return ctx, err
 	}
 
 	return next(ctx, tx, simulate)
+}
+
+func (d BlobShareDecorator) validateMsgs(msgs []sdk.Msg, txSize uint32, maxBlobShares int) error {
+	for _, m := range msgs {
+		if execMsg, ok := m.(*authz.MsgExec); ok {
+			// Recursively look for PFBs in nested authz messages.
+			nestedMsgs, err := execMsg.GetMessages()
+			if err != nil {
+				return err
+			}
+			err = d.validateMsgs(nestedMsgs, txSize, maxBlobShares)
+			if err != nil {
+				return err
+			}
+		}
+
+		if pfb, ok := m.(*blobtypes.MsgPayForBlobs); ok {
+			if sharesNeeded := getSharesNeeded(txSize, pfb.BlobSizes); sharesNeeded > maxBlobShares {
+				return errors.Wrapf(blobtypes.ErrBlobsTooLarge, "the number of shares occupied by blobs in this MsgPayForBlobs %d exceeds the max number of shares available for blob data %d", sharesNeeded, maxBlobShares)
+			}
+		}
+	}
+	return nil
 }
 
 // getMaxBlobShares returns the max the number of shares available for blob data.

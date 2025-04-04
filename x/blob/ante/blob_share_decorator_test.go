@@ -1,9 +1,13 @@
 package ante_test
 
 import (
+	"math"
 	"testing"
 
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cometbft/cometbft/proto/tendermint/version"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -12,6 +16,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/random"
@@ -135,6 +140,39 @@ func TestBlobShareDecorator(t *testing.T) {
 			assert.ErrorIs(t, tc.wantErr, err)
 		})
 	}
+}
+
+func TestBlobShareDecoratorWithMsgExec(t *testing.T) {
+	decorator := ante.NewBlobShareDecorator(mockBlobKeeper{})
+	ctx := sdk.Context{}.
+		WithIsCheckTx(true).
+		WithBlockHeader(tmproto.Header{Version: version.Consensus{App: appconsts.LatestVersion}})
+
+	txConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig
+	txBuilder := txConfig.NewTxBuilder()
+	// Create a tx with a MsgExec that contains a MsgPayForBlobs with a huge
+	// blob that can not fit in a square.
+	msgExec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{
+		&blob.MsgPayForBlobs{
+			Signer:    "celestia...",
+			BlobSizes: []uint32{uint32(math.MaxUint32)},
+		},
+	})
+	require.NoError(t, txBuilder.SetMsgs(&msgExec))
+	tx := txBuilder.GetTx()
+
+	_, err := decorator.AnteHandle(ctx, tx, false, mockNext)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, blob.ErrBlobsTooLarge)
+
+	// Create a MsgExec that wraps a MsgExec that contains a MsgPayForBlobs with a huge
+	// blob that can not fit in a square.
+	nestedMsgExec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&msgExec})
+	require.NoError(t, txBuilder.SetMsgs(&nestedMsgExec))
+	tx = txBuilder.GetTx()
+	_, err = decorator.AnteHandle(ctx, tx, false, mockNext)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, blob.ErrBlobsTooLarge)
 }
 
 func mockNext(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {

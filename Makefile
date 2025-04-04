@@ -114,6 +114,7 @@ proto-update-deps:
 
 .PHONY: proto-all proto-deps proto-gen proto-format proto-lint proto-check-breaking proto-update-deps
 
+## build-docker: Build the celestia-appd Docker image using the local Dockerfile.
 build-docker:
 	@echo "--> Building Docker image"
 	$(DOCKER) build -t celestiaorg/celestia-app -f docker/Dockerfile .
@@ -132,7 +133,7 @@ build-docker-multiplexer:
 		-f docker/multiplexer.Dockerfile .
 .PHONY: build-docker-multiplexer
 
-
+## build-ghcr-docker: Build the celestia-appd Docker image tagged with the current commit hash for GitHub Container Registry.
 build-ghcr-docker:
 	@echo "--> Building Docker image"
 	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app:$(COMMIT) -f docker/Dockerfile .
@@ -142,6 +143,7 @@ build-ghcr-docker:
 docker-build-ghcr: build-ghcr-docker
 .PHONY: docker-build-ghcr
 
+## publish-ghcr-docker: Push the celestia-appd Docker image to GitHub Container Registry with the current commit tag.
 publish-ghcr-docker:
 # Make sure you are logged in and authenticated to the ghcr.io registry.
 	@echo "--> Publishing Docker image"
@@ -165,6 +167,7 @@ lint:
 	@yamllint --no-warnings . -c .yamllint.yml
 .PHONY: lint
 
+## markdown-link-check: Check all links in markdown files for validity.
 markdown-link-check:
 	@echo "--> Running markdown-link-check"
 	@find . -name \*.md -print0 | xargs -0 -n1 markdown-link-check
@@ -174,7 +177,7 @@ markdown-link-check:
 lint-links: markdown-link-check
 .PHONY: lint-links
 
-
+## fmt: Format Go code with golangci-lint and markdown files with markdownlint.
 fmt:
 	@echo "--> Running golangci-lint --fix"
 	@golangci-lint run --fix
@@ -209,7 +212,7 @@ test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice"
+	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService"
 .PHONY: test-race
 
 ## test-bench: Run unit tests in bench mode.
@@ -273,6 +276,7 @@ goreleaser-check:
 		check
 .PHONY: goreleaser-check
 
+## prebuilt-binary: Create prebuilt binaries for all supported platforms using goreleaser. Used by the goreleaser target.
 prebuilt-binary:
 	@if [ ! -f ".release-env" ]; then \
 		echo "A .release-env file was not found but is required to create prebuilt binaries. This command is expected to be run in CI where a .release-env file exists. If you need to run this command locally to attach binaries to a release, you need to create a .release-env file with a Github token (classic) that has repo:public_repo scope."; \
@@ -294,6 +298,7 @@ prebuilt-binary:
 goreleaser: prebuilt-binary
 .PHONY: goreleaser
 
+## check-bbr: Internal command to check if BBR congestion control is enabled on the system.
 check-bbr:
 	@echo "Checking if BBR is enabled..."
 	@if [ "$$(sysctl net.ipv4.tcp_congestion_control | awk '{print $$3}')" != "bbr" ]; then \
@@ -307,6 +312,7 @@ check-bbr:
 bbr-check: check-bbr
 .PHONY: bbr-check
 
+## enable-bbr: Enable BBR congestion control algorithm on your system. This improves network performance. Only works on Linux.
 enable-bbr:
 	@echo "Configuring system to use BBR..."
 	@if [ "$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')" != "bbr" ]; then \
@@ -326,6 +332,7 @@ enable-bbr:
 bbr-enable: enable-bbr
 .PHONY: bbr-enable
 
+## disable-bbr: Disable BBR congestion control algorithm and revert to default (Cubic). Only works on Linux.
 disable-bbr:
 	@echo "Disabling BBR and reverting to default congestion control algorithm..."
 	@if [ "$$(sysctl net.ipv4.tcp_congestion_control | awk '{print $$3}')" = "bbr" ]; then \
@@ -345,6 +352,7 @@ disable-bbr:
 bbr-disable: disable-bbr
 .PHONY: bbr-disable
 
+## enable-mptcp: Enable Multi-Path TCP over multiple ports (not interfaces). Improves connection reliability and throughput. Only works on Linux Kernel 5.6+.
 enable-mptcp:
 	@echo "Configuring system to use mptcp..."
 	@sudo sysctl -w net.mptcp.enabled=1
@@ -361,6 +369,7 @@ enable-mptcp:
 mptcp-enable: enable-mptcp
 .PHONY: mptcp-enable
 
+## disable-mptcp: Disable Multi-Path TCP and revert to standard TCP. Removes all MPTCP settings from system. Only works on Linux Kernel 5.6+.
 disable-mptcp:
 	@echo "Disabling MPTCP..."
 	@sudo sysctl -w net.mptcp.enabled=0

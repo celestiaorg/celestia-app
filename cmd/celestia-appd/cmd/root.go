@@ -115,6 +115,7 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 	debugCmd.AddCommand(
 		NewInPlaceTestnetCmd(),
 		AppGenesisToCometGenesisConverterCmd(),
+		server.ModuleHashByHeightQuery(NewAppServer),
 	)
 
 	rootCommand.AddCommand(

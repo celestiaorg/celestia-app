@@ -2,6 +2,9 @@ package user_test
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"net"
 	"testing"
 	"time"
 
@@ -15,6 +18,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
@@ -230,12 +235,35 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 	})
 }
 
-func (suite *TxClientTestSuite) TestGasEstimation() {
+// TestWithEstimatorService ensures that if the WithEstimatorService
+// option is provided to the tx client, the separate gas estimator service is
+// used to estimate gas price and usage instead of the default connection.
+func TestWithEstimatorService(t *testing.T) {
+	mockEstimator := setupEstimatorService(t)
+	_, txClient, ctx := setupTxClient(t, user.WithEstimatorService(mockEstimator.conn))
+
+	msg := bank.NewMsgSend(txClient.DefaultAddress(), testnode.RandomAddress().(sdk.AccAddress),
+		sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
+	price, used, err := txClient.EstimateGasPriceAndUsage(ctx.GoContext(), []sdk.Msg{msg}, 1)
+	require.NoError(t, err)
+
+	assert.Equal(t, 0.02, price)
+	assert.Equal(t, uint64(70000), used)
+}
+
+func (suite *TxClientTestSuite) TestGasPriceAndUsageEstimation() {
 	addr := suite.txClient.DefaultAddress()
 	msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
-	gas, err := suite.txClient.EstimateGas(suite.ctx.GoContext(), []sdk.Msg{msg})
+	gasPrice, gasUsage, err := suite.txClient.EstimateGasPriceAndUsage(suite.ctx.GoContext(), []sdk.Msg{msg}, 1)
 	require.NoError(suite.T(), err)
-	require.Greater(suite.T(), gas, uint64(0))
+	require.Greater(suite.T(), gasPrice, float64(0))
+	require.Greater(suite.T(), gasUsage, uint64(0))
+}
+
+func (suite *TxClientTestSuite) TestGasPriceEstimation() {
+	gasPrice, err := suite.txClient.EstimateGasPrice(suite.ctx.GoContext(), 0)
+	require.NoError(suite.T(), err)
+	require.Equal(suite.T(), gasPrice, appconsts.DefaultMinGasPrice)
 }
 
 // TestGasConsumption verifies that the amount deducted from a user's balance is
@@ -313,8 +341,10 @@ func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash, expected
 	require.Equal(t, seqAfterBroadcast, seqBeforeBroadcast+1)
 }
 
-func setupTxClient(t *testing.T) (encoding.Config, *user.TxClient, testnode.Context) {
-	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+func setupTxClient(
+	t *testing.T,
+	opts ...user.Option,
+) (encoding.Config, *user.TxClient, testnode.Context) {
 	defaultTmConfig := testnode.DefaultTendermintConfig()
 
 	chainID := unsafe.Str(6)
@@ -328,33 +358,63 @@ func setupTxClient(t *testing.T) (encoding.Config, *user.TxClient, testnode.Cont
 	ctx, _, _ := testnode.NewNetwork(t, testnodeConfig)
 	_, err := ctx.WaitForHeight(1)
 	require.NoError(t, err)
-	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, enc, user.WithGasMultiplier(1.2))
+	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+
+	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, enc, opts...)
 	require.NoError(t, err)
+
 	return enc, txClient, ctx
 }
 
-func (suite *TxClientTestSuite) TestGasPriceAndUsedEstimate() {
-	t := suite.T()
-	ctx := context.Background()
-	signer := suite.txClient.Signer()
+type mockEstimatorServer struct {
+	*gasestimation.UnimplementedGasEstimatorServer
+	srv  *grpc.Server
+	conn *grpc.ClientConn
+	addr string
+}
 
-	t.Run("query the gas price from the app gRPC", func(t *testing.T) {
-		gasPrice, err := signer.QueryGasPrice(ctx, suite.ctx.GRPCClient, gasestimation.TxPriority_TX_PRIORITY_HIGH)
-		assert.NoError(t, err)
-		assert.Greater(t, gasPrice, float64(0))
-	})
+func (m *mockEstimatorServer) EstimateGasPriceAndUsage(
+	context.Context,
+	*gasestimation.EstimateGasPriceAndUsageRequest,
+) (*gasestimation.EstimateGasPriceAndUsageResponse, error) {
+	return &gasestimation.EstimateGasPriceAndUsageResponse{
+		EstimatedGasPrice: 0.02,
+		EstimatedGasUsed:  70000,
+	}, nil
+}
 
-	t.Run("query the gas price and gas used from the app gRPC", func(t *testing.T) {
-		msg := bank.NewMsgSend(
-			suite.txClient.DefaultAddress(),
-			testnode.RandomAddress().(sdk.AccAddress),
-			sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)),
-		)
-		rawTx, _, err := signer.CreateTx([]sdk.Msg{msg})
+func (m *mockEstimatorServer) stop() {
+	m.srv.GracefulStop()
+}
+
+func setupEstimatorService(t *testing.T) *mockEstimatorServer {
+	t.Helper()
+
+	freePort, err := testnode.GetFreePort()
+	require.NoError(t, err)
+	addr := fmt.Sprintf(":%d", freePort)
+	net, err := net.Listen("tcp", addr)
+	require.NoError(t, err)
+
+	grpcServer := grpc.NewServer()
+	mes := &mockEstimatorServer{srv: grpcServer, addr: addr}
+	gasestimation.RegisterGasEstimatorServer(grpcServer, mes)
+
+	go func() {
+		err := grpcServer.Serve(net)
+		if err != nil && !errors.Is(err, grpc.ErrServerStopped) {
+			panic(err)
+		}
+	}()
+
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		err = conn.Close()
 		require.NoError(t, err)
-		gasPrice, gasUsed, err := signer.QueryGasUsedAndPrice(ctx, suite.ctx.GRPCClient, gasestimation.TxPriority_TX_PRIORITY_HIGH, rawTx)
-		assert.NoError(t, err)
-		assert.Greater(t, gasPrice, float64(0))
-		assert.Greater(t, gasUsed, uint64(0))
 	})
+	mes.conn = conn
+
+	t.Cleanup(mes.stop)
+	return mes
 }

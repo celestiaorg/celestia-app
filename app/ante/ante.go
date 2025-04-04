@@ -63,6 +63,9 @@ func NewAnteHandler(
 		// account sequence number of the signer.
 		// Note: does not consume gas from the gas meter.
 		ante.NewSigVerificationDecorator(accountKeeper, signModeHandler),
+		// Ensure that the tx does not contain a MsgExec with a nested MsgExec
+		// or MsgPayForBlobs.
+		NewMsgExecDecorator(),
 		// Ensure that the tx's gas limit is > the gas consumed based on the blob size(s).
 		// Contract: must be called after all decorators that consume gas.
 		// Note: does not consume gas from the gas meter.
