@@ -17,15 +17,16 @@ func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 	registry.RegisterImplementations((*sdk.Msg)(nil),
 		&MsgPayForBlobs{},
+		&MsgUpdateBlobParams{},
 	)
 
 	registry.RegisterInterface(
 		"cosmos.auth.v1beta1.BaseAccount",
-		(*authtypes.AccountI)(nil),
+		(*sdk.AccountI)(nil),
 	)
 
 	registry.RegisterImplementations(
-		(*authtypes.AccountI)(nil),
+		(*sdk.AccountI)(nil),
 		&authtypes.BaseAccount{},
 	)
 

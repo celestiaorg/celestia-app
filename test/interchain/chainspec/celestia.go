@@ -3,10 +3,10 @@ package chainspec
 import (
 	"testing"
 
-	"github.com/strangelove-ventures/interchaintest/v6"
-	"github.com/strangelove-ventures/interchaintest/v6/chain/cosmos"
-	"github.com/strangelove-ventures/interchaintest/v6/ibc"
-	"github.com/strangelove-ventures/interchaintest/v6/testutil"
+	"github.com/strangelove-ventures/interchaintest/v8"
+	"github.com/strangelove-ventures/interchaintest/v8/chain/cosmos"
+	"github.com/strangelove-ventures/interchaintest/v8/ibc"
+	"github.com/strangelove-ventures/interchaintest/v8/testutil"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
@@ -42,7 +42,6 @@ var celestia = &interchaintest.ChainSpec{
 	},
 	NumValidators: numValidators(),
 	NumFullNodes:  numFullNodes(),
-	GasAdjustment: gasAdjustment(),
 }
 
 func celestiaDockerImages() []ibc.DockerImage {

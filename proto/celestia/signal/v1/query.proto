@@ -10,26 +10,26 @@ option go_package = "github.com/celestiaorg/celestia-app/x/signal/types";
 service Query {
   // VersionTally enables a client to query for the tally of voting power that
   // has signalled for a particular version.
-  rpc VersionTally(QueryVersionTallyRequest)
-      returns (QueryVersionTallyResponse) {
+  rpc VersionTally(QueryVersionTallyRequest) returns (QueryVersionTallyResponse) {
     option (google.api.http).get = "/signal/v1/tally/{version}";
   }
 
-  // GetUpgrade enables a client to query for upgrade information if an upgrade is pending.
-  // The response will be empty if no upgrade is pending.
-  rpc GetUpgrade(QueryGetUpgradeRequest)
-      returns (QueryGetUpgradeResponse) {
+  // GetUpgrade enables a client to query for upgrade information if an upgrade
+  // is pending. The response will be empty if no upgrade is pending.
+  rpc GetUpgrade(QueryGetUpgradeRequest) returns (QueryGetUpgradeResponse) {
     option (google.api.http).get = "/signal/v1/upgrade";
   }
 }
 
 // QueryVersionTallyRequest is the request type for the VersionTally query.
-message QueryVersionTallyRequest { uint64 version = 1; }
+message QueryVersionTallyRequest {
+  uint64 version = 1;
+}
 
 // QueryVersionTallyResponse is the response type for the VersionTally query.
 message QueryVersionTallyResponse {
-  uint64 voting_power = 1;
-  uint64 threshold_power = 2;
+  uint64 voting_power       = 1;
+  uint64 threshold_power    = 2;
   uint64 total_voting_power = 3;
 }
 

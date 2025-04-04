@@ -5,19 +5,20 @@ import (
 	"io"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
+	"cosmossdk.io/log"
+	tmconfig "github.com/cometbft/cometbft/config"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cometbft/cometbft/types"
+	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/server"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
-	"github.com/cosmos/cosmos-sdk/simapp"
-	tmconfig "github.com/tendermint/tendermint/config"
-	"github.com/tendermint/tendermint/libs/log"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/types"
-	tmdb "github.com/tendermint/tm-db"
+	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
 )
 
 const (
@@ -25,6 +26,8 @@ const (
 	mebibyte                    = 1_048_576 // bytes
 	DefaultValidatorAccountName = "validator"
 	DefaultInitialBalance       = genesis.DefaultInitialBalance
+	// TimeoutCommit is a flag that can be used to override the timeout_commit.
+	TimeoutCommitFlag = "timeout-commit"
 )
 
 type UniversalTestingConfig struct {
@@ -85,7 +88,8 @@ func (c *Config) WithSuppressLogs(sl bool) *Config {
 // WithTimeoutCommit sets the timeout commit in the cometBFT config and returns
 // the Config.
 func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
-	return c.WithAppCreator(DefaultAppCreator(WithTimeoutCommit(d)))
+	c.TmConfig.Consensus.TimeoutCommit = d
+	return c
 }
 
 // WithFundedAccounts sets the genesis accounts and returns the Config.
@@ -130,18 +134,18 @@ func DefaultConfig() *Config {
 				WithConsensusParams(DefaultConsensusParams()),
 		).
 		WithTendermintConfig(DefaultTendermintConfig()).
+		WithAppCreator(DefaultAppCreator()).
 		WithAppConfig(DefaultAppConfig()).
 		WithAppOptions(DefaultAppOptions()).
-		WithTimeoutCommit(time.Millisecond * 30).
 		WithSuppressLogs(true)
 }
 
 func DefaultConsensusParams() *tmproto.ConsensusParams {
 	cparams := types.DefaultConsensusParams()
-	cparams.Block.TimeIotaMs = 1
 	cparams.Block.MaxBytes = appconsts.DefaultMaxBytes
-	cparams.Version.AppVersion = appconsts.LatestVersion
-	return cparams
+	cparams.Version.App = appconsts.LatestVersion
+	params := cparams.ToProto()
+	return &params
 }
 
 func DefaultTendermintConfig() *tmconfig.Config {
@@ -160,25 +164,18 @@ func DefaultTendermintConfig() *tmconfig.Config {
 
 type AppCreationOptions func(app *app.App)
 
-func WithTimeoutCommit(d time.Duration) AppCreationOptions {
-	return func(app *app.App) {
-		app.SetEndBlocker(wrapEndBlocker(app, d))
-	}
-}
-
 func DefaultAppCreator(opts ...AppCreationOptions) srvtypes.AppCreator {
-	return func(_ log.Logger, _ tmdb.DB, _ io.Writer, _ srvtypes.AppOptions) srvtypes.Application {
-		encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	return func(_ log.Logger, _ dbm.DB, _ io.Writer, appOptions srvtypes.AppOptions) srvtypes.Application {
+		baseAppOptions := server.DefaultBaseappOptions(appOptions)
+		baseAppOptions = append(baseAppOptions, baseapp.SetMinGasPrices(fmt.Sprintf("%v%v", appconsts.DefaultMinGasPrice, appconsts.BondDenom)))
+
 		app := app.New(
 			log.NewNopLogger(),
-			tmdb.NewMemDB(),
+			dbm.NewMemDB(),
 			nil, // trace store
-			0,   // invCheckPeriod
-			encodingConfig,
-			0, // v2 upgrade height
-			0, // timeout commit
-			simapp.EmptyAppOptions{},
-			baseapp.SetMinGasPrices(fmt.Sprintf("%v%v", appconsts.DefaultMinGasPrice, app.BondDenom)),
+			appOptions.Get(TimeoutCommitFlag).(time.Duration), // timeout commit
+			simtestutil.EmptyAppOptions{},
+			baseAppOptions...,
 		)
 
 		for _, opt := range opts {
@@ -189,22 +186,18 @@ func DefaultAppCreator(opts ...AppCreationOptions) srvtypes.AppCreator {
 	}
 }
 
-func CustomAppCreator(minGasPrice string) srvtypes.AppCreator {
-	return func(_ log.Logger, _ tmdb.DB, _ io.Writer, _ srvtypes.AppOptions) srvtypes.Application {
-		encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-		app := app.New(
+// CustomAppCreator creates a custom application instance using provided baseapp options.
+// Returns a function that initializes the app.
+func CustomAppCreator(appOptions ...func(*baseapp.BaseApp)) srvtypes.AppCreator {
+	return func(log.Logger, dbm.DB, io.Writer, srvtypes.AppOptions) srvtypes.Application {
+		return app.New(
 			log.NewNopLogger(),
-			tmdb.NewMemDB(),
+			dbm.NewMemDB(),
 			nil, // trace store
-			0,   // invCheckPeriod
-			encodingConfig,
-			0, // v2 upgrade height
-			0, // timeout commit
-			simapp.EmptyAppOptions{},
-			baseapp.SetMinGasPrices(minGasPrice),
+			0,   // timeout commit
+			simtestutil.EmptyAppOptions{},
+			appOptions...,
 		)
-		app.SetEndBlocker(wrapEndBlocker(app, time.Millisecond*0))
-		return app
 	}
 }
 

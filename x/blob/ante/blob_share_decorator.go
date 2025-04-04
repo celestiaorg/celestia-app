@@ -4,12 +4,13 @@ import (
 	"math"
 
 	"cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
+
+	"github.com/celestiaorg/go-square/v2/share"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 // BlobShareDecorator helps to prevent a PFB from being included in a block but
@@ -28,10 +29,6 @@ func NewBlobShareDecorator(k BlobKeeper) BlobShareDecorator {
 // the PFB exceeds the max number of shares in a data square.
 func (d BlobShareDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
 	if !ctx.IsCheckTx() {
-		return next(ctx, tx, simulate)
-	}
-
-	if ctx.BlockHeader().Version.App == v1.Version {
 		return next(ctx, tx, simulate)
 	}
 
@@ -90,12 +87,12 @@ func (d BlobShareDecorator) getMaxSquareSize(ctx sdk.Context) int {
 	// and comet that have full support of PrepareProposal, although
 	// celestia-app does not currently use those. see this PR for more details
 	// https://github.com/cosmos/cosmos-sdk/pull/14505
-	if ctx.BlockHeader().Height <= 1 {
+	if ctx.HeaderInfo().Height <= 1 {
 		return int(appconsts.DefaultGovMaxSquareSize)
 	}
 
-	upperBound := appconsts.SquareSizeUpperBound(ctx.BlockHeader().Version.App)
-	govParam := d.k.GovMaxSquareSize(ctx)
+	upperBound := appconsts.DefaultSquareSizeUpperBound
+	govParam := d.k.GetParams(ctx).GovMaxSquareSize
 	return min(upperBound, int(govParam))
 }
 

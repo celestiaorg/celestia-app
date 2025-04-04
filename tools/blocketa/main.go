@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/tendermint/tendermint/rpc/client/http"
+	"github.com/cometbft/cometbft/rpc/client/http"
 )
 
 const (

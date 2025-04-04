@@ -7,15 +7,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	utils "github.com/celestiaorg/celestia-app/v3/test/tokenfilter"
+	"cosmossdk.io/log"
+	"cosmossdk.io/math"
+	abci "github.com/cometbft/cometbft/abci/types"
+	dbm "github.com/cosmos/cosmos-db"
+	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/ibc-go/v6/modules/apps/transfer/types"
-	clienttypes "github.com/cosmos/ibc-go/v6/modules/core/02-client/types"
-	channeltypes "github.com/cosmos/ibc-go/v6/modules/core/04-channel/types"
-	host "github.com/cosmos/ibc-go/v6/modules/core/24-host"
-	ibctesting "github.com/cosmos/ibc-go/v6/testing"
+	transfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
+	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
+	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
+	host "github.com/cosmos/ibc-go/v8/modules/core/24-host"
+	ibctesting "github.com/cosmos/ibc-go/v8/testing"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
 )
 
 type PacketMetadata struct {
@@ -41,26 +46,52 @@ func SetupTest(t *testing.T) (*ibctesting.Coordinator, *ibctesting.TestChain,
 		CurrentTime: time.Now(),
 		Chains:      chains,
 	}
-	celestiaChain := utils.NewTestChain(t, coordinator, ibctesting.GetChainID(1))
-	chainA := NewTestChain(t, coordinator, ibctesting.GetChainID(2))
-	chainB := NewTestChain(t, coordinator, ibctesting.GetChainID(3))
+
+	// modify ibctesting package to return celestia as the next app when calling ibctesting.NewTestChain
+	ibctesting.DefaultTestingAppInit = func() (ibctesting.TestingApp, map[string]json.RawMessage) {
+		db := dbm.NewMemDB()
+		celestiaApp := app.New(log.NewNopLogger(), db, nil, 0, simtestutil.EmptyAppOptions{})
+		return celestiaApp, celestiaApp.DefaultGenesis()
+	}
+
+	celestiaChain := ibctesting.NewTestChain(t, coordinator, ibctesting.GetChainID(1))
+	setMinFeeToZero(t, celestiaChain)
+
+	// modify the testing package to return the pfm app which does not have a token filter wired up on subsequent
+	// NewTestChain calls.
+	ibctesting.DefaultTestingAppInit = SetupTestingApp
+
+	chainA := ibctesting.NewTestChain(t, coordinator, ibctesting.GetChainID(2))
+	chainB := ibctesting.NewTestChain(t, coordinator, ibctesting.GetChainID(3))
+
 	coordinator.Chains[ibctesting.GetChainID(1)] = celestiaChain
 	coordinator.Chains[ibctesting.GetChainID(2)] = chainA
 	coordinator.Chains[ibctesting.GetChainID(3)] = chainB
 	return coordinator, chainA, celestiaChain, chainB
 }
 
+// setMinFeeToZero updates the network minimum gas price to zero.
+// This is a workaround as overriding at genesis will fail in minfee.ValidateGenesis
+func setMinFeeToZero(t *testing.T, celestiaChain *ibctesting.TestChain) {
+	celestiaApp, ok := celestiaChain.App.(*app.App)
+	require.True(t, ok)
+
+	params := celestiaApp.MinFeeKeeper.GetParams(celestiaChain.GetContext())
+	params.NetworkMinGasPrice = math.LegacyNewDec(0)
+	celestiaApp.MinFeeKeeper.SetParams(celestiaChain.GetContext(), params)
+}
+
 func NewTransferPaths(chain1, chain2, chain3 *ibctesting.TestChain) (*ibctesting.Path, *ibctesting.Path) {
 	path1 := ibctesting.NewPath(chain1, chain2)
 	path1.EndpointA.ChannelConfig.PortID = ibctesting.TransferPort
 	path1.EndpointB.ChannelConfig.PortID = ibctesting.TransferPort
-	path1.EndpointA.ChannelConfig.Version = types.Version
-	path1.EndpointB.ChannelConfig.Version = types.Version
+	path1.EndpointA.ChannelConfig.Version = transfertypes.Version
+	path1.EndpointB.ChannelConfig.Version = transfertypes.Version
 	path2 := ibctesting.NewPath(chain2, chain3)
 	path2.EndpointA.ChannelConfig.PortID = ibctesting.TransferPort
 	path2.EndpointB.ChannelConfig.PortID = ibctesting.TransferPort
-	path2.EndpointA.ChannelConfig.Version = types.Version
-	path2.EndpointB.ChannelConfig.Version = types.Version
+	path2.EndpointA.ChannelConfig.Version = transfertypes.Version
+	path2.EndpointB.ChannelConfig.Version = transfertypes.Version
 
 	return path1, path2
 }
@@ -108,7 +139,7 @@ func TestPacketForwardMiddlewareTransfer(t *testing.T) {
 	require.NoError(t, err)
 
 	// Transfer path: Celestia -> ChainA -> Celestia -> ChainB
-	msg := types.NewMsgTransfer(path1.EndpointB.ChannelConfig.PortID, path1.EndpointB.ChannelID, coinToSendToB, celestia.SenderAccount.GetAddress().String(), chainA.SenderAccount.GetAddress().String(), timeoutHeight, 0, string(memo))
+	msg := transfertypes.NewMsgTransfer(path1.EndpointB.ChannelConfig.PortID, path1.EndpointB.ChannelID, coinToSendToB, celestia.SenderAccount.GetAddress().String(), chainA.SenderAccount.GetAddress().String(), timeoutHeight, 0, string(memo))
 
 	res, err := celestia.SendMsgs(msg)
 	require.NoError(t, err)
@@ -122,7 +153,7 @@ func TestPacketForwardMiddlewareTransfer(t *testing.T) {
 	sourceBalanceAfter := celestiaApp.BankKeeper.GetBalance(celestia.GetContext(), celestia.SenderAccount.GetAddress(), sdk.DefaultBondDenom)
 	require.Equal(t, originalCelestiaBalance.Amount.Sub(transferAmount), sourceBalanceAfter.Amount)
 
-	ibcDenomTrace := types.ParseDenomTrace(types.GetPrefixedDenom(packet.GetDestPort(), packet.GetDestChannel(), sdk.DefaultBondDenom))
+	ibcDenomTrace := transfertypes.ParseDenomTrace(transfertypes.GetPrefixedDenom(packet.GetDestPort(), packet.GetDestChannel(), sdk.DefaultBondDenom))
 	destinationBalanceAfter := chainB.App.(*SimApp).BankKeeper.GetBalance(chainB.GetContext(), chainB.SenderAccount.GetAddress(), ibcDenomTrace.IBCDenom())
 
 	require.Equal(t, transferAmount, destinationBalanceAfter.Amount)
@@ -228,7 +259,7 @@ func ForwardPacket(paths []*ibctesting.Path, packet channeltypes.Packet) error {
 }
 
 // AcknowledgePacket acknowledges a packet and returns the result
-func AcknowledgePacket(endpoint *ibctesting.Endpoint, packet channeltypes.Packet, ack []byte) (*sdk.Result, error) {
+func AcknowledgePacket(endpoint *ibctesting.Endpoint, packet channeltypes.Packet, ack []byte) (*abci.ExecTxResult, error) {
 	packetKey := host.PacketAcknowledgementKey(packet.GetDestPort(), packet.GetDestChannel(), packet.GetSequence())
 	proof, proofHeight := endpoint.Counterparty.QueryProof(packetKey)
 	ackMsg := channeltypes.NewMsgAcknowledgement(packet, ack, proof, proofHeight, endpoint.Chain.SenderAccount.GetAddress().String())

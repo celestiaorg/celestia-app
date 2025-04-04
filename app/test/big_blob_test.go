@@ -5,17 +5,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v3/app/errors"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/celestiaorg/go-square/v2/share"
+
+	apperrors "github.com/celestiaorg/celestia-app/v4/app/errors"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 func TestBigBlobSuite(t *testing.T) {
@@ -28,7 +28,6 @@ func TestBigBlobSuite(t *testing.T) {
 type BigBlobSuite struct {
 	suite.Suite
 
-	ecfg     encoding.Config
 	accounts []string
 	cctx     testnode.Context
 }
@@ -51,7 +50,6 @@ func (s *BigBlobSuite) SetupSuite() {
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	s.cctx = cctx
-	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	require.NoError(t, cctx.WaitForNextBlock())
 }
@@ -70,7 +68,7 @@ func (s *BigBlobSuite) TestErrBlobsTooLarge() {
 		{
 			name: "~ 1.9 MiB blob",
 			blob: newBlobWithSize(2_000_000),
-			want: blobtypes.ErrBlobsTooLarge.ABCICode(),
+			want: blobtypes.ErrTotalBlobSizeTooLarge.ABCICode(),
 		},
 	}
 

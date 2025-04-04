@@ -2,12 +2,11 @@ package keeper
 
 import (
 	"cosmossdk.io/math"
-	"github.com/tendermint/tendermint/libs/log"
-
-	"github.com/celestiaorg/celestia-app/v3/x/mint/types"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/codec"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/celestiaorg/celestia-app/v4/x/mint/types"
 )
 
 // Keeper of the mint store
@@ -40,11 +39,6 @@ func NewKeeper(
 		bankKeeper:       bankKeeper,
 		feeCollectorName: feeCollectorName,
 	}
-}
-
-// Logger returns a module-specific logger.
-func (k Keeper) Logger(ctx sdk.Context) log.Logger {
-	return ctx.Logger().With("module", "x/"+types.ModuleName)
 }
 
 // GetMinter returns the minter.
@@ -88,7 +82,9 @@ func (k Keeper) SetGenesisTime(ctx sdk.Context, gt types.GenesisTime) {
 // StakingTokenSupply implements an alias call to the underlying staking keeper's
 // StakingTokenSupply.
 func (k Keeper) StakingTokenSupply(ctx sdk.Context) math.Int {
-	return k.stakingKeeper.StakingTokenSupply(ctx)
+	// TODO not clear what to do if error is not nil as this was added in 0.52.
+	n, _ := k.stakingKeeper.StakingTokenSupply(ctx)
+	return n
 }
 
 // MintCoins implements an alias call to the underlying bank keeper's

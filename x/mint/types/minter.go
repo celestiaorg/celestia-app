@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"time"
 
+	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
-const DefaultBondDenom = "utia"
-
 // NewMinter returns a new Minter object.
-func NewMinter(inflationRate sdk.Dec, annualProvisions sdk.Dec, bondDenom string) Minter {
+func NewMinter(inflationRate, annualProvisions math.LegacyDec, bondDenom string) Minter {
 	return Minter{
 		InflationRate:    inflationRate,
 		AnnualProvisions: annualProvisions,
@@ -20,8 +21,8 @@ func NewMinter(inflationRate sdk.Dec, annualProvisions sdk.Dec, bondDenom string
 
 // DefaultMinter returns a Minter object with default values.
 func DefaultMinter() Minter {
-	annualProvisions := sdk.NewDec(0)
-	return NewMinter(InitialInflationRateAsDec(), annualProvisions, DefaultBondDenom)
+	annualProvisions := math.LegacyNewDec(0)
+	return NewMinter(InitialInflationRateAsDec(), annualProvisions, appconsts.BondDenom)
 }
 
 // Validate returns an error if the minter is invalid.
@@ -41,31 +42,31 @@ func (m Minter) Validate() error {
 // CalculateInflationRate returns the inflation rate for the current year depending on
 // the current block height in context. The inflation rate is expected to
 // decrease every year according to the schedule specified in the README.
-func (m Minter) CalculateInflationRate(ctx sdk.Context, genesis time.Time) sdk.Dec {
-	years := yearsSinceGenesis(genesis, ctx.BlockTime())
-	inflationRate := InitialInflationRateAsDec().Mul(sdk.OneDec().Sub(DisinflationRateAsDec()).Power(uint64(years)))
-
+func (m Minter) CalculateInflationRate(ctx sdk.Context, genesisTime time.Time) math.LegacyDec {
+	yearsSinceGenesis := yearsSinceGenesis(genesisTime, ctx.BlockTime())
+	inflationRate := InitialInflationRateAsDec().Mul(math.LegacyOneDec().Sub(DisinflationRateAsDec()).Power(uint64(yearsSinceGenesis)))
 	if inflationRate.LT(TargetInflationRateAsDec()) {
 		return TargetInflationRateAsDec()
 	}
+
 	return inflationRate
 }
 
 // CalculateBlockProvision returns the total number of coins that should be
 // minted due to inflation for the current block.
-func (m Minter) CalculateBlockProvision(current time.Time, previous time.Time) (sdk.Coin, error) {
+func (m Minter) CalculateBlockProvision(current, previous time.Time) (sdk.Coin, error) {
 	if current.Before(previous) {
 		return sdk.Coin{}, fmt.Errorf("current time %v cannot be before previous time %v", current, previous)
 	}
 	timeElapsed := current.Sub(previous).Nanoseconds()
-	portionOfYear := sdk.NewDec(timeElapsed).Quo(sdk.NewDec(NanosecondsPerYear))
+	portionOfYear := math.LegacyNewDec(timeElapsed).Quo(math.LegacyNewDec(NanosecondsPerYear))
 	blockProvision := m.AnnualProvisions.Mul(portionOfYear)
 	return sdk.NewCoin(m.BondDenom, blockProvision.TruncateInt()), nil
 }
 
 // yearsSinceGenesis returns the number of years that have passed between
 // genesis and current (rounded down).
-func yearsSinceGenesis(genesis time.Time, current time.Time) (years int64) {
+func yearsSinceGenesis(genesis, current time.Time) (years int64) {
 	if current.Before(genesis) {
 		return 0
 	}

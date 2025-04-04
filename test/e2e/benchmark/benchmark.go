@@ -7,12 +7,13 @@ import (
 	"log"
 	"time"
 
-	"github.com/tendermint/tendermint/pkg/trace"
+	"github.com/cometbft/cometbft/libs/trace"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/celestiaorg/knuu/pkg/knuu"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/test/e2e/testnet"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
 const timeFormat = "20060102_150405"
@@ -100,6 +101,7 @@ func (b *BenchmarkTest) SetupNodes() error {
 		testnet.WithMempoolMaxTxsBytes(1*testnet.GiB),
 		testnet.WithMempoolMaxTxBytes(8*testnet.MiB),
 	))
+
 	if b.manifest.PushTrace {
 		log.Println("reading trace push config")
 		if pushConfig, err := trace.GetPushConfigFromEnv(); err == nil {

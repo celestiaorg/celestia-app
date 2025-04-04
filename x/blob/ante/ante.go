@@ -1,14 +1,13 @@
 package ante
 
 import (
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
-	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
-
 	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/authz"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 // MinGasPFBDecorator helps to prevent a PFB from being included in a block
@@ -35,7 +34,7 @@ func (d MinGasPFBDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 		return next(ctx, tx, simulate)
 	}
 
-	gasPerByte := d.getGasPerByte(ctx)
+	gasPerByte := appconsts.DefaultGasPerBlobByte
 	txGas := ctx.GasMeter().GasRemaining()
 	err := d.validatePFBHasEnoughGas(tx.GetMsgs(), gasPerByte, txGas)
 	if err != nil {
@@ -71,13 +70,6 @@ func (d MinGasPFBDecorator) validatePFBHasEnoughGas(msgs []sdk.Msg, gasPerByte u
 	return nil
 }
 
-func (d MinGasPFBDecorator) getGasPerByte(ctx sdk.Context) uint32 {
-	if ctx.BlockHeader().Version.App <= v2.Version {
-		return d.k.GasPerBlobByte(ctx)
-	}
-	return appconsts.GasPerBlobByte(ctx.BlockHeader().Version.App)
-}
-
 // validateEnoughGas returns an error if the gas needed to pay for the blobs is
 // greater than the txGas.
 func validateEnoughGas(msg *types.MsgPayForBlobs, gasPerByte uint32, txGas uint64) error {
@@ -89,6 +81,5 @@ func validateEnoughGas(msg *types.MsgPayForBlobs, gasPerByte uint32, txGas uint6
 }
 
 type BlobKeeper interface {
-	GasPerBlobByte(ctx sdk.Context) uint32
-	GovMaxSquareSize(ctx sdk.Context) uint64
+	GetParams(ctx sdk.Context) types.Params
 }

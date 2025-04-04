@@ -48,7 +48,7 @@ There are multiple ways to have a gas price estimation for a priority level. Thi
 
 If the mempool has more transactions that it can fit in the next block, the estimation will be based on the top gas prices that can fit in a full block. Otherwise, if the mempool transactions can't fill more than 70% of the max block size, the minimum gas price will be returned.
 
-If the gas prices used for the estimation are tightly clustered, an increase of 30% and 10% will be added for high and medium priority respectively. Tightly clustered values are defined by the standard deviation of the elements being below the `gasPriceAdjustmentThreshold`. 
+If the gas prices used for the estimation are tightly clustered, an increase of 30% and 10% will be added for high and medium priority respectively. Tightly clustered values are defined by the standard deviation of the elements being below the `gasPriceAdjustmentThreshold`.
 
 The following is a basic implementation of the median that we can use:
 
@@ -74,7 +74,7 @@ For the top/bottom 10%, they will be extracted after sorting the list of gas pri
 
 ## Alternative Approaches
 
-There are multiple ways to estimate the gas price. However, a first default implementation can be as basic as described above. 
+There are multiple ways to estimate the gas price. However, a first default implementation can be as basic as described above.
 
 Better estimations can be done subsequently.
 

@@ -160,40 +160,40 @@ Four additional helper functions are defined to manage the [validator queue](./d
 1. `parentFromQueue(address)`, which returns the address of the parent in the validator queue of the validator with address `address`, or `0` if `address` is not in the queue or is the head of the queue.
 1. `validatorQueueInsert`, defined as
 
-```py
-function validatorQueueInsert(validator)
-    # Insert the new validator into the linked list
-    parent = findFromQueue(validator.votingPower)
-    if parent != 0
-        if state.accounts[parent].status == AccountStatus.ValidatorBonded
-            validator.next = state.activeValidatorSet[parent].next
-            state.activeValidatorSet[parent].next = sender
+    ```py
+    function validatorQueueInsert(validator)
+        # Insert the new validator into the linked list
+        parent = findFromQueue(validator.votingPower)
+        if parent != 0
+            if state.accounts[parent].status == AccountStatus.ValidatorBonded
+                validator.next = state.activeValidatorSet[parent].next
+                state.activeValidatorSet[parent].next = sender
+            else
+                validator.next = state.inactiveValidatorSet[parent].next
+                state.inactiveValidatorSet[parent].next = sender
         else
-            validator.next = state.inactiveValidatorSet[parent].next
-            state.inactiveValidatorSet[parent].next = sender
-    else
-        validator.next = state.validatorQueueHead
-        state.validatorQueueHead = sender
-```
+            validator.next = state.validatorQueueHead
+            state.validatorQueueHead = sender
+    ```
 
 <!-- markdownlint-disable-next-line MD029 -->
 4. `validatorQueueRemove`, defined as
 
-```py
-function validatorQueueRemove(validator, sender)
-    # Remove existing validator from the linked list
-    parent = parentFromQueue(sender)
-    if parent != 0
-        if state.accounts[parent].status == AccountStatus.ValidatorBonded
-            state.activeValidatorSet[parent].next = validator.next
-            validator.next = 0
+    ```py
+    function validatorQueueRemove(validator, sender)
+        # Remove existing validator from the linked list
+        parent = parentFromQueue(sender)
+        if parent != 0
+            if state.accounts[parent].status == AccountStatus.ValidatorBonded
+                state.activeValidatorSet[parent].next = validator.next
+                validator.next = 0
+            else
+                state.inactiveValidatorSet[parent].next = validator.next
+                validator.next = 0
         else
-            state.inactiveValidatorSet[parent].next = validator.next
+            state.validatorQueueHead = validator.next
             validator.next = 0
-    else
-        state.validatorQueueHead = validator.next
-        validator.next = 0
-```
+    ```
 
 Note that light clients cannot perform a linear search through a linked list, and are instead provided logarithmic proofs (e.g. in the case of `parentFromQueue`, a proof to the parent is provided, which should have `address` as its next validator).
 
