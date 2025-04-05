@@ -277,9 +277,6 @@ func New(
 	app.CircuitKeeper = circuitkeeper.NewKeeper(encodingConfig.Codec, runtime.NewKVStoreService(keys[circuittypes.StoreKey]), govModuleAddr, app.AccountKeeper.AddressCodec())
 	app.SetCircuitBreaker(&app.CircuitKeeper)
 
-	// The upgrade keeper is initialised solely for the ibc keeper which depends on it to know what the next validator hash is for after the
-	// upgrade. This keeper is not used for the actual upgrades but merely for compatibility reasons. Ideally IBC has their own upgrade module
-	// for performing IBC based upgrades. Note, as we use rolling upgrades, IBC technically never needs this functionality.
 
 	// get skipUpgradeHeights from the app options
 	skipUpgradeHeights := map[int64]bool{}
