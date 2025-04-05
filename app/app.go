@@ -366,7 +366,6 @@ func New(
 	evidenceKeeper := evidencekeeper.NewKeeper(
 		encodingConfig.Codec, runtime.NewKVStoreService(keys[evidencetypes.StoreKey]), app.StakingKeeper, app.SlashingKeeper, app.AccountKeeper.AddressCodec(), runtime.ProvideCometInfoService(),
 	)
-	// If evidence needs to be handled for the app, set routes in router here and seal
 	app.EvidenceKeeper = *evidenceKeeper
 
 	app.BlobKeeper = *blobkeeper.NewKeeper(
