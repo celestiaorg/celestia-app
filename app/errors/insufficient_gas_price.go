@@ -67,8 +67,8 @@ func ParseInsufficientMinGasPrice(err error, gasPrice float64, gasLimit uint64) 
 	return required / got * gasPrice, nil
 }
 
-// IsInsufficientMinGasPrice checks if the error is due to the gas price being too low.
-func IsInsufficientMinGasPrice(err error) bool {
+// IsInsufficientFee checks if the error is due to the gas price being too low.
+func IsInsufficientFee(err error) bool {
 	// first check if the error is ErrInsufficientFee
 	if err == nil || !sdkerrors.ErrInsufficientFee.Is(err) {
 		return false

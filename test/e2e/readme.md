@@ -56,7 +56,7 @@ This will back up your default kubernetes configuration. If you use a different 
 
 ### Install minikube
 
-Minikube is required to be installed on your machine. If you have a linux machine, follow the [minikube docs](https://kubernetes.io/docs/tasks/tools/install-minikube/). If you're on macOS ARM, this [tutorial](https://devopscube.com/minikube-mac/) can be helpful to run it using qemu.
+Minikube is required to be installed on your machine. If you have a linux machine, follow the [minikube docs](https://minikube.sigs.k8s.io/docs/start/). If you're on macOS ARM, this [tutorial](https://devopscube.com/minikube-mac/) can be helpful to run it using qemu.
 
 ### Create namespace
 
