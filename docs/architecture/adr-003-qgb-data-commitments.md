@@ -90,7 +90,7 @@ Next, we verify the Ethereum address and check if it was used to create the sign
 ```go
 ethAddress, err := types.NewEthAddress(msg.EthAddress)
 if err != nil {
-    return nil, sdkerrors.Wrap(types.ErrInvalid, "invalid eth address")
+    return nil, sdkerrors.Wrap(types.ErrInvalid, "invalid Ethereum address")
 }
 err = types.ValidateEthereumSignature([]byte(msg.Commitment), sigBytes, *ethAddress)
 if err != nil {
@@ -107,10 +107,10 @@ if err != nil {
 }
 ethAddressFromStore, found := k.GetEthAddressByValidator(ctx, validator.GetOperator())
 if !found {
-    return nil, sdkerrors.Wrap(types.ErrEmpty, "no eth address set for validator")
+    return nil, sdkerrors.Wrap(types.ErrEmpty, "no Ethereum address set for validator")
 }
 if *ethAddressFromStore != *ethAddress {
-    return nil, sdkerrors.Wrap(types.ErrInvalid, "submitted eth address does not match delegate eth address")
+    return nil, sdkerrors.Wrap(types.ErrInvalid, "submitted Ethereum address does not match delegate Ethereum address")
 }
 ```
 
