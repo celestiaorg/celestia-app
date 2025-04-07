@@ -39,7 +39,6 @@ func setup() (*app.App, sdk.Context, client.Context, error) {
 
 	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	// We're using TestMsg encoding in the test, so register it here.
-	enc.Amino.RegisterConcrete(&testdata.TestMsg{}, "testdata.TestMsg", nil)
 	testdata.RegisterInterfaces(enc.InterfaceRegistry)
 
 	clientCtx := client.Context{}.
