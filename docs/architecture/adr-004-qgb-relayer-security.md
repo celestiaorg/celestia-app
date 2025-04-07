@@ -30,7 +30,7 @@ Now, if the relayer is missing some data commitments or valset updates, then it 
 
 The problem with this approach is that there is a constant risk for any relayer to mess up the ordering of the attestations submission, i.e. relaying the next valset before relaying all the data commitments that were signed using the previous valset, and ending up with signatures holes.
 
-Also, a malicious relayer, can target any honest QGB relayer in normal mode, or while catching up, and mess its attestations submission order, as follows:
+Also, a malicious relayer can target any honest QGB relayer in normal mode, or while catching up, and mess its attestations submission order, as follows:
 
 - Get the latest relayed valset
 - Listen for new signed valsets
@@ -62,7 +62,7 @@ This approach consists of switching to a synchronous QGB design utilizing univer
 - Pros:
   - Simpler QGB smart contract
 
-### Add more state to the contract: Store valsets and their nonce
+### Add more state to the contract: Store valsets and their nonces
 
 Update the QGB contract to store the valset hashes + their nonces:
 
