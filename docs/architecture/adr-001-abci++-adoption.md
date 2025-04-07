@@ -25,9 +25,8 @@ We also need this functionality for validators to verify that:
 
 - For every `MsgPayForBlob` (previously `MsgPayForData`) included in the block, there is also a corresponding blob and vice versa.
 - The data hash represents the properly-erasure-coded block data for the selected block size.
-- The included messages are arranged in the expected locations in the square according to the non-interactive default rules (not done here)
-
-Technically, we don’t have to use ABCI++ yet, we could still test some needed features in the upcoming testnet without it. However, these implementations would not be representative of the implementations that would actually make it to mainnet, as they would have to be significantly different from their ABCI++ counterparts. The decision to adopt ABCI++ earlier becomes easier considering that the tendermint team has already done most of the heavy lifting, and it is possible to start working on the needed features without waiting for the cosmos-sdk team to use them. We explain our plans below to do just this, by using a subset of ABCI++ (ABCI+?) using only the new methods that are necessary, finished, and easy to incorporate into the cosmos-sdk.
+- The included messages are arranged in the expected locations in the square according to the non-interactive default rules (this validation is not implemented here)
+Technically, we don’t have to use ABCI++ yet, we could still test some needed features in the upcoming testnet without it. However, these implementations would not be representative of the implementations that would actually make it to mainnet, as they would have to be significantly different from their ABCI++ counterparts. The decision to adopt ABCI++ earlier becomes easier considering that the Tendermint team has already done most of the heavy lifting, and it is possible to start working on the needed features without waiting for the cosmos-sdk team to use them. We explain our plans below to do just this, by using a subset of ABCI++ (ABCI+?) using only the new methods that are necessary, finished, and easy to incorporate into the cosmos-sdk.
 
 ## Alternative Approaches
 
@@ -53,15 +52,15 @@ type Application interface {
 }
 ```
 
-It's also important to note the changes made to the request types for both methods. In upstream, they are only passing the transactions to the applications. This has been modified to pass the entire block data. This is because Celestia separates some block data that cannot modify state (messages), and the application has to have access to both normal transaction data and messages to perform the necessary processing and checks.
+It's also important to note the changes made to the request types for both methods. In upstream, they are only passing the transactions to the applications. This has been modified to pass the entire block data. This is because Celestia separates some block data that cannot modify state (messages) and the application has to have access to both normal transaction data and messages to perform the necessary processing and checks.
 
 ```protobuf
 message RequestPrepareProposal {
  // block_data is an array of transactions that will be included in a block,
  // sent to the app for possible modifications.
- // applications can not exceed the size of the data passed to it.
+ // applications cannot exceed the size of the data passed to it.
  tendermint.types.Data block_data = 1;
- // If an application decides to populate block_data with extra information, they can not exceed this value.
+ // If an application decides to populate block_data with extra information, they cannot exceed this value.
  int64 block_data_size = 2;
 }
 
