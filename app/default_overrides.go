@@ -43,11 +43,13 @@ const (
 
 var (
 	_ module.HasGenesisBasics = bankModule{}
+	_ module.HasGenesisBasics = circuitModule{}
 	_ module.HasGenesisBasics = govModule{}
-	_ module.HasGenesisBasics = stakingModule{}
-	_ module.HasGenesisBasics = slashingModule{}
+	_ module.HasGenesisBasics = ibcModule{}
 	_ module.HasGenesisBasics = icaModule{}
 	_ module.HasGenesisBasics = mintModule{}
+	_ module.HasGenesisBasics = slashingModule{}
+	_ module.HasGenesisBasics = stakingModule{}
 )
 
 // bankModule defines a custom wrapper around the x/bank module's AppModuleBasic
