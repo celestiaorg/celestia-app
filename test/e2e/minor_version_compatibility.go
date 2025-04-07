@@ -3,7 +3,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"math/rand"
@@ -11,8 +10,6 @@ import (
 	"slices"
 	"strings"
 	"time"
-
-	"github.com/cometbft/cometbft/rpc/client/http"
 
 	"github.com/celestiaorg/knuu/pkg/knuu"
 
@@ -152,49 +149,4 @@ func getAllVersions() (string, error) {
 	}
 	allVersions := strings.Split(strings.TrimSpace(string(output)), "\n")
 	return strings.Join(allVersions, " "), nil
-}
-
-func getHeight(ctx context.Context, client *http.HTTP, period time.Duration) (int64, error) {
-	timer := time.NewTimer(period)
-	ticker := time.NewTicker(100 * time.Millisecond)
-	for {
-		select {
-		case <-timer.C:
-			return 0, fmt.Errorf("failed to get height after %.2f seconds", period.Seconds())
-		case <-ticker.C:
-			status, err := client.Status(ctx)
-			if err == nil {
-				return status.SyncInfo.LatestBlockHeight, nil
-			}
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				return 0, err
-			}
-		}
-	}
-}
-
-func waitForHeight(ctx context.Context, client *http.HTTP, height int64, period time.Duration) error {
-	ctx, cancel := context.WithTimeout(ctx, period)
-	defer cancel()
-
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("timeout waiting for height %d", height)
-		case <-ticker.C:
-			currentHeight, err := getHeight(ctx, client, period)
-			if err != nil {
-				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-					return err
-				}
-				continue
-			}
-			if currentHeight >= height {
-				return nil
-			}
-		}
-	}
 }

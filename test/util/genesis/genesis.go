@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"time"
 
 	"cosmossdk.io/log"
@@ -48,9 +49,8 @@ type Genesis struct {
 	genTxs []sdk.Tx
 	genOps []Modifier
 
-	// legacy specifies if this Genesis should generate a valid v3 and lower genesis file
-	// as opposed to a v4 and above genesis file.
-	legacy bool
+	// appVersion specifies the app version for which the genesis file should be written.
+	appVersion uint64
 }
 
 // Accounts getter
@@ -72,7 +72,7 @@ func (g *Genesis) Validators() []Validator {
 func NewDefaultGenesis() *Genesis {
 	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	g := &Genesis{
-		legacy:          false,
+		appVersion:      appconsts.LatestVersion,
 		ecfg:            enc,
 		ConsensusParams: app.DefaultConsensusParams(),
 		ChainID:         unsafe.Str(6),
@@ -135,9 +135,9 @@ func (g *Genesis) WithKeyring(kr keyring.Keyring) *Genesis {
 	return g
 }
 
-// WithLegacy configures the Genesis to be a legacy one or not.
-func (g *Genesis) WithLegacy(legacy bool) *Genesis {
-	g.legacy = legacy
+// WithAppVersion sets the application version for the genesis configuration and returns the updated Genesis instance.
+func (g *Genesis) WithAppVersion(appVersion uint64) *Genesis {
+	g.appVersion = appVersion
 	return g
 }
 
@@ -226,8 +226,8 @@ func (g *Genesis) getGenTxs() ([]json.RawMessage, error) {
 
 // Export returns the genesis document of the network.
 func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
-	if g.legacy {
-		return nil, fmt.Errorf("cannot export legacy genesis: use ExportBytes() instead")
+	if g.appVersion != appconsts.LatestVersion {
+		return nil, fmt.Errorf("cannot export non latest genesis: use ExportBytes() instead")
 	}
 
 	gentxs, err := g.getGenTxs()
@@ -254,7 +254,19 @@ func (g *Genesis) ExportBytes() ([]byte, error) {
 		return nil, err
 	}
 
-	if !g.legacy {
+	switch g.appVersion {
+	// app versions 1, 2 and 3 are all handled with in app logic in V3.
+	case 1, 2, 3:
+		return DocumentLegacyBytes(
+			loadV3GenesisAppState(),
+			g.ecfg,
+			g.ConsensusParams,
+			g.ChainID,
+			gentxs,
+			g.accounts,
+			g.GenesisTime,
+		)
+	case 4:
 		tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, simtestutil.EmptyAppOptions{})
 		return DocumentBytes(
 			tempApp.DefaultGenesis(),
@@ -266,17 +278,9 @@ func (g *Genesis) ExportBytes() ([]byte, error) {
 			g.GenesisTime,
 			g.genOps...,
 		)
+	default:
+		return nil, fmt.Errorf("unknown app version %d", g.appVersion)
 	}
-
-	return DocumentLegacyBytes(
-		loadV3GenesisAppState(),
-		g.ecfg,
-		g.ConsensusParams,
-		g.ChainID,
-		gentxs,
-		g.accounts,
-		g.GenesisTime,
-	)
 }
 
 // Validator returns the validator at the given index. False is returned if the
