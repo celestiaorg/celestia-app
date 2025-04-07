@@ -48,7 +48,7 @@ func init() {
 // https://github.com/celestiaorg/cosmos-sdk/blob/release/v0.46.x-celestia/x/auth/ante/basic.go
 // In app versions v2 and below, the txSizeCostPerByte used for gas cost estimation is taken from the auth module.
 // In app v3 and above, the versioned constant appconsts.TxSizeCostPerByte is used.
-// In app v4 getting the account has been removed, which is in line with the cosmos-sdk v0.52.x.
+// In app v4 getting the account has been removed, which is in line with the cosmos-sdk v0.50.x.
 type ConsumeTxSizeGasDecorator struct {
 	ak ante.AccountKeeper
 }
@@ -65,7 +65,7 @@ func (cgts ConsumeTxSizeGasDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, sim
 		return ctx, errors.Wrap(sdkerrors.ErrTxDecode, "invalid tx type")
 	}
 
-	consumeGasForTxSize(ctx, storetypes.Gas(len(ctx.TxBytes())))
+	ctx.GasMeter().ConsumeGas(appconsts.DefaultTxSizeCostPerByte*storetypes.Gas(len(ctx.TxBytes())), "txSize")
 
 	// simulate gas cost for signatures in simulate mode
 	if simulate {
@@ -107,7 +107,7 @@ func (cgts ConsumeTxSizeGasDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, sim
 				txBytes *= params.TxSigLimit
 			}
 
-			consumeGasForTxSize(ctx, txBytes)
+			ctx.GasMeter().ConsumeGas(appconsts.DefaultTxSizeCostPerByte*txBytes, "txSize")
 		}
 	}
 
@@ -133,10 +133,4 @@ func isIncompleteSignature(data signing.SignatureData) bool {
 	}
 
 	return false
-}
-
-// consumeGasForTxSize consumes gas based on the size of the transaction.
-// It uses different parameters depending on the app version.
-func consumeGasForTxSize(ctx sdk.Context, txBytes uint64) {
-	ctx.GasMeter().ConsumeGas(appconsts.DefaultTxSizeCostPerByte*txBytes, "txSize")
 }
