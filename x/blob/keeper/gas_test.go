@@ -61,31 +61,3 @@ func TestPayForBlobGas(t *testing.T) {
 		})
 	}
 }
-
-func TestChangingGasParam(t *testing.T) {
-	// TODO: can we just remove this test now... are we using params in x/blob for gas costs or is it just versioned params using appconsts??
-	// Test errors because k.PayForBlobs uses a constant gas price from appconsts now rather than params.
-	t.Skip("skipping x/blob gas param change test - x/blob keeper is using appconsts gas value")
-
-	msg := types.MsgPayForBlobs{BlobSizes: []uint32{1024}}
-	k, stateStore, _ := CreateKeeper(t, appconsts.LatestVersion)
-	tempCtx := sdk.NewContext(stateStore, tmproto.Header{}, false, log.NewNopLogger())
-
-	ctx1 := sdk.NewContext(stateStore, tmproto.Header{}, false, log.NewNopLogger())
-	_, err := k.PayForBlobs(ctx1, &msg)
-	require.NoError(t, err)
-
-	params := k.GetParams(tempCtx)
-	params.GasPerBlobByte++
-	k.SetParams(tempCtx, params)
-
-	ctx2 := sdk.NewContext(stateStore, tmproto.Header{}, false, log.NewNopLogger())
-	_, err = k.PayForBlobs(ctx2, &msg)
-	require.NoError(t, err)
-
-	if ctx1.GasMeter().GasConsumed() >= ctx2.GasMeter().GasConsumedToLimit() {
-		t.Errorf("Gas consumed was not increased upon incrementing param, before: %d, after: %d",
-			ctx1.GasMeter().GasConsumed(), ctx2.GasMeter().GasConsumedToLimit(),
-		)
-	}
-}
