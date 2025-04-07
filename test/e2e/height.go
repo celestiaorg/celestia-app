@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/cometbft/cometbft/rpc/client/http"
 	"time"
+
+	"github.com/cometbft/cometbft/rpc/client/http"
 )
 
 // getHeight retrieves the current block height from the provided HTTP client within the specified timeout duration.

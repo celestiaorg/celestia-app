@@ -33,8 +33,8 @@ func MajorUpgradeToV4(logger *log.Logger) error {
 
 	logger.Println("Creating testnet")
 	testNet, err := testnet.New(logger, kn, testnet.Options{
-		ChainID:       appconsts.TestChainID,
-		LegacyGenesis: true, // we are explicitly creating a network that will start on an older version (v3)
+		ChainID:    appconsts.TestChainID,
+		AppVersion: 3, // we are explicitly creating a network that will start on an older version (v3)
 	})
 	testnet.NoError("failed to create testnet", err)
 
@@ -72,7 +72,7 @@ func MajorUpgradeToV4(logger *log.Logger) error {
 
 	logger.Println("Setting up testnet")
 
-	testnet.NoError("Failed to setup testnet", testNet.Setup(ctx, testnet.WithPrometheus(false))) // TODO: re-enable prometheus once fixed in comet
+	testnet.NoError("Failed to setup testnet", testNet.Setup(ctx))
 	logger.Println("Starting testnet")
 	testnet.NoError("Failed to start testnet", testNet.Start(ctx))
 

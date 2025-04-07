@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"time"
 
 	"cosmossdk.io/log"
@@ -19,6 +18,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 // Genesis manages the creation of the genesis state of a network. It is meant
