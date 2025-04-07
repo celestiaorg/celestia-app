@@ -50,7 +50,7 @@ func NewInPlaceTestnetCmd() *cobra.Command {
 with the aim of facilitating testing procedures. This command replaces existing validator data with updated information,
 thereby removing the old validator set and introducing a new set suitable for local testing purposes. By altering the state extracted from the mainnet node,
 it enables developers to configure their local environments to reflect mainnet conditions more accurately.`
-	cmd.Example = `celestia-appd in-place-testnet testing-1 celestiavaloper1plclwg8j7lx42aufxmq5xsuuwddd0840f4a56d --home $HOME/.celestia-appd/validator1 --validator-privkey=6dq+/KHNvyiw2TToCgOpUpQKIzrLs69Rb8Az39xvmxPHNoPxY1Cil8FY+4DhT9YwD6s0tFABMlLcpaylzKKBOg== --accounts-to-fund="celestia1hhtl7m03qnkk9s0ane7dr720ujegq03sd64arq,celestia1plclwg8j7lx42aufxmq5xsuuwddd0840v2ldvt"`
+	cmd.Example = `celestia-appd in-place-testnet testing-1 celestiavaloper1plclwg8j7lx42aufxmq5xsuuwddd0840f4a56d --home $HOME/.celestia-appd/validator1 --accounts-to-fund="celestia1hhtl7m03qnkk9s0ane7dr720ujegq03sd64arq,celestia1plclwg8j7lx42aufxmq5xsuuwddd0840v2ldvt"`
 
 	cmd.Flags().String(flagAccountsToFund, "", "Comma-separated list of account addresses that will be funded for testing purposes")
 	return cmd
