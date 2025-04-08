@@ -16,9 +16,6 @@ var _ types.QueryServer = &Keeper{}
 func (k *Keeper) NetworkMinGasPrice(ctx context.Context, _ *types.QueryNetworkMinGasPrice) (*types.QueryNetworkMinGasPriceResponse, error) {
 	// delegate to the self managed params.
 	networkMinGasPrice := k.GetParams(sdk.UnwrapSDKContext(ctx)).NetworkMinGasPrice
-
-	// TODO: do we need to fallback to the subspace method for v3 and below?
-
 	return &types.QueryNetworkMinGasPriceResponse{NetworkMinGasPrice: networkMinGasPrice}, nil
 }
 

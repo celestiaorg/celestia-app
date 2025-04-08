@@ -6,7 +6,6 @@ import (
 	"os"
 	"strconv"
 	"testing"
-	"time"
 
 	"cosmossdk.io/math"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -187,5 +186,5 @@ func TestIntegrationTestSuite(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode.")
 	}
-	suite.Run(t, NewIntegrationTestSuite(testnode.DefaultConfig().WithTimeoutCommit(100*time.Millisecond)))
+	suite.Run(t, NewIntegrationTestSuite(testnode.DefaultConfig()))
 }

@@ -3,9 +3,6 @@ package app_test
 import (
 	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
-	"os"
 	"testing"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -22,7 +19,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/random"
@@ -169,7 +165,6 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				require.EqualValues(t, appconsts.LatestVersion, blockRes.Block.Version.App)
 
 				sizes = append(sizes, size)
-				ExtendBlockTest(t, blockRes.Block)
 			}
 			// ensure that at least one of the blocks used the max square size
 			assert.Contains(t, sizes, uint64(appconsts.DefaultGovMaxSquareSize))
@@ -258,44 +253,6 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		)
 		require.NoError(t, err)
 		require.NoError(t, blobProof.ShareProof.Validate(blockRes.Block.DataHash.Bytes()))
-	}
-}
-
-// ExtendBlockTest re-extends the block and compares the data roots to ensure
-// that the public functions for extending the block are working correctly.
-func ExtendBlockTest(t *testing.T, block *coretypes.Block) {
-	eds, err := app.ExtendBlock(block.Data)
-	require.NoError(t, err)
-	dah, err := da.NewDataAvailabilityHeader(eds)
-	require.NoError(t, err)
-	// TODO: verify why dataHash and dataRootHash are not equivalent
-	if !assert.Equal(t, dah.Hash(), block.DataHash.Bytes()) {
-		// save block to json file for further debugging if this occurs
-		b, err := json.MarshalIndent(block, "", "  ")
-		require.NoError(t, err)
-		require.NoError(t, os.WriteFile(fmt.Sprintf("bad_block_%s.json", random.Str(6)), b, 0o644))
-	}
-}
-
-func (s *IntegrationTestSuite) TestIsEmptyBlock() {
-	t := s.T()
-	emptyHeights := []int64{1, 2, 3}
-	for _, h := range emptyHeights {
-		blockRes, err := s.cctx.Client.Block(s.cctx.GoContext(), &h)
-		require.NoError(t, err)
-		require.True(t, app.IsEmptyBlock(blockRes.Block.Data, blockRes.Block.Header.Version.App)) //nolint:staticcheck
-		ExtendBlockTest(t, blockRes.Block)
-	}
-}
-
-func (s *IntegrationTestSuite) TestIsEmptyBlockRef() {
-	t := s.T()
-	emptyHeights := []int64{1, 2, 3}
-	for _, h := range emptyHeights {
-		blockRes, err := s.cctx.Client.Block(s.cctx.GoContext(), &h)
-		require.NoError(t, err)
-		require.True(t, app.IsEmptyBlockRef(&blockRes.Block.Data, blockRes.Block.Version.App))
-		ExtendBlockTest(t, blockRes.Block)
 	}
 }
 

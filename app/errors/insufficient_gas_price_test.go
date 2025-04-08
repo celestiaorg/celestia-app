@@ -25,7 +25,7 @@ import (
 
 // This will detect any changes to the DeductFeeDecorator which may cause a
 // different error message that does not match the regexp.
-func TestInsufficientMinGasPriceIntegration(t *testing.T) {
+func TestInsufficientFeeIntegration(t *testing.T) {
 	var (
 		gasLimit  uint64 = 1_000_000
 		feeAmount uint64 = 10
@@ -60,83 +60,83 @@ func TestInsufficientMinGasPriceIntegration(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = anteHandler(ctx, sdkTx, false)
-	require.True(t, apperr.IsInsufficientMinGasPrice(err))
+	require.True(t, apperr.IsInsufficientFee(err))
 	actualGasPrice, err := apperr.ParseInsufficientMinGasPrice(err, gasPrice, gasLimit)
 	require.NoError(t, err)
 	require.Equal(t, appconsts.DefaultMinGasPrice, actualGasPrice, err)
 }
 
-func TestInsufficientMinGasPriceTable(t *testing.T) {
+func TestInsufficientFeeTable(t *testing.T) {
 	testCases := []struct {
-		name                         string
-		err                          error
-		inputGasPrice                float64
-		inputGasLimit                uint64
-		isInsufficientMinGasPriceErr bool
-		expectParsingError           bool
-		expectedGasPrice             float64
+		name                 string
+		err                  error
+		inputGasPrice        float64
+		inputGasLimit        uint64
+		isInsufficientFeeErr bool
+		expectParsingError   bool
+		expectedGasPrice     float64
 	}{
 		{
-			name:                         "nil error",
-			err:                          nil,
-			isInsufficientMinGasPriceErr: false,
+			name:                 "nil error",
+			err:                  nil,
+			isInsufficientFeeErr: false,
 		},
 		{
-			name:                         "not insufficient fee error",
-			err:                          errors.Wrap(sdkerrors.ErrInsufficientFee, "not enough gas to pay for blobs (minimum: 1000000, got: 100000)"),
-			isInsufficientMinGasPriceErr: false,
+			name:                 "not insufficient fee error",
+			err:                  errors.Wrap(sdkerrors.ErrInsufficientFee, "not enough gas to pay for blobs (minimum: 1000000, got: 100000)"),
+			isInsufficientFeeErr: false,
 		},
 		{
-			name:                         "not insufficient fee error 2",
-			err:                          errors.Wrap(sdkerrors.ErrInsufficientFunds, "not enough gas to pay for blobs (got: 1000000, required: 100000)"),
-			isInsufficientMinGasPriceErr: false,
+			name:                 "not insufficient fee error 2",
+			err:                  errors.Wrap(sdkerrors.ErrInsufficientFunds, "not enough gas to pay for blobs (got: 1000000, required: 100000)"),
+			isInsufficientFeeErr: false,
 		},
 		{
-			name:                         "insufficient fee error",
-			err:                          errors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 10utia required: 100utia"),
-			inputGasPrice:                0.01,
-			expectedGasPrice:             0.1,
-			isInsufficientMinGasPriceErr: true,
+			name:                 "insufficient fee error",
+			err:                  errors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 10utia required: 100utia"),
+			inputGasPrice:        0.01,
+			expectedGasPrice:     0.1,
+			isInsufficientFeeErr: true,
 		},
 		{
-			name:                         "insufficient fee error with zero gas price",
-			err:                          errors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 0utia required: 100utia"),
-			inputGasPrice:                0,
-			inputGasLimit:                100,
-			expectedGasPrice:             1,
-			isInsufficientMinGasPriceErr: true,
+			name:                 "insufficient fee error with zero gas price",
+			err:                  errors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 0utia required: 100utia"),
+			inputGasPrice:        0,
+			inputGasLimit:        100,
+			expectedGasPrice:     1,
+			isInsufficientFeeErr: true,
 		},
 		{
-			name:                         "insufficient fee error with zero gas price and zero gas limit",
-			err:                          errors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 0utia required: 100utia"),
-			inputGasPrice:                0,
-			inputGasLimit:                0,
-			isInsufficientMinGasPriceErr: true,
-			expectParsingError:           true,
+			name:                 "insufficient fee error with zero gas price and zero gas limit",
+			err:                  errors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 0utia required: 100utia"),
+			inputGasPrice:        0,
+			inputGasLimit:        0,
+			isInsufficientFeeErr: true,
+			expectParsingError:   true,
 		},
 		{
-			name:                         "incorrectly formatted error",
-			err:                          errors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 0uatom required: 100uatom"),
-			isInsufficientMinGasPriceErr: false,
+			name:                 "incorrectly formatted error",
+			err:                  errors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 0uatom required: 100uatom"),
+			isInsufficientFeeErr: false,
 		},
 		{
-			name:                         "error with zero required gas price",
-			err:                          errors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 10utia required: 0utia"),
-			isInsufficientMinGasPriceErr: true,
-			expectParsingError:           true,
+			name:                 "error with zero required gas price",
+			err:                  errors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 10utia required: 0utia"),
+			isInsufficientFeeErr: true,
+			expectParsingError:   true,
 		},
 		{
-			name:                         "error with extra wrapping",
-			err:                          errors.Wrap(errors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 10utia required: 100utia"), "extra wrapping"),
-			inputGasPrice:                0.01,
-			expectedGasPrice:             0.1,
-			isInsufficientMinGasPriceErr: true,
+			name:                 "error with extra wrapping",
+			err:                  errors.Wrap(errors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 10utia required: 100utia"), "extra wrapping"),
+			inputGasPrice:        0.01,
+			expectedGasPrice:     0.1,
+			isInsufficientFeeErr: true,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.isInsufficientMinGasPriceErr, apperr.IsInsufficientMinGasPrice(tc.err))
+			require.Equal(t, tc.isInsufficientFeeErr, apperr.IsInsufficientFee(tc.err))
 			actualGasPrice, err := apperr.ParseInsufficientMinGasPrice(tc.err, tc.inputGasPrice, tc.inputGasLimit)
 			if tc.expectParsingError {
 				require.Error(t, err)
