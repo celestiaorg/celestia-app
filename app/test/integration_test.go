@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	apperrors "github.com/celestiaorg/celestia-app/v3/app/errors"
 	"github.com/cosmos/cosmos-sdk/client"
 
 	"github.com/stretchr/testify/suite"
@@ -306,51 +305,4 @@ func newBlobWithSize(size int) *share.Blob {
 		panic(err)
 	}
 	return blob
-}
-
-func (s *IntegrationTestSuite) TestTxsOverMaxTxSizeGetRejected() {
-	t := s.T()
-
-	// Set the max block size to 8MB
-	cparams := testnode.DefaultConsensusParams()
-	cparams.Block.MaxBytes = 8_000_000 // 8MB
-	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...).WithConsensusParams(cparams)
-
-	// Set the max tx bytes to ~3MB in the node's mempool
-	mempoolMaxTxBytes := appconsts.MaxTxSize(appconsts.LatestVersion) + 1_000_000 // 2MiB + 1MB
-	cfg.TmConfig.Mempool.MaxTxBytes = mempoolMaxTxBytes
-
-	cctx, _, _ := testnode.NewNetwork(t, cfg)
-	require.NoError(t, cctx.WaitForNextBlock())
-
-	// Create blob txs that exceed the max tx bytes
-	txs := blobfactory.RandBlobTxsWithAccounts(
-		s.ecfg,
-		tmrand.NewRand(),
-		cctx.Keyring,
-		cctx.GRPCClient,
-		appconsts.MaxTxSize(appconsts.LatestVersion),
-		1,
-		false,
-		s.accounts[138:140],
-	)
-
-	hashes := make([]string, len(txs))
-	for i, tx := range txs {
-		res, err := cctx.BroadcastTxSync(tx)
-		require.NoError(t, err)
-		require.Equal(t, apperrors.ErrTxExceedsMaxSize.ABCICode(), res.Code)
-		require.Contains(t, res.RawLog, apperrors.ErrTxExceedsMaxSize.Error())
-		hashes[i] = res.TxHash
-	}
-
-	// Wait for a few blocks to ensure the tx is rejected during recheck
-	require.NoError(t, cctx.WaitForBlocks(3))
-
-	// Verify the transaction was not included in any block
-	for _, hash := range hashes {
-		txResp, err := testnode.QueryTx(cctx.Context, hash, true)
-		require.Error(t, err)
-		require.Nil(t, txResp)
-	}
 }

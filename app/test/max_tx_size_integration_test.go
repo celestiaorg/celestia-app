@@ -1,0 +1,67 @@
+package app_test
+
+import (
+	"testing"
+
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v3/app/errors"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/stretchr/testify/require"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
+)
+
+// TestTxsOverMaxTxSizeGetRejected tests that transactions over the max tx size get rejected
+// by the application even if the validator node's local mempool config allows them.
+func TestTxsOverMaxTxSizeGetRejected(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping max tx size integration test in short mode.")
+	}
+
+	accounts := testnode.RandomAccounts(10)
+	// Set the max block size to 8MB
+	cparams := testnode.DefaultConsensusParams()
+	cparams.Block.MaxBytes = 8_000_000 // 8MB
+	cfg := testnode.DefaultConfig().WithFundedAccounts(accounts...).WithConsensusParams(cparams)
+
+	// Set the max tx bytes to ~3MB in the node's mempool
+	mempoolMaxTxBytes := appconsts.MaxTxSize(appconsts.LatestVersion) + 1_000_000 // 2MiB + 1MB
+	cfg.TmConfig.Mempool.MaxTxBytes = mempoolMaxTxBytes
+
+	cctx, _, _ := testnode.NewNetwork(t, cfg)
+	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	require.NoError(t, cctx.WaitForNextBlock())
+
+	// Create 10 blob txs that exceed the max tx bytes
+	txs := blobfactory.RandBlobTxsWithAccounts(
+		ecfg,
+		tmrand.NewRand(),
+		cctx.Keyring,
+		cctx.GRPCClient,
+		appconsts.MaxTxSize(appconsts.LatestVersion),
+		1,
+		false,
+		accounts,
+	)
+
+	hashes := make([]string, len(txs))
+	for i, tx := range txs {
+		res, err := cctx.BroadcastTxSync(tx)
+		require.NoError(t, err)
+		require.Equal(t, apperrors.ErrTxExceedsMaxSize.ABCICode(), res.Code)
+		require.Contains(t, res.RawLog, apperrors.ErrTxExceedsMaxSize.Error())
+		hashes[i] = res.TxHash
+	}
+
+	// Wait for a few blocks to ensure the tx is rejected during recheck
+	require.NoError(t, cctx.WaitForBlocks(3))
+
+	// Verify the transaction was not included in any block
+	for _, hash := range hashes {
+		txResp, err := testnode.QueryTx(cctx.Context, hash, true)
+		require.Error(t, err)
+		require.Nil(t, txResp)
+	}
+}
