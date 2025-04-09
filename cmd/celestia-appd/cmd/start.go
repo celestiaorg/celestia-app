@@ -492,7 +492,7 @@ func startInProcess(ctx *server.Context, clientCtx client.Context, appCreator sr
 // setupGRPCServer initializes and starts the gRPC server with the given configuration and returns the server instance.
 // returns the gRPC server, updated client context, and an error if any step fails during setup.
 func setupGRPCServer(ctx *server.Context, clientCtx client.Context, app srvrtypes.Application, config serverconfig.Config) (*grpc.Server, client.Context, error) {
-	grpcSrv, err := servergrpc.StartGRPCServer(clientCtx, app, config.GRPC)
+	grpcSrv, err := servergrpc.StartGRPCServer(clientCtx, app, config.GRPC, true)
 	if err != nil {
 		return nil, clientCtx, err
 	}
