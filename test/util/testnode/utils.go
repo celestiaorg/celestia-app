@@ -7,10 +7,6 @@ import (
 	"os"
 	"path"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -19,6 +15,11 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
+
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 )
 
 func TestAddress() sdk.AccAddress {
@@ -92,8 +93,8 @@ func GenerateAccounts(count int) []string {
 	return accs
 }
 
-// getFreePort returns a free port and optionally an error.
-func getFreePort() (int, error) {
+// GetFreePort returns a free port and optionally an error.
+func GetFreePort() (int, error) {
 	a, err := net.ResolveTCPAddr("tcp", "localhost:0")
 	if err != nil {
 		return 0, err
@@ -110,7 +111,7 @@ func getFreePort() (int, error) {
 // mustGetFreePort returns a free port. Panics if no free ports are available or
 // an error is encountered.
 func mustGetFreePort() int {
-	port, err := getFreePort()
+	port, err := GetFreePort()
 	if err != nil {
 		panic(err)
 	}
