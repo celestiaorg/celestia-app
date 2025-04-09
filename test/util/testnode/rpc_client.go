@@ -61,7 +61,7 @@ func StartGRPCServer(app srvtypes.Application, appCfg *srvconfig.Config, cctx Co
 		a.RegisterNodeService(cctx.Context)
 	}
 
-	grpcSrv, err := srvgrpc.StartGRPCServer(cctx.Context, app, appCfg.GRPC)
+	grpcSrv, err := srvgrpc.StartGRPCServer(cctx.Context, app, appCfg.GRPC, true)
 	if err != nil {
 		return Context{}, emptycleanup, err
 	}
