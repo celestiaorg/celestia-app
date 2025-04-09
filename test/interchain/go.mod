@@ -224,7 +224,7 @@ replace (
 
 // These replace statements were inspired by celestia-app.
 replace (
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.27.0-sdk-v0.46.16
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.28.2-sdk-v0.46.16
 	// Replace IBC with celestiaorg fork which includes fixes for security vulnerabilities.
 	github.com/cosmos/ibc-go/v6 => github.com/celestiaorg/ibc-go/v6 v6.2.4
 	github.com/docker/docker => github.com/docker/docker v24.0.1+incompatible
