@@ -108,6 +108,7 @@ func initRootCommand(rootCommand *cobra.Command, encodingConfig encoding.Config)
 	debugCmd := debug.Cmd()
 	debugCmd.AddCommand(
 		server.ModuleHashByHeightQuery(NewAppServer),
+		NewInPlaceTestnetCmd(),
 	)
 
 	rootCommand.AddCommand(

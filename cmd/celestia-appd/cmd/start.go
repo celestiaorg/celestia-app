@@ -205,7 +205,16 @@ func startStandAlone(ctx *server.Context, clientCtx client.Context, appCreator s
 		return err
 	}
 
-	app := appCreator(ctx.Logger, db, traceWriter, ctx.Viper)
+	// app := appCreator(ctx.Logger, db, traceWriter, ctx.Viper)
+	var app srvrtypes.Application
+	if isTestnet, ok := ctx.Viper.Get(KeyIsTestnet).(bool); ok && isTestnet {
+		app, err = testnetify(ctx, appCreator, db, traceWriter)
+		if err != nil {
+			return err
+		}
+	} else {
+		app = appCreator(ctx.Logger, db, traceWriter, ctx.Viper)
+	}
 
 	config, err := serverconfig.GetConfig(ctx.Viper)
 	if err != nil {
@@ -319,7 +328,16 @@ func startInProcess(ctx *server.Context, clientCtx client.Context, appCreator sr
 		return err
 	}
 
-	app := appCreator(ctx.Logger, db, traceWriter, ctx.Viper)
+	// app := appCreator(ctx.Logger, db, traceWriter, ctx.Viper)
+	var app srvrtypes.Application
+	if isTestnet, ok := ctx.Viper.Get(KeyIsTestnet).(bool); ok && isTestnet {
+		app, err = testnetify(ctx, appCreator, db, traceWriter)
+		if err != nil {
+			return err
+		}
+	} else {
+		app = appCreator(ctx.Logger, db, traceWriter, ctx.Viper)
+	}
 
 	nodeKey, err := p2p.LoadOrGenNodeKey(cfg.NodeKeyFile())
 	if err != nil {
@@ -693,7 +711,7 @@ func openDB(rootDir string, backendType dbm.BackendType) (dbm.DB, error) {
 	return dbm.NewDB("application", backendType, dataDir)
 }
 
-func openTraceWriter(traceWriterFile string) (w io.Writer, err error) {
+func openTraceWriter(traceWriterFile string) (w io.WriteCloser, err error) {
 	if traceWriterFile == "" {
 		return nil, nil
 	}
