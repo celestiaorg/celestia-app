@@ -267,7 +267,7 @@ func DefaultConsensusConfig() *tmcfg.Config {
 
 	cfg.Mempool.TTLNumBlocks = 1000
 	cfg.Mempool.TTLDuration = 1000 * time.Second
-	cfg.Mempool.MaxTxBytes = 8 * mebibyte
+	cfg.Mempool.MaxTxBytes = 32 * mebibyte
 	cfg.Mempool.MaxTxsBytes = 1000 * mebibyte
 	cfg.Mempool.Version = "v2" // Content Addressable Transaction (CAT) mempool
 
@@ -278,8 +278,8 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg.TxIndex.Indexer = "null"
 	cfg.Storage.DiscardABCIResponses = true
 
-	cfg.P2P.SendRate = 10 * mebibyte
-	cfg.P2P.RecvRate = 10 * mebibyte
+	cfg.P2P.SendRate = 190 * mebibyte
+	cfg.P2P.RecvRate = 200 * mebibyte
 
 	return cfg
 }
@@ -297,6 +297,7 @@ func DefaultAppConfig() *serverconfig.Config {
 	cfg.StateSync.SnapshotInterval = 0
 	cfg.StateSync.SnapshotKeepRecent = 2
 	cfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, BondDenom)
+	cfg.MinRetainBlocks = 1
 
 	const mebibyte = 1048576
 	cfg.GRPC.MaxRecvMsgSize = 2000 * mebibyte
