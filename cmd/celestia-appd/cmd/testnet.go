@@ -82,7 +82,6 @@ func initAppForTestnet(app *app.App, args valArgs) *app.App {
 	pubkeyAny, err := codectypes.NewAnyWithValue(pubkey)
 	handleErr(err)
 
-
 	// Create Validator struct for our new validator.
 	newVal := stakingtypes.Validator{
 		OperatorAddress: args.newOperatorAddress,
