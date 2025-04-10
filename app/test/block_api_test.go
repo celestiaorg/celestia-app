@@ -2,11 +2,12 @@ package app_test
 
 import (
 	"context"
+	"testing"
+
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	coregrpc "github.com/tendermint/tendermint/rpc/grpc"
-	"testing"
 )
 
 func TestEnsureBlockAPI(t *testing.T) {
