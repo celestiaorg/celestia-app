@@ -17,7 +17,7 @@ require (
 	cosmossdk.io/x/tx v0.13.8
 	cosmossdk.io/x/upgrade v0.1.4
 	github.com/01builders/nova v0.0.0-20250326081858-46ef7ddcb5c6
-	github.com/bcp-innovations/hyperlane-cosmos v0.0.0-20250304103734-261788112522
+	github.com/bcp-innovations/hyperlane-cosmos v1.0.0-beta0
 	github.com/celestiaorg/go-square/v2 v2.2.0
 	github.com/celestiaorg/knuu v0.16.3
 	github.com/celestiaorg/nmt v0.23.0

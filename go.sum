@@ -324,8 +324,8 @@ github.com/aws/aws-sdk-go-v2/service/sts v1.33.14 h1:TzeR06UCMUq+KA3bDkujxK1GVGy
 github.com/aws/aws-sdk-go-v2/service/sts v1.33.14/go.mod h1:dspXf/oYWGWo6DEvj98wpaTeqt5+DMidZD0A9BYTizc=
 github.com/aws/smithy-go v1.22.2 h1:6D9hW43xKFrRx/tXXfAlIZc4JI+yQe6snnWcQyxSyLQ=
 github.com/aws/smithy-go v1.22.2/go.mod h1:irrKGvNn1InZwb2d7fkIRNucdfwR8R+Ts3wxYa/cJHg=
-github.com/bcp-innovations/hyperlane-cosmos v0.0.0-20250304103734-261788112522 h1:aIc169myQAwqaf71KsIy8lrfOg8rDY2IWbP5TIWe6S0=
-github.com/bcp-innovations/hyperlane-cosmos v0.0.0-20250304103734-261788112522/go.mod h1:0guFCZo8zuiz6Ku1HUWt/PIpnrNX1gNgfd3l0bX/mRQ=
+github.com/bcp-innovations/hyperlane-cosmos v1.0.0-beta0 h1:AMGM3BhWHpoGH+u67cu6cBwoDoA+bwqP6KURViAINaM=
+github.com/bcp-innovations/hyperlane-cosmos v1.0.0-beta0/go.mod h1:3yfa0io5Ii6GmhHWsWl2LEAOEHsqWuMgw2R02+LPogw=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/beorn7/perks v1.0.0/go.mod h1:KWe93zE9D1o94FZ5RNwFwVgaQK1VOXiVxmqh+CedLV8=
