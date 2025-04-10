@@ -248,7 +248,7 @@ func startStandAlone(ctx *server.Context, clientCtx client.Context, appCreator s
 	}
 
 	if config.GRPC.Enable {
-		grpcSrv, _, err = setupGRPCServer(ctx, clientCtx, app, config)
+		grpcSrv, _, err = setupGRPCServer(ctx, clientCtx, app, config, true)
 		if err != nil {
 			ctx.Logger.Error("failed to start grpc server: ", err)
 			return err
@@ -398,7 +398,7 @@ func startInProcess(ctx *server.Context, clientCtx client.Context, appCreator sr
 	}
 
 	if config.GRPC.Enable {
-		grpcSrv, clientCtx, err = setupGRPCServer(ctx, clientCtx, app, config)
+		grpcSrv, clientCtx, err = setupGRPCServer(ctx, clientCtx, app, config, false)
 		if err != nil {
 			ctx.Logger.Error("failed to start grpc server: ", err)
 			return err
@@ -491,8 +491,8 @@ func startInProcess(ctx *server.Context, clientCtx client.Context, appCreator sr
 
 // setupGRPCServer initializes and starts the gRPC server with the given configuration and returns the server instance.
 // returns the gRPC server, updated client context, and an error if any step fails during setup.
-func setupGRPCServer(ctx *server.Context, clientCtx client.Context, app srvrtypes.Application, config serverconfig.Config) (*grpc.Server, client.Context, error) {
-	grpcSrv, err := servergrpc.StartGRPCServer(clientCtx, app, config.GRPC, true)
+func setupGRPCServer(ctx *server.Context, clientCtx client.Context, app srvrtypes.Application, config serverconfig.Config, isStandAlone bool) (*grpc.Server, client.Context, error) {
+	grpcSrv, err := servergrpc.StartGRPCServer(clientCtx, app, config.GRPC, isStandAlone)
 	if err != nil {
 		return nil, clientCtx, err
 	}
