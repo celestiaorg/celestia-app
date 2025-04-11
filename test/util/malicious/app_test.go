@@ -97,7 +97,7 @@ func TestMaliciousTestNode(t *testing.T) {
 
 	// check that we can recalculate the data root using the malicious code but
 	// not the correct code
-	s, err := Construct(block.Block.Txs.ToSliceOfBytes(), appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound, OutOfOrderExport)
+	s, err := Construct(block.Block.Txs.ToSliceOfBytes(), appconsts.LatestVersion, appconsts.SquareSizeUpperBound, OutOfOrderExport)
 	require.NoError(t, err)
 
 	rawSquare := share.ToBytes(s)
@@ -109,7 +109,7 @@ func TestMaliciousTestNode(t *testing.T) {
 	require.Equal(t, block.Block.DataHash.Bytes(), dah.Hash())
 
 	correctSquare, err := square.Construct(block.Block.Txs.ToSliceOfBytes(),
-		appconsts.DefaultSquareSizeUpperBound,
+		appconsts.SquareSizeUpperBound,
 		appconsts.SubtreeRootThreshold,
 	)
 	require.NoError(t, err)

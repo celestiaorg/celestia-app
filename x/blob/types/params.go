@@ -15,7 +15,7 @@ var _ paramtypes.ParamSet = (*Params)(nil)
 
 var (
 	KeyGasPerBlobByte              = []byte("GasPerBlobByte")
-	DefaultGasPerBlobByte   uint32 = appconsts.DefaultGasPerBlobByte
+	DefaultGasPerBlobByte   uint32 = appconsts.GasPerBlobByte
 	KeyGovMaxSquareSize            = []byte("GovMaxSquareSize")
 	DefaultGovMaxSquareSize uint64 = appconsts.DefaultGovMaxSquareSize
 )

@@ -88,7 +88,7 @@ func TestUpgradeIntegration(t *testing.T) {
 	require.False(t, shouldUpgrade)
 	require.EqualValues(t, 0, upgrade.AppVersion)
 
-	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + appconsts.UpgradeHeightDelay(appconsts.TestChainID))
+	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + appconsts.GetUpgradeHeightDelay(appconsts.TestChainID))
 
 	shouldUpgrade, upgrade = app.SignalKeeper.ShouldUpgrade(ctx)
 	require.True(t, shouldUpgrade)
