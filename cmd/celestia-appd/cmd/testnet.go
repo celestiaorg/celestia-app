@@ -76,16 +76,11 @@ func newTestnetApp(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts s
 }
 
 func initAppForTestnet(app *app.App, args valArgs) *app.App {
-	// Required Changes:
-	//
 	ctx := app.NewUncachedContext(true, cmtproto.Header{})
 
 	pubkey := &ed25519.PubKey{Key: args.newValPubKey.Bytes()}
 	pubkeyAny, err := codectypes.NewAnyWithValue(pubkey)
 	handleErr(err)
-
-	// STAKING
-	//
 
 	// Create Validator struct for our new validator.
 	newVal := stakingtypes.Validator{
@@ -111,7 +106,7 @@ func initAppForTestnet(app *app.App, args valArgs) *app.App {
 	validator, err := app.StakingKeeper.ValidatorAddressCodec().StringToBytes(newVal.GetOperator())
 	handleErr(err)
 
-	// Remove all validators from power store
+	// Remove all validators power from staking store
 	stakingKey := app.GetKey(stakingtypes.ModuleName)
 	stakingStore := ctx.KVStore(stakingKey)
 	iterator, err := app.StakingKeeper.ValidatorsPowerStoreIterator(ctx)
@@ -122,7 +117,7 @@ func initAppForTestnet(app *app.App, args valArgs) *app.App {
 	}
 	iterator.Close()
 
-	// Remove all validators from last validators store
+	// Remove all last validators from staking store
 	iterator, err = app.StakingKeeper.LastValidatorsIterator(ctx)
 	handleErr(err)
 
@@ -131,7 +126,7 @@ func initAppForTestnet(app *app.App, args valArgs) *app.App {
 	}
 	iterator.Close()
 
-	// Remove all validators from validators store
+	// Remove all validators from staking store
 	iterator = stakingStore.Iterator(stakingtypes.ValidatorsKey, storetypes.PrefixEndBytes(stakingtypes.ValidatorsKey))
 	for ; iterator.Valid(); iterator.Next() {
 		stakingStore.Delete(iterator.Key())

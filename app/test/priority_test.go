@@ -29,6 +29,8 @@ import (
 )
 
 func TestPriorityTestSuite(t *testing.T) {
+	t.Skip("TODO: skipping test until priortisation available in core")
+
 	if testing.Short() {
 		t.Skip("skipping app/test/priority_test in short mode.")
 	}

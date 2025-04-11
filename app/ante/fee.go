@@ -66,7 +66,8 @@ func verifyMinFee(fee math.Int, gas uint64, minGasPrice math.LegacyDec, errMsg s
 	// price by the gas limit, where fee = minGasPrice * gas.
 	minFee := minGasPrice.MulInt(math.NewIntFromUint64(gas)).Ceil()
 	if fee.LT(minFee.TruncateInt()) {
-		return errors.Wrapf(sdkerror.ErrInsufficientFee, "%s; got: %s required at least: %s", errMsg, fee, minFee)
+		providedGasPrice := math.LegacyNewDecFromInt(fee).QuoInt64(int64(gas))
+		return errors.Wrapf(sdkerror.ErrInsufficientFee, "%s; got fee: %s and gas price of %s but required at least: %s and a minimum gas price of %s", errMsg, fee, providedGasPrice, minFee, minGasPrice)
 	}
 	return nil
 }
