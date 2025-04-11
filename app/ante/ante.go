@@ -47,7 +47,6 @@ func NewAnteHandler(
 		// Side effect: consumes gas from the gas meter.
 		NewConsumeGasForTxSizeDecorator(accountKeeper),
 		// Ensure the feepayer (fee granter or first signer) has enough funds to pay for the tx.
-		// Ensure the gas price >= network min gas price if app version >= 2.
 		// Side effect: deducts fees from the fee payer. Sets the tx priority in context.
 		ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, ValidateTxFeeWrapper(minfeeKeeper)),
 		// Set public keys in the context for fee-payer and all signers.
@@ -71,8 +70,7 @@ func NewAnteHandler(
 		// Note: does not consume gas from the gas meter.
 		blobante.NewMinGasPFBDecorator(blobKeeper),
 		// Ensure that the blob shares occupied by the tx <= the max shares
-		// available to blob data in a data square. Only applies to app version
-		// >= 2.
+		// available to blob data in a data square.
 		blobante.NewBlobShareDecorator(blobKeeper),
 		// Ensure that txs with MsgSubmitProposal/MsgExec have at least one message and param filters are applied.
 		NewParamFilterDecorator(paramFilters),
