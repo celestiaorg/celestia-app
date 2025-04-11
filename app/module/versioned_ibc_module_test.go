@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v3/app/module"
-	mocks "github.com/celestiaorg/celestia-app/v3/app/module/mocks"
+	mocks "github.com/celestiaorg/celestia-app/v3/app/module/mocks" //nolint:revive
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/ibc-go/v6/modules/core/04-channel/types"
 	"github.com/golang/mock/gomock"
