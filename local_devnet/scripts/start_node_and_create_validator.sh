@@ -44,7 +44,7 @@ fi
       --amount="${AMOUNT}" \
       --pubkey="$(celestia-appd tendermint show-validator --home "${CELESTIA_HOME}")" \
       --moniker="${MONIKER}" \
-      --chain-id="local_devnet" \
+      --chain-id="test" \
       --commission-rate=0.1 \
       --commission-max-rate=0.2 \
       --commission-max-change-rate=0.01 \
@@ -68,6 +68,6 @@ fi
 celestia-appd start \
   --home="${CELESTIA_HOME}" \
   --moniker="${MONIKER}" \
-  --p2p.persistent_peers=e3c592c0c2ad4b05cef3791456b0d6dd4da72ed2@core0:26656 \
+  --p2p.persistent_peers=1c29bcd0d568df34f148b26205543566e4d1a177@core0:26656 \
   --rpc.laddr=tcp://0.0.0.0:26657 \
   --force-no-bbr
