@@ -78,22 +78,11 @@ func (d BlobShareDecorator) getMaxBlobShares(ctx sdk.Context) int {
 	return totalShares
 }
 
-// getMaxSquareSize returns the maximum square size based on the current values
-// for the governance parameter and the versioned constant.
+// getMaxSquareSize returns the max effective square size.
 func (d BlobShareDecorator) getMaxSquareSize(ctx sdk.Context) int {
-	// TODO: fix hack that forces the max square size for the first height to
-	// 64. This is due to our fork of the sdk not initializing state before
-	// BeginBlock of the first block. This is remedied in versions of the sdk
-	// and comet that have full support of PrepareProposal, although
-	// celestia-app does not currently use those. see this PR for more details
-	// https://github.com/cosmos/cosmos-sdk/pull/14505
-	if ctx.HeaderInfo().Height <= 1 {
-		return int(appconsts.DefaultGovMaxSquareSize)
-	}
-
-	upperBound := appconsts.DefaultSquareSizeUpperBound
-	govParam := d.k.GetParams(ctx).GovMaxSquareSize
-	return min(upperBound, int(govParam))
+	govMax := d.k.GetParams(ctx).GovMaxSquareSize
+	hardMax := appconsts.DefaultSquareSizeUpperBound
+	return min(int(govMax), hardMax)
 }
 
 // getSharesNeeded returns the total number of shares needed to represent all of
