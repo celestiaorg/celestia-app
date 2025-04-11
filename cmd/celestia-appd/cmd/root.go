@@ -106,7 +106,7 @@ func NewRootCmd() *cobra.Command {
 // initRootCommand performs a bunch of side-effects on the root command.
 func initRootCommand(rootCommand *cobra.Command, encodingConfig encoding.Config) {
 	rootCommand.AddCommand(
-		genutilcli.InitCmd(app.ModuleBasics, app.DefaultNodeHome),
+		InitCmd(),
 		genutilcli.CollectGenTxsCmd(banktypes.GenesisBalancesIterator{}, app.DefaultNodeHome),
 		genutilcli.MigrateGenesisCmd(),
 		simdcmd.AddGenesisAccountCmd(app.DefaultNodeHome),
