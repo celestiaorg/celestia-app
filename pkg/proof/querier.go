@@ -6,14 +6,15 @@ import (
 	"math"
 	"strconv"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	abci "github.com/cometbft/cometbft/abci/types"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cometbft/cometbft/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+
 	"github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	abci "github.com/tendermint/tendermint/abci/types"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/types"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 const TxInclusionQueryPath = "txInclusionProof"
@@ -25,7 +26,7 @@ const TxInclusionQueryPath = "txInclusionProof"
 //
 // example path for proving the third transaction in that block:
 // custom/txInclusionProof/3
-func QueryTxInclusionProof(_ sdk.Context, path []string, req abci.RequestQuery) ([]byte, error) {
+func QueryTxInclusionProof(_ sdk.Context, path []string, req *abci.RequestQuery) ([]byte, error) {
 	// parse the index from the path
 	if len(path) != 1 {
 		return nil, fmt.Errorf("expected query path length: 1 actual: %d ", len(path))
@@ -69,7 +70,7 @@ const ShareInclusionQueryPath = "shareInclusionProof"
 // inclusion proofs of a set of shares to the data root. The share range should
 // be appended to the path. Example path for proving the set of shares [3, 5]:
 // custom/shareInclusionProof/3/5
-func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuery) ([]byte, error) {
+func QueryShareInclusionProof(_ sdk.Context, path []string, req *abci.RequestQuery) ([]byte, error) {
 	// parse the share range from the path
 	if len(path) != 2 {
 		return nil, fmt.Errorf("expected query path length: 2 actual: %d ", len(path))
@@ -93,7 +94,7 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 	// construct the data square from the block data. As we don't have
 	// access to the application's state machine we use the upper bound
 	// square size instead of the square size dictated from governance
-	dataSquare, err := square.Construct(pbb.Data.Txs, appconsts.SquareSizeUpperBound(pbb.Header.Version.App), appconsts.SubtreeRootThreshold(pbb.Header.Version.App))
+	dataSquare, err := square.Construct(pbb.Data.Txs, appconsts.DefaultSquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +131,7 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 // ParseNamespace validates the share range, checks if it only contains one namespace and returns
 // that namespace ID.
 // The provided range, defined by startShare and endShare, is end-exclusive.
-func ParseNamespace(rawShares []share.Share, startShare int, endShare int) (share.Namespace, error) {
+func ParseNamespace(rawShares []share.Share, startShare, endShare int) (share.Namespace, error) {
 	if startShare < 0 {
 		return share.Namespace{}, fmt.Errorf("start share %d should be positive", startShare)
 	}

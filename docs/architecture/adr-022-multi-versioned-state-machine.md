@@ -56,7 +56,7 @@ app.mm, err = module.NewManager([]module.VersionedModule{
 
 `InitGenesis`, `BeginBlock` and `EndBlock` will only be called for the modules that belong to the current version of the application.
 
-`DeliverTx` is not called by the `module.Manager`. To ensure that only relevant transactions are executed, the `MsgServiceRouter` had to be modified to reject the execution of transaction that are not part of the app version through the `CircuitBreaker` struct within it.
+`DeliverTx` is not called by the `module.Manager`. To ensure that only relevant transactions are executed, the `MsgServiceRouter` had to be modified to reject the execution of transactions that are not part of the app version through the `CircuitBreaker` struct within it.
 
 ### Configurator Changes
 
@@ -90,7 +90,7 @@ However, having it in a single binary provides less surface area for mistakes by
 
 ### Neutral
 
-- **Downgrades**: Although not supported in this ADR, it is possible that the application be able to downgrade in the event of some vulnerability or that migrations are unsuccessful.
+- **Downgrades**: Although not supported in this ADR, it is possible that the application would be able to downgrade in the event of some vulnerability or that migrations are unsuccessful.
 
 ## References
 

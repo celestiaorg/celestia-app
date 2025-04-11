@@ -3,16 +3,16 @@ package types
 import (
 	"bytes"
 	fmt "fmt"
+	"slices"
 
 	"cosmossdk.io/errors"
+	"github.com/cometbft/cometbft/crypto/merkle"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	"github.com/celestiaorg/go-square/v2/share"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
-	"github.com/tendermint/tendermint/crypto/merkle"
-	"golang.org/x/exp/slices"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 const (
@@ -39,11 +39,7 @@ const (
 	BytesPerBlobInfo = 70
 )
 
-// MsgPayForBlobs implements the `LegacyMsg` interface.
-// See: https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/building-modules/messages-and-queries.md#legacy-amino-legacymsgs
-var _ legacytx.LegacyMsg = &MsgPayForBlobs{}
-
-func NewMsgPayForBlobs(signer string, appVersion uint64, blobs ...*share.Blob) (*MsgPayForBlobs, error) {
+func NewMsgPayForBlobs(signer string, _ uint64, blobs ...*share.Blob) (*MsgPayForBlobs, error) {
 	err := ValidateBlobs(blobs...)
 	if err != nil {
 		return nil, err
@@ -59,7 +55,7 @@ func NewMsgPayForBlobs(signer string, appVersion uint64, blobs ...*share.Blob) (
 		return nil, err
 	}
 
-	commitments, err := inclusion.CreateCommitments(blobs, merkle.HashFromByteSlices, appconsts.SubtreeRootThreshold(appVersion))
+	commitments, err := inclusion.CreateCommitments(blobs, merkle.HashFromByteSlices, appconsts.SubtreeRootThreshold)
 	if err != nil {
 		return nil, fmt.Errorf("creating commitments: %w", err)
 	}
@@ -82,14 +78,6 @@ func namespacesToBytes(namespaces []share.Namespace) (result [][]byte) {
 		result = append(result, namespace.Bytes())
 	}
 	return result
-}
-
-// Route fulfills the legacytx.LegacyMsg interface
-func (msg *MsgPayForBlobs) Route() string { return RouterKey }
-
-// Type fulfills the legacytx.LegacyMsg interface
-func (msg *MsgPayForBlobs) Type() string {
-	return URLMsgPayForBlobs
 }
 
 // ValidateBasic fulfills the sdk.Msg interface by performing stateless
@@ -193,21 +181,6 @@ func ValidateBlobNamespace(ns share.Namespace) error {
 	return nil
 }
 
-// GetSignBytes fulfills the legacytx.LegacyMsg interface by returning a deterministic set
-// of bytes to sign over
-func (msg *MsgPayForBlobs) GetSignBytes() []byte {
-	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(msg))
-}
-
-// GetSigners fulfills the sdk.Msg interface by returning the signer's address
-func (msg *MsgPayForBlobs) GetSigners() []sdk.AccAddress {
-	address, err := sdk.AccAddressFromBech32(msg.Signer)
-	if err != nil {
-		panic(err)
-	}
-	return []sdk.AccAddress{address}
-}
-
 // ValidateBlobs performs checks that each blob is non-empty and has a valid namespace.
 // Other checks are done in the construction of the Blob.
 func ValidateBlobs(blobs ...*share.Blob) error {
@@ -241,7 +214,7 @@ func ValidateBlobShareVersion(signer sdk.AccAddress, blobs ...*share.Blob) error
 
 // ExtractBlobComponents separates and returns the components of a slice of
 // blobs.
-func ExtractBlobComponents(pblobs []*share.Blob) (namespaces []share.Namespace, sizes []uint32, shareVersions []uint32) {
+func ExtractBlobComponents(pblobs []*share.Blob) (namespaces []share.Namespace, sizes, shareVersions []uint32) {
 	namespaces = make([]share.Namespace, len(pblobs))
 	sizes = make([]uint32, len(pblobs))
 	shareVersions = make([]uint32, len(pblobs))

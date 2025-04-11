@@ -49,11 +49,11 @@ The `Minter` struct is updated every block via `BeginBlocker`.
 
 ### Begin Block
 
-See `BeginBlocker` in [./abci.go](./abci.go).
+See `BeginBlocker` in [./keeper/abci.go](./keeper/abci.go).
 
 ### Events
 
-An event is emitted every block when a block provision is minted. See `mintBlockProvision` in [./abci.go](./abci.go).
+An event is emitted every block when a block provision is minted. See `mintBlockProvision` in [./keeper/abci.go](./keeper/abci.go).
 
 ## Client
 

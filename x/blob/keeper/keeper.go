@@ -2,15 +2,16 @@ package keeper
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
-	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	"cosmossdk.io/errors"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
-	"github.com/tendermint/tendermint/libs/log"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 const (
@@ -19,48 +20,72 @@ const (
 
 // Keeper handles all the state changes for the blob module.
 type Keeper struct {
-	cdc        codec.BinaryCodec
-	paramStore paramtypes.Subspace
+	cdc            codec.Codec
+	storeKey       storetypes.StoreKey
+	legacySubspace paramtypes.Subspace
+	authority      string
 }
 
 func NewKeeper(
-	cdc codec.BinaryCodec,
-	ps paramtypes.Subspace,
+	cdc codec.Codec,
+	storeKey storetypes.StoreKey,
+	legacySubspace paramtypes.Subspace,
+	authority string,
 ) *Keeper {
-	if !ps.HasKeyTable() {
-		ps = ps.WithKeyTable(types.ParamKeyTable())
+	if !legacySubspace.HasKeyTable() {
+		legacySubspace = legacySubspace.WithKeyTable(types.ParamKeyTable())
 	}
 
 	return &Keeper{
-		cdc:        cdc,
-		paramStore: ps,
+		cdc:            cdc,
+		storeKey:       storeKey,
+		legacySubspace: legacySubspace,
+		authority:      authority,
 	}
 }
 
-func (k Keeper) Logger(ctx sdk.Context) log.Logger {
-	return ctx.Logger().With("module", fmt.Sprintf("x/%s", types.ModuleName))
+// GetAuthority returns the client submodule's authority.
+func (k Keeper) GetAuthority() string {
+	return k.authority
 }
 
 // PayForBlobs consumes gas based on the blob sizes in the MsgPayForBlobs.
 func (k Keeper) PayForBlobs(goCtx context.Context, msg *types.MsgPayForBlobs) (*types.MsgPayForBlobsResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
-
-	// GasPerBlobByte is a versioned param from version 3 onwards.
-	var gasToConsume uint64
-	if ctx.BlockHeader().Version.App <= v2.Version {
-		gasToConsume = types.GasToConsume(msg.BlobSizes, k.GasPerBlobByte(ctx))
-	} else {
-		gasToConsume = types.GasToConsume(msg.BlobSizes, appconsts.GasPerBlobByte(ctx.BlockHeader().Version.App))
-	}
+	gasToConsume := types.GasToConsume(msg.BlobSizes, appconsts.DefaultGasPerBlobByte)
 
 	ctx.GasMeter().ConsumeGas(gasToConsume, payForBlobGasDescriptor)
 
-	err := ctx.EventManager().EmitTypedEvent(
+	if err := ctx.EventManager().EmitTypedEvent(
 		types.NewPayForBlobsEvent(msg.Signer, msg.BlobSizes, msg.Namespaces),
-	)
-	if err != nil {
+	); err != nil {
 		return &types.MsgPayForBlobsResponse{}, err
 	}
 
 	return &types.MsgPayForBlobsResponse{}, nil
+}
+
+// UpdateBlobParams updates blob module parameters.
+func (k Keeper) UpdateBlobParams(goCtx context.Context, msg *types.MsgUpdateBlobParams) (*types.MsgUpdateBlobParamsResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	// ensure that the sender has the authority to update the parameters.
+	if msg.Authority != k.GetAuthority() {
+		return nil, errors.Wrapf(sdkerrors.ErrUnauthorized, "invalid authority: expected: %s, got: %s", k.authority, msg.Authority)
+	}
+
+	if err := msg.Params.Validate(); err != nil {
+		return nil, errors.Wrapf(sdkerrors.ErrInvalidRequest, "invalid parameters: %s", err)
+	}
+
+	k.SetParams(ctx, msg.Params)
+
+	// Emit an event indicating successful parameter update.
+	if err := ctx.EventManager().EmitTypedEvent(
+		types.NewUpdateBlobParamsEvent(msg.Authority, msg.Params),
+	); err != nil {
+		return nil, err
+	}
+
+	return &types.MsgUpdateBlobParamsResponse{}, nil
 }

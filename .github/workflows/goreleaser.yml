@@ -10,13 +10,13 @@ jobs:
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #v4.2.2
         with:
           fetch-depth: 0
       - run: git fetch --force --tags
       - name: Set GORELEASER_CURRENT_TAG in GitHub env
         run: echo "GORELEASER_CURRENT_TAG=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b #v5.4.0
         with:
           go-version-file: 'go.mod'
       - name: Create .release-env file
@@ -33,13 +33,13 @@ jobs:
     runs-on: ubuntu-latest
     permissions: write-all
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #v4.2.2
         with:
           fetch-depth: 0
       - run: git fetch --force --tags
       - name: Set GORELEASER_CURRENT_TAG in GitHub env
         run: echo "GORELEASER_CURRENT_TAG=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b #v5.4.0
         with:
           go-version-file: 'go.mod'
       - name: Create .release-env file

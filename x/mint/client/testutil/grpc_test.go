@@ -4,20 +4,19 @@ import (
 	"fmt"
 	"strings"
 
+	"cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/testutil"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
+	"github.com/cosmos/gogoproto/proto"
 
-	"github.com/gogo/protobuf/proto"
-
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	mint "github.com/celestiaorg/celestia-app/v3/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	mint "github.com/celestiaorg/celestia-app/v4/x/mint/types"
 )
 
 func (s *IntegrationTestSuite) TestQueryGRPC() {
 	baseURL := s.cctx.APIAddress()
 	baseURL = strings.Replace(baseURL, "tcp", "http", 1)
-	expectedAnnualProvision := mint.InitialInflationRateAsDec().MulInt(sdk.NewInt(testnode.DefaultInitialBalance))
+	expectedAnnualProvision := mint.InitialInflationRateAsDec().MulInt(math.NewInt(testnode.DefaultInitialBalance))
 	testCases := []struct {
 		name     string
 		url      string
@@ -31,7 +30,7 @@ func (s *IntegrationTestSuite) TestQueryGRPC() {
 			map[string]string{},
 			&mint.QueryInflationRateResponse{},
 			&mint.QueryInflationRateResponse{
-				InflationRate: sdk.NewDecWithPrec(8, 2),
+				InflationRate: math.LegacyNewDecWithPrec(536, 4),
 			},
 		},
 		{
@@ -50,7 +49,7 @@ func (s *IntegrationTestSuite) TestQueryGRPC() {
 		s.Run(tc.name, func() {
 			resp, err := testutil.GetRequestWithHeaders(tc.url, tc.headers)
 			s.Require().NoError(err)
-			s.Require().NoError(s.cctx.Context.Codec.UnmarshalJSON(resp, tc.respType))
+			s.Require().NoError(s.cctx.Codec.UnmarshalJSON(resp, tc.respType))
 			s.Require().Equal(tc.expected.String(), tc.respType.String())
 		})
 	}

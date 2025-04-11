@@ -1,38 +1,35 @@
 package blobfactory_test
 
 import (
+	"math/rand"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
 // TestGenerateManyRandomRawSendTxsSameSigner_Deterministic tests whether with the same random seed the GenerateManyRandomRawSendTxsSameSigner function produces the same send transactions.
 func TestGenerateManyRandomRawSendTxsSameSigner_Deterministic(t *testing.T) {
 	normalTxCount := 10
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	TxDecoder := encCfg.TxConfig.TxDecoder()
+	seed := int64(1)
+	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	TxDecoder := enc.TxConfig.TxDecoder()
 
 	kr, _ := testnode.NewKeyring(testfactory.TestAccName)
-	signer, err := user.NewSigner(kr, encCfg.TxConfig, testfactory.ChainID, appconsts.LatestVersion, user.NewAccount(testfactory.TestAccName, 1, 0))
+	signer, err := user.NewSigner(kr, enc.TxConfig, testfactory.ChainID, user.NewAccount(testfactory.TestAccName, 1, 0))
 	require.NoError(t, err)
 
-	rand := tmrand.NewRand()
-	rand.Seed(1)
-	encodedTxs1 := blobfactory.GenerateManyRandomRawSendTxsSameSigner(rand, signer, normalTxCount)
+	encodedTxs1 := blobfactory.GenerateManyRandomRawSendTxsSameSigner(rand.New(rand.NewSource(seed)), signer, normalTxCount)
 
 	require.NoError(t, signer.SetSequence(testfactory.TestAccName, 0))
-	rand2 := tmrand.NewRand()
-	rand2.Seed(1)
-	encodedTxs2 := blobfactory.GenerateManyRandomRawSendTxsSameSigner(rand2, signer, normalTxCount)
+	encodedTxs2 := blobfactory.GenerateManyRandomRawSendTxsSameSigner(rand.New(rand.NewSource(seed)), signer, normalTxCount)
 
 	// additional check for the sake of future debugging
 	for i := 0; i < normalTxCount; i++ {

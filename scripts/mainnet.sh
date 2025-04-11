@@ -36,7 +36,7 @@ rm -r "$CELESTIA_APP_HOME"
 echo "Initializing config files..."
 celestia-appd init ${NODE_NAME} --chain-id ${CHAIN_ID} > /dev/null 2>&1 # Hide output to reduce terminal noise
 
-echo "Settings seeds in config.toml..."
+echo "Setting seeds in config.toml..."
 sed -i.bak -e "s/^seeds *=.*/seeds = \"$SEEDS\"/" $CELESTIA_APP_HOME/config/config.toml
 
 LATEST_HEIGHT=$(curl -s $RPC/block | jq -r .result.block.header.height);

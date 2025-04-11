@@ -8,8 +8,8 @@ import (
 )
 
 // InitCmd returns a custom version of the default init command with improved help docs.
-func InitCmd() *cobra.Command {
-	cmd := cli.InitCmd(app.ModuleBasics, app.DefaultNodeHome)
+func InitCmd(capp *app.App) *cobra.Command {
+	cmd := cli.InitCmd(capp.BasicManager, app.DefaultNodeHome)
 
 	cmd.Short = "Initialize configuration files for a Celestia consensus node"
 	cmd.Long = "This command sets up a genesis file and default configuration for either a validator or a full node."

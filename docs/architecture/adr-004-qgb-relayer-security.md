@@ -28,7 +28,7 @@ Now, if the relayer is missing some data commitments or valset updates, then it 
 - Relay the next valset
 - And, so on.
 
-The problem with this approach is that there is a constant risk for any relayer to mess up the ordering of the attestations submission, ie relaying the next valset before relaying all the data commitments that were signed using the previous valset, and ending up with signatures holes.
+The problem with this approach is that there is a constant risk for any relayer to mess up the ordering of the attestations submission, i.e. relaying the next valset before relaying all the data commitments that were signed using the previous valset, and ending up with signatures holes.
 
 Also, a malicious relayer, can target any honest QGB relayer in normal mode, or while catching up, and mess its attestations submission order, as follows:
 
@@ -42,7 +42,7 @@ Then, this would create holes in the signatures as the honest relayer will no lo
 
 ### More synchrony: Deploy the QGB contract with a data commitment window
 
-When deploying the QGB  contract,  also set the data commitment window,  ie, the number of blocks between the `beginBlock` and `endBlock` of each data commitment confirms.
+When deploying the QGB  contract,  also set the data commitment window,  i.e., the number of blocks between the `beginBlock` and `endBlock` of each data commitment confirms.
 
 Then, update the QGB contract to check when receiving a new valset if the latest relayed data commitment height is >= new valset height - data commitment window.
 

@@ -1,15 +1,18 @@
 package ante
 
 import (
-	blobante "github.com/celestiaorg/celestia-app/v3/x/blob/ante"
-	blob "github.com/celestiaorg/celestia-app/v3/x/blob/keeper"
+	circuitante "cosmossdk.io/x/circuit/ante"
+	circuitkeeper "cosmossdk.io/x/circuit/keeper"
+	txsigning "cosmossdk.io/x/tx/signing"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
-	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	paramkeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
-	ibcante "github.com/cosmos/ibc-go/v6/modules/core/ante"
-	ibckeeper "github.com/cosmos/ibc-go/v6/modules/core/keeper"
+	ibcante "github.com/cosmos/ibc-go/v8/modules/core/ante"
+	ibckeeper "github.com/cosmos/ibc-go/v8/modules/core/keeper"
+
+	blobante "github.com/celestiaorg/celestia-app/v4/x/blob/ante"
+	blob "github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
+	minfeekeeper "github.com/celestiaorg/celestia-app/v4/x/minfee/keeper"
 )
 
 func NewAnteHandler(
@@ -17,18 +20,16 @@ func NewAnteHandler(
 	bankKeeper authtypes.BankKeeper,
 	blobKeeper blob.Keeper,
 	feegrantKeeper ante.FeegrantKeeper,
-	signModeHandler signing.SignModeHandler,
+	signModeHandler *txsigning.HandlerMap,
 	sigGasConsumer ante.SignatureVerificationGasConsumer,
 	channelKeeper *ibckeeper.Keeper,
-	paramKeeper paramkeeper.Keeper,
-	msgVersioningGateKeeper *MsgVersioningGateKeeper,
+	minfeeKeeper *minfeekeeper.Keeper,
+	circuitkeeper *circuitkeeper.Keeper,
+	paramFilters map[string]ParamFilter,
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
 		// Wraps the panic with the string format of the transaction
 		NewHandlePanicDecorator(),
-		// Prevents messages that don't belong to the correct app version
-		// from being executed
-		msgVersioningGateKeeper,
 		// Set up the context with a gas meter.
 		// Must be called before gas consumption occurs in any other decorator.
 		ante.NewSetUpContextDecorator(),
@@ -48,7 +49,7 @@ func NewAnteHandler(
 		// Ensure the feepayer (fee granter or first signer) has enough funds to pay for the tx.
 		// Ensure the gas price >= network min gas price if app version >= 2.
 		// Side effect: deducts fees from the fee payer. Sets the tx priority in context.
-		ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, ValidateTxFeeWrapper(paramKeeper)),
+		ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, ValidateTxFeeWrapper(minfeeKeeper)),
 		// Set public keys in the context for fee-payer and all signers.
 		// Contract: must be called before all signature verification decorators.
 		ante.NewSetPubKeyDecorator(accountKeeper),
@@ -62,6 +63,9 @@ func NewAnteHandler(
 		// account sequence number of the signer.
 		// Note: does not consume gas from the gas meter.
 		ante.NewSigVerificationDecorator(accountKeeper, signModeHandler),
+		// Ensure that the tx does not contain a MsgExec with a nested MsgExec
+		// or MsgPayForBlobs.
+		NewMsgExecDecorator(),
 		// Ensure that the tx's gas limit is > the gas consumed based on the blob size(s).
 		// Contract: must be called after all decorators that consume gas.
 		// Note: does not consume gas from the gas meter.
@@ -73,13 +77,14 @@ func NewAnteHandler(
 		// available to blob data in a data square. Only applies to app version
 		// >= 2.
 		blobante.NewBlobShareDecorator(blobKeeper),
-		// Ensure that tx's with a MsgSubmitProposal have at least one proposal
-		// message.
-		NewGovProposalDecorator(),
+		// Ensure that txs with MsgSubmitProposal/MsgExec have at least one message and param filters are applied.
+		NewParamFilterDecorator(paramFilters),
 		// Side effect: increment the nonce for all tx signers.
 		ante.NewIncrementSequenceDecorator(accountKeeper),
 		// Ensure that the tx is not an IBC packet or update message that has already been processed.
 		ibcante.NewRedundantRelayDecorator(channelKeeper),
+		// Wire circuit breaker decorator.
+		circuitante.NewCircuitBreakerDecorator(circuitkeeper),
 	)
 }
 
