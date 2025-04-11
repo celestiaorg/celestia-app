@@ -25,7 +25,7 @@ func TestGenesisState_Validate(t *testing.T) {
 			genState: &types.GenesisState{
 				Params: types.Params{
 					GasPerBlobByte:   20,
-					GovMaxSquareSize: uint64(appconsts.DefaultSquareSizeUpperBound),
+					GovMaxSquareSize: uint64(appconsts.SquareSizeUpperBound),
 				},
 			},
 			valid: true,
@@ -35,7 +35,7 @@ func TestGenesisState_Validate(t *testing.T) {
 			genState: &types.GenesisState{
 				Params: types.Params{
 					GasPerBlobByte:   20,
-					GovMaxSquareSize: uint64(appconsts.DefaultSquareSizeUpperBound + 1),
+					GovMaxSquareSize: uint64(appconsts.SquareSizeUpperBound + 1),
 				},
 			},
 			valid: false,

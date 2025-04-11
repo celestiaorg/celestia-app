@@ -33,4 +33,4 @@ const (
 	DefaultNetworkMinGasPrice = 0.000001 // utia
 )
 
-var DefaultUpperBoundMaxBytes = DefaultSquareSizeUpperBound * DefaultSquareSizeUpperBound * share.ContinuationSparseShareContentSize
+var DefaultUpperBoundMaxBytes = SquareSizeUpperBound * SquareSizeUpperBound * share.ContinuationSparseShareContentSize

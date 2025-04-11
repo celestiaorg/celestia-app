@@ -59,7 +59,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	blobGenState := blobtypes.DefaultGenesis()
-	blobGenState.Params.GovMaxSquareSize = uint64(appconsts.DefaultSquareSizeUpperBound)
+	blobGenState.Params.GovMaxSquareSize = uint64(appconsts.SquareSizeUpperBound)
 
 	cfg := DefaultConfig().
 		WithFundedAccounts(s.accounts...).

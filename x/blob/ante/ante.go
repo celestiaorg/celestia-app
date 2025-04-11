@@ -34,7 +34,7 @@ func (d MinGasPFBDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 		return next(ctx, tx, simulate)
 	}
 
-	gasPerByte := appconsts.DefaultGasPerBlobByte
+	gasPerByte := appconsts.GasPerBlobByte
 	txGas := ctx.GasMeter().GasRemaining()
 	err := d.validatePFBHasEnoughGas(tx.GetMsgs(), gasPerByte, txGas)
 	if err != nil {

@@ -65,7 +65,7 @@ func (cgts ConsumeTxSizeGasDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, sim
 		return ctx, errors.Wrap(sdkerrors.ErrTxDecode, "invalid tx type")
 	}
 
-	ctx.GasMeter().ConsumeGas(appconsts.DefaultTxSizeCostPerByte*storetypes.Gas(len(ctx.TxBytes())), "txSize")
+	ctx.GasMeter().ConsumeGas(appconsts.TxSizeCostPerByte*storetypes.Gas(len(ctx.TxBytes())), "txSize")
 
 	// simulate gas cost for signatures in simulate mode
 	if simulate {
@@ -107,7 +107,7 @@ func (cgts ConsumeTxSizeGasDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, sim
 				txBytes *= params.TxSigLimit
 			}
 
-			ctx.GasMeter().ConsumeGas(appconsts.DefaultTxSizeCostPerByte*txBytes, "txSize")
+			ctx.GasMeter().ConsumeGas(appconsts.TxSizeCostPerByte*txBytes, "txSize")
 		}
 	}
 

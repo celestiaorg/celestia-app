@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	maxExtendedSquareWidth = appconsts.DefaultSquareSizeUpperBound * 2
+	maxExtendedSquareWidth = appconsts.SquareSizeUpperBound * 2
 	minExtendedSquareWidth = appconsts.MinSquareSize * 2
 )
 

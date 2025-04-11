@@ -163,7 +163,7 @@ func EstimateGas(blobSizes []uint32, gasPerByte uint32, txSizeCost uint64) uint6
 
 // DefaultEstimateGas runs EstimateGas with the system defaults.
 func DefaultEstimateGas(blobSizes []uint32) uint64 {
-	return EstimateGas(blobSizes, appconsts.DefaultGasPerBlobByte, appconsts.DefaultTxSizeCostPerByte)
+	return EstimateGas(blobSizes, appconsts.GasPerBlobByte, appconsts.TxSizeCostPerByte)
 }
 
 // ValidateBlobNamespace returns an error if the provided namespace is an

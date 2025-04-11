@@ -23,19 +23,19 @@ func TestMaxTxSizeDecorator(t *testing.T) {
 	}{
 		{
 			name:        "good tx; under max tx size threshold",
-			txSize:      appconsts.DefaultMaxTxSize - 1,
+			txSize:      appconsts.MaxTxSize - 1,
 			expectError: false,
 			isCheckTx:   []bool{true, false},
 		},
 		{
 			name:        "bad tx; over max tx size threshold",
-			txSize:      appconsts.DefaultMaxTxSize + 1,
+			txSize:      appconsts.MaxTxSize + 1,
 			expectError: true,
 			isCheckTx:   []bool{true, false},
 		},
 		{
 			name:        "good tx; equal to max tx size threshold",
-			txSize:      appconsts.DefaultMaxTxSize,
+			txSize:      appconsts.MaxTxSize,
 			expectError: false,
 			isCheckTx:   []bool{true, false},
 		},
