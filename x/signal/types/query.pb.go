@@ -6,8 +6,8 @@ package types
 import (
 	context "context"
 	fmt "fmt"
-	grpc1 "github.com/gogo/protobuf/grpc"
-	proto "github.com/gogo/protobuf/proto"
+	grpc1 "github.com/cosmos/gogoproto/grpc"
+	proto "github.com/cosmos/gogoproto/proto"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
@@ -270,8 +270,8 @@ type QueryClient interface {
 	// VersionTally enables a client to query for the tally of voting power that
 	// has signalled for a particular version.
 	VersionTally(ctx context.Context, in *QueryVersionTallyRequest, opts ...grpc.CallOption) (*QueryVersionTallyResponse, error)
-	// GetUpgrade enables a client to query for upgrade information if an upgrade is pending.
-	// The response will be empty if no upgrade is pending.
+	// GetUpgrade enables a client to query for upgrade information if an upgrade
+	// is pending. The response will be empty if no upgrade is pending.
 	GetUpgrade(ctx context.Context, in *QueryGetUpgradeRequest, opts ...grpc.CallOption) (*QueryGetUpgradeResponse, error)
 }
 
@@ -306,8 +306,8 @@ type QueryServer interface {
 	// VersionTally enables a client to query for the tally of voting power that
 	// has signalled for a particular version.
 	VersionTally(context.Context, *QueryVersionTallyRequest) (*QueryVersionTallyResponse, error)
-	// GetUpgrade enables a client to query for upgrade information if an upgrade is pending.
-	// The response will be empty if no upgrade is pending.
+	// GetUpgrade enables a client to query for upgrade information if an upgrade
+	// is pending. The response will be empty if no upgrade is pending.
 	GetUpgrade(context.Context, *QueryGetUpgradeRequest) (*QueryGetUpgradeResponse, error)
 }
 
@@ -362,6 +362,7 @@ func _Query_GetUpgrade_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+var Query_serviceDesc = _Query_serviceDesc
 var _Query_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "celestia.signal.v1.Query",
 	HandlerType: (*QueryServer)(nil),

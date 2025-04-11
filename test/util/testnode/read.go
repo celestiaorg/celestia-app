@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/go-square/v2/tx"
+	"github.com/cometbft/cometbft/rpc/client/http"
+	"github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/tendermint/tendermint/rpc/client/http"
-	"github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/go-square/v2/tx"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 )
 
 func ReadRecentBlocks(ctx context.Context, rpcAddress string, blocks int64) ([]*types.Block, error) {
@@ -113,7 +115,7 @@ func ReadBlockHeights(ctx context.Context, rpcAddress string, fromHeight, toHeig
 }
 
 func DecodeBlockData(data types.Data) ([]sdk.Tx, error) {
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	encCfg := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	decoder := encCfg.TxConfig.TxDecoder()
 	txs := make([]sdk.Tx, 0)
 	for _, txBytes := range data.Txs {
@@ -148,9 +150,9 @@ func CalculateMeanGasFromRecentBlocks(ctx context.Context, rpcAddress, msgType s
 	return CalculateMeanGas(ctx, rpcAddress, msgType, status.SyncInfo.LatestBlockHeight-blocks+1, status.SyncInfo.LatestBlockHeight)
 }
 
-func CalculateMeanGas(ctx context.Context, rpcAddress, msgType string, fromHeight int64, toHeight int64) (float64, int64, error) {
+func CalculateMeanGas(ctx context.Context, rpcAddress, msgType string, fromHeight, toHeight int64) (float64, int64, error) {
 	var (
-		encCfg   = encoding.MakeConfig(app.ModuleEncodingRegisters...)
+		encCfg   = encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 		decoder  = encCfg.TxConfig.TxDecoder()
 		totalGas int64
 		count    int64

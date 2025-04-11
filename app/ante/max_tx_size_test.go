@@ -3,13 +3,12 @@ package ante_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/app/ante"
-	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
-	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	version "github.com/tendermint/tendermint/proto/tendermint/version"
+
+	"github.com/celestiaorg/celestia-app/v4/app/ante"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 func TestMaxTxSizeDecorator(t *testing.T) {
@@ -20,34 +19,23 @@ func TestMaxTxSizeDecorator(t *testing.T) {
 		name        string
 		txSize      int
 		expectError bool
-		appVersion  uint64
 		isCheckTx   []bool
 	}{
 		{
 			name:        "good tx; under max tx size threshold",
-			txSize:      v3.MaxTxSize - 1,
-			appVersion:  v3.Version,
+			txSize:      appconsts.DefaultMaxTxSize - 1,
 			expectError: false,
 			isCheckTx:   []bool{true, false},
 		},
 		{
 			name:        "bad tx; over max tx size threshold",
-			txSize:      v3.MaxTxSize + 1,
-			appVersion:  v3.Version,
+			txSize:      appconsts.DefaultMaxTxSize + 1,
 			expectError: true,
 			isCheckTx:   []bool{true, false},
 		},
 		{
 			name:        "good tx; equal to max tx size threshold",
-			txSize:      v3.MaxTxSize,
-			appVersion:  v3.Version,
-			expectError: false,
-			isCheckTx:   []bool{true, false},
-		},
-		{
-			name:        "good tx; limit only applies to v3 and above",
-			txSize:      v3.MaxTxSize + 10,
-			appVersion:  v2.Version,
+			txSize:      appconsts.DefaultMaxTxSize,
 			expectError: false,
 			isCheckTx:   []bool{true, false},
 		},
@@ -57,11 +45,7 @@ func TestMaxTxSizeDecorator(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, isCheckTx := range tc.isCheckTx {
 
-				ctx := sdk.NewContext(nil, tmproto.Header{
-					Version: version.Consensus{
-						App: tc.appVersion,
-					},
-				}, isCheckTx, nil)
+				ctx := sdk.NewContext(nil, tmproto.Header{}, isCheckTx, nil)
 
 				txBytes := make([]byte, tc.txSize)
 

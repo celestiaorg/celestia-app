@@ -6,17 +6,19 @@ import (
 	"testing"
 
 	sdkerrors "cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/inclusion"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/cometbft/cometbft/crypto/merkle"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/crypto/merkle"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
+
+	"github.com/celestiaorg/go-square/v2/inclusion"
+	"github.com/celestiaorg/go-square/v2/share"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 func TestMsgTypeURLParity(t *testing.T) {
@@ -203,7 +205,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 		{
 			name:   "valid msg PFB with large blob",
 			signer: testfactory.TestAccAddr,
-			blobs:  []*share.Blob{mustNewBlob(t, ns1, tmrand.Bytes(1000000), share.ShareVersionZero, nil)},
+			blobs:  []*share.Blob{mustNewBlob(t, ns1, random.Bytes(1000000), share.ShareVersionZero, nil)},
 		},
 		{
 			name:   "valid msg PFB with two blobs",
@@ -218,7 +220,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 			name:   "valid msg PFB with share version 1",
 			signer: testfactory.TestAccAddr,
 			blobs: []*share.Blob{
-				mustNewBlob(t, ns1, tmrand.Bytes(10000), share.ShareVersionOne, address),
+				mustNewBlob(t, ns1, random.Bytes(10000), share.ShareVersionOne, address),
 			},
 			expectedErr: false,
 		},
@@ -226,7 +228,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 			name:   "msg PFB with tx namespace returns an error",
 			signer: testfactory.TestAccAddr,
 			blobs: []*share.Blob{
-				mustNewBlob(t, share.TxNamespace, tmrand.Bytes(1000000), share.ShareVersionZero, nil),
+				mustNewBlob(t, share.TxNamespace, random.Bytes(1000000), share.ShareVersionZero, nil),
 			},
 			expectedErr: true,
 		},
@@ -253,7 +255,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, ns, blob.Namespace())
 
-				expectedCommitment, err := inclusion.CreateCommitment(blob, merkle.HashFromByteSlices, appconsts.DefaultSubtreeRootThreshold)
+				expectedCommitment, err := inclusion.CreateCommitment(blob, merkle.HashFromByteSlices, appconsts.SubtreeRootThreshold)
 				require.NoError(t, err)
 				assert.Equal(t, expectedCommitment, msgPFB.ShareCommitments[i])
 			}

@@ -6,46 +6,42 @@ import (
 	"testing"
 	"time"
 
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	blobtx "github.com/celestiaorg/go-square/v2/tx"
-
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/auth/types"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/stretchr/testify/assert"
-
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-
+	abci "github.com/cometbft/cometbft/abci/types"
+	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
-	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 	"github.com/celestiaorg/go-square/v2/share"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
+	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	numBlobTxs, numNormalTxs := 3, 3
 	accnts := testfactory.GenerateAccounts(numBlobTxs + numNormalTxs)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accnts...)
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	infos := queryAccountInfo(testApp, accnts, kr)
 
 	protoBlob, err := share.NewBlob(share.RandomBlobNamespace(), []byte{1}, appconsts.DefaultShareVersion, nil)
 	require.NoError(t, err)
 	blobTxs := blobfactory.ManyMultiBlobTx(
 		t,
-		encCfg.TxConfig,
+		enc.TxConfig,
 		kr,
 		testutil.ChainID,
 		accnts[:numBlobTxs],
@@ -56,7 +52,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	normalTxs := testutil.SendTxsWithAccounts(
 		t,
 		testApp,
-		encCfg.TxConfig,
+		enc.TxConfig,
 		kr,
 		1000,
 		accnts[0],
@@ -69,16 +65,14 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	height := testApp.LastBlockHeight() + 1
 	blockTime := time.Now()
 
-	resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
-		BlockData: &tmproto.Data{
-			Txs: txs,
-		},
-		ChainId: testutil.ChainID,
-		Height:  height,
-		Time:    blockTime,
+	resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+		Txs:    txs,
+		Height: height,
+		Time:   blockTime,
 	})
-	require.Len(t, resp.BlockData.Txs, numBlobTxs+numNormalTxs)
-	for idx, txBytes := range resp.BlockData.Txs {
+	require.NoError(t, err)
+	require.Len(t, resp.Txs, numBlobTxs+numNormalTxs)
+	for idx, txBytes := range resp.Txs {
 		_, isBlobTx := coretypes.UnmarshalBlobTx(coretypes.Tx(txBytes))
 		if idx < numNormalTxs {
 			require.False(t, isBlobTx)
@@ -89,7 +83,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 }
 
 func TestPrepareProposalFiltering(t *testing.T) {
-	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(6)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
@@ -98,14 +92,14 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	// and sequences
 	blobTxs := blobfactory.ManyMultiBlobTx(
 		t,
-		encConf.TxConfig,
+		enc.TxConfig,
 		kr,
 		testutil.ChainID,
 		accounts[:3],
 		infos[:3],
 		blobfactory.NestedBlobs(
 			t,
-			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 3),
+			testfactory.RandomBlobNamespaces(random.New(), 3),
 			[][]int{{100}, {1000}, {420}},
 		),
 	)
@@ -115,7 +109,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	sendTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
 		t,
 		testApp,
-		encConf.TxConfig,
+		enc.TxConfig,
 		kr,
 		1000,
 		accounts[0],
@@ -135,7 +129,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	duplicateSeqSendTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
 		t,
 		testApp,
-		encConf.TxConfig,
+		enc.TxConfig,
 		kr,
 		1000,
 		accounts[0],
@@ -147,20 +141,20 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	nilAccount := "carmon san diego"
 	_, _, err := kr.NewMnemonic(nilAccount, keyring.English, "", "", hd.Secp256k1)
 	require.NoError(t, err)
-	noAccountTx := []byte(testutil.SendTxWithManualSequence(t, encConf.TxConfig, kr, nilAccount, accounts[0], 1000, "", 0, 6))
+	noAccountTx := []byte(testutil.SendTxWithManualSequence(t, enc.TxConfig, kr, nilAccount, accounts[0], 1000, "", 0, 6))
 
 	// create a tx that can't be included in a 64 x 64 when accounting for the
 	// pfb along with the shares
 	tooManyShareBtx := blobfactory.ManyMultiBlobTx(
 		t,
-		encConf.TxConfig,
+		enc.TxConfig,
 		kr,
 		testutil.ChainID,
 		accounts[3:4],
 		infos[3:4],
 		blobfactory.NestedBlobs(
 			t,
-			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 4000),
+			testfactory.RandomBlobNamespaces(random.New(), 4000),
 			[][]int{repeat(4000, 1)},
 		),
 	)[0]
@@ -169,7 +163,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	largeString := strings.Repeat("a", 2*1024*1024)
 
 	// 3 transactions over MaxTxSize limit
-	largeTxs := coretypes.Txs(testutil.SendTxsWithAccounts(t, testApp, encConf.TxConfig, kr, 1000, accounts[0], accounts[:3], testutil.ChainID, user.SetMemo(largeString))).ToSliceOfBytes()
+	largeTxs := coretypes.Txs(testutil.SendTxsWithAccounts(t, testApp, enc.TxConfig, kr, 1000, accounts[0], accounts[:3], testutil.ChainID, user.SetMemo(largeString))).ToSliceOfBytes()
 
 	type test struct {
 		name      string
@@ -236,17 +230,17 @@ func TestPrepareProposalFiltering(t *testing.T) {
 			height := testApp.LastBlockHeight() + 1
 			blockTime := time.Now()
 
-			resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
-				BlockData: &tmproto.Data{Txs: tt.txs()},
-				ChainId:   testutil.ChainID,
-				Height:    height,
-				Time:      blockTime,
+			resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+				Txs:    tt.txs(),
+				Height: height,
+				Time:   blockTime,
 			})
+			require.NoError(t, err)
 			// check that we have the expected number of transactions
-			require.Equal(t, len(tt.txs())-len(tt.prunedTxs), len(resp.BlockData.Txs))
+			require.Equal(t, len(tt.txs())-len(tt.prunedTxs), len(resp.Txs))
 			// check that the expected txs were removed
 			for _, ptx := range tt.prunedTxs {
-				require.NotContains(t, resp.BlockData.Txs, ptx)
+				require.NotContains(t, resp.Txs, ptx)
 			}
 		})
 	}
@@ -264,17 +258,17 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 	accounts := testnode.GenerateAccounts(numberOfAccounts)
 	consensusParams := app.DefaultConsensusParams()
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
-	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 
 	addrs := make([]sdk.AccAddress, 0, numberOfAccounts)
-	accs := make([]types.AccountI, 0, numberOfAccounts)
+	accs := make([]sdk.AccountI, 0, numberOfAccounts)
 	signers := make([]*user.Signer, 0, numberOfAccounts)
 	for index, account := range accounts {
 		addr := testfactory.GetAddress(kr, account)
 		addrs = append(addrs, addr)
 		acc := testutil.DirectQueryAccount(testApp, addrs[index])
 		accs = append(accs, acc)
-		signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
+		signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
 		require.NoError(t, err)
 		signers = append(signers, signer)
 	}
@@ -307,7 +301,7 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 			msgs = append(msgs, msg)
 			blobs = append(blobs, blob)
 		}
-		txBytes, err := signers[accountIndex].CreateTx(msgs, user.SetGasLimit(2549760000), user.SetFee(10000))
+		txBytes, _, err := signers[accountIndex].CreateTx(msgs, user.SetGasLimit(2549760000), user.SetFee(10000))
 		require.NoError(t, err)
 		blobTx, err := blobtx.MarshalBlobTx(txBytes, blobs...)
 		require.NoError(t, err)
@@ -323,7 +317,7 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 			testnode.RandomAddress().(sdk.AccAddress),
 			sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)),
 		)
-		rawTx, err := signers[accountIndex].CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1000000), user.SetFee(10))
+		rawTx, _, err := signers[accountIndex].CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1000000), user.SetFee(10))
 		require.NoError(t, err)
 		msgSendTxs = append(msgSendTxs, rawTx)
 		accountIndex++
@@ -382,14 +376,12 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
-				BlockData: &tmproto.Data{
-					Txs: testCase.inputTransactions,
-				},
-				ChainId: testApp.GetChainID(),
-				Height:  10,
+			resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+				Txs:    testCase.inputTransactions,
+				Height: 10,
 			})
-			assert.Equal(t, testCase.expectedTransactions, resp.BlockData.Txs)
+			require.NoError(t, err)
+			assert.Equal(t, testCase.expectedTransactions, resp.Txs)
 		})
 	}
 }

@@ -4,12 +4,11 @@ import (
 	"math"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/tendermint/tendermint/libs/rand"
-
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 )
 
 func TestMedian(t *testing.T) {
@@ -114,7 +113,7 @@ func TestEstimateClusteredGasPrices(t *testing.T) {
 	maxGasPrice := minGasPrice + gasPriceAdjustmentThreshold
 	gasPrices := make([]float64, 20)
 	for i := range gasPrices {
-		randomGasPrice := minGasPrice + rand.Float64()*(maxGasPrice-minGasPrice)
+		randomGasPrice := minGasPrice + random.Float64()*(maxGasPrice-minGasPrice)
 		gasPrices[i] = randomGasPrice
 	}
 	medianGasPrice, err := Median(gasPrices)

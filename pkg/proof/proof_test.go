@@ -5,22 +5,21 @@ import (
 	"strings"
 	"testing"
 
+	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	abci "github.com/tendermint/tendermint/abci/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-
-	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-
-	"github.com/celestiaorg/celestia-app/v3/pkg/da"
-	"github.com/celestiaorg/celestia-app/v3/pkg/proof"
-	square "github.com/celestiaorg/go-square/v2"
-
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	square "github.com/celestiaorg/go-square/v2"
+	"github.com/celestiaorg/go-square/v2/share"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/da"
+	"github.com/celestiaorg/celestia-app/v4/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
 func TestNewTxInclusionProof(t *testing.T) {
@@ -29,7 +28,7 @@ func TestNewTxInclusionProof(t *testing.T) {
 	signer, err := testnode.NewOfflineSigner()
 	require.NoError(t, err)
 
-	blockTxs = append(blockTxs, blobfactory.RandBlobTxs(signer, tmrand.NewRand(), 50, 1, 500).ToSliceOfBytes()...)
+	blockTxs = append(blockTxs, blobfactory.RandBlobTxs(signer, random.New(), 50, 1, 500).ToSliceOfBytes()...)
 	require.Len(t, blockTxs, 100)
 
 	type test struct {
@@ -105,7 +104,7 @@ func TestNewShareInclusionProof(t *testing.T) {
 	txs := testfactory.GenerateRandomTxs(50, 500)
 	txs = append(txs, blobTxs...)
 
-	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.SquareSizeUpperBound(appconsts.LatestVersion), appconsts.SubtreeRootThreshold(appconsts.LatestVersion))
+	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.DefaultSquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	if err != nil {
 		panic(err)
 	}
@@ -240,7 +239,7 @@ func TestNewShareInclusionProof(t *testing.T) {
 func TestAllSharesInclusionProof(t *testing.T) {
 	txs := testfactory.GenerateRandomTxs(243, 500)
 
-	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.SquareSizeUpperBound(appconsts.LatestVersion), appconsts.SubtreeRootThreshold(appconsts.LatestVersion))
+	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.DefaultSquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	require.NoError(t, err)
 	assert.Equal(t, 256, len(dataSquare))
 
@@ -270,9 +269,8 @@ func TestAllSharesInclusionProof(t *testing.T) {
 // https://github.com/celestiaorg/celestia-app/issues/3140
 func TestQueryTxInclusionProofRejectsNegativeValues(t *testing.T) {
 	path := []string{"-2"}
-	req := abci.RequestQuery{Data: []byte{}}
 	ctx := sdk.Context{}
-	rawProof, err := proof.QueryTxInclusionProof(ctx, path, req)
+	rawProof, err := proof.QueryTxInclusionProof(ctx, path, &abci.RequestQuery{Data: []byte{}})
 	if err == nil {
 		t.Fatal("expected a non-nil error")
 	}

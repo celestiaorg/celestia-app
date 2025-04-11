@@ -9,13 +9,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/tx"
+	"github.com/cometbft/cometbft/proto/tendermint/blocksync"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
-	"github.com/tendermint/tendermint/proto/tendermint/blockchain"
+
+	"github.com/celestiaorg/go-square/v2/tx"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 // TestDecodeBlobTx demonstrates how one can take the response from the
@@ -44,10 +46,6 @@ func TestDecodeBlobTx(t *testing.T) {
 			assert.Equal(t, wantHash, gotHash)
 
 			msg := tx.GetMsgs()[0]
-			wantSigner := "celestia18y3ydyn7uslhuxu4lcm2x83gkdhrrcyaqvg6gk"
-			gotSigner := msg.GetSigners()[0].String()
-			assert.Equal(t, gotSigner, wantSigner)
-
 			msgPayForBlobs, ok := msg.(*blobtypes.MsgPayForBlobs)
 			if !ok {
 				t.Errorf("expected MsgPayForBlobs, got %T", msg)
@@ -60,7 +58,7 @@ func TestDecodeBlobTx(t *testing.T) {
 }
 
 // getTestdataBlockResponse gets the block response from the testdata directory.
-func getTestdataBlockResponse(t *testing.T) (resp blockchain.BlockResponse) {
+func getTestdataBlockResponse(t *testing.T) (resp blocksync.BlockResponse) {
 	// block_response.json is the JSON response from the API endpoint:
 	// https://api.celestia.pops.one/cosmos/base/tendermint/v1beta1/blocks/408
 	// The response was persisted to block_response.json so that this test
@@ -71,8 +69,8 @@ func getTestdataBlockResponse(t *testing.T) (resp blockchain.BlockResponse) {
 		t.Fatalf("reading json file: %v", err)
 	}
 
-	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	if err = encodingConfig.Codec.UnmarshalJSON(fileContents, &resp); err != nil {
+	encCfg := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	if err = encCfg.Codec.UnmarshalJSON(fileContents, &resp); err != nil {
 		t.Fatalf("error unmarshal JSON block response: %v", err)
 	}
 	return resp
@@ -90,8 +88,8 @@ func getTxBytes(txBytes []byte) []byte {
 }
 
 func decodeTx(txBytes []byte) (types.Tx, error) {
-	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	decoder := encodingConfig.TxConfig.TxDecoder()
+	encCfg := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	decoder := encCfg.TxConfig.TxDecoder()
 	tx, err := decoder(txBytes)
 	if err != nil {
 		return nil, fmt.Errorf("error decoding transaction: %v", err)

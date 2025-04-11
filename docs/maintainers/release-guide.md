@@ -36,7 +36,7 @@ Follow the [creating a release candidate](#creating-a-release-candidate) section
 - The release notes should contain an **Upgrade Notice** section with notable changes for node operators or library consumers.
 - The release notes section should contain a link to <https://github.com/celestiaorg/celestia-app/blob/main/docs/release-notes/release-notes.md> where we capture breaking changes
 
-### After creating the release:
+### After creating the release
 
 1. Wait until CI passes on the release and verify that prebuilt binaries were attached to the release.
 1. Create a PR to bump the celestia-app dependency in [celestia-node](https://github.com/celestiaorg/celestia-node).
@@ -44,7 +44,7 @@ Follow the [creating a release candidate](#creating-a-release-candidate) section
 ## Mainnet Release
 
 Follow the [creating a release candidate](#creating-a-release-candidate) section with the following considerations:
+
 - The version tag should not include the `-rc`, `-arabica`, or `-mocha` suffix.
 - Toggle off the **Set as a pre-release** checkbox.
 - Toggle on the **Set as the latest release** checkbox.
-
