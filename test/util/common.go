@@ -46,9 +46,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/x/blob"
 )
 
-// TODO: This probably should be deleted.
-var blobstreamModuleName = "blobstream"
-
 var (
 	// TestingStakeParams is a set of staking params for testing
 	TestingStakeParams = stakingtypes.Params{
@@ -308,16 +305,16 @@ func CreateTestEnv(t *testing.T) TestInput {
 		totalSupply := sdk.NewCoins(sdk.NewInt64Coin("stake", 100000000))
 		switch name {
 		case stakingtypes.NotBondedPoolName:
-			err = bankKeeper.MintCoins(ctx, blobstreamModuleName, totalSupply)
+			err = bankKeeper.MintCoins(ctx, banktypes.ModuleName, totalSupply)
 			require.NoError(t, err)
-			err = bankKeeper.SendCoinsFromModuleToModule(ctx, blobstreamModuleName, moduleAccount.Name, totalSupply)
+			err = bankKeeper.SendCoinsFromModuleToModule(ctx, banktypes.ModuleName, moduleAccount.Name, totalSupply)
 			require.NoError(t, err)
 		case distrtypes.ModuleName:
 			// some big pot to pay out
 			amt := sdk.NewCoins(sdk.NewInt64Coin("stake", 500000))
-			err = bankKeeper.MintCoins(ctx, blobstreamModuleName, amt)
+			err = bankKeeper.MintCoins(ctx, banktypes.ModuleName, amt)
 			require.NoError(t, err)
-			err = bankKeeper.SendCoinsFromModuleToModule(ctx, blobstreamModuleName, moduleAccount.Name, amt)
+			err = bankKeeper.SendCoinsFromModuleToModule(ctx, banktypes.ModuleName, moduleAccount.Name, amt)
 			require.NoError(t, err)
 		}
 		authKeeper.SetModuleAccount(ctx, moduleAccount)
@@ -408,8 +405,8 @@ func CreateValidator(
 	)
 
 	// Set the balance for the account
-	require.NoError(t, input.BankKeeper.MintCoins(input.Context, blobstreamModuleName, InitCoins))
-	err := input.BankKeeper.SendCoinsFromModuleToAccount(input.Context, blobstreamModuleName, acc.GetAddress(), InitCoins)
+	require.NoError(t, input.BankKeeper.MintCoins(input.Context, banktypes.ModuleName, InitCoins))
+	err := input.BankKeeper.SendCoinsFromModuleToAccount(input.Context, banktypes.ModuleName, acc.GetAddress(), InitCoins)
 	require.NoError(t, err)
 
 	// Set the account in state
@@ -473,8 +470,8 @@ func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 
 		// Set the balance for the account
 		weightCoins := sdk.NewCoins(sdk.NewInt64Coin(TestingStakeParams.BondDenom, int64(weight)))
-		require.NoError(t, input.BankKeeper.MintCoins(input.Context, blobstreamModuleName, weightCoins))
-		require.NoError(t, input.BankKeeper.SendCoinsFromModuleToAccount(input.Context, blobstreamModuleName, accAddr, weightCoins))
+		require.NoError(t, input.BankKeeper.MintCoins(input.Context, banktypes.ModuleName, weightCoins))
+		require.NoError(t, input.BankKeeper.SendCoinsFromModuleToAccount(input.Context, banktypes.ModuleName, accAddr, weightCoins))
 
 		// Set the account in state
 		input.AuthKeeper.SetAccount(input.Context, acc)
