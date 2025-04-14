@@ -49,7 +49,7 @@ type TxClientTestSuite struct {
 }
 
 func (suite *TxClientTestSuite) SetupSuite() {
-	suite.encCfg, suite.txClient, suite.ctx = setupTxClient(suite.T())
+	suite.encCfg, suite.txClient, suite.ctx = setupTxClient(suite.T(), testnode.DefaultTendermintConfig().Mempool.TTLDuration)
 	suite.serviceClient = sdktx.NewServiceClient(suite.ctx.GRPCClient)
 }
 
@@ -235,12 +235,39 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 	})
 }
 
+func TestEvictions(t *testing.T) {
+	_, txClient, ctx := setupTxClient(t, 1*time.Nanosecond)
+
+	fee := user.SetFee(1e6)
+	gas := user.SetGasLimit(1e6)
+
+	// Keep submitting the transaction until we get the eviction error
+	sender := txClient.Signer().Account(txClient.DefaultAccountName())
+	msg := bank.NewMsgSend(sender.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
+	var seqBeforeEviction uint64
+	// Loop five times until the tx is evicted
+	for i := 0; i < 5; i++ {
+		seqBeforeEviction = sender.Sequence()
+		resp, err := txClient.BroadcastTx(ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
+		require.NoError(t, err)
+		_, err = txClient.ConfirmTx(ctx.GoContext(), resp.TxHash)
+		if err != nil {
+			if err.Error() == "tx was evicted from the mempool" {
+				break
+			}
+		}
+	}
+
+	seqAfterEviction := sender.Sequence()
+	require.Equal(t, seqBeforeEviction, seqAfterEviction)
+}
+
 // TestWithEstimatorService ensures that if the WithEstimatorService
 // option is provided to the tx client, the separate gas estimator service is
 // used to estimate gas price and usage instead of the default connection.
 func TestWithEstimatorService(t *testing.T) {
 	mockEstimator := setupEstimatorService(t)
-	_, txClient, ctx := setupTxClient(t, user.WithEstimatorService(mockEstimator.conn))
+	_, txClient, ctx := setupTxClient(t, testnode.DefaultTendermintConfig().Mempool.TTLDuration, user.WithEstimatorService(mockEstimator.conn))
 
 	msg := bank.NewMsgSend(txClient.DefaultAddress(), testnode.RandomAddress().(sdk.AccAddress),
 		sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
@@ -343,9 +370,11 @@ func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash, expected
 
 func setupTxClient(
 	t *testing.T,
+	ttlDuration time.Duration,
 	opts ...user.Option,
 ) (encoding.Config, *user.TxClient, testnode.Context) {
 	defaultTmConfig := testnode.DefaultTendermintConfig()
+	defaultTmConfig.Mempool.TTLDuration = ttlDuration
 
 	chainID := unsafe.Str(6)
 	testnodeConfig := testnode.DefaultConfig().

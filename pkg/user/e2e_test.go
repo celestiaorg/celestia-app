@@ -26,7 +26,7 @@ func TestConcurrentTxSubmission(t *testing.T) {
 	}
 
 	// Iterate over all mempool versions
-	mempools := []string{config.MempoolTypeFlood, config.MempoolTypeFlood} // TODO: add CAT
+	mempools := []string{config.MempoolTypeFlood, config.MempoolTypePriority, config.MempoolTypeCAT}
 	for _, mempool := range mempools {
 		t.Run(fmt.Sprintf("mempool %s", mempool), func(t *testing.T) {
 			// Setup network

@@ -68,11 +68,11 @@ func TestDefaultConsensusConfig(t *testing.T) {
 			RecheckTimeout:        1_000_000_000,
 
 			// Overrides
-			MaxTxBytes:  2 * mebibyte,
-			MaxTxsBytes: 80 * mebibyte,
-			// TTLDuration:  75 * time.Second, // TODO: check if priority mempool is needed
-			// TTLNumBlocks: 12,
-			Type: "flood",
+			MaxTxBytes:   2 * mebibyte,
+			MaxTxsBytes:  80 * mebibyte,
+			TTLDuration:  75 * time.Second,
+			TTLNumBlocks: 12,
+			Type:         tmcfg.MempoolTypePriority,
 		}
 		assert.Equal(t, want, *got.Mempool)
 	})
