@@ -3,10 +3,10 @@ package txsim
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"math/rand"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
@@ -76,54 +76,42 @@ func Run(
 		return err
 	}
 
-	errCh := make(chan error, len(sequences))
-
+	var wg sync.WaitGroup
 	// Spin up a task group to run each of the sequences concurrently.
 	for idx, sequence := range sequences {
-		go func(seqID int, sequence Sequence, errCh chan<- error) {
+		wg.Add(1)
+		go func(seqID int, sequence Sequence) {
+			defer wg.Done()
 			opNum := 0
 			r := rand.New(rand.NewSource(opts.seed))
 			// each sequence loops through the next set of operations, the new messages are then
 			// submitted on chain
 			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
 				ops, err := sequence.Next(ctx, manager.conn, r)
 				if err != nil {
-					errCh <- fmt.Errorf("sequence %d: %w", seqID, err)
-					return
+					log.Error().Err(err).Msg("sequence failed")
+					time.Sleep(time.Second * 5)
+					continue
 				}
 
 				// Submit the messages to the chain.
 				if err := manager.Submit(ctx, ops); err != nil {
-					errCh <- fmt.Errorf("sequence %d: %w", seqID, err)
-					return
+					log.Error().Err(err).Msg("sequence failed")
+					time.Sleep(time.Second * 5)
 				}
 				opNum++
 			}
-		}(idx, sequence, errCh)
+		}(idx, sequence)
 	}
 
-	var finalErr error
-	for i := 0; i < len(sequences); i++ {
-		err := <-errCh
-		if err == nil { // should never happen
-			continue
-		}
-		if errors.Is(err, ErrEndOfSequence) {
-			log.Info().Err(err).Msg("sequence terminated")
-			continue
-		}
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			continue
-		}
-		log.Error().Err(err).Msg("sequence failed")
-		finalErr = err
-	}
+	wg.Wait()
 
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
-
-	return finalErr
+	return ctx.Err()
 }
 
 type Options struct {
