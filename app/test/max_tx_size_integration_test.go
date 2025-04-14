@@ -3,14 +3,14 @@ package app_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v3/app/errors"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v4/app/errors"
+	appv4 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
+	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	"github.com/stretchr/testify/require"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 // TestTxsOverMaxTxSizeGetRejected tests that transactions over the max tx size get rejected
@@ -27,7 +27,7 @@ func TestTxsOverMaxTxSizeGetRejected(t *testing.T) {
 	cfg := testnode.DefaultConfig().WithFundedAccounts(accounts...).WithConsensusParams(cparams)
 
 	// Set the max tx bytes to ~3MB in the node's mempool
-	mempoolMaxTxBytes := appconsts.MaxTxSize(appconsts.LatestVersion) + 1_000_000 // 2MiB + 1MB
+	mempoolMaxTxBytes := appv4.MaxTxSize + 1_000_000 // 2MiB + 1MB
 	cfg.TmConfig.Mempool.MaxTxBytes = mempoolMaxTxBytes
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
@@ -37,10 +37,10 @@ func TestTxsOverMaxTxSizeGetRejected(t *testing.T) {
 	// Create 10 blob txs that exceed the max tx bytes
 	txs := blobfactory.RandBlobTxsWithAccounts(
 		ecfg,
-		tmrand.NewRand(),
+		random.New(),
 		cctx.Keyring,
 		cctx.GRPCClient,
-		appconsts.MaxTxSize(appconsts.LatestVersion),
+		appv4.MaxTxSize,
 		1,
 		false,
 		accounts,
