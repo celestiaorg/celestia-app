@@ -4,13 +4,11 @@ import (
 	"bytes"
 	"sort"
 
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	gethcommon "github.com/ethereum/go-ethereum/common"
-
-	"github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 )
@@ -104,10 +102,6 @@ func GetAddress(keys keyring.Keyring, account string) sdk.AccAddress {
 		panic(err)
 	}
 	return addr
-}
-
-func RandomEVMAddress() gethcommon.Address {
-	return gethcommon.BytesToAddress(random.Bytes(gethcommon.AddressLength))
 }
 
 func TestKeyring(cdc codec.Codec, accounts ...string) keyring.Keyring {
