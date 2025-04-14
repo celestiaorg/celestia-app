@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/celestiaorg/celestia-app/multiplexer/abci"
 	"github.com/celestiaorg/celestia-app/multiplexer/internal"
@@ -74,6 +75,11 @@ func getAndValidateConfig(svrCtx *server.Context) (serverconfig.Config, error) {
 	if err := config.ValidateBasic(); err != nil {
 		return config, err
 	}
+
+	if strings.TrimSpace(svrCtx.Config.RPC.GRPCListenAddress) == "" {
+		return config, fmt.Errorf("must set grpc listen address in config or by flag")
+	}
+
 	return config, nil
 }
 
