@@ -53,8 +53,7 @@ func (d MaxTotalBlobSizeDecorator) maxTotalBlobSize(ctx sdk.Context) int {
 	return share.AvailableBytesFromSparseShares(blobShares)
 }
 
-// getMaxSquareSize returns the maximum square size based on the current values
-// for the relevant governance parameter and the versioned constant.
+// getMaxSquareSize returns the max effective square size.
 func (d MaxTotalBlobSizeDecorator) getMaxSquareSize(ctx sdk.Context) int {
 	govMax := d.k.GetParams(ctx).GovMaxSquareSize
 	hardMax := appconsts.SquareSizeUpperBound
