@@ -12,7 +12,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/celestia-app/v4/x/signal/types"
 )
@@ -88,7 +88,7 @@ func TestUpgradeIntegration(t *testing.T) {
 	require.False(t, shouldUpgrade)
 	require.EqualValues(t, 0, upgrade.AppVersion)
 
-	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + appconsts.UpgradeHeightDelay(appconsts.TestChainID))
+	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + appconsts.GetUpgradeHeightDelay(appconsts.TestChainID))
 
 	shouldUpgrade, upgrade = app.SignalKeeper.ShouldUpgrade(ctx)
 	require.True(t, shouldUpgrade)
