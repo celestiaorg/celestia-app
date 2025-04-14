@@ -29,7 +29,7 @@ jobs:
 
   # hadolint lints the Dockerfile
   hadolint:
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@dbbc8a6f4d18d0eb1b9dc8ceb3a0a7714d5beed1 #v0.6.1
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@dbbc8a6f4d18d0eb1b9dc8ceb3a0a7714d5beed1 #v0.6.1
     with:
       dockerfile: "docker/Dockerfile"
 
