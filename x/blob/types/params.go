@@ -14,9 +14,11 @@ import (
 var _ paramtypes.ParamSet = (*Params)(nil)
 
 var (
-	KeyGasPerBlobByte              = []byte("GasPerBlobByte")
-	DefaultGasPerBlobByte   uint32 = appconsts.DefaultGasPerBlobByte
-	KeyGovMaxSquareSize            = []byte("GovMaxSquareSize")
+	KeyGasPerBlobByte = []byte("GasPerBlobByte")
+	// DefaultGasPerBlobByte is the initial value of the gas per blob byte parameter.
+	DefaultGasPerBlobByte uint32 = appconsts.GasPerBlobByte
+	KeyGovMaxSquareSize          = []byte("GovMaxSquareSize")
+	// DefaultGovMaxSquareSize is the initial value of the gov max square size parameter.
 	DefaultGovMaxSquareSize uint64 = appconsts.DefaultGovMaxSquareSize
 )
 
