@@ -1,4 +1,4 @@
-//go:build bench_abci_methods
+//go:build benchmarks
 
 package benchmarks_test
 
@@ -20,17 +20,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const blockTime = time.Duration(6 * time.Second)
+
 func BenchmarkCheckTx_MsgSend_1(b *testing.B) {
 	testApp, rawTxs := generateMsgSendTransactions(b, 1)
-	testApp.Commit()
 
-	checkTxRequest := types.RequestCheckTx{
+	finalizeBlockResp, err := testApp.FinalizeBlock(&types.RequestFinalizeBlock{
+		Time:   testutil.GenesisTime.Add(blockTime),
+		Height: testApp.LastBlockHeight() + 1,
+		Hash:   testApp.LastCommitID().Hash,
+	})
+	require.NotNil(b, finalizeBlockResp)
+	require.NoError(b, err)
+
+	commitResp, err := testApp.Commit()
+	require.NotNil(b, commitResp)
+	require.NoError(b, err)
+
+	checkTxReq := types.RequestCheckTx{
 		Tx:   rawTxs[0],
 		Type: types.CheckTxType_New,
 	}
 
 	b.ResetTimer()
-	resp, err := testApp.CheckTx(&checkTxRequest)
+	resp, err := testApp.CheckTx(&checkTxReq)
 	require.NoError(b, err)
 	b.StopTimer()
 	require.Equal(b, uint32(0), resp.Code)
@@ -40,7 +53,18 @@ func BenchmarkCheckTx_MsgSend_1(b *testing.B) {
 
 func BenchmarkCheckTx_MsgSend_8MB(b *testing.B) {
 	testApp, rawTxs := generateMsgSendTransactions(b, 31645)
-	testApp.Commit()
+
+	finalizeBlockResp, err := testApp.FinalizeBlock(&types.RequestFinalizeBlock{
+		Time:   testutil.GenesisTime.Add(blockTime),
+		Height: testApp.LastBlockHeight() + 1,
+		Hash:   testApp.LastCommitID().Hash,
+	})
+	require.NotNil(b, finalizeBlockResp)
+	require.NoError(b, err)
+
+	commitResp, err := testApp.Commit()
+	require.NotNil(b, commitResp)
+	require.NoError(b, err)
 
 	var totalGas int64
 	b.ResetTimer()
@@ -62,52 +86,60 @@ func BenchmarkCheckTx_MsgSend_8MB(b *testing.B) {
 	b.ReportMetric(float64(totalGas), "total_gas_used")
 }
 
-func BenchmarkDeliverTx_MsgSend_1(b *testing.B) {
+func BenchmarkFinalizeBlock_MsgSend_1(b *testing.B) {
 	testApp, rawTxs := generateMsgSendTransactions(b, 1)
 
-	deliverTxRequest := types.RequestFinalizeBlock{
-		Txs: rawTxs,
+	finalizeBlockReq := types.RequestFinalizeBlock{
+		Time:   testutil.GenesisTime.Add(blockTime),
+		Height: testApp.LastBlockHeight() + 1,
+		Hash:   testApp.LastCommitID().Hash,
+		Txs:    rawTxs,
 	}
 
 	b.ResetTimer()
-	resp, err := testApp.FinalizeBlock(&deliverTxRequest)
+	resp, err := testApp.FinalizeBlock(&finalizeBlockReq)
 	require.NoError(b, err)
 	b.StopTimer()
 	require.Equal(b, uint32(0), resp.TxResults[0].Code)
 	b.ReportMetric(float64(resp.TxResults[0].GasUsed), "gas_used")
 }
 
-func BenchmarkDeliverTx_MsgSend_8MB(b *testing.B) {
+func BenchmarkFinalizeBlock_MsgSend_8MB(b *testing.B) {
+	b.ResetTimer()
 	testApp, rawTxs := generateMsgSendTransactions(b, 31645)
 
-	var totalGas int64
-	b.ResetTimer()
-	deliverTxRequest := types.RequestFinalizeBlock{
-		Txs: rawTxs,
+	finalizeBlockReq := types.RequestFinalizeBlock{
+		Time:   testutil.GenesisTime.Add(blockTime),
+		Height: testApp.LastBlockHeight() + 1,
+		Hash:   testApp.LastCommitID().Hash,
+		Txs:    rawTxs,
 	}
+
 	b.StartTimer()
-	resp, err := testApp.FinalizeBlock(&deliverTxRequest)
+	resp, err := testApp.FinalizeBlock(&finalizeBlockReq)
 	require.NoError(b, err)
+	b.StopTimer()
+
+	var totalGas int64
 	for i := range rawTxs {
-		b.StopTimer()
 		require.Equal(b, uint32(0), resp.TxResults[i].Code)
 		require.Equal(b, "", resp.TxResults[i].Codespace)
 		totalGas += resp.TxResults[0].GasUsed
 	}
-	b.StopTimer()
+
 	b.ReportMetric(float64(totalGas), "total_gas_used")
 }
 
 func BenchmarkPrepareProposal_MsgSend_1(b *testing.B) {
 	testApp, rawTxs := generateMsgSendTransactions(b, 1)
 
-	prepareProposalRequest := types.RequestPrepareProposal{
+	prepareProposalReq := types.RequestPrepareProposal{
 		Txs:    rawTxs,
-		Height: 10,
+		Height: testApp.LastBlockHeight() + 1,
 	}
 
 	b.ResetTimer()
-	resp, err := testApp.PrepareProposal(&prepareProposalRequest)
+	resp, err := testApp.PrepareProposal(&prepareProposalReq)
 	require.NoError(b, err)
 	b.StopTimer()
 	require.GreaterOrEqual(b, len(resp.Txs), 1)
@@ -119,13 +151,13 @@ func BenchmarkPrepareProposal_MsgSend_8MB(b *testing.B) {
 	// using 31645 to let prepare proposal choose the maximum
 	testApp, rawTxs := generateMsgSendTransactions(b, 31645)
 
-	prepareProposalRequest := types.RequestPrepareProposal{
+	prepareProposalReq := types.RequestPrepareProposal{
 		Txs:    rawTxs,
-		Height: 10,
+		Height: testApp.LastBlockHeight() + 1,
 	}
 
 	b.ResetTimer()
-	resp, err := testApp.PrepareProposal(&prepareProposalRequest)
+	resp, err := testApp.PrepareProposal(&prepareProposalReq)
 	require.NoError(b, err)
 	b.StopTimer()
 	require.GreaterOrEqual(b, len(resp.Txs), 1)
@@ -137,27 +169,29 @@ func BenchmarkPrepareProposal_MsgSend_8MB(b *testing.B) {
 func BenchmarkProcessProposal_MsgSend_1(b *testing.B) {
 	testApp, rawTxs := generateMsgSendTransactions(b, 1)
 
-	prepareProposalRequest := types.RequestPrepareProposal{
+	prepareProposalReq := types.RequestPrepareProposal{
 		Txs:    rawTxs,
-		Height: 10,
+		Height: testApp.LastBlockHeight() + 1,
 	}
-	prepareProposalResponse, err := testApp.PrepareProposal(&prepareProposalRequest)
-	require.NoError(b, err)
-	require.GreaterOrEqual(b, len(prepareProposalResponse.Txs), 1)
 
-	processProposalRequest := types.RequestProcessProposal{
-		Txs:          prepareProposalResponse.Txs,
-		Height:       10,
-		DataRootHash: prepareProposalResponse.DataRootHash,
+	prepareProposalResp, err := testApp.PrepareProposal(&prepareProposalReq)
+	require.NoError(b, err)
+	require.Len(b, prepareProposalResp.Txs, 1)
+
+	processProposalReq := types.RequestProcessProposal{
+		Txs:          prepareProposalResp.Txs,
+		Height:       testApp.LastBlockHeight() + 1,
+		DataRootHash: prepareProposalResp.DataRootHash,
+		SquareSize:   1,
 	}
 
 	b.ResetTimer()
-	resp, err := testApp.ProcessProposal(&processProposalRequest)
+	resp, err := testApp.ProcessProposal(&processProposalReq)
 	require.NoError(b, err)
 	b.StopTimer()
 	require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Status)
 
-	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResponse.Txs)), "total_gas_used")
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResp.Txs)), "total_gas_used")
 }
 
 func BenchmarkProcessProposal_MsgSend_8MB(b *testing.B) {
@@ -165,31 +199,33 @@ func BenchmarkProcessProposal_MsgSend_8MB(b *testing.B) {
 	// using 31645 to let prepare proposal choose the maximum
 	testApp, rawTxs := generateMsgSendTransactions(b, 31645)
 
-	prepareProposalRequest := types.RequestPrepareProposal{
+	prepareProposalReq := types.RequestPrepareProposal{
 		Txs:    rawTxs,
-		Height: 10,
+		Height: testApp.LastBlockHeight() + 1,
 	}
-	prepareProposalResponse, err := testApp.PrepareProposal(&prepareProposalRequest)
+
+	prepareProposalResp, err := testApp.PrepareProposal(&prepareProposalReq)
 	require.NoError(b, err)
-	require.GreaterOrEqual(b, len(prepareProposalResponse.Txs), 1)
+	require.GreaterOrEqual(b, len(prepareProposalResp.Txs), 1)
 
-	b.ReportMetric(float64(len(prepareProposalResponse.Txs)), "number_of_transactions")
-	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResponse.Txs), "block_size_(mb)")
-	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResponse.Txs)), "total_gas_used")
+	b.ReportMetric(float64(len(prepareProposalResp.Txs)), "number_of_transactions")
+	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResp.Txs), "block_size_(mb)")
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResp.Txs)), "total_gas_used")
 
-	processProposalRequest := types.RequestProcessProposal{
-		Txs:          prepareProposalResponse.Txs,
-		Height:       10,
-		DataRootHash: prepareProposalResponse.DataRootHash,
+	processProposalReq := types.RequestProcessProposal{
+		Txs:          prepareProposalResp.Txs,
+		Height:       testApp.LastBlockHeight() + 1,
+		DataRootHash: prepareProposalResp.DataRootHash,
+		SquareSize:   128,
 	}
 
 	b.ResetTimer()
-	resp, err := testApp.ProcessProposal(&processProposalRequest)
+	resp, err := testApp.ProcessProposal(&processProposalReq)
 	require.NoError(b, err)
 	b.StopTimer()
 	require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Status)
 
-	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResponse.Txs)), "total_gas_used")
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResp.Txs)), "total_gas_used")
 }
 
 func BenchmarkProcessProposal_MsgSend_8MB_Find_Half_Sec(b *testing.B) {
@@ -205,23 +241,24 @@ func BenchmarkProcessProposal_MsgSend_8MB_Find_Half_Sec(b *testing.B) {
 			break
 		}
 
-		prepareProposalRequest := types.RequestPrepareProposal{
+		prepareProposalReq := types.RequestPrepareProposal{
 			Txs:    rawTxs[start:end],
-			Height: 10,
+			Height: testApp.LastBlockHeight() + 1,
 		}
-		prepareProposalResponse, err := testApp.PrepareProposal(&prepareProposalRequest)
+
+		prepareProposalResp, err := testApp.PrepareProposal(&prepareProposalReq)
 		require.NoError(b, err)
-		require.GreaterOrEqual(b, len(prepareProposalResponse.Txs), 1)
+		require.GreaterOrEqual(b, len(prepareProposalResp.Txs), 1)
 
-		processProposalRequest := types.RequestProcessProposal{
-			Txs: prepareProposalResponse.Txs,
-
-			Height:       10,
-			DataRootHash: prepareProposalResponse.DataRootHash,
+		processProposalReq := types.RequestProcessProposal{
+			Txs:          prepareProposalResp.Txs,
+			Height:       testApp.LastBlockHeight() + 1,
+			DataRootHash: prepareProposalResp.DataRootHash,
+			SquareSize:   64,
 		}
 
 		startTime := time.Now()
-		resp, err := testApp.ProcessProposal(&processProposalRequest)
+		resp, err := testApp.ProcessProposal(&processProposalReq)
 		require.NoError(b, err)
 		endTime := time.Now()
 		require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Status)
