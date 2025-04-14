@@ -124,7 +124,7 @@ func BenchmarkFinalizeBlock_MsgSend_8MB(b *testing.B) {
 	for i := range rawTxs {
 		require.Equal(b, uint32(0), resp.TxResults[i].Code)
 		require.Equal(b, "", resp.TxResults[i].Codespace)
-		totalGas += resp.TxResults[0].GasUsed
+		totalGas += resp.TxResults[i].GasUsed
 	}
 
 	b.ReportMetric(float64(totalGas), "total_gas_used")
