@@ -1,6 +1,6 @@
 # Improved Cosmos SDK Upgrading System
 
-This repository contains an improved Cosmos SDK Upgrading system (codename: `nova`).
+This repository contains an improved Cosmos SDK Upgrading system (codename: `nova` or simply `multiplexer`).
 Sync from genesis or upgrade a Cosmos SDK chain seamlessly for the node operators, without binary switch.
 
 ## Features
