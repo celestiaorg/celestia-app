@@ -23,7 +23,7 @@ const DefaultSeed = 900183116
 
 const (
 	MiB                = 1024 * 1024
-	grpcMaxRecvMsgSize = 128 * MiB
+	grpcMaxRecvMsgSize = 268 * MiB
 	grpcMaxSendMsgSize = 128 * MiB
 )
 
