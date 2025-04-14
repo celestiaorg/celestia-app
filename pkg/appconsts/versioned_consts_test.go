@@ -22,13 +22,13 @@ func TestUpgradeHeightDelay(t *testing.T) {
 		{
 			name:                       "the upgrade delay should be latest value",
 			chainID:                    "arabica-11",
-			expectedUpgradeHeightDelay: appconsts.DefaultUpgradeHeightDelay,
+			expectedUpgradeHeightDelay: appconsts.UpgradeHeightDelay,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := appconsts.UpgradeHeightDelay(tc.chainID)
+			actual := appconsts.GetUpgradeHeightDelay(tc.chainID)
 			require.Equal(t, tc.expectedUpgradeHeightDelay, actual)
 		})
 	}

@@ -24,8 +24,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	v1 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
-	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/celestia-app/v4/x/signal"
 	"github.com/celestiaorg/celestia-app/v4/x/signal/types"
@@ -184,7 +184,7 @@ func TestTallyingLogic(t *testing.T) {
 	require.False(t, shouldUpgrade) // should be false because upgrade height hasn't been reached.
 	require.Equal(t, uint64(0), upgrade.AppVersion)
 
-	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + appconsts.UpgradeHeightDelay(appconsts.TestChainID))
+	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + appconsts.GetUpgradeHeightDelay(appconsts.TestChainID))
 
 	shouldUpgrade, upgrade = upgradeKeeper.ShouldUpgrade(ctx)
 	require.True(t, shouldUpgrade) // should be true because upgrade height has been reached.
@@ -421,7 +421,7 @@ func TestGetUpgrade(t *testing.T) {
 		got, err := upgradeKeeper.GetUpgrade(ctx, &types.QueryGetUpgradeRequest{})
 		require.NoError(t, err)
 		assert.Equal(t, v2.Version, got.Upgrade.AppVersion)
-		assert.Equal(t, appconsts.UpgradeHeightDelay(appconsts.TestChainID), got.Upgrade.UpgradeHeight)
+		assert.Equal(t, appconsts.GetUpgradeHeightDelay(appconsts.TestChainID), got.Upgrade.UpgradeHeight)
 	})
 }
 

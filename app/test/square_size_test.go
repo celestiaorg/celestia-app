@@ -88,9 +88,9 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 		},
 		{
 			name:             "gov square size == hardcoded max",
-			govMaxSquareSize: appconsts.DefaultSquareSizeUpperBound,
+			govMaxSquareSize: appconsts.SquareSizeUpperBound,
 			maxBytes:         appconsts.DefaultUpperBoundMaxBytes,
-			expMaxSquareSize: appconsts.DefaultSquareSizeUpperBound,
+			expMaxSquareSize: appconsts.SquareSizeUpperBound,
 		},
 	}
 
