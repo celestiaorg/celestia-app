@@ -7,7 +7,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/server/types"
 )
 
-// StartCommandHandler is the type that must implement nova to match Cosmos SDK start logic.
+// StartCommandHandler is the type that must implement the multiplexer to match Cosmos SDK start logic.
 type StartCommandHandler = func(svrCtx *server.Context, clientCtx client.Context, appCreator types.AppCreator, withCmt bool, opts server.StartCmdOptions) error
 
 // New creates a command start handler to use in the Cosmos SDK server start options.
