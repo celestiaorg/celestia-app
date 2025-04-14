@@ -26,7 +26,7 @@ import (
 
 var (
 	// TestMaxBlobSize is the maximum size of each blob in a blob transaction, for testing purposes
-	TestMaxBlobSize = share.ShareSize * 2 * appconsts.DefaultSquareSizeUpperBound
+	TestMaxBlobSize = share.ShareSize * 2 * appconsts.SquareSizeUpperBound
 	// TestMaxBlobCount is the maximum number of blobs in a blob transaction, for testing purposes
 	TestMaxBlobCount = 5
 )
