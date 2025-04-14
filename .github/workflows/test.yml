@@ -38,7 +38,7 @@ jobs:
           go-version-file: "go.mod"
 
       - name: Download v3 Celestia Binary
-        run: curl -L -o appd/internal/testdata/celestia-app_Linux_x86_64.tar.gz https://github.com/celestiaorg/celestia-app/releases/download/v3.7.0/celestia-app_Linux_x86_64.tar.gz
+        run: curl -L -o multiplexer/appd/internal/testdata/celestia-app_Linux_x86_64.tar.gz https://github.com/celestiaorg/celestia-app/releases/download/v3.7.0/celestia-app_Linux_x86_64.tar.gz
 
       - name: Run tests for the multiplexer package.
         run: make test-multiplexer
