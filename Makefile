@@ -19,6 +19,8 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
 
+CELESTIA_V3_VERSION := v3.7.0
+
 ## help: Get more info on make commands.
 help: Makefile
 	@echo " Choose a command run in "$(PROJECTNAME)":"
@@ -48,7 +50,13 @@ install: check-bbr
 .PHONY: install
 
 ## install-multiplexer: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
+## TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
 install-multiplexer: check-bbr
+	@echo "--> Download embedded binaries for v3"
+	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Darwin_arm64.tar.gz -O internal/embedding/celestia-app_darwin_v3_arm64.tar.gz
+	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Linux_arm64.tar.gz -O internal/embedding/celestia-app_linux_v3_arm64.tar.gz
+	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Darwin_x86_64.tar.gz -O internal/embedding/celestia-app_darwin_v3_amd64.tar.gz
+	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Linux_x86_64.tar.gz -O internal/embedding/celestia-app_linux_v3_amd64.tar.gz
 	@echo "--> Installing celestia-appd with multiplexer support"
 	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
 .PHONY: install-multiplexer

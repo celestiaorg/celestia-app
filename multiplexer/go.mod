@@ -1,6 +1,6 @@
 module github.com/celestiaorg/celestia-app/multiplexer
 
-go 1.24.0
+go 1.23.6
 
 replace (
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.53.0-tm-v0.38.17-rc2
