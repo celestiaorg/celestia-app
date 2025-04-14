@@ -2,8 +2,9 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/01builders/nova/abci"
-	"github.com/01builders/nova/internal"
+
+	"github.com/celestiaorg/celestia-app/multiplexer/abci"
+	"github.com/celestiaorg/celestia-app/multiplexer/internal"
 	dbm "github.com/cometbft/cometbft-db"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"

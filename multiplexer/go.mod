@@ -1,4 +1,4 @@
-module github.com/01builders/nova
+module github.com/celestiaorg/celestia-app/multiplexer
 
 go 1.23.1
 

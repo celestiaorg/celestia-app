@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/01builders/nova/abci"
+	"github.com/celestiaorg/celestia-app/multiplexer/abci"
 )
 
 // NewPassthroughCmd creates a command that allows executing commands on any app version.

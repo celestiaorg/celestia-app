@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/01builders/nova/appd"
+	"github.com/celestiaorg/celestia-app/multiplexer/appd"
 )
 
 // Version defines the configuration for remote apps.

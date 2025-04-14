@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/01builders/nova/appd/internal/testdata"
+	"github.com/celestiaorg/celestia-app/multiplexer/appd/internal/testdata"
 	"github.com/stretchr/testify/require"
 )
 
@@ -92,7 +92,7 @@ func createMockExecutable(t *testing.T, bashCommand string) string {
 	require.NoError(t, tmpFile.Close())
 
 	// Make it executable
-	require.NoError(t, os.Chmod(tmpFile.Name(), 0755))
+	require.NoError(t, os.Chmod(tmpFile.Name(), 0o755))
 
 	return tmpFile.Name()
 }
