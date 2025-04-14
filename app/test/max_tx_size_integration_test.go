@@ -3,6 +3,8 @@ package app_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	apperrors "github.com/celestiaorg/celestia-app/v4/app/errors"
@@ -10,7 +12,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	"github.com/stretchr/testify/require"
 )
 
 // TestTxsOverMaxTxSizeGetRejected tests that transactions over the max tx size get rejected
