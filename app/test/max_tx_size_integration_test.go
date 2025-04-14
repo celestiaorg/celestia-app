@@ -23,11 +23,11 @@ func TestTxsOverMaxTxSizeGetRejected(t *testing.T) {
 	accounts := testnode.RandomAccounts(10)
 	// Set the max block size to 8MB
 	cparams := testnode.DefaultConsensusParams()
-	cparams.Block.MaxBytes = 8_000_000 // 8MB
+	cparams.Block.MaxBytes = 8_388_608 // 8MiB
 	cfg := testnode.DefaultConfig().WithFundedAccounts(accounts...).WithConsensusParams(cparams)
 
-	// Set the max tx bytes to ~3MB in the node's mempool
-	mempoolMaxTxBytes := appv4.MaxTxSize + 1_000_000 // 2MiB + 1MB
+	// Set the max tx bytes to 3MiB in the node's mempool
+	mempoolMaxTxBytes := appv4.MaxTxSize + 1_048_576 // 2MiB + 1MiB
 	cfg.TmConfig.Mempool.MaxTxBytes = mempoolMaxTxBytes
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
