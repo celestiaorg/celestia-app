@@ -3,6 +3,7 @@ package abci
 import (
 	"context"
 	"fmt"
+
 	abci "github.com/cometbft/cometbft/abci/types"
 )
 
@@ -75,7 +76,9 @@ func (m *Multiplexer) FinalizeBlock(_ context.Context, req *abci.RequestFinalize
 	}
 
 	// set the app version to be used in the next block.
-	m.nextAppVersion = resp.ConsensusParamUpdates.GetVersion().App
+	if resp.ConsensusParamUpdates != nil && resp.ConsensusParamUpdates.GetVersion() != nil {
+		m.nextAppVersion = resp.ConsensusParamUpdates.GetVersion().App
+	}
 
 	return resp, err
 }

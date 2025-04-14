@@ -282,7 +282,7 @@ func (a *RemoteABCIClientV1) LoadSnapshotChunk(req *abciv2.RequestLoadSnapshotCh
 		context.Background(),
 		&abciv1.RequestLoadSnapshotChunk{
 			Height: req.Height,
-			Format: req.Chunk,
+			Format: req.Format,
 			Chunk:  req.Chunk,
 		},
 		grpc.WaitForReady(true),
@@ -408,7 +408,6 @@ func (a *RemoteABCIClientV1) ProcessProposal(req *abciv2.RequestProcessProposal)
 	return &abciv2.ResponseProcessProposal{
 		Status: abciv2.ResponseProcessProposal_ProposalStatus(resp.Result),
 	}, nil
-
 }
 
 // Query implements abciv2.ABCI
