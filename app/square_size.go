@@ -9,6 +9,6 @@ import (
 // MaxEffectiveSquareSize returns the max effective square size.
 func (app *App) MaxEffectiveSquareSize(ctx sdk.Context) int {
 	govMax := int(app.BlobKeeper.GetParams(ctx).GovMaxSquareSize)
-	hardMax := appconsts.DefaultSquareSizeUpperBound
+	hardMax := appconsts.SquareSizeUpperBound
 	return min(govMax, hardMax)
 }

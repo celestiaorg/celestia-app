@@ -11,7 +11,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	ante "github.com/celestiaorg/celestia-app/v4/x/blob/ante"
+	"github.com/celestiaorg/celestia-app/v4/x/blob/ante"
 	blob "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 

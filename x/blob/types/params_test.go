@@ -22,7 +22,7 @@ func Test_validateGovMaxSquareSize(t *testing.T) {
 		},
 		{
 			name:      "not a power of 2",
-			input:     uint64(appconsts.DefaultSquareSizeUpperBound - 1),
+			input:     uint64(appconsts.SquareSizeUpperBound - 1),
 			expectErr: true,
 		},
 		{
