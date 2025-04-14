@@ -6,19 +6,24 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"cosmossdk.io/log"
+	"cosmossdk.io/math/unsafe"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	coretypes "github.com/cometbft/cometbft/types"
+	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 )
 
 // Genesis manages the creation of the genesis state of a network. It is meant
 // to be used as the first step to any test that requires a network.
 type Genesis struct {
+	// ecfg is the encoding configuration of the app.
 	ecfg encoding.Config
 	// ConsensusParams are the consensus parameters of the network.
 	ConsensusParams *tmproto.ConsensusParams
@@ -61,13 +66,13 @@ func (g *Genesis) Validators() []Validator {
 
 // NewDefaultGenesis creates a new default genesis with no accounts or validators.
 func NewDefaultGenesis() *Genesis {
-	ecfg := encoding.MakeConfig(app.ModuleBasics)
+	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	g := &Genesis{
-		ecfg:            ecfg,
+		ecfg:            enc,
 		ConsensusParams: app.DefaultConsensusParams(),
-		ChainID:         tmrand.Str(6),
+		ChainID:         unsafe.Str(6),
 		GenesisTime:     time.Now(),
-		kr:              keyring.NewInMemory(ecfg.Codec),
+		kr:              keyring.NewInMemory(enc.Codec),
 		genOps:          []Modifier{},
 	}
 	return g
@@ -207,7 +212,10 @@ func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 		gentxs = append(gentxs, json.RawMessage(bz))
 	}
 
+	tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, simtestutil.EmptyAppOptions{})
+
 	return Document(
+		tempApp.DefaultGenesis(),
 		g.ecfg,
 		g.ConsensusParams,
 		g.ChainID,

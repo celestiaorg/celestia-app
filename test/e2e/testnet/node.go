@@ -8,22 +8,23 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/crypto"
+	"github.com/cometbft/cometbft/libs/trace"
+	"github.com/cometbft/cometbft/libs/trace/schema"
+	"github.com/cometbft/cometbft/p2p"
+	"github.com/cometbft/cometbft/privval"
+	"github.com/cometbft/cometbft/rpc/client/http"
+	"github.com/cometbft/cometbft/types"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
-	"github.com/tendermint/tendermint/config"
-	"github.com/tendermint/tendermint/crypto"
-	"github.com/tendermint/tendermint/p2p"
-	"github.com/tendermint/tendermint/pkg/trace"
-	"github.com/tendermint/tendermint/pkg/trace/schema"
-	"github.com/tendermint/tendermint/privval"
-	"github.com/tendermint/tendermint/rpc/client/http"
-	"github.com/tendermint/tendermint/types"
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
 	"github.com/celestiaorg/knuu/pkg/instance"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/celestiaorg/knuu/pkg/sidecars/netshaper"
 	"github.com/celestiaorg/knuu/pkg/sidecars/observability"
+
+	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
 )
 
 const (
@@ -32,7 +33,7 @@ const (
 	grpcPort       = 9090
 	prometheusPort = 26660
 	tracingPort    = 26661
-	dockerSrcURL   = "ghcr.io/celestiaorg/celestia-app"
+	dockerSrcURL   = "ghcr.io/01builders/celestia-app" // TODO: revert to celestiaorg
 	secp256k1Type  = "secp256k1"
 	ed25519Type    = "ed25519"
 	remoteRootDir  = "/home/celestia/.celestia-app"

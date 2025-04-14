@@ -7,14 +7,15 @@ import (
 	"math"
 	"sort"
 
-	tmclient "github.com/tendermint/tendermint/rpc/client"
-	"github.com/tendermint/tendermint/types"
-
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	blobtx "github.com/celestiaorg/go-square/v2/tx"
+	cmtclient "github.com/cometbft/cometbft/rpc/client"
+	"github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	gogogrpc "github.com/gogo/protobuf/grpc"
+	gogogrpc "github.com/cosmos/gogoproto/grpc"
+
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 // gasMultiplier is the multiplier for the gas limit. It's used to account for the fact that
@@ -39,13 +40,13 @@ func RegisterGasEstimationService(qrt gogogrpc.Server, clientCtx client.Context,
 var _ GasEstimatorServer = &gasEstimatorServer{}
 
 type gasEstimatorServer struct {
-	mempoolClient       tmclient.MempoolClient
+	mempoolClient       cmtclient.MempoolClient
 	simulateFn          baseAppSimulateFn
 	txDecoder           sdk.TxDecoder
 	govMaxSquareBytesFn govMaxSquareBytesFn
 }
 
-func NewGasEstimatorServer(mempoolClient tmclient.MempoolClient, txDecoder sdk.TxDecoder, govMaxSquareBytesFn govMaxSquareBytesFn, simulateFn baseAppSimulateFn) GasEstimatorServer {
+func NewGasEstimatorServer(mempoolClient cmtclient.MempoolClient, txDecoder sdk.TxDecoder, govMaxSquareBytesFn govMaxSquareBytesFn, simulateFn baseAppSimulateFn) GasEstimatorServer {
 	return &gasEstimatorServer{
 		mempoolClient:       mempoolClient,
 		simulateFn:          simulateFn,

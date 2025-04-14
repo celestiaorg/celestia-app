@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/celestiaorg/celestia-app/v3/x/signal/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
+
+	"github.com/celestiaorg/celestia-app/v4/x/signal/types"
 )
 
 // GetTxCmd returns the transaction commands for this module.
@@ -45,7 +46,7 @@ func CmdSignalVersion() *cobra.Command {
 
 			addr := clientCtx.GetFromAddress().Bytes()
 			valAddr := sdk.ValAddress(addr)
-			msg := types.NewMsgSignalVersion(valAddr, version)
+			msg := types.NewMsgSignalVersion(valAddr.String(), version)
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}

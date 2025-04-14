@@ -1,0 +1,14 @@
+syntax = "proto3";
+package celestia.minfee.v1;
+
+import "celestia/minfee/v1/params.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/minfee/types";
+
+// EventUpdateMinfeeParams defines an event that is emitted when minfee parameters are
+// updated. It is triggered after a successful execution of a parameter update proposal.
+message EventUpdateMinfeeParams {
+  string signer = 1;
+  Params params = 2 [(gogoproto.nullable) = false];
+}
