@@ -1,7 +1,6 @@
 package util
 
 import (
-	"github.com/celestiaorg/celestia-app/v4/x/blob"
 	"github.com/cosmos/cosmos-sdk/codec"
 	ccodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -12,10 +11,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/distribution"
 	"github.com/cosmos/cosmos-sdk/x/params"
 	"github.com/cosmos/cosmos-sdk/x/staking"
-)
 
-// TODO: This probably should be deleted.
-var blobstreamModuleName = "blobstream"
+	"github.com/celestiaorg/celestia-app/v4/x/blob"
+)
 
 var (
 	// AccPrivKeys generate secp256k1 pubkeys to be used for account pub keys
