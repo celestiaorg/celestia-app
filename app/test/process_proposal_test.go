@@ -21,6 +21,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+	appv4 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/random"
@@ -264,7 +265,7 @@ func TestProcessProposal(t *testing.T) {
 			name:  "tx size exceeds max tx size limit",
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
-				maxTxSize := appconsts.MaxTxSize(testApp.AppVersion()) // max tx size for the latest version
+				maxTxSize := appv4.MaxTxSize // max tx size for the latest version
 				// set the blob size to maxTxSize so that the raw transaction size will exceeds the max tx size limit
 				blob, err := share.NewBlob(ns1, bytes.Repeat([]byte{1}, maxTxSize), appconsts.DefaultShareVersion, nil)
 				require.NoError(t, err)
@@ -274,7 +275,6 @@ func TestProcessProposal(t *testing.T) {
 				// proposal block should be rejected
 				d.Txs[2] = rawTx
 			},
-			appVersion:     v3.Version,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 	}
