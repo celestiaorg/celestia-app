@@ -33,7 +33,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 	for i := range accounts {
 		accounts[i] = random.Str(20)
 	}
-	maxShareCount := int64(appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound)
+	maxShareCount := int64(appconsts.SquareSizeUpperBound * appconsts.SquareSizeUpperBound)
 
 	type test struct {
 		name                   string
@@ -64,7 +64,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 		{
 			"max",
 			maxShareCount * share.ContinuationSparseShareContentSize,
-			appconsts.DefaultSquareSizeUpperBound,
+			appconsts.SquareSizeUpperBound,
 		},
 		{
 			"larger MaxBytes than SquareSize",
