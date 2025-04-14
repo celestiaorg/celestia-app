@@ -1,11 +1,9 @@
 module github.com/celestiaorg/celestia-app/multiplexer
 
-go 1.23.1
-
-toolchain go1.24.1
+go 1.24.0
 
 replace (
-	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.38.11-0.20250327161336-69ddda76ed86
+	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.53.0-tm-v0.38.17-rc2
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.45.0-tm-v0.34.35
 )
 
