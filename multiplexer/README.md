@@ -64,7 +64,7 @@ server.AddCommandsWithStartCmdOptions(
  appExporter,
  server.StartCmdOptions{
   AddFlags:            addStartFlags,
-+ StartCommandHandler: nova.New(versions),
++ StartCommandHandler: multiplexercmd.New(versions),
  },
 )
 ```
@@ -73,7 +73,7 @@ Optionally add the passthrough mode command:
 
 ```go
 rootCommand.AddCommand(
- nova.NewPassthroughCmd(versions),
+ multiplexercmd.NewPassthroughCmd(versions),
 )
 ```
 
