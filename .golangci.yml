@@ -24,6 +24,10 @@ linters:
       # Ban the use of naked returns as they decrease code readability
       # Make an issue if func has more lines of code than this setting, and it has naked returns.
       max-func-lines: 0 # Default: 30
+    revive:
+      severity: warning
+      rules:
+        - name: redundant-import-alias
 
 formatters:
   enable:
