@@ -69,7 +69,7 @@ func StartGRPCServer(logger log.Logger, app srvtypes.Application, appCfg *srvcon
 	blockAPI := coregrpc.NewBlockAPI(coreEnv)
 	coregrpc.RegisterBlockAPIServer(grpcSrv, blockAPI)
 
-	go blockAPI.StartNewBlockEventListener(cctx.goContext)
+	go blockAPI.StartNewBlockEventListener(cctx.goContext) //nolint:errcheck
 
 	go func() {
 		// StartGRPCServer is a blocking function, we need to run it in a go routine.
