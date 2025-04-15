@@ -8,6 +8,8 @@ import (
 	"cosmossdk.io/log"
 	"github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/rpc/client/local"
+	"github.com/cometbft/cometbft/rpc/core"
+	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/server/api"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
@@ -49,7 +51,7 @@ func StartNode(cometNode *node.Node, cctx Context) (Context, func() error, error
 // StartGRPCServer starts the GRPC server using the provided application and
 // config. A GRPC client connection to that server is also added to the client
 // context. The returned function should be used to shutdown the server.
-func StartGRPCServer(logger log.Logger, app srvtypes.Application, appCfg *srvconfig.Config, cctx Context) (*grpc.Server, Context, func() error, error) {
+func StartGRPCServer(logger log.Logger, app srvtypes.Application, appCfg *srvconfig.Config, cctx Context, coreEnv *core.Environment) (*grpc.Server, Context, func() error, error) {
 	emptycleanup := func() error { return nil }
 	// Add the tx service in the gRPC router.
 	app.RegisterTxService(cctx.Context)
@@ -64,7 +66,14 @@ func StartGRPCServer(logger log.Logger, app srvtypes.Application, appCfg *srvcon
 		return nil, Context{}, emptycleanup, err
 	}
 
+	blockAPI := coregrpc.NewBlockAPI(coreEnv)
+	coregrpc.RegisterBlockAPIServer(grpcSrv, blockAPI)
+
 	go func() {
+		if err := blockAPI.StartNewBlockEventListener(cctx.goContext); err != nil {
+			panic(err)
+		}
+
 		// StartGRPCServer is a blocking function, we need to run it in a go routine.
 		if err := srvgrpc.StartGRPCServer(cctx.goContext, logger, appCfg.GRPC, grpcSrv); err != nil {
 			panic(err)
