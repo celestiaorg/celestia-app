@@ -73,7 +73,9 @@ func StartGRPCServer(logger log.Logger, app srvtypes.Application, appCfg *srvcon
 		if err := blockAPI.StartNewBlockEventListener(cctx.goContext); err != nil {
 			panic(err)
 		}
+	}()
 
+	go func() {
 		// StartGRPCServer is a blocking function, we need to run it in a go routine.
 		if err := srvgrpc.StartGRPCServer(cctx.goContext, logger, appCfg.GRPC, grpcSrv); err != nil {
 			panic(err)
