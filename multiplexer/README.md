@@ -9,7 +9,7 @@ The multiplexer enables node operators to sync from genesis and upgrade a Cosmos
 - **No binary switch required**: At the upgrade height, no binary switch is required, a huge improvement compared to solely relying on the `x/upgrade` module.
 - **One binary**: The system uses only one binary for all upgrades, which simplifies  **syncing from genesis**, the upgrade process and reduces the risk of errors.
 - **Passthrough mode**: The system can be used in passthrough mode, where a user can interact with an older binary directly.
-- **Speed of native**: `Multiplexer` is designed to minimize overhead and is only used for the duration of the upgrade process. Once the upgrade is complete, the system use the native app.
+- **Speed of native**: `Multiplexer` is designed to minimize overhead and only uses standalone applications running through embedded binaries for the duration of the upgrade process. Once the upgrade is complete, the system uses the native app whereby the celestia-core consensus engine and application run together in-process.
 
 ## How it works
 
