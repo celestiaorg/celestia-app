@@ -88,15 +88,6 @@ type Multiplexer struct {
 	g *errgroup.Group
 }
 
-// NewVersions returns a list of versions sorted by app version.
-func NewVersions(v ...Version) (Versions, error) {
-	versions := Versions(v)
-	if err := versions.Validate(); err != nil {
-		return nil, err
-	}
-	return versions.Sorted(), nil
-}
-
 // NewMultiplexer creates a new Multiplexer.
 func NewMultiplexer(svrCtx *server.Context, svrCfg serverconfig.Config, clientCtx client.Context, appCreator servertypes.AppCreator, versions Versions, chainID string, applicationVersion uint64) (*Multiplexer, error) {
 	if err := versions.Validate(); err != nil {

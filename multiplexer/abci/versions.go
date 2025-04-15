@@ -7,6 +7,15 @@ import (
 	"github.com/celestiaorg/celestia-app/multiplexer/appd"
 )
 
+// NewVersions returns a list of versions sorted by app version.
+func NewVersions(v ...Version) (Versions, error) {
+	versions := Versions(v)
+	if err := versions.Validate(); err != nil {
+		return nil, err
+	}
+	return versions.Sorted(), nil
+}
+
 // Version defines the configuration for remote apps.
 type Version struct {
 	AppVersion  uint64

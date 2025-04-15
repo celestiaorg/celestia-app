@@ -28,7 +28,6 @@ help: Makefile
 .PHONY: help
 
 ## build-standalone: Build the celestia-appd binary into the ./build directory.
-## This target does not build the multiplexer.
 build-standalone: mod
 	@cd ./cmd/celestia-appd
 	@mkdir -p build/
@@ -37,7 +36,6 @@ build-standalone: mod
 .PHONY: build-standalone
 
 ## build: Build the celestia-appd binary into the ./build directory.
-## This target builds the multiplexer version of celestia-appd.
 build: mod
 	@cd ./cmd/celestia-appd
 	@mkdir -p build/
@@ -45,14 +43,14 @@ build: mod
 	@go build $(BUILD_FLAGS_MULTIPLEXER) -o build/celestia-appd ./cmd/celestia-appd
 .PHONY: build
 
-## install-standalone: Build and install the celestia-appd binary into the $GOPATH/bin directory. This target does not build the multiplexer.
+## install-standalone: Build and install the celestia-appd binary into the $GOPATH/bin directory. This target does not install the multiplexer.
 install-standalone: check-bbr
 	@echo "--> Installing celestia-appd"
 	@go install $(BUILD_FLAGS) ./cmd/celestia-appd
 .PHONY: install-standalone
 
 ## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
-## TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
+# TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
 install: check-bbr
 	@echo "--> Download embedded binaries for v3"
 	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Darwin_arm64.tar.gz -O internal/embedding/celestia-app_darwin_v3_arm64.tar.gz
