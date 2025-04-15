@@ -4,13 +4,14 @@ package nova
 
 import (
 	"bytes"
-	"github.com/stretchr/testify/require"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMultiplexerSetup(t *testing.T) {
@@ -70,5 +71,5 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(dst, input, 0777)
+	return os.WriteFile(dst, input, 0o777)
 }
