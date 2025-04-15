@@ -3,7 +3,7 @@ package malicious
 import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	core "github.com/cometbft/cometbft/proto/tendermint/types"
-	version "github.com/cometbft/cometbft/proto/tendermint/version"
+	"github.com/cometbft/cometbft/proto/tendermint/version"
 
 	"github.com/celestiaorg/go-square/v2/share"
 

@@ -8,7 +8,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	gethcommon "github.com/ethereum/go-ethereum/common"
 
 	"github.com/celestiaorg/go-square/v2/share"
 
@@ -104,10 +103,6 @@ func GetAddress(keys keyring.Keyring, account string) sdk.AccAddress {
 		panic(err)
 	}
 	return addr
-}
-
-func RandomEVMAddress() gethcommon.Address {
-	return gethcommon.BytesToAddress(random.Bytes(gethcommon.AddressLength))
 }
 
 func TestKeyring(cdc codec.Codec, accounts ...string) keyring.Keyring {
