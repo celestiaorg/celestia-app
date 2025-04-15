@@ -19,39 +19,47 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
 
+CELESTIA_V3_VERSION := v3.7.0
+
 ## help: Get more info on make commands.
 help: Makefile
 	@echo " Choose a command run in "$(PROJECTNAME)":"
 	@sed -n 's/^##//p' $< | sort | column -t -s ':' | sed -e 's/^/ /'
 .PHONY: help
 
-## build: Build the celestia-appd binary into the ./build directory.
-build: mod
+## build-standalone: Build the celestia-appd binary into the ./build directory.
+build-standalone: mod
 	@cd ./cmd/celestia-appd
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd"
 	@go build $(BUILD_FLAGS) -o build/ ./cmd/celestia-appd
-.PHONY: build
+.PHONY: build-standalone
 
-## build-multiplexer: Builds with the "multiplexer" build tags.
-build-multiplexer: mod
+## build: Build the celestia-appd binary into the ./build directory.
+build: mod
 	@cd ./cmd/celestia-appd
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd with multiplexer enabled"
 	@go build $(BUILD_FLAGS_MULTIPLEXER) -o build/celestia-appd ./cmd/celestia-appd
-.PHONY: build-multiplexer
+.PHONY: build
 
-## install: Build and install the celestia-appd binary into the $GOPATH/bin directory.
-install: check-bbr
+## install-standalone: Build and install the celestia-appd binary into the $GOPATH/bin directory. This target does not install the multiplexer.
+install-standalone: check-bbr
 	@echo "--> Installing celestia-appd"
 	@go install $(BUILD_FLAGS) ./cmd/celestia-appd
-.PHONY: install
+.PHONY: install-standalone
 
-## install-multiplexer: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
-install-multiplexer: check-bbr
+## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
+# TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
+install: check-bbr
+	@echo "--> Download embedded binaries for v3"
+	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Darwin_arm64.tar.gz -O internal/embedding/celestia-app_darwin_v3_arm64.tar.gz
+	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Linux_arm64.tar.gz -O internal/embedding/celestia-app_linux_v3_arm64.tar.gz
+	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Darwin_x86_64.tar.gz -O internal/embedding/celestia-app_darwin_v3_amd64.tar.gz
+	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Linux_x86_64.tar.gz -O internal/embedding/celestia-app_linux_v3_amd64.tar.gz
 	@echo "--> Installing celestia-appd with multiplexer support"
 	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
-.PHONY: install-multiplexer
+.PHONY: install
 
 ## mod: Update all go.mod files.
 mod:
@@ -200,9 +208,10 @@ test-e2e:
 	go run ./test/e2e $(filter-out $@,$(MAKECMDGOALS))
 .PHONY: test-e2e
 
+## test-multiplexer: Run unit tests for the multiplexer package.
 test-multiplexer:
 	@echo "--> Running multiplexer tests"
-	go test -tags multiplexer -v ./test/multiplexer/...
+	make test -C ./multiplexer
 .PHONY: test-multiplexer
 
 ## test-race: Run tests in race mode.
@@ -213,10 +222,10 @@ test-race:
 	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService|TestTxsOverMaxTxSizeGetRejected"
 .PHONY: test-race
 
-## test-bench: Run unit tests in bench mode.
+## test-bench: Run benchmark unit tests.
 test-bench:
-	@echo "--> Running tests in bench mode"
-	@go test -bench=. ./...
+	@echo "--> Running benchmark tests"
+	@go test -timeout 30m -tags=benchmarks -bench=. ./app/benchmarks/...
 .PHONY: test-bench
 
 ## test-coverage: Generate test coverage.txt
