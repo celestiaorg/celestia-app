@@ -222,10 +222,10 @@ test-race:
 	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService"
 .PHONY: test-race
 
-## test-bench: Run unit tests in bench mode.
+## test-bench: Run benchmark unit tests.
 test-bench:
-	@echo "--> Running tests in bench mode"
-	@go test -bench=. ./...
+	@echo "--> Running benchmark tests"
+	@go test -timeout 30m -tags=benchmarks -bench=. ./app/benchmarks/...
 .PHONY: test-bench
 
 ## test-coverage: Generate test coverage.txt

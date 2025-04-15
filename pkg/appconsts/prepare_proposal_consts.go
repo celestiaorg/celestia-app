@@ -1,4 +1,4 @@
-//go:build !bench_abci_methods
+//go:build !benchmarks
 
 package appconsts
 
