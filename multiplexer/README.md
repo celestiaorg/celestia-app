@@ -1,7 +1,7 @@
-# Improved Cosmos SDK Upgrading System
+# Multiplexer
 
-This repository contains an improved Cosmos SDK Upgrading system: the multiplexer (codename: the `multiplexer`).
-Sync from genesis or upgrade a Cosmos SDK chain seamlessly for the node operators, without binary switch.
+This repository contains an improved Cosmos SDK Upgrading system: the multiplexer.
+The multiplexer enables node operators to sync from genesis and upgrade a Cosmos SDK chain without switching binaries.
 
 ## Features
 
@@ -13,7 +13,7 @@ Sync from genesis or upgrade a Cosmos SDK chain seamlessly for the node operator
 
 ## How it works
 
-The system works by running embedded the previous consensus breaking version within the binary and running a single CometBFT instance for all chains.
+The system works by running a single CometBFT instance and multiple embedded binaries for previous consensus breaking versions.
 
 This means the `multiplexer` manages:
 
@@ -24,7 +24,7 @@ This means the `multiplexer` manages:
 
 By sitting between the standalone app and the CometBFT instance, the `multiplexer` is able to listen to an `AppVersion` change and trigger the upgrade process automatically.
 
-In order to limit any P2P disruption, like it happens today when no using the `multiplexer`; it uses one single CometBFT instance for all versions. This is possible because there has been no P2P and Block breaking changes in CometBFT.
+In order to limit any P2P disruption, like it happens today when not using the `multiplexer`; it uses one single CometBFT instance for all versions. This is possible because there has been no P2P and Block breaking changes in CometBFT.
 
 The multiplexer supports ABCI 1.0 and ABCI 2.0, which means it can be used with any version of CometBFT, including the latest versions. This is done via the `ABCIClientVersion`.
 The multiplexer has two remote clients, those remote clients interact with the App and CometBFT via gRPC:
@@ -144,5 +144,5 @@ This can be done with minimal changes in Cosmos SDK mainline, but wasn't require
 
 The current alternative to the `multiplexer` is [`cosmovisor`](https://docs.cosmos.network/main/build/tooling/cosmovisor).
 
-`Cosmovisor` simplifies the upgrade process by automatically switching the whole binary at the upgrade height. However, node operators need, in addition, to download the new binary and add it to `cosmovisor`. Additionally, `cosmovisor` restarts the whole binary, including the consensus layer, which can lead to P2P disruption and a longer downtime for the node operators.
+`Cosmovisor` simplifies the upgrade process by automatically switching the whole binary at the upgrade height. However, node operators need to download the new binary and add it to `cosmovisor`. Additionally, `cosmovisor` restarts the whole binary, including the consensus layer, which can lead to P2P disruption and a longer downtime for the node operators.
 `Cosmovisor` is a great tool, but it is not the best solution for all chains. `Multiplexer` is designed to be a more flexible and powerful solution for upgrading Cosmos SDK-based chains.
