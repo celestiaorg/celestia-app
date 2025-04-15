@@ -61,7 +61,7 @@ type Multiplexer struct {
 	appVersion uint64
 	// nextAppVersion this is updated based on the consensus params every FinalizeBlock.
 	nextAppVersion uint64
-	// started indicates if there is either an embedded app running, or a native one running.
+	// started indicates if there is an embedded app or native app running
 	started bool
 	// appCreator is a function type responsible for creating a new application instance.
 	appCreator servertypes.AppCreator
