@@ -119,7 +119,7 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 	)
 
 	rootCommand.AddCommand(
-		genutilcli.InitCmd(capp.BasicManager, app.DefaultNodeHome),
+		InitCmd(capp),
 		genutilcli.Commands(capp.GetTxConfig(), capp.BasicManager, app.DefaultNodeHome),
 		tmcli.NewCompletionCmd(rootCommand, true),
 		debugCmd,

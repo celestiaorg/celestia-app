@@ -17,13 +17,13 @@ coins="1000000000000000utia"
 ${BIN_PATH} init $CHAINID --chain-id $CHAINID --home ${HOME_DIR}
 ${BIN_PATH} keys add validator --keyring-backend="test" --home ${HOME_DIR}
 # this won't work because the some proto types are declared twice and the logs output to stdout (dependency hell involving iavl)
-${BIN_PATH} add-genesis-account $(${BIN_PATH} keys show validator -a --keyring-backend="test" --home ${HOME_DIR}) $coins --home ${HOME_DIR}
-${BIN_PATH} gentx validator 5000000000utia \
+${BIN_PATH} genesis add-genesis-account $(${BIN_PATH} keys show validator -a --keyring-backend="test" --home ${HOME_DIR}) $coins --home ${HOME_DIR}
+${BIN_PATH} genesis gentx validator 5000000000utia \
 	--keyring-backend="test" \
 	--chain-id $CHAINID \
 	--home ${HOME_DIR}
 
-${BIN_PATH} collect-gentxs --home ${HOME_DIR}
+${BIN_PATH} genesis collect-gentxs --home ${HOME_DIR}
 
 # Set proper defaults and change ports
 # If you encounter: `sed: -I or -i may not be used with stdin` on MacOS you can mitigate by installing gnu-sed
