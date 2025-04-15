@@ -9,8 +9,8 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	gogogrpc "github.com/cosmos/gogoproto/grpc"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-	codes "google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // RegisterTxService registers the tx service on the gRPC router.

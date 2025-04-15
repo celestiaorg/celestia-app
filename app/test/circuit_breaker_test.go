@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
-	v1 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
 	"github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	signaltypes "github.com/celestiaorg/celestia-app/v4/x/signal/types"

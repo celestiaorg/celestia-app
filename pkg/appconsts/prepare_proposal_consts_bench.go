@@ -1,8 +1,8 @@
-//go:build bench_abci_methods
+//go:build benchmarks
 
 package appconsts
 
-// Note: these constants are set to these values only when running `bench_abci_methods` benchmarks.
+// Note: these constants are set to these values only when running benchmarks.
 // For the production values, check prepare_proposal_consts.go file.
 
 const (
