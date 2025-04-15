@@ -98,7 +98,7 @@ func StartGRPCServer(logger log.Logger, app srvtypes.Application, appCfg *srvcon
 
 	return grpcSrv, cctx, func() error {
 		grpcSrv.Stop()
-		return nil
+		return blockAPI.Stop(cctx.goContext)
 	}, nil
 }
 
