@@ -324,12 +324,13 @@ enable-bbr:
 	@echo "Configuring system to use BBR..."
 	@if [ "$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')" != "bbr" ]; then \
 	    echo "BBR is not enabled. Configuring BBR..."; \
-	    sudo modprobe tcp_bbr; \
-            echo tcp_bbr | sudo tee -a /etc/modules; \
-	    echo "net.core.default_qdisc=fq" | sudo tee -a /etc/sysctl.conf; \
-	    echo "net.ipv4.tcp_congestion_control=bbr" | sudo tee -a /etc/sysctl.conf; \
-	    sudo sysctl -p; \
-	    echo "BBR has been enabled."; \
+	    sudo modprobe tcp_bbr && \
+            echo tcp_bbr | sudo tee -a /etc/modules && \
+	    echo "net.core.default_qdisc=fq" | sudo tee -a /etc/sysctl.conf && \
+	    echo "net.ipv4.tcp_congestion_control=bbr" | sudo tee -a /etc/sysctl.conf && \
+	    sudo sysctl -p && \
+	    echo "BBR has been enabled." || \
+	    echo "Failed to enable BBR. Please check error messages above."; \
 	else \
 	    echo "BBR is already enabled."; \
 	fi
@@ -344,12 +345,13 @@ disable-bbr:
 	@echo "Disabling BBR and reverting to default congestion control algorithm..."
 	@if [ "$$(sysctl net.ipv4.tcp_congestion_control | awk '{print $$3}')" = "bbr" ]; then \
 	    echo "BBR is currently enabled. Reverting to Cubic..."; \
-	    sudo sed -i '/^net.core.default_qdisc=fq/d' /etc/sysctl.conf; \
-	    sudo sed -i '/^net.ipv4.tcp_congestion_control=bbr/d' /etc/sysctl.conf; \
-	    sudo modprobe -r tcp_bbr; \
-	    echo "net.ipv4.tcp_congestion_control=cubic" | sudo tee -a /etc/sysctl.conf; \
-	    sudo sysctl -p; \
-	    echo "BBR has been disabled, and Cubic is now the default congestion control algorithm."; \
+	    sudo sed -i '/^net.core.default_qdisc=fq/d' /etc/sysctl.conf && \
+	    sudo sed -i '/^net.ipv4.tcp_congestion_control=bbr/d' /etc/sysctl.conf && \
+	    sudo modprobe -r tcp_bbr && \
+	    echo "net.ipv4.tcp_congestion_control=cubic" | sudo tee -a /etc/sysctl.conf && \
+	    sudo sysctl -p && \
+	    echo "BBR has been disabled, and Cubic is now the default congestion control algorithm." || \
+	    echo "Failed to disable BBR. Please check error messages above."; \
 	else \
 	    echo "BBR is not enabled. No changes made."; \
 	fi
