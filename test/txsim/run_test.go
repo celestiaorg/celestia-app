@@ -22,7 +22,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
-	v3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
 	"github.com/celestiaorg/celestia-app/v4/test/txsim"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	blob "github.com/celestiaorg/celestia-app/v4/x/blob/types"
@@ -119,7 +119,7 @@ func TestTxSimulator(t *testing.T) {
 				ctx,
 				grpcAddr,
 				keyring,
-				encoding.MakeTestConfig(app.ModuleEncodingRegisters...),
+				encoding.MakeConfig(app.ModuleEncodingRegisters...),
 				opts,
 				tc.sequences...,
 			)
@@ -174,7 +174,7 @@ func TestTxSimUpgrade(t *testing.T) {
 
 	// upgrade to v3 at height 20
 	sequences := []txsim.Sequence{
-		txsim.NewUpgradeSequence(v3.Version, 20),
+		txsim.NewUpgradeSequence(v4.Version, 20),
 	}
 
 	opts := txsim.DefaultOptions().
@@ -185,7 +185,7 @@ func TestTxSimUpgrade(t *testing.T) {
 		cctx.GoContext(),
 		grpcAddr,
 		cctx.Keyring,
-		encoding.MakeTestConfig(app.ModuleEncodingRegisters...),
+		encoding.MakeConfig(app.ModuleEncodingRegisters...),
 		opts,
 		sequences...,
 	)
@@ -203,6 +203,6 @@ func TestTxSimUpgrade(t *testing.T) {
 	require.Eventually(t, func() bool {
 		upgradePlan, err := querier.GetUpgrade(cctx.GoContext(), &signaltypes.QueryGetUpgradeRequest{})
 		require.NoError(t, err)
-		return upgradePlan.Upgrade != nil && upgradePlan.Upgrade.AppVersion == v3.Version
+		return upgradePlan.Upgrade != nil && upgradePlan.Upgrade.AppVersion == v4.Version
 	}, time.Second*20, time.Millisecond*100)
 }

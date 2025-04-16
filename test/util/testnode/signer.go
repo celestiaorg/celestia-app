@@ -8,12 +8,12 @@ import (
 )
 
 func NewOfflineSigner() (*user.Signer, error) {
-	encCfg := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	kr, _ := NewKeyring(testfactory.TestAccName)
 	return user.NewSigner(kr, encCfg.TxConfig, testfactory.ChainID, user.NewAccount(testfactory.TestAccName, 0, 0))
 }
 
 func NewTxClientFromContext(ctx Context) (*user.TxClient, error) {
-	encCfg := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	return user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg)
 }

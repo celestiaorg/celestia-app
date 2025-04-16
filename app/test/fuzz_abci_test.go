@@ -28,7 +28,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping TestPrepareProposalConsistency in short mode.")
 	}
-	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := make([]string, 1100) // 1000 for creating blob txs, 100 for creating send txs
 	for i := range accounts {
 		accounts[i] = random.Str(20)

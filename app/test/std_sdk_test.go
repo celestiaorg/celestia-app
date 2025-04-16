@@ -74,7 +74,7 @@ func (s *StandardSDKIntegrationTestSuite) SetupSuite() {
 	s.cfg = testnode.DefaultConfig().WithFundedAccounts(accounts...)
 	s.cctx, _, _ = testnode.NewNetwork(t, s.cfg)
 	s.accounts = accounts
-	s.ecfg = encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 }
 
 func (s *StandardSDKIntegrationTestSuite) unusedAccount() string {

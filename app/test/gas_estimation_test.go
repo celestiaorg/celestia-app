@@ -114,7 +114,7 @@ func TestEstimateGasPrice(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, appconsts.DefaultMinGasPrice, resp.EstimatedGasPrice)
 
-	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	txClient, err := user.SetupTxClient(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, enc)
 	require.NoError(t, err)
 
@@ -201,7 +201,7 @@ func TestEstimateGasUsed(t *testing.T) {
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	require.NoError(t, cctx.WaitForNextBlock())
 
-	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	txClient, err := user.SetupTxClient(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, enc)
 	require.NoError(t, err)
 	addr := testfactory.GetAddress(cctx.Keyring, "test")

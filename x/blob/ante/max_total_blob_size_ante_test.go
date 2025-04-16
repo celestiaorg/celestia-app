@@ -113,7 +113,7 @@ func TestMaxTotalBlobSizeDecorator(t *testing.T) {
 		},
 	}
 
-	txConfig := encoding.MakeTestConfig(app.ModuleEncodingRegisters...).TxConfig
+	txConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			txBuilder := txConfig.NewTxBuilder()

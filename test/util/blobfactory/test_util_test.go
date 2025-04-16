@@ -19,7 +19,7 @@ import (
 func TestGenerateManyRandomRawSendTxsSameSigner_Deterministic(t *testing.T) {
 	normalTxCount := 10
 	seed := int64(1)
-	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	TxDecoder := enc.TxConfig.TxDecoder()
 
 	kr, _ := testnode.NewKeyring(testfactory.TestAccName)

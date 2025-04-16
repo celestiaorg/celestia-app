@@ -30,7 +30,7 @@ import (
 )
 
 func TestValidateTxFee(t *testing.T) {
-	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	builder := enc.TxConfig.NewTxBuilder()
 	err := builder.SetMsgs(banktypes.NewMsgSend(
@@ -164,6 +164,6 @@ func setUp(t *testing.T) (paramkeeper.Keeper, *minfeekeeper.Keeper, storetypes.C
 	paramsKeeper := paramkeeper.NewKeeper(codec.NewProtoCodec(registry), codec.NewLegacyAmino(), storeKey, tStoreKey)
 	subspace := paramsKeeper.Subspace(minfeetypes.ModuleName)
 
-	mfk := minfeekeeper.NewKeeper(encoding.MakeTestConfig(app.ModuleEncodingRegisters...).Codec, mfStoreKey, paramsKeeper, subspace, "")
+	mfk := minfeekeeper.NewKeeper(encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec, mfStoreKey, paramsKeeper, subspace, "")
 	return paramsKeeper, mfk, stateStore
 }
