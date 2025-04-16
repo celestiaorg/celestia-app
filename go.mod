@@ -2,6 +2,9 @@ module github.com/celestiaorg/celestia-app/v4
 
 go 1.23.6
 
+// TODO: tag multiplexer as v0.1.0 after merge.
+replace github.com/celestiaorg/celestia-app/multiplexer => ./multiplexer
+
 require (
 	cosmossdk.io/api v0.7.6
 	cosmossdk.io/client/v2 v2.0.0-beta.8
@@ -16,8 +19,8 @@ require (
 	cosmossdk.io/x/feegrant v0.1.1
 	cosmossdk.io/x/tx v0.13.8
 	cosmossdk.io/x/upgrade v0.1.4
-	github.com/01builders/nova v0.0.0-20250326081858-46ef7ddcb5c6
 	github.com/bcp-innovations/hyperlane-cosmos v1.0.0-beta0
+	github.com/celestiaorg/celestia-app/multiplexer v0.0.0-00010101000000-000000000000
 	github.com/celestiaorg/go-square/v2 v2.2.0
 	github.com/celestiaorg/knuu v0.16.3
 	github.com/celestiaorg/nmt v0.23.0
