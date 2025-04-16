@@ -6,8 +6,8 @@ package tx
 import (
 	context "context"
 	fmt "fmt"
-	grpc1 "github.com/gogo/protobuf/grpc"
-	proto "github.com/gogo/protobuf/proto"
+	grpc1 "github.com/cosmos/gogoproto/grpc"
+	proto "github.com/cosmos/gogoproto/proto"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
@@ -80,7 +80,7 @@ type TxStatusResponse struct {
 	Index  uint32 `protobuf:"varint,2,opt,name=index,proto3" json:"index,omitempty"`
 	// execution_code is returned when the transaction has been committed
 	// and returns whether it was successful or errored. A non zero
-	// execution code indicates an error.
+	// execution code indicated an error.
 	ExecutionCode uint32 `protobuf:"varint,3,opt,name=execution_code,json=executionCode,proto3" json:"execution_code,omitempty"`
 	// error log for failed transactions.
 	Error string `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
@@ -201,7 +201,8 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type TxClient interface {
-	// TxStatus returns the status of a transaction. There are four possible states:
+	// TxStatus returns the status of a transaction. There are four possible
+	// states:
 	// - Committed
 	// - Pending
 	// - Evicted
@@ -228,7 +229,8 @@ func (c *txClient) TxStatus(ctx context.Context, in *TxStatusRequest, opts ...gr
 
 // TxServer is the server API for Tx service.
 type TxServer interface {
-	// TxStatus returns the status of a transaction. There are four possible states:
+	// TxStatus returns the status of a transaction. There are four possible
+	// states:
 	// - Committed
 	// - Pending
 	// - Evicted
@@ -266,6 +268,7 @@ func _Tx_TxStatus_Handler(srv interface{}, ctx context.Context, dec func(interfa
 	return interceptor(ctx, in, info, handler)
 }
 
+var Tx_serviceDesc = _Tx_serviceDesc
 var _Tx_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "celestia.core.v1.tx.Tx",
 	HandlerType: (*TxServer)(nil),

@@ -1,12 +1,9 @@
 VERSION := $(shell echo $(shell git describe --tags 2>/dev/null || git log -1 --format='%h') | sed 's/^v//')
 COMMIT := $(shell git rev-parse --short HEAD)
 DOCKER := $(shell which docker)
-DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bufbuild/buf
-IMAGE := ghcr.io/tendermint/docker-build-proto:latest
-DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspace $(IMAGE)
 PROJECTNAME=$(shell basename "$(PWD)")
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
-PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v3
+PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v4
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
 GOLANG_CROSS_VERSION  ?= v1.23.6
@@ -17,10 +14,12 @@ OVERRIDE_MAX_SQUARE_SIZE ?=
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 		  -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd \
 		  -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
-		  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
-		  -X github.com/celestiaorg/celestia-app/v3/pkg/appconsts.OverrideSquareSizeUpperBoundStr=$(OVERRIDE_MAX_SQUARE_SIZE)
+		  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT)
 
 BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
+BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
+
+CELESTIA_V3_VERSION := v3.7.0
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -28,18 +27,38 @@ help: Makefile
 	@sed -n 's/^##//p' $< | sort | column -t -s ':' | sed -e 's/^/ /'
 .PHONY: help
 
-## build: Build the celestia-appd binary into the ./build directory.
-build: mod
+## build-standalone: Build the celestia-appd binary into the ./build directory.
+build-standalone: mod
 	@cd ./cmd/celestia-appd
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd"
 	@go build $(BUILD_FLAGS) -o build/ ./cmd/celestia-appd
+.PHONY: build-standalone
+
+## build: Build the celestia-appd binary into the ./build directory.
+build: mod
+	@cd ./cmd/celestia-appd
+	@mkdir -p build/
+	@echo "--> Building build/celestia-appd with multiplexer enabled"
+	@go build $(BUILD_FLAGS_MULTIPLEXER) -o build/celestia-appd ./cmd/celestia-appd
 .PHONY: build
 
-## install: Build and install the celestia-appd binary into the $GOPATH/bin directory.
-install: check-bbr
+## install-standalone: Build and install the celestia-appd binary into the $GOPATH/bin directory. This target does not install the multiplexer.
+install-standalone: check-bbr
 	@echo "--> Installing celestia-appd"
 	@go install $(BUILD_FLAGS) ./cmd/celestia-appd
+.PHONY: install-standalone
+
+## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
+# TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
+install: check-bbr
+	@echo "--> Download embedded binaries for v3"
+	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Darwin_arm64.tar.gz -O internal/embedding/celestia-app_darwin_v3_arm64.tar.gz
+	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Linux_arm64.tar.gz -O internal/embedding/celestia-app_linux_v3_arm64.tar.gz
+	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Darwin_x86_64.tar.gz -O internal/embedding/celestia-app_darwin_v3_amd64.tar.gz
+	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Linux_x86_64.tar.gz -O internal/embedding/celestia-app_linux_v3_amd64.tar.gz
+	@echo "--> Installing celestia-appd with multiplexer support"
+	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
 .PHONY: install
 
 ## mod: Update all go.mod files.
@@ -56,30 +75,51 @@ mod-verify: mod
 	GO111MODULE=on go mod verify
 .PHONY: mod-verify
 
-## proto-gen: Generate protobuf files. Requires docker.
+BUF_VERSION=v1.50.0
+GOLANG_PROTOBUF_VERSION=1.28.1
+GRPC_GATEWAY_VERSION=1.16.0
+GRPC_GATEWAY_PROTOC_GEN_OPENAPIV2_VERSION=2.20.0
+
+## proto-all: Format, lint and generate Protobuf files
+proto-all: proto-deps proto-format proto-lint proto-gen
+
+## proto-deps: Install Protobuf local dependencies
+proto-deps:
+	@echo "Installing proto deps"
+	@go install github.com/bufbuild/buf/cmd/buf@$(BUF_VERSION)
+	@go install github.com/cosmos/cosmos-proto/cmd/protoc-gen-go-pulsar@latest
+	@go install github.com/cosmos/gogoproto/protoc-gen-gocosmos@latest
+	@go install github.com/cosmos/gogoproto/protoc-gen-gogo@latest
+	@go install github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway@v$(GRPC_GATEWAY_VERSION)
+	@go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@v$(GRPC_GATEWAY_PROTOC_GEN_OPENAPIV2_VERSION)
+	@go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+	@go install google.golang.org/protobuf/cmd/protoc-gen-go@v$(GOLANG_PROTOBUF_VERSION)
+
+## proto-gen: Generate Protobuf files.
 proto-gen:
-	@echo "--> Generating Protobuf files"
-	$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace tendermintdev/sdk-proto-gen:v0.7 sh ./scripts/protocgen.sh
-.PHONY: proto-gen
+	@echo "Generating Protobuf files"
+	@sh ./scripts/protocgen.sh
 
-## proto-lint: Lint protobuf files. Requires docker.
-proto-lint:
-	@echo "--> Linting Protobuf files"
-	@$(DOCKER_BUF) lint --error-format=json
-.PHONY: proto-lint
-
-## proto-check-breaking: Check if there are any breaking change to protobuf definitions.
-proto-check-breaking:
-	@echo "--> Checking if Protobuf definitions have any breaking changes"
-	@$(DOCKER_BUF) breaking --against $(HTTPS_GIT)#branch=main
-.PHONY: proto-check-breaking
-
-## proto-format: Format protobuf files. Requires Docker.
+## proto-format: Format Protobuf files.
 proto-format:
-	@echo "--> Formatting Protobuf files"
-	@$(DOCKER_PROTO_BUILDER) find . -name '*.proto' -path "./proto/*" -exec clang-format -i {} \;
-.PHONY: proto-format
+	@find ./ -name "*.proto" -exec clang-format -i {} \;
 
+## proto-lint: Lint Protobuf files.
+proto-lint:
+	@buf lint --error-format=json
+
+## proto-check-breaking: Check if Protobuf file contains breaking changes.
+proto-check-breaking:
+	@buf breaking --against $(HTTPS_GIT)#branch=main
+
+## proto-update-deps: Update Protobuf dependencies.
+proto-update-deps:
+	@echo "Updating Protobuf dependencies"
+	@cd proto && buf dep update
+
+.PHONY: proto-all proto-deps proto-gen proto-format proto-lint proto-check-breaking proto-update-deps
+
+## build-docker: Build the celestia-appd Docker image using the local Dockerfile.
 build-docker:
 	@echo "--> Building Docker image"
 	$(DOCKER) build -t celestiaorg/celestia-app -f docker/Dockerfile .
@@ -89,6 +129,12 @@ build-docker:
 docker-build: build-docker
 .PHONY: docker-build
 
+build-docker-multiplexer:
+	@echo "--> Building Multiplexer Docker image"
+	$(DOCKER) build -t celestiaorg/celestia-app-multiplexer:$(COMMIT) -f docker/multiplexer.Dockerfile .
+.PHONY: build-docker-multiplexer
+
+## build-ghcr-docker: Build the celestia-appd Docker image tagged with the current commit hash for GitHub Container Registry.
 build-ghcr-docker:
 	@echo "--> Building Docker image"
 	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app:$(COMMIT) -f docker/Dockerfile .
@@ -98,6 +144,7 @@ build-ghcr-docker:
 docker-build-ghcr: build-ghcr-docker
 .PHONY: docker-build-ghcr
 
+## publish-ghcr-docker: Push the celestia-appd Docker image to GitHub Container Registry with the current commit tag.
 publish-ghcr-docker:
 # Make sure you are logged in and authenticated to the ghcr.io registry.
 	@echo "--> Publishing Docker image"
@@ -121,6 +168,7 @@ lint:
 	@yamllint --no-warnings . -c .yamllint.yml
 .PHONY: lint
 
+## markdown-link-check: Check all links in markdown files for validity.
 markdown-link-check:
 	@echo "--> Running markdown-link-check"
 	@find . -name \*.md -print0 | xargs -0 -n1 markdown-link-check
@@ -130,7 +178,7 @@ markdown-link-check:
 lint-links: markdown-link-check
 .PHONY: lint-links
 
-
+## fmt: Format Go code with golangci-lint and markdown files with markdownlint.
 fmt:
 	@echo "--> Running golangci-lint --fix"
 	@golangci-lint run --fix
@@ -160,18 +208,24 @@ test-e2e:
 	go run ./test/e2e $(filter-out $@,$(MAKECMDGOALS))
 .PHONY: test-e2e
 
+## test-multiplexer: Run unit tests for the multiplexer package.
+test-multiplexer:
+	@echo "--> Running multiplexer tests"
+	make test -C ./multiplexer
+.PHONY: test-multiplexer
+
 ## test-race: Run tests in race mode.
 test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestBlobstreamRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestBlobstreamCLI|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestBlobstream|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService"
+	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService"
 .PHONY: test-race
 
-## test-bench: Run unit tests in bench mode.
+## test-bench: Run benchmark unit tests.
 test-bench:
-	@echo "--> Running tests in bench mode"
-	@go test -bench=. ./...
+	@echo "--> Running benchmark tests"
+	@go test -timeout 30m -tags=benchmarks -bench=. ./app/benchmarks/...
 .PHONY: test-bench
 
 ## test-coverage: Generate test coverage.txt
@@ -229,6 +283,7 @@ goreleaser-check:
 		check
 .PHONY: goreleaser-check
 
+## prebuilt-binary: Create prebuilt binaries for all supported platforms using goreleaser. Used by the goreleaser target.
 prebuilt-binary:
 	@if [ ! -f ".release-env" ]; then \
 		echo "A .release-env file was not found but is required to create prebuilt binaries. This command is expected to be run in CI where a .release-env file exists. If you need to run this command locally to attach binaries to a release, you need to create a .release-env file with a Github token (classic) that has repo:public_repo scope."; \
@@ -250,6 +305,7 @@ prebuilt-binary:
 goreleaser: prebuilt-binary
 .PHONY: goreleaser
 
+## check-bbr: Internal command to check if BBR congestion control is enabled on the system.
 check-bbr:
 	@echo "Checking if BBR is enabled..."
 	@if [ "$$(sysctl net.ipv4.tcp_congestion_control | awk '{print $$3}')" != "bbr" ]; then \
@@ -263,6 +319,7 @@ check-bbr:
 bbr-check: check-bbr
 .PHONY: bbr-check
 
+## enable-bbr: Enable BBR congestion control algorithm on your system. This improves network performance. Only works on Linux.
 enable-bbr:
 	@echo "Configuring system to use BBR..."
 	@if [ "$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')" != "bbr" ]; then \
@@ -282,6 +339,7 @@ enable-bbr:
 bbr-enable: enable-bbr
 .PHONY: bbr-enable
 
+## disable-bbr: Disable BBR congestion control algorithm and revert to default (Cubic). Only works on Linux.
 disable-bbr:
 	@echo "Disabling BBR and reverting to default congestion control algorithm..."
 	@if [ "$$(sysctl net.ipv4.tcp_congestion_control | awk '{print $$3}')" = "bbr" ]; then \
@@ -301,6 +359,7 @@ disable-bbr:
 bbr-disable: disable-bbr
 .PHONY: bbr-disable
 
+## enable-mptcp: Enable Multi-Path TCP over multiple ports (not interfaces). Improves connection reliability and throughput. Only works on Linux Kernel 5.6+.
 enable-mptcp:
 	@echo "Configuring system to use mptcp..."
 	@sudo sysctl -w net.mptcp.enabled=1
@@ -317,6 +376,7 @@ enable-mptcp:
 mptcp-enable: enable-mptcp
 .PHONY: mptcp-enable
 
+## disable-mptcp: Disable Multi-Path TCP and revert to standard TCP. Removes all MPTCP settings from system. Only works on Linux Kernel 5.6+.
 disable-mptcp:
 	@echo "Disabling MPTCP..."
 	@sudo sysctl -w net.mptcp.enabled=0
@@ -332,25 +392,4 @@ disable-mptcp:
 mptcp-disable: disable-mptcp
 
 CONFIG_FILE ?= ${HOME}/.celestia-app/config/config.toml
-# SEND_RECV_RATE is 10 MiB
-SEND_RECV_RATE ?= 10485760
-
-## configure-v3: Modifies config file in-place to conform to v3.x recommendations.
-configure-v3:
-	@echo "Modifying the config file at: $(CONFIG_FILE)"
-	@if [ "$$(uname)" = "Darwin" ]; then \
-		sed -i '' "s/^recv_rate = .*/recv_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
-		sed -i '' "s/^send_rate = .*/send_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
-		sed -i '' "s/^ttl-num-blocks = .*/ttl-num-blocks = 12/" $(CONFIG_FILE); \
-		sed -i '' "s/^ttl-duration = .*/ttl-duration = \"1m15s\"/" $(CONFIG_FILE); \
-		sed -i '' "s/^max_tx_bytes = .*/max_tx_bytes = 7897088/" $(CONFIG_FILE); \
-		sed -i '' "s/^max_txs_bytes = .*/max_txs_bytes = 39485440/" $(CONFIG_FILE); \
-	else \
-		sed -i "s/^recv_rate = .*/recv_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
-		sed -i "s/^send_rate = .*/send_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
-		sed -i "s/^ttl-num-blocks = .*/ttl-num-blocks = 12/" $(CONFIG_FILE); \
-		sed -i "s/^ttl-duration = .*/ttl-duration = \"1m15s\"/" $(CONFIG_FILE); \
-		sed -i "s/^max_tx_bytes = .*/max_tx_bytes = 7897088/" $(CONFIG_FILE); \
-		sed -i "s/^max_txs_bytes = .*/max_txs_bytes = 39485440/" $(CONFIG_FILE); \
-	fi
-.PHONY: configure-v3
+SEND_RECV_RATE ?= 10485760  # 10 MiB

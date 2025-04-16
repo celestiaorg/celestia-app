@@ -1,4 +1,4 @@
-//go:build bench_abci_methods
+//go:build benchmarks
 
 package benchmarks_test
 
@@ -7,32 +7,44 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	"github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/abci/types"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/proto/tendermint/version"
 )
+
+const blockTime = time.Duration(6 * time.Second)
 
 func BenchmarkCheckTx_MsgSend_1(b *testing.B) {
 	testApp, rawTxs := generateMsgSendTransactions(b, 1)
-	testApp.Commit()
 
-	checkTxRequest := types.RequestCheckTx{
+	finalizeBlockResp, err := testApp.FinalizeBlock(&types.RequestFinalizeBlock{
+		Time:   testutil.GenesisTime.Add(blockTime),
+		Height: testApp.LastBlockHeight() + 1,
+		Hash:   testApp.LastCommitID().Hash,
+	})
+	require.NotNil(b, finalizeBlockResp)
+	require.NoError(b, err)
+
+	commitResp, err := testApp.Commit()
+	require.NotNil(b, commitResp)
+	require.NoError(b, err)
+
+	checkTxReq := types.RequestCheckTx{
 		Tx:   rawTxs[0],
 		Type: types.CheckTxType_New,
 	}
 
 	b.ResetTimer()
-	resp := testApp.CheckTx(checkTxRequest)
+	resp, err := testApp.CheckTx(&checkTxReq)
+	require.NoError(b, err)
 	b.StopTimer()
 	require.Equal(b, uint32(0), resp.Code)
 	require.Equal(b, "", resp.Codespace)
@@ -41,7 +53,18 @@ func BenchmarkCheckTx_MsgSend_1(b *testing.B) {
 
 func BenchmarkCheckTx_MsgSend_8MB(b *testing.B) {
 	testApp, rawTxs := generateMsgSendTransactions(b, 31645)
-	testApp.Commit()
+
+	finalizeBlockResp, err := testApp.FinalizeBlock(&types.RequestFinalizeBlock{
+		Time:   testutil.GenesisTime.Add(blockTime),
+		Height: testApp.LastBlockHeight() + 1,
+		Hash:   testApp.LastCommitID().Hash,
+	})
+	require.NotNil(b, finalizeBlockResp)
+	require.NoError(b, err)
+
+	commitResp, err := testApp.Commit()
+	require.NotNil(b, commitResp)
+	require.NoError(b, err)
 
 	var totalGas int64
 	b.ResetTimer()
@@ -51,7 +74,8 @@ func BenchmarkCheckTx_MsgSend_8MB(b *testing.B) {
 			Type: types.CheckTxType_New,
 		}
 		b.StartTimer()
-		resp := testApp.CheckTx(checkTxRequest)
+		resp, err := testApp.CheckTx(&checkTxRequest)
+		require.NoError(b, err)
 		b.StopTimer()
 		require.Equal(b, uint32(0), resp.Code)
 		require.Equal(b, "", resp.Codespace)
@@ -62,57 +86,64 @@ func BenchmarkCheckTx_MsgSend_8MB(b *testing.B) {
 	b.ReportMetric(float64(totalGas), "total_gas_used")
 }
 
-func BenchmarkDeliverTx_MsgSend_1(b *testing.B) {
+func BenchmarkFinalizeBlock_MsgSend_1(b *testing.B) {
 	testApp, rawTxs := generateMsgSendTransactions(b, 1)
 
-	deliverTxRequest := types.RequestDeliverTx{
-		Tx: rawTxs[0],
+	finalizeBlockReq := types.RequestFinalizeBlock{
+		Time:   testutil.GenesisTime.Add(blockTime),
+		Height: testApp.LastBlockHeight() + 1,
+		Hash:   testApp.LastCommitID().Hash,
+		Txs:    rawTxs,
 	}
 
 	b.ResetTimer()
-	resp := testApp.DeliverTx(deliverTxRequest)
+	resp, err := testApp.FinalizeBlock(&finalizeBlockReq)
+	require.NoError(b, err)
 	b.StopTimer()
-	require.Equal(b, uint32(0), resp.Code)
-	require.Equal(b, "", resp.Codespace)
-	b.ReportMetric(float64(resp.GasUsed), "gas_used")
+	require.Equal(b, uint32(0), resp.TxResults[0].Code)
+	b.ReportMetric(float64(resp.TxResults[0].GasUsed), "gas_used")
 }
 
-func BenchmarkDeliverTx_MsgSend_8MB(b *testing.B) {
+func BenchmarkFinalizeBlock_MsgSend_8MB(b *testing.B) {
+	b.ResetTimer()
 	testApp, rawTxs := generateMsgSendTransactions(b, 31645)
 
-	var totalGas int64
-	b.ResetTimer()
-	for _, tx := range rawTxs {
-		deliverTxRequest := types.RequestDeliverTx{
-			Tx: tx,
-		}
-		b.StartTimer()
-		resp := testApp.DeliverTx(deliverTxRequest)
-		b.StopTimer()
-		require.Equal(b, uint32(0), resp.Code)
-		require.Equal(b, "", resp.Codespace)
-		totalGas += resp.GasUsed
+	finalizeBlockReq := types.RequestFinalizeBlock{
+		Time:   testutil.GenesisTime.Add(blockTime),
+		Height: testApp.LastBlockHeight() + 1,
+		Hash:   testApp.LastCommitID().Hash,
+		Txs:    rawTxs,
 	}
+
+	b.StartTimer()
+	resp, err := testApp.FinalizeBlock(&finalizeBlockReq)
+	require.NoError(b, err)
 	b.StopTimer()
+
+	var totalGas int64
+	for i := range rawTxs {
+		require.Equal(b, uint32(0), resp.TxResults[i].Code)
+		require.Equal(b, "", resp.TxResults[i].Codespace)
+		totalGas += resp.TxResults[i].GasUsed
+	}
+
 	b.ReportMetric(float64(totalGas), "total_gas_used")
 }
 
 func BenchmarkPrepareProposal_MsgSend_1(b *testing.B) {
 	testApp, rawTxs := generateMsgSendTransactions(b, 1)
 
-	prepareProposalRequest := types.RequestPrepareProposal{
-		BlockData: &tmproto.Data{
-			Txs: rawTxs,
-		},
-		ChainId: testApp.GetChainID(),
-		Height:  10,
+	prepareProposalReq := types.RequestPrepareProposal{
+		Txs:    rawTxs,
+		Height: testApp.LastBlockHeight() + 1,
 	}
 
 	b.ResetTimer()
-	resp := testApp.PrepareProposal(prepareProposalRequest)
+	resp, err := testApp.PrepareProposal(&prepareProposalReq)
+	require.NoError(b, err)
 	b.StopTimer()
-	require.GreaterOrEqual(b, len(resp.BlockData.Txs), 1)
-	b.ReportMetric(float64(calculateTotalGasUsed(testApp, resp.BlockData.Txs)), "total_gas_used")
+	require.GreaterOrEqual(b, len(resp.Txs), 1)
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, resp.Txs)), "total_gas_used")
 }
 
 func BenchmarkPrepareProposal_MsgSend_8MB(b *testing.B) {
@@ -120,56 +151,47 @@ func BenchmarkPrepareProposal_MsgSend_8MB(b *testing.B) {
 	// using 31645 to let prepare proposal choose the maximum
 	testApp, rawTxs := generateMsgSendTransactions(b, 31645)
 
-	blockData := &tmproto.Data{
-		Txs: rawTxs,
-	}
-	prepareProposalRequest := types.RequestPrepareProposal{
-		BlockData: blockData,
-		ChainId:   testApp.GetChainID(),
-		Height:    10,
+	prepareProposalReq := types.RequestPrepareProposal{
+		Txs:    rawTxs,
+		Height: testApp.LastBlockHeight() + 1,
 	}
 
 	b.ResetTimer()
-	resp := testApp.PrepareProposal(prepareProposalRequest)
+	resp, err := testApp.PrepareProposal(&prepareProposalReq)
+	require.NoError(b, err)
 	b.StopTimer()
-	require.GreaterOrEqual(b, len(resp.BlockData.Txs), 1)
-	b.ReportMetric(float64(len(resp.BlockData.Txs)), "number_of_transactions")
-	b.ReportMetric(calculateBlockSizeInMb(resp.BlockData.Txs), "block_size(mb)")
-	b.ReportMetric(float64(calculateTotalGasUsed(testApp, resp.BlockData.Txs)), "total_gas_used")
+	require.GreaterOrEqual(b, len(resp.Txs), 1)
+	b.ReportMetric(float64(len(resp.Txs)), "number_of_transactions")
+	b.ReportMetric(calculateBlockSizeInMb(resp.Txs), "block_size(mb)")
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, resp.Txs)), "total_gas_used")
 }
 
 func BenchmarkProcessProposal_MsgSend_1(b *testing.B) {
 	testApp, rawTxs := generateMsgSendTransactions(b, 1)
 
-	blockData := &tmproto.Data{
-		Txs: rawTxs,
+	prepareProposalReq := types.RequestPrepareProposal{
+		Txs:    rawTxs,
+		Height: testApp.LastBlockHeight() + 1,
 	}
-	prepareProposalRequest := types.RequestPrepareProposal{
-		BlockData: blockData,
-		ChainId:   testApp.GetChainID(),
-		Height:    10,
-	}
-	prepareProposalResponse := testApp.PrepareProposal(prepareProposalRequest)
-	require.GreaterOrEqual(b, len(prepareProposalResponse.BlockData.Txs), 1)
 
-	processProposalRequest := types.RequestProcessProposal{
-		BlockData: prepareProposalResponse.BlockData,
-		Header: tmproto.Header{
-			Height:   1,
-			DataHash: prepareProposalResponse.BlockData.Hash,
-			ChainID:  testutil.ChainID,
-			Version: version.Consensus{
-				App: testApp.AppVersion(),
-			},
-		},
+	prepareProposalResp, err := testApp.PrepareProposal(&prepareProposalReq)
+	require.NoError(b, err)
+	require.Len(b, prepareProposalResp.Txs, 1)
+
+	processProposalReq := types.RequestProcessProposal{
+		Txs:          prepareProposalResp.Txs,
+		Height:       testApp.LastBlockHeight() + 1,
+		DataRootHash: prepareProposalResp.DataRootHash,
+		SquareSize:   1,
 	}
 
 	b.ResetTimer()
-	resp := testApp.ProcessProposal(processProposalRequest)
+	resp, err := testApp.ProcessProposal(&processProposalReq)
+	require.NoError(b, err)
 	b.StopTimer()
-	require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Result)
+	require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Status)
 
-	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResponse.BlockData.Txs)), "total_gas_used")
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResp.Txs)), "total_gas_used")
 }
 
 func BenchmarkProcessProposal_MsgSend_8MB(b *testing.B) {
@@ -177,39 +199,33 @@ func BenchmarkProcessProposal_MsgSend_8MB(b *testing.B) {
 	// using 31645 to let prepare proposal choose the maximum
 	testApp, rawTxs := generateMsgSendTransactions(b, 31645)
 
-	blockData := &tmproto.Data{
-		Txs: rawTxs,
+	prepareProposalReq := types.RequestPrepareProposal{
+		Txs:    rawTxs,
+		Height: testApp.LastBlockHeight() + 1,
 	}
-	prepareProposalRequest := types.RequestPrepareProposal{
-		BlockData: blockData,
-		ChainId:   testApp.GetChainID(),
-		Height:    10,
-	}
-	prepareProposalResponse := testApp.PrepareProposal(prepareProposalRequest)
-	require.GreaterOrEqual(b, len(prepareProposalResponse.BlockData.Txs), 1)
 
-	b.ReportMetric(float64(len(prepareProposalResponse.BlockData.Txs)), "number_of_transactions")
-	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs), "block_size_(mb)")
-	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResponse.BlockData.Txs)), "total_gas_used")
+	prepareProposalResp, err := testApp.PrepareProposal(&prepareProposalReq)
+	require.NoError(b, err)
+	require.GreaterOrEqual(b, len(prepareProposalResp.Txs), 1)
 
-	processProposalRequest := types.RequestProcessProposal{
-		BlockData: prepareProposalResponse.BlockData,
-		Header: tmproto.Header{
-			Height:   10,
-			DataHash: prepareProposalResponse.BlockData.Hash,
-			ChainID:  testutil.ChainID,
-			Version: version.Consensus{
-				App: testApp.AppVersion(),
-			},
-		},
+	b.ReportMetric(float64(len(prepareProposalResp.Txs)), "number_of_transactions")
+	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResp.Txs), "block_size_(mb)")
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResp.Txs)), "total_gas_used")
+
+	processProposalReq := types.RequestProcessProposal{
+		Txs:          prepareProposalResp.Txs,
+		Height:       testApp.LastBlockHeight() + 1,
+		DataRootHash: prepareProposalResp.DataRootHash,
+		SquareSize:   128,
 	}
 
 	b.ResetTimer()
-	resp := testApp.ProcessProposal(processProposalRequest)
+	resp, err := testApp.ProcessProposal(&processProposalReq)
+	require.NoError(b, err)
 	b.StopTimer()
-	require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Result)
+	require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Status)
 
-	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResponse.BlockData.Txs)), "total_gas_used")
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResp.Txs)), "total_gas_used")
 }
 
 func BenchmarkProcessProposal_MsgSend_8MB_Find_Half_Sec(b *testing.B) {
@@ -225,32 +241,27 @@ func BenchmarkProcessProposal_MsgSend_8MB_Find_Half_Sec(b *testing.B) {
 			break
 		}
 
-		prepareProposalRequest := types.RequestPrepareProposal{
-			BlockData: &tmproto.Data{
-				Txs: rawTxs[start:end],
-			},
-			ChainId: testApp.GetChainID(),
-			Height:  10,
+		prepareProposalReq := types.RequestPrepareProposal{
+			Txs:    rawTxs[start:end],
+			Height: testApp.LastBlockHeight() + 1,
 		}
-		prepareProposalResponse := testApp.PrepareProposal(prepareProposalRequest)
-		require.GreaterOrEqual(b, len(prepareProposalResponse.BlockData.Txs), 1)
 
-		processProposalRequest := types.RequestProcessProposal{
-			BlockData: prepareProposalResponse.BlockData,
-			Header: tmproto.Header{
-				Height:   10,
-				DataHash: prepareProposalResponse.BlockData.Hash,
-				ChainID:  testutil.ChainID,
-				Version: version.Consensus{
-					App: testApp.AppVersion(),
-				},
-			},
+		prepareProposalResp, err := testApp.PrepareProposal(&prepareProposalReq)
+		require.NoError(b, err)
+		require.GreaterOrEqual(b, len(prepareProposalResp.Txs), 1)
+
+		processProposalReq := types.RequestProcessProposal{
+			Txs:          prepareProposalResp.Txs,
+			Height:       testApp.LastBlockHeight() + 1,
+			DataRootHash: prepareProposalResp.DataRootHash,
+			SquareSize:   64,
 		}
 
 		startTime := time.Now()
-		resp := testApp.ProcessProposal(processProposalRequest)
+		resp, err := testApp.ProcessProposal(&processProposalReq)
+		require.NoError(b, err)
 		endTime := time.Now()
-		require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Result)
+		require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Status)
 
 		timeElapsed := float64(endTime.Sub(startTime).Nanoseconds()) / 1e9
 
@@ -287,9 +298,9 @@ func generateMsgSendTransactions(b *testing.B, count int) (*app.App, [][]byte) {
 	account := "test"
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, account)
 	addr := testfactory.GetAddress(kr, account)
-	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	acc := testutil.DirectQueryAccount(testApp, addr)
-	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
+	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
 	require.NoError(b, err)
 	rawTxs := make([][]byte, 0, count)
 	for i := 0; i < count; i++ {
@@ -298,7 +309,7 @@ func generateMsgSendTransactions(b *testing.B, count int) (*app.App, [][]byte) {
 			testnode.RandomAddress().(sdk.AccAddress),
 			sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)),
 		)
-		rawTx, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1000000), user.SetFee(10))
+		rawTx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1000000), user.SetFee(10))
 		require.NoError(b, err)
 		rawTxs = append(rawTxs, rawTx)
 		err = signer.IncrementSequence(account)

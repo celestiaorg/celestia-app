@@ -5,20 +5,29 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"cosmossdk.io/math"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	coretypes "github.com/cometbft/cometbft/types"
+	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+)
+
+var (
+	AddressCodec          = addresscodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix())
+	ValidatorAddressCodec = addresscodec.NewBech32Codec(sdk.GetConfig().GetBech32ValidatorAddrPrefix())
+	ConsensusAddressCodec = addresscodec.NewBech32Codec(sdk.GetConfig().GetBech32ConsensusAddrPrefix())
 )
 
 // Document will create a valid genesis doc with funded addresses.
 func Document(
+	defaultGenesis map[string]json.RawMessage,
 	ecfg encoding.Config,
 	params *tmproto.ConsensusParams,
 	chainID string,
@@ -53,11 +62,11 @@ func Document(
 	if err := bankGenState.Validate(); err != nil {
 		return nil, err
 	}
-	if err := genutiltypes.ValidateGenesis(genutilGenState, ecfg.TxConfig.TxJSONDecoder()); err != nil {
+	if err := genutiltypes.ValidateGenesis(genutilGenState, ecfg.TxConfig.TxJSONDecoder(), genutiltypes.DefaultMessageValidator); err != nil {
 		return nil, err
 	}
 
-	state := app.ModuleBasics.DefaultGenesis(ecfg.Codec)
+	state := defaultGenesis
 	state[authtypes.ModuleName] = ecfg.Codec.MustMarshalJSON(authGenState)
 	state[banktypes.ModuleName] = ecfg.Codec.MustMarshalJSON(bankGenState)
 	state[genutiltypes.ModuleName] = ecfg.Codec.MustMarshalJSON(genutilGenState)
@@ -72,10 +81,11 @@ func Document(
 	}
 
 	// Create the genesis doc
+	cp := coretypes.ConsensusParamsFromProto(*params)
 	genesisDoc := &coretypes.GenesisDoc{
 		ChainID:         chainID,
 		GenesisTime:     genesisTime,
-		ConsensusParams: params,
+		ConsensusParams: &cp,
 		AppState:        stateBz,
 	}
 
@@ -98,7 +108,7 @@ func accountsToSDKTypes(accounts []Account) ([]banktypes.Balance, []authtypes.Ge
 		hasMap[addr.String()] = struct{}{}
 
 		balances := sdk.NewCoins(
-			sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(account.Balance)),
+			sdk.NewCoin(appconsts.BondDenom, math.NewInt(account.Balance)),
 		)
 
 		genBals[i] = banktypes.Balance{Address: addr.String(), Coins: balances.Sort()}

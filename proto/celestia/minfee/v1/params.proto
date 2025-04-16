@@ -1,0 +1,16 @@
+syntax = "proto3";
+package celestia.minfee.v1;
+
+import "gogoproto/gogo.proto";
+import "cosmos_proto/cosmos.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/minfee/types";
+
+// Params defines the parameters for the module.
+message Params {
+  string network_min_gas_price = 1 [
+    (cosmos_proto.scalar)  = "cosmos.Dec",
+    (gogoproto.customtype) = "cosmossdk.io/math.LegacyDec",
+    (gogoproto.nullable)   = false
+  ];
+}

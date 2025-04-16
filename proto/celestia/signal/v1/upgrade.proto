@@ -5,11 +5,11 @@ option go_package = "github.com/celestiaorg/celestia-app/x/signal/types";
 
 // Upgrade is a type that represents a network upgrade.
 message Upgrade {
-	// AppVersion is the app version that has received a quorum of validators to
-	// signal for it.
-	uint64 app_version = 1;
+  // AppVersion is the app version that has received a quorum of validators to
+  // signal for it.
+  uint64 app_version = 1;
 
-	// UpgradeHeight is the height at which the network should upgrade to the
-	// AppVersion.
-	int64 upgrade_height = 2;
+  // UpgradeHeight is the height at which the network should upgrade to the
+  // AppVersion.
+  int64 upgrade_height = 2;
 }

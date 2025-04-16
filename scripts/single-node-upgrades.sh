@@ -44,13 +44,13 @@ createGenesis() {
       > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     echo "Adding genesis account..."
-    celestia-appd add-genesis-account \
+    celestia-appd genesis add-genesis-account \
       "$(celestia-appd keys show ${KEY_NAME} -a --keyring-backend=${KEYRING_BACKEND} --home "${APP_HOME}")" \
       "1000000000000000utia" \
       --home "${APP_HOME}"
 
     echo "Creating a genesis tx..."
-    celestia-appd gentx ${KEY_NAME} 5000000000utia \
+    celestia-appd genesis gentx ${KEY_NAME} 5000000000utia \
       --fees ${FEES} \
       --keyring-backend=${KEYRING_BACKEND} \
       --chain-id ${CHAIN_ID} \
@@ -58,7 +58,7 @@ createGenesis() {
       > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     echo "Collecting genesis txs..."
-    celestia-appd collect-gentxs \
+    celestia-appd genesis collect-gentxs \
       --home "${APP_HOME}" \
         > /dev/null 2>&1 # Hide output to reduce terminal noise
 

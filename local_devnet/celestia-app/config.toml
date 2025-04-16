@@ -15,7 +15,7 @@
 proxy_app = "tcp://127.0.0.1:26658"
 
 # A custom human readable name for this node
-moniker = "local_devnet"
+moniker = "core0"
 
 # If this node is many blocks behind the tip of the chain, FastSync
 # allows them to catchup quickly by downloading blocks in parallel
@@ -243,10 +243,10 @@ flush_throttle_timeout = "100ms"
 max_packet_msg_payload_size = 1024
 
 # Rate at which packets can be sent, in bytes/second
-send_rate = 5120000
+send_rate = 10485760
 
 # Rate at which packets can be received, in bytes/second
-recv_rate = 5120000
+recv_rate = 10485760
 
 # Set true to enable the peer-exchange reactor
 pex = true
@@ -293,7 +293,7 @@ size = 5000
 # Limit the total size of all txs in the mempool.
 # This only accounts for raw transactions (e.g. given 1MB transactions and
 # max_txs_bytes=5MB, mempool will only accept 5 transactions).
-max_txs_bytes = 39485440
+max_txs_bytes = 83886080
 
 # Size of the cache (used to filter transactions we saw earlier) in transactions
 cache_size = 10000
@@ -326,13 +326,29 @@ ttl-duration = "1m15s"
 # Note, if ttl-duration is also defined, a transaction will be removed if it
 # has existed in the mempool at least ttl-num-blocks number of blocks or if
 # it's insertion time into the mempool is beyond ttl-duration.
-ttl-num-blocks = 5
+ttl-num-blocks = 12
 
 # max-gossip-delay is the maximum allotted time that the reactor expects a transaction to
 # arrive before issuing a new request to a different peer
 # Only applicable to the v2 / CAT mempool
 # Default is 200ms
 max-gossip-delay = "0s"
+
+# Experimental parameters to limit gossiping txs to up to the specified number of peers.
+# This feature is only available for the default mempool (version config set to "v0").
+# We use two independent upper values for persistent and non-persistent peers.
+# Unconditional peers are not affected by this feature.
+# If we are connected to more than the specified number of persistent peers, only send txs to
+# ExperimentalMaxGossipConnectionsToPersistentPeers of them. If one of those
+# persistent peers disconnects, activate another persistent peer.
+# Similarly for non-persistent peers, with an upper limit of
+# ExperimentalMaxGossipConnectionsToNonPersistentPeers.
+# If set to 0, the feature is disabled for the corresponding group of peers, that is, the
+# number of active connections to that group of peers is not bounded.
+# For non-persistent peers, if enabled, a value of 10 is recommended based on experimental
+# performance results using the default P2P configuration.
+experimental_max_gossip_connections_to_persistent_peers = 0
+experimental_max_gossip_connections_to_non_persistent_peers = 0
 
 #######################################################
 ###         State Sync Configuration Options        ###
@@ -386,16 +402,17 @@ version = "v0"
 #######################################################
 [consensus]
 
-# Experimental: if set to "true", only internal messages will be
+# If set to "true", only internal messages will be
 # written to the WAL. External messages like votes, proposal,
 # block parts, will not be written.
-# Use at your own risk!
-only_internal_wal = "false"
+only_internal_wal = "true"
 
 wal_file = "data/cs.wal/wal"
 
 # How long we wait for a proposal block before prevoting nil
-timeout_propose = "10s"
+# Deprecated: timeout_commit is overridden by the state machine in app version >= 3.
+# Therefore, the value set in this config will be ignored.
+timeout_propose = "3.5s"
 # How much timeout_propose increases with each round
 timeout_propose_delta = "500ms"
 # How long we wait after receiving +2/3 prevotes for "anything" (ie. not a single block or nil)
@@ -409,7 +426,9 @@ timeout_precommit_delta = "500ms"
 # How long we wait after committing a block, before starting on the new
 # height (this gives us a chance to receive some more precommits, even
 # though we already have +2/3).
-timeout_commit = "11s"
+# Deprecated: timeout_commit is overridden by the state machine in app version >= 3.
+# Therefore, the value set in this config will be ignored.
+timeout_commit = "4.2s"
 
 # How many blocks to look back to check existence of the node's consensus votes before joining consensus
 # When non-zero, the node will panic upon restart
@@ -437,7 +456,7 @@ peer_query_maj23_sleep_duration = "2s"
 # considerable amount of disk space. Set to false to ensure ABCI responses are
 # persisted. ABCI responses are required for /block_results RPC queries, and to
 # reindex events in the command-line tool.
-discard_abci_responses = false
+discard_abci_responses = true
 
 #######################################################
 ###   Transaction Indexer Configuration Options     ###
@@ -502,7 +521,7 @@ trace_push_batch_size = 1000
 # The list of tables that are updated when tracing. All available tables and
 # their schema can be found in the pkg/trace/schema package. It is represented as a
 # comma separate string. For example: "consensus_round_state,mempool_tx".
-tracing_tables = "mempool_tx,mempool_peer_state,consensus_round_state,consensus_block_parts,consensus_block,consensus_vote"
+tracing_tables = "mempool_tx,mempool_peer_state,consensus_round_state,consensus_block_parts,consensus_block,consensus_vote,consensus_state,consensus_proposal,peers,pending_bytes,received_bytes,abci"
 
 # The URL of the pyroscope instance to use for continuous profiling.
 # If empty, continuous profiling is disabled.

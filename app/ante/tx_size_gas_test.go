@@ -5,51 +5,50 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/ante"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
-	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/crypto/types/multisig"
-	"github.com/cosmos/cosmos-sdk/simapp"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	xauthsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/stretchr/testify/require"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/proto/tendermint/version"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/ante"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 )
 
 const TxSizeCostPerByte = 8
 
 func setup() (*app.App, sdk.Context, client.Context, error) {
-	app, _, _ := testutil.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
-	ctx := app.NewContext(false, tmproto.Header{})
+	testApp, _, _ := testutil.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
+	ctx := testApp.NewContext(false)
 	params := authtypes.DefaultParams()
 	// Override default with a different TxSizeCostPerByte value for testing
 	params.TxSizeCostPerByte = TxSizeCostPerByte
-	app.AccountKeeper.SetParams(ctx, params)
+	if err := testApp.AccountKeeper.Params.Set(ctx, params); err != nil {
+		return nil, sdk.Context{}, client.Context{}, err
+	}
 	ctx = ctx.WithBlockHeight(1)
 
-	// Set up TxConfig.
-	encodingConfig := simapp.MakeTestEncodingConfig()
+	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	// We're using TestMsg encoding in the test, so register it here.
-	encodingConfig.Amino.RegisterConcrete(&testdata.TestMsg{}, "testdata.TestMsg", nil)
-	testdata.RegisterInterfaces(encodingConfig.InterfaceRegistry)
+	testdata.RegisterInterfaces(enc.InterfaceRegistry)
 
 	clientCtx := client.Context{}.
-		WithTxConfig(encodingConfig.TxConfig)
+		WithTxConfig(enc.TxConfig)
 
-	return app, ctx, clientCtx, nil
+	return testApp, ctx, clientCtx, nil
 }
 
 func TestConsumeGasForTxSize(t *testing.T) {
-	app, ctx, clientCtx, err := setup()
+	testApp, ctx, clientCtx, err := setup()
 	require.NoError(t, err)
 	var txBuilder client.TxBuilder
 
@@ -61,7 +60,7 @@ func TestConsumeGasForTxSize(t *testing.T) {
 	feeAmount := testdata.NewTestFeeAmount()
 	gasLimit := testdata.NewTestGasLimit()
 
-	cgtsd := ante.NewConsumeGasForTxSizeDecorator(app.AccountKeeper)
+	cgtsd := ante.NewConsumeGasForTxSizeDecorator(testApp.AccountKeeper)
 	antehandler := sdk.ChainAnteDecorators(cgtsd)
 
 	testCases := []struct {
@@ -69,8 +68,6 @@ func TestConsumeGasForTxSize(t *testing.T) {
 		name    string
 		sigV2   signing.SignatureV2
 	}{
-		{v2.Version, "SingleSignatureData v2", signing.SignatureV2{PubKey: priv1.PubKey()}},
-		{v2.Version, "MultiSignatureData v2", signing.SignatureV2{PubKey: priv1.PubKey(), Data: multisig.NewMultisig(2)}},
 		{appconsts.LatestVersion, fmt.Sprintf("SingleSignatureData v%d", appconsts.LatestVersion), signing.SignatureV2{PubKey: priv1.PubKey()}},
 		{appconsts.LatestVersion, fmt.Sprintf("MultiSignatureData v%d", appconsts.LatestVersion), signing.SignatureV2{PubKey: priv1.PubKey(), Data: multisig.NewMultisig(2)}},
 	}
@@ -78,10 +75,9 @@ func TestConsumeGasForTxSize(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// set the version
-			ctx = app.NewContext(false, tmproto.Header{Version: version.Consensus{
-				App: tc.version,
-			}})
-
+			ctx = testApp.NewContext(false)
+			err = testApp.SetAppVersion(ctx, tc.version)
+			require.NoError(t, err)
 			txBuilder = clientCtx.TxConfig.NewTxBuilder()
 			require.NoError(t, txBuilder.SetMsgs(msg))
 			txBuilder.SetFeeAmount(feeAmount)
@@ -95,27 +91,20 @@ func TestConsumeGasForTxSize(t *testing.T) {
 			txBytes, err := clientCtx.TxConfig.TxJSONEncoder()(tx)
 			require.Nil(t, err, "Cannot marshal tx: %v", err)
 
-			// expected TxSizeCostPerByte is different for each version
-			var txSizeCostPerByte uint64
-			if tc.version == v2.Version {
-				txSizeCostPerByte = TxSizeCostPerByte
-			} else {
-				txSizeCostPerByte = appconsts.TxSizeCostPerByte(tc.version)
-			}
-
-			expectedGas := sdk.Gas(len(txBytes)) * txSizeCostPerByte
+			txSizeCostPerByte := appconsts.TxSizeCostPerByte
+			expectedGas := storetypes.Gas(len(txBytes)) * txSizeCostPerByte
 
 			// set suite.ctx with TxBytes manually
 			ctx = ctx.WithTxBytes(txBytes)
 
 			// track how much gas is necessary to retrieve parameters
 			beforeGas := ctx.GasMeter().GasConsumed()
-			app.AccountKeeper.GetParams(ctx)
 			afterGas := ctx.GasMeter().GasConsumed()
 			expectedGas += afterGas - beforeGas
 
 			beforeGas = ctx.GasMeter().GasConsumed()
 			ctx, err = antehandler(ctx, tx, false)
+			require.NoError(t, err)
 			require.Nil(t, err, "ConsumeTxSizeGasDecorator returned error: %v", err)
 
 			// require that decorator consumes expected amount of gas
@@ -134,12 +123,13 @@ func TestConsumeGasForTxSize(t *testing.T) {
 			require.True(t, len(simTxBytes) < len(txBytes), "simulated tx still has signatures")
 
 			// Set suite.ctx with smaller simulated TxBytes manually
-			ctx = ctx.WithTxBytes(simTxBytes)
+			ctx = ctx.WithTxBytes(simTxBytes).WithExecMode(sdk.ExecModeSimulate)
 
 			beforeSimGas := ctx.GasMeter().GasConsumed()
 
 			// run antehandler with simulate=true
 			ctx, err = antehandler(ctx, tx, true)
+			require.NoError(t, err)
 			consumedSimGas := ctx.GasMeter().GasConsumed() - beforeSimGas
 
 			// require that antehandler passes and does not underestimate decorator cost
@@ -150,15 +140,16 @@ func TestConsumeGasForTxSize(t *testing.T) {
 }
 
 // createTestTx creates a test tx given multiple inputs.
-func createTestTx(txBuilder client.TxBuilder, clientCtx client.Context, privs []cryptotypes.PrivKey, accNums []uint64, accSeqs []uint64, chainID string) (xauthsigning.Tx, error) {
+func createTestTx(txBuilder client.TxBuilder, clientCtx client.Context, privs []cryptotypes.PrivKey, accNums, accSeqs []uint64, chainID string) (xauthsigning.Tx, error) {
 	// First round: we gather all the signer infos. We use the "set empty
 	// signature" hack to do that.
 	sigsV2 := make([]signing.SignatureV2, 0, len(privs))
+
 	for i, priv := range privs {
 		sigV2 := signing.SignatureV2{
 			PubKey: priv.PubKey(),
 			Data: &signing.SingleSignatureData{
-				SignMode:  clientCtx.TxConfig.SignModeHandler().DefaultMode(),
+				SignMode:  signing.SignMode(clientCtx.TxConfig.SignModeHandler().DefaultMode()),
 				Signature: nil,
 			},
 			Sequence: accSeqs[i],
@@ -166,8 +157,8 @@ func createTestTx(txBuilder client.TxBuilder, clientCtx client.Context, privs []
 
 		sigsV2 = append(sigsV2, sigV2)
 	}
-	err := txBuilder.SetSignatures(sigsV2...)
-	if err != nil {
+
+	if err := txBuilder.SetSignatures(sigsV2...); err != nil {
 		return nil, err
 	}
 
@@ -179,8 +170,8 @@ func createTestTx(txBuilder client.TxBuilder, clientCtx client.Context, privs []
 			AccountNumber: accNums[i],
 			Sequence:      accSeqs[i],
 		}
-		sigV2, err := tx.SignWithPrivKey(
-			clientCtx.TxConfig.SignModeHandler().DefaultMode(), signerData,
+		sigV2, err := tx.SignWithPrivKey(clientCtx.CmdContext,
+			signing.SignMode(clientCtx.TxConfig.SignModeHandler().DefaultMode()), signerData,
 			txBuilder, priv, clientCtx.TxConfig, accSeqs[i])
 		if err != nil {
 			return nil, err
@@ -188,8 +179,8 @@ func createTestTx(txBuilder client.TxBuilder, clientCtx client.Context, privs []
 
 		sigsV2 = append(sigsV2, sigV2)
 	}
-	err = txBuilder.SetSignatures(sigsV2...)
-	if err != nil {
+
+	if err := txBuilder.SetSignatures(sigsV2...); err != nil {
 		return nil, err
 	}
 

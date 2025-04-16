@@ -4,18 +4,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
-	"github.com/celestiaorg/go-square/v2/share"
+	abci "github.com/cometbft/cometbft/abci/types"
+	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	core "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/proto/tendermint/version"
-	coretypes "github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/go-square/v2/share"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 )
 
 // TestPrepareProposalConsistency produces blocks with random data using
@@ -28,12 +28,12 @@ func TestPrepareProposalConsistency(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping TestPrepareProposalConsistency in short mode.")
 	}
-	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	accounts := make([]string, 1100) // 1000 for creating blob txs, 100 for creating send txs
 	for i := range accounts {
-		accounts[i] = tmrand.Str(20)
+		accounts[i] = random.Str(20)
 	}
-	maxShareCount := int64(appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound)
+	maxShareCount := int64(appconsts.SquareSizeUpperBound * appconsts.SquareSizeUpperBound)
 
 	type test struct {
 		name                   string
@@ -64,7 +64,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 		{
 			"max",
 			maxShareCount * share.ContinuationSparseShareContentSize,
-			appconsts.DefaultSquareSizeUpperBound,
+			appconsts.SquareSizeUpperBound,
 		},
 		{
 			"larger MaxBytes than SquareSize",
@@ -98,7 +98,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 					txs := testutil.RandBlobTxsWithAccounts(
 						t,
 						testApp,
-						encConf.TxConfig,
+						enc.TxConfig,
 						kr,
 						tt.size,
 						tt.count,
@@ -111,7 +111,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 					sendTxs := testutil.SendTxsWithAccounts(
 						t,
 						testApp,
-						encConf.TxConfig,
+						enc.TxConfig,
 						kr,
 						1000,
 						accounts[0],
@@ -124,35 +124,32 @@ func TestPrepareProposalConsistency(t *testing.T) {
 					blockTime := time.Now()
 					height := testApp.LastBlockHeight() + 1
 
-					resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
-						BlockData: &core.Data{
-							Txs: coretypes.Txs(txs).ToSliceOfBytes(),
-						},
-						ChainId: testutil.ChainID,
-						Time:    blockTime,
-						Height:  height,
+					resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+						Txs:    coretypes.Txs(txs).ToSliceOfBytes(),
+						Time:   blockTime,
+						Height: height,
 					})
+					require.NoError(t, err)
 
 					// check that the square size is smaller than or equal to
 					// the specified size
-					require.LessOrEqual(t, resp.BlockData.SquareSize, uint64(size.govMaxSquareSize))
+					require.LessOrEqual(t, resp.SquareSize, uint64(size.govMaxSquareSize))
 
-					res := testApp.ProcessProposal(abci.RequestProcessProposal{
-						BlockData: resp.BlockData,
-						Header: core.Header{
-							DataHash: resp.BlockData.Hash,
-							ChainID:  testutil.ChainID,
-							Version:  version.Consensus{App: appconsts.LatestVersion},
-							Height:   height,
-						},
+					res, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+						Height:       height,
+						DataRootHash: resp.DataRootHash,
+						SquareSize:   resp.SquareSize,
+						Txs:          resp.Txs,
 					},
 					)
-					require.Equal(t, abci.ResponseProcessProposal_ACCEPT, res.Result)
+					require.NoError(t, err)
+
+					require.Equal(t, abci.ResponseProcessProposal_ACCEPT, res.Status)
 					// At least all of the send transactions and one blob tx
 					// should make it into the block. This should be expected to
 					// change if PFB transactions are not separated and put into
 					// their own namespace
-					require.GreaterOrEqual(t, len(resp.BlockData.Txs), sendTxCount+1)
+					require.GreaterOrEqual(t, len(resp.Txs), sendTxCount+1)
 				}
 			})
 		}

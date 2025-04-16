@@ -3,9 +3,9 @@ package chainspec
 import (
 	"testing"
 
-	"github.com/strangelove-ventures/interchaintest/v6"
-	"github.com/strangelove-ventures/interchaintest/v6/chain/cosmos"
-	"github.com/strangelove-ventures/interchaintest/v6/ibc"
+	"github.com/strangelove-ventures/interchaintest/v8"
+	"github.com/strangelove-ventures/interchaintest/v8/chain/cosmos"
+	"github.com/strangelove-ventures/interchaintest/v8/ibc"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
@@ -27,22 +27,20 @@ func GetCosmosHub(t *testing.T) *cosmos.CosmosChain {
 var cosmosHub = &interchaintest.ChainSpec{
 	Name: "gaia",
 	ChainConfig: ibc.ChainConfig{
-		Name:                   "gaia",
-		Type:                   "cosmos",
-		ChainID:                "gaia",
-		Bin:                    "gaiad",
-		Bech32Prefix:           "cosmos",
-		Denom:                  "uatom",
-		GasPrices:              "0.01uatom",
-		GasAdjustment:          *gasAdjustment(),
-		TrustingPeriod:         "504hours",
-		NoHostMount:            false,
-		Images:                 cosmosDockerImages(),
-		UsingNewGenesisCommand: true,
+		Name:           "gaia",
+		Type:           "cosmos",
+		ChainID:        "gaia",
+		Bin:            "gaiad",
+		Bech32Prefix:   "cosmos",
+		Denom:          "uatom",
+		GasPrices:      "0.01uatom",
+		GasAdjustment:  *gasAdjustment(),
+		TrustingPeriod: "504hours",
+		NoHostMount:    false,
+		Images:         cosmosDockerImages(),
 	},
 	NumValidators: numValidators(),
 	NumFullNodes:  numFullNodes(),
-	GasAdjustment: gasAdjustment(), // the default gas estimation fails to create a client on Cosmos Hub so we need to bump it up.
 }
 
 func cosmosDockerImages() []ibc.DockerImage {

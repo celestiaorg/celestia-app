@@ -3,8 +3,9 @@ package types
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 func Test_validateGovMaxSquareSize(t *testing.T) {
@@ -21,7 +22,7 @@ func Test_validateGovMaxSquareSize(t *testing.T) {
 		},
 		{
 			name:      "not a power of 2",
-			input:     uint64(appconsts.DefaultSquareSizeUpperBound - 1),
+			input:     uint64(appconsts.SquareSizeUpperBound - 1),
 			expectErr: true,
 		},
 		{

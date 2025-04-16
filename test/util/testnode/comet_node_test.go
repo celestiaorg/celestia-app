@@ -1,24 +1,24 @@
 package testnode
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	abci "github.com/cometbft/cometbft/abci/types"
+	tmconfig "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	abci "github.com/tendermint/tendermint/abci/types"
-	tmconfig "github.com/tendermint/tendermint/config"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	coretypes "github.com/tendermint/tendermint/rpc/core/types"
+
+	"github.com/celestiaorg/go-square/v2/share"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 func TestIntegrationTestSuite(t *testing.T) {
@@ -49,6 +49,7 @@ func customTendermintConfig() *tmconfig.Config {
 	tmCfg.RPC.MaxBodyBytes = 200 * mebibyte
 
 	tmCfg.RPC.TimeoutBroadcastTxCommit = time.Minute
+	tmCfg.Consensus.TimeoutCommit = 300 * time.Millisecond
 	return tmCfg
 }
 
@@ -56,42 +57,22 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	t := s.T()
 	s.accounts = RandomAccounts(10)
 
-	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	blobGenState := blobtypes.DefaultGenesis()
-	blobGenState.Params.GovMaxSquareSize = uint64(appconsts.DefaultSquareSizeUpperBound)
+	blobGenState.Params.GovMaxSquareSize = uint64(appconsts.SquareSizeUpperBound)
 
 	cfg := DefaultConfig().
 		WithFundedAccounts(s.accounts...).
-		WithModifiers(genesis.SetBlobParams(ecfg.Codec, blobGenState.Params)).
+		WithModifiers(genesis.SetBlobParams(enc.Codec, blobGenState.Params)).
 		WithTendermintConfig(customTendermintConfig())
 
 	cctx, _, _ := NewNetwork(t, cfg)
 	s.cctx = cctx
 }
 
-func (s *IntegrationTestSuite) Test_verifyTimeIotaMs() {
-	require := s.Require()
-	err := s.cctx.WaitForNextBlock()
-	require.NoError(err)
-
-	var params *coretypes.ResultConsensusParams
-	// this query can be flaky with fast block times, so we repeat it multiple
-	// times in attempt to decrease flakiness
-	for i := 0; i < 100; i++ {
-		params, err = s.cctx.Client.ConsensusParams(context.Background(), nil)
-		if err == nil && params != nil {
-			break
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	require.NoError(err)
-	require.NotNil(params)
-	require.Equal(int64(1), params.ConsensusParams.Block.TimeIotaMs)
-}
-
 func (s *IntegrationTestSuite) TestPostData() {
 	require := s.Require()
-	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastBlock, share.RandomBlobNamespace(), tmrand.Bytes(kibibyte))
+	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastSync, share.RandomBlobNamespace(), random.Bytes(kibibyte))
 	require.NoError(err)
 }
 

@@ -3,9 +3,10 @@ package types_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 func TestGenesisState_Validate(t *testing.T) {
@@ -24,7 +25,7 @@ func TestGenesisState_Validate(t *testing.T) {
 			genState: &types.GenesisState{
 				Params: types.Params{
 					GasPerBlobByte:   20,
-					GovMaxSquareSize: uint64(appconsts.DefaultSquareSizeUpperBound),
+					GovMaxSquareSize: uint64(appconsts.SquareSizeUpperBound),
 				},
 			},
 			valid: true,
@@ -34,7 +35,7 @@ func TestGenesisState_Validate(t *testing.T) {
 			genState: &types.GenesisState{
 				Params: types.Params{
 					GasPerBlobByte:   20,
-					GovMaxSquareSize: uint64(appconsts.DefaultSquareSizeUpperBound + 1),
+					GovMaxSquareSize: uint64(appconsts.SquareSizeUpperBound + 1),
 				},
 			},
 			valid: false,

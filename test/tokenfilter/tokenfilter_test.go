@@ -1,15 +1,23 @@
 package tokenfilter
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
+	"cosmossdk.io/log"
+	"cosmossdk.io/math"
+	dbm "github.com/cosmos/cosmos-db"
+	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/ibc-go/v6/modules/apps/transfer/types"
-	clienttypes "github.com/cosmos/ibc-go/v6/modules/core/02-client/types"
-	ibctesting "github.com/cosmos/ibc-go/v6/testing"
+	"github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
+	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
+	ibctesting "github.com/cosmos/ibc-go/v8/testing"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/test/pfm"
 )
 
 type TokenFilterTestSuite struct {
@@ -31,11 +39,40 @@ func (suite *TokenFilterTestSuite) SetupTest() {
 		CurrentTime: time.Now(),
 		Chains:      chains,
 	}
-	suite.celestiaChain = NewTestChain(suite.T(), suite.coordinator, ibctesting.GetChainID(1))
+
+	ibctesting.DefaultTestingAppInit = func() (ibctesting.TestingApp, map[string]json.RawMessage) {
+		db := dbm.NewMemDB()
+		celestiaApp := app.New(log.NewNopLogger(), db, nil, 0, simtestutil.EmptyAppOptions{})
+		return celestiaApp, celestiaApp.DefaultGenesis()
+	}
+
+	suite.celestiaChain = ibctesting.NewTestChain(suite.T(), suite.coordinator, ibctesting.GetChainID(1))
+	setMinFeeToZero(suite.T(), suite.celestiaChain)
+
+	ibctesting.DefaultTestingAppInit = pfm.SetupTestingApp
+
 	suite.otherChain = ibctesting.NewTestChain(suite.T(), suite.coordinator, ibctesting.GetChainID(2))
 
 	suite.coordinator.Chains[ibctesting.GetChainID(1)] = suite.celestiaChain
 	suite.coordinator.Chains[ibctesting.GetChainID(2)] = suite.otherChain
+}
+
+// setMinFeeToZero updates the network minimum gas price to zero.
+// This is a workaround as overriding at genesis will fail in minfee.ValidateGenesis
+func setMinFeeToZero(t *testing.T, celestiaChain *ibctesting.TestChain) {
+	celestiaApp, ok := celestiaChain.App.(*app.App)
+	require.True(t, ok)
+
+	params := celestiaApp.MinFeeKeeper.GetParams(celestiaChain.GetContext())
+	params.NetworkMinGasPrice = math.LegacyNewDec(0)
+	celestiaApp.MinFeeKeeper.SetParams(celestiaChain.GetContext(), params)
+}
+
+// GetSimapp is a helper function which performs the correct cast on the underlying chain.App
+func (suite *TokenFilterTestSuite) GetSimapp(chain *ibctesting.TestChain) *pfm.SimApp {
+	app, ok := chain.App.(*pfm.SimApp)
+	require.True(suite.T(), ok)
+	return app
 }
 
 func NewTransferPath(celestiaChain, otherChain *ibctesting.TestChain) *ibctesting.Path {
@@ -76,7 +113,7 @@ func (suite *TokenFilterTestSuite) TestHandleOutboundTransfer() {
 
 	// check that the token exists on chain B
 	voucherDenomTrace := types.ParseDenomTrace(types.GetPrefixedDenom(packet.GetDestPort(), packet.GetDestChannel(), sdk.DefaultBondDenom))
-	balance := suite.otherChain.GetSimApp().BankKeeper.GetBalance(suite.otherChain.GetContext(), suite.otherChain.SenderAccount.GetAddress(), voucherDenomTrace.IBCDenom())
+	balance := suite.GetSimapp(suite.otherChain).BankKeeper.GetBalance(suite.otherChain.GetContext(), suite.otherChain.SenderAccount.GetAddress(), voucherDenomTrace.IBCDenom())
 	coinSentFromAToB := types.GetTransferCoin(path.EndpointB.ChannelConfig.PortID, path.EndpointB.ChannelID, sdk.DefaultBondDenom, amount)
 	suite.Require().Equal(coinSentFromAToB, balance)
 
@@ -108,7 +145,7 @@ func (suite *TokenFilterTestSuite) TestHandleInboundTransfer() {
 	path := NewTransferPath(suite.celestiaChain, suite.otherChain)
 	suite.coordinator.Setup(path)
 
-	amount, ok := sdk.NewIntFromString("1000")
+	amount, ok := math.NewIntFromString("1000")
 	suite.Require().True(ok)
 	timeoutHeight := clienttypes.NewHeight(1, 110)
 	coinToSendToA := sdk.NewCoin(sdk.DefaultBondDenom, amount)
@@ -127,7 +164,7 @@ func (suite *TokenFilterTestSuite) TestHandleInboundTransfer() {
 
 	// check that the token does not exist on chain A (was rejected)
 	voucherDenomTrace := types.ParseDenomTrace(types.GetPrefixedDenom(packet.GetDestPort(), packet.GetDestChannel(), sdk.DefaultBondDenom))
-	balance := suite.otherChain.GetSimApp().BankKeeper.GetBalance(suite.otherChain.GetContext(), suite.otherChain.SenderAccount.GetAddress(), voucherDenomTrace.IBCDenom())
+	balance := suite.GetSimapp(suite.otherChain).BankKeeper.GetBalance(suite.otherChain.GetContext(), suite.otherChain.SenderAccount.GetAddress(), voucherDenomTrace.IBCDenom())
 	emptyCoin := sdk.NewInt64Coin(voucherDenomTrace.IBCDenom(), 0)
 	suite.Require().Equal(emptyCoin, balance)
 }
