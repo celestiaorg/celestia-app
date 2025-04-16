@@ -37,7 +37,7 @@ func TestCheckTx(t *testing.T) {
 		namespace1 share.Namespace
 	)
 
-	encodingConfig := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	namespace1, err = share.NewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
 	require.NoError(t, err)
 

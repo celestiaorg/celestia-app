@@ -17,7 +17,7 @@ import (
 )
 
 func TestDecodeStore(t *testing.T) {
-	cdc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...).Codec
+	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
 	decoder := simulation.NewDecodeStore(cdc)
 	minter := types.NewMinter(math.LegacyOneDec(), math.LegacyNewDec(15), sdk.DefaultBondDenom)
 	unixEpoch := time.Unix(0, 0).UTC()

@@ -28,7 +28,7 @@ const (
 )
 
 func TestPFBAnteHandler(t *testing.T) {
-	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	testCases := []struct {
 		name        string

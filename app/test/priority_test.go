@@ -57,7 +57,7 @@ func (s *PriorityTestSuite) SetupSuite() {
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	s.cctx = cctx
-	s.ecfg = encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	require.NoError(t, cctx.WaitForNextBlock())
 
