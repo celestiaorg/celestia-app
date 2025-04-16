@@ -44,7 +44,6 @@ type PriorityTestSuite struct {
 	accountNames []string
 	txClient     *user.TxClient
 	cctx         testnode.Context
-	rand         *rand.Rand
 }
 
 func (s *PriorityTestSuite) SetupSuite() {
