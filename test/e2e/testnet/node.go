@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/crypto"
@@ -28,17 +29,18 @@ import (
 )
 
 const (
-	rpcPort                         = 26657
-	p2pPort                         = 26656
-	grpcPort                        = 9090
-	prometheusPort                  = 26660
-	tracingPort                     = 26661
-	celestiaAppDockerSrcURL         = "ghcr.io/celestiaorg/celestia-app"
-	celestiaMultiplexerDockerSrcURL = "ghcr.io/celestiaorg/celestia-app-multiplexer"
-	secp256k1Type                   = "secp256k1"
-	ed25519Type                     = "ed25519"
-	remoteRootDir                   = "/home/celestia/.celestia-app"
-	txsimRootDir                    = "/home/celestia"
+	rpcPort               = 26657
+	p2pPort               = 26656
+	grpcPort              = 9090
+	prometheusPort        = 26660
+	tracingPort           = 26661
+	celestiaOrgRegistry   = "ghcr.io/celestiaorg"
+	celestiaAppDockerName = "celestia-app"
+	multiplexerDockerName = "celestia-app-multiplexer"
+	secp256k1Type         = "secp256k1"
+	ed25519Type           = "ed25519"
+	remoteRootDir         = "/home/celestia/.celestia-app"
+	txsimRootDir          = "/home/celestia"
 )
 
 type Node struct {
@@ -403,12 +405,27 @@ func (n *Node) Upgrade(ctx context.Context, version string) error {
 	return n.Instance.Execution().Start(ctx)
 }
 
+func GetDockerRegistry() string {
+	if reg := strings.TrimSpace(os.Getenv("DOCKER_REGISTRY")); reg != "" {
+		return reg
+	}
+	return celestiaOrgRegistry
+}
+
+func GetCelestiaAppDockerImage() string {
+	return fmt.Sprintf("%s/%s", GetDockerRegistry(), celestiaAppDockerName)
+}
+
+func GetMultiplexerDockerImage() string {
+	return fmt.Sprintf("%s/%s", GetDockerRegistry(), multiplexerDockerName)
+}
+
 // DockerImageName constructs a full Docker image using the default celestia-app image and the specified version.
 func DockerImageName(version string) string {
-	return fmt.Sprintf("%s:%s", celestiaAppDockerSrcURL, version)
+	return fmt.Sprintf("%s:%s", GetCelestiaAppDockerImage(), version)
 }
 
 // DockerMultiplexerImageName constructs a full Docker image using the default celestia-app-multiplexer image and the specified version.
 func DockerMultiplexerImageName(version string) string {
-	return fmt.Sprintf("%s:%s", celestiaMultiplexerDockerSrcURL, version)
+	return fmt.Sprintf("%s:%s", GetMultiplexerDockerImage(), version)
 }
