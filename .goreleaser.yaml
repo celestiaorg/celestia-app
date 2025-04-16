@@ -8,7 +8,7 @@ before:
     - go mod tidy
 # set chain-specific upgrade heights
 env:
-  - V2UpgradeHeight={{ if eq .Env.CHAIN_NAME "mainnet" }}1751707{{ else if eq .Env.CHAIN_NAME "mocha" }}2585031{{ else if eq .Env.CHAIN_NAME "arabica" }}1751707{{ else }}0{{ end }}
+  - V2UpgradeHeight={{ if eq .Env.CHAIN_NAME "mainnet" }}2371495{{ else if eq .Env.CHAIN_NAME "mocha" }}2585031{{ else if eq .Env.CHAIN_NAME "arabica" }}1751707{{ else }}0{{ end }}
 builds:
   - id: darwin-amd64
     main: ./cmd/celestia-appd
