@@ -22,3 +22,5 @@ go.work.sum
 .envrc
 # test artifacts
 app/test/bad_block_*
+# do not include downloaded embedded binaries
+internal/embedding/**

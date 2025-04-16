@@ -4,13 +4,13 @@ package testnet
 import (
 	"context"
 	"fmt"
+	cmtos "github.com/cometbft/cometbft/libs/os"
 	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/crypto"
-	cmtos "github.com/cometbft/cometbft/libs/os"
 	"github.com/cometbft/cometbft/libs/trace"
 	"github.com/cometbft/cometbft/libs/trace/schema"
 	"github.com/cometbft/cometbft/p2p"
@@ -33,8 +33,8 @@ const (
 	grpcPort                        = 9090
 	prometheusPort                  = 26660
 	tracingPort                     = 26661
-	celestiaAppDockerSrcURL         = "ghcr.io/01builders/celestia-app"             // TODO: revert to celestiaorg
-	celestiaMultiplexerDockerSrcURL = "ghcr.io/01builders/celestia-app-multiplexer" // TODO: revert to celestiaorg
+	celestiaAppDockerSrcURL         = "ghcr.io/celestiaorg/celestia-app"
+	celestiaMultiplexerDockerSrcURL = "ghcr.io/celestiaorg/celestia-app-multiplexer"
 	secp256k1Type                   = "secp256k1"
 	ed25519Type                     = "ed25519"
 	remoteRootDir                   = "/home/celestia/.celestia-app"

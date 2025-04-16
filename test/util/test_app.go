@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"testing"
 	"time"
 
 	"cosmossdk.io/log"
@@ -16,10 +15,8 @@ import (
 	tmtypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
-	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
-	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -28,12 +25,10 @@ import (
 	simulationcli "github.com/cosmos/cosmos-sdk/x/simulation/client/cli"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/rs/zerolog"
-	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/params"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
@@ -163,112 +158,6 @@ func InitialiseTestAppWithGenesis(testApp *app.App, cparams *tmproto.ConsensusPa
 	return testApp
 }
 
-// AddDeterministicValidatorsToGenesis adds a set of five validators to the genesis.
-func AddDeterministicValidatorsToGenesis(g *genesis.Genesis) error {
-	for i := range FixedMnemonics {
-		val := genesis.Validator{
-			KeyringAccount: genesis.KeyringAccount{
-				Name:          "validator" + fmt.Sprint(i),
-				InitialTokens: 5_000_000_000,
-			},
-			Stake:        1_000_000_000,
-			ConsensusKey: FixedConsensusPrivKeys[i],
-			NetworkKey:   FixedNetworkPrivKeys[i],
-		}
-
-		// Initialize the validator's genesis account in the keyring
-		rec, err := g.Keyring().NewAccount(val.Name, FixedMnemonics[i], "", "", hd.Secp256k1)
-		if err != nil {
-			return fmt.Errorf("failed to create account: %w", err)
-		}
-
-		validatorPubKey, err := rec.GetPubKey()
-		if err != nil {
-			return fmt.Errorf("failed to get pubkey: %w", err)
-		}
-
-		// Construct account from keyring account
-		account := genesis.Account{
-			PubKey:  validatorPubKey,
-			Balance: val.InitialTokens,
-			Name:    val.Name,
-		}
-
-		// Add the validator's account to the genesis
-		if err := g.AddAccount(account); err != nil {
-			return fmt.Errorf("failed to add account: %w", err)
-		}
-		if err := g.AddValidator(val); err != nil {
-			return fmt.Errorf("failed to add validator: %w", err)
-		}
-	}
-
-	return nil
-}
-
-// AddAccount mimics the cli addAccount command, providing an
-// account with an allocation of to "token" and "tia" tokens in the genesis
-// state
-func AddAccount(addr sdk.AccAddress, appState app.GenesisState, cdc codec.Codec) (map[string]json.RawMessage, error) {
-	// create concrete account type based on input parameters
-	var genAccount authtypes.GenesisAccount
-
-	coins := sdk.Coins{
-		sdk.NewCoin("token", math.NewInt(1000000)),
-		sdk.NewCoin(params.BondDenom, math.NewInt(1000000)),
-	}
-
-	balances := banktypes.Balance{Address: addr.String(), Coins: coins.Sort()}
-	baseAccount := authtypes.NewBaseAccount(addr, nil, 0, 0)
-
-	genAccount = baseAccount
-
-	if err := genAccount.Validate(); err != nil {
-		return appState, fmt.Errorf("failed to validate new genesis account: %w", err)
-	}
-
-	authGenState := authtypes.GetGenesisStateFromAppState(cdc, appState)
-
-	accs, err := authtypes.UnpackAccounts(authGenState.Accounts)
-	if err != nil {
-		return appState, fmt.Errorf("failed to get accounts from any: %w", err)
-	}
-
-	if accs.Contains(addr) {
-		return appState, fmt.Errorf("cannot add account at existing address %s", addr)
-	}
-
-	// Add the new account to the set of genesis accounts and sanitize the
-	// accounts afterwards.
-	accs = append(accs, genAccount)
-	accs = authtypes.SanitizeGenesisAccounts(accs)
-
-	genAccs, err := authtypes.PackAccounts(accs)
-	if err != nil {
-		return appState, fmt.Errorf("failed to convert accounts into any's: %w", err)
-	}
-	authGenState.Accounts = genAccs
-
-	authGenStateBz, err := cdc.MarshalJSON(&authGenState)
-	if err != nil {
-		return appState, fmt.Errorf("failed to marshal auth genesis state: %w", err)
-	}
-
-	appState[authtypes.ModuleName] = authGenStateBz
-
-	bankGenState := banktypes.GetGenesisStateFromAppState(cdc, appState)
-	bankGenState.Balances = append(bankGenState.Balances, balances)
-	bankGenState.Balances = banktypes.SanitizeGenesisBalances(bankGenState.Balances)
-
-	bankGenStateBz, err := cdc.MarshalJSON(bankGenState)
-	if err != nil {
-		return appState, fmt.Errorf("failed to marshal bank genesis state: %w", err)
-	}
-
-	appState[banktypes.ModuleName] = bankGenStateBz
-	return appState, nil
-}
-
 // GenesisStateWithSingleValidator initializes GenesisState with a single
 // validator and genesis accounts that also act as delegators.
 func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (app.GenesisState, *tmtypes.ValidatorSet, keyring.Keyring) {
@@ -383,53 +272,4 @@ func genesisStateWithValSet(
 	genesisState[banktypes.ModuleName] = a.AppCodec().MustMarshalJSON(bankGenesis)
 
 	return genesisState
-}
-
-func SetupTestApp(t *testing.T) (*app.App, keyring.Keyring) {
-	t.Helper()
-
-	db := dbm.NewMemDB()
-	chainID := "test_chain"
-	testApp := app.New(log.NewNopLogger(), db, nil, 0, EmptyAppOptions{}, baseapp.SetChainID(chainID))
-	genesisState, _, kr := GenesisStateWithSingleValidator(testApp, "account")
-	stateBytes, err := json.MarshalIndent(genesisState, "", " ")
-	require.NoError(t, err)
-	infoResp, err := testApp.Info(&abci.RequestInfo{})
-	require.NoError(t, err)
-
-	require.EqualValues(t, 0, infoResp.AppVersion)
-	cp := app.DefaultInitialConsensusParams()
-	abciParams := &tmproto.ConsensusParams{
-		Block: &tmproto.BlockParams{
-			MaxBytes: cp.Block.MaxBytes,
-			MaxGas:   cp.Block.MaxGas,
-		},
-		Evidence:  cp.Evidence,
-		Validator: cp.Validator,
-		Version:   cp.Version,
-	}
-
-	_, err = testApp.InitChain(
-		&abci.RequestInitChain{
-			Time:            GenesisTime,
-			Validators:      []abci.ValidatorUpdate{},
-			ConsensusParams: abciParams,
-			AppStateBytes:   stateBytes,
-			ChainId:         chainID,
-		},
-	)
-	require.NoError(t, err)
-
-	// assert that the chain starts with version provided in genesis
-	// because Info only fetch store if height > 0 (where the version is set from the consensus keeper)
-	// we just override the default baseapp height
-	baseapp.InitialAppVersion = app.DefaultInitialConsensusParams().Version.App
-
-	infoResp, err = testApp.Info(&abci.RequestInfo{})
-	require.NoError(t, err)
-	require.EqualValues(t, app.DefaultInitialConsensusParams().Version.App, infoResp.AppVersion, infoResp.String())
-
-	_, err = testApp.Commit()
-	require.NoError(t, err)
-	return testApp, kr
 }

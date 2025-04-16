@@ -25,7 +25,7 @@ import (
 	hyperlanecore "github.com/bcp-innovations/hyperlane-cosmos/x/core"
 	hyperlanekeeper "github.com/bcp-innovations/hyperlane-cosmos/x/core/keeper"
 	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
-	warp "github.com/bcp-innovations/hyperlane-cosmos/x/warp"
+	"github.com/bcp-innovations/hyperlane-cosmos/x/warp"
 	warpkeeper "github.com/bcp-innovations/hyperlane-cosmos/x/warp/keeper"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	abci "github.com/cometbft/cometbft/abci/types"

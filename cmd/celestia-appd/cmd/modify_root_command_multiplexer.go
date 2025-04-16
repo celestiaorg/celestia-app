@@ -3,14 +3,13 @@
 package cmd
 
 import (
-	"fmt"
-	"github.com/01builders/nova"
-	"github.com/01builders/nova/abci"
-	"github.com/01builders/nova/appd"
+	"github.com/spf13/cobra"
+
+	"github.com/celestiaorg/celestia-app/multiplexer/abci"
+	"github.com/celestiaorg/celestia-app/multiplexer/appd"
+	multiplexer "github.com/celestiaorg/celestia-app/multiplexer/cmd"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/cosmos/cosmos-sdk/server"
-	"github.com/spf13/cobra"
-	"runtime"
 
 	embedding "github.com/celestiaorg/celestia-app/v4/internal/embedding"
 )
@@ -24,7 +23,7 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 
 	v3, err := appd.New("v3", v3AppBinary)
 	if err != nil {
-		panic(fmt.Errorf("failed to create v3 app for platform %s: %w", platform(), err))
+		panic(err)
 	}
 
 	versions, err := abci.NewVersions(abci.Version{
@@ -34,11 +33,12 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 		StartArgs: []string{
 			"--grpc.enable",
 			"--grpc.address=0.0.0.0:9090", // ensure the grpc address is accessible from hosts such as txsim. (not just localhost)
-			"--api.enable=true",
+			"--api.enable",
 			"--api.swagger=false",
 			"--with-tendermint=false",
 			"--transport=grpc",
 			"--address=0.0.0.0:26658",
+			// "--v2-upgrade-height=0",
 		},
 	})
 	if err != nil {
@@ -46,7 +46,7 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 	}
 
 	rootCommand.AddCommand(
-		nova.NewPassthroughCmd(versions),
+		multiplexer.NewPassthroughCmd(versions),
 	)
 
 	// Add the following commands to the rootCommand: start, tendermint, export, version, and rollback and wire multiplexer.
@@ -57,11 +57,7 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 		appExporter,
 		server.StartCmdOptions{
 			AddFlags:            addStartFlags,
-			StartCommandHandler: nova.New(versions),
+			StartCommandHandler: multiplexer.New(versions),
 		},
 	)
-}
-
-func platform() string {
-	return runtime.GOOS + "_" + runtime.GOARCH
 }

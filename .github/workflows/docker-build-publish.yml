@@ -21,7 +21,7 @@ jobs:
     permissions:
       contents: write
       packages: write
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@45533fc35847a8568deb0d4cae1851a2872f3651 #v0.5.0
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@dbbc8a6f4d18d0eb1b9dc8ceb3a0a7714d5beed1 #v0.6.1
     with:
       dockerfile: docker/Dockerfile
       checkout_ref: ${{ github.event.inputs.ref }}
@@ -31,8 +31,7 @@ jobs:
     permissions:
       contents: write
       packages: write
-      # TODO: update once https://github.com/celestiaorg/.github/pull/130 is merged.
-    uses: chatton/.github/.github/workflows/reusable_dockerfile_pipeline.yml@ebcec699689ec2e5cd0330e50c770416a9e451b0
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@dbbc8a6f4d18d0eb1b9dc8ceb3a0a7714d5beed1 #v0.6.1
     with:
       dockerfile: docker/multiplexer.Dockerfile
       checkout_ref: ${{ github.event.inputs.ref }}
@@ -44,7 +43,7 @@ jobs:
     permissions:
       contents: write
       packages: write
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@45533fc35847a8568deb0d4cae1851a2872f3651 #v0.5.0
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@dbbc8a6f4d18d0eb1b9dc8ceb3a0a7714d5beed1 #v0.6.1
     with:
       dockerfile: docker/txsim/Dockerfile
       packageName: txsim
