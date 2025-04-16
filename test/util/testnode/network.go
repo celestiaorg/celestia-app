@@ -38,7 +38,10 @@ func NewNetwork(t testing.TB, config *Config) (cctx Context, rpcAddr, grpcAddr s
 	cctx, stopNode, err := StartNode(tmNode, cctx)
 	require.NoError(t, err)
 
-	grpcServer, cctx, cleanupGRPC, err := StartGRPCServer(log.NewTestLogger(t), app, config.AppConfig, cctx)
+	coreEnv, err := tmNode.ConfigureRPC()
+	require.NoError(t, err)
+
+	grpcServer, cctx, cleanupGRPC, err := StartGRPCServer(log.NewTestLogger(t), app, config.AppConfig, cctx, coreEnv)
 	require.NoError(t, err)
 
 	apiServer, err := StartAPIServer(app, *config.AppConfig, cctx, grpcServer)
