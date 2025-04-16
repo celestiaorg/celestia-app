@@ -69,7 +69,7 @@ func getTestdataBlockResponse(t *testing.T) (resp blocksync.BlockResponse) {
 		t.Fatalf("reading json file: %v", err)
 	}
 
-	encCfg := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	if err = encCfg.Codec.UnmarshalJSON(fileContents, &resp); err != nil {
 		t.Fatalf("error unmarshal JSON block response: %v", err)
 	}
@@ -88,7 +88,7 @@ func getTxBytes(txBytes []byte) []byte {
 }
 
 func decodeTx(txBytes []byte) (types.Tx, error) {
-	encCfg := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	decoder := encCfg.TxConfig.TxDecoder()
 	tx, err := decoder(txBytes)
 	if err != nil {

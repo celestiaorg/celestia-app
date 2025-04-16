@@ -31,7 +31,7 @@ import (
 )
 
 func TestProcessProposal(t *testing.T) {
-	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(6)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)

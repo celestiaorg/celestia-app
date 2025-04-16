@@ -8,7 +8,9 @@ import (
 	feegrantmodule "cosmossdk.io/x/feegrant/module"
 	"cosmossdk.io/x/upgrade"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
+	hyperlanecore "github.com/bcp-innovations/hyperlane-cosmos/x/core"
 	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
+	warp "github.com/bcp-innovations/hyperlane-cosmos/x/warp"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/x/auth"
@@ -21,7 +23,6 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/consensus"
 	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
-	"github.com/cosmos/cosmos-sdk/x/crisis"
 	"github.com/cosmos/cosmos-sdk/x/distribution"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
@@ -55,32 +56,38 @@ import (
 // ModuleEncodingRegisters keeps track of all the module methods needed to
 // register interfaces and specific type to encoding config
 var ModuleEncodingRegisters = []module.AppModuleBasic{
+	// cosmos-sdk std
 	auth.AppModuleBasic{},
-	genutil.AppModuleBasic{},
+	authzmodule.AppModuleBasic{},
 	bankModule{},
 	capability.AppModuleBasic{},
-	stakingModule{},
-	mintModule{},
-	distribution.AppModuleBasic{},
-	govModule{},
-	params.AppModuleBasic{},
-	crisis.AppModuleBasic{},
-	slashingModule{},
-	authzmodule.AppModuleBasic{},
-	feegrantmodule.AppModuleBasic{},
-	ibcModule{},
-	evidence.AppModuleBasic{},
-	transfer.AppModuleBasic{},
-	vesting.AppModuleBasic{},
-	blob.AppModule{},
-	signal.AppModule{},
-	minfee.AppModule{},
-	packetforward.AppModuleBasic{},
+	circuitModule{},
 	consensus.AppModuleBasic{},
+	distribution.AppModuleBasic{},
+	evidence.AppModuleBasic{},
+	feegrantmodule.AppModuleBasic{},
+	genutil.AppModuleBasic{},
+	govModule{},
+	mintModule{},
+	params.AppModuleBasic{},
+	slashingModule{},
+	stakingModule{},
 	upgrade.AppModuleBasic{},
+	vesting.AppModuleBasic{},
+	// ibc
+	ibcModule{},
+	transfer.AppModuleBasic{},
+	packetforward.AppModuleBasic{},
 	icaModule{},
 	ibctm.AppModuleBasic{},
 	solomachine.AppModuleBasic{},
+	// hyperlane
+	hyperlanecore.AppModule{},
+	warp.AppModule{},
+	// celestia
+	blob.AppModule{},
+	signal.AppModule{},
+	minfee.AppModule{},
 }
 
 func (app *App) setModuleOrder() {

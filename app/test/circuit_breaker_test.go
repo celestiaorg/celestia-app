@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
+	v1 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
 	"github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	signaltypes "github.com/celestiaorg/celestia-app/v4/x/signal/types"
@@ -34,7 +34,7 @@ func TestCircuitBreaker(t *testing.T) { // TODO: we need to pass a find a way to
 	// NOTE: the below sections are commented out due to the lack of the MsgVersioningGateKeeper ante handler, this will not be required
 	// once the multiplexer is implemented.
 
-	// enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	// enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	testApp, keyRing := util.SetupTestAppWithGenesisValSet(app.DefaultInitialConsensusParams(), granter, grantee)
 	header := tmproto.Header{Time: time.Now(), Height: 2, Version: version.Consensus{App: appVersion}}
 	// signer, err := user.NewSigner(keyRing, enc.TxConfig, util.ChainID, appVersion, user.NewAccount(granter, 2, 0))

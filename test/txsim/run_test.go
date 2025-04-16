@@ -21,7 +21,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
+	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
 	v3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
 	"github.com/celestiaorg/celestia-app/v4/test/txsim"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
@@ -119,7 +119,7 @@ func TestTxSimulator(t *testing.T) {
 				ctx,
 				grpcAddr,
 				keyring,
-				encoding.MakeTestConfig(app.ModuleEncodingRegisters...),
+				encoding.MakeConfig(app.ModuleEncodingRegisters...),
 				opts,
 				tc.sequences...,
 			)
@@ -185,7 +185,7 @@ func TestTxSimUpgrade(t *testing.T) {
 		cctx.GoContext(),
 		grpcAddr,
 		cctx.Keyring,
-		encoding.MakeTestConfig(app.ModuleEncodingRegisters...),
+		encoding.MakeConfig(app.ModuleEncodingRegisters...),
 		opts,
 		sequences...,
 	)

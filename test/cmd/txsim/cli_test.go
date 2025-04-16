@@ -97,7 +97,7 @@ func setup(t testing.TB) (keyring.Keyring, string, string) {
 	}
 	t.Helper()
 
-	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	// set the consensus params to allow for the max square size
 	cparams := testnode.DefaultConsensusParams()

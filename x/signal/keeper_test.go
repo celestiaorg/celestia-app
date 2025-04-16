@@ -24,8 +24,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
+	v1 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/celestia-app/v4/x/signal"
 	"github.com/celestiaorg/celestia-app/v4/x/signal/types"
@@ -69,7 +69,7 @@ func TestGetVotingPowerThreshold(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			config := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+			config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 			stakingKeeper := newMockStakingKeeper(tc.validators)
 			k := signal.NewKeeper(config.Codec, nil, stakingKeeper)
 			got, err := k.GetVotingPowerThreshold(sdk.Context{})
@@ -482,7 +482,7 @@ func setup(t *testing.T) (signal.Keeper, sdk.Context, *mockStakingKeeper) {
 			testutil.ValAddrs[3].String(): 20,
 		},
 	)
-	config := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	upgradeKeeper := signal.NewKeeper(config.Codec, signalStore, mockStakingKeeper)
 	return upgradeKeeper, mockCtx, mockStakingKeeper
 }

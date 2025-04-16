@@ -39,7 +39,7 @@ func TestInsufficientFeeIntegration(t *testing.T) {
 	addr := testfactory.GetAddress(kr, account)
 	acc := testutil.DirectQueryAccount(testApp, addr)
 
-	encodingCfg := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	encodingCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	signer, err := user.NewSigner(kr, encodingCfg.TxConfig, testutil.ChainID, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
 	require.NoError(t, err)

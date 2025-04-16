@@ -387,7 +387,7 @@ func setupTxClient(
 	ctx, _, _ := testnode.NewNetwork(t, testnodeConfig)
 	_, err := ctx.WaitForHeight(1)
 	require.NoError(t, err)
-	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, enc, opts...)
 	require.NoError(t, err)
