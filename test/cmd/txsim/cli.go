@@ -179,9 +179,6 @@ well funded account that can act as the master account. The command runs until a
 				opts.SuppressLogs()
 			}
 
-<<<<<<< HEAD
-			encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-=======
 			if gasLimit > 0 {
 				opts.WithGasLimit(gasLimit)
 			}
@@ -190,8 +187,7 @@ well funded account that can act as the master account. The command runs until a
 				opts.WithGasPrice(gasPrice)
 			}
 
-			encCfg := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
->>>>>>> ba3a448 (feat: implement gas price and gas limit customization for txsim (#4447))
+			encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 			err = txsim.Run(
 				cmd.Context(),
 				grpcEndpoint,

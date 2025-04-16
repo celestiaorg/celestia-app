@@ -2,9 +2,11 @@ package txsim
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"math/rand"
+	"net"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
@@ -13,6 +15,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
@@ -182,8 +185,6 @@ func (o *Options) WithPollTime(pollTime time.Duration) *Options {
 	o.pollTime = pollTime
 	return o
 }
-<<<<<<< HEAD
-=======
 
 func (o *Options) WithGasLimit(gasLimit uint64) *Options {
 	o.gasLimit = gasLimit
@@ -225,4 +226,3 @@ func buildGrpcConn(grpcEndpoint string, config *tls.Config) (*grpc.ClientConn, e
 	}
 	return conn, err
 }
->>>>>>> ba3a448 (feat: implement gas price and gas limit customization for txsim (#4447))
