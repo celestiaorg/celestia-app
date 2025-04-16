@@ -188,7 +188,7 @@ account that can act as the master account. The command runs until all sequences
 				opts.WithGasPrice(gasPrice)
 			}
 
-			encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+			encCfg := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 			err = txsim.Run(
 				cmd.Context(),
 				grpcEndpoint,
