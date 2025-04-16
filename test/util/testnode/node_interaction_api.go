@@ -40,7 +40,7 @@ type Context struct {
 }
 
 func NewContext(goContext context.Context, keyring keyring.Keyring, tmConfig *tmconfig.Config, chainID, apiAddress string) Context {
-	config := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	clientContext := client.Context{}.
 		WithKeyring(keyring).
 		WithHomeDir(tmConfig.RootDir).

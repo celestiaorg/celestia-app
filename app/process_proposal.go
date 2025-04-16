@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"cosmossdk.io/errors"
 	"cosmossdk.io/log"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -16,7 +17,9 @@ import (
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
 
 	"github.com/celestiaorg/celestia-app/v4/app/ante"
+	apperr "github.com/celestiaorg/celestia-app/v4/app/errors"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	appv4 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
 	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
@@ -54,10 +57,18 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	)
 	blockHeader := ctx.BlockHeader()
 
-	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed and non
-	// blobTxs have no PFBs present
+	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
+	// blobTxs have no PFBs present and all txs are less than or equal to the max tx size limit
 	for idx, rawTx := range req.Txs {
 		tx := rawTx
+
+		// all txs must be less than or equal to the max tx size limit
+		currentTxSize := len(tx)
+		if currentTxSize > appv4.MaxTxSize {
+			logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with tx %d", idx), errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes", currentTxSize, appv4.MaxTxSize))
+			return reject(), nil
+		}
+
 		blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(rawTx)
 		if isBlobTx {
 			if err != nil {

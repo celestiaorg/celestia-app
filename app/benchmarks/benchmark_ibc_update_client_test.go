@@ -1,4 +1,4 @@
-//go:build bench_abci_methods
+//go:build benchmarks
 
 package benchmarks_test
 
@@ -8,29 +8,29 @@ import (
 	"testing"
 	"time"
 
+	dbm "github.com/cometbft/cometbft-db"
+	"github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/crypto"
+	"github.com/cometbft/cometbft/crypto/ed25519"
+	"github.com/cometbft/cometbft/crypto/tmhash"
+	cmtprotocrypto "github.com/cometbft/cometbft/proto/tendermint/crypto"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmtprotoversion "github.com/cometbft/cometbft/proto/tendermint/version"
+	sm "github.com/cometbft/cometbft/state"
+	cmttypes "github.com/cometbft/cometbft/types"
+	"github.com/cometbft/cometbft/version"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
+	commitmenttypes "github.com/cosmos/ibc-go/v8/modules/core/23-commitment/types"
+	ibctm "github.com/cosmos/ibc-go/v8/modules/light-clients/07-tendermint"
+	"github.com/stretchr/testify/require"
+
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
-	dbm "github.com/cometbft/cometbft-db"
-	"github.com/cometbft/cometbft/abci/types"
-	"github.com/cometbft/cometbft/crypto"
-	"github.com/cometbft/cometbft/crypto/tmhash"
-	crypto2 "github.com/cometbft/cometbft/proto/tendermint/crypto"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	tmprotoversion "github.com/cometbft/cometbft/proto/tendermint/version"
-	"github.com/cometbft/cometbft/version"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	types3 "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
-	types2 "github.com/cosmos/ibc-go/v8/modules/core/23-commitment/types"
-	types4 "github.com/cosmos/ibc-go/v8/modules/light-clients/07-tendermint"
-	"github.com/stretchr/testify/require"
-
-	"github.com/cometbft/cometbft/crypto/ed25519"
-	sm "github.com/cometbft/cometbft/state"
-	types0 "github.com/cometbft/cometbft/types"
 )
 
 func BenchmarkIBC_CheckTx_Update_Client_Multi(b *testing.B) {
@@ -64,13 +64,13 @@ func benchmarkIBCCheckTxUpdateClient(b *testing.B, numberOfValidators int) {
 	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, 1, 1)
 	testApp.Commit()
 
-	checkTxRequest := types.RequestCheckTx{
+	checkTxReq := types.RequestCheckTx{
 		Type: types.CheckTxType_New,
 		Tx:   rawTxs[0],
 	}
 
 	b.ResetTimer()
-	resp, err := testApp.CheckTx(&checkTxRequest)
+	resp, err := testApp.CheckTx(&checkTxReq)
 	require.NoError(b, err)
 	b.StopTimer()
 	require.Equal(b, uint32(0), resp.Code)
@@ -81,7 +81,7 @@ func benchmarkIBCCheckTxUpdateClient(b *testing.B, numberOfValidators int) {
 	b.ReportMetric(float64(2*numberOfValidators/3), "number_of_verified_signatures")
 }
 
-func BenchmarkIBC_DeliverTx_Update_Client_Multi(b *testing.B) {
+func BenchmarkIBC_FinalizeBlock_Update_Client_Multi(b *testing.B) {
 	testCases := []struct {
 		numberOfValidators int
 	}{
@@ -103,20 +103,23 @@ func BenchmarkIBC_DeliverTx_Update_Client_Multi(b *testing.B) {
 	}
 	for _, testCase := range testCases {
 		b.Run(fmt.Sprintf("number of validators: %d", testCase.numberOfValidators), func(b *testing.B) {
-			benchmarkIBCDeliverTxUpdateClient(b, testCase.numberOfValidators)
+			benchmarkIBCFinalizeBlockUpdateClient(b, testCase.numberOfValidators)
 		})
 	}
 }
 
-func benchmarkIBCDeliverTxUpdateClient(b *testing.B, numberOfValidators int) {
+func benchmarkIBCFinalizeBlockUpdateClient(b *testing.B, numberOfValidators int) {
 	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, 1, 1)
 
-	deliverTxRequest := types.RequestFinalizeBlock{
-		Txs: rawTxs,
+	finalizeBlockReq := types.RequestFinalizeBlock{
+		Time:   testutil.GenesisTime.Add(blockTime),
+		Height: testApp.LastBlockHeight() + 1,
+		Hash:   testApp.LastCommitID().Hash,
+		Txs:    rawTxs,
 	}
 
 	b.ResetTimer()
-	resp, err := testApp.FinalizeBlock(&deliverTxRequest)
+	resp, err := testApp.FinalizeBlock(&finalizeBlockReq)
 	require.NoError(b, err)
 	b.StopTimer()
 	require.Equal(b, uint32(0), resp.TxResults[0].Code)
@@ -155,23 +158,23 @@ func BenchmarkIBC_PrepareProposal_Update_Client_Multi(b *testing.B) {
 }
 
 func benchmarkIBCPrepareProposalUpdateClient(b *testing.B, numberOfValidators, count int) {
-	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, count, 0)
+	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, count, count)
 
-	prepareProposalRequest := types.RequestPrepareProposal{
+	prepareProposalReq := types.RequestPrepareProposal{
 		Txs:    rawTxs,
-		Height: 10,
+		Height: testApp.LastBlockHeight() + 1,
 	}
 
 	b.ResetTimer()
-	prepareProposalResponse, err := testApp.PrepareProposal(&prepareProposalRequest)
+	prepareProposalResp, err := testApp.PrepareProposal(&prepareProposalReq)
 	require.NoError(b, err)
 	b.StopTimer()
-	require.GreaterOrEqual(b, len(prepareProposalResponse.Txs), 1)
+	require.GreaterOrEqual(b, len(prepareProposalResp.Txs), 1)
 	b.ReportMetric(float64(b.Elapsed().Nanoseconds()), "prepare_proposal_time(ns)")
-	b.ReportMetric(float64(len(prepareProposalResponse.Txs)), "number_of_transactions")
+	b.ReportMetric(float64(len(prepareProposalResp.Txs)), "number_of_transactions")
 	b.ReportMetric(float64(len(rawTxs[0])), "transactions_size(byte)")
-	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResponse.Txs), "block_size(mb)")
-	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResponse.Txs)), "total_gas_used")
+	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResp.Txs), "block_size(mb)")
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResp.Txs)), "total_gas_used")
 	b.ReportMetric(float64(numberOfValidators), "number_of_validators")
 	b.ReportMetric(float64(2*numberOfValidators/3), "number_of_verified_signatures")
 }
@@ -204,33 +207,35 @@ func BenchmarkIBC_ProcessProposal_Update_Client_Multi(b *testing.B) {
 }
 
 func benchmarkIBCProcessProposalUpdateClient(b *testing.B, numberOfValidators, count int) {
-	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, count, 0)
+	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, count, count)
 
-	prepareProposalRequest := types.RequestPrepareProposal{
+	prepareProposalReq := types.RequestPrepareProposal{
 		Txs:    rawTxs,
-		Height: 10,
+		Height: testApp.LastBlockHeight() + 1,
 	}
 
-	prepareProposalResponse, err := testApp.PrepareProposal(&prepareProposalRequest)
+	prepareProposalResp, err := testApp.PrepareProposal(&prepareProposalReq)
 	require.NoError(b, err)
-	require.GreaterOrEqual(b, len(prepareProposalResponse.Txs), 1)
+	require.GreaterOrEqual(b, len(prepareProposalResp.Txs), 1)
 
-	processProposalRequest := types.RequestProcessProposal{
-		Txs:    prepareProposalResponse.Txs,
-		Height: 10,
+	processProposalReq := types.RequestProcessProposal{
+		Txs:          prepareProposalResp.Txs,
+		Height:       testApp.LastBlockHeight() + 1,
+		DataRootHash: prepareProposalResp.DataRootHash,
+		SquareSize:   prepareProposalResp.SquareSize,
 	}
 
 	b.ResetTimer()
-	resp, err := testApp.ProcessProposal(&processProposalRequest)
+	resp, err := testApp.ProcessProposal(&processProposalReq)
 	require.NoError(b, err)
 	b.StopTimer()
 	require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Status)
 
 	b.ReportMetric(float64(b.Elapsed().Nanoseconds()), "process_proposal_time(ns)")
-	b.ReportMetric(float64(len(prepareProposalResponse.Txs)), "number_of_transactions")
+	b.ReportMetric(float64(len(prepareProposalResp.Txs)), "number_of_transactions")
 	b.ReportMetric(float64(len(rawTxs[0])), "transactions_size(byte)")
-	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResponse.Txs), "block_size(mb)")
-	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResponse.Txs)), "total_gas_used")
+	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResp.Txs), "block_size(mb)")
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResp.Txs)), "total_gas_used")
 	b.ReportMetric(float64(numberOfValidators), "number_of_validators")
 	b.ReportMetric(float64(2*numberOfValidators/3), "number_of_verified_signatures")
 }
@@ -244,7 +249,7 @@ func generateIBCUpdateClientTransaction(b *testing.B, numberOfValidators, number
 	account := "test"
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, account)
 	addr := testfactory.GetAddress(kr, account)
-	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	acc := testutil.DirectQueryAccount(testApp, addr)
 	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
 	require.NoError(b, err)
@@ -275,7 +280,7 @@ func generateIBCUpdateClientTransaction(b *testing.B, numberOfValidators, number
 	return testApp, rawTxs
 }
 
-func generateUpdateClientTransaction(b *testing.B, app *app.App, signer user.Signer, signerAddr, signerName string, numberOfValidators, numberOfMsgs int) []*types3.MsgUpdateClient {
+func generateUpdateClientTransaction(b *testing.B, app *app.App, signer user.Signer, signerAddr, signerName string, numberOfValidators, numberOfMsgs int) []*clienttypes.MsgUpdateClient {
 	state, _, privVals := makeState(numberOfValidators, 5)
 	wBefore := time.Now()
 	time.Sleep(time.Second)
@@ -285,8 +290,8 @@ func generateUpdateClientTransaction(b *testing.B, app *app.App, signer user.Sig
 	lastCommitHash := crypto.CRandBytes(tmhash.Size)
 	lastBlockHash := crypto.CRandBytes(tmhash.Size)
 	lastBlockID := makeBlockID(lastBlockHash, 1000, []byte("hash"))
-	header := tmproto.Header{
-		Version:            tmprotoversion.Consensus{Block: version.BlockProtocol, App: 1},
+	header := cmtproto.Header{
+		Version:            cmtprotoversion.Consensus{Block: version.BlockProtocol, App: 1},
 		ChainID:            state.ChainID,
 		Height:             5,
 		Time:               w,
@@ -301,8 +306,8 @@ func generateUpdateClientTransaction(b *testing.B, app *app.App, signer user.Sig
 		ProposerAddress:    crypto.CRandBytes(crypto.AddressSize),
 		LastBlockId:        lastBlockID.ToProto(),
 	}
-	t := types0.Header{
-		Version:            tmprotoversion.Consensus{Block: version.BlockProtocol, App: 1},
+	t := cmttypes.Header{
+		Version:            cmtprotoversion.Consensus{Block: version.BlockProtocol, App: 1},
 		ChainID:            state.ChainID,
 		Height:             5,
 		Time:               w,
@@ -321,30 +326,30 @@ func generateUpdateClientTransaction(b *testing.B, app *app.App, signer user.Sig
 	blockID := makeBlockID(header0Hash, 1000, []byte("partshash"))
 	commit, err := makeValidCommit(5, blockID, state.Validators, privVals)
 	require.NoError(b, err)
-	signatures := make([]tmproto.CommitSig, numberOfValidators)
-	validators := make([]*tmproto.Validator, numberOfValidators)
+	signatures := make([]cmtproto.CommitSig, numberOfValidators)
+	validators := make([]*cmtproto.Validator, numberOfValidators)
 	for i := 0; i < numberOfValidators; i++ {
-		signatures[i] = tmproto.CommitSig{
-			BlockIdFlag:      tmproto.BlockIDFlag(commit.Signatures[i].BlockIDFlag),
+		signatures[i] = cmtproto.CommitSig{
+			BlockIdFlag:      cmtproto.BlockIDFlag(commit.Signatures[i].BlockIDFlag),
 			ValidatorAddress: commit.Signatures[i].ValidatorAddress,
 			Timestamp:        commit.Signatures[i].Timestamp,
 			Signature:        commit.Signatures[i].Signature,
 		}
-		validators[i] = &tmproto.Validator{
+		validators[i] = &cmtproto.Validator{
 			Address:          state.Validators.Validators[i].Address,
-			PubKey:           crypto2.PublicKey{Sum: &crypto2.PublicKey_Ed25519{Ed25519: state.Validators.Validators[i].PubKey.Bytes()}},
+			PubKey:           cmtprotocrypto.PublicKey{Sum: &cmtprotocrypto.PublicKey_Ed25519{Ed25519: state.Validators.Validators[i].PubKey.Bytes()}},
 			VotingPower:      state.Validators.Validators[i].VotingPower,
 			ProposerPriority: state.Validators.Validators[i].ProposerPriority,
 		}
 	}
-	sh := tmproto.SignedHeader{
+	sh := cmtproto.SignedHeader{
 		Header: &header,
-		Commit: &tmproto.Commit{
+		Commit: &cmtproto.Commit{
 			Height: commit.Height,
 			Round:  commit.Round,
-			BlockID: tmproto.BlockID{
+			BlockID: cmtproto.BlockID{
 				Hash: header0Hash,
-				PartSetHeader: tmproto.PartSetHeader{
+				PartSetHeader: cmtproto.PartSetHeader{
 					Total: commit.BlockID.PartSetHeader.Total,
 					Hash:  commit.BlockID.PartSetHeader.Hash,
 				},
@@ -352,70 +357,78 @@ func generateUpdateClientTransaction(b *testing.B, app *app.App, signer user.Sig
 			Signatures: signatures,
 		},
 	}
-	clientState := types4.ClientState{
+	clientState := ibctm.ClientState{
 		ChainId:         chainID,
-		TrustLevel:      types4.Fraction{Numerator: 1, Denominator: 3},
+		TrustLevel:      ibctm.Fraction{Numerator: 1, Denominator: 3},
 		TrustingPeriod:  time.Hour * 24 * 21 * 100, // we want to always accept the upgrade
 		UnbondingPeriod: time.Hour * 24 * 21 * 101,
 		MaxClockDrift:   math.MaxInt64 - 1,
-		FrozenHeight:    types3.Height{},
-		LatestHeight: types3.Height{
+		FrozenHeight:    clienttypes.Height{},
+		LatestHeight: clienttypes.Height{
 			RevisionNumber: 0,
 			RevisionHeight: 4,
 		},
-		ProofSpecs:                   types2.GetSDKSpecs(),
+		ProofSpecs:                   commitmenttypes.GetSDKSpecs(),
 		AllowUpdateAfterExpiry:       true,
 		AllowUpdateAfterMisbehaviour: true,
 	}
-	consensusState := types4.ConsensusState{
+	consensusState := ibctm.ConsensusState{
 		Timestamp:          wBefore,
-		Root:               types2.MerkleRoot{Hash: lastBlockHash},
+		Root:               commitmenttypes.MerkleRoot{Hash: lastBlockHash},
 		NextValidatorsHash: state.Validators.Hash(),
 	}
 
-	msgs := make([]*types3.MsgUpdateClient, numberOfMsgs)
+	msgs := make([]*clienttypes.MsgUpdateClient, numberOfMsgs)
 	for index := 0; index < numberOfMsgs; index++ {
-		createClientMsg, err := types3.NewMsgCreateClient(&clientState, &consensusState, signerAddr)
+		createClientMsg, err := clienttypes.NewMsgCreateClient(&clientState, &consensusState, signerAddr)
 		require.NoError(b, err)
 		rawTx, _, err := signer.CreateTx([]sdk.Msg{createClientMsg}, user.SetGasLimit(2549760000), user.SetFee(10000))
 		require.NoError(b, err)
-		resp, err := app.FinalizeBlock(&types.RequestFinalizeBlock{Txs: [][]byte{rawTx}})
+		resp, err := app.FinalizeBlock(&types.RequestFinalizeBlock{
+			Height: app.LastBlockHeight() + 1,
+			Time:   testutil.GenesisTime.Add(blockTime),
+			Hash:   app.LastCommitID().Hash,
+			Txs:    [][]byte{rawTx},
+		})
 		require.NoError(b, err)
+
 		var clientName string
-		for _, event := range resp.Events {
-			if event.Type == types3.EventTypeCreateClient {
-				for _, attribute := range event.Attributes {
-					if string(attribute.Key) == types3.AttributeKeyClientID {
-						clientName = string(attribute.Value)
+		for _, res := range resp.TxResults {
+			for _, event := range res.Events {
+				if event.Type == clienttypes.EventTypeCreateClient {
+					for _, attribute := range event.Attributes {
+						if string(attribute.Key) == clienttypes.AttributeKeyClientID {
+							clientName = string(attribute.Value)
+						}
 					}
 				}
 			}
+			require.NotEmpty(b, clientName)
 		}
-		require.NotEmpty(b, clientName)
 
-		msg, err := types3.NewMsgUpdateClient(
+		msg, err := clienttypes.NewMsgUpdateClient(
 			clientName,
-			&types4.Header{
+			&ibctm.Header{
 				SignedHeader: &sh,
-				ValidatorSet: &tmproto.ValidatorSet{
+				ValidatorSet: &cmtproto.ValidatorSet{
 					Validators: validators,
-					Proposer: &tmproto.Validator{
+					Proposer: &cmtproto.Validator{
 						Address:          state.Validators.Proposer.Address,
-						PubKey:           crypto2.PublicKey{Sum: &crypto2.PublicKey_Ed25519{Ed25519: state.Validators.Proposer.PubKey.Bytes()}},
+						PubKey:           cmtprotocrypto.PublicKey{Sum: &cmtprotocrypto.PublicKey_Ed25519{Ed25519: state.Validators.Proposer.PubKey.Bytes()}},
 						VotingPower:      state.Validators.Proposer.VotingPower,
 						ProposerPriority: state.Validators.Proposer.ProposerPriority,
 					},
 					TotalVotingPower: state.Validators.TotalVotingPower(),
 				},
-				TrustedHeight: types3.Height{
+				TrustedHeight: clienttypes.Height{
 					RevisionNumber: 0,
 					RevisionHeight: 4,
 				},
-				TrustedValidators: &tmproto.ValidatorSet{
+				TrustedValidators: &cmtproto.ValidatorSet{
 					Validators: validators,
-					Proposer: &tmproto.Validator{
+					Proposer: &cmtproto.Validator{
 						Address:          state.Validators.Proposer.Address,
-						PubKey:           crypto2.PublicKey{Sum: &crypto2.PublicKey_Ed25519{Ed25519: state.Validators.Proposer.PubKey.Bytes()}},
+						PubKey:           cmtprotocrypto.PublicKey{Sum: &cmtprotocrypto.PublicKey_Ed25519{Ed25519: state.Validators.Proposer.PubKey.Bytes()}},
 						VotingPower:      state.Validators.Proposer.VotingPower,
 						ProposerPriority: state.Validators.Proposer.ProposerPriority,
 					},
@@ -433,22 +446,22 @@ func generateUpdateClientTransaction(b *testing.B, app *app.App, signer user.Sig
 	return msgs
 }
 
-func makeState(nVals, height int) (sm.State, dbm.DB, map[string]types0.PrivValidator) {
-	vals := make([]types0.GenesisValidator, nVals)
-	privVals := make(map[string]types0.PrivValidator, nVals)
+func makeState(nVals, height int) (sm.State, dbm.DB, map[string]cmttypes.PrivValidator) {
+	vals := make([]cmttypes.GenesisValidator, nVals)
+	privVals := make(map[string]cmttypes.PrivValidator, nVals)
 	for i := 0; i < nVals; i++ {
 		secret := []byte(fmt.Sprintf("test%d", i))
 		pk := ed25519.GenPrivKeyFromSecret(secret)
 		valAddr := pk.PubKey().Address()
-		vals[i] = types0.GenesisValidator{
+		vals[i] = cmttypes.GenesisValidator{
 			Address: valAddr,
 			PubKey:  pk.PubKey(),
 			Power:   1000,
 			Name:    fmt.Sprintf("test%d", i),
 		}
-		privVals[valAddr.String()] = types0.NewMockPVWithParams(pk, false, false)
+		privVals[valAddr.String()] = cmttypes.NewMockPVWithParams(pk, false, false)
 	}
-	s, _ := sm.MakeGenesisState(&types0.GenesisDoc{
+	s, _ := sm.MakeGenesisState(&cmttypes.GenesisDoc{
 		ChainID:    appconsts.TestChainID,
 		Validators: vals,
 		AppHash:    nil,
@@ -475,20 +488,20 @@ func makeState(nVals, height int) (sm.State, dbm.DB, map[string]types0.PrivValid
 
 func makeValidCommit(
 	height int64,
-	blockID types0.BlockID,
-	vals *types0.ValidatorSet,
-	privVals map[string]types0.PrivValidator,
-) (*types0.Commit, error) {
-	sigs := make([]types0.CommitSig, 0)
+	blockID cmttypes.BlockID,
+	vals *cmttypes.ValidatorSet,
+	privVals map[string]cmttypes.PrivValidator,
+) (*cmttypes.Commit, error) {
+	sigs := make([]cmttypes.CommitSig, 0)
 	for i := 0; i < vals.Size(); i++ {
 		_, val := vals.GetByIndex(int32(i))
-		vote, err := types0.MakeVote(height, blockID, vals, privVals[val.Address.String()], chainID, time.Now())
+		vote, err := cmttypes.MakeVote(privVals[val.Address.String()], appconsts.TestChainID, int32(i), height, 0, cmtproto.PrecommitType, blockID, time.Now())
 		if err != nil {
 			return nil, err
 		}
 		sigs = append(sigs, vote.CommitSig())
 	}
-	return &types0.Commit{
+	return &cmttypes.Commit{
 		Height:     height,
 		Round:      0,
 		BlockID:    blockID,
@@ -496,16 +509,16 @@ func makeValidCommit(
 	}, nil
 }
 
-func makeBlockID(hash []byte, partSetSize uint32, partSetHash []byte) types0.BlockID {
+func makeBlockID(hash []byte, partSetSize uint32, partSetHash []byte) cmttypes.BlockID {
 	var (
 		h   = make([]byte, tmhash.Size)
 		psH = make([]byte, tmhash.Size)
 	)
 	copy(h, hash)
 	copy(psH, partSetHash)
-	return types0.BlockID{
+	return cmttypes.BlockID{
 		Hash: h,
-		PartSetHeader: types0.PartSetHeader{
+		PartSetHeader: cmttypes.PartSetHeader{
 			Total: partSetSize,
 			Hash:  psH,
 		},
