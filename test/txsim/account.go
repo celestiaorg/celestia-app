@@ -26,8 +26,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 )
 
-const defaultFee = DefaultGasLimit * appconsts.DefaultMinGasPrice
-
 type AccountManager struct {
 	keys        keyring.Keyring
 	conn        *grpc.ClientConn
