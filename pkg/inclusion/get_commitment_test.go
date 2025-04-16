@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/da"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestGetCommitment(t *testing.T) {
