@@ -63,6 +63,16 @@ func Run(
 		return err
 	}
 
+	// Set custom gas limit if provided
+	if opts.gasLimit > 0 {
+		manager.SetGasLimit(opts.gasLimit)
+	}
+
+	// Set custom gas price if provided
+	if opts.gasPrice > 0 {
+		manager.SetGasPrice(opts.gasPrice)
+	}
+
 	// Initialize each of the sequences by allowing them to allocate accounts.
 	for _, sequence := range sequences {
 		sequence.Init(ctx, manager.conn, manager.AllocateAccounts, r, opts.useFeeGrant)
@@ -129,6 +139,8 @@ type Options struct {
 	pollTime       time.Duration
 	useFeeGrant    bool
 	suppressLogger bool
+	gasLimit       uint64
+	gasPrice       float64
 }
 
 func (o *Options) Fill() {
@@ -170,3 +182,47 @@ func (o *Options) WithPollTime(pollTime time.Duration) *Options {
 	o.pollTime = pollTime
 	return o
 }
+<<<<<<< HEAD
+=======
+
+func (o *Options) WithGasLimit(gasLimit uint64) *Options {
+	o.gasLimit = gasLimit
+	return o
+}
+
+func (o *Options) WithGasPrice(gasPrice float64) *Options {
+	o.gasPrice = gasPrice
+	return o
+}
+
+// buildGrpcConn applies the config if the handshake succeeds; otherwise, it falls back to an insecure connection.
+func buildGrpcConn(grpcEndpoint string, config *tls.Config) (*grpc.ClientConn, error) {
+	netConn, err := net.Dial("tcp", grpcEndpoint)
+	if err != nil {
+		log.Error().Str("errorMessage", err.Error()).Msg("grpc server is not reachable via tcp")
+		return nil, err
+	}
+
+	tlsConn := tls.Client(netConn, config)
+	err = tlsConn.Handshake()
+	if err != nil {
+		log.Warn().Str("errorMessage", err.Error()).Msg(
+			"failed to connect with the config to grpc server; proceeding with insecure connection",
+		)
+
+		conn, err := grpc.NewClient(grpcEndpoint,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(grpcMaxRecvMsgSize), grpc.MaxCallSendMsgSize(grpcMaxSendMsgSize)))
+
+		return conn, err
+	}
+
+	conn, err := grpc.NewClient(grpcEndpoint,
+		grpc.WithTransportCredentials(credentials.NewTLS(config)),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(grpcMaxRecvMsgSize), grpc.MaxCallSendMsgSize(grpcMaxSendMsgSize)))
+	if err != nil {
+		return nil, fmt.Errorf("error connecting to %s: %w", grpcEndpoint, err)
+	}
+	return conn, err
+}
+>>>>>>> ba3a448 (feat: implement gas price and gas limit customization for txsim (#4447))
