@@ -21,8 +21,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
-	v3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
 	"github.com/celestiaorg/celestia-app/v4/test/txsim"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	blob "github.com/celestiaorg/celestia-app/v4/x/blob/types"
@@ -174,7 +174,7 @@ func TestTxSimUpgrade(t *testing.T) {
 
 	// upgrade to v3 at height 20
 	sequences := []txsim.Sequence{
-		txsim.NewUpgradeSequence(v3.Version, 20),
+		txsim.NewUpgradeSequence(v4.Version, 20),
 	}
 
 	opts := txsim.DefaultOptions().
@@ -203,6 +203,6 @@ func TestTxSimUpgrade(t *testing.T) {
 	require.Eventually(t, func() bool {
 		upgradePlan, err := querier.GetUpgrade(cctx.GoContext(), &signaltypes.QueryGetUpgradeRequest{})
 		require.NoError(t, err)
-		return upgradePlan.Upgrade != nil && upgradePlan.Upgrade.AppVersion == v3.Version
+		return upgradePlan.Upgrade != nil && upgradePlan.Upgrade.AppVersion == v4.Version
 	}, time.Second*20, time.Millisecond*100)
 }

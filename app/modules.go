@@ -10,7 +10,7 @@ import (
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	hyperlanecore "github.com/bcp-innovations/hyperlane-cosmos/x/core"
 	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
-	warp "github.com/bcp-innovations/hyperlane-cosmos/x/warp"
+	"github.com/bcp-innovations/hyperlane-cosmos/x/warp"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/x/auth"
@@ -68,7 +68,6 @@ var ModuleEncodingRegisters = []module.AppModuleBasic{
 	feegrantmodule.AppModuleBasic{},
 	genutil.AppModuleBasic{},
 	govModule{},
-	mintModule{},
 	params.AppModuleBasic{},
 	slashingModule{},
 	stakingModule{},
@@ -86,8 +85,9 @@ var ModuleEncodingRegisters = []module.AppModuleBasic{
 	warp.AppModule{},
 	// celestia
 	blob.AppModule{},
-	signal.AppModule{},
 	minfee.AppModule{},
+	mintModule{},
+	signal.AppModule{},
 }
 
 func (app *App) setModuleOrder() {
