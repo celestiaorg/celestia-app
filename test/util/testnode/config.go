@@ -157,7 +157,6 @@ func DefaultTendermintConfig() *tmconfig.Config {
 	// Set all the ports to random open ones.
 	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
 	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
-	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
 
 	return tmCfg
 }
