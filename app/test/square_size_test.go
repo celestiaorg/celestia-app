@@ -47,7 +47,7 @@ func (s *SquareSizeIntegrationTest) SetupSuite() {
 	t := s.T()
 	t.Log("setting up square size integration test")
 
-	s.enc = encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	s.enc = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	cfg := testnode.DefaultConfig().WithModifiers(genesis.ImmediateProposals(s.enc.Codec)).WithTimeoutCommit(time.Second)
 
 	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, cfg)

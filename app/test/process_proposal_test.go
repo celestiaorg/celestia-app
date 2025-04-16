@@ -19,6 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	appv4 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
 	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
@@ -30,7 +31,7 @@ import (
 )
 
 func TestProcessProposal(t *testing.T) {
-	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(6)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
@@ -257,6 +258,22 @@ func TestProcessProposal(t *testing.T) {
 				require.NoError(t, err)
 				d.Txs[0] = blobTxBytes
 				d.Hash = calculateNewDataHash(t, d.Txs)
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "tx size exceeds max tx size limit",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				maxTxSize := appv4.MaxTxSize // max tx size for the latest version
+				// set the blob size to maxTxSize so that the raw transaction size will exceeds the max tx size limit
+				blob, err := share.NewBlob(ns1, bytes.Repeat([]byte{1}, maxTxSize), appconsts.DefaultShareVersion, nil)
+				require.NoError(t, err)
+				rawTx, _, err := signer.CreatePayForBlobs(accounts[0], []*share.Blob{blob}, user.SetGasLimit(100000), user.SetFee(100000))
+				require.NoError(t, err)
+				// override the last valid blob tx with large one that exceeds the max tx size limit
+				// proposal block should be rejected
+				d.Txs[2] = rawTx
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},

@@ -27,7 +27,7 @@ import (
 )
 
 func BenchmarkGasPriceEstimation(b *testing.B) {
-	encfg := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	encfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(1)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
