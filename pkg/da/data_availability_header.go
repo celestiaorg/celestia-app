@@ -163,6 +163,8 @@ func (dah *DataAvailabilityHeader) ValidateBasic() error {
 	return nil
 }
 
+// IsZero returns true if the DataAvailabilityHeader is nil or it has no row or
+// column roots.
 func (dah *DataAvailabilityHeader) IsZero() bool {
 	if dah == nil {
 		return true
