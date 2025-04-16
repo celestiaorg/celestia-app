@@ -36,6 +36,7 @@ RUN apk update && apk add --no-cache \
     bash \
     curl \
     jq \
+    libc6-compat \
     # Creates a user with $UID and $GID=$UID
     && adduser ${USER_NAME} \
     -D \
