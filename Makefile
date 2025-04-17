@@ -21,7 +21,7 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
 
-CELESTIA_V3_VERSION := v3.7.0
+CELESTIA_V3_VERSION := v3.9.0-rc0
 
 ## help: Get more info on make commands.
 help: Makefile
