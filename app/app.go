@@ -137,6 +137,8 @@ var maccPerms = map[string][]string{
 	stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
 	ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
 	icatypes.ModuleName:            nil,
+	hyperlanetypes.ModuleName:      nil,
+	warptypes.ModuleName:           {authtypes.Minter, authtypes.Burner},
 }
 
 const (
