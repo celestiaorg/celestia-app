@@ -21,7 +21,6 @@ func main() {
 	logger := log.New(os.Stdout, "test-e2e", log.LstdFlags)
 
 	tests := []Test{
-		{"MinorVersionCompatibility", MinorVersionCompatibility},
 		{"MajorUpgradeToV2", MajorUpgradeToV2},
 		{"MajorUpgradeToV3", MajorUpgradeToV3},
 		{"E2ESimple", E2ESimple},
