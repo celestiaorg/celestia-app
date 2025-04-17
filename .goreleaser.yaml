@@ -6,17 +6,12 @@ version: 2
 before:
   hooks:
     - go mod tidy
-# set chain-specific upgrade heights
-env:
-  - V2UpgradeHeight={{ if eq .Env.CHAIN_NAME "mainnet" }}2371495{{ else if eq .Env.CHAIN_NAME "mocha" }}2585031{{ else if eq .Env.CHAIN_NAME "arabica" }}1751707{{ else }}0{{ end }}
 builds:
   - id: darwin-amd64
     main: ./cmd/celestia-appd
     binary: celestia-appd
     env:
       - SDKPath={{ "github.com/cosmos/cosmos-sdk/version" }}
-      - APPPath={{ "github.com/celestiaorg/celestia-app/v4" }}
-      - V2UpgradeHeight={{ .Env.V2UpgradeHeight }}
       - CGO_ENABLED=1
       - CC=o64-clang
       - CXX=o64-clang++
@@ -34,14 +29,11 @@ builds:
       - -X "{{ .Env.SDKPath }}.AppName=celestia-appd"
       - -X "{{ .Env.SDKPath }}.Version={{ .Version }}"
       - -X "{{ .Env.SDKPath }}.Commit={{ .FullCommit }}"
-      - -X "{{ .Env.APPPath}}/cmd/celestia-appd/cmd.v2UpgradeHeight={{ .Env.V2UpgradeHeight }}"
   - id: darwin-arm64
     main: ./cmd/celestia-appd
     binary: celestia-appd
     env:
       - SDKPath={{ "github.com/cosmos/cosmos-sdk/version" }}
-      - APPPath={{ "github.com/celestiaorg/celestia-app/v4" }}
-      - V2UpgradeHeight={{ .Env.V2UpgradeHeight }}
       - CGO_ENABLED=1
       - CC=oa64-clang
       - CXX=oa64-clang++
@@ -59,14 +51,11 @@ builds:
       - -X "{{ .Env.SDKPath }}.AppName=celestia-appd"
       - -X "{{ .Env.SDKPath }}.Version={{ .Version }}"
       - -X "{{ .Env.SDKPath }}.Commit={{ .FullCommit }}"
-      - -X "{{ .Env.APPPath}}/cmd/celestia-appd/cmd.v2UpgradeHeight={{ .Env.V2UpgradeHeight }}"
   - id: linux-amd64
     main: ./cmd/celestia-appd
     binary: celestia-appd
     env:
       - SDKPath={{ "github.com/cosmos/cosmos-sdk/version" }}
-      - APPPath={{ "github.com/celestiaorg/celestia-app/v4" }}
-      - V2UpgradeHeight={{ .Env.V2UpgradeHeight }}
       - CC=x86_64-linux-gnu-gcc
       - CXX=x86_64-linux-gnu-g++
     goarch:
@@ -83,14 +72,11 @@ builds:
       - -X "{{ .Env.SDKPath }}.AppName=celestia-appd"
       - -X "{{ .Env.SDKPath }}.Version={{ .Version }}"
       - -X "{{ .Env.SDKPath }}.Commit={{ .FullCommit }}"
-      - -X "{{ .Env.APPPath}}/cmd/celestia-appd/cmd.v2UpgradeHeight={{ .Env.V2UpgradeHeight }}"
   - id: linux-arm64
     main: ./cmd/celestia-appd
     binary: celestia-appd
     env:
       - SDKPath={{ "github.com/cosmos/cosmos-sdk/version" }}
-      - APPPath={{ "github.com/celestiaorg/celestia-app/v4" }}
-      - V2UpgradeHeight={{ .Env.V2UpgradeHeight }}
       - CC=aarch64-linux-gnu-gcc
       - CXX=aarch64-linux-gnu-g++
     goarch:
@@ -107,7 +93,6 @@ builds:
       - -X "{{ .Env.SDKPath }}.AppName=celestia-appd"
       - -X "{{ .Env.SDKPath }}.Version={{ .Version }}"
       - -X "{{ .Env.SDKPath }}.Commit={{ .FullCommit }}"
-      - -X "{{ .Env.APPPath}}/cmd/celestia-appd/cmd.v2UpgradeHeight={{ .Env.V2UpgradeHeight }}"
 dist: ./build/goreleaser
 archives:
   - format: tar.gz
