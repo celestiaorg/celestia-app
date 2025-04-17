@@ -118,10 +118,10 @@ is performed. Note, when enabled, gRPC will also be automatically enabled.
 				return err
 			}
 
-<<<<<<< HEAD
 			if contains(appconsts.PublicNetworks, clientCtx.ChainID) && serverCtx.Viper.GetDuration(TimeoutCommitFlag) != 0 {
 				return fmt.Errorf("the --timeout-commit flag was used on %v but it is unsupported on public networks: %v. The --timeout-commit flag should only be used on private testnets", clientCtx.ChainID, strings.Join(appconsts.PublicNetworks, ", "))
-=======
+			}
+
 			switch clientCtx.ChainID {
 			case appconsts.ArabicaChainID:
 				serverCtx.Logger.Info(fmt.Sprintf("Since the chainID is %v, configuring the default v2 upgrade height to %v", appconsts.ArabicaChainID, appconsts.ArabicaUpgradeHeightV2))
@@ -134,7 +134,6 @@ is performed. Note, when enabled, gRPC will also be automatically enabled.
 				serverCtx.Viper.SetDefault(UpgradeHeightFlag, appconsts.MainnetUpgradeHeightV2)
 			default:
 				serverCtx.Logger.Info(fmt.Sprintf("No default value exists for the v2 upgrade height when the chainID is %v", clientCtx.ChainID))
->>>>>>> 818026a (feat: set defaults for `--v2-upgrade-height` (#4091))
 			}
 
 			withTM, _ := cmd.Flags().GetBool(flagWithTendermint)
