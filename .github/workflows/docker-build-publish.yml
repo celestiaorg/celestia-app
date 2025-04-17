@@ -36,6 +36,7 @@ jobs:
       dockerfile: docker/multiplexer.Dockerfile
       checkout_ref: ${{ github.event.inputs.ref }}
       packageName: celestia-app-multiplexer
+      buildArgs: "TARGETOS=linux TARGETARCH=amd64"
     secrets: inherit
 
   docker-txsim-build:
