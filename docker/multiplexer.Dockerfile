@@ -14,10 +14,10 @@ ARG MAX_SQUARE_SIZE
 # Use build args to override the upgrade height delay of the docker image e.g.
 # docker build --build-arg UPGRADE_HEIGHT_DELAY=1000 -t celestia-app:latest .
 ARG UPGRADE_HEIGHT_DELAY
-# the tag used for the embedded v3 binary.
-ARG CELESTIA_VERSION=v3.4.2
 # the docker registry used for the embedded v3 binary.
 ARG CELESTIA_APP_REPOSITORY=ghcr.io/celestiaorg/celestia-app
+# TODO: this should be a tag including these changes https://github.com/celestiaorg/celestia-app/pull/4579
+ARG CELESTIA_VERSION="pr-4579"
 
 # Stage 1: this base image contains already released binaries which can be embedded in the multiplexer.
 FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION} AS base
@@ -27,6 +27,16 @@ FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION} AS base
 # See https://github.com/hadolint/hadolint/issues/339
 # hadolint ignore=DL3006
 FROM --platform=$BUILDPLATFORM ${BUILDER_IMAGE} AS builder
+
+# must be specified for this build step in order for propagation of values.
+ARG TARGETOS
+ARG TARGETARCH
+
+# The multiplexer must be built with both TARGETOS and TARGETARCH build argumets
+# as the location of the embedded binary is derived from these values.
+RUN test -n "$TARGETOS" || (echo "TARGETOS is required but not set" && exit 1)
+RUN test -n "$TARGETARCH" || (echo "TARGETARCH is required but not set" && exit 1)
+
 ENV CGO_ENABLED=0
 ENV GO111MODULE=on
 # hadolint ignore=DL3018
@@ -53,7 +63,7 @@ COPY . .
 COPY --from=base /bin/celestia-appd /tmp/celestia-appd
 
 # compress the binary to the path to be embedded correctly.
-RUN tar -cvzf internal/embedding/celestia-app_Linux_v3_arm64.tar.gz /tmp/celestia-appd \
+RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v3_${TARGETARCH}.tar.gz /tmp/celestia-appd \
     && rm /tmp/celestia-appd
 
 RUN uname -a &&\
