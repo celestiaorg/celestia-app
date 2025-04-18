@@ -32,6 +32,7 @@ const (
 	rpcPort               = 26657
 	p2pPort               = 26656
 	grpcPort              = 9090
+	grpcListenPort        = 9099
 	prometheusPort        = 26660
 	tracingPort           = 26661
 	celestiaOrgRegistry   = "ghcr.io/celestiaorg"
@@ -126,7 +127,7 @@ func NewNode(
 		return nil, err
 	}
 
-	for _, port := range []int{rpcPort, p2pPort, grpcPort, tracingPort} {
+	for _, port := range []int{rpcPort, p2pPort, grpcPort, grpcListenPort, tracingPort} {
 		if err := knInstance.Network().AddPortTCP(port); err != nil {
 			return nil, err
 		}
@@ -163,7 +164,7 @@ func NewNode(
 	if err != nil {
 		return nil, err
 	}
-	args := []string{"start", fmt.Sprintf("--home=%s", remoteRootDir), "--rpc.laddr=tcp://0.0.0.0:26657"}
+	args := []string{"start", fmt.Sprintf("--home=%s", remoteRootDir), "--rpc.laddr=tcp://0.0.0.0:26657", fmt.Sprintf("--rpc.grpc_laddr=tcp://0.0.0.0:%d", grpcListenPort)}
 	if disableBBR {
 		args = append(args, "--force-no-bbr")
 	}
