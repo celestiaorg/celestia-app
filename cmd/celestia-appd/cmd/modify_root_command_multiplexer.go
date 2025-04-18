@@ -19,7 +19,7 @@ import (
 // -ldflags="-X 'github.com/celestiaorg/celestia-app/v4/cmd/celestia-appd/cmd.v2UpgradeHeight=1751707'" for arabica
 // -ldflags="-X 'github.com/celestiaorg/celestia-app/v4/cmd/celestia-appd/cmd.v2UpgradeHeight=2585031'" for mocha
 // -ldflags="-X 'github.com/celestiaorg/celestia-app/v4/cmd/celestia-appd/cmd.v2UpgradeHeight=2371495'" for mainnet
-var v2UpgradeHeight = "0"
+var v2UpgradeHeight = ""
 
 // modifyRootCommand enhances the root command with the pass through and multiplexer.
 func modifyRootCommand(rootCommand *cobra.Command) {
@@ -34,7 +34,7 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 	}
 
 	var extraArgs []string
-	if v2UpgradeHeight > "0" {
+	if v2UpgradeHeight != "" {
 		extraArgs = append(extraArgs, "--v2-upgrade-height="+v2UpgradeHeight)
 	}
 
