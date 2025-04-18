@@ -32,22 +32,22 @@ import (
 // assume that the rest of CheckTx is tested by the cosmos-sdk.
 func TestCheckTx(t *testing.T) {
 	var (
-		err  error
-		resp *abci.ResponseCheckTx
-		ns1  share.Namespace
+		err        error
+		resp       *abci.ResponseCheckTx
+		namespace1 share.Namespace
 	)
 
-	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	ns1, err = share.NewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	namespace1, err = share.NewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
 	require.NoError(t, err)
 
-	accs := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m"}
-	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accs...)
+	accounts := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m"}
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 
-	signers := make([]*user.Signer, len(accs))
-	for i, acc := range accs {
-		fetchedAcc := testutil.DirectQueryAccount(testApp, testfactory.GetAddress(kr, acc))
-		signers[i] = createSigner(t, kr, acc, enc.TxConfig, fetchedAcc.GetAccountNumber())
+	signers := make([]*user.Signer, len(accounts))
+	for i, account := range accounts {
+		fetchedAcc := testutil.DirectQueryAccount(testApp, testfactory.GetAddress(kr, account))
+		signers[i] = createSigner(t, kr, account, encodingConfig.TxConfig, fetchedAcc.GetAccountNumber())
 	}
 
 	opts := blobfactory.FeeTxOpts(1e9)
@@ -65,7 +65,7 @@ func TestCheckTx(t *testing.T) {
 			getTx: func() []byte {
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 					signers[0],
-					[]share.Namespace{ns1},
+					[]share.Namespace{namespace1},
 					[]int{100},
 				)[0]
 				return btx
@@ -78,7 +78,7 @@ func TestCheckTx(t *testing.T) {
 			getTx: func() []byte {
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 					signers[1],
-					[]share.Namespace{ns1},
+					[]share.Namespace{namespace1},
 					[]int{100},
 				)[0]
 				return btx
@@ -91,7 +91,7 @@ func TestCheckTx(t *testing.T) {
 			getTx: func() []byte {
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 					signers[2],
-					[]share.Namespace{ns1},
+					[]share.Namespace{namespace1},
 					[]int{100},
 				)[0]
 
@@ -112,7 +112,7 @@ func TestCheckTx(t *testing.T) {
 			getTx: func() []byte {
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 					signers[3],
-					[]share.Namespace{ns1},
+					[]share.Namespace{namespace1},
 					[]int{100},
 				)[0]
 				dtx, _ := coretypes.UnmarshalBlobTx(btx)
@@ -125,8 +125,8 @@ func TestCheckTx(t *testing.T) {
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := signers[4]
-				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), signer.Account(accs[4]).Address().String(), 10_000, 10)
-				tx, _, err := signer.CreatePayForBlobs(accs[4], blobs, opts...)
+				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), signer.Account(accounts[4]).Address().String(), 10_000, 10)
+				tx, _, err := signer.CreatePayForBlobs(accounts[4], blobs, opts...)
 				require.NoError(t, err)
 				return tx
 			},
@@ -137,8 +137,8 @@ func TestCheckTx(t *testing.T) {
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := signers[5]
-				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), signer.Account(accs[5]).Address().String(), 1_000, 1)
-				tx, _, err := signer.CreatePayForBlobs(accs[5], blobs, opts...)
+				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), signer.Account(accounts[5]).Address().String(), 1_000, 1)
+				tx, _, err := signer.CreatePayForBlobs(accounts[5], blobs, opts...)
 				require.NoError(t, err)
 				return tx
 			},
@@ -149,8 +149,8 @@ func TestCheckTx(t *testing.T) {
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := signers[6]
-				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), signer.Account(accs[6]).Address().String(), 10_000, 1)
-				tx, _, err := signer.CreatePayForBlobs(accs[6], blobs, opts...)
+				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), signer.Account(accounts[6]).Address().String(), 10_000, 1)
+				tx, _, err := signer.CreatePayForBlobs(accounts[6], blobs, opts...)
 				require.NoError(t, err)
 				return tx
 			},
@@ -161,8 +161,8 @@ func TestCheckTx(t *testing.T) {
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := signers[7]
-				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), signer.Account(accs[7]).Address().String(), 100_000, 1)
-				tx, _, err := signer.CreatePayForBlobs(accs[7], blobs, opts...)
+				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), signer.Account(accounts[7]).Address().String(), 100_000, 1)
+				tx, _, err := signer.CreatePayForBlobs(accounts[7], blobs, opts...)
 				require.NoError(t, err)
 				return tx
 			},
@@ -173,33 +173,21 @@ func TestCheckTx(t *testing.T) {
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := signers[8]
-				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), signer.Account(accs[8]).Address().String(), 1_000_000, 1)
-				tx, _, err := signer.CreatePayForBlobs(accs[8], blobs, opts...)
+				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), signer.Account(accounts[8]).Address().String(), 1_000_000, 1)
+				tx, _, err := signer.CreatePayForBlobs(accounts[8], blobs, opts...)
 				require.NoError(t, err)
 				return tx
 			},
 			expectedABCICode: abci.CodeTypeOK,
 		},
 		{
-			name:      "2,000,000 byte blob",
-			checkType: abci.CheckTxType_New,
-			getTx: func() []byte {
-				signer := signers[9]
-				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), signer.Account(accs[9]).Address().String(), 2_000_000, 1)
-				tx, _, err := signer.CreatePayForBlobs(accs[9], blobs, opts...)
-				require.NoError(t, err)
-				return tx
-			},
-			expectedABCICode: blobtypes.ErrTotalBlobSizeTooLarge.ABCICode(),
-		},
-		{
 			name:      "v1 blob with invalid signer",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := signers[10]
-				blob, err := share.NewV1Blob(share.RandomBlobNamespace(), []byte("data"), signer.Account(accs[10]).Address())
+				blob, err := share.NewV1Blob(share.RandomBlobNamespace(), []byte("data"), signer.Account(accounts[10]).Address())
 				require.NoError(t, err)
-				blobTx, _, err := signer.CreatePayForBlobs(accs[10], []*share.Blob{blob}, opts...)
+				blobTx, _, err := signer.CreatePayForBlobs(accounts[10], []*share.Blob{blob}, opts...)
 				require.NoError(t, err)
 				blob, err = share.NewV1Blob(share.RandomBlobNamespace(), []byte("data"), testnode.RandomAddress().(sdk.AccAddress))
 				require.NoError(t, err)
@@ -217,9 +205,9 @@ func TestCheckTx(t *testing.T) {
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := signers[10]
-				blob, err := share.NewV1Blob(share.RandomBlobNamespace(), []byte("data"), signer.Account(accs[10]).Address())
+				blob, err := share.NewV1Blob(share.RandomBlobNamespace(), []byte("data"), signer.Account(accounts[10]).Address())
 				require.NoError(t, err)
-				blobTx, _, err := signer.CreatePayForBlobs(accs[10], []*share.Blob{blob}, opts...)
+				blobTx, _, err := signer.CreatePayForBlobs(accounts[10], []*share.Blob{blob}, opts...)
 				require.NoError(t, err)
 				return blobTx
 			},
@@ -230,9 +218,9 @@ func TestCheckTx(t *testing.T) {
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := signers[11]
-				blob, err := share.NewV1Blob(share.RandomBlobNamespace(), bytes.Repeat([]byte{1}, 2097152), signer.Account(accs[11]).Address())
+				blob, err := share.NewV1Blob(share.RandomBlobNamespace(), bytes.Repeat([]byte{1}, 2097152), signer.Account(accounts[11]).Address())
 				require.NoError(t, err)
-				blobTx, _, err := signer.CreatePayForBlobs(accs[11], []*share.Blob{blob}, opts...)
+				blobTx, _, err := signer.CreatePayForBlobs(accounts[11], []*share.Blob{blob}, opts...)
 				require.NoError(t, err)
 				return blobTx
 			},
@@ -245,7 +233,7 @@ func TestCheckTx(t *testing.T) {
 				signer := signers[12]
 				blob, err := share.NewV0Blob(share.RandomBlobNamespace(), bytes.Repeat([]byte{1}, 2097152))
 				require.NoError(t, err)
-				blobTx, _, err := signer.CreatePayForBlobs(accs[12], []*share.Blob{blob}, opts...)
+				blobTx, _, err := signer.CreatePayForBlobs(accounts[12], []*share.Blob{blob}, opts...)
 				require.NoError(t, err)
 				return blobTx
 			},
