@@ -18,7 +18,7 @@ import (
 // Test_newGovModule verifies that the gov module's genesis state has defaults
 // overridden.
 func Test_newGovModule(t *testing.T) {
-	enc := encoding.MakeTestConfig(ModuleEncodingRegisters...)
+	enc := encoding.MakeConfig(ModuleEncodingRegisters...)
 	day := time.Hour * 24
 	oneWeek := day * 7
 
@@ -85,7 +85,7 @@ func TestDefaultConsensusConfig(t *testing.T) {
 }
 
 func Test_icaDefaultGenesis(t *testing.T) {
-	enc := encoding.MakeTestConfig(ModuleEncodingRegisters...)
+	enc := encoding.MakeConfig(ModuleEncodingRegisters...)
 	ica := icaModule{}
 	raw := ica.DefaultGenesis(enc.Codec)
 	got := icagenesistypes.GenesisState{}

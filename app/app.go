@@ -137,6 +137,8 @@ var maccPerms = map[string][]string{
 	stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
 	ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
 	icatypes.ModuleName:            nil,
+	hyperlanetypes.ModuleName:      nil,
+	warptypes.ModuleName:           {authtypes.Minter, authtypes.Burner},
 }
 
 const (
@@ -210,7 +212,7 @@ func New(
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
-	encodingConfig := encoding.MakeConfig()
+	encodingConfig := encoding.MakeConfig(ModuleEncodingRegisters...)
 
 	baseApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
 	baseApp.SetCommitMultiStoreTracer(traceStore)
@@ -434,16 +436,16 @@ func New(
 	)
 
 	// BasicModuleManager defines the module BasicManager is in charge of setting up basic,
-	// non-dependant module elements, such as codec registration and genesis verification.
+	// non-dependant module elements, such as genesis verification.
 	// By default it is composed of all the module from the module manager.
 	// Additionally, app module basics can be overwritten by passing them as argument.
+	// NOTE: Codec registration is performed by celestia-app's encoding.MakeConfig() function at the top of file.
 	app.BasicManager = module.NewBasicManagerFromManager(
 		app.ModuleManager,
 		map[string]module.AppModuleBasic{
 			genutiltypes.ModuleName: genutil.NewAppModuleBasic(genutiltypes.DefaultMessageValidator),
-		})
-	app.BasicManager.RegisterInterfaces(encodingConfig.InterfaceRegistry)
-	app.BasicManager.RegisterLegacyAminoCodec(encodingConfig.Amino)
+		},
+	)
 
 	// order begin block, end block and init genesis
 	app.setModuleOrder()

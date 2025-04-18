@@ -37,7 +37,7 @@ func setup() (*app.App, sdk.Context, client.Context, error) {
 	}
 	ctx = ctx.WithBlockHeight(1)
 
-	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	// We're using TestMsg encoding in the test, so register it here.
 	testdata.RegisterInterfaces(enc.InterfaceRegistry)
 

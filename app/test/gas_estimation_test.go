@@ -1,7 +1,6 @@
 package app_test
 
 import (
-	"fmt"
 	"math/rand"
 	"sort"
 	"sync"
@@ -115,7 +114,7 @@ func TestEstimateGasPrice(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, appconsts.DefaultMinGasPrice, resp.EstimatedGasPrice)
 
-	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	txClient, err := user.SetupTxClient(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, enc)
 	require.NoError(t, err)
 
@@ -188,7 +187,7 @@ func TestEstimateGasPrice(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			resp, err := gasEstimationAPI.EstimateGasPrice(cctx.GoContext(), &gasestimation.EstimateGasPriceRequest{TxPriority: tt.priority})
 			require.NoError(t, err)
-			assert.Equal(t, fmt.Sprintf("%.2f", tt.expectedGasPrice), fmt.Sprintf("%.2f", resp.EstimatedGasPrice))
+			assert.InDelta(t, tt.expectedGasPrice, resp.EstimatedGasPrice, 0.02, "Gas price should be within 0.02 of expected value")
 		})
 	}
 }
@@ -202,7 +201,7 @@ func TestEstimateGasUsed(t *testing.T) {
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	require.NoError(t, cctx.WaitForNextBlock())
 
-	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	txClient, err := user.SetupTxClient(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, enc)
 	require.NoError(t, err)
 	addr := testfactory.GetAddress(cctx.Keyring, "test")

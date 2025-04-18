@@ -104,11 +104,6 @@ func (v *Validator) GenTx(ecfg encoding.Config, kr keyring.Keyring, chainID stri
 		return nil, err
 	}
 
-	commission, err := math.LegacyNewDecFromStr("0.5")
-	if err != nil {
-		return nil, err
-	}
-
 	pk, err := cryptocodec.FromCmtPubKeyInterface(v.ConsensusKey.PubKey())
 	if err != nil {
 		return nil, fmt.Errorf("converting public key for node %s: %w", v.Name, err)
@@ -119,7 +114,7 @@ func (v *Validator) GenTx(ecfg encoding.Config, kr keyring.Keyring, chainID stri
 		pk,
 		sdk.NewCoin(params.BondDenom, math.NewInt(v.Stake)),
 		stakingtypes.NewDescription(v.Name, "", "", "", ""),
-		stakingtypes.NewCommissionRates(commission, math.LegacyOneDec(), math.LegacyOneDec()),
+		stakingtypes.NewCommissionRates(math.LegacyNewDecWithPrec(5, 2), math.LegacyNewDecWithPrec(5, 2), math.LegacyNewDec(0)),
 		math.NewInt(v.Stake/2),
 	)
 	createValMsg.DelegatorAddress = addr.String() //nolint:staticcheck // required for sdk 50

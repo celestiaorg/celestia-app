@@ -39,7 +39,7 @@ func TestBlobShareDecorator(t *testing.T) {
 	}
 
 	rand := random.New()
-	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	testCases := []testCase{
 		{

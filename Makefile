@@ -2,8 +2,8 @@ VERSION := $(shell echo $(shell git describe --tags 2>/dev/null || git log -1 --
 COMMIT := $(shell git rev-parse --short HEAD)
 DOCKER := $(shell which docker)
 PROJECTNAME=$(shell basename "$(PWD)")
-GOOS ?= linux
-GOARCH ?= amd64
+DOCKER_GOOS ?= linux
+DOCKER_GOARCH ?= amd64
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v4
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
@@ -21,7 +21,7 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
 
-CELESTIA_V3_VERSION := v3.7.0
+CELESTIA_V3_VERSION := v3.9.0-rc0
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -134,8 +134,8 @@ docker-build: build-docker
 build-docker-multiplexer:
 	@echo "--> Building Multiplexer Docker image"
 	$(DOCKER) build \
-		--build-arg TARGETOS=$(GOOS) \
-		--build-arg TARGETARCH=$(GOARCH) \
+		--build-arg TARGETOS=$(DOCKER_GOOS) \
+		--build-arg TARGETARCH=$(DOCKER_GOARCH) \
 		-t celestiaorg/celestia-app-multiplexer:$(COMMIT) \
 		-f docker/multiplexer.Dockerfile .
 .PHONY: build-docker-multiplexer
@@ -225,7 +225,7 @@ test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService"
+	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService|TestTxsOverMaxTxSizeGetRejected"
 .PHONY: test-race
 
 ## test-bench: Run benchmark unit tests.
@@ -330,12 +330,13 @@ enable-bbr:
 	@echo "Configuring system to use BBR..."
 	@if [ "$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')" != "bbr" ]; then \
 	    echo "BBR is not enabled. Configuring BBR..."; \
-	    sudo modprobe tcp_bbr; \
-            echo tcp_bbr | sudo tee -a /etc/modules; \
-	    echo "net.core.default_qdisc=fq" | sudo tee -a /etc/sysctl.conf; \
-	    echo "net.ipv4.tcp_congestion_control=bbr" | sudo tee -a /etc/sysctl.conf; \
-	    sudo sysctl -p; \
-	    echo "BBR has been enabled."; \
+	    sudo modprobe tcp_bbr && \
+            echo tcp_bbr | sudo tee -a /etc/modules && \
+	    echo "net.core.default_qdisc=fq" | sudo tee -a /etc/sysctl.conf && \
+	    echo "net.ipv4.tcp_congestion_control=bbr" | sudo tee -a /etc/sysctl.conf && \
+	    sudo sysctl -p && \
+	    echo "BBR has been enabled." || \
+	    echo "Failed to enable BBR. Please check error messages above."; \
 	else \
 	    echo "BBR is already enabled."; \
 	fi
@@ -350,12 +351,13 @@ disable-bbr:
 	@echo "Disabling BBR and reverting to default congestion control algorithm..."
 	@if [ "$$(sysctl net.ipv4.tcp_congestion_control | awk '{print $$3}')" = "bbr" ]; then \
 	    echo "BBR is currently enabled. Reverting to Cubic..."; \
-	    sudo sed -i '/^net.core.default_qdisc=fq/d' /etc/sysctl.conf; \
-	    sudo sed -i '/^net.ipv4.tcp_congestion_control=bbr/d' /etc/sysctl.conf; \
-	    sudo modprobe -r tcp_bbr; \
-	    echo "net.ipv4.tcp_congestion_control=cubic" | sudo tee -a /etc/sysctl.conf; \
-	    sudo sysctl -p; \
-	    echo "BBR has been disabled, and Cubic is now the default congestion control algorithm."; \
+	    sudo sed -i '/^net.core.default_qdisc=fq/d' /etc/sysctl.conf && \
+	    sudo sed -i '/^net.ipv4.tcp_congestion_control=bbr/d' /etc/sysctl.conf && \
+	    sudo modprobe -r tcp_bbr && \
+	    echo "net.ipv4.tcp_congestion_control=cubic" | sudo tee -a /etc/sysctl.conf && \
+	    sudo sysctl -p && \
+	    echo "BBR has been disabled, and Cubic is now the default congestion control algorithm." || \
+	    echo "Failed to disable BBR. Please check error messages above."; \
 	else \
 	    echo "BBR is not enabled. No changes made."; \
 	fi

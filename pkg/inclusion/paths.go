@@ -1,6 +1,7 @@
 package inclusion
 
 import (
+	"errors"
 	"math"
 
 	"github.com/celestiaorg/go-square/v2/inclusion"
@@ -13,7 +14,10 @@ type path struct {
 
 // calculateCommitmentPaths calculates all of the paths to subtree roots needed to
 // create the commitment for a given blob.
-func calculateCommitmentPaths(squareSize, start, blobShareLen, subtreeRootThreshold int) []path {
+func calculateCommitmentPaths(squareSize, start, blobShareLen, subtreeRootThreshold int) ([]path, error) {
+	if squareSize <= 0 {
+		return nil, errors.New("squareSize must be greater than 0")
+	}
 	start = inclusion.NextShareIndex(start, blobShareLen, subtreeRootThreshold)
 	startRow, endRow := start/squareSize, (start+blobShareLen-1)/squareSize
 	normalizedStartIndex := start % squareSize
@@ -43,7 +47,7 @@ func calculateCommitmentPaths(squareSize, start, blobShareLen, subtreeRootThresh
 		}
 	}
 
-	return paths
+	return paths, nil
 }
 
 // genSubTreeRootPath calculates the path to a given subtree root of a node, given the
