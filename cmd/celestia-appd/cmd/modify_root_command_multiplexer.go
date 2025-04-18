@@ -33,18 +33,22 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 		panic(err)
 	}
 
+	var extraArgs []string
+	if v2UpgradeHeight > "0" {
+		extraArgs = append(extraArgs, "--v2-upgrade-height="+v2UpgradeHeight)
+	}
+
 	versions, err := abci.NewVersions(abci.Version{
 		Appd:        v3,
 		ABCIVersion: abci.ABCIClientVersion1,
 		AppVersion:  3,
-		StartArgs: []string{
+		StartArgs: append([]string{
 			"--grpc.enable=true",
 			"--api.enable=true",
 			"--api.swagger=false",
 			"--with-tendermint=false",
 			"--transport=grpc",
-			"--v2-upgrade-height=" + v2UpgradeHeight,
-		},
+		}, extraArgs...),
 	})
 	if err != nil {
 		panic(err)
