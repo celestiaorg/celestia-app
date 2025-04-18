@@ -3,6 +3,7 @@ package testnet
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"os/exec"
 	"sort"
 	"strings"
@@ -80,6 +81,10 @@ func ParseVersion(version string) (Version, bool) {
 // GetLatestVersion retrieves the latest git commit hash
 // or semantic version of the main branch.
 func GetLatestVersion() (string, error) {
+	if version := getTagFromEnv(); version != "" {
+		return version, nil
+	}
+
 	cmd := exec.Command("git", "rev-parse", "--short", "main")
 	output, err := cmd.Output()
 	if err != nil {
@@ -101,6 +106,13 @@ func GetLatestVersion() (string, error) {
 	default:
 		return "", fmt.Errorf("unrecognised version %s", latestVersion)
 	}
+}
+
+// getVersionFromEnv retrieves the value of the "IMAGE_TAG" environment variable.
+// this enables the ability to run the test specifying any tag.
+func getTagFromEnv() string {
+	version := os.Getenv("IMAGE_TAG")
+	return strings.TrimSpace(version)
 }
 
 func (v VersionSet) FilterMajor(majorVersion uint64) VersionSet {

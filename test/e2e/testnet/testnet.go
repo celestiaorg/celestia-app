@@ -46,6 +46,7 @@ type Options struct {
 	Grafana          *GrafanaInfo
 	ChainID          string
 	GenesisModifiers []genesis.Modifier
+	AppVersion       uint64
 }
 
 func New(logger *log.Logger, knuu *knuu.Knuu, opts Options) (*Testnet, error) {
@@ -53,7 +54,7 @@ func New(logger *log.Logger, knuu *knuu.Knuu, opts Options) (*Testnet, error) {
 	return &Testnet{
 		seed:        opts.Seed,
 		nodes:       make([]*Node, 0),
-		genesis:     genesis.NewDefaultGenesis().WithChainID(opts.ChainID).WithModifiers(opts.GenesisModifiers...),
+		genesis:     genesis.NewDefaultGenesis().WithChainID(opts.ChainID).WithModifiers(opts.GenesisModifiers...).WithAppVersion(opts.AppVersion),
 		keygen:      newKeyGenerator(opts.Seed),
 		grafana:     opts.Grafana,
 		knuu:        knuu,
@@ -80,10 +81,10 @@ func (t *Testnet) SetConsensusMaxBlockSize(size int64) {
 	t.genesis.ConsensusParams.Block.MaxBytes = size
 }
 
-func (t *Testnet) CreateGenesisNode(ctx context.Context, version string, selfDelegation, upgradeHeightV2 int64, resources Resources, disableBBR bool) error {
+func (t *Testnet) CreateGenesisNode(ctx context.Context, image string, selfDelegation, upgradeHeightV2 int64, resources Resources, disableBBR bool) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
-	node, err := NewNode(ctx, t.logger, fmt.Sprintf("val%d", len(t.nodes)), version, 0, selfDelegation, nil, signerKey, networkKey, upgradeHeightV2, resources, t.grafana, t.knuu, disableBBR)
+	node, err := NewNode(ctx, t.logger, fmt.Sprintf("val%d", len(t.nodes)), image, 0, selfDelegation, nil, signerKey, networkKey, upgradeHeightV2, resources, t.grafana, t.knuu, disableBBR)
 	if err != nil {
 		return err
 	}
@@ -94,9 +95,9 @@ func (t *Testnet) CreateGenesisNode(ctx context.Context, version string, selfDel
 	return nil
 }
 
-func (t *Testnet) CreateGenesisNodes(ctx context.Context, num int, version string, selfDelegation, upgradeHeightV2 int64, resources Resources, disableBBR bool) error {
+func (t *Testnet) CreateGenesisNodes(ctx context.Context, num int, image string, selfDelegation, upgradeHeightV2 int64, resources Resources, disableBBR bool) error {
 	for i := 0; i < num; i++ {
-		if err := t.CreateGenesisNode(ctx, version, selfDelegation, upgradeHeightV2, resources, disableBBR); err != nil {
+		if err := t.CreateGenesisNode(ctx, image, selfDelegation, upgradeHeightV2, resources, disableBBR); err != nil {
 			return err
 		}
 	}
@@ -272,10 +273,10 @@ func (t *Testnet) CreateAccount(name string, tokens int64, txsimKeyringDir strin
 	return kr, nil
 }
 
-func (t *Testnet) CreateNode(ctx context.Context, version string, startHeight, upgradeHeight int64, resources Resources, disableBBR bool) error {
+func (t *Testnet) CreateNode(ctx context.Context, image string, startHeight, upgradeHeight int64, resources Resources, disableBBR bool) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
-	node, err := NewNode(ctx, t.logger, fmt.Sprintf("val%d", len(t.nodes)), version, startHeight, 0, nil, signerKey, networkKey, upgradeHeight, resources, t.grafana, t.knuu, disableBBR)
+	node, err := NewNode(ctx, t.logger, fmt.Sprintf("val%d", len(t.nodes)), image, startHeight, 0, nil, signerKey, networkKey, upgradeHeight, resources, t.grafana, t.knuu, disableBBR)
 	if err != nil {
 		return err
 	}
@@ -284,7 +285,7 @@ func (t *Testnet) CreateNode(ctx context.Context, version string, startHeight, u
 }
 
 func (t *Testnet) Setup(ctx context.Context, configOpts ...Option) error {
-	genesis, err := t.genesis.Export()
+	genesisBz, err := t.genesis.ExportBytes()
 	if err != nil {
 		return err
 	}
@@ -299,7 +300,7 @@ func (t *Testnet) Setup(ctx context.Context, configOpts ...Option) error {
 			}
 		}
 
-		err := node.Init(ctx, genesis, peers, configOpts...)
+		err := node.Init(ctx, genesisBz, peers, configOpts...)
 		if err != nil {
 			return err
 		}
@@ -430,10 +431,10 @@ func (t *Testnet) StartNodes(ctx context.Context) error {
 	for _, node := range genesisNodes {
 		err := node.WaitUntilStartedAndCreateProxy(ctx)
 		if err != nil {
-			t.logger.Println("failed to start and create proxy", "name", node.Name, "version", node.Version, "error", err)
+			t.logger.Println("failed to start and create proxy", "name", node.Name, "image", node.Image, "error", err)
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
 		}
-		t.logger.Println("started and created proxy", "name", node.Name, "version", node.Version)
+		t.logger.Println("started and created proxy", "name", node.Name, "image", node.Image)
 	}
 	return nil
 }

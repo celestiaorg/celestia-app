@@ -4,9 +4,11 @@ package testnet
 import (
 	"context"
 	"fmt"
+	cmtos "github.com/cometbft/cometbft/libs/os"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/crypto"
@@ -15,7 +17,6 @@ import (
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/privval"
 	"github.com/cometbft/cometbft/rpc/client/http"
-	"github.com/cometbft/cometbft/types"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -28,21 +29,24 @@ import (
 )
 
 const (
-	rpcPort        = 26657
-	p2pPort        = 26656
-	grpcPort       = 9090
-	prometheusPort = 26660
-	tracingPort    = 26661
-	dockerSrcURL   = "ghcr.io/01builders/celestia-app" // TODO: revert to celestiaorg
-	secp256k1Type  = "secp256k1"
-	ed25519Type    = "ed25519"
-	remoteRootDir  = "/home/celestia/.celestia-app"
-	txsimRootDir   = "/home/celestia"
+	rpcPort               = 26657
+	p2pPort               = 26656
+	grpcPort              = 9090
+	grpcListenPort        = 9099
+	prometheusPort        = 26660
+	tracingPort           = 26661
+	celestiaOrgRegistry   = "ghcr.io/celestiaorg"
+	celestiaAppDockerName = "celestia-app"
+	multiplexerDockerName = "celestia-app-multiplexer"
+	secp256k1Type         = "secp256k1"
+	ed25519Type           = "ed25519"
+	remoteRootDir         = "/home/celestia/.celestia-app"
+	txsimRootDir          = "/home/celestia"
 )
 
 type Node struct {
 	Name           string
-	Version        string
+	Image          string
 	StartHeight    int64
 	InitialPeers   []string
 	SignerKey      crypto.PrivKey
@@ -102,7 +106,7 @@ func NewNode(
 	ctx context.Context,
 	logger *log.Logger,
 	name string,
-	version string,
+	image string,
 	startHeight int64,
 	selfDelegation int64,
 	peers []string,
@@ -118,12 +122,12 @@ func NewNode(
 	if err != nil {
 		return nil, err
 	}
-	err = knInstance.Build().SetImage(ctx, DockerImageName(version))
+	err = knInstance.Build().SetImage(ctx, image)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, port := range []int{rpcPort, p2pPort, grpcPort, tracingPort} {
+	for _, port := range []int{rpcPort, p2pPort, grpcPort, grpcListenPort, tracingPort} {
 		if err := knInstance.Network().AddPortTCP(port); err != nil {
 			return nil, err
 		}
@@ -160,7 +164,7 @@ func NewNode(
 	if err != nil {
 		return nil, err
 	}
-	args := []string{"start", fmt.Sprintf("--home=%s", remoteRootDir), "--rpc.laddr=tcp://0.0.0.0:26657"}
+	args := []string{"start", fmt.Sprintf("--home=%s", remoteRootDir), "--rpc.laddr=tcp://0.0.0.0:26657", fmt.Sprintf("--rpc.grpc_laddr=tcp://0.0.0.0:%d", grpcListenPort)}
 	if disableBBR {
 		args = append(args, "--force-no-bbr")
 	}
@@ -175,7 +179,7 @@ func NewNode(
 	return &Node{
 		Name:           name,
 		Instance:       knInstance,
-		Version:        version,
+		Image:          image,
 		StartHeight:    startHeight,
 		InitialPeers:   peers,
 		SignerKey:      signerKey,
@@ -198,7 +202,7 @@ func (n *Node) SetLatencyAndJitter(latency, jitter int64) error {
 	return n.netShaper.SetLatencyAndJitter(latency, jitter)
 }
 
-func (n *Node) Init(ctx context.Context, genesis *types.GenesisDoc, peers []string, configOptions ...Option) error {
+func (n *Node) Init(ctx context.Context, genesisBz []byte, peers []string, configOptions ...Option) error {
 	if len(peers) == 0 {
 		return fmt.Errorf("no peers provided")
 	}
@@ -230,7 +234,7 @@ func (n *Node) Init(ctx context.Context, genesis *types.GenesisDoc, peers []stri
 
 	// Store the genesis file
 	genesisFilePath := filepath.Join(nodeDir, "config", "genesis.json")
-	err = genesis.SaveAs(genesisFilePath)
+	err = cmtos.WriteFile(genesisFilePath, genesisBz, 0o644)
 	if err != nil {
 		return fmt.Errorf("saving genesis: %w", err)
 	}
@@ -402,6 +406,27 @@ func (n *Node) Upgrade(ctx context.Context, version string) error {
 	return n.Instance.Execution().Start(ctx)
 }
 
+func GetDockerRegistry() string {
+	if reg := strings.TrimSpace(os.Getenv("DOCKER_REGISTRY")); reg != "" {
+		return reg
+	}
+	return celestiaOrgRegistry
+}
+
+func GetCelestiaAppDockerImage() string {
+	return fmt.Sprintf("%s/%s", GetDockerRegistry(), celestiaAppDockerName)
+}
+
+func GetMultiplexerDockerImage() string {
+	return fmt.Sprintf("%s/%s", GetDockerRegistry(), multiplexerDockerName)
+}
+
+// DockerImageName constructs a full Docker image using the default celestia-app image and the specified version.
 func DockerImageName(version string) string {
-	return fmt.Sprintf("%s:%s", dockerSrcURL, version)
+	return fmt.Sprintf("%s:%s", GetCelestiaAppDockerImage(), version)
+}
+
+// DockerMultiplexerImageName constructs a full Docker image using the default celestia-app-multiplexer image and the specified version.
+func DockerMultiplexerImageName(version string) string {
+	return fmt.Sprintf("%s:%s", GetMultiplexerDockerImage(), version)
 }

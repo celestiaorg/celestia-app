@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
+	cmtjson "github.com/cometbft/cometbft/libs/json"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
@@ -90,6 +91,24 @@ func Document(
 	}
 
 	return genesisDoc, nil
+}
+
+// DocumentBytes generates and serializes a genesis document into JSON bytes using default genesis and provided parameters.
+func DocumentBytes(
+	defaultGenesis map[string]json.RawMessage,
+	ecfg encoding.Config,
+	params *tmproto.ConsensusParams,
+	chainID string,
+	gentxs []json.RawMessage,
+	accounts []Account,
+	genesisTime time.Time,
+	mods ...Modifier,
+) ([]byte, error) {
+	genesisDoc, err := Document(defaultGenesis, ecfg, params, chainID, gentxs, accounts, genesisTime, mods...)
+	if err != nil {
+		return nil, err
+	}
+	return cmtjson.Marshal(genesisDoc)
 }
 
 // accountsToSDKTypes converts the genesis accounts to native SDK types.
