@@ -11,12 +11,15 @@ PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v4
 GOLANG_CROSS_VERSION  ?= v1.23.6
 # Set this to override the max square size of the binary
 OVERRIDE_MAX_SQUARE_SIZE ?=
+# Set this to override v2 upgrade height for the v3 embedded binaries
+V2_UPGRADE_HEIGHT ?= 0
 
 # process linker flags
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 		  -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd \
 		  -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
-		  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT)
+		  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
+		  -X github.com/celestiaorg/celestia-app/v4/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT)
 
 BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
