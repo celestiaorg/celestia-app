@@ -35,7 +35,7 @@ import (
 )
 
 // UpgradeName defines the on-chain upgrade name from v3 to v4.
-// IMPORTANT: UpgradeName must be formated as `v`+ app version.
+// IMPORTANT: UpgradeName must be formatted as `v`+ app version.
 const UpgradeName = "v4"
 
 func (app App) RegisterUpgradeHandlers() {
