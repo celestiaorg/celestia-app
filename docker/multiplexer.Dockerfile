@@ -33,7 +33,7 @@ FROM --platform=$BUILDPLATFORM ${BUILDER_IMAGE} AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
-# The multiplexer must be built with both TARGETOS and TARGETARCH build argumets
+# The multiplexer must be built with both TARGETOS and TARGETARCH build arguments
 # as the location of the embedded binary is derived from these values.
 RUN test -n "$TARGETOS" || (echo "TARGETOS is required but not set" && exit 1)
 RUN test -n "$TARGETARCH" || (echo "TARGETARCH is required but not set" && exit 1)
