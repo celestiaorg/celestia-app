@@ -40,7 +40,7 @@ func bankParamFilter(msg sdk.Msg) error {
 	return nil
 }
 
-// consensusParamstakingParamFilterFilter checks if the parameters in the MsgUpdateParams ensures that only valid changes are allowed.
+// stakingParamFilter checks if the parameters in the MsgUpdateParams ensures that only valid changes are allowed.
 func stakingParamFilter(msg sdk.Msg) error {
 	msgUpdateParams, ok := msg.(*stakingtypes.MsgUpdateParams)
 	if !ok {
