@@ -24,10 +24,10 @@ in a block via a blob inclusion proof. A blob inclusion proof uses the
 block's data square to prove to the user that the shares that compose their
 original data do in fact exist in a particular block.
 
-See [`CreateCommitment` implementation](https://github.com/celestiaorg/celestia-app/blob/main/x/blob/types/payforblob.go#L169-L236)
+See [CreateCommitment implementation](./types/payforblob.go#L169-L236)
 for the implementation that generates the share commitment used in inclusion proofs.
 
-For details on fraud proofs, refer to the [fraud_proofs.md](https://github.com/celestiaorg/celestia-app/blob/main/specs/src/fraud_proofs.md)
+For details on fraud proofs, refer to the [fraud_proofs.md](../../specs/src/fraud_proofs.md)
 specification.
 
 ## State
