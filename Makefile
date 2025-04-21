@@ -2,6 +2,8 @@ VERSION := $(shell echo $(shell git describe --tags 2>/dev/null || git log -1 --
 COMMIT := $(shell git rev-parse --short HEAD)
 DOCKER := $(shell which docker)
 PROJECTNAME=$(shell basename "$(PWD)")
+DOCKER_GOOS ?= linux
+DOCKER_GOARCH ?= amd64
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v4
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
@@ -9,12 +11,15 @@ PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v4
 GOLANG_CROSS_VERSION  ?= v1.23.6
 # Set this to override the max square size of the binary
 OVERRIDE_MAX_SQUARE_SIZE ?=
+# Set this to override v2 upgrade height for the v3 embedded binaries
+V2_UPGRADE_HEIGHT ?= 0
 
 # process linker flags
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 		  -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd \
 		  -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
-		  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT)
+		  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
+		  -X github.com/celestiaorg/celestia-app/v4/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT)
 
 BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
@@ -131,7 +136,11 @@ docker-build: build-docker
 
 build-docker-multiplexer:
 	@echo "--> Building Multiplexer Docker image"
-	$(DOCKER) build -t celestiaorg/celestia-app-multiplexer:$(COMMIT) -f docker/multiplexer.Dockerfile .
+	$(DOCKER) build \
+		--build-arg TARGETOS=$(DOCKER_GOOS) \
+		--build-arg TARGETARCH=$(DOCKER_GOARCH) \
+		-t celestiaorg/celestia-app-multiplexer:$(COMMIT) \
+		-f docker/multiplexer.Dockerfile .
 .PHONY: build-docker-multiplexer
 
 ## build-ghcr-docker: Build the celestia-appd Docker image tagged with the current commit hash for GitHub Container Registry.
