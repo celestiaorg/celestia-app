@@ -8,9 +8,12 @@ import (
 	"testing"
 	"time"
 
+	sdkmath "cosmossdk.io/math"
 	"cosmossdk.io/math/unsafe"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/x/authz"
@@ -28,6 +31,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	grpctest "github.com/celestiaorg/celestia-app/v4/test/util/grpctest"
 	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
@@ -446,4 +450,344 @@ func setupEstimatorService(t *testing.T) *mockEstimatorServer {
 
 	t.Cleanup(mes.stop)
 	return mes
+}
+
+const (
+	BroadcastTestChainID = "test-broadcast-chain" // Use a specific chain ID for these tests
+	bufferSize           = 1024 * 1024
+)
+
+// BroadcastTestSuite focuses on testing the multi-connection broadcast logic.
+type BroadcastTestSuite struct {
+	suite.Suite
+	kr      keyring.Keyring
+	encCfg  encoding.Config
+	signer  *user.Signer
+	account string
+	accAddr sdk.AccAddress
+}
+
+func (s *BroadcastTestSuite) SetupSuite() {
+	// Use default encoding config for this specific suite
+	s.encCfg = encoding.MakeConfig()
+	s.kr = keyring.NewInMemory(s.encCfg.Codec)
+	s.account = "test_broadcast_account"
+	info, _, err := s.kr.NewMnemonic(s.account, keyring.English, "", "", hd.Secp256k1)
+	s.Require().NoError(err)
+	pubKey, err := info.GetPubKey()
+	s.Require().NoError(err)
+	s.accAddr = sdk.AccAddress(pubKey.Address())
+
+	// Create a basic signer instance for tests
+	s.signer, err = user.NewSigner(s.kr, s.encCfg.TxConfig, BroadcastTestChainID, user.NewAccount(s.account, 0, 0))
+	s.Require().NoError(err)
+}
+
+func TestBroadcastTestSuite(t *testing.T) {
+	// Run this suite independently
+	suite.Run(t, new(BroadcastTestSuite))
+}
+
+// Helper to create a TxClient specifically for broadcast tests, using mock connections.
+func (s *BroadcastTestSuite) setupTestClient(t *testing.T, conns []*grpc.ClientConn) *user.TxClient {
+	t.Helper()
+	require.NotEmpty(t, conns, "Need at least one connection for TxClient")
+
+	primaryConn := conns[0]
+	otherConns := conns[1:]
+
+	// Create TxClient with the primary connection and add others via options
+	txClient, err := user.NewTxClient(
+		s.encCfg.Codec,
+		s.signer,
+		primaryConn,
+		s.encCfg.InterfaceRegistry,
+		user.WithAdditionalCoreEndpoints(otherConns),
+		user.WithDefaultAccount(s.account),
+	)
+	require.NoError(t, err)
+	return txClient
+}
+
+// TestBroadcastTx_PrimarySuccess tests when the first connection succeeds quickly.
+func (s *BroadcastTestSuite) TestBroadcastTx_PrimarySuccess() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Mock Servers
+	mockSvc1 := &grpctest.MockTxService{
+		BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+			// Success immediately
+			return &sdktx.BroadcastTxResponse{
+				TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "HASH1"},
+			}, nil
+		},
+	}
+	mockSvc2 := &grpctest.MockTxService{
+		BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+			// Delay, should be cancelled
+			select {
+			case <-time.After(500 * time.Millisecond):
+				return nil, errors.New("mock2 should have been cancelled")
+			case <-ctx.Done():
+				return nil, ctx.Err() // Correctly return context error on cancellation
+			}
+		},
+	}
+	mockSvc3 := &grpctest.MockTxService{
+		BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+			// Delay, should be cancelled
+			select {
+			case <-time.After(500 * time.Millisecond):
+				return nil, errors.New("mock3 should have been cancelled")
+			case <-ctx.Done():
+				return nil, ctx.Err() // Correctly return context error on cancellation
+			}
+		},
+	}
+
+	conn1, stop1 := grpctest.StartMockServer(t, mockSvc1)
+	defer stop1()
+	conn2, stop2 := grpctest.StartMockServer(t, mockSvc2)
+	defer stop2()
+	conn3, stop3 := grpctest.StartMockServer(t, mockSvc3)
+	defer stop3()
+
+	txClient := s.setupTestClient(t, []*grpc.ClientConn{conn1, conn2, conn3})
+
+	// Create a dummy message
+	// Note: Using banktypes alias requires ensuring bank is imported, or use full path
+	msg := bank.NewMsgSend(s.accAddr, s.accAddr, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(10))))
+
+	// Execute
+	// We test via BroadcastTx as broadcastTx is internal
+	// Provide GasLimit and Fee to bypass internal gas estimation which requires GasEstimator service
+	opts := []user.TxOption{user.SetGasLimit(100000), user.SetFee(1000)}
+	resp, err := txClient.BroadcastTx(ctx, []sdk.Msg{msg}, opts...)
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Equal(t, uint32(abci.CodeTypeOK), resp.Code)
+	require.Equal(t, "HASH1", resp.TxHash)
+	require.Equal(t, int32(1), mockSvc1.Invocations.Load(), "Mock1 (winner) should be invoked once")
+	// We cannot reliably assert the invocation count for cancelled mocks, as cancellation might
+	// happen before the mock method is even called in its goroutine.
+	// require.Equal(t, int32(1), mockSvc2.Invocations.Load(), "Mock2 should be invoked once")
+	// require.Equal(t, int32(1), mockSvc3.Invocations.Load(), "Mock3 should be invoked once")
+}
+
+// TestBroadcastTx_SecondarySuccess tests when the second connection succeeds first.
+func (s *BroadcastTestSuite) TestBroadcastTx_SecondarySuccess() {
+	t := s.T()
+	ctx := context.Background()
+
+	mockSvc1 := &grpctest.MockTxService{ // Primary fails
+		BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+			time.Sleep(50 * time.Millisecond) // Short delay before failing
+			return nil, errors.New("mock1 failed")
+		},
+	}
+	mockSvc2 := &grpctest.MockTxService{ // Secondary succeeds
+		BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+			time.Sleep(10 * time.Millisecond) // Very fast success
+			return &sdktx.BroadcastTxResponse{
+				TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "HASH2"},
+			}, nil
+		},
+	}
+	mockSvc3 := &grpctest.MockTxService{ // Tertiary should be cancelled
+		BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+			select {
+			case <-time.After(500 * time.Millisecond):
+				return nil, errors.New("mock3 should have been cancelled")
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		},
+	}
+
+	conn1, stop1 := grpctest.StartMockServer(t, mockSvc1)
+	defer stop1()
+	conn2, stop2 := grpctest.StartMockServer(t, mockSvc2)
+	defer stop2()
+	conn3, stop3 := grpctest.StartMockServer(t, mockSvc3)
+	defer stop3()
+
+	txClient := s.setupTestClient(t, []*grpc.ClientConn{conn1, conn2, conn3})
+	msg := bank.NewMsgSend(s.accAddr, s.accAddr, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(10))))
+
+	// Provide GasLimit and Fee to bypass internal gas estimation
+	opts := []user.TxOption{user.SetGasLimit(100000), user.SetFee(1000)}
+	resp, err := txClient.BroadcastTx(ctx, []sdk.Msg{msg}, opts...)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Equal(t, uint32(abci.CodeTypeOK), resp.Code)
+	require.Equal(t, "HASH2", resp.TxHash)
+	require.Equal(t, int32(1), mockSvc1.Invocations.Load())
+	require.Equal(t, int32(1), mockSvc2.Invocations.Load())
+	require.Equal(t, int32(1), mockSvc3.Invocations.Load())
+}
+
+// TestBroadcastTx_AllFail tests when all connections return errors.
+func (s *BroadcastTestSuite) TestBroadcastTx_AllFail() {
+	t := s.T()
+	ctx := context.Background()
+
+	mockSvc1 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+		return nil, errors.New("err1")
+	}}
+	mockSvc2 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+		return nil, errors.New("err2")
+	}}
+	mockSvc3 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+		return nil, errors.New("err3")
+	}}
+
+	conn1, stop1 := grpctest.StartMockServer(t, mockSvc1)
+	defer stop1()
+	conn2, stop2 := grpctest.StartMockServer(t, mockSvc2)
+	defer stop2()
+	conn3, stop3 := grpctest.StartMockServer(t, mockSvc3)
+	defer stop3()
+
+	txClient := s.setupTestClient(t, []*grpc.ClientConn{conn1, conn2, conn3})
+	msg := bank.NewMsgSend(s.accAddr, s.accAddr, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(10))))
+
+	// Provide GasLimit and Fee to bypass internal gas estimation
+	opts := []user.TxOption{user.SetGasLimit(100000), user.SetFee(1000)}
+	resp, err := txClient.BroadcastTx(ctx, []sdk.Msg{msg}, opts...)
+
+	require.Error(t, err)
+	require.Nil(t, resp)
+	// Check that all errors are included. Order might vary.
+	require.Contains(t, err.Error(), "all broadcast attempts failed")
+	require.Contains(t, err.Error(), "err1")
+	require.Contains(t, err.Error(), "err2")
+	require.Contains(t, err.Error(), "err3")
+	require.Equal(t, int32(1), mockSvc1.Invocations.Load())
+	require.Equal(t, int32(1), mockSvc2.Invocations.Load())
+	require.Equal(t, int32(1), mockSvc3.Invocations.Load())
+}
+
+// TestBroadcastTx_ContextDeadline tests cancellation via context deadline.
+func (s *BroadcastTestSuite) TestBroadcastTx_ContextDeadline() {
+	t := s.T()
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond) // Short deadline
+	defer cancel()
+
+	mockHandler := func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+		select {
+		case <-time.After(200 * time.Millisecond):
+			return nil, errors.New("mock should have been cancelled by deadline")
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+
+	// Use different instances for each connection, sharing the handler logic
+	mockSvc1 := &grpctest.MockTxService{BroadcastHandler: mockHandler}
+	mockSvc2 := &grpctest.MockTxService{BroadcastHandler: mockHandler}
+	mockSvc3 := &grpctest.MockTxService{BroadcastHandler: mockHandler}
+
+	conn1, stop1 := grpctest.StartMockServer(t, mockSvc1)
+	defer stop1()
+	conn2, stop2 := grpctest.StartMockServer(t, mockSvc2)
+	defer stop2()
+	conn3, stop3 := grpctest.StartMockServer(t, mockSvc3)
+	defer stop3()
+
+	txClient := s.setupTestClient(t, []*grpc.ClientConn{conn1, conn2, conn3})
+	msg := bank.NewMsgSend(s.accAddr, s.accAddr, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(10))))
+
+	// Provide GasLimit and Fee to bypass internal gas estimation
+	opts := []user.TxOption{user.SetGasLimit(100000), user.SetFee(1000)}
+	resp, err := txClient.BroadcastTx(ctx, []sdk.Msg{msg}, opts...)
+
+	require.Error(t, err)
+	require.Nil(t, resp)
+	require.ErrorIs(t, err, context.DeadlineExceeded) // Check for the specific context error
+}
+
+// TestBroadcastTx_LessThanThreeConns tests behavior with fewer than 3 connections.
+func (s *BroadcastTestSuite) TestBroadcastTx_LessThanThreeConns() {
+	t := s.T()
+	ctx := context.Background()
+
+	mockSvc1 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+		return nil, errors.New("err1")
+	}}
+	mockSvc2 := &grpctest.MockTxService{ // Succeeds
+		BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+			return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "HASH2"}}, nil
+		},
+	}
+
+	conn1, stop1 := grpctest.StartMockServer(t, mockSvc1)
+	defer stop1()
+	conn2, stop2 := grpctest.StartMockServer(t, mockSvc2)
+	defer stop2()
+
+	txClient := s.setupTestClient(t, []*grpc.ClientConn{conn1, conn2}) // Only two connections
+	msg := bank.NewMsgSend(s.accAddr, s.accAddr, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(10))))
+
+	// Provide GasLimit and Fee to bypass internal gas estimation
+	opts := []user.TxOption{user.SetGasLimit(100000), user.SetFee(1000)}
+	resp, err := txClient.BroadcastTx(ctx, []sdk.Msg{msg}, opts...)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Equal(t, "HASH2", resp.TxHash)
+	require.Equal(t, int32(1), mockSvc1.Invocations.Load())
+	require.Equal(t, int32(1), mockSvc2.Invocations.Load())
+}
+
+// TestBroadcastTx_MoreThanThreeConns tests that only the first 3 are used.
+func (s *BroadcastTestSuite) TestBroadcastTx_MoreThanThreeConns() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Only first 3 should be called
+	mockSvc1 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+		return nil, errors.New("err1")
+	}}
+	mockSvc2 := &grpctest.MockTxService{ // Succeeds
+		BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+			return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "HASH2"}}, nil
+		},
+	}
+	mockSvc3 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+		return nil, errors.New("err3")
+	}}
+	mockSvc4 := &grpctest.MockTxService{ // Should NOT be called
+		BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+			t.Error("Mock service 4 should not have been called")
+			return nil, errors.New("err4 - should not happen")
+		},
+	}
+
+	conn1, stop1 := grpctest.StartMockServer(t, mockSvc1)
+	defer stop1()
+	conn2, stop2 := grpctest.StartMockServer(t, mockSvc2)
+	defer stop2()
+	conn3, stop3 := grpctest.StartMockServer(t, mockSvc3)
+	defer stop3()
+	conn4, stop4 := grpctest.StartMockServer(t, mockSvc4)
+	defer stop4()
+
+	txClient := s.setupTestClient(t, []*grpc.ClientConn{conn1, conn2, conn3, conn4}) // Four connections
+	msg := bank.NewMsgSend(s.accAddr, s.accAddr, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(10))))
+
+	// Provide GasLimit and Fee to bypass internal gas estimation
+	opts := []user.TxOption{user.SetGasLimit(100000), user.SetFee(1000)}
+	resp, err := txClient.BroadcastTx(ctx, []sdk.Msg{msg}, opts...)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Equal(t, "HASH2", resp.TxHash)
+	require.Equal(t, int32(1), mockSvc1.Invocations.Load())
+	require.Equal(t, int32(1), mockSvc2.Invocations.Load())
+	require.Equal(t, int32(1), mockSvc3.Invocations.Load())
+	require.Equal(t, int32(0), mockSvc4.Invocations.Load(), "Mock4 should not be invoked") // Assert mock4 was never invoked
 }

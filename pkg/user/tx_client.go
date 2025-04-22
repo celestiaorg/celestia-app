@@ -23,6 +23,7 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 
 	"github.com/celestiaorg/go-square/v2/share"
@@ -132,6 +133,16 @@ func WithEstimatorService(conn *grpc.ClientConn) Option {
 	}
 }
 
+// WithAdditionalCoreEndpoints adds additional core endpoints to the TxClient.
+// For transaction submission, the client will attempt to use the primary endpoint
+// and the first two additional endpoints provided via this option.
+func WithAdditionalCoreEndpoints(conns []*grpc.ClientConn) Option {
+	// set multiple core endpoints on the `TxClient`
+	return func(c *TxClient) {
+		c.conns = append(c.conns, conns...)
+	}
+}
+
 // TxClient is an abstraction for building, signing, and broadcasting Celestia transactions
 // It supports multiple accounts. If none is specified, it will
 // try to use the default account.
@@ -142,6 +153,8 @@ type TxClient struct {
 	signer   *Signer
 	registry codectypes.InterfaceRegistry
 	grpc     *grpc.ClientConn
+	// list of core endpoints for tx submission (primary + additionals)
+	conns []*grpc.ClientConn
 	// how often to poll the network for confirmation of a transaction
 	pollTime time.Duration
 	// defaultGasPrice is the price used if no price is provided
@@ -180,6 +193,7 @@ func NewTxClient(
 		signer:              signer,
 		registry:            registry,
 		grpc:                conn,
+		conns:               []*grpc.ClientConn{conn},
 		pollTime:            DefaultPollTime,
 		defaultGasPrice:     appconsts.DefaultMinGasPrice,
 		defaultAccount:      records[0].Name,
@@ -379,40 +393,175 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 }
 
 func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
-	txClient := sdktx.NewServiceClient(client.grpc)
-	resp, err := txClient.BroadcastTx(
-		ctx,
-		&sdktx.BroadcastTxRequest{
-			Mode:    sdktx.BroadcastMode_BROADCAST_MODE_SYNC,
-			TxBytes: txBytes,
-		},
-	)
-	if err != nil {
-		return nil, err
+	numConns := len(client.conns)
+	if numConns == 0 {
+		return nil, errors.New("no connections available in TxClient")
 	}
-	if resp.TxResponse.Code != abci.CodeTypeOK {
-		broadcastTxErr := &BroadcastTxError{
-			TxHash:   resp.TxResponse.TxHash,
-			Code:     resp.TxResponse.Code,
-			ErrorLog: resp.TxResponse.RawLog,
+
+	// Select up to 3 connections for broadcasting: primary + first 2 additional
+	broadcastConns := client.conns
+	if numConns > 3 {
+		broadcastConns = client.conns[:3]
+	}
+
+	var (
+		respCh    = make(chan *sdktypes.TxResponse, 1)
+		errCh     = make(chan error, len(broadcastConns))
+		broadcast = func(conn *grpc.ClientConn, childCtx context.Context) {
+			txServiceClient := sdktx.NewServiceClient(conn)
+			resp, err := txServiceClient.BroadcastTx(
+				childCtx,
+				&sdktx.BroadcastTxRequest{
+					Mode:    sdktx.BroadcastMode_BROADCAST_MODE_SYNC,
+					TxBytes: txBytes,
+				},
+			)
+			if err != nil {
+				// Don't return error on context cancellation as it's expected
+				if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+					errCh <- fmt.Errorf("broadcast via %s failed: %w", conn.Target(), err)
+				}
+				return
+			}
+			if resp.TxResponse.Code != abci.CodeTypeOK {
+				broadcastTxErr := &BroadcastTxError{
+					TxHash:   resp.TxResponse.TxHash,
+					Code:     resp.TxResponse.Code,
+					ErrorLog: resp.TxResponse.RawLog,
+				}
+				errCh <- fmt.Errorf("broadcast via %s resulted in error: %w", conn.Target(), broadcastTxErr)
+				return
+			}
+			// Success! Send response (non-blocking due to buffered channel)
+			select {
+			case respCh <- resp.TxResponse:
+			default: // Another routine already sent the response or context was cancelled
+			}
 		}
-		return nil, broadcastTxErr
+	)
+
+	broadcastCtx, cancel := context.WithCancel(ctx)
+	defer cancel() // Ensure cancel is called eventually if not explicitly done earlier
+
+	g, childCtx := errgroup.WithContext(broadcastCtx)
+	var successfulBroadcast sync.Once // Ensure only one success is processed
+
+	for _, conn := range broadcastConns {
+		conn := conn // Capture range variable
+		g.Go(func() error {
+			broadcast(conn, childCtx)
+			// Returning nil because errors are handled via errCh.
+			// The errgroup context handles cancellation signals.
+			return nil
+		})
 	}
 
-	// save the sequence and signer of the transaction in the local txTracker
-	// before the sequence is incremented
-	client.txTracker[resp.TxResponse.TxHash] = txInfo{
-		sequence:  client.signer.accounts[signer].Sequence(),
-		signer:    signer,
-		timestamp: time.Now(),
+	var firstResp *sdktypes.TxResponse
+	var finalErr error
+
+	// done channel signals when all goroutines have completed.
+	done := make(chan struct{})
+	go func() {
+		// Wait for all goroutines in the group to complete.
+		// Assign groupErr within this goroutine, but handle it after the select.
+		groupErr := g.Wait()
+		if groupErr != nil && !errors.Is(groupErr, context.Canceled) {
+			// If there was a non-cancellation error from the group itself and
+			// finalErr wasn't already set by context timeout/cancellation,
+			// store it. We need to be careful about races if multiple goroutines
+			// returned non-nil, but errgroup should only return the first.
+			// Using a lock or atomic might be safer if we expected multiple
+			// actual errors returned from g.Go functions (which we don't here).
+			if finalErr == nil { // Avoid overwriting a context error
+				finalErr = groupErr
+			}
+		}
+		close(done)
+	}()
+
+	select {
+	case firstResp = <-respCh:
+		// Success from one connection. Immediately cancel other in-flight requests.
+		cancel()
+	case <-childCtx.Done(): // Parent context cancelled or deadline exceeded before first success
+		finalErr = childCtx.Err()
+		// If the context finished, ensure respCh is drained if a response arrived concurrently
+		select {
+		case firstResp = <-respCh:
+			cancel() // Also cancel if we got a response just as context finished
+		default:
+		}
+	case <-done: // All goroutines finished without success or context cancellation
+		// Proceed to error collection below
 	}
 
-	// after the transaction has been submitted, we can increment the
-	// sequence of the signer
-	if err := client.signer.IncrementSequence(signer); err != nil {
-		return nil, fmt.Errorf("increment sequencing: %w", err)
+	// Wait for the errgroup goroutine (which includes g.Wait()) to finish.
+	// This ensures all broadcast goroutines have completed and potentially sent
+	// errors to errCh before we try to close and read from it.
+	<-done
+
+	// If we fall through the select because <-done was triggered or context expired,
+	// we still need to potentially drain respCh in case a response arrived concurrently.
+	if firstResp == nil {
+		select {
+		case firstResp = <-respCh:
+			// A response arrived very late, just as g.Wait() finished.
+			successfulBroadcast.Do(cancel) // Ensure cancellation signal is sent only once
+		default:
+		}
 	}
-	return resp.TxResponse, nil
+
+	// If we received a successful response (either from select or late drain)
+	if firstResp != nil {
+		successfulBroadcast.Do(func() {
+			// Ensure cancellation happens if we got a late success after <-done
+			cancel()
+			client.txTracker[firstResp.TxHash] = txInfo{
+				sequence:  client.signer.accounts[signer].Sequence(),
+				signer:    signer,
+				timestamp: time.Now(),
+			}
+
+			incErr := client.signer.IncrementSequence(signer)
+			if incErr != nil {
+				fmt.Printf("CRITICAL: Failed to increment sequence for signer %s after successful broadcast: %v\n", signer, incErr)
+				// TODO: Wrap the increment error and return it?
+				// finalErr = fmt.Errorf("increment sequencing failed after successful broadcast: %w", incErr)
+				// firstResp = nil
+			}
+		})
+		// Return the successful response
+		return firstResp, nil // We prioritize returning the successful response
+	}
+
+	// If no success, collect actual errors from the channel (excluding cancellation)
+	close(errCh)
+	var broadcastErrs []string // Renamed to avoid confusion with finalErr
+	for err := range errCh {
+		broadcastErrs = append(broadcastErrs, err.Error())
+	}
+
+	// Prioritize returning the context error if it occurred (and wasn't just cancellation)
+	if finalErr != nil && !errors.Is(finalErr, context.Canceled) {
+		// Optionally wrap finalErr with broadcast details if they exist
+		if len(broadcastErrs) > 0 {
+			return nil, fmt.Errorf("context error (%w) occurred after broadcast attempts failed: %s", finalErr, strings.Join(broadcastErrs, "; "))
+		}
+		return nil, finalErr // Return the original context error (e.g., DeadlineExceeded)
+	}
+
+	// If no critical context error, return combined broadcast errors if any
+	if len(broadcastErrs) > 0 {
+		return nil, fmt.Errorf("all broadcast attempts failed: %s", strings.Join(broadcastErrs, "; "))
+	}
+
+	// If context was cancelled but no specific broadcast errors occurred
+	if finalErr != nil { // At this point, finalErr must be context.Canceled
+		return nil, finalErr
+	}
+
+	// Should ideally not be reached
+	return nil, errors.New("broadcast failed with no specific errors reported and context not cancelled")
 }
 
 // pruneTxTracker removes transactions from the local tx tracker that are older than 10 minutes
@@ -428,6 +577,8 @@ func (client *TxClient) pruneTxTracker() {
 // hash. It will continually loop until the context is cancelled, the tx is found or an error
 // is encountered.
 func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxResponse, error) {
+	// TODO (#4578): Implement logic to potentially use other connections if the primary fails.
+	// For now, use the primary connection.
 	txClient := tx.NewTxClient(client.grpc)
 
 	pollTicker := time.NewTicker(client.pollTime)
