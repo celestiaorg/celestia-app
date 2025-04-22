@@ -64,9 +64,8 @@ createGenesis() {
     # If you encounter: `sed: -I or -i may not be used with stdin` on MacOS you can mitigate by installing gnu-sed
     # https://gist.github.com/andre3k1/e3a1a7133fded5de5a9ee99c87c6fa0d?permalink_comment_id=3082272#gistcomment-3082272
 
-    # Override the default genesis.json initial_height from 1 to "1".
-    # This is a temporary workaround for https://github.com/celestiaorg/celestia-app/issues/4632
-    sed -i'.bak' 's#"initial_height": 1#"initial_height": "1"#g' "${APP_HOME}"/config/genesis.json
+    # Override the default genesis.json consensus params version from 0 to 4.
+    sed -i'.bak' 's#"app": "0"#"app": "4"#g' "${APP_HOME}"/config/genesis.json
 
     # Override the default RPC server listening address
     sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' "${APP_HOME}"/config/config.toml
