@@ -137,7 +137,7 @@ func (v *Validator) GenTx(ecfg encoding.Config, kr keyring.Keyring, chainID stri
 		WithKeybase(kr).
 		WithTxConfig(ecfg.TxConfig)
 
-	err = tx.Sign(context.TODO(), txFactory, v.Name, txBuilder, true)
+	err = tx.Sign(context.Background(), txFactory, v.Name, txBuilder, true)
 	if err != nil {
 		return nil, err
 	}
