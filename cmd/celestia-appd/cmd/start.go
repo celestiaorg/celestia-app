@@ -235,6 +235,11 @@ func startStandAlone(ctx *server.Context, clientCtx client.Context, appCreator s
 	// service if API or gRPC is enabled.
 	if config.API.Enable || config.GRPC.Enable {
 		app.RegisterTxService(clientCtx)
+		app.RegisterTendermintService(clientCtx)
+
+		if a, ok := app.(srvrtypes.ApplicationQueryService); ok {
+			a.RegisterNodeService(clientCtx)
+		}
 	}
 
 	metrics, err := startTelemetry(config)
