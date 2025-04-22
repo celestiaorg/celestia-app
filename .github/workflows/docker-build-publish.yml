@@ -25,7 +25,7 @@ jobs:
     with:
       dockerfile: docker/Dockerfile
       checkout_ref: ${{ github.event.inputs.ref }}
-      forceBuild: 'true'
+      forceBuild: true
     secrets: inherit
 
   docker-multiplexer-build:
@@ -38,7 +38,7 @@ jobs:
       checkout_ref: ${{ github.event.inputs.ref }}
       packageName: celestia-app-multiplexer
       buildArgs: "TARGETOS=linux TARGETARCH=amd64"
-      forceBuild: 'true'
+      forceBuild: true
     secrets: inherit
 
   docker-txsim-build:
@@ -50,5 +50,5 @@ jobs:
       dockerfile: docker/txsim/Dockerfile
       packageName: txsim
       checkout_ref: ${{ github.event.inputs.ref }}
-      forceBuild: 'true'
+      forceBuild: true
     secrets: inherit
