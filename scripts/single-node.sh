@@ -33,6 +33,7 @@ createGenesis() {
     celestia-appd init ${CHAIN_ID} \
       --chain-id ${CHAIN_ID} \
       --home "${APP_HOME}" \
+      --initial-height 1 \
       > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     echo "Adding a new key to the keyring..."
@@ -62,6 +63,10 @@ createGenesis() {
 
     # If you encounter: `sed: -I or -i may not be used with stdin` on MacOS you can mitigate by installing gnu-sed
     # https://gist.github.com/andre3k1/e3a1a7133fded5de5a9ee99c87c6fa0d?permalink_comment_id=3082272#gistcomment-3082272
+
+    # Override the default genesis.json initial_height from 1 to "1".
+    # This is a temporary workaround for https://github.com/celestiaorg/celestia-app/issues/4632
+    sed -i'.bak' 's#"initial_height": 1#"initial_height": "1"#g' "${APP_HOME}"/config/genesis.json
 
     # Override the default RPC server listening address
     sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' "${APP_HOME}"/config/config.toml
@@ -113,6 +118,8 @@ if [ -f $GENESIS_FILE ]; then
   if [ "$response" = "y" ]; then
     deleteCelestiaAppHome
     createGenesis
+  else
+    startCelestiaApp
   fi
 else
   createGenesis
