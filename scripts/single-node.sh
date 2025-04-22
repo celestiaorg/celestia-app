@@ -103,6 +103,7 @@ startCelestiaApp() {
     --grpc.enable \
     --grpc-web.enable \
     --timeout-commit 1s \
+    --rpc.grpc_laddr localhost:9090 \
     --force-no-bbr # no need to require BBR usage on a local node
 }
 
