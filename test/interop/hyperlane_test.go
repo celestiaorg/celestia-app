@@ -49,40 +49,13 @@ func (s *HyperlaneTestSuite) SetupTest() {
 
 func (s *HyperlaneTestSuite) TestHyperlaneTransfer() {
 	ismIDCelestia, ismIDSimapp := s.SetupNoopISM(s.celestia), s.SetupNoopISM(s.simapp)
-
-	// setup mailboxes
-	mailboxIDCelestia := s.SetupMailBox(s.celestia, ismIDCelestia)
-	mailboxIDSimapp := s.SetupMailBox(s.simapp, ismIDSimapp)
+	mailboxIDCelestia, mailboxIDSimapp := s.SetupMailBox(s.celestia, ismIDCelestia), s.SetupMailBox(s.simapp, ismIDSimapp)
 
 	// create collateral token (celestia)
-	collatTokenID := s.CreateCollateralToken(s.celestia, mailboxIDCelestia)
-
-	// set ism id on new collateral token
-	msgSetToken := warptypes.MsgSetToken{
-		Owner:    s.celestia.SenderAccount.GetAddress().String(),
-		TokenId:  collatTokenID,
-		IsmId:    &ismIDCelestia,
-		NewOwner: s.celestia.SenderAccount.GetAddress().String(),
-	}
-
-	res, err := s.celestia.SendMsgs(&msgSetToken)
-	s.Require().NoError(err)
-	s.Require().NotNil(res)
+	collatTokenID := s.CreateCollateralToken(s.celestia, ismIDCelestia, mailboxIDCelestia)
 
 	// create synethetic token (simapp)
-	synTokenID := s.CreateSyntheticToken(s.simapp, mailboxIDCelestia)
-
-	// set ism id on new synthetic token
-	msgSetToken = warptypes.MsgSetToken{
-		Owner:    s.simapp.SenderAccount.GetAddress().String(),
-		TokenId:  synTokenID,
-		IsmId:    &ismIDSimapp,
-		NewOwner: s.simapp.SenderAccount.GetAddress().String(),
-	}
-
-	res, err = s.simapp.SendMsgs(&msgSetToken)
-	s.Require().NoError(err)
-	s.Require().NotNil(res)
+	synTokenID := s.CreateSyntheticToken(s.simapp, ismIDSimapp, mailboxIDCelestia)
 
 	// enroll remote routers
 	// this essentially pairs the collateral and synthetic tokens
@@ -96,7 +69,7 @@ func (s *HyperlaneTestSuite) TestHyperlaneTransfer() {
 		},
 	}
 
-	res, err = s.celestia.SendMsgs(&msgEnrollRemoteRouter)
+	res, err := s.celestia.SendMsgs(&msgEnrollRemoteRouter)
 	s.Require().NoError(err)
 	s.Require().NotNil(res)
 
@@ -214,7 +187,7 @@ func (s *HyperlaneTestSuite) SetupMailBox(chain *ibctesting.TestChain, ismID uti
 	return respMailbox.Id
 }
 
-func (s *HyperlaneTestSuite) CreateCollateralToken(chain *ibctesting.TestChain, mailboxID util.HexAddress) util.HexAddress {
+func (s *HyperlaneTestSuite) CreateCollateralToken(chain *ibctesting.TestChain, ismID, mailboxID util.HexAddress) util.HexAddress {
 	msgCreateCollateralToken := warptypes.MsgCreateCollateralToken{
 		Owner:         chain.SenderAccount.GetAddress().String(),
 		OriginMailbox: mailboxID,
@@ -229,10 +202,22 @@ func (s *HyperlaneTestSuite) CreateCollateralToken(chain *ibctesting.TestChain, 
 	err = unmarshalMsgResponses(chain.Codec, res.GetData(), &resp)
 	s.Require().NoError(err)
 
+	// set ism id on new collateral token (for some reason this can't be done on creation)
+	msgSetToken := warptypes.MsgSetToken{
+		Owner:    chain.SenderAccount.GetAddress().String(),
+		TokenId:  resp.Id,
+		IsmId:    &ismID,
+		NewOwner: chain.SenderAccount.GetAddress().String(),
+	}
+
+	res, err = chain.SendMsgs(&msgSetToken)
+	s.Require().NoError(err)
+	s.Require().NotNil(res)
+
 	return resp.Id
 }
 
-func (s *HyperlaneTestSuite) CreateSyntheticToken(chain *ibctesting.TestChain, mailboxID util.HexAddress) util.HexAddress {
+func (s *HyperlaneTestSuite) CreateSyntheticToken(chain *ibctesting.TestChain, ismID, mailboxID util.HexAddress) util.HexAddress {
 	msgCreateSyntheticToken := warptypes.MsgCreateSyntheticToken{
 		Owner:         chain.SenderAccount.GetAddress().String(),
 		OriginMailbox: mailboxID,
@@ -245,6 +230,18 @@ func (s *HyperlaneTestSuite) CreateSyntheticToken(chain *ibctesting.TestChain, m
 	var resp warptypes.MsgCreateSyntheticTokenResponse
 	err = unmarshalMsgResponses(chain.Codec, res.GetData(), &resp)
 	s.Require().NoError(err)
+
+	// set ism id on new synthetic token (for some reason this can't be done on creation)
+	msgSetToken := warptypes.MsgSetToken{
+		Owner:    chain.SenderAccount.GetAddress().String(),
+		TokenId:  resp.Id,
+		IsmId:    &ismID,
+		NewOwner: chain.SenderAccount.GetAddress().String(),
+	}
+
+	res, err = chain.SendMsgs(&msgSetToken)
+	s.Require().NoError(err)
+	s.Require().NotNil(res)
 
 	return resp.Id
 }
