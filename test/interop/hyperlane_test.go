@@ -23,90 +23,74 @@ import (
 type HyperlaneTestSuite struct {
 	suite.Suite
 
-	coordinator *ibctesting.Coordinator
-	celestia    *ibctesting.TestChain
-	simapp      *ibctesting.TestChain
+	celestia *ibctesting.TestChain
+	simapp   *ibctesting.TestChain
 }
 
 func TestHyperlaneTestSuite(t *testing.T) {
 	suite.Run(t, new(HyperlaneTestSuite))
 }
 
+// TODO: refactor the test setup for hyperlane, pfm and tokenfilter suites
 func (s *HyperlaneTestSuite) SetupTest() {
-	coordinator, simapp, celestia, _ := SetupTest(s.T())
+	_, simappTestChain, celestiaTestChain, _ := SetupTest(s.T())
 
-	s.coordinator = coordinator
-	s.celestia = celestia
-	s.simapp = simapp
+	s.celestia = celestiaTestChain
+	s.simapp = simappTestChain
 
-	app := celestia.App.(*app.App)
-	err := app.BankKeeper.MintCoins(celestia.GetContext(), minttypes.ModuleName, sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1_000_000))))
+	// NOTE: the test infra funds accounts with token denom "stake" by default, so we mint some utia here
+	simapp, ok := celestiaTestChain.App.(*app.App)
+	s.Require().True(ok)
+
+	err := simapp.BankKeeper.MintCoins(celestiaTestChain.GetContext(), minttypes.ModuleName, sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1_000_000))))
 	s.Require().NoError(err)
 
-	err = app.BankKeeper.SendCoinsFromModuleToAccount(celestia.GetContext(), minttypes.ModuleName, celestia.SenderAccount.GetAddress(), sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1_000_000))))
+	err = simapp.BankKeeper.SendCoinsFromModuleToAccount(celestiaTestChain.GetContext(), minttypes.ModuleName, celestiaTestChain.SenderAccount.GetAddress(), sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1_000_000))))
 	s.Require().NoError(err)
 }
 
 func (s *HyperlaneTestSuite) TestHyperlaneTransfer() {
-	ismIDCelestia, ismIDSimapp := s.SetupNoopISM(s.celestia), s.SetupNoopISM(s.simapp)
-	mailboxIDCelestia, mailboxIDSimapp := s.SetupMailBox(s.celestia, ismIDCelestia), s.SetupMailBox(s.simapp, ismIDSimapp)
+	const (
+		CelestiaDomainID = 69420
+		SimappDomainID   = 1337
+	)
 
-	// create collateral token (celestia)
-	collatTokenID := s.CreateCollateralToken(s.celestia, ismIDCelestia, mailboxIDCelestia)
+	ismIDCelestia := s.SetupNoopISM(s.celestia)
+	mailboxIDCelestia := s.SetupMailBox(s.celestia, ismIDCelestia, CelestiaDomainID)
 
-	// create synethetic token (simapp)
+	ismIDSimapp := s.SetupNoopISM(s.simapp)
+	mailboxIDSimapp := s.SetupMailBox(s.simapp, ismIDSimapp, SimappDomainID)
+
+	// create collateral token (celestia - utia)
+	collatTokenID := s.CreateCollateralToken(s.celestia, ismIDCelestia, mailboxIDCelestia, params.BondDenom)
+
+	// create synethetic token (simapp - hyperlane bridged asset)
 	synTokenID := s.CreateSyntheticToken(s.simapp, ismIDSimapp, mailboxIDCelestia)
 
-	// enroll remote routers
-	// this essentially pairs the collateral and synthetic tokens
-	msgEnrollRemoteRouter := warptypes.MsgEnrollRemoteRouter{
-		Owner:   s.celestia.SenderAccount.GetAddress().String(),
-		TokenId: collatTokenID,
-		RemoteRouter: &warptypes.RemoteRouter{
-			ReceiverDomain:   69420,
-			ReceiverContract: synTokenID.String(),
-			Gas:              math.ZeroInt(),
-		},
-	}
+	// enroll remote routers (pairs the utia collateral token with the synthetic token on the simapp counterparty)
+	s.EnrollRemoteRouter(s.celestia, collatTokenID, SimappDomainID, synTokenID.String())
+	s.EnrollRemoteRouter(s.simapp, synTokenID, CelestiaDomainID, collatTokenID.String())
 
-	res, err := s.celestia.SendMsgs(&msgEnrollRemoteRouter)
-	s.Require().NoError(err)
-	s.Require().NotNil(res)
+	// NOTE: Hyperlane HexAddress is expected to be 32 bytes,
+	// as cosmos addresses are 20 bytes, we must left-pad the address
+	addrBz := make([]byte, 32)
+	copy(addrBz[12:], s.simapp.SenderAccount.GetAddress().Bytes())
 
-	msgEnrollRemoteRouter = warptypes.MsgEnrollRemoteRouter{
-		Owner:   s.simapp.SenderAccount.GetAddress().String(),
-		TokenId: synTokenID,
-		RemoteRouter: &warptypes.RemoteRouter{
-			ReceiverDomain:   69420,
-			ReceiverContract: collatTokenID.String(),
-			Gas:              math.ZeroInt(),
-		},
-	}
-
-	res, err = s.simapp.SendMsgs(&msgEnrollRemoteRouter)
-	s.Require().NoError(err)
-	s.Require().NotNil(res)
-
-	// NOTE: cosmos addresses are 20 bytes, we must left-pad the address
-	// as hyperlane HexAddress is expected to be 32 bytes
-	paddedAddr := make([]byte, 32)
-	copy(paddedAddr[12:], s.simapp.SenderAccount.GetAddress().Bytes())
-
-	// send transfer
 	msgRemoteTransfer := warptypes.MsgRemoteTransfer{
 		Sender:            s.celestia.SenderAccount.GetAddress().String(),
 		TokenId:           collatTokenID,
-		DestinationDomain: 69420,
-		Recipient:         util.HexAddress(paddedAddr), // TODO: figure out this field
+		DestinationDomain: SimappDomainID,
+		Recipient:         util.HexAddress(addrBz),
 		Amount:            math.NewInt(1000),
 	}
 
-	res, err = s.celestia.SendMsgs(&msgRemoteTransfer)
+	res, err := s.celestia.SendMsgs(&msgRemoteTransfer)
 	s.Require().NoError(err)
 	s.Require().NotNil(res)
 
 	var hypMsg string
 	for _, evt := range res.Events {
+		// parse the hyperlane message from the dispatch events
 		if evt.Type == proto.MessageName(&coretypes.EventDispatch{}) {
 			protoMsg, err := sdk.ParseTypedEvent(evt)
 			s.Require().NoError(err)
@@ -118,24 +102,24 @@ func (s *HyperlaneTestSuite) TestHyperlaneTransfer() {
 		}
 	}
 
-	// process msg on simapp
-	msgProcessMsg := coretypes.MsgProcessMessage{
+	// process the msg on the simapp counterparty
+	msgProcessMessage := coretypes.MsgProcessMessage{
 		MailboxId: mailboxIDSimapp,
 		Relayer:   s.simapp.SenderAccount.GetAddress().String(),
 		Message:   hypMsg,
 	}
 
-	res, err = s.simapp.SendMsgs(&msgProcessMsg)
+	res, err = s.simapp.SendMsgs(&msgProcessMessage)
 	s.Require().NoError(err)
 	s.Require().NotNil(res)
 
-	app, ok := s.simapp.App.(*SimApp) // TODO: clean this up
+	simapp, ok := s.simapp.App.(*SimApp)
 	s.Require().True(ok)
 
-	hypDenom, err := app.WarpKeeper.HypTokens.Get(s.simapp.GetContext(), synTokenID.GetInternalId())
+	hypDenom, err := simapp.WarpKeeper.HypTokens.Get(s.simapp.GetContext(), synTokenID.GetInternalId())
 	s.Require().NoError(err)
 
-	balance := app.BankKeeper.GetBalance(s.simapp.GetContext(), s.simapp.SenderAccount.GetAddress(), hypDenom.OriginDenom)
+	balance := simapp.BankKeeper.GetBalance(s.simapp.GetContext(), s.simapp.SenderAccount.GetAddress(), hypDenom.OriginDenom)
 	s.Require().Equal(math.NewInt(1000).Int64(), balance.Amount.Int64())
 }
 
@@ -155,7 +139,7 @@ func (s *HyperlaneTestSuite) SetupNoopISM(chain *ibctesting.TestChain) util.HexA
 	return resp.Id
 }
 
-func (s *HyperlaneTestSuite) SetupMailBox(chain *ibctesting.TestChain, ismID util.HexAddress) util.HexAddress {
+func (s *HyperlaneTestSuite) SetupMailBox(chain *ibctesting.TestChain, ismID util.HexAddress, domain uint32) util.HexAddress {
 	msgCreateNoopHooks := &hooktypes.MsgCreateNoopHook{
 		Owner: chain.SenderAccount.GetAddress().String(),
 	}
@@ -170,7 +154,7 @@ func (s *HyperlaneTestSuite) SetupMailBox(chain *ibctesting.TestChain, ismID uti
 
 	msgCreateMailbox := &coretypes.MsgCreateMailbox{
 		Owner:        chain.SenderAccount.GetAddress().String(),
-		LocalDomain:  69420, // TODO: hardcode domains for now (doesn't matter)
+		LocalDomain:  domain,
 		DefaultIsm:   ismID,
 		DefaultHook:  &respHooks.Id,
 		RequiredHook: &respHooks.Id,
@@ -187,11 +171,11 @@ func (s *HyperlaneTestSuite) SetupMailBox(chain *ibctesting.TestChain, ismID uti
 	return respMailbox.Id
 }
 
-func (s *HyperlaneTestSuite) CreateCollateralToken(chain *ibctesting.TestChain, ismID, mailboxID util.HexAddress) util.HexAddress {
+func (s *HyperlaneTestSuite) CreateCollateralToken(chain *ibctesting.TestChain, ismID, mailboxID util.HexAddress, denom string) util.HexAddress {
 	msgCreateCollateralToken := warptypes.MsgCreateCollateralToken{
 		Owner:         chain.SenderAccount.GetAddress().String(),
 		OriginMailbox: mailboxID,
-		OriginDenom:   params.BondDenom,
+		OriginDenom:   denom,
 	}
 
 	res, err := chain.SendMsgs(&msgCreateCollateralToken)
@@ -244,6 +228,24 @@ func (s *HyperlaneTestSuite) CreateSyntheticToken(chain *ibctesting.TestChain, i
 	s.Require().NotNil(res)
 
 	return resp.Id
+}
+
+func (s *HyperlaneTestSuite) EnrollRemoteRouter(chain *ibctesting.TestChain, tokenID util.HexAddress, domain uint32, recvContract string) {
+	remoteRouter := &warptypes.RemoteRouter{
+		ReceiverDomain:   domain,
+		ReceiverContract: recvContract,
+		Gas:              math.ZeroInt(),
+	}
+
+	msgEnrollRemoteRouter := warptypes.MsgEnrollRemoteRouter{
+		Owner:        chain.SenderAccount.GetAddress().String(),
+		TokenId:      tokenID,
+		RemoteRouter: remoteRouter,
+	}
+
+	res, err := chain.SendMsgs(&msgEnrollRemoteRouter)
+	s.Require().NoError(err)
+	s.Require().NotNil(res)
 }
 
 func unmarshalMsgResponses(cdc codec.Codec, data []byte, msgs ...codec.ProtoMarshaler) error {
