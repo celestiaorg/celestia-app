@@ -18,7 +18,7 @@ CHAIN_ID="test"
 KEY_NAME="validator"
 KEYRING_BACKEND="test"
 FEES="500utia"
-BROADCAST_MODE="block"
+BROADCAST_MODE="sync"
 
 VERSION=$(celestia-appd version 2>&1)
 APP_HOME="${HOME}/.celestia-app"
@@ -74,7 +74,7 @@ createGenesis() {
     sed -i'.bak' 's#"604800s"#"60s"#g' "${APP_HOME}"/config/genesis.json
 
     # Override the log level to debug
-    sed -i'.bak' 's#log_level = "info"#log_level = "debug"#g' "${APP_HOME}"/config/config.toml
+    # sed -i'.bak' 's#log_level = "info"#log_level = "debug"#g' "${APP_HOME}"/config/config.toml
 
     # HACKHACK: the multiplexer can not read the app_version field, so we need to use app instead.
     # Override the genesis to use app version 3.
@@ -99,7 +99,7 @@ startCelestiaApp() {
 }
 
 upgradeToV4() {
-    sleep 45
+    sleep 30
     echo "Submitting signal for v4..."
     celestia-appd tx signal signal 4 \
         --keyring-backend=${KEYRING_BACKEND} \
@@ -111,6 +111,7 @@ upgradeToV4() {
         --yes \
         # > /dev/null 2>&1 # Hide output to reduce terminal noise
 
+    sleep 10
     echo "Querying the tally for v4..."
     celestia-appd query signal tally 4
 
@@ -125,6 +126,7 @@ upgradeToV4() {
         --yes \
         # > /dev/null 2>&1 # Hide output to reduce terminal noise
 
+    sleep 10
     echo "Querying for pending upgrade..."
     celestia-appd query signal upgrade
 }
@@ -140,5 +142,5 @@ else
   createGenesis
 fi
 
-# upgradeToV4 & # Start the upgrade process from v3 -> v4 in the background.
+upgradeToV4 & # Start the upgrade process from v3 -> v4 in the background.
 startCelestiaApp # Start celestia-app in the foreground.
