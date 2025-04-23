@@ -2,6 +2,8 @@
 
 # This script starts a single node testnet on app version 1. Then it upgrades
 # from v1 -> v2 -> v3 -> v4.
+#
+# NOTE: before running this script, set the V2_UPGRADE_HEIGHT to 3 in the Makefile then run `make install`.
 
 # Stop script execution if an error is encountered
 set -o errexit
