@@ -31,7 +31,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
-	grpctest "github.com/celestiaorg/celestia-app/v4/test/util/grpctest"
+	"github.com/celestiaorg/celestia-app/v4/test/util/grpctest"
 	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
@@ -568,7 +568,7 @@ func (s *BroadcastTestSuite) TestBroadcastTx_PrimarySuccess() {
 	// Assert
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	require.Equal(t, uint32(abci.CodeTypeOK), resp.Code)
+	require.Equal(t, abci.CodeTypeOK, resp.Code)
 	require.Equal(t, "HASH1", resp.TxHash)
 	require.Equal(t, int32(1), mockSvc1.Invocations.Load(), "Mock1 (winner) should be invoked once")
 	// We cannot reliably assert the invocation count for cancelled mocks, as cancellation might
@@ -623,7 +623,7 @@ func (s *BroadcastTestSuite) TestBroadcastTx_SecondarySuccess() {
 
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	require.Equal(t, uint32(abci.CodeTypeOK), resp.Code)
+	require.Equal(t, abci.CodeTypeOK, resp.Code)
 	require.Equal(t, "HASH2", resp.TxHash)
 	require.Equal(t, int32(1), mockSvc1.Invocations.Load())
 	require.Equal(t, int32(1), mockSvc2.Invocations.Load())

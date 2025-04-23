@@ -441,7 +441,6 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 	var successfulBroadcast sync.Once
 
 	for _, conn := range client.conns {
-		conn := conn
 		g.Go(func() error {
 			resp, err := client.broadcastSingle(childCtx, conn, txBytes)
 			if childCtx.Err() != nil {
@@ -491,7 +490,7 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 		return firstResp, nil
 	}
 
-	var broadcastErrs []string
+	broadcastErrs := make([]string, 0, 3)
 	for err := range errCh {
 		broadcastErrs = append(broadcastErrs, err.Error())
 	}

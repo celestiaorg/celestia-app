@@ -41,24 +41,31 @@ func (m *MockTxService) BroadcastTx(ctx context.Context, req *sdktx.BroadcastTxR
 func (m *MockTxService) Simulate(context.Context, *sdktx.SimulateRequest) (*sdktx.SimulateResponse, error) {
 	return nil, errors.New("Simulate not implemented in mock")
 }
+
 func (m *MockTxService) GetTx(context.Context, *sdktx.GetTxRequest) (*sdktx.GetTxResponse, error) {
 	return nil, errors.New("GetTx not implemented in mock")
 }
+
 func (m *MockTxService) GetBlockWithTxs(context.Context, *sdktx.GetBlockWithTxsRequest) (*sdktx.GetBlockWithTxsResponse, error) {
 	return nil, errors.New("GetBlockWithTxs not implemented in mock")
 }
+
 func (m *MockTxService) GetTxsEvent(context.Context, *sdktx.GetTxsEventRequest) (*sdktx.GetTxsEventResponse, error) {
 	return nil, errors.New("GetTxsEvent not implemented in mock")
 }
+
 func (m *MockTxService) TxDecode(context.Context, *sdktx.TxDecodeRequest) (*sdktx.TxDecodeResponse, error) {
 	return nil, errors.New("TxDecode not implemented in mock")
 }
+
 func (m *MockTxService) TxEncode(context.Context, *sdktx.TxEncodeRequest) (*sdktx.TxEncodeResponse, error) {
 	return nil, errors.New("TxEncode not implemented in mock")
 }
+
 func (m *MockTxService) TxEncodeAmino(context.Context, *sdktx.TxEncodeAminoRequest) (*sdktx.TxEncodeAminoResponse, error) {
 	return nil, errors.New("TxEncodeAmino not implemented in mock")
 }
+
 func (m *MockTxService) TxDecodeAmino(context.Context, *sdktx.TxDecodeAminoRequest) (*sdktx.TxDecodeAminoResponse, error) {
 	return nil, errors.New("TxDecodeAmino not implemented in mock")
 }
@@ -78,10 +85,8 @@ func StartMockServer(t *testing.T, service *MockTxService) (*grpc.ClientConn, fu
 		}
 	}()
 
-	conn, err := grpc.DialContext(context.Background(), "bufnet",
-		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
-			return lis.Dial()
-		}),
+	conn, err := grpc.NewClient(
+		lis.Addr().String(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	require.NoError(t, err)
@@ -91,11 +96,11 @@ func StartMockServer(t *testing.T, service *MockTxService) (*grpc.ClientConn, fu
 		err := lis.Close()
 		// Tolerate EBADF which can happen if the connection is already closed
 		if err != nil && !errors.Is(err, net.ErrClosed) && !strings.Contains(err.Error(), "use of closed network connection") && !strings.Contains(err.Error(), "bad file descriptor") {
-			// Log instead of failing the test, as this can be flaky in CI
+			fmt.Printf("Error closing listener: %v\n", err)
 		}
 		err = conn.Close()
 		if err != nil {
-			fmt.Printf("Error closing connection: %v\n", err) // Log instead of failing the test
+			fmt.Printf("Error closing connection: %v\n", err)
 		}
 	}
 
