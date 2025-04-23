@@ -85,11 +85,11 @@ func MajorUpgradeToV4(logger *log.Logger) error {
 
 	// wait for the upgrade to complete
 	var upgradedHeightV4 int64
+	lastHeight := int64(0)
 	for _, node := range testNet.Nodes() {
 		client, err := node.Client()
 		testnet.NoError("failed to get client", err)
 		upgradeComplete := false
-		lastHeight := int64(0)
 		for !upgradeComplete {
 			select {
 			case <-timer.C:
@@ -105,6 +105,36 @@ func MajorUpgradeToV4(logger *log.Logger) error {
 				}
 				logger.Printf("height %v", resp.Header.Height)
 				lastHeight = resp.Header.Height
+			}
+		}
+	}
+
+	successfullyProducedBlocks := false
+	targetHeight := lastHeight + 20
+	logger.Printf("waiting for chain to produce blocks on v4")
+
+	// ensure that nodes are still producing blocks at v4.
+	node := testNet.Nodes()[0]
+	client, err := node.Client()
+	testnet.NoError("failed to get client", err)
+
+	for !successfullyProducedBlocks {
+		select {
+		case <-timer.C:
+			return fmt.Errorf("timed out waiting for height %d, last seen: %d", targetHeight, lastHeight)
+		case <-ticker.C:
+			resp, err := client.Header(ctx, nil)
+			testnet.NoError("failed to get header", err)
+			if resp.Header.Version.App != 4 {
+				return fmt.Errorf("expected header to have app 4, got: %d", resp.Header.Version)
+			}
+
+			lastHeight = resp.Header.Height
+			logger.Printf("current height: %d (target: %d)", lastHeight, targetHeight)
+
+			if lastHeight >= targetHeight {
+				logger.Printf("target height %d reached", lastHeight)
+				successfullyProducedBlocks = true
 			}
 		}
 	}

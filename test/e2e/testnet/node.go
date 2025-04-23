@@ -4,7 +4,6 @@ package testnet
 import (
 	"context"
 	"fmt"
-	cmtos "github.com/cometbft/cometbft/libs/os"
 	"log"
 	"os"
 	"path/filepath"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/crypto"
+	cmtos "github.com/cometbft/cometbft/libs/os"
 	"github.com/cometbft/cometbft/libs/trace"
 	"github.com/cometbft/cometbft/libs/trace/schema"
 	"github.com/cometbft/cometbft/p2p"
@@ -32,6 +32,7 @@ const (
 	rpcPort               = 26657
 	p2pPort               = 26656
 	grpcPort              = 9090
+	listenAddressPort     = 26658
 	grpcListenPort        = 9099
 	prometheusPort        = 26660
 	tracingPort           = 26661
@@ -127,7 +128,7 @@ func NewNode(
 		return nil, err
 	}
 
-	for _, port := range []int{rpcPort, p2pPort, grpcPort, grpcListenPort, tracingPort} {
+	for _, port := range []int{rpcPort, p2pPort, grpcPort, grpcListenPort, listenAddressPort, tracingPort} {
 		if err := knInstance.Network().AddPortTCP(port); err != nil {
 			return nil, err
 		}
@@ -164,7 +165,7 @@ func NewNode(
 	if err != nil {
 		return nil, err
 	}
-	args := []string{"start", fmt.Sprintf("--home=%s", remoteRootDir), fmt.Sprintf("--grpc.address=0.0.0.0:%d", grpcPort), "--rpc.laddr=tcp://0.0.0.0:26657", fmt.Sprintf("--rpc.grpc_laddr=tcp://0.0.0.0:%d", grpcListenPort)}
+	args := []string{"start", fmt.Sprintf("--home=%s", remoteRootDir), fmt.Sprintf("--address=0.0.0.0:%d", listenAddressPort), fmt.Sprintf("--grpc.address=0.0.0.0:%d", grpcPort), "--rpc.laddr=tcp://0.0.0.0:26657", fmt.Sprintf("--rpc.grpc_laddr=tcp://0.0.0.0:%d", grpcListenPort)}
 	if disableBBR {
 		args = append(args, "--force-no-bbr")
 	}
