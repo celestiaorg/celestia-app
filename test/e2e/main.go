@@ -21,27 +21,25 @@ func main() {
 	logger := log.New(os.Stdout, "test-e2e", log.LstdFlags)
 
 	tests := []Test{
-		{"MajorUpgradeToV2", MajorUpgradeToV2},
-		{"MajorUpgradeToV3", MajorUpgradeToV3},
+		{"MajorUpgradeToV4", MajorUpgradeToV4},
 		{"E2ESimple", E2ESimple},
 		{"E2EStateSync", E2EStateSync},
 	}
 
+	testName := os.Getenv("TEST")
 	// check if a specific test is passed and run it
 	specificTestFound := false
-	for _, arg := range os.Args[1:] {
-		for _, test := range tests {
-			if test.Name == arg {
-				runTest(logger, test)
-				specificTestFound = true
-				break
-			}
+	for _, test := range tests {
+		if test.Name == testName {
+			runTest(logger, test)
+			specificTestFound = true
+			break
 		}
 	}
 
 	if !specificTestFound {
 		logger.Println("No particular test specified. Running all tests.")
-		logger.Println("make test-e2e <test_name> to run a specific test")
+		logger.Println("make test-e2e test=<test_name> to run a specific test")
 		logger.Printf("Valid tests are: %s\n\n", getTestNames(tests))
 		// if no specific test is passed, run all tests
 		for _, test := range tests {

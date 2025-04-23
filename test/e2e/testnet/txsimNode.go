@@ -12,12 +12,8 @@ import (
 	"github.com/celestiaorg/knuu/pkg/knuu"
 )
 
-const (
-	txsimDockerSrcURL = "ghcr.io/01builders/txsim" // TODO: revert to celestiaorg
-)
-
 func txsimDockerImageName(version string) string {
-	return fmt.Sprintf("%s:%s", txsimDockerSrcURL, version)
+	return fmt.Sprintf("%s/txsim:%s", GetDockerRegistry(), version)
 }
 
 type TxSim struct {
