@@ -138,10 +138,9 @@ func WithEstimatorService(conn *grpc.ClientConn) Option {
 // For transaction submission, the client will attempt to use the primary endpoint
 // and the first two additional endpoints provided via this option.
 func WithAdditionalCoreEndpoints(conns []*grpc.ClientConn) Option {
-	// set multiple core endpoints on the `TxClient`
-	if len(conns) > 3 {
-		conns = conns[:3]
-		log.Debug().Msgf("provided %d additional core endpoints, can only use 2", len(conns))
+	// set 2 additional core endpoints on the `TxClient`
+	if len(conns) > 2 {
+		conns = conns[:2]
 	}
 
 	return func(c *TxClient) {
@@ -501,16 +500,19 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 		broadcastErrs = append([]string{fmt.Sprintf("internal error: %v", groupErr)}, broadcastErrs...)
 	}
 
-	// if the context finished (DeadlineExceeded or Canceled)
-	if ctxErr := ctx.Err(); ctxErr != nil {
+	// If the context finished (DeadlineExceeded or Canceled)
+	if ctxErr := ctx.Err(); ctxErr != nil { // Check original context
 		errPrefix := "broadcast context cancelled"
+		originalCtxErr := ctxErr
 		if errors.Is(ctxErr, context.DeadlineExceeded) {
 			errPrefix = "broadcast context deadline exceeded"
 		}
 		if len(broadcastErrs) > 0 {
-			return nil, fmt.Errorf("%s; underlying errors: %s", errPrefix, strings.Join(broadcastErrs, "; "))
+			// Wrap the context error along with the message
+			return nil, fmt.Errorf("%s; underlying errors: %s: %w", errPrefix, strings.Join(broadcastErrs, "; "), originalCtxErr)
 		}
-		return nil, fmt.Errorf("%s", errPrefix)
+		// Wrap the original context error directly
+		return nil, fmt.Errorf("%s: %w", errPrefix, originalCtxErr)
 	}
 
 	// if only broadcast errors occurred (and context is OK).

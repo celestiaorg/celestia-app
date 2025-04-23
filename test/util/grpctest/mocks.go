@@ -13,15 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/test/bufconn"
-)
-
-const (
-	bufferSize = 1024 * 1024
 )
 
 // MockTxService allows controlling the behavior of BroadcastTx calls.
-// Note: Renamed from mockTxService to avoid stuttering (grpctest.MockTxService).
 type MockTxService struct {
 	sdktx.UnimplementedServiceServer // Embed the unimplemented server
 
@@ -70,37 +64,43 @@ func (m *MockTxService) TxDecodeAmino(context.Context, *sdktx.TxDecodeAminoReque
 	return nil, errors.New("TxDecodeAmino not implemented in mock")
 }
 
-// StartMockServer starts a mock gRPC server with the given MockTxService using bufconn.
-// Note: Renamed from startMockServer to be exported.
+// StartMockServer starts a mock gRPC server with the given MockTxService using a TCP listener.
 func StartMockServer(t *testing.T, service *MockTxService) (*grpc.ClientConn, func()) {
 	t.Helper()
-	lis := bufconn.Listen(bufferSize)
+
+	// Use a real TCP listener on a random port
+	lis, err := net.Listen("tcp", "localhost:0")
+	require.NoError(t, err)
+
 	s := grpc.NewServer()
 	sdktx.RegisterServiceServer(s, service)
 
 	go func() {
 		if err := s.Serve(lis); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-			// We don't fail the test here as closing the listener causes Serve to return an error
-			fmt.Printf("Mock server error: %v\n", err)
+			// Log error instead of Printf for better test output
+			t.Logf("Mock server error: %v", err)
 		}
 	}()
 
+	addr := lis.Addr().String()
+
 	conn, err := grpc.NewClient(
-		lis.Addr().String(),
+		addr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	require.NoError(t, err)
 
 	stop := func() {
 		s.Stop()
-		err := lis.Close()
-		// Tolerate EBADF which can happen if the connection is already closed
-		if err != nil && !errors.Is(err, net.ErrClosed) && !strings.Contains(err.Error(), "use of closed network connection") && !strings.Contains(err.Error(), "bad file descriptor") {
-			fmt.Printf("Error closing listener: %v\n", err)
+		closeErr := lis.Close()
+		if closeErr != nil && !errors.Is(closeErr, net.ErrClosed) && !strings.Contains(closeErr.Error(), "use of closed network connection") {
+			t.Logf("Error closing listener: %v", closeErr)
 		}
-		err = conn.Close()
-		if err != nil {
-			fmt.Printf("Error closing connection: %v\n", err)
+		if conn != nil {
+			connCloseErr := conn.Close()
+			if connCloseErr != nil {
+				t.Logf("Error closing connection: %v", connCloseErr)
+			}
 		}
 	}
 
