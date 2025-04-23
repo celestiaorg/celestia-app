@@ -7,8 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v4/test/e2e/testnet"
 	"github.com/celestiaorg/knuu/pkg/knuu"
+
+	"github.com/celestiaorg/celestia-app/v4/test/e2e/testnet"
 )
 
 func E2EStateSync(logger *log.Logger) error {
