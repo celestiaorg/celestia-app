@@ -29,62 +29,45 @@ func E2EStateSync(logger *log.Logger) error {
 		Scope:        identifier,
 		ProxyEnabled: true,
 	})
-	if err != nil {
-		return fmt.Errorf("failed to initialize Knuu: %w", err)
-	}
+	testnet.NoError("failed to initialize Knuu", err)
 	kn.HandleStopSignal(ctx)
 	logger.Printf("Knuu initialized with scope %s", kn.Scope)
 
 	testNet, err := testnet.New(logger, kn, testnet.Options{})
-	if err != nil {
-		return fmt.Errorf("failed to create testnet: %w", err)
-	}
+	testnet.NoError("failed to create testnet", err)
+
 	defer testNet.Cleanup(ctx)
 
 	latestVersion, err := testnet.GetLatestVersion()
-	if err != nil {
-		return fmt.Errorf("failed to get latest version: %w", err)
-	}
+	testnet.NoError("failed to get latest version", err)
 	logger.Printf("Running %s test with version %s", testName, latestVersion)
 
 	logger.Println("Creating genesis validator nodes")
 	err = testNet.CreateGenesisNodes(ctx, numValidators, latestVersion, 10000000, 0, testnet.DefaultResources, true)
-	if err != nil {
-		return fmt.Errorf("failed to create genesis nodes: %w", err)
-	}
+	testnet.NoError("failed to create genesis nodes", err)
 
 	logger.Println("Creating txsim client")
 	endpoints, err := testNet.RemoteGRPCEndpoints()
-	if err != nil {
-		return fmt.Errorf("failed to get remote gRPC endpoints: %w", err)
-	}
+	testnet.NoError("failed to get remote gRPC endpoints", err)
 	upgradeSchedule := map[int64]uint64{}
 	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 10, "100-1000", 10, testnet.DefaultResources, endpoints[0], upgradeSchedule)
-	if err != nil {
-		return fmt.Errorf("failed to create tx client: %w", err)
-	}
+	testnet.NoError("failed to create tx client", err)
 
 	// Setup Testnet
 	logger.Println("Setting up testnet")
 	err = testNet.Setup(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to setup testnet: %w", err)
-	}
+	testnet.NoError("failed to setup testnets", err)
 
 	// Start Testnet (Validators + TxSim)
 	logger.Println("Starting initial testnet nodes")
 	err = testNet.Start(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to start testnet: %w", err)
-	}
+	testnet.NoError("failed to start testnets", err)
 
 	// Wait for blocks to be produced
 	logger.Printf("Waiting for %d blocks to be produced", blocksToProduce)
 	// Use the first node as a reference
 	nodeZeroClient, err := testNet.Node(0).Client()
-	if err != nil {
-		return fmt.Errorf("failed to get client for node 0: %w", err)
-	}
+	testnet.NoError("failed to get client for node 0", err)
 
 	initialHeight := int64(0)
 	for i := 0; i < 30; i++ { // Wait up to 30 seconds for the first block
@@ -101,16 +84,12 @@ func E2EStateSync(logger *log.Logger) error {
 
 	targetHeight := initialHeight + blocksToProduce
 	err = waitForHeight(ctx, nodeZeroClient, targetHeight, 15*time.Second)
-	if err != nil {
-		return fmt.Errorf("failed to wait for target height %d: %w", targetHeight, err)
-	}
+	testnet.NoError(fmt.Sprintf("failed to wait for target height %d", targetHeight), err)
 	logger.Printf("Reached target height %d", targetHeight)
 
 	logger.Println("Gathering state sync parameters")
 	status, err := nodeZeroClient.Status(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get status from node 0: %w", err)
-	}
+	testnet.NoError("failed to get status from node 0", err)
 	latestHeight := status.SyncInfo.LatestBlockHeight
 	trustHeight := latestHeight - stateSyncTrustHeightOffset
 	if trustHeight <= 0 {
@@ -118,9 +97,7 @@ func E2EStateSync(logger *log.Logger) error {
 	}
 
 	trustBlock, err := nodeZeroClient.Block(ctx, &trustHeight)
-	if err != nil {
-		return fmt.Errorf("failed to get block at trust height %d: %w", trustHeight, err)
-	}
+	testnet.NoError(fmt.Sprintf("failed to get block at trust height %d", trustHeight), err)
 	trustHash := trustBlock.BlockID.Hash.String()
 
 	rpcServers := make([]string, 0, numValidators)
@@ -137,9 +114,7 @@ func E2EStateSync(logger *log.Logger) error {
 	logger.Println("Creating state sync node")
 	stateSyncNodeName := "statesync-node"
 	err = testNet.CreateNode(ctx, latestVersion, 0, 0, testnet.DefaultResources, true)
-	if err != nil {
-		return fmt.Errorf("failed to create state sync node definition: %w", err)
-	}
+	testnet.NoError("failed to create state sync node", err)
 	stateSyncNode := testNet.Nodes()[numValidators]
 	stateSyncNode.Name = stateSyncNodeName
 
@@ -151,25 +126,17 @@ func E2EStateSync(logger *log.Logger) error {
 
 	stateSyncOpt := testnet.WithStateSync(rpcServers, trustHeight, trustHash)
 	gendoc, err := testNet.Genesis().Export()
-	if err != nil {
-		return fmt.Errorf("failed to export genesis document: %w", err)
-	}
+	testnet.NoError("failed to export genesis document", err)
 	err = stateSyncNode.Init(ctx, gendoc, peers, stateSyncOpt)
-	if err != nil {
-		return fmt.Errorf("failed to initialize state sync node: %w", err)
-	}
+	testnet.NoError("failed to initialize state sync node", err)
 
 	logger.Println("Starting state sync node")
 	err = stateSyncNode.Start(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to start state sync node: %w", err)
-	}
+	testnet.NoError("failed to start state sync node", err)
 
 	logger.Println("Verifying state sync completion")
 	stateSyncClient, err := stateSyncNode.Client()
-	if err != nil {
-		return fmt.Errorf("failed to get client for state sync node: %w", err)
-	}
+	testnet.NoError("failed to get client for state sync node", err)
 
 	startTime := time.Now()
 	for {
@@ -197,8 +164,6 @@ func E2EStateSync(logger *log.Logger) error {
 	logger.Println("Verifying synced node continues producing blocks")
 	finalTargetHeight := latestHeight + 5
 	err = waitForHeight(ctx, stateSyncClient, finalTargetHeight, 15*time.Second)
-	if err != nil {
-		return fmt.Errorf("state synced node failed to reach height %d: %w", finalTargetHeight, err)
-	}
+	testnet.NoError(fmt.Sprintf("state synced node failed to reach height %d", finalTargetHeight), err)
 	return nil
 }
