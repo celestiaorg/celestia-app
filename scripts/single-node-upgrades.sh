@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # This script starts a single node testnet on app version 1. Then it upgrades
-# from v1 -> v2 -> v3.
+# from v1 -> v2 -> v3 -> v4.
 
 # Stop script execution if an error is encountered
 set -o errexit
@@ -32,7 +32,7 @@ echo ""
 
 createGenesis() {
     echo "Initializing validator and node config files..."
-    celestia-appd init ${CHAIN_ID} \
+    celestia-appd passthrough 1 init ${CHAIN_ID} \
       --chain-id ${CHAIN_ID} \
       --home "${APP_HOME}" \
       > /dev/null 2>&1 # Hide output to reduce terminal noise
@@ -44,13 +44,13 @@ createGenesis() {
       > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     echo "Adding genesis account..."
-    celestia-appd genesis add-genesis-account \
+    celestia-appd passthrough 1 add-genesis-account \
       "$(celestia-appd keys show ${KEY_NAME} -a --keyring-backend=${KEYRING_BACKEND} --home "${APP_HOME}")" \
       "1000000000000000utia" \
       --home "${APP_HOME}"
 
     echo "Creating a genesis tx..."
-    celestia-appd genesis gentx ${KEY_NAME} 5000000000utia \
+    celestia-appd passthrough 1 gentx ${KEY_NAME} 5000000000utia \
       --fees ${FEES} \
       --keyring-backend=${KEYRING_BACKEND} \
       --chain-id ${CHAIN_ID} \
@@ -58,7 +58,7 @@ createGenesis() {
       > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     echo "Collecting genesis txs..."
-    celestia-appd genesis collect-gentxs \
+    celestia-appd passthrough 1 collect-gentxs \
       --home "${APP_HOME}" \
         > /dev/null 2>&1 # Hide output to reduce terminal noise
 
@@ -74,25 +74,17 @@ createGenesis() {
     # Persist ABCI responses
     sed -i'.bak' 's#discard_abci_responses = true#discard_abci_responses = false#g' "${APP_HOME}"/config/config.toml
 
-    # Override the genesis to use app version 1 and then upgrade to app version 2 later.
-    sed -i'.bak' 's/"app_version": *"[^"]*"/"app_version": "1"/' ${APP_HOME}/config/genesis.json
-
-    # Override the log level to debug
-    # sed -i'.bak' 's#log_level = "info"#log_level = "debug"#g' "${APP_HOME}"/config/config.toml
+    # Set log level to debug
+    sed -i'.bak' 's#log_level = "info"#log_level = "debug"#g' "${APP_HOME}"/config/config.toml
 
     # Override the VotingPeriod from 1 week to 1 minute
     sed -i'.bak' 's#"604800s"#"60s"#g' "${APP_HOME}"/config/genesis.json
 
-    trace_type="local"
-    sed -i.bak -e "s/^trace_type *=.*/trace_type = \"$trace_type\"/" ${APP_HOME}/config/config.toml
+    # Override the genesis to use app version 1.
+    sed -i'.bak' 's/"app_version": *"[^"]*"/"app_version": "1"/' "${APP_HOME}"/config/genesis.json
 
-    trace_pull_address=":26661"
-    sed -i.bak -e "s/^trace_pull_address *=.*/trace_pull_address = \"$trace_pull_address\"/" ${APP_HOME}/config/config.toml
-
-    trace_push_batch_size=1000
-    sed -i.bak -e "s/^trace_push_batch_size *=.*/trace_push_batch_size = \"$trace_push_batch_size\"/" ${APP_HOME}/config/config.toml
-
-    echo "Tracing is set up with the ability to pull traced data from the node on the address http://127.0.0.1${trace_pull_address}"
+    # Override the genesis.json consensus params version from 0 to 1.
+    sed -i'.bak' 's#"app": "0"#"app": "1"#g' "${APP_HOME}"/config/genesis.json
 }
 
 deleteCelestiaAppHome() {
@@ -107,8 +99,9 @@ startCelestiaApp() {
     --api.enable \
     --grpc.enable \
     --grpc-web.enable \
-    --v2-upgrade-height 3 \
-    --force-no-bbr # no need to require BBR usage on a local node.
+    --timeout-commit 1s \
+    --rpc.grpc_laddr tcp://0.0.0.0:9098 \
+    --force-no-bbr
 }
 
 upgradeToV3() {
