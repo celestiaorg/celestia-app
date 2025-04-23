@@ -18,7 +18,6 @@ import (
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -526,7 +525,7 @@ func (s *BroadcastTestSuite) TestBroadcastScenarios() {
 	// Default options for most tests
 	defaultOpts := []user.TxOption{user.SetGasLimit(100000), user.SetFee(1000)}
 	// Basic MsgSend for testing
-	defaultMsg := banktypes.NewMsgSend(s.accAddr, s.accAddr, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(10))))
+	defaultMsg := bank.NewMsgSend(s.accAddr, s.accAddr, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(10))))
 
 	testCases := []broadcastTestCase{
 		{
