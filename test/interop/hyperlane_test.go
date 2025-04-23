@@ -84,13 +84,14 @@ func (s *HyperlaneTestSuite) TestHyperlaneTransfer() {
 	s.Require().NoError(err)
 	s.Require().NotNil(res)
 
-	// enroll remote router
+	// enroll remote routers
+	// this essentially pairs the collateral and synthetic tokens
 	msgEnrollRemoteRouter := warptypes.MsgEnrollRemoteRouter{
 		Owner:   s.celestia.SenderAccount.GetAddress().String(),
 		TokenId: collatTokenID,
 		RemoteRouter: &warptypes.RemoteRouter{
 			ReceiverDomain:   69420,
-			ReceiverContract: mailboxIDSimapp.String(),
+			ReceiverContract: synTokenID.String(),
 			Gas:              math.ZeroInt(),
 		},
 	}
@@ -99,14 +100,31 @@ func (s *HyperlaneTestSuite) TestHyperlaneTransfer() {
 	s.Require().NoError(err)
 	s.Require().NotNil(res)
 
-	// simapp enroll router ??
+	msgEnrollRemoteRouter = warptypes.MsgEnrollRemoteRouter{
+		Owner:   s.simapp.SenderAccount.GetAddress().String(),
+		TokenId: synTokenID,
+		RemoteRouter: &warptypes.RemoteRouter{
+			ReceiverDomain:   69420,
+			ReceiverContract: collatTokenID.String(),
+			Gas:              math.ZeroInt(),
+		},
+	}
+
+	res, err = s.simapp.SendMsgs(&msgEnrollRemoteRouter)
+	s.Require().NoError(err)
+	s.Require().NotNil(res)
+
+	// NOTE: cosmos addresses are 20 bytes, we must left-pad the address
+	// as hyperlane HexAddress is expected to be 32 bytes
+	paddedAddr := make([]byte, 32)
+	copy(paddedAddr[12:], s.simapp.SenderAccount.GetAddress().Bytes())
 
 	// send transfer
 	msgRemoteTransfer := warptypes.MsgRemoteTransfer{
 		Sender:            s.celestia.SenderAccount.GetAddress().String(),
 		TokenId:           collatTokenID,
 		DestinationDomain: 69420,
-		Recipient:         ismIDSimapp, // TODO: figure out this field
+		Recipient:         util.HexAddress(paddedAddr), // TODO: figure out this field
 		Amount:            math.NewInt(1000),
 	}
 
@@ -114,7 +132,7 @@ func (s *HyperlaneTestSuite) TestHyperlaneTransfer() {
 	s.Require().NoError(err)
 	s.Require().NotNil(res)
 
-	var hyperlaneMsg string
+	var hypMsg string
 	for _, evt := range res.Events {
 		if evt.Type == proto.MessageName(&coretypes.EventDispatch{}) {
 			protoMsg, err := sdk.ParseTypedEvent(evt)
@@ -123,8 +141,7 @@ func (s *HyperlaneTestSuite) TestHyperlaneTransfer() {
 			eventDispatch, ok := protoMsg.(*coretypes.EventDispatch)
 			s.Require().True(ok)
 
-			s.T().Logf("EventDispatch: %s", eventDispatch)
-			hyperlaneMsg = eventDispatch.Message
+			hypMsg = eventDispatch.Message
 		}
 	}
 
@@ -132,12 +149,21 @@ func (s *HyperlaneTestSuite) TestHyperlaneTransfer() {
 	msgProcessMsg := coretypes.MsgProcessMessage{
 		MailboxId: mailboxIDSimapp,
 		Relayer:   s.simapp.SenderAccount.GetAddress().String(),
-		Message:   hyperlaneMsg,
+		Message:   hypMsg,
 	}
 
 	res, err = s.simapp.SendMsgs(&msgProcessMsg)
 	s.Require().NoError(err)
 	s.Require().NotNil(res)
+
+	app, ok := s.simapp.App.(*SimApp) // TODO: clean this up
+	s.Require().True(ok)
+
+	hypDenom, err := app.WarpKeeper.HypTokens.Get(s.simapp.GetContext(), synTokenID.GetInternalId())
+	s.Require().NoError(err)
+
+	balance := app.BankKeeper.GetBalance(s.simapp.GetContext(), s.simapp.SenderAccount.GetAddress(), hypDenom.OriginDenom)
+	s.Require().Equal(math.NewInt(1000).Int64(), balance.Amount.Int64())
 }
 
 func (s *HyperlaneTestSuite) SetupNoopISM(chain *ibctesting.TestChain) util.HexAddress {
