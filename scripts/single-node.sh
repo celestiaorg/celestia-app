@@ -33,7 +33,6 @@ createGenesis() {
     celestia-appd init ${CHAIN_ID} \
       --chain-id ${CHAIN_ID} \
       --home "${APP_HOME}" \
-      --initial-height 1 \
       > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     echo "Adding a new key to the keyring..."
