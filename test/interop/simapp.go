@@ -1,4 +1,4 @@
-package pfm
+package interop
 
 import (
 	"encoding/json"
@@ -156,6 +156,15 @@ var (
 	_ runtime.AppI            = (*SimApp)(nil)
 	_ servertypes.Application = (*SimApp)(nil)
 )
+
+// The genesis state of the blockchain is represented here as a map of raw json
+// messages key'd by an identifier string.
+// The identifier is used to determine which module genesis information belongs
+// to so it may be appropriately routed during init chain.
+// Within this application default genesis information is retrieved from
+// the ModuleBasicManager which populates json from each BasicModule
+// object provided to it during init.
+type GenesisState map[string]json.RawMessage
 
 // SimApp extends an ABCI application, but with most of its parameters exported.
 // They are exported for convenience in creating helper functions, as object
@@ -484,7 +493,7 @@ func NewSimApp(
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 		app.BankKeeper,
 		&app.HyperlaneKeeper,
-		[]int32{int32(warptypes.HYP_TOKEN_TYPE_COLLATERAL)},
+		[]int32{int32(warptypes.HYP_TOKEN_TYPE_COLLATERAL), int32(warptypes.HYP_TOKEN_TYPE_SYNTHETIC)},
 	)
 
 	// create evidence keeper with router

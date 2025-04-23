@@ -17,9 +17,10 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/test/pfm"
+	"github.com/celestiaorg/celestia-app/v4/test/interop"
 )
 
+// TODO: Move tokenfilter test suite to pkg test/interop
 type TokenFilterTestSuite struct {
 	suite.Suite
 
@@ -49,7 +50,7 @@ func (suite *TokenFilterTestSuite) SetupTest() {
 	suite.celestiaChain = ibctesting.NewTestChain(suite.T(), suite.coordinator, ibctesting.GetChainID(1))
 	setMinFeeToZero(suite.T(), suite.celestiaChain)
 
-	ibctesting.DefaultTestingAppInit = pfm.SetupTestingApp
+	ibctesting.DefaultTestingAppInit = interop.SetupTestingApp
 
 	suite.otherChain = ibctesting.NewTestChain(suite.T(), suite.coordinator, ibctesting.GetChainID(2))
 
@@ -69,8 +70,8 @@ func setMinFeeToZero(t *testing.T, celestiaChain *ibctesting.TestChain) {
 }
 
 // GetSimapp is a helper function which performs the correct cast on the underlying chain.App
-func (suite *TokenFilterTestSuite) GetSimapp(chain *ibctesting.TestChain) *pfm.SimApp {
-	app, ok := chain.App.(*pfm.SimApp)
+func (suite *TokenFilterTestSuite) GetSimapp(chain *ibctesting.TestChain) *interop.SimApp {
+	app, ok := chain.App.(*interop.SimApp)
 	require.True(suite.T(), ok)
 	return app
 }
