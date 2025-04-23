@@ -109,7 +109,7 @@ upgradeToV4() {
         --chain-id ${CHAIN_ID} \
         --broadcast-mode ${BROADCAST_MODE} \
         --yes \
-        # > /dev/null 2>&1 # Hide output to reduce terminal noise
+        > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     sleep 10
     echo "Querying the tally for v4..."
@@ -124,7 +124,7 @@ upgradeToV4() {
         --chain-id ${CHAIN_ID} \
         --broadcast-mode ${BROADCAST_MODE} \
         --yes \
-        # > /dev/null 2>&1 # Hide output to reduce terminal noise
+        > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     sleep 10
     echo "Querying for pending upgrade..."
