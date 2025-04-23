@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/knuu/pkg/knuu"
+	"github.com/cometbft/cometbft/rpc/client/http"
 
 	"github.com/celestiaorg/celestia-app/v4/test/e2e/testnet"
 )
@@ -84,7 +85,7 @@ func E2EStateSync(logger *log.Logger) error {
 	}
 
 	targetHeight := initialHeight + blocksToProduce
-	err = waitForHeight(ctx, nodeZeroClient, targetHeight, 15*time.Second)
+	err = waitForHeight(nodeZeroClient, ctx, targetHeight)
 	testnet.NoError(fmt.Sprintf("failed to wait for target height %d", targetHeight), err)
 	logger.Printf("Reached target height %d", targetHeight)
 
@@ -126,7 +127,7 @@ func E2EStateSync(logger *log.Logger) error {
 	}
 
 	stateSyncOpt := testnet.WithStateSync(rpcServers, trustHeight, trustHash)
-	gendoc, err := testNet.Genesis().Export()
+	gendoc, err := testNet.Genesis().ExportBytes()
 	testnet.NoError("failed to export genesis document", err)
 	err = stateSyncNode.Init(ctx, gendoc, peers, stateSyncOpt)
 	testnet.NoError("failed to initialize state sync node", err)
@@ -164,7 +165,25 @@ func E2EStateSync(logger *log.Logger) error {
 
 	logger.Println("Verifying synced node continues producing blocks")
 	finalTargetHeight := latestHeight + 5
-	err = waitForHeight(ctx, stateSyncClient, finalTargetHeight, 15*time.Second)
+	err = waitForHeight(stateSyncClient, ctx, finalTargetHeight)
 	testnet.NoError(fmt.Sprintf("state synced node failed to reach height %d", finalTargetHeight), err)
 	return nil
+}
+
+// Helper function to wait for a specific height, similar to testnode.WaitForHeight but using http.HTTP client
+func waitForHeight(client *http.HTTP, ctx context.Context, height int64) error {
+	var latestHeight int64
+	for i := 0; i < 60; i++ { // Timeout after ~2 minutes (60 * 2s)
+		status, err := client.Status(ctx)
+		if err != nil {
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		latestHeight = status.SyncInfo.LatestBlockHeight
+		if latestHeight >= height {
+			return nil
+		}
+		time.Sleep(2 * time.Second)
+	}
+	return fmt.Errorf("timed out waiting for height %d, last height %d", height, latestHeight)
 }
