@@ -62,9 +62,6 @@ createGenesis() {
       --home "${APP_HOME}" \
         > /dev/null 2>&1 # Hide output to reduce terminal noise
 
-    # If you encounter: `sed: -I or -i may not be used with stdin` on MacOS you can mitigate by installing gnu-sed
-    # https://gist.github.com/andre3k1/e3a1a7133fded5de5a9ee99c87c6fa0d?permalink_comment_id=3082272#gistcomment-3082272
-
     # Override the default RPC server listening address
     sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' "${APP_HOME}"/config/config.toml
 
@@ -73,9 +70,6 @@ createGenesis() {
 
     # Persist ABCI responses
     sed -i'.bak' 's#discard_abci_responses = true#discard_abci_responses = false#g' "${APP_HOME}"/config/config.toml
-
-    # Set log level to debug
-    sed -i'.bak' 's#log_level = "info"#log_level = "debug"#g' "${APP_HOME}"/config/config.toml
 
     # Override the VotingPeriod from 1 week to 1 minute
     sed -i'.bak' 's#"604800s"#"60s"#g' "${APP_HOME}"/config/genesis.json
