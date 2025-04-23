@@ -1,9 +1,6 @@
 #!/bin/sh
 
-# This script starts a single node testnet on app version 1. Then it upgrades
-# from v1 -> v2 -> v3 -> v4.
-#
-# NOTE: before running this script, set the V2_UPGRADE_HEIGHT to 3 in the Makefile then run `make install`.
+# This script starts a local single node testnet on app version 3 and then upgrades to app version 4.
 
 # Stop script execution if an error is encountered
 set -o errexit
@@ -34,7 +31,7 @@ echo ""
 
 createGenesis() {
     echo "Initializing validator and node config files..."
-    celestia-appd passthrough 1 init ${CHAIN_ID} \
+    celestia-appd passthrough 3 init ${CHAIN_ID} \
       --chain-id ${CHAIN_ID} \
       --home "${APP_HOME}" \
       > /dev/null 2>&1 # Hide output to reduce terminal noise
@@ -46,13 +43,13 @@ createGenesis() {
       > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     echo "Adding genesis account..."
-    celestia-appd passthrough 1 add-genesis-account \
+    celestia-appd passthrough 3 add-genesis-account \
       "$(celestia-appd keys show ${KEY_NAME} -a --keyring-backend=${KEYRING_BACKEND} --home "${APP_HOME}")" \
       "1000000000000000utia" \
       --home "${APP_HOME}"
 
     echo "Creating a genesis tx..."
-    celestia-appd passthrough 1 gentx ${KEY_NAME} 5000000000utia \
+    celestia-appd passthrough 3 gentx ${KEY_NAME} 5000000000utia \
       --fees ${FEES} \
       --keyring-backend=${KEYRING_BACKEND} \
       --chain-id ${CHAIN_ID} \
@@ -60,7 +57,7 @@ createGenesis() {
       > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     echo "Collecting genesis txs..."
-    celestia-appd passthrough 1 collect-gentxs \
+    celestia-appd passthrough 3 collect-gentxs \
       --home "${APP_HOME}" \
         > /dev/null 2>&1 # Hide output to reduce terminal noise
 
@@ -76,11 +73,8 @@ createGenesis() {
     # Override the VotingPeriod from 1 week to 1 minute
     sed -i'.bak' 's#"604800s"#"60s"#g' "${APP_HOME}"/config/genesis.json
 
-    # Override the genesis to use app version 1.
-    sed -i'.bak' 's/"app_version": *"[^"]*"/"app_version": "1"/' "${APP_HOME}"/config/genesis.json
-
-    # Override the genesis.json consensus params version from 0 to 1.
-    sed -i'.bak' 's#"app": "0"#"app": "1"#g' "${APP_HOME}"/config/genesis.json
+    # Override the genesis to use app version 3.
+    sed -i'.bak' 's/"app_version": *"[^"]*"/"app_version": "3"/' "${APP_HOME}"/config/genesis.json
 }
 
 deleteCelestiaAppHome() {
@@ -100,10 +94,10 @@ startCelestiaApp() {
     --force-no-bbr
 }
 
-upgradeToV3() {
+upgradeToV4() {
     sleep 45
-    echo "Submitting signal for v3..."
-    celestia-appd tx signal signal 3 \
+    echo "Submitting signal for v4..."
+    celestia-appd tx signal signal 4 \
         --keyring-backend=${KEYRING_BACKEND} \
         --home ${APP_HOME} \
         --from ${KEY_NAME} \
@@ -111,10 +105,10 @@ upgradeToV3() {
         --chain-id ${CHAIN_ID} \
         --broadcast-mode ${BROADCAST_MODE} \
         --yes \
-        > /dev/null 2>&1 # Hide output to reduce terminal noise
+        # > /dev/null 2>&1 # Hide output to reduce terminal noise
 
-    echo "Querying the tally for v3..."
-    celestia-appd query signal tally 3
+    echo "Querying the tally for v4..."
+    celestia-appd query signal tally 4
 
     echo "Submitting msg try upgrade..."
     celestia-appd tx signal try-upgrade \
@@ -125,7 +119,7 @@ upgradeToV3() {
         --chain-id ${CHAIN_ID} \
         --broadcast-mode ${BROADCAST_MODE} \
         --yes \
-        > /dev/null 2>&1 # Hide output to reduce terminal noise
+        # > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     echo "Querying for pending upgrade..."
     celestia-appd query signal upgrade
@@ -142,5 +136,5 @@ else
   createGenesis
 fi
 
-upgradeToV3 & # Start the upgrade process from v2 -> v3 in the background.
+# upgradeToV4 & # Start the upgrade process from v3 -> v4 in the background.
 startCelestiaApp # Start celestia-app in the foreground.
