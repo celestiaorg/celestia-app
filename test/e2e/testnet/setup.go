@@ -125,7 +125,6 @@ func MakeAppConfig(_ *Node) (*serverconfig.Config, error) {
 	if err := validateServerConfigForTestnet(srvCfg); err != nil {
 		return nil, err
 	}
-
 	return srvCfg, srvCfg.ValidateBasic()
 }
 
@@ -140,4 +139,14 @@ func validateServerConfigForTestnet(srvCfg *serverconfig.Config) error {
 		return fmt.Errorf("gRPC address must contain '0.0.0.0'")
 	}
 	return nil
+}
+
+// WithStateSync enables state sync with the provided parameters.
+func WithStateSync(rpcServers []string, trustHeight int64, trustHash string) Option {
+	return func(cfg *config.Config) {
+		cfg.StateSync.Enable = true
+		cfg.StateSync.RPCServers = rpcServers
+		cfg.StateSync.TrustHeight = trustHeight
+		cfg.StateSync.TrustHash = trustHash
+	}
 }

@@ -24,6 +24,7 @@ func main() {
 		{"MajorUpgradeToV2", MajorUpgradeToV2},
 		{"MajorUpgradeToV3", MajorUpgradeToV3},
 		{"E2ESimple", E2ESimple},
+		{"E2EStateSync", E2EStateSync},
 	}
 
 	// check if a specific test is passed and run it
