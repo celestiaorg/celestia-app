@@ -489,35 +489,30 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 		return firstResp, nil
 	}
 
-	broadcastErrs := make([]string, 0, 3)
+	broadcastErrs := make([]error, 0, 3)
 	for err := range errCh {
-		broadcastErrs = append(broadcastErrs, err.Error())
+		broadcastErrs = append(broadcastErrs, err)
 	}
 
 	// groupErr will be non-nil if the context finished OR if a g.Go func returned an error
 	if groupErr != nil {
 		log.Warn().Err(groupErr).Msg("Unexpected error returned from errgroup.Wait")
-		broadcastErrs = append([]string{fmt.Sprintf("internal error: %v", groupErr)}, broadcastErrs...)
+		broadcastErrs = append([]error{fmt.Errorf("internal error: %v", groupErr)}, broadcastErrs...)
 	}
 
 	// If the context finished (DeadlineExceeded or Canceled)
 	if ctxErr := ctx.Err(); ctxErr != nil { // Check original context
 		errPrefix := "broadcast context cancelled"
-		originalCtxErr := ctxErr
 		if errors.Is(ctxErr, context.DeadlineExceeded) {
 			errPrefix = "broadcast context deadline exceeded"
 		}
-		if len(broadcastErrs) > 0 {
-			// Wrap the context error along with the message
-			return nil, fmt.Errorf("%s; underlying errors: %s: %w", errPrefix, strings.Join(broadcastErrs, "; "), originalCtxErr)
-		}
 		// Wrap the original context error directly
-		return nil, fmt.Errorf("%s: %w", errPrefix, originalCtxErr)
+		return nil, fmt.Errorf("%s: %w", errPrefix, ctxErr)
 	}
 
 	// if only broadcast errors occurred (and context is OK).
 	if len(broadcastErrs) > 0 {
-		return nil, fmt.Errorf("all broadcast attempts failed: %s", strings.Join(broadcastErrs, "; "))
+		return nil, broadcastErrs[0]
 	}
 
 	return nil, errors.New("broadcast failed with no success, no errors, and no context cancellation")

@@ -627,7 +627,7 @@ func (s *BroadcastTestSuite) TestBroadcastScenarios() {
 			},
 			txOpts:            defaultOpts,
 			expectedSuccess:   false,
-			expectedErrSubstr: "all broadcast attempts failed", // Check for specific errors below
+			expectedErrSubstr: "err",
 			checkMockInvocations: func(t *testing.T, mocks []*grpctest.MockTxService) {
 				require.Len(t, mocks, 3)
 				require.Equal(t, int32(1), mocks[0].Invocations.Load())
@@ -795,12 +795,6 @@ func (s *BroadcastTestSuite) TestBroadcastScenarios() {
 						// Use require.ErrorAs for checking error types (structs/interfaces)
 						require.ErrorAs(t, err, &tc.expectedErrType)
 					}
-				}
-				// Special check for "All Fail" case to ensure all errors are present
-				if tc.name == "All Fail" {
-					require.Contains(t, err.Error(), "err1")
-					require.Contains(t, err.Error(), "err2")
-					require.Contains(t, err.Error(), "err3")
 				}
 			}
 
