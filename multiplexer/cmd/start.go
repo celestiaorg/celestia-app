@@ -77,7 +77,7 @@ func getAndValidateConfig(svrCtx *server.Context) (serverconfig.Config, error) {
 	}
 
 	if strings.TrimSpace(svrCtx.Config.RPC.GRPCListenAddress) == "" {
-		return config, fmt.Errorf("must set grpc listen address in config or by flag")
+		return config, fmt.Errorf("must set the RPC GRPC listen address in config.toml (grpc_laddr) or by flag (--rpc.grpc_laddr)")
 	}
 
 	return config, nil
