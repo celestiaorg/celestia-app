@@ -32,22 +32,31 @@ func TestHyperlaneTestSuite(t *testing.T) {
 	suite.Run(t, new(HyperlaneTestSuite))
 }
 
-// TODO: refactor the test setup for hyperlane, pfm and tokenfilter suites
 func (s *HyperlaneTestSuite) SetupTest() {
-	_, simappTestChain, celestiaTestChain, _ := SetupTest(s.T())
+	_, celestia, simapp, _ := SetupTest(s.T())
 
-	s.celestia = celestiaTestChain
-	s.simapp = simappTestChain
+	s.celestia = celestia
+	s.simapp = simapp
 
 	// NOTE: the test infra funds accounts with token denom "stake" by default, so we mint some utia here
-	simapp, ok := celestiaTestChain.App.(*app.App)
+	app := s.GetCelestiaApp(celestia)
+	err := app.BankKeeper.MintCoins(celestia.GetContext(), minttypes.ModuleName, sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1_000_000))))
+	s.Require().NoError(err)
+
+	err = app.BankKeeper.SendCoinsFromModuleToAccount(celestia.GetContext(), minttypes.ModuleName, celestia.SenderAccount.GetAddress(), sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1_000_000))))
+	s.Require().NoError(err)
+}
+
+func (s *HyperlaneTestSuite) GetCelestiaApp(chain *ibctesting.TestChain) *app.App {
+	app, ok := chain.App.(*app.App)
 	s.Require().True(ok)
+	return app
+}
 
-	err := simapp.BankKeeper.MintCoins(celestiaTestChain.GetContext(), minttypes.ModuleName, sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1_000_000))))
-	s.Require().NoError(err)
-
-	err = simapp.BankKeeper.SendCoinsFromModuleToAccount(celestiaTestChain.GetContext(), minttypes.ModuleName, celestiaTestChain.SenderAccount.GetAddress(), sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1_000_000))))
-	s.Require().NoError(err)
+func (s *HyperlaneTestSuite) GetSimapp(chain *ibctesting.TestChain) *SimApp {
+	app, ok := chain.App.(*SimApp)
+	s.Require().True(ok)
+	return app
 }
 
 func (s *HyperlaneTestSuite) TestHyperlaneTransfer() {

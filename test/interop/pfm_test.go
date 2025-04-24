@@ -22,8 +22,6 @@ import (
 type PacketForwardMiddlewareTestSuite struct {
 	suite.Suite
 
-	coordinator *ibctesting.Coordinator
-
 	celestia *ibctesting.TestChain
 	chainA   *ibctesting.TestChain
 	chainB   *ibctesting.TestChain
@@ -37,7 +35,7 @@ func TestPacketForwardMiddlewareTestSuite(t *testing.T) {
 }
 
 func (s *PacketForwardMiddlewareTestSuite) SetupTest() {
-	coordinator, chainA, celestia, chainB := SetupTest(s.T())
+	coordinator, celestia, chainA, chainB := SetupTest(s.T())
 	s.pathAToCelestia = ibctesting.NewTransferPath(chainA, celestia)
 	s.pathCelestiaToB = ibctesting.NewTransferPath(celestia, chainB)
 
@@ -63,11 +61,23 @@ type ForwardMetadata struct {
 	RefundSequence *uint64       `json:"refund_sequence,omitempty"`
 }
 
+func (s *PacketForwardMiddlewareTestSuite) GetCelestiaApp(chain *ibctesting.TestChain) *app.App {
+	app, ok := chain.App.(*app.App)
+	s.Require().True(ok)
+	return app
+}
+
+func (s *PacketForwardMiddlewareTestSuite) GetSimapp(chain *ibctesting.TestChain) *SimApp {
+	app, ok := chain.App.(*SimApp)
+	s.Require().True(ok)
+	return app
+}
+
 // TestPacketForwardMiddlewareTransfer sends a PFM transfer originating from Celestia to ChainA, then back to Celestia and finally to ChainB.
 // It verifies that Celestia forwards the packet successfully, the balance of the sender account on Celestia decreases by the amount sent,
 // and the balance of the receiver account on ChainB increases by the amount sent.
 func (s *PacketForwardMiddlewareTestSuite) TestPacketForwardMiddlewareTransfer() {
-	celestiaApp := s.celestia.App.(*app.App)
+	celestiaApp := s.GetCelestiaApp(s.celestia)
 	originalCelestiaBalance := celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), s.celestia.SenderAccount.GetAddress(), sdk.DefaultBondDenom)
 
 	// Take half of the original balance
@@ -115,7 +125,7 @@ func (s *PacketForwardMiddlewareTestSuite) TestPacketForwardMiddlewareTransfer()
 	s.Require().Equal(originalCelestiaBalance.Amount.Sub(transferAmount), sourceBalanceAfter.Amount)
 
 	ibcDenomTrace := transfertypes.ParseDenomTrace(transfertypes.GetPrefixedDenom(packet.GetDestPort(), packet.GetDestChannel(), sdk.DefaultBondDenom))
-	destinationBalanceAfter := s.chainB.App.(*SimApp).BankKeeper.GetBalance(s.chainB.GetContext(), s.chainB.SenderAccount.GetAddress(), ibcDenomTrace.IBCDenom())
+	destinationBalanceAfter := s.GetSimapp(s.chainB).BankKeeper.GetBalance(s.chainB.GetContext(), s.chainB.SenderAccount.GetAddress(), ibcDenomTrace.IBCDenom())
 
 	s.Require().Equal(transferAmount, destinationBalanceAfter.Amount)
 }
