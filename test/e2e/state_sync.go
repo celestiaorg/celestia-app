@@ -7,8 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/cometbft/cometbft/rpc/client/http"
+
+	"github.com/celestiaorg/knuu/pkg/knuu"
 
 	"github.com/celestiaorg/celestia-app/v4/test/e2e/testnet"
 )
@@ -35,7 +36,9 @@ func E2EStateSync(logger *log.Logger) error {
 	kn.HandleStopSignal(ctx)
 	logger.Printf("Knuu initialized with scope %s", kn.Scope)
 
-	testNet, err := testnet.New(logger, kn, testnet.Options{})
+	testNet, err := testnet.New(logger, kn, testnet.Options{
+		AppVersion: 4,
+	})
 	testnet.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup(ctx)
