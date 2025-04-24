@@ -13,6 +13,13 @@ then
     exit 1
 fi
 
+# Use argument as home directory if provided, else default to ~/.celestia-app
+if [ $# -ge 1 ]; then
+  APP_HOME="$1"
+else
+  APP_HOME="${HOME}/.celestia-app"
+fi
+
 # Constants
 CHAIN_ID="test"
 KEY_NAME="validator"
@@ -20,7 +27,6 @@ KEYRING_BACKEND="test"
 FEES="500utia"
 
 VERSION=$(celestia-appd version 2>&1)
-APP_HOME="${HOME}/.celestia-app"
 GENESIS_FILE="${APP_HOME}/config/genesis.json"
 
 echo "celestia-app version: ${VERSION}"
@@ -71,9 +77,6 @@ createGenesis() {
 
     # Persist ABCI responses
     sed -i'.bak' 's#discard_abci_responses = true#discard_abci_responses = false#g' "${APP_HOME}"/config/config.toml
-
-    # Override the log level to debug
-    # sed -i'.bak' 's#log_level = "info"#log_level = "debug"#g' "${APP_HOME}"/config/config.toml
 
     # Override the VotingPeriod from 1 week to 1 minute
     sed -i'.bak' 's#"604800s"#"60s"#g' "${APP_HOME}"/config/genesis.json
