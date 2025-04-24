@@ -51,7 +51,7 @@ func TestCircuitBreaker(t *testing.T) { // TODO: we need to pass a find a way to
 	assert.Error(t, err)
 	assert.ErrorContains(t, err, "/celestia.signal.v1.Msg/TryUpgrade doesn't exist.: invalid type")
 
-	// when the muiliplexer is introduced.
+	// when the multiplexer is introduced.
 
 	// _, err = testApp.BeginBlocker(ctx)
 	// require.NoError(t, err)
