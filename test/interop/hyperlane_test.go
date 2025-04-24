@@ -10,6 +10,7 @@ import (
 	hooktypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/02_post_dispatch/types"
 	coretypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
+	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/gogoproto/proto"
@@ -122,6 +123,25 @@ func (s *HyperlaneTestSuite) TestHyperlaneTransfer() {
 
 	balance := simapp.BankKeeper.GetBalance(s.simapp.GetContext(), s.simapp.SenderAccount.GetAddress(), hypDenom.OriginDenom)
 	s.Require().Equal(math.NewInt(1000).Int64(), balance.Amount.Int64())
+}
+
+func (s *HyperlaneTestSuite) TestSyntheticTokensDisabled() {
+	const (
+		SimappDomainID = 1337
+	)
+
+	ismIDSimapp := s.SetupNoopISM(s.simapp)
+	mailboxIDSimapp := s.SetupMailBox(s.simapp, ismIDSimapp, SimappDomainID)
+
+	msgCreateSyntheticToken := warptypes.MsgCreateSyntheticToken{
+		Owner:         s.celestia.SenderAccount.GetAddress().String(),
+		OriginMailbox: mailboxIDSimapp,
+	}
+
+	res, err := s.celestia.SendMsgs(&msgCreateSyntheticToken)
+	s.Require().Error(err)
+	s.Require().ErrorContains(err, "module disabled synthetic tokens")
+	s.Require().NotEqual(abci.CodeTypeOK, res.Code)
 }
 
 func (s *HyperlaneTestSuite) SetupNoopISM(chain *ibctesting.TestChain) util.HexAddress {
