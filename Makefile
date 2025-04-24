@@ -214,7 +214,7 @@ test-short:
 ## test-e2e: Run end to end tests via knuu. This command requires a kube/config file to configure kubernetes.
 test-e2e:
 	@echo "--> Running end to end tests"
-	go run ./test/e2e $(filter-out $@,$(MAKECMDGOALS))
+	IMAGE_TAG=$(tag) TEST=$(test) DOCKER_REGISTRY=$(registry) go run ./test/e2e $(filter-out $@,$(MAKECMDGOALS))
 .PHONY: test-e2e
 
 ## test-multiplexer: Run unit tests for the multiplexer package.
