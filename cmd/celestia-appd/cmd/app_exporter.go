@@ -7,7 +7,7 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 
-	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/tree/main/app"
 )
 
 func appExporter(
