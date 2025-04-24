@@ -123,9 +123,7 @@ func (s *HyperlaneTestSuite) TestHyperlaneTransfer() {
 	s.Require().NoError(err)
 	s.Require().NotNil(res)
 
-	simapp, ok := s.simapp.App.(*SimApp)
-	s.Require().True(ok)
-
+	simapp := s.GetSimapp(s.simapp)
 	hypDenom, err := simapp.WarpKeeper.HypTokens.Get(s.simapp.GetContext(), synTokenID.GetInternalId())
 	s.Require().NoError(err)
 
