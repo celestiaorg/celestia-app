@@ -1,4 +1,4 @@
-package pfm
+package interop
 
 import (
 	"bytes"
@@ -7,11 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
-	"cosmossdk.io/math"
 	abci "github.com/cometbft/cometbft/abci/types"
-	dbm "github.com/cosmos/cosmos-db"
-	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	transfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
@@ -35,50 +31,6 @@ type ForwardMetadata struct {
 	Retries        *uint8        `json:"retries,omitempty"`
 	Next           *string       `json:"next,omitempty"`
 	RefundSequence *uint64       `json:"refund_sequence,omitempty"`
-}
-
-func SetupTest(t *testing.T) (*ibctesting.Coordinator, *ibctesting.TestChain,
-	*ibctesting.TestChain, *ibctesting.TestChain,
-) {
-	chains := make(map[string]*ibctesting.TestChain)
-	coordinator := &ibctesting.Coordinator{
-		T:           t,
-		CurrentTime: time.Now(),
-		Chains:      chains,
-	}
-
-	// modify ibctesting package to return celestia as the next app when calling ibctesting.NewTestChain
-	ibctesting.DefaultTestingAppInit = func() (ibctesting.TestingApp, map[string]json.RawMessage) {
-		db := dbm.NewMemDB()
-		celestiaApp := app.New(log.NewNopLogger(), db, nil, 0, simtestutil.EmptyAppOptions{})
-		return celestiaApp, celestiaApp.DefaultGenesis()
-	}
-
-	celestiaChain := ibctesting.NewTestChain(t, coordinator, ibctesting.GetChainID(1))
-	setMinFeeToZero(t, celestiaChain)
-
-	// modify the testing package to return the pfm app which does not have a token filter wired up on subsequent
-	// NewTestChain calls.
-	ibctesting.DefaultTestingAppInit = SetupTestingApp
-
-	chainA := ibctesting.NewTestChain(t, coordinator, ibctesting.GetChainID(2))
-	chainB := ibctesting.NewTestChain(t, coordinator, ibctesting.GetChainID(3))
-
-	coordinator.Chains[ibctesting.GetChainID(1)] = celestiaChain
-	coordinator.Chains[ibctesting.GetChainID(2)] = chainA
-	coordinator.Chains[ibctesting.GetChainID(3)] = chainB
-	return coordinator, chainA, celestiaChain, chainB
-}
-
-// setMinFeeToZero updates the network minimum gas price to zero.
-// This is a workaround as overriding at genesis will fail in minfee.ValidateGenesis
-func setMinFeeToZero(t *testing.T, celestiaChain *ibctesting.TestChain) {
-	celestiaApp, ok := celestiaChain.App.(*app.App)
-	require.True(t, ok)
-
-	params := celestiaApp.MinFeeKeeper.GetParams(celestiaChain.GetContext())
-	params.NetworkMinGasPrice = math.LegacyNewDec(0)
-	celestiaApp.MinFeeKeeper.SetParams(celestiaChain.GetContext(), params)
 }
 
 func NewTransferPaths(chain1, chain2, chain3 *ibctesting.TestChain) (*ibctesting.Path, *ibctesting.Path) {

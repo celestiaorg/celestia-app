@@ -1,4 +1,4 @@
-package pfm
+package interop
 
 import (
 	"errors"
