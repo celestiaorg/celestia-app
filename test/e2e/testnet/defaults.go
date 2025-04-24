@@ -10,9 +10,8 @@ var DefaultResources = Resources{
 }
 
 const (
-	TxsimVersion = "b5a8e7c" // TODO: use a proper version, this is one built on the sdk 50 fork
-	MB           = 1000 * 1000
-	GB           = 1000 * MB
-	MiB          = 1024 * 1024
-	GiB          = 1024 * MiB
+	MB  = 1000 * 1000
+	GB  = 1000 * MB
+	MiB = 1024 * 1024
+	GiB = 1024 * MiB
 )

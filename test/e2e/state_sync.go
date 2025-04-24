@@ -55,7 +55,7 @@ func E2EStateSync(logger *log.Logger) error {
 	endpoints, err := testNet.RemoteGRPCEndpoints()
 	testnet.NoError("failed to get remote gRPC endpoints", err)
 	upgradeSchedule := map[int64]uint64{}
-	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 10, "100-1000", 10, testnet.DefaultResources, endpoints[0], upgradeSchedule)
+	err = testNet.CreateTxClient(ctx, "txsim", latestVersion, 10, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)
 	testnet.NoError("failed to create tx client", err)
 
 	// Setup Testnet
