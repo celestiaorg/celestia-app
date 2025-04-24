@@ -20,8 +20,14 @@ KEYRING_BACKEND="test"
 FEES="500utia"
 BROADCAST_MODE="sync"
 
+# Use argument as home directory if provided, else default to ~/.celestia-app
+if [ $# -ge 1 ]; then
+  APP_HOME="$1"
+else
+  APP_HOME="${HOME}/.celestia-app"
+fi
+
 VERSION=$(celestia-appd version 2>&1)
-APP_HOME="${HOME}/.celestia-app"
 GENESIS_FILE="${APP_HOME}/config/genesis.json"
 
 echo "celestia-app version: ${VERSION}"

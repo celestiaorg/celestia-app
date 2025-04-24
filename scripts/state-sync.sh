@@ -14,12 +14,18 @@ then
     exit 1
 fi
 
+# Use argument as home directory if provided, else default to ~/.celestia-app
+if [ $# -ge 1 ]; then
+  SINGLE_NODE_HOME="$1"
+else
+  SINGLE_NODE_HOME="${HOME}/.celestia-app"
+fi
+
 CHAIN_ID="test"
 KEY_NAME="validator"
 KEYRING_BACKEND="test"
 COINS="1000000000000000utia"
 DELEGATION_AMOUNT="5000000000utia"
-SINGLE_NODE_HOME="${HOME}/.celestia-app"
 CELESTIA_APP_HOME="${HOME}/.celestia-app-state-sync"
 CELESTIA_APP_VERSION=$(celestia-appd version 2>&1)
 GENESIS_FILE="${CELESTIA_APP_HOME}/config/genesis.json"
