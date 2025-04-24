@@ -11,7 +11,7 @@ on:
 jobs:
   auto-request-review:
     name: Auto request reviews
-    uses: celestiaorg/.github/.github/workflows/reusable_housekeeping.yml@dbbc8a6f4d18d0eb1b9dc8ceb3a0a7714d5beed1 #v0.6.1
+    uses: celestiaorg/.github/.github/workflows/reusable_housekeeping.yml@8ec0c98698d575351a257047604bfff6bbb45bb6 #v0.6.2
     secrets: inherit
     # write access for issues and pull requests is needed because the called
     # workflow requires write access to issues and pull requests and the

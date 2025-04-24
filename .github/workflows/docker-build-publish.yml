@@ -21,7 +21,7 @@ jobs:
     permissions:
       contents: write
       packages: write
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@dbbc8a6f4d18d0eb1b9dc8ceb3a0a7714d5beed1 #v0.6.1
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@8ec0c98698d575351a257047604bfff6bbb45bb6 #v0.6.2
     with:
       dockerfile: docker/Dockerfile
       checkout_ref: ${{ github.event.inputs.ref }}
@@ -31,7 +31,7 @@ jobs:
     permissions:
       contents: write
       packages: write
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@dbbc8a6f4d18d0eb1b9dc8ceb3a0a7714d5beed1 #v0.6.1
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@8ec0c98698d575351a257047604bfff6bbb45bb6 #v0.6.2
     with:
       dockerfile: docker/multiplexer.Dockerfile
       checkout_ref: ${{ github.event.inputs.ref }}
@@ -43,7 +43,7 @@ jobs:
     permissions:
       contents: write
       packages: write
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@dbbc8a6f4d18d0eb1b9dc8ceb3a0a7714d5beed1 #v0.6.1
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@8ec0c98698d575351a257047604bfff6bbb45bb6 #v0.6.2
     with:
       dockerfile: docker/txsim/Dockerfile
       packageName: txsim
