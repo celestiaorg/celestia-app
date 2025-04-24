@@ -24,6 +24,8 @@ import (
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8/packetforward"
+	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8/packetforward/types"
 	ica "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts"
 	icagenesistypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/genesis/types"
 	ibc "github.com/cosmos/ibc-go/v8/modules/core"
@@ -154,6 +156,25 @@ func (icaModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	return cdc.MustMarshalJSON(gs)
 }
 
+// pfm is a wrapper around packetforward.AppModule which adds required no-op migrations for upgrade.
+type pfm struct {
+	packetforward.AppModule
+}
+
+// RegisterServices needs to be overridden to add a no-op handler when going from v1 -> v2
+// the existing app module (v8) has a built-in migration for going from v2 -> v3
+func (am pfm) RegisterServices(cfg module.Configurator) {
+	err := cfg.RegisterMigration(packetforwardtypes.ModuleName, 1, func(sdk.Context) error {
+		// a no-op registration needs to happen from v1 -> v2.
+		return nil
+	})
+	if err != nil {
+		panic(err)
+	}
+	// handle existing migrations from v2 -> v3
+	am.AppModule.RegisterServices(cfg)
+}
+
 type mintModule struct {
 	mint.AppModule
 }
@@ -257,6 +278,7 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	// Set broadcast timeout to be 50 seconds in order to avoid timeouts for long block times
 	cfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
 	cfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
+	cfg.RPC.GRPCListenAddress = "tcp://0.0.0.0:9098"
 
 	cfg.Mempool.TTLNumBlocks = 12
 	cfg.Mempool.TTLDuration = 75 * time.Second

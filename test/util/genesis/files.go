@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/cometbft/cometbft/config"
+	cmtos "github.com/cometbft/cometbft/libs/os"
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/privval"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
@@ -34,11 +35,13 @@ func InitFiles(
 	if err != nil {
 		return err
 	}
-	genesisDoc, err := genesis.Export()
+
+	genesisDocBz, err := genesis.ExportBytes()
 	if err != nil {
 		return fmt.Errorf("exporting genesis: %w", err)
 	}
-	err = genesisDoc.SaveAs(tmConfig.GenesisFile())
+
+	err = cmtos.WriteFile(tmConfig.GenesisFile(), genesisDocBz, 0o644)
 	if err != nil {
 		return err
 	}
