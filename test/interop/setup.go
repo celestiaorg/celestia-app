@@ -53,7 +53,7 @@ func SetupTest(t *testing.T) (*ibctesting.Coordinator, *ibctesting.TestChain,
 	coordinator.Chains[ibctesting.GetChainID(1)] = celestiaChain
 	coordinator.Chains[ibctesting.GetChainID(2)] = chainA
 	coordinator.Chains[ibctesting.GetChainID(3)] = chainB
-	return coordinator, chainA, celestiaChain, chainB
+	return coordinator, celestiaChain, chainA, chainB
 }
 
 // setMinFeeToZero updates the network minimum gas price to zero.
