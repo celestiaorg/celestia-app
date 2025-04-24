@@ -56,16 +56,24 @@ install-standalone: check-bbr
 
 ## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
 # TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
+define EMBED_BIN
+	if test -f internal/embedding/$$out; then \
+	  echo "Skipping download, existing: $$out"; \
+	else \
+	  wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/$$url -O internal/embedding/$$out; \
+	fi
+endef
+
 install: check-bbr
 	@echo "--> Download embedded binaries for v3"
-	@[ -f internal/embedding/celestia-app_darwin_v3_arm64.tar.gz ] || \
-	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Darwin_arm64.tar.gz -O internal/embedding/celestia-app_darwin_v3_arm64.tar.gz
-	@[ -f internal/embedding/celestia-app_linux_v3_arm64.tar.gz ] || \
-	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Linux_arm64.tar.gz -O internal/embedding/celestia-app_linux_v3_arm64.tar.gz
-	@[ -f internal/embedding/celestia-app_darwin_v3_amd64.tar.gz ] || \
-	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Darwin_x86_64.tar.gz -O internal/embedding/celestia-app_darwin_v3_amd64.tar.gz
-	@[ -f internal/embedding/celestia-app_linux_v3_amd64.tar.gz ] || \
-	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Linux_x86_64.tar.gz -O internal/embedding/celestia-app_linux_v3_amd64.tar.gz
+	@for pair in \
+		"celestia-app_Darwin_arm64.tar.gz:celestia-app_darwin_v3_arm64.tar.gz" \
+		"celestia-app_Linux_arm64.tar.gz:celestia-app_linux_v3_arm64.tar.gz" \
+		"celestia-app_Darwin_x86_64.tar.gz:celestia-app_darwin_v3_amd64.tar.gz" \
+		"celestia-app_Linux_x86_64.tar.gz:celestia-app_linux_v3_amd64.tar.gz"; do \
+		url=$${pair%%:*}; out=$${pair##*:}; \
+		$(EMBED_BIN); \
+	done
 	@echo "--> Installing celestia-appd with multiplexer support"
 	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
 .PHONY: install
