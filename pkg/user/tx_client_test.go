@@ -790,7 +790,6 @@ func (s *BroadcastTestSuite) TestBroadcastScenarios() {
 					if errors.Is(tc.expectedErrType, context.DeadlineExceeded) || errors.Is(tc.expectedErrType, context.Canceled) {
 						require.True(t, errors.Is(err, tc.expectedErrType), "Expected error chain to contain %v, but got %v", tc.expectedErrType, err)
 					} else {
-						// Use require.ErrorAs for checking error types (structs/interfaces)
 						require.ErrorAs(t, err, &tc.expectedErrType)
 					}
 				}
