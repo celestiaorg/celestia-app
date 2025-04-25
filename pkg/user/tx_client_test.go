@@ -733,7 +733,6 @@ func (s *BroadcastTestSuite) TestBroadcastScenarios() {
 			expectedHash:    "HASH_MT3",
 			checkMockInvocations: func(t *testing.T, mocks []*grpctest.MockTxService) {
 				require.Len(t, mocks, 4)
-				// broadcastTx internally selects only up to 3 connections.
 				require.Equal(t, int32(1), mocks[0].Invocations.Load())
 				require.Equal(t, int32(1), mocks[1].Invocations.Load())
 				require.Equal(t, int32(1), mocks[2].Invocations.Load())
