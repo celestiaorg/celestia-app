@@ -662,7 +662,7 @@ func (s *BroadcastTestSuite) TestBroadcastScenarios() {
 			},
 			txOpts:          defaultOpts,
 			expectedSuccess: false,
-			expectedErrType: context.DeadlineExceeded, // Check for specific error type
+			expectedErrType: context.DeadlineExceeded,
 			checkMockInvocations: func(t *testing.T, mocks []*grpctest.MockTxService) {
 				// Invocations might be 0 or 1 depending on race with deadline
 				require.Len(t, mocks, 3)
