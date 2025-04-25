@@ -19,6 +19,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
 )
 
@@ -507,5 +508,8 @@ func (o *Options) setDefaults() {
 	}
 	if o.Seed == 0 {
 		o.Seed = DefaultSeed
+	}
+	if o.AppVersion == 0 {
+		o.AppVersion = appconsts.LatestVersion
 	}
 }
