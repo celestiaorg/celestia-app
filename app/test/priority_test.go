@@ -2,32 +2,35 @@ package app_test
 
 import (
 	"encoding/hex"
+	"math/rand"
 	"sort"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/go-square/v2/share"
-
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	abci "github.com/cometbft/cometbft/abci/types"
+	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	abci "github.com/tendermint/tendermint/abci/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
+	"github.com/celestiaorg/go-square/v2/share"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 func TestPriorityTestSuite(t *testing.T) {
+	t.Skip("TODO: skipping test until prioritisation available in core")
+
 	if testing.Short() {
 		t.Skip("skipping app/test/priority_test in short mode.")
 	}
@@ -41,8 +44,6 @@ type PriorityTestSuite struct {
 	accountNames []string
 	txClient     *user.TxClient
 	cctx         testnode.Context
-
-	rand *tmrand.Rand
 }
 
 func (s *PriorityTestSuite) SetupSuite() {
@@ -57,7 +58,6 @@ func (s *PriorityTestSuite) SetupSuite() {
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	s.cctx = cctx
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	s.rand = tmrand.NewRand()
 
 	require.NoError(t, cctx.WaitForNextBlock())
 
@@ -78,13 +78,14 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 	blobSize := uint32(100)
 	gasLimit := blobtypes.DefaultEstimateGas([]uint32{blobSize})
 	wg := &sync.WaitGroup{}
+	r := random.New()
 	for _, accName := range s.accountNames {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			// ensure that it is greater than the min gas price
-			gasPrice := float64(s.rand.Intn(1000)+1) * appconsts.DefaultMinGasPrice
-			blobs := blobfactory.ManyBlobs(s.rand, []share.Namespace{share.RandomBlobNamespace()}, []int{100})
+			gasPrice := float64(rand.Intn(1000)+1) * appconsts.DefaultMinGasPrice
+			blobs := blobfactory.ManyBlobs(r, []share.Namespace{share.RandomBlobNamespace()}, []int{100})
 			resp, err := s.txClient.BroadcastPayForBlobWithAccount(
 				s.cctx.GoContext(),
 				accName,
@@ -152,7 +153,7 @@ func getGasPrice(t *testing.T, ecfg encoding.Config, resp *rpctypes.ResultTx) fl
 	sdkTx, err := ecfg.TxConfig.TxDecoder()(resp.Tx)
 	require.NoError(t, err)
 	feeTx := sdkTx.(sdk.FeeTx)
-	fee := feeTx.GetFee().AmountOf(app.BondDenom).Uint64()
+	fee := feeTx.GetFee().AmountOf(params.BondDenom).Uint64()
 	gas := feeTx.GetGas()
 	price := float64(fee) / float64(gas)
 	return price

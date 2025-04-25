@@ -10,30 +10,30 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
-	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
-	"github.com/celestiaorg/celestia-app/v3/test/txsim"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-
-	blob "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	signaltypes "github.com/celestiaorg/celestia-app/v3/x/signal/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
+	"github.com/celestiaorg/celestia-app/v4/test/txsim"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	blob "github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	signaltypes "github.com/celestiaorg/celestia-app/v4/x/signal/types"
 )
 
 func TestTxSimulator(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping TestTxSimulator in short mode.")
 	}
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
 	testCases := []struct {
 		name        string
 		sequences   []txsim.Sequence
@@ -119,7 +119,7 @@ func TestTxSimulator(t *testing.T) {
 				ctx,
 				grpcAddr,
 				keyring,
-				encCfg,
+				encoding.MakeConfig(app.ModuleEncodingRegisters...),
 				opts,
 				tc.sequences...,
 			)
@@ -163,7 +163,7 @@ func TestTxSimUpgrade(t *testing.T) {
 		t.Skip("skipping TestTxSimUpgrade in short mode.")
 	}
 	cp := app.DefaultConsensusParams()
-	cp.Version.AppVersion = v2.Version
+	cp.Version.App = v2.Version
 	cfg := testnode.DefaultConfig().
 		WithTimeoutCommit(300 * time.Millisecond).
 		WithConsensusParams(cp).
@@ -174,7 +174,7 @@ func TestTxSimUpgrade(t *testing.T) {
 
 	// upgrade to v3 at height 20
 	sequences := []txsim.Sequence{
-		txsim.NewUpgradeSequence(v3.Version, 20),
+		txsim.NewUpgradeSequence(v4.Version, 20),
 	}
 
 	opts := txsim.DefaultOptions().
@@ -203,6 +203,6 @@ func TestTxSimUpgrade(t *testing.T) {
 	require.Eventually(t, func() bool {
 		upgradePlan, err := querier.GetUpgrade(cctx.GoContext(), &signaltypes.QueryGetUpgradeRequest{})
 		require.NoError(t, err)
-		return upgradePlan.Upgrade != nil && upgradePlan.Upgrade.AppVersion == v3.Version
+		return upgradePlan.Upgrade != nil && upgradePlan.Upgrade.AppVersion == v4.Version
 	}, time.Second*20, time.Millisecond*100)
 }

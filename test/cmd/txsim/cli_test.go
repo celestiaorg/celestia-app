@@ -6,16 +6,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
 func TestTxsimCommandFlags(t *testing.T) {
@@ -94,7 +97,7 @@ func setup(t testing.TB) (keyring.Keyring, string, string) {
 	}
 	t.Helper()
 
-	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	// set the consensus params to allow for the max square size
 	cparams := testnode.DefaultConsensusParams()
@@ -104,7 +107,7 @@ func setup(t testing.TB) (keyring.Keyring, string, string) {
 		WithConsensusParams(cparams).
 		WithFundedAccounts(testfactory.TestAccName).
 		WithModifiers(
-			genesis.FundAccounts(cdc, []sdk.AccAddress{testnode.TestAddress()}, sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1e15))),
+			genesis.FundAccounts(enc.Codec, []sdk.AccAddress{testnode.TestAddress()}, sdk.NewCoin(params.BondDenom, math.NewIntFromUint64(1e15))),
 		)
 
 	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, cfg)

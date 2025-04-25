@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 func Test_calculateSubTreeRootCoordinates(t *testing.T) {
@@ -338,7 +339,7 @@ func Test_genSubTreeRootPath(t *testing.T) {
 	}
 }
 
-func Test_calculateCommitPaths(t *testing.T) {
+func Test_calculateCommitmentPaths(t *testing.T) {
 	type test struct {
 		name                string
 		squareSize          int
@@ -346,6 +347,7 @@ func Test_calculateCommitPaths(t *testing.T) {
 		blobLen             int
 		expectedPath        []path
 		expectedPathIndexes []int
+		wantErr             error
 	}
 	// note that calculateCommitPaths assumes ODS, so we prepend a WalkLeft to
 	// everything elsewhere
@@ -363,6 +365,7 @@ func Test_calculateCommitPaths(t *testing.T) {
 				},
 			},
 			[]int{0, 1},
+			nil,
 		},
 		{
 			"all paths for a basic 4x4", 4, 2, 2,
@@ -377,6 +380,7 @@ func Test_calculateCommitPaths(t *testing.T) {
 				},
 			},
 			[]int{0, 1},
+			nil,
 		},
 		{
 			"all paths for a basic 4x4 span more than 1 row", 4, 3, 2,
@@ -391,6 +395,7 @@ func Test_calculateCommitPaths(t *testing.T) {
 				},
 			},
 			[]int{0, 1},
+			nil,
 		},
 		{
 			"single share in the middle of a 128x128", 128, 8252, 1,
@@ -401,6 +406,7 @@ func Test_calculateCommitPaths(t *testing.T) {
 				},
 			},
 			[]int{0},
+			nil,
 		},
 		{
 			"the 32nd path for the smallest blob with a subtree width of 128", 128, 0, 8193,
@@ -411,6 +417,7 @@ func Test_calculateCommitPaths(t *testing.T) {
 				},
 			},
 			[]int{31},
+			nil,
 		},
 		{
 			"the 32nd path for the largest blob with a subtree width of 64", 128, 0, 8192,
@@ -421,9 +428,10 @@ func Test_calculateCommitPaths(t *testing.T) {
 				},
 			},
 			[]int{31},
+			nil,
 		},
 		{
-			"the 32nd path for the largest blob with a subtree width of 1", 128, 0, appconsts.DefaultSubtreeRootThreshold,
+			"the 32nd path for the largest blob with a subtree width of 1", 128, 0, appconsts.SubtreeRootThreshold,
 			[]path{
 				{
 					row:          0,
@@ -431,9 +439,10 @@ func Test_calculateCommitPaths(t *testing.T) {
 				},
 			},
 			[]int{31},
+			nil,
 		},
 		{
-			"the 32nd and last path for the smallest blob with a subtree width of 2", 128, 0, appconsts.DefaultSubtreeRootThreshold + 1,
+			"the 32nd and last path for the smallest blob with a subtree width of 2", 128, 0, appconsts.SubtreeRootThreshold + 1,
 			[]path{
 				{
 					row:          0,
@@ -446,13 +455,26 @@ func Test_calculateCommitPaths(t *testing.T) {
 				},
 			},
 			[]int{31, 32},
+			nil,
+		},
+		{
+			name:                "should return an error if square size is 0",
+			squareSize:          0,
+			start:               0,
+			blobLen:             10,
+			expectedPath:        []path{},
+			expectedPathIndexes: []int{},
+			wantErr:             fmt.Errorf("squareSize must be greater than 0"),
 		},
 	}
 	for _, tt := range tests {
-		t.Run(
-			tt.name,
-			func(t *testing.T) {
-				paths := calculateCommitmentPaths(tt.squareSize, tt.start, tt.blobLen, appconsts.DefaultSubtreeRootThreshold)
+		t.Run(tt.name, func(t *testing.T) {
+			paths, err := calculateCommitmentPaths(tt.squareSize, tt.start, tt.blobLen, appconsts.SubtreeRootThreshold)
+			if tt.wantErr != nil {
+				assert.Error(t, err)
+				assert.ErrorContains(t, err, tt.wantErr.Error())
+			} else {
+				require.NoError(t, err)
 				for j, pi := range tt.expectedPathIndexes {
 					assert.Equal(t, tt.expectedPath[j], paths[pi])
 				}
@@ -464,8 +486,8 @@ func Test_calculateCommitPaths(t *testing.T) {
 					require.False(t, has)
 					pm[sp] = struct{}{}
 				}
-			},
-		)
+			}
+		})
 	}
 }
 

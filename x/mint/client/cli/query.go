@@ -3,11 +3,11 @@ package cli
 import (
 	"fmt"
 
-	"github.com/spf13/cobra"
-
-	"github.com/celestiaorg/celestia-app/v3/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	"github.com/spf13/cobra"
+
+	"github.com/celestiaorg/celestia-app/v4/x/mint/types"
 )
 
 // GetQueryCmd returns the CLI query commands for the mint module.

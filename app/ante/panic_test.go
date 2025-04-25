@@ -4,22 +4,24 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/ante"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/ante"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
 func TestPanicHandlerDecorator(t *testing.T) {
 	decorator := ante.NewHandlePanicDecorator()
 	anteHandler := sdk.ChainAnteDecorators(decorator, mockPanicDecorator{})
 	ctx := sdk.Context{}
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	builder := encCfg.TxConfig.NewTxBuilder()
-	err := builder.SetMsgs(banktypes.NewMsgSend(testnode.RandomAddress().(sdk.AccAddress), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10))))
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	builder := enc.TxConfig.NewTxBuilder()
+	err := builder.SetMsgs(banktypes.NewMsgSend(testnode.RandomAddress().(sdk.AccAddress), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10))))
 	require.NoError(t, err)
 	tx := builder.GetTx()
 	defer func() {

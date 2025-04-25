@@ -6,10 +6,10 @@ import (
 	"log"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/celestiaorg/knuu/pkg/knuu"
+
+	"github.com/celestiaorg/celestia-app/v4/test/e2e/testnet"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
 // E2ESimple runs a simple testnet with 4 validators. It submits both MsgPayForBlobs
@@ -41,7 +41,7 @@ func E2ESimple(logger *log.Logger) error {
 
 	logger.Println("Creating testnet validators")
 	testnet.NoError("failed to create genesis nodes",
-		testNet.CreateGenesisNodes(ctx, 4, latestVersion, 10000000, 0, testnet.DefaultResources, true))
+		testNet.CreateGenesisNodes(ctx, 4, testnet.DockerMultiplexerImageName(latestVersion), 10000000, 0, testnet.DefaultResources, true))
 
 	logger.Println("Creating txsim")
 	endpoints, err := testNet.RemoteGRPCEndpoints()
@@ -51,7 +51,7 @@ func E2ESimple(logger *log.Logger) error {
 	testnet.NoError("failed to create tx client", err)
 
 	logger.Println("Setting up testnets")
-	testnet.NoError("failed to setup testnets", testNet.Setup(ctx))
+	testnet.NoError("failed to setup testnets", testNet.Setup(ctx, testnet.WithPrometheus(false))) // TODO: re-enable prometheus once fixed in comet
 
 	logger.Println("Starting testnets")
 	testnet.NoError("failed to start testnets", testNet.Start(ctx))
@@ -65,10 +65,6 @@ func E2ESimple(logger *log.Logger) error {
 
 	totalTxs := 0
 	for _, blockMeta := range blockchain {
-		version := blockMeta.Header.Version.App
-		if appconsts.LatestVersion != version {
-			return fmt.Errorf("expected app version %d, got %d in blockMeta %d", appconsts.LatestVersion, version, blockMeta.Header.Height)
-		}
 		totalTxs += blockMeta.NumTxs
 	}
 	if totalTxs < 10 {

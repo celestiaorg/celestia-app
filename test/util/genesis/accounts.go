@@ -1,19 +1,22 @@
 package genesis
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	mrand "math/rand"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"cosmossdk.io/math"
+	"github.com/cometbft/cometbft/crypto"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/tendermint/tendermint/crypto"
+
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
 )
 
 const (
@@ -101,29 +104,25 @@ func (v *Validator) GenTx(ecfg encoding.Config, kr keyring.Keyring, chainID stri
 		return nil, err
 	}
 
-	commission, err := sdk.NewDecFromStr("0.5")
-	if err != nil {
-		return nil, err
-	}
-
-	pk, err := cryptocodec.FromTmPubKeyInterface(v.ConsensusKey.PubKey())
+	pk, err := cryptocodec.FromCmtPubKeyInterface(v.ConsensusKey.PubKey())
 	if err != nil {
 		return nil, fmt.Errorf("converting public key for node %s: %w", v.Name, err)
 	}
 
 	createValMsg, err := stakingtypes.NewMsgCreateValidator(
-		sdk.ValAddress(addr),
+		sdk.ValAddress(addr).String(),
 		pk,
-		sdk.NewCoin(app.BondDenom, sdk.NewInt(v.Stake)),
+		sdk.NewCoin(params.BondDenom, math.NewInt(v.Stake)),
 		stakingtypes.NewDescription(v.Name, "", "", "", ""),
-		stakingtypes.NewCommissionRates(commission, sdk.OneDec(), sdk.OneDec()),
-		sdk.NewInt(v.Stake/2),
+		stakingtypes.NewCommissionRates(math.LegacyNewDecWithPrec(5, 2), math.LegacyNewDecWithPrec(5, 2), math.LegacyNewDec(0)),
+		math.NewInt(v.Stake/2),
 	)
+	createValMsg.DelegatorAddress = addr.String() //nolint:staticcheck // required for sdk 50
 	if err != nil {
 		return nil, err
 	}
 
-	fee := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(20000)))
+	fee := sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(20000)))
 	txBuilder := ecfg.TxConfig.NewTxBuilder()
 	err = txBuilder.SetMsgs(createValMsg)
 	if err != nil {
@@ -138,7 +137,7 @@ func (v *Validator) GenTx(ecfg encoding.Config, kr keyring.Keyring, chainID stri
 		WithKeybase(kr).
 		WithTxConfig(ecfg.TxConfig)
 
-	err = tx.Sign(txFactory, v.Name, txBuilder, true)
+	err = tx.Sign(context.Background(), txFactory, v.Name, txBuilder, true)
 	if err != nil {
 		return nil, err
 	}

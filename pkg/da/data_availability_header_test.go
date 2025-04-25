@@ -6,10 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	sh "github.com/celestiaorg/go-square/v2/share"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	sh "github.com/celestiaorg/go-square/v2/share"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 func TestNilDataAvailabilityHeaderHashDoesntCrash(t *testing.T) {
@@ -49,8 +51,8 @@ func TestNewDataAvailabilityHeader(t *testing.T) {
 		{
 			name:         "max square size",
 			expectedHash: []byte{0xb, 0xd3, 0xab, 0xee, 0xac, 0xfb, 0xb0, 0xb9, 0x2d, 0xfb, 0xda, 0xc4, 0xa1, 0x54, 0x86, 0x8e, 0x3c, 0x4e, 0x79, 0x66, 0x6f, 0x7f, 0xcf, 0x6c, 0x62, 0xb, 0xb9, 0xd, 0xd3, 0xa0, 0xdc, 0xf0},
-			squareSize:   uint64(appconsts.DefaultSquareSizeUpperBound),
-			shares:       generateShares(appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound),
+			squareSize:   uint64(appconsts.SquareSizeUpperBound),
+			shares:       generateShares(appconsts.SquareSizeUpperBound * appconsts.SquareSizeUpperBound),
 		},
 	}
 
@@ -78,7 +80,7 @@ func TestExtendShares(t *testing.T) {
 		{
 			name:        "too large square size",
 			expectedErr: true,
-			shares:      generateShares((appconsts.DefaultSquareSizeUpperBound + 1) * (appconsts.DefaultSquareSizeUpperBound + 1)),
+			shares:      generateShares((appconsts.SquareSizeUpperBound + 1) * (appconsts.SquareSizeUpperBound + 1)),
 		},
 		{
 			name:        "invalid number of shares",
@@ -103,7 +105,7 @@ func TestDataAvailabilityHeaderProtoConversion(t *testing.T) {
 		dah  DataAvailabilityHeader
 	}
 
-	shares := generateShares(appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound)
+	shares := generateShares(appconsts.SquareSizeUpperBound * appconsts.SquareSizeUpperBound)
 	eds, err := ExtendShares(shares)
 	require.NoError(t, err)
 	bigdah, err := NewDataAvailabilityHeader(eds)
@@ -138,7 +140,7 @@ func Test_DAHValidateBasic(t *testing.T) {
 		errStr    string
 	}
 
-	maxSize := appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound
+	maxSize := appconsts.SquareSizeUpperBound * appconsts.SquareSizeUpperBound
 
 	shares := generateShares(maxSize)
 	eds, err := ExtendShares(shares)
@@ -227,7 +229,7 @@ func TestSquareSize(t *testing.T) {
 		{
 			name: "max data availability header has an original square size of default square size upper bound",
 			dah:  maxDataAvailabilityHeader(t),
-			want: appconsts.DefaultSquareSizeUpperBound,
+			want: appconsts.SquareSizeUpperBound,
 		},
 	}
 
@@ -268,7 +270,7 @@ func sortByteArrays(arr [][]byte) {
 // maxDataAvailabilityHeader returns a DataAvailabilityHeader the maximum square
 // size. This should only be used for testing.
 func maxDataAvailabilityHeader(t *testing.T) (dah DataAvailabilityHeader) {
-	shares := generateShares(appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound)
+	shares := generateShares(appconsts.SquareSizeUpperBound * appconsts.SquareSizeUpperBound)
 
 	eds, err := ExtendShares(shares)
 	require.NoError(t, err)

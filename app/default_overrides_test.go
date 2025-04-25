@@ -4,54 +4,38 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"cosmossdk.io/math"
+	tmcfg "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/types"
-	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
-	icagenesistypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/genesis/types"
+	icagenesistypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/genesis/types"
 	"github.com/stretchr/testify/assert"
-	tmcfg "github.com/tendermint/tendermint/config"
+
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
 )
 
 // Test_newGovModule verifies that the gov module's genesis state has defaults
 // overridden.
 func Test_newGovModule(t *testing.T) {
-	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
+	enc := encoding.MakeConfig(ModuleEncodingRegisters...)
 	day := time.Hour * 24
 	oneWeek := day * 7
 
-	govModule := newGovModule()
-	raw := govModule.DefaultGenesis(encCfg.Codec)
+	gm := govModule{}
+	raw := gm.DefaultGenesis(enc.Codec)
 	govGenesisState := govtypes.GenesisState{}
 
-	encCfg.Codec.MustUnmarshalJSON(raw, &govGenesisState)
+	enc.Codec.MustUnmarshalJSON(raw, &govGenesisState)
 
 	want := []types.Coin{{
-		Denom:  BondDenom,
-		Amount: types.NewInt(10_000_000_000),
+		Denom:  params.BondDenom,
+		Amount: math.NewInt(10_000_000_000),
 	}}
 
-	assert.Equal(t, want, govGenesisState.DepositParams.MinDeposit)
-	assert.Equal(t, oneWeek, *govGenesisState.DepositParams.MaxDepositPeriod)
-	assert.Equal(t, oneWeek, *govGenesisState.VotingParams.VotingPeriod)
-}
-
-// TestDefaultGenesis verifies that the distribution module's genesis state has
-// defaults overridden.
-func TestDefaultGenesis(t *testing.T) {
-	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
-	dm := distributionModule{}
-	raw := dm.DefaultGenesis(encCfg.Codec)
-	distributionGenesisState := distributiontypes.GenesisState{}
-	encCfg.Codec.MustUnmarshalJSON(raw, &distributionGenesisState)
-
-	// Verify that BaseProposerReward and BonusProposerReward were overridden to 0%.
-	assert.Equal(t, types.ZeroDec(), distributionGenesisState.Params.BaseProposerReward)
-	assert.Equal(t, types.ZeroDec(), distributionGenesisState.Params.BonusProposerReward)
-
-	// Verify that other params weren't overridden.
-	assert.Equal(t, distributiontypes.DefaultParams().WithdrawAddrEnabled, distributionGenesisState.Params.WithdrawAddrEnabled)
-	assert.Equal(t, distributiontypes.DefaultParams().CommunityTax, distributionGenesisState.Params.CommunityTax)
+	assert.Equal(t, want, govGenesisState.Params.MinDeposit)
+	assert.Equal(t, oneWeek, *govGenesisState.Params.MaxDepositPeriod)
+	assert.Equal(t, oneWeek, *govGenesisState.Params.VotingPeriod)
 }
 
 func TestDefaultAppConfig(t *testing.T) {
@@ -71,6 +55,15 @@ func TestDefaultAppConfig(t *testing.T) {
 func TestDefaultConsensusConfig(t *testing.T) {
 	got := DefaultConsensusConfig()
 
+	t.Run("RPC overrides", func(t *testing.T) {
+		want := tmcfg.DefaultRPCConfig()
+		want.TimeoutBroadcastTxCommit = 50 * time.Second
+		want.MaxBodyBytes = int64(8388608) // 8 MiB
+		want.GRPCListenAddress = "tcp://0.0.0.0:9098"
+
+		assert.Equal(t, want, got.RPC)
+	})
+
 	t.Run("mempool overrides", func(t *testing.T) {
 		want := tmcfg.MempoolConfig{
 			// defaults
@@ -81,16 +74,18 @@ func TestDefaultConsensusConfig(t *testing.T) {
 			RootDir:               tmcfg.DefaultMempoolConfig().RootDir,
 			Size:                  tmcfg.DefaultMempoolConfig().Size,
 			WalPath:               tmcfg.DefaultMempoolConfig().WalPath,
+			RecheckTimeout:        1_000_000_000,
 
 			// Overrides
 			MaxTxBytes:   2 * mebibyte,
 			MaxTxsBytes:  80 * mebibyte,
 			TTLDuration:  75 * time.Second,
 			TTLNumBlocks: 12,
-			Version:      "v1",
+			Type:         tmcfg.MempoolTypePriority,
 		}
 		assert.Equal(t, want, *got.Mempool)
 	})
+
 	t.Run("p2p overrides", func(t *testing.T) {
 		const mebibyte = 1048576
 		assert.Equal(t, int64(10*mebibyte), got.P2P.SendRate)
@@ -99,11 +94,11 @@ func TestDefaultConsensusConfig(t *testing.T) {
 }
 
 func Test_icaDefaultGenesis(t *testing.T) {
-	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
+	enc := encoding.MakeConfig(ModuleEncodingRegisters...)
 	ica := icaModule{}
-	raw := ica.DefaultGenesis(encCfg.Codec)
+	raw := ica.DefaultGenesis(enc.Codec)
 	got := icagenesistypes.GenesisState{}
-	encCfg.Codec.MustUnmarshalJSON(raw, &got)
+	enc.Codec.MustUnmarshalJSON(raw, &got)
 
 	assert.Equal(t, got.HostGenesisState.Params.AllowMessages, icaAllowMessages())
 	assert.True(t, got.HostGenesisState.Params.HostEnabled)

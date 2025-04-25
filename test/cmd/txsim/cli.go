@@ -11,14 +11,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	"github.com/celestiaorg/celestia-app/v3/test/txsim"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+	"github.com/celestiaorg/celestia-app/v4/test/txsim"
 )
 
 // A set of environment variables that can be used instead of flags
@@ -42,6 +43,8 @@ var (
 	useFeegrant, suppressLogs                         bool
 	upgradeSchedule                                   string
 	blobShareVersion                                  int
+	gasLimit                                          uint64
+	gasPrice                                          float64
 )
 
 func main() {
@@ -177,6 +180,14 @@ account that can act as the master account. The command runs until all sequences
 				opts.SuppressLogs()
 			}
 
+			if gasLimit > 0 {
+				opts.WithGasLimit(gasLimit)
+			}
+
+			if gasPrice > 0 {
+				opts.WithGasPrice(gasPrice)
+			}
+
 			encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 			err = txsim.Run(
 				cmd.Context(),
@@ -217,6 +228,8 @@ func flags() *flag.FlagSet {
 	flags.BoolVar(&useFeegrant, "feegrant", false, "use the feegrant module to pay for fees")
 	flags.BoolVar(&suppressLogs, "suppressLogs", false, "disable logging")
 	flags.IntVar(&blobShareVersion, "blob-share-version", -1, "optionally specify a share version to use for the blob sequences")
+	flags.Uint64Var(&gasLimit, "gas-limit", 0, "custom gas limit to use for transactions (0 = auto-estimate)")
+	flags.Float64Var(&gasPrice, "gas-price", 0, "custom gas price to use for transactions (0 = use default)")
 	return flags
 }
 

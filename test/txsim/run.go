@@ -9,14 +9,15 @@ import (
 	"net"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 )
 
 const DefaultSeed = 900183116
@@ -64,6 +65,16 @@ func Run(
 	manager, err := NewAccountManager(ctx, keys, encCfg, opts.masterAcc, conn, opts.pollTime, opts.useFeeGrant)
 	if err != nil {
 		return err
+	}
+
+	// Set custom gas limit if provided
+	if opts.gasLimit > 0 {
+		manager.SetGasLimit(opts.gasLimit)
+	}
+
+	// Set custom gas price if provided
+	if opts.gasPrice > 0 {
+		manager.SetGasPrice(opts.gasPrice)
 	}
 
 	// Initialize each of the sequences by allowing them to allocate accounts.
@@ -132,6 +143,8 @@ type Options struct {
 	pollTime       time.Duration
 	useFeeGrant    bool
 	suppressLogger bool
+	gasLimit       uint64
+	gasPrice       float64
 }
 
 func (o *Options) Fill() {
@@ -171,6 +184,16 @@ func (o *Options) WithSeed(seed int64) *Options {
 
 func (o *Options) WithPollTime(pollTime time.Duration) *Options {
 	o.pollTime = pollTime
+	return o
+}
+
+func (o *Options) WithGasLimit(gasLimit uint64) *Options {
+	o.gasLimit = gasLimit
+	return o
+}
+
+func (o *Options) WithGasPrice(gasPrice float64) *Options {
+	o.gasPrice = gasPrice
 	return o
 }
 

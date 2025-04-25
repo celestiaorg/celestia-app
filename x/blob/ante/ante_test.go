@@ -1,23 +1,25 @@
 package ante_test
 
 import (
-	"fmt"
 	"math"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
-	ante "github.com/celestiaorg/celestia-app/v3/x/blob/ante"
-	blob "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"cosmossdk.io/log"
+	storetypes "cosmossdk.io/store/types"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cometbft/cometbft/proto/tendermint/version"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	"github.com/stretchr/testify/require"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/proto/tendermint/version"
+
+	"github.com/celestiaorg/go-square/v2/share"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/x/blob/ante"
+	blob "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 const (
@@ -26,13 +28,13 @@ const (
 )
 
 func TestPFBAnteHandler(t *testing.T) {
-	txConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
 	testCases := []struct {
 		name        string
 		pfb         *blob.MsgPayForBlobs
 		txGas       func(uint32) uint32
 		gasConsumed uint64
-		versions    []uint64
 		wantErr     bool
 	}{
 		{
@@ -45,7 +47,6 @@ func TestPFBAnteHandler(t *testing.T) {
 				return share.ShareSize * testGasPerBlobByte
 			},
 			gasConsumed: 0,
-			versions:    []uint64{v2.Version, appconsts.LatestVersion},
 			wantErr:     false,
 		},
 		{
@@ -57,7 +58,6 @@ func TestPFBAnteHandler(t *testing.T) {
 				return 3 * share.ShareSize * testGasPerBlobByte
 			},
 			gasConsumed: 0,
-			versions:    []uint64{v2.Version, appconsts.LatestVersion},
 			wantErr:     false,
 		},
 		{
@@ -70,7 +70,6 @@ func TestPFBAnteHandler(t *testing.T) {
 				return 2*share.ShareSize*testGasPerBlobByte - 1
 			},
 			gasConsumed: 0,
-			versions:    []uint64{v2.Version, appconsts.LatestVersion},
 			wantErr:     true,
 		},
 		{
@@ -82,7 +81,6 @@ func TestPFBAnteHandler(t *testing.T) {
 				return 3*share.ShareSize*testGasPerBlobByte - 1
 			},
 			gasConsumed: 0,
-			versions:    []uint64{v2.Version, appconsts.LatestVersion},
 			wantErr:     true,
 		},
 		{
@@ -95,7 +93,6 @@ func TestPFBAnteHandler(t *testing.T) {
 				return share.ShareSize*testGasPerBlobByte + 10000 - 1
 			},
 			gasConsumed: 10000,
-			versions:    []uint64{v2.Version, appconsts.LatestVersion},
 			wantErr:     true,
 		},
 		{
@@ -108,40 +105,33 @@ func TestPFBAnteHandler(t *testing.T) {
 				return 1000000
 			},
 			gasConsumed: 10000,
-			versions:    []uint64{v2.Version, appconsts.LatestVersion},
 			wantErr:     false,
 		},
 	}
 	for _, tc := range testCases {
-		for _, currentVersion := range tc.versions {
-			t.Run(fmt.Sprintf("%s v%d", tc.name, currentVersion), func(t *testing.T) {
-				anteHandler := ante.NewMinGasPFBDecorator(mockBlobKeeper{})
-				var gasPerBlobByte uint32
-				if currentVersion == v2.Version {
-					gasPerBlobByte = testGasPerBlobByte
-				} else {
-					gasPerBlobByte = appconsts.GasPerBlobByte(currentVersion)
-				}
+		t.Run(tc.name, func(t *testing.T) {
+			anteHandler := ante.NewMinGasPFBDecorator(mockBlobKeeper{})
+			header := tmproto.Header{
+				Height: 1,
+				Version: version.Consensus{
+					App: appconsts.LatestVersion,
+				},
+			}
+			ctx := sdk.NewContext(nil, header, true, log.NewNopLogger()).
+				WithGasMeter(storetypes.NewGasMeter(uint64(tc.txGas(appconsts.GasPerBlobByte)))).
+				WithIsCheckTx(true)
 
-				ctx := sdk.NewContext(nil, tmproto.Header{
-					Version: version.Consensus{
-						App: currentVersion,
-					},
-					Height: 1,
-				}, true, nil).WithGasMeter(sdk.NewGasMeter(uint64(tc.txGas(gasPerBlobByte)))).WithIsCheckTx(true)
-
-				ctx.GasMeter().ConsumeGas(tc.gasConsumed, "test")
-				txBuilder := txConfig.NewTxBuilder()
-				require.NoError(t, txBuilder.SetMsgs(tc.pfb))
-				tx := txBuilder.GetTx()
-				_, err := anteHandler.AnteHandle(ctx, tx, false, func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) { return ctx, nil })
-				if tc.wantErr {
-					require.Error(t, err)
-				} else {
-					require.NoError(t, err)
-				}
-			})
-		}
+			ctx.GasMeter().ConsumeGas(tc.gasConsumed, "test")
+			txBuilder := enc.TxConfig.NewTxBuilder()
+			require.NoError(t, txBuilder.SetMsgs(tc.pfb))
+			tx := txBuilder.GetTx()
+			_, err := anteHandler.AnteHandle(ctx, tx, false, func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) { return ctx, nil })
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
 	}
 }
 
@@ -159,7 +149,7 @@ func TestMinGasPFBDecoratorWithMsgExec(t *testing.T) {
 			App: appconsts.LatestVersion,
 		},
 		Height: 1,
-	}, true, nil).WithGasMeter(sdk.NewGasMeter(gasLimit)).WithIsCheckTx(true)
+	}, true, nil).WithGasMeter(storetypes.NewGasMeter(gasLimit)).WithIsCheckTx(true)
 
 	// Build a tx with a MsgExec containing a MsgPayForBlobs with a huge gas cost
 	txBuilder := txConfig.NewTxBuilder()
@@ -190,10 +180,9 @@ func TestMinGasPFBDecoratorWithMsgExec(t *testing.T) {
 
 type mockBlobKeeper struct{}
 
-func (mockBlobKeeper) GasPerBlobByte(_ sdk.Context) uint32 {
-	return testGasPerBlobByte
-}
-
-func (mockBlobKeeper) GovMaxSquareSize(_ sdk.Context) uint64 {
-	return testGovMaxSquareSize
+func (mockBlobKeeper) GetParams(sdk.Context) blob.Params {
+	return blob.Params{
+		GasPerBlobByte:   testGasPerBlobByte,
+		GovMaxSquareSize: testGovMaxSquareSize,
+	}
 }

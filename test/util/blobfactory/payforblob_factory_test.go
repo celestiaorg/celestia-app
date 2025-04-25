@@ -3,15 +3,16 @@ package blobfactory_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
 // TestRandMultiBlobTxsSameSigner_Deterministic tests whether with the same random seed the RandMultiBlobTxsSameSigner function produces the same blob txs.
@@ -19,15 +20,15 @@ func TestRandMultiBlobTxsSameSigner_Deterministic(t *testing.T) {
 	pfbCount := 10
 	signer, err := testnode.NewOfflineSigner()
 	require.NoError(t, err)
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	decoder := encCfg.TxConfig.TxDecoder()
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	decoder := enc.TxConfig.TxDecoder()
 
-	rand1 := tmrand.NewRand()
+	rand1 := random.New()
 	rand1.Seed(1)
 	marshalledBlobTxs1 := blobfactory.RandMultiBlobTxsSameSigner(t, rand1, signer, pfbCount)
 
 	require.NoError(t, signer.SetSequence(testfactory.TestAccName, 0))
-	rand2 := tmrand.NewRand()
+	rand2 := random.New()
 	rand2.Seed(1)
 	marshalledBlobTxs2 := blobfactory.RandMultiBlobTxsSameSigner(t, rand2, signer, pfbCount)
 

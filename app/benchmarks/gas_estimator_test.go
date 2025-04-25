@@ -1,4 +1,4 @@
-//go:build bench_gas_estimation
+//go:build benchmarks
 
 package benchmarks_test
 
@@ -6,23 +6,24 @@ import (
 	"context"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
-	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/cometbft/cometbft/rpc/client"
+	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
+	"github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"github.com/tendermint/tendermint/rpc/client"
-	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
-	"github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/go-square/v2/share"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
+	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 func BenchmarkGasPriceEstimation(b *testing.B) {
@@ -30,7 +31,7 @@ func BenchmarkGasPriceEstimation(b *testing.B) {
 	accounts := testfactory.GenerateAccounts(1)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
-	signer, err := user.NewSigner(kr, encfg.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(accounts[0], infos[0].AccountNum, infos[0].Sequence))
+	signer, err := user.NewSigner(kr, encfg.TxConfig, testutil.ChainID, user.NewAccount(accounts[0], infos[0].AccountNum, infos[0].Sequence))
 	require.NoError(b, err)
 
 	// 8 mb block
@@ -82,7 +83,7 @@ func BenchmarkGasPriceEstimation(b *testing.B) {
 }
 
 func generateRandomPFBs(b *testing.B, signer *user.Signer, account string, numberOfTransactions int, blobSize int) []types.Tx {
-	rand := tmrand.NewRand()
+	rand := random.New()
 	gasLimit := blobtypes.DefaultEstimateGas([]uint32{uint32(blobSize)})
 	blobs := blobfactory.ManyBlobs(rand, []share.Namespace{share.RandomBlobNamespace()}, []int{blobSize})
 	txs := make([]types.Tx, numberOfTransactions)

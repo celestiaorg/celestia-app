@@ -7,7 +7,7 @@ coverage.txt
 .idea
 .vscode
 tools-stamp
-__debug_bin
+__debug_bin*
 profile.out
 tmp/
 run.sh
@@ -19,3 +19,8 @@ square/testdata
 vendor
 go.work
 go.work.sum
+.envrc
+# test artifacts
+app/test/bad_block_*
+# do not include downloaded embedded binaries
+internal/embedding/**
