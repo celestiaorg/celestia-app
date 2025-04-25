@@ -53,7 +53,7 @@ func (app *App) ExportAppStateAndValidators(
 func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []string) {
 	applyAllowedAddrs := len(jailAllowedAddrs) > 0
 
-	// check if there is a allowed address list
+	// check if there is an allowed address list
 
 	allowedAddrsMap := make(map[string]bool)
 
