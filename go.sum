@@ -354,8 +354,8 @@ github.com/celestiaorg/celestia-core v1.45.0-tm-v0.34.35 h1:T21AhezjcByAlWDHmiVb
 github.com/celestiaorg/celestia-core v1.45.0-tm-v0.34.35/go.mod h1:fQ46s1hYFTGFBsHsuGsbxDZ720ZPQow5Iyqw+yErZSo=
 github.com/celestiaorg/celestia-core v1.53.0-tm-v0.38.17 h1:AHjnWwPoOFH5zr+aPqdWkF1CutP1ynVEOGOuW1/8iq8=
 github.com/celestiaorg/celestia-core v1.53.0-tm-v0.38.17/go.mod h1:PiU80T/t0z8FPlz7DRZgvrBux0jJiqxFi9lNBFdGUps=
-github.com/celestiaorg/cosmos-sdk v1.29.0-sdk-v0.50.12 h1:I5Wvy9BDSzPlr7RKtDofVhRH1rp6Wk/48Ah4FElMvjY=
-github.com/celestiaorg/cosmos-sdk v1.29.0-sdk-v0.50.12/go.mod h1:clLEg7hWK0iJfiO1Vp71tcQ0vGbFzVsEcLxxnRobIZM=
+github.com/celestiaorg/cosmos-sdk v1.29.1-sdk-v0.50.12 h1:EWJIBTMB9H2KFMqmNB22KvgqvAObqcToJbAdPCM+LBw=
+github.com/celestiaorg/cosmos-sdk v1.29.1-sdk-v0.50.12/go.mod h1:clLEg7hWK0iJfiO1Vp71tcQ0vGbFzVsEcLxxnRobIZM=
 github.com/celestiaorg/cosmos-sdk/x/upgrade v0.1.0 h1:+i3G5mP/kPgFEn83EEXGly29QDin2Gvdt0kgpmw/vTg=
 github.com/celestiaorg/cosmos-sdk/x/upgrade v0.1.0/go.mod h1:T4K9O18zQNKNpt4YvTL3lcUt4aKOEU05ZIFWVdQi3Ak=
 github.com/celestiaorg/go-square/v2 v2.2.0 h1:zJnUxCYc65S8FgUfVpyG/osDcsnjzo/JSXw/Uwn8zp4=
