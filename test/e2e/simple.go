@@ -56,19 +56,41 @@ func E2ESimple(logger *log.Logger) error {
 	logger.Println("Starting testnets")
 	testnet.NoError("failed to start testnets", testNet.Start(ctx))
 
-	logger.Println("Waiting for 30 seconds to produce blocks")
-	time.Sleep(30 * time.Second)
+	logger.Println("Waiting for transactions to be committed")
 
-	logger.Println("Reading blockchain headers")
-	blockchain, err := testnode.ReadBlockchainHeaders(ctx, testNet.Node(0).AddressRPC())
-	testnet.NoError("failed to read blockchain headers", err)
+	pollCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
 
-	totalTxs := 0
-	for _, blockMeta := range blockchain {
-		totalTxs += blockMeta.NumTxs
+	const requiredTxs = 10
+	const pollInterval = 5 * time.Second
+
+	// periodically check for transactions until timeout or required transactions are found
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			// Check for transactions
+			blockchain, err := testnode.ReadBlockchainHeaders(ctx, testNet.Node(0).AddressRPC())
+			if err != nil {
+				logger.Printf("Error reading blockchain headers: %v", err)
+				continue
+			}
+
+			totalTxs := 0
+			for _, blockMeta := range blockchain {
+				totalTxs += blockMeta.NumTxs
+			}
+
+			logger.Printf("Current transaction count: %d", totalTxs)
+
+			if totalTxs >= requiredTxs {
+				logger.Printf("Found %d transactions, continuing with test", totalTxs)
+				return nil
+			}
+		case <-pollCtx.Done():
+			return fmt.Errorf("timed out waiting for %d transactions", requiredTxs)
+		}
 	}
-	if totalTxs < 10 {
-		return fmt.Errorf("expected at least 10 transactions, got %d", totalTxs)
-	}
-	return nil
 }
