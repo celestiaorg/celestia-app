@@ -482,9 +482,8 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 
 		// after the transaction has been submitted, we can increment the
 		// sequence of the signer
-		incErr := client.signer.IncrementSequence(signer)
-		if incErr != nil {
-			return nil, fmt.Errorf("increment sequencing: %w", incErr)
+		if err := client.signer.IncrementSequence(signer); err != nil {
+			return nil, fmt.Errorf("increment sequence: %w", err)
 		}
 		return firstResp, nil
 	}
