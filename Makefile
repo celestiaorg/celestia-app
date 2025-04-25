@@ -54,8 +54,6 @@ install-standalone: check-bbr
 	@go install $(BUILD_FLAGS) ./cmd/celestia-appd
 .PHONY: install-standalone
 
-## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
-# TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
 define EMBED_BIN
 	if test -f internal/embedding/$$out; then \
 	  echo "Skipping download, existing: $$out"; \
@@ -64,6 +62,8 @@ define EMBED_BIN
 	fi
 endef
 
+## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
+# TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
 install: check-bbr
 	@echo "--> Download embedded binaries for v3"
 	@for pair in \
