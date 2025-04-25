@@ -786,7 +786,6 @@ func (s *BroadcastTestSuite) TestBroadcastScenarios() {
 					require.Contains(t, err.Error(), tc.expectedErrSubstr)
 				}
 				if tc.expectedErrType != nil {
-					// Use require.ErrorIs for checking specific error values like context errors
 					if errors.Is(tc.expectedErrType, context.DeadlineExceeded) || errors.Is(tc.expectedErrType, context.Canceled) {
 						require.True(t, errors.Is(err, tc.expectedErrType), "Expected error chain to contain %v, but got %v", tc.expectedErrType, err)
 					} else {
