@@ -740,7 +740,6 @@ func (s *BroadcastTestSuite) TestBroadcastScenarios() {
 				require.Equal(t, int32(0), mocks[3].Invocations.Load(), "Mock4 should not be invoked")
 			},
 		},
-		// Add more cases as needed (e.g., non-zero TxResponse code failure)
 		{
 			name: "Non-Zero Code Failure",
 			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn, []func()) {
