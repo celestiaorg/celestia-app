@@ -209,9 +209,9 @@ func NewTxClient(
 		opt(txClient)
 	}
 
-	numConns := len(txClient.conns)
-	if numConns == 0 {
-		return nil, errors.New("no connections provided to TxClient")
+	// Sanity check to ensure we don't have more than 3 connections
+	if len(txClient.conns) > 3 {
+		txClient.conns = txClient.conns[:3]
 	}
 
 	return txClient, nil
@@ -439,40 +439,40 @@ func (c *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer strin
 	g, childCtx := errgroup.WithContext(ctx)
 	var successfulBroadcast sync.Once
 
-for _, conn := range client.conns {
-    // Capture loop variable for the closure
-    conn := conn
+	for _, conn := range client.conns {
+		// Capture loop variable for the closure
+		conn := conn
 
-    g.Go(func() error {
-        resp, err := client.broadcastSingle(childCtx, conn, txBytes)
+		g.Go(func() error {
+			resp, err := client.broadcastSingle(childCtx, conn, txBytes)
 
-        // If the context has been canceled/expired, log non-context errors and bail out
-        if ctxErr := childCtx.Err(); ctxErr != nil {
-            if err != nil && !errors.Is(err, ctxErr) {
-                log.Debug().
-                    Err(err).
-                    Str("target", conn.Target()).
-                    Msg("Broadcast gRPC call failed after context finished")
-            }
-            return nil
-        }
+			// If the context has been canceled/expired, log non-context errors and bail out
+			if ctxErr := childCtx.Err(); ctxErr != nil {
+				if err != nil && !errors.Is(err, ctxErr) {
+					log.Debug().
+						Err(err).
+						Str("target", conn.Target()).
+						Msg("Broadcast gRPC call failed after context finished")
+				}
+				return nil
+			}
 
-        // Non-context errors get sent to the error channel
-        if err != nil {
-            errCh <- err
-            return nil
-        }
+			// Non-context errors get sent to the error channel
+			if err != nil {
+				errCh <- err
+				return nil
+			}
 
-        // On first success, send the response
-        successfulBroadcast.Do(func() {
-            select {
-            case respCh <- resp:
-            case <-childCtx.Done():
-            }
-        })
-        return nil
-    })
-}
+			// On first success, send the response
+			successfulBroadcast.Do(func() {
+				select {
+				case respCh <- resp:
+				case <-childCtx.Done():
+				}
+			})
+			return nil
+		})
+	}
 	groupErr := g.Wait()
 
 	close(respCh)
