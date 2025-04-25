@@ -510,14 +510,13 @@ for _, conn := range client.conns {
 		broadcastErrs = append([]error{fmt.Errorf("internal error: %v", groupErr)}, broadcastErrs...)
 	}
 
-	// If the context finished (DeadlineExceeded or Canceled)
-	if ctxErr := ctx.Err(); ctxErr != nil { // Check original context
-		errPrefix := "broadcast context cancelled"
-		if errors.Is(ctxErr, context.DeadlineExceeded) {
-			errPrefix = "broadcast context deadline exceeded"
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		if errors.Is(ctxErr, context.Canceled) {
+			return nil, fmt.Errorf("%s: %w", "broadcast context cancelled", ctxErr)
 		}
-		// Wrap the original context error directly
-		return nil, fmt.Errorf("%s: %w", errPrefix, ctxErr)
+		if errors.Is(ctxErr, context.DeadlineExceeded) {
+			return nil, fmt.Errorf("%s: %w", "broadcast context deadline exceeded", ctxErr)
+		}
 	}
 
 	// if only broadcast errors occurred (and context is OK).
