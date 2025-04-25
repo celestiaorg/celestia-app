@@ -88,7 +88,7 @@ func E2EStateSync(logger *log.Logger) error {
 	}
 
 	targetHeight := initialHeight + blocksToProduce
-	err = waitForHeight(nodeZeroClient, ctx, targetHeight)
+	err = waitForHeight(ctx, nodeZeroClient, targetHeight)
 	testnet.NoError(fmt.Sprintf("failed to wait for target height %d", targetHeight), err)
 	logger.Printf("Reached target height %d", targetHeight)
 
@@ -168,25 +168,39 @@ func E2EStateSync(logger *log.Logger) error {
 
 	logger.Println("Verifying synced node continues producing blocks")
 	finalTargetHeight := latestHeight + 5
-	err = waitForHeight(stateSyncClient, ctx, finalTargetHeight)
+	err = waitForHeight(ctx, stateSyncClient, finalTargetHeight)
 	testnet.NoError(fmt.Sprintf("state synced node failed to reach height %d", finalTargetHeight), err)
 	return nil
 }
 
-// Helper function to wait for a specific height, similar to testnode.WaitForHeight but using http.HTTP client
-func waitForHeight(client *http.HTTP, ctx context.Context, height int64) error {
+// waitForHeight polls the HTTP client until the blockchain reaches the specified height or context is cancelled.
+func waitForHeight(ctx context.Context, client *http.HTTP, targetHeight int64) error {
+	const (
+		pollInterval = 2 * time.Second
+		timeout      = 5 * time.Minute
+	)
+
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+
 	var latestHeight int64
-	for i := 0; i < 60; i++ { // Timeout after ~2 minutes (60 * 2s)
-		status, err := client.Status(ctx)
-		if err != nil {
-			time.Sleep(2 * time.Second)
-			continue
+
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("timed out waiting for height %d, last observed height %d: %w", targetHeight, latestHeight, ctx.Err())
+		case <-ticker.C:
+			status, err := client.Status(ctx)
+			if err != nil {
+				continue
+			}
+			latestHeight = status.SyncInfo.LatestBlockHeight
+			if latestHeight >= targetHeight {
+				return nil
+			}
 		}
-		latestHeight = status.SyncInfo.LatestBlockHeight
-		if latestHeight >= height {
-			return nil
-		}
-		time.Sleep(2 * time.Second)
 	}
-	return fmt.Errorf("timed out waiting for height %d, last height %d", height, latestHeight)
 }
