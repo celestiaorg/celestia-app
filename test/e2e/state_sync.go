@@ -48,7 +48,7 @@ func E2EStateSync(logger *log.Logger) error {
 	logger.Printf("Running %s test with version %s", testName, latestVersion)
 
 	logger.Println("Creating genesis validator nodes")
-	err = testNet.CreateGenesisNodes(ctx, numValidators, latestVersion, 10000000, 0, testnet.DefaultResources, true)
+	err = testNet.CreateGenesisNodes(ctx, numValidators, testnet.DockerMultiplexerImageName(latestVersion), 10000000, 0, testnet.DefaultResources, true)
 	testnet.NoError("failed to create genesis nodes", err)
 
 	logger.Println("Creating txsim client")
@@ -118,7 +118,7 @@ func E2EStateSync(logger *log.Logger) error {
 
 	logger.Println("Creating state sync node")
 	stateSyncNodeName := "statesync-node"
-	err = testNet.CreateNode(ctx, latestVersion, 0, 0, testnet.DefaultResources, true)
+	err = testNet.CreateNode(ctx, testnet.DockerMultiplexerImageName(latestVersion), 0, 0, testnet.DefaultResources, true)
 	testnet.NoError("failed to create state sync node", err)
 	stateSyncNode := testNet.Nodes()[numValidators]
 	stateSyncNode.Name = stateSyncNodeName
