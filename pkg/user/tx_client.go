@@ -479,6 +479,10 @@ for _, conn := range client.conns {
 	close(errCh)
 
 	if firstResp, ok := <-respCh; ok {
+		if firstResp == nil {
+			return nil, errors.New("received nil response from successful broadcast")
+		}
+
 		// save the sequence and signer of the transaction in the local txTracker
 		// before the sequence is incremented
 		client.txTracker[firstResp.TxHash] = txInfo{
