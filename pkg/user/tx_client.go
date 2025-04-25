@@ -432,7 +432,7 @@ func (c *TxClient) broadcastSingle(ctx context.Context, conn *grpc.ClientConn, t
 // broadcastTx broadcasts the transaction to multiple connections concurrently
 // and returns the response from the first successful broadcast.
 // It uses the primary connection and up to two additional connections.
-func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+func (c *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
 	respCh := make(chan *sdktypes.TxResponse, 1)
 	errCh := make(chan error, len(client.conns))
 
