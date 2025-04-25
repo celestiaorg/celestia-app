@@ -434,17 +434,17 @@ func (c *TxClient) broadcastSingle(ctx context.Context, conn *grpc.ClientConn, t
 // It uses the primary connection and up to two additional connections.
 func (c *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
 	respCh := make(chan *sdktypes.TxResponse, 1)
-	errCh := make(chan error, len(client.conns))
+	errCh := make(chan error, len(c.conns))
 
 	g, childCtx := errgroup.WithContext(ctx)
 	var successfulBroadcast sync.Once
 
-	for _, conn := range client.conns {
+	for _, conn := range c.conns {
 		// Capture loop variable for the closure
 		conn := conn
 
 		g.Go(func() error {
-			resp, err := client.broadcastSingle(childCtx, conn, txBytes)
+			resp, err := c.broadcastSingle(childCtx, conn, txBytes)
 
 			// If the context has been canceled/expired, log non-context errors and bail out
 			if ctxErr := childCtx.Err(); ctxErr != nil {
@@ -485,15 +485,15 @@ func (c *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer strin
 
 		// save the sequence and signer of the transaction in the local txTracker
 		// before the sequence is incremented
-		client.txTracker[firstResp.TxHash] = txInfo{
-			sequence:  client.signer.accounts[signer].Sequence(),
+		c.txTracker[firstResp.TxHash] = txInfo{
+			sequence:  c.signer.accounts[signer].Sequence(),
 			signer:    signer,
 			timestamp: time.Now(),
 		}
 
 		// after the transaction has been submitted, we can increment the
 		// sequence of the signer
-		if err := client.signer.IncrementSequence(signer); err != nil {
+		if err := c.signer.IncrementSequence(signer); err != nil {
 			return nil, fmt.Errorf("increment sequence: %w", err)
 		}
 		return firstResp, nil
