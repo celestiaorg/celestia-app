@@ -755,7 +755,7 @@ func (s *BroadcastTestSuite) TestBroadcastScenarios() {
 			},
 			txOpts:            defaultOpts,
 			expectedSuccess:   false,
-			expectedErrSubstr: "insufficient funds", // Check for the RawLog in the error
+			expectedErrSubstr: "insufficient funds",
 			expectedErrType:   &user.BroadcastTxError{},
 		},
 	}
