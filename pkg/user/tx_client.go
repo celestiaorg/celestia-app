@@ -439,33 +439,40 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 	g, childCtx := errgroup.WithContext(ctx)
 	var successfulBroadcast sync.Once
 
-	for _, conn := range client.conns {
-		g.Go(func() error {
-			resp, err := client.broadcastSingle(childCtx, conn, txBytes)
-			if childCtx.Err() != nil {
-				if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
-					log.Debug().Err(err).Str("target", conn.Target()).Msg("Broadcast gRPC call failed after context finished")
-				}
-				return nil
-			}
+for _, conn := range client.conns {
+    // Capture loop variable for the closure
+    conn := conn
 
-			if err != nil {
-				if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
-					errCh <- err
-				}
-				return nil
-			}
+    g.Go(func() error {
+        resp, err := client.broadcastSingle(childCtx, conn, txBytes)
 
-			successfulBroadcast.Do(func() {
-				select {
-				case respCh <- resp:
-				case <-childCtx.Done():
-				}
-			})
-			return nil
-		})
-	}
+        // If the context has been canceled/expired, log non-context errors and bail out
+        if ctxErr := childCtx.Err(); ctxErr != nil {
+            if err != nil && !errors.Is(err, ctxErr) {
+                log.Debug().
+                    Err(err).
+                    Str("target", conn.Target()).
+                    Msg("Broadcast gRPC call failed after context finished")
+            }
+            return nil
+        }
 
+        // Non-context errors get sent to the error channel
+        if err != nil {
+            errCh <- err
+            return nil
+        }
+
+        // On first success, send the response
+        successfulBroadcast.Do(func() {
+            select {
+            case respCh <- resp:
+            case <-childCtx.Done():
+            }
+        })
+        return nil
+    })
+}
 	groupErr := g.Wait()
 
 	close(respCh)
