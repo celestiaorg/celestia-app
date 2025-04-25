@@ -65,7 +65,7 @@ endef
 ## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
 # TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
 install: check-bbr
-	@echo "--> Download embedded binaries for v3"
+	@echo "--> Downloading embedded binaries for v3"
 	@for pair in \
 		"celestia-app_Darwin_arm64.tar.gz:celestia-app_darwin_v3_arm64.tar.gz" \
 		"celestia-app_Linux_arm64.tar.gz:celestia-app_linux_v3_arm64.tar.gz" \
