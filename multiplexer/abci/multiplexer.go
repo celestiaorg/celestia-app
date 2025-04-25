@@ -253,7 +253,7 @@ func (m *Multiplexer) initRemoteGrpcConn() error {
 	const flagTMAddress = "address"
 	tmAddress := m.svrCtx.Viper.GetString(flagTMAddress)
 	if tmAddress == "" {
-		tmAddress = "127.0.0.1:26658"
+		tmAddress = "127.0.0.1:36658"
 	}
 
 	// remove tcp:// prefix if present
