@@ -43,7 +43,7 @@ func Test_getDefaultNodeHome(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := getDefaultNodeHome(tc.userHome, tc.celestiaHome)
+			got := getDefaultNodeHome(tc.userHome, tc.celestiaHome, tc.celestiaHome)
 			assert.Equal(t, tc.want, got)
 		})
 	}
