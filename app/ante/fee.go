@@ -38,7 +38,7 @@ func ValidateTxFee(ctx sdk.Context, tx sdk.Tx, minfeeKeeper *minfeekeeper.Keeper
 
 	// Ensure that the provided fee meets a minimum threshold for the node.
 	// This is only for local mempool purposes, and thus
-	// is only ran on check tx.
+	// is only run on check tx.
 	if ctx.IsCheckTx() {
 		minGasPrice := ctx.MinGasPrices().AmountOf(appconsts.BondDenom)
 		if !minGasPrice.IsZero() {
