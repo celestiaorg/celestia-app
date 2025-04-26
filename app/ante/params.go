@@ -41,7 +41,7 @@ func (d ParamFilterDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 			}
 		}
 
-		// we need to check if a gov proposal wasn't contained in a authz message
+		// we need to check if a gov proposal wasn't contained in an authz message
 		if msgExec, ok := m.(*authz.MsgExec); ok {
 			msgs, err := msgExec.GetMessages()
 			if err != nil {
