@@ -41,7 +41,7 @@ build-standalone: mod
 .PHONY: build-standalone
 
 ## build: Build the celestia-appd binary into the ./build directory.
-build: mod
+build: mod download-v3-binaries
 	@cd ./cmd/celestia-appd
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd with multiplexer enabled"
@@ -56,15 +56,21 @@ install-standalone: check-bbr
 
 ## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
 # TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
-install: check-bbr
+install: check-bbr download-v3-binaries
+	@echo "--> Installing celestia-appd with multiplexer support"
+	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
+.PHONY: install
+
+## download-v3-binaries: Download the binaries for the latest v3.x.x release.
+# TODO: Do not re-download if the files already exist.
+download-v3-binaries:
 	@echo "--> Download embedded binaries for v3"
 	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Darwin_arm64.tar.gz -O internal/embedding/celestia-app_darwin_v3_arm64.tar.gz
 	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Linux_arm64.tar.gz -O internal/embedding/celestia-app_linux_v3_arm64.tar.gz
 	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Darwin_x86_64.tar.gz -O internal/embedding/celestia-app_darwin_v3_amd64.tar.gz
 	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Linux_x86_64.tar.gz -O internal/embedding/celestia-app_linux_v3_amd64.tar.gz
-	@echo "--> Installing celestia-appd with multiplexer support"
-	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
-.PHONY: install
+	@echo "--> Downloaded embedded binaries for v3"
+.PHONY: download-v3-binaries
 
 ## mod: Update all go.mod files.
 mod:
