@@ -39,7 +39,7 @@ services:
       - core0
     environment:
       - MONIKER=core1
-      - CELESTIA_HOME=/opt
+      - CELESTIA_APP_HOME=/opt
       - AMOUNT=5000000000utia
     entrypoint: [
       "/bin/bash"
@@ -68,7 +68,7 @@ services:
       - core0
     environment:
       - MONIKER=core2
-      - CELESTIA_HOME=/opt
+      - CELESTIA_APP_HOME=/opt
       - AMOUNT=5000000000utia
     entrypoint: [
       "/bin/bash"
@@ -97,7 +97,7 @@ services:
       - core0
     environment:
       - MONIKER=core3
-      - CELESTIA_HOME=/opt
+      - CELESTIA_APP_HOME=/opt
       - AMOUNT=5000000000utia
     entrypoint: [
       "/bin/bash"
