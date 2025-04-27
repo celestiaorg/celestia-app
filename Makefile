@@ -56,23 +56,24 @@ install-standalone: check-bbr
 
 define EMBED_BIN
 	if test -f internal/embedding/$$out; then \
-	  if [ -f internal/embedding/.embed_version ]; then \
-	    existing_version=$$(cat internal/embedding/.embed_version); \
+	  if [ -f internal/embedding/.embed_version_$$out ]; then \
+	    existing_version=$$(cat internal/embedding/.embed_version_$$out); \
 	    if [ "$$existing_version" = "$(CELESTIA_V3_VERSION)" ]; then \
 	      echo "Skipping download, existing correct version: $$out"; \
 	    else \
 	      echo "Version mismatch, re-downloading $$out"; \
-	      wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/$$url -O internal/embedding/$$out; \
-	      echo "$(CELESTIA_V3_VERSION)" > internal/embedding/.embed_version; \
+	      wget -q https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/$$url -O internal/embedding/$$out; \
+	      echo "$(CELESTIA_V3_VERSION)" > internal/embedding/.embed_version_$$out; \
 	    fi; \
 	  else \
-	    echo "No version file, re-downloading $$out"; \
-	    wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/$$url -O internal/embedding/$$out; \
-	    echo "$(CELESTIA_V3_VERSION)" > internal/embedding/.embed_version; \
+	    echo "No version file for $$out, re-downloading"; \
+	    wget -q https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/$$url -O internal/embedding/$$out; \
+	    echo "$(CELESTIA_V3_VERSION)" > internal/embedding/.embed_version_$$out; \
 	  fi; \
 	else \
-	  wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/$$url -O internal/embedding/$$out; \
-	  echo "$(CELESTIA_V3_VERSION)" > internal/embedding/.embed_version; \
+	  echo "Binary $$out not found, downloading"; \
+	  wget -q https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/$$url -O internal/embedding/$$out; \
+	  echo "$(CELESTIA_V3_VERSION)" > internal/embedding/.embed_version_$$out; \
 	fi
 endef
 
