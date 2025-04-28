@@ -14,10 +14,38 @@ import (
 	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 	host "github.com/cosmos/ibc-go/v8/modules/core/24-host"
 	ibctesting "github.com/cosmos/ibc-go/v8/testing"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 )
+
+type PacketForwardMiddlewareTestSuite struct {
+	suite.Suite
+
+	celestia *ibctesting.TestChain
+	chainA   *ibctesting.TestChain
+	chainB   *ibctesting.TestChain
+
+	pathAToCelestia *ibctesting.Path
+	pathCelestiaToB *ibctesting.Path
+}
+
+func TestPacketForwardMiddlewareTestSuite(t *testing.T) {
+	suite.Run(t, new(PacketForwardMiddlewareTestSuite))
+}
+
+func (s *PacketForwardMiddlewareTestSuite) SetupTest() {
+	coordinator, celestia, chainA, chainB := SetupTest(s.T())
+	s.pathAToCelestia = ibctesting.NewTransferPath(chainA, celestia)
+	s.pathCelestiaToB = ibctesting.NewTransferPath(celestia, chainB)
+
+	coordinator.Setup(s.pathAToCelestia)
+	coordinator.Setup(s.pathCelestiaToB)
+
+	s.celestia = celestia
+	s.chainA = chainA
+	s.chainB = chainB
+}
 
 type PacketMetadata struct {
 	Forward *ForwardMetadata `json:"forward"`
@@ -33,33 +61,24 @@ type ForwardMetadata struct {
 	RefundSequence *uint64       `json:"refund_sequence,omitempty"`
 }
 
-func NewTransferPaths(chain1, chain2, chain3 *ibctesting.TestChain) (*ibctesting.Path, *ibctesting.Path) {
-	path1 := ibctesting.NewPath(chain1, chain2)
-	path1.EndpointA.ChannelConfig.PortID = ibctesting.TransferPort
-	path1.EndpointB.ChannelConfig.PortID = ibctesting.TransferPort
-	path1.EndpointA.ChannelConfig.Version = transfertypes.Version
-	path1.EndpointB.ChannelConfig.Version = transfertypes.Version
-	path2 := ibctesting.NewPath(chain2, chain3)
-	path2.EndpointA.ChannelConfig.PortID = ibctesting.TransferPort
-	path2.EndpointB.ChannelConfig.PortID = ibctesting.TransferPort
-	path2.EndpointA.ChannelConfig.Version = transfertypes.Version
-	path2.EndpointB.ChannelConfig.Version = transfertypes.Version
+func (s *PacketForwardMiddlewareTestSuite) GetCelestiaApp(chain *ibctesting.TestChain) *app.App {
+	app, ok := chain.App.(*app.App)
+	s.Require().True(ok)
+	return app
+}
 
-	return path1, path2
+func (s *PacketForwardMiddlewareTestSuite) GetSimapp(chain *ibctesting.TestChain) *SimApp {
+	app, ok := chain.App.(*SimApp)
+	s.Require().True(ok)
+	return app
 }
 
 // TestPacketForwardMiddlewareTransfer sends a PFM transfer originating from Celestia to ChainA, then back to Celestia and finally to ChainB.
 // It verifies that Celestia forwards the packet successfully, the balance of the sender account on Celestia decreases by the amount sent,
 // and the balance of the receiver account on ChainB increases by the amount sent.
-func TestPacketForwardMiddlewareTransfer(t *testing.T) {
-	coordinator, chainA, celestia, chainB := SetupTest(t)
-	path1, path2 := NewTransferPaths(chainA, celestia, chainB)
-
-	coordinator.Setup(path1)
-	coordinator.Setup(path2)
-
-	celestiaApp := celestia.App.(*app.App)
-	originalCelestiaBalance := celestiaApp.BankKeeper.GetBalance(celestia.GetContext(), celestia.SenderAccount.GetAddress(), sdk.DefaultBondDenom)
+func (s *PacketForwardMiddlewareTestSuite) TestPacketForwardMiddlewareTransfer() {
+	celestiaApp := s.GetCelestiaApp(s.celestia)
+	originalCelestiaBalance := celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), s.celestia.SenderAccount.GetAddress(), sdk.DefaultBondDenom)
 
 	// Take half of the original balance
 	transferAmount := originalCelestiaBalance.Amount.QuoRaw(2)
@@ -69,46 +88,46 @@ func TestPacketForwardMiddlewareTransfer(t *testing.T) {
 	// Forward the packet to ChainB
 	secondHopMetaData := &PacketMetadata{
 		Forward: &ForwardMetadata{
-			Receiver: chainB.SenderAccount.GetAddress().String(),
-			Channel:  path2.EndpointA.ChannelID,
-			Port:     path2.EndpointA.ChannelConfig.PortID,
+			Receiver: s.chainB.SenderAccount.GetAddress().String(),
+			Channel:  s.pathCelestiaToB.EndpointA.ChannelID,
+			Port:     s.pathCelestiaToB.EndpointA.ChannelConfig.PortID,
 		},
 	}
 	nextBz, err := json.Marshal(secondHopMetaData)
-	require.NoError(t, err)
+	s.Require().NoError(err)
 	next := string(nextBz)
 
 	// Send it back to Celestia
 	firstHopMetaData := &PacketMetadata{
 		Forward: &ForwardMetadata{
-			Receiver: celestia.SenderAccount.GetAddress().String(),
-			Channel:  path1.EndpointA.ChannelID,
-			Port:     path1.EndpointA.ChannelConfig.PortID,
+			Receiver: s.celestia.SenderAccount.GetAddress().String(),
+			Channel:  s.pathAToCelestia.EndpointA.ChannelID,
+			Port:     s.pathAToCelestia.EndpointA.ChannelConfig.PortID,
 			Next:     &next,
 		},
 	}
 	memo, err := json.Marshal(firstHopMetaData)
-	require.NoError(t, err)
+	s.Require().NoError(err)
 
 	// Transfer path: Celestia -> ChainA -> Celestia -> ChainB
-	msg := transfertypes.NewMsgTransfer(path1.EndpointB.ChannelConfig.PortID, path1.EndpointB.ChannelID, coinToSendToB, celestia.SenderAccount.GetAddress().String(), chainA.SenderAccount.GetAddress().String(), timeoutHeight, 0, string(memo))
+	msg := transfertypes.NewMsgTransfer(s.pathAToCelestia.EndpointB.ChannelConfig.PortID, s.pathAToCelestia.EndpointB.ChannelID, coinToSendToB, s.celestia.SenderAccount.GetAddress().String(), s.chainA.SenderAccount.GetAddress().String(), timeoutHeight, 0, string(memo))
 
-	res, err := celestia.SendMsgs(msg)
-	require.NoError(t, err)
+	res, err := s.celestia.SendMsgs(msg)
+	s.Require().NoError(err)
 
 	packet, err := ibctesting.ParsePacketFromEvents(res.GetEvents())
-	require.NoError(t, err)
+	s.Require().NoError(err)
 
-	err = ForwardPacket([]*ibctesting.Path{path1, path1, path2}, packet)
-	require.NoError(t, err)
+	err = ForwardPacket([]*ibctesting.Path{s.pathAToCelestia, s.pathAToCelestia, s.pathCelestiaToB}, packet)
+	s.Require().NoError(err)
 
-	sourceBalanceAfter := celestiaApp.BankKeeper.GetBalance(celestia.GetContext(), celestia.SenderAccount.GetAddress(), sdk.DefaultBondDenom)
-	require.Equal(t, originalCelestiaBalance.Amount.Sub(transferAmount), sourceBalanceAfter.Amount)
+	sourceBalanceAfter := celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), s.celestia.SenderAccount.GetAddress(), sdk.DefaultBondDenom)
+	s.Require().Equal(originalCelestiaBalance.Amount.Sub(transferAmount), sourceBalanceAfter.Amount)
 
 	ibcDenomTrace := transfertypes.ParseDenomTrace(transfertypes.GetPrefixedDenom(packet.GetDestPort(), packet.GetDestChannel(), sdk.DefaultBondDenom))
-	destinationBalanceAfter := chainB.App.(*SimApp).BankKeeper.GetBalance(chainB.GetContext(), chainB.SenderAccount.GetAddress(), ibcDenomTrace.IBCDenom())
+	destinationBalanceAfter := s.GetSimapp(s.chainB).BankKeeper.GetBalance(s.chainB.GetContext(), s.chainB.SenderAccount.GetAddress(), ibcDenomTrace.IBCDenom())
 
-	require.Equal(t, transferAmount, destinationBalanceAfter.Amount)
+	s.Require().Equal(transferAmount, destinationBalanceAfter.Amount)
 }
 
 // isPacketToEndpoint checks if a packet is meant for the specified endpoint

@@ -78,7 +78,7 @@ func TestInitChain(t *testing.T) {
 					Block:     &tmproto.BlockParams{},
 					Evidence:  genesis.ConsensusParams.Evidence,
 					Validator: genesis.ConsensusParams.Validator,
-					Version:   &tmproto.VersionParams{}, // explicitly set to empty to remove app version.,
+					Version:   &tmproto.VersionParams{}, // explicitly set to empty to remove app version.
 				},
 				AppStateBytes: appStateBytes,
 				InitialHeight: 0,

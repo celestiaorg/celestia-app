@@ -10,6 +10,7 @@ import (
 	hooktypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/02_post_dispatch/types"
 	coretypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
+	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/gogoproto/proto"
@@ -32,22 +33,31 @@ func TestHyperlaneTestSuite(t *testing.T) {
 	suite.Run(t, new(HyperlaneTestSuite))
 }
 
-// TODO: refactor the test setup for hyperlane, pfm and tokenfilter suites
 func (s *HyperlaneTestSuite) SetupTest() {
-	_, simappTestChain, celestiaTestChain, _ := SetupTest(s.T())
+	_, celestia, simapp, _ := SetupTest(s.T())
 
-	s.celestia = celestiaTestChain
-	s.simapp = simappTestChain
+	s.celestia = celestia
+	s.simapp = simapp
 
 	// NOTE: the test infra funds accounts with token denom "stake" by default, so we mint some utia here
-	simapp, ok := celestiaTestChain.App.(*app.App)
+	app := s.GetCelestiaApp(celestia)
+	err := app.BankKeeper.MintCoins(celestia.GetContext(), minttypes.ModuleName, sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1_000_000))))
+	s.Require().NoError(err)
+
+	err = app.BankKeeper.SendCoinsFromModuleToAccount(celestia.GetContext(), minttypes.ModuleName, celestia.SenderAccount.GetAddress(), sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1_000_000))))
+	s.Require().NoError(err)
+}
+
+func (s *HyperlaneTestSuite) GetCelestiaApp(chain *ibctesting.TestChain) *app.App {
+	app, ok := chain.App.(*app.App)
 	s.Require().True(ok)
+	return app
+}
 
-	err := simapp.BankKeeper.MintCoins(celestiaTestChain.GetContext(), minttypes.ModuleName, sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1_000_000))))
-	s.Require().NoError(err)
-
-	err = simapp.BankKeeper.SendCoinsFromModuleToAccount(celestiaTestChain.GetContext(), minttypes.ModuleName, celestiaTestChain.SenderAccount.GetAddress(), sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1_000_000))))
-	s.Require().NoError(err)
+func (s *HyperlaneTestSuite) GetSimapp(chain *ibctesting.TestChain) *SimApp {
+	app, ok := chain.App.(*SimApp)
+	s.Require().True(ok)
+	return app
 }
 
 func (s *HyperlaneTestSuite) TestHyperlaneTransfer() {
@@ -114,14 +124,31 @@ func (s *HyperlaneTestSuite) TestHyperlaneTransfer() {
 	s.Require().NoError(err)
 	s.Require().NotNil(res)
 
-	simapp, ok := s.simapp.App.(*SimApp)
-	s.Require().True(ok)
-
+	simapp := s.GetSimapp(s.simapp)
 	hypDenom, err := simapp.WarpKeeper.HypTokens.Get(s.simapp.GetContext(), synTokenID.GetInternalId())
 	s.Require().NoError(err)
 
 	balance := simapp.BankKeeper.GetBalance(s.simapp.GetContext(), s.simapp.SenderAccount.GetAddress(), hypDenom.OriginDenom)
 	s.Require().Equal(math.NewInt(1000).Int64(), balance.Amount.Int64())
+}
+
+func (s *HyperlaneTestSuite) TestSyntheticTokensDisabled() {
+	const (
+		SimappDomainID = 1337
+	)
+
+	ismIDSimapp := s.SetupNoopISM(s.simapp)
+	mailboxIDSimapp := s.SetupMailBox(s.simapp, ismIDSimapp, SimappDomainID)
+
+	msgCreateSyntheticToken := warptypes.MsgCreateSyntheticToken{
+		Owner:         s.celestia.SenderAccount.GetAddress().String(),
+		OriginMailbox: mailboxIDSimapp,
+	}
+
+	res, err := s.celestia.SendMsgs(&msgCreateSyntheticToken)
+	s.Require().Error(err)
+	s.Require().ErrorContains(err, "module disabled synthetic tokens")
+	s.Require().NotEqual(abci.CodeTypeOK, res.Code)
 }
 
 func (s *HyperlaneTestSuite) SetupNoopISM(chain *ibctesting.TestChain) util.HexAddress {
