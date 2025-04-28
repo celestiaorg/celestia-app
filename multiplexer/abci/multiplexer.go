@@ -403,7 +403,7 @@ func openDB(rootDir string, backendType db.BackendType) (db.DB, error) {
 
 func openTraceWriter(traceWriterFile string) (w io.WriteCloser, err error) {
 	if traceWriterFile == "" {
-		return
+		return w, err
 	}
 	return os.OpenFile(
 		traceWriterFile,

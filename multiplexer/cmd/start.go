@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/celestiaorg/celestia-app/multiplexer/abci"
-	"github.com/celestiaorg/celestia-app/multiplexer/internal"
 	dbm "github.com/cometbft/cometbft-db"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
@@ -14,6 +12,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/server"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/cosmos/cosmos-sdk/server/types"
+
+	"github.com/celestiaorg/celestia-app/multiplexer/abci"
+	"github.com/celestiaorg/celestia-app/multiplexer/internal"
 )
 
 func start(versions abci.Versions, svrCtx *server.Context, clientCtx client.Context, appCreator types.AppCreator) error {

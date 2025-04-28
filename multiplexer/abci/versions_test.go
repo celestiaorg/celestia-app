@@ -95,21 +95,24 @@ func TestShouldUseLatestApp(t *testing.T) {
 			Versions{
 				{AppVersion: 1},
 				{AppVersion: 2},
-			}, 1, false,
+			},
+			1, false,
 		},
 		{
 			"App version matches a later version",
 			Versions{
 				{AppVersion: 1},
 				{AppVersion: 2},
-			}, 2, false,
+			},
+			2, false,
 		},
 		{
 			"App version does not match any version",
 			Versions{
 				{AppVersion: 1},
 				{AppVersion: 2},
-			}, 3, true,
+			},
+			3, true,
 		},
 	}
 
