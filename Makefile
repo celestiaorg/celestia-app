@@ -85,7 +85,6 @@ install: check-bbr download-v3-binaries
 .PHONY: install
 
 ## download-v3-binaries: Download the binaries for the latest v3.x.x release.
-# TODO: Do not re-download if the files already exist.
 download-v3-binaries:
 	@echo "--> Downloading embedded binaries for v3"
 	@for pair in \
