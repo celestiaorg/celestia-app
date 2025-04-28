@@ -4,17 +4,17 @@
 # keeps running it validating blocks.
 
 # check if environment variables are set
-if [[ -z "${CELESTIA_HOME}" || -z "${MONIKER}" || -z "${AMOUNT}" ]]
+if [[ -z "${CELESTIA_APP_HOME}" || -z "${MONIKER}" || -z "${AMOUNT}" ]]
 then
-  echo "Environment not setup correctly. Please set: CELESTIA_HOME, MONIKER, AMOUNT variables"
+  echo "Environment not setup correctly. Please set: CELESTIA_APP_HOME, MONIKER, AMOUNT variables"
   exit 1
 fi
 
 # create necessary structure if doesn't exist
-if [[ ! -f ${CELESTIA_HOME}/data/priv_validator_state.json ]]
+if [[ ! -f ${CELESTIA_APP_HOME}/data/priv_validator_state.json ]]
 then
-    mkdir "${CELESTIA_HOME}"/data
-    cat <<EOF > ${CELESTIA_HOME}/data/priv_validator_state.json
+    mkdir "${CELESTIA_APP_HOME}"/data
+    cat <<EOF > ${CELESTIA_APP_HOME}/data/priv_validator_state.json
 {
   "height": "0",
   "round": 0,
@@ -42,7 +42,7 @@ fi
     # create validator
     celestia-appd tx staking create-validator \
       --amount="${AMOUNT}" \
-      --pubkey="$(celestia-appd tendermint show-validator --home "${CELESTIA_HOME}")" \
+      --pubkey="$(celestia-appd tendermint show-validator --home "${CELESTIA_APP_HOME}")" \
       --moniker="${MONIKER}" \
       --chain-id="test" \
       --commission-rate=0.1 \
@@ -51,7 +51,7 @@ fi
       --min-self-delegation=1000000 \
       --from="${MONIKER}" \
       --keyring-backend=test \
-      --home="${CELESTIA_HOME}" \
+      --home="${CELESTIA_APP_HOME}" \
       --broadcast-mode=block \
       --fees="300000utia" \
       --yes
@@ -66,7 +66,7 @@ fi
 
 # start node
 celestia-appd start \
-  --home="${CELESTIA_HOME}" \
+  --home="${CELESTIA_APP_HOME}" \
   --moniker="${MONIKER}" \
   --p2p.persistent_peers=1c29bcd0d568df34f148b26205543566e4d1a177@core0:26656 \
   --rpc.laddr=tcp://0.0.0.0:26657 \

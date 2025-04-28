@@ -3,10 +3,10 @@
 # This script creates the necessary files before starting celestia-appd
 
 # only create the priv_validator_state.json if it doesn't exist and the command is start
-if [[ $1 == "start" && ! -f ${CELESTIA_HOME}/data/priv_validator_state.json ]]
+if [[ $1 == "start" && ! -f ${CELESTIA_APP_HOME}/data/priv_validator_state.json ]]
 then
-    mkdir -p ${CELESTIA_HOME}/data
-    cat <<EOF > ${CELESTIA_HOME}/data/priv_validator_state.json
+    mkdir -p ${CELESTIA_APP_HOME}/data
+    cat <<EOF > ${CELESTIA_APP_HOME}/data/priv_validator_state.json
 {
   "height": "0",
   "round": 0,

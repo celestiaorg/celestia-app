@@ -94,9 +94,9 @@ make bbr-enable
 
 ### Environment variables
 
-| Variable        | Explanation                                                       | Default value                                            | Required |
-|-----------------|-------------------------------------------------------------------|----------------------------------------------------------|----------|
-| `CELESTIA_HOME` | Where the application directory (`.celestia-app`) should be saved | [User home directory](https://pkg.go.dev/os#UserHomeDir) | Optional |
+| Variable            | Explanation                                  | Default value                                               | Required |
+|---------------------|----------------------------------------------|-------------------------------------------------------------|----------|
+| `CELESTIA_APP_HOME` | Where the application files should be saved. | [`$HOME/.celestia-appd`](https://pkg.go.dev/os#UserHomeDir) | Optional |
 
 ### Using celestia-appd
 

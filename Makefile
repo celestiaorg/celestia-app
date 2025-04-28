@@ -54,6 +54,29 @@ install-standalone: check-bbr
 	@go install $(BUILD_FLAGS) ./cmd/celestia-appd
 .PHONY: install-standalone
 
+define EMBED_BIN
+	if test -f internal/embedding/$$out; then \
+	  if [ -f internal/embedding/.embed_version_$$out ]; then \
+	    existing_version=$$(cat internal/embedding/.embed_version_$$out); \
+	    if [ "$$existing_version" = "$(CELESTIA_V3_VERSION)" ]; then \
+	      echo "Skipping download, existing correct version: $$out"; \
+	    else \
+	      echo "Version mismatch, re-downloading $$out"; \
+	      wget -q https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/$$url -O internal/embedding/$$out; \
+	      echo "$(CELESTIA_V3_VERSION)" > internal/embedding/.embed_version_$$out; \
+	    fi; \
+	  else \
+	    echo "No version file for $$out, re-downloading"; \
+	    wget -q https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/$$url -O internal/embedding/$$out; \
+	    echo "$(CELESTIA_V3_VERSION)" > internal/embedding/.embed_version_$$out; \
+	  fi; \
+	else \
+	  echo "Binary $$out not found, downloading"; \
+	  wget -q https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/$$url -O internal/embedding/$$out; \
+	  echo "$(CELESTIA_V3_VERSION)" > internal/embedding/.embed_version_$$out; \
+	fi
+endef
+
 ## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
 # TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
 install: check-bbr download-v3-binaries
@@ -64,11 +87,15 @@ install: check-bbr download-v3-binaries
 ## download-v3-binaries: Download the binaries for the latest v3.x.x release.
 # TODO: Do not re-download if the files already exist.
 download-v3-binaries:
-	@echo "--> Download embedded binaries for v3"
-	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Darwin_arm64.tar.gz -O internal/embedding/celestia-app_darwin_v3_arm64.tar.gz
-	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Linux_arm64.tar.gz -O internal/embedding/celestia-app_linux_v3_arm64.tar.gz
-	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Darwin_x86_64.tar.gz -O internal/embedding/celestia-app_darwin_v3_amd64.tar.gz
-	wget https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/celestia-app_Linux_x86_64.tar.gz -O internal/embedding/celestia-app_linux_v3_amd64.tar.gz
+	@echo "--> Downloading embedded binaries for v3"
+	@for pair in \
+		"celestia-app_Darwin_arm64.tar.gz:celestia-app_darwin_v3_arm64.tar.gz" \
+		"celestia-app_Linux_arm64.tar.gz:celestia-app_linux_v3_arm64.tar.gz" \
+		"celestia-app_Darwin_x86_64.tar.gz:celestia-app_darwin_v3_amd64.tar.gz" \
+		"celestia-app_Linux_x86_64.tar.gz:celestia-app_linux_v3_amd64.tar.gz"; do \
+		url=$${pair%%:*}; out=$${pair##*:}; \
+		$(EMBED_BIN); \
+	done
 	@echo "--> Downloaded embedded binaries for v3"
 .PHONY: download-v3-binaries
 
