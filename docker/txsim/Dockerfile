@@ -29,7 +29,7 @@ FROM docker.io/alpine:3.20
 ARG UID=10001
 ARG USER_NAME=celestia
 
-ENV CELESTIA_HOME=/home/${USER_NAME}
+ENV CELESTIA_APP_HOME=/home/${USER_NAME}/.celestia-appd
 
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
@@ -40,7 +40,7 @@ RUN apk update && apk add --no-cache \
     && adduser ${USER_NAME} \
     -D \
     -g ${USER_NAME} \
-    -h ${CELESTIA_HOME} \
+    -h ${CELESTIA_APP_HOME} \
     -s /sbin/nologin \
     -u ${UID}
 
@@ -52,6 +52,6 @@ COPY --chown=${USER_NAME}:${USER_NAME} docker/txsim/entrypoint.sh /opt/entrypoin
 USER ${USER_NAME}
 
 # Set the working directory to the home directory.
-WORKDIR ${CELESTIA_HOME}
+WORKDIR ${CELESTIA_APP_HOME}
 
 ENTRYPOINT [ "/bin/bash", "/opt/entrypoint.sh" ]
