@@ -8,7 +8,7 @@ import (
 
 // EnvPrefix is the environment variable prefix for celestia-appd.
 // Environment variables that Cobra reads must be prefixed with this value.
-const EnvPrefix = "CELESTIA"
+const EnvPrefix = "CELESTIA_APP"
 
 // Name is the name of the application.
 const Name = "celestia-app"
