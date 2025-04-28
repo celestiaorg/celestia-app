@@ -47,7 +47,7 @@ Below is an example block that has been filled using the non-interactive default
 - `ns = 1`: The first namespace is put at the beginning of the messages space.
 - `ns = 2`: Starting at the largest power of 2 that is not larger than the message length or `k`.
 - `ns = 3`: Message spanning multiple rows. So, it will be at the beginning of a new row.
-- `ns  = 4`: Starting at the largest power of 2 that is not larger than the message length or `k`.
+- `ns = 4`: Starting at the largest power of 2 that is not larger than the message length or `k`.
 
 Not only does doing this allow for easy trust minimized message inclusion checks for specific messages by light clients, but also allows for the creation of message inclusion fraud proofs for all messages in the block. This is important to reduce the trust assumptions made by light clients.
 
