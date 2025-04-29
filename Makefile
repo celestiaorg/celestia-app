@@ -41,7 +41,7 @@ build-standalone: mod
 .PHONY: build-standalone
 
 ## build: Build the celestia-appd binary into the ./build directory.
-build: mod
+build: mod download-v3-binaries
 	@cd ./cmd/celestia-appd
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd with multiplexer enabled"
@@ -79,7 +79,13 @@ endef
 
 ## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
 # TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
-install: check-bbr
+install: check-bbr download-v3-binaries
+	@echo "--> Installing celestia-appd with multiplexer support"
+	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
+.PHONY: install
+
+## download-v3-binaries: Download the binaries for the latest v3.x.x release.
+download-v3-binaries:
 	@echo "--> Downloading embedded binaries for v3"
 	@for pair in \
 		"celestia-app_Darwin_arm64.tar.gz:celestia-app_darwin_v3_arm64.tar.gz" \
@@ -89,9 +95,8 @@ install: check-bbr
 		url=$${pair%%:*}; out=$${pair##*:}; \
 		$(EMBED_BIN); \
 	done
-	@echo "--> Installing celestia-appd with multiplexer support"
-	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
-.PHONY: install
+	@echo "--> Downloaded embedded binaries for v3"
+.PHONY: download-v3-binaries
 
 ## mod: Update all go.mod files.
 mod:
