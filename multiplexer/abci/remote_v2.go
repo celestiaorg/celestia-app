@@ -3,9 +3,8 @@ package abci
 import (
 	"context"
 
-	"google.golang.org/grpc"
-
 	abci "github.com/cometbft/cometbft/abci/types"
+	"google.golang.org/grpc"
 )
 
 type RemoteABCIClientV2 struct {
@@ -86,5 +85,4 @@ func (a *RemoteABCIClientV2) Query(ctx context.Context, req *abci.RequestQuery) 
 // VerifyVoteExtension implements abci.ABCI.
 func (a *RemoteABCIClientV2) VerifyVoteExtension(req *abci.RequestVerifyVoteExtension) (*abci.ResponseVerifyVoteExtension, error) {
 	return a.ABCIClient.VerifyVoteExtension(context.Background(), req, grpc.WaitForReady(true))
-
 }

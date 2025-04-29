@@ -403,7 +403,7 @@ func openDB(rootDir string, backendType db.BackendType) (db.DB, error) {
 
 func openTraceWriter(traceWriterFile string) (w io.WriteCloser, err error) {
 	if traceWriterFile == "" {
-		return
+		return w, fmt.Errorf("can not open trace writer for empty file")
 	}
 	return os.OpenFile(
 		traceWriterFile,
@@ -429,7 +429,7 @@ func (m *Multiplexer) getApp() (servertypes.ABCI, error) {
 		}
 
 		if m.nativeApp == nil {
-			m.logger.Info("no app found in multiplexer for app version, starting latest app", "app_version", m.appVersion)
+			m.logger.Info("using latest app", "app_version", m.appVersion)
 			app, err := m.startNativeApp()
 			if err != nil {
 				return nil, fmt.Errorf("failed to start latest app: %w", err)
@@ -441,19 +441,16 @@ func (m *Multiplexer) getApp() (servertypes.ABCI, error) {
 				return nil, fmt.Errorf("failed to enable gRPC and API servers: %w", err)
 			}
 		}
-
-		m.logger.Info("using latest app", "app_version", m.appVersion)
 		return m.nativeApp, nil
 	}
 
 	// check if we need to start the app or if we have a different app running
 	if !m.started || currentVersion.AppVersion > m.activeVersion.AppVersion {
+		m.logger.Info("Using ABCI remote connection", "maximum_app_version", m.activeVersion.AppVersion, "abci_version", m.activeVersion.ABCIVersion.String(), "chain_id", m.chainID)
 		if err := m.startEmbeddedApp(currentVersion); err != nil {
 			return nil, fmt.Errorf("failed to start embedded app: %w", err)
 		}
 	}
-
-	m.logger.Info("Using ABCI remote connection", "maximum_app_version", m.activeVersion.AppVersion, "abci_version", m.activeVersion.ABCIVersion.String(), "chain_id", m.chainID)
 
 	switch m.activeVersion.ABCIVersion {
 	case ABCIClientVersion1:
