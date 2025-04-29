@@ -74,4 +74,4 @@ hardcoded in the application or they are blocked by the `ParamFilterDecorator`.
 
 Note: none of the mint module parameters are governance modifiable because they have been converted into hardcoded constants. See the x/mint README.md for more details.
 
-[icaAllowMessages]: https://github.com/rootulp/celestia-app/blob/8caa5807df8d15477554eba953bd056ae72d4503/app/ica_host.go#L3-L18
+[icaAllowMessages]: https://github.com/celestiaorg/celestia-app/blob/e5d5ac6732c55150ea3573e17bec162fe836e0c6/app/ica_host.go
