@@ -137,11 +137,6 @@ func WithEstimatorService(conn *grpc.ClientConn) Option {
 // For transaction submission, the client will attempt to use the primary endpoint
 // and the first two additional endpoints provided via this option.
 func WithAdditionalCoreEndpoints(conns []*grpc.ClientConn) Option {
-	// set 2 additional core endpoints on the `TxClient`
-	if len(conns) > 2 {
-		conns = conns[:2]
-	}
-
 	return func(c *TxClient) {
 		c.conns = append(c.conns, conns...)
 	}
@@ -471,15 +466,11 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 	close(errCh)
 
 	if firstResp, ok := <-respCh; ok {
-		for err := range errCh {
-			fmt.Printf("Ignored broadcast error after success: %v", err)
-		}
 		return firstResp, nil
 	}
 
 	broadcastErrs := make([]error, 0, len(client.conns))
 	for err := range errCh {
-		fmt.Printf("Broadcast error: %v", err) // Keep logging for debug
 		broadcastErrs = append(broadcastErrs, err)
 	}
 

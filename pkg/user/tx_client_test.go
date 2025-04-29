@@ -566,29 +566,6 @@ func (suite *TxClientTestSuite) TestBroadcastScenarios() {
 			},
 			expectedErr: nil,
 		},
-		{ // More Than Three Conns (Success - only first 3 used)
-			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn, []func()) {
-				mockSvc1 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
-					return nil, errMock1
-				}}
-				mockSvc2 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
-					return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "HASH_MT3"}}, nil
-				}}
-				mockSvc3 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
-					return nil, errMock3
-				}}
-				mockSvc4 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
-					t.Error("Mock service 4 should not have been called")
-					return nil, errors.New("err4")
-				}}
-				conn1, stop1 := grpctest.StartMockServer(t, mockSvc1)
-				conn2, stop2 := grpctest.StartMockServer(t, mockSvc2)
-				conn3, stop3 := grpctest.StartMockServer(t, mockSvc3)
-				conn4, stop4 := grpctest.StartMockServer(t, mockSvc4)
-				return []*grpctest.MockTxService{mockSvc1, mockSvc2, mockSvc3, mockSvc4}, []*grpc.ClientConn{conn1, conn2, conn3, conn4}, []func(){stop1, stop2, stop3, stop4}
-			},
-			expectedErr: nil,
-		},
 		{ // Non-Zero Code Failure
 			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn, []func()) {
 				mockSvc1 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
