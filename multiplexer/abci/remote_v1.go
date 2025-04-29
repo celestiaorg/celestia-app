@@ -174,7 +174,7 @@ func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*a
 	events = append(events, abciEventV1ToV2(endBlockResp.Events...)...)
 
 	// convert tx results
-	var txResults []*abciv2.ExecTxResult
+	txResults := make([]*abciv2.ExecTxResult, 0, len(commitBlockResps))
 	for _, commitBlockResp := range commitBlockResps {
 		txResults = append(txResults, &abciv2.ExecTxResult{
 			Code:      commitBlockResp.Code,
