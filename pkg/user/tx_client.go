@@ -398,11 +398,10 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 	if len(client.conns) > 1 {
 		return client.broadcastMulti(ctx, txBytes, account)
 	}
-	return client.broadcastTx(ctx, client.conns[0], txBytes)
+	return client.broadcastTx(ctx, client.conns[0], txBytes, account)
 }
 
-// broadcastTx sends a transaction request to a single gRPC connection.
-func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
+func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
 	txClient := sdktx.NewServiceClient(conn)
 	resp, err := txClient.BroadcastTx(
 		ctx,
@@ -414,11 +413,6 @@ func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, 
 	if err != nil {
 		return nil, err
 	}
-	if resp.TxResponse == nil {
-		// This case should ideally not happen with BroadcastMode_SYNC if err is nil,
-		// but handle defensively.
-		return nil, fmt.Errorf("broadcast via %s returned nil TxResponse despite nil error", conn.Target())
-	}
 	if resp.TxResponse.Code != abci.CodeTypeOK {
 		broadcastTxErr := &BroadcastTxError{
 			TxHash:   resp.TxResponse.TxHash,
@@ -428,12 +422,24 @@ func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, 
 		return nil, broadcastTxErr
 	}
 
+	// save the sequence and signer of the transaction in the local txTracker
+	// before the sequence is incremented
+	client.txTracker[resp.TxResponse.TxHash] = txInfo{
+		sequence:  client.signer.accounts[signer].Sequence(),
+		signer:    signer,
+		timestamp: time.Now(),
+	}
+
+	// after the transaction has been submitted, we can increment the
+	// sequence of the signer
+	if err := client.signer.IncrementSequence(signer); err != nil {
+		return nil, fmt.Errorf("increment sequencing: %w", err)
+	}
 	return resp.TxResponse, nil
 }
 
 // broadcastMulti broadcasts the transaction to multiple connections concurrently
 // and returns the response from the first successful broadcast.
-// It uses the primary connection and up to two additional connections.
 func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
 	respCh := make(chan *sdktypes.TxResponse, 1)
 	errCh := make(chan error, len(client.conns))
@@ -442,17 +448,7 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 
 	for _, conn := range client.conns {
 		g.Go(func() error {
-			resp, err := client.broadcastTx(childCtx, conn, txBytes)
-
-			// If the context has finished, check if the error is something other than the context error.
-			if ctxErr := childCtx.Err(); ctxErr != nil {
-				if err != nil && !errors.Is(err, ctxErr) {
-					errCh <- fmt.Errorf("broadcast to %s failed after context finished: %w", conn.Target(), err)
-				}
-				return nil
-			}
-
-			// If context is okay, but we got an error during broadcastSingle
+			resp, err := client.broadcastTx(childCtx, conn, txBytes, signer)
 			if err != nil {
 				errCh <- err
 				return nil
@@ -475,21 +471,6 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 		for err := range errCh {
 			fmt.Printf("Ignored broadcast error after success: %v", err)
 		}
-
-		// save the sequence and signer of the transaction in the local txTracker
-		// before the sequence is incremented
-		client.txTracker[firstResp.TxHash] = txInfo{
-			sequence:  client.signer.accounts[signer].Sequence(),
-			signer:    signer,
-			timestamp: time.Now(),
-		}
-
-		// after the transaction has been submitted, we can increment the
-		// sequence of the signer
-		if err := client.signer.IncrementSequence(signer); err != nil {
-			// This is a critical error *after* successful broadcast. Return it.
-			return nil, fmt.Errorf("failed to increment sequence after successful broadcast: %w", err)
-		}
 		return firstResp, nil
 	}
 
@@ -502,14 +483,7 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 	if len(broadcastErrs) > 0 {
 		return nil, broadcastErrs[0]
 	}
-
-	// If errCh was empty, check the error from the error group itself.
-	// This usually indicates a context cancellation or deadline exceeded.
-	if groupErr != nil {
-		return nil, groupErr
-	}
-
-	return nil, errors.New("broadcast failed: no successful response and no specific errors reported")
+	return nil, groupErr
 }
 
 // pruneTxTracker removes transactions from the local tx tracker that are older than 10 minutes
