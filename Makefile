@@ -65,18 +65,20 @@ install: check-bbr download-v3-binaries
 	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
 .PHONY: install
 
-## download-v3-binaries: Download the binaries for the latest v3.x.x release.
+## download-v3-binaries: Download the binary for the current platform for v3.
 download-v3-binaries:
-	@echo "--> Downloading embedded binaries for v3"
-	@for pair in \
-		"celestia-app_Darwin_arm64.tar.gz:celestia-app_darwin_v3_arm64.tar.gz" \
-		"celestia-app_Linux_arm64.tar.gz:celestia-app_linux_v3_arm64.tar.gz" \
-		"celestia-app_Darwin_x86_64.tar.gz:celestia-app_darwin_v3_amd64.tar.gz" \
-		"celestia-app_Linux_x86_64.tar.gz:celestia-app_linux_v3_amd64.tar.gz"; do \
-		url=$${pair%%:*}; out=$${pair##*:}; \
-		$(EMBED_BIN); \
-	done
-	@echo "--> Downloaded embedded binaries for v3"
+	@echo "--> Downloading embedded binary for v3"
+	@mkdir -p internal/embedding
+	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
+	case "$$os-$$arch" in \
+		darwin-arm64) url=celestia-app_Darwin_arm64.tar.gz; out=celestia-app_darwin_v3_arm64.tar.gz ;; \
+		linux-arm64) url=celestia-app_Linux_arm64.tar.gz; out=celestia-app_linux_v3_arm64.tar.gz ;; \
+		darwin-amd64) url=celestia-app_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v3_amd64.tar.gz ;; \
+		linux-amd64) url=celestia-app_Linux_x86_64.tar.gz; out=celestia-app_linux_v3_amd64.tar.gz ;; \
+		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
+	esac; \
+	bash scripts/download_v3_binary.sh "$$url" "$$out" "$(CELESTIA_V3_VERSION)"
+	@echo "--> Done"
 .PHONY: download-v3-binaries
 
 ## mod: Update all go.mod files.
