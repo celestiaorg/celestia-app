@@ -11,13 +11,13 @@ if [ -f internal/embedding/$out ]; then
     if [ -f internal/embedding/.embed_version_$out ]; then
         existing_version=$(cat internal/embedding/.embed_version_$out)
         if [ "$existing_version" = "$version" ]; then
-            echo "Skipping download, existing correct version: $out"
+            echo "Skipping download because expected version already downloaded: $out"
             exit 0
         else
-            echo "Version mismatch, re-downloading $out"
+            echo "Downloaded v3 binary does not match expected version so re-downloading $out"
         fi
     else
-        echo "No version file for $out, re-downloading"
+        echo "A .embed_version file was not found for $out so downloading"
     fi
 else
     echo "Binary $out not found, downloading"
