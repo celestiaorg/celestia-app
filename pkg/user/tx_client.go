@@ -322,7 +322,10 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 		return nil, err
 	}
 
-	return client.broadcastMulti(ctx, txBytes, account)
+	if len(client.conns) > 1 {
+		return client.broadcastMulti(ctx, txBytes, account)
+	}
+	return client.broadcastTx(ctx, client.conns[0], txBytes, account)
 }
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
