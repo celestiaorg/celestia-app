@@ -4,8 +4,6 @@ import (
 	"context"
 	"math"
 
-	"google.golang.org/grpc"
-
 	abciv2 "github.com/cometbft/cometbft/abci/types"
 	cryptov2 "github.com/cometbft/cometbft/proto/tendermint/crypto"
 	typesv2 "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -13,6 +11,7 @@ import (
 	cryptov1 "github.com/tendermint/tendermint/proto/tendermint/crypto"
 	typesv1 "github.com/tendermint/tendermint/proto/tendermint/types"
 	versionv1 "github.com/tendermint/tendermint/proto/tendermint/version"
+	"google.golang.org/grpc"
 )
 
 type RemoteABCIClientV1 struct {
@@ -113,7 +112,7 @@ func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*a
 
 	commitInfo := commitInfoV2ToV1(&req.DecidedLastCommit)
 
-	beginBlockResp, err := a.ABCIApplicationClient.BeginBlock(context.Background(), &abciv1.RequestBeginBlock{
+	beginBlockResp, err := a.BeginBlock(context.Background(), &abciv1.RequestBeginBlock{
 		Hash: req.Hash,
 		Header: typesv1.Header{
 			ChainID: a.chainID,
@@ -145,7 +144,7 @@ func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*a
 
 	commitBlockResps := make([]*abciv1.ResponseDeliverTx, 0, len(req.Txs))
 	for _, tx := range req.Txs {
-		commitBlockResp, err := a.ABCIApplicationClient.DeliverTx(context.Background(), &abciv1.RequestDeliverTx{
+		commitBlockResp, err := a.DeliverTx(context.Background(), &abciv1.RequestDeliverTx{
 			Tx: tx,
 		}, grpc.WaitForReady(true))
 		if err != nil {
@@ -155,7 +154,7 @@ func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*a
 		commitBlockResps = append(commitBlockResps, commitBlockResp)
 	}
 
-	endBlockResp, err := a.ABCIApplicationClient.EndBlock(
+	endBlockResp, err := a.EndBlock(
 		context.Background(),
 		&abciv1.RequestEndBlock{
 			Height: req.Height,

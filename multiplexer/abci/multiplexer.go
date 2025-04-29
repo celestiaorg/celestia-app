@@ -403,7 +403,7 @@ func openDB(rootDir string, backendType db.BackendType) (db.DB, error) {
 
 func openTraceWriter(traceWriterFile string) (w io.WriteCloser, err error) {
 	if traceWriterFile == "" {
-		return
+		return w, fmt.Errorf("can not open trace writer for empty file")
 	}
 	return os.OpenFile(
 		traceWriterFile,
