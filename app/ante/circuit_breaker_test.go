@@ -22,6 +22,7 @@ var terminalAnteHandler = func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, 
 
 func TestCircuitBreaker(t *testing.T) {
 	testApp, _ := util.SetupTestAppWithGenesisValSet(app.DefaultInitialConsensusParams())
+	circuitAnte := circuitante.NewCircuitBreakerDecorator(&testApp.CircuitKeeper)
 
 	tests := []struct {
 		name     string
@@ -52,8 +53,6 @@ func TestCircuitBreaker(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			circuitAnte := circuitante.NewCircuitBreakerDecorator(&testApp.CircuitKeeper)
-
 			txBuilder := testApp.GetEncodingConfig().TxConfig.NewTxBuilder()
 			err := txBuilder.SetMsgs(tc.msg)
 			require.NoError(t, err)
