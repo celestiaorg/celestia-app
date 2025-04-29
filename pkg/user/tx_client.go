@@ -402,7 +402,7 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 }
 
 // broadcastTx sends a transaction request to a single gRPC connection.
-func (c *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
+func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
 	txClient := sdktx.NewServiceClient(conn)
 	resp, err := txClient.BroadcastTx(
 		ctx,
@@ -434,15 +434,15 @@ func (c *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, txByt
 // broadcastMulti broadcasts the transaction to multiple connections concurrently
 // and returns the response from the first successful broadcast.
 // It uses the primary connection and up to two additional connections.
-func (c *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
 	respCh := make(chan *sdktypes.TxResponse, 1)
-	errCh := make(chan error, len(c.conns))
+	errCh := make(chan error, len(client.conns))
 
 	g, childCtx := errgroup.WithContext(ctx)
 
-	for _, conn := range c.conns {
+	for _, conn := range client.conns {
 		g.Go(func() error {
-			resp, err := c.broadcastTx(childCtx, conn, txBytes)
+			resp, err := client.broadcastTx(childCtx, conn, txBytes)
 
 			// If the context has finished, check if the error is something other than the context error.
 			if ctxErr := childCtx.Err(); ctxErr != nil {
@@ -478,22 +478,22 @@ func (c *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, signer st
 
 		// save the sequence and signer of the transaction in the local txTracker
 		// before the sequence is incremented
-		c.txTracker[firstResp.TxHash] = txInfo{
-			sequence:  c.signer.accounts[signer].Sequence(),
+		client.txTracker[firstResp.TxHash] = txInfo{
+			sequence:  client.signer.accounts[signer].Sequence(),
 			signer:    signer,
 			timestamp: time.Now(),
 		}
 
 		// after the transaction has been submitted, we can increment the
 		// sequence of the signer
-		if err := c.signer.IncrementSequence(signer); err != nil {
+		if err := client.signer.IncrementSequence(signer); err != nil {
 			// This is a critical error *after* successful broadcast. Return it.
 			return nil, fmt.Errorf("failed to increment sequence after successful broadcast: %w", err)
 		}
 		return firstResp, nil
 	}
 
-	broadcastErrs := make([]error, 0, len(c.conns))
+	broadcastErrs := make([]error, 0, len(client.conns))
 	for err := range errCh {
 		fmt.Printf("Broadcast error: %v", err) // Keep logging for debug
 		broadcastErrs = append(broadcastErrs, err)
