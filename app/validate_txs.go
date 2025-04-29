@@ -1,14 +1,16 @@
 package app
 
 import (
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/go-square/v2/tx"
+	"cosmossdk.io/log"
+	tmbytes "github.com/cometbft/cometbft/libs/bytes"
+	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
-	"github.com/tendermint/tendermint/libs/log"
-	coretypes "github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/go-square/v2/tx"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 // separateTxs decodes raw tendermint txs into normal and blob txs.
@@ -66,7 +68,7 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 		ctx, err = handler(ctx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
 		// simply want to remove this tx, or we're catching a panic from one
-		// of the anteHanders which is logged.
+		// of the anteHandlers which is logged.
 		if err != nil {
 			logger.Error(
 				"filtering already checked transaction",
@@ -110,7 +112,7 @@ func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handle
 		ctx, err = handler(ctx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
 		// simply want to remove this tx, or we're catching a panic from one
-		// of the anteHanders which is logged.
+		// of the anteHandlers which is logged.
 		if err != nil {
 			logger.Error(
 				"filtering already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err,

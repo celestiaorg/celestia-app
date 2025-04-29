@@ -6,19 +6,25 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"cosmossdk.io/log"
+	"cosmossdk.io/math/unsafe"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	coretypes "github.com/cometbft/cometbft/types"
+	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 // Genesis manages the creation of the genesis state of a network. It is meant
 // to be used as the first step to any test that requires a network.
 type Genesis struct {
+	// ecfg is the encoding configuration of the app.
 	ecfg encoding.Config
 	// ConsensusParams are the consensus parameters of the network.
 	ConsensusParams *tmproto.ConsensusParams
@@ -42,6 +48,9 @@ type Genesis struct {
 	// Transactions are generated upon adding a validator to the genesis.
 	genTxs []sdk.Tx
 	genOps []Modifier
+
+	// appVersion specifies the app version for which the genesis file should be written.
+	appVersion uint64
 }
 
 // Accounts getter
@@ -61,13 +70,14 @@ func (g *Genesis) Validators() []Validator {
 
 // NewDefaultGenesis creates a new default genesis with no accounts or validators.
 func NewDefaultGenesis() *Genesis {
-	ecfg := encoding.MakeConfig(app.ModuleBasics)
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	g := &Genesis{
-		ecfg:            ecfg,
+		appVersion:      appconsts.LatestVersion,
+		ecfg:            enc,
 		ConsensusParams: app.DefaultConsensusParams(),
-		ChainID:         tmrand.Str(6),
+		ChainID:         unsafe.Str(6),
 		GenesisTime:     time.Now(),
-		kr:              keyring.NewInMemory(ecfg.Codec),
+		kr:              keyring.NewInMemory(enc.Codec),
 		genOps:          []Modifier{},
 	}
 	return g
@@ -122,6 +132,12 @@ func (g *Genesis) WithKeyringAccounts(accs ...KeyringAccount) *Genesis {
 
 func (g *Genesis) WithKeyring(kr keyring.Keyring) *Genesis {
 	g.kr = kr
+	return g
+}
+
+// WithAppVersion sets the application version for the genesis configuration and returns the updated Genesis instance.
+func (g *Genesis) WithAppVersion(appVersion uint64) *Genesis {
+	g.appVersion = appVersion
 	return g
 }
 
@@ -190,8 +206,7 @@ func (g *Genesis) NewValidator(val Validator) error {
 	return g.AddValidator(val)
 }
 
-// Export returns the genesis document of the network.
-func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
+func (g *Genesis) getGenTxs() ([]json.RawMessage, error) {
 	gentxs := make([]json.RawMessage, 0, len(g.genTxs))
 	for _, val := range g.validators {
 		genTx, err := val.GenTx(g.ecfg, g.kr, g.ChainID)
@@ -204,18 +219,68 @@ func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 			return nil, err
 		}
 
-		gentxs = append(gentxs, json.RawMessage(bz))
+		gentxs = append(gentxs, bz)
+	}
+	return gentxs, nil
+}
+
+// Export returns the genesis document of the network.
+func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
+	if g.appVersion != appconsts.LatestVersion {
+		return nil, fmt.Errorf("cannot export non latest genesis: use ExportBytes() instead")
 	}
 
+	gentxs, err := g.getGenTxs()
+	if err != nil {
+		return nil, err
+	}
+
+	tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, simtestutil.EmptyAppOptions{})
 	return Document(
+		tempApp.DefaultGenesis(),
 		g.ecfg,
 		g.ConsensusParams,
 		g.ChainID,
 		gentxs,
 		g.accounts,
 		g.GenesisTime,
-		g.genOps...,
 	)
+}
+
+// ExportBytes generates and returns a serialized genesis document as raw bytes that can be written to a file.
+func (g *Genesis) ExportBytes() ([]byte, error) {
+	gentxs, err := g.getGenTxs()
+	if err != nil {
+		return nil, err
+	}
+
+	switch g.appVersion {
+	// app versions 1, 2 and 3 are all handled with in app logic in V3.
+	case 1, 2, 3:
+		return DocumentLegacyBytes(
+			loadV3GenesisAppState(),
+			g.ecfg,
+			g.ConsensusParams,
+			g.ChainID,
+			gentxs,
+			g.accounts,
+			g.GenesisTime,
+		)
+	case 4:
+		tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, simtestutil.EmptyAppOptions{})
+		return DocumentBytes(
+			tempApp.DefaultGenesis(),
+			g.ecfg,
+			g.ConsensusParams,
+			g.ChainID,
+			gentxs,
+			g.accounts,
+			g.GenesisTime,
+			g.genOps...,
+		)
+	default:
+		return nil, fmt.Errorf("unknown app version %d", g.appVersion)
+	}
 }
 
 // Validator returns the validator at the given index. False is returned if the

@@ -6,10 +6,10 @@ import (
 	"log"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/celestiaorg/knuu/pkg/knuu"
+
+	"github.com/celestiaorg/celestia-app/v4/test/e2e/testnet"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
 // E2ESimple runs a simple testnet with 4 validators. It submits both MsgPayForBlobs
@@ -41,38 +41,56 @@ func E2ESimple(logger *log.Logger) error {
 
 	logger.Println("Creating testnet validators")
 	testnet.NoError("failed to create genesis nodes",
-		testNet.CreateGenesisNodes(ctx, 4, latestVersion, 10000000, 0, testnet.DefaultResources, true))
+		testNet.CreateGenesisNodes(ctx, 4, testnet.DockerMultiplexerImageName(latestVersion), 10000000, 0, testnet.DefaultResources, true))
 
 	logger.Println("Creating txsim")
 	endpoints, err := testNet.RemoteGRPCEndpoints()
 	testnet.NoError("failed to get remote gRPC endpoints", err)
 	upgradeSchedule := map[int64]uint64{}
-	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 10, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)
+	err = testNet.CreateTxClient(ctx, "txsim", latestVersion, 10, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)
 	testnet.NoError("failed to create tx client", err)
 
 	logger.Println("Setting up testnets")
-	testnet.NoError("failed to setup testnets", testNet.Setup(ctx))
+	testnet.NoError("failed to setup testnets", testNet.Setup(ctx, testnet.WithPrometheus(false))) // TODO: re-enable prometheus once fixed in comet
 
 	logger.Println("Starting testnets")
 	testnet.NoError("failed to start testnets", testNet.Start(ctx))
 
-	logger.Println("Waiting for 30 seconds to produce blocks")
-	time.Sleep(30 * time.Second)
+	logger.Println("Waiting for transactions to be committed")
 
-	logger.Println("Reading blockchain headers")
-	blockchain, err := testnode.ReadBlockchainHeaders(ctx, testNet.Node(0).AddressRPC())
-	testnet.NoError("failed to read blockchain headers", err)
+	pollCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
 
-	totalTxs := 0
-	for _, blockMeta := range blockchain {
-		version := blockMeta.Header.Version.App
-		if appconsts.LatestVersion != version {
-			return fmt.Errorf("expected app version %d, got %d in blockMeta %d", appconsts.LatestVersion, version, blockMeta.Header.Height)
+	const requiredTxs = 10
+	const pollInterval = 5 * time.Second
+
+	// periodically check for transactions until timeout or required transactions are found
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			// Check for transactions
+			blockchain, err := testnode.ReadBlockchainHeaders(ctx, testNet.Node(0).AddressRPC())
+			if err != nil {
+				logger.Printf("Error reading blockchain headers: %v", err)
+				continue
+			}
+
+			totalTxs := 0
+			for _, blockMeta := range blockchain {
+				totalTxs += blockMeta.NumTxs
+			}
+
+			logger.Printf("Current transaction count: %d", totalTxs)
+
+			if totalTxs >= requiredTxs {
+				logger.Printf("Found %d transactions, continuing with test", totalTxs)
+				return nil
+			}
+		case <-pollCtx.Done():
+			return fmt.Errorf("timed out waiting for %d transactions", requiredTxs)
 		}
-		totalTxs += blockMeta.NumTxs
 	}
-	if totalTxs < 10 {
-		return fmt.Errorf("expected at least 10 transactions, got %d", totalTxs)
-	}
-	return nil
 }

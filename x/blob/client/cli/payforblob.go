@@ -9,17 +9,18 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/spf13/cobra"
-
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
-	"github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/input"
 	sdktx "github.com/cosmos/cosmos-sdk/client/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/spf13/cobra"
+
+	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v2/tx"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 const (
@@ -132,14 +133,14 @@ The blob must be a hex encoded string of non-zero length.
 				return broadcastPFB(cmd, blob)
 			}
 
-			paresdBlobs, err := parseSubmitBlobs(path)
+			parsedBlobs, err := parseSubmitBlobs(path)
 			if err != nil {
 				return err
 			}
 
 			var blobs []*share.Blob
-			for _, paresdBlob := range paresdBlobs {
-				blob, err := getBlobFromArguments(paresdBlob.NamespaceID, paresdBlob.Blob, namespaceVersion, shareVersion, signer)
+			for _, parsedBlob := range parsedBlobs {
+				blob, err := getBlobFromArguments(parsedBlob.NamespaceID, parsedBlob.Blob, namespaceVersion, shareVersion, signer)
 				if err != nil {
 					return err
 				}
@@ -216,7 +217,12 @@ func broadcastPFB(cmd *cobra.Command, b ...*share.Blob) error {
 		return err
 	}
 
-	txBytes, err := writeTx(clientCtx, sdktx.NewFactoryCLI(clientCtx, cmd.Flags()), pfbMsg)
+	factoryCLI, err := sdktx.NewFactoryCLI(clientCtx, cmd.Flags())
+	if err != nil {
+		return err
+	}
+
+	txBytes, err := writeTx(clientCtx, factoryCLI, pfbMsg)
 	if err != nil {
 		return err
 	}
@@ -289,7 +295,7 @@ func writeTx(clientCtx client.Context, txf sdktx.Factory, msgs ...sdk.Msg) ([]by
 		}
 	}
 
-	err = sdktx.Sign(txf, clientCtx.GetFromName(), tx, true)
+	err = sdktx.Sign(clientCtx.CmdContext, txf, clientCtx.FromName, tx, true)
 	if err != nil {
 		return nil, err
 	}

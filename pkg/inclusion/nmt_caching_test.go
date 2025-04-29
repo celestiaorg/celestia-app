@@ -5,15 +5,17 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/da"
-	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/da"
+	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 )
 
 func TestWalkCachedSubTreeRoot(t *testing.T) {
@@ -171,14 +173,7 @@ func calculateSubTreeRoots(t *testing.T, row [][]byte, depth int) [][]byte {
 func chunkSlice(slice [][]byte, chunkSize int) [][][]byte {
 	var chunks [][][]byte
 	for i := 0; i < len(slice); i += chunkSize {
-		end := i + chunkSize
-
-		// necessary check to avoid slicing beyond
-		// slice capacity
-		if end > len(slice) {
-			end = len(slice)
-		}
-
+		end := min(i+chunkSize, len(slice))
 		chunks = append(chunks, slice[i:end])
 	}
 
@@ -190,7 +185,7 @@ func chunkSlice(slice [][]byte, chunkSize int) [][][]byte {
 // namespace.
 func generateRandNamespacedRawData(count int) (result [][]byte) {
 	for i := 0; i < count; i++ {
-		rawData := tmrand.Bytes(share.ShareSize)
+		rawData := random.Bytes(share.ShareSize)
 		namespace := share.RandomBlobNamespace().Bytes()
 		copy(rawData, namespace)
 		result = append(result, rawData)

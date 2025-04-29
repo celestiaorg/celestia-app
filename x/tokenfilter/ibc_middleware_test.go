@@ -3,22 +3,22 @@ package tokenfilter_test
 import (
 	"testing"
 
+	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
+	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
+	transfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
+	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
+	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
+	"github.com/cosmos/ibc-go/v8/modules/core/exported"
 
-	transfertypes "github.com/cosmos/ibc-go/v6/modules/apps/transfer/types"
-	clienttypes "github.com/cosmos/ibc-go/v6/modules/core/02-client/types"
-	channeltypes "github.com/cosmos/ibc-go/v6/modules/core/04-channel/types"
-	"github.com/cosmos/ibc-go/v6/modules/core/exported"
-
-	"github.com/celestiaorg/celestia-app/v3/x/tokenfilter"
+	"github.com/celestiaorg/celestia-app/v4/x/tokenfilter"
 )
 
 func TestOnRecvPacket(t *testing.T) {
-	data := transfertypes.NewFungibleTokenPacketData("portid/channelid/utia", sdk.NewInt(100).String(), "alice", "bob", "gm")
-	packet := channeltypes.NewPacket(data.GetBytes(), 1, "portid", "channelid", "counterpartyportid", "counterpartychannelid", clienttypes.Height{}, 0)
-	packetFromOtherChain := channeltypes.NewPacket(data.GetBytes(), 1, "counterpartyportid", "counterpartychannelid", "portid", "channelid", clienttypes.Height{}, 0)
-	randomPacket := channeltypes.NewPacket([]byte{1, 2, 3, 4}, 1, "portid", "channelid", "counterpartyportid", "counterpartychannelid", clienttypes.Height{}, 0)
+	data := transfertypes.NewFungibleTokenPacketData("transfer/channel-0/utia", math.NewInt(100).String(), "alice", "bob", "gm")
+	packet := channeltypes.NewPacket(data.GetBytes(), 1, "transfer", "channel-0", "transfer", "channel-1", clienttypes.Height{}, 10000)
+	packetFromOtherChain := channeltypes.NewPacket(data.GetBytes(), 1, "transfer", "channel-1", "transfer", "channel-0", clienttypes.Height{}, 10000)
+	randomPacket := channeltypes.NewPacket([]byte{1, 2, 3, 4}, 1, "port", "channel-99", "port", "channel-100", clienttypes.Height{}, 10000)
 
 	testCases := []struct {
 		name   string

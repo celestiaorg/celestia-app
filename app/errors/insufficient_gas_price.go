@@ -21,7 +21,7 @@ var (
 // the node should accept.
 // If the error is not due to the gas price being too low, it returns 0, nil
 func ParseInsufficientMinGasPrice(err error, gasPrice float64, gasLimit uint64) (float64, error) {
-	// first work out if the error is ErrInsufficientFunds
+	// first check if the error is ErrInsufficientFee
 	if err == nil || !sdkerrors.ErrInsufficientFee.Is(err) {
 		return 0, nil
 	}
@@ -67,9 +67,9 @@ func ParseInsufficientMinGasPrice(err error, gasPrice float64, gasLimit uint64) 
 	return required / got * gasPrice, nil
 }
 
-// IsInsufficientMinGasPrice checks if the error is due to the gas price being too low.
-func IsInsufficientMinGasPrice(err error) bool {
-	// first work out if the error is ErrInsufficientFunds
+// IsInsufficientFee checks if the error is due to the gas price being too low.
+func IsInsufficientFee(err error) bool {
+	// first check if the error is ErrInsufficientFee
 	if err == nil || !sdkerrors.ErrInsufficientFee.Is(err) {
 		return false
 	}

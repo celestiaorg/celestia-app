@@ -1,6 +1,7 @@
 package txsim
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -9,21 +10,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	"github.com/celestiaorg/go-square/v2/share"
-	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
+	"cosmossdk.io/x/feegrant"
+	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
-)
 
-const defaultFee = DefaultGasLimit * appconsts.DefaultMinGasPrice
+	"github.com/celestiaorg/go-square/v2/share"
+
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+)
 
 type AccountManager struct {
 	keys        keyring.Keyring
@@ -32,6 +33,8 @@ type AccountManager struct {
 	encCfg      encoding.Config
 	pollTime    time.Duration
 	useFeegrant bool
+	gasLimit    uint64
+	gasPrice    float64
 
 	// to protect from concurrent writes to the map
 	mtx          sync.Mutex
@@ -199,18 +202,23 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 
 	var address types.AccAddress
 	for _, msg := range op.Msgs {
-		if err := msg.ValidateBasic(); err != nil {
-			return fmt.Errorf("error validating message: %w", err)
+		if m, ok := msg.(types.HasValidateBasic); ok {
+			if err := m.ValidateBasic(); err != nil {
+				return fmt.Errorf("error validating message: %w", err)
+			}
+		}
+		signers, _, err := am.encCfg.Codec.GetMsgV1Signers(msg)
+		if err != nil {
+			return fmt.Errorf("error getting signers for message: %w", err)
 		}
 
-		signers := msg.GetSigners()
 		if len(signers) != 1 {
 			return fmt.Errorf("only a single signer is supported got: %d", len(signers))
 		}
 
 		if address == nil {
 			address = signers[0]
-		} else if !address.Equals(signers[0]) {
+		} else if !bytes.Equal(address, signers[0]) {
 			return fmt.Errorf("all messages must be signed by the same account")
 		}
 	}
@@ -224,15 +232,44 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	}
 
 	opts := make([]user.TxOption, 0)
-	if op.GasLimit == 0 {
-		opts = append(opts, user.SetGasLimit(DefaultGasLimit), user.SetFee(defaultFee))
-	} else {
-		opts = append(opts, user.SetGasLimit(op.GasLimit))
-		if op.GasPrice > 0 {
-			opts = append(opts, user.SetFee(uint64(math.Ceil(float64(op.GasLimit)*op.GasPrice))))
-		} else {
-			opts = append(opts, user.SetFee(uint64(math.Ceil(float64(op.GasLimit)*appconsts.DefaultMinGasPrice))))
+	var gasLimit, fee uint64
+	var gasPrice float64
+
+	// Step 1: Determine gas limit
+	switch {
+	case op.GasLimit > 0:
+		gasLimit = op.GasLimit
+	case am.gasLimit > 0:
+		gasLimit = am.gasLimit
+	default:
+		gasLimit = DefaultGasLimit
+	}
+
+	// Set gas limit
+	if gasLimit > 0 {
+		opts = append(opts, user.SetGasLimit(gasLimit))
+	}
+
+	// Step 2: Determine gas price
+	switch {
+	case op.GasPrice > 0:
+		gasPrice = op.GasPrice
+	case am.gasPrice > 0:
+		gasPrice = am.gasPrice
+		if gasPrice < appconsts.DefaultMinGasPrice {
+			log.Warn().
+				Float64("gas_price", gasPrice).
+				Float64("default_min_gas_price", appconsts.DefaultMinGasPrice).
+				Msg("custom gas price is lower than default minimum")
 		}
+	default:
+		gasPrice = appconsts.DefaultMinGasPrice
+	}
+
+	// Step 3: Calculate fee
+	if fee == 0 {
+		fee = uint64(math.Ceil(float64(gasLimit) * gasPrice))
+		opts = append(opts, user.SetFee(fee))
 	}
 
 	if am.useFeegrant {
@@ -409,9 +446,18 @@ func (am *AccountManager) updateHeight(ctx context.Context) (uint64, error) {
 }
 
 func (am *AccountManager) nextAccountName() string {
-	am.mtx.Lock()
-	defer am.mtx.Unlock()
-	return accountName(len(am.pending) + am.accountIndex)
+	am.accountIndex++
+	return accountName(am.accountIndex)
+}
+
+// SetGasLimit sets a custom gas limit to be used for all transactions
+func (am *AccountManager) SetGasLimit(gasLimit uint64) {
+	am.gasLimit = gasLimit
+}
+
+// SetGasPrice sets a custom gas price to be used for all transactions
+func (am *AccountManager) SetGasPrice(gasPrice float64) {
+	am.gasPrice = gasPrice
 }
 
 type account struct {

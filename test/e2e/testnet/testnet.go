@@ -10,14 +10,17 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
-	"github.com/celestiaorg/knuu/pkg/knuu"
-	"github.com/celestiaorg/knuu/pkg/preloader"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+
+	"github.com/celestiaorg/knuu/pkg/knuu"
+	"github.com/celestiaorg/knuu/pkg/preloader"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
 )
 
 const (
@@ -44,6 +47,7 @@ type Options struct {
 	Grafana          *GrafanaInfo
 	ChainID          string
 	GenesisModifiers []genesis.Modifier
+	AppVersion       uint64
 }
 
 func New(logger *log.Logger, knuu *knuu.Knuu, opts Options) (*Testnet, error) {
@@ -51,7 +55,7 @@ func New(logger *log.Logger, knuu *knuu.Knuu, opts Options) (*Testnet, error) {
 	return &Testnet{
 		seed:        opts.Seed,
 		nodes:       make([]*Node, 0),
-		genesis:     genesis.NewDefaultGenesis().WithChainID(opts.ChainID).WithModifiers(opts.GenesisModifiers...),
+		genesis:     genesis.NewDefaultGenesis().WithChainID(opts.ChainID).WithModifiers(opts.GenesisModifiers...).WithAppVersion(opts.AppVersion),
 		keygen:      newKeyGenerator(opts.Seed),
 		grafana:     opts.Grafana,
 		knuu:        knuu,
@@ -78,10 +82,10 @@ func (t *Testnet) SetConsensusMaxBlockSize(size int64) {
 	t.genesis.ConsensusParams.Block.MaxBytes = size
 }
 
-func (t *Testnet) CreateGenesisNode(ctx context.Context, version string, selfDelegation, upgradeHeightV2 int64, resources Resources, disableBBR bool) error {
+func (t *Testnet) CreateGenesisNode(ctx context.Context, image string, selfDelegation, upgradeHeightV2 int64, resources Resources, disableBBR bool) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
-	node, err := NewNode(ctx, t.logger, fmt.Sprintf("val%d", len(t.nodes)), version, 0, selfDelegation, nil, signerKey, networkKey, upgradeHeightV2, resources, t.grafana, t.knuu, disableBBR)
+	node, err := NewNode(ctx, t.logger, fmt.Sprintf("val%d", len(t.nodes)), image, 0, selfDelegation, nil, signerKey, networkKey, upgradeHeightV2, resources, t.grafana, t.knuu, disableBBR)
 	if err != nil {
 		return err
 	}
@@ -92,9 +96,9 @@ func (t *Testnet) CreateGenesisNode(ctx context.Context, version string, selfDel
 	return nil
 }
 
-func (t *Testnet) CreateGenesisNodes(ctx context.Context, num int, version string, selfDelegation, upgradeHeightV2 int64, resources Resources, disableBBR bool) error {
+func (t *Testnet) CreateGenesisNodes(ctx context.Context, num int, image string, selfDelegation, upgradeHeightV2 int64, resources Resources, disableBBR bool) error {
 	for i := 0; i < num; i++ {
-		if err := t.CreateGenesisNode(ctx, version, selfDelegation, upgradeHeightV2, resources, disableBBR); err != nil {
+		if err := t.CreateGenesisNode(ctx, image, selfDelegation, upgradeHeightV2, resources, disableBBR); err != nil {
 			return err
 		}
 	}
@@ -270,10 +274,10 @@ func (t *Testnet) CreateAccount(name string, tokens int64, txsimKeyringDir strin
 	return kr, nil
 }
 
-func (t *Testnet) CreateNode(ctx context.Context, version string, startHeight, upgradeHeight int64, resources Resources, disableBBR bool) error {
+func (t *Testnet) CreateNode(ctx context.Context, image string, startHeight, upgradeHeight int64, resources Resources, disableBBR bool) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
-	node, err := NewNode(ctx, t.logger, fmt.Sprintf("val%d", len(t.nodes)), version, startHeight, 0, nil, signerKey, networkKey, upgradeHeight, resources, t.grafana, t.knuu, disableBBR)
+	node, err := NewNode(ctx, t.logger, fmt.Sprintf("val%d", len(t.nodes)), image, startHeight, 0, nil, signerKey, networkKey, upgradeHeight, resources, t.grafana, t.knuu, disableBBR)
 	if err != nil {
 		return err
 	}
@@ -282,7 +286,7 @@ func (t *Testnet) CreateNode(ctx context.Context, version string, startHeight, u
 }
 
 func (t *Testnet) Setup(ctx context.Context, configOpts ...Option) error {
-	genesis, err := t.genesis.Export()
+	genesisBz, err := t.genesis.ExportBytes()
 	if err != nil {
 		return err
 	}
@@ -297,7 +301,7 @@ func (t *Testnet) Setup(ctx context.Context, configOpts ...Option) error {
 			}
 		}
 
-		err := node.Init(ctx, genesis, peers, configOpts...)
+		err := node.Init(ctx, genesisBz, peers, configOpts...)
 		if err != nil {
 			return err
 		}
@@ -404,8 +408,9 @@ func (t *Testnet) WaitToSync(ctx context.Context) error {
 // For that, use WaitToSync.
 func (t *Testnet) StartNodes(ctx context.Context) error {
 	genesisNodes := make([]*Node, 0)
+	deploymentDelay := 10 * time.Second
 	// identify genesis nodes
-	for _, node := range t.nodes {
+	for i, node := range t.nodes {
 		if node.StartHeight == 0 {
 			genesisNodes = append(genesisNodes, node)
 		}
@@ -414,6 +419,12 @@ func (t *Testnet) StartNodes(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
 		}
+
+		// Add delay between starting nodes (except for the last one)
+		if i < len(t.nodes)-1 {
+			t.logger.Println("waiting before starting next node", "delay", deploymentDelay)
+			time.Sleep(deploymentDelay)
+		}
 	}
 
 	t.logger.Println("create endpoint proxies for genesis nodes")
@@ -421,10 +432,10 @@ func (t *Testnet) StartNodes(ctx context.Context) error {
 	for _, node := range genesisNodes {
 		err := node.WaitUntilStartedAndCreateProxy(ctx)
 		if err != nil {
-			t.logger.Println("failed to start and create proxy", "name", node.Name, "version", node.Version, "error", err)
+			t.logger.Println("failed to start and create proxy", "name", node.Name, "image", node.Image, "error", err)
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
 		}
-		t.logger.Println("started and created proxy", "name", node.Name, "version", node.Version)
+		t.logger.Println("started and created proxy", "name", node.Name, "image", node.Image)
 	}
 	return nil
 }
@@ -497,5 +508,8 @@ func (o *Options) setDefaults() {
 	}
 	if o.Seed == 0 {
 		o.Seed = DefaultSeed
+	}
+	if o.AppVersion == 0 {
+		o.AppVersion = appconsts.LatestVersion
 	}
 }

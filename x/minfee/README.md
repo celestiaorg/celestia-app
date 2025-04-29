@@ -6,4 +6,4 @@ The `x/minfee` module is responsible for managing the gov-modifiable parameter `
 
 ## Resources
 
-1. <https://github.com/celestiaorg/CIPs/blob/main/cips/cip-6.md>
+1. <https://github.com/celestiaorg/CIPs/blob/main/cips/cip-006.md>

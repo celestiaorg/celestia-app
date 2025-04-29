@@ -7,21 +7,21 @@ import (
 	"strconv"
 	"testing"
 
+	"cosmossdk.io/math"
+	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	"github.com/gogo/protobuf/proto"
+	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/gogoproto/proto"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
-
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	paycli "github.com/celestiaorg/celestia-app/v3/x/blob/client/cli"
 	"github.com/celestiaorg/go-square/v2/share"
-	abci "github.com/tendermint/tendermint/abci/types"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	paycli "github.com/celestiaorg/celestia-app/v4/x/blob/client/cli"
+	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 // username is used to create a funded genesis account under this name
@@ -38,18 +38,16 @@ type IntegrationTestSuite struct {
 func createTestFile(t testing.TB, s string, isValid bool) *os.File {
 	t.Helper()
 
-	tempdir, err := os.MkdirTemp("", "")
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = os.RemoveAll(tempdir) })
+	tempdir := t.TempDir()
 
-	var fp *os.File
-
+	filePattern := ""
 	if isValid {
-		fp, err = os.CreateTemp(tempdir, "*.json")
-	} else {
-		fp, err = os.CreateTemp(tempdir, "")
+		filePattern = "*.json"
 	}
+
+	fp, err := os.CreateTemp(tempdir, filePattern)
 	require.NoError(t, err)
+
 	_, err = fp.WriteString(s)
 
 	require.Nil(t, err)
@@ -106,8 +104,8 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 				hex.EncodeToString(share.RandomBlobNamespaceID()),
 				hexBlob,
 				fmt.Sprintf("--from=%s", username),
-				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
-				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(1000))).String()),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))).String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 			},
 			expectErr:    false,
@@ -118,8 +116,8 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			name: "multiple blobs valid transaction",
 			args: []string{
 				fmt.Sprintf("--from=%s", username),
-				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
-				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(1000))).String()),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))).String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 				fmt.Sprintf("--%s=%s", paycli.FlagFileInput, validPropFile.Name()),
 			},
@@ -131,8 +129,8 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			name: "multiple blobs with invalid file path extension",
 			args: []string{
 				fmt.Sprintf("--from=%s", username),
-				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
-				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(1000))).String()),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))).String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 				fmt.Sprintf("--%s=%s", paycli.FlagFileInput, invalidPropFile.Name()),
 			},
@@ -160,8 +158,15 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			require.Equal(tc.expectedCode, txResp.Code,
 				"test: %s, output\n:", tc.name, out.String())
 
-			events := txResp.Logs[0].GetEvents()
-			for _, e := range events {
+			// wait for the tx to be indexed
+			s.Require().NoError(s.ctx.WaitForNextBlock())
+
+			// attempt to query for the transaction using the tx's hash
+			res, err := testnode.QueryWithoutProof(s.ctx.Context, txResp.TxHash)
+			require.NoError(err)
+			require.Equal(abci.CodeTypeOK, res.TxResult.Code)
+
+			for _, e := range res.TxResult.GetEvents() {
 				if e.Type == types.EventTypePayForBlob {
 					signer := e.GetAttributes()[0].GetValue()
 					_, err = sdk.AccAddressFromBech32(signer)
@@ -173,14 +178,6 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 					require.Equal(len(blob), int(blobSize))
 				}
 			}
-
-			// wait for the tx to be indexed
-			s.Require().NoError(s.ctx.WaitForNextBlock())
-
-			// attempt to query for the transaction using the tx's hash
-			res, err := testnode.QueryWithoutProof(s.ctx.Context, txResp.TxHash)
-			require.NoError(err)
-			require.Equal(abci.CodeTypeOK, res.TxResult.Code)
 		})
 	}
 }

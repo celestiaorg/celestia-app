@@ -3,33 +3,28 @@ package app_test
 import (
 	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
-	"os"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	abci "github.com/cometbft/cometbft/abci/types"
+	rpcclient "github.com/cometbft/cometbft/rpc/client"
+	coretypes "github.com/cometbft/cometbft/types"
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/cosmos/cosmos-sdk/client"
-
 	"github.com/stretchr/testify/suite"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/da"
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	square "github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
 
-	abci "github.com/tendermint/tendermint/abci/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	coretypes "github.com/tendermint/tendermint/types"
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 func TestIntegrationTestSuite(t *testing.T) {
@@ -73,7 +68,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	singleBlobTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
 			s.ecfg,
-			tmrand.NewRand(),
+			random.New(),
 			s.cctx.Keyring,
 			c.GRPCClient,
 			600*kibibyte,
@@ -88,7 +83,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	multiBlobTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
 			s.ecfg,
-			tmrand.NewRand(),
+			random.New(),
 			s.cctx.Keyring,
 			c.GRPCClient,
 			200*kibibyte,
@@ -101,7 +96,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	randomTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
 			s.ecfg,
-			tmrand.NewRand(),
+			random.New(),
 			s.cctx.Keyring,
 			c.GRPCClient,
 			50*kibibyte,
@@ -130,7 +125,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				// this test must create transactions that are smaller than that.
 				require.LessOrEqual(t, len(tx), 1*mebibyte)
 
-				res, err := s.cctx.Context.BroadcastTxSync(tx)
+				res, err := s.cctx.BroadcastTxSync(tx)
 				require.NoError(t, err)
 				assert.Equal(t, abci.CodeTypeOK, res.Code, res.RawLog)
 				if res.Code != abci.CodeTypeOK {
@@ -157,20 +152,19 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			sizes := []uint64{}
 			// check the square size
 			for height := range heights {
-				node, err := s.cctx.Context.GetNode()
+				node, err := s.cctx.GetNode()
 				require.NoError(t, err)
 				blockRes, err := node.Block(context.Background(), &height)
 				require.NoError(t, err)
-				size := blockRes.Block.Data.SquareSize
+				size := blockRes.Block.SquareSize
 
 				// perform basic checks on the size of the square
 				require.LessOrEqual(t, size, uint64(appconsts.DefaultGovMaxSquareSize))
 				require.GreaterOrEqual(t, size, uint64(appconsts.MinSquareSize))
 
-				require.EqualValues(t, appconsts.LatestVersion, blockRes.Block.Header.Version.App)
+				require.EqualValues(t, appconsts.LatestVersion, blockRes.Block.Version.App)
 
 				sizes = append(sizes, size)
-				ExtendBlockTest(t, blockRes.Block)
 			}
 			// ensure that at least one of the blocks used the max square size
 			assert.Contains(t, sizes, uint64(appconsts.DefaultGovMaxSquareSize))
@@ -184,7 +178,7 @@ func (s *IntegrationTestSuite) TestUnwrappedPFBRejection() {
 
 	blobTx := blobfactory.RandBlobTxsWithAccounts(
 		s.ecfg,
-		tmrand.NewRand(),
+		random.New(),
 		s.cctx.Keyring,
 		s.cctx.GRPCClient,
 		int(100000),
@@ -206,7 +200,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 
 	txs := blobfactory.RandBlobTxsWithAccounts(
 		s.ecfg,
-		tmrand.NewRand(),
+		random.New(),
 		s.cctx.Keyring,
 		s.cctx.GRPCClient,
 		100*kibibyte,
@@ -218,7 +212,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 	hashes := make([]string, len(txs))
 
 	for i, tx := range txs {
-		res, err := s.cctx.Context.BroadcastTxSync(tx)
+		res, err := s.cctx.BroadcastTxSync(tx)
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, res.Code, res.RawLog)
 		hashes[i] = res.TxHash
@@ -231,75 +225,40 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, txResp.TxResult.Code)
 
-		node, err := s.cctx.Context.GetNode()
+		node, err := s.cctx.GetNode()
 		require.NoError(t, err)
 		blockRes, err := node.Block(context.Background(), &txResp.Height)
 		require.NoError(t, err)
 
-		require.EqualValues(t, appconsts.LatestVersion, blockRes.Block.Header.Version.App)
+		require.EqualValues(t, appconsts.LatestVersion, blockRes.Block.Version.App)
 
 		_, isBlobTx := coretypes.UnmarshalBlobTx(blockRes.Block.Txs[txResp.Index])
 		require.True(t, isBlobTx)
 
 		// get the blob shares
 		shareRange, err := square.BlobShareRange(blockRes.Block.Txs.ToSliceOfBytes(), int(txResp.Index), 0,
-			appconsts.DefaultSquareSizeUpperBound,
-			appconsts.DefaultSubtreeRootThreshold,
+			appconsts.SquareSizeUpperBound,
+			appconsts.SubtreeRootThreshold,
 		)
 		require.NoError(t, err)
 
 		// verify the blob shares proof
-		blobProof, err := node.ProveShares(
+		rpcNode, ok := node.(rpcclient.SignClient)
+		require.True(t, ok)
+		blobProof, err := rpcNode.ProveSharesV2(
 			context.Background(),
 			uint64(txResp.Height),
 			uint64(shareRange.Start),
 			uint64(shareRange.End),
 		)
 		require.NoError(t, err)
-		require.NoError(t, blobProof.Validate(blockRes.Block.DataHash))
-	}
-}
-
-// ExtendBlockTest re-extends the block and compares the data roots to ensure
-// that the public functions for extending the block are working correctly.
-func ExtendBlockTest(t *testing.T, block *coretypes.Block) {
-	eds, err := app.ExtendBlock(block.Data, block.Header.Version.App)
-	require.NoError(t, err)
-	dah, err := da.NewDataAvailabilityHeader(eds)
-	require.NoError(t, err)
-	if !assert.Equal(t, dah.Hash(), block.DataHash.Bytes()) {
-		// save block to json file for further debugging if this occurs
-		b, err := json.MarshalIndent(block, "", "  ")
-		require.NoError(t, err)
-		require.NoError(t, os.WriteFile(fmt.Sprintf("bad_block_%s.json", tmrand.Str(6)), b, 0o644))
-	}
-}
-
-func (s *IntegrationTestSuite) TestIsEmptyBlock() {
-	t := s.T()
-	emptyHeights := []int64{1, 2, 3}
-	for _, h := range emptyHeights {
-		blockRes, err := s.cctx.Client.Block(s.cctx.GoContext(), &h)
-		require.NoError(t, err)
-		require.True(t, app.IsEmptyBlock(blockRes.Block.Data, blockRes.Block.Header.Version.App)) //nolint:staticcheck
-		ExtendBlockTest(t, blockRes.Block)
-	}
-}
-
-func (s *IntegrationTestSuite) TestIsEmptyBlockRef() {
-	t := s.T()
-	emptyHeights := []int64{1, 2, 3}
-	for _, h := range emptyHeights {
-		blockRes, err := s.cctx.Client.Block(s.cctx.GoContext(), &h)
-		require.NoError(t, err)
-		require.True(t, app.IsEmptyBlockRef(&blockRes.Block.Data, blockRes.Block.Header.Version.App))
-		ExtendBlockTest(t, blockRes.Block)
+		require.NoError(t, blobProof.ShareProof.Validate(blockRes.Block.DataHash.Bytes()))
 	}
 }
 
 func newBlobWithSize(size int) *share.Blob {
 	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
-	data := tmrand.Bytes(size)
+	data := random.Bytes(size)
 	blob, err := share.NewBlob(ns, data, share.ShareVersionZero, nil)
 	if err != nil {
 		panic(err)

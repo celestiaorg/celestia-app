@@ -1,9 +1,10 @@
 package appconsts
 
 import (
+	"crypto/sha256"
+
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
-	"github.com/tendermint/tendermint/pkg/consts"
 )
 
 // These constants were originally sourced from:
@@ -27,12 +28,9 @@ const (
 )
 
 var (
-	// DataCommitmentBlocksLimit is the maximum number of blocks that a data commitment can span
-	DataCommitmentBlocksLimit = consts.DataCommitmentBlocksLimit
-
 	// NewBaseHashFunc is the base hash function used by NMT. Change accordingly
 	// if another hash.Hash should be used as a base hasher in the NMT.
-	NewBaseHashFunc = consts.NewBaseHashFunc
+	NewBaseHashFunc = sha256.New
 
 	// hashLength is the length of a hash in bytes.
 	hashLength = NewBaseHashFunc().Size()

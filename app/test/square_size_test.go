@@ -2,29 +2,30 @@ package app_test
 
 import (
 	"context"
+	"math/rand"
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	"github.com/celestiaorg/celestia-app/v3/test/txsim"
-	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v3/test/util/sdkutil"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	"cosmossdk.io/math"
+	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
-	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
-	oldgov "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
-	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
+	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/rand"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+	"github.com/celestiaorg/celestia-app/v4/test/txsim"
+	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 func TestSquareSizeIntegrationTest(t *testing.T) {
@@ -39,23 +40,21 @@ type SquareSizeIntegrationTest struct {
 
 	cctx              testnode.Context
 	rpcAddr, grpcAddr string
-	ecfg              encoding.Config
+	enc               encoding.Config
 }
 
 func (s *SquareSizeIntegrationTest) SetupSuite() {
 	t := s.T()
 	t.Log("setting up square size integration test")
-	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	cfg := testnode.DefaultConfig().
-		WithModifiers(genesis.ImmediateProposals(s.ecfg.Codec)).
-		WithTimeoutCommit(time.Second)
+	s.enc = encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	cfg := testnode.DefaultConfig().WithModifiers(genesis.ImmediateProposals(s.enc.Codec)).WithTimeoutCommit(time.Second)
 
 	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, cfg)
-
 	s.cctx = cctx
 	s.rpcAddr = rpcAddr
 	s.grpcAddr = grpcAddr
+
 	err := s.cctx.WaitForNextBlock()
 	require.NoError(t, err)
 }
@@ -64,80 +63,63 @@ func (s *SquareSizeIntegrationTest) SetupSuite() {
 // block with spam txs to measure that the desired max is getting hit
 func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 	t := s.T()
-	const numBlocks = 10
+
+	const waitBlocks = 10
 
 	type test struct {
-		name                  string
-		govMaxSquareSize      int
-		maxBytes              int
-		expectedMaxSquareSize int
+		name             string
+		govMaxSquareSize int
+		maxBytes         int
+		expMaxSquareSize int
 	}
 
 	tests := []test{
 		{
-			name:                  "default",
-			govMaxSquareSize:      appconsts.DefaultGovMaxSquareSize,
-			maxBytes:              appconsts.DefaultMaxBytes,
-			expectedMaxSquareSize: appconsts.DefaultGovMaxSquareSize,
+			name:             "default",
+			govMaxSquareSize: appconsts.DefaultGovMaxSquareSize,
+			maxBytes:         appconsts.DefaultMaxBytes,
+			expMaxSquareSize: appconsts.DefaultGovMaxSquareSize,
 		},
 		{
-			name:                  "max bytes constrains square size",
-			govMaxSquareSize:      appconsts.DefaultGovMaxSquareSize,
-			maxBytes:              appconsts.DefaultMaxBytes,
-			expectedMaxSquareSize: appconsts.DefaultGovMaxSquareSize,
+			name:             "max bytes constrains square size",
+			govMaxSquareSize: appconsts.DefaultGovMaxSquareSize,
+			maxBytes:         appconsts.DefaultMaxBytes,
+			expMaxSquareSize: appconsts.DefaultGovMaxSquareSize,
 		},
 		{
-			name:                  "gov square size == hardcoded max",
-			govMaxSquareSize:      appconsts.DefaultSquareSizeUpperBound,
-			maxBytes:              appconsts.DefaultUpperBoundMaxBytes,
-			expectedMaxSquareSize: appconsts.DefaultSquareSizeUpperBound,
+			name:             "gov square size == hardcoded max",
+			govMaxSquareSize: appconsts.SquareSizeUpperBound,
+			maxBytes:         appconsts.DefaultUpperBoundMaxBytes,
+			expMaxSquareSize: appconsts.SquareSizeUpperBound,
 		},
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	errCh := make(chan error)
 	go func() {
-		seqs := txsim.NewBlobSequence(
-			txsim.NewRange(100_000, 100_000),
-			txsim.NewRange(1, 1),
-		).Clone(100)
-		err := txsim.Run(
-			ctx,
-			s.grpcAddr,
-			s.cctx.Keyring,
-			encoding.MakeConfig(app.ModuleEncodingRegisters...),
-			txsim.DefaultOptions().
-				WithSeed(rand.Int63()).
-				WithPollTime(time.Second).
-				SuppressLogs(),
-			seqs...,
-		)
-		errCh <- err
+		seqs := txsim.NewBlobSequence(txsim.NewRange(100_000, 100_000), txsim.NewRange(1, 1)).Clone(100)
+		opts := txsim.DefaultOptions().WithSeed(rand.Int63()).WithPollTime(time.Second).SuppressLogs()
+		errCh <- txsim.Run(ctx, s.grpcAddr, s.cctx.Keyring, s.enc, opts, seqs...)
 	}()
 
 	require.NoError(t, s.cctx.WaitForBlocks(2))
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s.setBlockSizeParams(t, tt.govMaxSquareSize, tt.maxBytes)
-			require.NoError(t, s.cctx.WaitForBlocks(numBlocks))
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			s.SetupBlockSizeParams(t, tc.govMaxSquareSize, tc.maxBytes)
+			require.NoError(t, s.cctx.WaitForBlocks(waitBlocks))
 
-			// check that we're not going above the specified size and that we hit the specified size
-			actualMaxSize := 0
-			end, err := s.cctx.LatestHeight()
+			// check that we're not going above the specified upper bound and that we hit the expected size
+			latestHeight, err := s.cctx.LatestHeight()
 			require.NoError(t, err)
-			for i := end - numBlocks; i < end; i++ {
-				block, err := s.cctx.Client.Block(s.cctx.GoContext(), &i)
-				require.NoError(t, err)
-				require.LessOrEqual(t, block.Block.Data.SquareSize, uint64(tt.govMaxSquareSize))
 
-				if block.Block.Data.SquareSize > uint64(actualMaxSize) {
-					actualMaxSize = int(block.Block.Data.SquareSize)
-				}
-			}
+			block, err := s.cctx.Client.Block(s.cctx.GoContext(), &latestHeight)
+			require.NoError(t, err)
+			require.LessOrEqual(t, block.Block.SquareSize, uint64(tc.govMaxSquareSize))
 
-			require.Equal(t, tt.expectedMaxSquareSize, actualMaxSize)
+			require.Equal(t, tc.expMaxSquareSize, int(block.Block.SquareSize))
 		})
 	}
 	cancel()
@@ -145,75 +127,76 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 	require.Contains(t, err.Error(), context.Canceled.Error())
 }
 
-// setBlockSizeParams will use the validator account to set the square size and
+// SetupBlockSizeParams will use the validator account to set the square size and
 // max bytes parameters. It assumes that the governance params have been set to
 // allow for fast acceptance of proposals, and will fail the test if the
 // parameters are not set as expected.
-func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize, maxBytes int) {
-	account := "validator"
+func (s *SquareSizeIntegrationTest) SetupBlockSizeParams(t *testing.T, squareSize, maxBytes int) {
+	// query existing x/consensus params and only update block max bytes
+	consQueryClient := consensustypes.NewQueryClient(s.cctx.GRPCClient)
+	consParamsResp, err := consQueryClient.Params(s.cctx.GoContext(), &consensustypes.QueryParamsRequest{})
+	require.NoError(t, err)
 
-	// create and submit a new param change proposal for both params
-	change1 := sdkutil.GovMaxSquareSizeParamChange(squareSize)
-	change2 := sdkutil.MaxBlockBytesParamChange(s.ecfg.Codec, maxBytes)
+	updatedParams := consParamsResp.Params
+	updatedParams.Block.MaxBytes = int64(maxBytes)
 
-	content := proposal.NewParameterChangeProposal(
-		"title",
-		"description",
-		[]proposal.ParamChange{change1, change2},
+	govAuthority := authtypes.NewModuleAddress("gov").String()
+	msgUpdateConsensusParams := &consensustypes.MsgUpdateParams{
+		Authority: govAuthority,
+		Abci:      updatedParams.Abci,
+		Block:     updatedParams.Block,
+		Evidence:  updatedParams.Evidence,
+		Validator: updatedParams.Validator,
+	}
+
+	newParams := blobtypes.DefaultParams()
+	newParams.GovMaxSquareSize = uint64(squareSize)
+	maxSquareSizeParamChange := blobtypes.NewMsgUpdateBlobParams(govAuthority, newParams)
+
+	proposerAddr := testfactory.GetAddress(s.cctx.Keyring, testnode.DefaultValidatorAccountName)
+	msgSubmitProp, err := govv1.NewMsgSubmitProposal(
+		[]sdk.Msg{msgUpdateConsensusParams, maxSquareSizeParamChange},
+		sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000000))),
+		proposerAddr.String(),
+		"meta", "prop: update block size params", "summary", false,
 	)
-	addr := testfactory.GetAddress(s.cctx.Keyring, account)
-
-	msg, err := oldgov.NewMsgSubmitProposal(
-		content,
-		sdk.NewCoins(
-			sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(1000000000))),
-		addr,
-	)
 	require.NoError(t, err)
 
-	txClient, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg)
+	txClient, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.enc)
 	require.NoError(t, err)
 
-	res, err := txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
+	res, err := txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msgSubmitProp}, blobfactory.DefaultTxOpts()...)
 	require.NoError(t, err)
-	serviceClient := sdktx.NewServiceClient(s.cctx.GRPCClient)
-	getTxResp, err := serviceClient.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})
+
+	txService := sdktx.NewServiceClient(s.cctx.GRPCClient)
+	getTxResp, err := txService.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})
 	require.NoError(t, err)
 	require.Equal(t, res.Code, abci.CodeTypeOK, getTxResp.TxResponse.RawLog)
 
 	require.NoError(t, s.cctx.WaitForNextBlock())
 
 	// query the proposal to get the id
-	gqc := v1.NewQueryClient(s.cctx.GRPCClient)
-	gresp, err := gqc.Proposals(s.cctx.GoContext(), &v1.QueryProposalsRequest{ProposalStatus: v1.ProposalStatus_PROPOSAL_STATUS_VOTING_PERIOD})
+	govQueryClient := govv1.NewQueryClient(s.cctx.GRPCClient)
+	propResp, err := govQueryClient.Proposals(s.cctx.GoContext(), &govv1.QueryProposalsRequest{ProposalStatus: govv1.StatusVotingPeriod})
 	require.NoError(t, err)
-	require.Len(t, gresp.Proposals, 1)
+	require.Len(t, propResp.Proposals, 1)
 
-	// create and submit a new vote
-	vote := v1.NewMsgVote(testfactory.GetAddress(s.cctx.Keyring, account), gresp.Proposals[0].Id, v1.VoteOption_VOTE_OPTION_YES, "")
-	res, err = txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{vote}, blobfactory.DefaultTxOpts()...)
+	// create and submit a new msgVote
+	msgVote := govv1.NewMsgVote(testfactory.GetAddress(s.cctx.Keyring, testnode.DefaultValidatorAccountName), propResp.Proposals[0].Id, govv1.OptionYes, "")
+	res, err = txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msgVote}, blobfactory.DefaultTxOpts()...)
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, res.Code)
 
 	// wait for the voting period to complete
-	time.Sleep(time.Second * 6)
+	require.NoError(t, s.cctx.WaitForBlocks(5))
 
-	// check that the parameters got updated as expected
-	bqc := blobtypes.NewQueryClient(s.cctx.GRPCClient)
-	presp, err := bqc.Params(s.cctx.GoContext(), &blobtypes.QueryParamsRequest{})
+	// check that the parameters were updated as expected
+	blobQueryClient := blobtypes.NewQueryClient(s.cctx.GRPCClient)
+	blobParamsResp, err := blobQueryClient.Params(s.cctx.GoContext(), &blobtypes.QueryParamsRequest{})
 	require.NoError(t, err)
-	require.Equal(t, uint64(squareSize), presp.Params.GovMaxSquareSize)
-	latestHeight, err := s.cctx.LatestHeight()
-	require.NoError(t, err)
+	require.Equal(t, uint64(squareSize), blobParamsResp.Params.GovMaxSquareSize)
 
-	for i := 0; i < 10; i++ {
-		cpresp, err := s.cctx.Client.ConsensusParams(s.cctx.GoContext(), &latestHeight)
-		require.NoError(t, err)
-		if err != nil || cpresp == nil {
-			time.Sleep(time.Second)
-			continue
-		}
-		require.Equal(t, int64(maxBytes), cpresp.ConsensusParams.Block.MaxBytes)
-		break
-	}
+	consParamsResp, err = consQueryClient.Params(s.cctx.GoContext(), &consensustypes.QueryParamsRequest{})
+	require.NoError(t, err)
+	require.Equal(t, int64(maxBytes), consParamsResp.Params.Block.MaxBytes)
 }

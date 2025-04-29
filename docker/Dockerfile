@@ -4,14 +4,14 @@
 #
 # Separating the builder and runtime image allows the runtime image to be
 # considerably smaller because it doesn't need to have Golang installed.
-ARG BUILDER_IMAGE=docker.io/golang:1.23.1-alpine3.20
+ARG BUILDER_IMAGE=docker.io/golang:1.23.6-alpine3.20
 ARG RUNTIME_IMAGE=docker.io/alpine:3.19
 ARG TARGETOS
 ARG TARGETARCH
-# Use build args to override the maximum square size of the docker image i.e.
+# Use build args to override the maximum square size of the docker image e.g.
 # docker build --build-arg MAX_SQUARE_SIZE=64 -t celestia-app:latest .
 ARG MAX_SQUARE_SIZE
-# Use build args to override the upgrade height delay of the docker image i.e.
+# Use build args to override the upgrade height delay of the docker image e.g.
 # docker build --build-arg UPGRADE_HEIGHT_DELAY=1000 -t celestia-app:latest .
 ARG UPGRADE_HEIGHT_DELAY
 
@@ -30,13 +30,20 @@ RUN apk update && apk add --no-cache \
     linux-headers \
     make \
     musl-dev
-COPY . /celestia-app
 WORKDIR /celestia-app
+
+# cache go module dependencies
+COPY go.mod go.sum ./
+RUN go mod download
+
+# copy source code after downloading modules (to leverage caching)
+COPY . .
+
 RUN uname -a &&\
     CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     OVERRIDE_MAX_SQUARE_SIZE=${MAX_SQUARE_SIZE} \
     OVERRIDE_UPGRADE_HEIGHT_DELAY=${UPGRADE_HEIGHT_DELAY} \
-    make build
+    make build-standalone
 
 # Stage 2: Create a minimal image to run the celestia-appd binary
 # Ignore hadolint rule because hadolint can't parse the variable.
@@ -47,7 +54,7 @@ FROM ${RUNTIME_IMAGE} AS runtime
 # Ref: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
 ARG UID=10001
 ARG USER_NAME=celestia
-ENV CELESTIA_HOME=/home/${USER_NAME}
+ENV CELESTIA_APP_HOME=/home/${USER_NAME}/.celestia-appd
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
     bash \
@@ -56,7 +63,7 @@ RUN apk update && apk add --no-cache \
     && adduser ${USER_NAME} \
     -D \
     -g ${USER_NAME} \
-    -h ${CELESTIA_HOME} \
+    -h ${CELESTIA_APP_HOME} \
     -s /sbin/nologin \
     -u ${UID}
 # Copy the celestia-appd binary from the builder into the final image.
@@ -66,7 +73,7 @@ COPY --chown=${USER_NAME}:${USER_NAME} docker/entrypoint.sh /opt/entrypoint.sh
 # Set the user to celestia.
 USER ${USER_NAME}
 # Set the working directory to the home directory.
-WORKDIR ${CELESTIA_HOME}
+WORKDIR ${CELESTIA_APP_HOME}
 # Expose ports:
 # 1317 is the default API server port.
 # 9090 is the default GRPC server port.

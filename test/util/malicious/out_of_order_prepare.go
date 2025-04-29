@@ -1,13 +1,16 @@
 package malicious
 
 import (
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/ante"
-	"github.com/celestiaorg/celestia-app/v3/pkg/da"
+	abci "github.com/cometbft/cometbft/abci/types"
+	core "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cometbft/cometbft/proto/tendermint/version"
+
 	"github.com/celestiaorg/go-square/v2/share"
-	abci "github.com/tendermint/tendermint/abci/types"
-	core "github.com/tendermint/tendermint/proto/tendermint/types"
-	version "github.com/tendermint/tendermint/proto/tendermint/version"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/ante"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 )
 
 // OutOfOrderPrepareProposal fulfills the celestia-core version of the ABCI
@@ -15,15 +18,15 @@ import (
 // used to create malicious block proposals that fraud proofs can be created
 // for. It will swap the order of two blobs in the square and then use the
 // modified nmt to create a commitment over the modified square.
-func (a *App) OutOfOrderPrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
+func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 	// create a context using a branch of the state and loaded using the
 	// proposal height and chain-id
 	sdkCtx := a.NewProposalContext(core.Header{
-		ChainID: req.ChainId,
+		ChainID: a.ChainID(),
 		Height:  req.Height,
 		Time:    req.Time,
 		Version: version.Consensus{
-			App: a.BaseApp.AppVersion(),
+			App: appconsts.LatestVersion,
 		},
 	})
 	// filter out invalid transactions.
@@ -38,15 +41,16 @@ func (a *App) OutOfOrderPrepareProposal(req abci.RequestPrepareProposal) abci.Re
 		a.GetTxConfig().SignModeHandler(),
 		ante.DefaultSigVerificationGasConsumer,
 		a.IBCKeeper,
-		a.ParamsKeeper,
-		a.MsgGateKeeper,
+		a.MinFeeKeeper,
+		&a.CircuitKeeper,
+		a.GovParamFilters(),
 	)
 
-	txs := app.FilterTxs(a.Logger(), sdkCtx, handler, a.GetTxConfig(), req.BlockData.Txs)
+	txs := app.FilterTxs(a.Logger(), sdkCtx, handler, a.GetTxConfig(), req.Txs)
 
 	// build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block
-	dataSquare, txs, err := Build(txs, a.GetBaseApp().AppVersion(), a.MaxEffectiveSquareSize(sdkCtx), OutOfOrderExport)
+	dataSquare, txs, err := Build(txs, appconsts.LatestVersion, a.MaxEffectiveSquareSize(sdkCtx), OutOfOrderExport)
 	if err != nil {
 		panic(err)
 	}
@@ -73,11 +77,9 @@ func (a *App) OutOfOrderPrepareProposal(req abci.RequestPrepareProposal) abci.Re
 
 	// tendermint doesn't need to use any of the erasure data, as only the
 	// protobuf encoded version of the block data is gossiped.
-	return abci.ResponsePrepareProposal{
-		BlockData: &core.Data{
-			Txs:        txs,
-			SquareSize: uint64(dataSquare.Size()),
-			Hash:       dah.Hash(),
-		},
-	}
+	return &abci.ResponsePrepareProposal{
+		Txs:          txs,
+		SquareSize:   uint64(dataSquare.Size()),
+		DataRootHash: dah.Hash(),
+	}, nil
 }

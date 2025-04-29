@@ -7,34 +7,34 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/celestiaorg/go-square/v2"
-	"github.com/celestiaorg/go-square/v2/share"
+	"cosmossdk.io/log"
 	dbm "github.com/cometbft/cometbft-db"
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/crypto"
+	"github.com/cometbft/cometbft/crypto/merkle"
+	"github.com/cometbft/cometbft/privval"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	sm "github.com/cometbft/cometbft/state"
+	"github.com/cometbft/cometbft/store"
+	"github.com/cometbft/cometbft/types"
+	tmdbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/spf13/cobra"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/crypto"
-	"github.com/tendermint/tendermint/crypto/merkle"
-	"github.com/tendermint/tendermint/libs/log"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"github.com/tendermint/tendermint/privval"
-	smproto "github.com/tendermint/tendermint/proto/tendermint/state"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	sm "github.com/tendermint/tendermint/state"
-	"github.com/tendermint/tendermint/store"
-	"github.com/tendermint/tendermint/types"
-	tmdbm "github.com/tendermint/tm-db"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/da"
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	"github.com/celestiaorg/celestia-app/v3/test/util"
-	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	"github.com/celestiaorg/go-square/v2"
+	"github.com/celestiaorg/go-square/v2/share"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/da"
+	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+	"github.com/celestiaorg/celestia-app/v4/test/util"
+	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 var defaultNamespace share.Namespace
@@ -78,7 +78,7 @@ func main() {
 				BlockInterval: blockInterval,
 				ExistingDir:   existingDir,
 				Namespace:     namespace,
-				ChainID:       tmrand.Str(6),
+				ChainID:       random.Str(6),
 				UpToTime:      upToTime,
 				AppVersion:    appVersion,
 			}
@@ -127,7 +127,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 	startTime := time.Now().Add(-1 * cfg.BlockInterval * time.Duration(cfg.NumBlocks)).UTC()
 	currentTime := startTime
 
-	encCfg := encoding.MakeConfig(app.ModuleBasics)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	tmCfg := app.DefaultConsensusConfig()
 	var (
 		gen *genesis.Genesis
@@ -147,7 +147,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		appCfg.StateSync.SnapshotInterval = 0
 		cp := app.DefaultConsensusParams()
 
-		cp.Version.AppVersion = cfg.AppVersion // set the app version
+		cp.Version.App = cfg.AppVersion // set the app version
 		gen = genesis.NewDefaultGenesis().
 			WithConsensusParams(cp).
 			WithKeyring(kr).
@@ -200,15 +200,16 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		log.NewNopLogger(),
 		appDB,
 		nil,
-		0,
-		encCfg,
-		0, // upgrade height v2
 		0, // timeout commit
 		util.EmptyAppOptions{},
+		baseapp.SetChainID(cfg.ChainID),
 		baseapp.SetMinGasPrices(fmt.Sprintf("%f%s", appconsts.DefaultMinGasPrice, appconsts.BondDenom)),
 	)
 
-	infoResp := simApp.Info(abci.RequestInfo{})
+	infoResp, err := simApp.Info(&abci.RequestInfo{})
+	if err != nil {
+		return fmt.Errorf("failed to get app info: %w", err)
+	}
 
 	lastHeight := blockStore.Height()
 	if infoResp.LastBlockHeight != lastHeight {
@@ -236,15 +237,18 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		}
 		validatorSet := types.NewValidatorSet(validators)
 		nextVals := types.TM2PB.ValidatorUpdates(validatorSet)
-		csParams := types.TM2PB.ConsensusParams(genDoc.ConsensusParams)
-		res := simApp.InitChain(abci.RequestInitChain{
+		cparams := genDoc.ConsensusParams.ToProto()
+		res, err := simApp.InitChain(&abci.RequestInitChain{
 			ChainId:         genDoc.ChainID,
 			Time:            genDoc.GenesisTime,
-			ConsensusParams: csParams,
+			ConsensusParams: &cparams,
 			Validators:      nextVals,
 			AppStateBytes:   genDoc.AppState,
 			InitialHeight:   genDoc.InitialHeight,
 		})
+		if err != nil {
+			return err
+		}
 
 		vals, err := types.PB2TM.ValidatorUpdates(res.Validators)
 		if err != nil {
@@ -271,8 +275,8 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		currentTime = state.LastBlockTime.Add(cfg.BlockInterval)
 	}
 
-	if state.ConsensusParams.Version.AppVersion != cfg.AppVersion {
-		return fmt.Errorf("app version mismatch: state has %d, but cfg has %d", state.ConsensusParams.Version.AppVersion, cfg.AppVersion)
+	if state.ConsensusParams.Version.App != cfg.AppVersion {
+		return fmt.Errorf("app version mismatch: state has %d, but cfg has %d", state.ConsensusParams.Version.App, cfg.AppVersion)
 	}
 
 	if state.LastBlockHeight != lastHeight {
@@ -281,13 +285,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 
 	validatorPower := state.Validators.Validators[0].VotingPower
 
-	signer, err := user.NewSigner(
-		kr,
-		encCfg.TxConfig,
-		state.ChainID,
-		state.ConsensusParams.Version.AppVersion,
-		user.NewAccount(testnode.DefaultValidatorAccountName, 0, uint64(lastHeight)+1),
-	)
+	signer, err := user.NewSigner(kr, encCfg.TxConfig, state.ChainID, user.NewAccount(testnode.DefaultValidatorAccountName, 0, uint64(lastHeight)+1))
 	if err != nil {
 		return fmt.Errorf("failed to create new signer: %w", err)
 	}
@@ -296,7 +294,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		errCh     = make(chan error, 2)
 		dataCh    = make(chan *tmproto.Data, 100)
 		persistCh = make(chan persistData, 100)
-		commit    = types.NewCommit(0, 0, types.BlockID{}, nil)
+		commit    = &types.Commit{}
 	)
 	if lastHeight > 0 {
 		commit = blockStore.LoadSeenCommit(lastHeight)
@@ -329,7 +327,12 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 			if err != nil {
 				return fmt.Errorf("failed to convert data from protobuf: %w", err)
 			}
-			block, blockParts := state.MakeBlock(height, data, commit, nil, validatorAddr)
+
+			block := state.MakeBlock(height, data, commit, nil, validatorAddr)
+			blockParts, err := block.MakePartSet(types.BlockPartSizeBytes)
+			if err != nil {
+				return fmt.Errorf("failed to make block part set: %w", err)
+			}
 			blockID := types.BlockID{
 				Hash:          block.Hash(),
 				PartSetHeader: blockParts.Header(),
@@ -355,11 +358,11 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 				Timestamp:        currentTime,
 				Signature:        precommitVote.Signature,
 			}
-			commit = types.NewCommit(height, 0, blockID, []types.CommitSig{commitSig})
+			commit = &types.Commit{Height: height, BlockID: blockID, Signatures: []types.CommitSig{commitSig}}
 
-			var lastCommitInfo abci.LastCommitInfo
+			var lastCommitInfo abci.CommitInfo
 			if height > 1 {
-				lastCommitInfo = abci.LastCommitInfo{
+				lastCommitInfo = abci.CommitInfo{
 					Round: 0,
 					Votes: []abci.VoteInfo{
 						{
@@ -367,51 +370,50 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 								Address: validatorAddr,
 								Power:   validatorPower,
 							},
-							SignedLastBlock: true,
+							BlockIdFlag: tmproto.BlockIDFlagCommit,
 						},
 					},
 				}
 			}
 
-			beginBlockResp := simApp.BeginBlock(abci.RequestBeginBlock{
-				Hash:           block.Hash(),
-				Header:         *block.Header.ToProto(),
-				LastCommitInfo: lastCommitInfo,
-			})
-
-			deliverTxResponses := make([]*abci.ResponseDeliverTx, len(block.Data.Txs))
-
-			for idx, tx := range block.Data.Txs {
+			txs := make([][]byte, len(block.Txs))
+			for idx, tx := range block.Txs {
 				blobTx, isBlobTx := types.UnmarshalBlobTx(tx)
 				if isBlobTx {
 					tx = blobTx.Tx
 				}
-				deliverTxResponse := simApp.DeliverTx(abci.RequestDeliverTx{
-					Tx: tx,
-				})
-				if deliverTxResponse.Code != abci.CodeTypeOK {
-					return fmt.Errorf("failed to deliver tx: %s", deliverTxResponse.Log)
-				}
-				deliverTxResponses[idx] = &deliverTxResponse
+				txs[idx] = tx
 			}
 
-			endBlockResp := simApp.EndBlock(abci.RequestEndBlock{
-				Height: block.Height,
+			resp, err := simApp.FinalizeBlock(&abci.RequestFinalizeBlock{
+				Height:            block.Height,
+				Hash:              block.Hash(),
+				DecidedLastCommit: lastCommitInfo,
+				Txs:               txs,
 			})
+			if err != nil {
+				return fmt.Errorf("failed to finalize block: %w", err)
+			}
 
-			commitResp := simApp.Commit()
+			for _, tx := range resp.TxResults {
+				if tx.Code != abci.CodeTypeOK {
+					return fmt.Errorf("failed to deliver tx: %s", tx.Log)
+				}
+			}
+
+			_, err = simApp.Commit()
+			if err != nil {
+				return fmt.Errorf("failed to commit block: %w", err)
+			}
+
 			state.LastBlockHeight = height
 			state.LastBlockID = blockID
 			state.LastBlockTime = block.Time
 			state.LastValidators = state.Validators
 			state.Validators = state.NextValidators
 			state.NextValidators = state.NextValidators.CopyIncrementProposerPriority(1)
-			state.AppHash = commitResp.Data
-			state.LastResultsHash = sm.ABCIResponsesResultsHash(&smproto.ABCIResponses{
-				DeliverTxs: deliverTxResponses,
-				BeginBlock: &beginBlockResp,
-				EndBlock:   &endBlockResp,
-			})
+			state.AppHash = resp.AppHash
+			state.LastResultsHash = sm.TxResultsHash(resp.TxResults)
 			currentTime = currentTime.Add(cfg.BlockInterval)
 			persistCh <- persistData{
 				state: state.Copy(),
@@ -485,7 +487,7 @@ func generateSquareRoutine(
 		dataSquare, txs, err := square.Build(
 			[][]byte{tx},
 			maxSquareSize,
-			appconsts.SubtreeRootThreshold(1),
+			appconsts.SubtreeRootThreshold,
 		)
 		if err != nil {
 			return err
@@ -534,7 +536,11 @@ func persistDataRoutine(
 			if !ok {
 				return nil
 			}
-			blockParts := data.block.MakePartSet(types.BlockPartSizeBytes)
+			blockParts, err := data.block.MakePartSet(types.BlockPartSizeBytes)
+			if err != nil {
+				return fmt.Errorf("failed to make block part set: %w", err)
+			}
+
 			blockStore.SaveBlock(data.block, blockParts, data.seenCommit)
 			if blockStore.Height()%100 == 0 {
 				fmt.Println("Reached height", blockStore.Height())

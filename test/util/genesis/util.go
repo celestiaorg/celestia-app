@@ -4,8 +4,8 @@ import (
 	"io"
 	mrand "math/rand"
 
-	"github.com/tendermint/tendermint/crypto"
-	"github.com/tendermint/tendermint/crypto/ed25519"
+	"github.com/cometbft/cometbft/crypto"
+	"github.com/cometbft/cometbft/crypto/ed25519"
 )
 
 func NewSeed(r *mrand.Rand) []byte {

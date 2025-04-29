@@ -3,18 +3,22 @@ package types
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/go-square/v2"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	"gopkg.in/yaml.v2"
+
+	"github.com/celestiaorg/go-square/v2"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 var _ paramtypes.ParamSet = (*Params)(nil)
 
 var (
-	KeyGasPerBlobByte              = []byte("GasPerBlobByte")
-	DefaultGasPerBlobByte   uint32 = appconsts.DefaultGasPerBlobByte
-	KeyGovMaxSquareSize            = []byte("GovMaxSquareSize")
+	KeyGasPerBlobByte = []byte("GasPerBlobByte")
+	// DefaultGasPerBlobByte is the initial value of the gas per blob byte parameter.
+	DefaultGasPerBlobByte uint32 = appconsts.GasPerBlobByte
+	KeyGovMaxSquareSize          = []byte("GovMaxSquareSize")
+	// DefaultGovMaxSquareSize is the initial value of the gov max square size parameter.
 	DefaultGovMaxSquareSize uint64 = appconsts.DefaultGovMaxSquareSize
 )
 

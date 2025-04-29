@@ -35,9 +35,9 @@ node            |  |                               |  |
 
 ### From source
 
-1. [Install Go](https://go.dev/doc/install) 1.23.1
+1. [Install Go](https://go.dev/doc/install) 1.23.6
 1. Clone this repo
-1. Install the celestia-appd binary
+1. Install the celestia-appd binary. This installs a "multiplexer" binary that will also download embedded binaries for the latest celestia-app v3.x.x release.
 
     ```shell
     make install
@@ -94,9 +94,9 @@ make bbr-enable
 
 ### Environment variables
 
-| Variable        | Explanation                                                       | Default value                                            | Required |
-|-----------------|-------------------------------------------------------------------|----------------------------------------------------------|----------|
-| `CELESTIA_HOME` | Where the application directory (`.celestia-app`) should be saved | [User home directory](https://pkg.go.dev/os#UserHomeDir) | Optional |
+| Variable            | Explanation                                  | Default value                                               | Required |
+|---------------------|----------------------------------------------|-------------------------------------------------------------|----------|
+| `CELESTIA_APP_HOME` | Where the application files should be saved. | [`$HOME/.celestia-appd`](https://pkg.go.dev/os#UserHomeDir) | Optional |
 
 ### Using celestia-appd
 
@@ -141,13 +141,15 @@ celestia-appd start --timeout-commit 1s
 
 ## Contributing
 
+If you are a new contributor, please read [contributing to Celestia](https://github.com/celestiaorg/.github/blob/main/CONTRIBUTING.md).
+
 This repo attempts to conform to [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) so PR titles should ideally start with `fix:`, `feat:`, `build:`, `chore:`, `ci:`, `docs:`, `style:`, `refactor:`, `perf:`, or `test:` because this helps with semantic versioning and changelog generation. It is especially important to include an `!` (e.g. `feat!:`) if the PR includes a breaking change.
 
 This repo contains multiple go modules. When using it, rename `go.work.example` to `go.work` and run `go work sync`.
 
 ### Tools
 
-1. Install [golangci-lint](https://golangci-lint.run/welcome/install) 1.61.0
+1. Install [golangci-lint](https://golangci-lint.run/welcome/install) 2.0.1
 1. Install [markdownlint](https://github.com/DavidAnson/markdownlint) 0.39.0
 1. Install [hadolint](https://github.com/hadolint/hadolint)
 1. Install [yamllint](https://yamllint.readthedocs.io/en/stable/quickstart.html)

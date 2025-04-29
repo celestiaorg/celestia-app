@@ -6,20 +6,21 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/cometbft/cometbft/crypto/merkle"
+	"github.com/cometbft/cometbft/types"
+	"golang.org/x/exp/constraints"
+
 	"github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
-	"github.com/tendermint/tendermint/crypto/merkle"
-	"github.com/tendermint/tendermint/types"
-	"golang.org/x/exp/constraints"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
-	daproto "github.com/celestiaorg/celestia-app/v3/proto/celestia/core/v1/da"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
+	daproto "github.com/celestiaorg/celestia-app/v4/proto/celestia/core/v1/da"
 )
 
 var (
-	maxExtendedSquareWidth = appconsts.DefaultSquareSizeUpperBound * 2
+	maxExtendedSquareWidth = appconsts.SquareSizeUpperBound * 2
 	minExtendedSquareWidth = appconsts.MinSquareSize * 2
 )
 
@@ -162,6 +163,8 @@ func (dah *DataAvailabilityHeader) ValidateBasic() error {
 	return nil
 }
 
+// IsZero returns true if the DataAvailabilityHeader is nil or it has no row or
+// column roots.
 func (dah *DataAvailabilityHeader) IsZero() bool {
 	if dah == nil {
 		return true
@@ -203,8 +206,8 @@ func EmptySquareShares() []share.Share {
 
 // SquareSize is a copy of the function defined in the square package to avoid
 // a circular dependency. TODO deduplicate
-func SquareSize(len int) int {
-	return RoundUpPowerOfTwo(int(math.Ceil(math.Sqrt(float64(len)))))
+func SquareSize(length int) int {
+	return RoundUpPowerOfTwo(int(math.Ceil(math.Sqrt(float64(length)))))
 }
 
 // RoundUpPowerOfTwo returns the next power of two greater than or equal to input.

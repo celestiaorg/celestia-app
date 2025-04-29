@@ -3,8 +3,9 @@ package keeper
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-app/v3/x/mint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/celestiaorg/celestia-app/v4/x/mint/types"
 )
 
 var _ types.QueryServer = Keeper{}
@@ -25,7 +26,7 @@ func (k Keeper) AnnualProvisions(c context.Context, _ *types.QueryAnnualProvisio
 	return &types.QueryAnnualProvisionsResponse{AnnualProvisions: minter.AnnualProvisions}, nil
 }
 
-// GenesisTime returns the GensisTime of the mint module.
+// GenesisTime returns the GenesisTime of the mint module.
 func (k Keeper) GenesisTime(c context.Context, _ *types.QueryGenesisTimeRequest) (*types.QueryGenesisTimeResponse, error) {
 	ctx := sdk.UnwrapSDKContext(c)
 	genesisTime := k.GetGenesisTime(ctx).GenesisTime

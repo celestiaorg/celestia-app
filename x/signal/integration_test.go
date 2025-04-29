@@ -3,17 +3,18 @@ package signal_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
-	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
-	"github.com/celestiaorg/celestia-app/v3/x/signal/types"
+	"cosmossdk.io/core/header"
+	"cosmossdk.io/log"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	tmversion "github.com/cometbft/cometbft/proto/tendermint/version"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	tmlog "github.com/tendermint/tendermint/libs/log"
-	tmtypes "github.com/tendermint/tendermint/proto/tendermint/types"
-	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
+	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
+	"github.com/celestiaorg/celestia-app/v4/x/signal/types"
 )
 
 // TestUpgradeIntegration uses the real application including the upgrade keeper (and staking keeper). It
@@ -21,24 +22,23 @@ import (
 // has been reached and then calls TryUpgrade, asserting that the upgrade module returns the new app version
 func TestUpgradeIntegration(t *testing.T) {
 	cp := app.DefaultConsensusParams()
-	cp.Version.AppVersion = v2.Version
+	cp.Version.App = v2.Version
 	app, _ := testutil.SetupTestAppWithGenesisValSet(cp)
-	ctx := sdk.NewContext(app.CommitMultiStore(), tmtypes.Header{
+	ctx := sdk.NewContext(app.CommitMultiStore(), tmproto.Header{
 		Version: tmversion.Consensus{
 			App: v2.Version,
 		},
 		ChainID: appconsts.TestChainID,
-	}, false, tmlog.NewNopLogger())
-	goCtx := sdk.WrapSDKContext(ctx)
-	ctx = sdk.UnwrapSDKContext(goCtx)
+	}, false, log.NewNopLogger()).WithHeaderInfo(header.Info{ChainID: appconsts.TestChainID})
 
-	res, err := app.SignalKeeper.VersionTally(goCtx, &types.QueryVersionTallyRequest{
+	res, err := app.SignalKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{
 		Version: 3,
 	})
 	require.NoError(t, err)
 	require.EqualValues(t, 0, res.VotingPower)
 
-	validators := app.StakingKeeper.GetAllValidators(ctx)
+	validators, err := app.StakingKeeper.GetAllValidators(ctx)
+	require.NoError(t, err)
 	valAddr, err := sdk.ValAddressFromBech32(validators[0].OperatorAddress)
 	require.NoError(t, err)
 
@@ -48,7 +48,7 @@ func TestUpgradeIntegration(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	res, err = app.SignalKeeper.VersionTally(goCtx, &types.QueryVersionTallyRequest{
+	res, err = app.SignalKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{
 		Version: 3,
 	})
 	require.NoError(t, err)
@@ -84,13 +84,13 @@ func TestUpgradeIntegration(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorIs(t, err, types.ErrUpgradePending)
 
-	shouldUpgrade, version := app.SignalKeeper.ShouldUpgrade(ctx)
+	shouldUpgrade, upgrade := app.SignalKeeper.ShouldUpgrade(ctx)
 	require.False(t, shouldUpgrade)
-	require.EqualValues(t, 0, version)
+	require.EqualValues(t, 0, upgrade.AppVersion)
 
-	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + appconsts.UpgradeHeightDelay(appconsts.TestChainID, version))
+	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + appconsts.GetUpgradeHeightDelay(appconsts.TestChainID))
 
-	shouldUpgrade, version = app.SignalKeeper.ShouldUpgrade(ctx)
+	shouldUpgrade, upgrade = app.SignalKeeper.ShouldUpgrade(ctx)
 	require.True(t, shouldUpgrade)
-	require.EqualValues(t, 3, version)
+	require.EqualValues(t, 3, upgrade.AppVersion)
 }

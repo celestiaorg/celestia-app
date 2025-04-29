@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/nmt"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 // Validate runs basic validations on the proof then verifies if it is consistent.
@@ -65,7 +66,7 @@ func (sp ShareProof) VerifyProof() bool {
 			return false
 		}
 		// Consider extracting celestia-app's namespace package. We can't use it
-		// here because that would introduce a circulcar import.
+		// here because that would introduce a circular import.
 		namespace := append([]byte{uint8(sp.NamespaceVersion)}, sp.NamespaceId...)
 		valid := nmtProof.VerifyInclusion(
 			appconsts.NewBaseHashFunc(),
