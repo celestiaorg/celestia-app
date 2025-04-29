@@ -2,6 +2,14 @@
 
 This guide provides notes for major version releases. These notes may be helpful for users when upgrading from previous major versions.
 
+## v4.0.0
+
+### Node Operators (v4.0.0)
+
+#### Multiplexer
+
+Celestia-app v4.0.0 introduces support for a multiplexer that makes it easier for node operators to run a consensus node that can sync from genesis. The multiplexer contains an embedded celestia-app v3.x.x binary that will be used to sync the node from genesis. After the chain advances to app version v4, the multiplexer will stop routing requests to the embedded celestia-app v3.x.x binary and will instead begin routing requests to the celestia-app v4.x.x binary. Binaries that are installed from source (e.g. via `make install`) or via the pre-built binaries attached to the release will include the multiplexer. To install Celestia without the multiplexer, you can use the `make install-standalone` target. Note that the standalone binary will only be able to run on networks that are already past the upgrade to app version v4.
+
 ## v3.0.0
 
 ### Node Operators (v3.0.0)
