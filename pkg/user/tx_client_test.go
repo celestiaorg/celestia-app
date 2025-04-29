@@ -645,32 +645,38 @@ func (suite *TxClientTestSuite) TestBroadcastScenarios() {
 				require.Error(t, err, "Expected error '%v', but got nil error", tc.expectedErr)
 
 				isCorrectError := false
-				switch tc.expectedErr.(type) {
-				case *user.BroadcastTxError: // Check type for BroadcastTxError
-					var broadcastErr *user.BroadcastTxError
-					if errors.As(err, &broadcastErr) {
+				var broadcastErr *user.BroadcastTxError
+
+				// Check for specific BroadcastTxError type first
+				if errors.As(err, &broadcastErr) {
+					if _, ok := tc.expectedErr.(*user.BroadcastTxError); ok {
 						isCorrectError = true
-						if tc.expectedErr.(*user.BroadcastTxError).Code != 0 && broadcastErr.Code != tc.expectedErr.(*user.BroadcastTxError).Code {
-						}
 					}
-				default:
-					if errors.Is(err, tc.expectedErr) { // Standard error check
-						isCorrectError = true
-					} else if isGrpcDeadlineError(err) && errors.Is(tc.expectedErr, context.DeadlineExceeded) { // Check gRPC deadline
-						isCorrectError = true
-					} else if errors.Is(tc.expectedErr, errMock1) { // Special check for "All Fail" case
-						// Any of the mock errors should be acceptable as the primary error depends on race condition
+				} else {
+					switch {
+					case errors.Is(tc.expectedErr, context.DeadlineExceeded):
+						// Check actual error is DeadlineExceeded (could be wrapped or gRPC status)
+						if errors.Is(err, context.DeadlineExceeded) || isGrpcDeadlineError(err) {
+							isCorrectError = true
+						}
+					case errors.Is(tc.expectedErr, errMock1):
+						// Special check for "All Fail" case - any mock error is acceptable
 						if errors.Is(err, errMock1) || errors.Is(err, errMock2) || errors.Is(err, errMock3) {
 							isCorrectError = true
 						} else {
-							// Check if the error string contains any of the mock error messages
+							// Fallback check: Check if the error string contains any mock error message
 							errStr := err.Error()
 							if strings.Contains(errStr, errMock1.Error()) || strings.Contains(errStr, errMock2.Error()) || strings.Contains(errStr, errMock3.Error()) {
 								isCorrectError = true
 							}
 						}
+					default:
+						if errors.Is(err, tc.expectedErr) {
+							isCorrectError = true
+						}
 					}
 				}
+
 				require.True(t, isCorrectError, "Error mismatch. Expected error matching type/value '%T(%v)', but received '%T(%v)'", tc.expectedErr, tc.expectedErr, err, err)
 			}
 		})
