@@ -322,7 +322,7 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 		return nil, err
 	}
 
-	return client.broadcastTx(ctx, txBytes, account)
+	return client.broadcastMulti(ctx, txBytes, account)
 }
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
@@ -395,11 +395,14 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 		return nil, err
 	}
 
-	return client.broadcastTx(ctx, txBytes, account)
+	if len(client.conns) > 1 {
+		return client.broadcastMulti(ctx, txBytes, account)
+	}
+	return client.broadcastTx(ctx, client.conns[0], txBytes)
 }
 
-// broadcastSingle sends a transaction request to a single gRPC connection.
-func (c *TxClient) broadcastSingle(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
+// broadcastTx sends a transaction request to a single gRPC connection.
+func (c *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
 	txClient := sdktx.NewServiceClient(conn)
 	resp, err := txClient.BroadcastTx(
 		ctx,
@@ -428,55 +431,49 @@ func (c *TxClient) broadcastSingle(ctx context.Context, conn *grpc.ClientConn, t
 	return resp.TxResponse, nil
 }
 
-// broadcastTx broadcasts the transaction to multiple connections concurrently
+// broadcastMulti broadcasts the transaction to multiple connections concurrently
 // and returns the response from the first successful broadcast.
 // It uses the primary connection and up to two additional connections.
-func (c *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+func (c *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
 	respCh := make(chan *sdktypes.TxResponse, 1)
 	errCh := make(chan error, len(c.conns))
 
 	g, childCtx := errgroup.WithContext(ctx)
-	var successfulBroadcast sync.Once
 
 	for _, conn := range c.conns {
-		// Capture loop variable for the closure
-		conn := conn
-
 		g.Go(func() error {
-			resp, err := c.broadcastSingle(childCtx, conn, txBytes)
+			resp, err := c.broadcastTx(childCtx, conn, txBytes)
 
-			// If the context has been canceled/expired, log non-context errors and bail out
+			// If the context has finished, check if the error is something other than the context error.
 			if ctxErr := childCtx.Err(); ctxErr != nil {
 				if err != nil && !errors.Is(err, ctxErr) {
-					fmt.Printf("DEBUG: Broadcast gRPC call failed after context finished: target=%s err=%v\n", conn.Target(), err)
+					errCh <- fmt.Errorf("broadcast to %s failed after context finished: %w", conn.Target(), err)
 				}
 				return nil
 			}
 
-			// Non-context errors get sent to the error channel
+			// If context is okay, but we got an error during broadcastSingle
 			if err != nil {
 				errCh <- err
 				return nil
 			}
 
-			// On first success, send the response
-			successfulBroadcast.Do(func() {
-				select {
-				case respCh <- resp:
-				case <-childCtx.Done():
-				}
-			})
+			select {
+			case respCh <- resp:
+			case <-childCtx.Done():
+			}
 			return nil
 		})
 	}
+
 	groupErr := g.Wait()
 
 	close(respCh)
 	close(errCh)
 
 	if firstResp, ok := <-respCh; ok {
-		if firstResp == nil {
-			return nil, errors.New("received nil response from successful broadcast")
+		for err := range errCh {
+			fmt.Printf("Ignored broadcast error after success: %v", err)
 		}
 
 		// save the sequence and signer of the transaction in the local txTracker
@@ -490,36 +487,29 @@ func (c *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer strin
 		// after the transaction has been submitted, we can increment the
 		// sequence of the signer
 		if err := c.signer.IncrementSequence(signer); err != nil {
-			return nil, fmt.Errorf("increment sequence: %w", err)
+			// This is a critical error *after* successful broadcast. Return it.
+			return nil, fmt.Errorf("failed to increment sequence after successful broadcast: %w", err)
 		}
 		return firstResp, nil
 	}
 
-	broadcastErrs := make([]error, 0, 3)
+	broadcastErrs := make([]error, 0, len(c.conns))
 	for err := range errCh {
+		fmt.Printf("Broadcast error: %v", err) // Keep logging for debug
 		broadcastErrs = append(broadcastErrs, err)
 	}
 
-	// groupErr will be non-nil if the context finished OR if a g.Go func returned an error
-	if groupErr != nil {
-		broadcastErrs = append(broadcastErrs, fmt.Errorf("internal error: %v", groupErr))
-	}
-
-	if ctxErr := ctx.Err(); ctxErr != nil {
-		if errors.Is(ctxErr, context.Canceled) {
-			return nil, fmt.Errorf("%s: %w", "broadcast context cancelled", ctxErr)
-		}
-		if errors.Is(ctxErr, context.DeadlineExceeded) {
-			return nil, fmt.Errorf("%s: %w", "broadcast context deadline exceeded", ctxErr)
-		}
-	}
-
-	// if only broadcast errors occurred (and context is OK).
 	if len(broadcastErrs) > 0 {
 		return nil, broadcastErrs[0]
 	}
 
-	return nil, errors.New("broadcast failed with no success, no errors, and no context cancellation")
+	// If errCh was empty, check the error from the error group itself.
+	// This usually indicates a context cancellation or deadline exceeded.
+	if groupErr != nil {
+		return nil, groupErr
+	}
+
+	return nil, errors.New("broadcast failed: no successful response and no specific errors reported")
 }
 
 // pruneTxTracker removes transactions from the local tx tracker that are older than 10 minutes
@@ -535,8 +525,6 @@ func (client *TxClient) pruneTxTracker() {
 // hash. It will continually loop until the context is cancelled, the tx is found or an error
 // is encountered.
 func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxResponse, error) {
-	// TODO (#4578): Implement logic to potentially use other connections if the primary fails.
-	// For now, use the primary connection.
 	txClient := tx.NewTxClient(client.conns[0])
 
 	pollTicker := time.NewTicker(client.pollTime)
