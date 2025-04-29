@@ -503,7 +503,7 @@ message WantParts {
 }
 ```
 
-Verification
+Verification:
 
 - The part MUST exist for the compact block of that height and round.
 
@@ -520,6 +520,6 @@ message RecoveryPart {
 }
 ```
 
-Verification
+Verification:
 
 - The hash of the bytes in the data field MUST match that of the `Have` message.
