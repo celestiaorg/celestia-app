@@ -23,7 +23,6 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
-	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 
@@ -449,10 +448,7 @@ func (c *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer strin
 			// If the context has been canceled/expired, log non-context errors and bail out
 			if ctxErr := childCtx.Err(); ctxErr != nil {
 				if err != nil && !errors.Is(err, ctxErr) {
-					log.Debug().
-						Err(err).
-						Str("target", conn.Target()).
-						Msg("Broadcast gRPC call failed after context finished")
+					fmt.Printf("DEBUG: Broadcast gRPC call failed after context finished: target=%s err=%v\n", conn.Target(), err)
 				}
 				return nil
 			}
@@ -506,8 +502,7 @@ func (c *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer strin
 
 	// groupErr will be non-nil if the context finished OR if a g.Go func returned an error
 	if groupErr != nil {
-		log.Warn().Err(groupErr).Msg("Unexpected error returned from errgroup.Wait")
-		broadcastErrs = append([]error{fmt.Errorf("internal error: %v", groupErr)}, broadcastErrs...)
+		broadcastErrs = append(broadcastErrs, fmt.Errorf("internal error: %v", groupErr))
 	}
 
 	if ctxErr := ctx.Err(); ctxErr != nil {
