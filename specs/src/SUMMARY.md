@@ -23,6 +23,8 @@ Celestia App Specifications
 - [State Machine Modules](./state_machine_modules.md)
   - [State Machine Modules v1](./state_machine_modules_v1.md)
   - [State Machine Modules v2](./state_machine_modules_v2.md)
+  - [State Machine Modules v3](./state_machine_modules_v3.md)
+  - [State Machine Modules v4](./state_machine_modules_v4.md)
 - [Parameters](./parameters.md)
   - [Parameters v1](./parameters_v1.md)
   - [Parameters v2](./parameters_v2.md)
