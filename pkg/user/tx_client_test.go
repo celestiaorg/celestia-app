@@ -703,27 +703,26 @@ func (s *BroadcastMultiTestSuite) TestBroadcastScenarios() {
 
 			isCorrectError := false
 			// Check errors based on the expected type
-			if tc.expectedErr == errMock1 { // Special check for the "All Fail" case
+			switch tc.expectedErr {
+			case errMock1: // Special check for the "All Fail" case
 				errStr := err.Error()
 				if strings.Contains(errStr, errMock1.Error()) || strings.Contains(errStr, errMock2.Error()) || strings.Contains(errStr, errMock3.Error()) {
 					isCorrectError = true
 				}
-			} else if tc.expectedErr == context.DeadlineExceeded { // Special check for Deadline
+			case context.DeadlineExceeded: // Special check for Deadline
 				if errors.Is(err, context.DeadlineExceeded) || isGrpcDeadlineError(err) {
 					isCorrectError = true
 				}
-			} else { // Standard checks for other specific errors
+			default: // Standard checks for other specific errors
 				if errors.Is(err, tc.expectedErr) {
 					isCorrectError = true
 				} else {
-					switch tc.expectedErr.(type) {
-					case *user.BroadcastTxError:
-						var actual *user.BroadcastTxError
-						if errors.As(err, &actual) {
-							isCorrectError = true
-						}
-						// Add other specific error type checks here if needed
+					// Check for specific error types like BroadcastTxError
+					var broadcastErr *user.BroadcastTxError
+					if errors.As(err, &broadcastErr) && errors.As(tc.expectedErr, &broadcastErr) {
+						isCorrectError = true
 					}
+					// Add other specific error type checks here if needed, comparing types if errors.Is fails.
 				}
 			}
 
