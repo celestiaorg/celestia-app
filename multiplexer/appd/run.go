@@ -67,7 +67,7 @@ func New(name string, bin []byte, cfg ...CfgOption) (*Appd, error) {
 		if header.FileInfo().IsDir() {
 			// Create directory
 			dirPath := filepath.Join(tmpDir, header.Name)
-			if err := os.MkdirAll(dirPath, 0755); err != nil {
+			if err := os.MkdirAll(dirPath, 0o755); err != nil {
 				return nil, fmt.Errorf("failed to create directory %s: %w", dirPath, err)
 			}
 			continue
@@ -77,7 +77,7 @@ func New(name string, bin []byte, cfg ...CfgOption) (*Appd, error) {
 		filePath := filepath.Join(tmpDir, header.Name)
 
 		// Create parent directory if it doesn't exist
-		if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
 			return nil, fmt.Errorf("failed to create parent directory for %s: %w", filePath, err)
 		}
 
@@ -101,7 +101,7 @@ func New(name string, bin []byte, cfg ...CfgOption) (*Appd, error) {
 			return err
 		}
 
-		if !info.IsDir() && info.Mode()&0111 != 0 {
+		if !info.IsDir() && info.Mode()&0o111 != 0 {
 			binaryPath = path
 			return filepath.SkipAll // Found it, stop searching
 		}
