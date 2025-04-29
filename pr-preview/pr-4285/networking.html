@@ -153,12 +153,12 @@
 <h3 id="consensusproposal"><a class="header" href="#consensusproposal">ConsensusProposal</a></h3>
 <p>Defined as <code>ConsensusProposal</code>:</p>
 <pre><code class="language-protobuf">message ConsensusProposal {
-  SignedMsgType type = 1;
-  int32 round = 2;
-  int32 pol_round = 3;
+  SignedMsgType type      = 1;
+  int32         round     = 2;
+  int32         pol_round = 3;
   // 32-byte hash
   // Proposed block header
-  Header header = 4;
+  Header              header    = 4;
   AvailableDataHeader da_header = 5;
   // 64-byte signature
   bytes proposer_signature = 6;
@@ -192,12 +192,12 @@
 <h3 id="msgwirepayfordata"><a class="header" href="#msgwirepayfordata">MsgWirePayForData</a></h3>
 <p>Defined as <code>MsgWirePayForData</code>:</p>
 <pre><code class="language-protobuf">message MsgWirePayForData {
-  TransactionFee fee = 1;
-  uint64 nonce = 2;
+  TransactionFee fee   = 1;
+  uint64         nonce = 2;
   // 8-byte namespace ID
-  bytes message_namespace_id = 3;
-  uint64 message_size = 4;
-  bytes message = 5;
+  bytes                                  message_namespace_id             = 3;
+  uint64                                 message_size                     = 4;
+  bytes                                  message                          = 5;
   repeated MessageCommitmentAndSignature message_commitment_and_signature = 6;
 }
 </code></pre>
@@ -223,7 +223,8 @@ message BadEncodingFraudProof {
   // the available shares in the offending row or column and their Merkle proofs
   // array of ShareProofs
   repeated ShareProof shareProofs = 2;
-  // a Boolean indicating if it is an offending row or column; false if it is a row
+  // a Boolean indicating if it is an offending row or column; false if it is a
+  // row
   bool isCol = 3;
   // the index of the offending row or column in the square
   uint64 position = 4;
@@ -242,8 +243,9 @@ message BadEncodingFraudProof {
 <p>Defined as <code>StateFraudProof</code>:</p>
 <pre><code class="language-protobuf">// https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#statefraudproof
 message StateFraudProof {
-  // height of the block with the intermediate state roots 
-  // Subtracting one from height gives the height of the block with the transactions.
+  // height of the block with the intermediate state roots
+  // Subtracting one from height gives the height of the block with the
+  // transactions.
   int64 height = 1;
   // shares containing the transactions and their Merkle proofs
   // isCol within the ShareProof must be false.
@@ -253,7 +255,8 @@ message StateFraudProof {
   // isCol within the ShareProof must be false.
   // array of ShareProofs
   repeated ShareProof isrShareProofs = 3;
-  // index for connecting the WrappedIntermediateStateRoot and WrappedTransaction after shares are parsed
+  // index for connecting the WrappedIntermediateStateRoot and
+  // WrappedTransaction after shares are parsed
   uint64 index = 4;
   // state elements that were changed by the transactions
   // array of StateElements

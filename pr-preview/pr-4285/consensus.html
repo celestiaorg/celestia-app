@@ -264,10 +264,14 @@ totalCost(x, y, z) = x + tipCost(y, z)
 <p>where <code>x</code> above is the amount of coins sent by the transaction authorizer, <code>y</code> above is the tip rate set in the transaction, and <code>z</code> above is the measure of the block space used by the transaction (i.e. size in bytes).</p>
 <p>Four additional helper functions are defined to manage the <a href="./data_structures.html#validator">validator queue</a>:</p>
 <ol>
-<li><code>findFromQueue(power)</code>, which returns the address of the last validator in the <a href="./data_structures.html#validator">validator queue</a> with voting power greater than or equal to <code>power</code>, or <code>0</code> if the queue is empty or no validators in the queue have at least <code>power</code> voting power.</li>
-<li><code>parentFromQueue(address)</code>, which returns the address of the parent in the validator queue of the validator with address <code>address</code>, or <code>0</code> if <code>address</code> is not in the queue or is the head of the queue.</li>
-<li><code>validatorQueueInsert</code>, defined as</li>
-</ol>
+<li>
+<p><code>findFromQueue(power)</code>, which returns the address of the last validator in the <a href="./data_structures.html#validator">validator queue</a> with voting power greater than or equal to <code>power</code>, or <code>0</code> if the queue is empty or no validators in the queue have at least <code>power</code> voting power.</p>
+</li>
+<li>
+<p><code>parentFromQueue(address)</code>, which returns the address of the parent in the validator queue of the validator with address <code>address</code>, or <code>0</code> if <code>address</code> is not in the queue or is the head of the queue.</p>
+</li>
+<li>
+<p><code>validatorQueueInsert</code>, defined as</p>
 <pre><code class="language-py">function validatorQueueInsert(validator)
     # Insert the new validator into the linked list
     parent = findFromQueue(validator.votingPower)
@@ -282,10 +286,12 @@ totalCost(x, y, z) = x + tipCost(y, z)
         validator.next = state.validatorQueueHead
         state.validatorQueueHead = sender
 </code></pre>
+</li>
+</ol>
 <!-- markdownlint-disable-next-line MD029 -->
 <ol start="4">
-<li><code>validatorQueueRemove</code>, defined as</li>
-</ol>
+<li>
+<p><code>validatorQueueRemove</code>, defined as</p>
 <pre><code class="language-py">function validatorQueueRemove(validator, sender)
     # Remove existing validator from the linked list
     parent = parentFromQueue(sender)
@@ -300,6 +306,8 @@ totalCost(x, y, z) = x + tipCost(y, z)
         state.validatorQueueHead = validator.next
         validator.next = 0
 </code></pre>
+</li>
+</ol>
 <p>Note that light clients cannot perform a linear search through a linked list, and are instead provided logarithmic proofs (e.g. in the case of <code>parentFromQueue</code>, a proof to the parent is provided, which should have <code>address</code> as its next validator).</p>
 <p>In addition, three helper functions to manage the <a href="./data_structures.html#blobpaid">blob paid list</a>:</p>
 <ol>

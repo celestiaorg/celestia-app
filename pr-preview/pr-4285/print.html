@@ -580,7 +580,7 @@ For the most recent version, which may not reflect the current specifications, r
 <p>Continuation share in a sequence:</p>
 <p><img src="./figures/share_continuation.svg" alt="figure 4: share continuation" /></p>
 <h2 id="transaction-shares"><a class="header" href="#transaction-shares">Transaction Shares</a></h2>
-<p>In order for clients to parse shares in the middle of a sequence without downloading antecedent shares, Celestia encodes additional metadata in the shares associated with reserved namespaces. At the time of writing this only applies to the <a href="./namespace.html#reserved-namespaces"><code>TRANSACTION_NAMESPACE</code></a> and <a href="./namespace.html#reserved-namespaces"><code>PAY_FOR_BLOB_NAMESPACE</code></a>. This share structure is often referred to as &quot;compact shares&quot; to differentiate from the share structure defined above for all shares. It conforms to the common <a href="shares.html#share-format">share format</a> with one additional field, the &quot;reserved bytes&quot; field, which is described below:</p>
+<p>Transaction shares use share version 0. In order for clients to parse shares in the middle of a sequence without downloading antecedent shares, Celestia encodes additional metadata in the shares associated with reserved namespaces. At the time of writing this only applies to the <a href="./namespace.html#reserved-namespaces"><code>TRANSACTION_NAMESPACE</code></a> and <a href="./namespace.html#reserved-namespaces"><code>PAY_FOR_BLOB_NAMESPACE</code></a>. This share structure is often referred to as &quot;compact shares&quot; to differentiate from the share structure defined above for all shares. It conforms to the common <a href="shares.html#share-format">share format</a> with one additional field, the &quot;reserved bytes&quot; field, which is described below:</p>
 <ul>
 <li>Every transaction share includes <a href="./consensus.html#constants"><code>SHARE_RESERVED_BYTES</code></a> bytes that contain the index of the starting byte of the length of the <a href="./consensus.html#serialization">canonically serialized</a> first transaction that starts in the share, or <code>0</code> if there is none, as a binary big endian <code>uint32</code>. Denoted by &quot;reserved bytes&quot; in the figure below. The <a href="./consensus.html#constants"><code>SHARE_RESERVED_BYTES</code></a> are placed immediately after the <code>SEQUENCE_BYTES</code> if this is the first share in a sequence or immediately after the <code>SHARE_INFO_BYTES</code> if this is a continuation share in a sequence.</li>
 <li>The remaining <a href="./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a><code>-</code><a href="./consensus.html#constants"><code>SEQUENCE_BYTES</code></a><code>-</code><a href="./consensus.html#constants"><code>SHARE_RESERVED_BYTES</code></a> bytes (if first share) or <a href="./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a><code>-</code><a href="./consensus.html#constants"><code>SHARE_RESERVED_BYTES</code></a> bytes (if continuation share) are transaction or PayForBlob transaction data (denoted by &quot;tx1&quot; and &quot;tx2&quot; in the figure below). Each transaction or PayForBlob transaction is prefixed with a <a href="https://developers.google.com/protocol-buffers/docs/encoding">varint</a> of the length of that unit (denoted by &quot;len(tx1)&quot; and &quot;len(tx2)&quot; in the figure below).</li>
@@ -593,7 +593,7 @@ For the most recent version, which may not reflect the current specifications, r
 <p><img src="./figures/transaction_share_continuation.svg" alt="figure 4: transaction share continuation" /></p>
 <p>where reserved bytes would be <code>80</code> as a binary big endian <code>uint32</code> (<code>[0b00000000, 0b00000000, 0b00000000, 0b01010000]</code>).</p>
 <h2 id="padding"><a class="header" href="#padding">Padding</a></h2>
-<p>Padding shares vary based on namespace but they conform to the <a href="shares.html#share-format">share format</a> described above.</p>
+<p>Padding shares use share version 0 and conform to the <a href="shares.html#share-format">share format</a> described above. There are multiple variants of padding shares that differ based on their namespace.</p>
 <ul>
 <li>The first <a href="./consensus.html#constants"><code>NAMESPACE_VERSION_SIZE</code></a> bytes of a share's raw data is the namespace version of that share (initially, this will be <code>0</code>).</li>
 <li>The next <a href="./consensus.html#constants"><code>NAMESPACE_ID_SIZE</code></a> bytes of a share's raw data is the namespace ID of that share. This varies based on the type of padding share.</li>
@@ -614,7 +614,7 @@ A namespace padding share acts as padding between blobs so that the subsequent b
 <h3 id="tail-padding-share"><a class="header" href="#tail-padding-share">Tail Padding Share</a></h3>
 <p>Tail padding shares use the <a href="./namespace.html#reserved-namespaces"><code>TAIL_PADDING_NAMESPACE</code></a>. Tail padding shares are placed after the last blob in the data square so that the number of shares in the data square is a perfect square. Clients MAY ignore the contents of these shares because they don't contain any significant data.</p>
 <h2 id="parity-share"><a class="header" href="#parity-share">Parity Share</a></h2>
-<p>Parity shares use the <a href="./namespace.html#reserved-namespaces"><code>PARITY_SHARE_NAMESPACE</code></a>. Parity shares are the output of the erasure coding step of the data square construction process. They occupy quadrants Q1, Q2, and Q3 of the extended data square and are used to reconstruct the original data square (Q0). Bytes carry no special meaning.</p>
+<p>Parity shares are the output of the erasure coding step of the data square construction process. They occupy quadrants Q1, Q2, and Q3 of the extended data square and are used to reconstruct the original data square (Q0). Parity shares do not conform to the <a href="shares.html#share-format">share format</a> described above. In the square layout, parity shares do not have a significant namespace. When parity shares are used in NMTs, they are prefixed with the <code>PARITY_SHARE_NAMESPACE</code> to preserve the property that all shares are ordered by namespace.</p>
 <h2 id="share-splitting"><a class="header" href="#share-splitting">Share Splitting</a></h2>
 <p>Share splitting is the process of converting a blob into a share sequence. The process is as follows:</p>
 <ol>
@@ -762,10 +762,14 @@ totalCost(x, y, z) = x + tipCost(y, z)
 <p>where <code>x</code> above is the amount of coins sent by the transaction authorizer, <code>y</code> above is the tip rate set in the transaction, and <code>z</code> above is the measure of the block space used by the transaction (i.e. size in bytes).</p>
 <p>Four additional helper functions are defined to manage the <a href="./data_structures.html#validator">validator queue</a>:</p>
 <ol>
-<li><code>findFromQueue(power)</code>, which returns the address of the last validator in the <a href="./data_structures.html#validator">validator queue</a> with voting power greater than or equal to <code>power</code>, or <code>0</code> if the queue is empty or no validators in the queue have at least <code>power</code> voting power.</li>
-<li><code>parentFromQueue(address)</code>, which returns the address of the parent in the validator queue of the validator with address <code>address</code>, or <code>0</code> if <code>address</code> is not in the queue or is the head of the queue.</li>
-<li><code>validatorQueueInsert</code>, defined as</li>
-</ol>
+<li>
+<p><code>findFromQueue(power)</code>, which returns the address of the last validator in the <a href="./data_structures.html#validator">validator queue</a> with voting power greater than or equal to <code>power</code>, or <code>0</code> if the queue is empty or no validators in the queue have at least <code>power</code> voting power.</p>
+</li>
+<li>
+<p><code>parentFromQueue(address)</code>, which returns the address of the parent in the validator queue of the validator with address <code>address</code>, or <code>0</code> if <code>address</code> is not in the queue or is the head of the queue.</p>
+</li>
+<li>
+<p><code>validatorQueueInsert</code>, defined as</p>
 <pre><code class="language-py">function validatorQueueInsert(validator)
     # Insert the new validator into the linked list
     parent = findFromQueue(validator.votingPower)
@@ -780,10 +784,12 @@ totalCost(x, y, z) = x + tipCost(y, z)
         validator.next = state.validatorQueueHead
         state.validatorQueueHead = sender
 </code></pre>
+</li>
+</ol>
 <!-- markdownlint-disable-next-line MD029 -->
 <ol start="4">
-<li><code>validatorQueueRemove</code>, defined as</li>
-</ol>
+<li>
+<p><code>validatorQueueRemove</code>, defined as</p>
 <pre><code class="language-py">function validatorQueueRemove(validator, sender)
     # Remove existing validator from the linked list
     parent = parentFromQueue(sender)
@@ -798,6 +804,8 @@ totalCost(x, y, z) = x + tipCost(y, z)
         state.validatorQueueHead = validator.next
         validator.next = 0
 </code></pre>
+</li>
+</ol>
 <p>Note that light clients cannot perform a linear search through a linked list, and are instead provided logarithmic proofs (e.g. in the case of <code>parentFromQueue</code>, a proof to the parent is provided, which should have <code>address</code> as its next validator).</p>
 <p>In addition, three helper functions to manage the <a href="./data_structures.html#blobpaid">blob paid list</a>:</p>
 <ol>
@@ -1467,7 +1475,7 @@ src="./figures/rs2d_quadrants.svg" alt="Figure 2: rsmt2d" width="400"/> <img src
 <p>The AnteHandler chains together several decorators to ensure the following criteria are met for app version 3:</p>
 <ul>
 <li>The tx does not contain any messages that are unsupported by the current app version. See <code>MsgVersioningGateKeeper</code>.</li>
-<li>The tx size is not larger than the application's configured versioned constant <a href="https://github.com/celestiaorg/celestia-app/blob/8ba82c1b872b7f5686d9bb91b93a0442223d7bb2/pkg/appconsts/v3/app_consts.go#L9">MaxTxSize</a>.</li>
+<li>The <code>sdk.Tx</code> size is not larger than the application's configured versioned constant <a href="https://github.com/celestiaorg/celestia-app/blob/8ba82c1b872b7f5686d9bb91b93a0442223d7bb2/pkg/appconsts/v3/app_consts.go#L9">MaxTxSize</a>. This limit does not apply to blobs.</li>
 <li>The tx does not contain any <a href="https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L119-L122">extension options</a>.</li>
 <li>The tx passes <code>ValidateBasic()</code>.</li>
 <li>The tx's <a href="https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L115-L117">timeout_height</a> has not been reached if one is specified.</li>
@@ -1524,12 +1532,12 @@ there are example implementations that can be found in
 <h3 id="consensusproposal"><a class="header" href="#consensusproposal">ConsensusProposal</a></h3>
 <p>Defined as <code>ConsensusProposal</code>:</p>
 <pre><code class="language-protobuf">message ConsensusProposal {
-  SignedMsgType type = 1;
-  int32 round = 2;
-  int32 pol_round = 3;
+  SignedMsgType type      = 1;
+  int32         round     = 2;
+  int32         pol_round = 3;
   // 32-byte hash
   // Proposed block header
-  Header header = 4;
+  Header              header    = 4;
   AvailableDataHeader da_header = 5;
   // 64-byte signature
   bytes proposer_signature = 6;
@@ -1563,12 +1571,12 @@ there are example implementations that can be found in
 <h3 id="msgwirepayfordata"><a class="header" href="#msgwirepayfordata">MsgWirePayForData</a></h3>
 <p>Defined as <code>MsgWirePayForData</code>:</p>
 <pre><code class="language-protobuf">message MsgWirePayForData {
-  TransactionFee fee = 1;
-  uint64 nonce = 2;
+  TransactionFee fee   = 1;
+  uint64         nonce = 2;
   // 8-byte namespace ID
-  bytes message_namespace_id = 3;
-  uint64 message_size = 4;
-  bytes message = 5;
+  bytes                                  message_namespace_id             = 3;
+  uint64                                 message_size                     = 4;
+  bytes                                  message                          = 5;
   repeated MessageCommitmentAndSignature message_commitment_and_signature = 6;
 }
 </code></pre>
@@ -1594,7 +1602,8 @@ message BadEncodingFraudProof {
   // the available shares in the offending row or column and their Merkle proofs
   // array of ShareProofs
   repeated ShareProof shareProofs = 2;
-  // a Boolean indicating if it is an offending row or column; false if it is a row
+  // a Boolean indicating if it is an offending row or column; false if it is a
+  // row
   bool isCol = 3;
   // the index of the offending row or column in the square
   uint64 position = 4;
@@ -1613,8 +1622,9 @@ message BadEncodingFraudProof {
 <p>Defined as <code>StateFraudProof</code>:</p>
 <pre><code class="language-protobuf">// https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#statefraudproof
 message StateFraudProof {
-  // height of the block with the intermediate state roots 
-  // Subtracting one from height gives the height of the block with the transactions.
+  // height of the block with the intermediate state roots
+  // Subtracting one from height gives the height of the block with the
+  // transactions.
   int64 height = 1;
   // shares containing the transactions and their Merkle proofs
   // isCol within the ShareProof must be false.
@@ -1624,7 +1634,8 @@ message StateFraudProof {
   // isCol within the ShareProof must be false.
   // array of ShareProofs
   repeated ShareProof isrShareProofs = 3;
-  // index for connecting the WrappedIntermediateStateRoot and WrappedTransaction after shares are parsed
+  // index for connecting the WrappedIntermediateStateRoot and
+  // WrappedTransaction after shares are parsed
   uint64 index = 4;
   // state elements that were changed by the transactions
   // array of StateElements
@@ -1716,7 +1727,7 @@ message StateFraudProof {
 <li>The transaction sender must pay sufficient fees for blob inclusion.</li>
 <li>The block proposer cannot claim that a blob was included when it was not (which implies that a transaction and the blob it pays for must be included in the same block). In addition all blobs must be accompanied by a PayForBlob transaction.</li>
 </ol>
-<p>Specifically, a <code>MsgPayForBlobs</code> must include a <code>ShareCommitment</code> over the contents of each blob it is paying for. If the transaction sender knows 1) <code>k</code>, the size of the matrix, 2) the starting location of their blob in a row, and 3) the length of the blob (they know this since they are sending the blob), then they can actually compute a sequence of roots to <em>subtrees in the row NMTs</em>. Taking <em>the simple Merkle root of these subtree roots</em> provides us with the <code>ShareCommitment</code> that gets included in <code>MsgPayForBlobs</code>. Using subtree roots instead of all the leafs makes blob inclusion proofs smaller.</p>
+<p>Specifically, a <code>MsgPayForBlobs</code> must include a <code>ShareCommitment</code> over the contents of each blob it is paying for. If the transaction sender knows 1) <code>k</code>, the size of the matrix, 2) the starting location of their blob in a row, and 3) the length of the blob (they know this since they are sending the blob), then they can actually compute a sequence of roots to <em>subtrees in the row NMTs</em>. Taking <em>the simple Merkle root of these subtree roots</em> provides us with the <code>ShareCommitment</code> that gets included in <code>MsgPayForBlobs</code>. Using subtree roots instead of all the leaves makes blob inclusion proofs smaller.</p>
 <p><img src="./figures/blob_share_commitment.svg" alt="subtree roots" /></p>
 <p>Understanding 1) and 2) would usually require interaction with the block proposer. To make the possible starting locations of blobs sufficiently predictable and to make <code>ShareCommitment</code> independent of <code>k</code>, we impose an additional rule. The blob must start at a multiple of the <code>SubtreeWidth</code>.</p>
 <p>The <code>SubtreeWidth</code> is calculated as the length of the blob in shares, divided by the <a href="https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/pkg/appconsts/v1/app_consts.go#L6"><code>SubtreeRootThreshold</code></a> and rounded up to the nearest power of 2 (<a href="https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/pkg/shares/non_interactive_defaults.go#L94-L116">implementation here</a>). If the output is greater than the minimum square size that the blob can fit in (i.e. a blob of 15 shares has a minimum square size of 4) then we take that minimum value. This <code>SubtreeWidth</code> is used as the width of the first mountain in the <a href="https://docs.grin.mw/wiki/chain-state/merkle-mountain-range/">Merkle Mountain Range</a> that would all together represent the <code>ShareCommitment</code> over the blob.</p>
@@ -1958,9 +1969,9 @@ the cost of the blob.</p>
 <h2 id="celestia-app-modules"><a class="header" href="#celestia-app-modules"><code>celestia-app</code> modules</a></h2>
 <ul>
 <li><a href="https://github.com/celestiaorg/celestia-app/blob/main/x/blob/README.md">blob</a></li>
-<li><a href="https://github.com/celestiaorg/celestia-app/blob/main/x/blobstream/README.md">blobstream</a></li>
+<li><a href="https://github.com/celestiaorg/celestia-app/tree/06f24f5dbe48c29964e1d8cfb030cffd90797ded/x/blobstream">blobstream</a></li>
 <li><a href="https://github.com/celestiaorg/celestia-app/blob/main/x/mint/README.md">mint</a></li>
-<li><a href="https://github.com/celestiaorg/celestia-app/blob/main/x/paramfilter/README.md">paramfilter</a></li>
+<li><a href="https://github.com/celestiaorg/celestia-app/blob/e293a5ed5ed8e7d35d609bf12a9754fc45463a39/x/paramfilter/README.md">paramfilter</a></li>
 <li><a href="https://github.com/celestiaorg/celestia-app/blob/main/x/tokenfilter/README.md">tokenfilter</a></li>
 </ul>
 <h2 id="cosmos-sdk-modules"><a class="header" href="#cosmos-sdk-modules"><code>cosmos-sdk</code> modules</a></h2>
@@ -1989,7 +2000,7 @@ the cost of the blob.</p>
 <li><a href="https://github.com/celestiaorg/celestia-app/blob/main/x/blob/README.md">blob</a></li>
 <li><a href="https://github.com/celestiaorg/celestia-app/blob/main/x/minfee/README.md">minfee</a></li>
 <li><a href="https://github.com/celestiaorg/celestia-app/blob/main/x/mint/README.md">mint</a></li>
-<li><a href="https://github.com/celestiaorg/celestia-app/blob/main/x/paramfilter/README.md">paramfilter</a></li>
+<li><a href="https://github.com/celestiaorg/celestia-app/blob/e293a5ed5ed8e7d35d609bf12a9754fc45463a39/x/paramfilter/README.md">paramfilter</a></li>
 <li><a href="https://github.com/celestiaorg/celestia-app/blob/main/x/signal/README.md">signal</a></li>
 <li><a href="https://github.com/celestiaorg/celestia-app/blob/main/x/tokenfilter/README.md">tokenfilter</a></li>
 </ul>
@@ -2024,7 +2035,7 @@ the cost of the blob.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="parameters-v1"><a class="header" href="#parameters-v1">Parameters v1</a></h1>
 <p>The parameters below represent the parameters for app version 1.</p>
 <p>Note that not all of these parameters are changeable via governance. This list
-also includes parameter that require a hardfork to change due to being manually
+also includes parameters that require a hardfork to change due to being manually
 hardcoded in the application or they are blocked by the <code>x/paramfilter</code> module.</p>
 <h2 id="global-parameters"><a class="header" href="#global-parameters">Global parameters</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Value</th><th>Summary</th><th>Changeable via Governance</th></tr></thead><tbody>
