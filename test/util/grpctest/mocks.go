@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -13,6 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
 // MockTxService allows controlling the behavior of BroadcastTx calls.
@@ -68,8 +69,13 @@ func (m *MockTxService) TxDecodeAmino(context.Context, *sdktx.TxDecodeAminoReque
 func StartMockServer(t *testing.T, service *MockTxService) (*grpc.ClientConn, func()) {
 	t.Helper()
 
-	// Use a real TCP listener on a random port
-	lis, err := net.Listen("tcp", "localhost:0")
+	// Get a free port using the utility function
+	port, err := testnode.GetFreePort()
+	require.NoError(t, err)
+	addr := fmt.Sprintf("localhost:%d", port)
+
+	// Use a real TCP listener on the dynamically obtained port
+	lis, err := net.Listen("tcp", addr)
 	require.NoError(t, err)
 
 	s := grpc.NewServer()
@@ -77,12 +83,10 @@ func StartMockServer(t *testing.T, service *MockTxService) (*grpc.ClientConn, fu
 
 	go func() {
 		if err := s.Serve(lis); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-			// Log error instead of Printf for better test output
 			t.Logf("Mock server error: %v", err)
+			panic(err)
 		}
 	}()
-
-	addr := lis.Addr().String()
 
 	conn, err := grpc.NewClient(
 		addr,
@@ -93,7 +97,7 @@ func StartMockServer(t *testing.T, service *MockTxService) (*grpc.ClientConn, fu
 	stop := func() {
 		s.Stop()
 		closeErr := lis.Close()
-		if closeErr != nil && !errors.Is(closeErr, net.ErrClosed) && !strings.Contains(closeErr.Error(), "use of closed network connection") {
+		if closeErr != nil {
 			t.Logf("Error closing listener: %v", closeErr)
 		}
 		if conn != nil {
