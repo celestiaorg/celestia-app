@@ -24,8 +24,7 @@ createConfig() {
     echo "Initializing bridge node config files..."
     celestia bridge init \
         --p2p.network private \
-        --core.ip 127.0.0.1 \
-        --core.port 9098
+        --core.ip 127.0.0.1
     #   > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     echo "Initialized bridge node config files"
@@ -40,8 +39,7 @@ startCelestia() {
   echo "Starting celestia..."
   celestia bridge start \
     --p2p.network private \
-    --core.ip 127.0.0.1 \
-    --core.port 9098
+    --core.ip 127.0.0.1
 }
 
 deleteCelestiaHome
