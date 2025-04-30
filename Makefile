@@ -143,6 +143,12 @@ build-docker:
 	$(DOCKER) build -t celestiaorg/celestia-app -f docker/Dockerfile .
 .PHONY: build-docker
 
+## build-docker-multiplexer: Build the celestia-appd Multiplexer Docker image using the multiplexer Dockerfile.
+build-docker-multiplexer:
+	@echo "--> Building Multiplexer Docker image"
+	$(DOCKER) build -t celestiaorg/celestia-app-multiplexer -f docker/multiplexer.Dockerfile .
+.PHONY: build-docker-multiplexer
+
 ## docker-build: Build the celestia-appd docker image from the current branch. Requires docker.
 docker-build: build-docker
 .PHONY: docker-build
