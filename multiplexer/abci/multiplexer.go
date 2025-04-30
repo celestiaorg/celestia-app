@@ -405,7 +405,7 @@ func openDB(rootDir string, backendType db.BackendType) (db.DB, error) {
 // If the file is empty, it returns no writer and no error.
 func openTraceWriter(traceWriterFile string) (w io.WriteCloser, err error) {
 	if traceWriterFile == "" {
-		return w, err
+		return w, nil
 	}
 	return os.OpenFile(
 		traceWriterFile,
