@@ -102,14 +102,11 @@ func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 	t.Logf("Trust hash: %s", trustHash)
 	t.Logf("RPC servers: %s", rpcServers)
 
-	overrides := map[string]any{}
-	configOverrides := make(toml.Toml)
-	configOverrides["state_sync.enable"] = true
-	configOverrides["state_sync.trust_height"] = trustHeight
-	configOverrides["state_sync.trust_hash"] = trustHash
-	configOverrides["state_sync.rpc_servers"] = rpcServers
+	overrides := map[string]any{
+		"config/config.toml": stateSyncOverrides(trustHeight, trustHash, rpcServers),
+	}
 
-	overrides["config/config.toml"] = configOverrides
+	t.Log("Adding state sync node")
 	err = cosmosChain.AddFullNodes(ctx, overrides, 1)
 	require.NoError(t, err, "failed to add node")
 
@@ -148,4 +145,14 @@ func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 			t.Fatalf("timed out waiting for state sync node to catch up after %v", stateSyncTimeout)
 		}
 	}
+}
+
+// stateSyncOverrides returns config overrides which will enable state sync.
+func stateSyncOverrides(trustHeight int64, trustHash, rpcServers string) toml.Toml {
+	configOverrides := make(toml.Toml)
+	configOverrides["state_sync.enable"] = true
+	configOverrides["state_sync.trust_height"] = trustHeight
+	configOverrides["state_sync.trust_hash"] = trustHash
+	configOverrides["state_sync.rpc_servers"] = rpcServers
+	return configOverrides
 }

@@ -44,7 +44,6 @@ func (s *CelestiaTestSuite) SetupSuite() {
 }
 
 func (s *CelestiaTestSuite) CreateCelestiaChain(tag string, appVersion string) (ibc.Chain, error) {
-	// Define the number of validators
 	numValidators := 4
 	numFullNodes := 0
 
@@ -79,6 +78,7 @@ func (s *CelestiaTestSuite) CreateCelestiaChain(tag string, appVersion string) (
 	})
 }
 
+// CreateTxSim deploys and starts a txsim container to simulate transactions against the given celestia chain in the test environment.
 func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, tag string, celestia *cosmos.Chain) {
 	t := s.T()
 	networkName, err := getNetworkNameFromID(ctx, s.client, s.network)
@@ -92,15 +92,12 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, tag string, celesti
 	rpcAddress := celestia.GetHostRPCAddress()
 	t.Logf("Connecting to Celestia node at %s", rpcAddress)
 
-	// Run the txsim container
 	opts := dockerutil.ContainerOptions{
 		User: dockerutil.GetRootUserString(),
 		// Mount the Celestia home directory into the txsim container
+		// this ensures txsim has access to a keyring and is able to broadcast transactions.
 		Binds: []string{celestia.Validators[0].VolumeName + ":/celestia-home"},
 	}
-
-	t.Logf("waiting for grpc service to be online")
-	time.Sleep(10 * time.Second)
 
 	args := []string{
 		"/bin/txsim",
