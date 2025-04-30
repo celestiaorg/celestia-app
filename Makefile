@@ -67,7 +67,7 @@ install: check-bbr download-v3-binaries
 
 ## download-v3-binaries: Download the celestia-app v3 binary for the current platform.
 download-v3-binaries:
-	@echo "--> Downloading embedded binary for v3"
+	@echo "--> Downloading celestia-app $(CELESTIA_V3_VERSION) binary"
 	@mkdir -p internal/embedding
 	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
 	case "$$os-$$arch" in \
