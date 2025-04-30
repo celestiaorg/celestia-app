@@ -55,7 +55,7 @@ install-standalone: check-bbr
 .PHONY: install-standalone
 
 define EMBED_BIN
-  ./scripts/embed_bin.sh $$url $$out $(CELESTIA_V3_VERSION)
+  ./scripts/download_v3_binary.sh $$url $$out $(CELESTIA_V3_VERSION)
 endef
 
 ## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
