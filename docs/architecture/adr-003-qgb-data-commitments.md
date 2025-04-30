@@ -12,7 +12,7 @@ To accommodate the requirements of the [Quantum Gravity Bridge](https://github.c
 
 Add the `DataCommitmentConfirm` type of messages in order to attest that a set of blocks has been finalized.
 
-PS: The `ValsetConfirm` has been updated in `adr-005-qgb-reduce-state-usage`. Please take a look at it to know how we will be handling the confirms.
+PS: The `ValsetConfirm` has been updated in [ADR 005: qgb reduce state usage](https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-005-qgb-reduce-state-usage.md). Please take a look at it to know how we will be handling the confirms.
 
 ## Detailed Design
 
