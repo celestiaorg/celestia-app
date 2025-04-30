@@ -5,14 +5,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	"github.com/chatton/interchaintest/chain/cosmos"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"testing"
 	"time"
 )
-
-func TestCelestiaTestSuite(t *testing.T) {
-	suite.Run(t, new(CelestiaTestSuite))
-}
 
 func (s *CelestiaTestSuite) TestE2ESimple() {
 	t := s.T()
@@ -44,10 +39,7 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 	cosmosChain, ok := celestia.(*cosmos.Chain)
 	require.True(t, ok, "expected celestia to be a cosmos.Chain")
 
-	createTxSim(t, err, ctx, s.client, s.network, s.logger, cosmosChain)
-
-	// Wait for a short time to allow txsim to start
-	time.Sleep(10 * time.Second)
+	s.CreateTxSim(ctx, "v4.0.0-rc1", cosmosChain)
 
 	pollCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
