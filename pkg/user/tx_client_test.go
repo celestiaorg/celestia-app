@@ -458,7 +458,7 @@ var (
 )
 
 type broadcastTestCase struct {
-	setupMocks  func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn, []func())
+	setupMocks  func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn)
 	expectError bool // Changed from error to bool
 }
 
@@ -472,19 +472,19 @@ func (suite *TxClientTestSuite) TestBroadcastScenarios() {
 
 	testCases := []broadcastTestCase{
 		{ // Primary Success (Single Conn)
-			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn, []func()) {
+			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn) {
 				mockSvc1 := &grpctest.MockTxService{
 					BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
 						return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "HASH1"}}, nil
 					},
 				}
-				conn1, stop1 := grpctest.StartMockServer(t, mockSvc1)
-				return []*grpctest.MockTxService{mockSvc1}, []*grpc.ClientConn{conn1}, []func(){func() { t.Cleanup(stop1) }}
+				conn1 := grpctest.StartMockServer(t, mockSvc1)
+				return []*grpctest.MockTxService{mockSvc1}, []*grpc.ClientConn{conn1}
 			},
 			expectError: false,
 		},
 		{ // Secondary Success
-			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn, []func()) {
+			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn) {
 				mockSvc1 := &grpctest.MockTxService{ // Primary fails after delay
 					BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
 						time.Sleep(1 * time.Second)
@@ -503,9 +503,9 @@ func (suite *TxClientTestSuite) TestBroadcastScenarios() {
 							return nil, ctx.Err()
 						}
 					}}
-				conn1, stop1 := grpctest.StartMockServer(t, mockSvc1)
-				conn2, stop2 := grpctest.StartMockServer(t, mockSvc2)
-				conn3, stop3 := grpctest.StartMockServer(t, mockSvc3)
+				conn1 := grpctest.StartMockServer(t, mockSvc1)
+				conn2 := grpctest.StartMockServer(t, mockSvc2)
+				conn3 := grpctest.StartMockServer(t, mockSvc3)
 				return []*grpctest.MockTxService{
 						mockSvc1,
 						mockSvc2,
@@ -514,17 +514,12 @@ func (suite *TxClientTestSuite) TestBroadcastScenarios() {
 						conn1,
 						conn2,
 						conn3,
-					},
-					[]func(){
-						func() { t.Cleanup(stop1) },
-						func() { t.Cleanup(stop2) },
-						func() { t.Cleanup(stop3) },
 					}
 			},
 			expectError: false,
 		},
 		{ // All Fail
-			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn, []func()) {
+			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn) {
 				mockSvc1 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
 					return nil, errMock1
 				}}
@@ -534,9 +529,9 @@ func (suite *TxClientTestSuite) TestBroadcastScenarios() {
 				mockSvc3 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
 					return nil, errMock3
 				}}
-				conn1, stop1 := grpctest.StartMockServer(t, mockSvc1)
-				conn2, stop2 := grpctest.StartMockServer(t, mockSvc2)
-				conn3, stop3 := grpctest.StartMockServer(t, mockSvc3)
+				conn1 := grpctest.StartMockServer(t, mockSvc1)
+				conn2 := grpctest.StartMockServer(t, mockSvc2)
+				conn3 := grpctest.StartMockServer(t, mockSvc3)
 				return []*grpctest.MockTxService{
 						mockSvc1,
 						mockSvc2,
@@ -545,17 +540,12 @@ func (suite *TxClientTestSuite) TestBroadcastScenarios() {
 						conn1,
 						conn2,
 						conn3,
-					},
-					[]func(){
-						func() { t.Cleanup(stop1) },
-						func() { t.Cleanup(stop2) },
-						func() { t.Cleanup(stop3) },
 					}
 			},
 			expectError: true,
 		},
 		{ // Context Deadline
-			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn, []func()) {
+			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn) {
 				mockHandler := func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
 					select {
 					case <-time.After(1 * time.Second):
@@ -567,9 +557,9 @@ func (suite *TxClientTestSuite) TestBroadcastScenarios() {
 				mockSvc1 := &grpctest.MockTxService{BroadcastHandler: mockHandler}
 				mockSvc2 := &grpctest.MockTxService{BroadcastHandler: mockHandler}
 				mockSvc3 := &grpctest.MockTxService{BroadcastHandler: mockHandler}
-				conn1, stop1 := grpctest.StartMockServer(t, mockSvc1)
-				conn2, stop2 := grpctest.StartMockServer(t, mockSvc2)
-				conn3, stop3 := grpctest.StartMockServer(t, mockSvc3)
+				conn1 := grpctest.StartMockServer(t, mockSvc1)
+				conn2 := grpctest.StartMockServer(t, mockSvc2)
+				conn3 := grpctest.StartMockServer(t, mockSvc3)
 				return []*grpctest.MockTxService{
 						mockSvc1,
 						mockSvc2,
@@ -578,47 +568,38 @@ func (suite *TxClientTestSuite) TestBroadcastScenarios() {
 						conn1,
 						conn2,
 						conn3,
-					},
-					[]func(){
-						func() { t.Cleanup(stop1) },
-						func() { t.Cleanup(stop2) },
-						func() { t.Cleanup(stop3) },
 					}
 			},
 			expectError: true,
 		},
 		{ // Less Than Three Conns (Success)
-			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn, []func()) {
+			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn) {
 				mockSvc1 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
 					return nil, errMock1
 				}}
 				mockSvc2 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
 					return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "HASH_LT3"}}, nil
 				}}
-				conn1, stop1 := grpctest.StartMockServer(t, mockSvc1)
-				conn2, stop2 := grpctest.StartMockServer(t, mockSvc2)
+				conn1 := grpctest.StartMockServer(t, mockSvc1)
+				conn2 := grpctest.StartMockServer(t, mockSvc2)
 				return []*grpctest.MockTxService{
 						mockSvc1,
 						mockSvc2,
 					}, []*grpc.ClientConn{
 						conn1,
 						conn2,
-					},
-					[]func(){
-						func() { t.Cleanup(stop1) },
-						func() { t.Cleanup(stop2) },
 					}
 			},
 			expectError: false,
 		},
 		{ // Non-Zero Code Failure
-			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn, []func()) {
+			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn) {
 				mockSvc1 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
 					resp := &sdk.TxResponse{Code: 5, TxHash: "HASH_FAIL", RawLog: errInsufficientFunds.Error()}
 					return &sdktx.BroadcastTxResponse{TxResponse: resp}, nil
 				}}
-				conn1, stop1 := grpctest.StartMockServer(t, mockSvc1)
-				return []*grpctest.MockTxService{mockSvc1}, []*grpc.ClientConn{conn1}, []func(){func() { t.Cleanup(stop1) }}
+				conn1 := grpctest.StartMockServer(t, mockSvc1)
+				return []*grpctest.MockTxService{mockSvc1}, []*grpc.ClientConn{conn1}
 			},
 			expectError: true,
 		},
@@ -627,10 +608,7 @@ func (suite *TxClientTestSuite) TestBroadcastScenarios() {
 	for i, tc := range testCases {
 		name := fmt.Sprintf("BroadcastTestCase%d", i) // Simple naming
 		t.Run(name, func(t *testing.T) {
-			_, conns, stops := tc.setupMocks(t)
-			for _, stop := range stops {
-				defer stop()
-			}
+			_, conns := tc.setupMocks(t)
 			require.NotEmpty(t, conns, "Need at least one connection for broadcast test client")
 
 			primaryConn := conns[0]
