@@ -78,7 +78,6 @@ download-v3-binaries:
 		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
 	esac; \
 	bash scripts/download_v3_binary.sh "$$url" "$$out" "$(CELESTIA_V3_VERSION)"
-	@echo "--> Done"
 .PHONY: download-v3-binaries
 
 ## mod: Update all go.mod files.
