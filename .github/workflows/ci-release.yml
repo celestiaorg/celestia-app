@@ -20,6 +20,9 @@ jobs:
   markdown-linter:
     uses: ./.github/workflows/markdown-linter.yml
 
+  build:
+    uses: ./.github/workflows/build.yml
+
   test:
     uses: ./.github/workflows/test.yml
 

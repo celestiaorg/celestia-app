@@ -55,26 +55,7 @@ install-standalone: check-bbr
 .PHONY: install-standalone
 
 define EMBED_BIN
-	if test -f internal/embedding/$$out; then \
-	  if [ -f internal/embedding/.embed_version_$$out ]; then \
-	    existing_version=$$(cat internal/embedding/.embed_version_$$out); \
-	    if [ "$$existing_version" = "$(CELESTIA_V3_VERSION)" ]; then \
-	      echo "Skipping download, existing correct version: $$out"; \
-	    else \
-	      echo "Version mismatch, re-downloading $$out"; \
-	      wget -q https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/$$url -O internal/embedding/$$out; \
-	      echo "$(CELESTIA_V3_VERSION)" > internal/embedding/.embed_version_$$out; \
-	    fi; \
-	  else \
-	    echo "No version file for $$out, re-downloading"; \
-	    wget -q https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/$$url -O internal/embedding/$$out; \
-	    echo "$(CELESTIA_V3_VERSION)" > internal/embedding/.embed_version_$$out; \
-	  fi; \
-	else \
-	  echo "Binary $$out not found, downloading"; \
-	  wget -q https://github.com/celestiaorg/celestia-app/releases/download/$(CELESTIA_V3_VERSION)/$$url -O internal/embedding/$$out; \
-	  echo "$(CELESTIA_V3_VERSION)" > internal/embedding/.embed_version_$$out; \
-	fi
+  ./scripts/download_v3_binary.sh $$url $$out $(CELESTIA_V3_VERSION)
 endef
 
 ## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
