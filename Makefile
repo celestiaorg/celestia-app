@@ -48,6 +48,14 @@ build: mod download-v3-binaries
 	@go build $(BUILD_FLAGS_MULTIPLEXER) -o build/celestia-appd ./cmd/celestia-appd
 .PHONY: build
 
+## build-skip-download: Build the celestia-appd binary into the ./build directory and skip downloading the v3 binaries.
+build-skip-download: mod
+	@cd ./cmd/celestia-appd
+	@mkdir -p build/
+	@echo "--> Building build/celestia-appd with multiplexer enabled"
+	@go build $(BUILD_FLAGS_MULTIPLEXER) -o build/celestia-appd ./cmd/celestia-appd
+.PHONY: build-skip-download
+
 ## install-standalone: Build and install the celestia-appd binary into the $GOPATH/bin directory. This target does not install the multiplexer.
 install-standalone: check-bbr
 	@echo "--> Installing celestia-appd"
