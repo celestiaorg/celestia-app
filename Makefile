@@ -40,9 +40,12 @@ build-standalone: mod
 	@go build $(BUILD_FLAGS) -o build/ ./cmd/celestia-appd
 .PHONY: build-standalone
 
+DOWNLOAD ?= true
 ## build: Build the celestia-appd binary into the ./build directory.
-build: mod download-v3-binaries
-	@cd ./cmd/celestia-appd
+build: mod
+ifeq ($(DOWNLOAD),true)
+	@$(MAKE) download-v3-binaries
+endif
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd with multiplexer enabled"
 	@go build $(BUILD_FLAGS_MULTIPLEXER) -o build/celestia-appd ./cmd/celestia-appd
@@ -148,6 +151,7 @@ build-docker:
 docker-build: build-docker
 .PHONY: docker-build
 
+## build-docker-multiplexer: Build the celestia-appd docker image with Multiplexer support from the current branch. Requires docker.
 build-docker-multiplexer:
 	@echo "--> Building Multiplexer Docker image"
 	$(DOCKER) build \
