@@ -1,4 +1,4 @@
-VERSION := $(shell echo $(shell git describe --tags --always --match "v*") | sed 's/^v//')
+VERSION := $(shell echo $(shell git describe --tags 2>/dev/null || git log -1 --format='%h') | sed 's/^v//')
 COMMIT := $(shell git rev-parse --short HEAD)
 DOCKER := $(shell which docker)
 PROJECTNAME=$(shell basename "$(PWD)")
@@ -40,21 +40,17 @@ build-standalone: mod
 	@go build $(BUILD_FLAGS) -o build/ ./cmd/celestia-appd
 .PHONY: build-standalone
 
+download ?= true
 ## build: Build the celestia-appd binary into the ./build directory.
-build: mod download-v3-binaries
+build: mod
+	@if [ "$(download)" = "true" ]; then \
+		$(MAKE) download-v3-binaries; \
+	fi
 	@cd ./cmd/celestia-appd
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd with multiplexer enabled"
 	@go build $(BUILD_FLAGS_MULTIPLEXER) -o build/celestia-appd ./cmd/celestia-appd
 .PHONY: build
-
-## build-skip-download: Build the celestia-appd binary into the ./build directory and skip downloading the v3 binaries.
-build-skip-download: mod
-	@cd ./cmd/celestia-appd
-	@mkdir -p build/
-	@echo "--> Building build/celestia-appd with multiplexer enabled"
-	@go build $(BUILD_FLAGS_MULTIPLEXER) -o build/celestia-appd ./cmd/celestia-appd
-.PHONY: build-skip-download
 
 ## install-standalone: Build and install the celestia-appd binary into the $GOPATH/bin directory. This target does not install the multiplexer.
 install-standalone: check-bbr
@@ -73,19 +69,18 @@ install: check-bbr download-v3-binaries
 	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
 .PHONY: install
 
-## download-v3-binaries: Download the celestia-app v3 binary for the current platform.
+## download-v3-binaries: Download the binaries for the latest v3.x.x release.
 download-v3-binaries:
-	@echo "--> Downloading celestia-app $(CELESTIA_V3_VERSION) binary"
-	@mkdir -p internal/embedding
-	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
-	case "$$os-$$arch" in \
-		darwin-arm64) url=celestia-app_Darwin_arm64.tar.gz; out=celestia-app_darwin_v3_arm64.tar.gz ;; \
-		linux-arm64) url=celestia-app_Linux_arm64.tar.gz; out=celestia-app_linux_v3_arm64.tar.gz ;; \
-		darwin-amd64) url=celestia-app_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v3_amd64.tar.gz ;; \
-		linux-amd64) url=celestia-app_Linux_x86_64.tar.gz; out=celestia-app_linux_v3_amd64.tar.gz ;; \
-		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
-	esac; \
-	bash scripts/download_v3_binary.sh "$$url" "$$out" "$(CELESTIA_V3_VERSION)"
+	@echo "--> Downloading embedded binaries for v3"
+	@for pair in \
+		"celestia-app_Darwin_arm64.tar.gz:celestia-app_darwin_v3_arm64.tar.gz" \
+		"celestia-app_Linux_arm64.tar.gz:celestia-app_linux_v3_arm64.tar.gz" \
+		"celestia-app_Darwin_x86_64.tar.gz:celestia-app_darwin_v3_amd64.tar.gz" \
+		"celestia-app_Linux_x86_64.tar.gz:celestia-app_linux_v3_amd64.tar.gz"; do \
+		url=$${pair%%:*}; out=$${pair##*:}; \
+		$(EMBED_BIN); \
+	done
+	@echo "--> Downloaded embedded binaries for v3"
 .PHONY: download-v3-binaries
 
 ## mod: Update all go.mod files.
@@ -152,16 +147,11 @@ build-docker:
 	$(DOCKER) build -t celestiaorg/celestia-app -f docker/Dockerfile .
 .PHONY: build-docker
 
-## build-docker-multiplexer: Build the celestia-appd Multiplexer Docker image using the multiplexer Dockerfile.
-build-docker-multiplexer:
-	@echo "--> Building Multiplexer Docker image"
-	$(DOCKER) build -t celestiaorg/celestia-app-multiplexer -f docker/multiplexer.Dockerfile .
-.PHONY: build-docker-multiplexer
-
 ## docker-build: Build the celestia-appd docker image from the current branch. Requires docker.
 docker-build: build-docker
 .PHONY: docker-build
 
+## build-docker-multiplexer: Build the celestia-appd docker image with Multiplexer support from the current branch. Requires docker.
 build-docker-multiplexer:
 	@echo "--> Building Multiplexer Docker image"
 	$(DOCKER) build \
