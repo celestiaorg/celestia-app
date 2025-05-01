@@ -40,10 +40,10 @@ build-standalone: mod
 	@go build $(BUILD_FLAGS) -o build/ ./cmd/celestia-appd
 .PHONY: build-standalone
 
-download ?= true
+DOWNLOAD ?= true
 ## build: Build the celestia-appd binary into the ./build directory.
 build: mod
-	@if [ "$(download)" = "true" ]; then \
+	@if [ "$(DOWNLOAD)" = "true" ]; then \
 		$(MAKE) download-v3-binaries; \
 	fi
 	@cd ./cmd/celestia-appd

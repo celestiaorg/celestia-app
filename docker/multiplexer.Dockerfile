@@ -66,7 +66,7 @@ RUN uname -a &&\
     CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     OVERRIDE_MAX_SQUARE_SIZE=${MAX_SQUARE_SIZE} \
     OVERRIDE_UPGRADE_HEIGHT_DELAY=${UPGRADE_HEIGHT_DELAY} \
-    make build download=false
+    make build DOWNLOAD=false
 
 # Stage 3: Create a minimal image to run the celestia-appd binary
 # Ignore hadolint rule because hadolint can't parse the variable.
