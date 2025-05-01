@@ -43,10 +43,9 @@ build-standalone: mod
 DOWNLOAD ?= true
 ## build: Build the celestia-appd binary into the ./build directory.
 build: mod
-	@if [ "$(DOWNLOAD)" = "true" ]; then \
-		$(MAKE) download-v3-binaries; \
-	fi
-	@cd ./cmd/celestia-appd
+ifeq ($(DOWNLOAD),true)
+	@$(MAKE) download-v3-binaries
+endif
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd with multiplexer enabled"
 	@go build $(BUILD_FLAGS_MULTIPLEXER) -o build/celestia-appd ./cmd/celestia-appd
