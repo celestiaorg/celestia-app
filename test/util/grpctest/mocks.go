@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"sync/atomic"
 	"testing"
 
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
@@ -21,15 +20,12 @@ type MockTxService struct {
 	sdktx.UnimplementedServiceServer // Embed the unimplemented server
 
 	BroadcastHandler func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error)
-	Invocations      atomic.Int32 // Use atomic for potential concurrent access if needed
 }
 
 func (m *MockTxService) BroadcastTx(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
-	m.Invocations.Add(1)
 	if m.BroadcastHandler != nil {
 		return m.BroadcastHandler(ctx, req)
 	}
-	// Default behavior if no handler is set
 	return nil, fmt.Errorf("MockTxService.BroadcastHandler not set")
 }
 
