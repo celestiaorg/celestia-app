@@ -37,8 +37,8 @@ const (
 	prometheusPort        = 26660
 	tracingPort           = 26661
 	celestiaOrgRegistry   = "ghcr.io/celestiaorg"
-	celestiaAppDockerName = "celestia-app"
-	multiplexerDockerName = "celestia-app-multiplexer"
+	celestiaAppDockerName = "celestia-app-standalone"
+	multiplexerDockerName = "celestia-app"
 	secp256k1Type         = "secp256k1"
 	ed25519Type           = "ed25519"
 	remoteRootDir         = "/home/celestia/.celestia-app"
