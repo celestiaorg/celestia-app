@@ -105,14 +105,14 @@ build-docker:
 ## build-ghcr-docker: Build the celestia-appd docker image from the last commit. Requires docker.
 build-ghcr-docker:
 	@echo "--> Building Docker image"
-	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app:$(COMMIT) -f docker/Dockerfile .
+	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app-standalone:$(COMMIT) -f docker/Dockerfile .
 .PHONY: build-ghcr-docker
 
 ## publish-ghcr-docker: Publish the celestia-appd docker image. Requires docker.
 publish-ghcr-docker:
 # Make sure you are logged in and authenticated to the ghcr.io registry.
 	@echo "--> Publishing Docker image"
-	$(DOCKER) push ghcr.io/celestiaorg/celestia-app:$(COMMIT)
+	$(DOCKER) push ghcr.io/celestiaorg/celestia-app-standalone:$(COMMIT)
 .PHONY: publish-ghcr-docker
 
 ## lint: Run all linters; golangci-lint, markdownlint, hadolint, yamllint.
