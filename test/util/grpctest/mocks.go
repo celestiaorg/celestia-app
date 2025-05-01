@@ -66,7 +66,7 @@ func (m *MockTxService) TxDecodeAmino(context.Context, *sdktx.TxDecodeAminoReque
 }
 
 // StartMockServer starts a mock gRPC server with the given MockTxService using a TCP listener.
-func StartMockServer(t *testing.T, service *MockTxService) (*grpc.ClientConn, func()) {
+func StartMockServer(t *testing.T, service *MockTxService) *grpc.ClientConn {
 	t.Helper()
 
 	// Get a free port using the utility function
@@ -94,19 +94,11 @@ func StartMockServer(t *testing.T, service *MockTxService) (*grpc.ClientConn, fu
 	)
 	require.NoError(t, err)
 
-	stop := func() {
+	t.Cleanup(func() {
 		s.Stop()
-		closeErr := lis.Close()
-		if closeErr != nil {
-			t.Logf("Error closing listener: %v", closeErr)
-		}
-		if conn != nil {
-			connCloseErr := conn.Close()
-			if connCloseErr != nil {
-				t.Logf("Error closing connection: %v", connCloseErr)
-			}
-		}
-	}
+		_ = lis.Close()
+		_ = conn.Close()
+	})
 
-	return conn, stop
+	return conn
 }

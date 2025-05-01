@@ -454,9 +454,10 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 
 			select {
 			case respCh <- resp:
+				return context.Canceled
 			case <-childCtx.Done():
+				return childCtx.Err()
 			}
-			return nil
 		})
 	}
 

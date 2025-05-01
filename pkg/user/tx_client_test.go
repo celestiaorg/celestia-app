@@ -462,7 +462,7 @@ type broadcastTestCase struct {
 	expectError bool // Changed from error to bool
 }
 
-func (suite *TxClientTestSuite) TestBroadcastScenarios() {
+func (suite *TxClientTestSuite) TestMultiConnBroadcast() {
 	t := suite.T()
 
 	// Default options for most tests - used only to create a valid tx.
@@ -614,15 +614,17 @@ func (suite *TxClientTestSuite) TestBroadcastScenarios() {
 			primaryConn := conns[0]
 			otherConns := conns[1:]
 
-			// Create a temporary TxClient for this test case using the suite's signer/config
-			// but the mock connections.
+			// Seed a new signer with the suite's default account to avoid querying auth service on mock servers
+			origSigner := suite.txClient.Signer()
+			origAcc := origSigner.Account(suite.txClient.DefaultAccountName()).Copy()
+			signer, err := user.NewSigner(suite.ctx.Keyring, suite.encCfg.TxConfig, origSigner.ChainID(), origAcc)
+			require.NoError(t, err)
 			tempTxClient, err := user.NewTxClient(
 				suite.encCfg.Codec,
-				suite.txClient.Signer(), // Reuse signer from main client
-				primaryConn,             // Use mock primary connection
+				signer,
+				primaryConn,
 				suite.encCfg.InterfaceRegistry,
-				user.WithAdditionalCoreEndpoints(otherConns), // Use mock secondaries
-				user.WithDefaultAccount(suite.txClient.DefaultAccountName()), // Use main client's default account
+				user.WithAdditionalCoreEndpoints(otherConns),
 			)
 			require.NoError(t, err, "Failed to create temporary TxClient for test case %d", i)
 
