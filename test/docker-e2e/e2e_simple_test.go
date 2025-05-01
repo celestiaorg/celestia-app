@@ -55,14 +55,14 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 		select {
 		case <-ticker.C:
 			// Check for transactions
-			blockchain, err := testnode.ReadBlockchainHeaders(ctx, celestia.GetHostRPCAddress())
+			headers, err := testnode.ReadBlockchainHeaders(ctx, celestia.GetHostRPCAddress())
 			if err != nil {
 				t.Logf("Error reading blockchain headers: %v", err)
 				continue
 			}
 
 			totalTxs := 0
-			for _, blockMeta := range blockchain {
+			for _, blockMeta := range headers {
 				totalTxs += blockMeta.NumTxs
 			}
 
