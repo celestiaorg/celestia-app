@@ -3,7 +3,7 @@ package docker_e2e
 import (
 	"context"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	"github.com/chatton/interchaintest/chain/cosmos"
+	"github.com/chatton/interchaintest/framework/cosmos"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"

@@ -2,7 +2,7 @@ package docker_e2e
 
 import (
 	"context"
-	"github.com/chatton/interchaintest/chain/cosmos"
+	"github.com/chatton/interchaintest/framework/cosmos"
 	"github.com/chatton/interchaintest/testutil/toml"
 	"github.com/chatton/interchaintest/testutil/wait"
 	"github.com/stretchr/testify/require"

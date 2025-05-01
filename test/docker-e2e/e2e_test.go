@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/go-square/v2/share"
-	"github.com/chatton/interchaintest"
-	"github.com/chatton/interchaintest/chain/cosmos"
-	"github.com/chatton/interchaintest/chain/types"
 	"github.com/chatton/interchaintest/dockerutil"
+	"github.com/chatton/interchaintest/framework"
+	"github.com/chatton/interchaintest/framework/cosmos"
+	"github.com/chatton/interchaintest/framework/factory"
+	"github.com/chatton/interchaintest/framework/types"
 	"github.com/chatton/interchaintest/testutil/maps"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	dockertypes "github.com/docker/docker/api/types"
@@ -42,7 +43,7 @@ type CelestiaTestSuite struct {
 func (s *CelestiaTestSuite) SetupSuite() {
 	s.logger = zaptest.NewLogger(s.T())
 	s.logger.Info("Setting up Celestia test suite")
-	s.client, s.network = interchaintest.DockerSetup(s.T())
+	s.client, s.network = framework.DockerSetup(s.T())
 }
 
 func (s *CelestiaTestSuite) CreateCelestiaChain(appVersion string) (types.Chain, error) {
@@ -50,20 +51,16 @@ func (s *CelestiaTestSuite) CreateCelestiaChain(appVersion string) (types.Chain,
 	numFullNodes := 0
 
 	enc := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
-	return interchaintest.NewChain(s.logger, s.T().Name(), s.client, s.network, &interchaintest.ChainSpec{
+	return factory.NewChain(s.logger, s.T().Name(), s.client, s.network, &types.ChainSpec{
 		Name:          "celestia",
 		ChainName:     "celestia",
 		Version:       getCelestiaTag(),
 		NumValidators: &numValidators,
 		NumFullNodes:  &numFullNodes,
 		Config: types.Config{
-			ModifyGenesis: func(config types.Config, bytes []byte) ([]byte, error) {
-				return maps.SetField(bytes, "consensus.params.version.app", appVersion)
-			},
-			EncodingConfig:      &enc,
-			AdditionalStartArgs: []string{"--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099"},
-			Type:                "cosmos",
-			ChainID:             "celestia",
+			Type:    "cosmos",
+			Name:    "celestia",
+			ChainID: "celestia",
 			Images: []types.DockerImage{
 				{
 					Repository: multiplexerImage,
@@ -74,8 +71,14 @@ func (s *CelestiaTestSuite) CreateCelestiaChain(appVersion string) (types.Chain,
 			Bin:           "celestia-appd",
 			Bech32Prefix:  "celestia",
 			Denom:         "utia",
+			CoinType:      "118",
 			GasPrices:     "0.025utia",
 			GasAdjustment: 1.3,
+			ModifyGenesis: func(config types.Config, bytes []byte) ([]byte, error) {
+				return maps.SetField(bytes, "consensus.params.version.app", appVersion)
+			},
+			EncodingConfig:      &enc,
+			AdditionalStartArgs: []string{"--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099"},
 		},
 	})
 }
