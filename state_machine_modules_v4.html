@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Fraud Proofs - Celestia App Specifications</title>
+        <title>State Machine Modules v4 - Celestia App Specifications</title>
         <!-- Custom HTML head -->
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
@@ -75,7 +75,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="data_structures.html"><strong aria-hidden="true">1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="namespace.html"><strong aria-hidden="true">2.</strong> Namespace</a></li><li class="chapter-item expanded "><a href="shares.html"><strong aria-hidden="true">3.</strong> Shares</a></li><li class="chapter-item expanded "><a href="consensus.html"><strong aria-hidden="true">4.</strong> Consensus</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="cat_pool.html"><strong aria-hidden="true">4.1.</strong> CAT Pool</a></li></ol></li><li class="chapter-item expanded "><a href="block_proposer.html"><strong aria-hidden="true">5.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="block_validity_rules.html"><strong aria-hidden="true">6.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="ante_handler.html"><strong aria-hidden="true">7.</strong> AnteHandler</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="ante_handler_v1.html"><strong aria-hidden="true">7.1.</strong> AnteHandler v1</a></li><li class="chapter-item expanded "><a href="ante_handler_v2.html"><strong aria-hidden="true">7.2.</strong> AnteHandler v2</a></li><li class="chapter-item expanded "><a href="ante_handler_v3.html"><strong aria-hidden="true">7.3.</strong> AnteHandler v3</a></li><li class="chapter-item expanded "><a href="ante_handler_v4.html"><strong aria-hidden="true">7.4.</strong> AnteHandler v4</a></li></ol></li><li class="chapter-item expanded "><a href="fraud_proofs.html" class="active"><strong aria-hidden="true">8.</strong> Fraud Proofs</a></li><li class="chapter-item expanded "><a href="networking.html"><strong aria-hidden="true">9.</strong> Networking</a></li><li class="chapter-item expanded "><a href="public_key_cryptography.html"><strong aria-hidden="true">10.</strong> Public-Key Cryptography</a></li><li class="chapter-item expanded "><a href="data_square_layout.html"><strong aria-hidden="true">11.</strong> Data Square Layout</a></li><li class="chapter-item expanded "><a href="resource_pricing.html"><strong aria-hidden="true">12.</strong> Resource Pricing</a></li><li class="chapter-item expanded "><a href="multisig.html"><strong aria-hidden="true">13.</strong> Multisig</a></li><li class="chapter-item expanded "><a href="state_machine_modules.html"><strong aria-hidden="true">14.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="state_machine_modules_v1.html"><strong aria-hidden="true">14.1.</strong> State Machine Modules v1</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v2.html"><strong aria-hidden="true">14.2.</strong> State Machine Modules v2</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v3.html"><strong aria-hidden="true">14.3.</strong> State Machine Modules v3</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v4.html"><strong aria-hidden="true">14.4.</strong> State Machine Modules v4</a></li></ol></li><li class="chapter-item expanded "><a href="parameters.html"><strong aria-hidden="true">15.</strong> Parameters</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="parameters_v1.html"><strong aria-hidden="true">15.1.</strong> Parameters v1</a></li><li class="chapter-item expanded "><a href="parameters_v2.html"><strong aria-hidden="true">15.2.</strong> Parameters v2</a></li><li class="chapter-item expanded "><a href="parameters_v3.html"><strong aria-hidden="true">15.3.</strong> Parameters v3</a></li><li class="chapter-item expanded "><a href="parameters_v4.html"><strong aria-hidden="true">15.4.</strong> Parameters v4</a></li></ol></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="data_structures.html"><strong aria-hidden="true">1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="namespace.html"><strong aria-hidden="true">2.</strong> Namespace</a></li><li class="chapter-item expanded "><a href="shares.html"><strong aria-hidden="true">3.</strong> Shares</a></li><li class="chapter-item expanded "><a href="consensus.html"><strong aria-hidden="true">4.</strong> Consensus</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="cat_pool.html"><strong aria-hidden="true">4.1.</strong> CAT Pool</a></li></ol></li><li class="chapter-item expanded "><a href="block_proposer.html"><strong aria-hidden="true">5.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="block_validity_rules.html"><strong aria-hidden="true">6.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="ante_handler.html"><strong aria-hidden="true">7.</strong> AnteHandler</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="ante_handler_v1.html"><strong aria-hidden="true">7.1.</strong> AnteHandler v1</a></li><li class="chapter-item expanded "><a href="ante_handler_v2.html"><strong aria-hidden="true">7.2.</strong> AnteHandler v2</a></li><li class="chapter-item expanded "><a href="ante_handler_v3.html"><strong aria-hidden="true">7.3.</strong> AnteHandler v3</a></li><li class="chapter-item expanded "><a href="ante_handler_v4.html"><strong aria-hidden="true">7.4.</strong> AnteHandler v4</a></li></ol></li><li class="chapter-item expanded "><a href="fraud_proofs.html"><strong aria-hidden="true">8.</strong> Fraud Proofs</a></li><li class="chapter-item expanded "><a href="networking.html"><strong aria-hidden="true">9.</strong> Networking</a></li><li class="chapter-item expanded "><a href="public_key_cryptography.html"><strong aria-hidden="true">10.</strong> Public-Key Cryptography</a></li><li class="chapter-item expanded "><a href="data_square_layout.html"><strong aria-hidden="true">11.</strong> Data Square Layout</a></li><li class="chapter-item expanded "><a href="resource_pricing.html"><strong aria-hidden="true">12.</strong> Resource Pricing</a></li><li class="chapter-item expanded "><a href="multisig.html"><strong aria-hidden="true">13.</strong> Multisig</a></li><li class="chapter-item expanded "><a href="state_machine_modules.html"><strong aria-hidden="true">14.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="state_machine_modules_v1.html"><strong aria-hidden="true">14.1.</strong> State Machine Modules v1</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v2.html"><strong aria-hidden="true">14.2.</strong> State Machine Modules v2</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v3.html"><strong aria-hidden="true">14.3.</strong> State Machine Modules v3</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v4.html" class="active"><strong aria-hidden="true">14.4.</strong> State Machine Modules v4</a></li></ol></li><li class="chapter-item expanded "><a href="parameters.html"><strong aria-hidden="true">15.</strong> Parameters</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="parameters_v1.html"><strong aria-hidden="true">15.1.</strong> Parameters v1</a></li><li class="chapter-item expanded "><a href="parameters_v2.html"><strong aria-hidden="true">15.2.</strong> Parameters v2</a></li><li class="chapter-item expanded "><a href="parameters_v3.html"><strong aria-hidden="true">15.3.</strong> Parameters v3</a></li><li class="chapter-item expanded "><a href="parameters_v4.html"><strong aria-hidden="true">15.4.</strong> Parameters v4</a></li></ol></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -137,34 +137,49 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="fraud-proofs"><a class="header" href="#fraud-proofs">Fraud Proofs</a></h1>
-<h2 id="bad-encoding-fraud-proofs"><a class="header" href="#bad-encoding-fraud-proofs">Bad Encoding Fraud Proofs</a></h2>
-<p>In order for data availability sampling to work, light clients must be convinced
-that erasure encoded parity data was encoded correctly. For light clients, this
-is ultimately enforced via <a href="https://github.com/celestiaorg/celestia-node/blob/v0.11.0-rc3/docs/adr/adr-006-fraud-service.md#detailed-design">bad encoding fraud proofs
-(BEFPs)</a>.
-Consensus nodes must verify this themselves before considering a block valid.
-This is done automatically by verifying the data root of the header, since that
-requires reconstructing the square from the block data, performing the erasure
-encoding, calculating the data root using that representation, and then
-comparing the data root found in the header.</p>
-<h2 id="blob-inclusion"><a class="header" href="#blob-inclusion">Blob Inclusion</a></h2>
-<p>TODO</p>
-<h2 id="state"><a class="header" href="#state">State</a></h2>
-<p>State fraud proofs allow light clients to avoid making an honest majority assumption for
-state validity. While these are not incorporated into the protocol as of v1.0.0,
-there are example implementations that can be found in
-<a href="https://github.com/rollkit/rollkit">Rollkit</a>. More info in
-<a href="https://github.com/rollkit/rollkit/blob/4fd97ba8b8352771f2e66454099785d06fd0c31b/docs/lazy-adr/adr-009-state-fraud-proofs.md">rollkit-ADR009</a>.</p>
+                        <h1 id="state-machine-modules-v4"><a class="header" href="#state-machine-modules-v4">State Machine Modules v4</a></h1>
+<p>The modules used in app version 4 are:</p>
+<h2 id="celestia-app-modules"><a class="header" href="#celestia-app-modules"><code>celestia-app</code> modules</a></h2>
+<ul>
+<li><a href="https://github.com/celestiaorg/celestia-app/blob/e5d5ac6732c55150ea3573e17bec162fe836e0c6/x/blob/README.md">blob</a></li>
+<li><a href="https://github.com/celestiaorg/celestia-app/blob/e5d5ac6732c55150ea3573e17bec162fe836e0c6/x/minfee/README.md">minfee</a></li>
+<li><a href="https://github.com/celestiaorg/celestia-app/blob/e5d5ac6732c55150ea3573e17bec162fe836e0c6/x/mint/README.md">mint</a></li>
+<li><a href="https://github.com/celestiaorg/celestia-app/blob/e5d5ac6732c55150ea3573e17bec162fe836e0c6/x/signal/README.md">signal</a></li>
+<li><a href="https://github.com/celestiaorg/celestia-app/blob/e5d5ac6732c55150ea3573e17bec162fe836e0c6/x/tokenfilter/README.md">tokenfilter</a></li>
+</ul>
+<h2 id="cosmos-sdk-modules"><a class="header" href="#cosmos-sdk-modules"><code>cosmos-sdk</code> modules</a></h2>
+<ul>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/d44ddbb106ad0cd510c170e7d23ee8a48d003ba5/x/auth/README.md">auth</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/d44ddbb106ad0cd510c170e7d23ee8a48d003ba5/x/authz/README.md">authz</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/d44ddbb106ad0cd510c170e7d23ee8a48d003ba5/x/bank/README.md">bank</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/d44ddbb106ad0cd510c170e7d23ee8a48d003ba5/x/distribution/README.md">distribution</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/d44ddbb106ad0cd510c170e7d23ee8a48d003ba5/x/evidence/README.md">evidence</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/d44ddbb106ad0cd510c170e7d23ee8a48d003ba5/x/feegrant/README.md">feegrant</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/d44ddbb106ad0cd510c170e7d23ee8a48d003ba5/x/genutil/README.md">genutil</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/d44ddbb106ad0cd510c170e7d23ee8a48d003ba5/x/gov/README.md">gov</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/d44ddbb106ad0cd510c170e7d23ee8a48d003ba5/x/params/README.md">params</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/d44ddbb106ad0cd510c170e7d23ee8a48d003ba5/x/slashing/README.md">slashing</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/d44ddbb106ad0cd510c170e7d23ee8a48d003ba5/x/staking/README.md">staking</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/d44ddbb106ad0cd510c170e7d23ee8a48d003ba5/x/auth/vesting/README.md">vesting</a></li>
+</ul>
+<h2 id="third-party-modules"><a class="header" href="#third-party-modules">Third-party modules</a></h2>
+<ul>
+<li><a href="https://github.com/bcp-innovations/hyperlane-cosmos/tree/f2bd6ed84c791b17a46bcc3d329e8c9eba97b425/x/core">hyperlane/core</a></li>
+<li><a href="https://github.com/bcp-innovations/hyperlane-cosmos/tree/f2bd6ed84c791b17a46bcc3d329e8c9eba97b425/x/warp">hyperlane/warp</a></li>
+<li><a href="https://github.com/cosmos/ibc/blob/f990a7f96eb7753c2fabbd49ed50b64d3a807629/README.md">ibc</a></li>
+<li><a href="https://github.com/cosmos/ibc/blob/2921c5cec7b18e4ef77677e16a6b693051ae3b35/spec/app/ics-027-interchain-accounts/README.md">interchain accounts</a></li>
+<li><a href="https://github.com/cosmos/ibc-apps/blob/main/middleware/packet-forward-middleware/README.md">packetforwardmiddleware</a></li>
+<li><a href="https://github.com/cosmos/ibc/blob/f990a7f96eb7753c2fabbd49ed50b64d3a807629/spec/app/ics-020-fungible-token-transfer/README.md">transfer</a></li>
+</ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="ante_handler_v4.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="state_machine_modules_v3.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
-                            <a rel="next" href="networking.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="parameters.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         <div style="clear: both"></div>
@@ -173,10 +188,10 @@ there are example implementations that can be found in
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="ante_handler_v4.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="state_machine_modules_v3.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
-                    <a rel="next" href="networking.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="parameters.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
