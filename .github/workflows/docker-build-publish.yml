@@ -25,6 +25,7 @@ jobs:
     with:
       dockerfile: docker/Dockerfile
       checkout_ref: ${{ github.event.inputs.ref }}
+      packageName: celestia-app-standalone
     secrets: inherit
 
   docker-txsim-build:

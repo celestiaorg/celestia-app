@@ -2,7 +2,7 @@
 
 Celestia uses the [knuu](https://github.com/celestiaorg/knuu) framework to orchestrate clusters of nodes in a network for end-to-end testing. This relies on Docker and a kubeconfig (in `~/.kube/config`) to access the Kubernetes cluster.
 
-End-to-end tests pull docker images from `ghcr.io/celestiaorg/celestia-app`. These are automatically published when tagging a new release or when opening a pull request. If you wish to manually test a specific commit, you can manually publish the image by first running `make build-ghcr-docker` (from the root directory) and then running `make publish-ghcr-docker`. You must have permission to push to the `ghcr.io/celestiaorg/celestia-app` repository.
+End-to-end tests pull docker images from `ghcr.io/celestiaorg/celestia-app-standalone`. These are automatically published when tagging a new release or when opening a pull request. If you wish to manually test a specific commit, you can manually publish the image by first running `make build-ghcr-docker` (from the root directory) and then running `make publish-ghcr-docker`. You must have permission to push to the `ghcr.io/celestiaorg/celestia-app-standalone` repository.
 
 ## Usage
 
