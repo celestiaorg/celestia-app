@@ -1,9 +1,7 @@
-# AnteHandler v3
+# AnteHandler v4
 
-The AnteHandler chains together several decorators to ensure the following criteria are met for app version 3:
+The AnteHandler chains together several decorators to ensure the following criteria are met for app version 4:
 
-- The tx does not contain any messages that are unsupported by the current app version. See `MsgVersioningGateKeeper`.
-- The `sdk.Tx` size is not larger than the application's configured versioned constant [MaxTxSize](https://github.com/celestiaorg/celestia-app/blob/8ba82c1b872b7f5686d9bb91b93a0442223d7bb2/pkg/appconsts/v3/app_consts.go#L9). This limit does not apply to blobs.
 - The tx does not contain any [extension options](https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L119-L122).
 - The tx passes `ValidateBasic()`.
 - The tx's [timeout_height](https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L115-L117) has not been reached if one is specified.
@@ -17,8 +15,9 @@ The AnteHandler chains together several decorators to ensure the following crite
 - The tx does not contain a `MsgExec` with a nested `MsgExec` or `MsgPayForBlobs`.
 - The tx's [gas_limit](https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L211-L213) is > the gas consumed based on the blob size(s). Since blobs are charged based on the number of shares they occupy, the gas consumed is calculated as follows: `gasToConsume = sharesNeeded(blob) * bytesPerShare * gasPerBlobByte`. Where `bytesPerShare` is a global constant (an alias for [`ShareSize = 512`](https://github.com/celestiaorg/celestia-app/blob/c90e61d5a2d0c0bd0e123df4ab416f6f0d141b7f/pkg/appconsts/global_consts.go#L27-L28)) and `gasPerBlobByte` is a versioned constant that can be modified through hard forks (the [`DefaultGasPerBlobByte = 8`](https://github.com/celestiaorg/celestia-app/blob/32fc6903478ea08eba728ac9cd4ffedf9ef72d98/pkg/appconsts/v3/app_consts.go#L8)).
 - The tx's total blob share count is <= the max blob share count. The max blob share count is derived from the maximum valid square size. The max valid square size is the minimum of: `GovMaxSquareSize` and `SquareSizeUpperBound`.
-- The tx does not contain a message of type [MsgSubmitProposal](https://github.com/cosmos/cosmos-sdk/blob/d6d929843bbd331b885467475bcb3050788e30ca/proto/cosmos/gov/v1/tx.proto#L33-L43) with zero proposal messages.
+- The tx does not contain a message of type [MsgSubmitProposal](https://github.com/cosmos/cosmos-sdk/blob/d6d929843bbd331b885467475bcb3050788e30ca/proto/cosmos/gov/v1/tx.proto#L33-L43) with zero proposal messages or with a proposal message that modifies a parameter that is not governance modifiable.
 - The tx is not an IBC packet or update message that has already been processed.
+- The tx does not contain any messages that are disabled by the circuit breaker (e.g. `MsgSoftwareUpgrade`, `MsgCancelUpgrade`, `MsgIBCSoftwareUpgrade`).
 
 In addition to the above criteria, the AnteHandler also has a number of side-effects:
 
