@@ -1,4 +1,4 @@
-VERSION := $(shell echo $(shell git describe --tags 2>/dev/null || git log -1 --format='%h') | sed 's/^v//')
+VERSION := $(shell echo $(shell git describe --tags --always --match "v*") | sed 's/^v//')
 COMMIT := $(shell git rev-parse --short HEAD)
 DOCKER := $(shell which docker)
 PROJECTNAME=$(shell basename "$(PWD)")
