@@ -73,8 +73,7 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 				return
 			}
 		case <-pollCtx.Done():
-			t.Logf("Timed out waiting for %d transactions", requiredTxs)
-			t.Failed()
+			t.Fatalf("Timed out waiting for %d transactions", requiredTxs)
 		}
 	}
 }

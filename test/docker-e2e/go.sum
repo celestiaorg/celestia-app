@@ -368,8 +368,8 @@ github.com/cespare/xxhash v1.1.0/go.mod h1:XrSqR1VqqWfGrhpAt58auRo0WTKS1nRRg3ghf
 github.com/cespare/xxhash/v2 v2.1.1/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
 github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
-github.com/chatton/interchaintest v0.0.0-20250430124008-52f58f502e10 h1:Mt7Ml0kPnG4ARPllJdWE+zZ2GKyhiZmDKmg006Pd7L0=
-github.com/chatton/interchaintest v0.0.0-20250430124008-52f58f502e10/go.mod h1:gl3vOlPI25jIEn/EkWfFJmtqLy/ySjB2jXrYvuEgPBQ=
+github.com/chatton/interchaintest v0.0.0-20250501121702-b764a50b2f5e h1:KmVLG8LOja9BnFmjTXbddOx49GEfwOnd9NXKCUKzEgw=
+github.com/chatton/interchaintest v0.0.0-20250501121702-b764a50b2f5e/go.mod h1:nVxFqOpUHxQHURQm8ystMasA6lBpX0OwunaGkD3x/9o=
 github.com/cheggaaa/pb v1.0.27/go.mod h1:pQciLPpbU0oxA0h+VJYYLxO+XeDQb5pZijXscXHm81s=
 github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
 github.com/chzyer/logex v1.2.1 h1:XHDu3E6q+gdHgsdTPH6ImJMIp436vR6MPtH8gP05QzM=
@@ -449,8 +449,6 @@ github.com/cosmos/ibc-go/v8 v8.7.0 h1:HqhVOkO8bDpClXE81DFQgFjroQcTvtpm0tCS7SQVKV
 github.com/cosmos/ibc-go/v8 v8.7.0/go.mod h1:G2z+Q6ZQSMcyHI2+BVcJdvfOupb09M2h/tgpXOEdY6k=
 github.com/cosmos/ics23/go v0.11.0 h1:jk5skjT0TqX5e5QJbEnwXIS2yI2vnmLOgpQPeM5RtnU=
 github.com/cosmos/ics23/go v0.11.0/go.mod h1:A8OjxPE67hHST4Icw94hOxxFEJMBG031xIGF/JHNIY0=
-github.com/cosmos/interchain-security/v5 v5.1.1 h1:xmRRMeE4xoc+JAZUh0XzXFYWaGBtzFFj5SETuOgnEnY=
-github.com/cosmos/interchain-security/v5 v5.1.1/go.mod h1:vmeTcTxFCl1eV0o6xpl/IRT7Basz0szVVGzbppnInMg=
 github.com/cosmos/ledger-cosmos-go v0.14.0 h1:WfCHricT3rPbkPSVKRH+L4fQGKYHuGOK9Edpel8TYpE=
 github.com/cosmos/ledger-cosmos-go v0.14.0/go.mod h1:E07xCWSBl3mTGofZ2QnL4cIUzMbbGVyik84QYKbX3RA=
 github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d/go.mod h1:maD7wRr/U5Z6m/iR4s+kqSMx2CaBsrgA7czyZG/E6dU=

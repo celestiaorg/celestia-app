@@ -7,11 +7,11 @@ import (
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/chatton/interchaintest"
 	"github.com/chatton/interchaintest/chain/cosmos"
+	"github.com/chatton/interchaintest/chain/types"
 	"github.com/chatton/interchaintest/dockerutil"
-	"github.com/chatton/interchaintest/ibc"
 	"github.com/chatton/interchaintest/testutil/maps"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
-	"github.com/docker/docker/api/types"
+	dockertypes "github.com/docker/docker/api/types"
 	"github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -45,7 +45,7 @@ func (s *CelestiaTestSuite) SetupSuite() {
 	s.client, s.network = interchaintest.DockerSetup(s.T())
 }
 
-func (s *CelestiaTestSuite) CreateCelestiaChain(appVersion string) (ibc.Chain, error) {
+func (s *CelestiaTestSuite) CreateCelestiaChain(appVersion string) (types.Chain, error) {
 	numValidators := 4
 	numFullNodes := 0
 
@@ -56,15 +56,15 @@ func (s *CelestiaTestSuite) CreateCelestiaChain(appVersion string) (ibc.Chain, e
 		Version:       getCelestiaTag(),
 		NumValidators: &numValidators,
 		NumFullNodes:  &numFullNodes,
-		Config: ibc.Config{
-			ModifyGenesis: func(config ibc.Config, bytes []byte) ([]byte, error) {
+		Config: types.Config{
+			ModifyGenesis: func(config types.Config, bytes []byte) ([]byte, error) {
 				return maps.SetField(bytes, "consensus.params.version.app", appVersion)
 			},
 			EncodingConfig:      &enc,
 			AdditionalStartArgs: []string{"--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099"},
 			Type:                "cosmos",
 			ChainID:             "celestia",
-			Images: []ibc.DockerImage{
+			Images: []types.DockerImage{
 				{
 					Repository: multiplexerImage,
 					Version:    getCelestiaTag(),
@@ -130,7 +130,7 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, celestia *cosmos.Ch
 
 // getNetworkNameFromID resolves the network name given its ID.
 func getNetworkNameFromID(ctx context.Context, cli *client.Client, networkID string) (string, error) {
-	network, err := cli.NetworkInspect(ctx, networkID, types.NetworkInspectOptions{})
+	network, err := cli.NetworkInspect(ctx, networkID, dockertypes.NetworkInspectOptions{})
 	if err != nil {
 		return "", fmt.Errorf("failed to inspect network %s: %w", networkID, err)
 	}
