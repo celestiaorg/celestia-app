@@ -22,7 +22,7 @@ func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 		stateSyncTimeout           = 5 * time.Minute
 	)
 
-	celestia, err := s.CreateCelestiaChain("v4.0.0-rc1", "4")
+	celestia, err := s.CreateCelestiaChain("4")
 	s.Require().NoError(err)
 
 	// Start the chain
@@ -46,7 +46,7 @@ func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 	cosmosChain, ok := celestia.(*cosmos.Chain)
 	require.True(t, ok, "expected celestia to be a cosmos.Chain")
 
-	s.CreateTxSim(ctx, "v4.0.0-rc1", cosmosChain)
+	s.CreateTxSim(ctx, cosmosChain)
 
 	nodeClient := cosmosChain.Nodes()[0].Client
 

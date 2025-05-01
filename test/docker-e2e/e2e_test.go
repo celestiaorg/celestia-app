@@ -17,13 +17,15 @@ import (
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
+	"os"
 	"testing"
 	"time"
 )
 
 const (
-	multiplexerImage = "ghcr.io/celestiaorg/celestia-app-multiplexer"
-	txsimImage       = "ghcr.io/celestiaorg/txsim"
+	multiplexerImage   = "ghcr.io/celestiaorg/celestia-app-multiplexer"
+	txsimImage         = "ghcr.io/celestiaorg/txsim"
+	defaultCelestiaTag = "v4.0.0-rc1"
 )
 
 func TestCelestiaTestSuite(t *testing.T) {
@@ -43,7 +45,7 @@ func (s *CelestiaTestSuite) SetupSuite() {
 	s.client, s.network = interchaintest.DockerSetup(s.T())
 }
 
-func (s *CelestiaTestSuite) CreateCelestiaChain(tag string, appVersion string) (ibc.Chain, error) {
+func (s *CelestiaTestSuite) CreateCelestiaChain(appVersion string) (ibc.Chain, error) {
 	numValidators := 4
 	numFullNodes := 0
 
@@ -51,7 +53,7 @@ func (s *CelestiaTestSuite) CreateCelestiaChain(tag string, appVersion string) (
 	return interchaintest.NewChain(s.logger, s.T().Name(), s.client, s.network, &interchaintest.ChainSpec{
 		Name:          "celestia",
 		ChainName:     "celestia",
-		Version:       tag,
+		Version:       getCelestiaTag(),
 		NumValidators: &numValidators,
 		NumFullNodes:  &numFullNodes,
 		Config: ibc.Config{
@@ -65,7 +67,7 @@ func (s *CelestiaTestSuite) CreateCelestiaChain(tag string, appVersion string) (
 			Images: []ibc.DockerImage{
 				{
 					Repository: multiplexerImage,
-					Version:    tag,
+					Version:    getCelestiaTag(),
 					UIDGID:     "10001:10001",
 				},
 			},
@@ -79,14 +81,14 @@ func (s *CelestiaTestSuite) CreateCelestiaChain(tag string, appVersion string) (
 }
 
 // CreateTxSim deploys and starts a txsim container to simulate transactions against the given celestia chain in the test environment.
-func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, tag string, celestia *cosmos.Chain) {
+func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, celestia *cosmos.Chain) {
 	t := s.T()
 	networkName, err := getNetworkNameFromID(ctx, s.client, s.network)
 	s.Require().NoError(err)
 
 	// Deploy txsim image
 	t.Log("Deploying txsim image")
-	txsimImage := dockerutil.NewImage(s.logger, s.client, networkName, t.Name(), txsimImage, tag)
+	txsimImage := dockerutil.NewImage(s.logger, s.client, networkName, t.Name(), txsimImage, getCelestiaTag())
 
 	// Get the RPC address to connect to the Celestia node
 	rpcAddress := celestia.GetHostRPCAddress()
@@ -136,4 +138,23 @@ func getNetworkNameFromID(ctx context.Context, cli *client.Client, networkID str
 		return "", fmt.Errorf("network %s has no name", networkID)
 	}
 	return network.Name, nil
+}
+
+// getDockerRegistry returns the Docker registry to use for images.
+// It can be overridden by setting the DOCKER_REGISTRY environment variable.
+// If no override is provided, it returns the default "ghcr.io/celestiaorg".
+func getDockerRegistry() string {
+	if registry := os.Getenv("DOCKER_REGISTRY"); registry != "" {
+		return registry
+	}
+	return multiplexerImage
+}
+
+// getCelestiaTag returns the tag to use for Celestia images.
+// It can be overridden by setting the CELESTIA_TAG environment.
+func getCelestiaTag() string {
+	if tag := os.Getenv("CELESTIA_TAG"); tag != "" {
+		return tag
+	}
+	return defaultCelestiaTag
 }

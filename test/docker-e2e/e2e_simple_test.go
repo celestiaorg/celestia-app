@@ -15,7 +15,7 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 		t.Skip("skipping in short mode")
 	}
 
-	celestia, err := s.CreateCelestiaChain("v4.0.0-rc1", "4")
+	celestia, err := s.CreateCelestiaChain("4")
 	s.Require().NoError(err)
 
 	// Start the chain
@@ -39,7 +39,7 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 	cosmosChain, ok := celestia.(*cosmos.Chain)
 	require.True(t, ok, "expected celestia to be a cosmos.Chain")
 
-	s.CreateTxSim(ctx, "v4.0.0-rc1", cosmosChain)
+	s.CreateTxSim(ctx, cosmosChain)
 
 	pollCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
