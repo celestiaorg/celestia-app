@@ -2,8 +2,7 @@
 
 The AnteHandler chains together several decorators to ensure the following criteria are met for app version 4:
 
-- The tx does not contain any messages that are unsupported by the current app version. See `MsgVersioningGateKeeper`.
-- The tx size is not larger than the application's configured versioned constant [MaxTxSize](https://github.com/celestiaorg/celestia-app/blob/main/pkg/appconsts/v4/app_consts.go#L9).
+- The tx does not contain any messages that are blocked by the parameter filter. See `NewParamFilterDecorator`.
 - The tx does not contain any [extension options](https://github.com/cosmos/cosmos-sdk/blob/v0.50.0/proto/cosmos/tx/v1beta1/tx.proto#L119-L122).
 - The tx passes `ValidateBasic()`.
 - The tx's [timeout_height](https://github.com/cosmos/cosmos-sdk/blob/v0.50.0/proto/cosmos/tx/v1beta1/tx.proto#L115-L117) has not been reached if one is specified.
@@ -19,7 +18,7 @@ The AnteHandler chains together several decorators to ensure the following crite
 - The tx does not contain a message of type [MsgSubmitProposal](https://github.com/cosmos/cosmos-sdk/blob/v0.50.0/proto/cosmos/gov/v1/tx.proto#L33-L43) with zero proposal messages.
 - The tx is not an IBC packet or update message that has already been processed.
 - The tx does not contain a `MsgExec` with nested `MsgExec` or `MsgPayForBlobs`.
-- The tx passes any circuit breaker checks from the circuit module.
+- The tx passes any circuit breaker checks from the circuit module. See `NewCircuitBreakerDecorator`.
 
 In addition to the above criteria, the AnteHandler also has a number of side-effects:
 
