@@ -34,7 +34,7 @@ func Test_newGovModule(t *testing.T) {
 	}}
 	wantExpeditedMinDeposit := []types.Coin{{
 		Denom:  params.BondDenom,
-		Amount: math.NewInt(10_000_000_001),
+		Amount: math.NewInt(50_000_000_000),
 	}}
 
 	assert.Equal(t, wantMinDeposit, govGenesisState.Params.MinDeposit)
