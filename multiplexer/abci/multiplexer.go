@@ -616,7 +616,10 @@ func (m *Multiplexer) setupRemoteAppCleanup(cleanupFn func() error) {
 
 		// Re-send the signal to allow the normal process termination
 		signal.Reset(os.Interrupt, syscall.SIGTERM)
-		syscall.Kill(os.Getpid(), sig.(syscall.Signal))
+		err := syscall.Kill(os.Getpid(), sig.(syscall.Signal))
+		if err != nil {
+			m.logger.Error("Error killing process", "err", err)
+		}
 	}()
 }
 
