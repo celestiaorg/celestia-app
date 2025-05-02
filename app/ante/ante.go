@@ -45,6 +45,7 @@ func NewAnteHandler(
 		// Side effect: consumes gas from the gas meter.
 		NewConsumeGasForTxSizeDecorator(accountKeeper),
 		// Ensure the feepayer (fee granter or first signer) has enough funds to pay for the tx.
+		// Ensure that the tx's gas price is >= the network minimum gas price.
 		// Side effect: deducts fees from the fee payer. Sets the tx priority in context.
 		ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, ValidateTxFeeWrapper(minfeeKeeper)),
 		// Set public keys in the context for fee-payer and all signers.
@@ -76,7 +77,7 @@ func NewAnteHandler(
 		ante.NewIncrementSequenceDecorator(accountKeeper),
 		// Ensure that the tx is not an IBC packet or update message that has already been processed.
 		ibcante.NewRedundantRelayDecorator(channelKeeper),
-		// Wire circuit breaker decorator.
+		// Ensure that the tx does not contain any messages that are disabled by the circuit breaker.
 		circuitante.NewCircuitBreakerDecorator(circuitkeeper),
 	)
 }

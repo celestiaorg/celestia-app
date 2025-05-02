@@ -36,6 +36,7 @@ func Test_newGovModule(t *testing.T) {
 	assert.Equal(t, want, govGenesisState.Params.MinDeposit)
 	assert.Equal(t, oneWeek, *govGenesisState.Params.MaxDepositPeriod)
 	assert.Equal(t, oneWeek, *govGenesisState.Params.VotingPeriod)
+	assert.Equal(t, params.BondDenom, govGenesisState.Params.ExpeditedMinDeposit[0].Denom)
 }
 
 func TestDefaultAppConfig(t *testing.T) {
