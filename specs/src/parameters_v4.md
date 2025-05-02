@@ -73,6 +73,10 @@ hardcoded in the application or they are blocked by the `x/paramfilter` module.
 | staking.MinCommissionRate                     | 0.05 (5%)                                   | Minimum commission rate used by all validators.                                                                                     | True                      |
 | staking.UnbondingTime                         | 1814400 (21 days)                           | Duration of time for unbonding in seconds.                                                                                          | False                     |
 | warp.MinTimeout                               | 3600 (1 hour)                               | Minimum timeout (in seconds) for a warp transfer.                                                                                   | True                      |
+| warp.EnabledTokenTypes                        | [1]                                         | Array of enabled token types (1: Collateral tokens, 2: Synthetic tokens).                                                           | True                      |
+| hyperlane.ism_sequence                        | 0                                           | Sequence counter for Interchain Security Modules (ISMs) used for unique identifier generation.                                       | True                      |
+| hyperlane.post_dispatch_sequence              | 0                                           | Sequence counter for post-dispatch hooks that are executed after message dispatch.                                                   | True                      |
+| hyperlane.app_sequence                        | 0                                           | Sequence counter for Hyperlane applications that use the core module.                                                                | True                      |
 
 Note: none of the mint module parameters are governance modifiable because they have been converted into hardcoded constants. See the x/mint README.md for more details.
 
