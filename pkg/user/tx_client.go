@@ -23,7 +23,6 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
-	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 
 	"github.com/celestiaorg/go-square/v2/share"
@@ -442,43 +441,54 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 	respCh := make(chan *sdktypes.TxResponse, 1)
 	errCh := make(chan error, len(client.conns))
 
-	g, childCtx := errgroup.WithContext(ctx)
+	// Create cancellable context for coordinating goroutines
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// Use WaitGroup to wait for all broadcast attempts
+	var wg sync.WaitGroup
+	wg.Add(len(client.conns))
 
 	for _, conn := range client.conns {
-		g.Go(func() error {
-			resp, err := client.broadcastTx(childCtx, conn, txBytes, signer)
+		// Launch broadcast in parallel
+		go func(conn *grpc.ClientConn) {
+			defer wg.Done()
+
+			resp, err := client.broadcastTx(ctx, conn, txBytes, signer)
 			if err != nil {
-				errCh <- err
-				return nil
+				select {
+				case errCh <- err:
+				case <-ctx.Done():
+				}
+				return
 			}
 
+			// On first successful response, send it and cancel others
 			select {
 			case respCh <- resp:
-				return context.Canceled
-			case <-childCtx.Done():
-				return childCtx.Err()
+				cancel()
+			case <-ctx.Done():
 			}
-		})
+		}(conn)
 	}
 
-	groupErr := g.Wait()
-
+	// Wait for all attempts to finish
+	wg.Wait()
 	close(respCh)
 	close(errCh)
 
-	if firstResp, ok := <-respCh; ok {
-		return firstResp, nil
+	// Return first successful response, if any
+	if resp, ok := <-respCh; ok {
+		return resp, nil
 	}
 
-	broadcastErrs := make([]error, 0, len(client.conns))
+	// Otherwise, return the first error encountered
 	for err := range errCh {
-		broadcastErrs = append(broadcastErrs, err)
+		return nil, err
 	}
 
-	if len(broadcastErrs) > 0 {
-		return nil, broadcastErrs[0]
-	}
-	return nil, groupErr
+	// Fallback: no response or errors received
+	return nil, fmt.Errorf("broadcastMulti: no response or errors received")
 }
 
 // pruneTxTracker removes transactions from the local tx tracker that are older than 10 minutes
