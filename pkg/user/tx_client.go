@@ -480,12 +480,11 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 	}
 
 	// Otherwise, return the first error encountered
+	errs := make([]error, 0, len(errCh))
 	for err := range errCh {
-		return nil, err
+		errs = append(errs, err)
 	}
-
-	// Fallback: no response or errors received
-	return nil, fmt.Errorf("broadcastMulti: no response or errors received")
+	return nil, errors.Join(errs...)
 }
 
 // pruneTxTracker removes transactions from the local tx tracker that are older than 10 minutes
