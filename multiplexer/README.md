@@ -112,7 +112,7 @@ The default list of flags, unless overridden is the following:
 Note: Flags passed when starting the application are passed down to each embedded binary. `Multiplexer` then adds the extra flags.
 For instance, when calling `appd start --force-no-bbr`, the native app runs with only `--force-no-bbr` flag, while the embedded app runs with `--force-no-bbr` and the default flags.
 
-Note 2: The remote clients work via `gRPC` connection, when overriding the start flags, please always make sure to include `with-tendermint-false` / `with-comet=false` and `--transport=grpc` in the list of flags.
+Note 2: The remote clients work via `gRPC` connection, when overriding the start flags, please always make sure to include `--with-tendermint=false` and `--transport=grpc` in the list of flags.
 
 ## Passthrough mode
 
