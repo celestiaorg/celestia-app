@@ -441,16 +441,13 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 	respCh := make(chan *sdktypes.TxResponse, 1)
 	errCh := make(chan error, len(client.conns))
 
-	// Create cancellable context for coordinating goroutines
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	// Use WaitGroup to wait for all broadcast attempts
 	var wg sync.WaitGroup
 	wg.Add(len(client.conns))
 
 	for _, conn := range client.conns {
-		// Launch broadcast in parallel
 		go func(conn *grpc.ClientConn) {
 			defer wg.Done()
 
