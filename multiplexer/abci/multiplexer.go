@@ -37,8 +37,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/multiplexer/appd"
-	"github.com/celestiaorg/celestia-app/multiplexer/internal"
+	"github.com/celestiaorg/celestia-app/v4/multiplexer/appd"
+	"github.com/celestiaorg/celestia-app/v4/multiplexer/internal"
 )
 
 const (

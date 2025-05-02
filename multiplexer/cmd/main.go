@@ -5,7 +5,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/server/types"
 
-	"github.com/celestiaorg/celestia-app/multiplexer/abci"
+	"github.com/celestiaorg/celestia-app/v4/multiplexer/abci"
 )
 
 // StartCommandHandler is the type that must implement the multiplexer to match Cosmos SDK start logic.
