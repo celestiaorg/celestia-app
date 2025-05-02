@@ -25,6 +25,7 @@ jobs:
     with:
       dockerfile: docker/Dockerfile
       checkout_ref: ${{ github.event.inputs.ref }}
+      packageName: celestia-app-standalone
     secrets: inherit
 
   docker-multiplexer-build:
@@ -35,7 +36,7 @@ jobs:
     with:
       dockerfile: docker/multiplexer.Dockerfile
       checkout_ref: ${{ github.event.inputs.ref }}
-      packageName: celestia-app-multiplexer
+      packageName: celestia-app
       buildArgs: "TARGETOS=linux TARGETARCH=amd64"
     secrets: inherit
 

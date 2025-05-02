@@ -1,19 +1,24 @@
-# Parameters v2
+# Parameters v4
 
-The parameters below represent the parameters for app version 2.
+The parameters below represent the parameters for app version 4.
 
 Note that not all of these parameters are changeable via governance. This list
 also includes parameter that require a hardfork to change due to being manually
-hardcoded in the application or they are blocked by the `x/paramfilter` module.
+hardcoded in the application or they are blocked by the `ParamFilterDecorator`.
+Parameters that are governance modifiables can be modified via a
+`MsgSubmitProposal` that contains a `moduleXYZ.MsgUpdateParams` message.
 
 ## Global parameters
 
-| Parameter            | Value        | Summary                                                                                                                                                            | Changeable via Governance |
-|----------------------|--------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------|
-| SquareSizeUpperBound | 128          | Hardcoded maximum square size which limits the number of shares per row or column for the original data square (not yet extended).                                 | False                     |
-| SubtreeRootThreshold | 64           | See [ADR-013](https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md) for more details. | False                     |
-| UpgradeHeightDelay   | 50400 blocks | Height based delay after a successful `MsgTryUpgrade` has been submitted.                                                                                          | False                     |
-| MaxBlockSizeBytes    | 100 MiB      | Hardcoded value in CometBFT for the protobuf encoded block.                                                                                                        | False                     |
+| Parameter            | Value         | Summary                                                                                                                                                                                                                                                           | Changeable via Governance |
+|----------------------|---------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------|
+| SquareSizeUpperBound | 128           | Hardcoded maximum square size which limits the number of shares per row or column for the original data square (not yet extended).                                                                                                                                | False                     |
+| SubtreeRootThreshold | 64            | See [ADR-013](https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md) for more details.                                                                                                | False                     |
+| MaxTxSize            | 2 MiB         | Maximum size of a transaction in bytes.                                                                                                                                                                                                                           | False                     |
+| TimeoutPropose       | 3500 ms       | Specifies the time that validators wait during the proposal phase of the consensus process. See CometBFT [specs](https://github.com/celestiaorg/celestia-core/blob/v0.34.x-celestia/spec/consensus/consensus.md#propose-step-heighthroundr) for more details.     | False                     |
+| TimeoutCommit        | 4200 ms       | Specifies the duration that validators wait during the Commit phase of the consensus process. See CometBFT [specs](https://github.com/celestiaorg/celestia-core/blob/v0.34.x-celestia/spec/consensus/consensus.md#precommit-step-heighthroundr) for more details. | False                     |
+| UpgradeHeightDelay   | 100800 blocks | Height based delay after a successful `MsgTryUpgrade` has been submitted.                                                                                                                                                                                         | False                     |
+| MaxBlockSizeBytes    | 100 MiB       | Hardcoded value in CometBFT for the protobuf encoded block.                                                                                                                                                                                                       | False                     |
 
 ## Module parameters
 
@@ -23,9 +28,9 @@ hardcoded in the application or they are blocked by the `x/paramfilter` module.
 | auth.SigVerifyCostED25519                     | 590                                         | Gas used to verify Ed25519 signature.                                                                                               | True                      |
 | auth.SigVerifyCostSecp256k1                   | 1000                                        | Gas used to verify secp256k1 signature.                                                                                             | True                      |
 | auth.TxSigLimit                               | 7                                           | Max number of signatures allowed in a multisig transaction.                                                                         | True                      |
-| auth.TxSizeCostPerByte                        | 10                                          | Gas used per transaction byte.                                                                                                      | True                      |
+| auth.TxSizeCostPerByte                        | 10                                          | Gas used per transaction byte.                                                                                                      | False                     |
 | bank.SendEnabled                              | true                                        | Allow transfers.                                                                                                                    | False                     |
-| blob.GasPerBlobByte                           | 8                                           | Gas used per blob byte.                                                                                                             | True                      |
+| blob.GasPerBlobByte                           | 8                                           | Gas used per blob byte.                                                                                                             | False                     |
 | blob.GovMaxSquareSize                         | 64                                          | Governance parameter for the maximum square size of the original data square.                                                       | True                      |
 | consensus.block.MaxBytes                      | 1974272 bytes (~1.88 MiB)                   | Governance parameter for the maximum size of the protobuf encoded block.                                                            | True                      |
 | consensus.block.MaxGas                        | -1                                          | Maximum gas allowed per block (-1 is infinite).                                                                                     | True                      |
@@ -34,7 +39,7 @@ hardcoded in the application or they are blocked by the `x/paramfilter` module.
 | consensus.evidence.MaxAgeNumBlocks            | 120960                                      | The maximum number of blocks before evidence is considered invalid. This value will stop CometBFT from pruning block data.          | True                      |
 | consensus.evidence.MaxBytes                   | 1MiB                                        | Maximum size in bytes used by evidence in a given block.                                                                            | True                      |
 | consensus.validator.PubKeyTypes               | Ed25519                                     | The type of public key used by validators.                                                                                          | False                     |
-| consensus.Version.AppVersion                  | 2                                           | Determines protocol rules used for a given height. Incremented by the application upon an upgrade.                                  | True                      |
+| consensus.Version.AppVersion                  | 4                                           | Determines protocol rules used for a given height. Incremented by the application upon an upgrade.                                  | True                      |
 | distribution.BaseProposerReward               | 0                                           | Reward in the mint denomination for proposing a block.                                                                              | True                      |
 | distribution.BonusProposerReward              | 0                                           | Extra reward in the mint denomination for proposers based on the voting power included in the commit.                               | True                      |
 | distribution.CommunityTax                     | 0.02 (2%)                                   | Percentage of the inflation sent to the community pool.                                                                             | True                      |
@@ -56,7 +61,7 @@ hardcoded in the application or they are blocked by the `x/paramfilter` module.
 | mint.DisinflationRate                         | 0.10 (10%)                                  | The rate at which the inflation rate decreases each year.                                                                           | False                     |
 | mint.InitialInflationRate                     | 0.08 (8%)                                   | The inflation rate the network starts at.                                                                                           | False                     |
 | mint.TargetInflationRate                      | 0.015 (1.5%)                                | The inflation rate that the network aims to stabilize at.                                                                           | False                     |
-| packetforwardmiddleware.FeePercentage          | 0                                           | % of the forwarded packet amount which will be subtracted and distributed to the community pool.                                    | True                      |
+| packetforwardmiddleware.FeePercentage         | 0                                           | % of the forwarded packet amount which will be subtracted and distributed to the community pool.                                    | True                      |
 | slashing.DowntimeJailDuration                 | 1 min                                       | Duration of time a validator must stay jailed.                                                                                      | True                      |
 | slashing.MinSignedPerWindow                   | 0.75 (75%)                                  | The percentage of SignedBlocksWindow that must be signed not to get jailed.                                                         | True                      |
 | slashing.SignedBlocksWindow                   | 5000                                        | The range of blocks used to count for downtime.                                                                                     | True                      |

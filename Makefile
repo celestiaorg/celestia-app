@@ -1,4 +1,4 @@
-VERSION := $(shell echo $(shell git describe --tags 2>/dev/null || git log -1 --format='%h') | sed 's/^v//')
+VERSION := $(shell echo $(shell git describe --tags --always --match "v*") | sed 's/^v//')
 COMMIT := $(shell git rev-parse --short HEAD)
 DOCKER := $(shell which docker)
 PROJECTNAME=$(shell basename "$(PWD)")
@@ -24,7 +24,7 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
 
-CELESTIA_V3_VERSION := v3.9.0-rc0
+CELESTIA_V3_VERSION := v3.10.0-rc1
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -40,9 +40,12 @@ build-standalone: mod
 	@go build $(BUILD_FLAGS) -o build/ ./cmd/celestia-appd
 .PHONY: build-standalone
 
+DOWNLOAD ?= true
 ## build: Build the celestia-appd binary into the ./build directory.
-build: mod download-v3-binaries
-	@cd ./cmd/celestia-appd
+build: mod
+ifeq ($(DOWNLOAD),true)
+	@$(MAKE) download-v3-binaries
+endif
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd with multiplexer enabled"
 	@go build $(BUILD_FLAGS_MULTIPLEXER) -o build/celestia-appd ./cmd/celestia-appd
@@ -55,7 +58,7 @@ install-standalone: check-bbr
 .PHONY: install-standalone
 
 define EMBED_BIN
-  ./scripts/embed_bin.sh $$url $$out $(CELESTIA_V3_VERSION)
+  ./scripts/download_v3_binary.sh $$url $$out $(CELESTIA_V3_VERSION)
 endef
 
 ## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
@@ -65,18 +68,19 @@ install: check-bbr download-v3-binaries
 	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
 .PHONY: install
 
-## download-v3-binaries: Download the binaries for the latest v3.x.x release.
+## download-v3-binaries: Download the celestia-app v3 binary for the current platform.
 download-v3-binaries:
-	@echo "--> Downloading embedded binaries for v3"
-	@for pair in \
-		"celestia-app_Darwin_arm64.tar.gz:celestia-app_darwin_v3_arm64.tar.gz" \
-		"celestia-app_Linux_arm64.tar.gz:celestia-app_linux_v3_arm64.tar.gz" \
-		"celestia-app_Darwin_x86_64.tar.gz:celestia-app_darwin_v3_amd64.tar.gz" \
-		"celestia-app_Linux_x86_64.tar.gz:celestia-app_linux_v3_amd64.tar.gz"; do \
-		url=$${pair%%:*}; out=$${pair##*:}; \
-		$(EMBED_BIN); \
-	done
-	@echo "--> Downloaded embedded binaries for v3"
+	@echo "--> Downloading celestia-app $(CELESTIA_V3_VERSION) binary"
+	@mkdir -p internal/embedding
+	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
+	case "$$os-$$arch" in \
+		darwin-arm64) url=celestia-app_Darwin_arm64.tar.gz; out=celestia-app_darwin_v3_arm64.tar.gz ;; \
+		linux-arm64) url=celestia-app_Linux_arm64.tar.gz; out=celestia-app_linux_v3_arm64.tar.gz ;; \
+		darwin-amd64) url=celestia-app_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v3_amd64.tar.gz ;; \
+		linux-amd64) url=celestia-app_Linux_x86_64.tar.gz; out=celestia-app_linux_v3_amd64.tar.gz ;; \
+		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
+	esac; \
+	bash scripts/download_v3_binary.sh "$$url" "$$out" "$(CELESTIA_V3_VERSION)"
 .PHONY: download-v3-binaries
 
 ## mod: Update all go.mod files.
@@ -147,19 +151,20 @@ build-docker:
 docker-build: build-docker
 .PHONY: docker-build
 
+## build-docker-multiplexer: Build the celestia-appd docker image with Multiplexer support from the current branch. Requires docker.
 build-docker-multiplexer:
 	@echo "--> Building Multiplexer Docker image"
 	$(DOCKER) build \
 		--build-arg TARGETOS=$(DOCKER_GOOS) \
 		--build-arg TARGETARCH=$(DOCKER_GOARCH) \
-		-t celestiaorg/celestia-app-multiplexer:$(COMMIT) \
+		-t celestiaorg/celestia-app:$(COMMIT) \
 		-f docker/multiplexer.Dockerfile .
 .PHONY: build-docker-multiplexer
 
 ## build-ghcr-docker: Build the celestia-appd Docker image tagged with the current commit hash for GitHub Container Registry.
 build-ghcr-docker:
 	@echo "--> Building Docker image"
-	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app:$(COMMIT) -f docker/Dockerfile .
+	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app-standalone:$(COMMIT) -f docker/Dockerfile .
 .PHONY: build-ghcr-docker
 
 ## docker-build-ghcr: Build the celestia-appd docker image from the last commit. Requires docker.
@@ -170,7 +175,7 @@ docker-build-ghcr: build-ghcr-docker
 publish-ghcr-docker:
 # Make sure you are logged in and authenticated to the ghcr.io registry.
 	@echo "--> Publishing Docker image"
-	$(DOCKER) push ghcr.io/celestiaorg/celestia-app:$(COMMIT)
+	$(DOCKER) push ghcr.io/celestiaorg/celestia-app-standalone:$(COMMIT)
 .PHONY: publish-ghcr-docker
 
 ## docker-publish: Publish the celestia-appd docker image. Requires docker.

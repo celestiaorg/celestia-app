@@ -203,6 +203,9 @@ func (govModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genState.Params.MaxDepositPeriod = &oneWeek
 	genState.Params.VotingPeriod = &oneWeek
 
+	// the ExpeditedMinDeposit list will always be of size one as set in NewGenesisState in the gov module.
+	genState.Params.ExpeditedMinDeposit[0].Denom = params.BondDenom
+
 	return cdc.MustMarshalJSON(genState)
 }
 
