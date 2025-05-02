@@ -28,15 +28,19 @@ func Test_newGovModule(t *testing.T) {
 
 	enc.Codec.MustUnmarshalJSON(raw, &govGenesisState)
 
-	want := []types.Coin{{
+	wantMinDeposit := []types.Coin{{
 		Denom:  params.BondDenom,
 		Amount: math.NewInt(10_000_000_000),
 	}}
+	wantExpeditedMinDeposit := []types.Coin{{
+		Denom:  params.BondDenom,
+		Amount: math.NewInt(10_000_000_001),
+	}}
 
-	assert.Equal(t, want, govGenesisState.Params.MinDeposit)
+	assert.Equal(t, wantMinDeposit, govGenesisState.Params.MinDeposit)
 	assert.Equal(t, oneWeek, *govGenesisState.Params.MaxDepositPeriod)
 	assert.Equal(t, oneWeek, *govGenesisState.Params.VotingPeriod)
-	assert.Equal(t, params.BondDenom, govGenesisState.Params.ExpeditedMinDeposit[0].Denom)
+	assert.Equal(t, wantExpeditedMinDeposit, govGenesisState.Params.ExpeditedMinDeposit)
 }
 
 func TestDefaultAppConfig(t *testing.T) {
