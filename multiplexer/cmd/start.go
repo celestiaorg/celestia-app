@@ -13,8 +13,8 @@ import (
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/cosmos/cosmos-sdk/server/types"
 
-	"github.com/celestiaorg/celestia-app/multiplexer/abci"
-	"github.com/celestiaorg/celestia-app/multiplexer/internal"
+	"github.com/celestiaorg/celestia-app/v4/multiplexer/abci"
+	"github.com/celestiaorg/celestia-app/v4/multiplexer/internal"
 )
 
 func start(versions abci.Versions, svrCtx *server.Context, clientCtx client.Context, appCreator types.AppCreator) error {

@@ -5,10 +5,10 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-app/multiplexer/abci"
-	"github.com/celestiaorg/celestia-app/multiplexer/appd"
-	multiplexer "github.com/celestiaorg/celestia-app/multiplexer/cmd"
 	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/multiplexer/abci"
+	"github.com/celestiaorg/celestia-app/v4/multiplexer/appd"
+	multiplexer "github.com/celestiaorg/celestia-app/v4/multiplexer/cmd"
 	"github.com/cosmos/cosmos-sdk/server"
 
 	embedding "github.com/celestiaorg/celestia-app/v4/internal/embedding"
