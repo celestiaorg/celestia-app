@@ -6,9 +6,9 @@ package appconsts
 // For the production values, check prepare_proposal_consts.go file.
 
 const (
-	// MaxPFBMessages arbitrary high numbers for running benchmarks.
+	// MaxPFBMessages arbitrarily high numbers for running benchmarks.
 	MaxPFBMessages = 999999999999
 
-	// MaxNonPFBMessages arbitrary high numbers for running benchmarks.
+	// MaxNonPFBMessages arbitrarily high numbers for running benchmarks.
 	MaxNonPFBMessages = 999999999999
 )
