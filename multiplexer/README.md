@@ -1,14 +1,13 @@
 # Multiplexer
 
-This repository contains an improved Cosmos SDK Upgrading system: the multiplexer.
-The multiplexer enables node operators to sync from genesis and upgrade a Cosmos SDK chain without switching binaries.
+This directory contains a multiplexer that is capable of running multiple state machines in a single binary.
+The multiplexer enables node operators to sync from genesis and upgrade a Cosmos SDK chain without manually switching binaries.
 
 ## Features
 
-- **Automatic Upgrading**: The system automatically upgrades the chain to the latest version of the software after an `AppVersion` change.
-- **No binary switch required**: At the upgrade height, no binary switch is required, a huge improvement compared to solely relying on the `x/upgrade` module.
-- **One binary**: The system uses only one binary for all upgrades, which simplifies  **syncing from genesis**, the upgrade process and reduces the risk of errors.
-- **Passthrough mode**: The system can be used in passthrough mode, where a user can interact with an older binary directly.
+- **Automatic Upgrading**: The binary automatically upgrades the chain to the latest state machine after an `AppVersion` change.
+- **No manual binary switch required**: At the upgrade height, no manual binary switch is required, a huge improvement compared to solely relying on the `x/upgrade` module.
+- **Passthrough mode**: The multiplexer can be used in passthrough mode, where a user can interact with an older state machine directly.
 - **Speed of native**: `Multiplexer` is designed to minimize overhead and only uses standalone applications running through embedded binaries for the duration of the upgrade process. Once the upgrade is complete, the system uses the native app whereby the celestia-core consensus engine and application run together in-process.
 
 ## How it works
@@ -48,9 +47,9 @@ versions, err := abci.NewVersions(abci.Version{
 })
 ```
 
-Multiple versions can be defined, allowing to sync from genesis with only one binary (for the node operators).
+Multiple versions can be defined so node operators can sync from genesis to the tip through many state machines with only one binary.
 
-Once the `AppVersion` changes, the `multiplexer` takes the best matching embedded binary (useful when syncing from genesis) or switch to the native binary if none matches (useful when upgrading).
+Once the `AppVersion` changes, the `multiplexer` switches to the best matching embedded binary (useful when syncing from genesis) or switches to the native binary if none matches (useful when upgrading).
 
 ## Installation
 
@@ -117,7 +116,7 @@ Note 2: The remote clients work via `gRPC` connection, when overriding the start
 ## Passthrough mode
 
 Passthrough mode is an optional command that can be added to a chain.
-It allows an user to interact via an embedded binary via CLI.
+It allows an user to interact with an embedded binary via CLI.
 
 ```bash
 appd passthrough v2 q bank balances <foo>

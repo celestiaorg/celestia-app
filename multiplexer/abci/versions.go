@@ -88,6 +88,7 @@ func (v Version) GetStartArgs(args []string) []string {
 		"--api.swagger=false",
 		"--with-tendermint=false",
 		"--transport=grpc",
+		"--log_level debug",
 	)
 }
 

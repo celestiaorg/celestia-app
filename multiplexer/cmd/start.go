@@ -36,6 +36,7 @@ func start(versions abci.Versions, svrCtx *server.Context, clientCtx client.Cont
 	if err != nil {
 		return err
 	}
+	fmt.Printf("Multiplexer initialized with app version %d and chain ID %s\n", appVersion, state.ChainID)
 
 	defer func() {
 		if err := mp.Cleanup(); err != nil {
@@ -43,10 +44,12 @@ func start(versions abci.Versions, svrCtx *server.Context, clientCtx client.Cont
 		}
 	}()
 
+	fmt.Println("Starting multiplexer...")
 	// Start will either start the latest app natively, or an embedded app if one is specified.
 	if err := mp.Start(); err != nil {
 		return fmt.Errorf("failed to start multiplexer: %w", err)
 	}
+	fmt.Println("Multiplexer started")
 
 	return nil
 }

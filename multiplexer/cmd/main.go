@@ -9,7 +9,7 @@ import (
 )
 
 // StartCommandHandler is the type that must implement the multiplexer to match Cosmos SDK start logic.
-type StartCommandHandler = func(svrCtx *server.Context, clientCtx client.Context, appCreator types.AppCreator, withCmt bool, opts server.StartCmdOptions) error
+type StartCommandHandler = func(svrCtx *server.Context, clientCtx client.Context, appCreator types.AppCreator, withComet bool, opts server.StartCmdOptions) error
 
 // New creates a command start handler to use in the Cosmos SDK server start options.
 func New(versions abci.Versions) StartCommandHandler {
@@ -17,10 +17,10 @@ func New(versions abci.Versions) StartCommandHandler {
 		svrCtx *server.Context,
 		clientCtx client.Context,
 		appCreator types.AppCreator,
-		withCmt bool,
+		withComet bool,
 		_ server.StartCmdOptions,
 	) error {
-		if !withCmt {
+		if !withComet {
 			svrCtx.Logger.Info("App cannot be started without CometBFT when using the multiplexer.")
 			return nil
 		}

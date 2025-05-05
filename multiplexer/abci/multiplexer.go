@@ -135,6 +135,7 @@ func (m *Multiplexer) Start() error {
 
 	emitServerInfoMetrics()
 
+	fmt.Println("Starting app...")
 	// startApp starts the underlying application, either native or embedded.
 	if err := m.startApp(); err != nil {
 		return err
@@ -209,7 +210,9 @@ func (m *Multiplexer) enableGRPCAndAPIServers(app servertypes.Application) error
 func (m *Multiplexer) startApp() error {
 	// prepare correct version
 	currentVersion, err := m.versions.GetForAppVersion(m.appVersion)
+	fmt.Printf("Current version: %v\n", currentVersion)
 	if err != nil && errors.Is(err, ErrNoVersionFound) {
+		fmt.Printf("No version found, assuming latest\n")
 		// no version found, assume latest
 		if _, err := m.startNativeApp(); err != nil {
 			return fmt.Errorf("failed to start native app: %w", err)
@@ -243,7 +246,7 @@ func (m *Multiplexer) startApp() error {
 		m.started = true
 		m.activeVersion = currentVersion
 	}
-
+	fmt.Printf("About to init remote grpc conn\n")
 	return m.initRemoteGrpcConn()
 }
 
@@ -253,6 +256,7 @@ func (m *Multiplexer) initRemoteGrpcConn() error {
 	const flagTMAddress = "address"
 	tmAddress := m.svrCtx.Viper.GetString(flagTMAddress)
 	if tmAddress == "" {
+		fmt.Printf("No tm address found, using default 127.0.0.1:36658\n")
 		tmAddress = "127.0.0.1:36658"
 	}
 
