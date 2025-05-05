@@ -37,8 +37,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/multiplexer/appd"
-	"github.com/celestiaorg/celestia-app/multiplexer/internal"
+	"github.com/celestiaorg/celestia-app/v4/multiplexer/appd"
+	"github.com/celestiaorg/celestia-app/v4/multiplexer/internal"
 )
 
 const (
@@ -401,9 +401,11 @@ func openDB(rootDir string, backendType db.BackendType) (db.DB, error) {
 	return db.NewDB("application", backendType, dataDir)
 }
 
+// openTraceWriter opens a trace writer for the given file.
+// If the file is empty, it returns no writer and no error.
 func openTraceWriter(traceWriterFile string) (w io.WriteCloser, err error) {
 	if traceWriterFile == "" {
-		return w, fmt.Errorf("can not open trace writer for empty file")
+		return w, nil
 	}
 	return os.OpenFile(
 		traceWriterFile,
@@ -614,7 +616,10 @@ func (m *Multiplexer) setupRemoteAppCleanup(cleanupFn func() error) {
 
 		// Re-send the signal to allow the normal process termination
 		signal.Reset(os.Interrupt, syscall.SIGTERM)
-		syscall.Kill(os.Getpid(), sig.(syscall.Signal))
+		err := syscall.Kill(os.Getpid(), sig.(syscall.Signal))
+		if err != nil {
+			m.logger.Error("Error killing process", "err", err)
+		}
 	}()
 }
 

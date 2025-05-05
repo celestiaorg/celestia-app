@@ -274,8 +274,8 @@ func New(
 
 	app.FeeGrantKeeper = feegrantkeeper.NewKeeper(encodingConfig.Codec, runtime.NewKVStoreService(keys[feegrant.StoreKey]), app.AccountKeeper)
 
-	// the circuit keeper is used as a replacement for the message gate keeper (used in v2 and v3)
-	// in order to block upgrade msg proposals.
+	// The circuit keeper is used as a replacement for the message gate keeper (used in v2 and v3).
+	// The circuit keeper blocks the messages: `MsgSoftwareUpgrade`, `MsgCancelUpgrade`, `MsgIBCSoftwareUpgrade`.
 	app.CircuitKeeper = circuitkeeper.NewKeeper(encodingConfig.Codec, runtime.NewKVStoreService(keys[circuittypes.StoreKey]), govModuleAddr, app.AccountKeeper.AddressCodec())
 	app.SetCircuitBreaker(&app.CircuitKeeper)
 
