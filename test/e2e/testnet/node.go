@@ -32,7 +32,7 @@ const (
 	rpcPort               = 26657
 	p2pPort               = 26656
 	grpcPort              = 9090
-	listenAddressPort     = 26658
+	listenAddressPort     = 36658
 	grpcListenPort        = 9099
 	prometheusPort        = 26660
 	tracingPort           = 26661
