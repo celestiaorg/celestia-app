@@ -87,6 +87,9 @@ func getState(cfg *cmtcfg.Config) (state.State, error) {
 				return tmtypes.GenesisDocFromFile(cfg.GenesisFile())
 			},
 		)
+		if err != nil {
+			return state.State{}, err
+		}
 
 		// we only fill the app version and the chain id
 		// the rest of the state is not needed by the multiplexer
@@ -100,9 +103,9 @@ func getState(cfg *cmtcfg.Config) (state.State, error) {
 		}
 	case internal.GenesisVersion2:
 		s, _, err = node.LoadStateFromDBOrGenesisDocProvider(db, internal.GetGenDocProvider(cfg))
-	}
-	if err != nil {
-		return state.State{}, err
+		if err != nil {
+			return state.State{}, err
+		}
 	}
 
 	return s, nil
