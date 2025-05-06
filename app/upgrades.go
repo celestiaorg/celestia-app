@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"cosmossdk.io/math"
@@ -129,8 +128,7 @@ func (app App) RegisterUpgradeHandlers() {
 			if err != nil {
 				return nil, err
 			}
-			fmt.Printf("Overriding expedited min deposit from %v to %v\n", params.ExpeditedMinDeposit, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(50_000*tia))))
-			// sdkCtx.Logger().Info("Overriding expedited min deposit to 50,000 TIA")
+			sdkCtx.Logger().Info("Overriding expedited min deposit to 50,000 TIA")
 			params.ExpeditedMinDeposit = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(50_000*tia)))
 			app.GovKeeper.Params.Set(ctx, params)
 
