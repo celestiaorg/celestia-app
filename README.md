@@ -102,7 +102,7 @@ celestia-appd --help
 
 | Variable            | Explanation                                                                     | Default value                                               | Required |
 |---------------------|---------------------------------------------------------------------------------|-------------------------------------------------------------|----------|
-| `CELESTIA_APP_HOME` | Where the application files should be saved.                                    | [`$HOME/.celestia-appd`](https://pkg.go.dev/os#UserHomeDir) | Optional |
+| `CELESTIA_APP_HOME` | Where the application files should be saved.                                    | [`$HOME/.celestia-app`](https://pkg.go.dev/os#UserHomeDir) | Optional |
 | `CELESTIA_HOME`     | Where the application directory (`.celestia-app`) should be saved (DEPRECATED). | [User home directory](https://pkg.go.dev/os#UserHomeDir)    | Optional |
 
 ### Create your own single node devnet

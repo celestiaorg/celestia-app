@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_getDefaultNodeHome(t *testing.T) {
+func TestGetDefaultNodeHome(t *testing.T) {
 	type testCase struct {
 		name            string
 		userHome        string
@@ -62,14 +62,14 @@ func Test_getDefaultNodeHome(t *testing.T) {
 			name:            "want celestiaHome to take precedence if both it and celestiaHomeOld are not empty",
 			userHome:        "",
 			celestiaHome:    "celestia-home",
-			celestiaHomeOld: "celestia-home/.celestia-appd",
+			celestiaHomeOld: "celestia-home/.celestia-app",
 			want:            "celestia-home",
 		},
 		{
 			name:            "want celestiaHome to take precedence if all are not empty",
 			userHome:        "user-home",
 			celestiaHome:    "celestia-home",
-			celestiaHomeOld: "celestia-home/.celestia-appd",
+			celestiaHomeOld: "celestia-home/.celestia-app",
 			want:            "celestia-home",
 		},
 	}
