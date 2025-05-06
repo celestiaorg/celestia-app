@@ -41,6 +41,9 @@ createGenesis() {
       --home "${APP_HOME}" \
       > /dev/null 2>&1 # Hide output to reduce terminal noise
 
+    echo "Overriding the genesis.json expedited min deposit from 50 TIA to 50,000 TIA."
+    sed -i'.bak' 's#"50000000"#"50000000000"#g' "${APP_HOME}"/config/genesis.json
+
     echo "Adding a new key to the keyring..."
     celestia-appd keys add ${KEY_NAME} \
       --keyring-backend=${KEYRING_BACKEND} \
@@ -66,10 +69,7 @@ createGenesis() {
       --home "${APP_HOME}" \
         > /dev/null 2>&1 # Hide output to reduce terminal noise
 
-    # If you encounter: `sed: -I or -i may not be used with stdin` on MacOS you can mitigate by installing gnu-sed
-    # https://gist.github.com/andre3k1/e3a1a7133fded5de5a9ee99c87c6fa0d?permalink_comment_id=3082272#gistcomment-3082272
-
-    # Override the default genesis.json consensus params version from 0 to 4.
+    echo "Overriding the genesis.json app version from 0 to 4."
     sed -i'.bak' 's#"app": "0"#"app": "4"#g' "${APP_HOME}"/config/genesis.json
 
     # Override the default RPC server listening address
