@@ -77,7 +77,7 @@ FROM ${RUNTIME_IMAGE} AS runtime
 # Ref: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
 ARG UID=10001
 ARG USER_NAME=celestia
-ENV CELESTIA_APP_HOME=/home/${USER_NAME}/.celestia-appd
+ENV CELESTIA_APP_HOME=/home/${USER_NAME}/.celestia-app
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
     bash \
