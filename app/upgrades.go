@@ -2,8 +2,10 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	"cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
 	circuittypes "cosmossdk.io/x/circuit/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
@@ -30,9 +32,12 @@ import (
 	ibcconnectiontypes "github.com/cosmos/ibc-go/v8/modules/core/03-connection/types"
 	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
 
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 )
+
+const tia = int64(1_000_000) // 1 TIA = 1_000_000 utia
 
 // UpgradeName defines the on-chain upgrade name from v3 to v4.
 // IMPORTANT: UpgradeName must be formatted as `v`+ app version.
@@ -119,6 +124,15 @@ func (app App) RegisterUpgradeHandlers() {
 			if err != nil {
 				return nil, err
 			}
+
+			params, err := app.GovKeeper.Params.Get(ctx)
+			if err != nil {
+				return nil, err
+			}
+			fmt.Printf("Overriding expedited min deposit from %v to %v\n", params.ExpeditedMinDeposit, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(50_000*tia))))
+			// sdkCtx.Logger().Info("Overriding expedited min deposit to 50,000 TIA")
+			params.ExpeditedMinDeposit = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(50_000*tia)))
+			app.GovKeeper.Params.Set(ctx, params)
 
 			sdkCtx.Logger().Info("finished to upgrade", "upgrade-name", UpgradeName, "duration-sec", time.Since(start).Seconds())
 
