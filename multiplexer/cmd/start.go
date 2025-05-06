@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -66,6 +67,12 @@ func getState(cfg *cmtcfg.Config) (state.State, error) {
 
 	genVer, err := internal.GetGenesisVersion(cfg.GenesisFile())
 	if err != nil {
+		// fallback to latest version if the genesis version doesn't exist
+		if errors.Is(err, internal.ErrGenesisNotFound) {
+			s, _, err := node.LoadStateFromDBOrGenesisDocProvider(db, internal.GetGenDocProvider(cfg))
+			return s, err
+		}
+
 		return state.State{}, err
 	}
 

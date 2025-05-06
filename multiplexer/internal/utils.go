@@ -35,11 +35,13 @@ type genesisDocv2 struct {
 	} `json:"consensus"`
 }
 
+var ErrGenesisNotFound = errors.New("genesis not found")
+
 // GetGenesisVersion returns the genesis version for the given genesis path.
 func GetGenesisVersion(genesisPath string) (GenesisVersion, error) {
 	genDoc, err := os.ReadFile(genesisPath)
 	if err != nil {
-		return 0, err
+		return 0, errors.Join(ErrGenesisNotFound, err)
 	}
 
 	var v1 genesisDocv1
