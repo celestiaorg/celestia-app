@@ -132,34 +132,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 
 	}
 
-	var (
-		dataSquareBytes [][]byte
-		err             error
-	)
-
-	switch app.AppVersion() {
-	case v3:
-		var dataSquare squarev2.Square
-		dataSquare, err = squarev2.Construct(req.BlockData.Txs, app.MaxEffectiveSquareSize(sdkCtx), subtreeRootThreshold)
-		dataSquareBytes = sharev2.ToBytes(dataSquare)
-		// Assert that the square size stated by the proposer is correct
-		if uint64(dataSquare.Size()) != req.BlockData.SquareSize {
-			logInvalidPropBlock(app.Logger(), req.Header, "proposed square size differs from calculated square size")
-			return reject()
-		}
-	case v2, v1:
-		var dataSquare square.Square
-		dataSquare, err = square.Construct(req.BlockData.Txs, app.MaxEffectiveSquareSize(sdkCtx), subtreeRootThreshold)
-		dataSquareBytes = shares.ToBytes(dataSquare)
-		// Assert that the square size stated by the proposer is correct
-		if uint64(dataSquare.Size()) != req.BlockData.SquareSize {
-			logInvalidPropBlock(app.Logger(), req.Header, "proposed square size differs from calculated square size")
-			return reject()
-		}
-	default:
-		logInvalidPropBlock(app.Logger(), req.Header, "unsupported app version")
-		return reject()
-	}
+	dataSquareBytes, err := GetDataSquareBytes(app, &req, sdkCtx, subtreeRootThreshold)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), req.Header, "failure to compute data square from transactions:", err)
 		return reject()
@@ -228,4 +201,34 @@ func accept() abci.ResponseProcessProposal {
 	return abci.ResponseProcessProposal{
 		Result: abci.ResponseProcessProposal_ACCEPT,
 	}
+}
+
+// Exported strictly for testing purposes
+func GetDataSquareBytes(app *App, request *abci.RequestProcessProposal, sdkCtx sdk.Context, subtreeRootThreshold int) (dataSquareBytes [][]byte, err error) {
+	switch app.AppVersion() {
+	case v3:
+		dataSquare, err := squarev2.Construct(request.BlockData.Txs, app.MaxEffectiveSquareSize(sdkCtx), subtreeRootThreshold)
+		if err != nil {
+			return nil, err
+		}
+		// Assert that the square size stated by the proposer is correct
+		if uint64(dataSquare.Size()) != request.BlockData.SquareSize {
+			logInvalidPropBlock(app.Logger(), request.Header, "proposed square size differs from calculated square size")
+			return nil, fmt.Errorf("proposed square size differs from calculated square size")
+		}
+		return sharev2.ToBytes(dataSquare), nil
+	case v2, v1:
+		dataSquare, err := square.Construct(request.BlockData.Txs, app.MaxEffectiveSquareSize(sdkCtx), subtreeRootThreshold)
+		if err != nil {
+			return nil, err
+		}
+		// Assert that the square size stated by the proposer is correct
+		if uint64(dataSquare.Size()) != request.BlockData.SquareSize {
+			logInvalidPropBlock(app.Logger(), request.Header, "proposed square size differs from calculated square size")
+			return nil, fmt.Errorf("proposed square size differs from calculated square size")
+		}
+		return shares.ToBytes(dataSquare), nil
+	}
+	logInvalidPropBlock(app.Logger(), request.Header, "unsupported app version")
+	return nil, fmt.Errorf("unsupported app version")
 }

@@ -368,3 +368,49 @@ func calculateNewDataHash(t *testing.T, txs [][]byte) []byte {
 	require.NoError(t, err)
 	return dah.Hash()
 }
+
+func TestGetDataSquareBytes(t *testing.T) {
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), testfactory.GenerateAccounts(1)...)
+	sdkCtx := testApp.BaseApp.NewContext(false, tmproto.Header{})
+
+	type testCase struct {
+		name           string
+		app            *app.App
+		request        *abci.RequestProcessProposal
+		sdkCtx         sdk.Context
+		subtreeRoot    int
+		expectedResult [][]byte
+		expectedError  error
+	}
+
+	testCases := []testCase{
+		{
+			name: "empty txs",
+			app:  testApp,
+			request: &abci.RequestProcessProposal{
+				Header: tmproto.Header{
+					Height: 1,
+					Time:   time.Now(),
+				},
+				BlockData: &tmproto.Data{},
+			},
+			sdkCtx:         sdkCtx,
+			subtreeRoot:    64,
+			expectedResult: [][]byte{},
+			expectedError:  nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := app.GetDataSquareBytes(tc.app, tc.request, tc.sdkCtx, tc.subtreeRoot)
+			if tc.expectedError != nil {
+				require.Error(t, err)
+				require.Equal(t, tc.expectedError, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expectedResult, result)
+			}
+		})
+	}
+}
