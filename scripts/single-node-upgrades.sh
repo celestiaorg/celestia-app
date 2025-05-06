@@ -100,9 +100,7 @@ startCelestiaApp() {
     --grpc.enable \
     --grpc-web.enable \
     --timeout-commit 1s \
-    --force-no-bbr \
-    --address tcp://127.0.0.1:26658 \
-    --proxy_app tcp://127.0.0.1:26658
+    --force-no-bbr
 }
 
 upgradeToV4() {

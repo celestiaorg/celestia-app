@@ -52,6 +52,8 @@ Multiple versions can be defined, allowing to sync from genesis with only one bi
 
 Once the `AppVersion` changes, the `multiplexer` takes the best matching embedded binary (useful when syncing from genesis) or switch to the native binary if none matches (useful when upgrading).
 
+![multiplexer](./docs/assets/multiplexer0.png)
+
 ## Installation
 
 `Multiplexer` integrates seamlessly in any Cosmos SDK chain. It simply replaces the `StartCommandHandler` of the chain:
