@@ -7,8 +7,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/multiplexer/abci"
-	"github.com/celestiaorg/celestia-app/multiplexer/appd"
+	"github.com/celestiaorg/celestia-app/v4/multiplexer/abci"
+	"github.com/celestiaorg/celestia-app/v4/multiplexer/appd"
 )
 
 func TestNewPassthroughCmd(t *testing.T) {
