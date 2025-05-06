@@ -81,10 +81,6 @@ createGenesis() {
 
     # Override the log level to debug
     # sed -i'.bak' 's#log_level = "info"#log_level = "debug"#g' "${APP_HOME}"/config/config.toml
-
-    # HACKHACK: the multiplexer can not read the app_version field, so we need to use app instead.
-    # Override the genesis to use app version 3.
-    sed -i'.bak' 's/"app_version": *"[^"]*"/"app": "3"/' "${APP_HOME}"/config/genesis.json
 }
 
 deleteCelestiaAppHome() {
