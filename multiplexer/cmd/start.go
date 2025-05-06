@@ -1,17 +1,23 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	dbm "github.com/cometbft/cometbft-db"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
+	cmtstate "github.com/cometbft/cometbft/proto/tendermint/state"
+	cmtversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	"github.com/cometbft/cometbft/state"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/server"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/cosmos/cosmos-sdk/server/types"
+	tmnode "github.com/tendermint/tendermint/node"
+	tmstate "github.com/tendermint/tendermint/state"
+	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/v4/multiplexer/abci"
 	"github.com/celestiaorg/celestia-app/v4/multiplexer/internal"
@@ -59,7 +65,42 @@ func getState(cfg *cmtcfg.Config) (state.State, error) {
 	}
 	defer db.Close()
 
-	s, _, err := node.LoadStateFromDBOrGenesisDocProvider(db, internal.GetGenDocProvider(cfg))
+	genVer, err := internal.GetGenesisVersion(cfg.GenesisFile())
+	if err != nil {
+		// fallback to latest version if the genesis version doesn't exist
+		if errors.Is(err, internal.ErrGenesisNotFound) {
+			s, _, err := node.LoadStateFromDBOrGenesisDocProvider(db, internal.GetGenDocProvider(cfg))
+			return s, err
+		}
+
+		return state.State{}, err
+	}
+
+	var s state.State
+
+	switch genVer {
+	case internal.GenesisVersion1:
+		var s1 tmstate.State
+		s1, _, err = tmnode.LoadStateFromDBOrGenesisDocProvider(
+			db,
+			func() (*tmtypes.GenesisDoc, error) {
+				return tmtypes.GenesisDocFromFile(cfg.GenesisFile())
+			},
+		)
+
+		// we only fill the app version and the chain id
+		// the rest of the state is not needed by the multiplexer
+		s = state.State{
+			ChainID: s1.ChainID,
+			Version: cmtstate.Version{
+				Consensus: cmtversion.Consensus{
+					App: s1.Version.Consensus.App,
+				},
+			},
+		}
+	case internal.GenesisVersion2:
+		s, _, err = node.LoadStateFromDBOrGenesisDocProvider(db, internal.GetGenDocProvider(cfg))
+	}
 	if err != nil {
 		return state.State{}, err
 	}
