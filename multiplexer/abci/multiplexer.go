@@ -252,12 +252,15 @@ func (m *Multiplexer) initRemoteGrpcConn() error {
 	// prepare remote app client
 	const flagTMAddress = "address"
 	tmAddress := m.svrCtx.Viper.GetString(flagTMAddress)
+	fmt.Printf("tmAddress 1: %s\n", tmAddress)
 	if tmAddress == "" {
-		tmAddress = "127.0.0.1:36658"
+		tmAddress = "127.0.0.1:26658"
 	}
+	fmt.Printf("tmAddress 2: %s\n", tmAddress)
 
 	// remove tcp:// prefix if present
 	tmAddress = strings.TrimPrefix(tmAddress, "tcp://")
+	fmt.Printf("tmAddress 3: %s\n", tmAddress)
 
 	conn, err := grpc.NewClient(
 		tmAddress,
@@ -557,6 +560,7 @@ func (m *Multiplexer) Cleanup() error {
 
 // startCmtNode initializes and starts a CometBFT node, sets up cleanup tasks, and assigns it to the Multiplexer instance.
 func (m *Multiplexer) startCmtNode() error {
+	fmt.Println("Starting CometBFT node...")
 	cfg := m.svrCtx.Config
 	nodeKey, err := p2p.LoadOrGenNodeKey(cfg.NodeKeyFile())
 	if err != nil {
@@ -596,6 +600,7 @@ func (m *Multiplexer) startCmtNode() error {
 	})
 
 	m.cmNode = tmNode
+	fmt.Println("Started CometBFT node.")
 	return nil
 }
 
