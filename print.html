@@ -2378,12 +2378,15 @@ Parameters that are governance modifiables can be modified via a
 <tr><td>distribution.BonusProposerReward</td><td>0</td><td>Extra reward in the mint denomination for proposers based on the voting power included in the commit.</td><td>True</td></tr>
 <tr><td>distribution.CommunityTax</td><td>0.02 (2%)</td><td>Percentage of the inflation sent to the community pool.</td><td>True</td></tr>
 <tr><td>distribution.WithdrawAddrEnabled</td><td>true</td><td>Enables delegators to withdraw funds to a different address.</td><td>True</td></tr>
-<tr><td>gov.DepositParams.MaxDepositPeriod</td><td>604800000000000 (1 week)</td><td>Maximum period for token holders to deposit on a proposal in nanoseconds.</td><td>True</td></tr>
-<tr><td>gov.DepositParams.MinDeposit</td><td>10_000_000_000 utia (10,000 TIA)</td><td>Minimum deposit for a proposal to enter voting period.</td><td>True</td></tr>
-<tr><td>gov.TallyParams.Quorum</td><td>0.334 (33.4%)</td><td>Minimum percentage of total stake needed to vote for a result to be considered valid.</td><td>True</td></tr>
-<tr><td>gov.TallyParams.Threshold</td><td>0.50 (50%)</td><td>Minimum proportion of Yes votes for proposal to pass.</td><td>True</td></tr>
-<tr><td>gov.TallyParams.VetoThreshold</td><td>0.334 (33.4%)</td><td>Minimum value of Veto votes to Total votes ratio for proposal to be vetoed.</td><td>True</td></tr>
-<tr><td>gov.VotingParams.VotingPeriod</td><td>604800000000000 (1 week)</td><td>Duration of the voting period in nanoseconds.</td><td>True</td></tr>
+<tr><td>gov.MaxDepositPeriod</td><td>604800000000000 (1 week)</td><td>Maximum period for token holders to deposit on a proposal in nanoseconds.</td><td>True</td></tr>
+<tr><td>gov.MinDeposit</td><td>10_000_000_000 utia (10,000 TIA)</td><td>Minimum deposit for a proposal to enter voting period.</td><td>True</td></tr>
+<tr><td>gov.Quorum</td><td>0.334 (33.4%)</td><td>Minimum percentage of total stake needed to vote for a result to be considered valid.</td><td>True</td></tr>
+<tr><td>gov.Threshold</td><td>0.50 (50%)</td><td>Minimum proportion of Yes votes for proposal to pass.</td><td>True</td></tr>
+<tr><td>gov.VetoThreshold</td><td>0.334 (33.4%)</td><td>Minimum value of Veto votes to Total votes ratio for proposal to be vetoed.</td><td>True</td></tr>
+<tr><td>gov.VotingPeriod</td><td>604800000000000 (1 week)</td><td>Duration of the voting period in nanoseconds.</td><td>True</td></tr>
+<tr><td>gov.ExpeditedMinDeposit</td><td>50_000_000_000 utia (50,000 TIA)</td><td>Minimum deposit for an expedited proposal.</td><td>True</td></tr>
+<tr><td>gov.ExpeditedVotingPeriod</td><td>86400000000000 (1 day)</td><td>Duration of the expedited voting period in nanoseconds.</td><td>True</td></tr>
+<tr><td>gov.ExpeditedThreshold</td><td>0.667 (66.7%)</td><td>Minimum proportion of Yes votes for an expedited proposal to pass.</td><td>True</td></tr>
 <tr><td>ibc.ClientGenesis.AllowedClients</td><td>[]string{&quot;06-solomachine&quot;, &quot;07-tendermint&quot;}</td><td>List of allowed IBC light clients.</td><td>True</td></tr>
 <tr><td>ibc.ConnectionGenesis.MaxExpectedTimePerBlock</td><td>7500000000000 (75 seconds)</td><td>Maximum expected time per block in nanoseconds under normal operation.</td><td>True</td></tr>
 <tr><td>ibc.Transfer.ReceiveEnabled</td><td>true</td><td>Enable receiving tokens via IBC.</td><td>True</td></tr>
