@@ -52,7 +52,7 @@ Multiple versions can be defined, allowing to sync from genesis with only one bi
 
 Once the `AppVersion` changes, the `multiplexer` takes the best matching embedded binary (useful when syncing from genesis) or switch to the native binary if none matches (useful when upgrading).
 
-![multiplexer](./docs/assets/multiplexer0.png)
+![multiplexer](./docs/assets/multiplexer.png)
 
 ## Installation
 
