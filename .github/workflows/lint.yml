@@ -29,7 +29,7 @@ jobs:
 
   # hadolint lints the Dockerfile
   hadolint:
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@8ec0c98698d575351a257047604bfff6bbb45bb6 #v0.6.2
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@98f519843a1bade938e5604202df600aa0717aa8 #v0.6.3
     with:
       dockerfile: "docker/Dockerfile"
 
@@ -37,4 +37,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #v4.2.2
-      - uses: celestiaorg/.github/.github/actions/yamllint@8ec0c98698d575351a257047604bfff6bbb45bb6 #v0.6.2
+      - uses: celestiaorg/.github/.github/actions/yamllint@98f519843a1bade938e5604202df600aa0717aa8 #v0.6.3
