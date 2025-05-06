@@ -126,11 +126,18 @@ func (app App) RegisterUpgradeHandlers() {
 
 			params, err := app.GovKeeper.Params.Get(ctx)
 			if err != nil {
+				sdkCtx.Logger().Error("failed to get gov params", "error", err)
 				return nil, err
 			}
+
 			sdkCtx.Logger().Info("Overriding expedited min deposit to 50,000 TIA")
 			params.ExpeditedMinDeposit = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(50_000*tia)))
-			app.GovKeeper.Params.Set(ctx, params)
+
+			err = app.GovKeeper.Params.Set(ctx, params)
+			if err != nil {
+				sdkCtx.Logger().Error("failed to set expedited min deposit", "error", err)
+				return nil, err
+			}
 
 			sdkCtx.Logger().Info("finished to upgrade", "upgrade-name", UpgradeName, "duration-sec", time.Since(start).Seconds())
 
