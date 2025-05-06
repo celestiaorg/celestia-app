@@ -21,21 +21,22 @@ jobs:
     permissions:
       contents: write
       packages: write
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@8ec0c98698d575351a257047604bfff6bbb45bb6 #v0.6.2
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@98f519843a1bade938e5604202df600aa0717aa8 #v0.6.3
     with:
       dockerfile: docker/Dockerfile
       checkout_ref: ${{ github.event.inputs.ref }}
+      packageName: celestia-app-standalone
     secrets: inherit
 
   docker-multiplexer-build:
     permissions:
       contents: write
       packages: write
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@8ec0c98698d575351a257047604bfff6bbb45bb6 #v0.6.2
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@98f519843a1bade938e5604202df600aa0717aa8 #v0.6.3
     with:
       dockerfile: docker/multiplexer.Dockerfile
       checkout_ref: ${{ github.event.inputs.ref }}
-      packageName: celestia-app-multiplexer
+      packageName: celestia-app
       buildArgs: "TARGETOS=linux TARGETARCH=amd64"
     secrets: inherit
 
@@ -43,7 +44,7 @@ jobs:
     permissions:
       contents: write
       packages: write
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@8ec0c98698d575351a257047604bfff6bbb45bb6 #v0.6.2
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@98f519843a1bade938e5604202df600aa0717aa8 #v0.6.3
     with:
       dockerfile: docker/txsim/Dockerfile
       packageName: txsim

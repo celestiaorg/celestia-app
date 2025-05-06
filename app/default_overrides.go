@@ -198,10 +198,14 @@ func (govModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genState := govtypes.DefaultGenesisState()
 	day := time.Hour * 24
 	oneWeek := day * 7
+	tia := int64(1_000_000)                                                                     // 1 TIA = 1,000,000 utia
+	minDeposit := sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(10_000*tia)))          // 10,000 TIA
+	expeditedMinDeposit := sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(50_000*tia))) // 50,000 TIA
 
-	genState.Params.MinDeposit = sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(10_000_000_000))) // 10,000 TIA
+	genState.Params.MinDeposit = minDeposit
 	genState.Params.MaxDepositPeriod = &oneWeek
 	genState.Params.VotingPeriod = &oneWeek
+	genState.Params.ExpeditedMinDeposit = expeditedMinDeposit
 
 	return cdc.MustMarshalJSON(genState)
 }

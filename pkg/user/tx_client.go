@@ -132,6 +132,15 @@ func WithEstimatorService(conn *grpc.ClientConn) Option {
 	}
 }
 
+// WithAdditionalCoreEndpoints adds additional core endpoints to the TxClient.
+// For transaction submission, the client will attempt to use the primary endpoint
+// and the first two additional endpoints provided via this option.
+func WithAdditionalCoreEndpoints(conns []*grpc.ClientConn) Option {
+	return func(c *TxClient) {
+		c.conns = append(c.conns, conns...)
+	}
+}
+
 // TxClient is an abstraction for building, signing, and broadcasting Celestia transactions
 // It supports multiple accounts. If none is specified, it will
 // try to use the default account.
@@ -141,7 +150,8 @@ type TxClient struct {
 	cdc      codec.Codec
 	signer   *Signer
 	registry codectypes.InterfaceRegistry
-	grpc     *grpc.ClientConn
+	// list of core endpoints for tx submission (primary + additionals)
+	conns []*grpc.ClientConn
 	// how often to poll the network for confirmation of a transaction
 	pollTime time.Duration
 	// defaultGasPrice is the price used if no price is provided
@@ -175,11 +185,10 @@ func NewTxClient(
 	if err != nil {
 		return nil, err
 	}
-
 	txClient := &TxClient{
 		signer:              signer,
 		registry:            registry,
-		grpc:                conn,
+		conns:               []*grpc.ClientConn{conn},
 		pollTime:            DefaultPollTime,
 		defaultGasPrice:     appconsts.DefaultMinGasPrice,
 		defaultAccount:      records[0].Name,
@@ -191,6 +200,11 @@ func NewTxClient(
 
 	for _, opt := range options {
 		opt(txClient)
+	}
+
+	// Sanity check to ensure we don't have more than 3 connections
+	if len(txClient.conns) > 3 {
+		txClient.conns = txClient.conns[:3]
 	}
 
 	return txClient, nil
@@ -302,7 +316,10 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 		return nil, err
 	}
 
-	return client.broadcastTx(ctx, txBytes, account)
+	if len(client.conns) > 1 {
+		return client.broadcastMulti(ctx, txBytes, account)
+	}
+	return client.broadcastTx(ctx, client.conns[0], txBytes, account)
 }
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
@@ -375,11 +392,14 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 		return nil, err
 	}
 
-	return client.broadcastTx(ctx, txBytes, account)
+	if len(client.conns) > 1 {
+		return client.broadcastMulti(ctx, txBytes, account)
+	}
+	return client.broadcastTx(ctx, client.conns[0], txBytes, account)
 }
 
-func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
-	txClient := sdktx.NewServiceClient(client.grpc)
+func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+	txClient := sdktx.NewServiceClient(conn)
 	resp, err := txClient.BroadcastTx(
 		ctx,
 		&sdktx.BroadcastTxRequest{
@@ -415,6 +435,58 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 	return resp.TxResponse, nil
 }
 
+// broadcastMulti broadcasts the transaction to multiple connections concurrently
+// and returns the response from the first successful broadcast.
+func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+	respCh := make(chan *sdktypes.TxResponse, 1)
+	errCh := make(chan error, len(client.conns))
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	var wg sync.WaitGroup
+	wg.Add(len(client.conns))
+
+	for _, conn := range client.conns {
+		go func(conn *grpc.ClientConn) {
+			defer wg.Done()
+
+			resp, err := client.broadcastTx(ctx, conn, txBytes, signer)
+			if err != nil {
+				select {
+				case errCh <- err:
+				case <-ctx.Done():
+				}
+				return
+			}
+
+			// On first successful response, send it and cancel others
+			select {
+			case respCh <- resp:
+				cancel()
+			case <-ctx.Done():
+			}
+		}(conn)
+	}
+
+	// Wait for all attempts to finish
+	wg.Wait()
+	close(respCh)
+	close(errCh)
+
+	// Return first successful response, if any
+	if resp, ok := <-respCh; ok {
+		return resp, nil
+	}
+
+	// Otherwise, return the first error encountered
+	errs := make([]error, 0, len(errCh))
+	for err := range errCh {
+		errs = append(errs, err)
+	}
+	return nil, errors.Join(errs...)
+}
+
 // pruneTxTracker removes transactions from the local tx tracker that are older than 10 minutes
 func (client *TxClient) pruneTxTracker() {
 	for hash, txInfo := range client.txTracker {
@@ -428,7 +500,7 @@ func (client *TxClient) pruneTxTracker() {
 // hash. It will continually loop until the context is cancelled, the tx is found or an error
 // is encountered.
 func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxResponse, error) {
-	txClient := tx.NewTxClient(client.grpc)
+	txClient := tx.NewTxClient(client.conns[0])
 
 	pollTicker := time.NewTicker(client.pollTime)
 	defer pollTicker.Stop()
@@ -633,7 +705,7 @@ func (client *TxClient) checkAccountLoaded(ctx context.Context, account string) 
 		return fmt.Errorf("retrieving address from keyring: %w", err)
 	}
 	// FIXME: have a less trusting way of getting the account number and sequence
-	accNum, sequence, err := QueryAccount(ctx, client.grpc, client.registry, addr)
+	accNum, sequence, err := QueryAccount(ctx, client.conns[0], client.registry, addr)
 	if err != nil {
 		return fmt.Errorf("querying account %s: %w", account, err)
 	}
