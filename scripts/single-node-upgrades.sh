@@ -76,9 +76,6 @@ createGenesis() {
     # Persist ABCI responses
     sed -i'.bak' 's#discard_abci_responses = true#discard_abci_responses = false#g' "${APP_HOME}"/config/config.toml
 
-    # Set the ABCI gRPC port to match the new default
-    # sed -i'.bak' 's#"tcp://127.0.0.1:26658"#"tcp://127.0.0.1:36658"#g' "${APP_HOME}"/config/config.toml
-
     # Override the VotingPeriod from 1 week to 1 minute
     sed -i'.bak' 's#"604800s"#"60s"#g' "${APP_HOME}"/config/genesis.json
 
@@ -109,7 +106,7 @@ startCelestiaApp() {
 }
 
 upgradeToV4() {
-    sleep 50
+    sleep 30
     echo "Submitting signal for v4..."
     celestia-appd tx signal signal 4 \
         --keyring-backend=${KEYRING_BACKEND} \
@@ -118,8 +115,8 @@ upgradeToV4() {
         --fees ${FEES} \
         --chain-id ${CHAIN_ID} \
         --broadcast-mode ${BROADCAST_MODE} \
-        --yes
-        # > /dev/null 2>&1 # Hide output to reduce terminal noise
+        --yes \
+        > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     sleep 10
     echo "Querying the tally for v4..."
