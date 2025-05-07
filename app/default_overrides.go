@@ -242,19 +242,6 @@ func DefaultConsensusParams() *tmproto.ConsensusParams {
 	}
 }
 
-func DefaultInitialConsensusParams() *tmproto.ConsensusParams {
-	return &tmproto.ConsensusParams{
-		Block:    DefaultBlockParams(),
-		Evidence: DefaultEvidenceParams(),
-		Validator: &tmproto.ValidatorParams{
-			PubKeyTypes: coretypes.DefaultValidatorParams().PubKeyTypes,
-		},
-		Version: &tmproto.VersionParams{
-			App: DefaultInitialVersion,
-		},
-	}
-}
-
 // DefaultBlockParams returns a default BlockParams with a MaxBytes determined
 // using a goal square size.
 func DefaultBlockParams() *tmproto.BlockParams {
