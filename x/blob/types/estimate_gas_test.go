@@ -40,7 +40,7 @@ func TestPFBGasEstimation(t *testing.T) {
 	for idx, tc := range testCases {
 		t.Run(fmt.Sprintf("case %d", idx), func(t *testing.T) {
 			accnts := testfactory.GenerateAccounts(1)
-			testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultInitialConsensusParams(), accnts...)
+			testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accnts...)
 			signer, err := user.NewSigner(kr, encCfg.TxConfig, testutil.ChainID, user.NewAccount(accnts[0], 1, 0))
 			require.NoError(t, err)
 			blobs := blobfactory.ManyRandBlobs(rnd, tc.blobSizes...)

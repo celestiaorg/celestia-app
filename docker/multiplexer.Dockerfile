@@ -16,7 +16,7 @@ ARG MAX_SQUARE_SIZE
 ARG UPGRADE_HEIGHT_DELAY
 # the docker registry used for the embedded v3 binary.
 ARG CELESTIA_APP_REPOSITORY=ghcr.io/celestiaorg/celestia-app-standalone
-ARG CELESTIA_VERSION="v3.10.0-rc0"
+ARG CELESTIA_VERSION="v3.10.0-rc2"
 
 # Stage 1: this base image contains already released binaries which can be embedded in the multiplexer.
 FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION} AS base
@@ -77,7 +77,7 @@ FROM ${RUNTIME_IMAGE} AS runtime
 # Ref: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
 ARG UID=10001
 ARG USER_NAME=celestia
-ENV CELESTIA_APP_HOME=/home/${USER_NAME}/.celestia-appd
+ENV CELESTIA_APP_HOME=/home/${USER_NAME}/.celestia-app
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
     bash \
