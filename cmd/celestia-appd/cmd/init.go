@@ -18,7 +18,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/input"
 	"github.com/cosmos/cosmos-sdk/server"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
@@ -32,8 +31,6 @@ const (
 	FlagOverwrite = "overwrite"
 	// FlagRecover defines a flag to initialize the private validator key from a specific seed.
 	FlagRecover = "recover"
-	// FlagDefaultBondDenom defines the default denom to use in the genesis file.
-	FlagDefaultBondDenom = "default-denom"
 )
 
 // InitCmd returns a command that creates the config files and genesis.json for
@@ -101,7 +98,6 @@ func initCmd(mbm module.BasicManager, defaultNodeHome string) *cobra.Command {
 
 			genFile := config.GenesisFile()
 			overwrite, _ := cmd.Flags().GetBool(FlagOverwrite)
-			defaultDenom, _ := cmd.Flags().GetString(FlagDefaultBondDenom)
 
 			// use os.Stat to check if the file exists
 			_, err = os.Stat(genFile)
@@ -109,10 +105,6 @@ func initCmd(mbm module.BasicManager, defaultNodeHome string) *cobra.Command {
 				return fmt.Errorf("genesis.json file already exists: %v", genFile)
 			}
 
-			// Overwrites the SDK default denom for side-effects
-			if defaultDenom != "" {
-				sdk.DefaultBondDenom = defaultDenom
-			}
 			appGenState := mbm.DefaultGenesis(cdc)
 
 			appState, err := json.MarshalIndent(appGenState, "", " ")
@@ -157,7 +149,6 @@ func initCmd(mbm module.BasicManager, defaultNodeHome string) *cobra.Command {
 	cmd.Flags().BoolP(FlagOverwrite, "o", false, "overwrite the genesis.json file")
 	cmd.Flags().Bool(FlagRecover, false, "provide seed phrase to recover existing key instead of creating")
 	cmd.Flags().String(flags.FlagChainID, "", "genesis file chain-id, if left blank will be randomly created")
-	cmd.Flags().String(FlagDefaultBondDenom, "", "genesis file default denomination, if left blank default value is 'stake'")
 	cmd.Flags().Int64(flags.FlagInitHeight, 1, "specify the initial block height at genesis")
 
 	return cmd
