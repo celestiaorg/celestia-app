@@ -41,9 +41,6 @@ createGenesis() {
       --home "${APP_HOME}" \
       > /dev/null 2>&1 # Hide output to reduce terminal noise
 
-    echo "Overriding the genesis.json expedited min deposit from 50 TIA to 50,000 TIA."
-    sed -i'.bak' 's#"50000000"#"50000000000"#g' "${APP_HOME}"/config/genesis.json
-
     echo "Adding a new key to the keyring..."
     celestia-appd keys add ${KEY_NAME} \
       --keyring-backend=${KEYRING_BACKEND} \
