@@ -69,9 +69,6 @@ createGenesis() {
       --home "${APP_HOME}" \
         > /dev/null 2>&1 # Hide output to reduce terminal noise
 
-    echo "Overriding the genesis.json app version from 0 to 4."
-    sed -i'.bak' 's#"app": "0"#"app": "4"#g' "${APP_HOME}"/config/genesis.json
-
     # Override the default RPC server listening address
     sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' "${APP_HOME}"/config/config.toml
 
