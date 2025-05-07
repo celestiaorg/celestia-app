@@ -5,12 +5,9 @@ import (
 	"fmt"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/go-square/v2/share"
-	"github.com/chatton/interchaintest/dockerutil"
-	"github.com/chatton/interchaintest/framework"
-	"github.com/chatton/interchaintest/framework/cosmos"
-	"github.com/chatton/interchaintest/framework/factory"
-	"github.com/chatton/interchaintest/framework/types"
-	"github.com/chatton/interchaintest/testutil/maps"
+	celestiadockertypes "github.com/chatton/celestia-test/framework/docker"
+	"github.com/chatton/celestia-test/framework/testutil/maps"
+	celestiatypes "github.com/chatton/celestia-test/framework/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	dockertypes "github.com/docker/docker/api/types"
 	"github.com/moby/moby/client"
@@ -43,71 +40,68 @@ type CelestiaTestSuite struct {
 func (s *CelestiaTestSuite) SetupSuite() {
 	s.logger = zaptest.NewLogger(s.T())
 	s.logger.Info("Setting up Celestia test suite")
-	s.client, s.network = framework.DockerSetup(s.T())
+	s.client, s.network = celestiadockertypes.DockerSetup(s.T())
 }
 
-func (s *CelestiaTestSuite) CreateCelestiaChain(appVersion string) (types.Chain, error) {
+func (s *CelestiaTestSuite) CreateCelestiaChain(appVersion string) celestiatypes.ChainProvider {
 	numValidators := 4
 	numFullNodes := 0
 
 	enc := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
-	return factory.NewChain(s.logger, s.T().Name(), s.client, s.network, &types.ChainSpec{
-		Name:          "celestia",
-		ChainName:     "celestia",
-		Version:       getCelestiaTag(),
-		NumValidators: &numValidators,
-		NumFullNodes:  &numFullNodes,
-		Config: types.Config{
-			Type:    "cosmos",
-			Name:    "celestia",
-			ChainID: "celestia",
-			Images: []types.DockerImage{
-				{
-					Repository: multiplexerImage,
-					Version:    getCelestiaTag(),
-					UIDGID:     "10001:10001",
-				},
+
+	cfg := celestiadockertypes.Config{
+		Logger:          s.logger,
+		DockerClient:    s.client,
+		DockerNetworkID: s.network,
+		Type:            "cosmos",
+		Name:            "celestia",
+		Version:         getCelestiaTag(),
+		NumValidators:   &numValidators,
+		NumFullNodes:    &numFullNodes,
+		ChainID:         "celestia",
+		Images: []celestiadockertypes.DockerImage{
+			{
+				Repository: multiplexerImage,
+				Version:    getCelestiaTag(),
+				UIDGID:     "10001:10001",
 			},
-			Bin:           "celestia-appd",
-			Bech32Prefix:  "celestia",
-			Denom:         "utia",
-			CoinType:      "118",
-			GasPrices:     "0.025utia",
-			GasAdjustment: 1.3,
-			ModifyGenesis: func(config types.Config, bytes []byte) ([]byte, error) {
-				return maps.SetField(bytes, "consensus.params.version.app", appVersion)
-			},
-			EncodingConfig:      &enc,
-			AdditionalStartArgs: []string{"--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099"},
 		},
-	})
+		Bin:           "celestia-appd",
+		Bech32Prefix:  "celestia",
+		Denom:         "utia",
+		CoinType:      "118",
+		GasPrices:     "0.025utia",
+		GasAdjustment: 1.3,
+		ModifyGenesis: func(config celestiadockertypes.Config, bytes []byte) ([]byte, error) {
+			return maps.SetField(bytes, "consensus.params.version.app", appVersion)
+		},
+		EncodingConfig:      &enc,
+		AdditionalStartArgs: []string{"--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099"},
+	}
+	return celestiadockertypes.NewProvider(cfg, s.T().Name())
 }
 
 // CreateTxSim deploys and starts a txsim container to simulate transactions against the given celestia chain in the test environment.
-func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, celestia *cosmos.Chain) {
+func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain celestiatypes.Chain) {
 	t := s.T()
 	networkName, err := getNetworkNameFromID(ctx, s.client, s.network)
 	s.Require().NoError(err)
 
 	// Deploy txsim image
 	t.Log("Deploying txsim image")
-	txsimImage := dockerutil.NewImage(s.logger, s.client, networkName, t.Name(), txsimImage, getCelestiaTag())
+	txsimImage := celestiadockertypes.NewImage(s.logger, s.client, networkName, t.Name(), txsimImage, getCelestiaTag())
 
-	// Get the RPC address to connect to the Celestia node
-	rpcAddress := celestia.GetHostRPCAddress()
-	t.Logf("Connecting to Celestia node at %s", rpcAddress)
-
-	opts := dockerutil.ContainerOptions{
-		User: dockerutil.GetRootUserString(),
+	opts := celestiadockertypes.ContainerOptions{
+		User: celestiadockertypes.GetRootUserString(),
 		// Mount the Celestia home directory into the txsim container
 		// this ensures txsim has access to a keyring and is able to broadcast transactions.
-		Binds: []string{celestia.Validators[0].VolumeName + ":/celestia-home"},
+		Binds: []string{chain.GetVolumeName() + ":/celestia-home"},
 	}
 
 	args := []string{
 		"/bin/txsim",
 		"--key-path", "/celestia-home",
-		"--grpc-endpoint", celestia.GetGRPCAddress(),
+		"--grpc-endpoint", chain.GetGRPCAddress(),
 		"--poll-time", "1s",
 		"--seed", "42",
 		"--blob", "10",

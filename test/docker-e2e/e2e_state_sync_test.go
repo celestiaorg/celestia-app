@@ -2,9 +2,9 @@ package docker_e2e
 
 import (
 	"context"
-	"github.com/chatton/interchaintest/framework/cosmos"
-	"github.com/chatton/interchaintest/testutil/toml"
-	"github.com/chatton/interchaintest/testutil/wait"
+	addressutil "github.com/chatton/celestia-test/framework/testutil/address"
+	"github.com/chatton/celestia-test/framework/testutil/toml"
+	"github.com/chatton/celestia-test/framework/testutil/wait"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
@@ -22,11 +22,12 @@ func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 		stateSyncTimeout           = 5 * time.Minute
 	)
 
-	celestia, err := s.CreateCelestiaChain("4")
+	ctx := context.TODO()
+	chainProvider := s.CreateCelestiaChain("4")
+
+	celestia, err := chainProvider.GetChain(ctx)
 	s.Require().NoError(err)
 
-	// Start the chain
-	ctx := context.Background()
 	err = celestia.Start(ctx)
 	require.NoError(t, err)
 
@@ -43,12 +44,12 @@ func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 	require.Greater(t, height, int64(0))
 
 	// Get the validators
-	cosmosChain, ok := celestia.(*cosmos.Chain)
-	require.True(t, ok, "expected celestia to be a cosmos.Chain")
+	s.CreateTxSim(ctx, celestia)
 
-	s.CreateTxSim(ctx, cosmosChain)
+	allNodes := celestia.GetNodes()
 
-	nodeClient := cosmosChain.Nodes()[0].Client
+	nodeClient, err := allNodes[0].GetRPCClient()
+	s.Require().NoError(err)
 
 	initialHeight := int64(0)
 
@@ -96,7 +97,7 @@ func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 	require.NoError(t, err, "failed to get block at trust height %d", trustHeight)
 
 	trustHash := trustBlock.BlockID.Hash.String()
-	rpcServers := cosmosChain.Nodes().RPCString(ctx)
+	rpcServers, err := addressutil.BuildInternalRPCAddressList(ctx, celestia.GetNodes())
 
 	t.Logf("Trust height: %d", trustHeight)
 	t.Logf("Trust hash: %s", trustHash)
@@ -107,10 +108,17 @@ func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 	}
 
 	t.Log("Adding state sync node")
-	err = cosmosChain.AddFullNodes(ctx, overrides, 1)
+	err = celestia.AddNode(ctx, overrides)
+
 	require.NoError(t, err, "failed to add node")
 
-	stateSyncClient := cosmosChain.FullNodes[0].Client
+	allNodes = celestia.GetNodes()
+	fullNode := allNodes[len(allNodes)-1]
+
+	s.Require().Equal("fn", fullNode.GetType(), "expected state sync node to be a full node")
+
+	stateSyncClient, err := fullNode.GetRPCClient()
+	s.Require().NoError(err)
 
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()

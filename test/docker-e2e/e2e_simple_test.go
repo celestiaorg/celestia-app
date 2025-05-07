@@ -3,7 +3,6 @@ package docker_e2e
 import (
 	"context"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	"github.com/chatton/interchaintest/framework/cosmos"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
@@ -15,11 +14,12 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 		t.Skip("skipping in short mode")
 	}
 
-	celestia, err := s.CreateCelestiaChain("4")
+	ctx := context.TODO()
+	chainProvider := s.CreateCelestiaChain("4")
+
+	celestia, err := chainProvider.GetChain(ctx)
 	s.Require().NoError(err)
 
-	// Start the chain
-	ctx := context.Background()
 	err = celestia.Start(ctx)
 	require.NoError(t, err)
 
@@ -35,11 +35,7 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 	require.NoError(t, err)
 	require.Greater(t, height, int64(0))
 
-	// Get the validators
-	cosmosChain, ok := celestia.(*cosmos.Chain)
-	require.True(t, ok, "expected celestia to be a cosmos.Chain")
-
-	s.CreateTxSim(ctx, cosmosChain)
+	s.CreateTxSim(ctx, celestia)
 
 	pollCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
