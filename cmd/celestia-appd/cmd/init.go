@@ -12,8 +12,8 @@ import (
 	"cosmossdk.io/math/unsafe"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	cfg "github.com/cometbft/cometbft/config"
-	cmttypes "github.com/cometbft/cometbft/types"
+	cometconfig "github.com/cometbft/cometbft/config"
+	comettypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/input"
@@ -43,7 +43,7 @@ func InitCmd(capp *app.App) *cobra.Command {
 // and the respective application.
 //
 // This command was heavily inspired by the Cosmos SDK's init command.
-func initCmd(mbm module.BasicManager, defaultNodeHome string) *cobra.Command {
+func initCmd(basicManager module.BasicManager, defaultNodeHome string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "init [moniker]",
 		Short:   "Initialize configuration files for a Celestia consensus node",
@@ -52,7 +52,7 @@ func initCmd(mbm module.BasicManager, defaultNodeHome string) *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx := client.GetClientContextFromCmd(cmd)
-			cdc := clientCtx.Codec
+			codec := clientCtx.Codec
 
 			serverCtx := server.GetServerContextFromCmd(cmd)
 			config := serverCtx.Config
@@ -83,10 +83,9 @@ func initCmd(mbm module.BasicManager, defaultNodeHome string) *cobra.Command {
 				}
 			}
 
-			// Get initial height
-			initHeight, _ := cmd.Flags().GetInt64(flags.FlagInitHeight)
-			if initHeight < 1 {
-				initHeight = 1
+			initialHeight, _ := cmd.Flags().GetInt64(flags.FlagInitHeight)
+			if initialHeight < 1 {
+				initialHeight = 1
 			}
 
 			nodeID, _, err := genutil.InitializeNodeValidatorFilesFromMnemonic(config, mnemonic)
@@ -96,29 +95,28 @@ func initCmd(mbm module.BasicManager, defaultNodeHome string) *cobra.Command {
 
 			config.Moniker = args[0]
 
-			genFile := config.GenesisFile()
+			genesisFile := config.GenesisFile()
 			overwrite, _ := cmd.Flags().GetBool(FlagOverwrite)
 
 			// use os.Stat to check if the file exists
-			_, err = os.Stat(genFile)
+			_, err = os.Stat(genesisFile)
 			if !overwrite && !os.IsNotExist(err) {
-				return fmt.Errorf("genesis.json file already exists: %v", genFile)
+				return fmt.Errorf("genesis.json file already exists: %v", genesisFile)
 			}
 
-			appGenState := mbm.DefaultGenesis(cdc)
-
-			appState, err := json.MarshalIndent(appGenState, "", " ")
+			appGenesisState := basicManager.DefaultGenesis(codec)
+			appState, err := json.MarshalIndent(appGenesisState, "", " ")
 			if err != nil {
 				return errorsmod.Wrap(err, "Failed to marshal default genesis state")
 			}
 
 			appGenesis := &types.AppGenesis{}
-			if _, err := os.Stat(genFile); err != nil {
+			if _, err := os.Stat(genesisFile); err != nil {
 				if !os.IsNotExist(err) {
 					return err
 				}
 			} else {
-				appGenesis, err = types.AppGenesisFromFile(genFile)
+				appGenesis, err = types.AppGenesisFromFile(genesisFile)
 				if err != nil {
 					return errorsmod.Wrap(err, "Failed to read genesis doc from file")
 				}
@@ -128,19 +126,19 @@ func initCmd(mbm module.BasicManager, defaultNodeHome string) *cobra.Command {
 			appGenesis.AppVersion = version.Version
 			appGenesis.ChainID = chainID
 			appGenesis.AppState = appState
-			appGenesis.InitialHeight = initHeight
+			appGenesis.InitialHeight = initialHeight
 			appGenesis.Consensus = &types.ConsensusGenesis{
 				Validators: nil,
 				Params:     getConsensusParams(),
 			}
 
-			if err = genutil.ExportGenesisFile(appGenesis, genFile); err != nil {
+			if err = genutil.ExportGenesisFile(appGenesis, genesisFile); err != nil {
 				return errorsmod.Wrap(err, "Failed to export genesis file")
 			}
 
-			toPrint := newPrintInfo(config.Moniker, chainID, nodeID, "", appState)
+			cometconfig.WriteConfigFile(filepath.Join(config.RootDir, "config", "config.toml"), config)
 
-			cfg.WriteConfigFile(filepath.Join(config.RootDir, "config", "config.toml"), config)
+			toPrint := newPrintInfo(config.Moniker, chainID, nodeID, "", appState)
 			return displayInfo(toPrint)
 		},
 	}
@@ -179,12 +177,11 @@ func displayInfo(info printInfo) error {
 	}
 
 	_, err = fmt.Fprintf(os.Stderr, "%s\n", out)
-
 	return err
 }
 
-func getConsensusParams() *cmttypes.ConsensusParams {
-	params := cmttypes.DefaultConsensusParams()
+func getConsensusParams() *comettypes.ConsensusParams {
+	params := comettypes.DefaultConsensusParams()
 	params.Version.App = appconsts.LatestVersion
 	return params
 }
