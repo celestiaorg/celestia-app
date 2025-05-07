@@ -264,8 +264,16 @@
       "constitution": ""
     },
     "hyperlane": {
-      "ism_genesis": null,
-      "post_dispatch_genesis": null,
+      "ism_genesis": {
+        "isms": [],
+        "validator_storage_locations": []
+      },
+      "post_dispatch_genesis": {
+        "igps": [],
+        "igp_gas_configs": [],
+        "merkle_tree_hooks": [],
+        "noop_hooks": []
+      },
       "mailboxes": [],
       "messages": [],
       "ism_sequence": "0",
