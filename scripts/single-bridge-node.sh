@@ -13,19 +13,24 @@ then
     exit 1
 fi
 
-CELESTIA_HOME="${HOME}/.celestia-bridge-private"
+CHAIN_ID="test"
+CELESTIA_HOME="${HOME}/.celestia-bridge-${CHAIN_ID}"
 VERSION=$(celestia version 2>&1)
+GENESIS_BLOCK_HASH=$(curl http://localhost:26657/block?height=1 | jq -r .result.block_id.hash)
+CELESTIA_CUSTOM="${CHAIN_ID}:${GENESIS_BLOCK_HASH}"
 
 echo "celestia version: ${VERSION}"
 echo "celestia home: ${CELESTIA_HOME}"
+echo "Genesis block hash: ${GENESIS_BLOCK_HASH}"
+echo "CELESTIA_CUSTOM: ${CELESTIA_CUSTOM}"
 echo ""
+
 
 createConfig() {
     echo "Initializing bridge node config files..."
     celestia bridge init \
         --p2p.network private \
-        --core.ip 127.0.0.1 \
-        --core.port 9098
+        --core.ip 127.0.0.1
     #   > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     echo "Initialized bridge node config files"
@@ -40,8 +45,7 @@ startCelestia() {
   echo "Starting celestia..."
   celestia bridge start \
     --p2p.network private \
-    --core.ip 127.0.0.1 \
-    --core.port 9098
+    --core.ip 127.0.0.1
 }
 
 deleteCelestiaHome
