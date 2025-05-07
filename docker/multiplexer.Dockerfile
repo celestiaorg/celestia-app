@@ -16,7 +16,7 @@ ARG MAX_SQUARE_SIZE
 ARG UPGRADE_HEIGHT_DELAY
 # the docker registry used for the embedded v3 binary.
 ARG CELESTIA_APP_REPOSITORY=ghcr.io/celestiaorg/celestia-app-standalone
-ARG CELESTIA_VERSION="v3.10.0-rc0"
+ARG CELESTIA_VERSION="v3.10.0-rc2"
 
 # Stage 1: this base image contains already released binaries which can be embedded in the multiplexer.
 FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION} AS base
