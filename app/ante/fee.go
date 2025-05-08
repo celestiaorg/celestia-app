@@ -17,7 +17,7 @@ const (
 )
 
 // ValidateTxFeeWrapper enables the passing of an additional minfeeKeeper parameter in
-// ante.NewDeductFeeDecorator whilst still satisfying the ante.TxFeeChecker type.
+// ante.NewDeductFeeDecorator while still satisfying the ante.TxFeeChecker type.
 func ValidateTxFeeWrapper(minfeeKeeper *minfeekeeper.Keeper) ante.TxFeeChecker {
 	return func(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, int64, error) {
 		return ValidateTxFee(ctx, tx, minfeeKeeper)
