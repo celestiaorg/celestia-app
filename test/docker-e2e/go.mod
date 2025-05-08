@@ -5,7 +5,7 @@ go 1.23.6
 require (
 	github.com/celestiaorg/celestia-app/v4 v4.0.0
 	github.com/celestiaorg/go-square/v2 v2.2.0
-	github.com/chatton/celestia-test v0.0.0-20250507125531-9ab40e87ad8d
+	github.com/chatton/celestia-test v0.0.0-20250508142828-35e3863e3a7b
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/docker/docker v27.5.1+incompatible
 	github.com/moby/moby v27.5.1+incompatible
@@ -270,7 +270,6 @@ replace (
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.1.0
 
 	github.com/celestiaorg/celestia-app/v4 => ../..
-	github.com/chatton/celestia-test => ../../../../celestia-test
 	// celestia-core: v1.53.0-tm-v0.38.17
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.53.0-tm-v0.38.17
 	// cosmos-sdk: v1.29.0-sdk-v0.50.12

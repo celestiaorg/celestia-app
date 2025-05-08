@@ -3,7 +3,6 @@ package docker_e2e
 import (
 	"context"
 	"github.com/chatton/celestia-test/framework/testutil/wait"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 )
@@ -15,9 +14,9 @@ func (s *CelestiaTestSuite) TestE2ENodeSimple() {
 	}
 
 	ctx := context.TODO()
-	chainProvider := s.CreateCelestiaChainProvider("4")
+	provider := s.CreateDockerProvider("4")
 
-	celestia, err := chainProvider.GetChain(ctx)
+	celestia, err := provider.GetChain(ctx)
 	s.Require().NoError(err)
 
 	err = celestia.Start(ctx)
@@ -32,8 +31,8 @@ func (s *CelestiaTestSuite) TestE2ENodeSimple() {
 
 	// Verify the chain is running
 	height, err := celestia.Height(ctx)
-	require.NoError(t, err)
-	require.Greater(t, height, int64(0))
+	s.Require().NoError(err)
+	s.Require().Greater(t, height, int64(0))
 
 	s.CreateTxSim(ctx, celestia)
 
@@ -44,7 +43,7 @@ func (s *CelestiaTestSuite) TestE2ENodeSimple() {
 	genesisHash := s.getGenesisHash(ctx, chainNode)
 	s.Require().NotEmpty(genesisHash, "genesis hash is empty")
 
-	bridgeNode, err := chainProvider.GetNode(ctx, "bridge")
+	bridgeNode, err := provider.GetNode(ctx, "bridge")
 	s.Require().NoError(err)
 
 	hostname, err := chainNode.GetInternalHostName(ctx)

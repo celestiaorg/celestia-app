@@ -5,7 +5,6 @@ import (
 	addressutil "github.com/chatton/celestia-test/framework/testutil/address"
 	"github.com/chatton/celestia-test/framework/testutil/toml"
 	"github.com/chatton/celestia-test/framework/testutil/wait"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 )
@@ -23,13 +22,13 @@ func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 	)
 
 	ctx := context.TODO()
-	chainProvider := s.CreateCelestiaChainProvider("4")
+	provider := s.CreateDockerProvider("4")
 
-	celestia, err := chainProvider.GetChain(ctx)
+	celestia, err := provider.GetChain(ctx)
 	s.Require().NoError(err)
 
 	err = celestia.Start(ctx)
-	require.NoError(t, err)
+	s.Require().NoError(err)
 
 	// Cleanup resources when the test is done
 	t.Cleanup(func() {
@@ -40,8 +39,8 @@ func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 
 	// Verify the chain is running
 	height, err := celestia.Height(ctx)
-	require.NoError(t, err)
-	require.Greater(t, height, int64(0))
+	s.Require().NoError(err)
+	s.Require().Greater(t, height, int64(0))
 
 	// Get the validators
 	s.CreateTxSim(ctx, celestia)
@@ -77,24 +76,24 @@ func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 		}
 	}
 
-	require.Greater(t, initialHeight, int64(0), "failed to get initial height")
+	s.Require().Greater(t, initialHeight, int64(0), "failed to get initial height")
 	targetHeight := initialHeight + blocksToProduce
 	t.Logf("Successfully reached initial height %d", initialHeight)
 
-	require.NoError(t, wait.ForBlocks(ctx, int(targetHeight), celestia), "failed to wait for target height")
+	s.Require().NoError(wait.ForBlocks(ctx, int(targetHeight), celestia), "failed to wait for target height")
 
 	t.Logf("Successfully reached target height %d", targetHeight)
 
 	t.Logf("Gathering state sync parameters")
 	status, err := nodeClient.Status(ctx)
-	require.NoError(t, err, "failed to get node zero client")
+	s.Require().NoError(err, "failed to get node zero client")
 
 	latestHeight := status.SyncInfo.LatestBlockHeight
 	trustHeight := latestHeight - stateSyncTrustHeightOffset
-	require.Greaterf(t, trustHeight, int64(0), "calculated trust height %d is too low (latest height: %d)", trustHeight, latestHeight)
+	s.Require().Greaterf(trustHeight, int64(0), "calculated trust height %d is too low (latest height: %d)", trustHeight, latestHeight)
 
 	trustBlock, err := nodeClient.Block(ctx, &trustHeight)
-	require.NoError(t, err, "failed to get block at trust height %d", trustHeight)
+	s.Require().NoError(err, "failed to get block at trust height %d", trustHeight)
 
 	trustHash := trustBlock.BlockID.Hash.String()
 	rpcServers, err := addressutil.BuildInternalRPCAddressList(ctx, celestia.GetNodes())
@@ -110,7 +109,7 @@ func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 	t.Log("Adding state sync node")
 	err = celestia.AddNode(ctx, overrides)
 
-	require.NoError(t, err, "failed to add node")
+	s.Require().NoError(err, "failed to add node")
 
 	allNodes = celestia.GetNodes()
 	fullNode := allNodes[len(allNodes)-1]

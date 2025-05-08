@@ -3,7 +3,6 @@ package docker_e2e
 import (
 	"context"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 )
@@ -15,13 +14,13 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 	}
 
 	ctx := context.TODO()
-	chainProvider := s.CreateCelestiaChainProvider("4")
+	provider := s.CreateDockerProvider("4")
 
-	celestia, err := chainProvider.GetChain(ctx)
+	celestia, err := provider.GetChain(ctx)
 	s.Require().NoError(err)
 
 	err = celestia.Start(ctx)
-	require.NoError(t, err)
+	s.Require().NoError(err)
 
 	// Cleanup resources when the test is done
 	t.Cleanup(func() {
@@ -32,8 +31,8 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 
 	// Verify the chain is running
 	height, err := celestia.Height(ctx)
-	require.NoError(t, err)
-	require.Greater(t, height, int64(0))
+	s.Require().NoError(err)
+	s.Require().Greater(t, height, int64(0))
 
 	s.CreateTxSim(ctx, celestia)
 
