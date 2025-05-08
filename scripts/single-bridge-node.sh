@@ -13,7 +13,7 @@ then
     exit 1
 fi
 
-CHAIN_ID="private"
+CHAIN_ID="test"
 CELESTIA_HOME="${HOME}/.celestia-bridge-${CHAIN_ID}"
 VERSION=$(celestia version 2>&1)
 GENESIS_BLOCK_HASH=$(curl http://localhost:26657/block?height=1 | jq -r .result.block_id.hash)
@@ -25,29 +25,25 @@ echo "Genesis block hash: ${GENESIS_BLOCK_HASH}"
 echo "CELESTIA_CUSTOM: ${CELESTIA_CUSTOM}"
 echo ""
 
+# Set the CELESTIA_CUSTOM environment variable. Private networks must be
+# configured with env variables instead of via CLI flags (e.g. --p2p.network).
+export CELESTIA_CUSTOM=$CELESTIA_CUSTOM
 
 createConfig() {
     echo "Initializing bridge node config files..."
-    celestia bridge init \
-        --p2p.network ${CHAIN_ID} \
-        --core.ip 127.0.0.1
-    #   > /dev/null 2>&1 # Hide output to reduce terminal noise
-
-    echo "Initialized bridge node config files"
+    celestia bridge init --core.ip 127.0.0.1
+    echo "Initialized bridge node config files."
 }
 
 deleteCelestiaHome() {
     echo "Deleting $CELESTIA_HOME..."
     rm -rf "$CELESTIA_HOME"
+    echo "Deleted $CELESTIA_HOME."
 }
 
 startCelestia() {
-  export CELESTIA_CUSTOM=$CELESTIA_CUSTOM
-  echo "Starting celestia..."
-  celestia bridge start \
-    --p2p.network private \
-    --core.ip 127.0.0.1 \
-    --log.level debug
+  echo "Starting celestia bridge node..."
+  celestia bridge start --core.ip 127.0.0.1 --log.level debug
 }
 
 deleteCelestiaHome
