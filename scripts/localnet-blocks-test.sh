@@ -49,7 +49,7 @@ while [ ${CNT} -lt $ITER ]; do
     docker restart ${rand_container} &>/dev/null &
   fi
 
-  let CNT=CNT+1
+  CNT=$((CNT + 1))
   sleep $SLEEP
 done
 
