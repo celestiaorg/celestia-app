@@ -572,6 +572,7 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 	resp := app.BaseApp.Info(req)
 	// mount the stores for the provided app version
 	if resp.AppVersion > 0 && !app.IsSealed() {
+		app.Logger().Debug("Info mounting keys and initializing app version", "app version", resp.AppVersion)
 		app.mountKeysAndInit(resp.AppVersion)
 	}
 
@@ -591,6 +592,7 @@ func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain
 	appVersion := req.ConsensusParams.Version.AppVersion
 	// mount the stores for the provided app version if it has not already been mounted
 	if app.AppVersion() == 0 && !app.IsSealed() {
+		app.Logger().Debug("InitChain mounting keys and initializing app version", "app version", appVersion)
 		app.mountKeysAndInit(appVersion)
 	}
 
