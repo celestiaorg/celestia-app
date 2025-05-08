@@ -43,7 +43,7 @@ func (s *CelestiaTestSuite) SetupSuite() {
 	s.client, s.network = celestiadockertypes.DockerSetup(s.T())
 }
 
-func (s *CelestiaTestSuite) CreateCelestiaChain(appVersion string) celestiatypes.ChainProvider {
+func (s *CelestiaTestSuite) CreateCelestiaChainProvider(appVersion string) celestiatypes.ChainProvider {
 	numValidators := 4
 	numFullNodes := 0
 

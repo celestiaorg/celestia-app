@@ -15,7 +15,7 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 	}
 
 	ctx := context.TODO()
-	chainProvider := s.CreateCelestiaChain("4")
+	chainProvider := s.CreateCelestiaChainProvider("4")
 
 	celestia, err := chainProvider.GetChain(ctx)
 	s.Require().NoError(err)
