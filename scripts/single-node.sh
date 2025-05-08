@@ -21,7 +21,7 @@ else
 fi
 
 # Constants
-CHAIN_ID="test"
+CHAIN_ID="private"
 KEY_NAME="validator"
 KEYRING_BACKEND="test"
 FEES="500utia"
