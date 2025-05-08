@@ -65,7 +65,7 @@ make configure-v3 CONFIG_FILE=path/to/other/config.toml
 The following command can be used, if you are a validator in the active set, to signal to upgrade to v3:
 
 ```bash
-celestia-appd tx signal signal 3 <plus transaction flags>
+celestia-appd tx signal 3 <plus transaction flags>
 ```
 
 You can track the tally of signalling by validators using the following query
