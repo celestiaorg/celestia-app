@@ -256,12 +256,12 @@ func startStandAlone(ctx *server.Context, clientCtx client.Context, appCreator s
 	if config.API.Enable {
 		apiSrv, clientCtx, err = startAPIServer(ctx, clientCtx, app, config, metrics)
 		if err != nil {
-			ctx.Logger.Error("failed to start api server: ", err)
+			ctx.Logger.Error("failed to start api server", "err", err)
 			return err
 		}
 		defer func() {
 			if err := apiSrv.Close(); err != nil {
-				ctx.Logger.Error("failed to close api server: ", err)
+				ctx.Logger.Error("failed to close api server", "err", err)
 			}
 		}()
 	}
@@ -269,7 +269,7 @@ func startStandAlone(ctx *server.Context, clientCtx client.Context, appCreator s
 	if config.GRPC.Enable {
 		grpcSrv, _, err = setupGRPCServer(ctx, clientCtx, app, config, true)
 		if err != nil {
-			ctx.Logger.Error("failed to start grpc server: ", err)
+			ctx.Logger.Error("failed to start grpc server", "err", err)
 			return err
 		}
 		defer grpcSrv.Stop()
@@ -278,12 +278,12 @@ func startStandAlone(ctx *server.Context, clientCtx client.Context, appCreator s
 	if grpcSrv != nil && config.GRPCWeb.Enable {
 		grpcWebSrv, err = servergrpc.StartGRPCWeb(grpcSrv, config)
 		if err != nil {
-			ctx.Logger.Error("failed to start grpc-web http server: ", err)
+			ctx.Logger.Error("failed to start grpc-web http server", "err", err)
 			return err
 		}
 		defer func() {
 			if err := grpcWebSrv.Close(); err != nil {
-				ctx.Logger.Error("failed to close grpc-web http server: ", err)
+				ctx.Logger.Error("failed to close grpc-web http server", "err", err)
 			}
 		}()
 	}
@@ -406,12 +406,12 @@ func startInProcess(ctx *server.Context, clientCtx client.Context, appCreator sr
 	if config.API.Enable {
 		apiSrv, clientCtx, err = startAPIServer(ctx, clientCtx, app, config, metrics)
 		if err != nil {
-			ctx.Logger.Error("failed to start api server: ", err)
+			ctx.Logger.Error("failed to start api server", "err", err)
 			return err
 		}
 		defer func() {
 			if err := apiSrv.Close(); err != nil {
-				ctx.Logger.Error("failed to close api server: ", err)
+				ctx.Logger.Error("failed to close api server", "err", err)
 			}
 		}()
 	}
@@ -419,7 +419,7 @@ func startInProcess(ctx *server.Context, clientCtx client.Context, appCreator sr
 	if config.GRPC.Enable {
 		grpcSrv, clientCtx, err = setupGRPCServer(ctx, clientCtx, app, config, false)
 		if err != nil {
-			ctx.Logger.Error("failed to start grpc server: ", err)
+			ctx.Logger.Error("failed to start grpc server", "err", err)
 			return err
 		}
 		defer grpcSrv.Stop()
@@ -428,12 +428,12 @@ func startInProcess(ctx *server.Context, clientCtx client.Context, appCreator sr
 	if grpcSrv != nil && config.GRPCWeb.Enable {
 		grpcWebSrv, err = servergrpc.StartGRPCWeb(grpcSrv, config)
 		if err != nil {
-			ctx.Logger.Error("failed to start grpc-web http server: ", err)
+			ctx.Logger.Error("failed to start grpc-web http server", "err", err)
 			return err
 		}
 		defer func() {
 			if err := grpcWebSrv.Close(); err != nil {
-				ctx.Logger.Error("failed to close grpc-web http server: ", err)
+				ctx.Logger.Error("failed to close grpc-web http server", "err", err)
 			}
 		}()
 	}
@@ -457,7 +457,7 @@ func startInProcess(ctx *server.Context, clientCtx client.Context, appCreator sr
 
 		minGasPrices, err := sdktypes.ParseDecCoins(config.MinGasPrices)
 		if err != nil {
-			ctx.Logger.Error("failed to parse minimum-gas-prices: ", err)
+			ctx.Logger.Error("failed to parse minimum-gas-prices", "err", err)
 			return err
 		}
 
