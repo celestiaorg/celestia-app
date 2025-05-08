@@ -12,14 +12,14 @@ Celestia-app v4.0.0 introduces support for a [multiplexer](https://github.com/ce
 
 #### `rpc.grpc_laddr`
 
-The `rpc.grpc_laddr` config option is now required when running the celestia-app binary with the multiplexer. This option can be set via CLI flag `--rpc.grpc_laddr tcp://0.0.0.0:9098` or in the `config.toml`:
+The `rpc.grpc_laddr` config option is now required when running the celestia-app binary with the multiplexer. This option can be set via CLI flag `--rpc.grpc_laddr tcp://127.0.0.1:9098` or in the `config.toml`:
 
 ```toml
 [rpc]
 
 # TCP or UNIX socket address for the gRPC server to listen on
 # NOTE: This server only supports /broadcast_tx_commit
-grpc_laddr = "tcp://0.0.0.0:9098"
+grpc_laddr = "tcp://127.0.0.1:9098"
 ```
 
 ## v3.0.0
