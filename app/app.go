@@ -588,7 +588,7 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 //
 // Side-effect: calls baseapp.Init()
 func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain) {
-	req = setDefaultAppVersion(req)
+	req = app.setDefaultAppVersion(req)
 	appVersion := req.ConsensusParams.Version.AppVersion
 	// mount the stores for the provided app version if it has not already been mounted
 	if app.AppVersion() == 0 && !app.IsSealed() {
@@ -611,7 +611,7 @@ func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain
 // setDefaultAppVersion sets the default app version in the consensus params if
 // it was 0. This is needed because chains (e.x. mocha-4) did not explicitly set
 // an app version in genesis.json.
-func setDefaultAppVersion(req abci.RequestInitChain) abci.RequestInitChain {
+func (app *App) setDefaultAppVersion(req abci.RequestInitChain) abci.RequestInitChain {
 	if req.ConsensusParams == nil {
 		panic("no consensus params set")
 	}
@@ -619,6 +619,7 @@ func setDefaultAppVersion(req abci.RequestInitChain) abci.RequestInitChain {
 		panic("no version set in consensus params")
 	}
 	if req.ConsensusParams.Version.AppVersion == 0 {
+		app.Logger().Debug("consensus params app version is 0 so setting app version to 1")
 		req.ConsensusParams.Version.AppVersion = v1
 	}
 	return req
