@@ -21,9 +21,9 @@ import (
 )
 
 const (
-	multiplexerImage   = "ghcr.io/celestiaorg/celestia-app-multiplexer"
+	multiplexerImage   = "ghcr.io/celestiaorg/celestia-app"
 	txsimImage         = "ghcr.io/celestiaorg/txsim"
-	defaultCelestiaTag = "v4.0.0-rc1"
+	defaultCelestiaTag = "v4.0.0-rc4"
 )
 
 func TestCelestiaTestSuite(t *testing.T) {
