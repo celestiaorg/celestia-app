@@ -80,7 +80,7 @@ createGenesis() {
     sed -i'.bak' 's#"604800s"#"60s"#g' "${APP_HOME}"/config/genesis.json
 
     # Override the log level to debug
-    # sed -i'.bak' 's#log_level = "info"#log_level = "debug"#g' "${APP_HOME}"/config/config.toml
+    sed -i'.bak' 's#log_level = "info"#log_level = "debug"#g' "${APP_HOME}"/config/config.toml
 }
 
 deleteCelestiaAppHome() {

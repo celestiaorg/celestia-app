@@ -11,6 +11,7 @@ import (
 	cmtstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	cmtversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	"github.com/cometbft/cometbft/state"
+	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/server"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
@@ -36,8 +37,7 @@ func start(versions abci.Versions, svrCtx *server.Context, clientCtx client.Cont
 
 	appVersion := state.Version.Consensus.App
 
-	svrCtx.Logger.Info("initializing multiplexer", "app_version", appVersion, "chain_id", state.ChainID)
-
+	svrCtx.Logger.Info("initializing multiplexer", "app_version", appVersion, "chain_id", state.ChainID, "svrCtx.Config.Version")
 	mp, err := abci.NewMultiplexer(svrCtx, svrCfg, clientCtx, appCreator, versions, state.ChainID, appVersion)
 	if err != nil {
 		return err
@@ -91,8 +91,6 @@ func getState(cfg *cmtcfg.Config) (state.State, error) {
 			return state.State{}, err
 		}
 
-		// we only fill the app version and the chain id
-		// the rest of the state is not needed by the multiplexer
 		s = state.State{
 			ChainID: s1.ChainID,
 			Version: cmtstate.Version{
@@ -100,7 +98,13 @@ func getState(cfg *cmtcfg.Config) (state.State, error) {
 					App: s1.Version.Consensus.App,
 				},
 			},
+			ConsensusParams: cmttypes.ConsensusParams{
+				Version: cmttypes.VersionParams{
+					App: s1.Version.Consensus.App,
+				},
+			},
 		}
+		fmt.Printf("s: %+v\n", s)
 	case internal.GenesisVersion2:
 		s, _, err = node.LoadStateFromDBOrGenesisDocProvider(db, internal.GetGenDocProvider(cfg))
 		if err != nil {
