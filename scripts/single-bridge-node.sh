@@ -1,6 +1,8 @@
 #!/bin/sh
 
-# This script starts a bridge node that is connected to a celestia-app validator started via scripts/single-node.sh.
+# This script starts a bridge node that is connected to a local celestia-app validator.
+# Prerequisites:
+# 1. Run ./scripts/single-node.sh in another terminal window.
 
 # Stop script execution if an error is encountered
 set -o errexit
