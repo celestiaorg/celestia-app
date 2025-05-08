@@ -58,7 +58,7 @@ func (s *CelestiaTestSuite) CreateCelestiaChainProvider(appVersion string) celes
 		Version:         getCelestiaTag(),
 		NumValidators:   &numValidators,
 		NumFullNodes:    &numFullNodes,
-		ChainID:         "celestia",
+		ChainID:         "private",
 		Images: []celestiadockertypes.DockerImage{
 			{
 				Repository: multiplexerImage,
@@ -77,6 +77,13 @@ func (s *CelestiaTestSuite) CreateCelestiaChainProvider(appVersion string) celes
 		},
 		EncodingConfig:      &enc,
 		AdditionalStartArgs: []string{"--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099"},
+		BridgeNodeConfig: &celestiadockertypes.BridgeNodeConfig{Images: []celestiadockertypes.DockerImage{
+			{
+				Repository: "ghcr.io/celestiaorg/celestia-node",
+				Version:    "v0.23.0-rc0",
+				UIDGID:     "10001:10001",
+			},
+		}},
 	}
 	return celestiadockertypes.NewProvider(cfg, s.T().Name())
 }
@@ -123,6 +130,18 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain celestiatypes
 			t.Logf("Error stopping txsim container: %v", err)
 		}
 	})
+}
+
+// getGenesisHash returns the genesis hash of the given chain node.
+func (s *CelestiaTestSuite) getGenesisHash(ctx context.Context, node celestiatypes.ChainNode) string {
+	c, err := node.GetRPCClient()
+	s.Require().NoError(err, "failed to get node client")
+
+	first := int64(1)
+	block, err := c.Block(ctx, &first)
+	s.Require().NoError(err, "failed to get block")
+
+	return block.Block.Header.Hash().String()
 }
 
 // getNetworkNameFromID resolves the network name given its ID.

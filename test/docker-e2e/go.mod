@@ -270,6 +270,7 @@ replace (
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.1.0
 
 	github.com/celestiaorg/celestia-app/v4 => ../..
+	github.com/chatton/celestia-test => ../../../../celestia-test
 	// celestia-core: v1.53.0-tm-v0.38.17
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.53.0-tm-v0.38.17
 	// cosmos-sdk: v1.29.0-sdk-v0.50.12
