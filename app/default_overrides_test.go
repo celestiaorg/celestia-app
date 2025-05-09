@@ -28,15 +28,19 @@ func Test_newGovModule(t *testing.T) {
 
 	enc.Codec.MustUnmarshalJSON(raw, &govGenesisState)
 
-	want := []types.Coin{{
+	wantMinDeposit := []types.Coin{{
 		Denom:  params.BondDenom,
 		Amount: math.NewInt(10_000_000_000),
 	}}
+	wantExpeditedMinDeposit := []types.Coin{{
+		Denom:  params.BondDenom,
+		Amount: math.NewInt(50_000_000_000),
+	}}
 
-	assert.Equal(t, want, govGenesisState.Params.MinDeposit)
+	assert.Equal(t, wantMinDeposit, govGenesisState.Params.MinDeposit)
 	assert.Equal(t, oneWeek, *govGenesisState.Params.MaxDepositPeriod)
 	assert.Equal(t, oneWeek, *govGenesisState.Params.VotingPeriod)
-	assert.Equal(t, params.BondDenom, govGenesisState.Params.ExpeditedMinDeposit[0].Denom)
+	assert.Equal(t, wantExpeditedMinDeposit, govGenesisState.Params.ExpeditedMinDeposit)
 }
 
 func TestDefaultAppConfig(t *testing.T) {
@@ -60,7 +64,7 @@ func TestDefaultConsensusConfig(t *testing.T) {
 		want := tmcfg.DefaultRPCConfig()
 		want.TimeoutBroadcastTxCommit = 50 * time.Second
 		want.MaxBodyBytes = int64(8388608) // 8 MiB
-		want.GRPCListenAddress = "tcp://0.0.0.0:9098"
+		want.GRPCListenAddress = "tcp://127.0.0.1:9098"
 
 		assert.Equal(t, want, got.RPC)
 	})

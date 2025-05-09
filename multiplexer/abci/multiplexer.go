@@ -21,6 +21,7 @@ import (
 	pvm "github.com/cometbft/cometbft/privval"
 	"github.com/cometbft/cometbft/proxy"
 	"github.com/cometbft/cometbft/rpc/client/local"
+	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	db "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -37,8 +38,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/multiplexer/appd"
-	"github.com/celestiaorg/celestia-app/multiplexer/internal"
+	"github.com/celestiaorg/celestia-app/v4/multiplexer/appd"
+	"github.com/celestiaorg/celestia-app/v4/multiplexer/internal"
 )
 
 const (
@@ -313,6 +314,18 @@ func (m *Multiplexer) startGRPCServer() (*grpc.Server, client.Context, error) {
 	if err != nil {
 		return nil, m.clientContext, err
 	}
+
+	coreEnv, err := m.cmNode.ConfigureRPC()
+	if err != nil {
+		return nil, m.clientContext, err
+	}
+
+	blockAPI := coregrpc.NewBlockAPI(coreEnv)
+	coregrpc.RegisterBlockAPIServer(grpcSrv, blockAPI)
+
+	m.g.Go(func() error {
+		return blockAPI.StartNewBlockEventListener(m.ctx)
+	})
 
 	// Start the gRPC server in a goroutine. Note, the provided ctx will ensure
 	// that the server is gracefully shut down.
@@ -616,7 +629,10 @@ func (m *Multiplexer) setupRemoteAppCleanup(cleanupFn func() error) {
 
 		// Re-send the signal to allow the normal process termination
 		signal.Reset(os.Interrupt, syscall.SIGTERM)
-		syscall.Kill(os.Getpid(), sig.(syscall.Signal))
+		err := syscall.Kill(os.Getpid(), sig.(syscall.Signal))
+		if err != nil {
+			m.logger.Error("Error killing process", "err", err)
+		}
 	}()
 }
 

@@ -4,6 +4,9 @@ import (
 	"fmt"
 
 	clienthelpers "cosmossdk.io/client/v2/helpers"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 // EnvPrefix is the environment variable prefix for celestia-appd.
@@ -29,4 +32,5 @@ func init() {
 		// The userHome is not set in Vercel's Go runtime so log a warning but don't panic.
 		fmt.Printf("Warning userHome err: %s\n", err)
 	}
+	sdk.DefaultBondDenom = appconsts.BondDenom
 }

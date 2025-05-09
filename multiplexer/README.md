@@ -33,7 +33,7 @@ The multiplexer has two remote clients, those remote clients interact with the A
 - `RemoteABCIClientV2`: This client is used for CometBFT v0.38 and above. It uses the `ABCIClientVersion` 2.
 
 A chain defines a list of versions per `AppVersion` up until the last one.
-The `Appd` field a slice of `[]byte` which holds a compressed archive of the binary (`tar.gz`). This archive is umcompressed and extracted to a temporary directory, which is then used to start the embedded binary.
+The `Appd` field a slice of `[]byte` which holds a compressed archive of the binary (`tar.gz`). This archive is uncompressed and extracted to a temporary directory, which is then used to start the embedded binary.
 
 ```go
  v3, err := appd.New("v3", v3AppBinary)
@@ -51,6 +51,8 @@ versions, err := abci.NewVersions(abci.Version{
 Multiple versions can be defined, allowing to sync from genesis with only one binary (for the node operators).
 
 Once the `AppVersion` changes, the `multiplexer` takes the best matching embedded binary (useful when syncing from genesis) or switch to the native binary if none matches (useful when upgrading).
+
+![multiplexer](./docs/assets/multiplexer.png)
 
 ## Installation
 
@@ -112,7 +114,7 @@ The default list of flags, unless overridden is the following:
 Note: Flags passed when starting the application are passed down to each embedded binary. `Multiplexer` then adds the extra flags.
 For instance, when calling `appd start --force-no-bbr`, the native app runs with only `--force-no-bbr` flag, while the embedded app runs with `--force-no-bbr` and the default flags.
 
-Note 2: The remote clients work via `gRPC` connection, when overriding the start flags, please always make sure to include `with-tendermint-false` / `with-comet=false` and `--transport=grpc` in the list of flags.
+Note 2: The remote clients work via `gRPC` connection, when overriding the start flags, please always make sure to include `--with-tendermint=false` and `--transport=grpc` in the list of flags.
 
 ## Passthrough mode
 
