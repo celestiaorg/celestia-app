@@ -32,7 +32,7 @@ func (s *CelestiaTestSuite) TestE2ENodeSimple() {
 	// Verify the chain is running
 	height, err := celestia.Height(ctx)
 	s.Require().NoError(err)
-	s.Require().Greater(t, height, int64(0))
+	s.Require().Greater(height, int64(0))
 
 	s.CreateTxSim(ctx, celestia)
 

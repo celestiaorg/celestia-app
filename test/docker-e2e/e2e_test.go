@@ -103,7 +103,7 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain celestiatypes
 	txsimImage := celestiadockertypes.NewImage(s.logger, s.client, networkName, t.Name(), txsimImage, getCelestiaTag())
 
 	opts := celestiadockertypes.ContainerOptions{
-		User: celestiadockertypes.GetRootUserString(),
+		User: "0:0",
 		// Mount the Celestia home directory into the txsim container
 		// this ensures txsim has access to a keyring and is able to broadcast transactions.
 		Binds: []string{chain.GetVolumeName() + ":/celestia-home"},

@@ -40,7 +40,7 @@ func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 	// Verify the chain is running
 	height, err := celestia.Height(ctx)
 	s.Require().NoError(err)
-	s.Require().Greater(t, height, int64(0))
+	s.Require().Greater(height, int64(0))
 
 	// Get the validators
 	s.CreateTxSim(ctx, celestia)
@@ -76,7 +76,7 @@ func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 		}
 	}
 
-	s.Require().Greater(t, initialHeight, int64(0), "failed to get initial height")
+	s.Require().Greater(initialHeight, int64(0), "failed to get initial height")
 	targetHeight := initialHeight + blocksToProduce
 	t.Logf("Successfully reached initial height %d", initialHeight)
 
