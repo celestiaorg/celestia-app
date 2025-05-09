@@ -43,7 +43,7 @@ func (s *CelestiaTestSuite) SetupSuite() {
 	s.client, s.network = celestiadockertypes.DockerSetup(s.T())
 }
 
-func (s *CelestiaTestSuite) CreateCelestiaChainProvider(appVersion string) celestiatypes.ChainProvider {
+func (s *CelestiaTestSuite) CreateDockerProvider(appVersion string) celestiatypes.Provider {
 	numValidators := 4
 	numFullNodes := 0
 
@@ -53,30 +53,41 @@ func (s *CelestiaTestSuite) CreateCelestiaChainProvider(appVersion string) celes
 		Logger:          s.logger,
 		DockerClient:    s.client,
 		DockerNetworkID: s.network,
-		Type:            "cosmos",
-		Name:            "celestia",
-		Version:         getCelestiaTag(),
-		NumValidators:   &numValidators,
-		NumFullNodes:    &numFullNodes,
-		ChainID:         "celestia",
-		Images: []celestiadockertypes.DockerImage{
-			{
-				Repository: multiplexerImage,
-				Version:    getCelestiaTag(),
-				UIDGID:     "10001:10001",
+		ChainConfig: &celestiadockertypes.ChainConfig{
+			Type:          "cosmos",
+			Name:          "celestia",
+			Version:       getCelestiaTag(),
+			NumValidators: &numValidators,
+			NumFullNodes:  &numFullNodes,
+			ChainID:       "celestia",
+			Images: []celestiadockertypes.DockerImage{
+				{
+					Repository: multiplexerImage,
+					Version:    getCelestiaTag(),
+					UIDGID:     "10001:10001",
+				},
 			},
+			Bin:           "celestia-appd",
+			Bech32Prefix:  "celestia",
+			Denom:         "utia",
+			CoinType:      "118",
+			GasPrices:     "0.025utia",
+			GasAdjustment: 1.3,
+			ModifyGenesis: func(config celestiadockertypes.Config, bytes []byte) ([]byte, error) {
+				return maps.SetField(bytes, "consensus.params.version.app", appVersion)
+			},
+			EncodingConfig:      &enc,
+			AdditionalStartArgs: []string{"--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9098"},
 		},
-		Bin:           "celestia-appd",
-		Bech32Prefix:  "celestia",
-		Denom:         "utia",
-		CoinType:      "118",
-		GasPrices:     "0.025utia",
-		GasAdjustment: 1.3,
-		ModifyGenesis: func(config celestiadockertypes.Config, bytes []byte) ([]byte, error) {
-			return maps.SetField(bytes, "consensus.params.version.app", appVersion)
-		},
-		EncodingConfig:      &enc,
-		AdditionalStartArgs: []string{"--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099"},
+		BridgeNodeConfig: &celestiadockertypes.BridgeNodeConfig{
+			ChainID: "celestia",
+			Images: []celestiadockertypes.DockerImage{
+				{
+					Repository: "ghcr.io/celestiaorg/celestia-node",
+					Version:    "v0.23.0-rc0", // TODO: this should be configurable.
+					UIDGID:     "10001:10001",
+				},
+			}},
 	}
 	return celestiadockertypes.NewProvider(cfg, s.T().Name())
 }
@@ -92,7 +103,7 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain celestiatypes
 	txsimImage := celestiadockertypes.NewImage(s.logger, s.client, networkName, t.Name(), txsimImage, getCelestiaTag())
 
 	opts := celestiadockertypes.ContainerOptions{
-		User: celestiadockertypes.GetRootUserString(),
+		User: "0:0",
 		// Mount the Celestia home directory into the txsim container
 		// this ensures txsim has access to a keyring and is able to broadcast transactions.
 		Binds: []string{chain.GetVolumeName() + ":/celestia-home"},
@@ -123,6 +134,18 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain celestiatypes
 			t.Logf("Error stopping txsim container: %v", err)
 		}
 	})
+}
+
+// getGenesisHash returns the genesis hash of the given chain node.
+func (s *CelestiaTestSuite) getGenesisHash(ctx context.Context, node celestiatypes.ChainNode) string {
+	c, err := node.GetRPCClient()
+	s.Require().NoError(err, "failed to get node client")
+
+	first := int64(1)
+	block, err := c.Block(ctx, &first)
+	s.Require().NoError(err, "failed to get block")
+
+	return block.Block.Header.Hash().String()
 }
 
 // getNetworkNameFromID resolves the network name given its ID.
