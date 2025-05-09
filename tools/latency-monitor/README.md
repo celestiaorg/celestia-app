@@ -44,6 +44,7 @@ go run ./tools/latency-monitor -grpc-endpoint=localhost:9090 -submit-rate=2.0 -b
 ## Output
 
 The tool provides:
+
 1. Real-time updates every 10 seconds showing the number of transactions submitted
 2. A CSV file (`latency_results.csv`) containing:
    - Submit time

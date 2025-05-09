@@ -25,7 +25,7 @@ const (
 	defaultEndpoint     = "localhost:9090"
 	defaultKeyringDir   = "~/.celestia-app"
 	defaultSubmitRate   = 1.0    // KB per second
-	defaultBlobSize     = 1024   // bytes
+	defaultBlobSize     = 1      // bytes
 	defaultNamespaceStr = "test" // default namespace for blobs
 )
 
@@ -42,7 +42,7 @@ func main() {
 		endpoint     = flag.String("grpc-endpoint", defaultEndpoint, "gRPC endpoint to connect to")
 		keyringDir   = flag.String("keyring-dir", defaultKeyringDir, "Directory containing the keyring")
 		submitRate   = flag.Float64("submit-rate", defaultSubmitRate, "Data submission rate (KB/sec)")
-		blobSize     = flag.Int("blob-size", defaultBlobSize, "Size of blob data in bytes")
+		blobSize     = flag.Int("blob-size", defaultBlobSize, "Size of blob data in KBs")
 		namespaceStr = flag.String("namespace", defaultNamespaceStr, "Namespace for blob submission")
 	)
 	flag.Parse()
@@ -74,13 +74,13 @@ func monitorLatency(
 	namespaceStr string,
 ) error {
 
-	fmt.Printf("Monitoring latency with submit rate: %f KB/s, blob size: %d bytes, namespace: %s\n", submitRate, blobSize, namespaceStr)
+	fmt.Printf("Monitoring latency with submit rate: %f KB/s, blob size: %d KBs, namespace: %s\n", submitRate, blobSize, namespaceStr)
 	fmt.Printf("Press Ctrl+C to stop\n\n")
 
 	fmt.Println("Setting up tx client...")
 
 	// Calculate transactions per second based on KB/s rate and blob size
-	txPerSecond := (submitRate * 1024) / float64(blobSize)
+	txPerSecond := submitRate / float64(blobSize)
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
@@ -132,7 +132,7 @@ func monitorLatency(
 		case <-ticker.C:
 			go func() {
 				// Create random blob data
-				blobData := make([]byte, blobSize)
+				blobData := make([]byte, blobSize*1024)
 				if _, err := rand.Read(blobData); err != nil {
 					fmt.Printf("Failed to generate random data: %v\n", err)
 					return
