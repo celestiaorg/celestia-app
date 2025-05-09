@@ -61,6 +61,7 @@ func main() {
 
 	if err := monitorLatency(ctx, *endpoint, *keyringDir, *submitRate, *blobSize, *namespaceStr); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		//nolint:gocritic
 		os.Exit(1)
 	}
 }
@@ -73,7 +74,6 @@ func monitorLatency(
 	blobSize int,
 	namespaceStr string,
 ) error {
-
 	fmt.Printf("Monitoring latency with submit rate: %f KB/s, blob size: %d KBs, namespace: %s\n", submitRate, blobSize, namespaceStr)
 	fmt.Printf("Press Ctrl+C to stop\n\n")
 
@@ -96,7 +96,7 @@ func monitorLatency(
 		return fmt.Errorf("failed to initialize keyring: %w", err)
 	}
 
-	grpcConn, err := grpc.Dial(endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	grpcConn, err := grpc.NewClient(endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return fmt.Errorf("failed to create gRPC connection: %w", err)
 	}
@@ -188,7 +188,7 @@ func writeResults(results []txResult) error {
 	// Calculate statistics
 	var (
 		totalLatency float64
-		latencies    []float64
+		latencies    = make([]float64, 0, len(results))
 	)
 
 	// Write results and collect statistics
