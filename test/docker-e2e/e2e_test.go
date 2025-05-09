@@ -77,7 +77,7 @@ func (s *CelestiaTestSuite) CreateDockerProvider(appVersion string) celestiatype
 				return maps.SetField(bytes, "consensus.params.version.app", appVersion)
 			},
 			EncodingConfig:      &enc,
-			AdditionalStartArgs: []string{"--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099"},
+			AdditionalStartArgs: []string{"--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9098"},
 		},
 		BridgeNodeConfig: &celestiadockertypes.BridgeNodeConfig{
 			ChainID: "celestia",

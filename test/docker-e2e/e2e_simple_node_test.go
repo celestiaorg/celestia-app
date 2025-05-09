@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func (s *CelestiaTestSuite) TestE2ENodeSimple() {
+func (s *CelestiaTestSuite) TestE2EBridgeNode() {
 	t := s.T()
 	if testing.Short() {
 		t.Skip("skipping in short mode")
