@@ -59,7 +59,7 @@ type Node struct {
 
 	rpcProxyHost string
 	// FIXME: This does not work currently with the reverse proxy
-	// grpcProxyHost  string
+	// grpcProxyHost string
 	traceProxyHost string
 
 	logger *log.Logger
