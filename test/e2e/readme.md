@@ -149,3 +149,73 @@ minikube start --driver docker --network socket_vmnet --nodes 2 --cpus=4 --memor
 The above command assumes the user's machine has more than eight cores, more than 8gb of RAM, and also docker has access to all those resources.
 
 NB: This command requires the docker daemon to be up. Make sure to start docker before executing it.
+
+## Collecting Trace Data
+
+When running network tests with knuu, you can enable tracing to collect detailed internal metrics and debug information. This is particularly useful for debugging performance issues or understanding the internal workings of the nodes.
+
+### Local Tracing
+
+To enable local tracing in the test manifest, set:
+
+```go
+LocalTracingType: "local"
+```
+
+This allows you to pull trace data from the nodes using the trace pull address (default: `:26661`).
+
+### S3 Push Tracing
+
+For persistent storage of trace data, you can enable S3 push tracing. To do this, set:
+
+```go
+PushTrace: true
+```
+
+in your test manifest, and configure the following environment variables:
+
+| Environment Variable | Description |
+|---|---|
+| `TRACE_PUSH_BUCKET_NAME` | S3 bucket name for storing trace data |
+| `TRACE_PUSH_REGION` | AWS region for the S3 bucket |
+| `TRACE_PUSH_ACCESS_KEY` | AWS access key with permissions to write to the bucket |
+| `TRACE_PUSH_SECRET_KEY` | AWS secret key corresponding to the access key |
+| `TRACE_PUSH_DELAY` | Delay between trace data pushes (in seconds) |
+
+Example:
+
+```shell
+export TRACE_PUSH_BUCKET_NAME=my-celestia-traces
+export TRACE_PUSH_REGION=us-west-2
+export TRACE_PUSH_ACCESS_KEY=AKIAXXXXXXXXXXXXXXXX
+export TRACE_PUSH_SECRET_KEY=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+export TRACE_PUSH_DELAY=60
+```
+
+### Downloading Traces
+
+If you want to automatically download traces from S3 after a test completes, you can set:
+
+```go
+DownloadTraces: true
+```
+
+This will save the traces in the `./traces/` directory when used together with `PushTrace: true`.
+
+### Available Tracing Tables
+
+The default configuration collects the following trace data:
+
+- Mempool transactions
+- Mempool peer state
+- Consensus round state
+- Consensus block parts
+- Consensus blocks
+- Consensus votes
+- Consensus state
+- Consensus proposals
+- Peers information
+- Network traffic (pending and received bytes)
+- ABCI interactions
+
+For more information about the tracing system, refer to the Tendermint documentation on instrumentation in the [config.toml reference](https://docs.cometbft.com/v0.34/core/configuration).
