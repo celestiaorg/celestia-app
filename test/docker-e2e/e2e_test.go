@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/go-square/v2/share"
 	celestiadockertypes "github.com/chatton/celestia-test/framework/docker"
 	"github.com/chatton/celestia-test/framework/testutil/maps"
+	"github.com/chatton/celestia-test/framework/testutil/toml"
 	celestiatypes "github.com/chatton/celestia-test/framework/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	dockertypes "github.com/docker/docker/api/types"
@@ -43,8 +44,26 @@ func (s *CelestiaTestSuite) SetupSuite() {
 	s.client, s.network = celestiadockertypes.DockerSetup(s.T())
 }
 
+func appOverrides() toml.Toml {
+	// required to query tx by hash when broadcasting transactions.
+	appTomlOverride := make(toml.Toml)
+	txIndexConfig := make(toml.Toml)
+	txIndexConfig["indexer"] = "kv"
+	appTomlOverride["tx-index"] = txIndexConfig
+	return appTomlOverride
+}
+
+func configOverrides() toml.Toml {
+	// required to query tx by hash when broadcasting transactions.
+	overrides := make(toml.Toml)
+	txIndexConfig := make(toml.Toml)
+	txIndexConfig["indexer"] = "kv"
+	overrides["tx_index"] = txIndexConfig
+	return overrides
+}
+
 func (s *CelestiaTestSuite) CreateDockerProvider(appVersion string) celestiatypes.Provider {
-	numValidators := 4
+	numValidators := 1
 	numFullNodes := 0
 
 	enc := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
@@ -54,6 +73,10 @@ func (s *CelestiaTestSuite) CreateDockerProvider(appVersion string) celestiatype
 		DockerClient:    s.client,
 		DockerNetworkID: s.network,
 		ChainConfig: &celestiadockertypes.ChainConfig{
+			ConfigFileOverrides: map[string]any{
+				"config/app.toml":    appOverrides(),
+				"config/config.toml": configOverrides(),
+			},
 			Type:          "cosmos",
 			Name:          "celestia",
 			Version:       getCelestiaTag(),
