@@ -588,7 +588,7 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 //
 // Side-effect: calls baseapp.Init()
 func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain) {
-	req = app.setDefaultAppVersion(req)
+	// req = app.setDefaultAppVersion(req)
 	appVersion := req.ConsensusParams.Version.AppVersion
 	// mount the stores for the provided app version if it has not already been mounted
 	if app.AppVersion() == 0 && !app.IsSealed() {
