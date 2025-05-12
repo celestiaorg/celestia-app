@@ -81,8 +81,8 @@ createGenesis() {
     # Persist ABCI responses
     sed -i'.bak' 's#discard_abci_responses = true#discard_abci_responses = false#g' "${APP_HOME}"/config/config.toml
 
-    # Override the log level to debug
-    sed -i'.bak' 's#log_level = "info"#log_level = "debug"#g' "${APP_HOME}"/config/config.toml
+    # Override  the log level to debug
+    # sed -i'.bak' 's#log_level = "info"#log_level = "debug"#g' "${APP_HOME}"/config/config.toml
 
     # Override the VotingPeriod from 1 week to 1 minute
     sed -i'.bak' 's#"604800s"#"60s"#g' "${APP_HOME}"/config/genesis.json
@@ -107,6 +107,90 @@ startCelestiaApp() {
     --force-no-bbr
 }
 
+upgradeToV3AndV4() {
+    sleep 30
+    echo "Waiting for app version 2 before proceeding..."
+    while true; do
+        current_version=$(celestia-appd status | jq -r '.node_info.protocol_version.app')
+        if [ "$current_version" = "2" ]; then
+            echo "App version 2 detected, proceeding with v3 upgrade..."
+            break
+        fi
+        echo "Current version: $current_version, waiting for version 2..."
+        sleep 1
+    done
+
+    echo "Submitting signal for v3..."
+    celestia-appd tx signal signal 3 \
+        --keyring-backend=${KEYRING_BACKEND} \
+        --home ${APP_HOME} \
+        --from ${KEY_NAME} \
+        --fees ${FEES} \
+        --chain-id ${CHAIN_ID} \
+        --broadcast-mode ${BROADCAST_MODE} \
+        --yes
+
+    echo "Querying the tally for v3..."
+    celestia-appd query signal tally 3
+
+    echo "Submitting msg try upgrade..."
+    celestia-appd tx signal try-upgrade \
+        --keyring-backend=${KEYRING_BACKEND} \
+        --home ${APP_HOME} \
+        --from ${KEY_NAME} \
+        --fees ${FEES} \
+        --chain-id ${CHAIN_ID} \
+        --broadcast-mode ${BROADCAST_MODE} \
+        --yes
+
+    echo "Waiting for upgrade to complete..."
+    while true; do
+        current_version=$(celestia-appd status | jq -r '.node_info.protocol_version.app')
+        if [ "$current_version" = "3" ]; then
+            echo "Upgrade to version 3 complete!"
+            break
+        fi
+        echo "Current version: $current_version, waiting for version 3..."
+        sleep 1
+    done
+
+
+    echo "Submitting signal for v4..."
+    celestia-appd tx signal signal 4 \
+        --keyring-backend=${KEYRING_BACKEND} \
+        --home ${APP_HOME} \
+        --from ${KEY_NAME} \
+        --fees ${FEES} \
+        --chain-id ${CHAIN_ID} \
+        --broadcast-mode ${BROADCAST_MODE} \
+        --yes
+
+    echo "Querying the tally for v4..."
+    celestia-appd query signal tally 4
+
+    echo "Submitting msg try upgrade..."
+    celestia-appd tx signal try-upgrade \
+        --keyring-backend=${KEYRING_BACKEND} \
+        --home ${APP_HOME} \
+        --from ${KEY_NAME} \
+        --fees ${FEES} \
+        --chain-id ${CHAIN_ID} \
+        --broadcast-mode ${BROADCAST_MODE} \
+        --yes
+
+    echo "Waiting for upgrade to complete..."
+    while true; do
+        current_version=$(celestia-appd status | jq -r '.node_info.protocol_version.app')
+        if [ "$current_version" = "4" ]; then
+            echo "Upgrade to version 4 complete!"
+            break
+        fi
+        echo "Current version: $current_version, waiting for version 4..."
+        sleep 1
+    done
+}
+
 deleteCelestiaAppHome
 createGenesis
+upgradeToV3AndV4 & # Upgrade to app version 3 and 4 in the background.
 startCelestiaApp # Start celestia-app in the foreground.
