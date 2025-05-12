@@ -612,6 +612,7 @@ func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain
 // it was 0. This is needed because chains (e.x. mocha-4) did not explicitly set
 // an app version in genesis.json.
 func (app *App) setDefaultAppVersion(req abci.RequestInitChain) abci.RequestInitChain {
+	app.Logger().Debug("set default app version", "req.ConsensusParams", req.ConsensusParams)
 	if req.ConsensusParams == nil {
 		panic("no consensus params set")
 	}
