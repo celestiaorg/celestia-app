@@ -1,6 +1,11 @@
 #!/bin/sh
 
-# This script starts a local single node testnet on app version 1 and then upgrades to app version 2, 3, and 4.
+# This script starts a local single node testnet on app version 1 and then
+# upgrades to app version 2, 3, and 4.
+#
+# Prerequisites:
+# - Modify the `Makefile` and set V2_UPGRADE_HEIGHT = 3
+# - Run `make install`
 
 # Stop script execution if an error is encountered
 set -o errexit
@@ -76,11 +81,14 @@ createGenesis() {
     # Persist ABCI responses
     sed -i'.bak' 's#discard_abci_responses = true#discard_abci_responses = false#g' "${APP_HOME}"/config/config.toml
 
+    # Override the log level to debug
+    sed -i'.bak' 's#log_level = "info"#log_level = "debug"#g' "${APP_HOME}"/config/config.toml
+
     # Override the VotingPeriod from 1 week to 1 minute
     sed -i'.bak' 's#"604800s"#"60s"#g' "${APP_HOME}"/config/genesis.json
 
-    # Override the log level to debug
-    sed -i'.bak' 's#log_level = "info"#log_level = "debug"#g' "${APP_HOME}"/config/config.toml
+    echo "Overriding the genesis.json app version to 1..."
+    sed -i'.bak' 's/"app_version": *"[^"]*"/"app_version": "1"/' "${APP_HOME}"/config/genesis.json
 }
 
 deleteCelestiaAppHome() {
@@ -96,8 +104,9 @@ startCelestiaApp() {
     --grpc.enable \
     --grpc-web.enable \
     --timeout-commit 1s \
-    --force-no-bbr \
-    --v2-upgrade-height 3
+    --force-no-bbr
 }
 
+deleteCelestiaAppHome
+createGenesis
 startCelestiaApp # Start celestia-app in the foreground.
