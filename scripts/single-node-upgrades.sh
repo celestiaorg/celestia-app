@@ -83,30 +83,30 @@ createGenesis() {
     sed -i'.bak' 's#log_level = "info"#log_level = "debug"#g' "${APP_HOME}"/config/config.toml
 
     # HACKHACK: the multiplexer can not start a v3 app correctly with a genesis.json produced via v3 binary. So these replace statements are needed until https://github.com/celestiaorg/celestia-app/issues/4780 is resolved.
-    jq 'del(.consensus_params) | .consensus = {
-      "params": {
-        "block": {
-          "max_bytes": "22020096",
-          "max_gas": "-1"
-        },
-        "evidence": {
-          "max_age_num_blocks": "100000",
-          "max_age_duration": "172800000000000",
-          "max_bytes": "1048576"
-        },
-        "validator": {
-          "pub_key_types": [
-            "ed25519"
-          ]
-        },
-        "version": {
-          "app": "3"
-        },
-        "abci": {
-          "vote_extensions_enable_height": "0"
-        }
-      }
-    }' "${APP_HOME}/config/genesis.json" > "${APP_HOME}/config/genesis.json.tmp" && mv "${APP_HOME}/config/genesis.json.tmp" "${APP_HOME}/config/genesis.json"
+    # jq 'del(.consensus_params) | .consensus = {
+    #   "params": {
+    #     "block": {
+    #       "max_bytes": "22020096",
+    #       "max_gas": "-1"
+    #     },
+    #     "evidence": {
+    #       "max_age_num_blocks": "100000",
+    #       "max_age_duration": "172800000000000",
+    #       "max_bytes": "1048576"
+    #     },
+    #     "validator": {
+    #       "pub_key_types": [
+    #         "ed25519"
+    #       ]
+    #     },
+    #     "version": {
+    #       "app": "3"
+    #     },
+    #     "abci": {
+    #       "vote_extensions_enable_height": "0"
+    #     }
+    #   }
+    # }' "${APP_HOME}/config/genesis.json" > "${APP_HOME}/config/genesis.json.tmp" && mv "${APP_HOME}/config/genesis.json.tmp" "${APP_HOME}/config/genesis.json"
 }
 
 deleteCelestiaAppHome() {
