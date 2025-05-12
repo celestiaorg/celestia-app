@@ -4,7 +4,7 @@
 # upgrades to app version 2, 3, and 4.
 #
 # Prerequisites:
-# - Modify the `Makefile` and set V2_UPGRADE_HEIGHT = 3
+# - Modify the `Makefile` and set V2_UPGRADE_HEIGHT = 2
 # - Run `make install`
 
 # Stop script execution if an error is encountered
