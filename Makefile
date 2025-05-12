@@ -325,7 +325,7 @@ prebuilt-binary:
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
 		-w /go/src/$(PACKAGE_NAME) \
 		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
-		release --clean
+		release --clean --parallelism 1
 .PHONY: prebuilt-binary
 
 ## goreleaser: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
