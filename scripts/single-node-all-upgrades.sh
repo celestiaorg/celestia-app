@@ -130,6 +130,7 @@ upgradeToV3AndV4() {
         --broadcast-mode ${BROADCAST_MODE} \
         --yes
 
+    sleep 1
     echo "Querying the tally for v3..."
     celestia-appd query signal tally 3
 
@@ -165,6 +166,7 @@ upgradeToV3AndV4() {
         --broadcast-mode ${BROADCAST_MODE} \
         --yes
 
+    sleep 1
     echo "Querying the tally for v4..."
     celestia-appd query signal tally 4
 
