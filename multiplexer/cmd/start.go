@@ -80,10 +80,11 @@ func getState(cfg *cmtcfg.Config) (state.State, error) {
 
 	switch genVer {
 	case internal.GenesisVersion1:
+		fmt.Printf("Invoking node.LoadStateFromDBOrGenesisDocProvider for its side effects\n")
 		// Invoke node.LoadStateFromDBOrGenesisDocProvider for its side effects
 		_, _, err = node.LoadStateFromDBOrGenesisDocProvider(db, internal.GetGenDocProvider(cfg))
 		if err != nil {
-			return state.State{}, err
+			return state.State{}, fmt.Errorf("failed to invoke node.LoadStateFromDBOrGenesisDocProvider for its side effects: %w", err)
 		}
 
 		var s1 tmstate.State
