@@ -1,11 +1,13 @@
 {
   "app_name": "celestia-appd",
-  "app_version": "0a1266a6",
-  "genesis_time": "2025-01-30T13:24:37.13768652Z",
+  "app_version": "4.0.0-rc2-10-gd1edd203e",
+  "genesis_time": "2025-05-06T18:57:38.865039Z",
   "chain_id": "test",
   "initial_height": 1,
   "app_hash": null,
   "app_state": {
+    "06-solomachine": null,
+    "07-tendermint": null,
     "auth": {
       "params": {
         "max_memo_characters": "256",
@@ -17,28 +19,7 @@
       "accounts": [
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
-          "address": "celestia1ue937yczuluexnml0fal4efdzx3dzhg94wcp9m",
-          "pub_key": null,
-          "account_number": "0",
-          "sequence": "0"
-        },
-        {
-          "@type": "/cosmos.auth.v1beta1.BaseAccount",
-          "address": "celestia12mfanl9d7uglt07ylm7caykezuwmyv3fffjqu0",
-          "pub_key": null,
-          "account_number": "0",
-          "sequence": "0"
-        },
-        {
-          "@type": "/cosmos.auth.v1beta1.BaseAccount",
-          "address": "celestia1lu5n0aj80hj8u4y4l8wcvwmdctv5gk8unraf8q",
-          "pub_key": null,
-          "account_number": "0",
-          "sequence": "0"
-        },
-        {
-          "@type": "/cosmos.auth.v1beta1.BaseAccount",
-          "address": "celestia1a6e9n38aag7xl4pyv0t6s23p6txksufmwj5yts",
+          "address": "celestia1vc44zfnhtck3nxfdclpn83d4r52pjgujns43sn",
           "pub_key": null,
           "account_number": "0",
           "sequence": "0"
@@ -55,34 +36,7 @@
       },
       "balances": [
         {
-          "address": "celestia12mfanl9d7uglt07ylm7caykezuwmyv3fffjqu0",
-          "coins": [
-            {
-              "denom": "utia",
-              "amount": "1000000000000000"
-            }
-          ]
-        },
-        {
-          "address": "celestia1ue937yczuluexnml0fal4efdzx3dzhg94wcp9m",
-          "coins": [
-            {
-              "denom": "utia",
-              "amount": "1000000000000000"
-            }
-          ]
-        },
-        {
-          "address": "celestia1a6e9n38aag7xl4pyv0t6s23p6txksufmwj5yts",
-          "coins": [
-            {
-              "denom": "utia",
-              "amount": "1000000000000000"
-            }
-          ]
-        },
-        {
-          "address": "celestia1lu5n0aj80hj8u4y4l8wcvwmdctv5gk8unraf8q",
+          "address": "celestia1vc44zfnhtck3nxfdclpn83d4r52pjgujns43sn",
           "coins": [
             {
               "denom": "utia",
@@ -94,7 +48,7 @@
       "supply": [
         {
           "denom": "utia",
-          "amount": "4000000000000000"
+          "amount": "1000000000000000"
         }
       ],
       "denom_metadata": [
@@ -130,6 +84,15 @@
         "gov_max_square_size": "64"
       }
     },
+    "circuit": {
+      "account_permissions": [],
+      "disabled_type_urls": [
+        "/cosmos.upgrade.v1beta1.MsgSoftwareUpgrade",
+        "/cosmos.upgrade.v1beta1.MsgCancelUpgrade",
+        "/ibc.core.client.v1.MsgIBCSoftwareUpgrade"
+      ]
+    },
+    "consensus": null,
     "distribution": {
       "params": {
         "community_tax": "0.020000000000000000",
@@ -141,6 +104,7 @@
         "community_pool": []
       },
       "delegator_withdraw_infos": [],
+      "previous_proposer": "",
       "outstanding_rewards": [],
       "validator_accumulated_commissions": [],
       "validator_historical_rewards": [],
@@ -162,7 +126,7 @@
               {
                 "@type": "/cosmos.staking.v1beta1.MsgCreateValidator",
                 "description": {
-                  "moniker": "core0",
+                  "moniker": "test",
                   "identity": "",
                   "website": "",
                   "security_contact": "",
@@ -174,11 +138,11 @@
                   "max_change_rate": "0.010000000000000000"
                 },
                 "min_self_delegation": "1",
-                "delegator_address": "celestia1ue937yczuluexnml0fal4efdzx3dzhg94wcp9m",
-                "validator_address": "celestiavaloper1ue937yczuluexnml0fal4efdzx3dzhg9s36cna",
+                "delegator_address": "",
+                "validator_address": "celestiavaloper1vc44zfnhtck3nxfdclpn83d4r52pjgujk0hgx4",
                 "pubkey": {
                   "@type": "/cosmos.crypto.ed25519.PubKey",
-                  "key": "M2O6qD4fkKcPR+cemsuapvs/tGSTb6P16QinK7o7Vuo="
+                  "key": "W0UjSECisc7UDDZa3hf4cnBR/jodQF7t0NR4x3565wQ="
                 },
                 "value": {
                   "denom": "utia",
@@ -186,7 +150,7 @@
                 }
               }
             ],
-            "memo": "e3c592c0c2ad4b05cef3791456b0d6dd4da72ed2@192.168.11.103:26656",
+            "memo": "bcd4770c63e2094b197f9003647083a523848966@192.168.1.216:26656",
             "timeout_height": "0",
             "extension_options": [],
             "non_critical_extension_options": []
@@ -196,7 +160,7 @@
               {
                 "public_key": {
                   "@type": "/cosmos.crypto.secp256k1.PubKey",
-                  "key": "AhKFsdcYhIAZsHHuZ/kkpOxth9OKvN8lTx36cZMOnOeV"
+                  "key": "AtCy27Jf9F8VXrxbMKmpeEsG5x6TG+nQ9JKD0Vdfy7Qz"
                 },
                 "mode_info": {
                   "single": {
@@ -213,14 +177,14 @@
                   "amount": "500"
                 }
               ],
-              "gas_limit": "210000",
+              "gas_limit": "200000",
               "payer": "",
               "granter": ""
             },
             "tip": null
           },
           "signatures": [
-            "z6kZgIUTqjbIdzXq+SEw+Dsxg4Y8qNbr9Et8pYZf8p0p4V/7t/GshK8ikeda4yMRAy7TjYA8SyMSKtP4cblvdA=="
+            "mzoCcSvCS+YIK7FGDIOKifutB1+HAcN8jd/AuxaNdDYKcz2wBVf/q7eQ9mfr7rMYjMtisUH/wntj95fu71uGOg=="
           ]
         }
       ]
@@ -237,7 +201,7 @@
         "min_deposit": [
           {
             "denom": "utia",
-            "amount": "10000000"
+            "amount": "10000000000"
           }
         ],
         "max_deposit_period": "60s",
@@ -248,12 +212,12 @@
         "min_initial_deposit_ratio": "0.000000000000000000",
         "proposal_cancel_ratio": "0.500000000000000000",
         "proposal_cancel_dest": "",
-        "expedited_voting_period": "15s",
+        "expedited_voting_period": "86400s",
         "expedited_threshold": "0.667000000000000000",
         "expedited_min_deposit": [
           {
             "denom": "utia",
-            "amount": "10000000000"
+            "amount": "50000000000"
           }
         ],
         "burn_vote_quorum": false,
@@ -322,40 +286,11 @@
         }
       }
     },
-    "interchainaccounts": {
-      "controller_genesis_state": {
-        "active_channels": [],
-        "interchain_accounts": [],
-        "ports": [],
-        "params": {
-          "controller_enabled": true
-        }
-      },
-      "host_genesis_state": {
-        "active_channels": [],
-        "interchain_accounts": [],
-        "port": "icahost",
-        "params": {
-          "host_enabled": true,
-          "allow_messages": [
-            "/ibc.applications.transfer.v1.MsgTransfer",
-            "/cosmos.bank.v1beta1.MsgSend",
-            "/cosmos.staking.v1beta1.MsgDelegate",
-            "/cosmos.staking.v1beta1.MsgBeginRedelegate",
-            "/cosmos.staking.v1beta1.MsgUndelegate",
-            "/cosmos.staking.v1beta1.MsgCancelUnbondingDelegation",
-            "/cosmos.distribution.v1beta1.MsgSetWithdrawAddress",
-            "/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward",
-            "/cosmos.distribution.v1beta1.MsgFundCommunityPool",
-            "/cosmos.gov.v1.MsgVote",
-            "/cosmos.feegrant.v1beta1.MsgGrantAllowance",
-            "/cosmos.feegrant.v1beta1.MsgRevokeAllowance"
-          ]
-        }
-      }
-    },
     "minfee": {
-      "network_min_gas_price": "0.000001000000000000"
+      "network_min_gas_price": "0.000001000000000000",
+      "params": {
+        "network_min_gas_price": "0.000001000000000000"
+      }
     },
     "mint": {
       "bond_denom": "utia"
@@ -363,12 +298,7 @@
     "packetfowardmiddleware": {
       "in_flight_packets": {}
     },
-    "params": {},
-    "qgb": {
-      "params": {
-        "data_commitment_window": "400"
-      }
-    },
+    "params": null,
     "signal": {},
     "slashing": {
       "params": {
@@ -404,30 +334,26 @@
       "params": {
         "send_enabled": true,
         "receive_enabled": true
-      }
+      },
+      "total_escrowed": []
     },
+    "upgrade": {},
     "vesting": {},
     "warp": {
       "params": {},
-      "tokens": []
-    },
-    "circuit": {
-      "account_permissions": [],
-      "disabled_type_urls": [
-        "/cosmos.upgrade.v1beta1.MsgSoftwareUpgrade",
-        "/cosmos.upgrade.v1beta1.MsgCancelUpgrade"
-      ]
+      "tokens": [],
+      "remote_routers": []
     }
   },
   "consensus": {
     "params": {
       "block": {
-        "max_bytes": "1974272",
-        "max_gas": "10000000"
+        "max_bytes": "22020096",
+        "max_gas": "-1"
       },
       "evidence": {
-        "max_age_num_blocks": "120961",
-        "max_age_duration": "1814400000000000",
+        "max_age_num_blocks": "100000",
+        "max_age_duration": "172800000000000",
         "max_bytes": "1048576"
       },
       "validator": {
@@ -438,13 +364,8 @@
       "version": {
         "app": "4"
       },
-      "synchrony": {
-        "precision": "505000000",
-        "message_delay": "15000000000"
-      },
-      "feature": {
-        "vote_extensions_enable_height": "0",
-        "pbts_enable_height": "0"
+      "abci": {
+        "vote_extensions_enable_height": "0"
       }
     }
   }

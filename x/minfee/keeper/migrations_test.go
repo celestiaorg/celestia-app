@@ -29,7 +29,7 @@ func TestMigrateParams(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testApp, _ := util.SetupTestAppWithGenesisValSet(app.DefaultInitialConsensusParams())
+			testApp, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 			ctx := testApp.GetBaseApp().NewContext(true)
 
 			subspace, ok := testApp.MinFeeKeeper.GetParamsKeeper().GetSubspace(minfeetypes.ModuleName)

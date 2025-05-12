@@ -66,12 +66,6 @@ createGenesis() {
       --home "${APP_HOME}" \
         > /dev/null 2>&1 # Hide output to reduce terminal noise
 
-    # If you encounter: `sed: -I or -i may not be used with stdin` on MacOS you can mitigate by installing gnu-sed
-    # https://gist.github.com/andre3k1/e3a1a7133fded5de5a9ee99c87c6fa0d?permalink_comment_id=3082272#gistcomment-3082272
-
-    # Override the default genesis.json consensus params version from 0 to 4.
-    sed -i'.bak' 's#"app": "0"#"app": "4"#g' "${APP_HOME}"/config/genesis.json
-
     # Override the default RPC server listening address
     sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' "${APP_HOME}"/config/config.toml
 
@@ -112,7 +106,6 @@ startCelestiaApp() {
     --grpc.enable \
     --grpc-web.enable \
     --timeout-commit 1s \
-    --rpc.grpc_laddr tcp://0.0.0.0:9098 \
     --force-no-bbr # no need to require BBR usage on a local node
 }
 

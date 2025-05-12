@@ -2,33 +2,39 @@
 
 ## Abstract
 
-celestia-app's `x/mint` is a fork of the Cosmos SDK [`x/mint`](https://github.com/cosmos/cosmos-sdk/tree/5cd0b2316a7103468af38eab5d886f9f069c9cd7/x/mint) module that makes some changes to the inflation mechanism. The changes were motivated by a desire for Celestia to have a pre-determined inflation schedule. See [ADR-019](../../docs/architecture/adr-019-strict-inflation-schedule.md) for more details.
+celestia-app's `x/mint` is a fork of the Cosmos SDK [`x/mint`](https://github.com/cosmos/cosmos-sdk/tree/5cd0b2316a7103468af38eab5d886f9f069c9cd7/x/mint) module that makes some changes to the inflation mechanism. The changes were motivated by a desire for Celestia to have a pre-determined inflation schedule. See [ADR-019](../../docs/architecture/adr-019-strict-inflation-schedule.md) and [CIP-29](https://github.com/celestiaorg/CIPs/blob/94aa5ad39aa3aba41bf143e6d7324839509b5b93/cips/cip-029.md).
 
 ### Inflation Schedule
 
-| Year | Inflation (%)     |
-|------|-------------------|
-| 0    | 8.00              |
-| 1    | 7.20              |
-| 2    | 6.48              |
-| 3    | 5.832             |
-| 4    | 5.2488            |
-| 5    | 4.72392           |
-| 6    | 4.251528          |
-| 7    | 3.8263752         |
-| 8    | 3.44373768        |
-| 9    | 3.099363912       |
-| 10   | 2.7894275208      |
-| 11   | 2.51048476872     |
-| 12   | 2.259436291848    |
-| 13   | 2.0334926626632   |
-| 14   | 1.83014339639688  |
-| 15   | 1.647129056757192 |
-| 16   | 1.50              |
-| 17   | 1.50              |
-| 18   | 1.50              |
-| 19   | 1.50              |
-| 20   | 1.50              |
+[CIP-29](https://github.com/celestiaorg/CIPs/blob/94aa5ad39aa3aba41bf143e6d7324839509b5b93/cips/cip-029.md) reduced two constants (`InitialInflationRate` and `DisinflationRate`) which impacts the inflation schedule. These constants will take effect at the v4 activation height part way through year 1. As a result:
+
+- Inflation for year 0 is calculated based on the [original constants](https://github.com/celestiaorg/celestia-app/blame/93a5c4b85414d811d5ee6d617aaf71bf9d560fbb/x/mint/types/constants.go#L17-L20).
+- Inflation for year 1 is a time-weighted average of the pre- and post-CIP-29 inflation rates.
+- Inflation for years >= 2 is calculated based on the post [CIP-29 constants](https://github.com/celestiaorg/celestia-app/blob/6a2e7513dbb2c11808c1e8c99d35532d4d946aa1/x/mint/types/constants.go#L19-L22).
+
+| Year | Inflation (%)      | Notes                                                                                           |
+|------|--------------------|-------------------------------------------------------------------------------------------------|
+| 0    | 8.00               | Based on original constants                                                                     |
+| 1    | ~6.1               | This is an approximate value. The actual value depends on when the v4 activation height occurs. |
+| 2    | 4.66582104         | Based on CIP-29 constants                                                                       |
+| 3    | 4.35321103032      | Based on CIP-29 constants                                                                       |
+| 4    | 4.06154589128856   | Based on CIP-29 constants                                                                       |
+| 5    | 3.789422316572227  | Based on CIP-29 constants                                                                       |
+| 6    | 3.5355310213618873 | Based on CIP-29 constants                                                                       |
+| 7    | 3.298650442930641  | Based on CIP-29 constants                                                                       |
+| 8    | 3.0776408632542877 | Based on CIP-29 constants                                                                       |
+| 9    | 2.8714389254162507 | Based on CIP-29 constants                                                                       |
+| 10   | 2.6790525174133616 | Based on CIP-29 constants                                                                       |
+| 11   | 2.4995559987466665 | Based on CIP-29 constants                                                                       |
+| 12   | 2.3320857468306398 | Based on CIP-29 constants                                                                       |
+| 13   | 2.175836001792987  | Based on CIP-29 constants                                                                       |
+| 14   | 2.0300549896728567 | Based on CIP-29 constants                                                                       |
+| 15   | 1.8940413053647756 | Based on CIP-29 constants                                                                       |
+| 16   | 1.7671405379053356 | Based on CIP-29 constants                                                                       |
+| 17   | 1.6487421218656782 | Based on CIP-29 constants                                                                       |
+| 18   | 1.5382763997006776 | Based on CIP-29 constants                                                                       |
+| 19   | 1.50               | Based on CIP-29 constants                                                                       |
+| 20   | 1.50               | Based on CIP-29 constants                                                                       |
 
 - **Year** indicates the number of years elapsed since chain genesis.
 - **Inflation (%)** indicates the percentage of the total supply that will be minted in the next year.
@@ -121,3 +127,4 @@ See [x/mint](../../x/mint) for the implementation of this module.
 ## References
 
 1. [ADR-019](../../docs/architecture/adr-019-strict-inflation-schedule.md)
+1. [CIP-29](https://github.com/celestiaorg/CIPs/blob/94aa5ad39aa3aba41bf143e6d7324839509b5b93/cips/cip-029.md)

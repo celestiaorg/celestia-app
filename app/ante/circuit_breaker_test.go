@@ -21,7 +21,7 @@ var terminalAnteHandler = func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, 
 }
 
 func TestCircuitBreaker(t *testing.T) {
-	testApp, _ := util.SetupTestAppWithGenesisValSet(app.DefaultInitialConsensusParams())
+	testApp, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	circuitAnte := circuitante.NewCircuitBreakerDecorator(&testApp.CircuitKeeper)
 
 	tests := []struct {
