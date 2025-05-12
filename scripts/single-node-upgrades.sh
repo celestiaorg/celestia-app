@@ -81,6 +81,10 @@ createGenesis() {
 
     # Override the log level to debug
     sed -i'.bak' 's#log_level = "info"#log_level = "debug"#g' "${APP_HOME}"/config/config.toml
+
+    # HACKHACK: the multiplexer can not start a v3 app correctly with a genesis.json produced via v3 binary. So these replace statements are needed until https://github.com/celestiaorg/celestia-app/issues/4780 is resolved.
+    # sed -i'.bak' 's/"consensus_params"/"consensus"/' "${APP_HOME}"/config/genesis.json
+    # sed -i'.bak' 's/"app_version": *"[^"]*"/"app": "3"/' "${APP_HOME}"/config/genesis.json
 }
 
 deleteCelestiaAppHome() {
