@@ -12,4 +12,4 @@ $ celestia-appd keys show multisig
   type: multi
 ```
 
-Please see the [Cosmos SDK docs](https://docs.cosmos.network/main/user/run-node/multisig-guide#step-by-step-guide-to-multisig-transactions) for more information on how to use multisig accounts.
+Please see the [Cosmos SDK docs](https://docs.cosmos.network/v0.50/learn#step-by-step-guide-to-multisig-transactions) for more information on how to use multisig accounts.
