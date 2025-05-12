@@ -48,6 +48,7 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 			"--api.swagger=false",
 			"--with-tendermint=false",
 			"--transport=grpc",
+			"--log_level=debug",
 		}, extraArgs...),
 	})
 	if err != nil {
