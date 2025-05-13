@@ -53,15 +53,21 @@ func initCmd() *cobra.Command {
 			cfg.Project = project
 			cfg.UserID = userID
 			cfg.UserSSHKeyName = userSSH
-			if err := cfg.Save(rootDir); err != nil {
-				return fmt.Errorf("failed to save init config: %w", err)
-			}
 			// todo: switch to using random regions and specific numbers of
 			// validators
 
 			p, err := OpenProject(cfg, project)
 			if err != nil {
 				return err
+			}
+
+			// Talis will automatically rename the project without telling us so
+			// we need to update it here as well
+			cfg.Project = p.Name
+			cfg.ProjectID = int(p.ID)
+
+			if err := cfg.Save(rootDir); err != nil {
+				return fmt.Errorf("failed to save init config: %w", err)
 			}
 
 			fmt.Println("Created new talis project:", p.Name, p.ID)
@@ -219,6 +225,7 @@ func CreateValidators(cfg Config) error {
 	// Create a new validator using the Talis API
 	ireqs := make([]types.InstanceRequest, len(cfg.Validators))
 	for _, v := range cfg.Validators {
+		fmt.Println("Creating validator", v.Name)
 		ireq := types.InstanceRequest{
 			Name:              v.Name,
 			OwnerID:           uint(cfg.UserID),

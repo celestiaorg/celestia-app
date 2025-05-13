@@ -28,20 +28,23 @@ type Config struct {
 	Key            string      `json:"key"`
 	ChainID        string      `json:"chain_id"`
 	Project        string      `json:"project"`
+	ProjectID      int         `json:"project_id"`
 	UserID         int         `json:"user"`
 	UserSSHKeyName string      `json:"user_ssh_key_name"`
 }
 
 func NewTestConfig() Config {
 	vals := make([]Validator, 0, len(DOSmallRegions))
+	globalCount := 0
 	for region, count := range DOSmallRegions {
 		for i := 0; i < count; i++ {
 			vals = append(vals, Validator{
 				IP:     "this will update after node is spun up",
-				Name:   "this will update after node is spun up",
+				Name:   fmt.Sprintf("validator-%d", globalCount),
 				Slug:   DODefaultValidatorSlug,
 				Region: region,
 			})
+			globalCount++
 		}
 
 	}
