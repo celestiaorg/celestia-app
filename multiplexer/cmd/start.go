@@ -70,11 +70,6 @@ func getState(cfg *cmtcfg.Config) (chainId string, appVersion uint64, err error)
 		return "", 0, err
 	}
 
-	var (
-		appVersion uint64
-		chainID    string
-	)
-
 	switch genVer {
 	case internal.GenesisVersion1:
 		s, _, err := tmnode.LoadStateFromDBOrGenesisDocProvider(
@@ -88,7 +83,7 @@ func getState(cfg *cmtcfg.Config) (chainId string, appVersion uint64, err error)
 		}
 
 		appVersion = s.ConsensusParams.Version.AppVersion
-		chainID = s.ChainID
+		chainId = s.ChainID
 
 	case internal.GenesisVersion2:
 		s, _, err := node.LoadStateFromDBOrGenesisDocProvider(db, internal.GetGenDocProvider(cfg))
@@ -97,10 +92,10 @@ func getState(cfg *cmtcfg.Config) (chainId string, appVersion uint64, err error)
 		}
 
 		appVersion = s.ConsensusParams.Version.App
-		chainID = s.ChainID
+		chainId = s.ChainID
 	}
 
-	return chainID, appVersion, nil
+	return chainId, appVersion, nil
 }
 
 func getAndValidateConfig(svrCtx *server.Context) (serverconfig.Config, error) {
