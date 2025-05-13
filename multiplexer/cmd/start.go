@@ -64,7 +64,7 @@ func getState(cfg *cmtcfg.Config) (chainId string, appVersion uint64, err error)
 		// fallback to latest version if the genesis version doesn't exist
 		if errors.Is(err, internal.ErrGenesisNotFound) {
 			s, _, err := node.LoadStateFromDBOrGenesisDocProvider(db, internal.GetGenDocProvider(cfg))
-			return s.ChainID, s.ConsensusParams.Version.App, err
+			return s.ChainID, s.Version.Consensus.App, err
 		}
 
 		return "", 0, err
@@ -82,7 +82,7 @@ func getState(cfg *cmtcfg.Config) (chainId string, appVersion uint64, err error)
 			return "", 0, err
 		}
 
-		appVersion = s.ConsensusParams.Version.AppVersion
+		appVersion = s.Version.Consensus.App
 		chainId = s.ChainID
 
 	case internal.GenesisVersion2:
@@ -91,7 +91,7 @@ func getState(cfg *cmtcfg.Config) (chainId string, appVersion uint64, err error)
 			return "", 0, err
 		}
 
-		appVersion = s.ConsensusParams.Version.App
+		appVersion = s.Version.Consensus.App
 		chainId = s.ChainID
 	}
 
