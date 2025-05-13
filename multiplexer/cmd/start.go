@@ -108,6 +108,8 @@ func getState(cfg *cmtcfg.Config) (state.State, error) {
 		}
 	}
 
+	fmt.Printf("state: %v\n", s)
+	fmt.Printf("state.Version.Consensus.App: %v\n", s.Version.Consensus.App)
 	return s, nil
 }
 

@@ -232,7 +232,7 @@ func (m *Multiplexer) startApp() error {
 		}
 
 		// start an embedded app.
-		m.logger.Debug("starting embedded app", "app_version", currentVersion.AppVersion, "args", currentVersion.GetStartArgs(programArgs))
+		m.logger.Info("starting embedded app", "app_version", currentVersion.AppVersion, "args", currentVersion.GetStartArgs(programArgs))
 		if err := currentVersion.Appd.Start(currentVersion.GetStartArgs(programArgs)...); err != nil {
 			return fmt.Errorf("failed to start app: %w", err)
 		}
@@ -376,7 +376,7 @@ func (m *Multiplexer) startNativeApp() (servertypes.Application, error) {
 		return nil, err
 	}
 
-	m.logger.Debug("creating native app", "app_version", m.appVersion)
+	m.logger.Info("creating native app", "app_version", m.appVersion)
 	m.nativeApp = m.appCreator(m.logger, db, traceWriter, m.svrCtx.Viper)
 	m.started = true
 
@@ -432,7 +432,7 @@ func (m *Multiplexer) getApp() (servertypes.ABCI, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.logger.Debug("getting app", "app_version", m.appVersion, "next_app_version", m.nextAppVersion)
+	m.logger.Info("getting app", "app_version", m.appVersion, "next_app_version", m.nextAppVersion)
 
 	// get the appropriate version for the latest app version.
 	currentVersion, err := m.versions.GetForAppVersion(m.appVersion)

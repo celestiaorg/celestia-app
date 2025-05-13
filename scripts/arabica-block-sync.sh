@@ -19,17 +19,6 @@ echo "celestia-app home: ${CELESTIA_APP_HOME}"
 echo "celestia-app version: ${CELESTIA_APP_VERSION}"
 echo ""
 
-# Ask the user for confirmation before deleting the existing celestia-app home
-# directory.
-read -p "Are you sure you want to delete: $CELESTIA_APP_HOME? [y/n] " response
-
-# Check the user's response
-if [ "$response" != "y" ]; then
-    # Exit if the user did not respond with "y"
-    echo "You must delete $CELESTIA_APP_HOME to continue."
-    exit 1
-fi
-
 echo "Deleting $CELESTIA_APP_HOME..."
 rm -r "$CELESTIA_APP_HOME"
 
@@ -43,4 +32,4 @@ echo "Downloading genesis file..."
 celestia-appd download-genesis ${CHAIN_ID}
 
 echo "Starting celestia-appd..."
-celestia-appd start --v2-upgrade-height 1751707 --force-no-bbr
+celestia-appd start --force-no-bbr --log_level=debug

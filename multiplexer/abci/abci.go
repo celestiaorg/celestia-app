@@ -84,20 +84,34 @@ func (m *Multiplexer) FinalizeBlock(_ context.Context, req *abci.RequestFinalize
 }
 
 func (m *Multiplexer) Info(_ context.Context, req *abci.RequestInfo) (*abci.ResponseInfo, error) {
+	fmt.Printf("Info request: %v\n", req)
 	app, err := m.getApp()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
 	}
 
-	return app.Info(req)
+	resp, err := app.Info(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get app info: %w", err)
+	}
+
+	fmt.Printf("Info resp: %v\n", resp)
+	fmt.Printf("Info resp.appVersion: %v\n", resp.AppVersion)
+	return resp, nil
 }
 
 func (m *Multiplexer) InitChain(_ context.Context, req *abci.RequestInitChain) (*abci.ResponseInitChain, error) {
+	fmt.Printf("InitChain request: %v\n", req)
 	app, err := m.getApp()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app for genesis: %w", err)
 	}
-	return app.InitChain(req)
+	resp, err := app.InitChain(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init chain: %w", err)
+	}
+	fmt.Printf("InitChain response: %v\n", resp)
+	return resp, nil
 }
 
 func (m *Multiplexer) ListSnapshots(_ context.Context, req *abci.RequestListSnapshots) (*abci.ResponseListSnapshots, error) {
