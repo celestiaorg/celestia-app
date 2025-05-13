@@ -536,6 +536,10 @@ func validatorUpdatesV2ToV1(validators []abciv2.ValidatorUpdate) []abciv1.Valida
 }
 
 func consensusParamsV1ToV2(params *abciv1.ConsensusParams) *typesv2.ConsensusParams {
+	if params == nil {
+		return nil
+	}
+
 	consensusParamsV2 := &typesv2.ConsensusParams{}
 	if blockParams := params.GetBlock(); blockParams != nil {
 		consensusParamsV2.Block = &typesv2.BlockParams{
