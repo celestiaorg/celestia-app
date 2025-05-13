@@ -2,6 +2,7 @@ package abci
 
 import (
 	"context"
+	"fmt"
 	"math"
 
 	abciv2 "github.com/cometbft/cometbft/abci/types"
@@ -240,9 +241,12 @@ func (a *RemoteABCIClientV1) InitChain(req *abciv2.RequestInitChain) (*abciv2.Re
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("resp.ConsensusParams == nil: %v\n", resp.ConsensusParams == nil)
+	consensusParams := consensusParamsV1ToV2(resp.ConsensusParams)
+	fmt.Printf("consensusParams == nil: %v\n", consensusParams == nil)
 
 	return &abciv2.ResponseInitChain{
-		ConsensusParams: consensusParamsV1ToV2(resp.ConsensusParams),
+		ConsensusParams: consensusParams,
 		Validators:      validatorUpdatesV1ToV2(resp.Validators),
 		AppHash:         resp.AppHash,
 	}, nil
