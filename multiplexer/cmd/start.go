@@ -52,7 +52,7 @@ func start(versions abci.Versions, svrCtx *server.Context, clientCtx client.Cont
 }
 
 // getState opens the db and fetches the existing state.
-func getState(cfg *cmtcfg.Config) (string, uint64, error) {
+func getState(cfg *cmtcfg.Config) (chainId string, appVersion uint64, err error) {
 	db, err := openDBM(cfg)
 	if err != nil {
 		return "", 0, err
