@@ -32,4 +32,4 @@ echo "Downloading genesis file..."
 celestia-appd download-genesis ${CHAIN_ID}
 
 echo "Starting celestia-appd..."
-celestia-appd start --force-no-bbr --log_level=debug
+celestia-appd start --force-no-bbr
