@@ -10,7 +10,7 @@ set -o nounset
 
 CHAIN_ID="celestia"
 NODE_NAME="node-name"
-SEEDS="e6116822e1a5e283d8a85d3ec38f4d232274eaf3@consensus-full-seed-1.celestia-bootstrap.net:26656,cf7ac8b19ff56a9d47c75551bd4864883d1e24b5@consensus-full-seed-2.celestia-bootstrap.net:26656"
+SEEDS="cf7ac8b19ff56a9d47c75551bd4864883d1e24b5@consensus-full-seed-2.celestia-bootstrap.net:26656"
 CELESTIA_APP_HOME="${HOME}/.celestia-app"
 CELESTIA_APP_VERSION=$(celestia-appd version 2>&1)
 RPC="https://celestia-rpc.polkachu.com:443"
@@ -39,6 +39,9 @@ celestia-appd init ${NODE_NAME} --chain-id ${CHAIN_ID} > /dev/null 2>&1 # Hide o
 echo "Setting seeds in config.toml..."
 sed -i.bak -e "s/^seeds *=.*/seeds = \"$SEEDS\"/" $CELESTIA_APP_HOME/config/config.toml
 
+echo "Overriding the max-recv-msg-size in app.toml to 20 MiB..."
+sed -i.bak -e 's/^max-recv-msg-size =.*/max-recv-msg-size = "20971520"/' $CELESTIA_APP_HOME/config/app.toml
+
 LATEST_HEIGHT=$(curl -s $RPC/block | jq -r .result.block.header.height);
 BLOCK_HEIGHT=$((LATEST_HEIGHT - 2000)); \
 TRUST_HASH=$(curl -s "$RPC/block?height=$BLOCK_HEIGHT" | jq -r .result.block_id.hash)
@@ -55,4 +58,4 @@ echo "Downloading genesis file..."
 celestia-appd download-genesis ${CHAIN_ID} > /dev/null 2>&1 # Hide output to reduce terminal noise
 
 echo "Starting celestia-appd..."
-celestia-appd start --v2-upgrade-height 2371495
+celestia-appd start --force-no-bbr
