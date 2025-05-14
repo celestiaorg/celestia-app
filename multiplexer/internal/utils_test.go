@@ -19,4 +19,10 @@ func TestGetGenesisVersion(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, GenesisVersion2, version)
 	})
+	t.Run("mocha.json should return genesis version 1", func(t *testing.T) {
+		genesisPath := "./testdata/mocha.json"
+		version, err := GetGenesisVersion(genesisPath)
+		assert.NoError(t, err)
+		assert.Equal(t, GenesisVersion1, version)
+	})
 }
