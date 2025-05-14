@@ -39,8 +39,15 @@ celestia-appd init ${NODE_NAME} --chain-id ${CHAIN_ID} > /dev/null 2>&1 # Hide o
 echo "Setting seeds in config.toml..."
 sed -i.bak -e "s/^seeds *=.*/seeds = \"$SEEDS\"/" $CELESTIA_APP_HOME/config/config.toml
 
-echo "Overriding the max-recv-msg-size in app.toml to 20 MiB..."
+# Add gRPC message size configuration
+echo "Setting gRPC message size limits..."
 sed -i.bak -e 's/^max-recv-msg-size =.*/max-recv-msg-size = "20971520"/' $CELESTIA_APP_HOME/config/app.toml
+sed -i.bak -e 's/^max-send-msg-size =.*/max-send-msg-size = "20971520"/' $CELESTIA_APP_HOME/config/app.toml
+
+# Configure light client verification timeouts
+echo "Configuring light client verification timeouts..."
+sed -i.bak -e 's/^discovery_time =.*/discovery_time = "30s"/' $CELESTIA_APP_HOME/config/config.toml
+sed -i.bak -e 's/^chunk_request_timeout =.*/chunk_request_timeout = "30s"/' $CELESTIA_APP_HOME/config/config.toml
 
 LATEST_HEIGHT=$(curl -s $RPC/block | jq -r .result.block.header.height);
 BLOCK_HEIGHT=$((LATEST_HEIGHT - 2000)); \
@@ -58,4 +65,4 @@ echo "Downloading genesis file..."
 celestia-appd download-genesis ${CHAIN_ID} > /dev/null 2>&1 # Hide output to reduce terminal noise
 
 echo "Starting celestia-appd..."
-celestia-appd start --force-no-bbr
+celestia-appd start --force-no-bbr --grpc.enable=true
