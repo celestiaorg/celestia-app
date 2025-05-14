@@ -20,6 +20,8 @@ func TestGetGenesisVersion(t *testing.T) {
 		assert.Equal(t, GenesisVersion2, version)
 	})
 	t.Run("mocha.json should return genesis version 1", func(t *testing.T) {
+		// mocha.json is a trimmed version of the Mocha genesis file which does
+		// not contain messages or balances to reduce the file size.
 		genesisPath := "./testdata/mocha.json"
 		version, err := GetGenesisVersion(genesisPath)
 		assert.NoError(t, err)
