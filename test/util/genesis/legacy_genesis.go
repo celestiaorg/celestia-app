@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"time"
 
 	cmtjson "github.com/cometbft/cometbft/libs/json"
@@ -77,6 +78,18 @@ func DocumentLegacyBytes(
 	bz, err = maps.SetField(bz, "consensus_params.block.time_iota_ms", "1000")
 	if err != nil {
 		return nil, fmt.Errorf("adding time_iota_ms field: %w", err)
+	}
+
+	// the version field used to be at this consensus_params.version.app_version
+	bz, err = maps.SetField(bz, "consensus_params.version.app_version", strconv.Itoa(int(cp.Version.App)))
+	if err != nil {
+		return nil, fmt.Errorf("adding app_version field: %w", err)
+	}
+
+	// remove the version from the new location.
+	bz, err = maps.RemoveField(bz, "consensus_params.version.app")
+	if err != nil {
+		return nil, fmt.Errorf("removing version.app field: %w", err)
 	}
 
 	return bz, nil
