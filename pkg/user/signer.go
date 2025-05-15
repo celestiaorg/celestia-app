@@ -167,7 +167,6 @@ func (s *Signer) AccountByAddress(address sdktypes.AccAddress) *Account {
 			sequence:      0,
 		}
 
-		// Get the pubkey if possible
 		if pk, err := record.GetPubKey(); err == nil {
 			acc.pubKey = pk
 		}
