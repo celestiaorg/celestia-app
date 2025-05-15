@@ -158,8 +158,6 @@ func (s *Signer) AccountByAddress(address sdktypes.AccAddress) *Account {
 			return nil
 		}
 
-		// We found a keyring record for this address
-		// Add it to our accounts map with zeroed account/sequence for lazy loading later
 		acc := &Account{
 			name:          record.Name,
 			address:       address,
