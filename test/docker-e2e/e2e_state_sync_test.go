@@ -2,13 +2,34 @@ package docker_e2e
 
 import (
 	"context"
-	addressutil "github.com/chatton/celestia-test/framework/testutil/address"
-	"github.com/chatton/celestia-test/framework/testutil/toml"
-	"github.com/chatton/celestia-test/framework/testutil/wait"
-	"github.com/stretchr/testify/require"
+	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
+	addressutil "github.com/celestiaorg/tastora/framework/testutil/address"
+	"github.com/celestiaorg/tastora/framework/testutil/toml"
+	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	"testing"
 	"time"
 )
+
+const (
+	blocksToProduce            = 30
+	stateSyncTrustHeightOffset = 5
+	stateSyncTimeout           = 10 * time.Minute
+)
+
+// validatorStateSyncAppOverrides generates a TOML configuration to enable state sync and snapshot functionality for validators.
+func validatorStateSyncAppOverrides() toml.Toml {
+	overrides := make(toml.Toml)
+	snapshot := make(toml.Toml)
+	snapshot["interval"] = 5
+	snapshot["keep_recent"] = 2
+	overrides["snapshot"] = snapshot
+
+	stateSync := make(toml.Toml)
+	stateSync["snapshot-interval"] = 5
+	stateSync["snapshot-keep-recent"] = 2
+	overrides["state-sync"] = stateSync
+	return overrides
+}
 
 func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 	t := s.T()
@@ -16,20 +37,22 @@ func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 		t.Skip("skipping in short mode")
 	}
 
-	const (
-		blocksToProduce            = 30
-		stateSyncTrustHeightOffset = 5
-		stateSyncTimeout           = 5 * time.Minute
-	)
-
 	ctx := context.TODO()
-	chainProvider := s.CreateCelestiaChainProvider("4")
+	chainProvider := s.CreateDockerProvider(func(config *celestiadockertypes.Config) {
+		numVals := 3
+		// require at least 2 validators for state sync to work.
+		config.ChainConfig.NumValidators = &numVals
+		config.ChainConfig.ConfigFileOverrides = map[string]any{
+			// enable state-sync and snapshots on validators.
+			"config/app.toml": validatorStateSyncAppOverrides(),
+		}
+	})
 
 	celestia, err := chainProvider.GetChain(ctx)
-	s.Require().NoError(err)
+	s.Require().NoError(err, "failed to get chain")
 
 	err = celestia.Start(ctx)
-	require.NoError(t, err)
+	s.Require().NoError(err, "failed to start chain")
 
 	// Cleanup resources when the test is done
 	t.Cleanup(func() {
@@ -38,12 +61,11 @@ func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 		}
 	})
 
-	// Verify the chain is running
+	// verify the chain is running
 	height, err := celestia.Height(ctx)
-	require.NoError(t, err)
-	require.Greater(t, height, int64(0))
+	s.Require().NoError(err, "failed to get chain height")
+	s.Require().Greater(height, int64(0), "chain height is zero")
 
-	// Get the validators
 	s.CreateTxSim(ctx, celestia)
 
 	allNodes := celestia.GetNodes()
@@ -77,27 +99,28 @@ func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 		}
 	}
 
-	require.Greater(t, initialHeight, int64(0), "failed to get initial height")
+	s.Require().Greater(initialHeight, int64(0), "failed to get initial height")
 	targetHeight := initialHeight + blocksToProduce
 	t.Logf("Successfully reached initial height %d", initialHeight)
 
-	require.NoError(t, wait.ForBlocks(ctx, int(targetHeight), celestia), "failed to wait for target height")
+	s.Require().NoError(wait.ForBlocks(ctx, int(targetHeight), celestia), "failed to wait for target height")
 
 	t.Logf("Successfully reached target height %d", targetHeight)
 
 	t.Logf("Gathering state sync parameters")
 	status, err := nodeClient.Status(ctx)
-	require.NoError(t, err, "failed to get node zero client")
+	s.Require().NoError(err, "failed to get node zero client")
 
 	latestHeight := status.SyncInfo.LatestBlockHeight
 	trustHeight := latestHeight - stateSyncTrustHeightOffset
-	require.Greaterf(t, trustHeight, int64(0), "calculated trust height %d is too low (latest height: %d)", trustHeight, latestHeight)
+	s.Require().Greater(trustHeight, int64(0), "calculated trust height %d is too low (latest height: %d)", trustHeight, latestHeight)
 
 	trustBlock, err := nodeClient.Block(ctx, &trustHeight)
-	require.NoError(t, err, "failed to get block at trust height %d", trustHeight)
+	s.Require().NoError(err, "failed to get block at trust height %d", trustHeight)
 
 	trustHash := trustBlock.BlockID.Hash.String()
 	rpcServers, err := addressutil.BuildInternalRPCAddressList(ctx, celestia.GetNodes())
+	s.Require().NoError(err, "failed to build RPC address list")
 
 	t.Logf("Trust height: %d", trustHeight)
 	t.Logf("Trust hash: %s", trustHash)
@@ -110,7 +133,7 @@ func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 	t.Log("Adding state sync node")
 	err = celestia.AddNode(ctx, overrides)
 
-	require.NoError(t, err, "failed to add node")
+	s.Require().NoError(err, "failed to add node")
 
 	allNodes = celestia.GetNodes()
 	fullNode := allNodes[len(allNodes)-1]
@@ -157,10 +180,13 @@ func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 
 // stateSyncOverrides returns config overrides which will enable state sync.
 func stateSyncOverrides(trustHeight int64, trustHash, rpcServers string) toml.Toml {
+	stateSyncConfig := make(toml.Toml)
+	stateSyncConfig["enable"] = true
+	stateSyncConfig["trust_height"] = trustHeight
+	stateSyncConfig["trust_hash"] = trustHash
+	stateSyncConfig["rpc_servers"] = rpcServers
+
 	configOverrides := make(toml.Toml)
-	configOverrides["state_sync.enable"] = true
-	configOverrides["state_sync.trust_height"] = trustHeight
-	configOverrides["state_sync.trust_hash"] = trustHash
-	configOverrides["state_sync.rpc_servers"] = rpcServers
+	configOverrides["statesync"] = stateSyncConfig
 	return configOverrides
 }

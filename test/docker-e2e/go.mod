@@ -5,7 +5,7 @@ go 1.23.6
 require (
 	github.com/celestiaorg/celestia-app/v4 v4.0.0
 	github.com/celestiaorg/go-square/v2 v2.2.0
-	github.com/chatton/celestia-test v0.0.0-20250507125531-9ab40e87ad8d
+	github.com/celestiaorg/tastora v0.0.0-20250515081551-795e795a49c7
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/docker/docker v27.5.1+incompatible
 	github.com/moby/moby v27.5.1+incompatible
@@ -246,7 +246,7 @@ require (
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
 	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/oauth2 v0.26.0 // indirect
-	golang.org/x/sync v0.12.0 // indirect
+	golang.org/x/sync v0.14.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/term v0.30.0 // indirect
 	golang.org/x/text v0.23.0 // indirect

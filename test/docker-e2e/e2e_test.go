@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/go-square/v2/share"
-	celestiadockertypes "github.com/chatton/celestia-test/framework/docker"
-	"github.com/chatton/celestia-test/framework/testutil/maps"
-	celestiatypes "github.com/chatton/celestia-test/framework/types"
+	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
+	celestiatypes "github.com/celestiaorg/tastora/framework/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	dockertypes "github.com/docker/docker/api/types"
 	"github.com/moby/moby/client"
@@ -43,8 +42,10 @@ func (s *CelestiaTestSuite) SetupSuite() {
 	s.client, s.network = celestiadockertypes.DockerSetup(s.T())
 }
 
-func (s *CelestiaTestSuite) CreateCelestiaChainProvider(appVersion string) celestiatypes.ChainProvider {
-	numValidators := 4
+type ConfigOption func(*celestiadockertypes.Config)
+
+func (s *CelestiaTestSuite) CreateDockerProvider(opts ...ConfigOption) celestiatypes.Provider {
+	numValidators := 1
 	numFullNodes := 0
 
 	enc := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
@@ -53,32 +54,39 @@ func (s *CelestiaTestSuite) CreateCelestiaChainProvider(appVersion string) celes
 		Logger:          s.logger,
 		DockerClient:    s.client,
 		DockerNetworkID: s.network,
-		Type:            "cosmos",
-		Name:            "celestia",
-		Version:         getCelestiaTag(),
-		NumValidators:   &numValidators,
-		NumFullNodes:    &numFullNodes,
-		ChainID:         "celestia",
-		Images: []celestiadockertypes.DockerImage{
-			{
-				Repository: multiplexerImage,
-				Version:    getCelestiaTag(),
-				UIDGID:     "10001:10001",
+		ChainConfig: &celestiadockertypes.ChainConfig{
+			ConfigFileOverrides: map[string]any{
+				"config/app.toml": validatorStateSyncAppOverrides(),
 			},
+			Type:          "cosmos",
+			Name:          "celestia",
+			Version:       getCelestiaTag(),
+			NumValidators: &numValidators,
+			NumFullNodes:  &numFullNodes,
+			ChainID:       "celestia",
+			Images: []celestiadockertypes.DockerImage{
+				{
+					Repository: multiplexerImage,
+					Version:    getCelestiaTag(),
+					UIDGID:     "10001:10001",
+				},
+			},
+			Bin:                 "celestia-appd",
+			Bech32Prefix:        "celestia",
+			Denom:               "utia",
+			CoinType:            "118",
+			GasPrices:           "0.025utia",
+			GasAdjustment:       1.3,
+			EncodingConfig:      &enc,
+			AdditionalStartArgs: []string{"--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099"},
 		},
-		Bin:           "celestia-appd",
-		Bech32Prefix:  "celestia",
-		Denom:         "utia",
-		CoinType:      "118",
-		GasPrices:     "0.025utia",
-		GasAdjustment: 1.3,
-		ModifyGenesis: func(config celestiadockertypes.Config, bytes []byte) ([]byte, error) {
-			return maps.SetField(bytes, "consensus.params.version.app", appVersion)
-		},
-		EncodingConfig:      &enc,
-		AdditionalStartArgs: []string{"--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099"},
 	}
-	return celestiadockertypes.NewProvider(cfg, s.T().Name())
+
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
+	return celestiadockertypes.NewProvider(cfg, s.T())
 }
 
 // CreateTxSim deploys and starts a txsim container to simulate transactions against the given celestia chain in the test environment.
@@ -92,7 +100,7 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain celestiatypes
 	txsimImage := celestiadockertypes.NewImage(s.logger, s.client, networkName, t.Name(), txsimImage, getCelestiaTag())
 
 	opts := celestiadockertypes.ContainerOptions{
-		User: celestiadockertypes.GetRootUserString(),
+		User: "0:0",
 		// Mount the Celestia home directory into the txsim container
 		// this ensures txsim has access to a keyring and is able to broadcast transactions.
 		Binds: []string{chain.GetVolumeName() + ":/celestia-home"},
@@ -117,7 +125,7 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain celestiatypes
 	t.Log("TxSim container started successfully")
 	t.Logf("TxSim container ID: %s", container.Name)
 
-	// Cleanup the container when the test is done
+	// cleanup the container when the test is done
 	t.Cleanup(func() {
 		if err := container.Stop(10 * time.Second); err != nil {
 			t.Logf("Error stopping txsim container: %v", err)
