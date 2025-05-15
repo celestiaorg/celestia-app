@@ -153,7 +153,6 @@ func (s *Signer) AccountByAddress(address sdktypes.AccAddress) *Account {
 
 	accountName, exists := s.addressToAccountMap[addrStr]
 	if !exists {
-		// Try to find this address in the keyring
 		record, err := s.keys.KeyByAddress(address)
 		if err != nil {
 			return nil
