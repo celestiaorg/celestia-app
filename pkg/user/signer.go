@@ -165,11 +165,12 @@ func (s *Signer) AccountByAddress(address sdktypes.AccAddress) *Account {
 			sequence:      0,
 		}
 
-		if pk, err := record.GetPubKey(); err == nil {
-			acc.pubKey = pk
+		pk, err := record.GetPubKey()
+		if err != nil {
+			return nil
 		}
+		acc.pubKey = pk
 
-		// Add to our maps
 		s.accounts[record.Name] = acc
 		s.addressToAccountMap[addrStr] = record.Name
 
