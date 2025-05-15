@@ -153,7 +153,31 @@ func (s *Signer) AccountByAddress(address sdktypes.AccAddress) *Account {
 
 	accountName, exists := s.addressToAccountMap[addrStr]
 	if !exists {
-		return nil
+		// Try to find this address in the keyring
+		record, err := s.keys.KeyByAddress(address)
+		if err != nil {
+			return nil
+		}
+
+		// We found a keyring record for this address
+		// Add it to our accounts map with zeroed account/sequence for lazy loading later
+		acc := &Account{
+			name:          record.Name,
+			address:       address,
+			accountNumber: 0,
+			sequence:      0,
+		}
+
+		// Get the pubkey if possible
+		if pk, err := record.GetPubKey(); err == nil {
+			acc.pubKey = pk
+		}
+
+		// Add to our maps
+		s.accounts[record.Name] = acc
+		s.addressToAccountMap[addrStr] = record.Name
+
+		return acc
 	}
 	return s.accounts[accountName]
 }
