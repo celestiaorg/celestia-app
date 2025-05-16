@@ -47,6 +47,9 @@ node            |  |                               |  |
 
 If you'd rather not install from source, you can download a prebuilt binary from the [releases](https://github.com/celestiaorg/celestia-app/releases) page.
 
+> [!WARNING]
+> The v4.x.x prebuilt binaries do not support the multiplexer so they can't be used to upgrade from v3 to v4. They can only be used in standalone mode once a chain has been upgraded to v4. To upgrade from v3 to v4, you must install from source.
+
 1. Navigate to the latest release on <https://github.com/celestiaorg/celestia-app/releases>.
 1. Download the binary for your platform (e.g. `celestia-app_Linux_x86_64.tar.gz`) from the **Assets** section. Tip: if you're not sure what platform you're on, you can run `uname -a` and look for the operating system (e.g. `Linux`, `Darwin`) and architecture (e.g. `x86_64`, `arm64`).
 1. Extract the archive
@@ -96,7 +99,7 @@ make bbr-enable
 
 | Variable            | Explanation                                  | Default value                                               | Required |
 |---------------------|----------------------------------------------|-------------------------------------------------------------|----------|
-| `CELESTIA_APP_HOME` | Where the application files should be saved. | [`$HOME/.celestia-appd`](https://pkg.go.dev/os#UserHomeDir) | Optional |
+| `CELESTIA_APP_HOME` | Where the application files should be saved. | [`$HOME/.celestia-app`](https://pkg.go.dev/os#UserHomeDir) | Optional |
 
 ### Using celestia-appd
 

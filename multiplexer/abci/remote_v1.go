@@ -173,8 +173,7 @@ func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*a
 	}
 	events = append(events, abciEventV1ToV2(endBlockResp.Events...)...)
 
-	// convert tx results
-	txResults := make([]*abciv2.ExecTxResult, 0, len(commitBlockResps))
+	txResults := make([]*abciv2.ExecTxResult, len(commitBlockResps))
 	for i, commitBlockResp := range commitBlockResps {
 		txResults[i] = &abciv2.ExecTxResult{
 			Code:      commitBlockResp.Code,
@@ -537,6 +536,10 @@ func validatorUpdatesV2ToV1(validators []abciv2.ValidatorUpdate) []abciv1.Valida
 }
 
 func consensusParamsV1ToV2(params *abciv1.ConsensusParams) *typesv2.ConsensusParams {
+	if params == nil {
+		return nil
+	}
+
 	consensusParamsV2 := &typesv2.ConsensusParams{}
 	if blockParams := params.GetBlock(); blockParams != nil {
 		consensusParamsV2.Block = &typesv2.BlockParams{
