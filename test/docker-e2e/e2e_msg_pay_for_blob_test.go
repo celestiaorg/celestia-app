@@ -24,13 +24,18 @@ func (s *CelestiaTestSuite) TestE2EMsgPayForBlob() {
 	}
 
 	ctx := context.TODO()
-	provider := s.CreateDockerProvider()
+	provider := s.CreateDockerProvider(func(cfg *docker.Config) {
+		// must specify test as the chainID otherwise the light node
+		// will try and use mainnet to bootstrap.
+		cfg.ChainConfig.ChainID = "test"
+		cfg.DANodeConfig.ChainID = "test"
+	})
 
 	celestia, err := provider.GetChain(ctx)
-	s.Require().NoError(err)
+	s.Require().NoError(err, "failed to get chain")
 
 	err = celestia.Start(ctx)
-	s.Require().NoError(err)
+	s.Require().NoError(err, "failed to start chain")
 
 	// Cleanup resources when the test is done
 	t.Cleanup(func() {
@@ -39,12 +44,10 @@ func (s *CelestiaTestSuite) TestE2EMsgPayForBlob() {
 		}
 	})
 
-	// Verify the chain is running
+	// verify the chain is producing.
 	height, err := celestia.Height(ctx)
-	s.Require().NoError(err)
+	s.Require().NoError(err, "failed to get chain height")
 	s.Require().Greater(height, int64(0))
-
-	s.CreateTxSim(ctx, celestia)
 
 	// wait for some blocks to ensure the bridge node can sync up.
 	s.Require().NoError(wait.ForBlocks(ctx, 10, celestia))

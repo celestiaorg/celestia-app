@@ -23,7 +23,7 @@ import (
 const (
 	multiplexerImage   = "ghcr.io/celestiaorg/celestia-app"
 	txsimImage         = "ghcr.io/celestiaorg/txsim"
-	defaultCelestiaTag = "v4.0.0-rc4"
+	defaultCelestiaTag = "v4.0.0-rc6"
 )
 
 func TestCelestiaTestSuite(t *testing.T) {
@@ -182,16 +182,6 @@ func getNetworkNameFromID(ctx context.Context, cli *client.Client, networkID str
 		return "", fmt.Errorf("network %s has no name", networkID)
 	}
 	return network.Name, nil
-}
-
-// getDockerRegistry returns the Docker registry to use for images.
-// It can be overridden by setting the DOCKER_REGISTRY environment variable.
-// If no override is provided, it returns the default "ghcr.io/celestiaorg".
-func getDockerRegistry() string {
-	if registry := os.Getenv("DOCKER_REGISTRY"); registry != "" {
-		return registry
-	}
-	return multiplexerImage
 }
 
 // getCelestiaTag returns the tag to use for Celestia images.
