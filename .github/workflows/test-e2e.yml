@@ -16,7 +16,7 @@ jobs:
       matrix:
         testcase:
           - TestE2ESimple
-          - TestCelestiaChainStateSync
+          - TestStateSync
 
     name: Run ${{ matrix.testcase }}
     steps:
@@ -30,9 +30,8 @@ jobs:
 
       - name: Run E2E test
         env:
-          CELESTIA_TAG: v4.0.0-rc4 # TODO: dynamically assign this based on images built on this PR.
+          CELESTIA_TAG: v4.0.0-arabica # TODO: dynamically assign this based on images built on this PR.
         run: |
-          cd test/docker-e2e
           make test-e2e test=${{ matrix.testcase }}
 
   test-e2e:
