@@ -14,7 +14,7 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 	}
 
 	ctx := context.TODO()
-	provider := s.CreateDockerProvider("4")
+	provider := s.CreateDockerProvider()
 
 	celestia, err := provider.GetChain(ctx)
 	s.Require().NoError(err)
@@ -31,8 +31,8 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 
 	// Verify the chain is running
 	height, err := celestia.Height(ctx)
-	s.Require().NoError(err)
-	s.Require().Greater(height, int64(0))
+	s.Require().NoError(err, "failed to get chain height")
+	s.Require().Greater(height, int64(0), "chain height is zero")
 
 	s.CreateTxSim(ctx, celestia)
 

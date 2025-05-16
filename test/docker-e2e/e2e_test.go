@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/go-square/v2/share"
-	celestiadockertypes "github.com/chatton/celestia-test/framework/docker"
-	"github.com/chatton/celestia-test/framework/testutil/maps"
-	"github.com/chatton/celestia-test/framework/testutil/toml"
-	celestiatypes "github.com/chatton/celestia-test/framework/types"
+	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
+	"github.com/celestiaorg/tastora/framework/testutil/toml"
+	celestiatypes "github.com/celestiaorg/tastora/framework/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	dockertypes "github.com/docker/docker/api/types"
 	"github.com/moby/moby/client"
@@ -62,7 +61,7 @@ func configOverrides() toml.Toml {
 	return overrides
 }
 
-func (s *CelestiaTestSuite) CreateDockerProvider(appVersion string) celestiatypes.Provider {
+func (s *CelestiaTestSuite) CreateDockerProvider(opts ...func(cfg *celestiadockertypes.Config)) celestiatypes.Provider {
 	numValidators := 1
 	numFullNodes := 0
 
@@ -90,19 +89,16 @@ func (s *CelestiaTestSuite) CreateDockerProvider(appVersion string) celestiatype
 					UIDGID:     "10001:10001",
 				},
 			},
-			Bin:           "celestia-appd",
-			Bech32Prefix:  "celestia",
-			Denom:         "utia",
-			CoinType:      "118",
-			GasPrices:     "0.025utia",
-			GasAdjustment: 1.3,
-			ModifyGenesis: func(config celestiadockertypes.Config, bytes []byte) ([]byte, error) {
-				return maps.SetField(bytes, "consensus.params.version.app", appVersion)
-			},
+			Bin:                 "celestia-appd",
+			Bech32Prefix:        "celestia",
+			Denom:               "utia",
+			CoinType:            "118",
+			GasPrices:           "0.025utia",
+			GasAdjustment:       1.3,
 			EncodingConfig:      &enc,
 			AdditionalStartArgs: []string{"--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9098"},
 		},
-		BridgeNodeConfig: &celestiadockertypes.BridgeNodeConfig{
+		DANodeConfig: &celestiadockertypes.DANodeConfig{
 			ChainID: "celestia",
 			Images: []celestiadockertypes.DockerImage{
 				{
@@ -112,7 +108,12 @@ func (s *CelestiaTestSuite) CreateDockerProvider(appVersion string) celestiatype
 				},
 			}},
 	}
-	return celestiadockertypes.NewProvider(cfg, s.T().Name())
+
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
+	return celestiadockertypes.NewProvider(cfg, s.T())
 }
 
 // CreateTxSim deploys and starts a txsim container to simulate transactions against the given celestia chain in the test environment.
@@ -151,7 +152,7 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain celestiatypes
 	t.Log("TxSim container started successfully")
 	t.Logf("TxSim container ID: %s", container.Name)
 
-	// Cleanup the container when the test is done
+	// cleanup the container when the test is done
 	t.Cleanup(func() {
 		if err := container.Stop(10 * time.Second); err != nil {
 			t.Logf("Error stopping txsim container: %v", err)

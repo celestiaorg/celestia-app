@@ -16,8 +16,8 @@ jobs:
       matrix:
         testcase:
           - TestE2ESimple
-          - TestCelestiaChainStateSync
-          - TestE2EBridgeNode
+          - TestStateSync
+          - TestE2EMsgPayForBlob
 
     name: Run ${{ matrix.testcase }}
     steps:

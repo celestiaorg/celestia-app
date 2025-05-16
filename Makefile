@@ -24,7 +24,7 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
 
-CELESTIA_V3_VERSION := v3.10.0-rc2
+CELESTIA_V3_VERSION := v3.10.0-arabica
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -325,7 +325,7 @@ prebuilt-binary:
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
 		-w /go/src/$(PACKAGE_NAME) \
 		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
-		release --clean
+		release --clean --parallelism 1
 .PHONY: prebuilt-binary
 
 ## goreleaser: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
