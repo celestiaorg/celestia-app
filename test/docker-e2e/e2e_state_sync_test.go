@@ -54,7 +54,7 @@ func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 	err = celestia.Start(ctx)
 	s.Require().NoError(err, "failed to start chain")
 
-	// Cleanup resources when the test is done
+	// cleanup resources when the test is done
 	t.Cleanup(func() {
 		if err := celestia.Stop(ctx); err != nil {
 			t.Logf("Error stopping chain: %v", err)
@@ -113,7 +113,7 @@ func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 
 	latestHeight := status.SyncInfo.LatestBlockHeight
 	trustHeight := latestHeight - stateSyncTrustHeightOffset
-	s.Require().Greater(trustHeight, int64(0), "calculated trust height %d is too low (latest height: %d)", trustHeight, latestHeight)
+	s.Require().Greaterf(trustHeight, int64(0), "calculated trust height %d is too low (latest height: %d)", trustHeight, latestHeight)
 
 	trustBlock, err := nodeClient.Block(ctx, &trustHeight)
 	s.Require().NoError(err, "failed to get block at trust height %d", trustHeight)

@@ -6,6 +6,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/go-square/v2/share"
 	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
+	"github.com/celestiaorg/tastora/framework/testutil/toml"
 	celestiatypes "github.com/celestiaorg/tastora/framework/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	dockertypes "github.com/docker/docker/api/types"
@@ -22,7 +23,7 @@ import (
 const (
 	multiplexerImage   = "ghcr.io/celestiaorg/celestia-app"
 	txsimImage         = "ghcr.io/celestiaorg/txsim"
-	defaultCelestiaTag = "v4.0.0-rc4"
+	defaultCelestiaTag = "v4.0.0-rc6"
 )
 
 func TestCelestiaTestSuite(t *testing.T) {
@@ -42,9 +43,25 @@ func (s *CelestiaTestSuite) SetupSuite() {
 	s.client, s.network = celestiadockertypes.DockerSetup(s.T())
 }
 
-type ConfigOption func(*celestiadockertypes.Config)
+func appOverrides() toml.Toml {
+	// required to query tx by hash when broadcasting transactions.
+	appTomlOverride := make(toml.Toml)
+	txIndexConfig := make(toml.Toml)
+	txIndexConfig["indexer"] = "kv"
+	appTomlOverride["tx-index"] = txIndexConfig
+	return appTomlOverride
+}
 
-func (s *CelestiaTestSuite) CreateDockerProvider(opts ...ConfigOption) celestiatypes.Provider {
+func configOverrides() toml.Toml {
+	// required to query tx by hash when broadcasting transactions.
+	overrides := make(toml.Toml)
+	txIndexConfig := make(toml.Toml)
+	txIndexConfig["indexer"] = "kv"
+	overrides["tx_index"] = txIndexConfig
+	return overrides
+}
+
+func (s *CelestiaTestSuite) CreateDockerProvider(opts ...func(cfg *celestiadockertypes.Config)) celestiatypes.Provider {
 	numValidators := 1
 	numFullNodes := 0
 
@@ -56,7 +73,8 @@ func (s *CelestiaTestSuite) CreateDockerProvider(opts ...ConfigOption) celestiat
 		DockerNetworkID: s.network,
 		ChainConfig: &celestiadockertypes.ChainConfig{
 			ConfigFileOverrides: map[string]any{
-				"config/app.toml": validatorStateSyncAppOverrides(),
+				"config/app.toml":    appOverrides(),
+				"config/config.toml": configOverrides(),
 			},
 			Type:          "cosmos",
 			Name:          "celestia",
@@ -78,8 +96,17 @@ func (s *CelestiaTestSuite) CreateDockerProvider(opts ...ConfigOption) celestiat
 			GasPrices:           "0.025utia",
 			GasAdjustment:       1.3,
 			EncodingConfig:      &enc,
-			AdditionalStartArgs: []string{"--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099"},
+			AdditionalStartArgs: []string{"--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9098"},
 		},
+		DANodeConfig: &celestiadockertypes.DANodeConfig{
+			ChainID: "celestia",
+			Images: []celestiadockertypes.DockerImage{
+				{
+					Repository: "ghcr.io/celestiaorg/celestia-node",
+					Version:    "v0.23.0-rc0", // TODO: this should be configurable.
+					UIDGID:     "10001:10001",
+				},
+			}},
 	}
 
 	for _, opt := range opts {
@@ -133,6 +160,18 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain celestiatypes
 	})
 }
 
+// getGenesisHash returns the genesis hash of the given chain node.
+func (s *CelestiaTestSuite) getGenesisHash(ctx context.Context, node celestiatypes.ChainNode) string {
+	c, err := node.GetRPCClient()
+	s.Require().NoError(err, "failed to get node client")
+
+	first := int64(1)
+	block, err := c.Block(ctx, &first)
+	s.Require().NoError(err, "failed to get block")
+
+	return block.Block.Header.Hash().String()
+}
+
 // getNetworkNameFromID resolves the network name given its ID.
 func getNetworkNameFromID(ctx context.Context, cli *client.Client, networkID string) (string, error) {
 	network, err := cli.NetworkInspect(ctx, networkID, dockertypes.NetworkInspectOptions{})
@@ -143,16 +182,6 @@ func getNetworkNameFromID(ctx context.Context, cli *client.Client, networkID str
 		return "", fmt.Errorf("network %s has no name", networkID)
 	}
 	return network.Name, nil
-}
-
-// getDockerRegistry returns the Docker registry to use for images.
-// It can be overridden by setting the DOCKER_REGISTRY environment variable.
-// If no override is provided, it returns the default "ghcr.io/celestiaorg".
-func getDockerRegistry() string {
-	if registry := os.Getenv("DOCKER_REGISTRY"); registry != "" {
-		return registry
-	}
-	return multiplexerImage
 }
 
 // getCelestiaTag returns the tag to use for Celestia images.

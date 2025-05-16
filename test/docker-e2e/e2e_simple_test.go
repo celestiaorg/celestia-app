@@ -14,13 +14,13 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 	}
 
 	ctx := context.TODO()
-	chainProvider := s.CreateDockerProvider()
+	provider := s.CreateDockerProvider()
 
-	celestia, err := chainProvider.GetChain(ctx)
-	s.Require().NoError(err, "failed to get chain")
+	celestia, err := provider.GetChain(ctx)
+	s.Require().NoError(err)
 
 	err = celestia.Start(ctx)
-	s.Require().NoError(err, "failed to start chain")
+	s.Require().NoError(err)
 
 	// Cleanup resources when the test is done
 	t.Cleanup(func() {
