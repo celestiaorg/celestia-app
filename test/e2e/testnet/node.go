@@ -33,7 +33,7 @@ const (
 	p2pPort               = 26656
 	grpcPort              = 9090
 	listenAddressPort     = 36658
-	grpcListenPort        = 9098
+	grpcListenPort        = 9099
 	prometheusPort        = 26660
 	tracingPort           = 26661
 	celestiaOrgRegistry   = "ghcr.io/celestiaorg"
