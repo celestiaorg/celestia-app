@@ -153,7 +153,28 @@ func (s *Signer) AccountByAddress(address sdktypes.AccAddress) *Account {
 
 	accountName, exists := s.addressToAccountMap[addrStr]
 	if !exists {
-		return nil
+		record, err := s.keys.KeyByAddress(address)
+		if err != nil {
+			return nil
+		}
+
+		acc := &Account{
+			name:          record.Name,
+			address:       address,
+			accountNumber: 0,
+			sequence:      0,
+		}
+
+		pk, err := record.GetPubKey()
+		if err != nil {
+			return nil
+		}
+		acc.pubKey = pk
+
+		s.accounts[record.Name] = acc
+		s.addressToAccountMap[addrStr] = record.Name
+
+		return acc
 	}
 	return s.accounts[accountName]
 }

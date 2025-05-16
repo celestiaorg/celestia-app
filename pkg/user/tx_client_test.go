@@ -12,6 +12,8 @@ import (
 	"cosmossdk.io/math/unsafe"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/x/authz"
@@ -648,4 +650,32 @@ func (suite *TxClientTestSuite) TestMultiConnBroadcast() {
 			}
 		})
 	}
+}
+
+func (suite *TxClientTestSuite) TestAccountsLoadedEvenIfNotExist() {
+	// Create a mock keyring with an account that doesn't exist in the state
+	mockKeyring := keyring.NewInMemory(suite.encCfg.Codec)
+
+	// Generate a new key that doesn't exist in state
+	record, _, err := mockKeyring.NewMnemonic("not-exists", keyring.English, "", "", hd.Secp256k1)
+	suite.NoError(err)
+
+	nonExistentAddr, err := record.GetAddress()
+	suite.NoError(err)
+
+	// Create a TxClient using the mock keyring
+	txClient, err := user.SetupTxClient(suite.ctx.GoContext(), mockKeyring, suite.ctx.GRPCClient, suite.encCfg)
+	suite.NoError(err)
+
+	// Check that the non-existent account was added to the signer
+	account := txClient.Account("not-exists")
+	suite.NotNil(account, "Non-existent account should be added to signer")
+	suite.Equal(uint64(0), account.AccountNumber(), "Non-existent account should have accountNumber 0")
+	suite.Equal(uint64(0), account.Sequence(), "Non-existent account should have sequence 0")
+
+	// Check lookup by address works
+	accountByAddr := txClient.AccountByAddress(nonExistentAddr)
+	suite.NotNil(accountByAddr, "Should be able to find account by address even if not in state")
+	suite.Equal("not-exists", accountByAddr.Name(), "Account name should match")
+	suite.Equal(uint64(0), accountByAddr.AccountNumber(), "Account number should be 0")
 }

@@ -242,7 +242,10 @@ func SetupTxClient(
 		}
 		accNum, seqNum, err := QueryAccount(ctx, conn, encCfg.InterfaceRegistry, addr)
 		if err != nil {
-			// skip over the accounts that don't exist in state
+			// Instead of skipping, add the account with zero values
+			// This allows the account to be added to the Signer's account map
+			// and potentially be lazy-loaded later when needed
+			accounts = append(accounts, NewAccount(record.Name, 0, 0))
 			continue
 		}
 
@@ -693,9 +696,34 @@ func (client *TxClient) DefaultAddress() sdktypes.AccAddress {
 func (client *TxClient) DefaultAccountName() string { return client.defaultAccount }
 
 func (client *TxClient) checkAccountLoaded(ctx context.Context, account string) error {
-	if _, exists := client.signer.accounts[account]; exists {
+	// First check if the account exists in the signer's account map
+	acc, exists := client.signer.accounts[account]
+	if exists {
+		// If the account exists in the map but has accNum of 0, it may have
+		// been added without existing in state. Try to load it properly now.
+		if acc.accountNumber == 0 {
+			// Try to query the account
+			record, err := client.signer.keys.Key(account)
+			if err != nil {
+				return fmt.Errorf("trying to find account %s on keyring: %w", account, err)
+			}
+			addr, err := record.GetAddress()
+			if err != nil {
+				return fmt.Errorf("retrieving address from keyring: %w", err)
+			}
+			// Query account info
+			accNum, sequence, err := QueryAccount(ctx, client.conns[0], client.registry, addr)
+			if err == nil {
+				// Account now exists, update the account in the signer
+				updatedAcc := NewAccount(account, accNum, sequence)
+				return client.signer.AddAccount(updatedAcc)
+			}
+			// If the account still doesn't exist, just keep using the existing entry
+		}
 		return nil
 	}
+
+	// Account doesn't exist in the map, try to load it from the keyring
 	record, err := client.signer.keys.Key(account)
 	if err != nil {
 		return fmt.Errorf("trying to find account %s on keyring: %w", account, err)
@@ -707,7 +735,9 @@ func (client *TxClient) checkAccountLoaded(ctx context.Context, account string) 
 	// FIXME: have a less trusting way of getting the account number and sequence
 	accNum, sequence, err := QueryAccount(ctx, client.conns[0], client.registry, addr)
 	if err != nil {
-		return fmt.Errorf("querying account %s: %w", account, err)
+		// Even if the account doesn't exist in state, add it to the signer
+		// with zero values so it can be lazy-loaded later
+		return client.signer.AddAccount(NewAccount(account, 0, 0))
 	}
 	return client.signer.AddAccount(NewAccount(account, accNum, sequence))
 }
