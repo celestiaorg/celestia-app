@@ -36,6 +36,15 @@ const (
 
 	// TimeoutCommit is a flag that can be used to override the timeout_commit.
 	TimeoutCommitFlag = "timeout-commit"
+
+	// PyroscopeURLFlag is a flag to specify the URL for pyroscope profiling.
+	PyroscopeURLFlag = "pyroscope-url"
+
+	// PyroscopeTraceFlag is a flag to specify whether to enable pyroscope tracing.
+	PyroscopeTraceFlag = "pyroscope-trace"
+
+	// PyroscopeProfileTypesFlag is a flag to specify the profile types to trace with pyroscope.
+	PyroscopeProfileTypesFlag = "pyroscope-profile-types"
 )
 
 // NewRootCmd creates a new root command for celestia-appd.
@@ -82,6 +91,51 @@ func NewRootCmd() *cobra.Command {
 			err = server.InterceptConfigsPreRunHandler(command, appTemplate, appConfig, tmConfig)
 			if err != nil {
 				return err
+			}
+
+			// Check if pyroscope-url flag is set and update the config
+			if command.Flags().Changed(PyroscopeURLFlag) {
+				pyroscopeURL, err := command.Flags().GetString(PyroscopeURLFlag)
+				if err != nil {
+					return err
+				}
+
+				serverCtx := server.GetServerContextFromCmd(command)
+				if serverCtx != nil && serverCtx.Config != nil {
+					serverCtx.Config.Instrumentation.Prometheus = true // Enable instrumentation
+
+					// Set Pyroscope configuration using the server context's Viper
+					viper := serverCtx.Viper
+					if viper != nil {
+						// Set pyroscope configuration values
+						viper.Set("pyroscope_url", pyroscopeURL)
+
+						// Also check if other pyroscope flags are set
+						if command.Flags().Changed(PyroscopeTraceFlag) {
+							trace, err := command.Flags().GetBool(PyroscopeTraceFlag)
+							if err != nil {
+								return err
+							}
+							viper.Set("pyroscope_trace", trace)
+						}
+
+						if command.Flags().Changed(PyroscopeProfileTypesFlag) {
+							profileTypes, err := command.Flags().GetStringSlice(PyroscopeProfileTypesFlag)
+							if err != nil {
+								return err
+							}
+							viper.Set("pyroscope_profile_types", profileTypes)
+						}
+
+						// Write the updated configuration to ensure it takes effect
+						if err := serverCtx.Config.ValidateBasic(); err != nil {
+							return err
+						}
+						if err := viper.WriteConfig(); err != nil {
+							return fmt.Errorf("error writing config to disk: %w", err)
+						}
+					}
+				}
 			}
 
 			if command.Flags().Changed(FlagLogToFile) {
@@ -163,6 +217,9 @@ func addStartFlags(startCmd *cobra.Command) {
 
 	startCmd.Flags().Duration(TimeoutCommitFlag, 0, "Override the application configured timeout_commit. Note: only for testing purposes.")
 	startCmd.Flags().Bool(FlagForceNoBBR, false, "bypass the requirement to use bbr locally")
+	startCmd.Flags().String(PyroscopeURLFlag, "", "The URL of the pyroscope instance to use for continuous profiling.")
+	startCmd.Flags().Bool(PyroscopeTraceFlag, false, "Enable tracing data in pyroscope continuous profiling.")
+	startCmd.Flags().StringSlice(PyroscopeProfileTypesFlag, []string{"cpu", "alloc_objects", "inuse_objects", "goroutines"}, "The profile types to trace with pyroscope.")
 }
 
 // replaceLogger optionally replaces the logger with a file logger if the flag
