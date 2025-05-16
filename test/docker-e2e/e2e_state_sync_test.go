@@ -2,8 +2,8 @@ package docker_e2e
 
 import (
 	"context"
-	"github.com/celestiaorg/tastora/framework/docker"
-	"github.com/celestiaorg/tastora/framework/testutil/address"
+	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
+	addressutil "github.com/celestiaorg/tastora/framework/testutil/address"
 	"github.com/celestiaorg/tastora/framework/testutil/toml"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	"testing"
@@ -38,11 +38,11 @@ func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 	}
 
 	ctx := context.TODO()
-	chainProvider := s.CreateDockerProvider(func(cfg *docker.Config) {
+	chainProvider := s.CreateDockerProvider(func(config *celestiadockertypes.Config) {
 		numVals := 3
 		// require at least 2 validators for state sync to work.
-		cfg.ChainConfig.NumValidators = &numVals
-		cfg.ChainConfig.ConfigFileOverrides = map[string]any{
+		config.ChainConfig.NumValidators = &numVals
+		config.ChainConfig.ConfigFileOverrides = map[string]any{
 			// enable state-sync and snapshots on validators.
 			"config/app.toml": validatorStateSyncAppOverrides(),
 		}
@@ -53,10 +53,18 @@ func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 
 	err = celestia.Start(ctx)
 	s.Require().NoError(err, "failed to start chain")
-	// Verify the chain is running
+
+	// cleanup resources when the test is done
+	t.Cleanup(func() {
+		if err := celestia.Stop(ctx); err != nil {
+			t.Logf("Error stopping chain: %v", err)
+		}
+	})
+
+	// verify the chain is running
 	height, err := celestia.Height(ctx)
-	s.Require().NoError(err)
-	s.Require().Greater(height, int64(0))
+	s.Require().NoError(err, "failed to get chain height")
+	s.Require().Greater(height, int64(0), "chain height is zero")
 
 	s.CreateTxSim(ctx, celestia)
 
@@ -111,7 +119,7 @@ func (s *CelestiaTestSuite) TestCelestiaChainStateSync() {
 	s.Require().NoError(err, "failed to get block at trust height %d", trustHeight)
 
 	trustHash := trustBlock.BlockID.Hash.String()
-	rpcServers, err := address.BuildInternalRPCAddressList(ctx, celestia.GetNodes())
+	rpcServers, err := addressutil.BuildInternalRPCAddressList(ctx, celestia.GetNodes())
 	s.Require().NoError(err, "failed to build RPC address list")
 
 	t.Logf("Trust height: %d", trustHeight)
