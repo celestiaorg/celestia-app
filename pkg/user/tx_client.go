@@ -686,7 +686,11 @@ func (client *TxClient) Account(name string) *Account {
 func (client *TxClient) AccountByAddress(address sdktypes.AccAddress) *Account {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
-	return client.signer.AccountByAddress(address)
+	acc, err := client.signer.AccountByAddress(address)
+	if err != nil {
+		return nil
+	}
+	return acc
 }
 
 func (client *TxClient) DefaultAddress() sdktypes.AccAddress {
