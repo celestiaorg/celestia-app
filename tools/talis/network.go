@@ -14,6 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cometbft/cometbft/config"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
@@ -51,20 +52,19 @@ type Network struct {
 	accounts   []string
 }
 
-func NewNetwork(chainID string) (*Network, error) {
+func NewNetwork(chainID string, squareSize int, mods ...genesis.Modifier) (*Network, error) {
 	codec := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	blobParams := blobtypes.DefaultParams()
-	blobParams.GovMaxSquareSize = 512
+	blobParams.GovMaxSquareSize = uint64(squareSize)
 	cparams := app.DefaultConsensusParams()
-	cparams.Block.MaxBytes = 128_000_000
+	cparams.Block.MaxBytes = int64(squareSize * squareSize * share.ContinuationSparseShareContentSize)
+
+	mods = append(mods, genesis.ImmediateProposals(codec.Codec))
+	mods = append(mods, genesis.SetBlobParams(codec.Codec, blobParams))
 
 	g := genesis.NewDefaultGenesis().
 		WithChainID(chainID).
-		WithModifiers(
-			genesis.ImmediateProposals(codec.Codec),
-			genesis.SetBlobParams(codec.Codec, blobParams),
-			// SetMinFee(codec.Codec, 0.000001),
-		).
+		WithModifiers(mods...).
 		WithConsensusParams(cparams)
 
 	return &Network{

@@ -17,11 +17,13 @@ func main() {
 	}
 
 	rootCmd.AddCommand(
-		downloadCmd(),
+		// downloadCmd(),
 		generateCmd(),
 		initCmd(),
-		statusCmd(),
+		// statusCmd(),
 		upCmd(),
+		downCmd(),
+		addCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {
