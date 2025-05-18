@@ -144,18 +144,18 @@ func (s *Signer) Account(name string) *Account {
 	return s.accounts[name]
 }
 
-// AccountByAddress returns the account associated with the given address
-func (s *Signer) AccountByAddress(address sdktypes.AccAddress) *Account {
+// AccountByAddress returns the account associated with the given address or an error if not found
+func (s *Signer) AccountByAddress(address sdktypes.AccAddress) (*Account, error) {
 	addrStr, err := s.addressCodec.BytesToString(address)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("failed to convert address bytes to string: %w", err)
 	}
 
 	accountName, exists := s.addressToAccountMap[addrStr]
 	if !exists {
 		record, err := s.keys.KeyByAddress(address)
 		if err != nil {
-			return nil
+			return nil, fmt.Errorf("account with address %s not found in keyring: %w", addrStr, err)
 		}
 
 		acc := &Account{
@@ -167,16 +167,16 @@ func (s *Signer) AccountByAddress(address sdktypes.AccAddress) *Account {
 
 		pk, err := record.GetPubKey()
 		if err != nil {
-			return nil
+			return nil, fmt.Errorf("failed to get public key for account %s: %w", record.Name, err)
 		}
 		acc.pubKey = pk
 
 		s.accounts[record.Name] = acc
 		s.addressToAccountMap[addrStr] = record.Name
 
-		return acc
+		return acc, nil
 	}
-	return s.accounts[accountName]
+	return s.accounts[accountName], nil
 }
 
 func (s *Signer) Accounts() []*Account {
