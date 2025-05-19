@@ -65,4 +65,4 @@ echo "Downloading genesis file..."
 celestia-appd download-genesis ${CHAIN_ID} > /dev/null 2>&1 # Hide output to reduce terminal noise
 
 echo "Starting celestia-appd..."
-eval celestia-appd start --force-no-bbr
+celestia-appd start --force-no-bbr
