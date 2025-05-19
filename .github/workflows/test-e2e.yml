@@ -10,7 +10,7 @@ on:
       - go.sum
 
 jobs:
-  test-e2e-docker:
+  test-docker-e2e:
     runs-on: ubuntu-latest
     # if one test fails, continue running the rest.
     continue-on-error: true
