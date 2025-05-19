@@ -150,7 +150,7 @@ type TxClient struct {
 	cdc      codec.Codec
 	signer   *Signer
 	registry codectypes.InterfaceRegistry
-	// list of core endpoints for tx submission (primary + additionals)
+	// list of core endpoints for tx submission (primary + additional)
 	conns []*grpc.ClientConn
 	// how often to poll the network for confirmation of a transaction
 	pollTime time.Duration
