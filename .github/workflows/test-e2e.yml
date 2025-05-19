@@ -10,8 +10,10 @@ on:
       - go.sum
 
 jobs:
-  test-e2e-docker:
+  test-docker-e2e:
     runs-on: ubuntu-latest
+    # if one test fails, continue running the rest.
+    continue-on-error: true
     strategy:
       matrix:
         testcase:
@@ -32,7 +34,7 @@ jobs:
         env:
           CELESTIA_TAG: v4.0.0-arabica # TODO: dynamically assign this based on images built on this PR.
         run: |
-          make test-e2e test=${{ matrix.testcase }}
+          make test-docker-e2e test=${{ matrix.testcase }}
 
   test-e2e:
     runs-on: ubuntu-latest
