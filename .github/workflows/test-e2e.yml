@@ -10,6 +10,30 @@ on:
       - go.sum
 
 jobs:
+  test-e2e-docker:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        testcase:
+          - TestE2ESimple
+          - TestStateSync
+
+    name: Run ${{ matrix.testcase }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+
+      - name: Run E2E test
+        env:
+          CELESTIA_TAG: v4.0.0-arabica # TODO: dynamically assign this based on images built on this PR.
+        run: |
+          make test-e2e test=${{ matrix.testcase }}
+
   test-e2e:
     runs-on: ubuntu-latest
     steps:
