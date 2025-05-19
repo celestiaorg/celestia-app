@@ -280,6 +280,7 @@ func New(
 		skipUpgradeHeights[int64(h)] = true
 	}
 	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
+	fmt.Printf("homePath: %s\n", homePath)
 	app.UpgradeKeeper = upgradekeeper.NewKeeper(skipUpgradeHeights, runtime.NewKVStoreService(keys[upgradetypes.StoreKey]), encodingConfig.Codec, homePath, app.BaseApp, govModuleAddr)
 
 	// Register the staking hooks. NOTE: stakingKeeper is passed by reference
