@@ -9,6 +9,12 @@ import (
 	"strings"
 )
 
+const (
+	// EmbedVersionFile is the file that contains the v3.x.x version of the
+	// Celestia binary.
+	EmbedVersionFile = ".embed_version"
+)
+
 // CelestiaAppV3 returns the compressed platform specific Celestia binary.
 func CelestiaAppV3() (binary []byte, version string, err error) {
 	// Check if we actually have binary data
@@ -29,9 +35,10 @@ func platform() string {
 	return runtime.GOOS + "_" + runtime.GOARCH
 }
 
-// getVersion returns the celestia-appd v3.x version that was written to the .embed_version file.
+// getVersion returns the v3.x.x version (e.g. v3.10.0-arabica) that was written
+// to the .embed_version file.
 func getVersion() (string, error) {
-	contents, err := os.ReadFile(".embed_version")
+	contents, err := os.ReadFile(EmbedVersionFile)
 	if err != nil {
 		return "", fmt.Errorf("failed to read .embed_version file: %w", err)
 	}
