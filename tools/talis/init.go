@@ -98,6 +98,7 @@ func DefaultConfigProfile(cfg *cmtconfig.Config, tables []string) *cmtconfig.Con
 	cfg.P2P.SendRate = 100000000
 	cfg.P2P.RecvRate = 110000000
 	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
+	cfg.RPC.GRPCListenAddress = "tcp://0.0.0.0:9090"
 	return cfg
 }
 
