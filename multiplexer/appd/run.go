@@ -12,14 +12,14 @@ const AppdStopped = -1
 
 // Appd represents a celestia-appd binary.
 type Appd struct {
-	// binary is the binary data of the appd binary.
+	// binary is the compressed binary data. It must be uncompressed before use.
 	binary []byte
 
-	// version is the version of the appd binary.
+	// version is the version of the celestia-appd binary.
 	// Example: "v3.10.0-arabica"
 	version string
 
-	// pid is the process ID of the appd binary.
+	// pid is the process ID of the celestia-appd binary.
 	pid    int
 	stdin  io.Reader
 	stderr io.Writer
@@ -44,7 +44,6 @@ func New(version string, binary []byte) (*Appd, error) {
 		stdout:  os.Stdout,
 		stderr:  os.Stderr,
 	}
-
 	return appd, nil
 }
 
