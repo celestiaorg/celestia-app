@@ -15,7 +15,7 @@ usage() {
 }
 
 if [ $# -ne 2 ] || [ "$1" != "--network" ]; then
-  NETWORK="mainnet"
+  NETWORK="Mainnet"
 else
   NETWORK="$2"
 fi
