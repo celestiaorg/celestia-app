@@ -64,7 +64,7 @@ func TestDefaultConsensusConfig(t *testing.T) {
 		want := tmcfg.DefaultRPCConfig()
 		want.TimeoutBroadcastTxCommit = 50 * time.Second
 		want.MaxBodyBytes = int64(8388608) // 8 MiB
-		want.GRPCListenAddress = "tcp://0.0.0.0:9098"
+		want.GRPCListenAddress = "tcp://127.0.0.1:9098"
 
 		assert.Equal(t, want, got.RPC)
 	})
