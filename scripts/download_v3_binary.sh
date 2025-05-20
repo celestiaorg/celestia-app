@@ -8,8 +8,8 @@ out=$2
 version=$3
 
 if [ -f internal/embedding/$out ]; then
-    if [ -f internal/embedding/.embed_version_$out ]; then
-        existing_version=$(cat internal/embedding/.embed_version_$out)
+    if [ -f internal/embedding/.embed_version ]; then
+        existing_version=$(cat internal/embedding/.embed_version)
         if [ "$existing_version" = "$version" ]; then
             echo "Skipping download because expected version already downloaded: $out"
             exit 0
@@ -24,4 +24,4 @@ else
 fi
 
 wget -q "https://github.com/celestiaorg/celestia-app/releases/download/$version/$url" -O internal/embedding/$out
-echo "$version" > internal/embedding/.embed_version_$out
+echo "$version" > internal/embedding/.embed_version

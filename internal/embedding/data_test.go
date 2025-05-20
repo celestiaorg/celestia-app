@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -54,4 +55,11 @@ func TestCelestiaApp(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestVersion(t *testing.T) {
+	version, err := version()
+	require.NoError(t, err)
+	require.NotEmpty(t, version)
+	assert.Equal(t, "v3.10.0-arabica", version)
 }
