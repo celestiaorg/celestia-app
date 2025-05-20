@@ -28,7 +28,7 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 		panic(err)
 	}
 
-	v3, err := appd.New(version, binary)
+	appdV3, err := appd.New(version, binary)
 	if err != nil {
 		panic(err)
 	}
@@ -39,7 +39,7 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 	}
 
 	versions, err := abci.NewVersions(abci.Version{
-		Appd:        v3,
+		Appd:        appdV3,
 		ABCIVersion: abci.ABCIClientVersion1,
 		AppVersion:  3,
 		StartArgs: append([]string{

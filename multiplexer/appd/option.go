@@ -2,6 +2,7 @@ package appd
 
 import "io"
 
+// TODO: ConfigOption never appears to be used. Delete it.
 type ConfigOption func(*Appd) *Appd
 
 // WithStdOut configures the standard output of the app.
