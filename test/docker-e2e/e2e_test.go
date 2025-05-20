@@ -22,7 +22,8 @@ import (
 const (
 	multiplexerImage   = "ghcr.io/celestiaorg/celestia-app"
 	txsimImage         = "ghcr.io/celestiaorg/txsim"
-	defaultCelestiaTag = "v4.0.0-rc4"
+	defaultCelestiaTag = "v4.0.0-rc6"
+	txSimTag           = "v4.0.0-rc6"
 )
 
 func TestCelestiaTestSuite(t *testing.T) {
@@ -97,7 +98,7 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain celestiatypes
 
 	// Deploy txsim image
 	t.Log("Deploying txsim image")
-	txsimImage := celestiadockertypes.NewImage(s.logger, s.client, networkName, t.Name(), txsimImage, getCelestiaTag())
+	txsimImage := celestiadockertypes.NewImage(s.logger, s.client, networkName, t.Name(), txsimImage, txSimTag)
 
 	opts := celestiadockertypes.ContainerOptions{
 		User: "0:0",
