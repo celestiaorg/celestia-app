@@ -10,7 +10,7 @@ import (
 func TestCfgOptions(t *testing.T) {
 	tests := []struct {
 		name     string
-		option   CfgOption
+		option   ConfigOption
 		expected func(*Appd) bool
 	}{
 		{

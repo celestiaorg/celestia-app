@@ -14,29 +14,30 @@ import (
 
 const AppdStopped = -1
 
-// Appd represents the appd binary
+// Appd represents a celestia-appd binary.
 type Appd struct {
-	pid            int
-	path           string
-	stdin          io.Reader
-	stderr, stdout io.Writer
+	pid    int
+	path   string
+	stdin  io.Reader
+	stderr io.Writer
+	stdout io.Writer
 }
 
-// New takes a binary and untar it in a temporary directory.
-func New(name string, bin []byte, cfg ...CfgOption) (*Appd, error) {
-	if len(bin) == 0 {
-		return nil, fmt.Errorf("no binary data available: ensure `bin` is not empty")
+// New returns a new Appd instance.
+func New(name string, binary []byte, options ...ConfigOption) (*Appd, error) {
+	if len(binary) == 0 {
+		return nil, fmt.Errorf("no binary data available: ensure `binary` is not empty")
 	}
 
 	// untar the binary.
-	gzr, err := gzip.NewReader(bytes.NewReader(bin))
+	gzr, err := gzip.NewReader(bytes.NewReader(binary))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read binary data for %s: %w", name, err)
 	}
 	defer gzr.Close()
 
 	// create a temporary directory for extraction
-	tmpDir, err := os.MkdirTemp("", fmt.Sprintf("appd-%s-", name))
+	tmpDir, err := os.MkdirTemp("", fmt.Sprintf("celestia-appd-%s-", name))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp directory: %w", err)
 	}
@@ -110,16 +111,15 @@ func New(name string, bin []byte, cfg ...CfgOption) (*Appd, error) {
 		stderr: os.Stderr,
 	}
 
-	for _, opt := range cfg {
-		opt(appd)
+	for _, option := range options {
+		option(appd)
 	}
 
-	// verify the binary is executable for the current arch
+	// Verify the binary is executable for the current architecture
 	testCmd := exec.Command(binaryPath, "--help")
 	testOutput, err := testCmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("binary validation failed (%s): %w\nOutput: %s",
-			binaryPath, err, string(testOutput))
+		return nil, fmt.Errorf("binary validation failed (%s): %w\nOutput: %s", binaryPath, err, string(testOutput))
 	}
 
 	return appd, nil
@@ -166,22 +166,22 @@ func (a *Appd) Stop() error {
 		return nil
 	}
 
-	proc, err := os.FindProcess(a.pid)
+	process, err := os.FindProcess(a.pid)
 	if err != nil {
 		return fmt.Errorf("failed to find process with PID %d: %w", a.pid, err)
 	}
 
 	// send SIGTERM for graceful shutdown
-	if err := proc.Signal(os.Interrupt); err != nil {
+	if err := process.Signal(os.Interrupt); err != nil {
 		log.Printf("Failed to send interrupt signal, attempting to kill: %v", err)
 		// if interrupt fails, try harder with Kill
-		if err := proc.Kill(); err != nil {
+		if err := process.Kill(); err != nil {
 			return fmt.Errorf("failed to kill process with PID %d: %w", a.pid, err)
 		}
 	}
 
 	// Wait for the process to exit
-	_, err = proc.Wait()
+	_, err = process.Wait()
 	if err != nil {
 		log.Printf("Error waiting for process to exit: %v", err)
 	}
@@ -190,7 +190,7 @@ func (a *Appd) Stop() error {
 	return nil
 }
 
-// Pid returns the pid of the appd process.
+// Pid returns the process ID of the appd process.
 func (a *Appd) Pid() int {
 	return a.pid
 }
