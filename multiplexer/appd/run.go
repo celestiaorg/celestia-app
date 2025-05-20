@@ -27,7 +27,7 @@ type Appd struct {
 }
 
 // New returns a new Appd instance.
-func New(version string, binary []byte, options ...ConfigOption) (*Appd, error) {
+func New(version string, binary []byte) (*Appd, error) {
 	if version == "" {
 		return nil, fmt.Errorf("version is required")
 	}
@@ -43,10 +43,6 @@ func New(version string, binary []byte, options ...ConfigOption) (*Appd, error) 
 		stdin:   os.Stdin,
 		stdout:  os.Stdout,
 		stderr:  os.Stderr,
-	}
-
-	for _, option := range options {
-		option(appd)
 	}
 
 	return appd, nil
