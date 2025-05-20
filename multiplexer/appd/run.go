@@ -48,9 +48,7 @@ func New(name string, bin []byte, cfg ...CfgOption) (*Appd, error) {
 	}
 
 	defer func() {
-		if err != nil {
-			cleanup()
-		}
+		cleanup()
 	}()
 
 	// extract all files from the tar archive to the temp directory
