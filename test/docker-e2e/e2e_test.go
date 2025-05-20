@@ -66,7 +66,7 @@ func (s *CelestiaTestSuite) CreateDockerProvider(opts ...ConfigOption) celestiat
 			ChainID:       "celestia",
 			Images: []celestiadockertypes.DockerImage{
 				{
-					Repository: multiplexerImage,
+					Repository: getCelestiaImage(),
 					Version:    getCelestiaTag(),
 					UIDGID:     "10001:10001",
 				},
@@ -145,12 +145,11 @@ func getNetworkNameFromID(ctx context.Context, cli *client.Client, networkID str
 	return network.Name, nil
 }
 
-// getDockerRegistry returns the Docker registry to use for images.
-// It can be overridden by setting the DOCKER_REGISTRY environment variable.
-// If no override is provided, it returns the default "ghcr.io/celestiaorg".
-func getDockerRegistry() string {
-	if registry := os.Getenv("DOCKER_REGISTRY"); registry != "" {
-		return registry
+// getCelestiaImage returns the image to use for Celestia app.
+// It can be overridden by setting the CELESTIA_IMAGE environment.
+func getCelestiaImage() string {
+	if image := os.Getenv("CELESTIA_IMAGE"); image != "" {
+		return image
 	}
 	return multiplexerImage
 }
