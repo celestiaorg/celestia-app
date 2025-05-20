@@ -149,8 +149,8 @@ type TxClient struct {
 	// how often to poll the network for confirmation of a transaction
 	pollTime time.Duration
 	// sets the default account with which to submit transactions
-	defaultAccount  string
-	defaultAddress  sdktypes.AccAddress
+	defaultAccount string
+	defaultAddress sdktypes.AccAddress
 	// txTracker maps the tx hash to the Sequence and signer of the transaction
 	// that was submitted to the chain
 	txTracker           map[string]txInfo
