@@ -83,11 +83,12 @@ func (s *CelestiaTestSuite) TestStateSync() {
 	defer heightCancel()
 
 	// Check immediately first, then on ticker intervals
+	InitialHeightLoop:
 	for {
 		status, err := nodeClient.Status(heightTimeoutCtx)
 		if err == nil && status.SyncInfo.LatestBlockHeight > 0 {
 			initialHeight = status.SyncInfo.LatestBlockHeight
-			break
+			break InitialHeightLoop
 		}
 
 		select {
@@ -95,11 +96,11 @@ func (s *CelestiaTestSuite) TestStateSync() {
 			// Continue the loop
 		case <-heightTimeoutCtx.Done():
 			t.Logf("Timed out waiting for initial height")
-			break
+			break InitialHeightLoop
 		}
 	}
 
-	s.Require().Greater(initialHeight, int64(0), "failed to get initial height")
+	s.Require().Greater(initialHeight, int64(0), "failed to get initial height after timeout or error")
 	targetHeight := initialHeight + blocksToProduce
 	t.Logf("Successfully reached initial height %d", initialHeight)
 
