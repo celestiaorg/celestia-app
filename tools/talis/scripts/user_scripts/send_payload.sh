@@ -13,30 +13,6 @@ STACK_OUTPUT=$(pulumi stack output -j)
 echo $STACK_OUTPUT
 DROPLET_IPS=$(echo "$STACK_OUTPUT" | jq -r '.[]')
 
-cp ./scripts/init_install.sh ./payload/init_install.sh
-cp ./scripts/txsim.sh ./payload/txsim.sh
-cp ./scripts/vars.sh ./payload/vars.sh
-cp ./scripts/upload_traces.sh ./payload/upload_traces.sh
-cp ./scripts/shutdown_txsim.sh ./payload/shutdown_txsim.sh
-cp ./scripts/debug_install.sh ./payload/debug_install.sh
-cp /home/evan/go/src/github.com/celestiaorg/celestia-app/build/celestia-appd ./payload/celestia-appd
-cp /home/evan/go/src/github.com/celestiaorg/celestia-app/build/txsim ./payload/txsim
-
-
-
-# copy the env vars into a temp file that is included in the payload to each validator 
-echo "export CHAIN_ID=\"$CHAIN_ID\"" >> ./payload/vars.sh
-echo "export AWS_DEFAULT_REGION=\"$AWS_DEFAULT_REGION\"" >> ./payload/vars.sh
-echo "export AWS_ACCESS_KEY_ID=\"$AWS_ACCESS_KEY_ID\"" >> ./payload/vars.sh
-echo "export AWS_SECRET_ACCESS_KEY=\"$AWS_SECRET_ACCESS_KEY\"" >> ./payload/vars.sh
-echo "export S3_BUCKET_NAME=\"$S3_BUCKET_NAME\"" >> ./payload/vars.sh
-
-# sleep 30
-
-# Compress the directory
-echo "Compressing the directory $DIRECTORY_TO_TRANSFER..."
-tar -czf "$ARCHIVE_NAME" -C "$(dirname "$DIRECTORY_TO_TRANSFER")" "$(basename "$DIRECTORY_TO_TRANSFER")"
-
 # Function to transfer and uncompress files on the remote server
 transfer_and_uncompress() {
   local IP=$1

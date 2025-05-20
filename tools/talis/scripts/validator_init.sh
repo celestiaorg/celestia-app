@@ -87,8 +87,8 @@ hostname=$(hostname)
 # Parse the first part of the hostname
 parsed_hostname=$(echo $hostname | awk -F'-' '{print $1 "-" $2}')
 
-cp payload/celestia-appd /bin/celestia-appd
-cp payload/txsim /bin/txsim
+cp payload/build/celestia-appd /bin/celestia-appd
+cp payload/build/txsim /bin/txsim
 
 cd $HOME
 

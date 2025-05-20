@@ -23,6 +23,7 @@ func main() {
 		// statusCmd(),
 		upCmd(),
 		downCmd(),
+		deployCmd(),
 		addCmd(),
 	)
 

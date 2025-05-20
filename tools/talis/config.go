@@ -174,7 +174,7 @@ func (cfg Config) WithChainID(chainID string) Config {
 
 func (c Config) Save(root string) error {
 	// Create the directory if it doesn't exist
-	if err := os.MkdirAll(root, 0644); err != nil {
+	if err := os.MkdirAll(root, 0755); err != nil {
 		return err
 	}
 

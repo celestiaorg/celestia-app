@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
@@ -18,9 +19,12 @@ const (
 // generateCmd is the Cobra command for creating the payload for the experiment.
 func generateCmd() *cobra.Command {
 	var (
-		rootDir    string
-		chainID    string // will overwrite that in the config
-		squareSize int
+		rootDir         string
+		chainID         string // will overwrite that in the config
+		squareSize      int
+		appBinaryPath   string
+		nodeBinaryPath  string
+		txsimBinaryPath string
 	)
 	cmd := &cobra.Command{
 		Use:   "genesis",
@@ -36,7 +40,9 @@ func generateCmd() *cobra.Command {
 				cfg = cfg.WithChainID(chainID)
 			}
 
-			err = createPayload(cfg.Validators, cfg.ChainID, filepath.Join(rootDir, "payload"), squareSize)
+			payloadDir := filepath.Join(rootDir, "payload")
+
+			err = createPayload(cfg.Validators, cfg.ChainID, payloadDir, squareSize)
 			if err != nil {
 				log.Fatalf("Failed to create payload: %v", err)
 			}
@@ -45,28 +51,53 @@ func generateCmd() *cobra.Command {
 			srcAppConfig := filepath.Join(rootDir, "app.toml")
 
 			for _, v := range cfg.Validators {
-				valDir := filepath.Join(rootDir, "payload", v.Name)
-				if err := copyFile(srcCmtConfig, filepath.Join(valDir, "config.toml"), 0644); err != nil {
+				valDir := filepath.Join(payloadDir, v.Name)
+				if err := copyFile(srcCmtConfig, filepath.Join(valDir, "config.toml"), 0755); err != nil {
 					return fmt.Errorf("failed to copy config.toml: %w", err)
 				}
 
-				if err := copyFile(srcAppConfig, filepath.Join(valDir, "app.toml"), 0644); err != nil {
+				if err := copyFile(srcAppConfig, filepath.Join(valDir, "app.toml"), 0755); err != nil {
 					return fmt.Errorf("failed to copy app.toml: %w", err)
 				}
 
-				if err := copyDir(filepath.Join(rootDir, "scripts"), valDir); err != nil {
-					return fmt.Errorf("failed to copy scripts: %w", err)
-				}
+			}
+
+			if err := copyDir(filepath.Join(rootDir, "scripts"), filepath.Join(rootDir, "payload")); err != nil {
+				return fmt.Errorf("failed to copy scripts: %w", err)
+			}
+
+			if err := copyFile(appBinaryPath, filepath.Join(payloadDir, "build", "celestia-appd"), 0755); err != nil {
+				return fmt.Errorf("failed to copy app binary: %w", err)
+			}
+
+			if err := copyFile(nodeBinaryPath, filepath.Join(payloadDir, "build", "celestia"), 0755); err != nil {
+				return fmt.Errorf("failed to copy node binary: %w", err)
+			}
+
+			if err := copyFile(txsimBinaryPath, filepath.Join(payloadDir, "build", "txsim"), 0755); err != nil {
+				return fmt.Errorf("failed to copy txsim binary: %w", err)
 			}
 
 			return cfg.Save(rootDir)
 		},
 	}
 
-	// Flags for the payload command
+	gopath := os.Getenv("GOPATH")
+	if gopath == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			panic("failed to determine home dir: " + err.Error())
+		}
+		gopath = filepath.Join(home, "go")
+	}
+	gopath = filepath.Join(gopath, "bin")
+
 	cmd.Flags().StringVarP(&chainID, chainIDFlag, "c", "", "Override the chainID in the config")
 	cmd.Flags().StringVarP(&rootDir, rootDirFlag, "d", ".", "root directory in which to initialize (default is the current directory)")
 	cmd.Flags().IntVarP(&squareSize, "ods-size", "s", appconsts.TalisSquareSizeUpperBound, "The size of the ODS for the network")
+	cmd.Flags().StringVarP(&appBinaryPath, "app-binary", "a", filepath.Join(gopath, "celestia-appd"), "app binary to include in the payload (assumes the binary is is installed")
+	cmd.Flags().StringVarP(&nodeBinaryPath, "node-binary", "n", filepath.Join(gopath, "celestia"), "node binary to include in the payload (assumes the binary is installed")
+	cmd.Flags().StringVarP(&txsimBinaryPath, "txsim-binary", "t", filepath.Join(gopath, "txsim"), "txsim binary to include in the payload (assumes the binary is installed)")
 
 	return cmd
 }
@@ -82,9 +113,9 @@ func createPayload(ips []Instance, chainID, ppath string, squareSize int, mods .
 	for _, info := range ips {
 		n.AddValidator(
 			info.Name,
-			info.Region,
 			info.PublicIP,
 			ppath,
+			info.Region,
 		)
 	}
 

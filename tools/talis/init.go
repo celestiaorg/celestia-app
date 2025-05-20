@@ -18,7 +18,8 @@ import (
 
 const (
 	EnvVarSSHKeyName        = "TALIS_SSH_KEY_NAME"
-	EnvVarSSHKeyPath        = "TALIS_SSH_PUB_KEY_PATH"
+	EnvVarPubSSHKeyPath     = "TALIS_SSH_PUB_KEY_PATH"
+	EnvVarSSHKeyPath        = "TALIS_SSH_KEY_PATH"
 	EnvVarDigitalOceanToken = "DIGITALOCEAN_TOKEN"
 )
 
@@ -171,7 +172,7 @@ func copyDir(src string, dest string) error {
 
 		if info.IsDir() {
 			// create directory
-			if err := os.MkdirAll(target, info.Mode()); err != nil {
+			if err := os.MkdirAll(target, 0755); err != nil {
 				return err
 			}
 			return nil
@@ -184,7 +185,6 @@ func copyDir(src string, dest string) error {
 
 // copyFile copies a single file from src to dest, preserving permissions and creating parent directories if needed.
 func copyFile(srcFile, destFile string, perm os.FileMode) error {
-	// Ensure parent directory exists
 	destDir := filepath.Dir(destFile)
 	if err := os.MkdirAll(destDir, 0755); err != nil {
 		return fmt.Errorf("failed to create parent directory %s: %w", destDir, err)
