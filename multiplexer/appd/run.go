@@ -24,7 +24,7 @@ type Appd struct {
 }
 
 // New returns a new Appd instance.
-func New(name string, binary []byte, options ...ConfigOption) (*Appd, error) {
+func New(version string, binary []byte, options ...ConfigOption) (*Appd, error) {
 	if len(binary) == 0 {
 		return nil, fmt.Errorf("no binary data available: ensure `binary` is not empty")
 	}
@@ -32,12 +32,12 @@ func New(name string, binary []byte, options ...ConfigOption) (*Appd, error) {
 	// untar the binary.
 	gzr, err := gzip.NewReader(bytes.NewReader(binary))
 	if err != nil {
-		return nil, fmt.Errorf("failed to read binary data for %s: %w", name, err)
+		return nil, fmt.Errorf("failed to read binary data for %s: %w", version, err)
 	}
 	defer gzr.Close()
 
 	// create a temporary directory for extraction
-	tmpDir, err := os.MkdirTemp("", fmt.Sprintf("celestia-appd-%s-", name))
+	tmpDir, err := os.MkdirTemp("", fmt.Sprintf("celestia-appd-%s-", version))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp directory: %w", err)
 	}
@@ -100,7 +100,7 @@ func New(name string, binary []byte, options ...ConfigOption) (*Appd, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to find executable binary in the archive: %w", err)
 	} else if binaryPath == "" {
-		return nil, fmt.Errorf("no executable binary found in the archive for %s", name)
+		return nil, fmt.Errorf("no executable binary found in the archive for %s", version)
 	}
 
 	appd := &Appd{
