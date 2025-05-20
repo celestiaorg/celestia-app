@@ -134,7 +134,7 @@ account that can act as the master account. The command runs until all sequences
 
 				sequence := txsim.NewBlobSequence(sizes, blobsPerPFB)
 				if blobShareVersion >= 0 {
-					sequence.WithShareVersion(uint8(blobShareVersion))
+					sequence = sequence.WithShareVersion(uint8(blobShareVersion))
 				}
 
 				sequences = append(sequences, sequence.Clone(blob)...)
@@ -161,11 +161,12 @@ account that can act as the master account. The command runs until all sequences
 				}
 			}
 
-			if os.Getenv(TxsimPoll) != "" && pollTime != user.DefaultPollTime {
-				pollTime, err = time.ParseDuration(os.Getenv(TxsimPoll))
+			if pTimeEnv := os.Getenv(TxsimPoll); pTimeEnv != "" {
+				parsedPollTime, err := time.ParseDuration(pTimeEnv)
 				if err != nil {
-					return fmt.Errorf("parsing poll time: %w", err)
+					return fmt.Errorf("parsing poll time from env %s: %w", TxsimPoll, err)
 				}
+				pollTime = parsedPollTime
 			}
 
 			opts := txsim.DefaultOptions().
