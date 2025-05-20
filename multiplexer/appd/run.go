@@ -20,7 +20,6 @@ type Appd struct {
 	path           string
 	stdin          io.Reader
 	stderr, stdout io.Writer
-	cleanup        func()
 }
 
 // New takes a binary and untar it in a temporary directory.
@@ -41,15 +40,6 @@ func New(name string, bin []byte, cfg ...CfgOption) (*Appd, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp directory: %w", err)
 	}
-
-	// cleanups functions
-	cleanup := func() {
-		_ = os.RemoveAll(tmpDir)
-	}
-
-	defer func() {
-		cleanup()
-	}()
 
 	// extract all files from the tar archive to the temp directory
 	tr := tar.NewReader(gzr)
@@ -113,12 +103,11 @@ func New(name string, bin []byte, cfg ...CfgOption) (*Appd, error) {
 	}
 
 	appd := &Appd{
-		path:    binaryPath,
-		cleanup: cleanup,
-		pid:     AppdStopped, // initialize with stopped state
-		stdin:   os.Stdin,
-		stdout:  os.Stdout,
-		stderr:  os.Stderr,
+		path:   binaryPath,
+		pid:    AppdStopped, // initialize with stopped state
+		stdin:  os.Stdin,
+		stdout: os.Stdout,
+		stderr: os.Stderr,
 	}
 
 	for _, opt := range cfg {
