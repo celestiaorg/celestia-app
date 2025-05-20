@@ -10,24 +10,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCelestiaApp(t *testing.T) {
+func TestCelestiaAppV3(t *testing.T) {
 	// prevent messing with other tests by modifying this.
 	realData := v3binaryCompressed
 	defer func() {
 		v3binaryCompressed = realData
 	}()
 
-	tests := []struct {
-		name          string
-		modifyFn      func()
-		expectedError error
+	testCases := []struct {
+		name            string
+		modifyFn        func()
+		expectedVersion string
+		expectedError   error
 	}{
 		{
 			name: "valid binary data",
 			modifyFn: func() {
 				v3binaryCompressed = realData
 			},
-			expectedError: nil,
+			expectedVersion: "v3.10.0-arabica",
+			expectedError:   nil,
 		},
 		{
 			name: "nil binaryCompressed",
@@ -38,11 +40,11 @@ func TestCelestiaApp(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.modifyFn()
 
-			data, err := CelestiaAppV3()
+			data, version, err := CelestiaAppV3()
 
 			if tt.expectedError != nil {
 				require.Error(t, err)
@@ -52,14 +54,15 @@ func TestCelestiaApp(t *testing.T) {
 				require.NoError(t, err)
 				require.NotNil(t, data)
 				require.NotEmpty(t, data)
+				assert.Equal(t, tt.expectedVersion, version)
 			}
 		})
 	}
 }
 
-func TestVersion(t *testing.T) {
-	version, err := version()
-	require.NoError(t, err)
-	require.NotEmpty(t, version)
-	assert.Equal(t, "v3.10.0-arabica", version)
+func TestGetVersion(t *testing.T) {
+	want := "v3.10.0-arabica"
+	got, err := getVersion()
+	assert.NoError(t, err)
+	assert.Equal(t, want, got)
 }

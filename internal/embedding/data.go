@@ -10,13 +10,17 @@ import (
 )
 
 // CelestiaAppV3 returns the compressed platform specific Celestia binary.
-func CelestiaAppV3() ([]byte, error) {
+func CelestiaAppV3() (binary []byte, version string, err error) {
 	// Check if we actually have binary data
 	if len(v3binaryCompressed) == 0 {
-		return nil, fmt.Errorf("no binary data available for platform %s", platform())
+		return nil, "", fmt.Errorf("no binary data available for platform %s", platform())
+	}
+	version, err = getVersion()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to get version: %w", err)
 	}
 
-	return v3binaryCompressed, nil
+	return v3binaryCompressed, version, nil
 }
 
 // platform returns a string representing the current operating system and architecture
@@ -25,8 +29,8 @@ func platform() string {
 	return runtime.GOOS + "_" + runtime.GOARCH
 }
 
-// version returns the celestia-appd v3.x version that was written to the .embed_version file.
-func version() (string, error) {
+// getVersion returns the celestia-appd v3.x version that was written to the .embed_version file.
+func getVersion() (string, error) {
 	contents, err := os.ReadFile(".embed_version")
 	if err != nil {
 		return "", fmt.Errorf("failed to read .embed_version file: %w", err)
