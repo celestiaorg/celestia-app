@@ -96,7 +96,7 @@ jobs:
         # explicitly not pushing to ghcr as other workflows build and push there.
         # ideally we don't need to build an image on each runner and can use a single
         # more powerful self hosted runner to speed things up.
-        run: docker build -t "celestia-app:${{ steps.tag.outputs.value }}" .
+        run: docker build -t "celestia-app:${{ steps.tag.outputs.value }}" . -f docker/multiplexer.Dockerfile
 
       - name: Run E2E test
         env:
