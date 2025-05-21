@@ -186,7 +186,7 @@ func (s *Signer) accountNameByAddress(address sdktypes.AccAddress) string {
 	}
 
 	accountName, exists := s.addressToAccountMap[addrStr]
-	if !exists {
+	if exists {
 		return accountName
 	}
 	return ""
