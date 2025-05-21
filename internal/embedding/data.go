@@ -13,13 +13,13 @@ const CELESTIA_V3_VERSION = "v3.10.0-arabica"
 
 // CelestiaAppV3 returns the compressed platform specific Celestia binary and
 // the version.
-func CelestiaAppV3() (binary []byte, version string, err error) {
+func CelestiaAppV3() (version string, binary []byte, err error) {
 	// Check if we actually have binary data
 	if len(v3binaryCompressed) == 0 {
-		return nil, "", fmt.Errorf("no binary data available for platform %s", platform())
+		return "", nil, fmt.Errorf("no binary data available for platform %s", platform())
 	}
 
-	return v3binaryCompressed, CELESTIA_V3_VERSION, nil
+	return CELESTIA_V3_VERSION, v3binaryCompressed, nil
 }
 
 // platform returns a string representing the current operating system and architecture

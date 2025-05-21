@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestCelestiaAppV3(t *testing.T) {
@@ -29,7 +28,6 @@ func TestCelestiaAppV3(t *testing.T) {
 				v3binaryCompressed = realData
 			},
 			expectedVersion: "v3.10.0-arabica",
-			expectedError:   nil,
 		},
 		{
 			name: "nil binaryCompressed",
@@ -40,21 +38,20 @@ func TestCelestiaAppV3(t *testing.T) {
 		},
 	}
 
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.modifyFn()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.modifyFn()
+			version, binary, err := CelestiaAppV3()
 
-			data, version, err := CelestiaAppV3()
-
-			if tt.expectedError != nil {
-				require.Error(t, err)
-				require.Equal(t, err, tt.expectedError)
-				require.Nil(t, data)
+			if tc.expectedError != nil {
+				assert.Error(t, err)
+				assert.Equal(t, tc.expectedError, err)
+				assert.Empty(t, version)
+				assert.Nil(t, binary)
 			} else {
-				require.NoError(t, err)
-				require.NotNil(t, data)
-				require.NotEmpty(t, data)
-				assert.Equal(t, tt.expectedVersion, version)
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedVersion, version)
+				assert.NotEmpty(t, binary)
 			}
 		})
 	}
