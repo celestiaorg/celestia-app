@@ -174,16 +174,22 @@ func (s *Signer) Account(name string) *Account {
 
 // AccountByAddress returns the account associated with the given address
 func (s *Signer) AccountByAddress(address sdktypes.AccAddress) *Account {
+	accountName := s.accountNameByAddress(address)
+	return s.accounts[accountName]
+}
+
+// accountNameByAddress returns the account name associated with the given address
+func (s *Signer) accountNameByAddress(address sdktypes.AccAddress) string {
 	addrStr, err := s.addressCodec.BytesToString(address)
 	if err != nil {
-		return nil
+		return ""
 	}
 
 	accountName, exists := s.addressToAccountMap[addrStr]
 	if !exists {
-		return nil
+		return accountName
 	}
-	return s.accounts[accountName]
+	return ""
 }
 
 func (s *Signer) Accounts() []*Account {

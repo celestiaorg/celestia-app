@@ -686,7 +686,12 @@ func (client *TxClient) AccountByAddress(ctx context.Context, address sdktypes.A
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 
-	if err := client.checkAccountLoaded(ctx, address.String()); err != nil {
+	accountName := client.signer.accountNameByAddress(address)
+	if accountName == "" {
+		return nil
+	}
+
+	if err := client.checkAccountLoaded(ctx, accountName); err != nil {
 		return nil
 	}
 
