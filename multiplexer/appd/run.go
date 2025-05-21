@@ -14,7 +14,7 @@ import (
 
 const (
 	// celestiaAppTempBinaryDir is the directory where uncompressed celestia-app binaries are stored.
-	celestiaAppTempBinaryDir = "tmp/celestia-app"
+	celestiaAppTempBinaryDir = "/tmp/celestia-app"
 )
 
 const AppdStopped = -1
@@ -26,11 +26,11 @@ type Appd struct {
 	version string
 	// pid is the process ID of the celestia-appd binary.
 	pid int
-	// path is the path to the celestia-appd binary.
-	path   string
-	stdin  io.Reader
-	stderr io.Writer
-	stdout io.Writer
+	// pathToBinary is the pathToBinary to the celestia-appd binary.
+	pathToBinary string
+	stdin        io.Reader
+	stderr       io.Writer
+	stdout       io.Writer
 }
 
 // New returns a new Appd instance.
@@ -42,89 +42,38 @@ func New(version string, binary []byte) (*Appd, error) {
 	if len(binary) == 0 {
 		return nil, fmt.Errorf("no binary data available: ensure binary is not empty")
 	}
-	// untar the binary.
-	gzipReader, err := gzip.NewReader(bytes.NewReader(binary))
-	if err != nil {
-		return nil, fmt.Errorf("failed to read binary data for %s: %w", version, err)
-	}
-	defer gzipReader.Close()
 
-	// Create the base directory if it doesn't exist
-	path := fmt.Sprintf("%s/%s", celestiaAppTempBinaryDir, version)
-	fmt.Printf("Creating directory: %s\n", path)
-	if err := os.MkdirAll(path, 0o755); err != nil {
-		return nil, fmt.Errorf("failed to create directory: %w", err)
-	}
-	fmt.Printf("Directory created: %s\n", path)
-
-	// extract all files from the tar archive to the directory
-	tarReader := tar.NewReader(gzipReader)
-	for {
-		header, err := tarReader.Next()
-		if err == io.EOF {
-			break // End of archive
-		}
+	if !isBinaryAlreadyExtracted(version) {
+		err := extractBinary(version, binary)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read tar header: %w", err)
+			return nil, fmt.Errorf("failed to extract binary: %w", err)
 		}
-
-		if header.FileInfo().IsDir() {
-			// Create directory
-			dirPath := filepath.Join(path, header.Name)
-			if err := os.MkdirAll(dirPath, 0o755); err != nil {
-				return nil, fmt.Errorf("failed to create directory %s: %w", dirPath, err)
-			}
-			continue
-		}
-
-		// Create file path
-		filePath := filepath.Join(path, header.Name)
-
-		// Create parent directory if it doesn't exist
-		if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
-			return nil, fmt.Errorf("failed to create parent directory for %s: %w", filePath, err)
-		}
-
-		// Create file
-		f, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, header.FileInfo().Mode())
-		if err != nil {
-			return nil, fmt.Errorf("failed to create file %s: %w", filePath, err)
-		}
-
-		if _, err := io.Copy(f, tarReader); err != nil {
-			f.Close()
-			return nil, fmt.Errorf("failed to copy file contents to %s: %w", filePath, err)
-		}
-		f.Close()
 	}
 
-	binaryPath, err := getBinaryPath(version, path)
+	pathToBinary, err := getPathToBinary(version, celestiaAppTempBinaryDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get binary path: %w", err)
+		return nil, fmt.Errorf("failed to get path to binary: %w", err)
+	}
+
+	err = verifyBinaryIsExecutable(pathToBinary)
+	if err != nil {
+		fmt.Printf("failed to verify binary is executable: %s\n", err)
 	}
 
 	appd := &Appd{
-		path:   binaryPath,
-		pid:    AppdStopped, // initialize with stopped state
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
+		version:      version,
+		pid:          AppdStopped,
+		pathToBinary: pathToBinary,
+		stdin:        os.Stdin,
+		stdout:       os.Stdout,
+		stderr:       os.Stderr,
 	}
-
-	// verify the binary is executable for the current arch
-	testCmd := exec.Command(binaryPath, "--help")
-	testOutput, err := testCmd.CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("binary validation failed (%s): %w\nOutput: %s",
-			binaryPath, err, string(testOutput))
-	}
-
 	return appd, nil
 }
 
 // Start starts the appd binary with the given arguments.
 func (a *Appd) Start(args ...string) error {
-	cmd := exec.Command(a.path, append([]string{"start"}, args...)...)
+	cmd := exec.Command(a.pathToBinary, append([]string{"start"}, args...)...)
 
 	// Set up I/O
 	cmd.Stdin = a.stdin
@@ -132,7 +81,7 @@ func (a *Appd) Start(args ...string) error {
 	cmd.Stderr = a.stderr
 
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start %s: %w", a.path, err)
+		return fmt.Errorf("failed to start %s: %w", a.pathToBinary, err)
 	}
 
 	a.pid = cmd.Process.Pid
@@ -185,16 +134,16 @@ func (a *Appd) Pid() int {
 
 // CreateExecCommand creates an exec.Cmd for the appd binary.
 func (a *Appd) CreateExecCommand(args ...string) *exec.Cmd {
-	cmd := exec.Command(a.path, args...)
+	cmd := exec.Command(a.pathToBinary, args...)
 	cmd.Stdin = a.stdin
 	cmd.Stdout = a.stdout
 	cmd.Stderr = a.stderr
 	return cmd
 }
 
-// getBinaryPath returns the path to the celestia-appd binary in the
+// getPathToBinary returns the path to the celestia-appd binary in the
 // baseDirectory.
-func getBinaryPath(version string, baseDirectory string) (binaryPath string, err error) {
+func getPathToBinary(version string, baseDirectory string) (binaryPath string, err error) {
 	// look for the executable binary in the extracted files
 	err = filepath.Walk(baseDirectory, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -215,4 +164,87 @@ func getBinaryPath(version string, baseDirectory string) (binaryPath string, err
 		return "", fmt.Errorf("no executable binary found in the archive for %s", version)
 	}
 	return binaryPath, nil
+}
+
+func extractBinary(version string, binary []byte) error {
+	// untar the binary.
+	gzipReader, err := gzip.NewReader(bytes.NewReader(binary))
+	if err != nil {
+		return fmt.Errorf("failed to read binary data for %s: %w", version, err)
+	}
+	defer gzipReader.Close()
+
+	directoryForVersion := getDirectoryForVersion(version)
+	fmt.Printf("Creating directory: %s\n", directoryForVersion)
+	if err := os.MkdirAll(directoryForVersion, 0o755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+	fmt.Printf("Directory created: %s\n", directoryForVersion)
+
+	// extract all files from the tar archive to the directory
+	tarReader := tar.NewReader(gzipReader)
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break // End of archive
+		}
+		if err != nil {
+			return fmt.Errorf("failed to read tar header: %w", err)
+		}
+
+		if header.FileInfo().IsDir() {
+			// Create directory
+			dirPath := filepath.Join(directoryForVersion, header.Name)
+			if err := os.MkdirAll(dirPath, 0o755); err != nil {
+				return fmt.Errorf("failed to create directory %s: %w", dirPath, err)
+			}
+			continue
+		}
+
+		// Create file path
+		filePath := filepath.Join(directoryForVersion, header.Name)
+
+		// Create parent directory if it doesn't exist
+		if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
+			return fmt.Errorf("failed to create parent directory for %s: %w", filePath, err)
+		}
+
+		// Create file
+		f, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, header.FileInfo().Mode())
+		if err != nil {
+			return fmt.Errorf("failed to create file %s: %w", filePath, err)
+		}
+
+		if _, err := io.Copy(f, tarReader); err != nil {
+			f.Close()
+			return fmt.Errorf("failed to copy file contents to %s: %w", filePath, err)
+		}
+		f.Close()
+	}
+
+	return nil
+}
+
+// isBinaryAlreadyExtracted returns true if the binary for the given version has already been extracted.
+func isBinaryAlreadyExtracted(version string) bool {
+	directoryForVersion := getDirectoryForVersion(version)
+	_, err := os.Stat(directoryForVersion)
+	if err != nil {
+		return false
+	}
+	return true
+}
+
+// getDirectoryForVersion returns the directory for the given version.
+func getDirectoryForVersion(version string) string {
+	return fmt.Sprintf("%s/%s", celestiaAppTempBinaryDir, version)
+}
+
+func verifyBinaryIsExecutable(pathToBinary string) error {
+	testCmd := exec.Command(pathToBinary, "--help")
+	testOutput, err := testCmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("binary validation failed (%s): %w\nOutput: %s", pathToBinary, err, string(testOutput))
+	}
+	return nil
 }
