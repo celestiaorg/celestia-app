@@ -13,11 +13,13 @@ import (
 )
 
 const (
-	// celestiaAppTempBinaryDir is the directory where uncompressed celestia-app binaries are stored.
-	celestiaAppTempBinaryDir = "/tmp/celestia-app"
-)
+	// AppdStopped is the process ID of the celestia-appd binary when it is not running.
+	AppdStopped = -1
 
-const AppdStopped = -1
+	// celestiaAppBinariesDirectory is the directory where decompressed celestia-app
+	// binaries are stored.
+	celestiaAppBinariesDirectory = "/tmp/celestia-app"
+)
 
 // Appd represents a celestia-appd binary.
 type Appd struct {
@@ -26,7 +28,7 @@ type Appd struct {
 	version string
 	// pid is the process ID of the celestia-appd binary.
 	pid int
-	// pathToBinary is the pathToBinary to the celestia-appd binary.
+	// pathToBinary is the path to the celestia-appd binary.
 	pathToBinary string
 	stdin        io.Reader
 	stderr       io.Writer
@@ -34,23 +36,26 @@ type Appd struct {
 }
 
 // New returns a new Appd instance.
-func New(version string, binary []byte) (*Appd, error) {
+func New(version string, compressedBinary []byte) (*Appd, error) {
 	if version == "" {
 		return nil, fmt.Errorf("version is required")
 	}
 
-	if len(binary) == 0 {
-		return nil, fmt.Errorf("no binary data available: ensure binary is not empty")
+	if len(compressedBinary) == 0 {
+		return nil, fmt.Errorf("no compressed binary available for version %s", version)
 	}
 
-	if !isBinaryAlreadyExtracted(version) {
-		err := extractBinary(version, binary)
+	if !isBinaryAlreadyDecompressed(version) {
+		fmt.Printf("Decompressing binary for version %s\n", version)
+		err := decompressBinary(version, compressedBinary)
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract binary: %w", err)
+			return nil, fmt.Errorf("failed to decompress binary: %w", err)
 		}
+	} else {
+		fmt.Printf("Binary already decompressed for version %s\n", version)
 	}
 
-	pathToBinary, err := getPathToBinary(version, celestiaAppTempBinaryDir)
+	pathToBinary, err := getPathToBinary(version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get path to binary: %w", err)
 	}
@@ -141,9 +146,10 @@ func (a *Appd) CreateExecCommand(args ...string) *exec.Cmd {
 	return cmd
 }
 
-// getPathToBinary returns the path to the celestia-appd binary in the
-// baseDirectory.
-func getPathToBinary(version string, baseDirectory string) (binaryPath string, err error) {
+// getPathToBinary returns the path to the celestia-appd binary for the given version.
+func getPathToBinary(version string) (binaryPath string, err error) {
+	baseDirectory := getDirectoryForVersion(version)
+
 	// look for the executable binary in the extracted files
 	err = filepath.Walk(baseDirectory, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -166,7 +172,7 @@ func getPathToBinary(version string, baseDirectory string) (binaryPath string, e
 	return binaryPath, nil
 }
 
-func extractBinary(version string, binary []byte) error {
+func decompressBinary(version string, binary []byte) error {
 	// untar the binary.
 	gzipReader, err := gzip.NewReader(bytes.NewReader(binary))
 	if err != nil {
@@ -174,12 +180,12 @@ func extractBinary(version string, binary []byte) error {
 	}
 	defer gzipReader.Close()
 
-	directoryForVersion := getDirectoryForVersion(version)
-	fmt.Printf("Creating directory: %s\n", directoryForVersion)
-	if err := os.MkdirAll(directoryForVersion, 0o755); err != nil {
+	baseDirectory := getDirectoryForVersion(version)
+	fmt.Printf("Creating directory: %s\n", baseDirectory)
+	if err := os.MkdirAll(baseDirectory, 0o755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
-	fmt.Printf("Directory created: %s\n", directoryForVersion)
+	fmt.Printf("Directory created: %s\n", baseDirectory)
 
 	// extract all files from the tar archive to the directory
 	tarReader := tar.NewReader(gzipReader)
@@ -194,7 +200,7 @@ func extractBinary(version string, binary []byte) error {
 
 		if header.FileInfo().IsDir() {
 			// Create directory
-			dirPath := filepath.Join(directoryForVersion, header.Name)
+			dirPath := filepath.Join(baseDirectory, header.Name)
 			if err := os.MkdirAll(dirPath, 0o755); err != nil {
 				return fmt.Errorf("failed to create directory %s: %w", dirPath, err)
 			}
@@ -202,7 +208,7 @@ func extractBinary(version string, binary []byte) error {
 		}
 
 		// Create file path
-		filePath := filepath.Join(directoryForVersion, header.Name)
+		filePath := filepath.Join(baseDirectory, header.Name)
 
 		// Create parent directory if it doesn't exist
 		if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
@@ -225,8 +231,8 @@ func extractBinary(version string, binary []byte) error {
 	return nil
 }
 
-// isBinaryAlreadyExtracted returns true if the binary for the given version has already been extracted.
-func isBinaryAlreadyExtracted(version string) bool {
+// isBinaryAlreadyDecompressed returns true if the binary for the given version has already been extracted.
+func isBinaryAlreadyDecompressed(version string) bool {
 	directoryForVersion := getDirectoryForVersion(version)
 	_, err := os.Stat(directoryForVersion)
 	if err != nil {
@@ -237,7 +243,7 @@ func isBinaryAlreadyExtracted(version string) bool {
 
 // getDirectoryForVersion returns the directory for the given version.
 func getDirectoryForVersion(version string) string {
-	return fmt.Sprintf("%s/%s", celestiaAppTempBinaryDir, version)
+	return fmt.Sprintf("%s/%s", celestiaAppBinariesDirectory, version)
 }
 
 func verifyBinaryIsExecutable(pathToBinary string) error {

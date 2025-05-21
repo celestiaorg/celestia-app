@@ -23,12 +23,12 @@ var v2UpgradeHeight = ""
 
 // modifyRootCommand enhances the root command with the pass through and multiplexer.
 func modifyRootCommand(rootCommand *cobra.Command) {
-	version, binary, err := embedding.CelestiaAppV3()
+	version, binaryCompressed, err := embedding.CelestiaAppV3()
 	if err != nil {
 		panic(err)
 	}
 
-	appdV3, err := appd.New(version, binary)
+	appdV3, err := appd.New(version, binaryCompressed)
 	if err != nil {
 		panic(err)
 	}
