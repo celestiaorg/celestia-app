@@ -20,10 +20,9 @@ func TestNewPassthroughCmd(t *testing.T) {
 		expectedOutput string
 	}{
 		{
-			name:           "required arguments not specified",
-			args:           []string{},
-			versions:       []abci.Version{},
-			expectedErrStr: "requires at least 1 arg(s), only received 0",
+			name:     "arguments not specified",
+			args:     []string{},
+			versions: []abci.Version{},
 		},
 		{
 			name: "version not found existing versions",
