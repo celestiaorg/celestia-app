@@ -1,26 +1,28 @@
 package appd
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 )
 
 const AppdStopped = -1
 
 // Appd represents a celestia-appd binary.
 type Appd struct {
-	// binary is the compressed binary data. It must be uncompressed before use.
-	binary []byte
-
 	// version is the version of the celestia-appd binary.
 	// Example: "v3.10.0-arabica"
 	version string
-
 	// pid is the process ID of the celestia-appd binary.
-	pid    int
+	pid int
+	// path is the path to the celestia-appd binary.
+	path   string
 	stdin  io.Reader
 	stderr io.Writer
 	stdout io.Writer
@@ -35,23 +37,102 @@ func New(version string, binary []byte) (*Appd, error) {
 	if len(binary) == 0 {
 		return nil, fmt.Errorf("no binary data available: ensure binary is not empty")
 	}
+	// untar the binary.
+	gzr, err := gzip.NewReader(bytes.NewReader(binary))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read binary data for %s: %w", version, err)
+	}
+	defer gzr.Close()
+
+	// create a temporary directory for extraction
+	tmpDir, err := os.MkdirTemp("", fmt.Sprintf("appd-%s-", version))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp directory: %w", err)
+	}
+
+	// extract all files from the tar archive to the temp directory
+	tr := tar.NewReader(gzr)
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break // End of archive
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to read tar header: %w", err)
+		}
+
+		if header.FileInfo().IsDir() {
+			// Create directory
+			dirPath := filepath.Join(tmpDir, header.Name)
+			if err := os.MkdirAll(dirPath, 0o755); err != nil {
+				return nil, fmt.Errorf("failed to create directory %s: %w", dirPath, err)
+			}
+			continue
+		}
+
+		// Create file path
+		filePath := filepath.Join(tmpDir, header.Name)
+
+		// Create parent directory if it doesn't exist
+		if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
+			return nil, fmt.Errorf("failed to create parent directory for %s: %w", filePath, err)
+		}
+
+		// Create file
+		f, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, header.FileInfo().Mode())
+		if err != nil {
+			return nil, fmt.Errorf("failed to create file %s: %w", filePath, err)
+		}
+
+		if _, err := io.Copy(f, tr); err != nil {
+			f.Close()
+			return nil, fmt.Errorf("failed to copy file contents to %s: %w", filePath, err)
+		}
+		f.Close()
+	}
+
+	// look for the executable binary in the extracted files
+	var binaryPath string
+	err = filepath.Walk(tmpDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !info.IsDir() && info.Mode()&0o111 != 0 {
+			binaryPath = path
+			return filepath.SkipAll // Found it, stop searching
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to find executable binary in the archive: %w", err)
+	} else if binaryPath == "" {
+		return nil, fmt.Errorf("no executable binary found in the archive for %s", version)
+	}
 
 	appd := &Appd{
-		binary:  binary,
-		version: version,
-		pid:     AppdStopped,
-		stdin:   os.Stdin,
-		stdout:  os.Stdout,
-		stderr:  os.Stderr,
+		path:   binaryPath,
+		pid:    AppdStopped, // initialize with stopped state
+		stdin:  os.Stdin,
+		stdout: os.Stdout,
+		stderr: os.Stderr,
 	}
+
+	// verify the binary is executable for the current arch
+	testCmd := exec.Command(binaryPath, "--help")
+	testOutput, err := testCmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("binary validation failed (%s): %w\nOutput: %s",
+			binaryPath, err, string(testOutput))
+	}
+
 	return appd, nil
 }
 
 // Start starts the appd binary with the given arguments.
 func (a *Appd) Start(args ...string) error {
-	// TODO: This is a temporary path to the appd binary.
-	path := ""
-	cmd := exec.Command(path, append([]string{"start"}, args...)...)
+	cmd := exec.Command(a.path, append([]string{"start"}, args...)...)
 
 	// Set up I/O
 	cmd.Stdin = a.stdin
@@ -59,7 +140,7 @@ func (a *Appd) Start(args ...string) error {
 	cmd.Stderr = a.stderr
 
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start %s: %w", path, err)
+		return fmt.Errorf("failed to start %s: %w", a.path, err)
 	}
 
 	a.pid = cmd.Process.Pid
@@ -112,93 +193,9 @@ func (a *Appd) Pid() int {
 
 // CreateExecCommand creates an exec.Cmd for the appd binary.
 func (a *Appd) CreateExecCommand(args ...string) *exec.Cmd {
-	// TODO: This is a temporary path to the appd binary.
-	path := ""
-	cmd := exec.Command(path, args...)
+	cmd := exec.Command(a.path, args...)
 	cmd.Stdin = a.stdin
 	cmd.Stdout = a.stdout
 	cmd.Stderr = a.stderr
 	return cmd
 }
-
-// Extracted from above
-// untar the binary.
-// gzr, err := gzip.NewReader(bytes.NewReader(binary))
-// if err != nil {
-// 	return nil, fmt.Errorf("failed to read binary data for %s: %w", version, err)
-// }
-// defer gzr.Close()
-
-// // create a temporary directory for extraction
-// tmpDir, err := os.MkdirTemp("", fmt.Sprintf("celestia-appd-%s-", version))
-// if err != nil {
-// 	return nil, fmt.Errorf("failed to create temp directory: %w", err)
-// }
-
-// // extract all files from the tar archive to the temp directory
-// tr := tar.NewReader(gzr)
-// for {
-// 	header, err := tr.Next()
-// 	if err == io.EOF {
-// 		break // End of archive
-// 	}
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to read tar header: %w", err)
-// 	}
-
-// 	if header.FileInfo().IsDir() {
-// 		// Create directory
-// 		dirPath := filepath.Join(tmpDir, header.Name)
-// 		if err := os.MkdirAll(dirPath, 0o755); err != nil {
-// 			return nil, fmt.Errorf("failed to create directory %s: %w", dirPath, err)
-// 		}
-// 		continue
-// 	}
-
-// 	// Create file path
-// 	filePath := filepath.Join(tmpDir, header.Name)
-
-// 	// Create parent directory if it doesn't exist
-// 	if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
-// 		return nil, fmt.Errorf("failed to create parent directory for %s: %w", filePath, err)
-// 	}
-
-// 	// Create file
-// 	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, header.FileInfo().Mode())
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to create file %s: %w", filePath, err)
-// 	}
-
-// 	if _, err := io.Copy(f, tr); err != nil {
-// 		f.Close()
-// 		return nil, fmt.Errorf("failed to copy file contents to %s: %w", filePath, err)
-// 	}
-// 	f.Close()
-// }
-
-// // look for the executable binary in the extracted files
-// var binaryPath string
-// err = filepath.Walk(tmpDir, func(path string, info os.FileInfo, err error) error {
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	if !info.IsDir() && info.Mode()&0o111 != 0 {
-// 		binaryPath = path
-// 		return filepath.SkipAll // Found it, stop searching
-// 	}
-// 	return nil
-// })
-
-// if err != nil {
-// 	return nil, fmt.Errorf("failed to find executable binary in the archive: %w", err)
-// } else if binaryPath == "" {
-// 	return nil, fmt.Errorf("no executable binary found in the archive for %s", version)
-// }
-
-// Verify the binary is executable for the current architecture
-// testCmd := exec.Command(binaryPath, "--help")
-// testOutput, err := testCmd.CombinedOutput()
-// if err != nil {
-// 	return nil, fmt.Errorf("binary validation failed (%s): %w\nOutput: %s", binaryPath, err, string(testOutput))
-// }
