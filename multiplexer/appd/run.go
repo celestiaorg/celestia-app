@@ -13,10 +13,8 @@ import (
 )
 
 const (
-	// celestiaAppTempBinaryDir is the temporary directory containing uncompressed celestia-app binaries.
-	// On MacOS, this directory is usually located inside /var/folders/*/*/*/celestia-app.
-	// On Linux, this directory is usually located inside /tmp/celestia-app.
-	celestiaAppTempBinaryDir = "celestia-app"
+	// celestiaAppTempBinaryDir is the directory where uncompressed celestia-app binaries are stored.
+	celestiaAppTempBinaryDir = "tmp/celestia-app"
 )
 
 const AppdStopped = -1
@@ -51,13 +49,15 @@ func New(version string, binary []byte) (*Appd, error) {
 	}
 	defer gzipReader.Close()
 
-	// create a temporary directory for extraction
-	tempDir, err := os.MkdirTemp(celestiaAppTempBinaryDir, version)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create temporary directory: %w", err)
+	// Create the base directory if it doesn't exist
+	path := fmt.Sprintf("%s/%s", celestiaAppTempBinaryDir, version)
+	fmt.Printf("Creating directory: %s\n", path)
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		return nil, fmt.Errorf("failed to create directory: %w", err)
 	}
+	fmt.Printf("Directory created: %s\n", path)
 
-	// extract all files from the tar archive to the temp directory
+	// extract all files from the tar archive to the directory
 	tarReader := tar.NewReader(gzipReader)
 	for {
 		header, err := tarReader.Next()
@@ -70,7 +70,7 @@ func New(version string, binary []byte) (*Appd, error) {
 
 		if header.FileInfo().IsDir() {
 			// Create directory
-			dirPath := filepath.Join(tempDir, header.Name)
+			dirPath := filepath.Join(path, header.Name)
 			if err := os.MkdirAll(dirPath, 0o755); err != nil {
 				return nil, fmt.Errorf("failed to create directory %s: %w", dirPath, err)
 			}
@@ -78,7 +78,7 @@ func New(version string, binary []byte) (*Appd, error) {
 		}
 
 		// Create file path
-		filePath := filepath.Join(tempDir, header.Name)
+		filePath := filepath.Join(path, header.Name)
 
 		// Create parent directory if it doesn't exist
 		if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
@@ -98,7 +98,7 @@ func New(version string, binary []byte) (*Appd, error) {
 		f.Close()
 	}
 
-	binaryPath, err := getBinaryPath(version, tempDir)
+	binaryPath, err := getBinaryPath(version, path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get binary path: %w", err)
 	}
@@ -192,10 +192,11 @@ func (a *Appd) CreateExecCommand(args ...string) *exec.Cmd {
 	return cmd
 }
 
-// getBinaryPath returns the path to the celestia-appd binary in the tempDirectory
-func getBinaryPath(version string, tempDir string) (binaryPath string, err error) {
+// getBinaryPath returns the path to the celestia-appd binary in the
+// baseDirectory.
+func getBinaryPath(version string, baseDirectory string) (binaryPath string, err error) {
 	// look for the executable binary in the extracted files
-	err = filepath.Walk(tempDir, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(baseDirectory, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
