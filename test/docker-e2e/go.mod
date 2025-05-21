@@ -28,7 +28,7 @@ require (
 	cosmossdk.io/core v0.11.1 // indirect
 	cosmossdk.io/depinject v1.1.0 // indirect
 	cosmossdk.io/errors v1.0.2 // indirect
-	cosmossdk.io/log v1.5.1 // indirect
+	cosmossdk.io/log v1.6.0 // indirect
 	cosmossdk.io/math v1.5.3 // indirect
 	cosmossdk.io/store v1.1.2 // indirect
 	cosmossdk.io/x/circuit v0.1.1 // indirect
@@ -272,12 +272,12 @@ replace (
 	github.com/celestiaorg/celestia-app/v4 => ../..
 	// celestia-core: v1.53.0-tm-v0.38.17
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.53.0-tm-v0.38.17
-	// cosmos-sdk: v1.29.0-sdk-v0.50.12
+	// cosmos-sdk: v1.29.1-sdk-v0.50.12
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.1-sdk-v0.50.12
 
 	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
 	// goleveldb: canonical version
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	// celestia-core(v0.34.x): used for multiplexing abci v1 requests
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.45.0-tm-v0.34.35
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.52.0-tm-v0.34.35
 )
