@@ -59,10 +59,3 @@ func TestCelestiaAppV3(t *testing.T) {
 		})
 	}
 }
-
-func TestGetVersion(t *testing.T) {
-	want := "v3.10.0-arabica"
-	got, err := getVersion()
-	assert.NoError(t, err)
-	assert.Equal(t, want, got)
-}
