@@ -12,6 +12,13 @@ import (
 	"path/filepath"
 )
 
+const (
+	// celestiaAppTempBinaryDir is the temporary directory containing uncompressed celestia-app binaries.
+	// On MacOS, this directory is usually located inside /var/folders/*/*/*/celestia-app.
+	// On Linux, this directory is usually located inside /tmp/celestia-app.
+	celestiaAppTempBinaryDir = "celestia-app"
+)
+
 const AppdStopped = -1
 
 // Appd represents a celestia-appd binary.
@@ -38,22 +45,22 @@ func New(version string, binary []byte) (*Appd, error) {
 		return nil, fmt.Errorf("no binary data available: ensure binary is not empty")
 	}
 	// untar the binary.
-	gzr, err := gzip.NewReader(bytes.NewReader(binary))
+	gzipReader, err := gzip.NewReader(bytes.NewReader(binary))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read binary data for %s: %w", version, err)
 	}
-	defer gzr.Close()
+	defer gzipReader.Close()
 
 	// create a temporary directory for extraction
-	tmpDir, err := os.MkdirTemp("", fmt.Sprintf("appd-%s-", version))
+	tempDir, err := os.MkdirTemp(celestiaAppTempBinaryDir, version)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create temp directory: %w", err)
+		return nil, fmt.Errorf("failed to create temporary directory: %w", err)
 	}
 
 	// extract all files from the tar archive to the temp directory
-	tr := tar.NewReader(gzr)
+	tarReader := tar.NewReader(gzipReader)
 	for {
-		header, err := tr.Next()
+		header, err := tarReader.Next()
 		if err == io.EOF {
 			break // End of archive
 		}
@@ -63,7 +70,7 @@ func New(version string, binary []byte) (*Appd, error) {
 
 		if header.FileInfo().IsDir() {
 			// Create directory
-			dirPath := filepath.Join(tmpDir, header.Name)
+			dirPath := filepath.Join(tempDir, header.Name)
 			if err := os.MkdirAll(dirPath, 0o755); err != nil {
 				return nil, fmt.Errorf("failed to create directory %s: %w", dirPath, err)
 			}
@@ -71,7 +78,7 @@ func New(version string, binary []byte) (*Appd, error) {
 		}
 
 		// Create file path
-		filePath := filepath.Join(tmpDir, header.Name)
+		filePath := filepath.Join(tempDir, header.Name)
 
 		// Create parent directory if it doesn't exist
 		if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
@@ -84,31 +91,16 @@ func New(version string, binary []byte) (*Appd, error) {
 			return nil, fmt.Errorf("failed to create file %s: %w", filePath, err)
 		}
 
-		if _, err := io.Copy(f, tr); err != nil {
+		if _, err := io.Copy(f, tarReader); err != nil {
 			f.Close()
 			return nil, fmt.Errorf("failed to copy file contents to %s: %w", filePath, err)
 		}
 		f.Close()
 	}
 
-	// look for the executable binary in the extracted files
-	var binaryPath string
-	err = filepath.Walk(tmpDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if !info.IsDir() && info.Mode()&0o111 != 0 {
-			binaryPath = path
-			return filepath.SkipAll // Found it, stop searching
-		}
-		return nil
-	})
-
+	binaryPath, err := getBinaryPath(version, tempDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find executable binary in the archive: %w", err)
-	} else if binaryPath == "" {
-		return nil, fmt.Errorf("no executable binary found in the archive for %s", version)
+		return nil, fmt.Errorf("failed to get binary path: %w", err)
 	}
 
 	appd := &Appd{
@@ -198,4 +190,28 @@ func (a *Appd) CreateExecCommand(args ...string) *exec.Cmd {
 	cmd.Stdout = a.stdout
 	cmd.Stderr = a.stderr
 	return cmd
+}
+
+// getBinaryPath returns the path to the celestia-appd binary in the tempDirectory
+func getBinaryPath(version string, tempDir string) (binaryPath string, err error) {
+	// look for the executable binary in the extracted files
+	err = filepath.Walk(tempDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !info.IsDir() && info.Mode()&0o111 != 0 {
+			binaryPath = path
+			return filepath.SkipAll // Found it, stop searching
+		}
+		return nil
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("failed to find executable binary in the archive: %w", err)
+	}
+	if binaryPath == "" {
+		return "", fmt.Errorf("no executable binary found in the archive for %s", version)
+	}
+	return binaryPath, nil
 }
