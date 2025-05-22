@@ -11,7 +11,7 @@ Implemented
 
 ## Context
 
-As per [CIP-18: Standardised Gas and Pricing Estimation Interface](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-018.md), celestia-app will provide a base implementation for the gas and fee estimation so it can be used when building transactions.
+As per [CIP-18: Standardised Gas and Pricing Estimation Interface](https://github.com/celestiaorg/chips/blob/main/chips/cip-018.md), celestia-app will provide a base implementation for the gas and fee estimation so it can be used when building transactions.
 
 ## Decision
 
@@ -21,7 +21,7 @@ The fee estimation mechanism is described below.
 
 ## Detailed Design
 
-The API will be provided through gRPC following the interface provided in [CIP-18](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-018.md).
+The API will be provided through gRPC following the interface provided in [CIP-18](https://github.com/celestiaorg/chips/blob/main/chips/cip-018.md).
 
 ### Gas used estimation
 
@@ -94,4 +94,4 @@ None.
 
 ## References
 
-- [CIP-18: Standardised Gas and Pricing Estimation Interface](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-018.md).
+- [CIP-18: Standardised Gas and Pricing Estimation Interface](https://github.com/celestiaorg/chips/blob/main/chips/cip-018.md).
