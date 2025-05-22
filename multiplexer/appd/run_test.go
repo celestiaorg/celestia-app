@@ -36,6 +36,10 @@ func TestCreateExecCommand(t *testing.T) {
 	output := outputBuffer.String()
 	require.NotEmpty(t, output)
 	require.True(t, strings.HasPrefix(output, "3"), "major version should be 3 of embedded binary. Got: %s", output)
+
+	appdInstance.cleanup()
+	require.Error(t, cmd.Run(), "expected error when running command after cleanup")
+
 }
 
 // TestStart_Success ensures that the provided executable is launched and provided a pid.
