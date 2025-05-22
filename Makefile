@@ -9,8 +9,6 @@ PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v4
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
 GOLANG_CROSS_VERSION  ?= v1.23.6
-# Set this to override the max square size of the binary
-OVERRIDE_MAX_SQUARE_SIZE ?=
 # Set this to override v2 upgrade height for the v3 embedded binaries
 V2_UPGRADE_HEIGHT ?= 0
 
