@@ -15,7 +15,6 @@ builds:
       - CGO_ENABLED=1
       - CC=o64-clang
       - CXX=o64-clang++
-      - STANDALONE=true
     goarch:
       - amd64
     goos:
@@ -38,7 +37,6 @@ builds:
       - CGO_ENABLED=1
       - CC=oa64-clang
       - CXX=oa64-clang++
-      - STANDALONE=true
     goarch:
       - arm64
     goos:
@@ -60,7 +58,6 @@ builds:
       - SDKPath={{ "github.com/cosmos/cosmos-sdk/version" }}
       - CC=x86_64-linux-gnu-gcc
       - CXX=x86_64-linux-gnu-g++
-      - STANDALONE=true
     goarch:
       - amd64
     goos:
@@ -82,7 +79,6 @@ builds:
       - SDKPath={{ "github.com/cosmos/cosmos-sdk/version" }}
       - CC=aarch64-linux-gnu-gcc
       - CXX=aarch64-linux-gnu-g++
-      - STANDALONE=true
     goarch:
       - arm64
     goos:
@@ -99,12 +95,17 @@ builds:
       - -X "{{ .Env.SDKPath }}.Commit={{ .FullCommit }}"
 dist: ./build/goreleaser
 archives:
-  - formats: ['tar.gz']
+  - id: standalone
+    builds:
+      - darwin-amd64
+      - darwin-arm64
+      - linux-amd64
+      - linux-arm64
+    formats: ['tar.gz']
     # this name template makes the OS and Arch compatible with the results of
     # uname.
     name_template: >-
-      {{ .ProjectName }}
-      {{- if eq .Env.STANDALONE "true" }}-standalone{{ end }}_
+      {{ .ProjectName }}-standalone_
       {{- title .Os }}_
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386

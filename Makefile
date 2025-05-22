@@ -338,6 +338,20 @@ prebuilt-binary:
 		release --clean --parallelism 1
 .PHONY: prebuilt-binary
 
+prebuilt-binary-dry-run:
+	@echo "Running GoReleaser in dry-run mode..."
+	docker run \
+		--rm \
+		--env CGO_ENABLED=1 \
+		--env GORELEASER_CURRENT_TAG=${GORELEASER_CURRENT_TAG} \
+		--env-file .release-env \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		-v `pwd`:/go/src/$(PACKAGE_NAME) \
+		-w /go/src/$(PACKAGE_NAME) \
+		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
+		release --snapshot --clean --parallelism 1
+.PHONY: prebuilt-binary-dry-run
+
 ## goreleaser: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
 goreleaser: prebuilt-binary
 .PHONY: goreleaser
