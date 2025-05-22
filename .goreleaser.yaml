@@ -15,6 +15,7 @@ builds:
       - CGO_ENABLED=1
       - CC=o64-clang
       - CXX=o64-clang++
+      - STANDALONE=true
     goarch:
       - amd64
     goos:
@@ -37,6 +38,7 @@ builds:
       - CGO_ENABLED=1
       - CC=oa64-clang
       - CXX=oa64-clang++
+      - STANDALONE=true
     goarch:
       - arm64
     goos:
@@ -58,6 +60,7 @@ builds:
       - SDKPath={{ "github.com/cosmos/cosmos-sdk/version" }}
       - CC=x86_64-linux-gnu-gcc
       - CXX=x86_64-linux-gnu-g++
+      - STANDALONE=true
     goarch:
       - amd64
     goos:
@@ -79,6 +82,7 @@ builds:
       - SDKPath={{ "github.com/cosmos/cosmos-sdk/version" }}
       - CC=aarch64-linux-gnu-gcc
       - CXX=aarch64-linux-gnu-g++
+      - STANDALONE=true
     goarch:
       - arm64
     goos:
@@ -99,7 +103,8 @@ archives:
     # this name template makes the OS and Arch compatible with the results of
     # uname.
     name_template: >-
-      {{ .ProjectName }}_
+      {{ .ProjectName }}
+      {{- if eq .Env.STANDALONE "true" }}-standalone{{ end }}_
       {{- title .Os }}_
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386
