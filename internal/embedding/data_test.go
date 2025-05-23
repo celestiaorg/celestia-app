@@ -27,7 +27,7 @@ func TestCelestiaAppV3(t *testing.T) {
 			modifyFn: func() {
 				v3binaryCompressed = realData
 			},
-			expectedVersion: "v3.10.0-arabica",
+			expectedVersion: v3Version,
 		},
 		{
 			name: "nil binaryCompressed",
