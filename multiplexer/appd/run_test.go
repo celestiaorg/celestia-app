@@ -14,9 +14,10 @@ func TestStart_Success(t *testing.T) {
 	defer os.Remove(mockBinary) // Cleanup after test
 
 	appdInstance := &Appd{
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
+		pathToBinary: mockBinary,
+		stdin:        os.Stdin,
+		stdout:       os.Stdout,
+		stderr:       os.Stderr,
 	}
 
 	// Start the process
@@ -34,10 +35,11 @@ func TestStart_Success(t *testing.T) {
 // TestStart_InvalidBinary ensures that the appd instance errors out if the binary does not exist.
 func TestStart_InvalidBinary(t *testing.T) {
 	appdInstance := &Appd{
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-		pid:    AppdStopped,
+		pid:          AppdStopped,
+		pathToBinary: "/non/existent/binary",
+		stdin:        os.Stdin,
+		stdout:       os.Stdout,
+		stderr:       os.Stderr,
 	}
 
 	// Start should return an error

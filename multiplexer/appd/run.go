@@ -49,7 +49,7 @@ func New(version string, compressedBinary []byte) (*Appd, error) {
 
 	err = verifyBinaryIsExecutable(pathToBinary)
 	if err != nil {
-		fmt.Printf("failed to verify binary is executable: %w\n", err)
+		return nil, fmt.Errorf("failed to verify binary is executable: %w\n", err)
 	}
 
 	appd := &Appd{
