@@ -241,7 +241,7 @@ func verifyBinaryIsExecutable(pathToBinary string) error {
 // decompressed celestia-app binaries are stored. One directory exists per
 // version.
 func getDirectoryForCelestiaAppBinaries() string {
-	return filepath.Join(NodeHome, "bin")
+	return filepath.Join(nodeHome, "bin")
 }
 
 // getDirectoryForVersion returns the directory for a particular version.

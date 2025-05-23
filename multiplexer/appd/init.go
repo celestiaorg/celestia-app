@@ -6,23 +6,25 @@ import (
 	clienthelpers "cosmossdk.io/client/v2/helpers"
 )
 
-// EnvPrefix is the environment variable prefix for celestia-appd.
+// envPrefix is the environment variable prefix for celestia-appd.
 // Environment variables that Cobra reads must be prefixed with this value.
-const EnvPrefix = "CELESTIA_APP"
+const envPrefix = "CELESTIA_APP"
 
 // appDirectory is the name of the application directory. This directory is used
 // to store configs, data, keyrings, and binaries.
 const appDirectory = ".celestia-app"
 
-// NodeHome is the home directory for the application daemon.
+// nodeHome is the home directory for the application daemon. By default this is
+// HOME/.celestia-app but it can be overriden by the user via --home flag.
+//
 // This gets set as a side-effect of the init() function.
-var NodeHome string
+var nodeHome string
 
 func init() {
-	clienthelpers.EnvPrefix = EnvPrefix
+	clienthelpers.EnvPrefix = envPrefix
 
 	var err error
-	NodeHome, err = clienthelpers.GetNodeHomeDirectory(appDirectory)
+	nodeHome, err = clienthelpers.GetNodeHomeDirectory(appDirectory)
 	if err != nil {
 		// The userHome is not set in Vercel's Go runtime so log a warning but don't panic.
 		fmt.Printf("Warning userHome err: %s\n", err)
