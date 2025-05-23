@@ -15,7 +15,7 @@ const envPrefix = "CELESTIA_APP"
 const appDirectory = ".celestia-app"
 
 // nodeHome is the home directory for the application daemon. By default this is
-// HOME/.celestia-app but it can be overriden by the user via --home flag.
+// HOME/.celestia-app but it can be overridden by the user via --home flag.
 //
 // This gets set as a side-effect of the init() function.
 var nodeHome string
