@@ -37,8 +37,7 @@ func New(version string, compressedBinary []byte) (*Appd, error) {
 		return nil, fmt.Errorf("no compressed binary available for version %s", version)
 	}
 
-	err := decompressBinary(version, compressedBinary)
-	if err != nil {
+	if err := ensureBinaryDecompressed(version, compressedBinary); err != nil {
 		return nil, fmt.Errorf("failed to decompress binary: %w", err)
 	}
 
@@ -159,7 +158,9 @@ func getPathToBinary(version string) (string, error) {
 	return pathToBinary, nil
 }
 
-func decompressBinary(version string, binary []byte) error {
+// ensureBinaryDecompressed decompresses the binary for the given version if it
+// is not already decompressed.
+func ensureBinaryDecompressed(version string, binary []byte) error {
 	if isBinaryDecompressed(version) {
 		return nil
 	}
