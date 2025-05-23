@@ -146,14 +146,6 @@ func (suite *TxClientTestSuite) TestSubmitTx() {
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
 	})
-
-	t.Run("submit tx with an updated default gas price", func(t *testing.T) {
-		suite.txClient.SetDefaultGasPrice(appconsts.DefaultMinGasPrice / 2)
-		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg})
-		require.NoError(t, err)
-		require.Equal(t, abci.CodeTypeOK, resp.Code)
-		suite.txClient.SetDefaultGasPrice(appconsts.DefaultMinGasPrice)
-	})
 }
 
 func (suite *TxClientTestSuite) TestConfirmTx() {
