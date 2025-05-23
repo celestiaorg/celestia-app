@@ -245,9 +245,9 @@ test-docker-e2e:
 .PHONY: test-docker-e2e
 
 ## test-multiplexer: Run unit tests for the multiplexer package.
-test-multiplexer:
+test-multiplexer: download-v3-binaries
 	@echo "--> Running multiplexer tests"
-	make test -C ./multiplexer
+	@go test -tags multiplexer ./multiplexer/...
 .PHONY: test-multiplexer
 
 ## test-race: Run tests in race mode.
