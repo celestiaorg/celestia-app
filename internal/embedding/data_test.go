@@ -6,27 +6,28 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestCelestiaApp(t *testing.T) {
+func TestCelestiaAppV3(t *testing.T) {
 	// prevent messing with other tests by modifying this.
 	realData := v3binaryCompressed
 	defer func() {
 		v3binaryCompressed = realData
 	}()
 
-	tests := []struct {
-		name          string
-		modifyFn      func()
-		expectedError error
+	testCases := []struct {
+		name            string
+		modifyFn        func()
+		expectedVersion string
+		expectedError   error
 	}{
 		{
 			name: "valid binary data",
 			modifyFn: func() {
 				v3binaryCompressed = realData
 			},
-			expectedError: nil,
+			expectedVersion: v3Version,
 		},
 		{
 			name: "nil binaryCompressed",
@@ -37,20 +38,20 @@ func TestCelestiaApp(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.modifyFn()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.modifyFn()
+			version, binary, err := CelestiaAppV3()
 
-			data, err := CelestiaAppV3()
-
-			if tt.expectedError != nil {
-				require.Error(t, err)
-				require.Equal(t, err, tt.expectedError)
-				require.Nil(t, data)
+			if tc.expectedError != nil {
+				assert.Error(t, err)
+				assert.Equal(t, tc.expectedError, err)
+				assert.Empty(t, version)
+				assert.Nil(t, binary)
 			} else {
-				require.NoError(t, err)
-				require.NotNil(t, data)
-				require.NotEmpty(t, data)
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedVersion, version)
+				assert.NotEmpty(t, binary)
 			}
 		})
 	}

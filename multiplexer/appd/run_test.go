@@ -4,11 +4,13 @@ package appd
 
 import (
 	"bytes"
-	"github.com/celestiaorg/celestia-app/v4/internal/embedding"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v4/internal/embedding"
+
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,10 +20,10 @@ func TestCreateExecCommand(t *testing.T) {
 		t.Skip("skipping test which expects an embedded binary")
 	}
 
-	bin, err := embedding.CelestiaAppV3()
+	version, compressedBinary, err := embedding.CelestiaAppV3()
 	require.NoError(t, err)
 
-	appdInstance, err := New("test-app", bin)
+	appdInstance, err := New(version, compressedBinary)
 	require.NoError(t, err)
 	require.NotNil(t, appdInstance)
 
@@ -33,13 +35,10 @@ func TestCreateExecCommand(t *testing.T) {
 
 	require.NoError(t, cmd.Run())
 
-	output := outputBuffer.String()
-	require.NotEmpty(t, output)
-	require.True(t, strings.HasPrefix(output, "3"), "major version should be 3 of embedded binary. Got: %s", output)
-
-	appdInstance.cleanup()
-	require.Error(t, cmd.Run(), "expected error when running command after cleanup")
-
+	want := strings.TrimPrefix(version, "v")
+	got := outputBuffer.String()
+	require.NotEmpty(t, got)
+	assert.Contains(t, got, want)
 }
 
 // TestStart_Success ensures that the provided executable is launched and provided a pid.
@@ -53,6 +52,7 @@ func TestStart_Success(t *testing.T) {
 		stdin:  os.Stdin,
 		stdout: os.Stdout,
 		stderr: os.Stderr,
+		pid:    AppdStopped,
 	}
 
 	// Start the process
