@@ -9,7 +9,7 @@ import (
 
 // NOTE: This version must be updated at the same time as the version in the
 // Makefile.
-const CELESTIA_V3_VERSION = "v3.10.0-arabica"
+const v3Version = "v3.10.0-arabica"
 
 // CelestiaAppV3 returns the compressed platform specific Celestia binary and
 // the version.
@@ -19,7 +19,7 @@ func CelestiaAppV3() (version string, compressedBinary []byte, err error) {
 		return "", nil, fmt.Errorf("no binary data available for platform %s", platform())
 	}
 
-	return CELESTIA_V3_VERSION, v3binaryCompressed, nil
+	return v3Version, v3binaryCompressed, nil
 }
 
 // platform returns a string representing the current operating system and architecture
