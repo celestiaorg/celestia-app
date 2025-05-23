@@ -160,7 +160,7 @@ func getPathToBinary(version string) (string, error) {
 }
 
 func decompressBinary(version string, binary []byte) error {
-	if isBinaryAlreadyDecompressed(version) {
+	if isBinaryDecompressed(version) {
 		return nil
 	}
 
@@ -220,9 +220,9 @@ func decompressBinary(version string, binary []byte) error {
 	return nil
 }
 
-// isBinaryAlreadyDecompressed returns true if the binary for the given version
+// isBinaryDecompressed returns true if the binary for the given version
 // has already been decompressed.
-func isBinaryAlreadyDecompressed(version string) bool {
+func isBinaryDecompressed(version string) bool {
 	dir := getDirectoryForVersion(version)
 	_, err := os.Stat(dir)
 	return err == nil
