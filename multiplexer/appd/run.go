@@ -42,16 +42,10 @@ func New(name string, bin []byte, cfg ...CfgOption) (*Appd, error) {
 		return nil, fmt.Errorf("failed to create temp directory: %w", err)
 	}
 
-	// cleanups functions
+	// cleanup function to remove the extracted binary.
 	cleanup := func() {
 		_ = os.RemoveAll(tmpDir)
 	}
-
-	defer func() {
-		if err != nil {
-			cleanup()
-		}
-	}()
 
 	// extract all files from the tar archive to the temp directory
 	tr := tar.NewReader(gzr)
