@@ -49,7 +49,7 @@ func New(version string, compressedBinary []byte) (*Appd, error) {
 
 	err = verifyBinaryIsExecutable(pathToBinary)
 	if err != nil {
-		fmt.Printf("failed to verify binary is executable: %s\n", err)
+		fmt.Printf("failed to verify binary is executable: %w\n", err)
 	}
 
 	appd := &Appd{
@@ -161,7 +161,6 @@ func getPathToBinary(version string) (binaryPath string, err error) {
 
 func decompressBinary(version string, binary []byte) error {
 	if isBinaryAlreadyDecompressed(version) {
-		// if the binary is already decompressed, do nothing
 		return nil
 	}
 
@@ -221,14 +220,12 @@ func decompressBinary(version string, binary []byte) error {
 	return nil
 }
 
-// isBinaryAlreadyDecompressed returns true if the binary for the given version has already been extracted.
+// isBinaryAlreadyDecompressed returns true if the binary for the given version
+// has already been decompressed.
 func isBinaryAlreadyDecompressed(version string) bool {
-	directoryForVersion := getDirectoryForVersion(version)
-	_, err := os.Stat(directoryForVersion)
-	if err != nil {
-		return false
-	}
-	return true
+	dir := getDirectoryForVersion(version)
+	_, err := os.Stat(dir)
+	return err == nil
 }
 
 func verifyBinaryIsExecutable(pathToBinary string) error {
