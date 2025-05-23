@@ -46,8 +46,7 @@ func New(version string, compressedBinary []byte) (*Appd, error) {
 		return nil, fmt.Errorf("failed to get path to binary: %w", err)
 	}
 
-	err = verifyBinaryIsExecutable(pathToBinary)
-	if err != nil {
+	if err = verifyBinaryIsExecutable(pathToBinary); err != nil {
 		return nil, fmt.Errorf("failed to verify binary is executable: %w", err)
 	}
 
