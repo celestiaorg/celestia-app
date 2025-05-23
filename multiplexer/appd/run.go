@@ -134,17 +134,18 @@ func (a *Appd) CreateExecCommand(args ...string) *exec.Cmd {
 }
 
 // getPathToBinary returns the path to the celestia-appd binary for the given version.
-func getPathToBinary(version string) (binaryPath string, err error) {
+func getPathToBinary(version string) (string, error) {
+	var pathToBinary string
 	baseDirectory := getDirectoryForVersion(version)
 
 	// look for the executable binary in the extracted files
-	err = filepath.Walk(baseDirectory, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(baseDirectory, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
 		if !info.IsDir() && info.Mode()&0o111 != 0 {
-			binaryPath = path
+			pathToBinary = path
 			return filepath.SkipAll // Found it, stop searching
 		}
 		return nil
@@ -152,10 +153,10 @@ func getPathToBinary(version string) (binaryPath string, err error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to find executable binary in the archive: %w", err)
 	}
-	if binaryPath == "" {
+	if pathToBinary == "" {
 		return "", fmt.Errorf("no executable binary found in the archive for %s", version)
 	}
-	return binaryPath, nil
+	return pathToBinary, nil
 }
 
 func decompressBinary(version string, binary []byte) error {
