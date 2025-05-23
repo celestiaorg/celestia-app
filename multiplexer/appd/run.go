@@ -15,10 +15,6 @@ import (
 const (
 	// AppdStopped is the process ID of the celestia-appd binary when it is not running.
 	AppdStopped = -1
-
-	// celestiaAppBinariesDirectory is the directory where decompressed celestia-app
-	// binaries are stored.
-	celestiaAppBinariesDirectory = "/tmp/celestia-app"
 )
 
 // Appd represents a celestia-appd binary.
@@ -37,10 +33,6 @@ type Appd struct {
 
 // New returns a new Appd instance.
 func New(version string, compressedBinary []byte) (*Appd, error) {
-	if version == "" {
-		return nil, fmt.Errorf("version is required")
-	}
-
 	if len(compressedBinary) == 0 {
 		return nil, fmt.Errorf("no compressed binary available for version %s", version)
 	}
@@ -52,7 +44,7 @@ func New(version string, compressedBinary []byte) (*Appd, error) {
 			return nil, fmt.Errorf("failed to decompress binary: %w", err)
 		}
 	} else {
-		fmt.Printf("Binary already decompressed for version %s\n", version)
+		// fmt.Printf("Binary already decompressed for version %s\n", version)
 	}
 
 	pathToBinary, err := getPathToBinary(version)
@@ -241,11 +233,6 @@ func isBinaryAlreadyDecompressed(version string) bool {
 	return true
 }
 
-// getDirectoryForVersion returns the directory for the given version.
-func getDirectoryForVersion(version string) string {
-	return fmt.Sprintf("%s/%s", celestiaAppBinariesDirectory, version)
-}
-
 func verifyBinaryIsExecutable(pathToBinary string) error {
 	testCmd := exec.Command(pathToBinary, "--help")
 	testOutput, err := testCmd.CombinedOutput()
@@ -253,4 +240,16 @@ func verifyBinaryIsExecutable(pathToBinary string) error {
 		return fmt.Errorf("binary validation failed (%s): %w\nOutput: %s", pathToBinary, err, string(testOutput))
 	}
 	return nil
+}
+
+// getDirectoryForCelestiaAppBinaries returns the directory where all
+// decompressed celestia-app binaries are stored. One directory exists per
+// version.
+func getDirectoryForCelestiaAppBinaries() string {
+	return filepath.Join(os.Getenv("HOME"), ".celestia-app", "bin")
+}
+
+// getDirectoryForVersion returns the directory for a particular version.
+func getDirectoryForVersion(version string) string {
+	return filepath.Join(getDirectoryForCelestiaAppBinaries(), version)
 }

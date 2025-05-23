@@ -7,7 +7,7 @@ import (
 	"runtime"
 )
 
-// NOTE: This version must be udpated at the same time as the version in the
+// NOTE: This version must be updated at the same time as the version in the
 // Makefile.
 const CELESTIA_V3_VERSION = "v3.10.0-arabica"
 
