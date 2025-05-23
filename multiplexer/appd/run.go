@@ -37,14 +37,9 @@ func New(version string, compressedBinary []byte) (*Appd, error) {
 		return nil, fmt.Errorf("no compressed binary available for version %s", version)
 	}
 
-	if !isBinaryAlreadyDecompressed(version) {
-		fmt.Printf("Decompressing binary for version %s\n", version)
-		err := decompressBinary(version, compressedBinary)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decompress binary: %w", err)
-		}
-	} else {
-		// fmt.Printf("Binary already decompressed for version %s\n", version)
+	err := decompressBinary(version, compressedBinary)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decompress binary: %w", err)
 	}
 
 	pathToBinary, err := getPathToBinary(version)
@@ -165,6 +160,11 @@ func getPathToBinary(version string) (binaryPath string, err error) {
 }
 
 func decompressBinary(version string, binary []byte) error {
+	if isBinaryAlreadyDecompressed(version) {
+		// if the binary is already decompressed, do nothing
+		return nil
+	}
+
 	// untar the binary.
 	gzipReader, err := gzip.NewReader(bytes.NewReader(binary))
 	if err != nil {
@@ -172,12 +172,10 @@ func decompressBinary(version string, binary []byte) error {
 	}
 	defer gzipReader.Close()
 
-	baseDirectory := getDirectoryForVersion(version)
-	fmt.Printf("Creating directory: %s\n", baseDirectory)
-	if err := os.MkdirAll(baseDirectory, 0o755); err != nil {
+	targetDirectory := getDirectoryForVersion(version)
+	if err := os.MkdirAll(targetDirectory, 0o755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
-	fmt.Printf("Directory created: %s\n", baseDirectory)
 
 	// extract all files from the tar archive to the directory
 	tarReader := tar.NewReader(gzipReader)
@@ -192,7 +190,7 @@ func decompressBinary(version string, binary []byte) error {
 
 		if header.FileInfo().IsDir() {
 			// Create directory
-			dirPath := filepath.Join(baseDirectory, header.Name)
+			dirPath := filepath.Join(targetDirectory, header.Name)
 			if err := os.MkdirAll(dirPath, 0o755); err != nil {
 				return fmt.Errorf("failed to create directory %s: %w", dirPath, err)
 			}
@@ -200,7 +198,7 @@ func decompressBinary(version string, binary []byte) error {
 		}
 
 		// Create file path
-		filePath := filepath.Join(baseDirectory, header.Name)
+		filePath := filepath.Join(targetDirectory, header.Name)
 
 		// Create parent directory if it doesn't exist
 		if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {

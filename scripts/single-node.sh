@@ -34,9 +34,6 @@ echo "celestia-app home: ${APP_HOME}"
 echo "celestia-app genesis file: ${GENESIS_FILE}"
 echo ""
 
-echo "Which celestia-app binary is being used?"
-which celestia-appd
-
 createGenesis() {
     echo "Initializing validator and node config files..."
     celestia-appd init ${CHAIN_ID} \
