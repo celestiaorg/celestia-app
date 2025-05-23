@@ -24,11 +24,11 @@ type Appd struct {
 	version string
 	// pid is the process ID of the celestia-appd binary.
 	pid int
-	// pathToBinary is the path to the celestia-appd binary.
-	pathToBinary string
-	stdin        io.Reader
-	stderr       io.Writer
-	stdout       io.Writer
+	// path is the path to the celestia-appd binary.
+	path   string
+	stdin  io.Reader
+	stderr io.Writer
+	stdout io.Writer
 }
 
 // New returns a new Appd instance.
@@ -53,19 +53,19 @@ func New(version string, compressedBinary []byte) (*Appd, error) {
 	}
 
 	appd := &Appd{
-		version:      version,
-		pid:          AppdStopped,
-		pathToBinary: pathToBinary,
-		stdin:        os.Stdin,
-		stdout:       os.Stdout,
-		stderr:       os.Stderr,
+		version: version,
+		pid:     AppdStopped,
+		path:    pathToBinary,
+		stdin:   os.Stdin,
+		stdout:  os.Stdout,
+		stderr:  os.Stderr,
 	}
 	return appd, nil
 }
 
 // Start starts the appd binary with the given arguments.
 func (a *Appd) Start(args ...string) error {
-	cmd := exec.Command(a.pathToBinary, append([]string{"start"}, args...)...)
+	cmd := exec.Command(a.path, append([]string{"start"}, args...)...)
 
 	// Set up I/O
 	cmd.Stdin = a.stdin
@@ -73,7 +73,7 @@ func (a *Appd) Start(args ...string) error {
 	cmd.Stderr = a.stderr
 
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start %s: %w", a.pathToBinary, err)
+		return fmt.Errorf("failed to start %s: %w", a.path, err)
 	}
 
 	a.pid = cmd.Process.Pid
@@ -126,7 +126,7 @@ func (a *Appd) Pid() int {
 
 // CreateExecCommand creates an exec.Cmd for the appd binary.
 func (a *Appd) CreateExecCommand(args ...string) *exec.Cmd {
-	cmd := exec.Command(a.pathToBinary, args...)
+	cmd := exec.Command(a.path, args...)
 	cmd.Stdin = a.stdin
 	cmd.Stdout = a.stdout
 	cmd.Stderr = a.stderr
