@@ -18,6 +18,7 @@ func TestStart_Success(t *testing.T) {
 		stdin:  os.Stdin,
 		stdout: os.Stdout,
 		stderr: os.Stderr,
+		pid:    AppdStopped,
 	}
 
 	// Start the process
