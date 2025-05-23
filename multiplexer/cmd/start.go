@@ -20,9 +20,6 @@ import (
 )
 
 func start(versions abci.Versions, svrCtx *server.Context, clientCtx client.Context, appCreator types.AppCreator) error {
-	// Note both of these actually point to the correct --home directory (either the defaulr or the overriden one).
-	fmt.Printf("start svrCtx.Config.RootDir: %v ", svrCtx.Config.RootDir)
-	fmt.Printf("start clientCtx.HomeDir: %v ", clientCtx.HomeDir)
 	svrCfg, err := getAndValidateConfig(svrCtx)
 	if err != nil {
 		return err
