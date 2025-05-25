@@ -308,7 +308,7 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 		return err
 	}
 
-	// update the latest latestHeight
+	// update the latest height
 	am.setLatestHeight(res.Height)
 
 	if len(op.Blobs) > 0 {
