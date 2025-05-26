@@ -12,9 +12,9 @@ import (
 )
 
 func encodeUint32(v uint32) []byte {
-	buf := make([]byte, 4)
-	binary.BigEndian.PutUint32(buf, v)
-	return buf
+	bz := make([]byte, 4)
+	binary.BigEndian.PutUint32(bz, v)
+	return bz
 }
 
 func TestNewZkExecutionISMMetadata(t *testing.T) {
@@ -94,13 +94,13 @@ func TestNewZkExecutionISMMetadata(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := types.NewZkExecutionISMMetadata(tt.metadata)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := types.NewZkExecutionISMMetadata(tc.metadata)
 
-			if tt.expError != nil {
+			if tc.expError != nil {
 				require.Error(t, err)
-				require.Contains(t, err.Error(), tt.expError.Error())
+				require.Contains(t, err.Error(), tc.expError.Error())
 			} else {
 				require.NoError(t, err)
 				require.Equal(t, types.ProofTypeGroth16, result.ProofType)
