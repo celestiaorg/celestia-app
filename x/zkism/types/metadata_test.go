@@ -59,8 +59,18 @@ func TestNewZkExecutionISMMetadata(t *testing.T) {
 		},
 		{
 			name:     "too short for full proof",
-			metadata: append([]byte{byte(types.ProofTypeGroth16)}, encodeUint32(10)...), // claim 10-byte proof, provide none
+			metadata: append([]byte{byte(types.ProofTypeGroth16)}, encodeUint32(10)...), // define 10-byte proof but provide none
 			expError: errors.New("metadata too short to contain full proof: expected 10 bytes"),
+		},
+		{
+			name: "too short for number of public inputs",
+			metadata: func() []byte {
+				b := append([]byte{byte(types.ProofTypeGroth16)}, encodeUint32(1)...)
+				b = append(b, 0xAA)
+				b = append(b, 0xFF, 0xFF, 0xFF) // 3 bytes is insufficient for uint32
+				return b
+			}(),
+			expError: errors.New("metadata too short to contain number of public inputs"),
 		},
 		{
 			name: "too short for public input",
