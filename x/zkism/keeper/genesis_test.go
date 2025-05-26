@@ -7,7 +7,7 @@ import (
 )
 
 func (suite *KeeperTestSuite) TestInitGenesis() {
-	var isms []types.ZKExecutionISM
+	isms := make([]types.ZKExecutionISM, 0, 100)
 	for i := range 100 {
 		ismId := util.GenerateHexAddress([20]byte{0x01}, types.InterchainSecurityModuleTypeZKExecution, uint64(i))
 		ism := types.ZKExecutionISM{Id: ismId, Owner: "test"}
@@ -30,7 +30,7 @@ func (suite *KeeperTestSuite) TestInitGenesis() {
 }
 
 func (suite *KeeperTestSuite) TestExportGenesis() {
-	var isms []types.ZKExecutionISM
+	isms := make([]types.ZKExecutionISM, 0, 100)
 	for i := range 100 {
 		ismId := util.GenerateHexAddress([20]byte{0x01}, types.InterchainSecurityModuleTypeZKExecution, uint64(i))
 		ism := types.ZKExecutionISM{Id: ismId, Owner: "test"}

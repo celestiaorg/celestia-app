@@ -15,14 +15,11 @@ var _ util.InterchainSecurityModule = (*Keeper)(nil)
 
 // Keeper implements the InterchainSecurityModule interface required by the Hyperlane ISM Router.
 type Keeper struct {
-	cdc codec.Codec
-
-	coreKeeper types.HyperlaneKeeper
-
 	isms   collections.Map[uint64, types.ZKExecutionISM]
 	schema collections.Schema
 
-	authority string
+	coreKeeper types.HyperlaneKeeper
+	authority  string
 }
 
 // NewKeeper creates and returns a new zkism module Keeper.
