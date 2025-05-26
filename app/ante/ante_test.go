@@ -1,7 +1,6 @@
 package ante_test
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
@@ -13,24 +12,39 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
+	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/stretchr/testify/require"
 )
 
 // Reproduces https://github.com/celestiaorg/celestia-app/issues/4847
 func TestSigVerificationDecorator(t *testing.T) {
+	testApp, _, _ := testutil.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	signModeHandler := encodingConfig.TxConfig.SignModeHandler()
+	decorator := ante.NewSigVerificationDecorator(testApp.AccountKeeper, signModeHandler)
+
+	require.Panics(t, func() {
+		tx := getTx(t)
+		simulate := false
+		decorator.AnteHandle(sdk.Context{}, tx, simulate, nextAnteHandler)
+	})
+}
+
+func getTx(t *testing.T) authsigning.Tx {
 	namespace, err := share.NewV0Namespace([]byte("CeroA"))
 	require.NoError(t, err)
 
-	data := bytes.Repeat([]byte{2}, 100)
-	blob, err := share.NewV0Blob(namespace, data)
+	blob, err := share.NewV0Blob(namespace, []byte("data"))
 	require.NoError(t, err)
 
 	signer := "celestia1rky9086t340m7rmkctuj4spxwv2gc62vlwx59v"
+
 	msg, err := types.NewMsgPayForBlobs(signer, appconsts.LatestVersion, blob)
 	require.NoError(t, err)
-	// Create a transaction with nil public key
-	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	txBuilder := enc.TxConfig.NewTxBuilder()
+
+	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	txBuilder := config.TxConfig.NewTxBuilder()
+
 	err = txBuilder.SetMsgs(msg)
 	require.NoError(t, err)
 
@@ -48,12 +62,5 @@ func TestSigVerificationDecorator(t *testing.T) {
 	txBuilder.SetFeeAmount(sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1000)))
 	txBuilder.SetGasLimit(100000)
 
-	testApp, _, _ := testutil.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
-	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	decorator := ante.NewSigVerificationDecorator(testApp.AccountKeeper, encodingConfig.TxConfig.SignModeHandler())
-
-	tx := txBuilder.GetTx()
-	require.Panics(t, func() {
-		decorator.AnteHandle(sdk.Context{}, tx, false, nextAnteHandler)
-	})
+	return txBuilder.GetTx()
 }
