@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package celestia.zkism.v1;
+
+option go_package = "github.com/celestiaorg/celestia-app/x/zkism/types";
+
+import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
+
+// ZKExecutionISM defines the Hyperlane interchain security module (ISM).
+message ZKExecutionISM {
+  option (gogoproto.goproto_getters) = false;
+
+  // unique hyperlane identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // the owner or creator of the ism
+  string owner = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // state commitment root of the remote chain
+  bytes state_root = 3;
+  // latest tracked height of the remote chain
+  uint64 height = 4;
+  // the zk state transition verifier key of the sp1 prover client
+  bytes state_transition_verifier_key = 5;
+  // the zk state membership verifier key of the sp1 prover client
+  bytes state_membership_verifier_key = 6;
+}
+
+// EventCreateZKExecutionISM defines the event type emitted when creating a new ZKExecutionISM.
+message EventCreateZKExecutionISM {
+  option (gogoproto.goproto_getters) = false;
+
+  // unique hyperlane identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // the owner or creator of the ism
+  string owner = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // the zk state transition verifier key of the sp1 prover client
+  bytes state_transition_verifier_key = 3;
+  // the zk state membership verifier key of the sp1 prover client
+  bytes state_membership_verifier_key = 4;
+}
