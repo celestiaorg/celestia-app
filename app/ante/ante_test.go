@@ -48,19 +48,15 @@ func getTx(t *testing.T) authsigning.Tx {
 	err = txBuilder.SetMsgs(msg)
 	require.NoError(t, err)
 
-	// Set up auth info with nil public key
-	sig := signing.SignatureV2{
+	signature := signing.SignatureV2{
 		PubKey: nil, // This will cause the nil pointer dereference
 		Data: &signing.SingleSignatureData{
 			SignMode: signing.SignMode_SIGN_MODE_DIRECT,
 		},
 		Sequence: 0,
 	}
-	err = txBuilder.SetSignatures(sig)
+	err = txBuilder.SetSignatures(signature)
 	require.NoError(t, err)
-
-	txBuilder.SetFeeAmount(sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1000)))
-	txBuilder.SetGasLimit(100000)
 
 	return txBuilder.GetTx()
 }
