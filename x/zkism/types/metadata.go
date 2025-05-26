@@ -23,11 +23,11 @@ type ZkExecutionISMMetadata struct {
 // NewZkExecutionISMMetadata parses a raw metadata byte slice into a structured format.
 // The ZK Execution ISM metadata follows the following format:
 // [0]			- Type of the ZK Proof System used (e.g. Groth16)
-// [1:5] 		- Size of the ZK Proof, N, if it exists
-// [5:N+5] 		- The ZK proof
-// [N+5:N+9] 	- Number of public inputs, k
+// [1:5]		- Size of the ZK Proof, N, if it exists
+// [5:N+5]		- The ZK proof
+// [N+5:N+9]	- Number of public inputs, k
 // [N+9:N+9+k]	- Public inputs
-// [N+9+k:] 	- Merkle Proofs
+// [N+9+k:]		- Merkle Proofs
 func NewZkExecutionISMMetadata(metadata []byte) (ZkExecutionISMMetadata, error) {
 	if len(metadata) < 5 {
 		return ZkExecutionISMMetadata{}, errors.New("metadata too short to contain proof type and size")
