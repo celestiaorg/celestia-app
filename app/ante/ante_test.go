@@ -1,0 +1,59 @@
+package ante_test
+
+import (
+	"bytes"
+	"testing"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
+	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	"github.com/celestiaorg/go-square/v2/share"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
+	"github.com/cosmos/cosmos-sdk/x/auth/ante"
+	"github.com/stretchr/testify/require"
+)
+
+// Reproduces https://github.com/celestiaorg/celestia-app/issues/4847
+func TestSigVerificationDecorator(t *testing.T) {
+	namespace, err := share.NewV0Namespace([]byte("CeroA"))
+	require.NoError(t, err)
+
+	data := bytes.Repeat([]byte{2}, 100)
+	blob, err := share.NewV0Blob(namespace, data)
+	require.NoError(t, err)
+
+	signer := "celestia1rky9086t340m7rmkctuj4spxwv2gc62vlwx59v"
+	msg, err := types.NewMsgPayForBlobs(signer, appconsts.LatestVersion, blob)
+	require.NoError(t, err)
+	// Create a transaction with nil public key
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	txBuilder := enc.TxConfig.NewTxBuilder()
+	err = txBuilder.SetMsgs(msg)
+	require.NoError(t, err)
+
+	// Set up auth info with nil public key
+	sig := signing.SignatureV2{
+		PubKey: nil, // This will cause the nil pointer dereference
+		Data: &signing.SingleSignatureData{
+			SignMode: signing.SignMode_SIGN_MODE_DIRECT,
+		},
+		Sequence: 0,
+	}
+	err = txBuilder.SetSignatures(sig)
+	require.NoError(t, err)
+
+	txBuilder.SetFeeAmount(sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1000)))
+	txBuilder.SetGasLimit(100000)
+
+	testApp, _, _ := testutil.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	decorator := ante.NewSigVerificationDecorator(testApp.AccountKeeper, encodingConfig.TxConfig.SignModeHandler())
+
+	tx := txBuilder.GetTx()
+	require.Panics(t, func() {
+		decorator.AnteHandle(sdk.Context{}, tx, false, nextAnteHandler)
+	})
+}
