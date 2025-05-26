@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -187,7 +188,7 @@ func deployPayload(
 		for _, e := range errs {
 			sb += "- " + e.Error() + "\n"
 		}
-		return fmt.Errorf(sb)
+		return errors.New(sb)
 	}
 	return nil
 }
