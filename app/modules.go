@@ -51,6 +51,8 @@ import (
 	minttypes "github.com/celestiaorg/celestia-app/v4/x/mint/types"
 	"github.com/celestiaorg/celestia-app/v4/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v4/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v4/x/zkism"
+	zkismtypes "github.com/celestiaorg/celestia-app/v4/x/zkism/types"
 )
 
 // ModuleEncodingRegisters keeps track of all the module methods needed to
@@ -83,6 +85,7 @@ var ModuleEncodingRegisters = []module.AppModuleBasic{
 	// hyperlane
 	hyperlanecore.AppModule{},
 	warp.AppModule{},
+	zkism.AppModule{},
 	// celestia
 	blob.AppModule{},
 	minfee.AppModule{},
@@ -176,6 +179,7 @@ func (app *App) setModuleOrder() {
 		circuittypes.ModuleName,
 		hyperlanetypes.ModuleName,
 		warptypes.ModuleName,
+		zkismtypes.ModuleName,
 	)
 }
 
@@ -205,5 +209,6 @@ func allStoreKeys() []string {
 		circuittypes.StoreKey,     // added in v4
 		hyperlanetypes.ModuleName, // added in v4
 		warptypes.ModuleName,      // added in v4
+		zkismtypes.StoreKey,
 	}
 }
