@@ -37,7 +37,7 @@ func TestNewZkExecutionISMMetadata(t *testing.T) {
 		return b
 	}
 
-	tests := []struct {
+	testcases := []struct {
 		name     string
 		metadata []byte
 		expError error
@@ -94,7 +94,7 @@ func TestNewZkExecutionISMMetadata(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
+	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			result, err := types.NewZkExecutionISMMetadata(tc.metadata)
 
@@ -111,6 +111,62 @@ func TestNewZkExecutionISMMetadata(t *testing.T) {
 				require.Len(t, result.MerkleProofs, 2)
 				require.Equal(t, merkle1, result.MerkleProofs[0])
 				require.Equal(t, merkle2, result.MerkleProofs[1])
+			}
+		})
+	}
+}
+
+func TestNewZkExecutionISMMetadataNoExecutionProof(t *testing.T) {
+	testcases := []struct {
+		name     string
+		metadata []byte
+		expError error
+	}{
+		{
+			name: "valid metadata: no zk proof, no public inputs, only merkle proofs",
+			metadata: func() []byte {
+				b := []byte{byte(types.ProofTypeGroth16)}        // proof type
+				b = append(b, encodeUint32(0)...)                // zero-length proof
+				b = append(b, encodeUint32(0)...)                // zero public inputs
+				b = append(b, bytes.Repeat([]byte{0xAA}, 32)...) // merkle proof 1
+				b = append(b, bytes.Repeat([]byte{0xBB}, 32)...) // merkle proof 2
+				return b
+			}(),
+			expError: nil,
+		},
+		{
+			name: "no zk proof, no public inputs, only merkle proofs, trailing bytes",
+			metadata: func() []byte {
+				b := []byte{byte(types.ProofTypeGroth16)}        // proof type
+				b = append(b, encodeUint32(0)...)                // zero-length proof
+				b = append(b, encodeUint32(0)...)                // zero public inputs
+				b = append(b, bytes.Repeat([]byte{0xAA}, 32)...) // merkle proof 1
+				b = append(b, bytes.Repeat([]byte{0xBB}, 32)...) // merkle proof 2
+
+				// append trailing bytes to trigger error
+				b = append(b, bytes.Repeat([]byte{0xFF}, 10)...)
+				return b
+			}(),
+			expError: errors.New("trailing bytes after parsing Merkle proofs; possibly malformed metadata"),
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := types.NewZkExecutionISMMetadata(tc.metadata)
+
+			if tc.expError != nil {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expError.Error())
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, types.ProofTypeGroth16, result.ProofType)
+				require.Empty(t, result.Proof)
+				require.Empty(t, result.PublicInputs)
+
+				require.Len(t, result.MerkleProofs, 2)
+				require.Equal(t, bytes.Repeat([]byte{0xAA}, 32), result.MerkleProofs[0])
+				require.Equal(t, bytes.Repeat([]byte{0xBB}, 32), result.MerkleProofs[1])
 			}
 		})
 	}
