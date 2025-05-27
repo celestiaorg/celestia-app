@@ -37,7 +37,7 @@ func (ism *ZKExecutionISM) Verify(ctx context.Context, metadata []byte, message 
 
 	if zkProofMetadata.HasExecutionProof() {
 		verified, err := ism.verifyZKProof(zkProofMetadata)
-		if err != nil || verified == false {
+		if err != nil || !verified {
 			return false, err
 		}
 	}
