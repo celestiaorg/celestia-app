@@ -37,7 +37,7 @@ func TestSigVerificationDecorator(t *testing.T) {
 	signModeHandler := encodingConfig.TxConfig.SignModeHandler()
 	decorator := ante.NewSigVerificationDecorator(testApp.AccountKeeper, signModeHandler)
 
-	tx := getTx(t, account)
+	tx := getTxWithNilPubKey(t, account)
 	simulate := false
 
 	require.Panics(t, func() {
@@ -47,21 +47,21 @@ func TestSigVerificationDecorator(t *testing.T) {
 	})
 }
 
-func getTx(t *testing.T, account sdk.AccountI) authsigning.Tx {
-	namespace, err := share.NewV0Namespace([]byte("CeroA"))
-	require.NoError(t, err)
+func getAccountWithPubKey(accounts []sdk.AccountI) (sdk.AccountI, error) {
+	for _, account := range accounts {
+		if account.GetPubKey() != nil {
+			return account, nil
+		}
+	}
+	return nil, fmt.Errorf("no account found with a pubkey")
+}
 
-	blob, err := share.NewV0Blob(namespace, []byte("data"))
-	require.NoError(t, err)
-
-	signer := account.GetAddress().String()
-	msg, err := types.NewMsgPayForBlobs(signer, appconsts.LatestVersion, blob)
-	require.NoError(t, err)
-
+func getTxWithNilPubKey(t *testing.T, account sdk.AccountI) authsigning.Tx {
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	txBuilder := config.TxConfig.NewTxBuilder()
 
-	err = txBuilder.SetMsgs(msg)
+	msg := getMsg(t, account)
+	err := txBuilder.SetMsgs(msg)
 	require.NoError(t, err)
 
 	signature := signing.SignatureV2{
@@ -77,11 +77,16 @@ func getTx(t *testing.T, account sdk.AccountI) authsigning.Tx {
 	return txBuilder.GetTx()
 }
 
-func getAccountWithPubKey(accounts []sdk.AccountI) (sdk.AccountI, error) {
-	for _, account := range accounts {
-		if account.GetPubKey() != nil {
-			return account, nil
-		}
-	}
-	return nil, fmt.Errorf("no account found with a pubkey")
+func getMsg(t *testing.T, account sdk.AccountI) sdk.Msg {
+	namespace, err := share.NewV0Namespace([]byte("CeroA"))
+	require.NoError(t, err)
+
+	blob, err := share.NewV0Blob(namespace, []byte("data"))
+	require.NoError(t, err)
+
+	signer := account.GetAddress().String()
+	msg, err := types.NewMsgPayForBlobs(signer, appconsts.LatestVersion, blob)
+	require.NoError(t, err)
+
+	return msg
 }
