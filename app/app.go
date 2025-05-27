@@ -28,25 +28,6 @@ import (
 	"github.com/bcp-innovations/hyperlane-cosmos/x/warp"
 	warpkeeper "github.com/bcp-innovations/hyperlane-cosmos/x/warp/keeper"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
-	"github.com/celestiaorg/celestia-app/v4/app/ante"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
-	celestiatx "github.com/celestiaorg/celestia-app/v4/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/proof"
-	"github.com/celestiaorg/celestia-app/v4/x/blob"
-	blobkeeper "github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	"github.com/celestiaorg/celestia-app/v4/x/minfee"
-	minfeekeeper "github.com/celestiaorg/celestia-app/v4/x/minfee/keeper"
-	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
-	"github.com/celestiaorg/celestia-app/v4/x/mint"
-	mintkeeper "github.com/celestiaorg/celestia-app/v4/x/mint/keeper"
-	minttypes "github.com/celestiaorg/celestia-app/v4/x/mint/types"
-	"github.com/celestiaorg/celestia-app/v4/x/signal"
-	signaltypes "github.com/celestiaorg/celestia-app/v4/x/signal/types"
-	"github.com/celestiaorg/celestia-app/v4/x/tokenfilter"
-	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmjson "github.com/cometbft/cometbft/libs/json"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -120,6 +101,30 @@ import (
 	ibctesting "github.com/cosmos/ibc-go/v8/testing"
 	ibctestingtypes "github.com/cosmos/ibc-go/v8/testing/types"
 	"github.com/spf13/cast"
+
+	"github.com/celestiaorg/go-square/v2/share"
+
+	"github.com/celestiaorg/celestia-app/v4/app/ante"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
+	celestiatx "github.com/celestiaorg/celestia-app/v4/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v4/x/blob"
+	blobkeeper "github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v4/x/minfee"
+	minfeekeeper "github.com/celestiaorg/celestia-app/v4/x/minfee/keeper"
+	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v4/x/mint"
+	mintkeeper "github.com/celestiaorg/celestia-app/v4/x/mint/keeper"
+	minttypes "github.com/celestiaorg/celestia-app/v4/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v4/x/signal"
+	signaltypes "github.com/celestiaorg/celestia-app/v4/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v4/x/tokenfilter"
+	"github.com/celestiaorg/celestia-app/v4/x/zkism"
+	zkismkeeper "github.com/celestiaorg/celestia-app/v4/x/zkism/keeper"
+	zkismtypes "github.com/celestiaorg/celestia-app/v4/x/zkism/types"
 )
 
 // maccPerms is short for module account permissions. It is a map from module
@@ -156,30 +161,31 @@ type App struct {
 	memKeys map[string]*storetypes.MemoryStoreKey
 
 	// keepers
-	AccountKeeper       authkeeper.AccountKeeper
-	BankKeeper          bankkeeper.Keeper
-	AuthzKeeper         authzkeeper.Keeper
-	ConsensusKeeper     consensuskeeper.Keeper
-	CapabilityKeeper    *capabilitykeeper.Keeper
-	StakingKeeper       *stakingkeeper.Keeper
-	SlashingKeeper      slashingkeeper.Keeper
-	MintKeeper          mintkeeper.Keeper
-	DistrKeeper         distrkeeper.Keeper
-	GovKeeper           *govkeeper.Keeper
-	UpgradeKeeper       *upgradekeeper.Keeper // Upgrades are set in endblock when signaled
-	SignalKeeper        signal.Keeper
-	MinFeeKeeper        *minfeekeeper.Keeper
-	ParamsKeeper        paramskeeper.Keeper
-	IBCKeeper           *ibckeeper.Keeper // IBCKeeper must be a pointer in the app, so we can SetRouter on it correctly
-	EvidenceKeeper      evidencekeeper.Keeper
-	TransferKeeper      ibctransferkeeper.Keeper
-	FeeGrantKeeper      feegrantkeeper.Keeper
-	ICAHostKeeper       icahostkeeper.Keeper
-	PacketForwardKeeper *packetforwardkeeper.Keeper
-	BlobKeeper          blobkeeper.Keeper
-	CircuitKeeper       circuitkeeper.Keeper
-	HyperlaneKeeper     hyperlanekeeper.Keeper
-	WarpKeeper          warpkeeper.Keeper
+	AccountKeeper        authkeeper.AccountKeeper
+	BankKeeper           bankkeeper.Keeper
+	AuthzKeeper          authzkeeper.Keeper
+	ConsensusKeeper      consensuskeeper.Keeper
+	CapabilityKeeper     *capabilitykeeper.Keeper
+	StakingKeeper        *stakingkeeper.Keeper
+	SlashingKeeper       slashingkeeper.Keeper
+	MintKeeper           mintkeeper.Keeper
+	DistrKeeper          distrkeeper.Keeper
+	GovKeeper            *govkeeper.Keeper
+	UpgradeKeeper        *upgradekeeper.Keeper // Upgrades are set in endblock when signaled
+	SignalKeeper         signal.Keeper
+	MinFeeKeeper         *minfeekeeper.Keeper
+	ParamsKeeper         paramskeeper.Keeper
+	IBCKeeper            *ibckeeper.Keeper // IBCKeeper must be a pointer in the app, so we can SetRouter on it correctly
+	EvidenceKeeper       evidencekeeper.Keeper
+	TransferKeeper       ibctransferkeeper.Keeper
+	FeeGrantKeeper       feegrantkeeper.Keeper
+	ICAHostKeeper        icahostkeeper.Keeper
+	PacketForwardKeeper  *packetforwardkeeper.Keeper
+	BlobKeeper           blobkeeper.Keeper
+	CircuitKeeper        circuitkeeper.Keeper
+	HyperlaneKeeper      hyperlanekeeper.Keeper
+	WarpKeeper           warpkeeper.Keeper
+	ZKExecutionISMKeeper *zkismkeeper.Keeper
 
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
@@ -393,6 +399,13 @@ func New(
 		[]int32{int32(warptypes.HYP_TOKEN_TYPE_COLLATERAL)},
 	)
 
+	app.ZKExecutionISMKeeper = zkismkeeper.NewKeeper(
+		encodingConfig.Codec,
+		runtime.NewKVStoreService(keys[zkismtypes.StoreKey]),
+		&app.HyperlaneKeeper,
+		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
+	)
+
 	/****  Module Options ****/
 
 	// NOTE: Modules can't be modified or else must be passed by reference to the module manager
@@ -424,6 +437,7 @@ func New(
 		circuitModule{circuit.NewAppModule(encodingConfig.Codec, app.CircuitKeeper)},
 		hyperlanecore.NewAppModule(encodingConfig.Codec, &app.HyperlaneKeeper),
 		warp.NewAppModule(encodingConfig.Codec, app.WarpKeeper),
+		zkism.NewAppModule(encodingConfig.Codec, app.ZKExecutionISMKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager is in charge of setting up basic,

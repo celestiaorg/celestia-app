@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package celestia.zkism.v1;
+
+import "cosmos/msg/v1/msg.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/zkism/types";
+
+// Msg defines the zkism module Msg service.
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  // CreateZKExecutionISM defines the rpc method for creating a new ZK execution ISM.
+  rpc CreateZKExecutionISM(MsgCreateZKExecutionISM) returns (MsgCreateZKExecutionISMResponse);
+}
+
+// MsgCreateZKExecutionISM is the request type for CreateZKExecutionISM.
+message MsgCreateZKExecutionISM {
+  option (cosmos.msg.v1.signer) = "creator";
+
+  // creator is the message sender.
+  string creator = 1;
+  // state commitment root of the remote chain
+  bytes state_root = 2;
+  // latest tracked height of the remote chain
+  uint64 height = 3;
+  // the zk state transition verifier key of the sp1 prover client
+  bytes state_transition_verifier_key = 4;
+  // [TBD: https://github.com/celestiaorg/celestia-zkevm-hl-testnet/issues/28] the zk state membership verifier key of
+  // the sp1 prover client
+  bytes state_membership_verifier_key = 5;
+}
+
+// MsgCreateZKExecutionISMResponse is the response type for CreateZKExecutionISM.
+message MsgCreateZKExecutionISMResponse {
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+}
