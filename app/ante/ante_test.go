@@ -39,9 +39,12 @@ func TestSigVerificationDecorator(t *testing.T) {
 
 	tx := getTx(t, account)
 	simulate := false
-	_, err = decorator.AnteHandle(ctx, tx, simulate, nextAnteHandler)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "signature verification failed")
+
+	require.Panics(t, func() {
+		_, err = decorator.AnteHandle(ctx, tx, simulate, nextAnteHandler) // this panics due to the nil pubkey
+		require.Error(t, err)
+		require.ErrorContains(t, err, "signature verification failed")
+	})
 }
 
 func getTx(t *testing.T, account sdk.AccountI) authsigning.Tx {
@@ -52,7 +55,6 @@ func getTx(t *testing.T, account sdk.AccountI) authsigning.Tx {
 	require.NoError(t, err)
 
 	signer := account.GetAddress().String()
-	fmt.Printf("signer: %s\n", signer)
 	msg, err := types.NewMsgPayForBlobs(signer, appconsts.LatestVersion, blob)
 	require.NoError(t, err)
 
@@ -63,7 +65,7 @@ func getTx(t *testing.T, account sdk.AccountI) authsigning.Tx {
 	require.NoError(t, err)
 
 	signature := signing.SignatureV2{
-		PubKey: account.GetPubKey(), // TODO: make this nil to repro error
+		PubKey: nil,
 		Data: &signing.SingleSignatureData{
 			SignMode: signing.SignMode_SIGN_MODE_DIRECT,
 		},
