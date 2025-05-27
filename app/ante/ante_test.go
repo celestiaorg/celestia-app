@@ -21,22 +21,27 @@ import (
 
 // Reproduces https://github.com/celestiaorg/celestia-app/issues/4847
 func TestSigVerificationDecorator(t *testing.T) {
-	testApp, _, _ := testutil.NewTestAppWithGenesisSet(app.DefaultConsensusParams(), "a")
+	testApp, _, _ := testutil.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
+
 	ctx := testApp.BaseApp.NewContext(false)
 	accounts := testApp.AccountKeeper.GetAllAccounts(ctx)
-	account := accounts[0]
+	require.NotEmpty(t, accounts)
+
+	account, err := getAccountWithPubKey(accounts)
+	require.NoError(t, err)
+
 	fmt.Printf("account: %s\n", account.GetAddress().String())
+	fmt.Printf("pubKey: %s\n", account.GetPubKey().String())
 
 	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	signModeHandler := encodingConfig.TxConfig.SignModeHandler()
 	decorator := ante.NewSigVerificationDecorator(testApp.AccountKeeper, signModeHandler)
 
-	require.Panics(t, func() {
-		tx := getTx(t, account)
-		simulate := false
-		_, err := decorator.AnteHandle(ctx, tx, simulate, nextAnteHandler)
-		require.NoError(t, err)
-	})
+	tx := getTx(t, account)
+	simulate := false
+	_, err = decorator.AnteHandle(ctx, tx, simulate, nextAnteHandler)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "signature verification failed")
 }
 
 func getTx(t *testing.T, account sdk.AccountI) authsigning.Tx {
@@ -58,7 +63,7 @@ func getTx(t *testing.T, account sdk.AccountI) authsigning.Tx {
 	require.NoError(t, err)
 
 	signature := signing.SignatureV2{
-		PubKey: nil, // This will cause the nil pointer dereference
+		PubKey: account.GetPubKey(), // TODO: make this nil to repro error
 		Data: &signing.SingleSignatureData{
 			SignMode: signing.SignMode_SIGN_MODE_DIRECT,
 		},
@@ -68,4 +73,13 @@ func getTx(t *testing.T, account sdk.AccountI) authsigning.Tx {
 	require.NoError(t, err)
 
 	return txBuilder.GetTx()
+}
+
+func getAccountWithPubKey(accounts []sdk.AccountI) (sdk.AccountI, error) {
+	for _, account := range accounts {
+		if account.GetPubKey() != nil {
+			return account, nil
+		}
+	}
+	return nil, fmt.Errorf("no account found with a pubkey")
 }
