@@ -1,6 +1,7 @@
 package ante_test
 
 import (
+	"fmt"
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -20,28 +21,33 @@ import (
 
 // Reproduces https://github.com/celestiaorg/celestia-app/issues/4847
 func TestSigVerificationDecorator(t *testing.T) {
-	testApp, _, _ := testutil.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
+	testApp, _, _ := testutil.NewTestAppWithGenesisSet(app.DefaultConsensusParams(), "a")
+	ctx := testApp.BaseApp.NewContext(false)
+	accounts := testApp.AccountKeeper.GetAllAccounts(ctx)
+	account := accounts[0]
+	fmt.Printf("account: %s\n", account.GetAddress().String())
+
 	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	signModeHandler := encodingConfig.TxConfig.SignModeHandler()
 	decorator := ante.NewSigVerificationDecorator(testApp.AccountKeeper, signModeHandler)
 
 	require.Panics(t, func() {
-		tx := getTx(t)
+		tx := getTx(t, account)
 		simulate := false
-		_, err := decorator.AnteHandle(sdk.Context{}, tx, simulate, nextAnteHandler)
+		_, err := decorator.AnteHandle(ctx, tx, simulate, nextAnteHandler)
 		require.NoError(t, err)
 	})
 }
 
-func getTx(t *testing.T) authsigning.Tx {
+func getTx(t *testing.T, account sdk.AccountI) authsigning.Tx {
 	namespace, err := share.NewV0Namespace([]byte("CeroA"))
 	require.NoError(t, err)
 
 	blob, err := share.NewV0Blob(namespace, []byte("data"))
 	require.NoError(t, err)
 
-	signer := "celestia1rky9086t340m7rmkctuj4spxwv2gc62vlwx59v"
-
+	signer := account.GetAddress().String()
+	fmt.Printf("signer: %s\n", signer)
 	msg, err := types.NewMsgPayForBlobs(signer, appconsts.LatestVersion, blob)
 	require.NoError(t, err)
 
