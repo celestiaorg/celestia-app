@@ -30,5 +30,29 @@ func (ism *ZKExecutionISM) ModuleType() uint8 {
 
 // Verify implements types.HyperlaneInterchainSecurityModule.
 func (ism *ZKExecutionISM) Verify(ctx context.Context, metadata []byte, message util.HyperlaneMessage) (bool, error) {
+	zkProofMetadata, err := NewZkExecutionISMMetadata(metadata)
+	if err != nil {
+		return false, err
+	}
+
+	if zkProofMetadata.HasExecutionProof() {
+		verified, err := ism.verifyZKProof(zkProofMetadata)
+		if err != nil || verified == false {
+			return false, err
+		}
+	}
+
+	return ism.verifyMerkleProofs(zkProofMetadata, message)
+}
+
+// verifyZKProof verifies a ZK proof to update the ISM's state root and height.
+func (ism *ZKExecutionISM) verifyZKProof(_ ZkExecutionISMMetadata) (bool, error) {
+	// TODO: https://github.com/celestiaorg/celestia-app/issues/4723
+	return true, nil
+}
+
+// verifyMerkleProofs verifies merkle inclusion proofs against the current state root.
+func (ism *ZKExecutionISM) verifyMerkleProofs(_ ZkExecutionISMMetadata, _ util.HyperlaneMessage) (bool, error) {
+	// TODO: https://github.com/celestiaorg/celestia-app/issues/4723
 	return true, nil
 }
