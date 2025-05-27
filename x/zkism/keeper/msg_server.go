@@ -30,6 +30,8 @@ func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreat
 	newIsm := types.ZKExecutionISM{
 		Id:                         ismId,
 		Owner:                      msg.Creator,
+		StateRoot:                  msg.StateRoot,
+		Height:                     msg.Height,
 		StateTransitionVerifierKey: msg.StateTransitionVerifierKey,
 		StateMembershipVerifierKey: msg.StateMembershipVerifierKey,
 	}
@@ -43,6 +45,8 @@ func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreat
 	if err := sdk.UnwrapSDKContext(ctx).EventManager().EmitTypedEvent(&types.EventCreateZKExecutionISM{
 		Id:                         newIsm.Id,
 		Owner:                      newIsm.Owner,
+		StateRoot:                  newIsm.StateRoot,
+		Height:                     newIsm.Height,
 		StateTransitionVerifierKey: newIsm.StateTransitionVerifierKey,
 		StateMembershipVerifierKey: newIsm.StateMembershipVerifierKey,
 	}); err != nil {

@@ -21,10 +21,15 @@ message MsgCreateZKExecutionISM {
 
   // creator is the message sender.
   string creator = 1;
+  // state commitment root of the remote chain
+  bytes state_root = 2;
+  // latest tracked height of the remote chain
+  uint64 height = 3;
   // the zk state transition verifier key of the sp1 prover client
-  bytes state_transition_verifier_key = 2;
-  // the zk state membership verifier key of the sp1 prover client
-  bytes state_membership_verifier_key = 3;
+  bytes state_transition_verifier_key = 4;
+  // [TBD: https://github.com/celestiaorg/celestia-zkevm-hl-testnet/issues/28] the zk state membership verifier key of
+  // the sp1 prover client
+  bytes state_membership_verifier_key = 5;
 }
 
 // MsgCreateZKExecutionISMResponse is the response type for CreateZKExecutionISM.
