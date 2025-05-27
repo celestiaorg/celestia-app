@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package celestia.zkism.v1;
+
+import "celestia/zkism/v1/types.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/zkism/types";
+
+// GenesisState defines the zkism module's genesis state.
+message GenesisState {
+  // list of zk execution isms.
+  repeated ZKExecutionISM isms = 1 [(gogoproto.nullable) = false];
+}
