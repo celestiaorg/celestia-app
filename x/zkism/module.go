@@ -83,12 +83,12 @@ func (AppModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	return cdc.MustMarshalJSON(&types.GenesisState{})
 }
 
-// ValidateGenesis performs genesis state validation for the core module.
+// ValidateGenesis performs genesis state validation for the zkism module.
 func (AppModule) ValidateGenesis(_ codec.JSONCodec, _ client.TxEncodingConfig, _ json.RawMessage) error {
 	return nil
 }
 
-// InitGenesis performs genesis initialization for the core module.
+// InitGenesis performs genesis initialization for the zkism module.
 func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, data json.RawMessage) {
 	var genesisState types.GenesisState
 	cdc.MustUnmarshalJSON(data, &genesisState)

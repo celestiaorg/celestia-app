@@ -15,20 +15,20 @@ const (
 var _ ismtypes.HyperlaneInterchainSecurityModule = (*ZKExecutionISM)(nil)
 
 // GetId implements types.HyperlaneInterchainSecurityModule.
-func (z *ZKExecutionISM) GetId() (util.HexAddress, error) {
-	if z.Id.IsZeroAddress() {
+func (ism *ZKExecutionISM) GetId() (util.HexAddress, error) {
+	if ism.Id.IsZeroAddress() {
 		return util.HexAddress{}, errors.New("address is empty")
 	}
 
-	return z.Id, nil
+	return ism.Id, nil
 }
 
 // ModuleType implements types.HyperlaneInterchainSecurityModule.
-func (z *ZKExecutionISM) ModuleType() uint8 {
+func (ism *ZKExecutionISM) ModuleType() uint8 {
 	return InterchainSecurityModuleTypeZKExecution
 }
 
 // Verify implements types.HyperlaneInterchainSecurityModule.
-func (z *ZKExecutionISM) Verify(ctx context.Context, metadata []byte, message util.HyperlaneMessage) (bool, error) {
+func (ism *ZKExecutionISM) Verify(ctx context.Context, metadata []byte, message util.HyperlaneMessage) (bool, error) {
 	return true, nil
 }
