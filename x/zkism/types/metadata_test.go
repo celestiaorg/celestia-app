@@ -171,3 +171,18 @@ func TestNewZkExecutionISMMetadataNoExecutionProof(t *testing.T) {
 		})
 	}
 }
+
+func TestHasExecutionProof(t *testing.T) {
+	metadata := types.ZkExecutionISMMetadata{
+		ProofType: types.ProofTypeGroth16,
+		Proof:     []byte{0xAA, 0xBB, 0xCC},
+	}
+
+	has := metadata.HasExecutionProof()
+	require.True(t, has)
+
+	metadata.Proof = nil
+
+	has = metadata.HasExecutionProof()
+	require.False(t, has)
+}
