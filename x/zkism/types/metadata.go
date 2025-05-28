@@ -92,3 +92,8 @@ func NewZkExecutionISMMetadata(metadata []byte) (ZkExecutionISMMetadata, error) 
 		MerkleProofs: merkleProofs,
 	}, nil
 }
+
+// HasExecutionProof returns true if ZkExecutionISMMetadata contains an execution proof, otherwise false.
+func (meta ZkExecutionISMMetadata) HasExecutionProof() bool {
+	return len(meta.Proof) > 0
+}
