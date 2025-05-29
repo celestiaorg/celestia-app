@@ -41,8 +41,6 @@ COPY . .
 
 RUN uname -a &&\
     CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    OVERRIDE_MAX_SQUARE_SIZE=${MAX_SQUARE_SIZE} \
-    OVERRIDE_UPGRADE_HEIGHT_DELAY=${UPGRADE_HEIGHT_DELAY} \
     make build-standalone
 
 # Stage 2: Create a minimal image to run the celestia-appd binary

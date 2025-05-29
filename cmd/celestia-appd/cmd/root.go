@@ -42,7 +42,8 @@ const (
 func NewRootCmd() *cobra.Command {
 	// we "pre"-instantiate the application for getting the injected/configured encoding configuration
 	// note, this is not necessary when using app wiring, as depinject can be directly used.
-	tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, simtestutil.EmptyAppOptions{})
+	opts := simtestutil.NewAppOptionsWithFlagHome(app.DefaultNodeHome)
+	tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, opts)
 	encodingConfig := tempApp.GetEncodingConfig()
 
 	initClientContext := client.Context{}.

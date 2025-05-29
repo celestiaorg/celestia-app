@@ -47,6 +47,9 @@ node            |  |                               |  |
 
 If you'd rather not install from source, you can download a prebuilt binary from the [releases](https://github.com/celestiaorg/celestia-app/releases) page.
 
+> [!WARNING]
+> The v4.x.x prebuilt binaries do not support the multiplexer so they can't be used to upgrade from v3 to v4. They can only be used in standalone mode once a chain has been upgraded to v4. To upgrade from v3 to v4, you must install from source.
+
 1. Navigate to the latest release on <https://github.com/celestiaorg/celestia-app/releases>.
 1. Download the binary for your platform (e.g. `celestia-app_Linux_x86_64.tar.gz`) from the **Assets** section. Tip: if you're not sure what platform you're on, you can run `uname -a` and look for the operating system (e.g. `Linux`, `Darwin`) and architecture (e.g. `x86_64`, `arm64`).
 1. Extract the archive
@@ -149,7 +152,7 @@ This repo contains multiple go modules. When using it, rename `go.work.example` 
 
 ### Tools
 
-1. Install [golangci-lint](https://golangci-lint.run/welcome/install) 2.0.1
+1. Install [golangci-lint](https://golangci-lint.run/welcome/install) 2.1.2
 1. Install [markdownlint](https://github.com/DavidAnson/markdownlint) 0.39.0
 1. Install [hadolint](https://github.com/hadolint/hadolint)
 1. Install [yamllint](https://yamllint.readthedocs.io/en/stable/quickstart.html)
