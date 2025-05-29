@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -15,6 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/celestiaorg/celestia-app/v3/test/txsim"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/spf13/cobra"
@@ -42,6 +44,9 @@ var (
 	useFeegrant, suppressLogs                         bool
 	upgradeSchedule                                   string
 	blobShareVersion                                  int
+	gasLimit                                          uint64
+	gasPrice                                          float64
+	namespacesFlag                                    string
 )
 
 func main() {
@@ -118,6 +123,22 @@ account that can act as the master account. The command runs until all sequences
 				sequences = append(sequences, txsim.NewSendSequence(2, sendAmount, sendIterations).Clone(send)...)
 			}
 
+			var namespaces []share.Namespace
+			if namespacesFlag != "" {
+				nsStrs := strings.Split(namespacesFlag, ",")
+				for _, nsHex := range nsStrs {
+					nsBytes, err := hex.DecodeString(nsHex)
+					if err != nil {
+						return fmt.Errorf("invalid namespace hex: %s: %w", nsHex, err)
+					}
+					if len(nsBytes) != share.NamespaceVersionZeroIDSize {
+						return fmt.Errorf("namespace %s must be %d bytes", nsHex, share.NamespaceVersionZeroIDSize)
+					}
+					ns := share.MustNewV0Namespace(nsBytes)
+					namespaces = append(namespaces, ns)
+				}
+			}
+
 			if blob > 0 {
 				sizes, err := readRange(blobSizes)
 				if err != nil {
@@ -133,7 +154,9 @@ account that can act as the master account. The command runs until all sequences
 				if blobShareVersion >= 0 {
 					sequence.WithShareVersion(uint8(blobShareVersion))
 				}
-
+				if len(namespaces) > 0 {
+					sequence.WithNamespaces(namespaces)
+				}
 				sequences = append(sequences, sequence.Clone(blob)...)
 			}
 
@@ -217,6 +240,9 @@ func flags() *flag.FlagSet {
 	flags.BoolVar(&useFeegrant, "feegrant", false, "use the feegrant module to pay for fees")
 	flags.BoolVar(&suppressLogs, "suppressLogs", false, "disable logging")
 	flags.IntVar(&blobShareVersion, "blob-share-version", -1, "optionally specify a share version to use for the blob sequences")
+	flags.Uint64Var(&gasLimit, "gas-limit", 0, "custom gas limit to use for transactions (0 = auto-estimate)")
+	flags.Float64Var(&gasPrice, "gas-price", 0, "custom gas price to use for transactions (0 = use default)")
+	flags.StringVar(&namespacesFlag, "namespaces", "", "comma-separated list of hex-encoded namespaces to use for blobs (overrides random)")
 	return flags
 }
 
