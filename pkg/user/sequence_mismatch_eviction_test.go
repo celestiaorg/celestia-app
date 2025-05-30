@@ -22,7 +22,7 @@ func TestSequenceMismatchEviction(t *testing.T) {
 
 	_, txClient, ctx := setupTxClient(t, 1*time.Nanosecond)
 
-	t.Run("verify eviction handling prevents sequence mismatch", func(t *testing.T) {
+	t.Run("verify eviction handling does not result in a sequence mismatch", func(t *testing.T) {
 		testAccount := txClient.DefaultAccountName()
 
 		blobSize := 100000
