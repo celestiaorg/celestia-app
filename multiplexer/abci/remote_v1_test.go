@@ -34,7 +34,7 @@ func TestTimeoutInfoV1ToV2(t *testing.T) {
 func TestInfo(t *testing.T) {
 	// This test verifies the regression in
 	// https://github.com/celestiaorg/celestia-app/issues/4859
-	t.Run("should convert TimeoutInfo from the abciv1 client to an abciv2 response", func(t *testing.T) {
+	t.Run("should convert TimeoutInfo in the abciv1 response to an abciv2 response", func(t *testing.T) {
 		mockClient := &mockABCIApplicationClient{
 			infoResp: &abciv1.ResponseInfo{
 				Timeouts: abciv1.TimeoutsInfo{
