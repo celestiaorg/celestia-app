@@ -580,7 +580,7 @@ func (client *TxClient) handleEvictions(txHash string) error {
 
 // isTransactionCommitted checks if a transaction has been committed to the blockchain
 // by querying the node directly. This helps distinguish between true evictions and
-// false positives where a tx was removed from mempool because it was included in a block.
+// false positives where a tx was removed from mempool but was included in a block by another node's mempool.
 func (client *TxClient) isTransactionCommitted(txHash string) (bool, error) {
 	serviceClient := sdktx.NewServiceClient(client.conns[0])
 
