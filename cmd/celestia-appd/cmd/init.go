@@ -68,6 +68,15 @@ func initCmd(basicManager module.BasicManager, defaultNodeHome string) *cobra.Co
 				chainID = fmt.Sprintf("test-chain-%v", unsafe.Str(6))
 			}
 
+			// Check against known public networks
+			for _, publicID := range appconsts.PublicNetworks {
+				if chainID == publicID {
+					return fmt.Errorf(`Chain ID "%s" is a known public network.
+			Do not use "celestia-appd init" to generate a genesis file for this network.
+			Please download the official genesis file from the Celestia documentation or the network's repository.`, chainID)
+				}
+			}
+
 			// Get bip39 mnemonic
 			var mnemonic string
 			recover, _ := cmd.Flags().GetBool(FlagRecover)
