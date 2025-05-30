@@ -593,22 +593,17 @@ func (client *TxClient) isTransactionCommitted(txHash string) (bool, error) {
 		_, err := serviceClient.GetTx(ctx, &sdktx.GetTxRequest{Hash: txHash})
 		cancel()
 
-		if err == nil {
-			return true, nil
-		}
-
-		// if transaction not found, check if it's a "not found" error
-		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "tx does not exist") {
-			if i < maxRetries-1 {
+		if err != nil {
+			if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "tx does not exist") {
 				time.Sleep(retryDelay)
 				continue
 			}
-			return false, nil
+			// The tx wasn't found and it isn't a "not found" error.
+			return false, err
 		}
-
-		return false, err
+		// The tx was found, so it was committed
+		return true, nil
 	}
-
 	return false, nil
 }
 
