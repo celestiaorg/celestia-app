@@ -247,8 +247,7 @@ func (a *RemoteABCIClientV1) InitChain(req *abciv2.RequestInitChain) (*abciv2.Re
 		ConsensusParams: consensusParamsV1ToV2(resp.ConsensusParams),
 		Validators:      validatorUpdatesV1ToV2(resp.Validators),
 		AppHash:         resp.AppHash,
-		// TODO: figure out why abciv2.RequestInitChain doesn't have a TimeoutInfo field.
-		// TimeoutInfo: timeoutInfoV1ToV2(req.timeoutInfo),
+		TimeoutInfo:     timeoutInfoV1ToV2(resp.Timeouts),
 	}, nil
 }
 
