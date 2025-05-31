@@ -58,7 +58,35 @@ func NewSigner(keys keyring.Keyring, encCfg client.TxConfig, chainID string, acc
 		}
 	}
 
+	// pre-populate the address to account map.
+	// if the accounts do not yet exist, they will be lazily loaded during
+	// checkAccountLoaded.
+	if err := s.populateAddressToAccountMap(keys); err != nil {
+		return nil, fmt.Errorf("populating address to account map: %w", err)
+	}
+
 	return s, nil
+}
+
+// populateAddressToAccountMap retrieves keys from the keyring and maps their addresses to account names in the signer.
+func (s *Signer) populateAddressToAccountMap(kr keyring.Keyring) error {
+	records, err := kr.List()
+	if err != nil {
+		return fmt.Errorf("retrieving keys from keyring: %w", err)
+	}
+
+	for _, r := range records {
+		addr, err := r.GetAddress()
+		if err != nil {
+			return fmt.Errorf("getting address for record: %w", err)
+		}
+		addrStr, err := s.addressCodec.BytesToString(addr)
+		if err != nil {
+			return fmt.Errorf("converting address to string: %w", err)
+		}
+		s.addressToAccountMap[addrStr] = r.Name
+	}
+	return nil
 }
 
 // CreateTx forms a transaction from the provided messages and signs it.
@@ -146,16 +174,22 @@ func (s *Signer) Account(name string) *Account {
 
 // AccountByAddress returns the account associated with the given address
 func (s *Signer) AccountByAddress(address sdktypes.AccAddress) *Account {
+	accountName := s.accountNameByAddress(address)
+	return s.accounts[accountName]
+}
+
+// accountNameByAddress returns the account name associated with the given address
+func (s *Signer) accountNameByAddress(address sdktypes.AccAddress) string {
 	addrStr, err := s.addressCodec.BytesToString(address)
 	if err != nil {
-		return nil
+		return ""
 	}
 
 	accountName, exists := s.addressToAccountMap[addrStr]
-	if !exists {
-		return nil
+	if exists {
+		return accountName
 	}
-	return s.accounts[accountName]
+	return ""
 }
 
 func (s *Signer) Accounts() []*Account {
