@@ -48,47 +48,7 @@ Perform a fresh state sync with celestia-app v4 to ensure all state data uses th
 
 ### Lazy Migration Process
 
-1. **Backup your validator state** (important):
-   ```bash
-   # Backup priv_validator_state.json
-   cp ~/.celestia-app/data/priv_validator_state.json ~/validator_state_backup.json
-   
-   # Backup validator keys
-   cp ~/.celestia-app/config/priv_validator_key.json ~/priv_validator_key_backup.json
-   cp ~/.celestia-app/config/node_key.json ~/node_key_backup.json
-   ```
-
-2. **Stop your current node**:
-   ```bash
-   # Stop the celestia-app service
-   sudo systemctl stop celestia-appd
-   ```
-
-3. **Upgrade to celestia-app v4**:
-   ```bash
-   # If installed from source (with multiplexer support)
-   git checkout v4.x.x  # Replace with actual v4 release tag
-   make install
-   
-   # For standalone binary without multiplexer (if already on v4 network)
-   # make install-standalone
-   
-   # If using prebuilt binaries, download from releases page
-   # wget https://github.com/celestiaorg/celestia-app/releases/download/v4.x.x/celestia-app_Linux_x86_64.tar.gz
-   ```
-
-   > **Note**: celestia-app v4 includes a multiplexer by default that supports syncing from genesis using embedded v3 binaries. The multiplexer will automatically switch to v4 state machine when the network upgrades. If your network has already upgraded to v4, you can use the standalone binary.
-
-4. **Start your node with v4**:
-   ```bash
-   # Start the service
-   sudo systemctl start celestia-appd
-   
-   # Monitor logs for migration progress
-   journalctl -u celestia-appd -f
-   ```
-
-5. **Monitor logs**: Watch logs for completion of lazy migration.
+Simply follow the upgrade instructions and normal safety precautions when restarting.
 
 ### State Sync Migration Process
 
