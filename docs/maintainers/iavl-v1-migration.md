@@ -90,13 +90,18 @@ Perform a fresh state sync with celestia-app v4 to ensure all state data uses th
 
 3. **Upgrade to celestia-app v4**:
    ```bash
-   # If installed from source
+   # If installed from source (with multiplexer support)
    git checkout v4.x.x  # Replace with actual v4 release tag
    make install
+   
+   # For standalone binary without multiplexer (if already on v4 network)
+   # make install-standalone
    
    # If using prebuilt binaries, download from releases page
    # wget https://github.com/celestiaorg/celestia-app/releases/download/v4.x.x/celestia-app_Linux_x86_64.tar.gz
    ```
+
+   > **Note**: celestia-app v4 includes a multiplexer by default that supports syncing from genesis using embedded v3 binaries. The multiplexer will automatically switch to v4 state machine when the network upgrades. If your network has already upgraded to v4, you can use the standalone binary.
 
 4. **Start your node with v4**:
    ```bash
@@ -171,6 +176,30 @@ Perform a fresh state sync with celestia-app v4 to ensure all state data uses th
    
    # Should return false when sync is complete
    ```
+
+## Configuration Options
+
+celestia-app v4 provides several IAVL-related configuration options in `app.toml` that can help optimize performance:
+
+```toml
+# IavlCacheSize set the size of the iavl tree cache. 
+# Default cache size is 50mb.
+iavl-cache-size = 781250
+
+# IavlDisableFastNode enables or disables the fast node feature of IAVL. 
+# Default is false.
+iavl-disable-fastnode = false
+
+# EXPERIMENTAL: IAVLLazyLoading enable/disable the lazy loading of iavl store.
+# Default is false.
+iavl-lazy-loading = false
+```
+
+### Configuration Recommendations
+
+- **iavl-cache-size**: Increase this value if you have sufficient RAM. A larger cache can improve performance for frequently accessed state.
+- **iavl-disable-fastnode**: Keep this as `false` (default) to benefit from IAVL v1's fast node features.
+- **iavl-lazy-loading**: This is experimental. Test carefully before enabling in production.
 
 ## Performance Monitoring
 
