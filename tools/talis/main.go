@@ -25,6 +25,10 @@ func main() {
 		downCmd(),
 		deployCmd(),
 		addCmd(),
+		startTxsimCmd(),
+		collectTracesCmd(),
+		killTmuxSessionCmd(),
+		downloadDataCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {

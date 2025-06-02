@@ -34,11 +34,8 @@ func runScriptInTMux(
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
 
-			// Ensure the script is executable (optional)
-			chmodCmd := fmt.Sprintf("chmod +x %s", remoteScript)
 			// Launch in tmux
 			tmuxCmd := fmt.Sprintf("tmux new-session -d -s %s '%s'", sessionName, remoteScript)
-			fullCmd := strings.Join([]string{chmodCmd, tmuxCmd}, " && ")
 
 			ssh := exec.CommandContext(ctx,
 				"ssh",
@@ -46,7 +43,7 @@ func runScriptInTMux(
 				"-o", "StrictHostKeyChecking=no",
 				"-o", "UserKnownHostsFile=/dev/null",
 				fmt.Sprintf("root@%s", inst.PublicIP),
-				fullCmd,
+				tmuxCmd,
 			)
 			if out, err := ssh.CombinedOutput(); err != nil {
 				errCh <- fmt.Errorf("[%s:%s] ssh error in %s: %v\n%s",

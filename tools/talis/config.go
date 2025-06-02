@@ -133,6 +133,12 @@ func NewConfig(experiment, chainID string) Config {
 		Lights:     []Instance{},
 		Experiment: experiment,
 		ChainID:    TalisChainID(chainID),
+		S3Config: S3Config{
+			AccessKeyID:     os.Getenv(EnvVarAWSAccessKeyID),
+			SecretAccessKey: os.Getenv(EnvVarAWSSecretAccessKey),
+			BucketName:      os.Getenv(EnvVarS3Bucket),
+			Region:          os.Getenv(EnvVarAWSRegion),
+		},
 	}
 }
 

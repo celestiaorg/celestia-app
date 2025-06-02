@@ -59,7 +59,6 @@ func generateCmd() *cobra.Command {
 				if err := copyFile(srcAppConfig, filepath.Join(valDir, "app.toml"), 0755); err != nil {
 					return fmt.Errorf("failed to copy app.toml: %w", err)
 				}
-
 			}
 
 			if err := copyDir(filepath.Join(rootDir, "scripts"), filepath.Join(rootDir, "payload")); err != nil {
@@ -71,11 +70,15 @@ func generateCmd() *cobra.Command {
 			}
 
 			if err := copyFile(nodeBinaryPath, filepath.Join(payloadDir, "build", "celestia"), 0755); err != nil {
-				return fmt.Errorf("failed to copy node binary: %w", err)
+				log.Println("failed to copy celestia binary, bridge and light nodes will not be able to start")
 			}
 
 			if err := copyFile(txsimBinaryPath, filepath.Join(payloadDir, "build", "txsim"), 0755); err != nil {
 				return fmt.Errorf("failed to copy txsim binary: %w", err)
+			}
+
+			if err := writeAWSEnv(filepath.Join(payloadDir, "vars.sh"), cfg); err != nil {
+				return fmt.Errorf("failed to write aws env: %w", err)
 			}
 
 			return cfg.Save(rootDir)
@@ -134,5 +137,31 @@ func createPayload(ips []Instance, chainID, ppath string, squareSize int, mods .
 	}
 
 	return nil
+}
 
+func writeAWSEnv(varsPath string, cfg Config) error {
+	f, err := os.OpenFile(varsPath,
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
+		0o755,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to open vars.sh for append: %w", err)
+	}
+	defer f.Close()
+
+	exports := []string{
+		fmt.Sprintf("export AWS_DEFAULT_REGION=%q\n", cfg.S3Config.Region),
+		fmt.Sprintf("export AWS_ACCESS_KEY_ID=%q\n", cfg.S3Config.AccessKeyID),
+		fmt.Sprintf("export AWS_SECRET_ACCESS_KEY=%q\n", cfg.S3Config.SecretAccessKey),
+		fmt.Sprintf("export S3_BUCKET_NAME=%q\n", cfg.S3Config.BucketName),
+		fmt.Sprintf("export CHAIN_ID=%q\n", cfg.ChainID),
+	}
+
+	for _, line := range exports {
+		if _, err := f.WriteString(line); err != nil {
+			return fmt.Errorf("failed to append to vars.sh: %w", err)
+		}
+	}
+
+	return nil
 }

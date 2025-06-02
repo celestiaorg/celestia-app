@@ -17,15 +17,21 @@ import (
 )
 
 const (
-	EnvVarSSHKeyName        = "TALIS_SSH_KEY_NAME"
-	EnvVarPubSSHKeyPath     = "TALIS_SSH_PUB_KEY_PATH"
-	EnvVarSSHKeyPath        = "TALIS_SSH_KEY_PATH"
-	EnvVarDigitalOceanToken = "DIGITALOCEAN_TOKEN"
+	EnvVarSSHKeyName         = "TALIS_SSH_KEY_NAME"
+	EnvVarPubSSHKeyPath      = "TALIS_SSH_PUB_KEY_PATH"
+	EnvVarSSHKeyPath         = "TALIS_SSH_KEY_PATH"
+	EnvVarDigitalOceanToken  = "DIGITALOCEAN_TOKEN"
+	EnvVarAWSAccessKeyID     = "AWS_ACCESS_KEY_ID"
+	EnvVarAWSSecretAccessKey = "AWS_SECRET_ACCESS_KEY"
+	EnvVarAWSRegion          = "AWS_DEFAULT_REGION"
+	EnvVarS3Bucket           = "AWS_S3_BUCKET"
+	EnvVarChainID            = "CHAIN_ID"
 )
 
 func initCmd() *cobra.Command {
 	var (
 		rootDir       string
+		srcRoot       string
 		chainID       string
 		experiment    string
 		SSHPubKeyPath string
@@ -42,7 +48,7 @@ func initCmd() *cobra.Command {
 				return fmt.Errorf("failed to initialize directories: %w", err)
 			}
 
-			if err := CopyTalisScripts(rootDir); err != nil {
+			if err := CopyTalisScripts(rootDir, srcRoot); err != nil {
 				return fmt.Errorf("failed to copy scripts: %w", err)
 			}
 
@@ -62,23 +68,29 @@ func initCmd() *cobra.Command {
 
 			// the sdk requires a global template be set just to save a toml file without panicking
 			serverconfig.SetConfigTemplate(serverconfig.DefaultConfigTemplate)
-			serverconfig.WriteConfigFile(filepath.Join(rootDir, "app.toml"), app.DefaultAppConfig())
+
+			appconfig := app.DefaultAppConfig()
+			appconfig.GRPC.Enable = true
+			appconfig.GRPC.Address = "0.0.0.0:9091"
+			serverconfig.WriteConfigFile(filepath.Join(rootDir, "app.toml"), appconfig)
 
 			return nil
 		},
 	}
 
-	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory in which to initialize")
-	cmd.Flags().StringVarP(&chainID, "chainID", "c", "", "Chain ID (required)")
-	cmd.MarkFlagRequired("chainID")
-	cmd.Flags().StringVarP(&experiment, "experiment", "e", "test", "the name of the experiment (required)")
-	cmd.MarkFlagRequired("experiment")
-	cmd.Flags().StringArrayVarP(&tables, "tables", "t", []string{"consensus_round_state", "consensus_block"}, "the traces that will be collected")
-
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatalf("failed to get user home directory: %v", err)
 	}
+
+	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory in which to initialize")
+	cmd.Flags().StringVarP(&srcRoot, "src-root", "r", homeDir, "directory from which to copy scripts") // todo: fix the default director here
+	cmd.Flags().StringVarP(&chainID, "chainID", "c", "", "Chain ID (required)")
+	cmd.MarkFlagRequired("chainID")
+	cmd.Flags().StringVarP(&experiment, "experiment", "e", "test", "the name of the experiment (required)")
+	cmd.MarkFlagRequired("experiment")
+	cmd.Flags().StringArrayVarP(&tables, "tables", "t", []string{"consensus_round_state", "consensus_block", "mempool_tx"}, "the traces that will be collected")
+
 	defaultKeyPath := filepath.Join(homeDir, ".ssh", "id_ed25519.pub")
 	cmd.Flags().StringVarP(&SSHPubKeyPath, "ssh-pub-key-path", "s", defaultKeyPath, "path to the user's SSH public key")
 
@@ -117,23 +129,12 @@ func initDirs(rootDir string) error {
 // CopyTalisScripts ensures that the celestia-app tools/talis/scripts directory
 // is copied into destDir. It first checks GOPATH/src/github.com/.../scripts,
 // and if missing, does a shallow git clone, copies the folder (including subdirectories), then cleans up.
-func CopyTalisScripts(destDir string) error {
-	const importPath = "github.com/celestiaorg/celestia-app/tools/talis/scripts"
+func CopyTalisScripts(destDir string, srcRoot string) error {
+	// todo: fix import path
+	const importPath = "celestiaorg/celestia-app/tools/talis/scripts"
 
-	// 1) figure out GOPATH
-	gopath := os.Getenv("GOPATH")
-	if gopath == "" {
-		out, err := exec.Command("go", "env", "GOPATH").Output()
-		if err != nil {
-			return fmt.Errorf("could not determine GOPATH: %w", err)
-		}
-		gopath = strings.TrimSpace(string(out))
-	}
+	src := filepath.Join(srcRoot, "src", importPath)
 
-	// 2) local path where scripts should live
-	src := filepath.Join(gopath, "src", importPath)
-
-	// 3) if not present, clone repo to temp
 	if fi, err := os.Stat(src); err != nil || !fi.IsDir() {
 		tmp, err := os.MkdirTemp("", "celestia-scripts-*")
 		if err != nil {

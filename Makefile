@@ -296,6 +296,32 @@ txsim-build-docker:
 	docker build -t ghcr.io/celestiaorg/txsim -f docker/txsim/Dockerfile  .
 .PHONY: txsim-build-docker
 
+VERSION := $(shell git describe --tags --dirty --always)
+COMMIT  := $(shell git rev-parse HEAD)
+
+# build the -ldflags string here
+LLDFLAGS := \
+  -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
+  -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd \
+  -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
+  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
+  -X github.com/celestiaorg/celestia-app/v4/cmd/celestia-appd/cmd.v2UpgradeHeight=0
+
+build-talis:
+	DOCKER_BUILDKIT=0 docker build \
+	  --file tools/talis/docker/Dockerfile \
+	  --target builder \
+	  --build-arg LDFLAGS="$(LLDFLAGS)" \
+	  --tag talis-builder:latest \
+	  .
+	mkdir -p build
+	docker create --name tmp talis-builder:latest
+	docker cp tmp:/out/. build/
+	docker rm tmp
+
+.PHONY: build-talis
+
+
 ## adr-gen: Download the ADR template from the celestiaorg/.github repo.
 adr-gen:
 	@echo "--> Downloading ADR template"
