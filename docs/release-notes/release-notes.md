@@ -53,7 +53,7 @@ Celestia-app v4.0.0 includes significant updates to the underlying state machine
 - **Consensus parameters**: Migrated from CometBFT core to dedicated `x/consensus` module  
 - **Governance**: Expedited minimum deposit increased to 50,000 TIA; enhanced validation through circuit breaker integration
 
-**IBC Protocol Enhancements (v6 → v8)**:
+**IBC Protocol Update (v6 → v8)**:
 - Enhanced packet validation, routing, and acknowledgment handling
 - Improved light client verification and state management  
 - Strengthened connection establishment and authentication protocols
