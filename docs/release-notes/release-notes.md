@@ -58,7 +58,7 @@ Celestia-app v4.0.0 includes significant state machine changes due to major depe
 - **Consensus parameters** moved from CometBFT to dedicated `x/consensus` module
 - **All modules** now use module-specific parameter update messages instead of legacy `x/params` proposals
 
-**IBC v6 → v8 Protocol Changes** ([ibc-go docs](https://ibc.cosmos.network/main/migrations/v6-to-v7)):
+**IBC v6 → v8 Protocol Changes** ([v6→v7](https://ibc.cosmos.network/main/migrations/v6-to-v7), [v7→v8](https://ibc.cosmos.network/main/migrations/v7-to-v8)):
 - Enhanced packet acknowledgment handling and routing
 - Updated client state management and verification
 - Modified connection handshake procedures
