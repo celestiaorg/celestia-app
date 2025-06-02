@@ -36,7 +36,9 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/go/bin
-          key: ${{ runner.os }}-${{ github.sha }}-tm-binary
+          key: ${{ runner.os }}-go-binary-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-binary-
 
       - name: Download Go dependencies
         run: go mod download
