@@ -278,7 +278,7 @@ func New(
 	for _, h := range cast.ToIntSlice(appOpts.Get(server.FlagUnsafeSkipUpgrades)) {
 		skipUpgradeHeights[int64(h)] = true
 	}
-	app.UpgradeKeeper = upgradekeeper.NewKeeper(skipUpgradeHeights, runtime.NewKVStoreService(keys[upgradetypes.StoreKey]), encodingConfig.Codec, DefaultNodeHome, app.BaseApp, govModuleAddr)
+	app.UpgradeKeeper = upgradekeeper.NewKeeper(skipUpgradeHeights, runtime.NewKVStoreService(keys[upgradetypes.StoreKey]), encodingConfig.Codec, NodeHome, app.BaseApp, govModuleAddr)
 
 	// Register the staking hooks. NOTE: stakingKeeper is passed by reference
 	// above so that it will contain these hooks.
