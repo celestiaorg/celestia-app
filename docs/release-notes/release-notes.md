@@ -24,155 +24,58 @@ grpc_laddr = "tcp://127.0.0.1:9098"
 
 ### State Machine Changes (v4.0.0)
 
-Celestia-app v4.0.0 includes significant updates to the underlying state machine due to major dependency upgrades. These upgrades introduce updates to messages, data structures, field types, and the logic behind some calculations.
+Celestia-app v4.0.0 includes significant updates to the underlying state machine due to major dependency upgrades: **Cosmos SDK** (v0.46.x → v0.50.x), **IBC** (v6 → v8), and **CometBFT** (v0.34 → v0.38).
 
-#### Dependency Upgrades
+#### Module Changes
 
-- **Cosmos SDK**: v0.46.x → v0.50.x
-- **IBC**: v6 → v8
-
-#### New Modules
-
-The following modules were added in v4.0.0:
-
+**New Modules**:
 - **`x/circuit`**: Circuit breaker module for emergency halting of message processing
+  - `MsgAuthorizeCircuitBreaker`, `MsgTripCircuitBreaker`, `MsgResetCircuitBreaker`
+  - Automatic blocking of upgrade-related messages during emergencies
 - **`x/consensus`**: Consensus parameters module (migrated from CometBFT core)
-- **`hyperlane/core`**: Hyperlane interoperability protocol core module
+  - `MsgUpdateParams`: Update consensus parameters via governance
+  - `QueryParamsRequest`/`QueryParamsResponse`: Query consensus parameters
+- **`hyperlane/core`**: Hyperlane interoperability protocol core
+  - Interchain Security Module (ISM) configuration messages
+  - Mailbox and validator set management, cross-chain communication
 - **`hyperlane/warp`**: Hyperlane token bridge module
+  - Token bridging and routing messages for cross-chain transfers
 
-#### Removed Modules
-
-The following modules were removed in v4.0.0:
-
-- **`x/capability`**: Removed from Cosmos SDK v0.50.x
-- **`x/crisis`**: Removed from Cosmos SDK v0.50.x  
+**Removed Modules**:
+- **`x/capability`**: Removed from Cosmos SDK v0.50.x, replaced with enhanced authentication in IBC v8
+- **`x/crisis`**: Removed from Cosmos SDK v0.50.x, functionality replaced by circuit breaker
 - **`x/paramfilter`**: Celestia-specific module removed in favor of circuit breaker
 
-#### New Messages and Data Structures
+#### Key Changes and Updates
 
-**Circuit Breaker Module (`cosmossdk.io/x/circuit`)**:
-- `MsgAuthorizeCircuitBreaker`: Authorize an account as a circuit breaker
-- `MsgTripCircuitBreaker`: Trip (disable) a circuit breaker for specific message types  
-- `MsgResetCircuitBreaker`: Reset (re-enable) a circuit breaker
-- Circuit breaker state tracking and emergency halt capabilities
-
-**Consensus Module (`x/consensus`)**:
-- `MsgUpdateParams`: Update consensus parameters (block size, gas limits, timeouts) via governance
-- `QueryParamsRequest`/`QueryParamsResponse`: Query current consensus parameters
-- Replaces legacy parameter management from CometBFT core
-
-**Hyperlane Core Module (`hyperlane/core`)**:
-- Interchain Security Module (ISM) configuration messages
-- Mailbox and validator set management messages  
-- Message dispatch and delivery tracking
-- Cross-chain communication protocol messages
-
-**Hyperlane Warp Module (`hyperlane/warp`)**:
-- Token bridging and routing messages for cross-chain transfers
-- Wrapped token management and transfer protocols
-- Cross-chain asset movement capabilities
-
-#### Deprecated Properties
-
-The following parameters and fields have been deprecated or removed:
-
-**Legacy Parameter Management**:
-- **`x/params` module**: Parameter management moved to individual modules with dedicated `MsgUpdateParams` messages
-- **BaseApp parameters**: Moved from params module to `x/consensus` module
-- **Module-specific parameters**: Each module now manages its own parameters independently
-
-**Removed Crisis Module Features**:
-- **Crisis invariants**: No longer supported, replaced by circuit breaker mechanisms
-- **Emergency halt via crisis**: Now handled by circuit breaker module
-
-**IBC Capability System**:
-- **`x/capability` module**: Removed in favor of direct object-capability security model
-- **Capability-based IBC authentication**: Replaced with enhanced authentication in IBC v8
-
-**Paramfilter Module**:
-- **`x/paramfilter`**: Entire module removed, parameter filtering now handled through governance and circuit breaker mechanisms
-
-#### Updated Logic and Calculations
-
-**Governance Parameter Updates**:
-- Expedited minimum deposit increased to 50,000 TIA (from previous defaults)
-- Module-specific governance: Each module now handles its own parameter updates via dedicated `MsgUpdateParams` messages
-- Enhanced governance validation through circuit breaker integration
-
-**Circuit Breaker Integration**:
-- Automatic blocking of upgrade-related messages: `MsgSoftwareUpgrade`, `MsgCancelUpgrade`, `MsgIBCSoftwareUpgrade`
-- Emergency halt capabilities for specific message types during security incidents
-- Granular control over message processing during emergencies
-
-**Consensus Parameter Migration and Management**:
-- Consensus parameters migrated from legacy CometBFT core to dedicated `x/consensus` module
-- Enhanced validation and governance control over block size, gas limits, and timeouts
-- Version management now handled at application level with improved upgrade coordination
+**Parameter Management Migration**:
+- **`x/params` module**: Deprecated in favor of module-specific `MsgUpdateParams` messages
+- **Consensus parameters**: Migrated from CometBFT core to dedicated `x/consensus` module  
+- **Governance**: Expedited minimum deposit increased to 50,000 TIA; enhanced validation through circuit breaker integration
 
 **IBC Protocol Enhancements (v6 → v8)**:
-- **Packet Processing**: Improved packet validation, routing, and acknowledgment handling
-- **Client Management**: Enhanced light client verification and state management
-- **Connection Security**: Strengthened connection establishment and authentication protocols
-- **Channel Management**: Improved channel lifecycle management and error handling
-
-**Cosmos SDK Module Updates (v0.46.x → v0.50.x)**:
-- **Authentication**: Enhanced signature verification and account management
-- **Bank Module**: Improved multi-token support and transfer validation
-- **Staking**: Updated validator selection and slashing mechanisms
-- **Distribution**: Modified reward calculation and distribution logic
-- **Gov Module**: Enhanced proposal validation and voting mechanisms
-
-#### Gas and Fee Changes
-
-**New Gas Calculations**:
-- Circuit breaker operations: Gas costs for authorizing, tripping, and resetting circuit breakers
-- Consensus parameter updates: Gas costs for governance-based consensus parameter modifications
-- Hyperlane operations: Gas calculations for cross-chain messaging and token bridging
-
-**Updated Fee Structures**:
-- Module-specific parameter updates: Each module's `MsgUpdateParams` has dedicated gas costs
-- Enhanced IBC fee handling: Updated fee calculations for IBC v8 packet processing and acknowledgments
-- Cross-chain operations: New fee structures for Hyperlane-based interoperability features
-
-**Gas Optimization**:
-- Improved gas estimation for complex transactions involving multiple modules
-- Optimized consensus parameter validation to reduce gas overhead
-- Enhanced efficiency in IBC packet processing and state verification
+- Enhanced packet validation, routing, and acknowledgment handling
+- Improved light client verification and state management  
+- Strengthened connection establishment and authentication protocols
 
 ### Library Consumers (v4.0.0)
 
-If you are a library consumer, several Go APIs have changed due to the major dependency upgrades from v3 to v4:
+Library consumers will need to update imports and APIs due to major dependency upgrades:
 
-#### Module Import Changes
+**New Module Imports**:
+- `cosmossdk.io/x/circuit` (circuit breaker)
+- `cosmossdk.io/x/consensus` (consensus parameter management)
+- `github.com/bcp-innovations/hyperlane-cosmos/x/core` and `x/warp` (Hyperlane)
 
-- **Circuit Breaker**: New import `cosmossdk.io/x/circuit` for emergency halt capabilities
-- **Consensus**: New import `cosmossdk.io/x/consensus` for consensus parameter management
-- **Hyperlane**: New imports for cross-chain functionality:
-  - `github.com/bcp-innovations/hyperlane-cosmos/x/core`
-  - `github.com/bcp-innovations/hyperlane-cosmos/x/warp`
+**Removed Module Imports**:
+- `x/capability`, `x/crisis` (removed from Cosmos SDK v0.50.x)
+- `x/paramfilter` (Celestia-specific module removed)
 
-#### Removed Module Imports
-
-- **`x/capability`**: No longer available, removed from Cosmos SDK v0.50.x
-- **`x/crisis`**: No longer available, functionality replaced by circuit breaker
-- **`x/paramfilter`**: Celestia-specific module removed in v4
-
-#### API Changes
-
-**Parameter Management**:
+**API Changes**:
 - Parameter updates now use module-specific `MsgUpdateParams` instead of generic param proposals
-- `x/params` module deprecated in favor of individual module parameter management
-- Consensus parameters moved from CometBFT to `x/consensus` module
-
-**IBC Updates (v6 → v8)**:
-- Updated import paths for IBC modules: `github.com/cosmos/ibc-go/v8`
-- Modified packet and acknowledgment handling interfaces
-- Enhanced client and connection management APIs
-
-**Cosmos SDK Updates (v0.46.x → v0.50.x)**:
-- Updated module interfaces and keeper patterns
-- Modified query and transaction building APIs
-- Enhanced error handling and validation patterns
+- IBC modules updated to `github.com/cosmos/ibc-go/v8` with modified interfaces
+- Cosmos SDK v0.50.x includes updated module interfaces, query APIs, and transaction building patterns
+- TxClient interface updates and user package modifications from dependency upgrades
 
 ## v3.0.0
 
