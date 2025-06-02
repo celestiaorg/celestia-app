@@ -20,12 +20,6 @@ jobs:
       - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 #v5.5.0
         with:
           go-version-file: "go.mod"
-      - name: Setup kubeconfig
-        env:
-          KUBECONFIG_FILE: ${{ secrets.KNUU_DEV_KUBECONFIG_FILE }}
-        run: |
-          mkdir -p $HOME/.kube
-          echo "${KUBECONFIG_FILE}" > $HOME/.kube/config
       - name: Run e2e tests
         run: make test-e2e
 
