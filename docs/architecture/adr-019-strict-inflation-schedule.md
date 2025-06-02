@@ -124,3 +124,25 @@ Cosmos Hub (a.k.a Gaia) sets `BlocksPerYear` to 4,360,000 [here](https://github.
 | 2022 | 4,360,000     | 4,580,463          | 5.05% |
 
 Source: [Numia query](https://console.cloud.google.com/bigquery?sq=611612269782:f0c42f9584c448c78a4ec5f118c2091c)
+
+## References
+
+- [Cosmos SDK `x/mint` module specification](https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/x/mint/spec/README.md)
+
+- [CometBFT block timestamp specification](https://github.com/cometbft/cometbft/blob/c58597d656d5c816334aff9ea8e600bdbc534817/spec/core/data_structures.md#header)
+
+- [Celestia `BlocksPerYear` constant (365.2425 days)](https://github.com/celestiaorg/celestia-app/blob/ddaa261b9b0dec5f5ea10dbfab4c8a03c95d7e72/x/mint/types/constants.go#L13)
+
+- [Celestia disables proposer rewards (`BaseProposerReward=0`, `BonusProposerReward=0`)](https://github.com/celestiaorg/cosmos-sdk/commit/d931c27bdf9a6958618c541458ca2272a79de787)
+
+- [Osmosis `x/epochs` module](https://github.com/osmosis-labs/osmosis/tree/main/x/epochs)
+
+- [Osmosis `x/mint` module](https://github.com/osmosis-labs/osmosis/tree/main/x/mint)
+
+- [Osmosis inflation schedule change (hooks logic)](https://github.com/rootulp/osmosis/blob/94e0042d6cbd91ffab05cc71ab214a55e441f89f/x/mint/keeper/hooks.go#L39-L49)
+
+- [Osmosis rounding error issue – use `DecCoin`](https://github.com/osmosis-labs/osmosis/issues/1917)
+
+- [Cosmos Hub `BlocksPerYear` value (4,360,000)](https://github.com/cosmos/gaia/blob/8a522e98a2863205cf02fb97f8ad27d091670b9d/docs/governance/current-parameters.json#L86)
+
+- [Numia block count data (BigQuery)](https://console.cloud.google.com/bigquery?sq=611612269782:f0c42f9584c448c78a4ec5f118c2091c)
