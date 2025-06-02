@@ -11,21 +11,9 @@ Whenever you generate code or documentation:
 3. Follow instructions exactly. Think critically about security: always double-check for hidden bugs or vulnerabilities.
 4. Produce code that is highly readable yet concise. Do not abstract prematurely; defer abstraction until it's truly needed.
 5. When writing Go, adhere to the latest official Go best practices (idiomatic naming, error handling, package layout, etc.).
+6. Keep suggestions minimal and focused. Avoid excessive detail or overly prescriptive guidance.
 
 ## Go-Specific Guidelines
-
-### Error Handling
-- Always handle errors explicitly using the established patterns in the codebase
-- Use `errors.Wrap` or `errors.Wrapf` from `cosmossdk.io/errors` for error context
-- Prefer specific error types from `sdkerrors` when appropriate
-- Never ignore errors with blank identifiers unless absolutely necessary and well-documented
-
-### Naming Conventions
-- Use clear, descriptive variable and function names
-- Follow Go naming conventions: `camelCase` for private, `PascalCase` for public
-- Prefer `ctx` for context parameters
-- Use `k` for keeper receivers in methods
-- Use descriptive names for test cases and subtests
 
 ### Function Structure
 - Keep functions focused and single-purpose
@@ -56,33 +44,6 @@ Whenever you generate code or documentation:
 - Implement proper protobuf message validation
 - Follow ABCI method implementations (BeginBlock, EndBlock, etc.)
 - Use appropriate store types (KVStore, Iterator patterns)
-
-### Module Development
-- Follow the module interface requirements
-- Implement proper genesis import/export
-- Use established parameter handling patterns
-- Follow proper ante handler patterns for transaction processing
-- Implement proper querier patterns for gRPC queries
-
-## Celestia-Specific Guidelines
-
-### Blob Handling
-- When working with blob data, always validate namespace format and constraints
-- Ensure proper square size calculations and validation
-- Handle share commitment verification correctly
-- Follow established patterns for blob inclusion proofs
-
-### Data Availability
-- Be mindful of data square layout constraints
-- Properly handle namespace merkle tree operations
-- Ensure proper share encoding and padding
-- Follow established patterns for data root computation
-
-### Consensus
-- When modifying consensus-critical code, ensure deterministic behavior
-- Be cautious with floating-point operations in consensus code
-- Validate all inputs in PrepareProposal and ProcessProposal handlers
-- Follow established patterns for transaction ordering and priority
 
 ## Code Organization
 
