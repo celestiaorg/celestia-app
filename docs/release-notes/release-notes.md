@@ -24,58 +24,57 @@ grpc_laddr = "tcp://127.0.0.1:9098"
 
 ### State Machine Changes (v4.0.0)
 
-Celestia-app v4.0.0 includes significant updates to the underlying state machine due to major dependency upgrades: **Cosmos SDK** (v0.46.x → v0.50.x), **IBC** (v6 → v8), and **CometBFT** (v0.34 → v0.38).
+Celestia-app v4.0.0 includes significant state machine changes due to major dependency upgrades: **Cosmos SDK** (v0.46.16 → v0.50.13), **IBC** (v6.2.2 → v8.7.0), and **CometBFT** (v0.34 → v0.38).
 
-#### Module Changes
+#### New Messages (Added Modules)
 
-**New Modules**:
-- **`x/circuit`**: Circuit breaker module for emergency halting of message processing
-  - `MsgAuthorizeCircuitBreaker`, `MsgTripCircuitBreaker`, `MsgResetCircuitBreaker`
-  - Automatic blocking of upgrade-related messages during emergencies
-- **`x/consensus`**: Consensus parameters module (migrated from CometBFT core)
-  - `MsgUpdateParams`: Update consensus parameters via governance
-  - `QueryParamsRequest`/`QueryParamsResponse`: Query consensus parameters
-- **`hyperlane/core`**: Hyperlane interoperability protocol core
-  - Interchain Security Module (ISM) configuration messages
-  - Mailbox and validator set management, cross-chain communication
-- **`hyperlane/warp`**: Hyperlane token bridge module
-  - Token bridging and routing messages for cross-chain transfers
+**`x/circuit` Circuit Breaker Module** ([cosmos-sdk docs](https://docs.cosmos.network/v0.50/build/modules/circuit)):
+- `MsgAuthorizeCircuitBreaker` - Grant circuit breaker permissions
+- `MsgTripCircuitBreaker` - Disable message execution 
+- `MsgResetCircuitBreaker` - Re-enable message execution
 
-**Removed Modules**:
-- **`x/capability`**: Removed from Cosmos SDK v0.50.x, replaced with enhanced authentication in IBC v8
-- **`x/crisis`**: Removed from Cosmos SDK v0.50.x, functionality replaced by circuit breaker
-- **`x/paramfilter`**: Celestia-specific module removed in favor of circuit breaker
+**`x/consensus` Consensus Parameters Module** ([cosmos-sdk docs](https://docs.cosmos.network/v0.50/build/modules/consensus)):
+- `MsgUpdateParams` - Update consensus parameters via governance (replaces CometBFT consensus param updates)
 
-#### Key Changes and Updates
+**Hyperlane Interoperability**:
+- `hyperlane/core` - Cross-chain messaging infrastructure
+- `hyperlane/warp` - Token bridging and routing
+
+#### Removed Messages (Deprecated Modules)
+
+**`x/crisis` Module** - Removed in Cosmos SDK v0.50.x ([migration docs](https://docs.cosmos.network/v0.50/build/migrations/upgrading#xconsensus)):
+- `MsgVerifyInvariant` - Emergency chain halt functionality moved to circuit breaker
+
+**`x/capability` Module** - Removed in Cosmos SDK v0.50.x:
+- IBC capability management integrated directly into IBC v8 modules
+
+**`x/paramfilter` Module** - Celestia-specific module removed:
+- Parameter filtering functionality replaced by circuit breaker
+
+#### Changed Messages and Logic
 
 **Parameter Management Migration**:
-- **`x/params` module**: Deprecated in favor of module-specific `MsgUpdateParams` messages
-- **Consensus parameters**: Migrated from CometBFT core to dedicated `x/consensus` module  
-- **Governance**: Expedited minimum deposit increased to 50,000 TIA; enhanced validation through circuit breaker integration
+- **Generic parameter proposals** deprecated in favor of module-specific `MsgUpdateParams` messages
+- **Consensus parameters** moved from CometBFT to dedicated `x/consensus` module
+- **All modules** now use module-specific parameter update messages instead of legacy `x/params` proposals
 
-**IBC Protocol Update (v6 → v8)**:
-- Enhanced packet validation, routing, and acknowledgment handling
-- Improved light client verification and state management  
-- Strengthened connection establishment and authentication protocols
+**IBC v6 → v8 Protocol Changes** ([ibc-go docs](https://ibc.cosmos.network/main/migrations/v6-to-v7)):
+- Enhanced packet acknowledgment handling and routing
+- Updated client state management and verification
+- Modified connection handshake procedures
 
 ### Library Consumers (v4.0.0)
 
-Library consumers will need to update imports and APIs due to major dependency upgrades:
+**Import Changes**:
+- Add: `cosmossdk.io/x/circuit`, `cosmossdk.io/x/consensus`
+- Remove: `x/capability`, `x/crisis`, `x/paramfilter`
+- Update: `github.com/cosmos/ibc-go/v8` (from v6)
 
-**New Module Imports**:
-- `cosmossdk.io/x/circuit` (circuit breaker)
-- `cosmossdk.io/x/consensus` (consensus parameter management)
-- `github.com/bcp-innovations/hyperlane-cosmos/x/core` and `x/warp` (Hyperlane)
-
-**Removed Module Imports**:
-- `x/capability`, `x/crisis` (removed from Cosmos SDK v0.50.x)
-- `x/paramfilter` (Celestia-specific module removed)
-
-**API Changes**:
-- Parameter updates now use module-specific `MsgUpdateParams` instead of generic param proposals
-- IBC modules updated to `github.com/cosmos/ibc-go/v8` with modified interfaces
-- Cosmos SDK v0.50.x includes updated module interfaces, query APIs, and transaction building patterns
-- TxClient interface updates and user package modifications from dependency upgrades
+**API Breaking Changes** ([cosmos-sdk migration guide](https://docs.cosmos.network/v0.50/build/migrations/upgrading)):
+- Module keepers now accept `context.Context` instead of `sdk.Context`
+- `BeginBlock`/`EndBlock` signatures changed
+- Parameter updates require module-specific `MsgUpdateParams` messages
+- TxClient interface changes and user package modifications
 
 ## v3.0.0
 
