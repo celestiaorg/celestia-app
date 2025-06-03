@@ -9,7 +9,6 @@ Whenever you generate code or documentation:
 1. Use extremely simple, direct language—no unnecessary adverbs.
 2. Make the code self-explanatory. Only add comments when an implicit operation must be called out.
 3. Follow instructions exactly. Think critically about security: always double-check for hidden bugs or vulnerabilities.
-4. Produce code that is highly readable yet concise. Do not abstract prematurely; defer abstraction until it's truly needed.
 5. When writing Go, adhere to the latest official Go best practices (idiomatic naming, error handling, package layout, etc.).
 6. Keep suggestions minimal and focused. Avoid excessive detail or overly prescriptive guidance.
 
