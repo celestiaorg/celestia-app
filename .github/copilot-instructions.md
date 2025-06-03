@@ -49,3 +49,6 @@ Whenever you generate code or documentation:
 - Use godoc-style comments that start with the item name
 - Keep documentation concise
 - Only document mid code for non-obvious behavior or side effects
+
+## Pull Request Rules
+- When naming a PR or commits, always follow conventional commits https://www.conventionalcommits.org/en/v1.0.0/#summary
