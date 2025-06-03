@@ -22,6 +22,10 @@ The `rpc.grpc_laddr` config option is now required when running the celestia-app
 grpc_laddr = "tcp://127.0.0.1:9098"
 ```
 
+#### IAVL v1 Migration
+
+Celestia-app v4 uses IAVL v1 for better performance. When upgrading, the migration happens automatically or you can perform a fresh state sync for immediate optimal performance.
+
 ## v3.0.0
 
 ### Node Operators (v3.0.0)
