@@ -19,7 +19,7 @@ require (
 	github.com/bcp-innovations/hyperlane-cosmos v1.0.0
 	github.com/celestiaorg/go-square/v2 v2.2.0
 	github.com/celestiaorg/knuu v0.16.3
-	github.com/celestiaorg/nmt v0.23.0
+	github.com/celestiaorg/nmt v0.24.0
 	github.com/celestiaorg/rsmt2d v0.14.0
 	github.com/cometbft/cometbft v0.38.17
 	github.com/cometbft/cometbft-db v1.0.4
@@ -44,7 +44,7 @@ require (
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
 	golang.org/x/sync v0.14.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250218202821-56aae31c358a
-	google.golang.org/grpc v1.72.1
+	google.golang.org/grpc v1.72.2
 	google.golang.org/protobuf v1.36.6
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/apimachinery v0.32.3
@@ -299,12 +299,11 @@ require (
 replace (
 	// x/upgrade: v0.1.0
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.1.0
-	// celestia-core: v1.53.0-tm-v0.38.17
-	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.53.0-tm-v0.38.17
+	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.54.0-tm-v0.38.17
 	// cosmos-sdk: v1.29.1-sdk-v0.50.12
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.1-sdk-v0.50.12
 	// goleveldb: canonical version
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	// celestia-core(v0.34.x): used for multiplexing abci v1 requests
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.45.0-tm-v0.34.35
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.52.0-tm-v0.34.35
 )
