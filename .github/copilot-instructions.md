@@ -35,44 +35,17 @@ Whenever you generate code or documentation:
 - Be cautious with arithmetic operations that could overflow
 - Verify permissions and authority before state modifications
 - Consider replay attacks and ensure proper nonce/sequence handling
-- Validate cryptographic signatures and public keys
 - Be mindful of gas consumption and potential DoS vectors
 
-### Cosmos SDK Patterns
-- Follow the established keeper pattern for module state management
-- Use proper store prefixes and key construction patterns
-- Implement proper protobuf message validation
-- Follow ABCI method implementations (BeginBlock, EndBlock, etc.)
-- Use appropriate store types (KVStore, Iterator patterns)
-
 ## Code Organization
+- Analyze the project structure entirely before deciding where something should go.
+- Prefer standard library solutions when possible
 
-### Package Structure
-- Follow the established directory structure
-- Keep related functionality in appropriate packages
-- Use internal packages for non-exported utilities
-- Separate concerns between types, keeper, and client packages
-
-### Imports
-- Group imports logically: standard library, third-party, project-local
-- Use specific imports rather than wildcard imports
-- Avoid circular dependencies between packages
+### Linting
+- Use golangci-lint before submitting
 
 ### Documentation
 - Document all exported functions, types, and constants
 - Use godoc-style comments that start with the item name
-- Keep documentation concise but complete
-- Document any non-obvious behavior or side effects
-
-## Performance Considerations
-- Be mindful of gas consumption in transaction processing
-- Use efficient algorithms for cryptographic operations
-- Consider caching for frequently accessed data
-- Profile code when performance is critical
-- Use appropriate data structures for the use case
-
-## Dependencies
-- Prefer standard library solutions when possible
-- Use established Cosmos SDK patterns and utilities
-- Avoid introducing unnecessary external dependencies
-- Keep dependency versions aligned with the project requirements
+- Keep documentation concise
+- Only document mid code for non-obvious behavior or side effects
