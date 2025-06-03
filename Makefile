@@ -9,8 +9,6 @@ PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v4
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
 GOLANG_CROSS_VERSION  ?= v1.23.6
-# Set this to override the max square size of the binary
-OVERRIDE_MAX_SQUARE_SIZE ?=
 # Set this to override v2 upgrade height for the v3 embedded binaries
 V2_UPGRADE_HEIGHT ?= 0
 
@@ -24,7 +22,8 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
 
-CELESTIA_V3_VERSION := v3.10.0-arabica
+# NOTE: This version must be updated at the same time as the version in internal/embedding/data.go and .goreleaser.yaml
+CELESTIA_V3_VERSION := v3.10.1-arabica
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -246,9 +245,9 @@ test-docker-e2e:
 .PHONY: test-docker-e2e
 
 ## test-multiplexer: Run unit tests for the multiplexer package.
-test-multiplexer:
+test-multiplexer: download-v3-binaries
 	@echo "--> Running multiplexer tests"
-	make test -C ./multiplexer
+	@go test -tags multiplexer ./multiplexer/...
 .PHONY: test-multiplexer
 
 ## test-race: Run tests in race mode.
@@ -361,8 +360,24 @@ prebuilt-binary:
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
 		-w /go/src/$(PACKAGE_NAME) \
 		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
-		release --clean --parallelism 1
+		release --clean --parallelism 2
 .PHONY: prebuilt-binary
+
+## go-releaser-dry-run ensures that the go releaser tool and build all the artefacts correctly.
+## specifies parallelism as 4 so should be run locally. On the regular github runners 2 should be the max.
+go-releaser-dry-run:
+	@echo "Running GoReleaser in dry-run mode..."
+	docker run \
+		--rm \
+		--env CGO_ENABLED=1 \
+		--env GORELEASER_CURRENT_TAG=${GORELEASER_CURRENT_TAG} \
+		--env-file .release-env \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		-v `pwd`:/go/src/$(PACKAGE_NAME) \
+		-w /go/src/$(PACKAGE_NAME) \
+		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
+		release --snapshot --clean --parallelism 4
+.PHONY: go-releaser-dry-run
 
 ## goreleaser: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
 goreleaser: prebuilt-binary

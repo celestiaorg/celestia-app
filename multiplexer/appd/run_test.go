@@ -1,11 +1,45 @@
+//go:build multiplexer
+
 package appd
 
 import (
+	"bytes"
 	"os"
+	"strings"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v4/internal/embedding"
+
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// TestCreateExecCommand execs a command to an embedded binary.
+func TestCreateExecCommand(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test which expects an embedded binary")
+	}
+
+	version, compressedBinary, err := embedding.CelestiaAppV3()
+	require.NoError(t, err)
+
+	appdInstance, err := New(version, compressedBinary)
+	require.NoError(t, err)
+	require.NotNil(t, appdInstance)
+
+	cmd := appdInstance.CreateExecCommand("version")
+	require.NotNil(t, cmd)
+
+	var outputBuffer bytes.Buffer
+	cmd.Stdout = &outputBuffer
+
+	require.NoError(t, cmd.Run())
+
+	want := strings.TrimPrefix(version, "v")
+	got := outputBuffer.String()
+	require.NotEmpty(t, got)
+	assert.Contains(t, got, want)
+}
 
 // TestStart_Success ensures that the provided executable is launched and provided a pid.
 // and that the pid is reset once the process exits.
@@ -18,6 +52,7 @@ func TestStart_Success(t *testing.T) {
 		stdin:  os.Stdin,
 		stdout: os.Stdout,
 		stderr: os.Stderr,
+		pid:    AppdStopped,
 	}
 
 	// Start the process
