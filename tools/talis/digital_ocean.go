@@ -107,6 +107,18 @@ func CreateDroplets(ctx context.Context, client *godo.Client, insts []Instance, 
 		timeRequired time.Duration
 	}
 
+	insts, existing, err := filterExistingInstances(ctx, client, insts)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(existing) > 0 {
+		log.Println("Existing instances found, so they are not being created.")
+		for _, v := range existing {
+			log.Println("Skipping", v.Name, v.PublicIP, v.Tags)
+		}
+	}
+
 	results := make(chan result, total)
 	var wg sync.WaitGroup
 	wg.Add(total)
@@ -169,6 +181,34 @@ func CreateDroplets(ctx context.Context, client *godo.Client, insts []Instance, 
 	}
 
 	return created, nil
+}
+
+func filterExistingInstances(ctx context.Context, client *godo.Client, insts []Instance) ([]Instance, []Instance, error) {
+	droplets, err := listAllDroplets(ctx, client)
+	if err != nil {
+		return nil, nil, fmt.Errorf("listing before delete: %w", err)
+	}
+
+	var existing []Instance
+	var newInsts []Instance
+	for _, inst := range insts {
+		var exists bool
+		for _, d := range droplets {
+			if hasAllTags(d.Tags, inst.Tags) {
+				exists = true
+				break
+			}
+		}
+
+		if !exists {
+			newInsts = append(newInsts, inst)
+			continue
+		}
+
+		existing = append(existing, inst)
+	}
+
+	return newInsts, existing, nil
 }
 
 // waitForNetworkIP polls until the droplet has an IPv4 of the given type ("public" or "private")
@@ -244,7 +284,12 @@ func DestroyDroplets(ctx context.Context, client *godo.Client, insts []Instance)
 			}
 
 			if len(matches) > 1 {
-				results <- result{inst: inst, err: fmt.Errorf("multiple droplets found with tags %v. Make sure each droplet has a unique set of tags!", inst.Tags)}
+				results <- result{
+					inst: inst,
+					err: fmt.Errorf(
+						"Deleting multiple droplets with tags %v!",
+						inst.Tags),
+				}
 				// don't return, still try to delete droplets
 			}
 
@@ -253,19 +298,21 @@ func DestroyDroplets(ctx context.Context, client *godo.Client, insts []Instance)
 				return
 			}
 
-			_, err := client.Droplets.Delete(delCtx, matches[0])
-			if err != nil {
-				results <- result{inst: inst, err: fmt.Errorf("delete %s: %w", inst.Name, err)}
-				return
-			}
+			for _, match := range matches {
+				_, err := client.Droplets.Delete(delCtx, match)
+				if err != nil {
+					results <- result{inst: inst, err: fmt.Errorf("delete %s: %w", inst.Name, err)}
+					return
+				}
 
-			// wait until Get() returns a 404
-			if err := waitForDeletion(delCtx, client, matches[0]); err != nil {
-				results <- result{inst: inst, err: fmt.Errorf("confirm delete %s: %w", inst.Name, err)}
-				return
-			}
+				// wait until Get() returns a 404
+				if err := waitForDeletion(delCtx, client, match); err != nil {
+					results <- result{inst: inst, err: fmt.Errorf("confirm delete %s: %w", inst.Name, err)}
+					return
+				}
 
-			results <- result{inst: inst, err: nil, timeRequired: time.Since(start)}
+				results <- result{inst: inst, err: nil, timeRequired: time.Since(start)}
+			}
 		}(v)
 	}
 

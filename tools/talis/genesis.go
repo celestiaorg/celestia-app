@@ -42,6 +42,10 @@ func generateCmd() *cobra.Command {
 
 			payloadDir := filepath.Join(rootDir, "payload")
 
+			if err := os.RemoveAll(payloadDir); err != nil {
+				return fmt.Errorf("failed to remove old payload directory: %w", err)
+			}
+
 			err = createPayload(cfg.Validators, cfg.ChainID, payloadDir, squareSize)
 			if err != nil {
 				log.Fatalf("Failed to create payload: %v", err)

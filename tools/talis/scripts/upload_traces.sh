@@ -17,7 +17,7 @@ echo "CHAIN_ID after sourcing vars.sh: $CHAIN_ID"
 PROJECT_ID="numeric-mile-433416-e9"
 DATASET_ID="traces"
 
-CHAIN_ID="mamo-3"
+CHAIN_ID=$CHAIN_ID
 
 LOCAL_DIR="/root/.celestia-app/data/traces"
 

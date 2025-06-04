@@ -55,10 +55,11 @@ func (c *Client) Up(ctx context.Context) error {
 			log.Println("unexpectedly skipping instance since only DO is supported", v.Name, "in region", v.Region)
 			continue
 		}
+
 		if v.Region == "" || v.Region == RandomRegion {
 			v.Region = RandomDORegion()
 		}
-		fmt.Println("adding instance", v.Name, "in region", v.Region)
+
 		insts = append(insts, v)
 	}
 

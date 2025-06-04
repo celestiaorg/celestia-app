@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,8 +24,8 @@ type S3Config struct {
 	BucketName      string `json:"bucket_name"`
 }
 
-// downloadDataCmd creates a cobra command for downloading a chain's data from S3.
-func downloadDataCmd() *cobra.Command {
+// downloadS3DataCmd creates a cobra command for downloading a chain's data from S3.
+func downloadS3DataCmd() *cobra.Command {
 	var (
 		rootDir string
 		cfgPath string
@@ -33,7 +34,7 @@ func downloadDataCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "download-s3",
+		Use:   "s3",
 		Short: "Download all files from S3 under <bucket>/<chain-id> into a local directory",
 		Long: `Loads the network config, instantiates an AWS S3 client using the
 credentials in it, then recursively downloads everything under
@@ -132,11 +133,14 @@ func downloadS3Directory(ctx context.Context, client *s3.Client, bucket, prefix,
 
 			// stream body into file
 			downloader := manager.NewDownloader(client)
-			if _, err := downloader.Download(ctx, f,
+			_, err = downloader.Download(ctx, f,
 				&s3.GetObjectInput{Bucket: aws.String(bucket), Key: obj.Key},
-			); err != nil {
+			)
+			if err != nil {
 				return fmt.Errorf("download %s: %w", *obj.Key, err)
 			}
+
+			log.Println("Downloaded", *obj.Key)
 		}
 	}
 

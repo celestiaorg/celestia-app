@@ -69,7 +69,7 @@ type BroadcastTxError struct {
 }
 
 func (e *BroadcastTxError) Error() string {
-	return fmt.Sprintf("broadcast tx error: %s", e.ErrorLog)
+	return fmt.Sprintf("broadcast tx error: hash %s error: %s code: %d", e.TxHash, e.ErrorLog, e.Code)
 }
 
 // ExecutionError is an error that occurs when a transaction gets executed.

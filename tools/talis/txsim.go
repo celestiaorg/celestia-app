@@ -42,14 +42,12 @@ func startTxsimCmd() *cobra.Command {
 			resolvedSSHKeyPath := resolveValue(SSHKeyPath, EnvVarSSHKeyPath, strings.Replace(cfg.SSHPubKeyPath, ".pub", "", -1))
 
 			txsimScript := fmt.Sprintf(
-				"txsim --blob %d --blob-amounts %d --blob-sizes %d-%d --key-path .celestia-app --grpc-endpoint localhost:9091 --feegrant",
+				"txsim .celestia-app/ --blob %d --blob-amounts %d --blob-sizes %d-%d --grpc-endpoint localhost:9091 --feegrant",
 				seqCount,
 				blobsPerPFB,
 				startSize,
 				endSize,
 			)
-
-			fmt.Println(txsimScript)
 
 			// only spin up txsim on the number of instances that were specified.
 			insts := []Instance{}
@@ -59,6 +57,8 @@ func startTxsimCmd() *cobra.Command {
 				}
 				insts = append(insts, val)
 			}
+
+			fmt.Println(insts, "\n", txsimScript)
 
 			return runScriptInTMux(insts, resolvedSSHKeyPath, txsimScript, TxSimSessionName, time.Minute*5)
 		},

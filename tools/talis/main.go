@@ -17,18 +17,17 @@ func main() {
 	}
 
 	rootCmd.AddCommand(
-		// downloadCmd(),
+		downloadCmd(),
 		generateCmd(),
 		initCmd(),
-		// statusCmd(),
+		statusCmd(),
 		upCmd(),
 		downCmd(),
 		deployCmd(),
 		addCmd(),
 		startTxsimCmd(),
-		collectTracesCmd(),
+		uploadDataCmd(),
 		killTmuxSessionCmd(),
-		downloadDataCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {

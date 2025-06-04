@@ -157,7 +157,7 @@ func deployPayload(
 				// make sure script is executable
 				fmt.Sprintf("chmod +x %s", filepath.Join(remoteDir, remoteScript)),
 				// start in a named, detached tmux session
-				fmt.Sprintf("tmux new-session -d -s deploy '%s'", filepath.Join(remoteDir, remoteScript)),
+				fmt.Sprintf("tmux new-session -d -s app '%s'", filepath.Join(remoteDir, remoteScript)),
 			}, " && ")
 
 			ssh := exec.CommandContext(ctx,

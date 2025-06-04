@@ -8,19 +8,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// collectTracesCmd creates a cobra command for kicking off trace collection
-func collectTracesCmd() *cobra.Command {
+// uploadData creates a cobra command for kicking off trace collection
+func uploadDataCmd() *cobra.Command {
 	var (
 		rootDir    string
-		cfgPath    string
 		SSHKeyPath string
 	)
 
 	cmd := &cobra.Command{
-		Use:     "collect-traces",
-		Short:   "Collect traces from the talis network",
-		Long:    "Connects to every node in the network and starts the trace-collection script in a detached tmux session.",
-		Aliases: []string{"ct"},
+		Use:     "upload-data",
+		Short:   "Upload data from the talis network",
+		Long:    "Connects to every node in the network and starts the upload_traces.sh script in a detached tmux session.",
+		Aliases: []string{"u"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := LoadConfig(rootDir)
 			if err != nil {
@@ -41,7 +40,7 @@ func collectTracesCmd() *cobra.Command {
 			return runScriptInTMux(
 				cfg.Validators,
 				resolvedKey,
-				"source /root/payload/collect-traces.sh",
+				"source /root/payload/upload_traces.sh",
 				sessionName,
 				time.Minute*5,
 			)
@@ -50,7 +49,6 @@ func collectTracesCmd() *cobra.Command {
 
 	// define your flags
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory containing your config")
-	cmd.Flags().StringVarP(&cfgPath, "config", "c", "config.json", "path to your network config file")
 	cmd.Flags().StringVarP(&SSHKeyPath, "ssh-key-path", "k", "", "override path to your SSH private key")
 	return cmd
 }
