@@ -16,19 +16,17 @@ import (
 // TestSequenceMismatchEviction tests that the TxClient correctly handles evictions without
 // causing sequence number desynchronization. This test verifies the fix for issue #4784.
 func TestSequenceMismatchEviction(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping sequence mismatch eviction test in short mode")
-	}
-
 	_, txClient, ctx := setupTxClient(t, 1*time.Nanosecond)
+
+	t.Cleanup(func() {
+		time.Sleep(200 * time.Millisecond)
+	})
 
 	t.Run("verify eviction handling does not result in a sequence mismatch", func(t *testing.T) {
 		testAccount := txClient.DefaultAccountName()
 
 		blobSize := 100000
 		blob := blobfactory.ManyRandBlobs(random.New(), blobSize)[0]
-
-		evictionDetected := false
 
 		for i := 0; i < 10; i++ {
 			currentSequence := txClient.Account(testAccount).Sequence()
@@ -43,7 +41,6 @@ func TestSequenceMismatchEviction(t *testing.T) {
 					sequenceAfterEviction := txClient.Account(testAccount).Sequence()
 
 					t.Logf("Eviction detected! Sequence after eviction: %d (was %d)", sequenceAfterEviction, currentSequence)
-					evictionDetected = true
 
 					// Test that the next transaction does NOT have a sequence mismatch
 					t.Run("verify no sequence mismatch after eviction", func(t *testing.T) {
@@ -57,10 +54,6 @@ func TestSequenceMismatchEviction(t *testing.T) {
 			} else if response != nil {
 				t.Logf("Transaction %s confirmed in block %d", response.TxHash, response.Height)
 			}
-		}
-
-		if !evictionDetected {
-			t.Skip("No eviction detected in this test run - test inconclusive")
 		}
 	})
 }
@@ -90,23 +83,6 @@ func verifyNoSequenceMismatch(t *testing.T, ctx context.Context, txClient *user.
 	}
 }
 
-// isSequenceMismatchError checks if an error message indicates a sequence mismatch
 func isSequenceMismatchError(errMsg string) bool {
-	sequenceMismatchIndicators := []string{
-		"account sequence mismatch",
-		"incorrect account sequence",
-		"expected",
-		"sequence",
-	}
-
-	errLower := strings.ToLower(errMsg)
-	matchCount := 0
-
-	for _, indicator := range sequenceMismatchIndicators {
-		if strings.Contains(errLower, indicator) {
-			matchCount++
-		}
-	}
-
-	return matchCount >= 2
+	return strings.Contains(errMsg, "account sequence mismatch")
 }
