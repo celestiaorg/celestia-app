@@ -61,7 +61,7 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 	// Add the following commands to the rootCommand: start, tendermint, export, version, and rollback and wire multiplexer.
 	server.AddCommandsWithStartCmdOptions(
 		rootCommand,
-		app.DefaultNodeHome,
+		app.NodeHome,
 		NewAppServer,
 		appExporter,
 		server.StartCmdOptions{
