@@ -11,7 +11,7 @@ import (
 	bn254fr "github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/backend/groth16"
-	bn254 "github.com/consensys/gnark/backend/groth16/bn254"
+	bn254 "github.com/consensys/gnark/backend/groth16/bn254" //nolint:revive,stylecheck
 	"github.com/consensys/gnark/backend/witness"
 )
 
@@ -24,7 +24,7 @@ func NewVerifyingKey(keyBz []byte) (groth16.VerifyingKey, error) {
 	vk := groth16.NewVerifyingKey(ecc.BN254)
 	n, err := vk.ReadFrom(bytes.NewReader(keyBz))
 	if err != nil {
-		return nil, fmt.Errorf("Error unmarshaling verifier key: %v", err)
+		return nil, fmt.Errorf("error unmarshaling verifier key: %v", err)
 	}
 
 	if int(n) != len(keyBz) {
