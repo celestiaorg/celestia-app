@@ -23,7 +23,7 @@ import (
 func TestSigVerificationDecorator(t *testing.T) {
 	testApp, _, _ := testutil.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
 
-	ctx := testApp.BaseApp.NewContext(false)
+	ctx := testApp.NewContext(false)
 	accounts := testApp.AccountKeeper.GetAllAccounts(ctx)
 	require.NotEmpty(t, accounts)
 
