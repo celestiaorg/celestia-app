@@ -453,10 +453,7 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 
 			resp, err := client.broadcastTx(ctx, conn, txBytes, signer)
 			if err != nil {
-				select {
-				case errCh <- err:
-				case <-ctx.Done():
-				}
+				errCh <- err
 				return
 			}
 

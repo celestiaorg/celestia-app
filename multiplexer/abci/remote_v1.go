@@ -204,6 +204,7 @@ func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*a
 		ValidatorUpdates:      validatorUpdatesV1ToV2(endBlockResp.ValidatorUpdates),
 		ConsensusParamUpdates: consensusParamsV1ToV2(endBlockResp.ConsensusParamUpdates),
 		AppHash:               commitResp.Data,
+		TimeoutInfo:           timeoutInfoV1ToV2(endBlockResp.Timeouts),
 	}, nil
 }
 
@@ -224,6 +225,7 @@ func (a *RemoteABCIClientV1) Info(req *abciv2.RequestInfo) (*abciv2.ResponseInfo
 		AppVersion:       resp.AppVersion,
 		LastBlockHeight:  resp.LastBlockHeight,
 		LastBlockAppHash: resp.LastBlockAppHash,
+		TimeoutInfo:      timeoutInfoV1ToV2(resp.Timeouts),
 	}, nil
 }
 
@@ -245,6 +247,7 @@ func (a *RemoteABCIClientV1) InitChain(req *abciv2.RequestInitChain) (*abciv2.Re
 		ConsensusParams: consensusParamsV1ToV2(resp.ConsensusParams),
 		Validators:      validatorUpdatesV1ToV2(resp.Validators),
 		AppHash:         resp.AppHash,
+		TimeoutInfo:     timeoutInfoV1ToV2(resp.Timeouts),
 	}, nil
 }
 
@@ -635,4 +638,11 @@ func evidenceV2ToV1(evidence []abciv2.Misbehavior) []abciv1.Evidence {
 	}
 
 	return v1Evidence
+}
+
+func timeoutInfoV1ToV2(info abciv1.TimeoutsInfo) abciv2.TimeoutInfo {
+	return abciv2.TimeoutInfo{
+		TimeoutPropose: info.TimeoutPropose,
+		TimeoutCommit:  info.TimeoutCommit,
+	}
 }
