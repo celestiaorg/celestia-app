@@ -54,7 +54,7 @@ func (ism *ZKExecutionISM) Verify(ctx context.Context, metadata []byte, message 
 func (ism *ZKExecutionISM) verifyZKProof(metadata ZkExecutionISMMetadata) (bool, error) {
 	groth16VkHash := sha256.Sum256(ism.StateTransitionVerifierKey)
 	if !bytes.Equal(groth16VkHash[:4], metadata.Proof[:4]) {
-		return false, fmt.Errorf("First 4 bytes of verifier key hash (%x) do not match proof hash (%x)", groth16VkHash[:4], metadata.Proof[:4])
+		return false, fmt.Errorf("prefix mismatch: first 4 bytes of verifier key hash (%x) do not match proof prefix (%x)", groth16VkHash[:4], metadata.Proof[:4])
 	}
 
 	proof, err := groth16.UnmarshalProof(metadata.Proof[4:])
