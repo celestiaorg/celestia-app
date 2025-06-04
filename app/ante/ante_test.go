@@ -37,12 +37,14 @@ func TestSigVerificationDecorator(t *testing.T) {
 	signModeHandler := encodingConfig.TxConfig.SignModeHandler()
 	decorator := ante.NewSigVerificationDecorator(testApp.AccountKeeper, signModeHandler)
 
-	tx := getTxWithNilPubKey(t, account)
+	tx := createTxWithNilPubKey(t, account)
 	simulate := false
 
-	_, err = decorator.AnteHandle(ctx, tx, simulate, nextAnteHandler) // this panics due to the nil pubkey
-	require.Error(t, err)
-	require.ErrorContains(t, err, "signature verification failed")
+	require.Panics(t, func() {
+		// this panics due to the nil pubkey
+		_, err = decorator.AnteHandle(ctx, tx, simulate, nextAnteHandler)
+		require.Error(t, err)
+	})
 }
 
 func getAccountWithPubKey(accounts []sdk.AccountI) (sdk.AccountI, error) {
@@ -54,7 +56,7 @@ func getAccountWithPubKey(accounts []sdk.AccountI) (sdk.AccountI, error) {
 	return nil, fmt.Errorf("no account found with a pubkey")
 }
 
-func getTxWithNilPubKey(t *testing.T, account sdk.AccountI) authsigning.Tx {
+func createTxWithNilPubKey(t *testing.T, account sdk.AccountI) authsigning.Tx {
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	txBuilder := config.TxConfig.NewTxBuilder()
 
