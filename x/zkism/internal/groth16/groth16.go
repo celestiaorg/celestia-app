@@ -88,13 +88,11 @@ func NewPublicWitness(inputs ...any) (witness.Witness, error) {
 		return nil, fmt.Errorf("error creating witness: %v", err)
 	}
 
-	pubInputs := make(chan any)
-	go func() {
-		defer close(pubInputs)
-		for _, v := range inputs {
-			pubInputs <- v
-		}
-	}()
+	pubInputs := make(chan any, len(inputs))
+	for _, v := range inputs {
+		pubInputs <- v
+	}
+	close(pubInputs)
 
 	if err := w.Fill(len(pubInputs), 0, pubInputs); err != nil {
 		return nil, fmt.Errorf("error filling witness: %v", err)
