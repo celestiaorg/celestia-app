@@ -68,26 +68,20 @@ func (ism *ZKExecutionISM) verifyZKProof(metadata ZkExecutionISMMetadata) (bool,
 		return false, err
 	}
 
-	// TODO: verify public inputs with trusted ism/celestia data
-	// - trusted state root (DONE)
-	// - trusted height (optional?)
-	// - celestia header hash(es)
-	if !bytes.Equal(metadata.PublicInputs.TrustedStateRoot[:], ism.StateRoot) {
-		return false, fmt.Errorf("cannot trust public inputs trusted state root: expected %x, but got %x", ism.StateRoot, metadata.PublicInputs.TrustedStateRoot)
+	if err := ism.verifyPublicInputs(metadata.PublicInputs); err != nil {
+		return false, err
 	}
 
-	sp1VkCommitment := new(big.Int).SetBytes(ism.VerifierKeyCommitment)
-	vkElement := groth16.NewBN254FrElement(sp1VkCommitment)
-
-	sp1PubInputs, err := metadata.PublicInputs.Marshal()
+	vkCommitment := new(big.Int).SetBytes(ism.VerifierKeyCommitment)
+	pubInputs, err := metadata.PublicInputs.Marshal()
 	if err != nil {
 		return false, err
 	}
 
-	sp1PubInputsHash := groth16.HashBN254(sp1PubInputs)
-	pubInputsElement := groth16.NewBN254FrElement(sp1PubInputsHash)
+	vkElement := groth16.NewBN254FrElement(vkCommitment)
+	inputsElement := groth16.NewBN254FrElement(groth16.HashBN254(pubInputs))
 
-	pubWitness, err := groth16.NewPublicWitness(vkElement, pubInputsElement)
+	pubWitness, err := groth16.NewPublicWitness(vkElement, inputsElement)
 	if err != nil {
 		return false, err
 	}
@@ -100,6 +94,18 @@ func (ism *ZKExecutionISM) verifyZKProof(metadata ZkExecutionISMMetadata) (bool,
 	ism.StateRoot = metadata.PublicInputs.NewStateRoot[:]
 
 	return true, nil
+}
+
+// TODO: verify public inputs with trusted ism/celestia data
+// - trusted state root (DONE)
+// - trusted height (optional?)
+// - celestia header hash(es)
+func (ism *ZKExecutionISM) verifyPublicInputs(inputs PublicInputs) error {
+	if !bytes.Equal(inputs.TrustedStateRoot[:], ism.StateRoot) {
+		return fmt.Errorf("cannot trust public inputs trusted state root: expected %x, but got %x", ism.StateRoot, inputs.TrustedStateRoot)
+	}
+
+	return nil
 }
 
 // verifyMerkleProofs verifies merkle inclusion proofs against the current state root.
