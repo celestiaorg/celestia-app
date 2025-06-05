@@ -36,14 +36,13 @@ Celestia-app v4.0.0 includes significant state machine changes due to major depe
 **`x/consensus` Consensus Parameters Module** ([cosmos-sdk docs](https://docs.cosmos.network/v0.50/build/modules/consensus)):
 - `MsgUpdateParams` - Update consensus parameters via governance (replaces CometBFT consensus param updates)
 
-**Hyperlane Interoperability**:
+**Hyperlane**:
 - `hyperlane/core` - Cross-chain messaging infrastructure
 - `hyperlane/warp` - Token bridging and routing
 
 #### Removed Messages (Deprecated Modules)
 
-**`x/crisis` Module** - Removed in Cosmos SDK v0.50.x ([migration docs](https://docs.cosmos.network/v0.50/build/migrations/upgrading#xconsensus)):
-- `MsgVerifyInvariant` - Emergency chain halt functionality moved to circuit breaker
+**`x/crisis` Module** - Removed in Cosmos SDK v0.50.x
 
 **`x/capability` Module** - Removed in Cosmos SDK v0.50.x:
 - IBC capability management integrated directly into IBC v8 modules
@@ -74,7 +73,6 @@ Celestia-app v4.0.0 includes significant state machine changes due to major depe
 - Module keepers now accept `context.Context` instead of `sdk.Context`
 - `BeginBlock`/`EndBlock` signatures changed
 - Parameter updates require module-specific `MsgUpdateParams` messages
-- TxClient interface changes and user package modifications
 
 ## v3.0.0
 
