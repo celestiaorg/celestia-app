@@ -33,7 +33,7 @@ func uploadDataCmd() *cobra.Command {
 			resolvedKey := resolveValue(
 				SSHKeyPath,
 				EnvVarSSHKeyPath,
-				strings.Replace(cfg.SSHPubKeyPath, ".pub", "", 1),
+				strings.ReplaceAll(cfg.SSHPubKeyPath, ".pub", ""),
 			)
 
 			const sessionName = "traces"

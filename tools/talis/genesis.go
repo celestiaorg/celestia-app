@@ -118,12 +118,15 @@ func createPayload(ips []Instance, chainID, ppath string, squareSize int, mods .
 	}
 
 	for _, info := range ips {
-		n.AddValidator(
+		err = n.AddValidator(
 			info.Name,
 			info.PublicIP,
 			ppath,
 			info.Region,
 		)
+		if err != nil {
+			return err
+		}
 	}
 
 	for _, val := range n.genesis.Validators() {

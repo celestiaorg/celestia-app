@@ -11,8 +11,8 @@ func main() {
 		Use:   "talis",
 		Short: "Talis CLI",
 		Long:  "Talis CLI is a command line interface for running performance experiments.",
-		Run: func(cmd *cobra.Command, args []string) {
-			cmd.Help()
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
 		},
 	}
 

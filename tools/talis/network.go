@@ -15,8 +15,7 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 	"github.com/celestiaorg/go-square/v2/share"
-	"github.com/cometbft/cometbft/config"
-	cmtcfg "github.com/cometbft/cometbft/config"
+	cmtconfig "github.com/cometbft/cometbft/config"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 	cmtos "github.com/cometbft/cometbft/libs/os"
 	"github.com/cometbft/cometbft/p2p"
@@ -44,9 +43,8 @@ func (n NodeInfo) PeerID() string {
 // Network maintains the initial state of the network. This includes the
 // genesis, all relevant validators included in the genesis, and all accounts.
 type Network struct {
-	experiment Experiment
-	genesis    *genesis.Genesis
-	ecfg       encoding.Config
+	genesis *genesis.Genesis
+	ecfg    encoding.Config
 
 	validators map[string]NodeInfo
 	accounts   []string
@@ -88,7 +86,7 @@ func SetMinFee(codec codec.Codec, minFee float64) genesis.Modifier {
 }
 
 // AddValidator adds a validator to the network. The validator is identified by
-// its name which is assigned by pulumi as hardware is allocated. An addional
+// its name which is assigned by pulumi as hardware is allocated. An additional
 // account and keyring are saved to the payload directory that can be used by
 // txsim.
 func (n *Network) AddValidator(name, ip, payLoadRoot, region string) error {
@@ -155,7 +153,7 @@ func (n *Network) AddValidator(name, ip, payLoadRoot, region string) error {
 }
 
 func (n *Network) Peers() []string {
-	var peers []string
+	var peers []string //nolint:prealloc
 	for _, v := range n.validators {
 		if v.IP == "" {
 			continue
@@ -230,7 +228,7 @@ func (n *Network) InitNodes(rootDir string) error {
 		if err != nil {
 			return err
 		}
-		config.WriteConfigFile(filepath.Join(rootDir, v.Name, "config.toml"), cmtcfg)
+		cmtconfig.WriteConfigFile(filepath.Join(rootDir, v.Name, "config.toml"), cmtcfg)
 		fmt.Println("wrote config file", filepath.Join(rootDir, v.Name, "config.toml"), cmtcfg.Instrumentation.TracingTables)
 		appcfg := MakeAppConfig()
 		serverconfig.WriteConfigFile(filepath.Join(rootDir, v.Name, "app.toml"), appcfg)
@@ -285,8 +283,8 @@ func (n *Network) SaveAddressBook(payloadRoot string, peers []string) error {
 	return WriteAddressBook(peers, addrBookFile)
 }
 
-func MakeConfig(name string, opts ...Option) (*config.Config, error) {
-	cfg := config.DefaultConfig()
+func MakeConfig(name string, opts ...Option) (*cmtconfig.Config, error) {
+	cfg := cmtconfig.DefaultConfig()
 	// cfg.DBBackend = "pebbledb"
 	cfg.Moniker = name
 	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
@@ -354,7 +352,7 @@ func MakeAppConfig() *serverconfig.Config {
 	return cfg
 }
 
-type Option func(*config.Config)
+type Option func(*cmtconfig.Config)
 
 func WriteAddressBook(peers []string, file string) error {
 	book := pex.NewAddrBook(file, false)

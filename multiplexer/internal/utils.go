@@ -28,17 +28,6 @@ type genesisDocv1 struct {
 	} `json:"consensus_params"`
 }
 
-type genesisDocv2 struct {
-	ChainID   string `json:"chain_id"`
-	Consensus struct {
-		Params struct {
-			Version struct {
-				App string `json:"app"`
-			} `json:"version"`
-		} `json:"params"`
-	} `json:"consensus"`
-}
-
 var ErrGenesisNotFound = errors.New("genesis not found")
 
 // GetGenesisVersion returns the genesis version for the given genesis path.

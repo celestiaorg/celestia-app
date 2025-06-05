@@ -39,7 +39,7 @@ func startTxsimCmd() *cobra.Command {
 				return fmt.Errorf("no validators found in config")
 			}
 
-			resolvedSSHKeyPath := resolveValue(SSHKeyPath, EnvVarSSHKeyPath, strings.Replace(cfg.SSHPubKeyPath, ".pub", "", -1))
+			resolvedSSHKeyPath := resolveValue(SSHKeyPath, EnvVarSSHKeyPath, strings.ReplaceAll(cfg.SSHPubKeyPath, ".pub", ""))
 
 			txsimScript := fmt.Sprintf(
 				"txsim .celestia-app/ --blob %d --blob-amounts %d --blob-sizes %d-%d --grpc-endpoint localhost:9091 --feegrant",
@@ -73,8 +73,8 @@ func startTxsimCmd() *cobra.Command {
 	cmd.Flags().IntVarP(&blobsPerPFB, "blobs-per-pfb", "b", 1, "the number of blobs in each PFB")
 	cmd.Flags().IntVarP(&startSize, "min-blob-size", "m", 1000000, "the min number of bytes in each blob")
 	cmd.Flags().IntVarP(&endSize, "max-blob-size", "x", 1900000, "the max number of bytes in each blob")
-	cmd.MarkFlagRequired("sequences")
-	cmd.MarkFlagRequired("instances")
+	_ = cmd.MarkFlagRequired("sequences")
+	_ = cmd.MarkFlagRequired("instances")
 	return cmd
 }
 
@@ -104,7 +104,7 @@ func killTmuxSessionCmd() *cobra.Command {
 			}
 
 			// Resolve SSH key
-			resolvedKey := resolveValue(SSHKeyPath, EnvVarSSHKeyPath, strings.Replace(cfg.SSHPubKeyPath, ".pub", "", -1))
+			resolvedKey := resolveValue(SSHKeyPath, EnvVarSSHKeyPath, strings.ReplaceAll(cfg.SSHPubKeyPath, ".pub", ""))
 
 			// Raw kill session (suppress errors so no output if session doesn't exist)
 			killScript := fmt.Sprintf(
@@ -127,7 +127,7 @@ func killTmuxSessionCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&cfgPath, "config", "c", "config.json", "config file name")
 	cmd.Flags().StringVarP(&SSHKeyPath, "ssh-key-path", "k", "", "path to SSH private key (overrides env/default)")
 	cmd.Flags().StringVarP(&session, "session", "s", "txsim", "name of the tmux session to kill")
-	cmd.MarkFlagRequired("session")
+	_ = cmd.MarkFlagRequired("session")
 	cmd.Flags().DurationVarP(&timeout, "timeout", "t", time.Minute*2, "how long to wait for SSH/tmux commands to complete")
 
 	return cmd

@@ -92,7 +92,7 @@ func GetDOSSHKeyMeta(ctx context.Context, client *godo.Client, publicKey string)
 	}
 
 	return godo.Key{}, fmt.Errorf(
-		"SSH public key not found in DigitalOcean. Please upload it via the control panel or API before proceeding.",
+		"SSH public key not found in DigitalOcean. Please upload it via the control panel or API before proceeding",
 	)
 }
 
@@ -189,8 +189,8 @@ func filterExistingInstances(ctx context.Context, client *godo.Client, insts []I
 		return nil, nil, fmt.Errorf("listing before delete: %w", err)
 	}
 
-	var existing []Instance
-	var newInsts []Instance
+	var existing []Instance //nolint:prealloc
+	var newInsts []Instance //nolint:prealloc
 	for _, inst := range insts {
 		var exists bool
 		for _, d := range droplets {

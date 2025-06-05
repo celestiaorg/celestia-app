@@ -59,7 +59,7 @@ func runScriptInTMux(
 	wg.Wait()
 	close(errCh)
 
-	var errs []error
+	var errs []error //nolint:prealloc
 	for e := range errCh {
 		errs = append(errs, e)
 	}

@@ -122,31 +122,3 @@ func matchPattern(pattern, input string) (bool, error) {
 
 	return re.MatchString(input), nil
 }
-
-func downloadTracesCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "traces",
-		Short: "Download configured traces from the Talis network",
-		Long:  "Download traces from the Talis network using the provided URL.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-
-			return nil
-		},
-	}
-
-	return cmd
-}
-
-func downloadLogsCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "logs",
-		Short: "Download configured logs from the Talis network",
-		Long:  "Download logs from the Talis network using the provided URL.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-
-			return nil
-		},
-	}
-
-	return cmd
-}
