@@ -15,7 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 )
 
-// PrepareProposal fulfills the celestia-core version of the ABCI interface by
+// PrepareProposalHandler fulfills the celestia-core version of the ABCI interface by
 // preparing the proposal block data. This method generates the data root for
 // the proposal block and passes it back to tendermint via the BlockData. Panics
 // indicate a developer error and should immediately halt the node for

@@ -42,7 +42,7 @@ const (
 func NewRootCmd() *cobra.Command {
 	// we "pre"-instantiate the application for getting the injected/configured encoding configuration
 	// note, this is not necessary when using app wiring, as depinject can be directly used.
-	opts := simtestutil.NewAppOptionsWithFlagHome(app.DefaultNodeHome)
+	opts := simtestutil.NewAppOptionsWithFlagHome(app.NodeHome)
 	tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, opts)
 	encodingConfig := tempApp.GetEncodingConfig()
 
@@ -54,7 +54,7 @@ func NewRootCmd() *cobra.Command {
 		WithInput(os.Stdin).
 		WithAccountRetriever(types.AccountRetriever{}).
 		WithBroadcastMode(flags.BroadcastSync).
-		WithHomeDir(app.DefaultNodeHome).
+		WithHomeDir(app.NodeHome).
 		WithViper(app.EnvPrefix)
 
 	rootCommand := &cobra.Command{
@@ -121,7 +121,7 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 
 	rootCommand.AddCommand(
 		InitCmd(capp),
-		genutilcli.Commands(capp.GetTxConfig(), capp.BasicManager, app.DefaultNodeHome),
+		genutilcli.Commands(capp.GetTxConfig(), capp.BasicManager, app.NodeHome),
 		tmcli.NewCompletionCmd(rootCommand, true),
 		debugCmd,
 		confixcmd.ConfigCommand(),

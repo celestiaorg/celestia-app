@@ -63,7 +63,7 @@ func TestTxsimDefaultKeypath(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	kr, err := keyring.New(app.Name, keyring.BackendTest, app.DefaultNodeHome, nil, cdc)
+	kr, err := keyring.New(app.Name, keyring.BackendTest, app.NodeHome, nil, cdc)
 	if err != nil {
 		t.Fatal("Keyring failed with ", err)
 	}

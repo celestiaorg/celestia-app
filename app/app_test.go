@@ -101,6 +101,14 @@ func TestInitChain(t *testing.T) {
 	}
 }
 
+func TestNodeHome(t *testing.T) {
+	// Test that NodeHome is accessible and non-empty
+	assert.NotEmpty(t, app.NodeHome, "NodeHome should be set and non-empty")
+
+	// Test that NodeHome contains the expected directory name
+	assert.Contains(t, app.NodeHome, ".celestia-app", "NodeHome should contain .celestia-app directory")
+}
+
 // NoopWriter is a no-op implementation of a writer.
 type NoopWriter struct{}
 

@@ -11,5 +11,5 @@ import (
 
 // modifyRootCommand sets the default root command without adding a multiplexer.
 func modifyRootCommand(rootCommand *cobra.Command) {
-	server.AddCommands(rootCommand, app.DefaultNodeHome, NewAppServer, appExporter, addStartFlags)
+	server.AddCommands(rootCommand, app.NodeHome, NewAppServer, appExporter, addStartFlags)
 }

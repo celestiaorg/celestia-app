@@ -20,14 +20,14 @@ const Name = "celestia-app"
 // to store configs, data, keyrings, etc.
 const appDirectory = ".celestia-app"
 
-// DefaultNodeHome is the default home directory for the application daemon.
+// NodeHome is the home directory for the application daemon.
 // This gets set as a side-effect of the init() function.
-var DefaultNodeHome string
+var NodeHome string
 
 func init() {
 	var err error
 	clienthelpers.EnvPrefix = EnvPrefix
-	DefaultNodeHome, err = clienthelpers.GetNodeHomeDirectory(appDirectory)
+	NodeHome, err = clienthelpers.GetNodeHomeDirectory(appDirectory)
 	if err != nil {
 		// The userHome is not set in Vercel's Go runtime so log a warning but don't panic.
 		fmt.Printf("Warning userHome err: %s\n", err)
