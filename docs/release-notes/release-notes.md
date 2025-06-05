@@ -24,7 +24,7 @@ grpc_laddr = "tcp://127.0.0.1:9098"
 
 ### State Machine Changes (v4.0.0)
 
-Celestia-app v4.0.0 includes significant state machine changes due to major dependency upgrades: **Cosmos SDK** (v0.46.16  to  v0.50.13), **IBC** (v6.2.2  to  v8.7.0), and **CometBFT** (v0.34  to  v0.38).
+Celestia-app v4.0.0 includes significant state machine changes due to major dependency upgrades: **Cosmos SDK** (v0.46.16 to v0.50.13), **IBC** (v6.2.2 to v8.7.0). This upgrade also includes bumping **CometBFT** (v0.34 to v0.38).
 
 #### New Messages (Added Modules)
 
@@ -57,10 +57,7 @@ Celestia-app v4.0.0 includes significant state machine changes due to major depe
 - **Consensus parameters** moved from CometBFT to dedicated `x/consensus` module
 - **All modules** now use module-specific parameter update messages instead of legacy `x/params` proposals
 
-**IBC v6  to  v8 Protocol Changes** ([v6 to v7](https://ibc.cosmos.network/main/migrations/v6-to-v7), [v7 to v8](https://ibc.cosmos.network/main/migrations/v7-to-v8)):
-- Enhanced packet acknowledgment handling and routing
-- Updated client state management and verification
-- Modified connection handshake procedures
+**IBC v6 to v8 Protocol Changes** ([v6 to v7](https://ibc.cosmos.network/main/migrations/v6-to-v7), [v7 to v8](https://ibc.cosmos.network/main/migrations/v7-to-v8))
 
 ### Library Consumers (v4.0.0)
 
