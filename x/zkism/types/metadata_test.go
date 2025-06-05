@@ -193,3 +193,71 @@ func TestHasExecutionProof(t *testing.T) {
 	has = metadata.HasExecutionProof()
 	require.False(t, has)
 }
+
+func TestPublicInputsMarshalUnmarshal(t *testing.T) {
+	expected := types.PublicInputs{
+		TrustedStateRoot:   [32]byte{0xAA},
+		NewHeaderHash:      [32]byte{0xBB},
+		PreviousHeaderHash: [32]byte{0xCC},
+		CelestiaHeaderHashes: [][]byte{
+			bytes.Repeat([]byte{0x01}, 32),
+			bytes.Repeat([]byte{0x02}, 32),
+		},
+		NewStateRoot: [32]byte{0xDD},
+		NewHeight:    12345,
+	}
+
+	bz, err := expected.Marshal()
+	require.NoError(t, err)
+	require.NotEmpty(t, bz)
+
+	var decoded types.PublicInputs
+	err = decoded.Unmarshal(bz)
+	require.NoError(t, err)
+
+	require.Equal(t, expected.TrustedStateRoot, decoded.TrustedStateRoot)
+	require.Equal(t, expected.NewHeaderHash, decoded.NewHeaderHash)
+	require.Equal(t, expected.PreviousHeaderHash, decoded.PreviousHeaderHash)
+	require.Equal(t, expected.CelestiaHeaderHashes, decoded.CelestiaHeaderHashes)
+	require.Equal(t, expected.NewStateRoot, decoded.NewStateRoot)
+	require.Equal(t, expected.NewHeight, decoded.NewHeight)
+}
+
+func TestPublicInputsUnmarshalTrailingData(t *testing.T) {
+	pubInputs := types.PublicInputs{
+		TrustedStateRoot:     [32]byte{},
+		NewHeaderHash:        [32]byte{},
+		PreviousHeaderHash:   [32]byte{},
+		CelestiaHeaderHashes: [][]byte{bytes.Repeat([]byte{0x01}, 32)},
+		NewStateRoot:         [32]byte{},
+		NewHeight:            1,
+	}
+
+	bz, err := pubInputs.Marshal()
+	require.NoError(t, err)
+
+	bz = append(bz, 0xFF) // append trailing data to force error
+
+	var decoded types.PublicInputs
+	err = decoded.Unmarshal(bz)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "trailing data")
+}
+
+func TestMarshalRejectsInvalidHashLength(t *testing.T) {
+	pubInputs := types.PublicInputs{
+		TrustedStateRoot:   [32]byte{},
+		NewHeaderHash:      [32]byte{},
+		PreviousHeaderHash: [32]byte{},
+		CelestiaHeaderHashes: [][]byte{
+			bytes.Repeat([]byte{0x01}, 31), // use invalid hash length to force error
+		},
+		NewStateRoot: [32]byte{},
+		NewHeight:    0,
+	}
+
+	bz, err := pubInputs.Marshal()
+	require.Nil(t, bz)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid length 31")
+}
