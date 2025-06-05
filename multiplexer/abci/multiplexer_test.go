@@ -26,7 +26,12 @@ func Test_getProgramArgs(t *testing.T) {
 			want:  []string{},
 		},
 		{
-			name:  "should remove 'celestia-appd' and 'start' from input",
+			name:  "should return empty slice if just celestia-appd is provided",
+			input: []string{"celestia-appd"},
+			want:  []string{},
+		},
+		{
+			name:  "should remove celestia-appd and start from input",
 			input: []string{"celestia-appd", "start", "--home", "foo"},
 			want:  []string{"--home", "foo"},
 		},
@@ -43,7 +48,7 @@ func Test_getProgramArgs(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		got := getProgramArgs(test.input)
+		got := removeStart(test.input)
 		require.Equal(t, test.want, got)
 	}
 }

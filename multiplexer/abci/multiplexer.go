@@ -226,7 +226,7 @@ func (m *Multiplexer) startApp() error {
 	}
 
 	if currentVersion.Appd.Pid() == appd.AppdStopped {
-		programArgs := getProgramArgs(os.Args)
+		programArgs := removeStart(os.Args)
 
 		// start an embedded app.
 		m.logger.Debug("starting embedded app", "app_version", currentVersion.AppVersion, "args", currentVersion.GetStartArgs(programArgs))
@@ -245,15 +245,17 @@ func (m *Multiplexer) startApp() error {
 	return m.initRemoteGrpcConn()
 }
 
-// getProgramArgs returns the program args that should be passed to the embedded
-// app.
-func getProgramArgs(args []string) []string {
+// removeStart removes the first argument (the binary name) and the start argument from args.
+func removeStart(args []string) []string {
+	if len(args) == 0 {
+		return args
+	}
 	result := []string{}
+	args = args[1:] // remove the first argument (the binary name)
 	for _, arg := range args {
-		if strings.HasSuffix(arg, "celestia-appd") || arg == "start" {
-			continue
+		if arg != "start" {
+			result = append(result, arg)
 		}
-		result = append(result, arg)
 	}
 	return result
 }
