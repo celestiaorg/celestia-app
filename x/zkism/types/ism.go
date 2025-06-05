@@ -96,7 +96,9 @@ func (ism *ZKExecutionISM) verifyZKProof(metadata ZkExecutionISMMetadata) (bool,
 		return false, err
 	}
 
-	// TODO: once the proof is verified, update the height and state root on the ism from the public inputs
+	ism.Height = metadata.PublicInputs.NewHeight
+	ism.StateRoot = metadata.PublicInputs.NewStateRoot[:]
+
 	return true, nil
 }
 
