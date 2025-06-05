@@ -22,6 +22,55 @@ The `rpc.grpc_laddr` config option is now required when running the celestia-app
 grpc_laddr = "tcp://127.0.0.1:9098"
 ```
 
+### State Machine Changes (v4.0.0)
+
+Celestia-app v4.0.0 includes significant state machine changes due to major dependency upgrades: **Cosmos SDK** (v0.46.16 to v0.50.13), **IBC** (v6.2.2 to v8.7.0). This upgrade also includes bumping **CometBFT** (v0.34 to v0.38).
+
+#### New Messages (Added Modules)
+
+**`x/circuit` Circuit Breaker Module** ([cosmos-sdk docs](https://docs.cosmos.network/v0.50/build/modules/circuit)):
+- `MsgAuthorizeCircuitBreaker` - Grant circuit breaker permissions
+- `MsgTripCircuitBreaker` - Disable message execution
+- `MsgResetCircuitBreaker` - Re-enable message execution
+
+**`x/consensus` Consensus Parameters Module** ([cosmos-sdk docs](https://docs.cosmos.network/v0.50/build/modules/consensus)):
+- `MsgUpdateParams` - Update consensus parameters via governance (replaces CometBFT consensus param updates)
+
+**Hyperlane**:
+- `hyperlane/core` - Cross-chain messaging infrastructure
+- `hyperlane/warp` - Token bridging and routing
+
+#### Removed Messages (Deprecated Modules)
+
+**`x/crisis` Module** - Removed in Cosmos SDK v0.50.x
+
+**`x/capability` Module** - Removed in Cosmos SDK v0.50.x:
+- IBC capability management integrated directly into IBC v8 modules
+
+**`x/paramfilter` Module** - Celestia-specific module removed:
+- Parameter filtering functionality replaced by circuit breaker
+
+#### Changed Messages and Logic
+
+**Parameter Management Migration**:
+- **Generic parameter proposals** deprecated in favor of module-specific `MsgUpdateParams` messages
+- **Consensus parameters** moved from CometBFT to dedicated `x/consensus` module
+- **All modules** now use module-specific parameter update messages instead of legacy `x/params` proposals
+
+**IBC v6 to v8 Protocol Changes** ([v6 to v7](https://ibc.cosmos.network/main/migrations/v6-to-v7), [v7 to v8](https://ibc.cosmos.network/main/migrations/v7-to-v8))
+
+### Library Consumers (v4.0.0)
+
+**Import Changes**:
+- Add: `cosmossdk.io/x/circuit`, `cosmossdk.io/x/consensus`
+- Remove: `x/capability`, `x/crisis`, `x/paramfilter`
+- Update: `github.com/cosmos/ibc-go/v8` (from v6)
+
+**API Breaking Changes** ([cosmos-sdk migration guide](https://docs.cosmos.network/v0.50/build/migrations/upgrading)):
+- Module keepers now accept `context.Context` instead of `sdk.Context`
+- `BeginBlock`/`EndBlock` signatures changed
+- Parameter updates require module-specific `MsgUpdateParams` messages
+
 ## v3.0.0
 
 ### Node Operators (v3.0.0)
