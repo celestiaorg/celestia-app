@@ -21,12 +21,17 @@ func Test_getProgramArgs(t *testing.T) {
 	}
 	tests := []testCase{
 		{
-			name:  "should remove 'celestia-appd' and 'start' from args",
+			name:  "should return empty slice if no args are provided",
+			input: []string{},
+			want:  []string{},
+		},
+		{
+			name:  "should remove 'celestia-appd' and 'start' from input",
 			input: []string{"celestia-appd", "start", "--home", "foo"},
 			want:  []string{"--home", "foo"},
 		},
 		{
-			name:  "should preserve extra other args",
+			name:  "should preserve extra additional args",
 			input: []string{"celestia-appd", "start", "--home", "foo", "--grpc.enable", "--api.enable"},
 			want:  []string{"--home", "foo", "--grpc.enable", "--api.enable"},
 		},

@@ -245,8 +245,10 @@ func (m *Multiplexer) startApp() error {
 	return m.initRemoteGrpcConn()
 }
 
-// getProgramArgs returns the program args that should be passed to
-func getProgramArgs(args []string) (result []string) {
+// getProgramArgs returns the program args that should be passed to the embedded
+// app.
+func getProgramArgs(args []string) []string {
+	result := []string{}
 	for _, arg := range args {
 		if strings.HasSuffix(arg, "celestia-appd") || arg == "start" {
 			continue
