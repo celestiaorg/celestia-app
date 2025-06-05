@@ -68,23 +68,23 @@ func (ism *ZKExecutionISM) verifyZKProof(metadata ZkExecutionISMMetadata) (bool,
 		return false, err
 	}
 
-	// TODO: We should store the sp1 verifier key on the ism.
-	// For now lets just take the unused state membership bz here to satisfy the compiler
-	vkHash := sha256.Sum256(ism.StateMembershipVerifierKey)
-	vkHashBigInt := new(big.Int).SetBytes(vkHash[:])
+	// TODO: verify public inputs with trusted ism/celestia data
+	// - trusted state root (DONE)
+	// - trusted height (optional?)
+	// - celestia header hash(es)
+	if !bytes.Equal(metadata.PublicInputs.TrustedStateRoot[:], ism.StateRoot) {
+		return false, fmt.Errorf("cannot trust public inputs trusted state root: expected %x, but got %x", ism.StateRoot, metadata.PublicInputs.TrustedStateRoot)
+	}
 
-	// TODO: Find out and validate what exactly are the public inputs, how they should be received and decoded.
-	// The public inputs returned from the evm aggregration sp1 program are currently defined here:
-	// https://github.com/celestiaorg/celestia-zkevm-ibc-demo/blob/main/provers/blevm/common/src/lib.rs#L16
-	//
-	// We must be able to parse the public input bytes in order to update the ism height and state root.
-	// We should be able to just read n bytes from a single public inputs byte slice returned from the prover service.
-	// This can be done as part of metadata parsing.
-	// For now just take index 0 here to satisfy compiler and put code in place.
-	sp1PubInputs := metadata.PublicInputs[0]
+	sp1VkCommitment := new(big.Int).SetBytes(ism.VerifierKeyCommitment)
+	vkElement := groth16.NewBN254FrElement(sp1VkCommitment)
+
+	sp1PubInputs, err := metadata.PublicInputs.Marshal()
+	if err != nil {
+		return false, err
+	}
+
 	sp1PubInputsHash := groth16.HashBN254(sp1PubInputs)
-
-	vkElement := groth16.NewBN254FrElement(vkHashBigInt)
 	pubInputsElement := groth16.NewBN254FrElement(sp1PubInputsHash)
 
 	pubWitness, err := groth16.NewPublicWitness(vkElement, pubInputsElement)
