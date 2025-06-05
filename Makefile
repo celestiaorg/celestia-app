@@ -306,7 +306,7 @@ LLDFLAGS := \
   -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
   -X github.com/celestiaorg/celestia-app/v4/cmd/celestia-appd/cmd.v2UpgradeHeight=0
 
-build-talis:
+build-talis-bins:
 	DOCKER_BUILDKIT=0 docker build \
 	  --file tools/talis/docker/Dockerfile \
 	  --target builder \
@@ -318,7 +318,7 @@ build-talis:
 	docker cp tmp:/out/. build/
 	docker rm tmp
 
-.PHONY: build-talis
+.PHONY: build-talis-bins
 
 
 ## adr-gen: Download the ADR template from the celestiaorg/.github repo.
