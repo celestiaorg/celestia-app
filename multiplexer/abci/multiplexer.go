@@ -226,12 +226,7 @@ func (m *Multiplexer) startApp() error {
 	}
 
 	if currentVersion.Appd.Pid() == appd.AppdStopped {
-		programArgs := os.Args
-		fmt.Printf("programArgs: %v\n", programArgs)
-		if len(os.Args) > 2 {
-			programArgs = os.Args[2:] // remove 'appd start' args
-		}
-		fmt.Printf("after stripping programArgs: %s\n", programArgs)
+		programArgs := getProgramArgs(os.Args)
 
 		// start an embedded app.
 		m.logger.Debug("starting embedded app", "app_version", currentVersion.AppVersion, "args", currentVersion.GetStartArgs(programArgs))
@@ -248,6 +243,17 @@ func (m *Multiplexer) startApp() error {
 	}
 
 	return m.initRemoteGrpcConn()
+}
+
+// getProgramArgs returns the program args that should be passed to
+func getProgramArgs(args []string) (result []string) {
+	for _, arg := range args {
+		if strings.HasSuffix(arg, "celestia-appd") || arg == "start" {
+			continue
+		}
+		result = append(result, arg)
+	}
+	return result
 }
 
 // initRemoteGrpcConn initializes a gRPC connection to the remote application client and configures transport credentials.
