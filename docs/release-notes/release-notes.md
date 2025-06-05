@@ -43,7 +43,6 @@ Celestia-app v4.0.0 includes significant state machine changes due to major depe
 #### Removed Messages (Deprecated Modules)
 
 **`x/crisis` Module** - Removed in Cosmos SDK v0.50.x ([migration docs](https://docs.cosmos.network/v0.50/build/migrations/upgrading#xconsensus)):
-- `MsgVerifyInvariant` - Emergency chain halt functionality moved to circuit breaker
 
 **`x/capability` Module** - Removed in Cosmos SDK v0.50.x:
 - IBC capability management integrated directly into IBC v8 modules
