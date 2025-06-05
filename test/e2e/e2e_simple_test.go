@@ -1,10 +1,11 @@
-package docker_e2e
+package e2e
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	"testing"
 	"time"
+
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
 func (s *CelestiaTestSuite) TestE2ESimple() {

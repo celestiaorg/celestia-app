@@ -227,21 +227,15 @@ test-short:
 	@go test ./... -short -timeout 1m
 .PHONY: test-short
 
-## test-e2e: Run end to end tests via knuu. This command requires a kube/config file to configure kubernetes.
+## test-e2e: Run end to end tests via docker.
 test-e2e:
-	@echo "--> Running end to end tests"
-	IMAGE_TAG=$(tag) TEST=$(test) DOCKER_REGISTRY=$(registry) go run ./test/e2e $(filter-out $@,$(MAKECMDGOALS))
-.PHONY: test-e2e
-
-## test-docker-e2e: Run end to end tests via docker.
-test-docker-e2e:
 	@if [ -z "$(test)" ]; then \
-		echo "ERROR: 'test' variable is required. Usage: make test-docker-e2e test=TestE2ESimple"; \
+		echo "ERROR: 'test' variable is required. Usage: make test-e2e test=TestE2ESimple"; \
 		exit 1; \
 	fi
 	@echo "--> Running: TestCelestiaTestSuite/$(test)"
-	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/$(test)$$ ./...
-.PHONY: test-docker-e2e
+	cd test/e2e && go test -v -run ^TestCelestiaTestSuite/$(test)$$ ./...
+.PHONY: test-e2e
 
 ## test-multiplexer: Run unit tests for the multiplexer package.
 test-multiplexer: download-v3-binaries

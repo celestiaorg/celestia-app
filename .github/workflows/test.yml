@@ -81,7 +81,7 @@ jobs:
       - name: Run multiplexer tests
         run: make test-multiplexer
 
-  test-docker-e2e:
+  test-e2e:
     runs-on: ubuntu-latest
     # if one test fails, continue running the rest.
     continue-on-error: true
@@ -115,4 +115,4 @@ jobs:
           # use the locally built image
           CELESTIA_IMAGE: celestia-app
           CELESTIA_TAG: ${{ steps.tag.outputs.value }}
-        run: make test-docker-e2e test=${{ matrix.testcase }}
+        run: make test-e2e test=${{ matrix.testcase }}
