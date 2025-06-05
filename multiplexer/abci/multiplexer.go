@@ -233,6 +233,7 @@ func (m *Multiplexer) startApp() error {
 
 		// start an embedded app.
 		m.logger.Debug("starting embedded app", "app_version", currentVersion.AppVersion, "args", currentVersion.GetStartArgs(programArgs))
+		fmt.Printf("programArgs: %s\n", programArgs)
 		if err := currentVersion.Appd.Start(currentVersion.GetStartArgs(programArgs)...); err != nil {
 			return fmt.Errorf("failed to start app: %w", err)
 		}
