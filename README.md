@@ -97,8 +97,8 @@ make bbr-enable
 
 ### Environment variables
 
-| Variable            | Explanation                                  | Default value                                               | Required |
-|---------------------|----------------------------------------------|-------------------------------------------------------------|----------|
+| Variable            | Explanation                                  | Default value                                              | Required |
+|---------------------|----------------------------------------------|------------------------------------------------------------|----------|
 | `CELESTIA_APP_HOME` | Where the application files should be saved. | [`$HOME/.celestia-app`](https://pkg.go.dev/os#UserHomeDir) | Optional |
 
 ### Using celestia-appd
@@ -141,6 +141,26 @@ If you are running celestia-app in tests, you may want to override the `timeout_
 # Start celestia-appd with a one-second timeout commit.
 celestia-appd start --timeout-commit 1s
 ```
+
+## Server Architecture
+
+celestia-app and celestia-core start multiple servers to handle different types of network communication and requests. Here's an overview of each server and their default addresses:
+
+### Celestia-Core (CometBFT) Servers
+
+| Server   | Default Address         | Configuration               | Purpose                                                                                               |
+|----------|-------------------------|-----------------------------|-------------------------------------------------------------------------------------------------------|
+| **RPC**  | `tcp://127.0.0.1:26657` | `config.toml` under `[rpc]` | HTTP/WebSocket API for blockchain queries, transaction submission, and real-time event subscriptions. |
+| **gRPC** | `tcp://127.0.0.1:9098`  | `config.toml` under `[rpc]` | gRPC API that only supports `/broadcast_tx_commit`.                                                   |
+| **P2P**  | `tcp://0.0.0.0:26656`   | `config.toml` under `[p2p]` | Peer-to-peer networking layer for consensus, block synchronization, and mempool gossip.               |
+
+### Celestia-App (Cosmos SDK) Servers
+
+| Server       | Default Address                | Configuration                 | Purpose                                                                                                                                      |
+|--------------|--------------------------------|-------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
+| **gRPC**     | `localhost:9090`               | `app.toml` under `[grpc]`     | gRPC for application-specific queries. Provides access to Cosmos SDK modules (bank, governance, etc.) and Celestia-specific modules (blob).  |
+| **REST API** | `tcp://localhost:1317`         | `app.toml` under `[api]`      | RESTful HTTP API that proxies requests to the gRPC server via gRPC-gateway. Provides the same functionality as gRPC but over HTTP with JSON. |
+| **gRPC-Web** | *Uses REST API server address* | `app.toml` under `[grpc-web]` | Browser-compatible gRPC API that allows web applications to interact with the gRPC server.                                                   |
 
 ## Contributing
 
