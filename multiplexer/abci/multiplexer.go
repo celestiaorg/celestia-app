@@ -227,13 +227,14 @@ func (m *Multiplexer) startApp() error {
 
 	if currentVersion.Appd.Pid() == appd.AppdStopped {
 		programArgs := os.Args
+		fmt.Printf("programArgs: %v\n", programArgs)
 		if len(os.Args) > 2 {
 			programArgs = os.Args[2:] // remove 'appd start' args
 		}
+		fmt.Printf("after stripping programArgs: %s\n", programArgs)
 
 		// start an embedded app.
 		m.logger.Debug("starting embedded app", "app_version", currentVersion.AppVersion, "args", currentVersion.GetStartArgs(programArgs))
-		fmt.Printf("programArgs: %s\n", programArgs)
 		if err := currentVersion.Appd.Start(currentVersion.GetStartArgs(programArgs)...); err != nil {
 			return fmt.Errorf("failed to start app: %w", err)
 		}
