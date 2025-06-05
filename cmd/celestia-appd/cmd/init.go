@@ -37,7 +37,7 @@ const (
 // InitCmd returns a command that creates the config files and genesis.json for
 // a chain.
 func InitCmd(capp *app.App) *cobra.Command {
-	return initCmd(capp.BasicManager, app.DefaultNodeHome)
+	return initCmd(capp.BasicManager, app.NodeHome)
 }
 
 // initCmd returns a command that initializes all files needed for Tendermint
