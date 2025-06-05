@@ -1,4 +1,4 @@
-module celestiaorg/celestia-app/test/docker-e2e
+module celestiaorg/celestia-app/test/e2e
 
 go 1.23.6
 
