@@ -342,6 +342,12 @@ func (m *Multiplexer) startGRPCServer() (*grpc.Server, client.Context, error) {
 		return nil, m.clientContext, err
 	}
 
+	// Ensure the core environment uses the configured RPC address instead of localhost
+	if m.svrCtx.Config.RPC.ListenAddress != "" {
+		// Update the RPC config in the core environment to use the configured address
+		coreEnv.Config.ListenAddress = m.svrCtx.Config.RPC.ListenAddress
+	}
+
 	blockAPI := coregrpc.NewBlockAPI(coreEnv)
 	coregrpc.RegisterBlockAPIServer(grpcSrv, blockAPI)
 
