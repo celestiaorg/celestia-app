@@ -41,12 +41,6 @@ func NewNetwork(t testing.TB, config *Config) (cctx Context, rpcAddr, grpcAddr s
 	coreEnv, err := tmNode.ConfigureRPC()
 	require.NoError(t, err)
 
-	// Ensure the core environment uses the configured RPC address from the test configuration
-	// This prevents test scenarios from hitting the localhost default issue
-	if config.TmConfig.RPC.ListenAddress != "" {
-		coreEnv.Config.ListenAddress = config.TmConfig.RPC.ListenAddress
-	}
-
 	grpcServer, cctx, cleanupGRPC, err := StartGRPCServer(log.NewTestLogger(t), app, config.AppConfig, cctx, coreEnv)
 	require.NoError(t, err)
 
