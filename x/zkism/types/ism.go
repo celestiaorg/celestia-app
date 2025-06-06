@@ -68,7 +68,7 @@ func (ism *ZKExecutionISM) verifyZKProof(metadata ZkExecutionISMMetadata) (bool,
 		return false, err
 	}
 
-	if err := ism.verifyPublicInputs(metadata.PublicInputs); err != nil {
+	if err := ism.validatePublicInputs(metadata.PublicInputs); err != nil {
 		return false, err
 	}
 
@@ -96,11 +96,11 @@ func (ism *ZKExecutionISM) verifyZKProof(metadata ZkExecutionISMMetadata) (bool,
 	return true, nil
 }
 
-// TODO: verify public inputs with trusted ism/celestia data
+// TODO: validate public inputs with trusted ism/celestia data
 // - trusted state root (DONE)
 // - trusted height (optional?)
 // - celestia header hash(es)
-func (ism *ZKExecutionISM) verifyPublicInputs(inputs PublicInputs) error {
+func (ism *ZKExecutionISM) validatePublicInputs(inputs PublicInputs) error {
 	if !bytes.Equal(inputs.TrustedStateRoot[:], ism.StateRoot) {
 		return fmt.Errorf("cannot trust public inputs trusted state root: expected %x, but got %x", ism.StateRoot, inputs.TrustedStateRoot)
 	}
