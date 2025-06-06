@@ -10,6 +10,15 @@ This guide provides notes for major version releases. These notes may be helpful
 
 Celestia-app v4.0.0 introduces support for a [multiplexer](https://github.com/celestiaorg/celestia-app/tree/e5d5ac6732c55150ea3573e17bec162fe836e0c6/multiplexer) that makes it easier for node operators to run a consensus node that can sync from genesis. The multiplexer contains an embedded celestia-app v3.x.x binary that will be used to sync the node from genesis. After the chain advances to app version v4, the multiplexer will stop routing requests to the embedded celestia-app v3.x.x binary and will instead route requests to the the v4.x.x state machine. Binaries that are installed from source (via `make install`) will include support for the multiplexer. To install Celestia without the multiplexer, you can use the `make install-standalone` target. Note that the standalone binary will only be able to run on networks that have already upgraded to app version v4.
 
+#### `proxy_app` and `address`
+
+- The default ABCI client address is now `tcp://127.0.0.1:36658` (configured via `--proxy_app` flag or `proxy_app` in config.toml).
+- The default ABCI server address is now `tcp://127.0.0.1:36658` (configured via `--address` flag).
+
+These two configs must match in order for the multiplexer to work correctly. Therefore, if you override either of these configs, please ensure that the other one is also overridden.
+
+#### Custom build flags
+
 `make install` currently downloads a v3.x binary with goleveldb support. If you use pebbledb, you will need to build the v3.x binary from source (with the `pebbledb` build tag) and include it in the app's embedded binary directory (by default: `~/.celestia-app/bin/`).
 
 #### `rpc.grpc_laddr`
