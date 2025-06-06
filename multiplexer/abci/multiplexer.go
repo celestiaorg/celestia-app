@@ -263,7 +263,8 @@ func (m *Multiplexer) initRemoteGrpcConn() error {
 	abciClientAddr := m.svrCtx.Viper.GetString(flagABCIClientAddr)
 	abciServerAddr := m.svrCtx.Viper.GetString(flagABCIServerAddr)
 	if abciServerAddr != abciClientAddr {
-		return fmt.Errorf("ABCI client and server addresses must match: client=%s, server=%s", abciClientAddr, abciServerAddr)
+		return fmt.Errorf("ABCI client and server addresses must match:\n client=%s\n server=%s\n"+
+			"To resolve, please configure the ABCI client (via --proxy_app flag) to match the ABCI server (via --address flag)", abciClientAddr, abciServerAddr)
 	}
 
 	// remove tcp:// prefix if present
