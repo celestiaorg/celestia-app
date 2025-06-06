@@ -24,38 +24,48 @@ func TestSequenceMismatchEviction(t *testing.T) {
 
 	t.Run("verify eviction handling does not result in a sequence mismatch", func(t *testing.T) {
 		testAccount := txClient.DefaultAccountName()
-
 		blobSize := 100000
 		blob := blobfactory.ManyRandBlobs(random.New(), blobSize)[0]
 
 		for i := 0; i < 10; i++ {
-			currentSequence := txClient.Account(testAccount).Sequence()
-
-			t.Logf("Submitting blob tx attempt %d with sequence %d", i, currentSequence)
-
-			response, err := txClient.SubmitPayForBlob(ctx.GoContext(), []*share.Blob{blob},
-				user.SetFee(50000))
-
-			if err != nil {
-				if strings.Contains(err.Error(), "tx was evicted from the mempool") {
-					sequenceAfterEviction := txClient.Account(testAccount).Sequence()
-
-					t.Logf("Eviction detected! Sequence after eviction: %d (was %d)", sequenceAfterEviction, currentSequence)
-
-					// Test that the next transaction does NOT have a sequence mismatch
-					t.Run("verify no sequence mismatch after eviction", func(t *testing.T) {
-						verifyNoSequenceMismatch(t, ctx.GoContext(), txClient, testAccount)
-					})
-
-					break
-				} else {
-					t.Logf("Transaction failed with error: %v", err)
-				}
-			} else if response != nil {
-				t.Logf("Transaction %s confirmed in block %d", response.TxHash, response.Height)
+			evicted := submitTransactionAndCheckEviction(t, txClient, ctx.GoContext(), testAccount, blob, i)
+			if evicted {
+				t.Run("verify no sequence mismatch after eviction", func(t *testing.T) {
+					verifyNoSequenceMismatch(t, ctx.GoContext(), txClient, testAccount)
+				})
+				break
 			}
 		}
 	})
+}
+
+// submitTransactionAndCheckEviction submits a transaction and returns true if it was evicted
+func submitTransactionAndCheckEviction(t *testing.T, txClient *user.TxClient, ctx context.Context, testAccount string, blob *share.Blob, attempt int) bool {
+	t.Helper()
+
+	currentSequence := txClient.Account(testAccount).Sequence()
+	t.Logf("Submitting blob tx attempt %d with sequence %d", attempt, currentSequence)
+
+	response, err := txClient.SubmitPayForBlob(ctx, []*share.Blob{blob}, user.SetFee(50000))
+
+	if err == nil && response != nil {
+		t.Logf("Transaction %s confirmed in block %d", response.TxHash, response.Height)
+		return false
+	}
+
+	if err == nil {
+		return false
+	}
+
+	// Check if transaction was evicted
+	if strings.Contains(err.Error(), "tx was evicted from the mempool") {
+		sequenceAfterEviction := txClient.Account(testAccount).Sequence()
+		t.Logf("Eviction detected! Sequence after eviction: %d (was %d)", sequenceAfterEviction, currentSequence)
+		return true
+	}
+
+	t.Logf("Transaction failed with error: %v", err)
+	return false
 }
 
 func verifyNoSequenceMismatch(t *testing.T, ctx context.Context, txClient *user.TxClient, testAccount string) {
@@ -75,9 +85,8 @@ func verifyNoSequenceMismatch(t *testing.T, ctx context.Context, txClient *user.
 
 		if isSequenceMismatchError(errorMsg) {
 			t.Fatalf("SEQUENCE MISMATCH DETECTED: %s - This indicates the fix is not working!", errorMsg)
-		} else {
-			t.Logf("Transaction failed with non-sequence error (this is expected): %s", errorMsg)
 		}
+		t.Logf("Transaction failed with non-sequence error (this is expected): %s", errorMsg)
 	} else {
 		t.Log("Next transaction succeeded - fix is working correctly!")
 	}
