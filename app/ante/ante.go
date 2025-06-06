@@ -60,7 +60,7 @@ func NewAnteHandler(
 		// that the signature's sequence number (a.k.a nonce) matches the
 		// account sequence number of the signer.
 		// Note: does not consume gas from the gas meter.
-		ante.NewSigVerificationDecorator(accountKeeper, signModeHandler),
+		NewSafeSigVerificationDecorator(accountKeeper, signModeHandler),
 		// Ensure that the tx does not contain a MsgExec with a nested MsgExec
 		// or MsgPayForBlobs.
 		NewMsgExecDecorator(),
