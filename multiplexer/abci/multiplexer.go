@@ -262,18 +262,28 @@ func removeStart(args []string) []string {
 
 // initRemoteGrpcConn initializes a gRPC connection to the remote application client and configures transport credentials.
 func (m *Multiplexer) initRemoteGrpcConn() error {
-	// prepare remote app client
-	const flagTMAddress = "address"
-	tmAddress := m.svrCtx.Viper.GetString(flagTMAddress)
-	if tmAddress == "" {
-		tmAddress = "127.0.0.1:36658"
+	// Prepare the remote app client.
+	//
+	// Here we assert that the merged viper configuration contains the same address for both the ABCI
+	// client and server addresses. This ensures the app state machine is running on the port which
+	// the consensus engine expects.
+	const (
+		flagABCIClientAddr = "proxy_app"
+		flagABCIServerAddr = "address"
+	)
+
+	abciClientAddr := m.svrCtx.Viper.GetString(flagABCIClientAddr)
+	abciServerAddr := m.svrCtx.Viper.GetString(flagABCIServerAddr)
+	if abciServerAddr != abciClientAddr {
+		return fmt.Errorf("ABCI client and server addresses must match:\n client=%s\n server=%s\n"+
+			"To resolve, please configure the ABCI client (via --proxy_app flag) to match the ABCI server (via --address flag)", abciClientAddr, abciServerAddr)
 	}
 
 	// remove tcp:// prefix if present
-	tmAddress = strings.TrimPrefix(tmAddress, "tcp://")
+	abciServerAddr = strings.TrimPrefix(abciServerAddr, "tcp://")
 
 	conn, err := grpc.NewClient(
-		tmAddress,
+		abciServerAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(
 			grpc.MaxCallSendMsgSize(math.MaxInt32),
@@ -284,7 +294,7 @@ func (m *Multiplexer) initRemoteGrpcConn() error {
 		return fmt.Errorf("failed to prepare app connection: %w", err)
 	}
 
-	m.logger.Info("initialized remote app client", "address", tmAddress)
+	m.logger.Info("initialized remote app client", "address", abciServerAddr)
 	m.conn = conn
 	return nil
 }
