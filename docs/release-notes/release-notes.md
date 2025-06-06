@@ -24,6 +24,10 @@ The `rpc.grpc_laddr` config option is now required when running the celestia-app
 grpc_laddr = "tcp://127.0.0.1:9098"
 ```
 
+#### IAVL v1 Migration
+
+Celestia-app v4 uses IAVL v1 for better performance. When upgrading from v3, the migration happens lazily over time. If you'd like to avoid the lazy migration, you can perform a fresh state sync so that your node uses IAVL v1 exclusively.
+
 ### State Machine Changes (v4.0.0)
 
 Celestia-app v4.0.0 includes significant state machine changes due to major dependency upgrades: **Cosmos SDK** (v0.46.16 to v0.50.13), **IBC** (v6.2.2 to v8.7.0). This upgrade also includes bumping **CometBFT** (v0.34 to v0.38).
