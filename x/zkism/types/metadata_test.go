@@ -19,21 +19,30 @@ func encodeUint32(v uint32) []byte {
 
 func TestNewZkExecutionISMMetadata(t *testing.T) {
 	proof := []byte{0xAA, 0xBB, 0xCC}
-	publicInput1 := bytes.Repeat([]byte{0x01}, 32)
-	publicInput2 := bytes.Repeat([]byte{0x02}, 32)
+	pubInputs := types.PublicInputs{
+		TrustedStateRoot:     [32]byte{},
+		NewHeaderHash:        [32]byte{},
+		PreviousHeaderHash:   [32]byte{},
+		CelestiaHeaderHashes: [][]byte{bytes.Repeat([]byte{0x01}, 32), bytes.Repeat([]byte{0x02}, 32)},
+		NewStateRoot:         [32]byte{},
+		NewHeight:            42,
+	}
+
+	pubInputsBz, err := pubInputs.Marshal()
+	require.NoError(t, err)
+
 	merkle1 := bytes.Repeat([]byte{0x03}, 32)
 	merkle2 := bytes.Repeat([]byte{0x04}, 32)
 
 	metadata := func() []byte {
 		var b []byte
-		b = append(b, byte(types.ProofTypeGroth16))        // proof type
-		b = append(b, encodeUint32(uint32(len(proof)))...) // proof size
-		b = append(b, proof...)                            // proof
-		b = append(b, encodeUint32(2)...)                  // number of public inputs
-		b = append(b, publicInput1...)                     // public input 1
-		b = append(b, publicInput2...)                     // public input 2
-		b = append(b, merkle1...)                          // merkle proof 1
-		b = append(b, merkle2...)                          // merkle proof 2
+		b = append(b, byte(types.ProofTypeSP1Groth16))           // proof type
+		b = append(b, encodeUint32(uint32(len(proof)))...)       // proof size
+		b = append(b, proof...)                                  // proof
+		b = append(b, encodeUint32(uint32(len(pubInputsBz)))...) // public inputs size
+		b = append(b, pubInputsBz...)                            // public inputs bytes
+		b = append(b, merkle1...)                                // merkle proof 1
+		b = append(b, merkle2...)                                // merkle proof 2
 		return b
 	}
 
@@ -49,7 +58,7 @@ func TestNewZkExecutionISMMetadata(t *testing.T) {
 		},
 		{
 			name:     "too short for proof size",
-			metadata: []byte{byte(types.ProofTypeGroth16), 0x00, 0x00},
+			metadata: []byte{byte(types.ProofTypeSP1Groth16), 0x00, 0x00},
 			expError: errors.New("metadata too short to contain proof type and size"),
 		},
 		{
@@ -59,13 +68,13 @@ func TestNewZkExecutionISMMetadata(t *testing.T) {
 		},
 		{
 			name:     "too short for full proof",
-			metadata: append([]byte{byte(types.ProofTypeGroth16)}, encodeUint32(10)...), // define 10-byte proof but provide none
+			metadata: append([]byte{byte(types.ProofTypeSP1Groth16)}, encodeUint32(10)...), // define 10-byte proof but provide none
 			expError: errors.New("metadata too short to contain full proof: expected 10 bytes"),
 		},
 		{
-			name: "too short for number of public inputs",
+			name: "too short for public inputs length",
 			metadata: func() []byte {
-				b := append([]byte{byte(types.ProofTypeGroth16)}, encodeUint32(1)...)
+				b := append([]byte{byte(types.ProofTypeSP1Groth16)}, encodeUint32(1)...)
 				b = append(b, 0xAA)
 				b = append(b, 0xFF, 0xFF, 0xFF) // 3 bytes is insufficient for uint32
 				return b
@@ -73,15 +82,15 @@ func TestNewZkExecutionISMMetadata(t *testing.T) {
 			expError: errors.New("metadata too short to contain number of public inputs"),
 		},
 		{
-			name: "too short for public input",
+			name: "too short for public inputs",
 			metadata: func() []byte {
-				b := append([]byte{byte(types.ProofTypeGroth16)}, encodeUint32(1)...)
+				b := append([]byte{byte(types.ProofTypeSP1Groth16)}, encodeUint32(1)...)
 				b = append(b, 0xAA)
-				b = append(b, encodeUint32(1)...)
-				b = append(b, bytes.Repeat([]byte{0x00}, 16)...) // only half of required 32 bytes
+				b = append(b, encodeUint32(100)...)              // 100 bytes for PublicInputs
+				b = append(b, bytes.Repeat([]byte{0x00}, 50)...) // only provide 50
 				return b
 			}(),
-			expError: errors.New("metadata too short for public input 0"),
+			expError: errors.New("metadata too short to contain public inputs: expected 100 bytes"),
 		},
 		{
 			name: "trailing bytes",
@@ -103,11 +112,9 @@ func TestNewZkExecutionISMMetadata(t *testing.T) {
 				require.Contains(t, err.Error(), tc.expError.Error())
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, types.ProofTypeGroth16, result.ProofType)
+				require.Equal(t, types.ProofTypeSP1Groth16, result.ProofType)
 				require.Equal(t, proof, result.Proof)
-				require.Len(t, result.PublicInputs, 2)
-				require.Equal(t, publicInput1, result.PublicInputs[0])
-				require.Equal(t, publicInput2, result.PublicInputs[1])
+				require.Equal(t, pubInputs, result.PublicInputs)
 				require.Len(t, result.MerkleProofs, 2)
 				require.Equal(t, merkle1, result.MerkleProofs[0])
 				require.Equal(t, merkle2, result.MerkleProofs[1])
@@ -125,7 +132,7 @@ func TestNewZkExecutionISMMetadataNoExecutionProof(t *testing.T) {
 		{
 			name: "valid metadata: no zk proof, no public inputs, only merkle proofs",
 			metadata: func() []byte {
-				b := []byte{byte(types.ProofTypeGroth16)}        // proof type
+				b := []byte{byte(types.ProofTypeSP1Groth16)}     // proof type
 				b = append(b, encodeUint32(0)...)                // zero-length proof
 				b = append(b, encodeUint32(0)...)                // zero public inputs
 				b = append(b, bytes.Repeat([]byte{0xAA}, 32)...) // merkle proof 1
@@ -137,7 +144,7 @@ func TestNewZkExecutionISMMetadataNoExecutionProof(t *testing.T) {
 		{
 			name: "no zk proof, no public inputs, only merkle proofs, trailing bytes",
 			metadata: func() []byte {
-				b := []byte{byte(types.ProofTypeGroth16)}        // proof type
+				b := []byte{byte(types.ProofTypeSP1Groth16)}     // proof type
 				b = append(b, encodeUint32(0)...)                // zero-length proof
 				b = append(b, encodeUint32(0)...)                // zero public inputs
 				b = append(b, bytes.Repeat([]byte{0xAA}, 32)...) // merkle proof 1
@@ -160,7 +167,7 @@ func TestNewZkExecutionISMMetadataNoExecutionProof(t *testing.T) {
 				require.Contains(t, err.Error(), tc.expError.Error())
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, types.ProofTypeGroth16, result.ProofType)
+				require.Equal(t, types.ProofTypeSP1Groth16, result.ProofType)
 				require.Empty(t, result.Proof)
 				require.Empty(t, result.PublicInputs)
 
@@ -174,7 +181,7 @@ func TestNewZkExecutionISMMetadataNoExecutionProof(t *testing.T) {
 
 func TestHasExecutionProof(t *testing.T) {
 	metadata := types.ZkExecutionISMMetadata{
-		ProofType: types.ProofTypeGroth16,
+		ProofType: types.ProofTypeSP1Groth16,
 		Proof:     []byte{0xAA, 0xBB, 0xCC},
 	}
 
@@ -185,4 +192,72 @@ func TestHasExecutionProof(t *testing.T) {
 
 	has = metadata.HasExecutionProof()
 	require.False(t, has)
+}
+
+func TestPublicInputsMarshalUnmarshal(t *testing.T) {
+	expected := types.PublicInputs{
+		TrustedStateRoot:   [32]byte{0xAA},
+		NewHeaderHash:      [32]byte{0xBB},
+		PreviousHeaderHash: [32]byte{0xCC},
+		CelestiaHeaderHashes: [][]byte{
+			bytes.Repeat([]byte{0x01}, 32),
+			bytes.Repeat([]byte{0x02}, 32),
+		},
+		NewStateRoot: [32]byte{0xDD},
+		NewHeight:    12345,
+	}
+
+	bz, err := expected.Marshal()
+	require.NoError(t, err)
+	require.NotEmpty(t, bz)
+
+	var decoded types.PublicInputs
+	err = decoded.Unmarshal(bz)
+	require.NoError(t, err)
+
+	require.Equal(t, expected.TrustedStateRoot, decoded.TrustedStateRoot)
+	require.Equal(t, expected.NewHeaderHash, decoded.NewHeaderHash)
+	require.Equal(t, expected.PreviousHeaderHash, decoded.PreviousHeaderHash)
+	require.Equal(t, expected.CelestiaHeaderHashes, decoded.CelestiaHeaderHashes)
+	require.Equal(t, expected.NewStateRoot, decoded.NewStateRoot)
+	require.Equal(t, expected.NewHeight, decoded.NewHeight)
+}
+
+func TestPublicInputsUnmarshalTrailingData(t *testing.T) {
+	pubInputs := types.PublicInputs{
+		TrustedStateRoot:     [32]byte{},
+		NewHeaderHash:        [32]byte{},
+		PreviousHeaderHash:   [32]byte{},
+		CelestiaHeaderHashes: [][]byte{bytes.Repeat([]byte{0x01}, 32)},
+		NewStateRoot:         [32]byte{},
+		NewHeight:            1,
+	}
+
+	bz, err := pubInputs.Marshal()
+	require.NoError(t, err)
+
+	bz = append(bz, 0xFF) // append trailing data to force error
+
+	var decoded types.PublicInputs
+	err = decoded.Unmarshal(bz)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "trailing data")
+}
+
+func TestMarshalRejectsInvalidHashLength(t *testing.T) {
+	pubInputs := types.PublicInputs{
+		TrustedStateRoot:   [32]byte{},
+		NewHeaderHash:      [32]byte{},
+		PreviousHeaderHash: [32]byte{},
+		CelestiaHeaderHashes: [][]byte{
+			bytes.Repeat([]byte{0x01}, 31), // use invalid hash length to force error
+		},
+		NewStateRoot: [32]byte{},
+		NewHeight:    0,
+	}
+
+	bz, err := pubInputs.Marshal()
+	require.Nil(t, bz)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid length 31")
 }

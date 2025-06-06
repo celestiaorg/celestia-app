@@ -1,11 +1,17 @@
 package types
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
+	"fmt"
+	"math/big"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	ismtypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/01_interchain_security/types"
+
+	"github.com/celestiaorg/celestia-app/v4/x/zkism/internal/groth16"
 )
 
 const (
@@ -46,9 +52,60 @@ func (ism *ZKExecutionISM) Verify(ctx context.Context, metadata []byte, message 
 }
 
 // verifyZKProof verifies a ZK proof to update the ISM's state root and height.
-func (ism *ZKExecutionISM) verifyZKProof(_ ZkExecutionISMMetadata) (bool, error) {
-	// TODO: https://github.com/celestiaorg/celestia-app/issues/4723
+func (ism *ZKExecutionISM) verifyZKProof(metadata ZkExecutionISMMetadata) (bool, error) {
+	groth16VkHash := sha256.Sum256(ism.StateTransitionVerifierKey)
+	if !bytes.Equal(groth16VkHash[:4], metadata.Proof[:4]) {
+		return false, fmt.Errorf("prefix mismatch: first 4 bytes of verifier key hash (%x) do not match proof prefix (%x)", groth16VkHash[:4], metadata.Proof[:4])
+	}
+
+	proof, err := groth16.UnmarshalProof(metadata.Proof[4:])
+	if err != nil {
+		return false, err
+	}
+
+	vk, err := groth16.NewVerifyingKey(ism.StateTransitionVerifierKey)
+	if err != nil {
+		return false, err
+	}
+
+	if err := ism.validatePublicInputs(metadata.PublicInputs); err != nil {
+		return false, err
+	}
+
+	vkCommitment := new(big.Int).SetBytes(ism.VerifierKeyCommitment)
+	pubInputs, err := metadata.PublicInputs.Marshal()
+	if err != nil {
+		return false, err
+	}
+
+	vkElement := groth16.NewBN254FrElement(vkCommitment)
+	inputsElement := groth16.NewBN254FrElement(groth16.HashBN254(pubInputs))
+
+	pubWitness, err := groth16.NewPublicWitness(vkElement, inputsElement)
+	if err != nil {
+		return false, err
+	}
+
+	if err := groth16.VerifyProof(proof, vk, pubWitness); err != nil {
+		return false, err
+	}
+
+	ism.Height = metadata.PublicInputs.NewHeight
+	ism.StateRoot = metadata.PublicInputs.NewStateRoot[:]
+
 	return true, nil
+}
+
+// TODO: validate public inputs with trusted ism/celestia data
+// - trusted state root (DONE)
+// - trusted height (optional?)
+// - celestia header hash(es)
+func (ism *ZKExecutionISM) validatePublicInputs(inputs PublicInputs) error {
+	if !bytes.Equal(inputs.TrustedStateRoot[:], ism.StateRoot) {
+		return fmt.Errorf("cannot trust public inputs trusted state root: expected %x, but got %x", ism.StateRoot, inputs.TrustedStateRoot)
+	}
+
+	return nil
 }
 
 // verifyMerkleProofs verifies merkle inclusion proofs against the current state root.
