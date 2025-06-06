@@ -343,9 +343,14 @@ func (m *Multiplexer) startGRPCServer() (*grpc.Server, client.Context, error) {
 	}
 
 	// Ensure the core environment uses the configured RPC address instead of localhost
-	if m.svrCtx.Config.RPC.ListenAddress != "" {
+	// Check Viper first for CLI flag overrides, then fall back to config file
+	rpcAddr := m.svrCtx.Viper.GetString("rpc.laddr")
+	if rpcAddr == "" {
+		rpcAddr = m.svrCtx.Config.RPC.ListenAddress
+	}
+	if rpcAddr != "" {
 		// Update the RPC config in the core environment to use the configured address
-		coreEnv.Config.ListenAddress = m.svrCtx.Config.RPC.ListenAddress
+		coreEnv.Config.ListenAddress = rpcAddr
 	}
 
 	blockAPI := coregrpc.NewBlockAPI(coreEnv)
