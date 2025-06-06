@@ -23,7 +23,7 @@ require (
 	github.com/celestiaorg/rsmt2d v0.14.0
 	github.com/cometbft/cometbft v0.38.17
 	github.com/cometbft/cometbft-db v1.0.4
-	github.com/cosmos/cosmos-db v1.1.1
+	github.com/cosmos/cosmos-db v1.1.3
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/cosmos/go-bip39 v1.0.0
@@ -36,7 +36,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/hashicorp/go-metrics v0.5.4
 	github.com/rs/zerolog v1.34.0
-	github.com/spf13/cast v1.7.1
+	github.com/spf13/cast v1.8.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
 	github.com/stretchr/testify v1.10.0
@@ -110,7 +110,7 @@ require (
 	github.com/cockroachdb/errors v1.11.3 // indirect
 	github.com/cockroachdb/fifo v0.0.0-20240816210425-c5d0cb0b6fc0 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20241215232642-bb51bb14a506 // indirect
-	github.com/cockroachdb/pebble v1.1.4 // indirect
+	github.com/cockroachdb/pebble v1.1.5 // indirect
 	github.com/cockroachdb/redact v1.1.5 // indirect
 	github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06 // indirect
 	github.com/containerd/continuity v0.4.2 // indirect
