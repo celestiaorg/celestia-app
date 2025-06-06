@@ -10,6 +10,8 @@ This guide provides notes for major version releases. These notes may be helpful
 
 Celestia-app v4.0.0 introduces support for a [multiplexer](https://github.com/celestiaorg/celestia-app/tree/e5d5ac6732c55150ea3573e17bec162fe836e0c6/multiplexer) that makes it easier for node operators to run a consensus node that can sync from genesis. The multiplexer contains an embedded celestia-app v3.x.x binary that will be used to sync the node from genesis. After the chain advances to app version v4, the multiplexer will stop routing requests to the embedded celestia-app v3.x.x binary and will instead route requests to the the v4.x.x state machine. Binaries that are installed from source (via `make install`) will include support for the multiplexer. To install Celestia without the multiplexer, you can use the `make install-standalone` target. Note that the standalone binary will only be able to run on networks that have already upgraded to app version v4.
 
+`make install` currently downloads a v3.x binary with goleveldb support. If you use pebbledb, you will need to build the v3.x binary from source (with the `pebbledb` build tag) and include it in the app's embedded binary directory (by default: `~/.celestia-app/bin/`).
+
 #### `rpc.grpc_laddr`
 
 The `rpc.grpc_laddr` config option is now required when running the celestia-app binary with the multiplexer. This option can be set via CLI flag `--rpc.grpc_laddr tcp://127.0.0.1:9098` or in the `config.toml`:
@@ -29,14 +31,17 @@ Celestia-app v4.0.0 includes significant state machine changes due to major depe
 #### New Messages (Added Modules)
 
 **`x/circuit` Circuit Breaker Module** ([cosmos-sdk docs](https://docs.cosmos.network/v0.50/build/modules/circuit)):
+
 - `MsgAuthorizeCircuitBreaker` - Grant circuit breaker permissions
 - `MsgTripCircuitBreaker` - Disable message execution
 - `MsgResetCircuitBreaker` - Re-enable message execution
 
 **`x/consensus` Consensus Parameters Module** ([cosmos-sdk docs](https://docs.cosmos.network/v0.50/build/modules/consensus)):
+
 - `MsgUpdateParams` - Update consensus parameters via governance (replaces CometBFT consensus param updates)
 
 **Hyperlane**:
+
 - `hyperlane/core` - Cross-chain messaging infrastructure
 - `hyperlane/warp` - Token bridging and routing
 
@@ -45,14 +50,17 @@ Celestia-app v4.0.0 includes significant state machine changes due to major depe
 **`x/crisis` Module** - Removed in Cosmos SDK v0.50.x
 
 **`x/capability` Module** - Removed in Cosmos SDK v0.50.x:
+
 - IBC capability management integrated directly into IBC v8 modules
 
 **`x/paramfilter` Module** - Celestia-specific module removed:
+
 - Parameter filtering functionality replaced by circuit breaker
 
 #### Changed Messages and Logic
 
 **Parameter Management Migration**:
+
 - **Generic parameter proposals** deprecated in favor of module-specific `MsgUpdateParams` messages
 - **Consensus parameters** moved from CometBFT to dedicated `x/consensus` module
 - **All modules** now use module-specific parameter update messages instead of legacy `x/params` proposals
@@ -62,11 +70,13 @@ Celestia-app v4.0.0 includes significant state machine changes due to major depe
 ### Library Consumers (v4.0.0)
 
 **Import Changes**:
+
 - Add: `cosmossdk.io/x/circuit`, `cosmossdk.io/x/consensus`
 - Remove: `x/capability`, `x/crisis`, `x/paramfilter`
 - Update: `github.com/cosmos/ibc-go/v8` (from v6)
 
 **API Breaking Changes** ([cosmos-sdk migration guide](https://docs.cosmos.network/v0.50/build/migrations/upgrading)):
+
 - Module keepers now accept `context.Context` instead of `sdk.Context`
 - `BeginBlock`/`EndBlock` signatures changed
 - Parameter updates require module-specific `MsgUpdateParams` messages

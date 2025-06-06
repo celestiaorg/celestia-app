@@ -226,10 +226,7 @@ func (m *Multiplexer) startApp() error {
 	}
 
 	if currentVersion.Appd.Pid() == appd.AppdStopped {
-		programArgs := os.Args
-		if len(os.Args) > 2 {
-			programArgs = os.Args[2:] // remove 'appd start' args
-		}
+		programArgs := removeStart(os.Args)
 
 		// start an embedded app.
 		m.logger.Debug("starting embedded app", "app_version", currentVersion.AppVersion, "args", currentVersion.GetStartArgs(programArgs))
@@ -246,6 +243,21 @@ func (m *Multiplexer) startApp() error {
 	}
 
 	return m.initRemoteGrpcConn()
+}
+
+// removeStart removes the first argument (the binary name) and the start argument from args.
+func removeStart(args []string) []string {
+	if len(args) == 0 {
+		return args
+	}
+	result := []string{}
+	args = args[1:] // remove the first argument (the binary name)
+	for _, arg := range args {
+		if arg != "start" {
+			result = append(result, arg)
+		}
+	}
+	return result
 }
 
 // initRemoteGrpcConn initializes a gRPC connection to the remote application client and configures transport credentials.
