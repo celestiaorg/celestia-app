@@ -300,8 +300,7 @@ replace (
 	// x/upgrade: v0.1.0
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.1.0
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.54.1-tm-v0.38.17
-	// cosmos-sdk: v1.29.1-sdk-v0.50.12
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.1-sdk-v0.50.12
+	github.com/cosmos/cosmos-sdk => ../cosmos-sdk
 	// goleveldb: canonical version
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	// celestia-core(v0.34.x): used for multiplexing abci v1 requests
