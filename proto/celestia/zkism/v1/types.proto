@@ -22,10 +22,12 @@ message ZKExecutionISM {
   bytes state_root = 3;
   // latest tracked height of the remote chain
   uint64 height = 4;
-  // the zk state transition verifier key of the sp1 prover client
+  // the zk state transition verifier key
   bytes state_transition_verifier_key = 5;
-  // the zk state membership verifier key of the sp1 prover client
+  // the zk state membership verifier key
   bytes state_membership_verifier_key = 6;
+  // hash-based commitment to the verifier key used for public input integrity
+  bytes verifier_key_commitment = 7;
 }
 
 // EventCreateZKExecutionISM defines the event type emitted when creating a new ZKExecutionISM.
