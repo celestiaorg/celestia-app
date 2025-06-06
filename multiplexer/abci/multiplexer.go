@@ -152,10 +152,11 @@ func (m *Multiplexer) Start() error {
 	}
 
 	if m.isEmbeddedApp() {
-		m.logger.Debug("using embedded app, not continuing with grpc or api servers")
+		m.logger.Info("using embedded app, not continuing with grpc or api servers")
 		return m.g.Wait()
 	}
 
+	fmt.Printf("enabling grpc and api servers...\n")
 	if err := m.enableGRPCAndAPIServers(m.nativeApp); err != nil {
 		return err
 	}
@@ -174,16 +175,18 @@ func (m *Multiplexer) enableGRPCAndAPIServers(app servertypes.Application) error
 	// if we are running natively and have specified to enable gRPC or API servers
 	// we need to register the relevant services.
 	if m.svrCfg.API.Enable || m.svrCfg.GRPC.Enable {
-		m.logger.Debug("registering services and local comet client")
+		m.logger.Info("registering services and local comet client")
 		m.clientContext = m.clientContext.WithClient(local.New(m.cmNode))
 		app.RegisterTxService(m.clientContext)
 		app.RegisterTendermintService(m.clientContext)
 		app.RegisterNodeService(m.clientContext, m.svrCfg)
 	}
+	m.logger.Info("m.svrCfg.GRPC.Enable", "enable", m.svrCfg.GRPC.Enable)
 
 	// startGRPCServer the grpc server in the case of a native app. If using an embedded app
 	// it will use that instead.
 	if m.svrCfg.GRPC.Enable {
+		m.logger.Info("starting gRPC server...", "address", m.svrCfg.GRPC.Address)
 		grpcServer, clientContext, err := m.startGRPCServer()
 		if err != nil {
 			return err
@@ -301,6 +304,8 @@ func (m *Multiplexer) initRemoteGrpcConn() error {
 
 // startGRPCServer initializes and starts a gRPC server if enabled in the configuration, returning the server and updated context.
 func (m *Multiplexer) startGRPCServer() (*grpc.Server, client.Context, error) {
+	m.logger.Info("starting GRPC server...", "address", m.svrCfg.GRPC.Address)
+
 	_, _, err := net.SplitHostPort(m.svrCfg.GRPC.Address)
 	if err != nil {
 		return nil, m.clientContext, err
@@ -331,7 +336,7 @@ func (m *Multiplexer) startGRPCServer() (*grpc.Server, client.Context, error) {
 	}
 
 	m.clientContext = m.clientContext.WithGRPCClient(grpcClient)
-	m.logger.Debug("gRPC client assigned to client context", "target", m.svrCfg.GRPC.Address)
+	m.logger.Info("gRPC client assigned to client context", "target", m.svrCfg.GRPC.Address)
 	grpcSrv, err := servergrpc.NewGRPCServer(m.clientContext, m.nativeApp, m.svrCfg.GRPC)
 	if err != nil {
 		return nil, m.clientContext, err
@@ -341,6 +346,7 @@ func (m *Multiplexer) startGRPCServer() (*grpc.Server, client.Context, error) {
 	if err != nil {
 		return nil, m.clientContext, err
 	}
+	m.logger.Info("coreEnv", "listen_address", coreEnv.Config.ListenAddress)
 
 	// Ensure the core environment uses the configured RPC address instead of localhost
 	// Check Viper first for CLI flag overrides, then fall back to config file
@@ -385,7 +391,7 @@ func (m *Multiplexer) startAPIServer(grpcSrv *grpc.Server, metrics *telemetry.Me
 		apiSrv.SetTelemetry(metrics)
 	}
 
-	m.logger.Debug("starting api server")
+	m.logger.Info("starting api server")
 	m.g.Go(func() error {
 		return apiSrv.Start(m.ctx, m.svrCfg)
 	})
