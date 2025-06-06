@@ -17,6 +17,10 @@ Celestia-app v4.0.0 introduces support for a [multiplexer](https://github.com/ce
 
 These two configs must match in order for the multiplexer to work correctly. Therefore, if you overrode either of these configs, please ensure that the other one is also overriden.
 
+#### Custom build flags
+
+`make install` currently downloads a v3.x binary with goleveldb support. If you use pebbledb, you will need to build the v3.x binary from source (with the `pebbledb` build tag) and include it in the app's embedded binary directory (by default: `~/.celestia-app/bin/`).
+
 #### `rpc.grpc_laddr`
 
 The `rpc.grpc_laddr` config option is now required when running the celestia-app binary with the multiplexer. This option can be set via CLI flag `--rpc.grpc_laddr tcp://127.0.0.1:9098` or in the `config.toml`:
