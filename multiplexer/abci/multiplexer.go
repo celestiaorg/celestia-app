@@ -173,13 +173,13 @@ func (m *Multiplexer) enableGRPCAndAPIServers(app servertypes.Application) error
 	}
 	// if we are running natively and have specified to enable gRPC or API servers
 	// we need to register the relevant services.
-	if m.svrCfg.API.Enable || m.svrCfg.GRPC.Enable {
-		m.logger.Debug("registering services and local comet client")
-		m.clientContext = m.clientContext.WithClient(local.New(m.cmNode))
-		app.RegisterTxService(m.clientContext)
-		app.RegisterTendermintService(m.clientContext)
-		app.RegisterNodeService(m.clientContext, m.svrCfg)
-	}
+	// if m.svrCfg.API.Enable || m.svrCfg.GRPC.Enable {
+	m.logger.Debug("registering services and local comet client")
+	m.clientContext = m.clientContext.WithClient(local.New(m.cmNode))
+	app.RegisterTxService(m.clientContext)
+	app.RegisterTendermintService(m.clientContext)
+	app.RegisterNodeService(m.clientContext, m.svrCfg)
+	// }
 
 	// startGRPCServer the grpc server in the case of a native app. If using an embedded app
 	// it will use that instead.
