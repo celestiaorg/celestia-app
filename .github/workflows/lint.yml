@@ -27,11 +27,19 @@ jobs:
           github-token: ${{ secrets.github_token }}
         if: env.GIT_DIFF
 
-  # hadolint lints the Dockerfile
   hadolint:
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@98f519843a1bade938e5604202df600aa0717aa8 #v0.6.3
-    with:
-      dockerfile: "docker/Dockerfile"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #v4.2.2
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: docker/standalone.Dockerfile
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: docker/multiplexer.Dockerfile
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: docker/txsim/Dockerfile
 
   yamllint:
     runs-on: ubuntu-latest
