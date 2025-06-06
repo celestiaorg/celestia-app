@@ -579,7 +579,7 @@ func (client *TxClient) handleEvictions(txHash string) error {
 // by querying the node directly. This helps distinguish between true evictions and
 // false positives where a tx was removed from mempool but was included in a block by another node's mempool.
 func (client *TxClient) isTransactionCommitted(txHash string) (bool, error) {
-	serviceClient := sdktx.NewServiceClient(client.conns[0])
+	txClient := tx.NewTxClient(client.conns[0])
 
 	maxRetries := 10
 	retryDelay := 500 * time.Millisecond
@@ -587,7 +587,7 @@ func (client *TxClient) isTransactionCommitted(txHash string) (bool, error) {
 	for i := 0; i < maxRetries; i++ {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 
-		_, err := serviceClient.GetTx(ctx, &sdktx.GetTxRequest{Hash: txHash})
+		resp, err := txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
 		cancel()
 
 		if err != nil {
@@ -595,11 +595,20 @@ func (client *TxClient) isTransactionCommitted(txHash string) (bool, error) {
 				time.Sleep(retryDelay)
 				continue
 			}
-			// The tx wasn't found and it isn't a "not found" error.
 			return false, err
 		}
-		// The tx was found, so it was committed
-		return true, nil
+
+		if resp.Status == core.TxStatusCommitted {
+			return true, nil
+		}
+
+		if resp.Status == core.TxStatusPending {
+			time.Sleep(retryDelay)
+			continue
+		}
+
+		// For Evicted or Unknown status, return false
+		return false, nil
 	}
 	return false, nil
 }
