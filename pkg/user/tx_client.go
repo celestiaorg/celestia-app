@@ -552,11 +552,20 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 func (client *TxClient) handleEvictions(txHash string) error {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
+
+	// Before rolling back sequence, verify the transaction wasn't actually committed
+	// This prevents false positive evictions where tx was included in a block
+	if committed, err := client.isTransactionCommitted(txHash); err == nil && committed {
+		delete(client.txTracker, txHash)
+		return nil
+	}
+
 	// Get transaction from the local tx tracker
 	txInfo, exists := client.txTracker[txHash]
 	if !exists {
 		return fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
 	}
+
 	// The sequence should be rolled back to the sequence of the transaction that was evicted to be
 	// ready for resubmission. All transactions with a later nonce will be kicked by the nodes tx pool.
 	if err := client.signer.SetSequence(txInfo.signer, txInfo.sequence); err != nil {
@@ -564,6 +573,37 @@ func (client *TxClient) handleEvictions(txHash string) error {
 	}
 	delete(client.txTracker, txHash)
 	return fmt.Errorf("tx was evicted from the mempool")
+}
+
+// isTransactionCommitted checks if a transaction has been committed to the blockchain
+// by querying the node directly. This helps distinguish between true evictions and
+// false positives where a tx was removed from mempool but was included in a block by another node's mempool.
+func (client *TxClient) isTransactionCommitted(txHash string) (bool, error) {
+	serviceClient := sdktx.NewServiceClient(client.conns[0])
+
+	maxRetries := 10
+	retryDelay := 500 * time.Millisecond
+
+	for i := 0; i < maxRetries; i++ {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+
+		// Use GetTx instead of TxStatus because GetTx only returns committed transactions,
+		// while TxStatus can return pending/evicted transactions with different statuses
+		_, err := serviceClient.GetTx(ctx, &sdktx.GetTxRequest{Hash: txHash})
+		cancel()
+
+		if err == nil {
+			return true, nil
+		}
+
+		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "tx does not exist") {
+			time.Sleep(retryDelay)
+			continue
+		}
+
+		return false, err
+	}
+	return false, nil
 }
 
 // deleteFromTxTracker safely deletes a transaction from the local tx tracker.
