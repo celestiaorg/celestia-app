@@ -23,12 +23,12 @@ var v2UpgradeHeight = ""
 
 // modifyRootCommand enhances the root command with the pass through and multiplexer.
 func modifyRootCommand(rootCommand *cobra.Command) {
-	v3AppBinary, err := embedding.CelestiaAppV3()
+	version, compressedBinary, err := embedding.CelestiaAppV3()
 	if err != nil {
 		panic(err)
 	}
 
-	v3, err := appd.New("v3", v3AppBinary)
+	appdV3, err := appd.New(version, compressedBinary)
 	if err != nil {
 		panic(err)
 	}
@@ -39,7 +39,7 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 	}
 
 	versions, err := abci.NewVersions(abci.Version{
-		Appd:        v3,
+		Appd:        appdV3,
 		ABCIVersion: abci.ABCIClientVersion1,
 		AppVersion:  3,
 		StartArgs: append([]string{
@@ -61,7 +61,7 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 	// Add the following commands to the rootCommand: start, tendermint, export, version, and rollback and wire multiplexer.
 	server.AddCommandsWithStartCmdOptions(
 		rootCommand,
-		app.DefaultNodeHome,
+		app.NodeHome,
 		NewAppServer,
 		appExporter,
 		server.StartCmdOptions{

@@ -22,7 +22,8 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
 
-CELESTIA_V3_VERSION := v3.10.0-arabica
+# NOTE: This version must be updated at the same time as the version in internal/embedding/data.go and .goreleaser.yaml
+CELESTIA_V3_VERSION := v3.10.1-mocha
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -187,8 +188,7 @@ lint:
 	@echo "--> Running markdownlint"
 	@markdownlint --config .markdownlint.yaml '**/*.md'
 	@echo "--> Running hadolint"
-	@hadolint docker/Dockerfile
-	@hadolint docker/txsim/Dockerfile
+	@hadolint docker/multiplexer.Dockerfile docker/standalone.Dockerfile docker/txsim/Dockerfile
 	@echo "--> Running yamllint"
 	@yamllint --no-warnings . -c .yamllint.yml
 .PHONY: lint
