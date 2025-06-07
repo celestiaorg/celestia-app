@@ -42,11 +42,8 @@ func TestSigVerificationDecorator(t *testing.T) {
 	tx := createTxWithNilPubKey(t, account)
 	simulate := false
 
-	require.Panics(t, func() {
-		// this panics due to the nil pubkey
-		_, err = decorator.AnteHandle(ctx, tx, simulate, nextAnteHandler)
-		require.Error(t, err)
-	})
+	_, err = decorator.AnteHandle(ctx, tx, simulate, nextAnteHandler)
+	require.Error(t, err) // "signature verification failed; please verify account number (0) and chain-id ()"
 }
 
 func getAccountWithPubKey(accounts []authtypes.AccountI) (authtypes.AccountI, error) {
