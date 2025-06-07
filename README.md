@@ -129,6 +129,23 @@ celestia-appd tx blob pay-for-blob 0x00010203040506070809 0x48656c6c6f2c20576f72
 	--yes
 ```
 
+### Join a public Celestia network
+
+For instructions on running a node on Celestia's public networks, refer to the
+[validator node](https://docs.celestia.org/how-to-guides/validator-node) and
+[consensus node](https://docs.celestia.org/how-to-guides/consensus-node)
+guides in the documentation.
+> [!NOTE]
+> - You can init with any `--chain-id`, but the binary cannot know if it’s already being used somewhere else (the name).
+> - This is a typical way of how CometBFT (the consensus engine) works in such cases.
+> - For detailed guidance, refer to [Celestia Quick Start](https://docs.celestia.org/how-to-guides/quick-start).
+
+⚠️ **Important:** When connecting to a public network, you must download the correct
+genesis file from the official documentation or repository. Do not use `celestia-appd init`
+alone with a public network chain ID, as this command is intended for local devnet setups and
+may produce an invalid genesis file. Please follow the instructions in the documentation above
+to obtain the correct genesis file and configuration steps.
+
 ### Usage as a library
 
 If you import celestia-app as a Go module, you may need to add some Go module `replace` directives to avoid type incompatibilities. Please see the `replace` directive in [go.mod](./go.mod) for inspiration.
