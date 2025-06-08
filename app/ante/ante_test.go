@@ -41,7 +41,8 @@ func TestSigVerificationDecorator(t *testing.T) {
 	simulate := false
 
 	require.PanicsWithValue(t, "signerInfo.PublicKey cannot be nil", func() {
-		decorator.AnteHandle(ctx, tx, simulate, nextAnteHandler)
+		_, err := decorator.AnteHandle(ctx, tx, simulate, nextAnteHandler)
+		require.Error(t, err)
 	})
 }
 
