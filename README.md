@@ -132,9 +132,8 @@ celestia-appd tx blob pay-for-blob 0x00010203040506070809 0x48656c6c6f2c20576f72
 ### Join a public Celestia network
 
 For instructions on running a node on Celestia's public networks, refer to the
-[validator node](https://docs.celestia.org/how-to-guides/validator-node) and
 [consensus node](https://docs.celestia.org/how-to-guides/consensus-node)
-guides in the documentation.
+guide in the docs.
 > [!NOTE]
 > - You can init with any `--chain-id`, but the binary cannot know if it’s already being used somewhere else (the name).
 > - This is a typical way of how CometBFT (the consensus engine) works in such cases.
