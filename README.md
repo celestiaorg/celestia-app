@@ -135,9 +135,6 @@ For instructions on running a node on Celestia's public networks, refer to the
 [consensus node](https://docs.celestia.org/how-to-guides/consensus-node)
 guide in the docs.
 > [!NOTE]
-> - You can init with any `--chain-id`, but the binary cannot know if it’s already being used somewhere else (the name).
-> - This is a typical way of how CometBFT (the consensus engine) works in such cases.
-> - For detailed guidance, refer to [Celestia Quick Start](https://docs.celestia.org/how-to-guides/quick-start).
 
 ⚠️ **Important:** When connecting to a public network, you must download the correct
 genesis file from the official documentation or repository. Do not use `celestia-appd init`
