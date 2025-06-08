@@ -138,9 +138,6 @@ guide in the docs.
 
 When connecting to a public network, you must download the correct
 genesis file from the official documentation or repository. Do not use `celestia-appd init`
-alone with a public network chain ID, as this command is intended for local devnet setups and
-may produce an invalid genesis file. Please follow the instructions in the documentation above
-to obtain the correct genesis file and configuration steps.
 
 ### Usage as a library
 
