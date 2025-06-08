@@ -137,7 +137,7 @@ guide in the docs.
 > [!NOTE]
 
 When connecting to a public network, you must download the correct
-genesis file from the official documentation or repository. Do not use `celestia-appd init`
+genesis file. Please use the `celestia-appd download-genesis` command.
 
 ### Usage as a library
 
