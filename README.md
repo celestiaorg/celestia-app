@@ -134,8 +134,8 @@ celestia-appd tx blob pay-for-blob 0x00010203040506070809 0x48656c6c6f2c20576f72
 For instructions on running a node on Celestia's public networks, refer to the
 [consensus node](https://docs.celestia.org/how-to-guides/consensus-node)
 guide in the docs.
-> [!NOTE]
 
+> [!NOTE]
 When connecting to a public network, you must download the correct
 genesis file. Please use the `celestia-appd download-genesis` command.
 
