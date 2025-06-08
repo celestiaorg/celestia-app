@@ -40,10 +40,8 @@ func TestSigVerificationDecorator(t *testing.T) {
 	tx := createTxWithNilPubKey(t, account)
 	simulate := false
 
-	require.Panics(t, func() {
-		// this panics due to the nil pubkey
-		_, err = decorator.AnteHandle(ctx, tx, simulate, nextAnteHandler)
-		require.Error(t, err)
+	require.PanicsWithValue(t, "signerInfo.PublicKey cannot be nil", func() {
+		decorator.AnteHandle(ctx, tx, simulate, nextAnteHandler)
 	})
 }
 
