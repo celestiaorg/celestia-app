@@ -771,7 +771,6 @@ func (app *App) AutoCliOpts() autocli.AppOptions {
 	moduleOptions := runtimeservices.ExtractAutoCLIOptions(app.ModuleManager.Modules)
 
 	// skip the comet consensus module autocli commands for v4.0.0
-	// to be re-added in v4.1.0 when the system is full on v0.50
 	consensusModuleOptions := moduleOptions[consensustypes.ModuleName]
 	consensusModuleOptions.Query.SubCommands = nil
 	moduleOptions[consensustypes.ModuleName] = consensusModuleOptions
