@@ -47,6 +47,9 @@ node            |  |                               |  |
 
 If you'd rather not install from source, you can download a prebuilt binary from the [releases](https://github.com/celestiaorg/celestia-app/releases) page.
 
+> [!WARNING]
+> The v4.x.x prebuilt binaries do not support the multiplexer so they can't be used to upgrade from v3 to v4. They can only be used in standalone mode once a chain has been upgraded to v4. To upgrade from v3 to v4, you must install from source.
+
 1. Navigate to the latest release on <https://github.com/celestiaorg/celestia-app/releases>.
 1. Download the binary for your platform (e.g. `celestia-app_Linux_x86_64.tar.gz`) from the **Assets** section. Tip: if you're not sure what platform you're on, you can run `uname -a` and look for the operating system (e.g. `Linux`, `Darwin`) and architecture (e.g. `x86_64`, `arm64`).
 1. Extract the archive
@@ -94,9 +97,9 @@ make bbr-enable
 
 ### Environment variables
 
-| Variable            | Explanation                                  | Default value                                               | Required |
-|---------------------|----------------------------------------------|-------------------------------------------------------------|----------|
-| `CELESTIA_APP_HOME` | Where the application files should be saved. | [`$HOME/.celestia-appd`](https://pkg.go.dev/os#UserHomeDir) | Optional |
+| Variable            | Explanation                                  | Default value                                              | Required |
+|---------------------|----------------------------------------------|------------------------------------------------------------|----------|
+| `CELESTIA_APP_HOME` | Where the application files should be saved. | [`$HOME/.celestia-app`](https://pkg.go.dev/os#UserHomeDir) | Optional |
 
 ### Using celestia-appd
 
@@ -139,6 +142,26 @@ If you are running celestia-app in tests, you may want to override the `timeout_
 celestia-appd start --timeout-commit 1s
 ```
 
+## Server Architecture
+
+celestia-app and celestia-core start multiple servers to handle different types of network communication and requests. Here's an overview of each server and their default addresses:
+
+### Celestia-Core (CometBFT) Servers
+
+| Server   | Default Address         | Configuration               | Purpose                                                                                               |
+|----------|-------------------------|-----------------------------|-------------------------------------------------------------------------------------------------------|
+| **RPC**  | `tcp://127.0.0.1:26657` | `config.toml` under `[rpc]` | HTTP/WebSocket API for blockchain queries, transaction submission, and real-time event subscriptions. |
+| **gRPC** | `tcp://127.0.0.1:9098`  | `config.toml` under `[rpc]` | gRPC API that only supports `/broadcast_tx_commit`.                                                   |
+| **P2P**  | `tcp://0.0.0.0:26656`   | `config.toml` under `[p2p]` | Peer-to-peer networking layer for consensus, block synchronization, and mempool gossip.               |
+
+### Celestia-App (Cosmos SDK) Servers
+
+| Server       | Default Address                | Configuration                 | Purpose                                                                                                                                      |
+|--------------|--------------------------------|-------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
+| **gRPC**     | `localhost:9090`               | `app.toml` under `[grpc]`     | gRPC for application-specific queries. Provides access to Cosmos SDK modules (bank, governance, etc.) and Celestia-specific modules (blob).  |
+| **REST API** | `tcp://localhost:1317`         | `app.toml` under `[api]`      | RESTful HTTP API that proxies requests to the gRPC server via gRPC-gateway. Provides the same functionality as gRPC but over HTTP with JSON. |
+| **gRPC-Web** | *Uses REST API server address* | `app.toml` under `[grpc-web]` | Browser-compatible gRPC API that allows web applications to interact with the gRPC server.                                                   |
+
 ## Contributing
 
 If you are a new contributor, please read [contributing to Celestia](https://github.com/celestiaorg/.github/blob/main/CONTRIBUTING.md).
@@ -149,7 +172,7 @@ This repo contains multiple go modules. When using it, rename `go.work.example` 
 
 ### Tools
 
-1. Install [golangci-lint](https://golangci-lint.run/welcome/install) 2.0.1
+1. Install [golangci-lint](https://golangci-lint.run/welcome/install) 2.1.2
 1. Install [markdownlint](https://github.com/DavidAnson/markdownlint) 0.39.0
 1. Install [hadolint](https://github.com/hadolint/hadolint)
 1. Install [yamllint](https://yamllint.readthedocs.io/en/stable/quickstart.html)

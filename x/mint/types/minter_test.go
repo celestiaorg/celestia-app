@@ -26,8 +26,8 @@ func TestCalculateInflationRate(t *testing.T) {
 	}
 
 	testCases := []testCase{
-		{0, 0.0536}, // NOTE: this value won't be used in production because CIP-29 has been introduced after year 0 (see CIP-29 for details).
-		{1, 0.0500088},
+		{0, 0.0536},    // NOTE: this value won't be used in production because CIP-29 has been introduced after year 0 (see CIP-29 for details).
+		{1, 0.0500088}, // Note: this value won't manifest as the observed inflation rate for year 1 because CIP-29 was introduced part way through year 1.
 		{2, 0.0466582104},
 		{3, 0.0435321103032},
 		{4, 0.0406154589128856},

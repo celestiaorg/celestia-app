@@ -1,5 +1,5 @@
 # Stage 1: generate txsim binary
-FROM --platform=$BUILDPLATFORM docker.io/golang:1.23.6-alpine3.20 as builder
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.23.6-alpine3.20 AS builder
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -29,7 +29,7 @@ FROM docker.io/alpine:3.20
 ARG UID=10001
 ARG USER_NAME=celestia
 
-ENV CELESTIA_APP_HOME=/home/${USER_NAME}/.celestia-appd
+ENV CELESTIA_APP_HOME=/home/${USER_NAME}/.celestia-app
 
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \

@@ -173,10 +173,9 @@ func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*a
 	}
 	events = append(events, abciEventV1ToV2(endBlockResp.Events...)...)
 
-	// convert tx results
-	var txResults []*abciv2.ExecTxResult
-	for _, commitBlockResp := range commitBlockResps {
-		txResults = append(txResults, &abciv2.ExecTxResult{
+	txResults := make([]*abciv2.ExecTxResult, len(commitBlockResps))
+	for i, commitBlockResp := range commitBlockResps {
+		txResults[i] = &abciv2.ExecTxResult{
 			Code:      commitBlockResp.Code,
 			Data:      commitBlockResp.Data,
 			Log:       commitBlockResp.Log,
@@ -185,7 +184,7 @@ func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*a
 			GasUsed:   commitBlockResp.GasUsed,
 			Events:    abciEventV1ToV2(commitBlockResp.Events...),
 			Codespace: commitBlockResp.Codespace,
-		})
+		}
 	}
 
 	// commit result
@@ -205,6 +204,7 @@ func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*a
 		ValidatorUpdates:      validatorUpdatesV1ToV2(endBlockResp.ValidatorUpdates),
 		ConsensusParamUpdates: consensusParamsV1ToV2(endBlockResp.ConsensusParamUpdates),
 		AppHash:               commitResp.Data,
+		TimeoutInfo:           timeoutInfoV1ToV2(endBlockResp.Timeouts),
 	}, nil
 }
 
@@ -225,6 +225,7 @@ func (a *RemoteABCIClientV1) Info(req *abciv2.RequestInfo) (*abciv2.ResponseInfo
 		AppVersion:       resp.AppVersion,
 		LastBlockHeight:  resp.LastBlockHeight,
 		LastBlockAppHash: resp.LastBlockAppHash,
+		TimeoutInfo:      timeoutInfoV1ToV2(resp.Timeouts),
 	}, nil
 }
 
@@ -246,6 +247,7 @@ func (a *RemoteABCIClientV1) InitChain(req *abciv2.RequestInitChain) (*abciv2.Re
 		ConsensusParams: consensusParamsV1ToV2(resp.ConsensusParams),
 		Validators:      validatorUpdatesV1ToV2(resp.Validators),
 		AppHash:         resp.AppHash,
+		TimeoutInfo:     timeoutInfoV1ToV2(resp.Timeouts),
 	}, nil
 }
 
@@ -537,6 +539,10 @@ func validatorUpdatesV2ToV1(validators []abciv2.ValidatorUpdate) []abciv1.Valida
 }
 
 func consensusParamsV1ToV2(params *abciv1.ConsensusParams) *typesv2.ConsensusParams {
+	if params == nil {
+		return nil
+	}
+
 	consensusParamsV2 := &typesv2.ConsensusParams{}
 	if blockParams := params.GetBlock(); blockParams != nil {
 		consensusParamsV2.Block = &typesv2.BlockParams{
@@ -632,4 +638,11 @@ func evidenceV2ToV1(evidence []abciv2.Misbehavior) []abciv1.Evidence {
 	}
 
 	return v1Evidence
+}
+
+func timeoutInfoV1ToV2(info abciv1.TimeoutsInfo) abciv2.TimeoutInfo {
+	return abciv2.TimeoutInfo{
+		TimeoutPropose: info.TimeoutPropose,
+		TimeoutCommit:  info.TimeoutCommit,
+	}
 }

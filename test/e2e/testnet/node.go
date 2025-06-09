@@ -32,13 +32,13 @@ const (
 	rpcPort               = 26657
 	p2pPort               = 26656
 	grpcPort              = 9090
-	listenAddressPort     = 26658
+	listenAddressPort     = 36658
 	grpcListenPort        = 9099
 	prometheusPort        = 26660
 	tracingPort           = 26661
 	celestiaOrgRegistry   = "ghcr.io/celestiaorg"
-	celestiaAppDockerName = "celestia-app"
-	multiplexerDockerName = "celestia-app-multiplexer"
+	celestiaAppDockerName = "celestia-app-standalone"
+	multiplexerDockerName = "celestia-app"
 	secp256k1Type         = "secp256k1"
 	ed25519Type           = "ed25519"
 	remoteRootDir         = "/home/celestia/.celestia-app"

@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-app/multiplexer/abci"
+	"github.com/celestiaorg/celestia-app/v4/multiplexer/abci"
 )
 
 // NewPassthroughCmd creates a command that allows executing commands on any app version.
@@ -16,13 +16,16 @@ import (
 func NewPassthroughCmd(versions abci.Versions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:                "passthrough [version] [command]",
-		Args:               cobra.MinimumNArgs(1),
 		DisableFlagParsing: true,
 		Short:              "Execute a command on a specific app version",
 		Long: `Execute a command on a specific app version.
 This allows interacting with older app versions for debugging or older queries.`,
 		Example: `passthrough v3 status`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 || (args[0] == "-h" || args[0] == "--help") {
+				return cmd.Help()
+			}
+
 			if len(args) >= 2 && strings.EqualFold("start", args[1]) {
 				return errors.New("cannot passthrough start command")
 			}

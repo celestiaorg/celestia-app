@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	sdkmath "cosmossdk.io/math"
 	"cosmossdk.io/math/unsafe"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -28,6 +29,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/grpctest"
 	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
@@ -446,4 +448,204 @@ func setupEstimatorService(t *testing.T) *mockEstimatorServer {
 
 	t.Cleanup(mes.stop)
 	return mes
+}
+
+var (
+	errMock1             = errors.New("mock1 failed")
+	errMock2             = errors.New("mock2 failed")
+	errMock3             = errors.New("mock3 failed")
+	errInsufficientFunds = errors.New("insufficient funds") // Replicates SDK error text
+)
+
+type broadcastTestCase struct {
+	setupMocks  func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn)
+	expectError bool // Changed from error to bool
+}
+
+func (suite *TxClientTestSuite) TestMultiConnBroadcast() {
+	t := suite.T()
+
+	// Default options for most tests - used only to create a valid tx.
+	defaultOpts := []user.TxOption{user.SetGasLimit(100000), user.SetFee(1000)}
+	// Basic MsgSend for testing - use the main suite's default address.
+	defaultMsg := bank.NewMsgSend(suite.txClient.DefaultAddress(), suite.txClient.DefaultAddress(), sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(10))))
+
+	testCases := []broadcastTestCase{
+		{ // Primary Success (Single Conn)
+			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn) {
+				mockSvc1 := &grpctest.MockTxService{
+					BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+						return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "HASH1"}}, nil
+					},
+				}
+				conn1 := grpctest.StartMockServer(t, mockSvc1)
+				return []*grpctest.MockTxService{mockSvc1}, []*grpc.ClientConn{conn1}
+			},
+			expectError: false,
+		},
+		{ // Secondary Success
+			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn) {
+				mockSvc1 := &grpctest.MockTxService{ // Primary fails after delay
+					BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+						time.Sleep(1 * time.Second)
+						return nil, errMock1
+					}}
+				mockSvc2 := &grpctest.MockTxService{ // Secondary succeeds quickly
+					BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+						return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "HASH2"}}, nil
+					}}
+				mockSvc3 := &grpctest.MockTxService{ // Tertiary should be cancelled
+					BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+						select {
+						case <-time.After(1 * time.Second):
+							return nil, errors.New("mock3 should have been cancelled")
+						case <-ctx.Done():
+							return nil, ctx.Err()
+						}
+					}}
+				conn1 := grpctest.StartMockServer(t, mockSvc1)
+				conn2 := grpctest.StartMockServer(t, mockSvc2)
+				conn3 := grpctest.StartMockServer(t, mockSvc3)
+				return []*grpctest.MockTxService{
+						mockSvc1,
+						mockSvc2,
+						mockSvc3,
+					}, []*grpc.ClientConn{
+						conn1,
+						conn2,
+						conn3,
+					}
+			},
+			expectError: false,
+		},
+		{ // All Fail
+			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn) {
+				mockSvc1 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+					return nil, errMock1
+				}}
+				mockSvc2 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+					return nil, errMock2
+				}}
+				mockSvc3 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+					return nil, errMock3
+				}}
+				conn1 := grpctest.StartMockServer(t, mockSvc1)
+				conn2 := grpctest.StartMockServer(t, mockSvc2)
+				conn3 := grpctest.StartMockServer(t, mockSvc3)
+				return []*grpctest.MockTxService{
+						mockSvc1,
+						mockSvc2,
+						mockSvc3,
+					}, []*grpc.ClientConn{
+						conn1,
+						conn2,
+						conn3,
+					}
+			},
+			expectError: true,
+		},
+		{ // Context Deadline
+			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn) {
+				mockHandler := func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+					select {
+					case <-time.After(1 * time.Second):
+						return nil, errors.New("mock should have been cancelled")
+					case <-ctx.Done():
+						return nil, ctx.Err()
+					}
+				}
+				mockSvc1 := &grpctest.MockTxService{BroadcastHandler: mockHandler}
+				mockSvc2 := &grpctest.MockTxService{BroadcastHandler: mockHandler}
+				mockSvc3 := &grpctest.MockTxService{BroadcastHandler: mockHandler}
+				conn1 := grpctest.StartMockServer(t, mockSvc1)
+				conn2 := grpctest.StartMockServer(t, mockSvc2)
+				conn3 := grpctest.StartMockServer(t, mockSvc3)
+				return []*grpctest.MockTxService{
+						mockSvc1,
+						mockSvc2,
+						mockSvc3,
+					}, []*grpc.ClientConn{
+						conn1,
+						conn2,
+						conn3,
+					}
+			},
+			expectError: true,
+		},
+		{ // Less Than Three Conns (Success)
+			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn) {
+				mockSvc1 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+					return nil, errMock1
+				}}
+				mockSvc2 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+					return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "HASH_LT3"}}, nil
+				}}
+				conn1 := grpctest.StartMockServer(t, mockSvc1)
+				conn2 := grpctest.StartMockServer(t, mockSvc2)
+				return []*grpctest.MockTxService{
+						mockSvc1,
+						mockSvc2,
+					}, []*grpc.ClientConn{
+						conn1,
+						conn2,
+					}
+			},
+			expectError: false,
+		},
+		{ // Non-Zero Code Failure
+			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn) {
+				mockSvc1 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+					resp := &sdk.TxResponse{Code: 5, TxHash: "HASH_FAIL", RawLog: errInsufficientFunds.Error()}
+					return &sdktx.BroadcastTxResponse{TxResponse: resp}, nil
+				}}
+				conn1 := grpctest.StartMockServer(t, mockSvc1)
+				return []*grpctest.MockTxService{mockSvc1}, []*grpc.ClientConn{conn1}
+			},
+			expectError: true,
+		},
+	}
+
+	for i, tc := range testCases {
+		name := fmt.Sprintf("BroadcastTestCase%d", i) // Simple naming
+		t.Run(name, func(t *testing.T) {
+			_, conns := tc.setupMocks(t)
+			require.NotEmpty(t, conns, "Need at least one connection for broadcast test client")
+
+			primaryConn := conns[0]
+			otherConns := conns[1:]
+
+			// Seed a new signer with the suite's default account to avoid querying auth service on mock servers
+			origSigner := suite.txClient.Signer()
+			origAcc := origSigner.Account(suite.txClient.DefaultAccountName()).Copy()
+			signer, err := user.NewSigner(suite.ctx.Keyring, suite.encCfg.TxConfig, origSigner.ChainID(), origAcc)
+			require.NoError(t, err)
+			tempTxClient, err := user.NewTxClient(
+				suite.encCfg.Codec,
+				signer,
+				primaryConn,
+				suite.encCfg.InterfaceRegistry,
+				user.WithAdditionalCoreEndpoints(otherConns),
+			)
+			require.NoError(t, err, "Failed to create temporary TxClient for test case %d", i)
+
+			var ctx context.Context
+			var cancel context.CancelFunc
+			if name == "BroadcastTestCase3" { // Specifically target the "Context Deadline" case
+				ctx, cancel = context.WithTimeout(context.Background(), 50*time.Millisecond) // Short timeout for deadline test
+			} else {
+				ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second) // General timeout
+			}
+			defer cancel()
+
+			resp, err := tempTxClient.BroadcastTx(ctx, []sdk.Msg{defaultMsg}, defaultOpts...)
+
+			if !tc.expectError {
+				require.NoError(t, err, "Expected success, but got error: %v", err)
+				require.NotNil(t, resp, "Expected non-nil response on success")
+				require.Equal(t, abci.CodeTypeOK, resp.Code, "Expected CodeTypeOK on success")
+			} else {
+				require.Error(t, err, "Expected an error, but got nil")
+			}
+		})
+	}
 }

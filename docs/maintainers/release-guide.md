@@ -7,6 +7,13 @@ The target audience for this guide is maintainers of this repo. In general, the 
     1. If the release candidate is not satisfactory, go back to step 1
     1. If the release candidate is satisfactory, create an official release
 
+## Notes
+
+1. The v3.x.x binary used by the multiplexer is hard-coded in the Makefile (until [#4721](https://github.com/celestiaorg/celestia-app/issues/4721) is resolved). In order to include a code change to the v3.x branch in celestia-app v4.x, you must:
+    1. Create a release of celestia-app v3.x.x
+    1. Modify the Makefile to point to the new version
+    1. Create a release of celestia-app v4.x.x
+
 ## Release Candidate
 
 ### Creating a release candidate

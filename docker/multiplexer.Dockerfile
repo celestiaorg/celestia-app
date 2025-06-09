@@ -15,8 +15,8 @@ ARG MAX_SQUARE_SIZE
 # docker build --build-arg UPGRADE_HEIGHT_DELAY=1000 -t celestia-app:latest .
 ARG UPGRADE_HEIGHT_DELAY
 # the docker registry used for the embedded v3 binary.
-ARG CELESTIA_APP_REPOSITORY=ghcr.io/celestiaorg/celestia-app
-ARG CELESTIA_VERSION="v3.10.0-rc0"
+ARG CELESTIA_APP_REPOSITORY=ghcr.io/celestiaorg/celestia-app-standalone
+ARG CELESTIA_VERSION="v3.10.0-rc2"
 
 # Stage 1: this base image contains already released binaries which can be embedded in the multiplexer.
 FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION} AS base
@@ -64,9 +64,7 @@ RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v3_${TARGETARCH}.tar.g
 
 RUN uname -a &&\
     CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    OVERRIDE_MAX_SQUARE_SIZE=${MAX_SQUARE_SIZE} \
-    OVERRIDE_UPGRADE_HEIGHT_DELAY=${UPGRADE_HEIGHT_DELAY} \
-    make build
+    make build DOWNLOAD=false
 
 # Stage 3: Create a minimal image to run the celestia-appd binary
 # Ignore hadolint rule because hadolint can't parse the variable.
@@ -77,7 +75,7 @@ FROM ${RUNTIME_IMAGE} AS runtime
 # Ref: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
 ARG UID=10001
 ARG USER_NAME=celestia
-ENV CELESTIA_APP_HOME=/home/${USER_NAME}/.celestia-appd
+ENV CELESTIA_APP_HOME=/home/${USER_NAME}/.celestia-app
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
     bash \

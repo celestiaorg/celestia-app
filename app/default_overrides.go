@@ -198,10 +198,14 @@ func (govModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genState := govtypes.DefaultGenesisState()
 	day := time.Hour * 24
 	oneWeek := day * 7
+	tia := int64(1_000_000)                                                                     // 1 TIA = 1,000,000 utia
+	minDeposit := sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(10_000*tia)))          // 10,000 TIA
+	expeditedMinDeposit := sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(50_000*tia))) // 50,000 TIA
 
-	genState.Params.MinDeposit = sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(10_000_000_000))) // 10,000 TIA
+	genState.Params.MinDeposit = minDeposit
 	genState.Params.MaxDepositPeriod = &oneWeek
 	genState.Params.VotingPeriod = &oneWeek
+	genState.Params.ExpeditedMinDeposit = expeditedMinDeposit
 
 	return cdc.MustMarshalJSON(genState)
 }
@@ -238,19 +242,6 @@ func DefaultConsensusParams() *tmproto.ConsensusParams {
 	}
 }
 
-func DefaultInitialConsensusParams() *tmproto.ConsensusParams {
-	return &tmproto.ConsensusParams{
-		Block:    DefaultBlockParams(),
-		Evidence: DefaultEvidenceParams(),
-		Validator: &tmproto.ValidatorParams{
-			PubKeyTypes: coretypes.DefaultValidatorParams().PubKeyTypes,
-		},
-		Version: &tmproto.VersionParams{
-			App: DefaultInitialVersion,
-		},
-	}
-}
-
 // DefaultBlockParams returns a default BlockParams with a MaxBytes determined
 // using a goal square size.
 func DefaultBlockParams() *tmproto.BlockParams {
@@ -278,7 +269,7 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	// Set broadcast timeout to be 50 seconds in order to avoid timeouts for long block times
 	cfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
 	cfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
-	cfg.RPC.GRPCListenAddress = "tcp://0.0.0.0:9098"
+	cfg.RPC.GRPCListenAddress = "tcp://127.0.0.1:9098"
 
 	cfg.Mempool.TTLNumBlocks = 12
 	cfg.Mempool.TTLDuration = 75 * time.Second

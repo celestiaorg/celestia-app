@@ -21,6 +21,7 @@ import (
 	pvm "github.com/cometbft/cometbft/privval"
 	"github.com/cometbft/cometbft/proxy"
 	"github.com/cometbft/cometbft/rpc/client/local"
+	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	db "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -37,8 +38,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/multiplexer/appd"
-	"github.com/celestiaorg/celestia-app/multiplexer/internal"
+	"github.com/celestiaorg/celestia-app/v4/multiplexer/appd"
+	"github.com/celestiaorg/celestia-app/v4/multiplexer/internal"
 )
 
 const (
@@ -225,10 +226,7 @@ func (m *Multiplexer) startApp() error {
 	}
 
 	if currentVersion.Appd.Pid() == appd.AppdStopped {
-		programArgs := os.Args
-		if len(os.Args) > 2 {
-			programArgs = os.Args[2:] // remove 'appd start' args
-		}
+		programArgs := removeStart(os.Args)
 
 		// start an embedded app.
 		m.logger.Debug("starting embedded app", "app_version", currentVersion.AppVersion, "args", currentVersion.GetStartArgs(programArgs))
@@ -247,20 +245,45 @@ func (m *Multiplexer) startApp() error {
 	return m.initRemoteGrpcConn()
 }
 
+// removeStart removes the first argument (the binary name) and the start argument from args.
+func removeStart(args []string) []string {
+	if len(args) == 0 {
+		return args
+	}
+	result := []string{}
+	args = args[1:] // remove the first argument (the binary name)
+	for _, arg := range args {
+		if arg != "start" {
+			result = append(result, arg)
+		}
+	}
+	return result
+}
+
 // initRemoteGrpcConn initializes a gRPC connection to the remote application client and configures transport credentials.
 func (m *Multiplexer) initRemoteGrpcConn() error {
-	// prepare remote app client
-	const flagTMAddress = "address"
-	tmAddress := m.svrCtx.Viper.GetString(flagTMAddress)
-	if tmAddress == "" {
-		tmAddress = "127.0.0.1:36658"
+	// Prepare the remote app client.
+	//
+	// Here we assert that the merged viper configuration contains the same address for both the ABCI
+	// client and server addresses. This ensures the app state machine is running on the port which
+	// the consensus engine expects.
+	const (
+		flagABCIClientAddr = "proxy_app"
+		flagABCIServerAddr = "address"
+	)
+
+	abciClientAddr := m.svrCtx.Viper.GetString(flagABCIClientAddr)
+	abciServerAddr := m.svrCtx.Viper.GetString(flagABCIServerAddr)
+	if abciServerAddr != abciClientAddr {
+		return fmt.Errorf("ABCI client and server addresses must match:\n client=%s\n server=%s\n"+
+			"To resolve, please configure the ABCI client (via --proxy_app flag) to match the ABCI server (via --address flag)", abciClientAddr, abciServerAddr)
 	}
 
 	// remove tcp:// prefix if present
-	tmAddress = strings.TrimPrefix(tmAddress, "tcp://")
+	abciServerAddr = strings.TrimPrefix(abciServerAddr, "tcp://")
 
 	conn, err := grpc.NewClient(
-		tmAddress,
+		abciServerAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(
 			grpc.MaxCallSendMsgSize(math.MaxInt32),
@@ -271,7 +294,7 @@ func (m *Multiplexer) initRemoteGrpcConn() error {
 		return fmt.Errorf("failed to prepare app connection: %w", err)
 	}
 
-	m.logger.Info("initialized remote app client", "address", tmAddress)
+	m.logger.Info("initialized remote app client", "address", abciServerAddr)
 	m.conn = conn
 	return nil
 }
@@ -313,6 +336,18 @@ func (m *Multiplexer) startGRPCServer() (*grpc.Server, client.Context, error) {
 	if err != nil {
 		return nil, m.clientContext, err
 	}
+
+	coreEnv, err := m.cmNode.ConfigureRPC()
+	if err != nil {
+		return nil, m.clientContext, err
+	}
+
+	blockAPI := coregrpc.NewBlockAPI(coreEnv)
+	coregrpc.RegisterBlockAPIServer(grpcSrv, blockAPI)
+
+	m.g.Go(func() error {
+		return blockAPI.StartNewBlockEventListener(m.ctx)
+	})
 
 	// Start the gRPC server in a goroutine. Note, the provided ctx will ensure
 	// that the server is gracefully shut down.
@@ -401,9 +436,11 @@ func openDB(rootDir string, backendType db.BackendType) (db.DB, error) {
 	return db.NewDB("application", backendType, dataDir)
 }
 
+// openTraceWriter opens a trace writer for the given file.
+// If the file is empty, it returns no writer and no error.
 func openTraceWriter(traceWriterFile string) (w io.WriteCloser, err error) {
 	if traceWriterFile == "" {
-		return w, fmt.Errorf("can not open trace writer for empty file")
+		return w, nil
 	}
 	return os.OpenFile(
 		traceWriterFile,
@@ -614,7 +651,10 @@ func (m *Multiplexer) setupRemoteAppCleanup(cleanupFn func() error) {
 
 		// Re-send the signal to allow the normal process termination
 		signal.Reset(os.Interrupt, syscall.SIGTERM)
-		syscall.Kill(os.Getpid(), sig.(syscall.Signal))
+		err := syscall.Kill(os.Getpid(), sig.(syscall.Signal))
+		if err != nil {
+			m.logger.Error("Error killing process", "err", err)
+		}
 	}()
 }
 
