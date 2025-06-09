@@ -19,7 +19,7 @@ These two configs must match in order for the multiplexer to work correctly. The
 
 #### Custom build flags
 
-`make install` currently downloads a v3.x binary with only one custom build flag, `ledger`. If you use any additional custom build flags (i.e. `pebbledb`, or `rocksdb`), you will need to build the v3.x binary from source (with custom build tags) and include it in the app's embedded binary directory (by default: `~/.celestia-app/bin/`).
+`make install` currently downloads a v3.x binary with only one custom build flag, `ledger`. If you use any additional custom build flags (i.e. `pebbledb`, `rocksdb`, `badgerdb`, `cleveldb`, `boltdb`), you will need to build the v3.x binary from source (with custom build tags) and include it in the app's embedded binary directory (by default: `~/.celestia-app/bin/`).
 
 #### `rpc.grpc_laddr`
 
