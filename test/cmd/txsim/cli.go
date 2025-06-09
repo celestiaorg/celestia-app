@@ -88,7 +88,7 @@ account that can act as the master account. The command runs until all sequences
 				keys = keyring.NewInMemory(cdc)
 				_, err = keys.NewAccount("master", os.Getenv(TxsimMnemonic), keyring.DefaultBIP39Passphrase, "", hd.Secp256k1)
 			default:
-				keys, err = keyring.New(app.Name, keyring.BackendTest, app.DefaultNodeHome, nil, cdc)
+				keys, err = keyring.New(app.Name, keyring.BackendTest, app.NodeHome, nil, cdc)
 			}
 			if err != nil {
 				return err
