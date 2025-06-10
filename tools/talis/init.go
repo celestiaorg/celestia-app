@@ -10,10 +10,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/celestiaorg/celestia-app/v4/app"
 	cmtconfig "github.com/cometbft/cometbft/config"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/spf13/cobra"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
 )
 
 const (
@@ -118,7 +119,7 @@ func initDirs(rootDir string) error {
 	// 1) create the sub‑directories
 	for _, d := range []string{"payload", "data", "scripts"} {
 		dir := filepath.Join(rootDir, d)
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return fmt.Errorf("failed to create %s: %w", dir, err)
 		}
 	}
@@ -174,7 +175,7 @@ func copyDir(src string, dest string) error {
 
 		if info.IsDir() {
 			// create directory
-			if err := os.MkdirAll(target, 0755); err != nil {
+			if err := os.MkdirAll(target, 0o755); err != nil {
 				return err
 			}
 			return nil
@@ -188,7 +189,7 @@ func copyDir(src string, dest string) error {
 // copyFile copies a single file from src to dest, preserving permissions and creating parent directories if needed.
 func copyFile(srcFile, destFile string, perm os.FileMode) error {
 	destDir := filepath.Dir(destFile)
-	if err := os.MkdirAll(destDir, 0755); err != nil {
+	if err := os.MkdirAll(destDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create parent directory %s: %w", destDir, err)
 	}
 

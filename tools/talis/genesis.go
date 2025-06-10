@@ -6,9 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/spf13/cobra"
+
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -56,11 +57,11 @@ func generateCmd() *cobra.Command {
 
 			for _, v := range cfg.Validators {
 				valDir := filepath.Join(payloadDir, v.Name)
-				if err := copyFile(srcCmtConfig, filepath.Join(valDir, "config.toml"), 0755); err != nil {
+				if err := copyFile(srcCmtConfig, filepath.Join(valDir, "config.toml"), 0o755); err != nil {
 					return fmt.Errorf("failed to copy config.toml: %w", err)
 				}
 
-				if err := copyFile(srcAppConfig, filepath.Join(valDir, "app.toml"), 0755); err != nil {
+				if err := copyFile(srcAppConfig, filepath.Join(valDir, "app.toml"), 0o755); err != nil {
 					return fmt.Errorf("failed to copy app.toml: %w", err)
 				}
 			}
@@ -69,15 +70,15 @@ func generateCmd() *cobra.Command {
 				return fmt.Errorf("failed to copy scripts: %w", err)
 			}
 
-			if err := copyFile(appBinaryPath, filepath.Join(payloadDir, "build", "celestia-appd"), 0755); err != nil {
+			if err := copyFile(appBinaryPath, filepath.Join(payloadDir, "build", "celestia-appd"), 0o755); err != nil {
 				return fmt.Errorf("failed to copy app binary: %w", err)
 			}
 
-			if err := copyFile(nodeBinaryPath, filepath.Join(payloadDir, "build", "celestia"), 0755); err != nil {
+			if err := copyFile(nodeBinaryPath, filepath.Join(payloadDir, "build", "celestia"), 0o755); err != nil {
 				log.Println("failed to copy celestia binary, bridge and light nodes will not be able to start")
 			}
 
-			if err := copyFile(txsimBinaryPath, filepath.Join(payloadDir, "build", "txsim"), 0755); err != nil {
+			if err := copyFile(txsimBinaryPath, filepath.Join(payloadDir, "build", "txsim"), 0o755); err != nil {
 				return fmt.Errorf("failed to copy txsim binary: %w", err)
 			}
 

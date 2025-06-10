@@ -180,14 +180,14 @@ func (cfg Config) WithChainID(chainID string) Config {
 
 func (c Config) Save(root string) error {
 	// Create the directory if it doesn't exist
-	if err := os.MkdirAll(root, 0755); err != nil {
+	if err := os.MkdirAll(root, 0o755); err != nil {
 		return err
 	}
 
 	// Create the config file path
 	configFilePath := filepath.Join(root, "config.json")
 
-	cfgFile, err := os.OpenFile(configFilePath, os.O_RDWR|os.O_CREATE|os.O_SYNC, 0755)
+	cfgFile, err := os.OpenFile(configFilePath, os.O_RDWR|os.O_CREATE|os.O_SYNC, 0o755)
 	if err != nil {
 		return err
 	}
@@ -243,5 +243,4 @@ func (c Config) UpdateInstance(name, publicIP, privateIP string) (Config, error)
 		}
 	}
 	return c, fmt.Errorf("instance %s not found", name)
-
 }

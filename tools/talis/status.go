@@ -12,9 +12,7 @@ import (
 )
 
 func statusCmd() *cobra.Command {
-	var (
-		rootDir string
-	)
+	var rootDir string
 
 	cmd := &cobra.Command{
 		Use:     "status",
