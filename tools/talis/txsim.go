@@ -112,14 +112,8 @@ func killTmuxSessionCmd() *cobra.Command {
 				session,
 			)
 
-			// Prepare instances list
-			insts := []Instance{}
-			for _, val := range cfg.Validators {
-				insts = append(insts, val)
-			}
-
 			// Run the kill script in its own tmux on each host
-			return runScriptInTMux(insts, resolvedKey, killScript, "kill", timeout)
+			return runScriptInTMux(cfg.Validators, resolvedKey, killScript, "kill", timeout)
 		},
 	}
 

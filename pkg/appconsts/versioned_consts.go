@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	v4 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
+	v4 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4" //nolint:review
 )
 
 const (

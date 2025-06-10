@@ -287,7 +287,7 @@ func DestroyDroplets(ctx context.Context, client *godo.Client, insts []Instance)
 				results <- result{
 					inst: inst,
 					err: fmt.Errorf(
-						"Deleting multiple droplets with tags %v!",
+						"Deleting multiple droplets with tags %v",
 						inst.Tags),
 				}
 				// don't return, still try to delete droplets
