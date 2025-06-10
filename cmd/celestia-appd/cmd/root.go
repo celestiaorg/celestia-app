@@ -181,7 +181,7 @@ func replaceLogger(cmd *cobra.Command) error {
 
 	var logWriter io.Writer
 	if strings.EqualFold(serverCtx.Viper.GetString(flags.FlagLogFormat), "plain") || strings.EqualFold(serverCtx.Viper.GetString(flags.FlagLogFormat), "text") {
-		logWriter = zerolog.ConsoleWriter{Out: log.NewSyncWriter(file)}
+		logWriter = zerolog.ConsoleWriter{Out: log.NewSyncWriter(file), NoColor: true}
 	} else {
 		logWriter = log.NewSyncWriter(file)
 	}
