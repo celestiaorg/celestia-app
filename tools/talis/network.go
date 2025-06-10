@@ -5,12 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
@@ -224,13 +222,10 @@ func (n *Network) InitNodes(rootDir string) error {
 		filePV := privval.NewFilePV(v.ConsensusKey, pvKeyFile, pvStateFile)
 		filePV.Save()
 
-		cmtcfg, err := MakeConfig(v.Name)
-		if err != nil {
-			return err
-		}
+		cmtcfg := cmtconfig.DefaultConfig()
 		cmtconfig.WriteConfigFile(filepath.Join(rootDir, v.Name, "config.toml"), cmtcfg)
-		fmt.Println("wrote config file", filepath.Join(rootDir, v.Name, "config.toml"), cmtcfg.Instrumentation.TracingTables)
-		appcfg := MakeAppConfig()
+
+		appcfg := app.DefaultAppConfig()
 		serverconfig.WriteConfigFile(filepath.Join(rootDir, v.Name, "app.toml"), appcfg)
 	}
 
@@ -257,99 +252,9 @@ func (n *Network) SaveValidatorsToFile(filename string) error {
 	return nil
 }
 
-func ReadValidatorsFromFile(filename string) (map[string]NodeInfo, error) {
-	// Open the file for reading.
-	file, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	// Decode the JSON from the file into a map.
-	var validators map[string]NodeInfo
-	decoder := json.NewDecoder(file)
-	err = decoder.Decode(&validators)
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Println(validators)
-
-	return validators, nil
-}
-
 func (n *Network) SaveAddressBook(payloadRoot string, peers []string) error {
 	addrBookFile := filepath.Join(payloadRoot, "addrbook.json")
 	return WriteAddressBook(peers, addrBookFile)
-}
-
-func MakeConfig(name string, opts ...Option) (*cmtconfig.Config, error) {
-	cfg := cmtconfig.DefaultConfig()
-	// cfg.DBBackend = "pebbledb"
-	cfg.Moniker = name
-	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
-	// cfg.P2P.ExternalAddress = fmt.Sprintf("tcp://%v", node.AddressP2P(false))
-	// cfg.P2P.PersistentPeers = strings.Join(node.InitialPeers, ",")
-	cfg.Instrumentation.Prometheus = false
-	cfg.Mempool.Size = 10000
-	cfg.Mempool.CacheSize = 1000000
-	cfg.Mempool.KeepInvalidTxsInCache = true
-	cfg.Mempool.MaxTxBytes = 100_000_000
-	cfg.Mempool.MaxTxsBytes = 10_000_000_000
-	cfg.Mempool.Type = "cat"
-	cfg.Mempool.TTLNumBlocks = 0
-	cfg.Mempool.Recheck = true
-	cfg.Mempool.Broadcast = true
-	cfg.Storage.DiscardABCIResponses = true
-	cfg.Mempool.TTLDuration = 0
-	cfg.Mempool.MaxGossipDelay = 60 * time.Second
-	cfg.TxIndex.Indexer = "null"
-	cfg.P2P.MaxNumInboundPeers = 20
-	cfg.P2P.MaxNumOutboundPeers = 20
-	cfg.P2P.MaxPacketMsgPayloadSize = 1_000_000_000
-	cfg.P2P.PexReactor = true
-	cfg.P2P.RecvRate = 200_120_000 // increase on a whim to limit peer disconnections
-	cfg.P2P.SendRate = 190_120_000
-	cfg.RPC.MaxBodyBytes = 1_000_000_000
-	cfg.RPC.MaxOpenConnections = 1000
-	cfg.RPC.TimeoutBroadcastTxCommit = 120 * time.Second
-	cfg.RPC.MaxSubscriptionClients = 1000
-	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
-	cfg.Consensus.TimeoutPropose = time.Millisecond * 10000
-	cfg.Consensus.TimeoutCommit = time.Millisecond * 1500
-	cfg.Consensus.OnlyInternalWal = true
-	cfg.Instrumentation.TraceBufferSize = 6000
-	cfg.Instrumentation.TraceType = "local"
-	cfg.Instrumentation.TracingTables = "consensus_round_state,consensus_block,peers,recovered,consensus_proposal,notes,catch_reqs,retries,gap"
-	cfg.Instrumentation.PyroscopeTrace = false
-	cfg.Instrumentation.PyroscopeURL = "http://159.65.233.61:4040/"
-	// all tracing tables
-	// cfg.Instrumentation.TracingTables = "recovered,mem_stats,mempool_tx,mempool_peer_state,consensus_round_state,consensus_block_parts,bp_state,consensus_block,consensus_vote,consensus_state,consensus_proposal,peers,pending_bytes,received_bytes,abci"
-	// cfg.Instrumentation.PyroscopeTrace = true
-	// cfg.Instrumentation.PyroscopeURL = "http://104.131.65.193:4040/"
-	for _, opt := range opts {
-		opt(cfg)
-	}
-
-	return cfg, nil
-}
-
-func MakeAppConfig() *serverconfig.Config {
-	cfg := serverconfig.DefaultConfig()
-	cfg.API.Enable = true
-	cfg.GRPC.Enable = true
-	cfg.GRPCWeb.Enable = false
-	cfg.GRPC.MaxRecvMsgSize = 1_000_000_000
-	cfg.GRPC.MaxSendMsgSize = 1_000_000_000
-
-	// the default snapshot interval was determined by picking a large enough
-	// value as to not dramatically increase resource requirements while also
-	// being greater than zero so that there are more nodes that will serve
-	// snapshots to nodes that state sync
-	cfg.StateSync.SnapshotInterval = 0
-	cfg.StateSync.SnapshotKeepRecent = 1
-	cfg.MinGasPrices = fmt.Sprintf("%v%s", 0.00001, appconsts.BondDenom)
-	return cfg
 }
 
 type Option func(*cmtconfig.Config)
@@ -373,11 +278,4 @@ func WriteAddressBook(peers []string, file string) error {
 type Regions struct {
 	DigitalOcean map[string]int
 	Linode       map[string]int
-}
-
-type ConfigOption func(*cmtcfg.Config)
-
-type Experiment struct {
-	CfgOptions []ConfigOption
-	Regions    Regions
 }
