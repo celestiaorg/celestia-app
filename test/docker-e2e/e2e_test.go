@@ -3,26 +3,28 @@ package docker_e2e
 import (
 	"context"
 	"fmt"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/go-square/v2/share"
 	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
 	celestiatypes "github.com/celestiaorg/tastora/framework/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
-	dockertypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
-	"os"
-	"testing"
-	"time"
 )
 
 const (
 	multiplexerImage   = "ghcr.io/celestiaorg/celestia-app"
 	txsimImage         = "ghcr.io/celestiaorg/txsim"
-	defaultCelestiaTag = "v4.0.0-rc4"
+	defaultCelestiaTag = "v4.0.0-rc6"
+	txSimTag           = "v4.0.0-rc6"
 )
 
 func TestCelestiaTestSuite(t *testing.T) {
@@ -66,7 +68,7 @@ func (s *CelestiaTestSuite) CreateDockerProvider(opts ...ConfigOption) celestiat
 			ChainID:       "celestia",
 			Images: []celestiadockertypes.DockerImage{
 				{
-					Repository: multiplexerImage,
+					Repository: getCelestiaImage(),
 					Version:    getCelestiaTag(),
 					UIDGID:     "10001:10001",
 				},
@@ -97,7 +99,7 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain celestiatypes
 
 	// Deploy txsim image
 	t.Log("Deploying txsim image")
-	txsimImage := celestiadockertypes.NewImage(s.logger, s.client, networkName, t.Name(), txsimImage, getCelestiaTag())
+	txsimImage := celestiadockertypes.NewImage(s.logger, s.client, networkName, t.Name(), txsimImage, txSimTag)
 
 	opts := celestiadockertypes.ContainerOptions{
 		User: "0:0",
@@ -135,7 +137,7 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain celestiatypes
 
 // getNetworkNameFromID resolves the network name given its ID.
 func getNetworkNameFromID(ctx context.Context, cli *client.Client, networkID string) (string, error) {
-	network, err := cli.NetworkInspect(ctx, networkID, dockertypes.NetworkInspectOptions{})
+	network, err := cli.NetworkInspect(ctx, networkID, network.InspectOptions{})
 	if err != nil {
 		return "", fmt.Errorf("failed to inspect network %s: %w", networkID, err)
 	}
@@ -145,12 +147,11 @@ func getNetworkNameFromID(ctx context.Context, cli *client.Client, networkID str
 	return network.Name, nil
 }
 
-// getDockerRegistry returns the Docker registry to use for images.
-// It can be overridden by setting the DOCKER_REGISTRY environment variable.
-// If no override is provided, it returns the default "ghcr.io/celestiaorg".
-func getDockerRegistry() string {
-	if registry := os.Getenv("DOCKER_REGISTRY"); registry != "" {
-		return registry
+// getCelestiaImage returns the image to use for Celestia app.
+// It can be overridden by setting the CELESTIA_IMAGE environment.
+func getCelestiaImage() string {
+	if image := os.Getenv("CELESTIA_IMAGE"); image != "" {
+		return image
 	}
 	return multiplexerImage
 }
