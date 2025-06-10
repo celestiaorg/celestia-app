@@ -184,6 +184,9 @@ func replaceLogger(cmd *cobra.Command) error {
 	}
 
 	sctx := server.GetServerContextFromCmd(cmd)
-	sctx.Logger = log.NewLogger(kitlog.NewSyncWriter(file))
+	sctx.Logger, err = server.CreateSDKLogger(sctx, kitlog.NewSyncWriter(file))
+	if err != nil {
+		return fmt.Errorf("failed to create logger: %w", err)
+	}
 	return server.SetCmdServerContext(cmd, sctx)
 }
