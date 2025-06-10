@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"strings"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
@@ -21,11 +23,11 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
+	"github.com/go-kit/log"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"github.com/tendermint/tendermint/cmd/cometbft/commands"
 	tmcli "github.com/tendermint/tendermint/libs/cli"
-	"github.com/tendermint/tendermint/libs/log"
 )
 
 const (
@@ -177,8 +179,15 @@ func replaceLogger(cmd *cobra.Command) error {
 		return fmt.Errorf("failed to parse log level (%s): %w", logLvlStr, err)
 	}
 
+	var logWriter io.Writer
+	if strings.EqualFold(serverCtx.Viper.GetString(flags.FlagLogFormat), "plain") || strings.EqualFold(serverCtx.Viper.GetString(flags.FlagLogFormat), "text") {
+		logWriter = zerolog.ConsoleWriter{Out: log.NewSyncWriter(file)}
+	} else {
+		logWriter = log.NewSyncWriter(file)
+	}
+
 	serverCtx.Logger = &server.ZeroLogWrapper{
-		Logger: zerolog.New(log.NewSyncWriter(file)).
+		Logger: zerolog.New(logWriter).
 			Level(logLvl).
 			With().
 			Timestamp().
