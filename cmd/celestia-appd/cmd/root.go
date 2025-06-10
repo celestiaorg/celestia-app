@@ -85,15 +85,7 @@ func NewRootCmd() *cobra.Command {
 				return err
 			}
 
-			if command.Flags().Changed(FlagLogToFile) {
-				// optionally log to file by replacing the default logger with a file logger
-				err = replaceLogger(command)
-				if err != nil {
-					return err
-				}
-			}
-
-			return nil
+			return replaceLogger(command)
 		},
 		SilenceUsage: true,
 	}
