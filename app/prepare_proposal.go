@@ -11,6 +11,7 @@ import (
 	square "github.com/celestiaorg/go-square/square"
 	squarev2 "github.com/celestiaorg/go-square/v2"
 	sharev2 "github.com/celestiaorg/go-square/v2/share"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -46,19 +47,20 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	)
 
 	// Filter out invalid transactions.
-	txs := FilterTxs(app.Logger(), sdkCtx, handler, app.txConfig, req.BlockData.Txs)
+	filteredTxs := FilterTxs(app.Logger(), sdkCtx, handler, app.txConfig, req.BlockData.Txs)
 
 	// Build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block.
 	var (
 		dataSquareBytes [][]byte
+		txs             [][]byte
 		err             error
 		size            uint64
 	)
 	switch app.AppVersion() {
 	case v3:
 		var dataSquare squarev2.Square
-		dataSquare, txs, err = squarev2.Build(txs,
+		dataSquare, txs, err = squarev2.Build(filteredTxs,
 			app.MaxEffectiveSquareSize(sdkCtx),
 			appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion()),
 		)
@@ -66,7 +68,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		size = uint64(dataSquare.Size())
 	case v2, v1:
 		var dataSquare square.Square
-		dataSquare, txs, err = square.Build(txs,
+		dataSquare, txs, err = square.Build(filteredTxs,
 			app.MaxEffectiveSquareSize(sdkCtx),
 			appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion()),
 		)
@@ -75,8 +77,29 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	default:
 		err = fmt.Errorf("unsupported app version: %d", app.AppVersion())
 	}
-	if err != nil {
-		panic(err)
+
+	if len(txs) != len(filteredTxs) {
+		app.Logger().Info("number of txs in the square is not equal to the number of txs in the filteredTxs which indicates that square.Build removed some txs", "square_txs", len(txs), "filteredTxs", len(filteredTxs))
+		for _, tx := range txs {
+			blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(tx)
+			if isBlobTx {
+				if err != nil {
+					app.Logger().Error("error unmarshalling blob tx", "error", err.Error())
+				}
+				tx = blobTx.Tx
+			}
+			sdkTx, err := app.GetTxConfig().TxDecoder()(tx)
+			if err != nil {
+				app.Logger().Error("error decoding tx", "error", err.Error())
+			}
+			sdkCtx, err = handler(sdkCtx, sdkTx, false)
+			if err != nil {
+				// This indicates that a tx that was removed during square
+				// construction made the nonces incorrect for the remaining txs.
+				app.Logger().Error("error applying handler to tx which indicates that a tx was removed during square.Build which causes the nonces to be incorrect", "error", err.Error())
+				panic(err)
+			}
+		}
 	}
 
 	// Erasure encode the data square to create the extended data square (eds).
