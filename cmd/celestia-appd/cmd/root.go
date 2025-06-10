@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
@@ -20,6 +21,7 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
+	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"github.com/tendermint/tendermint/cmd/cometbft/commands"
 	tmcli "github.com/tendermint/tendermint/libs/cli"
@@ -168,7 +170,20 @@ func replaceLogger(cmd *cobra.Command) error {
 		return err
 	}
 
-	sctx := server.GetServerContextFromCmd(cmd)
-	sctx.Logger = log.NewTMLogger(log.NewSyncWriter(file))
-	return server.SetCmdServerContext(cmd, sctx)
+	serverCtx := server.GetServerContextFromCmd(cmd)
+	logLvlStr := serverCtx.Viper.GetString(flags.FlagLogLevel)
+	logLvl, err := zerolog.ParseLevel(logLvlStr)
+	if err != nil {
+		return fmt.Errorf("failed to parse log level (%s): %w", logLvlStr, err)
+	}
+
+	serverCtx.Logger = &server.ZeroLogWrapper{
+		Logger: zerolog.New(log.NewSyncWriter(file)).
+			Level(logLvl).
+			With().
+			Timestamp().
+			Logger(),
+	}
+
+	return server.SetCmdServerContext(cmd, serverCtx)
 }
