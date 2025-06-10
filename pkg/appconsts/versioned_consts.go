@@ -4,35 +4,35 @@ import (
 	"strings"
 	"time"
 
-	v4 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4" //nolint:review
+	appv4 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4" //nolint:review
 )
 
 const (
-	LatestVersion = v4.Version
+	LatestVersion = appv4.Version
 )
 
 var (
-	SquareSizeUpperBound      = v4.SquareSizeUpperBound
-	TxSizeCostPerByte         = v4.TxSizeCostPerByte
-	GasPerBlobByte            = v4.GasPerBlobByte
-	Version                   = v4.Version
-	UpgradeHeightDelay        = v4.UpgradeHeightDelay
-	MaxTxSize                 = v4.MaxTxSize
-	SubtreeRootThreshold      = v4.SubtreeRootThreshold
-	TimeoutCommit             = v4.TimeoutCommit
-	TimeoutPropose            = v4.TimeoutPropose
+	SquareSizeUpperBound      = appv4.SquareSizeUpperBound
+	TxSizeCostPerByte         = appv4.TxSizeCostPerByte
+	GasPerBlobByte            = appv4.GasPerBlobByte
+	Version                   = appv4.Version
+	UpgradeHeightDelay        = appv4.UpgradeHeightDelay
+	MaxTxSize                 = appv4.MaxTxSize
+	SubtreeRootThreshold      = appv4.SubtreeRootThreshold
+	TimeoutCommit             = appv4.TimeoutCommit
+	TimeoutPropose            = appv4.TimeoutPropose
 	TalisSquareSizeUpperBound = 512
 )
 
 func GetTimeoutCommit(_ uint64) time.Duration {
-	return v4.TimeoutCommit
+	return appv4.TimeoutCommit
 }
 
 func GetSquareSizeUpperBound(chainID string) int {
 	if strings.Contains(chainID, TalisChainID) {
 		return 512
 	}
-	return v4.SquareSizeUpperBound
+	return appv4.SquareSizeUpperBound
 }
 
 // GetUpgradeHeightDelay returns the delay in blocks after a quorum has been
@@ -41,5 +41,5 @@ func GetUpgradeHeightDelay(chainID string) int64 {
 	if chainID == TestChainID {
 		return 3
 	}
-	return v4.UpgradeHeightDelay
+	return appv4.UpgradeHeightDelay
 }

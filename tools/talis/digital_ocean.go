@@ -92,7 +92,7 @@ func GetDOSSHKeyMeta(ctx context.Context, client *godo.Client, publicKey string)
 	}
 
 	return godo.Key{}, fmt.Errorf(
-		"SSH public key not found in DigitalOcean. Please upload it via the control panel or API before proceeding",
+		"ssh public key not found in DigitalOcean. Please upload it via the control panel or API before proceeding",
 	)
 }
 
@@ -287,7 +287,7 @@ func DestroyDroplets(ctx context.Context, client *godo.Client, insts []Instance)
 				results <- result{
 					inst: inst,
 					err: fmt.Errorf(
-						"Deleting multiple droplets with tags %v",
+						"deleting multiple droplets with tags %v",
 						inst.Tags),
 				}
 				// don't return, still try to delete droplets
