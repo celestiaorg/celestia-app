@@ -30,12 +30,12 @@ const (
 	// FlagLogToFile specifies whether to log to file or not.
 	FlagLogToFile = "log-to-file"
 
-	// UpgradeHeightFlag is the flag to specify the upgrade height for v1 to v2
-	// application upgrade.
-	UpgradeHeightFlag = "v2-upgrade-height"
-
 	// TimeoutCommit is a flag that can be used to override the timeout_commit.
 	TimeoutCommitFlag = "timeout-commit"
+
+	// FlagEmbeddedArgsFile is the flag name for the embedded arguments.
+	// It does nothing in non multiplexer modes.
+	FlagEmbeddedArgsFile = "embedded-args-file"
 )
 
 // NewRootCmd creates a new root command for celestia-appd.
@@ -157,13 +157,9 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 
 // addStartFlags adds flags to the start command.
 func addStartFlags(startCmd *cobra.Command) {
-	startCmd.Flags().Int64(UpgradeHeightFlag, 0, "Upgrade height to switch from v1 to v2. Must be coordinated amongst all validators")
-	if err := startCmd.Flags().MarkDeprecated(UpgradeHeightFlag, "This flag is deprecated and was only useful prior to v4."); err != nil {
-		panic(err)
-	}
-
 	startCmd.Flags().Duration(TimeoutCommitFlag, 0, "Override the application configured timeout_commit. Note: only for testing purposes.")
 	startCmd.Flags().Bool(FlagForceNoBBR, false, "bypass the requirement to use bbr locally")
+	startCmd.Flags().String(FlagEmbeddedArgsFile, "", "pass down arguments to the embedded application. This is only used in multiplexer mode and ignored otherwise.")
 }
 
 // replaceLogger optionally replaces the logger with a file logger if the flag
