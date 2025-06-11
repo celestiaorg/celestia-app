@@ -244,7 +244,6 @@ func BlobTxWithManualSequence(
 	account string,
 	sequence uint64,
 	accountNum uint64,
-	invalidSignature bool,
 ) coretypes.Tx {
 	t.Helper()
 
@@ -257,25 +256,6 @@ func BlobTxWithManualSequence(
 	msg, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), addr.String(), blobSize, blobCount)
 	transaction, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
 	require.NoError(t, err)
-	if invalidSignature {
-		builder := cfg.NewTxBuilder()
-		for _, opt := range opts {
-			builder = opt(builder)
-		}
-		require.NoError(t, builder.SetMsgs(msg))
-		err := builder.SetSignatures(signing.SignatureV2{
-			PubKey: acc.PubKey(),
-			Data: &signing.SingleSignatureData{
-				SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
-				Signature: []byte("invalid signature"),
-			},
-			Sequence: acc.Sequence(),
-		})
-		require.NoError(t, err)
-
-		transaction, err = signer.EncodeTx(builder.GetTx())
-		require.NoError(t, err)
-	}
 
 	cTx, err := tx.MarshalBlobTx(transaction, blobs...)
 	if err != nil {
