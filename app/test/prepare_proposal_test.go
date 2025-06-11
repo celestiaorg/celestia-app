@@ -422,7 +422,7 @@ func TestPrepareProposal(t *testing.T) {
 	t.Run("prepare proposal with account sequence mismatch", func(t *testing.T) {
 		encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 		accounts := testfactory.GenerateAccounts(1)
-		testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+		testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, accounts...)
 		height := testApp.LastBlockHeight() + 1
 		numTxs := 3
 
