@@ -58,6 +58,7 @@ func execCommand(t *testing.T, cmd string, args ...string) string {
 	var out bytes.Buffer
 	var outErr bytes.Buffer
 	command := exec.Command(cmd, args...)
+	command = setupCmd(command)
 	command.Stdout = &out
 	command.Stderr = &outErr
 	err := command.Run()

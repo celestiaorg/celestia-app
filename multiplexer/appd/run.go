@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 )
 
 const (
@@ -65,10 +66,11 @@ func New(version string, compressedBinary []byte) (*Appd, error) {
 func (a *Appd) Start(args ...string) error {
 	cmd := exec.Command(a.path, append([]string{"start"}, args...)...)
 
-	// Set up I/O
 	cmd.Stdin = a.stdin
 	cmd.Stdout = a.stdout
 	cmd.Stderr = a.stderr
+
+	cmd = setupCmd(cmd)
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start %s: %w", a.path, err)
@@ -85,6 +87,17 @@ func (a *Appd) Start(args ...string) error {
 	}()
 
 	return nil
+}
+
+func setupCmd(cmd *exec.Cmd) *exec.Cmd {
+	cmd.Env = os.Environ()
+
+	// ensure child and its sub-children form their own process group
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+	}
+
+	return cmd
 }
 
 // Stop terminates the running appd process if it exists.
@@ -125,6 +138,7 @@ func (a *Appd) Pid() int {
 // CreateExecCommand creates an exec.Cmd for the appd binary.
 func (a *Appd) CreateExecCommand(args ...string) *exec.Cmd {
 	cmd := exec.Command(a.path, args...)
+	cmd = setupCmd(cmd)
 	cmd.Stdin = a.stdin
 	cmd.Stdout = a.stdout
 	cmd.Stderr = a.stderr
@@ -230,6 +244,7 @@ func isBinaryDecompressed(version string) bool {
 
 func verifyBinaryIsExecutable(pathToBinary string) error {
 	testCmd := exec.Command(pathToBinary, "--help")
+	testCmd = setupCmd(testCmd)
 	testOutput, err := testCmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("binary validation failed (%s): %w\nOutput: %s", pathToBinary, err, string(testOutput))
