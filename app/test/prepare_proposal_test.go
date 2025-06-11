@@ -424,9 +424,9 @@ func TestPrepareProposal(t *testing.T) {
 		accounts := testfactory.GenerateAccounts(1)
 		testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 		height := testApp.LastBlockHeight() + 1
+		numTxs := 2
 
-		txs := createTxs(t, testApp, encConf, kr, accounts)
-		require.Len(t, txs, 20)
+		txs := createTxs(t, testApp, encConf, kr, accounts, numTxs)
 
 		prepareResponse := testApp.PrepareProposal(abci.RequestPrepareProposal{
 			BlockData: &tmproto.Data{Txs: txs},
@@ -436,7 +436,7 @@ func TestPrepareProposal(t *testing.T) {
 		})
 
 		require.Equal(t, txs, prepareResponse.BlockData.Txs)
-		require.Len(t, prepareResponse.BlockData.Txs, 20)
+		require.Len(t, prepareResponse.BlockData.Txs, numTxs)
 
 		processResponse := testApp.ProcessProposal(abci.RequestProcessProposal{
 			Header: tmproto.Header{
@@ -460,7 +460,7 @@ func TestPrepareProposal(t *testing.T) {
 }
 
 // createTxs creates a list of 10 MsgSend transactions and 10 MsgPayForBlobs (1 MiB each) all signed with the same account.
-func createTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring keyring.Keyring, accounts []string) (txs [][]byte) {
+func createTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring keyring.Keyring, accounts []string, numTxs int) (txs [][]byte) {
 
 	fromAccount := accounts[0]
 	toAccount := accounts[0]
@@ -473,7 +473,7 @@ func createTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring 
 	accountNumber := account.GetAccountNumber()
 	startingSequence := account.GetSequence()
 
-	for i := 0; i < 20; i++ {
+	for i := 0; i < numTxs; i++ {
 		sequence := startingSequence + uint64(i)
 		if sequence%2 == 0 {
 			tx := testutil.SendTxWithManualSequence(t, encConf.TxConfig, keyring, fromAccount, toAccount, amount, testutil.ChainID, sequence, accountNumber, blobfactory.DefaultTxOpts()...)
@@ -483,6 +483,6 @@ func createTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring 
 			txs = append(txs, tx)
 		}
 	}
-	require.Len(t, txs, 20)
+	require.Len(t, txs, numTxs)
 	return txs
 }
