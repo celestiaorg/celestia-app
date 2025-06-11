@@ -484,6 +484,7 @@ func createTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring 
 		}
 		return txs
 	}
+	require.Len(t, txs, 20)
 
 	return txs
 }
