@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"syscall"
 )
 
 const (
@@ -91,12 +90,6 @@ func (a *Appd) Start(args ...string) error {
 
 func setupCmd(cmd *exec.Cmd) *exec.Cmd {
 	cmd.Env = os.Environ()
-
-	// ensure child and its sub-children form their own process group
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true,
-	}
-
 	return cmd
 }
 

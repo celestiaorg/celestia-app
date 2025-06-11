@@ -3,15 +3,12 @@
 package appd
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
-	"syscall"
 	"testing"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/v4/internal/embedding"
 
@@ -110,37 +107,8 @@ func createMockExecutable(t *testing.T, bashCommand string) string {
 	return tmpFile.Name()
 }
 
-// TestSetupCmd covers:
-// 1) Cancellation via SIGINT (Ctrl+C) propagates to child process group
-// 2) Environment variables are inherited by the child process
-// 3) Child process can access files in $HOME
+// TestSetupCmd covers environment variables are inherited by the child process
 func TestSetupCmd(t *testing.T) {
-	t.Run("CancelOnSIGINT", func(t *testing.T) {
-		req := require.New(t)
-		ast := assert.New(t)
-
-		cmd := exec.Command("bash", "-c", `trap 'echo gotint; exit 0' INT; sleep 60`)
-		cmd = setupCmd(cmd)
-
-		stdout, err := cmd.StdoutPipe()
-		req.NoError(err)
-
-		req.NoError(cmd.Start())
-
-		// allow process to start
-		time.Sleep(100 * time.Millisecond)
-
-		pgid, err := syscall.Getpgid(cmd.Process.Pid)
-		req.NoError(err)
-		syscall.Kill(-pgid, syscall.SIGINT)
-
-		scn := bufio.NewScanner(stdout)
-		req.True(scn.Scan(), "expected output but got none")
-		ast.Equal("gotint", scn.Text())
-
-		req.NoError(cmd.Wait())
-	})
-
 	t.Run("EnvVarPropagation", func(t *testing.T) {
 		key, val := "TEST_ENV_VAR", "42"
 		require.NoError(t, os.Setenv(key, val))
