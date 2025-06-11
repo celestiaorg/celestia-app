@@ -437,8 +437,8 @@ func TestPrepareProposal(t *testing.T) {
 			Time:      time.Now(),
 		})
 
+		require.Equal(t, numTxs, len(prepareResponse.BlockData.Txs))
 		require.Equal(t, txs, prepareResponse.BlockData.Txs)
-		require.Len(t, prepareResponse.BlockData.Txs, numTxs)
 
 		processResponse := testApp.ProcessProposal(abci.RequestProcessProposal{
 			Header: tmproto.Header{
