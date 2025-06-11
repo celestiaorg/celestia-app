@@ -426,7 +426,7 @@ func TestPrepareProposal(t *testing.T) {
 		height := testApp.LastBlockHeight() + 1
 		numTxs := 3
 
-		txs := createTxs(t, testApp, encConf, kr, accounts, numTxs)
+		txs := createMixedTxs(t, testApp, encConf, kr, accounts, numTxs)
 
 		prepareResponse := testApp.PrepareProposal(abci.RequestPrepareProposal{
 			BlockData: &tmproto.Data{Txs: txs},
@@ -459,9 +459,8 @@ func TestPrepareProposal(t *testing.T) {
 	})
 }
 
-// createTxs creates a list of 10 MsgSend transactions and 10 MsgPayForBlobs (1 MiB each) all signed with the same account.
-func createTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring keyring.Keyring, accounts []string, numTxs int) (txs [][]byte) {
-
+// createMixedTxs creates a list of MsgSend and MsgPayForBlob txs.
+func createMixedTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring keyring.Keyring, accounts []string, numTxs int) (txs [][]byte) {
 	fromAccount := accounts[0]
 	toAccount := accounts[0]
 	amount := uint64(1000)
