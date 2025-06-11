@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	"github.com/tendermint/tendermint/proto/tendermint/version"
 	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
@@ -414,4 +415,56 @@ func repeat[T any](n int, val T) []T {
 		result[i] = val
 	}
 	return result
+}
+
+func TestPrepareProposal(t *testing.T) {
+	// Reproduces https://github.com/celestiaorg/celestia-app/issues/4961
+	t.Run("prepare proposal with account sequence mismatch", func(t *testing.T) {
+		encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+		accounts := testfactory.GenerateAccounts(6)
+		testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+
+		// create 3 MsgSend transactions that are signed with valid account numbers
+		// and sequences
+		sendTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
+			t,
+			testApp,
+			encConf.TxConfig,
+			kr,
+			1000,
+			accounts[0],
+			accounts[len(accounts)-3:],
+			testutil.ChainID,
+		)).ToSliceOfBytes()
+		height := testApp.LastBlockHeight() + 1
+
+		prepareResponse := testApp.PrepareProposal(abci.RequestPrepareProposal{
+			BlockData: &tmproto.Data{Txs: sendTxs},
+			ChainId:   testutil.ChainID,
+			Height:    height,
+			Time:      time.Now(),
+		})
+
+		require.Equal(t, uint64(2), prepareResponse.BlockData.SquareSize)
+		require.Equal(t, sendTxs, prepareResponse.BlockData.Txs)
+
+		processResponse := testApp.ProcessProposal(abci.RequestProcessProposal{
+			Header: tmproto.Header{
+				Version: version.Consensus{
+					Block: 1,
+					App:   3,
+				},
+				ChainID:  testutil.ChainID,
+				Height:   height,
+				Time:     time.Now(),
+				DataHash: prepareResponse.BlockData.Hash,
+			},
+			BlockData: prepareResponse.BlockData,
+		})
+
+		// TODO: update the prepare proposal txs to include some txs with
+		// incorrect sequence numbers and then modify this to
+		// ResponseProcessProposal_REJECT.
+		require.Equal(t, abci.ResponseProcessProposal_ACCEPT, processResponse.Result)
+	})
 }
