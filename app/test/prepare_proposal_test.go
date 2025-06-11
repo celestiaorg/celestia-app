@@ -435,6 +435,7 @@ func TestPrepareProposal(t *testing.T) {
 		})
 
 		require.Equal(t, txs, prepareResponse.BlockData.Txs)
+		require.Len(t, prepareResponse.BlockData.Txs, 20)
 
 		processResponse := testApp.ProcessProposal(abci.RequestProcessProposal{
 			Header: tmproto.Header{
@@ -458,22 +459,21 @@ func TestPrepareProposal(t *testing.T) {
 }
 
 // createTxs creates a list of 10 MsgSend transactions and 10 MsgPayForBlobs (1 MiB each) all signed with the same account.
-func createTxs(t *testing.T, testApp *app.App, encConf encoding.Config, kr keyring.Keyring, accounts []string) [][]byte {
+func createTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring keyring.Keyring, accounts []string) [][]byte {
 	txs := make([][]byte, 0, 20)
 
 	fromAccount := accounts[0]
 	toAccount := accounts[0]
 	amount := uint64(1000)
 
-	// Get the actual account info to use correct account number and starting sequence
-	addr := testfactory.GetAddress(kr, fromAccount)
-	acc := testutil.DirectQueryAccount(testApp, addr)
-	accountNum := acc.GetAccountNumber()
-	startingSequence := acc.GetSequence()
+	address := testfactory.GetAddress(keyring, fromAccount)
+	account := testutil.DirectQueryAccount(testApp, address)
+	accountNumber := account.GetAccountNumber()
+	startingSequence := account.GetSequence()
 
 	for i := 0; i < 20; i++ {
 		sequence := startingSequence + uint64(i)
-		tx := testutil.SendTxWithManualSequence(t, encConf.TxConfig, kr, fromAccount, toAccount, amount, testutil.ChainID, sequence, accountNum, blobfactory.DefaultTxOpts()...)
+		tx := testutil.SendTxWithManualSequence(t, encConf.TxConfig, keyring, fromAccount, toAccount, amount, testutil.ChainID, sequence, accountNumber, blobfactory.DefaultTxOpts()...)
 		txs = append(txs, tx)
 
 		// TODO: add a MsgPayForBlob transaction instead of 20 MsgSend transactions.
