@@ -426,7 +426,8 @@ func TestPrepareProposal(t *testing.T) {
 		height := testApp.LastBlockHeight() + 1
 		numTxs := 3
 
-		txs := createMixedTxs(t, testApp, encConf, kr, accounts, numTxs)
+		// txs := createMixedTxs(t, testApp, encConf, kr, accounts, numTxs)
+		txs := createMsgSendTxs(t, testApp, encConf, kr, accounts, numTxs)
 
 		prepareResponse := testApp.PrepareProposal(abci.RequestPrepareProposal{
 			BlockData: &tmproto.Data{Txs: txs},
@@ -481,6 +482,26 @@ func createMixedTxs(t *testing.T, testApp *app.App, encConf encoding.Config, key
 			tx := testutil.BlobTxWithManualSequence(t, encConf.TxConfig, keyring, blobSize, blobCount, testutil.ChainID, fromAccount, sequence, accountNumber)
 			txs = append(txs, tx)
 		}
+	}
+	require.Len(t, txs, numTxs)
+	return txs
+}
+
+// createMixedTxs creates a list of MsgSend and MsgPayForBlob txs.
+func createMsgSendTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring keyring.Keyring, accounts []string, numTxs int) (txs [][]byte) {
+	fromAccount := accounts[0]
+	toAccount := accounts[0]
+	amount := uint64(1000)
+
+	address := testfactory.GetAddress(keyring, fromAccount)
+	account := testutil.DirectQueryAccount(testApp, address)
+	accountNumber := account.GetAccountNumber()
+	startingSequence := account.GetSequence()
+
+	for i := 0; i < numTxs; i++ {
+		sequence := startingSequence + uint64(i)
+		tx := testutil.SendTxWithManualSequence(t, encConf.TxConfig, keyring, fromAccount, toAccount, amount, testutil.ChainID, sequence, accountNumber, blobfactory.DefaultTxOpts()...)
+		txs = append(txs, tx)
 	}
 	require.Len(t, txs, numTxs)
 	return txs
