@@ -242,7 +242,8 @@ func BlobTxWithManualSequence(
 	blobCount int,
 	chainid string,
 	account string,
-	sequence, accountNum uint64,
+	sequence uint64,
+	accountNum uint64,
 	invalidSignature bool,
 ) coretypes.Tx {
 	t.Helper()
