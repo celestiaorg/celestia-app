@@ -465,6 +465,10 @@ func createTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring 
 	fromAccount := accounts[0]
 	toAccount := accounts[0]
 	amount := uint64(1000)
+	blobSize := 1 * mebibyte
+	blobCount := 1
+	randSize := false
+	invalidSignature := false
 
 	address := testfactory.GetAddress(keyring, fromAccount)
 	account := testutil.DirectQueryAccount(testApp, address)
@@ -473,10 +477,14 @@ func createTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring 
 
 	for i := 0; i < 20; i++ {
 		sequence := startingSequence + uint64(i)
-		tx := testutil.SendTxWithManualSequence(t, encConf.TxConfig, keyring, fromAccount, toAccount, amount, testutil.ChainID, sequence, accountNumber, blobfactory.DefaultTxOpts()...)
-		txs = append(txs, tx)
-
-		// TODO: add a MsgPayForBlob transaction instead of 20 MsgSend transactions.
+		if sequence%2 == 0 {
+			tx := testutil.SendTxWithManualSequence(t, encConf.TxConfig, keyring, fromAccount, toAccount, amount, testutil.ChainID, sequence, accountNumber, blobfactory.DefaultTxOpts()...)
+			txs = append(txs, tx)
+		} else {
+			tx := testutil.BlobTxWithManualSequence(t, encConf.TxConfig, keyring, blobSize, blobCount, randSize, testutil.ChainID, fromAccount, sequence, accountNumber, invalidSignature)
+			txs = append(txs, tx)
+		}
+		return txs
 	}
 
 	return txs

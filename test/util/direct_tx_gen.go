@@ -233,3 +233,69 @@ func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {
 	}
 	return addr
 }
+
+func BlobTxWithManualSequence(
+	t *testing.T,
+	cfg client.TxConfig,
+	kr keyring.Keyring,
+	size int,
+	blobCount int,
+	randSize bool,
+	chainid string,
+	account string,
+	sequence, accountNum uint64,
+	invalidSignature bool,
+) coretypes.Tx {
+	t.Helper()
+
+	opts := blobfactory.DefaultTxOpts()
+	addr := testfactory.GetAddress(kr, account)
+	acc := user.NewAccount(account, accountNum, sequence)
+	signer, err := user.NewSigner(kr, cfg, chainid, appconsts.LatestVersion, acc)
+	require.NoError(t, err)
+
+	randomizedSize := size
+	if randSize {
+		randomizedSize = rand.Intn(size)
+		if randomizedSize == 0 {
+			randomizedSize = 1
+		}
+	}
+
+	randomizedBlobCount := blobCount
+	if randSize {
+		randomizedBlobCount = rand.Intn(blobCount)
+		if randomizedBlobCount == 0 {
+			randomizedBlobCount = 1
+		}
+	}
+
+	msg, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), addr.String(), randomizedSize, randomizedBlobCount)
+	transaction, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
+	require.NoError(t, err)
+	if invalidSignature {
+		builder := cfg.NewTxBuilder()
+		for _, opt := range opts {
+			builder = opt(builder)
+		}
+		require.NoError(t, builder.SetMsgs(msg))
+		err := builder.SetSignatures(signing.SignatureV2{
+			PubKey: acc.PubKey(),
+			Data: &signing.SingleSignatureData{
+				SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
+				Signature: []byte("invalid signature"),
+			},
+			Sequence: acc.Sequence(),
+		})
+		require.NoError(t, err)
+
+		transaction, err = signer.EncodeTx(builder.GetTx())
+		require.NoError(t, err)
+	}
+
+	cTx, err := tx.MarshalBlobTx(transaction, blobs...)
+	if err != nil {
+		panic(err)
+	}
+	return cTx
+}
