@@ -10,6 +10,9 @@ func indexWrapperDecoder(decoder sdk.TxDecoder) sdk.TxDecoder {
 		if indexWrapper, isIndexWrapper := coretypes.UnmarshalIndexWrapper(txBytes); isIndexWrapper {
 			return decoder(indexWrapper.Tx)
 		}
+		if blobTx, isBlobTx := coretypes.UnmarshalBlobTx(txBytes); isBlobTx {
+			return decoder(blobTx.Tx)
+		}
 		return decoder(txBytes)
 	}
 }

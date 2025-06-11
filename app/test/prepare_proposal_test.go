@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"crypto/rand"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
@@ -424,11 +426,12 @@ func TestPrepareProposal(t *testing.T) {
 		accounts := testfactory.GenerateAccounts(1)
 		testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, accounts...)
 		height := testApp.LastBlockHeight() + 1
-		numTxs := 3
+		numTxs := 4
 
-		// txs := createMixedTxs(t, testApp, encConf, kr, accounts, numTxs)
+		txs := createMixedTxs(t, testApp, encConf, kr, accounts, numTxs)
+		printTxs(t, txs, encConf)
 		// txs := createMsgSendTxs(t, testApp, encConf, kr, accounts, numTxs)
-		txs := createBlobTxs(t, testApp, encConf, kr, accounts, numTxs)
+		// txs := createBlobTxs(t, testApp, encConf, kr, accounts, numTxs)
 
 		prepareResponse := testApp.PrepareProposal(abci.RequestPrepareProposal{
 			BlockData: &tmproto.Data{Txs: txs},
@@ -524,4 +527,29 @@ func createBlobTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyr
 
 	require.Len(t, txs, numTxs)
 	return txs
+}
+
+func printTxs(t *testing.T, txs [][]byte, encConf encoding.Config) {
+	for i, tx := range txs {
+		decodedTx, err := encConf.TxConfig.TxDecoder()(tx)
+		require.NoError(t, err)
+
+		msgs := decodedTx.GetMsgs()
+		require.NotEmpty(t, msgs)
+
+		msgType := sdk.MsgTypeURL(msgs[0])
+
+		sigTx, ok := decodedTx.(sdk.Tx)
+		require.True(t, ok)
+
+		sigVerifiableTx, ok := sigTx.(signing.SigVerifiableTx)
+		require.True(t, ok)
+
+		sigs, err := sigVerifiableTx.GetSignaturesV2()
+		require.NoError(t, err)
+		require.NotEmpty(t, sigs)
+
+		sequence := sigs[0].Sequence
+		fmt.Printf("tx: %d, sequence: %v, type: %v\n", i, sequence, msgType)
+	}
 }
