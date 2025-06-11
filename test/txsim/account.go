@@ -329,6 +329,158 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	return nil
 }
 
+// Broadcast executes an operation without waiting for confirmation. Returns the transaction hash.
+// This is thread safe.
+func (am *AccountManager) Broadcast(ctx context.Context, op Operation) (string, error) {
+	if len(op.Msgs) == 0 {
+		return "", errors.New("operation must contain at least one message")
+	}
+
+	var address types.AccAddress
+	for _, msg := range op.Msgs {
+		if m, ok := msg.(types.HasValidateBasic); ok {
+			if err := m.ValidateBasic(); err != nil {
+				return "", fmt.Errorf("error validating message: %w", err)
+			}
+		}
+		signers, _, err := am.encCfg.Codec.GetMsgV1Signers(msg)
+		if err != nil {
+			return "", fmt.Errorf("error getting signers for message: %w", err)
+		}
+
+		if len(signers) != 1 {
+			return "", fmt.Errorf("only a single signer is supported got: %d", len(signers))
+		}
+
+		if address == nil {
+			address = signers[0]
+		} else if !bytes.Equal(address, signers[0]) {
+			return "", fmt.Errorf("all messages must be signed by the same account")
+		}
+	}
+
+	// If a delay is set, wait for that many blocks to have been produced
+	// before continuing
+	if op.Delay != 0 {
+		if err := am.waitDelay(ctx, op.Delay); err != nil {
+			return "", fmt.Errorf("error delaying tx submission: %w", err)
+		}
+	}
+
+	opts := make([]user.TxOption, 0)
+	var gasLimit, fee uint64
+	var gasPrice float64
+
+	// Step 1: Determine gas limit
+	switch {
+	case op.GasLimit > 0:
+		gasLimit = op.GasLimit
+	case am.gasLimit > 0:
+		gasLimit = am.gasLimit
+	default:
+		gasLimit = DefaultGasLimit
+	}
+
+	// Set gas limit
+	if gasLimit > 0 {
+		opts = append(opts, user.SetGasLimit(gasLimit))
+	}
+
+	// Step 2: Determine gas price
+	switch {
+	case op.GasPrice > 0:
+		gasPrice = op.GasPrice
+	case am.gasPrice > 0:
+		gasPrice = am.gasPrice
+		if gasPrice < appconsts.DefaultMinGasPrice {
+			log.Warn().
+				Float64("gas_price", gasPrice).
+				Float64("default_min_gas_price", appconsts.DefaultMinGasPrice).
+				Msg("custom gas price is lower than default minimum")
+		}
+	default:
+		gasPrice = appconsts.DefaultMinGasPrice
+	}
+
+	// Step 3: Calculate fee
+	if fee == 0 {
+		fee = uint64(math.Ceil(float64(gasLimit) * gasPrice))
+		opts = append(opts, user.SetFee(fee))
+	}
+
+	if am.useFeegrant {
+		opts = append(opts, user.SetFeeGranter(am.txClient.DefaultAddress()))
+	}
+
+	var (
+		res *types.TxResponse
+		err error
+	)
+	if len(op.Blobs) > 0 {
+		accName, ok := am.addressMap[address.String()]
+		if !ok {
+			return "", fmt.Errorf("account not found for address %s", address.String())
+		}
+		res, err = am.txClient.BroadcastPayForBlobWithAccount(ctx, accName, op.Blobs, opts...)
+		if err != nil {
+			// log the failed tx
+			log.Err(err).
+				Str("address", address.String()).
+				Str("blobs count", fmt.Sprintf("%d", len(op.Blobs))).
+				Int64("total byte size of blobs", getSize(op.Blobs)).
+				Msg("tx broadcast failed")
+		}
+	} else {
+		res, err = am.txClient.BroadcastTx(ctx, op.Msgs, opts...)
+		// log the failed tx
+		if err != nil {
+			log.Err(err).
+				Str("address", address.String()).
+				Str("msgs", msgsToString(op.Msgs)).
+				Msg("tx broadcast failed")
+		}
+	}
+	if err != nil {
+		return "", err
+	}
+
+	if len(op.Blobs) > 0 {
+		log.Info().
+			Str("address", address.String()).
+			Str("blobs count", fmt.Sprintf("%d", len(op.Blobs))).
+			Int64("total byte size of blobs", getSize(op.Blobs)).
+			Str("tx_hash", res.TxHash).
+			Msg("tx broadcasted")
+	} else {
+		log.Info().
+			Str("address", address.String()).
+			Str("msgs", msgsToString(op.Msgs)).
+			Str("tx_hash", res.TxHash).
+			Msg("tx broadcasted")
+	}
+
+	return res.TxHash, nil
+}
+
+// ConfirmTx waits for a transaction to be confirmed and updates the latest height.
+// This is thread safe.
+func (am *AccountManager) ConfirmTx(ctx context.Context, txHash string) error {
+	res, err := am.txClient.ConfirmTx(ctx, txHash)
+	if err != nil {
+		return err
+	}
+
+	// update the latest height
+	am.setLatestHeight(res.Height)
+
+	log.Info().
+		Int64("height", res.Height).
+		Str("tx_hash", txHash).
+		Msg("tx confirmed")
+
+	return nil
+}
+
 func getSize(blobs []*share.Blob) int64 {
 	size := int64(0)
 	for _, blob := range blobs {

@@ -97,18 +97,54 @@ func Run(
 			// each sequence loops through the next set of operations, the new messages are then
 			// submitted on chain
 			for {
-				ops, err := sequence.Next(ctx, manager.conn, r)
-				if err != nil {
-					errCh <- fmt.Errorf("sequence %d: %w", seqID, err)
-					return
-				}
+				if opts.txsPerSequence == 1 {
+					// Default mode: submit one transaction and wait for confirmation
+					ops, err := sequence.Next(ctx, manager.conn, r)
+					if err != nil {
+						errCh <- fmt.Errorf("sequence %d: %w", seqID, err)
+						return
+					}
 
-				// Submit the messages to the chain.
-				if err := manager.Submit(ctx, ops); err != nil {
-					errCh <- fmt.Errorf("sequence %d: %w", seqID, err)
-					return
+					if err := manager.Submit(ctx, ops); err != nil {
+						errCh <- fmt.Errorf("sequence %d: %w", seqID, err)
+						return
+					}
+					opNum++
+				} else {
+					// Batch mode: broadcast multiple transactions, then confirm all
+					var txHashes []string
+					for i := 0; i < opts.txsPerSequence; i++ {
+						ops, err := sequence.Next(ctx, manager.conn, r)
+						if err != nil {
+							if errors.Is(err, ErrEndOfSequence) {
+								// If we hit end of sequence mid-batch, confirm any pending txs
+								for _, hash := range txHashes {
+									if confirmErr := manager.ConfirmTx(ctx, hash); confirmErr != nil {
+										log.Err(confirmErr).Str("tx_hash", hash).Msg("failed to confirm tx in cleanup")
+									}
+								}
+							}
+							errCh <- fmt.Errorf("sequence %d: %w", seqID, err)
+							return
+						}
+
+						txHash, err := manager.Broadcast(ctx, ops)
+						if err != nil {
+							errCh <- fmt.Errorf("sequence %d: %w", seqID, err)
+							return
+						}
+						txHashes = append(txHashes, txHash)
+						opNum++
+					}
+
+					// Confirm all broadcasted transactions
+					for _, hash := range txHashes {
+						if err := manager.ConfirmTx(ctx, hash); err != nil {
+							errCh <- fmt.Errorf("sequence %d confirming tx %s: %w", seqID, hash, err)
+							return
+						}
+					}
 				}
-				opNum++
 			}
 		}(idx, sequence, errCh)
 	}
@@ -145,6 +181,7 @@ type Options struct {
 	suppressLogger bool
 	gasLimit       uint64
 	gasPrice       float64
+	txsPerSequence int
 }
 
 func (o *Options) Fill() {
@@ -153,6 +190,9 @@ func (o *Options) Fill() {
 	}
 	if o.pollTime == 0 {
 		o.pollTime = user.DefaultPollTime
+	}
+	if o.txsPerSequence == 0 {
+		o.txsPerSequence = 1
 	}
 }
 
@@ -195,6 +235,18 @@ func (o *Options) WithGasLimit(gasLimit uint64) *Options {
 func (o *Options) WithGasPrice(gasPrice float64) *Options {
 	o.gasPrice = gasPrice
 	return o
+}
+
+func (o *Options) WithTxsPerSequence(txsPerSequence int) *Options {
+	if txsPerSequence < 1 {
+		panic("txsPerSequence must be at least 1")
+	}
+	o.txsPerSequence = txsPerSequence
+	return o
+}
+
+func (o *Options) TxsPerSequence() int {
+	return o.txsPerSequence
 }
 
 // buildGrpcConn applies the config if the handshake succeeds; otherwise, it falls back to an insecure connection.
