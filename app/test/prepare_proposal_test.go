@@ -426,6 +426,7 @@ func TestPrepareProposal(t *testing.T) {
 		height := testApp.LastBlockHeight() + 1
 
 		txs := createTxs(t, testApp, encConf, kr, accounts)
+		require.Len(t, txs, 20)
 
 		prepareResponse := testApp.PrepareProposal(abci.RequestPrepareProposal{
 			BlockData: &tmproto.Data{Txs: txs},
@@ -459,8 +460,7 @@ func TestPrepareProposal(t *testing.T) {
 }
 
 // createTxs creates a list of 10 MsgSend transactions and 10 MsgPayForBlobs (1 MiB each) all signed with the same account.
-func createTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring keyring.Keyring, accounts []string) [][]byte {
-	txs := make([][]byte, 0, 20)
+func createTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring keyring.Keyring, accounts []string) (txs [][]byte) {
 
 	fromAccount := accounts[0]
 	toAccount := accounts[0]
@@ -482,9 +482,7 @@ func createTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring 
 			tx := testutil.BlobTxWithManualSequence(t, encConf.TxConfig, keyring, blobSize, blobCount, testutil.ChainID, fromAccount, sequence, accountNumber)
 			txs = append(txs, tx)
 		}
-		return txs
 	}
 	require.Len(t, txs, 20)
-
 	return txs
 }
