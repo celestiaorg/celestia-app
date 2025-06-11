@@ -238,9 +238,8 @@ func BlobTxWithManualSequence(
 	t *testing.T,
 	cfg client.TxConfig,
 	kr keyring.Keyring,
-	size int,
+	blobSize int,
 	blobCount int,
-	randSize bool,
 	chainid string,
 	account string,
 	sequence, accountNum uint64,
@@ -254,23 +253,7 @@ func BlobTxWithManualSequence(
 	signer, err := user.NewSigner(kr, cfg, chainid, appconsts.LatestVersion, acc)
 	require.NoError(t, err)
 
-	randomizedSize := size
-	if randSize {
-		randomizedSize = rand.Intn(size)
-		if randomizedSize == 0 {
-			randomizedSize = 1
-		}
-	}
-
-	randomizedBlobCount := blobCount
-	if randSize {
-		randomizedBlobCount = rand.Intn(blobCount)
-		if randomizedBlobCount == 0 {
-			randomizedBlobCount = 1
-		}
-	}
-
-	msg, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), addr.String(), randomizedSize, randomizedBlobCount)
+	msg, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), addr.String(), blobSize, blobCount)
 	transaction, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
 	require.NoError(t, err)
 	if invalidSignature {

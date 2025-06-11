@@ -467,7 +467,6 @@ func createTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring 
 	amount := uint64(1000)
 	blobSize := 1 * mebibyte
 	blobCount := 1
-	randSize := false
 	invalidSignature := false
 
 	address := testfactory.GetAddress(keyring, fromAccount)
@@ -481,7 +480,7 @@ func createTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring 
 			tx := testutil.SendTxWithManualSequence(t, encConf.TxConfig, keyring, fromAccount, toAccount, amount, testutil.ChainID, sequence, accountNumber, blobfactory.DefaultTxOpts()...)
 			txs = append(txs, tx)
 		} else {
-			tx := testutil.BlobTxWithManualSequence(t, encConf.TxConfig, keyring, blobSize, blobCount, randSize, testutil.ChainID, fromAccount, sequence, accountNumber, invalidSignature)
+			tx := testutil.BlobTxWithManualSequence(t, encConf.TxConfig, keyring, blobSize, blobCount, testutil.ChainID, fromAccount, sequence, accountNumber, invalidSignature)
 			txs = append(txs, tx)
 		}
 		return txs
