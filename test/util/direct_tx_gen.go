@@ -258,8 +258,7 @@ func BlobTxWithManualSequence(
 	require.NoError(t, err)
 
 	cTx, err := tx.MarshalBlobTx(transaction, blobs...)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
+
 	return cTx
 }
