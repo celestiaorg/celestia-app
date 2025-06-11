@@ -424,7 +424,7 @@ func TestPrepareProposal(t *testing.T) {
 		accounts := testfactory.GenerateAccounts(1)
 		testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 		height := testApp.LastBlockHeight() + 1
-		numTxs := 2
+		numTxs := 3
 
 		txs := createTxs(t, testApp, encConf, kr, accounts, numTxs)
 
