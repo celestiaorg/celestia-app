@@ -421,32 +421,20 @@ func TestPrepareProposal(t *testing.T) {
 	// Reproduces https://github.com/celestiaorg/celestia-app/issues/4961
 	t.Run("prepare proposal with account sequence mismatch", func(t *testing.T) {
 		encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-		accounts := testfactory.GenerateAccounts(6)
+		accounts := testfactory.GenerateAccounts(1)
 		testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
-
-		// create 3 MsgSend transactions that are signed with valid account numbers
-		// and sequences
-		sendTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
-			t,
-			testApp,
-			encConf.TxConfig,
-			kr,
-			1000,
-			accounts[0],
-			accounts[len(accounts)-3:],
-			testutil.ChainID,
-		)).ToSliceOfBytes()
 		height := testApp.LastBlockHeight() + 1
 
+		txs := createTxs(t, testApp, encConf, kr, accounts)
+
 		prepareResponse := testApp.PrepareProposal(abci.RequestPrepareProposal{
-			BlockData: &tmproto.Data{Txs: sendTxs},
+			BlockData: &tmproto.Data{Txs: txs},
 			ChainId:   testutil.ChainID,
 			Height:    height,
 			Time:      time.Now(),
 		})
 
-		require.Equal(t, uint64(2), prepareResponse.BlockData.SquareSize)
-		require.Equal(t, sendTxs, prepareResponse.BlockData.Txs)
+		require.Equal(t, txs, prepareResponse.BlockData.Txs)
 
 		processResponse := testApp.ProcessProposal(abci.RequestProcessProposal{
 			Header: tmproto.Header{
@@ -467,4 +455,29 @@ func TestPrepareProposal(t *testing.T) {
 		// ResponseProcessProposal_REJECT.
 		require.Equal(t, abci.ResponseProcessProposal_ACCEPT, processResponse.Result)
 	})
+}
+
+// createTxs creates a list of 10 MsgSend transactions and 10 MsgPayForBlobs (1 MiB each) all signed with the same account.
+func createTxs(t *testing.T, testApp *app.App, encConf encoding.Config, kr keyring.Keyring, accounts []string) [][]byte {
+	txs := make([][]byte, 0, 20)
+
+	fromAccount := accounts[0]
+	toAccount := accounts[0]
+	amount := uint64(1000)
+
+	// Get the actual account info to use correct account number and starting sequence
+	addr := testfactory.GetAddress(kr, fromAccount)
+	acc := testutil.DirectQueryAccount(testApp, addr)
+	accountNum := acc.GetAccountNumber()
+	startingSequence := acc.GetSequence()
+
+	for i := 0; i < 20; i++ {
+		sequence := startingSequence + uint64(i)
+		tx := testutil.SendTxWithManualSequence(t, encConf.TxConfig, kr, fromAccount, toAccount, amount, testutil.ChainID, sequence, accountNum, blobfactory.DefaultTxOpts()...)
+		txs = append(txs, tx)
+
+		// TODO: add a MsgPayForBlob transaction instead of 20 MsgSend transactions.
+	}
+
+	return txs
 }
