@@ -427,7 +427,8 @@ func TestPrepareProposal(t *testing.T) {
 		testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, accounts...)
 		height := testApp.LastBlockHeight() + 1
 
-		txs := createMixedTxs(t, testApp, encConf, kr, accounts)
+		numTxs := 8
+		txs := createMixedTxs(t, testApp, encConf, kr, accounts, numTxs)
 		printTxs(t, txs, encConf)
 
 		prepareResponse := testApp.PrepareProposal(abci.RequestPrepareProposal{
@@ -437,8 +438,8 @@ func TestPrepareProposal(t *testing.T) {
 			Time:      time.Now(),
 		})
 
-		// require.Equal(t, 8, len(prepareResponse.BlockData.Txs))
 		printTxs(t, prepareResponse.BlockData.Txs, encConf)
+		// require.Equal(t, 8, len(prepareResponse.BlockData.Txs))
 		// require.Equal(t, txs, prepareResponse.BlockData.Txs)
 
 		processResponse := testApp.ProcessProposal(abci.RequestProcessProposal{
@@ -462,74 +463,26 @@ func TestPrepareProposal(t *testing.T) {
 	})
 }
 
-func createMixedTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring keyring.Keyring, accounts []string) (txs [][]byte) {
-	fromAccount := accounts[0]
-	// toAccount := accounts[0]
-	// amount := uint64(1000)
-
-	address := testfactory.GetAddress(keyring, fromAccount)
-	account := testutil.DirectQueryAccount(testApp, address)
-	accountNumber := account.GetAccountNumber()
-	startingSequence := account.GetSequence()
-
-	// blobSize := 1 * mebibyte
-	// blobCount := 1
-	blob, err := share.NewBlob(share.RandomNamespace(), []byte("test"), 1, address.Bytes())
-	require.NoError(t, err)
-
-	signer, err := user.NewSigner(keyring, encConf.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(fromAccount, accountNumber, startingSequence))
-	require.NoError(t, err)
-	options := blobfactory.FeeTxOpts(10_000_000_000)
-
-	for i := 0; i < 10; i++ {
-		tx, _, err := signer.CreatePayForBlobs(fromAccount, []*share.Blob{blob}, options...)
-		require.NoError(t, err)
-		txs = append(txs, tx)
-		signer.IncrementSequence(fromAccount)
-	}
-
-	// tx := testutil.SendTxWithManualSequence(t, encConf.TxConfig, keyring, fromAccount, toAccount, amount, testutil.ChainID, sequence, accountNumber, blobfactory.DefaultTxOpts()...)
-	// txs = append(txs, tx)
-
-	return txs
-}
-
-func createMsgSendTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring keyring.Keyring, accounts []string, numTxs int) (txs [][]byte) {
+func createMixedTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring keyring.Keyring, accounts []string, numTxs int) (txs [][]byte) {
 	fromAccount := accounts[0]
 	toAccount := accounts[0]
 	amount := uint64(1000)
-
-	address := testfactory.GetAddress(keyring, fromAccount)
-	account := testutil.DirectQueryAccount(testApp, address)
-	accountNumber := account.GetAccountNumber()
-	startingSequence := account.GetSequence()
-
-	for i := 0; i < numTxs; i++ {
-		sequence := startingSequence + uint64(i)
-		tx := testutil.SendTxWithManualSequence(t, encConf.TxConfig, keyring, fromAccount, toAccount, amount, testutil.ChainID, sequence, accountNumber, blobfactory.DefaultTxOpts()...)
-		txs = append(txs, tx)
-	}
-	require.Len(t, txs, numTxs)
-	return txs
-}
-
-func createBlobTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring keyring.Keyring, accounts []string, numTxs int) (txs [][]byte) {
-	fromAccount := accounts[0]
 	blobSize := 1 * mebibyte
 	blobCount := 1
-
 	address := testfactory.GetAddress(keyring, fromAccount)
 	account := testutil.DirectQueryAccount(testApp, address)
 	accountNumber := account.GetAccountNumber()
-	startingSequence := account.GetSequence()
+	sequence := account.GetSequence()
 
-	for i := 0; i < numTxs; i++ {
-		sequence := startingSequence + uint64(i)
-		options := blobfactory.FeeTxOpts(10_000_000_000)
-		tx := testutil.BlobTxWithManualSequence(t, encConf.TxConfig, keyring, blobSize, blobCount, testutil.ChainID, fromAccount, sequence, accountNumber, testApp, options)
+	tx := testutil.SendTxWithManualSequence(t, encConf.TxConfig, keyring, fromAccount, toAccount, amount, testutil.ChainID, sequence, accountNumber, blobfactory.DefaultTxOpts()...)
+	sequence++
+
+	for i := 0; i < numTxs-1; i++ {
+		tx := testutil.BlobTxWithManualSequence(t, encConf.TxConfig, keyring, blobSize, blobCount, testutil.ChainID, fromAccount, sequence, accountNumber)
 		txs = append(txs, tx)
+		sequence++
 	}
-
+	txs = append(txs, tx)
 	require.Len(t, txs, numTxs)
 	return txs
 }
