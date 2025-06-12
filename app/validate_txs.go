@@ -81,6 +81,10 @@ func (fb *FilteredBuilder) Fill(txs [][]byte) [][]byte {
 			continue
 		}
 
+		if !fb.builder.AppendTx(tx) {
+			continue
+		}
+
 		// Set the tx size on the context before calling the AnteHandler
 		fb.ctx = fb.ctx.WithTxBytes(tx)
 
@@ -103,12 +107,15 @@ func (fb *FilteredBuilder) Fill(txs [][]byte) [][]byte {
 				"msgs", msgTypes,
 			)
 			telemetry.IncrCounter(1, "prepare_proposal", "invalid_std_txs")
+			err = fb.builder.RevertLastTx()
+			if err != nil {
+				fb.logger.Error("reverting last transaction", "error", err)
+			}
 			continue
 		}
-		if fb.builder.AppendTx(tx) {
-			normalTxs[n] = tx
-			n++
-		}
+
+		normalTxs[n] = tx
+		n++
 	}
 
 	for _, tx := range blobTxs {
@@ -125,6 +132,11 @@ func (fb *FilteredBuilder) Fill(txs [][]byte) [][]byte {
 			fb.logger.Debug("skipping tx because the max pfb message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()))
 			continue
 		}
+
+		if !fb.builder.AppendBlobTx(tx) {
+			continue
+		}
+
 		pfbMessageCount += len(sdkTx.GetMsgs())
 
 		fb.ctx, err = fb.handler(fb.ctx, sdkTx, false)
@@ -136,13 +148,15 @@ func (fb *FilteredBuilder) Fill(txs [][]byte) [][]byte {
 				"filtering already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err,
 			)
 			telemetry.IncrCounter(1, "prepare_proposal", "invalid_blob_txs")
+			err = fb.builder.RevertLastBlobTx()
+			if err != nil {
+				fb.logger.Error("reverting last blob transaction failed", "error", err)
+			}
 			continue
 		}
 
-		if fb.builder.AppendBlobTx(tx) {
-			blobTxs[m] = tx
-			m++
-		}
+		blobTxs[m] = tx
+		m++
 	}
 
 	kept := make([][]byte, 0, m+n)

@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"crypto/rand"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -17,6 +18,8 @@ import (
 
 	"github.com/celestiaorg/go-square/v2/share"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cometbft/cometbft/proto/tendermint/version"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
@@ -29,6 +32,75 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
+
+func TestPrepareProposalValidConstruction(t *testing.T) {
+	// Reproduces https://github.com/celestiaorg/celestia-app/issues/4961
+	t.Run("prepare proposal creates a proposal that process proposal throws an account sequence mismatch", func(t *testing.T) {
+		encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+		accounts := testfactory.GenerateAccounts(1)
+		testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, accounts...)
+		height := testApp.LastBlockHeight() + 1
+
+		txs := createBlobTxs(t, testApp, encConf, kr, accounts)
+		require.Equal(t, 9, len(txs))
+
+		prepareResponse, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+			Txs:    txs,
+			Height: height,
+			Time:   time.Now(),
+		})
+		require.NoError(t, err)
+		require.Equal(t, 7, len(prepareResponse.Txs))
+
+		fmt.Println("using height", height)
+
+		processResponse, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+			Header: &cmtproto.Header{
+				Version: version.Consensus{
+					Block: 1,
+					App:   3,
+				},
+				ChainID:  testutil.ChainID,
+				Height:   height,
+				Time:     time.Now(),
+				DataHash: prepareResponse.DataRootHash,
+			},
+			Height:       height,
+			Txs:          prepareResponse.Txs,
+			SquareSize:   prepareResponse.SquareSize,
+			DataRootHash: prepareResponse.DataRootHash,
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, processResponse)
+		require.Equal(t, abci.ResponseProcessProposal_ACCEPT, processResponse.Status)
+	})
+}
+
+// createBlobTxs returns 9 blob transactions. The first 8 are 1 MiB each and the last one is 100 bytes.
+func createBlobTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring keyring.Keyring, accounts []string) (txs [][]byte) {
+	accountName := accounts[0]
+	address := testfactory.GetAddress(keyring, accountName)
+	account := testutil.DirectQueryAccount(testApp, address)
+	sequence := account.GetSequence()
+	accountNumber := account.GetAccountNumber()
+
+	blobSize := 1 * mebibyte
+	blobCount := 1
+
+	for i := 0; i < 8; i++ {
+		tx := testutil.BlobTxWithManualSequence(t, encConf.TxConfig, keyring, blobSize, blobCount, testutil.ChainID, accountName, sequence, accountNumber)
+		txs = append(txs, tx)
+		sequence++
+	}
+
+	blobSize = 100 // bytes
+	tx := testutil.BlobTxWithManualSequence(t, encConf.TxConfig, keyring, blobSize, blobCount, testutil.ChainID, accountName, sequence, accountNumber)
+	txs = append(txs, tx)
+	sequence++
+
+	return txs
+}
 
 func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	numBlobTxs, numNormalTxs := 3, 3
