@@ -475,7 +475,8 @@ func createBlobTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyr
 		sequence++
 	}
 
-	tx := testutil.BlobTxWithManualSequence(t, encConf.TxConfig, keyring, 100, blobCount, testutil.ChainID, accountName, sequence, accountNumber)
+	blobSize = 100 // bytes
+	tx := testutil.BlobTxWithManualSequence(t, encConf.TxConfig, keyring, blobSize, blobCount, testutil.ChainID, accountName, sequence, accountNumber)
 	txs = append(txs, tx)
 	sequence++
 
