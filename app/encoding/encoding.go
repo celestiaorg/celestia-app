@@ -55,6 +55,7 @@ func MakeConfig(moduleBasics ...sdkmodule.AppModuleBasic) Config {
 	protoCodec := codec.NewProtoCodec(interfaceRegistry)
 	txDecoder := authtx.DefaultTxDecoder(protoCodec)
 	txDecoder = indexWrapperDecoder(txDecoder)
+	txDecoder = blobTxDecoder(txDecoder)
 
 	txConfig, err := authtx.NewTxConfigWithOptions(protoCodec, authtx.ConfigOptions{
 		EnabledSignModes: authtx.DefaultSignModes,
