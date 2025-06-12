@@ -47,8 +47,8 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 
 	// Filter out invalid transactions.
 	filteredTxs := FilterTxs(app.Logger(), sdkCtx, handler, app.txConfig, req.BlockData.Txs)
-	if len(filteredTxs) != len(req.BlockData.Txs) {
-		app.Logger().Error("prepare proposal: filtered out transactions", "filtered", len(filteredTxs), "original", len(req.BlockData.Txs))
+	if len(req.BlockData.Txs) != len(filteredTxs) {
+		app.Logger().Debug("PrepareProposal FilterTxs removed some transactions", "len(req.BlockData.Txs)", len(req.BlockData.Txs), "len(filteredTxs)", len(filteredTxs))
 	}
 
 	// Build the square from the set of valid and prioritised transactions.
@@ -82,8 +82,8 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	if err != nil {
 		panic(err)
 	}
-	if len(txs) != len(filteredTxs) {
-		app.Logger().Error("square construction: filtered out transactions", "filtered", len(filteredTxs), "txs", len(txs))
+	if len(filteredTxs) != len(txs) {
+		app.Logger().Debug("PrepareProposal square.Build removed some transactions", "len(filteredTxs)", len(filteredTxs), "len(txs)", len(txs))
 	}
 
 	// Erasure encode the data square to create the extended data square (eds).
