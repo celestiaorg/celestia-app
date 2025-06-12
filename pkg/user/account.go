@@ -20,12 +20,12 @@ type Account struct {
 	sequence uint64
 }
 
-// TODO: add pubKey as a parameter
 func NewAccount(keyName string, accountNumber, sequenceNumber uint64) *Account {
 	return &Account{
 		name:          keyName,
 		accountNumber: accountNumber,
 		sequence:      sequenceNumber,
+		// TODO: add pubKey as a parameter
 	}
 }
 
