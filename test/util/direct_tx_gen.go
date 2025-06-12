@@ -234,3 +234,32 @@ func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {
 	}
 	return addr
 }
+
+func BlobTxWithManualSequence(
+	t *testing.T,
+	cfg client.TxConfig,
+	kr keyring.Keyring,
+	blobSize int,
+	blobCount int,
+	chainid string,
+	account string,
+	sequence uint64,
+	accountNum uint64,
+) coretypes.Tx {
+	t.Helper()
+
+	opts := blobfactory.DefaultTxOpts()
+	addr := testfactory.GetAddress(kr, account)
+	acc := user.NewAccount(account, accountNum, sequence)
+	signer, err := user.NewSigner(kr, cfg, chainid, acc)
+	require.NoError(t, err)
+
+	msg, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), addr.String(), blobSize, blobCount)
+	rawTx, _, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
+	require.NoError(t, err)
+
+	cTx, err := tx.MarshalBlobTx(rawTx, blobs...)
+	require.NoError(t, err)
+
+	return cTx
+}
