@@ -429,7 +429,6 @@ func TestPrepareProposal(t *testing.T) {
 
 		txs := createBlobTxs(t, testApp, encConf, kr, accounts)
 		require.Equal(t, 9, len(txs))
-		printTxs(t, txs, encConf)
 
 		prepareResponse := testApp.PrepareProposal(abci.RequestPrepareProposal{
 			BlockData: &tmproto.Data{Txs: txs},
@@ -438,7 +437,6 @@ func TestPrepareProposal(t *testing.T) {
 			Time:      time.Now(),
 		})
 		require.Equal(t, 8, len(prepareResponse.BlockData.Txs))
-		printTxs(t, prepareResponse.BlockData.Txs, encConf)
 
 		processResponse := testApp.ProcessProposal(abci.RequestProcessProposal{
 			Header: tmproto.Header{
