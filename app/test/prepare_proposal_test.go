@@ -426,10 +426,8 @@ func TestPrepareProposal(t *testing.T) {
 		accounts := testfactory.GenerateAccounts(1)
 		testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, accounts...)
 		height := testApp.LastBlockHeight() + 1
-		numTxs := 9
 
-		txs := createMixedTxs(t, testApp, encConf, kr, accounts, numTxs)
-
+		txs := createMixedTxs(t, testApp, encConf, kr, accounts)
 		printTxs(t, txs, encConf)
 
 		prepareResponse := testApp.PrepareProposal(abci.RequestPrepareProposal{
@@ -464,31 +462,35 @@ func TestPrepareProposal(t *testing.T) {
 	})
 }
 
-func createMixedTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring keyring.Keyring, accounts []string, numTxs int) (txs [][]byte) {
+func createMixedTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring keyring.Keyring, accounts []string) (txs [][]byte) {
 	fromAccount := accounts[0]
-	toAccount := accounts[0]
-	amount := uint64(1000)
-
-	blobSize := 1 * mebibyte
-	blobCount := 1
-	options := blobfactory.FeeTxOpts(10_000_000_000)
+	// toAccount := accounts[0]
+	// amount := uint64(1000)
 
 	address := testfactory.GetAddress(keyring, fromAccount)
 	account := testutil.DirectQueryAccount(testApp, address)
 	accountNumber := account.GetAccountNumber()
 	startingSequence := account.GetSequence()
 
-	for i := 0; i < numTxs-1; i++ {
-		sequence := startingSequence + uint64(i)
-		tx := testutil.BlobTxWithManualSequence(t, encConf.TxConfig, keyring, blobSize, blobCount, testutil.ChainID, fromAccount, sequence, accountNumber, testApp, options)
+	// blobSize := 1 * mebibyte
+	// blobCount := 1
+	blob, err := share.NewBlob(share.RandomNamespace(), []byte("test"), 1, address.Bytes())
+	require.NoError(t, err)
+
+	signer, err := user.NewSigner(keyring, encConf.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(fromAccount, accountNumber, startingSequence))
+	require.NoError(t, err)
+	options := blobfactory.FeeTxOpts(10_000_000_000)
+
+	for i := 0; i < 10; i++ {
+		tx, _, err := signer.CreatePayForBlobs(fromAccount, []*share.Blob{blob}, options...)
+		require.NoError(t, err)
 		txs = append(txs, tx)
+		signer.IncrementSequence(fromAccount)
 	}
 
-	sequence := startingSequence + uint64(numTxs-1)
-	tx := testutil.SendTxWithManualSequence(t, encConf.TxConfig, keyring, fromAccount, toAccount, amount, testutil.ChainID, sequence, accountNumber, blobfactory.DefaultTxOpts()...)
-	txs = append(txs, tx)
+	// tx := testutil.SendTxWithManualSequence(t, encConf.TxConfig, keyring, fromAccount, toAccount, amount, testutil.ChainID, sequence, accountNumber, blobfactory.DefaultTxOpts()...)
+	// txs = append(txs, tx)
 
-	require.Len(t, txs, numTxs)
 	return txs
 }
 

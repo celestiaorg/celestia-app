@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"math/rand"
 	"testing"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
+	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
@@ -244,18 +246,33 @@ func BlobTxWithManualSequence(
 	account string,
 	sequence uint64,
 	accountNum uint64,
+	capp *app.App,
+	options []user.TxOption,
 ) coretypes.Tx {
 	t.Helper()
 
-	opts := blobfactory.DefaultTxOpts()
 	addr := testfactory.GetAddress(kr, account)
-	acc := user.NewAccount(account, accountNum, sequence)
-	signer, err := user.NewSigner(kr, cfg, chainid, appconsts.LatestVersion, acc)
+	// acc := user.NewAccount(account, accountNum, sequence)
+	acc := DirectQueryAccount(capp, addr)
+	// convert acc to a signer
+
+	require.NotNil(t, acc.GetPubKey())
+	signer, err := user.NewSigner(kr, cfg, chainid, appconsts.LatestVersion, user.NewAccount(account, accountNum, sequence))
 	require.NoError(t, err)
 
 	msg, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), addr.String(), blobSize, blobCount)
-	transaction, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
+	transaction, err := signer.CreateTx([]sdk.Msg{msg}, options...)
 	require.NoError(t, err)
+
+	decodedTx, err := cfg.TxDecoder()(transaction)
+	require.NoError(t, err)
+	if sigTx, ok := decodedTx.(authsigning.SigVerifiableTx); ok {
+		sigs, err := sigTx.GetSignaturesV2()
+		require.NoError(t, err)
+		if len(sigs) > 0 && sigs[0].PubKey != nil {
+			fmt.Printf("Transaction pubkey: %s\n", sigs[0].PubKey.String())
+		}
+	}
 
 	cTx, err := tx.MarshalBlobTx(transaction, blobs...)
 	require.NoError(t, err)
