@@ -46,19 +46,23 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	)
 
 	// Filter out invalid transactions.
-	txs := FilterTxs(app.Logger(), sdkCtx, handler, app.txConfig, req.BlockData.Txs)
+	filteredTxs := FilterTxs(app.Logger(), sdkCtx, handler, app.txConfig, req.BlockData.Txs)
+	if len(filteredTxs) != len(req.BlockData.Txs) {
+		app.Logger().Error("prepare proposal: filtered out transactions", "filtered", len(filteredTxs), "original", len(req.BlockData.Txs))
+	}
 
 	// Build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block.
 	var (
 		dataSquareBytes [][]byte
+		txs             [][]byte
 		err             error
 		size            uint64
 	)
 	switch app.AppVersion() {
 	case v3:
 		var dataSquare squarev2.Square
-		dataSquare, txs, err = squarev2.Build(txs,
+		dataSquare, txs, err = squarev2.Build(filteredTxs,
 			app.MaxEffectiveSquareSize(sdkCtx),
 			appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion()),
 		)
@@ -66,7 +70,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		size = uint64(dataSquare.Size())
 	case v2, v1:
 		var dataSquare square.Square
-		dataSquare, txs, err = square.Build(txs,
+		dataSquare, txs, err = square.Build(filteredTxs,
 			app.MaxEffectiveSquareSize(sdkCtx),
 			appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion()),
 		)
@@ -77,6 +81,9 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	}
 	if err != nil {
 		panic(err)
+	}
+	if len(txs) != len(filteredTxs) {
+		app.Logger().Error("square construction: filtered out transactions", "filtered", len(filteredTxs), "txs", len(txs))
 	}
 
 	// Erasure encode the data square to create the extended data square (eds).
