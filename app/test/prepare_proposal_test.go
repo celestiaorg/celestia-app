@@ -421,14 +421,13 @@ func repeat[T any](n int, val T) []T {
 
 func TestPrepareProposal(t *testing.T) {
 	// Reproduces https://github.com/celestiaorg/celestia-app/issues/4961
-	t.Run("prepare proposal with account sequence mismatch", func(t *testing.T) {
+	t.Run("prepare proposal creates a proposal that process proposal throws an account sequence mismatch", func(t *testing.T) {
 		encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 		accounts := testfactory.GenerateAccounts(1)
 		testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, accounts...)
 		height := testApp.LastBlockHeight() + 1
 
-		numTxs := 9
-		txs := createBlobTxs(t, testApp, encConf, kr, accounts, numTxs)
+		txs := createBlobTxs(t, testApp, encConf, kr, accounts)
 		require.Equal(t, 9, len(txs))
 		printTxs(t, txs, encConf)
 
@@ -459,25 +458,27 @@ func TestPrepareProposal(t *testing.T) {
 	})
 }
 
-func createBlobTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring keyring.Keyring, accounts []string, numTxs int) (txs [][]byte) {
+// createBlobTxs returns 9 blob transactions. The first 8 are 1 MiB each and the last one is 100 bytes.
+func createBlobTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring keyring.Keyring, accounts []string) (txs [][]byte) {
 	accountName := accounts[0]
-	blobSize := 1 * mebibyte
-	blobCount := 1
 	address := testfactory.GetAddress(keyring, accountName)
 	account := testutil.DirectQueryAccount(testApp, address)
-	accountNumber := account.GetAccountNumber()
 	sequence := account.GetSequence()
+	accountNumber := account.GetAccountNumber()
 
-	for i := 0; i < numTxs-1; i++ {
+	blobSize := 1 * mebibyte
+	blobCount := 1
+
+	for i := 0; i < 8; i++ {
 		tx := testutil.BlobTxWithManualSequence(t, encConf.TxConfig, keyring, blobSize, blobCount, testutil.ChainID, accountName, sequence, accountNumber)
 		txs = append(txs, tx)
 		sequence++
 	}
+
 	tx := testutil.BlobTxWithManualSequence(t, encConf.TxConfig, keyring, 100, blobCount, testutil.ChainID, accountName, sequence, accountNumber)
 	txs = append(txs, tx)
 	sequence++
 
-	require.Len(t, txs, numTxs)
 	return txs
 }
 
