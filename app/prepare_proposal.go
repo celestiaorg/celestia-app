@@ -62,7 +62,8 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	switch app.AppVersion() {
 	case v3:
 		var dataSquare squarev2.Square
-		dataSquare, txs, err = squarev2.Build(filteredTxs,
+		dataSquare, txs, err = squarev2.Build(
+			filteredTxs,
 			app.MaxEffectiveSquareSize(sdkCtx),
 			appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion()),
 		)
@@ -70,7 +71,8 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		size = uint64(dataSquare.Size())
 	case v2, v1:
 		var dataSquare square.Square
-		dataSquare, txs, err = square.Build(filteredTxs,
+		dataSquare, txs, err = square.Build(
+			filteredTxs,
 			app.MaxEffectiveSquareSize(sdkCtx),
 			appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion()),
 		)
