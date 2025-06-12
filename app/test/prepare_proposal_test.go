@@ -427,8 +427,9 @@ func TestPrepareProposal(t *testing.T) {
 		testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, accounts...)
 		height := testApp.LastBlockHeight() + 1
 
-		numTxs := 8
-		txs := createMixedTxs(t, testApp, encConf, kr, accounts, numTxs)
+		numTxs := 9
+		txs := createBlobTxs(t, testApp, encConf, kr, accounts, numTxs)
+		require.Equal(t, 9, len(txs))
 		printTxs(t, txs, encConf)
 
 		prepareResponse := testApp.PrepareProposal(abci.RequestPrepareProposal{
@@ -437,10 +438,8 @@ func TestPrepareProposal(t *testing.T) {
 			Height:    height,
 			Time:      time.Now(),
 		})
-
+		require.Equal(t, 8, len(prepareResponse.BlockData.Txs))
 		printTxs(t, prepareResponse.BlockData.Txs, encConf)
-		// require.Equal(t, 8, len(prepareResponse.BlockData.Txs))
-		// require.Equal(t, txs, prepareResponse.BlockData.Txs)
 
 		processResponse := testApp.ProcessProposal(abci.RequestProcessProposal{
 			Header: tmproto.Header{
@@ -456,33 +455,28 @@ func TestPrepareProposal(t *testing.T) {
 			BlockData: prepareResponse.BlockData,
 		})
 
-		// TODO: update the prepare proposal txs to include some txs with
-		// incorrect sequence numbers and then modify this to
-		// ResponseProcessProposal_REJECT.
-		require.Equal(t, abci.ResponseProcessProposal_ACCEPT, processResponse.Result)
+		require.Equal(t, abci.ResponseProcessProposal_REJECT, processResponse.Result)
 	})
 }
 
-func createMixedTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring keyring.Keyring, accounts []string, numTxs int) (txs [][]byte) {
-	fromAccount := accounts[0]
-	toAccount := accounts[0]
-	amount := uint64(1000)
+func createBlobTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring keyring.Keyring, accounts []string, numTxs int) (txs [][]byte) {
+	accountName := accounts[0]
 	blobSize := 1 * mebibyte
 	blobCount := 1
-	address := testfactory.GetAddress(keyring, fromAccount)
+	address := testfactory.GetAddress(keyring, accountName)
 	account := testutil.DirectQueryAccount(testApp, address)
 	accountNumber := account.GetAccountNumber()
 	sequence := account.GetSequence()
 
-	tx := testutil.SendTxWithManualSequence(t, encConf.TxConfig, keyring, fromAccount, toAccount, amount, testutil.ChainID, sequence, accountNumber, blobfactory.DefaultTxOpts()...)
-	sequence++
-
 	for i := 0; i < numTxs-1; i++ {
-		tx := testutil.BlobTxWithManualSequence(t, encConf.TxConfig, keyring, blobSize, blobCount, testutil.ChainID, fromAccount, sequence, accountNumber)
+		tx := testutil.BlobTxWithManualSequence(t, encConf.TxConfig, keyring, blobSize, blobCount, testutil.ChainID, accountName, sequence, accountNumber)
 		txs = append(txs, tx)
 		sequence++
 	}
+	tx := testutil.BlobTxWithManualSequence(t, encConf.TxConfig, keyring, 100, blobCount, testutil.ChainID, accountName, sequence, accountNumber)
 	txs = append(txs, tx)
+	sequence++
+
 	require.Len(t, txs, numTxs)
 	return txs
 }
