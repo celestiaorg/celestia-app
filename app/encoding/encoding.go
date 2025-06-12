@@ -42,6 +42,7 @@ func MakeConfig(moduleRegisters ...ModuleRegister) Config {
 	txConfig := tx.NewTxConfig(protoCodec, tx.DefaultSignModes)
 	txDecoder := txConfig.TxDecoder()
 	txDecoder = indexWrapperDecoder(txDecoder)
+	txDecoder = blobTxDecoder(txDecoder)
 	txConfig.SetTxDecoder(txDecoder)
 
 	return Config{
