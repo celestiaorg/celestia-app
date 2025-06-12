@@ -36,13 +36,21 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		app.GovParamFilters(),
 	)
 
-	// Filter out invalid transactions.
-	txs := FilterTxs(app.Logger(), ctx, handler, app.encodingConfig.TxConfig, req.Txs)
+	fb, err := NewFilteredBuilder(
+		app.Logger(),
+		ctx,
+		handler,
+		app.encodingConfig.TxConfig,
+		app.MaxEffectiveSquareSize(ctx),
+		appconsts.SubtreeRootThreshold,
+	)
+
+	txs := fb.Fill(req.Txs)
 
 	// Build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block.
 	var dataSquare square.Square
-	dataSquare, txs, err := square.Build(txs, app.MaxEffectiveSquareSize(ctx), appconsts.SubtreeRootThreshold)
+	dataSquare, err = fb.Build()
 	if err != nil {
 		panic(err)
 	}

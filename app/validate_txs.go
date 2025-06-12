@@ -8,10 +8,42 @@ import (
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
+	square "github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/tx"
 
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
+
+// FilteredBuilder filters txs and blobs using a copy of the state and tx validity
+// rules before adding it the square.
+type FilteredBuilder struct {
+	logger   log.Logger
+	ctx      sdk.Context
+	handler  sdk.AnteHandler
+	txConfig client.TxConfig
+	builder  *square.Builder
+}
+
+func NewFilteredBuilder(
+	logger log.Logger,
+	ctx sdk.Context,
+	handler sdk.AnteHandler,
+	txConfig client.TxConfig,
+	maxSquareSize,
+	subtreeRootThreshold int) (*FilteredBuilder, error) {
+	builder, err := square.NewBuilder(maxSquareSize, subtreeRootThreshold)
+	return &FilteredBuilder{
+		logger:   logger,
+		ctx:      ctx,
+		handler:  handler,
+		txConfig: txConfig,
+		builder:  builder,
+	}, err
+}
+
+func (fb *FilteredBuilder) Build() (square.Square, error) {
+	return fb.builder.Export()
+}
 
 // separateTxs decodes raw tendermint txs into normal and blob txs.
 func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []*tx.BlobTx) {
@@ -31,46 +63,40 @@ func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []*tx.BlobTx) {
 	return normalTxs, blobTxs
 }
 
-// FilterTxs applies the antehandler to all proposed transactions and removes
-// transactions that return an error.
-//
-// Side-effect: arranges all normal transactions before all blob transactions.
-func FilterTxs(logger log.Logger, ctx sdk.Context, handler sdk.AnteHandler, txConfig client.TxConfig, txs [][]byte) [][]byte {
-	normalTxs, blobTxs := separateTxs(txConfig, txs)
-	normalTxs, ctx = filterStdTxs(logger, txConfig.TxDecoder(), ctx, handler, normalTxs)
-	blobTxs, _ = filterBlobTxs(logger, txConfig.TxDecoder(), ctx, handler, blobTxs)
-	return append(normalTxs, encodeBlobTxs(blobTxs)...)
-}
+func (fb *FilteredBuilder) Fill(txs [][]byte) [][]byte {
+	normalTxs, blobTxs := separateTxs(fb.txConfig, txs)
 
-// filterStdTxs applies the provided antehandler to each transaction and removes
-// transactions that return an error. Panics are caught by the checkTxValidity
-// function used to apply the ante handler.
-func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs [][]byte) ([][]byte, sdk.Context) {
-	n := 0
-	nonPFBMessageCount := 0
-	for _, tx := range txs {
+	var (
+		nonPFBMessageCount = 0
+		pfbMessageCount    = 0
+		dec                = fb.txConfig.TxDecoder()
+		n                  = 0
+		m                  = 0
+	)
+
+	for _, tx := range normalTxs {
 		sdkTx, err := dec(tx)
 		if err != nil {
-			logger.Error("decoding already checked transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
+			fb.logger.Error("decoding already checked transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
 			continue
 		}
 
 		// Set the tx size on the context before calling the AnteHandler
-		ctx = ctx.WithTxBytes(tx)
+		fb.ctx = fb.ctx.WithTxBytes(tx)
 
 		msgTypes := msgTypes(sdkTx)
 		if nonPFBMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxNonPFBMessages {
-			logger.Debug("skipping tx because the max non PFB message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
+			fb.logger.Debug("skipping tx because the max non PFB message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
 			continue
 		}
 		nonPFBMessageCount += len(sdkTx.GetMsgs())
 
-		ctx, err = handler(ctx, sdkTx, false)
+		fb.ctx, err = fb.handler(fb.ctx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
 		// simply want to remove this tx, or we're catching a panic from one
 		// of the anteHandlers which is logged.
 		if err != nil {
-			logger.Error(
+			fb.logger.Error(
 				"filtering already checked transaction",
 				"tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()),
 				"error", err,
@@ -79,53 +105,62 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 			telemetry.IncrCounter(1, "prepare_proposal", "invalid_std_txs")
 			continue
 		}
-		txs[n] = tx
-		n++
-
+		if fb.builder.AppendTx(tx) {
+			normalTxs[n] = tx
+			n++
+		}
 	}
 
-	return txs[:n], ctx
-}
-
-// filterBlobTxs applies the provided antehandler to each transaction
-// and removes transactions that return an error. Panics are caught by the checkTxValidity
-// function used to apply the ante handler.
-func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs []*tx.BlobTx) ([]*tx.BlobTx, sdk.Context) {
-	n := 0
-	pfbMessageCount := 0
-	for _, tx := range txs {
+	for _, tx := range blobTxs {
 		sdkTx, err := dec(tx.Tx)
 		if err != nil {
-			logger.Error("decoding already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
+			fb.logger.Error("decoding already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
 			continue
 		}
 
 		// Set the tx size on the context before calling the AnteHandler
-		ctx = ctx.WithTxBytes(tx.Tx)
+		fb.ctx = fb.ctx.WithTxBytes(tx.Tx)
 
 		if pfbMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxPFBMessages {
-			logger.Debug("skipping tx because the max pfb message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()))
+			fb.logger.Debug("skipping tx because the max pfb message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()))
 			continue
 		}
 		pfbMessageCount += len(sdkTx.GetMsgs())
 
-		ctx, err = handler(ctx, sdkTx, false)
+		fb.ctx, err = fb.handler(fb.ctx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
 		// simply want to remove this tx, or we're catching a panic from one
 		// of the anteHandlers which is logged.
 		if err != nil {
-			logger.Error(
+			fb.logger.Error(
 				"filtering already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err,
 			)
 			telemetry.IncrCounter(1, "prepare_proposal", "invalid_blob_txs")
 			continue
 		}
-		txs[n] = tx
-		n++
 
+		if fb.builder.AppendBlobTx(tx) {
+			blobTxs[m] = tx
+			m++
+		}
 	}
 
-	return txs[:n], ctx
+	kept := make([][]byte, 0, m+n)
+	kept = append(kept, normalTxs[:n]...)
+	kept = append(kept, encodeBlobTxs(blobTxs[:m])...)
+	return kept
+}
+
+func blobTxSize(btx *tx.BlobTx) int {
+	size := 0
+	if btx == nil {
+		return size
+	}
+	size += len(btx.Tx)
+	for _, blob := range btx.Blobs {
+		size += blob.DataLen()
+	}
+	return size
 }
 
 func msgTypes(sdkTx sdk.Tx) []string {
