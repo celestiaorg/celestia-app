@@ -42,7 +42,7 @@ func startTxsimCmd() *cobra.Command {
 			resolvedSSHKeyPath := resolveValue(SSHKeyPath, EnvVarSSHKeyPath, strings.ReplaceAll(cfg.SSHPubKeyPath, ".pub", ""))
 
 			txsimScript := fmt.Sprintf(
-				"txsim .celestia-app/ --blob %d --blob-amounts %d --blob-sizes %d-%d --grpc-endpoint localhost:9091 --feegrant",
+				"txsim .celestia-app/ --blob %d --blob-amounts %d --blob-sizes %d-%d --grpc-endpoint localhost:9091 --feegrant > txsim.log",
 				seqCount,
 				blobsPerPFB,
 				startSize,

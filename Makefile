@@ -307,14 +307,17 @@ LLDFLAGS := \
   -X github.com/celestiaorg/celestia-app/v4/cmd/celestia-appd/cmd.v2UpgradeHeight=0
 
 build-talis-bins:
-	DOCKER_BUILDKIT=0 docker build \
+	docker build \
 	  --file tools/talis/docker/Dockerfile \
 	  --target builder \
+	  --platform linux/amd64 \
 	  --build-arg LDFLAGS="$(LLDFLAGS)" \
+	  --build-arg GOOS=linux \
+          --build-arg GOARCH=amd64 \
 	  --tag talis-builder:latest \
 	  .
 	mkdir -p build
-	docker create --name tmp talis-builder:latest
+	docker create --platform linux/amd64 --name tmp talis-builder:latest
 	docker cp tmp:/out/. build/
 	docker rm tmp
 

@@ -38,7 +38,6 @@ logs_path="/root/logs"
 # clean the data by removing the last line
 find $source_dir -type f -name "*.jsonl" -exec sed -i '$d' {} \;
 
-#!/bin/bash
 AWS_DEFAULT_REGION="us-east-2"
 S3_BUCKET_NAME="block-prop-traces-ef"
 echo "All files loaded."

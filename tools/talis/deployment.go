@@ -80,7 +80,7 @@ func deployCmd() *cobra.Command {
 		Long:  "Initialize the Talis network with the provided configuration.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			tarPath := filepath.Join(rootDir, "payload.tar.gz")
-			tarCmd := exec.Command("tar", "-czf", tarPath, "-C", rootDir, "payload")
+			tarCmd := exec.Command("tar", "--gzip", "--options", "gzip:compression-level=9", "-cf", tarPath, "-C", rootDir, "payload")
 			if output, err := tarCmd.CombinedOutput(); err != nil {
 				return fmt.Errorf("failed to compress payload: %w, output: %s", err, string(output))
 			}

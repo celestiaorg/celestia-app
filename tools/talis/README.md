@@ -20,10 +20,12 @@ if the relevant binaries are installed via go, and the celestia-app repo is
 downloaded, then the talis defaults should work. Your `$GOPATH` is used to copy the scripts from this repo to the payload, along with default locations for the binaries.
 
 ### init
+
 ```sh
 # initializes the repo w/ editable scripts and configs
 talis init -c <chain-id> -e <experiment>
 ```
+
 This will initiallize the directory that contains directory structure used for conducting an experiment.
 
 ```
@@ -48,7 +50,7 @@ the celestia-app configs (config.toml and app.toml) can be manually edited here,
   "digitalocean_token": "pulled from env var if available",
   "s3_config": {
     "region": "pulled from env var if available",
-    "access_key_id": "pulled from env var if available,
+    "access_key_id": "pulled from env var if available",
     "secret_access_key": "pulled from env var if available",
     "bucket_name": "pulled from env var if available"
   }
@@ -62,7 +64,7 @@ the celestia-app configs (config.toml and app.toml) can be manually edited here,
 talis add  -t <node-type> -c <count>
 ```
 
-If we call
+If we call:
 
 ```
 talis add -t validator -t 1
