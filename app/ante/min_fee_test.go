@@ -21,7 +21,7 @@ import (
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/proto/tendermint/version"
+	version "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmdb "github.com/tendermint/tm-db"
 )
 

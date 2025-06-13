@@ -7,14 +7,14 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app/ante"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/da"
-	"github.com/celestiaorg/go-square/shares"
-	"github.com/celestiaorg/go-square/square"
+	shares "github.com/celestiaorg/go-square/shares"
+	square "github.com/celestiaorg/go-square/square"
 	squarev2 "github.com/celestiaorg/go-square/v2"
 	sharev2 "github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/proto/tendermint/version"
+	version "github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
 // PrepareProposal fulfills the celestia-core version of the ABCI interface by

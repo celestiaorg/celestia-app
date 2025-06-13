@@ -50,7 +50,7 @@ func (app *App) ExportAppStateAndValidators(forZeroHeight bool, jailAllowedAddrs
 		AppState:        appState,
 		Validators:      validators,
 		Height:          app.getExportHeight(forZeroHeight),
-		ConsensusParams: app.GetConsensusParams(ctx),
+		ConsensusParams: app.BaseApp.GetConsensusParams(ctx),
 	}, nil
 }
 
@@ -68,7 +68,6 @@ func (app *App) getExportHeight(forZeroHeight bool) int64 {
 // at a block height.
 func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []string) {
 	applyAllowedAddrs := len(jailAllowedAddrs) > 0
-
 	allowedAddrsMap := make(map[string]bool)
 
 	for _, addr := range jailAllowedAddrs {

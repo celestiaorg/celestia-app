@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v3/app/module"
-	mock_types "github.com/celestiaorg/celestia-app/v3/app/module/mocks"
+	mocks "github.com/celestiaorg/celestia-app/v3/app/module/mocks"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/ibc-go/v6/modules/core/04-channel/types"
 	"github.com/golang/mock/gomock"
@@ -20,8 +20,8 @@ func TestVersionedIBCModule(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockWrappedModule := mock_types.NewMockIBCModule(ctrl)
-	mockNextModule := mock_types.NewMockIBCModule(ctrl)
+	mockWrappedModule := mocks.NewMockIBCModule(ctrl)
+	mockNextModule := mocks.NewMockIBCModule(ctrl)
 
 	versionedModule := module.NewVersionedIBCModule(mockWrappedModule, mockNextModule, 2, 3)
 

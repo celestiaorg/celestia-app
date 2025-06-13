@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
+	app "github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"

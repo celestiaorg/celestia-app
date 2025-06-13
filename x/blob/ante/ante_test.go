@@ -8,7 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
-	"github.com/celestiaorg/celestia-app/v3/x/blob/ante"
+	ante "github.com/celestiaorg/celestia-app/v3/x/blob/ante"
 	blob "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"

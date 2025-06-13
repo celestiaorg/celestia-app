@@ -11,7 +11,7 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/proto/tendermint/version"
+	version "github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
 func TestMsgGateKeeperAnteHandler(t *testing.T) {

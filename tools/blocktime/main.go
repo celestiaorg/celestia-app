@@ -52,7 +52,7 @@ func Run() error {
 			return err
 		}
 
-		blockTimes = append(blockTimes, resp.Time)
+		blockTimes = append(blockTimes, resp.Header.Time)
 	}
 	avgTime, minTime, maxTime, stdvTime := analyzeBlockTimes(blockTimes)
 	fmt.Printf(`

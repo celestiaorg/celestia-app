@@ -9,7 +9,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/proto/tendermint/version"
+	version "github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
 func TestMaxTxSizeDecorator(t *testing.T) {
