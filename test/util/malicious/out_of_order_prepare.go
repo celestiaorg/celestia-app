@@ -60,7 +60,7 @@ func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci
 
 	// build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block
-	dataSquare, err := fsb.Build()
+	dataSquare, err := OutOfOrderExport(fsb.Builder())
 	if err != nil {
 		panic(err)
 	}

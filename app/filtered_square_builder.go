@@ -42,6 +42,10 @@ func (fsb *FilteredSquareBuilder) Build() (square.Square, error) {
 	return fsb.builder.Export()
 }
 
+func (fsb *FilteredSquareBuilder) Builder() *square.Builder {
+	return fsb.builder
+}
+
 func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
 	logger := ctx.Logger().With("app/filtered-square-builder")
 
