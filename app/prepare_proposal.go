@@ -7,7 +7,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-app/v4/app/ante"
@@ -49,9 +48,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	txs := fsb.Fill(ctx, req.Txs)
 
 	// Build the square from the set of valid and prioritised transactions.
-	// The txs returned are the ones used in the square and block.
-	var dataSquare square.Square
-	dataSquare, err = fsb.Build()
+	dataSquare, err := fsb.Build()
 	if err != nil {
 		panic(err)
 	}
