@@ -255,10 +255,10 @@ func BlobTxWithManualSequence(
 	require.NoError(t, err)
 
 	msg, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), addr.String(), blobSize, blobCount)
-	rawTx, _, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
+	txBz, _, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
 	require.NoError(t, err)
 
-	cTx, err := tx.MarshalBlobTx(rawTx, blobs...)
+	cTx, err := tx.MarshalBlobTx(txBz, blobs...)
 	require.NoError(t, err)
 
 	return cTx

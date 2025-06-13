@@ -33,6 +33,8 @@ func NewAnteHandler(
 		// Set up the context with a gas meter.
 		// Must be called before gas consumption occurs in any other decorator.
 		ante.NewSetUpContextDecorator(),
+		// Ensure that the tx does not contain any messages that are disabled by the circuit breaker.
+		circuitante.NewCircuitBreakerDecorator(circuitkeeper),
 		// Ensure the tx does not contain any extension options.
 		ante.NewExtensionOptionsDecorator(nil),
 		// Ensure the tx passes ValidateBasic.
@@ -77,8 +79,6 @@ func NewAnteHandler(
 		ante.NewIncrementSequenceDecorator(accountKeeper),
 		// Ensure that the tx is not an IBC packet or update message that has already been processed.
 		ibcante.NewRedundantRelayDecorator(channelKeeper),
-		// Ensure that the tx does not contain any messages that are disabled by the circuit breaker.
-		circuitante.NewCircuitBreakerDecorator(circuitkeeper),
 	)
 }
 
