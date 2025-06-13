@@ -49,24 +49,6 @@ func (fsb *FilteredSquareBuilder) Build() (square.Square, error) {
 	return fsb.builder.Export()
 }
 
-// separateTxs decodes raw tendermint txs into normal and blob txs.
-func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []*tx.BlobTx) {
-	normalTxs := make([][]byte, 0, len(rawTxs))
-	blobTxs := make([]*tx.BlobTx, 0, len(rawTxs))
-	for _, rawTx := range rawTxs {
-		bTx, isBlob, err := tx.UnmarshalBlobTx(rawTx)
-		if isBlob {
-			if err != nil {
-				panic(err)
-			}
-			blobTxs = append(blobTxs, bTx)
-		} else {
-			normalTxs = append(normalTxs, rawTx)
-		}
-	}
-	return normalTxs, blobTxs
-}
-
 func (fsb *FilteredSquareBuilder) Fill(txs [][]byte) [][]byte {
 	normalTxs, blobTxs := separateTxs(fsb.txConfig, txs)
 
@@ -188,4 +170,22 @@ func encodeBlobTxs(blobTxs []*tx.BlobTx) [][]byte {
 		}
 	}
 	return txs
+}
+
+// separateTxs decodes raw tendermint txs into normal and blob txs.
+func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []*tx.BlobTx) {
+	normalTxs := make([][]byte, 0, len(rawTxs))
+	blobTxs := make([]*tx.BlobTx, 0, len(rawTxs))
+	for _, rawTx := range rawTxs {
+		bTx, isBlob, err := tx.UnmarshalBlobTx(rawTx)
+		if isBlob {
+			if err != nil {
+				panic(err)
+			}
+			blobTxs = append(blobTxs, bTx)
+		} else {
+			normalTxs = append(normalTxs, rawTx)
+		}
+	}
+	return normalTxs, blobTxs
 }
