@@ -67,10 +67,6 @@ func (fsb *FilteredSquareBuilder) Fill(txs [][]byte) [][]byte {
 			continue
 		}
 
-		if !fsb.builder.AppendTx(tx) {
-			continue
-		}
-
 		// Set the tx size on the context before calling the AnteHandler
 		fsb.ctx = fsb.ctx.WithTxBytes(tx)
 
@@ -79,7 +75,10 @@ func (fsb *FilteredSquareBuilder) Fill(txs [][]byte) [][]byte {
 			fsb.logger.Debug("skipping tx because the max non PFB message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
 			continue
 		}
-		nonPFBMessageCount += len(sdkTx.GetMsgs())
+
+		if !fsb.builder.AppendTx(tx) {
+			continue
+		}
 
 		fsb.ctx, err = fsb.handler(fsb.ctx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
@@ -100,6 +99,7 @@ func (fsb *FilteredSquareBuilder) Fill(txs [][]byte) [][]byte {
 			continue
 		}
 
+		nonPFBMessageCount += len(sdkTx.GetMsgs())
 		normalTxs[n] = tx
 		n++
 	}
@@ -123,8 +123,6 @@ func (fsb *FilteredSquareBuilder) Fill(txs [][]byte) [][]byte {
 			continue
 		}
 
-		pfbMessageCount += len(sdkTx.GetMsgs())
-
 		fsb.ctx, err = fsb.handler(fsb.ctx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
 		// simply want to remove this tx, or we're catching a panic from one
@@ -141,6 +139,7 @@ func (fsb *FilteredSquareBuilder) Fill(txs [][]byte) [][]byte {
 			continue
 		}
 
+		pfbMessageCount += len(sdkTx.GetMsgs())
 		blobTxs[m] = tx
 		m++
 	}
