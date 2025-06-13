@@ -3,6 +3,10 @@ package user_test
 import (
 	"testing"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/stretchr/testify/require"
+
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
@@ -10,9 +14,6 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/stretchr/testify/require"
 )
 
 func TestSigner(t *testing.T) {
@@ -42,10 +43,10 @@ func TestSigner(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, sigs[0].PubKey)
 		require.Equal(t, uint64(0), sigs[0].Sequence)
-
 	})
 	t.Run("should create a tx with a signature that contains a pubkey even if sequence is > 0", func(t *testing.T) {
-		signer.IncrementSequence(account)
+		err := signer.IncrementSequence(account)
+		require.NoError(t, err)
 
 		tx, err := signer.CreateTx([]sdk.Msg{msg})
 		require.NoError(t, err)
