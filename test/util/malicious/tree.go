@@ -1,6 +1,9 @@
 package malicious
 
 import (
+	"fmt"
+
+	square "github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
@@ -54,4 +57,16 @@ func (c constructor) NewTree(_ rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
 	newTree := wrapper.NewErasuredNamespacedMerkleTree(c.squareSize, axisIndex, copts...)
 	newTree.SetTree(maliciousTree)
 	return &newTree
+}
+
+func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
+	// Check that the length of the square is a power of 2.
+	if !square.IsPowerOfTwo(len(s)) {
+		return nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(s))
+	}
+	squareSize := square.Size(len(s))
+
+	// here we construct a tree
+	// Note: uses the nmt wrapper to construct the tree.
+	return rsmt2d.ComputeExtendedDataSquare(s, appconsts.DefaultCodec(), NewConstructor(uint64(squareSize)))
 }
