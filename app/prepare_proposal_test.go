@@ -21,8 +21,8 @@ func TestPrepareProposalValidConstruction(t *testing.T) {
 		encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 		accounts := testfactory.GenerateAccounts(1)
 		testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, accounts...)
-		chainId := testApp.GetChainID()
-		require.Equal(t, testutil.ChainID, chainId)
+		chainID := testApp.GetChainID()
+		require.Equal(t, testutil.ChainID, chainID)
 		height := testApp.LastBlockHeight() + 1
 
 		txs := createBlobTxs(t, testApp, encConf, kr, accounts)
@@ -34,7 +34,7 @@ func TestPrepareProposalValidConstruction(t *testing.T) {
 			},
 			Height:  height,
 			Time:    time.Now(),
-			ChainId: chainId,
+			ChainId: chainID,
 		})
 		// The filtered builder in prepare proposal should have dropped the last two txs.
 		// The filtered builder should have dropped the second to last tx because it was too large to fit in the square.
