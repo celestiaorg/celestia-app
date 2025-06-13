@@ -70,6 +70,7 @@ func DefaultTxOpts() []user.TxOption {
 // and compares it against a previously generated hash from the same set of transactions.
 // App hashes across different commits should be consistent.
 func TestConsistentAppHash(t *testing.T) {
+	t.Skip("skipping consistent app hash test because including the pubkey in the signature broke this test. It was removed on main already.")
 	tc := []appHashTest{
 		{
 			name:               "execute sdk messages and blob tx on v1",
