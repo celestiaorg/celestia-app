@@ -44,6 +44,9 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		app.MaxEffectiveSquareSize(ctx),
 		appconsts.SubtreeRootThreshold,
 	)
+	if err != nil {
+		panic(err)
+	}
 
 	txs := fb.Fill(req.Txs)
 

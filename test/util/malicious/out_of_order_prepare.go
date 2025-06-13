@@ -54,6 +54,9 @@ func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci
 		a.MaxEffectiveSquareSize(sdkCtx),
 		appconsts.SubtreeRootThreshold,
 	)
+	if err != nil {
+		panic(err)
+	}
 
 	txs := fb.Fill(req.Txs)
 

@@ -30,7 +30,8 @@ func NewFilteredBuilder(
 	handler sdk.AnteHandler,
 	txConfig client.TxConfig,
 	maxSquareSize,
-	subtreeRootThreshold int) (*FilteredBuilder, error) {
+	subtreeRootThreshold int,
+) (*FilteredBuilder, error) {
 	builder, err := square.NewBuilder(maxSquareSize, subtreeRootThreshold)
 	return &FilteredBuilder{
 		logger:   logger,
@@ -163,18 +164,6 @@ func (fb *FilteredBuilder) Fill(txs [][]byte) [][]byte {
 	kept = append(kept, normalTxs[:n]...)
 	kept = append(kept, encodeBlobTxs(blobTxs[:m])...)
 	return kept
-}
-
-func blobTxSize(btx *tx.BlobTx) int {
-	size := 0
-	if btx == nil {
-		return size
-	}
-	size += len(btx.Tx)
-	for _, blob := range btx.Blobs {
-		size += blob.DataLen()
-	}
-	return size
 }
 
 func msgTypes(sdkTx sdk.Tx) []string {

@@ -8,6 +8,8 @@ import (
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cometbft/cometbft/proto/tendermint/version"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -18,8 +20,6 @@ import (
 
 	"github.com/celestiaorg/go-square/v2/share"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
-	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/cometbft/cometbft/proto/tendermint/version"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
@@ -97,7 +97,6 @@ func createBlobTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyr
 	blobSize = 100 // bytes
 	tx := testutil.BlobTxWithManualSequence(t, encConf.TxConfig, keyring, blobSize, blobCount, testutil.ChainID, accountName, sequence, accountNumber)
 	txs = append(txs, tx)
-	sequence++
 
 	return txs
 }
