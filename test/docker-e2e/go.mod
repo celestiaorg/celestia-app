@@ -272,8 +272,6 @@ replace (
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.1.0
 
 	github.com/celestiaorg/celestia-app/v4 => ../..
-
-	github.com/celestiaorg/go-square/v2 => github.com/celestiaorg/go-square/v2 v2.2.1-0.20250612221901-9fc8d4790a54
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.54.1-tm-v0.38.17
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.2-sdk-v0.50.12
 
