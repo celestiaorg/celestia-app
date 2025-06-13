@@ -46,7 +46,7 @@ func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci
 		a.GovParamFilters(),
 	)
 
-	fb, err := app.NewFilteredSquareBuilder(
+	fsb, err := app.NewFilteredSquareBuilder(
 		handler,
 		a.GetEncodingConfig().TxConfig,
 		a.MaxEffectiveSquareSize(sdkCtx),
@@ -56,11 +56,11 @@ func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci
 		panic(err)
 	}
 
-	txs := fb.Fill(sdkCtx, req.Txs)
+	txs := fsb.Fill(sdkCtx, req.Txs)
 
 	// build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block
-	dataSquare, err := fb.Build()
+	dataSquare, err := fsb.Build()
 	if err != nil {
 		panic(err)
 	}
