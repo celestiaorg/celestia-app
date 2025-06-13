@@ -123,8 +123,8 @@ type Range struct {
 	Max int
 }
 
-func NewRange(min, max int) Range {
-	return Range{Min: min, Max: max}
+func NewRange(minimum, maximum int) Range {
+	return Range{Min: minimum, Max: maximum}
 }
 
 // Rand returns a random number between min (inclusive) and max (exclusive).
