@@ -50,6 +50,9 @@ func TestPrepareProposalValidConstruction(t *testing.T) {
 			Time:   time.Now(),
 		})
 		require.NoError(t, err)
+		// The filtered builder in prepare proposal should have dropped the last two txs.
+		// The filtered builder should have dropped the second to last tx because it was too large to fit in the square.
+		// The filtered builder should have dropped the last tx because the nonce for it was invalidated by dropping the second to last tx.
 		require.Equal(t, 7, len(prepareResponse.Txs))
 
 		fmt.Println("using height", height)
