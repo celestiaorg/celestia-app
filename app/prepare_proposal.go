@@ -37,8 +37,6 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	)
 
 	fb, err := NewFilteredSquareBuilder(
-		app.Logger(),
-		ctx,
 		handler,
 		app.encodingConfig.TxConfig,
 		app.MaxEffectiveSquareSize(ctx),
@@ -48,7 +46,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		panic(err)
 	}
 
-	txs := fb.Fill(req.Txs)
+	txs := fb.Fill(ctx, req.Txs)
 
 	// Build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block.

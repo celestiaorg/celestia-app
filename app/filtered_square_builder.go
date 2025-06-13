@@ -1,7 +1,6 @@
 package app
 
 import (
-	"cosmossdk.io/log"
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -17,16 +16,12 @@ import (
 // FilteredSquareBuilder filters txs and blobs using a copy of the state and tx validity
 // rules before adding it the square.
 type FilteredSquareBuilder struct {
-	logger   log.Logger
-	ctx      sdk.Context
 	handler  sdk.AnteHandler
 	txConfig client.TxConfig
 	builder  *square.Builder
 }
 
 func NewFilteredSquareBuilder(
-	logger log.Logger,
-	ctx sdk.Context,
 	handler sdk.AnteHandler,
 	txConfig client.TxConfig,
 	maxSquareSize,
@@ -37,8 +32,6 @@ func NewFilteredSquareBuilder(
 		return nil, err
 	}
 	return &FilteredSquareBuilder{
-		logger:   logger,
-		ctx:      ctx,
 		handler:  handler,
 		txConfig: txConfig,
 		builder:  builder,
@@ -49,7 +42,9 @@ func (fsb *FilteredSquareBuilder) Build() (square.Square, error) {
 	return fsb.builder.Export()
 }
 
-func (fsb *FilteredSquareBuilder) Fill(txs [][]byte) [][]byte {
+func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
+	logger := ctx.Logger().With("app/filtered-square-builder")
+
 	normalTxs, blobTxs := separateTxs(fsb.txConfig, txs)
 
 	var (
@@ -63,16 +58,16 @@ func (fsb *FilteredSquareBuilder) Fill(txs [][]byte) [][]byte {
 	for _, tx := range normalTxs {
 		sdkTx, err := dec(tx)
 		if err != nil {
-			fsb.logger.Error("decoding already checked transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
+			logger.Error("decoding already checked transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
 			continue
 		}
 
 		// Set the tx size on the context before calling the AnteHandler
-		fsb.ctx = fsb.ctx.WithTxBytes(tx)
+		ctx = ctx.WithTxBytes(tx)
 
 		msgTypes := msgTypes(sdkTx)
 		if nonPFBMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxNonPFBMessages {
-			fsb.logger.Debug("skipping tx because the max non PFB message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
+			logger.Debug("skipping tx because the max non PFB message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
 			continue
 		}
 
@@ -80,12 +75,12 @@ func (fsb *FilteredSquareBuilder) Fill(txs [][]byte) [][]byte {
 			continue
 		}
 
-		fsb.ctx, err = fsb.handler(fsb.ctx, sdkTx, false)
+		ctx, err = fsb.handler(ctx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
 		// simply want to remove this tx, or we're catching a panic from one
 		// of the anteHandlers which is logged.
 		if err != nil {
-			fsb.logger.Error(
+			logger.Error(
 				"filtering already checked transaction",
 				"tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()),
 				"error", err,
@@ -94,7 +89,7 @@ func (fsb *FilteredSquareBuilder) Fill(txs [][]byte) [][]byte {
 			telemetry.IncrCounter(1, "prepare_proposal", "invalid_std_txs")
 			err = fsb.builder.RevertLastTx()
 			if err != nil {
-				fsb.logger.Error("reverting last transaction", "error", err)
+				logger.Error("reverting last transaction", "error", err)
 			}
 			continue
 		}
@@ -107,15 +102,15 @@ func (fsb *FilteredSquareBuilder) Fill(txs [][]byte) [][]byte {
 	for _, tx := range blobTxs {
 		sdkTx, err := dec(tx.Tx)
 		if err != nil {
-			fsb.logger.Error("decoding already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
+			logger.Error("decoding already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
 			continue
 		}
 
 		// Set the tx size on the context before calling the AnteHandler
-		fsb.ctx = fsb.ctx.WithTxBytes(tx.Tx)
+		ctx = ctx.WithTxBytes(tx.Tx)
 
 		if pfbMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxPFBMessages {
-			fsb.logger.Debug("skipping tx because the max pfb message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()))
+			logger.Debug("skipping tx because the max pfb message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()))
 			continue
 		}
 
@@ -123,18 +118,18 @@ func (fsb *FilteredSquareBuilder) Fill(txs [][]byte) [][]byte {
 			continue
 		}
 
-		fsb.ctx, err = fsb.handler(fsb.ctx, sdkTx, false)
+		ctx, err = fsb.handler(ctx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
 		// simply want to remove this tx, or we're catching a panic from one
 		// of the anteHandlers which is logged.
 		if err != nil {
-			fsb.logger.Error(
+			logger.Error(
 				"filtering already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err,
 			)
 			telemetry.IncrCounter(1, "prepare_proposal", "invalid_blob_txs")
 			err = fsb.builder.RevertLastBlobTx()
 			if err != nil {
-				fsb.logger.Error("reverting last blob transaction failed", "error", err)
+				logger.Error("reverting last blob transaction failed", "error", err)
 			}
 			continue
 		}
