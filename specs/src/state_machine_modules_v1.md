@@ -5,9 +5,9 @@ The modules used in app version 1 are:
 ## `celestia-app` modules
 
 - [blob](https://github.com/celestiaorg/celestia-app/blob/main/x/blob/README.md)
-- [blobstream](https://github.com/celestiaorg/celestia-app/blob/main/x/blobstream/README.md)
+- [qgb](https://github.com/celestiaorg/celestia-app/tree/f02b041b93864c363c3c4d6fbd9c534451424e1c/x/qgb)
 - [mint](https://github.com/celestiaorg/celestia-app/blob/main/x/mint/README.md)
-- [paramfilter](https://github.com/celestiaorg/celestia-app/blob/main/x/paramfilter/README.md)
+- [paramfilter](https://github.com/celestiaorg/celestia-app/blob/f02b041b93864c363c3c4d6fbd9c534451424e1c/x/paramfilter/README.md)
 - [tokenfilter](https://github.com/celestiaorg/celestia-app/blob/main/x/tokenfilter/README.md)
 
 ## `cosmos-sdk` modules

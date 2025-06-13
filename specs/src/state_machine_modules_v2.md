@@ -7,7 +7,7 @@ The modules used in app version 2 are:
 - [blob](https://github.com/celestiaorg/celestia-app/blob/main/x/blob/README.md)
 - [minfee](https://github.com/celestiaorg/celestia-app/blob/main/x/minfee/README.md)
 - [mint](https://github.com/celestiaorg/celestia-app/blob/main/x/mint/README.md)
-- [paramfilter](https://github.com/celestiaorg/celestia-app/blob/main/x/paramfilter/README.md)
+- [paramfilter](https://github.com/celestiaorg/celestia-app/blob/0a7154538e6b47ca806e9f4b3fd9ff1581213099/x/paramfilter/README.md)
 - [signal](https://github.com/celestiaorg/celestia-app/blob/main/x/signal/README.md)
 - [tokenfilter](https://github.com/celestiaorg/celestia-app/blob/main/x/tokenfilter/README.md)
 
