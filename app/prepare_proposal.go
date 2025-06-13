@@ -9,7 +9,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/da"
 	shares "github.com/celestiaorg/go-square/shares"
 	square "github.com/celestiaorg/go-square/square"
-	squarev2 "github.com/celestiaorg/go-square/v2"
 	sharev2 "github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -45,38 +44,45 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		app.MsgGateKeeper,
 	)
 
-	// Filter out invalid transactions.
-	txs := FilterTxs(app.Logger(), sdkCtx, handler, app.txConfig, req.BlockData.Txs)
-
-	// Build the square from the set of valid and prioritised transactions.
-	// The txs returned are the ones used in the square and block.
 	var (
 		dataSquareBytes [][]byte
-		err             error
 		size            uint64
+		txs             [][]byte
 	)
+
 	switch app.AppVersion() {
 	case v3:
-		var dataSquare squarev2.Square
-		dataSquare, txs, err = squarev2.Build(txs,
+		fsb, err := NewFilteredSquareBuilder(
+			handler,
+			app.GetTxConfig(),
 			app.MaxEffectiveSquareSize(sdkCtx),
 			appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion()),
 		)
+		if err != nil {
+			panic(err)
+		}
+		txs = fsb.Fill(sdkCtx, req.BlockData.Txs)
+		dataSquare, err := fsb.Build()
+		if err != nil {
+			panic(err)
+		}
+
 		dataSquareBytes = sharev2.ToBytes(dataSquare)
 		size = uint64(dataSquare.Size())
 	case v2, v1:
-		var dataSquare square.Square
-		dataSquare, txs, err = square.Build(txs,
+		txs := FilterTxs(app.Logger(), sdkCtx, handler, app.GetTxConfig(), req.BlockData.Txs)
+		dataSquare, txs, err := square.Build(txs,
 			app.MaxEffectiveSquareSize(sdkCtx),
 			appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion()),
 		)
+		if err != nil {
+			panic(err)
+		}
+
 		dataSquareBytes = shares.ToBytes(dataSquare)
 		size = uint64(dataSquare.Size())
 	default:
-		err = fmt.Errorf("unsupported app version: %d", app.AppVersion())
-	}
-	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("unsupported app version: %d", app.AppVersion()))
 	}
 
 	// Erasure encode the data square to create the extended data square (eds).
