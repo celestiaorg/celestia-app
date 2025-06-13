@@ -35,7 +35,7 @@ import (
 
 func TestPrepareProposalValidConstruction(t *testing.T) {
 	// Reproduces https://github.com/celestiaorg/celestia-app/issues/4961
-	t.Run("prepare proposal creates a proposal that process proposal throws an account sequence mismatch", func(t *testing.T) {
+	t.Run("prepare proposal creates a proposal that process proposal accepts", func(t *testing.T) {
 		encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 		accounts := testfactory.GenerateAccounts(1)
 		testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, accounts...)
