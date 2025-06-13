@@ -2,12 +2,12 @@ package keeper
 
 import (
 	"cosmossdk.io/math"
-	"github.com/tendermint/tendermint/libs/log"
-
-	"github.com/celestiaorg/celestia-app/v3/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/tendermint/tendermint/libs/log"
+
+	"github.com/celestiaorg/celestia-app/v3/x/mint/types"
 )
 
 // Keeper of the mint store

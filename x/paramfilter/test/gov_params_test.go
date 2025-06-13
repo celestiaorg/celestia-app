@@ -38,7 +38,7 @@ type GovParamsTestSuite struct {
 
 func (suite *GovParamsTestSuite) SetupTest() {
 	suite.app, _ = testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
-	suite.ctx = suite.app.BaseApp.NewContext(false, tmproto.Header{})
+	suite.ctx = suite.app.NewContext(false, tmproto.Header{})
 	suite.govHandler = paramfilter.NewParamBlockList(suite.app.BlockedParams()...).GovHandler(suite.app.ParamsKeeper)
 }
 
@@ -171,7 +171,7 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 				Value:    `{"max_bytes": "1", "max_gas": "2"}`,
 			}),
 			func() {
-				gotMaxBytes := suite.app.BaseApp.GetConsensusParams(suite.ctx).Block.MaxBytes
+				gotMaxBytes := suite.app.GetConsensusParams(suite.ctx).Block.MaxBytes
 				wantMaxBytes := int64(1)
 				assert.Equal(wantMaxBytes, gotMaxBytes)
 

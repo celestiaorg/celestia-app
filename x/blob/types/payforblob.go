@@ -2,17 +2,17 @@ package types
 
 import (
 	"bytes"
-	fmt "fmt"
+	"fmt"
 
 	"cosmossdk.io/errors"
-
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	"github.com/celestiaorg/go-square/v2/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"golang.org/x/exp/slices"
+
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 )
 
 const (

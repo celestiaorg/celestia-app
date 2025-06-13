@@ -780,9 +780,9 @@ func (app *App) RegisterAPIRoutes(apiSvr *api.Server, _ config.APIConfig) {
 
 // RegisterTxService implements the Application.RegisterTxService method.
 func (app *App) RegisterTxService(clientCtx client.Context) {
-	authtx.RegisterTxService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.BaseApp.Simulate, app.interfaceRegistry)
-	celestiatx.RegisterTxService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.interfaceRegistry)
-	gasestimation.RegisterGasEstimationService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.txConfig.TxDecoder(), app.getGovMaxSquareBytes, app.BaseApp.Simulate)
+	authtx.RegisterTxService(app.GRPCQueryRouter(), clientCtx, app.Simulate, app.interfaceRegistry)
+	celestiatx.RegisterTxService(app.GRPCQueryRouter(), clientCtx, app.interfaceRegistry)
+	gasestimation.RegisterGasEstimationService(app.GRPCQueryRouter(), clientCtx, app.txConfig.TxDecoder(), app.getGovMaxSquareBytes, app.Simulate)
 }
 
 func (app *App) getGovMaxSquareBytes() (uint64, error) {
@@ -796,7 +796,7 @@ func (app *App) getGovMaxSquareBytes() (uint64, error) {
 
 // RegisterTendermintService implements the Application.RegisterTendermintService method.
 func (app *App) RegisterTendermintService(clientCtx client.Context) {
-	tmservice.RegisterTendermintService(clientCtx, app.BaseApp.GRPCQueryRouter(), app.interfaceRegistry, app.Query)
+	tmservice.RegisterTendermintService(clientCtx, app.GRPCQueryRouter(), app.interfaceRegistry, app.Query)
 }
 
 func (app *App) RegisterNodeService(clientCtx client.Context) {

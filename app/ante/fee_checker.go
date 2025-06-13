@@ -1,7 +1,7 @@
 package ante
 
 import (
-	errors "cosmossdk.io/errors"
+	"cosmossdk.io/errors"
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"

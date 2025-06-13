@@ -52,7 +52,7 @@ func Run() error {
 			return err
 		}
 
-		blockTimes = append(blockTimes, resp.Header.Time)
+		blockTimes = append(blockTimes, resp.Time)
 	}
 	avgTime, minTime, maxTime, stdvTime := analyzeBlockTimes(blockTimes)
 	fmt.Printf(`
@@ -89,7 +89,7 @@ func analyzeBlockTimes(times []time.Time) (float64, float64, float64, float64) {
 		if maxTime == 0 || diff > maxTime {
 			maxTime = diff
 		}
-		variance += math.Pow(averageTime-diff, 2)
+		variance += (averageTime - diff) * (averageTime - diff)
 	}
 	stddev := math.Sqrt(variance / float64(numberOfObservations))
 	return averageTime, minTime, maxTime, stddev

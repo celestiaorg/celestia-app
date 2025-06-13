@@ -13,7 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	ante "github.com/celestiaorg/celestia-app/v3/x/blob/ante"
+	"github.com/celestiaorg/celestia-app/v3/x/blob/ante"
 	blob "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"

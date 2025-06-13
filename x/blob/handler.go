@@ -4,10 +4,11 @@ import (
 	"fmt"
 
 	"cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v3/x/blob/keeper"
-	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+
+	"github.com/celestiaorg/celestia-app/v3/x/blob/keeper"
+	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
 )
 
 // NewHandler uses the provided blob keeper to create an sdk.Handler

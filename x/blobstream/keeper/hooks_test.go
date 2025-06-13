@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	version "github.com/tendermint/tendermint/proto/tendermint/version"
+	"github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
 func TestAfterValidatorBeginUnbonding(t *testing.T) {

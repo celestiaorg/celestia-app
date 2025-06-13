@@ -410,7 +410,6 @@ func deterministicKeyRing(cdc codec.Codec) (keyring.Keyring, []types.PubKey) {
 		"used describe angle twin amateur pyramid bitter pool fluid wing erode rival wife federal curious drink battle put elbow mandate another token reveal tone",
 		"reason fork target chimney lift typical fine divorce mixture web robot kiwi traffic stove miss crane welcome camp bless fuel october riot pluck ordinary",
 		"undo logic mobile modify master force donor rose crumble forget plate job canal waste turn damp sure point deposit hazard quantum car annual churn",
-		"charge subway treat loop donate place loan want grief leg message siren joy road exclude match empty enforce vote meadow enlist vintage wool involve",
 	}
 	kb := keyring.NewInMemory(cdc)
 	pubKeys := make([]types.PubKey, len(mnemonics))
