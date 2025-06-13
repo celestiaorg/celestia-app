@@ -3,6 +3,12 @@
 package cmd
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
@@ -13,13 +19,6 @@ import (
 
 	embedding "github.com/celestiaorg/celestia-app/v4/internal/embedding"
 )
-
-// v2UpgradeHeight is the block height at which the v2 upgrade occurred.
-// this can be overridden at build time using ldflags:
-// -ldflags="-X 'github.com/celestiaorg/celestia-app/v4/cmd/celestia-appd/cmd.v2UpgradeHeight=1751707'" for arabica
-// -ldflags="-X 'github.com/celestiaorg/celestia-app/v4/cmd/celestia-appd/cmd.v2UpgradeHeight=2585031'" for mocha
-// -ldflags="-X 'github.com/celestiaorg/celestia-app/v4/cmd/celestia-appd/cmd.v2UpgradeHeight=2371495'" for mainnet
-var v2UpgradeHeight = ""
 
 // modifyRootCommand enhances the root command with the pass through and multiplexer.
 func modifyRootCommand(rootCommand *cobra.Command) {
@@ -33,9 +32,34 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 		panic(err)
 	}
 
-	var extraArgs []string
-	if v2UpgradeHeight != "" {
-		extraArgs = append(extraArgs, "--v2-upgrade-height="+v2UpgradeHeight)
+	var (
+		embeddedArgsFile string
+		embeddedArgs     EmbeddedArgs
+	)
+	// get the home directory from the flag
+	args := os.Args
+	for i := 0; i < len(args); i++ {
+		if args[i] == fmt.Sprintf("--%s", FlagEmbeddedArgsFile) && i+1 < len(args) {
+			embeddedArgsFile = filepath.Clean(args[i+1])
+		} else if strings.HasPrefix(args[i], fmt.Sprintf("--%s=", FlagEmbeddedArgsFile)) {
+			embeddedArgsFile = filepath.Clean(args[i][7:])
+		}
+	}
+
+	if len(embeddedArgsFile) > 0 {
+		f, err := os.ReadFile(embeddedArgsFile)
+		if os.IsNotExist(err) {
+			panic(fmt.Sprintf("file %s does not exist: %s", err.Error()))
+		} else if err != nil {
+			panic(err)
+		}
+
+		if err := json.Unmarshal(f, &embeddedArgs); err != nil {
+			panic(err)
+		}
+
+		// Expand environment variables in embedded args
+		embeddedArgs.V3 = expandEnvVars(embeddedArgs.V3)
 	}
 
 	versions, err := abci.NewVersions(abci.Version{
@@ -48,7 +72,7 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 			"--api.swagger=false",
 			"--with-tendermint=false",
 			"--transport=grpc",
-		}, extraArgs...),
+		}, embeddedArgs.V3...),
 	})
 	if err != nil {
 		panic(err)
@@ -69,4 +93,22 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 			StartCommandHandler: multiplexer.New(versions),
 		},
 	)
+}
+
+// EmbeddedArgs is a map of arguments that can be passed to the multiplexer.
+// Each key corresponds to the binary name, and the value is a slice of strings representing the arguments.
+type EmbeddedArgs struct {
+	V3 []string `json:"v3"`
+	// For new embedded binaries, add them here.
+	// VX []string `json:"vX"`
+}
+
+// expandEnvVars expands environment variables in the given slice of strings.
+// It uses os.ExpandEnv to substitute variables of the form $VAR or ${VAR}.
+func expandEnvVars(args []string) []string {
+	expanded := make([]string, len(args))
+	for i, arg := range args {
+		expanded[i] = os.ExpandEnv(arg)
+	}
+	return expanded
 }

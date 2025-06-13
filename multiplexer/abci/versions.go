@@ -76,19 +76,19 @@ func (v Versions) ShouldUseLatestApp(appVersion uint64) bool {
 }
 
 // GetStartArgs returns the appropriate args.
-func (v Version) GetStartArgs(args []string) []string {
+func (v Version) GetStartArgs() []string {
 	if len(v.StartArgs) > 0 {
-		return append(args, v.StartArgs...)
+		return v.StartArgs
 	}
 
 	// Default flags for standalone apps.
-	return append(args,
+	return []string{
 		"--grpc.enable",
 		"--api.enable",
 		"--api.swagger=false",
 		"--with-tendermint=false",
 		"--transport=grpc",
-	)
+	}
 }
 
 // Validate checks for duplicate app versions in a slice of Versions.
