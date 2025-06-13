@@ -206,3 +206,61 @@ func TestTxSimUpgrade(t *testing.T) {
 		return upgradePlan.Upgrade != nil && upgradePlan.Upgrade.AppVersion == v4.Version
 	}, time.Second*20, time.Millisecond*100)
 }
+
+func TestOptionsWithTxsPerSequence(t *testing.T) {
+	opts := txsim.DefaultOptions().WithTxsPerSequence(5)
+	opts.Fill()
+	require.Equal(t, 5, opts.TxsPerSequence())
+}
+
+func TestDefaultOptionsHasCorrectTxsPerSequence(t *testing.T) {
+	opts := txsim.DefaultOptions()
+	require.Equal(t, 1, opts.TxsPerSequence())
+}
+
+func TestTxsPerSequencePanicsOnInvalidValue(t *testing.T) {
+	require.Panics(t, func() {
+		txsim.DefaultOptions().WithTxsPerSequence(0)
+	})
+}
+
+func TestTxSimulatorWithTxsPerSequence(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping TestTxSimulatorWithTxsPerSequence in short mode.")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	keyring, rpcAddr, grpcAddr := Setup(t)
+
+	// Test with txsPerSequence > 1 to verify batch mode works
+	opts := txsim.DefaultOptions().
+		SuppressLogs().
+		WithPollTime(time.Millisecond * 100).
+		WithTxsPerSequence(3)
+
+	sequences := []txsim.Sequence{txsim.NewSendSequence(2, 1000, 50)}
+
+	err := txsim.Run(
+		ctx,
+		grpcAddr,
+		keyring,
+		encoding.MakeConfig(app.ModuleEncodingRegisters...),
+		opts,
+		sequences...,
+	)
+	// Expect to run for at least 30 seconds without error
+	require.True(t, errors.Is(err, context.DeadlineExceeded), err.Error())
+
+	// Verify we got some transactions
+	blocks, err := testnode.ReadBlockchain(context.Background(), rpcAddr)
+	require.NoError(t, err)
+	txCount := 0
+	for _, block := range blocks {
+		txs, err := testnode.DecodeBlockData(block.Data)
+		require.NoError(t, err, block.Height)
+		txCount += len(txs)
+	}
+	require.Greater(t, txCount, 5, "expected at least 5 transactions to be submitted")
+}
