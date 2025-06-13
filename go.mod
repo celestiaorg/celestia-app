@@ -7,7 +7,7 @@ require (
 	cosmossdk.io/math v1.4.0
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0
 	github.com/celestiaorg/go-square v1.1.1
-	github.com/celestiaorg/go-square/v2 v2.2.0
+	github.com/celestiaorg/go-square/v2 v2.3.0
 	github.com/celestiaorg/knuu v0.16.2
 	github.com/celestiaorg/nmt v0.23.0
 	github.com/celestiaorg/rsmt2d v0.14.0
@@ -18,6 +18,7 @@ require (
 	github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6 v6.1.2
 	github.com/cosmos/ibc-go/v6 v6.2.2
 	github.com/ethereum/go-ethereum v1.14.11
+	github.com/go-kit/log v0.2.1
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.4
@@ -107,7 +108,6 @@ require (
 	github.com/getsentry/sentry-go v0.31.1 // indirect
 	github.com/go-ini/ini v1.67.0 // indirect
 	github.com/go-kit/kit v0.12.0 // indirect
-	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
