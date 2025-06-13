@@ -88,6 +88,7 @@ mod:
 	@go mod tidy
 	@echo "--> Updating go.mod in ./test/interchain"
 	@(cd ./test/interchain && go mod tidy)
+	@(cd ./test/docker-e2e && go mod tidy)
 .PHONY: mod
 
 ## mod-verify: Verify dependencies have expected content.
@@ -293,6 +294,35 @@ txsim-build:
 txsim-build-docker:
 	docker build -t ghcr.io/celestiaorg/txsim -f docker/txsim/Dockerfile  .
 .PHONY: txsim-build-docker
+
+VERSION := $(shell git describe --tags --dirty --always)
+COMMIT  := $(shell git rev-parse HEAD)
+
+# build the -ldflags string here
+LLDFLAGS := \
+  -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
+  -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd \
+  -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
+  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
+  -X github.com/celestiaorg/celestia-app/v4/cmd/celestia-appd/cmd.v2UpgradeHeight=0
+
+build-talis-bins:
+	docker build \
+	  --file tools/talis/docker/Dockerfile \
+	  --target builder \
+	  --platform linux/amd64 \
+	  --build-arg LDFLAGS="$(LLDFLAGS)" \
+	  --build-arg GOOS=linux \
+          --build-arg GOARCH=amd64 \
+	  --tag talis-builder:latest \
+	  .
+	mkdir -p build
+	docker create --platform linux/amd64 --name tmp talis-builder:latest
+	docker cp tmp:/out/. build/
+	docker rm tmp
+
+.PHONY: build-talis-bins
+
 
 ## adr-gen: Download the ADR template from the celestiaorg/.github repo.
 adr-gen:

@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/cometbft/cometbft/config"
-	"github.com/cometbft/cometbft/p2p"
-	"github.com/cometbft/cometbft/p2p/pex"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
@@ -94,22 +92,6 @@ func WithMempoolMaxTxBytes(maxTxBytes int) Option {
 	return func(cfg *config.Config) {
 		cfg.Mempool.MaxTxBytes = maxTxBytes
 	}
-}
-
-func WriteAddressBook(peers []string, file string) error {
-	book := pex.NewAddrBook(file, false)
-	for _, peer := range peers {
-		addr, err := p2p.NewNetAddressString(peer)
-		if err != nil {
-			return fmt.Errorf("parsing peer address %s: %w", peer, err)
-		}
-		err = book.AddAddress(addr, addr)
-		if err != nil {
-			return fmt.Errorf("adding peer address %s: %w", peer, err)
-		}
-	}
-	book.Save()
-	return nil
 }
 
 func MakeAppConfig(_ *Node) (*serverconfig.Config, error) {
