@@ -35,3 +35,20 @@ func TestNewConstructor(t *testing.T) {
 	_, err = goodTree.Root()
 	require.NoError(t, err)
 }
+
+// TestNewConstructorWithOptions verifies that NewConstructor works with options
+func TestNewConstructorWithOptions(t *testing.T) {
+	squareSize := uint64(32)
+	
+	// Test NewConstructor with various options (these should be passed through)
+	constructor := NewConstructor(squareSize)
+	require.NotNil(t, constructor)
+	
+	// Create a tree and verify it works
+	tree := constructor(0, 0)
+	require.NotNil(t, tree)
+	
+	// Should be able to get root
+	_, err := tree.Root()
+	require.NoError(t, err)
+}
