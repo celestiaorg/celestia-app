@@ -21,6 +21,7 @@ func TestPrepareProposalValidConstruction(t *testing.T) {
 		encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 		accounts := testfactory.GenerateAccounts(1)
 		testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, accounts...)
+		testApp.GetChainID()
 		height := testApp.LastBlockHeight() + 1
 
 		txs := createBlobTxs(t, testApp, encConf, kr, accounts)

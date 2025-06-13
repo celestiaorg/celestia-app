@@ -70,8 +70,8 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		dataSquareBytes = sharev2.ToBytes(dataSquare)
 		size = uint64(dataSquare.Size())
 	case v2, v1:
-		txs := FilterTxs(app.Logger(), sdkCtx, handler, app.GetTxConfig(), req.BlockData.Txs)
-		dataSquare, txs, err := square.Build(txs,
+		filteredTxs := FilterTxs(app.Logger(), sdkCtx, handler, app.GetTxConfig(), req.BlockData.Txs)
+		dataSquare, squareTxs, err := square.Build(filteredTxs,
 			app.MaxEffectiveSquareSize(sdkCtx),
 			appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion()),
 		)
@@ -79,6 +79,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 			panic(err)
 		}
 
+		txs = squareTxs
 		dataSquareBytes = shares.ToBytes(dataSquare)
 		size = uint64(dataSquare.Size())
 	default:
