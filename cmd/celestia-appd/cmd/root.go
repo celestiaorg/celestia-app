@@ -85,15 +85,7 @@ func NewRootCmd() *cobra.Command {
 				return err
 			}
 
-			if command.Flags().Changed(FlagLogToFile) {
-				// optionally log to file by replacing the default logger with a file logger
-				err = replaceLogger(command)
-				if err != nil {
-					return err
-				}
-			}
-
-			return nil
+			return replaceLogger(command)
 		},
 		SilenceUsage: true,
 	}
@@ -180,6 +172,9 @@ func replaceLogger(cmd *cobra.Command) error {
 	}
 
 	sctx := server.GetServerContextFromCmd(cmd)
-	sctx.Logger = log.NewLogger(kitlog.NewSyncWriter(file))
+	sctx.Logger, err = server.CreateSDKLogger(sctx, kitlog.NewSyncWriter(file))
+	if err != nil {
+		return fmt.Errorf("failed to create logger: %w", err)
+	}
 	return server.SetCmdServerContext(cmd, sctx)
 }
