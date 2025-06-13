@@ -55,7 +55,6 @@ func TestPrepareProposalValidConstruction(t *testing.T) {
 		// The filtered builder should have dropped the last tx because the nonce for it was invalidated by dropping the second to last tx.
 		require.Equal(t, 7, len(prepareResponse.Txs))
 
-		fmt.Println("using height", height)
 
 		processResponse, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
 			Header: &cmtproto.Header{
