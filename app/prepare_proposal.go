@@ -36,7 +36,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		app.GovParamFilters(),
 	)
 
-	fb, err := NewFilteredBuilder(
+	fb, err := NewFilteredSquareBuilder(
 		app.Logger(),
 		ctx,
 		handler,

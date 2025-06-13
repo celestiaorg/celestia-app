@@ -46,7 +46,7 @@ func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci
 		a.GovParamFilters(),
 	)
 
-	fb, err := app.NewFilteredBuilder(
+	fb, err := app.NewFilteredSquareBuilder(
 		a.Logger(),
 		sdkCtx,
 		handler,

@@ -24,7 +24,7 @@ type FilteredSquareBuilder struct {
 	builder  *square.Builder
 }
 
-func NewFilteredBuilder(
+func NewFilteredSquareBuilder(
 	logger log.Logger,
 	ctx sdk.Context,
 	handler sdk.AnteHandler,
