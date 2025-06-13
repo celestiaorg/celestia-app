@@ -33,13 +33,16 @@ func NewFilteredBuilder(
 	subtreeRootThreshold int,
 ) (*FilteredBuilder, error) {
 	builder, err := square.NewBuilder(maxSquareSize, subtreeRootThreshold)
+	if err != nil {
+		return nil, err
+	}
 	return &FilteredBuilder{
 		logger:   logger,
 		ctx:      ctx,
 		handler:  handler,
 		txConfig: txConfig,
 		builder:  builder,
-	}, err
+	}, nil
 }
 
 func (fb *FilteredBuilder) Build() (square.Square, error) {
