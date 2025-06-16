@@ -11,24 +11,6 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// separateTxs decodes raw tendermint txs into normal and blob txs.
-func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []*tx.BlobTx) {
-	normalTxs := make([][]byte, 0, len(rawTxs))
-	blobTxs := make([]*tx.BlobTx, 0, len(rawTxs))
-	for _, rawTx := range rawTxs {
-		bTx, isBlob, err := tx.UnmarshalBlobTx(rawTx)
-		if isBlob {
-			if err != nil {
-				panic(err)
-			}
-			blobTxs = append(blobTxs, bTx)
-		} else {
-			normalTxs = append(normalTxs, rawTx)
-		}
-	}
-	return normalTxs, blobTxs
-}
-
 // FilterTxs applies the antehandler to all proposed transactions and removes
 // transactions that return an error.
 //
@@ -124,25 +106,4 @@ func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handle
 	}
 
 	return txs[:n], ctx
-}
-
-func msgTypes(sdkTx sdk.Tx) []string {
-	msgs := sdkTx.GetMsgs()
-	msgNames := make([]string, len(msgs))
-	for i, msg := range msgs {
-		msgNames[i] = sdk.MsgTypeURL(msg)
-	}
-	return msgNames
-}
-
-func encodeBlobTxs(blobTxs []*tx.BlobTx) [][]byte {
-	txs := make([][]byte, len(blobTxs))
-	var err error
-	for i, blobTx := range blobTxs {
-		txs[i], err = tx.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
-		if err != nil {
-			panic(err)
-		}
-	}
-	return txs
 }
