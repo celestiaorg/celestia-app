@@ -4,7 +4,7 @@ go 1.23.6
 
 require (
 	github.com/celestiaorg/celestia-app/v4 v4.0.0
-	github.com/celestiaorg/go-square/v2 v2.2.0
+	github.com/celestiaorg/go-square/v2 v2.3.0
 	github.com/celestiaorg/tastora v0.0.0-20250515081551-795e795a49c7
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/docker/docker v28.2.2+incompatible
@@ -273,8 +273,7 @@ replace (
 
 	github.com/celestiaorg/celestia-app/v4 => ../..
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.54.1-tm-v0.38.17
-	// cosmos-sdk: v1.29.1-sdk-v0.50.12
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.1-sdk-v0.50.12
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.2-sdk-v0.50.12
 
 	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
 	// goleveldb: canonical version

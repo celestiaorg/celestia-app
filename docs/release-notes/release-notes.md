@@ -19,7 +19,7 @@ These two configs must match in order for the multiplexer to work correctly. The
 
 #### Custom build flags
 
-`make install` currently downloads a v3.x binary with goleveldb support. If you use pebbledb, you will need to build the v3.x binary from source (with the `pebbledb` build tag) and include it in the app's embedded binary directory (by default: `~/.celestia-app/bin/`).
+`make install` currently downloads a v3.x binary with only one custom build flag, `ledger`. If you use any additional custom build flags (i.e. `pebbledb`, `rocksdb`, `badgerdb`, `cleveldb`, `boltdb`), you will need to build the v3.x binary from source (with custom build tags) and include it in the app's embedded binary directory (by default: `~/.celestia-app/bin/`).
 
 #### `rpc.grpc_laddr`
 
@@ -35,7 +35,7 @@ grpc_laddr = "tcp://127.0.0.1:9098"
 
 #### IAVL v1 Migration
 
-Celestia-app v4 uses IAVL v1 for better performance. When upgrading from v3, the migration happens lazily over time. If you'd like to avoid the lazy migration, you can perform a fresh state sync so that your node uses IAVL v1 exclusively.
+Celestia-app v4 uses IAVL v1 for better performance. When upgrading to v4, the migration happens lazily over time. If you'd like to avoid the lazy migration, you can perform a fresh state sync so that your node uses IAVL v1 exclusively.
 
 ### State Machine Changes (v4.0.0)
 
