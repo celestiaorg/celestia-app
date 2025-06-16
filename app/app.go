@@ -768,9 +768,19 @@ func (app *App) AutoCliOpts() autocli.AppOptions {
 		}
 	}
 
+	moduleOptions := runtimeservices.ExtractAutoCLIOptions(app.ModuleManager.Modules)
+
+	// Disable the comet consensus module autocli commands for v4.x.x because
+	// there is a bug in the unmarshalling of blocks.
+	//
+	// https://github.com/celestiaorg/celestia-app/issues/4950
+	consensusModuleOptions := moduleOptions[consensustypes.ModuleName]
+	consensusModuleOptions.Query.SubCommands = nil
+	moduleOptions[consensustypes.ModuleName] = consensusModuleOptions
+
 	return autocli.AppOptions{
 		Modules:               modules,
-		ModuleOptions:         runtimeservices.ExtractAutoCLIOptions(app.ModuleManager.Modules),
+		ModuleOptions:         moduleOptions,
 		AddressCodec:          app.encodingConfig.AddressCodec,
 		ValidatorAddressCodec: app.encodingConfig.ValidatorAddressCodec,
 		ConsensusAddressCodec: app.encodingConfig.ConsensusAddressCodec,
