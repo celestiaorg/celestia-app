@@ -53,7 +53,7 @@ message PeriodEntry {
   uint64 rewardRate = 1;
 }
 
-// https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#decimal
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#decimal
 message Decimal {
   // Rational numerator
   uint64 numerator = 1;
