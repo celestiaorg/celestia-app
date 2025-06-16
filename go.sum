@@ -789,8 +789,8 @@ github.com/celestiaorg/bittwister v0.0.0-20231213180407-65cdbaf5b8c7 h1:nxplQi8w
 github.com/celestiaorg/bittwister v0.0.0-20231213180407-65cdbaf5b8c7/go.mod h1:1EF5MfOxVf0WC51Gb7pJ6bcZxnXKNAf9pqWtjgPBAYc=
 github.com/celestiaorg/celestia-core v1.52.0-tm-v0.34.35 h1:iU2igosCxYKzEUi85u3YqNslIO+rCXtx4GKAHUzxrDQ=
 github.com/celestiaorg/celestia-core v1.52.0-tm-v0.34.35/go.mod h1:SI38xqZZ4ccoAxszUJqsJ/a5rOkzQRijzHQQlLKkyUc=
-github.com/celestiaorg/celestia-core v1.54.0-tm-v0.38.17.0.20250612073748-97e9cc351683 h1:sIfJOiJNG6KcNjNTetcMQ7GuBVt16pfCBuX816LTTgM=
-github.com/celestiaorg/celestia-core v1.54.0-tm-v0.38.17.0.20250612073748-97e9cc351683/go.mod h1:/wP0scz852evSczD1tYkJYbgUc//VAz/09bjnwKB7aU=
+github.com/celestiaorg/celestia-core v1.54.0-tm-v0.38.17.0.20250613111510-17abfd11010f h1:xCsVW1NJQu8Sr1RmrC8ecufQWbrh1dj5dA492zGLkZs=
+github.com/celestiaorg/celestia-core v1.54.0-tm-v0.38.17.0.20250613111510-17abfd11010f/go.mod h1:rwNl8jZQYuD2Fw5ygwMGEayChoK8NyqvTtKYdundVJU=
 github.com/celestiaorg/cosmos-sdk v1.29.2-sdk-v0.50.12.0.20250612123801-71aff0d351e8 h1:f6asftq2kqnqsVFyM3PJDwKzIxdinSV5/Bs/5dvJCp8=
 github.com/celestiaorg/cosmos-sdk v1.29.2-sdk-v0.50.12.0.20250612123801-71aff0d351e8/go.mod h1:rbhrTGpPyIRDPBWYtAupSxc5ZvtRylD7Ohe+YItPtbQ=
 github.com/celestiaorg/cosmos-sdk/x/upgrade v0.1.0 h1:+i3G5mP/kPgFEn83EEXGly29QDin2Gvdt0kgpmw/vTg=
