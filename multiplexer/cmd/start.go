@@ -60,7 +60,9 @@ func getState(cfg *cmtcfg.Config) (chainId string, appVersion uint64, err error)
 	defer db.Close()
 
 	genVer, err := internal.GetGenesisVersion(cfg.GenesisFile())
+	fmt.Printf("genesis version: %d\n", genVer)
 	if err != nil {
+		fmt.Printf("error getting genesis version: %v\n", err)
 		// fallback to latest version if the genesis version doesn't exist
 		if errors.Is(err, internal.ErrGenesisNotFound) {
 			s, _, err := node.LoadStateFromDBOrGenesisDocProvider(db, internal.GetGenDocProvider(cfg))
@@ -72,6 +74,7 @@ func getState(cfg *cmtcfg.Config) (chainId string, appVersion uint64, err error)
 
 	switch genVer {
 	case internal.GenesisVersion1:
+		fmt.Printf("loading state from db or genesis doc provider\n")
 		s, _, err := tmnode.LoadStateFromDBOrGenesisDocProvider(
 			db,
 			func() (*tmtypes.GenesisDoc, error) {
@@ -84,6 +87,7 @@ func getState(cfg *cmtcfg.Config) (chainId string, appVersion uint64, err error)
 
 		appVersion = s.Version.Consensus.App
 		chainId = s.ChainID
+		fmt.Printf("app version from s.Version.Consensus.App: %d\n", appVersion)
 
 	case internal.GenesisVersion2:
 		s, _, err := node.LoadStateFromDBOrGenesisDocProvider(db, internal.GetGenDocProvider(cfg))
