@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/go-square/v2/share"
 	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
 	celestiatypes "github.com/celestiaorg/tastora/framework/types"
@@ -36,6 +37,7 @@ type CelestiaTestSuite struct {
 	logger  *zap.Logger
 	client  *client.Client
 	network string
+	ecfg    encoding.Config
 }
 
 func (s *CelestiaTestSuite) SetupSuite() {
@@ -77,7 +79,7 @@ func (s *CelestiaTestSuite) CreateDockerProvider(opts ...ConfigOption) celestiat
 			Bech32Prefix:        "celestia",
 			Denom:               "utia",
 			CoinType:            "118",
-			GasPrices:           "0.025utia",
+			GasPrices:           "0.002utia",
 			GasAdjustment:       1.3,
 			EncodingConfig:      &enc,
 			AdditionalStartArgs: []string{"--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099"},
