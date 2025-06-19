@@ -66,13 +66,7 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 		Appd:        appdV3,
 		ABCIVersion: abci.ABCIClientVersion1,
 		AppVersion:  3,
-		StartArgs: append([]string{
-			"--grpc.enable",
-			"--api.enable",
-			"--api.swagger=false",
-			"--with-tendermint=false",
-			"--transport=grpc",
-		}, embeddedArgs.V3...),
+		StartArgs:   embeddedArgs.V3...,
 	})
 	if err != nil {
 		panic(err)
