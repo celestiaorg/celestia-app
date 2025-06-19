@@ -39,7 +39,16 @@ Celestia-app v4 uses IAVL v1 for better performance. When upgrading to v4, the m
 
 ### State Machine Changes (v4.0.0)
 
-Celestia-app v4.0.0 includes significant state machine changes due to major dependency upgrades: **Cosmos SDK** (v0.46.16 to v0.50.13), **IBC** (v6.2.2 to v8.7.0). This upgrade also includes bumping **CometBFT** (v0.34 to v0.38).
+Celestia-app v4.0.0 includes significant state machine changes due to major dependency upgrades:
+
+- Cosmos SDK v0.46.16 to v0.50.12
+  - [API breaking changes](https://github.com/cosmos/cosmos-sdk/blob/release/v0.50.x/CHANGELOG.md#api-breaking-changes)
+  - [Client breaking changes](https://github.com/cosmos/cosmos-sdk/blob/release/v0.50.x/CHANGELOG.md#client-breaking-changes)
+  - [CLI breaking changes](https://github.com/cosmos/cosmos-sdk/blob/release/v0.50.x/CHANGELOG.md#cli-breaking-changes)
+- IBC v6.2.2 to v8.7.0
+  - [IBC v8.7.0 release notes](https://github.com/cosmos/ibc-go/releases/tag/v8.7.0)
+- CometBFT v0.34.35 to v0.38.17
+  - [CometBFT v0.38.17 release notes](https://github.com/cometbft/cometbft/releases/tag/v0.38.17)
 
 #### New Messages (Added Modules)
 

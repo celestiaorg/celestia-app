@@ -659,9 +659,21 @@ func (client *TxClient) Account(name string) *Account {
 	return acc.Copy()
 }
 
-func (client *TxClient) AccountByAddress(address sdktypes.AccAddress) *Account {
+// AccountByAddress retrieves the Account associated with the specified address.
+// returns nil if the account is not loaded or if an error occurred while loading.
+func (client *TxClient) AccountByAddress(ctx context.Context, address sdktypes.AccAddress) *Account {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
+
+	accountName := client.signer.accountNameByAddress(address)
+	if accountName == "" {
+		return nil
+	}
+
+	if err := client.checkAccountLoaded(ctx, accountName); err != nil {
+		return nil
+	}
+
 	return client.signer.AccountByAddress(address)
 }
 

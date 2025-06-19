@@ -111,7 +111,7 @@ func NewMultiplexer(svrCtx *server.Context, svrCfg serverconfig.Config, clientCt
 	return mp, nil
 }
 
-// isRunningNativeApp checks if the native application is currently running.
+// isNativeApp checks if the native application is currently running.
 func (m *Multiplexer) isNativeApp() bool {
 	return m.nativeApp != nil
 }
@@ -521,10 +521,7 @@ func (m *Multiplexer) startEmbeddedApp(version Version) error {
 		}
 
 		// start the new app
-		programArgs := os.Args
-		if len(os.Args) > 2 {
-			programArgs = os.Args[2:] // Remove 'appd start' args
-		}
+		programArgs := removeStart(os.Args)
 
 		m.logger.Info("Starting app for version", "app_version", version.AppVersion, "args", version.GetStartArgs(programArgs))
 		if err := version.Appd.Start(version.GetStartArgs(programArgs)...); err != nil {

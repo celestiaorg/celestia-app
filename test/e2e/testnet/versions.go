@@ -108,7 +108,7 @@ func GetLatestVersion() (string, error) {
 	}
 }
 
-// getVersionFromEnv retrieves the value of the "IMAGE_TAG" environment variable.
+// getTagFromEnv retrieves the value of the "IMAGE_TAG" environment variable.
 // this enables the ability to run the test specifying any tag.
 func getTagFromEnv() string {
 	version := os.Getenv("IMAGE_TAG")
