@@ -1,7 +1,8 @@
 # Increase square size
 
 Currently the max square size on Arabica, Mocha, and Mainnet is 128. A square size of 128 has 8 MiB of capacity for blobs (see [data square table](https://gist.github.com/rootulp/bbf10f6e9cf114816aaa994eb64b63a4)).
-If you need to spin up a testnet with a larger square size, you must override two values: `GovMaxSquareSize` and `SquareSizeUpperBound`.
+
+The max square size is the minimum of `GovMaxSquareSize` and `SquareSizeUpperBound`. If you need to produce squares larger than the max square size, you must override either or both of these values: `GovMaxSquareSize` and `SquareSizeUpperBound`.
 
 ## GovMaxSquareSize
 
@@ -9,4 +10,4 @@ If you need to spin up a testnet with a larger square size, you must override tw
 
 ## SquareSizeUpperBound
 
-Currently the `SquareSizeUpperBound` is set to 128. If you need to increase the `SquareSizeUpperBound` you must modify the hard-coded constant [here](https://github.com/celestiaorg/celestia-app/blob/36c2bf8558aa7710a2f3aba8c1c383c9a1b520be/pkg/appconsts/versioned_consts.go#L14) and create a new binary.
+Currently the `SquareSizeUpperBound` is set to 128. If you need to increase the `SquareSizeUpperBound` you must modify the hard-coded constant in [versioned_consts.go](https://github.com/celestiaorg/celestia-app/blob/36c2bf8558aa7710a2f3aba8c1c383c9a1b520be/pkg/appconsts/versioned_consts.go#L14) and create a new binary.
