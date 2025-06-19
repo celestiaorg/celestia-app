@@ -111,7 +111,7 @@ func NewMultiplexer(svrCtx *server.Context, svrCfg serverconfig.Config, clientCt
 	return mp, nil
 }
 
-// isRunningNativeApp checks if the native application is currently running.
+// isNativeApp checks if the native application is currently running.
 func (m *Multiplexer) isNativeApp() bool {
 	return m.nativeApp != nil
 }
