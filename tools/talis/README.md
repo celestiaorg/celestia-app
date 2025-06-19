@@ -111,7 +111,7 @@ talis up
 
 ### genesis
 
-Before we can start the network, we need to create a payload that contains everything each instance needs to actually start the network. This includes all the required keys, configs, genesis.json, and startup scripts. The `--square-size` flag will change the `GovMaxSquareSize`.
+Before we can start the network, we need to create a payload that contains everything each instance needs to actually start the network. This includes all the required keys, configs, genesis.json, and startup scripts. The `--square-size` flag will change the `GovMaxSquareSize`. By default, the binaries in the $GOPATH/bin will be used, however if specific binaries are needed (likely unless you are running some flavor of debian), use the -a (-a, --app-binary) and -t (-t, --txsim-binary) flags.
 
 ```sh
 # creates the payload for the network. This contains all addresses, configs, binaries (from your local GOPATH if not specified), genesis.json, and startup scripts. The `--square-size` flag will change the `GovMaxSquareSize`

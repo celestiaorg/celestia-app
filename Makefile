@@ -84,11 +84,8 @@ download-v3-binaries:
 
 ## mod: Update all go.mod files.
 mod:
-	@echo "--> Updating go.mod"
-	@go mod tidy
-	@echo "--> Updating go.mod in ./test/interchain"
-	@(cd ./test/interchain && go mod tidy)
-	@(cd ./test/docker-e2e && go mod tidy)
+	@echo "Running go mod tidy in all modules"
+	@find . -type f -name 'go.mod' -execdir go mod tidy \;
 .PHONY: mod
 
 ## mod-verify: Verify dependencies have expected content.
@@ -298,20 +295,12 @@ txsim-build-docker:
 VERSION := $(shell git describe --tags --dirty --always)
 COMMIT  := $(shell git rev-parse HEAD)
 
-# build the -ldflags string here
-LLDFLAGS := \
-  -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
-  -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd \
-  -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
-  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
-  -X github.com/celestiaorg/celestia-app/v4/cmd/celestia-appd/cmd.v2UpgradeHeight=0
-
 build-talis-bins:
 	docker build \
 	  --file tools/talis/docker/Dockerfile \
 	  --target builder \
 	  --platform linux/amd64 \
-	  --build-arg LDFLAGS="$(LLDFLAGS)" \
+	  --build-arg LDFLAGS="$(ldflags)" \
 	  --build-arg GOOS=linux \
           --build-arg GOARCH=amd64 \
 	  --tag talis-builder:latest \

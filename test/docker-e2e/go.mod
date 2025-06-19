@@ -2,8 +2,6 @@ module celestiaorg/celestia-app/test/docker-e2e
 
 go 1.23.6
 
-toolchain go1.24.3
-
 require (
 	github.com/celestiaorg/celestia-app/v4 v4.0.0
 	github.com/celestiaorg/go-square/v2 v2.2.0
