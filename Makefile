@@ -295,6 +295,7 @@ txsim-build-docker:
 VERSION := $(shell git describe --tags --dirty --always)
 COMMIT  := $(shell git rev-parse HEAD)
 
+## build-talis-bins: Build celestia-appd and txsim binaries for talis VMs (ubuntu 22.04 LTS)
 build-talis-bins:
 	docker build \
 	  --file tools/talis/docker/Dockerfile \
