@@ -23,7 +23,7 @@ BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
 
 # NOTE: This version must be updated at the same time as the version in internal/embedding/data.go and .goreleaser.yaml
-CELESTIA_V3_VERSION := v3.10.2-arabica
+CELESTIA_V3_VERSION := v3.10.2-mocha
 
 ## help: Get more info on make commands.
 help: Makefile
