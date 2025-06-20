@@ -9,6 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
+	"github.com/celestiaorg/knuu/pkg/instance"
+	"github.com/celestiaorg/knuu/pkg/knuu"
+	"github.com/celestiaorg/knuu/pkg/sidecars/netshaper"
+	"github.com/celestiaorg/knuu/pkg/sidecars/observability"
 	"github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/crypto"
 	cmtos "github.com/cometbft/cometbft/libs/os"
@@ -19,13 +24,6 @@ import (
 	"github.com/cometbft/cometbft/rpc/client/http"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"k8s.io/apimachinery/pkg/api/resource"
-
-	"github.com/celestiaorg/knuu/pkg/instance"
-	"github.com/celestiaorg/knuu/pkg/knuu"
-	"github.com/celestiaorg/knuu/pkg/sidecars/netshaper"
-	"github.com/celestiaorg/knuu/pkg/sidecars/observability"
-
-	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
 )
 
 const (

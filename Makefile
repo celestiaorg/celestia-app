@@ -9,8 +9,6 @@ PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v4
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
 GOLANG_CROSS_VERSION  ?= v1.23.6
-# Set this to override the max square size of the binary
-OVERRIDE_MAX_SQUARE_SIZE ?=
 # Set this to override v2 upgrade height for the v3 embedded binaries
 V2_UPGRADE_HEIGHT ?= 0
 
@@ -24,7 +22,8 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
 
-CELESTIA_V3_VERSION := v3.10.0-arabica
+# NOTE: This version must be updated at the same time as the version in internal/embedding/data.go and .goreleaser.yaml
+CELESTIA_V3_VERSION := v3.10.2-arabica
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -189,8 +188,7 @@ lint:
 	@echo "--> Running markdownlint"
 	@markdownlint --config .markdownlint.yaml '**/*.md'
 	@echo "--> Running hadolint"
-	@hadolint docker/Dockerfile
-	@hadolint docker/txsim/Dockerfile
+	@hadolint docker/multiplexer.Dockerfile docker/standalone.Dockerfile docker/txsim/Dockerfile
 	@echo "--> Running yamllint"
 	@yamllint --no-warnings . -c .yamllint.yml
 .PHONY: lint
@@ -235,10 +233,20 @@ test-e2e:
 	IMAGE_TAG=$(tag) TEST=$(test) DOCKER_REGISTRY=$(registry) go run ./test/e2e $(filter-out $@,$(MAKECMDGOALS))
 .PHONY: test-e2e
 
+## test-docker-e2e: Run end to end tests via docker.
+test-docker-e2e:
+	@if [ -z "$(test)" ]; then \
+		echo "ERROR: 'test' variable is required. Usage: make test-docker-e2e test=TestE2ESimple"; \
+		exit 1; \
+	fi
+	@echo "--> Running: TestCelestiaTestSuite/$(test)"
+	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/$(test)$$ ./...
+.PHONY: test-docker-e2e
+
 ## test-multiplexer: Run unit tests for the multiplexer package.
-test-multiplexer:
+test-multiplexer: download-v3-binaries
 	@echo "--> Running multiplexer tests"
-	make test -C ./multiplexer
+	@go test -tags multiplexer ./multiplexer/...
 .PHONY: test-multiplexer
 
 ## test-race: Run tests in race mode.
@@ -246,7 +254,7 @@ test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService|TestTxsOverMaxTxSizeGetRejected|TestStart_Success"
+	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService|TestTxsOverMaxTxSizeGetRejected|TestStart_Success|TestReadBlockchainHeaders|TestPrepareProposalCappingNumberOfMessages"
 .PHONY: test-race
 
 ## test-bench: Run benchmark unit tests.
@@ -325,8 +333,24 @@ prebuilt-binary:
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
 		-w /go/src/$(PACKAGE_NAME) \
 		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
-		release --clean --parallelism 1
+		release --clean --parallelism 2
 .PHONY: prebuilt-binary
+
+## go-releaser-dry-run ensures that the go releaser tool and build all the artefacts correctly.
+## specifies parallelism as 4 so should be run locally. On the regular github runners 2 should be the max.
+go-releaser-dry-run:
+	@echo "Running GoReleaser in dry-run mode..."
+	docker run \
+		--rm \
+		--env CGO_ENABLED=1 \
+		--env GORELEASER_CURRENT_TAG=${GORELEASER_CURRENT_TAG} \
+		--env-file .release-env \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		-v `pwd`:/go/src/$(PACKAGE_NAME) \
+		-w /go/src/$(PACKAGE_NAME) \
+		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
+		release --snapshot --clean --parallelism 4
+.PHONY: go-releaser-dry-run
 
 ## goreleaser: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
 goreleaser: prebuilt-binary

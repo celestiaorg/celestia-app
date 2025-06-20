@@ -3,9 +3,8 @@ package testnet_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/celestiaorg/celestia-app/v4/test/e2e/testnet"
+	"github.com/stretchr/testify/require"
 )
 
 func TestVersionParsing(t *testing.T) {

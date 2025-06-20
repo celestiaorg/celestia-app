@@ -50,7 +50,7 @@ Users will specify a version (1 byte) and a ID (28 bytes) in their PFB. Addition
 
 ### Criteria 1
 
-The namespace ID must provide at least 72 bits of randomness to satisfy criteria 1. Since an 8 byte namespace ID can only provide 64 bits of randomness, it fail to meet this criteria.
+The namespace ID must provide at least 72 bits of randomness to satisfy criteria 1. Since an 8 byte namespace ID can only provide 64 bits of randomness, it fails to meet this criteria.
 
 | Namespace ID size (bytes) | Criteria 1 |
 |---------------------------|------------|

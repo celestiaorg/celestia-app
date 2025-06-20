@@ -3,11 +3,10 @@ package keeper
 import (
 	"context"
 
+	"github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	"github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 )
 
 var _ types.QueryServer = &Keeper{}

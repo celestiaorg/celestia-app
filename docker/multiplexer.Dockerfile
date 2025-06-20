@@ -64,8 +64,6 @@ RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v3_${TARGETARCH}.tar.g
 
 RUN uname -a &&\
     CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    OVERRIDE_MAX_SQUARE_SIZE=${MAX_SQUARE_SIZE} \
-    OVERRIDE_UPGRADE_HEIGHT_DELAY=${UPGRADE_HEIGHT_DELAY} \
     make build DOWNLOAD=false
 
 # Stage 3: Create a minimal image to run the celestia-appd binary

@@ -12,6 +12,14 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v4/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
+	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -24,16 +32,6 @@ import (
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	"google.golang.org/grpc"
-
-	"github.com/celestiaorg/go-square/v2/share"
-
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v4/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v4/app/params"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 )
 
 const (
@@ -84,13 +82,7 @@ func (e *ExecutionError) Error() string {
 	return fmt.Sprintf("tx execution failed with code %d: %s", e.Code, e.ErrorLog)
 }
 
-// WithDefaultGasPrice sets the gas price.
-func WithDefaultGasPrice(price float64) Option {
-	return func(c *TxClient) {
-		c.defaultGasPrice = price
-	}
-}
-
+// WithPollTime sets a custom polling interval with which to check if a transaction has been submitted
 func WithPollTime(time time.Duration) Option {
 	return func(c *TxClient) {
 		c.pollTime = time
@@ -154,10 +146,9 @@ type TxClient struct {
 	conns []*grpc.ClientConn
 	// how often to poll the network for confirmation of a transaction
 	pollTime time.Duration
-	// defaultGasPrice is the price used if no price is provided
-	defaultGasPrice float64
-	defaultAccount  string
-	defaultAddress  sdktypes.AccAddress
+	// sets the default account with which to submit transactions
+	defaultAccount string
+	defaultAddress sdktypes.AccAddress
 	// txTracker maps the tx hash to the Sequence and signer of the transaction
 	// that was submitted to the chain
 	txTracker           map[string]txInfo
@@ -190,7 +181,6 @@ func NewTxClient(
 		registry:            registry,
 		conns:               []*grpc.ClientConn{conn},
 		pollTime:            DefaultPollTime,
-		defaultGasPrice:     appconsts.DefaultMinGasPrice,
 		defaultAccount:      records[0].Name,
 		defaultAddress:      addr,
 		txTracker:           make(map[string]txInfo),
@@ -248,13 +238,6 @@ func SetupTxClient(
 
 		accounts = append(accounts, NewAccount(record.Name, accNum, seqNum))
 	}
-
-	// query the min gas price from the chain
-	minPrice, err := QueryMinimumGasPrice(ctx, conn)
-	if err != nil {
-		return nil, fmt.Errorf("querying minimum gas price: %w", err)
-	}
-	options = append([]Option{WithDefaultGasPrice(minPrice)}, options...)
 
 	signer, err := NewSigner(keys, encCfg.TxConfig, chainID, accounts...)
 	if err != nil {
@@ -453,10 +436,7 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 
 			resp, err := client.broadcastTx(ctx, conn, txBytes, signer)
 			if err != nil {
-				select {
-				case errCh <- err:
-				case <-ctx.Done():
-				}
+				errCh <- err
 				return
 			}
 
@@ -634,9 +614,6 @@ func (client *TxClient) EstimateGasPriceAndUsage(
 
 // EstimateGasPrice calls the gas estimation endpoint to return the estimated gas price based on priority.
 func (client *TxClient) EstimateGasPrice(ctx context.Context, priority gasestimation.TxPriority) (float64, error) {
-	client.mtx.Lock()
-	defer client.mtx.Unlock()
-
 	resp, err := client.gasEstimationClient.EstimateGasPrice(ctx, &gasestimation.EstimateGasPriceRequest{
 		TxPriority: priority,
 	})
@@ -680,9 +657,21 @@ func (client *TxClient) Account(name string) *Account {
 	return acc.Copy()
 }
 
-func (client *TxClient) AccountByAddress(address sdktypes.AccAddress) *Account {
+// AccountByAddress retrieves the Account associated with the specified address.
+// returns nil if the account is not loaded or if an error occurred while loading.
+func (client *TxClient) AccountByAddress(ctx context.Context, address sdktypes.AccAddress) *Account {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
+
+	accountName := client.signer.accountNameByAddress(address)
+	if accountName == "" {
+		return nil
+	}
+
+	if err := client.checkAccountLoaded(ctx, accountName); err != nil {
+		return nil
+	}
+
 	return client.signer.AccountByAddress(address)
 }
 
@@ -747,12 +736,6 @@ func (client *TxClient) GetTxFromTxTracker(hash string) (sequence uint64, signer
 // Signer exposes the tx clients underlying signer
 func (client *TxClient) Signer() *Signer {
 	return client.signer
-}
-
-func (client *TxClient) SetDefaultGasPrice(price float64) {
-	client.mtx.Lock()
-	defer client.mtx.Unlock()
-	client.defaultGasPrice = price
 }
 
 // QueryMinimumGasPrice queries both the nodes local and network wide

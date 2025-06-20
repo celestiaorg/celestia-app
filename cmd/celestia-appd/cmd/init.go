@@ -10,6 +10,8 @@ import (
 
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/math/unsafe"
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	cometconfig "github.com/cometbft/cometbft/config"
 	comettypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -22,9 +24,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/genutil/types"
 	"github.com/cosmos/go-bip39"
 	"github.com/spf13/cobra"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 const (
@@ -37,7 +36,7 @@ const (
 // InitCmd returns a command that creates the config files and genesis.json for
 // a chain.
 func InitCmd(capp *app.App) *cobra.Command {
-	return initCmd(capp.BasicManager, app.DefaultNodeHome)
+	return initCmd(capp.BasicManager, app.NodeHome)
 }
 
 // initCmd returns a command that initializes all files needed for Tendermint

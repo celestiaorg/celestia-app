@@ -5,12 +5,6 @@ import (
 	"testing"
 	"time"
 
-	abci "github.com/cometbft/cometbft/abci/types"
-	"github.com/stretchr/testify/require"
-
-	square "github.com/celestiaorg/go-square/v2"
-	"github.com/celestiaorg/go-square/v2/share"
-
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
@@ -18,6 +12,10 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	square "github.com/celestiaorg/go-square/v2"
+	"github.com/celestiaorg/go-square/v2/share"
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/stretchr/testify/require"
 )
 
 // TestOutOfOrderNMT tests that the malicious NMT implementation is able to

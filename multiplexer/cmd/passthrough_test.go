@@ -4,11 +4,10 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/require"
-
 	"github.com/celestiaorg/celestia-app/v4/multiplexer/abci"
 	"github.com/celestiaorg/celestia-app/v4/multiplexer/appd"
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewPassthroughCmd(t *testing.T) {
@@ -20,10 +19,9 @@ func TestNewPassthroughCmd(t *testing.T) {
 		expectedOutput string
 	}{
 		{
-			name:           "required arguments not specified",
-			args:           []string{},
-			versions:       []abci.Version{},
-			expectedErrStr: "requires at least 1 arg(s), only received 0",
+			name:     "arguments not specified",
+			args:     []string{},
+			versions: []abci.Version{},
 		},
 		{
 			name: "version not found existing versions",

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	cmttypes "github.com/cometbft/cometbft/types"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
@@ -18,6 +19,7 @@ const (
 )
 
 type genesisDocv1 struct {
+	ChainID         string `json:"chain_id"`
 	ConsensusParams struct {
 		Version struct {
 			AppVersion string `json:"app_version"`
@@ -26,6 +28,7 @@ type genesisDocv1 struct {
 }
 
 type genesisDocv2 struct {
+	ChainID   string `json:"chain_id"`
 	Consensus struct {
 		Params struct {
 			Version struct {
@@ -46,6 +49,11 @@ func GetGenesisVersion(genesisPath string) (GenesisVersion, error) {
 
 	var v1 genesisDocv1
 	if err := json.Unmarshal(genDoc, &v1); err == nil {
+		// The mocha genesis file contains an empty version field so we need to
+		// special case it.
+		if v1.ChainID == appconsts.MochaChainID {
+			return GenesisVersion1, nil
+		}
 		if v1.ConsensusParams.Version.AppVersion != "" {
 			return GenesisVersion1, nil
 		}
