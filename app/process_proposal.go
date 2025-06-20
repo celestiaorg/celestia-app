@@ -24,6 +24,7 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
+// rejectedPropBlockLog is the log message prefix for rejected proposal blocks.
 const rejectedPropBlockLog = "Rejected proposal block:"
 
 func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcessProposal) (resp *abci.ResponseProcessProposal, err error) {

@@ -39,6 +39,7 @@ type genesisDocv2 struct {
 	} `json:"consensus"`
 }
 
+// ErrGenesisNotFound is returned when the genesis file cannot be found.
 var ErrGenesisNotFound = errors.New("genesis not found")
 
 // GetGenesisVersion returns the genesis version for the given genesis path.

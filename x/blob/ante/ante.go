@@ -80,6 +80,7 @@ func validateEnoughGas(msg *types.MsgPayForBlobs, gasPerByte uint32, txGas uint6
 	return nil
 }
 
+// BlobKeeper defines the interface for interacting with blob module parameters.
 type BlobKeeper interface {
 	GetParams(ctx sdk.Context) types.Params
 }
