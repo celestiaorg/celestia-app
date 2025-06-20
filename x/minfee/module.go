@@ -5,15 +5,14 @@ import (
 	"fmt"
 
 	"cosmossdk.io/core/appmodule"
+	"github.com/celestiaorg/celestia-app/v4/x/minfee/keeper"
+	"github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-
-	"github.com/celestiaorg/celestia-app/v4/x/minfee/keeper"
-	"github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 )
 
 var (

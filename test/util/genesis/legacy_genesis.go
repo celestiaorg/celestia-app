@@ -7,15 +7,14 @@ import (
 	"os"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	maps "github.com/celestiaorg/celestia-app/v4/internal/utils"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
-
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	maps "github.com/celestiaorg/celestia-app/v4/internal/utils"
 )
 
 // DocumentLegacyBytes generates a legacy genesis document as bytes by combining various input configurations and state data.

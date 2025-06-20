@@ -1,9 +1,8 @@
 package app
 
 import (
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // MaxEffectiveSquareSize returns the max effective square size.
