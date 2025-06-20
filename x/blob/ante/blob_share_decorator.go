@@ -79,7 +79,7 @@ func (d BlobShareDecorator) getMaxBlobShares(ctx sdk.Context) int {
 // getMaxSquareSize returns the max effective square size.
 func (d BlobShareDecorator) getMaxSquareSize(ctx sdk.Context) int {
 	govMax := d.k.GetParams(ctx).GovMaxSquareSize
-	hardMax := appconsts.SquareSizeUpperBound
+	hardMax := appconsts.GetSquareSizeUpperBound(ctx.ChainID())
 	return min(int(govMax), hardMax)
 }
 

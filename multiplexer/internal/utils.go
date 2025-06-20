@@ -27,17 +27,6 @@ type genesisDocv1 struct {
 	} `json:"consensus_params"`
 }
 
-type genesisDocv2 struct {
-	ChainID   string `json:"chain_id"`
-	Consensus struct {
-		Params struct {
-			Version struct {
-				App string `json:"app"`
-			} `json:"version"`
-		} `json:"params"`
-	} `json:"consensus"`
-}
-
 var ErrGenesisNotFound = errors.New("genesis not found")
 
 // GetGenesisVersion returns the genesis version for the given genesis path.
@@ -59,14 +48,7 @@ func GetGenesisVersion(genesisPath string) (GenesisVersion, error) {
 		}
 	}
 
-	var v2 genesisDocv2
-	if err := json.Unmarshal(genDoc, &v2); err == nil {
-		if v2.Consensus.Params.Version.App != "" {
-			return GenesisVersion2, nil
-		}
-	}
-
-	return 0, errors.New("failed to determine genesis version")
+	return GenesisVersion2, nil
 }
 
 // GetGenDocProvider returns a function which returns the genesis doc from the genesis file.
