@@ -91,6 +91,7 @@ func WithPollTime(time time.Duration) Option {
 	}
 }
 
+// WithDefaultAddress sets the default address for the TxClient using the provided address.
 func WithDefaultAddress(address sdktypes.AccAddress) Option {
 	return func(c *TxClient) {
 		record, err := c.signer.keys.KeyByAddress(address)
@@ -102,6 +103,7 @@ func WithDefaultAddress(address sdktypes.AccAddress) Option {
 	}
 }
 
+// WithDefaultAccount sets the default account for the TxClient using the provided account name.
 func WithDefaultAccount(name string) Option {
 	return func(c *TxClient) {
 		rec, err := c.signer.keys.Key(name)
