@@ -4,9 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
 	"github.com/celestiaorg/celestia-app/v4/x/minfee/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // InitGenesis initializes the blob module's state from a provided genesis state.

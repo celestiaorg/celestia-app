@@ -4,7 +4,7 @@ go 1.23.6
 
 require (
 	github.com/celestiaorg/celestia-app/v4 v4.0.0
-	github.com/celestiaorg/go-square/v2 v2.2.0
+	github.com/celestiaorg/go-square/v2 v2.3.0
 	github.com/celestiaorg/tastora v0.0.0-20250515081551-795e795a49c7
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/docker/docker v28.2.2+incompatible
@@ -72,6 +72,7 @@ require (
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/bgentry/speakeasy v0.2.0 // indirect
 	github.com/bits-and-blooms/bitset v1.17.0 // indirect
+	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
 	github.com/bytedance/sonic v1.13.1 // indirect
 	github.com/bytedance/sonic/loader v0.2.4 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
@@ -222,6 +223,7 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d // indirect
 	github.com/tendermint/go-amino v0.16.0 // indirect
+	github.com/tendermint/tendermint v0.0.0-00010101000000-000000000000 // indirect
 	github.com/tidwall/btree v1.7.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ulikunitz/xz v0.5.12 // indirect
@@ -273,7 +275,7 @@ replace (
 
 	github.com/celestiaorg/celestia-app/v4 => ../..
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.54.1-tm-v0.38.17
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.2-sdk-v0.50.12
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.3-sdk-v0.50.12
 
 	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
 	// goleveldb: canonical version

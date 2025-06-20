@@ -4,9 +4,8 @@ import (
 	"fmt"
 
 	"cosmossdk.io/math"
-	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
-
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
 
 // TODO: this file can be removed once the upgrade to self managed modules has been completed.

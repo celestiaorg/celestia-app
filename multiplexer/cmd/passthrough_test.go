@@ -4,11 +4,10 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/require"
-
 	"github.com/celestiaorg/celestia-app/v4/multiplexer/abci"
 	"github.com/celestiaorg/celestia-app/v4/multiplexer/appd"
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewPassthroughCmd(t *testing.T) {

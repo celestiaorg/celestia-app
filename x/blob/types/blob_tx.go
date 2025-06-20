@@ -4,14 +4,13 @@ import (
 	"bytes"
 	"slices"
 
+	"github.com/celestiaorg/go-square/v2/inclusion"
+	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-
-	"github.com/celestiaorg/go-square/v2/inclusion"
-	"github.com/celestiaorg/go-square/v2/share"
-	"github.com/celestiaorg/go-square/v2/tx"
 )
 
 // NewV0Blob creates a new V0 Blob from a provided namespace and data.
