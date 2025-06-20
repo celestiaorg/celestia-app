@@ -66,7 +66,6 @@ func (AppModule) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *runtim
 }
 
 // GetQueryCmd returns the CLI query commands for this module.
-// TODO(@julienrbrt): Use AutoCLI
 func (AppModule) GetQueryCmd() *cobra.Command {
 	return cli.GetQueryCmd()
 }

@@ -87,7 +87,6 @@ func (AppModule) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *runtim
 }
 
 // GetQueryCmd returns the root query command for the mint module.
-// TODO(@julienrbrt): Rewrite using AutoCLI
 func (AppModule) GetQueryCmd() *cobra.Command {
 	return cli.GetQueryCmd()
 }

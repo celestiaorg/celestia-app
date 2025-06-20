@@ -89,7 +89,6 @@ func (AppModule) GetTxCmd() *cobra.Command {
 }
 
 // GetQueryCmd returns the blob module's root query command.
-// TODO(@julienrbrt): Use AutoCLI
 func (AppModule) GetQueryCmd() *cobra.Command {
 	return cli.GetQueryCmd()
 }

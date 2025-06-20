@@ -64,6 +64,8 @@ func NewDataAvailabilityHeader(eds *rsmt2d.ExtendedDataSquare) (DataAvailability
 	return dah, nil
 }
 
+// ExtendShares extends the provided shares into an extended data square using Reed-Solomon encoding.
+// The number of input shares must be a power of 2.
 func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 	// Check that the length of the square is a power of 2.
 	if !square.IsPowerOfTwo(len(s)) {
