@@ -19,6 +19,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+// DefaultSeed is the default seed value used for deterministic randomness in transaction simulation.
 const DefaultSeed = 900183116
 
 const (

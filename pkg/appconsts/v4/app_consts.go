@@ -3,6 +3,7 @@ package v4
 import "time"
 
 const (
+	// Version is the version of the application for v4.
 	Version uint64 = 4
 	// SquareSizeUpperBound imposes an upper bound on the max effective square size.
 	SquareSizeUpperBound int = 128
@@ -15,11 +16,16 @@ const (
 	//
 	// The rationale for this value is described in more detail in ADR-013.
 	SubtreeRootThreshold int    = 64
-	TxSizeCostPerByte    uint64 = 10
-	GasPerBlobByte       uint32 = 8
-	MaxTxSize            int    = 2097152 // 2 MiB in bytes
-	TimeoutPropose              = time.Millisecond * 3500
-	TimeoutCommit               = time.Millisecond * 4200
+	// TxSizeCostPerByte is the cost per byte for transactions.
+	TxSizeCostPerByte uint64 = 10
+	// GasPerBlobByte is the gas cost per blob byte.
+	GasPerBlobByte uint32 = 8
+	// MaxTxSize is the maximum transaction size in bytes.
+	MaxTxSize int = 2097152 // 2 MiB in bytes
+	// TimeoutPropose is the timeout for proposing a block.
+	TimeoutPropose = time.Millisecond * 3500
+	// TimeoutCommit is the timeout for committing a block.
+	TimeoutCommit = time.Millisecond * 4200
 	// UpgradeHeightDelay is the number of blocks after a quorum has been
 	// reached that the chain should upgrade to the new version. Assuming a block
 	// interval of 6 seconds, this is 7 days.

@@ -32,10 +32,13 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// ChainID is the chain ID used for testing.
 const ChainID = testfactory.ChainID
 
 var (
-	GenesisTime   = time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+	// GenesisTime is the fixed genesis time used for testing.
+	GenesisTime = time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+	// TestAppLogger is the logger instance used for test applications.
 	TestAppLogger = log.NewLogger(
 		os.Stdout,
 		log.ColorOption(false),

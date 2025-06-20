@@ -22,6 +22,7 @@ var (
 	TimeoutPropose       = v4.TimeoutPropose
 )
 
+// GetTimeoutCommit returns the timeout for committing a block.
 func GetTimeoutCommit(_ uint64) time.Duration {
 	return v4.TimeoutCommit
 }

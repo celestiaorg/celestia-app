@@ -33,4 +33,6 @@ const (
 	DefaultNetworkMinGasPrice = 0.000001 // utia
 )
 
+// DefaultUpperBoundMaxBytes is the default upper bound for the maximum number of bytes
+// allowed in a valid block, calculated based on the maximum square size.
 var DefaultUpperBoundMaxBytes = SquareSizeUpperBound * SquareSizeUpperBound * share.ContinuationSparseShareContentSize

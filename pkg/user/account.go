@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc"
 )
 
+// Account represents a user account with signing capabilities.
 type Account struct {
 	name          string
 	address       types.AccAddress
@@ -20,6 +21,7 @@ type Account struct {
 	sequence uint64
 }
 
+// NewAccount creates a new Account with the given key name, account number, and sequence number.
 func NewAccount(keyName string, accountNumber, sequenceNumber uint64) *Account {
 	return &Account{
 		name:          keyName,
@@ -28,18 +30,22 @@ func NewAccount(keyName string, accountNumber, sequenceNumber uint64) *Account {
 	}
 }
 
+// Name returns the account's key name.
 func (a Account) Name() string {
 	return a.name
 }
 
+// Address returns the account's address.
 func (a Account) Address() types.AccAddress {
 	return a.address
 }
 
+// PubKey returns the account's public key.
 func (a Account) PubKey() cryptotypes.PubKey {
 	return a.pubKey
 }
 
+// AccountNumber returns the account's number.
 func (a Account) AccountNumber() uint64 {
 	return a.accountNumber
 }
@@ -50,6 +56,7 @@ func (a Account) Sequence() uint64 {
 	return a.sequence
 }
 
+// Copy creates a deep copy of the account.
 func (a *Account) Copy() *Account {
 	return &Account{
 		name:          a.name,

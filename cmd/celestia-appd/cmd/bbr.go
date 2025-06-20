@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// FlagForceNoBBR is the flag to force disable BBR (Bottleneck Bandwidth and Round-trip propagation time) checking.
 const FlagForceNoBBR = "force-no-bbr"
 
 // checkBBR checks if BBR is enabled.

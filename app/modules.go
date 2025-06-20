@@ -178,6 +178,7 @@ func (app *App) setModuleOrder() {
 	)
 }
 
+// allStoreKeys returns all the store keys used by the application modules.
 func allStoreKeys() []string {
 	return []string{
 		authtypes.StoreKey,

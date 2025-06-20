@@ -15,6 +15,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+// TxInclusionQueryPath is the path for querying transaction inclusion proofs.
 const TxInclusionQueryPath = "txInclusionProof"
 
 // Querier defines the logic performed when the ABCI client using the Query
@@ -62,6 +63,7 @@ func QueryTxInclusionProof(_ sdk.Context, path []string, req *abci.RequestQuery)
 	return rawShareProof, nil
 }
 
+// ShareInclusionQueryPath is the path for querying share inclusion proofs.
 const ShareInclusionQueryPath = "shareInclusionProof"
 
 // QueryShareInclusionProof defines the logic performed when querying for the
