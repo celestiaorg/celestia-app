@@ -247,7 +247,7 @@ func flags() *flag.FlagSet {
 	flags.IntVar(&blobShareVersion, "blob-share-version", -1, "optionally specify a share version to use for the blob sequences")
 	flags.Uint64Var(&gasLimit, "gas-limit", 0, "custom gas limit to use for transactions (0 = auto-estimate)")
 	flags.Float64Var(&gasPrice, "gas-price", 0, "custom gas price to use for transactions (0 = use default)")
-	flags.StringArrayVar(&namespaces, "namespaces", []string{}, "define namespace(s) to use for blob submission -- MUST BE PROVIDED IN HEX FORMAT")
+	flags.StringArrayVar(&namespaces, "namespace", []string{}, "define namespace to use for blob submission -- MUST BE PROVIDED IN HEX FORMAT. Can define multiple namespaces for submission just by passing --namespace several times. Provided namespaces will be used at random.")
 	return flags
 }
 
