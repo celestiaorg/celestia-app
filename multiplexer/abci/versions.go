@@ -79,13 +79,13 @@ func (v Versions) ShouldUseLatestApp(appVersion uint64) bool {
 // It includes default flags required for standalone apps,
 // by the multiplexer, and any additional flags specified in StartArgs.
 func (v Version) GetStartArgs() []string {
-	return append([]string{
+	return append(v.StartArgs, []string{
 		"--grpc.enable",
 		"--api.enable",
 		"--api.swagger=false",
 		"--with-tendermint=false",
 		"--transport=grpc",
-	}, v.StartArgs...)
+	}...)
 }
 
 // Validate checks for duplicate app versions in a slice of Versions.
