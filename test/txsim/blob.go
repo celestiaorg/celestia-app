@@ -21,7 +21,7 @@ const fundsForGas int = 1e9 // 1000 TIA
 // BlobSequence defines a pattern whereby a single user repeatedly sends a pay for blob
 // message roughly every height. The PFB may consist of several blobs
 type BlobSequence struct {
-	namespace     share.Namespace
+	namespaces    []share.Namespace
 	sizes         Range
 	blobsPerPFB   Range
 	shareVersions []uint8
@@ -38,10 +38,10 @@ func NewBlobSequence(sizes, blobsPerPFB Range) *BlobSequence {
 	}
 }
 
-// WithNamespace provides the option of fixing a predefined namespace for
+// WithNamespaces provides the option of fixing a set of predefined namespaces for
 // all blobs.
-func (s *BlobSequence) WithNamespace(namespace share.Namespace) *BlobSequence {
-	s.namespace = namespace
+func (s *BlobSequence) WithNamespaces(namespaces []share.Namespace) *BlobSequence {
+	s.namespaces = namespaces
 	return s
 }
 
@@ -59,7 +59,7 @@ func (s *BlobSequence) Clone(n int) []Sequence {
 	sequenceGroup := make([]Sequence, n)
 	for i := 0; i < n; i++ {
 		sequenceGroup[i] = &BlobSequence{
-			namespace:     s.namespace,
+			namespaces:    s.namespaces,
 			sizes:         s.sizes,
 			blobsPerPFB:   s.blobsPerPFB,
 			shareVersions: s.shareVersions,
@@ -82,8 +82,9 @@ func (s *BlobSequence) Next(_ context.Context, _ grpc.ClientConn, rand *rand.Ran
 	sizes := make([]int, numBlobs)
 	namespaces := make([]share.Namespace, numBlobs)
 	for i := range sizes {
-		if s.namespace.Bytes() != nil {
-			namespaces[i] = s.namespace
+		if len(s.namespaces) > 0 {
+			randIdx := rand.Intn(len(s.namespaces))
+			namespaces[i] = s.namespaces[randIdx]
 		} else {
 			// generate a random namespace for the blob
 			namespace := make([]byte, share.NamespaceVersionZeroIDSize)
