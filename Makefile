@@ -84,8 +84,12 @@ download-v3-binaries:
 
 ## mod: Update all go.mod files.
 mod:
-	@echo "Running go mod tidy in all modules"
-	@find . -type f -name 'go.mod' -execdir go mod tidy \;
+	@echo "--> Updating go.mod"
+	@go mod tidy
+	@echo "--> Updating go.mod in ./test/interchain"
+	@(cd ./test/interchain && go mod tidy)
+	@echo "--> Updating go.mod in ./test/docker-e2e/go.mod"
+	@(cd ./test/docker-e2e && go mod tidy)
 .PHONY: mod
 
 ## mod-verify: Verify dependencies have expected content.
@@ -291,9 +295,6 @@ txsim-build:
 txsim-build-docker:
 	docker build -t ghcr.io/celestiaorg/txsim -f docker/txsim/Dockerfile  .
 .PHONY: txsim-build-docker
-
-VERSION := $(shell git describe --tags --dirty --always)
-COMMIT  := $(shell git rev-parse HEAD)
 
 ## build-talis-bins: Build celestia-appd and txsim binaries for talis VMs (ubuntu 22.04 LTS)
 build-talis-bins:
