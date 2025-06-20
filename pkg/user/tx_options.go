@@ -10,8 +10,10 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
+// TxOption is a function that configures a transaction builder.
 type TxOption func(builder sdkclient.TxBuilder) sdkclient.TxBuilder
 
+// SetGasLimit sets the gas limit for a transaction.
 func SetGasLimit(limit uint64) TxOption {
 	return func(builder sdkclient.TxBuilder) sdkclient.TxBuilder {
 		builder.SetGasLimit(limit)
@@ -19,6 +21,7 @@ func SetGasLimit(limit uint64) TxOption {
 	}
 }
 
+// SetFee sets the fee amount for a transaction.
 func SetFee(fees uint64) TxOption {
 	return func(builder sdkclient.TxBuilder) sdkclient.TxBuilder {
 		builder.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(int64(fees)))))
@@ -26,6 +29,7 @@ func SetFee(fees uint64) TxOption {
 	}
 }
 
+// SetMemo sets the memo for a transaction.
 func SetMemo(memo string) TxOption {
 	return func(builder sdkclient.TxBuilder) sdkclient.TxBuilder {
 		builder.SetMemo(memo)
@@ -33,6 +37,7 @@ func SetMemo(memo string) TxOption {
 	}
 }
 
+// SetFeePayer sets the fee payer address for a transaction.
 func SetFeePayer(feePayer sdk.AccAddress) TxOption {
 	return func(builder sdkclient.TxBuilder) sdkclient.TxBuilder {
 		builder.SetFeePayer(feePayer)
@@ -40,6 +45,7 @@ func SetFeePayer(feePayer sdk.AccAddress) TxOption {
 	}
 }
 
+// SetTimeoutHeight sets the timeout height for a transaction.
 func SetTimeoutHeight(height uint64) TxOption {
 	return func(builder sdkclient.TxBuilder) sdkclient.TxBuilder {
 		builder.SetTimeoutHeight(height)
@@ -47,6 +53,7 @@ func SetTimeoutHeight(height uint64) TxOption {
 	}
 }
 
+// SetFeeGranter sets the fee granter address for a transaction.
 func SetFeeGranter(feeGranter sdk.AccAddress) TxOption {
 	return func(builder sdkclient.TxBuilder) sdkclient.TxBuilder {
 		builder.SetFeeGranter(feeGranter)

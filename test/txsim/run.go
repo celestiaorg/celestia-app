@@ -20,6 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 )
 
+// DefaultSeed is the default seed value used for deterministic randomness in transaction simulation.
 const DefaultSeed = 900183116
 
 const (
