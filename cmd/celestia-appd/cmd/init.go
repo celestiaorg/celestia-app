@@ -105,6 +105,24 @@ func initCmd(basicManager module.BasicManager, defaultNodeHome string) *cobra.Co
 				return fmt.Errorf("genesis.json file already exists: %v", genesisFile)
 			}
 
+			if app.IsKnownChainID(chainID) {
+				fmt.Println("Warning: You are initializing a public chain. This is a very rare edge case and will likely result in a fork. Please be sure you know what you are doing.")
+				fmt.Println("Attempting to download the genesis for the chain...")
+				err := app.DownloadGenesis(chainID, config.GenesisFile())
+				if err != nil {
+					return err
+				}
+				fmt.Println("Using downloaded genesis file for known chain:", chainID)
+				appGenesis, err := types.AppGenesisFromFile(genesisFile)
+				if err != nil {
+					return errorsmod.Wrap(err, "Failed to read downloaded genesis file")
+				}
+
+				cometconfig.WriteConfigFile(filepath.Join(config.RootDir, "config", "config.toml"), config)
+				toPrint := newPrintInfo(config.Moniker, chainID, nodeID, "", appGenesis.AppState)
+				return displayInfo(toPrint)
+			}
+
 			appGenesisState := basicManager.DefaultGenesis(codec)
 			appState, err := json.MarshalIndent(appGenesisState, "", " ")
 			if err != nil {
