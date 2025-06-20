@@ -6,6 +6,7 @@ import (
 
 	"cosmossdk.io/errors"
 	storetypes "cosmossdk.io/store/types"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/codec/legacy"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -16,8 +17,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 var (

@@ -9,6 +9,11 @@ import (
 	"cosmossdk.io/x/circuit"
 	circuittypes "cosmossdk.io/x/circuit/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	appconstsv4 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
+	"github.com/celestiaorg/celestia-app/v4/x/mint"
+	minttypes "github.com/celestiaorg/celestia-app/v4/x/mint/types"
 	tmcfg "github.com/cometbft/cometbft/config"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
@@ -31,12 +36,6 @@ import (
 	ibc "github.com/cosmos/ibc-go/v8/modules/core"
 	ibcclienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
 	ibctypes "github.com/cosmos/ibc-go/v8/modules/core/types"
-
-	"github.com/celestiaorg/celestia-app/v4/app/params"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	appconstsv4 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
-	"github.com/celestiaorg/celestia-app/v4/x/mint"
-	minttypes "github.com/celestiaorg/celestia-app/v4/x/mint/types"
 )
 
 const (

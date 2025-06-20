@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"sort"
 
-	"google.golang.org/protobuf/proto"
-
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	"github.com/celestiaorg/go-square/v2/share"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"google.golang.org/protobuf/proto"
 )
 
 type ExportFn func(builder *square.Builder) (square.Square, error)

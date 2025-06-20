@@ -10,6 +10,9 @@ import (
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 	cmttypes "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -30,10 +33,6 @@ import (
 	ibcclienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
 	ibcconnectiontypes "github.com/cosmos/ibc-go/v8/modules/core/03-connection/types"
 	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 )
 
 const tia = int64(1_000_000) // 1 TIA = 1_000_000 utia

@@ -9,15 +9,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cometbft/cometbft/proto/tendermint/blocksync"
-	"github.com/cosmos/cosmos-sdk/types"
-	"github.com/stretchr/testify/assert"
-
-	"github.com/celestiaorg/go-square/v2/tx"
-
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	"github.com/celestiaorg/go-square/v2/tx"
+	"github.com/cometbft/cometbft/proto/tendermint/blocksync"
+	"github.com/cosmos/cosmos-sdk/types"
+	"github.com/stretchr/testify/assert"
 )
 
 // TestDecodeBlobTx demonstrates how one can take the response from the
