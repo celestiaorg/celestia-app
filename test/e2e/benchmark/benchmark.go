@@ -7,13 +7,11 @@ import (
 	"log"
 	"time"
 
-	"github.com/cometbft/cometbft/libs/trace"
-
-	"github.com/celestiaorg/knuu/pkg/knuu"
-
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/test/e2e/testnet"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	"github.com/celestiaorg/knuu/pkg/knuu"
+	"github.com/cometbft/cometbft/libs/trace"
 )
 
 const timeFormat = "20060102_150405"
