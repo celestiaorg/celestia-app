@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -16,24 +14,22 @@ import (
 	"github.com/cometbft/cometbft/rpc/core"
 	"github.com/cosmos/cosmos-sdk/client"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
-	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
-	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	"google.golang.org/grpc"
 
 	"github.com/celestiaorg/go-square/v2/share"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
 
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v4/app/errors"
 	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
 	"github.com/celestiaorg/celestia-app/v4/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v4/app/params"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 )
 
 const (
@@ -42,47 +38,6 @@ const (
 )
 
 type Option func(client *TxClient)
-
-// txInfo is a struct that holds the sequence and the signer of a transaction
-// in the local tx pool.
-type txInfo struct {
-	sequence  uint64
-	signer    string
-	timestamp time.Time
-}
-
-// TxResponse is a response from the chain after
-// a transaction has been submitted.
-type TxResponse struct {
-	// Height is the block height at which the transaction was included on-chain.
-	Height int64
-	TxHash string
-	Code   uint32
-}
-
-// BroadcastTxError is an error that occurs when broadcasting a transaction.
-type BroadcastTxError struct {
-	TxHash string
-	Code   uint32
-	// ErrorLog is the error output of the app's logger
-	ErrorLog string
-}
-
-func (e *BroadcastTxError) Error() string {
-	return fmt.Sprintf("broadcast tx error: %s", e.ErrorLog)
-}
-
-// ExecutionError is an error that occurs when a transaction gets executed.
-type ExecutionError struct {
-	TxHash string
-	Code   uint32
-	// ErrorLog is the error output of the app's logger
-	ErrorLog string
-}
-
-func (e *ExecutionError) Error() string {
-	return fmt.Sprintf("tx execution failed with code %d: %s", e.Code, e.ErrorLog)
-}
 
 // WithPollTime sets a custom polling interval with which to check if a transaction has been submitted
 func WithPollTime(time time.Duration) Option {
@@ -135,6 +90,15 @@ func WithAdditionalCoreEndpoints(conns []*grpc.ClientConn) Option {
 	}
 }
 
+// InTrustedMode sets the TxClient to trust the consensus node for all
+// information such as sequence numbers. This in turn, makes the TxClient
+// far more reliable
+func InTrustedMode() Option {
+	return func(c *TxClient) {
+		c.trusted = true
+	}
+}
+
 // TxClient is an abstraction for building, signing, and broadcasting Celestia transactions
 // It supports multiple accounts. If none is specified, it will
 // try to use the default account.
@@ -152,9 +116,12 @@ type TxClient struct {
 	defaultAccount string
 	defaultAddress sdktypes.AccAddress
 	// txTracker maps the tx hash to the Sequence and signer of the transaction
-	// that was submitted to the chain
+	// that was submitted to the chain. This is only used in non-trusted mode.
 	txTracker           map[string]txInfo
 	gasEstimationClient gasestimation.GasEstimatorClient
+	// in trusted mode, the tx client relies on the consensus node for all
+	// information such as sequence numbers.
+	trusted bool
 }
 
 // NewTxClient returns a new signer using the provided keyring
@@ -396,6 +363,22 @@ func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, 
 		return nil, err
 	}
 	if resp.TxResponse.Code != abci.CodeTypeOK {
+		// in trusted mode, we read the expected sequence number from the raw log
+		// and update the sequence number to the expected sequence number and resubmit the transaction
+		if apperrors.IsNonceMismatchCode(resp.TxResponse.Code) && client.trusted {
+			nonce, err := apperrors.ParseExpectedSequence(resp.TxResponse.RawLog)
+			if err != nil {
+				return nil, err
+			}
+
+			// update to the expected sequence number and resubmit the transaction
+			if err := client.signer.SetSequence(signer, nonce); err != nil {
+				return nil, err
+			}
+
+			return client.retryBroadcastingTx(ctx, conn, txBytes)
+		}
+
 		broadcastTxErr := &BroadcastTxError{
 			TxHash:   resp.TxResponse.TxHash,
 			Code:     resp.TxResponse.Code,
@@ -406,10 +389,12 @@ func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, 
 
 	// save the sequence and signer of the transaction in the local txTracker
 	// before the sequence is incremented
-	client.txTracker[resp.TxResponse.TxHash] = txInfo{
-		sequence:  client.signer.accounts[signer].Sequence(),
-		signer:    signer,
-		timestamp: time.Now(),
+	if !client.trusted {
+		client.txTracker[resp.TxResponse.TxHash] = txInfo{
+			sequence:  client.signer.accounts[signer].Sequence(),
+			signer:    signer,
+			timestamp: time.Now(),
+		}
 	}
 
 	// after the transaction has been submitted, we can increment the
@@ -535,6 +520,10 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 // It removes the evicted transaction from the local tx tracker without incrementing
 // the signer's sequence.
 func (client *TxClient) handleEvictions(txHash string) error {
+	if client.trusted {
+		return nil
+	}
+
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 	// Get transaction from the local tx tracker
@@ -553,6 +542,9 @@ func (client *TxClient) handleEvictions(txHash string) error {
 
 // deleteFromTxTracker safely deletes a transaction from the local tx tracker.
 func (client *TxClient) deleteFromTxTracker(txHash string) {
+	if client.trusted {
+		return
+	}
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 	delete(client.txTracker, txHash)
@@ -727,6 +719,63 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 	return record.Name, nil
 }
 
+// retryBroadcastingTx creates a new transaction by copying over an existing transaction but creates a new signature with the
+// new sequence number. It then calls `broadcastTx` and attempts to submit the transaction
+func (client *TxClient) retryBroadcastingTx(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
+	blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(txBytes)
+	if err != nil {
+		return nil, err
+	}
+	if isBlobTx {
+		txBytes = blobTx.Tx
+	}
+	tx, err := client.signer.DecodeTx(txBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	opts := make([]TxOption, 0)
+	if granter := tx.FeeGranter(); granter != nil {
+		opts = append(opts, SetFeeGranter(granter))
+	}
+	if payer := tx.FeePayer(); payer != nil {
+		opts = append(opts, SetFeePayer(payer))
+	}
+	if memo := tx.GetMemo(); memo != "" {
+		opts = append(opts, SetMemo(memo))
+	}
+	if fee := tx.GetFee(); fee != nil {
+		opts = append(opts, SetFee(fee.AmountOf(appconsts.BondDenom).Uint64()))
+	}
+	if gas := tx.GetGas(); gas > 0 {
+		opts = append(opts, SetGasLimit(gas))
+	}
+
+	txBuilder, err := client.signer.txBuilder(tx.GetMsgs(), opts...)
+	if err != nil {
+		return nil, err
+	}
+	signer, _, err := client.signer.signTransaction(txBuilder)
+	if err != nil {
+		return nil, fmt.Errorf("resigning transaction: %w", err)
+	}
+
+	newTxBytes, err := client.signer.EncodeTx(txBuilder.GetTx())
+	if err != nil {
+		return nil, err
+	}
+
+	// rewrap the blob tx if it was originally a blob tx
+	if isBlobTx {
+		newTxBytes, err = blobtx.MarshalBlobTx(newTxBytes, blobTx.Blobs...)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return client.broadcastTx(ctx, conn, newTxBytes, signer)
+}
+
 // GetTxFromTxTracker gets transaction info from the tx client's local tx tracker by its hash
 func (client *TxClient) GetTxFromTxTracker(hash string) (sequence uint64, signer string, exists bool) {
 	client.mtx.Lock()
@@ -740,50 +789,43 @@ func (client *TxClient) Signer() *Signer {
 	return client.signer
 }
 
-// QueryMinimumGasPrice queries both the nodes local and network wide
-// minimum gas prices, returning the maximum of the two.
-func QueryMinimumGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float64, error) {
-	cfgRsp, err := nodeservice.NewServiceClient(grpcConn).Config(ctx, &nodeservice.ConfigRequest{})
-	if err != nil {
-		return 0, err
-	}
-
-	localMinCoins, err := sdktypes.ParseDecCoins(cfgRsp.MinimumGasPrice)
-	if err != nil {
-		return 0, err
-	}
-	localMinPrice := localMinCoins.AmountOf(params.BondDenom).MustFloat64()
-
-	networkMinPrice, err := QueryNetworkMinGasPrice(ctx, grpcConn)
-	if err != nil {
-		// check if the network version supports a global min gas
-		// price using a regex check. If not (i.e. v1) use the
-		// local price only
-		if strings.Contains(err.Error(), "unknown subspace: minfee") {
-			return localMinPrice, nil
-		}
-		return 0, err
-	}
-
-	// return the highest value of the two
-	return max(localMinPrice, networkMinPrice), nil
+// txInfo is a struct that holds the sequence and the signer of a transaction
+// in the local tx pool.
+type txInfo struct {
+	sequence  uint64
+	signer    string
+	timestamp time.Time
 }
 
-func QueryNetworkMinGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float64, error) {
-	paramsClient := paramtypes.NewQueryClient(grpcConn)
-	// NOTE: that we don't prove that this is the correct value
-	paramResponse, err := paramsClient.Params(ctx, &paramtypes.QueryParamsRequest{Subspace: minfeetypes.ModuleName, Key: string(minfeetypes.KeyNetworkMinGasPrice)})
-	if err != nil {
-		return 0, fmt.Errorf("querying params module: %w", err)
-	}
+// TxResponse is a response from the chain after
+// a transaction has been submitted.
+type TxResponse struct {
+	// Height is the block height at which the transaction was included on-chain.
+	Height int64
+	TxHash string
+	Code   uint32
+}
 
-	var networkMinPrice float64
-	// Value is empty if network min gas price is not supported i.e. v1 state machine.
-	if paramResponse.Param.Value != "" {
-		networkMinPrice, err = strconv.ParseFloat(strings.Trim(paramResponse.Param.Value, `"`), 64)
-		if err != nil {
-			return 0, fmt.Errorf("parsing network min gas price: %w", err)
-		}
-	}
-	return networkMinPrice, nil
+// BroadcastTxError is an error that occurs when broadcasting a transaction.
+type BroadcastTxError struct {
+	TxHash string
+	Code   uint32
+	// ErrorLog is the error output of the app's logger
+	ErrorLog string
+}
+
+func (e *BroadcastTxError) Error() string {
+	return fmt.Sprintf("broadcast tx error: %s", e.ErrorLog)
+}
+
+// ExecutionError is an error that occurs when a transaction gets executed.
+type ExecutionError struct {
+	TxHash string
+	Code   uint32
+	// ErrorLog is the error output of the app's logger
+	ErrorLog string
+}
+
+func (e *ExecutionError) Error() string {
+	return fmt.Sprintf("tx execution failed with code %d: %s", e.Code, e.ErrorLog)
 }
