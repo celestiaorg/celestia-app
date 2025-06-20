@@ -4,7 +4,9 @@ package appd
 
 import (
 	"bytes"
+	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"testing"
 
@@ -102,4 +104,24 @@ func createMockExecutable(t *testing.T, bashCommand string) string {
 	require.NoError(t, os.Chmod(tmpFile.Name(), 0o755))
 
 	return tmpFile.Name()
+}
+
+// TestSetupCmd covers environment variables are inherited by the child process
+func TestSetupCmd(t *testing.T) {
+	t.Run("EnvVarPropagation", func(t *testing.T) {
+		key, val := "TEST_ENV_VAR", "42"
+		require.NoError(t, os.Setenv(key, val))
+		defer os.Unsetenv(key)
+
+		// prepare the command: wrap the var in quotes so we know it came through
+		cmd := exec.Command("bash", "-c", fmt.Sprintf("echo -n \"\\\"$%s\\\"\"", key))
+
+		// now invoke your function under test
+		cmd = setupCmd(cmd)
+
+		// run it and inspect the output
+		out, err := cmd.Output()
+		require.NoError(t, err)
+		assert.Equal(t, fmt.Sprintf("\"%s\"", val), string(out))
+	})
 }
