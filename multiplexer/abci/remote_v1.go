@@ -2,6 +2,7 @@ package abci
 
 import (
 	"context"
+	"fmt"
 	"math"
 
 	abciv2 "github.com/cometbft/cometbft/abci/types"
@@ -231,6 +232,10 @@ func (a *RemoteABCIClientV1) Info(req *abciv2.RequestInfo) (*abciv2.ResponseInfo
 
 // InitChain implements abciv2.ABCI
 func (a *RemoteABCIClientV1) InitChain(req *abciv2.RequestInitChain) (*abciv2.ResponseInitChain, error) {
+	fmt.Printf("InitChain request: %+v\n", req)
+	fmt.Printf("InitChain request.ConsensusParams.Version.AppVersion : %v\n", req.ConsensusParams.Version.App)
+	fmt.Printf("InitChain request.ConsensusParams.v1.Version.AppVersion: %v\n", consensusParamsV2ToV1(req.ConsensusParams).Version.AppVersion)
+
 	resp, err := a.ABCIApplicationClient.InitChain(context.Background(), &abciv1.RequestInitChain{
 		Time:            req.Time,
 		ChainId:         req.ChainId,
@@ -239,6 +244,11 @@ func (a *RemoteABCIClientV1) InitChain(req *abciv2.RequestInitChain) (*abciv2.Re
 		AppStateBytes:   req.AppStateBytes,
 		InitialHeight:   req.InitialHeight,
 	}, grpc.WaitForReady(true))
+
+	fmt.Printf("InitChain response: %+v\n", resp)
+	fmt.Printf("InitChain response.ConsensusParams.Version.AppVersion : %v\n", resp.ConsensusParams.Version.AppVersion)
+	fmt.Printf("InitChain response.ConsensusParams.v2.Version.App: %v\n", consensusParamsV1ToV2(resp.ConsensusParams).Version.App)
+
 	if err != nil {
 		return nil, err
 	}
