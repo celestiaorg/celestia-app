@@ -64,7 +64,7 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 
 	versions, err := abci.NewVersions(abci.Version{
 		Appd:        appdV3,
-		ABCIVersion: amodify_root_command_multiplexerbci.ABCIClientVersion1,
+		ABCIVersion: abci.ABCIClientVersion1,
 		AppVersion:  3,
 		StartArgs:   embeddedArgs.V3,
 	})
