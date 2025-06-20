@@ -15,7 +15,12 @@ Celestia-app v4.0.0 introduces support for a [multiplexer](https://github.com/ce
 - The default ABCI client address is now `tcp://127.0.0.1:36658` (configured via `--proxy_app` flag or `proxy_app` in config.toml).
 - The default ABCI server address is now `tcp://127.0.0.1:36658` (configured via `--address` flag).
 
-These two configs must match in order for the multiplexer to work correctly. Therefore, if you override either of these configs, please ensure that the other one is also overridden.
+These two configs must match in order for the multiplexer to work correctly. Please update your config.toml to account for the new default
+
+```diff
+-proxy_app = "tcp://127.0.0.1:26658"
++proxy_app = "tcp://127.0.0.1:36658"
+```
 
 #### Custom build flags
 
