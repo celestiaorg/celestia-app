@@ -3,7 +3,7 @@
 package appconsts
 
 // The following consts are not consensus breaking and will be applied straight
-// After this binary is started.
+// after this binary is started.
 // These numbers softly constrain the processing time of blocks to 0.25sec.
 // The benchmarks used to find these limits can be found in `app/benchmarks`.
 const (
