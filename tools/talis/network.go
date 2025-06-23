@@ -7,6 +7,12 @@ import (
 	"path/filepath"
 
 	sdkmath "cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
+	"github.com/celestiaorg/go-square/v2/share"
 	cmtconfig "github.com/cometbft/cometbft/config"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 	cmtos "github.com/cometbft/cometbft/libs/os"
@@ -17,14 +23,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
-
-	"github.com/celestiaorg/go-square/v2/share"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 )
 
 // NodeInfo is a struct that contains the name, IP address, and network address

@@ -2,12 +2,7 @@
 export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a
 
-
-#export GOOGLE_APPLICATION_CREDENTIALS="/root/payload/congest-remote-key-gbq.json"
 apt install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" apt-transport-https ca-certificates gnupg curl -y
-#curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
-#echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-# sudo apt-get update -y && sudo apt-get install google-cloud-cli -y
 
 # ensure that the env vars are exported here
 source /root/payload/vars.sh
@@ -20,9 +15,6 @@ DATASET_ID="traces"
 CHAIN_ID=$CHAIN_ID
 
 LOCAL_DIR="/root/.celestia-app/data/traces"
-
-# gcloud auth activate-service-account --key-file="/root/payload/congest-remote-key-gbq.json" -q
-# gcloud config set project numeric-mile-433416-e9 -q
 
 tmux kill-session -t app
 
@@ -38,7 +30,6 @@ logs_path="/root/logs"
 # clean the data by removing the last line
 find $source_dir -type f -name "*.jsonl" -exec sed -i '$d' {} \;
 
-#!/bin/bash
 AWS_DEFAULT_REGION="us-east-2"
 S3_BUCKET_NAME="block-prop-traces-ef"
 echo "All files loaded."

@@ -5,11 +5,10 @@ import (
 	"errors"
 	"os"
 
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	cmttypes "github.com/cometbft/cometbft/types"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 type GenesisVersion int

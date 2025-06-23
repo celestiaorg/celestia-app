@@ -12,6 +12,14 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v4/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
+	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -24,16 +32,6 @@ import (
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	"google.golang.org/grpc"
-
-	"github.com/celestiaorg/go-square/v2/share"
-
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v4/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v4/app/params"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 )
 
 const (
@@ -659,9 +657,21 @@ func (client *TxClient) Account(name string) *Account {
 	return acc.Copy()
 }
 
-func (client *TxClient) AccountByAddress(address sdktypes.AccAddress) *Account {
+// AccountByAddress retrieves the Account associated with the specified address.
+// returns nil if the account is not loaded or if an error occurred while loading.
+func (client *TxClient) AccountByAddress(ctx context.Context, address sdktypes.AccAddress) *Account {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
+
+	accountName := client.signer.accountNameByAddress(address)
+	if accountName == "" {
+		return nil
+	}
+
+	if err := client.checkAccountLoaded(ctx, accountName); err != nil {
+		return nil
+	}
+
 	return client.signer.AccountByAddress(address)
 }
 

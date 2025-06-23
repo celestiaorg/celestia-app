@@ -23,7 +23,7 @@ BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
 
 # NOTE: This version must be updated at the same time as the version in internal/embedding/data.go and .goreleaser.yaml
-CELESTIA_V3_VERSION := v3.10.1-mocha
+CELESTIA_V3_VERSION := v3.10.2-arabica
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -88,6 +88,7 @@ mod:
 	@go mod tidy
 	@echo "--> Updating go.mod in ./test/interchain"
 	@(cd ./test/interchain && go mod tidy)
+	@echo "--> Updating go.mod in ./test/docker-e2e/go.mod"
 	@(cd ./test/docker-e2e && go mod tidy)
 .PHONY: mod
 
@@ -255,7 +256,7 @@ test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService|TestTxsOverMaxTxSizeGetRejected|TestStart_Success|TestReadBlockchainHeaders"
+	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService|TestTxsOverMaxTxSizeGetRejected|TestStart_Success|TestReadBlockchainHeaders|TestPrepareProposalCappingNumberOfMessages"
 .PHONY: test-race
 
 ## test-bench: Run benchmark unit tests.
@@ -295,25 +296,15 @@ txsim-build-docker:
 	docker build -t ghcr.io/celestiaorg/txsim -f docker/txsim/Dockerfile  .
 .PHONY: txsim-build-docker
 
-VERSION := $(shell git describe --tags --dirty --always)
-COMMIT  := $(shell git rev-parse HEAD)
-
-# build the -ldflags string here
-LLDFLAGS := \
-  -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
-  -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd \
-  -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
-  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
-  -X github.com/celestiaorg/celestia-app/v4/cmd/celestia-appd/cmd.v2UpgradeHeight=0
-
+## build-talis-bins: Build celestia-appd and txsim binaries for talis VMs (ubuntu 22.04 LTS)
 build-talis-bins:
 	docker build \
 	  --file tools/talis/docker/Dockerfile \
 	  --target builder \
 	  --platform linux/amd64 \
-	  --build-arg LDFLAGS="$(LLDFLAGS)" \
+	  --build-arg LDFLAGS="$(ldflags)" \
 	  --build-arg GOOS=linux \
-      --build-arg GOARCH=amd64 \
+    --build-arg GOARCH=amd64 \
 	  --tag talis-builder:latest \
 	  .
 	mkdir -p build
