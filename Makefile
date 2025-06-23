@@ -304,7 +304,7 @@ build-talis-bins:
 	  --platform linux/amd64 \
 	  --build-arg LDFLAGS="$(ldflags)" \
 	  --build-arg GOOS=linux \
-    --build-arg GOARCH=amd64 \
+      --build-arg GOARCH=amd64 \
 	  --tag talis-builder:latest \
 	  .
 	mkdir -p build
