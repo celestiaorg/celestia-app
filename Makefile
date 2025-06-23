@@ -311,7 +311,6 @@ build-talis-bins:
 	docker create --platform linux/amd64 --name tmp talis-builder:latest
 	docker cp tmp:/out/. build/
 	docker rm tmp
-
 .PHONY: build-talis-bins
 
 

@@ -153,7 +153,7 @@ func CopyTalisScripts(destDir string, srcRoot string) error {
 		src = filepath.Join(tmp, "tools", "talis", "scripts")
 	}
 
-	// 4) copy directory tree including subdirectories
+	// copy directory tree including subdirectories
 	return copyDir(src, filepath.Join(destDir, "scripts"))
 }
 

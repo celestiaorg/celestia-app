@@ -16,7 +16,7 @@ Note that this doesn't install binaries in the `$GOPATH/bin`, so you must specif
 
 ## Usage
 
-if the relevant binaries are installed via go, and the celestia-app repo is
+If the relevant binaries are installed via go, and the celestia-app repo is
 downloaded, then the talis defaults should work. Your `$GOPATH` is used to copy the scripts from this repo to the payload, along with default locations for the binaries.
 
 ### init
@@ -67,7 +67,7 @@ talis add  -t <node-type> -c <count>
 If we call:
 
 ```
-talis add -t validator -t 1
+talis add -t validator -c 1
 ```
 
 we will see the config updated to:
@@ -118,7 +118,7 @@ Before we can start the network, we need to create a payload that contains every
 talis genesis -s 128 -a /home/$HOSTNAME/go/src/github.com/celestiaorg/celestia-app/build/celestia-appd -t /home/$HOSTNAME/go/src/github.com/celestiaorg/celestia-app/build/txsim
 ```
 
-Keep in mind that we can still edit anything in the payload before deploying the network. After creating it is when that would occur.
+Keep in mind that we can still edit anything in the payload before deploying the network. 
 
 ### deploy
 

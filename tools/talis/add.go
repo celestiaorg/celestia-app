@@ -44,11 +44,11 @@ func addCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory in which to initialize")
-	cmd.Flags().IntVarP(&count, "count", "c", 0, "Name of the node")
+	cmd.Flags().IntVarP(&count, "count", "c", 0, "Number of nodes to deploy")
 	_ = cmd.MarkFlagRequired("count")
 	cmd.Flags().StringVarP(&nodeType, "type", "t", "", "Type of the node (validator, bridge, light)")
 	_ = cmd.MarkFlagRequired("type")
-	cmd.Flags().StringP("provider", "p", "", "Provider for the node (digitalocean, linode)")
+	cmd.Flags().StringP("provider", "p", "", "Provider for the node (digitalocean)")
 	cmd.Flags().StringVarP(&region, "region", "r", "random", "the region to deploy the instance in (random if blank)")
 
 	return cmd
