@@ -81,7 +81,8 @@ func deployCmd() *cobra.Command {
 		Long:  "Initialize the Talis network with the provided configuration.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			tarPath := filepath.Join(rootDir, "payload.tar.gz")
-			tarCmd := exec.Command("tar", "--gzip", "--options", "gzip:compression-level=9", "-cf", tarPath, "-C", rootDir, "payload")
+			log.Printf("Compressing payload to %s\n", tarPath)
+			tarCmd := exec.Command("tar", "--xz", "--options", "xz:compression-level=7,xz:threads=0", "-cf", tarPath, "-C", rootDir, "payload")
 			if output, err := tarCmd.CombinedOutput(); err != nil {
 				return fmt.Errorf("failed to compress payload: %w, output: %s", err, string(output))
 			}
@@ -96,6 +97,7 @@ func deployCmd() *cobra.Command {
 				return fmt.Errorf("no validators found in config")
 			}
 
+			log.Printf("Sending payload to validators...")
 			return deployPayload(cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute)
 		},
 	}
@@ -154,7 +156,7 @@ func deployPayload(
 
 			remoteCmd := strings.Join([]string{
 				// unpack
-				fmt.Sprintf("tar -xzf %s -C %s", filepath.Join(remoteDir, archiveFile), remoteDir),
+				fmt.Sprintf("tar -xJf %s -C %s", filepath.Join(remoteDir, archiveFile), remoteDir),
 				// make sure script is executable
 				fmt.Sprintf("chmod +x %s", filepath.Join(remoteDir, remoteScript)),
 				// start in a named, detached tmux session
