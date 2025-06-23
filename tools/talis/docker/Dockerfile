@@ -12,5 +12,5 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 go build -tags="ledger" -ldflags="${LDFLAGS}" -o /out/txsim ./test/cmd/txsim \
- && CGO_ENABLED=0 GOOS=linux go build -tags="ledger" -ldflags="${LDFLAGS}" -o /out/celestia-appd ./cmd/celestia-appd
+RUN GOOS=${GOOS} GOARCH=${GOARCH} CGO_ENABLED=0 go build -tags="ledger" -ldflags="${LDFLAGS}" -o /out/txsim ./test/cmd/txsim \
+ && GOOS=${GOOS} GOARCH=${GOARCH} CGO_ENABLED=0 GOOS=linux go build -tags="ledger" -ldflags="${LDFLAGS}" -o /out/celestia-appd ./cmd/celestia-appd
