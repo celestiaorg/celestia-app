@@ -15,7 +15,7 @@ const (
 	// SubtreeRootThreshold.
 	//
 	// The rationale for this value is described in more detail in ADR-013.
-	SubtreeRootThreshold int    = 64
+	SubtreeRootThreshold int = 64
 	// TxSizeCostPerByte is the cost per byte for transactions.
 	TxSizeCostPerByte uint64 = 10
 	// GasPerBlobByte is the gas cost per blob byte.

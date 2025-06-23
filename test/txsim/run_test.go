@@ -21,8 +21,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
+	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
+	v4 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
 	"github.com/celestiaorg/celestia-app/v4/test/txsim"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	blob "github.com/celestiaorg/celestia-app/v4/x/blob/types"

@@ -3,7 +3,7 @@ package appconsts
 import (
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
+	v4 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
 )
 
 const (
