@@ -306,7 +306,7 @@ require (
 replace (
 	// x/upgrade: v0.1.0
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.1.0
-	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.54.0-tm-v0.38.17.0.20250613111510-17abfd11010f
+	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.54.0-tm-v0.38.17.0.20250612073748-97e9cc351683
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.2-sdk-v0.50.12.0.20250612123801-71aff0d351e8
 	github.com/cosmos/ibc-go/v8 => github.com/rach-id/ibc-go/v8 v8.0.0-20250612141634-34dbbd2d7c79
 	// goleveldb: canonical version
