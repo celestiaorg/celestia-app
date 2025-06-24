@@ -241,9 +241,9 @@ func (a *RemoteABCIClientV1) InitChain(req *abciv2.RequestInitChain) (*abciv2.Re
 	// v0.34: genDoc.ConsensusParams.Version.AppVersion
 	// v0.38: genDoc.ConsensusParams.Version.App
 	//
-	// As a result, CometBFT v0.38 did not read the app version from the genesis file correctly so it is expected to be 0 in this request.
+	// As a result, CometBFT v0.38 did not read the app version from the genesis file correctly so it is expected to be 0 in req.
 	// The multiplexer parsed the app version from the genesis file correctly and stored it in the initialAppVersion field.
-	// Therefore, this overrides the app version in the request with the multiplexer's initial app version.
+	// Therefore, this overrides the app version in req with the multiplexer's initial app version.
 	req.ConsensusParams.Version.App = a.initialAppVersion
 
 	fmt.Printf("InitChain override req.ConsensusParams.Version.App: %+v\n", req.ConsensusParams.Version.App)
