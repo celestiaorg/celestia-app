@@ -3,9 +3,8 @@ package types
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_validateGovMaxSquareSize(t *testing.T) {
