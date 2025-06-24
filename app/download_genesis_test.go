@@ -265,9 +265,7 @@ func TestComputeSha256(t *testing.T) {
 				hasher.Write([]byte(tt.content))
 				expectedHash := hex.EncodeToString(hasher.Sum(nil))
 
-				if hash != expectedHash {
-					t.Errorf("computeSha256() = %s, want %s", hash, expectedHash)
-				}
+				require.Equal(t, expectedHash, hash)
 			}
 		})
 	}
