@@ -254,10 +254,6 @@ func (a *RemoteABCIClientV1) InitChain(req *abciv2.RequestInitChain) (*abciv2.Re
 		InitialHeight:   req.InitialHeight,
 	}, grpc.WaitForReady(true))
 
-	// fmt.Printf("InitChain response: %+v\n", resp)
-	// fmt.Printf("InitChain response.ConsensusParams.Version.AppVersion : %v\n", resp.ConsensusParams.Version.)
-	// fmt.Printf("InitChain response.ConsensusParams.v2.Version.App: %v\n", consensusParamsV1ToV2(resp.ConsensusParams).Version.App)
-
 	if err != nil {
 		return nil, err
 	}
