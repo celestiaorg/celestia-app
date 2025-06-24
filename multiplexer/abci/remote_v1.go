@@ -25,14 +25,17 @@ type RemoteABCIClientV1 struct {
 	endBlockConsensusAppVersion uint64
 	// chainID is required to pass into the headers.
 	chainID string
+	// initialAppVersion is the app version that was parsed from the genesis file or state
+	initialAppVersion uint64
 }
 
 // NewRemoteABCIClientV1 returns a new ABCI Client (using ABCI v1).
 // The client behaves like Tendermint for the server side (the application side).
-func NewRemoteABCIClientV1(conn *grpc.ClientConn, chainID string) *RemoteABCIClientV1 {
+func NewRemoteABCIClientV1(conn *grpc.ClientConn, chainID string, appVersion uint64) *RemoteABCIClientV1 {
 	return &RemoteABCIClientV1{
 		ABCIApplicationClient: abciv1.NewABCIApplicationClient(conn),
 		chainID:               chainID,
+		initialAppVersion:     appVersion,
 	}
 }
 
@@ -232,9 +235,15 @@ func (a *RemoteABCIClientV1) Info(req *abciv2.RequestInfo) (*abciv2.ResponseInfo
 
 // InitChain implements abciv2.ABCI
 func (a *RemoteABCIClientV1) InitChain(req *abciv2.RequestInitChain) (*abciv2.ResponseInitChain, error) {
-	fmt.Printf("InitChain request: %+v\n", req)
-	fmt.Printf("InitChain request.ConsensusParams.Version.AppVersion : %v\n", req.ConsensusParams.Version.App)
-	fmt.Printf("InitChain request.ConsensusParams.v1.Version.AppVersion: %v\n", consensusParamsV2ToV1(req.ConsensusParams).Version.AppVersion)
+	fmt.Printf("InitChain req.ConsensusParams.Version.App: %v\n", req.ConsensusParams.Version.App)
+	fmt.Printf("InitChain consensusParamsV2ToV1(req.ConsensusParams).Version.AppVersion): %v\n", consensusParamsV2ToV1(req.ConsensusParams).Version.AppVersion)
+
+	// Override the consensus params app version because CometBFT had a breaking change between v0.34 and v0.38.
+	// The multiplexer parsed the app version from the genesis file or the tendermint state.
+	req.ConsensusParams.Version.App = a.initialAppVersion
+
+	fmt.Printf("InitChain override req.ConsensusParams.Version.App: %+v\n", req.ConsensusParams.Version.App)
+	fmt.Printf("InitChain override consensusParamsV2ToV1(req.ConsensusParams).Version.AppVersion: %+v\n", consensusParamsV2ToV1(req.ConsensusParams).Version.AppVersion)
 
 	resp, err := a.ABCIApplicationClient.InitChain(context.Background(), &abciv1.RequestInitChain{
 		Time:            req.Time,
