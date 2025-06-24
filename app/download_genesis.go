@@ -34,14 +34,14 @@ func DownloadGenesis(chainID, outputFile string) error {
 
 	url := fmt.Sprintf("%s/%s/genesis.json", genesisBaseURL, chainID)
 	if err := downloadFile(outputFile, url); err != nil {
-		return fmt.Errorf("error downloading / persisting the genesis file: %s", err)
+		return fmt.Errorf("error downloading / persisting the genesis file: %w", err)
 	}
 	fmt.Printf("Downloaded genesis file for %s to %s\n", chainID, outputFile)
 
 	// Compute SHA-256 hash of the downloaded file
 	hash, err := computeSha256(outputFile)
 	if err != nil {
-		return fmt.Errorf("error computing sha256 hash: %s", err)
+		return fmt.Errorf("error computing sha256 hash: %w", err)
 	}
 
 	// Compare computed hash against known hash
