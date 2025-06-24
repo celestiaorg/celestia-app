@@ -10,6 +10,9 @@ import (
 	"strings"
 )
 
+// genesisBaseURL is the base URL for downloading genesis files. Can be overridden in tests.
+var genesisBaseURL = "https://raw.githubusercontent.com/celestiaorg/networks/master"
+
 // chainIDToSha256 is a map of chainID to the SHA-256 hash of the genesis file for that chain ID.
 // To add a new chain-id, download the genesis file from the networks repo and compute the SHA-256 hash.
 // Add the chain-id and hash to this map.
@@ -29,7 +32,7 @@ func DownloadGenesis(chainID, outputFile string) error {
 
 	fmt.Printf("Downloading genesis file for %s to %s\n", chainID, outputFile)
 
-	url := fmt.Sprintf("https://raw.githubusercontent.com/celestiaorg/networks/master/%s/genesis.json", chainID)
+	url := fmt.Sprintf("%s/%s/genesis.json", genesisBaseURL, chainID)
 	if err := downloadFile(outputFile, url); err != nil {
 		return fmt.Errorf("error downloading / persisting the genesis file: %s", err)
 	}
