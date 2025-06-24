@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
 )
 
 func Test_isKnownChainID(t *testing.T) {
@@ -20,7 +22,7 @@ func Test_isKnownChainID(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.chainID, func(t *testing.T) {
-			got := isKnownChainID(tc.chainID)
+			got := app.IsKnownChainID(tc.chainID)
 			assert.Equal(t, tc.want, got)
 		})
 	}
