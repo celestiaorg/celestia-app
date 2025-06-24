@@ -6,6 +6,7 @@ import (
 
 	"cosmossdk.io/log"
 	confixcmd "cosmossdk.io/tools/confix/cmd"
+	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/cometbft/cometbft/cmd/cometbft/commands"
 	tmcli "github.com/cometbft/cometbft/libs/cli"
 	dbm "github.com/cosmos/cosmos-db"
@@ -22,8 +23,6 @@ import (
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	kitlog "github.com/go-kit/log"
 	"github.com/spf13/cobra"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
 )
 
 const (

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v4/app"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	transfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
@@ -15,8 +16,6 @@ import (
 	host "github.com/cosmos/ibc-go/v8/modules/core/24-host"
 	ibctesting "github.com/cosmos/ibc-go/v8/testing"
 	"github.com/stretchr/testify/suite"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
 )
 
 type PacketForwardMiddlewareTestSuite struct {

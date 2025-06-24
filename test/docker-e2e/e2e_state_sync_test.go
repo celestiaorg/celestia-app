@@ -2,12 +2,13 @@ package docker_e2e
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
 	addressutil "github.com/celestiaorg/tastora/framework/testutil/address"
 	"github.com/celestiaorg/tastora/framework/testutil/toml"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
-	"testing"
-	"time"
 )
 
 const (

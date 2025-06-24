@@ -15,6 +15,8 @@ import (
 	"syscall"
 
 	"cosmossdk.io/log"
+	"github.com/celestiaorg/celestia-app/v4/multiplexer/appd"
+	"github.com/celestiaorg/celestia-app/v4/multiplexer/internal"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/p2p"
@@ -37,9 +39,6 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-
-	"github.com/celestiaorg/celestia-app/v4/multiplexer/appd"
-	"github.com/celestiaorg/celestia-app/v4/multiplexer/internal"
 )
 
 const (

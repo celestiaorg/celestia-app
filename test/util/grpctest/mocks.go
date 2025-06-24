@@ -7,12 +7,11 @@ import (
 	"net"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
 // MockTxService allows controlling the behavior of BroadcastTx calls.

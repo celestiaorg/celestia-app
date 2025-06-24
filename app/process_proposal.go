@@ -7,21 +7,19 @@ import (
 
 	"cosmossdk.io/errors"
 	"cosmossdk.io/log"
-	abci "github.com/cometbft/cometbft/abci/types"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/cosmos/cosmos-sdk/telemetry"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
-	"github.com/celestiaorg/go-square/v2"
-	"github.com/celestiaorg/go-square/v2/share"
-	blobtx "github.com/celestiaorg/go-square/v2/tx"
-
 	"github.com/celestiaorg/celestia-app/v4/app/ante"
 	apperr "github.com/celestiaorg/celestia-app/v4/app/errors"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	appv4 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
 	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	"github.com/celestiaorg/go-square/v2"
+	"github.com/celestiaorg/go-square/v2/share"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
+	abci "github.com/cometbft/cometbft/abci/types"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cosmos/cosmos-sdk/telemetry"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 const rejectedPropBlockLog = "Rejected proposal block:"
