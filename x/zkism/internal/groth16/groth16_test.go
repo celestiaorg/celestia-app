@@ -72,6 +72,6 @@ func TestNewPublicWitness(t *testing.T) {
 
 	vec, ok := pubWitness.Vector().(bn254fr.Vector)
 	require.True(t, ok)
-	require.Equal(t, inputs[0], vec[0])
-	require.Equal(t, inputs[1], vec[1])
+	require.Equal(t, inputs[0], &vec[0])
+	require.Equal(t, inputs[1], &vec[1])
 }

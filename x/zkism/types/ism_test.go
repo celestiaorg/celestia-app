@@ -9,8 +9,9 @@ import (
 	"testing"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
-	"github.com/celestiaorg/celestia-app/v4/x/zkism/types"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-app/v4/x/zkism/types"
 )
 
 func TestVerify(t *testing.T) {
@@ -21,7 +22,7 @@ func TestVerify(t *testing.T) {
 
 	groth16Vk, proofBz, inputsBz := readProofData(t)
 
-	vkCommitmentHex := strings.TrimPrefix(string(vkeyHash), "0x")
+	vkCommitmentHex := strings.TrimPrefix(vkeyHash, "0x")
 	vkCommitment, err := hex.DecodeString(vkCommitmentHex)
 	require.NoError(t, err)
 
