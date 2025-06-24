@@ -107,8 +107,20 @@ func initCmd(basicManager module.BasicManager, defaultNodeHome string) *cobra.Co
 
 			if app.IsKnownChainID(chainID) {
 				fmt.Println("Warning: You are initializing a public chain. This is a very rare edge case and will likely result in a fork. Please be sure you know what you are doing.")
+
+				inBuf := bufio.NewReader(cmd.InOrStdin())
+				confirm, err := input.GetConfirmation("Do you want to download the known genesis for this chain?", inBuf, cmd.OutOrStdout())
+				if err != nil {
+					return err
+				}
+
+				if !confirm {
+					fmt.Println("Genesis download cancelled. For local development, please use a different chain-id (e.g., 'test-chain-1').")
+					return nil
+				}
+
 				fmt.Println("Attempting to download the genesis for the chain...")
-				err := app.DownloadGenesis(chainID, config.GenesisFile())
+				err = app.DownloadGenesis(chainID, config.GenesisFile())
 				if err != nil {
 					return err
 				}
