@@ -17,7 +17,7 @@ import (
 func TestVerify(t *testing.T) {
 	var (
 		trustedStateRoot = "4913ECE12489492945CEAA6150D99E29A9FFFFE32473E092084E3618C81246B1"
-		vkeyHash         = "0x00183937c778e814051e7b0d5a035dc578804ec2a7418e5446a921504d458f5c"
+		vkeyHash         = "0x00c3cb858670835062dcf40bb14601ad34a39f9fc4fb165e9188c4b48499ca25"
 	)
 
 	groth16Vk, proofBz, inputsBz := readProofData(t)
