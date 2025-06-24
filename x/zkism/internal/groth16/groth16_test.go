@@ -23,7 +23,7 @@ func TestNewVerifyingKey(t *testing.T) {
 }
 
 func TestUnmarshalProof(t *testing.T) {
-	proofBz, err := os.ReadFile("../testdata/fib_proof.bin")
+	proofBz, err := os.ReadFile("../testdata/proof.bin")
 	require.NoError(t, err, "failed to read proof file")
 
 	// discard the first 4 bytes as with SP1 this is a prefix of the first 4 bytes of the verifier key hash
@@ -72,6 +72,6 @@ func TestNewPublicWitness(t *testing.T) {
 
 	vec, ok := pubWitness.Vector().(bn254fr.Vector)
 	require.True(t, ok)
-	require.Equal(t, inputs[0], vec[0])
-	require.Equal(t, inputs[1], vec[1])
+	require.Equal(t, inputs[0], &vec[0])
+	require.Equal(t, inputs[1], &vec[1])
 }

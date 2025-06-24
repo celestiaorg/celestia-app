@@ -87,7 +87,7 @@ func (ism *ZKExecutionISM) verifyZKProof(metadata ZkExecutionISMMetadata) (bool,
 	}
 
 	if err := groth16.VerifyProof(proof, vk, pubWitness); err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to verify proof: %w", err)
 	}
 
 	ism.Height = metadata.PublicInputs.NewHeight
@@ -97,12 +97,14 @@ func (ism *ZKExecutionISM) verifyZKProof(metadata ZkExecutionISMMetadata) (bool,
 }
 
 // TODO: validate public inputs with trusted ism/celestia data
-// - trusted state root (DONE)
-// - trusted height (optional?)
-// - celestia header hash(es)
+// - celestia header hash
 func (ism *ZKExecutionISM) validatePublicInputs(inputs PublicInputs) error {
 	if !bytes.Equal(inputs.TrustedStateRoot[:], ism.StateRoot) {
 		return fmt.Errorf("cannot trust public inputs trusted state root: expected %x, but got %x", ism.StateRoot, inputs.TrustedStateRoot)
+	}
+
+	if inputs.TrustedHeight != ism.Height {
+		return fmt.Errorf("cannot trust public inputs trusted height: expected %d, but got %d", ism.Height, inputs.TrustedHeight)
 	}
 
 	return nil
