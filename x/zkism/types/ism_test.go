@@ -19,14 +19,7 @@ func TestVerify(t *testing.T) {
 		vkeyHash         = "0x00183937c778e814051e7b0d5a035dc578804ec2a7418e5446a921504d458f5c"
 	)
 
-	groth16Vk, err := os.ReadFile("../internal/testdata/groth16_vk.bin")
-	require.NoError(t, err, "failed to read verifier key file")
-
-	proofBz, err := os.ReadFile("../internal/testdata/proof.bin")
-	require.NoError(t, err, "failed to read proof file")
-
-	pubInputs, err := os.ReadFile("../internal/testdata/sp1_inputs.bin")
-	require.NoError(t, err, "failed to read proof file")
+	groth16Vk, proofBz, inputsBz := readProofData(t)
 
 	vkCommitmentHex := strings.TrimPrefix(string(vkeyHash), "0x")
 	vkCommitment, err := hex.DecodeString(vkCommitmentHex)
@@ -43,11 +36,18 @@ func TestVerify(t *testing.T) {
 		Height:                     44,
 	}
 
-	metadata := encodeMetadata(t, proofBz, pubInputs)
+	metadata := encodeMetadata(t, proofBz, inputsBz)
 
 	verified, err := ism.Verify(context.Background(), metadata, util.HyperlaneMessage{})
 	require.NoError(t, err)
 	require.True(t, verified)
+
+	inputs := new(types.PublicInputs)
+	err = inputs.Unmarshal(inputsBz)
+	require.NoError(t, err)
+
+	require.Equal(t, inputs.NewStateRoot[:], ism.StateRoot)
+	require.Equal(t, inputs.NewHeight, ism.Height)
 }
 
 // encodeMetadata: [proofType][proofSize][proof][pubInputsSize][pubInputs]
@@ -69,4 +69,19 @@ func encodeMetadata(t *testing.T, proofBz, pubInputs []byte) []byte {
 	metadata = append(metadata, pubInputs...)
 
 	return metadata
+}
+
+func readProofData(t *testing.T) ([]byte, []byte, []byte) {
+	t.Helper()
+
+	groth16Vk, err := os.ReadFile("../internal/testdata/groth16_vk.bin")
+	require.NoError(t, err, "failed to read verifier key file")
+
+	proofBz, err := os.ReadFile("../internal/testdata/proof.bin")
+	require.NoError(t, err, "failed to read proof file")
+
+	inputsBz, err := os.ReadFile("../internal/testdata/sp1_inputs.bin")
+	require.NoError(t, err, "failed to read proof file")
+
+	return groth16Vk, proofBz, inputsBz
 }
