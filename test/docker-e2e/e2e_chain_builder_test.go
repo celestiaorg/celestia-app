@@ -4,6 +4,8 @@ import (
 	"context"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	"github.com/celestiaorg/tastora/framework/testutil/maps"
+	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
@@ -13,19 +15,27 @@ import tastoradocker "github.com/celestiaorg/tastora/framework/docker"
 
 func TestChainBuilder(t *testing.T) {
 
-	val := tastoradocker.NewNodeConfigBuilder().WithImage(tastoradocker.DockerImage{
-		Repository: "ghcr.io/celestiaorg/celestia-app",
-		Version:    "v4.0.0-rc6",
-		UIDGID:     "10001:10001",
-	}).WithAdditionalStartArgs([]string{"--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099"}...).
+	val := tastoradocker.NewNodeConfigBuilder().
+		WithImage(tastoradocker.DockerImage{
+			Repository: "ghcr.io/celestiaorg/celestia-app",
+			Version:    "v4.0.4-alpha",
+			UIDGID:     "10001:10001",
+		},
+		).WithAdditionalStartArgs([]string{"--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099"}...).
 		Build()
 
 	// create validator for genesis type, has not yet added anything to keyring keyring.
 	//validator := genesis2.NewDefaultValidator(testnode.DefaultValidatorAccountName)
 
-	g := testnode.DefaultConfig().Genesis
+	g := testnode.DefaultConfig().Genesis.WithChainID("celestia")
 	// this will generate gentx transactions for the validator above.
 	genesisBz, err := g.ExportBytes()
+	require.NoError(t, err)
+
+	// TODO: why do I need to do this?
+	genesisBz, err = maps.SetField(genesisBz, "consensus", map[string]interface{}{})
+	require.NoError(t, err)
+	genesisBz, err = maps.SetField(genesisBz, "consensus.params.version.app", "4")
 	require.NoError(t, err)
 
 	encodingConfig := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
@@ -34,7 +44,7 @@ func TestChainBuilder(t *testing.T) {
 
 	chain, err := tastoradocker.NewChainBuilder(t).
 		WithLogger(zaptest.NewLogger(t)).
-		WithChainID("celestia").
+		WithChainID(g.ChainID).
 		WithDockerClient(client).
 		WithDockerNetworkID(network).
 		WithEncodingConfig(&encodingConfig).
@@ -45,6 +55,9 @@ func TestChainBuilder(t *testing.T) {
 	require.NoError(t, err)
 
 	err = chain.Start(context.TODO())
+	require.NoError(t, err)
+
+	err = wait.ForBlocks(context.TODO(), 5, chain)
 	require.NoError(t, err)
 
 }
