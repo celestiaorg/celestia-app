@@ -45,9 +45,7 @@ func TestIsKnownChainID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := IsKnownChainID(tt.chainID)
-			if result != tt.expected {
-				t.Errorf("IsKnownChainID(%s) = %v, want %v", tt.chainID, result, tt.expected)
-			}
+			require.Equal(t, tt.expected, result)
 		})
 	}
 }
@@ -56,17 +54,13 @@ func TestChainIDs(t *testing.T) {
 	result := ChainIDs()
 
 	// Check that all known chain IDs are included
-	expectedChains := []string{"celestia", "mocha-4", "arabica-10", "arabica-11"}
+	expectedChains := []string{"celestia", "mocha-s4", "arabica-10", "arabisca-11"}
 	for _, chainID := range expectedChains {
-		if !strings.Contains(result, chainID) {
-			t.Errorf("ChainIDs() = %s, should contain %s", result, chainID)
-		}
+		require.Contains(t, result, chainID)
 	}
 
 	// Check that result is comma-separated
-	if !strings.Contains(result, ",") {
-		t.Errorf("ChainIDs() = %s, should be comma-separated", result)
-	}
+	require.Contains(t, result, ",")
 }
 
 func TestGetChainIDOrDefault(t *testing.T) {
@@ -100,9 +94,7 @@ func TestGetChainIDOrDefault(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := GetChainIDOrDefault(tt.args)
-			if result != tt.expected {
-				t.Errorf("GetChainIDOrDefault(%v) = %s, want %s", tt.args, result, tt.expected)
-			}
+			require.Equal(t, tt.expected, result)
 		})
 	}
 }
