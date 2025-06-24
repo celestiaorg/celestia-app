@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsKnownChainID(t *testing.T) {
@@ -204,18 +206,10 @@ func TestDownloadGenesis(t *testing.T) {
 			err := DownloadGenesis(tt.chainID, tt.outputFile)
 
 			if tt.wantErr {
-				if err == nil {
-					t.Errorf("DownloadGenesis() expected error but got none")
-					return
-				}
-				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
-					t.Errorf("DownloadGenesis() error = %v, should contain %s", err, tt.errContains)
-				}
+				require.Error(t, err)
+				require.ErrorContains(t, err, tt.errContains)
 			} else {
-				if err != nil {
-					t.Errorf("DownloadGenesis() unexpected error = %v", err)
-					return
-				}
+				require.NoError(t, err)
 				// Verify file was created successfully
 				if _, err := os.Stat(tt.outputFile); os.IsNotExist(err) {
 					t.Errorf("DownloadGenesis() file was not created: %s", tt.outputFile)
@@ -256,26 +250,15 @@ func TestComputeSha256(t *testing.T) {
 			// Create test file
 			testFile := filepath.Join(tempDir, fmt.Sprintf("test_%s.json", tt.name))
 			err := os.WriteFile(testFile, []byte(tt.content), 0644)
-			if err != nil {
-				t.Fatalf("Failed to create test file: %v", err)
-			}
-
+			require.NoError(t, err)
 			// Compute hash
 			hash, err := computeSha256(testFile)
 
 			if tt.wantErr {
-				if err == nil {
-					t.Errorf("computeSha256() expected error but got none")
-					return
-				}
-				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
-					t.Errorf("computeSha256() error = %v, should contain %s", err, tt.errContains)
-				}
+				require.Error(t, err)
+				require.ErrorContains(t, err, tt.errContains)
 			} else {
-				if err != nil {
-					t.Errorf("computeSha256() unexpected error = %v", err)
-					return
-				}
+				require.NoError(t, err)
 
 				// Verify hash is correct
 				hasher := sha256.New()
@@ -292,9 +275,7 @@ func TestComputeSha256(t *testing.T) {
 	// Test with non-existent file
 	t.Run("non-existent file", func(t *testing.T) {
 		_, err := computeSha256("/non/existent/file.json")
-		if err == nil {
-			t.Errorf("computeSha256() expected error for non-existent file but got none")
-		}
+		require.Error(t, err)
 	})
 }
 
@@ -370,25 +351,15 @@ func TestDownloadFile(t *testing.T) {
 			err := downloadFile(tt.filepath, tt.url)
 
 			if tt.wantErr {
-				if err == nil {
-					t.Errorf("downloadFile() expected error but got none")
-				}
+				require.Error(t, err)
 			} else {
-				if err != nil {
-					t.Errorf("downloadFile() unexpected error = %v", err)
-					return
-				}
+				require.NoError(t, err)
 
 				// Verify file content
 				content, err := os.ReadFile(tt.filepath)
-				if err != nil {
-					t.Errorf("Failed to read downloaded file: %v", err)
-					return
-				}
+				require.NoError(t, err)
 
-				if string(content) != tt.expectContent {
-					t.Errorf("downloadFile() content = %s, want %s", string(content), tt.expectContent)
-				}
+				require.Equal(t, tt.expectContent, string(content))
 			}
 		})
 	}
