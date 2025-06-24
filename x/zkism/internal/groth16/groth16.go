@@ -74,8 +74,9 @@ func HashBN254(data []byte) *big.Int {
 }
 
 // NewBN254FrElement creates a new BN254 scalar field element from a big.Int.
-func NewBN254FrElement(bigInt *big.Int) bn254fr.Element {
-	return bn254fr.NewElement(bigInt.Uint64())
+func NewBN254FrElement(bigInt *big.Int) *bn254fr.Element {
+	var elm bn254fr.Element
+	return elm.SetBigInt(bigInt)
 }
 
 // NewPublicWitness constructs a public witness using the provided input values.
