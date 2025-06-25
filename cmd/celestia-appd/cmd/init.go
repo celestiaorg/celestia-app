@@ -104,7 +104,7 @@ func initCmd(basicManager module.BasicManager, defaultNodeHome string) *cobra.Co
 				return fmt.Errorf("genesis.json file already exists: %v", genesisFile)
 			}
 
-			if app.IsKnownChainID(chainID) {
+			if isKnownChainID(chainID) {
 				fmt.Println("Warning: You are initializing a public chain. This is a very rare edge case and will likely result in a fork. Please be sure you know what you are doing.")
 
 				inBuf := bufio.NewReader(cmd.InOrStdin())
@@ -119,7 +119,7 @@ func initCmd(basicManager module.BasicManager, defaultNodeHome string) *cobra.Co
 				}
 
 				fmt.Println("Attempting to download the genesis for the chain...")
-				err = app.DownloadGenesis(chainID, config.GenesisFile())
+				err = downloadGenesis(chainID, config.GenesisFile())
 				if err != nil {
 					return err
 				}
