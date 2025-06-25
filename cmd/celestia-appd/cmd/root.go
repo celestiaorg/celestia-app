@@ -6,6 +6,7 @@ import (
 
 	"cosmossdk.io/log"
 	confixcmd "cosmossdk.io/tools/confix/cmd"
+	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/cometbft/cometbft/cmd/cometbft/commands"
 	tmcli "github.com/cometbft/cometbft/libs/cli"
 	dbm "github.com/cosmos/cosmos-db"
@@ -22,8 +23,6 @@ import (
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	kitlog "github.com/go-kit/log"
 	"github.com/spf13/cobra"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
 )
 
 const (
@@ -85,15 +84,7 @@ func NewRootCmd() *cobra.Command {
 				return err
 			}
 
-			if command.Flags().Changed(FlagLogToFile) {
-				// optionally log to file by replacing the default logger with a file logger
-				err = replaceLogger(command)
-				if err != nil {
-					return err
-				}
-			}
-
-			return nil
+			return replaceLogger(command)
 		},
 		SilenceUsage: true,
 	}
@@ -184,6 +175,9 @@ func replaceLogger(cmd *cobra.Command) error {
 	}
 
 	sctx := server.GetServerContextFromCmd(cmd)
-	sctx.Logger = log.NewLogger(kitlog.NewSyncWriter(file))
+	sctx.Logger, err = server.CreateSDKLogger(sctx, kitlog.NewSyncWriter(file))
+	if err != nil {
+		return fmt.Errorf("failed to create logger: %w", err)
+	}
 	return server.SetCmdServerContext(cmd, sctx)
 }

@@ -30,7 +30,7 @@ func GetTimeoutCommit(_ uint64) time.Duration {
 
 func GetSquareSizeUpperBound(chainID string) int {
 	if strings.Contains(chainID, TalisChainID) {
-		return 512
+		return TalisSquareSizeUpperBound
 	}
 	return appv4.SquareSizeUpperBound
 }

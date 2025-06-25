@@ -10,11 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/celestiaorg/celestia-app/v4/app"
 	cmtconfig "github.com/cometbft/cometbft/config"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/spf13/cobra"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
 )
 
 const (
@@ -27,6 +26,7 @@ const (
 	EnvVarAWSRegion          = "AWS_DEFAULT_REGION"
 	EnvVarS3Bucket           = "AWS_S3_BUCKET"
 	EnvVarChainID            = "CHAIN_ID"
+	mebibyte                 = 1_048_576
 )
 
 func initCmd() *cobra.Command {
@@ -64,7 +64,12 @@ func initCmd() *cobra.Command {
 
 			// write the default config files that will be copied to the payload
 			// for each validator unless otherwise overridden
-			consConfig := DefaultConfigProfile(cmtconfig.DefaultConfig(), tables)
+			consensusConfig := app.DefaultConsensusConfig()
+			consensusConfig.Mempool.MaxTxBytes = 40 * mebibyte
+			consensusConfig.Mempool.TTLNumBlocks = 50
+			consensusConfig.P2P.SendRate = 400 * mebibyte
+			consensusConfig.P2P.RecvRate = 400 * mebibyte
+			consConfig := DefaultConfigProfile(consensusConfig, tables)
 			cmtconfig.WriteConfigFile(filepath.Join(rootDir, "config.toml"), consConfig)
 
 			// the sdk requires a global template be set just to save a toml file without panicking
@@ -156,7 +161,7 @@ func CopyTalisScripts(destDir string, srcRoot string) error {
 		src = filepath.Join(tmp, "tools", "talis", "scripts")
 	}
 
-	// 4) copy directory tree including subdirectories
+	// copy directory tree including subdirectories
 	return copyDir(src, filepath.Join(destDir, "scripts"))
 }
 

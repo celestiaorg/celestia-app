@@ -15,6 +15,8 @@ import (
 	"syscall"
 
 	"cosmossdk.io/log"
+	"github.com/celestiaorg/celestia-app/v4/multiplexer/appd"
+	"github.com/celestiaorg/celestia-app/v4/multiplexer/internal"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/p2p"
@@ -37,9 +39,6 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-
-	"github.com/celestiaorg/celestia-app/v4/multiplexer/appd"
-	"github.com/celestiaorg/celestia-app/v4/multiplexer/internal"
 )
 
 const (
@@ -111,7 +110,7 @@ func NewMultiplexer(svrCtx *server.Context, svrCfg serverconfig.Config, clientCt
 	return mp, nil
 }
 
-// isRunningNativeApp checks if the native application is currently running.
+// isNativeApp checks if the native application is currently running.
 func (m *Multiplexer) isNativeApp() bool {
 	return m.nativeApp != nil
 }
@@ -521,10 +520,7 @@ func (m *Multiplexer) startEmbeddedApp(version Version) error {
 		}
 
 		// start the new app
-		programArgs := os.Args
-		if len(os.Args) > 2 {
-			programArgs = os.Args[2:] // Remove 'appd start' args
-		}
+		programArgs := removeStart(os.Args)
 
 		m.logger.Info("Starting app for version", "app_version", version.AppVersion, "args", version.GetStartArgs(programArgs))
 		if err := version.Appd.Start(version.GetStartArgs(programArgs)...); err != nil {

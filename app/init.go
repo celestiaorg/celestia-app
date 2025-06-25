@@ -4,9 +4,8 @@ import (
 	"fmt"
 
 	clienthelpers "cosmossdk.io/client/v2/helpers"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // EnvPrefix is the environment variable prefix for celestia-appd.
