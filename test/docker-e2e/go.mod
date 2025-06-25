@@ -3,6 +3,7 @@ module celestiaorg/celestia-app/test/docker-e2e
 go 1.23.6
 
 require (
+	cosmossdk.io/math v1.5.3
 	github.com/celestiaorg/celestia-app/v4 v4.0.0
 	github.com/celestiaorg/go-square/v2 v2.3.0
 	github.com/celestiaorg/tastora v0.0.0-20250515081551-795e795a49c7
@@ -30,7 +31,6 @@ require (
 	cosmossdk.io/depinject v1.1.0 // indirect
 	cosmossdk.io/errors v1.0.2 // indirect
 	cosmossdk.io/log v1.6.0 // indirect
-	cosmossdk.io/math v1.5.3 // indirect
 	cosmossdk.io/store v1.1.2 // indirect
 	cosmossdk.io/x/circuit v0.1.1 // indirect
 	cosmossdk.io/x/evidence v0.1.1 // indirect

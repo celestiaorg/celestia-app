@@ -44,7 +44,6 @@ func TestChainBuilder(t *testing.T) {
 	chain, err := tastoradocker.NewChainBuilder(t).
 		WithName("celestia"). // just influences home directory on the host.
 		WithGenesisKeyring(kr). // provide the keyring which contains all the keys already generated.
-		WithPrivValidatorKey(getValidatorPrivateKeyBytes(t, g, 0)).
 		WithLogger(zaptest.NewLogger(t)).
 		WithChainID(g.ChainID).
 		WithDockerClient(client).
@@ -52,9 +51,10 @@ func TestChainBuilder(t *testing.T) {
 		WithEncodingConfig(&encodingConfig).
 		WithValidators(
 			// specify validators for the chain. In this case a single validator.
-			tastoradocker.NewNodeConfigBuilder().
+			tastoradocker.NewChainNodeConfigBuilder().
 				WithImage(tastoradocker.NewDockerImage("ghcr.io/celestiaorg/celestia-app", "v4.0.4-alpha", "10001:10001")).
 				WithAdditionalStartArgs("--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099").
+				WithPrivValidatorKey(getValidatorPrivateKeyBytes(t, g, 0)).
 				Build(),
 		).
 		WithGenesis(genesisBz).
