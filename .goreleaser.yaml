@@ -195,7 +195,7 @@ builds:
 dist: ./build/goreleaser
 archives:
   - id: multiplexer
-    builds:
+    ids:
       - darwin-amd64-multiplexer
       - darwin-arm64-multiplexer
       - linux-amd64-multiplexer
@@ -209,7 +209,7 @@ archives:
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
   - id: standalone
-    builds:
+    ids:
       - darwin-amd64
       - darwin-arm64
       - linux-amd64
