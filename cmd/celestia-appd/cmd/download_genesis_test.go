@@ -118,15 +118,15 @@ func TestDownloadGenesis(t *testing.T) {
 		case strings.Contains(r.URL.Path, "/celestia/genesis.json"):
 			// Return correct content for celestia
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(correctContent))
+			_, _ = w.Write([]byte(correctContent))
 		case strings.Contains(r.URL.Path, "/mocha-4/genesis.json"):
 			// Return wrong content for mocha-4 to trigger hash mismatch
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(wrongContent))
+			_, _ = w.Write([]byte(wrongContent))
 		case strings.Contains(r.URL.Path, "/arabica-10/genesis.json"):
 			// Simulate server error
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("Internal Server Error"))
+			_, _ = w.Write([]byte("Internal Server Error"))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -242,7 +242,7 @@ func TestComputeSha256(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create test file
 			testFile := filepath.Join(tempDir, fmt.Sprintf("test_%s.json", tt.name))
-			err := os.WriteFile(testFile, []byte(tt.content), 0644)
+			err := os.WriteFile(testFile, []byte(tt.content), 0o644)
 			require.NoError(t, err)
 			// Compute hash
 			hash, err := computeSha256(testFile)
@@ -278,16 +278,16 @@ func TestDownloadFile(t *testing.T) {
 		switch r.URL.Path {
 		case "/success":
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("success content"))
+			_, _ = w.Write([]byte("success content"))
 		case "/empty":
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(""))
+			_, _ = w.Write([]byte(""))
 		case "/not-found":
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("Not Found"))
+			_, _ = w.Write([]byte("Not Found"))
 		default:
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("Internal Server Error"))
+			_, _ = w.Write([]byte("Internal Server Error"))
 		}
 	}))
 	defer server.Close()
