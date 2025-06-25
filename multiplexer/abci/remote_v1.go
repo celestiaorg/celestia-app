@@ -20,7 +20,7 @@ type RemoteABCIClientV1 struct {
 	// commitRetainLastHeight is the height that is set in finalize block
 	// and returned in commit
 	commitRetainLastHeight int64
-	// endBlockConsensusVersion is the app version got from the end block abci call
+	// endBlockConsensusAppVersion is the app version got from the end block abci call
 	endBlockConsensusAppVersion uint64
 	// chainID is required to pass into the headers.
 	chainID string
