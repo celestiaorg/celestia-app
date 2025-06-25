@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v4/app/ante"
@@ -40,7 +41,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		appconsts.SubtreeRootThreshold,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create FilteredSquareBuilder: %w", err)
 	}
 
 	txs := fsb.Fill(ctx, req.Txs)
@@ -48,7 +49,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	// Build the square from the set of valid and prioritised transactions.
 	dataSquare, err := fsb.Build()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to build data square: %w", err)
 	}
 
 	// Erasure encode the data square to create the extended data square (eds).
@@ -56,14 +57,16 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	// pkg/wrapper/nmt_wrapper.go for more information.
 	eds, err := da.ExtendShares(share.ToBytes(dataSquare))
 	if err != nil {
-		app.Logger().Error("failure to erasure the data square while creating a proposal block", "error", err.Error())
-		return nil, err
+		msg := fmt.Sprintf("failure to erasure the data square while creating a proposal block: %v", err)
+		app.Logger().Error(msg)
+		return nil, fmt.Errorf(msg)
 	}
 
 	dah, err := da.NewDataAvailabilityHeader(eds)
 	if err != nil {
-		app.Logger().Error("failure to create new data availability header", "error", err.Error())
-		return nil, err
+		msg := fmt.Sprintf("failure to create new data availability header: %v", err)
+		app.Logger().Error(msg)
+		return nil, fmt.Errorf(msg)
 	}
 
 	// Tendermint doesn't need to use any of the erasure data because only the
