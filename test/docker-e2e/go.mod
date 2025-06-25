@@ -1,6 +1,6 @@
 module celestiaorg/celestia-app/test/docker-e2e
 
-go 1.24.4
+go 1.24.2
 
 require (
 	github.com/celestiaorg/celestia-app/v4 v4.0.0
