@@ -14,7 +14,7 @@ A tool for monitoring and measuring transaction latency in Celestia networks. Th
 ## Prerequisites
 
 - A running Celestia node with gRPC enabled or find an existing endpoint
-- Go 1.23 or later
+- Go 1.24 or later
 - Access to a keyring with funds for transaction submission
 
 ## Usage
