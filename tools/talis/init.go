@@ -131,10 +131,12 @@ func initDirs(rootDir string) error {
 // is copied into destDir. It first checks GOPATH/src/github.com/.../scripts,
 // and if missing, does a shallow git clone, copies the folder (including subdirectories), then cleans up.
 func CopyTalisScripts(destDir string, srcRoot string) error {
-	// todo: fix import path
-	const importPath = "celestiaorg/celestia-app/tools/talis/scripts"
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current directory: %w", err)
+	}
 
-	src := filepath.Join(srcRoot, "src", importPath)
+	src := filepath.Join(wd, "tools/talis/scripts")
 
 	if fi, err := os.Stat(src); err != nil || !fi.IsDir() {
 		tmp, err := os.MkdirTemp("", "celestia-scripts-*")
