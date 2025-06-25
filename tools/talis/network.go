@@ -42,13 +42,14 @@ func (n NodeInfo) PeerID() string {
 }
 
 // Network maintains the initial state of the network. This includes the
-// genesis, all relevant validators included in the genesis, and all accounts.
+// genesis, all relevant validators included in the genesis, all accounts, and bridge nodes.
 type Network struct {
 	experiment Experiment
 	genesis    *genesis.Genesis
 	ecfg       encoding.Config
 
 	validators map[string]NodeInfo
+	bridges    map[string]NodeInfo
 	accounts   []string
 }
 
@@ -70,6 +71,7 @@ func NewNetwork(chainID string, squareSize int, mods ...genesis.Modifier) (*Netw
 	return &Network{
 		genesis:    g,
 		validators: make(map[string]NodeInfo),
+		bridges:    make(map[string]NodeInfo),
 		ecfg:       codec,
 	}, nil
 }
@@ -154,6 +156,55 @@ func (n *Network) AddValidator(name, ip, payLoadRoot, region string) error {
 
 }
 
+// AddBridge adds a celestia-node bridge to the network. The bridge is identified by
+// its name which is assigned by pulumi as hardware is allocated. An additional
+// account and keyring are saved to the payload directory that can be used for
+// testing purposes.
+func (n *Network) AddBridge(name, ip, payLoadRoot, region string) error {
+	n.bridges[name] = NodeInfo{
+		Name:   name,
+		IP:     ip,
+		Region: region,
+	}
+
+	// add a keyring for the bridge node (for testing accounts)
+	kr, err := keyring.New(app.Name, keyring.BackendTest,
+		filepath.Join(payLoadRoot, name), nil, n.ecfg.Codec)
+	if err != nil {
+		return err
+	}
+
+	// create a test account for the bridge node
+	key, _, err := kr.NewMnemonic("bridge-test", keyring.English, "", "", hd.Secp256k1)
+	if err != nil {
+		return err
+	}
+
+	pk, err := key.GetPubKey()
+	if err != nil {
+		return err
+	}
+
+	addr, err := key.GetAddress()
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("adding bridge test account", addr.String())
+
+	err = n.genesis.AddAccount(genesis.Account{
+		PubKey:  pk,
+		Balance: 9999999999999999,
+		Name:    "bridge-test",
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (n *Network) Peers() []string {
 	var peers []string
 	for _, v := range n.validators {
@@ -163,7 +214,14 @@ func (n *Network) Peers() []string {
 		peers = append(peers, v.PeerID())
 	}
 	return peers
+}
 
+func (n *Network) Bridges() []NodeInfo {
+	var bridges []NodeInfo
+	for _, b := range n.bridges {
+		bridges = append(bridges, b)
+	}
+	return bridges
 }
 
 func (n *Network) InitNodes(rootDir string) error {
@@ -259,6 +317,26 @@ func (n *Network) SaveValidatorsToFile(filename string) error {
 	return nil
 }
 
+// SaveBridgesToFile saves the bridges map as a JSON to the given file.
+func (n *Network) SaveBridgesToFile(filename string) error {
+	// Open the file for writing. Create it if it doesn't exist.
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Encode the bridges map to JSON and write it to the file.
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ") // Optional: format the JSON with indentation
+	err = encoder.Encode(n.bridges)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func ReadValidatorsFromFile(filename string) (map[string]NodeInfo, error) {
 	// Open the file for reading.
 	file, err := os.Open(filename)
@@ -278,6 +356,27 @@ func ReadValidatorsFromFile(filename string) (map[string]NodeInfo, error) {
 	fmt.Println(validators)
 
 	return validators, nil
+}
+
+func ReadBridgesFromFile(filename string) (map[string]NodeInfo, error) {
+	// Open the file for reading.
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	// Decode the JSON from the file into a map.
+	var bridges map[string]NodeInfo
+	decoder := json.NewDecoder(file)
+	err = decoder.Decode(&bridges)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println(bridges)
+
+	return bridges, nil
 }
 
 func (n *Network) SaveAddressBook(payloadRoot string, peers []string) error {

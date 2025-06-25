@@ -30,8 +30,9 @@ func addCmd() *cobra.Command {
 					cfg = cfg.WithDigitalOceanValidator(region)
 				}
 			case "bridge":
-				log.Println("bridges are not yet supported")
-				return nil
+				for i := 0; i < count; i++ {
+					cfg = cfg.WithDigitalOceanBridge(region)
+				}
 			case "light":
 				log.Println("light nodes are not yet supported")
 				return nil

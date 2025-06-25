@@ -16,6 +16,7 @@ import (
 
 const (
 	DODefaultValidatorSlug = "c2-16vcpu-32gb"
+	DODefaultBridgeSlug    = "c2-8vcpu-16gb"
 	DODefaultImage         = "ubuntu-22-04-x64"
 	RandomRegion           = "random"
 )
@@ -45,6 +46,17 @@ func NewDigitalOceanValidator(region string) Instance {
 	i := NewBaseInstance(Validator)
 	i.Provider = DigitalOcean
 	i.Slug = DODefaultValidatorSlug
+	i.Region = region
+	return i
+}
+
+func NewDigitalOceanBridge(region string) Instance {
+	if region == "" || region == RandomRegion {
+		region = RandomDORegion()
+	}
+	i := NewBaseInstance(Bridge)
+	i.Provider = DigitalOcean
+	i.Slug = DODefaultBridgeSlug
 	i.Region = region
 	return i
 }

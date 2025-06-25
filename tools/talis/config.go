@@ -167,6 +167,12 @@ func (cfg Config) WithDigitalOceanValidator(region string) Config {
 	return cfg
 }
 
+func (cfg Config) WithDigitalOceanBridge(region string) Config {
+	i := NewDigitalOceanBridge(region)
+	cfg.Bridges = append(cfg.Bridges, i)
+	return cfg
+}
+
 func (cfg Config) WithChainID(chainID string) Config {
 	cfg.ChainID = TalisChainID(chainID)
 	return cfg

@@ -74,7 +74,6 @@ func initCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&experiment, "experiment", "e", "test", "the name of the experiment (required)")
 	cmd.MarkFlagRequired("experiment")
 	cmd.Flags().StringArrayVarP(&tables, "tables", "t", []string{"consensus_round_state", "consensus_block"}, "the traces that will be collected")
-
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatalf("failed to get user home directory: %v", err)
@@ -115,45 +114,156 @@ func initDirs(rootDir string) error {
 }
 
 // CopyTalisScripts ensures that the celestia-app tools/talis/scripts directory
-// is copied into destDir. It first checks GOPATH/src/github.com/.../scripts,
-// and if missing, does a shallow git clone, copies the folder (including subdirectories), then cleans up.
+// is copied into destDir. It tries multiple strategies to find the scripts.
 func CopyTalisScripts(destDir string) error {
-	const importPath = "github.com/celestiaorg/celestia-app/tools/talis/scripts"
+	var candidatePaths []string
 
-	// 1) figure out GOPATH
-	gopath := os.Getenv("GOPATH")
-	if gopath == "" {
-		out, err := exec.Command("go", "env", "GOPATH").Output()
-		if err != nil {
-			return fmt.Errorf("could not determine GOPATH: %w", err)
-		}
-		gopath = strings.TrimSpace(string(out))
+	// 1) Try current working directory first (most common case)
+	if cwd, err := os.Getwd(); err == nil {
+		candidatePaths = append(candidatePaths, filepath.Join(cwd, "tools", "talis", "scripts"))
 	}
 
-	// 2) local path where scripts should live
-	src := filepath.Join(gopath, "src", importPath)
+	// 2) Try relative to the binary location
+	if execPath, err := os.Executable(); err == nil {
+		execDir := filepath.Dir(execPath)
+		// If running from celestia-app/tools/talis/
+		candidatePaths = append(candidatePaths, filepath.Join(execDir, "scripts"))
+		// If running from celestia-app/build/
+		candidatePaths = append(candidatePaths, filepath.Join(execDir, "..", "tools", "talis", "scripts"))
+		// If running from celestia-app/
+		candidatePaths = append(candidatePaths, filepath.Join(execDir, "tools", "talis", "scripts"))
 
-	// 3) if not present, clone repo to temp
-	if fi, err := os.Stat(src); err != nil || !fi.IsDir() {
-		tmp, err := os.MkdirTemp("", "celestia-scripts-*")
+		// Follow symlinks if necessary
+		if realPath, err := filepath.EvalSymlinks(execPath); err == nil && realPath != execPath {
+			realDir := filepath.Dir(realPath)
+			candidatePaths = append(candidatePaths, filepath.Join(realDir, "scripts"))
+			candidatePaths = append(candidatePaths, filepath.Join(realDir, "..", "tools", "talis", "scripts"))
+			candidatePaths = append(candidatePaths, filepath.Join(realDir, "tools", "talis", "scripts"))
+		}
+	}
+
+	// 3) Try go.mod root directory
+	if cwd, err := os.Getwd(); err == nil {
+		if modRoot := findModuleRoot(cwd); modRoot != "" {
+			candidatePaths = append(candidatePaths, filepath.Join(modRoot, "tools", "talis", "scripts"))
+		}
+	}
+
+	// 4) Try looking for celestia-app directory in common locations
+	if homeDir, err := os.UserHomeDir(); err == nil {
+		candidatePaths = append(candidatePaths,
+			filepath.Join(homeDir, "git", "celestia-app", "tools", "talis", "scripts"),
+			filepath.Join(homeDir, "go", "src", "github.com", "celestiaorg", "celestia-app", "tools", "talis", "scripts"),
+		)
+	}
+
+	// Try all candidate paths
+	for _, src := range candidatePaths {
+		if fi, err := os.Stat(src); err == nil && fi.IsDir() {
+			fmt.Printf("Found scripts at: %s\n", src)
+			return copyDir(src, filepath.Join(destDir, "scripts"))
+		}
+	}
+
+	// 5) Last resort: try GOPATH (for backwards compatibility)
+	gopath := os.Getenv("GOPATH")
+	if gopath == "" {
+		if out, err := exec.Command("go", "env", "GOPATH").Output(); err == nil {
+			gopath = strings.TrimSpace(string(out))
+		}
+	}
+
+	if gopath != "" {
+		src := filepath.Join(gopath, "src", "github.com", "celestiaorg", "celestia-app", "tools", "talis", "scripts")
+		if fi, err := os.Stat(src); err == nil && fi.IsDir() {
+			return copyDir(src, filepath.Join(destDir, "scripts"))
+		}
+	}
+
+	// 6) Final fallback: clone repo to temp (but clone the current branch if possible)
+	return cloneAndCopyScripts(destDir)
+}
+
+// cloneAndCopyScripts clones the repository and copies scripts
+func cloneAndCopyScripts(destDir string) error {
+	tmp, err := os.MkdirTemp("", "celestia-scripts-*")
+	if err != nil {
+		return fmt.Errorf("mktemp: %w", err)
+	}
+	defer os.RemoveAll(tmp)
+
+	repo := "https://github.com/celestiaorg/celestia-app.git"
+
+	// Try to determine current branch if we're in a git repo
+	branch := "main"
+	if cwd, err := os.Getwd(); err == nil {
+		if gitRoot := findGitRoot(cwd); gitRoot != "" {
+			if currentBranch, err := exec.Command("git", "-C", gitRoot, "branch", "--show-current").Output(); err == nil {
+				if b := strings.TrimSpace(string(currentBranch)); b != "" {
+					branch = b
+					fmt.Printf("Attempting to clone branch: %s\n", branch)
+				}
+			}
+		}
+	}
+
+	// Try cloning the specific branch first
+	cmd := exec.Command("git", "clone", "--depth=1", "--branch", branch, repo, tmp)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("Failed to clone branch %s, trying main branch\n", branch)
+		// Fallback to main branch
+		os.RemoveAll(tmp) // Clean up failed attempt
+		tmp, err = os.MkdirTemp("", "celestia-scripts-*")
 		if err != nil {
 			return fmt.Errorf("mktemp: %w", err)
 		}
-		defer os.RemoveAll(tmp)
 
-		repo := "https://github.com/celestiaorg/celestia-app.git"
-		cmd := exec.Command("git", "clone", "--depth=1", repo, tmp)
+		cmd = exec.Command("git", "clone", "--depth=1", repo, tmp)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("git clone failed: %w", err)
 		}
-
-		src = filepath.Join(tmp, "tools", "talis", "scripts")
 	}
 
-	// 4) copy directory tree including subdirectories
+	src := filepath.Join(tmp, "tools", "talis", "scripts")
+	if _, err := os.Stat(src); err != nil {
+		return fmt.Errorf("scripts directory not found in cloned repository at %s", src)
+	}
+
 	return copyDir(src, filepath.Join(destDir, "scripts"))
+}
+
+// findGitRoot searches upward from the given directory for .git
+func findGitRoot(dir string) string {
+	for {
+		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break // reached root
+		}
+		dir = parent
+	}
+	return ""
+}
+
+// findModuleRoot searches upward from the given directory for go.mod
+func findModuleRoot(dir string) string {
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break // reached root
+		}
+		dir = parent
+	}
+	return ""
 }
 
 // copyDir recursively copies a directory tree, attempting to preserve permissions.

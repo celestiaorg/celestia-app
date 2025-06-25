@@ -1,10 +1,24 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/spf13/cobra"
 )
+
+const Version = "0.0.2"
+
+func versionCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "version",
+		Short: "Print the version of talis",
+		Long:  "Print the version number of talis",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("talis version %s\n", Version)
+		},
+	}
+}
 
 func main() {
 	rootCmd := &cobra.Command{
@@ -25,6 +39,7 @@ func main() {
 		downCmd(),
 		deployCmd(),
 		addCmd(),
+		versionCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {
