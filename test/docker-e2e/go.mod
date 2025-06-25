@@ -6,6 +6,7 @@ require (
 	github.com/celestiaorg/celestia-app/v4 v4.0.0
 	github.com/celestiaorg/go-square/v2 v2.3.0
 	github.com/celestiaorg/tastora v0.0.0-20250515081551-795e795a49c7
+	github.com/cometbft/cometbft v0.38.17
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/docker/docker v28.2.2+incompatible
 	github.com/moby/moby v27.5.1+incompatible
@@ -90,7 +91,6 @@ require (
 	github.com/cockroachdb/pebble v1.1.4 // indirect
 	github.com/cockroachdb/redact v1.1.5 // indirect
 	github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06 // indirect
-	github.com/cometbft/cometbft v0.38.17 // indirect
 	github.com/cometbft/cometbft-db v1.0.4 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/cosmos/btcutil v1.0.5 // indirect
