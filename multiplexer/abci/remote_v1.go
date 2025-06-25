@@ -24,14 +24,17 @@ type RemoteABCIClientV1 struct {
 	endBlockConsensusAppVersion uint64
 	// chainID is required to pass into the headers.
 	chainID string
+	// initialAppVersion is the app version that was parsed from the genesis file or state
+	initialAppVersion uint64
 }
 
 // NewRemoteABCIClientV1 returns a new ABCI Client (using ABCI v1).
 // The client behaves like Tendermint for the server side (the application side).
-func NewRemoteABCIClientV1(conn *grpc.ClientConn, chainID string) *RemoteABCIClientV1 {
+func NewRemoteABCIClientV1(conn *grpc.ClientConn, chainID string, initialAppVersion uint64) *RemoteABCIClientV1 {
 	return &RemoteABCIClientV1{
 		ABCIApplicationClient: abciv1.NewABCIApplicationClient(conn),
 		chainID:               chainID,
+		initialAppVersion:     initialAppVersion,
 	}
 }
 
@@ -231,6 +234,15 @@ func (a *RemoteABCIClientV1) Info(req *abciv2.RequestInfo) (*abciv2.ResponseInfo
 
 // InitChain implements abciv2.ABCI
 func (a *RemoteABCIClientV1) InitChain(req *abciv2.RequestInitChain) (*abciv2.ResponseInitChain, error) {
+	// The types in CometBFT v0.34 and v0.38 are different:
+	// v0.34: genDoc.ConsensusParams.Version.AppVersion
+	// v0.38: genDoc.ConsensusParams.Version.App
+	//
+	// As a result, CometBFT v0.38 did not read the app version from the genesis file correctly so it is expected to be 0 in req.
+	// The multiplexer parsed the app version from the genesis file correctly and stored it in the initialAppVersion field.
+	// Therefore, this overrides the app version in req with the multiplexer's initial app version.
+	req.ConsensusParams.Version.App = a.initialAppVersion
+
 	resp, err := a.ABCIApplicationClient.InitChain(context.Background(), &abciv1.RequestInitChain{
 		Time:            req.Time,
 		ChainId:         req.ChainId,
