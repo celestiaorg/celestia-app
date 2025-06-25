@@ -1,6 +1,8 @@
 module github.com/celestiaorg/celestia-app/v4
 
-go 1.24.4
+go 1.24
+
+toolchain go1.24.4
 
 require (
 	cosmossdk.io/api v0.7.6
