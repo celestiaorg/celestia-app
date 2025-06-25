@@ -55,7 +55,7 @@ func TestChainIDs(t *testing.T) {
 	result := chainIDs()
 
 	// Check that all known chain IDs are included
-	expectedChains := []string{"celestia", "mocha-s4", "arabica-10", "arabisca-11"}
+	expectedChains := []string{"celestia", "mocha-4", "arabica-10", "arabica-11"}
 	for _, chainID := range expectedChains {
 		require.Contains(t, result, chainID)
 	}
