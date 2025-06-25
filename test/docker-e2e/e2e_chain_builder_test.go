@@ -24,7 +24,11 @@ import (
 
 func TestChainBuilder(t *testing.T) {
 
-	g := testnode.DefaultConfig().Genesis.WithChainID("celestia")
+	// default + 2 extra validators.
+	g := testnode.DefaultConfig().Genesis.WithChainID("celestia").WithValidators(
+		genesis.NewDefaultValidator("val1"),
+		genesis.NewDefaultValidator("val2"),
+	)
 
 	genesisBz, err := g.ExportBytes()
 	require.NoError(t, err, "failed to export genesis bytes")
@@ -50,11 +54,21 @@ func TestChainBuilder(t *testing.T) {
 		WithDockerNetworkID(network).
 		WithEncodingConfig(&encodingConfig).
 		WithValidators(
-			// specify validators for the chain. In this case a single validator.
+			// specify validators for the chain.
 			tastoradocker.NewChainNodeConfigBuilder().
 				WithImage(tastoradocker.NewDockerImage("ghcr.io/celestiaorg/celestia-app", "v4.0.4-alpha", "10001:10001")).
 				WithAdditionalStartArgs("--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099").
 				WithPrivValidatorKey(getValidatorPrivateKeyBytes(t, g, 0)).
+				Build(),
+			tastoradocker.NewChainNodeConfigBuilder().
+				WithImage(tastoradocker.NewDockerImage("ghcr.io/celestiaorg/celestia-app", "v4.0.4-alpha", "10001:10001")).
+				WithAdditionalStartArgs("--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099").
+				WithPrivValidatorKey(getValidatorPrivateKeyBytes(t, g, 1)).
+				Build(),
+			tastoradocker.NewChainNodeConfigBuilder().
+				WithImage(tastoradocker.NewDockerImage("ghcr.io/celestiaorg/celestia-app", "v4.0.4-alpha", "10001:10001")).
+				WithAdditionalStartArgs("--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099").
+				WithPrivValidatorKey(getValidatorPrivateKeyBytes(t, g, 2)).
 				Build(),
 		).
 		WithGenesis(genesisBz).
