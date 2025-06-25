@@ -1,6 +1,6 @@
 module celestiaorg/celestia-app/test/docker-e2e
 
-go 1.24
+go 1.24.0
 
 toolchain go1.24.4
 
