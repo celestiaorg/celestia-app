@@ -336,9 +336,9 @@ prebuilt-binary:
 		release --clean --parallelism 2
 .PHONY: prebuilt-binary
 
-## go-releaser-dry-run ensures that the go releaser tool and build all the artefacts correctly.
-## specifies parallelism as 4 so should be run locally. On the regular github runners 2 should be the max.
-go-releaser-dry-run:
+## goreleaser-dry-run: ensures that the go releaser tool can build all the artefacts correctly.
+goreleaser-dry-run:
+# Specifies parallelism as 4 so should be run locally. On the regular github runners 2 should be the max.
 	@echo "Running GoReleaser in dry-run mode..."
 	docker run \
 		--rm \
