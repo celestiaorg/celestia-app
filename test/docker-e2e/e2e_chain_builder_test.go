@@ -9,17 +9,21 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	tastoradocker "github.com/celestiaorg/tastora/framework/docker"
+	"github.com/celestiaorg/tastora/framework/testutil/config"
 	"github.com/celestiaorg/tastora/framework/testutil/maps"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
+	cometcfg "github.com/cometbft/cometbft/config"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 	"github.com/cometbft/cometbft/privval"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	servercfg "github.com/cosmos/cosmos-sdk/server/config"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 	"testing"
+	"time"
 )
 
 func TestChainBuilder(t *testing.T) {
@@ -45,6 +49,17 @@ func TestChainBuilder(t *testing.T) {
 
 	kr := g.Keyring()
 
+	vals := make([]tastoradocker.NodeConfig, 3)
+	for i := 0; i < 3; i++ {
+		privKeyBz := getValidatorPrivateKeyBytes(t, g, i)
+		vals[i] = tastoradocker.NewChainNodeConfigBuilder().
+			WithImage(tastoradocker.NewDockerImage("ghcr.io/celestiaorg/celestia-app", "v4.0.4-alpha", "10001:10001")).
+			WithAdditionalStartArgs("--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099").
+			WithPrivValidatorKey(privKeyBz).
+			WithPostInit(getPostInitModifications("0.025utia")...).
+			Build()
+	}
+
 	chain, err := tastoradocker.NewChainBuilder(t).
 		WithName("celestia"). // just influences home directory on the host.
 		WithGenesisKeyring(kr). // provide the keyring which contains all the keys already generated.
@@ -53,24 +68,7 @@ func TestChainBuilder(t *testing.T) {
 		WithDockerClient(client).
 		WithDockerNetworkID(network).
 		WithEncodingConfig(&encodingConfig).
-		WithValidators(
-			// specify validators for the chain.
-			tastoradocker.NewChainNodeConfigBuilder().
-				WithImage(tastoradocker.NewDockerImage("ghcr.io/celestiaorg/celestia-app", "v4.0.4-alpha", "10001:10001")).
-				WithAdditionalStartArgs("--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099").
-				WithPrivValidatorKey(getValidatorPrivateKeyBytes(t, g, 0)).
-				Build(),
-			tastoradocker.NewChainNodeConfigBuilder().
-				WithImage(tastoradocker.NewDockerImage("ghcr.io/celestiaorg/celestia-app", "v4.0.4-alpha", "10001:10001")).
-				WithAdditionalStartArgs("--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099").
-				WithPrivValidatorKey(getValidatorPrivateKeyBytes(t, g, 1)).
-				Build(),
-			tastoradocker.NewChainNodeConfigBuilder().
-				WithImage(tastoradocker.NewDockerImage("ghcr.io/celestiaorg/celestia-app", "v4.0.4-alpha", "10001:10001")).
-				WithAdditionalStartArgs("--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099").
-				WithPrivValidatorKey(getValidatorPrivateKeyBytes(t, g, 2)).
-				Build(),
-		).
+		WithValidators(vals...).
 		WithGenesis(genesisBz).
 		Build(context.TODO()) // creates and initializes underlying docker resources with provided spec.
 
@@ -84,6 +82,35 @@ func TestChainBuilder(t *testing.T) {
 
 	// test sending a transaction to verify the validator is working properly
 	testBankSend(t, kr, chain)
+}
+
+func getPostInitModifications(gasPrices string) []func(context.Context, *tastoradocker.ChainNode) error {
+	var fns []func(context.Context, *tastoradocker.ChainNode) error
+
+	fns = append(fns, func(ctx context.Context, node *tastoradocker.ChainNode) error {
+		return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
+			cfg.LogLevel = "info"
+			cfg.TxIndex.Indexer = "kv"
+			cfg.P2P.AllowDuplicateIP = true
+			cfg.P2P.AddrBookStrict = false
+			blockTime := time.Duration(2) * time.Second
+			cfg.Consensus.TimeoutCommit = blockTime
+			cfg.Consensus.TimeoutPropose = blockTime
+			cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
+			cfg.RPC.CORSAllowedOrigins = []string{"*"}
+		})
+	})
+
+	fns = append(fns, func(ctx context.Context, node *tastoradocker.ChainNode) error {
+		return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
+			cfg.MinGasPrices = gasPrices
+			cfg.GRPC.Address = "0.0.0.0:9090"
+			cfg.API.Enable = true
+			cfg.API.Swagger = true
+			cfg.API.Address = "tcp://0.0.0.0:1317"
+		})
+	})
+	return fns
 }
 
 // getValidatorPrivateKeyBytes returns the contents of the priv_validator_key.json file.
