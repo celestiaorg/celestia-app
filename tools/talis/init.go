@@ -137,7 +137,7 @@ func initDirs(rootDir string) error {
 // and if missing, does a shallow git clone, copies the folder (including subdirectories), then cleans up.
 func CopyTalisScripts(destDir string, srcRoot string) error {
 	// todo: fix import path
-	const importPath = "celestiaorg/celestia-app/tools/talis/scripts"
+	const importPath = "celestia-app/tools/talis/scripts"
 
 	src := filepath.Join(srcRoot, "src", importPath)
 
