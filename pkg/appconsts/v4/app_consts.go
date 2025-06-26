@@ -20,8 +20,22 @@ const (
 	MaxTxSize            int    = 2097152 // 2 MiB in bytes
 	TimeoutPropose              = time.Millisecond * 3500
 	TimeoutCommit               = time.Millisecond * 4200
-	// UpgradeHeightDelay is the number of blocks after a quorum has been
-	// reached that the chain should upgrade to the new version. Assuming a block
-	// interval of 6 seconds, this is 7 days.
-	UpgradeHeightDelay = int64(7 * 24 * 60 * 60 / 6) // 7 days * 24 hours * 60 minutes * 60 seconds / 6 seconds per block = 100,800 blocks.
+
+	// TestUpgradeHeightDelay is the number of blocks that chain-id "test" waits
+	// after a MsgTryUpgrade to activate the next version.
+	TestUpgradeHeightDelay = int64(3)
+	// ArabicaUpgradeHeightDelay is the number of blocks that Arabica waits
+	// after a MsgTryUpgrade to activate the next version. Assuming a block
+	// interval of 6 seconds, this is 1 day.
+	ArabicaUpgradeHeightDelay = int64(14_400)
+	// MochaUpgradeHeightDelay is the number of blocks that Mocha waits
+	// after a MsgTryUpgrade to activate the next version. Assuming a block
+	// interval of 6 seconds, this is 2 days.
+	MochaUpgradeHeightDelay = int64(28_800)
+	// MainnetUpgradeHeightDelay is the number of blocks that Mainnet waits
+	// after a MsgTryUpgrade to activate the next version. Assuming a block
+	// interval of 6 seconds, this is 7 day.
+	MainnetUpgradeHeightDelay = int64(100_800)
+	// Deprecated: Use MainnetUpgradeHeightDelay instead.
+	UpgradeHeightDelay = MainnetUpgradeHeightDelay
 )
