@@ -116,6 +116,7 @@ upgradeToV4() {
     echo "Querying the tally for v4..."
     celestia-appd query signal tally 4
 
+    sleep 10
     echo "Submitting msg try upgrade..."
     celestia-appd tx signal try-upgrade \
         --keyring-backend=${KEYRING_BACKEND} \
@@ -127,7 +128,7 @@ upgradeToV4() {
         --yes \
         > /dev/null 2>&1 # Hide output to reduce terminal noise
 
-    sleep 10
+    sleep 2
     echo "Querying for pending upgrade..."
     celestia-appd query signal upgrade
 }

@@ -490,7 +490,7 @@ func (m *Multiplexer) getApp() (servertypes.ABCI, error) {
 
 	switch m.activeVersion.ABCIVersion {
 	case ABCIClientVersion1:
-		return NewRemoteABCIClientV1(m.conn, m.chainID), nil
+		return NewRemoteABCIClientV1(m.conn, m.chainID, m.appVersion), nil
 	case ABCIClientVersion2:
 		return NewRemoteABCIClientV2(m.conn), nil
 	}
