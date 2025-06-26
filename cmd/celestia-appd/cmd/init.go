@@ -109,13 +109,9 @@ func initCmd(basicManager module.BasicManager, defaultNodeHome string) *cobra.Co
 			if isKnownChainID(chainID) {
 				fmt.Println("Warning: You are initializing a public chain. This is a very rare edge case and will likely result in a fork. Please be sure you know what you are doing.")
 
-				autoConfirm, _ := cmd.Flags().GetBool(FlagYes)
-				var confirm bool
+				confirm, _ := cmd.Flags().GetBool(FlagYes)
 
-				if autoConfirm {
-					confirm = true
-					fmt.Println("Auto-confirming genesis download due to --yes flag")
-				} else {
+				if !confirm {
 					inBuf := bufio.NewReader(cmd.InOrStdin())
 					var err error
 					confirm, err = input.GetConfirmation("Do you want to download the known genesis for this chain?", inBuf, cmd.OutOrStdout())
