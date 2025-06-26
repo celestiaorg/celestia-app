@@ -69,11 +69,13 @@ func generateCmd() *cobra.Command {
 				return fmt.Errorf("failed to copy scripts: %w", err)
 			}
 
+			fmt.Println("appBinaryPath", appBinaryPath)
 			if err := copyFile(appBinaryPath, filepath.Join(payloadDir, "build", "celestia-appd"), 0o755); err != nil {
 				return fmt.Errorf("failed to copy app binary: %w", err)
 			}
 
 			if err := copyFile(nodeBinaryPath, filepath.Join(payloadDir, "build", "celestia"), 0o755); err != nil {
+				fmt.Println("nodeBinaryPath", nodeBinaryPath)
 				log.Println("failed to copy celestia binary, bridge and light nodes will not be able to start")
 			}
 

@@ -82,7 +82,7 @@ func deployCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			tarPath := filepath.Join(rootDir, "payload.tar.gz")
 			log.Printf("Compressing payload to %s\n", tarPath)
-			tarCmd := exec.Command("tar", "--xz", "--options", "xz:compression-level=7,xz:threads=0", "-cf", tarPath, "-C", rootDir, "payload")
+			tarCmd := exec.Command("tar", "-czf", tarPath, "-C", rootDir, "payload")
 			if output, err := tarCmd.CombinedOutput(); err != nil {
 				return fmt.Errorf("failed to compress payload: %w, output: %s", err, string(output))
 			}
@@ -156,7 +156,7 @@ func deployPayload(
 
 			remoteCmd := strings.Join([]string{
 				// unpack
-				fmt.Sprintf("tar -xJf %s -C %s", filepath.Join(remoteDir, archiveFile), remoteDir),
+				fmt.Sprintf("tar -xzf %s -C %s", filepath.Join(remoteDir, archiveFile), remoteDir),
 				// make sure script is executable
 				fmt.Sprintf("chmod +x %s", filepath.Join(remoteDir, remoteScript)),
 				// start in a named, detached tmux session

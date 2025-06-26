@@ -1,5 +1,44 @@
 # talis
 
+## Prerequisite - DigitalOcean setup
+
+### DO Account
+
+- Ask for access to Celestia's DO account.
+
+- **Generate the API token:** Go to Settings → API → Generate New Token
+
+- Save the token somewhere that's easily accessible
+
+### SSH Key
+
+ - For quick and easy testing, create a new SSH key without a passphrase
+
+```sh
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_no_passphrase -N ""
+```
+
+- Upload the SSH key to DigitalOcean
+
+- Navigate to Settings → Security → SSH Keys
+
+- Click "Add SSH Key"
+
+- Paste your public key
+
+```sh
+
+cat ~/.ssh/id_ed25519_no_passphrase.pub
+
+```
+
+- Add your name into the name for quick and easy access we'll need this later
+Now your key should appear in "SSH Keys" list
+
+## Running talis
+
+You have two options when it comes to running talis. You can run it on your local machine which has high RAM requirements or you can run it inside of a DO droplet. The guide for this will be at the end of the file.
+
 ## Install
 
 ```sh
@@ -8,7 +47,7 @@ go install ./tools/talis/
 
 All binaries used by nodes in the network are compiled on the user's local machine. Either change the target when compiling celestia-app, or use the docker image to ensure complete compatibility.
 
-```
+```sh
 make build-talis-bins
 ```
 
@@ -66,7 +105,7 @@ talis add  -t <node-type> -c <count>
 
 If we call:
 
-```
+```sh
 talis add -t validator -c 1
 ```
 
@@ -100,6 +139,13 @@ we will see the config updated to:
 }
 ```
 
+### Export env vars
+
+```sh
+export DIGITALOCEAN_TOKEN="your_api_token_here"
+export TALIS_SSH_KEY_PATH="your_ssh_key_path_here"
+```
+
 ### up
 
 `up` uses the configuration to spin up the cloud instances. Note that this doesn't start the network!
@@ -118,7 +164,7 @@ Before we can start the network, we need to create a payload that contains every
 talis genesis -s 128 -a /home/$HOSTNAME/go/src/github.com/celestiaorg/celestia-app/build/celestia-appd -t /home/$HOSTNAME/go/src/github.com/celestiaorg/celestia-app/build/txsim
 ```
 
-Keep in mind that we can still edit anything in the payload before deploying the network. 
+Keep in mind that we can still edit anything in the payload before deploying the network.
 
 ### deploy
 
@@ -158,19 +204,19 @@ talis download -n <validator-*> -t <table> [flags]
 
 To quickly view block times, assuming this table was being traced we can run:
 
-```
+```sh
 talis download -n validator-0 -t consensus_block
 ```
 
 or if we needed to quickly see all of the mempool traces:
 
-```
+```sh
 talis download -n validator-* -t mempool_tx
 ```
 
 or if we want to check on the logs we can call:
 
-```
+```sh
 talis download -n validator-* -t logs
 ```
 
@@ -178,13 +224,13 @@ talis download -n validator-* -t logs
 
 At the end of the experiment, we can quickly save all of the traces to an s3 bucket assuming that we filled out the s3 config in the config.json.
 
-```
+```sh
 talis upload-data
 ```
 
 This could take a few minutes if there is a ton of trace data, but often is completed in <30s. To download this data from the s3 bucket, we can use the s3 subcommand:
 
-```
+```sh
 talis download s3
 ```
 
@@ -199,4 +245,83 @@ Finally, remember to tear down the cloud instances. This should work first try, 
 ```sh
 # tears down the network
 talis down
+```
+
+## Running Talis inside of a DO droplet
+
+Create a new droplet
+
+- Recommended Size: 32GB RAM 16CPU
+- SSH Keys: Add your SSH key
+
+SSH into the Droplet
+
+```sh
+ssh root@YOUR_DROPLET_IP
+```
+
+Install Deps
+
+```sh
+# Install Go
+snap install go --channel=1.24/stable --classic
+
+# Install Docker
+apt install docker.io -y
+systemctl start docker
+usermod -aG docker $USER
+
+# Install misc tools
+apt install git curl jq -y
+```
+
+Set up Go env
+
+```sh
+echo 'export GOPATH="$HOME/go"' >> ~/.profile
+echo 'export GOBIN="$GOPATH/bin"' >> ~/.profile
+echo 'export PATH="$GOBIN:$PATH"' >> ~/.profile
+source ~/.profile
+```
+
+Clone and Build
+
+```sh
+# Clone celestia-app and cd into it
+git clone https://github.com/celestiaorg/celestia-app.git
+cd celestia-app
+
+# Build binaries (celestia, celestia-appd, txsim)
+make build-talis-bins
+
+# Install talis
+go install ./tools/talis/
+```
+
+Set env variables
+
+```sh
+export DIGITALOCEAN_TOKEN="your_api_token_here"
+export TALIS_SSH_KEY_PATH="~/.ssh/id_ed25519_no_passphrase"
+```
+
+Run Talis
+
+Talis assumes that you're your defualt ssh key so if you created a new key above you need to specify it in the commands.
+
+```sh
+# Initialize
+talis init -c your-chain-id -e your-experiment
+
+# Add validators
+talis add -t validator -c <count>
+
+# Spin up talis
+talis up -n <key-name> -s <path-to-ssh-key>
+
+# Create payload
+talis genesis -s 128 -a  build/celestia-appd -t build/txsim
+
+# Deploy
+talis deploy -s <path-to-ssh-key>
 ```
