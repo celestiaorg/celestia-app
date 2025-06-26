@@ -229,12 +229,6 @@ test-short:
 	@go test ./... -short -timeout 1m
 .PHONY: test-short
 
-## test-e2e: Run end to end tests via knuu. This command requires a kube/config file to configure kubernetes.
-test-e2e:
-	@echo "--> Running end to end tests"
-	IMAGE_TAG=$(tag) TEST=$(test) DOCKER_REGISTRY=$(registry) go run ./test/e2e $(filter-out $@,$(MAKECMDGOALS))
-.PHONY: test-e2e
-
 ## test-docker-e2e: Run end to end tests via docker.
 test-docker-e2e:
 	@if [ -z "$(test)" ]; then \
