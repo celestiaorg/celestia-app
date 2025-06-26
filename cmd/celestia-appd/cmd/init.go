@@ -189,7 +189,7 @@ func initCmd(basicManager module.BasicManager, defaultNodeHome string) *cobra.Co
 	cmd.Flags().Bool(FlagRecover, false, "provide seed phrase to recover existing key instead of creating")
 	cmd.Flags().String(flags.FlagChainID, "", "genesis file chain-id, if left blank will be randomly created")
 	cmd.Flags().Int64(flags.FlagInitHeight, 1, "specify the initial block height at genesis")
-	cmd.Flags().BoolP(FlagYes, "y", false, "automatically answer yes to prompts")
+	cmd.Flags().BoolP(FlagYes, "y", false, "automatically answer yes to genesis download for known chainID")
 
 	return cmd
 }
