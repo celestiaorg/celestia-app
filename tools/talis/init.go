@@ -50,6 +50,8 @@ func initCmd() *cobra.Command {
 			}
 
 			if err := CopyTalisScripts(rootDir, srcRoot); err != nil {
+				fmt.Println(rootDir, "ROOT DIR")
+				fmt.Println(srcRoot, "SRC ROOT")
 				return fmt.Errorf("failed to copy scripts: %w", err)
 			}
 
@@ -132,9 +134,13 @@ func initDirs(rootDir string) error {
 // and if missing, does a shallow git clone, copies the folder (including subdirectories), then cleans up.
 func CopyTalisScripts(destDir string, srcRoot string) error {
 	// todo: fix import path
-	const importPath = "celestiaorg/celestia-app/tools/talis/scripts"
+	// const importPath = "celestiaorg/celestia-app/tools/talis/scripts"
+	const importPath = "celestia/celestia-app/tools/talis/scripts"
+	fmt.Println(srcRoot, "SRC ROOT")
+	fmt.Println(destDir, "DEST DIR")
 
-	src := filepath.Join(srcRoot, "src", importPath)
+	src := filepath.Join(srcRoot, "Desktop", importPath)
+	fmt.Println(src, "SRC")
 
 	if fi, err := os.Stat(src); err != nil || !fi.IsDir() {
 		tmp, err := os.MkdirTemp("", "celestia-scripts-*")

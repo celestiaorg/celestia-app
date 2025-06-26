@@ -95,7 +95,7 @@ func deployCmd() *cobra.Command {
 				return fmt.Errorf("no validators found in config")
 			}
 
-			return deployPayload(cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute)
+			return deployPayload(cfg.Validators, tarPath, SSHKeyPath, "/root", []string{"payload/validator_init.sh", "payload/validator_init_new_binary.sh"}, 7*time.Minute)
 		},
 	}
 
@@ -116,6 +116,34 @@ func deployCmd() *cobra.Command {
 // and launches the specified remote script inside a detached tmux session.
 // It runs all operations in parallel and returns an error if any host fails.
 func deployPayload(
+	ips []Instance,
+	archivePath string, // e.g. "./payload.tar.gz"
+	sshKeyPath string, // e.g. "~/.ssh/id_ed25519"
+	remoteDir string, // e.g. "/root"
+	remoteScripts []string, // e.g. ["start.sh", "start_v2.sh"]
+	timeout time.Duration, // per‐host timeout
+) error {
+	// Split validators into two groups
+	half := len(ips) / 2
+	// first half running the old binary
+	firstHalf := ips[:half]
+	// second half running the new binary
+	secondHalf := ips[half:]
+
+	// Deploy first half with first script
+	if err := deployGroup(firstHalf, archivePath, sshKeyPath, remoteDir, remoteScripts[0], timeout); err != nil {
+		return err
+	}
+
+	// Deploy second half with second script
+	if err := deployGroup(secondHalf, archivePath, sshKeyPath, remoteDir, remoteScripts[1], timeout); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func deployGroup(
 	ips []Instance,
 	archivePath string, // e.g. "./payload.tar.gz"
 	sshKeyPath string, // e.g. "~/.ssh/id_ed25519"

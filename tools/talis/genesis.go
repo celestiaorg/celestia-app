@@ -20,12 +20,13 @@ const (
 // generateCmd is the Cobra command for creating the payload for the experiment.
 func generateCmd() *cobra.Command {
 	var (
-		rootDir         string
-		chainID         string // will overwrite that in the config
-		squareSize      int
-		appBinaryPath   string
-		nodeBinaryPath  string
-		txsimBinaryPath string
+		rootDir          string
+		chainID          string // will overwrite that in the config
+		squareSize       int
+		appBinaryPath    string
+		appBinaryPathNew string
+		nodeBinaryPath   string
+		txsimBinaryPath  string
 	)
 	cmd := &cobra.Command{
 		Use:   "genesis",
@@ -67,10 +68,15 @@ func generateCmd() *cobra.Command {
 			}
 
 			if err := copyDir(filepath.Join(rootDir, "scripts"), filepath.Join(rootDir, "payload")); err != nil {
+				fmt.Println(rootDir, "ROOT DIR")
 				return fmt.Errorf("failed to copy scripts: %w", err)
 			}
 
 			if err := copyFile(appBinaryPath, filepath.Join(payloadDir, "build", "celestia-appd"), 0o755); err != nil {
+				return fmt.Errorf("failed to copy app binary: %w", err)
+			}
+
+			if err := copyFile(appBinaryPathNew, filepath.Join(payloadDir, "build", "celestia-appd-new"), 0o755); err != nil {
 				return fmt.Errorf("failed to copy app binary: %w", err)
 			}
 
@@ -104,6 +110,7 @@ func generateCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&rootDir, rootDirFlag, "d", ".", "root directory in which to initialize (default is the current directory)")
 	cmd.Flags().IntVarP(&squareSize, "ods-size", "s", appconsts.TalisSquareSizeUpperBound, "The size of the ODS for the network")
 	cmd.Flags().StringVarP(&appBinaryPath, "app-binary", "a", filepath.Join(gopath, "celestia-appd"), "app binary to include in the payload (assumes the binary is is installed")
+	cmd.Flags().StringVarP(&appBinaryPathNew, "app-binary-new", "g", filepath.Join(gopath, "celestia-appd-new"), "another app binary to include in the payload for comparing performance (assumes the binary is is installed")
 	cmd.Flags().StringVarP(&nodeBinaryPath, "node-binary", "n", filepath.Join(gopath, "celestia"), "node binary to include in the payload (assumes the binary is installed")
 	cmd.Flags().StringVarP(&txsimBinaryPath, "txsim-binary", "t", filepath.Join(gopath, "txsim"), "txsim binary to include in the payload (assumes the binary is installed)")
 
