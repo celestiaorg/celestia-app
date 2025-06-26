@@ -1,6 +1,7 @@
 package appconsts
 
 import (
+	"strings"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
@@ -11,14 +12,15 @@ const (
 )
 
 var (
-	SquareSizeUpperBound = v4.SquareSizeUpperBound
-	TxSizeCostPerByte    = v4.TxSizeCostPerByte
-	GasPerBlobByte       = v4.GasPerBlobByte
-	Version              = v4.Version
-	MaxTxSize            = v4.MaxTxSize
-	SubtreeRootThreshold = v4.SubtreeRootThreshold
-	TimeoutCommit        = v4.TimeoutCommit
-	TimeoutPropose       = v4.TimeoutPropose
+	SquareSizeUpperBound      = v4.SquareSizeUpperBound
+	TalisSquareSizeUpperBound = 512
+	TxSizeCostPerByte         = v4.TxSizeCostPerByte
+	GasPerBlobByte            = v4.GasPerBlobByte
+	Version                   = v4.Version
+	MaxTxSize                 = v4.MaxTxSize
+	SubtreeRootThreshold      = v4.SubtreeRootThreshold
+	TimeoutCommit             = v4.TimeoutCommit
+	TimeoutPropose            = v4.TimeoutPropose
 
 	TestUpgradeHeightDelay    = v4.TestUpgradeHeightDelay
 	ArabicaUpgradeHeightDelay = v4.ArabicaUpgradeHeightDelay
@@ -30,6 +32,13 @@ var (
 
 func GetTimeoutCommit(_ uint64) time.Duration {
 	return v4.TimeoutCommit
+}
+
+func GetSquareSizeUpperBound(chainID string) int {
+	if strings.Contains(chainID, TalisChainID) {
+		return TalisSquareSizeUpperBound
+	}
+	return v4.SquareSizeUpperBound
 }
 
 // GetUpgradeHeightDelay returns the delay in blocks after a quorum has been
