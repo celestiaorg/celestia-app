@@ -5,35 +5,27 @@
 ### DO Account
 
 - Ask for access to Celestia's DO account.
-
-- **Generate the API token:** Go to Settings → API → Generate New Token
-
-- Save the token somewhere that's easily accessible
+- **Generate the API token:** Go to Settings → API → Generate New Token.
+- Save the token somewhere that's easily accessible.
 
 ### SSH Key
 
- - For quick and easy testing, create a new SSH key without a passphrase
+ - For quick and easy testing, create a new SSH key without a passphrase:
 
 ```sh
 ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_no_passphrase -N ""
 ```
 
-- Upload the SSH key to DigitalOcean
-
-- Navigate to Settings → Security → SSH Keys
-
-- Click "Add SSH Key"
-
-- Paste your public key
+- Upload the SSH key to DigitalOcean:
+- Navigate to Settings → Security → SSH Keys.
+- Click "Add SSH Key".
+- Paste your public key.
 
 ```sh
-
 cat ~/.ssh/id_ed25519_no_passphrase.pub
-
 ```
 
-- Add your name into the name for quick and easy access we'll need this later
-Now your key should appear in "SSH Keys" list
+- Add your name into the name for quick and easy access we'll need this later. Now your key should appear in "SSH Keys" list.
 
 ## Running talis
 
@@ -249,18 +241,18 @@ talis down
 
 ## Running Talis inside of a DO droplet
 
-Create a new droplet
+Create a new droplet:
 
 - Recommended Size: 32GB RAM 16CPU
 - SSH Keys: Add your SSH key
 
-SSH into the Droplet
+SSH into the Droplet:
 
 ```sh
 ssh root@YOUR_DROPLET_IP
 ```
 
-Install Deps
+Install Deps:
 
 ```sh
 # Install Go
@@ -275,7 +267,7 @@ usermod -aG docker $USER
 apt install git curl jq -y
 ```
 
-Set up Go env
+Set up Go env:
 
 ```sh
 echo 'export GOPATH="$HOME/go"' >> ~/.profile
@@ -284,7 +276,7 @@ echo 'export PATH="$GOBIN:$PATH"' >> ~/.profile
 source ~/.profile
 ```
 
-Clone and Build
+Clone and build:
 
 ```sh
 # Clone celestia-app and cd into it
@@ -298,16 +290,16 @@ make build-talis-bins
 go install ./tools/talis/
 ```
 
-Set env variables
+Set env variables:
 
 ```sh
 export DIGITALOCEAN_TOKEN="your_api_token_here"
 export TALIS_SSH_KEY_PATH="~/.ssh/id_ed25519_no_passphrase"
 ```
 
-Run Talis
+**Run Talis:**
 
-Talis assumes that you're your defualt ssh key so if you created a new key above you need to specify it in the commands.
+Talis assumes that you're your default ssh key so if you created a new key above you need to specify it in the commands.
 
 ```sh
 # Initialize
