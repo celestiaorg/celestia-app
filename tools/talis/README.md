@@ -2,9 +2,9 @@
 
 ## Prerequisite - DigitalOcean setup
 
-### DO Account
+### DigitalOcean Account
 
-- If you're part of the Celestia eng team ask for access to Celestia's DO account or alternatively use personal account.
+- If you're part of the Celestia engineering team ask for access to Celestia's DigitalOcean account or alternatively use personal account.
 - **Generate the API token:** Go to Settings → API → Generate New Token.
 - Save the token somewhere that's easily accessible.
 
@@ -29,7 +29,7 @@ cat ~/.ssh/id_ed25519_no_passphrase.pub
 
 ## Running talis
 
-You have two options when it comes to running talis. You can run it on your local machine which has high RAM requirements or you can run it inside of a DO droplet. The guide for this will be at the end of the file.
+You have two options when it comes to running talis. You can run it on your local machine which has high RAM requirements or you can run it inside of a DigitalOcean droplet. The guide for this will be at the end of the file.
 
 ## Install
 
@@ -239,7 +239,7 @@ Finally, remember to tear down the cloud instances. This should work first try, 
 talis down
 ```
 
-## Running Talis inside of a DO droplet
+## Running Talis inside of a DigitalOcean droplet
 
 Create a new droplet:
 
