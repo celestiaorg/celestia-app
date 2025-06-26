@@ -80,6 +80,7 @@ func (s *CelestiaTestSuite) CreateDockerProvider(opts ...ConfigOption) celestiat
 			GasPrices:           "0.025utia",
 			GasAdjustment:       1.3,
 			EncodingConfig:      &enc,
+			Env:                 []string{"CI=true"}, // This is used to bypass interactive prompts when downloading the genesis file
 			AdditionalStartArgs: []string{"--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099"},
 		},
 	}
