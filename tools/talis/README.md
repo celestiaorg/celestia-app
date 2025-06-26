@@ -4,13 +4,13 @@
 
 ### DO Account
 
-- Ask for access to Celestia's DO account.
+- If you're part of the Celestia eng team ask for access to Celestia's DO account or alternatively use personal account.
 - **Generate the API token:** Go to Settings → API → Generate New Token.
 - Save the token somewhere that's easily accessible.
 
 ### SSH Key
 
- - For quick and easy testing, create a new SSH key without a passphrase:
+- For quick and easy testing, create a new SSH key without a passphrase:
 
 ```sh
 ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_no_passphrase -N ""
@@ -317,3 +317,7 @@ talis genesis -s 128 -a  build/celestia-appd -t build/txsim
 # Deploy
 talis deploy -s <path-to-ssh-key>
 ```
+
+**Save Snapshot:**
+
+After you're done running experiments, make sure to take a snapshot of your deployment droplet and destroy the original.
