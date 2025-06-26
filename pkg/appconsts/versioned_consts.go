@@ -3,7 +3,7 @@ package appconsts
 import (
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
+	v4 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
 )
 
 const (
@@ -15,11 +15,17 @@ var (
 	TxSizeCostPerByte    = v4.TxSizeCostPerByte
 	GasPerBlobByte       = v4.GasPerBlobByte
 	Version              = v4.Version
-	UpgradeHeightDelay   = v4.UpgradeHeightDelay
 	MaxTxSize            = v4.MaxTxSize
 	SubtreeRootThreshold = v4.SubtreeRootThreshold
 	TimeoutCommit        = v4.TimeoutCommit
 	TimeoutPropose       = v4.TimeoutPropose
+
+	TestUpgradeHeightDelay    = v4.TestUpgradeHeightDelay
+	ArabicaUpgradeHeightDelay = v4.ArabicaUpgradeHeightDelay
+	MochaUpgradeHeightDelay   = v4.MochaUpgradeHeightDelay
+	MainnetUpgradeHeightDelay = v4.MainnetUpgradeHeightDelay
+	// Deprecated: Use MainnetUpgradeHeightDelay instead.
+	UpgradeHeightDelay = v4.MainnetUpgradeHeightDelay
 )
 
 func GetTimeoutCommit(_ uint64) time.Duration {
@@ -30,7 +36,13 @@ func GetTimeoutCommit(_ uint64) time.Duration {
 // reached that the chain should upgrade to the new version.
 func GetUpgradeHeightDelay(chainID string) int64 {
 	if chainID == TestChainID {
-		return 3
+		return v4.TestUpgradeHeightDelay
 	}
-	return v4.UpgradeHeightDelay
+	if chainID == ArabicaChainID {
+		return v4.ArabicaUpgradeHeightDelay
+	}
+	if chainID == MochaChainID {
+		return v4.MochaUpgradeHeightDelay
+	}
+	return v4.MainnetUpgradeHeightDelay
 }
