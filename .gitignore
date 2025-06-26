@@ -29,7 +29,3 @@ internal/embedding/**
 app.toml
 config.toml
 config.json
-scripts/vars.sh
-scripts/validator_init.sh
-scripts/upload_traces.sh
-scripts/user_scripts/start_tshark.sh
