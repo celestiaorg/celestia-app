@@ -2,11 +2,10 @@ package keeper
 
 import (
 	storetypes "cosmossdk.io/store/types"
+	"github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	params "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
-
-	"github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 )
 
 type Keeper struct {

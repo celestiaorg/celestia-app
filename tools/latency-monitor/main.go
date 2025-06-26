@@ -12,15 +12,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-
-	"github.com/celestiaorg/go-square/v2/share"
-
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
@@ -41,11 +39,12 @@ type txResult struct {
 
 func main() {
 	var (
-		endpoint     = flag.String("grpc-endpoint", defaultEndpoint, "gRPC endpoint to connect to")
-		keyringDir   = flag.String("keyring-dir", defaultKeyringDir, "Directory containing the keyring")
-		submitRate   = flag.Float64("submit-rate", defaultSubmitRate, "Data submission rate (KB/sec)")
-		blobSize     = flag.Int("blob-size", defaultBlobSize, "Size of blob data in KBs")
-		namespaceStr = flag.String("namespace", defaultNamespaceStr, "Namespace for blob submission")
+		endpoint       = flag.String("grpc-endpoint", defaultEndpoint, "gRPC endpoint to connect to")
+		keyringDir     = flag.String("keyring-dir", defaultKeyringDir, "Directory containing the keyring")
+		submitRate     = flag.Float64("submit-rate", defaultSubmitRate, "Data submission rate (KB/sec)")
+		blobSize       = flag.Int("blob-size", defaultBlobSize, "Size of blob data in KBs")
+		namespaceStr   = flag.String("namespace", defaultNamespaceStr, "Namespace for blob submission")
+		disableMetrics = flag.Bool("disable-metrics", false, "Disable metrics collection")
 	)
 	flag.Parse()
 
@@ -61,7 +60,7 @@ func main() {
 		cancel()
 	}()
 
-	if err := monitorLatency(ctx, *endpoint, *keyringDir, *submitRate, *blobSize, *namespaceStr); err != nil {
+	if err := monitorLatency(ctx, *endpoint, *keyringDir, *submitRate, *blobSize, *namespaceStr, *disableMetrics); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		//nolint:gocritic
 		os.Exit(1)
@@ -75,6 +74,7 @@ func monitorLatency(
 	submitRate float64,
 	blobSize int,
 	namespaceStr string,
+	disableMetrics bool,
 ) error {
 	fmt.Printf("Monitoring latency with submit rate: %f KB/s, blob size: %d KBs, namespace: %s\n", submitRate, blobSize, namespaceStr)
 	fmt.Printf("Press Ctrl+C to stop\n\n")
@@ -128,6 +128,9 @@ func monitorLatency(
 	for {
 		select {
 		case <-ctx.Done():
+			if disableMetrics {
+				return nil
+			}
 			return writeResults(results)
 		case <-updateTicker.C:
 			fmt.Printf("Transactions submitted: %d\n", counter)
@@ -151,6 +154,10 @@ func monitorLatency(
 				resp, err := txClient.SubmitPayForBlob(ctx, []*share.Blob{blob})
 				if err != nil {
 					fmt.Printf("Failed to submit tx: %v\n", err)
+					return
+				}
+
+				if disableMetrics {
 					return
 				}
 

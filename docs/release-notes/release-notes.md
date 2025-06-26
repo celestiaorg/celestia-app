@@ -15,11 +15,25 @@ Celestia-app v4.0.0 introduces support for a [multiplexer](https://github.com/ce
 - The default ABCI client address is now `tcp://127.0.0.1:36658` (configured via `--proxy_app` flag or `proxy_app` in config.toml).
 - The default ABCI server address is now `tcp://127.0.0.1:36658` (configured via `--address` flag).
 
-These two configs must match in order for the multiplexer to work correctly. Therefore, if you override either of these configs, please ensure that the other one is also overridden.
+These two configs must match in order for the multiplexer to work correctly. Please update your config.toml to account for the new default
+
+```diff
+-proxy_app = "tcp://127.0.0.1:26658"
++proxy_app = "tcp://127.0.0.1:36658"
+```
 
 #### Custom build flags
 
-`make install` currently downloads a v3.x binary with only one custom build flag, `ledger`. If you use any additional custom build flags (i.e. `pebbledb`, `rocksdb`, `badgerdb`, `cleveldb`, `boltdb`), you will need to build the v3.x binary from source (with custom build tags) and include it in the app's embedded binary directory (by default: `~/.celestia-app/bin/`).
+`make install` currently downloads a v3.x binary with only one custom build flag, `ledger`. If you use any additional custom build flags (i.e. `pebbledb`, `rocksdb`, `badgerdb`, `cleveldb`, `boltdb`), you will need to build the v3.x binary from source (with custom build tags) and include it in the app's embedded binary directory (by default: `~/.celestia-app/bin/`). The embedded binary directory layout:
+
+```bash
+$ tree bin
+bin
+└── v3.10.2-mocha
+    ├── celestia-appd
+    ├── LICENSE
+    └── README.md
+```
 
 #### `rpc.grpc_laddr`
 
@@ -39,7 +53,16 @@ Celestia-app v4 uses IAVL v1 for better performance. When upgrading to v4, the m
 
 ### State Machine Changes (v4.0.0)
 
-Celestia-app v4.0.0 includes significant state machine changes due to major dependency upgrades: **Cosmos SDK** (v0.46.16 to v0.50.13), **IBC** (v6.2.2 to v8.7.0). This upgrade also includes bumping **CometBFT** (v0.34 to v0.38).
+Celestia-app v4.0.0 includes significant state machine changes due to major dependency upgrades:
+
+- Cosmos SDK v0.46.16 to v0.50.12
+  - [API breaking changes](https://github.com/cosmos/cosmos-sdk/blob/release/v0.50.x/CHANGELOG.md#api-breaking-changes)
+  - [Client breaking changes](https://github.com/cosmos/cosmos-sdk/blob/release/v0.50.x/CHANGELOG.md#client-breaking-changes)
+  - [CLI breaking changes](https://github.com/cosmos/cosmos-sdk/blob/release/v0.50.x/CHANGELOG.md#cli-breaking-changes)
+- IBC v6.2.2 to v8.7.0
+  - [IBC v8.7.0 release notes](https://github.com/cosmos/ibc-go/releases/tag/v8.7.0)
+- CometBFT v0.34.35 to v0.38.17
+  - [CometBFT v0.38.17 release notes](https://github.com/cometbft/cometbft/releases/tag/v0.38.17)
 
 #### New Messages (Added Modules)
 

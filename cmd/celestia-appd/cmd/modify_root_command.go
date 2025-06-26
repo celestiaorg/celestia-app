@@ -3,10 +3,9 @@
 package cmd
 
 import (
+	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
 )
 
 // modifyRootCommand sets the default root command without adding a multiplexer.

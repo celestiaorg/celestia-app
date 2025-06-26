@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v4/internal/embedding"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -3,15 +3,13 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
-
 	"github.com/celestiaorg/celestia-app/v4/app"
+	embedding "github.com/celestiaorg/celestia-app/v4/internal/embedding"
 	"github.com/celestiaorg/celestia-app/v4/multiplexer/abci"
 	"github.com/celestiaorg/celestia-app/v4/multiplexer/appd"
 	multiplexer "github.com/celestiaorg/celestia-app/v4/multiplexer/cmd"
 	"github.com/cosmos/cosmos-sdk/server"
-
-	embedding "github.com/celestiaorg/celestia-app/v4/internal/embedding"
+	"github.com/spf13/cobra"
 )
 
 // v2UpgradeHeight is the block height at which the v2 upgrade occurred.

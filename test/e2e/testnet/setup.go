@@ -5,13 +5,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
 	"github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/p2p/pex"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/params"
 )
 
 func MakeConfig(node *Node, peers []string, opts ...Option) (*config.Config, error) {

@@ -5,11 +5,10 @@ import (
 	"errors"
 	"math/rand"
 
+	signaltypes "github.com/celestiaorg/celestia-app/v4/x/signal/types"
 	"github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/cosmos/gogoproto/grpc"
-
-	signaltypes "github.com/celestiaorg/celestia-app/v4/x/signal/types"
 )
 
 var _ Sequence = &UpgradeSequence{}

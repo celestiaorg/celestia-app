@@ -9,6 +9,11 @@ import (
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
+	"github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
+	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	"github.com/celestiaorg/go-square/v2/share"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	tmdb "github.com/cosmos/cosmos-db"
@@ -21,13 +26,6 @@ import (
 	"github.com/cosmos/gogoproto/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/go-square/v2/share"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
-	"github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
-	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 // TestPayForBlobs verifies the attributes on the emitted event.

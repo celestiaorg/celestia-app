@@ -28,8 +28,8 @@ func TestMultiplexerSetup(t *testing.T) {
 	// Add Alice's key
 	execCommand(t, celestiaBin, "keys", "add", "alice")
 
-	genesisPath := getTestFilePath("multi-plexer-genesis.json")
-	require.FileExists(t, genesisPath, "multi-plexer-genesis.json file does not exist.")
+	genesisPath := getTestFilePath("multiplexer-genesis.json")
+	require.FileExists(t, genesisPath, "multiplexer-genesis.json file does not exist.")
 
 	targetGenesisPath := filepath.Join(celestiaHome, "config", "genesis.json")
 	t.Logf("target genesis path: %s", targetGenesisPath)
