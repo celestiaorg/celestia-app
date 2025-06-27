@@ -15,6 +15,8 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+const mebibyte = 1_048_576 // 1 MiB
+
 func TestBigBlobSuite(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping big blob suite in short mode.")
