@@ -178,7 +178,7 @@ func (s *SquareSizeIntegrationTest) SetupBlockSizeParams(t *testing.T, squareSiz
 	propResp, err := govQueryClient.Proposals(s.cctx.GoContext(), &govv1.QueryProposalsRequest{ProposalStatus: govv1.StatusVotingPeriod})
 	require.NoError(t, err)
 	require.Greater(t, len(propResp.Proposals), 0, "expected at least one proposal in voting period")
-	
+
 	// Use the most recent proposal (highest ID)
 	var latestProposal *govv1.Proposal
 	for _, prop := range propResp.Proposals {
