@@ -26,8 +26,12 @@ import (
 var (
 	// portCounter is a global atomic counter for deterministic port allocation
 	// Starting from 20000 to avoid conflicts with common ports
-	portCounter int64 = 20000
+	portCounter atomic.Int64
 )
+
+func init() {
+	portCounter.Store(20000)
+}
 
 func TestAddress() sdk.AccAddress {
 	bz, err := sdk.GetFromBech32(testfactory.TestAccAddr, "celestia")
@@ -128,7 +132,7 @@ func mustGetFreePort() int {
 // GetDeterministicPort returns a deterministic port using an atomic counter.
 // This eliminates race conditions by ensuring each call gets a unique port.
 func GetDeterministicPort() int {
-	return int(atomic.AddInt64(&portCounter, 1))
+	return int(portCounter.Add(1))
 }
 
 // removeDir removes the directory `rootDir`.
