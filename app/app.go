@@ -450,7 +450,7 @@ func New(
 	}
 
 	// RegisterUpgradeHandlers is used for registering any on-chain upgrades.
-	app.RegisterUpgradeHandlers() // must be called after module manager & configuator are initialized
+	app.RegisterUpgradeHandlers() // must be called after module manager & configurator are initialized
 
 	// Initialize the KV stores for the base modules (e.g. params). The base modules will be included in every app version.
 	app.MountKVStores(app.keys)
