@@ -22,10 +22,10 @@ func TestGetDeterministicPortConcurrent(t *testing.T) {
 	// Test concurrent access to ensure no duplicate ports
 	const numGoroutines = 50
 	const portsPerGoroutine = 10
-	
+
 	var wg sync.WaitGroup
 	portChannel := make(chan int, numGoroutines*portsPerGoroutine)
-	
+
 	// Start multiple goroutines
 	for i := 0; i < numGoroutines; i++ {
 		wg.Add(1)
@@ -37,13 +37,13 @@ func TestGetDeterministicPortConcurrent(t *testing.T) {
 			}
 		}()
 	}
-	
+
 	wg.Wait()
 	close(portChannel)
-	
+
 	// Collect all ports and check for duplicates
 	portSet := make(map[int]bool)
-	var ports []int
+	ports := make([]int, 0, numGoroutines*portsPerGoroutine)
 	for port := range portChannel {
 		if portSet[port] {
 			t.Errorf("Duplicate port detected: %d", port)
@@ -51,7 +51,7 @@ func TestGetDeterministicPortConcurrent(t *testing.T) {
 		portSet[port] = true
 		ports = append(ports, port)
 	}
-	
+
 	// Should have exactly the expected number of unique ports
 	expectedPorts := numGoroutines * portsPerGoroutine
 	assert.Equal(t, expectedPorts, len(ports), "Should have correct number of ports")

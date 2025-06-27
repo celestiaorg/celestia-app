@@ -23,11 +23,9 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
 
-var (
-	// portCounter is a global atomic counter for deterministic port allocation
-	// Starting from 20000 to avoid conflicts with common ports
-	portCounter atomic.Int64
-)
+// portCounter is a global atomic counter for deterministic port allocation
+// Starting from 20000 to avoid conflicts with common ports
+var portCounter atomic.Int64
 
 func init() {
 	portCounter.Store(20000)
@@ -117,16 +115,6 @@ func GetFreePort() (int, error) {
 	}
 	defer l.Close()
 	return l.Addr().(*net.TCPAddr).Port, nil
-}
-
-// mustGetFreePort returns a free port. Panics if no free ports are available or
-// an error is encountered.
-func mustGetFreePort() int {
-	port, err := GetFreePort()
-	if err != nil {
-		panic(err)
-	}
-	return port
 }
 
 // GetDeterministicPort returns a deterministic port using an atomic counter.
