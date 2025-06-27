@@ -296,6 +296,24 @@ txsim-build-docker:
 	docker build -t ghcr.io/celestiaorg/txsim -f docker/txsim/Dockerfile  .
 .PHONY: txsim-build-docker
 
+## build-talis-bins: Build celestia-appd and txsim binaries for talis VMs (ubuntu 22.04 LTS)
+build-talis-bins:
+	docker build \
+	  --file tools/talis/docker/Dockerfile \
+	  --target builder \
+	  --platform linux/amd64 \
+	  --build-arg LDFLAGS="$(ldflags)" \
+	  --build-arg GOOS=linux \
+	  --build-arg GOARCH=amd64 \
+	  --tag talis-builder:latest \
+	  .
+	mkdir -p build
+	docker create --platform linux/amd64 --name tmp talis-builder:latest
+	docker cp tmp:/out/. build/
+	docker rm tmp
+.PHONY: build-talis-bins
+
+
 ## adr-gen: Download the ADR template from the celestiaorg/.github repo.
 adr-gen:
 	@echo "--> Downloading ADR template"
