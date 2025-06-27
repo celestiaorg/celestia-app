@@ -3,6 +3,7 @@ package testnode
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"net"
 	"os"
 	"path"
@@ -117,10 +118,27 @@ func GetFreePort() (int, error) {
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
+// isPortAvailable checks if a port is available by attempting to listen on it.
+func isPortAvailable(port int) bool {
+	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		return false
+	}
+	defer l.Close()
+	return true
+}
+
 // GetDeterministicPort returns a deterministic port using an atomic counter.
 // This eliminates race conditions by ensuring each call gets a unique port.
+// It checks port availability and increments until it finds an open port.
 func GetDeterministicPort() int {
-	return int(portCounter.Add(1))
+	for {
+		port := int(portCounter.Add(1))
+		if isPortAvailable(port) {
+			return port
+		}
+		// If port is not available, the loop will continue with the next increment
+	}
 }
 
 // removeDir removes the directory `rootDir`.
