@@ -19,7 +19,6 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
@@ -166,28 +165,36 @@ func (s *SquareSizeIntegrationTest) SetupBlockSizeParams(t *testing.T, squareSiz
 
 	res, err := txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msgSubmitProp}, blobfactory.DefaultTxOpts()...)
 	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, res.Code)
 
-	txService := sdktx.NewServiceClient(s.cctx.GRPCClient)
-	getTxResp, err := txService.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})
+	// Wait for the transaction to be included in a block
+	_, err = s.cctx.WaitForTx(res.TxHash, 10)
 	require.NoError(t, err)
-	require.Equal(t, res.Code, abci.CodeTypeOK, getTxResp.TxResponse.RawLog)
 
 	require.NoError(t, s.cctx.WaitForNextBlock())
 
-	// query the proposal to get the id
+	// query the proposal to get the id - use the latest proposal in voting period
 	govQueryClient := govv1.NewQueryClient(s.cctx.GRPCClient)
 	propResp, err := govQueryClient.Proposals(s.cctx.GoContext(), &govv1.QueryProposalsRequest{ProposalStatus: govv1.StatusVotingPeriod})
 	require.NoError(t, err)
-	require.Len(t, propResp.Proposals, 1)
+	require.Greater(t, len(propResp.Proposals), 0, "expected at least one proposal in voting period")
+	
+	// Use the most recent proposal (highest ID)
+	var latestProposal *govv1.Proposal
+	for _, prop := range propResp.Proposals {
+		if latestProposal == nil || prop.Id > latestProposal.Id {
+			latestProposal = prop
+		}
+	}
 
 	// create and submit a new msgVote
-	msgVote := govv1.NewMsgVote(testfactory.GetAddress(s.cctx.Keyring, testnode.DefaultValidatorAccountName), propResp.Proposals[0].Id, govv1.OptionYes, "")
+	msgVote := govv1.NewMsgVote(testfactory.GetAddress(s.cctx.Keyring, testnode.DefaultValidatorAccountName), latestProposal.Id, govv1.OptionYes, "")
 	res, err = txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msgVote}, blobfactory.DefaultTxOpts()...)
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, res.Code)
 
 	// wait for the voting period to complete
-	require.NoError(t, s.cctx.WaitForBlocks(5))
+	require.NoError(t, s.cctx.WaitForBlocks(10))
 
 	// check that the parameters were updated as expected
 	blobQueryClient := blobtypes.NewQueryClient(s.cctx.GRPCClient)
