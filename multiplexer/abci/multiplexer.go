@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 
 	"cosmossdk.io/log"
@@ -52,6 +53,9 @@ const (
 type Multiplexer struct {
 	logger log.Logger
 	mu     sync.Mutex
+	// done is a hack to prevent the multiplexer from catching the above mutex twice and avoiding mu.TryLock
+	// as that could result in an accidental crash.
+	done atomic.Bool
 
 	svrCtx *server.Context
 	svrCfg serverconfig.Config
@@ -450,9 +454,12 @@ func openTraceWriter(traceWriterFile string) (w io.WriteCloser, err error) {
 
 // getApp gets the appropriate app based on the latest application version.
 func (m *Multiplexer) getApp() (servertypes.ABCI, error) {
+	// hack to get around the multiplexer hitting its own mutex twice or relying on mu.TryLock.
+	if m.done.Load() {
+		return nil, errors.New("multiplexer already stopped")
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-
 	m.logger.Debug("getting app", "app_version", m.appVersion, "next_app_version", m.nextAppVersion)
 
 	// get the appropriate version for the latest app version.
@@ -477,6 +484,7 @@ func (m *Multiplexer) getApp() (servertypes.ABCI, error) {
 				return nil, fmt.Errorf("failed to enable gRPC and API servers: %w", err)
 			}
 		}
+
 		return m.nativeApp, nil
 	}
 
@@ -557,6 +565,7 @@ func (m *Multiplexer) stopEmbeddedApp() error {
 
 // Cleanup allows proper multiplexer termination.
 func (m *Multiplexer) Cleanup() error {
+	m.done.Store(true)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
