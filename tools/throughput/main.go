@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/cometbft/cometbft/rpc/client/http"
@@ -12,7 +11,6 @@ import (
 )
 
 type BlockMetrics struct {
-	mutex       sync.Mutex
 	blockTimes  []time.Time
 	blockSizes  []int
 	windowSize  int
@@ -28,9 +26,6 @@ func NewBlockMetrics(windowSize int) *BlockMetrics {
 }
 
 func (bm *BlockMetrics) AddBlock(timestamp time.Time, size int) {
-	bm.mutex.Lock()
-	defer bm.mutex.Unlock()
-
 	bm.blockTimes = append(bm.blockTimes, timestamp)
 	bm.blockSizes = append(bm.blockSizes, size)
 	bm.totalBlocks++
@@ -43,9 +38,6 @@ func (bm *BlockMetrics) AddBlock(timestamp time.Time, size int) {
 }
 
 func (bm *BlockMetrics) CalculateMetrics() (float64, float64, float64) {
-	bm.mutex.Lock()
-	defer bm.mutex.Unlock()
-
 	if len(bm.blockTimes) < 2 {
 		return 0, 0, 0
 	}
@@ -113,26 +105,6 @@ func Run() error {
 
 	fmt.Println("Listening for new blocks...")
 
-	// Start a goroutine to periodically print metrics
-	go func() {
-		ticker := time.NewTicker(10 * time.Second)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ticker.C:
-				avgBlockTime, avgBlockSize, throughput := metrics.CalculateMetrics()
-				fmt.Printf("\n=== Network Metrics (last %d blocks) ===\n", metrics.windowSize)
-				fmt.Printf("Total Blocks Processed: %d\n", metrics.totalBlocks)
-				fmt.Printf("Average Block Time: %.2f seconds\n", avgBlockTime)
-				fmt.Printf("Average Block Size: %.2f MB\n", avgBlockSize/(1024*1024))
-				fmt.Printf("Network Throughput: %.2f MB/s\n", throughput)
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
 	for {
 		select {
 		case event := <-newBlocksSub:
@@ -146,6 +118,14 @@ func Run() error {
 			}
 
 			metrics.AddBlock(block.Time, blockSize)
+
+			// Calculate and print metrics immediately after adding a block
+			avgBlockTime, avgBlockSize, throughput := metrics.CalculateMetrics()
+			fmt.Printf("\n=== Network Metrics (last %d blocks) ===\n", metrics.windowSize)
+			fmt.Printf("Total Blocks Processed: %d\n", metrics.totalBlocks)
+			fmt.Printf("Average Block Time: %.2f seconds\n", avgBlockTime)
+			fmt.Printf("Average Block Size: %.2f MB\n", avgBlockSize/(1024*1024))
+			fmt.Printf("Network Throughput: %.2f MB/s\n", throughput)
 
 		case <-ctx.Done():
 			return nil
