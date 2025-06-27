@@ -270,7 +270,7 @@ func DestroyDroplets(ctx context.Context, client *godo.Client, insts []Instance)
 
 	for _, v := range insts {
 		go func(inst Instance) {
-			workers <- struct{}{} 
+			workers <- struct{}{}
 			defer func() {
 				<-workers
 				wg.Done()
