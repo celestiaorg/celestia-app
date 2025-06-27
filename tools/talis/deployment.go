@@ -132,10 +132,15 @@ func deployPayload(
 
 	counter := atomic.Uint32{}
 
+	workers := make(chan struct{}, 10)
 	for _, inst := range ips {
+		workers <- struct{}{}
 		wg.Add(1)
 		go func(inst Instance) {
-			defer wg.Done()
+			defer func() {
+				<-workers
+				wg.Done()
+			}()
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
 
