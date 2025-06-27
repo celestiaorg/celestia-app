@@ -57,7 +57,7 @@ downloaded, then the talis defaults should work. Your `$GOPATH` is used to copy 
 talis init -c <chain-id> -e <experiment>
 ```
 
-This will initiallize the directory that contains directory structure used for conducting an experiment.
+This will initialize the directory that contains directory structure used for conducting an experiment.
 
 ```
 .
