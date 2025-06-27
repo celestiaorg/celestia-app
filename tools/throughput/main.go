@@ -116,7 +116,6 @@ func Run() error {
 				fmt.Printf("Average Block Time: %.2f seconds\n", avgBlockTime)
 				fmt.Printf("Average Block Size: %.2f MB\n", avgBlockSize/(1024*1024))
 				fmt.Printf("Network Throughput: %.2f MB/s\n", throughput)
-				fmt.Println("=====================================")
 			case <-ctx.Done():
 				return
 			}
