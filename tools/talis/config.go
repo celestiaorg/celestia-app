@@ -66,7 +66,7 @@ type Instance struct {
 	// Provider is the provider of the instance. For example, "digitalocean" or
 	// "aws".
 	Provider Provider `json:"provider"`
-	// Slug is a provider speicific string that determines what type of instance
+	// Slug is a provider specific string that determines what type of instance
 	// the node is ran on.
 	Slug string `json:"slug"`
 	// Region is the region in which the instance is created. For example,
