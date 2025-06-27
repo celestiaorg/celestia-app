@@ -21,7 +21,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap/zaptest"
 	"testing"
 	"time"
 )
@@ -49,25 +48,24 @@ func TestChainBuilder(t *testing.T) {
 
 	kr := g.Keyring()
 
-	vals := make([]tastoradocker.NodeConfig, 3)
+	vals := make([]tastoradocker.ChainNodeConfig, 3)
 	for i := 0; i < 3; i++ {
 		privKeyBz := getValidatorPrivateKeyBytes(t, g, i)
 		vals[i] = tastoradocker.NewChainNodeConfigBuilder().
-			WithImage(tastoradocker.NewDockerImage("ghcr.io/celestiaorg/celestia-app", "v4.0.4-alpha", "10001:10001")).
-			WithAdditionalStartArgs("--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099").
 			WithPrivValidatorKey(privKeyBz).
-			WithPostInit(getPostInitModifications("0.025utia")...).
+			WithKeyring(kr).
 			Build()
 	}
 
 	chain, err := tastoradocker.NewChainBuilder(t).
 		WithName("celestia"). // just influences home directory on the host.
-		WithGenesisKeyring(kr). // provide the keyring which contains all the keys already generated.
-		WithLogger(zaptest.NewLogger(t)).
 		WithChainID(g.ChainID).
 		WithDockerClient(client).
 		WithDockerNetworkID(network).
+		WithDefaultImage(tastoradocker.NewDockerImage("ghcr.io/celestiaorg/celestia-app", "v4.0.4-alpha", "10001:10001")).
+		WithDefaultAdditionalStartArgs("--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099").
 		WithEncodingConfig(&encodingConfig).
+		WithDefaultPostInit(getPostInitModifications("0.025utia")...).
 		WithValidators(vals...).
 		WithGenesis(genesisBz).
 		Build(context.TODO()) // creates and initializes underlying docker resources with provided spec.

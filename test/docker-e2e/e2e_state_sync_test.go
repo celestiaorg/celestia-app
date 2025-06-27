@@ -43,10 +43,10 @@ func (s *CelestiaTestSuite) TestStateSync() {
 		numVals := 3
 		// require at least 2 validators for state sync to work.
 		config.ChainConfig.NumValidators = &numVals
-		config.ChainConfig.ConfigFileOverrides = map[string]any{
-			// enable state-sync and snapshots on validators.
-			"config/app.toml": validatorStateSyncAppOverrides(),
-		}
+		//config.ChainConfig.ConfigFileOverrides = map[string]any{
+		// enable state-sync and snapshots on validators.
+		//"config/app.toml": validatorStateSyncAppOverrides(),
+		//}
 	})
 
 	celestia, err := chainProvider.GetChain(ctx)

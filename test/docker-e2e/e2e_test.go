@@ -57,21 +57,19 @@ func (s *CelestiaTestSuite) CreateDockerProvider(opts ...ConfigOption) celestiat
 		DockerClient:    s.client,
 		DockerNetworkID: s.network,
 		ChainConfig: &celestiadockertypes.ChainConfig{
-			ConfigFileOverrides: map[string]any{
-				"config/app.toml": validatorStateSyncAppOverrides(),
-			},
+			//ConfigFileOverrides: map[string]any{
+			//	"config/app.toml": validatorStateSyncAppOverrides(),
+			//},
 			Type:          "cosmos",
 			Name:          "celestia",
 			Version:       getCelestiaTag(),
 			NumValidators: &numValidators,
 			NumFullNodes:  &numFullNodes,
 			ChainID:       "celestia",
-			Images: []celestiadockertypes.DockerImage{
-				{
-					Repository: getCelestiaImage(),
-					Version:    getCelestiaTag(),
-					UIDGID:     "10001:10001",
-				},
+			Image: celestiadockertypes.DockerImage{
+				Repository: getCelestiaImage(),
+				Version:    getCelestiaTag(),
+				UIDGID:     "10001:10001",
 			},
 			Bin:                 "celestia-appd",
 			Bech32Prefix:        "celestia",
