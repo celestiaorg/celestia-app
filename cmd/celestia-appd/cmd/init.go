@@ -31,6 +31,8 @@ const (
 	FlagOverwrite = "overwrite"
 	// FlagRecover defines a flag to initialize the private validator key from a specific seed.
 	FlagRecover = "recover"
+	// FlagYes defines a flag to automatically answer yes to prompts.
+	FlagYes = "yes"
 )
 
 // InitCmd returns a command that creates the config files and genesis.json for
@@ -107,8 +109,7 @@ func initCmd(basicManager module.BasicManager, defaultNodeHome string) *cobra.Co
 			if isKnownChainID(chainID) {
 				fmt.Println("Warning: You are initializing a public chain. This is a very rare edge case and will likely result in a fork. Please be sure you know what you are doing.")
 
-				// If we are running in CI, we bypass interactive prompts and automatically confirm the download
-				confirm := os.Getenv("CI") == "true"
+				confirm, _ := cmd.Flags().GetBool(FlagYes)
 
 				if !confirm {
 					inBuf := bufio.NewReader(cmd.InOrStdin())
@@ -184,6 +185,7 @@ func initCmd(basicManager module.BasicManager, defaultNodeHome string) *cobra.Co
 	cmd.Flags().Bool(FlagRecover, false, "provide seed phrase to recover existing key instead of creating")
 	cmd.Flags().String(flags.FlagChainID, "", "genesis file chain-id, if left blank will be randomly created")
 	cmd.Flags().Int64(flags.FlagInitHeight, 1, "specify the initial block height at genesis")
+	cmd.Flags().BoolP(FlagYes, "y", false, "automatically answer yes to genesis download for known chainID")
 
 	return cmd
 }
