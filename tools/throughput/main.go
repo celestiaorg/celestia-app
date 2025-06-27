@@ -3,13 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/cometbft/cometbft/types"
-	"math"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/cometbft/cometbft/rpc/client/http"
+	"github.com/cometbft/cometbft/types"
 )
 
 type BlockMetrics struct {
@@ -86,8 +85,15 @@ func Run() error {
 	if err != nil {
 		return fmt.Errorf("failed to create client: %w", err)
 	}
-	client.Start()
-	defer client.Stop()
+	if err := client.Start(); err != nil {
+		return fmt.Errorf("failed to start client: %w", err)
+	}
+	defer func() {
+		err := client.Stop()
+		if err != nil {
+			fmt.Printf("error while stopping node: %s", err.Error())
+		}
+	}()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -98,7 +104,12 @@ func Run() error {
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to new blocks: %w", err)
 	}
-	defer client.Unsubscribe(ctx, "blocks-watcher", "tm.event = 'NewBlock'")
+	defer func() {
+		err := client.Unsubscribe(ctx, "blocks-watcher", "tm.event = 'NewBlock'")
+		if err != nil {
+			fmt.Printf("error while unsubscribing: %s", err.Error())
+		}
+	}()
 
 	fmt.Println("Listening for new blocks...")
 
@@ -140,25 +151,4 @@ func Run() error {
 			return nil
 		}
 	}
-}
-
-// analyzeBlockTimes returns the average, min, max, and standard deviation of the block times.
-// Units are in milliseconds.
-func analyzeBlockTimes(times []time.Time) (float64, float64, float64, float64) {
-	numberOfObservations := len(times) - 1
-	totalTime := times[numberOfObservations].Sub(times[0])
-	averageTime := float64(totalTime.Milliseconds()) / float64(numberOfObservations)
-	variance, minTime, maxTime := float64(0), float64(0), float64(0)
-	for i := 0; i < numberOfObservations; i++ {
-		diff := float64(times[i+1].Sub(times[i]).Milliseconds())
-		if minTime == 0 || diff < minTime {
-			minTime = diff
-		}
-		if maxTime == 0 || diff > maxTime {
-			maxTime = diff
-		}
-		variance += (averageTime - diff) * (averageTime - diff)
-	}
-	stddev := math.Sqrt(variance / float64(numberOfObservations))
-	return averageTime, minTime, maxTime, stddev
 }

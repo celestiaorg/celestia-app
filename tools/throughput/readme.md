@@ -8,7 +8,6 @@ This tool connects to a blockchain node via RPC and monitors network performance
 - Block production times
 - Block sizes
 - Network throughput
-- Statistical analysis of block metrics
 
 The metrics are calculated over a sliding window of blocks to provide current network performance insights.
 
@@ -23,8 +22,6 @@ The metrics are calculated over a sliding window of blocks to provide current ne
    - Average block size
    - Network throughput in MB/s
    - Total blocks processed
-   - Min/max block times
-   - Standard deviation of block times
 
 ## Usage
 
