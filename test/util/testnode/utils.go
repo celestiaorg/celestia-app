@@ -191,17 +191,41 @@ func EnsurePortAvailable(port int, killProcesses bool) error {
 	return nil
 }
 
+// GetFreePortWithReservation returns a free port and a function to release the reservation.
+// The port is kept reserved until the release function is called.
+func GetFreePortWithReservation() (int, func(), error) {
+	a, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		return 0, nil, err
+	}
+
+	l, err := net.ListenTCP("tcp", a)
+	if err != nil {
+		return 0, nil, err
+	}
+	
+	port := l.Addr().(*net.TCPAddr).Port
+	release := func() {
+		l.Close()
+	}
+	
+	return port, release, nil
+}
+
 // GetAvailablePortWithRetry gets an available port with retry logic.
 // It tries to get a free port and verifies it's still available before returning.
 func GetAvailablePortWithRetry(maxRetries int) (int, error) {
 	for i := 0; i < maxRetries; i++ {
-		port, err := GetFreePort()
+		port, release, err := GetFreePortWithReservation()
 		if err != nil {
 			continue
 		}
 		
+		// Immediately release the reservation and check if port is still available
+		release()
+		
 		// Small delay to reduce race condition window
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(time.Duration(i+1) * 5 * time.Millisecond)
 		
 		// Verify the port is still available
 		if IsPortAvailable(port) {
@@ -209,6 +233,20 @@ func GetAvailablePortWithRetry(maxRetries int) (int, error) {
 		}
 	}
 	return 0, fmt.Errorf("failed to get available port after %d retries", maxRetries)
+}
+
+// GetReservedPortForServer gets a port with reservation that should be released when server starts.
+// This is more robust for server startup scenarios.
+func GetReservedPortForServer() (int, func(), error) {
+	const maxRetries = 10
+	for i := 0; i < maxRetries; i++ {
+		port, release, err := GetFreePortWithReservation()
+		if err != nil {
+			continue
+		}
+		return port, release, nil
+	}
+	return 0, nil, fmt.Errorf("failed to get reserved port after %d retries", maxRetries)
 }
 
 // removeDir removes the directory `rootDir`.

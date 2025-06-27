@@ -203,16 +203,16 @@ func CustomAppCreator(appOptions ...func(*baseapp.BaseApp)) srvtypes.AppCreator 
 func DefaultAppConfig() *srvconfig.Config {
 	appCfg := srvconfig.DefaultConfig()
 	
-	// Get GRPC port with retry logic to reduce race conditions
-	grpcPort, err := GetAvailablePortWithRetry(5)
+	// Get GRPC port with enhanced retry logic
+	grpcPort, err := GetAvailablePortWithRetry(10)
 	if err != nil {
 		// Fallback to the original method if retry fails
 		grpcPort = mustGetFreePort()
 	}
 	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", grpcPort)
 	
-	// Get API port with retry logic
-	apiPort, err := GetAvailablePortWithRetry(5)
+	// Get API port with enhanced retry logic
+	apiPort, err := GetAvailablePortWithRetry(10)
 	if err != nil {
 		// Fallback to the original method if retry fails
 		apiPort = mustGetFreePort()
