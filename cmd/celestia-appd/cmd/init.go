@@ -107,7 +107,7 @@ func initCmd(basicManager module.BasicManager, defaultNodeHome string) *cobra.Co
 			}
 
 			if isKnownChainID(chainID) {
-				fmt.Println("Warning: You are initializing a public chain. This is a very rare edge case and will likely result in a fork. Please be sure you know what you are doing.")
+				fmt.Println("Warning: You are initializing a public chain. This should only be done if you intend to join an existing public network.")
 
 				confirm, _ := cmd.Flags().GetBool(FlagConfirmKnownChain)
 
