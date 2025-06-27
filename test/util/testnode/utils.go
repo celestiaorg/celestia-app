@@ -3,14 +3,10 @@ package testnode
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
 	"net"
 	"os"
-	"os/exec"
 	"path"
-	"strconv"
-	"strings"
-	"time"
+	"sync/atomic"
 
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v4/app"
@@ -25,6 +21,12 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+)
+
+var (
+	// portCounter is a global atomic counter for deterministic port allocation
+	// Starting from 20000 to avoid conflicts with common ports
+	portCounter int64 = 20000
 )
 
 func TestAddress() sdk.AccAddress {
@@ -123,130 +125,10 @@ func mustGetFreePort() int {
 	return port
 }
 
-// IsPortAvailable checks if a port is available on localhost.
-func IsPortAvailable(port int) bool {
-	addr := fmt.Sprintf("127.0.0.1:%d", port)
-	conn, err := net.DialTimeout("tcp", addr, 100*time.Millisecond)
-	if err != nil {
-		// Port is available if we can't connect to it
-		return true
-	}
-	conn.Close()
-	return false
-}
-
-// KillProcessOnPort attempts to kill processes listening on the specified port.
-// It returns an error if the port cleanup fails.
-func KillProcessOnPort(port int) error {
-	// Use lsof to find processes listening on the port
-	cmd := exec.Command("lsof", "-ti", fmt.Sprintf(":%d", port))
-	output, err := cmd.Output()
-	if err != nil {
-		// No processes found on the port, which is good
-		return nil
-	}
-
-	pids := strings.Split(strings.TrimSpace(string(output)), "\n")
-	for _, pidStr := range pids {
-		if pidStr == "" {
-			continue
-		}
-		pid, err := strconv.Atoi(pidStr)
-		if err != nil {
-			continue
-		}
-		
-		// Kill the process
-		if err := exec.Command("kill", "-9", fmt.Sprintf("%d", pid)).Run(); err != nil {
-			return fmt.Errorf("failed to kill process %d on port %d: %w", pid, port, err)
-		}
-	}
-	
-	// Wait a moment for the port to be freed
-	time.Sleep(100 * time.Millisecond)
-	return nil
-}
-
-// EnsurePortAvailable ensures a port is available, optionally killing processes using it.
-// If killProcesses is false, it only checks availability.
-// If killProcesses is true, it attempts to kill processes using the port.
-func EnsurePortAvailable(port int, killProcesses bool) error {
-	if IsPortAvailable(port) {
-		return nil
-	}
-	
-	if !killProcesses {
-		return fmt.Errorf("port %d is not available", port)
-	}
-	
-	if err := KillProcessOnPort(port); err != nil {
-		return fmt.Errorf("failed to free port %d: %w", port, err)
-	}
-	
-	// Double-check that the port is now available
-	if !IsPortAvailable(port) {
-		return fmt.Errorf("port %d is still not available after cleanup", port)
-	}
-	
-	return nil
-}
-
-// GetFreePortWithReservation returns a free port and a function to release the reservation.
-// The port is kept reserved until the release function is called.
-func GetFreePortWithReservation() (int, func(), error) {
-	a, err := net.ResolveTCPAddr("tcp", "localhost:0")
-	if err != nil {
-		return 0, nil, err
-	}
-
-	l, err := net.ListenTCP("tcp", a)
-	if err != nil {
-		return 0, nil, err
-	}
-	
-	port := l.Addr().(*net.TCPAddr).Port
-	release := func() {
-		l.Close()
-	}
-	
-	return port, release, nil
-}
-
-// GetAvailablePortWithRetry gets an available port with retry logic.
-// It tries to get a free port and verifies it's still available before returning.
-func GetAvailablePortWithRetry(maxRetries int) (int, error) {
-	for i := 0; i < maxRetries; i++ {
-		port, release, err := GetFreePortWithReservation()
-		if err != nil {
-			continue
-		}
-		
-		// Immediately release the reservation and check if port is still available
-		release()
-		
-		// Small delay to reduce race condition window
-		time.Sleep(time.Duration(i+1) * 5 * time.Millisecond)
-		
-		// Verify the port is still available
-		if IsPortAvailable(port) {
-			return port, nil
-		}
-	}
-	return 0, fmt.Errorf("failed to get available port after %d retries", maxRetries)
-}
-
-// GetReservedPortForServer gets a port with reservation that should be released when server starts.
-// This is more robust for server startup scenarios.
-func GetReservedPortForServer() (int, func(), error) {
-	const maxRetries = 10
-	for i := 0; i < maxRetries; i++ {
-		port, release, err := GetFreePortWithReservation()
-		if err != nil {
-			continue
-		}
-		return port, release, nil
-	}
-	return 0, nil, fmt.Errorf("failed to get reserved port after %d retries", maxRetries)
+// GetDeterministicPort returns a deterministic port using an atomic counter.
+// This eliminates race conditions by ensuring each call gets a unique port.
+func GetDeterministicPort() int {
+	return int(atomic.AddInt64(&portCounter, 1))
 }
 
 // removeDir removes the directory `rootDir`.
