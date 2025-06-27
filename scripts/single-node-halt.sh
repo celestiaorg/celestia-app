@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# This script starts a single node testnet on app version 4.
+# This script starts a single node testnet on app version 4 that halts after 3 blocks.
 
 # Stop script execution if an error is encountered
 set -o errexit
@@ -78,19 +78,8 @@ createGenesis() {
     # Override the log level to reduce noisy logs
     sed -i'.bak' 's#log_level = "info"#log_level = "*:error,p2p:info,state:info"#g' "${APP_HOME}"/config/config.toml
 
-    # Override the VotingPeriod from 1 week to 1 minute
-    sed -i'.bak' 's#"604800s"#"60s"#g' "${APP_HOME}"/config/genesis.json
-
-    trace_type="local"
-    sed -i.bak -e "s/^trace_type *=.*/trace_type = \"$trace_type\"/" ${APP_HOME}/config/config.toml
-
-    trace_pull_address=":26661"
-    sed -i.bak -e "s/^trace_pull_address *=.*/trace_pull_address = \"$trace_pull_address\"/" ${APP_HOME}/config/config.toml
-
-    trace_push_batch_size=1000
-    sed -i.bak -e "s/^trace_push_batch_size *=.*/trace_push_batch_size = \"$trace_push_batch_size\"/" ${APP_HOME}/config/config.toml
-
-    echo "Tracing is set up with the ability to pull traced data from the node on the address http://127.0.0.1${trace_pull_address}"
+    # Override the halt-height to 3 blocks
+    sed -i'.bak' 's#halt-height = 0#halt-height = 3#g' "${APP_HOME}"/config/app.toml
 }
 
 deleteCelestiaAppHome() {
