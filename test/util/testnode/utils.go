@@ -3,9 +3,14 @@ package testnode
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"path"
+	"strconv"
+	"strings"
+	"time"
 
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v4/app"
@@ -116,6 +121,94 @@ func mustGetFreePort() int {
 		panic(err)
 	}
 	return port
+}
+
+// IsPortAvailable checks if a port is available on localhost.
+func IsPortAvailable(port int) bool {
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	conn, err := net.DialTimeout("tcp", addr, 100*time.Millisecond)
+	if err != nil {
+		// Port is available if we can't connect to it
+		return true
+	}
+	conn.Close()
+	return false
+}
+
+// KillProcessOnPort attempts to kill processes listening on the specified port.
+// It returns an error if the port cleanup fails.
+func KillProcessOnPort(port int) error {
+	// Use lsof to find processes listening on the port
+	cmd := exec.Command("lsof", "-ti", fmt.Sprintf(":%d", port))
+	output, err := cmd.Output()
+	if err != nil {
+		// No processes found on the port, which is good
+		return nil
+	}
+
+	pids := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, pidStr := range pids {
+		if pidStr == "" {
+			continue
+		}
+		pid, err := strconv.Atoi(pidStr)
+		if err != nil {
+			continue
+		}
+		
+		// Kill the process
+		if err := exec.Command("kill", "-9", fmt.Sprintf("%d", pid)).Run(); err != nil {
+			return fmt.Errorf("failed to kill process %d on port %d: %w", pid, port, err)
+		}
+	}
+	
+	// Wait a moment for the port to be freed
+	time.Sleep(100 * time.Millisecond)
+	return nil
+}
+
+// EnsurePortAvailable ensures a port is available, optionally killing processes using it.
+// If killProcesses is false, it only checks availability.
+// If killProcesses is true, it attempts to kill processes using the port.
+func EnsurePortAvailable(port int, killProcesses bool) error {
+	if IsPortAvailable(port) {
+		return nil
+	}
+	
+	if !killProcesses {
+		return fmt.Errorf("port %d is not available", port)
+	}
+	
+	if err := KillProcessOnPort(port); err != nil {
+		return fmt.Errorf("failed to free port %d: %w", port, err)
+	}
+	
+	// Double-check that the port is now available
+	if !IsPortAvailable(port) {
+		return fmt.Errorf("port %d is still not available after cleanup", port)
+	}
+	
+	return nil
+}
+
+// GetAvailablePortWithRetry gets an available port with retry logic.
+// It tries to get a free port and verifies it's still available before returning.
+func GetAvailablePortWithRetry(maxRetries int) (int, error) {
+	for i := 0; i < maxRetries; i++ {
+		port, err := GetFreePort()
+		if err != nil {
+			continue
+		}
+		
+		// Small delay to reduce race condition window
+		time.Sleep(10 * time.Millisecond)
+		
+		// Verify the port is still available
+		if IsPortAvailable(port) {
+			return port, nil
+		}
+	}
+	return 0, fmt.Errorf("failed to get available port after %d retries", maxRetries)
 }
 
 // removeDir removes the directory `rootDir`.

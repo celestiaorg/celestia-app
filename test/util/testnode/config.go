@@ -202,8 +202,23 @@ func CustomAppCreator(appOptions ...func(*baseapp.BaseApp)) srvtypes.AppCreator 
 // DefaultAppConfig wraps the default config described in the server
 func DefaultAppConfig() *srvconfig.Config {
 	appCfg := srvconfig.DefaultConfig()
-	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", mustGetFreePort())
-	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
+	
+	// Get GRPC port with retry logic to reduce race conditions
+	grpcPort, err := GetAvailablePortWithRetry(5)
+	if err != nil {
+		// Fallback to the original method if retry fails
+		grpcPort = mustGetFreePort()
+	}
+	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", grpcPort)
+	
+	// Get API port with retry logic
+	apiPort, err := GetAvailablePortWithRetry(5)
+	if err != nil {
+		// Fallback to the original method if retry fails
+		apiPort = mustGetFreePort()
+	}
+	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", apiPort)
+	
 	appCfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, appconsts.BondDenom)
 	return appCfg
 }

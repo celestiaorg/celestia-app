@@ -1,8 +1,11 @@
 package testnode
 
 import (
+	"fmt"
+	"net"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -80,10 +83,28 @@ func StartGRPCServer(logger log.Logger, app srvtypes.Application, appCfg *srvcon
 		grpcLogger = log.NewLogger(os.Stdout)
 	}
 
+	// Extract port from GRPC address and ensure it's available
+	grpcAddr := appCfg.GRPC.Address
+	if _, portStr, err := net.SplitHostPort(grpcAddr); err == nil {
+		if port, err := strconv.Atoi(portStr); err == nil {
+			// Try to ensure the port is available, killing processes if necessary
+			if err := EnsurePortAvailable(port, true); err != nil {
+				// If we can't free the port, log a warning but don't panic
+				// The original panic will occur later if the port is still in use
+				if logger != nil {
+					logger.Error("Failed to ensure GRPC port is available", "port", port, "error", err)
+				}
+			}
+		}
+	}
+
 	go func() {
 		// StartGRPCServer is a blocking function, we need to run it in a go routine.
 		if err := srvgrpc.StartGRPCServer(cctx.goContext, grpcLogger, appCfg.GRPC, grpcSrv); err != nil {
-			panic(err)
+			if logger != nil {
+				logger.Error("Failed to start GRPC server", "address", appCfg.GRPC.Address, "error", err)
+			}
+			panic(fmt.Errorf("failed to start GRPC server on %s: %w", appCfg.GRPC.Address, err))
 		}
 	}()
 
