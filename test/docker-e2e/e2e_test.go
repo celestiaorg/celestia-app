@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/go-square/v2/share"
 	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
 	celestiatypes "github.com/celestiaorg/tastora/framework/types"
@@ -65,7 +66,7 @@ func (s *CelestiaTestSuite) CreateDockerProvider(opts ...ConfigOption) celestiat
 			Version:       getCelestiaTag(),
 			NumValidators: &numValidators,
 			NumFullNodes:  &numFullNodes,
-			ChainID:       "celestia",
+			ChainID:       appconsts.TestChainID,
 			Images: []celestiadockertypes.DockerImage{
 				{
 					Repository: getCelestiaImage(),
