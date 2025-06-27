@@ -29,3 +29,17 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - dependencies
+  - package-ecosystem: gomod
+    directory: "/test/docker-e2e"
+    schedule:
+      interval: daily
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+  - package-ecosystem: gomod
+    directory: "/test/interchain"
+    schedule:
+      interval: daily
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
