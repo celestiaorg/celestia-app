@@ -125,11 +125,10 @@ func CreateDroplets(ctx context.Context, client *godo.Client, insts []Instance, 
 	wg.Add(total)
 
 	for _, v := range insts {
-		v := v // Create new v for goroutine
 		go func() {
-			workers <- struct{}{} // Acquire worker
+			workers <- struct{}{}
 			defer func() {
-				<-workers // Release worker
+				<-workers
 				wg.Done()
 			}()
 
@@ -265,15 +264,15 @@ func DestroyDroplets(ctx context.Context, client *godo.Client, insts []Instance)
 	}
 
 	results := make(chan result, total)
-	workers := make(chan struct{}, 10) // Limit to 10 concurrent workers
+	workers := make(chan struct{}, 10)
 	var wg sync.WaitGroup
 	wg.Add(total)
 
 	for _, v := range insts {
 		go func(inst Instance) {
-			workers <- struct{}{} // Acquire worker
+			workers <- struct{}{} 
 			defer func() {
-				<-workers // Release worker
+				<-workers
 				wg.Done()
 			}()
 			start := time.Now()
