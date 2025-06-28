@@ -92,7 +92,7 @@ func (m *MockIBCModule) OnChanOpenTry(
 	_ sdk.Context,
 	_ channeltypes.Order,
 	_ []string,
-	_,
+	_ string,
 	_ string,
 	_ *capabilitytypes.Capability,
 	_ channeltypes.Counterparty,
