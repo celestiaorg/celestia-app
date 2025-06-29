@@ -89,7 +89,7 @@ func CreateLinodes(ctx context.Context, client *linodego.Client, insts []Instanc
 	}
 
 	results := make(chan result, total)
-	workers := make(chan struct{}, 10) // Limit to 10 concurrent workers
+	workers := make(chan struct{}, 10)
 	var wg sync.WaitGroup
 	wg.Add(total)
 
@@ -110,7 +110,6 @@ func CreateLinodes(ctx context.Context, client *linodego.Client, insts []Instanc
 				Image:          LinodeDefaultImage,
 				Label:          v.Name,
 				Tags:           v.Tags,
-				RootPass:       "password", // a real password should be generated
 				AuthorizedKeys: []string{key.SSHKey},
 			}
 
