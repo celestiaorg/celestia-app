@@ -1,11 +1,16 @@
 # talis
 
-## Prerequisite - DigitalOcean setup
+## Prerequisite - Cloud Provider Setup
 
-### DigitalOcean Account
+### DigitalOcean
 
 - If you're part of the Celestia engineering team ask for access to Celestia's DigitalOcean account or alternatively use personal account.
 - **Generate the API token:** Go to Settings → API → Generate New Token.
+- Save the token somewhere that's easily accessible.
+
+### Linode
+
+- **Generate the API token:** Go to My Profile -> API Tokens -> Add a Personal Access Token.
 - Save the token somewhere that's easily accessible.
 
 ### SSH Key
@@ -16,10 +21,14 @@
 ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_no_passphrase -N ""
 ```
 
-- Upload the SSH key to DigitalOcean:
-- Navigate to Settings → Security → SSH Keys.
-- Click "Add SSH Key".
-- Paste your public key.
+- Upload the SSH key to your cloud provider:
+- **DigitalOcean:**
+  - Navigate to Settings → Security → SSH Keys.
+  - Click "Add SSH Key".
+  - Paste your public key.
+- **Linode:**
+    - Navigate to My Profile -> SSH Keys -> Add an SSH Key.
+    - Paste your public key.
 
 ```sh
 cat ~/.ssh/id_ed25519_no_passphrase.pub
@@ -79,6 +88,7 @@ the celestia-app configs (config.toml and app.toml) can be manually edited here,
   "ssh_pub_key_path": "/home/HOSTNAME/.ssh/id_ed25519.pub",
   "ssh_key_name": "HOSTNAME",
   "digitalocean_token": "pulled from env var if available",
+  "linode_token": "pulled from env var if available",
   "s3_config": {
     "region": "pulled from env var if available",
     "access_key_id": "pulled from env var if available",
@@ -92,13 +102,13 @@ the celestia-app configs (config.toml and app.toml) can be manually edited here,
 
 ```sh
 # adds specific nodes to the config (see flags for further configuration)
-talis add  -t <node-type> -c <count>
+talis add -t <node-type> -c <count> -p <provider>
 ```
 
 If we call:
 
 ```sh
-talis add -t validator -c 1
+talis add -t validator -c 1 -p digitalocean
 ```
 
 we will see the config updated to:
@@ -135,6 +145,7 @@ we will see the config updated to:
 
 ```sh
 export DIGITALOCEAN_TOKEN="your_api_token_here"
+export LINODE_TOKEN="your_api_token_here"
 export TALIS_SSH_KEY_PATH="your_ssh_key_path_here"
 ```
 
@@ -249,7 +260,7 @@ Create a new droplet:
 SSH into the Droplet:
 
 ```sh
-ssh root@YOUR_DROPLET_IP
+ssh root@YOUR_DROPLET_IPh
 ```
 
 Install Deps:
@@ -306,7 +317,7 @@ Talis assumes that you're your default ssh key so if you created a new key above
 talis init -c your-chain-id -e your-experiment
 
 # Add validators
-talis add -t validator -c <count>
+talis add -t validator -c <count> -p digitalocean
 
 # Spin up talis
 talis up -n <key-name> -s <path-to-ssh-key>

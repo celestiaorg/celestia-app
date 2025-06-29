@@ -24,10 +24,22 @@ func addCmd() *cobra.Command {
 				return fmt.Errorf("failed to load config %q: %w", rootDir, err)
 			}
 
+			provider, err := cmd.Flags().GetString("provider")
+			if err != nil {
+				return err
+			}
+
 			switch nodeType {
 			case "validator":
 				for i := 0; i < count; i++ {
-					cfg = cfg.WithDigitalOceanValidator(region)
+					switch provider {
+					case "digitalocean":
+						cfg = cfg.WithDigitalOceanValidator(region)
+					case "linode":
+						cfg = cfg.WithLinodeValidator(region)
+					default:
+						return fmt.Errorf("unknown provider %q", provider)
+					}
 				}
 			case "bridge":
 				log.Println("bridges are not yet supported")
