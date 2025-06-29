@@ -169,6 +169,8 @@ func (cfg Config) WithS3Config(s3 S3Config) Config {
 
 func (cfg Config) WithDigitalOceanValidator(region string) Config {
 	i := NewDigitalOceanValidator(region)
+	// Add chain-id and experiment as tags to support multiple concurrent experiments
+	i.Tags = append(i.Tags, cfg.ChainID, cfg.Experiment)
 	cfg.Validators = append(cfg.Validators, i)
 	return cfg
 }
