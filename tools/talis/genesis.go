@@ -160,7 +160,8 @@ func writeAWSEnv(varsPath string, cfg Config) error {
 		fmt.Sprintf("export AWS_DEFAULT_REGION=%q\n", cfg.S3Config.Region),
 		fmt.Sprintf("export AWS_ACCESS_KEY_ID=%q\n", cfg.S3Config.AccessKeyID),
 		fmt.Sprintf("export AWS_SECRET_ACCESS_KEY=%q\n", cfg.S3Config.SecretAccessKey),
-		fmt.Sprintf("export S3_BUCKET_NAME=%q\n", cfg.S3Config.BucketName),
+		fmt.Sprintf("export AWS_S3_BUCKET=%q\n", cfg.S3Config.BucketName),
+		fmt.Sprintf("export AWS_S3_ENDPOINT=%q\n", cfg.S3Config.Endpoint),
 		fmt.Sprintf("export CHAIN_ID=%q\n", cfg.ChainID),
 	}
 
