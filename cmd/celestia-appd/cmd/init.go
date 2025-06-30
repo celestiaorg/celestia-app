@@ -31,7 +31,7 @@ const (
 	FlagOverwrite = "overwrite"
 	// FlagRecover defines a flag to initialize the private validator key from a specific seed.
 	FlagRecover = "recover"
-	// FlagConfirmKnownChain defines a flag that automatically answers yes to prompts for known/public chainIDs
+	// FlagConfirmKnownChain defines a flag that automatically answers yes to prompts for known/public chainIDs.
 	FlagConfirmKnownChain = "confirm-known-chain"
 )
 
