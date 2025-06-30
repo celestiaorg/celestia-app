@@ -158,6 +158,8 @@ talis genesis -s 128 -a /home/$HOSTNAME/go/src/github.com/celestiaorg/celestia-a
 
 Keep in mind that we can still edit anything in the payload before deploying the network.
 
+Note: When increasing the genesis square size, ensure you also increase the `SquareSizeUpperBound` constant to allow blocks to be created at the new size.
+
 ### deploy
 
 This step is when the network is actually started. The payload is uploaded to each instance in the network directly from the user's machine. After delivering the payload, the start script is executed in a tmux session called "app" on each machine.
