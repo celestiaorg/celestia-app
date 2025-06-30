@@ -16,7 +16,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-
 	"github.com/spf13/cobra"
 )
 
@@ -277,7 +276,7 @@ func deployPayloadViaS3(
 	wg.Wait()
 	close(errCh)
 
-	var errs []error
+	errs := make([]error, 0)
 	for e := range errCh {
 		errs = append(errs, e)
 	}
