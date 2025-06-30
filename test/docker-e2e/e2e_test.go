@@ -60,9 +60,7 @@ func (s *CelestiaTestSuite) CreateDockerProvider(opts ...ConfigOption) celestiat
 			//ConfigFileOverrides: map[string]any{
 			//	"config/app.toml": validatorStateSyncAppOverrides(),
 			//},
-			Type:          "cosmos",
 			Name:          "celestia",
-			Version:       getCelestiaTag(),
 			NumValidators: &numValidators,
 			NumFullNodes:  &numFullNodes,
 			ChainID:       "celestia",
