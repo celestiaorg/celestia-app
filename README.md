@@ -215,6 +215,16 @@ make proto-gen
 
 Package-specific READMEs aim to explain implementation details for developers that are contributing to these packages. The [specs](https://celestiaorg.github.io/celestia-app/) aim to explain the protocol as a whole for developers building on top of Celestia.
 
+### Dependency branches
+
+The source of truth for dependencies is the `go.mod` file but the table below describes the compatible branches for celestiaorg repos.
+
+| celestia-app | celestia-core      | cosmos-sdk                 |
+|--------------|--------------------|----------------------------|
+| `main`       | `main`             | `release/v0.50.x-celestia` |
+| `v4.x`       | `v0.38.x-celestia` | `release/v0.50.x-celestia` |
+| `v3.x`       | `v0.34.x-celestia` | `release/v0.46.x-celestia` |
+
 ## Audits
 
 | Date       | Auditor                                       | Version                                                                                                | Report                                                                                |

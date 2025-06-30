@@ -25,6 +25,7 @@ const (
 	EnvVarAWSSecretAccessKey = "AWS_SECRET_ACCESS_KEY"
 	EnvVarAWSRegion          = "AWS_DEFAULT_REGION"
 	EnvVarS3Bucket           = "AWS_S3_BUCKET"
+	EnvVarS3Endpoint         = "AWS_S3_ENDPOINT"
 	EnvVarChainID            = "CHAIN_ID"
 	mebibyte                 = 1_048_576
 )
