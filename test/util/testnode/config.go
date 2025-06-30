@@ -154,8 +154,8 @@ func DefaultTendermintConfig() *tmconfig.Config {
 	tmCfg.Consensus.TimeoutCommit = 1 * time.Millisecond
 
 	// Set all the ports to random open ones.
-	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
-	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
+	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
+	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
 
 	return tmCfg
 }
@@ -202,8 +202,8 @@ func CustomAppCreator(appOptions ...func(*baseapp.BaseApp)) srvtypes.AppCreator 
 // DefaultAppConfig wraps the default config described in the server
 func DefaultAppConfig() *srvconfig.Config {
 	appCfg := srvconfig.DefaultConfig()
-	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", GetDeterministicPort())
-	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
+	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", mustGetFreePort())
+	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
 	appCfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, appconsts.BondDenom)
 	return appCfg
 }
