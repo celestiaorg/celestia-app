@@ -109,8 +109,8 @@ func initCmd() *cobra.Command {
 func DefaultConfigProfile(cfg *cmtconfig.Config, tables []string) *cmtconfig.Config {
 	cfg.Instrumentation.TracingTables = strings.Join(tables, ",")
 	cfg.Instrumentation.TraceType = "local"
-	cfg.P2P.SendRate = 400_000_000
-	cfg.P2P.RecvRate = 410_000_000
+	cfg.P2P.SendRate = 100 * mebibyte
+	cfg.P2P.RecvRate = 110 * mebibyte
 	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
 	cfg.RPC.GRPCListenAddress = "tcp://0.0.0.0:9090"
 	return cfg
