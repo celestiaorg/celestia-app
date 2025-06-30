@@ -21,6 +21,7 @@ type S3Config struct {
 	AccessKeyID     string `json:"access_key_id"`
 	SecretAccessKey string `json:"secret_access_key"`
 	BucketName      string `json:"bucket_name"`
+	Endpoint        string `json:"endpoint"`
 }
 
 // downloadS3DataCmd creates a cobra command for downloading a chain's data from S3.
@@ -39,40 +40,22 @@ func downloadS3DataCmd() *cobra.Command {
 credentials in it, then recursively downloads everything under
 "<bucket>/<chain-id>/" into the output directory you specify.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// 1. Load config
 			cfg, err := LoadConfig(rootDir)
 			if err != nil {
 				return fmt.Errorf("failed to load config: %w", err)
 			}
 
-			// 2. Build AWS SDK v2 config from S3Config
-			s3cfg := cfg.S3Config
-			awsCfg, err := config.LoadDefaultConfig(cmd.Context(),
-				config.WithRegion(s3cfg.Region),
-				config.WithCredentialsProvider(
-					aws.NewCredentialsCache(
-						credentials.NewStaticCredentialsProvider(
-							s3cfg.AccessKeyID,
-							s3cfg.SecretAccessKey,
-							"",
-						),
-					),
-				),
-			)
+			client, err := createS3Client(cmd.Context(), cfg)
 			if err != nil {
-				return fmt.Errorf("failed to build AWS config: %w", err)
+				return fmt.Errorf("failed to create S3 client: %w", err)
 			}
-
-			// 3. Create S3 client
-			client := s3.NewFromConfig(awsCfg)
-
 			if chainID != "" {
 				cfg.ChainID = chainID
 			}
 
 			// 4. Compute prefix and download
 			prefix := cfg.ChainID + "/"
-			if err := downloadS3Directory(cmd.Context(), client, s3cfg.BucketName, prefix, outDir); err != nil {
+			if err := downloadS3Directory(cmd.Context(), client, cfg.S3Config.BucketName, prefix, outDir); err != nil {
 				return fmt.Errorf("failed to download S3 objects: %w", err)
 			}
 
@@ -144,4 +127,50 @@ func downloadS3Directory(ctx context.Context, client *s3.Client, bucket, prefix,
 	}
 
 	return nil
+}
+
+func createS3Client(ctx context.Context, cfg Config) (*s3.Client, error) {
+	s3cfg := cfg.S3Config
+	var awsCfg aws.Config
+	var err error
+	if cfg.S3Config.Endpoint != "" {
+		customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) { //nolint:staticcheck
+			return aws.Endpoint{ //nolint:staticcheck
+				URL:           cfg.S3Config.Endpoint,
+				SigningRegion: region,
+			}, nil
+		})
+
+		awsCfg, err = config.LoadDefaultConfig(ctx,
+			config.WithRegion(s3cfg.Region),
+			config.WithCredentialsProvider(
+				aws.NewCredentialsCache(
+					credentials.NewStaticCredentialsProvider(
+						s3cfg.AccessKeyID,
+						s3cfg.SecretAccessKey,
+						"",
+					),
+				),
+			),
+			config.WithEndpointResolverWithOptions(customResolver), //nolint:staticcheck
+		)
+	} else {
+		awsCfg, err = config.LoadDefaultConfig(ctx,
+			config.WithRegion(s3cfg.Region),
+			config.WithCredentialsProvider(
+				aws.NewCredentialsCache(
+					credentials.NewStaticCredentialsProvider(
+						s3cfg.AccessKeyID,
+						s3cfg.SecretAccessKey,
+						"",
+					),
+				),
+			),
+		)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to build AWS config: %w", err)
+	}
+
+	return s3.NewFromConfig(awsCfg), nil
 }
