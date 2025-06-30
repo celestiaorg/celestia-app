@@ -1,0 +1,20 @@
+#!/bin/bash
+# Pre-commit hook to run 'go mod tidy' on all Go modules
+# 
+# To install this hook:
+# 1. Make this file executable: chmod +x scripts/pre-commit-hook
+# 2. Copy to git hooks: cp scripts/pre-commit-hook .git/hooks/pre-commit
+#
+# This ensures that whenever any go.mod file is committed, all modules are tidied.
+
+set -e
+
+echo "Running go mod tidy on all modules..."
+
+# Run make mod to tidy all modules
+make mod
+
+# Add any changes made by go mod tidy
+git add -A
+
+echo "All Go modules have been tidied."
