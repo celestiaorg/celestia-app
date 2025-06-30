@@ -229,12 +229,6 @@ test-short:
 	@go test ./... -short -timeout 1m
 .PHONY: test-short
 
-## test-e2e: Run end to end tests via knuu. This command requires a kube/config file to configure kubernetes.
-test-e2e:
-	@echo "--> Running end to end tests"
-	IMAGE_TAG=$(tag) TEST=$(test) DOCKER_REGISTRY=$(registry) go run ./test/e2e $(filter-out $@,$(MAKECMDGOALS))
-.PHONY: test-e2e
-
 ## test-docker-e2e: Run end to end tests via docker.
 test-docker-e2e:
 	@if [ -z "$(test)" ]; then \
@@ -295,6 +289,24 @@ txsim-build:
 txsim-build-docker:
 	docker build -t ghcr.io/celestiaorg/txsim -f docker/txsim/Dockerfile  .
 .PHONY: txsim-build-docker
+
+## build-talis-bins: Build celestia-appd and txsim binaries for talis VMs (ubuntu 22.04 LTS)
+build-talis-bins:
+	docker build \
+	  --file tools/talis/docker/Dockerfile \
+	  --target builder \
+	  --platform linux/amd64 \
+	  --build-arg LDFLAGS="$(ldflags)" \
+	  --build-arg GOOS=linux \
+	  --build-arg GOARCH=amd64 \
+	  --tag talis-builder:latest \
+	  .
+	mkdir -p build
+	docker create --platform linux/amd64 --name tmp talis-builder:latest
+	docker cp tmp:/out/. build/
+	docker rm tmp
+.PHONY: build-talis-bins
+
 
 ## adr-gen: Download the ADR template from the celestiaorg/.github repo.
 adr-gen:
