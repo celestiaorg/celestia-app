@@ -22,8 +22,11 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
 
-# NOTE: This version must be updated at the same time as the version in internal/embedding/data.go and .goreleaser.yaml
-CELESTIA_V3_VERSION := v3.10.3-arabica
+# NOTE: This version must be updated at the same time as the version in:
+# internal/embedding/data.go
+# .goreleaser.yaml
+# docker/multiplexer.Dockerfile
+CELESTIA_V3_VERSION := v3.10.3
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -228,12 +231,6 @@ test-short:
 	@echo "--> Running tests in short mode"
 	@go test ./... -short -timeout 1m
 .PHONY: test-short
-
-## test-e2e: Run end to end tests via knuu. This command requires a kube/config file to configure kubernetes.
-test-e2e:
-	@echo "--> Running end to end tests"
-	IMAGE_TAG=$(tag) TEST=$(test) DOCKER_REGISTRY=$(registry) go run ./test/e2e $(filter-out $@,$(MAKECMDGOALS))
-.PHONY: test-e2e
 
 ## test-docker-e2e: Run end to end tests via docker.
 test-docker-e2e:

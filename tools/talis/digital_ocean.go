@@ -61,7 +61,11 @@ func DOClient(token string) *godo.Client {
 // GetDOSSHKeyMeta checks if the provided raw SSH public key is registered in DigitalOcean
 // and returns its ID and Name. If not found, returns an error instructing to upload the key.
 func GetDOSSHKeyMeta(ctx context.Context, client *godo.Client, publicKey string) (godo.Key, error) {
-	publicKey = strings.TrimSpace(publicKey)
+	pubKeySplit := strings.Split(publicKey, " ")
+	if len(pubKeySplit) <= 1 {
+		return godo.Key{}, fmt.Errorf("invalid public key format")
+	}
+	publicKey = strings.Join(pubKeySplit[:2], "")
 
 	// Pagination options
 	opt := &godo.ListOptions{PerPage: 200}
@@ -73,8 +77,9 @@ func GetDOSSHKeyMeta(ctx context.Context, client *godo.Client, publicKey string)
 		}
 
 		for _, key := range keys {
-			// Compare the trimmed public key string
-			if strings.TrimSpace(key.PublicKey) == publicKey {
+			// only compare the first two parts of the public key. The third part is the host
+			// which can be ignored.
+			if strings.Join(strings.Split(key.PublicKey, " ")[:2], "") == publicKey {
 				return key, nil
 			}
 		}
@@ -120,12 +125,17 @@ func CreateDroplets(ctx context.Context, client *godo.Client, insts []Instance, 
 	}
 
 	results := make(chan result, total)
+	workers := make(chan struct{}, 10) // Limit to 10 concurrent workers
 	var wg sync.WaitGroup
 	wg.Add(total)
 
 	for _, v := range insts {
 		go func() {
-			defer wg.Done()
+			workers <- struct{}{}
+			defer func() {
+				<-workers
+				wg.Done()
+			}()
 
 			ctx, cancel := context.WithTimeout(ctx, 7*time.Minute)
 			defer cancel()
@@ -259,12 +269,17 @@ func DestroyDroplets(ctx context.Context, client *godo.Client, insts []Instance)
 	}
 
 	results := make(chan result, total)
+	workers := make(chan struct{}, 10)
 	var wg sync.WaitGroup
 	wg.Add(total)
 
 	for _, v := range insts {
 		go func(inst Instance) {
-			defer wg.Done()
+			workers <- struct{}{}
+			defer func() {
+				<-workers
+				wg.Done()
+			}()
 			start := time.Now()
 
 			fmt.Println("⏳ Deleting droplet", inst.Name, inst.PublicIP)

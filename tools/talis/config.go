@@ -115,7 +115,7 @@ type Config struct {
 	// dashboard. If it's not already kept by the provider, the key will be
 	// added.
 	SSHKeyName string `json:"ssh_key_name"`
-	// DigtialOceanToken is used to authenticate with DigitalOcean. It can be
+	// DigitalOceanToken is used to authenticate with DigitalOcean. It can be
 	// provided via an env var or flag.
 	DigitalOceanToken string `json:"digitalocean_token,omitempty"`
 	// LinodeToken is used to authenticate with Linode. It can be provided via
@@ -138,6 +138,7 @@ func NewConfig(experiment, chainID string) Config {
 			SecretAccessKey: os.Getenv(EnvVarAWSSecretAccessKey),
 			BucketName:      os.Getenv(EnvVarS3Bucket),
 			Region:          os.Getenv(EnvVarAWSRegion),
+			Endpoint:        os.Getenv(EnvVarS3Endpoint),
 		},
 	}
 }
