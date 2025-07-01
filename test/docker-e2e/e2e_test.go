@@ -4,9 +4,13 @@ import (
 	"context"
 	"fmt"
 	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	//"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	"github.com/celestiaorg/tastora/framework/testutil/maps"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -43,11 +47,13 @@ type CelestiaTestSuite struct {
 
 func (s *CelestiaTestSuite) SetupSuite() {
 	s.logger = zaptest.NewLogger(s.T())
-	s.logger.Info("Setting up Celestia test suite")
+	s.logger.Info("Setting up Celestia test suite: " + s.T().Name())
 	s.client, s.network = celestiadockertypes.DockerSetup(s.T())
 }
 
-type ConfigOption func(*celestiadockertypes.Config)
+func (s *CelestiaTestSuite) SetupTest() {
+	s.T().Log("Setting up Celestia test: " + s.T().Name())
+}
 
 func (s *CelestiaTestSuite) CreateBuilder() *celestiadockertypes.ChainBuilder {
 	// default + 2 extra validators.
@@ -93,11 +99,13 @@ func (s *CelestiaTestSuite) CreateBuilder() *celestiadockertypes.ChainBuilder {
 		WithPostInit(getPostInitModifications("0.025utia")...).
 		WithNodes(vals...).
 		WithGenesis(genesisBz)
-
 }
 
 // CreateTxSim deploys and starts a txsim container to simulate transactions against the given celestia chain in the test environment.
 func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain celestiatypes.Chain) {
+	// wait for GRPC server to be ready
+	s.Require().NoError(s.waitForGRPC(ctx, chain.GetGRPCAddress()))
+
 	t := s.T()
 	networkName, err := getNetworkNameFromID(ctx, s.client, s.network)
 	s.Require().NoError(err)
@@ -113,10 +121,12 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain celestiatypes
 		Binds: []string{chain.GetVolumeName() + ":/celestia-home"},
 	}
 
+	hostGRPCPort := strings.Split(chain.GetGRPCAddress(), ":")[1]
+
 	args := []string{
 		"/bin/txsim",
 		"--key-path", "/celestia-home",
-		"--grpc-endpoint", chain.GetGRPCAddress(),
+		"--grpc-endpoint", "host.docker.internal:" + hostGRPCPort,
 		"--poll-time", "1s",
 		"--seed", "42",
 		"--blob", "10",
@@ -138,6 +148,22 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain celestiatypes
 			t.Logf("Error stopping txsim container: %v", err)
 		}
 	})
+}
+
+// waitForGRPC waits for the GRPC server to be ready to accept connections
+func (s *CelestiaTestSuite) waitForGRPC(ctx context.Context, grpcAddr string) error {
+	timeout := 30 * time.Second
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		conn, err := grpc.DialContext(ctx, grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err == nil {
+			conn.Close()
+			return nil
+		}
+		time.Sleep(time.Second)
+	}
+	return fmt.Errorf("GRPC server at %s not ready after %v", grpcAddr, timeout)
 }
 
 // getNetworkNameFromID resolves the network name given its ID.

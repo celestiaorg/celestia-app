@@ -115,16 +115,19 @@ func (s *CelestiaTestSuite) TestStateSync() {
 	t.Logf("RPC servers: %s", rpcServers)
 
 	t.Log("Adding state sync node")
-	err = celestia.AddNode(ctx, celestiadockertypes.NewChainNodeConfigBuilder().
-		WithPostInit(func(ctx context.Context, node *celestiadockertypes.ChainNode) error {
-			return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
-				cfg.StateSync.Enable = true
-				cfg.StateSync.TrustHeight = trustHeight
-				cfg.StateSync.TrustHash = trustHash
-				cfg.StateSync.RPCServers = strings.Split(rpcServers, ",")
-			})
-		}).
-		Build())
+	err = celestia.AddNode(ctx,
+		celestiadockertypes.NewChainNodeConfigBuilder().
+			WithNodeType(celestiadockertypes.FullNodeType).
+			WithPostInit(func(ctx context.Context, node *celestiadockertypes.ChainNode) error {
+				return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
+					cfg.StateSync.Enable = true
+					cfg.StateSync.TrustHeight = trustHeight
+					cfg.StateSync.TrustHash = trustHash
+					cfg.StateSync.RPCServers = strings.Split(rpcServers, ",")
+				})
+			}).
+			Build(),
+	)
 
 	s.Require().NoError(err, "failed to add node")
 
