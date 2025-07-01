@@ -25,6 +25,7 @@ func upCmd() *cobra.Command {
 	var SSHPubKeyPath string
 	var SSHKeyName string
 	var DOAPIToken string
+	var LinodeAPIToken string
 
 	cmd := &cobra.Command{
 		Use:   "up",
@@ -45,6 +46,7 @@ func upCmd() *cobra.Command {
 			cfg.SSHKeyName = resolveValue(SSHKeyName, EnvVarSSHKeyName, cfg.SSHKeyName)
 			cfg.SSHPubKeyPath = resolveValue(SSHPubKeyPath, EnvVarSSHKeyPath, cfg.SSHPubKeyPath)
 			cfg.DigitalOceanToken = resolveValue(DOAPIToken, EnvVarDigitalOceanToken, cfg.DigitalOceanToken)
+			cfg.LinodeToken = resolveValue(LinodeAPIToken, EnvVarLinodeToken, cfg.LinodeToken)
 
 			client, err := NewClient(cfg)
 			if err != nil {
@@ -68,6 +70,7 @@ func upCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&cfgPath, "config", "c", "config.json", "name of the config")
 	cmd.Flags().StringVarP(&SSHKeyName, "ssh-key-name", "n", "", "name for the SSH key")
 	cmd.Flags().StringVarP(&DOAPIToken, "do-api-token", "t", "", "digital ocean api token (defaults to config or env)")
+	cmd.Flags().StringVarP(&LinodeAPIToken, "linode-api-token", "l", "", "linode api token (defaults to config or env)")
 
 	return cmd
 }
@@ -319,6 +322,7 @@ func downCmd() *cobra.Command {
 	var SSHPubKeyPath string
 	var SSHKeyName string
 	var DOAPIToken string
+	var LinodeAPIToken string
 
 	cmd := &cobra.Command{
 		Use:   "down",
@@ -339,6 +343,7 @@ func downCmd() *cobra.Command {
 			cfg.SSHKeyName = resolveValue(SSHKeyName, EnvVarSSHKeyName, cfg.SSHKeyName)
 			cfg.SSHPubKeyPath = resolveValue(SSHPubKeyPath, EnvVarSSHKeyPath, cfg.SSHPubKeyPath)
 			cfg.DigitalOceanToken = resolveValue(DOAPIToken, EnvVarDigitalOceanToken, cfg.DigitalOceanToken)
+			cfg.LinodeToken = resolveValue(LinodeAPIToken, EnvVarLinodeToken, cfg.LinodeToken)
 
 			client, err := NewClient(cfg)
 			if err != nil {
@@ -357,6 +362,8 @@ func downCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory in which to initialize")
 	cmd.Flags().StringVarP(&cfgPath, "config", "c", "config.json", "name of the config")
 	cmd.Flags().StringVarP(&SSHKeyName, "ssh-key-name", "n", "", "name for the SSH key")
+	cmd.Flags().StringVarP(&DOAPIToken, "do-api-token", "t", "", "digital ocean api token (defaults to config or env)")
+	cmd.Flags().StringVarP(&LinodeAPIToken, "linode-api-token", "l", "", "linode api token (defaults to config or env)")
 
 	return cmd
 }

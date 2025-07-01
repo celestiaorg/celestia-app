@@ -21,6 +21,7 @@ const (
 	EnvVarPubSSHKeyPath      = "TALIS_SSH_PUB_KEY_PATH"
 	EnvVarSSHKeyPath         = "TALIS_SSH_KEY_PATH"
 	EnvVarDigitalOceanToken  = "DIGITALOCEAN_TOKEN"
+	EnvVarLinodeToken        = "LINODE_TOKEN"
 	EnvVarAWSAccessKeyID     = "AWS_ACCESS_KEY_ID"
 	EnvVarAWSSecretAccessKey = "AWS_SECRET_ACCESS_KEY"
 	EnvVarAWSRegion          = "AWS_DEFAULT_REGION"
