@@ -55,6 +55,7 @@ func TestChainBuilder(t *testing.T) {
 		vals[i] = tastoradocker.NewChainNodeConfigBuilder().
 			WithPrivValidatorKey(privKeyBz).
 			WithAccountName(accountNames[i]).
+			WithNodeType(tastoradocker.ValidatorNodeType).
 			WithKeyring(kr).
 			Build()
 	}
@@ -68,7 +69,7 @@ func TestChainBuilder(t *testing.T) {
 		WithAdditionalStartArgs("--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099").
 		WithEncodingConfig(&encodingConfig).
 		WithPostInit(getPostInitModifications("0.025utia")...).
-		WithValidators(vals...).
+		WithNodes(vals...).
 		WithGenesis(genesisBz).
 		Build(context.TODO()) // creates and initializes underlying docker resources with provided spec.
 
@@ -84,6 +85,7 @@ func TestChainBuilder(t *testing.T) {
 	testBankSend(t, kr, chain)
 }
 
+// getPostInitModifications returns a slice of functions to modify configuration files of a ChainNode post-initialization.
 func getPostInitModifications(gasPrices string) []func(context.Context, *tastoradocker.ChainNode) error {
 	var fns []func(context.Context, *tastoradocker.ChainNode) error
 

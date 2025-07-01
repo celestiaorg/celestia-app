@@ -11,7 +11,6 @@ import (
 
 	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
 	addressutil "github.com/celestiaorg/tastora/framework/testutil/address"
-	"github.com/celestiaorg/tastora/framework/testutil/toml"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 )
 
@@ -20,21 +19,6 @@ const (
 	stateSyncTrustHeightOffset = 5
 	stateSyncTimeout           = 10 * time.Minute
 )
-
-// validatorStateSyncAppOverrides generates a TOML configuration to enable state sync and snapshot functionality for validators.
-func validatorStateSyncAppOverrides() toml.Toml {
-	overrides := make(toml.Toml)
-	snapshot := make(toml.Toml)
-	snapshot["interval"] = 5
-	snapshot["keep_recent"] = 2
-	overrides["snapshot"] = snapshot
-
-	stateSync := make(toml.Toml)
-	stateSync["snapshot-interval"] = 5
-	stateSync["snapshot-keep-recent"] = 2
-	overrides["state-sync"] = stateSync
-	return overrides
-}
 
 func (s *CelestiaTestSuite) TestStateSync() {
 	t := s.T()

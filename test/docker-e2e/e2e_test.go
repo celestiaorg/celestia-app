@@ -91,50 +91,9 @@ func (s *CelestiaTestSuite) CreateBuilder() *celestiadockertypes.ChainBuilder {
 		WithAdditionalStartArgs("--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099").
 		WithEncodingConfig(&encodingConfig).
 		WithPostInit(getPostInitModifications("0.025utia")...).
-		WithValidators(vals...).
+		WithNodes(vals...).
 		WithGenesis(genesisBz)
 
-}
-
-func (s *CelestiaTestSuite) CreateDockerProvider(opts ...ConfigOption) celestiatypes.Provider {
-	numValidators := 1
-	numFullNodes := 0
-
-	enc := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
-
-	cfg := celestiadockertypes.Config{
-		Logger:          s.logger,
-		DockerClient:    s.client,
-		DockerNetworkID: s.network,
-		ChainConfig: &celestiadockertypes.ChainConfig{
-			//ConfigFileOverrides: map[string]any{
-			//	"config/app.toml": validatorStateSyncAppOverrides(),
-			//},
-			Name:          "celestia",
-			NumValidators: &numValidators,
-			NumFullNodes:  &numFullNodes,
-			ChainID:       "celestia",
-			Image: celestiadockertypes.DockerImage{
-				Repository: getCelestiaImage(),
-				Version:    getCelestiaTag(),
-				UIDGID:     "10001:10001",
-			},
-			Bin:                 "celestia-appd",
-			Bech32Prefix:        "celestia",
-			Denom:               "utia",
-			CoinType:            "118",
-			GasPrices:           "0.025utia",
-			GasAdjustment:       1.3,
-			EncodingConfig:      &enc,
-			AdditionalStartArgs: []string{"--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099"},
-		},
-	}
-
-	for _, opt := range opts {
-		opt(&cfg)
-	}
-
-	return celestiadockertypes.NewProvider(cfg, s.T())
 }
 
 // CreateTxSim deploys and starts a txsim container to simulate transactions against the given celestia chain in the test environment.
