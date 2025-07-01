@@ -3,6 +3,9 @@ package docker_e2e
 import (
 	"context"
 	"fmt"
+	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	"github.com/celestiaorg/tastora/framework/testutil/maps"
 	"os"
 	"testing"
 	"time"
@@ -45,6 +48,53 @@ func (s *CelestiaTestSuite) SetupSuite() {
 }
 
 type ConfigOption func(*celestiadockertypes.Config)
+
+func (s *CelestiaTestSuite) CreateBuilder() *celestiadockertypes.ChainBuilder {
+	// default + 2 extra validators.
+	g := testnode.DefaultConfig().Genesis.WithChainID("celestia").WithValidators(
+		genesis.NewDefaultValidator("val1"),
+		genesis.NewDefaultValidator("val2"),
+	)
+
+	genesisBz, err := g.ExportBytes()
+	s.Require().NoError(err, "failed to export genesis bytes")
+
+	// TODO: why do I need to do this?
+	genesisBz, err = maps.SetField(genesisBz, "consensus", map[string]interface{}{})
+	s.Require().NoError(err)
+	genesisBz, err = maps.SetField(genesisBz, "consensus.params.version.app", "4")
+	s.Require().NoError(err)
+
+	encodingConfig := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
+
+	client, network := celestiadockertypes.DockerSetup(s.T())
+
+	kr := g.Keyring()
+
+	accountNames := []string{"validator", "val1", "val2"}
+	vals := make([]celestiadockertypes.ChainNodeConfig, 3)
+	for i := 0; i < 3; i++ {
+		privKeyBz := getValidatorPrivateKeyBytes(s.T(), g, i)
+		vals[i] = celestiadockertypes.NewChainNodeConfigBuilder().
+			WithPrivValidatorKey(privKeyBz).
+			WithAccountName(accountNames[i]).
+			WithKeyring(kr).
+			Build()
+	}
+
+	return celestiadockertypes.NewChainBuilder(s.T()).
+		WithName("celestia"). // just influences home directory on the host.
+		WithChainID(g.ChainID).
+		WithDockerClient(client).
+		WithDockerNetworkID(network).
+		WithImage(celestiadockertypes.NewDockerImage("ghcr.io/celestiaorg/celestia-app", "v4.0.4-alpha", "10001:10001")).
+		WithAdditionalStartArgs("--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099").
+		WithEncodingConfig(&encodingConfig).
+		WithPostInit(getPostInitModifications("0.025utia")...).
+		WithValidators(vals...).
+		WithGenesis(genesisBz)
+
+}
 
 func (s *CelestiaTestSuite) CreateDockerProvider(opts ...ConfigOption) celestiatypes.Provider {
 	numValidators := 1

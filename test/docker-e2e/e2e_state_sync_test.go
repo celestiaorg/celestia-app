@@ -2,6 +2,10 @@ package docker_e2e
 
 import (
 	"context"
+	"github.com/celestiaorg/tastora/framework/testutil/config"
+	cometcfg "github.com/cometbft/cometbft/config"
+	servercfg "github.com/cosmos/cosmos-sdk/server/config"
+	"strings"
 	"testing"
 	"time"
 
@@ -39,17 +43,16 @@ func (s *CelestiaTestSuite) TestStateSync() {
 	}
 
 	ctx := context.TODO()
-	chainProvider := s.CreateDockerProvider(func(config *celestiadockertypes.Config) {
-		numVals := 3
-		// require at least 2 validators for state sync to work.
-		config.ChainConfig.NumValidators = &numVals
-		//config.ChainConfig.ConfigFileOverrides = map[string]any{
-		// enable state-sync and snapshots on validators.
-		//"config/app.toml": validatorStateSyncAppOverrides(),
-		//}
-	})
 
-	celestia, err := chainProvider.GetChain(ctx)
+	builder := s.CreateBuilder().
+		WithPostInit(func(ctx context.Context, node *celestiadockertypes.ChainNode) error {
+			return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
+				cfg.StateSync.SnapshotInterval = 5
+				cfg.StateSync.SnapshotKeepRecent = 2
+			})
+		})
+
+	celestia, err := builder.Build(ctx)
 	s.Require().NoError(err, "failed to get chain")
 
 	err = celestia.Start(ctx)
@@ -127,12 +130,17 @@ func (s *CelestiaTestSuite) TestStateSync() {
 	t.Logf("Trust hash: %s", trustHash)
 	t.Logf("RPC servers: %s", rpcServers)
 
-	overrides := map[string]any{
-		"config/config.toml": stateSyncOverrides(trustHeight, trustHash, rpcServers),
-	}
-
 	t.Log("Adding state sync node")
-	err = celestia.AddNode(ctx, overrides)
+	err = celestia.AddNode(ctx, celestiadockertypes.NewChainNodeConfigBuilder().
+		WithPostInit(func(ctx context.Context, node *celestiadockertypes.ChainNode) error {
+			return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
+				cfg.StateSync.Enable = true
+				cfg.StateSync.TrustHeight = trustHeight
+				cfg.StateSync.TrustHash = trustHash
+				cfg.StateSync.RPCServers = strings.Split(rpcServers, ",")
+			})
+		}).
+		Build())
 
 	s.Require().NoError(err, "failed to add node")
 
@@ -177,17 +185,4 @@ func (s *CelestiaTestSuite) TestStateSync() {
 			t.Fatalf("timed out waiting for state sync node to catch up after %v", stateSyncTimeout)
 		}
 	}
-}
-
-// stateSyncOverrides returns config overrides which will enable state sync.
-func stateSyncOverrides(trustHeight int64, trustHash, rpcServers string) toml.Toml {
-	stateSyncConfig := make(toml.Toml)
-	stateSyncConfig["enable"] = true
-	stateSyncConfig["trust_height"] = trustHeight
-	stateSyncConfig["trust_hash"] = trustHash
-	stateSyncConfig["rpc_servers"] = rpcServers
-
-	configOverrides := make(toml.Toml)
-	configOverrides["statesync"] = stateSyncConfig
-	return configOverrides
 }
