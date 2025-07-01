@@ -478,8 +478,8 @@ func abciEventV1ToV2(events ...abciv1.Event) []abciv2.Event {
 		attributes := make([]abciv2.EventAttribute, 0, len(event.Attributes))
 		for _, attr := range event.Attributes {
 			attributes = append(attributes, abciv2.EventAttribute{
-				Key:   string(attr.Key),
-				Value: string(attr.Value),
+				Key:   attr.Key,
+				Value: attr.Value,
 			})
 		}
 
