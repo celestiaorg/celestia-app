@@ -80,13 +80,19 @@ the celestia-app configs (config.toml and app.toml) can be manually edited here,
   "ssh_key_name": "HOSTNAME",
   "digitalocean_token": "pulled from env var if available",
   "s3_config": {
-    "region": "pulled from env var if available",
-    "access_key_id": "pulled from env var if available",
-    "secret_access_key": "pulled from env var if available",
-    "bucket_name": "pulled from env var if available"
+    "region": "pulled from AWS_DEFAULT_REGION env var if available",
+    "access_key_id": "pulled from AWS_ACCESS_KEY_ID env var if available",
+    "secret_access_key": "pulled from AWS_SECRET_ACCESS_KEY env var if available",
+    "bucket_name": "pulled from AWS_S3_BUCKET env var if available",
+    "endpoint": "pulled from AWS_S3_ENDPOINT env var if available. Can be left empty if targetting an AWS S3 bucket"
   }
 }
 ```
+
+Notes: 
+
+- The AWS config supports any S3-compatible bucket. So it can be used with Digital Ocean and other cloud providers.
+- Example: The S3 endpoint for Digital Ocean is: `https://<region>.digitaloceanspaces.com/`.
 
 ### add
 
@@ -158,6 +164,8 @@ talis genesis -s 128 -a /home/$HOSTNAME/go/src/github.com/celestiaorg/celestia-a
 
 Keep in mind that we can still edit anything in the payload before deploying the network.
 
+Note: When increasing the genesis square size, ensure you also increase the `SquareSizeUpperBound` constant to allow blocks to be created at the new size.
+
 ### deploy
 
 This step is when the network is actually started. The payload is uploaded to each instance in the network directly from the user's machine. After delivering the payload, the start script is executed in a tmux session called "app" on each machine.
@@ -166,6 +174,8 @@ This step is when the network is actually started. The payload is uploaded to ea
 # sends the payload to each node and boots the network by executing the relevant startup scripts
 talis deploy
 ```
+
+Note: By default, the `deploy` command will upload the payload to the configured S3 bucket, and then download it in the nodes. To upload the payload directly without passing by S3, use the `--direct-payload-upload` flag.
 
 ### txsim
 

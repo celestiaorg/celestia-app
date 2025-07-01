@@ -243,6 +243,7 @@ func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 		gentxs,
 		g.accounts,
 		g.GenesisTime,
+		g.genOps...,
 	)
 }
 
