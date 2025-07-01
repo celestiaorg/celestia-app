@@ -216,25 +216,20 @@ func TestComputeSha256(t *testing.T) {
 	tempDir := t.TempDir()
 
 	tests := []struct {
-		name        string
-		content     string
-		wantErr     bool
-		errContains string
+		name    string
+		content string
 	}{
 		{
 			name:    "valid file",
 			content: "test content",
-			wantErr: false,
 		},
 		{
 			name:    "empty file",
 			content: "",
-			wantErr: false,
 		},
 		{
 			name:    "json content",
 			content: `{"test": "value", "number": 123}`,
-			wantErr: false,
 		},
 	}
 
@@ -247,19 +242,14 @@ func TestComputeSha256(t *testing.T) {
 			// Compute hash
 			hash, err := computeSha256(testFile)
 
-			if tt.wantErr {
-				require.Error(t, err)
-				require.ErrorContains(t, err, tt.errContains)
-			} else {
-				require.NoError(t, err)
+			require.NoError(t, err)
 
-				// Verify hash is correct
-				hasher := sha256.New()
-				hasher.Write([]byte(tt.content))
-				expectedHash := hex.EncodeToString(hasher.Sum(nil))
+			// Verify hash is correct
+			hasher := sha256.New()
+			hasher.Write([]byte(tt.content))
+			expectedHash := hex.EncodeToString(hasher.Sum(nil))
 
-				require.Equal(t, expectedHash, hash)
-			}
+			require.Equal(t, expectedHash, hash)
 		})
 	}
 
