@@ -66,10 +66,6 @@ func initCmd() *cobra.Command {
 			// write the default config files that will be copied to the payload
 			// for each validator unless otherwise overridden
 			consensusConfig := app.DefaultConsensusConfig()
-			consensusConfig.Mempool.MaxTxBytes = 40 * mebibyte
-			consensusConfig.Mempool.TTLNumBlocks = 50
-			consensusConfig.P2P.SendRate = 400 * mebibyte
-			consensusConfig.P2P.RecvRate = 400 * mebibyte
 			consConfig := DefaultConfigProfile(consensusConfig, tables)
 			cmtconfig.WriteConfigFile(filepath.Join(rootDir, "config.toml"), consConfig)
 
@@ -114,8 +110,8 @@ func initCmd() *cobra.Command {
 func DefaultConfigProfile(cfg *cmtconfig.Config, tables []string) *cmtconfig.Config {
 	cfg.Instrumentation.TracingTables = strings.Join(tables, ",")
 	cfg.Instrumentation.TraceType = "local"
-	cfg.P2P.SendRate = 100000000
-	cfg.P2P.RecvRate = 110000000
+	cfg.P2P.SendRate = 100 * mebibyte
+	cfg.P2P.RecvRate = 110 * mebibyte
 	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
 	cfg.RPC.GRPCListenAddress = "tcp://0.0.0.0:9090"
 	return cfg
