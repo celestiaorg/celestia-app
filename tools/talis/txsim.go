@@ -52,7 +52,7 @@ func startTxsimCmd() *cobra.Command {
 			// only spin up txsim on the number of instances that were specified.
 			insts := []Instance{}
 			for i, val := range cfg.Validators {
-				if i >= seqCount || i >= len(cfg.Validators) {
+				if i >= instances || i >= len(cfg.Validators) {
 					break
 				}
 				insts = append(insts, val)
