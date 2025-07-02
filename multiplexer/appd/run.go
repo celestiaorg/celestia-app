@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 )
 
 const (
@@ -69,6 +70,14 @@ func (a *Appd) Start(args ...string) error {
 	cmd.Stdin = a.stdin
 	cmd.Stdout = a.stdout
 	cmd.Stderr = a.stderr
+
+	// CRITICAL: Start the embedded binary in its own process group
+	// This prevents it from receiving CTRL+C signals directly from the terminal.
+	// The multiplexer will be responsible for coordinating shutdown.
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true, // Create new process group
+		Pgid:    0,    // Use the child's PID as the process group ID
+	}
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start %s: %w", a.path, err)
