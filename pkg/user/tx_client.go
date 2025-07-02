@@ -518,7 +518,10 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			client.deleteFromTxTracker(txHash)
 			return txResponse, nil
 		case core.TxStatusEvicted:
-			return nil, client.handleEvictions(txHash)
+			// resubmit the transaction
+			return
+		case core.TxStatusRejected:
+			return nil, client.handleRejections(txHash)
 		default:
 			client.deleteFromTxTracker(txHash)
 			if ctx.Err() != nil {
@@ -529,10 +532,10 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 	}
 }
 
-// handleEvictions handles the scenario where a transaction is evicted from the mempool.
-// It removes the evicted transaction from the local tx tracker without incrementing
+// handleRejections handles the scenario where a transaction is rejected by the node.
+// It removes the rejected transaction from the local tx tracker without incrementing
 // the signer's sequence.
-func (client *TxClient) handleEvictions(txHash string) error {
+func (client *TxClient) handleRejections(txHash string) error {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 	// Get transaction from the local tx tracker
@@ -540,13 +543,13 @@ func (client *TxClient) handleEvictions(txHash string) error {
 	if !exists {
 		return fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
 	}
-	// The sequence should be rolled back to the sequence of the transaction that was evicted to be
+	// The sequence should be rolled back to the sequence of the transaction that was rejected to be
 	// ready for resubmission. All transactions with a later nonce will be kicked by the nodes tx pool.
 	if err := client.signer.SetSequence(txInfo.signer, txInfo.sequence); err != nil {
 		return fmt.Errorf("setting sequence: %w", err)
 	}
 	delete(client.txTracker, txHash)
-	return fmt.Errorf("tx was evicted from the mempool")
+	return fmt.Errorf("tx was rejected by the node")
 }
 
 // deleteFromTxTracker safely deletes a transaction from the local tx tracker.
