@@ -6,11 +6,12 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"strings"
+
 	//"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	"github.com/celestiaorg/tastora/framework/testutil/maps"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
