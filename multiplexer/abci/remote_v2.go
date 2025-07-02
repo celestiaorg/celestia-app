@@ -2,6 +2,7 @@ package abci
 
 import (
 	"context"
+	"fmt"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	"google.golang.org/grpc"
@@ -9,12 +10,20 @@ import (
 
 type RemoteABCIClientV2 struct {
 	abci.ABCIClient
+	// haltHeight is the height at which the node should halt
+	haltHeight uint64
+	// haltTime is the time at which the node should halt
+	haltTime uint64
 }
 
 // NewRemoteABCIClientV2 returns a new ABCI Client (using ABCI v2).
 // The client behaves like CometBFT for the server side (the application side).
-func NewRemoteABCIClientV2(conn *grpc.ClientConn) *RemoteABCIClientV2 {
-	return &RemoteABCIClientV2{ABCIClient: abci.NewABCIClient(conn)}
+func NewRemoteABCIClientV2(conn *grpc.ClientConn, haltHeight uint64, haltTime uint64) *RemoteABCIClientV2 {
+	return &RemoteABCIClientV2{
+		ABCIClient: abci.NewABCIClient(conn),
+		haltHeight: haltHeight,
+		haltTime:   haltTime,
+	}
 }
 
 // ApplySnapshotChunk implements abci.ABCI.
@@ -39,6 +48,16 @@ func (a *RemoteABCIClientV2) ExtendVote(ctx context.Context, req *abci.RequestEx
 
 // FinalizeBlock implements abci.ABCI.
 func (a *RemoteABCIClientV2) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
+	// Check halt height BEFORE processing the block to prevent state inconsistency
+	if a.haltHeight > 0 && uint64(req.Height) >= a.haltHeight {
+		return nil, fmt.Errorf("halting node per configuration at height %d", a.haltHeight)
+	}
+
+	// Check halt time BEFORE processing the block to prevent state inconsistency
+	if a.haltTime > 0 && req.Time.Unix() >= int64(a.haltTime) {
+		return nil, fmt.Errorf("halting node per configuration at time %d", a.haltTime)
+	}
+
 	return a.ABCIClient.FinalizeBlock(context.Background(), req, grpc.WaitForReady(true))
 }
 

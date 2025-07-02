@@ -27,15 +27,21 @@ type RemoteABCIClientV1 struct {
 	chainID string
 	// initialAppVersion is the app version that was parsed from the genesis file or state
 	initialAppVersion uint64
+	// haltHeight is the height at which the node should halt
+	haltHeight uint64
+	// haltTime is the time at which the node should halt
+	haltTime uint64
 }
 
 // NewRemoteABCIClientV1 returns a new ABCI Client (using ABCI v1).
 // The client behaves like Tendermint for the server side (the application side).
-func NewRemoteABCIClientV1(conn *grpc.ClientConn, chainID string, initialAppVersion uint64) *RemoteABCIClientV1 {
+func NewRemoteABCIClientV1(conn *grpc.ClientConn, chainID string, initialAppVersion uint64, haltHeight uint64, haltTime uint64) *RemoteABCIClientV1 {
 	return &RemoteABCIClientV1{
 		ABCIApplicationClient: abciv1.NewABCIApplicationClient(conn),
 		chainID:               chainID,
 		initialAppVersion:     initialAppVersion,
+		haltHeight:            haltHeight,
+		haltTime:              haltTime,
 	}
 }
 
@@ -93,6 +99,16 @@ func (a *RemoteABCIClientV1) Commit() (*abciv2.ResponseCommit, error) {
 
 // FinalizeBlock implements abciv2.ABCI
 func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*abciv2.ResponseFinalizeBlock, error) {
+	// Check halt height BEFORE processing the block to prevent state inconsistency
+	if a.haltHeight > 0 && uint64(req.Height) >= a.haltHeight {
+		return nil, fmt.Errorf("halting node per configuration at height %d", a.haltHeight)
+	}
+
+	// Check halt time BEFORE processing the block to prevent state inconsistency
+	if a.haltTime > 0 && req.Time.Unix() >= int64(a.haltTime) {
+		return nil, fmt.Errorf("halting node per configuration at time %d", a.haltTime)
+	}
+
 	appVersion := a.endBlockConsensusAppVersion
 	if appVersion == 0 {
 		infoResp, err := a.Info(&abciv2.RequestInfo{})

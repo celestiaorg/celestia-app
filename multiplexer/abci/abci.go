@@ -65,6 +65,16 @@ func (m *Multiplexer) ExtendVote(ctx context.Context, req *abci.RequestExtendVot
 }
 
 func (m *Multiplexer) FinalizeBlock(_ context.Context, req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
+	// Check halt height BEFORE processing the block to prevent state inconsistency
+	if m.svrCfg.HaltHeight > 0 && uint64(req.Height) >= m.svrCfg.HaltHeight {
+		return nil, fmt.Errorf("halting node per configuration at height %d", m.svrCfg.HaltHeight)
+	}
+
+	// Check halt time BEFORE processing the block to prevent state inconsistency
+	if m.svrCfg.HaltTime > 0 && req.Time.Unix() >= int64(m.svrCfg.HaltTime) {
+		return nil, fmt.Errorf("halting node per configuration at time %d", m.svrCfg.HaltTime)
+	}
+
 	app, err := m.getApp()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
