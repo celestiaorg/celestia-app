@@ -549,8 +549,8 @@ func (m *Multiplexer) startCmtNode() error {
 // even if an error occurs in order to shut down as many components as possible.
 func (m *Multiplexer) Stop() error {
 	m.logger.Info("stopping multiplexer")
-	if m.cancel != nil {
-		m.cancel()
+	if err := m.stopContext(); err != nil {
+		fmt.Print(err)
 	}
 	if err := m.stopCometNode(); err != nil {
 		fmt.Print(err)
@@ -567,6 +567,15 @@ func (m *Multiplexer) Stop() error {
 	if err := m.stopTraceWriter(); err != nil {
 		fmt.Print(err)
 	}
+	return nil
+}
+
+func (m *Multiplexer) stopContext() error {
+	m.logger.Info("stopping context")
+	if m.cancel == nil {
+		return nil
+	}
+	m.cancel()
 	return nil
 }
 
