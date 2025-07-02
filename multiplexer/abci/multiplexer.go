@@ -606,7 +606,7 @@ func (m *Multiplexer) startCmtNode() error {
 	// no latest app set means an embedded app is being used.
 	if m.nativeApp == nil {
 		m.logger.Debug("using embedded app so registering remote app cleanup")
-		m.setupRemoteAppCleanup(m.Cleanup)
+		m.setupRemoteAppCleanup()
 	}
 
 	tmNode, err := node.NewNodeWithContext(
@@ -640,19 +640,19 @@ func (m *Multiplexer) startCmtNode() error {
 }
 
 // setupRemoteAppCleanup ensures that remote app processes are terminated when the main process receives termination signals
-func (m *Multiplexer) setupRemoteAppCleanup(cleanupFn func() error) {
+func (m *Multiplexer) setupRemoteAppCleanup() {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
 		sig := <-sigCh
-		m.logger.Info("Received signal, stopping remote apps...", "signal", sig)
+		m.logger.Info("Received signal, initiating graceful shutdown...", "signal", sig)
 
-		if err := cleanupFn(); err != nil {
-			m.logger.Error("Error stopping remote apps", "err", err)
-		} else {
-			m.logger.Info("Successfully stopped remote apps")
-		}
+		// Set the done flag to prevent new operations
+		m.done.Store(true)
+
+		// Don't immediately stop embedded apps - let CometBFT shutdown gracefully first
+		// The cleanup will happen through the normal shutdown process in main()
 
 		// Re-send the signal to allow the normal process termination
 		signal.Reset(os.Interrupt, syscall.SIGTERM)
