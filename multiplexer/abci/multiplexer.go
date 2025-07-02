@@ -543,23 +543,24 @@ func (m *Multiplexer) startCmtNode() error {
 	return nil
 }
 
-// Stop stops the multiplexer and all its components.
+// Stop stops the multiplexer and all its components. It intentionally proceeds
+// even if an error occurs in order to shut down as many components as possible.
 func (m *Multiplexer) Stop() error {
 	m.logger.Info("stopping multiplexer")
 	if err := m.stopCometNode(); err != nil {
-		return err
+		fmt.Print(err)
 	}
 	if err := m.stopNativeApp(); err != nil {
-		return err
+		fmt.Print(err)
 	}
 	if err := m.stopEmbeddedApp(); err != nil {
-		return err
+		fmt.Print(err)
 	}
 	if err := m.stopGRPCConnection(); err != nil {
-		return err
+		fmt.Print(err)
 	}
 	if err := m.stopTraceWriter(); err != nil {
-		return err
+		fmt.Print(err)
 	}
 	return nil
 }
