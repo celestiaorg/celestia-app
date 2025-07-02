@@ -546,11 +546,21 @@ func (m *Multiplexer) startCmtNode() error {
 // Stop stops the multiplexer and all its components.
 func (m *Multiplexer) Stop() error {
 	m.logger.Info("stopping multiplexer")
-	m.stopCometNode()
-	m.stopNativeApp()
-	m.stopEmbeddedApp()
-	m.stopGRPCConnection()
-	m.stopTraceWriter()
+	if err := m.stopCometNode(); err != nil {
+		return err
+	}
+	if err := m.stopNativeApp(); err != nil {
+		return err
+	}
+	if err := m.stopEmbeddedApp(); err != nil {
+		return err
+	}
+	if err := m.stopGRPCConnection(); err != nil {
+		return err
+	}
+	if err := m.stopTraceWriter(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -559,8 +569,11 @@ func (m *Multiplexer) stopCometNode() error {
 	if m.cmNode == nil {
 		return nil
 	}
-	if m.cmNode.IsRunning() {
-		return m.cmNode.Stop()
+	if !m.cmNode.IsRunning() {
+		return nil
+	}
+	if err := m.cmNode.Stop(); err != nil {
+		return fmt.Errorf("failed to stop comet node: %w", err)
 	}
 	return nil
 }
@@ -570,20 +583,24 @@ func (m *Multiplexer) stopNativeApp() error {
 	if m.nativeApp == nil {
 		return nil
 	}
-	return m.nativeApp.Close()
+	if err := m.nativeApp.Close(); err != nil {
+		return fmt.Errorf("failed to close native app: %w", err)
+	}
+	return nil
 }
 
 // stopEmbeddedApp stops any embedded app versions if they are currently running.
 func (m *Multiplexer) stopEmbeddedApp() error {
 	m.logger.Info("stopping embedded app")
-	if m.embeddedVersionRunning() {
-		m.logger.Info("stopping app for version", "active_app_version", m.activeVersion.AppVersion)
-		if err := m.activeVersion.Appd.Stop(); err != nil {
-			return fmt.Errorf("failed to stop embedded app for version %d: %w", m.activeVersion.AppVersion, err)
-		}
-		m.started = false
-		m.activeVersion = Version{}
+	if !m.embeddedVersionRunning() {
+		return nil
 	}
+	m.logger.Info("stopping app for version", "active_app_version", m.activeVersion.AppVersion)
+	if err := m.activeVersion.Appd.Stop(); err != nil {
+		return fmt.Errorf("failed to stop embedded app for version %d: %w", m.activeVersion.AppVersion, err)
+	}
+	m.started = false
+	m.activeVersion = Version{}
 	return nil
 }
 
@@ -592,8 +609,7 @@ func (m *Multiplexer) stopGRPCConnection() error {
 	if m.conn == nil {
 		return nil
 	}
-	err := m.conn.Close()
-	if err != nil {
+	if err := m.conn.Close(); err != nil {
 		return fmt.Errorf("failed to close gRPC connection: %w", err)
 
 	}
