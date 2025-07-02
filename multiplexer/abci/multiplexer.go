@@ -611,7 +611,6 @@ func (m *Multiplexer) stopGRPCConnection() error {
 	}
 	if err := m.conn.Close(); err != nil {
 		return fmt.Errorf("failed to close gRPC connection: %w", err)
-
 	}
 	m.conn = nil
 	return nil
