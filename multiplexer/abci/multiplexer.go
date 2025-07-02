@@ -555,6 +555,7 @@ func (m *Multiplexer) Stop() error {
 }
 
 func (m *Multiplexer) stopCometNode() error {
+	m.logger.Info("stopping comet node")
 	if m.cmNode == nil {
 		return nil
 	}
@@ -565,6 +566,7 @@ func (m *Multiplexer) stopCometNode() error {
 }
 
 func (m *Multiplexer) stopNativeApp() error {
+	m.logger.Info("stopping native app")
 	if m.nativeApp == nil {
 		return nil
 	}
@@ -573,10 +575,11 @@ func (m *Multiplexer) stopNativeApp() error {
 
 // stopEmbeddedApp stops any embedded app versions if they are currently running.
 func (m *Multiplexer) stopEmbeddedApp() error {
+	m.logger.Info("stopping embedded app")
 	if m.embeddedVersionRunning() {
 		m.logger.Info("stopping app for version", "active_app_version", m.activeVersion.AppVersion)
 		if err := m.activeVersion.Appd.Stop(); err != nil {
-			return fmt.Errorf("failed to stop app for version %d: %w", m.activeVersion.AppVersion, err)
+			return fmt.Errorf("failed to stop embedded app for version %d: %w", m.activeVersion.AppVersion, err)
 		}
 		m.started = false
 		m.activeVersion = Version{}
@@ -585,6 +588,7 @@ func (m *Multiplexer) stopEmbeddedApp() error {
 }
 
 func (m *Multiplexer) stopGRPCConnection() error {
+	m.logger.Info("stopping gRPC connection for ABCI")
 	if m.conn == nil {
 		return nil
 	}
@@ -598,6 +602,7 @@ func (m *Multiplexer) stopGRPCConnection() error {
 }
 
 func (m *Multiplexer) stopTraceWriter() error {
+	m.logger.Info("stopping trace writer")
 	if m.traceWriter == nil {
 		return nil
 	}
