@@ -85,6 +85,7 @@ func (a *RemoteABCIClientV1) CheckTx(req *abciv2.RequestCheckTx) (*abciv2.Respon
 
 // Commit implements abciv2.ABCI
 func (a *RemoteABCIClientV1) Commit() (*abciv2.ResponseCommit, error) {
+	fmt.Printf("remote_v1.Commit() called\n")
 	return &abciv2.ResponseCommit{
 		RetainHeight: a.commitRetainLastHeight,
 	}, nil
