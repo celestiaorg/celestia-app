@@ -24,9 +24,6 @@ func (v ABCIClientVersion) String() string {
 var _ abci.Application = (*Multiplexer)(nil)
 
 func (m *Multiplexer) ApplySnapshotChunk(_ context.Context, req *abci.RequestApplySnapshotChunk) (*abci.ResponseApplySnapshotChunk, error) {
-	if m.done.Load() {
-		return nil, fmt.Errorf("multiplexer is shutting down")
-	}
 	app, err := m.getApp()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
@@ -35,9 +32,6 @@ func (m *Multiplexer) ApplySnapshotChunk(_ context.Context, req *abci.RequestApp
 }
 
 func (m *Multiplexer) CheckTx(_ context.Context, req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
-	if m.done.Load() {
-		return nil, fmt.Errorf("multiplexer is shutting down")
-	}
 	app, err := m.getApp()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
@@ -46,9 +40,6 @@ func (m *Multiplexer) CheckTx(_ context.Context, req *abci.RequestCheckTx) (*abc
 }
 
 func (m *Multiplexer) Commit(context.Context, *abci.RequestCommit) (*abci.ResponseCommit, error) {
-	if m.done.Load() {
-		return nil, fmt.Errorf("multiplexer is shutting down")
-	}
 	app, err := m.getApp()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
@@ -66,9 +57,6 @@ func (m *Multiplexer) Commit(context.Context, *abci.RequestCommit) (*abci.Respon
 }
 
 func (m *Multiplexer) ExtendVote(ctx context.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
-	if m.done.Load() {
-		return nil, fmt.Errorf("multiplexer is shutting down")
-	}
 	app, err := m.getApp()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
@@ -77,10 +65,6 @@ func (m *Multiplexer) ExtendVote(ctx context.Context, req *abci.RequestExtendVot
 }
 
 func (m *Multiplexer) FinalizeBlock(_ context.Context, req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
-	if m.done.Load() {
-		return nil, fmt.Errorf("multiplexer is shutting down")
-	}
-
 	// Check halt height BEFORE processing the block to prevent state inconsistency
 	if m.svrCfg.HaltHeight > 0 && uint64(req.Height) >= m.svrCfg.HaltHeight {
 		return nil, fmt.Errorf("halting node per configuration at height %d", m.svrCfg.HaltHeight)
@@ -110,9 +94,6 @@ func (m *Multiplexer) FinalizeBlock(_ context.Context, req *abci.RequestFinalize
 }
 
 func (m *Multiplexer) Info(_ context.Context, req *abci.RequestInfo) (*abci.ResponseInfo, error) {
-	if m.done.Load() {
-		return nil, fmt.Errorf("multiplexer is shutting down")
-	}
 	app, err := m.getApp()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
@@ -122,9 +103,6 @@ func (m *Multiplexer) Info(_ context.Context, req *abci.RequestInfo) (*abci.Resp
 }
 
 func (m *Multiplexer) InitChain(_ context.Context, req *abci.RequestInitChain) (*abci.ResponseInitChain, error) {
-	if m.done.Load() {
-		return nil, fmt.Errorf("multiplexer is shutting down")
-	}
 	app, err := m.getApp()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app for genesis: %w", err)
@@ -133,9 +111,6 @@ func (m *Multiplexer) InitChain(_ context.Context, req *abci.RequestInitChain) (
 }
 
 func (m *Multiplexer) ListSnapshots(_ context.Context, req *abci.RequestListSnapshots) (*abci.ResponseListSnapshots, error) {
-	if m.done.Load() {
-		return nil, fmt.Errorf("multiplexer is shutting down")
-	}
 	app, err := m.getApp()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
@@ -144,9 +119,6 @@ func (m *Multiplexer) ListSnapshots(_ context.Context, req *abci.RequestListSnap
 }
 
 func (m *Multiplexer) LoadSnapshotChunk(_ context.Context, req *abci.RequestLoadSnapshotChunk) (*abci.ResponseLoadSnapshotChunk, error) {
-	if m.done.Load() {
-		return nil, fmt.Errorf("multiplexer is shutting down")
-	}
 	app, err := m.getApp()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
@@ -155,9 +127,6 @@ func (m *Multiplexer) LoadSnapshotChunk(_ context.Context, req *abci.RequestLoad
 }
 
 func (m *Multiplexer) OfferSnapshot(_ context.Context, req *abci.RequestOfferSnapshot) (*abci.ResponseOfferSnapshot, error) {
-	if m.done.Load() {
-		return nil, fmt.Errorf("multiplexer is shutting down")
-	}
 	app, err := m.getApp()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
@@ -166,9 +135,6 @@ func (m *Multiplexer) OfferSnapshot(_ context.Context, req *abci.RequestOfferSna
 }
 
 func (m *Multiplexer) PrepareProposal(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
-	if m.done.Load() {
-		return nil, fmt.Errorf("multiplexer is shutting down")
-	}
 	app, err := m.getApp()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
@@ -177,9 +143,6 @@ func (m *Multiplexer) PrepareProposal(_ context.Context, req *abci.RequestPrepar
 }
 
 func (m *Multiplexer) ProcessProposal(_ context.Context, req *abci.RequestProcessProposal) (*abci.ResponseProcessProposal, error) {
-	if m.done.Load() {
-		return nil, fmt.Errorf("multiplexer is shutting down")
-	}
 	app, err := m.getApp()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
@@ -188,9 +151,6 @@ func (m *Multiplexer) ProcessProposal(_ context.Context, req *abci.RequestProces
 }
 
 func (m *Multiplexer) Query(ctx context.Context, req *abci.RequestQuery) (*abci.ResponseQuery, error) {
-	if m.done.Load() {
-		return nil, fmt.Errorf("multiplexer is shutting down")
-	}
 	app, err := m.getApp()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
@@ -199,9 +159,6 @@ func (m *Multiplexer) Query(ctx context.Context, req *abci.RequestQuery) (*abci.
 }
 
 func (m *Multiplexer) VerifyVoteExtension(_ context.Context, req *abci.RequestVerifyVoteExtension) (*abci.ResponseVerifyVoteExtension, error) {
-	if m.done.Load() {
-		return nil, fmt.Errorf("multiplexer is shutting down")
-	}
 	app, err := m.getApp()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)

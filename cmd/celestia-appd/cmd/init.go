@@ -136,6 +136,10 @@ func initCmd(basicManager module.BasicManager, defaultNodeHome string) *cobra.Co
 				return errorsmod.Wrap(err, "Failed to export genesis file")
 			}
 
+			if isKnownChainID(chainID) {
+				fmt.Printf("The chain ID %s is a public network.\nPlease download the genesis file via:\n\tcelestia-appd download-genesis %s\n", chainID, chainID)
+			}
+
 			cometconfig.WriteConfigFile(filepath.Join(config.RootDir, "config", "config.toml"), config)
 
 			toPrint := newPrintInfo(config.Moniker, chainID, nodeID, "", appState)
