@@ -396,6 +396,14 @@ func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, 
 	if err != nil {
 		return nil, err
 	}
+	if resp.TxResponse.Code != abci.CodeTypeOK {
+		broadcastTxErr := &BroadcastTxError{
+			TxHash:   resp.TxResponse.TxHash,
+			Code:     resp.TxResponse.Code,
+			ErrorLog: resp.TxResponse.RawLog,
+		}
+		return nil, broadcastTxErr
+	}
 
 	// save the sequence and signer of the transaction in the local txTracker
 	// before the sequence is incremented
