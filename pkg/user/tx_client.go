@@ -13,6 +13,7 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v4/app/errors"
 	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
 	"github.com/celestiaorg/celestia-app/v4/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v4/app/params"
@@ -32,7 +33,6 @@ import (
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	"google.golang.org/grpc"
-	apperrors "github.com/celestiaorg/celestia-app/v4/app/errors"
 )
 
 const (
@@ -395,40 +395,6 @@ func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, 
 	)
 	if err != nil {
 		return nil, err
-	}
-	if resp.TxResponse.Code != abci.CodeTypeOK {
-		if apperrors.IsNonceMismatchCode(resp.TxResponse.Code) {
-			expectedSequence, err := apperrors.ParseExpectedSequence(resp.TxResponse.RawLog)
-			if err != nil {
-				return nil, fmt.Errorf("error parsing sequence mismatch: %w. RawLog: %s", err, resp.TxResponse.RawLog)
-			}
-			currentSequence := client.signer.Account(signer).Sequence()
-			for expectedSequence < currentSequence {
-				// resubmit the earlier transactions to the consensus node to catch them up to the TxClient's local sequence
-				txBytes, exists := client.getTxBySignerAndSequence(signer, expectedSequence)
-				if !exists {
-					return nil, fmt.Errorf("failed to resubmit earlier transaction at sequence: %d. No longer exists. Raw Lof: %s",
-						expectedSequence, resp.TxResponse.RawLog)
-				}
-				if _, err := client.broadcastTx(ctx, conn, txBytes, signer); err != nil {
-					return nil, fmt.Errorf("failed to resubmit earlier transaction at sequence: %d (latest: %d). Original error: %w",
-						expectedSequence, currentSequence, err)
-				}
-				expectedSequence++
-			}
-			// try to resubmit the original transaction now that the consensus node has caught up
-			if expectedSequence == currentSequence {
-				return client.broadcastTx(ctx, conn, txBytes, signer)
-			}
-			// if the expected sequence is greater than the current then there is nothing we can do.
-			// There must have been transactions that the account submitted that the txClient was not aware of
-		}
-		broadcastTxErr := &BroadcastTxError{
-			TxHash:   resp.TxResponse.TxHash,
-			Code:     resp.TxResponse.Code,
-			ErrorLog: resp.TxResponse.RawLog,
-		}
-		return nil, broadcastTxErr
 	}
 
 	// save the sequence and signer of the transaction in the local txTracker
