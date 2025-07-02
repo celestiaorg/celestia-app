@@ -572,24 +572,28 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			if resp, err := client.broadcastTxAfterEviction(ctx, client.conns[0], txBytes, signer); err != nil {
 				fmt.Println(err, "ERROR")
 				fmt.Println(resp, "RESPONSE")
-				return nil, fmt.Errorf("failed to resubmit earlier transaction at sequence: %d. Original error: %w",
-					sequence, err)
-			}
-			// if error string contains  incorrect account sequence code
-			if strings.Contains(err.Error(), "incorrect account sequence") {
-				// check if it was confirmed
-				resp, err := txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
-				if err != nil {
-					return nil, err
+				// return nil, fmt.Errorf("failed to resubmit earlier transaction at sequence: %d. Original error: %w",
+				// 	sequence, err)
+				if strings.Contains(err.Error(), "incorrect account sequence") {
+					fmt.Println("incorrect account sequence block")
+					// check if it was confirmed
+					resp, err := txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
+					if err != nil {
+						return nil, err
+					}
+					fmt.Println("tx status", resp.Status)
+					if resp.Status == core.TxStatusCommitted {
+						fmt.Println("tx confirmed after eviction")
+						return &TxResponse{
+							Height: resp.Height,
+							TxHash: txHash,
+							Code:   resp.ExecutionCode,
+						}, nil
+					}
+					return nil, errors.New("tx was evicted")
 				}
-				if resp.Status == core.TxStatusCommitted {
-					fmt.Println("tx confirmed after eviction")
-					return &TxResponse{
-						Height: resp.Height,
-						TxHash: txHash,
-						Code:   resp.ExecutionCode,
-					}, nil
-				}
+				// if error string contains  incorrect account sequence code
+
 			}
 			return nil, err
 		case core.TxStatusRejected:
