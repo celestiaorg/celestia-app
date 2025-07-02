@@ -71,12 +71,12 @@ func (a *Appd) Start(args ...string) error {
 	cmd.Stdout = a.stdout
 	cmd.Stderr = a.stderr
 
-	// CRITICAL: Start the embedded binary in its own process group
-	// This prevents it from receiving CTRL+C signals directly from the terminal.
-	// The multiplexer will be responsible for coordinating shutdown.
+	// Start the embedded binary in its own process group.
+	// This prevents the embedded binary from receiving CTRL+C signals directly from the terminal.
+	// That way, the multiplexer can shut down the embedded binary after shutting down CometBFT.
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true, // Create new process group
-		Pgid:    0,    // Use the child's PID as the process group ID
+		Setpgid: true,
+		Pgid:    0,
 	}
 
 	if err := cmd.Start(); err != nil {
@@ -84,13 +84,13 @@ func (a *Appd) Start(args ...string) error {
 	}
 
 	a.pid = cmd.Process.Pid
-	go func() {
-		// wait for process to finish
-		if err := cmd.Wait(); err != nil {
-			log.Printf("Process finished with error: %v\n", err)
-		}
 
-		a.pid = -1 // reset pid
+	go func() {
+		// This waits whether process exits naturally or is killed by Stop()
+		if err := cmd.Wait(); err != nil {
+			log.Printf("Process finished: %v\n", err)
+		}
+		a.pid = AppdStopped // Always reset PID when process ends
 	}()
 
 	return nil
@@ -107,7 +107,7 @@ func (a *Appd) Stop() error {
 		return fmt.Errorf("failed to find process with PID %d: %w", a.pid, err)
 	}
 
-	// send SIGTERM for graceful shutdown
+	// Send SIGTERM for graceful shutdown
 	if err := process.Signal(os.Interrupt); err != nil {
 		log.Printf("Failed to send interrupt signal, attempting to kill: %v", err)
 		// if interrupt fails, try harder with Kill
@@ -116,13 +116,6 @@ func (a *Appd) Stop() error {
 		}
 	}
 
-	// Wait for the process to exit
-	_, err = process.Wait()
-	if err != nil {
-		log.Printf("Error waiting for process to exit: %v", err)
-	}
-
-	a.pid = AppdStopped
 	return nil
 }
 
