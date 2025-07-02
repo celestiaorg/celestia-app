@@ -32,6 +32,7 @@ import (
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	"google.golang.org/grpc"
+	apperrors "github.com/celestiaorg/celestia-app/v4/app/errors"
 )
 
 const (
@@ -47,6 +48,7 @@ type txInfo struct {
 	sequence  uint64
 	signer    string
 	timestamp time.Time
+	txBytes   []byte
 }
 
 // TxResponse is a response from the chain after
@@ -152,6 +154,7 @@ type TxClient struct {
 	// txTracker maps the tx hash to the Sequence and signer of the transaction
 	// that was submitted to the chain
 	txTracker           map[string]txInfo
+	txBySignerSequence  map[string]map[uint64]string
 	gasEstimationClient gasestimation.GasEstimatorClient
 }
 
@@ -394,6 +397,32 @@ func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, 
 		return nil, err
 	}
 	if resp.TxResponse.Code != abci.CodeTypeOK {
+		if apperrors.IsNonceMismatchCode(resp.TxResponse.Code) {
+			expectedSequence, err := apperrors.ParseExpectedSequence(resp.TxResponse.RawLog)
+			if err != nil {
+				return nil, fmt.Errorf("error parsing sequence mismatch: %w. RawLog: %s", err, resp.TxResponse.RawLog)
+			}
+			currentSequence := client.signer.Account(signer).Sequence()
+			for expectedSequence < currentSequence {
+				// resubmit the earlier transactions to the consensus node to catch them up to the TxClient's local sequence
+				txBytes, exists := client.getTxBySignerAndSequence(signer, expectedSequence)
+				if !exists {
+					return nil, fmt.Errorf("failed to resubmit earlier transaction at sequence: %d. No longer exists. Raw Lof: %s",
+						expectedSequence, resp.TxResponse.RawLog)
+				}
+				if _, err := client.broadcastTx(ctx, conn, txBytes, signer); err != nil {
+					return nil, fmt.Errorf("failed to resubmit earlier transaction at sequence: %d (latest: %d). Original error: %w",
+						expectedSequence, currentSequence, err)
+				}
+				expectedSequence++
+			}
+			// try to resubmit the original transaction now that the consensus node has caught up
+			if expectedSequence == currentSequence {
+				return client.broadcastTx(ctx, conn, txBytes, signer)
+			}
+			// if the expected sequence is greater than the current then there is nothing we can do.
+			// There must have been transactions that the account submitted that the txClient was not aware of
+		}
 		broadcastTxErr := &BroadcastTxError{
 			TxHash:   resp.TxResponse.TxHash,
 			Code:     resp.TxResponse.Code,
@@ -404,11 +433,7 @@ func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, 
 
 	// save the sequence and signer of the transaction in the local txTracker
 	// before the sequence is incremented
-	client.txTracker[resp.TxResponse.TxHash] = txInfo{
-		sequence:  client.signer.accounts[signer].Sequence(),
-		signer:    signer,
-		timestamp: time.Now(),
-	}
+	client.trackTransaction(signer, resp.TxResponse.TxHash, txBytes)
 
 	// after the transaction has been submitted, we can increment the
 	// sequence of the signer
@@ -472,6 +497,9 @@ func (client *TxClient) pruneTxTracker() {
 	for hash, txInfo := range client.txTracker {
 		if time.Since(txInfo.timestamp) >= txTrackerPruningInterval {
 			delete(client.txTracker, hash)
+			if txBySigner, ok := client.txBySignerSequence[txInfo.signer]; ok {
+				delete(txBySigner, txInfo.sequence)
+			}
 		}
 	}
 }
@@ -518,8 +546,20 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			client.deleteFromTxTracker(txHash)
 			return txResponse, nil
 		case core.TxStatusEvicted:
+			sequence, signer, exists := client.GetTxFromTxTracker(txHash)
+			if !exists {
+				return nil, fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
+			}
 			// resubmit the transaction
-			return
+			txBytes, exists := client.getTxBySignerAndSequence(signer, sequence)
+			if !exists {
+				return nil, fmt.Errorf("failed to resubmit earlier transaction at sequence: %d. No longer exists.", sequence)
+			}
+			if _, err := client.broadcastTx(ctx, client.conns[0], txBytes, signer); err != nil {
+				return nil, fmt.Errorf("failed to resubmit earlier transaction at sequence: %d. Original error: %w",
+					sequence, err)
+			}
+			return nil, nil
 		case core.TxStatusRejected:
 			return nil, client.handleRejections(txHash)
 		default:
@@ -728,12 +768,34 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 	return record.Name, nil
 }
 
+func (client *TxClient) trackTransaction(signer, txHash string, txBytes []byte) {
+	sequence := client.signer.Account(signer).Sequence()
+	client.txTracker[txHash] = txInfo{
+		sequence:  sequence,
+		signer:    signer,
+		timestamp: time.Now(),
+		txBytes:   txBytes,
+	}
+	client.txBySignerSequence[signer][sequence] = txHash
+}
+
 // GetTxFromTxTracker gets transaction info from the tx client's local tx tracker by its hash
 func (client *TxClient) GetTxFromTxTracker(hash string) (sequence uint64, signer string, exists bool) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 	txInfo, exists := client.txTracker[hash]
 	return txInfo.sequence, txInfo.signer, exists
+}
+
+func (client *TxClient) getTxBySignerAndSequence(signer string, sequence uint64) ([]byte, bool) {
+	if txsBySigner, ok := client.txBySignerSequence[signer]; ok {
+		if txHash, ok := txsBySigner[sequence]; ok {
+			if txInfo, ok := client.txTracker[txHash]; ok {
+				return txInfo.txBytes, true
+			}
+		}
+	}
+	return nil, false
 }
 
 // Signer exposes the tx clients underlying signer
