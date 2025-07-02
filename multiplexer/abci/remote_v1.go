@@ -99,16 +99,6 @@ func (a *RemoteABCIClientV1) Commit() (*abciv2.ResponseCommit, error) {
 
 // FinalizeBlock implements abciv2.ABCI
 func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*abciv2.ResponseFinalizeBlock, error) {
-	// Check halt height BEFORE processing the block to prevent state inconsistency
-	if a.haltHeight > 0 && uint64(req.Height) >= a.haltHeight {
-		return nil, fmt.Errorf("halting node per configuration at height %d", a.haltHeight)
-	}
-
-	// Check halt time BEFORE processing the block to prevent state inconsistency
-	if a.haltTime > 0 && req.Time.Unix() >= int64(a.haltTime) {
-		return nil, fmt.Errorf("halting node per configuration at time %d", a.haltTime)
-	}
-
 	appVersion := a.endBlockConsensusAppVersion
 	if appVersion == 0 {
 		infoResp, err := a.Info(&abciv2.RequestInfo{})

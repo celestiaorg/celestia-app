@@ -2,7 +2,6 @@ package abci
 
 import (
 	"context"
-	"fmt"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	"google.golang.org/grpc"
@@ -48,16 +47,6 @@ func (a *RemoteABCIClientV2) ExtendVote(ctx context.Context, req *abci.RequestEx
 
 // FinalizeBlock implements abci.ABCI.
 func (a *RemoteABCIClientV2) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
-	// Check halt height BEFORE processing the block to prevent state inconsistency
-	if a.haltHeight > 0 && uint64(req.Height) >= a.haltHeight {
-		return nil, fmt.Errorf("halting node per configuration at height %d", a.haltHeight)
-	}
-
-	// Check halt time BEFORE processing the block to prevent state inconsistency
-	if a.haltTime > 0 && req.Time.Unix() >= int64(a.haltTime) {
-		return nil, fmt.Errorf("halting node per configuration at time %d", a.haltTime)
-	}
-
 	return a.ABCIClient.FinalizeBlock(context.Background(), req, grpc.WaitForReady(true))
 }
 

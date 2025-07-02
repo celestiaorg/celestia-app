@@ -65,14 +65,8 @@ func (m *Multiplexer) ExtendVote(ctx context.Context, req *abci.RequestExtendVot
 }
 
 func (m *Multiplexer) FinalizeBlock(_ context.Context, req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
-	// Check halt height BEFORE processing the block to prevent state inconsistency
-	if m.svrCfg.HaltHeight > 0 && uint64(req.Height) >= m.svrCfg.HaltHeight {
-		return nil, fmt.Errorf("halting node per configuration at height %d", m.svrCfg.HaltHeight)
-	}
-
-	// Check halt time BEFORE processing the block to prevent state inconsistency
-	if m.svrCfg.HaltTime > 0 && req.Time.Unix() >= int64(m.svrCfg.HaltTime) {
-		return nil, fmt.Errorf("halting node per configuration at time %d", m.svrCfg.HaltTime)
+	if m.shouldHalt(req) {
+		m.Stop()
 	}
 
 	app, err := m.getApp()
@@ -164,4 +158,18 @@ func (m *Multiplexer) VerifyVoteExtension(_ context.Context, req *abci.RequestVe
 		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
 	}
 	return app.VerifyVoteExtension(req)
+}
+
+// shouldHalt returns true if the node should halt based on a halt-height or
+// halt-time configured in app.toml.
+func (m *Multiplexer) shouldHalt(req *abci.RequestFinalizeBlock) bool {
+	if m.svrCfg.HaltHeight > 0 && uint64(req.Height) >= m.svrCfg.HaltHeight {
+		m.logger.Info("halting node per configuration at height", "height", m.svrCfg.HaltHeight)
+		return true
+	}
+	if m.svrCfg.HaltTime > 0 && req.Time.Unix() >= int64(m.svrCfg.HaltTime) {
+		m.logger.Info("halting node per configuration at time", "time", m.svrCfg.HaltTime)
+		return true
+	}
+	return false
 }
