@@ -87,11 +87,9 @@ func (a *Appd) Start(args ...string) error {
 
 	go func() {
 		// This waits whether process exits naturally or is killed by Stop()
-		fmt.Printf("Before wait\n")
 		if err := cmd.Wait(); err != nil {
 			log.Printf("Process finished: %v\n", err)
 		}
-		fmt.Printf("After wait\n")
 		a.pid = AppdStopped // Always reset PID when process ends
 	}()
 
