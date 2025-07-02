@@ -571,22 +571,21 @@ func (m *Multiplexer) Stop() error {
 }
 
 func (m *Multiplexer) stopContext() error {
-	m.logger.Info("stopping context")
-	if m.cancel == nil {
-		return nil
+	if m.cancel != nil {
+		m.logger.Info("stopping context")
+		m.cancel()
 	}
-	m.cancel()
 	return nil
 }
 
 func (m *Multiplexer) stopCometNode() error {
-	m.logger.Info("stopping comet node")
 	if m.cmNode == nil {
 		return nil
 	}
 	if !m.cmNode.IsRunning() {
 		return nil
 	}
+	m.logger.Info("stopping comet node")
 	if err := m.cmNode.Stop(); err != nil {
 		return fmt.Errorf("failed to stop comet node: %w", err)
 	}
@@ -594,10 +593,10 @@ func (m *Multiplexer) stopCometNode() error {
 }
 
 func (m *Multiplexer) stopNativeApp() error {
-	m.logger.Info("stopping native app")
 	if m.nativeApp == nil {
 		return nil
 	}
+	m.logger.Info("stopping native app")
 	if err := m.nativeApp.Close(); err != nil {
 		return fmt.Errorf("failed to close native app: %w", err)
 	}
@@ -606,11 +605,10 @@ func (m *Multiplexer) stopNativeApp() error {
 
 // stopEmbeddedApp stops any embedded app versions if they are currently running.
 func (m *Multiplexer) stopEmbeddedApp() error {
-	m.logger.Info("stopping embedded app")
 	if !m.embeddedVersionRunning() {
 		return nil
 	}
-	m.logger.Info("stopping app for version", "active_app_version", m.activeVersion.AppVersion)
+	m.logger.Info("stopping embedded app for version", "active_app_version", m.activeVersion.AppVersion)
 	if err := m.activeVersion.Appd.Stop(); err != nil {
 		return fmt.Errorf("failed to stop embedded app for version %d: %w", m.activeVersion.AppVersion, err)
 	}
@@ -620,10 +618,10 @@ func (m *Multiplexer) stopEmbeddedApp() error {
 }
 
 func (m *Multiplexer) stopGRPCConnection() error {
-	m.logger.Info("stopping gRPC connection for ABCI")
 	if m.conn == nil {
 		return nil
 	}
+	m.logger.Info("stopping gRPC connection for ABCI")
 	if err := m.conn.Close(); err != nil {
 		return fmt.Errorf("failed to close gRPC connection: %w", err)
 	}
@@ -632,10 +630,10 @@ func (m *Multiplexer) stopGRPCConnection() error {
 }
 
 func (m *Multiplexer) stopTraceWriter() error {
-	m.logger.Info("stopping trace writer")
 	if m.traceWriter == nil {
 		return nil
 	}
+	m.logger.Info("stopping trace writer")
 	return m.traceWriter.Close()
 }
 
