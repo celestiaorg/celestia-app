@@ -3,8 +3,6 @@ package docker_e2e
 import (
 	"context"
 	"fmt"
-	"strings"
-
 	"testing"
 	"time"
 
@@ -58,12 +56,13 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain tastoratypes.
 		Binds: []string{chain.GetVolumeName() + ":/celestia-home"},
 	}
 
-	hostGRPCPort := strings.Split(chain.GetGRPCAddress(), ":")[1]
+	internalHostname, err := chain.GetNodes()[0].GetInternalHostName(ctx)
+	s.Require().NoError(err)
 
 	args := []string{
 		"/bin/txsim",
 		"--key-path", "/celestia-home",
-		"--grpc-endpoint", "host.docker.internal:" + hostGRPCPort,
+		"--grpc-endpoint", internalHostname + ":9090",
 		"--poll-time", "1s",
 		"--seed", "42",
 		"--blob", "10",

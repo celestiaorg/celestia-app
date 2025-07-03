@@ -74,7 +74,7 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 
 			if totalTxs >= requiredTxs {
 				t.Logf("Found %d transactions, continuing with test", totalTxs)
-				return
+				break
 			}
 		case <-pollCtx.Done():
 			t.Fatalf("Timed out waiting for %d transactions", requiredTxs)
