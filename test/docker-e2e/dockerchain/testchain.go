@@ -34,14 +34,15 @@ func NewCelestiaChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.Chai
 
 	kr := cfg.Genesis.Keyring()
 
-	// TODO: accountNames can't be hard coded
-	accountNames := []string{"validator", "val1", "val2"}
-	vals := make([]tastoradockertypes.ChainNodeConfig, 3)
-	for i := 0; i < len(accountNames); i++ {
+	records, err := kr.List()
+	require.NoError(t, err)
+
+	vals := make([]tastoradockertypes.ChainNodeConfig, len(records))
+	for i, record := range records {
 		privKeyBz := getValidatorPrivateKeyBytes(t, cfg.Genesis, i)
 		vals[i] = tastoradockertypes.NewChainNodeConfigBuilder().
 			WithPrivValidatorKey(privKeyBz).
-			WithAccountName(accountNames[i]).
+			WithAccountName(record.Name).
 			WithKeyring(kr).
 			Build()
 	}
