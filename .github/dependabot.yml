@@ -1,31 +1,42 @@
 version: 2
 updates:
-  - package-ecosystem: docker
-    directory: "/"
-    schedule:
-      interval: daily
-    open-pull-requests-limit: 10
-    labels:
-      - dependencies
-  # There are more Dockerfiles in the `docker` directory, therefore we need this one
+  # Docker
   - package-ecosystem: docker
     directory: "/docker"
     schedule:
-      interval: daily
+      interval: weekly
     open-pull-requests-limit: 10
     labels:
       - dependencies
+
+  # Github Actions
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
-      interval: daily
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+
+  # Go
+  - package-ecosystem: gomod
+    directory: "/"
+    schedule:
+      interval: weekly
     open-pull-requests-limit: 10
     labels:
       - dependencies
   - package-ecosystem: gomod
-    directory: "/"
+    directory: "test/interchain"
     schedule:
-      interval: daily
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+  - package-ecosystem: gomod
+    directory: "test/docker-e2e"
+    schedule:
+      interval: weekly
     open-pull-requests-limit: 10
     labels:
       - dependencies

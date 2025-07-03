@@ -8,7 +8,7 @@ HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v4
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
-GOLANG_CROSS_VERSION  ?= v1.24.4
+GOLANG_CROSS_VERSION  ?= v1.24.2
 # Set this to override v2 upgrade height for the v3 embedded binaries
 V2_UPGRADE_HEIGHT ?= 0
 
@@ -22,8 +22,11 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
 
-# NOTE: This version must be updated at the same time as the version in internal/embedding/data.go and .goreleaser.yaml
-CELESTIA_V3_VERSION := v3.10.3-arabica
+# NOTE: This version must be updated at the same time as the version in:
+# internal/embedding/data.go
+# .goreleaser.yaml
+# docker/multiplexer.Dockerfile
+CELESTIA_V3_VERSION := v3.10.3
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -88,6 +91,8 @@ mod:
 	@go mod tidy
 	@echo "--> Updating go.mod in ./test/interchain"
 	@(cd ./test/interchain && go mod tidy)
+	@echo "--> Updating go.mod in ./test/docker-e2e"
+	@(cd ./test/docker-e2e && go mod tidy)
 .PHONY: mod
 
 ## mod-verify: Verify dependencies have expected content.
@@ -227,12 +232,6 @@ test-short:
 	@go test ./... -short -timeout 1m
 .PHONY: test-short
 
-## test-e2e: Run end to end tests via knuu. This command requires a kube/config file to configure kubernetes.
-test-e2e:
-	@echo "--> Running end to end tests"
-	IMAGE_TAG=$(tag) TEST=$(test) DOCKER_REGISTRY=$(registry) go run ./test/e2e $(filter-out $@,$(MAKECMDGOALS))
-.PHONY: test-e2e
-
 ## test-docker-e2e: Run end to end tests via docker.
 test-docker-e2e:
 	@if [ -z "$(test)" ]; then \
@@ -294,6 +293,24 @@ txsim-build-docker:
 	docker build -t ghcr.io/celestiaorg/txsim -f docker/txsim/Dockerfile  .
 .PHONY: txsim-build-docker
 
+## build-talis-bins: Build celestia-appd and txsim binaries for talis VMs (ubuntu 22.04 LTS)
+build-talis-bins:
+	docker build \
+	  --file tools/talis/docker/Dockerfile \
+	  --target builder \
+	  --platform linux/amd64 \
+	  --build-arg LDFLAGS="$(ldflags)" \
+	  --build-arg GOOS=linux \
+	  --build-arg GOARCH=amd64 \
+	  --tag talis-builder:latest \
+	  .
+	mkdir -p build
+	docker create --platform linux/amd64 --name tmp talis-builder:latest
+	docker cp tmp:/out/. build/
+	docker rm tmp
+.PHONY: build-talis-bins
+
+
 ## adr-gen: Download the ADR template from the celestiaorg/.github repo.
 adr-gen:
 	@echo "--> Downloading ADR template"
@@ -336,9 +353,9 @@ prebuilt-binary:
 		release --clean --parallelism 2
 .PHONY: prebuilt-binary
 
-## go-releaser-dry-run ensures that the go releaser tool and build all the artefacts correctly.
-## specifies parallelism as 4 so should be run locally. On the regular github runners 2 should be the max.
-go-releaser-dry-run:
+## goreleaser-dry-run: ensures that the go releaser tool can build all the artefacts correctly.
+goreleaser-dry-run:
+# Specifies parallelism as 4 so should be run locally. On the regular github runners 2 should be the max.
 	@echo "Running GoReleaser in dry-run mode..."
 	docker run \
 		--rm \

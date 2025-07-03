@@ -25,3 +25,7 @@ app/test/bad_block_*
 # do not include downloaded embedded binaries
 internal/embedding/**
 **/*token.sh
+# ignore talis files
+app.toml
+config.toml
+config.json

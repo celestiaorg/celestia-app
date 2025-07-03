@@ -20,7 +20,7 @@ type RemoteABCIClientV1 struct {
 	// commitRetainLastHeight is the height that is set in finalize block
 	// and returned in commit
 	commitRetainLastHeight int64
-	// endBlockConsensusVersion is the app version got from the end block abci call
+	// endBlockConsensusAppVersion is the app version got from the end block abci call
 	endBlockConsensusAppVersion uint64
 	// chainID is required to pass into the headers.
 	chainID string
@@ -478,8 +478,8 @@ func abciEventV1ToV2(events ...abciv1.Event) []abciv2.Event {
 		attributes := make([]abciv2.EventAttribute, 0, len(event.Attributes))
 		for _, attr := range event.Attributes {
 			attributes = append(attributes, abciv2.EventAttribute{
-				Key:   string(attr.Key),
-				Value: string(attr.Value),
+				Key:   attr.Key,
+				Value: attr.Value,
 			})
 		}
 
