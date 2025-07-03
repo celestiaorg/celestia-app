@@ -1,6 +1,7 @@
 package docker_e2e
 
 import (
+	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"context"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
 	cometcfg "github.com/cometbft/cometbft/config"
@@ -27,16 +28,14 @@ func (s *CelestiaTestSuite) TestStateSync() {
 	}
 
 	ctx := context.TODO()
-
-	builder := s.Builder().
+	cfg := dockerchain.DefaultConfig(s.client, s.network)
+	celestia, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).
 		WithPostInit(func(ctx context.Context, node *celestiadockertypes.ChainNode) error {
 			return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
 				cfg.StateSync.SnapshotInterval = 5
 				cfg.StateSync.SnapshotKeepRecent = 2
 			})
-		})
-
-	celestia, err := builder.Build(ctx)
+		}).Build(ctx)
 	s.Require().NoError(err, "failed to get chain")
 
 	err = celestia.Start(ctx)

@@ -1,4 +1,4 @@
-package testchain
+package dockerchain
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
 	"github.com/celestiaorg/tastora/framework/testutil/maps"
@@ -15,47 +14,13 @@ import (
 	"github.com/cometbft/cometbft/privval"
 	servercfg "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
-	"github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
-	"os"
 	"testing"
 	"time"
 )
 
-const (
-	multiplexerImage   = "ghcr.io/celestiaorg/celestia-app"
-	defaultCelestiaTag = "v4.0.0-rc6"
-)
-
-// Config represents the configuration for a docker Celestia setup.
-type Config struct {
-	*testnode.Config
-	Image           string
-	Tag             string
-	DockerClient    *client.Client
-	DockerNetworkID string
-}
-
-// DefaultConfig returns a configured instance of Config with a custom genesis and validators for Celestia applications.
-func DefaultConfig() Config {
-	tnCfg := testnode.DefaultConfig()
-	// default + 2 extra validators.
-	tnCfg.Genesis = tnCfg.Genesis.
-		WithChainID("test").
-		WithValidators(
-			genesis.NewDefaultValidator("val1"),
-			genesis.NewDefaultValidator("val2"),
-		)
-
-	return Config{
-		Config: tnCfg,
-		Image:  getCelestiaImage(),
-		Tag:    getCelestiaTag(),
-	}
-}
-
 // NewCelestiaChainBuilder constructs a new ChainBuilder configured for a Celestia instance with predefined parameters.
-func NewCelestiaChainBuilder(t *testing.T, cfg Config) *tastoradockertypes.ChainBuilder {
+func NewCelestiaChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.ChainBuilder {
 	genesisBz, err := cfg.Genesis.ExportBytes()
 	require.NoError(t, err, "failed to export genesis bytes")
 
@@ -142,7 +107,7 @@ func getValidatorPrivateKeyBytes(t *testing.T, genesis *genesis.Genesis, idx int
 }
 
 // SetupTxClient initializes and returns a transaction client for interacting with a chain node using the provided configuration.
-func SetupTxClient(ctx context.Context, cn *tastoradockertypes.ChainNode, cfg Config) (*user.TxClient, error) {
+func SetupTxClient(ctx context.Context, cn *tastoradockertypes.ChainNode, cfg *Config) (*user.TxClient, error) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	return user.SetupTxClient(
@@ -151,22 +116,4 @@ func SetupTxClient(ctx context.Context, cn *tastoradockertypes.ChainNode, cfg Co
 		cn.GrpcConn,
 		encCfg,
 	)
-}
-
-// getCelestiaImage returns the image to use for Celestia app.
-// It can be overridden by setting the CELESTIA_IMAGE environment.
-func getCelestiaImage() string {
-	if image := os.Getenv("CELESTIA_IMAGE"); image != "" {
-		return image
-	}
-	return multiplexerImage
-}
-
-// getCelestiaTag returns the tag to use for Celestia images.
-// It can be overridden by setting the CELESTIA_TAG environment.
-func getCelestiaTag() string {
-	if tag := os.Getenv("CELESTIA_TAG"); tag != "" {
-		return tag
-	}
-	return defaultCelestiaTag
 }
