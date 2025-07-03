@@ -3,12 +3,19 @@ package docker_e2e
 import (
 	"context"
 	"fmt"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
+	"github.com/celestiaorg/tastora/framework/testutil/config"
+	cometcfg "github.com/cometbft/cometbft/config"
+	cmtjson "github.com/cometbft/cometbft/libs/json"
+	"github.com/cometbft/cometbft/privval"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	servercfg "github.com/cosmos/cosmos-sdk/server/config"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"strings"
 
-	//"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	"github.com/celestiaorg/tastora/framework/testutil/maps"
 	"os"
@@ -17,8 +24,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/go-square/v2/share"
-	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
-	celestiatypes "github.com/celestiaorg/tastora/framework/types"
+	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
+	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/docker/docker/api/types/network"
 	"github.com/moby/moby/client"
@@ -49,14 +56,16 @@ type CelestiaTestSuite struct {
 func (s *CelestiaTestSuite) SetupSuite() {
 	s.logger = zaptest.NewLogger(s.T())
 	s.logger.Info("Setting up Celestia test suite: " + s.T().Name())
-	s.client, s.network = celestiadockertypes.DockerSetup(s.T())
+	s.client, s.network = tastoradockertypes.DockerSetup(s.T())
 }
 
 func (s *CelestiaTestSuite) SetupTest() {
 	s.T().Log("Setting up Celestia test: " + s.T().Name())
 }
 
-func (s *CelestiaTestSuite) CreateBuilder() *celestiadockertypes.ChainBuilder {
+// Builder returns a ChainBuilder that provides all of the default configurations for a celestia app chain.
+// any changes can be made with the builder before calling Build based on the requirements of given test.
+func (s *CelestiaTestSuite) Builder() *tastoradockertypes.ChainBuilder {
 	// default + 2 extra validators.
 	g := testnode.DefaultConfig().Genesis.WithChainID("celestia").WithValidators(
 		genesis.NewDefaultValidator("val1"),
@@ -74,27 +83,27 @@ func (s *CelestiaTestSuite) CreateBuilder() *celestiadockertypes.ChainBuilder {
 
 	encodingConfig := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
 
-	client, network := celestiadockertypes.DockerSetup(s.T())
+	client, network := tastoradockertypes.DockerSetup(s.T())
 
 	kr := g.Keyring()
 
 	accountNames := []string{"validator", "val1", "val2"}
-	vals := make([]celestiadockertypes.ChainNodeConfig, 3)
+	vals := make([]tastoradockertypes.ChainNodeConfig, 3)
 	for i := 0; i < 3; i++ {
 		privKeyBz := getValidatorPrivateKeyBytes(s.T(), g, i)
-		vals[i] = celestiadockertypes.NewChainNodeConfigBuilder().
+		vals[i] = tastoradockertypes.NewChainNodeConfigBuilder().
 			WithPrivValidatorKey(privKeyBz).
 			WithAccountName(accountNames[i]).
 			WithKeyring(kr).
 			Build()
 	}
 
-	return celestiadockertypes.NewChainBuilder(s.T()).
+	return tastoradockertypes.NewChainBuilder(s.T()).
 		WithName("celestia"). // just influences home directory on the host.
 		WithChainID(g.ChainID).
 		WithDockerClient(client).
 		WithDockerNetworkID(network).
-		WithImage(celestiadockertypes.NewDockerImage("ghcr.io/celestiaorg/celestia-app", "v4.0.4-alpha", "10001:10001")).
+		WithImage(tastoradockertypes.NewDockerImage(getCelestiaImage(), getCelestiaTag(), "10001:10001")).
 		WithAdditionalStartArgs("--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099").
 		WithEncodingConfig(&encodingConfig).
 		WithPostInit(getPostInitModifications("0.025utia")...).
@@ -103,7 +112,7 @@ func (s *CelestiaTestSuite) CreateBuilder() *celestiadockertypes.ChainBuilder {
 }
 
 // CreateTxSim deploys and starts a txsim container to simulate transactions against the given celestia chain in the test environment.
-func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain celestiatypes.Chain) {
+func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain tastoratypes.Chain) {
 	// wait for GRPC server to be ready
 	s.Require().NoError(s.waitForGRPC(ctx, chain.GetGRPCAddress()))
 
@@ -113,9 +122,9 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain celestiatypes
 
 	// Deploy txsim image
 	t.Log("Deploying txsim image")
-	txsimImage := celestiadockertypes.NewImage(s.logger, s.client, networkName, t.Name(), txsimImage, txSimTag)
+	txsimImage := tastoradockertypes.NewImage(s.logger, s.client, networkName, t.Name(), txsimImage, txSimTag)
 
-	opts := celestiadockertypes.ContainerOptions{
+	opts := tastoradockertypes.ContainerOptions{
 		User: "0:0",
 		// Mount the Celestia home directory into the txsim container
 		// this ensures txsim has access to a keyring and is able to broadcast transactions.
@@ -195,4 +204,63 @@ func getCelestiaTag() string {
 		return tag
 	}
 	return defaultCelestiaTag
+}
+
+// getPostInitModifications returns a slice of functions to modify configuration files of a ChainNode post-initialization.
+func getPostInitModifications(gasPrices string) []func(context.Context, *tastoradockertypes.ChainNode) error {
+	var fns []func(context.Context, *tastoradockertypes.ChainNode) error
+
+	fns = append(fns, func(ctx context.Context, node *tastoradockertypes.ChainNode) error {
+		return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
+			cfg.LogLevel = "info"
+			cfg.TxIndex.Indexer = "kv"
+			cfg.P2P.AllowDuplicateIP = true
+			cfg.P2P.AddrBookStrict = false
+			blockTime := time.Duration(2) * time.Second
+			cfg.Consensus.TimeoutCommit = blockTime
+			cfg.Consensus.TimeoutPropose = blockTime
+			cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
+			cfg.RPC.CORSAllowedOrigins = []string{"*"}
+		})
+	})
+
+	fns = append(fns, func(ctx context.Context, node *tastoradockertypes.ChainNode) error {
+		return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
+			cfg.MinGasPrices = gasPrices
+			cfg.GRPC.Address = "0.0.0.0:9090"
+			cfg.API.Enable = true
+			cfg.API.Swagger = true
+			cfg.API.Address = "tcp://0.0.0.0:1317"
+		})
+	})
+	return fns
+}
+
+// getValidatorPrivateKeyBytes returns the contents of the priv_validator_key.json file.
+func getValidatorPrivateKeyBytes(t *testing.T, genesis *genesis.Genesis, idx int) []byte {
+	validator, exists := genesis.Validator(idx)
+	require.True(t, exists, "validator at index 0 should exist")
+	privValKey := validator.ConsensusKey
+
+	key := privval.FilePVKey{
+		Address: privValKey.PubKey().Address(),
+		PubKey:  privValKey.PubKey(),
+		PrivKey: privValKey,
+	}
+
+	privValidatorKeyBz, err := cmtjson.MarshalIndent(key, "", "  ")
+	require.NoError(t, err, "failed to marshal priv_validator_key.json")
+	return privValidatorKeyBz
+}
+
+func setupTxClient(ctx context.Context, kr keyring.Keyring, chain *tastoradockertypes.Chain) (*user.TxClient, error) {
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+	return user.SetupTxClient(
+		ctx,
+		kr, // NOTE: this is the genesis keyring, not required to fetch anything from the node itself since the keys are generated in the test.
+		chain.GetNode().GrpcConn,
+		encCfg,
+		user.WithDefaultAccount("validator"), // wse the validator account as default
+	)
 }

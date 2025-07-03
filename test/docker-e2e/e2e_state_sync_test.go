@@ -28,7 +28,7 @@ func (s *CelestiaTestSuite) TestStateSync() {
 
 	ctx := context.TODO()
 
-	builder := s.CreateBuilder().
+	builder := s.Builder().
 		WithPostInit(func(ctx context.Context, node *celestiadockertypes.ChainNode) error {
 			return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
 				cfg.StateSync.SnapshotInterval = 5
