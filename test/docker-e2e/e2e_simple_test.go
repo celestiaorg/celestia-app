@@ -45,6 +45,13 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 
 	s.CreateTxSim(ctx, celestia)
 
+	assertTransactionsIncluded(ctx, t, celestia)
+
+	testBankSend(t, celestia, cfg)
+}
+
+// assertTransactionsIncluded verifies that the required number of transactions have been included within a specified timeout.
+func assertTransactionsIncluded(ctx context.Context, t *testing.T, celestia *tastoradockertypes.Chain) {
 	pollCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
 
@@ -74,14 +81,12 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 
 			if totalTxs >= requiredTxs {
 				t.Logf("Found %d transactions, continuing with test", totalTxs)
-				break
+				return
 			}
 		case <-pollCtx.Done():
 			t.Fatalf("Timed out waiting for %d transactions", requiredTxs)
 		}
 	}
-
-	testBankSend(t, celestia, cfg)
 }
 
 // testBankSend performs a basic bank send using txClient.
