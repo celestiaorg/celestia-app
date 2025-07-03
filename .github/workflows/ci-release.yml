@@ -20,6 +20,9 @@ jobs:
   markdown-linter:
     uses: ./.github/workflows/markdown-linter.yml
 
+  spelling:
+    uses: ./.github/workflows/spelling.yml
+
   build:
     uses: ./.github/workflows/build.yml
 
