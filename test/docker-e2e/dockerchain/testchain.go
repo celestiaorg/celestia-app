@@ -25,8 +25,7 @@ func NewCelestiaChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.Chai
 	require.NoError(t, err, "failed to export genesis bytes")
 
 	// TODO: why do I need to do this?
-	genesisBz, err = maps.SetField(genesisBz, "consensus", map[string]interface{}{})
-	require.NoError(t, err)
+	// fails with 2025-07-03 14:57:42 Error: failed to get current app state: failed to determine genesis version
 	genesisBz, err = maps.SetField(genesisBz, "consensus.params.version.app", "4")
 	require.NoError(t, err)
 
@@ -93,7 +92,7 @@ func getPostInitModifications(gasPrices string) []func(context.Context, *tastora
 // getValidatorPrivateKeyBytes returns the contents of the priv_validator_key.json file.
 func getValidatorPrivateKeyBytes(t *testing.T, genesis *genesis.Genesis, idx int) []byte {
 	validator, exists := genesis.Validator(idx)
-	require.True(t, exists, "validator at index 0 should exist")
+	require.True(t, exists, "validator at index %d should exist", idx)
 	privValKey := validator.ConsensusKey
 
 	key := privval.FilePVKey{
