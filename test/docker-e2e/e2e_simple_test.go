@@ -1,6 +1,7 @@
 package docker_e2e
 
 import (
+	"celestiaorg/celestia-app/test/docker-e2e/testchain"
 	"context"
 	"testing"
 	"time"
@@ -15,7 +16,12 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 	}
 
 	ctx := context.TODO()
-	celestia, err := s.Builder().Build(ctx)
+
+	cfg := testchain.DefaultConfig()
+	cfg.DockerClient = s.client
+	cfg.DockerNetworkID = s.network
+
+	celestia, err := testchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
 	s.Require().NoError(err, "failed to get chain")
 
 	err = celestia.Start(ctx)

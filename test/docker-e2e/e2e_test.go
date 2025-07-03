@@ -3,17 +3,12 @@ package docker_e2e
 import (
 	"context"
 	"fmt"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
 	cometcfg "github.com/cometbft/cometbft/config"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 	"github.com/cometbft/cometbft/privval"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	servercfg "github.com/cosmos/cosmos-sdk/server/config"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"strings"
 
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
@@ -113,9 +108,6 @@ func (s *CelestiaTestSuite) Builder() *tastoradockertypes.ChainBuilder {
 
 // CreateTxSim deploys and starts a txsim container to simulate transactions against the given celestia chain in the test environment.
 func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain tastoratypes.Chain) {
-	// wait for GRPC server to be ready
-	s.Require().NoError(s.waitForGRPC(ctx, chain.GetGRPCAddress()))
-
 	t := s.T()
 	networkName, err := getNetworkNameFromID(ctx, s.client, s.network)
 	s.Require().NoError(err)
@@ -158,22 +150,6 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain tastoratypes.
 			t.Logf("Error stopping txsim container: %v", err)
 		}
 	})
-}
-
-// waitForGRPC waits for the GRPC server to be ready to accept connections
-func (s *CelestiaTestSuite) waitForGRPC(ctx context.Context, grpcAddr string) error {
-	timeout := 30 * time.Second
-	deadline := time.Now().Add(timeout)
-
-	for time.Now().Before(deadline) {
-		conn, err := grpc.DialContext(ctx, grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-		if err == nil {
-			conn.Close()
-			return nil
-		}
-		time.Sleep(time.Second)
-	}
-	return fmt.Errorf("GRPC server at %s not ready after %v", grpcAddr, timeout)
 }
 
 // getNetworkNameFromID resolves the network name given its ID.
@@ -251,16 +227,4 @@ func getValidatorPrivateKeyBytes(t *testing.T, genesis *genesis.Genesis, idx int
 	privValidatorKeyBz, err := cmtjson.MarshalIndent(key, "", "  ")
 	require.NoError(t, err, "failed to marshal priv_validator_key.json")
 	return privValidatorKeyBz
-}
-
-func setupTxClient(ctx context.Context, kr keyring.Keyring, chain *tastoradockertypes.Chain) (*user.TxClient, error) {
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
-	return user.SetupTxClient(
-		ctx,
-		kr, // NOTE: this is the genesis keyring, not required to fetch anything from the node itself since the keys are generated in the test.
-		chain.GetNode().GrpcConn,
-		encCfg,
-		user.WithDefaultAccount("validator"), // wse the validator account as default
-	)
 }
