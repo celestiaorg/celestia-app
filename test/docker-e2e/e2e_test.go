@@ -21,7 +21,7 @@ import (
 
 const (
 	txsimImage = "ghcr.io/celestiaorg/txsim"
-	txSimTag   = "v4.0.0-rc6"
+	txSimTag   = "v4.0.7-mocha"
 )
 
 func TestCelestiaTestSuite(t *testing.T) {
