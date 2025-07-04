@@ -104,7 +104,13 @@ func sftpDownload(remotePath, localPath, user, host, sshKeyPath string) error {
 	target := fmt.Sprintf("%s@%s:%s", user, host, remotePath)
 
 	// Use `-r` always — safe for both files and dirs in practice
-	cmd := exec.Command("sftp", "-i", sshKeyPath, "-r", target, localPath)
+	cmd := exec.Command("sftp",
+		"-o", "StrictHostKeyChecking=no",
+		"-o", "UserKnownHostsFile=/dev/null",
+		"-i", sshKeyPath,
+		"-r", target,
+		localPath,
+	)
 
 	fmt.Printf("Running: sftp -i %s -r %s %s\n", sshKeyPath, target, localPath)
 	return cmd.Run()
