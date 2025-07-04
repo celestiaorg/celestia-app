@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# This script starts a single node testnet on app version 3.
+# This script starts a single node testnet on app version 4.
 
 # Stop script execution if an error is encountered
 set -o errexit

@@ -2,6 +2,7 @@ package abci
 
 import (
 	"context"
+	"fmt"
 	"math"
 
 	abciv2 "github.com/cometbft/cometbft/abci/types"
@@ -26,15 +27,21 @@ type RemoteABCIClientV1 struct {
 	chainID string
 	// initialAppVersion is the app version that was parsed from the genesis file or state
 	initialAppVersion uint64
+	// haltHeight is the height at which the node should halt
+	haltHeight uint64
+	// haltTime is the time at which the node should halt
+	haltTime uint64
 }
 
 // NewRemoteABCIClientV1 returns a new ABCI Client (using ABCI v1).
 // The client behaves like Tendermint for the server side (the application side).
-func NewRemoteABCIClientV1(conn *grpc.ClientConn, chainID string, initialAppVersion uint64) *RemoteABCIClientV1 {
+func NewRemoteABCIClientV1(conn *grpc.ClientConn, chainID string, initialAppVersion uint64, haltHeight uint64, haltTime uint64) *RemoteABCIClientV1 {
 	return &RemoteABCIClientV1{
 		ABCIApplicationClient: abciv1.NewABCIApplicationClient(conn),
 		chainID:               chainID,
 		initialAppVersion:     initialAppVersion,
+		haltHeight:            haltHeight,
+		haltTime:              haltTime,
 	}
 }
 
@@ -84,6 +91,7 @@ func (a *RemoteABCIClientV1) CheckTx(req *abciv2.RequestCheckTx) (*abciv2.Respon
 
 // Commit implements abciv2.ABCI
 func (a *RemoteABCIClientV1) Commit() (*abciv2.ResponseCommit, error) {
+	fmt.Printf("remote_v1.Commit() called\n")
 	return &abciv2.ResponseCommit{
 		RetainHeight: a.commitRetainLastHeight,
 	}, nil
@@ -192,15 +200,18 @@ func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*a
 
 	// commit result
 	commitResp, err := a.ABCIApplicationClient.Commit(context.Background(), &abciv1.RequestCommit{}, grpc.WaitForReady(true))
+	fmt.Printf("commitResp: %+v and err: %v\n", commitResp, err)
 	if err != nil {
 		return nil, err
 	}
 
 	// set the retain height, used in commit noop
 	a.commitRetainLastHeight = commitResp.RetainHeight
+	fmt.Printf("commitRetainLastHeight: %d\n", a.commitRetainLastHeight)
 	// get the app version from the end block response
 	a.endBlockConsensusAppVersion = endBlockResp.GetConsensusParamUpdates().Version.AppVersion
 
+	fmt.Printf("Returning finalize block response\n")
 	return &abciv2.ResponseFinalizeBlock{
 		Events:                events,
 		TxResults:             txResults,
