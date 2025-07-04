@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/da"
-	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
-	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/pkg/da"
+	"github.com/celestiaorg/celestia-app/v5/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v5/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v5/test/util/random"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
 	square "github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -95,7 +95,7 @@ func TestMaliciousTestNode(t *testing.T) {
 
 	// check that we can recalculate the data root using the malicious code but
 	// not the correct code
-	s, err := Construct(block.Block.Txs.ToSliceOfBytes(), appconsts.LatestVersion, appconsts.SquareSizeUpperBound, OutOfOrderExport)
+	s, err := Construct(block.Block.Txs.ToSliceOfBytes(), appconsts.Version, appconsts.SquareSizeUpperBound, OutOfOrderExport)
 	require.NoError(t, err)
 
 	rawSquare := share.ToBytes(s)
