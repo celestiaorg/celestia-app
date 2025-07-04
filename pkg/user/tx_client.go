@@ -440,13 +440,12 @@ func (client *TxClient) broadcastTxAfterEviction(ctx context.Context, conn *grpc
 		}
 		return nil, broadcastTxErr
 	}
-	fmt.Println("tx submitted")
+	fmt.Println("tx resubmitted")
 
 	// save the sequence and signer of the transaction in the local txTracker
 	// before the sequence is incremented
-	client.trackTransaction(signer, resp.TxResponse.TxHash, txBytes)
-	fmt.Println("tx tracked")
-
+	// client.trackTransaction(signer, resp.TxResponse.TxHash, txBytes)
+	// fmt.Println("tx tracked")
 	return resp.TxResponse, nil
 }
 
@@ -565,7 +564,6 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				case <-ctx.Done():
 					return nil, ctx.Err()
 				case <-evictionTimeout:
-					// Timeout reached, proceed with resubmission
 					goto resubmit
 				case <-evictionPollTicker.C:
 					// Check if transaction status changed
@@ -614,12 +612,9 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			if err != nil {
 				return nil, err
 			}
-			client.deleteFromTxTracker(txHash)
-			return &TxResponse{
-				Height: resp.Height,
-				TxHash: txHash,
-				Code:   resp.Code,
-			}, nil
+
+			// now we should confirm the tx
+			return client.ConfirmTx(ctx, resp.TxHash)
 
 		case core.TxStatusRejected:
 			return nil, client.handleRejections(txHash)

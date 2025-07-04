@@ -240,16 +240,19 @@ func TestEvictions(t *testing.T) {
 
 		// Submit all transactions
 		for i := 0; i < 10; i++ {
+			fmt.Println("submitting tx", i)
 			blobs := blobfactory.ManyRandBlobs(random.New(), 1e3, 1e4, 1e5)
 			resp, err := txClient.SubmitPayForBlob(ctx.GoContext(), blobs, fee, gas)
 			require.NoError(t, err)
+			fmt.Println("tx submitted with code", resp.Code)
 			responses[i] = resp
 		}
 
 		time.Sleep(1 * time.Second)
 
-		// Confirm transactions - some may have been evicted, which is normal
+		// Confirm transactions - all should be confirmed
 		for i := 0; i < len(responses); i++ {
+			fmt.Println("confirming tx", i)
 			res, err := txClient.ConfirmTx(ctx.GoContext(), responses[i].TxHash)
 			if err != nil {
 				// Transaction was likely evicted - this is expected behavior
@@ -262,7 +265,7 @@ func TestEvictions(t *testing.T) {
 
 		// Assert that at least some transactions succeeded
 		// (exact number depends on network conditions and mempool state)
-		require.Greater(t, successfulTxs, 0, "At least one transaction should have succeeded")
+		require.Equal(t, successfulTxs, len(responses), "All transactions should have succeeded")
 		fmt.Printf("Successfully confirmed %d out of %d transactions\n", successfulTxs, len(responses))
 	})
 }
