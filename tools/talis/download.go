@@ -74,7 +74,7 @@ func downloadCmd() *cobra.Command {
 						}
 						cleaned := stripANSI(string(content))
 						// Write back to the same file
-						err = os.WriteFile(logFile, []byte(cleaned), 0644)
+						err = os.WriteFile(logFile, []byte(cleaned), 0o644)
 						if err != nil {
 							fmt.Printf("Error writing file: %v\n", err)
 							return
