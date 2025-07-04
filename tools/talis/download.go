@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -58,9 +59,26 @@ func downloadCmd() *cobra.Command {
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
-					err := sftpDownload(remotePath, filepath.Join(rootDir, "data"), "root", node.PublicIP, SSHKeyPath)
+					localPath := filepath.Join(rootDir, "data/", node.Name)
+					err := sftpDownload(remotePath, localPath, "root", node.PublicIP, SSHKeyPath)
 					if err != nil {
 						fmt.Printf("failed to download from %s: %v\n", node.PublicIP, err)
+					}
+					if table == "logs" {
+						// usually, the logs from tmux also include color codes. So we will clean them up.
+						logFile := filepath.Join(localPath, "logs")
+						content, err := os.ReadFile(logFile)
+						if err != nil {
+							fmt.Printf("Error reading file: %v\n", err)
+							return
+						}
+						cleaned := stripANSI(string(content))
+						// Write back to the same file
+						err = os.WriteFile(logFile, []byte(cleaned), 0o644)
+						if err != nil {
+							fmt.Printf("Error writing file: %v\n", err)
+							return
+						}
 					}
 				}()
 			}
@@ -127,4 +145,12 @@ func matchPattern(pattern, input string) (bool, error) {
 	}
 
 	return re.MatchString(input), nil
+}
+
+// Regex to match ANSI escape codes
+var ansiEscape = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
+
+// stripANSI removes ANSI escape codes from the input string, returning a plain text version without formatting codes.
+func stripANSI(input string) string {
+	return ansiEscape.ReplaceAllString(input, "")
 }
