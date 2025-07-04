@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	mint "github.com/celestiaorg/celestia-app/v4/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
+	mint "github.com/celestiaorg/celestia-app/v5/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
 	"github.com/cosmos/gogoproto/proto"
