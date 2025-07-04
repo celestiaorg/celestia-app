@@ -12,14 +12,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Regex to match ANSI escape codes
-var ansiEscape = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
-
-// stripANSI removes ANSI escape codes from the input string, returning a plain text version without formatting codes.
-func stripANSI(input string) string {
-	return ansiEscape.ReplaceAllString(input, "")
-}
-
 func downloadCmd() *cobra.Command {
 	var (
 		rootDir    string
@@ -147,4 +139,12 @@ func matchPattern(pattern, input string) (bool, error) {
 	}
 
 	return re.MatchString(input), nil
+}
+
+// Regex to match ANSI escape codes
+var ansiEscape = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
+
+// stripANSI removes ANSI escape codes from the input string, returning a plain text version without formatting codes.
+func stripANSI(input string) string {
+	return ansiEscape.ReplaceAllString(input, "")
 }
