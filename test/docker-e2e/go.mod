@@ -5,7 +5,7 @@ go 1.24.2
 require (
 	github.com/celestiaorg/celestia-app/v5 v5.0.0
 	github.com/celestiaorg/go-square/v2 v2.3.0
-	github.com/celestiaorg/tastora v0.0.0-20250515081551-795e795a49c7
+	github.com/celestiaorg/tastora v0.0.4
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/docker/docker v28.3.0+incompatible
 	github.com/moby/moby v27.5.1+incompatible
@@ -190,7 +190,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
-	github.com/moby/sys/atomicwriter v0.1.0 // indirect
+	github.com/moby/sys/sequential v0.6.0 // indirect
 	github.com/mtibben/percent v0.2.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/oasisprotocol/curve25519-voi v0.0.0-20230904125328-1f23a7beb09a // indirect
