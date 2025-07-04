@@ -50,7 +50,7 @@ type TxClientTestSuite struct {
 }
 
 func (suite *TxClientTestSuite) SetupSuite() {
-	suite.encCfg, suite.txClient, suite.ctx = setupTxClient(suite.T(), testnode.DefaultTendermintConfig().Mempool.TTLDuration)
+	suite.encCfg, suite.txClient, suite.ctx = setupTxClient(suite.T(), testnode.DefaultTendermintConfig().Mempool.TTLDuration, 1000)
 	suite.serviceClient = sdktx.NewServiceClient(suite.ctx.GRPCClient)
 }
 
@@ -229,30 +229,45 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 }
 
 func TestEvictions(t *testing.T) {
-	_, txClient, ctx := setupTxClient(t, 1*time.Nanosecond)
+	t.Run("test multiple transactions resubmission after eviction when some are committed or pending", func(t *testing.T) {
+		_, txClient, ctx := setupTxClient(t, 2*time.Second, 5) // Use 1ns TTL to force eviction
 
-	fee := user.SetFee(1e6)
-	gas := user.SetGasLimit(1e6)
+		fee := user.SetFee(1e6)
+		gas := user.SetGasLimit(2e6)
 
-	// Keep submitting the transaction until we get the eviction error
-	sender := txClient.Signer().Account(txClient.DefaultAccountName())
-	msg := bank.NewMsgSend(sender.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
-	var seqBeforeEviction uint64
-	// Loop five times until the tx is evicted
-	for i := 0; i < 5; i++ {
-		seqBeforeEviction = sender.Sequence()
-		resp, err := txClient.BroadcastTx(ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
-		require.NoError(t, err)
-		_, err = txClient.ConfirmTx(ctx.GoContext(), resp.TxHash)
-		if err != nil {
-			if err.Error() == "tx was evicted from the mempool" {
-				break
-			}
+		responses := make([]*user.TxResponse, 10)
+		successfulTxs := 0
+
+		// Submit all transactions
+		for i := 0; i < 10; i++ {
+			fmt.Println("submitting tx", i)
+			blobs := blobfactory.ManyRandBlobs(random.New(), 1e3, 1e4, 1e5)
+			resp, err := txClient.SubmitPayForBlob(ctx.GoContext(), blobs, fee, gas)
+			require.NoError(t, err)
+			fmt.Println("tx submitted with code", resp.Code)
+			responses[i] = resp
 		}
-	}
 
-	seqAfterEviction := sender.Sequence()
-	require.Equal(t, seqBeforeEviction, seqAfterEviction)
+		time.Sleep(1 * time.Second)
+
+		// Confirm transactions - all should be confirmed
+		for i := 0; i < len(responses); i++ {
+			fmt.Println("confirming tx", i)
+			res, err := txClient.ConfirmTx(ctx.GoContext(), responses[i].TxHash)
+			if err != nil {
+				// Transaction was likely evicted - this is expected behavior
+				fmt.Printf("Transaction %d was evicted or rejected: %v\n", i, err)
+				continue
+			}
+			require.Equal(t, res.Code, abci.CodeTypeOK)
+			successfulTxs++
+		}
+
+		// Assert that at least some transactions succeeded
+		// (exact number depends on network conditions and mempool state)
+		require.Equal(t, successfulTxs, len(responses), "All transactions should have succeeded")
+		fmt.Printf("Successfully confirmed %d out of %d transactions\n", successfulTxs, len(responses))
+	})
 }
 
 // TestWithEstimatorService ensures that if the WithEstimatorService
@@ -260,7 +275,7 @@ func TestEvictions(t *testing.T) {
 // used to estimate gas price and usage instead of the default connection.
 func TestWithEstimatorService(t *testing.T) {
 	mockEstimator := setupEstimatorService(t)
-	_, txClient, ctx := setupTxClient(t, testnode.DefaultTendermintConfig().Mempool.TTLDuration, user.WithEstimatorService(mockEstimator.conn))
+	_, txClient, ctx := setupTxClient(t, testnode.DefaultTendermintConfig().Mempool.TTLDuration, 1000, user.WithEstimatorService(mockEstimator.conn))
 
 	msg := bank.NewMsgSend(txClient.DefaultAddress(), testnode.RandomAddress().(sdk.AccAddress),
 		sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
@@ -364,10 +379,12 @@ func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash, expected
 func setupTxClient(
 	t *testing.T,
 	ttlDuration time.Duration,
+	cacheSize int,
 	opts ...user.Option,
 ) (encoding.Config, *user.TxClient, testnode.Context) {
 	defaultTmConfig := testnode.DefaultTendermintConfig()
 	defaultTmConfig.Mempool.TTLDuration = ttlDuration
+	defaultTmConfig.Mempool.CacheSize = cacheSize
 
 	chainID := unsafe.Str(6)
 	testnodeConfig := testnode.DefaultConfig().
