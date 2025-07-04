@@ -554,48 +554,73 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			return txResponse, nil
 		case core.TxStatusEvicted:
 			fmt.Println("tx evicted")
-			sequence, signer, exists := client.GetTxFromTxTracker(txHash)
-			if !exists {
-				return nil, fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
-			}
-			// resubmit the transaction
-			txBytes, exists := client.getTxBySignerAndSequence(signer, sequence)
-			if !exists {
-				return nil, fmt.Errorf("failed to resubmit earlier transaction at sequence: %d. No longer exists.", sequence)
-			}
-			fmt.Println("found tx bytes, attempting resubmission")
+			// Poll for a limited time to see if transaction gets included
+			evictionPollTicker := time.NewTicker(client.pollTime)
+			defer evictionPollTicker.Stop()
+			/// We should let the user handle this though
+			evictionTimeout := time.After(5 * time.Second) // Poll for 5 seconds
 
-			// remove from tx tracker
-			// set signer sequence to the sequence of the tx tracker
-			fmt.Println("setting sequence", signer, sequence)
-			// client.deleteFromTxTracker(txHash)
-			if resp, err := client.broadcastTxAfterEviction(ctx, client.conns[0], txBytes, signer); err != nil {
-				fmt.Println(err, "ERROR")
-				fmt.Println(resp, "RESPONSE")
-				// return nil, fmt.Errorf("failed to resubmit earlier transaction at sequence: %d. Original error: %w",
-				// 	sequence, err)
-				if strings.Contains(err.Error(), "incorrect account sequence") {
-					fmt.Println("incorrect account sequence block")
-					// check if it was confirmed
+			for {
+				select {
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				case <-evictionTimeout:
+					// Timeout reached, proceed with resubmission
+					goto resubmit
+				case <-evictionPollTicker.C:
+					// Check if transaction status changed
 					resp, err := txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
 					if err != nil {
-						return nil, err
+						continue // Continue polling on error
 					}
-					fmt.Println("tx status", resp.Status)
-					if resp.Status == core.TxStatusCommitted {
-						fmt.Println("tx confirmed after eviction")
+
+					switch resp.Status {
+					case core.TxStatusCommitted:
+						// Transaction was actually included, don't resubmit
+						fmt.Println("tx was included during polling, not resubmitting")
+						client.deleteFromTxTracker(txHash)
 						return &TxResponse{
 							Height: resp.Height,
 							TxHash: txHash,
 							Code:   resp.ExecutionCode,
 						}, nil
+					case core.TxStatusEvicted:
+						// Still evicted, continue polling
+						continue
+					default:
+						// Unknown status, continue polling
+						continue
 					}
-					return nil, errors.New("tx was evicted")
 				}
-				// if error string contains  incorrect account sequence code
-
 			}
-			return nil, err
+
+		resubmit:
+			// Proceed with resubmission after polling timeout
+			sequence, signer, exists := client.GetTxFromTxTracker(txHash)
+			if !exists {
+				return nil, fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
+			}
+
+			// Check current network sequence before resubmission
+			currentSequence, err := client.getCurrentSequence(ctx, signer)
+			if err != nil {
+				fmt.Printf("Failed to get current sequence: %v\n", err)
+			} else {
+				fmt.Printf("Current network sequence: %d, Local sequence for resubmission: %d\n", currentSequence, sequence)
+			}
+
+			//resubmit the tx with the current sequence
+			resp, err := client.broadcastTxAfterEviction(ctx, client.conns[0], client.txTracker[txHash].txBytes, signer)
+			if err != nil {
+				return nil, err
+			}
+			client.deleteFromTxTracker(txHash)
+			return &TxResponse{
+				Height: resp.Height,
+				TxHash: txHash,
+				Code:   resp.Code,
+			}, nil
+
 		case core.TxStatusRejected:
 			return nil, client.handleRejections(txHash)
 		default:
@@ -889,4 +914,17 @@ func QueryNetworkMinGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (fl
 		}
 	}
 	return networkMinPrice, nil
+}
+
+func (client *TxClient) getCurrentSequence(ctx context.Context, signer string) (uint64, error) {
+	record, err := client.signer.keys.Key(signer)
+	if err != nil {
+		return 0, fmt.Errorf("trying to find account %s on keyring: %w", signer, err)
+	}
+	addr, err := record.GetAddress()
+	if err != nil {
+		return 0, fmt.Errorf("retrieving address from keyring: %w", err)
+	}
+	_, sequence, err := QueryAccount(ctx, client.conns[0], client.registry, addr)
+	return sequence, err
 }
