@@ -17,13 +17,16 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 		  -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd \
 		  -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
 		  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
-		  -X github.com/celestiaorg/celestia-app/v4/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT)
+		  -X github.com/celestiaorg/celestia-app/v5/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT)
 
 BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
 
-# NOTE: This version must be updated at the same time as the version in internal/embedding/data.go and .goreleaser.yaml
-CELESTIA_V3_VERSION := v3.10.3-arabica
+# NOTE: This version must be updated at the same time as the version in:
+# internal/embedding/data.go
+# .goreleaser.yaml
+# docker/multiplexer.Dockerfile
+CELESTIA_V3_VERSION := v3.10.3
 
 ## help: Get more info on make commands.
 help: Makefile

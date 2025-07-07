@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v5/app"
 	"github.com/celestiaorg/go-square/v2/share"
 	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
 	celestiatypes "github.com/celestiaorg/tastora/framework/types"

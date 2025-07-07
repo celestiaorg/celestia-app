@@ -1,9 +1,9 @@
-package v4
+package appconsts
 
 import "time"
 
 const (
-	Version uint64 = 4
+	Version uint64 = 5
 	// SquareSizeUpperBound imposes an upper bound on the max effective square size.
 	SquareSizeUpperBound int = 128
 	// SubtreeRootThreshold works as a target upper bound for the number of subtree

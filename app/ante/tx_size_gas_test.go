@@ -6,11 +6,11 @@ import (
 	"testing"
 
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/ante"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
+	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v5/app/ante"
+	"github.com/celestiaorg/celestia-app/v5/app/encoding"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	testutil "github.com/celestiaorg/celestia-app/v5/test/util"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
@@ -67,8 +67,8 @@ func TestConsumeGasForTxSize(t *testing.T) {
 		name    string
 		sigV2   signing.SignatureV2
 	}{
-		{appconsts.LatestVersion, fmt.Sprintf("SingleSignatureData v%d", appconsts.LatestVersion), signing.SignatureV2{PubKey: priv1.PubKey()}},
-		{appconsts.LatestVersion, fmt.Sprintf("MultiSignatureData v%d", appconsts.LatestVersion), signing.SignatureV2{PubKey: priv1.PubKey(), Data: multisig.NewMultisig(2)}},
+		{appconsts.Version, fmt.Sprintf("SingleSignatureData v%d", appconsts.Version), signing.SignatureV2{PubKey: priv1.PubKey()}},
+		{appconsts.Version, fmt.Sprintf("MultiSignatureData v%d", appconsts.Version), signing.SignatureV2{PubKey: priv1.PubKey(), Data: multisig.NewMultisig(2)}},
 	}
 
 	for _, tc := range testCases {
