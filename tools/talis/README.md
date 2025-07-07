@@ -238,7 +238,19 @@ talis download s3
 
 ### Modifying the nodes in place
 
-Instead of shutting down all of the nodes, if we want to run a slightly modified experiment, we can simply rerun the `genesis` and `deploy` commands. This will create a new payload and restart the network without tearing down the cloud instances. This will delete any trace data.
+Instead of shutting down all of the nodes, if we want to run a slightly modified experiment, we can simply run the [reset](#reset) command then rerun the `genesis` and `deploy` commands. This will create a new payload and restart the network without tearing down the cloud instances. This will delete any trace data.
+
+### reset
+
+This command allows you to stop running services and clean up files created by the `deploy` command for either specific validators or all validators in the network.
+
+```sh
+# Reset all validators in the network
+talis reset
+
+# Reset specific validators
+talis reset -v validator-0,validator-1
+```
 
 ### down
 
