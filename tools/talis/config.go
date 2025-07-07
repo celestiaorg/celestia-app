@@ -43,6 +43,23 @@ func NodeName(nodeType NodeType) string {
 	return fmt.Sprintf("%s-%d", nodeType, index)
 }
 
+// NodeNameWithChainAndExperiment returns the name of the node in the format
+// "<node_type>-<index>-<chainID>-<experiment>". For example, "validator-0-talis-testchain-exp1".
+func NodeNameWithChainAndExperiment(nodeType NodeType, chainID, experiment string) string {
+	index := 0
+	switch nodeType {
+	case Validator:
+		index = int(valCount.Add(1)) - 1
+	case Bridge:
+		index = int(nodeCount.Add(1)) - 1
+	case Light:
+		index = int(lightCount.Add(1)) - 1
+	default:
+		panic(fmt.Sprintf("unknown node type: %s", nodeType))
+	}
+	return fmt.Sprintf("%s-%d-%s-%s", nodeType, index, chainID, experiment)
+}
+
 // Provider simply marks the provider the instance config should target.
 type Provider string
 
@@ -90,6 +107,17 @@ func NewBaseInstance(nodeType NodeType) Instance {
 		PrivateIP: "TBD",
 		Name:      name,
 		Tags:      []string{"talis", string(nodeType), name},
+	}
+}
+
+func NewBaseInstanceWithChainAndExperiment(nodeType NodeType, chainID, experiment string) Instance {
+	name := NodeNameWithChainAndExperiment(nodeType, chainID, experiment)
+	return Instance{
+		NodeType:  nodeType,
+		PublicIP:  "TBD",
+		PrivateIP: "TBD",
+		Name:      name,
+		Tags:      []string{"talis", string(nodeType), name, chainID, experiment},
 	}
 }
 
@@ -169,9 +197,7 @@ func (cfg Config) WithS3Config(s3 S3Config) Config {
 }
 
 func (cfg Config) WithDigitalOceanValidator(region string) Config {
-	i := NewDigitalOceanValidator(region)
-	// Add chain-id and experiment as tags to support multiple concurrent experiments
-	i.Tags = append(i.Tags, cfg.ChainID, cfg.Experiment)
+	i := NewDigitalOceanValidatorWithChainAndExperiment(region, cfg.ChainID, cfg.Experiment)
 	cfg.Validators = append(cfg.Validators, i)
 	return cfg
 }

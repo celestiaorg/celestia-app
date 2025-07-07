@@ -49,6 +49,17 @@ func NewDigitalOceanValidator(region string) Instance {
 	return i
 }
 
+func NewDigitalOceanValidatorWithChainAndExperiment(region, chainID, experiment string) Instance {
+	if region == "" || region == RandomRegion {
+		region = RandomDORegion()
+	}
+	i := NewBaseInstanceWithChainAndExperiment(Validator, chainID, experiment)
+	i.Provider = DigitalOcean
+	i.Slug = DODefaultValidatorSlug
+	i.Region = region
+	return i
+}
+
 func RandomDORegion() string {
 	return DORegions[rand.Intn(len(DORegions))]
 }

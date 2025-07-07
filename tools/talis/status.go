@@ -12,12 +12,15 @@ import (
 )
 
 func statusCmd() *cobra.Command {
-	var rootDir string
+	var (
+		rootDir string
+		nodes   string
+	)
 
 	cmd := &cobra.Command{
 		Use:     "status",
 		Short:   "Ping a set of CometBFT nodes and report their latest block height",
-		Long:    "Loads a JSON config containing validator instances, then asynchronously queries each node’s /status endpoint (port 26657) and prints its latest block height.",
+		Long:    "Loads a JSON config containing validator instances, then asynchronously queries each node's /status endpoint (port 26657) and prints its latest block height.",
 		Aliases: []string{"s"},
 		RunE: func(cmd *cobra.Command, args []string) error { // 1) Load configuration from disk
 			cfg, err := LoadConfig(rootDir)
@@ -29,8 +32,21 @@ func statusCmd() *cobra.Command {
 				return fmt.Errorf("no validators (nodes) found in config")
 			}
 
+			// Filter validators based on --nodes flag
+			targetValidators := cfg.Validators
+			if nodes != "" && nodes != "*" {
+				targetValidators, err = filterMatchingInstances(cfg.Validators, nodes)
+				if err != nil {
+					return fmt.Errorf("failed to filter nodes: %w", err)
+				}
+			}
+
+			if len(targetValidators) == 0 {
+				return fmt.Errorf("no matching validators found")
+			}
+
 			var wg sync.WaitGroup
-			for _, val := range cfg.Validators {
+			for _, val := range targetValidators {
 				ip := val.PublicIP
 				if ip == "" {
 					fmt.Printf("Skipping %q: no public_ip defined\n", val.Name)
@@ -70,5 +86,6 @@ func statusCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory containing your config")
+	cmd.Flags().StringVarP(&nodes, "nodes", "n", "*", "specify node(s) to check using pattern matching (e.g., validator-*, *-testchain-*, validator-0-*)")
 	return cmd
 }
