@@ -5,13 +5,10 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
-	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
 	"github.com/celestiaorg/tastora/framework/testutil/maps"
 	cometcfg "github.com/cometbft/cometbft/config"
-	cmtjson "github.com/cometbft/cometbft/libs/json"
-	"github.com/cometbft/cometbft/privval"
 	servercfg "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/stretchr/testify/require"
@@ -38,7 +35,11 @@ func NewCelestiaChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.Chai
 
 	vals := make([]tastoradockertypes.ChainNodeConfig, len(records))
 	for i, record := range records {
-		privKeyBz := getValidatorPrivateKeyBytes(t, cfg.Genesis, i)
+		val, exists := cfg.Genesis.Validator(i)
+		require.True(t, exists, "validator at index %d should exist", i)
+		privKeyBz, err := val.PrivateKeyBytes()
+		require.NoError(t, err, "failed to get validator private key bytes")
+
 		vals[i] = tastoradockertypes.NewChainNodeConfigBuilder().
 			WithPrivValidatorKey(privKeyBz).
 			WithAccountName(record.Name).
@@ -87,23 +88,6 @@ func getPostInitModifications(gasPrices string) []func(context.Context, *tastora
 		})
 	})
 	return fns
-}
-
-// getValidatorPrivateKeyBytes returns the contents of the priv_validator_key.json file.
-func getValidatorPrivateKeyBytes(t *testing.T, genesis *genesis.Genesis, idx int) []byte {
-	validator, exists := genesis.Validator(idx)
-	require.True(t, exists, "validator at index %d should exist", idx)
-	privValKey := validator.ConsensusKey
-
-	key := privval.FilePVKey{
-		Address: privValKey.PubKey().Address(),
-		PubKey:  privValKey.PubKey(),
-		PrivKey: privValKey,
-	}
-
-	privValidatorKeyBz, err := cmtjson.MarshalIndent(key, "", "  ")
-	require.NoError(t, err, "failed to marshal priv_validator_key.json")
-	return privValidatorKeyBz
 }
 
 // SetupTxClient initializes and returns a transaction client for interacting with a chain node using the provided configuration.
