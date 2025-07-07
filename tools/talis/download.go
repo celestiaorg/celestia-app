@@ -61,11 +61,16 @@ func downloadCmd() *cobra.Command {
 				}
 			}
 
+			workers := make(chan struct{}, 10)
 			var wg sync.WaitGroup
 			for _, node := range nodes {
 				wg.Add(1)
 				go func() {
-					defer wg.Done()
+					workers <- struct{}{}
+					defer func() {
+						wg.Done()
+						<-workers
+					}()
 					localPath := filepath.Join(rootDir, "data/", node.Name)
 					if strings.Contains(table, ",") {
 						filepath.Join(localPath, "traces")
