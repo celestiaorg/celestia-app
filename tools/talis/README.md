@@ -84,7 +84,7 @@ the celestia-app configs (config.toml and app.toml) can be manually edited here,
     "access_key_id": "pulled from AWS_ACCESS_KEY_ID env var if available",
     "secret_access_key": "pulled from AWS_SECRET_ACCESS_KEY env var if available",
     "bucket_name": "pulled from AWS_S3_BUCKET env var if available",
-    "endpoint": "pulled from AWS_S3_ENDPOINT env var if available. Can be left empty if targetting an AWS S3 bucket"
+    "endpoint": "pulled from AWS_S3_ENDPOINT env var if available. Can be left empty if targeting an AWS S3 bucket"
   }
 }
 ```
