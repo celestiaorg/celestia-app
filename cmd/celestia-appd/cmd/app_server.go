@@ -55,6 +55,7 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOptions
 		baseapp.SetPruning(pruningOpts),
 		baseapp.SetMinGasPrices(cast.ToString(appOptions.Get(server.FlagMinGasPrices))),
 		baseapp.SetMinRetainBlocks(cast.ToUint64(appOptions.Get(server.FlagMinRetainBlocks))),
+		baseapp.SetHaltDisabled(cast.ToBool(appOptions.Get(server.FlagHaltDisabled))),
 		baseapp.SetHaltHeight(cast.ToUint64(appOptions.Get(server.FlagHaltHeight))),
 		baseapp.SetHaltTime(cast.ToUint64(appOptions.Get(server.FlagHaltTime))),
 		baseapp.SetMinRetainBlocks(cast.ToUint64(appOptions.Get(server.FlagMinRetainBlocks))),
