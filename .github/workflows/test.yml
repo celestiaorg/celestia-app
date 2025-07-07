@@ -32,8 +32,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # explicitly run tests for packages that take longer on separate hosts.
+          # split app/test package by test patterns
           - package: "github.com/celestiaorg/celestia-app/v5/app/test"
+            pattern: "TestIntegration.*|.*Suite.*"
+          - package: "github.com/celestiaorg/celestia-app/v5/app/test"
+            pattern: "TestBigBlob.*|TestSquareSize.*|TestPrepare.*|TestProcess.*"
+          - package: "github.com/celestiaorg/celestia-app/v5/app/test"
+            pattern: "TestCheck.*|TestExport.*|TestGas.*|TestMax.*|TestPriority.*|TestFuzz.*|TestStd.*"
+          # other heavy packages
           - package: "github.com/celestiaorg/celestia-app/v5/test/txsim"
           - package: "github.com/celestiaorg/celestia-app/v5/pkg/user"
           # sentinel value to run everything else.
@@ -60,6 +66,9 @@ jobs:
           if [ "${{ matrix.package }}" = "other" ]; then
             # run all packages except the heavy ones
             make test PACKAGES="$(go list ./... | grep -v 'app/test$' | grep -v 'test/txsim$' | grep -v 'pkg/user$' | tr '\n' ' ')"
+          elif [ "${{ matrix.package }}" = "github.com/celestiaorg/celestia-app/v5/app/test" ] && [ -n "${{ matrix.pattern }}" ]; then
+            # run specific test patterns in app/test package
+            go test -timeout 30m -run "${{ matrix.pattern }}" ${{ matrix.package }}
           else
             # run specific heavy package
             make test PACKAGES="${{ matrix.package }}"
