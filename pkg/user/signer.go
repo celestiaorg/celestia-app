@@ -6,10 +6,10 @@ import (
 	"fmt"
 
 	"cosmossdk.io/core/address"
-	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v4/app/params"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v5/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v5/app/params"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v5/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -125,7 +125,7 @@ func (s *Signer) CreatePayForBlobs(accountName string, blobs []*share.Blob, opts
 		return nil, 0, err
 	}
 
-	msg, err := blobtypes.NewMsgPayForBlobs(addr, appconsts.LatestVersion, blobs...)
+	msg, err := blobtypes.NewMsgPayForBlobs(addr, appconsts.Version, blobs...)
 	if err != nil {
 		return nil, 0, err
 	}

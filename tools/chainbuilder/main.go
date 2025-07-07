@@ -8,16 +8,16 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/da"
-	"github.com/celestiaorg/celestia-app/v4/pkg/user"
-	"github.com/celestiaorg/celestia-app/v4/test/util"
-	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v5/app/encoding"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/pkg/da"
+	"github.com/celestiaorg/celestia-app/v5/pkg/user"
+	"github.com/celestiaorg/celestia-app/v5/test/util"
+	"github.com/celestiaorg/celestia-app/v5/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v5/test/util/random"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v5/x/blob/types"
 	"github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
 	dbm "github.com/cometbft/cometbft-db"
@@ -100,7 +100,7 @@ func main() {
 	rootCmd.Flags().String("existing-dir", "", "Existing directory to load chain from")
 	rootCmd.Flags().String("namespace", "", "Custom namespace for the chain")
 	rootCmd.Flags().Bool("up-to-now", false, "Tool will terminate if the block time reaches the current time")
-	rootCmd.Flags().Uint64("app-version", appconsts.LatestVersion, "App version to use for the chain")
+	rootCmd.Flags().Uint64("app-version", appconsts.Version, "App version to use for the chain")
 	rootCmd.Flags().String("chain-id", "", "Chain ID to use for the chain. Defaults to a random 6 character string")
 	rootCmd.SilenceUsage = true
 	rootCmd.SilenceErrors = true
