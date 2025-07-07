@@ -9,16 +9,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	AppSessionName = "app" // tmux session name for the celestia-app
-)
-
 func resetCmd() *cobra.Command {
 	var (
 		rootDir    string
 		cfgPath    string
 		SSHKeyPath string
-		validators []string // optional list of validators to reset
+		validators []string
 	)
 
 	cmd := &cobra.Command{
