@@ -119,7 +119,7 @@ Note 2: The remote clients work via `gRPC` connection, when overriding the start
 ## Passthrough mode
 
 Passthrough mode is an optional command that can be added to a chain.
-It allows an user to interact via an embedded binary via CLI.
+It allows a user to interact via an embedded binary via CLI.
 
 ```bash
 appd passthrough v2 q bank balances <foo>
