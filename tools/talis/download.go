@@ -60,6 +60,12 @@ func downloadCmd() *cobra.Command {
 				go func() {
 					defer wg.Done()
 					localPath := filepath.Join(rootDir, "data/", node.Name)
+
+					if err := os.MkdirAll(localPath, 0755); err != nil {
+						fmt.Printf("failed to create directory %s: %v\n", localPath, err)
+						return
+					}
+
 					err := sftpDownload(remotePath, localPath, "root", node.PublicIP, SSHKeyPath)
 					if err != nil {
 						fmt.Printf("failed to download from %s: %v\n", node.PublicIP, err)
