@@ -50,6 +50,12 @@ Note that this doesn't install binaries in the `$GOPATH/bin`, so you must specif
 If the relevant binaries are installed via go, and the celestia-app repo is
 downloaded, then the talis defaults should work. Your `$GOPATH` is used to copy the scripts from this repo to the payload, along with default locations for the binaries.
 
+### Global Flags
+
+All talis commands support the following global flags:
+
+- `--workers`, `-w`: Number of concurrent workers for parallel operations (default: 10). Increase this value if you have a powerful machine and fast internet connection to speed up operations like creating/destroying instances, deploying payloads, and downloading files.
+
 ### init
 
 ```sh
@@ -151,6 +157,9 @@ export TALIS_SSH_KEY_PATH="your_ssh_key_path_here"
 ```sh
 # uses the config to spin up nodes on the relevant cloud services
 talis up
+
+# use more workers for faster instance creation (if you have good bandwidth)
+talis up --workers 20
 ```
 
 ### genesis
@@ -173,9 +182,12 @@ This step is when the network is actually started. The payload is uploaded to ea
 ```sh
 # sends the payload to each node and boots the network by executing the relevant startup scripts
 talis deploy
+
+# use more workers for faster deployment (when using direct upload)
+talis deploy --direct-payload-upload --workers 20
 ```
 
-Note: By default, the `deploy` command will upload the payload to the configured S3 bucket, and then download it in the nodes. To upload the payload directly without passing by S3, use the `--direct-payload-upload` flag.
+Note: By default, the `deploy` command will upload the payload to the configured S3 bucket, and then download it in the nodes. To upload the payload directly without passing by S3, use the `--direct-payload-upload` flag. The `--workers` flag only affects the direct upload method.
 
 ### txsim
 
@@ -193,6 +205,9 @@ Often, it's useful to quickly check if all the nodes have caught up to the tip o
 ```sh
 # check which height each validator is at
 talis status
+
+# use more workers for faster status checks across many nodes
+talis status --workers 20
 ```
 
 ### traces
@@ -202,6 +217,9 @@ To download traces from the network, we can use `talis` to download traces from 
 ```sh
 # download some number of traces directly from nodes to your machine via sftp
 talis download -n <validator-*> -t <table> [flags]
+
+# use more workers for faster downloads from many nodes
+talis download -n <validator-*> -t <table> --workers 20
 ```
 
 To quickly view block times, assuming this table was being traced we can run:
@@ -259,6 +277,9 @@ Finally, remember to tear down the cloud instances. This should work first try, 
 ```sh
 # tears down the network
 talis down
+
+# use more workers for faster teardown of many instances
+talis down --workers 20
 ```
 
 ## Running Talis inside of a DigitalOcean droplet
@@ -330,14 +351,14 @@ talis init -c your-chain-id -e your-experiment
 # Add validators
 talis add -t validator -c <count>
 
-# Spin up talis
-talis up -n <key-name> -s <path-to-ssh-key>
+# Spin up talis (use more workers if creating many instances)
+talis up -n <key-name> -s <path-to-ssh-key> --workers 20
 
 # Create payload
 talis genesis -s 128 -a  build/celestia-appd -t build/txsim
 
-# Deploy
-talis deploy -s <path-to-ssh-key>
+# Deploy (use more workers for faster direct deployment)
+talis deploy -s <path-to-ssh-key> --direct-payload-upload --workers 20
 ```
 
 **Save Snapshot:**

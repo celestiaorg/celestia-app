@@ -16,9 +16,10 @@ type Client struct {
 	sshKey   []byte
 	doSSHKey godo.Key
 	cfg      Config
+	workers  int
 }
 
-func NewClient(cfg Config) (*Client, error) {
+func NewClient(cfg Config, workers int) (*Client, error) {
 	if cfg.DigitalOceanToken == "" {
 		return nil, errors.New("DigitalOcean token is required")
 	}
@@ -45,6 +46,7 @@ func NewClient(cfg Config) (*Client, error) {
 		sshKey:   sshKey,
 		doSSHKey: key,
 		cfg:      cfg,
+		workers:  workers,
 	}, nil
 }
 
@@ -67,7 +69,7 @@ func (c *Client) Up(ctx context.Context) error {
 		return fmt.Errorf("no instances to create")
 	}
 
-	insts, err := CreateDroplets(ctx, c.do, insts, c.doSSHKey)
+	insts, err := CreateDroplets(ctx, c.do, insts, c.doSSHKey, c.workers)
 	if err != nil {
 		return fmt.Errorf("failed to create droplets: %w", err)
 	}
@@ -100,6 +102,6 @@ func (c *Client) Down(ctx context.Context) error {
 		return fmt.Errorf("no instances to destroy")
 	}
 
-	_, err := DestroyDroplets(ctx, c.do, insts)
+	_, err := DestroyDroplets(ctx, c.do, insts, c.workers)
 	return err
 }

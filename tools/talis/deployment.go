@@ -46,7 +46,7 @@ func upCmd() *cobra.Command {
 			cfg.SSHPubKeyPath = resolveValue(SSHPubKeyPath, EnvVarSSHKeyPath, cfg.SSHPubKeyPath)
 			cfg.DigitalOceanToken = resolveValue(DOAPIToken, EnvVarDigitalOceanToken, cfg.DigitalOceanToken)
 
-			client, err := NewClient(cfg)
+			client, err := NewClient(cfg, globalWorkers)
 			if err != nil {
 				return fmt.Errorf("failed to create client: %w", err)
 			}
@@ -104,7 +104,7 @@ func deployCmd() *cobra.Command {
 
 			log.Printf("Sending payload to validators...")
 			if directUpload {
-				return deployPayloadDirect(cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute)
+				return deployPayloadDirect(cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute, globalWorkers)
 			}
 			return deployPayloadViaS3(cmd.Context(), rootDir, cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute, cfg.S3Config)
 		},
@@ -133,6 +133,7 @@ func deployPayloadDirect(
 	remoteDir string, // e.g. "/root"
 	remoteScript string, // e.g. "start.sh"
 	timeout time.Duration, // per‐host timeout
+	workers int, // number of concurrent workers
 ) error {
 	var wg sync.WaitGroup
 	errCh := make(chan error, len(ips))
@@ -140,13 +141,13 @@ func deployPayloadDirect(
 
 	counter := atomic.Uint32{}
 
-	workers := make(chan struct{}, 10)
+	workerChan := make(chan struct{}, workers)
 	for _, inst := range ips {
-		workers <- struct{}{}
+		workerChan <- struct{}{}
 		wg.Add(1)
 		go func(inst Instance) {
 			defer func() {
-				<-workers
+				<-workerChan
 				wg.Done()
 			}()
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -340,7 +341,7 @@ func downCmd() *cobra.Command {
 			cfg.SSHPubKeyPath = resolveValue(SSHPubKeyPath, EnvVarSSHKeyPath, cfg.SSHPubKeyPath)
 			cfg.DigitalOceanToken = resolveValue(DOAPIToken, EnvVarDigitalOceanToken, cfg.DigitalOceanToken)
 
-			client, err := NewClient(cfg)
+			client, err := NewClient(cfg, globalWorkers)
 			if err != nil {
 				return fmt.Errorf("failed to create client: %w", err)
 			}

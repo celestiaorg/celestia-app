@@ -30,6 +30,7 @@ func statusCmd() *cobra.Command {
 			}
 
 			var wg sync.WaitGroup
+			workers := make(chan struct{}, globalWorkers)
 			for _, val := range cfg.Validators {
 				ip := val.PublicIP
 				if ip == "" {
@@ -37,9 +38,13 @@ func statusCmd() *cobra.Command {
 					continue
 				}
 
+				workers <- struct{}{}
 				wg.Add(1)
 				go func(nodeName, nodeIP string) {
-					defer wg.Done()
+					defer func() {
+						<-workers
+						wg.Done()
+					}()
 
 					remote := fmt.Sprintf("http://%s:26657", nodeIP)
 					client, err := http.New(remote, "/websocket")

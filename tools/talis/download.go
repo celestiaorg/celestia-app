@@ -61,7 +61,7 @@ func downloadCmd() *cobra.Command {
 				}
 			}
 
-			workers := make(chan struct{}, 10)
+			workers := make(chan struct{}, globalWorkers)
 			var wg sync.WaitGroup
 			for _, node := range nodes {
 				wg.Add(1)
