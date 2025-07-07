@@ -462,9 +462,9 @@ func (m *Multiplexer) getApp() (servertypes.ABCI, error) {
 
 	switch m.activeVersion.ABCIVersion {
 	case ABCIClientVersion1:
-		return NewRemoteABCIClientV1(m.conn, m.chainID, m.appVersion, m.svrCfg.HaltHeight, m.svrCfg.HaltTime), nil
+		return NewRemoteABCIClientV1(m.conn, m.chainID, m.appVersion), nil
 	case ABCIClientVersion2:
-		return NewRemoteABCIClientV2(m.conn, m.svrCfg.HaltHeight, m.svrCfg.HaltTime), nil
+		return NewRemoteABCIClientV2(m.conn), nil
 	}
 
 	return nil, fmt.Errorf("unknown ABCI client version %d", m.activeVersion.ABCIVersion)

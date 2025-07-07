@@ -9,19 +9,13 @@ import (
 
 type RemoteABCIClientV2 struct {
 	abci.ABCIClient
-	// haltHeight is the height at which the node should halt
-	haltHeight uint64
-	// haltTime is the time at which the node should halt
-	haltTime uint64
 }
 
 // NewRemoteABCIClientV2 returns a new ABCI Client (using ABCI v2).
 // The client behaves like CometBFT for the server side (the application side).
-func NewRemoteABCIClientV2(conn *grpc.ClientConn, haltHeight uint64, haltTime uint64) *RemoteABCIClientV2 {
+func NewRemoteABCIClientV2(conn *grpc.ClientConn) *RemoteABCIClientV2 {
 	return &RemoteABCIClientV2{
 		ABCIClient: abci.NewABCIClient(conn),
-		haltHeight: haltHeight,
-		haltTime:   haltTime,
 	}
 }
 
