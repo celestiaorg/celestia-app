@@ -19,6 +19,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         part: ["aa", "ab", "ac", "ad"]
     steps:
@@ -38,14 +39,10 @@ jobs:
         run: |
           # run 1/4 of the tests in each job.
           export PACKAGES=$(cat pkgs.txt.part.${{ matrix.part }} | tr '\n' ' ')
-          echo "Running tests for packages: $PACKAGES"
           make test PACKAGES="$PACKAGES"
 
   test-coverage:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        part: ["aa", "ab", "ac", "ad"]
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #v4.2.2
 
@@ -53,23 +50,13 @@ jobs:
         with:
           go-version-file: "go.mod"
 
-      - name: Create package list
-        run: go list ./... > pkgs.txt
+      - name: Generate coverage.txt
+        run: make test-coverage
 
-      - name: Split packages into parts
-        run: split -n l/4 pkgs.txt pkgs.txt.part.
-
-      - name: Generate coverage for part ${{ matrix.part }}
-        run: |
-          export PACKAGES=$(cat pkgs.txt.part.${{ matrix.part }} | tr '\n' ' ')
-          echo "Running coverage for packages: $PACKAGES"
-          go test -timeout 30m -coverprofile=coverage-${{ matrix.part }}.out -covermode=atomic $PACKAGES
-
-      - name: Upload coverage part ${{ matrix.part }}
+      - name: Upload coverage.txt
         uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 #v5.4.3
         with:
-          files: ./coverage-${{ matrix.part }}.out
-          flags: part-${{ matrix.part }}
+          files: ./coverage.txt
 
   test-race:
     runs-on: ubuntu-latest
