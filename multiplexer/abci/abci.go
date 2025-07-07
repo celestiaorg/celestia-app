@@ -66,7 +66,8 @@ func (m *Multiplexer) ExtendVote(ctx context.Context, req *abci.RequestExtendVot
 
 func (m *Multiplexer) FinalizeBlock(_ context.Context, req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
 	if m.shouldHalt(req) {
-		m.Stop()
+		m.cancel()
+		return nil, fmt.Errorf("failed to finalize block because the node should halt")
 	}
 
 	app, err := m.getApp()

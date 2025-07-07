@@ -79,7 +79,7 @@ type Multiplexer struct {
 	conn *grpc.ClientConn
 	// ctx is the context which is passed to the comet, grpc and api server starting functions.
 	ctx context.Context
-	// cancel is the context cancel function.
+	// cancel is the context cancel function. When the node should halt, this function is called.
 	cancel context.CancelFunc
 	// g is the waitgroup to which the comet, grpc and api server init functions are added to.
 	g *errgroup.Group
