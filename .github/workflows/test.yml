@@ -21,7 +21,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        part: ["aa", "ab", "ac", "ad"]
+        include:
+          # explicitly run tests for packages that take longer on separate hosts.
+          - package: "github.com/celestiaorg/celestia-app/v5/app/test"
+          - package: "github.com/celestiaorg/celestia-app/v5/test/txsim"
+          - package: "github.com/celestiaorg/celestia-app/v5/pkg/user"
+          # sentinel value to run everything else.
+          - package: "other"
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #v4.2.2
 
@@ -29,17 +35,15 @@ jobs:
         with:
           go-version-file: "go.mod"
 
-      - name: Create package list
-        run: go list ./... > pkgs.txt
-
-      - name: Split packages into parts
-        run: split -n l/4 pkgs.txt pkgs.txt.part.
-
       - name: Run tests
         run: |
-          # run 1/4 of the tests in each job.
-          export PACKAGES=$(cat pkgs.txt.part.${{ matrix.part }} | tr '\n' ' ')
-          make test PACKAGES="$PACKAGES"
+          if [ "${{ matrix.package }}" = "other" ]; then
+            # run all packages except the heavy ones
+            make test PACKAGES="$(go list ./... | grep -v 'app/test$' | grep -v 'test/txsim$' | grep -v 'pkg/user$' | tr '\n' ' ')"
+          else
+            # run specific heavy package
+            make test PACKAGES="${{ matrix.package }}"
+          fi
 
   test-coverage:
     runs-on: ubuntu-latest
