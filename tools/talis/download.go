@@ -61,7 +61,7 @@ func downloadCmd() *cobra.Command {
 					defer wg.Done()
 					localPath := filepath.Join(rootDir, "data/", node.Name)
 
-					if err := os.MkdirAll(localPath, 0755); err != nil {
+					if err := os.MkdirAll(localPath, 0o755); err != nil {
 						fmt.Printf("failed to create directory %s: %v\n", localPath, err)
 						return
 					}
