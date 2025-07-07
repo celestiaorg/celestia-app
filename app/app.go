@@ -712,7 +712,7 @@ func (app *App) RegisterAPIRoutes(apiSvr *api.Server, _ config.APIConfig) {
 func (app *App) RegisterTxService(clientCtx client.Context) {
 	authtx.RegisterTxService(app.GRPCQueryRouter(), clientCtx, app.Simulate, app.encodingConfig.InterfaceRegistry)
 	celestiatx.RegisterTxService(app.GRPCQueryRouter(), clientCtx, app.encodingConfig.InterfaceRegistry)
-	gasestimation.RegisterGasEstimationService(app.GRPCQueryRouter(), clientCtx, app.encodingConfig.TxConfig.TxDecoder(), app.getGovMaxSquareBytes, app.Simulate)
+	gasestimation.RegisterGasEstimationService(app.GRPCQueryRouter(), clientCtx, app.encodingConfig.TxConfig.TxDecoder(), app.getGovMaxSquareBytes, app.Simulate, app.)
 }
 
 func (app *App) getGovMaxSquareBytes() (uint64, error) {

@@ -28,10 +28,10 @@ type baseAppSimulateFn func(txBytes []byte) (sdk.GasInfo, *sdk.Result, error)
 type govMaxSquareBytesFn func() (uint64, error)
 
 // RegisterGasEstimationService registers the gas estimation service on the gRPC router.
-func RegisterGasEstimationService(qrt gogogrpc.Server, clientCtx client.Context, txDecoder sdk.TxDecoder, govMaxSquareBytesFn govMaxSquareBytesFn, simulateFn baseAppSimulateFn) {
+func RegisterGasEstimationService(qrt gogogrpc.Server, clientCtx client.Context, txDecoder sdk.TxDecoder, govMaxSquareBytesFn govMaxSquareBytesFn, simulateFn baseAppSimulateFn, localMinGasPrice float64) {
 	RegisterGasEstimatorServer(
 		qrt,
-		NewGasEstimatorServer(clientCtx.Client, txDecoder, govMaxSquareBytesFn, simulateFn),
+		NewGasEstimatorServer(clientCtx.Client, txDecoder, govMaxSquareBytesFn, simulateFn, localMinGasPrice),
 	)
 }
 
@@ -42,14 +42,16 @@ type gasEstimatorServer struct {
 	simulateFn          baseAppSimulateFn
 	txDecoder           sdk.TxDecoder
 	govMaxSquareBytesFn govMaxSquareBytesFn
+	localMinGasPrice    float64
 }
 
-func NewGasEstimatorServer(mempoolClient cmtclient.MempoolClient, txDecoder sdk.TxDecoder, govMaxSquareBytesFn govMaxSquareBytesFn, simulateFn baseAppSimulateFn) GasEstimatorServer {
+func NewGasEstimatorServer(mempoolClient cmtclient.MempoolClient, txDecoder sdk.TxDecoder, govMaxSquareBytesFn govMaxSquareBytesFn, simulateFn baseAppSimulateFn, localMinGasPrice float64) GasEstimatorServer {
 	return &gasEstimatorServer{
 		mempoolClient:       mempoolClient,
 		simulateFn:          simulateFn,
 		txDecoder:           txDecoder,
 		govMaxSquareBytesFn: govMaxSquareBytesFn,
+		localMinGasPrice:    localMinGasPrice,
 	}
 }
 
@@ -123,7 +125,7 @@ func (s *gasEstimatorServer) estimateGasPrice(ctx context.Context, priority TxPr
 		return 0, err
 	}
 	if float64(txsResp.TotalBytes) < float64(govMaxSquareBytes)*gasPriceEstimationThreshold {
-		return appconsts.DefaultMinGasPrice, nil
+		return s.localMinGasPrice, nil
 	}
 	gasPrices, err := SortAndExtractGasPrices(s.txDecoder, txsResp.Txs, int64(appconsts.DefaultUpperBoundMaxBytes))
 	if err != nil {
