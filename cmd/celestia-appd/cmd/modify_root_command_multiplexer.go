@@ -3,20 +3,20 @@
 package cmd
 
 import (
-	"github.com/celestiaorg/celestia-app/v4/app"
-	embedding "github.com/celestiaorg/celestia-app/v4/internal/embedding"
-	"github.com/celestiaorg/celestia-app/v4/multiplexer/abci"
-	"github.com/celestiaorg/celestia-app/v4/multiplexer/appd"
-	multiplexer "github.com/celestiaorg/celestia-app/v4/multiplexer/cmd"
+	"github.com/celestiaorg/celestia-app/v5/app"
+	embedding "github.com/celestiaorg/celestia-app/v5/internal/embedding"
+	"github.com/celestiaorg/celestia-app/v5/multiplexer/abci"
+	"github.com/celestiaorg/celestia-app/v5/multiplexer/appd"
+	multiplexer "github.com/celestiaorg/celestia-app/v5/multiplexer/cmd"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
 )
 
 // v2UpgradeHeight is the block height at which the v2 upgrade occurred.
 // this can be overridden at build time using ldflags:
-// -ldflags="-X 'github.com/celestiaorg/celestia-app/v4/cmd/celestia-appd/cmd.v2UpgradeHeight=1751707'" for arabica
-// -ldflags="-X 'github.com/celestiaorg/celestia-app/v4/cmd/celestia-appd/cmd.v2UpgradeHeight=2585031'" for mocha
-// -ldflags="-X 'github.com/celestiaorg/celestia-app/v4/cmd/celestia-appd/cmd.v2UpgradeHeight=2371495'" for mainnet
+// -ldflags="-X 'github.com/celestiaorg/celestia-app/v5/cmd/celestia-appd/cmd.v2UpgradeHeight=1751707'" for arabica
+// -ldflags="-X 'github.com/celestiaorg/celestia-app/v5/cmd/celestia-appd/cmd.v2UpgradeHeight=2585031'" for mocha
+// -ldflags="-X 'github.com/celestiaorg/celestia-app/v5/cmd/celestia-appd/cmd.v2UpgradeHeight=2371495'" for mainnet
 var v2UpgradeHeight = ""
 
 // modifyRootCommand enhances the root command with the pass through and multiplexer.

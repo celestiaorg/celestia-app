@@ -3,13 +3,13 @@ package app_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v4/app/errors"
-	appv4 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
-	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v5/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v5/app/errors"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v5/test/util/random"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,7 +27,7 @@ func TestTxsOverMaxTxSizeGetRejected(t *testing.T) {
 	cfg := testnode.DefaultConfig().WithFundedAccounts(accounts...).WithConsensusParams(cparams)
 
 	// Set the max tx bytes to 3MiB in the node's mempool
-	mempoolMaxTxBytes := appv4.MaxTxSize + 1_048_576 // 2MiB + 1MiB
+	mempoolMaxTxBytes := appconsts.MaxTxSize + 1_048_576 // 2MiB + 1MiB
 	cfg.TmConfig.Mempool.MaxTxBytes = mempoolMaxTxBytes
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
@@ -40,7 +40,7 @@ func TestTxsOverMaxTxSizeGetRejected(t *testing.T) {
 		random.New(),
 		cctx.Keyring,
 		cctx.GRPCClient,
-		appv4.MaxTxSize,
+		appconsts.MaxTxSize,
 		1,
 		false,
 		accounts,

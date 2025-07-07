@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -205,7 +205,7 @@ func broadcastPFB(cmd *cobra.Command, b ...*share.Blob) error {
 		return err
 	}
 
-	pfbMsg, err := types.NewMsgPayForBlobs(clientCtx.FromAddress.String(), appconsts.LatestVersion, b...)
+	pfbMsg, err := types.NewMsgPayForBlobs(clientCtx.FromAddress.String(), appconsts.Version, b...)
 	if err != nil {
 		return err
 	}

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
 )
 
 func (s *CelestiaTestSuite) TestE2ESimple() {

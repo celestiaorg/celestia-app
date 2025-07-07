@@ -13,8 +13,8 @@ import (
 	"sync"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v4/multiplexer/appd"
-	"github.com/celestiaorg/celestia-app/v4/multiplexer/internal"
+	"github.com/celestiaorg/celestia-app/v5/multiplexer/appd"
+	"github.com/celestiaorg/celestia-app/v5/multiplexer/internal"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/p2p"
@@ -549,31 +549,20 @@ func (m *Multiplexer) startCmtNode() error {
 // even if an error occurs in order to shut down as many components as possible.
 func (m *Multiplexer) Stop() error {
 	m.logger.Info("stopping multiplexer")
-	if err := m.stopContext(); err != nil {
-		fmt.Print(err)
-	}
 	if err := m.stopCometNode(); err != nil {
-		fmt.Print(err)
+		fmt.Println(err)
 	}
 	if err := m.stopNativeApp(); err != nil {
-		fmt.Print(err)
+		fmt.Println(err)
 	}
 	if err := m.stopEmbeddedApp(); err != nil {
-		fmt.Print(err)
+		fmt.Println(err)
 	}
 	if err := m.stopGRPCConnection(); err != nil {
-		fmt.Print(err)
+		fmt.Println(err)
 	}
 	if err := m.stopTraceWriter(); err != nil {
-		fmt.Print(err)
-	}
-	return nil
-}
-
-func (m *Multiplexer) stopContext() error {
-	if m.cancel != nil {
-		m.logger.Info("stopping context")
-		m.cancel()
+		fmt.Println(err)
 	}
 	return nil
 }
