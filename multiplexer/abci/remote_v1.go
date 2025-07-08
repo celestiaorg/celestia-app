@@ -2,7 +2,6 @@ package abci
 
 import (
 	"context"
-	"fmt"
 	"math"
 
 	abciv2 "github.com/cometbft/cometbft/abci/types"
@@ -85,7 +84,6 @@ func (a *RemoteABCIClientV1) CheckTx(req *abciv2.RequestCheckTx) (*abciv2.Respon
 
 // Commit implements abciv2.ABCI
 func (a *RemoteABCIClientV1) Commit() (*abciv2.ResponseCommit, error) {
-	fmt.Printf("remote_v1.Commit() called\n")
 	return &abciv2.ResponseCommit{
 		RetainHeight: a.commitRetainLastHeight,
 	}, nil
@@ -194,18 +192,15 @@ func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*a
 
 	// commit result
 	commitResp, err := a.ABCIApplicationClient.Commit(context.Background(), &abciv1.RequestCommit{}, grpc.WaitForReady(true))
-	fmt.Printf("commitResp: %+v and err: %v\n", commitResp, err)
 	if err != nil {
 		return nil, err
 	}
 
 	// set the retain height, used in commit noop
 	a.commitRetainLastHeight = commitResp.RetainHeight
-	fmt.Printf("commitRetainLastHeight: %d\n", a.commitRetainLastHeight)
 	// get the app version from the end block response
 	a.endBlockConsensusAppVersion = endBlockResp.GetConsensusParamUpdates().Version.AppVersion
 
-	fmt.Printf("Returning finalize block response\n")
 	return &abciv2.ResponseFinalizeBlock{
 		Events:                events,
 		TxResults:             txResults,

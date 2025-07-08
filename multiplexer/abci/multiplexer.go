@@ -79,8 +79,6 @@ type Multiplexer struct {
 	conn *grpc.ClientConn
 	// ctx is the context which is passed to the comet, grpc and api server starting functions.
 	ctx context.Context
-	// cancel is the context cancel function. When the node should halt, this function is called.
-	cancel context.CancelFunc
 	// g is the waitgroup to which the comet, grpc and api server init functions are added to.
 	g *errgroup.Group
 	// traceWriter is the trace writer for the multiplexer.
@@ -124,7 +122,7 @@ func (m *Multiplexer) isGrpcOnly() bool {
 }
 
 func (m *Multiplexer) Start() error {
-	m.g, m.ctx, m.cancel = getCtx(m.svrCtx, true)
+	m.g, m.ctx = getCtx(m.svrCtx, true)
 
 	emitServerInfoMetrics()
 
@@ -649,10 +647,10 @@ func emitServerInfoMetrics() {
 	telemetry.SetGaugeWithLabels([]string{"server", "info"}, 1, ls)
 }
 
-func getCtx(svrCtx *server.Context, block bool) (*errgroup.Group, context.Context, context.CancelFunc) {
+func getCtx(svrCtx *server.Context, block bool) (*errgroup.Group, context.Context) {
 	ctx, cancelFn := context.WithCancel(context.Background())
 	g, ctx := errgroup.WithContext(ctx)
 	// listen for quit signals so the calling parent process can gracefully exit
 	server.ListenForQuitSignals(g, block, cancelFn, svrCtx.Logger)
-	return g, ctx, cancelFn
+	return g, ctx
 }
