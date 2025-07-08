@@ -50,12 +50,6 @@ Note that this doesn't install binaries in the `$GOPATH/bin`, so you must specif
 If the relevant binaries are installed via go, and the celestia-app repo is
 downloaded, then the talis defaults should work. Your `$GOPATH` is used to copy the scripts from this repo to the payload, along with default locations for the binaries.
 
-### Global Flags
-
-All talis commands support the following global flags:
-
-- `--workers`, `-w`: Number of concurrent workers for parallel operations (default: 10). Increase this value if you have a powerful machine and fast internet connection to speed up operations like creating/destroying instances, deploying payloads, and downloading files.
-
 ### init
 
 ```sh
