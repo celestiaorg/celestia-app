@@ -19,14 +19,14 @@ func TestCheckAndUpdateMinGasPrices(t *testing.T) {
 
 	// Create config directory
 	configDir := filepath.Join(tempDir, "config")
-	err = os.MkdirAll(configDir, 0755)
+	err = os.MkdirAll(configDir, 0o755)
 	require.NoError(t, err)
 
 	// Create app.toml file with old default
 	appConfigPath := filepath.Join(configDir, "app.toml")
 	appConfigContent := `minimum-gas-prices = "0.002utia"
 `
-	err = os.WriteFile(appConfigPath, []byte(appConfigContent), 0644)
+	err = os.WriteFile(appConfigPath, []byte(appConfigContent), 0o644)
 	require.NoError(t, err)
 
 	// Create a mock command
@@ -54,14 +54,14 @@ func TestCheckAndUpdateMinGasPricesNoUpdate(t *testing.T) {
 
 	// Create config directory
 	configDir := filepath.Join(tempDir, "config")
-	err = os.MkdirAll(configDir, 0755)
+	err = os.MkdirAll(configDir, 0o755)
 	require.NoError(t, err)
 
 	// Create app.toml file with new default (should not be updated)
 	appConfigPath := filepath.Join(configDir, "app.toml")
 	appConfigContent := `minimum-gas-prices = "0.004utia"
 `
-	err = os.WriteFile(appConfigPath, []byte(appConfigContent), 0644)
+	err = os.WriteFile(appConfigPath, []byte(appConfigContent), 0o644)
 	require.NoError(t, err)
 
 	// Create a mock command

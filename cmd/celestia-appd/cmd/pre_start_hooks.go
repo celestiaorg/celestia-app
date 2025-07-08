@@ -15,7 +15,7 @@ func addPreStartHooks(rootCmd *cobra.Command, hooks ...PreStartHook) error {
 	if err != nil {
 		return fmt.Errorf("failed to find start command: %w", err)
 	}
-	
+
 	// Add the pre-start hooks using Cobra's PreRunE
 	startCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		// Run all pre-start hooks explicitly
@@ -26,6 +26,6 @@ func addPreStartHooks(rootCmd *cobra.Command, hooks ...PreStartHook) error {
 		}
 		return nil
 	}
-	
+
 	return nil
 }
