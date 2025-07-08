@@ -62,7 +62,7 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 			StartArgs:   append(defaultArgs, extraArgs...),
 		}, abci.Version{
 			Appd:        appdV4,
-			ABCIVersion: abci.ABCIClientVersion1,
+			ABCIVersion: abci.ABCIClientVersion2,
 			AppVersion:  4,
 			StartArgs:   append(defaultArgs, extraArgs...),
 		})
