@@ -51,9 +51,9 @@ func startTxsimCmd() *cobra.Command {
 			)
 
 			// Filter validators based on --nodes flag or default to --instances behavior
-			var insts []Instance
+			var filteredInstances []Instance
 			if nodes != "" && nodes != "*" {
-				insts, err = filterMatchingInstances(cfg.Validators, nodes)
+				filteredInstances, err = filterMatchingInstances(cfg.Validators, nodes)
 				if err != nil {
 					return fmt.Errorf("failed to filter nodes: %w", err)
 				}
@@ -63,17 +63,17 @@ func startTxsimCmd() *cobra.Command {
 					if i >= instances || i >= len(cfg.Validators) {
 						break
 					}
-					insts = append(insts, val)
+					filteredInstances = append(filteredInstances, val)
 				}
 			}
 
-			if len(insts) == 0 {
+			if len(filteredInstances) == 0 {
 				return fmt.Errorf("no matching validators found")
 			}
 
-			fmt.Println(insts, "\n", txsimScript)
+			fmt.Println(filteredInstances, "\n", txsimScript)
 
-			return runScriptInTMux(insts, resolvedSSHKeyPath, txsimScript, TxSimSessionName, time.Minute*5)
+			return runScriptInTMux(filteredInstances, resolvedSSHKeyPath, txsimScript, TxSimSessionName, time.Minute*5)
 		},
 	}
 
