@@ -11,9 +11,3 @@ var (
 	//go:embed celestia-app_linux_v4_amd64.tar.gz
 	v4binaryCompressed []byte
 )
-
-
-
-
-
-
