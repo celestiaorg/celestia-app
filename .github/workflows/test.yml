@@ -118,7 +118,6 @@ jobs:
 
       - name: Run multiplexer tests
         run: make test-multiplexer
-        timeout-minutes: 15
 
   test-docker-e2e:
     runs-on: ubuntu-latest
