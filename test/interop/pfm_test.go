@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v5/app"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	transfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"

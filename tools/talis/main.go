@@ -28,6 +28,7 @@ func main() {
 		startTxsimCmd(),
 		uploadDataCmd(),
 		killTmuxSessionCmd(),
+		resetCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {

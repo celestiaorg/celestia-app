@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/app/params"
+	"github.com/celestiaorg/celestia-app/v5/app/encoding"
+	"github.com/celestiaorg/celestia-app/v5/app/params"
 	"github.com/cometbft/cometbft/crypto"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 	"github.com/cometbft/cometbft/privval"

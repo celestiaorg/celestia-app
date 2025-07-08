@@ -3,8 +3,8 @@ package types_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/x/blob/types"
 	"github.com/stretchr/testify/require"
 )
 

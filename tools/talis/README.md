@@ -43,7 +43,7 @@ All binaries used by nodes in the network are compiled on the user's local machi
 make build-talis-bins
 ```
 
-Note that this doesn't install binaries in the `$GOPATH/bin`, so you must specify the path when creating the payload with the `genesis` subcommand and `-a` (`--app-binary` path) and `-t` (`--txsim-binary` path) flags. See `genesis` subcomand usage below.
+Note that this doesn't install binaries in the `$GOPATH/bin`, so you must specify the path when creating the payload with the `genesis` subcommand and `-a` (`--app-binary` path) and `-t` (`--txsim-binary` path) flags. See `genesis` subcommand usage below.
 
 ## Usage
 
@@ -84,7 +84,7 @@ the celestia-app configs (config.toml and app.toml) can be manually edited here,
     "access_key_id": "pulled from AWS_ACCESS_KEY_ID env var if available",
     "secret_access_key": "pulled from AWS_SECRET_ACCESS_KEY env var if available",
     "bucket_name": "pulled from AWS_S3_BUCKET env var if available",
-    "endpoint": "pulled from AWS_S3_ENDPOINT env var if available. Can be left empty if targetting an AWS S3 bucket"
+    "endpoint": "pulled from AWS_S3_ENDPOINT env var if available. Can be left empty if targeting an AWS S3 bucket"
   }
 }
 ```
@@ -188,7 +188,7 @@ talis txsim -i <count> -s <blob-sequences> --min-blob-size <size> --max-blob-siz
 
 ### status
 
-Often, its useful to quickly check if all the nodes have caught up to the tip of the chain. This can be done via the status command, which simply prints the height of each validator after querying the `Status` endpoint.
+Often, it's useful to quickly check if all the nodes have caught up to the tip of the chain. This can be done via the status command, which simply prints the height of each validator after querying the `Status` endpoint.
 
 ```sh
 # check which height each validator is at
@@ -238,7 +238,19 @@ talis download s3
 
 ### Modifying the nodes in place
 
-Instead of shutting down all of the nodes, if we want to run a slightly modified experiment, we can simply rerun the `genesis` and `deploy` commands. This will create a new payload and restart the network without tearing down the cloud instances. This will delete any trace data.
+Instead of shutting down all of the nodes, if we want to run a slightly modified experiment, we can simply run the [reset](#reset) command then rerun the `genesis` and `deploy` commands. This will create a new payload and restart the network without tearing down the cloud instances. This will delete any trace data.
+
+### reset
+
+This command allows you to stop running services and clean up files created by the `deploy` command for either specific validators or all validators in the network.
+
+```sh
+# Reset all validators in the network
+talis reset
+
+# Reset specific validators
+talis reset -v validator-0,validator-1
+```
 
 ### down
 

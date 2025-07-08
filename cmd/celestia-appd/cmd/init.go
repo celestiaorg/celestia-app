@@ -10,8 +10,8 @@ import (
 
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/math/unsafe"
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
 	cometconfig "github.com/cometbft/cometbft/config"
 	comettypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -186,6 +186,6 @@ func displayInfo(info printInfo) error {
 
 func getConsensusParams() *comettypes.ConsensusParams {
 	params := comettypes.DefaultConsensusParams()
-	params.Version.App = appconsts.LatestVersion
+	params.Version.App = appconsts.Version
 	return params
 }
