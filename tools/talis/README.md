@@ -199,9 +199,6 @@ Often, it's useful to quickly check if all the nodes have caught up to the tip o
 ```sh
 # check which height each validator is at
 talis status
-
-# use more workers for faster status checks across many nodes
-talis status --workers 20
 ```
 
 ### traces
