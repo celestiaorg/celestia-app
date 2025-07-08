@@ -1,8 +1,8 @@
 package dockerchain
 
 import (
-	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v5/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
 	"github.com/moby/moby/client"
 	"os"
 )

@@ -4,7 +4,7 @@ import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"context"
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+	"github.com/celestiaorg/celestia-app/v5/pkg/user"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	sdk "github.com/cosmos/cosmos-sdk/types"
