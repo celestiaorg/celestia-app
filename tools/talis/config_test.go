@@ -22,31 +22,31 @@ func TestNewBaseInstanceWithChainAndExperiment(t *testing.T) {
 	valCount.Store(0)
 
 	inst := NewBaseInstanceWithChainAndExperiment(Validator, "talis-testchain", "exp1")
-	
+
 	require.Equal(t, "validator-0-talis-testchain-exp1", inst.Name)
 	require.Equal(t, Validator, inst.NodeType)
 	require.Equal(t, "TBD", inst.PublicIP)
 	require.Equal(t, "TBD", inst.PrivateIP)
-	
+
 	expectedTags := []string{"talis", "validator", "validator-0-talis-testchain-exp1", "talis-testchain", "exp1"}
 	require.ElementsMatch(t, expectedTags, inst.Tags)
 }
 
 func TestWithDigitalOceanValidatorWithNewNaming(t *testing.T) {
-	// Reset counters for clean testing  
+	// Reset counters for clean testing
 	valCount.Store(0)
 
 	cfg := NewConfig("test-experiment", "test-chain")
-	
+
 	// Add a validator and check that it uses the new naming pattern
 	cfg = cfg.WithDigitalOceanValidator("nyc1")
-	
+
 	require.Len(t, cfg.Validators, 1)
 	validator := cfg.Validators[0]
-	
+
 	// Should follow the pattern validator-index-chainID-experiment
 	require.Equal(t, "validator-0-talis-test-chain-test-experiment", validator.Name)
-	
+
 	expectedTags := []string{"talis", "validator", "validator-0-talis-test-chain-test-experiment", "talis-test-chain", "test-experiment"}
 	require.ElementsMatch(t, expectedTags, validator.Tags)
 }
@@ -56,19 +56,19 @@ func TestWithDigitalOceanValidatorMultipleInstancesNewNaming(t *testing.T) {
 	valCount.Store(0)
 
 	cfg := NewConfig("multi-experiment", "multi-chain")
-	
+
 	// Add multiple validators
 	cfg = cfg.WithDigitalOceanValidator("nyc1")
 	cfg = cfg.WithDigitalOceanValidator("sfo3")
-	
+
 	require.Len(t, cfg.Validators, 2)
-	
+
 	// Check that both validators follow the new naming pattern
 	expectedNames := []string{
 		"validator-0-talis-multi-chain-multi-experiment",
 		"validator-1-talis-multi-chain-multi-experiment",
 	}
-	
+
 	for i, validator := range cfg.Validators {
 		require.Equal(t, expectedNames[i], validator.Name)
 		expectedTags := []string{"talis", "validator", validator.Name, cfg.ChainID, cfg.Experiment}
