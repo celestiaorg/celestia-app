@@ -34,7 +34,7 @@ func TestCreateExecCommand(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, appdInstance)
 
-			cmd := appdInstance.CreateExecCommand("version --log-level=info")
+			cmd := appdInstance.CreateExecCommand("version")
 			require.NotNil(t, cmd)
 
 			var outputBuffer bytes.Buffer
