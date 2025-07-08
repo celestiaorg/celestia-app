@@ -66,7 +66,10 @@ func (m *Multiplexer) ExtendVote(ctx context.Context, req *abci.RequestExtendVot
 
 func (m *Multiplexer) FinalizeBlock(_ context.Context, req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
 	if m.shouldHalt(req) {
-		m.cancel()
+		// Note: it is not possible to shutdown the multiplexer via m.cancel()
+		// or m.Stop() here because CometBFT is blocked on the response from
+		// this method. So this just returns an error to CometBFT so the user
+		// can exit the process.
 		return nil, fmt.Errorf("failed to finalize block because the node should halt")
 	}
 
