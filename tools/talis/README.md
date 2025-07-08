@@ -152,7 +152,8 @@ export TALIS_SSH_KEY_PATH="your_ssh_key_path_here"
 # uses the config to spin up nodes on the relevant cloud services
 talis up
 
-# use more workers for faster instance creation. beware of the digital ocean number of requests limitations
+# use more workers for faster instance creation. DigitalOcean has a 5000 requests/hour rate limit per API token.
+# For droplet creation, each worker makes ~3-5 API calls per droplet, so ~20 workers should be safe for most use cases.
 talis up --workers 20
 ```
 
