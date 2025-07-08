@@ -117,6 +117,15 @@ func (m *Multiplexer) LoadSnapshotChunk(_ context.Context, req *abci.RequestLoad
 }
 
 func (m *Multiplexer) OfferSnapshot(_ context.Context, req *abci.RequestOfferSnapshot) (*abci.ResponseOfferSnapshot, error) {
+	_, err := m.versions.GetForAppVersion(m.appVersion)
+	if err != nil {
+		return nil, fmt.Errorf("no app version for snapshot: version %d", req.AppVersion)
+	}
+
+	m.mu.Lock()
+	m.appVersion = req.AppVersion
+	m.mu.Lock()
+
 	app, err := m.getApp()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
