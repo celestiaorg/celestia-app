@@ -18,8 +18,8 @@ func TestPruningInTxTracker(t *testing.T) {
 	var txsToBePruned int
 	var txsNotReadyToBePruned int
 	for i := 0; i < numTransactions; i++ {
-		// 7 transactions will be pruned
-		if i < 7 {
+		// 5 transactions will be pruned
+		if i%2 == 0 {
 			txClient.txTracker["tx"+fmt.Sprint(i)] = txInfo{
 				signer:   "signer" + fmt.Sprint(i),
 				sequence: uint64(i),
@@ -44,7 +44,7 @@ func TestPruningInTxTracker(t *testing.T) {
 	require.Equal(t, numTransactions, len(txClient.txTracker))
 	txClient.pruneTxTracker()
 	// Prunes the transactions that are 10 minutes old
-	// 7 transactions will be pruned
+	// 5 transactions will be pruned
 	require.Equal(t, txsNotReadyToBePruned, txTrackerBeforePruning-txsToBePruned)
 	require.Equal(t, len(txClient.txTracker), txsNotReadyToBePruned)
 }
