@@ -2,6 +2,7 @@ package dockerchain
 
 import (
 	"context"
+	"fmt"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
@@ -100,4 +101,45 @@ func SetupTxClient(ctx context.Context, cn *tastoradockertypes.ChainNode, cfg *C
 		cn.GrpcConn,
 		encCfg,
 	)
+}
+
+// NodeConfigBuilders returns a list of ChainNodeConfigBuilder and any error if one occurs.
+// this function populates a default set of ChainNodeConfigBuilder based on the provided config.
+// this handles the population of private key bytes, record name and keyring.
+//
+// If any custom modifications are required to any individual validator, this function can be used
+// and can be used to modify the ChainNodeConfigBuilder.
+//
+// Example:
+//
+//	for i, nodeBuilder := range nodeBuilders {
+//	    version := getVersionForIndex(i)
+//		nodeBuilder.WithImage(tastoradockertypes.NewDockerImage(cfg.Image, version, "10001:10001")
+//	}
+func NodeConfigBuilders(cfg *Config) ([]*tastoradockertypes.ChainNodeConfigBuilder, error) {
+	kr := cfg.Genesis.Keyring()
+	records, err := kr.List()
+	if err != nil {
+		return nil, err
+	}
+
+	chainNodeBuilders := make([]*tastoradockertypes.ChainNodeConfigBuilder, len(records))
+	for i, record := range records {
+		validator, exists := cfg.Genesis.Validator(i)
+		if !exists {
+			return nil, fmt.Errorf("validator at index %d should exist", i)
+		}
+		privKeyBz, err := validator.PrivateKeyBytes()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get validator private key bytes: %w", err)
+		}
+
+		chainNodeBuilders[i] = tastoradockertypes.NewChainNodeConfigBuilder().
+			WithPrivValidatorKey(privKeyBz).
+			WithAccountName(record.Name).
+			WithImage(tastoradockertypes.NewDockerImage(cfg.Image, cfg.Tag, "10001:10001")).
+			WithKeyring(kr)
+	}
+
+	return chainNodeBuilders, nil
 }

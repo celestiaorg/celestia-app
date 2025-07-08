@@ -21,6 +21,14 @@ const (
 	stateSyncTimeout           = 10 * time.Minute
 )
 
+// validatorStateSyncAppOverrides modifies the app.toml to configure state sync snapshots for the given node.
+func validatorStateSyncAppOverrides(ctx context.Context, node *celestiadockertypes.ChainNode) error {
+	return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
+		cfg.StateSync.SnapshotInterval = 5
+		cfg.StateSync.SnapshotKeepRecent = 2
+	})
+}
+
 func (s *CelestiaTestSuite) TestStateSync() {
 	t := s.T()
 	if testing.Short() {
@@ -30,12 +38,9 @@ func (s *CelestiaTestSuite) TestStateSync() {
 	ctx := context.TODO()
 	cfg := dockerchain.DefaultConfig(s.client, s.network)
 	celestia, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).
-		WithPostInit(func(ctx context.Context, node *celestiadockertypes.ChainNode) error {
-			return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
-				cfg.StateSync.SnapshotInterval = 5
-				cfg.StateSync.SnapshotKeepRecent = 2
-			})
-		}).Build(ctx)
+		WithPostInit(validatorStateSyncAppOverrides).
+		Build(ctx)
+
 	s.Require().NoError(err, "failed to get chain")
 
 	err = celestia.Start(ctx)
