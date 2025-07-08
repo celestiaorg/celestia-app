@@ -90,6 +90,7 @@ jobs:
         testcase:
           - TestE2ESimple
           - TestStateSync
+          - TestBlockSync
 
     steps:
       - name: Checkout code
