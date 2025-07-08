@@ -19,7 +19,7 @@ import (
 // -ldflags="-X 'github.com/celestiaorg/celestia-app/v5/cmd/celestia-appd/cmd.v2UpgradeHeight=2371495'" for mainnet
 var v2UpgradeHeight = ""
 
-const defaultArgs = []string{
+var defaultArgs = []string{
 	"--grpc.enable",
 	"--api.enable",
 	"--api.swagger=false",
