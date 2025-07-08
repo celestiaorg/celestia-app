@@ -125,7 +125,7 @@ func CreateDroplets(ctx context.Context, client *godo.Client, insts []Instance, 
 	}
 
 	results := make(chan result, total)
-	workerChan := make(chan struct{}, workers) // Limit to configurable concurrent workers
+	workerChan := make(chan struct{}, workers)
 	var wg sync.WaitGroup
 	wg.Add(total)
 
