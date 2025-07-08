@@ -52,7 +52,8 @@ func checkAndUpdateMinGasPrices(cmd *cobra.Command) error {
 	// Check if it matches the old default
 	if strings.TrimSpace(currentMinGasPrices) == oldDefaultMinGasPrice {
 		// Update to the new default
-		viper.Set("minimum-gas-prices", appconsts.DefaultMinGasPrice)
+		minGasPrice := fmt.Sprintf("%f%s", appconsts.DefaultMinGasPrice, params.BondDenom)
+		viper.Set("minimum-gas-prices", minGasPrice)
 
 		// Write the updated configuration back to the file
 		if err := viper.WriteConfig(); err != nil {
@@ -61,7 +62,7 @@ func checkAndUpdateMinGasPrices(cmd *cobra.Command) error {
 
 		// Log the update
 		logMessage := fmt.Sprintf("Updated minimum gas prices in %s: %s -> %s",
-			appConfigPath, oldDefaultMinGasPrice, fmt.Sprintf("%f%s", appconsts.DefaultMinGasPrice, params.BondDenom))
+			appConfigPath, oldDefaultMinGasPrice, minGasPrice)
 		fmt.Println(logMessage)
 	}
 
