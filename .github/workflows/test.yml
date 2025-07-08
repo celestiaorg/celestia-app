@@ -22,12 +22,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # unit tests
-          - package: "other"
-          # integration tests - split the heaviest ones
+          # sentinel value to run all other tests.
+          - package: "unit"
+          # split the heaviest ones
           - package: "github.com/celestiaorg/celestia-app/v5/app/test"
             pattern: "TestIntegration.*"
-          - package: "github.com/celestiaorg/celestia-app/v5/app/test" 
+          - package: "github.com/celestiaorg/celestia-app/v5/app/test"
             pattern: "TestBigBlob.*|TestStandardSDK.*"
           - package: "github.com/celestiaorg/celestia-app/v5/app/test"
             pattern: "TestSquareSize.*|TestPriority.*"
@@ -42,7 +42,7 @@ jobs:
 
       - name: Run tests
         run: |
-          if [ "${{ matrix.package }}" = "other" ]; then
+          if [ "${{ matrix.package }}" = "unit" ]; then
             # run all packages except the heavy ones
             make test PACKAGES="$(go list ./... | grep -v 'app/test$' | grep -v 'test/txsim$' | grep -v 'pkg/user$' | tr '\n' ' ')"
           elif [ -n "${{ matrix.pattern }}" ]; then
