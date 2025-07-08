@@ -4,6 +4,7 @@ package appd
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -19,25 +20,34 @@ func TestCreateExecCommand(t *testing.T) {
 		t.Skip("skipping test which expects an embedded binary")
 	}
 
-	version, compressedBinary, err := embedding.CelestiaAppV3()
-	require.NoError(t, err)
+	binaryGenerators := []func() (string, []byte, error){
+		embedding.CelestiaAppV3,
+		embedding.CelestiaAppV4,
+	}
 
-	appdInstance, err := New(version, compressedBinary)
-	require.NoError(t, err)
-	require.NotNil(t, appdInstance)
+	for idx, binaryGenerator := range binaryGenerators {
+		t.Run(fmt.Sprintf("%d", idx), func(t *testing.T) {
+			version, compressedBinary, err := binaryGenerator()
+			require.NoError(t, err)
 
-	cmd := appdInstance.CreateExecCommand("version")
-	require.NotNil(t, cmd)
+			appdInstance, err := New(version, compressedBinary)
+			require.NoError(t, err)
+			require.NotNil(t, appdInstance)
 
-	var outputBuffer bytes.Buffer
-	cmd.Stdout = &outputBuffer
+			cmd := appdInstance.CreateExecCommand("version --log-level=info")
+			require.NotNil(t, cmd)
 
-	require.NoError(t, cmd.Run())
+			var outputBuffer bytes.Buffer
+			cmd.Stdout = &outputBuffer
 
-	want := strings.TrimPrefix(version, "v")
-	got := outputBuffer.String()
-	require.NotEmpty(t, got)
-	assert.Contains(t, got, want)
+			require.NoError(t, cmd.Run())
+
+			want := strings.TrimPrefix(version, "v")
+			got := outputBuffer.String()
+			require.NotEmpty(t, got)
+			assert.Contains(t, got, want)
+		})
+	}
 }
 
 // TestStart_Success ensures that the provided executable is launched and provided a pid.
