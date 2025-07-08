@@ -47,10 +47,10 @@ services:
       -d 100
       -e 10
     volumes:
-      - /Users/txsimp/.celestia-app:/home/celestia
+      - /Users/txsim/.celestia-app:/home/celestia
 ```
 
-In this file, the `volumes` key is used to mount the `/Users/txsimp/.celestia-app` directory from the host to the `/home/celestia` directory in the Docker container.
+In this file, the `volumes` key is used to mount the `/Users/txsim/.celestia-app` directory from the host to the `/home/celestia` directory in the Docker container.
 
 ### Kubernetes Deployment
 
@@ -93,10 +93,10 @@ spec:
       volumes:
       - name: keyring-volume
         hostPath:
-          path: /Users/txsimp/.celestia-app
+          path: /Users/txsim/.celestia-app
 ```
 
-In this file, the `volumeMounts` and `volumes` keys are used to mount the `/Users/txsimp/.celestia-app` directory from the host to the `/home/celestia` directory in the Docker container.
+In this file, the `volumeMounts` and `volumes` keys are used to mount the `/Users/txsim/.celestia-app` directory from the host to the `/home/celestia` directory in the Docker container.
 
 ## Flag Breakdown
 
