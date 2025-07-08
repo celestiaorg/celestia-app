@@ -19,6 +19,7 @@ func downloadCmd() *cobra.Command {
 		SSHKeyPath string
 		nodes      string
 		table      string
+		workers    int
 	)
 
 	cmd := &cobra.Command{
@@ -61,7 +62,7 @@ func downloadCmd() *cobra.Command {
 				}
 			}
 
-			workers := make(chan struct{}, globalWorkers)
+			workers := make(chan struct{}, workers)
 			var wg sync.WaitGroup
 			for _, node := range nodes {
 				wg.Add(1)
@@ -115,6 +116,7 @@ func downloadCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&SSHKeyPath, "ssh-key-path", "k", "", "override path to your SSH private key")
 	cmd.Flags().StringVarP(&nodes, "nodes", "n", "*", "specify the node(s) to download from. * or specific nodes.")
 	cmd.Flags().StringVarP(&table, "tables", "t", "*", "specify tables to download (comma-separated) or logs to download logs. default is all tables.")
+	cmd.Flags().IntVarP(&workers, "workers", "w", 10, "number of concurrent workers for parallel operations (should be > 0)")
 
 	cmd.AddCommand(downloadS3DataCmd())
 

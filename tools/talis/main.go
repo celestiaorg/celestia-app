@@ -6,8 +6,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var globalWorkers int
-
 func main() {
 	rootCmd := &cobra.Command{
 		Use:   "talis",
@@ -17,8 +15,6 @@ func main() {
 			return cmd.Help()
 		},
 	}
-
-	rootCmd.PersistentFlags().IntVarP(&globalWorkers, "workers", "w", 10, "number of concurrent workers for parallel operations")
 
 	rootCmd.AddCommand(
 		downloadCmd(),

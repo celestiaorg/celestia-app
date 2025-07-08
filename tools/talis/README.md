@@ -158,7 +158,7 @@ export TALIS_SSH_KEY_PATH="your_ssh_key_path_here"
 # uses the config to spin up nodes on the relevant cloud services
 talis up
 
-# use more workers for faster instance creation (if you have good bandwidth)
+# use more workers for faster instance creation. beware of the digital ocean number of requests limitations
 talis up --workers 20
 ```
 

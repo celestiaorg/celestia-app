@@ -29,4 +29,3 @@ internal/embedding/**
 app.toml
 config.toml
 config.json
-tools/talis/talis
