@@ -13,12 +13,7 @@ import (
 	"sync"
 
 	"cosmossdk.io/log"
-<<<<<<< HEAD
-	"github.com/celestiaorg/celestia-app/v5/multiplexer/appd"
 	"github.com/celestiaorg/celestia-app/v5/multiplexer/internal"
-=======
-	"github.com/celestiaorg/celestia-app/v4/multiplexer/internal"
->>>>>>> b5c7555 (fix(multiplexer): wait for v3 app to stop before starting v4 (#5195))
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/p2p"
