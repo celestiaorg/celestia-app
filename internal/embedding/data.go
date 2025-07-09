@@ -25,6 +25,16 @@ func CelestiaAppV3() (version string, compressedBinary []byte, err error) {
 	return v3Version, v3binaryCompressed, nil
 }
 
+// CelestiaAppV4 returns the compressed platform specific Celestia binary and
+// the version.
+func CelestiaAppV4() (version string, compressedBinary []byte, err error) {
+	if len(v4binaryCompressed) == 0 {
+		return "", nil, fmt.Errorf("no binary data available for platform %s", platform())
+	}
+
+	return v4Version, v4binaryCompressed, nil
+}
+
 // platform returns a string representing the current operating system and architecture
 // This is useful for identifying platform-specific binaries or configurations.
 func platform() string {
