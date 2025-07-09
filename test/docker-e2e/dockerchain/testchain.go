@@ -54,7 +54,7 @@ func NewCelestiaChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.Chai
 		WithDockerClient(cfg.DockerClient).
 		WithDockerNetworkID(cfg.DockerNetworkID).
 		WithImage(tastoradockertypes.NewDockerImage(cfg.Image, cfg.Tag, "10001:10001")).
-		WithAdditionalStartArgs("--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099").
+		WithAdditionalStartArgs("--force-no-bbr").
 		WithEncodingConfig(&encodingConfig).
 		WithPostInit(getPostInitModifications("0.025utia")...).
 		WithNodes(vals...).
@@ -75,6 +75,7 @@ func getPostInitModifications(gasPrices string) []func(context.Context, *tastora
 			cfg.Consensus.TimeoutCommit = blockTime
 			cfg.Consensus.TimeoutPropose = blockTime
 			cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
+			cfg.RPC.GRPCListenAddress = "tcp://0.0.0.0:9099"
 			cfg.RPC.CORSAllowedOrigins = []string{"*"}
 		})
 	})
@@ -83,6 +84,7 @@ func getPostInitModifications(gasPrices string) []func(context.Context, *tastora
 		return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
 			cfg.MinGasPrices = gasPrices
 			cfg.GRPC.Address = "0.0.0.0:9090"
+			cfg.GRPC.Enable = true
 			cfg.API.Enable = true
 			cfg.API.Swagger = true
 			cfg.API.Address = "tcp://0.0.0.0:1317"
@@ -104,11 +106,11 @@ func SetupTxClient(ctx context.Context, cn *tastoradockertypes.ChainNode, cfg *C
 }
 
 // NodeConfigBuilders returns a list of ChainNodeConfigBuilder and any error if one occurs.
-// this function populates a default set of ChainNodeConfigBuilder based on the provided config.
-// this handles the population of private key bytes, record name and keyring.
+// This function populates a default set of ChainNodeConfigBuilder based on the provided config.
+// This handles the population of private key bytes, record name and keyring.
 //
 // If any custom modifications are required to any individual validator, this function can be used
-// and can be used to modify the ChainNodeConfigBuilder.
+// to modify the ChainNodeConfigBuilder.
 //
 // Example:
 //

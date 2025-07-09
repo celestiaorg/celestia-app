@@ -1,6 +1,7 @@
 package dockerchain
 
 import (
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v5/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
 	"github.com/moby/moby/client"
@@ -26,7 +27,7 @@ func DefaultConfig(client *client.Client, network string) *Config {
 	tnCfg := testnode.DefaultConfig()
 	// default + 2 extra validators.
 	tnCfg.Genesis = tnCfg.Genesis.
-		WithChainID("test").
+		WithChainID(appconsts.TestChainID).
 		WithValidators(
 			genesis.NewDefaultValidator("val1"),
 			genesis.NewDefaultValidator("val2"),
