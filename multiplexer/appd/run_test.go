@@ -78,7 +78,7 @@ func TestStart(t *testing.T) {
 }
 
 func TestStop(t *testing.T) {
-	t.Run("should return an error if the process is not running", func(t *testing.T) {
+	t.Run("should return no error if the process is not running", func(t *testing.T) {
 		mockBinary := createMockExecutable(t, "sleep 10")
 		defer os.Remove(mockBinary) // Cleanup after test
 
@@ -90,8 +90,13 @@ func TestStop(t *testing.T) {
 		}
 
 		require.True(t, appdInstance.IsStopped())
+		require.False(t, appdInstance.IsRunning())
+
 		err := appdInstance.Stop()
-		require.Error(t, err)
+		require.NoError(t, err)
+
+		require.True(t, appdInstance.IsStopped())
+		require.False(t, appdInstance.IsRunning())
 	})
 	t.Run("should stop the process", func(t *testing.T) {
 		mockBinary := createMockExecutable(t, "sleep 10")
