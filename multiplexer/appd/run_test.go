@@ -50,48 +50,90 @@ func TestCreateExecCommand(t *testing.T) {
 	}
 }
 
-// TestStart_Success ensures that the provided executable is launched and provided a pid.
-// and that the pid is reset once the process exits.
-func TestStart_Success(t *testing.T) {
-	mockBinary := createMockExecutable(t, "sleep 1")
-	defer os.Remove(mockBinary) // Cleanup after test
+func TestStart(t *testing.T) {
+	t.Run("should start the process", func(t *testing.T) {
+		mockBinary := createMockExecutable(t, "sleep 10")
+		defer os.Remove(mockBinary) // Cleanup after test
 
-	appdInstance := &Appd{
-		path:   mockBinary,
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-		pid:    AppdStopped,
-	}
+		appdInstance := &Appd{
+			path:   mockBinary,
+			stdin:  os.Stdin,
+			stdout: os.Stdout,
+			stderr: os.Stderr,
+		}
 
-	// Start the process
-	err := appdInstance.Start()
-	require.NoError(t, err, "Start should not return an error")
+		require.True(t, appdInstance.IsStopped())
+		require.False(t, appdInstance.IsRunning())
 
-	// Ensure PID is set
-	require.Greater(t, appdInstance.Pid(), 0, "Process PID should be greater than 0")
+		err := appdInstance.Start()
+		require.NoError(t, err)
 
-	// Stop the process after the test
-	err = appdInstance.Stop()
-	require.NoError(t, err, "Stop should terminate the process")
+		require.True(t, appdInstance.IsRunning())
+		require.False(t, appdInstance.IsStopped())
+	})
+	t.Run("should return an error if the binary is non-existent", func(t *testing.T) {
+		appdInstance := &Appd{
+			path:   "/non/existent/binary",
+			stdin:  os.Stdin,
+			stdout: os.Stdout,
+			stderr: os.Stderr,
+		}
+
+		err := appdInstance.Start()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to start")
+		require.True(t, appdInstance.IsStopped())
+		require.False(t, appdInstance.IsRunning())
+	})
 }
 
-// TestStart_InvalidBinary ensures that the appd instance errors out if the binary does not exist.
-func TestStart_InvalidBinary(t *testing.T) {
-	appdInstance := &Appd{
-		path:   "/non/existent/binary",
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-		pid:    AppdStopped,
-	}
+func TestStop(t *testing.T) {
+	t.Run("should return no error if the process is not running", func(t *testing.T) {
+		mockBinary := createMockExecutable(t, "sleep 10")
+		defer os.Remove(mockBinary) // Cleanup after test
 
-	// Start should return an error
-	err := appdInstance.Start()
-	require.Error(t, err, "Expected an error when starting a non-existent binary")
-	require.Contains(t, err.Error(), "failed to start", "Error message should contain failure reason")
+		appdInstance := &Appd{
+			path:   mockBinary,
+			stdin:  os.Stdin,
+			stdout: os.Stdout,
+			stderr: os.Stderr,
+		}
 
-	require.Equal(t, AppdStopped, appdInstance.Pid(), "PID should remain AppdStopped")
+		require.True(t, appdInstance.IsStopped())
+		require.False(t, appdInstance.IsRunning())
+
+		err := appdInstance.Stop()
+		require.NoError(t, err)
+
+		require.True(t, appdInstance.IsStopped())
+		require.False(t, appdInstance.IsRunning())
+	})
+	t.Run("should stop the process", func(t *testing.T) {
+		mockBinary := createMockExecutable(t, "sleep 10")
+		defer os.Remove(mockBinary) // Cleanup after test
+
+		appdInstance := &Appd{
+			path:   mockBinary,
+			stdin:  os.Stdin,
+			stdout: os.Stdout,
+			stderr: os.Stderr,
+		}
+
+		require.True(t, appdInstance.IsStopped())
+		require.False(t, appdInstance.IsRunning())
+
+		err := appdInstance.Start()
+		require.NoError(t, err)
+
+		require.True(t, appdInstance.IsRunning())
+		require.False(t, appdInstance.IsStopped())
+
+		err = appdInstance.Stop()
+		require.NoError(t, err)
+
+		require.True(t, appdInstance.IsStopped())
+		require.False(t, appdInstance.IsRunning())
+	})
 }
 
 // createMockExecutable creates a temporary mock binary that can be executed in tests.
