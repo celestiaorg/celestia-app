@@ -13,7 +13,6 @@ import (
 	"sync"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v4/multiplexer/appd"
 	"github.com/celestiaorg/celestia-app/v4/multiplexer/internal"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
@@ -215,7 +214,7 @@ func (m *Multiplexer) startApp() error {
 		return fmt.Errorf("appd is nil for version %d", m.appVersion)
 	}
 
-	if currentVersion.Appd.Pid() == appd.AppdStopped {
+	if currentVersion.Appd.IsStopped() {
 		programArgs := removeStart(os.Args)
 
 		// start an embedded app.
@@ -224,7 +223,7 @@ func (m *Multiplexer) startApp() error {
 			return fmt.Errorf("failed to start app: %w", err)
 		}
 
-		if currentVersion.Appd.Pid() == appd.AppdStopped { // should never happen
+		if currentVersion.Appd.IsStopped() { // should never happen
 			return fmt.Errorf("app failed to start")
 		}
 
@@ -480,7 +479,7 @@ func (m *Multiplexer) startEmbeddedApp(version Version) error {
 		return fmt.Errorf("failed to stop active version: %w", err)
 	}
 
-	if version.Appd.Pid() == appd.AppdStopped {
+	if version.Appd.IsStopped() {
 		for _, preHandler := range version.PreHandlers {
 			preCmd := version.Appd.CreateExecCommand(preHandler)
 			if err := preCmd.Run(); err != nil {
@@ -497,7 +496,7 @@ func (m *Multiplexer) startEmbeddedApp(version Version) error {
 			return fmt.Errorf("failed to start app for version %d: %w", m.appVersion, err)
 		}
 
-		if version.Appd.Pid() == appd.AppdStopped {
+		if version.Appd.IsStopped() {
 			return fmt.Errorf("app for version %d failed to start", m.nativeApp)
 		}
 
@@ -507,9 +506,9 @@ func (m *Multiplexer) startEmbeddedApp(version Version) error {
 	return nil
 }
 
-// embeddedVersionRunning returns true if there is an active version specified which is not stopped.
+// embeddedVersionRunning returns true if there is an active version specified which is running.
 func (m *Multiplexer) embeddedVersionRunning() bool {
-	return m.activeVersion.Appd != nil && m.activeVersion.Appd.Pid() != appd.AppdStopped
+	return m.activeVersion.Appd != nil && m.activeVersion.Appd.IsRunning()
 }
 
 // startCmtNode initializes and starts a CometBFT node, sets up cleanup tasks, and assigns it to the Multiplexer instance.
