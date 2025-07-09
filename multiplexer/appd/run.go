@@ -30,6 +30,7 @@ type Appd struct {
 	stdin  io.Reader
 	stderr io.Writer
 	stdout io.Writer
+	cmd    *exec.Cmd
 }
 
 // New returns a new Appd instance.
@@ -84,23 +85,14 @@ func (a *Appd) Start(args ...string) error {
 	}
 
 	a.pid = cmd.Process.Pid
-
-	go func() {
-		// This waits whether process exits naturally or is killed by Stop()
-		if err := cmd.Wait(); err != nil {
-			log.Printf("Process finished with error: %v\n", err)
-		} else {
-			log.Printf("Process finished with no error\n")
-		}
-		a.pid = AppdStopped // Always reset PID when process ends
-	}()
+	a.cmd = cmd
 
 	return nil
 }
 
-// Stop terminates the running appd process if it exists.
+// Stop terminates the running appd process if it exists and waits for it to fully exit.
 func (a *Appd) Stop() error {
-	if a.pid == AppdStopped {
+	if a.pid == AppdStopped || a.cmd == nil {
 		return nil
 	}
 
@@ -118,6 +110,14 @@ func (a *Appd) Stop() error {
 		}
 	}
 
+	// Wait for the process to actually exit
+	if err := a.cmd.Wait(); err != nil {
+		log.Printf("Process finished with error: %v\n", err)
+	} else {
+		log.Printf("Process finished with no error\n")
+	}
+
+	a.pid = AppdStopped
 	return nil
 }
 
