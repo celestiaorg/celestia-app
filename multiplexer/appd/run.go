@@ -100,14 +100,13 @@ func (a *Appd) IsStopped() bool {
 	return false
 }
 
-// Stop terminates the running appd process if it exists and waits for it to fully exit.
+// Stop interrupts and then kills the running appd process if it exists and
+// waits for it to fully exit. If the process is not running, it returns nil.
 func (a *Appd) Stop() error {
 	if a.cmd == nil {
-		log.Printf("Can not stop appd because cmd is nil")
 		return nil
 	}
 	if a.cmd.Process == nil {
-		log.Printf("Can not stop appd because process is nil")
 		return nil
 	}
 
