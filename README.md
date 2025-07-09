@@ -161,7 +161,7 @@ celestia-app and celestia-core start multiple servers to handle different types 
 | Server   | Default Address         | Configuration               | Purpose                                                                                               |
 |----------|-------------------------|-----------------------------|-------------------------------------------------------------------------------------------------------|
 | **RPC**  | `tcp://127.0.0.1:26657` | `config.toml` under `[rpc]` | HTTP/WebSocket API for blockchain queries, transaction submission, and real-time event subscriptions. |
-| **gRPC** | `tcp://127.0.0.1:9098`  | `config.toml` under `[rpc]` | gRPC API that only supports `/broadcast_tx_commit`.                                                   |
+| **gRPC** | `tcp://127.0.0.1:9098`  | `config.toml` under `[rpc]` | gRPC API for broadcasting txs, querying blocks, and querying blobstream data                          |
 | **P2P**  | `tcp://0.0.0.0:26656`   | `config.toml` under `[p2p]` | Peer-to-peer networking layer for consensus, block synchronization, and mempool gossip.               |
 
 ### Celestia-App (Cosmos SDK) Servers
