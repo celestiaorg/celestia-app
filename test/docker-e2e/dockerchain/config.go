@@ -10,7 +10,7 @@ import (
 
 const (
 	multiplexerImage   = "ghcr.io/celestiaorg/celestia-app"
-	defaultCelestiaTag = "v4.0.6-mocha"
+	defaultCelestiaTag = "v4.0.7-mocha"
 )
 
 // Config represents the configuration for a docker Celestia setup.
