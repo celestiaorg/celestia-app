@@ -5,6 +5,7 @@ import (
 	"context"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
 	cometcfg "github.com/cometbft/cometbft/config"
+	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	servercfg "github.com/cosmos/cosmos-sdk/server/config"
 	"strings"
 	"testing"
@@ -174,6 +175,133 @@ func (s *CelestiaTestSuite) TestStateSync() {
 			// Continue the loop
 		case <-timeoutCtx.Done():
 			t.Fatalf("timed out waiting for state sync node to catch up after %v", stateSyncTimeout)
+		}
+	}
+}
+
+// TestStateSyncMocha tests state sync functionality by syncing from the mocha network.
+// This test reproduces the issue where state sync fails when syncing from mocha.
+func (s *CelestiaTestSuite) TestStateSyncMocha() {
+	t := s.T()
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+
+	ctx := context.TODO()
+
+	// mocha network configuration
+	const (
+		mochaRPC1  = "https://celestia-testnet-rpc.itrocket.net:443"
+		mochaRPC2  = "https://celestia-mocha-rpc.publicnode.com:443"
+		mochaSeeds = "5d0bf034d6e6a8b5ee31a2f42f753f1107b3a00e@celestia-testnet-seed.itrocket.net:11656"
+	)
+
+	t.Log("Connecting to mocha network to get trust parameters")
+
+	// create RPC client for mocha network
+	mochaClient, err := rpchttp.New(mochaRPC1, "/websocket")
+	s.Require().NoError(err, "failed to create mocha RPC client")
+
+	// get latest height from mocha
+	status, err := mochaClient.Status(ctx)
+	s.Require().NoError(err, "failed to get mocha network status")
+
+	latestHeight := status.SyncInfo.LatestBlockHeight
+	trustHeight := latestHeight - 2000 // same offset as scripts/mocha.sh
+	s.Require().Greater(trustHeight, int64(0), "calculated trust height %d is too low", trustHeight)
+
+	// get trust hash from mocha
+	trustBlock, err := mochaClient.Block(ctx, &trustHeight)
+	s.Require().NoError(err, "failed to get block at trust height %d from mocha", trustHeight)
+
+	trustHash := trustBlock.BlockID.Hash.String()
+
+	t.Logf("Mocha latest height: %d", latestHeight)
+	t.Logf("Using trust height: %d", trustHeight)
+	t.Logf("Using trust hash: %s", trustHash)
+	t.Logf("Using mocha RPC1: %s", mochaRPC1)
+	t.Logf("Using mocha RPC2: %s", mochaRPC2)
+
+	// create a mocha chain builder (no validators, just for state sync nodes)
+	cfg, err := dockerchain.MochaConfig(s.client, s.network)
+	s.Require().NoError(err, "failed to create mocha config")
+
+	celestia, err := dockerchain.NewMochaChainBuilder(s.T(), cfg).
+		WithNodes(celestiadockertypes.NewChainNodeConfigBuilder().
+			WithNodeType(celestiadockertypes.FullNodeType).
+			WithPostInit(func(ctx context.Context, node *celestiadockertypes.ChainNode) error {
+				return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
+					// state sync configuration
+					cfg.StateSync.Enable = true
+					cfg.StateSync.TrustHeight = trustHeight
+					cfg.StateSync.TrustHash = trustHash
+					cfg.StateSync.RPCServers = []string{mochaRPC1, mochaRPC2}
+
+					// peer configuration
+					cfg.P2P.Seeds = mochaSeeds
+				})
+			}).
+			Build(),
+		).
+		Build(ctx)
+
+	s.Require().NoError(err, "failed to create chain")
+
+	// cleanup resources when the test is done
+	t.Cleanup(func() {
+		if err := celestia.Stop(ctx); err != nil {
+			t.Logf("Error stopping chain: %v", err)
+		}
+	})
+
+	t.Log("Starting state sync node")
+	err = celestia.Start(ctx)
+	s.Require().NoError(err, "failed to start chain")
+
+	allNodes := celestia.GetNodes()
+	s.Require().Len(allNodes, 1, "expected exactly one node")
+	fullNode := allNodes[0]
+
+	s.Require().Equal("fn", fullNode.GetType(), "expected state sync node to be a full node")
+
+	stateSyncClient, err := fullNode.GetRPCClient()
+	s.Require().NoError(err, "failed to get state sync client")
+
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, stateSyncTimeout)
+	defer cancel()
+
+	t.Log("Waiting for state sync to complete...")
+
+	// check immediately first, then on ticker intervals
+	for {
+		status, err := stateSyncClient.Status(timeoutCtx)
+		if err != nil {
+			t.Logf("Failed to get status from state sync node, retrying...: %v", err)
+			select {
+			case <-ticker.C:
+				continue
+			case <-timeoutCtx.Done():
+				t.Fatalf("timed out waiting for state sync node to respond after %v", stateSyncTimeout)
+			}
+		}
+
+		t.Logf("State sync node status: Height=%d, CatchingUp=%t", status.SyncInfo.LatestBlockHeight, status.SyncInfo.CatchingUp)
+
+		// for mocha sync, we consider success when the node is no longer catching up
+		// and has synced to a reasonable height
+		if !status.SyncInfo.CatchingUp && status.SyncInfo.LatestBlockHeight > trustHeight {
+			t.Logf("State sync from mocha successful! Node caught up to height %d", status.SyncInfo.LatestBlockHeight)
+			break
+		}
+
+		select {
+		case <-ticker.C:
+			// continue the loop
+		case <-timeoutCtx.Done():
+			t.Fatalf("timed out waiting for state sync from mocha to complete after %v", stateSyncTimeout)
 		}
 	}
 }
