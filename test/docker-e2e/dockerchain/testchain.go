@@ -17,25 +17,6 @@ import (
 	"time"
 )
 
-// NewMochaChainBuilder constructs a new ChainBuilder configured for connecting to the mocha testnet.
-func NewMochaChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.ChainBuilder {
-	// download mocha genesis
-	genesisBz, err := downloadGenesis("mocha-4")
-	require.NoError(t, err, "failed to download mocha genesis")
-	
-	encodingConfig := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
-	
-	return tastoradockertypes.NewChainBuilder(t).
-		WithName("mocha-state-sync").
-		WithChainID("mocha-4").
-		WithDockerClient(cfg.DockerClient).
-		WithDockerNetworkID(cfg.DockerNetworkID).
-		WithImage(tastoradockertypes.NewDockerImage(cfg.Image, cfg.Tag, "10001:10001")).
-		WithAdditionalStartArgs("--force-no-bbr").
-		WithEncodingConfig(&encodingConfig).
-		WithGenesis(genesisBz)
-		// no validators - we'll only add full nodes for state sync
-}
 
 // NewCelestiaChainBuilder constructs a new ChainBuilder configured for a Celestia instance with predefined parameters.
 func NewCelestiaChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.ChainBuilder {

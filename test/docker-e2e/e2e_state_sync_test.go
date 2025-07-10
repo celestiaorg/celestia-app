@@ -2,10 +2,10 @@ package docker_e2e
 
 import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
+	"celestiaorg/celestia-app/test/docker-e2e/mocha"
 	"context"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
 	cometcfg "github.com/cometbft/cometbft/config"
-	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	servercfg "github.com/cosmos/cosmos-sdk/server/config"
 	"strings"
 	"testing"
@@ -175,7 +175,6 @@ func (s *CelestiaTestSuite) TestStateSync() {
 }
 
 // TestStateSyncMocha tests state sync functionality by syncing from the mocha network.
-// This test reproduces the issue where state sync fails when syncing from mocha.
 func (s *CelestiaTestSuite) TestStateSyncMocha() {
 	t := s.T()
 	if testing.Short() {
@@ -183,18 +182,8 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 	}
 
 	ctx := context.TODO()
-
-	// mocha network configuration
-	const (
-		mochaRPC1  = "https://celestia-testnet-rpc.itrocket.net:443"
-		mochaRPC2  = "https://celestia-mocha-rpc.publicnode.com:443"
-		mochaSeeds = "5d0bf034d6e6a8b5ee31a2f42f753f1107b3a00e@celestia-testnet-seed.itrocket.net:11656"
-	)
-
-	t.Log("Connecting to mocha network to get trust parameters")
-
 	// create RPC client for mocha network
-	mochaClient, err := rpchttp.New(mochaRPC1, "/websocket")
+	mochaClient, err := mocha.NewClient()
 	s.Require().NoError(err, "failed to create mocha RPC client")
 
 	// get latest height from mocha
@@ -202,7 +191,7 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 	s.Require().NoError(err, "failed to get mocha network status")
 
 	latestHeight := status.SyncInfo.LatestBlockHeight
-	trustHeight := latestHeight - 2000 // same offset as scripts/mocha.sh
+	trustHeight := latestHeight - 2000
 	s.Require().Greater(trustHeight, int64(0), "calculated trust height %d is too low", trustHeight)
 
 	// get trust hash from mocha
@@ -214,26 +203,24 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 	t.Logf("Mocha latest height: %d", latestHeight)
 	t.Logf("Using trust height: %d", trustHeight)
 	t.Logf("Using trust hash: %s", trustHash)
-	t.Logf("Using mocha RPC1: %s", mochaRPC1)
-	t.Logf("Using mocha RPC2: %s", mochaRPC2)
+	t.Logf("Using mocha RPC1: %s", mocha.RPC1)
+	t.Logf("Using mocha RPC2: %s", mocha.RPC2)
 
 	// create a mocha chain builder (no validators, just for state sync nodes)
-	cfg, err := dockerchain.MochaConfig(s.client, s.network)
+	cfg, err := mocha.NewConfig(s.client, s.network)
 	s.Require().NoError(err, "failed to create mocha config")
 
-	celestia, err := dockerchain.NewMochaChainBuilder(s.T(), cfg).
+	celestia, err := mocha.NewChainBuilder(s.T(), cfg).
 		WithNodes(celestiadockertypes.NewChainNodeConfigBuilder().
 			WithNodeType(celestiadockertypes.FullNodeType).
 			WithPostInit(func(ctx context.Context, node *celestiadockertypes.ChainNode) error {
 				return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
-					// state sync configuration
+					// enable state sync
 					cfg.StateSync.Enable = true
 					cfg.StateSync.TrustHeight = trustHeight
 					cfg.StateSync.TrustHash = trustHash
-					cfg.StateSync.RPCServers = []string{mochaRPC1, mochaRPC2}
-
-					// peer configuration
-					cfg.P2P.Seeds = mochaSeeds
+					cfg.StateSync.RPCServers = []string{mocha.RPC1, mocha.RPC2}
+					cfg.P2P.Seeds = mocha.Seeds
 				})
 			}).
 			Build(),

@@ -1,13 +1,10 @@
 package dockerchain
 
 import (
-	"fmt"
 	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v5/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
 	"github.com/moby/moby/client"
-	"io"
-	"net/http"
 	"os"
 )
 
@@ -91,37 +88,4 @@ func getCelestiaTag() string {
 		return tag
 	}
 	return defaultCelestiaTag
-}
-
-// downloadGenesis downloads the genesis file for the given chain ID from the celestia networks repo
-func downloadGenesis(chainID string) ([]byte, error) {
-	url := fmt.Sprintf("https://raw.githubusercontent.com/celestiaorg/networks/master/%s/genesis.json", chainID)
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to download genesis file: HTTP %d", resp.StatusCode)
-	}
-
-	return io.ReadAll(resp.Body)
-}
-
-// MochaConfig returns a configured instance of Config for the mocha testnet.
-func MochaConfig(client *client.Client, network string) (*Config, error) {
-	const mochaChainID = "mocha-4"
-
-	// create minimal config - the genesis will be downloaded by the NewMochaChainBuilder
-	tnCfg := testnode.DefaultConfig()
-	tnCfg.Genesis = tnCfg.Genesis.WithChainID(mochaChainID)
-
-	cfg := &Config{}
-	return cfg.
-		WithConfig(tnCfg).
-		WithImage(getCelestiaImage()).
-		WithTag(getCelestiaTag()).
-		WithDockerClient(client).
-		WithDockerNetworkID(network), nil
 }
