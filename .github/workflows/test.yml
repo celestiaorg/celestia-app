@@ -90,7 +90,7 @@ jobs:
         testcase:
           - TestE2ESimple
           - TestStateSync
-          - TestStateMocha
+          - TestStateSyncMocha
 
     steps:
       - name: Checkout code
