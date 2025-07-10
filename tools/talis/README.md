@@ -43,7 +43,7 @@ All binaries used by nodes in the network are compiled on the user's local machi
 make build-talis-bins
 ```
 
-Note that this doesn't install binaries in the `$GOPATH/bin`, so you must specify the path when creating the payload with the `genesis` subcommand and `-a` (`--app-binary` path) and `-t` (`--txsim-binary` path) flags. See `genesis` subcomand usage below.
+Note that this doesn't install binaries in the `$GOPATH/bin`, so you must specify the path when creating the payload with the `genesis` subcommand and `-a` (`--app-binary` path) and `-t` (`--txsim-binary` path) flags. See `genesis` subcommand usage below.
 
 ## Usage
 
@@ -80,13 +80,19 @@ the celestia-app configs (config.toml and app.toml) can be manually edited here,
   "ssh_key_name": "HOSTNAME",
   "digitalocean_token": "pulled from env var if available",
   "s3_config": {
-    "region": "pulled from env var if available",
-    "access_key_id": "pulled from env var if available",
-    "secret_access_key": "pulled from env var if available",
-    "bucket_name": "pulled from env var if available"
+    "region": "pulled from AWS_DEFAULT_REGION env var if available",
+    "access_key_id": "pulled from AWS_ACCESS_KEY_ID env var if available",
+    "secret_access_key": "pulled from AWS_SECRET_ACCESS_KEY env var if available",
+    "bucket_name": "pulled from AWS_S3_BUCKET env var if available",
+    "endpoint": "pulled from AWS_S3_ENDPOINT env var if available. Can be left empty if targeting an AWS S3 bucket"
   }
 }
 ```
+
+Notes: 
+
+- The AWS config supports any S3-compatible bucket. So it can be used with Digital Ocean and other cloud providers.
+- Example: The S3 endpoint for Digital Ocean is: `https://<region>.digitaloceanspaces.com/`.
 
 ### add
 
@@ -158,6 +164,8 @@ talis genesis -s 128 -a /home/$HOSTNAME/go/src/github.com/celestiaorg/celestia-a
 
 Keep in mind that we can still edit anything in the payload before deploying the network.
 
+Note: When increasing the genesis square size, ensure you also increase the `SquareSizeUpperBound` constant to allow blocks to be created at the new size.
+
 ### deploy
 
 This step is when the network is actually started. The payload is uploaded to each instance in the network directly from the user's machine. After delivering the payload, the start script is executed in a tmux session called "app" on each machine.
@@ -166,6 +174,8 @@ This step is when the network is actually started. The payload is uploaded to ea
 # sends the payload to each node and boots the network by executing the relevant startup scripts
 talis deploy
 ```
+
+Note: By default, the `deploy` command will upload the payload to the configured S3 bucket, and then download it in the nodes. To upload the payload directly without passing by S3, use the `--direct-payload-upload` flag.
 
 ### txsim
 
@@ -178,7 +188,7 @@ talis txsim -i <count> -s <blob-sequences> --min-blob-size <size> --max-blob-siz
 
 ### status
 
-Often, its useful to quickly check if all the nodes have caught up to the tip of the chain. This can be done via the status command, which simply prints the height of each validator after querying the `Status` endpoint.
+Often, it's useful to quickly check if all the nodes have caught up to the tip of the chain. This can be done via the status command, which simply prints the height of each validator after querying the `Status` endpoint.
 
 ```sh
 # check which height each validator is at
@@ -228,7 +238,19 @@ talis download s3
 
 ### Modifying the nodes in place
 
-Instead of shutting down all of the nodes, if we want to run a slightly modified experiment, we can simply rerun the `genesis` and `deploy` commands. This will create a new payload and restart the network without tearing down the cloud instances. This will delete any trace data.
+Instead of shutting down all of the nodes, if we want to run a slightly modified experiment, we can simply run the [reset](#reset) command then rerun the `genesis` and `deploy` commands. This will create a new payload and restart the network without tearing down the cloud instances. This will delete any trace data.
+
+### reset
+
+This command allows you to stop running services and clean up files created by the `deploy` command for either specific validators or all validators in the network.
+
+```sh
+# Reset all validators in the network
+talis reset
+
+# Reset specific validators
+talis reset -v validator-0,validator-1
+```
 
 ### down
 

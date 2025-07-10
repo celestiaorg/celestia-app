@@ -3,16 +3,18 @@ package testnode
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"net"
 	"os"
 	"path"
+	"sync/atomic"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v5/app/encoding"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/test/util/random"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testfactory"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -21,6 +23,14 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
+
+// portCounter is a global atomic counter for deterministic port allocation
+// Starting from 20000 to avoid conflicts with common ports
+var portCounter atomic.Int64
+
+func init() {
+	portCounter.Store(20000)
+}
 
 func TestAddress() sdk.AccAddress {
 	bz, err := sdk.GetFromBech32(testfactory.TestAccAddr, "celestia")
@@ -108,14 +118,27 @@ func GetFreePort() (int, error) {
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
-// mustGetFreePort returns a free port. Panics if no free ports are available or
-// an error is encountered.
-func mustGetFreePort() int {
-	port, err := GetFreePort()
+// isPortAvailable checks if a port is available by attempting to listen on it.
+func isPortAvailable(port int) bool {
+	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
-		panic(err)
+		return false
 	}
-	return port
+	defer l.Close()
+	return true
+}
+
+// GetDeterministicPort returns a deterministic port using an atomic counter.
+// This eliminates race conditions by ensuring each call gets a unique port.
+// It checks port availability and increments until it finds an open port.
+func GetDeterministicPort() int {
+	for {
+		port := int(portCounter.Add(1))
+		if isPortAvailable(port) {
+			return port
+		}
+		// If port is not available, the loop will continue with the next increment
+	}
 }
 
 // removeDir removes the directory `rootDir`.

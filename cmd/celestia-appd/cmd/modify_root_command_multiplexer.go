@@ -3,30 +3,48 @@
 package cmd
 
 import (
-	"github.com/celestiaorg/celestia-app/v4/app"
-	embedding "github.com/celestiaorg/celestia-app/v4/internal/embedding"
-	"github.com/celestiaorg/celestia-app/v4/multiplexer/abci"
-	"github.com/celestiaorg/celestia-app/v4/multiplexer/appd"
-	multiplexer "github.com/celestiaorg/celestia-app/v4/multiplexer/cmd"
+	"github.com/celestiaorg/celestia-app/v5/app"
+	embedding "github.com/celestiaorg/celestia-app/v5/internal/embedding"
+	"github.com/celestiaorg/celestia-app/v5/multiplexer/abci"
+	"github.com/celestiaorg/celestia-app/v5/multiplexer/appd"
+	multiplexer "github.com/celestiaorg/celestia-app/v5/multiplexer/cmd"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
 )
 
 // v2UpgradeHeight is the block height at which the v2 upgrade occurred.
 // this can be overridden at build time using ldflags:
-// -ldflags="-X 'github.com/celestiaorg/celestia-app/v4/cmd/celestia-appd/cmd.v2UpgradeHeight=1751707'" for arabica
-// -ldflags="-X 'github.com/celestiaorg/celestia-app/v4/cmd/celestia-appd/cmd.v2UpgradeHeight=2585031'" for mocha
-// -ldflags="-X 'github.com/celestiaorg/celestia-app/v4/cmd/celestia-appd/cmd.v2UpgradeHeight=2371495'" for mainnet
+// -ldflags="-X 'github.com/celestiaorg/celestia-app/v5/cmd/celestia-appd/cmd.v2UpgradeHeight=1751707'" for arabica
+// -ldflags="-X 'github.com/celestiaorg/celestia-app/v5/cmd/celestia-appd/cmd.v2UpgradeHeight=2585031'" for mocha
+// -ldflags="-X 'github.com/celestiaorg/celestia-app/v5/cmd/celestia-appd/cmd.v2UpgradeHeight=2371495'" for mainnet
 var v2UpgradeHeight = ""
+
+var defaultArgs = []string{
+	"--grpc.enable",
+	"--api.enable",
+	"--api.swagger=false",
+	"--with-tendermint=false",
+	"--transport=grpc",
+}
 
 // modifyRootCommand enhances the root command with the pass through and multiplexer.
 func modifyRootCommand(rootCommand *cobra.Command) {
-	version, compressedBinary, err := embedding.CelestiaAppV3()
+	v3Tag, v3CompressedBinary, err := embedding.CelestiaAppV3()
 	if err != nil {
 		panic(err)
 	}
 
-	appdV3, err := appd.New(version, compressedBinary)
+	appdV3, err := appd.New(v3Tag, v3CompressedBinary)
+	if err != nil {
+		panic(err)
+	}
+
+	v4Tag, v4CompressedBinary, err := embedding.CelestiaAppV4()
+	if err != nil {
+		panic(err)
+	}
+
+	appdV4, err := appd.New(v4Tag, v4CompressedBinary)
 	if err != nil {
 		panic(err)
 	}
@@ -36,18 +54,18 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 		extraArgs = append(extraArgs, "--v2-upgrade-height="+v2UpgradeHeight)
 	}
 
-	versions, err := abci.NewVersions(abci.Version{
-		Appd:        appdV3,
-		ABCIVersion: abci.ABCIClientVersion1,
-		AppVersion:  3,
-		StartArgs: append([]string{
-			"--grpc.enable",
-			"--api.enable",
-			"--api.swagger=false",
-			"--with-tendermint=false",
-			"--transport=grpc",
-		}, extraArgs...),
-	})
+	versions, err := abci.NewVersions(
+		abci.Version{
+			Appd:        appdV3,
+			ABCIVersion: abci.ABCIClientVersion1,
+			AppVersion:  3,
+			StartArgs:   append(defaultArgs, extraArgs...),
+		}, abci.Version{
+			Appd:        appdV4,
+			ABCIVersion: abci.ABCIClientVersion2,
+			AppVersion:  4,
+			StartArgs:   append(defaultArgs, extraArgs...),
+		})
 	if err != nil {
 		panic(err)
 	}

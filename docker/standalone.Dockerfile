@@ -20,6 +20,9 @@ ARG UPGRADE_HEIGHT_DELAY
 # See https://github.com/hadolint/hadolint/issues/339
 # hadolint ignore=DL3006
 FROM --platform=$BUILDPLATFORM ${BUILDER_IMAGE} AS builder
+ARG TARGETOS
+ARG TARGETARCH
+
 ENV CGO_ENABLED=0
 ENV GO111MODULE=on
 # hadolint ignore=DL3018

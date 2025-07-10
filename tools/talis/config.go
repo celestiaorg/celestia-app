@@ -138,6 +138,7 @@ func NewConfig(experiment, chainID string) Config {
 			SecretAccessKey: os.Getenv(EnvVarAWSSecretAccessKey),
 			BucketName:      os.Getenv(EnvVarS3Bucket),
 			Region:          os.Getenv(EnvVarAWSRegion),
+			Endpoint:        os.Getenv(EnvVarS3Endpoint),
 		},
 	}
 }

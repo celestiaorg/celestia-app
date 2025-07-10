@@ -14,7 +14,9 @@ type RemoteABCIClientV2 struct {
 // NewRemoteABCIClientV2 returns a new ABCI Client (using ABCI v2).
 // The client behaves like CometBFT for the server side (the application side).
 func NewRemoteABCIClientV2(conn *grpc.ClientConn) *RemoteABCIClientV2 {
-	return &RemoteABCIClientV2{ABCIClient: abci.NewABCIClient(conn)}
+	return &RemoteABCIClientV2{
+		ABCIClient: abci.NewABCIClient(conn),
+	}
 }
 
 // ApplySnapshotChunk implements abci.ABCI.

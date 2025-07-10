@@ -9,10 +9,11 @@ before:
     - go mod tidy
     # these hooks get run once. We want to explicitly download every embedded binary so we can build the multiplexer
     # for every arch.
-    - ./scripts/download_v3_binary.sh celestia-app_Darwin_arm64.tar.gz celestia-app_darwin_v3_arm64.tar.gz v3.10.3-arabica
-    - ./scripts/download_v3_binary.sh celestia-app_Linux_arm64.tar.gz celestia-app_linux_v3_arm64.tar.gz v3.10.3-arabica
-    - ./scripts/download_v3_binary.sh celestia-app_Darwin_x86_64.tar.gz celestia-app_darwin_v3_amd64.tar.gz v3.10.3-arabica
-    - ./scripts/download_v3_binary.sh celestia-app_Linux_x86_64.tar.gz celestia-app_linux_v3_amd64.tar.gz v3.10.3-arabica
+    # Note: This version must be updated at the same time as the version in the Makefile.
+    - ./scripts/download_v3_binary.sh celestia-app_Darwin_arm64.tar.gz celestia-app_darwin_v3_arm64.tar.gz v3.10.3
+    - ./scripts/download_v3_binary.sh celestia-app_Linux_arm64.tar.gz celestia-app_linux_v3_arm64.tar.gz v3.10.3
+    - ./scripts/download_v3_binary.sh celestia-app_Darwin_x86_64.tar.gz celestia-app_darwin_v3_amd64.tar.gz v3.10.3
+    - ./scripts/download_v3_binary.sh celestia-app_Linux_x86_64.tar.gz celestia-app_linux_v3_amd64.tar.gz v3.10.3
 builds:
   - id: darwin-amd64-multiplexer
     main: ./cmd/celestia-appd

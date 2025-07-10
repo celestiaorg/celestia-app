@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
 	"github.com/celestiaorg/nmt"
 )
 

@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
-	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v5/app/encoding"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	testutil "github.com/celestiaorg/celestia-app/v5/test/util"
+	"github.com/celestiaorg/celestia-app/v5/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
@@ -82,7 +82,7 @@ func getMsg(t *testing.T, account sdk.AccountI) sdk.Msg {
 	require.NoError(t, err)
 
 	signer := account.GetAddress().String()
-	msg, err := types.NewMsgPayForBlobs(signer, appconsts.LatestVersion, blob)
+	msg, err := types.NewMsgPayForBlobs(signer, appconsts.Version, blob)
 	require.NoError(t, err)
 
 	return msg

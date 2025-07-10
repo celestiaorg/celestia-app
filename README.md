@@ -161,7 +161,7 @@ celestia-app and celestia-core start multiple servers to handle different types 
 | Server   | Default Address         | Configuration               | Purpose                                                                                               |
 |----------|-------------------------|-----------------------------|-------------------------------------------------------------------------------------------------------|
 | **RPC**  | `tcp://127.0.0.1:26657` | `config.toml` under `[rpc]` | HTTP/WebSocket API for blockchain queries, transaction submission, and real-time event subscriptions. |
-| **gRPC** | `tcp://127.0.0.1:9098`  | `config.toml` under `[rpc]` | gRPC API that only supports `/broadcast_tx_commit`.                                                   |
+| **gRPC** | `tcp://127.0.0.1:9098`  | `config.toml` under `[rpc]` | gRPC API for broadcasting txs, querying blocks, and querying blobstream data                          |
 | **P2P**  | `tcp://0.0.0.0:26656`   | `config.toml` under `[p2p]` | Peer-to-peer networking layer for consensus, block synchronization, and mempool gossip.               |
 
 ### Celestia-App (Cosmos SDK) Servers
@@ -214,6 +214,16 @@ make proto-gen
 ### Docs
 
 Package-specific READMEs aim to explain implementation details for developers that are contributing to these packages. The [specs](https://celestiaorg.github.io/celestia-app/) aim to explain the protocol as a whole for developers building on top of Celestia.
+
+### Dependency branches
+
+The source of truth for dependencies is the `go.mod` file but the table below describes the compatible branches for celestiaorg repos.
+
+| celestia-app | celestia-core      | cosmos-sdk                 |
+|--------------|--------------------|----------------------------|
+| `main`       | `main`             | `release/v0.50.x-celestia` |
+| `v4.x`       | `v0.38.x-celestia` | `release/v0.50.x-celestia` |
+| `v3.x`       | `v0.34.x-celestia` | `release/v0.46.x-celestia` |
 
 ## Audits
 
