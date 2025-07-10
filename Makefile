@@ -240,7 +240,11 @@ lint-fix: fmt
 ## test: Run tests.
 test:
 	@echo "--> Running tests"
-	@go test -timeout 30m ./...
+	@if [ -z "$(PACKAGES)" ]; then \
+		go test -timeout 30m ./...; \
+	else \
+		go test -timeout 30m $(PACKAGES); \
+	fi
 .PHONY: test
 
 ## test-short: Run tests in short mode.
