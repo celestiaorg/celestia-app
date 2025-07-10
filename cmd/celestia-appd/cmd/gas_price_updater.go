@@ -6,35 +6,22 @@ import (
 	"path/filepath"
 	"strings"
 
+	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v5/app"
 	"github.com/celestiaorg/celestia-app/v5/app/params"
 	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 const (
-	// Old default minimum gas price that needs to be updated
 	oldDefaultMinGasPrice = "0.002utia"
 )
 
 // checkAndUpdateMinGasPrices checks if the minimum gas prices in app.toml
 // are set to the old default value and updates them if necessary.
-func checkAndUpdateMinGasPrices(cmd *cobra.Command) error {
-	// Get the home directory from the command
-	homeDir, err := cmd.Flags().GetString(flags.FlagHome)
-	if err != nil {
-		return fmt.Errorf("failed to get home directory: %w", err)
-	}
-	if homeDir == "" {
-		homeDir = app.NodeHome
-	}
-
-	// Construct the path to app.toml
-	appConfigPath := filepath.Join(homeDir, "config", "app.toml")
-
-	// Check if the file exists
+func checkAndUpdateMinGasPrices(cmd *cobra.Command, logger log.Logger) error {
+	appConfigPath := filepath.Join(app.NodeHome, "config", "app.toml")
 	if _, err := os.Stat(appConfigPath); os.IsNotExist(err) {
 		// File doesn't exist, nothing to update
 		return nil
@@ -60,10 +47,10 @@ func checkAndUpdateMinGasPrices(cmd *cobra.Command) error {
 			return fmt.Errorf("failed to write updated app.toml: %w", err)
 		}
 
-		// Log the update
-		logMessage := fmt.Sprintf("Updated minimum gas prices in %s: %s -> %s",
-			appConfigPath, oldDefaultMinGasPrice, minGasPrice)
-		fmt.Println(logMessage)
+		logger.Info("Updated minimum gas prices",
+			"file", appConfigPath,
+			"old_value", oldDefaultMinGasPrice,
+			"new_value", minGasPrice)
 	}
 
 	return nil

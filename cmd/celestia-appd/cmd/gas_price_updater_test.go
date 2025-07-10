@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"cosmossdk.io/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -34,7 +35,7 @@ func TestCheckAndUpdateMinGasPrices(t *testing.T) {
 	cmd.Flags().String("home", tempDir, "home directory")
 
 	// Test the function
-	err = checkAndUpdateMinGasPrices(cmd)
+	err = checkAndUpdateMinGasPrices(cmd, log.NewNopLogger())
 	require.NoError(t, err)
 
 	// Verify the file was updated
@@ -69,7 +70,7 @@ func TestCheckAndUpdateMinGasPricesNoUpdate(t *testing.T) {
 	cmd.Flags().String("home", tempDir, "home directory")
 
 	// Test the function
-	err = checkAndUpdateMinGasPrices(cmd)
+	err = checkAndUpdateMinGasPrices(cmd, log.NewNopLogger())
 	require.NoError(t, err)
 
 	// Verify the file was not changed
@@ -92,6 +93,6 @@ func TestCheckAndUpdateMinGasPricesFileNotExists(t *testing.T) {
 	cmd.Flags().String("home", tempDir, "home directory")
 
 	// Test the function - should not error when file doesn't exist
-	err = checkAndUpdateMinGasPrices(cmd)
+	err = checkAndUpdateMinGasPrices(cmd, log.NewNopLogger())
 	require.NoError(t, err)
 }

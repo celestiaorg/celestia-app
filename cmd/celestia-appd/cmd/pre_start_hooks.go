@@ -3,10 +3,12 @@ package cmd
 import (
 	"fmt"
 
+	"cosmossdk.io/log"
+	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
 )
 
-type PreStartHook func(cmd *cobra.Command) error
+type PreStartHook func(cmd *cobra.Command, logger log.Logger) error
 
 // addPreStartHooks finds the start command and adds pre-start hooks using Cobra's PreRunE
 func addPreStartHooks(rootCmd *cobra.Command, hooks ...PreStartHook) error {
@@ -16,11 +18,13 @@ func addPreStartHooks(rootCmd *cobra.Command, hooks ...PreStartHook) error {
 		return fmt.Errorf("failed to find start command: %w", err)
 	}
 
-	// Add the pre-start hooks using Cobra's PreRunE
+	// Add the pre-start hooks
 	startCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
-		// Run all pre-start hooks explicitly
+		sctx := server.GetServerContextFromCmd(cmd)
+		logger := sctx.Logger
+
 		for _, hook := range hooks {
-			if err := hook(cmd); err != nil {
+			if err := hook(cmd, logger); err != nil {
 				return err
 			}
 		}
