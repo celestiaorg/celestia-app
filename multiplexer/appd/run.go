@@ -13,23 +13,18 @@ import (
 	"syscall"
 )
 
-const (
-	// AppdStopped is the process ID of the celestia-appd binary when it is not running.
-	AppdStopped = -1
-)
-
 // Appd represents a celestia-appd binary.
 type Appd struct {
 	// version is the version of the celestia-appd binary.
 	// Example: "v3.10.0-arabica"
 	version string
-	// pid is the process ID of the celestia-appd binary.
-	pid int
 	// path is the path to the celestia-appd binary.
 	path   string
 	stdin  io.Reader
 	stderr io.Writer
 	stdout io.Writer
+	// cmd is the started celestia-appd binary.
+	cmd *exec.Cmd
 }
 
 // New returns a new Appd instance.
@@ -53,7 +48,6 @@ func New(version string, compressedBinary []byte) (*Appd, error) {
 
 	appd := &Appd{
 		version: version,
-		pid:     AppdStopped,
 		path:    pathToBinary,
 		stdin:   os.Stdin,
 		stdout:  os.Stdout,
@@ -82,48 +76,55 @@ func (a *Appd) Start(args ...string) error {
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start %s: %w", a.path, err)
 	}
-
-	a.pid = cmd.Process.Pid
-
-	go func() {
-		// This waits whether process exits naturally or is killed by Stop()
-		if err := cmd.Wait(); err != nil {
-			log.Printf("Process finished with error: %v\n", err)
-		} else {
-			log.Printf("Process finished with no error\n")
-		}
-		a.pid = AppdStopped // Always reset PID when process ends
-	}()
-
+	a.cmd = cmd
 	return nil
 }
 
-// Stop terminates the running appd process if it exists.
+func (a *Appd) IsRunning() bool {
+	return !a.IsStopped()
+}
+
+func (a *Appd) IsStopped() bool {
+	// Never started or failed to start
+	if a.cmd == nil || a.cmd.Process == nil {
+		return true
+	}
+
+	// If ProcessState is not nil, it means Wait() was called and the process has finished
+	// (either by exiting normally or being terminated by a signal)
+	if a.cmd.ProcessState != nil {
+		return true
+	}
+
+	// ProcessState is nil, which means the process is still running
+	return false
+}
+
+// Stop interrupts and then kills the running appd process if it exists and
+// waits for it to fully exit. If the process is not running, it returns nil.
 func (a *Appd) Stop() error {
-	if a.pid == AppdStopped {
+	if a.cmd == nil {
+		return nil
+	}
+	if a.cmd.Process == nil {
 		return nil
 	}
 
-	process, err := os.FindProcess(a.pid)
+	err := a.cmd.Process.Signal(os.Interrupt)
 	if err != nil {
-		return fmt.Errorf("failed to find process with PID %d: %w", a.pid, err)
-	}
-
-	// Send SIGTERM for graceful shutdown
-	if err := process.Signal(os.Interrupt); err != nil {
 		log.Printf("Failed to send interrupt signal, attempting to kill: %v", err)
-		// if interrupt fails, try harder with Kill
-		if err := process.Kill(); err != nil {
-			return fmt.Errorf("failed to kill process with PID %d: %w", a.pid, err)
+		if err := a.cmd.Process.Kill(); err != nil {
+			return fmt.Errorf("failed to kill process with PID %d: %w", a.cmd.Process.Pid, err)
 		}
 	}
 
+	// Wait for the process to actually exit
+	if err := a.cmd.Wait(); err != nil {
+		log.Printf("Process finished with error: %v\n", err)
+	} else {
+		log.Printf("Process finished with no error\n")
+	}
 	return nil
-}
-
-// Pid returns the process ID of the appd process.
-func (a *Appd) Pid() int {
-	return a.pid
 }
 
 // CreateExecCommand creates an exec.Cmd for the appd binary.
