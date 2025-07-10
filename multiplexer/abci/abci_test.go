@@ -70,14 +70,7 @@ func getVersions(t *testing.T) Versions {
 		Appd:        mockAppd,
 		ABCIVersion: ABCIClientVersion1,
 		AppVersion:  3,
-		StartArgs: []string{
-			"--grpc.enable",
-			"--api.enable",
-			"--api.swagger=false",
-			"--with-tendermint=false",
-			"--transport=grpc",
-			"--force-no-bbr",
-		},
+		StartArgs:   []string{},
 	})
 	require.NoError(t, err)
 	return versions
