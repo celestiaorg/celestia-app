@@ -219,6 +219,11 @@ func ensureBinaryDecompressed(version string, binary []byte) error {
 			f.Close()
 			return fmt.Errorf("failed to copy file contents to %s: %w", filePath, err)
 		}
+
+		if err := f.Sync(); err != nil {
+			f.Close()
+			return fmt.Errorf("failed to sync file %s: %w", filePath, err)
+		}
 		f.Close()
 	}
 
