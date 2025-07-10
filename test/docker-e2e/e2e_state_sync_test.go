@@ -136,7 +136,12 @@ func (s *CelestiaTestSuite) TestStateSync() {
 
 	s.Require().NoError(err, "failed to add node")
 
-	stateSyncClient, err := celestia.GetNodes()[0].GetRPCClient()
+	allNodes = celestia.GetNodes()
+	fullNode := allNodes[len(allNodes)-1]
+
+	s.Require().Equal("fn", fullNode.GetType(), "expected state sync node to be a full node")
+
+	stateSyncClient, err := fullNode.GetRPCClient()
 	s.Require().NoError(err)
 
 	ticker := time.NewTicker(10 * time.Second)
@@ -145,7 +150,7 @@ func (s *CelestiaTestSuite) TestStateSync() {
 	timeoutCtx, cancel := context.WithTimeout(ctx, stateSyncTimeout)
 	defer cancel()
 
-	// check immediately first, then on ticker intervals
+	// Check immediately first, then on ticker intervals
 	for {
 		status, err := stateSyncClient.Status(timeoutCtx)
 		if err != nil {
