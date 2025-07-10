@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -11,15 +12,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v5/app/encoding"
+	"github.com/celestiaorg/celestia-app/v5/pkg/user"
+	"github.com/celestiaorg/celestia-app/v5/test/txsim"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/user"
-	"github.com/celestiaorg/celestia-app/v4/test/txsim"
 )
 
 // A set of environment variables that can be used instead of flags
@@ -45,6 +46,7 @@ var (
 	blobShareVersion                                  int
 	gasLimit                                          uint64
 	gasPrice                                          float64
+	namespaces                                        []string
 )
 
 func main() {
@@ -88,7 +90,7 @@ account that can act as the master account. The command runs until all sequences
 				keys = keyring.NewInMemory(cdc)
 				_, err = keys.NewAccount("master", os.Getenv(TxsimMnemonic), keyring.DefaultBIP39Passphrase, "", hd.Secp256k1)
 			default:
-				keys, err = keyring.New(app.Name, keyring.BackendTest, app.DefaultNodeHome, nil, cdc)
+				keys, err = keyring.New(app.Name, keyring.BackendTest, app.NodeHome, nil, cdc)
 			}
 			if err != nil {
 				return err
@@ -133,6 +135,20 @@ account that can act as the master account. The command runs until all sequences
 				}
 
 				sequence := txsim.NewBlobSequence(sizes, blobsPerPFB)
+
+				if len(namespaces) > 0 {
+					parsedNamespaces := make([]share.Namespace, len(namespaces))
+					for i, hexNS := range namespaces {
+						rawNS, err := hex.DecodeString(hexNS)
+						if err != nil {
+							return fmt.Errorf("decoding namespace %s: %w", hexNS, err)
+						}
+						ns := share.MustNewNamespace(share.NamespaceVersionZero, rawNS)
+						parsedNamespaces[i] = ns
+					}
+					sequence.WithNamespaces(parsedNamespaces)
+				}
+
 				if blobShareVersion >= 0 {
 					sequence.WithShareVersion(uint8(blobShareVersion))
 				}
@@ -230,6 +246,7 @@ func flags() *flag.FlagSet {
 	flags.IntVar(&blobShareVersion, "blob-share-version", -1, "optionally specify a share version to use for the blob sequences")
 	flags.Uint64Var(&gasLimit, "gas-limit", 0, "custom gas limit to use for transactions (0 = auto-estimate)")
 	flags.Float64Var(&gasPrice, "gas-price", 0, "custom gas price to use for transactions (0 = use default)")
+	flags.StringArrayVar(&namespaces, "namespace", []string{}, "define namespace to use for blob submission -- MUST BE PROVIDED IN HEX FORMAT. Can define multiple namespaces for submission just by passing --namespace several times. Provided namespaces will be used at random.")
 	return flags
 }
 

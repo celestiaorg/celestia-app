@@ -3,19 +3,16 @@ package app
 import (
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v5/app/ante"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/pkg/da"
+	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-
-	"github.com/celestiaorg/go-square/v2"
-	"github.com/celestiaorg/go-square/v2/share"
-
-	"github.com/celestiaorg/celestia-app/v4/app/ante"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 )
 
-// PrepareProposal fulfills the celestia-core version of the ABCI interface by
+// PrepareProposalHandler fulfills the celestia-core version of the ABCI interface by
 // preparing the proposal block data. This method generates the data root for
 // the proposal block and passes it back to tendermint via the BlockData. Panics
 // indicate a developer error and should immediately halt the node for
@@ -36,13 +33,20 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		app.GovParamFilters(),
 	)
 
-	// Filter out invalid transactions.
-	txs := FilterTxs(app.Logger(), ctx, handler, app.encodingConfig.TxConfig, req.Txs)
+	fsb, err := NewFilteredSquareBuilder(
+		handler,
+		app.encodingConfig.TxConfig,
+		app.MaxEffectiveSquareSize(ctx),
+		appconsts.SubtreeRootThreshold,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	txs := fsb.Fill(ctx, req.Txs)
 
 	// Build the square from the set of valid and prioritised transactions.
-	// The txs returned are the ones used in the square and block.
-	var dataSquare square.Square
-	dataSquare, txs, err := square.Build(txs, app.MaxEffectiveSquareSize(ctx), appconsts.SubtreeRootThreshold)
+	dataSquare, err := fsb.Build()
 	if err != nil {
 		panic(err)
 	}

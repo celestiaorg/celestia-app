@@ -6,6 +6,9 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
+	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/test/util/genesis"
 	tmconfig "github.com/cometbft/cometbft/config"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/types"
@@ -15,10 +18,6 @@ import (
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
 )
 
 const (
@@ -143,7 +142,7 @@ func DefaultConfig() *Config {
 func DefaultConsensusParams() *tmproto.ConsensusParams {
 	cparams := types.DefaultConsensusParams()
 	cparams.Block.MaxBytes = 8 * mebibyte
-	cparams.Version.App = appconsts.LatestVersion
+	cparams.Version.App = appconsts.Version
 	params := cparams.ToProto()
 	return &params
 }
@@ -155,8 +154,8 @@ func DefaultTendermintConfig() *tmconfig.Config {
 	tmCfg.Consensus.TimeoutCommit = 1 * time.Millisecond
 
 	// Set all the ports to random open ones.
-	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
-	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
+	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
+	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
 
 	return tmCfg
 }
@@ -203,8 +202,8 @@ func CustomAppCreator(appOptions ...func(*baseapp.BaseApp)) srvtypes.AppCreator 
 // DefaultAppConfig wraps the default config described in the server
 func DefaultAppConfig() *srvconfig.Config {
 	appCfg := srvconfig.DefaultConfig()
-	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", mustGetFreePort())
-	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
+	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", GetDeterministicPort())
+	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
 	appCfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, appconsts.BondDenom)
 	return appCfg
 }

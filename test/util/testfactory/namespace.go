@@ -4,9 +4,8 @@ import (
 	"math/rand"
 	"slices"
 
+	"github.com/celestiaorg/celestia-app/v5/test/util/random"
 	"github.com/celestiaorg/go-square/v2/share"
-
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 )
 
 // RandomBlobNamespaceIDWithPRG returns a random blob namespace ID using the supplied Pseudo-Random number Generator (PRG).

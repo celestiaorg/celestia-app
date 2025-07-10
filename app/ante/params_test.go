@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v5/app/ante"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-app/v4/app/ante"
 )
 
 func TestGovProposalDecorator_AnteHandle(t *testing.T) {

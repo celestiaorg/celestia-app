@@ -1,6 +1,7 @@
 package util
 
 import (
+	"github.com/celestiaorg/celestia-app/v5/x/blob"
 	"github.com/cosmos/cosmos-sdk/codec"
 	ccodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -11,8 +12,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/distribution"
 	"github.com/cosmos/cosmos-sdk/x/params"
 	"github.com/cosmos/cosmos-sdk/x/staking"
-
-	"github.com/celestiaorg/celestia-app/v4/x/blob"
 )
 
 var (

@@ -5,17 +5,15 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/pkg/da"
+	"github.com/celestiaorg/celestia-app/v5/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v5/test/util/random"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/da"
-	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWalkCachedSubTreeRoot(t *testing.T) {

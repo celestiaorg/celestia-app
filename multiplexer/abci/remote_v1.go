@@ -20,18 +20,21 @@ type RemoteABCIClientV1 struct {
 	// commitRetainLastHeight is the height that is set in finalize block
 	// and returned in commit
 	commitRetainLastHeight int64
-	// endBlockConsensusVersion is the app version got from the end block abci call
+	// endBlockConsensusAppVersion is the app version got from the end block abci call
 	endBlockConsensusAppVersion uint64
 	// chainID is required to pass into the headers.
 	chainID string
+	// initialAppVersion is the app version that was parsed from the genesis file or state
+	initialAppVersion uint64
 }
 
 // NewRemoteABCIClientV1 returns a new ABCI Client (using ABCI v1).
 // The client behaves like Tendermint for the server side (the application side).
-func NewRemoteABCIClientV1(conn *grpc.ClientConn, chainID string) *RemoteABCIClientV1 {
+func NewRemoteABCIClientV1(conn *grpc.ClientConn, chainID string, initialAppVersion uint64) *RemoteABCIClientV1 {
 	return &RemoteABCIClientV1{
 		ABCIApplicationClient: abciv1.NewABCIApplicationClient(conn),
 		chainID:               chainID,
+		initialAppVersion:     initialAppVersion,
 	}
 }
 
@@ -204,6 +207,7 @@ func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*a
 		ValidatorUpdates:      validatorUpdatesV1ToV2(endBlockResp.ValidatorUpdates),
 		ConsensusParamUpdates: consensusParamsV1ToV2(endBlockResp.ConsensusParamUpdates),
 		AppHash:               commitResp.Data,
+		TimeoutInfo:           timeoutInfoV1ToV2(endBlockResp.Timeouts),
 	}, nil
 }
 
@@ -224,11 +228,21 @@ func (a *RemoteABCIClientV1) Info(req *abciv2.RequestInfo) (*abciv2.ResponseInfo
 		AppVersion:       resp.AppVersion,
 		LastBlockHeight:  resp.LastBlockHeight,
 		LastBlockAppHash: resp.LastBlockAppHash,
+		TimeoutInfo:      timeoutInfoV1ToV2(resp.Timeouts),
 	}, nil
 }
 
 // InitChain implements abciv2.ABCI
 func (a *RemoteABCIClientV1) InitChain(req *abciv2.RequestInitChain) (*abciv2.ResponseInitChain, error) {
+	// The types in CometBFT v0.34 and v0.38 are different:
+	// v0.34: genDoc.ConsensusParams.Version.AppVersion
+	// v0.38: genDoc.ConsensusParams.Version.App
+	//
+	// As a result, CometBFT v0.38 did not read the app version from the genesis file correctly so it is expected to be 0 in req.
+	// The multiplexer parsed the app version from the genesis file correctly and stored it in the initialAppVersion field.
+	// Therefore, this overrides the app version in req with the multiplexer's initial app version.
+	req.ConsensusParams.Version.App = a.initialAppVersion
+
 	resp, err := a.ABCIApplicationClient.InitChain(context.Background(), &abciv1.RequestInitChain{
 		Time:            req.Time,
 		ChainId:         req.ChainId,
@@ -245,6 +259,7 @@ func (a *RemoteABCIClientV1) InitChain(req *abciv2.RequestInitChain) (*abciv2.Re
 		ConsensusParams: consensusParamsV1ToV2(resp.ConsensusParams),
 		Validators:      validatorUpdatesV1ToV2(resp.Validators),
 		AppHash:         resp.AppHash,
+		TimeoutInfo:     timeoutInfoV1ToV2(resp.Timeouts),
 	}, nil
 }
 
@@ -463,8 +478,8 @@ func abciEventV1ToV2(events ...abciv1.Event) []abciv2.Event {
 		attributes := make([]abciv2.EventAttribute, 0, len(event.Attributes))
 		for _, attr := range event.Attributes {
 			attributes = append(attributes, abciv2.EventAttribute{
-				Key:   string(attr.Key),
-				Value: string(attr.Value),
+				Key:   attr.Key,
+				Value: attr.Value,
 			})
 		}
 
@@ -536,6 +551,10 @@ func validatorUpdatesV2ToV1(validators []abciv2.ValidatorUpdate) []abciv1.Valida
 }
 
 func consensusParamsV1ToV2(params *abciv1.ConsensusParams) *typesv2.ConsensusParams {
+	if params == nil {
+		return nil
+	}
+
 	consensusParamsV2 := &typesv2.ConsensusParams{}
 	if blockParams := params.GetBlock(); blockParams != nil {
 		consensusParamsV2.Block = &typesv2.BlockParams{
@@ -631,4 +650,11 @@ func evidenceV2ToV1(evidence []abciv2.Misbehavior) []abciv1.Evidence {
 	}
 
 	return v1Evidence
+}
+
+func timeoutInfoV1ToV2(info abciv1.TimeoutsInfo) abciv2.TimeoutInfo {
+	return abciv2.TimeoutInfo{
+		TimeoutPropose: info.TimeoutPropose,
+		TimeoutCommit:  info.TimeoutCommit,
+	}
 }

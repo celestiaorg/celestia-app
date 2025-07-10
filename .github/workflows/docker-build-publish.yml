@@ -17,13 +17,13 @@ on:
         type: string
 
 jobs:
-  docker-security-build:
+  docker-standalone-build:
     permissions:
       contents: write
       packages: write
     uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@98f519843a1bade938e5604202df600aa0717aa8 #v0.6.3
     with:
-      dockerfile: docker/Dockerfile
+      dockerfile: docker/standalone.Dockerfile
       checkout_ref: ${{ github.event.inputs.ref }}
       packageName: celestia-app-standalone
     secrets: inherit
@@ -37,7 +37,6 @@ jobs:
       dockerfile: docker/multiplexer.Dockerfile
       checkout_ref: ${{ github.event.inputs.ref }}
       packageName: celestia-app
-      buildArgs: "TARGETOS=linux TARGETARCH=amd64"
     secrets: inherit
 
   docker-txsim-build:

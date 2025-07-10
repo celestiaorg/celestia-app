@@ -8,6 +8,9 @@ import (
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math/unsafe"
+	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v5/app/encoding"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
@@ -15,10 +18,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 // Genesis manages the creation of the genesis state of a network. It is meant
@@ -72,7 +71,7 @@ func (g *Genesis) Validators() []Validator {
 func NewDefaultGenesis() *Genesis {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	g := &Genesis{
-		appVersion:      appconsts.LatestVersion,
+		appVersion:      appconsts.Version,
 		ecfg:            enc,
 		ConsensusParams: app.DefaultConsensusParams(),
 		ChainID:         unsafe.Str(6),
@@ -226,7 +225,7 @@ func (g *Genesis) getGenTxs() ([]json.RawMessage, error) {
 
 // Export returns the genesis document of the network.
 func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
-	if g.appVersion != appconsts.LatestVersion {
+	if g.appVersion != appconsts.Version {
 		return nil, fmt.Errorf("cannot export non latest genesis: use ExportBytes() instead")
 	}
 
@@ -244,6 +243,7 @@ func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 		gentxs,
 		g.accounts,
 		g.GenesisTime,
+		g.genOps...,
 	)
 }
 
@@ -266,7 +266,7 @@ func (g *Genesis) ExportBytes() ([]byte, error) {
 			g.accounts,
 			g.GenesisTime,
 		)
-	case 4:
+	case 4, 5:
 		tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, simtestutil.EmptyAppOptions{})
 		return DocumentBytes(
 			tempApp.DefaultGenesis(),

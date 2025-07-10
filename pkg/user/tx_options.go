@@ -4,10 +4,9 @@ import (
 	"math"
 
 	sdkmath "cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 type TxOption func(builder sdkclient.TxBuilder) sdkclient.TxBuilder

@@ -4,10 +4,9 @@ import (
 	"io"
 
 	"cosmossdk.io/log"
+	"github.com/celestiaorg/celestia-app/v5/app"
 	dbm "github.com/cosmos/cosmos-db"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
 )
 
 func appExporter(

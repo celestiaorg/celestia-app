@@ -1,11 +1,10 @@
 package ante
 
 import (
+	blobtypes "github.com/celestiaorg/celestia-app/v5/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/authz"
-
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 var _ sdk.AnteDecorator = MsgExecDecorator{}

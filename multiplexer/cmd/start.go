@@ -5,22 +5,17 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/celestiaorg/celestia-app/v5/multiplexer/abci"
+	"github.com/celestiaorg/celestia-app/v5/multiplexer/internal"
 	dbm "github.com/cometbft/cometbft-db"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
-	cmtstate "github.com/cometbft/cometbft/proto/tendermint/state"
-	cmtversion "github.com/cometbft/cometbft/proto/tendermint/version"
-	"github.com/cometbft/cometbft/state"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/server"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/cosmos/cosmos-sdk/server/types"
 	tmnode "github.com/tendermint/tendermint/node"
-	tmstate "github.com/tendermint/tendermint/state"
 	tmtypes "github.com/tendermint/tendermint/types"
-
-	"github.com/celestiaorg/celestia-app/v4/multiplexer/abci"
-	"github.com/celestiaorg/celestia-app/v4/multiplexer/internal"
 )
 
 func start(versions abci.Versions, svrCtx *server.Context, clientCtx client.Context, appCreator types.AppCreator) error {
@@ -29,28 +24,26 @@ func start(versions abci.Versions, svrCtx *server.Context, clientCtx client.Cont
 		return err
 	}
 
-	state, err := getState(svrCtx.Config)
+	chainID, appVersion, err := getState(svrCtx.Config)
 	if err != nil {
 		return fmt.Errorf("failed to get current app state: %w", err)
 	}
 
-	appVersion := state.Version.Consensus.App
+	svrCtx.Logger.Info("initializing multiplexer", "app_version", appVersion, "chain_id", chainID)
 
-	svrCtx.Logger.Info("initializing multiplexer", "app_version", appVersion, "chain_id", state.ChainID)
-
-	mp, err := abci.NewMultiplexer(svrCtx, svrCfg, clientCtx, appCreator, versions, state.ChainID, appVersion)
+	multiplexer, err := abci.NewMultiplexer(svrCtx, svrCfg, clientCtx, appCreator, versions, chainID, appVersion)
 	if err != nil {
 		return err
 	}
 
 	defer func() {
-		if err := mp.Cleanup(); err != nil {
-			svrCtx.Logger.Error("failed to cleanup multiplexer", "err", err)
+		if err := multiplexer.Stop(); err != nil {
+			svrCtx.Logger.Error("failed to stop multiplexer", "err", err)
 		}
 	}()
 
 	// Start will either start the latest app natively, or an embedded app if one is specified.
-	if err := mp.Start(); err != nil {
+	if err := multiplexer.Start(); err != nil {
 		return fmt.Errorf("failed to start multiplexer: %w", err)
 	}
 
@@ -58,10 +51,10 @@ func start(versions abci.Versions, svrCtx *server.Context, clientCtx client.Cont
 }
 
 // getState opens the db and fetches the existing state.
-func getState(cfg *cmtcfg.Config) (state.State, error) {
+func getState(cfg *cmtcfg.Config) (chainId string, appVersion uint64, err error) {
 	db, err := openDBM(cfg)
 	if err != nil {
-		return state.State{}, err
+		return "", 0, err
 	}
 	defer db.Close()
 
@@ -70,45 +63,38 @@ func getState(cfg *cmtcfg.Config) (state.State, error) {
 		// fallback to latest version if the genesis version doesn't exist
 		if errors.Is(err, internal.ErrGenesisNotFound) {
 			s, _, err := node.LoadStateFromDBOrGenesisDocProvider(db, internal.GetGenDocProvider(cfg))
-			return s, err
+			return s.ChainID, s.Version.Consensus.App, err
 		}
 
-		return state.State{}, err
+		return "", 0, err
 	}
-
-	var s state.State
 
 	switch genVer {
 	case internal.GenesisVersion1:
-		var s1 tmstate.State
-		s1, _, err = tmnode.LoadStateFromDBOrGenesisDocProvider(
+		s, _, err := tmnode.LoadStateFromDBOrGenesisDocProvider(
 			db,
 			func() (*tmtypes.GenesisDoc, error) {
 				return tmtypes.GenesisDocFromFile(cfg.GenesisFile())
 			},
 		)
 		if err != nil {
-			return state.State{}, err
+			return "", 0, err
 		}
 
-		// we only fill the app version and the chain id
-		// the rest of the state is not needed by the multiplexer
-		s = state.State{
-			ChainID: s1.ChainID,
-			Version: cmtstate.Version{
-				Consensus: cmtversion.Consensus{
-					App: s1.Version.Consensus.App,
-				},
-			},
-		}
+		appVersion = s.Version.Consensus.App
+		chainId = s.ChainID
+
 	case internal.GenesisVersion2:
-		s, _, err = node.LoadStateFromDBOrGenesisDocProvider(db, internal.GetGenDocProvider(cfg))
+		s, _, err := node.LoadStateFromDBOrGenesisDocProvider(db, internal.GetGenDocProvider(cfg))
 		if err != nil {
-			return state.State{}, err
+			return "", 0, err
 		}
+
+		appVersion = s.Version.Consensus.App
+		chainId = s.ChainID
 	}
 
-	return s, nil
+	return chainId, appVersion, nil
 }
 
 func getAndValidateConfig(svrCtx *server.Context) (serverconfig.Config, error) {

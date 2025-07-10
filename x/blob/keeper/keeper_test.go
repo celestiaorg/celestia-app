@@ -9,6 +9,11 @@ import (
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	testutil "github.com/celestiaorg/celestia-app/v5/test/util"
+	"github.com/celestiaorg/celestia-app/v5/x/blob/keeper"
+	"github.com/celestiaorg/celestia-app/v5/x/blob/types"
+	"github.com/celestiaorg/go-square/v2/share"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	tmdb "github.com/cosmos/cosmos-db"
@@ -21,18 +26,11 @@ import (
 	"github.com/cosmos/gogoproto/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/go-square/v2/share"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
-	"github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
-	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 // TestPayForBlobs verifies the attributes on the emitted event.
 func TestPayForBlobs(t *testing.T) {
-	k, _, ctx := CreateKeeper(t, appconsts.LatestVersion)
+	k, _, ctx := CreateKeeper(t, appconsts.Version)
 	signer := "celestia15drmhzw5kwgenvemy30rqqqgq52axf5wwrruf7"
 	namespace := share.MustNewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
 	namespaces := [][]byte{namespace.Bytes()}
@@ -72,7 +70,7 @@ func convertToEventPayForBlobs(message proto.Message) (*types.EventPayForBlobs, 
 func createMsgPayForBlob(t *testing.T, signer string, namespace share.Namespace, blobData []byte) *types.MsgPayForBlobs {
 	blob, err := share.NewBlob(namespace, blobData, share.ShareVersionZero, nil)
 	require.NoError(t, err)
-	msg, err := types.NewMsgPayForBlobs(signer, appconsts.LatestVersion, blob)
+	msg, err := types.NewMsgPayForBlobs(signer, appconsts.Version, blob)
 	require.NoError(t, err)
 	return msg
 }

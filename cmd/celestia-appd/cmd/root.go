@@ -6,6 +6,7 @@ import (
 
 	"cosmossdk.io/log"
 	confixcmd "cosmossdk.io/tools/confix/cmd"
+	"github.com/celestiaorg/celestia-app/v5/app"
 	"github.com/cometbft/cometbft/cmd/cometbft/commands"
 	tmcli "github.com/cometbft/cometbft/libs/cli"
 	dbm "github.com/cosmos/cosmos-db"
@@ -22,8 +23,6 @@ import (
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	kitlog "github.com/go-kit/log"
 	"github.com/spf13/cobra"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
 )
 
 const (
@@ -42,7 +41,8 @@ const (
 func NewRootCmd() *cobra.Command {
 	// we "pre"-instantiate the application for getting the injected/configured encoding configuration
 	// note, this is not necessary when using app wiring, as depinject can be directly used.
-	tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, simtestutil.EmptyAppOptions{})
+	opts := simtestutil.NewAppOptionsWithFlagHome(app.NodeHome)
+	tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, opts)
 	encodingConfig := tempApp.GetEncodingConfig()
 
 	initClientContext := client.Context{}.
@@ -53,7 +53,7 @@ func NewRootCmd() *cobra.Command {
 		WithInput(os.Stdin).
 		WithAccountRetriever(types.AccountRetriever{}).
 		WithBroadcastMode(flags.BroadcastSync).
-		WithHomeDir(app.DefaultNodeHome).
+		WithHomeDir(app.NodeHome).
 		WithViper(app.EnvPrefix)
 
 	rootCommand := &cobra.Command{
@@ -84,15 +84,7 @@ func NewRootCmd() *cobra.Command {
 				return err
 			}
 
-			if command.Flags().Changed(FlagLogToFile) {
-				// optionally log to file by replacing the default logger with a file logger
-				err = replaceLogger(command)
-				if err != nil {
-					return err
-				}
-			}
-
-			return nil
+			return replaceLogger(command)
 		},
 		SilenceUsage: true,
 	}
@@ -120,7 +112,7 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 
 	rootCommand.AddCommand(
 		InitCmd(capp),
-		genutilcli.Commands(capp.GetTxConfig(), capp.BasicManager, app.DefaultNodeHome),
+		genutilcli.Commands(capp.GetTxConfig(), capp.BasicManager, app.NodeHome),
 		tmcli.NewCompletionCmd(rootCommand, true),
 		debugCmd,
 		confixcmd.ConfigCommand(),
@@ -183,6 +175,9 @@ func replaceLogger(cmd *cobra.Command) error {
 	}
 
 	sctx := server.GetServerContextFromCmd(cmd)
-	sctx.Logger = log.NewLogger(kitlog.NewSyncWriter(file))
+	sctx.Logger, err = server.CreateSDKLogger(sctx, kitlog.NewSyncWriter(file))
+	if err != nil {
+		return fmt.Errorf("failed to create logger: %w", err)
+	}
 	return server.SetCmdServerContext(cmd, sctx)
 }

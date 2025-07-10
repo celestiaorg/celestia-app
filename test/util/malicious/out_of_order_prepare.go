@@ -1,16 +1,14 @@
 package malicious
 
 import (
+	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v5/app/ante"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/pkg/da"
+	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	core "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proto/tendermint/version"
-
-	"github.com/celestiaorg/go-square/v2/share"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/ante"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 )
 
 // OutOfOrderPrepareProposal fulfills the celestia-core version of the ABCI
@@ -26,7 +24,7 @@ func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci
 		Height:  req.Height,
 		Time:    req.Time,
 		Version: version.Consensus{
-			App: appconsts.LatestVersion,
+			App: appconsts.Version,
 		},
 	})
 	// filter out invalid transactions.
@@ -46,11 +44,21 @@ func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci
 		a.GovParamFilters(),
 	)
 
-	txs := app.FilterTxs(a.Logger(), sdkCtx, handler, a.GetTxConfig(), req.Txs)
+	fsb, err := app.NewFilteredSquareBuilder(
+		handler,
+		a.GetEncodingConfig().TxConfig,
+		a.MaxEffectiveSquareSize(sdkCtx),
+		appconsts.SubtreeRootThreshold,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	txs := fsb.Fill(sdkCtx, req.Txs)
 
 	// build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block
-	dataSquare, txs, err := Build(txs, appconsts.LatestVersion, a.MaxEffectiveSquareSize(sdkCtx), OutOfOrderExport)
+	dataSquare, err := OutOfOrderExport(fsb.Builder())
 	if err != nil {
 		panic(err)
 	}

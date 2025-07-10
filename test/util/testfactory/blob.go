@@ -5,10 +5,9 @@ import (
 	"encoding/binary"
 	"math/rand"
 
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/test/util/random"
 	"github.com/celestiaorg/go-square/v2/share"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 )
 
 func GenerateRandomlySizedBlobs(count, maxBlobSize int) []*share.Blob {

@@ -6,19 +6,17 @@ import (
 	"testing"
 
 	sdkerrors "cosmossdk.io/errors"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/test/util/random"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v5/x/blob/types"
+	"github.com/celestiaorg/go-square/v2/inclusion"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/go-square/v2/inclusion"
-	"github.com/celestiaorg/go-square/v2/share"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 func TestMsgTypeURLParity(t *testing.T) {
@@ -179,7 +177,7 @@ func validMsgPayForBlobs(t *testing.T) *types.MsgPayForBlobs {
 	require.NoError(t, err)
 
 	addr := signer.Account(testfactory.TestAccName).Address()
-	pfb, err := types.NewMsgPayForBlobs(addr.String(), appconsts.LatestVersion, blob)
+	pfb, err := types.NewMsgPayForBlobs(addr.String(), appconsts.Version, blob)
 	assert.NoError(t, err)
 
 	return pfb
@@ -243,7 +241,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			msgPFB, err := types.NewMsgPayForBlobs(tc.signer, appconsts.LatestVersion, tc.blobs...)
+			msgPFB, err := types.NewMsgPayForBlobs(tc.signer, appconsts.Version, tc.blobs...)
 			if tc.expectedErr {
 				assert.Error(t, err)
 				return

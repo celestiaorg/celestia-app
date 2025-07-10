@@ -6,16 +6,14 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testfactory"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	nmtnamespace "github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPushErasuredNamespacedMerkleTree(t *testing.T) {

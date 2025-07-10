@@ -5,6 +5,17 @@ import (
 	"context"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v5/app/encoding"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/pkg/user"
+	"github.com/celestiaorg/celestia-app/v5/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v5/test/util/random"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v5/x/blob/types"
+	square "github.com/celestiaorg/go-square/v2"
+	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	coretypes "github.com/cometbft/cometbft/types"
@@ -12,19 +23,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
-	square "github.com/celestiaorg/go-square/v2"
-	"github.com/celestiaorg/go-square/v2/share"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/user"
-	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 func TestIntegrationTestSuite(t *testing.T) {
@@ -162,7 +160,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				require.LessOrEqual(t, size, uint64(appconsts.DefaultGovMaxSquareSize))
 				require.GreaterOrEqual(t, size, uint64(appconsts.MinSquareSize))
 
-				require.EqualValues(t, appconsts.LatestVersion, blockRes.Block.Version.App)
+				require.EqualValues(t, appconsts.Version, blockRes.Block.Version.App)
 
 				sizes = append(sizes, size)
 			}
@@ -230,7 +228,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		blockRes, err := node.Block(context.Background(), &txResp.Height)
 		require.NoError(t, err)
 
-		require.EqualValues(t, appconsts.LatestVersion, blockRes.Block.Version.App)
+		require.EqualValues(t, appconsts.Version, blockRes.Block.Version.App)
 
 		_, isBlobTx := coretypes.UnmarshalBlobTx(blockRes.Block.Txs[txResp.Index])
 		require.True(t, isBlobTx)

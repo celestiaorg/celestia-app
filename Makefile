@@ -8,9 +8,7 @@ HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v4
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
-GOLANG_CROSS_VERSION  ?= v1.23.6
-# Set this to override the max square size of the binary
-OVERRIDE_MAX_SQUARE_SIZE ?=
+GOLANG_CROSS_VERSION  ?= v1.24.2
 # Set this to override v2 upgrade height for the v3 embedded binaries
 V2_UPGRADE_HEIGHT ?= 0
 
@@ -19,12 +17,18 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 		  -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd \
 		  -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
 		  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
-		  -X github.com/celestiaorg/celestia-app/v4/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT)
+		  -X github.com/celestiaorg/celestia-app/v5/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT)
 
 BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
 
-CELESTIA_V3_VERSION := v3.10.0-rc2
+# NOTE: This version must be updated at the same time as the version in:
+# internal/embedding/data.go
+# .goreleaser.yaml
+# docker/multiplexer.Dockerfile
+CELESTIA_V3_VERSION := v3.10.3
+# TODO: update to a mainnet release
+CELESTIA_V4_VERSION := v4.0.7-mocha
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -45,6 +49,7 @@ DOWNLOAD ?= true
 build: mod
 ifeq ($(DOWNLOAD),true)
 	@$(MAKE) download-v3-binaries
+	@$(MAKE) download-v4-binaries
 endif
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd with multiplexer enabled"
@@ -63,7 +68,7 @@ endef
 
 ## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
 # TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
-install: check-bbr download-v3-binaries
+install: check-bbr download-v3-binaries download-v4-binaries
 	@echo "--> Installing celestia-appd with multiplexer support"
 	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
 .PHONY: install
@@ -80,8 +85,23 @@ download-v3-binaries:
 		linux-amd64) url=celestia-app_Linux_x86_64.tar.gz; out=celestia-app_linux_v3_amd64.tar.gz ;; \
 		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
 	esac; \
-	bash scripts/download_v3_binary.sh "$$url" "$$out" "$(CELESTIA_V3_VERSION)"
+	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V3_VERSION)"
 .PHONY: download-v3-binaries
+
+## download-v4-binaries: Download the celestia-app v4 binary for the current platform.
+download-v4-binaries:
+	@echo "--> Downloading celestia-app $(CELESTIA_V4_VERSION) binary"
+	@mkdir -p internal/embedding
+	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
+	case "$$os-$$arch" in \
+		darwin-arm64) url=celestia-app_Darwin_arm64.tar.gz; out=celestia-app_darwin_v4_arm64.tar.gz ;; \
+		linux-arm64) url=celestia-app_Linux_arm64.tar.gz; out=celestia-app_linux_v4_arm64.tar.gz ;; \
+		darwin-amd64) url=celestia-app_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v4_amd64.tar.gz ;; \
+		linux-amd64) url=celestia-app_Linux_x86_64.tar.gz; out=celestia-app_linux_v4_amd64.tar.gz ;; \
+		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
+	esac; \
+	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V4_VERSION)"
+.PHONY: download-v4-binaries
 
 ## mod: Update all go.mod files.
 mod:
@@ -89,6 +109,8 @@ mod:
 	@go mod tidy
 	@echo "--> Updating go.mod in ./test/interchain"
 	@(cd ./test/interchain && go mod tidy)
+	@echo "--> Updating go.mod in ./test/docker-e2e"
+	@(cd ./test/docker-e2e && go mod tidy)
 .PHONY: mod
 
 ## mod-verify: Verify dependencies have expected content.
@@ -189,8 +211,7 @@ lint:
 	@echo "--> Running markdownlint"
 	@markdownlint --config .markdownlint.yaml '**/*.md'
 	@echo "--> Running hadolint"
-	@hadolint docker/Dockerfile
-	@hadolint docker/txsim/Dockerfile
+	@hadolint docker/multiplexer.Dockerfile docker/standalone.Dockerfile docker/txsim/Dockerfile
 	@echo "--> Running yamllint"
 	@yamllint --no-warnings . -c .yamllint.yml
 .PHONY: lint
@@ -220,7 +241,11 @@ lint-fix: fmt
 ## test: Run tests.
 test:
 	@echo "--> Running tests"
-	@go test -timeout 30m ./...
+	@if [ -z "$(PACKAGES)" ]; then \
+		go test -timeout 30m ./...; \
+	else \
+		go test -timeout 30m $(PACKAGES); \
+	fi
 .PHONY: test
 
 ## test-short: Run tests in short mode.
@@ -229,16 +254,20 @@ test-short:
 	@go test ./... -short -timeout 1m
 .PHONY: test-short
 
-## test-e2e: Run end to end tests via knuu. This command requires a kube/config file to configure kubernetes.
-test-e2e:
-	@echo "--> Running end to end tests"
-	IMAGE_TAG=$(tag) TEST=$(test) DOCKER_REGISTRY=$(registry) go run ./test/e2e $(filter-out $@,$(MAKECMDGOALS))
-.PHONY: test-e2e
+## test-docker-e2e: Run end to end tests via docker.
+test-docker-e2e:
+	@if [ -z "$(test)" ]; then \
+		echo "ERROR: 'test' variable is required. Usage: make test-docker-e2e test=TestE2ESimple"; \
+		exit 1; \
+	fi
+	@echo "--> Running: TestCelestiaTestSuite/$(test)"
+	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/$(test)$$ ./...
+.PHONY: test-docker-e2e
 
 ## test-multiplexer: Run unit tests for the multiplexer package.
-test-multiplexer:
+test-multiplexer: download-v3-binaries download-v4-binaries
 	@echo "--> Running multiplexer tests"
-	make test -C ./multiplexer
+	@go test -tags multiplexer ./multiplexer/...
 .PHONY: test-multiplexer
 
 ## test-race: Run tests in race mode.
@@ -246,7 +275,7 @@ test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService|TestTxsOverMaxTxSizeGetRejected|TestStart_Success"
+	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService|TestTxsOverMaxTxSizeGetRejected|TestStart_Success|TestReadBlockchainHeaders|TestPrepareProposalCappingNumberOfMessages"
 .PHONY: test-race
 
 ## test-bench: Run benchmark unit tests.
@@ -285,6 +314,24 @@ txsim-build:
 txsim-build-docker:
 	docker build -t ghcr.io/celestiaorg/txsim -f docker/txsim/Dockerfile  .
 .PHONY: txsim-build-docker
+
+## build-talis-bins: Build celestia-appd and txsim binaries for talis VMs (ubuntu 22.04 LTS)
+build-talis-bins:
+	docker build \
+	  --file tools/talis/docker/Dockerfile \
+	  --target builder \
+	  --platform linux/amd64 \
+	  --build-arg LDFLAGS="$(ldflags)" \
+	  --build-arg GOOS=linux \
+	  --build-arg GOARCH=amd64 \
+	  --tag talis-builder:latest \
+	  .
+	mkdir -p build
+	docker create --platform linux/amd64 --name tmp talis-builder:latest
+	docker cp tmp:/out/. build/
+	docker rm tmp
+.PHONY: build-talis-bins
+
 
 ## adr-gen: Download the ADR template from the celestiaorg/.github repo.
 adr-gen:
@@ -325,8 +372,24 @@ prebuilt-binary:
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
 		-w /go/src/$(PACKAGE_NAME) \
 		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
-		release --clean
+		release --clean --parallelism 2
 .PHONY: prebuilt-binary
+
+## goreleaser-dry-run: ensures that the go releaser tool can build all the artefacts correctly.
+goreleaser-dry-run:
+# Specifies parallelism as 4 so should be run locally. On the regular github runners 2 should be the max.
+	@echo "Running GoReleaser in dry-run mode..."
+	docker run \
+		--rm \
+		--env CGO_ENABLED=1 \
+		--env GORELEASER_CURRENT_TAG=${GORELEASER_CURRENT_TAG} \
+		--env-file .release-env \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		-v `pwd`:/go/src/$(PACKAGE_NAME) \
+		-w /go/src/$(PACKAGE_NAME) \
+		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
+		release --snapshot --clean --parallelism 4
+.PHONY: go-releaser-dry-run
 
 ## goreleaser: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
 goreleaser: prebuilt-binary

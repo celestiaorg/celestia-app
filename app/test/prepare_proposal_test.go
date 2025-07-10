@@ -6,7 +6,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v5/app/encoding"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v5/test/util"
+	"github.com/celestiaorg/celestia-app/v5/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v5/test/util/random"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v5/x/blob/types"
+	"github.com/celestiaorg/go-square/v2/share"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cometbft/cometbft/proto/tendermint/version"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -14,21 +28,76 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/go-square/v2/share"
-	blobtx "github.com/celestiaorg/go-square/v2/tx"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
-	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
+
+func TestPrepareProposalValidConstruction(t *testing.T) {
+	// Reproduces https://github.com/celestiaorg/celestia-app/issues/4961
+	t.Run("prepare proposal creates a proposal that process proposal accepts", func(t *testing.T) {
+		encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+		accounts := testfactory.GenerateAccounts(1)
+		testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, accounts...)
+		height := testApp.LastBlockHeight() + 1
+
+		txs := createBlobTxs(t, testApp, encConf, kr, accounts)
+		require.Equal(t, 9, len(txs))
+
+		prepareResponse, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+			Txs:    txs,
+			Height: height,
+			Time:   time.Now(),
+		})
+		require.NoError(t, err)
+		// The filtered builder in prepare proposal should have dropped the last two txs.
+		// The filtered builder should have dropped the second to last tx because it was too large to fit in the square.
+		// The filtered builder should have dropped the last tx because the nonce for it was invalidated by dropping the second to last tx.
+		require.Equal(t, 7, len(prepareResponse.Txs))
+
+		processResponse, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+			Header: &cmtproto.Header{
+				Version: version.Consensus{
+					Block: 1,
+					App:   3,
+				},
+				ChainID:  testutil.ChainID,
+				Height:   height,
+				Time:     time.Now(),
+				DataHash: prepareResponse.DataRootHash,
+			},
+			Height:       height,
+			Txs:          prepareResponse.Txs,
+			SquareSize:   prepareResponse.SquareSize,
+			DataRootHash: prepareResponse.DataRootHash,
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, processResponse)
+		require.Equal(t, abci.ResponseProcessProposal_ACCEPT, processResponse.Status)
+	})
+}
+
+// createBlobTxs returns 9 blob transactions. The first 8 are 1 MiB each and the last one is 100 bytes.
+func createBlobTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyring keyring.Keyring, accounts []string) (txs [][]byte) {
+	accountName := accounts[0]
+	address := testfactory.GetAddress(keyring, accountName)
+	account := testutil.DirectQueryAccount(testApp, address)
+	sequence := account.GetSequence()
+	accountNumber := account.GetAccountNumber()
+
+	blobSize := 1 * mebibyte
+	blobCount := 1
+
+	for i := 0; i < 8; i++ {
+		tx := testutil.BlobTxWithManualSequence(t, encConf.TxConfig, keyring, blobSize, blobCount, testutil.ChainID, accountName, sequence, accountNumber)
+		txs = append(txs, tx)
+		sequence++
+	}
+
+	blobSize = 100 // bytes
+	tx := testutil.BlobTxWithManualSequence(t, encConf.TxConfig, keyring, blobSize, blobCount, testutil.ChainID, accountName, sequence, accountNumber)
+	txs = append(txs, tx)
+
+	return txs
+}
 
 func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	numBlobTxs, numNormalTxs := 3, 3
@@ -296,7 +365,7 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 		for j := 0; j < numberOfMsgsPerTx; j++ {
 			blob, err := share.NewBlob(share.RandomNamespace(), randomBytes, 1, accs[accountIndex].GetAddress().Bytes())
 			require.NoError(t, err)
-			msg, err := blobtypes.NewMsgPayForBlobs(addrs[accountIndex].String(), appconsts.LatestVersion, blob)
+			msg, err := blobtypes.NewMsgPayForBlobs(addrs[accountIndex].String(), appconsts.Version, blob)
 			require.NoError(t, err)
 			msgs = append(msgs, msg)
 			blobs = append(blobs, blob)

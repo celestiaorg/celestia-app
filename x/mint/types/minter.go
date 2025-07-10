@@ -5,9 +5,8 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 // NewMinter returns a new Minter object.

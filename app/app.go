@@ -28,13 +28,31 @@ import (
 	"github.com/bcp-innovations/hyperlane-cosmos/x/warp"
 	warpkeeper "github.com/bcp-innovations/hyperlane-cosmos/x/warp/keeper"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
+	"github.com/celestiaorg/celestia-app/v5/app/ante"
+	"github.com/celestiaorg/celestia-app/v5/app/encoding"
+	"github.com/celestiaorg/celestia-app/v5/app/grpc/gasestimation"
+	celestiatx "github.com/celestiaorg/celestia-app/v5/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v5/x/blob"
+	blobkeeper "github.com/celestiaorg/celestia-app/v5/x/blob/keeper"
+	blobtypes "github.com/celestiaorg/celestia-app/v5/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v5/x/minfee"
+	minfeekeeper "github.com/celestiaorg/celestia-app/v5/x/minfee/keeper"
+	minfeetypes "github.com/celestiaorg/celestia-app/v5/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v5/x/mint"
+	mintkeeper "github.com/celestiaorg/celestia-app/v5/x/mint/keeper"
+	minttypes "github.com/celestiaorg/celestia-app/v5/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v5/x/signal"
+	signaltypes "github.com/celestiaorg/celestia-app/v5/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v5/x/tokenfilter"
+	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmjson "github.com/cometbft/cometbft/libs/json"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/client/flags"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -102,27 +120,6 @@ import (
 	ibctesting "github.com/cosmos/ibc-go/v8/testing"
 	ibctestingtypes "github.com/cosmos/ibc-go/v8/testing/types"
 	"github.com/spf13/cast"
-
-	"github.com/celestiaorg/go-square/v2/share"
-
-	"github.com/celestiaorg/celestia-app/v4/app/ante"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
-	celestiatx "github.com/celestiaorg/celestia-app/v4/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/proof"
-	"github.com/celestiaorg/celestia-app/v4/x/blob"
-	blobkeeper "github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	"github.com/celestiaorg/celestia-app/v4/x/minfee"
-	minfeekeeper "github.com/celestiaorg/celestia-app/v4/x/minfee/keeper"
-	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
-	"github.com/celestiaorg/celestia-app/v4/x/mint"
-	mintkeeper "github.com/celestiaorg/celestia-app/v4/x/mint/keeper"
-	minttypes "github.com/celestiaorg/celestia-app/v4/x/mint/types"
-	"github.com/celestiaorg/celestia-app/v4/x/signal"
-	signaltypes "github.com/celestiaorg/celestia-app/v4/x/signal/types"
-	"github.com/celestiaorg/celestia-app/v4/x/tokenfilter"
 )
 
 // maccPerms is short for module account permissions. It is a map from module
@@ -279,8 +276,7 @@ func New(
 	for _, h := range cast.ToIntSlice(appOpts.Get(server.FlagUnsafeSkipUpgrades)) {
 		skipUpgradeHeights[int64(h)] = true
 	}
-	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
-	app.UpgradeKeeper = upgradekeeper.NewKeeper(skipUpgradeHeights, runtime.NewKVStoreService(keys[upgradetypes.StoreKey]), encodingConfig.Codec, homePath, app.BaseApp, govModuleAddr)
+	app.UpgradeKeeper = upgradekeeper.NewKeeper(skipUpgradeHeights, runtime.NewKVStoreService(keys[upgradetypes.StoreKey]), encodingConfig.Codec, NodeHome, app.BaseApp, govModuleAddr)
 
 	// Register the staking hooks. NOTE: stakingKeeper is passed by reference
 	// above so that it will contain these hooks.
@@ -454,7 +450,7 @@ func New(
 	}
 
 	// RegisterUpgradeHandlers is used for registering any on-chain upgrades.
-	app.RegisterUpgradeHandlers() // must be called after module manager & configuator are initialized
+	app.RegisterUpgradeHandlers() // must be called after module manager & configurator are initialized
 
 	// Initialize the KV stores for the base modules (e.g. params). The base modules will be included in every app version.
 	app.MountKVStores(app.keys)
@@ -770,9 +766,19 @@ func (app *App) AutoCliOpts() autocli.AppOptions {
 		}
 	}
 
+	moduleOptions := runtimeservices.ExtractAutoCLIOptions(app.ModuleManager.Modules)
+
+	// Disable the comet consensus module autocli commands for v4.x.x because
+	// there is a bug in the unmarshalling of blocks.
+	//
+	// https://github.com/celestiaorg/celestia-app/issues/4950
+	consensusModuleOptions := moduleOptions[consensustypes.ModuleName]
+	consensusModuleOptions.Query.SubCommands = nil
+	moduleOptions[consensustypes.ModuleName] = consensusModuleOptions
+
 	return autocli.AppOptions{
 		Modules:               modules,
-		ModuleOptions:         runtimeservices.ExtractAutoCLIOptions(app.ModuleManager.Modules),
+		ModuleOptions:         moduleOptions,
 		AddressCodec:          app.encodingConfig.AddressCodec,
 		ValidatorAddressCodec: app.encodingConfig.ValidatorAddressCodec,
 		ConsensusAddressCodec: app.encodingConfig.ConsensusAddressCodec,

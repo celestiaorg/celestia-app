@@ -13,6 +13,12 @@ import (
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
+	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v5/app/encoding"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	testutil "github.com/celestiaorg/celestia-app/v5/test/util"
+	"github.com/celestiaorg/celestia-app/v5/x/signal"
+	"github.com/celestiaorg/celestia-app/v5/x/signal/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmtversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	dbm "github.com/cosmos/cosmos-db"
@@ -20,15 +26,6 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
-	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
-	"github.com/celestiaorg/celestia-app/v4/x/signal"
-	"github.com/celestiaorg/celestia-app/v4/x/signal/types"
 )
 
 func TestGetVotingPowerThreshold(t *testing.T) {
@@ -188,7 +185,7 @@ func TestTallyingLogic(t *testing.T) {
 
 	shouldUpgrade, upgrade = upgradeKeeper.ShouldUpgrade(ctx)
 	require.True(t, shouldUpgrade) // should be true because upgrade height has been reached.
-	require.Equal(t, v2.Version, upgrade.AppVersion)
+	require.Equal(t, uint64(2), upgrade.AppVersion)
 
 	upgradeKeeper.ResetTally(ctx)
 
@@ -258,7 +255,7 @@ func TestTallyingLogic(t *testing.T) {
 // 1, the next version is 2, but the chain can upgrade directly from 1 to 3.
 func TestCanSkipVersion(t *testing.T) {
 	upgradeKeeper, ctx, _ := setup(t)
-	require.Equal(t, v1.Version, ctx.BlockHeader().Version.App)
+	require.Equal(t, uint64(1), ctx.BlockHeader().Version.App)
 
 	validators := []sdk.ValAddress{
 		testutil.ValAddrs[0],
@@ -420,7 +417,7 @@ func TestGetUpgrade(t *testing.T) {
 
 		got, err := upgradeKeeper.GetUpgrade(ctx, &types.QueryGetUpgradeRequest{})
 		require.NoError(t, err)
-		assert.Equal(t, v2.Version, got.Upgrade.AppVersion)
+		assert.Equal(t, uint64(2), got.Upgrade.AppVersion)
 		assert.Equal(t, appconsts.GetUpgradeHeightDelay(appconsts.TestChainID), got.Upgrade.UpgradeHeight)
 	})
 }

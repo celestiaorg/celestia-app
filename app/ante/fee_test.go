@@ -10,6 +10,13 @@ import (
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
+	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v5/app/ante"
+	"github.com/celestiaorg/celestia-app/v5/app/encoding"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
+	minfeekeeper "github.com/celestiaorg/celestia-app/v5/x/minfee/keeper"
+	minfeetypes "github.com/celestiaorg/celestia-app/v5/x/minfee/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -19,14 +26,6 @@ import (
 	paramkeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/ante"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	minfeekeeper "github.com/celestiaorg/celestia-app/v4/x/minfee/keeper"
-	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 )
 
 func TestValidateTxFee(t *testing.T) {

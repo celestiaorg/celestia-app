@@ -3,10 +3,9 @@ package cli
 import (
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/v5/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/spf13/cobra"
-
-	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 // GetTxCmd returns the transaction commands for this module

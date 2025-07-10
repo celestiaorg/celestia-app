@@ -4,10 +4,9 @@ import (
 	"context"
 
 	"cosmossdk.io/errors"
+	"github.com/celestiaorg/celestia-app/v5/x/minfee/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-
-	"github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 )
 
 var _ types.MsgServer = (*Keeper)(nil)

@@ -5,6 +5,13 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v5/app/params"
+	"github.com/celestiaorg/celestia-app/v5/pkg/user"
+	"github.com/celestiaorg/celestia-app/v5/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v5/test/util/random"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testfactory"
+	"github.com/celestiaorg/go-square/v2/tx"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -12,15 +19,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/go-square/v2/tx"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/params"
-	"github.com/celestiaorg/celestia-app/v4/pkg/user"
-	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 )
 
 // RandBlobTxsWithAccounts will create random blob transactions using the
@@ -233,4 +231,33 @@ func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {
 		panic(err)
 	}
 	return addr
+}
+
+func BlobTxWithManualSequence(
+	t *testing.T,
+	cfg client.TxConfig,
+	kr keyring.Keyring,
+	blobSize int,
+	blobCount int,
+	chainid string,
+	account string,
+	sequence uint64,
+	accountNum uint64,
+) coretypes.Tx {
+	t.Helper()
+
+	opts := blobfactory.DefaultTxOpts()
+	addr := testfactory.GetAddress(kr, account)
+	acc := user.NewAccount(account, accountNum, sequence)
+	signer, err := user.NewSigner(kr, cfg, chainid, acc)
+	require.NoError(t, err)
+
+	msg, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), addr.String(), blobSize, blobCount)
+	txBz, _, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
+	require.NoError(t, err)
+
+	cTx, err := tx.MarshalBlobTx(txBz, blobs...)
+	require.NoError(t, err)
+
+	return cTx
 }

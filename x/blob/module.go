@@ -6,6 +6,9 @@ import (
 	"fmt"
 
 	"cosmossdk.io/core/appmodule"
+	"github.com/celestiaorg/celestia-app/v5/x/blob/client/cli"
+	"github.com/celestiaorg/celestia-app/v5/x/blob/keeper"
+	"github.com/celestiaorg/celestia-app/v5/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -13,10 +16,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/spf13/cobra"
-
-	"github.com/celestiaorg/celestia-app/v4/x/blob/client/cli"
-	"github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
-	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 var (

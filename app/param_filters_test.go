@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"cosmossdk.io/errors"
+	"github.com/celestiaorg/celestia-app/v5/app/params"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -13,9 +15,6 @@ import (
 	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-app/v4/app/params"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 // TestGovParamFilters tests the functionality of retrieving governance parameter filters from the app.

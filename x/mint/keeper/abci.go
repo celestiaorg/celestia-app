@@ -4,10 +4,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v5/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-
-	"github.com/celestiaorg/celestia-app/v4/x/mint/types"
 )
 
 // BeginBlocker updates the inflation rate, annual provisions, and then mints
