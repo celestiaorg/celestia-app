@@ -1,0 +1,82 @@
+//go:build multiplexer
+
+package abci
+
+import (
+	"context"
+	"io"
+	"testing"
+
+	"cosmossdk.io/log"
+	embedding "github.com/celestiaorg/celestia-app/v5/internal/embedding"
+	"github.com/celestiaorg/celestia-app/v5/multiplexer/appd"
+	abci "github.com/cometbft/cometbft/abci/types"
+	db "github.com/cosmos/cosmos-db"
+	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/server"
+	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
+	servertypes "github.com/cosmos/cosmos-sdk/server/types"
+	"github.com/stretchr/testify/require"
+)
+
+func TestOfferSnapshot(t *testing.T) {
+	serverContext := server.NewDefaultContext()
+	serverConfig := serverconfig.Config{}
+	clientContext := client.Context{}
+	appCreator := mockAppCreator()
+	versions := getVersions(t)
+	chainId := "test"
+	applicationVersion := uint64(3)
+
+	multiplexer, err := NewMultiplexer(serverContext, serverConfig, clientContext, appCreator, versions, chainId, applicationVersion)
+	require.NoError(t, err)
+
+	t.Run("should return an error if the app version in the snapshot is not supported", func(t *testing.T) {
+		_, err := multiplexer.OfferSnapshot(context.Background(), &abci.RequestOfferSnapshot{
+			Snapshot: &abci.Snapshot{
+				Height:   1,
+				Format:   1,
+				Chunks:   1,
+				Hash:     []byte("test"),
+				Metadata: []byte("test"),
+			},
+			AppHash:    []byte("test"),
+			AppVersion: 100,
+		})
+		require.Error(t, err)
+
+		// Note this error message is not ideal. The multiplexer should not try to enable the GRPC and API servers for an unsupported version.
+		require.ErrorContains(t, err, "failed to get app for version 100: failed to enable gRPC and API servers: unable to enable grpc and api servers, app is nil")
+	})
+}
+
+func mockAppCreator() servertypes.AppCreator {
+	return func(logger log.Logger, db db.DB, traceStore io.Writer, appOpts servertypes.AppOptions) servertypes.Application {
+		return nil
+	}
+}
+
+func getVersions(t *testing.T) Versions {
+	version, compressedBinary, err := embedding.CelestiaAppV3()
+	require.NoError(t, err)
+
+	appdV3, err := appd.New(version, compressedBinary)
+	require.NoError(t, err)
+
+	versions, err := NewVersions(Version{
+		Appd:        appdV3,
+		ABCIVersion: ABCIClientVersion1,
+		AppVersion:  3,
+		StartArgs: []string{
+			"--grpc.enable",
+			"--api.enable",
+			"--api.swagger=false",
+			"--with-tendermint=false",
+			"--transport=grpc",
+			"--force-no-bbr",
+		},
+	})
+	require.NoError(t, err)
+
+	return versions
+}
