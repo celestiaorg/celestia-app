@@ -1,13 +1,17 @@
 package docker_e2e
 
 import (
+	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"context"
+	"github.com/celestiaorg/tastora/framework/testutil/config"
+	cometcfg "github.com/cometbft/cometbft/config"
+	servercfg "github.com/cosmos/cosmos-sdk/server/config"
+	"strings"
 	"testing"
 	"time"
 
 	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
 	addressutil "github.com/celestiaorg/tastora/framework/testutil/address"
-	"github.com/celestiaorg/tastora/framework/testutil/toml"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 )
 
@@ -17,19 +21,12 @@ const (
 	stateSyncTimeout           = 10 * time.Minute
 )
 
-// validatorStateSyncAppOverrides generates a TOML configuration to enable state sync and snapshot functionality for validators.
-func validatorStateSyncAppOverrides() toml.Toml {
-	overrides := make(toml.Toml)
-	snapshot := make(toml.Toml)
-	snapshot["interval"] = 5
-	snapshot["keep_recent"] = 2
-	overrides["snapshot"] = snapshot
-
-	stateSync := make(toml.Toml)
-	stateSync["snapshot-interval"] = 5
-	stateSync["snapshot-keep-recent"] = 2
-	overrides["state-sync"] = stateSync
-	return overrides
+// validatorStateSyncAppOverrides modifies the app.toml to configure state sync snapshots for the given node.
+func validatorStateSyncAppOverrides(ctx context.Context, node *celestiadockertypes.ChainNode) error {
+	return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
+		cfg.StateSync.SnapshotInterval = 5
+		cfg.StateSync.SnapshotKeepRecent = 2
+	})
 }
 
 func (s *CelestiaTestSuite) TestStateSync() {
@@ -39,17 +36,11 @@ func (s *CelestiaTestSuite) TestStateSync() {
 	}
 
 	ctx := context.TODO()
-	chainProvider := s.CreateDockerProvider(func(config *celestiadockertypes.Config) {
-		numVals := 3
-		// require at least 2 validators for state sync to work.
-		config.ChainConfig.NumValidators = &numVals
-		config.ChainConfig.ConfigFileOverrides = map[string]any{
-			// enable state-sync and snapshots on validators.
-			"config/app.toml": validatorStateSyncAppOverrides(),
-		}
-	})
+	cfg := dockerchain.DefaultConfig(s.client, s.network)
+	celestia, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).
+		WithPostInit(validatorStateSyncAppOverrides).
+		Build(ctx)
 
-	celestia, err := chainProvider.GetChain(ctx)
 	s.Require().NoError(err, "failed to get chain")
 
 	err = celestia.Start(ctx)
@@ -127,12 +118,20 @@ func (s *CelestiaTestSuite) TestStateSync() {
 	t.Logf("Trust hash: %s", trustHash)
 	t.Logf("RPC servers: %s", rpcServers)
 
-	overrides := map[string]any{
-		"config/config.toml": stateSyncOverrides(trustHeight, trustHash, rpcServers),
-	}
-
 	t.Log("Adding state sync node")
-	err = celestia.AddNode(ctx, overrides)
+	err = celestia.AddNode(ctx,
+		celestiadockertypes.NewChainNodeConfigBuilder().
+			WithNodeType(celestiadockertypes.FullNodeType).
+			WithPostInit(func(ctx context.Context, node *celestiadockertypes.ChainNode) error {
+				return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
+					cfg.StateSync.Enable = true
+					cfg.StateSync.TrustHeight = trustHeight
+					cfg.StateSync.TrustHash = trustHash
+					cfg.StateSync.RPCServers = strings.Split(rpcServers, ",")
+				})
+			}).
+			Build(),
+	)
 
 	s.Require().NoError(err, "failed to add node")
 
@@ -177,17 +176,4 @@ func (s *CelestiaTestSuite) TestStateSync() {
 			t.Fatalf("timed out waiting for state sync node to catch up after %v", stateSyncTimeout)
 		}
 	}
-}
-
-// stateSyncOverrides returns config overrides which will enable state sync.
-func stateSyncOverrides(trustHeight int64, trustHash, rpcServers string) toml.Toml {
-	stateSyncConfig := make(toml.Toml)
-	stateSyncConfig["enable"] = true
-	stateSyncConfig["trust_height"] = trustHeight
-	stateSyncConfig["trust_hash"] = trustHash
-	stateSyncConfig["rpc_servers"] = rpcServers
-
-	configOverrides := make(toml.Toml)
-	configOverrides["statesync"] = stateSyncConfig
-	return configOverrides
 }

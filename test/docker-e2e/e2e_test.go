@@ -3,15 +3,12 @@ package docker_e2e
 import (
 	"context"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v5/app"
 	"github.com/celestiaorg/go-square/v2/share"
-	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
-	celestiatypes "github.com/celestiaorg/tastora/framework/types"
-	"github.com/cosmos/cosmos-sdk/types/module/testutil"
+	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
+	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	"github.com/docker/docker/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
@@ -40,78 +37,34 @@ type CelestiaTestSuite struct {
 
 func (s *CelestiaTestSuite) SetupSuite() {
 	s.logger = zaptest.NewLogger(s.T())
-	s.logger.Info("Setting up Celestia test suite")
-	s.client, s.network = celestiadockertypes.DockerSetup(s.T())
-}
-
-type ConfigOption func(*celestiadockertypes.Config)
-
-func (s *CelestiaTestSuite) CreateDockerProvider(opts ...ConfigOption) celestiatypes.Provider {
-	numValidators := 1
-	numFullNodes := 0
-
-	enc := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
-
-	cfg := celestiadockertypes.Config{
-		Logger:          s.logger,
-		DockerClient:    s.client,
-		DockerNetworkID: s.network,
-		ChainConfig: &celestiadockertypes.ChainConfig{
-			ConfigFileOverrides: map[string]any{
-				"config/app.toml": validatorStateSyncAppOverrides(),
-			},
-			Type:          "cosmos",
-			Name:          "celestia",
-			Version:       getCelestiaTag(),
-			NumValidators: &numValidators,
-			NumFullNodes:  &numFullNodes,
-			ChainID:       "celestia",
-			Images: []celestiadockertypes.DockerImage{
-				{
-					Repository: getCelestiaImage(),
-					Version:    getCelestiaTag(),
-					UIDGID:     "10001:10001",
-				},
-			},
-			Bin:                 "celestia-appd",
-			Bech32Prefix:        "celestia",
-			Denom:               "utia",
-			CoinType:            "118",
-			GasPrices:           "0.025utia",
-			GasAdjustment:       1.3,
-			EncodingConfig:      &enc,
-			AdditionalStartArgs: []string{"--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099"},
-		},
-	}
-
-	for _, opt := range opts {
-		opt(&cfg)
-	}
-
-	return celestiadockertypes.NewProvider(cfg, s.T())
+	s.logger.Info("Setting up Celestia test suite: " + s.T().Name())
+	s.client, s.network = tastoradockertypes.DockerSetup(s.T())
 }
 
 // CreateTxSim deploys and starts a txsim container to simulate transactions against the given celestia chain in the test environment.
-func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain celestiatypes.Chain) {
+func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain tastoratypes.Chain) {
 	t := s.T()
 	networkName, err := getNetworkNameFromID(ctx, s.client, s.network)
 	s.Require().NoError(err)
 
 	// Deploy txsim image
 	t.Log("Deploying txsim image")
-	txsimImage := celestiadockertypes.NewImage(s.logger, s.client, networkName, t.Name(), txsimImage, txSimTag)
+	txsimImage := tastoradockertypes.NewImage(s.logger, s.client, networkName, t.Name(), txsimImage, txSimTag)
 
-	opts := celestiadockertypes.ContainerOptions{
+	opts := tastoradockertypes.ContainerOptions{
 		User: "0:0",
 		// Mount the Celestia home directory into the txsim container
 		// this ensures txsim has access to a keyring and is able to broadcast transactions.
 		Binds: []string{chain.GetVolumeName() + ":/celestia-home"},
 	}
 
+	internalHostname, err := chain.GetNodes()[0].GetInternalHostName(ctx)
+	s.Require().NoError(err)
+
 	args := []string{
 		"/bin/txsim",
 		"--key-path", "/celestia-home",
-		"--grpc-endpoint", chain.GetGRPCAddress(),
+		"--grpc-endpoint", internalHostname + ":9090",
 		"--poll-time", "1s",
 		"--seed", "42",
 		"--blob", "10",
@@ -146,6 +99,7 @@ func getNetworkNameFromID(ctx context.Context, cli *client.Client, networkID str
 	}
 	return network.Name, nil
 }
+<<<<<<< HEAD
 
 // getCelestiaImage returns the image to use for Celestia app.
 // It can be overridden by setting the CELESTIA_IMAGE environment.
@@ -174,3 +128,5 @@ func GetCelestiaTagStrict() string {
 	}
 	return tag
 }
+=======
+>>>>>>> 100f351c (refactor: update E2E tests to use new builder pattern (#5141))
