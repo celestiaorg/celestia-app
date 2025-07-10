@@ -67,3 +67,18 @@ type mockABCIApplicationClient struct {
 func (m *mockABCIApplicationClient) Info(ctx context.Context, req *abciv1.RequestInfo, opts ...grpc.CallOption) (*abciv1.ResponseInfo, error) {
 	return m.infoResp, nil
 }
+
+func TestAbciEventV1ToV2(t *testing.T) {
+	t.Run("should propagate the index field for event attributes", func(t *testing.T) {
+		v1Event := []abciv1.Event{{
+			Type:       "type",
+			Attributes: []abciv1.EventAttribute{{Key: "key", Value: "value", Index: true}},
+		}}
+		want := []abciv2.Event{{
+			Type:       "type",
+			Attributes: []abciv2.EventAttribute{{Key: "key", Value: "value", Index: true}},
+		}}
+		got := abciEventV1ToV2(v1Event...)
+		assert.Equal(t, want, got)
+	})
+}
