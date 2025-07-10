@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"cosmossdk.io/log"
-	embedding "github.com/celestiaorg/celestia-app/v5/internal/embedding"
 	"github.com/celestiaorg/celestia-app/v5/multiplexer/appd"
 	abci "github.com/cometbft/cometbft/abci/types"
 	db "github.com/cosmos/cosmos-db"
@@ -23,7 +22,6 @@ import (
 func TestOfferSnapshot(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "multiplexer-test-*")
 	require.NoError(t, err)
-
 	defer func() {
 		err := os.RemoveAll(tempDir)
 		require.NoError(t, err)
@@ -67,14 +65,9 @@ func mockAppCreator() servertypes.AppCreator {
 }
 
 func getVersions(t *testing.T) Versions {
-	version, compressedBinary, err := embedding.CelestiaAppV3()
-	require.NoError(t, err)
-
-	appdV3, err := appd.New(version, compressedBinary)
-	require.NoError(t, err)
-
+	mockAppd := &appd.Appd{}
 	versions, err := NewVersions(Version{
-		Appd:        appdV3,
+		Appd:        mockAppd,
 		ABCIVersion: ABCIClientVersion1,
 		AppVersion:  3,
 		StartArgs: []string{
@@ -87,6 +80,5 @@ func getVersions(t *testing.T) Versions {
 		},
 	})
 	require.NoError(t, err)
-
 	return versions
 }
