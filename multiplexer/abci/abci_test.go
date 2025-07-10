@@ -5,6 +5,7 @@ package abci
 import (
 	"context"
 	"io"
+	"os"
 	"testing"
 
 	"cosmossdk.io/log"
@@ -20,7 +21,16 @@ import (
 )
 
 func TestOfferSnapshot(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "multiplexer-test-*")
+	require.NoError(t, err)
+
+	defer func() {
+		err := os.RemoveAll(tempDir)
+		require.NoError(t, err)
+	}()
+
 	serverContext := server.NewDefaultContext()
+	serverContext.Config.SetRoot(tempDir)
 	serverConfig := serverconfig.Config{}
 	clientContext := client.Context{}
 	appCreator := mockAppCreator()
