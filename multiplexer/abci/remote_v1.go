@@ -480,6 +480,7 @@ func abciEventV1ToV2(events ...abciv1.Event) []abciv2.Event {
 			attributes = append(attributes, abciv2.EventAttribute{
 				Key:   attr.Key,
 				Value: attr.Value,
+				Index: attr.Index,
 			})
 		}
 

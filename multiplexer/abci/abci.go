@@ -83,6 +83,7 @@ func (m *Multiplexer) FinalizeBlock(_ context.Context, req *abci.RequestFinalize
 	}
 
 	resp, err := app.FinalizeBlock(req)
+	fmt.Printf("finalizeBlock resp.Events: %+v\n", resp.Events)
 	if err != nil {
 		return nil, fmt.Errorf("failed to finalize block: %w", err)
 	}
