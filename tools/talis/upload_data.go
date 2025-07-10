@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// uploadData creates a cobra command for kicking off trace collection
+// uploadDataCmd creates a cobra command for kicking off trace collection
 func uploadDataCmd() *cobra.Command {
 	var (
 		rootDir    string
