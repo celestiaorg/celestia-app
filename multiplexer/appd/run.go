@@ -219,7 +219,6 @@ func ensureBinaryDecompressed(version string, binary []byte) error {
 			f.Close()
 			return fmt.Errorf("failed to copy file contents to %s: %w", filePath, err)
 		}
-
 		f.Close()
 	}
 
