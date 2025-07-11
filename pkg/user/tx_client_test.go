@@ -289,7 +289,7 @@ func (suite *TxClientTestSuite) TestGasPriceEstimation() {
 // TestGasConsumption verifies that the amount deducted from a user's balance is
 // based on the fee provided in the tx instead of the gas used by the tx. This
 // behavior leads to poor UX because tx submitters must over-estimate the amount
-// of gas that their tx will consume and they are not refunded for the excessuite.
+// of gas that their tx will consume and they are not refunded for the excess.
 func (suite *TxClientTestSuite) TestGasConsumption() {
 	t := suite.T()
 

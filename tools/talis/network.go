@@ -87,14 +87,19 @@ func SetMinFee(codec codec.Codec, minFee float64) genesis.Modifier {
 // its name which is assigned by pulumi as hardware is allocated. An additional
 // account and keyring are saved to the payload directory that can be used by
 // txsim.
-func (n *Network) AddValidator(name, ip, payLoadRoot, region string) error {
+// if the stake is set to 0, a default value is used.
+func (n *Network) AddValidator(name, ip, payLoadRoot, region string, stake int64) error {
 	n.validators[name] = NodeInfo{
 		Name:   name,
 		IP:     ip,
 		Region: region,
 	}
 
-	err := n.genesis.NewValidator(genesis.NewDefaultValidator(name))
+	val := genesis.NewDefaultValidator(name)
+	if stake != 0 {
+		val.Stake = stake
+	}
+	err := n.genesis.NewValidator(val)
 	if err != nil {
 		return err
 	}

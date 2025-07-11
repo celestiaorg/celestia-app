@@ -146,15 +146,23 @@ func (v *Validator) GenTx(ecfg encoding.Config, kr keyring.Keyring, chainID stri
 	return txBuilder.GetTx(), nil
 }
 
+<<<<<<< HEAD
 // PrivateKeyBytes returns the contents of the priv_validator_key.json file.
 func (v *Validator) PrivateKeyBytes() ([]byte, error) {
 	privValKey := v.ConsensusKey
 
 	key := privval.FilePVKey{
+=======
+// PrivateKey returns the validator's FilePVKey.
+func (v *Validator) PrivateKey() privval.FilePVKey {
+	privValKey := v.ConsensusKey
+	return privval.FilePVKey{
+>>>>>>> main
 		Address: privValKey.PubKey().Address(),
 		PubKey:  privValKey.PubKey(),
 		PrivKey: privValKey,
 	}
+<<<<<<< HEAD
 
 	privValidatorKeyBz, err := cmtjson.MarshalIndent(key, "", "  ")
 	if err != nil {
@@ -162,4 +170,6 @@ func (v *Validator) PrivateKeyBytes() ([]byte, error) {
 	}
 
 	return privValidatorKeyBz, nil
+=======
+>>>>>>> main
 }

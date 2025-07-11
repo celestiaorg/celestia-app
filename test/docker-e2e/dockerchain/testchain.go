@@ -10,6 +10,8 @@ import (
 	"github.com/celestiaorg/tastora/framework/testutil/config"
 	"github.com/celestiaorg/tastora/framework/testutil/maps"
 	cometcfg "github.com/cometbft/cometbft/config"
+	cmtjson "github.com/cometbft/cometbft/libs/json"
+	"github.com/cometbft/cometbft/privval"
 	servercfg "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/stretchr/testify/require"
@@ -38,7 +40,7 @@ func NewCelestiaChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.Chai
 	for i, record := range records {
 		val, exists := cfg.Genesis.Validator(i)
 		require.True(t, exists, "validator at index %d should exist", i)
-		privKeyBz, err := val.PrivateKeyBytes()
+		privKeyBz, err := getPrivValidatorKeyJsonBytes(val.PrivateKey())
 		require.NoError(t, err, "failed to get validator private key bytes")
 
 		vals[i] = tastoradockertypes.NewChainNodeConfigBuilder().
@@ -131,7 +133,7 @@ func NodeConfigBuilders(cfg *Config) ([]*tastoradockertypes.ChainNodeConfigBuild
 		if !exists {
 			return nil, fmt.Errorf("validator at index %d should exist", i)
 		}
-		privKeyBz, err := validator.PrivateKeyBytes()
+		privKeyBz, err := getPrivValidatorKeyJsonBytes(validator.PrivateKey())
 		if err != nil {
 			return nil, fmt.Errorf("failed to get validator private key bytes: %w", err)
 		}
@@ -144,4 +146,14 @@ func NodeConfigBuilders(cfg *Config) ([]*tastoradockertypes.ChainNodeConfigBuild
 	}
 
 	return chainNodeBuilders, nil
+}
+
+// getPrivValidatorKeyJsonBytes marshals a FilePVKey into an indented JSON byte slice or returns an error if marshalling fails.
+// the contents can directly be used as the contents of priv_validator_key.json
+func getPrivValidatorKeyJsonBytes(key privval.FilePVKey) ([]byte, error) {
+	privValidatorKeyBz, err := cmtjson.MarshalIndent(key, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("marshaling priv_validator_key.json: %w", err)
+	}
+	return privValidatorKeyBz, err
 }
