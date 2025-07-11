@@ -138,11 +138,11 @@ func TestSignalVersion(t *testing.T) {
 
 		var validatorAddress, actionAttribute sdk.Attribute
 		for _, attr := range event.Attributes {
-			switch string(attr.Key) {
+			switch attr.Key {
 			case types.AttributeKeyValidatorAddress:
-				validatorAddress = sdk.Attribute{Key: string(attr.Key), Value: string(attr.Value)}
+				validatorAddress = sdk.Attribute{Key: attr.Key, Value: attr.Value}
 			case sdk.AttributeKeyAction:
-				actionAttribute = sdk.Attribute{Key: string(attr.Key), Value: string(attr.Value)}
+				actionAttribute = sdk.Attribute{Key: attr.Key, Value: attr.Value}
 			}
 		}
 
@@ -452,11 +452,11 @@ func TestTryUpgrade(t *testing.T) {
 
 		var signerAttribute, actionAttribute sdk.Attribute
 		for _, attr := range event.Attributes {
-			switch string(attr.Key) {
+			switch attr.Key {
 			case types.AttributeKeySigner:
-				signerAttribute = sdk.Attribute{Key: string(attr.Key), Value: string(attr.Value)}
+				signerAttribute = sdk.Attribute{Key: attr.Key, Value: attr.Value}
 			case sdk.AttributeKeyAction:
-				actionAttribute = sdk.Attribute{Key: string(attr.Key), Value: string(attr.Value)}
+				actionAttribute = sdk.Attribute{Key: attr.Key, Value: attr.Value}
 			}
 		}
 
