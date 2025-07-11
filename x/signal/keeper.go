@@ -83,6 +83,15 @@ func (k Keeper) SignalVersion(ctx context.Context, req *types.MsgSignalVersion) 
 	}
 
 	k.SetValidatorVersion(sdkCtx, valAddr, req.Version)
+
+	sdkCtx.EventManager().EmitEvent(
+		sdk.NewEvent(
+			types.EventTypeSignalVersion,
+			sdk.NewAttribute(types.AttributeKeyValidatorAddress, req.ValidatorAddress),
+			sdk.NewAttribute(sdk.AttributeKeyAction, types.URLMsgSignalVersion),
+		),
+	)
+
 	return &types.MsgSignalVersionResponse{}, nil
 }
 
@@ -90,7 +99,7 @@ func (k Keeper) SignalVersion(ctx context.Context, req *types.MsgSignalVersion) 
 // voting power that has voted on each version. If one version has reached a
 // quorum, an upgrade is persisted to the store. The upgrade is used by the
 // application later when it is time to upgrade to that version.
-func (k *Keeper) TryUpgrade(ctx context.Context, _ *types.MsgTryUpgrade) (*types.MsgTryUpgradeResponse, error) {
+func (k *Keeper) TryUpgrade(ctx context.Context, req *types.MsgTryUpgrade) (*types.MsgTryUpgradeResponse, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
 	if k.IsUpgradePending(sdkCtx) {
@@ -119,6 +128,15 @@ func (k *Keeper) TryUpgrade(ctx context.Context, _ *types.MsgTryUpgrade) (*types
 		}
 		k.setUpgrade(sdkCtx, upgrade)
 	}
+
+	sdkCtx.EventManager().EmitEvent(
+		sdk.NewEvent(
+			types.EventTypeTryUpgrade,
+			sdk.NewAttribute(types.AttributeKeySigner, req.Signer),
+			sdk.NewAttribute(sdk.AttributeKeyAction, types.URLMsgTryUpgrade),
+		),
+	)
+
 	return &types.MsgTryUpgradeResponse{}, nil
 }
 
