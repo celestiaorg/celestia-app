@@ -119,10 +119,9 @@ func TestSignalVersion(t *testing.T) {
 	t.Run("should emit custom event", func(t *testing.T) {
 		upgradeKeeper, ctx, _ := setup(t)
 		ctx = ctx.WithEventManager(sdk.NewEventManager())
-		goCtx := sdk.WrapSDKContext(ctx)
 
 		valAddr := testutil.ValAddrs[0].String()
-		_, err := upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
+		_, err := upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{
 			ValidatorAddress: valAddr,
 			Version:          2,
 		})
@@ -429,9 +428,8 @@ func TestTryUpgrade(t *testing.T) {
 		upgradeKeeper, ctx, _ := setup(t)
 		signerAddr := "celestia1test1234567890abcdef"
 		ctx = ctx.WithEventManager(sdk.NewEventManager())
-		goCtx := sdk.WrapSDKContext(ctx)
 
-		_, err := upgradeKeeper.TryUpgrade(goCtx, &types.MsgTryUpgrade{
+		_, err := upgradeKeeper.TryUpgrade(ctx, &types.MsgTryUpgrade{
 			Signer: signerAddr,
 		})
 		require.NoError(t, err)
