@@ -55,7 +55,9 @@ func TestUpgradeIntegration(t *testing.T) {
 	require.EqualValues(t, 1, res.ThresholdPower)
 	require.EqualValues(t, 1, res.TotalVotingPower)
 
-	_, err = app.SignalKeeper.TryUpgrade(ctx, nil)
+	_, err = app.SignalKeeper.TryUpgrade(ctx, &types.MsgTryUpgrade{
+		Signer: valAddr.String(),
+	})
 	require.NoError(t, err)
 
 	// Verify that if a user queries the version tally, it still works after a
