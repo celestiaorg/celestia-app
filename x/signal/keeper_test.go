@@ -117,6 +117,40 @@ func TestSignalVersion(t *testing.T) {
 		require.EqualValues(t, 100, res.ThresholdPower)
 		require.EqualValues(t, 120, res.TotalVotingPower)
 	})
+	t.Run("should emit custom event", func(t *testing.T) {
+		upgradeKeeper, ctx, _ := setup(t)
+		ctx = ctx.WithEventManager(sdk.NewEventManager())
+		goCtx = sdk.WrapSDKContext(ctx)
+
+		valAddr := testutil.ValAddrs[0].String()
+		_, err := upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
+			ValidatorAddress: valAddr,
+			Version:          2,
+		})
+		require.NoError(t, err)
+
+		events := ctx.EventManager().Events()
+		require.Len(t, events, 1)
+
+		event := events[0]
+		require.Equal(t, types.EventTypeSignalVersion, event.Type)
+		require.Len(t, event.Attributes, 2)
+
+		var validatorAddress, actionAttribute sdk.Attribute
+		for _, attr := range event.Attributes {
+			switch string(attr.Key) {
+			case types.AttributeKeyValidatorAddress:
+				validatorAddress = sdk.Attribute{Key: string(attr.Key), Value: string(attr.Value)}
+			case sdk.AttributeKeyAction:
+				actionAttribute = sdk.Attribute{Key: string(attr.Key), Value: string(attr.Value)}
+			}
+		}
+
+		require.Equal(t, types.AttributeKeyValidatorAddress, validatorAddress.Key)
+		require.Equal(t, valAddr, validatorAddress.Value)
+		require.Equal(t, sdk.AttributeKeyAction, actionAttribute.Key)
+		require.Equal(t, types.URLMsgSignalVersion, actionAttribute.Value)
+	})
 }
 
 func TestTallyingLogic(t *testing.T) {
@@ -396,6 +430,40 @@ func TestTryUpgrade(t *testing.T) {
 		_, err = upgradeKeeper.TryUpgrade(goCtx, &types.MsgTryUpgrade{})
 		require.Error(t, err)
 		require.ErrorIs(t, err, types.ErrInvalidUpgradeVersion)
+	})
+
+	t.Run("should emit custom event", func(t *testing.T) {
+		upgradeKeeper, ctx, _ := setup(t)
+		signerAddr := "celestia1test1234567890abcdef"
+		ctx = ctx.WithEventManager(sdk.NewEventManager())
+		goCtx := sdk.WrapSDKContext(ctx)
+
+		_, err := upgradeKeeper.TryUpgrade(goCtx, &types.MsgTryUpgrade{
+			Signer: signerAddr,
+		})
+		require.NoError(t, err)
+
+		events := ctx.EventManager().Events()
+		require.Len(t, events, 1)
+
+		event := events[0]
+		require.Equal(t, types.EventTypeTryUpgrade, event.Type)
+		require.Len(t, event.Attributes, 2)
+
+		var signerAttribute, actionAttribute sdk.Attribute
+		for _, attr := range event.Attributes {
+			switch string(attr.Key) {
+			case types.AttributeKeySigner:
+				signerAttribute = sdk.Attribute{Key: string(attr.Key), Value: string(attr.Value)}
+			case sdk.AttributeKeyAction:
+				actionAttribute = sdk.Attribute{Key: string(attr.Key), Value: string(attr.Value)}
+			}
+		}
+
+		require.Equal(t, types.AttributeKeySigner, signerAttribute.Key)
+		require.Equal(t, signerAddr, signerAttribute.Value)
+		require.Equal(t, sdk.AttributeKeyAction, actionAttribute.Key)
+		require.Equal(t, types.URLMsgTryUpgrade, actionAttribute.Value)
 	})
 }
 

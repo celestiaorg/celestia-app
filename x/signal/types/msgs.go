@@ -16,6 +16,12 @@ const (
 
 	URLMsgSignalVersion = "/celestia.signal.v1.Msg/SignalVersion"
 	URLMsgTryUpgrade    = "/celestia.signal.v1.Msg/TryUpgrade"
+
+	EventTypeTryUpgrade    = "signal_try_upgrade"
+	EventTypeSignalVersion = "signal_version"
+
+	AttributeKeyValidatorAddress = "validator_address"
+	AttributeKeySigner           = "signer"
 )
 
 var (
