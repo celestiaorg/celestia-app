@@ -17,8 +17,7 @@ import (
 
 const (
 	ChainID = "mocha-4"
-	RPC1    = "https://celestia-testnet-rpc.itrocket.net:443"
-	RPC2    = "https://celestia-mocha-rpc.publicnode.com:443"
+	RPC     = "https://celestia-testnet-rpc.itrocket.net:443"
 	Seeds   = "5d0bf034d6e6a8b5ee31a2f42f753f1107b3a00e@celestia-testnet-seed.itrocket.net:11656"
 )
 
@@ -31,8 +30,8 @@ func NewConfig(client *client.Client, network string) (*dockerchain.Config, erro
 	cfg := &dockerchain.Config{}
 	return cfg.
 		WithConfig(tnCfg).
-		WithImage("ghcr.io/celestiaorg/celestia-app").
-		WithTag("v4.0.6-mocha").
+		WithImage(dockerchain.GetCelestiaImage()).
+		WithTag(dockerchain.GetCelestiaTag()).
 		WithDockerClient(client).
 		WithDockerNetworkID(network), nil
 }
@@ -46,7 +45,7 @@ func NewChainBuilder(t *testing.T, cfg *dockerchain.Config) *celestiadockertypes
 	encodingConfig := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
 
 	return celestiadockertypes.NewChainBuilder(t).
-		WithName("mocha-state-sync").
+		WithName("mocha").
 		WithChainID(ChainID).
 		WithDockerClient(cfg.DockerClient).
 		WithDockerNetworkID(cfg.DockerNetworkID).
@@ -58,7 +57,7 @@ func NewChainBuilder(t *testing.T, cfg *dockerchain.Config) *celestiadockertypes
 
 // NewClient creates a new RPC client for connecting to the mocha network.
 func NewClient() (*rpchttp.HTTP, error) {
-	return rpchttp.New(RPC1, "/websocket")
+	return rpchttp.New(RPC, "/websocket")
 }
 
 // downloadGenesis downloads the genesis file for the given chain ID from the celestia networks repo

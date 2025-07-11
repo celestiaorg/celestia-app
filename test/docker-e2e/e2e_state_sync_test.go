@@ -208,14 +208,13 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 	t.Logf("Mocha latest height: %d", latestHeight)
 	t.Logf("Using trust height: %d", trustHeight)
 	t.Logf("Using trust hash: %s", trustHash)
-	t.Logf("Using mocha RPC1: %s", mocha.RPC1)
-	t.Logf("Using mocha RPC2: %s", mocha.RPC2)
+	t.Logf("Using mocha RPC: %s", mocha.RPC)
 
 	// create a mocha chain builder (no validators, just for state sync nodes)
 	cfg, err := mocha.NewConfig(s.client, s.network)
 	s.Require().NoError(err, "failed to create mocha config")
 
-	celestia, err := mocha.NewChainBuilder(s.T(), cfg).
+	mochaChain, err := mocha.NewChainBuilder(s.T(), cfg).
 		WithNodes(celestiadockertypes.NewChainNodeConfigBuilder().
 			WithNodeType(celestiadockertypes.FullNodeType).
 			WithPostInit(func(ctx context.Context, node *celestiadockertypes.ChainNode) error {
@@ -224,7 +223,7 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 					cfg.StateSync.Enable = true
 					cfg.StateSync.TrustHeight = trustHeight
 					cfg.StateSync.TrustHash = trustHash
-					cfg.StateSync.RPCServers = []string{mocha.RPC1, mocha.RPC2}
+					cfg.StateSync.RPCServers = []string{mocha.RPC, mocha.RPC}
 					cfg.P2P.Seeds = mocha.Seeds
 				})
 			}).
@@ -236,16 +235,16 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 
 	// cleanup resources when the test is done
 	t.Cleanup(func() {
-		if err := celestia.Stop(ctx); err != nil {
+		if err := mochaChain.Stop(ctx); err != nil {
 			t.Logf("Error stopping chain: %v", err)
 		}
 	})
 
 	t.Log("Starting state sync node")
-	err = celestia.Start(ctx)
+	err = mochaChain.Start(ctx)
 	s.Require().NoError(err, "failed to start chain")
 
-	allNodes := celestia.GetNodes()
+	allNodes := mochaChain.GetNodes()
 	s.Require().Len(allNodes, 1, "expected exactly one node")
 	fullNode := allNodes[0]
 
