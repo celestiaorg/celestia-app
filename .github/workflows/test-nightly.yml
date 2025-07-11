@@ -36,7 +36,7 @@ jobs:
           fi
 
       - name: Build Docker image locally
-        if: inputs.tag == '' # only build an image if no tag is specified
+        if: ${{ !inputs.tag }} # only build an image if no tag is specified
         run: docker build -t "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.value }}" . -f docker/multiplexer.Dockerfile
 
       - name: Run TestStateSyncMocha
