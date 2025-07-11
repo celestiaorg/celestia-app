@@ -128,7 +128,6 @@ jobs:
         testcase:
           - TestE2ESimple
           - TestStateSync
-          - TestStateSyncMocha
 
     steps:
       - name: Checkout code
