@@ -127,6 +127,9 @@ func (s *CelestiaTestSuite) GetLatestBlockHeight(ctx context.Context, statusClie
 	}
 }
 
+// WaitForSync waits for a Celestia node to synchronize based on a provided sync condition within a specified timeout.
+// The method periodically checks the node's sync status. Returns an error if the timeout is exceeded.
+// Returns nil when the provided condition function returns true.
 func (s *CelestiaTestSuite) WaitForSync(ctx context.Context, statusClient rpcclient.StatusClient, syncTimeout time.Duration, syncCondition func(coretypes.SyncInfo) bool) error {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
