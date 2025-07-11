@@ -15,6 +15,7 @@ func resetCmd() *cobra.Command {
 		cfgPath    string
 		SSHKeyPath string
 		validators []string
+		workers    int
 	)
 
 	cmd := &cobra.Command{
@@ -57,10 +58,13 @@ func resetCmd() *cobra.Command {
 			`
 			// Run cleanup on each validator
 			var wg sync.WaitGroup
+			workerChan := make(chan struct{}, workers)
 			for _, val := range targetValidators {
 				wg.Add(1)
 				go func(v Instance) {
 					defer wg.Done()
+					workerChan <- struct{}{}
+					defer func() { <-workerChan }()
 					fmt.Printf("Resetting validator %s...\n", v.Name)
 					if err := runScriptInTMux([]Instance{v}, resolvedKey, cleanupScript, "cleanup", time.Minute*5); err != nil {
 						fmt.Printf("Warning: error while cleaning up %s: %v\n", v.Name, err)
@@ -77,6 +81,7 @@ func resetCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&cfgPath, "config", "c", "config.json", "config file name")
 	cmd.Flags().StringVarP(&SSHKeyPath, "ssh-key-path", "k", "", "override path to your SSH private key")
 	cmd.Flags().StringSliceVarP(&validators, "validators", "v", []string{}, "optional list of validator names to reset (e.g. validator-0,validator-1)")
+	cmd.Flags().IntVarP(&workers, "workers", "w", 10, "number of concurrent workers for parallel operations (should be > 0)")
 
 	return cmd
 }
