@@ -1,4 +1,4 @@
-package mocha
+package networks
 
 import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
@@ -15,38 +15,33 @@ import (
 	"testing"
 )
 
-const (
-	ChainID = "mocha-4"
-	RPC     = "https://celestia-testnet-rpc.itrocket.net:443"
-	Seeds   = "5d0bf034d6e6a8b5ee31a2f42f753f1107b3a00e@celestia-testnet-seed.itrocket.net:11656"
-)
-
-// NewConfig returns a configured instance of dockerchain.Config for the mocha testnet.
-func NewConfig(client *client.Client, network string) (*dockerchain.Config, error) {
+// NewConfig returns a configured instance of dockerchain.Config for the specified chain.
+func NewConfig(networkCfg *Config, client *client.Client, network string) (*dockerchain.Config, error) {
 	// create minimal config - the genesis will be downloaded by the NewChainBuilder
 	tnCfg := testnode.DefaultConfig()
-	tnCfg.Genesis = tnCfg.Genesis.WithChainID(ChainID)
+	tnCfg.Genesis = tnCfg.Genesis.WithChainID(networkCfg.ChainID)
 
 	cfg := &dockerchain.Config{}
 	return cfg.
 		WithConfig(tnCfg).
 		WithImage(dockerchain.GetCelestiaImage()).
 		WithTag(dockerchain.GetCelestiaTag()).
+		WithTag("pr-5193").
 		WithDockerClient(client).
 		WithDockerNetworkID(network), nil
 }
 
-// NewChainBuilder constructs a new ChainBuilder configured for connecting to the mocha testnet.
-func NewChainBuilder(t *testing.T, cfg *dockerchain.Config) *celestiadockertypes.ChainBuilder {
-	// download mocha genesis
-	genesisBz, err := downloadGenesis(ChainID)
-	require.NoError(t, err, "failed to download mocha genesis")
+// NewChainBuilder constructs a new ChainBuilder configured for connecting to the specified live chain.
+func NewChainBuilder(t *testing.T, chainConfig *Config, cfg *dockerchain.Config) *celestiadockertypes.ChainBuilder {
+	// download genesis for the specified chain
+	genesisBz, err := downloadGenesis(chainConfig.ChainID)
+	require.NoError(t, err, "failed to download %s genesis", chainConfig.Name)
 
 	encodingConfig := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
 
 	return celestiadockertypes.NewChainBuilder(t).
-		WithName("mocha").
-		WithChainID(ChainID).
+		WithName(chainConfig.Name).
+		WithChainID(chainConfig.ChainID).
 		WithDockerClient(cfg.DockerClient).
 		WithDockerNetworkID(cfg.DockerNetworkID).
 		WithImage(celestiadockertypes.NewDockerImage(cfg.Image, cfg.Tag, "10001:10001")).
@@ -55,9 +50,9 @@ func NewChainBuilder(t *testing.T, cfg *dockerchain.Config) *celestiadockertypes
 		WithGenesis(genesisBz)
 }
 
-// NewClient creates a new RPC client for connecting to the mocha network.
-func NewClient() (*rpchttp.HTTP, error) {
-	return rpchttp.New(RPC, "/websocket")
+// NewClient creates a new RPC client for connecting to the specified chain.
+func NewClient(rpc string) (*rpchttp.HTTP, error) {
+	return rpchttp.New(rpc, "/websocket")
 }
 
 // downloadGenesis downloads the genesis file for the given chain ID from the celestia networks repo

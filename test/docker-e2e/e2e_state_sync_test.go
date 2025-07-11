@@ -2,7 +2,7 @@ package docker_e2e
 
 import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
-	"celestiaorg/celestia-app/test/docker-e2e/mocha"
+	"celestiaorg/celestia-app/test/docker-e2e/networks"
 	"context"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
 	cometcfg "github.com/cometbft/cometbft/config"
@@ -187,8 +187,9 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 	}
 
 	ctx := context.TODO()
-	// create RPC client for mocha network
-	mochaClient, err := mocha.NewClient()
+
+	mochaConfig := networks.NewMochaConfig()
+	mochaClient, err := networks.NewClient(mochaConfig.RPCs[0])
 	s.Require().NoError(err, "failed to create mocha RPC client")
 
 	// get latest height from mocha
@@ -208,13 +209,13 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 	t.Logf("Mocha latest height: %d", latestHeight)
 	t.Logf("Using trust height: %d", trustHeight)
 	t.Logf("Using trust hash: %s", trustHash)
-	t.Logf("Using mocha RPC: %s", mocha.RPC)
+	t.Logf("Using mocha RPC: %s", mochaConfig.RPCs[0])
 
-	// create a mocha chain builder (no validators, just for state sync nodes)
-	cfg, err := mocha.NewConfig(s.client, s.network)
+	dockerCfg, err := networks.NewConfig(mochaConfig, s.client, s.network)
 	s.Require().NoError(err, "failed to create mocha config")
 
-	mochaChain, err := mocha.NewChainBuilder(s.T(), cfg).
+	// create a mocha chain builder (no validators, just for state sync nodes)
+	mochaChain, err := networks.NewChainBuilder(s.T(), mochaConfig, dockerCfg).
 		WithNodes(celestiadockertypes.NewChainNodeConfigBuilder().
 			WithNodeType(celestiadockertypes.FullNodeType).
 			WithPostInit(func(ctx context.Context, node *celestiadockertypes.ChainNode) error {
@@ -223,8 +224,8 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 					cfg.StateSync.Enable = true
 					cfg.StateSync.TrustHeight = trustHeight
 					cfg.StateSync.TrustHash = trustHash
-					cfg.StateSync.RPCServers = []string{mocha.RPC, mocha.RPC}
-					cfg.P2P.Seeds = mocha.Seeds
+					cfg.StateSync.RPCServers = mochaConfig.RPCs
+					cfg.P2P.Seeds = mochaConfig.Seeds
 				})
 			}).
 			Build(),
@@ -233,16 +234,15 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 
 	s.Require().NoError(err, "failed to create chain")
 
-	// cleanup resources when the test is done
+	t.Log("Starting mocha state sync node")
+	err = mochaChain.Start(ctx)
+	s.Require().NoError(err, "failed to start chain")
+
 	t.Cleanup(func() {
 		if err := mochaChain.Stop(ctx); err != nil {
 			t.Logf("Error stopping chain: %v", err)
 		}
 	})
-
-	t.Log("Starting state sync node")
-	err = mochaChain.Start(ctx)
-	s.Require().NoError(err, "failed to start chain")
 
 	allNodes := mochaChain.GetNodes()
 	s.Require().Len(allNodes, 1, "expected exactly one node")
