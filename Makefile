@@ -94,10 +94,10 @@ download-v4-binaries:
 	@mkdir -p internal/embedding
 	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
 	case "$$os-$$arch" in \
-		darwin-arm64) url=celestia-app_Darwin_arm64.tar.gz; out=celestia-app_darwin_v4_arm64.tar.gz ;; \
-		linux-arm64) url=celestia-app_Linux_arm64.tar.gz; out=celestia-app_linux_v4_arm64.tar.gz ;; \
-		darwin-amd64) url=celestia-app_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v4_amd64.tar.gz ;; \
-		linux-amd64) url=celestia-app_Linux_x86_64.tar.gz; out=celestia-app_linux_v4_amd64.tar.gz ;; \
+		darwin-arm64) url=celestia-app-standalone_Darwin_arm64.tar.gz; out=celestia-app_darwin_v4_arm64.tar.gz ;; \
+		linux-arm64) url=celestia-app-standalone_Linux_arm64.tar.gz; out=celestia-app_linux_v4_arm64.tar.gz ;; \
+		darwin-amd64) url=celestia-app-standalone_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v4_amd64.tar.gz ;; \
+		linux-amd64) url=celestia-app-standalone_Linux_x86_64.tar.gz; out=celestia-app_linux_v4_amd64.tar.gz ;; \
 		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
 	esac; \
 	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V4_VERSION)"
