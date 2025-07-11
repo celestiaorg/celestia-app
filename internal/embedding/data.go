@@ -9,14 +9,10 @@ import (
 
 // NOTE: This version must be updated at the same time as the version in the
 // Makefile.
-<<<<<<< HEAD
-const v3Version = "v3.10.3"
-=======
 const (
 	v3Version = "v3.10.4"
 	v4Version = "v4.0.7-mocha"
 )
->>>>>>> 1ec207c (chore: bump to v3.10.4 (#5233))
 
 // CelestiaAppV3 returns the compressed platform specific Celestia binary and
 // the version.
