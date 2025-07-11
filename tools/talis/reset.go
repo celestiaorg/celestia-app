@@ -15,6 +15,7 @@ func resetCmd() *cobra.Command {
 		cfgPath    string
 		SSHKeyPath string
 		validators []string
+		nodes      string
 	)
 
 	cmd := &cobra.Command{
@@ -34,9 +35,15 @@ func resetCmd() *cobra.Command {
 
 			resolvedKey := resolveValue(SSHKeyPath, EnvVarSSHKeyPath, strings.ReplaceAll(cfg.SSHPubKeyPath, ".pub", ""))
 
-			// Filter validators if specific ones were requested
+			// Filter validators based on --nodes or --validators flags
 			targetValidators := cfg.Validators
-			if len(validators) > 0 {
+			if nodes != "" && nodes != "*" {
+				targetValidators, err = filterMatchingInstances(cfg.Validators, nodes)
+				if err != nil {
+					return fmt.Errorf("failed to filter nodes: %w", err)
+				}
+			} else if len(validators) > 0 {
+				// Legacy --validators flag support
 				targetValidators = make([]Instance, 0)
 				for _, v := range cfg.Validators {
 					for _, requested := range validators {
@@ -46,9 +53,10 @@ func resetCmd() *cobra.Command {
 						}
 					}
 				}
-				if len(targetValidators) == 0 {
-					return fmt.Errorf("no matching validators found")
-				}
+			}
+
+			if len(targetValidators) == 0 {
+				return fmt.Errorf("no matching validators found")
 			}
 
 			cleanupScript := `
@@ -77,6 +85,7 @@ func resetCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&cfgPath, "config", "c", "config.json", "config file name")
 	cmd.Flags().StringVarP(&SSHKeyPath, "ssh-key-path", "k", "", "override path to your SSH private key")
 	cmd.Flags().StringSliceVarP(&validators, "validators", "v", []string{}, "optional list of validator names to reset (e.g. validator-0,validator-1)")
+	cmd.Flags().StringVarP(&nodes, "nodes", "n", "*", "specify node(s) to reset using pattern matching (e.g., validator-*, *-testchain-*, validator-0-*)")
 
 	return cmd
 }
