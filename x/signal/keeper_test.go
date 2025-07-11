@@ -119,7 +119,7 @@ func TestSignalVersion(t *testing.T) {
 	t.Run("should emit custom event", func(t *testing.T) {
 		upgradeKeeper, ctx, _ := setup(t)
 		ctx = ctx.WithEventManager(sdk.NewEventManager())
-		goCtx = sdk.WrapSDKContext(ctx)
+		goCtx := sdk.WrapSDKContext(ctx)
 
 		valAddr := testutil.ValAddrs[0].String()
 		_, err := upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
