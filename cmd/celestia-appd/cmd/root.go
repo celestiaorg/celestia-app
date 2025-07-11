@@ -129,20 +129,9 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 
 	modifyRootCommand(rootCommand)
 
-	// find start command
-	startCmd, _, err := rootCommand.Find([]string{"start"})
-	if err != nil {
-		panic(fmt.Errorf("failed to find start command: %w", err))
-	}
-	startCmdRunE := startCmd.RunE
-
-	// Add the BBR check to the start command
-	startCmd.RunE = func(cmd *cobra.Command, args []string) error {
-		if err := checkBBR(cmd); err != nil {
-			return err
-		}
-
-		return startCmdRunE(cmd, args)
+	// Add hooks run prior to the start command
+	if err := addPreStartHooks(rootCommand, checkAndUpdateMinGasPrices, checkBBR); err != nil {
+		panic(fmt.Errorf("failed to add pre-start hooks: %w", err))
 	}
 }
 
