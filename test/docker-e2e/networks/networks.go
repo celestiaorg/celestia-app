@@ -26,7 +26,6 @@ func NewConfig(networkCfg *Config, client *client.Client, network string) (*dock
 		WithConfig(tnCfg).
 		WithImage(dockerchain.GetCelestiaImage()).
 		WithTag(dockerchain.GetCelestiaTag()).
-		WithTag("pr-5193").
 		WithDockerClient(client).
 		WithDockerNetworkID(network), nil
 }
