@@ -3,6 +3,8 @@ package docker_e2e
 import (
 	"context"
 	"fmt"
+	rpcclient "github.com/cometbft/cometbft/rpc/client"
+	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	"testing"
 	"time"
 
@@ -96,4 +98,45 @@ func getNetworkNameFromID(ctx context.Context, cli *client.Client, networkID str
 		return "", fmt.Errorf("network %s has no name", networkID)
 	}
 	return network.Name, nil
+}
+
+func (s *CelestiaTestSuite) WaitForSync(ctx context.Context, statusClient rpcclient.StatusClient, syncTimeout time.Duration, syncCondition func(coretypes.SyncInfo) bool) error {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, syncTimeout)
+	defer cancel()
+
+	s.T().Log("Waiting for sync to complete...")
+
+	// check immediately first
+	if status, err := statusClient.Status(timeoutCtx); err == nil {
+		s.T().Logf("Sync node status: Height=%d, CatchingUp=%t", status.SyncInfo.LatestBlockHeight, status.SyncInfo.CatchingUp)
+		if syncCondition(status.SyncInfo) {
+			s.T().Logf("Sync completed successfully")
+			return nil
+		}
+	}
+
+	// then check on ticker intervals
+	for {
+		select {
+		case <-ticker.C:
+			status, err := statusClient.Status(timeoutCtx)
+			if err != nil {
+				s.T().Logf("Failed to get status from state sync node, retrying...: %v", err)
+				continue
+			}
+
+			s.T().Logf("Sync node status: Height=%d, CatchingUp=%t", status.SyncInfo.LatestBlockHeight, status.SyncInfo.CatchingUp)
+
+			if syncCondition(status.SyncInfo) {
+				s.T().Logf("Sync completed successfully")
+				return nil
+			}
+
+		case <-timeoutCtx.Done():
+			return fmt.Errorf("timed out waiting for state sync node to catch up after %v", syncTimeout)
+		}
+	}
 }

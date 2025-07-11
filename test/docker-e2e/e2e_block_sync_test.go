@@ -6,6 +6,7 @@ import (
 	addressutil "github.com/celestiaorg/tastora/framework/testutil/address"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
 	cometcfg "github.com/cometbft/cometbft/config"
+	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"testing"
 	"time"
 
@@ -131,39 +132,10 @@ func (s *CelestiaTestSuite) TestBlockSync() {
 	blockSyncClient, err := blockSyncNode.GetRPCClient()
 	s.Require().NoError(err)
 
-	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
+	err = s.WaitForSync(ctx, blockSyncClient, blockSyncTimeout, func(info rpctypes.SyncInfo) bool {
+		return !info.CatchingUp && info.LatestBlockHeight >= latestHeight
+	})
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, blockSyncTimeout)
-	defer cancel()
+	s.Require().NoError(err, "failed to wait for block sync node to catch up")
 
-	// wait for the block sync node to start syncing and catch up
-	for {
-		status, err := blockSyncClient.Status(timeoutCtx)
-		if err != nil {
-			t.Logf("Failed to get status from block sync node, retrying...: %v", err)
-			select {
-			case <-ticker.C:
-				continue
-			case <-timeoutCtx.Done():
-				t.Fatalf("timed out waiting for block sync node to catch up after %v", blockSyncTimeout)
-			}
-		}
-
-		t.Logf("Block sync node status: Height=%d, CatchingUp=%t", status.SyncInfo.LatestBlockHeight, status.SyncInfo.CatchingUp)
-
-		// check if the node has synced to within a reasonable range of the latest height
-		// allow for some variance as the chain is still producing blocks
-		if !status.SyncInfo.CatchingUp && status.SyncInfo.LatestBlockHeight >= latestHeight-5 {
-			t.Logf("Block sync successful! Node caught up to height %d", status.SyncInfo.LatestBlockHeight)
-			break
-		}
-
-		select {
-		case <-ticker.C:
-			// continue the loop
-		case <-timeoutCtx.Done():
-			t.Fatalf("timed out waiting for block sync node to catch up after %v", blockSyncTimeout)
-		}
-	}
 }

@@ -6,6 +6,7 @@ import (
 	"context"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
 	cometcfg "github.com/cometbft/cometbft/config"
+	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	servercfg "github.com/cosmos/cosmos-sdk/server/config"
 	"strings"
 	"testing"
@@ -144,39 +145,11 @@ func (s *CelestiaTestSuite) TestStateSync() {
 	stateSyncClient, err := fullNode.GetRPCClient()
 	s.Require().NoError(err)
 
-	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
+	err = s.WaitForSync(ctx, stateSyncClient, stateSyncTimeout, func(info rpctypes.SyncInfo) bool {
+		return !info.CatchingUp && info.LatestBlockHeight >= latestHeight
+	})
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, stateSyncTimeout)
-	defer cancel()
-
-	// Check immediately first, then on ticker intervals
-	for {
-		status, err := stateSyncClient.Status(timeoutCtx)
-		if err != nil {
-			t.Logf("Failed to get status from state sync node, retrying...: %v", err)
-			select {
-			case <-ticker.C:
-				continue
-			case <-timeoutCtx.Done():
-				t.Fatalf("timed out waiting for state sync node to catch up after %v", stateSyncTimeout)
-			}
-		}
-
-		t.Logf("State sync node status: Height=%d, CatchingUp=%t", status.SyncInfo.LatestBlockHeight, status.SyncInfo.CatchingUp)
-
-		if !status.SyncInfo.CatchingUp && status.SyncInfo.LatestBlockHeight >= latestHeight {
-			t.Logf("State sync successful! Node caught up to height %d", status.SyncInfo.LatestBlockHeight)
-			break
-		}
-
-		select {
-		case <-ticker.C:
-			// Continue the loop
-		case <-timeoutCtx.Done():
-			t.Fatalf("timed out waiting for state sync node to catch up after %v", stateSyncTimeout)
-		}
-	}
+	s.Require().NoError(err, "failed to wait for state sync to complete")
 }
 
 // TestStateSyncMocha tests state sync functionality by syncing from the mocha network.
@@ -253,41 +226,9 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 	stateSyncClient, err := fullNode.GetRPCClient()
 	s.Require().NoError(err, "failed to get state sync client")
 
-	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
+	err = s.WaitForSync(ctx, stateSyncClient, stateSyncTimeout, func(info rpctypes.SyncInfo) bool {
+		return !info.CatchingUp && info.LatestBlockHeight >= trustHeight
+	})
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, stateSyncTimeout)
-	defer cancel()
-
-	t.Log("Waiting for state sync to complete...")
-
-	// check immediately first, then on ticker intervals
-	for {
-		status, err := stateSyncClient.Status(timeoutCtx)
-		if err != nil {
-			t.Logf("Failed to get status from state sync node, retrying...: %v", err)
-			select {
-			case <-ticker.C:
-				continue
-			case <-timeoutCtx.Done():
-				t.Fatalf("timed out waiting for state sync node to respond after %v", stateSyncTimeout)
-			}
-		}
-
-		t.Logf("State sync node status: Height=%d, CatchingUp=%t", status.SyncInfo.LatestBlockHeight, status.SyncInfo.CatchingUp)
-
-		// for mocha sync, we consider success when the node is no longer catching up
-		// and has synced to a reasonable height
-		if !status.SyncInfo.CatchingUp && status.SyncInfo.LatestBlockHeight > trustHeight {
-			t.Logf("State sync from mocha successful! Node caught up to height %d", status.SyncInfo.LatestBlockHeight)
-			break
-		}
-
-		select {
-		case <-ticker.C:
-			// continue the loop
-		case <-timeoutCtx.Done():
-			t.Fatalf("timed out waiting for state sync from mocha to complete after %v", stateSyncTimeout)
-		}
-	}
+	s.Require().NoError(err, "failed to wait for state sync to complete")
 }
