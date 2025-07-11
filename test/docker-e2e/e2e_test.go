@@ -100,6 +100,33 @@ func getNetworkNameFromID(ctx context.Context, cli *client.Client, networkID str
 	return network.Name, nil
 }
 
+// GetLatestBlockHeight returns the latest block height of the given node.
+// This function will periodically check for the latest block height until the timeout is reached.
+// If the timeout is reached, an error will be returned.
+func (s *CelestiaTestSuite) GetLatestBlockHeight(ctx context.Context, statusClient rpcclient.StatusClient) (int64, error) {
+	// use a ticker to periodically check for the initial height
+	heightTicker := time.NewTicker(1 * time.Second)
+	defer heightTicker.Stop()
+
+	heightTimeoutCtx, heightCancel := context.WithTimeout(ctx, 30*time.Second)
+	defer heightCancel()
+
+	// check immediately first, then on ticker intervals
+	for {
+		status, err := statusClient.Status(heightTimeoutCtx)
+		if err == nil && status.SyncInfo.LatestBlockHeight > 0 {
+			return status.SyncInfo.LatestBlockHeight, nil
+		}
+
+		select {
+		case <-heightTicker.C:
+			// continue the loop
+		case <-heightTimeoutCtx.Done():
+			return 0, fmt.Errorf("timed out waiting for initial height")
+		}
+	}
+}
+
 func (s *CelestiaTestSuite) WaitForSync(ctx context.Context, statusClient rpcclient.StatusClient, syncTimeout time.Duration, syncCondition func(coretypes.SyncInfo) bool) error {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()

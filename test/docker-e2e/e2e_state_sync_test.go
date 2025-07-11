@@ -67,33 +67,10 @@ func (s *CelestiaTestSuite) TestStateSync() {
 	nodeClient, err := allNodes[0].GetRPCClient()
 	s.Require().NoError(err)
 
-	initialHeight := int64(0)
+	initialHeight, err := s.GetLatestBlockHeight(ctx, nodeClient)
+	s.Require().NoError(err, "failed to get initial height")
+	s.Require().Greater(initialHeight, int64(0), "initial height is zero")
 
-	// Use a ticker to periodically check for the initial height
-	heightTicker := time.NewTicker(1 * time.Second)
-	defer heightTicker.Stop()
-
-	heightTimeoutCtx, heightCancel := context.WithTimeout(ctx, 30*time.Second) // Wait up to 30 seconds for the first block
-	defer heightCancel()
-
-	// Check immediately first, then on ticker intervals
-	for {
-		status, err := nodeClient.Status(heightTimeoutCtx)
-		if err == nil && status.SyncInfo.LatestBlockHeight > 0 {
-			initialHeight = status.SyncInfo.LatestBlockHeight
-			break
-		}
-
-		select {
-		case <-heightTicker.C:
-			// Continue the loop
-		case <-heightTimeoutCtx.Done():
-			t.Logf("Timed out waiting for initial height")
-			break
-		}
-	}
-
-	s.Require().Greater(initialHeight, int64(0), "failed to get initial height")
 	targetHeight := initialHeight + blocksToProduce
 	t.Logf("Successfully reached initial height %d", initialHeight)
 
@@ -102,10 +79,7 @@ func (s *CelestiaTestSuite) TestStateSync() {
 	t.Logf("Successfully reached target height %d", targetHeight)
 
 	t.Logf("Gathering state sync parameters")
-	status, err := nodeClient.Status(ctx)
-	s.Require().NoError(err, "failed to get node zero client")
-
-	latestHeight := status.SyncInfo.LatestBlockHeight
+	latestHeight, err := s.GetLatestBlockHeight(ctx, nodeClient)
 	trustHeight := latestHeight - stateSyncTrustHeightOffset
 	s.Require().Greater(trustHeight, int64(0), "calculated trust height %d is too low (latest height: %d)", trustHeight, latestHeight)
 
@@ -166,10 +140,10 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 	s.Require().NoError(err, "failed to create mocha RPC client")
 
 	// get latest height from mocha
-	status, err := mochaClient.Status(ctx)
-	s.Require().NoError(err, "failed to get mocha network status")
+	latestHeight, err := s.GetLatestBlockHeight(ctx, mochaClient)
+	s.Require().NoError(err, "failed to get latest height from mocha")
+	s.Require().Greater(latestHeight, int64(0), "latest height is zero")
 
-	latestHeight := status.SyncInfo.LatestBlockHeight
 	trustHeight := latestHeight - 2000
 	s.Require().Greater(trustHeight, int64(0), "calculated trust height %d is too low", trustHeight)
 

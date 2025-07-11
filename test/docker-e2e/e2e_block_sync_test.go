@@ -51,33 +51,10 @@ func (s *CelestiaTestSuite) TestBlockSync() {
 	nodeClient, err := allNodes[0].GetRPCClient()
 	s.Require().NoError(err)
 
-	initialHeight := int64(0)
+	initialHeight, err := s.GetLatestBlockHeight(ctx, nodeClient)
+	s.Require().NoError(err, "failed to get initial height")
+	s.Require().Greater(initialHeight, int64(0), "initial height is zero")
 
-	// use a ticker to periodically check for the initial height
-	heightTicker := time.NewTicker(1 * time.Second)
-	defer heightTicker.Stop()
-
-	heightTimeoutCtx, heightCancel := context.WithTimeout(ctx, 30*time.Second)
-	defer heightCancel()
-
-	// check immediately first, then on ticker intervals
-	for {
-		status, err := nodeClient.Status(heightTimeoutCtx)
-		if err == nil && status.SyncInfo.LatestBlockHeight > 0 {
-			initialHeight = status.SyncInfo.LatestBlockHeight
-			break
-		}
-
-		select {
-		case <-heightTicker.C:
-			// continue the loop
-		case <-heightTimeoutCtx.Done():
-			t.Logf("Timed out waiting for initial height")
-			break
-		}
-	}
-
-	s.Require().Greater(initialHeight, int64(0), "failed to get initial height")
 	targetHeight := initialHeight + blockSyncBlocksToProduce
 	t.Logf("Successfully reached initial height %d", initialHeight)
 
@@ -86,10 +63,9 @@ func (s *CelestiaTestSuite) TestBlockSync() {
 	t.Logf("Successfully reached target height %d", targetHeight)
 
 	// get the latest height and block info for the block sync node
-	status, err := nodeClient.Status(ctx)
-	s.Require().NoError(err, "failed to get node status")
-
-	latestHeight := status.SyncInfo.LatestBlockHeight
+	latestHeight, err := s.GetLatestBlockHeight(ctx, nodeClient)
+	s.Require().NoError(err, "failed to get latest height")
+	s.Require().Greater(latestHeight, int64(0), "latest height is zero")
 
 	// build peer list for the new node to connect to existing validators
 	peerList, err := addressutil.BuildInternalPeerAddressList(ctx, celestia.GetNodes())
