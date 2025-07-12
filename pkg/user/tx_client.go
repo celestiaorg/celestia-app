@@ -47,6 +47,7 @@ type txInfo struct {
 	sequence  uint64
 	signer    string
 	timestamp time.Time
+	txBytes   []byte
 }
 
 // TxResponse is a response from the chain after
@@ -152,6 +153,7 @@ type TxClient struct {
 	// txTracker maps the tx hash to the Sequence and signer of the transaction
 	// that was submitted to the chain
 	txTracker           map[string]txInfo
+	txBySignerSequence  map[string]map[uint64]string
 	gasEstimationClient gasestimation.GasEstimatorClient
 }
 
@@ -184,6 +186,7 @@ func NewTxClient(
 		defaultAccount:      records[0].Name,
 		defaultAddress:      addr,
 		txTracker:           make(map[string]txInfo),
+		txBySignerSequence:  make(map[string]map[uint64]string),
 		cdc:                 cdc,
 		gasEstimationClient: gasestimation.NewGasEstimatorClient(conn),
 	}
@@ -401,20 +404,48 @@ func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, 
 		}
 		return nil, broadcastTxErr
 	}
+	fmt.Println("tx submitted")
 
 	// save the sequence and signer of the transaction in the local txTracker
 	// before the sequence is incremented
-	client.txTracker[resp.TxResponse.TxHash] = txInfo{
-		sequence:  client.signer.accounts[signer].Sequence(),
-		signer:    signer,
-		timestamp: time.Now(),
-	}
+	client.trackTransaction(signer, resp.TxResponse.TxHash, txBytes)
+	fmt.Println("tx tracked")
 
 	// after the transaction has been submitted, we can increment the
 	// sequence of the signer
 	if err := client.signer.IncrementSequence(signer); err != nil {
 		return nil, fmt.Errorf("increment sequencing: %w", err)
 	}
+	fmt.Println("sequence incremented")
+	return resp.TxResponse, nil
+}
+
+func (client *TxClient) broadcastTxAfterEviction(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+	txClient := sdktx.NewServiceClient(conn)
+	resp, err := txClient.BroadcastTx(
+		ctx,
+		&sdktx.BroadcastTxRequest{
+			Mode:    sdktx.BroadcastMode_BROADCAST_MODE_SYNC,
+			TxBytes: txBytes,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	if resp.TxResponse.Code != abci.CodeTypeOK {
+		broadcastTxErr := &BroadcastTxError{
+			TxHash:   resp.TxResponse.TxHash,
+			Code:     resp.TxResponse.Code,
+			ErrorLog: resp.TxResponse.RawLog,
+		}
+		return nil, broadcastTxErr
+	}
+	fmt.Println("tx resubmitted")
+
+	// save the sequence and signer of the transaction in the local txTracker
+	// before the sequence is incremented
+	// client.trackTransaction(signer, resp.TxResponse.TxHash, txBytes)
+	// fmt.Println("tx tracked")
 	return resp.TxResponse, nil
 }
 
@@ -472,6 +503,9 @@ func (client *TxClient) pruneTxTracker() {
 	for hash, txInfo := range client.txTracker {
 		if time.Since(txInfo.timestamp) >= txTrackerPruningInterval {
 			delete(client.txTracker, hash)
+			if txBySigner, ok := client.txBySignerSequence[txInfo.signer]; ok {
+				delete(txBySigner, txInfo.sequence)
+			}
 		}
 	}
 }
@@ -518,7 +552,72 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			client.deleteFromTxTracker(txHash)
 			return txResponse, nil
 		case core.TxStatusEvicted:
-			return nil, client.handleEvictions(txHash)
+			fmt.Println("tx evicted")
+			// Poll for a limited time to see if transaction gets included
+			evictionPollTicker := time.NewTicker(client.pollTime)
+			defer evictionPollTicker.Stop()
+			/// We should let the user handle this though
+			evictionTimeout := time.After(5 * time.Second) // Poll for 5 seconds
+
+			for {
+				select {
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				case <-evictionTimeout:
+					goto resubmit
+				case <-evictionPollTicker.C:
+					// Check if transaction status changed
+					resp, err := txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
+					if err != nil {
+						continue // Continue polling on error
+					}
+
+					switch resp.Status {
+					case core.TxStatusCommitted:
+						// Transaction was actually included, don't resubmit
+						fmt.Println("tx was included during polling, not resubmitting")
+						client.deleteFromTxTracker(txHash)
+						return &TxResponse{
+							Height: resp.Height,
+							TxHash: txHash,
+							Code:   resp.ExecutionCode,
+						}, nil
+					case core.TxStatusEvicted:
+						// Still evicted, continue polling
+						continue
+					default:
+						// Unknown status, continue polling
+						continue
+					}
+				}
+			}
+
+		resubmit:
+			// Proceed with resubmission after polling timeout
+			sequence, signer, exists := client.GetTxFromTxTracker(txHash)
+			if !exists {
+				return nil, fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
+			}
+
+			// Check current network sequence before resubmission
+			currentSequence, err := client.getCurrentSequence(ctx, signer)
+			if err != nil {
+				fmt.Printf("Failed to get current sequence: %v\n", err)
+			} else {
+				fmt.Printf("Current network sequence: %d, Local sequence for resubmission: %d\n", currentSequence, sequence)
+			}
+
+			//resubmit the tx with the current sequence
+			resp, err := client.broadcastTxAfterEviction(ctx, client.conns[0], client.txTracker[txHash].txBytes, signer)
+			if err != nil {
+				return nil, err
+			}
+
+			// now we should confirm the tx
+			return client.ConfirmTx(ctx, resp.TxHash)
+
+		case core.TxStatusRejected:
+			return nil, client.handleRejections(txHash)
 		default:
 			client.deleteFromTxTracker(txHash)
 			if ctx.Err() != nil {
@@ -529,10 +628,10 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 	}
 }
 
-// handleEvictions handles the scenario where a transaction is evicted from the mempool.
-// It removes the evicted transaction from the local tx tracker without incrementing
+// handleRejections handles the scenario where a transaction is rejected by the node.
+// It removes the rejected transaction from the local tx tracker without incrementing
 // the signer's sequence.
-func (client *TxClient) handleEvictions(txHash string) error {
+func (client *TxClient) handleRejections(txHash string) error {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 	// Get transaction from the local tx tracker
@@ -540,13 +639,13 @@ func (client *TxClient) handleEvictions(txHash string) error {
 	if !exists {
 		return fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
 	}
-	// The sequence should be rolled back to the sequence of the transaction that was evicted to be
+	// The sequence should be rolled back to the sequence of the transaction that was rejected to be
 	// ready for resubmission. All transactions with a later nonce will be kicked by the nodes tx pool.
 	if err := client.signer.SetSequence(txInfo.signer, txInfo.sequence); err != nil {
 		return fmt.Errorf("setting sequence: %w", err)
 	}
 	delete(client.txTracker, txHash)
-	return fmt.Errorf("tx was evicted from the mempool")
+	return fmt.Errorf("tx was rejected by the node")
 }
 
 // deleteFromTxTracker safely deletes a transaction from the local tx tracker.
@@ -725,12 +824,38 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 	return record.Name, nil
 }
 
+func (client *TxClient) trackTransaction(signer, txHash string, txBytes []byte) {
+	sequence := client.signer.Account(signer).Sequence()
+	client.txTracker[txHash] = txInfo{
+		sequence:  sequence,
+		signer:    signer,
+		timestamp: time.Now(),
+		txBytes:   txBytes,
+	}
+	// Initialize the inner map for this signer if it doesn't exist
+	if client.txBySignerSequence[signer] == nil {
+		client.txBySignerSequence[signer] = make(map[uint64]string)
+	}
+	client.txBySignerSequence[signer][sequence] = txHash
+}
+
 // GetTxFromTxTracker gets transaction info from the tx client's local tx tracker by its hash
 func (client *TxClient) GetTxFromTxTracker(hash string) (sequence uint64, signer string, exists bool) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 	txInfo, exists := client.txTracker[hash]
 	return txInfo.sequence, txInfo.signer, exists
+}
+
+func (client *TxClient) getTxBySignerAndSequence(signer string, sequence uint64) ([]byte, bool) {
+	if txsBySigner, ok := client.txBySignerSequence[signer]; ok {
+		if txHash, ok := txsBySigner[sequence]; ok {
+			if txInfo, ok := client.txTracker[txHash]; ok {
+				return txInfo.txBytes, true
+			}
+		}
+	}
+	return nil, false
 }
 
 // Signer exposes the tx clients underlying signer
@@ -784,4 +909,17 @@ func QueryNetworkMinGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (fl
 		}
 	}
 	return networkMinPrice, nil
+}
+
+func (client *TxClient) getCurrentSequence(ctx context.Context, signer string) (uint64, error) {
+	record, err := client.signer.keys.Key(signer)
+	if err != nil {
+		return 0, fmt.Errorf("trying to find account %s on keyring: %w", signer, err)
+	}
+	addr, err := record.GetAddress()
+	if err != nil {
+		return 0, fmt.Errorf("retrieving address from keyring: %w", err)
+	}
+	_, sequence, err := QueryAccount(ctx, client.conns[0], client.registry, addr)
+	return sequence, err
 }
