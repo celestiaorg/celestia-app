@@ -13,7 +13,6 @@ var (
 	// This is relatively brittle. It would be better if going below the min gas price
 	// had a specific error type.
 	regexpMinGasPrice = regexp.MustCompile(`insufficient fees; got: \d+utia required: \d+utia`)
-	regexpInt         = regexp.MustCompile(`[0-9]+`)
 )
 
 // ParseInsufficientMinGasPrice checks if the error is due to the gas price being too low.
@@ -34,6 +33,7 @@ func ParseInsufficientMinGasPrice(err error, gasPrice float64, gasLimit uint64) 
 	}
 
 	// extract the first and second numbers from the error message (got and required)
+	regexpInt := regexp.MustCompile(`[0-9]+`)
 	numbers := regexpInt.FindAllString(substr[0], -1)
 	if len(numbers) != 2 {
 		return 0, fmt.Errorf("expected two numbers in error message got %d", len(numbers))
