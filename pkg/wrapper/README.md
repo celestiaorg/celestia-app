@@ -86,7 +86,7 @@ One namespace ID is located in the first `NamespaceIDSize` bytes, while the othe
 [nmt-hash-link]: https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md#namespaced-hash
 [nmt-ignoremax-link]: https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md#ignore-max-namespace
 [nmt-add-leaves-link]: https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md#add-leaves
-[celestia-constants-link]: https://github.com/celestiaorg/celestia-app/blob/c09843d07d4c3842753138de96b304b4866e8f5d/specs/src/specs/consensus.md#constants
-[celestia-consensus-link]: https://github.com/celestiaorg/celestia-app/blob/c09843d07d4c3842753138de96b304b4866e8f5d/specs/src/specs/consensus.md#reserved-namespace-ids
-[reedsolomon-link]: https://github.com/celestiaorg/celestia-app/blob/c09843d07d4c3842753138de96b304b4866e8f5d/specs/src/specs/data_structures.md#2d-reed-solomon-encoding-scheme
+[celestia-constants-link]: https://github.com/celestiaorg/celestia-app/blob/main/specs/src/consensus.md#constants
+[celestia-consensus-link]: https://github.com/celestiaorg/celestia-app/blob/main/specs/src/consensus.md#reserved-namespace-ids
+[reedsolomon-link]: https://github.com/celestiaorg/celestia-app/blob/main/specs/src/data_structures.md#2d-reed-solomon-encoding-scheme
 [originalds-link]: https://github.com/celestiaorg/celestia-app/blob/c09843d07d4c3842753138de96b304b4866e8f5d/specs/src/specs/data_structures.md?plain=1#L494
