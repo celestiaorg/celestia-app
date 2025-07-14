@@ -49,9 +49,9 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 		panic(err)
 	}
 
-	var v3Args []string
+	v3Args := defaultArgs
 	if v2UpgradeHeight != "" {
-		v3Args = append(defaultArgs, "--v2-upgrade-height="+v2UpgradeHeight)
+		v3Args = append(v3Args, "--v2-upgrade-height="+v2UpgradeHeight)
 	}
 
 	versions, err := abci.NewVersions(
