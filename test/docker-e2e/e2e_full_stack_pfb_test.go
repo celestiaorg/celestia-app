@@ -3,12 +3,12 @@ package docker_e2e
 import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v5/pkg/user"
-	"github.com/celestiaorg/celestia-app/v5/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v5/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v5/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
@@ -17,7 +17,25 @@ import (
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 )
 
-func (s *CelestiaTestSuite) TestE2EFullStackBlob() {
+const (
+	// celestiaNodeVersion specifies the celestia-node version to be used for the DA network.
+	//
+	// NOTE: the intention of this test is that it is just a basic sanity check for the entire stack.
+	// while the app version will vary on a per-pr and per-tag basis, the node version can remain relatively static.
+	// we can bump it as required.
+	celestiaNodeVersion    = "v0.23.3-mocha"
+	celestiaNodeRepository = "ghcr.io/celestiaorg/celestia-node"
+)
+
+// TestE2EFullStackPFB is an E2E test which tests the basic functionality of the entire stack.
+// This test does the following:
+// - deploys celestia-app
+// - deploys a celestia-node full node
+// - deploys a celestia-node bridge node
+// - deploys a celestia-node light node
+// - submits multiple PFBs
+// - verifies blob data is retrievable via light node rpc.
+func (s *CelestiaTestSuite) TestE2EFullStackPFB() {
 	t := s.T()
 	if testing.Short() {
 		t.Skip("skipping in short mode")
@@ -25,22 +43,20 @@ func (s *CelestiaTestSuite) TestE2EFullStackBlob() {
 
 	ctx := context.TODO()
 
-	// deploy celestia-app chain
 	cfg := dockerchain.DefaultConfig(s.client, s.network)
 	cfg.Genesis = cfg.Genesis.WithAppVersion(4) // TODO: currently this node version does not support v5
 
 	celestia, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).WithChainID("test").Build(ctx)
 	s.Require().NoError(err, "failed to build celestia chain")
 
-	err = celestia.Start(ctx)
-	s.Require().NoError(err, "failed to start celestia chain")
-
-	// cleanup resources when the test is done
 	t.Cleanup(func() {
 		if err := celestia.Stop(ctx); err != nil {
 			t.Logf("Error stopping celestia chain: %v", err)
 		}
 	})
+
+	err = celestia.Start(ctx)
+	s.Require().NoError(err, "failed to start celestia chain")
 
 	// verify the chain is running
 	height, err := celestia.Height(ctx)
@@ -81,8 +97,8 @@ func (s *CelestiaTestSuite) deployDANetwork(ctx context.Context, celestia *tasto
 			FullNodeCount:   1,
 			LightNodeCount:  1,
 			Image: tastoradockertypes.DockerImage{
-				Repository: "ghcr.io/celestiaorg/celestia-node",
-				Version:    "v0.23.3-mocha", // use latest stable released tag
+				Repository: celestiaNodeRepository,
+				Version:    celestiaNodeVersion,
 			},
 		},
 	}
@@ -91,9 +107,6 @@ func (s *CelestiaTestSuite) deployDANetwork(ctx context.Context, celestia *tasto
 	provider := tastoradockertypes.NewProvider(daConfig, t)
 	daNetwork, err := provider.GetDataAvailabilityNetwork(ctx)
 	s.Require().NoError(err, "failed to create DA network")
-
-	// get chain connection info
-	chainID := celestia.GetChainID()
 
 	// get celestia-app node hostname for core connection
 	coreNodeHostname, err := celestia.Nodes()[0].GetInternalHostName(ctx)
@@ -104,20 +117,17 @@ func (s *CelestiaTestSuite) deployDANetwork(ctx context.Context, celestia *tasto
 	s.Require().NoError(err, "failed to get genesis hash")
 
 	// build CELESTIA_CUSTOM environment variable (use empty string for P2P address)
-	celestiaCustom := tastoratypes.BuildCelestiaCustomEnvVar(chainID, genesisHash, "")
-
-	// use "test" as the network name for DA nodes
-	daNetworkName := "test"
+	celestiaCustom := tastoratypes.BuildCelestiaCustomEnvVar(celestia.GetChainID(), genesisHash, "")
 
 	// start bridge nodes first
 	bridgeNodes := daNetwork.GetBridgeNodes()
 	for _, node := range bridgeNodes {
 		err := node.Start(ctx,
-			tastoratypes.WithChainID(daNetworkName),
-			tastoratypes.WithAdditionalStartArguments("--p2p.network", daNetworkName, "--core.ip", coreNodeHostname, "--rpc.addr", "0.0.0.0"),
+			tastoratypes.WithChainID(celestia.GetChainID()),
+			tastoratypes.WithAdditionalStartArguments("--p2p.network", celestia.GetChainID(), "--core.ip", coreNodeHostname, "--rpc.addr", "0.0.0.0"),
 			tastoratypes.WithEnvironmentVariables(map[string]string{
 				"CELESTIA_CUSTOM": celestiaCustom,
-				"P2P_NETWORK":     daNetworkName,
+				"P2P_NETWORK":     celestia.GetChainID(),
 			}),
 		)
 		s.Require().NoError(err, "failed to start bridge node")
@@ -135,13 +145,13 @@ func (s *CelestiaTestSuite) deployDANetwork(ctx context.Context, celestia *tasto
 	// start full nodes
 	fullNodes := daNetwork.GetFullNodes()
 	for _, node := range fullNodes {
-		celestiaCustomWithP2P := tastoratypes.BuildCelestiaCustomEnvVar(chainID, genesisHash, bridgeP2PAddr)
+		celestiaCustomWithP2P := tastoratypes.BuildCelestiaCustomEnvVar(celestia.GetChainID(), genesisHash, bridgeP2PAddr)
 		err := node.Start(ctx,
-			tastoratypes.WithChainID(daNetworkName),
-			tastoratypes.WithAdditionalStartArguments("--p2p.network", daNetworkName, "--core.ip", coreNodeHostname, "--rpc.addr", "0.0.0.0"),
+			tastoratypes.WithChainID(celestia.GetChainID()),
+			tastoratypes.WithAdditionalStartArguments("--p2p.network", celestia.GetChainID(), "--core.ip", coreNodeHostname, "--rpc.addr", "0.0.0.0"),
 			tastoratypes.WithEnvironmentVariables(map[string]string{
 				"CELESTIA_CUSTOM": celestiaCustomWithP2P,
-				"P2P_NETWORK":     daNetworkName,
+				"P2P_NETWORK":     celestia.GetChainID(),
 			}),
 		)
 		s.Require().NoError(err, "failed to start full node")
@@ -159,13 +169,13 @@ func (s *CelestiaTestSuite) deployDANetwork(ctx context.Context, celestia *tasto
 	// start light nodes
 	lightNodes := daNetwork.GetLightNodes()
 	for _, node := range lightNodes {
-		celestiaCustomWithP2P := tastoratypes.BuildCelestiaCustomEnvVar(chainID, genesisHash, fullP2PAddr)
+		celestiaCustomWithP2P := tastoratypes.BuildCelestiaCustomEnvVar(celestia.GetChainID(), genesisHash, fullP2PAddr)
 		err := node.Start(ctx,
-			tastoratypes.WithChainID(daNetworkName),
-			tastoratypes.WithAdditionalStartArguments("--p2p.network", daNetworkName, "--rpc.addr", "0.0.0.0"),
+			tastoratypes.WithChainID(celestia.GetChainID()),
+			tastoratypes.WithAdditionalStartArguments("--p2p.network", celestia.GetChainID(), "--rpc.addr", "0.0.0.0"),
 			tastoratypes.WithEnvironmentVariables(map[string]string{
 				"CELESTIA_CUSTOM": celestiaCustomWithP2P,
-				"P2P_NETWORK":     daNetworkName,
+				"P2P_NETWORK":     celestia.GetChainID(),
 			}),
 		)
 		s.Require().NoError(err, "failed to start light node")
@@ -207,8 +217,7 @@ func (s *CelestiaTestSuite) submitBlobTransactions(ctx context.Context, txClient
 		s.Require().NoError(err, "failed to create blob %d", i)
 
 		// submit blob transaction using TxClient
-		opts := blobfactory.DefaultTxOpts()
-		response, err := txClient.SubmitPayForBlob(ctx, []*share.Blob{blob}, opts...)
+		response, err := txClient.SubmitPayForBlob(ctx, []*share.Blob{blob}, user.SetGasLimit(200000), user.SetFee(5000))
 		s.Require().NoError(err, "failed to submit blob transaction %d", i)
 		s.Require().Equal(uint32(0), response.Code, "blob transaction %d failed with code %d", i, response.Code)
 
@@ -249,17 +258,23 @@ func (s *CelestiaTestSuite) verifyBlobRetrieval(ctx context.Context, daNetwork t
 
 		// find the matching blob
 		var foundBlob *tastoratypes.Blob
+
+		// Convert the original namespace to base64 for comparison (since API returns base64)
+		expectedNamespaceB64 := base64.StdEncoding.EncodeToString(blob.namespace.Bytes())
+
 		for _, retrievedBlob := range retrievedBlobs {
-			if retrievedBlob.Namespace == blob.namespace.String() {
+			if retrievedBlob.Namespace == expectedNamespaceB64 {
 				foundBlob = &retrievedBlob
 				break
 			}
 		}
 		s.Require().NotNil(foundBlob, "blob %d not found in retrieved blobs", i)
 
-		// verify blob data matches
-		s.Require().Equal(blob.data, foundBlob.Data, "blob %d data mismatch", i)
-		s.Require().Equal(blob.namespace.String(), foundBlob.Namespace, "blob %d namespace mismatch", i)
+		// verify blob data matches (decode base64 data from API response)
+		retrievedData, err := base64.StdEncoding.DecodeString(foundBlob.Data)
+		s.Require().NoError(err, "failed to decode blob %d data from base64", i)
+		s.Require().Equal(blob.data, retrievedData, "blob %d data mismatch", i)
+		s.Require().Equal(expectedNamespaceB64, foundBlob.Namespace, "blob %d namespace mismatch", i)
 
 		t.Logf("Blob %d successfully retrieved and verified from light node", i)
 	}
