@@ -1,0 +1,50 @@
+name: Mocha Block Sync Test
+
+on:
+  # manual trigger only
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Docker image tag to test (leave empty to build from main)'
+        required: false
+        type: string
+
+jobs:
+  test-mocha-block-sync:
+    # due to run time, this test will exceed the allowed usage of standard github runners
+    # so we must use a self hosted runner.
+    runs-on: ubuntu-8
+    timeout-minutes: 10080  # 7 days in minutes
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #v4.2.2
+
+      - name: Set up Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 #v5.5.0
+        with:
+          go-version-file: "go.mod"
+
+      - name: Generate image tag
+        id: tag
+        run: |
+          if [ -n "${{ inputs.tag }}" ]; then
+            echo "value=${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "value=$(echo $GITHUB_SHA | cut -c1-8)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build Docker image locally
+        if: ${{ !inputs.tag }} # only build an image if no tag is specified
+        run: docker build -t "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.value }}" . -f docker/multiplexer.Dockerfile
+
+      - name: Run TestBlockSyncMocha
+        env:
+          # Use the locally built image or specified tag
+          CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
+          CELESTIA_TAG: ${{ steps.tag.outputs.value }}
+        run: |
+          echo "Starting mocha block sync test with image: ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.value }}"
+          echo "This test can take several days to complete as it syncs the entire mocha network from genesis"
+          make test-mocha-block-sync
+
+      # TODO: add slack notification on completion/failure
