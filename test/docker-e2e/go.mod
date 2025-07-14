@@ -10,7 +10,7 @@ require (
 	github.com/cometbft/cometbft v0.38.17
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/docker/docker v28.3.2+incompatible
-	github.com/moby/moby v27.5.1+incompatible
+	github.com/moby/moby v28.3.2+incompatible
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
 )
@@ -92,6 +92,7 @@ require (
 	github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06 // indirect
 	github.com/cometbft/cometbft-db v1.0.4 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
+	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/cosmos/btcutil v1.0.5 // indirect
 	github.com/cosmos/cosmos-db v1.1.1 // indirect
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5 // indirect
