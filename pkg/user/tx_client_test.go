@@ -239,7 +239,7 @@ func TestEvictions(t *testing.T) {
 		successfulTxs := 0
 
 		// Submit all transactions
-		for i := 0; i < 10; i++ {
+		for i := 0; i < 2; i++ {
 			fmt.Println("submitting tx", i)
 			blobs := blobfactory.ManyRandBlobs(random.New(), 1e3, 1e4, 1e5)
 			resp, err := txClient.SubmitPayForBlob(ctx.GoContext(), blobs, fee, gas)

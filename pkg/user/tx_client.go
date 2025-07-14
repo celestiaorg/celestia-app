@@ -404,19 +404,17 @@ func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, 
 		}
 		return nil, broadcastTxErr
 	}
-	fmt.Println("tx submitted")
 
 	// save the sequence and signer of the transaction in the local txTracker
 	// before the sequence is incremented
 	client.trackTransaction(signer, resp.TxResponse.TxHash, txBytes)
-	fmt.Println("tx tracked")
 
 	// after the transaction has been submitted, we can increment the
 	// sequence of the signer
 	if err := client.signer.IncrementSequence(signer); err != nil {
 		return nil, fmt.Errorf("increment sequencing: %w", err)
 	}
-	fmt.Println("sequence incremented")
+
 	return resp.TxResponse, nil
 }
 
@@ -440,12 +438,10 @@ func (client *TxClient) broadcastTxAfterEviction(ctx context.Context, conn *grpc
 		}
 		return nil, broadcastTxErr
 	}
-	fmt.Println("tx resubmitted")
 
 	// save the sequence and signer of the transaction in the local txTracker
 	// before the sequence is incremented
 	// client.trackTransaction(signer, resp.TxResponse.TxHash, txBytes)
-	// fmt.Println("tx tracked")
 	return resp.TxResponse, nil
 }
 
@@ -552,70 +548,14 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			client.deleteFromTxTracker(txHash)
 			return txResponse, nil
 		case core.TxStatusEvicted:
-			fmt.Println("tx evicted")
-			// Poll for a limited time to see if transaction gets included
-			evictionPollTicker := time.NewTicker(client.pollTime)
-			defer evictionPollTicker.Stop()
-			/// We should let the user handle this though
-			evictionTimeout := time.After(5 * time.Second) // Poll for 5 seconds
-
-			for {
-				select {
-				case <-ctx.Done():
-					return nil, ctx.Err()
-				case <-evictionTimeout:
-					goto resubmit
-				case <-evictionPollTicker.C:
-					// Check if transaction status changed
-					resp, err := txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
-					if err != nil {
-						continue // Continue polling on error
-					}
-
-					switch resp.Status {
-					case core.TxStatusCommitted:
-						// Transaction was actually included, don't resubmit
-						fmt.Println("tx was included during polling, not resubmitting")
-						client.deleteFromTxTracker(txHash)
-						return &TxResponse{
-							Height: resp.Height,
-							TxHash: txHash,
-							Code:   resp.ExecutionCode,
-						}, nil
-					case core.TxStatusEvicted:
-						// Still evicted, continue polling
-						continue
-					default:
-						// Unknown status, continue polling
-						continue
-					}
-				}
-			}
-
-		resubmit:
-			// Proceed with resubmission after polling timeout
-			sequence, signer, exists := client.GetTxFromTxTracker(txHash)
+			_, signer, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
-				return nil, fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
+				return nil, fmt.Errorf("tx: %s not found in txTracker", txHash)
 			}
-
-			// Check current network sequence before resubmission
-			currentSequence, err := client.getCurrentSequence(ctx, signer)
+			_, err := client.broadcastTxAfterEviction(ctx, client.conns[0], client.txTracker[txHash].txBytes, signer)
 			if err != nil {
-				fmt.Printf("Failed to get current sequence: %v\n", err)
-			} else {
-				fmt.Printf("Current network sequence: %d, Local sequence for resubmission: %d\n", currentSequence, sequence)
+				return nil, fmt.Errorf("resubmission failed: %w", err)
 			}
-
-			//resubmit the tx with the current sequence
-			resp, err := client.broadcastTxAfterEviction(ctx, client.conns[0], client.txTracker[txHash].txBytes, signer)
-			if err != nil {
-				return nil, err
-			}
-
-			// now we should confirm the tx
-			return client.ConfirmTx(ctx, resp.TxHash)
-
 		case core.TxStatusRejected:
 			return nil, client.handleRejections(txHash)
 		default:
@@ -836,6 +776,7 @@ func (client *TxClient) trackTransaction(signer, txHash string, txBytes []byte) 
 	if client.txBySignerSequence[signer] == nil {
 		client.txBySignerSequence[signer] = make(map[uint64]string)
 	}
+	fmt.Println("saving with sequence", sequence)
 	client.txBySignerSequence[signer][sequence] = txHash
 }
 
