@@ -30,14 +30,14 @@ func (s *CelestiaTestSuite) TestBlockSync() {
 	celestia, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
 	s.Require().NoError(err, "failed to create chain")
 
-	err = celestia.Start(ctx)
-	s.Require().NoError(err, "failed to start chain")
-
 	t.Cleanup(func() {
 		if err := celestia.Stop(ctx); err != nil {
 			t.Logf("Error stopping chain: %v", err)
 		}
 	})
+
+	err = celestia.Start(ctx)
+	s.Require().NoError(err, "failed to start chain")
 
 	// verify the chain is running
 	height, err := celestia.Height(ctx)
@@ -81,16 +81,8 @@ func (s *CelestiaTestSuite) TestBlockSync() {
 				return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
 					// disable state sync to ensure we're testing block sync
 					cfg.StateSync.Enable = false
-
 					// configure block sync
 					cfg.BlockSync.Version = "v0"
-
-					// configure p2p for better connectivity
-					cfg.P2P.AddrBookStrict = false
-					cfg.P2P.AllowDuplicateIP = true
-					cfg.P2P.MaxNumInboundPeers = 100
-					cfg.P2P.MaxNumOutboundPeers = 100
-
 					// set persistent peers to connect to existing nodes
 					cfg.P2P.PersistentPeers = peerList
 				})
