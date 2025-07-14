@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v5/app/encoding"
 	"github.com/celestiaorg/celestia-app/v5/app/params"
 	"github.com/cometbft/cometbft/crypto"
+	"github.com/cometbft/cometbft/privval"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -142,4 +143,14 @@ func (v *Validator) GenTx(ecfg encoding.Config, kr keyring.Keyring, chainID stri
 	}
 
 	return txBuilder.GetTx(), nil
+}
+
+// PrivateKey returns the validator's FilePVKey.
+func (v *Validator) PrivateKey() privval.FilePVKey {
+	privValKey := v.ConsensusKey
+	return privval.FilePVKey{
+		Address: privValKey.PubKey().Address(),
+		PubKey:  privValKey.PubKey(),
+		PrivKey: privValKey,
+	}
 }
