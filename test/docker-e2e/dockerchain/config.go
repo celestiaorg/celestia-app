@@ -36,8 +36,8 @@ func DefaultConfig(client *client.Client, network string) *Config {
 	cfg := &Config{}
 	return cfg.
 		WithConfig(tnCfg).
-		WithImage(getCelestiaImage()).
-		WithTag(getCelestiaTag()).
+		WithImage(GetCelestiaImage()).
+		WithTag(GetCelestiaTag()).
 		WithDockerClient(client).
 		WithDockerNetworkID(network)
 }
@@ -72,18 +72,18 @@ func (c *Config) WithDockerNetworkID(networkID string) *Config {
 	return c
 }
 
-// getCelestiaImage returns the image to use for Celestia app.
+// GetCelestiaImage returns the image to use for Celestia app.
 // It can be overridden by setting the CELESTIA_IMAGE environment.
-func getCelestiaImage() string {
+func GetCelestiaImage() string {
 	if image := os.Getenv("CELESTIA_IMAGE"); image != "" {
 		return image
 	}
 	return multiplexerImage
 }
 
-// getCelestiaTag returns the tag to use for Celestia images.
+// GetCelestiaTag returns the tag to use for Celestia images.
 // It can be overridden by setting the CELESTIA_TAG environment.
-func getCelestiaTag() string {
+func GetCelestiaTag() string {
 	if tag := os.Getenv("CELESTIA_TAG"); tag != "" {
 		return tag
 	}
