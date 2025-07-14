@@ -2,7 +2,6 @@ name: Mocha Block Sync Test
 
 on:
   # manual trigger only
-  pull_request: # temp:
   workflow_dispatch:
     inputs:
       tag:
