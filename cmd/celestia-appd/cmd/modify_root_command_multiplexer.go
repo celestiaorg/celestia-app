@@ -49,9 +49,9 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 		panic(err)
 	}
 
-	var extraArgs []string
+	v3Args := defaultArgs
 	if v2UpgradeHeight != "" {
-		extraArgs = append(extraArgs, "--v2-upgrade-height="+v2UpgradeHeight)
+		v3Args = append(v3Args, "--v2-upgrade-height="+v2UpgradeHeight)
 	}
 
 	versions, err := abci.NewVersions(
@@ -59,12 +59,12 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 			Appd:        appdV3,
 			ABCIVersion: abci.ABCIClientVersion1,
 			AppVersion:  3,
-			StartArgs:   append(defaultArgs, extraArgs...),
+			StartArgs:   v3Args,
 		}, abci.Version{
 			Appd:        appdV4,
 			ABCIVersion: abci.ABCIClientVersion2,
 			AppVersion:  4,
-			StartArgs:   append(defaultArgs, extraArgs...),
+			StartArgs:   defaultArgs,
 		})
 	if err != nil {
 		panic(err)
