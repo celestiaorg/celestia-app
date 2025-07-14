@@ -18,10 +18,14 @@ ARG UPGRADE_HEIGHT_DELAY
 ARG CELESTIA_APP_REPOSITORY=ghcr.io/celestiaorg/celestia-app-standalone
 # NOTE: This version must be updated at the same time as the version in the
 # Makefile.
-ARG CELESTIA_VERSION="v3.10.3"
+ARG CELESTIA_VERSION_V3="v3.10.4"
+ARG CELESTIA_VERSION_V4="v4.0.7-mocha"
 
-# Stage 1: this base image contains already released binaries which can be embedded in the multiplexer.
-FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION} AS base
+# Stage 1: this base image contains already released v3 binaries which can be embedded in the multiplexer.
+FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V3} AS base-v3
+
+# Stage 1b: this base image contains already released v4 binaries which can be embedded in the multiplexer.
+FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V4} AS base-v4
 
 # Stage 2: Build the celestia-appd binary inside a builder image that will be discarded later.
 # Ignore hadolint rule because hadolint can't parse the variable.
@@ -58,11 +62,15 @@ RUN go mod download
 # copy source code after downloading modules (to leverage caching)
 COPY . .
 
-COPY --from=base /bin/celestia-appd /tmp/celestia-appd
+# Copy v3 binary from base-v3 and compress it
+COPY --from=base-v3 /bin/celestia-appd /tmp/celestia-appd-v3
+RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v3_${TARGETARCH}.tar.gz /tmp/celestia-appd-v3 \
+    && rm /tmp/celestia-appd-v3
 
-# compress the binary to the path to be embedded correctly.
-RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v3_${TARGETARCH}.tar.gz /tmp/celestia-appd \
-    && rm /tmp/celestia-appd
+# Copy v4 binary from base-v4 and compress it
+COPY --from=base-v4 /bin/celestia-appd /tmp/celestia-appd-v4
+RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v4_${TARGETARCH}.tar.gz /tmp/celestia-appd-v4 \
+    && rm /tmp/celestia-appd-v4
 
 RUN uname -a &&\
     CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
