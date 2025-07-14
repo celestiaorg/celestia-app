@@ -1,32 +1,17 @@
 #!/bin/sh
 
-# This script starts a single node testnet on app version 4.
+# This script starts a single node testnet on app version 4 and halts at height 5.
 
-# Stop script execution if an error is encountered
-set -o errexit
-# Stop script execution if an undefined variable is used
-set -o nounset
+set -o errexit # Stop script execution if an error is encountered
+set -o nounset # Stop script execution if an undefined variable is used
 
-if ! [ -x "$(command -v celestia-appd)" ]
-then
-    echo "celestia-appd could not be found. Please install the celestia-appd binary using 'make install' and make sure the PATH contains the directory where the binary exists. By default, go will install the binary under '~/go/bin'"
-    exit 1
-fi
-
-# Use argument as home directory if provided, else default to ~/.celestia-app
-if [ $# -ge 1 ]; then
-  APP_HOME="$1"
-else
-  APP_HOME="${HOME}/.celestia-app"
-fi
-
-# Constants
 CHAIN_ID="test"
 KEY_NAME="validator"
 KEYRING_BACKEND="test"
 FEES="500utia"
 
 VERSION=$(celestia-appd version 2>&1)
+APP_HOME="${HOME}/.celestia-app"
 GENESIS_FILE="${APP_HOME}/config/genesis.json"
 
 echo "celestia-app version: ${VERSION}"
@@ -78,19 +63,8 @@ createGenesis() {
     # Override the log level to reduce noisy logs
     sed -i'.bak' 's#log_level = "info"#log_level = "*:error,p2p:info,state:info"#g' "${APP_HOME}"/config/config.toml
 
-    # Override the VotingPeriod from 1 week to 1 minute
-    sed -i'.bak' 's#"604800s"#"60s"#g' "${APP_HOME}"/config/genesis.json
-
-    trace_type="local"
-    sed -i.bak -e "s/^trace_type *=.*/trace_type = \"$trace_type\"/" ${APP_HOME}/config/config.toml
-
-    trace_pull_address=":26661"
-    sed -i.bak -e "s/^trace_pull_address *=.*/trace_pull_address = \"$trace_pull_address\"/" ${APP_HOME}/config/config.toml
-
-    trace_push_batch_size=1000
-    sed -i.bak -e "s/^trace_push_batch_size *=.*/trace_push_batch_size = \"$trace_push_batch_size\"/" ${APP_HOME}/config/config.toml
-
-    echo "Tracing is set up with the ability to pull traced data from the node on the address http://127.0.0.1${trace_pull_address}"
+    echo "Setting halt height to 5..."
+    sed -i.bak -e "s/^halt-height *=.*/halt-height = 5/" "${APP_HOME}"/config/app.toml
 }
 
 deleteCelestiaAppHome() {
@@ -109,16 +83,6 @@ startCelestiaApp() {
     --force-no-bbr # no need to require BBR usage on a local node
 }
 
-if [ -f $GENESIS_FILE ]; then
-  echo "Do you want to delete existing ${APP_HOME} and start a new local testnet? [y/n]"
-  read -r response
-  if [ "$response" = "y" ]; then
-    deleteCelestiaAppHome
-    createGenesis
-  else
-    startCelestiaApp
-  fi
-else
-  createGenesis
-fi
+deleteCelestiaAppHome
+createGenesis
 startCelestiaApp

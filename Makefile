@@ -26,7 +26,9 @@ BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
 # internal/embedding/data.go
 # .goreleaser.yaml
 # docker/multiplexer.Dockerfile
-CELESTIA_V3_VERSION := v3.10.3
+CELESTIA_V3_VERSION := v3.10.4
+# TODO: update to a mainnet release
+CELESTIA_V4_VERSION := v4.0.7-mocha
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -47,6 +49,7 @@ DOWNLOAD ?= true
 build: mod
 ifeq ($(DOWNLOAD),true)
 	@$(MAKE) download-v3-binaries
+	@$(MAKE) download-v4-binaries
 endif
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd with multiplexer enabled"
@@ -65,7 +68,7 @@ endef
 
 ## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
 # TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
-install: check-bbr download-v3-binaries
+install: check-bbr download-v3-binaries download-v4-binaries
 	@echo "--> Installing celestia-appd with multiplexer support"
 	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
 .PHONY: install
@@ -82,8 +85,23 @@ download-v3-binaries:
 		linux-amd64) url=celestia-app_Linux_x86_64.tar.gz; out=celestia-app_linux_v3_amd64.tar.gz ;; \
 		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
 	esac; \
-	bash scripts/download_v3_binary.sh "$$url" "$$out" "$(CELESTIA_V3_VERSION)"
+	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V3_VERSION)"
 .PHONY: download-v3-binaries
+
+## download-v4-binaries: Download the celestia-app v4 binary for the current platform.
+download-v4-binaries:
+	@echo "--> Downloading celestia-app $(CELESTIA_V4_VERSION) binary"
+	@mkdir -p internal/embedding
+	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
+	case "$$os-$$arch" in \
+		darwin-arm64) url=celestia-app-standalone_Darwin_arm64.tar.gz; out=celestia-app_darwin_v4_arm64.tar.gz ;; \
+		linux-arm64) url=celestia-app-standalone_Linux_arm64.tar.gz; out=celestia-app_linux_v4_arm64.tar.gz ;; \
+		darwin-amd64) url=celestia-app-standalone_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v4_amd64.tar.gz ;; \
+		linux-amd64) url=celestia-app-standalone_Linux_x86_64.tar.gz; out=celestia-app_linux_v4_amd64.tar.gz ;; \
+		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
+	esac; \
+	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V4_VERSION)"
+.PHONY: download-v4-binaries
 
 ## mod: Update all go.mod files.
 mod:
@@ -223,7 +241,11 @@ lint-fix: fmt
 ## test: Run tests.
 test:
 	@echo "--> Running tests"
-	@go test -timeout 30m ./...
+	@if [ -z "$(PACKAGES)" ]; then \
+		go test -timeout 30m ./...; \
+	else \
+		go test -timeout 30m $(PACKAGES); \
+	fi
 .PHONY: test
 
 ## test-short: Run tests in short mode.
@@ -243,7 +265,7 @@ test-docker-e2e:
 .PHONY: test-docker-e2e
 
 ## test-multiplexer: Run unit tests for the multiplexer package.
-test-multiplexer: download-v3-binaries
+test-multiplexer: download-v3-binaries download-v4-binaries
 	@echo "--> Running multiplexer tests"
 	@go test -tags multiplexer ./multiplexer/...
 .PHONY: test-multiplexer
