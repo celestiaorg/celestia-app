@@ -34,7 +34,7 @@ const (
 	MochaUpgradeHeightDelay = int64(28_800)
 	// MainnetUpgradeHeightDelay is the number of blocks that Mainnet waits
 	// after a MsgTryUpgrade to activate the next version. Assuming a block
-	// interval of 6 seconds, this is 7 day.
+	// interval of 6 seconds, this is 7 days.
 	MainnetUpgradeHeightDelay = int64(100_800)
 	// Deprecated: Use MainnetUpgradeHeightDelay instead.
 	UpgradeHeightDelay = MainnetUpgradeHeightDelay
