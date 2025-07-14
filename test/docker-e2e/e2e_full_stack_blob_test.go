@@ -27,6 +27,8 @@ func (s *CelestiaTestSuite) TestE2EFullStackBlob() {
 
 	// deploy celestia-app chain
 	cfg := dockerchain.DefaultConfig(s.client, s.network)
+	cfg.Genesis = cfg.Genesis.WithAppVersion(4) // TODO: currently this node version does not support v5
+
 	celestia, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).WithChainID("test").Build(ctx)
 	s.Require().NoError(err, "failed to build celestia chain")
 
