@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"cosmossdk.io/log"
+	"github.com/celestiaorg/celestia-app/v5/app"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -16,6 +17,11 @@ func TestCheckAndUpdateMinGasPrices(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir, err := os.MkdirTemp("", "gas-price-test")
 	require.NoError(t, err)
+	dir := app.NodeHome
+	app.NodeHome = tempDir
+	defer func() {
+		app.NodeHome = dir
+	}()
 	defer os.RemoveAll(tempDir)
 
 	// Create config directory
@@ -35,7 +41,7 @@ func TestCheckAndUpdateMinGasPrices(t *testing.T) {
 	cmd.Flags().String("home", tempDir, "home directory")
 
 	// Test the function
-	err = checkAndUpdateMinGasPrices(cmd, log.NewNopLogger())
+	err = checkAndUpdateMinGasPrices(cmd, log.NewTestLogger(t))
 	require.NoError(t, err)
 
 	// Verify the file was updated
@@ -51,6 +57,11 @@ func TestCheckAndUpdateMinGasPricesNoUpdate(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir, err := os.MkdirTemp("", "gas-price-test")
 	require.NoError(t, err)
+	dir := app.NodeHome
+	app.NodeHome = tempDir
+	defer func() {
+		app.NodeHome = dir
+	}()
 	defer os.RemoveAll(tempDir)
 
 	// Create config directory
@@ -86,6 +97,11 @@ func TestCheckAndUpdateMinGasPricesFileNotExists(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir, err := os.MkdirTemp("", "gas-price-test")
 	require.NoError(t, err)
+	dir := app.NodeHome
+	app.NodeHome = tempDir
+	defer func() {
+		app.NodeHome = dir
+	}()
 	defer os.RemoveAll(tempDir)
 
 	// Create a mock command
