@@ -2,6 +2,7 @@ package docker_e2e
 
 import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
+	"celestiaorg/celestia-app/test/docker-e2e/networks"
 	"context"
 	addressutil "github.com/celestiaorg/tastora/framework/testutil/address"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
@@ -17,6 +18,8 @@ import (
 const (
 	blockSyncBlocksToProduce = 30
 	blockSyncTimeout         = 10 * time.Minute
+	// mocha block sync can take days, so we set a very long timeout
+	blockSyncMochaTimeout = 7 * 24 * time.Hour // 7 days
 )
 
 func (s *CelestiaTestSuite) TestBlockSync() {
@@ -114,4 +117,93 @@ func (s *CelestiaTestSuite) TestBlockSync() {
 
 	s.Require().NoError(err, "failed to wait for block sync node to catch up")
 
+}
+
+// TestBlockSyncMocha tests block sync functionality by syncing from the mocha network.
+func (s *CelestiaTestSuite) TestBlockSyncMocha() {
+	t := s.T()
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+
+	ctx := context.TODO()
+
+	mochaConfig := networks.NewMochaConfig()
+	mochaClient, err := networks.NewClient(mochaConfig.RPCs[0])
+	s.Require().NoError(err, "failed to create mocha RPC client")
+
+	// get latest height from mocha
+	latestHeight, err := s.GetLatestBlockHeight(ctx, mochaClient)
+	s.Require().NoError(err, "failed to get latest height from mocha")
+	s.Require().Greater(latestHeight, int64(0), "latest height is zero")
+
+	t.Logf("Mocha latest height: %d", latestHeight)
+	t.Logf("Using mocha RPC: %s", mochaConfig.RPCs[0])
+	t.Logf("Using mocha seeds: %s", mochaConfig.Seeds)
+
+	dockerCfg, err := networks.NewConfig(mochaConfig, s.client, s.network)
+	s.Require().NoError(err, "failed to create mocha config")
+
+	// create a mocha chain builder (no validators, just for block sync nodes)
+	mochaChain, err := networks.NewChainBuilder(s.T(), mochaConfig, dockerCfg).
+		WithNodes(celestiadockertypes.NewChainNodeConfigBuilder().
+			WithNodeType(celestiadockertypes.FullNodeType).
+			WithPostInit(func(ctx context.Context, node *celestiadockertypes.ChainNode) error {
+				return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
+					// disable state sync to ensure we're testing block sync
+					cfg.StateSync.Enable = false
+
+					// configure block sync
+					cfg.BlockSync.Version = "v0"
+
+					// minimal p2p config like state sync test
+					cfg.P2P.Seeds = mochaConfig.Seeds
+				})
+			}).
+			Build(),
+		).
+		Build(ctx)
+
+	s.Require().NoError(err, "failed to create chain")
+
+	t.Log("Starting mocha block sync node")
+
+	// use a timeout context for starting the chain
+	startCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
+
+	t.Cleanup(func() {
+		if err := mochaChain.Stop(ctx); err != nil {
+			t.Logf("Error stopping chain: %v", err)
+		}
+	})
+
+	err = mochaChain.Start(startCtx)
+	s.Require().NoError(err, "failed to start chain")
+
+	allNodes := mochaChain.GetNodes()
+	s.Require().Len(allNodes, 1, "expected exactly one node")
+	blockSyncNode := allNodes[0]
+
+	s.Require().Equal("fn", blockSyncNode.GetType(), "expected block sync node to be a full node")
+
+	blockSyncClient, err := blockSyncNode.GetRPCClient()
+	s.Require().NoError(err, "failed to get block sync client")
+
+	// verify the node is responsive before starting sync wait
+	_, err = blockSyncClient.Status(ctx)
+	s.Require().NoError(err, "block sync node is not responsive")
+
+	t.Log("Waiting for block sync to complete (this may take several days)")
+	err = s.WaitForSync(ctx, blockSyncClient, blockSyncMochaTimeout, func(info rpctypes.SyncInfo) bool {
+		// log progress periodically
+		if info.LatestBlockHeight%1000 == 0 {
+			t.Logf("Block sync progress: height %d, catching up: %v", info.LatestBlockHeight, info.CatchingUp)
+		}
+		// we consider sync complete when we're within 100 blocks of the latest height
+		// and not catching up anymore
+		return !info.CatchingUp && (latestHeight-info.LatestBlockHeight) < 100
+	})
+
+	s.Require().NoError(err, "failed to wait for block sync to complete")
 }
