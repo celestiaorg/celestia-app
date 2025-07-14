@@ -16,9 +16,9 @@ import (
 	gogogrpc "github.com/cosmos/gogoproto/grpc"
 )
 
-// gasMultiplier is the multiplier for the gas limit. It's used to account for the fact that
+// GasMultiplier is the multiplier for the gas limit. It's used to account for the fact that
 // when the gas is simulated it will occasionally underestimate the real gas used by the transaction.
-const gasMultiplier = 1.1
+const GasMultiplier = 1.1
 
 // baseAppSimulateFn is the signature of the Baseapp#Simulate function.
 type baseAppSimulateFn func(txBytes []byte) (sdk.GasInfo, *sdk.Result, error)
@@ -94,7 +94,7 @@ func (s *gasEstimatorServer) EstimateGasPriceAndUsage(ctx context.Context, reque
 	if err != nil {
 		return nil, err
 	}
-	estimatedGasUsed := uint64(math.Round(float64(gasUsedInfo.GasUsed) * gasMultiplier))
+	estimatedGasUsed := uint64(math.Round(float64(gasUsedInfo.GasUsed) * GasMultiplier))
 
 	return &EstimateGasPriceAndUsageResponse{
 		EstimatedGasPrice: gasPrice,
