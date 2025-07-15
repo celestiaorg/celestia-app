@@ -264,6 +264,12 @@ test-docker-e2e:
 	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/$(test)$$ ./...
 .PHONY: test-docker-e2e
 
+## test-mocha-block-sync: Run the mocha block sync test with no timeout (can take days).
+test-mocha-block-sync:
+	@echo "--> Running: TestCelestiaTestSuite/TestBlockSyncMocha (no timeout)"
+	cd test/docker-e2e && go test -timeout 0 -v -run ^TestCelestiaTestSuite/TestBlockSyncMocha$$ ./...
+.PHONY: test-mocha-block-sync
+
 ## test-multiplexer: Run unit tests for the multiplexer package.
 test-multiplexer: download-v3-binaries download-v4-binaries
 	@echo "--> Running multiplexer tests"
