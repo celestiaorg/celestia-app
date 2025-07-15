@@ -381,7 +381,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <li>Compute the length of each serialized request, <a href="data_structures.html#serialization">serialize the length</a>, and prepend the serialized request with its serialized length.</li>
 </ol>
 </li>
-<li>Split up the length/request pairs into <a href="./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>NAMESPACE_ID_BYTES</code></a><code>-</code><a href="./consensus.html#constants"><code>SHARE_RESERVED_BYTES</code></a>-byte chunks.</li>
+<li>Split up the length/request pairs into <a href="./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>NAMESPACE_ID_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>SHARE_RESERVED_BYTES</code></a>-byte chunks.</li>
 <li>Create a <a href="./shares.html">share</a> out of each chunk. This data has a <em>reserved</em> namespace ID, so the first <a href="./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>+</code><a href="./consensus.html#constants"><code>SHARE_RESERVED_BYTES</code></a> bytes for these shares must be set specially.</li>
 </ol>
 </li>
