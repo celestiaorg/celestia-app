@@ -9,8 +9,10 @@ import (
 	"github.com/celestiaorg/celestia-app/v5/app"
 	"github.com/celestiaorg/celestia-app/v5/app/encoding"
 	"github.com/celestiaorg/celestia-app/v5/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v5/pkg/user"
 	"github.com/celestiaorg/celestia-app/v5/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v5/test/util/random"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cometbft/cometbft/types"
@@ -129,7 +131,11 @@ func TestGasEstimatorServer_EstimateGasPrice_MempoolFull(t *testing.T) {
 	signer, err := testnode.NewOfflineSigner()
 	require.NoError(t, err)
 
-	mockTxs := blobfactory.RandMultiBlobTxsSameSigner(t, rand.New(rand.NewSource(0)), signer, 3)
+	blobs := blobfactory.ManyRandBlobs(rand.New(rand.NewSource(0)), 100)
+	blobTx, _, err := signer.CreatePayForBlobs(testfactory.TestAccName, blobs, user.SetGasLimitAndGasPrice(100000, localMinGasPrice))
+	require.NoError(t, err)
+
+	mockTxs := []types.Tx{blobTx}
 
 	mockClient := &mockMempoolClient{
 		unconfirmedTxs: &rpctypes.ResultUnconfirmedTxs{
@@ -157,7 +163,7 @@ func TestGasEstimatorServer_EstimateGasPrice_MempoolFull(t *testing.T) {
 	require.NoError(t, err)
 	// Should return a gas price different from local min when mempool is full
 	assert.NotEqual(t, localMinGasPrice, response.EstimatedGasPrice)
-	assert.Greater(t, response.EstimatedGasPrice, 0.0)
+	assert.True(t, response.EstimatedGasPrice > 0.0, response.EstimatedGasPrice)
 }
 
 func TestGasEstimatorServer_EstimateGasPriceAndUsage(t *testing.T) {

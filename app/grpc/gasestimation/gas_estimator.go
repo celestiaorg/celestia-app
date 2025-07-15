@@ -136,6 +136,7 @@ func (s *gasEstimatorServer) estimateGasPrice(ctx context.Context, priority TxPr
 	if err != nil {
 		return 0, err
 	}
+	fmt.Println("estimatedGasPrice", estimatedGasPrice)
 
 	if estimatedGasPrice < s.localMinGasPrice {
 		return s.localMinGasPrice, nil
@@ -173,9 +174,11 @@ func estimateGasPriceForTransactions(gasPrices []float64, priority TxPriority) (
 		return 0, errors.New("empty gas prices list")
 	}
 	stDev := StandardDeviation(Mean(gasPrices), gasPrices)
+	fmt.Println("gasPrices", gasPrices)
 	switch priority {
 	case TxPriority_TX_PRIORITY_MEDIUM, TxPriority_TX_PRIORITY_UNSPECIFIED:
 		estimation, err := Median(gasPrices)
+		fmt.Println("estimation", estimation)
 		if err != nil {
 			return 0, err
 		}
