@@ -78,8 +78,6 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 
 	cfg := dockerchain.DefaultConfig(s.client, s.network).WithTag(baseVersion)
 
-	//defaultGenesis := genesis.NewDefaultGenesis().WithChainID(chainID)
-
 	kr := cfg.Genesis.Keyring()
 
 	chain, err := dockerchain.NewCelestiaChainBuilder(t, cfg).Build(ctx)
@@ -108,12 +106,17 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 	for i, node := range chain.GetNodes() {
 		s.T().Logf("Signaling for upgrade to version %d from validator %d", targetAppVer, i)
 
+		hostname, err := node.GetInternalHostName(ctx)
+		s.Require().NoError(err, "failed to get internal hostname")
+
 		signalCmd := []string{
 			"celestia-appd", "tx", "signal", "signal", fmt.Sprintf("%d", targetAppVer),
+			"--home", "/var/cosmos-chain/celestia",
 			"--from", records[i].Name,
 			"--keyring-backend", "test",
 			"--chain-id", chainID,
 			"--fees", "200000utia",
+			"--node", fmt.Sprintf("tcp://%s:26657", hostname),
 			"--yes",
 		}
 		stdout, stderr, err := node.Exec(ctx, signalCmd, nil)
@@ -126,9 +129,13 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 
 	time.Sleep(2 * time.Second)
 
+	hostname, err := validatorNode.GetInternalHostName(ctx)
+	s.Require().NoError(err, "failed to get internal hostname")
+
 	// Query the tally to see if we have enough voting power
 	tallyCmd := []string{
 		"celestia-appd", "query", "signal", "tally", fmt.Sprintf("%d", targetAppVer),
+		"--node", fmt.Sprintf("tcp://%s:26657", hostname),
 		"--output", "json",
 	}
 	tallyStdout, tallyStderr, err := validatorNode.Exec(ctx, tallyCmd, nil)
@@ -137,13 +144,18 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 
 	// Execute try-upgrade transaction on all nodes
 	for i, node := range chain.GetNodes() {
+		hostname, err := node.GetInternalHostName(ctx)
+		s.Require().NoError(err, "failed to get internal hostname")
+
 		s.T().Logf("Executing try-upgrade transaction on validator %d", i)
 		tryUpgradeCmd := []string{
 			"celestia-appd", "tx", "signal", "try-upgrade",
+			"--home", "/var/cosmos-chain/celestia",
 			"--from", records[i].Name,
 			"--keyring-backend", "test",
 			"--chain-id", chainID,
 			"--fees", "200000utia",
+			"--node", fmt.Sprintf("tcp://%s:26657", hostname),
 			"--yes",
 		}
 		upgradeStdout, upgradeStderr, err := node.Exec(ctx, tryUpgradeCmd, nil)
@@ -157,6 +169,7 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 	s.T().Log("Querying upgrade info")
 	upgradeInfoCmd := []string{
 		"celestia-appd", "query", "signal", "upgrade",
+		"--node", fmt.Sprintf("tcp://%s:26657", hostname),
 		"--output", "json",
 	}
 	upgradeInfoStdout, upgradeInfoStderr, err := validatorNode.Exec(ctx, upgradeInfoCmd, nil)
