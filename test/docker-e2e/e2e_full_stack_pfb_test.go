@@ -4,7 +4,9 @@ import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
+	"go.uber.org/zap"
 	"testing"
 	"time"
 
@@ -15,6 +17,7 @@ import (
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
+	dockerclient "github.com/moby/moby/client"
 )
 
 const (
@@ -58,20 +61,16 @@ func (s *CelestiaTestSuite) TestE2EFullStackPFB() {
 	err = celestia.Start(ctx)
 	s.Require().NoError(err, "failed to start celestia chain")
 
-	// verify the chain is running
-	height, err := celestia.Height(ctx)
-	s.Require().NoError(err, "failed to get celestia chain height")
-	s.Require().Greater(height, int64(0), "celestia chain height is zero")
+	// prepare a simple config with one type of each node.
+	daConfig := getDAConfig(s.logger, s.client, s.network)
 
-	// deploy DA network with bridge, full, and light nodes
-	daNetwork := s.deployDANetwork(ctx, celestia)
+	// create a da network, wiring up the provided chain using the CELESTIA_CUSTOM environment variable.
+	daNetwork := s.DeployDANetwork(ctx, celestia, daConfig)
 
-	// setup TxClient for blob transactions
 	txClient, err := dockerchain.SetupTxClient(ctx, celestia.Nodes()[0], cfg)
 	s.Require().NoError(err, "failed to setup TxClient")
 
-	// submit blob transactions using TxClient
-	blobData := s.submitBlobTransactions(ctx, txClient)
+	blobData := s.submitBlobTransactions(ctx, txClient, 5)
 
 	// wait for blocks to ensure blob transactions are included
 	err = wait.ForBlocks(ctx, 3, celestia)
@@ -83,25 +82,9 @@ func (s *CelestiaTestSuite) TestE2EFullStackPFB() {
 	t.Log("Full stack blob test completed successfully")
 }
 
-// deployDANetwork deploys a data availability network with bridge, full, and light nodes
-func (s *CelestiaTestSuite) deployDANetwork(ctx context.Context, celestia *tastoradockertypes.Chain) tastoratypes.DataAvailabilityNetwork {
+// DeployDANetwork deploys a data availability network with bridge, full, and light nodes
+func (s *CelestiaTestSuite) DeployDANetwork(ctx context.Context, celestia *tastoradockertypes.Chain, daConfig tastoradockertypes.Config) tastoratypes.DataAvailabilityNetwork {
 	t := s.T()
-
-	// configure DA network with bridge, full, and light nodes
-	daConfig := tastoradockertypes.Config{
-		Logger:          s.logger,
-		DockerClient:    s.client,
-		DockerNetworkID: s.network,
-		DataAvailabilityNetworkConfig: &tastoradockertypes.DataAvailabilityNetworkConfig{
-			BridgeNodeCount: 1,
-			FullNodeCount:   1,
-			LightNodeCount:  1,
-			Image: tastoradockertypes.DockerImage{
-				Repository: celestiaNodeRepository,
-				Version:    celestiaNodeVersion,
-			},
-		},
-	}
 
 	// build DA network using provider
 	provider := tastoradockertypes.NewProvider(daConfig, t)
@@ -116,7 +99,7 @@ func (s *CelestiaTestSuite) deployDANetwork(ctx context.Context, celestia *tasto
 	genesisHash, err := s.getGenesisHash(ctx, celestia)
 	s.Require().NoError(err, "failed to get genesis hash")
 
-	// build CELESTIA_CUSTOM environment variable (use empty string for P2P address)
+	// build CELESTIA_CUSTOM environment variable (empty string for bridge node is fine.)
 	celestiaCustom := tastoratypes.BuildCelestiaCustomEnvVar(celestia.GetChainID(), genesisHash, "")
 
 	// start bridge nodes first
@@ -145,12 +128,11 @@ func (s *CelestiaTestSuite) deployDANetwork(ctx context.Context, celestia *tasto
 	// start full nodes
 	fullNodes := daNetwork.GetFullNodes()
 	for _, node := range fullNodes {
-		celestiaCustomWithP2P := tastoratypes.BuildCelestiaCustomEnvVar(celestia.GetChainID(), genesisHash, bridgeP2PAddr)
 		err := node.Start(ctx,
 			tastoratypes.WithChainID(celestia.GetChainID()),
 			tastoratypes.WithAdditionalStartArguments("--p2p.network", celestia.GetChainID(), "--core.ip", coreNodeHostname, "--rpc.addr", "0.0.0.0"),
 			tastoratypes.WithEnvironmentVariables(map[string]string{
-				"CELESTIA_CUSTOM": celestiaCustomWithP2P,
+				"CELESTIA_CUSTOM": tastoratypes.BuildCelestiaCustomEnvVar(celestia.GetChainID(), genesisHash, bridgeP2PAddr),
 				"P2P_NETWORK":     celestia.GetChainID(),
 			}),
 		)
@@ -169,12 +151,11 @@ func (s *CelestiaTestSuite) deployDANetwork(ctx context.Context, celestia *tasto
 	// start light nodes
 	lightNodes := daNetwork.GetLightNodes()
 	for _, node := range lightNodes {
-		celestiaCustomWithP2P := tastoratypes.BuildCelestiaCustomEnvVar(celestia.GetChainID(), genesisHash, fullP2PAddr)
 		err := node.Start(ctx,
 			tastoratypes.WithChainID(celestia.GetChainID()),
 			tastoratypes.WithAdditionalStartArguments("--p2p.network", celestia.GetChainID(), "--rpc.addr", "0.0.0.0"),
 			tastoratypes.WithEnvironmentVariables(map[string]string{
-				"CELESTIA_CUSTOM": celestiaCustomWithP2P,
+				"CELESTIA_CUSTOM": tastoratypes.BuildCelestiaCustomEnvVar(celestia.GetChainID(), genesisHash, fullP2PAddr),
 				"P2P_NETWORK":     celestia.GetChainID(),
 			}),
 		)
@@ -183,10 +164,8 @@ func (s *CelestiaTestSuite) deployDANetwork(ctx context.Context, celestia *tasto
 
 	// cleanup DA network when test is done
 	t.Cleanup(func() {
-		for _, node := range append(append(bridgeNodes, fullNodes...), lightNodes...) {
-			if err := node.Stop(ctx); err != nil {
-				t.Logf("Error stopping DA node: %v", err)
-			}
+		if err := stopDANetwork(ctx, daNetwork); err != nil {
+			t.Logf("Error stopping DA network: %v", err)
 		}
 	})
 
@@ -199,13 +178,13 @@ func (s *CelestiaTestSuite) deployDANetwork(ctx context.Context, celestia *tasto
 }
 
 // submitBlobTransactions creates and submits blob transactions using TxClient
-func (s *CelestiaTestSuite) submitBlobTransactions(ctx context.Context, txClient *user.TxClient) []blobData {
+func (s *CelestiaTestSuite) submitBlobTransactions(ctx context.Context, txClient *user.TxClient, numTransactions int) []blobData {
 	t := s.T()
 
 	var submittedBlobs []blobData
 
 	// create multiple blob transactions with different namespaces
-	for i := 0; i < 3; i++ {
+	for i := 0; i < numTransactions; i++ {
 		// create random namespace
 		ns := testfactory.RandomBlobNamespace()
 
@@ -261,7 +240,6 @@ func (s *CelestiaTestSuite) verifyBlobRetrieval(ctx context.Context, daNetwork t
 
 		// Convert the original namespace to base64 for comparison (since API returns base64)
 		expectedNamespaceB64 := base64.StdEncoding.EncodeToString(blob.namespace.Bytes())
-
 		for _, retrievedBlob := range retrievedBlobs {
 			if retrievedBlob.Namespace == expectedNamespaceB64 {
 				foundBlob = &retrievedBlob
@@ -280,14 +258,6 @@ func (s *CelestiaTestSuite) verifyBlobRetrieval(ctx context.Context, daNetwork t
 	}
 
 	t.Log("All blob retrievals verified successfully")
-}
-
-// blobData represents submitted blob information for verification
-type blobData struct {
-	namespace share.Namespace
-	data      []byte
-	txHash    string
-	height    int64
 }
 
 // getGenesisHash retrieves the genesis hash from the celestia chain
@@ -310,4 +280,54 @@ func (s *CelestiaTestSuite) getGenesisHash(ctx context.Context, celestia *tastor
 	}
 
 	return genesisHash, nil
+}
+
+// getDAConfig returns a DataAvailabilityNetworkConfig for the given networkID with a single bridge, full, and light node.
+func getDAConfig(logger *zap.Logger, client *dockerclient.Client, networkID string) tastoradockertypes.Config {
+	return tastoradockertypes.Config{
+		Logger:          logger,
+		DockerClient:    client,
+		DockerNetworkID: networkID,
+		DataAvailabilityNetworkConfig: &tastoradockertypes.DataAvailabilityNetworkConfig{
+			BridgeNodeCount: 1,
+			FullNodeCount:   1,
+			LightNodeCount:  1,
+			Image: tastoradockertypes.DockerImage{
+				Repository: celestiaNodeRepository,
+				Version:    celestiaNodeVersion,
+			},
+		},
+	}
+}
+
+// stopDANetwork stops all nodes in the Data Availability Network, including bridge, full, and light nodes.
+// Returns an error if any node fails to stop.
+//
+// remove after: https://github.com/celestiaorg/tastora/issues/74 is done
+func stopDANetwork(ctx context.Context, daNetwork tastoratypes.DataAvailabilityNetwork) error {
+	var errs []error
+	for _, node := range daNetwork.GetBridgeNodes() {
+		if err := node.Stop(ctx); err != nil {
+			errs = append(errs, fmt.Errorf("failed to stop bridge node: %w", err))
+		}
+	}
+	for _, node := range daNetwork.GetFullNodes() {
+		if err := node.Stop(ctx); err != nil {
+			errs = append(errs, fmt.Errorf("failed to stop full node: %w", err))
+		}
+	}
+	for _, node := range daNetwork.GetLightNodes() {
+		if err := node.Stop(ctx); err != nil {
+			errs = append(errs, fmt.Errorf("failed to stop light node: %w", err))
+		}
+	}
+	return errors.Join(errs...)
+}
+
+// blobData represents submitted blob information for verification
+type blobData struct {
+	namespace share.Namespace
+	data      []byte
+	txHash    string
+	height    int64
 }
