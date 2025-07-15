@@ -131,7 +131,17 @@ func (s *gasEstimatorServer) estimateGasPrice(ctx context.Context, priority TxPr
 	if err != nil {
 		return 0, err
 	}
-	return estimateGasPriceForTransactions(gasPrices, priority)
+
+	estimatedGasPrice, err := estimateGasPriceForTransactions(gasPrices, priority)
+	if err != nil {
+		return 0, err
+	}
+
+	if estimatedGasPrice < s.localMinGasPrice {
+		return s.localMinGasPrice, nil
+	}
+
+	return estimatedGasPrice, nil
 }
 
 const (

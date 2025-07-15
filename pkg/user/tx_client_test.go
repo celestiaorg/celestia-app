@@ -283,7 +283,7 @@ func (suite *TxClientTestSuite) TestGasPriceAndUsageEstimation() {
 func (suite *TxClientTestSuite) TestGasPriceEstimation() {
 	gasPrice, err := suite.txClient.EstimateGasPrice(suite.ctx.GoContext(), 0)
 	require.NoError(suite.T(), err)
-	require.Equal(suite.T(), gasPrice, appconsts.DefaultMinGasPrice)
+	require.Equal(suite.T(), appconsts.DefaultMinGasPrice, gasPrice)
 }
 
 // TestGasConsumption verifies that the amount deducted from a user's balance is
@@ -375,7 +375,12 @@ func setupTxClient(
 		WithFundedAccounts("a", "b", "c").
 		WithChainID(chainID).
 		WithTimeoutCommit(100 * time.Millisecond).
-		WithAppCreator(testnode.CustomAppCreator(baseapp.SetMinGasPrices("0utia"), baseapp.SetChainID(chainID)))
+		WithAppCreator(
+			testnode.CustomAppCreator(
+				baseapp.SetChainID(chainID),
+				baseapp.SetMinGasPrices(fmt.Sprintf("%v%v", appconsts.DefaultMinGasPrice, appconsts.BondDenom)),
+			),
+		)
 
 	ctx, _, _ := testnode.NewNetwork(t, testnodeConfig)
 	_, err := ctx.WaitForHeight(1)
