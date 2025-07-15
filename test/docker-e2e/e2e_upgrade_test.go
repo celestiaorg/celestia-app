@@ -10,7 +10,6 @@ import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
 	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/test/util/genesis"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 )
 
@@ -71,29 +70,17 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 
 	ctx := context.Background()
 	const (
-		baseVersion     = "v4.0.7-mocha"
-		targetVersion   = "d13d38a"
-		targetAppVer    = uint64(5) // The expected app_version after upgrade
-		chainID         = appconsts.TestChainID
-		validatorsCount = 4
+		baseVersion   = "v4.0.7-mocha"
+		targetVersion = "d13d38a"
+		targetAppVer  = uint64(5) // The expected app_version after upgrade
+		chainID       = appconsts.TestChainID
 	)
 
-	cfg := dockerchain.DefaultConfig(s.client, s.network)
-	cfg.Tag = baseVersion
+	cfg := dockerchain.DefaultConfig(s.client, s.network).WithTag(baseVersion)
 
-	validatorNames := make([]string, validatorsCount)
-	for i := range validatorsCount {
-		validatorNames[i] = fmt.Sprintf("val-%d", i)
-	}
+	//defaultGenesis := genesis.NewDefaultGenesis().WithChainID(chainID)
 
-	emptyGenesis := genesis.NewDefaultGenesis().WithChainID(chainID)
-
-	for _, name := range validatorNames {
-		val := genesis.NewDefaultValidator(name)
-		val.KeyringAccount.Name = name
-		emptyGenesis = emptyGenesis.WithValidators(val)
-	}
-	cfg.Config.Genesis = emptyGenesis
+	kr := cfg.Genesis.Keyring()
 
 	chain, err := dockerchain.NewCelestiaChainBuilder(t, cfg).Build(ctx)
 	s.Require().NoError(err)
@@ -113,19 +100,23 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 	s.T().Logf("Current app version before upgrade: %d", currentAppVer)
 	fmt.Printf("\n\n\t\tBEFORE: %v\n", currentAppVer)
 
+	records, err := kr.List()
+	s.Require().NoError(err, "failed to list accounts")
+	s.Require().Len(records, len(chain.GetNodes()), "number of accounts does not match number of nodes")
+
 	// Signal for the upgrade to version 5 for each validator
 	for i, node := range chain.GetNodes() {
 		s.T().Logf("Signaling for upgrade to version %d from validator %d", targetAppVer, i)
 
 		signalCmd := []string{
-			"tx", "signal", "signal", fmt.Sprintf("%d", targetAppVer),
-			"--from", validatorNames[i],
+			"celestia-appd", "tx", "signal", "signal", fmt.Sprintf("%d", targetAppVer),
+			"--from", records[i].Name,
 			"--keyring-backend", "test",
 			"--chain-id", chainID,
 			"--fees", "200000utia",
 			"--yes",
 		}
-		stdout, stderr, err := node.ExecBinInContainer(ctx, signalCmd...)
+		stdout, stderr, err := node.Exec(ctx, signalCmd, nil)
 		s.Require().NoError(err, "failed to signal for upgrade: %s", stderr)
 		s.T().Logf("Signal output: %s", stdout)
 
@@ -137,10 +128,10 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 
 	// Query the tally to see if we have enough voting power
 	tallyCmd := []string{
-		"query", "signal", "tally", fmt.Sprintf("%d", targetAppVer),
+		"celestia-appd", "query", "signal", "tally", fmt.Sprintf("%d", targetAppVer),
 		"--output", "json",
 	}
-	tallyStdout, tallyStderr, err := validatorNode.ExecBinInContainer(ctx, tallyCmd...)
+	tallyStdout, tallyStderr, err := validatorNode.Exec(ctx, tallyCmd, nil)
 	s.Require().NoError(err, "failed to query tally: %s", tallyStderr)
 	s.T().Logf("Tally output: %s", tallyStdout)
 
@@ -148,14 +139,14 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 	for i, node := range chain.GetNodes() {
 		s.T().Logf("Executing try-upgrade transaction on validator %d", i)
 		tryUpgradeCmd := []string{
-			"tx", "signal", "try-upgrade",
-			"--from", validatorNames[i],
+			"celestia-appd", "tx", "signal", "try-upgrade",
+			"--from", records[i].Name,
 			"--keyring-backend", "test",
 			"--chain-id", chainID,
 			"--fees", "200000utia",
 			"--yes",
 		}
-		upgradeStdout, upgradeStderr, err := node.ExecBinInContainer(ctx, tryUpgradeCmd...)
+		upgradeStdout, upgradeStderr, err := node.Exec(ctx, tryUpgradeCmd, nil)
 		s.Require().NoError(err, "failed to execute try-upgrade on validator %d: %s", i, upgradeStderr)
 		s.T().Logf("Try-upgrade output from validator %d: %s", i, upgradeStdout)
 
@@ -165,10 +156,10 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 
 	s.T().Log("Querying upgrade info")
 	upgradeInfoCmd := []string{
-		"query", "signal", "upgrade",
+		"celestia-appd", "query", "signal", "upgrade",
 		"--output", "json",
 	}
-	upgradeInfoStdout, upgradeInfoStderr, err := validatorNode.ExecBinInContainer(ctx, upgradeInfoCmd...)
+	upgradeInfoStdout, upgradeInfoStderr, err := validatorNode.Exec(ctx, upgradeInfoCmd, nil)
 	s.Require().NoError(err, "failed to query upgrade info: %s", upgradeInfoStderr)
 	s.T().Logf("Upgrade info: %s", upgradeInfoStdout)
 
