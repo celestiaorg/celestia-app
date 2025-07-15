@@ -4,11 +4,9 @@ go 1.24.2
 
 require (
 	cosmossdk.io/math v1.5.3
-	github.com/celestiaorg/celestia-app/v3 v3.10.3
-	github.com/celestiaorg/celestia-app/v4 v4.0.8-arabica
 	github.com/celestiaorg/celestia-app/v5 v5.0.0
 	github.com/celestiaorg/go-square/v2 v2.3.0
-	github.com/celestiaorg/tastora v0.1.1
+	github.com/celestiaorg/tastora v0.1.2
 	github.com/cometbft/cometbft v0.38.17
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/docker/docker v28.3.0+incompatible
@@ -276,7 +274,7 @@ replace (
 
 	github.com/celestiaorg/celestia-app/v5 => ../..
 
-	github.com/celestiaorg/tastora => ../../../tastora
+	//github.com/celestiaorg/tastora => ../../../tastora
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.56.1-tm-v0.38.17
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.4-sdk-v0.50.14
 
