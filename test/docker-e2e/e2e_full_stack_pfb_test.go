@@ -169,10 +169,6 @@ func (s *CelestiaTestSuite) DeployDANetwork(ctx context.Context, celestia *tasto
 		}
 	})
 
-	// wait for DA network to be ready
-	err = wait.ForBlocks(ctx, 2, celestia)
-	s.Require().NoError(err, "failed to wait for DA network initialization")
-
 	t.Log("DA network deployed successfully")
 	return daNetwork
 }
