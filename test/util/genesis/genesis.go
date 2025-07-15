@@ -137,6 +137,7 @@ func (g *Genesis) WithKeyring(kr keyring.Keyring) *Genesis {
 // WithAppVersion sets the application version for the genesis configuration and returns the updated Genesis instance.
 func (g *Genesis) WithAppVersion(appVersion uint64) *Genesis {
 	g.appVersion = appVersion
+	g.ConsensusParams.Version.App = appVersion
 	return g
 }
 
