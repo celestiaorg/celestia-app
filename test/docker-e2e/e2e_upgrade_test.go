@@ -8,7 +8,6 @@ import (
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 )
 
@@ -31,6 +30,13 @@ func (s *CelestiaTestSuite) TestCelestiaAppMinorUpgrade() {
 
 	chain, err := builder.Build(ctx)
 	s.Require().NoError(err)
+
+	// Ensure cleanup at the end of the test
+	t.Cleanup(func() {
+		if err := chain.Stop(ctx); err != nil {
+			t.Logf("Error stopping chain: %v", err)
+		}
+	})
 
 	err = chain.Start(ctx)
 	s.Require().NoError(err)
@@ -69,12 +75,10 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 
 	ctx := context.Background()
 	const (
-		baseVersion   = "v4.0.7-mocha"
-		targetVersion = "d13d38a"
-		targetAppVer  = uint64(5) // The expected app_version after upgrade
-		chainID       = appconsts.TestChainID
-		homeDir       = "/var/cosmos-chain/celestia"
+		baseVersion  = "v4.0.7-mocha"
+		targetAppVer = uint64(5) // The expected app_version after upgrade
 	)
+	targetVersion := dockerchain.GetCelestiaTag()
 
 	cfg := dockerchain.DefaultConfig(s.client, s.network).WithTag(baseVersion)
 
@@ -82,6 +86,13 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 
 	chain, err := dockerchain.NewCelestiaChainBuilder(t, cfg).Build(ctx)
 	s.Require().NoError(err)
+
+	// Ensure cleanup at the end of the test
+	t.Cleanup(func() {
+		if err := chain.Stop(ctx); err != nil {
+			t.Logf("Error stopping chain: %v", err)
+		}
+	})
 
 	err = chain.Start(ctx)
 	s.Require().NoError(err)
@@ -105,67 +116,32 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 	for i, node := range chain.GetNodes() {
 		s.T().Logf("Signaling for upgrade to version %d from validator %d", targetAppVer, i)
 
-		hostname, err := node.GetInternalHostName(ctx)
-		s.Require().NoError(err, "failed to get internal hostname")
-
-		signalCmd := []string{
-			"celestia-appd", "tx", "signal", "signal", fmt.Sprintf("%d", targetAppVer),
-			"--home", homeDir,
-			"--from", records[i].Name,
-			"--keyring-backend", "test",
-			"--chain-id", chainID,
-			"--fees", "200000utia",
-			"--node", fmt.Sprintf("tcp://%s:26657", hostname),
-			"--yes",
-		}
-		stdout, stderr, err := node.Exec(ctx, signalCmd, nil)
+		signalCmd := []string{"tx", "signal", "signal", fmt.Sprintf("%d", targetAppVer), "--from", records[i].Name}
+		stdout, stderr, err := s.ExecuteNodeCommand(ctx, node, signalCmd...)
 		s.Require().NoError(err, "failed to signal for upgrade: %s", stderr)
 		s.T().Logf("Signal output: %s", stdout)
 	}
 
 	s.Require().NoError(wait.ForBlocks(ctx, 2, chain))
 
-	hostname, err := validatorNode.GetInternalHostName(ctx)
-	s.Require().NoError(err, "failed to get internal hostname")
-
 	// Query the tally to see if we have enough voting power
-	tallyCmd := []string{
-		"celestia-appd", "query", "signal", "tally", fmt.Sprintf("%d", targetAppVer),
-		"--node", fmt.Sprintf("tcp://%s:26657", hostname),
-		"--output", "json",
-	}
-	tallyStdout, tallyStderr, err := validatorNode.Exec(ctx, tallyCmd, nil)
+	tallyCmd := []string{"query", "signal", "tally", fmt.Sprintf("%d", targetAppVer), "--output", "json"}
+	tallyStdout, tallyStderr, err := s.ExecuteNodeCommand(ctx, validatorNode, tallyCmd...)
 	s.Require().NoError(err, "failed to query tally: %s", tallyStderr)
 	s.T().Logf("Tally output: %s", tallyStdout)
 
 	// Execute try-upgrade transaction on all nodes
 	for i, node := range chain.GetNodes() {
-		hostname, err := node.GetInternalHostName(ctx)
-		s.Require().NoError(err, "failed to get internal hostname")
-
 		s.T().Logf("Executing try-upgrade transaction on validator %d", i)
-		tryUpgradeCmd := []string{
-			"celestia-appd", "tx", "signal", "try-upgrade",
-			"--home", homeDir,
-			"--from", records[i].Name,
-			"--keyring-backend", "test",
-			"--chain-id", chainID,
-			"--fees", "200000utia",
-			"--node", fmt.Sprintf("tcp://%s:26657", hostname),
-			"--yes",
-		}
-		upgradeStdout, upgradeStderr, err := node.Exec(ctx, tryUpgradeCmd, nil)
+		tryUpgradeCmd := []string{"tx", "signal", "try-upgrade", "--from", records[i].Name}
+		upgradeStdout, upgradeStderr, err := s.ExecuteNodeCommand(ctx, node, tryUpgradeCmd...)
 		s.Require().NoError(err, "failed to execute try-upgrade on validator %d: %s", i, upgradeStderr)
 		s.T().Logf("Try-upgrade output from validator %d: %s", i, upgradeStdout)
 	}
 
 	s.T().Log("Querying upgrade info")
-	upgradeInfoCmd := []string{
-		"celestia-appd", "query", "signal", "upgrade",
-		"--node", fmt.Sprintf("tcp://%s:26657", hostname),
-		"--output", "json",
-	}
-	upgradeInfoStdout, upgradeInfoStderr, err := validatorNode.Exec(ctx, upgradeInfoCmd, nil)
+	upgradeInfoCmd := []string{"query", "signal", "upgrade", "--output", "json"}
+	upgradeInfoStdout, upgradeInfoStderr, err := s.ExecuteNodeCommand(ctx, validatorNode, upgradeInfoCmd...)
 	s.Require().NoError(err, "failed to query upgrade info: %s", upgradeInfoStderr)
 	s.T().Logf("Upgrade info: %s", upgradeInfoStdout)
 
