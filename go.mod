@@ -22,7 +22,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.83
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.83.0
 	github.com/bcp-innovations/hyperlane-cosmos v1.0.1
-	github.com/celestiaorg/go-square/v2 v2.3.1-rc0
+	github.com/celestiaorg/go-square/v2 v2.3.1
 	github.com/celestiaorg/nmt v0.24.0
 	github.com/celestiaorg/rsmt2d v0.14.0
 	github.com/cometbft/cometbft v0.38.17
