@@ -3,17 +3,9 @@ module celestiaorg/celestia-app/test/docker-e2e
 go 1.24.2
 
 require (
-<<<<<<< HEAD
 	github.com/celestiaorg/celestia-app/v4 v4.0.0
-	github.com/celestiaorg/go-square/v2 v2.3.0
-	github.com/celestiaorg/tastora v0.0.0-20250515081551-795e795a49c7
-=======
-	cosmossdk.io/math v1.5.3
-	github.com/celestiaorg/celestia-app/v5 v5.0.0
 	github.com/celestiaorg/go-square/v2 v2.3.1
 	github.com/celestiaorg/tastora v0.1.1
-	github.com/cometbft/cometbft v0.38.17
->>>>>>> 9ea54e1 (fix: update go mod to v2.3.1 of go-square (#5266))
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/docker/docker v28.2.2+incompatible
 	github.com/moby/moby v27.5.1+incompatible
@@ -198,8 +190,9 @@ require (
 	github.com/minio/highwayhash v1.0.3 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
+	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
-	github.com/moby/sys/atomicwriter v0.1.0 // indirect
+	github.com/moby/sys/sequential v0.6.0 // indirect
 	github.com/mtibben/percent v0.2.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/oasisprotocol/curve25519-voi v0.0.0-20230904125328-1f23a7beb09a // indirect
