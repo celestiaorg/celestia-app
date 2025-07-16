@@ -5,7 +5,7 @@ go 1.24.2
 require (
 	cosmossdk.io/math v1.5.3
 	github.com/celestiaorg/celestia-app/v5 v5.0.0
-	github.com/celestiaorg/go-square/v2 v2.3.0
+	github.com/celestiaorg/go-square/v2 v2.3.1-rc0
 	github.com/celestiaorg/tastora v0.1.1
 	github.com/cometbft/cometbft v0.38.17
 	github.com/cosmos/cosmos-sdk v0.50.13
