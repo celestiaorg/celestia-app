@@ -392,7 +392,7 @@ func listAllDroplets(ctx context.Context, client *godo.Client) ([]godo.Droplet, 
 			break
 		}
 		pageNum, _ := resp.Links.CurrentPage()
-		opt.Page = pageNum + 1.
+		opt.Page = pageNum + 1
 	}
 	return all, nil
 }
