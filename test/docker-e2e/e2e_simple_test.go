@@ -3,6 +3,11 @@ package docker_e2e
 import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"context"
+	"fmt"
+	"strings"
+	"testing"
+	"time"
+
 	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v5/pkg/user"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
@@ -10,8 +15,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
 )
@@ -93,15 +96,16 @@ func assertTransactionsIncluded(ctx context.Context, t *testing.T, celestia *tas
 func testBankSend(t *testing.T, chain *tastoradockertypes.Chain, cfg *dockerchain.Config) {
 	ctx := context.Background()
 
-	recipientWallet, err := chain.CreateWallet(ctx, "recipient")
-	require.NoError(t, err, "failed to create recipient wallet")
+	// Create or get recipient wallet
+	recipientAddress, err := createOrGetWalletAddress(ctx, chain, "recipient")
+	require.NoError(t, err, "failed to create or get recipient wallet")
 
 	txClient, err := dockerchain.SetupTxClient(ctx, chain.Nodes()[0], cfg)
 	require.NoError(t, err, "failed to setup TxClient")
 
 	// get the default account address from TxClient (should be validator)
 	fromAddr := txClient.DefaultAddress()
-	toAddr, err := sdk.AccAddressFromBech32(recipientWallet.GetFormattedAddress())
+	toAddr, err := sdk.AccAddressFromBech32(recipientAddress)
 	require.NoError(t, err, "failed to parse recipient address")
 
 	t.Logf("Validator address: %s", fromAddr.String())
@@ -121,4 +125,31 @@ func testBankSend(t *testing.T, chain *tastoradockertypes.Chain, cfg *dockerchai
 	// wait for additional blocks to ensure transaction is finalized
 	err = wait.ForBlocks(ctx, 2, chain)
 	require.NoError(t, err, "failed to wait for blocks after transaction")
+}
+
+// createOrGetWalletAddress tries to create a wallet with the given name, but if it already exists,
+// it retrieves the existing wallet's address. This makes the function safe to call multiple times.
+func createOrGetWalletAddress(ctx context.Context, chain *tastoradockertypes.Chain, walletName string) (string, error) {
+	// Try to create the wallet first
+	wallet, err := chain.CreateWallet(ctx, walletName)
+	if err == nil {
+		// Wallet created successfully
+		return wallet.GetFormattedAddress(), nil
+	}
+
+	// If error is not because wallet already exists, return the error
+	if !strings.Contains(err.Error(), "already exists") && !strings.Contains(err.Error(), "EOF") {
+		return "", fmt.Errorf("failed to create wallet with name %q: %w", walletName, err)
+	}
+
+	// Wallet already exists, retrieve its address
+	node := chain.Nodes()[0]
+	cmd := []string{"celestia-appd", "keys", "show", walletName, "--keyring-backend", "test", "--home", "/var/cosmos-chain/celestia", "--address"}
+	addrBytes, stderr, err := node.Exec(ctx, cmd, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to get existing wallet address: %s: %w", stderr, err)
+	}
+
+	// Return the address as a string
+	return strings.TrimSpace(string(addrBytes)), nil
 }

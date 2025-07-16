@@ -54,6 +54,10 @@ func (s *CelestiaTestSuite) TestCelestiaAppMinorUpgrade() {
 
 	s.Require().NoError(wait.ForBlocks(ctx, 5, chain))
 
+	// Sanity check: Test bank send before upgrade
+	s.T().Log("Testing bank send functionality before upgrade")
+	testBankSend(t, chain, cfg)
+
 	err = chain.Stop(ctx)
 	s.Require().NoError(err)
 
@@ -64,6 +68,10 @@ func (s *CelestiaTestSuite) TestCelestiaAppMinorUpgrade() {
 
 	err = wait.ForBlocks(ctx, 2, chain)
 	s.Require().NoError(err)
+
+	// Sanity check: Test bank send after upgrade
+	s.T().Log("Testing bank send functionality after upgrade")
+	testBankSend(t, chain, cfg)
 
 	// Verify the version after upgrade
 	validatorNode := chain.GetNodes()[0]
@@ -109,6 +117,10 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 	s.Require().NoError(err)
 
 	s.Require().NoError(wait.ForBlocks(ctx, 5, chain))
+
+	// Sanity check: Test bank send before upgrade
+	s.T().Log("Testing bank send functionality before upgrade")
+	testBankSend(t, chain, cfg)
 
 	validatorNode := chain.GetNodes()[0]
 	rpcClient, err := validatorNode.GetRPCClient()
@@ -177,6 +189,10 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 
 	// Verify app version is upgraded
 	s.Require().Equal(targetAppVer, abciInfo.Response.GetAppVersion(), "app_version mismatch")
+
+	// Sanity check: Test bank send after upgrade
+	s.T().Log("Testing bank send functionality after upgrade")
+	testBankSend(t, chain, cfg)
 }
 
 // validateSignalTally queries the signal tally for the given app version and verifies

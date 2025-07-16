@@ -49,13 +49,15 @@ func (s *CelestiaTestSuite) ExecuteNodeCommand(ctx context.Context, chainNode ta
 
 	var finalCmd []string
 	isTxCommand := len(cmd) > 0 && cmd[0] == "tx"
+	isKeysCommand := len(cmd) > 0 && cmd[0] == "keys"
 
 	// Common flags for all commands
 	if !slices.Contains(cmd, "--home") {
 		finalCmd = append(finalCmd, "--home", homeDir)
 	}
 
-	if !slices.Contains(cmd, "--node") {
+	// Add --node flag for all commands except key management commands
+	if !isKeysCommand && !slices.Contains(cmd, "--node") {
 		hostname, err := chainNode.GetInternalHostName(ctx)
 		if err != nil {
 			return "", "", err
@@ -63,7 +65,8 @@ func (s *CelestiaTestSuite) ExecuteNodeCommand(ctx context.Context, chainNode ta
 		finalCmd = append(finalCmd, "--node", fmt.Sprintf("tcp://%s:26657", hostname))
 	}
 
-	if !slices.Contains(cmd, "--chain-id") {
+	// Add --chain-id flag for all commands except key management commands
+	if !isKeysCommand && !slices.Contains(cmd, "--chain-id") {
 		finalCmd = append(finalCmd, "--chain-id", appconsts.TestChainID)
 	}
 
