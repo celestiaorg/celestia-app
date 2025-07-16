@@ -190,9 +190,9 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 	abciInfo, err = rpcClient.ABCIInfo(ctx)
 	s.Require().NoError(err, "failed to fetch ABCI info")
 
-	// The version string might vary, but should contain the PR number
+	// The version string might vary, but should contain the commit hash
 	versionStr := abciInfo.Response.GetVersion()
-	s.Require().True(strings.Contains(versionStr, "d13d38a"), "version should contain PR number")
+	s.Require().True(strings.Contains(versionStr, strings.TrimPrefix(targetVersion, "v")), "version should contain commit hash")
 
 	// Verify app version is upgraded
 	s.Require().Equal(targetAppVer, abciInfo.Response.GetAppVersion(), "app_version mismatch")
