@@ -439,9 +439,6 @@ func (client *TxClient) broadcastTxAfterEviction(ctx context.Context, conn *grpc
 		return nil, broadcastTxErr
 	}
 
-	// save the sequence and signer of the transaction in the local txTracker
-	// before the sequence is incremented
-	// client.trackTransaction(signer, resp.TxResponse.TxHash, txBytes)
 	return resp.TxResponse, nil
 }
 
@@ -552,9 +549,10 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in txTracker", txHash)
 			}
+			fmt.Println("tx evicted, resubmitting")
 			_, err := client.broadcastTxAfterEviction(ctx, client.conns[0], client.txTracker[txHash].txBytes, signer)
 			if err != nil {
-				return nil, fmt.Errorf("resubmission failed: %w", err)
+				return nil, fmt.Errorf("resubmission for evicted tx failed: %w", err)
 			}
 		case core.TxStatusRejected:
 			return nil, client.handleRejections(txHash)
@@ -563,7 +561,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
 			}
-			return nil, fmt.Errorf("transaction with hash %s not found; it was likely rejected", txHash)
+			return nil, fmt.Errorf("transaction with hash %s not found", txHash)
 		}
 	}
 }

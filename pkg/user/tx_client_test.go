@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v5/app"
 	"github.com/celestiaorg/celestia-app/v5/app/encoding"
 	"github.com/celestiaorg/celestia-app/v5/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v5/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v5/app/params"
 	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v5/pkg/user"
@@ -21,6 +22,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v5/test/util/random"
 	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
 	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/rpc/core"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
@@ -50,7 +52,7 @@ type TxClientTestSuite struct {
 }
 
 func (suite *TxClientTestSuite) SetupSuite() {
-	suite.encCfg, suite.txClient, suite.ctx = setupTxClient(suite.T(), testnode.DefaultTendermintConfig().Mempool.TTLDuration, 1000, 1000, 1)
+	suite.encCfg, suite.txClient, suite.ctx = setupTxClient(suite.T(), 1, 1000000)
 	suite.serviceClient = sdktx.NewServiceClient(suite.ctx.GRPCClient)
 }
 
@@ -228,48 +230,88 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 	})
 }
 
+func TestRejections(t *testing.T) {
+	_, txClient, ctx := setupTxClient(t, 5, 1000000)
+
+	fee := user.SetFee(1e6)
+	gas := user.SetGasLimit(10e6)
+
+	// Submit a blob tx with user set ttl which will get rejected
+	sender := txClient.Signer().Account(txClient.DefaultAccountName())
+	seqBeforeSubmission := sender.Sequence()
+	blobs := blobfactory.ManyRandBlobs(random.New(), 2e6, 2e3)
+	resp, err := txClient.BroadcastPayForBlob(ctx.GoContext(), blobs, fee, gas, user.SetTimeoutHeight(1))
+	require.NoError(t, err)
+
+	ctx.WaitForBlocks(2)
+	_, err = txClient.ConfirmTx(ctx.GoContext(), resp.TxHash)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "tx was rejected by the node")
+	seqAfterRejection := sender.Sequence()
+	require.Equal(t, seqBeforeSubmission, seqAfterRejection)
+
+	// now submit the same blob transaction again
+	submitBlobResp, err := txClient.SubmitPayForBlob(ctx.GoContext(), blobs, fee, gas)
+	require.NoError(t, err)
+	require.Equal(t, submitBlobResp.Code, abci.CodeTypeOK)
+	// sequence shouldve increased
+	seqAfterConfirmation := sender.Sequence()
+	require.Equal(t, seqBeforeSubmission+1, seqAfterConfirmation)
+	// was removed from the tx tracker
+	_, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
+	require.False(t, exists)
+}
+
 func TestEvictions(t *testing.T) {
-	t.Run("test multiple transactions resubmission after eviction when some are committed or pending", func(t *testing.T) {
-		// make block size small
-		// make block ttl 1 block
-		_, txClient, ctx := setupTxClient(t, 2*time.Second, 5, 1048576, 1) // Use 1ns TTL to force eviction
+	// make block size small
+	// make block ttl 1 block
+	_, txClient, ctx := setupTxClient(t, 1, 1048576) // 1 block ttl with 1MiB block size
+	grpcTxClient := tx.NewTxClient(ctx.GRPCClient)
 
-		fee := user.SetFee(1e6)
-		gas := user.SetGasLimit(2e6)
+	fee := user.SetFee(1e6)
+	gas := user.SetGasLimit(10e6)
 
-		responses := make([]*user.TxResponse, 10)
-		successfulTxs := 0
+	responses := make([]*sdk.TxResponse, 10)
 
-		// Submit more transactions than the block size
-		for i := 0; i < 2; i++ {
-			fmt.Println("submitting tx", i)
-			blobs := blobfactory.ManyRandBlobs(random.New(), 1e3, 1e4, 1e5)
-			resp, err := txClient.SubmitPayForBlob(ctx.GoContext(), blobs, fee, gas)
-			require.NoError(t, err)
-			fmt.Println("tx submitted with code", resp.Code)
-			responses[i] = resp
+	// Submit more transactions than the block size
+	for i := 0; i < len(responses); i++ {
+		blobs := blobfactory.ManyRandBlobs(random.New(), 500000, 500000, 5000) // ~1MB per transaction
+		resp, err := txClient.BroadcastPayForBlob(ctx.GoContext(), blobs, fee, gas)
+		require.NoError(t, err)
+		require.Equal(t, resp.Code, abci.CodeTypeOK)
+		responses[i] = resp
+	}
+
+	// save evicted tx hash
+	evictedTxHashes := make([]string, 0)
+	for _, resp := range responses {
+
+		// Start polling the status
+		txInfo, err := grpcTxClient.TxStatus(ctx.GoContext(), &tx.TxStatusRequest{TxId: resp.TxHash})
+		require.NoError(t, err)
+
+		if txInfo.Status == core.TxStatusEvicted {
+			evictedTxHashes = append(evictedTxHashes, resp.TxHash)
 		}
 
-		time.Sleep(1 * time.Second)
+		// confirm the tx
+		res, err := txClient.ConfirmTx(ctx.GoContext(), resp.TxHash)
+		require.NoError(t, err)
+		require.Equal(t, res.Code, abci.CodeTypeOK)
+		// check they are removed from the tx tracker
+		_, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
+		require.False(t, exists)
+	}
 
-		// Confirm transactions - all should be confirmed
-		for i := 0; i < len(responses); i++ {
-			fmt.Println("confirming tx", i)
-			res, err := txClient.ConfirmTx(ctx.GoContext(), responses[i].TxHash)
-			if err != nil {
-				// Transaction was likely evicted - this is expected behavior
-				fmt.Printf("Transaction %d was evicted or rejected: %v\n", i, err)
-				continue
-			}
-			require.Equal(t, res.Code, abci.CodeTypeOK)
-			successfulTxs++
-		}
+	// At least 8 txs should have been evicted and resubmitted
+	require.GreaterOrEqual(t, len(evictedTxHashes), 8)
 
-		// Assert that at least some transactions succeeded
-		// (exact number depends on network conditions and mempool state)
-		require.Equal(t, successfulTxs, len(responses), "All transactions should have succeeded")
-		fmt.Printf("Successfully confirmed %d out of %d transactions\n", successfulTxs, len(responses))
-	})
+	// re-query evicted tx hashes and assert that they are now committed
+	for _, txHash := range evictedTxHashes {
+		txInfo, err := grpcTxClient.TxStatus(ctx.GoContext(), &tx.TxStatusRequest{TxId: txHash})
+		require.NoError(t, err)
+		require.Equal(t, txInfo.Status, core.TxStatusCommitted)
+	}
 }
 
 // TestWithEstimatorService ensures that if the WithEstimatorService
@@ -277,7 +319,7 @@ func TestEvictions(t *testing.T) {
 // used to estimate gas price and usage instead of the default connection.
 func TestWithEstimatorService(t *testing.T) {
 	mockEstimator := setupEstimatorService(t)
-	_, txClient, ctx := setupTxClient(t, testnode.DefaultTendermintConfig().Mempool.TTLDuration, 1000, 1000, 1, user.WithEstimatorService(mockEstimator.conn))
+	_, txClient, ctx := setupTxClient(t, 0, 1000000, user.WithEstimatorService(mockEstimator.conn))
 
 	msg := bank.NewMsgSend(txClient.DefaultAddress(), testnode.RandomAddress().(sdk.AccAddress),
 		sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
@@ -380,15 +422,11 @@ func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash, expected
 
 func setupTxClient(
 	t *testing.T,
-	ttlDuration time.Duration,
-	cacheSize int,
-	blockSize int64,
 	ttlNumBlocks int64,
+	blocksize int64,
 	opts ...user.Option,
 ) (encoding.Config, *user.TxClient, testnode.Context) {
 	defaultTmConfig := testnode.DefaultTendermintConfig()
-	defaultTmConfig.Mempool.TTLDuration = ttlDuration
-	defaultTmConfig.Mempool.CacheSize = cacheSize
 	defaultTmConfig.Mempool.TTLNumBlocks = ttlNumBlocks
 
 	chainID := unsafe.Str(6)
@@ -398,9 +436,8 @@ func setupTxClient(
 		WithChainID(chainID).
 		WithTimeoutCommit(100 * time.Millisecond).
 		WithAppCreator(testnode.CustomAppCreator(baseapp.SetMinGasPrices("0utia"), baseapp.SetChainID(chainID)))
-
-	testnodeConfig.Genesis.ConsensusParams.Block.MaxBytes = blockSize
-	fmt.Println("block size", blockSize)
+	fmt.Println(testnodeConfig.Genesis.ConsensusParams.Block.MaxBytes, "default max bytes")
+	testnodeConfig.Genesis.ConsensusParams.Block.MaxBytes = blocksize
 
 	ctx, _, _ := testnode.NewNetwork(t, testnodeConfig)
 	_, err := ctx.WaitForHeight(1)
