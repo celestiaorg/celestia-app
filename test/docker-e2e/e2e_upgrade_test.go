@@ -2,14 +2,25 @@ package docker_e2e
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
+	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 )
+
+// TallyResponse represents the JSON response from the signal tally query
+// We had to define it again because the JSON response type is not a number but string
+type TallyResponse struct {
+	VotingPower      string `json:"voting_power"`
+	ThresholdPower   string `json:"threshold_power"`
+	TotalVotingPower string `json:"total_voting_power"`
+}
 
 // TestCelestiaAppMinorUpgrade tests a simple upgrade from one minor version to another.
 func (s *CelestiaTestSuite) TestCelestiaAppMinorUpgrade() {
@@ -117,26 +128,20 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 		s.T().Logf("Signaling for upgrade to version %d from validator %d", targetAppVer, i)
 
 		signalCmd := []string{"tx", "signal", "signal", fmt.Sprintf("%d", targetAppVer), "--from", records[i].Name}
-		stdout, stderr, err := s.ExecuteNodeCommand(ctx, node, signalCmd...)
+		_, stderr, err := s.ExecuteNodeCommand(ctx, node, signalCmd...)
 		s.Require().NoError(err, "failed to signal for upgrade: %s", stderr)
-		s.T().Logf("Signal output: %s", stdout)
 	}
 
 	s.Require().NoError(wait.ForBlocks(ctx, 2, chain))
 
-	// Query the tally to see if we have enough voting power
-	tallyCmd := []string{"query", "signal", "tally", fmt.Sprintf("%d", targetAppVer), "--output", "json"}
-	tallyStdout, tallyStderr, err := s.ExecuteNodeCommand(ctx, validatorNode, tallyCmd...)
-	s.Require().NoError(err, "failed to query tally: %s", tallyStderr)
-	s.T().Logf("Tally output: %s", tallyStdout)
+	s.validateSignalTally(ctx, validatorNode, targetAppVer)
 
 	// Execute try-upgrade transaction on all nodes
 	for i, node := range chain.GetNodes() {
 		s.T().Logf("Executing try-upgrade transaction on validator %d", i)
 		tryUpgradeCmd := []string{"tx", "signal", "try-upgrade", "--from", records[i].Name}
-		upgradeStdout, upgradeStderr, err := s.ExecuteNodeCommand(ctx, node, tryUpgradeCmd...)
+		_, upgradeStderr, err := s.ExecuteNodeCommand(ctx, node, tryUpgradeCmd...)
 		s.Require().NoError(err, "failed to execute try-upgrade on validator %d: %s", i, upgradeStderr)
-		s.T().Logf("Try-upgrade output from validator %d: %s", i, upgradeStdout)
 	}
 
 	s.T().Log("Querying upgrade info")
@@ -172,4 +177,27 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 
 	// Verify app version is upgraded
 	s.Require().Equal(targetAppVer, abciInfo.Response.GetAppVersion(), "app_version mismatch")
+}
+
+// validateSignalTally queries the signal tally for the given app version and verifies
+// that the voting power meets or exceeds the threshold power.
+func (s *CelestiaTestSuite) validateSignalTally(ctx context.Context, node tastoratypes.ChainNode, appVersion uint64) {
+	s.T().Logf("Querying signal tally for app version %d", appVersion)
+
+	tallyCmd := []string{"query", "signal", "tally", fmt.Sprintf("%d", appVersion), "--output", "json"}
+	tallyStdout, tallyStderr, err := s.ExecuteNodeCommand(ctx, node, tallyCmd...)
+	s.Require().NoError(err, "failed to query tally: %s", tallyStderr)
+
+	var tally TallyResponse
+	s.Require().NoError(json.Unmarshal([]byte(tallyStdout), &tally), "failed to parse tally response")
+
+	// Convert the string values to integers
+	votingPower, err := strconv.ParseInt(tally.VotingPower, 10, 64)
+	s.Require().NoError(err, "failed to parse voting power")
+
+	thresholdPower, err := strconv.ParseInt(tally.ThresholdPower, 10, 64)
+	s.Require().NoError(err, "failed to parse threshold power")
+
+	// Verify that voting power meets or exceeds threshold
+	s.Assert().True(votingPower >= thresholdPower, "voting power (%d) does not meet threshold (%d)", votingPower, thresholdPower)
 }
