@@ -6,18 +6,18 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v4/app/params"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/user"
-	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
-	signal "github.com/celestiaorg/celestia-app/v4/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v5/app/encoding"
+	"github.com/celestiaorg/celestia-app/v5/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v5/app/params"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/pkg/user"
+	"github.com/celestiaorg/celestia-app/v5/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v5/test/util/random"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
+	minfeetypes "github.com/celestiaorg/celestia-app/v5/x/minfee/types"
+	signal "github.com/celestiaorg/celestia-app/v5/x/signal/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
@@ -333,7 +333,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			name: "signal a version change",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				valAccount := s.getValidatorAccount()
-				msg := signal.NewMsgSignalVersion(valAccount.String(), appconsts.LatestVersion+1)
+				msg := signal.NewMsgSignalVersion(valAccount.String(), appconsts.Version+1)
 				return []sdk.Msg{msg}, s.getValidatorName()
 			},
 			expectedCode: abci.CodeTypeOK,

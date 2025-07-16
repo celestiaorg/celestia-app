@@ -1,9 +1,9 @@
-package v4
+package appconsts
 
 import "time"
 
 const (
-	Version uint64 = 4
+	Version uint64 = 5
 	// SquareSizeUpperBound imposes an upper bound on the max effective square size.
 	SquareSizeUpperBound int = 128
 	// SubtreeRootThreshold works as a target upper bound for the number of subtree
@@ -34,7 +34,7 @@ const (
 	MochaUpgradeHeightDelay = int64(28_800)
 	// MainnetUpgradeHeightDelay is the number of blocks that Mainnet waits
 	// after a MsgTryUpgrade to activate the next version. Assuming a block
-	// interval of 6 seconds, this is 7 day.
+	// interval of 6 seconds, this is 7 days.
 	MainnetUpgradeHeightDelay = int64(100_800)
 	// Deprecated: Use MainnetUpgradeHeightDelay instead.
 	UpgradeHeightDelay = MainnetUpgradeHeightDelay

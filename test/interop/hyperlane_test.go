@@ -10,9 +10,9 @@ import (
 	hooktypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/02_post_dispatch/types"
 	coretypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/params"
-	minttypes "github.com/celestiaorg/celestia-app/v4/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v5/app/params"
+	minttypes "github.com/celestiaorg/celestia-app/v5/x/mint/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -74,7 +74,7 @@ func (s *HyperlaneTestSuite) TestHyperlaneTransfer() {
 	// create collateral token (celestia - utia)
 	collatTokenID := s.CreateCollateralToken(s.celestia, ismIDCelestia, mailboxIDCelestia, params.BondDenom)
 
-	// create synethetic token (simapp - hyperlane bridged asset)
+	// create synthetic token (simapp - hyperlane bridged asset)
 	synTokenID := s.CreateSyntheticToken(s.simapp, ismIDSimapp, mailboxIDCelestia)
 
 	// enroll remote routers (pairs the utia collateral token with the synthetic token on the simapp counterparty)

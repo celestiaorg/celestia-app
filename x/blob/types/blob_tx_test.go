@@ -5,15 +5,15 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/app/params"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v5/app/encoding"
+	"github.com/celestiaorg/celestia-app/v5/app/params"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v5/test/util/random"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v5/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/go-square/v2/tx"
@@ -121,7 +121,7 @@ func TestValidateBlobTx(t *testing.T) {
 				require.NoError(t, err)
 				msg, err := types.NewMsgPayForBlobs(
 					addr.String(),
-					appconsts.LatestVersion,
+					appconsts.Version,
 					b,
 				)
 				require.NoError(t, err)
@@ -253,7 +253,7 @@ func TestValidateBlobTx(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := types.ValidateBlobTx(encCfg.TxConfig, tt.getTx(), appconsts.SubtreeRootThreshold, appconsts.LatestVersion)
+			err := types.ValidateBlobTx(encCfg.TxConfig, tt.getTx(), appconsts.SubtreeRootThreshold, appconsts.Version)
 			if tt.expectedErr != nil {
 				assert.ErrorIs(t, err, tt.expectedErr, tt.name)
 			}

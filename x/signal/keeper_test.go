@@ -13,14 +13,12 @@ import (
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
-	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
-	"github.com/celestiaorg/celestia-app/v4/x/signal"
-	"github.com/celestiaorg/celestia-app/v4/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v5/app/encoding"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	testutil "github.com/celestiaorg/celestia-app/v5/test/util"
+	"github.com/celestiaorg/celestia-app/v5/x/signal"
+	"github.com/celestiaorg/celestia-app/v5/x/signal/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmtversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	dbm "github.com/cosmos/cosmos-db"
@@ -118,6 +116,39 @@ func TestSignalVersion(t *testing.T) {
 		require.EqualValues(t, 100, res.ThresholdPower)
 		require.EqualValues(t, 120, res.TotalVotingPower)
 	})
+	t.Run("should emit custom event", func(t *testing.T) {
+		upgradeKeeper, ctx, _ := setup(t)
+		ctx = ctx.WithEventManager(sdk.NewEventManager())
+
+		valAddr := testutil.ValAddrs[0].String()
+		_, err := upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{
+			ValidatorAddress: valAddr,
+			Version:          2,
+		})
+		require.NoError(t, err)
+
+		events := ctx.EventManager().Events()
+		require.Len(t, events, 1)
+
+		event := events[0]
+		require.Equal(t, types.EventTypeSignalVersion, event.Type)
+		require.Len(t, event.Attributes, 2)
+
+		var validatorAddress, actionAttribute sdk.Attribute
+		for _, attr := range event.Attributes {
+			switch attr.Key {
+			case types.AttributeKeyValidatorAddress:
+				validatorAddress = sdk.Attribute{Key: attr.Key, Value: attr.Value}
+			case sdk.AttributeKeyAction:
+				actionAttribute = sdk.Attribute{Key: attr.Key, Value: attr.Value}
+			}
+		}
+
+		require.Equal(t, types.AttributeKeyValidatorAddress, validatorAddress.Key)
+		require.Equal(t, valAddr, validatorAddress.Value)
+		require.Equal(t, sdk.AttributeKeyAction, actionAttribute.Key)
+		require.Equal(t, types.URLMsgSignalVersion, actionAttribute.Value)
+	})
 }
 
 func TestTallyingLogic(t *testing.T) {
@@ -187,7 +218,7 @@ func TestTallyingLogic(t *testing.T) {
 
 	shouldUpgrade, upgrade = upgradeKeeper.ShouldUpgrade(ctx)
 	require.True(t, shouldUpgrade) // should be true because upgrade height has been reached.
-	require.Equal(t, v2.Version, upgrade.AppVersion)
+	require.Equal(t, uint64(2), upgrade.AppVersion)
 
 	upgradeKeeper.ResetTally(ctx)
 
@@ -257,7 +288,7 @@ func TestTallyingLogic(t *testing.T) {
 // 1, the next version is 2, but the chain can upgrade directly from 1 to 3.
 func TestCanSkipVersion(t *testing.T) {
 	upgradeKeeper, ctx, _ := setup(t)
-	require.Equal(t, v1.Version, ctx.BlockHeader().Version.App)
+	require.Equal(t, uint64(1), ctx.BlockHeader().Version.App)
 
 	validators := []sdk.ValAddress{
 		testutil.ValAddrs[0],
@@ -392,6 +423,39 @@ func TestTryUpgrade(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorIs(t, err, types.ErrInvalidUpgradeVersion)
 	})
+
+	t.Run("should emit custom event", func(t *testing.T) {
+		upgradeKeeper, ctx, _ := setup(t)
+		signerAddr := "celestia1test1234567890abcdef"
+		ctx = ctx.WithEventManager(sdk.NewEventManager())
+
+		_, err := upgradeKeeper.TryUpgrade(ctx, &types.MsgTryUpgrade{
+			Signer: signerAddr,
+		})
+		require.NoError(t, err)
+
+		events := ctx.EventManager().Events()
+		require.Len(t, events, 1)
+
+		event := events[0]
+		require.Equal(t, types.EventTypeTryUpgrade, event.Type)
+		require.Len(t, event.Attributes, 2)
+
+		var signerAttribute, actionAttribute sdk.Attribute
+		for _, attr := range event.Attributes {
+			switch attr.Key {
+			case types.AttributeKeySigner:
+				signerAttribute = sdk.Attribute{Key: attr.Key, Value: attr.Value}
+			case sdk.AttributeKeyAction:
+				actionAttribute = sdk.Attribute{Key: attr.Key, Value: attr.Value}
+			}
+		}
+
+		require.Equal(t, types.AttributeKeySigner, signerAttribute.Key)
+		require.Equal(t, signerAddr, signerAttribute.Value)
+		require.Equal(t, sdk.AttributeKeyAction, actionAttribute.Key)
+		require.Equal(t, types.URLMsgTryUpgrade, actionAttribute.Value)
+	})
 }
 
 func TestGetUpgrade(t *testing.T) {
@@ -419,7 +483,7 @@ func TestGetUpgrade(t *testing.T) {
 
 		got, err := upgradeKeeper.GetUpgrade(ctx, &types.QueryGetUpgradeRequest{})
 		require.NoError(t, err)
-		assert.Equal(t, v2.Version, got.Upgrade.AppVersion)
+		assert.Equal(t, uint64(2), got.Upgrade.AppVersion)
 		assert.Equal(t, appconsts.GetUpgradeHeightDelay(appconsts.TestChainID), got.Upgrade.UpgradeHeight)
 	})
 }

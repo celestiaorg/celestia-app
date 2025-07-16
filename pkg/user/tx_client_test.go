@@ -10,16 +10,16 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	"cosmossdk.io/math/unsafe"
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v4/app/params"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/user"
-	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/grpctest"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v5/app/encoding"
+	"github.com/celestiaorg/celestia-app/v5/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v5/app/params"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/pkg/user"
+	"github.com/celestiaorg/celestia-app/v5/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v5/test/util/grpctest"
+	"github.com/celestiaorg/celestia-app/v5/test/util/random"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -306,7 +306,7 @@ func (suite *TxClientTestSuite) TestGasPriceEstimation() {
 // TestGasConsumption verifies that the amount deducted from a user's balance is
 // based on the fee provided in the tx instead of the gas used by the tx. This
 // behavior leads to poor UX because tx submitters must over-estimate the amount
-// of gas that their tx will consume and they are not refunded for the excessuite.
+// of gas that their tx will consume and they are not refunded for the excess.
 func (suite *TxClientTestSuite) TestGasConsumption() {
 	t := suite.T()
 

@@ -65,6 +65,18 @@ func (m *Multiplexer) ExtendVote(ctx context.Context, req *abci.RequestExtendVot
 }
 
 func (m *Multiplexer) FinalizeBlock(_ context.Context, req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
+	err := m.checkHaltConditions(req)
+	if err != nil {
+		// It is not possible to shutdown the multiplexer via m.Stop() here
+		// because CometBFT is blocked on the response from this method. So this
+		// just returns an error to CometBFT and the user must exit the process
+		// manually (via CTRL + C). This error results in a consensus failure on
+		// v3.x which matches the behavior on v4.x. The node state will remain
+		// intact after the consensus failure so the user can continue syncing
+		// after the consensus failure here.
+		return nil, fmt.Errorf("failed to finalize block because the node should halt: %w", err)
+	}
+
 	app, err := m.getApp()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
@@ -117,6 +129,10 @@ func (m *Multiplexer) LoadSnapshotChunk(_ context.Context, req *abci.RequestLoad
 }
 
 func (m *Multiplexer) OfferSnapshot(_ context.Context, req *abci.RequestOfferSnapshot) (*abci.ResponseOfferSnapshot, error) {
+	m.mu.Lock()
+	m.appVersion = req.AppVersion
+	m.mu.Unlock()
+
 	app, err := m.getApp()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
@@ -154,4 +170,16 @@ func (m *Multiplexer) VerifyVoteExtension(_ context.Context, req *abci.RequestVe
 		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
 	}
 	return app.VerifyVoteExtension(req)
+}
+
+// checkHaltConditions returns an error if the node should halt based on a halt-height or
+// halt-time configured in app.toml.
+func (m *Multiplexer) checkHaltConditions(req *abci.RequestFinalizeBlock) error {
+	if m.svrCfg.HaltHeight > 0 && uint64(req.Height) >= m.svrCfg.HaltHeight {
+		return fmt.Errorf("halting node per configuration at height %v", m.svrCfg.HaltHeight)
+	}
+	if m.svrCfg.HaltTime > 0 && req.Time.Unix() >= int64(m.svrCfg.HaltTime) {
+		return fmt.Errorf("halting node per configuration at time %v", m.svrCfg.HaltTime)
+	}
+	return nil
 }
