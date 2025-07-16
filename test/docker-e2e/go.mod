@@ -274,7 +274,6 @@ replace (
 
 	github.com/celestiaorg/celestia-app/v5 => ../..
 
-	//github.com/celestiaorg/tastora => ../../../tastora
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.56.1-tm-v0.38.17
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.4-sdk-v0.50.14
 
