@@ -177,7 +177,8 @@ account that can act as the master account. The command runs until all sequences
 				}
 			}
 
-			if os.Getenv(TxsimPoll) != "" && pollTime != user.DefaultPollTime {
+			// set pollTime: flag has priority, then env var, then default
+			if pollTime == user.DefaultPollTime && os.Getenv(TxsimPoll) != "" {
 				pollTime, err = time.ParseDuration(os.Getenv(TxsimPoll))
 				if err != nil {
 					return fmt.Errorf("parsing poll time: %w", err)
