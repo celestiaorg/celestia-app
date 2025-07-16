@@ -50,7 +50,7 @@ type TxClientTestSuite struct {
 }
 
 func (suite *TxClientTestSuite) SetupSuite() {
-	suite.encCfg, suite.txClient, suite.ctx = setupTxClient(suite.T(), testnode.DefaultTendermintConfig().Mempool.TTLDuration, 1000)
+	suite.encCfg, suite.txClient, suite.ctx = setupTxClient(suite.T(), testnode.DefaultTendermintConfig().Mempool.TTLDuration, 1000, 1000, 1)
 	suite.serviceClient = sdktx.NewServiceClient(suite.ctx.GRPCClient)
 }
 
@@ -230,7 +230,9 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 
 func TestEvictions(t *testing.T) {
 	t.Run("test multiple transactions resubmission after eviction when some are committed or pending", func(t *testing.T) {
-		_, txClient, ctx := setupTxClient(t, 2*time.Second, 5) // Use 1ns TTL to force eviction
+		// make block size small
+		// make block ttl 1 block
+		_, txClient, ctx := setupTxClient(t, 2*time.Second, 5, 1048576, 1) // Use 1ns TTL to force eviction
 
 		fee := user.SetFee(1e6)
 		gas := user.SetGasLimit(2e6)
@@ -238,7 +240,7 @@ func TestEvictions(t *testing.T) {
 		responses := make([]*user.TxResponse, 10)
 		successfulTxs := 0
 
-		// Submit all transactions
+		// Submit more transactions than the block size
 		for i := 0; i < 2; i++ {
 			fmt.Println("submitting tx", i)
 			blobs := blobfactory.ManyRandBlobs(random.New(), 1e3, 1e4, 1e5)
@@ -275,7 +277,7 @@ func TestEvictions(t *testing.T) {
 // used to estimate gas price and usage instead of the default connection.
 func TestWithEstimatorService(t *testing.T) {
 	mockEstimator := setupEstimatorService(t)
-	_, txClient, ctx := setupTxClient(t, testnode.DefaultTendermintConfig().Mempool.TTLDuration, 1000, user.WithEstimatorService(mockEstimator.conn))
+	_, txClient, ctx := setupTxClient(t, testnode.DefaultTendermintConfig().Mempool.TTLDuration, 1000, 1000, 1, user.WithEstimatorService(mockEstimator.conn))
 
 	msg := bank.NewMsgSend(txClient.DefaultAddress(), testnode.RandomAddress().(sdk.AccAddress),
 		sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
@@ -380,11 +382,14 @@ func setupTxClient(
 	t *testing.T,
 	ttlDuration time.Duration,
 	cacheSize int,
+	blockSize int64,
+	ttlNumBlocks int64,
 	opts ...user.Option,
 ) (encoding.Config, *user.TxClient, testnode.Context) {
 	defaultTmConfig := testnode.DefaultTendermintConfig()
 	defaultTmConfig.Mempool.TTLDuration = ttlDuration
 	defaultTmConfig.Mempool.CacheSize = cacheSize
+	defaultTmConfig.Mempool.TTLNumBlocks = ttlNumBlocks
 
 	chainID := unsafe.Str(6)
 	testnodeConfig := testnode.DefaultConfig().
@@ -393,6 +398,9 @@ func setupTxClient(
 		WithChainID(chainID).
 		WithTimeoutCommit(100 * time.Millisecond).
 		WithAppCreator(testnode.CustomAppCreator(baseapp.SetMinGasPrices("0utia"), baseapp.SetChainID(chainID)))
+
+	testnodeConfig.Genesis.ConsensusParams.Block.MaxBytes = blockSize
+	fmt.Println("block size", blockSize)
 
 	ctx, _, _ := testnode.NewNetwork(t, testnodeConfig)
 	_, err := ctx.WaitForHeight(1)
