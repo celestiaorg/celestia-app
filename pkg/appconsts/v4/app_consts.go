@@ -5,7 +5,7 @@ import "time"
 const (
 	Version uint64 = 4
 	// SquareSizeUpperBound imposes an upper bound on the max effective square size.
-	SquareSizeUpperBound int = 128
+	SquareSizeUpperBound int = 512
 	// SubtreeRootThreshold works as a target upper bound for the number of subtree
 	// roots in the share commitment. If a blob contains more shares than this
 	// number, then the height of the subtree roots will increase by one so that the
