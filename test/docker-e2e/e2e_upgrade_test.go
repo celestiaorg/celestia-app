@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
@@ -74,6 +73,7 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 		targetVersion = "d13d38a"
 		targetAppVer  = uint64(5) // The expected app_version after upgrade
 		chainID       = appconsts.TestChainID
+		homeDir       = "/var/cosmos-chain/celestia"
 	)
 
 	cfg := dockerchain.DefaultConfig(s.client, s.network).WithTag(baseVersion)
@@ -96,7 +96,6 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 	s.Require().NoError(err, "failed to fetch ABCI info")
 	currentAppVer := abciInfo.Response.GetAppVersion()
 	s.T().Logf("Current app version before upgrade: %d", currentAppVer)
-	fmt.Printf("\n\n\t\tBEFORE: %v\n", currentAppVer)
 
 	records, err := kr.List()
 	s.Require().NoError(err, "failed to list accounts")
@@ -111,7 +110,7 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 
 		signalCmd := []string{
 			"celestia-appd", "tx", "signal", "signal", fmt.Sprintf("%d", targetAppVer),
-			"--home", "/var/cosmos-chain/celestia",
+			"--home", homeDir,
 			"--from", records[i].Name,
 			"--keyring-backend", "test",
 			"--chain-id", chainID,
@@ -122,12 +121,9 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 		stdout, stderr, err := node.Exec(ctx, signalCmd, nil)
 		s.Require().NoError(err, "failed to signal for upgrade: %s", stderr)
 		s.T().Logf("Signal output: %s", stdout)
-
-		// Wait a bit between signals to avoid transaction conflicts
-		time.Sleep(1 * time.Second)
 	}
 
-	time.Sleep(2 * time.Second)
+	s.Require().NoError(wait.ForBlocks(ctx, 2, chain))
 
 	hostname, err := validatorNode.GetInternalHostName(ctx)
 	s.Require().NoError(err, "failed to get internal hostname")
@@ -150,7 +146,7 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 		s.T().Logf("Executing try-upgrade transaction on validator %d", i)
 		tryUpgradeCmd := []string{
 			"celestia-appd", "tx", "signal", "try-upgrade",
-			"--home", "/var/cosmos-chain/celestia",
+			"--home", homeDir,
 			"--from", records[i].Name,
 			"--keyring-backend", "test",
 			"--chain-id", chainID,
@@ -161,9 +157,6 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 		upgradeStdout, upgradeStderr, err := node.Exec(ctx, tryUpgradeCmd, nil)
 		s.Require().NoError(err, "failed to execute try-upgrade on validator %d: %s", i, upgradeStderr)
 		s.T().Logf("Try-upgrade output from validator %d: %s", i, upgradeStdout)
-
-		// Wait a bit between transactions to avoid conflicts
-		time.Sleep(1 * time.Second)
 	}
 
 	s.T().Log("Querying upgrade info")
@@ -177,7 +170,7 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 	s.T().Logf("Upgrade info: %s", upgradeInfoStdout)
 
 	// Wait for the upgrade to be scheduled
-	time.Sleep(5 * time.Second)
+	s.Require().NoError(wait.ForBlocks(ctx, 5, chain))
 
 	err = chain.Stop(ctx)
 	s.Require().NoError(err)
@@ -199,8 +192,6 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 
 	// The version string might vary, but should contain the PR number
 	versionStr := abciInfo.Response.GetVersion()
-	fmt.Printf("\n\n\t\tversionStr: %v\n", versionStr)
-	fmt.Printf("\n\n\t\tAFTERabciInfo.Response.GetAppVersion(): %v\n", abciInfo.Response.GetAppVersion())
 	s.Require().True(strings.Contains(versionStr, "d13d38a"), "version should contain PR number")
 
 	// Verify app version is upgraded
