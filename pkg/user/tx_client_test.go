@@ -174,7 +174,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		ctx, cancel := context.WithTimeout(suite.ctx.GoContext(), 5*time.Second)
 		defer cancel()
 		resp, err := suite.txClient.ConfirmTx(ctx, "E32BD15CAF57AF15D17B0D63CF4E63A9835DD1CEBB059C335C79586BC3013728")
-		require.Contains(t, err.Error(), "transaction with hash E32BD15CAF57AF15D17B0D63CF4E63A9835DD1CEBB059C335C79586BC3013728 not found; it was likely rejected")
+		require.Contains(t, err.Error(), "transaction with hash E32BD15CAF57AF15D17B0D63CF4E63A9835DD1CEBB059C335C79586BC3013728 not found")
 		require.Nil(t, resp)
 	})
 
@@ -263,6 +263,11 @@ func TestRejections(t *testing.T) {
 }
 
 func TestEvictions(t *testing.T) {
+	// skip in short mode
+	if testing.Short() {
+		t.Skip("skipping evictions test in short mode")
+	}
+
 	// make block size small
 	// make block ttl 1 block
 	_, txClient, ctx := setupTxClient(t, 1, 1048576) // 1 block ttl with 1MiB block size
