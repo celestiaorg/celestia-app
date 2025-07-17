@@ -22,30 +22,51 @@ type TallyResponse struct {
 	TotalVotingPower string `json:"total_voting_power"`
 }
 
+type UpgradeConfig struct {
+	BaseVersion      string // The base version of the chain
+	TargetVersion    string // The target version of the chain
+	TargetAppVersion uint64 // The target app version of the chain for major upgrades
+}
+
 // TestCelestiaAppMinorUpgrade tests a simple upgrade from one minor version to another.
 func (s *CelestiaTestSuite) TestCelestiaAppMinorUpgrade() {
-	t := s.T()
 	if testing.Short() {
-		t.Skip("skipping upgrade test in short mode")
+		s.T().Skip("skipping upgrade test in short mode")
 	}
 
-	ctx := context.Background()
-	const (
-		baseVersion   = "v4.0.2-mocha"
-		targetVersion = "v4.0.7-mocha"
+	s.RunMinorUpgradeTest(UpgradeConfig{
+		BaseVersion:   "v4.0.2-mocha",
+		TargetVersion: "v4.0.7-mocha",
+	})
+}
+
+// TestCelestiaAppMajorUpgrade tests a major upgrade from v4.0.7-mocha to a commit hash which has v5
+// using the signaling mechanism.
+func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
+	if testing.Short() {
+		s.T().Skip("skipping major upgrade test in short mode")
+	}
+
+	s.RunMajorUpgradeTest(UpgradeConfig{
+		BaseVersion:      "v4.0.7-mocha",
+		TargetVersion:    dockerchain.GetCelestiaTag(),
+		TargetAppVersion: uint64(5),
+	})
+}
+
+func (s *CelestiaTestSuite) RunMinorUpgradeTest(upgradeCfg UpgradeConfig) {
+	var (
+		ctx = context.Background()
+		cfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(upgradeCfg.BaseVersion)
 	)
 
-	cfg := dockerchain.DefaultConfig(s.client, s.network)
-	cfg.Tag = baseVersion
-	builder := dockerchain.NewCelestiaChainBuilder(t, cfg)
-
-	chain, err := builder.Build(ctx)
+	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
 	s.Require().NoError(err)
 
 	// Ensure cleanup at the end of the test
-	t.Cleanup(func() {
+	s.T().Cleanup(func() {
 		if err := chain.Stop(ctx); err != nil {
-			t.Logf("Error stopping chain: %v", err)
+			s.T().Logf("Error stopping chain: %v", err)
 		}
 	})
 
@@ -56,12 +77,12 @@ func (s *CelestiaTestSuite) TestCelestiaAppMinorUpgrade() {
 
 	// Sanity check: Test bank send before upgrade
 	s.T().Log("Testing bank send functionality before upgrade")
-	testBankSend(t, chain, cfg)
+	testBankSend(s.T(), chain, cfg)
 
 	err = chain.Stop(ctx)
 	s.Require().NoError(err)
 
-	chain.UpgradeVersion(ctx, targetVersion)
+	chain.UpgradeVersion(ctx, upgradeCfg.TargetVersion)
 
 	err = chain.Start(ctx)
 	s.Require().NoError(err)
@@ -71,7 +92,7 @@ func (s *CelestiaTestSuite) TestCelestiaAppMinorUpgrade() {
 
 	// Sanity check: Test bank send after upgrade
 	s.T().Log("Testing bank send functionality after upgrade")
-	testBankSend(t, chain, cfg)
+	testBankSend(s.T(), chain, cfg)
 
 	// Verify the version after upgrade
 	validatorNode := chain.GetNodes()[0]
@@ -81,35 +102,23 @@ func (s *CelestiaTestSuite) TestCelestiaAppMinorUpgrade() {
 
 	abciInfo, err := rpcClient.ABCIInfo(ctx)
 	s.Require().NoError(err, "failed to fetch ABCI info")
-	s.Require().Equal(strings.TrimPrefix(targetVersion, "v"), abciInfo.Response.GetVersion(), "version mismatch")
+	s.Require().Equal(strings.TrimPrefix(upgradeCfg.TargetVersion, "v"), abciInfo.Response.GetVersion(), "version mismatch")
 }
 
-// TestCelestiaAppMajorUpgrade tests a major upgrade from v4.0.7-mocha to a commit hash which has v5
-// using the signaling mechanism.
-func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
-	t := s.T()
-	if testing.Short() {
-		t.Skip("skipping major upgrade test in short mode")
-	}
-
-	ctx := context.Background()
-	const (
-		baseVersion  = "v4.0.7-mocha"
-		targetAppVer = uint64(5) // The expected app_version after upgrade
+func (s *CelestiaTestSuite) RunMajorUpgradeTest(upgradeCfg UpgradeConfig) {
+	var (
+		ctx = context.Background()
+		cfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(upgradeCfg.BaseVersion)
+		kr  = cfg.Genesis.Keyring()
 	)
-	targetVersion := dockerchain.GetCelestiaTag()
 
-	cfg := dockerchain.DefaultConfig(s.client, s.network).WithTag(baseVersion)
-
-	kr := cfg.Genesis.Keyring()
-
-	chain, err := dockerchain.NewCelestiaChainBuilder(t, cfg).Build(ctx)
+	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
 	s.Require().NoError(err)
 
 	// Ensure cleanup at the end of the test
-	t.Cleanup(func() {
+	s.T().Cleanup(func() {
 		if err := chain.Stop(ctx); err != nil {
-			t.Logf("Error stopping chain: %v", err)
+			s.T().Logf("Error stopping chain: %v", err)
 		}
 	})
 
@@ -120,7 +129,7 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 
 	// Sanity check: Test bank send before upgrade
 	s.T().Log("Testing bank send functionality before upgrade")
-	testBankSend(t, chain, cfg)
+	testBankSend(s.T(), chain, cfg)
 
 	validatorNode := chain.GetNodes()[0]
 	rpcClient, err := validatorNode.GetRPCClient()
@@ -137,16 +146,16 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 
 	// Signal for the upgrade to version 5 for each validator
 	for i, node := range chain.GetNodes() {
-		s.T().Logf("Signaling for upgrade to version %d from validator %d", targetAppVer, i)
+		s.T().Logf("Signaling for upgrade to version %d from validator %d", upgradeCfg.TargetAppVersion, i)
 
-		signalCmd := []string{"tx", "signal", "signal", fmt.Sprintf("%d", targetAppVer), "--from", records[i].Name}
+		signalCmd := []string{"tx", "signal", "signal", fmt.Sprintf("%d", upgradeCfg.TargetAppVersion), "--from", records[i].Name}
 		_, stderr, err := s.ExecuteNodeCommand(ctx, node, signalCmd...)
 		s.Require().NoError(err, "failed to signal for upgrade: %s", stderr)
 	}
 
 	s.Require().NoError(wait.ForBlocks(ctx, 2, chain))
 
-	s.validateSignalTally(ctx, validatorNode, targetAppVer)
+	s.validateSignalTally(ctx, validatorNode, upgradeCfg.TargetAppVersion)
 
 	// Execute try-upgrade transaction on all nodes
 	for i, node := range chain.GetNodes() {
@@ -168,7 +177,7 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 	err = chain.Stop(ctx)
 	s.Require().NoError(err)
 
-	chain.UpgradeVersion(ctx, targetVersion)
+	chain.UpgradeVersion(ctx, upgradeCfg.TargetVersion)
 
 	err = chain.Start(ctx)
 	s.Require().NoError(err)
@@ -185,14 +194,14 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 
 	// The version string might vary, but should contain the commit hash
 	versionStr := abciInfo.Response.GetVersion()
-	s.Require().True(strings.Contains(versionStr, strings.TrimPrefix(targetVersion, "v")), "version should contain commit hash")
+	s.Require().True(strings.Contains(versionStr, strings.TrimPrefix(upgradeCfg.TargetVersion, "v")), "version should contain commit hash")
 
 	// Verify app version is upgraded
-	s.Require().Equal(targetAppVer, abciInfo.Response.GetAppVersion(), "app_version mismatch")
+	s.Require().Equal(upgradeCfg.TargetAppVersion, abciInfo.Response.GetAppVersion(), "app_version mismatch")
 
 	// Sanity check: Test bank send after upgrade
 	s.T().Log("Testing bank send functionality after upgrade")
-	testBankSend(t, chain, cfg)
+	testBankSend(s.T(), chain, cfg)
 }
 
 // validateSignalTally queries the signal tally for the given app version and verifies
