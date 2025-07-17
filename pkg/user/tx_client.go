@@ -542,14 +542,25 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 		case core.TxStatusEvicted:
 			_, signer, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
-				return nil, fmt.Errorf("tx: %s not found in txTracker", txHash)
+				return nil, fmt.Errorf("tx: %s not found in txTracker; likely failed during broadcast", txHash)
 			}
 			_, err := client.broadcastTxAfterEviction(ctx, client.conns[0], client.txTracker[txHash].txBytes, signer)
 			if err != nil {
 				return nil, fmt.Errorf("resubmission for evicted tx failed: %w", err)
 			}
 		case core.TxStatusRejected:
-			return nil, client.handleRejections(txHash)
+			// Get transaction from the local tx tracker
+			sequence, signer, exists := client.GetTxFromTxTracker(txHash)
+			if !exists {
+				return nil, fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
+			}
+			// The sequence should be rolled back to the sequence of the transaction that was rejected to be
+			// ready for resubmission. All transactions with a later nonce will be kicked by the nodes tx pool.
+			if err := client.signer.SetSequence(signer, sequence); err != nil {
+				return nil, fmt.Errorf("setting sequence: %w", err)
+			}
+			client.deleteFromTxTracker(txHash)
+			return nil, fmt.Errorf("tx with hash %s was rejected by the node", txHash)
 		default:
 			client.deleteFromTxTracker(txHash)
 			if ctx.Err() != nil {
@@ -558,26 +569,6 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			return nil, fmt.Errorf("transaction with hash %s not found", txHash)
 		}
 	}
-}
-
-// handleRejections handles the scenario where a transaction is rejected by the node.
-// It removes the rejected transaction from the local tx tracker without incrementing
-// the signer's sequence.
-func (client *TxClient) handleRejections(txHash string) error {
-	client.mtx.Lock()
-	defer client.mtx.Unlock()
-	// Get transaction from the local tx tracker
-	sequence, signer, exists := client.GetTxFromTxTracker(txHash)
-	if !exists {
-		return fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
-	}
-	// The sequence should be rolled back to the sequence of the transaction that was rejected to be
-	// ready for resubmission. All transactions with a later nonce will be kicked by the nodes tx pool.
-	if err := client.signer.SetSequence(signer, sequence); err != nil {
-		return fmt.Errorf("setting sequence: %w", err)
-	}
-	client.deleteFromTxTracker(txHash)
-	return fmt.Errorf("tx with hash %s was rejected by the node", txHash)
 }
 
 // deleteFromTxTracker safely deletes a transaction from the local tx tracker.

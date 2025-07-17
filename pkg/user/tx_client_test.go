@@ -246,7 +246,7 @@ func TestRejections(t *testing.T) {
 	require.NoError(t, ctx.WaitForBlocks(2))
 	_, err = txClient.ConfirmTx(ctx.GoContext(), resp.TxHash)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "tx was rejected by the node")
+	require.Contains(t, err.Error(), "was rejected by the node")
 	seqAfterRejection := sender.Sequence()
 	require.Equal(t, seqBeforeSubmission, seqAfterRejection)
 
