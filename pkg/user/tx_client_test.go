@@ -243,7 +243,7 @@ func TestRejections(t *testing.T) {
 	resp, err := txClient.BroadcastPayForBlob(ctx.GoContext(), blobs, fee, gas, user.SetTimeoutHeight(1))
 	require.NoError(t, err)
 
-	ctx.WaitForBlocks(2)
+	require.NoError(t, ctx.WaitForBlocks(2))
 	_, err = txClient.ConfirmTx(ctx.GoContext(), resp.TxHash)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "tx was rejected by the node")

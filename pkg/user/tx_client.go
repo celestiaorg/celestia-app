@@ -786,17 +786,6 @@ func (client *TxClient) GetTxFromTxTracker(hash string) (sequence uint64, signer
 	return txInfo.sequence, txInfo.signer, exists
 }
 
-func (client *TxClient) getTxBySignerAndSequence(signer string, sequence uint64) ([]byte, bool) {
-	if txsBySigner, ok := client.txBySignerSequence[signer]; ok {
-		if txHash, ok := txsBySigner[sequence]; ok {
-			if txInfo, ok := client.txTracker[txHash]; ok {
-				return txInfo.txBytes, true
-			}
-		}
-	}
-	return nil, false
-}
-
 // Signer exposes the tx clients underlying signer
 func (client *TxClient) Signer() *Signer {
 	return client.signer
@@ -848,17 +837,4 @@ func QueryNetworkMinGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (fl
 		}
 	}
 	return networkMinPrice, nil
-}
-
-func (client *TxClient) getCurrentSequence(ctx context.Context, signer string) (uint64, error) {
-	record, err := client.signer.keys.Key(signer)
-	if err != nil {
-		return 0, fmt.Errorf("trying to find account %s on keyring: %w", signer, err)
-	}
-	addr, err := record.GetAddress()
-	if err != nil {
-		return 0, fmt.Errorf("retrieving address from keyring: %w", err)
-	}
-	_, sequence, err := QueryAccount(ctx, client.conns[0], client.registry, addr)
-	return sequence, err
 }
