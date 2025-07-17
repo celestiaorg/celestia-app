@@ -144,7 +144,7 @@ jobs:
 
       - name: Generate image tag
         id: tag
-        run: echo "value=$(echo $GITHUB_SHA | cut -c1-8)" >> $GITHUB_OUTPUT
+        run: echo "value=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_OUTPUT
 
       - name: Build Docker image locally
         # explicitly not pushing to ghcr as other workflows build and push there.
