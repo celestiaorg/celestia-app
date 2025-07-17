@@ -416,6 +416,8 @@ func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, 
 	return resp.TxResponse, nil
 }
 
+// broadcastTxAfterEviction resubmits a transaction that was evicted from the mempool.
+// Unlike the initial broadcast, it doesn't increment the signer's sequence number.
 func (client *TxClient) broadcastTxAfterEviction(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
 	txClient := sdktx.NewServiceClient(conn)
 	resp, err := txClient.BroadcastTx(
@@ -544,18 +546,18 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in txTracker; likely failed during broadcast", txHash)
 			}
+			// Resubmit straight away in the event of eviction and keep polling until tx is committed
 			_, err := client.broadcastTxAfterEviction(ctx, client.conns[0], client.txTracker[txHash].txBytes, signer)
 			if err != nil {
-				return nil, fmt.Errorf("resubmission for evicted tx failed: %w", err)
+				return nil, fmt.Errorf("resubmission for evicted tx with hash %s failed: %w", txHash, err)
 			}
 		case core.TxStatusRejected:
-			// Get transaction from the local tx tracker
 			sequence, signer, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
 			}
-			// The sequence should be rolled back to the sequence of the transaction that was rejected to be
-			// ready for resubmission. All transactions with a later nonce will be kicked by the nodes tx pool.
+			// Reset sequence to the rejected tx's sequence to enable resubmission
+			// of subsequent transactions.
 			if err := client.signer.SetSequence(signer, sequence); err != nil {
 				return nil, fmt.Errorf("setting sequence: %w", err)
 			}
