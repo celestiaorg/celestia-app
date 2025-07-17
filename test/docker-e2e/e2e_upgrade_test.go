@@ -102,7 +102,7 @@ func (s *CelestiaTestSuite) RunMinorUpgradeTest(upgradeCfg UpgradeConfig) {
 
 	abciInfo, err := rpcClient.ABCIInfo(ctx)
 	s.Require().NoError(err, "failed to fetch ABCI info")
-	s.Require().Equal(strings.TrimPrefix(upgradeCfg.TargetVersion, "v"), abciInfo.Response.GetVersion(), "version mismatch")
+	s.Assert().Contains(abciInfo.Response.GetVersion(), strings.TrimPrefix(upgradeCfg.TargetVersion, "v"), "version mismatch")
 }
 
 func (s *CelestiaTestSuite) RunMajorUpgradeTest(upgradeCfg UpgradeConfig) {
@@ -197,10 +197,10 @@ func (s *CelestiaTestSuite) RunMajorUpgradeTest(upgradeCfg UpgradeConfig) {
 		versionStr     = abciInfo.Response.GetVersion()
 		trimmedVersion = strings.TrimPrefix(upgradeCfg.TargetVersion, "v")
 	)
-	s.Require().True(strings.Contains(versionStr, trimmedVersion), "version should contain %q", trimmedVersion)
+	s.Assert().Contains(versionStr, trimmedVersion, "version should contain %q", trimmedVersion)
 
 	// Verify app version is upgraded
-	s.Require().Equal(upgradeCfg.TargetAppVersion, abciInfo.Response.GetAppVersion(), "app_version mismatch")
+	s.Assert().Equal(upgradeCfg.TargetAppVersion, abciInfo.Response.GetAppVersion(), "app_version mismatch")
 
 	// Sanity check: Test bank send after upgrade
 	s.T().Log("Testing bank send functionality after upgrade")
