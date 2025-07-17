@@ -22,10 +22,13 @@ type TallyResponse struct {
 	TotalVotingPower string `json:"total_voting_power"`
 }
 
+// UpgradeConfig defines the configuration parameters for performing an upgrade test
+// on the Celestia chain. It specifies the base version to start from, the target
+// version to upgrade to, and the target app version (used for major upgrades).
 type UpgradeConfig struct {
-	BaseVersion      string // The base version of the chain
-	TargetVersion    string // The target version of the chain
-	TargetAppVersion uint64 // The target app version of the chain for major upgrades
+	BaseVersion      string // BaseVersion is the initial version of the chain before upgrade.
+	TargetVersion    string // TargetVersion is the version to which the chain will be upgraded.
+	TargetAppVersion uint64 // TargetAppVersion is the app version to upgrade to (used in major upgrades).
 }
 
 // TestCelestiaAppMinorUpgrade tests a simple upgrade from one minor version to another.
@@ -54,6 +57,17 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 	})
 }
 
+// RunMinorUpgradeTest performs a minor version upgrade test for the Celestia chain (app).
+// It starts a chain with the specified base version, performs a bank send transaction to verify functionality,
+// upgrades the chain to the target version, restarts it, and verifies that the chain is running the new version
+// and that bank send transactions still work.
+//
+// Example usage:
+//
+//	s.RunMinorUpgradeTest(UpgradeConfig{
+//		BaseVersion:   "v4.0.2-mocha",
+//		TargetVersion: "v4.0.7-mocha",
+//	})
 func (s *CelestiaTestSuite) RunMinorUpgradeTest(upgradeCfg UpgradeConfig) {
 	var (
 		ctx = context.Background()
@@ -73,8 +87,6 @@ func (s *CelestiaTestSuite) RunMinorUpgradeTest(upgradeCfg UpgradeConfig) {
 	err = chain.Start(ctx)
 	s.Require().NoError(err)
 
-	s.Require().NoError(wait.ForBlocks(ctx, 5, chain))
-
 	// Sanity check: Test bank send before upgrade
 	s.T().Log("Testing bank send functionality before upgrade")
 	testBankSend(s.T(), chain, cfg)
@@ -85,9 +97,6 @@ func (s *CelestiaTestSuite) RunMinorUpgradeTest(upgradeCfg UpgradeConfig) {
 	chain.UpgradeVersion(ctx, upgradeCfg.TargetVersion)
 
 	err = chain.Start(ctx)
-	s.Require().NoError(err)
-
-	err = wait.ForBlocks(ctx, 2, chain)
 	s.Require().NoError(err)
 
 	// Sanity check: Test bank send after upgrade
@@ -102,9 +111,30 @@ func (s *CelestiaTestSuite) RunMinorUpgradeTest(upgradeCfg UpgradeConfig) {
 
 	abciInfo, err := rpcClient.ABCIInfo(ctx)
 	s.Require().NoError(err, "failed to fetch ABCI info")
-	s.Assert().Contains(abciInfo.Response.GetVersion(), strings.TrimPrefix(upgradeCfg.TargetVersion, "v"), "version mismatch")
+	s.Require().Contains(abciInfo.Response.GetVersion(), strings.TrimPrefix(upgradeCfg.TargetVersion, "v"), "version mismatch")
 }
 
+// RunMajorUpgradeTest performs an end-to-end test of a major upgrade for the Celestia App chain.
+//
+// It starts a chain at the specified base version, signals for an upgrade to the target app version
+// using the signaling mechanism, ensures the upgrade is scheduled and executed, and verifies that
+// the chain is running the new version and app version after the upgrade. The function also performs
+// sanity checks before and after the upgrade to ensure basic chain functionality (e.g., bank send).
+// It expects the upgrade to be triggered by all validators, and checks that the voting power threshold
+// for the upgrade is met before proceeding.
+//
+// Example usage:
+//
+//	func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
+//	    s.RunMajorUpgradeTest(UpgradeConfig{
+//	        BaseVersion:      "v4.0.7-mocha",
+//	        TargetVersion:    "v5.0.1-mocha",
+//	        TargetAppVersion: uint64(5),
+//	    })
+//	}
+//
+// Arguments:
+//   - upgradeCfg: UpgradeConfig struct specifying the base version, target version, and target app version.
 func (s *CelestiaTestSuite) RunMajorUpgradeTest(upgradeCfg UpgradeConfig) {
 	var (
 		ctx = context.Background()
@@ -124,8 +154,6 @@ func (s *CelestiaTestSuite) RunMajorUpgradeTest(upgradeCfg UpgradeConfig) {
 
 	err = chain.Start(ctx)
 	s.Require().NoError(err)
-
-	s.Require().NoError(wait.ForBlocks(ctx, 5, chain))
 
 	// Sanity check: Test bank send before upgrade
 	s.T().Log("Testing bank send functionality before upgrade")
@@ -182,9 +210,6 @@ func (s *CelestiaTestSuite) RunMajorUpgradeTest(upgradeCfg UpgradeConfig) {
 	err = chain.Start(ctx)
 	s.Require().NoError(err)
 
-	err = wait.ForBlocks(ctx, 2, chain)
-	s.Require().NoError(err)
-
 	// Verify the version after upgrade
 	rpcClient, err = validatorNode.GetRPCClient()
 	s.Require().NoError(err, "failed to get RPC client for version check")
@@ -197,10 +222,10 @@ func (s *CelestiaTestSuite) RunMajorUpgradeTest(upgradeCfg UpgradeConfig) {
 		versionStr     = abciInfo.Response.GetVersion()
 		trimmedVersion = strings.TrimPrefix(upgradeCfg.TargetVersion, "v")
 	)
-	s.Assert().Contains(versionStr, trimmedVersion, "version should contain %q", trimmedVersion)
+	s.Require().Contains(versionStr, trimmedVersion, "version should contain %q", trimmedVersion)
 
 	// Verify app version is upgraded
-	s.Assert().Equal(upgradeCfg.TargetAppVersion, abciInfo.Response.GetAppVersion(), "app_version mismatch")
+	s.Require().Equal(upgradeCfg.TargetAppVersion, abciInfo.Response.GetAppVersion(), "app_version mismatch")
 
 	// Sanity check: Test bank send after upgrade
 	s.T().Log("Testing bank send functionality after upgrade")
@@ -227,5 +252,5 @@ func (s *CelestiaTestSuite) validateSignalTally(ctx context.Context, node tastor
 	s.Require().NoError(err, "failed to parse threshold power")
 
 	// Verify that voting power meets or exceeds threshold
-	s.Assert().True(votingPower >= thresholdPower, "voting power (%d) does not meet threshold (%d)", votingPower, thresholdPower)
+	s.Require().True(votingPower >= thresholdPower, "voting power (%d) does not meet threshold (%d)", votingPower, thresholdPower)
 }

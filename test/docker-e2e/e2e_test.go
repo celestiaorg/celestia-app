@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
-  rpcclient "github.com/cometbft/cometbft/rpc/client"
-	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
 	"github.com/celestiaorg/go-square/v2/share"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
+	rpcclient "github.com/cometbft/cometbft/rpc/client"
+	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/docker/docker/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
@@ -50,8 +50,10 @@ func (s *CelestiaTestSuite) ExecuteNodeCommand(ctx context.Context, chainNode ta
 	s.Require().Greater(len(cmd), 0, "command must not be empty")
 
 	var finalCmd []string
-	isTxCommand := len(cmd) > 0 && cmd[0] == "tx"
-	isKeysCommand := len(cmd) > 0 && cmd[0] == "keys"
+
+	// cmd[0] checked in case "celestia-appd" is not passed and cmd[1] checked in case it is
+	isTxCommand := cmd[0] == "tx" || cmd[1] == "tx"
+	isKeysCommand := cmd[0] == "keys" || cmd[1] == "keys"
 
 	// Common flags for all commands
 	if !slices.Contains(cmd, "--home") {

@@ -4,7 +4,6 @@ import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -96,9 +95,13 @@ func assertTransactionsIncluded(ctx context.Context, t *testing.T, celestia *tas
 func testBankSend(t *testing.T, chain *tastoradockertypes.Chain, cfg *dockerchain.Config) {
 	ctx := context.Background()
 
-	// Create or get recipient wallet
-	recipientAddress, err := createOrGetWalletAddress(ctx, chain, "recipient")
-	require.NoError(t, err, "failed to create or get recipient wallet")
+	// Generate a unique wallet name using timestamp
+	recipientWalletName := fmt.Sprintf("recipient-%d", time.Now().UnixNano())
+
+	// Create a new wallet with unique name
+	wallet, err := chain.CreateWallet(ctx, recipientWalletName)
+	require.NoError(t, err, "failed to create recipient wallet")
+	recipientAddress := wallet.GetFormattedAddress()
 
 	txClient, err := dockerchain.SetupTxClient(ctx, chain.Nodes()[0], cfg)
 	require.NoError(t, err, "failed to setup TxClient")
@@ -125,31 +128,4 @@ func testBankSend(t *testing.T, chain *tastoradockertypes.Chain, cfg *dockerchai
 	// wait for additional blocks to ensure transaction is finalized
 	err = wait.ForBlocks(ctx, 2, chain)
 	require.NoError(t, err, "failed to wait for blocks after transaction")
-}
-
-// createOrGetWalletAddress tries to create a wallet with the given name, but if it already exists,
-// it retrieves the existing wallet's address. This makes the function safe to call multiple times.
-func createOrGetWalletAddress(ctx context.Context, chain *tastoradockertypes.Chain, walletName string) (string, error) {
-	// Try to create the wallet first
-	wallet, err := chain.CreateWallet(ctx, walletName)
-	if err == nil {
-		// Wallet created successfully
-		return wallet.GetFormattedAddress(), nil
-	}
-
-	// If error is not because wallet already exists, return the error
-	if !strings.Contains(err.Error(), "already exists") && !strings.Contains(err.Error(), "EOF") {
-		return "", fmt.Errorf("failed to create wallet with name %q: %w", walletName, err)
-	}
-
-	// Wallet already exists, retrieve its address
-	node := chain.Nodes()[0]
-	cmd := []string{"celestia-appd", "keys", "show", walletName, "--keyring-backend", "test", "--home", "/var/cosmos-chain/celestia", "--address"}
-	addrBytes, stderr, err := node.Exec(ctx, cmd, nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to get existing wallet address: %s: %w", stderr, err)
-	}
-
-	// Return the address as a string
-	return strings.TrimSpace(string(addrBytes)), nil
 }
