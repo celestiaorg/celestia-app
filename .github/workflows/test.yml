@@ -129,6 +129,8 @@ jobs:
           - TestE2ESimple
           - TestStateSync
           - TestE2EFullStackPFB
+          - TestCelestiaAppMinorUpgrade
+          - TestCelestiaAppMajorUpgrade
 
     steps:
       - name: Checkout code
