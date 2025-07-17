@@ -51,9 +51,13 @@ func (s *CelestiaTestSuite) ExecuteNodeCommand(ctx context.Context, chainNode ta
 
 	var finalCmd []string
 
-	// cmd[0] checked in case "celestia-appd" is not passed and cmd[1] checked in case it is
-	isTxCommand := cmd[0] == "tx" || cmd[1] == "tx"
-	isKeysCommand := cmd[0] == "keys" || cmd[1] == "keys"
+	if cmd[0] == "celestia-appd" {
+		s.Require().Greater(len(cmd), 1, "celestia-appd must have at least one subcommand")
+		cmd = cmd[1:]
+	}
+
+	isTxCommand := cmd[0] == "tx"
+	isKeysCommand := cmd[0] == "keys"
 
 	// Common flags for all commands
 	if !slices.Contains(cmd, "--home") {
@@ -89,11 +93,7 @@ func (s *CelestiaTestSuite) ExecuteNodeCommand(ctx context.Context, chainNode ta
 		}
 	}
 
-	finalCmd = append(cmd, finalCmd...)
-
-	if finalCmd[0] != "celestia-appd" {
-		finalCmd = append([]string{"celestia-appd"}, finalCmd...)
-	}
+	finalCmd = append([]string{"celestia-appd"}, append(cmd, finalCmd...)...)
 
 	stdoutBytes, stderrBytes, err := chainNode.Exec(ctx, finalCmd, nil)
 	return string(stdoutBytes), string(stderrBytes), err

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 )
 
 // TallyResponse represents the JSON response from the signal tally query
@@ -22,24 +24,26 @@ type TallyResponse struct {
 	TotalVotingPower string `json:"total_voting_power"`
 }
 
-// UpgradeConfig defines the configuration parameters for performing an upgrade test
-// on the Celestia chain. It specifies the base version to start from, the target
-// version to upgrade to, and the target app version (used for major upgrades).
+// UpgradeConfig holds configuration parameters for performing an upgrade test
+// on the Celestia chain.
 type UpgradeConfig struct {
-	BaseVersion      string // BaseVersion is the initial version of the chain before upgrade.
-	TargetVersion    string // TargetVersion is the version to which the chain will be upgraded.
-	TargetAppVersion uint64 // TargetAppVersion is the app version to upgrade to (used in major upgrades).
+	// BaseBinaryVersion is the initial version of the chain before upgrade.
+	BaseBinaryVersion string
+	// TargetBinaryVersion is the version to which the chain will be upgraded.
+	TargetBinaryVersion string
+	// TargetAppVersion is the app version to upgrade to (used in major upgrades).
+	TargetAppVersion uint64
 }
 
 // TestCelestiaAppMinorUpgrade tests a simple upgrade from one minor version to another.
 func (s *CelestiaTestSuite) TestCelestiaAppMinorUpgrade() {
 	if testing.Short() {
-		s.T().Skip("skipping upgrade test in short mode")
+		s.T().Skip("skipping celestia-app minor upgrade test in short mode")
 	}
 
 	s.RunMinorUpgradeTest(UpgradeConfig{
-		BaseVersion:   "v4.0.2-mocha",
-		TargetVersion: "v4.0.7-mocha",
+		BaseBinaryVersion:   "v4.0.2-mocha",
+		TargetBinaryVersion: "v4.0.7-mocha",
 	})
 }
 
@@ -47,13 +51,13 @@ func (s *CelestiaTestSuite) TestCelestiaAppMinorUpgrade() {
 // using the signaling mechanism.
 func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 	if testing.Short() {
-		s.T().Skip("skipping major upgrade test in short mode")
+		s.T().Skip("skipping celestia-app major upgrade test in short mode")
 	}
 
 	s.RunMajorUpgradeTest(UpgradeConfig{
-		BaseVersion:      "v4.0.7-mocha",
-		TargetVersion:    dockerchain.GetCelestiaTag(),
-		TargetAppVersion: uint64(5),
+		BaseBinaryVersion:   "v4.0.10",
+		TargetBinaryVersion: dockerchain.GetCelestiaTag(),
+		TargetAppVersion:    uint64(5),
 	})
 }
 
@@ -71,7 +75,7 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 func (s *CelestiaTestSuite) RunMinorUpgradeTest(upgradeCfg UpgradeConfig) {
 	var (
 		ctx = context.Background()
-		cfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(upgradeCfg.BaseVersion)
+		cfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(upgradeCfg.BaseBinaryVersion)
 	)
 
 	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
@@ -94,7 +98,7 @@ func (s *CelestiaTestSuite) RunMinorUpgradeTest(upgradeCfg UpgradeConfig) {
 	err = chain.Stop(ctx)
 	s.Require().NoError(err)
 
-	chain.UpgradeVersion(ctx, upgradeCfg.TargetVersion)
+	chain.UpgradeVersion(ctx, upgradeCfg.TargetBinaryVersion)
 
 	err = chain.Start(ctx)
 	s.Require().NoError(err)
@@ -111,7 +115,7 @@ func (s *CelestiaTestSuite) RunMinorUpgradeTest(upgradeCfg UpgradeConfig) {
 
 	abciInfo, err := rpcClient.ABCIInfo(ctx)
 	s.Require().NoError(err, "failed to fetch ABCI info")
-	s.Require().Contains(abciInfo.Response.GetVersion(), strings.TrimPrefix(upgradeCfg.TargetVersion, "v"), "version mismatch")
+	s.Require().Contains(abciInfo.Response.GetVersion(), strings.TrimPrefix(upgradeCfg.TargetBinaryVersion, "v"), "version mismatch")
 }
 
 // RunMajorUpgradeTest performs an end-to-end test of a major upgrade for the Celestia App chain.
@@ -132,13 +136,10 @@ func (s *CelestiaTestSuite) RunMinorUpgradeTest(upgradeCfg UpgradeConfig) {
 //	        TargetAppVersion: uint64(5),
 //	    })
 //	}
-//
-// Arguments:
-//   - upgradeCfg: UpgradeConfig struct specifying the base version, target version, and target app version.
 func (s *CelestiaTestSuite) RunMajorUpgradeTest(upgradeCfg UpgradeConfig) {
 	var (
 		ctx = context.Background()
-		cfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(upgradeCfg.BaseVersion)
+		cfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(upgradeCfg.BaseBinaryVersion)
 		kr  = cfg.Genesis.Keyring()
 	)
 
@@ -172,55 +173,52 @@ func (s *CelestiaTestSuite) RunMajorUpgradeTest(upgradeCfg UpgradeConfig) {
 	s.Require().NoError(err, "failed to list accounts")
 	s.Require().Len(records, len(chain.GetNodes()), "number of accounts does not match number of nodes")
 
-	// Signal for the upgrade to the new version
-	for i, node := range chain.GetNodes() {
-		s.T().Logf("Signaling for upgrade to version %d from validator %d", upgradeCfg.TargetAppVersion, i)
+	// Signal for upgrade and get the upgrade height
+	upgradeHeight := s.signalAndGetUpgradeHeight(ctx, chain, validatorNode, records, upgradeCfg.TargetAppVersion)
 
-		signalCmd := []string{"tx", "signal", "signal", fmt.Sprintf("%d", upgradeCfg.TargetAppVersion), "--from", records[i].Name}
-		_, stderr, err := s.ExecuteNodeCommand(ctx, node, signalCmd...)
-		s.Require().NoError(err, "failed to signal for upgrade: %s", stderr)
-	}
+	// Get current height
+	status, err := rpcClient.Status(ctx)
+	s.Require().NoError(err, "failed to get node status")
+	currentHeight := status.SyncInfo.LatestBlockHeight
 
-	s.Require().NoError(wait.ForBlocks(ctx, 2, chain))
+	s.T().Logf("Current height: %d, Upgrade height: %d", currentHeight, upgradeHeight)
 
-	s.validateSignalTally(ctx, validatorNode, upgradeCfg.TargetAppVersion)
-
-	// Execute try-upgrade transaction on all nodes
-	for i, node := range chain.GetNodes() {
-		s.T().Logf("Executing try-upgrade transaction on validator %d", i)
-		tryUpgradeCmd := []string{"tx", "signal", "try-upgrade", "--from", records[i].Name}
-		_, upgradeStderr, err := s.ExecuteNodeCommand(ctx, node, tryUpgradeCmd...)
-		s.Require().NoError(err, "failed to execute try-upgrade on validator %d: %s", i, upgradeStderr)
-	}
-
-	s.T().Log("Querying upgrade info")
-	upgradeInfoCmd := []string{"query", "signal", "upgrade", "--output", "json"}
-	upgradeInfoStdout, upgradeInfoStderr, err := s.ExecuteNodeCommand(ctx, validatorNode, upgradeInfoCmd...)
-	s.Require().NoError(err, "failed to query upgrade info: %s", upgradeInfoStderr)
-	s.T().Logf("Upgrade info: %s", upgradeInfoStdout)
-
-	// Wait for the upgrade to be scheduled
-	s.Require().NoError(wait.ForBlocks(ctx, 5, chain))
-
+	// Now simulate the binary upgrade (before the upgrade height is reached)
+	// This is what node operators would do in the real world - upgrade their binary
+	// before the scheduled upgrade height
+	s.T().Log("Stopping the chain to upgrade binaries (simulating node operators upgrading)")
 	err = chain.Stop(ctx)
 	s.Require().NoError(err)
 
-	chain.UpgradeVersion(ctx, upgradeCfg.TargetVersion)
+	// Upgrade to the multiplexer-enabled binary
+	chain.UpgradeVersion(ctx, upgradeCfg.TargetBinaryVersion)
 
+	s.T().Log("Restarting the chain with the multiplexer-enabled binary")
 	err = chain.Start(ctx)
 	s.Require().NoError(err)
 
-	// Verify the version after upgrade
+	// Verify we're still on the old app version after restart (multiplexer is working)
 	rpcClient, err = validatorNode.GetRPCClient()
-	s.Require().NoError(err, "failed to get RPC client for version check")
+	s.Require().NoError(err)
 
+	abciInfo, err = rpcClient.ABCIInfo(ctx)
+	s.Require().NoError(err)
+	s.Require().Equal(currentAppVer, abciInfo.Response.GetAppVersion(),
+		"app version should not change immediately after binary upgrade (multiplexer should maintain old version)")
+
+	// Wait until we reach the upgrade height
+	blocksToWait := int(upgradeHeight-currentHeight) + 5 // Add buffer
+	s.T().Logf("Waiting for %d blocks to reach upgrade height plus buffer", blocksToWait)
+	s.Require().NoError(wait.ForBlocks(ctx, blocksToWait, chain))
+
+	// Verify the app version has been upgraded
 	abciInfo, err = rpcClient.ABCIInfo(ctx)
 	s.Require().NoError(err, "failed to fetch ABCI info")
 
 	// The version string might vary, but should contain the commit hash
 	var (
 		versionStr     = abciInfo.Response.GetVersion()
-		trimmedVersion = strings.TrimPrefix(upgradeCfg.TargetVersion, "v")
+		trimmedVersion = strings.TrimPrefix(upgradeCfg.TargetBinaryVersion, "v")
 	)
 	s.Require().Contains(versionStr, trimmedVersion, "version should contain %q", trimmedVersion)
 
@@ -230,6 +228,69 @@ func (s *CelestiaTestSuite) RunMajorUpgradeTest(upgradeCfg UpgradeConfig) {
 	// Sanity check: Test bank send after upgrade
 	s.T().Log("Testing bank send functionality after upgrade")
 	testBankSend(s.T(), chain, cfg)
+}
+
+// signalAndGetUpgradeHeight signals for an upgrade to the specified app version and returns the scheduled upgrade height.
+func (s *CelestiaTestSuite) signalAndGetUpgradeHeight(ctx context.Context, chain tastoratypes.Chain, validatorNode tastoratypes.ChainNode, records []*keyring.Record, targetAppVersion uint64) int64 {
+	// Signal for the upgrade to the new version
+	for i, node := range chain.GetNodes() {
+		s.T().Logf("Signaling for upgrade to version %d from validator %d", targetAppVersion, i)
+
+		signalCmd := []string{"tx", "signal", "signal", fmt.Sprintf("%d", targetAppVersion), "--from", records[i].Name}
+		_, stderr, err := s.ExecuteNodeCommand(ctx, node, signalCmd...)
+		s.Require().NoError(err, "failed to signal for upgrade: %s", stderr)
+	}
+
+	s.Require().NoError(wait.ForBlocks(ctx, 1, chain))
+
+	s.validateSignalTally(ctx, validatorNode, targetAppVersion)
+
+	// Execute try-upgrade transaction on the first node only
+	s.T().Log("Executing try-upgrade transaction on the first validator")
+	tryUpgradeCmd := []string{"tx", "signal", "try-upgrade", "--from", records[0].Name}
+	_, upgradeStderr, err := s.ExecuteNodeCommand(ctx, validatorNode, tryUpgradeCmd...)
+	s.Require().NoError(err, "failed to execute try-upgrade: %s", upgradeStderr)
+
+	s.Require().NoError(wait.ForBlocks(ctx, 1, chain))
+
+	s.T().Log("Querying upgrade info")
+	upgradeInfoCmd := []string{"query", "signal", "upgrade", "--output", "json"}
+	upgradeInfoStdout, upgradeInfoStderr, err := s.ExecuteNodeCommand(ctx, validatorNode, upgradeInfoCmd...)
+	s.Require().NoError(err, "failed to query upgrade info: %s", upgradeInfoStderr)
+	s.T().Logf("Upgrade info: %s", upgradeInfoStdout)
+
+	// Parse the upgrade height from the plain text response
+	// it turns out that the json output flag is not working as expected
+	// so we need to parse the plain text response
+	// Expected format: "An upgrade is pending to app version X at height Y."
+	var upgradeHeight int64
+
+	if strings.Contains(upgradeInfoStdout, "An upgrade is pending") {
+		// Extract the height from the response using regex
+		re := regexp.MustCompile(`height (\d+)`)
+		matches := re.FindStringSubmatch(upgradeInfoStdout)
+		s.Require().GreaterOrEqual(len(matches), 2, "could not extract height from response: %s", upgradeInfoStdout)
+
+		var err error
+		upgradeHeight, err = strconv.ParseInt(matches[1], 10, 64)
+		s.Require().NoError(err, "failed to parse upgrade height from string: %s", matches[1])
+		return upgradeHeight
+	}
+
+	// Try to parse as JSON as a fallback
+	var upgradeInfo struct {
+		Height string `json:"height"`
+	}
+	err = json.Unmarshal([]byte(upgradeInfoStdout), &upgradeInfo)
+	s.Require().NoError(err, "failed to parse upgrade info")
+
+	// Ensure we got a valid height
+	s.Require().NotEmpty(upgradeInfo.Height, "upgrade height should not be empty")
+
+	upgradeHeight, err = strconv.ParseInt(upgradeInfo.Height, 10, 64)
+	s.Require().NoError(err, "failed to parse upgrade height")
+
+	return upgradeHeight
 }
 
 // validateSignalTally queries the signal tally for the given app version and verifies
