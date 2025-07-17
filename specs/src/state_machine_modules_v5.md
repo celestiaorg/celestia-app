@@ -1,6 +1,6 @@
-# State Machine Modules v4
+# State Machine Modules v5
 
-The modules used in app version 4 are:
+The modules used in app version 5 are:
 
 ## `celestia-app` modules
 

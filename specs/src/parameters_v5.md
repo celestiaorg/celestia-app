@@ -1,6 +1,6 @@
-# Parameters v4
+# Parameters v5
 
-The parameters below represent the parameters for app version 4.
+The parameters below represent the parameters for app version 5.
 
 Note that not all of these parameters are changeable via governance. This list
 also includes parameter that require a hardfork to change due to being manually

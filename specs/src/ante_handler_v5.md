@@ -1,6 +1,6 @@
-# AnteHandler v4
+# AnteHandler v5
 
-The AnteHandler chains together several decorators to ensure the following criteria are met for app version 4:
+The AnteHandler chains together several decorators to ensure the following criteria are met for app version 5:
 
 - The tx does not contain any [extension options](https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L119-L122).
 - The tx passes `ValidateBasic()`.
