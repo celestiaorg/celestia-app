@@ -52,7 +52,7 @@ type TxClientTestSuite struct {
 }
 
 func (suite *TxClientTestSuite) SetupSuite() {
-	suite.encCfg, suite.txClient, suite.ctx = setupTxClient(suite.T(), 1, 1000000)
+	suite.encCfg, suite.txClient, suite.ctx = setupTxClientWithDefaultParams(suite.T())
 	suite.serviceClient = sdktx.NewServiceClient(suite.ctx.GRPCClient)
 }
 
@@ -231,7 +231,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 }
 
 func TestRejections(t *testing.T) {
-	_, txClient, ctx := setupTxClient(t, 5, 1000000)
+	_, txClient, ctx := setupTxClient(t, 5, appconsts.DefaultMaxBytes)
 
 	fee := user.SetFee(1e6)
 	gas := user.SetGasLimit(10e6)
@@ -239,7 +239,7 @@ func TestRejections(t *testing.T) {
 	// Submit a blob tx with user set ttl which will get rejected
 	sender := txClient.Signer().Account(txClient.DefaultAccountName())
 	seqBeforeSubmission := sender.Sequence()
-	blobs := blobfactory.ManyRandBlobs(random.New(), 2e6, 2e3)
+	blobs := blobfactory.ManyRandBlobs(random.New(), 2, 2)
 	resp, err := txClient.BroadcastPayForBlob(ctx.GoContext(), blobs, fee, gas, user.SetTimeoutHeight(1))
 	require.NoError(t, err)
 
@@ -319,7 +319,7 @@ func TestEvictions(t *testing.T) {
 // used to estimate gas price and usage instead of the default connection.
 func TestWithEstimatorService(t *testing.T) {
 	mockEstimator := setupEstimatorService(t)
-	_, txClient, ctx := setupTxClient(t, 0, 1000000, user.WithEstimatorService(mockEstimator.conn))
+	_, txClient, ctx := setupTxClientWithDefaultParams(t, user.WithEstimatorService(mockEstimator.conn))
 
 	msg := bank.NewMsgSend(txClient.DefaultAddress(), testnode.RandomAddress().(sdk.AccAddress),
 		sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
@@ -427,6 +427,7 @@ func setupTxClient(
 	opts ...user.Option,
 ) (encoding.Config, *user.TxClient, testnode.Context) {
 	defaultTmConfig := testnode.DefaultTendermintConfig()
+	fmt.Println(defaultTmConfig.Mempool.TTLNumBlocks, "default ttl num blocks")
 	defaultTmConfig.Mempool.TTLNumBlocks = ttlNumBlocks
 
 	chainID := unsafe.Str(6)
@@ -436,7 +437,6 @@ func setupTxClient(
 		WithChainID(chainID).
 		WithTimeoutCommit(100 * time.Millisecond).
 		WithAppCreator(testnode.CustomAppCreator(baseapp.SetMinGasPrices("0utia"), baseapp.SetChainID(chainID)))
-	fmt.Println(testnodeConfig.Genesis.ConsensusParams.Block.MaxBytes, "default max bytes")
 	testnodeConfig.Genesis.ConsensusParams.Block.MaxBytes = blocksize
 
 	ctx, _, _ := testnode.NewNetwork(t, testnodeConfig)
@@ -448,6 +448,10 @@ func setupTxClient(
 	require.NoError(t, err)
 
 	return enc, txClient, ctx
+}
+
+func setupTxClientWithDefaultParams(t *testing.T, opts ...user.Option) (encoding.Config, *user.TxClient, testnode.Context) {
+	return setupTxClient(t, 0, 8388608, opts...) // no ttl and 8MiB block size
 }
 
 type mockEstimatorServer struct {
