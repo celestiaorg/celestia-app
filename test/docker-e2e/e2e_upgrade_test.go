@@ -144,7 +144,7 @@ func (s *CelestiaTestSuite) RunMajorUpgradeTest(upgradeCfg UpgradeConfig) {
 	s.Require().NoError(err, "failed to list accounts")
 	s.Require().Len(records, len(chain.GetNodes()), "number of accounts does not match number of nodes")
 
-	// Signal for the upgrade to version 5 for each validator
+	// Signal for the upgrade to the new version
 	for i, node := range chain.GetNodes() {
 		s.T().Logf("Signaling for upgrade to version %d from validator %d", upgradeCfg.TargetAppVersion, i)
 
@@ -193,8 +193,11 @@ func (s *CelestiaTestSuite) RunMajorUpgradeTest(upgradeCfg UpgradeConfig) {
 	s.Require().NoError(err, "failed to fetch ABCI info")
 
 	// The version string might vary, but should contain the commit hash
-	versionStr := abciInfo.Response.GetVersion()
-	s.Require().True(strings.Contains(versionStr, strings.TrimPrefix(upgradeCfg.TargetVersion, "v")), "version should contain commit hash")
+	var (
+		versionStr     = abciInfo.Response.GetVersion()
+		trimmedVersion = strings.TrimPrefix(upgradeCfg.TargetVersion, "v")
+	)
+	s.Require().True(strings.Contains(versionStr, trimmedVersion), "version should contain %q", trimmedVersion)
 
 	// Verify app version is upgraded
 	s.Require().Equal(upgradeCfg.TargetAppVersion, abciInfo.Response.GetAppVersion(), "app_version mismatch")
