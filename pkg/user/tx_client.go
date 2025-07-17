@@ -153,7 +153,6 @@ type TxClient struct {
 	// txTracker maps the tx hash to the Sequence and signer of the transaction
 	// that was submitted to the chain
 	txTracker           map[string]txInfo
-	txBySignerSequence  map[string]map[uint64]string
 	gasEstimationClient gasestimation.GasEstimatorClient
 }
 
@@ -186,7 +185,6 @@ func NewTxClient(
 		defaultAccount:      records[0].Name,
 		defaultAddress:      addr,
 		txTracker:           make(map[string]txInfo),
-		txBySignerSequence:  make(map[string]map[uint64]string),
 		cdc:                 cdc,
 		gasEstimationClient: gasestimation.NewGasEstimatorClient(conn),
 	}
@@ -496,9 +494,6 @@ func (client *TxClient) pruneTxTracker() {
 	for hash, txInfo := range client.txTracker {
 		if time.Since(txInfo.timestamp) >= txTrackerPruningInterval {
 			delete(client.txTracker, hash)
-			if txBySigner, ok := client.txBySignerSequence[txInfo.signer]; ok {
-				delete(txBySigner, txInfo.sequence)
-			}
 		}
 	}
 }
@@ -549,7 +544,6 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in txTracker", txHash)
 			}
-			fmt.Println("tx evicted, resubmitting")
 			_, err := client.broadcastTxAfterEviction(ctx, client.conns[0], client.txTracker[txHash].txBytes, signer)
 			if err != nil {
 				return nil, fmt.Errorf("resubmission for evicted tx failed: %w", err)
@@ -573,17 +567,17 @@ func (client *TxClient) handleRejections(txHash string) error {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 	// Get transaction from the local tx tracker
-	txInfo, exists := client.txTracker[txHash]
+	sequence, signer, exists := client.GetTxFromTxTracker(txHash)
 	if !exists {
 		return fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
 	}
 	// The sequence should be rolled back to the sequence of the transaction that was rejected to be
 	// ready for resubmission. All transactions with a later nonce will be kicked by the nodes tx pool.
-	if err := client.signer.SetSequence(txInfo.signer, txInfo.sequence); err != nil {
+	if err := client.signer.SetSequence(signer, sequence); err != nil {
 		return fmt.Errorf("setting sequence: %w", err)
 	}
-	delete(client.txTracker, txHash)
-	return fmt.Errorf("tx was rejected by the node")
+	client.deleteFromTxTracker(txHash)
+	return fmt.Errorf("tx with hash %s was rejected by the node", txHash)
 }
 
 // deleteFromTxTracker safely deletes a transaction from the local tx tracker.
@@ -770,12 +764,6 @@ func (client *TxClient) trackTransaction(signer, txHash string, txBytes []byte) 
 		timestamp: time.Now(),
 		txBytes:   txBytes,
 	}
-	// Initialize the inner map for this signer if it doesn't exist
-	if client.txBySignerSequence[signer] == nil {
-		client.txBySignerSequence[signer] = make(map[uint64]string)
-	}
-	fmt.Println("saving with sequence", sequence)
-	client.txBySignerSequence[signer][sequence] = txHash
 }
 
 // GetTxFromTxTracker gets transaction info from the tx client's local tx tracker by its hash
