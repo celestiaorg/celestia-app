@@ -340,7 +340,6 @@ func New(
 		app.AccountKeeper, app.BankKeeper, app.ScopedTransferKeeper, govModuleAddr,
 	)
 	// Transfer stack contains (from top to bottom):
-	// - Token Filter
 	// - Packet Forwarding Middleware
 	// - Transfer
 	var transferStack ibcporttypes.IBCModule

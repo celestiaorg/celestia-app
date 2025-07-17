@@ -124,7 +124,7 @@ func (suite *TokenFilterTestSuite) TestHandleInboundTransfer() {
 
 	// check that the token does not exist on chain A (was rejected)
 	voucherDenomTrace := types.ParseDenomTrace(types.GetPrefixedDenom(packet.GetDestPort(), packet.GetDestChannel(), sdk.DefaultBondDenom))
-	balance := suite.GetSimapp(suite.simapp).BankKeeper.GetBalance(suite.simapp.GetContext(), suite.simapp.SenderAccount.GetAddress(), voucherDenomTrace.IBCDenom())
+	balance := suite.GetCelestiaApp(suite.celestia).BankKeeper.GetBalance(suite.celestia.GetContext(), suite.celestia.SenderAccount.GetAddress(), voucherDenomTrace.IBCDenom())
 	emptyCoin := sdk.NewInt64Coin(voucherDenomTrace.IBCDenom(), 0)
 	suite.Require().Equal(emptyCoin, balance)
 }
