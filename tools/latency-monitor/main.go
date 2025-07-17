@@ -25,7 +25,7 @@ const (
 	defaultEndpoint     = "localhost:9090"
 	defaultKeyringDir   = "~/.celestia-app"
 	defaultSubmitRate   = 1.0    // KB per second
-	defaultBlobSize     = 1      // bytes
+	defaultBlobSize     = 1      // KB
 	defaultNamespaceStr = "test" // default namespace for blobs
 )
 

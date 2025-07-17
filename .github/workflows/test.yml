@@ -128,6 +128,8 @@ jobs:
         testcase:
           - TestE2ESimple
           - TestStateSync
+          - TestBlockSync
+          - TestE2EFullStackPFB
 
     steps:
       - name: Checkout code
