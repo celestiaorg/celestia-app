@@ -111,7 +111,7 @@ func generateCmd() *cobra.Command {
 	return cmd
 }
 
-// createPayload takes ips created by pulumi the path to the payload directory
+// createPayload takes ips created by pulumi and the path to the payload directory
 // to create the payload required for the experiment.
 func createPayload(ips []Instance, chainID, ppath string, squareSize int, useMainnetDistribution bool, mods ...genesis.Modifier) error {
 	n, err := NewNetwork(chainID, squareSize, mods...)

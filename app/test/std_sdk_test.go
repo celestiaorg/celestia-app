@@ -385,7 +385,7 @@ func (s *StandardSDKIntegrationTestSuite) TestGRPCQueries() {
 		serviceClient := nodeservice.NewServiceClient(s.cctx.GRPCClient)
 		resp, err := serviceClient.Config(s.cctx.GoContext(), &nodeservice.ConfigRequest{})
 		require.NoError(t, err)
-		want := "0.002000000000000000utia"
+		want := "0.004000000000000000utia"
 		assert.Equal(t, want, resp.MinimumGasPrice)
 	})
 
