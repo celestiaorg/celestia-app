@@ -749,6 +749,7 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 	return record.Name, nil
 }
 
+// trackTransaction tracks a transaction in the tx client's local tx tracker.
 func (client *TxClient) trackTransaction(signer, txHash string, txBytes []byte) {
 	sequence := client.signer.Account(signer).Sequence()
 	client.txTracker[txHash] = txInfo{

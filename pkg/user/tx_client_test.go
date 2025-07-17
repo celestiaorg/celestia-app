@@ -231,7 +231,8 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 }
 
 func TestRejections(t *testing.T) {
-	_, txClient, ctx := setupTxClient(t, 5, appconsts.DefaultMaxBytes)
+	ttlNumBlocks := int64(5)
+	_, txClient, ctx := setupTxClient(t, ttlNumBlocks, appconsts.DefaultMaxBytes)
 
 	fee := user.SetFee(1e6)
 	gas := user.SetGasLimit(1e6)
@@ -270,8 +271,8 @@ func TestEvictions(t *testing.T) {
 	}
 
 	ttlNumBlocks := int64(1)
-	blocksize := int64(1048576)
-	_, txClient, ctx := setupTxClient(t, ttlNumBlocks, blocksize) // 1 block ttl with 1MiB block size
+	blocksize := int64(1048576) // 1 MiB
+	_, txClient, ctx := setupTxClient(t, ttlNumBlocks, blocksize)
 	grpcTxClient := tx.NewTxClient(ctx.GRPCClient)
 
 	fee := user.SetFee(1e6)
@@ -431,7 +432,6 @@ func setupTxClient(
 	opts ...user.Option,
 ) (encoding.Config, *user.TxClient, testnode.Context) {
 	defaultTmConfig := testnode.DefaultTendermintConfig()
-	fmt.Println(defaultTmConfig.Mempool.TTLNumBlocks, "default ttl num blocks")
 	defaultTmConfig.Mempool.TTLNumBlocks = ttlNumBlocks
 
 	chainID := unsafe.Str(6)
