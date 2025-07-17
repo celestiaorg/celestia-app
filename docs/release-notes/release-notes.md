@@ -2,6 +2,8 @@
 
 This guide provides notes for major version releases. These notes may be helpful for users when upgrading from previous major versions.
 
+## Upcoming Major Release
+
 ## v4.0.0
 
 ### Node Operators (v4.0.0)
