@@ -355,7 +355,7 @@ func RandMultiBlobTxsSameSigner(t *testing.T, rand *rand.Rand, signer *user.Sign
 		blobsPerPfb := GenerateRandomBlobCount(rand)
 		blobSizes := GenerateRandomBlobSizes(blobsPerPfb, rand)
 		blobs := ManyRandBlobs(rand, blobSizes...)
-		pfbTxs[i], _, err = signer.CreatePayForBlobs(testfactory.TestAccName, blobs)
+		pfbTxs[i], _, err = signer.CreatePayForBlobs(testfactory.TestAccName, blobs, DefaultTxOpts()...)
 		require.NoError(t, err)
 	}
 	return pfbTxs

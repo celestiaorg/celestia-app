@@ -16,9 +16,9 @@ import (
 	gogogrpc "github.com/cosmos/gogoproto/grpc"
 )
 
-// gasMultiplier is the multiplier for the gas limit. It's used to account for the fact that
+// GasMultiplier is the multiplier for the gas limit. It's used to account for the fact that
 // when the gas is simulated it will occasionally underestimate the real gas used by the transaction.
-const gasMultiplier = 1.1
+const GasMultiplier = 1.1
 
 // baseAppSimulateFn is the signature of the Baseapp#Simulate function.
 type baseAppSimulateFn func(txBytes []byte) (sdk.GasInfo, *sdk.Result, error)
@@ -28,10 +28,10 @@ type baseAppSimulateFn func(txBytes []byte) (sdk.GasInfo, *sdk.Result, error)
 type govMaxSquareBytesFn func() (uint64, error)
 
 // RegisterGasEstimationService registers the gas estimation service on the gRPC router.
-func RegisterGasEstimationService(qrt gogogrpc.Server, clientCtx client.Context, txDecoder sdk.TxDecoder, govMaxSquareBytesFn govMaxSquareBytesFn, simulateFn baseAppSimulateFn) {
+func RegisterGasEstimationService(qrt gogogrpc.Server, clientCtx client.Context, txDecoder sdk.TxDecoder, govMaxSquareBytesFn govMaxSquareBytesFn, simulateFn baseAppSimulateFn, localMinGasPrice float64) {
 	RegisterGasEstimatorServer(
 		qrt,
-		NewGasEstimatorServer(clientCtx.Client, txDecoder, govMaxSquareBytesFn, simulateFn),
+		NewGasEstimatorServer(clientCtx.Client, txDecoder, govMaxSquareBytesFn, simulateFn, localMinGasPrice),
 	)
 }
 
@@ -42,14 +42,16 @@ type gasEstimatorServer struct {
 	simulateFn          baseAppSimulateFn
 	txDecoder           sdk.TxDecoder
 	govMaxSquareBytesFn govMaxSquareBytesFn
+	localMinGasPrice    float64
 }
 
-func NewGasEstimatorServer(mempoolClient cmtclient.MempoolClient, txDecoder sdk.TxDecoder, govMaxSquareBytesFn govMaxSquareBytesFn, simulateFn baseAppSimulateFn) GasEstimatorServer {
+func NewGasEstimatorServer(mempoolClient cmtclient.MempoolClient, txDecoder sdk.TxDecoder, govMaxSquareBytesFn govMaxSquareBytesFn, simulateFn baseAppSimulateFn, localMinGasPrice float64) GasEstimatorServer {
 	return &gasEstimatorServer{
 		mempoolClient:       mempoolClient,
 		simulateFn:          simulateFn,
 		txDecoder:           txDecoder,
 		govMaxSquareBytesFn: govMaxSquareBytesFn,
+		localMinGasPrice:    localMinGasPrice,
 	}
 }
 
@@ -92,7 +94,7 @@ func (s *gasEstimatorServer) EstimateGasPriceAndUsage(ctx context.Context, reque
 	if err != nil {
 		return nil, err
 	}
-	estimatedGasUsed := uint64(math.Round(float64(gasUsedInfo.GasUsed) * gasMultiplier))
+	estimatedGasUsed := uint64(math.Round(float64(gasUsedInfo.GasUsed) * GasMultiplier))
 
 	return &EstimateGasPriceAndUsageResponse{
 		EstimatedGasPrice: gasPrice,
@@ -123,13 +125,24 @@ func (s *gasEstimatorServer) estimateGasPrice(ctx context.Context, priority TxPr
 		return 0, err
 	}
 	if float64(txsResp.TotalBytes) < float64(govMaxSquareBytes)*gasPriceEstimationThreshold {
-		return appconsts.DefaultMinGasPrice, nil
+		return s.localMinGasPrice, nil
 	}
 	gasPrices, err := SortAndExtractGasPrices(s.txDecoder, txsResp.Txs, int64(appconsts.DefaultUpperBoundMaxBytes))
 	if err != nil {
 		return 0, err
 	}
-	return estimateGasPriceForTransactions(gasPrices, priority)
+
+	estimatedGasPrice, err := estimateGasPriceForTransactions(gasPrices, priority)
+	if err != nil {
+		return 0, err
+	}
+	fmt.Println("estimatedGasPrice", estimatedGasPrice)
+
+	if estimatedGasPrice < s.localMinGasPrice {
+		return s.localMinGasPrice, nil
+	}
+
+	return estimatedGasPrice, nil
 }
 
 const (
@@ -161,9 +174,11 @@ func estimateGasPriceForTransactions(gasPrices []float64, priority TxPriority) (
 		return 0, errors.New("empty gas prices list")
 	}
 	stDev := StandardDeviation(Mean(gasPrices), gasPrices)
+	fmt.Println("gasPrices", gasPrices)
 	switch priority {
 	case TxPriority_TX_PRIORITY_MEDIUM, TxPriority_TX_PRIORITY_UNSPECIFIED:
 		estimation, err := Median(gasPrices)
+		fmt.Println("estimation", estimation)
 		if err != nil {
 			return 0, err
 		}
