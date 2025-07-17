@@ -234,43 +234,44 @@ func TestRejections(t *testing.T) {
 	_, txClient, ctx := setupTxClient(t, 5, appconsts.DefaultMaxBytes)
 
 	fee := user.SetFee(1e6)
-	gas := user.SetGasLimit(10e6)
+	gas := user.SetGasLimit(1e6)
 
-	// Submit a blob tx with user set ttl which will get rejected
+	// Submit a blob tx with user set ttl. After the ttl expires, the tx will be rejected.
+	timeoutHeight := uint64(1)
 	sender := txClient.Signer().Account(txClient.DefaultAccountName())
 	seqBeforeSubmission := sender.Sequence()
 	blobs := blobfactory.ManyRandBlobs(random.New(), 2, 2)
-	resp, err := txClient.BroadcastPayForBlob(ctx.GoContext(), blobs, fee, gas, user.SetTimeoutHeight(1))
+	resp, err := txClient.BroadcastPayForBlob(ctx.GoContext(), blobs, fee, gas, user.SetTimeoutHeight(timeoutHeight))
 	require.NoError(t, err)
 
-	require.NoError(t, ctx.WaitForBlocks(2))
+	require.NoError(t, ctx.WaitForBlocks(1)) // Skip one block to allow the tx to be rejected
+
 	_, err = txClient.ConfirmTx(ctx.GoContext(), resp.TxHash)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "was rejected by the node")
 	seqAfterRejection := sender.Sequence()
 	require.Equal(t, seqBeforeSubmission, seqAfterRejection)
 
-	// now submit the same blob transaction again
+	// Now submit the same blob transaction again
 	submitBlobResp, err := txClient.SubmitPayForBlob(ctx.GoContext(), blobs, fee, gas)
 	require.NoError(t, err)
 	require.Equal(t, submitBlobResp.Code, abci.CodeTypeOK)
-	// sequence shouldve increased
+	// Sequence should have increased
 	seqAfterConfirmation := sender.Sequence()
 	require.Equal(t, seqBeforeSubmission+1, seqAfterConfirmation)
-	// was removed from the tx tracker
+	// Was removed from the tx tracker
 	_, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
 	require.False(t, exists)
 }
 
 func TestEvictions(t *testing.T) {
-	// skip in short mode
 	if testing.Short() {
 		t.Skip("skipping evictions test in short mode")
 	}
 
-	// make block size small
-	// make block ttl 1 block
-	_, txClient, ctx := setupTxClient(t, 1, 1048576) // 1 block ttl with 1MiB block size
+	ttlNumBlocks := int64(1)
+	blocksize := int64(1048576)
+	_, txClient, ctx := setupTxClient(t, ttlNumBlocks, blocksize) // 1 block ttl with 1MiB block size
 	grpcTxClient := tx.NewTxClient(ctx.GRPCClient)
 
 	fee := user.SetFee(1e6)
@@ -278,32 +279,30 @@ func TestEvictions(t *testing.T) {
 
 	responses := make([]*sdk.TxResponse, 10)
 
-	// Submit more transactions than the block size
+	// Submit more transactions than a single block can fit with a 1-block TTL.
+	// Txs will be evicted from the mempool and automatically resubmitted by the txClient during confirm().
 	for i := 0; i < len(responses); i++ {
-		blobs := blobfactory.ManyRandBlobs(random.New(), 500000, 500000, 5000) // ~1MB per transaction
+		blobs := blobfactory.ManyRandBlobs(random.New(), 500000, 500000, 5000) // ~1MiB per transaction
 		resp, err := txClient.BroadcastPayForBlob(ctx.GoContext(), blobs, fee, gas)
 		require.NoError(t, err)
 		require.Equal(t, resp.Code, abci.CodeTypeOK)
 		responses[i] = resp
 	}
 
-	// save evicted tx hash
 	evictedTxHashes := make([]string, 0)
 	for _, resp := range responses {
-
-		// Start polling the status
+		// Check txs for eviction and save them for confirmation verification later
 		txInfo, err := grpcTxClient.TxStatus(ctx.GoContext(), &tx.TxStatusRequest{TxId: resp.TxHash})
 		require.NoError(t, err)
-
 		if txInfo.Status == core.TxStatusEvicted {
 			evictedTxHashes = append(evictedTxHashes, resp.TxHash)
 		}
 
-		// confirm the tx
+		// Confirm should see they were evicted and automatically resubmit
 		res, err := txClient.ConfirmTx(ctx.GoContext(), resp.TxHash)
 		require.NoError(t, err)
 		require.Equal(t, res.Code, abci.CodeTypeOK)
-		// check they are removed from the tx tracker
+		// They should be removed from the tx tracker after confirmation
 		_, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
 		require.False(t, exists)
 	}
@@ -311,7 +310,7 @@ func TestEvictions(t *testing.T) {
 	// At least 8 txs should have been evicted and resubmitted
 	require.GreaterOrEqual(t, len(evictedTxHashes), 8)
 
-	// re-query evicted tx hashes and assert that they are now committed
+	// Re-query evicted tx hashes and assert that they are now committed
 	for _, txHash := range evictedTxHashes {
 		txInfo, err := grpcTxClient.TxStatus(ctx.GoContext(), &tx.TxStatusRequest{TxId: txHash})
 		require.NoError(t, err)
