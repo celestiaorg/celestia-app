@@ -90,6 +90,35 @@ func TestTxsimDefaultKeypath(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestGetPollTime(t *testing.T) {
+	defaultPoll := 10 * time.Second
+	flagPoll := 30 * time.Second
+
+	t.Run("should return default", func(t *testing.T) {
+		got, err := getPollTime(defaultPoll, "", defaultPoll)
+		require.NoError(t, err)
+		require.Equal(t, defaultPoll, got)
+	})
+
+	t.Run("should return env", func(t *testing.T) {
+		got, err := getPollTime(defaultPoll, "20s", defaultPoll)
+		require.NoError(t, err)
+		require.Equal(t, 20*time.Second, got)
+	})
+
+	t.Run("should return flag", func(t *testing.T) {
+		got, err := getPollTime(flagPoll, "20s", defaultPoll)
+		require.NoError(t, err)
+		require.Equal(t, flagPoll, got)
+	})
+
+	t.Run("should return error for invalid env", func(t *testing.T) {
+		_, err := getPollTime(defaultPoll, "notaduration", defaultPoll)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "parsing poll time from env")
+	})
+}
+
 func setup(t testing.TB) (keyring.Keyring, string, string) {
 	if testing.Short() {
 		t.Skip("skipping tx sim in short mode.")
