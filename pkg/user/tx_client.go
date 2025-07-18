@@ -626,7 +626,7 @@ func (client *TxClient) EstimateGasPrice(ctx context.Context, priority gasestima
 	return resp.EstimatedGasPrice, nil
 }
 
-// estimateGas simulates the transaction, calculating the amount of gas that was
+// estimateGas returns an estimate for the gas used by this tx.
 func (client *TxClient) estimateGas(ctx context.Context, txBuilder client.TxBuilder) (uint64, error) {
 	_, _, err := client.signer.signTransaction(txBuilder)
 	if err != nil {
