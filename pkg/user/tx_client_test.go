@@ -375,7 +375,7 @@ func setupTxClient(
 		WithFundedAccounts("a", "b", "c").
 		WithChainID(chainID).
 		WithTimeoutCommit(100 * time.Millisecond).
-		WithAppCreator(testnode.CustomAppCreator(baseapp.SetMinGasPrices("0utia"), baseapp.SetChainID(chainID)))
+		WithAppCreator(testnode.CustomAppCreator(baseapp.SetMinGasPrices(fmt.Sprintf("%v%v", appconsts.DefaultMinGasPrice, appconsts.BondDenom)), baseapp.SetChainID(chainID)))
 
 	ctx, _, _ := testnode.NewNetwork(t, testnodeConfig)
 	_, err := ctx.WaitForHeight(1)
