@@ -98,8 +98,8 @@ func (suite *TokenFilterTestSuite) TestHandleOutboundTransfer() {
 	suite.Require().Equal(originalBalance, newBalance)
 }
 
-// TestHandleInboundTransfer asserts that inbound transfers to a celestia chain are accepted even if they do not contain
-// the celestia native token and can then be sent back to the original chain
+// TestHandleInboundTransfer asserts that inbound transfers to a Celestia chain now accept non-native tokens
+// and can then be sent back to the original chain. Previously, such transfers were rejected.
 func (suite *TokenFilterTestSuite) TestHandleInboundTransfer() {
 	// setup between celestiaChain and otherChain
 	path := ibctesting.NewTransferPath(suite.celestia, suite.simapp)
