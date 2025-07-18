@@ -37,7 +37,7 @@ func uploadDataCmd() *cobra.Command {
 			)
 
 			const sessionName = "traces"
-			return runScriptInTMux(
+			return runScriptInTmux(
 				cfg.Validators,
 				resolvedKey,
 				"source /root/payload/upload_traces.sh",
