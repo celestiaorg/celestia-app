@@ -66,7 +66,7 @@ func resetCmd() *cobra.Command {
 					workerChan <- struct{}{}
 					defer func() { <-workerChan }()
 					fmt.Printf("Resetting validator %s...\n", v.Name)
-					if err := runScriptInTMux([]Instance{v}, resolvedKey, cleanupScript, "cleanup", time.Minute*5); err != nil {
+					if err := runScriptInTmux([]Instance{v}, resolvedKey, cleanupScript, "cleanup", time.Minute*5); err != nil {
 						fmt.Printf("Warning: error while cleaning up %s: %v\n", v.Name, err)
 					}
 				}(val)
