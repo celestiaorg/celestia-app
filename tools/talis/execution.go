@@ -12,10 +12,10 @@ import (
 	"time"
 )
 
-// runScriptInTMux SSHes into each remote host in parallel, and launches
+// runScriptInTmux SSHes into each remote host in parallel, and launches
 // the specified remoteScript inside a detached tmux session named sessionName.
 // It uses the same timeout per host and returns a combined error if any fail.
-func runScriptInTMux(
+func runScriptInTmux(
 	instances []Instance,
 	sshKeyPath string, // e.g. "~/.ssh/id_ed25519"
 	remoteScript string, // e.g. "source /root/start.sh" or "celestia-appd start"
