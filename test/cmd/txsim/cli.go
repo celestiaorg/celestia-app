@@ -295,7 +295,7 @@ func parseUpgradeSchedule(schedule string) (map[int64]uint64, error) {
 	return scheduleMap, nil
 }
 
-// getPollTime returns the correct pollTime value based on CLI flag, environment variable, and default.
+// getPollTime returns the pollTime value based on CLI flag, environment variable, and default.
 // Priority: flag > env > default.
 func getPollTime(flagValue time.Duration, envValue string, defaultValue time.Duration) (time.Duration, error) {
 	if flagValue != defaultValue {
