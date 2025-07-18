@@ -304,7 +304,7 @@ func getPollTime(flagValue time.Duration, envValue string, defaultValue time.Dur
 	if envValue != "" {
 		val, err := time.ParseDuration(envValue)
 		if err != nil {
-			return 0, err
+			return 0, fmt.Errorf("parsing poll time from env: %w", err)
 		}
 		return val, nil
 	}
