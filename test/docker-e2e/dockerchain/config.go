@@ -29,8 +29,11 @@ func DefaultConfig(client *client.Client, network string) *Config {
 	tnCfg.Genesis = tnCfg.Genesis.
 		WithChainID(appconsts.TestChainID).
 		WithValidators(
-			genesis.NewDefaultValidator("val1"),
-			genesis.NewDefaultValidator("val2"),
+			// TODO: ensure names are in lexicographical order.
+			// this is because keyrings.Records() returns them this way.
+			// we should come up with a proper fix as this is a big foot gun.
+			genesis.NewDefaultValidator("validator1"),
+			genesis.NewDefaultValidator("validator2"),
 		)
 
 	cfg := &Config{}
