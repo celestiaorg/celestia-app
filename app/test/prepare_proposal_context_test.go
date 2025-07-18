@@ -81,7 +81,7 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 			txClient, err := user.SetupTxClient(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, enc)
 			require.NoError(t, err)
 			msgs, _ := tt.msgFunc()
-			res, err := txClient.SubmitTx(cctx.GoContext(), msgs, user.SetGasLimit(1000000), user.SetFee(2000))
+			res, err := txClient.SubmitTx(cctx.GoContext(), msgs, user.SetGasLimit(1000000), user.SetFee(4000))
 			require.NoError(t, err)
 			serviceClient := sdktx.NewServiceClient(cctx.GRPCClient)
 			getTxResp, err := serviceClient.GetTx(cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})

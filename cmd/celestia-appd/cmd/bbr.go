@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"cosmossdk.io/log"
 	"github.com/spf13/cobra"
 )
 
@@ -12,7 +13,7 @@ const FlagForceNoBBR = "force-no-bbr"
 
 // checkBBR checks if BBR is enabled.
 // It should be first run before RunE of the StartCmd.
-func checkBBR(command *cobra.Command) error {
+func checkBBR(command *cobra.Command, logger log.Logger) error {
 	const (
 		warning = `
 The BBR (Bottleneck Bandwidth and Round-trip propagation time) congestion control algorithm is not enabled in this system's kernel.
@@ -44,12 +45,12 @@ If you need to bypass this check use the --force-no-bbr flag.
 
 	file, err := os.ReadFile("/proc/sys/net/ipv4/tcp_congestion_control")
 	if err != nil {
-		fmt.Print(warning)
+		logger.Warn(warning)
 		return fmt.Errorf("failed to read file '/proc/sys/net/ipv4/tcp_congestion_control' %w", err)
 	}
 
 	if !strings.Contains(string(file), "bbr") {
-		fmt.Print(warning)
+		logger.Warn(warning)
 		return fmt.Errorf("BBR not enabled because output %v does not contain 'bbr'", string(file))
 	}
 
