@@ -178,11 +178,9 @@ account that can act as the master account. The command runs until all sequences
 			}
 
 			// set pollTime: flag has priority, then env var, then default
-			if pollTime == user.DefaultPollTime && os.Getenv(TxsimPoll) != "" {
-				pollTime, err = time.ParseDuration(os.Getenv(TxsimPoll))
-				if err != nil {
-					return fmt.Errorf("parsing poll time: %w", err)
-				}
+			pollTime, err = getPollTime(pollTime, os.Getenv(TxsimPoll), user.DefaultPollTime)
+			if err != nil {
+				return fmt.Errorf("parsing poll time: %w", err)
 			}
 
 			opts := txsim.DefaultOptions().
@@ -296,4 +294,20 @@ func parseUpgradeSchedule(schedule string) (map[int64]uint64, error) {
 		scheduleMap[height] = version
 	}
 	return scheduleMap, nil
+}
+
+// getPollTime returns the correct pollTime value based on CLI flag, environment variable, and default.
+// Priority: flag > env > default.
+func getPollTime(flagValue time.Duration, envValue string, defaultValue time.Duration) (time.Duration, error) {
+	if flagValue != defaultValue {
+		return flagValue, nil
+	}
+	if envValue != "" {
+		val, err := time.ParseDuration(envValue)
+		if err != nil {
+			return 0, err
+		}
+		return val, nil
+	}
+	return defaultValue, nil
 }
