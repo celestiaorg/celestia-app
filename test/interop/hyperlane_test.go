@@ -61,7 +61,7 @@ func (s *HyperlaneTestSuite) GetSimapp(chain *ibctesting.TestChain) *SimApp {
 	return app
 }
 
-// TestHyperlaneTransfer tests the full hyperlane transfer flow from celestia to simapp and back.
+// TestHyperlaneOutboundTransfer tests the full hyperlane transfer flow from celestia to simapp and back.
 // It sends utia tokens from celestia to simapp, then sends them back to celestia,
 // verifying the round-trip maintains balance integrity.
 func (s *HyperlaneTestSuite) TestHyperlaneOutboundTransfer() {
