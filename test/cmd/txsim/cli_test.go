@@ -94,38 +94,29 @@ func TestGetPollTime(t *testing.T) {
 	defaultPoll := 10 * time.Second
 	flagPoll := 30 * time.Second
 
-	// 1. Only default (flag == default, env empty)
-	poll, err := getPollTime(defaultPoll, "", defaultPoll)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if poll != defaultPoll {
-		t.Errorf("expected default poll time, got %v", poll)
-	}
+	t.Run("should return default", func(t *testing.T) {
+		got, err := getPollTime(defaultPoll, "", defaultPoll)
+		require.NoError(t, err)
+		require.Equal(t, defaultPoll, got)
+	})
 
-	// 2. Only env (flag == default, env set)
-	poll, err = getPollTime(defaultPoll, "20s", defaultPoll)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if poll != 20*time.Second {
-		t.Errorf("expected env poll time, got %v", poll)
-	}
+	t.Run("should return env", func(t *testing.T) {
+		got, err := getPollTime(defaultPoll, "20s", defaultPoll)
+		require.NoError(t, err)
+		require.Equal(t, 20*time.Second, got)
+	})
 
-	// 3. Flag set (flag != default, env set)
-	poll, err = getPollTime(flagPoll, "20s", defaultPoll)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if poll != flagPoll {
-		t.Errorf("expected flag poll time, got %v", poll)
-	}
+	t.Run("should return flag", func(t *testing.T) {
+		got, err := getPollTime(flagPoll, "20s", defaultPoll)
+		require.NoError(t, err)
+		require.Equal(t, flagPoll, got)
+	})
 
-	// 4. Invalid env value
-	_, err = getPollTime(defaultPoll, "notaduration", defaultPoll)
-	if err == nil {
-		t.Error("expected error for invalid env value, got nil")
-	}
+	t.Run("should return error for invalid env", func(t *testing.T) {
+		_, err := getPollTime(defaultPoll, "notaduration", defaultPoll)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "parsing poll time from env")
+	})
 }
 
 func setup(t testing.TB) (keyring.Keyring, string, string) {
