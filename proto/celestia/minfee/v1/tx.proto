@@ -11,7 +11,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/minfee/types";
 service Msg {
   option (cosmos.msg.v1.service) = true;
 
-  // UpdateMinfeeParams defines a rpc handler method for MsgUpdateMinfeeParams.
+  // UpdateMinfeeParams defines an rpc handler method for MsgUpdateMinfeeParams.
   rpc UpdateMinfeeParams(MsgUpdateMinfeeParams) returns (MsgUpdateMinfeeParamsResponse);
 }
 
