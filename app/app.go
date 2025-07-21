@@ -45,7 +45,6 @@ import (
 	minttypes "github.com/celestiaorg/celestia-app/v5/x/mint/types"
 	"github.com/celestiaorg/celestia-app/v5/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v5/x/signal/types"
-	"github.com/celestiaorg/celestia-app/v5/x/tokenfilter"
 	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmjson "github.com/cometbft/cometbft/libs/json"
@@ -341,7 +340,6 @@ func New(
 		app.AccountKeeper, app.BankKeeper, app.ScopedTransferKeeper, govModuleAddr,
 	)
 	// Transfer stack contains (from top to bottom):
-	// - Token Filter
 	// - Packet Forwarding Middleware
 	// - Transfer
 	var transferStack ibcporttypes.IBCModule
@@ -350,9 +348,6 @@ func New(
 		0, // retries on timeout
 		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
 	)
-
-	// Token filter wraps packet forward middleware and is thus the first module in the transfer stack.
-	transferStack = tokenfilter.NewIBCMiddleware(transferStack)
 
 	// create evidence keeper with router
 	evidenceKeeper := evidencekeeper.NewKeeper(
@@ -390,7 +385,7 @@ func New(
 		govModuleAddr,
 		app.BankKeeper,
 		&app.HyperlaneKeeper,
-		[]int32{int32(warptypes.HYP_TOKEN_TYPE_COLLATERAL)},
+		[]int32{int32(warptypes.HYP_TOKEN_TYPE_COLLATERAL), int32(warptypes.HYP_TOKEN_TYPE_SYNTHETIC)},
 	)
 
 	/****  Module Options ****/

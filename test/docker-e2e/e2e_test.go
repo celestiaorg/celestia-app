@@ -3,6 +3,8 @@ package docker_e2e
 import (
 	"context"
 	"fmt"
+	rpcclient "github.com/cometbft/cometbft/rpc/client"
+	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	"testing"
 	"time"
 
@@ -96,4 +98,75 @@ func getNetworkNameFromID(ctx context.Context, cli *client.Client, networkID str
 		return "", fmt.Errorf("network %s has no name", networkID)
 	}
 	return network.Name, nil
+}
+
+// GetLatestBlockHeight returns the latest block height of the given node.
+// This function will periodically check for the latest block height until the timeout is reached.
+// If the timeout is reached, an error will be returned.
+func (s *CelestiaTestSuite) GetLatestBlockHeight(ctx context.Context, statusClient rpcclient.StatusClient) (int64, error) {
+	// use a ticker to periodically check for the initial height
+	heightTicker := time.NewTicker(1 * time.Second)
+	defer heightTicker.Stop()
+
+	heightTimeoutCtx, heightCancel := context.WithTimeout(ctx, 30*time.Second)
+	defer heightCancel()
+
+	// check immediately first, then on ticker intervals
+	for {
+		status, err := statusClient.Status(heightTimeoutCtx)
+		if err == nil && status.SyncInfo.LatestBlockHeight > 0 {
+			return status.SyncInfo.LatestBlockHeight, nil
+		}
+
+		select {
+		case <-heightTicker.C:
+			// continue the loop
+		case <-heightTimeoutCtx.Done():
+			return 0, fmt.Errorf("timed out waiting for initial height")
+		}
+	}
+}
+
+// WaitForSync waits for a Celestia node to synchronize based on a provided sync condition within a specified timeout.
+// The method periodically checks the node's sync status. Returns an error if the timeout is exceeded.
+// Returns nil when the provided condition function returns true.
+func (s *CelestiaTestSuite) WaitForSync(ctx context.Context, statusClient rpcclient.StatusClient, syncTimeout time.Duration, syncCondition func(coretypes.SyncInfo) bool) error {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, syncTimeout)
+	defer cancel()
+
+	s.T().Log("Waiting for sync to complete...")
+
+	// check immediately first
+	if status, err := statusClient.Status(timeoutCtx); err == nil {
+		s.T().Logf("Sync node status: Height=%d, CatchingUp=%t", status.SyncInfo.LatestBlockHeight, status.SyncInfo.CatchingUp)
+		if syncCondition(status.SyncInfo) {
+			s.T().Logf("Sync completed successfully")
+			return nil
+		}
+	}
+
+	// then check on ticker intervals
+	for {
+		select {
+		case <-ticker.C:
+			status, err := statusClient.Status(timeoutCtx)
+			if err != nil {
+				s.T().Logf("Failed to get status from state sync node, retrying...: %v", err)
+				continue
+			}
+
+			s.T().Logf("Sync node status: Height=%d, CatchingUp=%t", status.SyncInfo.LatestBlockHeight, status.SyncInfo.CatchingUp)
+
+			if syncCondition(status.SyncInfo) {
+				s.T().Logf("Sync completed successfully")
+				return nil
+			}
+
+		case <-timeoutCtx.Done():
+			return fmt.Errorf("timed out waiting for state sync node to catch up after %v", syncTimeout)
+		}
+	}
 }

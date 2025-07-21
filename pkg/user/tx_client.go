@@ -577,6 +577,9 @@ func (client *TxClient) EstimateGas(ctx context.Context, msgs []sdktypes.Msg, op
 		return 0, err
 	}
 
+	// add at least 1utia as fee to builder as it affects gas calculation.
+	txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
+
 	return client.estimateGas(ctx, txBuilder)
 }
 
@@ -632,10 +635,8 @@ func (client *TxClient) EstimateGasPrice(ctx context.Context, priority gasestima
 	return resp.EstimatedGasPrice, nil
 }
 
+// estimateGas returns an estimate for the gas used by this tx.
 func (client *TxClient) estimateGas(ctx context.Context, txBuilder client.TxBuilder) (uint64, error) {
-	// add at least 1utia as fee to builder as it affects gas calculation.
-	txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
-
 	_, _, err := client.signer.signTransaction(txBuilder)
 	if err != nil {
 		return 0, err
