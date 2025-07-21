@@ -47,17 +47,17 @@ func (AppModule) IsAppModule() {}
 
 func (AppModule) IsOnePerModuleType() {}
 
-// RegisterLegacyAminoCodec registers the blob module's types on the LegacyAmino codec.
+// RegisterLegacyAminoCodec registers the signal module's types on the LegacyAmino codec.
 func (AppModule) RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 	types.RegisterLegacyAminoCodec(cdc)
 }
 
-// RegisterInterfaces registers interfaces and implementations of the blob module.
+// RegisterInterfaces registers interfaces and implementations of the signal module.
 func (AppModule) RegisterInterfaces(reg cdctypes.InterfaceRegistry) {
 	types.RegisterInterfaces(reg)
 }
 
-// RegisterGRPCGatewayRoutes registers the gRPC Gateway routes for the upgrade module.
+// RegisterGRPCGatewayRoutes registers the gRPC Gateway routes for the signal module.
 func (AppModule) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *runtime.ServeMux) {
 	if err := types.RegisterQueryHandlerClient(context.Background(), mux, types.NewQueryClient(clientCtx)); err != nil {
 		panic(err)
