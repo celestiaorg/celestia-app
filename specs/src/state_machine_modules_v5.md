@@ -8,7 +8,6 @@ The modules used in app version 5 are:
 - [minfee](https://github.com/celestiaorg/celestia-app/blob/e5d5ac6732c55150ea3573e17bec162fe836e0c6/x/minfee/README.md)
 - [mint](https://github.com/celestiaorg/celestia-app/blob/e5d5ac6732c55150ea3573e17bec162fe836e0c6/x/mint/README.md)
 - [signal](https://github.com/celestiaorg/celestia-app/blob/e5d5ac6732c55150ea3573e17bec162fe836e0c6/x/signal/README.md)
-- [tokenfilter](https://github.com/celestiaorg/celestia-app/blob/e5d5ac6732c55150ea3573e17bec162fe836e0c6/x/tokenfilter/README.md)
 
 ## `cosmos-sdk` modules
 
