@@ -303,7 +303,7 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 	if len(client.conns) > 1 {
 		return client.broadcastMulti(ctx, txBytes, account)
 	}
-	return client.broadcastTx(ctx, client.conns[0], txBytes, account)
+	return client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txBytes, account)
 }
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
@@ -379,33 +379,18 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 	if len(client.conns) > 1 {
 		return client.broadcastMulti(ctx, txBytes, account)
 	}
-	return client.broadcastTx(ctx, client.conns[0], txBytes, account)
+	return client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txBytes, account)
 }
 
-func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
-	txClient := sdktx.NewServiceClient(conn)
-	resp, err := txClient.BroadcastTx(
-		ctx,
-		&sdktx.BroadcastTxRequest{
-			Mode:    sdktx.BroadcastMode_BROADCAST_MODE_SYNC,
-			TxBytes: txBytes,
-		},
-	)
+func (client *TxClient) broadcastTxAndIncrementSequence(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+	resp, err := client.broadcastTx(ctx, conn, txBytes, signer)
 	if err != nil {
 		return nil, err
-	}
-	if resp.TxResponse.Code != abci.CodeTypeOK {
-		broadcastTxErr := &BroadcastTxError{
-			TxHash:   resp.TxResponse.TxHash,
-			Code:     resp.TxResponse.Code,
-			ErrorLog: resp.TxResponse.RawLog,
-		}
-		return nil, broadcastTxErr
 	}
 
 	// save the sequence and signer of the transaction in the local txTracker
 	// before the sequence is incremented
-	client.trackTransaction(signer, resp.TxResponse.TxHash, txBytes)
+	client.trackTransaction(signer, resp.TxHash, txBytes)
 
 	// after the transaction has been submitted, we can increment the
 	// sequence of the signer
@@ -413,12 +398,12 @@ func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, 
 		return nil, fmt.Errorf("increment sequencing: %w", err)
 	}
 
-	return resp.TxResponse, nil
+	return resp, nil
 }
 
-// broadcastTxAfterEviction resubmits a transaction that was evicted from the mempool.
+// broadcastTx resubmits a transaction that was evicted from the mempool.
 // Unlike the initial broadcast, it doesn't increment the signer's sequence number.
-func (client *TxClient) broadcastTxAfterEviction(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
 	txClient := sdktx.NewServiceClient(conn)
 	resp, err := txClient.BroadcastTx(
 		ctx,
@@ -458,7 +443,7 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 		go func(conn *grpc.ClientConn) {
 			defer wg.Done()
 
-			resp, err := client.broadcastTx(ctx, conn, txBytes, signer)
+			resp, err := client.broadcastTxAndIncrementSequence(ctx, conn, txBytes, signer)
 			if err != nil {
 				errCh <- err
 				return
@@ -547,7 +532,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				return nil, fmt.Errorf("tx: %s not found in txTracker; likely failed during broadcast", txHash)
 			}
 			// Resubmit straight away in the event of eviction and keep polling until tx is committed
-			_, err := client.broadcastTxAfterEviction(ctx, client.conns[0], client.txTracker[txHash].txBytes, signer)
+			_, err := client.broadcastTx(ctx, client.conns[0], client.txTracker[txHash].txBytes, signer)
 			if err != nil {
 				return nil, fmt.Errorf("resubmission for evicted tx with hash %s failed: %w", txHash, err)
 			}
