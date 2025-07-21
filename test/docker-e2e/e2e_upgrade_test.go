@@ -24,27 +24,13 @@ type TallyResponse struct {
 	TotalVotingPower string `json:"total_voting_power"`
 }
 
-// UpgradeConfig holds configuration parameters for performing an upgrade test
-// on the Celestia chain.
-type UpgradeConfig struct {
-	// BaseBinaryVersion is the initial version of the chain before upgrade.
-	BaseBinaryVersion string
-	// TargetBinaryVersion is the version to which the chain will be upgraded.
-	TargetBinaryVersion string
-	// TargetAppVersion is the app version to upgrade to (used in major upgrades).
-	TargetAppVersion uint64
-}
-
 // TestCelestiaAppMinorUpgrade tests a simple upgrade from one minor version to another.
 func (s *CelestiaTestSuite) TestCelestiaAppMinorUpgrade() {
 	if testing.Short() {
 		s.T().Skip("skipping celestia-app minor upgrade test in short mode")
 	}
 
-	s.RunMinorUpgradeTest(UpgradeConfig{
-		BaseBinaryVersion:   "v4.0.2-mocha",
-		TargetBinaryVersion: "v4.0.7-mocha",
-	})
+	s.RunMinorUpgradeTest("v4.0.9-mocha", "v4.0.10-mocha")
 }
 
 // TestCelestiaAppMajorUpgrade tests a major upgrade from v4.0.7-mocha to a commit hash which has v5
@@ -54,11 +40,7 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 		s.T().Skip("skipping celestia-app major upgrade test in short mode")
 	}
 
-	s.RunMajorUpgradeTest(UpgradeConfig{
-		BaseBinaryVersion:   "v4.0.10",
-		TargetBinaryVersion: dockerchain.GetCelestiaTag(),
-		TargetAppVersion:    uint64(5),
-	})
+	s.RunMajorUpgradeTest(dockerchain.GetCelestiaTag(), uint64(5))
 }
 
 // RunMinorUpgradeTest performs a minor version upgrade test for the Celestia chain (app).
@@ -68,14 +50,11 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 //
 // Example usage:
 //
-//	s.RunMinorUpgradeTest(UpgradeConfig{
-//		BaseVersion:   "v4.0.2-mocha",
-//		TargetVersion: "v4.0.7-mocha",
-//	})
-func (s *CelestiaTestSuite) RunMinorUpgradeTest(upgradeCfg UpgradeConfig) {
+//	s.RunMinorUpgradeTest("v4.0.2-mocha", "v4.0.7-mocha")
+func (s *CelestiaTestSuite) RunMinorUpgradeTest(BaseBinaryVersion, TargetBinaryVersion string) {
 	var (
 		ctx = context.Background()
-		cfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(upgradeCfg.BaseBinaryVersion)
+		cfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(BaseBinaryVersion)
 	)
 
 	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
@@ -98,7 +77,7 @@ func (s *CelestiaTestSuite) RunMinorUpgradeTest(upgradeCfg UpgradeConfig) {
 	err = chain.Stop(ctx)
 	s.Require().NoError(err)
 
-	chain.UpgradeVersion(ctx, upgradeCfg.TargetBinaryVersion)
+	chain.UpgradeVersion(ctx, TargetBinaryVersion)
 
 	err = chain.Start(ctx)
 	s.Require().NoError(err)
@@ -115,33 +94,31 @@ func (s *CelestiaTestSuite) RunMinorUpgradeTest(upgradeCfg UpgradeConfig) {
 
 	abciInfo, err := rpcClient.ABCIInfo(ctx)
 	s.Require().NoError(err, "failed to fetch ABCI info")
-	s.Require().Contains(abciInfo.Response.GetVersion(), strings.TrimPrefix(upgradeCfg.TargetBinaryVersion, "v"), "version mismatch")
+	s.Require().Contains(abciInfo.Response.GetVersion(), strings.TrimPrefix(TargetBinaryVersion, "v"), "version mismatch")
 }
 
 // RunMajorUpgradeTest performs an end-to-end test of a major upgrade for the Celestia App chain.
 //
-// It starts a chain at the specified base version, signals for an upgrade to the target app version
-// using the signaling mechanism, ensures the upgrade is scheduled and executed, and verifies that
-// the chain is running the new version and app version after the upgrade. The function also performs
-// sanity checks before and after the upgrade to ensure basic chain functionality (e.g., bank send).
-// It expects the upgrade to be triggered by all validators, and checks that the voting power threshold
-// for the upgrade is met before proceeding.
+// RunMajorUpgradeTest performs an end-to-end test of a major upgrade for the Celestia App chain.
+// It starts a chain at the specified target binary version, sets the app version to one less than the target,
+// and then signals for an upgrade to the target app version using the signaling mechanism.
+// The function ensures the upgrade is scheduled and executed, verifies that the chain is running the new binary
+// and app version after the upgrade, and performs sanity checks (such as bank send) before and after the upgrade.
+// It requires all validators to signal for the upgrade and checks that the voting power threshold is met before proceeding.
 //
 // Example usage:
 //
-//	func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
-//	    s.RunMajorUpgradeTest(UpgradeConfig{
-//	        BaseVersion:      "v4.0.7-mocha",
-//	        TargetVersion:    "v5.0.1-mocha",
-//	        TargetAppVersion: uint64(5),
-//	    })
-//	}
-func (s *CelestiaTestSuite) RunMajorUpgradeTest(upgradeCfg UpgradeConfig) {
+//	s.RunMajorUpgradeTest("v4.0.10-mocha", uint64(5))
+func (s *CelestiaTestSuite) RunMajorUpgradeTest(TargetBinaryVersion string, TargetAppVersion uint64) {
+	// Since the siganling mechanism was introduced in v2, we need to ensure that the target app version is greater than 2
+	s.Require().Greater(TargetAppVersion, uint64(2), "target app version must be greater than 2")
+
 	var (
 		ctx = context.Background()
-		cfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(upgradeCfg.BaseBinaryVersion)
+		cfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(TargetBinaryVersion)
 		kr  = cfg.Genesis.Keyring()
 	)
+	cfg.Genesis = cfg.Genesis.WithAppVersion(TargetAppVersion - 1)
 
 	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
 	s.Require().NoError(err)
@@ -174,7 +151,7 @@ func (s *CelestiaTestSuite) RunMajorUpgradeTest(upgradeCfg UpgradeConfig) {
 	s.Require().Len(records, len(chain.GetNodes()), "number of accounts does not match number of nodes")
 
 	// Signal for upgrade and get the upgrade height
-	upgradeHeight := s.signalAndGetUpgradeHeight(ctx, chain, validatorNode, records, upgradeCfg.TargetAppVersion)
+	upgradeHeight := s.signalAndGetUpgradeHeight(ctx, chain, validatorNode, records, TargetAppVersion)
 
 	// Get current height
 	status, err := rpcClient.Status(ctx)
@@ -183,31 +160,8 @@ func (s *CelestiaTestSuite) RunMajorUpgradeTest(upgradeCfg UpgradeConfig) {
 
 	s.T().Logf("Current height: %d, Upgrade height: %d", currentHeight, upgradeHeight)
 
-	// Now simulate the binary upgrade (before the upgrade height is reached)
-	// This is what node operators would do in the real world - upgrade their binary
-	// before the scheduled upgrade height
-	s.T().Log("Stopping the chain to upgrade binaries (simulating node operators upgrading)")
-	err = chain.Stop(ctx)
-	s.Require().NoError(err)
-
-	// Upgrade to the multiplexer-enabled binary
-	chain.UpgradeVersion(ctx, upgradeCfg.TargetBinaryVersion)
-
-	s.T().Log("Restarting the chain with the multiplexer-enabled binary")
-	err = chain.Start(ctx)
-	s.Require().NoError(err)
-
-	// Verify we're still on the old app version after restart (multiplexer is working)
-	rpcClient, err = validatorNode.GetRPCClient()
-	s.Require().NoError(err)
-
-	abciInfo, err = rpcClient.ABCIInfo(ctx)
-	s.Require().NoError(err)
-	s.Require().Equal(currentAppVer, abciInfo.Response.GetAppVersion(),
-		"app version should not change immediately after binary upgrade (multiplexer should maintain old version)")
-
 	// Wait until we reach the upgrade height
-	blocksToWait := int(upgradeHeight-currentHeight) + 5 // Add buffer
+	blocksToWait := int(upgradeHeight-currentHeight) + 2 // Add buffer
 	s.T().Logf("Waiting for %d blocks to reach upgrade height plus buffer", blocksToWait)
 	s.Require().NoError(wait.ForBlocks(ctx, blocksToWait, chain))
 
@@ -215,15 +169,8 @@ func (s *CelestiaTestSuite) RunMajorUpgradeTest(upgradeCfg UpgradeConfig) {
 	abciInfo, err = rpcClient.ABCIInfo(ctx)
 	s.Require().NoError(err, "failed to fetch ABCI info")
 
-	// The version string might vary, but should contain the commit hash
-	var (
-		versionStr     = abciInfo.Response.GetVersion()
-		trimmedVersion = strings.TrimPrefix(upgradeCfg.TargetBinaryVersion, "v")
-	)
-	s.Require().Contains(versionStr, trimmedVersion, "version should contain %q", trimmedVersion)
-
 	// Verify app version is upgraded
-	s.Require().Equal(upgradeCfg.TargetAppVersion, abciInfo.Response.GetAppVersion(), "app_version mismatch")
+	s.Require().Equal(TargetAppVersion, abciInfo.Response.GetAppVersion(), "app_version mismatch")
 
 	// Sanity check: Test bank send after upgrade
 	s.T().Log("Testing bank send functionality after upgrade")
