@@ -9,7 +9,14 @@ import (
 
 // NOTE: This version must be updated at the same time as the version in the
 // Makefile.
+<<<<<<< HEAD
 const v3Version = "v3.10.4"
+=======
+const (
+	v3Version = "v3.10.5"
+	v4Version = "v4.0.7-mocha"
+)
+>>>>>>> b235874 (fix: upgrade to v3.10.5 embedded app (#5295))
 
 // CelestiaAppV3 returns the compressed platform specific Celestia binary and
 // the version.
