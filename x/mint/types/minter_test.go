@@ -163,7 +163,7 @@ func BenchmarkCalculateBlockProvision(b *testing.B) {
 	current := time.Unix(r1.Int63n(1000000), 0)
 	previous := current.Add(-time.Second * 15)
 
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		_, err := minter.CalculateBlockProvision(current, previous)
 		require.NoError(b, err)
 	}
@@ -174,7 +174,7 @@ func BenchmarkCalculateInflationRate(b *testing.B) {
 	minter := DefaultMinter()
 	genesisTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
 		minter.CalculateInflationRate(ctx, genesisTime)
 	}
