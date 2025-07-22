@@ -22,13 +22,13 @@ sleep 1
 
 echo "Sending 1utia from ledger back to validator..."
 celestia-appd tx bank send $LEDGER_ADDRESS $VALIDATOR_ADDRESS 1utia --keyring-backend test --fees 21000utia --chain-id test --yes
-sleep 1
+sleep 2
 
 
 echo "Sending MsgTryUpgrade from ledger, please accept on Ledger device..."
 celestia-appd tx signal try-upgrade --from ledger --keyring-backend test --fees 21000utia --chain-id test --yes
-sleep 1
+sleep 2
 
 echo "Sending a MsgSignal from ledger, please accept on Ledger device..."
 celestia-appd tx signal signal 4 --keyring-backend test --fees 21000utia --from ledger --chain-id test --yes
-sleep 1
+sleep 2
