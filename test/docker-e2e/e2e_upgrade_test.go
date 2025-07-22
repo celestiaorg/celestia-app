@@ -142,7 +142,7 @@ func (s *CelestiaTestSuite) RunMinorUpgradeTest(BaseBinaryVersion, TargetBinaryV
 //	s.RunMajorUpgradeTest("v4.0.10-mocha", 5)
 func (s *CelestiaTestSuite) RunMajorUpgradeTest(BinaryVersion string, TargetAppVersion uint64) {
 	// Since the siganling mechanism was introduced in v2, we need to ensure that the target app version is greater than 2
-	s.Require().Greater(TargetAppVersion, 2, "target app version must be greater than 2")
+	s.Require().Greater(TargetAppVersion, uint64(2), "target app version must be greater than 2")
 
 	var (
 		ctx = context.Background()
