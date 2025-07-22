@@ -24,54 +24,67 @@ type TallyResponse struct {
 	TotalVotingPower string `json:"total_voting_power"`
 }
 
-// TestCelestiaAppMinorUpgrade tests a simple upgrade from one minor version to another.
+// TestCelestiaAppMinorUpgrade tests a simple upgrade from one minor version to another by swapping the binary.
 func (s *CelestiaTestSuite) TestCelestiaAppMinorUpgrade() {
 	if testing.Short() {
 		s.T().Skip("skipping celestia-app minor upgrade test in short mode")
 	}
 
-	s.RunMinorUpgradeTest("v4.0.9-mocha", "v4.0.10-mocha")
+	tt := []struct {
+		Name                string
+		BaseBinaryVersion   string
+		TargetBinaryVersion string
+	}{
+		{Name: "v4.0.2-rc2 to v4.0.10", BaseBinaryVersion: "v4.0.2-rc2", TargetBinaryVersion: "v4.0.10"},
+		{Name: "v4.0.9-mocha to v4.0.10-mocha", BaseBinaryVersion: "v4.0.9-mocha", TargetBinaryVersion: "v4.0.10-mocha"},
+		{Name: "v4.0.9-arabica to v4.0.10-arabica", BaseBinaryVersion: "v4.0.9-arabica", TargetBinaryVersion: "v4.0.10-arabica"},
+	}
+
+	for _, tc := range tt {
+		s.Run(tc.Name, func() {
+			s.RunMinorUpgradeTest(tc.BaseBinaryVersion, tc.TargetBinaryVersion)
+		})
+	}
 }
 
-// TestCelestiaAppMajorUpgrade tests a major upgrade from v4.0.7-mocha to a commit hash which has v5
-// using the signaling mechanism.
+// TestCelestiaAppMajorUpgrade tests a major upgrade using the signaling mechanism.
 func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 	if testing.Short() {
 		s.T().Skip("skipping celestia-app major upgrade test in short mode")
 	}
 
-	cases := []struct {
-		Name              string
-		BaseBinaryVersion string
-		TargetAppVersion  uint64
+	tt := []struct {
+		Name             string
+		BinaryVersion    string
+		TargetAppVersion uint64
 	}{
 		{
-			Name:              "v2 to v3",
-			BaseBinaryVersion: dockerchain.GetCelestiaTag(),
-			TargetAppVersion:  uint64(3),
+			Name:             "v2 to v3",
+			BinaryVersion:    dockerchain.GetCelestiaTag(),
+			TargetAppVersion: 3,
 		},
 		{
-			Name:              "v3 to v4",
-			BaseBinaryVersion: dockerchain.GetCelestiaTag(),
-			TargetAppVersion:  uint64(4),
+			Name:             "v3 to v4",
+			BinaryVersion:    dockerchain.GetCelestiaTag(),
+			TargetAppVersion: 4,
 		},
 	}
 
-	for _, c := range cases {
-		s.Run(c.Name, func() {
-			s.RunMajorUpgradeTest(c.BaseBinaryVersion, c.TargetAppVersion)
+	for _, tc := range tt {
+		s.Run(tc.Name, func() {
+			s.RunMajorUpgradeTest(tc.BinaryVersion, tc.TargetAppVersion)
 		})
 	}
 }
 
-// RunMinorUpgradeTest performs a minor version upgrade test for the Celestia chain (app).
+// RunMinorUpgradeTest performs a minor version upgrade test for the celestia-app.
 // It starts a chain with the specified base version, performs a bank send transaction to verify functionality,
 // upgrades the chain to the target version, restarts it, and verifies that the chain is running the new version
 // and that bank send transactions still work.
 //
 // Example usage:
 //
-//	s.RunMinorUpgradeTest("v4.0.2-mocha", "v4.0.7-mocha")
+//	s.RunMinorUpgradeTest("v4.0.2-mocha", "v4.0.10-mocha")
 func (s *CelestiaTestSuite) RunMinorUpgradeTest(BaseBinaryVersion, TargetBinaryVersion string) {
 	var (
 		ctx = context.Background()
@@ -81,7 +94,6 @@ func (s *CelestiaTestSuite) RunMinorUpgradeTest(BaseBinaryVersion, TargetBinaryV
 	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
 	s.Require().NoError(err)
 
-	// Ensure cleanup at the end of the test
 	s.T().Cleanup(func() {
 		if err := chain.Stop(ctx); err != nil {
 			s.T().Logf("Error stopping chain: %v", err)
@@ -107,7 +119,7 @@ func (s *CelestiaTestSuite) RunMinorUpgradeTest(BaseBinaryVersion, TargetBinaryV
 	s.T().Log("Testing bank send functionality after upgrade")
 	testBankSend(s.T(), chain, cfg)
 
-	// Verify the version after upgrade
+	// Verify the binary version after upgrade
 	validatorNode := chain.GetNodes()[0]
 
 	rpcClient, err := validatorNode.GetRPCClient()
@@ -118,10 +130,8 @@ func (s *CelestiaTestSuite) RunMinorUpgradeTest(BaseBinaryVersion, TargetBinaryV
 	s.Require().Contains(abciInfo.Response.GetVersion(), strings.TrimPrefix(TargetBinaryVersion, "v"), "version mismatch")
 }
 
-// RunMajorUpgradeTest performs an end-to-end test of a major upgrade for the Celestia App chain.
-//
-// RunMajorUpgradeTest performs an end-to-end test of a major upgrade for the Celestia App chain.
-// It starts a chain at the specified target binary version, sets the app version to one less than the target,
+// RunMajorUpgradeTest performs an end-to-end test of a major upgrade for the celestia-app.
+// It starts a chain at the specified binary version, sets the app version to one less than the target,
 // and then signals for an upgrade to the target app version using the signaling mechanism.
 // The function ensures the upgrade is scheduled and executed, verifies that the chain is running the new binary
 // and app version after the upgrade, and performs sanity checks (such as bank send) before and after the upgrade.
@@ -129,14 +139,14 @@ func (s *CelestiaTestSuite) RunMinorUpgradeTest(BaseBinaryVersion, TargetBinaryV
 //
 // Example usage:
 //
-//	s.RunMajorUpgradeTest("v4.0.10-mocha", uint64(5))
-func (s *CelestiaTestSuite) RunMajorUpgradeTest(TargetBinaryVersion string, TargetAppVersion uint64) {
+//	s.RunMajorUpgradeTest("v4.0.10-mocha", 5)
+func (s *CelestiaTestSuite) RunMajorUpgradeTest(BinaryVersion string, TargetAppVersion uint64) {
 	// Since the siganling mechanism was introduced in v2, we need to ensure that the target app version is greater than 2
-	s.Require().Greater(TargetAppVersion, uint64(2), "target app version must be greater than 2")
+	s.Require().Greater(TargetAppVersion, 2, "target app version must be greater than 2")
 
 	var (
 		ctx = context.Background()
-		cfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(TargetBinaryVersion)
+		cfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(BinaryVersion)
 		kr  = cfg.Genesis.Keyring()
 	)
 	cfg.Genesis = cfg.Genesis.WithAppVersion(TargetAppVersion - 1)
@@ -144,7 +154,6 @@ func (s *CelestiaTestSuite) RunMajorUpgradeTest(TargetBinaryVersion string, Targ
 	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
 	s.Require().NoError(err)
 
-	// Ensure cleanup at the end of the test
 	s.T().Cleanup(func() {
 		if err := chain.Stop(ctx); err != nil {
 			s.T().Logf("Error stopping chain: %v", err)
