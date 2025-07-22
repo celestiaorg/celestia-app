@@ -1,16 +1,17 @@
 package dockerchain
 
 import (
+	"os"
+
 	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v5/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
 	"github.com/moby/moby/client"
-	"os"
 )
 
 const (
 	multiplexerImage   = "ghcr.io/celestiaorg/celestia-app"
-	defaultCelestiaTag = "v4.0.9-mocha"
+	defaultCelestiaTag = "v4.0.10-mocha"
 )
 
 // Config represents the configuration for a docker Celestia setup.

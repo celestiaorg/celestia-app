@@ -40,7 +40,28 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 		s.T().Skip("skipping celestia-app major upgrade test in short mode")
 	}
 
-	s.RunMajorUpgradeTest(dockerchain.GetCelestiaTag(), uint64(5))
+	cases := []struct {
+		Name              string
+		BaseBinaryVersion string
+		TargetAppVersion  uint64
+	}{
+		{
+			Name:              "v2 to v3",
+			BaseBinaryVersion: dockerchain.GetCelestiaTag(),
+			TargetAppVersion:  uint64(3),
+		},
+		{
+			Name:              "v3 to v4",
+			BaseBinaryVersion: dockerchain.GetCelestiaTag(),
+			TargetAppVersion:  uint64(4),
+		},
+	}
+
+	for _, c := range cases {
+		s.Run(c.Name, func() {
+			s.RunMajorUpgradeTest(c.BaseBinaryVersion, c.TargetAppVersion)
+		})
+	}
 }
 
 // RunMinorUpgradeTest performs a minor version upgrade test for the Celestia chain (app).
