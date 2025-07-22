@@ -5,6 +5,7 @@ A real-time monitoring tool for tracking and analyzing blockchain network perfor
 ## Overview
 
 This tool connects to a blockchain node via RPC and monitors network performance by tracking:
+
 - Block production times
 - Block sizes
 - Network throughput
@@ -18,10 +19,10 @@ The metrics are calculated over a sliding window of blocks to provide current ne
 - Thread-safe metrics collection
 - Periodic metrics reporting (every 10 seconds)
 - Key metrics tracked:
-   - Average block time
-   - Average block size
-   - Network throughput in MB/s
-   - Total blocks processed
+  - Average block time
+  - Average block size
+  - Network throughput in MB/s
+  - Total blocks processed
 
 ## Usage
 
