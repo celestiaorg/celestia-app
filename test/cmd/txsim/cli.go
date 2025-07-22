@@ -278,8 +278,8 @@ func parseUpgradeSchedule(schedule string) (map[int64]uint64, error) {
 	if schedule == "" {
 		return nil, nil
 	}
-	scheduleParts := strings.Split(schedule, ",")
-	for _, part := range scheduleParts {
+	scheduleParts := strings.SplitSeq(schedule, ",")
+	for part := range scheduleParts {
 		parts := strings.Split(part, ":")
 		if len(parts) != 2 {
 			return nil, fmt.Errorf("invalid upgrade schedule format: %s", part)
