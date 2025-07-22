@@ -35,9 +35,21 @@ func (s *CelestiaTestSuite) TestCelestiaAppMinorUpgrade() {
 		BaseBinaryVersion   string
 		TargetBinaryVersion string
 	}{
-		{Name: "v4.0.2-rc2 to v4.0.10", BaseBinaryVersion: "v4.0.2-rc2", TargetBinaryVersion: "v4.0.10"},
-		{Name: "v4.0.9-mocha to v4.0.10-mocha", BaseBinaryVersion: "v4.0.9-mocha", TargetBinaryVersion: "v4.0.10-mocha"},
-		{Name: "v4.0.9-arabica to v4.0.10-arabica", BaseBinaryVersion: "v4.0.9-arabica", TargetBinaryVersion: "v4.0.10-arabica"},
+		{
+			Name:                "v4.0.2-rc2 to v4.0.10",
+			BaseBinaryVersion:   "v4.0.2-rc2",
+			TargetBinaryVersion: "v4.0.10",
+		},
+		{
+			Name:                "v4.0.9-mocha to v4.0.10-mocha",
+			BaseBinaryVersion:   "v4.0.9-mocha",
+			TargetBinaryVersion: "v4.0.10-mocha",
+		},
+		{
+			Name:                "v4.0.9-arabica to v4.0.10-arabica",
+			BaseBinaryVersion:   "v4.0.9-arabica",
+			TargetBinaryVersion: "v4.0.10-arabica",
+		},
 	}
 
 	for _, tc := range tt {
