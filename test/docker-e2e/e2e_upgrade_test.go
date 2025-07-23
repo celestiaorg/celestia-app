@@ -18,9 +18,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 )
 
-// TestCelestiaAppMinorUpgrade tests a simple upgrade from one minor version
-// to another by swapping the binary.
-func (s *CelestiaTestSuite) TestCelestiaAppMinorUpgrade() {
+// TestCelestiaAppBinarySwapUpgrade tests a simple upgrade from one image tag
+// to another by swapping the binary (usually used for minor version upgrade)
+func (s *CelestiaTestSuite) TestCelestiaAppBinarySwapUpgrade() {
 	if testing.Short() {
 		s.T().Skip("skipping celestia-app minor upgrade test in short mode")
 	}
@@ -49,13 +49,13 @@ func (s *CelestiaTestSuite) TestCelestiaAppMinorUpgrade() {
 
 	for _, tc := range tt {
 		s.Run(tc.Name, func() {
-			s.RunMinorUpgradeTest(tc.BaseImageTag, tc.TargetImageTag)
+			s.runBinarySwapUpgradeTest(tc.BaseImageTag, tc.TargetImageTag)
 		})
 	}
 }
 
-// TestCelestiaAppMajorUpgrade tests a major upgrade using the signaling mechanism.
-func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
+// TestCelestiaAppSignalDrivenUpgrade tests app version upgrade using the signaling mechanism.
+func (s *CelestiaTestSuite) TestCelestiaAppSignalDrivenUpgrade() {
 	if testing.Short() {
 		s.T().Skip("skipping celestia-app major upgrade test in short mode")
 	}
@@ -79,17 +79,16 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 
 	for _, tc := range tt {
 		s.Run(tc.Name, func() {
-			s.RunMajorUpgradeTest(tc.ImageTag, tc.TargetAppVersion)
+			s.runSignalDrivenUpgradeTest(tc.ImageTag, tc.TargetAppVersion)
 		})
 	}
 }
 
-// RunMinorUpgradeTest performs a minor version upgrade test for the
-// celestia-app. It starts a chain with the specified base version, performs a
-// bank send transaction to verify functionality, upgrades the chain to the
-// target version, restarts it, and verifies that the chain is running the new
-// version and that bank send transactions still work.
-func (s *CelestiaTestSuite) RunMinorUpgradeTest(BaseImageTag, TargetImageTag string) {
+// runBinarySwapUpgradeTest tests a binary swap (minor version) upgrade for celestia-app.
+// It initializes a chain with the given base image tag, verifies bank send functionality,
+// upgrades the chain to the target image tag, restarts it, and then verifies both the
+// new binary version and continued bank send functionality.
+func (s *CelestiaTestSuite) runBinarySwapUpgradeTest(BaseImageTag, TargetImageTag string) {
 	var (
 		ctx = context.Background()
 		cfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(BaseImageTag)
@@ -134,16 +133,12 @@ func (s *CelestiaTestSuite) RunMinorUpgradeTest(BaseImageTag, TargetImageTag str
 	s.Require().Contains(abciInfo.Response.GetVersion(), strings.TrimPrefix(TargetImageTag, "v"), "version mismatch")
 }
 
-// RunMajorUpgradeTest performs an end-to-end test of a major upgrade for the
-// celestia-app. It starts a chain at the specified image tag, sets the
-// app version to one less than the target, and then signals for an upgrade to
-// the target app version using the signaling mechanism. The function ensures
-// the upgrade is scheduled and executed, verifies that the chain is running
-// the new binary and app version after the upgrade, and performs sanity
-// checks (such as bank send) before and after the upgrade. It requires all
-// validators to signal for the upgrade and checks that the voting power
-// threshold is met before proceeding.
-func (s *CelestiaTestSuite) RunMajorUpgradeTest(ImageTag string, TargetAppVersion uint64) {
+// runSignalDrivenUpgradeTest performs an end-to-end test of a major (signaled) upgrade for celestia-app.
+// It starts a chain at the given image tag with app version set to one less than the target,
+// signals all validators for the upgrade, ensures the upgrade is scheduled and executed,
+// and verifies the chain is running the new binary and app version after the upgrade.
+// The test also checks bank send functionality and that the voting power threshold is met before proceeding.
+func (s *CelestiaTestSuite) runSignalDrivenUpgradeTest(ImageTag string, TargetAppVersion uint64) {
 	// Since the signaling mechanism was introduced in v2, we need to ensure that
 	// the target app version is greater than 2.
 	s.Require().Greater(TargetAppVersion, uint64(2), "target app version must be greater than 2")

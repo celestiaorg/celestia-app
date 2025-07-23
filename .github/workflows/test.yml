@@ -130,8 +130,8 @@ jobs:
           - TestStateSync
           - TestBlockSync
           - TestE2EFullStackPFB
-          - TestCelestiaAppMinorUpgrade
-          - TestCelestiaAppMajorUpgrade
+          - TestCelestiaAppBinarySwapUpgrade
+          - TestCelestiaAppSignalDrivenUpgrade
 
     steps:
       - name: Checkout code
