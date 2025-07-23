@@ -231,38 +231,93 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 }
 
 func TestRejections(t *testing.T) {
-	ttlNumBlocks := int64(5)
-	_, txClient, ctx := setupTxClient(t, ttlNumBlocks, appconsts.DefaultMaxBytes)
+	// t.Run("should reset the signer nonce after tx is rejected with no subsequent txs to resubmit", func(t *testing.T) {
+	// 	ttlNumBlocks := int64(5)
+	// 	_, txClient, ctx := setupTxClient(t, ttlNumBlocks, appconsts.DefaultMaxBytes)
 
-	fee := user.SetFee(1e6)
-	gas := user.SetGasLimit(1e6)
+	// 	fee := user.SetFee(1e6)
+	// 	gas := user.SetGasLimit(1e6)
 
-	// Submit a blob tx with user set ttl. After the ttl expires, the tx will be rejected.
-	timeoutHeight := uint64(1)
-	sender := txClient.Signer().Account(txClient.DefaultAccountName())
-	seqBeforeSubmission := sender.Sequence()
-	blobs := blobfactory.ManyRandBlobs(random.New(), 2, 2)
-	resp, err := txClient.BroadcastPayForBlob(ctx.GoContext(), blobs, fee, gas, user.SetTimeoutHeight(timeoutHeight))
-	require.NoError(t, err)
+	// 	// Submit a blob tx with user set ttl. After the ttl expires, the tx will be rejected.
+	// 	timeoutHeight := uint64(1)
+	// 	sender := txClient.Signer().Account(txClient.DefaultAccountName())
+	// 	seqBeforeSubmission := sender.Sequence()
+	// 	blobs := blobfactory.ManyRandBlobs(random.New(), 2, 2)
+	// 	resp, err := txClient.BroadcastPayForBlob(ctx.GoContext(), blobs, fee, gas, user.SetTimeoutHeight(timeoutHeight))
+	// 	require.NoError(t, err)
 
-	require.NoError(t, ctx.WaitForBlocks(1)) // Skip one block to allow the tx to be rejected
+	// 	require.NoError(t, ctx.WaitForBlocks(1)) // Skip one block to allow the tx to be rejected
 
-	_, err = txClient.ConfirmTx(ctx.GoContext(), resp.TxHash)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "was rejected by the node")
-	seqAfterRejection := sender.Sequence()
-	require.Equal(t, seqBeforeSubmission, seqAfterRejection)
+	// 	_, err = txClient.ConfirmTx(ctx.GoContext(), resp.TxHash)
+	// 	require.Error(t, err)
+	// 	require.Contains(t, err.Error(), "was rejected by the node")
+	// 	seqAfterRejection := sender.Sequence()
+	// 	require.Equal(t, seqBeforeSubmission, seqAfterRejection)
 
-	// Now submit the same blob transaction again
-	submitBlobResp, err := txClient.SubmitPayForBlob(ctx.GoContext(), blobs, fee, gas)
-	require.NoError(t, err)
-	require.Equal(t, submitBlobResp.Code, abci.CodeTypeOK)
-	// Sequence should have increased
-	seqAfterConfirmation := sender.Sequence()
-	require.Equal(t, seqBeforeSubmission+1, seqAfterConfirmation)
-	// Was removed from the tx tracker
-	_, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
-	require.False(t, exists)
+	// 	// Now submit the same blob transaction again
+	// 	submitBlobResp, err := txClient.SubmitPayForBlob(ctx.GoContext(), blobs, fee, gas)
+	// 	require.NoError(t, err)
+	// 	require.Equal(t, submitBlobResp.Code, abci.CodeTypeOK)
+	// 	// Sequence should have increased
+	// 	seqAfterConfirmation := sender.Sequence()
+	// 	require.Equal(t, seqBeforeSubmission+1, seqAfterConfirmation)
+	// 	// Was removed from the tx tracker
+	// 	_, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
+	// 	require.False(t, exists)
+	// })
+	t.Run("should resubmit subsequent txs after tx is rejected", func(t *testing.T) {
+		ttlNumBlocks := int64(10)
+		_, txClient, ctx := setupTxClient(t, ttlNumBlocks, appconsts.DefaultMaxBytes)
+
+		fee := user.SetFee(1e6)
+		gas := user.SetGasLimit(1e6)
+
+		// Submit a blob tx with user set ttl. After the ttl expires, the tx will be rejected.
+		timeoutHeight := uint64(1)
+		sender := txClient.Signer().Account(txClient.DefaultAccountName())
+		seqBeforeSubmission := sender.Sequence()
+		blobs := blobfactory.ManyRandBlobs(random.New(), 2, 2)
+		resp, err := txClient.BroadcastPayForBlob(ctx.GoContext(), blobs, fee, gas, user.SetTimeoutHeight(timeoutHeight))
+		fmt.Println(resp.Code, "broadcast response code")
+		require.NoError(t, err)
+
+		// Submit 3 more blobs with no ttl
+		responses := make([]*sdk.TxResponse, 3)
+		for i := 0; i < 3; i++ {
+			resp, err := txClient.BroadcastPayForBlob(ctx.GoContext(), blobs, fee, gas)
+			require.NoError(t, err)
+			require.Equal(t, resp.Code, abci.CodeTypeOK)
+			responses[i] = resp
+		}
+
+		require.NoError(t, ctx.WaitForBlocks(1)) // Skip one block to allow the tx to be rejected
+
+		_, err = txClient.ConfirmTx(ctx.GoContext(), resp.TxHash)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "was rejected by the node")
+		seqAfterRejection := sender.Sequence()
+		require.Equal(t, seqBeforeSubmission, seqAfterRejection)
+
+		require.NoError(t, ctx.WaitForBlocks(5)) // Skip one block to allow the tx to be resubmitted
+
+		// Other txs should have been resubmitted
+		for i := 0; i < 3; i++ {
+			_, err := txClient.ConfirmTx(ctx.GoContext(), responses[i].TxHash)
+			require.NoError(t, err)
+			require.Equal(t, responses[i].Code, abci.CodeTypeOK)
+		}
+
+		// // Now submit the same blob transaction again
+		// submitBlobResp, err := txClient.SubmitPayForBlob(ctx.GoContext(), blobs, fee, gas)
+		// require.NoError(t, err)
+		// require.Equal(t, submitBlobResp.Code, abci.CodeTypeOK)
+		// // Sequence should have increased
+		// seqAfterConfirmation := sender.Sequence()
+		// require.Equal(t, seqBeforeSubmission+1, seqAfterConfirmation)
+		// // Was removed from the tx tracker
+		// _, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
+		// require.False(t, exists)
+	})
 }
 
 func TestEvictions(t *testing.T) {

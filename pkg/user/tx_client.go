@@ -49,7 +49,7 @@ type txInfo struct {
 	signer    string
 	timestamp time.Time
 	txBytes   []byte
-	ttlHeight uint64 // Block height at which transaction expires
+	ttlHeight int64 // Block height at which transaction expires
 }
 
 // TxResponse is a response from the chain after
@@ -139,7 +139,7 @@ func WithAdditionalCoreEndpoints(conns []*grpc.ClientConn) Option {
 // WithTTL sets a block height-based TTL for the transaction.
 // If the transaction hasn't been included in a block by the specified height,
 // it will be considered expired and can be safely resubmitted.
-func WithTTL(height uint64) Option {
+func WithTTL(height int64) Option {
 	return func(c *TxClient) {
 		c.ttlHeight = height
 	}
@@ -159,7 +159,7 @@ type TxClient struct {
 	// how often to poll the network for confirmation of a transaction
 	pollTime time.Duration
 	// sets the TTL for the transaction
-	ttlHeight uint64
+	ttlHeight int64
 	// sets the default account with which to submit transactions
 	defaultAccount string
 	defaultAddress sdktypes.AccAddress
@@ -314,7 +314,11 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 	if err != nil {
 		return nil, err
 	}
-	opts = append([]TxOption{SetGasLimit(gasLimit), SetFee(fee), SetTimeoutHeight(uint64(currentHeight) + client.ttlHeight)}, opts...)
+
+	fmt.Println("currentHeight", currentHeight)
+	fmt.Println("ttlHeight", client.ttlHeight)
+	fmt.Println("timeout height", uint64(currentHeight+client.ttlHeight))
+	opts = append([]TxOption{SetGasLimit(gasLimit), SetFee(fee), SetTimeoutHeight(uint64(currentHeight + client.ttlHeight))}, opts...)
 
 	txBytes, _, err := client.signer.CreatePayForBlobs(account, blobs, opts...)
 	if err != nil {
@@ -324,7 +328,7 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 	if len(client.conns) > 1 {
 		return client.broadcastMulti(ctx, txBytes, account)
 	}
-	return client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txBytes, account, uint64(currentHeight)+client.ttlHeight)
+	return client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txBytes, account, currentHeight+client.ttlHeight)
 }
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
@@ -342,6 +346,10 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 
+	return client.BroadcastTxWithoutMutex(ctx, msgs, opts...)
+}
+
+func (client *TxClient) BroadcastTxWithoutMutex(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	// prune transactions that are older than 10 minutes
 	// pruning has to be done in broadcast, since users
 	// might not always call ConfirmTx().
@@ -363,7 +371,7 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 	}
 
 	// set the timeout height to the ttl height of the tx client
-	opts = append(opts, SetTimeoutHeight(uint64(currentHeight)+client.ttlHeight))
+	opts = append(opts, SetTimeoutHeight(uint64(currentHeight+client.ttlHeight)))
 
 	txBuilder, err := client.signer.txBuilder(msgs, opts...)
 	if err != nil {
@@ -409,10 +417,10 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 	if len(client.conns) > 1 {
 		return client.broadcastMulti(ctx, txBytes, account)
 	}
-	return client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txBytes, account, uint64(currentHeight)+client.ttlHeight)
+	return client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txBytes, account, currentHeight+client.ttlHeight)
 }
 
-func (client *TxClient) broadcastTxAndIncrementSequence(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string, ttlHeight uint64) (*sdktypes.TxResponse, error) {
+func (client *TxClient) broadcastTxAndIncrementSequence(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string, ttlHeight int64) (*sdktypes.TxResponse, error) {
 	resp, err := client.broadcastTx(ctx, conn, txBytes, signer)
 	if err != nil {
 		return nil, err
@@ -478,7 +486,7 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 		go func(conn *grpc.ClientConn) {
 			defer wg.Done()
 
-			resp, err := client.broadcastTxAndIncrementSequence(ctx, conn, txBytes, signer, uint64(currentHeight)+client.ttlHeight)
+			resp, err := client.broadcastTxAndIncrementSequence(ctx, conn, txBytes, signer, currentHeight+client.ttlHeight)
 			if err != nil {
 				errCh <- err
 				return
@@ -577,29 +585,66 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 		case core.TxStatusRejected:
 			sequence, signer, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
+				fmt.Println("failing here")
 				return nil, fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
-			}
-			expiredTxs, err := client.GetExpiredTransactions(ctx)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get expired transactions: %w", err)
 			}
 			// Reset sequence to the rejected tx's sequence to enable resubmission
 			// of subsequent transactions.
+			fmt.Println("sequence being set", sequence)
 			if err := client.signer.SetSequence(signer, sequence); err != nil {
 				return nil, fmt.Errorf("setting sequence: %w", err)
 			}
 
-			// resign expired transactions
-			for _, txHash := range expiredTxs {
-				txInfo, exists := client.txTracker[txHash]
-				if !exists {
-					return nil, fmt.Errorf("transaction %s not found in tracker", txHash)
+			// get all txs that user has submitted from nonce that is greater than the rejected tx's nonce
+			txs := make([]string, 0)
+			for hash, txInfo := range client.txTracker {
+				if txInfo.signer == signer && txInfo.sequence > sequence {
+					txs = append(txs, hash)
 				}
+			}
 
-				// Resign the tx with the first rejected sequence
-				_, err := client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txInfo.txBytes, txInfo.signer, txInfo.ttlHeight)
+			if len(txs) > 0 {
+				fmt.Println("waiting for all transactions to expire")
+				// client.mtx.Lock() // need to figure out a way where i do not run into deadlocks
+				// defer client.mtx.Unlock()
+				expired, err := client.waitForAllTransactionsToExpire(ctx, txs)
 				if err != nil {
-					return nil, fmt.Errorf("failed to broadcast tx: %w", err)
+					return nil, fmt.Errorf("failed to wait for all transactions to expire: %w", err)
+				}
+				fmt.Println(expired, "expired")
+
+				// we need to wait for transactions to get expired before we can resubmit them
+				if expired {
+					fmt.Println("txs actually expired")
+					// resign expired transactions
+					for _, txHash := range txs {
+						txInfo, exists := client.txTracker[txHash]
+						if !exists {
+							return nil, fmt.Errorf("transaction %s not found in tracker", txHash)
+						}
+
+						// decode the original transaction to extract messages
+						decodedTx, err := client.signer.DecodeTx(txInfo.txBytes)
+						if err != nil {
+							return nil, fmt.Errorf("failed to decode transaction: %w", err)
+						}
+
+						// extract messages from the decoded transaction
+						msgs := decodedTx.GetMsgs()
+
+						_, err = client.BroadcastTxWithoutMutex(ctx, msgs)
+						if err != nil {
+							return nil, fmt.Errorf("failed to resubmit tx after expiry: %w", err)
+						}
+						fmt.Println("resubmitted tx", txHash)
+						// confirm the resubmitted transaction
+						resp, err := client.ConfirmTx(ctx, txHash)
+						if err != nil {
+							return nil, fmt.Errorf("failed to confirm resubmitted tx: %w", err)
+						}
+
+						return resp, nil
+					}
 				}
 			}
 
@@ -611,6 +656,36 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				return nil, ctx.Err()
 			}
 			return nil, fmt.Errorf("transaction with hash %s not found", txHash)
+		}
+	}
+}
+
+// waitForAllTransactionsToExpire waits for all transactions to expire.
+// Returns true if all transactions have expired.
+func (client *TxClient) waitForAllTransactionsToExpire(ctx context.Context, txs []string) (bool, error) {
+	ticker := time.NewTicker(5 * time.Second) // todo: make this configurable
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return false, ctx.Err()
+
+		case <-ticker.C:
+			currentHeight, err := client.getCurrentBlockHeight(ctx)
+			if err != nil {
+				return false, fmt.Errorf("failed to get current block height: %w", err)
+			}
+
+			for _, txHash := range txs {
+				if tx, ok := client.txTracker[txHash]; ok {
+					if tx.ttlHeight > 0 && currentHeight <= tx.ttlHeight {
+						fmt.Println("tx not expired", txHash)
+						return false, nil
+					}
+				}
+			}
+			return true, nil
 		}
 	}
 }
@@ -792,7 +867,7 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 	return record.Name, nil
 }
 
-func (client *TxClient) trackTransaction(signer, txHash string, txBytes []byte, ttlHeight uint64) {
+func (client *TxClient) trackTransaction(signer, txHash string, txBytes []byte, ttlHeight int64) {
 	sequence := client.signer.Account(signer).Sequence()
 	client.txTracker[txHash] = txInfo{
 		sequence:  sequence,
@@ -801,7 +876,7 @@ func (client *TxClient) trackTransaction(signer, txHash string, txBytes []byte, 
 		txBytes:   txBytes,
 		ttlHeight: ttlHeight,
 	}
-	client.txBySignerSequence[signer][sequence] = txHash
+	fmt.Println("tracking transaction", txHash, "with sequence", sequence, "and ttlHeight", ttlHeight)
 }
 
 // GetTxFromTxTracker gets transaction info from the tx client's local tx tracker by its hash
@@ -902,7 +977,7 @@ func (client *TxClient) GetExpiredTransactions(ctx context.Context) ([]string, e
 
 	expiredTxs := make([]string, 0)
 	for hash, txInfo := range client.txTracker {
-		if txInfo.ttlHeight > 0 && uint64(currentHeight) > txInfo.ttlHeight {
+		if txInfo.ttlHeight > 0 && currentHeight > txInfo.ttlHeight {
 			expiredTxs = append(expiredTxs, hash)
 		}
 	}
