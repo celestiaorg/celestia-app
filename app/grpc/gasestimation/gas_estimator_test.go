@@ -291,9 +291,8 @@ func TestGasEstimatorWithNetworkMinGasPrice(t *testing.T) {
 		},
 	}
 
-	gasPriceDefault, err := serverWithError.estimateGasPrice(context.Background(), TxPriority_TX_PRIORITY_MEDIUM)
-	require.NoError(t, err)
-	require.Equal(t, appconsts.DefaultMinGasPrice, gasPriceDefault)
+	_, err = serverWithError.estimateGasPrice(context.Background(), TxPriority_TX_PRIORITY_MEDIUM)
+	require.Error(t, err)
 }
 
 type mockMempoolClient struct {
