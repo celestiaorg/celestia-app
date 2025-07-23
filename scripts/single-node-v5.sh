@@ -21,7 +21,7 @@ echo ""
 
 createGenesis() {
     echo "Initializing validator and node config files..."
-    celestia-appd init ${CHAIN_ID} \
+    celestia-appd passthrough 4 init ${CHAIN_ID} \
       --chain-id ${CHAIN_ID} \
       --home "${APP_HOME}" \
       > /dev/null 2>&1 # Hide output to reduce terminal noise
@@ -33,13 +33,13 @@ createGenesis() {
       > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     echo "Adding genesis account..."
-    celestia-appd genesis add-genesis-account \
+    celestia-appd passthrough 4 genesis add-genesis-account \
       "$(celestia-appd keys show ${KEY_NAME} -a --keyring-backend=${KEYRING_BACKEND} --home "${APP_HOME}")" \
       "1000000000000000utia" \
       --home "${APP_HOME}"
 
     echo "Creating a genesis tx..."
-    celestia-appd genesis gentx ${KEY_NAME} 5000000000utia \
+    celestia-appd passthrough 4 genesis gentx ${KEY_NAME} 5000000000utia \
       --fees ${FEES} \
       --keyring-backend=${KEYRING_BACKEND} \
       --chain-id ${CHAIN_ID} \
@@ -47,7 +47,7 @@ createGenesis() {
       > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     echo "Collecting genesis txs..."
-    celestia-appd genesis collect-gentxs \
+    celestia-appd passthrough 4 genesis collect-gentxs \
       --home "${APP_HOME}" \
         > /dev/null 2>&1 # Hide output to reduce terminal noise
 
