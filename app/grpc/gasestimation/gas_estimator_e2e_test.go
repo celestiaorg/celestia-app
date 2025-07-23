@@ -20,6 +20,10 @@ import (
 )
 
 func TestGasEstimatorE2E(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping TestGasEstimatorE2E in short mode")
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -86,6 +90,10 @@ func TestGasEstimatorE2E(t *testing.T) {
 }
 
 func TestGasEstimatorE2EWithNetworkMinGasPrice(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping TestGasEstimatorE2EWithNetworkMinGasPrice in short mode")
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
