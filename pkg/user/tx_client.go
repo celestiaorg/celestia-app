@@ -36,6 +36,7 @@ import (
 
 const (
 	DefaultPollTime          = 3 * time.Second
+	DefaultTTL               = 5
 	txTrackerPruningInterval = 10 * time.Minute
 )
 
@@ -48,6 +49,7 @@ type txInfo struct {
 	signer    string
 	timestamp time.Time
 	txBytes   []byte
+	ttlHeight uint64 // Block height at which transaction expires
 }
 
 // TxResponse is a response from the chain after
@@ -134,6 +136,15 @@ func WithAdditionalCoreEndpoints(conns []*grpc.ClientConn) Option {
 	}
 }
 
+// WithTTL sets a block height-based TTL for the transaction.
+// If the transaction hasn't been included in a block by the specified height,
+// it will be considered expired and can be safely resubmitted.
+func WithTTL(height uint64) Option {
+	return func(c *TxClient) {
+		c.ttlHeight = height
+	}
+}
+
 // TxClient is an abstraction for building, signing, and broadcasting Celestia transactions
 // It supports multiple accounts. If none is specified, it will
 // try to use the default account.
@@ -147,12 +158,16 @@ type TxClient struct {
 	conns []*grpc.ClientConn
 	// how often to poll the network for confirmation of a transaction
 	pollTime time.Duration
+	// sets the TTL for the transaction
+	ttlHeight uint64
 	// sets the default account with which to submit transactions
 	defaultAccount string
 	defaultAddress sdktypes.AccAddress
 	// txTracker maps the tx hash to the Sequence and signer of the transaction
 	// that was submitted to the chain
-	txTracker           map[string]txInfo
+	txTracker map[string]txInfo
+	// txBySignerSequence maps the signer to the sequence of the transaction
+	txBySignerSequence  map[string]map[uint64]string
 	gasEstimationClient gasestimation.GasEstimatorClient
 }
 
@@ -182,9 +197,11 @@ func NewTxClient(
 		registry:            registry,
 		conns:               []*grpc.ClientConn{conn},
 		pollTime:            DefaultPollTime,
+		ttlHeight:           DefaultTTL,
 		defaultAccount:      records[0].Name,
 		defaultAddress:      addr,
 		txTracker:           make(map[string]txInfo),
+		txBySignerSequence:  make(map[string]map[uint64]string),
 		cdc:                 cdc,
 		gasEstimationClient: gasestimation.NewGasEstimatorClient(conn),
 	}
@@ -293,7 +310,11 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 	gasLimit := uint64(float64(types.DefaultEstimateGas(blobSizes)))
 	fee := uint64(math.Ceil(appconsts.DefaultMinGasPrice * float64(gasLimit)))
 	// prepend calculated params, so it can be overwritten in case the user has specified it.
-	opts = append([]TxOption{SetGasLimit(gasLimit), SetFee(fee)}, opts...)
+	currentHeight, err := client.getCurrentBlockHeight(ctx)
+	if err != nil {
+		return nil, err
+	}
+	opts = append([]TxOption{SetGasLimit(gasLimit), SetFee(fee), SetTimeoutHeight(uint64(currentHeight) + client.ttlHeight)}, opts...)
 
 	txBytes, _, err := client.signer.CreatePayForBlobs(account, blobs, opts...)
 	if err != nil {
@@ -303,7 +324,7 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 	if len(client.conns) > 1 {
 		return client.broadcastMulti(ctx, txBytes, account)
 	}
-	return client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txBytes, account)
+	return client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txBytes, account, uint64(currentHeight)+client.ttlHeight)
 }
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
@@ -334,6 +355,15 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 	if err := client.checkAccountLoaded(ctx, account); err != nil {
 		return nil, err
 	}
+
+	// get the current block height
+	currentHeight, err := client.getCurrentBlockHeight(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// set the timeout height to the ttl height of the tx client
+	opts = append(opts, SetTimeoutHeight(uint64(currentHeight)+client.ttlHeight))
 
 	txBuilder, err := client.signer.txBuilder(msgs, opts...)
 	if err != nil {
@@ -379,10 +409,10 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 	if len(client.conns) > 1 {
 		return client.broadcastMulti(ctx, txBytes, account)
 	}
-	return client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txBytes, account)
+	return client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txBytes, account, uint64(currentHeight)+client.ttlHeight)
 }
 
-func (client *TxClient) broadcastTxAndIncrementSequence(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+func (client *TxClient) broadcastTxAndIncrementSequence(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string, ttlHeight uint64) (*sdktypes.TxResponse, error) {
 	resp, err := client.broadcastTx(ctx, conn, txBytes, signer)
 	if err != nil {
 		return nil, err
@@ -390,7 +420,7 @@ func (client *TxClient) broadcastTxAndIncrementSequence(ctx context.Context, con
 
 	// save the sequence and signer of the transaction in the local txTracker
 	// before the sequence is incremented
-	client.trackTransaction(signer, resp.TxHash, txBytes)
+	client.trackTransaction(signer, resp.TxHash, txBytes, ttlHeight)
 
 	// after the transaction has been submitted, we can increment the
 	// sequence of the signer
@@ -439,11 +469,16 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 	var wg sync.WaitGroup
 	wg.Add(len(client.conns))
 
+	currentHeight, err := client.getCurrentBlockHeight(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, conn := range client.conns {
 		go func(conn *grpc.ClientConn) {
 			defer wg.Done()
 
-			resp, err := client.broadcastTxAndIncrementSequence(ctx, conn, txBytes, signer)
+			resp, err := client.broadcastTxAndIncrementSequence(ctx, conn, txBytes, signer, uint64(currentHeight)+client.ttlHeight)
 			if err != nil {
 				errCh <- err
 				return
@@ -481,6 +516,9 @@ func (client *TxClient) pruneTxTracker() {
 	for hash, txInfo := range client.txTracker {
 		if time.Since(txInfo.timestamp) >= txTrackerPruningInterval {
 			delete(client.txTracker, hash)
+			if txBySigner, ok := client.txBySignerSequence[txInfo.signer]; ok {
+				delete(txBySigner, txInfo.sequence)
+			}
 		}
 	}
 }
@@ -541,11 +579,30 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
 			}
+			expiredTxs, err := client.GetExpiredTransactions(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get expired transactions: %w", err)
+			}
 			// Reset sequence to the rejected tx's sequence to enable resubmission
 			// of subsequent transactions.
 			if err := client.signer.SetSequence(signer, sequence); err != nil {
 				return nil, fmt.Errorf("setting sequence: %w", err)
 			}
+
+			// resign expired transactions
+			for _, txHash := range expiredTxs {
+				txInfo, exists := client.txTracker[txHash]
+				if !exists {
+					return nil, fmt.Errorf("transaction %s not found in tracker", txHash)
+				}
+
+				// Resign the tx with the first rejected sequence
+				_, err := client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txInfo.txBytes, txInfo.signer, txInfo.ttlHeight)
+				if err != nil {
+					return nil, fmt.Errorf("failed to broadcast tx: %w", err)
+				}
+			}
+
 			client.deleteFromTxTracker(txHash)
 			return nil, fmt.Errorf("tx with hash %s was rejected by the node", txHash)
 		default:
@@ -735,15 +792,16 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 	return record.Name, nil
 }
 
-// trackTransaction tracks a transaction in the tx client's local tx tracker.
-func (client *TxClient) trackTransaction(signer, txHash string, txBytes []byte) {
+func (client *TxClient) trackTransaction(signer, txHash string, txBytes []byte, ttlHeight uint64) {
 	sequence := client.signer.Account(signer).Sequence()
 	client.txTracker[txHash] = txInfo{
 		sequence:  sequence,
 		signer:    signer,
 		timestamp: time.Now(),
 		txBytes:   txBytes,
+		ttlHeight: ttlHeight,
 	}
+	client.txBySignerSequence[signer][sequence] = txHash
 }
 
 // GetTxFromTxTracker gets transaction info from the tx client's local tx tracker by its hash
@@ -752,6 +810,18 @@ func (client *TxClient) GetTxFromTxTracker(hash string) (sequence uint64, signer
 	defer client.mtx.Unlock()
 	txInfo, exists := client.txTracker[hash]
 	return txInfo.sequence, txInfo.signer, exists
+}
+
+// getTxBySignerAndSequence gets transaction info from the tx client's local tx tracker by its signer and sequence
+func (client *TxClient) getTxBySignerAndSequence(signer string, sequence uint64) ([]byte, bool) {
+	if txsBySigner, ok := client.txBySignerSequence[signer]; ok {
+		if txHash, ok := txsBySigner[sequence]; ok {
+			if txInfo, ok := client.txTracker[txHash]; ok {
+				return txInfo.txBytes, true
+			}
+		}
+	}
+	return nil, false
 }
 
 // Signer exposes the tx clients underlying signer
@@ -805,4 +875,37 @@ func QueryNetworkMinGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (fl
 		}
 	}
 	return networkMinPrice, nil
+}
+
+// getCurrentBlockHeight gets the current block height from the network
+func (client *TxClient) getCurrentBlockHeight(ctx context.Context) (int64, error) {
+	// Use the first connection to get block height
+	resp, err := tmservice.NewServiceClient(client.conns[0]).GetLatestBlock(
+		ctx,
+		&tmservice.GetLatestBlockRequest{},
+	)
+	if err != nil {
+		return 0, err
+	}
+	return resp.SdkBlock.Header.Height, nil
+}
+
+// GetExpiredTransactions returns a list of transaction hashes that have expired
+func (client *TxClient) GetExpiredTransactions(ctx context.Context) ([]string, error) {
+	currentHeight, err := client.getCurrentBlockHeight(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current block height: %w", err)
+	}
+
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
+
+	expiredTxs := make([]string, 0)
+	for hash, txInfo := range client.txTracker {
+		if txInfo.ttlHeight > 0 && uint64(currentHeight) > txInfo.ttlHeight {
+			expiredTxs = append(expiredTxs, hash)
+		}
+	}
+
+	return expiredTxs, nil
 }
