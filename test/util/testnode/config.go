@@ -93,7 +93,7 @@ func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
 // WithFundedAccounts sets the genesis accounts and returns the Config.
 func (c *Config) WithFundedAccounts(accounts ...string) *Config {
 	c.Genesis = c.Genesis.WithKeyringAccounts(
-		genesis.NewKeyringAccounts(DefaultInitialBalance, accounts...)...,
+		genesis.NewKeyringAccounts(DefaultInitialBalance+1, accounts...)...,
 	)
 	return c
 }
@@ -135,7 +135,8 @@ func DefaultConfig() *Config {
 		WithAppCreator(DefaultAppCreator()).
 		WithAppConfig(DefaultAppConfig()).
 		WithAppOptions(DefaultAppOptions()).
-		WithSuppressLogs(true)
+		WithSuppressLogs(true).
+		WithTimeoutCommit(200 * time.Millisecond) // have a block time that is fast, but not overly fast
 }
 
 func DefaultConsensusParams() *tmproto.ConsensusParams {
@@ -150,6 +151,7 @@ func DefaultTendermintConfig() *tmconfig.Config {
 	// Set all the ports to random open ones.
 	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
 	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
+	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
 
 	tmCfg.TxIndex.Indexer = "kv"
 
@@ -197,5 +199,10 @@ func CustomAppCreator(appOptions ...func(*baseapp.BaseApp)) srvtypes.AppCreator 
 
 // DefaultAppConfig wraps the default config described in the server
 func DefaultAppConfig() *srvconfig.Config {
-	return app.DefaultAppConfig()
+	appCfg := app.DefaultAppConfig()
+	appCfg.GRPC.Enable = true
+	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", GetDeterministicPort())
+	appCfg.API.Enable = true
+	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
+	return appCfg
 }

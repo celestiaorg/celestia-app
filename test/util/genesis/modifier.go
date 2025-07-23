@@ -12,7 +12,7 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
-	"github.com/cosmos/cosmos-sdk/x/gov/types/v1"
+	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 )
 
@@ -49,7 +49,7 @@ func ImmediateProposals(codec codec.Codec) Modifier {
 		gs.Params.MinDeposit = sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1)))
 		gs.Params.Quorum = "0.000001"
 		gs.Params.Threshold = "0.000001"
-		vp := time.Second * 10
+		vp := time.Second * 4
 		gs.Params.VotingPeriod = &vp
 		state[govtypes.ModuleName] = codec.MustMarshalJSON(gs)
 		return state

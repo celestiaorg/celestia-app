@@ -264,16 +264,19 @@ func DefaultEvidenceParams() *tmproto.EvidenceParams {
 
 func DefaultConsensusConfig() *tmcfg.Config {
 	cfg := tmcfg.DefaultConfig()
+	var mempoolSize = int64(appconsts.DefaultUpperBoundMaxBytes) * 3
 	// Set broadcast timeout to be 50 seconds in order to avoid timeouts for long block times
 	cfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
-	cfg.RPC.MaxBodyBytes = int64(appconsts.DefaultUpperBoundMaxBytes) * 2
+	// this value should be the same as the largest possible response. In this case, that's
+	// likely Unconfirmed txs for a full mempool
+	cfg.RPC.MaxBodyBytes = mempoolSize
 	cfg.RPC.GRPCListenAddress = "tcp://127.0.0.1:9098"
 
 	cfg.Mempool.TTLNumBlocks = 12
 	cfg.Mempool.TTLDuration = 75 * time.Second
 	cfg.Mempool.MaxTxBytes = appconsts.MaxTxSize
-	cfg.Mempool.MaxTxsBytes = int64(appconsts.DefaultUpperBoundMaxBytes) * 3
-	cfg.Mempool.Type = tmcfg.MempoolTypeCAT
+	cfg.Mempool.MaxTxsBytes = mempoolSize
+	cfg.Mempool.Type = tmcfg.MempoolTypePriority
 
 	cfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
 	cfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
