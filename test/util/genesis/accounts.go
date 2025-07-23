@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	mrand "math/rand"
 	"time"
 
-	"cosmossdk.io/math"
+	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v5/app/encoding"
 	"github.com/celestiaorg/celestia-app/v5/app/params"
 	"github.com/cometbft/cometbft/crypto"
@@ -94,7 +95,7 @@ func (v *Validator) ValidateBasic() error {
 // GenTx generates a genesis transaction to create a validator as configured by
 // the validator struct. It assumes the validator's genesis account has already
 // been added to the keyring and that the sequence for that account is 0.
-func (v *Validator) GenTx(ecfg encoding.Config, kr keyring.Keyring, chainID string) (sdk.Tx, error) {
+func (v *Validator) GenTx(ecfg encoding.Config, kr keyring.Keyring, chainID string, gasPrice float64) (sdk.Tx, error) {
 	rec, err := kr.Key(v.Name)
 	if err != nil {
 		return nil, err
@@ -112,24 +113,26 @@ func (v *Validator) GenTx(ecfg encoding.Config, kr keyring.Keyring, chainID stri
 	createValMsg, err := stakingtypes.NewMsgCreateValidator(
 		sdk.ValAddress(addr).String(),
 		pk,
-		sdk.NewCoin(params.BondDenom, math.NewInt(v.Stake)),
+		sdk.NewCoin(params.BondDenom, sdkmath.NewInt(v.Stake)),
 		stakingtypes.NewDescription(v.Name, "", "", "", ""),
-		stakingtypes.NewCommissionRates(math.LegacyNewDecWithPrec(5, 2), math.LegacyNewDecWithPrec(5, 2), math.LegacyNewDec(0)),
-		math.NewInt(v.Stake/2),
+		stakingtypes.NewCommissionRates(sdkmath.LegacyNewDecWithPrec(5, 2), sdkmath.LegacyNewDecWithPrec(5, 2), sdkmath.LegacyNewDec(0)),
+		sdkmath.NewInt(v.Stake/2),
 	)
 	createValMsg.DelegatorAddress = addr.String() //nolint:staticcheck // required for sdk 50
 	if err != nil {
 		return nil, err
 	}
 
-	fee := sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(20000)))
 	txBuilder := ecfg.TxConfig.NewTxBuilder()
 	err = txBuilder.SetMsgs(createValMsg)
 	if err != nil {
 		return nil, err
 	}
-	txBuilder.SetFeeAmount(fee)    // Arbitrary fee
-	txBuilder.SetGasLimit(1000000) // Need at least 100386
+	gasLimit := uint64(200000)
+	feeAmount := sdkmath.NewInt(int64(math.Ceil(float64(gasLimit) * gasPrice)))
+	fee := sdk.NewCoins(sdk.NewCoin(params.BondDenom, feeAmount))
+	txBuilder.SetFeeAmount(fee)
+	txBuilder.SetGasLimit(gasLimit)
 
 	txFactory := tx.Factory{}
 	txFactory = txFactory.
