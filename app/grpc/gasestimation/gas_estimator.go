@@ -132,8 +132,7 @@ func (s *gasEstimatorServer) estimateGasPrice(ctx context.Context, priority TxPr
 	// Get the network minimum gas price from the min fee module
 	minGasPrice, err := s.minGasPriceFn()
 	if err != nil {
-		// If we can't get the network min gas price, fall back to default
-		minGasPrice = appconsts.DefaultMinGasPrice
+		return 0, fmt.Errorf("failed to get min gas price: %w", err)
 	}
 
 	if float64(txsResp.TotalBytes) < float64(govMaxSquareBytes)*gasPriceEstimationThreshold {
