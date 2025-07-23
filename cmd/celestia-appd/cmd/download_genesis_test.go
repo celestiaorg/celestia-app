@@ -3,6 +3,7 @@ package cmd
 import (
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -12,8 +13,8 @@ func Test_isKnownChainID(t *testing.T) {
 		want    bool
 	}
 	testCases := []testCase{
-		{"celestia", true},
-		{"mocha-4", true},
+		{appconsts.MainnetChainID, true},
+		{appconsts.MochaChainID, true},
 		{"arabica-10", true},
 		{"foo", false},
 	}

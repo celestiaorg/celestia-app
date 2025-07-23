@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
 	cmtconfig "github.com/cometbft/cometbft/config"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/spf13/cobra"
@@ -153,7 +154,7 @@ func CopyTalisScripts(destDir string, srcRoot string) error {
 			return fmt.Errorf("git clone failed: %w", err)
 		}
 
-		src = filepath.Join(tmp, "tools", "talis", "scripts")
+		src = filepath.Join(tmp, "tools", appconsts.TalisChainID, "scripts")
 	}
 
 	// copy directory tree including subdirectories
