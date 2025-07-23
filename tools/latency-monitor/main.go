@@ -98,7 +98,14 @@ func monitorLatency(
 		return fmt.Errorf("failed to initialize keyring: %w", err)
 	}
 
-	grpcConn, err := grpc.NewClient(endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	grpcConn, err := grpc.NewClient(
+		endpoint,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallSendMsgSize(math.MaxInt32),
+			grpc.MaxCallRecvMsgSize(math.MaxInt32),
+		),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to create gRPC connection: %w", err)
 	}

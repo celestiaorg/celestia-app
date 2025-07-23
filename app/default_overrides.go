@@ -266,14 +266,14 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg := tmcfg.DefaultConfig()
 	// Set broadcast timeout to be 50 seconds in order to avoid timeouts for long block times
 	cfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
-	cfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
+	cfg.RPC.MaxBodyBytes = int64(appconsts.DefaultUpperBoundMaxBytes) * 2
 	cfg.RPC.GRPCListenAddress = "tcp://127.0.0.1:9098"
 
 	cfg.Mempool.TTLNumBlocks = 12
 	cfg.Mempool.TTLDuration = 75 * time.Second
-	cfg.Mempool.MaxTxBytes = 2 * mebibyte
-	cfg.Mempool.MaxTxsBytes = 80 * mebibyte
-	cfg.Mempool.Type = tmcfg.MempoolTypePriority
+	cfg.Mempool.MaxTxBytes = appconsts.MaxTxSize
+	cfg.Mempool.MaxTxsBytes = int64(appconsts.DefaultUpperBoundMaxBytes) * 3
+	cfg.Mempool.Type = tmcfg.MempoolTypeCAT
 
 	cfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
 	cfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
@@ -301,6 +301,7 @@ func DefaultAppConfig() *serverconfig.Config {
 	cfg.StateSync.SnapshotInterval = 1500
 	cfg.StateSync.SnapshotKeepRecent = 2
 	cfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, params.BondDenom)
-	cfg.GRPC.MaxRecvMsgSize = 20 * mebibyte
+	cfg.GRPC.MaxRecvMsgSize = appconsts.DefaultUpperBoundMaxBytes * 2
+	cfg.GRPC.MaxSendMsgSize = appconsts.DefaultUpperBoundMaxBytes * 2
 	return cfg
 }
