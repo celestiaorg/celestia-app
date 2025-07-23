@@ -82,7 +82,7 @@ startCelestiaApp() {
 }
 
 upgradeToV5() {
-    sleep 30
+    sleep 10
     echo "Submitting signal for v5..."
     celestia-appd tx signal signal 5 \
         --keyring-backend=${KEYRING_BACKEND} \
