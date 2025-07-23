@@ -10,10 +10,10 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	"cosmossdk.io/math/unsafe"
-<<<<<<< HEAD
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v4/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v4/app/params"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
@@ -21,19 +21,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/test/util/grpctest"
 	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-=======
-	"github.com/celestiaorg/celestia-app/v5/app"
-	"github.com/celestiaorg/celestia-app/v5/app/encoding"
-	"github.com/celestiaorg/celestia-app/v5/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v5/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v5/app/params"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/pkg/user"
-	"github.com/celestiaorg/celestia-app/v5/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v5/test/util/grpctest"
-	"github.com/celestiaorg/celestia-app/v5/test/util/random"
-	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
->>>>>>> b88c57b (fix: tx client evictions bug (#5139))
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
 	"github.com/cosmos/cosmos-sdk/baseapp"
