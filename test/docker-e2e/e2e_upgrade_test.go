@@ -2,59 +2,54 @@ package docker_e2e
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
+	signaltypes "github.com/celestiaorg/celestia-app/v5/x/signal/types"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
+	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 )
 
-// TallyResponse represents the JSON response from the signal tally query
-// We had to define it again because the JSON response type is not a number but string
-type TallyResponse struct {
-	VotingPower      string `json:"voting_power"`
-	ThresholdPower   string `json:"threshold_power"`
-	TotalVotingPower string `json:"total_voting_power"`
-}
-
-// TestCelestiaAppMinorUpgrade tests a simple upgrade from one minor version to another by swapping the binary.
+// TestCelestiaAppMinorUpgrade tests a simple upgrade from one minor version
+// to another by swapping the binary.
 func (s *CelestiaTestSuite) TestCelestiaAppMinorUpgrade() {
 	if testing.Short() {
 		s.T().Skip("skipping celestia-app minor upgrade test in short mode")
 	}
 
 	tt := []struct {
-		Name                string
-		BaseBinaryVersion   string
-		TargetBinaryVersion string
+		Name           string
+		BaseImageTag   string
+		TargetImageTag string
 	}{
 		{
-			Name:                "v4.0.2-rc2 to v4.0.10",
-			BaseBinaryVersion:   "v4.0.2-rc2",
-			TargetBinaryVersion: "v4.0.10",
+			Name:           "v4.0.2-rc2 to v4.0.10",
+			BaseImageTag:   "v4.0.2-rc2",
+			TargetImageTag: "v4.0.10",
 		},
 		{
-			Name:                "v4.0.9-mocha to v4.0.10-mocha",
-			BaseBinaryVersion:   "v4.0.9-mocha",
-			TargetBinaryVersion: "v4.0.10-mocha",
+			Name:           "v4.0.9-mocha to v4.0.10-mocha",
+			BaseImageTag:   "v4.0.9-mocha",
+			TargetImageTag: "v4.0.10-mocha",
 		},
 		{
-			Name:                "v4.0.9-arabica to v4.0.10-arabica",
-			BaseBinaryVersion:   "v4.0.9-arabica",
-			TargetBinaryVersion: "v4.0.10-arabica",
+			Name:           "v4.0.9-arabica to v4.0.10-arabica",
+			BaseImageTag:   "v4.0.9-arabica",
+			TargetImageTag: "v4.0.10-arabica",
 		},
 	}
 
 	for _, tc := range tt {
 		s.Run(tc.Name, func() {
-			s.RunMinorUpgradeTest(tc.BaseBinaryVersion, tc.TargetBinaryVersion)
+			s.RunMinorUpgradeTest(tc.BaseImageTag, tc.TargetImageTag)
 		})
 	}
 }
@@ -67,40 +62,37 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 
 	tt := []struct {
 		Name             string
-		BinaryVersion    string
+		ImageTag         string
 		TargetAppVersion uint64
 	}{
 		{
 			Name:             "v2 to v3",
-			BinaryVersion:    dockerchain.GetCelestiaTag(),
+			ImageTag:         dockerchain.GetCelestiaTag(),
 			TargetAppVersion: 3,
 		},
 		{
 			Name:             "v3 to v4",
-			BinaryVersion:    dockerchain.GetCelestiaTag(),
+			ImageTag:         dockerchain.GetCelestiaTag(),
 			TargetAppVersion: 4,
 		},
 	}
 
 	for _, tc := range tt {
 		s.Run(tc.Name, func() {
-			s.RunMajorUpgradeTest(tc.BinaryVersion, tc.TargetAppVersion)
+			s.RunMajorUpgradeTest(tc.ImageTag, tc.TargetAppVersion)
 		})
 	}
 }
 
-// RunMinorUpgradeTest performs a minor version upgrade test for the celestia-app.
-// It starts a chain with the specified base version, performs a bank send transaction to verify functionality,
-// upgrades the chain to the target version, restarts it, and verifies that the chain is running the new version
-// and that bank send transactions still work.
-//
-// Example usage:
-//
-//	s.RunMinorUpgradeTest("v4.0.2-mocha", "v4.0.10-mocha")
-func (s *CelestiaTestSuite) RunMinorUpgradeTest(BaseBinaryVersion, TargetBinaryVersion string) {
+// RunMinorUpgradeTest performs a minor version upgrade test for the
+// celestia-app. It starts a chain with the specified base version, performs a
+// bank send transaction to verify functionality, upgrades the chain to the
+// target version, restarts it, and verifies that the chain is running the new
+// version and that bank send transactions still work.
+func (s *CelestiaTestSuite) RunMinorUpgradeTest(BaseImageTag, TargetImageTag string) {
 	var (
 		ctx = context.Background()
-		cfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(BaseBinaryVersion)
+		cfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(BaseImageTag)
 	)
 
 	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
@@ -122,7 +114,7 @@ func (s *CelestiaTestSuite) RunMinorUpgradeTest(BaseBinaryVersion, TargetBinaryV
 	err = chain.Stop(ctx)
 	s.Require().NoError(err)
 
-	chain.UpgradeVersion(ctx, TargetBinaryVersion)
+	chain.UpgradeVersion(ctx, TargetImageTag)
 
 	err = chain.Start(ctx)
 	s.Require().NoError(err)
@@ -139,26 +131,26 @@ func (s *CelestiaTestSuite) RunMinorUpgradeTest(BaseBinaryVersion, TargetBinaryV
 
 	abciInfo, err := rpcClient.ABCIInfo(ctx)
 	s.Require().NoError(err, "failed to fetch ABCI info")
-	s.Require().Contains(abciInfo.Response.GetVersion(), strings.TrimPrefix(TargetBinaryVersion, "v"), "version mismatch")
+	s.Require().Contains(abciInfo.Response.GetVersion(), strings.TrimPrefix(TargetImageTag, "v"), "version mismatch")
 }
 
-// RunMajorUpgradeTest performs an end-to-end test of a major upgrade for the celestia-app.
-// It starts a chain at the specified binary version, sets the app version to one less than the target,
-// and then signals for an upgrade to the target app version using the signaling mechanism.
-// The function ensures the upgrade is scheduled and executed, verifies that the chain is running the new binary
-// and app version after the upgrade, and performs sanity checks (such as bank send) before and after the upgrade.
-// It requires all validators to signal for the upgrade and checks that the voting power threshold is met before proceeding.
-//
-// Example usage:
-//
-//	s.RunMajorUpgradeTest("v4.0.10-mocha", 5)
-func (s *CelestiaTestSuite) RunMajorUpgradeTest(BinaryVersion string, TargetAppVersion uint64) {
-	// Since the siganling mechanism was introduced in v2, we need to ensure that the target app version is greater than 2
+// RunMajorUpgradeTest performs an end-to-end test of a major upgrade for the
+// celestia-app. It starts a chain at the specified image tag, sets the
+// app version to one less than the target, and then signals for an upgrade to
+// the target app version using the signaling mechanism. The function ensures
+// the upgrade is scheduled and executed, verifies that the chain is running
+// the new binary and app version after the upgrade, and performs sanity
+// checks (such as bank send) before and after the upgrade. It requires all
+// validators to signal for the upgrade and checks that the voting power
+// threshold is met before proceeding.
+func (s *CelestiaTestSuite) RunMajorUpgradeTest(ImageTag string, TargetAppVersion uint64) {
+	// Since the signaling mechanism was introduced in v2, we need to ensure that
+	// the target app version is greater than 2.
 	s.Require().Greater(TargetAppVersion, uint64(2), "target app version must be greater than 2")
 
 	var (
 		ctx = context.Background()
-		cfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(BinaryVersion)
+		cfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(ImageTag)
 		kr  = cfg.Genesis.Keyring()
 	)
 	cfg.Genesis = cfg.Genesis.WithAppVersion(TargetAppVersion - 1)
@@ -219,65 +211,48 @@ func (s *CelestiaTestSuite) RunMajorUpgradeTest(BinaryVersion string, TargetAppV
 	testBankSend(s.T(), chain, cfg)
 }
 
-// signalAndGetUpgradeHeight signals for an upgrade to the specified app version and returns the scheduled upgrade height.
+// signalAndGetUpgradeHeight signals for an upgrade to the specified app
+// version and returns the scheduled upgrade height.
 func (s *CelestiaTestSuite) signalAndGetUpgradeHeight(ctx context.Context, chain tastoratypes.Chain, validatorNode tastoratypes.ChainNode, records []*keyring.Record, targetAppVersion uint64) int64 {
-	// Signal for the upgrade to the new version
+	// Signal for the upgrade using builder
 	for i, node := range chain.GetNodes() {
 		s.T().Logf("Signaling for upgrade to version %d from validator %d", targetAppVersion, i)
 
 		signalCmd := []string{"tx", "signal", "signal", fmt.Sprintf("%d", targetAppVersion), "--from", records[i].Name}
-		_, stderr, err := s.ExecuteNodeCommand(ctx, node, signalCmd...)
-		s.Require().NoError(err, "failed to signal for upgrade: %s", stderr)
+		cmdArgs, err := NewCommandBuilder(ctx, node, signalCmd).WithFees("200000utia").Build()
+		s.Require().NoError(err)
+		_, stderrBytes, err := node.Exec(ctx, cmdArgs, nil)
+		s.Require().NoError(err, "failed to signal for upgrade: %s", string(stderrBytes))
 	}
 
 	s.Require().NoError(wait.ForBlocks(ctx, 1, chain))
 
 	s.validateSignalTally(ctx, validatorNode, targetAppVersion)
 
-	// Execute try-upgrade transaction on the first node only
-	s.T().Log("Executing try-upgrade transaction on the first validator")
+	// Execute try-upgrade using builder
 	tryUpgradeCmd := []string{"tx", "signal", "try-upgrade", "--from", records[0].Name}
-	_, upgradeStderr, err := s.ExecuteNodeCommand(ctx, validatorNode, tryUpgradeCmd...)
-	s.Require().NoError(err, "failed to execute try-upgrade: %s", upgradeStderr)
+	tryArgs, err := NewCommandBuilder(ctx, validatorNode, tryUpgradeCmd).Build()
+	_, upgradeStderrBytes, err := validatorNode.Exec(ctx, tryArgs, nil)
+	s.Require().NoError(err, "failed to execute try-upgrade: %s", string(upgradeStderrBytes))
 
+	// Wait for one block so that the upgrade transaction is processed
 	s.Require().NoError(wait.ForBlocks(ctx, 1, chain))
 
-	s.T().Log("Querying upgrade info")
-	upgradeInfoCmd := []string{"query", "signal", "upgrade", "--output", "json"}
-	upgradeInfoStdout, upgradeInfoStderr, err := s.ExecuteNodeCommand(ctx, validatorNode, upgradeInfoCmd...)
-	s.Require().NoError(err, "failed to query upgrade info: %s", upgradeInfoStderr)
-	s.T().Logf("Upgrade info: %s", upgradeInfoStdout)
+	// New approach: use gRPC Query client for typed response
+	s.T().Log("Querying upgrade info via gRPC")
+	client, cleanup, err := getSignalQueryClient(ctx, validatorNode)
+	s.Require().NoError(err)
+	defer cleanup()
 
-	// Parse the upgrade height from the plain text response
-	// it turns out that the json output flag is not working as expected
-	// so we need to parse the plain text response
-	// Expected format: "An upgrade is pending to app version X at height Y."
-	var upgradeHeight int64
+	upgradeResp, err := client.
+		GetUpgrade(ctx, &signaltypes.QueryGetUpgradeRequest{})
+	s.Require().NoError(err, "failed to query upgrade info via gRPC")
 
-	if strings.Contains(upgradeInfoStdout, "An upgrade is pending") {
-		// Extract the height from the response using regex
-		re := regexp.MustCompile(`height (\d+)`)
-		matches := re.FindStringSubmatch(upgradeInfoStdout)
-		s.Require().GreaterOrEqual(len(matches), 2, "could not extract height from response: %s", upgradeInfoStdout)
+	// Ensure an upgrade is indeed pending
+	s.Require().NotNil(upgradeResp.Upgrade, "no upgrade pending after try-upgrade")
 
-		var err error
-		upgradeHeight, err = strconv.ParseInt(matches[1], 10, 64)
-		s.Require().NoError(err, "failed to parse upgrade height from string: %s", matches[1])
-		return upgradeHeight
-	}
-
-	// Try to parse as JSON as a fallback
-	var upgradeInfo struct {
-		Height string `json:"height"`
-	}
-	err = json.Unmarshal([]byte(upgradeInfoStdout), &upgradeInfo)
-	s.Require().NoError(err, "failed to parse upgrade info")
-
-	// Ensure we got a valid height
-	s.Require().NotEmpty(upgradeInfo.Height, "upgrade height should not be empty")
-
-	upgradeHeight, err = strconv.ParseInt(upgradeInfo.Height, 10, 64)
-	s.Require().NoError(err, "failed to parse upgrade height")
+	upgradeHeight := upgradeResp.Upgrade.UpgradeHeight
+	s.T().Logf("Upgrade info: app_version=%d height=%d", upgradeResp.Upgrade.AppVersion, upgradeHeight)
 
 	return upgradeHeight
 }
@@ -287,20 +262,35 @@ func (s *CelestiaTestSuite) signalAndGetUpgradeHeight(ctx context.Context, chain
 func (s *CelestiaTestSuite) validateSignalTally(ctx context.Context, node tastoratypes.ChainNode, appVersion uint64) {
 	s.T().Logf("Querying signal tally for app version %d", appVersion)
 
-	tallyCmd := []string{"query", "signal", "tally", fmt.Sprintf("%d", appVersion), "--output", "json"}
-	tallyStdout, tallyStderr, err := s.ExecuteNodeCommand(ctx, node, tallyCmd...)
-	s.Require().NoError(err, "failed to query tally: %s", tallyStderr)
+	client, cleanup, err := getSignalQueryClient(ctx, node)
+	s.Require().NoError(err)
+	defer cleanup()
 
-	var tally TallyResponse
-	s.Require().NoError(json.Unmarshal([]byte(tallyStdout), &tally), "failed to parse tally response")
-
-	// Convert the string values to integers
-	votingPower, err := strconv.ParseInt(tally.VotingPower, 10, 64)
-	s.Require().NoError(err, "failed to parse voting power")
-
-	thresholdPower, err := strconv.ParseInt(tally.ThresholdPower, 10, 64)
-	s.Require().NoError(err, "failed to parse threshold power")
+	resp, err := client.VersionTally(ctx, &signaltypes.QueryVersionTallyRequest{Version: appVersion})
+	s.Require().NoError(err, "failed to query tally")
 
 	// Verify that voting power meets or exceeds threshold
-	s.Require().True(votingPower >= thresholdPower, "voting power (%d) does not meet threshold (%d)", votingPower, thresholdPower)
+	s.Require().True(resp.VotingPower >= resp.ThresholdPower, "voting power (%d) does not meet threshold (%d)", resp.VotingPower, resp.ThresholdPower)
+}
+
+// getSignalQueryClient returns a signaltypes.QueryClient for the provided node.
+// If the node already exposes a live *grpc.ClientConn (docker ChainNode), that
+// connection is reused and the returned cleanup is a no-op. Otherwise the
+// helper dials the node’s gRPC endpoint (port 9090) and returns a cleanup
+// function that closes the connection.
+func getSignalQueryClient(ctx context.Context, node tastoratypes.ChainNode) (signaltypes.QueryClient, func(), error) {
+	if dcNode, ok := node.(*tastoradockertypes.ChainNode); ok && dcNode.GrpcConn != nil {
+		return signaltypes.NewQueryClient(dcNode.GrpcConn), func() {}, nil
+	}
+	host, err := node.GetInternalHostName(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	endpoint := fmt.Sprintf("%s:9090", host)
+	conn, err := grpc.NewClient(endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, nil, err
+	}
+	cleanup := func() { _ = conn.Close() }
+	return signaltypes.NewQueryClient(conn), cleanup, nil
 }
