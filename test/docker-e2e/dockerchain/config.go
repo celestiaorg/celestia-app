@@ -1,6 +1,7 @@
 package dockerchain
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
@@ -10,8 +11,10 @@ import (
 )
 
 const (
-	multiplexerImage   = "ghcr.io/celestiaorg/celestia-app"
-	defaultCelestiaTag = "v4.0.10-mocha"
+	multiplexerImage    = "ghcr.io/celestiaorg/celestia-app"
+	defaultCelestiaTag  = "v4.0.10-mocha"
+	celestiaTagEnvVar   = "CELESTIA_TAG"
+	celestiaImageEnvVar = "CELESTIA_IMAGE"
 )
 
 // Config represents the configuration for a docker Celestia setup.
@@ -79,7 +82,7 @@ func (c *Config) WithDockerNetworkID(networkID string) *Config {
 // GetCelestiaImage returns the image to use for Celestia app.
 // It can be overridden by setting the CELESTIA_IMAGE environment.
 func GetCelestiaImage() string {
-	if image := os.Getenv("CELESTIA_IMAGE"); image != "" {
+	if image := os.Getenv(celestiaImageEnvVar); image != "" {
 		return image
 	}
 	return multiplexerImage
@@ -88,8 +91,19 @@ func GetCelestiaImage() string {
 // GetCelestiaTag returns the tag to use for Celestia images.
 // It can be overridden by setting the CELESTIA_TAG environment.
 func GetCelestiaTag() string {
-	if tag := os.Getenv("CELESTIA_TAG"); tag != "" {
+	if tag := os.Getenv(celestiaTagEnvVar); tag != "" {
 		return tag
 	}
 	return defaultCelestiaTag
+}
+
+// GetCelestiaTagStrict returns the tag that MUST be provided in the
+// CELESTIA_TAG env-var. If the variable is empty it returns an error
+// so callers can decide how they want to fail.
+func GetCelestiaTagStrict() (string, error) {
+	tag := os.Getenv(celestiaTagEnvVar)
+	if tag == "" {
+		return "", fmt.Errorf("%s is not set - the test needs an explicit image tag", celestiaTagEnvVar)
+	}
+	return tag, nil
 }

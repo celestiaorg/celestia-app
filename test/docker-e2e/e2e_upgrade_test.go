@@ -60,6 +60,9 @@ func (s *CelestiaTestSuite) TestCelestiaAppSignalDrivenUpgrade() {
 		s.T().Skip("skipping celestia-app major upgrade test in short mode")
 	}
 
+	tag, err := dockerchain.GetCelestiaTagStrict()
+	s.Require().NoError(err)
+
 	tt := []struct {
 		Name             string
 		ImageTag         string
@@ -67,12 +70,12 @@ func (s *CelestiaTestSuite) TestCelestiaAppSignalDrivenUpgrade() {
 	}{
 		{
 			Name:             "v2 to v3",
-			ImageTag:         dockerchain.GetCelestiaTag(),
+			ImageTag:         tag,
 			TargetAppVersion: 3,
 		},
 		{
 			Name:             "v3 to v4",
-			ImageTag:         dockerchain.GetCelestiaTag(),
+			ImageTag:         tag,
 			TargetAppVersion: 4,
 		},
 	}
