@@ -15,16 +15,8 @@ const (
 	defaultKeyringBackend = "test"
 )
 
-// CommandBuilder constructs celestia-appd CLI invocations in a fluent, readable way.
-//
-// Usage example:
-//
-//	cmd, _ := NewCommandBuilder(ctx, node, []string{"tx", "bank", "send", from, to, "100utia"}).
-//	    WithFees("10000utia").WithYes(true).Build()
-//	stdout, stderr, err := node.Exec(ctx, cmd, nil)
-//
 // The builder auto-fills sensible defaults (home dir, node RPC address, chain-id, etc.)
-// so tests don’t need to repeat them everywhere. Optional setters let callers override
+// so tests don't need to repeat them everywhere. Optional setters let callers override
 // any default without dealing with flag presence/duplication logic.
 type CommandBuilder struct {
 	// required
@@ -42,7 +34,6 @@ type CommandBuilder struct {
 }
 
 // NewCommandBuilder returns a builder with sensible defaults populated.
-// Only the context, node and the sub-command (e.g. ["tx" "bank" ...]) are required.
 func NewCommandBuilder(ctx context.Context, chainNode tastoratypes.ChainNode, cmd []string) *CommandBuilder {
 	return &CommandBuilder{
 		ctx:            ctx,
@@ -52,7 +43,7 @@ func NewCommandBuilder(ctx context.Context, chainNode tastoratypes.ChainNode, cm
 		chainID:        appconsts.TestChainID,
 		fees:           defaultFees,
 		keyringBackend: defaultKeyringBackend,
-		yesFlag:        true, // default to non-interactive for tx commands
+		yesFlag:        true, // default to non-interactive
 	}
 }
 
@@ -101,7 +92,6 @@ func (b *CommandBuilder) Build() ([]string, error) {
 	isKeys := b.cmd[0] == "keys"
 	isTx := b.cmd[0] == "tx"
 
-	// -------------------- resolve defaults up-front --------------------
 	// nodeRPC is only needed for non-keys commands.
 	nodeRPC := b.nodeRPC
 	if nodeRPC == "" && !isKeys && b.chainNode != nil {
@@ -112,13 +102,9 @@ func (b *CommandBuilder) Build() ([]string, error) {
 		nodeRPC = fmt.Sprintf("tcp://%s:26657", host)
 	}
 
-	// -------------------- assemble args in a flat pass -----------------
 	args := append([]string{"celestia-appd"}, b.cmd...)
-
-	// universal flag
 	args = append(args, "--home", b.homeDir)
 
-	// non-keys flags
 	if !isKeys {
 		if nodeRPC != "" {
 			args = append(args, "--node", nodeRPC)
