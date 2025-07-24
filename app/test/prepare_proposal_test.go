@@ -212,8 +212,9 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	require.NoError(t, err)
 	noAccountTx := []byte(testutil.SendTxWithManualSequence(t, enc.TxConfig, kr, nilAccount, accounts[0], 1000, "", 0, 6))
 
-	// create a tx that can't be included in a 64 x 64 when accounting for the
+	// create a tx that can't be included in a 256 x 256 when accounting for the
 	// pfb along with the shares
+	tooManyShares := appconsts.DefaultGovMaxSquareSize * appconsts.DefaultGovMaxSquareSize
 	tooManyShareBtx := blobfactory.ManyMultiBlobTx(
 		t,
 		enc.TxConfig,
@@ -223,8 +224,8 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		infos[3:4],
 		blobfactory.NestedBlobs(
 			t,
-			testfactory.RandomBlobNamespaces(random.New(), 4000),
-			[][]int{repeat(4000, 1)},
+			testfactory.RandomBlobNamespaces(random.New(), tooManyShares),
+			[][]int{repeat(tooManyShares, 1)},
 		),
 	)[0]
 

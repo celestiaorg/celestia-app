@@ -212,11 +212,11 @@ func TestCheckTx(t *testing.T) {
 			expectedABCICode: abci.CodeTypeOK,
 		},
 		{
-			name:      "v1 blob over 2MiB",
+			name:      "v1 blob over 8MiB",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := signers[11]
-				blob, err := share.NewV1Blob(share.RandomBlobNamespace(), bytes.Repeat([]byte{1}, 2097152), signer.Account(accounts[11]).Address())
+				blob, err := share.NewV1Blob(share.RandomBlobNamespace(), bytes.Repeat([]byte{1}, appconsts.MaxTxSize+1), signer.Account(accounts[11]).Address())
 				require.NoError(t, err)
 				blobTx, _, err := signer.CreatePayForBlobs(accounts[11], []*share.Blob{blob}, opts...)
 				require.NoError(t, err)
@@ -225,11 +225,11 @@ func TestCheckTx(t *testing.T) {
 			expectedABCICode: apperr.ErrTxExceedsMaxSize.ABCICode(),
 		},
 		{
-			name:      "v0 blob over 2MiB",
+			name:      "v0 blob over 8MiB",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := signers[12]
-				blob, err := share.NewV0Blob(share.RandomBlobNamespace(), bytes.Repeat([]byte{1}, 2097152))
+				blob, err := share.NewV0Blob(share.RandomBlobNamespace(), bytes.Repeat([]byte{1}, appconsts.MaxTxSize+1))
 				require.NoError(t, err)
 				blobTx, _, err := signer.CreatePayForBlobs(accounts[12], []*share.Blob{blob}, opts...)
 				require.NoError(t, err)
