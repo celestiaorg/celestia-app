@@ -53,7 +53,7 @@ func NewCelestiaChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.Chai
 	}
 
 	return tastoradockertypes.NewChainBuilder(t).
-		WithName(appconsts.MainnetChainID). // just influences home directory on the host.
+		WithName("celestia"). // just influences home directory on the host.
 		WithChainID(cfg.Genesis.ChainID).
 		WithDockerClient(cfg.DockerClient).
 		WithDockerNetworkID(cfg.DockerNetworkID).
