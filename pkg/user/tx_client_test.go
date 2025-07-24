@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"testing"
 	"time"
@@ -499,7 +500,14 @@ func setupEstimatorService(t *testing.T) *mockEstimatorServer {
 		}
 	}()
 
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(
+		addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallSendMsgSize(math.MaxInt32),
+			grpc.MaxCallRecvMsgSize(math.MaxInt32),
+		),
+	)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		err = conn.Close()

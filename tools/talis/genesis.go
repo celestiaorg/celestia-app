@@ -102,7 +102,7 @@ func generateCmd() *cobra.Command {
 
 	cmd.Flags().StringVarP(&chainID, chainIDFlag, "c", "", "Override the chainID in the config")
 	cmd.Flags().StringVarP(&rootDir, rootDirFlag, "d", ".", "root directory in which to initialize (default is the current directory)")
-	cmd.Flags().IntVarP(&squareSize, "ods-size", "s", appconsts.TalisSquareSizeUpperBound, "The size of the ODS for the network (make sure to also build a celestia-app binary with a greater SquareSizeUpperBound)")
+	cmd.Flags().IntVarP(&squareSize, "ods-size", "s", appconsts.SquareSizeUpperBound, "The size of the ODS for the network (make sure to also build a celestia-app binary with a greater SquareSizeUpperBound)")
 	cmd.Flags().StringVarP(&appBinaryPath, "app-binary", "a", filepath.Join(gopath, "celestia-appd"), "app binary to include in the payload (assumes the binary is installed")
 	cmd.Flags().StringVarP(&nodeBinaryPath, "node-binary", "n", filepath.Join(gopath, "celestia"), "node binary to include in the payload (assumes the binary is installed")
 	cmd.Flags().StringVarP(&txsimBinaryPath, "txsim-binary", "t", filepath.Join(gopath, "txsim"), "txsim binary to include in the payload (assumes the binary is installed)")
