@@ -191,14 +191,27 @@ func (s *SquareSizeIntegrationTest) SetupBlockSizeParams(t *testing.T, squareSiz
 
 	require.NoError(t, s.cctx.WaitForNextBlock())
 
-	// query the proposal to get the id
-	govQueryClient := govv1.NewQueryClient(s.cctx.GRPCClient)
-	propResp, err := govQueryClient.Proposals(s.cctx.GoContext(), &govv1.QueryProposalsRequest{ProposalStatus: govv1.StatusVotingPeriod})
-	require.NoError(t, err)
-	require.Len(t, propResp.Proposals, 1)
+	proposalID := uint64(0)
+
+	// try to query a few times until the voting period has passed
+	for i := 0; i < 20; i++ {
+		// query the proposal to get the id
+		govQueryClient := govv1.NewQueryClient(s.cctx.GRPCClient)
+		propResp, err := govQueryClient.Proposals(s.cctx.GoContext(), &govv1.QueryProposalsRequest{ProposalStatus: govv1.StatusVotingPeriod})
+		require.NoError(t, err)
+
+		if len(propResp.Proposals) < 1 {
+			time.Sleep(time.Millisecond * 300)
+			continue
+		}
+
+		proposalID = propResp.Proposals[0].Id
+
+		break
+	}
 
 	// create and submit a new msgVote
-	msgVote := govv1.NewMsgVote(testfactory.GetAddress(s.cctx.Keyring, testnode.DefaultValidatorAccountName), propResp.Proposals[0].Id, govv1.OptionYes, "")
+	msgVote := govv1.NewMsgVote(testfactory.GetAddress(s.cctx.Keyring, testnode.DefaultValidatorAccountName), proposalID, govv1.OptionYes, "")
 	res, err = txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msgVote}, opt)
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, res.Code)
@@ -214,7 +227,7 @@ func (s *SquareSizeIntegrationTest) SetupBlockSizeParams(t *testing.T, squareSiz
 		blobParamsResp, err := blobQueryClient.Params(s.cctx.GoContext(), &blobtypes.QueryParamsRequest{})
 		require.NoError(t, err)
 		if uint64(squareSize) != blobParamsResp.Params.GovMaxSquareSize {
-			time.Sleep(time.Second)
+			time.Sleep(time.Millisecond * 500)
 			continue
 		}
 		require.Equal(t, uint64(squareSize), blobParamsResp.Params.GovMaxSquareSize)
