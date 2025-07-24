@@ -45,8 +45,9 @@ type Genesis struct {
 	validators []Validator
 	// genTxs are the genesis transactions that will be included in the genesis.
 	// Transactions are generated upon adding a validator to the genesis.
-	genTxs []sdk.Tx
-	genOps []Modifier
+	genTxs   []sdk.Tx
+	genOps   []Modifier
+	gasPrice float64
 
 	// appVersion specifies the app version for which the genesis file should be written.
 	appVersion uint64
@@ -78,6 +79,7 @@ func NewDefaultGenesis() *Genesis {
 		GenesisTime:     time.Now(),
 		kr:              keyring.NewInMemory(enc.Codec),
 		genOps:          []Modifier{},
+		gasPrice:        appconsts.DefaultMinGasPrice,
 	}
 	return g
 }
@@ -137,6 +139,12 @@ func (g *Genesis) WithKeyring(kr keyring.Keyring) *Genesis {
 // WithAppVersion sets the application version for the genesis configuration and returns the updated Genesis instance.
 func (g *Genesis) WithAppVersion(appVersion uint64) *Genesis {
 	g.appVersion = appVersion
+	return g
+}
+
+// WithGasPrice sets the gas price of the genesis.
+func (g *Genesis) WithGasPrice(gasPrice float64) *Genesis {
+	g.gasPrice = gasPrice
 	return g
 }
 
@@ -208,7 +216,7 @@ func (g *Genesis) NewValidator(val Validator) error {
 func (g *Genesis) getGenTxs() ([]json.RawMessage, error) {
 	gentxs := make([]json.RawMessage, 0, len(g.genTxs))
 	for _, val := range g.validators {
-		genTx, err := val.GenTx(g.ecfg, g.kr, g.ChainID)
+		genTx, err := val.GenTx(g.ecfg, g.kr, g.ChainID, g.gasPrice)
 		if err != nil {
 			return nil, err
 		}

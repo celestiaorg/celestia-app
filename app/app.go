@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"time"
 
@@ -712,7 +713,7 @@ func (app *App) RegisterAPIRoutes(apiSvr *api.Server, _ config.APIConfig) {
 func (app *App) RegisterTxService(clientCtx client.Context) {
 	authtx.RegisterTxService(app.GRPCQueryRouter(), clientCtx, app.Simulate, app.encodingConfig.InterfaceRegistry)
 	celestiatx.RegisterTxService(app.GRPCQueryRouter(), clientCtx, app.encodingConfig.InterfaceRegistry)
-	gasestimation.RegisterGasEstimationService(app.GRPCQueryRouter(), clientCtx, app.encodingConfig.TxConfig.TxDecoder(), app.getGovMaxSquareBytes, app.Simulate)
+	gasestimation.RegisterGasEstimationService(app.GRPCQueryRouter(), clientCtx, app.encodingConfig.TxConfig.TxDecoder(), app.getGovMaxSquareBytes, app.Simulate, app.getMinGasPrice)
 }
 
 func (app *App) getGovMaxSquareBytes() (uint64, error) {
@@ -722,6 +723,22 @@ func (app *App) getGovMaxSquareBytes() (uint64, error) {
 	}
 	maxSquareSize := app.BlobKeeper.GetParams(ctx).GovMaxSquareSize
 	return maxSquareSize * maxSquareSize * share.ShareSize, nil
+}
+
+// getMinGasPrice is used by the gas estimation service to get the higher of the network minimum gas price
+// or the nodes locally configured minimum gas price.
+func (app *App) getMinGasPrice() (float64, error) {
+	localMinGasPrice, err := app.GetMinGasPrices().AmountOf(appconsts.BondDenom).Float64()
+	if err != nil {
+		localMinGasPrice = appconsts.DefaultMinGasPrice
+	}
+	ctx, err := app.CreateQueryContext(app.LastBlockHeight(), false)
+	if err != nil {
+		return localMinGasPrice, err
+	}
+	params := app.MinFeeKeeper.GetParams(ctx)
+	networkMinGasPrice := params.NetworkMinGasPrice.MustFloat64()
+	return math.Max(networkMinGasPrice, localMinGasPrice), nil
 }
 
 // RegisterTendermintService implements the Application.RegisterTendermintService method.
