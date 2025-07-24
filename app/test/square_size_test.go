@@ -65,7 +65,7 @@ func (s *SquareSizeIntegrationTest) SetupSuite() {
 func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 	t := s.T()
 
-	const waitBlocks = 5
+	const waitBlocks = 10
 
 	type test struct {
 		name             string
@@ -94,9 +94,9 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 				return
 			default:
 				// submit blobs close to the max size
-				seqs := txsim.NewBlobSequence(txsim.NewRange(100_000, 2*mebibyte), txsim.NewRange(1, 1)).
+				seqs := txsim.NewBlobSequence(txsim.NewRange(100_000, mebibyte), txsim.NewRange(1, 1)).
 					WithGasPrice(appconsts.DefaultMinGasPrice). // use a lower gas price than what is used below for the parameter changes
-					Clone(5)
+					Clone(10)
 				opts := txsim.DefaultOptions().
 					WithSeed(rand.Int63()).
 					WithPollTime(time.Second).

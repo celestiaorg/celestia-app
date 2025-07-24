@@ -35,6 +35,8 @@ func (s *BigBlobSuite) SetupSuite() {
 	s.accounts = testfactory.GenerateAccounts(1)
 
 	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...)
+	// purposefully bypass the configurable mempool check
+	cfg.TmConfig.Mempool.MaxTxBytes = appconsts.MaxTxSize * 2
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	s.cctx = cctx
