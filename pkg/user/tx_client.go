@@ -13,6 +13,7 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v5/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v5/app/errors"
 	"github.com/celestiaorg/celestia-app/v5/app/grpc/gasestimation"
 	"github.com/celestiaorg/celestia-app/v5/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v5/app/params"
@@ -20,6 +21,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v5/x/blob/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v5/x/minfee/types"
 	"github.com/celestiaorg/go-square/v2/share"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -590,60 +592,77 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			}
 			// Reset sequence to the rejected tx's sequence to enable resubmission
 			// of subsequent transactions.
-			fmt.Println("sequence being set", sequence)
 			if err := client.signer.SetSequence(signer, sequence); err != nil {
 				return nil, fmt.Errorf("setting sequence: %w", err)
 			}
 
-			// get all txs that user has submitted from nonce that is greater than the rejected tx's nonce
-			txs := make([]string, 0)
-			for hash, txInfo := range client.txTracker {
-				if txInfo.signer == signer && txInfo.sequence > sequence {
-					txs = append(txs, hash)
-				}
-			}
-
-			if len(txs) > 0 {
-				fmt.Println("waiting for all transactions to expire")
-				// client.mtx.Lock() // need to figure out a way where i do not run into deadlocks
-				// defer client.mtx.Unlock()
-				expired, err := client.waitForAllTransactionsToExpire(ctx, txs)
+			if apperrors.IsNonceMismatchCode(resp.ExecutionCode) {
+				expired, err := client.waitForTransactionToExpire(ctx, txHash)
 				if err != nil {
-					return nil, fmt.Errorf("failed to wait for all transactions to expire: %w", err)
+					return nil, fmt.Errorf("failed to wait for transaction to expire for resubmission: %w", err)
 				}
-				fmt.Println(expired, "expired")
-
-				// we need to wait for transactions to get expired before we can resubmit them
 				if expired {
-					fmt.Println("txs actually expired")
-					// resign expired transactions
-					for _, txHash := range txs {
-						txInfo, exists := client.txTracker[txHash]
-						if !exists {
-							return nil, fmt.Errorf("transaction %s not found in tracker", txHash)
+					fmt.Println("tx with hash", txHash, "expired")
+					// resign and resubmit
+					txInfo, exists := client.txTracker[txHash]
+					if !exists {
+						return nil, fmt.Errorf("transaction %s not found in tracker", txHash)
+					}
+
+					// check if it's a blob transaction or just a normal transaction
+					// decode the original transaction to extract messages
+					decodedTx, err := client.signer.DecodeTx(txInfo.txBytes)
+					if err != nil {
+						return nil, fmt.Errorf("failed to decode transaction: %w", err)
+					}
+
+					// extract messages from the decoded transaction
+					msgs := decodedTx.GetMsgs()
+
+					// Check if this is a PayForBlob transaction
+					if len(msgs) > 0 {
+						// Check if the first message is a PayForBlob message
+						if _, ok := msgs[0].(*types.MsgPayForBlobs); ok {
+							// This is a blob transaction, we need to extract the blobs
+							// and recreate the PayForBlob transaction
+							blobTx, isBlob, err := blobtx.UnmarshalBlobTx(txInfo.txBytes)
+							if err != nil {
+								return nil, fmt.Errorf("failed to unmarshal blob transaction: %w", err)
+							}
+							if !isBlob {
+								return nil, fmt.Errorf("expected blob transaction but got normal transaction")
+							}
+
+							// Resubmit as a PayForBlob transaction
+							resp, err := client.BroadcastPayForBlob(ctx, blobTx.Blobs)
+							if err != nil {
+								return nil, fmt.Errorf("failed to resubmit blob tx after expiry: %w", err)
+							}
+							fmt.Println("resubmitted blob tx", txHash, "new hash", resp.TxHash)
+
+							// confirm the resubmitted transaction using the NEW hash
+							confirmResp, err := client.ConfirmTx(ctx, resp.TxHash)
+							if err != nil {
+								return nil, fmt.Errorf("failed to confirm resubmitted blob tx: %w", err)
+							}
+
+							return confirmResp, nil
+
 						}
-
-						// decode the original transaction to extract messages
-						decodedTx, err := client.signer.DecodeTx(txInfo.txBytes)
-						if err != nil {
-							return nil, fmt.Errorf("failed to decode transaction: %w", err)
-						}
-
-						// extract messages from the decoded transaction
-						msgs := decodedTx.GetMsgs()
-
-						_, err = client.BroadcastTxWithoutMutex(ctx, msgs)
+						// This is a normal transaction, resubmit with messages
+						resp, err := client.BroadcastTxWithoutMutex(ctx, msgs)
 						if err != nil {
 							return nil, fmt.Errorf("failed to resubmit tx after expiry: %w", err)
 						}
-						fmt.Println("resubmitted tx", txHash)
-						// confirm the resubmitted transaction
-						resp, err := client.ConfirmTx(ctx, txHash)
+						fmt.Println("resubmitted tx", txHash, "new hash", resp.TxHash)
+
+						// confirm the resubmitted transaction using the NEW hash
+						confirmResp, err := client.ConfirmTx(ctx, resp.TxHash)
 						if err != nil {
 							return nil, fmt.Errorf("failed to confirm resubmitted tx: %w", err)
 						}
 
-						return resp, nil
+						return confirmResp, nil
 					}
 				}
 			}
@@ -660,29 +679,24 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 	}
 }
 
-// waitForAllTransactionsToExpire waits for all transactions to expire.
-// Returns true if all transactions have expired.
-func (client *TxClient) waitForAllTransactionsToExpire(ctx context.Context, txs []string) (bool, error) {
-	ticker := time.NewTicker(5 * time.Second) // todo: make this configurable
+func (client *TxClient) waitForTransactionToExpire(ctx context.Context, txHash string) (bool, error) {
+	ticker := time.NewTicker(5 * time.Second) // todo: put this in a constant
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return false, ctx.Err()
-
 		case <-ticker.C:
 			currentHeight, err := client.getCurrentBlockHeight(ctx)
 			if err != nil {
 				return false, fmt.Errorf("failed to get current block height: %w", err)
 			}
 
-			for _, txHash := range txs {
-				if tx, ok := client.txTracker[txHash]; ok {
-					if tx.ttlHeight > 0 && currentHeight <= tx.ttlHeight {
-						fmt.Println("tx not expired", txHash)
-						return false, nil
-					}
+			if tx, ok := client.txTracker[txHash]; ok {
+				if tx.ttlHeight > 0 && currentHeight <= tx.ttlHeight {
+					fmt.Println("tx not expired", txHash)
+					continue
 				}
 			}
 			return true, nil
