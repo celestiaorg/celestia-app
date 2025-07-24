@@ -287,6 +287,7 @@ func DefaultConsensusConfig() *tmcfg.Config {
 
 	cfg.P2P.SendRate = 10 * mebibyte
 	cfg.P2P.RecvRate = 10 * mebibyte
+	cfg.P2P.MaxNumInboundPeers = 20
 
 	return cfg
 }
