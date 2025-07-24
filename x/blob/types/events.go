@@ -6,7 +6,6 @@ import (
 
 var (
 	EventTypePayForBlob       = proto.MessageName(&EventPayForBlobs{})
-	EventTypeUpdateBlobParams = proto.MessageName(&EventUpdateBlobParams{})
 )
 
 // NewPayForBlobsEvent returns a new EventPayForBlobs
