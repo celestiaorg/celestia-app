@@ -1,6 +1,7 @@
 package testnode
 
 import (
+	"math"
 	"os"
 	"path"
 	"strings"
@@ -93,6 +94,8 @@ func StartGRPCServer(logger log.Logger, app srvtypes.Application, appCfg *srvcon
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(
 			grpc.ForceCodec(codec.NewProtoCodec(cctx.InterfaceRegistry).GRPCCodec()),
+			grpc.MaxCallSendMsgSize(math.MaxInt32),
+			grpc.MaxCallRecvMsgSize(math.MaxInt32),
 		),
 	)
 	if err != nil {

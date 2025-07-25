@@ -1,20 +1,18 @@
 package appconsts
 
 import (
-	"strings"
 	"time"
 )
-
-var TalisSquareSizeUpperBound = 512
 
 func GetTimeoutCommit(_ uint64) time.Duration {
 	return TimeoutCommit
 }
 
-func GetSquareSizeUpperBound(chainID string) int {
-	if strings.Contains(chainID, TalisChainID) {
-		return TalisSquareSizeUpperBound
-	}
+// GetSquareSizeUpperBound return the upper bound (consensus critical) square
+// size given the chain-id. As of app version 5, all networks including
+// testnetworks will have the same size, however in the past (and presumably
+// in the future) this has not been the case hence this function existing.
+func GetSquareSizeUpperBound(_ string) int {
 	return SquareSizeUpperBound
 }
 

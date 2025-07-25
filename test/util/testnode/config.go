@@ -11,7 +11,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v5/test/util/genesis"
 	tmconfig "github.com/cometbft/cometbft/config"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/server"
@@ -94,7 +93,7 @@ func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
 // WithFundedAccounts sets the genesis accounts and returns the Config.
 func (c *Config) WithFundedAccounts(accounts ...string) *Config {
 	c.Genesis = c.Genesis.WithKeyringAccounts(
-		genesis.NewKeyringAccounts(DefaultInitialBalance, accounts...)...,
+		genesis.NewKeyringAccounts(DefaultInitialBalance+1, accounts...)...,
 	)
 	return c
 }
@@ -136,26 +135,25 @@ func DefaultConfig() *Config {
 		WithAppCreator(DefaultAppCreator()).
 		WithAppConfig(DefaultAppConfig()).
 		WithAppOptions(DefaultAppOptions()).
-		WithSuppressLogs(true)
+		WithSuppressLogs(true).
+		WithTimeoutCommit(200 * time.Millisecond) // have a block time that is fast, but not overly fast
 }
 
 func DefaultConsensusParams() *tmproto.ConsensusParams {
-	cparams := types.DefaultConsensusParams()
-	cparams.Block.MaxBytes = 8 * mebibyte
+	cparams := app.DefaultConsensusParams()
 	cparams.Version.App = appconsts.Version
-	params := cparams.ToProto()
-	return &params
+	return cparams
 }
 
 func DefaultTendermintConfig() *tmconfig.Config {
-	tmCfg := tmconfig.DefaultConfig()
-	// Reduce the timeout commit to 1ms to speed up the rate at which the test
-	// node produces blocks.
-	tmCfg.Consensus.TimeoutCommit = 1 * time.Millisecond
+	tmCfg := app.DefaultConsensusConfig()
 
 	// Set all the ports to random open ones.
 	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
 	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
+	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
+
+	tmCfg.TxIndex.Indexer = "kv"
 
 	return tmCfg
 }
@@ -201,9 +199,10 @@ func CustomAppCreator(appOptions ...func(*baseapp.BaseApp)) srvtypes.AppCreator 
 
 // DefaultAppConfig wraps the default config described in the server
 func DefaultAppConfig() *srvconfig.Config {
-	appCfg := srvconfig.DefaultConfig()
+	appCfg := app.DefaultAppConfig()
+	appCfg.GRPC.Enable = true
 	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", GetDeterministicPort())
+	appCfg.API.Enable = true
 	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
-	appCfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, appconsts.BondDenom)
 	return appCfg
 }
