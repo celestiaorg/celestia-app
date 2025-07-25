@@ -25,7 +25,9 @@ const (
 	// DefaultUnbondingTime is the default time a validator must wait
 	// to unbond in a proof of stake system. Any validator within this
 	// time can be subject to slashing under conditions of misbehavior.
-	DefaultUnbondingTime = 3 * 7 * 24 * time.Hour
+	//
+	// Modified from 3 weeks to 14 days + 1 hour in CIP-037.
+	DefaultUnbondingTime = 337 * time.Hour // (14 days + 1 hour)
 
 	// DefaultNetworkMinGasPrice is used by x/minfee to prevent transactions from being
 	// included in a block if they specify a gas price lower than this.
