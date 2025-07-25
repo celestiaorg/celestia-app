@@ -3,7 +3,6 @@ package docker_e2e
 import (
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
@@ -12,50 +11,16 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/celestiaorg/celestia-app/v5/pkg/user"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// TestCelestiaAppBinarySwapUpgrade tests a simple upgrade from one image tag
-// to another by swapping the binary (usually used for minor version upgrade)
-func (s *CelestiaTestSuite) TestCelestiaAppBinarySwapUpgrade() {
-	if testing.Short() {
-		s.T().Skip("skipping celestia-app minor upgrade test in short mode")
-	}
-
-	tt := []struct {
-		Name           string
-		BaseImageTag   string
-		TargetImageTag string
-	}{
-		{
-			Name:           "v4.0.2-rc2 to v4.0.10",
-			BaseImageTag:   "v4.0.2-rc2",
-			TargetImageTag: "v4.0.10",
-		},
-		{
-			Name:           "v4.0.9-mocha to v4.0.10-mocha",
-			BaseImageTag:   "v4.0.9-mocha",
-			TargetImageTag: "v4.0.10-mocha",
-		},
-		{
-			Name:           "v4.0.9-arabica to v4.0.10-arabica",
-			BaseImageTag:   "v4.0.9-arabica",
-			TargetImageTag: "v4.0.10-arabica",
-		},
-	}
-
-	for _, tc := range tt {
-		s.Run(tc.Name, func() {
-			s.runBinarySwapUpgradeTest(tc.BaseImageTag, tc.TargetImageTag)
-		})
-	}
-}
-
-// TestCelestiaAppSignalDrivenUpgrade tests app version upgrade using the signaling mechanism.
-func (s *CelestiaTestSuite) TestCelestiaAppSignalDrivenUpgrade() {
+// TestCelestiaAppUpgrade tests app version upgrade using the signaling mechanism.
+func (s *CelestiaTestSuite) TestCelestiaAppUpgrade() {
 	if testing.Short() {
 		s.T().Skip("skipping celestia-app major upgrade test in short mode")
 	}
@@ -63,88 +28,29 @@ func (s *CelestiaTestSuite) TestCelestiaAppSignalDrivenUpgrade() {
 	tag, err := dockerchain.GetCelestiaTagStrict()
 	s.Require().NoError(err)
 
-	tt := []struct {
-		Name             string
-		ImageTag         string
-		TargetAppVersion uint64
-	}{
-		{
-			Name:             "v2 to v3",
-			ImageTag:         tag,
-			TargetAppVersion: 3,
-		},
-		{
-			Name:             "v3 to v4",
-			ImageTag:         tag,
-			TargetAppVersion: 4,
-		},
-	}
+	const (
+		MinTargetAppVersion uint64 = 3 // v2 to v3 was the first upgrade using signaling
 
-	for _, tc := range tt {
-		s.Run(tc.Name, func() {
-			s.runSignalDrivenUpgradeTest(tc.ImageTag, tc.TargetAppVersion)
+		// blocked on https://github.com/celestiaorg/celestia-app/issues/5289
+		// TODO: uncomment this once the issue is fixed
+		// MaxTargetAppVersion = appconsts.Version
+		MaxTargetAppVersion uint64 = 4
+	)
+
+	for targetVer := MinTargetAppVersion; targetVer <= MaxTargetAppVersion; targetVer++ {
+		testName := fmt.Sprintf("upgrade from app version %d to %d", targetVer-1, targetVer)
+		s.Run(testName, func() {
+			s.runUpgradeTest(tag, targetVer)
 		})
 	}
 }
 
-// runBinarySwapUpgradeTest tests a binary swap (minor version) upgrade for celestia-app.
-// It initializes a chain with the given base image tag, verifies bank send functionality,
-// upgrades the chain to the target image tag, restarts it, and then verifies both the
-// new binary version and continued bank send functionality.
-func (s *CelestiaTestSuite) runBinarySwapUpgradeTest(BaseImageTag, TargetImageTag string) {
-	var (
-		ctx = context.Background()
-		cfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(BaseImageTag)
-	)
-
-	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
-	s.Require().NoError(err)
-
-	s.T().Cleanup(func() {
-		if err := chain.Stop(ctx); err != nil {
-			s.T().Logf("Error stopping chain: %v", err)
-		}
-	})
-
-	err = chain.Start(ctx)
-	s.Require().NoError(err)
-
-	// Sanity check: Test bank send before upgrade
-	s.T().Log("Testing bank send functionality before upgrade")
-	testBankSend(s.T(), chain, cfg)
-
-	err = chain.Stop(ctx)
-	s.Require().NoError(err)
-
-	chain.UpgradeVersion(ctx, TargetImageTag)
-
-	err = chain.Start(ctx)
-	s.Require().NoError(err)
-
-	// Sanity check: Test bank send after upgrade
-	s.T().Log("Testing bank send functionality after upgrade")
-	testBankSend(s.T(), chain, cfg)
-
-	// Verify the binary version after upgrade
-	validatorNode := chain.GetNodes()[0]
-
-	rpcClient, err := validatorNode.GetRPCClient()
-	s.Require().NoError(err, "failed to get RPC client for version check")
-
-	abciInfo, err := rpcClient.ABCIInfo(ctx)
-	s.Require().NoError(err, "failed to fetch ABCI info")
-	s.Require().Contains(abciInfo.Response.GetVersion(), strings.TrimPrefix(TargetImageTag, "v"), "version mismatch")
-}
-
-// runSignalDrivenUpgradeTest performs an end-to-end test of a major (signaled) upgrade for celestia-app.
-// It starts a chain at the given image tag with app version set to one less than the target,
-// signals all validators for the upgrade, ensures the upgrade is scheduled and executed,
-// and verifies the chain is running the new binary and app version after the upgrade.
-// The test also checks bank send functionality and that the voting power threshold is met before proceeding.
-func (s *CelestiaTestSuite) runSignalDrivenUpgradeTest(ImageTag string, TargetAppVersion uint64) {
-	// Since the signaling mechanism was introduced in v2, we need to ensure that
-	// the target app version is greater than 2.
-	s.Require().Greater(TargetAppVersion, uint64(2), "target app version must be greater than 2")
+// runUpgradeTest spins up a chain at (targetVersion-1), signals every validator, waits for
+// the scheduled upgrade, then asserts the node is running the target app version and that
+// basic bank-send still works.
+func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, TargetAppVersion uint64) {
+	// Signaling exists from v2 onwards, so target version must be >2.
+	s.Require().Greater(TargetAppVersion, uint64(2))
 
 	var (
 		ctx = context.Background()
@@ -183,7 +89,7 @@ func (s *CelestiaTestSuite) runSignalDrivenUpgradeTest(ImageTag string, TargetAp
 	s.Require().Len(records, len(chain.GetNodes()), "number of accounts does not match number of nodes")
 
 	// Signal for upgrade and get the upgrade height
-	upgradeHeight := s.signalAndGetUpgradeHeight(ctx, chain, validatorNode, records, TargetAppVersion)
+	upgradeHeight := s.signalAndGetUpgradeHeight(ctx, chain, validatorNode, cfg, records, TargetAppVersion)
 
 	// Get current height
 	status, err := rpcClient.Status(ctx)
@@ -211,39 +117,60 @@ func (s *CelestiaTestSuite) runSignalDrivenUpgradeTest(ImageTag string, TargetAp
 
 // signalAndGetUpgradeHeight signals for an upgrade to the specified app
 // version and returns the scheduled upgrade height.
-func (s *CelestiaTestSuite) signalAndGetUpgradeHeight(ctx context.Context, chain tastoratypes.Chain, validatorNode tastoratypes.ChainNode, records []*keyring.Record, targetAppVersion uint64) int64 {
-	// Signal for the upgrade using builder
-	for i, node := range chain.GetNodes() {
+func (s *CelestiaTestSuite) signalAndGetUpgradeHeight(
+	ctx context.Context,
+	chain tastoratypes.Chain,
+	validatorNode tastoratypes.ChainNode,
+	cfg *dockerchain.Config,
+	records []*keyring.Record,
+	targetAppVersion uint64,
+) int64 {
+	// create a TxClient connected to the first validator gRPC endpoint
+	cn, ok := validatorNode.(*tastoradockertypes.ChainNode)
+	s.Require().True(ok, "validator node is not a docker chain node")
+
+	txClient, err := dockerchain.SetupTxClient(ctx, cn, cfg)
+	s.Require().NoError(err, "failed to setup TxClient for signaling")
+
+	var (
+		gasLimit = uint64(200_000)
+		fee      = uint64(200_000)
+	)
+
+	// Signal for the upgrade
+	for i, rec := range records {
 		s.T().Logf("Signaling for upgrade to version %d from validator %d", targetAppVersion, i)
 
-		signalCmd := []string{"tx", "signal", "signal", fmt.Sprintf("%d", targetAppVersion), "--from", records[i].Name}
-		cmdArgs, err := NewCommandBuilder(ctx, node, signalCmd).WithFees("200000utia").Build()
+		addr, err := rec.GetAddress()
 		s.Require().NoError(err)
-		_, stderrBytes, err := node.Exec(ctx, cmdArgs, nil)
-		s.Require().NoError(err, "failed to signal for upgrade: %s", string(stderrBytes))
+		valAddr := sdk.ValAddress(addr).String()
+		msg := signaltypes.NewMsgSignalVersion(valAddr, targetAppVersion)
+
+		resp, err := txClient.SubmitTx(ctx, []sdk.Msg{msg}, user.SetGasLimit(gasLimit), user.SetFee(fee))
+		s.Require().NoError(err, "failed to broadcast signal tx")
+		s.Require().Equal(uint32(0), resp.Code, "signal tx failed with code %d", resp.Code)
 	}
 
+	// wait a block so the signals are included
 	s.Require().NoError(wait.ForBlocks(ctx, 1, chain))
 
 	s.validateSignalTally(ctx, validatorNode, targetAppVersion)
 
-	// Execute try-upgrade using builder
-	tryUpgradeCmd := []string{"tx", "signal", "try-upgrade", "--from", records[0].Name}
-	tryArgs, err := NewCommandBuilder(ctx, validatorNode, tryUpgradeCmd).Build()
-	_, upgradeStderrBytes, err := validatorNode.Exec(ctx, tryArgs, nil)
-	s.Require().NoError(err, "failed to execute try-upgrade: %s", string(upgradeStderrBytes))
+	msgTry := signaltypes.NewMsgTryUpgrade(txClient.DefaultAddress())
+	resp, err := txClient.SubmitTx(ctx, []sdk.Msg{msgTry}, user.SetGasLimit(gasLimit), user.SetFee(fee))
+	s.Require().NoError(err, "failed to broadcast try-upgrade tx")
+	s.Require().Equal(uint32(0), resp.Code, "try-upgrade tx failed with code %d", resp.Code)
 
 	// Wait for one block so that the upgrade transaction is processed
 	s.Require().NoError(wait.ForBlocks(ctx, 1, chain))
 
-	// New approach: use gRPC Query client for typed response
+	// Query upgrade info via gRPC
 	s.T().Log("Querying upgrade info via gRPC")
 	client, cleanup, err := getSignalQueryClient(ctx, validatorNode)
 	s.Require().NoError(err)
 	defer cleanup()
 
-	upgradeResp, err := client.
-		GetUpgrade(ctx, &signaltypes.QueryGetUpgradeRequest{})
+	upgradeResp, err := client.GetUpgrade(ctx, &signaltypes.QueryGetUpgradeRequest{})
 	s.Require().NoError(err, "failed to query upgrade info via gRPC")
 
 	// Ensure an upgrade is indeed pending
