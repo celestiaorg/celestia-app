@@ -62,7 +62,7 @@ createGenesis() {
 
     # Override the log level to debug
     # sed -i'.bak' 's#log_level = "info"#log_level = "debug"#g' "${APP_HOME}"/config/config.toml
-    sed -i'.bak' 's#log_level = "info"#log_level = "*:error,p2p:info,state:info"#g' "${APP_HOME}"/config/config.toml
+    # sed -i'.bak' 's#log_level = "info"#log_level = "*:error,p2p:info,state:info"#g' "${APP_HOME}"/config/config.toml
 }
 
 deleteCelestiaAppHome() {
