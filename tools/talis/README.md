@@ -89,7 +89,7 @@ the celestia-app configs (config.toml and app.toml) can be manually edited here,
 }
 ```
 
-Notes: 
+Notes:
 
 - The AWS config supports any S3-compatible bucket. So it can be used with Digital Ocean and other cloud providers.
 - Example: The S3 endpoint for Digital Ocean is: `https://<region>.digitaloceanspaces.com/`.

@@ -55,7 +55,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 	}
 	sizes := []testSize{
 		{
-			"default (should be 64 as of mainnet)",
+			"default",
 			appconsts.DefaultMaxBytes,
 			appconsts.DefaultGovMaxSquareSize,
 		},
