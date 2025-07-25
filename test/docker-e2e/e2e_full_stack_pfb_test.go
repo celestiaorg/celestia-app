@@ -6,10 +6,12 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"testing"
 	"time"
 
+	"go.uber.org/zap"
+
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v5/pkg/user"
 	"github.com/celestiaorg/celestia-app/v5/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v5/x/blob/types"
@@ -49,7 +51,7 @@ func (s *CelestiaTestSuite) TestE2EFullStackPFB() {
 	cfg := dockerchain.DefaultConfig(s.client, s.network)
 	cfg.Genesis = cfg.Genesis.WithAppVersion(4) // TODO: currently this node version does not support v5
 
-	celestia, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).WithChainID("test").Build(ctx)
+	celestia, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).WithChainID(appconsts.TestChainID).Build(ctx)
 	s.Require().NoError(err, "failed to build celestia chain")
 
 	t.Cleanup(func() {
