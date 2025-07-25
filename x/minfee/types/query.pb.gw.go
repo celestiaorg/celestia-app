@@ -13,7 +13,6 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
 	"github.com/golang/protobuf/descriptor"
 	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -207,7 +206,7 @@ func RegisterQueryHandlerClient(ctx context.Context, mux *runtime.ServeMux, clie
 }
 
 var (
-	pattern_Query_NetworkMinGasPrice_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{appconsts.MainnetChainID, "minfee", "v1", "min_gas_price"}, "", runtime.AssumeColonVerbOpt(false)))
+	pattern_Query_NetworkMinGasPrice_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"celestia", "minfee", "v1", "min_gas_price"}, "", runtime.AssumeColonVerbOpt(false)))
 
 	pattern_Query_Params_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"minfee", "v1", "params"}, "", runtime.AssumeColonVerbOpt(false)))
 )
