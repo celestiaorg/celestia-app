@@ -3,14 +3,14 @@ package docker_e2e
 import (
 	"context"
 	"fmt"
-	rpcclient "github.com/cometbft/cometbft/rpc/client"
-	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	"testing"
 	"time"
 
 	"github.com/celestiaorg/go-square/v2/share"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
+	rpcclient "github.com/cometbft/cometbft/rpc/client"
+	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/docker/docker/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
@@ -22,6 +22,7 @@ import (
 const (
 	txsimImage = "ghcr.io/celestiaorg/txsim"
 	txSimTag   = "v4.0.7-mocha"
+	homeDir    = "/var/cosmos-chain/celestia"
 )
 
 func TestCelestiaTestSuite(t *testing.T) {
