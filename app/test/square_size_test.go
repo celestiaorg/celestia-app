@@ -129,7 +129,7 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 				squareSizes = append(squareSizes, block.Block.SquareSize)
 			}
 
-			// check that the expected max squareSize was hit atleast once
+			// check that the expected max squareSize was hit at least once
 			require.Contains(t, squareSizes, uint64(tc.expMaxSquareSize))
 		})
 	}
