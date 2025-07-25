@@ -2484,9 +2484,9 @@ Parameters that are governance modifiables can be modified via a
 <code>MsgSubmitProposal</code> that contains a <code>moduleXYZ.MsgUpdateParams</code> message.</p>
 <h2 id="global-parameters-4"><a class="header" href="#global-parameters-4">Global parameters</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Value</th><th>Summary</th><th>Changeable via Governance</th></tr></thead><tbody>
-<tr><td>SquareSizeUpperBound</td><td>128</td><td>Hardcoded maximum square size which limits the number of shares per row or column for the original data square (not yet extended).</td><td>False</td></tr>
+<tr><td>SquareSizeUpperBound</td><td>512</td><td>Hardcoded maximum square size which limits the number of shares per row or column for the original data square (not yet extended).</td><td>False</td></tr>
 <tr><td>SubtreeRootThreshold</td><td>64</td><td>See <a href="https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md">ADR-013</a> for more details.</td><td>False</td></tr>
-<tr><td>MaxTxSize</td><td>2 MiB</td><td>Maximum size of a transaction in bytes.</td><td>False</td></tr>
+<tr><td>MaxTxSize</td><td>8 MiB</td><td>Maximum size of a transaction in bytes.</td><td>False</td></tr>
 <tr><td>TimeoutPropose</td><td>3500 ms</td><td>Specifies the time that validators wait during the proposal phase of the consensus process. See CometBFT <a href="https://github.com/celestiaorg/celestia-core/blob/v0.34.x-celestia/spec/consensus/consensus.md#propose-step-heighthroundr">specs</a> for more details.</td><td>False</td></tr>
 <tr><td>TimeoutCommit</td><td>4200 ms</td><td>Specifies the duration that validators wait during the Commit phase of the consensus process. See CometBFT <a href="https://github.com/celestiaorg/celestia-core/blob/v0.34.x-celestia/spec/consensus/consensus.md#precommit-step-heighthroundr">specs</a> for more details.</td><td>False</td></tr>
 <tr><td>UpgradeHeightDelay</td><td>100800 blocks</td><td>Height based delay after a successful <code>MsgTryUpgrade</code> has been submitted.</td><td>False</td></tr>
@@ -2502,7 +2502,7 @@ Parameters that are governance modifiables can be modified via a
 <tr><td>auth.TxSizeCostPerByte</td><td>10</td><td>Gas used per transaction byte.</td><td>False</td></tr>
 <tr><td>bank.SendEnabled</td><td>true</td><td>Allow transfers.</td><td>False</td></tr>
 <tr><td>blob.GasPerBlobByte</td><td>8</td><td>Gas used per blob byte.</td><td>False</td></tr>
-<tr><td>blob.GovMaxSquareSize</td><td>64</td><td>Governance parameter for the maximum square size of the original data square.</td><td>True</td></tr>
+<tr><td>blob.GovMaxSquareSize</td><td>256</td><td>Governance parameter for the maximum square size of the original data square.</td><td>True</td></tr>
 <tr><td>consensus.block.MaxBytes</td><td>1974272 bytes (~1.88 MiB)</td><td>Governance parameter for the maximum size of the protobuf encoded block.</td><td>True</td></tr>
 <tr><td>consensus.block.MaxGas</td><td>-1</td><td>Maximum gas allowed per block (-1 is infinite).</td><td>True</td></tr>
 <tr><td>consensus.block.TimeIotaMs</td><td>1000</td><td>Minimum time added to the time in the header each block.</td><td>False</td></tr>
