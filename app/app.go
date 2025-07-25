@@ -534,7 +534,6 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 		return sdk.EndBlock{}, err
 	}
 
-	// use a signaling mechanism for upgrade
 	shouldUpgrade, upgrade := app.SignalKeeper.ShouldUpgrade(ctx)
 	if shouldUpgrade {
 		// Version changes must be increasing. Downgrades are not permitted
@@ -558,7 +557,6 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 				return sdk.EndBlock{}, err
 			}
 			app.SignalKeeper.ResetTally(ctx)
-
 		}
 	}
 
