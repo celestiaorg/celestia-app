@@ -33,7 +33,7 @@ func init() {
 }
 
 func TestAddress() sdk.AccAddress {
-	bz, err := sdk.GetFromBech32(testfactory.TestAccAddr, "celestia")
+	bz, err := sdk.GetFromBech32(testfactory.TestAccAddr, appconsts.MainnetChainID)
 	if err != nil {
 		panic(err)
 	}

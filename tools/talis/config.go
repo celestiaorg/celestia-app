@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync/atomic"
+
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
 )
 
 type NodeType string
@@ -89,7 +91,7 @@ func NewBaseInstance(nodeType NodeType) Instance {
 		PublicIP:  "TBD",
 		PrivateIP: "TBD",
 		Name:      name,
-		Tags:      []string{"talis", string(nodeType), name},
+		Tags:      []string{appconsts.TalisChainID, string(nodeType), name},
 	}
 }
 
