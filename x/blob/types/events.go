@@ -4,6 +4,7 @@ import (
 	"github.com/cosmos/gogoproto/proto"
 )
 
+// var block without a newline before or after
 var (
 	EventTypePayForBlob = proto.MessageName(&EventPayForBlobs{})
 )
