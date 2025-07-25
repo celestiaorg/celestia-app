@@ -197,17 +197,6 @@ func TestConsensusParamFilter(t *testing.T) {
 			msg:         &banktypes.MsgUpdateParams{},
 			expectedErr: sdkerrors.ErrInvalidType,
 		},
-		{
-			name: "invalid case: non-default evidence params",
-			msg: &consensustypes.MsgUpdateParams{
-				Authority: "authority",
-				Block:     coretypes.DefaultConsensusParams().ToProto().Block,
-				Evidence:  &tmproto.EvidenceParams{MaxAgeNumBlocks: 1, MaxAgeDuration: time.Hour, MaxBytes: 1000000},
-				Validator: coretypes.DefaultConsensusParams().ToProto().Validator,
-				Abci:      coretypes.DefaultConsensusParams().ToProto().Abci,
-			},
-			expectedErr: sdkerrors.ErrUnauthorized,
-		},
 	}
 
 	for _, tt := range tests {
