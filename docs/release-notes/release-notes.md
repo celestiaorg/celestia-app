@@ -4,6 +4,27 @@ This guide provides notes for major version releases. These notes may be helpful
 
 ## Upcoming Major Release
 
+## v5.0.0
+
+### Node Operators (v5.0.0)
+
+Node operators MUST upgrade their binary to this version prior to the v5 activation height. Node operators SHOULD NOT use cosmovisor to upgrade their binary.
+
+### Resource Requirements
+
+v5 is a throughput targetted release that has the potential to 16x throughput (~21MB/s). The gossiping mechanisms are very efficient, often resulting in only downloading the block data between 1-2 times (1 is the minimum). Thanks to this, node operators should see a decrease in bandwidth usage despite the throughput increase.
+
+While bandwidth usage should go down per MB onchain, storage requirements will go up. For nodes that enable pruning, the storage requirements will increase 8x assuming fully saturated blocks. For nodes that do not enable pruning of block data, the storage requirements will potentially increase 16x assuming fully saturated blocks.
+
+DRAM requirements are not expected to change despite the throughput increases.
+
+### KMS
+
+v5.0.0 requires a new method being added to the Privval interface for KMS providers. Node operators must use a version of their KMS provider that supports the new method. KMS that support v5.0.0:
+- File (default)
+- tmkms (tbd)
+- horcrux (tbd)
+
 ## v4.0.0
 
 ### Node Operators (v4.0.0)
