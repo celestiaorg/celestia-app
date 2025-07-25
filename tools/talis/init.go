@@ -153,7 +153,7 @@ func CopyTalisScripts(destDir string, srcRoot string) error {
 			return fmt.Errorf("git clone failed: %w", err)
 		}
 
-		src = filepath.Join(tmp, "tools", appconsts.TalisChainID, "scripts")
+		src = filepath.Join(tmp, "tools", "talis", "scripts")
 	}
 
 	// copy directory tree including subdirectories
