@@ -11,7 +11,7 @@ import (
 // Makefile.
 const (
 	v3Version = "v3.10.5"
-	v4Version = "v4.0.7-mocha"
+	v4Version = "v4.0.10"
 )
 
 // CelestiaAppV3 returns the compressed platform specific Celestia binary and
