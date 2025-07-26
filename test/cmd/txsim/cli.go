@@ -177,7 +177,7 @@ account that can act as the master account. The command runs until all sequences
 				}
 			}
 
-			pollTime, err = getPollTime(pollTime, os.Getenv(TxsimPoll), user.DefaultPollTime)
+			pollTime, err = getPollTime(pollTime, os.Getenv(TxsimPoll), user.DefaultPollTime, cmd.Flags().Changed("poll-time"))
 			if err != nil {
 				return fmt.Errorf("get poll time: %w", err)
 			}
@@ -297,8 +297,8 @@ func parseUpgradeSchedule(schedule string) (map[int64]uint64, error) {
 
 // getPollTime returns the pollTime value based on CLI flag, environment variable, and default.
 // Priority: flag > env > default.
-func getPollTime(flagValue time.Duration, envValue string, defaultValue time.Duration) (time.Duration, error) {
-	if flagValue != defaultValue {
+func getPollTime(flagValue time.Duration, envValue string, defaultValue time.Duration, flagChanged bool) (time.Duration, error) {
+	if flagChanged {
 		return flagValue, nil
 	}
 	if envValue != "" {
