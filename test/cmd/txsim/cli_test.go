@@ -95,25 +95,25 @@ func TestGetPollTime(t *testing.T) {
 	flagPoll := 30 * time.Second
 
 	t.Run("should return default", func(t *testing.T) {
-		got, err := getPollTime(defaultPoll, "", defaultPoll)
+		got, err := getPollTime(defaultPoll, "", defaultPoll, false)
 		require.NoError(t, err)
 		require.Equal(t, defaultPoll, got)
 	})
 
 	t.Run("should return env", func(t *testing.T) {
-		got, err := getPollTime(defaultPoll, "20s", defaultPoll)
+		got, err := getPollTime(defaultPoll, "20s", defaultPoll, false)
 		require.NoError(t, err)
 		require.Equal(t, 20*time.Second, got)
 	})
 
 	t.Run("should return flag", func(t *testing.T) {
-		got, err := getPollTime(flagPoll, "20s", defaultPoll)
+		got, err := getPollTime(flagPoll, "20s", defaultPoll, true)
 		require.NoError(t, err)
 		require.Equal(t, flagPoll, got)
 	})
 
 	t.Run("should return error for invalid env", func(t *testing.T) {
-		_, err := getPollTime(defaultPoll, "notaduration", defaultPoll)
+		_, err := getPollTime(defaultPoll, "notaduration", defaultPoll, false)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "parsing poll time from env")
 	})
