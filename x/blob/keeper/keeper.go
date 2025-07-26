@@ -81,10 +81,7 @@ func (k Keeper) UpdateBlobParams(goCtx context.Context, msg *types.MsgUpdateBlob
 
 	// Emit an event indicating successful parameter update.
 	if err := ctx.EventManager().EmitTypedEvent(
-		&types.EventUpdateBlobParams{
-			Signer: msg.Authority,
-			Params: msg.Params,
-		},
+		types.NewUpdateBlobParamsEvent(msg.Authority, msg.Params),
 	); err != nil {
 		return nil, err
 	}
