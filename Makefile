@@ -28,7 +28,7 @@ BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
 # .goreleaser.yaml
 # docker/multiplexer.Dockerfile
 CELESTIA_V3_VERSION := v3.10.5
-CELESTIA_V4_VERSION := v4.1.0
+CELESTIA_V4_VERSION := v4.1.0-arabica
 
 ## help: Get more info on make commands.
 help: Makefile
