@@ -10,14 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
-	"github.com/celestiaorg/celestia-app/v4/test/txsim"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	blob "github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	signaltypes "github.com/celestiaorg/celestia-app/v4/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v5/app/encoding"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/test/txsim"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
+	blob "github.com/celestiaorg/celestia-app/v5/x/blob/types"
+	signaltypes "github.com/celestiaorg/celestia-app/v5/x/signal/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -161,8 +160,11 @@ func TestTxSimUpgrade(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping TestTxSimUpgrade in short mode.")
 	}
+	versionBefore := appconsts.Version - 1
+	versionAfter := appconsts.Version
+
 	cp := app.DefaultConsensusParams()
-	cp.Version.App = v2.Version
+	cp.Version.App = versionBefore
 	cfg := testnode.DefaultConfig().
 		WithTimeoutCommit(300 * time.Millisecond).
 		WithConsensusParams(cp).
@@ -173,7 +175,7 @@ func TestTxSimUpgrade(t *testing.T) {
 
 	// upgrade to v3 at height 20
 	sequences := []txsim.Sequence{
-		txsim.NewUpgradeSequence(v4.Version, 20),
+		txsim.NewUpgradeSequence(versionAfter, 20),
 	}
 
 	opts := txsim.DefaultOptions().
@@ -202,6 +204,6 @@ func TestTxSimUpgrade(t *testing.T) {
 	require.Eventually(t, func() bool {
 		upgradePlan, err := querier.GetUpgrade(cctx.GoContext(), &signaltypes.QueryGetUpgradeRequest{})
 		require.NoError(t, err)
-		return upgradePlan.Upgrade != nil && upgradePlan.Upgrade.AppVersion == v4.Version
+		return upgradePlan.Upgrade != nil && upgradePlan.Upgrade.AppVersion == versionAfter
 	}, time.Second*20, time.Millisecond*100)
 }

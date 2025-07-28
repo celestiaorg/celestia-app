@@ -10,9 +10,9 @@ import (
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v5/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v5/x/minfee/types"
 	cmttypes "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -40,6 +40,9 @@ const tia = int64(1_000_000) // 1 TIA = 1_000_000 utia
 // UpgradeName defines the on-chain upgrade name from v3 to v4.
 // IMPORTANT: UpgradeName must be formatted as `v`+ app version.
 const UpgradeName = "v4"
+
+// UpgradeNameV5 defines the on-chain upgrade name from v4 to v5.
+const UpgradeNameV5 = "v5"
 
 func (app App) RegisterUpgradeHandlers() {
 	for _, subspace := range app.ParamsKeeper.GetSubspaces() {
@@ -141,6 +144,19 @@ func (app App) RegisterUpgradeHandlers() {
 			sdkCtx.Logger().Info("finished to upgrade", "upgrade-name", UpgradeName, "duration-sec", time.Since(start).Seconds())
 
 			return vm, nil
+		},
+	)
+
+	app.UpgradeKeeper.SetUpgradeHandler(
+		UpgradeNameV5,
+		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+			sdkCtx := sdk.UnwrapSDKContext(ctx)
+
+			start := time.Now()
+			sdkCtx.Logger().Info("starting upgrade handler", "upgrade-name", UpgradeNameV5, "start", start)
+			// TODO: Add any upgrade logic here
+			sdkCtx.Logger().Info("finished upgrade handler", "upgrade-name", UpgradeNameV5, "duration-sec", time.Since(start).Seconds())
+			return fromVM, nil
 		},
 	)
 
