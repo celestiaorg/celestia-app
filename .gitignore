@@ -25,3 +25,6 @@ app/test/bad_block_*
 # do not include downloaded embedded binaries
 internal/embedding/**
 **/*token.sh
+memory-bank/*
+.clinerules
+tools/talis/talis

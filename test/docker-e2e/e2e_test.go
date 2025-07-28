@@ -23,7 +23,7 @@ import (
 const (
 	multiplexerImage   = "ghcr.io/celestiaorg/celestia-app"
 	txsimImage         = "ghcr.io/celestiaorg/txsim"
-	defaultCelestiaTag = "v4.0.0-rc6"
+	defaultCelestiaTag = "v4.0.10-mocha"
 	txSimTag           = "v4.0.0-rc6"
 )
 
@@ -163,4 +163,14 @@ func getCelestiaTag() string {
 		return tag
 	}
 	return defaultCelestiaTag
+}
+
+// GetCelestiaTagStrict returns the tag to use for Celestia images.
+// It requires the CELESTIA_TAG environment variable to be set.
+func GetCelestiaTagStrict() string {
+	tag := os.Getenv("CELESTIA_TAG")
+	if tag == "" {
+		panic("CELESTIA_TAG environment variable must be set")
+	}
+	return tag
 }

@@ -90,6 +90,7 @@ jobs:
         testcase:
           - TestE2ESimple
           - TestStateSync
+          - TestCelestiaAppUpgrade
 
     steps:
       - name: Checkout code
@@ -113,6 +114,6 @@ jobs:
       - name: Run E2E test
         env:
           # use the locally built image
-          CELESTIA_IMAGE: celestia-app
+          CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
           CELESTIA_TAG: ${{ steps.tag.outputs.value }}
         run: make test-docker-e2e test=${{ matrix.testcase }}
