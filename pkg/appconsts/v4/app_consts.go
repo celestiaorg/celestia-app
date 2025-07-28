@@ -25,16 +25,13 @@ const (
 	// after a MsgTryUpgrade to activate the next version.
 	TestUpgradeHeightDelay = int64(3)
 	// ArabicaUpgradeHeightDelay is the number of blocks that Arabica waits
-	// after a MsgTryUpgrade to activate the next version. Assuming a block
-	// interval of 6 seconds, this is 1 day.
+	// after a MsgTryUpgrade to activate the next version.
 	ArabicaUpgradeHeightDelay = int64(1)
 	// MochaUpgradeHeightDelay is the number of blocks that Mocha waits
-	// after a MsgTryUpgrade to activate the next version. Assuming a block
-	// interval of 6 seconds, this is 2 days.
+	// after a MsgTryUpgrade to activate the next version.
 	MochaUpgradeHeightDelay = int64(1)
 	// MainnetUpgradeHeightDelay is the number of blocks that Mainnet waits
-	// after a MsgTryUpgrade to activate the next version. Assuming a block
-	// interval of 6 seconds, this is 7 day.
+	// after a MsgTryUpgrade to activate the next version.
 	MainnetUpgradeHeightDelay = int64(1)
 	// Deprecated: Use MainnetUpgradeHeightDelay instead.
 	UpgradeHeightDelay = MainnetUpgradeHeightDelay
