@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
 )
@@ -17,10 +18,10 @@ import (
 // To add a new chain-id, download the genesis file from the networks repo and compute the SHA-256 hash.
 // Add the chain-id and hash to this map.
 var chainIDToSha256 = map[string]string{
-	"celestia":   "9727aac9bbfb021ce7fc695a92f901986421283a891b89e0af97bc9fad187793",
-	"mocha-4":    "0846b99099271b240b638a94e17a6301423b5e4047f6558df543d6e91db7e575",
-	"arabica-10": "fad0a187669f7a2c11bb07f9dc27140d66d2448b7193e186312713856f28e3e1",
-	"arabica-11": "77605cee57ce545b1be22402110d4baacac837bdc7fc3f5c74020abf9a08810f",
+	appconsts.MainnetChainID: "9727aac9bbfb021ce7fc695a92f901986421283a891b89e0af97bc9fad187793",
+	appconsts.MochaChainID:   "0846b99099271b240b638a94e17a6301423b5e4047f6558df543d6e91db7e575",
+	"arabica-10":             "fad0a187669f7a2c11bb07f9dc27140d66d2448b7193e186312713856f28e3e1",
+	appconsts.ArabicaChainID: "77605cee57ce545b1be22402110d4baacac837bdc7fc3f5c74020abf9a08810f",
 }
 
 func downloadGenesisCommand() *cobra.Command {
@@ -75,7 +76,7 @@ func getChainIDOrDefault(args []string) string {
 	if len(args) == 1 {
 		return args[0]
 	}
-	return "celestia"
+	return appconsts.MainnetChainID
 }
 
 // isKnownChainID returns true if the chainID is known.
