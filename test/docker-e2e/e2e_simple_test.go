@@ -95,7 +95,9 @@ func assertTransactionsIncluded(ctx context.Context, t *testing.T, celestia *tas
 func testBankSend(t *testing.T, chain *tastoradockertypes.Chain, cfg *dockerchain.Config) {
 	ctx := context.Background()
 
-	// Generate a unique wallet name using timestamp
+	// The key-ring stores wallets by name. Re-using a name causes
+	// 'celestia-appd keys add' to fail with "key already exists", which would
+	// break repeated or parallel test runs.  A timestamp keeps the name unique.
 	recipientWalletName := fmt.Sprintf("recipient-%d", time.Now().UnixNano())
 
 	// Create a new wallet with unique name
