@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"math/rand"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
-	blob "github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/test/util/blobfactory"
+	blob "github.com/celestiaorg/celestia-app/v5/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/gogoproto/grpc"
@@ -108,7 +108,7 @@ func (s *BlobSequence) Next(_ context.Context, _ grpc.ClientConn, rand *rand.Ran
 		return Operation{}, fmt.Errorf("invalid share version: %d", shareVersion)
 	}
 	// derive the pay for blob message
-	msg, err := blob.NewMsgPayForBlobs(s.account.String(), appconsts.LatestVersion, blobs...)
+	msg, err := blob.NewMsgPayForBlobs(s.account.String(), appconsts.Version, blobs...)
 	if err != nil {
 		return Operation{}, err
 	}

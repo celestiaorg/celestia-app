@@ -2,47 +2,29 @@ package appconsts
 
 import (
 	"time"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
 )
 
-const (
-	LatestVersion = v4.Version
-)
-
-var (
-	SquareSizeUpperBound = v4.SquareSizeUpperBound
-	TxSizeCostPerByte    = v4.TxSizeCostPerByte
-	GasPerBlobByte       = v4.GasPerBlobByte
-	Version              = v4.Version
-	MaxTxSize            = v4.MaxTxSize
-	SubtreeRootThreshold = v4.SubtreeRootThreshold
-	TimeoutCommit        = v4.TimeoutCommit
-	TimeoutPropose       = v4.TimeoutPropose
-
-	TestUpgradeHeightDelay    = v4.TestUpgradeHeightDelay
-	ArabicaUpgradeHeightDelay = v4.ArabicaUpgradeHeightDelay
-	MochaUpgradeHeightDelay   = v4.MochaUpgradeHeightDelay
-	MainnetUpgradeHeightDelay = v4.MainnetUpgradeHeightDelay
-	// Deprecated: Use MainnetUpgradeHeightDelay instead.
-	UpgradeHeightDelay = v4.MainnetUpgradeHeightDelay
-)
+var TalisSquareSizeUpperBound = 512
 
 func GetTimeoutCommit(_ uint64) time.Duration {
-	return v4.TimeoutCommit
+	return TimeoutCommit
+}
+
+func GetSquareSizeUpperBound(chainID string) int {
+	return SquareSizeUpperBound
 }
 
 // GetUpgradeHeightDelay returns the delay in blocks after a quorum has been
 // reached that the chain should upgrade to the new version.
 func GetUpgradeHeightDelay(chainID string) int64 {
 	if chainID == TestChainID {
-		return v4.TestUpgradeHeightDelay
+		return TestUpgradeHeightDelay
 	}
 	if chainID == ArabicaChainID {
-		return v4.ArabicaUpgradeHeightDelay
+		return ArabicaUpgradeHeightDelay
 	}
 	if chainID == MochaChainID {
-		return v4.MochaUpgradeHeightDelay
+		return MochaUpgradeHeightDelay
 	}
-	return v4.MainnetUpgradeHeightDelay
+	return MainnetUpgradeHeightDelay
 }
