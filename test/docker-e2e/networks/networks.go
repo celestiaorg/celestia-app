@@ -3,6 +3,10 @@ package networks
 import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"fmt"
+	"io"
+	"net/http"
+	"testing"
+
 	"github.com/celestiaorg/celestia-app/v5/app"
 	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
 	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
@@ -10,9 +14,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
-	"io"
-	"net/http"
-	"testing"
 )
 
 // NewConfig returns a configured instance of dockerchain.Config for the specified chain.

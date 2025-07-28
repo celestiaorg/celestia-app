@@ -2,84 +2,78 @@ package docker_e2e
 
 import (
 	"context"
+	"fmt"
 	"testing"
-	"time"
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	signaltypes "github.com/celestiaorg/celestia-app/v5/x/signal/types"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/celestiaorg/celestia-app/v5/pkg/user"
+	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
+	tastoratypes "github.com/celestiaorg/tastora/framework/types"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+// TestCelestiaAppUpgrade tests app version upgrade using the signaling mechanism.
 func (s *CelestiaTestSuite) TestCelestiaAppUpgrade() {
-	t := s.T()
 	if testing.Short() {
-		t.Skip("skipping in short mode")
+		s.T().Skip("skipping celestia-app major upgrade test in short mode")
 	}
 
-	ctx := context.TODO()
-	chainProvider := s.CreateDockerProvider()
-
-	celestia, err := chainProvider.GetChain(ctx)
-	s.Require().NoError(err, "failed to get chain")
-
-	err = celestia.Start(ctx)
-	s.Require().NoError(err, "failed to start chain")
-
-	err = chain.Start(ctx)
+	tag, err := dockerchain.GetCelestiaTagStrict()
 	s.Require().NoError(err)
 
-	s.Require().NoError(wait.ForBlocks(ctx, 5, chain))
-
-	err = chain.Stop(ctx)
-	s.Require().NoError(err)
-
-	chain.UpgradeVersion(ctx, targetVersion)
-
-	err = chain.Start(ctx)
-	s.Require().NoError(err)
-
-	err = wait.ForBlocks(ctx, 2, chain)
-	s.Require().NoError(err)
-
-	// Verify the version after upgrade
-	validatorNode := chain.GetNodes()[0]
-
-	rpcClient, err := validatorNode.GetRPCClient()
-	s.Require().NoError(err, "failed to get RPC client for version check")
-
-	abciInfo, err := rpcClient.ABCIInfo(ctx)
-	s.Require().NoError(err, "failed to fetch ABCI info")
-	s.Require().Equal(strings.TrimPrefix(targetVersion, "v"), abciInfo.Response.GetVersion(), "version mismatch")
-}
-
-// TestCelestiaAppMajorUpgrade tests a major upgrade from v4.0.7-mocha to a commit hash which has v5
-// using the signaling mechanism.
-func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
-	t := s.T()
-	if testing.Short() {
-		t.Skip("skipping major upgrade test in short mode")
-	}
-
-	ctx := context.Background()
 	const (
-		baseVersion   = "v4.0.7-mocha"
-		targetVersion = "d13d38a"
-		targetAppVer  = uint64(5) // The expected app_version after upgrade
-		chainID       = appconsts.TestChainID
+		MinTargetAppVersion uint64 = 3 // v2 to v3 was the first upgrade using signaling
+
+		// blocked on https://github.com/celestiaorg/celestia-app/issues/5289
+		// TODO: uncomment this once the issue is fixed
+		// MaxTargetAppVersion = appconsts.Version
+		MaxTargetAppVersion uint64 = 4
 	)
 
-	cfg := dockerchain.DefaultConfig(s.client, s.network).WithTag(baseVersion)
+	for targetVer := MinTargetAppVersion; targetVer <= MaxTargetAppVersion; targetVer++ {
+		testName := fmt.Sprintf("upgrade from app version %d to %d", targetVer-1, targetVer)
+		s.Run(testName, func() {
+			s.runUpgradeTest(tag, targetVer)
+		})
+	}
+}
 
-	kr := cfg.Genesis.Keyring()
+// runUpgradeTest spins up a chain at (targetVersion-1), signals every validator, waits for
+// the scheduled upgrade, then asserts the node is running the target app version and that
+// basic bank-send still works.
+func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, TargetAppVersion uint64) {
+	// Signaling exists from v2 onwards, so target version must be >2.
+	s.Require().Greater(TargetAppVersion, uint64(2))
 
-	chain, err := dockerchain.NewCelestiaChainBuilder(t, cfg).Build(ctx)
+	var (
+		ctx = context.Background()
+		cfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(ImageTag)
+		kr  = cfg.Genesis.Keyring()
+	)
+	cfg.Genesis = cfg.Genesis.WithAppVersion(TargetAppVersion - 1)
+
+	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
 	s.Require().NoError(err)
+
+	s.T().Cleanup(func() {
+		if err := chain.Stop(ctx); err != nil {
+			s.T().Logf("Error stopping chain: %v", err)
+		}
+	})
 
 	err = chain.Start(ctx)
 	s.Require().NoError(err)
 
-	s.Require().NoError(wait.ForBlocks(ctx, 5, chain))
+	// Sanity check: Test bank send before upgrade
+	s.T().Log("Testing bank send functionality before upgrade")
+	testBankSend(s.T(), chain, cfg)
 
 	validatorNode := chain.GetNodes()[0]
 	rpcClient, err := validatorNode.GetRPCClient()
@@ -89,114 +83,139 @@ func (s *CelestiaTestSuite) TestCelestiaAppMajorUpgrade() {
 	s.Require().NoError(err, "failed to fetch ABCI info")
 	currentAppVer := abciInfo.Response.GetAppVersion()
 	s.T().Logf("Current app version before upgrade: %d", currentAppVer)
-	fmt.Printf("\n\n\t\tBEFORE: %v\n", currentAppVer)
 
 	records, err := kr.List()
 	s.Require().NoError(err, "failed to list accounts")
 	s.Require().Len(records, len(chain.GetNodes()), "number of accounts does not match number of nodes")
 
-	// Signal for the upgrade to version 5 for each validator
-	for i, node := range chain.GetNodes() {
-		s.T().Logf("Signaling for upgrade to version %d from validator %d", targetAppVer, i)
+	// Signal for upgrade and get the upgrade height
+	upgradeHeight := s.signalAndGetUpgradeHeight(ctx, chain, validatorNode, cfg, records, TargetAppVersion)
 
-		hostname, err := node.GetInternalHostName(ctx)
-		s.Require().NoError(err, "failed to get internal hostname")
+	// Get current height
+	status, err := rpcClient.Status(ctx)
+	s.Require().NoError(err, "failed to get node status")
+	currentHeight := status.SyncInfo.LatestBlockHeight
 
-		signalCmd := []string{
-			"celestia-appd", "tx", "signal", "signal", fmt.Sprintf("%d", targetAppVer),
-			"--home", "/var/cosmos-chain/celestia",
-			"--from", records[i].Name,
-			"--keyring-backend", "test",
-			"--chain-id", chainID,
-			"--fees", "200000utia",
-			"--node", fmt.Sprintf("tcp://%s:26657", hostname),
-			"--yes",
-		}
-		stdout, stderr, err := node.Exec(ctx, signalCmd, nil)
-		s.Require().NoError(err, "failed to signal for upgrade: %s", stderr)
-		s.T().Logf("Signal output: %s", stdout)
+	s.T().Logf("Current height: %d, Upgrade height: %d", currentHeight, upgradeHeight)
 
-	// Verify the chain is running
-	height, err := celestia.Height(ctx)
-	s.Require().NoError(err, "failed to get chain height")
-	s.Require().Greater(height, int64(0), "chain height is zero")
+	// Wait until we reach the upgrade height
+	blocksToWait := int(upgradeHeight-currentHeight) + 2 // Add buffer
+	s.T().Logf("Waiting for %d blocks to reach upgrade height plus buffer", blocksToWait)
+	s.Require().NoError(wait.ForBlocks(ctx, blocksToWait, chain))
 
-	s.CreateTxSim(ctx, celestia)
-
-	hostname, err := validatorNode.GetInternalHostName(ctx)
-	s.Require().NoError(err, "failed to get internal hostname")
-
-	// Query the tally to see if we have enough voting power
-	tallyCmd := []string{
-		"celestia-appd", "query", "signal", "tally", fmt.Sprintf("%d", targetAppVer),
-		"--node", fmt.Sprintf("tcp://%s:26657", hostname),
-		"--output", "json",
-	}
-	tallyStdout, tallyStderr, err := validatorNode.Exec(ctx, tallyCmd, nil)
-	s.Require().NoError(err, "failed to query tally: %s", tallyStderr)
-	s.T().Logf("Tally output: %s", tallyStdout)
-
-	// Execute try-upgrade transaction on all nodes
-	for i, node := range chain.GetNodes() {
-		hostname, err := node.GetInternalHostName(ctx)
-		s.Require().NoError(err, "failed to get internal hostname")
-
-		s.T().Logf("Executing try-upgrade transaction on validator %d", i)
-		tryUpgradeCmd := []string{
-			"celestia-appd", "tx", "signal", "try-upgrade",
-			"--home", "/var/cosmos-chain/celestia",
-			"--from", records[i].Name,
-			"--keyring-backend", "test",
-			"--chain-id", chainID,
-			"--fees", "200000utia",
-			"--node", fmt.Sprintf("tcp://%s:26657", hostname),
-			"--yes",
-		}
-		upgradeStdout, upgradeStderr, err := node.Exec(ctx, tryUpgradeCmd, nil)
-		s.Require().NoError(err, "failed to execute try-upgrade on validator %d: %s", i, upgradeStderr)
-		s.T().Logf("Try-upgrade output from validator %d: %s", i, upgradeStdout)
-
-		// Wait a bit between transactions to avoid conflicts
-		time.Sleep(1 * time.Second)
-	}
-
-	s.T().Log("Querying upgrade info")
-	upgradeInfoCmd := []string{
-		"celestia-appd", "query", "signal", "upgrade",
-		"--node", fmt.Sprintf("tcp://%s:26657", hostname),
-		"--output", "json",
-	}
-	upgradeInfoStdout, upgradeInfoStderr, err := validatorNode.Exec(ctx, upgradeInfoCmd, nil)
-	s.Require().NoError(err, "failed to query upgrade info: %s", upgradeInfoStderr)
-	s.T().Logf("Upgrade info: %s", upgradeInfoStdout)
-
-	// Wait for the upgrade to be scheduled
-	time.Sleep(5 * time.Second)
-
-	err = chain.Stop(ctx)
-	s.Require().NoError(err)
-
-	chain.UpgradeVersion(ctx, targetVersion)
-
-	err = chain.Start(ctx)
-	s.Require().NoError(err)
-
-	err = wait.ForBlocks(ctx, 2, chain)
-	s.Require().NoError(err)
-
-	// Verify the version after upgrade
-	rpcClient, err = validatorNode.GetRPCClient()
-	s.Require().NoError(err, "failed to get RPC client for version check")
-
+	// Verify the app version has been upgraded
 	abciInfo, err = rpcClient.ABCIInfo(ctx)
 	s.Require().NoError(err, "failed to fetch ABCI info")
 
-	// The version string might vary, but should contain the PR number
-	versionStr := abciInfo.Response.GetVersion()
-	fmt.Printf("\n\n\t\tversionStr: %v\n", versionStr)
-	fmt.Printf("\n\n\t\tAFTERabciInfo.Response.GetAppVersion(): %v\n", abciInfo.Response.GetAppVersion())
-	s.Require().True(strings.Contains(versionStr, "d13d38a"), "version should contain PR number")
-
 	// Verify app version is upgraded
-	s.Require().Equal(targetAppVer, abciInfo.Response.GetAppVersion(), "app_version mismatch")
+	s.Require().Equal(TargetAppVersion, abciInfo.Response.GetAppVersion(), "app_version mismatch")
+
+	// Sanity check: Test bank send after upgrade
+	s.T().Log("Testing bank send functionality after upgrade")
+	testBankSend(s.T(), chain, cfg)
+}
+
+// signalAndGetUpgradeHeight signals for an upgrade to the specified app
+// version and returns the scheduled upgrade height.
+func (s *CelestiaTestSuite) signalAndGetUpgradeHeight(
+	ctx context.Context,
+	chain tastoratypes.Chain,
+	validatorNode tastoratypes.ChainNode,
+	cfg *dockerchain.Config,
+	records []*keyring.Record,
+	targetAppVersion uint64,
+) int64 {
+	// create a TxClient connected to the first validator gRPC endpoint
+	cn, ok := validatorNode.(*tastoradockertypes.ChainNode)
+	s.Require().True(ok, "validator node is not a docker chain node")
+
+	txClient, err := dockerchain.SetupTxClient(ctx, cn, cfg)
+	s.Require().NoError(err, "failed to setup TxClient for signaling")
+
+	var (
+		gasLimit = uint64(200_000)
+		fee      = uint64(200_000)
+	)
+
+	// Signal for the upgrade
+	for i, rec := range records {
+		s.T().Logf("Signaling for upgrade to version %d from validator %d", targetAppVersion, i)
+
+		addr, err := rec.GetAddress()
+		s.Require().NoError(err)
+		valAddr := sdk.ValAddress(addr).String()
+		msg := signaltypes.NewMsgSignalVersion(valAddr, targetAppVersion)
+
+		resp, err := txClient.SubmitTx(ctx, []sdk.Msg{msg}, user.SetGasLimit(gasLimit), user.SetFee(fee))
+		s.Require().NoError(err, "failed to broadcast signal tx")
+		s.Require().Equal(uint32(0), resp.Code, "signal tx failed with code %d", resp.Code)
+	}
+
+	// wait a block so the signals are included
+	s.Require().NoError(wait.ForBlocks(ctx, 1, chain))
+
+	s.validateSignalTally(ctx, validatorNode, targetAppVersion)
+
+	msgTry := signaltypes.NewMsgTryUpgrade(txClient.DefaultAddress())
+	resp, err := txClient.SubmitTx(ctx, []sdk.Msg{msgTry}, user.SetGasLimit(gasLimit), user.SetFee(fee))
+	s.Require().NoError(err, "failed to broadcast try-upgrade tx")
+	s.Require().Equal(uint32(0), resp.Code, "try-upgrade tx failed with code %d", resp.Code)
+
+	// Wait for one block so that the upgrade transaction is processed
+	s.Require().NoError(wait.ForBlocks(ctx, 1, chain))
+
+	// Query upgrade info via gRPC
+	s.T().Log("Querying upgrade info via gRPC")
+	client, cleanup, err := getSignalQueryClient(ctx, validatorNode)
+	s.Require().NoError(err)
+	defer cleanup()
+
+	upgradeResp, err := client.GetUpgrade(ctx, &signaltypes.QueryGetUpgradeRequest{})
+	s.Require().NoError(err, "failed to query upgrade info via gRPC")
+
+	// Ensure an upgrade is indeed pending
+	s.Require().NotNil(upgradeResp.Upgrade, "no upgrade pending after try-upgrade")
+
+	upgradeHeight := upgradeResp.Upgrade.UpgradeHeight
+	s.T().Logf("Upgrade info: app_version=%d height=%d", upgradeResp.Upgrade.AppVersion, upgradeHeight)
+
+	return upgradeHeight
+}
+
+// validateSignalTally queries the signal tally for the given app version and verifies
+// that the voting power meets or exceeds the threshold power.
+func (s *CelestiaTestSuite) validateSignalTally(ctx context.Context, node tastoratypes.ChainNode, appVersion uint64) {
+	s.T().Logf("Querying signal tally for app version %d", appVersion)
+
+	client, cleanup, err := getSignalQueryClient(ctx, node)
+	s.Require().NoError(err)
+	defer cleanup()
+
+	resp, err := client.VersionTally(ctx, &signaltypes.QueryVersionTallyRequest{Version: appVersion})
+	s.Require().NoError(err, "failed to query tally")
+
+	// Verify that voting power meets or exceeds threshold
+	s.Require().True(resp.VotingPower >= resp.ThresholdPower, "voting power (%d) does not meet threshold (%d)", resp.VotingPower, resp.ThresholdPower)
+}
+
+// getSignalQueryClient returns a signaltypes.QueryClient for the provided node.
+// If the node already exposes a live *grpc.ClientConn (docker ChainNode), that
+// connection is reused and the returned cleanup is a no-op. Otherwise the
+// helper dials the node’s gRPC endpoint (port 9090) and returns a cleanup
+// function that closes the connection.
+func getSignalQueryClient(ctx context.Context, node tastoratypes.ChainNode) (signaltypes.QueryClient, func(), error) {
+	if dcNode, ok := node.(*tastoradockertypes.ChainNode); ok && dcNode.GrpcConn != nil {
+		return signaltypes.NewQueryClient(dcNode.GrpcConn), func() {}, nil
+	}
+	host, err := node.GetInternalHostName(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	endpoint := fmt.Sprintf("%s:9090", host)
+	conn, err := grpc.NewClient(endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, nil, err
+	}
+	cleanup := func() { _ = conn.Close() }
+	return signaltypes.NewQueryClient(conn), cleanup, nil
 }
