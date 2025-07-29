@@ -14,7 +14,7 @@ if [ -f internal/embedding/$out ]; then
             echo "Skipping download because expected version already downloaded: $out"
             exit 0
         else
-            echo "Downloaded v3 binary does not match expected version so re-downloading $out"
+            echo "Downloaded binary does not match expected version so re-downloading $out"
         fi
     else
         echo "A .embed_version file was not found for $out so downloading"
