@@ -1,5 +1,7 @@
 VERSION := $(shell echo $(shell git describe --tags --always --match "v*") | sed 's/^v//')
 COMMIT := $(shell git rev-parse --short HEAD)
+CELESTIA_TAG := $(shell git rev-parse --short=8 HEAD)
+export CELESTIA_TAG
 DOCKER := $(shell which docker)
 PROJECTNAME=$(shell basename "$(PWD)")
 DOCKER_GOOS ?= linux
@@ -262,6 +264,14 @@ test-docker-e2e:
 	@echo "--> Running: TestCelestiaTestSuite/$(test)"
 	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/$(test)$$ ./...
 .PHONY: test-docker-e2e
+
+## test-docker-e2e-upgrade: Build image from current branch and run the upgrade test.
+test-docker-e2e-upgrade:
+	@echo "--> Building celestia-appd docker image (tag $(CELESTIA_TAG))"
+	@docker build -t "ghcr.io/celestiaorg/celestia-app:$(CELESTIA_TAG)" . -f docker/multiplexer.Dockerfile
+	@echo "--> Running upgrade test"
+	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/TestCelestiaAppUpgrade$$ -count=1 ./...
+.PHONY: test-docker-e2e-upgrade
 
 ## test-multiplexer: Run unit tests for the multiplexer package.
 test-multiplexer: download-v3-binaries download-v4-binaries
