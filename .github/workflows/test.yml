@@ -128,6 +128,9 @@ jobs:
         testcase:
           - TestE2ESimple
           - TestStateSync
+          - TestBlockSync
+          - TestE2EFullStackPFB
+          - TestCelestiaAppUpgrade
 
     steps:
       - name: Checkout code
@@ -146,11 +149,11 @@ jobs:
         # explicitly not pushing to ghcr as other workflows build and push there.
         # ideally we don't need to build an image on each runner and can use a single
         # more powerful self hosted runner to speed things up.
-        run: docker build -t "celestia-app:${{ steps.tag.outputs.value }}" . -f docker/multiplexer.Dockerfile
+        run: docker build -t "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.value }}" . -f docker/multiplexer.Dockerfile
 
       - name: Run E2E test
         env:
           # use the locally built image
-          CELESTIA_IMAGE: celestia-app
+          CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
           CELESTIA_TAG: ${{ steps.tag.outputs.value }}
         run: make test-docker-e2e test=${{ matrix.testcase }}

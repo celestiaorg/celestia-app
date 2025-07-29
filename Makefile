@@ -6,6 +6,7 @@ DOCKER_GOOS ?= linux
 DOCKER_GOARCH ?= amd64
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v4
+export CELESTIA_TAG
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
 GOLANG_CROSS_VERSION  ?= v1.24.2
@@ -262,6 +263,12 @@ test-docker-e2e:
 	@echo "--> Running: TestCelestiaTestSuite/$(test)"
 	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/$(test)$$ ./...
 .PHONY: test-docker-e2e
+
+## test-docker-e2e-upgrade: Run the docker e2e upgrade test
+test-docker-e2e-upgrade:
+	@echo "--> Running docker e2e upgrade test"
+	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/TestCelestiaAppUpgrade$$ ./...
+.PHONY: test-docker-e2e-upgrade
 
 ## test-multiplexer: Run unit tests for the multiplexer package.
 test-multiplexer: download-v3-binaries download-v4-binaries

@@ -205,7 +205,7 @@ archives:
       - darwin-arm64-multiplexer
       - linux-amd64-multiplexer
       - linux-arm64-multiplexer
-    formats: ['tar.gz']
+    formats: ["tar.gz"]
     name_template: >-
       {{ .ProjectName }}_
       {{- title .Os }}_
@@ -219,7 +219,7 @@ archives:
       - darwin-arm64
       - linux-amd64
       - linux-arm64
-    formats: ['tar.gz']
+    formats: ["tar.gz"]
     # this name template makes the OS and Arch compatible with the results of
     # uname.
     name_template: >-

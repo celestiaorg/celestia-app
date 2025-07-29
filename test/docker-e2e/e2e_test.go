@@ -3,15 +3,14 @@ package docker_e2e
 import (
 	"context"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v5/app"
 	"github.com/celestiaorg/go-square/v2/share"
-	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
-	celestiatypes "github.com/celestiaorg/tastora/framework/types"
-	"github.com/cosmos/cosmos-sdk/types/module/testutil"
+	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
+	tastoratypes "github.com/celestiaorg/tastora/framework/types"
+	rpcclient "github.com/cometbft/cometbft/rpc/client"
+	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/docker/docker/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
@@ -21,10 +20,9 @@ import (
 )
 
 const (
-	multiplexerImage   = "ghcr.io/celestiaorg/celestia-app"
-	txsimImage         = "ghcr.io/celestiaorg/txsim"
-	defaultCelestiaTag = "v4.0.0-rc6"
-	txSimTag           = "v4.0.0-rc6"
+	txsimImage = "ghcr.io/celestiaorg/txsim"
+	txSimTag   = "v4.0.7-mocha"
+	homeDir    = "/var/cosmos-chain/celestia"
 )
 
 func TestCelestiaTestSuite(t *testing.T) {
@@ -40,78 +38,34 @@ type CelestiaTestSuite struct {
 
 func (s *CelestiaTestSuite) SetupSuite() {
 	s.logger = zaptest.NewLogger(s.T())
-	s.logger.Info("Setting up Celestia test suite")
-	s.client, s.network = celestiadockertypes.DockerSetup(s.T())
-}
-
-type ConfigOption func(*celestiadockertypes.Config)
-
-func (s *CelestiaTestSuite) CreateDockerProvider(opts ...ConfigOption) celestiatypes.Provider {
-	numValidators := 1
-	numFullNodes := 0
-
-	enc := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
-
-	cfg := celestiadockertypes.Config{
-		Logger:          s.logger,
-		DockerClient:    s.client,
-		DockerNetworkID: s.network,
-		ChainConfig: &celestiadockertypes.ChainConfig{
-			ConfigFileOverrides: map[string]any{
-				"config/app.toml": validatorStateSyncAppOverrides(),
-			},
-			Type:          "cosmos",
-			Name:          "celestia",
-			Version:       getCelestiaTag(),
-			NumValidators: &numValidators,
-			NumFullNodes:  &numFullNodes,
-			ChainID:       "celestia",
-			Images: []celestiadockertypes.DockerImage{
-				{
-					Repository: getCelestiaImage(),
-					Version:    getCelestiaTag(),
-					UIDGID:     "10001:10001",
-				},
-			},
-			Bin:                 "celestia-appd",
-			Bech32Prefix:        "celestia",
-			Denom:               "utia",
-			CoinType:            "118",
-			GasPrices:           "0.025utia",
-			GasAdjustment:       1.3,
-			EncodingConfig:      &enc,
-			AdditionalStartArgs: []string{"--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9099"},
-		},
-	}
-
-	for _, opt := range opts {
-		opt(&cfg)
-	}
-
-	return celestiadockertypes.NewProvider(cfg, s.T())
+	s.logger.Info("Setting up Celestia test suite: " + s.T().Name())
+	s.client, s.network = tastoradockertypes.DockerSetup(s.T())
 }
 
 // CreateTxSim deploys and starts a txsim container to simulate transactions against the given celestia chain in the test environment.
-func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain celestiatypes.Chain) {
+func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain tastoratypes.Chain) {
 	t := s.T()
 	networkName, err := getNetworkNameFromID(ctx, s.client, s.network)
 	s.Require().NoError(err)
 
 	// Deploy txsim image
 	t.Log("Deploying txsim image")
-	txsimImage := celestiadockertypes.NewImage(s.logger, s.client, networkName, t.Name(), txsimImage, txSimTag)
+	txsimImage := tastoradockertypes.NewImage(s.logger, s.client, networkName, t.Name(), txsimImage, txSimTag)
 
-	opts := celestiadockertypes.ContainerOptions{
+	opts := tastoradockertypes.ContainerOptions{
 		User: "0:0",
 		// Mount the Celestia home directory into the txsim container
 		// this ensures txsim has access to a keyring and is able to broadcast transactions.
 		Binds: []string{chain.GetVolumeName() + ":/celestia-home"},
 	}
 
+	internalHostname, err := chain.GetNodes()[0].GetInternalHostName(ctx)
+	s.Require().NoError(err)
+
 	args := []string{
 		"/bin/txsim",
 		"--key-path", "/celestia-home",
-		"--grpc-endpoint", chain.GetGRPCAddress(),
+		"--grpc-endpoint", internalHostname + ":9090",
 		"--poll-time", "1s",
 		"--seed", "42",
 		"--blob", "10",
@@ -147,20 +101,73 @@ func getNetworkNameFromID(ctx context.Context, cli *client.Client, networkID str
 	return network.Name, nil
 }
 
-// getCelestiaImage returns the image to use for Celestia app.
-// It can be overridden by setting the CELESTIA_IMAGE environment.
-func getCelestiaImage() string {
-	if image := os.Getenv("CELESTIA_IMAGE"); image != "" {
-		return image
+// GetLatestBlockHeight returns the latest block height of the given node.
+// This function will periodically check for the latest block height until the timeout is reached.
+// If the timeout is reached, an error will be returned.
+func (s *CelestiaTestSuite) GetLatestBlockHeight(ctx context.Context, statusClient rpcclient.StatusClient) (int64, error) {
+	// use a ticker to periodically check for the initial height
+	heightTicker := time.NewTicker(1 * time.Second)
+	defer heightTicker.Stop()
+
+	heightTimeoutCtx, heightCancel := context.WithTimeout(ctx, 30*time.Second)
+	defer heightCancel()
+
+	// check immediately first, then on ticker intervals
+	for {
+		status, err := statusClient.Status(heightTimeoutCtx)
+		if err == nil && status.SyncInfo.LatestBlockHeight > 0 {
+			return status.SyncInfo.LatestBlockHeight, nil
+		}
+
+		select {
+		case <-heightTicker.C:
+			// continue the loop
+		case <-heightTimeoutCtx.Done():
+			return 0, fmt.Errorf("timed out waiting for initial height")
+		}
 	}
-	return multiplexerImage
 }
 
-// getCelestiaTag returns the tag to use for Celestia images.
-// It can be overridden by setting the CELESTIA_TAG environment.
-func getCelestiaTag() string {
-	if tag := os.Getenv("CELESTIA_TAG"); tag != "" {
-		return tag
+// WaitForSync waits for a Celestia node to synchronize based on a provided sync condition within a specified timeout.
+// The method periodically checks the node's sync status. Returns an error if the timeout is exceeded.
+// Returns nil when the provided condition function returns true.
+func (s *CelestiaTestSuite) WaitForSync(ctx context.Context, statusClient rpcclient.StatusClient, syncTimeout time.Duration, syncCondition func(coretypes.SyncInfo) bool) error {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, syncTimeout)
+	defer cancel()
+
+	s.T().Log("Waiting for sync to complete...")
+
+	// check immediately first
+	if status, err := statusClient.Status(timeoutCtx); err == nil {
+		s.T().Logf("Sync node status: Height=%d, CatchingUp=%t", status.SyncInfo.LatestBlockHeight, status.SyncInfo.CatchingUp)
+		if syncCondition(status.SyncInfo) {
+			s.T().Logf("Sync completed successfully")
+			return nil
+		}
 	}
-	return defaultCelestiaTag
+
+	// then check on ticker intervals
+	for {
+		select {
+		case <-ticker.C:
+			status, err := statusClient.Status(timeoutCtx)
+			if err != nil {
+				s.T().Logf("Failed to get status from state sync node, retrying...: %v", err)
+				continue
+			}
+
+			s.T().Logf("Sync node status: Height=%d, CatchingUp=%t", status.SyncInfo.LatestBlockHeight, status.SyncInfo.CatchingUp)
+
+			if syncCondition(status.SyncInfo) {
+				s.T().Logf("Sync completed successfully")
+				return nil
+			}
+
+		case <-timeoutCtx.Done():
+			return fmt.Errorf("timed out waiting for state sync node to catch up after %v", syncTimeout)
+		}
+	}
 }
