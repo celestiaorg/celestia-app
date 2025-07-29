@@ -5,12 +5,7 @@ PROJECTNAME=$(shell basename "$(PWD)")
 DOCKER_GOOS ?= linux
 DOCKER_GOARCH ?= amd64
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
-<<<<<<< HEAD
-PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v4
-=======
 PACKAGE_NAME := github.com/celestiaorg/celestia-app/v5
-export CELESTIA_TAG
->>>>>>> 07f535d (fix: go releaser attaches binaries (#5359))
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
 GOLANG_CROSS_VERSION  ?= v1.24.2
