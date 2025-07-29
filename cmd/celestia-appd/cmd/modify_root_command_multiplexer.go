@@ -3,20 +3,20 @@
 package cmd
 
 import (
-	"github.com/celestiaorg/celestia-app/v5/app"
-	embedding "github.com/celestiaorg/celestia-app/v5/internal/embedding"
-	"github.com/celestiaorg/celestia-app/v5/multiplexer/abci"
-	"github.com/celestiaorg/celestia-app/v5/multiplexer/appd"
-	multiplexer "github.com/celestiaorg/celestia-app/v5/multiplexer/cmd"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	embedding "github.com/celestiaorg/celestia-app/v6/internal/embedding"
+	"github.com/celestiaorg/celestia-app/v6/multiplexer/abci"
+	"github.com/celestiaorg/celestia-app/v6/multiplexer/appd"
+	multiplexer "github.com/celestiaorg/celestia-app/v6/multiplexer/cmd"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
 )
 
 // v2UpgradeHeight is the block height at which the v2 upgrade occurred.
 // this can be overridden at build time using ldflags:
-// -ldflags="-X 'github.com/celestiaorg/celestia-app/v5/cmd/celestia-appd/cmd.v2UpgradeHeight=1751707'" for arabica
-// -ldflags="-X 'github.com/celestiaorg/celestia-app/v5/cmd/celestia-appd/cmd.v2UpgradeHeight=2585031'" for mocha
-// -ldflags="-X 'github.com/celestiaorg/celestia-app/v5/cmd/celestia-appd/cmd.v2UpgradeHeight=2371495'" for mainnet
+// -ldflags="-X 'github.com/celestiaorg/celestia-app/v6/cmd/celestia-appd/cmd.v2UpgradeHeight=1751707'" for arabica
+// -ldflags="-X 'github.com/celestiaorg/celestia-app/v6/cmd/celestia-appd/cmd.v2UpgradeHeight=2585031'" for mocha
+// -ldflags="-X 'github.com/celestiaorg/celestia-app/v6/cmd/celestia-appd/cmd.v2UpgradeHeight=2371495'" for mainnet
 var v2UpgradeHeight = ""
 
 var defaultArgs = []string{
@@ -49,6 +49,16 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 		panic(err)
 	}
 
+	v5Tag, v5CompressedBinary, err := embedding.CelestiaAppV5()
+	if err != nil {
+		panic(err)
+	}
+
+	appdV5, err := appd.New(v5Tag, v5CompressedBinary)
+	if err != nil {
+		panic(err)
+	}
+
 	v3Args := defaultArgs
 	if v2UpgradeHeight != "" {
 		v3Args = append(v3Args, "--v2-upgrade-height="+v2UpgradeHeight)
@@ -64,6 +74,11 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 			Appd:        appdV4,
 			ABCIVersion: abci.ABCIClientVersion2,
 			AppVersion:  4,
+			StartArgs:   defaultArgs,
+		}, abci.Version{
+			Appd:        appdV5,
+			ABCIVersion: abci.ABCIClientVersion3,
+			AppVersion:  5,
 			StartArgs:   defaultArgs,
 		})
 	if err != nil {

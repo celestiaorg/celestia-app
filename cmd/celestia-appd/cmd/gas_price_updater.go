@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v5/app"
-	"github.com/celestiaorg/celestia-app/v5/app/params"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/params"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

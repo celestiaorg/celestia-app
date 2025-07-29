@@ -1,6 +1,6 @@
 package networks
 
-import "github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+import "github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 
 // Config holds the configuration for connecting to an existing live chain
 type Config struct {

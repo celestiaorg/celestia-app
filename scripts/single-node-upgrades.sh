@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# This script starts a local single node testnet on app version 4 and then upgrades to app version 5.
+# This script starts a local single node testnet on app version 5 and then upgrades to app version 6.
 
 # Stop script execution if an error is encountered
 set -o errexit
@@ -19,8 +19,8 @@ KEY_NAME="validator"
 KEYRING_BACKEND="test"
 FEES="500utia"
 BROADCAST_MODE="sync"
-FROM_VERSION="4"
-TO_VERSION="5"
+FROM_VERSION="5"
+TO_VERSION="6"
 
 # Use argument as home directory if provided, else default to ~/.celestia-app
 if [ $# -ge 1 ]; then
