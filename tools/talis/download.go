@@ -50,7 +50,8 @@ func downloadCmd() *cobra.Command {
 			case "logs":
 				remotePaths = append(remotePaths, "/root/logs")
 			case "*", "":
-				remotePaths = append(remotePaths, baseTracesRemotePath)
+				path := filepath.Join(baseTracesRemotePath, "*")
+				remotePaths = append(remotePaths, path)
 			default:
 				if strings.Contains(table, ",") {
 					tables := strings.SplitSeq(table, ",")
