@@ -241,7 +241,7 @@ lint-fix: fmt
 ## test: Run tests.
 test:
 	@echo "--> Running tests"
-	@go test -timeout 30m ./...
+	@go test -v -p 1 -timeout 30m ./...
 .PHONY: test
 
 ## test-short: Run tests in short mode.
