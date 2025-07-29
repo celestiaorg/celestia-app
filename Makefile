@@ -27,7 +27,7 @@ BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
 # .goreleaser.yaml
 # docker/multiplexer.Dockerfile
 CELESTIA_V3_VERSION := v3.10.5
-CELESTIA_V4_VERSION := v4.0.10
+CELESTIA_V4_VERSION := v4.1.0-arabica
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -240,7 +240,11 @@ lint-fix: fmt
 ## test: Run tests.
 test:
 	@echo "--> Running tests"
-	@go test -timeout 30m ./...
+	@if [ -z "$(PACKAGES)" ]; then \
+		go test -timeout 30m ./...; \
+	else \
+		go test -timeout 30m $(PACKAGES); \
+	fi
 .PHONY: test
 
 ## test-short: Run tests in short mode.
