@@ -34,7 +34,6 @@ func validatorStateSyncAppOverrides(ctx context.Context, node *celestiadockertyp
 
 func (s *CelestiaTestSuite) TestStateSync() {
 	t := s.T()
-	t.Skip()
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}

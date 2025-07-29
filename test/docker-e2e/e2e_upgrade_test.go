@@ -3,6 +3,7 @@ package docker_e2e
 import (
 	"context"
 	"fmt"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
 	"testing"
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
@@ -30,11 +31,7 @@ func (s *CelestiaTestSuite) TestCelestiaAppUpgrade() {
 
 	const (
 		MinTargetAppVersion uint64 = 3 // v2 to v3 was the first upgrade using signaling
-
-		// blocked on https://github.com/celestiaorg/celestia-app/issues/5289
-		// TODO: uncomment this once the issue is fixed
-		// MaxTargetAppVersion = appconsts.Version
-		MaxTargetAppVersion uint64 = 4
+		MaxTargetAppVersion        = appconsts.Version
 	)
 
 	for targetVer := MinTargetAppVersion; targetVer <= MaxTargetAppVersion; targetVer++ {
