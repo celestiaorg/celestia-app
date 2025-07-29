@@ -8,8 +8,6 @@ import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
 	signaltypes "github.com/celestiaorg/celestia-app/v5/x/signal/types"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/v5/pkg/user"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
@@ -199,23 +197,11 @@ func (s *CelestiaTestSuite) validateSignalTally(ctx context.Context, node tastor
 }
 
 // getSignalQueryClient returns a signaltypes.QueryClient for the provided node.
-// If the node already exposes a live *grpc.ClientConn (docker ChainNode), that
-// connection is reused and the returned cleanup is a no-op. Otherwise the
-// helper dials the node’s gRPC endpoint (port 9090) and returns a cleanup
-// function that closes the connection.
+// If the node is a docker ChainNode with a live *grpc.ClientConn, it is reused.
+// Returns an error if no gRPC connection is available.
 func getSignalQueryClient(ctx context.Context, node tastoratypes.ChainNode) (signaltypes.QueryClient, func(), error) {
 	if dcNode, ok := node.(*tastoradockertypes.ChainNode); ok && dcNode.GrpcConn != nil {
 		return signaltypes.NewQueryClient(dcNode.GrpcConn), func() {}, nil
 	}
-	host, err := node.GetInternalHostName(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	endpoint := fmt.Sprintf("%s:9090", host)
-	conn, err := grpc.NewClient(endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return nil, nil, err
-	}
-	cleanup := func() { _ = conn.Close() }
-	return signaltypes.NewQueryClient(conn), cleanup, nil
+	return nil, nil, fmt.Errorf("GRPC connection is nil")
 }
