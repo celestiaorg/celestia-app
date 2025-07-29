@@ -27,29 +27,25 @@ func (s *CelestiaTestSuite) TestCelestiaAppUpgrade() {
 	s.Require().NoError(err)
 
 	tt := []struct {
-		name             string
 		baseAppVersion   uint64
 		targetAppVersion uint64
 	}{
 		{
-			name:             "upgrade from v2 to v3",
 			baseAppVersion:   2,
 			targetAppVersion: 3,
 		},
 		{
-			name:             "upgrade from v3 to v4",
 			baseAppVersion:   3,
 			targetAppVersion: 4,
 		},
 		// {
-		// 	name:             "upgrade from v4 to v5",
 		// 	baseAppVersion:   4,
 		// 	targetAppVersion: 5,
 		// },
 	}
 
 	for _, tc := range tt {
-		s.Run(tc.name, func() {
+		s.Run(fmt.Sprintf("upgrade from v%d to v%d", tc.baseAppVersion, tc.targetAppVersion), func() {
 			s.runUpgradeTest(tag, tc.baseAppVersion, tc.targetAppVersion)
 		})
 	}
