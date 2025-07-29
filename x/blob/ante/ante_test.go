@@ -61,7 +61,7 @@ func TestPFBAnteHandler(t *testing.T) {
 		{
 			name: "pfb single blob not enough gas",
 			pfb: &blob.MsgPayForBlobs{
-				// 2 share = 1024 bytes = 10240 gas
+				// blob size > 1 share, requires 2 shares = 1024 bytes = 10240 gas
 				BlobSizes: []uint32{uint32(share.AvailableBytesFromSparseShares(1) + 1)},
 			},
 			txGas: func(testGasPerBlobByte uint32) uint32 {
