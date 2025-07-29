@@ -9,6 +9,7 @@ before:
     - go mod tidy
     # These hooks get run once. We want to explicitly download every embedded binary so we can build the multiplexer
     # for every architecture. These versions must be updated at the same time as the version in the Makefile.
+<<<<<<< HEAD
     - ./scripts/download_v3_binary.sh celestia-app_Darwin_arm64.tar.gz celestia-app_darwin_v3_arm64.tar.gz v3.10.5
     - ./scripts/download_v3_binary.sh celestia-app_Linux_arm64.tar.gz celestia-app_linux_v3_arm64.tar.gz v3.10.5
     - ./scripts/download_v3_binary.sh celestia-app_Darwin_x86_64.tar.gz celestia-app_darwin_v3_amd64.tar.gz v3.10.5
@@ -17,6 +18,16 @@ before:
     - ./scripts/download_v4_binary.sh celestia-app-standalone_Linux_arm64.tar.gz celestia-app_linux_v4_arm64.tar.gz v4.0.10
     - ./scripts/download_v4_binary.sh celestia-app-standalone_Darwin_x86_64.tar.gz celestia-app_darwin_v4_amd64.tar.gz v4.0.10
     - ./scripts/download_v4_binary.sh celestia-app-standalone_Linux_x86_64.tar.gz celestia-app_linux_v4_amd64.tar.gz v4.0.10
+=======
+    - ./scripts/download_binary.sh celestia-app_Darwin_arm64.tar.gz celestia-app_darwin_v3_arm64.tar.gz v3.10.5
+    - ./scripts/download_binary.sh celestia-app_Linux_arm64.tar.gz celestia-app_linux_v3_arm64.tar.gz v3.10.5
+    - ./scripts/download_binary.sh celestia-app_Darwin_x86_64.tar.gz celestia-app_darwin_v3_amd64.tar.gz v3.10.5
+    - ./scripts/download_binary.sh celestia-app_Linux_x86_64.tar.gz celestia-app_linux_v3_amd64.tar.gz v3.10.5
+    - ./scripts/download_binary.sh celestia-app-standalone_Darwin_arm64.tar.gz celestia-app_darwin_v4_arm64.tar.gz v4.1.0-arabica
+    - ./scripts/download_binary.sh celestia-app-standalone_Linux_arm64.tar.gz celestia-app_linux_v4_arm64.tar.gz v4.1.0-arabica
+    - ./scripts/download_binary.sh celestia-app-standalone_Darwin_x86_64.tar.gz celestia-app_darwin_v4_amd64.tar.gz v4.1.0-arabica
+    - ./scripts/download_binary.sh celestia-app-standalone_Linux_x86_64.tar.gz celestia-app_linux_v4_amd64.tar.gz v4.1.0-arabica
+>>>>>>> ebfa705 (fix(goreleaser): download_binary script name (#5361))
 
 builds:
   - id: darwin-amd64-multiplexer
