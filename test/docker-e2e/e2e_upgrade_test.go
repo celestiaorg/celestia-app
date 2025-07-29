@@ -26,36 +26,48 @@ func (s *CelestiaTestSuite) TestCelestiaAppUpgrade() {
 	tag, err := dockerchain.GetCelestiaTagStrict()
 	s.Require().NoError(err)
 
-	const (
-		MinTargetAppVersion uint64 = 3 // v2 to v3 was the first upgrade using signaling
+	tt := []struct {
+		name             string
+		baseAppVersion   uint64
+		targetAppVersion uint64
+	}{
+		{
+			name:             "upgrade from v2 to v3",
+			baseAppVersion:   2,
+			targetAppVersion: 3,
+		},
+		{
+			name:             "upgrade from v3 to v4",
+			baseAppVersion:   3,
+			targetAppVersion: 4,
+		},
+		{
+			name:             "upgrade from v4 to v5",
+			baseAppVersion:   4,
+			targetAppVersion: 5,
+		},
+	}
 
-		// blocked on https://github.com/celestiaorg/celestia-app/issues/5289
-		// TODO: uncomment this once the issue is fixed
-		// MaxTargetAppVersion = appconsts.Version
-		MaxTargetAppVersion uint64 = 4
-	)
-
-	for targetVer := MinTargetAppVersion; targetVer <= MaxTargetAppVersion; targetVer++ {
-		testName := fmt.Sprintf("upgrade from app version %d to %d", targetVer-1, targetVer)
-		s.Run(testName, func() {
-			s.runUpgradeTest(tag, targetVer)
+	for _, tc := range tt {
+		s.Run(tc.name, func() {
+			s.runUpgradeTest(tag, tc.baseAppVersion, tc.targetAppVersion)
 		})
 	}
 }
 
-// runUpgradeTest spins up a chain at (targetVersion-1), signals every validator, waits for
-// the scheduled upgrade, then asserts the node is running the target app version and that
-// basic bank-send still works.
-func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, TargetAppVersion uint64) {
+// runUpgradeTest starts a chain at the specified baseAppVersion, signals all validators to upgrade,
+// waits for the upgrade to occur, then verifies the node is running the targetAppVersion and that
+// bank send transactions succeed before and after the upgrade.
+func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targetAppVersion uint64) {
 	// Signaling exists from v2 onwards, so target version must be >2.
-	s.Require().Greater(TargetAppVersion, uint64(2))
+	s.Require().Greater(targetAppVersion, uint64(2))
 
 	var (
 		ctx = context.Background()
 		cfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(ImageTag)
 		kr  = cfg.Genesis.Keyring()
 	)
-	cfg.Genesis = cfg.Genesis.WithAppVersion(TargetAppVersion - 1)
+	cfg.Genesis = cfg.Genesis.WithAppVersion(baseAppVersion)
 
 	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
 	s.Require().NoError(err)
@@ -87,7 +99,7 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, TargetAppVersion uin
 	s.Require().Len(records, len(chain.GetNodes()), "number of accounts does not match number of nodes")
 
 	// Signal for upgrade and get the upgrade height
-	upgradeHeight := s.signalAndGetUpgradeHeight(ctx, chain, validatorNode, cfg, records, TargetAppVersion)
+	upgradeHeight := s.signalAndGetUpgradeHeight(ctx, chain, validatorNode, cfg, records, targetAppVersion)
 
 	// Get current height
 	status, err := rpcClient.Status(ctx)
@@ -106,7 +118,7 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, TargetAppVersion uin
 	s.Require().NoError(err, "failed to fetch ABCI info")
 
 	// Verify app version is upgraded
-	s.Require().Equal(TargetAppVersion, abciInfo.Response.GetAppVersion(), "app_version mismatch")
+	s.Require().Equal(targetAppVersion, abciInfo.Response.GetAppVersion(), "app_version mismatch")
 
 	// Sanity check: Test bank send after upgrade
 	s.T().Log("Testing bank send functionality after upgrade")
@@ -164,7 +176,7 @@ func (s *CelestiaTestSuite) signalAndGetUpgradeHeight(
 
 	// Query upgrade info via gRPC
 	s.T().Log("Querying upgrade info via gRPC")
-	client, cleanup, err := getSignalQueryClient(ctx, validatorNode)
+	client, cleanup, err := getSignalQueryClient(validatorNode)
 	s.Require().NoError(err)
 	defer cleanup()
 
@@ -185,7 +197,7 @@ func (s *CelestiaTestSuite) signalAndGetUpgradeHeight(
 func (s *CelestiaTestSuite) validateSignalTally(ctx context.Context, node tastoratypes.ChainNode, appVersion uint64) {
 	s.T().Logf("Querying signal tally for app version %d", appVersion)
 
-	client, cleanup, err := getSignalQueryClient(ctx, node)
+	client, cleanup, err := getSignalQueryClient(node)
 	s.Require().NoError(err)
 	defer cleanup()
 
@@ -199,7 +211,7 @@ func (s *CelestiaTestSuite) validateSignalTally(ctx context.Context, node tastor
 // getSignalQueryClient returns a signaltypes.QueryClient for the provided node.
 // If the node is a docker ChainNode with a live *grpc.ClientConn, it is reused.
 // Returns an error if no gRPC connection is available.
-func getSignalQueryClient(ctx context.Context, node tastoratypes.ChainNode) (signaltypes.QueryClient, func(), error) {
+func getSignalQueryClient(node tastoratypes.ChainNode) (signaltypes.QueryClient, func(), error) {
 	if dcNode, ok := node.(*tastoradockertypes.ChainNode); ok && dcNode.GrpcConn != nil {
 		return signaltypes.NewQueryClient(dcNode.GrpcConn), func() {}, nil
 	}
