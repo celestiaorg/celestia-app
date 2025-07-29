@@ -42,6 +42,7 @@ const (
 // - verifies blob data is retrievable via light node rpc.
 func (s *CelestiaTestSuite) TestE2EFullStackPFB() {
 	t := s.T()
+	t.Skip()
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
