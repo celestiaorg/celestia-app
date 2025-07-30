@@ -147,7 +147,7 @@ func BenchmarkPrepareProposal_MsgSend_1(b *testing.B) {
 }
 
 func BenchmarkPrepareProposal_MsgSend_8MB(b *testing.B) {
-	// a full 8mb block equals to around 31645 msg send transactions.
+	// a full 8mb block is equal to around 31645 msg send transactions.
 	// using 31645 to let prepare proposal choose the maximum
 	testApp, rawTxs := generateMsgSendTransactions(b, 31645)
 
@@ -162,7 +162,7 @@ func BenchmarkPrepareProposal_MsgSend_8MB(b *testing.B) {
 	b.StopTimer()
 	require.GreaterOrEqual(b, len(resp.Txs), 1)
 	b.ReportMetric(float64(len(resp.Txs)), "number_of_transactions")
-	b.ReportMetric(calculateBlockSizeInMb(resp.Txs), "block_size(mb)")
+	b.ReportMetric(calculateBlockSizeInMiB(resp.Txs), "block_size(mb)")
 	b.ReportMetric(float64(calculateTotalGasUsed(testApp, resp.Txs)), "total_gas_used")
 }
 
@@ -209,7 +209,7 @@ func BenchmarkProcessProposal_MsgSend_8MB(b *testing.B) {
 	require.GreaterOrEqual(b, len(prepareProposalResp.Txs), 1)
 
 	b.ReportMetric(float64(len(prepareProposalResp.Txs)), "number_of_transactions")
-	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResp.Txs), "block_size(mb)")
+	b.ReportMetric(calculateBlockSizeInMiB(prepareProposalResp.Txs), "block_size(mb)")
 	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResp.Txs)), "total_gas_used")
 
 	processProposalReq := types.RequestProcessProposal{
@@ -321,9 +321,9 @@ func generateMsgSendTransactions(b *testing.B, count int) (*app.App, [][]byte) {
 // mebibyte the number of bytes in a mebibyte
 const mebibyte = 1048576
 
-// calculateBlockSizeInMb returns the block size in mb given a set
+// calculateBlockSizeInMiB returns the block size in mb given a set
 // of raw transactions.
-func calculateBlockSizeInMb(txs [][]byte) float64 {
+func calculateBlockSizeInMiB(txs [][]byte) float64 {
 	numberOfBytes := 0
 	for _, tx := range txs {
 		numberOfBytes += len(tx)
