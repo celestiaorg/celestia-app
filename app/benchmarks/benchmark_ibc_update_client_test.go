@@ -75,7 +75,7 @@ func benchmarkIBCCheckTxUpdateClient(b *testing.B, numberOfValidators int) {
 	require.Equal(b, uint32(0), resp.Code)
 	require.Equal(b, "", resp.Codespace)
 	b.ReportMetric(float64(resp.GasUsed), "gas_used")
-	b.ReportMetric(float64(len(rawTxs[0])), "transaction_size(byte)")
+	b.ReportMetric(float64(len(rawTxs[0])), "transaction_size(bytes)")
 	b.ReportMetric(float64(numberOfValidators), "number_of_validators")
 	b.ReportMetric(float64(2*numberOfValidators/3), "number_of_verified_signatures")
 }
@@ -124,7 +124,7 @@ func benchmarkIBCFinalizeBlockUpdateClient(b *testing.B, numberOfValidators int)
 	require.Equal(b, uint32(0), resp.TxResults[0].Code)
 	require.Equal(b, "", resp.TxResults[0].Codespace)
 	b.ReportMetric(float64(resp.TxResults[0].GasUsed), "gas_used")
-	b.ReportMetric(float64(len(rawTxs[0])), "transaction_size(byte)")
+	b.ReportMetric(float64(len(rawTxs[0])), "transaction_size(bytes)")
 	b.ReportMetric(float64(numberOfValidators), "number_of_validators")
 	b.ReportMetric(float64(2*numberOfValidators/3), "number_of_verified_signatures")
 }
