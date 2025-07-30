@@ -3,6 +3,7 @@ package docker_e2e
 import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -94,15 +95,22 @@ func assertTransactionsIncluded(ctx context.Context, t *testing.T, celestia *tas
 func testBankSend(t *testing.T, chain *tastoradockertypes.Chain, cfg *dockerchain.Config) {
 	ctx := context.Background()
 
-	recipientWallet, err := chain.CreateWallet(ctx, "recipient")
+	// The key-ring stores wallets by name. Re-using a name causes
+	// 'celestia-appd keys add' to fail with "key already exists", which would
+	// break repeated or parallel test runs.  A timestamp keeps the name unique.
+	recipientWalletName := fmt.Sprintf("recipient-%d", time.Now().UnixNano())
+
+	// Create a new wallet with unique name
+	wallet, err := chain.CreateWallet(ctx, recipientWalletName)
 	require.NoError(t, err, "failed to create recipient wallet")
+	recipientAddress := wallet.GetFormattedAddress()
 
 	txClient, err := dockerchain.SetupTxClient(ctx, chain.Nodes()[0], cfg)
 	require.NoError(t, err, "failed to setup TxClient")
 
 	// get the default account address from TxClient (should be validator)
 	fromAddr := txClient.DefaultAddress()
-	toAddr, err := sdk.AccAddressFromBech32(recipientWallet.GetFormattedAddress())
+	toAddr, err := sdk.AccAddressFromBech32(recipientAddress)
 	require.NoError(t, err, "failed to parse recipient address")
 
 	t.Logf("Validator address: %s", fromAddr.String())

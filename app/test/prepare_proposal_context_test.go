@@ -25,7 +25,7 @@ import (
 // TestTimeInPrepareProposalContext checks for an edge case where the block time
 // needs to be included in the sdk.Context that is being used in the
 // antehandlers. If a time is not included in the context, then the second
-// transaction in this test will always be filtered out, result in vesting
+// transaction in this test will always be filtered out, resulting in vesting
 // accounts never being able to spend funds.
 func TestTimeInPrepareProposalContext(t *testing.T) {
 	if testing.Short() {

@@ -1,11 +1,13 @@
 VERSION := $(shell echo $(shell git describe --tags --always --match "v*") | sed 's/^v//')
 COMMIT := $(shell git rev-parse --short HEAD)
+CELESTIA_TAG := $(shell git rev-parse --short=8 HEAD)
+export CELESTIA_TAG
 DOCKER := $(shell which docker)
 PROJECTNAME=$(shell basename "$(PWD)")
 DOCKER_GOOS ?= linux
 DOCKER_GOARCH ?= amd64
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
-PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v6
+PACKAGE_NAME := github.com/celestiaorg/celestia-app/v6
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
 GOLANG_CROSS_VERSION  ?= v1.24.2
@@ -62,10 +64,6 @@ install-standalone: check-bbr
 	@echo "--> Installing celestia-appd"
 	@go install $(BUILD_FLAGS) ./cmd/celestia-appd
 .PHONY: install-standalone
-
-define EMBED_BIN
-  ./scripts/download_v3_binary.sh $$url $$out $(CELESTIA_V3_VERSION)
-endef
 
 ## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
 # TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
@@ -279,6 +277,14 @@ test-docker-e2e:
 	@echo "--> Running: TestCelestiaTestSuite/$(test)"
 	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/$(test)$$ ./...
 .PHONY: test-docker-e2e
+
+## test-docker-e2e-upgrade: Build image from current branch and run the upgrade test.
+test-docker-e2e-upgrade:
+	@echo "--> Building celestia-appd docker image (tag $(CELESTIA_TAG))"
+	@docker build -t "ghcr.io/celestiaorg/celestia-app:$(CELESTIA_TAG)" . -f docker/multiplexer.Dockerfile
+	@echo "--> Running upgrade test"
+	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/TestCelestiaAppUpgrade$$ -count=1 ./...
+.PHONY: test-docker-e2e-upgrade
 
 ## test-multiplexer: Run unit tests for the multiplexer package.
 test-multiplexer: download-v3-binaries download-v4-binaries download-v5-binaries

@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"cosmossdk.io/core/address"
-	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
 	"github.com/celestiaorg/celestia-app/v6/app/params"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
@@ -18,7 +17,6 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
-	"google.golang.org/grpc"
 )
 
 var defaultSignMode = signing.SignMode_SIGN_MODE_DIRECT
@@ -355,49 +353,4 @@ func (s *Signer) txBuilder(msgs []sdktypes.Msg, opts ...TxOption) (client.TxBuil
 		builder = opt(builder)
 	}
 	return builder, nil
-}
-
-// QueryGasPrice takes a priority and an app gRPC client.
-// Returns the current network gas price corresponding to the provided priority.
-// More on the gas price estimation can be found in docs/architecture/adr-023-gas-used-and-gas-price-estimation.md
-// Deprecated: use TxClient.EstimateGasPrice
-func (s *Signer) QueryGasPrice(
-	ctx context.Context,
-	grpcClient *grpc.ClientConn,
-	priority gasestimation.TxPriority,
-) (float64, error) {
-	estimator := gasestimation.NewGasEstimatorClient(grpcClient)
-	gasPrice, err := estimator.EstimateGasPrice(
-		ctx,
-		&gasestimation.EstimateGasPriceRequest{TxPriority: priority},
-	)
-	if err != nil {
-		return 0, err
-	}
-	return gasPrice.EstimatedGasPrice, nil
-}
-
-// QueryGasUsedAndPrice takes a priority, an app gRPC client, and a transaction bytes.
-// Returns the current network gas price corresponding to the provided priority,
-// and the gas used estimation for the provided transaction bytes.
-// More on the gas estimation can be found in docs/architecture/adr-023-gas-used-and-gas-price-estimation.md
-// Deprecated: use TxClient.EstimateGasPriceAndUsage
-func (s *Signer) QueryGasUsedAndPrice(
-	ctx context.Context,
-	grpcClient *grpc.ClientConn,
-	priority gasestimation.TxPriority,
-	txBytes []byte,
-) (float64, uint64, error) {
-	estimator := gasestimation.NewGasEstimatorClient(grpcClient)
-	gasEstimation, err := estimator.EstimateGasPriceAndUsage(
-		ctx,
-		&gasestimation.EstimateGasPriceAndUsageRequest{
-			TxPriority: priority,
-			TxBytes:    txBytes,
-		},
-	)
-	if err != nil {
-		return 0, 0, err
-	}
-	return gasEstimation.EstimatedGasPrice, gasEstimation.EstimatedGasUsed, nil
 }
