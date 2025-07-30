@@ -28,7 +28,7 @@ BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
 # docker/multiplexer.Dockerfile
 CELESTIA_V3_VERSION := v3.10.5
 CELESTIA_V4_VERSION := v4.0.10
-CELESTIA_V5_VERSION := v5.0.0-rc0
+CELESTIA_V5_VERSION := v5.0.1-arabica
 
 ## help: Get more info on make commands.
 help: Makefile

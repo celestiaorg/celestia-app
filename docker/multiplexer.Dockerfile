@@ -20,6 +20,7 @@ ARG CELESTIA_APP_REPOSITORY=ghcr.io/celestiaorg/celestia-app-standalone
 # Makefile.
 ARG CELESTIA_VERSION_V3="v3.10.5"
 ARG CELESTIA_VERSION_V4="v4.0.10"
+ARG CELESTIA_VERSION_V5="v5.0.1-arabica"
 
 # Stage 1: this base image contains already released v3 binaries which can be embedded in the multiplexer.
 FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V3} AS base-v3
@@ -71,6 +72,11 @@ RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v3_${TARGETARCH}.tar.g
 COPY --from=base-v4 /bin/celestia-appd /tmp/celestia-appd-v4
 RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v4_${TARGETARCH}.tar.gz /tmp/celestia-appd-v4 \
     && rm /tmp/celestia-appd-v4
+
+# Copy v5 binary from base-v5 and compress it
+COPY --from=base-v5 /bin/celestia-appd /tmp/celestia-appd-v5
+RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v5_${TARGETARCH}.tar.gz /tmp/celestia-appd-v5 \
+    && rm /tmp/celestia-appd-v5
 
 RUN uname -a &&\
     CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
