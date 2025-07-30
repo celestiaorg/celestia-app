@@ -143,7 +143,7 @@ type TxClient struct {
 	cdc      codec.Codec
 	signer   *Signer
 	registry codectypes.InterfaceRegistry
-	// list of core endpoints for tx submission (primary + additionals)
+	// list of core endpoints for tx submission (primary + additional endpoints)
 	conns []*grpc.ClientConn
 	// how often to poll the network for confirmation of a transaction
 	pollTime time.Duration
@@ -772,7 +772,7 @@ func QueryMinimumGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float
 
 func QueryNetworkMinGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float64, error) {
 	paramsClient := paramtypes.NewQueryClient(grpcConn)
-	// NOTE: that we don't prove that this is the correct value
+	// NOTE: we don't prove that this is the correct value
 	paramResponse, err := paramsClient.Params(ctx, &paramtypes.QueryParamsRequest{Subspace: minfeetypes.ModuleName, Key: string(minfeetypes.KeyNetworkMinGasPrice)})
 	if err != nil {
 		return 0, fmt.Errorf("querying params module: %w", err)
