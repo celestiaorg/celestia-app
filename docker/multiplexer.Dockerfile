@@ -28,6 +28,9 @@ FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V3} AS base-v3
 # Stage 1b: this base image contains already released v4 binaries which can be embedded in the multiplexer.
 FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V4} AS base-v4
 
+# Stage 1c: this base image contains already released v5 binaries which can be embedded in the multiplexer.
+FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V5} AS base-v5
+
 # Stage 2: Build the celestia-appd binary inside a builder image that will be discarded later.
 # Ignore hadolint rule because hadolint can't parse the variable.
 # See https://github.com/hadolint/hadolint/issues/339

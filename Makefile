@@ -177,14 +177,14 @@ proto-update-deps:
 
 .PHONY: proto-all proto-deps proto-gen proto-format proto-lint proto-check-breaking proto-update-deps
 
-## build-docker: Build the celestia-appd Docker image using the local Dockerfile.
-build-docker:
+## build-docker-standalone: Build the celestia-appd Docker image using the local Dockerfile.
+build-docker-standalone:
 	@echo "--> Building Docker image"
-	$(DOCKER) build -t celestiaorg/celestia-app -f docker/Dockerfile .
+	$(DOCKER) build -t celestiaorg/celestia-app -f docker/standalone.Dockerfile .
 .PHONY: build-docker
 
 ## docker-build: Build the celestia-appd docker image from the current branch. Requires docker.
-docker-build: build-docker
+docker-build: build-docker-multiplexer
 .PHONY: docker-build
 
 ## build-docker-multiplexer: Build the celestia-appd docker image with Multiplexer support from the current branch. Requires docker.
