@@ -39,7 +39,7 @@ func (m Minter) Validate() error {
 }
 
 // CalculateInflationRate returns the inflation rate for the current year depending on
-// the current block height in context. The inflation rate is expected to
+// the current block time in context. The inflation rate is expected to
 // decrease every year according to the schedule specified in the README.
 func (m Minter) CalculateInflationRate(ctx sdk.Context, genesisTime time.Time) math.LegacyDec {
 	yearsSinceGenesis := yearsSinceGenesis(genesisTime, ctx.BlockTime())
