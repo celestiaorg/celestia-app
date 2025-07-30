@@ -101,10 +101,10 @@ func createBlobTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyr
 
 func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	numBlobTxs, numNormalTxs := 3, 3
-	accnts := testfactory.GenerateAccounts(numBlobTxs + numNormalTxs)
-	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accnts...)
+	accounts := testfactory.GenerateAccounts(numBlobTxs + numNormalTxs)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	infos := queryAccountInfo(testApp, accnts, kr)
+	infos := queryAccountInfo(testApp, accounts, kr)
 
 	protoBlob, err := share.NewBlob(share.RandomBlobNamespace(), []byte{1}, appconsts.DefaultShareVersion, nil)
 	require.NoError(t, err)
@@ -113,7 +113,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		enc.TxConfig,
 		kr,
 		testutil.ChainID,
-		accnts[:numBlobTxs],
+		accounts[:numBlobTxs],
 		infos[:numBlobTxs],
 		testfactory.Repeat([]*share.Blob{protoBlob}, numBlobTxs),
 	)
@@ -124,8 +124,8 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		enc.TxConfig,
 		kr,
 		1000,
-		accnts[0],
-		accnts[numBlobTxs:],
+		accounts[0],
+		accounts[numBlobTxs:],
 		testutil.ChainID,
 	)
 	txs := blobTxs
@@ -212,8 +212,9 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	require.NoError(t, err)
 	noAccountTx := []byte(testutil.SendTxWithManualSequence(t, enc.TxConfig, kr, nilAccount, accounts[0], 1000, "", 0, 6))
 
-	// create a tx that can't be included in a 64 x 64 when accounting for the
+	// create a tx that can't be included in a 256 x 256 when accounting for the
 	// pfb along with the shares
+	tooManyShares := appconsts.DefaultGovMaxSquareSize * appconsts.DefaultGovMaxSquareSize
 	tooManyShareBtx := blobfactory.ManyMultiBlobTx(
 		t,
 		enc.TxConfig,
@@ -223,8 +224,8 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		infos[3:4],
 		blobfactory.NestedBlobs(
 			t,
-			testfactory.RandomBlobNamespaces(random.New(), 4000),
-			[][]int{repeat(4000, 1)},
+			testfactory.RandomBlobNamespaces(random.New(), tooManyShares),
+			[][]int{repeat(tooManyShares, 1)},
 		),
 	)[0]
 

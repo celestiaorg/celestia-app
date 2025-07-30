@@ -711,24 +711,6 @@ func (client *TxClient) deleteFromTxTracker(txHash string) {
 	delete(client.txTracker, txHash)
 }
 
-// EstimateGas simulates the transaction, calculating the amount of gas that was
-// consumed during execution.
-// Deprecated: use EstimateGasPriceAndUsage
-func (client *TxClient) EstimateGas(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (uint64, error) {
-	client.mtx.Lock()
-	defer client.mtx.Unlock()
-
-	txBuilder, err := client.signer.txBuilder(msgs, opts...)
-	if err != nil {
-		return 0, err
-	}
-
-	// add at least 1utia as fee to builder as it affects gas calculation.
-	txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
-
-	return client.estimateGas(ctx, txBuilder)
-}
-
 // EstimateGasPriceAndUsage returns the estimated gas price based on the provided priority,
 // and also the gas limit/used for the provided transaction.
 // The gas limit is calculated by simulating the transaction and then calculating the amount of gas that was consumed during execution.

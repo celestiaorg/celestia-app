@@ -4,7 +4,7 @@
 
 ### DigitalOcean Account
 
-- If you're part of the Celestia engineering team ask for access to Celestia's DigitalOcean account or alternatively use personal account.
+- If you're part of the Celestia engineering team ask for access to Celestia's DigitalOcean account or alternatively use a personal account.
 - **Generate the API token:** Go to Settings → API → Generate New Token.
 - Save the token somewhere that's easily accessible.
 
@@ -69,7 +69,7 @@ This will initialize the directory that contains directory structure used for co
 └── scripts/
 ```
 
-the celestia-app configs (config.toml and app.toml) can be manually edited here, and they will copied to each node. `config.json` is the talis specific configuration file that contains all info related to spinning up the network. This is updated after the nodes have been spun up. Basic defaults are set, but the relevant fields can either be edited after generation or via using a flag. At this point, it looks something like this:
+the celestia-app configs (config.toml and app.toml) can be manually edited here, and they will be copied to each node. `config.json` is the talis specific configuration file that contains all info related to spinning up the network. This is updated after the nodes have been spun up. Basic defaults are set, but the relevant fields can either be edited after generation or via using a flag. At this point, it looks something like this:
 
 ```json
 {
@@ -89,7 +89,7 @@ the celestia-app configs (config.toml and app.toml) can be manually edited here,
 }
 ```
 
-Notes: 
+Notes:
 
 - The AWS config supports any S3-compatible bucket. So it can be used with Digital Ocean and other cloud providers.
 - Example: The S3 endpoint for Digital Ocean is: `https://<region>.digitaloceanspaces.com/`.
@@ -264,7 +264,7 @@ talis reset -v validator-0,validator-1
 
 ### down
 
-Finally, remember to tear down the cloud instances. This should work first try, but its a good habit to re-run or check the webUI for large experiments to make sure nodes were shut down successfully.
+Finally, remember to tear down the cloud instances. This should work first try, but it's a good habit to re-run or check the webUI for large experiments to make sure nodes were shut down successfully.
 
 ```sh
 # tears down the network

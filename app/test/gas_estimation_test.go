@@ -220,7 +220,7 @@ func TestEstimateGasUsed(t *testing.T) {
 	gasEstimationAPI := gasestimation.NewGasEstimatorClient(cctx.GRPCClient)
 
 	// calculate the expected gas used
-	expectedGasEstimate, err := txClient.EstimateGas(cctx.GoContext(), []sdk.Msg{msg})
+	_, expectedGasEstimate, err := txClient.EstimateGasPriceAndUsage(cctx.GoContext(), []sdk.Msg{msg}, gasestimation.TxPriority_TX_PRIORITY_MEDIUM)
 	require.NoError(t, err)
 	// calculate the actual gas used
 	actualGasEstimate, err := gasEstimationAPI.EstimateGasPriceAndUsage(cctx.GoContext(), &gasestimation.EstimateGasPriceAndUsageRequest{TxBytes: rawTx})
@@ -242,7 +242,7 @@ func TestEstimateGasUsed(t *testing.T) {
 	require.NoError(t, err)
 
 	// calculate the expected gas used
-	expectedGasEstimate, err = txClient.EstimateGas(cctx.GoContext(), []sdk.Msg{pfbMsg})
+	_, expectedGasEstimate, err = txClient.EstimateGasPriceAndUsage(cctx.GoContext(), []sdk.Msg{pfbMsg}, gasestimation.TxPriority_TX_PRIORITY_MEDIUM)
 	require.NoError(t, err)
 	// calculate the actual gas used
 	actualGasEstimate, err = gasEstimationAPI.EstimateGasPriceAndUsage(cctx.GoContext(), &gasestimation.EstimateGasPriceAndUsageRequest{TxBytes: pfbTx})

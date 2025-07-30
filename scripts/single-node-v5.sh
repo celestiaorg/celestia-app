@@ -2,35 +2,17 @@
 
 # This script starts a local single node testnet on app version 4 and then upgrades to app version 5.
 
-# Stop script execution if an error is encountered
-set -o errexit
-# Stop script execution if an undefined variable is used
-set -o nounset
+set -o errexit # Stop script execution if an error is encountered
+set -o nounset # Stop script execution if an undefined variable is used
 
-if ! [ -x "$(command -v celestia-appd)" ]
-then
-    echo "celestia-appd could not be found. Please install the celestia-appd binary using 'make install' and make sure the PATH contains the directory where the binary exists. By default, go will install the binary under '~/go/bin'"
-    exit 1
-fi
-
-# Constants
 CHAIN_ID="test"
 KEY_NAME="validator"
 KEYRING_BACKEND="test"
-FEES="500utia"
+FEES="50000utia"
 BROADCAST_MODE="sync"
-FROM_VERSION="4"
-TO_VERSION="5"
-
-# Use argument as home directory if provided, else default to ~/.celestia-app
-if [ $# -ge 1 ]; then
-  APP_HOME="$1"
-else
-  APP_HOME="${HOME}/.celestia-app"
-fi
-
-VERSION=$(celestia-appd version 2>&1)
+APP_HOME="${HOME}/.celestia-app"
 GENESIS_FILE="${APP_HOME}/config/genesis.json"
+VERSION=$(celestia-appd version 2>&1)
 
 echo "celestia-app version: ${VERSION}"
 echo "celestia-app home: ${APP_HOME}"
@@ -39,7 +21,7 @@ echo ""
 
 createGenesis() {
     echo "Initializing validator and node config files..."
-    celestia-appd passthrough ${FROM_VERSION} init ${CHAIN_ID} \
+    celestia-appd passthrough 4 init ${CHAIN_ID} \
       --chain-id ${CHAIN_ID} \
       --home "${APP_HOME}" \
       > /dev/null 2>&1 # Hide output to reduce terminal noise
@@ -51,13 +33,13 @@ createGenesis() {
       > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     echo "Adding genesis account..."
-    celestia-appd passthrough ${FROM_VERSION} genesis add-genesis-account \
+    celestia-appd passthrough 4 genesis add-genesis-account \
       "$(celestia-appd keys show ${KEY_NAME} -a --keyring-backend=${KEYRING_BACKEND} --home "${APP_HOME}")" \
       "1000000000000000utia" \
       --home "${APP_HOME}"
 
     echo "Creating a genesis tx..."
-    celestia-appd passthrough ${FROM_VERSION} genesis gentx ${KEY_NAME} 5000000000utia \
+    celestia-appd passthrough 4 genesis gentx ${KEY_NAME} 5000000000utia \
       --fees ${FEES} \
       --keyring-backend=${KEYRING_BACKEND} \
       --chain-id ${CHAIN_ID} \
@@ -65,7 +47,7 @@ createGenesis() {
       > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     echo "Collecting genesis txs..."
-    celestia-appd passthrough ${FROM_VERSION} genesis collect-gentxs \
+    celestia-appd passthrough 4 genesis collect-gentxs \
       --home "${APP_HOME}" \
         > /dev/null 2>&1 # Hide output to reduce terminal noise
 
@@ -78,11 +60,9 @@ createGenesis() {
     # Persist ABCI responses
     sed -i'.bak' 's#discard_abci_responses = true#discard_abci_responses = false#g' "${APP_HOME}"/config/config.toml
 
-    # Override the VotingPeriod from 1 week to 1 minute
-    sed -i'.bak' 's#"604800s"#"60s"#g' "${APP_HOME}"/config/genesis.json
-
     # Override the log level to debug
     # sed -i'.bak' 's#log_level = "info"#log_level = "debug"#g' "${APP_HOME}"/config/config.toml
+    # sed -i'.bak' 's#log_level = "info"#log_level = "*:error,p2p:info,state:info"#g' "${APP_HOME}"/config/config.toml
 }
 
 deleteCelestiaAppHome() {
@@ -101,22 +81,22 @@ startCelestiaApp() {
     --force-no-bbr
 }
 
-upgradeToV4() {
-    sleep 30
-    echo "Submitting signal for v${TO_VERSION}..."
-    celestia-appd tx signal signal ${TO_VERSION} \
+upgradeToV5() {
+    sleep 10
+    echo "Submitting signal for v5..."
+    celestia-appd tx signal signal 5 \
         --keyring-backend=${KEYRING_BACKEND} \
         --home ${APP_HOME} \
         --from ${KEY_NAME} \
         --fees ${FEES} \
         --chain-id ${CHAIN_ID} \
         --broadcast-mode ${BROADCAST_MODE} \
-        --yes \
-        > /dev/null 2>&1 # Hide output to reduce terminal noise
+        --yes
+        # > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     sleep 10
-    echo "Querying the tally for v${TO_VERSION}..."
-    celestia-appd query signal tally ${TO_VERSION}
+    echo "Querying the tally for v5..."
+    celestia-appd query signal tally 5
 
     sleep 10
     echo "Submitting msg try upgrade..."
@@ -127,10 +107,10 @@ upgradeToV4() {
         --fees ${FEES} \
         --chain-id ${CHAIN_ID} \
         --broadcast-mode ${BROADCAST_MODE} \
-        --yes \
-        > /dev/null 2>&1 # Hide output to reduce terminal noise
+        --yes
+        # > /dev/null 2>&1 # Hide output to reduce terminal noise
 
-    sleep 2
+    sleep 10
     echo "Querying for pending upgrade..."
     celestia-appd query signal upgrade
 }
@@ -146,5 +126,5 @@ else
   createGenesis
 fi
 
-upgradeToV4 & # Start the upgrade process from v3 -> v4 in the background.
+upgradeToV5 & # Start the upgrade process from v4 -> v5 in the background.
 startCelestiaApp # Start celestia-app in the foreground.

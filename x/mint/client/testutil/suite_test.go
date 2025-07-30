@@ -46,7 +46,7 @@ func (s *IntegrationTestSuite) textArgs() []string {
 
 // TestGetCmdQueryInflationRate tests that the CLI query command for inflation
 // rate returns the correct value. This test assumes that the initial inflation
-// rate is 0.08.
+// rate is 0.0536 (as defined in CIP-29).
 func (s *IntegrationTestSuite) TestGetCmdQueryInflationRate() {
 	testCases := []struct {
 		name string
