@@ -2,6 +2,7 @@
 
 The target audience for this guide is maintainers of this repo. In general, the release process is as follows:
 
+1. Create a release branch
 1. Create a release candidate
 1. Test the release candidate
     1. If the release candidate is not satisfactory, go back to step 1
@@ -9,10 +10,13 @@ The target audience for this guide is maintainers of this repo. In general, the 
 
 ## Notes
 
-1. The v3.x.x binary used by the multiplexer is hard-coded in the Makefile (until [#4721](https://github.com/celestiaorg/celestia-app/issues/4721) is resolved). In order to include a code change to the v3.x branch in celestia-app v4.x, you must:
-    1. Create a release of celestia-app v3.x.x
-    1. Modify the Makefile to point to the new version
-    1. Create a release of celestia-app v4.x.x
+The versions of previous binaries are hard-coded at multiple places in celestia-app due to the multiplexer (until https://github.com/celestiaorg/celestia-app/issues/4921 is resolved). In order to include code changes to historical binaries, you need to make a release of that code change and bump the hard-coded versions.
+
+## Release branch
+
+1. Navigate to <https://github.com/celestiaorg/celestia-app/branches>.
+2. Click **New Branch**.
+3. Create a release branch. Example name: `v4.1.0-release`. Example source: `v4.x.x`.
 
 ## Release Candidate
 
@@ -20,8 +24,7 @@ The target audience for this guide is maintainers of this repo. In general, the 
 
 1. Navigate to <https://github.com/celestiaorg/celestia-app/releases/new>.
 1. Choose a version tag based on [Semantic Versioning](https://semver.org/). Include the `-rc` suffix followed by the next integer. RCs start at 0.
-1. If a minor version branch does not exist for the release you are about to create, create one. Example: `v3.4.x`.
-1. Change the target branch to a minor version based. Example: `v3.4.x`.
+1. Change the target branch to the branch you created in the previous section. Example `v4.1.0-release`.
 1. Click **Generate release notes**.
 1. Toggle on the **Set as a pre-release** checkbox.
 1. **Publish release**.
