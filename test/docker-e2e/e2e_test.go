@@ -21,7 +21,7 @@ import (
 
 const (
 	txsimImage = "ghcr.io/celestiaorg/txsim"
-	txSimTag   = "v4.0.7-mocha"
+	txSimTag   = "v4.1.0"
 	homeDir    = "/var/cosmos-chain/celestia"
 )
 
