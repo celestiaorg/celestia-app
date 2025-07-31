@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# This script starts a local single node testnet on app version 4 and then upgrades to app version 5.
+# This script starts a local single node testnet on app version 5 and then upgrades to app version 6.
 
 # Stop script execution if an error is encountered
 set -o errexit
@@ -17,10 +17,10 @@ fi
 CHAIN_ID="test"
 KEY_NAME="validator"
 KEYRING_BACKEND="test"
-FEES="500utia"
+FEES="1000utia"
 BROADCAST_MODE="sync"
-FROM_VERSION="4"
-TO_VERSION="5"
+FROM_VERSION="5"
+TO_VERSION="6"
 
 # Use argument as home directory if provided, else default to ~/.celestia-app
 if [ $# -ge 1 ]; then
@@ -101,8 +101,8 @@ startCelestiaApp() {
     --force-no-bbr
 }
 
-upgradeToV4() {
-    sleep 30
+upgrade() {
+    sleep 20
     echo "Submitting signal for v${TO_VERSION}..."
     celestia-appd tx signal signal ${TO_VERSION} \
         --keyring-backend=${KEYRING_BACKEND} \
@@ -112,7 +112,6 @@ upgradeToV4() {
         --chain-id ${CHAIN_ID} \
         --broadcast-mode ${BROADCAST_MODE} \
         --yes \
-        > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     sleep 10
     echo "Querying the tally for v${TO_VERSION}..."
@@ -128,7 +127,6 @@ upgradeToV4() {
         --chain-id ${CHAIN_ID} \
         --broadcast-mode ${BROADCAST_MODE} \
         --yes \
-        > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     sleep 2
     echo "Querying for pending upgrade..."
@@ -146,5 +144,5 @@ else
   createGenesis
 fi
 
-upgradeToV4 & # Start the upgrade process from v3 -> v4 in the background.
+upgrade & # Start the upgrade process to the next version in the background.
 startCelestiaApp # Start celestia-app in the foreground.

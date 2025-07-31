@@ -4,6 +4,13 @@ This guide provides notes for major version releases. These notes may be helpful
 
 ## Upcoming Major Release
 
+## v6.0.0 (Unreleased)
+
+## v5.0.0
+
+This major upgrade is an expedited patch release, fixing the problem with failed IBC transfers caused by the incorrectly configured capability module. There should be no additional API breaking changes.
+This expedited release will have no upgrade delay. The moment 5/6ths signal and the `MsgTryUpgrade` is successful, the network will upgrade to v5.
+
 ## v4.0.0
 
 ### Node Operators (v4.0.0)
