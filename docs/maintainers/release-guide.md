@@ -16,7 +16,7 @@ The versions of previous binaries are hard-coded at multiple places in celestia-
 
 1. Navigate to <https://github.com/celestiaorg/celestia-app/branches>.
 2. Click **New Branch**.
-3. Create a release branch. Example name: `v4.1.0-release`. Example source: `v4.x.x`.
+3. Create a release branch. Example name: `v4.1.0-release`. Example source: `v4.x`.
 
 ## Release Candidate
 
