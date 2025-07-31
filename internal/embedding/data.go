@@ -11,7 +11,7 @@ import (
 // Makefile.
 const (
 	v3Version = "v3.10.5"
-	v4Version = "v4.0.10"
+	v4Version = "v4.1.0-arabica"
 	v5Version = "v5.0.1-arabica"
 )
 
