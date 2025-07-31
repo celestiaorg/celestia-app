@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v5/app/encoding"
 	"github.com/celestiaorg/celestia-app/v5/pkg/user"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
+	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
 	"github.com/celestiaorg/tastora/framework/testutil/maps"
 	cometcfg "github.com/cometbft/cometbft/config"
@@ -56,7 +57,7 @@ func NewCelestiaChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.Chai
 		WithChainID(cfg.Genesis.ChainID).
 		WithDockerClient(cfg.DockerClient).
 		WithDockerNetworkID(cfg.DockerNetworkID).
-		WithImage(tastoradockertypes.NewDockerImage(cfg.Image, cfg.Tag, "10001:10001")).
+		WithImage(tastoracontainertypes.NewImage(cfg.Image, cfg.Tag, "10001:10001")).
 		WithAdditionalStartArgs("--force-no-bbr").
 		WithEncodingConfig(&encodingConfig).
 		WithPostInit(getPostInitModifications("0.025utia")...).
@@ -142,7 +143,7 @@ func NodeConfigBuilders(cfg *Config) ([]*tastoradockertypes.ChainNodeConfigBuild
 		chainNodeBuilders[i] = tastoradockertypes.NewChainNodeConfigBuilder().
 			WithPrivValidatorKey(privKeyBz).
 			WithAccountName(record.Name).
-			WithImage(tastoradockertypes.NewDockerImage(cfg.Image, cfg.Tag, "10001:10001")).
+			WithImage(tastoracontainertypes.NewImage(cfg.Image, cfg.Tag, "10001:10001")).
 			WithKeyring(kr)
 	}
 
@@ -157,4 +158,18 @@ func getPrivValidatorKeyJsonBytes(key privval.FilePVKey) ([]byte, error) {
 		return nil, fmt.Errorf("marshaling priv_validator_key.json: %w", err)
 	}
 	return privValidatorKeyBz, err
+}
+
+func NewSimappChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.ChainBuilder {
+	return tastoradockertypes.NewChainBuilder(t).
+		WithName("chain-b").
+		WithImage(tastoracontainertypes.NewImage("ghcr.io/cosmos/ibc-go-simd", "v8.5.0", "1000:1000")).
+		WithName("simapp").
+		WithBinaryName("simd").
+		WithBech32Prefix("cosmos").
+		WithDenom("stake").
+		WithGasPrices("0.000001stake").
+		WithDockerNetworkID(cfg.DockerNetworkID).
+		WithDockerClient(cfg.DockerClient).
+		WithChainID("chain-b")
 }
