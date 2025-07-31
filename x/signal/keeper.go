@@ -180,7 +180,7 @@ func (k Keeper) VersionTally(ctx context.Context, req *types.QueryVersionTallyRe
 }
 
 // GetMissingValidators returns the validators that have not yet signalled for a particular version
-func (k Keeper) GetMissingValidators(ctx context.Context, req *types.QueryMissingValidatorsRequest) (*types.QueryMissingValidatorsResponse, error) {
+func (k Keeper) GetMissingValidators(ctx context.Context, req *types.QueryGetMissingValidatorsRequest) (*types.QueryGetMissingValidatorsResponse, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	missingValidators := make([]string, 0)
 
@@ -224,7 +224,7 @@ func (k Keeper) GetMissingValidators(ctx context.Context, req *types.QueryMissin
 		return nil, err
 	}
 
-	return &types.QueryMissingValidatorsResponse{MissingValidators: missingValidators}, nil
+	return &types.QueryGetMissingValidatorsResponse{MissingValidators: missingValidators}, nil
 }
 
 // SetValidatorVersion saves a signalled version for a validator.

@@ -180,7 +180,7 @@ func TestTallyingLogic(t *testing.T) {
 		Version: 2,
 	})
 	require.NoError(t, err)
-	missingValidators, err := upgradeKeeper.GetMissingValidators(ctx, &types.QueryMissingValidatorsRequest{
+	missingValidators, err := upgradeKeeper.GetMissingValidators(ctx, &types.QueryGetMissingValidatorsRequest{
 		Version: 2,
 	})
 	require.NoError(t, err)
@@ -272,7 +272,7 @@ func TestTallyingLogic(t *testing.T) {
 	require.EqualValues(t, 100, res.ThresholdPower)
 	require.EqualValues(t, 120, res.TotalVotingPower)
 
-	missingValidators, err = upgradeKeeper.GetMissingValidators(ctx, &types.QueryMissingValidatorsRequest{
+	missingValidators, err = upgradeKeeper.GetMissingValidators(ctx, &types.QueryGetMissingValidatorsRequest{
 		Version: 2,
 	})
 	require.NoError(t, err)
