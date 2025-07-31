@@ -12,7 +12,7 @@ import (
 
 const (
 	multiplexerImage    = "ghcr.io/celestiaorg/celestia-app"
-	defaultCelestiaTag  = "v4.1.0-arabica"
+	defaultCelestiaTag  = "v4.1.0"
 	celestiaTagEnvVar   = "CELESTIA_TAG"
 	celestiaImageEnvVar = "CELESTIA_IMAGE"
 )
