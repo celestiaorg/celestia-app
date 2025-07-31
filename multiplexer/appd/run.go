@@ -235,6 +235,13 @@ func isBinaryDecompressed(version string) bool {
 
 func verifyBinaryIsExecutable(pathToBinary string) error {
 	testCmd := exec.Command(pathToBinary, "--help")
+	
+	// Set the CELESTIA_APP_HOME environment variable to ensure older binaries
+	// use the same home directory as the current application
+	env := os.Environ()
+	env = append(env, fmt.Sprintf("CELESTIA_APP_HOME=%s", nodeHome))
+	testCmd.Env = env
+	
 	testOutput, err := testCmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("binary validation failed (%s): %w\nOutput: %s", pathToBinary, err, string(testOutput))

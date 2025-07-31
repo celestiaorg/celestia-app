@@ -29,6 +29,10 @@ var defaultArgs = []string{
 
 // modifyRootCommand enhances the root command with the pass through and multiplexer.
 func modifyRootCommand(rootCommand *cobra.Command) {
+	// Set the multiplexer to use the current app's home directory by default
+	// This will be updated with the actual --home flag value in the pre-start hooks
+	appd.SetNodeHome(app.NodeHome)
+
 	v3Tag, v3CompressedBinary, err := embedding.CelestiaAppV3()
 	if err != nil {
 		panic(err)

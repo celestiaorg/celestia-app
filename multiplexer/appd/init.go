@@ -30,3 +30,9 @@ func init() {
 		fmt.Printf("Warning userHome err: %s\n", err)
 	}
 }
+
+// SetNodeHome allows overriding the default nodeHome directory.
+// This should be called before any operations that use the nodeHome.
+func SetNodeHome(home string) {
+	nodeHome = home
+}

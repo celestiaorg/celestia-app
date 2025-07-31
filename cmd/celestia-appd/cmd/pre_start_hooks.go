@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"cosmossdk.io/log"
+	"github.com/celestiaorg/celestia-app/v6/multiplexer/appd"
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
 )
@@ -31,5 +33,15 @@ func addPreStartHooks(rootCmd *cobra.Command, hooks ...PreStartHook) error {
 		return nil
 	}
 
+	return nil
+}
+
+// setMultiplexerHome sets the home directory for the multiplexer based on the --home flag
+func setMultiplexerHome(cmd *cobra.Command, logger log.Logger) error {
+	clientCtx := client.GetClientContextFromCmd(cmd)
+	if clientCtx.HomeDir != "" {
+		appd.SetNodeHome(clientCtx.HomeDir)
+		logger.Info("Set multiplexer home directory", "home", clientCtx.HomeDir)
+	}
 	return nil
 }

@@ -53,6 +53,7 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -277,7 +278,13 @@ func New(
 	for _, h := range cast.ToIntSlice(appOpts.Get(server.FlagUnsafeSkipUpgrades)) {
 		skipUpgradeHeights[int64(h)] = true
 	}
-	app.UpgradeKeeper = upgradekeeper.NewKeeper(skipUpgradeHeights, runtime.NewKVStoreService(keys[upgradetypes.StoreKey]), encodingConfig.Codec, NodeHome, app.BaseApp, govModuleAddr)
+
+	// get home directory from app options, fall back to NodeHome if not set
+	homeDir := cast.ToString(appOpts.Get(flags.FlagHome))
+	if homeDir == "" {
+		homeDir = NodeHome
+	}
+	app.UpgradeKeeper = upgradekeeper.NewKeeper(skipUpgradeHeights, runtime.NewKVStoreService(keys[upgradetypes.StoreKey]), encodingConfig.Codec, homeDir, app.BaseApp, govModuleAddr)
 
 	// Register the staking hooks. NOTE: stakingKeeper is passed by reference
 	// above so that it will contain these hooks.
