@@ -177,8 +177,8 @@ func NewSimappChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.ChainB
 		WithImage(tastoracontainertypes.NewImage("ibc-go", "v8.5.0", "1000:1000")).
 		WithBinaryName("simd").
 		WithBech32Prefix("celestia").
-		WithDenom("stake").
-		WithGasPrices("0.000001stake").
+		WithDenom("utia").
+		WithGasPrices("0.000001utia").
 		WithDockerNetworkID(cfg.DockerNetworkID).
 		WithDockerClient(cfg.DockerClient).
 		WithChainID("chain-b").
