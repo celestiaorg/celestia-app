@@ -154,7 +154,7 @@ usage.
 ## Gas Limit
 
 The gas limit must be included in each transaction. If the transaction exceeds
-this gas limit during the execution of the transaction, then the transaction
+this gas limit is used during the execution of the transaction, then the transaction
 will fail.
 
 > Note: When a transaction is submitted to the mempool, the transaction is not
