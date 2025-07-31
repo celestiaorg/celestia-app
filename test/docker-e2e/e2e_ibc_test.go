@@ -45,6 +45,9 @@ func (s *CelestiaTestSuite) TestTastoraIBC() {
 	// Setup chains: Celestia app (version N) and IBC-Go simapp
 	chainA, chainB := s.setupIBCChains(ctx, tag, baseAppVersion)
 
+	s.T().Log("A wallet", chainA.GetFaucetWallet())
+	s.T().Log("B wallet", chainB.GetFaucetWallet())
+
 	// Cleanup
 	t.Cleanup(func() {
 		if err := chainA.Stop(ctx); err != nil {

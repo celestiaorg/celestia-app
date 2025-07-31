@@ -52,6 +52,12 @@ func NewCelestiaChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.Chai
 			Build()
 	}
 
+	// register the first wallet as the faucet wallet
+	addr, err := records[0].GetAddress()
+	require.NoError(t, err, "failed to get address from keyring record")
+	// Create the wallet with all required fields
+	faucetWallet := tastoradockertypes.NewWallet(addr, addr.String(), "celestia", records[0].Name)
+
 	return tastoradockertypes.NewChainBuilder(t).
 		WithName("celestia"). // just influences home directory on the host.
 		WithChainID(cfg.Genesis.ChainID).
@@ -61,6 +67,7 @@ func NewCelestiaChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.Chai
 		WithAdditionalStartArgs("--force-no-bbr").
 		WithEncodingConfig(&encodingConfig).
 		WithPostInit(getPostInitModifications("0.025utia")...).
+		WithFaucetWallet(faucetWallet).
 		WithNodes(vals...).
 		WithGenesis(genesisBz)
 }
@@ -161,12 +168,15 @@ func getPrivValidatorKeyJsonBytes(key privval.FilePVKey) ([]byte, error) {
 }
 
 func NewSimappChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.ChainBuilder {
+	encodingConfig := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
 	return tastoradockertypes.NewChainBuilder(t).
-		WithName("chain-b").
-		WithImage(tastoracontainertypes.NewImage("ghcr.io/cosmos/ibc-go-simd", "v8.5.0", "1000:1000")).
+		WithEncodingConfig(&encodingConfig).
 		WithName("simapp").
+		WithChainID("chain-b").
+		//WithImage(tastoracontainertypes.NewImage("ghcr.io/cosmos/ibc-go-simd", "v8.5.0", "1000:1000")).
+		WithImage(tastoracontainertypes.NewImage("ibc-go", "v8.5.0", "1000:1000")).
 		WithBinaryName("simd").
-		WithBech32Prefix("cosmos").
+		WithBech32Prefix("celestia").
 		WithDenom("stake").
 		WithGasPrices("0.000001stake").
 		WithDockerNetworkID(cfg.DockerNetworkID).

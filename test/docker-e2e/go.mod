@@ -9,10 +9,12 @@ require (
 	github.com/celestiaorg/tastora v0.1.2
 	github.com/cometbft/cometbft v0.38.17
 	github.com/cosmos/cosmos-sdk v0.50.13
+	github.com/cosmos/ibc-go/v8 v8.7.0
 	github.com/docker/docker v28.3.3+incompatible
 	github.com/moby/moby v27.5.1+incompatible
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
+	golang.org/x/sync v0.16.0
 )
 
 require (
@@ -101,7 +103,6 @@ require (
 	github.com/cosmos/iavl v1.2.6 // indirect
 	github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8 v8.2.0 // indirect
 	github.com/cosmos/ibc-go/modules/capability v1.0.1 // indirect
-	github.com/cosmos/ibc-go/v8 v8.7.0 // indirect
 	github.com/cosmos/ics23/go v0.11.0 // indirect
 	github.com/cosmos/ledger-cosmos-go v0.14.0 // indirect
 	github.com/danieljoos/wincred v1.2.1 // indirect
@@ -249,7 +250,6 @@ require (
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
 	golang.org/x/net v0.42.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
-	golang.org/x/sync v0.16.0 // indirect
 	golang.org/x/sys v0.34.0 // indirect
 	golang.org/x/term v0.33.0 // indirect
 	golang.org/x/text v0.27.0 // indirect
