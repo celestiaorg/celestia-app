@@ -6,6 +6,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v5/app"
 	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
 	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
+	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/moby/moby/client"
@@ -43,7 +44,7 @@ func NewChainBuilder(t *testing.T, chainConfig *Config, cfg *dockerchain.Config)
 		WithChainID(chainConfig.ChainID).
 		WithDockerClient(cfg.DockerClient).
 		WithDockerNetworkID(cfg.DockerNetworkID).
-		WithImage(celestiadockertypes.NewDockerImage(cfg.Image, cfg.Tag, "10001:10001")).
+		WithImage(tastoracontainertypes.NewImage(cfg.Image, cfg.Tag, "10001:10001")).
 		WithAdditionalStartArgs("--force-no-bbr").
 		WithEncodingConfig(&encodingConfig).
 		WithGenesis(genesisBz)

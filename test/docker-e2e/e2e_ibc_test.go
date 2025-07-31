@@ -4,6 +4,7 @@ import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"context"
 	"fmt"
+	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
 	"golang.org/x/sync/errgroup"
@@ -199,7 +201,7 @@ func (s *CelestiaTestSuite) transferTokens(ctx context.Context, sourceChain, des
 	sourceWallet := sourceChain.GetFaucetWallet()
 	destWallet := destChain.GetFaucetWallet()
 
-	destAddr, err := sdk.AccAddressFromBech32(destWallet.GetFormattedAddress())
+	destAddr, err := sdkacc.AddressFromWallet(destWallet)
 	s.Require().NoError(err, "failed to parse destination address")
 
 	// Create IBC transfer message
@@ -215,19 +217,9 @@ func (s *CelestiaTestSuite) transferTokens(ctx context.Context, sourceChain, des
 		"",
 	)
 
-	// Setup tx client for source chain
-	var txClient *user.TxClient
-	if sourceChain.GetChainID() == "chain-a" {
-		// Celestia chain
-		node := sourceChain.GetNodes()[0].(*docker.ChainNode)
-		cfg := dockerchain.DefaultConfig(s.client, s.network)
-		txClient, err = dockerchain.SetupTxClient(ctx, node, cfg)
-		s.Require().NoError(err, "failed to setup tx client for celestia chain")
-	} else {
-		// Simapp chain - setup with basic config
-		txClient, err = s.setupSimappTxClient(ctx, sourceChain)
-		s.Require().NoError(err, "failed to setup tx client for simapp chain")
-	}
+	// Setup tx client for source chain - use universal setup
+	txClient, err := s.setupTxClient(ctx, sourceChain)
+	s.Require().NoError(err, "failed to setup tx client for source chain")
 
 	// Get initial balances
 	sourceBalance := s.getBalance(ctx, sourceChain, sourceWallet.GetFormattedAddress(), denom)
@@ -241,9 +233,7 @@ func (s *CelestiaTestSuite) transferTokens(ctx context.Context, sourceChain, des
 	s.Require().NoError(err, "failed to submit IBC transfer")
 	s.Require().Equal(uint32(0), resp.Code, "IBC transfer tx failed with code %d", resp.Code)
 
-	// Wait for packet processing
-	time.Sleep(10 * time.Second)
-	err = wait.ForBlocks(ctx, 3, sourceChain)
+	err = wait.ForBlocks(ctx, 5, sourceChain)
 	s.Require().NoError(err, "failed to wait for blocks")
 
 	// Check final balances
@@ -333,26 +323,54 @@ func (s *CelestiaTestSuite) createNewChannelAfterUpgrade(ctx context.Context, ch
 	return channel
 }
 
-// setupSimappTxClient sets up a tx client for the simapp chain
-func (s *CelestiaTestSuite) setupSimappTxClient(ctx context.Context, chain tastoratypes.Chain) (*user.TxClient, error) {
-	// This is a simplified version - in practice you'd need to implement proper
-	// tx client setup for simapp similar to what's done for celestia in dockerchain.SetupTxClient
-	return nil, fmt.Errorf("simapp tx client setup not implemented yet")
+// setupTxClient sets up a tx client for any chain type using celestia's encoding config
+func (s *CelestiaTestSuite) setupTxClient(ctx context.Context, chain tastoratypes.Chain) (*user.TxClient, error) {
+	node := chain.GetNodes()[0].(*docker.ChainNode)
+	cfg := dockerchain.DefaultConfig(s.client, s.network)
+	return dockerchain.SetupTxClient(ctx, node, cfg)
 }
 
-// getBalance gets the balance of a specific denom for an address
+// getBalance gets the balance of a specific denom for an address using bank query
 func (s *CelestiaTestSuite) getBalance(ctx context.Context, chain tastoratypes.Chain, address, denom string) sdkmath.Int {
-	// Query balance using the chain's query client
-	// This would need to be implemented based on the chain type
-	return sdkmath.ZeroInt()
+	dockerChain, ok := chain.(*docker.Chain)
+	if !ok {
+		s.T().Logf("Chain is not a docker Chain, returning zero balance")
+		return sdkmath.ZeroInt()
+	}
+
+	node := dockerChain.GetNode()
+	if node.GrpcConn == nil {
+		s.T().Logf("GRPC connection is nil for chain %s, returning zero balance", chain.GetChainID())
+		return sdkmath.ZeroInt()
+	}
+
+	// Create bank query client using the node's gRPC connection
+	bankClient := banktypes.NewQueryClient(node.GrpcConn)
+
+	resp, err := bankClient.Balance(ctx, &banktypes.QueryBalanceRequest{
+		Address: address,
+		Denom:   denom,
+	})
+
+	if err != nil {
+		s.T().Logf("Failed to query balance for %s %s: %v, returning zero", address, denom, err)
+		return sdkmath.ZeroInt()
+	}
+
+	if resp.Balance == nil {
+		return sdkmath.ZeroInt()
+	}
+
+	return resp.Balance.Amount
 }
 
-// calculateIBCDenom calculates the IBC denomination for a token transferred over a channel
+// calculateIBCDenom calculates the IBC denomination using ibc-go utilities
 func (s *CelestiaTestSuite) calculateIBCDenom(channel ibc.Channel, baseDenom string) string {
-	// IBC denom format: ibc/{hash of path}
-	// Path format: {port}/{channel}/{denom}
-	path := fmt.Sprintf("%s/%s/%s", channel.PortID, channel.CounterpartyID, baseDenom)
-	// In practice, you'd calculate the SHA256 hash of the path
-	// For now, return a placeholder
-	return fmt.Sprintf("ibc/%s", path)
+	// Use ibc-go's standard functions to calculate IBC denom
+	prefixedDenom := ibctransfertypes.GetPrefixedDenom(
+		channel.PortID,
+		channel.CounterpartyID,
+		baseDenom,
+	)
+	return ibctransfertypes.ParseDenomTrace(prefixedDenom).IBCDenom()
 }

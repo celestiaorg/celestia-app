@@ -171,5 +171,6 @@ func NewSimappChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.ChainB
 		WithGasPrices("0.000001stake").
 		WithDockerNetworkID(cfg.DockerNetworkID).
 		WithDockerClient(cfg.DockerClient).
-		WithChainID("chain-b")
+		WithChainID("chain-b").
+		WithNode(tastoradockertypes.NewChainNodeConfigBuilder().Build())
 }
