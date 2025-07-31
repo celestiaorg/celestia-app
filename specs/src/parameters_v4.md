@@ -3,7 +3,7 @@
 The parameters below represent the parameters for app version 4.
 
 Note that not all of these parameters are changeable via governance. This list
-also includes parameter that require a hardfork to change due to being manually
+also includes a parameter that requires a hardfork to change due to being manually
 hardcoded in the application or they are blocked by the `ParamFilterDecorator`.
 Parameters that are governance modifiables can be modified via a
 `MsgSubmitProposal` that contains a `moduleXYZ.MsgUpdateParams` message.
