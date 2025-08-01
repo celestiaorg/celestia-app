@@ -171,3 +171,72 @@ func (s *CelestiaTestSuite) WaitForSync(ctx context.Context, statusClient rpccli
 		}
 	}
 }
+
+// AssertHealthy checks that (a) every validator proposed at least one block
+// between startHeight (exclusive) and endHeight (inclusive) and (b) no node
+// stalled below endHeight.
+//
+// Call this at the *end* of an E2E test once you're sure endHeight is final.
+func (s *CelestiaTestSuite) AssertHealthy(
+	ctx context.Context,
+	chain tastoratypes.Chain,
+	startHeight, endHeight int64,
+) error {
+	if endHeight <= startHeight {
+		return fmt.Errorf("invalid height range %d → %d", startHeight, endHeight)
+	}
+
+	s.T().Logf("Checking validator health from height %d to %d", startHeight, endHeight)
+
+	// choose the first node as our RPC reader
+	reader, err := chain.GetNodes()[0].GetRPCClient()
+	if err != nil {
+		return fmt.Errorf("reader RPC: %w", err)
+	}
+
+	// 1. gather proposer addresses per block
+	proposers := make(map[string]struct{})
+	for h := startHeight + 1; h <= endHeight; h++ {
+		blockRes, err := reader.Block(ctx, &h)
+		if err != nil {
+			return fmt.Errorf("block %d: %w", h, err)
+		}
+		addr := blockRes.Block.Header.ProposerAddress.String()
+		proposers[addr] = struct{}{}
+	}
+
+	s.T().Logf("Found %d unique proposers", len(proposers))
+
+	// 2. verify every validator appears
+	validators, err := reader.Validators(ctx, &endHeight, nil, nil)
+	if err != nil {
+		return fmt.Errorf("validators query: %w", err)
+	}
+
+	s.T().Logf("Checking %d validators for proposer activity", len(validators.Validators))
+	for _, val := range validators.Validators {
+		if _, ok := proposers[val.Address.String()]; !ok {
+			return fmt.Errorf("validator %s never proposed between %d-%d",
+				val.Address.String(), startHeight, endHeight)
+		}
+	}
+
+	// 3. ensure no node halted below endHeight
+	for i, n := range chain.GetNodes() {
+		c, err := n.GetRPCClient()
+		if err != nil {
+			return fmt.Errorf("node %d RPC: %w", i, err)
+		}
+		status, err := c.Status(ctx)
+		if err != nil {
+			return fmt.Errorf("node %d status: %w", i, err)
+		}
+		if status.SyncInfo.LatestBlockHeight < endHeight {
+			return fmt.Errorf("node %d halted at %d (expected ≥ %d)",
+				i, status.SyncInfo.LatestBlockHeight, endHeight)
+		}
+	}
+
+	s.T().Logf("All validators healthy: proposed blocks and no nodes halted")
+	return nil
+}

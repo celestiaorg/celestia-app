@@ -97,15 +97,15 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 	// Signal for upgrade and get the upgrade height
 	upgradeHeight := s.signalAndGetUpgradeHeight(ctx, chain, validatorNode, cfg, records, targetAppVersion)
 
-	// Get current height
+	// Record current height - we'll use it later for health assertions
 	status, err := rpcClient.Status(ctx)
 	s.Require().NoError(err, "failed to get node status")
-	currentHeight := status.SyncInfo.LatestBlockHeight
+	startHeight := status.SyncInfo.LatestBlockHeight
 
-	s.T().Logf("Current height: %d, Upgrade height: %d", currentHeight, upgradeHeight)
+	s.T().Logf("Current height: %d, Upgrade height: %d", startHeight, upgradeHeight)
 
 	// Wait until we reach the upgrade height
-	blocksToWait := int(upgradeHeight-currentHeight) + 2 // Add buffer
+	blocksToWait := int(upgradeHeight-startHeight) + 2 // Add buffer
 	s.T().Logf("Waiting for %d blocks to reach upgrade height plus buffer", blocksToWait)
 	s.Require().NoError(wait.ForBlocks(ctx, blocksToWait, chain))
 
@@ -119,6 +119,17 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 	// Sanity check: Test bank send after upgrade
 	s.T().Log("Testing bank send functionality after upgrade")
 	testBankSend(s.T(), chain, cfg)
+
+	// Validators health check
+	finalStatus, err := rpcClient.Status(ctx)
+	s.Require().NoError(err, "failed to get final status")
+	endHeight := finalStatus.SyncInfo.LatestBlockHeight
+
+	s.T().Logf("Asserting validator health for blocks %d → %d", startHeight, endHeight)
+	s.Require().NoError(
+		s.AssertHealthy(ctx, chain, startHeight, endHeight),
+		"validator health check failed",
+	)
 }
 
 // signalAndGetUpgradeHeight signals for an upgrade to the specified app
