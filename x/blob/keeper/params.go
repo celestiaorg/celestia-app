@@ -29,9 +29,3 @@ func (k Keeper) SetParams(ctx sdk.Context, params types.Params) {
 	bz := k.cdc.MustMarshal(&params)
 	store.Set([]byte(types.ParamsKey), bz)
 }
-
-// SetParamsLegacy sets the params in the legacy store space.
-// TODO: this can be removed in versions after migrations have run.
-func (k Keeper) SetParamsLegacy(ctx sdk.Context, params types.Params) {
-	k.legacySubspace.SetParamSet(ctx, &params)
-}
