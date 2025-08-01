@@ -34,9 +34,9 @@ import (
 // - creating an IBC connection and channel
 // - performs a token transfer
 // - upgrades from app version N-1 to N
-// - performs token transfer over same channel
+// - performs token transfer over the same channel
 // - creates a new connection and channel after upgrade
-// - performs token transfer over new channel
+// - performs token transfer over a new channel
 func (s *CelestiaTestSuite) TestIBC() {
 	if testing.Short() {
 		s.T().Skip("skipping IBC test in short mode")
