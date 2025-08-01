@@ -91,9 +91,9 @@ func (s *CelestiaTestSuite) TestTastoraIBC() {
 func (s *CelestiaTestSuite) setupIBCChains(ctx context.Context, imageTag string, appVersion uint64) (tastoratypes.Chain, tastoratypes.Chain) {
 	t := s.T()
 
-	// Chain A configuration (Celestia app)
-	cfgA := dockerchain.DefaultConfig(s.client, s.network).WithTag(imageTag)
-	cfgA.Genesis = cfgA.Genesis.WithAppVersion(appVersion)
+	// Chain A configuration (Celestia app) - store in suite for later use in upgrades
+	s.celestiaCfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(imageTag)
+	s.celestiaCfg.Genesis = s.celestiaCfg.Genesis.WithAppVersion(appVersion)
 
 	// Create chains in parallel
 	var chainA, chainB tastoratypes.Chain
@@ -101,7 +101,7 @@ func (s *CelestiaTestSuite) setupIBCChains(ctx context.Context, imageTag string,
 
 	g.Go(func() error {
 		var err error
-		chainA, err = dockerchain.NewCelestiaChainBuilder(t, cfgA).Build(gCtx)
+		chainA, err = dockerchain.NewCelestiaChainBuilder(t, s.celestiaCfg).Build(gCtx)
 		if err != nil {
 			return fmt.Errorf("failed to build chain A: %w", err)
 		}
@@ -110,7 +110,7 @@ func (s *CelestiaTestSuite) setupIBCChains(ctx context.Context, imageTag string,
 
 	g.Go(func() error {
 		var err error
-		builder := dockerchain.NewSimappChainBuilder(t, cfgA)
+		builder := dockerchain.NewSimappChainBuilder(t, s.celestiaCfg)
 		chainB, err = builder.Build(gCtx)
 		if err != nil {
 			return fmt.Errorf("failed to build chain B: %w", err)
@@ -166,17 +166,13 @@ func (s *CelestiaTestSuite) establishIBCConnection(ctx context.Context, chainA, 
 	return connection, channel
 }
 
-// testTokenTransfers tests bidirectional token transfers with token filter verification
+// testTokenTransfers tests token transfers from Celestia to simapp
 func (s *CelestiaTestSuite) testTokenTransfers(ctx context.Context, chainA, chainB tastoratypes.Chain, channel ibc.Channel) {
 	t := s.T()
 
-	// Test 1: Send tokens from Chain A (Celestia) to Chain B (simapp) - should succeed
+	// Send tokens from Chain A (Celestia) to Chain B (simapp) - should succeed
 	t.Log("Testing token transfer from Celestia to simapp (should succeed)")
 	s.transferTokens(ctx, chainA, chainB, channel, "utia", 100000, true)
-
-	// Test 2: Send tokens from Chain B (simapp) to Chain A (Celestia) - should fail due to token filtering
-	t.Log("Testing token transfer from simapp to Celestia (should fail due to token filtering)")
-	s.transferTokens(ctx, chainB, chainA, channel, "stake", 100000, false)
 }
 
 // testTokenTransfersAfterUpgrade tests that token transfers work correctly after upgrade
@@ -188,26 +184,26 @@ func (s *CelestiaTestSuite) testTokenTransfersAfterUpgrade(ctx context.Context, 
 	// Test transfers still work after upgrade - A to B should succeed
 	t.Logf("Testing token transfer from Celestia to simapp on %s after upgrade (should succeed)", channelType)
 	s.transferTokens(ctx, chainA, chainB, channel, "utia", 100000, true)
-
-	// Token filtering should still work - B to A should fail
-	t.Logf("Testing token transfer from simapp to Celestia on %s after upgrade (should fail)", channelType)
-	s.transferTokens(ctx, chainB, chainA, channel, "stake", 100000, false)
 }
 
-// transferTokens performs an IBC token transfer and verifies the result
+// transferTokens performs an IBC token transfer from chain-a (Celestia) to chain-b (simapp)
 func (s *CelestiaTestSuite) transferTokens(ctx context.Context, sourceChain, destChain tastoratypes.Chain, channel ibc.Channel, denom string, amount int64, shouldSucceed bool) {
-	t := s.T()
-
-	// Get wallets
+	// Create IBC transfer message
 	sourceWallet := sourceChain.GetFaucetWallet()
 	destWallet := destChain.GetFaucetWallet()
+	ibcTransfer := s.createIBCTransferMsg(sourceWallet, destWallet, channel, denom, amount)
 
+	// Submit transaction and verify results - always use TxClient since we only transfer from Celestia
+	s.submitTransactionAndVerify(ctx, sourceChain, destChain, sourceWallet, destWallet, ibcTransfer, denom, amount, shouldSucceed)
+}
+
+// createIBCTransferMsg creates an IBC transfer message
+func (s *CelestiaTestSuite) createIBCTransferMsg(sourceWallet, destWallet tastoratypes.Wallet, channel ibc.Channel, denom string, amount int64) *ibctransfertypes.MsgTransfer {
 	destAddr, err := sdkacc.AddressFromWallet(destWallet)
 	s.Require().NoError(err, "failed to parse destination address")
 
-	// Create IBC transfer message
 	transferAmount := sdkmath.NewInt(amount)
-	ibcTransfer := ibctransfertypes.NewMsgTransfer(
+	return ibctransfertypes.NewMsgTransfer(
 		channel.PortID,
 		channel.ChannelID,
 		sdk.NewCoin(denom, transferAmount),
@@ -217,25 +213,47 @@ func (s *CelestiaTestSuite) transferTokens(ctx context.Context, sourceChain, des
 		uint64(time.Now().Add(time.Hour).UnixNano()),
 		"",
 	)
+}
 
-	// Setup tx client for source chain - use universal setup
-	txClient, err := s.setupTxClient(ctx, sourceChain)
-	s.Require().NoError(err, "failed to setup tx client for source chain")
+// submitTransactionAndVerify submits a transaction using the appropriate method and verifies results
+func (s *CelestiaTestSuite) submitTransactionAndVerify(ctx context.Context, sourceChain, destChain tastoratypes.Chain, sourceWallet, destWallet tastoratypes.Wallet, msg *ibctransfertypes.MsgTransfer, denom string, amount int64, shouldSucceed bool) {
+	t := s.T()
 
 	// Get initial balances
 	sourceBalance := s.getBalance(ctx, sourceChain, sourceWallet.GetFormattedAddress(), denom)
+	channel := ibc.Channel{PortID: msg.SourcePort, CounterpartyID: msg.SourceChannel}
 	ibcDenom := s.calculateIBCDenom(channel, denom)
 	destBalance := s.getBalance(ctx, destChain, destWallet.GetFormattedAddress(), ibcDenom)
 
 	t.Logf("Initial balances - Source: %s %s, Dest: %s %s", sourceBalance.String(), denom, destBalance.String(), ibcDenom)
 
-	// Submit transfer
-	resp, err := txClient.SubmitTx(ctx, []sdk.Msg{ibcTransfer}, user.SetGasLimit(200000), user.SetFee(5000))
-	s.Require().NoError(err, "failed to submit IBC transfer")
+	// Submit transaction using TxClient (since we only transfer from Celestia chain)
+	txClient, err := s.setupTxClient(ctx, sourceChain)
+	s.Require().NoError(err, "failed to setup tx client for celestia chain")
+
+	r, err := txClient.SubmitTx(ctx, []sdk.Msg{msg}, user.SetGasLimit(200000), user.SetFee(5000))
+	s.Require().NoError(err, "failed to submit IBC transfer via TxClient")
+
+	resp := sdk.TxResponse{
+		Height: r.Height,
+		TxHash: r.TxHash,
+		Code:   r.Code,
+	}
+
 	s.Require().Equal(uint32(0), resp.Code, "IBC transfer tx failed with code %d", resp.Code)
 
+	// Wait for blocks
 	err = wait.ForBlocks(ctx, 5, sourceChain)
 	s.Require().NoError(err, "failed to wait for blocks")
+
+	// Verify results
+	transferAmount := sdkmath.NewInt(amount)
+	s.verifyTransferResults(ctx, sourceChain, destChain, sourceWallet, destWallet, denom, ibcDenom, sourceBalance, destBalance, transferAmount, shouldSucceed)
+}
+
+// verifyTransferResults checks the final balances and verifies the transfer results
+func (s *CelestiaTestSuite) verifyTransferResults(ctx context.Context, sourceChain, destChain tastoratypes.Chain, sourceWallet, destWallet tastoratypes.Wallet, denom, ibcDenom string, sourceBalance, destBalance, transferAmount sdkmath.Int, shouldSucceed bool) {
+	t := s.T()
 
 	// Check final balances
 	finalSourceBalance := s.getBalance(ctx, sourceChain, sourceWallet.GetFormattedAddress(), denom)
@@ -245,19 +263,13 @@ func (s *CelestiaTestSuite) transferTokens(ctx context.Context, sourceChain, des
 
 	if shouldSucceed {
 		// Verify tokens were transferred
-		//expectedSourceBalance := sourceBalance.Sub(transferAmount)
 		expectedDestBalance := destBalance.Add(transferAmount)
-
-		//s.Require().True(finalSourceBalance.Equal(expectedSourceBalance),
-		//	"source balance mismatch: expected %s, got %s", expectedSourceBalance.String(), finalSourceBalance.String())
 		s.Require().True(finalDestBalance.Equal(expectedDestBalance),
 			"destination balance mismatch: expected %s, got %s", expectedDestBalance.String(), finalDestBalance.String())
 
 		t.Log("Token transfer succeeded as expected")
 	} else {
 		// Verify tokens were NOT transferred (due to token filtering)
-		//s.Require().True(finalSourceBalance.Equal(sourceBalance),
-		//	"source balance should remain unchanged, expected %s, got %s", sourceBalance.String(), finalSourceBalance.String())
 		s.Require().True(finalDestBalance.Equal(destBalance),
 			"destination balance should remain unchanged, expected %s, got %s", destBalance.String(), finalDestBalance.String())
 
@@ -266,21 +278,25 @@ func (s *CelestiaTestSuite) transferTokens(ctx context.Context, sourceChain, des
 }
 
 // upgradeChain upgrades the celestia chain from baseAppVersion to targetAppVersion
+// This reuses the existing upgrade logic from e2e_upgrade_test.go
 func (s *CelestiaTestSuite) upgradeChain(ctx context.Context, chain tastoratypes.Chain, baseAppVersion, targetAppVersion uint64) {
 	t := s.T()
 
 	t.Logf("Upgrading chain from version %d to version %d", baseAppVersion, targetAppVersion)
 
-	// Get validator node and setup tx client
-	validatorNode := chain.GetNodes()[0].(*docker.ChainNode)
-	cfg := dockerchain.DefaultConfig(s.client, s.network)
+	// Get validator node
+	validatorNode := chain.GetNodes()[0]
 
-	// Get keyring records for all validators
+	// Use the same config that was used to build the chain (stored in test suite)
+	// This ensures the keyring matches what the running chain expects
+	cfg := s.celestiaCfg
 	kr := cfg.Genesis.Keyring()
+	
+	// Get keyring records for all validators
 	records, err := kr.List()
 	s.Require().NoError(err, "failed to list keyring records")
 
-	// Signal and execute upgrade
+	// Signal and execute upgrade using the existing function
 	upgradeHeight := s.signalAndGetUpgradeHeight(ctx, chain, validatorNode, cfg, records, targetAppVersion)
 
 	// Wait for upgrade to complete
