@@ -7,7 +7,7 @@ import (
 	"math"
 	"sort"
 
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	cmtclient "github.com/cometbft/cometbft/rpc/client"
 	"github.com/cometbft/cometbft/types"

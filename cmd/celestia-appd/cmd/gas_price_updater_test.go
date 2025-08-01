@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"

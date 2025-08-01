@@ -12,10 +12,10 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/pkg/user"
-	"github.com/celestiaorg/celestia-app/v5/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v5/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"

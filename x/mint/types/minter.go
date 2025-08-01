@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
