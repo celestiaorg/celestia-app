@@ -8,6 +8,9 @@ message TransactionFee {
   uint64 tip_rate = 1;
 }
 
+// Deprecated: This message is obsolete as per the decision in issue #120 to use
+// a 'string' type for decimals. It is kept for legacy purposes and will be
+// removed in a future refactor.
 message Decimal {
   // https://github.com/celestiaorg/celestia-specs/issues/120
   uint64 todo = 1;
