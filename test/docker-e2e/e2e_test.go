@@ -3,9 +3,11 @@ package docker_e2e
 import (
 	"context"
 	"fmt"
+	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	"testing"
 	"time"
 
+	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"github.com/celestiaorg/go-square/v2/share"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
@@ -31,9 +33,10 @@ func TestCelestiaTestSuite(t *testing.T) {
 
 type CelestiaTestSuite struct {
 	suite.Suite
-	logger  *zap.Logger
-	client  *client.Client
-	network string
+	logger     *zap.Logger
+	client     *client.Client
+	network    string
+	celestiaCfg *dockerchain.Config // Config used to build the celestia chain, needed for upgrades
 }
 
 func (s *CelestiaTestSuite) SetupSuite() {
@@ -50,9 +53,9 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain tastoratypes.
 
 	// Deploy txsim image
 	t.Log("Deploying txsim image")
-	txsimImage := tastoradockertypes.NewImage(s.logger, s.client, networkName, t.Name(), txsimImage, txSimTag)
+	txsimImage := tastoracontainertypes.NewJob(s.logger, s.client, networkName, t.Name(), txsimImage, txSimTag)
 
-	opts := tastoradockertypes.ContainerOptions{
+	opts := tastoracontainertypes.Options{
 		User: "0:0",
 		// Mount the Celestia home directory into the txsim container
 		// this ensures txsim has access to a keyring and is able to broadcast transactions.
