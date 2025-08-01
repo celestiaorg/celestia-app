@@ -62,6 +62,10 @@ grpc_laddr = "tcp://127.0.0.1:9098"
 
 Celestia-app v4 uses IAVL v1 for better performance. When upgrading to v4, the migration happens lazily over time. If you'd like to avoid the lazy migration, you can perform a fresh state sync so that your node uses IAVL v1 exclusively.
 
+#### Cosmos SDK default addresses
+
+The default addresses for the Cosmos SDK API server, GRPC server, and GRPC web server have changed from `0.0.0.0` to `localhost`. See [cosmos-sdk#13778](https://github.com/cosmos/cosmos-sdk/pull/13778).
+
 ### State Machine Changes (v4.0.0)
 
 Celestia-app v4.0.0 includes significant state machine changes due to major dependency upgrades:
