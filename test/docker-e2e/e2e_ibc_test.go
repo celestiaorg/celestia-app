@@ -79,6 +79,12 @@ func (s *CelestiaTestSuite) TestIBC() {
 		hermes = s.createHermesRelayer(ctx, chainA, chainB)
 	})
 
+	t.Run("create_clients", func(t *testing.T) {
+		t.Logf("Creating IBC clients")
+		err := hermes.CreateClients(ctx, chainA, chainB)
+		s.Require().NoError(err, "failed to create IBC clients")
+	})
+
 	t.Run("setup_connection_and_channel", func(t *testing.T) {
 		t.Logf("Creating IBC connection and channel")
 		_, channel = s.establishIBCConnection(ctx, chainA, chainB, hermes)
@@ -106,7 +112,7 @@ func (s *CelestiaTestSuite) TestIBC() {
 
 	t.Run("new_connection_and_channel", func(t *testing.T) {
 		t.Logf("Creating new connection and channel after upgrade")
-		_, channel = s.createNewConnectionAndChannel(ctx, chainA, chainB, hermes)
+		_, channel = s.establishIBCConnection(ctx, chainA, chainB, hermes)
 	})
 
 	t.Run("new_channel_transfers", func(t *testing.T) {
@@ -164,9 +170,6 @@ func (s *CelestiaTestSuite) createHermesRelayer(ctx context.Context, chainA, cha
 
 // establishIBCConnection creates IBC clients, connection, and channel between the chains
 func (s *CelestiaTestSuite) establishIBCConnection(ctx context.Context, chainA, chainB tastoratypes.Chain, hermes *relayer.Hermes) (ibc.Connection, ibc.Channel) {
-	err := hermes.CreateClients(ctx, chainA, chainB)
-	s.Require().NoError(err, "failed to create IBC clients")
-
 	connection, err := hermes.CreateConnections(ctx, chainA, chainB)
 	s.Require().NoError(err, "failed to create IBC connection")
 
@@ -273,24 +276,6 @@ func (s *CelestiaTestSuite) upgradeChain(ctx context.Context, chain tastoratypes
 	abciInfo, err := rpcClient.ABCIInfo(ctx)
 	s.Require().NoError(err, "failed to fetch ABCI info")
 	s.Require().Equal(targetAppVersion, abciInfo.Response.GetAppVersion(), "app version mismatch after upgrade")
-}
-
-// createNewConnectionAndChannel creates a new IBC connection and channel after the upgrade
-func (s *CelestiaTestSuite) createNewConnectionAndChannel(ctx context.Context, chainA, chainB tastoratypes.Chain, hermes *relayer.Hermes) (ibc.Connection, ibc.Channel) {
-	connection, err := hermes.CreateConnections(ctx, chainA, chainB)
-	s.Require().NoError(err, "failed to create new IBC connection after upgrade")
-
-	channelOpts := ibc.CreateChannelOptions{
-		SourcePortName: "transfer",
-		DestPortName:   "transfer",
-		Order:          ibc.OrderUnordered,
-		Version:        "ics20-1",
-	}
-
-	channel, err := hermes.CreateChannel(ctx, chainA, connection, channelOpts)
-	s.Require().NoError(err, "failed to create new IBC channel after upgrade")
-
-	return connection, channel
 }
 
 // setupTxClient sets up a tx client using the node's keyring
