@@ -166,21 +166,3 @@ func getPrivValidatorKeyJsonBytes(key privval.FilePVKey) ([]byte, error) {
 	}
 	return privValidatorKeyBz, err
 }
-
-func NewSimappChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.ChainBuilder {
-	encodingConfig := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
-	return tastoradockertypes.NewChainBuilder(t).
-		WithEncodingConfig(&encodingConfig).
-		WithName("simapp").
-		WithChainID("chain-b").
-		//WithImage(tastoracontainertypes.NewImage("ghcr.io/cosmos/ibc-go-simd", "v8.5.0", "1000:1000")).
-		WithImage(tastoracontainertypes.NewImage("ibc-go", "v8.5.0", "1000:1000")).
-		WithBinaryName("simd").
-		WithBech32Prefix("celestia").
-		WithDenom("utia").
-		WithGasPrices("0.000001utia").
-		WithDockerNetworkID(cfg.DockerNetworkID).
-		WithDockerClient(cfg.DockerClient).
-		WithChainID("chain-b").
-		WithNode(tastoradockertypes.NewChainNodeConfigBuilder().Build())
-}

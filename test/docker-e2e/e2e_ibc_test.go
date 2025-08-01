@@ -4,7 +4,12 @@ import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"context"
 	"fmt"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
+	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
+	"github.com/celestiaorg/tastora/framework/testutil/query"
 	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
+	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"testing"
 	"time"
 
@@ -18,7 +23,6 @@ import (
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
 	"golang.org/x/sync/errgroup"
@@ -34,9 +38,9 @@ func (s *CelestiaTestSuite) TestTastoraIBC() {
 	ctx := context.Background()
 	t := s.T()
 
-	// Start with version 4, upgrade to version 5
-	baseAppVersion := uint64(4)
-	targetAppVersion := uint64(5)
+	// start at previous version, upgrade to this version.
+	baseAppVersion := appconsts.Version - 1
+	targetAppVersion := appconsts.Version
 
 	// Get celestia image tag
 	//tag, err := dockerchain.GetCelestiaTagStrict()
@@ -59,10 +63,8 @@ func (s *CelestiaTestSuite) TestTastoraIBC() {
 	// Create and initialize Hermes relayer (but don't start it yet)
 	hermes := s.createHermesRelayer(ctx, chainA, chainB)
 	t.Cleanup(func() {
-		if hermes != nil {
-			if err := hermes.Stop(ctx); err != nil {
-				t.Logf("Error stopping hermes: %v", err)
-			}
+		if err := hermes.Stop(ctx); err != nil {
+			t.Logf("Error stopping hermes: %v", err)
 		}
 	})
 
@@ -73,16 +75,16 @@ func (s *CelestiaTestSuite) TestTastoraIBC() {
 	err := hermes.Start(ctx)
 	s.Require().NoError(err, "failed to start hermes relayer")
 
-	// Test bidirectional token transfers with token filter verification
+	// test token transfers to chainB
 	s.testTokenTransfers(ctx, chainA, chainB, channel)
 
-	// Upgrade chain A to version N+1
+	// upgrade celestia to version N+1
 	s.upgradeChain(ctx, chainA, baseAppVersion, targetAppVersion)
 
-	// Continue token transfers on existing channel after upgrade
+	// continue token transfers on existing channel after upgrade
 	s.testTokenTransfersAfterUpgrade(ctx, chainA, chainB, channel, "existing channel")
 
-	// Create new channel after upgrade and perform token transfers
+	// create new channel after upgrade and perform token transfers
 	newChannel := s.createNewChannelAfterUpgrade(ctx, chainA, chainB, hermes, connection)
 	s.testTokenTransfersAfterUpgrade(ctx, chainA, chainB, newChannel, "new channel")
 }
@@ -110,7 +112,7 @@ func (s *CelestiaTestSuite) setupIBCChains(ctx context.Context, imageTag string,
 
 	g.Go(func() error {
 		var err error
-		builder := dockerchain.NewSimappChainBuilder(t, s.celestiaCfg)
+		builder := newSimappChainBuilder(t, s.celestiaCfg)
 		chainB, err = builder.Build(gCtx)
 		if err != nil {
 			return fmt.Errorf("failed to build chain B: %w", err)
@@ -291,7 +293,7 @@ func (s *CelestiaTestSuite) upgradeChain(ctx context.Context, chain tastoratypes
 	// This ensures the keyring matches what the running chain expects
 	cfg := s.celestiaCfg
 	kr := cfg.Genesis.Keyring()
-	
+
 	// Get keyring records for all validators
 	records, err := kr.List()
 	s.Require().NoError(err, "failed to list keyring records")
@@ -375,24 +377,9 @@ func (s *CelestiaTestSuite) getBalance(ctx context.Context, chain tastoratypes.C
 		return sdkmath.ZeroInt()
 	}
 
-	// Create bank query client using the node's gRPC connection
-	bankClient := banktypes.NewQueryClient(node.GrpcConn)
-
-	resp, err := bankClient.Balance(ctx, &banktypes.QueryBalanceRequest{
-		Address: address,
-		Denom:   denom,
-	})
-
-	if err != nil {
-		s.T().Logf("Failed to query balance for %s %s: %v, returning zero", address, denom, err)
-		return sdkmath.ZeroInt()
-	}
-
-	if resp.Balance == nil {
-		return sdkmath.ZeroInt()
-	}
-
-	return resp.Balance.Amount
+	amount, err := query.Balance(ctx, node.GrpcConn, address, denom)
+	s.Require().NoError(err, "failed to query balance for %s %s", address, denom)
+	return amount
 }
 
 // calculateIBCDenom calculates the IBC denomination using ibc-go utilities
@@ -404,4 +391,25 @@ func (s *CelestiaTestSuite) calculateIBCDenom(channel ibc.Channel, baseDenom str
 		baseDenom,
 	)
 	return ibctransfertypes.ParseDenomTrace(prefixedDenom).IBCDenom()
+}
+
+// newSimappChainBuilder builds a standard simapp chain from a different image. This image is wired
+// up without a token filter so it is possible to send non native tokens to it.
+func newSimappChainBuilder(t *testing.T, cfg *dockerchain.Config) *tastoradockertypes.ChainBuilder {
+	encodingConfig := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
+	return tastoradockertypes.NewChainBuilder(t).
+		WithEncodingConfig(&encodingConfig).
+		WithName("simapp").
+		WithChainID("chain-b").
+		// TODO: this is a custom built simapp that has the bech32prefix as "celestia" as a workaround for the global
+		// SDK config not being usable when 2 chains have a different beck32 preix (e.g. "celestia" and "cosmos" ) because it is sealed.
+		WithImage(tastoracontainertypes.NewImage("ghcr.io/chatton/ibc-go-simd", "v8.5.0", "1000:1000")).
+		WithBinaryName("simd").
+		WithBech32Prefix("celestia").
+		WithDenom("utia").
+		WithGasPrices("0.000001utia").
+		WithDockerNetworkID(cfg.DockerNetworkID).
+		WithDockerClient(cfg.DockerClient).
+		WithChainID("chain-b").
+		WithNode(tastoradockertypes.NewChainNodeConfigBuilder().Build())
 }
