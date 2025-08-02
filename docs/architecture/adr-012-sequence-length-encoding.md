@@ -16,7 +16,7 @@ However, sparse shares do not pad the sequence length to 4 bytes. This inconsist
 
 We would like to modify the implementation such that there is only one code path for parsing the sequence length. This document explores a few options for doing so.
 
-## Option A: Remove the 4 bytes of padding from compact shares [celestia-app##1106](https://github.com/celestiaorg/celestia-app/issues/1106)
+## Option A: Remove the 4 bytes of padding from compact shares [celestia-app#1106](https://github.com/celestiaorg/celestia-app/issues/1106)
 
 Pros
 
