@@ -1,6 +1,7 @@
 package types
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
@@ -69,7 +70,7 @@ func validateGasPerBlobByte(v interface{}) error {
 	}
 
 	if gasPerBlobByte == 0 {
-		return fmt.Errorf("gas per blob byte cannot be 0")
+		return errors.New("gas per blob byte cannot be 0")
 	}
 
 	return nil
@@ -83,7 +84,7 @@ func validateGovMaxSquareSize(v interface{}) error {
 	}
 
 	if govMaxSquareSize == 0 {
-		return fmt.Errorf("gov max square size cannot be zero")
+		return errors.New("gov max square size cannot be zero")
 	}
 
 	if !square.IsPowerOfTwo(govMaxSquareSize) {

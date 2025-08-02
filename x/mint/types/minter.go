@@ -1,6 +1,7 @@
 package types
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -33,7 +34,7 @@ func (m Minter) Validate() error {
 		return fmt.Errorf("annual provisions %v should be positive", m.AnnualProvisions.String())
 	}
 	if m.BondDenom == "" {
-		return fmt.Errorf("bond denom should not be empty string")
+		return errors.New("bond denom should not be empty string")
 	}
 	return nil
 }
