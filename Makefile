@@ -52,7 +52,7 @@ build: mod
 ifeq ($(DOWNLOAD),true)
 	@$(MAKE) download-v3-binaries
 	@$(MAKE) download-v4-binaries
-	@$(MAKE) download-v5-binaries	
+	@$(MAKE) download-v5-binaries
 endif
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd with multiplexer enabled"
@@ -315,6 +315,12 @@ test-coverage:
 ## test-fuzz: Run all fuzz tests.
 test-fuzz:
 	bash -x scripts/test_fuzz.sh
+.PHONY: test-fuzz
+
+## test-interchain: Run all interchain tests.
+test-interchain:
+	@echo "--> Running interchain tests"
+	cd test/interchain && go test -v ./...
 .PHONY: test-fuzz
 
 ## txsim-install: Install the tx simulator.

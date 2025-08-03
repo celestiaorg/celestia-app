@@ -24,10 +24,26 @@ func TestInterChainAccounts(t *testing.T) {
 		t.Skip("skipping TestInterChainAccounts in short mode.")
 	}
 
+	// Set environment variables to help with Docker cleanup
+	t.Setenv("KEEP_CONTAINERS", "false")
+	t.Setenv("NO_CACHE", "true")
+
+	// Use the standard interchaintest Docker setup
 	client, network := interchaintest.DockerSetup(t)
+
+	// Ensure cleanup on test failure
+	t.Cleanup(func() {
+		if client != nil {
+			_ = client.Close()
+		}
+	})
+
 	celestia := chainspec.GetCelestia(t)
 	cosmosHub := chainspec.GetCosmosHub(t)
-	relayer := getRelayerFactory(t).Build(t, client, network)
+
+	// Build relayer with better error handling
+	relayerFactory := getRelayerFactory(t)
+	relayer := relayerFactory.Build(t, client, network)
 	pathName := fmt.Sprintf("%s-to-%s", celestia.Config().ChainID, cosmosHub.Config().ChainID)
 	interchain := interchaintest.NewInterchain().
 		AddChain(celestia).

@@ -48,7 +48,7 @@ func cosmosDockerImages() []ibc.DockerImage {
 		{
 			Repository: cosmosDockerRepository,
 			Version:    cosmosDockerVersion,
-			UidGid:     cosmosUidGid,
+			UIDGID:     cosmosUidGid,
 		},
 	}
 }

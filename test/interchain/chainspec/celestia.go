@@ -49,7 +49,7 @@ func celestiaDockerImages() []ibc.DockerImage {
 		{
 			Repository: celestiaDockerRepository,
 			Version:    celestiaDockerTag,
-			UidGid:     celestiaUidGid,
+			UIDGID:     celestiaUidGid,
 		},
 	}
 }
