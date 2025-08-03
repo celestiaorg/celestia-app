@@ -251,8 +251,8 @@ github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce h1:YtWJF7RHm2pY
 github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce/go.mod h1:0DVlHczLPewLcPGEIeUEzfOJhqGPQ0mJJRDBtD307+o=
 github.com/celestiaorg/celestia-core v1.52.1-tm-v0.34.35 h1:N+sJFu0h8okPkRjgQh/2iN4pi3atrR9a/vkXLwEKXfw=
 github.com/celestiaorg/celestia-core v1.52.1-tm-v0.34.35/go.mod h1:SI38xqZZ4ccoAxszUJqsJ/a5rOkzQRijzHQQlLKkyUc=
-github.com/celestiaorg/cosmos-sdk v1.31.1-sdk-v0.46.16 h1://lhd7SXtuNVuzRvz02GCBsOvob9yamdDq+EI8IrTO4=
-github.com/celestiaorg/cosmos-sdk v1.31.1-sdk-v0.46.16/go.mod h1:oai4Oc0YKYc7RMRi4mbXfR3aeSu2/P5LhqW/P10IAJI=
+github.com/celestiaorg/cosmos-sdk v1.31.2-sdk-v0.46.16 h1:CSv7rI3Ua1izQRuhEYk0op0eHKuJtngr+wAXMIr+P9U=
+github.com/celestiaorg/cosmos-sdk v1.31.2-sdk-v0.46.16/go.mod h1:oai4Oc0YKYc7RMRi4mbXfR3aeSu2/P5LhqW/P10IAJI=
 github.com/celestiaorg/ibc-go/v6 v6.2.4 h1:S9jH7e+faYWF9PgDQAQnHxgm+FeDWTKcOF99Zez40bA=
 github.com/celestiaorg/ibc-go/v6 v6.2.4/go.mod h1:XLsARy4Y7+GtAqzMcxNdlQf6lx+ti1e8KcMGv5NIK7A=
 github.com/celestiaorg/nmt v0.23.0 h1:cfYy//hL1HeDSH0ub3CPlJuox5U5xzgg4JGZrw23I/I=
