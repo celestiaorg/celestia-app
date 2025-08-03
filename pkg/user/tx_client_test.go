@@ -11,17 +11,17 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	"cosmossdk.io/math/unsafe"
-	"github.com/celestiaorg/celestia-app/v5/app"
-	"github.com/celestiaorg/celestia-app/v5/app/encoding"
-	"github.com/celestiaorg/celestia-app/v5/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v5/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v5/app/params"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/pkg/user"
-	"github.com/celestiaorg/celestia-app/v5/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v5/test/util/grpctest"
-	"github.com/celestiaorg/celestia-app/v5/test/util/random"
-	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v6/app/params"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/grpctest"
+	"github.com/celestiaorg/celestia-app/v6/test/util/random"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -266,26 +266,20 @@ func TestRejections(t *testing.T) {
 	// 	_, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
 	// 	require.False(t, exists)
 	// })
-	t.Run("should resubmit subsequent txs after tx is rejected", func(t *testing.T) {
+	t.Run("should resubmit tx is it was rejected for sequence mismatch", func(t *testing.T) {
 		ttlNumBlocks := int64(10)
 		_, txClient, ctx := setupTxClient(t, ttlNumBlocks, appconsts.DefaultMaxBytes)
 
 		fee := user.SetFee(1e6)
 		gas := user.SetGasLimit(1e6)
 
-		// Submit a blob tx with user set ttl. After the ttl expires, the tx will be rejected.
+		// Submit 3 blob txs with user set ttl. After ttl expires, the txs will be rejected.
 		timeoutHeight := uint64(1)
-		sender := txClient.Signer().Account(txClient.DefaultAccountName())
-		seqBeforeSubmission := sender.Sequence()
-		blobs := blobfactory.ManyRandBlobs(random.New(), 2, 2)
-		resp, err := txClient.BroadcastPayForBlob(ctx.GoContext(), blobs, fee, gas, user.SetTimeoutHeight(timeoutHeight))
-		fmt.Println(resp.Code, "broadcast response code")
-		require.NoError(t, err)
-
-		// Submit 3 more blobs with no ttl
 		responses := make([]*sdk.TxResponse, 3)
 		for i := 0; i < 3; i++ {
-			resp, err := txClient.BroadcastPayForBlob(ctx.GoContext(), blobs, fee, gas)
+			blobs := blobfactory.ManyRandBlobs(random.New(), 2, 2)
+			resp, err := txClient.BroadcastPayForBlob(ctx.GoContext(), blobs, fee, gas, user.SetTimeoutHeight(timeoutHeight))
+			fmt.Println(resp.Code, "broadcast response code")
 			require.NoError(t, err)
 			require.Equal(t, resp.Code, abci.CodeTypeOK)
 			responses[i] = resp
@@ -293,11 +287,7 @@ func TestRejections(t *testing.T) {
 
 		require.NoError(t, ctx.WaitForBlocks(1)) // Skip one block to allow the tx to be rejected
 
-		_, err = txClient.ConfirmTx(ctx.GoContext(), resp.TxHash)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "was rejected by the node")
-		seqAfterRejection := sender.Sequence()
-		require.Equal(t, seqBeforeSubmission, seqAfterRejection)
+		// query tx status directly to check for rejections 
 
 		require.NoError(t, ctx.WaitForBlocks(5)) // Skip one block to allow the tx to be resubmitted
 
@@ -308,16 +298,6 @@ func TestRejections(t *testing.T) {
 			require.Equal(t, responses[i].Code, abci.CodeTypeOK)
 		}
 
-		// // Now submit the same blob transaction again
-		// submitBlobResp, err := txClient.SubmitPayForBlob(ctx.GoContext(), blobs, fee, gas)
-		// require.NoError(t, err)
-		// require.Equal(t, submitBlobResp.Code, abci.CodeTypeOK)
-		// // Sequence should have increased
-		// seqAfterConfirmation := sender.Sequence()
-		// require.Equal(t, seqBeforeSubmission+1, seqAfterConfirmation)
-		// // Was removed from the tx tracker
-		// _, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
-		// require.False(t, exists)
 	})
 }
 

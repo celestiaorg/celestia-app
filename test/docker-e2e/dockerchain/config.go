@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	"github.com/moby/moby/client"
 )
 
