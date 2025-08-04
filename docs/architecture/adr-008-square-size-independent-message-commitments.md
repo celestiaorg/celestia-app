@@ -39,7 +39,7 @@ If the message starting point index is larger than the row of `msgMinSquareSize`
 
 ## Alternative Approaches
 
-- [rollmint/adr-007](https://github.com/celestiaorg/rollmint/blob/cb5c7440a8e879778e71097e254c3dd692c39d14/docs/lazy-adr/adr-007-header-commit-to-shares.md)
+- [rollmint/adr-007](https://github.com/rollkit/rollkit/blob/f85b994e81bcacf33d187b2dcf2d40657f152408/specs/lazy-adr/adr-007-header-commit-to-shares.md)
 
 ## Decision
 
