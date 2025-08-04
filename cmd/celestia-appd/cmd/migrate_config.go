@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -36,17 +38,23 @@ func migrateConfigCmd() *cobra.Command {
 				return err
 			}
 
+			backup, err := cmd.Flags().GetBool("backup")
+			if err != nil {
+				return err
+			}
+
 			targetVersion := args[0]
-			return migrateConfig(homeDir, targetVersion)
+			return migrateConfig(homeDir, targetVersion, backup)
 		},
 	}
 
 	cmd.Flags().String(flags.FlagHome, app.NodeHome, "The application home directory")
+	cmd.Flags().Bool("backup", false, "Create backups of config files before migrating")
 	return cmd
 }
 
 // migrateConfig performs the actual migration of configuration files.
-func migrateConfig(homeDir, targetVersion string) error {
+func migrateConfig(homeDir, targetVersion string, backup bool) error {
 	fmt.Printf("Migrating configuration files to version %s...\n", targetVersion)
 
 	migrator, exists := migrationRegistry[targetVersion]
@@ -57,6 +65,12 @@ func migrateConfig(homeDir, targetVersion string) error {
 	configDir := filepath.Join(homeDir, "config")
 	cometConfigPath := filepath.Join(configDir, "config.toml")
 	appConfigPath := filepath.Join(configDir, "app.toml")
+
+	if backup {
+		if err := backupConfigFiles(cometConfigPath, appConfigPath); err != nil {
+			return fmt.Errorf("failed to backup config files: %w", err)
+		}
+	}
 
 	cometConfig, err := loadCometBFTConfig(cometConfigPath, homeDir)
 	if err != nil {
@@ -116,6 +130,49 @@ func loadServerConfig(configPath string) (*serverconfig.Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// backupConfigFiles creates timestamped backups of the configuration files
+func backupConfigFiles(cometConfigPath, appConfigPath string) error {
+	timestamp := time.Now().Format("20060102-150405")
+
+	if err := backupFile(cometConfigPath, timestamp); err != nil {
+		return fmt.Errorf("failed to backup config.toml: %w", err)
+	}
+
+	if err := backupFile(appConfigPath, timestamp); err != nil {
+		return fmt.Errorf("failed to backup app.toml: %w", err)
+	}
+
+	fmt.Printf("Created backups with timestamp: %s\n", timestamp)
+	return nil
+}
+
+// backupFile creates a timestamped backup of a single file
+func backupFile(filePath, timestamp string) error {
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		fmt.Printf("Config file %s does not exist, skipping backup\n", filePath)
+		return nil
+	}
+
+	dir := filepath.Dir(filePath)
+	filename := filepath.Base(filePath)
+	ext := filepath.Ext(filename)
+	name := filename[:len(filename)-len(ext)]
+
+	backupPath := filepath.Join(dir, fmt.Sprintf("%s.%s.backup.%s", name, timestamp, ext))
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read file %s: %w", filePath, err)
+	}
+
+	if err := os.WriteFile(backupPath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write backup file %s: %w", backupPath, err)
+	}
+
+	fmt.Printf("Backed up %s to %s\n", filePath, backupPath)
+	return nil
 }
 
 // getSupportedVersions returns a list of supported migration versions

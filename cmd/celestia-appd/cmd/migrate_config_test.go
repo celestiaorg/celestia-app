@@ -44,7 +44,7 @@ func TestMigrateConfig(t *testing.T) {
 			setupTestConfigFiles(t, configDir)
 
 			// Run migration
-			err := migrateConfig(tempDir, tt.version)
+			err := migrateConfig(tempDir, tt.version, false)
 
 			if tt.expectError {
 				require.Error(t, err)
