@@ -417,7 +417,7 @@ func New(
 		signal.NewAppModule(app.SignalKeeper),
 		minfee.NewAppModule(encodingConfig.Codec, app.MinFeeKeeper),
 		pfm{packetforward.NewAppModule(app.PacketForwardKeeper, app.GetSubspace(packetforwardtypes.ModuleName))},
-		ica.NewAppModule(nil, &app.ICAHostKeeper), // ICA controller is not enabled on celestia-app.
+		ica.NewAppModule(nil, &app.ICAHostKeeper), // The first argument is nil because the ICA controller is not enabled on celestia-app.
 		// ensure the light client module types are registered.
 		ibctm.NewAppModule(),
 		solomachine.NewAppModule(),
