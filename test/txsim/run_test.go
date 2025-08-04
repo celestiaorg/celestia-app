@@ -7,16 +7,17 @@ package txsim_test
 import (
 	"context"
 	"errors"
+	"math"
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v5/app"
-	"github.com/celestiaorg/celestia-app/v5/app/encoding"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/test/txsim"
-	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
-	blob "github.com/celestiaorg/celestia-app/v5/x/blob/types"
-	signaltypes "github.com/celestiaorg/celestia-app/v5/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/test/txsim"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	blob "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	signaltypes "github.com/celestiaorg/celestia-app/v6/x/signal/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -192,7 +193,13 @@ func TestTxSimUpgrade(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(grpcAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallSendMsgSize(math.MaxInt32),
+			grpc.MaxCallRecvMsgSize(math.MaxInt32),
+		),
+	)
 	require.NoError(t, err)
 	defer conn.Close()
 

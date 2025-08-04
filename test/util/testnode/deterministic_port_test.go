@@ -8,14 +8,14 @@ import (
 )
 
 func TestGetDeterministicPort(t *testing.T) {
-	// Test that we get sequential ports
+	// Test that we get increasing ports (may skip unavailable ports)
 	port1 := GetDeterministicPort()
 	port2 := GetDeterministicPort()
 	port3 := GetDeterministicPort()
 
 	assert.Greater(t, port1, 20000, "Port should be greater than 20000")
-	assert.Equal(t, port1+1, port2, "Ports should be sequential")
-	assert.Equal(t, port2+1, port3, "Ports should be sequential")
+	assert.Greater(t, port2, port1, "Ports should be increasing")
+	assert.Greater(t, port3, port2, "Ports should be increasing")
 }
 
 func TestGetDeterministicPortConcurrent(t *testing.T) {

@@ -8,7 +8,7 @@ The modules used in app version 1 are:
 - [blobstream](https://github.com/celestiaorg/celestia-app/tree/06f24f5dbe48c29964e1d8cfb030cffd90797ded/x/blobstream)
 - [mint](https://github.com/celestiaorg/celestia-app/blob/main/x/mint/README.md)
 - [paramfilter](https://github.com/celestiaorg/celestia-app/blob/e293a5ed5ed8e7d35d609bf12a9754fc45463a39/x/paramfilter/README.md)
-- [tokenfilter](https://github.com/celestiaorg/celestia-app/blob/main/x/tokenfilter/README.md)
+- [tokenfilter](https://github.com/celestiaorg/celestia-app/blob/b6386d4bbbe9722964b54446269b6a4a4afdd5d6/x/tokenfilter/README.md)
 
 ## `cosmos-sdk` modules
 

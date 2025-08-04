@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"cosmossdk.io/errors"
-	apperr "github.com/celestiaorg/celestia-app/v5/app/errors"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v5/x/blob/types"
+	apperr "github.com/celestiaorg/celestia-app/v6/app/errors"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 )

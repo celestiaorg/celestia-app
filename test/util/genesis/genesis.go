@@ -8,9 +8,9 @@ import (
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math/unsafe"
-	"github.com/celestiaorg/celestia-app/v5/app"
-	"github.com/celestiaorg/celestia-app/v5/app/encoding"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
@@ -45,8 +45,9 @@ type Genesis struct {
 	validators []Validator
 	// genTxs are the genesis transactions that will be included in the genesis.
 	// Transactions are generated upon adding a validator to the genesis.
-	genTxs []sdk.Tx
-	genOps []Modifier
+	genTxs   []sdk.Tx
+	genOps   []Modifier
+	gasPrice float64
 
 	// appVersion specifies the app version for which the genesis file should be written.
 	appVersion uint64
@@ -78,6 +79,7 @@ func NewDefaultGenesis() *Genesis {
 		GenesisTime:     time.Now(),
 		kr:              keyring.NewInMemory(enc.Codec),
 		genOps:          []Modifier{},
+		gasPrice:        appconsts.DefaultMinGasPrice,
 	}
 	return g
 }
@@ -138,6 +140,12 @@ func (g *Genesis) WithKeyring(kr keyring.Keyring) *Genesis {
 func (g *Genesis) WithAppVersion(appVersion uint64) *Genesis {
 	g.appVersion = appVersion
 	g.ConsensusParams.Version.App = appVersion
+	return g
+}
+
+// WithGasPrice sets the gas price of the genesis.
+func (g *Genesis) WithGasPrice(gasPrice float64) *Genesis {
+	g.gasPrice = gasPrice
 	return g
 }
 
@@ -209,7 +217,7 @@ func (g *Genesis) NewValidator(val Validator) error {
 func (g *Genesis) getGenTxs() ([]json.RawMessage, error) {
 	gentxs := make([]json.RawMessage, 0, len(g.genTxs))
 	for _, val := range g.validators {
-		genTx, err := val.GenTx(g.ecfg, g.kr, g.ChainID)
+		genTx, err := val.GenTx(g.ecfg, g.kr, g.ChainID, g.gasPrice)
 		if err != nil {
 			return nil, err
 		}
@@ -267,7 +275,7 @@ func (g *Genesis) ExportBytes() ([]byte, error) {
 			g.accounts,
 			g.GenesisTime,
 		)
-	case 4, 5:
+	case 4, 5, 6:
 		tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, simtestutil.EmptyAppOptions{})
 		return DocumentBytes(
 			tempApp.DefaultGenesis(),

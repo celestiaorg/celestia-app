@@ -3,9 +3,10 @@ package appconsts
 import "time"
 
 const (
-	Version uint64 = 5
+	// Version is the current application version.
+	Version uint64 = 6
 	// SquareSizeUpperBound imposes an upper bound on the max effective square size.
-	SquareSizeUpperBound int = 128
+	SquareSizeUpperBound int = 512
 	// SubtreeRootThreshold works as a target upper bound for the number of subtree
 	// roots in the share commitment. If a blob contains more shares than this
 	// number, then the height of the subtree roots will increase by one so that the
@@ -17,7 +18,7 @@ const (
 	SubtreeRootThreshold int    = 64
 	TxSizeCostPerByte    uint64 = 10
 	GasPerBlobByte       uint32 = 8
-	MaxTxSize            int    = 2097152 // 2 MiB in bytes
+	MaxTxSize            int    = 8_388_608 // 8 MiB in bytes
 	TimeoutPropose              = time.Millisecond * 3500
 	TimeoutCommit               = time.Millisecond * 4200
 

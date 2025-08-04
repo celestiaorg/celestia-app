@@ -47,9 +47,6 @@ node            |  |                               |  |
 
 If you'd rather not install from source, you can download a prebuilt binary from the [releases](https://github.com/celestiaorg/celestia-app/releases) page.
 
-> [!WARNING]
-> The v4.x.x prebuilt binaries do not support the multiplexer so they can't be used to upgrade from v3 to v4. They can only be used in standalone mode once a chain has been upgraded to v4. To upgrade from v3 to v4, you must install from source.
-
 1. Navigate to the latest release on <https://github.com/celestiaorg/celestia-app/releases>.
 1. Download the binary for your platform (e.g. `celestia-app_Linux_x86_64.tar.gz`) from the **Assets** section. Tip: if you're not sure what platform you're on, you can run `uname -a` and look for the operating system (e.g. `Linux`, `Darwin`) and architecture (e.g. `x86_64`, `arm64`).
 1. Extract the archive
@@ -227,9 +224,10 @@ The source of truth for dependencies is the `go.mod` file but the table below de
 
 ## Audits
 
-| Date       | Auditor                                       | Version                                                                                                | Report                                                                                |
-|------------|-----------------------------------------------|--------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
-| 2023/9/15  | [Informal Systems](https://informal.systems/) | [v1.0.0-rc6](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc6)                      | [informal-systems.pdf](docs/audit/informal-systems.pdf)                               |
-| 2023/10/17 | [Binary Builders](https://binary.builders/)   | [v1.0.0-rc10](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc10)                    | [binary-builders.pdf](docs/audit/binary-builders.pdf)                                 |
-| 2024/7/1   | [Informal Systems](https://informal.systems/) | [v2.0.0-rc1](https://github.com/celestiaorg/celestia-app/releases/tag/v2.0.0-rc1)                      | [informal-systems-v2.pdf](docs/audit/informal-systems-v2.pdf)                         |
-| 2024/9/20  | [Informal Systems](https://informal.systems/) | [306c587](https://github.com/celestiaorg/celestia-app/commit/306c58745d135d31c3777a1af2f58d50adbd32c8) | [informal-systems-authored-blobs.pdf](docs/audit/informal-systems-authored-blobs.pdf) |
+| Date       | Auditor                                       | Version                                                                                                  | Report                                                                                |
+|------------|-----------------------------------------------|----------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
+| 2023/9/15  | [Informal Systems](https://informal.systems/) | [v1.0.0-rc6](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc6)                        | [informal-systems.pdf](docs/audit/informal-systems.pdf)                               |
+| 2023/10/17 | [Binary Builders](https://binary.builders/)   | [v1.0.0-rc10](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc10)                      | [binary-builders.pdf](docs/audit/binary-builders.pdf)                                 |
+| 2024/7/1   | [Informal Systems](https://informal.systems/) | [v2.0.0-rc1](https://github.com/celestiaorg/celestia-app/releases/tag/v2.0.0-rc1)                        | [informal-systems-v2.pdf](docs/audit/informal-systems-v2.pdf)                         |
+| 2024/9/20  | [Informal Systems](https://informal.systems/) | [306c587](https://github.com/celestiaorg/celestia-app/commit/306c58745d135d31c3777a1af2f58d50adbd32c8)   | [informal-systems-authored-blobs.pdf](docs/audit/informal-systems-authored-blobs.pdf) |
+| 2025/6/24  | [Informal Systems](https://informal.systems/) | [139bad2](https://github.com/celestiaorg/celestia-core/commit/139bad235a379599670f30d5e28c637dde4bb17a)  | [informal-systems-recovery.pdf](docs/audit/informal-systems-recovery.pdf)             |

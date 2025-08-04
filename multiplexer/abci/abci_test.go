@@ -9,7 +9,8 @@ import (
 	"testing"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v5/multiplexer/appd"
+	"github.com/celestiaorg/celestia-app/v6/multiplexer/appd"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	abci "github.com/cometbft/cometbft/abci/types"
 	db "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -33,7 +34,7 @@ func TestOfferSnapshot(t *testing.T) {
 	clientContext := client.Context{}
 	appCreator := mockAppCreator()
 	versions := getVersions(t)
-	chainId := "test"
+	chainId := appconsts.TestChainID
 	applicationVersion := uint64(3)
 
 	multiplexer, err := NewMultiplexer(serverContext, serverConfig, clientContext, appCreator, versions, chainId, applicationVersion)

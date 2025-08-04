@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"math/rand"
 
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/test/util/blobfactory"
-	blob "github.com/celestiaorg/celestia-app/v5/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
+	blob "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/gogoproto/grpc"
@@ -28,6 +28,7 @@ type BlobSequence struct {
 
 	account     types.AccAddress
 	useFeegrant bool
+	gasPrice    float64
 }
 
 func NewBlobSequence(sizes, blobsPerPFB Range) *BlobSequence {
@@ -55,6 +56,11 @@ func (s *BlobSequence) WithShareVersion(version uint8) *BlobSequence {
 	return s
 }
 
+func (s *BlobSequence) WithGasPrice(gasPrice float64) *BlobSequence {
+	s.gasPrice = gasPrice
+	return s
+}
+
 func (s *BlobSequence) Clone(n int) []Sequence {
 	sequenceGroup := make([]Sequence, n)
 	for i := 0; i < n; i++ {
@@ -63,6 +69,7 @@ func (s *BlobSequence) Clone(n int) []Sequence {
 			sizes:         s.sizes,
 			blobsPerPFB:   s.blobsPerPFB,
 			shareVersions: s.shareVersions,
+			gasPrice:      s.gasPrice,
 		}
 	}
 	return sequenceGroup
@@ -112,11 +119,18 @@ func (s *BlobSequence) Next(_ context.Context, _ grpc.ClientConn, rand *rand.Ran
 	if err != nil {
 		return Operation{}, err
 	}
-	return Operation{
+
+	op := Operation{
 		Msgs:     []types.Msg{msg},
 		Blobs:    blobs,
 		GasLimit: estimateGas(sizes, s.useFeegrant),
-	}, nil
+	}
+
+	if s.gasPrice != 0 {
+		op.GasPrice = s.gasPrice
+	}
+
+	return op, nil
 }
 
 type Range struct {

@@ -9,10 +9,10 @@ import (
 	"cosmossdk.io/x/circuit"
 	circuittypes "cosmossdk.io/x/circuit/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	"github.com/celestiaorg/celestia-app/v5/app/params"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/x/mint"
-	minttypes "github.com/celestiaorg/celestia-app/v5/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v6/app/params"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/x/mint"
+	minttypes "github.com/celestiaorg/celestia-app/v6/x/mint/types"
 	tmcfg "github.com/cometbft/cometbft/config"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
@@ -264,15 +264,18 @@ func DefaultEvidenceParams() *tmproto.EvidenceParams {
 
 func DefaultConsensusConfig() *tmcfg.Config {
 	cfg := tmcfg.DefaultConfig()
+	mempoolSize := int64(appconsts.DefaultUpperBoundMaxBytes) * 3
 	// Set broadcast timeout to be 50 seconds in order to avoid timeouts for long block times
 	cfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
-	cfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
+	// this value should be the same as the largest possible response. In this case, that's
+	// likely Unconfirmed txs for a full mempool
+	cfg.RPC.MaxBodyBytes = mempoolSize
 	cfg.RPC.GRPCListenAddress = "tcp://127.0.0.1:9098"
 
 	cfg.Mempool.TTLNumBlocks = 12
 	cfg.Mempool.TTLDuration = 75 * time.Second
-	cfg.Mempool.MaxTxBytes = 2 * mebibyte
-	cfg.Mempool.MaxTxsBytes = 80 * mebibyte
+	cfg.Mempool.MaxTxBytes = appconsts.MaxTxSize
+	cfg.Mempool.MaxTxsBytes = mempoolSize
 	cfg.Mempool.Type = tmcfg.MempoolTypePriority
 
 	cfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
@@ -301,6 +304,7 @@ func DefaultAppConfig() *serverconfig.Config {
 	cfg.StateSync.SnapshotInterval = 1500
 	cfg.StateSync.SnapshotKeepRecent = 2
 	cfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, params.BondDenom)
-	cfg.GRPC.MaxRecvMsgSize = 20 * mebibyte
+	cfg.GRPC.MaxRecvMsgSize = appconsts.DefaultUpperBoundMaxBytes * 2
+	cfg.GRPC.MaxSendMsgSize = appconsts.DefaultUpperBoundMaxBytes * 2
 	return cfg
 }

@@ -14,15 +14,6 @@ jobs:
       IS_BOT: ${{ (github.actor == 'dependabot[bot]' || github.actor == 'mergify[bot]') }}
       IS_HUMAN: ${{ !(github.actor == 'dependabot[bot]' || github.actor == 'mergify[bot]') }}
     steps:
-      - name: Check if issue or PR was created by external contributor
-        if: env.IS_HUMAN == 'true' && github.repository_owner == 'celestiaorg'
-        uses: tspascoal/get-user-teams-membership@57e9f42acd78f4d0f496b3be4368fc5f62696662 #v3.0.0
-        id: teamCheck
-        with:
-          username: ${{ github.actor }}
-          team: "celestia-core"
-          GITHUB_TOKEN: ${{ secrets.PAT_TEAM_CHECK }}
-
       # If an issue was unlabeled add `needs:triage`.
       - name: Maybe label issue with `needs:triage`
         if: ${{ github.event_name == 'issues' }}
@@ -30,15 +21,6 @@ jobs:
         with:
           add-labels: "needs:triage"
           ignore-if-labeled: true
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      # If an issue or PR was created by someone that isn't part of
-      # celestia-core, add the `external` label.
-      - name: Maybe label issue or PR with `external`
-        if: env.IS_HUMAN == 'true' && steps.teamCheck.outputs.isTeamMember == 'false'
-        uses: andymckay/labeler@master
-        with:
-          add-labels: "external"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       # If a PR was created by dependabot or mergify add the `bot` label.

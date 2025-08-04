@@ -4,12 +4,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v5/app"
-	"github.com/celestiaorg/celestia-app/v5/app/encoding"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v5/test/util"
-	"github.com/celestiaorg/celestia-app/v5/test/util/random"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v6/test/util"
+	"github.com/celestiaorg/celestia-app/v6/test/util/random"
 	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	coretypes "github.com/cometbft/cometbft/types"
@@ -55,7 +55,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 	}
 	sizes := []testSize{
 		{
-			"default (should be 64 as of mainnet)",
+			"default",
 			appconsts.DefaultMaxBytes,
 			appconsts.DefaultGovMaxSquareSize,
 		},

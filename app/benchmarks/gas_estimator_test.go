@@ -6,15 +6,16 @@ import (
 	"context"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v5/app"
-	"github.com/celestiaorg/celestia-app/v5/app/encoding"
-	"github.com/celestiaorg/celestia-app/v5/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v5/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v5/test/util"
-	"github.com/celestiaorg/celestia-app/v5/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v5/test/util/random"
-	"github.com/celestiaorg/celestia-app/v5/test/util/testfactory"
-	blobtypes "github.com/celestiaorg/celestia-app/v5/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v6/test/util"
+	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/random"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cometbft/cometbft/rpc/client"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
@@ -71,6 +72,7 @@ func BenchmarkGasPriceEstimation(b *testing.B) {
 				encfg.TxConfig.TxDecoder(),
 				func() (uint64, error) { return 128 * 128 * share.ContinuationSparseShareContentSize, nil },
 				func(txBytes []byte) (sdk.GasInfo, *sdk.Result, error) { return sdk.GasInfo{}, nil, nil },
+				func() (float64, error) { return appconsts.DefaultNetworkMinGasPrice, nil },
 			)
 			for i := 0; i < b.N; i++ {
 				_, err := gasEstimationServer.EstimateGasPrice(context.Background(), &gasestimation.EstimateGasPriceRequest{})

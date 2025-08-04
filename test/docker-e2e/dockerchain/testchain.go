@@ -3,9 +3,12 @@ package dockerchain
 import (
 	"context"
 	"fmt"
-	"github.com/celestiaorg/celestia-app/v5/app"
-	"github.com/celestiaorg/celestia-app/v5/app/encoding"
-	"github.com/celestiaorg/celestia-app/v5/pkg/user"
+	"testing"
+	"time"
+
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
 	"github.com/celestiaorg/tastora/framework/testutil/maps"
@@ -15,8 +18,6 @@ import (
 	servercfg "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 // NewCelestiaChainBuilder constructs a new ChainBuilder configured for a Celestia instance with predefined parameters.

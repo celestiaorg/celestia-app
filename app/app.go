@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"time"
 
@@ -28,24 +29,23 @@ import (
 	"github.com/bcp-innovations/hyperlane-cosmos/x/warp"
 	warpkeeper "github.com/bcp-innovations/hyperlane-cosmos/x/warp/keeper"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
-	"github.com/celestiaorg/celestia-app/v5/app/ante"
-	"github.com/celestiaorg/celestia-app/v5/app/encoding"
-	"github.com/celestiaorg/celestia-app/v5/app/grpc/gasestimation"
-	celestiatx "github.com/celestiaorg/celestia-app/v5/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/pkg/proof"
-	"github.com/celestiaorg/celestia-app/v5/x/blob"
-	blobkeeper "github.com/celestiaorg/celestia-app/v5/x/blob/keeper"
-	blobtypes "github.com/celestiaorg/celestia-app/v5/x/blob/types"
-	"github.com/celestiaorg/celestia-app/v5/x/minfee"
-	minfeekeeper "github.com/celestiaorg/celestia-app/v5/x/minfee/keeper"
-	minfeetypes "github.com/celestiaorg/celestia-app/v5/x/minfee/types"
-	"github.com/celestiaorg/celestia-app/v5/x/mint"
-	mintkeeper "github.com/celestiaorg/celestia-app/v5/x/mint/keeper"
-	minttypes "github.com/celestiaorg/celestia-app/v5/x/mint/types"
-	"github.com/celestiaorg/celestia-app/v5/x/signal"
-	signaltypes "github.com/celestiaorg/celestia-app/v5/x/signal/types"
-	"github.com/celestiaorg/celestia-app/v5/x/tokenfilter"
+	"github.com/celestiaorg/celestia-app/v6/app/ante"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
+	celestiatx "github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v6/x/blob"
+	blobkeeper "github.com/celestiaorg/celestia-app/v6/x/blob/keeper"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v6/x/minfee"
+	minfeekeeper "github.com/celestiaorg/celestia-app/v6/x/minfee/keeper"
+	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v6/x/mint"
+	mintkeeper "github.com/celestiaorg/celestia-app/v6/x/mint/keeper"
+	minttypes "github.com/celestiaorg/celestia-app/v6/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v6/x/signal"
+	signaltypes "github.com/celestiaorg/celestia-app/v6/x/signal/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmjson "github.com/cometbft/cometbft/libs/json"
@@ -102,6 +102,7 @@ import (
 	"github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8/packetforward"
 	packetforwardkeeper "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8/packetforward/keeper"
 	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8/packetforward/types"
+	"github.com/cosmos/ibc-go/modules/capability"
 	capabilitykeeper "github.com/cosmos/ibc-go/modules/capability/keeper"
 	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
 	icahost "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host"
@@ -341,7 +342,6 @@ func New(
 		app.AccountKeeper, app.BankKeeper, app.ScopedTransferKeeper, govModuleAddr,
 	)
 	// Transfer stack contains (from top to bottom):
-	// - Token Filter
 	// - Packet Forwarding Middleware
 	// - Transfer
 	var transferStack ibcporttypes.IBCModule
@@ -350,9 +350,6 @@ func New(
 		0, // retries on timeout
 		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
 	)
-
-	// Token filter wraps packet forward middleware and is thus the first module in the transfer stack.
-	transferStack = tokenfilter.NewIBCMiddleware(transferStack)
 
 	// create evidence keeper with router
 	evidenceKeeper := evidencekeeper.NewKeeper(
@@ -390,7 +387,7 @@ func New(
 		govModuleAddr,
 		app.BankKeeper,
 		&app.HyperlaneKeeper,
-		[]int32{int32(warptypes.HYP_TOKEN_TYPE_COLLATERAL)},
+		[]int32{int32(warptypes.HYP_TOKEN_TYPE_COLLATERAL), int32(warptypes.HYP_TOKEN_TYPE_SYNTHETIC)},
 	)
 
 	/****  Module Options ****/
@@ -413,6 +410,7 @@ func New(
 		authzmodule.NewAppModule(encodingConfig.Codec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, encodingConfig.InterfaceRegistry),
 		consensus.NewAppModule(encodingConfig.Codec, app.ConsensusKeeper),
 		ibcModule{ibc.NewAppModule(app.IBCKeeper)},
+		capability.NewAppModule(encodingConfig.Codec, *app.CapabilityKeeper, true),
 		transfer.NewAppModule(app.TransferKeeper),
 		blob.NewAppModule(encodingConfig.Codec, app.BlobKeeper),
 		signal.NewAppModule(app.SignalKeeper),
@@ -538,7 +536,6 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 		return sdk.EndBlock{}, err
 	}
 
-	// use a signaling mechanism for upgrade
 	shouldUpgrade, upgrade := app.SignalKeeper.ShouldUpgrade(ctx)
 	if shouldUpgrade {
 		// Version changes must be increasing. Downgrades are not permitted
@@ -562,7 +559,6 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 				return sdk.EndBlock{}, err
 			}
 			app.SignalKeeper.ResetTally(ctx)
-
 		}
 	}
 
@@ -712,7 +708,7 @@ func (app *App) RegisterAPIRoutes(apiSvr *api.Server, _ config.APIConfig) {
 func (app *App) RegisterTxService(clientCtx client.Context) {
 	authtx.RegisterTxService(app.GRPCQueryRouter(), clientCtx, app.Simulate, app.encodingConfig.InterfaceRegistry)
 	celestiatx.RegisterTxService(app.GRPCQueryRouter(), clientCtx, app.encodingConfig.InterfaceRegistry)
-	gasestimation.RegisterGasEstimationService(app.GRPCQueryRouter(), clientCtx, app.encodingConfig.TxConfig.TxDecoder(), app.getGovMaxSquareBytes, app.Simulate)
+	gasestimation.RegisterGasEstimationService(app.GRPCQueryRouter(), clientCtx, app.encodingConfig.TxConfig.TxDecoder(), app.getGovMaxSquareBytes, app.Simulate, app.getMinGasPrice)
 }
 
 func (app *App) getGovMaxSquareBytes() (uint64, error) {
@@ -722,6 +718,22 @@ func (app *App) getGovMaxSquareBytes() (uint64, error) {
 	}
 	maxSquareSize := app.BlobKeeper.GetParams(ctx).GovMaxSquareSize
 	return maxSquareSize * maxSquareSize * share.ShareSize, nil
+}
+
+// getMinGasPrice is used by the gas estimation service to get the higher of the network minimum gas price
+// or the nodes locally configured minimum gas price.
+func (app *App) getMinGasPrice() (float64, error) {
+	localMinGasPrice, err := app.GetMinGasPrices().AmountOf(appconsts.BondDenom).Float64()
+	if err != nil {
+		localMinGasPrice = appconsts.DefaultMinGasPrice
+	}
+	ctx, err := app.CreateQueryContext(app.LastBlockHeight(), false)
+	if err != nil {
+		return localMinGasPrice, err
+	}
+	params := app.MinFeeKeeper.GetParams(ctx)
+	networkMinGasPrice := params.NetworkMinGasPrice.MustFloat64()
+	return math.Max(networkMinGasPrice, localMinGasPrice), nil
 }
 
 // RegisterTendermintService implements the Application.RegisterTendermintService method.

@@ -12,13 +12,13 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v5/app/encoding"
-	"github.com/celestiaorg/celestia-app/v5/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v5/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v5/app/params"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v5/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v6/app/params"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
@@ -47,6 +47,7 @@ type txInfo struct {
 	sequence  uint64
 	signer    string
 	timestamp time.Time
+	txBytes   []byte
 }
 
 // TxResponse is a response from the chain after
@@ -302,7 +303,7 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 	if len(client.conns) > 1 {
 		return client.broadcastMulti(ctx, txBytes, account)
 	}
-	return client.broadcastTx(ctx, client.conns[0], txBytes, account)
+	return client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txBytes, account)
 }
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
@@ -378,9 +379,30 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 	if len(client.conns) > 1 {
 		return client.broadcastMulti(ctx, txBytes, account)
 	}
-	return client.broadcastTx(ctx, client.conns[0], txBytes, account)
+	return client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txBytes, account)
 }
 
+func (client *TxClient) broadcastTxAndIncrementSequence(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+	resp, err := client.broadcastTx(ctx, conn, txBytes, signer)
+	if err != nil {
+		return nil, err
+	}
+
+	// save the sequence and signer of the transaction in the local txTracker
+	// before the sequence is incremented
+	client.trackTransaction(signer, resp.TxHash, txBytes)
+
+	// after the transaction has been submitted, we can increment the
+	// sequence of the signer
+	if err := client.signer.IncrementSequence(signer); err != nil {
+		return nil, fmt.Errorf("increment sequencing: %w", err)
+	}
+
+	return resp, nil
+}
+
+// broadcastTx resubmits a transaction that was evicted from the mempool.
+// Unlike the initial broadcast, it doesn't increment the signer's sequence number.
 func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
 	txClient := sdktx.NewServiceClient(conn)
 	resp, err := txClient.BroadcastTx(
@@ -402,19 +424,6 @@ func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, 
 		return nil, broadcastTxErr
 	}
 
-	// save the sequence and signer of the transaction in the local txTracker
-	// before the sequence is incremented
-	client.txTracker[resp.TxResponse.TxHash] = txInfo{
-		sequence:  client.signer.accounts[signer].Sequence(),
-		signer:    signer,
-		timestamp: time.Now(),
-	}
-
-	// after the transaction has been submitted, we can increment the
-	// sequence of the signer
-	if err := client.signer.IncrementSequence(signer); err != nil {
-		return nil, fmt.Errorf("increment sequencing: %w", err)
-	}
 	return resp.TxResponse, nil
 }
 
@@ -434,7 +443,7 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 		go func(conn *grpc.ClientConn) {
 			defer wg.Done()
 
-			resp, err := client.broadcastTx(ctx, conn, txBytes, signer)
+			resp, err := client.broadcastTxAndIncrementSequence(ctx, conn, txBytes, signer)
 			if err != nil {
 				errCh <- err
 				return
@@ -518,35 +527,35 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			client.deleteFromTxTracker(txHash)
 			return txResponse, nil
 		case core.TxStatusEvicted:
-			return nil, client.handleEvictions(txHash)
+			_, signer, exists := client.GetTxFromTxTracker(txHash)
+			if !exists {
+				return nil, fmt.Errorf("tx: %s not found in txTracker; likely failed during broadcast", txHash)
+			}
+			// Resubmit straight away in the event of eviction and keep polling until tx is committed
+			_, err := client.broadcastTx(ctx, client.conns[0], client.txTracker[txHash].txBytes, signer)
+			if err != nil {
+				return nil, fmt.Errorf("resubmission for evicted tx with hash %s failed: %w", txHash, err)
+			}
+		case core.TxStatusRejected:
+			sequence, signer, exists := client.GetTxFromTxTracker(txHash)
+			if !exists {
+				return nil, fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
+			}
+			// Reset sequence to the rejected tx's sequence to enable resubmission
+			// of subsequent transactions.
+			if err := client.signer.SetSequence(signer, sequence); err != nil {
+				return nil, fmt.Errorf("setting sequence: %w", err)
+			}
+			client.deleteFromTxTracker(txHash)
+			return nil, fmt.Errorf("tx with hash %s was rejected by the node", txHash)
 		default:
 			client.deleteFromTxTracker(txHash)
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
 			}
-			return nil, fmt.Errorf("transaction with hash %s not found; it was likely rejected", txHash)
+			return nil, fmt.Errorf("transaction with hash %s not found", txHash)
 		}
 	}
-}
-
-// handleEvictions handles the scenario where a transaction is evicted from the mempool.
-// It removes the evicted transaction from the local tx tracker without incrementing
-// the signer's sequence.
-func (client *TxClient) handleEvictions(txHash string) error {
-	client.mtx.Lock()
-	defer client.mtx.Unlock()
-	// Get transaction from the local tx tracker
-	txInfo, exists := client.txTracker[txHash]
-	if !exists {
-		return fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
-	}
-	// The sequence should be rolled back to the sequence of the transaction that was evicted to be
-	// ready for resubmission. All transactions with a later nonce will be kicked by the nodes tx pool.
-	if err := client.signer.SetSequence(txInfo.signer, txInfo.sequence); err != nil {
-		return fmt.Errorf("setting sequence: %w", err)
-	}
-	delete(client.txTracker, txHash)
-	return fmt.Errorf("tx was evicted from the mempool")
 }
 
 // deleteFromTxTracker safely deletes a transaction from the local tx tracker.
@@ -554,24 +563,6 @@ func (client *TxClient) deleteFromTxTracker(txHash string) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 	delete(client.txTracker, txHash)
-}
-
-// EstimateGas simulates the transaction, calculating the amount of gas that was
-// consumed during execution.
-// Deprecated: use EstimateGasPriceAndUsage
-func (client *TxClient) EstimateGas(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (uint64, error) {
-	client.mtx.Lock()
-	defer client.mtx.Unlock()
-
-	txBuilder, err := client.signer.txBuilder(msgs, opts...)
-	if err != nil {
-		return 0, err
-	}
-
-	// add at least 1utia as fee to builder as it affects gas calculation.
-	txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
-
-	return client.estimateGas(ctx, txBuilder)
 }
 
 // EstimateGasPriceAndUsage returns the estimated gas price based on the provided priority,
@@ -724,6 +715,17 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 		return "", err
 	}
 	return record.Name, nil
+}
+
+// trackTransaction tracks a transaction in the tx client's local tx tracker.
+func (client *TxClient) trackTransaction(signer, txHash string, txBytes []byte) {
+	sequence := client.signer.Account(signer).Sequence()
+	client.txTracker[txHash] = txInfo{
+		sequence:  sequence,
+		signer:    signer,
+		timestamp: time.Now(),
+		txBytes:   txBytes,
+	}
 }
 
 // GetTxFromTxTracker gets transaction info from the tx client's local tx tracker by its hash
