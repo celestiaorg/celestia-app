@@ -39,7 +39,7 @@ If the message starting point index is larger than the row of `msgMinSquareSize`
 
 ## Alternative Approaches
 
-- [rollmint/adr-007](https://github.com/rollkit/rollkit/blob/f85b994e81bcacf33d187b2dcf2d40657f152408/specs/lazy-adr/adr-007-header-commit-to-shares.md)
+- [ev-node/adr-007](https://github.com/evstack/ev-node/blob/f85b994e81bcacf33d187b2dcf2d40657f152408/specs/lazy-adr/adr-007-header-commit-to-shares.md)
 
 ## Decision
 
