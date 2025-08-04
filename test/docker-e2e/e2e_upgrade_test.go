@@ -97,12 +97,12 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 	// Signal for upgrade and get the upgrade height
 	upgradeHeight := s.signalAndGetUpgradeHeight(ctx, chain, validatorNode, cfg, records, targetAppVersion)
 
-	// Record current height - we'll use it later for health assertions
+	// Record start height - we'll use it later for health assertions
 	status, err := rpcClient.Status(ctx)
 	s.Require().NoError(err, "failed to get node status")
 	startHeight := status.SyncInfo.LatestBlockHeight
 
-	s.T().Logf("Current height: %d, Upgrade height: %d", startHeight, upgradeHeight)
+	s.T().Logf("Start height: %d, Upgrade height: %d", startHeight, upgradeHeight)
 
 	// Wait until we reach the upgrade height
 	blocksToWait := int(upgradeHeight-startHeight) + 2 // Add buffer
@@ -125,7 +125,7 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 	s.Require().NoError(err, "failed to get final status")
 	endHeight := finalStatus.SyncInfo.LatestBlockHeight
 
-	s.T().Logf("Asserting validator health for blocks %d → %d", startHeight, endHeight)
+	s.T().Logf("Asserting validator health for blocks %d to %d", startHeight, endHeight)
 	s.Require().NoError(
 		s.AssertHealthy(ctx, chain, startHeight, endHeight),
 		"validator health check failed",

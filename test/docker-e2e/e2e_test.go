@@ -183,7 +183,7 @@ func (s *CelestiaTestSuite) AssertHealthy(
 	startHeight, endHeight int64,
 ) error {
 	if endHeight <= startHeight {
-		return fmt.Errorf("invalid height range %d → %d", startHeight, endHeight)
+		return fmt.Errorf("invalid height range %d to %d", startHeight, endHeight)
 	}
 
 	s.T().Logf("Checking validator health from height %d to %d", startHeight, endHeight)
@@ -191,7 +191,7 @@ func (s *CelestiaTestSuite) AssertHealthy(
 	// choose the first node as our RPC reader
 	reader, err := chain.GetNodes()[0].GetRPCClient()
 	if err != nil {
-		return fmt.Errorf("reader RPC: %w", err)
+		return fmt.Errorf("failed to get RPC client: %w", err)
 	}
 
 	// 1. gather proposer addresses per block
@@ -216,7 +216,7 @@ func (s *CelestiaTestSuite) AssertHealthy(
 	s.T().Logf("Checking %d validators for proposer activity", len(validators.Validators))
 	for _, val := range validators.Validators {
 		if _, ok := proposers[val.Address.String()]; !ok {
-			return fmt.Errorf("validator %s never proposed between %d-%d",
+			return fmt.Errorf("validator %s never proposed block from %d to %d",
 				val.Address.String(), startHeight, endHeight)
 		}
 	}
@@ -225,11 +225,11 @@ func (s *CelestiaTestSuite) AssertHealthy(
 	for i, n := range chain.GetNodes() {
 		c, err := n.GetRPCClient()
 		if err != nil {
-			return fmt.Errorf("node %d RPC: %w", i, err)
+			return fmt.Errorf("failed to get RPC client for index %d: %w", i, err)
 		}
 		status, err := c.Status(ctx)
 		if err != nil {
-			return fmt.Errorf("node %d status: %w", i, err)
+			return fmt.Errorf("failed to get node %d status: %w", i, err)
 		}
 		if status.SyncInfo.LatestBlockHeight < endHeight {
 			return fmt.Errorf("node %d halted at %d (expected ≥ %d)",
@@ -237,6 +237,6 @@ func (s *CelestiaTestSuite) AssertHealthy(
 		}
 	}
 
-	s.T().Logf("All validators healthy: proposed blocks and no nodes halted")
+	s.T().Logf("All validators proposed at least one blocks and no validator halted")
 	return nil
 }
