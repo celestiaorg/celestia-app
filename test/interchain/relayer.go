@@ -11,7 +11,7 @@ import (
 
 const (
 	relayerDockerRepository = "ghcr.io/cosmos/relayer"
-	relayerDockerVersion    = "v2.5.2"
+	relayerDockerVersion    = "v2.6.0"
 	relayerUidGid           = "100:1000"
 )
 
