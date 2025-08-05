@@ -109,3 +109,12 @@ func Test_icaDefaultGenesis(t *testing.T) {
 	assert.True(t, got.HostGenesisState.Params.HostEnabled)
 	assert.False(t, got.ControllerGenesisState.Params.ControllerEnabled)
 }
+
+func TestDefaultEvidenceParams(t *testing.T) {
+	got := DefaultEvidenceParams()
+	mebibyte := int64(1048576)
+
+	assert.Equal(t, appconsts.MaxAgeDuration, got.MaxAgeDuration)
+	assert.Equal(t, int64(appconsts.MaxAgeNumBlocks), got.MaxAgeNumBlocks)
+	assert.Equal(t, mebibyte, got.MaxBytes)
+}

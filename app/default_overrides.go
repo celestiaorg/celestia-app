@@ -253,8 +253,9 @@ func DefaultBlockParams() *tmproto.BlockParams {
 // determined using a goal block time.
 func DefaultEvidenceParams() *tmproto.EvidenceParams {
 	evdParams := coretypes.DefaultEvidenceParams()
-	evdParams.MaxAgeDuration = appconsts.DefaultUnbondingTime
-	evdParams.MaxAgeNumBlocks = int64(appconsts.DefaultUnbondingTime.Seconds())/int64(appconsts.GoalBlockTime.Seconds()) + 1
+	evdParams.MaxAgeDuration = appconsts.MaxAgeDuration
+	evdParams.MaxAgeNumBlocks = appconsts.MaxAgeNumBlocks
+
 	return &tmproto.EvidenceParams{
 		MaxAgeNumBlocks: evdParams.MaxAgeNumBlocks,
 		MaxAgeDuration:  evdParams.MaxAgeDuration,
