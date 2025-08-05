@@ -120,15 +120,11 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 	s.T().Log("Testing bank send functionality after upgrade")
 	testBankSend(s.T(), chain, cfg)
 
-	// Validators health check
-	finalStatus, err := rpcClient.Status(ctx)
-	s.Require().NoError(err, "failed to get final status")
-	endHeight := finalStatus.SyncInfo.LatestBlockHeight
-
-	s.T().Logf("Asserting validator health for blocks %d to %d", startHeight, endHeight)
+	// Check validator liveness (will wait for sufficient blocks if needed)
+	s.T().Logf("Checking validator liveness from height %d with minimum %d blocks per validator", startHeight, defaultBlocksPerValidator)
 	s.Require().NoError(
-		s.AssertHealthy(ctx, chain, startHeight, endHeight),
-		"validator health check failed",
+		s.CheckLiveness(ctx, chain, startHeight),
+		"validator liveness check failed",
 	)
 }
 
