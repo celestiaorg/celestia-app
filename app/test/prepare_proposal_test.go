@@ -6,16 +6,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v5/app"
-	"github.com/celestiaorg/celestia-app/v5/app/encoding"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v5/test/util"
-	"github.com/celestiaorg/celestia-app/v5/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v5/test/util/random"
-	"github.com/celestiaorg/celestia-app/v5/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v5/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v6/test/util"
+	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/random"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -101,10 +101,10 @@ func createBlobTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyr
 
 func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	numBlobTxs, numNormalTxs := 3, 3
-	accnts := testfactory.GenerateAccounts(numBlobTxs + numNormalTxs)
-	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accnts...)
+	accounts := testfactory.GenerateAccounts(numBlobTxs + numNormalTxs)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	infos := queryAccountInfo(testApp, accnts, kr)
+	infos := queryAccountInfo(testApp, accounts, kr)
 
 	protoBlob, err := share.NewBlob(share.RandomBlobNamespace(), []byte{1}, appconsts.DefaultShareVersion, nil)
 	require.NoError(t, err)
@@ -113,7 +113,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		enc.TxConfig,
 		kr,
 		testutil.ChainID,
-		accnts[:numBlobTxs],
+		accounts[:numBlobTxs],
 		infos[:numBlobTxs],
 		testfactory.Repeat([]*share.Blob{protoBlob}, numBlobTxs),
 	)
@@ -124,8 +124,8 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		enc.TxConfig,
 		kr,
 		1000,
-		accnts[0],
-		accnts[numBlobTxs:],
+		accounts[0],
+		accounts[numBlobTxs:],
 		testutil.ChainID,
 	)
 	txs := blobTxs

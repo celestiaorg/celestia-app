@@ -26,12 +26,13 @@ func Run() error {
 	url := os.Args[1]
 	c, err := http.New(url, "/websocket")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create RPC client: %w", err)
 	}
 	resp, err := c.Status(context.Background())
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get status: %w", err)
 	}
+	fmt.Printf("Connected to %s\n", url)
 	lastHeight := resp.SyncInfo.LatestBlockHeight
 	chainID := resp.NodeInfo.Network
 	queryRange := 100
@@ -46,7 +47,7 @@ func Run() error {
 	for height := firstHeight; height <= lastHeight; height++ {
 		resp, err := c.Commit(context.Background(), &height)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get commit at height %d: %w", height, err)
 		}
 
 		blockTimes = append(blockTimes, resp.Time)

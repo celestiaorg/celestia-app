@@ -13,7 +13,7 @@ func TestOpenTraceWriter(t *testing.T) {
 	})
 }
 
-func Test_getProgramArgs(t *testing.T) {
+func TestRemoveStart(t *testing.T) {
 	type testCase struct {
 		name  string
 		input []string

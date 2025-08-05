@@ -1,11 +1,13 @@
 VERSION := $(shell echo $(shell git describe --tags --always --match "v*") | sed 's/^v//')
 COMMIT := $(shell git rev-parse --short HEAD)
+CELESTIA_TAG := $(shell git rev-parse --short=8 HEAD)
+export CELESTIA_TAG
 DOCKER := $(shell which docker)
 PROJECTNAME=$(shell basename "$(PWD)")
 DOCKER_GOOS ?= linux
 DOCKER_GOARCH ?= amd64
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
-PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v4
+PACKAGE_NAME := github.com/celestiaorg/celestia-app/v6
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
 GOLANG_CROSS_VERSION  ?= v1.24.2
@@ -17,7 +19,7 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 		  -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd \
 		  -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
 		  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
-		  -X github.com/celestiaorg/celestia-app/v5/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT)
+		  -X github.com/celestiaorg/celestia-app/v6/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT)
 
 BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
@@ -26,8 +28,9 @@ BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
 # internal/embedding/data.go
 # .goreleaser.yaml
 # docker/multiplexer.Dockerfile
-CELESTIA_V3_VERSION := v3.10.5
-CELESTIA_V4_VERSION := v4.0.10
+CELESTIA_V3_VERSION := v3.10.6
+CELESTIA_V4_VERSION := v4.1.0
+CELESTIA_V5_VERSION := v5.0.1
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -49,6 +52,7 @@ build: mod
 ifeq ($(DOWNLOAD),true)
 	@$(MAKE) download-v3-binaries
 	@$(MAKE) download-v4-binaries
+	@$(MAKE) download-v5-binaries
 endif
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd with multiplexer enabled"
@@ -61,13 +65,9 @@ install-standalone: check-bbr
 	@go install $(BUILD_FLAGS) ./cmd/celestia-appd
 .PHONY: install-standalone
 
-define EMBED_BIN
-  ./scripts/download_v3_binary.sh $$url $$out $(CELESTIA_V3_VERSION)
-endef
-
 ## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
 # TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
-install: check-bbr download-v3-binaries download-v4-binaries
+install: check-bbr download-v3-binaries download-v4-binaries download-v5-binaries
 	@echo "--> Installing celestia-appd with multiplexer support"
 	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
 .PHONY: install
@@ -101,6 +101,21 @@ download-v4-binaries:
 	esac; \
 	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V4_VERSION)"
 .PHONY: download-v4-binaries
+
+## download-v5-binaries: Download the celestia-app v5 binary for the current platform.
+download-v5-binaries:
+	@echo "--> Downloading celestia-app $(CELESTIA_V5_VERSION) binary"
+	@mkdir -p internal/embedding
+	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
+	case "$$os-$$arch" in \
+		darwin-arm64) url=celestia-app-standalone_Darwin_arm64.tar.gz; out=celestia-app_darwin_v5_arm64.tar.gz ;; \
+		linux-arm64) url=celestia-app-standalone_Linux_arm64.tar.gz; out=celestia-app_linux_v5_arm64.tar.gz ;; \
+		darwin-amd64) url=celestia-app-standalone_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v5_amd64.tar.gz ;; \
+		linux-amd64) url=celestia-app-standalone_Linux_x86_64.tar.gz; out=celestia-app_linux_v5_amd64.tar.gz ;; \
+		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
+	esac; \
+	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V5_VERSION)"
+.PHONY: download-v5-binaries
 
 ## mod: Update all go.mod files.
 mod:
@@ -162,14 +177,14 @@ proto-update-deps:
 
 .PHONY: proto-all proto-deps proto-gen proto-format proto-lint proto-check-breaking proto-update-deps
 
-## build-docker: Build the celestia-appd Docker image using the local Dockerfile.
-build-docker:
+## build-docker-standalone: Build the celestia-appd Docker image using the local Dockerfile.
+build-docker-standalone:
 	@echo "--> Building Docker image"
-	$(DOCKER) build -t celestiaorg/celestia-app -f docker/Dockerfile .
+	$(DOCKER) build -t celestiaorg/celestia-app -f docker/standalone.Dockerfile .
 .PHONY: build-docker
 
 ## docker-build: Build the celestia-appd docker image from the current branch. Requires docker.
-docker-build: build-docker
+docker-build: build-docker-multiplexer
 .PHONY: docker-build
 
 ## build-docker-multiplexer: Build the celestia-appd docker image with Multiplexer support from the current branch. Requires docker.
@@ -263,8 +278,16 @@ test-docker-e2e:
 	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/$(test)$$ ./...
 .PHONY: test-docker-e2e
 
+## test-docker-e2e-upgrade: Build image from current branch and run the upgrade test.
+test-docker-e2e-upgrade:
+	@echo "--> Building celestia-appd docker image (tag $(CELESTIA_TAG))"
+	@docker build -t "ghcr.io/celestiaorg/celestia-app:$(CELESTIA_TAG)" . -f docker/multiplexer.Dockerfile
+	@echo "--> Running upgrade test"
+	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/TestCelestiaAppUpgrade$$ -count=1 ./...
+.PHONY: test-docker-e2e-upgrade
+
 ## test-multiplexer: Run unit tests for the multiplexer package.
-test-multiplexer: download-v3-binaries download-v4-binaries
+test-multiplexer: download-v3-binaries download-v4-binaries download-v5-binaries
 	@echo "--> Running multiplexer tests"
 	@go test -tags multiplexer ./multiplexer/...
 .PHONY: test-multiplexer

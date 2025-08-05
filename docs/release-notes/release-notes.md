@@ -4,6 +4,13 @@ This guide provides notes for major version releases. These notes may be helpful
 
 ## Upcoming Major Release
 
+## v6.0.0 (Unreleased)
+
+## v5.0.0
+
+This major upgrade is an expedited patch release, fixing the problem with failed IBC transfers caused by the incorrectly configured capability module. There should be no additional API breaking changes.
+This expedited release will have no upgrade delay. The moment 5/6ths signal and the `MsgTryUpgrade` is successful, the network will upgrade to v5.
+
 ## v4.0.0
 
 ### Node Operators (v4.0.0)
@@ -54,6 +61,10 @@ grpc_laddr = "tcp://127.0.0.1:9098"
 #### IAVL v1 Migration
 
 Celestia-app v4 uses IAVL v1 for better performance. When upgrading to v4, the migration happens lazily over time. If you'd like to avoid the lazy migration, you can perform a fresh state sync so that your node uses IAVL v1 exclusively.
+
+#### Cosmos SDK default addresses
+
+The default addresses for the Cosmos SDK API server, GRPC server, and GRPC web server have changed from `0.0.0.0` to `localhost`. See [cosmos-sdk#13778](https://github.com/cosmos/cosmos-sdk/pull/13778).
 
 ### State Machine Changes (v4.0.0)
 
