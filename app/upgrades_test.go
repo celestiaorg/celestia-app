@@ -1,7 +1,6 @@
 package app_test
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -45,7 +44,6 @@ func TestApplyUpgrade(t *testing.T) {
 		params := testApp.ICAHostKeeper.GetParams(ctx)
 		require.True(t, params.HostEnabled)
 		require.Equal(t, params.AllowMessages, app.IcaAllowMessages())
-		fmt.Printf("params before upgrade: %+v\n", params)
 
 		err := testApp.UpgradeKeeper.ApplyUpgrade(ctx, plan)
 		require.NoError(t, err)
@@ -54,6 +52,5 @@ func TestApplyUpgrade(t *testing.T) {
 		params = testApp.ICAHostKeeper.GetParams(ctx)
 		require.True(t, params.HostEnabled)
 		require.Equal(t, params.AllowMessages, app.IcaAllowMessages())
-		fmt.Printf("params after upgrade: %+v\n", params)
 	})
 }
