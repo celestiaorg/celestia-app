@@ -6,14 +6,13 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-
-	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 )
 
 // ConfigMigrator defines a function type for applying version-specific migrations
@@ -172,7 +171,7 @@ func backupFile(filePath, timestamp string) error {
 		return fmt.Errorf("failed to read file %s: %w", filePath, err)
 	}
 
-	if err := os.WriteFile(backupPath, data, 0644); err != nil {
+	if err := os.WriteFile(backupPath, data, 0o644); err != nil {
 		return fmt.Errorf("failed to write backup file %s: %w", backupPath, err)
 	}
 

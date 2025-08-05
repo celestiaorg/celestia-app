@@ -5,12 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/cometbft/cometbft/config"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-app/v6/app"
 )
 
 func TestMigrateConfig(t *testing.T) {
@@ -38,7 +37,7 @@ func TestMigrateConfig(t *testing.T) {
 			// Create temporary directory for test
 			tempDir := t.TempDir()
 			configDir := filepath.Join(tempDir, "config")
-			require.NoError(t, os.MkdirAll(configDir, 0755))
+			require.NoError(t, os.MkdirAll(configDir, 0o755))
 
 			// Create test config files
 			setupTestConfigFiles(t, configDir)
@@ -64,7 +63,7 @@ func TestMigrateConfig(t *testing.T) {
 func TestLoadAndWriteConfigs(t *testing.T) {
 	tempDir := t.TempDir()
 	configDir := filepath.Join(tempDir, "config")
-	require.NoError(t, os.MkdirAll(configDir, 0755))
+	require.NoError(t, os.MkdirAll(configDir, 0o755))
 
 	cometConfigPath := filepath.Join(configDir, "config.toml")
 	appConfigPath := filepath.Join(configDir, "app.toml")
@@ -129,16 +128,13 @@ func verifyMigratedConfigs(t *testing.T, configDir, version string) {
 	cometConfigPath := filepath.Join(configDir, "config.toml")
 	appConfigPath := filepath.Join(configDir, "app.toml")
 
-	switch version {
-	case "v6":
-		// Load and verify CometBFT config has v6 changes
+	if version == "v6" {
 		cometConfig, err := loadCometBFTConfig(cometConfigPath, filepath.Dir(configDir))
 		require.NoError(t, err)
 
 		expectedCometConfig := app.DefaultConsensusConfig()
 		assert.Equal(t, expectedCometConfig.Mempool.Type, cometConfig.Mempool.Type)
 
-		// Load and verify server config has v6 changes
 		serverConfig, err := loadServerConfig(appConfigPath)
 		require.NoError(t, err)
 
