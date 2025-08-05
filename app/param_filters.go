@@ -74,7 +74,7 @@ func consensusParamFilter(msg sdk.Msg) error {
 		return errors.Wrapf(sdkerrors.ErrUnauthorized, "invalid validator parameters")
 	}
 
-	evidenceParams := coretypes.DefaultConsensusParams().ToProto().Evidence
+	evidenceParams := DefaultEvidenceParams()
 	if !updateParams.Evidence.Equal(evidenceParams) {
 		return errors.Wrapf(sdkerrors.ErrUnauthorized, "invalid evidence parameters")
 	}
