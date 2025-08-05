@@ -31,7 +31,7 @@ func TestUpgrades(t *testing.T) {
 }
 
 func TestApplyUpgrade(t *testing.T) {
-	t.Run("ICA host params should have an allowlist of messages before and after ApplyUpgrade", func(t *testing.T) {
+	t.Run("ICA host params should have an explicit allowlist of messages before and after ApplyUpgrade", func(t *testing.T) {
 		testApp, _, _ := util.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
 		require.True(t, testApp.UpgradeKeeper.HasHandler("v6"))
 		plan := upgradetypes.Plan{

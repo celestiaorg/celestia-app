@@ -20,7 +20,6 @@ import (
 	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	icahostkeeper "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/keeper"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
 	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	ibcclienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
@@ -31,6 +30,7 @@ import (
 // RegisterUpgradeHandlers is used for registering any on-chain upgrades.
 func (app App) RegisterUpgradeHandlers() {
 	for _, subspace := range app.ParamsKeeper.GetSubspaces() {
+		fmt.Printf("subspace.Name(): %s\n", subspace.Name())
 
 		var keyTable paramstypes.KeyTable
 		var set bool
@@ -56,6 +56,7 @@ func (app App) RegisterUpgradeHandlers() {
 		case ibctransfertypes.ModuleName:
 			keyTable, set = ibctransfertypes.ParamKeyTable(), true //nolint:staticcheck
 		case icahosttypes.SubModuleName:
+			fmt.Printf("icahosttypes.ParamKeyTable(): %+v\n", icahosttypes.ParamKeyTable())
 			keyTable, set = icahosttypes.ParamKeyTable(), true //nolint:staticcheck
 		case blobtypes.ModuleName:
 			keyTable, set = blobtypes.ParamKeyTable(), true //nolint:staticcheck
@@ -79,13 +80,8 @@ func (app App) RegisterUpgradeHandlers() {
 			start := time.Now()
 			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", upgradeName, "start", start)
 
-			sdkCtx.Logger().Info("migrating ica/host submodule params from x/params to self-manage params")
-			icaMigrator := icahostkeeper.NewMigrator(&app.ICAHostKeeper)
-			err := icaMigrator.MigrateParams(sdkCtx)
-			if err != nil {
-				sdkCtx.Logger().Error("failed to migrate ica/host submodule params", "error", err)
-				return nil, err
-			}
+			app.migrateICAHostParams(sdkCtx)
+			// TODO: add any other migrations here.
 
 			sdkCtx.Logger().Info("finished to upgrade", "upgrade-name", upgradeName, "duration-sec", time.Since(start).Seconds())
 
@@ -101,4 +97,17 @@ func (app App) RegisterUpgradeHandlers() {
 	if upgradeInfo.Name == upgradeName && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) { //nolint:staticcheck
 		// TODO: Apply any store upgrades here.
 	}
+}
+
+// migrateICAHostParams sets the ICA host params to the default values for
+// Celestia. This is needed because the ICA host params were previously stored
+// in x/params and in ibc-go v8 they were migrated to use a self-managed store.
+func (a App) migrateICAHostParams(ctx context.Context) error {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	params := icahosttypes.Params{
+		HostEnabled:   true,
+		AllowMessages: IcaAllowMessages(),
+	}
+	a.ICAHostKeeper.SetParams(sdkCtx, params)
+	return nil
 }
