@@ -27,7 +27,7 @@ BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
 # internal/embedding/data.go
 # .goreleaser.yaml
 # docker/multiplexer.Dockerfile
-CELESTIA_V3_VERSION := v3.10.5
+CELESTIA_V3_VERSION := v3.10.6
 CELESTIA_V4_VERSION := v4.1.0
 
 ## help: Get more info on make commands.
@@ -50,6 +50,10 @@ build: mod
 ifeq ($(DOWNLOAD),true)
 	@$(MAKE) download-v3-binaries
 	@$(MAKE) download-v4-binaries
+<<<<<<< HEAD
+=======
+	@$(MAKE) download-v5-binaries
+>>>>>>> 225b9d1 (chore(deps): upgrade to v3.10.6 (#5446))
 endif
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd with multiplexer enabled"
