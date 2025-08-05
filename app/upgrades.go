@@ -77,7 +77,11 @@ func (app App) RegisterUpgradeHandlers() {
 			start := time.Now()
 			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", upgradeName, "start", start)
 
-			app.migrateICAHostParams(sdkCtx)
+			err := app.setICAHostParams(sdkCtx)
+			if err != nil {
+				sdkCtx.Logger().Error("failed to set ica/host submodule params", "error", err)
+				return nil, err
+			}
 			// TODO: add any other migrations here.
 
 			sdkCtx.Logger().Info("finished to upgrade", "upgrade-name", upgradeName, "duration-sec", time.Since(start).Seconds())
@@ -96,13 +100,13 @@ func (app App) RegisterUpgradeHandlers() {
 	}
 }
 
-// migrateICAHostParams sets the ICA host params to the default values for
+// setICAHostParams sets the ICA host params to the default values for
 // Celestia. This is needed because the ICA host params were previously stored
 // in x/params and in ibc-go v8 they were migrated to use a self-managed store.
 //
 // The default migrator included in ibc-go v8 does not work because it sets the
 // params to the defaults which were overriden by Celestia.
-func (a App) migrateICAHostParams(ctx context.Context) error {
+func (a App) setICAHostParams(ctx context.Context) error {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	params := icahosttypes.Params{
 		HostEnabled:   true,
