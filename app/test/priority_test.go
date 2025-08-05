@@ -60,7 +60,7 @@ func (s *PriorityTestSuite) SetupSuite() {
 	require.NoError(t, cctx.WaitForNextBlock())
 
 	var err error
-	s.txClient, err = user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg)
+	s.txClient, err = user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg, cctx.ChainID, "")
 	require.NoError(t, err)
 }
 

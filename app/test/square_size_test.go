@@ -170,7 +170,7 @@ func (s *SquareSizeIntegrationTest) SetupBlockSizeParams(t *testing.T, squareSiz
 	)
 	require.NoError(t, err)
 
-	txClient, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.enc)
+	txClient, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.enc, s.cctx.ChainID, "")
 	require.NoError(t, err)
 
 	// set a gas price higher than that of above to ensure param

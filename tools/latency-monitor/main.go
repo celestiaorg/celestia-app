@@ -16,6 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
 	"github.com/celestiaorg/go-square/v2/share"
+	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -111,8 +112,16 @@ func monitorLatency(
 	}
 	defer grpcConn.Close()
 
+	// Query chainID from the network
+	serviceClient := tmservice.NewServiceClient(grpcConn)
+	resp, err := serviceClient.GetLatestBlock(ctx, &tmservice.GetLatestBlockRequest{})
+	if err != nil {
+		return fmt.Errorf("failed to query chainID: %w", err)
+	}
+	chainID := resp.SdkBlock.Header.ChainID
+
 	// Initialize encoding config and tx client
-	txClient, err := user.SetupTxClient(ctx, kr, grpcConn, encCfg)
+	txClient, err := user.SetupTxClient(ctx, kr, grpcConn, encCfg, chainID, "")
 	if err != nil {
 		return fmt.Errorf("failed to create tx client: %w", err)
 	}

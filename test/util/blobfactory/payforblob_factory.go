@@ -135,6 +135,7 @@ func RandBlobTxsWithAccounts(
 	r *rand.Rand,
 	kr keyring.Keyring,
 	conn *grpc.ClientConn,
+	chainID string,
 	size int,
 	blobCount int,
 	randSize bool,
@@ -154,7 +155,7 @@ func RandBlobTxsWithAccounts(
 	txs := make([]coretypes.Tx, len(accounts))
 	for i := 0; i < len(accounts); i++ {
 		addr := testfactory.GetAddress(kr, accounts[i])
-		client, err := user.SetupTxClient(context.Background(), kr, conn, enc)
+		client, err := user.SetupTxClient(context.Background(), kr, conn, enc, chainID, "")
 		if err != nil {
 			panic(err)
 		}

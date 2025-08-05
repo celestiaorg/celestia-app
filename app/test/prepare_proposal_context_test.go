@@ -78,7 +78,7 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 	// sign and submit the transactions
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			txClient, err := user.SetupTxClient(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, enc)
+			txClient, err := user.SetupTxClient(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, enc, cctx.ChainID, "")
 			require.NoError(t, err)
 			msgs, _ := tt.msgFunc()
 			res, err := txClient.SubmitTx(cctx.GoContext(), msgs, user.SetGasLimit(1000000), user.SetFee(4000))

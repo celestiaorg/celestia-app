@@ -23,7 +23,6 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
 	"github.com/cosmos/cosmos-sdk/client"
-	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -208,18 +207,10 @@ func SetupTxClient(
 	keys keyring.Keyring,
 	conn *grpc.ClientConn,
 	encCfg encoding.Config,
+	chainID string, // Pass chainID directly
+	appVersion string, // Pass appVersion directly
 	options ...Option,
 ) (*TxClient, error) {
-	resp, err := tmservice.NewServiceClient(conn).GetLatestBlock(
-		ctx,
-		&tmservice.GetLatestBlockRequest{},
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	chainID := resp.SdkBlock.Header.ChainID
-
 	records, err := keys.List()
 	if err != nil {
 		return nil, err

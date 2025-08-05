@@ -15,5 +15,5 @@ func NewOfflineSigner() (*user.Signer, error) {
 
 func NewTxClientFromContext(ctx Context) (*user.TxClient, error) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	return user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg)
+	return user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg, ctx.ChainID, "")
 }

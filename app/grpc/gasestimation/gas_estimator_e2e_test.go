@@ -57,7 +57,7 @@ func TestGasEstimatorE2E(t *testing.T) {
 	require.Equal(t, gasPriceResp.EstimatedGasPrice, appconsts.DefaultMinGasPrice)
 
 	// Setup transaction client
-	txClient, err := user.SetupTxClient(ctx, cctx.Keyring, cctx.GRPCClient, enc)
+	txClient, err := user.SetupTxClient(ctx, cctx.Keyring, cctx.GRPCClient, enc, cctx.ChainID, "")
 	require.NoError(t, err)
 
 	// Submit a transaction that takes up 2000 bytes with a high fee

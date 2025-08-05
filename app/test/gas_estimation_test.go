@@ -113,7 +113,7 @@ func TestEstimateGasPrice(t *testing.T) {
 	assert.Equal(t, appconsts.DefaultMinGasPrice, resp.EstimatedGasPrice)
 
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	txClient, err := user.SetupTxClient(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, enc)
+	txClient, err := user.SetupTxClient(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, enc, cctx.ChainID, "")
 	require.NoError(t, err)
 
 	blobSize := (appconsts.DefaultMaxBytes - 1) / len(accountNames)
@@ -200,7 +200,7 @@ func TestEstimateGasUsed(t *testing.T) {
 	require.NoError(t, cctx.WaitForNextBlock())
 
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	txClient, err := user.SetupTxClient(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, enc)
+	txClient, err := user.SetupTxClient(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, enc, cctx.ChainID, "")
 	require.NoError(t, err)
 	addr := testfactory.GetAddress(cctx.Keyring, "test")
 

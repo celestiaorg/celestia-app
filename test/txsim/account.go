@@ -147,7 +147,14 @@ func (am *AccountManager) setupMasterAccount(ctx context.Context, masterAccName 
 		return fmt.Errorf("error getting master account %s balance: %w", masterAccName, err)
 	}
 
-	am.txClient, err = user.SetupTxClient(ctx, am.keys, am.conn, am.encCfg, user.WithDefaultAccount(masterAccName), user.WithPollTime(am.pollTime))
+	// Query chainID from the network
+	resp, err := tmservice.NewServiceClient(am.conn).GetLatestBlock(ctx, &tmservice.GetLatestBlockRequest{})
+	if err != nil {
+		return fmt.Errorf("failed to query chainID: %w", err)
+	}
+	chainID := resp.SdkBlock.Header.ChainID
+
+	am.txClient, err = user.SetupTxClient(ctx, am.keys, am.conn, am.encCfg, chainID, "", user.WithDefaultAccount(masterAccName), user.WithPollTime(am.pollTime))
 	if err != nil {
 		return err
 	}

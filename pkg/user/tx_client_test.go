@@ -391,12 +391,12 @@ func (suite *TxClientTestSuite) TestGasConsumption() {
 }
 
 func (suite *TxClientTestSuite) TestTxClientWithDifferentDefaultAccount() {
-	txClient, err := user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithDefaultAccount("b"))
+	txClient, err := user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, suite.ctx.ChainID, "", user.WithDefaultAccount("b"))
 	suite.NoError(err)
 	suite.Equal(txClient.DefaultAccountName(), "b")
 
 	addrC := txClient.Account("c").Address()
-	txClient, err = user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithDefaultAddress(addrC))
+	txClient, err = user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, suite.ctx.ChainID, "", user.WithDefaultAddress(addrC))
 	suite.NoError(err)
 	suite.Equal(txClient.DefaultAddress(), addrC)
 }
@@ -449,7 +449,7 @@ func setupTxClient(
 	require.NoError(t, err)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, enc, opts...)
+	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, enc, chainID, "", opts...)
 	require.NoError(t, err)
 
 	return enc, txClient, ctx

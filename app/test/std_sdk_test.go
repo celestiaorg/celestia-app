@@ -345,7 +345,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 		t.Run(tt.name, func(t *testing.T) {
 			serviceClient := sdktx.NewServiceClient(s.cctx.GRPCClient)
 			msgs, signer := tt.msgFunc()
-			txClient, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg, user.WithDefaultAccount(signer))
+			txClient, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg, s.cctx.ChainID, "", user.WithDefaultAccount(signer))
 			require.NoError(t, err)
 			res, err := txClient.SubmitTx(s.cctx.GoContext(), msgs, blobfactory.DefaultTxOpts()...)
 			if tt.expectedCode != abci.CodeTypeOK {
@@ -403,7 +403,7 @@ func (s *StandardSDKIntegrationTestSuite) TestGRPCQueries() {
 		require.NoError(t, err)
 		assert.Equal(t, resp.Status, "UNKNOWN")
 
-		txSubmitter, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg)
+		txSubmitter, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg, s.cctx.ChainID, "")
 		require.NoError(t, err)
 		blobs := blobfactory.RandV0BlobsWithNamespace([]share.Namespace{share.RandomNamespace()}, []int{1000})
 		res, err := txSubmitter.SubmitPayForBlob(s.cctx.GoContext(), blobs, blobfactory.DefaultTxOpts()...)
