@@ -50,10 +50,6 @@ build: mod
 ifeq ($(DOWNLOAD),true)
 	@$(MAKE) download-v3-binaries
 	@$(MAKE) download-v4-binaries
-<<<<<<< HEAD
-=======
-	@$(MAKE) download-v5-binaries
->>>>>>> 225b9d1 (chore(deps): upgrade to v3.10.6 (#5446))
 endif
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd with multiplexer enabled"
