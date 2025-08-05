@@ -47,9 +47,7 @@ func TestMigrateConfig(t *testing.T) {
 
 			if tt.expectError {
 				require.Error(t, err)
-				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains)
-				}
+				assert.Contains(t, err.Error(), tt.errorContains)
 			} else {
 				require.NoError(t, err)
 
