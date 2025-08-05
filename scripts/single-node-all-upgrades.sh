@@ -105,6 +105,46 @@ startCelestiaApp() {
     --force-no-bbr
 }
 
+# Function to perform upgrade to a specific version
+performUpgrade() {
+    local target_version=$1
+
+    echo "Submitting signal for v${target_version}..."
+    celestia-appd tx signal signal ${target_version} \
+        --keyring-backend=${KEYRING_BACKEND} \
+        --home ${APP_HOME} \
+        --from ${KEY_NAME} \
+        --fees ${FEES} \
+        --chain-id ${CHAIN_ID} \
+        --broadcast-mode ${BROADCAST_MODE} \
+        --yes
+
+    sleep 1
+    echo "Querying the tally for v${target_version}..."
+    celestia-appd query signal tally ${target_version}
+
+    echo "Submitting msg try upgrade..."
+    celestia-appd tx signal try-upgrade \
+        --keyring-backend=${KEYRING_BACKEND} \
+        --home ${APP_HOME} \
+        --from ${KEY_NAME} \
+        --fees ${FEES} \
+        --chain-id ${CHAIN_ID} \
+        --broadcast-mode ${BROADCAST_MODE} \
+        --yes
+
+    echo "Waiting for upgrade to complete..."
+    while true; do
+        current_version=$(celestia-appd status | jq -r '.node_info.protocol_version.app')
+        if [ "$current_version" = "${target_version}" ]; then
+            echo "Upgrade to version ${target_version} complete!"
+            break
+        fi
+        echo "Current version: $current_version, waiting for version ${target_version}..."
+        sleep 1
+    done
+}
+
 startUpgrades() {
     sleep 30
     echo "Waiting for app version 2 before proceeding..."
@@ -118,149 +158,14 @@ startUpgrades() {
         sleep 1
     done
 
-    echo "Submitting signal for v3..."
-    celestia-appd tx signal signal 3 \
-        --keyring-backend=${KEYRING_BACKEND} \
-        --home ${APP_HOME} \
-        --from ${KEY_NAME} \
-        --fees ${FEES} \
-        --chain-id ${CHAIN_ID} \
-        --broadcast-mode ${BROADCAST_MODE} \
-        --yes
-
-    sleep 1
-    echo "Querying the tally for v3..."
-    celestia-appd query signal tally 3
-
-    echo "Submitting msg try upgrade..."
-    celestia-appd tx signal try-upgrade \
-        --keyring-backend=${KEYRING_BACKEND} \
-        --home ${APP_HOME} \
-        --from ${KEY_NAME} \
-        --fees ${FEES} \
-        --chain-id ${CHAIN_ID} \
-        --broadcast-mode ${BROADCAST_MODE} \
-        --yes
-
-    echo "Waiting for upgrade to complete..."
-    while true; do
-        current_version=$(celestia-appd status | jq -r '.node_info.protocol_version.app')
-        if [ "$current_version" = "3" ]; then
-            echo "Upgrade to version 3 complete!"
-            break
-        fi
-        echo "Current version: $current_version, waiting for version 3..."
-        sleep 1
-    done
-
-
-    echo "Submitting signal for v4..."
-    celestia-appd tx signal signal 4 \
-        --keyring-backend=${KEYRING_BACKEND} \
-        --home ${APP_HOME} \
-        --from ${KEY_NAME} \
-        --fees ${FEES} \
-        --chain-id ${CHAIN_ID} \
-        --broadcast-mode ${BROADCAST_MODE} \
-        --yes
-
-    sleep 1
-    echo "Querying the tally for v4..."
-    celestia-appd query signal tally 4
-
-    echo "Submitting msg try upgrade..."
-    celestia-appd tx signal try-upgrade \
-        --keyring-backend=${KEYRING_BACKEND} \
-        --home ${APP_HOME} \
-        --from ${KEY_NAME} \
-        --fees ${FEES} \
-        --chain-id ${CHAIN_ID} \
-        --broadcast-mode ${BROADCAST_MODE} \
-        --yes
-
-    echo "Waiting for upgrade to complete..."
-    while true; do
-        current_version=$(celestia-appd status | jq -r '.node_info.protocol_version.app')
-        if [ "$current_version" = "4" ]; then
-            echo "Upgrade to version 4 complete!"
-            break
-        fi
-        echo "Current version: $current_version, waiting for version 4..."
-        sleep 1
-    done
-
-    echo "Submitting signal for v5..."
-    celestia-appd tx signal signal 5 \
-        --keyring-backend=${KEYRING_BACKEND} \
-        --home ${APP_HOME} \
-        --from ${KEY_NAME} \
-        --fees ${FEES} \
-        --chain-id ${CHAIN_ID} \
-        --broadcast-mode ${BROADCAST_MODE} \
-        --yes
-
-    sleep 1
-    echo "Querying the tally for v5..."
-    celestia-appd query signal tally 5
-
-    echo "Submitting msg try upgrade..."
-    celestia-appd tx signal try-upgrade \
-        --keyring-backend=${KEYRING_BACKEND} \
-        --home ${APP_HOME} \
-        --from ${KEY_NAME} \
-        --fees ${FEES} \
-        --chain-id ${CHAIN_ID} \
-        --broadcast-mode ${BROADCAST_MODE} \
-        --yes
-
-    echo "Waiting for upgrade to complete..."
-    while true; do
-        current_version=$(celestia-appd status | jq -r '.node_info.protocol_version.app')
-        if [ "$current_version" = "5" ]; then
-            echo "Upgrade to version 5 complete!"
-            break
-        fi
-        echo "Current version: $current_version, waiting for version 5..."
-        sleep 1
-    done
-
-    echo "Submitting signal for v6..."
-    celestia-appd tx signal signal 6 \
-        --keyring-backend=${KEYRING_BACKEND} \
-        --home ${APP_HOME} \
-        --from ${KEY_NAME} \
-        --fees ${FEES} \
-        --chain-id ${CHAIN_ID} \
-        --broadcast-mode ${BROADCAST_MODE} \
-        --yes
-
-    sleep 1
-    echo "Querying the tally for v6..."
-    celestia-appd query signal tally 6
-
-    echo "Submitting msg try upgrade..."
-    celestia-appd tx signal try-upgrade \
-        --keyring-backend=${KEYRING_BACKEND} \
-        --home ${APP_HOME} \
-        --from ${KEY_NAME} \
-        --fees ${FEES} \
-        --chain-id ${CHAIN_ID} \
-        --broadcast-mode ${BROADCAST_MODE} \
-        --yes
-
-    echo "Waiting for upgrade to complete..."
-    while true; do
-        current_version=$(celestia-appd status | jq -r '.node_info.protocol_version.app')
-        if [ "$current_version" = "6" ]; then
-            echo "Upgrade to version 6 complete!"
-            break
-        fi
-        echo "Current version: $current_version, waiting for version 6..."
-        sleep 1
-    done
+    # Perform upgrades to versions 3, 4, 5, and 6
+    performUpgrade 3
+    performUpgrade 4
+    performUpgrade 5
+    performUpgrade 6
 }
 
 deleteCelestiaAppHome
 createGenesis
-# startUpgrades & # Upgrade to app version 3, 4, 5, and 6 in the background.
+startUpgrades & # Upgrade to app version 3, 4, 5, and 6 in the background.
 startCelestiaApp # Start celestia-app in the foreground.

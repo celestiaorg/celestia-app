@@ -76,7 +76,7 @@ createGenesis() {
     sed -i.bak 's#discard_abci_responses = true#discard_abci_responses = false#g' "${APP_HOME}"/config/config.toml
 
     # Override the log level to reduce noisy logs
-    # sed -i.bak 's#log_level = "info"#log_level = "*:error,p2p:info,state:info"#g' "${APP_HOME}"/config/config.toml
+    sed -i.bak 's#log_level = "info"#log_level = "*:error,p2p:info,state:info"#g' "${APP_HOME}"/config/config.toml
 
     # Override the VotingPeriod from 1 week to 1 minute
     sed -i.bak 's#"604800s"#"60s"#g' "${APP_HOME}"/config/genesis.json
