@@ -971,23 +971,3 @@ func (client *TxClient) queryNetworkSequence(ctx context.Context, signer string)
 
 	return sequence, nil
 }
-
-// GetExpiredTransactions returns a list of transaction hashes that have expired
-func (client *TxClient) GetExpiredTransactions(ctx context.Context) ([]string, error) {
-	currentHeight, err := client.getCurrentBlockHeight(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get current block height: %w", err)
-	}
-
-	client.mtx.Lock()
-	defer client.mtx.Unlock()
-
-	expiredTxs := make([]string, 0)
-	for hash, txInfo := range client.txTracker {
-		if txInfo.ttlHeight > 0 && currentHeight > int64(txInfo.ttlHeight) {
-			expiredTxs = append(expiredTxs, hash)
-		}
-	}
-
-	return expiredTxs, nil
-}
