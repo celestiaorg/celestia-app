@@ -75,7 +75,7 @@ func (app App) RegisterUpgradeHandlers() {
 			sdkCtx := sdk.UnwrapSDKContext(ctx)
 
 			start := time.Now()
-			sdkCtx.Logger().Info("starting upgrade handler", "upgrade-name", upgradeName, "start", start)
+			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", upgradeName, "start", start)
 
 			err := app.OverrideUnbondingTime(ctx)
 			if err != nil {
@@ -88,7 +88,8 @@ func (app App) RegisterUpgradeHandlers() {
 				sdkCtx.Logger().Error("failed to override evidence params", "error", err)
 				return nil, err
 			}
-			sdkCtx.Logger().Info("finished upgrade handler", "upgrade-name", upgradeName, "duration-sec", time.Since(start).Seconds())
+
+			sdkCtx.Logger().Info("finished to upgrade", "upgrade-name", upgradeName, "duration-sec", time.Since(start).Seconds())
 
 			return fromVM, nil
 		},
