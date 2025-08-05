@@ -30,8 +30,6 @@ import (
 // RegisterUpgradeHandlers is used for registering any on-chain upgrades.
 func (app App) RegisterUpgradeHandlers() {
 	for _, subspace := range app.ParamsKeeper.GetSubspaces() {
-		fmt.Printf("subspace.Name(): %s\n", subspace.Name())
-
 		var keyTable paramstypes.KeyTable
 		var set bool
 
@@ -56,7 +54,6 @@ func (app App) RegisterUpgradeHandlers() {
 		case ibctransfertypes.ModuleName:
 			keyTable, set = ibctransfertypes.ParamKeyTable(), true //nolint:staticcheck
 		case icahosttypes.SubModuleName:
-			fmt.Printf("icahosttypes.ParamKeyTable(): %+v\n", icahosttypes.ParamKeyTable())
 			keyTable, set = icahosttypes.ParamKeyTable(), true //nolint:staticcheck
 		case blobtypes.ModuleName:
 			keyTable, set = blobtypes.ParamKeyTable(), true //nolint:staticcheck
