@@ -14,8 +14,8 @@ func IsNonceMismatch(err error) bool {
 	return errors.Is(err, sdkerrors.ErrWrongSequence)
 }
 
-// IsNonceMismatchCode checks if the error code matches the sequence mismatch.
-func IsNonceMismatchCode(code uint32) bool {
+// IsSequenceMismatchCode checks if the error code matches the sequence mismatch.
+func IsSequenceMismatchCode(code uint32) bool {
 	return code == sdkerrors.ErrWrongSequence.ABCICode()
 }
 
