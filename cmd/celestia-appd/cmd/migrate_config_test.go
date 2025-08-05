@@ -93,15 +93,15 @@ func TestLoadAndWriteConfigs(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, cfg)
 
-		cfg.API.Enable = !cfg.API.Enable
-		originalAPIEnable := cfg.API.Enable
+		newConfigVal := !cfg.API.Enable
+		cfg.API.Enable = newConfigVal
 
 		serverconfig.WriteConfigFile(appConfigPath, cfg)
 
 		// Load again and verify change persisted
 		reloadedCfg, err := loadServerConfig(appConfigPath)
 		require.NoError(t, err)
-		assert.Equal(t, originalAPIEnable, reloadedCfg.API.Enable)
+		assert.Equal(t, newConfigVal, reloadedCfg.API.Enable)
 	})
 }
 
