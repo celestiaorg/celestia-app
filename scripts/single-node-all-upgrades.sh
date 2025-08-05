@@ -262,5 +262,5 @@ startUpgrades() {
 
 deleteCelestiaAppHome
 createGenesis
-startUpgrades & # Upgrade to app version 3, 4, 5, and 6 in the background.
+# startUpgrades & # Upgrade to app version 3, 4, 5, and 6 in the background.
 startCelestiaApp # Start celestia-app in the foreground.
