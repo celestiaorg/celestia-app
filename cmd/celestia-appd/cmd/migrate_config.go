@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 )
 
 // ConfigMigrator defines a function type for applying version-specific migrations
@@ -27,11 +28,11 @@ var migrationRegistry = map[string]ConfigMigrator{
 // configuration files based on the target version.
 func migrateConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "migrate-config [version]",
+		Use:     "migrate-config",
 		Short:   "Migrate configuration files to a target version",
 		Long:    "Migrate configuration files (config.toml and app.toml) to be compatible with a target application version.",
-		Example: "celestia-appd migrate-config v6 --home ~/.celestia-app",
-		Args:    cobra.ExactArgs(1),
+		Example: "celestia-appd migrate-config --home ~/.celestia-app\ncelestia-appd migrate-config --version v5 --home ~/.celestia-app",
+		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			homeDir, err := cmd.Flags().GetString(flags.FlagHome)
 			if err != nil {
@@ -43,13 +44,17 @@ func migrateConfigCmd() *cobra.Command {
 				return err
 			}
 
-			targetVersion := args[0]
+			targetVersion, err := cmd.Flags().GetString("version")
+			if err != nil {
+				return err
+			}
 			return migrateConfig(homeDir, targetVersion, backup)
 		},
 	}
 
 	cmd.Flags().String(flags.FlagHome, app.NodeHome, "The application home directory")
 	cmd.Flags().Bool("backup", false, "Create backups of config files before migrating")
+	cmd.Flags().String("version", fmt.Sprintf("v%d", appconsts.Version), "Target version for migration")
 	return cmd
 }
 
