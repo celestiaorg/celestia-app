@@ -28,6 +28,7 @@ import (
 	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
 )
 
+// RegisterUpgradeHandlers is used for registering any on-chain upgrades.
 func (app App) RegisterUpgradeHandlers() {
 	for _, subspace := range app.ParamsKeeper.GetSubspaces() {
 
