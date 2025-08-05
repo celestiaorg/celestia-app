@@ -100,12 +100,13 @@ func (app App) RegisterUpgradeHandlers() {
 	}
 }
 
-// setICAHostParams sets the ICA host params to the default values for
-// Celestia. This is needed because the ICA host params were previously stored
-// in x/params and in ibc-go v8 they were migrated to use a self-managed store.
+// setICAHostParams sets the ICA host params to the values defined in CIP-14.
+// This is needed because the ICA host params were previously stored in x/params
+// and in ibc-go v8 they were migrated to use a self-managed store.
 //
-// The default migrator included in ibc-go v8 does not work because it sets the
-// params to the defaults which were overriden by Celestia.
+// NOTE: the param migrator included in ibc-go v8 does not work as expected
+// because it sets the params to the default values which do not match the
+// values defined in CIP-14.
 func (a App) setICAHostParams(ctx context.Context) error {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	params := icahosttypes.Params{
