@@ -80,7 +80,11 @@ func (app App) RegisterUpgradeHandlers() {
 
 			sdkCtx.Logger().Info("migrating ica/host submodule params from x/params to self-manage params")
 			icaMigrator := icahostkeeper.NewMigrator(&app.ICAHostKeeper)
-			icaMigrator.MigrateParams(sdkCtx)
+			err := icaMigrator.MigrateParams(sdkCtx)
+			if err != nil {
+				sdkCtx.Logger().Error("failed to migrate ica/host submodule params", "error", err)
+				return nil, err
+			}
 
 			sdkCtx.Logger().Info("finished to upgrade", "upgrade-name", upgradeName, "duration-sec", time.Since(start).Seconds())
 
