@@ -1,0 +1,48 @@
+name: Dependabot Go Mod Tidy
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  go-mod-tidy:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run go mod tidy on all modules
+        run: |
+          # Root module
+          go mod tidy
+          
+          # Test modules
+          cd test/interchain && go mod tidy && cd ../..
+          cd test/docker-e2e && go mod tidy && cd ../..
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit changes
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "Run go mod tidy on all modules"
+          git push
