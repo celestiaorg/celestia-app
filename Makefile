@@ -12,7 +12,7 @@ PACKAGE_NAME := github.com/celestiaorg/celestia-app/v6
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
 GOLANG_CROSS_VERSION  ?= v1.24.2
 # Set this to override v2 upgrade height for the v3 embedded binaries
-V2_UPGRADE_HEIGHT ?= 2
+V2_UPGRADE_HEIGHT ?= 0
 
 # process linker flags
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
