@@ -161,7 +161,7 @@ func TestConsensusParamFilter(t *testing.T) {
 			msg: &consensustypes.MsgUpdateParams{
 				Authority: "authority",
 				Block:     coretypes.DefaultConsensusParams().ToProto().Block,
-				Evidence:  coretypes.DefaultConsensusParams().ToProto().Evidence,
+				Evidence:  DefaultEvidenceParams(),
 				Validator: coretypes.DefaultConsensusParams().ToProto().Validator,
 				Abci:      coretypes.DefaultConsensusParams().ToProto().Abci,
 			},
@@ -175,7 +175,7 @@ func TestConsensusParamFilter(t *testing.T) {
 					MaxGas:   coretypes.DefaultConsensusParams().Block.MaxGas + 5000000, // modified value
 					MaxBytes: coretypes.DefaultConsensusParams().Block.MaxBytes,
 				},
-				Evidence:  coretypes.DefaultConsensusParams().ToProto().Evidence,
+				Evidence:  DefaultEvidenceParams(),
 				Validator: coretypes.DefaultConsensusParams().ToProto().Validator,
 				Abci:      coretypes.DefaultConsensusParams().ToProto().Abci,
 			},
@@ -186,7 +186,7 @@ func TestConsensusParamFilter(t *testing.T) {
 			msg: &consensustypes.MsgUpdateParams{
 				Authority: "authority",
 				Block:     coretypes.DefaultConsensusParams().ToProto().Block,
-				Evidence:  coretypes.DefaultConsensusParams().ToProto().Evidence,
+				Evidence:  DefaultEvidenceParams(),
 				Validator: &tmproto.ValidatorParams{PubKeyTypes: []string{"invalid-type"}}, // Non-default value
 				Abci:      coretypes.DefaultConsensusParams().ToProto().Abci,
 			},
