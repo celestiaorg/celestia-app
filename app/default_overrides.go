@@ -226,15 +226,15 @@ func (circuitModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	return cdc.MustMarshalJSON(genState)
 }
 
-// DefaultConsensusParams returns a ConsensusParams with a MaxBytes
-// determined using a goal square size.
+// DefaultConsensusParams returns default consensus params.
 func DefaultConsensusParams() *tmproto.ConsensusParams {
 	return &tmproto.ConsensusParams{
 		Block:    DefaultBlockParams(),
 		Evidence: DefaultEvidenceParams(),
 		Validator: &tmproto.ValidatorParams{
 			PubKeyTypes: coretypes.DefaultValidatorParams().PubKeyTypes,
-		}, Version: &tmproto.VersionParams{
+		},
+		Version: &tmproto.VersionParams{
 			App: appconsts.Version,
 		},
 	}
@@ -252,14 +252,10 @@ func DefaultBlockParams() *tmproto.BlockParams {
 // DefaultEvidenceParams returns a default EvidenceParams with a MaxAge
 // determined using a goal block time.
 func DefaultEvidenceParams() *tmproto.EvidenceParams {
-	evdParams := coretypes.DefaultEvidenceParams()
-	evdParams.MaxAgeDuration = appconsts.MaxAgeDuration
-	evdParams.MaxAgeNumBlocks = appconsts.MaxAgeNumBlocks
-
 	return &tmproto.EvidenceParams{
-		MaxAgeNumBlocks: evdParams.MaxAgeNumBlocks,
-		MaxAgeDuration:  evdParams.MaxAgeDuration,
-		MaxBytes:        evdParams.MaxBytes,
+		MaxAgeNumBlocks: appconsts.MaxAgeNumBlocks,
+		MaxAgeDuration:  appconsts.MaxAgeDuration,
+		MaxBytes:        coretypes.DefaultEvidenceParams().MaxBytes,
 	}
 }
 
