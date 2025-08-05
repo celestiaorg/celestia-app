@@ -30,7 +30,7 @@ func migrateConfigCmd() *cobra.Command {
 		Use:     "migrate-config",
 		Short:   "Migrate configuration files to a target version",
 		Long:    "Migrate configuration files (config.toml and app.toml) to be compatible with a target application version.",
-		Example: fmt.Sprintf("celestia-appd migrate-config --home ~/.celestia-app\ncelestia-appd migrate-config --version v%d --home ~/.celestia-app", appconsts.Version),
+		Example: "celestia-appd migrate-config --home ~/.celestia-app\ncelestia-appd migrate-config --version v6 --home ~/.celestia-app",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			homeDir, err := cmd.Flags().GetString(flags.FlagHome)
