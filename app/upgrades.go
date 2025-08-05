@@ -20,6 +20,7 @@ import (
 	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	icahostkeeper "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/keeper"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
 	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	ibcclienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
@@ -76,7 +77,11 @@ func (app App) RegisterUpgradeHandlers() {
 
 			start := time.Now()
 			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", upgradeName, "start", start)
-			// TODO: Add any upgrade logic here
+
+			sdkCtx.Logger().Info("migrating ica/host submodule params from x/params to self-manage params")
+			icaMigrator := icahostkeeper.NewMigrator(&app.ICAHostKeeper)
+			icaMigrator.MigrateParams(sdkCtx)
+
 			sdkCtx.Logger().Info("finished to upgrade", "upgrade-name", upgradeName, "duration-sec", time.Since(start).Seconds())
 
 			return fromVM, nil
