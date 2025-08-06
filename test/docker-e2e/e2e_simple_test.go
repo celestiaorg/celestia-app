@@ -47,9 +47,19 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 
 	s.CreateTxSim(ctx, celestia)
 
+	// Record start height for liveness check
+	startHeight, err := celestia.Height(ctx)
+	s.Require().NoError(err, "failed to get start height")
+
 	assertTransactionsIncluded(ctx, t, celestia)
 
 	testBankSend(t, celestia, cfg)
+
+	s.T().Logf("Checking validator liveness from height %d", startHeight)
+	s.Require().NoError(
+		s.CheckLiveness(ctx, celestia, startHeight),
+		"validator liveness check failed",
+	)
 }
 
 // assertTransactionsIncluded verifies that the required number of transactions have been included within a specified timeout.
