@@ -70,7 +70,7 @@ func Median(gasPrices []float64) (float64, error) {
 }
 ```
 
-For the top/bottom 10%, they will be extracted after sorting the list of gas prices incrementally, and slicing `gasPrices[:len(gasPrices)*10/100]` and `gasPrices[len(gasPrices)*90/100:]` respectively.
+For the bottom/top 10%, they will be extracted after sorting the list of gas prices incrementally, and slicing `gasPrices[:len(gasPrices)*10/100]` and `gasPrices[len(gasPrices)*90/100:]` respectively.
 
 ## Alternative Approaches
 
