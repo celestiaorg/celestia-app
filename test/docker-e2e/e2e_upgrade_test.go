@@ -81,7 +81,6 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 	s.T().Log("Testing bank send functionality before upgrade")
 	testBankSend(s.T(), chain, cfg)
 
-	// Sanity check: Test PFB submission before upgrade
 	s.T().Log("Testing PFB submission functionality before upgrade")
 	testPFBSubmission(s.T(), chain, cfg)
 
@@ -124,7 +123,6 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 	s.T().Log("Testing bank send functionality after upgrade")
 	testBankSend(s.T(), chain, cfg)
 
-	// Sanity check: Test PFB submission after upgrade
 	s.T().Log("Testing PFB submission functionality after upgrade")
 	testPFBSubmission(s.T(), chain, cfg)
 
