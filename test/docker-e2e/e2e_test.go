@@ -382,8 +382,8 @@ func (s *CelestiaTestSuite) validateAllValidatorsProposed(
 		validatorNames[addr] = fmt.Sprintf(validatorNameFormat, addr[:validatorAddrTruncateLen])
 	}
 
-	s.T().Logf("Checking %d total validators for proposer activity (start: %d, end: %d)",
-		len(allValidators), len(startValidators.Validators), len(endValidators.Validators))
+	s.T().Logf("Checking %d total validators for proposer activity from height %d to %d (validators at start: %d, validators at end: %d)",
+		len(allValidators), startHeight, endHeight, len(startValidators.Validators), len(endValidators.Validators))
 
 	// Verify every validator appears in proposers
 	var missingValidators []string
