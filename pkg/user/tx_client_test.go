@@ -329,7 +329,6 @@ func TestTTLs(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, resp.Code, abci.CodeTypeOK)
 		assertTimeoutHeight(t, ctx, resp, userSetDefaultTTL+blockHeightBeforeTxSubmission)
-
 	})
 
 	t.Run("when no ttl is set by the user the default tx client ttl should be used", func(t *testing.T) {
@@ -515,7 +514,7 @@ func getLatestBlockHeight(t *testing.T, ctx testnode.Context) uint64 {
 	serviceClient := tmservice.NewServiceClient(ctx.GRPCClient)
 	resp, err := serviceClient.GetLatestBlock(ctx.GoContext(), &tmservice.GetLatestBlockRequest{})
 	require.NoError(t, err)
-	return uint64(resp.Block.Header.Height)
+	return uint64(resp.SdkBlock.Header.Height)
 }
 
 func testResubmission(t *testing.T, txClient *user.TxClient, ctx testnode.Context, fee, gas user.TxOption, createTx func(timeoutHeight uint64) (*sdk.TxResponse, error)) {
