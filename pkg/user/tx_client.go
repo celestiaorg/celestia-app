@@ -310,11 +310,11 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 	fee := uint64(math.Ceil(appconsts.DefaultMinGasPrice * float64(gasLimit)))
 	// prepend calculated params, so it can be overwritten in case the user has specified it.
 
-	currentHeight, err := client.getCurrentBlockHeight(ctx)
+	latestHeight, err := client.getLatestBlockHeight(ctx)
 	if err != nil {
 		return nil, err
 	}
-	timeOutHeight := uint64(currentHeight) + client.ttlNumBlocks
+	timeOutHeight := uint64(latestHeight) + client.ttlNumBlocks
 
 	txTimeoutHeight, err := GetTimeoutHeightFromOptions(client, opts...)
 	if err != nil {
@@ -384,11 +384,11 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 		return nil, err
 	}
 
-	currentHeight, err := client.getCurrentBlockHeight(ctx)
+	latestHeight, err := client.getLatestBlockHeight(ctx)
 	if err != nil {
 		return nil, err
 	}
-	timeOutHeight := uint64(currentHeight) + client.ttlNumBlocks
+	timeOutHeight := uint64(latestHeight) + client.ttlNumBlocks
 
 	txTimeoutHeight := txBuilder.GetTx().GetTimeoutHeight()
 	// Do not override user set timeout height for the transaction
@@ -677,13 +677,13 @@ func (client *TxClient) waitForTxExpiry(ctx context.Context, timeOutHeight uint6
 		case <-ctx.Done():
 			return false, ctx.Err()
 		case <-ticker.C:
-			currentHeight, err := client.getCurrentBlockHeight(ctx)
+			latestHeight, err := client.getLatestBlockHeight(ctx)
 			if err != nil {
 				return false, fmt.Errorf("failed to get current block height: %w", err)
 			}
 
 			// If current height is higher than the timeout height, the transaction has expired
-			if uint64(currentHeight) > timeOutHeight {
+			if uint64(latestHeight) > timeOutHeight {
 				return true, nil
 			}
 
@@ -855,6 +855,7 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 	return record.Name, nil
 }
 
+// trackTransaction tracks a transaction with the associated info in the tx client's local tx tracker.
 func (client *TxClient) trackTransaction(signer, txHash string, txBytes []byte, timeOutHeight uint64) {
 	sequence := client.signer.Account(signer).Sequence()
 	client.txTracker[txHash] = txInfo{
@@ -927,8 +928,8 @@ func QueryNetworkMinGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (fl
 	return networkMinPrice, nil
 }
 
-// getCurrentBlockHeight gets the current block height from the network
-func (client *TxClient) getCurrentBlockHeight(ctx context.Context) (int64, error) {
+// getLatestBlockHeight gets the current block height from the network
+func (client *TxClient) getLatestBlockHeight(ctx context.Context) (int64, error) {
 	// Use the first connection to get block height
 	resp, err := tmservice.NewServiceClient(client.conns[0]).GetLatestBlock(
 		ctx,
@@ -940,6 +941,7 @@ func (client *TxClient) getCurrentBlockHeight(ctx context.Context) (int64, error
 	return resp.SdkBlock.Header.Height, nil
 }
 
+// queryNetworkSequence queries the network for the sequence of the account
 func (client *TxClient) queryNetworkSequence(ctx context.Context, signer string) (uint64, error) {
 	// Get the account address
 	account := client.signer.Account(signer)
