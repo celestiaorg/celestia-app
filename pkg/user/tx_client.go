@@ -47,11 +47,11 @@ type Option func(client *TxClient)
 // txInfo is a struct that holds the sequence and the signer of a transaction
 // in the local tx pool.
 type txInfo struct {
-	sequence  uint64
-	signer    string
-	timestamp time.Time
-	txBytes   []byte
-	ttlHeight uint64 // Block height at which transaction expires
+	sequence      uint64
+	signer        string
+	timestamp     time.Time
+	txBytes       []byte
+	timeOutHeight uint64 // Block height at which transaction expires
 }
 
 // TxResponse is a response from the chain after
@@ -314,13 +314,13 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 	if err != nil {
 		return nil, err
 	}
+	timeOutHeight := uint64(currentHeight) + client.ttlNumBlocks
 
 	txTimeoutHeight, err := GetTimeoutHeightFromOptions(client, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	timeOutHeight := uint64(currentHeight) + client.ttlNumBlocks
 	// Do not override user set timeout height for the transaction
 	if txTimeoutHeight > 0 {
 		timeOutHeight = txTimeoutHeight
@@ -388,11 +388,12 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 	if err != nil {
 		return nil, err
 	}
+	timeOutHeight := uint64(currentHeight) + client.ttlNumBlocks
 
-	timeOutHeight := txBuilder.GetTx().GetTimeoutHeight()
+	txTimeoutHeight := txBuilder.GetTx().GetTimeoutHeight()
 	// Do not override user set timeout height for the transaction
-	if timeOutHeight <= 0 {
-		timeOutHeight = uint64(currentHeight) + client.ttlNumBlocks
+	if txTimeoutHeight > 0 {
+		timeOutHeight = txTimeoutHeight
 	}
 
 	txBuilder.SetTimeoutHeight(timeOutHeight)
@@ -593,7 +594,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				return nil, fmt.Errorf("resubmission for evicted tx with hash %s failed: %w", txHash, err)
 			}
 		case core.TxStatusRejected:
-			sequence, signer, txBytes, _, exists := client.GetTxFromTxTracker(txHash)
+			sequence, signer, txBytes, timeOutHeight, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
 			}
@@ -616,7 +617,12 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 					return nil, fmt.Errorf("tx with hash %s was rejected by the node with log: %s", txHash, resp.Error)
 				}
 
-				expired, err := client.waitForTxExpiry(ctx, txHash)
+				// Set sequence to the network sequence to resign and resubmit the transaction
+				if err := client.signer.SetSequence(signer, networkSequence); err != nil {
+					return nil, fmt.Errorf("setting sequence: %w", err)
+				}
+
+				expired, err := client.waitForTxExpiry(ctx, timeOutHeight)
 				if err != nil {
 					return nil, fmt.Errorf("tx with hash %s did not expire before resubmission. response log: %s", txHash, resp.Error)
 				}
@@ -657,9 +663,14 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 
 // waitForTxExpiry waits for a transaction to expire based on the ttl height
 // cachedin the tx tracker.
-func (client *TxClient) waitForTxExpiry(ctx context.Context, txHash string) (bool, error) {
+func (client *TxClient) waitForTxExpiry(ctx context.Context, timeOutHeight uint64) (bool, error) {
 	ticker := time.NewTicker(client.pollTime)
 	defer ticker.Stop()
+
+	// If the timeout height is not set, the transaction will never expire
+	if timeOutHeight <= 0 {
+		return false, fmt.Errorf("no timeout height set; therefore tx will never expire")
+	}
 
 	for {
 		select {
@@ -671,12 +682,12 @@ func (client *TxClient) waitForTxExpiry(ctx context.Context, txHash string) (boo
 				return false, fmt.Errorf("failed to get current block height: %w", err)
 			}
 
-			if tx, ok := client.txTracker[txHash]; ok {
-				if tx.ttlHeight > 0 && currentHeight <= int64(tx.ttlHeight) {
-					continue
-				}
+			// If current height is higher than the timeout height, the transaction has expired
+			if uint64(currentHeight) > timeOutHeight {
+				return true, nil
 			}
-			return true, nil
+
+			continue
 		}
 	}
 }
@@ -847,20 +858,20 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 func (client *TxClient) trackTransaction(signer, txHash string, txBytes []byte, timeOutHeight uint64) {
 	sequence := client.signer.Account(signer).Sequence()
 	client.txTracker[txHash] = txInfo{
-		sequence:  sequence,
-		signer:    signer,
-		timestamp: time.Now(),
-		txBytes:   txBytes,
-		ttlHeight: timeOutHeight,
+		sequence:      sequence,
+		signer:        signer,
+		timestamp:     time.Now(),
+		txBytes:       txBytes,
+		timeOutHeight: timeOutHeight,
 	}
 }
 
 // GetTxFromTxTracker gets transaction info from the tx client's local tx tracker by its hash
-func (client *TxClient) GetTxFromTxTracker(hash string) (sequence uint64, signer string, txBytes []byte, ttlHeight uint64, exists bool) {
+func (client *TxClient) GetTxFromTxTracker(hash string) (sequence uint64, signer string, txBytes []byte, timeOutHeight uint64, exists bool) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 	txInfo, exists := client.txTracker[hash]
-	return txInfo.sequence, txInfo.signer, txInfo.txBytes, txInfo.ttlHeight, exists
+	return txInfo.sequence, txInfo.signer, txInfo.txBytes, txInfo.timeOutHeight, exists
 }
 
 // Signer exposes the tx clients underlying signer

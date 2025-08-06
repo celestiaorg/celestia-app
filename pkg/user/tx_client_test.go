@@ -259,7 +259,7 @@ func TestRejections(t *testing.T) {
 		seqAfterConfirmation := sender.Sequence()
 		require.Equal(t, seqBeforeSubmission+1, seqAfterConfirmation)
 		// Was removed from the tx tracker
-		_, _, exists := txClient.GetTxFromTxTracker(submitBlobResp.TxHash)
+		_, _, _, _, exists := txClient.GetTxFromTxTracker(submitBlobResp.TxHash)
 		require.False(t, exists)
 	})
 
@@ -383,7 +383,7 @@ func TestEvictions(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, res.Code, abci.CodeTypeOK)
 		// They should be removed from the tx tracker after confirmation
-		_, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
+		_, _, _, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
 		require.False(t, exists)
 	}
 
@@ -488,13 +488,13 @@ func (suite *TxClientTestSuite) queryCurrentBalance(t *testing.T) int64 {
 }
 
 func wasRemovedFromTxTracker(txHash string, txClient *user.TxClient) bool {
-	seq, signer, exists := txClient.GetTxFromTxTracker(txHash)
+	seq, signer, _, _, exists := txClient.GetTxFromTxTracker(txHash)
 	return !exists && seq == 0 && signer == ""
 }
 
 // asserts that a tx was indexed in the tx tracker and that the sequence does not increase
 func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash, expectedSigner string, seqBeforeBroadcast uint64) {
-	seqFromTxTracker, signer, exists := txClient.GetTxFromTxTracker(txHash)
+	seqFromTxTracker, signer, _, _, exists := txClient.GetTxFromTxTracker(txHash)
 	require.True(t, exists)
 	require.Equal(t, expectedSigner, signer)
 	seqAfterBroadcast := txClient.Signer().Account(expectedSigner).Sequence()
