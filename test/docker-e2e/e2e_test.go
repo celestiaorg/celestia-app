@@ -30,6 +30,10 @@ const (
 	validatorNameFormat       = "validator_%s"       // Format string for validator display names
 	nodeStatusFormat          = "node_%d(height_%d)" // Format string for node status messages
 
+	// Node type constants (matching tastora framework's string representations)
+	validatorNodeTypeString = "val" // String representation of validator nodes
+	fullNodeTypeString      = "fn"  // String representation of full nodes
+
 	// Log message formats
 	waitingForBlocksLogFormat    = "Waiting for %d more blocks to meet minimum requirement (%d produced, %d required for %d validators × %d blocks each)"
 	blockRequirementMetLogFormat = "Minimum block requirement already met: %d blocks ≥ %d required (%d validators × %d blocks each)"
@@ -401,7 +405,9 @@ func (s *CelestiaTestSuite) validateAllValidatorsProposed(
 	return nil
 }
 
-// validateNodesNotHalted ensures no nodes halted below the expected height
+// validateNodesNotHalted ensures no validator nodes halted below the expected height.
+// Only validator nodes are checked as non-validator nodes may legitimately be at different heights,
+// especially when added during the test (e.g., state sync nodes, full nodes).
 func (s *CelestiaTestSuite) validateNodesNotHalted(
 	ctx context.Context,
 	chain tastoratypes.Chain,
@@ -409,6 +415,11 @@ func (s *CelestiaTestSuite) validateNodesNotHalted(
 ) error {
 	var haltedNodes []string
 	for i, n := range chain.GetNodes() {
+		// Only check validator nodes for height consistency
+		if n.GetType() != validatorNodeTypeString {
+			continue
+		}
+
 		nodeClient, err := n.GetRPCClient()
 		if err != nil {
 			return fmt.Errorf("failed to get RPC client for node %d: %w", i, err)
@@ -423,7 +434,7 @@ func (s *CelestiaTestSuite) validateNodesNotHalted(
 	}
 
 	if len(haltedNodes) > 0 {
-		return fmt.Errorf("%d node(s) halted below expected height %d: %v",
+		return fmt.Errorf("%d validator node(s) halted below expected height %d: %v",
 			len(haltedNodes), endHeight, haltedNodes)
 	}
 
