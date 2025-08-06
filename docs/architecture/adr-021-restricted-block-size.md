@@ -63,7 +63,7 @@ size. This has the benefit of not exposing another parameter to governance, but
 it makes the result of the currently exposed parameter, `MaxBytes`, more
 complicated. It also eliminates the possibility to allow for small blocks with a
 lot of encoding overhead, since the only way to increase the square size is to
-also increase the `MaxBytes`.Full implementation in
+also increase the `MaxBytes`. Full implementation in
 [#1765](https://github.com/celestiaorg/celestia-app/pull/1765)
 
 Note that there is technically a fourth solution, where the `GovMaxSquareSize`
