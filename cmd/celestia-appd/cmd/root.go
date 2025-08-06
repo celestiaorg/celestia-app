@@ -125,7 +125,7 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 		txCommand(capp.BasicManager),
 		keys.Commands(),
 		snapshot.Cmd(NewAppServer),
-		migrateConfigCmd(),
+		updateConfigCmd(),
 	)
 
 	modifyRootCommand(rootCommand)

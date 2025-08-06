@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMigrateConfig(t *testing.T) {
+func TestUpdateConfig(t *testing.T) {
 	tests := []struct {
 		name          string
 		version       string
@@ -20,7 +20,7 @@ func TestMigrateConfig(t *testing.T) {
 		errorContains string
 	}{
 		{
-			name:        "valid v6 migration",
+			name:        "valid v6 update",
 			version:     "v6",
 			expectError: false,
 		},
@@ -42,8 +42,8 @@ func TestMigrateConfig(t *testing.T) {
 			// Create test config files
 			setupTestConfigFiles(t, configDir)
 
-			// Run migration
-			err := migrateConfig(tempDir, tt.version, false)
+			// Run update
+			err := updateConfig(tempDir, tt.version, false)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -52,7 +52,7 @@ func TestMigrateConfig(t *testing.T) {
 				require.NoError(t, err)
 
 				// Verify configs were updated
-				verifyMigratedConfigs(t, configDir, tt.version)
+				verifyUpdatedConfigs(t, configDir, tt.version)
 			}
 		})
 	}
@@ -119,8 +119,8 @@ func setupTestConfigFiles(t *testing.T, configDir string) {
 	serverconfig.WriteConfigFile(appConfigPath, serverConfig)
 }
 
-// verifyMigratedConfigs verifies that configs were properly migrated for the given version
-func verifyMigratedConfigs(t *testing.T, configDir, version string) {
+// verifyUpdatedConfigs verifies that configs were properly updated for the given version
+func verifyUpdatedConfigs(t *testing.T, configDir, version string) {
 	t.Helper()
 
 	cometConfigPath := filepath.Join(configDir, "config.toml")

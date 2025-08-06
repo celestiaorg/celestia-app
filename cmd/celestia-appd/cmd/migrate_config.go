@@ -15,22 +15,22 @@ import (
 	"github.com/spf13/viper"
 )
 
-// ConfigMigrator defines a function type for applying version-specific migrations
-type ConfigMigrator func(*config.Config, *serverconfig.Config) (*config.Config, *serverconfig.Config)
+// ConfigUpdater defines a function type for applying version-specific updates
+type ConfigUpdater func(*config.Config, *serverconfig.Config) (*config.Config, *serverconfig.Config)
 
-// migrationRegistry maps version strings to their corresponding migration functions
-var migrationRegistry = map[string]ConfigMigrator{
-	"v6": applyV6Migrations,
+// updateRegistry maps version strings to their corresponding update functions
+var updateRegistry = map[string]ConfigUpdater{
+	"v6": applyV6Config,
 }
 
-// migrateConfigCmd returns the migrate-config command that migrates
+// updateConfigCmd returns the update-config command that updates
 // configuration files based on the target version.
-func migrateConfigCmd() *cobra.Command {
+func updateConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "migrate-config",
-		Short:   "Migrate configuration files to a target version",
-		Long:    "Migrate configuration files (config.toml and app.toml) to be compatible with a target application version.",
-		Example: "celestia-appd migrate-config --home ~/.celestia-app\ncelestia-appd migrate-config --version v6 --home ~/.celestia-app",
+		Use:     "update-config",
+		Short:   "Update configuration values to be that of a specific app version",
+		Long:    "Update configuration files (config.toml and app.toml) to be compatible with a specific app version.",
+		Example: "celestia-appd update-config --home ~/.celestia-app\ncelestia-appd update-config --version v6 --home ~/.celestia-app",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			homeDir, err := cmd.Flags().GetString(flags.FlagHome)
@@ -43,25 +43,26 @@ func migrateConfigCmd() *cobra.Command {
 				return err
 			}
 
-			targetVersion, err := cmd.Flags().GetString("version")
+			targetVersion, err := cmd.Flags().GetString("app-version")
 			if err != nil {
 				return err
 			}
-			return migrateConfig(homeDir, targetVersion, backup)
+
+			return updateConfig(homeDir, targetVersion, backup)
 		},
 	}
 
 	cmd.Flags().String(flags.FlagHome, app.NodeHome, "The application home directory")
-	cmd.Flags().Bool("backup", true, "Create backups of config files before migrating")
-	cmd.Flags().String("version", fmt.Sprintf("v%d", appconsts.Version), "Target version for migration")
+	cmd.Flags().Bool("backup", true, "Create backups of config files before updating them")
+	cmd.Flags().String("app-version", fmt.Sprintf("v%d", appconsts.Version), "Target version for config changes")
 	return cmd
 }
 
-// migrateConfig performs the actual migration of configuration files.
-func migrateConfig(homeDir, targetVersion string, backup bool) error {
-	fmt.Printf("Migrating configuration files to version %s...\n", targetVersion)
+// updateConfig performs the actual update of configuration files.
+func updateConfig(homeDir, targetVersion string, backup bool) error {
+	fmt.Printf("updating configuration files to version %s...\n", targetVersion)
 
-	migrator, exists := migrationRegistry[targetVersion]
+	updater, exists := updateRegistry[targetVersion]
 	if !exists {
 		return fmt.Errorf("unsupported target version: %s. Supported versions: %v", targetVersion, getSupportedVersions())
 	}
@@ -86,14 +87,14 @@ func migrateConfig(homeDir, targetVersion string, backup bool) error {
 		return fmt.Errorf("failed to load server config: %w", err)
 	}
 
-	fmt.Printf("Loaded configs successfully. Applying %s migrations...\n", targetVersion)
+	fmt.Printf("Loaded configs successfully. Applying %s config updates...\n", targetVersion)
 
-	cometConfig, serverConfig = migrator(cometConfig, serverConfig)
+	cometConfig, serverConfig = updater(cometConfig, serverConfig)
 
 	config.WriteConfigFile(cometConfigPath, cometConfig)
 	serverconfig.WriteConfigFile(appConfigPath, serverConfig)
 
-	fmt.Printf("Successfully migrated configuration files to version %s\n", targetVersion)
+	fmt.Printf("Successfully updated configuration to version %s values\n", targetVersion)
 	return nil
 }
 
@@ -179,18 +180,18 @@ func backupFile(filePath, timestamp string) error {
 	return nil
 }
 
-// getSupportedVersions returns a list of supported migration versions
+// getSupportedVersions returns a list of supported updatable versions
 func getSupportedVersions() []string {
-	versions := make([]string, 0, len(migrationRegistry))
-	for version := range migrationRegistry {
+	versions := make([]string, 0, len(updateRegistry))
+	for version := range updateRegistry {
 		versions = append(versions, version)
 	}
 	return versions
 }
 
-// applyV6Migrations applies configuration changes needed for v6
-func applyV6Migrations(cmtCfg *config.Config, appCfg *serverconfig.Config) (*config.Config, *serverconfig.Config) {
-	fmt.Println("Applying v6 configuration migrations...")
+// applyV6Configs applies configuration changes needed for v6
+func applyV6Config(cmtCfg *config.Config, appCfg *serverconfig.Config) (*config.Config, *serverconfig.Config) {
+	fmt.Println("Applying v6 updates to configs...")
 
 	defaultCfg := app.DefaultConsensusConfig()
 	cmtCfg.RPC.MaxBodyBytes = defaultCfg.RPC.MaxBodyBytes
