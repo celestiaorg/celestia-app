@@ -167,9 +167,7 @@ type TxClient struct {
 	defaultAddress sdktypes.AccAddress
 	// txTracker maps the tx hash to the Sequence and signer of the transaction
 	// that was submitted to the chain
-	txTracker map[string]txInfo
-	// txBySignerSequence maps the signer to the sequence of the transaction
-	txBySignerSequence  map[string]map[uint64]string
+	txTracker           map[string]txInfo
 	gasEstimationClient gasestimation.GasEstimatorClient
 }
 
@@ -203,7 +201,6 @@ func NewTxClient(
 		defaultAccount:      records[0].Name,
 		defaultAddress:      addr,
 		txTracker:           make(map[string]txInfo),
-		txBySignerSequence:  make(map[string]map[uint64]string),
 		cdc:                 cdc,
 		gasEstimationClient: gasestimation.NewGasEstimatorClient(conn),
 	}
@@ -312,6 +309,7 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 	gasLimit := uint64(float64(types.DefaultEstimateGas(blobSizes)))
 	fee := uint64(math.Ceil(appconsts.DefaultMinGasPrice * float64(gasLimit)))
 	// prepend calculated params, so it can be overwritten in case the user has specified it.
+
 	currentHeight, err := client.getCurrentBlockHeight(ctx)
 	if err != nil {
 		return nil, err
@@ -385,7 +383,6 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 		return nil, err
 	}
 
-	// get the current block height
 	currentHeight, err := client.getCurrentBlockHeight(ctx)
 	if err != nil {
 		return nil, err
@@ -442,6 +439,7 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 func (client *TxClient) broadcastTxAndIncrementSequence(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string, timeOutHeight uint64) (*sdktypes.TxResponse, error) {
 	resp, err := client.broadcastTx(ctx, conn, txBytes, signer)
 	if err != nil {
+		fmt.Println("IT breaks here so the sequence always remains")
 		return nil, err
 	}
 
@@ -486,7 +484,7 @@ func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, 
 
 // broadcastMulti broadcasts the transaction to multiple connections concurrently
 // and returns the response from the first successful broadcast.
-func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, signer string, ttlHeight uint64) (*sdktypes.TxResponse, error) {
+func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, signer string, timeOutHeight uint64) (*sdktypes.TxResponse, error) {
 	respCh := make(chan *sdktypes.TxResponse, 1)
 	errCh := make(chan error, len(client.conns))
 
@@ -500,7 +498,7 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 		go func(conn *grpc.ClientConn) {
 			defer wg.Done()
 
-			resp, err := client.broadcastTxAndIncrementSequence(ctx, conn, txBytes, signer, ttlHeight)
+			resp, err := client.broadcastTxAndIncrementSequence(ctx, conn, txBytes, signer, timeOutHeight)
 			if err != nil {
 				errCh <- err
 				return
@@ -538,9 +536,6 @@ func (client *TxClient) pruneTxTracker() {
 	for hash, txInfo := range client.txTracker {
 		if time.Since(txInfo.timestamp) >= txTrackerPruningInterval {
 			delete(client.txTracker, hash)
-			if txBySigner, ok := client.txBySignerSequence[txInfo.signer]; ok {
-				delete(txBySigner, txInfo.sequence)
-			}
 		}
 	}
 }
@@ -607,7 +602,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				return nil, fmt.Errorf("setting sequence: %w", err)
 			}
 
-			if apperrors.IsSequenceMismatchCode(resp.ExecutionCode) {
+			if apperrors.IsNonceMismatchCode(resp.ExecutionCode) {
 				networkSequence, err := client.queryNetworkSequence(ctx, signer)
 				if err != nil {
 					return nil, fmt.Errorf("failed to query network sequence: %w", err)
@@ -874,18 +869,6 @@ func (client *TxClient) GetTxFromTxTracker(hash string) (sequence uint64, signer
 	defer client.mtx.Unlock()
 	txInfo, exists := client.txTracker[hash]
 	return txInfo.sequence, txInfo.signer, exists
-}
-
-// getTxBySignerAndSequence gets transaction info from the tx client's local tx tracker by its signer and sequence
-func (client *TxClient) getTxBySignerAndSequence(signer string, sequence uint64) ([]byte, bool) {
-	if txsBySigner, ok := client.txBySignerSequence[signer]; ok {
-		if txHash, ok := txsBySigner[sequence]; ok {
-			if txInfo, ok := client.txTracker[txHash]; ok {
-				return txInfo.txBytes, true
-			}
-		}
-	}
-	return nil, false
 }
 
 // Signer exposes the tx clients underlying signer

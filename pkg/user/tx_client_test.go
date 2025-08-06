@@ -263,7 +263,7 @@ func TestRejections(t *testing.T) {
 		require.False(t, exists)
 	})
 
-	t.Run("should resubmit blob tx is it was rejected for sequence mismatch", func(t *testing.T) {
+	t.Run("should resign and resubmit blob tx is it was rejected for sequence mismatch", func(t *testing.T) {
 		ttlNumBlocks := int64(10)
 		_, txClient, ctx := setupTxClient(t, ttlNumBlocks, appconsts.DefaultMaxBytes)
 
@@ -275,7 +275,7 @@ func TestRejections(t *testing.T) {
 		testResubmission(t, txClient, ctx, fee, gas, createBlobTx)
 	})
 
-	t.Run("should resubmit sdk tx is it was rejected for sequence mismatch", func(t *testing.T) {
+	t.Run("should resign and resubmit sdk tx is it was rejected for sequence mismatch", func(t *testing.T) {
 		ttlNumBlocks := int64(10)
 		_, txClient, ctx := setupTxClient(t, ttlNumBlocks, appconsts.DefaultMaxBytes)
 
