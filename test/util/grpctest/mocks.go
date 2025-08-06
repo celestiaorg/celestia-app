@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -22,11 +23,28 @@ type MockTxService struct {
 	BroadcastHandler func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error)
 }
 
+// MockTendermintService mocks the Tendermint service
+type MockTendermintService struct {
+	tmservice.UnimplementedServiceServer
+}
+
 func (m *MockTxService) BroadcastTx(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
 	if m.BroadcastHandler != nil {
 		return m.BroadcastHandler(ctx, req)
 	}
 	return nil, fmt.Errorf("MockTxService.BroadcastHandler not set")
+}
+
+// GetLatestBlock implements the Tendermint service
+func (m *MockTendermintService) GetLatestBlock(ctx context.Context, req *tmservice.GetLatestBlockRequest) (*tmservice.GetLatestBlockResponse, error) {
+	return &tmservice.GetLatestBlockResponse{
+		SdkBlock: &tmservice.Block{
+			Header: tmservice.Header{
+				Height:  1,
+				ChainID: "test-chain",
+			},
+		},
+	}, nil
 }
 
 func (m *MockTxService) Simulate(context.Context, *sdktx.SimulateRequest) (*sdktx.SimulateResponse, error) {
@@ -76,6 +94,7 @@ func StartMockServer(t *testing.T, service *MockTxService) *grpc.ClientConn {
 
 	s := grpc.NewServer()
 	sdktx.RegisterServiceServer(s, service)
+	tmservice.RegisterServiceServer(s, &MockTendermintService{}) // Register Tendermint service
 
 	go func() {
 		if err := s.Serve(lis); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
