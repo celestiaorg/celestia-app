@@ -1,3 +1,4 @@
+---
 version: 2
 updates:
   # Docker
@@ -18,7 +19,7 @@ updates:
     labels:
       - dependencies
 
-  # Go
+  # Go modules - grouped together to update all modules simultaneously
   - package-ecosystem: gomod
     directory: "/"
     schedule:
@@ -26,6 +27,13 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - dependencies
+    groups:
+      go-modules:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
   - package-ecosystem: gomod
     directory: "test/interchain"
     schedule:
@@ -33,6 +41,13 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - dependencies
+    groups:
+      go-modules:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
   - package-ecosystem: gomod
     directory: "test/docker-e2e"
     schedule:
@@ -40,3 +55,10 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - dependencies
+    groups:
+      go-modules:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
