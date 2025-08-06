@@ -81,6 +81,9 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 	s.T().Log("Testing bank send functionality before upgrade")
 	testBankSend(s.T(), chain, cfg)
 
+	s.T().Log("Testing PFB submission functionality before upgrade")
+	testPFBSubmission(s.T(), chain, cfg)
+
 	validatorNode := chain.GetNodes()[0]
 	rpcClient, err := validatorNode.GetRPCClient()
 	s.Require().NoError(err, "failed to get RPC client")
@@ -120,7 +123,9 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 	s.T().Log("Testing bank send functionality after upgrade")
 	testBankSend(s.T(), chain, cfg)
 
-	// Check validator liveness (will wait for sufficient blocks if needed)
+	s.T().Log("Testing PFB submission functionality after upgrade")
+	testPFBSubmission(s.T(), chain, cfg)
+
 	s.T().Logf("Checking validator liveness from height %d with minimum %d blocks per validator", startHeight, defaultBlocksPerValidator)
 	s.Require().NoError(
 		s.CheckLiveness(ctx, chain, startHeight),

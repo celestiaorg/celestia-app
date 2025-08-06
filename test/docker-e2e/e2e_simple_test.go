@@ -9,6 +9,9 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	"github.com/celestiaorg/go-square/v2/share"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -140,4 +143,35 @@ func testBankSend(t *testing.T, chain *tastoradockertypes.Chain, cfg *dockerchai
 	// wait for additional blocks to ensure transaction is finalized
 	err = wait.ForBlocks(ctx, 2, chain)
 	require.NoError(t, err, "failed to wait for blocks after transaction")
+}
+
+// testPFBSubmission performs a basic PFB (Pay For Blob) submission using txClient.
+func testPFBSubmission(t *testing.T, chain *tastoradockertypes.Chain, cfg *dockerchain.Config) {
+	ctx := context.Background()
+
+	txClient, err := dockerchain.SetupTxClient(ctx, chain.Nodes()[0], cfg)
+	require.NoError(t, err, "failed to setup TxClient")
+
+	ns := testfactory.RandomBlobNamespace()
+	data := []byte(fmt.Sprintf("test blob data - %s", time.Now().Format(time.RFC3339)))
+
+	blob, err := types.NewV0Blob(ns, data)
+	require.NoError(t, err, "failed to create blob")
+
+	t.Logf("Submitting PFB with namespace: %x, data length: %d", ns.Bytes(), len(data))
+
+	// submit blob transaction using TxClient with proper minimum fee
+	// Required: 0.025utia per gas unit, so 200000 * 0.025 = 5000 utia minimum
+	txResp, err := txClient.SubmitPayForBlob(ctx, []*share.Blob{blob}, user.SetGasLimit(200000), user.SetFee(5000))
+	require.NoError(t, err, "failed to submit PFB transaction")
+	require.Equal(t, uint32(0), txResp.Code, "PFB transaction failed with code %d", txResp.Code)
+
+	t.Logf("PFB transaction submitted! TxHash: %s, Height: %d", txResp.TxHash, txResp.Height)
+
+	t.Logf("Confirming transaction inclusion on-chain...")
+	confirmedTx, err := txClient.ConfirmTx(ctx, txResp.TxHash)
+	require.NoError(t, err, "failed to confirm transaction inclusion")
+	require.Equal(t, uint32(0), confirmedTx.Code, "transaction execution failed with code %d", confirmedTx.Code)
+
+	t.Logf("Transaction confirmed on-chain! TxHash: %s, Height: %d", confirmedTx.TxHash, confirmedTx.Height)
 }
