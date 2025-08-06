@@ -233,6 +233,10 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 }
 
 func TestRejections(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping rejections test in short mode")
+	}
+
 	fee := user.SetFee(1e6)
 	gas := user.SetGasLimit(1e6)
 
