@@ -3,12 +3,13 @@ package docker_e2e
 import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"context"
+	"testing"
+	"time"
+
 	addressutil "github.com/celestiaorg/tastora/framework/testutil/address"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
 	cometcfg "github.com/cometbft/cometbft/config"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
-	"testing"
-	"time"
 
 	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
@@ -106,4 +107,9 @@ func (s *CelestiaTestSuite) TestBlockSync() {
 
 	s.Require().NoError(err, "failed to wait for block sync node to catch up")
 
+	s.T().Logf("Checking validator liveness from height %d", initialHeight)
+	s.Require().NoError(
+		s.CheckLiveness(ctx, celestia, initialHeight),
+		"validator liveness check failed",
+	)
 }

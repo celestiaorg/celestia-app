@@ -101,15 +101,15 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 	// Signal for upgrade and get the upgrade height
 	upgradeHeight := s.signalAndGetUpgradeHeight(ctx, chain, validatorNode, cfg, records, targetAppVersion)
 
-	// Get current height
+	// Record start height - we'll use it later for health assertions
 	status, err := rpcClient.Status(ctx)
 	s.Require().NoError(err, "failed to get node status")
-	currentHeight := status.SyncInfo.LatestBlockHeight
+	startHeight := status.SyncInfo.LatestBlockHeight
 
-	s.T().Logf("Current height: %d, Upgrade height: %d", currentHeight, upgradeHeight)
+	s.T().Logf("Start height: %d, Upgrade height: %d", startHeight, upgradeHeight)
 
 	// Wait until we reach the upgrade height
-	blocksToWait := int(upgradeHeight-currentHeight) + 2 // Add buffer
+	blocksToWait := int(upgradeHeight-startHeight) + 2 // Add buffer
 	s.T().Logf("Waiting for %d blocks to reach upgrade height plus buffer", blocksToWait)
 	s.Require().NoError(wait.ForBlocks(ctx, blocksToWait, chain))
 
@@ -127,6 +127,13 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 	// Sanity check: Test PFB submission after upgrade
 	s.T().Log("Testing PFB submission functionality after upgrade")
 	testPFBSubmission(s.T(), chain, cfg)
+
+  // Check validator liveness (will wait for sufficient blocks if needed)
+	s.T().Logf("Checking validator liveness from height %d with minimum %d blocks per validator", startHeight, defaultBlocksPerValidator)
+	s.Require().NoError(
+		s.CheckLiveness(ctx, chain, startHeight),
+		"validator liveness check failed",
+	)
 }
 
 // signalAndGetUpgradeHeight signals for an upgrade to the specified app
