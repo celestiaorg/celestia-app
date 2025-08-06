@@ -583,7 +583,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			client.deleteFromTxTracker(txHash)
 			return txResponse, nil
 		case core.TxStatusEvicted:
-			_, signer, exists := client.GetTxFromTxTracker(txHash)
+			_, signer, _, _, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in txTracker; likely failed during broadcast", txHash)
 			}
@@ -593,7 +593,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				return nil, fmt.Errorf("resubmission for evicted tx with hash %s failed: %w", txHash, err)
 			}
 		case core.TxStatusRejected:
-			sequence, signer, exists := client.GetTxFromTxTracker(txHash)
+			sequence, signer, txBytes, _, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
 			}
@@ -603,56 +603,44 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				return nil, fmt.Errorf("setting sequence: %w", err)
 			}
 
-			networkSequence, err := client.queryNetworkSequence(ctx, signer)
-			if err != nil {
-				return nil, fmt.Errorf("failed to query network sequence: %w", err)
-			}
-
-			// When a previous transaction is rejected due to TTL, all pending transactions
-			// will be rejected for sequence mismatch. The network expects lower sequence
-			// numbers since previous transactions were not committed.
-			if apperrors.IsNonceMismatchCode(resp.ExecutionCode) && networkSequence < sequence {
-				if err := client.signer.SetSequence(signer, networkSequence); err != nil {
-					return nil, fmt.Errorf("setting sequence: %w", err)
+			// When a previous transaction is rejected due to TTL, all subsequent pending transactions will be rejected for sequence mismatch. The network expects lower sequence since previous transactions were not committed.
+			if apperrors.IsNonceMismatchCode(resp.ExecutionCode) {
+				networkSequence, err := client.queryNetworkSequence(ctx, signer)
+				if err != nil {
+					return nil, fmt.Errorf("failed to query network sequence: %w", err)
 				}
-				expired, err := client.waitForTransactionToExpire(ctx, txHash)
+
+				// If network sequence is greater than cached sequence, a tx was confirmed
+				// and the client is not aware of it.
+				if networkSequence > sequence {
+					return nil, fmt.Errorf("tx with hash %s was rejected by the node with log: %s", txHash, resp.Error)
+				}
+
+				expired, err := client.waitForTxExpiry(ctx, txHash)
 				if err != nil {
 					return nil, fmt.Errorf("tx with hash %s did not expire before resubmission. response log: %s", txHash, resp.Error)
 				}
 				if !expired {
 					return nil, fmt.Errorf("tx with hash %s did not expire before resubmission. response log: %s", txHash, resp.Error)
 				}
-				// resign and resubmit
-				txInfo, exists := client.txTracker[txHash]
-				if !exists {
-					return nil, fmt.Errorf("transaction %s not found in tracker", txHash)
-				}
 
 				// Check if this is a blob transaction
-				blobTx, isBlob, err := blobtx.UnmarshalBlobTx(txInfo.txBytes)
+				blobTx, isBlob, err := blobtx.UnmarshalBlobTx(txBytes)
 				if isBlob && err != nil {
 					return nil, fmt.Errorf("failed to unmarshal blob transaction: %w", err)
 				}
 
 				if !isBlob {
 					// This is an sdk transaction, resubmit with messages
-					decodedTx, err := client.signer.DecodeTx(txInfo.txBytes)
+					decodedTx, err := client.signer.DecodeTx(txBytes)
 					if err != nil {
 						return nil, fmt.Errorf("failed to decode transaction: %w", err)
 					}
-					resp, err := client.SubmitTx(ctx, decodedTx.GetMsgs())
-					if err != nil {
-						return nil, fmt.Errorf("failed to resubmit tx after expiry: %w", err)
-					}
-					return resp, nil
+					return client.SubmitTx(ctx, decodedTx.GetMsgs())
 				}
 
 				// Resubmit as a PayForBlob transaction
-				resp, err := client.SubmitPayForBlob(ctx, blobTx.Blobs)
-				if err != nil {
-					return nil, fmt.Errorf("failed to resubmit blob tx after expiry: %w", err)
-				}
-				return resp, nil
+				return client.SubmitPayForBlob(ctx, blobTx.Blobs)
 			}
 
 			client.deleteFromTxTracker(txHash)
@@ -667,8 +655,10 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 	}
 }
 
-func (client *TxClient) waitForTransactionToExpire(ctx context.Context, txHash string) (bool, error) {
-	ticker := time.NewTicker(client.pollTime) // todo: put this in a constant
+// waitForTxExpiry waits for a transaction to expire based on the ttl height
+// cachedin the tx tracker.
+func (client *TxClient) waitForTxExpiry(ctx context.Context, txHash string) (bool, error) {
+	ticker := time.NewTicker(client.pollTime)
 	defer ticker.Stop()
 
 	for {
@@ -866,11 +856,11 @@ func (client *TxClient) trackTransaction(signer, txHash string, txBytes []byte, 
 }
 
 // GetTxFromTxTracker gets transaction info from the tx client's local tx tracker by its hash
-func (client *TxClient) GetTxFromTxTracker(hash string) (sequence uint64, signer string, exists bool) {
+func (client *TxClient) GetTxFromTxTracker(hash string) (sequence uint64, signer string, txBytes []byte, ttlHeight uint64, exists bool) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 	txInfo, exists := client.txTracker[hash]
-	return txInfo.sequence, txInfo.signer, exists
+	return txInfo.sequence, txInfo.signer, txInfo.txBytes, txInfo.ttlHeight, exists
 }
 
 // Signer exposes the tx clients underlying signer
