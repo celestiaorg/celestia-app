@@ -152,13 +152,9 @@ func testPFBSubmission(t *testing.T, chain *tastoradockertypes.Chain, cfg *docke
 	txClient, err := dockerchain.SetupTxClient(ctx, chain.Nodes()[0], cfg)
 	require.NoError(t, err, "failed to setup TxClient")
 
-	// create random namespace
 	ns := testfactory.RandomBlobNamespace()
-
-	// create blob data
 	data := []byte(fmt.Sprintf("test blob data - %s", time.Now().Format(time.RFC3339)))
 
-	// create blob
 	blob, err := types.NewV0Blob(ns, data)
 	require.NoError(t, err, "failed to create blob")
 
@@ -170,9 +166,12 @@ func testPFBSubmission(t *testing.T, chain *tastoradockertypes.Chain, cfg *docke
 	require.NoError(t, err, "failed to submit PFB transaction")
 	require.Equal(t, uint32(0), txResp.Code, "PFB transaction failed with code %d", txResp.Code)
 
-	t.Logf("PFB transaction successful! TxHash: %s, Height: %d", txResp.TxHash, txResp.Height)
+	t.Logf("PFB transaction submitted! TxHash: %s, Height: %d", txResp.TxHash, txResp.Height)
 
-	// wait for additional blocks to ensure transaction is finalized
-	err = wait.ForBlocks(ctx, 2, chain)
-	require.NoError(t, err, "failed to wait for blocks after PFB transaction")
+	t.Logf("Confirming transaction inclusion on-chain...")
+	confirmedTx, err := txClient.ConfirmTx(ctx, txResp.TxHash)
+	require.NoError(t, err, "failed to confirm transaction inclusion")
+	require.Equal(t, uint32(0), confirmedTx.Code, "transaction execution failed with code %d", confirmedTx.Code)
+
+	t.Logf("Transaction confirmed on-chain! TxHash: %s, Height: %d", confirmedTx.TxHash, confirmedTx.Height)
 }

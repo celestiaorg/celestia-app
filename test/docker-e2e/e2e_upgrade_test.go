@@ -126,7 +126,6 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 	s.T().Log("Testing PFB submission functionality after upgrade")
 	testPFBSubmission(s.T(), chain, cfg)
 
-  // Check validator liveness (will wait for sufficient blocks if needed)
 	s.T().Logf("Checking validator liveness from height %d with minimum %d blocks per validator", startHeight, defaultBlocksPerValidator)
 	s.Require().NoError(
 		s.CheckLiveness(ctx, chain, startHeight),
