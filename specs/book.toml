@@ -6,6 +6,7 @@ title = "Celestia App Specifications"
 
 [output.html]
 git-repository-url = "https://github.com/celestiaorg/celestia-app"
+site-url = "/celestia-app/"
 
 [rust]
 edition = "2021"
