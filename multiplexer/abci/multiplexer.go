@@ -421,6 +421,12 @@ func openTraceWriter(traceWriterFile string) (w io.WriteCloser, err error) {
 func (m *Multiplexer) getApp() (servertypes.ABCI, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	return m.unsafeGetApp()
+}
+
+// unsafeGetApp gets or creates an application for the current app version. It is unsafe due to not
+// holding the mutex.
+func (m *Multiplexer) unsafeGetApp() (servertypes.ABCI, error) {
 	m.logger.Debug("getting app", "app_version", m.appVersion, "next_app_version", m.nextAppVersion)
 
 	// get the appropriate version for the latest app version.

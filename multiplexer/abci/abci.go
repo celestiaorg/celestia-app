@@ -50,8 +50,21 @@ func (m *Multiplexer) Commit(context.Context, *abci.RequestCommit) (*abci.Respon
 		return nil, fmt.Errorf("failed to commit: %w", err)
 	}
 
-	// after a successful commit, we start using the app version specified in FinalizeBlock.
+	// after a successful commit, start using the app version specified in FinalizeBlock. If
+	// there is an upgrade, perform that now.
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	oldAppVersion := m.appVersion
 	m.appVersion = m.nextAppVersion
+	if oldAppVersion != m.nextAppVersion {
+		// this effectively performs the upgrade immediately instead of waiting until the next call to getApp. the
+		// unsafe version is used in order to call the mutex earlier and guatantee that we are not calling other abci
+		// methods or calls to the application while upgrading.
+		_, err = m.unsafeGetApp()
+		if err != nil {
+			return nil, fmt.Errorf("multiplexer failed upgrade: %w", err)
+		}
+	}
 
 	return resp, nil
 }
