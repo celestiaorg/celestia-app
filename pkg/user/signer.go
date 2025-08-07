@@ -35,6 +35,7 @@ type Signer struct {
 	// set of accounts that the signer can manage. Should match the keys on the keyring
 	accounts            map[string]*Account
 	addressToAccountMap map[string]string
+	signMode            signing.SignMode
 }
 
 // NewSigner returns a new signer using the provided keyring
@@ -48,6 +49,7 @@ func NewSigner(keys keyring.Keyring, encCfg client.TxConfig, chainID string, acc
 		addressCodec:        addresscodec.NewBech32Codec(params.Bech32PrefixAccAddr),
 		accounts:            make(map[string]*Account),
 		addressToAccountMap: make(map[string]string),
+		signMode:            defaultSignMode,
 	}
 
 	for _, acc := range accounts {
@@ -64,6 +66,12 @@ func NewSigner(keys keyring.Keyring, encCfg client.TxConfig, chainID string, acc
 	}
 
 	return s, nil
+}
+
+// WithSignMode sets the sign mode for the signer.
+func (s *Signer) WithSignMode(signMode signing.SignMode) *Signer {
+	s.signMode = signMode
+	return s
 }
 
 // populateAddressToAccountMap retrieves keys from the keyring and maps their addresses to account names in the signer.
@@ -288,7 +296,7 @@ func (s *Signer) signTransaction(builder client.TxBuilder) (string, uint64, erro
 	// a dry run of the signing data
 	err = builder.SetSignatures(signing.SignatureV2{
 		Data: &signing.SingleSignatureData{
-			SignMode:  defaultSignMode,
+			SignMode:  s.signMode,
 			Signature: nil,
 		},
 		PubKey:   account.pubKey,
