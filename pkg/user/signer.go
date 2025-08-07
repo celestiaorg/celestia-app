@@ -114,6 +114,13 @@ func (s *Signer) SignTx(msgs []sdktypes.Msg, opts ...TxOption) (authsigning.Tx, 
 		return nil, "", 0, err
 	}
 
+	msgsV2, err := txBuilder.GetTx().GetMsgsV2()
+	if err != nil {
+		return nil, "", 0, err
+	}
+	fmt.Println(msgsV2)
+	fmt.Println(txBuilder.GetTx().GetMsgs())
+
 	signer, sequence, err := s.signTransaction(txBuilder)
 	if err != nil {
 		return nil, "", 0, err
@@ -313,7 +320,7 @@ func (s *Signer) signTransaction(builder client.TxBuilder) (string, uint64, erro
 
 	err = builder.SetSignatures(signing.SignatureV2{
 		Data: &signing.SingleSignatureData{
-			SignMode:  defaultSignMode,
+			SignMode:  s.signMode,
 			Signature: signature,
 		},
 		PubKey:   account.pubKey,
@@ -340,11 +347,11 @@ func (s *Signer) createSignature(builder client.TxBuilder, account *Account, seq
 		PubKey:        account.pubKey,
 	}
 
-	bytesToSign, err := authsigning.GetSignBytesAdapter(context.Background(), s.enc.SignModeHandler(), defaultSignMode, signerData, builder.GetTx())
+	bytesToSign, err := authsigning.GetSignBytesAdapter(context.Background(), s.enc.SignModeHandler(), s.signMode, signerData, builder.GetTx())
 	if err != nil {
 		return nil, fmt.Errorf("error getting sign bytes: %w", err)
 	}
-	signature, _, err := s.keys.Sign(account.name, bytesToSign, defaultSignMode)
+	signature, _, err := s.keys.Sign(account.name, bytesToSign, s.signMode)
 	if err != nil {
 		return nil, fmt.Errorf("error signing bytes: %w", err)
 	}
