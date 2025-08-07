@@ -249,8 +249,9 @@ func DefaultBlockParams() *tmproto.BlockParams {
 	}
 }
 
-// DefaultEvidenceParams returns a default EvidenceParams with a MaxAge
-// determined using a goal block time.
+// DefaultEvidenceParams returns the evidence params defined in CIP-37. The
+// evidence parameters are not modifiable by governance so a consensus breaking
+// release is needed to modify them.
 func DefaultEvidenceParams() *tmproto.EvidenceParams {
 	return &tmproto.EvidenceParams{
 		MaxAgeNumBlocks: appconsts.MaxAgeNumBlocks,
