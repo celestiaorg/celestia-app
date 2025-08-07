@@ -41,7 +41,7 @@ func (k Keeper) GetParamsKeeper() params.Keeper {
 	return k.paramsKeeper
 }
 
-// GetAuthority returns the client submodule's authority.
+// GetAuthority returns the minfee module's authority.
 func (k Keeper) GetAuthority() string {
 	return k.authority
 }
