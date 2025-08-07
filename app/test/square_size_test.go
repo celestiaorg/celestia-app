@@ -47,7 +47,6 @@ func (s *SquareSizeIntegrationTest) SetupSuite() {
 
 	s.enc = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	cfg := testnode.DefaultConfig().
-		WithConsensusParams(app.DefaultConsensusParams()).
 		WithModifiers(genesis.ImmediateProposals(s.enc.Codec)).
 		WithTimeoutCommit(time.Millisecond * 500). // long timeout commit to provide time for submitting txs
 		WithFundedAccounts("txsim")                // add a specific txsim account
