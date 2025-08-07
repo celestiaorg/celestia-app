@@ -497,7 +497,7 @@ func (m *Multiplexer) startEmbeddedApp(version Version) error {
 		}
 
 		if version.Appd.IsStopped() {
-			return fmt.Errorf("app for version %d failed to start", version.AppVersion)
+			return fmt.Errorf("app for version %d stopped", version.AppVersion)
 		}
 
 		m.activeVersion = version
