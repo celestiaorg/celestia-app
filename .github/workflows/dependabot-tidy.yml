@@ -46,4 +46,4 @@ jobs:
           fi
           
           git commit -m "chore: run go mod tidy on all modules"
-          git push "https://x-access-token:${{ secrets.DEPENDABOT_TIDY_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${{ github.head_ref }}"
+          git push origin "HEAD:${{ github.head_ref }}"
