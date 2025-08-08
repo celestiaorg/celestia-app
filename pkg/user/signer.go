@@ -114,13 +114,6 @@ func (s *Signer) SignTx(msgs []sdktypes.Msg, opts ...TxOption) (authsigning.Tx, 
 		return nil, "", 0, err
 	}
 
-	msgsV2, err := txBuilder.GetTx().GetMsgsV2()
-	if err != nil {
-		return nil, "", 0, err
-	}
-	fmt.Println(msgsV2)
-	fmt.Println(txBuilder.GetTx().GetMsgs())
-
 	signer, sequence, err := s.signTransaction(txBuilder)
 	if err != nil {
 		return nil, "", 0, err
