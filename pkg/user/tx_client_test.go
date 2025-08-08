@@ -5,7 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/rand"
 	"net"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -22,11 +25,13 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/grpctest"
 	"github.com/celestiaorg/celestia-app/v6/test/util/random"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -239,6 +244,71 @@ func TestRejections(t *testing.T) {
 
 	fee := user.SetFee(1e6)
 	gas := user.SetGasLimit(1e6)
+
+	t.Run("parallel txs with different timeouts", func(t *testing.T) {
+		ttlNumBlocks := int64(5)
+		_, txClient, tctx := setupTxClient(t, ttlNumBlocks, 1024*2)
+
+		concurrentTxs := 20
+		wg := sync.WaitGroup{}
+		ctx, cancel := context.WithTimeout(tctx.GoContext(), 3*time.Minute)
+		defer cancel()
+		committedTxs := make(chan string, concurrentTxs)
+		rejectedTxs := make(chan string, 3*concurrentTxs)
+		errCh := make(chan error, concurrentTxs)
+		for i := 0; i < concurrentTxs; i++ {
+			wg.Add(1)
+			go func(tctx testnode.Context, ctx context.Context, i int) {
+				t.Logf("submitting tx %d", i)
+				defer wg.Done()
+				// test a random timeout height
+				latestHeight := getLatestBlockHeight(t, tctx)
+				timeout := uint64(1 + rand.Intn(5))
+				// just a single share blob (only two of these should fit per square)
+				blobs := blobfactory.ManyRandBlobs(random.New(), share.FirstSparseShareContentSize)
+				for {
+					resp, err := txClient.SubmitPayForBlob(ctx, blobs, fee, gas, user.SetTimeoutHeight(latestHeight+timeout))
+					if err == nil {
+						committedTxs <- resp.TxHash
+						return
+					}
+					if strings.Contains(err.Error(), sdkerrors.ErrTxTimeoutHeight.Error()) {
+						executionErr := err.(*user.ExecutionError)
+						select { // don't block if the channel is full
+						case rejectedTxs <- executionErr.TxHash:
+						default:
+						}
+						latestHeight = getLatestBlockHeight(t, tctx)
+						timeout = uint64(2 + rand.Intn(5))
+						t.Logf("tx %d timed out, resubmitting", i)
+					} else if ctx.Err() != nil {
+						return
+					} else {
+						errCh <- err
+						return
+					}
+				}
+			}(tctx, ctx, i)
+		}
+		wg.Wait()
+		close(errCh)
+		for err := range errCh {
+			// fail on the first error
+			require.NoError(t, err)
+		}
+		require.NoError(t, ctx.Err()) // test didn't timeout
+
+		// All transactions should have been committed. And all transactions that were rejected
+		// shouldn't be found.
+		for txHash := range committedTxs {
+			_, err := tctx.Client.Tx(tctx.GoContext(), []byte(txHash), false)
+			require.NoError(t, err)
+		}
+		for txHash := range rejectedTxs {
+			_, err := tctx.Client.Tx(tctx.GoContext(), []byte(txHash), false)
+			require.Error(t, err)
+		}
+	})
 
 	t.Run("should reset the signer nonce after tx is rejected", func(t *testing.T) {
 		ttlNumBlocks := int64(5)
@@ -565,6 +635,7 @@ func setupTxClient(
 		WithTimeoutCommit(100 * time.Millisecond).
 		WithAppCreator(testnode.CustomAppCreator(baseapp.SetMinGasPrices(fmt.Sprintf("%v%v", appconsts.DefaultMinGasPrice, appconsts.BondDenom)), baseapp.SetChainID(chainID)))
 	testnodeConfig.Genesis.ConsensusParams.Block.MaxBytes = blocksize
+	testnodeConfig.Genesis.ConsensusParams.Evidence.MaxBytes = blocksize
 
 	ctx, _, _ := testnode.NewNetwork(t, testnodeConfig)
 	_, err := ctx.WaitForHeight(1)

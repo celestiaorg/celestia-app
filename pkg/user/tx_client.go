@@ -650,7 +650,12 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			}
 
 			client.deleteFromTxTracker(txHash)
-			return nil, fmt.Errorf("tx with hash %s was rejected by the node with log: %s", txHash, resp.Error)
+			executionErr := &ExecutionError{
+				TxHash:   txHash,
+				Code:     resp.ExecutionCode,
+				ErrorLog: resp.Error,
+			}
+			return nil, executionErr
 		default:
 			client.deleteFromTxTracker(txHash)
 			if ctx.Err() != nil {
