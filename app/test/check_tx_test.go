@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-<<<<<<< HEAD
 	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
 	apperr "github.com/celestiaorg/celestia-app/v6/app/errors"
@@ -17,20 +16,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-=======
-	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v5/app"
-	"github.com/celestiaorg/celestia-app/v5/app/encoding"
-	apperr "github.com/celestiaorg/celestia-app/v5/app/errors"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v5/test/util"
-	"github.com/celestiaorg/celestia-app/v5/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v5/test/util/random"
-	"github.com/celestiaorg/celestia-app/v5/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v5/x/blob/types"
->>>>>>> 253a760 (fix: incorrect sign bytes for amino-json txs (#5470))
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/go-square/v2/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
