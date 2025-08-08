@@ -28,6 +28,7 @@ jobs:
       - name: Commit and push tidy changes (only Dependabot PRs)
 #        if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
         run: |
+          git config --global user.name "rach-id"
           git config --global user.email "chamirachid1@github.com"
 
           git config --global credential.helper store
