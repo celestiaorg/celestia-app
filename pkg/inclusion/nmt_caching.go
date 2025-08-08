@@ -73,18 +73,18 @@ func (strc subTreeRootCacher) walk(root []byte, path []WalkInstruction) ([]byte,
 	}
 }
 
-// EDSSubTreeRootCacher caches the inner nodes for each row so that we can
+// SubtreeCacher caches the inner nodes for each row so that we can
 // traverse it later to check for blob inclusion. NOTE: Currently this is not
 // threadsafe, but with a future refactor, we could simply read from rsmt2d and
 // not use the tree constructor which would fix both of these issues.
-type EDSSubTreeRootCacher struct {
+type SubtreeCacher struct {
 	mut        *sync.RWMutex
 	caches     map[uint]*subTreeRootCacher
 	squareSize uint64
 }
 
-func NewSubtreeCacher(squareSize uint64) *EDSSubTreeRootCacher {
-	return &EDSSubTreeRootCacher{
+func NewSubtreeCacher(squareSize uint64) *SubtreeCacher {
+	return &SubtreeCacher{
 		mut:        &sync.RWMutex{},
 		caches:     make(map[uint]*subTreeRootCacher),
 		squareSize: squareSize,
@@ -93,7 +93,7 @@ func NewSubtreeCacher(squareSize uint64) *EDSSubTreeRootCacher {
 
 // Constructor fulfills the rsmt2d.TreeCreatorFn by keeping a pointer to the
 // cache and embedding it as a nmt.NodeVisitor into a new wrapped nmt.
-func (stc *EDSSubTreeRootCacher) Constructor(axis rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
+func (stc *SubtreeCacher) Constructor(axis rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
 	var newTree wrapper.ErasuredNamespacedMerkleTree
 	switch axis {
 	case rsmt2d.Row:
@@ -110,7 +110,7 @@ func (stc *EDSSubTreeRootCacher) Constructor(axis rsmt2d.Axis, axisIndex uint) r
 
 // getSubTreeRoot traverses the nmt of the selected row and returns the
 // subtree root. An error is thrown if the subtree cannot be found.
-func (stc *EDSSubTreeRootCacher) getSubTreeRoot(dah da.DataAvailabilityHeader, row int, path []WalkInstruction) ([]byte, error) {
+func (stc *SubtreeCacher) getSubTreeRoot(dah da.DataAvailabilityHeader, row int, path []WalkInstruction) ([]byte, error) {
 	if len(stc.caches) != len(dah.RowRoots) {
 		return nil, fmt.Errorf("data availability header has unexpected number of row roots: expected %d got %d", len(stc.caches), len(dah.RowRoots))
 	}
