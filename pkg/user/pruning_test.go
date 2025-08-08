@@ -38,13 +38,9 @@ func TestPruningInTxTracker(t *testing.T) {
 		}
 	}
 
-	txTrackerBeforePruning := len(txClient.txTracker)
-
 	// All transactions were indexed
 	require.Equal(t, numTransactions, len(txClient.txTracker))
 	txClient.pruneTxTracker()
-	// Prunes the transactions that are 10 minutes old
-	// 5 transactions will be pruned
-	require.Equal(t, txsNotReadyToBePruned, txTrackerBeforePruning-txsToBePruned)
-	require.Equal(t, len(txClient.txTracker), txsNotReadyToBePruned)
+	// Prunes the transactions that are 10 minutes old; 5 transactions will be pruned
+	require.Equal(t, txsNotReadyToBePruned, len(txClient.txTracker))
 }
