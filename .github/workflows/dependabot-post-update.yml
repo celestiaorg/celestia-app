@@ -1,0 +1,49 @@
+---
+name: Dependabot Post-Update
+
+"on":
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  update-submodules:
+    # Only run for dependabot PRs
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          # Use the GITHUB_TOKEN to checkout the PR branch
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # Checkout the actual PR branch, not the merge commit
+          ref: ${{ github.head_ref }}
+
+      - name: Setup Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5  # v5.5.0
+        with:
+          go-version-file: "go.mod"
+
+      - name: Update all go.mod files
+        run: make mod
+
+      - name: Check for changes
+        id: verify-changed-files
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit changes
+        if: steps.verify-changed-files.outputs.changed == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "Update submodule dependencies"
+          git push
