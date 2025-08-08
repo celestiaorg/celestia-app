@@ -3,7 +3,9 @@ package app_test
 import (
 	"bytes"
 	"testing"
+	"time"
 
+<<<<<<< HEAD
 	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
 	apperr "github.com/celestiaorg/celestia-app/v6/app/errors"
@@ -15,6 +17,20 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+=======
+	sdkmath "cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v5/app/encoding"
+	apperr "github.com/celestiaorg/celestia-app/v5/app/errors"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v5/test/util"
+	"github.com/celestiaorg/celestia-app/v5/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v5/test/util/random"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v5/x/blob/types"
+>>>>>>> 253a760 (fix: incorrect sign bytes for amino-json txs (#5470))
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/go-square/v2/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -22,6 +38,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
+	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -39,7 +57,7 @@ func TestCheckTx(t *testing.T) {
 	namespace1, err = share.NewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
 	require.NoError(t, err)
 
-	accounts := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m"}
+	accounts := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n"}
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 
 	signers := make([]*user.Signer, len(accounts))
@@ -236,6 +254,29 @@ func TestCheckTx(t *testing.T) {
 				return blobTx
 			},
 			expectedABCICode: apperr.ErrTxExceedsMaxSize.ABCICode(),
+		},
+		{
+			// NOTE: this test is in place due to a regression where ledger via amino-json
+			// were not able to submit a MsgCreateVestingAccount transaction.
+			name:      "MsgCreateVestingAccount using amino-json",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				signer := signers[13]
+				msg := &vestingtypes.MsgCreateVestingAccount{
+					FromAddress: signer.Account(accounts[13]).Address().String(),
+					ToAddress:   testutil.AccPubKeys[0].Address().String(),
+					Amount:      sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1000))),
+					Delayed:     true,
+					EndTime:     time.Now().Add(2 * time.Hour).Unix(),
+					StartTime:   time.Now().Add(1 * time.Hour).Unix(),
+				}
+				tx, _, err := signer.
+					WithSignMode(signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON).
+					CreateTx([]sdk.Msg{msg}, user.SetGasLimitAndGasPrice(100000, appconsts.DefaultMinGasPrice))
+				require.NoError(t, err)
+				return tx
+			},
+			expectedABCICode: abci.CodeTypeOK,
 		},
 	}
 

@@ -48,8 +48,12 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/tendermint/tendermint v0.0.0-00010101000000-000000000000
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
+<<<<<<< HEAD
 	golang.org/x/oauth2 v0.30.0
 	golang.org/x/sync v0.16.0
+=======
+	golang.org/x/sync v0.15.0
+>>>>>>> 253a760 (fix: incorrect sign bytes for amino-json txs (#5470))
 	google.golang.org/genproto/googleapis/api v0.0.0-20250528174236-200df99c418a
 	google.golang.org/grpc v1.74.2
 	google.golang.org/protobuf v1.36.6
@@ -254,6 +258,10 @@ require (
 	golang.org/x/arch v0.15.0 // indirect
 	golang.org/x/crypto v0.38.0 // indirect
 	golang.org/x/net v0.40.0 // indirect
+<<<<<<< HEAD
+=======
+	golang.org/x/oauth2 v0.30.0 // indirect
+>>>>>>> 253a760 (fix: incorrect sign bytes for amino-json txs (#5470))
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/term v0.32.0 // indirect
 	golang.org/x/text v0.25.0 // indirect
@@ -269,10 +277,15 @@ require (
 )
 
 replace (
+	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.6
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	// TODO: update to a v0.39.x release after that is created from celestia-core main branch.
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.57.3-tm-v0.38.17
+<<<<<<< HEAD
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.5-sdk-v0.50.14
+=======
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.6-sdk-v0.50.14
+>>>>>>> 253a760 (fix: incorrect sign bytes for amino-json txs (#5470))
 	// goleveldb: canonical version
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	// celestia-core(v0.34.x): used for multiplexing abci v1 requests
