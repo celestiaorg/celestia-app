@@ -91,7 +91,6 @@ func initialiseTestApp(testApp *app.App, valSet *tmtypes.ValidatorSet) {
 
 // NewTestApp creates a new app instance with an empty memDB and a no-op logger.
 func NewTestApp() *app.App {
-	// var anteOpt = func(bapp *baseapp.BaseApp) { bapp.SetAnteHandler(nil) }
 	db := dbm.NewMemDB()
 
 	return app.New(
