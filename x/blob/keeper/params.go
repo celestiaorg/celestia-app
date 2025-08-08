@@ -10,7 +10,7 @@ func (k Keeper) GetParams(ctx sdk.Context) types.Params {
 	store := ctx.KVStore(k.storeKey)
 	bz := store.Get([]byte(types.ParamsKey))
 	if len(bz) == 0 {
-		// fallback to legacy store space
+		// fallback to legacy subspace
 		// this is required because the prepare proposal handler
 		// makes use of this value before the params are migrated.
 		var params types.Params
