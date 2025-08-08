@@ -76,7 +76,19 @@ func (app App) RegisterUpgradeHandlers() {
 
 			start := time.Now()
 			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", upgradeName, "start", start)
-			// TODO: Add any upgrade logic here
+
+			err := app.OverrideUnbondingTime(ctx)
+			if err != nil {
+				sdkCtx.Logger().Error("failed to override unbonding time", "error", err)
+				return nil, err
+			}
+
+			err = app.OverrideEvidenceParams(ctx)
+			if err != nil {
+				sdkCtx.Logger().Error("failed to override evidence params", "error", err)
+				return nil, err
+			}
+
 			sdkCtx.Logger().Info("finished to upgrade", "upgrade-name", upgradeName, "duration-sec", time.Since(start).Seconds())
 
 			return fromVM, nil
@@ -91,4 +103,48 @@ func (app App) RegisterUpgradeHandlers() {
 	if upgradeInfo.Name == upgradeName && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) { //nolint:staticcheck
 		// TODO: Apply any store upgrades here.
 	}
+}
+
+func (app App) OverrideUnbondingTime(ctx context.Context) error {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+
+	params, err := app.StakingKeeper.GetParams(ctx)
+	if err != nil {
+		sdkCtx.Logger().Error("failed to get staking params", "error", err)
+		return err
+	}
+
+	sdkCtx.Logger().Info("Overriding unbonding time to %v.", appconsts.DefaultUnbondingTime)
+	params.UnbondingTime = appconsts.DefaultUnbondingTime
+
+	err = app.StakingKeeper.SetParams(ctx, params)
+	if err != nil {
+		sdkCtx.Logger().Error("failed to set staking params", "error", err)
+		return err
+	}
+	return nil
+}
+
+func (app App) OverrideEvidenceParams(ctx context.Context) error {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+
+	params, err := app.ConsensusKeeper.ParamsStore.Get(ctx)
+	if err != nil {
+		sdkCtx.Logger().Error("failed to get consensus params", "error", err)
+		return err
+	}
+
+	sdkCtx.Logger().Info("Overriding evidence MaxAgeDuration to %v.", appconsts.MaxAgeDuration)
+	params.Evidence.MaxAgeDuration = appconsts.MaxAgeDuration
+
+	sdkCtx.Logger().Info("Overriding evidence MaxAgeNumBlocks to %v.", appconsts.MaxAgeNumBlocks)
+	params.Evidence.MaxAgeNumBlocks = appconsts.MaxAgeNumBlocks
+
+	err = app.ConsensusKeeper.ParamsStore.Set(ctx, params)
+	if err != nil {
+		sdkCtx.Logger().Error("failed to set consensus params", "error", err)
+		return err
+	}
+
+	return nil
 }

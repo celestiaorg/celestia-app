@@ -161,7 +161,7 @@ func TestConsensusParamFilter(t *testing.T) {
 			msg: &consensustypes.MsgUpdateParams{
 				Authority: "authority",
 				Block:     coretypes.DefaultConsensusParams().ToProto().Block,
-				Evidence:  coretypes.DefaultConsensusParams().ToProto().Evidence,
+				Evidence:  EvidenceParams(),
 				Validator: coretypes.DefaultConsensusParams().ToProto().Validator,
 				Abci:      coretypes.DefaultConsensusParams().ToProto().Abci,
 			},
@@ -175,7 +175,7 @@ func TestConsensusParamFilter(t *testing.T) {
 					MaxGas:   coretypes.DefaultConsensusParams().Block.MaxGas + 5000000, // modified value
 					MaxBytes: coretypes.DefaultConsensusParams().Block.MaxBytes,
 				},
-				Evidence:  coretypes.DefaultConsensusParams().ToProto().Evidence,
+				Evidence:  EvidenceParams(),
 				Validator: coretypes.DefaultConsensusParams().ToProto().Validator,
 				Abci:      coretypes.DefaultConsensusParams().ToProto().Abci,
 			},
@@ -186,7 +186,7 @@ func TestConsensusParamFilter(t *testing.T) {
 			msg: &consensustypes.MsgUpdateParams{
 				Authority: "authority",
 				Block:     coretypes.DefaultConsensusParams().ToProto().Block,
-				Evidence:  coretypes.DefaultConsensusParams().ToProto().Evidence,
+				Evidence:  EvidenceParams(),
 				Validator: &tmproto.ValidatorParams{PubKeyTypes: []string{"invalid-type"}}, // Non-default value
 				Abci:      coretypes.DefaultConsensusParams().ToProto().Abci,
 			},
@@ -196,6 +196,17 @@ func TestConsensusParamFilter(t *testing.T) {
 			name:        "invalid case: incorrect message type",
 			msg:         &banktypes.MsgUpdateParams{},
 			expectedErr: sdkerrors.ErrInvalidType,
+		},
+		{
+			name: "invalid case: non-default evidence params",
+			msg: &consensustypes.MsgUpdateParams{
+				Authority: "authority",
+				Block:     coretypes.DefaultConsensusParams().ToProto().Block,
+				Evidence:  &tmproto.EvidenceParams{MaxAgeNumBlocks: 1, MaxAgeDuration: time.Hour, MaxBytes: 1000000},
+				Validator: coretypes.DefaultConsensusParams().ToProto().Validator,
+				Abci:      coretypes.DefaultConsensusParams().ToProto().Abci,
+			},
+			expectedErr: sdkerrors.ErrUnauthorized,
 		},
 	}
 
