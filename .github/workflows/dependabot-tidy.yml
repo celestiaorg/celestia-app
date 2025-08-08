@@ -38,13 +38,13 @@ jobs:
 
           git config --global credential.helper store
           echo "https://oauth2:${{ secrets.DEPENDABOT_TIDY_TOKEN }}@github.com" > ~/.git-credentials
-          
+
           git add .
-          
+
           if git diff --cached --quiet; then
             echo "No changes to commit after go mod tidy."
             exit 0
           fi
-          
+
           git commit -m "chore: run go mod tidy on all modules"
           git push --force origin "HEAD:${{ github.head_ref }}"
