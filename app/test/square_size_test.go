@@ -46,10 +46,7 @@ func (s *SquareSizeIntegrationTest) SetupSuite() {
 	t.Log("setting up square size integration test")
 
 	s.enc = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	cp := app.DefaultConsensusParams()
-	cp.Evidence.MaxAgeNumBlocks = 1
 	cfg := testnode.DefaultConfig().
-		WithConsensusParams(cp).
 		WithModifiers(genesis.ImmediateProposals(s.enc.Codec)).
 		WithTimeoutCommit(time.Millisecond * 500). // long timeout commit to provide time for submitting txs
 		WithFundedAccounts("txsim")                // add a specific txsim account
