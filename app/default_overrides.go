@@ -230,7 +230,7 @@ func (circuitModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 func DefaultConsensusParams() *tmproto.ConsensusParams {
 	return &tmproto.ConsensusParams{
 		Block:    DefaultBlockParams(),
-		Evidence: DefaultEvidenceParams(),
+		Evidence: EvidenceParams(),
 		Validator: &tmproto.ValidatorParams{
 			PubKeyTypes: coretypes.DefaultValidatorParams().PubKeyTypes,
 		},
@@ -249,10 +249,10 @@ func DefaultBlockParams() *tmproto.BlockParams {
 	}
 }
 
-// DefaultEvidenceParams returns the evidence params defined in CIP-37. The
-// evidence parameters are not modifiable by governance so a consensus breaking
-// release is needed to modify them.
-func DefaultEvidenceParams() *tmproto.EvidenceParams {
+// EvidenceParams returns the evidence params defined in CIP-37. The evidence
+// parameters are not modifiable by governance so a consensus breaking release
+// is needed to modify the evidence parameters.
+func EvidenceParams() *tmproto.EvidenceParams {
 	return &tmproto.EvidenceParams{
 		MaxAgeNumBlocks: appconsts.MaxAgeNumBlocks,
 		MaxAgeDuration:  appconsts.MaxAgeDuration,
