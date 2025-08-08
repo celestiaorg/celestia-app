@@ -205,7 +205,7 @@ func (s *Signer) findAccount(txbuilder client.TxBuilder) (*Account, error) {
 	}
 
 	if len(signers) == 0 {
-		return nil, fmt.Errorf("message has no signer")
+		return nil, errors.New("message has no signer")
 	}
 
 	signerStr, err := s.addressCodec.BytesToString(signers[0])
