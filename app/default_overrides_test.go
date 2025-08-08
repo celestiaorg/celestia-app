@@ -63,7 +63,7 @@ func TestDefaultConsensusConfig(t *testing.T) {
 	t.Run("RPC overrides", func(t *testing.T) {
 		want := tmcfg.DefaultRPCConfig()
 		want.TimeoutBroadcastTxCommit = 50 * time.Second
-		want.MaxBodyBytes = int64(appconsts.DefaultUpperBoundMaxBytes) * 3
+		want.MaxBodyBytes = appconsts.MempoolSize + (32 * mebibyte)
 		want.GRPCListenAddress = "tcp://127.0.0.1:9098"
 
 		assert.Equal(t, want, got.RPC)
@@ -82,19 +82,20 @@ func TestDefaultConsensusConfig(t *testing.T) {
 			RecheckTimeout:        1_000_000_000,
 
 			// Overrides
-			MaxTxBytes:   appconsts.MaxTxSize,
-			MaxTxsBytes:  int64(appconsts.DefaultUpperBoundMaxBytes) * 3,
-			TTLDuration:  75 * time.Second,
-			TTLNumBlocks: 12,
-			Type:         tmcfg.MempoolTypePriority,
+			MaxTxBytes:     appconsts.MaxTxSize,
+			MaxTxsBytes:    appconsts.MempoolSize,
+			TTLDuration:    0 * time.Second,
+			TTLNumBlocks:   12,
+			Type:           tmcfg.MempoolTypeCAT,
+			MaxGossipDelay: time.Second * 60,
 		}
 		assert.Equal(t, want, *got.Mempool)
 	})
 
 	t.Run("p2p overrides", func(t *testing.T) {
 		const mebibyte = 1048576
-		assert.Equal(t, int64(10*mebibyte), got.P2P.SendRate)
-		assert.Equal(t, int64(10*mebibyte), got.P2P.RecvRate)
+		assert.Equal(t, int64(24*mebibyte), got.P2P.SendRate)
+		assert.Equal(t, int64(24*mebibyte), got.P2P.RecvRate)
 	})
 }
 

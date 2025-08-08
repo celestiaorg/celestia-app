@@ -20,7 +20,7 @@ type ConfigUpdater func(*config.Config, *serverconfig.Config) (*config.Config, *
 
 // updateRegistry maps version strings to their corresponding update functions
 var updateRegistry = map[string]ConfigUpdater{
-	"v6": applyV6Config,
+	"6": applyV6Config,
 }
 
 // updateConfigCmd returns the update-config command that updates
@@ -30,7 +30,7 @@ func updateConfigCmd() *cobra.Command {
 		Use:     "update-config",
 		Short:   "Update configuration values to be that of a specific app version",
 		Long:    "Update configuration files (config.toml and app.toml) to be compatible with a specific app version.",
-		Example: "celestia-appd update-config --home ~/.celestia-app\ncelestia-appd update-config --version v6 --home ~/.celestia-app",
+		Example: "celestia-appd update-config --home ~/.celestia-app\ncelestia-appd update-config --version 6 --home ~/.celestia-app",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			homeDir, err := cmd.Flags().GetString(flags.FlagHome)
@@ -54,7 +54,7 @@ func updateConfigCmd() *cobra.Command {
 
 	cmd.Flags().String(flags.FlagHome, app.NodeHome, "The application home directory")
 	cmd.Flags().Bool("backup", true, "Create backups of config files before updating them")
-	cmd.Flags().String("app-version", fmt.Sprintf("v%d", appconsts.Version), "Target version for config changes")
+	cmd.Flags().String("app-version", fmt.Sprintf("%d", appconsts.Version), "Target version for config changes")
 	return cmd
 }
 
@@ -200,7 +200,10 @@ func applyV6Config(cmtCfg *config.Config, appCfg *serverconfig.Config) (*config.
 	cmtCfg.Mempool.TTLDuration = defaultCfg.Mempool.TTLDuration
 	cmtCfg.Mempool.MaxTxBytes = defaultCfg.Mempool.MaxTxBytes
 	cmtCfg.Mempool.MaxTxsBytes = defaultCfg.Mempool.MaxTxsBytes
+	fmt.Println("mempool type", defaultCfg.Mempool.Type)
 	cmtCfg.Mempool.Type = defaultCfg.Mempool.Type
+	fmt.Println("mempool type", cmtCfg.Mempool.Type)
+
 	cmtCfg.Mempool.MaxGossipDelay = defaultCfg.Mempool.MaxGossipDelay
 
 	cmtCfg.P2P.SendRate = defaultCfg.P2P.SendRate

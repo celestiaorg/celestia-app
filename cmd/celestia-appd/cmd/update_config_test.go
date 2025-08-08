@@ -21,12 +21,12 @@ func TestUpdateConfig(t *testing.T) {
 	}{
 		{
 			name:        "valid v6 update",
-			version:     "v6",
+			version:     "6",
 			expectError: false,
 		},
 		{
 			name:          "unsupported version",
-			version:       "v99",
+			version:       "99",
 			expectError:   true,
 			errorContains: "unsupported target version",
 		},
