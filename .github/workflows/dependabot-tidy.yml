@@ -1,4 +1,4 @@
-name: Tidy All Go Modules
+name: dependabot-tidy
 
 on:
   pull_request:
