@@ -210,7 +210,7 @@ func (s *SquareSizeIntegrationTest) SetupBlockSizeParams(t *testing.T, squareSiz
 		// immediately try to vote while we know the proposal is still active
 		msgVote := govv1.NewMsgVote(testfactory.GetAddress(s.cctx.Keyring, testnode.DefaultValidatorAccountName), proposalID, govv1.OptionYes, "")
 		res, err = txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msgVote}, opt)
-		
+
 		// if we get an inactive proposal error, the voting period expired - retry finding a new active proposal
 		if err != nil && res != nil && res.Code != abci.CodeTypeOK {
 			time.Sleep(time.Millisecond * 100)
