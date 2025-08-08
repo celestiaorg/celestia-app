@@ -1,4 +1,4 @@
-name: Tidy All Go Modules
+name: dependabot-tidy
 
 on:
   pull_request:
@@ -6,6 +6,10 @@ on:
     paths:
       - '**/go.mod'
       - '**/go.sum'
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
   tidy:
@@ -26,11 +30,15 @@ jobs:
           ' \;
 
       - name: Commit and push tidy changes (only Dependabot PRs)
-#        if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
+        if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
+
+          git config --global credential.helper store
+          echo "https://oauth2:${{ secrets.DEPENDABOT_TIDY_TOKEN }}@github.com" > ~/.git-credentials
+          
           git add .
           
           if git diff --cached --quiet; then
@@ -39,4 +47,4 @@ jobs:
           fi
           
           git commit -m "chore: run go mod tidy on all modules"
-          git push origin "HEAD:${{ github.head_ref }}"
+          git push --force origin "HEAD:${{ github.head_ref }}"
