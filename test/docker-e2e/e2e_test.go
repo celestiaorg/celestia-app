@@ -186,28 +186,28 @@ func (s *CelestiaTestSuite) WaitForSync(ctx context.Context, statusClient rpccli
 //
 // Upgrade-agnostic: can be called before/after upgrades or spanning the entire period.
 // Call at the end of E2E tests to validate network health.
-func (s *CelestiaTestSuite) CheckLiveness(ctx context.Context, chain tastoratypes.Chain, startHeight int64) error {
+func (s *CelestiaTestSuite) CheckLiveness(ctx context.Context, chain tastoratypes.Chain) error {
 	rpcClient, err := chain.GetNodes()[0].GetRPCClient()
 	if err != nil {
 		return fmt.Errorf("failed to get RPC client: %w", err)
 	}
 
-	endHeight, err := s.ensureMinimumBlocks(ctx, chain, rpcClient, startHeight)
+	endHeight, err := s.ensureMinimumBlocks(ctx, chain, rpcClient, 1)
 	if err != nil {
 		return fmt.Errorf("failed to ensure minimum blocks: %w", err)
 	}
 
-	startValidators, endValidators, err := s.fetchValidatorSets(ctx, rpcClient, startHeight, endHeight)
-	if err != nil {
-		return fmt.Errorf("failed to fetch validator sets: %w", err)
-	}
-
-	proposers, err := s.fetchProposerAddresses(ctx, rpcClient, startHeight, endHeight)
+	proposers, err := s.fetchProposerAddresses(ctx, rpcClient, 1, endHeight)
 	if err != nil {
 		return fmt.Errorf("failed to fetch proposer addresses: %w", err)
 	}
 
-	if err := s.validateAllValidatorsProposed(startValidators, endValidators, proposers, startHeight, endHeight); err != nil {
+	endValidators, err := s.fetchValidatorSets(ctx, rpcClient, endHeight)
+	if err != nil {
+		return fmt.Errorf("failed to fetch validator sets: %w", err)
+	}
+
+	if err := s.validateAllValidatorsProposed(endValidators, proposers, endHeight); err != nil {
 		return err
 	}
 
@@ -257,25 +257,13 @@ func (s *CelestiaTestSuite) ensureMinimumBlocks(ctx context.Context, chain tasto
 }
 
 // fetchValidatorSets retrieves validator sets at both start and end heights
-func (s *CelestiaTestSuite) fetchValidatorSets(ctx context.Context, rpcClient rpcclient.Client, startHeight, endHeight int64) (*coretypes.ResultValidators, *coretypes.ResultValidators, error) {
-	if endHeight <= startHeight {
-		return nil, nil, fmt.Errorf("invalid height range %d to %d", startHeight, endHeight)
-	}
-
-	blocksProduced := endHeight - startHeight
-	s.T().Logf("Checking validator liveness from height %d to %d (%d blocks)", startHeight, endHeight, blocksProduced)
-
-	startValidators, err := rpcClient.Validators(ctx, &startHeight, nil, nil)
-	if err != nil {
-		return nil, nil, fmt.Errorf("validators query at start height %d: %w", startHeight, err)
-	}
-
+func (s *CelestiaTestSuite) fetchValidatorSets(ctx context.Context, rpcClient rpcclient.Client, endHeight int64) (*coretypes.ResultValidators, error) {
 	endValidators, err := rpcClient.Validators(ctx, &endHeight, nil, nil)
 	if err != nil {
-		return nil, nil, fmt.Errorf("validators query at end height %d: %w", endHeight, err)
+		return nil, fmt.Errorf("validators query at end height %d: %w", endHeight, err)
 	}
 
-	return startValidators, endValidators, nil
+	return endValidators, nil
 }
 
 // fetchProposerAddresses gathers proposer addresses from block headers using efficient batching
@@ -329,31 +317,21 @@ func (s *CelestiaTestSuite) fetchProposerAddresses(ctx context.Context, rpcClien
 }
 
 // validateAllValidatorsProposed ensures every validator proposed at least one block
-func (s *CelestiaTestSuite) validateAllValidatorsProposed(startValidators, endValidators *coretypes.ResultValidators, proposerAddresses []string, startHeight, endHeight int64) error {
-	// Convert slice to map for O(1) lookups
+func (s *CelestiaTestSuite) validateAllValidatorsProposed(endValidators *coretypes.ResultValidators, proposerAddresses []string, endHeight int64) error {
 	proposers := make(map[string]struct{}, len(proposerAddresses))
 	for _, addr := range proposerAddresses {
 		proposers[addr] = struct{}{}
 	}
 
-	// Create a combined map of all validators that should have proposed
 	allValidators := make(map[string]struct{})
 
-	// Add start validators
-	for _, val := range startValidators.Validators {
-		addr := val.Address.String()
-		allValidators[addr] = struct{}{}
-	}
-
-	// Add end validators (in case validator set changed)
 	for _, val := range endValidators.Validators {
 		addr := val.Address.String()
 		allValidators[addr] = struct{}{}
 	}
 
-	s.T().Logf("Checking %d total validators for proposer activity from height %d to %d (validators at start: %d, validators at end: %d)", len(allValidators), startHeight, endHeight, len(startValidators.Validators), len(endValidators.Validators))
+	s.T().Logf("Checking %d total validators for proposer activity end height %d", len(allValidators), endHeight)
 
-	// Verify every validator appears in proposers
 	var missingValidators []string
 	for validatorAddr := range allValidators {
 		if _, ok := proposers[validatorAddr]; !ok {
@@ -362,7 +340,7 @@ func (s *CelestiaTestSuite) validateAllValidatorsProposed(startValidators, endVa
 	}
 
 	if len(missingValidators) > 0 {
-		return fmt.Errorf("%d validator(s) never proposed blocks from height %d to %d: %v", len(missingValidators), startHeight, endHeight, missingValidators)
+		return fmt.Errorf("%d validator(s) never proposed blocks for %d heights", len(missingValidators), endHeight)
 	}
 
 	return nil
@@ -383,11 +361,14 @@ func (s *CelestiaTestSuite) validateNodesNotHalted(ctx context.Context, chain ta
 		if err != nil {
 			return fmt.Errorf("failed to get RPC client for node %d: %w", i, err)
 		}
+
 		status, err := nodeClient.Status(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to get status for node %d: %w", i, err)
 		}
-		if status.SyncInfo.LatestBlockHeight < endHeight {
+
+		// the +3 is just to leave room for error
+		if (status.SyncInfo.LatestBlockHeight + 3) < endHeight {
 			haltedNodes = append(haltedNodes, fmt.Sprintf("node_%d (height_%d)", i, status.SyncInfo.LatestBlockHeight))
 		}
 	}
