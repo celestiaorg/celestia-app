@@ -193,28 +193,33 @@ func (s *SquareSizeIntegrationTest) SetupBlockSizeParams(t *testing.T, squareSiz
 
 	proposalID := uint64(0)
 
-	// try to query a few times until the voting period has passed
-	for i := 0; i < 20; i++ {
+	// try to query and vote on the proposal within the voting period
+	govQueryClient := govv1.NewQueryClient(s.cctx.GRPCClient)
+	for i := 0; i < 30; i++ {
 		// query the proposal to get the id
-		govQueryClient := govv1.NewQueryClient(s.cctx.GRPCClient)
 		propResp, err := govQueryClient.Proposals(s.cctx.GoContext(), &govv1.QueryProposalsRequest{ProposalStatus: govv1.StatusVotingPeriod})
 		require.NoError(t, err)
 
 		if len(propResp.Proposals) < 1 {
-			time.Sleep(time.Millisecond * 300)
+			time.Sleep(time.Millisecond * 100)
 			continue
 		}
 
 		proposalID = propResp.Proposals[0].Id
 
+		// immediately try to vote while we know the proposal is still active
+		msgVote := govv1.NewMsgVote(testfactory.GetAddress(s.cctx.Keyring, testnode.DefaultValidatorAccountName), proposalID, govv1.OptionYes, "")
+		res, err = txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msgVote}, opt)
+		
+		// if we get an inactive proposal error, the voting period expired - retry finding a new active proposal
+		if err != nil && res != nil && res.Code != abci.CodeTypeOK {
+			time.Sleep(time.Millisecond * 100)
+			continue
+		}
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, res.Code)
 		break
 	}
-
-	// create and submit a new msgVote
-	msgVote := govv1.NewMsgVote(testfactory.GetAddress(s.cctx.Keyring, testnode.DefaultValidatorAccountName), proposalID, govv1.OptionYes, "")
-	res, err = txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msgVote}, opt)
-	require.NoError(t, err)
-	require.Equal(t, abci.CodeTypeOK, res.Code)
 
 	res, err = txClient.ConfirmTx(s.cctx.GoContext(), res.TxHash)
 	require.NoError(t, err)

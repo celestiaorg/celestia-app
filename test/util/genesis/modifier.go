@@ -63,7 +63,7 @@ func ImmediateProposals(codec codec.Codec) Modifier {
 		gs.Params.MinDeposit = sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1)))
 		gs.Params.Quorum = "0.000001"
 		gs.Params.Threshold = "0.000001"
-		vp := time.Second * 4
+		vp := time.Second * 10  // Extended from 4s to 10s to reduce flakiness
 		gs.Params.VotingPeriod = &vp
 		state[govtypes.ModuleName] = codec.MustMarshalJSON(gs)
 		return state
