@@ -110,7 +110,7 @@ func (s *CelestiaTestSuite) TestBlockSync() {
 
 	s.T().Logf("Checking validator liveness from height %d", initialHeight)
 	s.Require().NoError(
-		s.CheckLiveness(ctx, celestia, initialHeight),
+		s.CheckLiveness(ctx, celestia),
 		"validator liveness check failed",
 	)
 }
