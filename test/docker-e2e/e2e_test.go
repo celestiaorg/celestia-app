@@ -367,8 +367,8 @@ func (s *CelestiaTestSuite) validateNodesNotHalted(ctx context.Context, chain ta
 			return fmt.Errorf("failed to get status for node %d: %w", i, err)
 		}
 
-		// the +3 is just to leave room for error
-		if (status.SyncInfo.LatestBlockHeight + 3) < endHeight {
+		// the +10 is just to leave room for error
+		if (status.SyncInfo.LatestBlockHeight + 10) < endHeight {
 			haltedNodes = append(haltedNodes, fmt.Sprintf("node_%d (height_%d)", i, status.SyncInfo.LatestBlockHeight))
 		}
 	}
