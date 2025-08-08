@@ -7,6 +7,10 @@ on:
       - '**/go.mod'
       - '**/go.sum'
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   tidy:
     runs-on: ubuntu-latest
