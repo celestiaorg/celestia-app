@@ -39,4 +39,6 @@ const (
 	MainnetUpgradeHeightDelay = int64(100_800)
 	// Deprecated: Use MainnetUpgradeHeightDelay instead.
 	UpgradeHeightDelay = MainnetUpgradeHeightDelay
+
+	MempoolSize = int64(DefaultUpperBoundMaxBytes) * 3
 )
