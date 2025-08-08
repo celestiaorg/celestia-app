@@ -128,11 +128,10 @@ func TestEDSSubRootCacher(t *testing.T) {
 	for i := range dah.RowRoots[:squareSize] {
 		expectedSubTreeRoots := calculateSubTreeRoots(t, eds.Row(uint(i))[:squareSize], 2)
 		require.NotNil(t, expectedSubTreeRoots)
-		// note: the walk path has 3 elements (depth 3) while calculateSubTreeRoots
-		// uses depth 2, so we're comparing subtree roots at different depths.
-		// The walk path [false, false, false] corresponds to the leftmost subtree
-		// at depth 3, which should match the first subtree root calculated at depth 2.
-		result, err := stc.getSubTreeRoot(dah, i, []WalkInstruction{false, false, false})
+		// Both the expected roots and the walk path use depth 2 for consistency.
+		// The walk path [false, false] corresponds to the leftmost subtree at depth 2,
+		// which should match expectedSubTreeRoots[0].
+		result, err := stc.getSubTreeRoot(dah, i, []WalkInstruction{false, false})
 		require.NoError(t, err)
 		assert.Equal(t, expectedSubTreeRoots[0], result)
 	}
