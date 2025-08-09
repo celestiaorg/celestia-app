@@ -131,6 +131,7 @@ jobs:
           - TestBlockSync
           - TestE2EFullStackPFB
           - TestCelestiaAppUpgrade
+          - TestIBC
 
     steps:
       - name: Checkout code
