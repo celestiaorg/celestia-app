@@ -39,8 +39,9 @@ import (
 )
 
 const (
-	flagTraceStore = "trace-store"
-	flagGRPCOnly   = "grpc-only"
+	flagTraceStore    = "trace-store"
+	flagGRPCOnly      = "grpc-only"
+	ApplicationDBName = "application"
 )
 
 // Multiplexer is responsible for managing multiple versions of applications and coordinating their lifecycle.
@@ -401,7 +402,7 @@ func getTraceWriter(svrCtx *server.Context) (traceWriter io.WriteCloser, err err
 
 func openDB(rootDir string, backendType db.BackendType) (db.DB, error) {
 	dataDir := filepath.Join(rootDir, "data")
-	return db.NewDB("application", backendType, dataDir)
+	return db.NewDB(ApplicationDBName, backendType, dataDir)
 }
 
 // openTraceWriter opens a trace writer for the given file.
