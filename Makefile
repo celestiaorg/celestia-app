@@ -21,8 +21,8 @@ LDFLAGS_COMMON := -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app -X g
 LDFLAGS_STANDALONE := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_STANDALONE)
 LDFLAGS_MULTIPLEXER := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_MULTIPLEXER)
 
-BUILD_FLAGS_STANDALONE := -tags '$(BUILD_TAGS_STANDALONE)' -ldflags '$(LDFLAGS_STANDALONE)'
-BUILD_FLAGS_MULTIPLEXER := -tags '$(BUILD_TAGS_MULTIPLEXER)' -ldflags '$(LDFLAGS_MULTIPLEXER)'
+BUILD_FLAGS_STANDALONE := -tags=$(BUILD_TAGS_STANDALONE) -ldflags '$(LDFLAGS_STANDALONE)'
+BUILD_FLAGS_MULTIPLEXER := -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_MULTIPLEXER)'
 
 # NOTE: This version must be updated at the same time as the version in:
 # internal/embedding/data.go
