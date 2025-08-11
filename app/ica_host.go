@@ -1,6 +1,7 @@
 package app
 
-func icaAllowMessages() []string {
+// IcaAllowMessages returns the list of messages that are allowed to be sent via ICA.
+func IcaAllowMessages() []string {
 	return []string{
 		"/ibc.applications.transfer.v1.MsgTransfer",
 		"/cosmos.bank.v1beta1.MsgSend",
