@@ -28,9 +28,9 @@ BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
 # internal/embedding/data.go
 # .goreleaser.yaml
 # docker/multiplexer.Dockerfile
-CELESTIA_V3_VERSION := v3.10.5
-CELESTIA_V4_VERSION := v4.1.0-arabica
-CELESTIA_V5_VERSION := v5.0.1-arabica
+CELESTIA_V3_VERSION := v3.10.6
+CELESTIA_V4_VERSION := v4.1.0
+CELESTIA_V5_VERSION := v5.0.1
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -52,7 +52,7 @@ build: mod
 ifeq ($(DOWNLOAD),true)
 	@$(MAKE) download-v3-binaries
 	@$(MAKE) download-v4-binaries
-	@$(MAKE) download-v5-binaries	
+	@$(MAKE) download-v5-binaries
 endif
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd with multiplexer enabled"
@@ -283,7 +283,7 @@ test-docker-e2e-upgrade:
 	@echo "--> Building celestia-appd docker image (tag $(CELESTIA_TAG))"
 	@docker build -t "ghcr.io/celestiaorg/celestia-app:$(CELESTIA_TAG)" . -f docker/multiplexer.Dockerfile
 	@echo "--> Running upgrade test"
-	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/TestCelestiaAppUpgrade$$ -count=1 ./...
+	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/TestCelestiaAppUpgrade$$ -count=1 ./... -timeout 15m
 .PHONY: test-docker-e2e-upgrade
 
 ## test-multiplexer: Run unit tests for the multiplexer package.

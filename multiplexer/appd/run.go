@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -11,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"syscall"
+	"time"
 )
 
 // Appd represents a celestia-appd binary.
@@ -102,6 +104,7 @@ func (a *Appd) IsStopped() bool {
 
 // Stop interrupts and then kills the running appd process if it exists and
 // waits for it to fully exit. If the process is not running, it returns nil.
+// The method will wait up to 6 seconds for graceful shutdown before force killing.
 func (a *Appd) Stop() error {
 	if a.cmd == nil {
 		return nil
@@ -116,15 +119,42 @@ func (a *Appd) Stop() error {
 		if err := a.cmd.Process.Kill(); err != nil {
 			return fmt.Errorf("failed to kill process with PID %d: %w", a.cmd.Process.Pid, err)
 		}
+
+		if err := a.cmd.Wait(); err != nil {
+			log.Printf("Process finished with error: %v\n", err)
+		}
+		return nil
 	}
 
-	// Wait for the process to actually exit
-	if err := a.cmd.Wait(); err != nil {
-		log.Printf("Process finished with error: %v\n", err)
-	} else {
-		log.Printf("Process finished with no error\n")
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+	defer cancel()
+
+	done := make(chan error, 1)
+	go func() {
+		done <- a.cmd.Wait()
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			log.Printf("Process finished with error: %v\n", err)
+		} else {
+			log.Printf("Process finished with no error\n")
+		}
+		return nil
+	case <-ctx.Done():
+		log.Printf("Process did not exit within 6 seconds, force killing")
+		if err := a.cmd.Process.Kill(); err != nil {
+			return fmt.Errorf("failed to kill process with PID %d after timeout: %w", a.cmd.Process.Pid, err)
+		}
+
+		if err := <-done; err != nil {
+			log.Printf("Process finished with error after force kill: %v\n", err)
+		} else {
+			log.Printf("Process finished after force kill\n")
+		}
+		return nil
 	}
-	return nil
 }
 
 // CreateExecCommand creates an exec.Cmd for the appd binary.
