@@ -21,7 +21,7 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 		  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
 		  -X github.com/celestiaorg/celestia-app/v6/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT)
 
-BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
+BUILD_FLAGS := -tags='ledger' -ldflags '$(ldflags)'
 BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
 
 # NOTE: This version must be updated at the same time as the version in:
@@ -62,12 +62,14 @@ endif
 ## install-standalone: Build and install the celestia-appd binary into the $GOPATH/bin directory. This target does not install the multiplexer.
 install-standalone: check-bbr
 	@echo "--> Installing celestia-appd"
+	@echo "--> build flags standalone: $(BUILD_FLAGS)"
 	@go install $(BUILD_FLAGS) ./cmd/celestia-appd
 .PHONY: install-standalone
 
 ## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
 # TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
 install: check-bbr download-v3-binaries download-v4-binaries download-v5-binaries
+	@echo "--> build flags multiplexer: $(BUILD_FLAGS_MULTIPLEXER)"
 	@echo "--> Installing celestia-appd with multiplexer support"
 	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
 .PHONY: install
