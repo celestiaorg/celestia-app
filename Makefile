@@ -43,7 +43,7 @@ build-standalone: mod
 	@cd ./cmd/celestia-appd
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd"
-	@go build $(BUILD_FLAGS_STANDALONE) -o build/ ./cmd/celestia-appd
+	@go build $(BUILD_FLAGS_STANDALONE) -o build/celestia-appd ./cmd/celestia-appd
 .PHONY: build-standalone
 
 DOWNLOAD ?= true
