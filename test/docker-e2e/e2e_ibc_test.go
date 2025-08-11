@@ -23,8 +23,11 @@ import (
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	sdktx "github.com/cosmos/cosmos-sdk/client/tx"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	icacontrollertypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/controller/types"
+	icatypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/types"
 	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
 	"golang.org/x/sync/errgroup"
@@ -412,9 +415,20 @@ func (s *CelestiaTestSuite) TestICA() {
 		s.registerInterchainAccount(ctx, chainB, connection)
 	})
 
+	var icaAddress string
 	t.Run("verify_ica_registration", func(t *testing.T) {
 		t.Logf("Verifying ICA registration")
-		s.verifyICARegistration(ctx, chainA, chainB, connection)
+		icaAddress = s.verifyICARegistration(ctx, chainA, chainB, connection)
+	})
+
+	t.Run("fund_ica_account", func(t *testing.T) {
+		t.Logf("Funding the ICA account")
+		s.fundICAAccount(ctx, chainA, icaAddress)
+	})
+
+	t.Run("perform_ica_bank_send", func(t *testing.T) {
+		t.Logf("Performing bank send via ICA")
+		s.performICABankSend(ctx, chainA, chainB, connection, icaAddress)
 	})
 }
 
@@ -446,7 +460,7 @@ func (s *CelestiaTestSuite) registerInterchainAccount(ctx context.Context, contr
 }
 
 // verifyICARegistration verifies the ICA account was created and channels are established
-func (s *CelestiaTestSuite) verifyICARegistration(ctx context.Context, hostChain, controllerChain tastoratypes.Chain, connection ibc.Connection) {
+func (s *CelestiaTestSuite) verifyICARegistration(ctx context.Context, hostChain, controllerChain tastoratypes.Chain, connection ibc.Connection) string {
 	controllerWallet := controllerChain.GetFaucetWallet()
 
 	// query the ICA account address using gRPC
@@ -469,4 +483,90 @@ func (s *CelestiaTestSuite) verifyICARegistration(ctx context.Context, hostChain
 	s.Require().NotEmpty(resp.Address, "ICA account address should not be empty")
 
 	s.T().Logf("ICA account address: %s", resp.Address)
+	return resp.Address
+}
+
+// fundICAAccount sends tokens to the ICA account so it can perform transactions
+func (s *CelestiaTestSuite) fundICAAccount(ctx context.Context, hostChain tastoratypes.Chain, icaAddress string) {
+	hostWallet := hostChain.GetFaucetWallet()
+	fundAmount := sdkmath.NewInt(10000000) // 10 utia
+
+	fundMsg := &banktypes.MsgSend{
+		FromAddress: hostWallet.GetFormattedAddress(),
+		ToAddress:   icaAddress,
+		Amount:      sdk.NewCoins(sdk.NewCoin("utia", fundAmount)),
+	}
+
+	broadcaster := docker.NewBroadcaster(hostChain.(*docker.Chain))
+	txResponse, err := broadcaster.BroadcastMessages(ctx, hostWallet, fundMsg)
+	s.Require().NoError(err, "failed to fund ICA account")
+	s.Require().Equal(uint32(0), txResponse.Code, "funding failed: %s", txResponse.RawLog)
+
+	s.T().Logf("ICA funded with %s utia. TxHash: %s", fundAmount.String(), txResponse.TxHash)
+}
+
+// performICABankSend performs a bank send transaction via the ICA
+func (s *CelestiaTestSuite) performICABankSend(ctx context.Context, hostChain, controllerChain tastoratypes.Chain, connection ibc.Connection, icaAddress string) {
+	controllerWallet := controllerChain.GetFaucetWallet()
+	recipientWallet := hostChain.GetFaucetWallet()
+	sendAmount := sdkmath.NewInt(1000000) // 1 utia
+
+	// create bank send message to be executed by the ICA
+	bankSendMsg := &banktypes.MsgSend{
+		FromAddress: icaAddress,
+		ToAddress:   recipientWallet.GetFormattedAddress(),
+		Amount:      sdk.NewCoins(sdk.NewCoin("utia", sendAmount)),
+	}
+
+	initialBalance := s.getBalance(ctx, hostChain, recipientWallet.GetFormattedAddress(), "utia")
+
+	// convert message to Any type and create CosmosTx properly
+	msgAny, err := codectypes.NewAnyWithValue(bankSendMsg)
+	s.Require().NoError(err, "failed to create Any from bank send message")
+
+	// create CosmosTx
+	cosmosTx := &icatypes.CosmosTx{
+		Messages: []*codectypes.Any{msgAny},
+	}
+
+	// encode using the app's encoding config
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	txBytes, err := encCfg.Codec.Marshal(cosmosTx)
+	s.Require().NoError(err, "failed to marshal CosmosTx")
+
+	// create packet data
+	packetData := icatypes.InterchainAccountPacketData{
+		Type: icatypes.EXECUTE_TX,
+		Data: txBytes,
+		Memo: "",
+	}
+
+	// create the correct ICA message
+	icaMsg := icacontrollertypes.NewMsgSendTx(
+		controllerWallet.GetFormattedAddress(),
+		connection.ConnectionID,
+		uint64(time.Hour.Nanoseconds()),
+		packetData,
+	)
+
+	broadcaster := docker.NewBroadcaster(controllerChain.(*docker.Chain))
+	broadcaster.ConfigureFactoryOptions(func(factory sdktx.Factory) sdktx.Factory {
+		return factory.WithGas(500000)
+	})
+
+	txResponse, err := broadcaster.BroadcastMessages(ctx, controllerWallet, icaMsg)
+	s.Require().NoError(err, "failed to broadcast ICA bank send")
+	s.Require().Equal(uint32(0), txResponse.Code, "ICA send failed: %s", txResponse.RawLog)
+
+	s.T().Logf("ICA bank send successful! TxHash: %s", txResponse.TxHash)
+
+	// wait for IBC packet processing
+	err = wait.ForBlocks(ctx, 10, controllerChain, hostChain)
+	s.Require().NoError(err, "failed to wait for blocks")
+
+	// verify the send was executed (account for gas fees)
+	finalBalance := s.getBalance(ctx, hostChain, recipientWallet.GetFormattedAddress(), "utia")
+	s.Require().True(finalBalance.GT(initialBalance),
+		"ICA bank send failed: balance should have increased from %s to %s", initialBalance.String(), finalBalance.String())
+	s.T().Logf("Bank send via ICA successful: balance increased from %s to %s utia", initialBalance.String(), finalBalance.String())
 }
