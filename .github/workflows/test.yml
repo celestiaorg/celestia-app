@@ -132,6 +132,7 @@ jobs:
           - TestE2EFullStackPFB
           - TestCelestiaAppUpgrade
           - TestIBC
+          - TestICA
 
     steps:
       - name: Checkout code
