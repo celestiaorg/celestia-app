@@ -69,11 +69,16 @@ func newVersion(appVersion uint64, app *appd.Appd) abci.Version {
 
 // executeCommand executes the cobra command with the specified args.
 func executeCommand(t *testing.T, cmd *cobra.Command, args ...string) (string, error) {
+	to := &bytes.Buffer{}
+	te := &bytes.Buffer{}
+
 	t.Helper()
+	cmd.SetOut(to)
+	cmd.SetErr(te)
 	cmd.SetArgs(args)
-	output, err := cmd.ExecuteC()
+	_, err := cmd.ExecuteC()
 	if err != nil {
-		return "", err
+		return to.String(), err
 	}
-	return output.Name(), nil
+	return to.String(), nil
 }
