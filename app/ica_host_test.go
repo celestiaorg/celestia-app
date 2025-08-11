@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_icaAllowMessages(t *testing.T) {
-	got := icaAllowMessages()
+func TestIcaAllowMessages(t *testing.T) {
+	got := IcaAllowMessages()
 	want := []string{
 		"/ibc.applications.transfer.v1.MsgTransfer",
 		"/cosmos.bank.v1beta1.MsgSend",
