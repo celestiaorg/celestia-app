@@ -70,6 +70,7 @@ func (s *CelestiaTestSuite) TestBlockSync() {
 
 	// build peer list for the new node to connect to existing validators
 	peerList, err := addressutil.BuildInternalPeerAddressList(ctx, celestia.GetNodes())
+	s.Require().NoError(err, "failed to build peer address list")
 
 	t.Logf("Latest height: %d", latestHeight)
 	t.Logf("Peers: %s", peerList)
