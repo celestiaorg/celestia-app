@@ -27,4 +27,4 @@ celestia-appd query bank balances $LEDGER_ADDRESS
 sleep 1
 
 echo "Sending funds from ledger to validator..."
-celestia-appd tx bank send $LEDGER_ADDRESS $VALIDATOR_ADDRESS 1utia --fees 100000utia
+celestia-appd tx bank send $LEDGER_ADDRESS $VALIDATOR_ADDRESS 1utia --fees 100000utia --yes
