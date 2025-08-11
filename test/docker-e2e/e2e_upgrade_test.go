@@ -42,6 +42,10 @@ func (s *CelestiaTestSuite) TestCelestiaAppUpgrade() {
 			baseAppVersion:   4,
 			targetAppVersion: 5,
 		},
+		{
+			baseAppVersion:   5,
+			targetAppVersion: 6,
+		},
 	}
 
 	for _, tc := range tt {
