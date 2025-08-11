@@ -22,7 +22,9 @@ import (
 	"github.com/celestiaorg/tastora/framework/docker/ibc/relayer"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
+	sdktx "github.com/cosmos/cosmos-sdk/client/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	icacontrollertypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/controller/types"
 	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
 	"golang.org/x/sync/errgroup"
@@ -344,4 +346,127 @@ func newSimappChainBuilder(t *testing.T, cfg *dockerchain.Config) *tastoradocker
 		WithDockerClient(cfg.DockerClient).
 		WithChainID("chain-b").
 		WithNode(tastoradockertypes.NewChainNodeConfigBuilder().Build())
+}
+
+// TestICA tests ICA functionality using tastora and message broadcasting instead of CLI
+func (s *CelestiaTestSuite) TestICA() {
+	if testing.Short() {
+		s.T().Skip("skipping ICA test in short mode")
+	}
+
+	ctx := context.Background()
+	t := s.T()
+
+	baseAppVersion := appconsts.Version
+	tag, err := dockerchain.GetCelestiaTagStrict()
+	s.Require().NoError(err, "failed to get celestia tag")
+
+	var chainA, chainB tastoratypes.Chain
+	var hermes *relayer.Hermes
+	var connection ibc.Connection
+
+	t.Cleanup(func() {
+		if err := chainA.Stop(ctx); err != nil {
+			t.Logf("Error stopping chain A: %v", err)
+		}
+		if err := chainB.Stop(ctx); err != nil {
+			t.Logf("Error stopping chain B: %v", err)
+		}
+	})
+
+	t.Cleanup(func() {
+		if err := hermes.Stop(ctx); err != nil {
+			t.Logf("Error stopping hermes: %v", err)
+		}
+	})
+
+	t.Run("setup_chains", func(t *testing.T) {
+		t.Logf("Creating celestia and simapp chains")
+		chainA, chainB = s.setupIBCChains(ctx, tag, baseAppVersion)
+	})
+
+	t.Run("create_hermes", func(t *testing.T) {
+		t.Logf("Creating hermes relayer")
+		hermes = s.createHermesRelayer(ctx, chainA, chainB)
+	})
+
+	t.Run("create_clients", func(t *testing.T) {
+		t.Logf("Creating IBC clients")
+		err := hermes.CreateClients(ctx, chainA, chainB)
+		s.Require().NoError(err, "failed to create IBC clients")
+	})
+
+	t.Run("setup_connection", func(t *testing.T) {
+		t.Logf("Creating IBC connection")
+		connection, _ = s.establishIBCConnection(ctx, chainA, chainB, hermes)
+	})
+
+	t.Run("start_relayer", func(t *testing.T) {
+		t.Logf("Starting hermes relayer")
+		err := hermes.Start(ctx)
+		s.Require().NoError(err, "failed to start hermes relayer")
+	})
+
+	t.Run("register_ica", func(t *testing.T) {
+		t.Logf("Registering ICA via message broadcasting")
+		s.registerInterchainAccount(ctx, chainB, connection)
+	})
+
+	t.Run("verify_ica_registration", func(t *testing.T) {
+		t.Logf("Verifying ICA registration")
+		s.verifyICARegistration(ctx, chainA, chainB, connection)
+	})
+}
+
+// registerInterchainAccount registers an ICA using message broadcasting instead of CLI
+func (s *CelestiaTestSuite) registerInterchainAccount(ctx context.Context, controllerChain tastoratypes.Chain, connection ibc.Connection) {
+	controllerWallet := controllerChain.GetFaucetWallet()
+
+	msg := icacontrollertypes.NewMsgRegisterInterchainAccount(
+		connection.ConnectionID,
+		controllerWallet.GetFormattedAddress(),
+		"",
+	)
+
+	broadcaster := docker.NewBroadcaster(controllerChain.(*docker.Chain))
+	broadcaster.ConfigureFactoryOptions(func(factory sdktx.Factory) sdktx.Factory {
+		return factory.WithGas(400000) // set higher gas limit for ICA registration
+	})
+
+	txResponse, err := broadcaster.BroadcastMessages(ctx, controllerWallet, msg)
+	s.Require().NoError(err, "failed to broadcast ICA registration message")
+	s.Require().NotEmpty(txResponse.TxHash, "transaction hash should not be empty")
+	s.Require().Equal(uint32(0), txResponse.Code, "ICA registration tx failed with code %d: %s", txResponse.Code, txResponse.RawLog)
+
+	s.T().Logf("ICA registration successful! TxHash: %s", txResponse.TxHash)
+
+	// wait longer for IBC packets to be processed
+	err = wait.ForBlocks(ctx, 10, controllerChain)
+	s.Require().NoError(err, "failed to wait for blocks after ICA registration")
+}
+
+// verifyICARegistration verifies the ICA account was created and channels are established
+func (s *CelestiaTestSuite) verifyICARegistration(ctx context.Context, hostChain, controllerChain tastoratypes.Chain, connection ibc.Connection) {
+	controllerWallet := controllerChain.GetFaucetWallet()
+
+	// query the ICA account address using gRPC
+	controllerNode := controllerChain.GetNodes()[0].(*docker.ChainNode)
+	s.Require().NotNil(controllerNode.GrpcConn, "controller gRPC connection is nil")
+
+	s.T().Logf("Querying ICA for owner: %s, connection: %s", controllerWallet.GetFormattedAddress(), connection.ConnectionID)
+
+	queryClient := icacontrollertypes.NewQueryClient(controllerNode.GrpcConn)
+
+	// wait a bit more and retry the query
+	err := wait.ForBlocks(ctx, 5, controllerChain, hostChain)
+	s.Require().NoError(err, "failed to wait for additional blocks")
+
+	resp, err := queryClient.InterchainAccount(ctx, &icacontrollertypes.QueryInterchainAccountRequest{
+		Owner:        controllerWallet.GetFormattedAddress(),
+		ConnectionId: connection.ConnectionID,
+	})
+	s.Require().NoError(err, "failed to query ICA account")
+	s.Require().NotEmpty(resp.Address, "ICA account address should not be empty")
+
+	s.T().Logf("ICA account address: %s", resp.Address)
 }
