@@ -14,15 +14,15 @@ GOLANG_CROSS_VERSION  ?= v1.24.2
 # Set this to override v2 upgrade height for the v3 embedded binaries
 V2_UPGRADE_HEIGHT ?= 0
 
-# process linker flags
-ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
-		  -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd \
-		  -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
-		  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
-		  -X github.com/celestiaorg/celestia-app/v6/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT)
+BUILD_TAGS_STANDALONE := "ledger"
+BUILD_TAGS_MULTIPLEXER := "ledger,multiplexer"
 
-BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
-BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
+LDFLAGS_COMMON := -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) -X github.com/celestiaorg/celestia-app/v6/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT)
+LDFLAGS_STANDALONE := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_STANDALONE)
+LDFLAGS_MULTIPLEXER := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_MULTIPLEXER)
+
+BUILD_FLAGS_STANDALONE := -tags '$(BUILD_TAGS_STANDALONE)' -ldflags '$(LDFLAGS_STANDALONE)'
+BUILD_FLAGS_MULTIPLEXER := -tags '$(BUILD_TAGS_MULTIPLEXER)' -ldflags '$(LDFLAGS_MULTIPLEXER)'
 
 # NOTE: This version must be updated at the same time as the version in:
 # internal/embedding/data.go
@@ -43,7 +43,7 @@ build-standalone: mod
 	@cd ./cmd/celestia-appd
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd"
-	@go build $(BUILD_FLAGS) -o build/ ./cmd/celestia-appd
+	@go build $(BUILD_FLAGS_STANDALONE) -o build/ ./cmd/celestia-appd
 .PHONY: build-standalone
 
 DOWNLOAD ?= true
@@ -62,7 +62,7 @@ endif
 ## install-standalone: Build and install the celestia-appd binary into the $GOPATH/bin directory. This target does not install the multiplexer.
 install-standalone: check-bbr
 	@echo "--> Installing celestia-appd"
-	@go install $(BUILD_FLAGS) ./cmd/celestia-appd
+	@go install $(BUILD_FLAGS_STANDALONE) ./cmd/celestia-appd
 .PHONY: install-standalone
 
 ## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
@@ -320,7 +320,7 @@ test-fuzz:
 ## txsim-install: Install the tx simulator.
 txsim-install:
 	@echo "--> Installing tx simulator"
-	@go install $(BUILD_FLAGS) ./test/cmd/txsim
+	@go install $(BUILD_FLAGS_STANDALONE) ./test/cmd/txsim
 .PHONY: txsim-install
 
 ## txsim-build: Build the tx simulator binary into the ./build directory.
@@ -328,7 +328,7 @@ txsim-build:
 	@echo "--> Building tx simulator"
 	@cd ./test/cmd/txsim
 	@mkdir -p build/
-	@go build $(BUILD_FLAGS) -o build/ ./test/cmd/txsim
+	@go build $(BUILD_FLAGS_STANDALONE) -o build/ ./test/cmd/txsim
 	@go mod tidy
 .PHONY: txsim-build
 
@@ -343,7 +343,7 @@ build-talis-bins:
 	  --file tools/talis/docker/Dockerfile \
 	  --target builder \
 	  --platform linux/amd64 \
-	  --build-arg LDFLAGS="$(ldflags)" \
+	  --build-arg LDFLAGS="$(LDFLAGS_STANDALONE)" \
 	  --build-arg GOOS=linux \
 	  --build-arg GOARCH=amd64 \
 	  --tag talis-builder:latest \
