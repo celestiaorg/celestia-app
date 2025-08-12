@@ -2,7 +2,6 @@ package app
 
 import (
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"cosmossdk.io/math"
@@ -301,7 +300,10 @@ func DefaultAppConfig() *serverconfig.Config {
 	// snapshots to nodes that state sync
 	cfg.StateSync.SnapshotInterval = 1500
 	cfg.StateSync.SnapshotKeepRecent = 2
-	cfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, params.BondDenom)
+	// this is set to an empty string. As an empty string, the binary will use
+	// the hardcoded default gas price. To override this, the user must set the
+	// minimum gas prices in the app.toml file.
+	cfg.MinGasPrices = ""
 	cfg.GRPC.MaxRecvMsgSize = appconsts.DefaultUpperBoundMaxBytes * 2
 	cfg.GRPC.MaxSendMsgSize = appconsts.DefaultUpperBoundMaxBytes * 2
 	return cfg
