@@ -190,7 +190,7 @@ func TestConsensusParamFilter(t *testing.T) {
 				Validator: &tmproto.ValidatorParams{PubKeyTypes: []string{"invalid-type"}}, // Non-default value
 				Abci:      coretypes.DefaultConsensusParams().ToProto().Abci,
 			},
-			expectedErr: sdkerrors.ErrUnauthorized,
+			expectedErr: errors.Wrapf(sdkerrors.ErrUnauthorized, "invalid validator parameters"),
 		},
 		{
 			name:        "invalid case: incorrect message type",
@@ -206,7 +206,7 @@ func TestConsensusParamFilter(t *testing.T) {
 				Validator: coretypes.DefaultConsensusParams().ToProto().Validator,
 				Abci:      coretypes.DefaultConsensusParams().ToProto().Abci,
 			},
-			expectedErr: sdkerrors.ErrUnauthorized,
+			expectedErr: errors.Wrapf(sdkerrors.ErrUnauthorized, "invalid evidence parameters"),
 		},
 	}
 
@@ -218,6 +218,7 @@ func TestConsensusParamFilter(t *testing.T) {
 			} else {
 				require.Error(t, err)
 				require.True(t, errors.IsOf(err, tt.expectedErr))
+				require.Contains(t, err.Error(), tt.expectedErr.Error())
 			}
 		})
 	}
