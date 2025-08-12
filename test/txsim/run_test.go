@@ -152,7 +152,7 @@ func Setup(t testing.TB) (keyring.Keyring, string, string) {
 	t.Helper()
 
 	cfg := testnode.DefaultConfig().WithTimeoutCommit(300 * time.Millisecond).WithFundedAccounts("txsim-master")
-	// Use priority mempool for consistent simulator behavior
+	// Use priority mempool for consistent txsim behavior
 	cfg.TmConfig.Mempool.Type = tmconfig.MempoolTypePriority
 
 	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, cfg)
