@@ -41,4 +41,10 @@ const (
 	UpgradeHeightDelay = MainnetUpgradeHeightDelay
 
 	MempoolSize = int64(DefaultUpperBoundMaxBytes) * 3
+	// UnbondingTime is the time a validator must wait to unbond in a proof of
+	// stake system. Any validator within this time can be subject to slashing
+	// under conditions of misbehavior.
+	//
+	// Modified from 3 weeks to 14 days + 1 hour in CIP-037.
+	UnbondingTime = 337 * time.Hour // (14 days + 1 hour)
 )
