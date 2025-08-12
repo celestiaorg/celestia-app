@@ -106,7 +106,7 @@ func Test_icaDefaultGenesis(t *testing.T) {
 	got := icagenesistypes.GenesisState{}
 	enc.Codec.MustUnmarshalJSON(raw, &got)
 
-	assert.Equal(t, got.HostGenesisState.Params.AllowMessages, icaAllowMessages())
+	assert.Equal(t, got.HostGenesisState.Params.AllowMessages, IcaAllowMessages())
 	assert.True(t, got.HostGenesisState.Params.HostEnabled)
 	assert.False(t, got.ControllerGenesisState.Params.ControllerEnabled)
 }
