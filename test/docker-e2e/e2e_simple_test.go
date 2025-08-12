@@ -60,7 +60,7 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 
 	s.T().Logf("Checking validator liveness from height %d", startHeight)
 	s.Require().NoError(
-		s.CheckLiveness(ctx, celestia, startHeight),
+		s.CheckLiveness(ctx, celestia),
 		"validator liveness check failed",
 	)
 }

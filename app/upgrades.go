@@ -27,9 +27,9 @@ import (
 	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
 )
 
+// RegisterUpgradeHandlers is used for registering any on-chain upgrades.
 func (app App) RegisterUpgradeHandlers() {
 	for _, subspace := range app.ParamsKeeper.GetSubspaces() {
-
 		var keyTable paramstypes.KeyTable
 		var set bool
 
@@ -89,6 +89,12 @@ func (app App) RegisterUpgradeHandlers() {
 				return nil, err
 			}
 
+			err = app.setICAHostParams(sdkCtx)
+			if err != nil {
+				sdkCtx.Logger().Error("failed to set ica/host submodule params", "error", err)
+				return nil, err
+			}
+
 			sdkCtx.Logger().Info("finished to upgrade", "upgrade-name", upgradeName, "duration-sec", time.Since(start).Seconds())
 
 			return fromVM, nil
@@ -145,6 +151,22 @@ func (app App) SetEvidenceParams(ctx context.Context) error {
 		sdkCtx.Logger().Error("failed to set consensus params", "error", err)
 		return err
 	}
+	return nil
+}
 
+// setICAHostParams sets the ICA host params to the values defined in CIP-14.
+// This is needed because the ICA host params were previously stored in x/params
+// and in ibc-go v8 they were migrated to use a self-managed store.
+//
+// NOTE: the param migrator included in ibc-go v8 does not work as expected
+// because it sets the params to the default values which do not match the
+// values defined in CIP-14.
+func (a App) setICAHostParams(ctx context.Context) error {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	params := icahosttypes.Params{
+		HostEnabled:   true,
+		AllowMessages: IcaAllowMessages(),
+	}
+	a.ICAHostKeeper.SetParams(sdkCtx, params)
 	return nil
 }
