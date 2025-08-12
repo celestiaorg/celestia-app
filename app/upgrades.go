@@ -114,8 +114,8 @@ func (app App) SetUnbondingTime(ctx context.Context) error {
 		return err
 	}
 
-	sdkCtx.Logger().Info("Setting unbonding time to %v.", appconsts.DefaultUnbondingTime)
-	params.UnbondingTime = appconsts.DefaultUnbondingTime
+	sdkCtx.Logger().Info("Setting unbonding time to %v.", appconsts.UnbondingTime)
+	params.UnbondingTime = appconsts.UnbondingTime
 
 	err = app.StakingKeeper.SetParams(ctx, params)
 	if err != nil {

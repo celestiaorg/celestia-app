@@ -103,7 +103,7 @@ func TestStakingParamFilter(t *testing.T) {
 			params: &stakingtypes.MsgUpdateParams{
 				Params: stakingtypes.Params{
 					BondDenom:     params.BondDenom,
-					UnbondingTime: appconsts.DefaultUnbondingTime,
+					UnbondingTime: appconsts.UnbondingTime,
 				},
 			},
 			expectedErr: nil,

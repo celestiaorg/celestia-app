@@ -97,7 +97,7 @@ type stakingModule struct {
 // DefaultGenesis returns custom x/staking module genesis state.
 func (stakingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genesis := stakingtypes.DefaultGenesisState()
-	genesis.Params.UnbondingTime = appconsts.DefaultUnbondingTime
+	genesis.Params.UnbondingTime = appconsts.UnbondingTime
 	genesis.Params.BondDenom = params.BondDenom
 	genesis.Params.MinCommissionRate = math.LegacyNewDecWithPrec(5, 2) // 5%
 
