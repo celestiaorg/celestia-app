@@ -5,7 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/rand"
 	"net"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -22,10 +25,13 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/grpctest"
 	"github.com/celestiaorg/celestia-app/v6/test/util/random"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -232,38 +238,183 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 }
 
 func TestRejections(t *testing.T) {
-	ttlNumBlocks := int64(5)
-	_, txClient, ctx := setupTxClient(t, ttlNumBlocks, appconsts.DefaultMaxBytes)
+	if testing.Short() {
+		t.Skip("skipping rejections test in short mode")
+	}
 
 	fee := user.SetFee(1e6)
 	gas := user.SetGasLimit(1e6)
 
-	// Submit a blob tx with user set ttl. After the ttl expires, the tx will be rejected.
-	timeoutHeight := uint64(1)
-	sender := txClient.Signer().Account(txClient.DefaultAccountName())
-	seqBeforeSubmission := sender.Sequence()
-	blobs := blobfactory.ManyRandBlobs(random.New(), 2, 2)
-	resp, err := txClient.BroadcastPayForBlob(ctx.GoContext(), blobs, fee, gas, user.SetTimeoutHeight(timeoutHeight))
-	require.NoError(t, err)
+	t.Run("parallel txs with different timeouts", func(t *testing.T) {
+		ttlNumBlocks := int64(5)
+		_, txClient, tctx := setupTxClient(t, ttlNumBlocks, 1024*2)
 
-	require.NoError(t, ctx.WaitForBlocks(1)) // Skip one block to allow the tx to be rejected
+		concurrentTxs := 20
+		wg := sync.WaitGroup{}
+		ctx, cancel := context.WithTimeout(tctx.GoContext(), 3*time.Minute)
+		defer cancel()
+		committedTxs := make(chan string, concurrentTxs)
+		rejectedTxs := make(chan string, 3*concurrentTxs)
+		errCh := make(chan error, concurrentTxs)
+		for i := 0; i < concurrentTxs; i++ {
+			wg.Add(1)
+			go func(tctx testnode.Context, ctx context.Context, i int) {
+				t.Logf("submitting tx %d", i)
+				defer wg.Done()
+				// test a random timeout height
+				latestHeight := getLatestBlockHeight(t, tctx)
+				timeout := uint64(1 + rand.Intn(5))
+				// just a single share blob (only two of these should fit per square)
+				blobs := blobfactory.ManyRandBlobs(random.New(), share.FirstSparseShareContentSize)
+				for {
+					resp, err := txClient.SubmitPayForBlob(ctx, blobs, fee, gas, user.SetTimeoutHeight(latestHeight+timeout))
+					if err == nil {
+						committedTxs <- resp.TxHash
+						return
+					}
+					if strings.Contains(err.Error(), sdkerrors.ErrTxTimeoutHeight.Error()) {
+						executionErr := err.(*user.ExecutionError)
+						select { // don't block if the channel is full
+						case rejectedTxs <- executionErr.TxHash:
+						default:
+						}
+						latestHeight = getLatestBlockHeight(t, tctx)
+						timeout = uint64(2 + rand.Intn(5))
+						t.Logf("tx %d timed out, resubmitting", i)
+					} else if ctx.Err() != nil {
+						return
+					} else {
+						errCh <- err
+						return
+					}
+				}
+			}(tctx, ctx, i)
+		}
+		wg.Wait()
+		close(errCh)
+		for err := range errCh {
+			// fail on the first error
+			require.NoError(t, err)
+		}
+		require.NoError(t, ctx.Err()) // test didn't timeout
 
-	_, err = txClient.ConfirmTx(ctx.GoContext(), resp.TxHash)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "was rejected by the node")
-	seqAfterRejection := sender.Sequence()
-	require.Equal(t, seqBeforeSubmission, seqAfterRejection)
+		// All transactions should have been committed. And all transactions that were rejected
+		// shouldn't be found.
+		for txHash := range committedTxs {
+			_, err := tctx.Client.Tx(tctx.GoContext(), []byte(txHash), false)
+			require.NoError(t, err)
+		}
+		for txHash := range rejectedTxs {
+			_, err := tctx.Client.Tx(tctx.GoContext(), []byte(txHash), false)
+			require.Error(t, err)
+		}
+	})
 
-	// Now submit the same blob transaction again
-	submitBlobResp, err := txClient.SubmitPayForBlob(ctx.GoContext(), blobs, fee, gas)
-	require.NoError(t, err)
-	require.Equal(t, submitBlobResp.Code, abci.CodeTypeOK)
-	// Sequence should have increased
-	seqAfterConfirmation := sender.Sequence()
-	require.Equal(t, seqBeforeSubmission+1, seqAfterConfirmation)
-	// Was removed from the tx tracker
-	_, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
-	require.False(t, exists)
+	t.Run("should reset the signer nonce after tx is rejected", func(t *testing.T) {
+		ttlNumBlocks := int64(5)
+		_, txClient, ctx := setupTxClient(t, ttlNumBlocks, appconsts.DefaultMaxBytes)
+
+		// Submit a blob tx with user set ttl. After the ttl expires, the tx will be rejected.
+		timeoutHeight := uint64(1)
+		sender := txClient.Signer().Account(txClient.DefaultAccountName())
+		seqBeforeSubmission := sender.Sequence()
+		blobs := blobfactory.ManyRandBlobs(random.New(), 2, 2)
+		_, err := txClient.SubmitPayForBlob(ctx.GoContext(), blobs, fee, gas, user.SetTimeoutHeight(timeoutHeight))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "was rejected by the node")
+		seqAfterRejection := sender.Sequence()
+		require.Equal(t, seqBeforeSubmission, seqAfterRejection)
+
+		// Now submit the same blob transaction again
+		submitBlobResp, err := txClient.SubmitPayForBlob(ctx.GoContext(), blobs, fee, gas)
+		require.NoError(t, err)
+		require.Equal(t, submitBlobResp.Code, abci.CodeTypeOK)
+		// Sequence should have increased
+		seqAfterConfirmation := sender.Sequence()
+		require.Equal(t, seqBeforeSubmission+1, seqAfterConfirmation)
+		// Was removed from the tx tracker
+		_, _, _, _, exists := txClient.GetTxFromTxTracker(submitBlobResp.TxHash)
+		require.False(t, exists)
+	})
+
+	t.Run("should resign and resubmit blob tx is it was rejected for sequence mismatch", func(t *testing.T) {
+		ttlNumBlocks := int64(10)
+		_, txClient, ctx := setupTxClient(t, ttlNumBlocks, appconsts.DefaultMaxBytes)
+
+		createBlobTx := func(timeoutHeight uint64) (*sdk.TxResponse, error) {
+			blobs := blobfactory.ManyRandBlobs(random.New(), 2, 2)
+			return txClient.BroadcastPayForBlob(ctx.GoContext(), blobs, fee, gas, user.SetTimeoutHeight(timeoutHeight))
+		}
+
+		testResubmission(t, txClient, ctx, fee, gas, createBlobTx)
+	})
+
+	t.Run("should resign and resubmit sdk tx is it was rejected for sequence mismatch", func(t *testing.T) {
+		ttlNumBlocks := int64(10)
+		_, txClient, ctx := setupTxClient(t, ttlNumBlocks, appconsts.DefaultMaxBytes)
+
+		createSDKTx := func(timeoutHeight uint64) (*sdk.TxResponse, error) {
+			msg := bank.NewMsgSend(txClient.DefaultAddress(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
+			return txClient.BroadcastTx(ctx.GoContext(), []sdk.Msg{msg}, fee, gas, user.SetTimeoutHeight(timeoutHeight))
+		}
+
+		testResubmission(t, txClient, ctx, fee, gas, createSDKTx)
+	})
+}
+
+func TestTTLs(t *testing.T) {
+	ttlNumBlocks := int64(0)   // mempool ttl is 0
+	maxBytes := int64(1048576) // 1 MiB
+
+	fee := user.SetFee(1e6)
+	gas := user.SetGasLimit(10e6)
+
+	blobs := blobfactory.ManyRandBlobs(random.New(), 500000, 500000, 5000)
+	utiaToSend := int64(1)
+	msg := bank.NewMsgSend(testnode.RandomAddress().(sdk.AccAddress), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, utiaToSend)))
+
+	t.Run("should still be able to set a tx specific timeout height", func(t *testing.T) {
+		_, txClient, ctx := setupTxClient(t, ttlNumBlocks, appconsts.DefaultMaxBytes)
+
+		// It should immediately get rejected since height at submission is already 1
+		_, err := txClient.SubmitPayForBlob(ctx.GoContext(), blobs, fee, gas, user.SetTimeoutHeight(1))
+		require.Error(t, err, "was rejected by the node")
+		require.Contains(t, err.Error(), "timeout height: 1")
+
+		msg.FromAddress = txClient.DefaultAddress().String()
+		_, err = txClient.SubmitTx(ctx.GoContext(), []sdk.Msg{msg}, fee, gas, user.SetTimeoutHeight(1))
+		require.Error(t, err, "was rejected by the node")
+		require.Contains(t, err.Error(), "timeout height: 1")
+	})
+
+	t.Run("user should be able to set a desired default ttl", func(t *testing.T) {
+		userSetDefaultTTL := uint64(5)
+		_, txClient, ctx := setupTxClient(t, ttlNumBlocks, maxBytes, user.WithDefaultTTLNumBlocks(userSetDefaultTTL))
+
+		blockHeightBeforeTxSubmission := getLatestBlockHeight(t, ctx)
+		resp, err := txClient.SubmitPayForBlob(ctx.GoContext(), blobs, fee, gas)
+		require.NoError(t, err)
+		require.Equal(t, resp.Code, abci.CodeTypeOK)
+		assertTimeoutHeight(t, ctx, resp, userSetDefaultTTL+blockHeightBeforeTxSubmission)
+
+		blockHeightBeforeTxSubmission = getLatestBlockHeight(t, ctx)
+		msg.FromAddress = txClient.DefaultAddress().String()
+		resp, err = txClient.SubmitTx(ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
+		require.NoError(t, err)
+		require.Equal(t, resp.Code, abci.CodeTypeOK)
+		assertTimeoutHeight(t, ctx, resp, userSetDefaultTTL+blockHeightBeforeTxSubmission)
+	})
+
+	t.Run("when no ttl is set by the user the default tx client ttl should be used", func(t *testing.T) {
+		_, txClient, ctx := setupTxClient(t, ttlNumBlocks, maxBytes)
+
+		blockHeightBeforeTxSubmission := getLatestBlockHeight(t, ctx)
+		resp, err := txClient.SubmitPayForBlob(ctx.GoContext(), blobs, fee, gas)
+		require.NoError(t, err)
+		require.Equal(t, resp.Code, abci.CodeTypeOK)
+
+		assertTimeoutHeight(t, ctx, resp, blockHeightBeforeTxSubmission+txClient.DefaultTTLNumBlocks())
+	})
 }
 
 func TestEvictions(t *testing.T) {
@@ -305,7 +456,7 @@ func TestEvictions(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, res.Code, abci.CodeTypeOK)
 		// They should be removed from the tx tracker after confirmation
-		_, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
+		_, _, _, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
 		require.False(t, exists)
 	}
 
@@ -410,13 +561,13 @@ func (suite *TxClientTestSuite) queryCurrentBalance(t *testing.T) int64 {
 }
 
 func wasRemovedFromTxTracker(txHash string, txClient *user.TxClient) bool {
-	seq, signer, exists := txClient.GetTxFromTxTracker(txHash)
+	seq, signer, _, _, exists := txClient.GetTxFromTxTracker(txHash)
 	return !exists && seq == 0 && signer == ""
 }
 
 // asserts that a tx was indexed in the tx tracker and that the sequence does not increase
 func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash, expectedSigner string, seqBeforeBroadcast uint64) {
-	seqFromTxTracker, signer, exists := txClient.GetTxFromTxTracker(txHash)
+	seqFromTxTracker, signer, _, _, exists := txClient.GetTxFromTxTracker(txHash)
 	require.True(t, exists)
 	require.Equal(t, expectedSigner, signer)
 	seqAfterBroadcast := txClient.Signer().Account(expectedSigner).Sequence()
@@ -424,6 +575,47 @@ func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash, expected
 	require.Equal(t, seqBeforeBroadcast, seqFromTxTracker)
 	// Successfully broadcast transaction increases the sequence
 	require.Equal(t, seqAfterBroadcast, seqBeforeBroadcast+1)
+}
+
+func assertTimeoutHeight(t *testing.T, ctx testnode.Context, resp *user.TxResponse, expectedTimeoutHeight uint64) {
+	serviceClient := sdktx.NewServiceClient(ctx.GRPCClient)
+	getTxResp, err := serviceClient.GetTx(ctx.GoContext(), &sdktx.GetTxRequest{Hash: resp.TxHash})
+	require.NoError(t, err)
+	require.Equal(t, getTxResp.Tx.Body.GetTimeoutHeight(), expectedTimeoutHeight)
+}
+
+func getLatestBlockHeight(t *testing.T, ctx testnode.Context) uint64 {
+	serviceClient := tmservice.NewServiceClient(ctx.GRPCClient)
+	resp, err := serviceClient.GetLatestBlock(ctx.GoContext(), &tmservice.GetLatestBlockRequest{})
+	require.NoError(t, err)
+	return uint64(resp.SdkBlock.Header.Height)
+}
+
+func testResubmission(t *testing.T, txClient *user.TxClient, ctx testnode.Context, fee, gas user.TxOption, createTx func(timeoutHeight uint64) (*sdk.TxResponse, error)) {
+	// Submit 3 transactions with user set ttl. After ttl expires, the txs will be rejected.
+	responses := make([]*sdk.TxResponse, 3)
+	for i := 1; i < 4; i++ {
+		timeoutHeight := uint64(i)
+		resp, err := createTx(timeoutHeight)
+		require.NoError(t, err)
+		require.Equal(t, resp.Code, abci.CodeTypeOK)
+		// response indexes should be 0, 1, 2
+		responses[i-1] = resp
+	}
+
+	// Confirm the first tx is rejected
+	_, err := txClient.ConfirmTx(ctx.GoContext(), responses[0].TxHash)
+	require.Error(t, err, "was rejected by the node")
+
+	// Second tx should have sequence mismatch error in ReCheck therefore should be rejected and resubmitted
+	resp, err := txClient.ConfirmTx(ctx.GoContext(), responses[1].TxHash)
+	require.NoError(t, err)
+	require.Equal(t, resp.Code, abci.CodeTypeOK)
+
+	// Third tx should be rejected and resubmitted also
+	resp, err = txClient.ConfirmTx(ctx.GoContext(), responses[2].TxHash)
+	require.NoError(t, err)
+	require.Equal(t, resp.Code, abci.CodeTypeOK)
 }
 
 func setupTxClient(
@@ -443,6 +635,7 @@ func setupTxClient(
 		WithTimeoutCommit(100 * time.Millisecond).
 		WithAppCreator(testnode.CustomAppCreator(baseapp.SetMinGasPrices(fmt.Sprintf("%v%v", appconsts.DefaultMinGasPrice, appconsts.BondDenom)), baseapp.SetChainID(chainID)))
 	testnodeConfig.Genesis.ConsensusParams.Block.MaxBytes = blocksize
+	testnodeConfig.Genesis.ConsensusParams.Evidence.MaxBytes = blocksize
 
 	ctx, _, _ := testnode.NewNetwork(t, testnodeConfig)
 	_, err := ctx.WaitForHeight(1)
