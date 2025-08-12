@@ -207,7 +207,10 @@ func applyV6Config(cmtCfg *config.Config, appCfg *serverconfig.Config) (*config.
 	cmtCfg.P2P.RecvRate = defaultCfg.P2P.RecvRate
 
 	defaultAppCfg := app.DefaultAppConfig()
-	appCfg.MinGasPrices = defaultAppCfg.MinGasPrices
+	// only unset the min gas price if it's the legacy default (i.e. untouched)
+	if appCfg.MinGasPrices == fmt.Sprintf("%v%s", appconsts.LegacyDefaultMinGasPrice, appconsts.BondDenom) {
+		appCfg.MinGasPrices = ""
+	}
 	appCfg.GRPC.MaxRecvMsgSize = defaultAppCfg.GRPC.MaxRecvMsgSize
 
 	return cmtCfg, appCfg

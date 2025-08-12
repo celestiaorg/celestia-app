@@ -16,6 +16,7 @@ const (
 	// The min gas price acts as a filter. Transactions below that limit will not pass
 	// a node's `CheckTx` and thus not be proposed by that node.
 	DefaultMinGasPrice = 0.004 // utia
+	LegacyDefaultMinGasPrice = 0.002 // utia
 
 	// DefaultNetworkMinGasPrice is used by x/minfee to prevent transactions from being
 	// included in a block if they specify a gas price lower than this.
