@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	"testing"
 	"time"
 
@@ -87,7 +88,7 @@ func (s *CelestiaTestSuite) TestE2EFullStackPFB() {
 
 	s.T().Logf("Checking validator liveness from height %d", startHeight)
 	s.Require().NoError(
-		s.CheckLiveness(ctx, celestia, startHeight),
+		s.CheckLiveness(ctx, celestia),
 		"validator liveness check failed",
 	)
 
@@ -300,7 +301,7 @@ func getDAConfig(logger *zap.Logger, client *dockerclient.Client, networkID stri
 			BridgeNodeCount: 1,
 			FullNodeCount:   1,
 			LightNodeCount:  1,
-			Image: tastoradockertypes.DockerImage{
+			Image: tastoracontainertypes.Image{
 				Repository: celestiaNodeRepository,
 				Version:    celestiaNodeVersion,
 			},

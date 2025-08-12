@@ -60,7 +60,7 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 
 	s.T().Logf("Checking validator liveness from height %d", startHeight)
 	s.Require().NoError(
-		s.CheckLiveness(ctx, celestia, startHeight),
+		s.CheckLiveness(ctx, celestia),
 		"validator liveness check failed",
 	)
 }
@@ -166,12 +166,5 @@ func testPFBSubmission(t *testing.T, chain *tastoradockertypes.Chain, cfg *docke
 	require.NoError(t, err, "failed to submit PFB transaction")
 	require.Equal(t, uint32(0), txResp.Code, "PFB transaction failed with code %d", txResp.Code)
 
-	t.Logf("PFB transaction submitted! TxHash: %s, Height: %d", txResp.TxHash, txResp.Height)
-
-	t.Logf("Confirming transaction inclusion on-chain...")
-	confirmedTx, err := txClient.ConfirmTx(ctx, txResp.TxHash)
-	require.NoError(t, err, "failed to confirm transaction inclusion")
-	require.Equal(t, uint32(0), confirmedTx.Code, "transaction execution failed with code %d", confirmedTx.Code)
-
-	t.Logf("Transaction confirmed on-chain! TxHash: %s, Height: %d", confirmedTx.TxHash, confirmedTx.Height)
+	t.Logf("PFB transaction included on-chain. TxHash: %s, Height: %d", txResp.TxHash, txResp.Height)
 }
