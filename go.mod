@@ -16,9 +16,9 @@ require (
 	cosmossdk.io/x/feegrant v0.1.1
 	cosmossdk.io/x/tx v0.13.8
 	cosmossdk.io/x/upgrade v0.1.4
-	github.com/aws/aws-sdk-go-v2 v1.36.5
+	github.com/aws/aws-sdk-go-v2 v1.37.2
 	github.com/aws/aws-sdk-go-v2/config v1.29.17
-	github.com/aws/aws-sdk-go-v2/credentials v1.17.70
+	github.com/aws/aws-sdk-go-v2/credentials v1.18.3
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.83
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.83.0
 	github.com/bcp-innovations/hyperlane-cosmos v1.0.1
@@ -35,7 +35,7 @@ require (
 	github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8 v8.2.0
 	github.com/cosmos/ibc-go/modules/capability v1.0.1
 	github.com/cosmos/ibc-go/v8 v8.7.0
-	github.com/digitalocean/godo v1.161.0
+	github.com/digitalocean/godo v1.162.0
 	github.com/go-kit/log v0.2.1
 	github.com/golang/protobuf v1.5.4
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
@@ -52,7 +52,7 @@ require (
 	golang.org/x/sync v0.16.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250528174236-200df99c418a
 	google.golang.org/grpc v1.74.2
-	google.golang.org/protobuf v1.36.6
+	google.golang.org/protobuf v1.36.7
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -79,19 +79,19 @@ require (
 	github.com/Workiva/go-datastructures v1.0.53 // indirect
 	github.com/aws/aws-sdk-go v1.55.5 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.11 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.32 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.36 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.36 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.2 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.2 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.2 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.3 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.3.36 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.12.4 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.7.4 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.17 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.18.17 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.25.5 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.30.3 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.34.0 // indirect
-	github.com/aws/smithy-go v1.22.4 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.27.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.32.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.36.0 // indirect
+	github.com/aws/smithy-go v1.22.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/bgentry/speakeasy v0.2.0 // indirect
@@ -269,10 +269,11 @@ require (
 )
 
 replace (
+	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.6
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	// TODO: update to a v0.39.x release after that is created from celestia-core main branch.
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.57.3-tm-v0.38.17
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.5-sdk-v0.50.14
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.6-sdk-v0.50.14
 	// goleveldb: canonical version
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	// celestia-core(v0.34.x): used for multiplexing abci v1 requests

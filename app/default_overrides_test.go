@@ -105,7 +105,16 @@ func Test_icaDefaultGenesis(t *testing.T) {
 	got := icagenesistypes.GenesisState{}
 	enc.Codec.MustUnmarshalJSON(raw, &got)
 
-	assert.Equal(t, got.HostGenesisState.Params.AllowMessages, icaAllowMessages())
+	assert.Equal(t, got.HostGenesisState.Params.AllowMessages, IcaAllowMessages())
 	assert.True(t, got.HostGenesisState.Params.HostEnabled)
 	assert.False(t, got.ControllerGenesisState.Params.ControllerEnabled)
+}
+
+func TestEvidenceParams(t *testing.T) {
+	got := EvidenceParams()
+	mebibyte := int64(1048576)
+
+	assert.Equal(t, appconsts.MaxAgeDuration, got.MaxAgeDuration)
+	assert.Equal(t, int64(appconsts.MaxAgeNumBlocks), got.MaxAgeNumBlocks)
+	assert.Equal(t, mebibyte, got.MaxBytes)
 }
