@@ -200,17 +200,14 @@ func applyV6Config(cmtCfg *config.Config, appCfg *serverconfig.Config) (*config.
 	cmtCfg.Mempool.TTLDuration = defaultCfg.Mempool.TTLDuration
 	cmtCfg.Mempool.MaxTxBytes = defaultCfg.Mempool.MaxTxBytes
 	cmtCfg.Mempool.MaxTxsBytes = defaultCfg.Mempool.MaxTxsBytes
-	fmt.Println("mempool type", defaultCfg.Mempool.Type)
 	cmtCfg.Mempool.Type = defaultCfg.Mempool.Type
-	fmt.Println("mempool type", cmtCfg.Mempool.Type)
-
 	cmtCfg.Mempool.MaxGossipDelay = defaultCfg.Mempool.MaxGossipDelay
 
 	cmtCfg.P2P.SendRate = defaultCfg.P2P.SendRate
 	cmtCfg.P2P.RecvRate = defaultCfg.P2P.RecvRate
 
 	defaultAppCfg := app.DefaultAppConfig()
-	appCfg.MinGasPrices = defaultAppCfg.MinGasPrices
+	appCfg.MinGasPrices = ""
 	appCfg.GRPC.MaxRecvMsgSize = defaultAppCfg.GRPC.MaxRecvMsgSize
 
 	return cmtCfg, appCfg
