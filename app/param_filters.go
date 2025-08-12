@@ -50,8 +50,8 @@ func stakingParamFilter(msg sdk.Msg) error {
 		return errors.Wrapf(sdkerrors.ErrUnauthorized, "invalid bond denom: expected %s, got %s", params.BondDenom, msgUpdateParams.Params.BondDenom)
 	}
 
-	if msgUpdateParams.Params.UnbondingTime != appconsts.DefaultUnbondingTime {
-		return errors.Wrapf(sdkerrors.ErrUnauthorized, "invalid unbonding time: expected %s, got %s", appconsts.DefaultUnbondingTime, msgUpdateParams.Params.UnbondingTime)
+	if msgUpdateParams.Params.UnbondingTime != appconsts.UnbondingTime {
+		return errors.Wrapf(sdkerrors.ErrUnauthorized, "invalid unbonding time: expected %s, got %s", appconsts.UnbondingTime, msgUpdateParams.Params.UnbondingTime)
 	}
 
 	return nil
@@ -72,6 +72,11 @@ func consensusParamFilter(msg sdk.Msg) error {
 
 	if !updateParams.Validator.Equal(validatorParams) {
 		return errors.Wrapf(sdkerrors.ErrUnauthorized, "invalid validator parameters")
+	}
+
+	evidenceParams := EvidenceParams()
+	if !updateParams.Evidence.Equal(evidenceParams) {
+		return errors.Wrapf(sdkerrors.ErrUnauthorized, "invalid evidence parameters")
 	}
 
 	return nil
