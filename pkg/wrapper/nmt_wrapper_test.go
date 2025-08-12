@@ -2,7 +2,6 @@ package wrapper_test
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"sort"
 	"testing"
 
@@ -50,7 +49,7 @@ func TestRootErasuredNamespacedMerkleTree(t *testing.T) {
 	size := 8
 	data := testfactory.GenerateRandNamespacedRawData(size)
 	nmtErasured := wrapper.NewErasuredNamespacedMerkleTree(uint64(size), 0)
-	nmtStandard := nmt.New(sha256.New(), nmt.NamespaceIDSize(share.NamespaceSize), nmt.IgnoreMaxNamespace(true))
+	nmtStandard := nmt.New(appconsts.NewBaseHashFunc(), nmt.NamespaceIDSize(share.NamespaceSize), nmt.IgnoreMaxNamespace(true))
 
 	for _, d := range data {
 		err := nmtErasured.Push(d)
