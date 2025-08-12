@@ -75,7 +75,7 @@ func TestDisableVestingDecorator(t *testing.T) {
 			simulate:  false,
 			checkTx:   true,
 			expectErr: true,
-			errText:   "MsgCreateVestingAccount is not supported with amino JSON signing",
+			errText:   "MsgCreateVestingAccount is temporarily disabled with amino JSON signing",
 		},
 		{
 			name:      "multiple vesting messages with amino JSON",
@@ -84,7 +84,7 @@ func TestDisableVestingDecorator(t *testing.T) {
 			simulate:  false,
 			checkTx:   true,
 			expectErr: true,
-			errText:   "MsgCreateVestingAccount is not supported with amino JSON signing",
+			errText:   "MsgCreateVestingAccount is temporarily disabled with amino JSON signing",
 		},
 		{
 			name:      "mixed messages (vesting + send) with protobuf",
@@ -101,7 +101,7 @@ func TestDisableVestingDecorator(t *testing.T) {
 			simulate:  false,
 			checkTx:   true,
 			expectErr: true,
-			errText:   "MsgCreateVestingAccount is not supported with amino JSON signing",
+			errText:   "MsgCreateVestingAccount is temporarily disabled with amino JSON signing",
 		},
 		{
 			name:      "mixed messages (send + vesting) with amino JSON",
@@ -110,7 +110,7 @@ func TestDisableVestingDecorator(t *testing.T) {
 			simulate:  false,
 			checkTx:   true,
 			expectErr: true,
-			errText:   "MsgCreateVestingAccount is not supported with amino JSON signing",
+			errText:   "MsgCreateVestingAccount is temporarily disabled with amino JSON signing",
 		},
 		{
 			name:      "vesting with amino JSON in simulation mode",
@@ -119,7 +119,7 @@ func TestDisableVestingDecorator(t *testing.T) {
 			simulate:  true,
 			checkTx:   true,
 			expectErr: true,
-			errText:   "MsgCreateVestingAccount is not supported with amino JSON signing",
+			errText:   "MsgCreateVestingAccount is temporarily disabled with amino JSON signing",
 		},
 		{
 			name:      "vesting with amino JSON - checkTx false (decorator bypassed)",
