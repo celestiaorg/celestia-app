@@ -20,9 +20,6 @@ import (
 var v2UpgradeHeight = ""
 
 var defaultArgs = []string{
-	"--grpc.enable",
-	"--api.enable",
-	"--api.swagger=false",
 	"--with-tendermint=false",
 	"--transport=grpc",
 }

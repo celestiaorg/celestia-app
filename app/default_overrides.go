@@ -97,7 +97,7 @@ type stakingModule struct {
 // DefaultGenesis returns custom x/staking module genesis state.
 func (stakingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genesis := stakingtypes.DefaultGenesisState()
-	genesis.Params.UnbondingTime = appconsts.DefaultUnbondingTime
+	genesis.Params.UnbondingTime = appconsts.UnbondingTime
 	genesis.Params.BondDenom = params.BondDenom
 	genesis.Params.MinCommissionRate = math.LegacyNewDecWithPrec(5, 2) // 5%
 
@@ -226,15 +226,15 @@ func (circuitModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	return cdc.MustMarshalJSON(genState)
 }
 
-// DefaultConsensusParams returns a ConsensusParams with a MaxBytes
-// determined using a goal square size.
+// DefaultConsensusParams returns default consensus params.
 func DefaultConsensusParams() *tmproto.ConsensusParams {
 	return &tmproto.ConsensusParams{
 		Block:    DefaultBlockParams(),
-		Evidence: DefaultEvidenceParams(),
+		Evidence: EvidenceParams(),
 		Validator: &tmproto.ValidatorParams{
 			PubKeyTypes: coretypes.DefaultValidatorParams().PubKeyTypes,
-		}, Version: &tmproto.VersionParams{
+		},
+		Version: &tmproto.VersionParams{
 			App: appconsts.Version,
 		},
 	}
@@ -249,16 +249,14 @@ func DefaultBlockParams() *tmproto.BlockParams {
 	}
 }
 
-// DefaultEvidenceParams returns a default EvidenceParams with a MaxAge
-// determined using a goal block time.
-func DefaultEvidenceParams() *tmproto.EvidenceParams {
-	evdParams := coretypes.DefaultEvidenceParams()
-	evdParams.MaxAgeDuration = appconsts.DefaultUnbondingTime
-	evdParams.MaxAgeNumBlocks = int64(appconsts.DefaultUnbondingTime.Seconds())/int64(appconsts.GoalBlockTime.Seconds()) + 1
+// EvidenceParams returns the evidence params defined in CIP-37. The evidence
+// parameters are not modifiable by governance so a consensus breaking release
+// is needed to modify the evidence parameters.
+func EvidenceParams() *tmproto.EvidenceParams {
 	return &tmproto.EvidenceParams{
-		MaxAgeNumBlocks: evdParams.MaxAgeNumBlocks,
-		MaxAgeDuration:  evdParams.MaxAgeDuration,
-		MaxBytes:        evdParams.MaxBytes,
+		MaxAgeNumBlocks: appconsts.MaxAgeNumBlocks,
+		MaxAgeDuration:  appconsts.MaxAgeDuration,
+		MaxBytes:        coretypes.DefaultEvidenceParams().MaxBytes,
 	}
 }
 
