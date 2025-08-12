@@ -132,7 +132,7 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 
 	s.T().Logf("Checking validator liveness from height %d with minimum %d blocks per validator", startHeight, defaultBlocksPerValidator)
 	s.Require().NoError(
-		s.CheckLiveness(ctx, chain, startHeight),
+		s.CheckLiveness(ctx, chain),
 		"validator liveness check failed",
 	)
 }
