@@ -42,10 +42,6 @@ func New(version string, compressedBinary []byte) (*Appd, error) {
 		return nil, fmt.Errorf("failed to get path to binary: %w", err)
 	}
 
-	if err = verifyBinaryIsExecutable(pathToBinary); err != nil {
-		return nil, fmt.Errorf("failed to verify binary is executable: %w", err)
-	}
-
 	appd := &Appd{
 		version: version,
 		path:    pathToBinary,
@@ -231,15 +227,6 @@ func isBinaryDecompressed(version string) bool {
 	dir := getDirectoryForVersion(version)
 	_, err := os.Stat(dir)
 	return err == nil
-}
-
-func verifyBinaryIsExecutable(pathToBinary string) error {
-	testCmd := exec.Command(pathToBinary, "--help")
-	testOutput, err := testCmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("binary validation failed (%s): %w\nOutput: %s", pathToBinary, err, string(testOutput))
-	}
-	return nil
 }
 
 // getDirectoryForCelestiaAppBinaries returns the directory where all
