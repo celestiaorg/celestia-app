@@ -50,8 +50,17 @@ func (m *Multiplexer) Commit(context.Context, *abci.RequestCommit) (*abci.Respon
 		return nil, fmt.Errorf("failed to commit: %w", err)
 	}
 
-	// after a successful commit, we start using the app version specified in FinalizeBlock.
+	// after a successful commit, start using the app version specified in FinalizeBlock. If
+	// there is an upgrade, perform that now.
+	oldAppVersion := m.appVersion
 	m.appVersion = m.nextAppVersion
+	if oldAppVersion != m.nextAppVersion {
+		// this effectively performs the upgrade immediately instead of waiting until the next call to getApp.
+		_, err = m.getApp()
+		if err != nil {
+			return nil, fmt.Errorf("multiplexer failed upgrade: %w", err)
+		}
+	}
 
 	return resp, nil
 }
