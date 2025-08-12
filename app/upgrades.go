@@ -77,15 +77,15 @@ func (app App) RegisterUpgradeHandlers() {
 			start := time.Now()
 			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", upgradeName, "start", start)
 
-			err := app.OverrideUnbondingTime(ctx)
+			err := app.SetUnbondingTime(ctx)
 			if err != nil {
-				sdkCtx.Logger().Error("failed to override unbonding time", "error", err)
+				sdkCtx.Logger().Error("failed to set unbonding time", "error", err)
 				return nil, err
 			}
 
-			err = app.OverrideEvidenceParams(ctx)
+			err = app.SetEvidenceParams(ctx)
 			if err != nil {
-				sdkCtx.Logger().Error("failed to override evidence params", "error", err)
+				sdkCtx.Logger().Error("failed to set evidence params", "error", err)
 				return nil, err
 			}
 
@@ -105,7 +105,7 @@ func (app App) RegisterUpgradeHandlers() {
 	}
 }
 
-func (app App) OverrideUnbondingTime(ctx context.Context) error {
+func (app App) SetUnbondingTime(ctx context.Context) error {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
 	params, err := app.StakingKeeper.GetParams(ctx)
@@ -114,7 +114,7 @@ func (app App) OverrideUnbondingTime(ctx context.Context) error {
 		return err
 	}
 
-	sdkCtx.Logger().Info("Overriding unbonding time to %v.", appconsts.DefaultUnbondingTime)
+	sdkCtx.Logger().Info("Setting unbonding time to %v.", appconsts.DefaultUnbondingTime)
 	params.UnbondingTime = appconsts.DefaultUnbondingTime
 
 	err = app.StakingKeeper.SetParams(ctx, params)
@@ -125,7 +125,7 @@ func (app App) OverrideUnbondingTime(ctx context.Context) error {
 	return nil
 }
 
-func (app App) OverrideEvidenceParams(ctx context.Context) error {
+func (app App) SetEvidenceParams(ctx context.Context) error {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
 	params, err := app.ConsensusKeeper.ParamsStore.Get(ctx)
@@ -134,10 +134,10 @@ func (app App) OverrideEvidenceParams(ctx context.Context) error {
 		return err
 	}
 
-	sdkCtx.Logger().Info("Overriding evidence MaxAgeDuration to %v.", appconsts.MaxAgeDuration)
+	sdkCtx.Logger().Info("Setting evidence MaxAgeDuration to %v.", appconsts.MaxAgeDuration)
 	params.Evidence.MaxAgeDuration = appconsts.MaxAgeDuration
 
-	sdkCtx.Logger().Info("Overriding evidence MaxAgeNumBlocks to %v.", appconsts.MaxAgeNumBlocks)
+	sdkCtx.Logger().Info("Setting evidence MaxAgeNumBlocks to %v.", appconsts.MaxAgeNumBlocks)
 	params.Evidence.MaxAgeNumBlocks = appconsts.MaxAgeNumBlocks
 
 	err = app.ConsensusKeeper.ParamsStore.Set(ctx, params)
