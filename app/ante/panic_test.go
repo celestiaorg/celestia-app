@@ -36,3 +36,9 @@ type mockPanicDecorator struct{}
 func (d mockPanicDecorator) AnteHandle(_ sdk.Context, _ sdk.Tx, _ bool, _ sdk.AnteHandler) (newCtx sdk.Context, err error) {
 	panic("mock panic")
 }
+
+func TestFormatTxWithNilTransaction(t *testing.T) {
+	result := ante.FormatTx(nil)
+	expected := "\ncaused by nil transaction"
+	require.Equal(t, expected, result)
+}
