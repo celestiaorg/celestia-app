@@ -173,7 +173,7 @@ func TestTxSimUpgrade(t *testing.T) {
 		WithTimeoutCommit(300 * time.Millisecond).
 		WithConsensusParams(cp).
 		WithFundedAccounts("txsim-master")
-	// Use priority mempool for consistent simulator behavior
+	// Use priority mempool for consistent txsim behavior
 	cfg.TmConfig.Mempool.Type = tmconfig.MempoolTypePriority
 	cctx, _, grpcAddr := testnode.NewNetwork(t, cfg)
 
