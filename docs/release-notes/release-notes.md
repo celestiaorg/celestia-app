@@ -40,7 +40,6 @@ max_tx_bytes = 8388608
 ttl-duration = "0s"
 ttl-num-blocks = 12
 max-gossip-delay = "1m0s"
-
 ```
 ## v5.0.0
 
