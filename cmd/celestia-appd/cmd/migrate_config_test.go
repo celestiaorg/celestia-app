@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/cometbft/cometbft/config"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/stretchr/testify/assert"
@@ -139,4 +141,30 @@ func verifyUpdatedConfigs(t *testing.T, configDir, version string) {
 		expectedServerConfig := app.DefaultAppConfig()
 		assert.Equal(t, expectedServerConfig.MinGasPrices, serverConfig.MinGasPrices)
 	}
+}
+
+func TestUpdateMinGasPrices(t *testing.T) {
+	t.Run("legacy default min gas price is unset to empty string", func(t *testing.T) {
+		// Setup configs with legacy default min gas price
+		cmtCfg := app.DefaultConsensusConfig()
+		appCfg := app.DefaultAppConfig()
+		// Set legacy default min gas price explicitly
+		appCfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.LegacyDefaultMinGasPrice, appconsts.BondDenom)
+
+		_, updatedAppCfg := applyV6Config(cmtCfg, appCfg)
+
+		assert.Equal(t, "", updatedAppCfg.MinGasPrices, "MinGasPrices should be unset to empty string if legacy default")
+	})
+
+	t.Run("custom min gas price is preserved", func(t *testing.T) {
+		// Setup configs with a custom min gas price
+		cmtCfg := app.DefaultConsensusConfig()
+		appCfg := app.DefaultAppConfig()
+		customGasPrice := "0.123utia"
+		appCfg.MinGasPrices = customGasPrice
+
+		_, updatedAppCfg := applyV6Config(cmtCfg, appCfg)
+
+		assert.Equal(t, customGasPrice, updatedAppCfg.MinGasPrices, "MinGasPrices should remain unchanged if not legacy default")
+	})
 }
