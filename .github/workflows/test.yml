@@ -125,13 +125,16 @@ jobs:
     continue-on-error: true
     strategy:
       matrix:
-        testcase:
-          - TestE2ESimple
-          - TestStateSync
-          - TestBlockSync
-          - TestE2EFullStackPFB
-          - TestCelestiaAppUpgrade
-          - TestIBC
+        include:
+          - testcase: TestE2ESimple
+          - testcase: TestStateSync
+          - testcase: TestBlockSync
+          - testcase: TestE2EFullStackPFB
+          - testcase: TestCelestiaAppUpgrade
+          - testcase: TestIBC
+            suite: IBCTestSuite
+          - testcase: TestICA
+            suite: IBCTestSuite
 
     steps:
       - name: Checkout code
@@ -157,4 +160,9 @@ jobs:
           # use the locally built image
           CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
           CELESTIA_TAG: ${{ steps.tag.outputs.value }}
-        run: make test-docker-e2e test=${{ matrix.testcase }}
+        run: |
+          if [ -n "${{ matrix.suite }}" ]; then
+            make test-docker-e2e test=${{ matrix.testcase }} suite=${{ matrix.suite }}
+          else
+            make test-docker-e2e test=${{ matrix.testcase }}
+          fi
