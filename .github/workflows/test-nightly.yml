@@ -48,7 +48,7 @@ jobs:
 
       # TODO: add slack notification on failure
 
-  test-legacy-upgrades:
+  test-all-upgrades:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -73,11 +73,11 @@ jobs:
         if: ${{ !inputs.tag }} # only build an image if no tag is specified
         run: docker build -t "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.value }}" . -f docker/multiplexer.Dockerfile
 
-      - name: Run TestCelestiaAppUpgradeLegacy
+      - name: Run TestAllUpgrades
         env:
           # Use the locally built image
           CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
           CELESTIA_TAG: ${{ steps.tag.outputs.value }}
-        run: make test-docker-e2e test=TestCelestiaAppUpgradeLegacy
+        run: make test-docker-e2e test=TestAllUpgrades
 
       # TODO: add slack notification on failure

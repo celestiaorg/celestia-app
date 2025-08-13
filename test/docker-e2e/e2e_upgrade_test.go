@@ -18,7 +18,7 @@ import (
 )
 
 // TestCelestiaAppUpgrade tests app version upgrade using the signaling mechanism.
-// This test runs the most recent upgrade paths in regular CI.
+// This test runs all upgrade paths in regular CI.
 func (s *CelestiaTestSuite) TestCelestiaAppUpgrade() {
 	if testing.Short() {
 		s.T().Skip("skipping celestia-app major upgrade test in short mode")
@@ -27,11 +27,19 @@ func (s *CelestiaTestSuite) TestCelestiaAppUpgrade() {
 	tag, err := dockerchain.GetCelestiaTagStrict()
 	s.Require().NoError(err)
 
-	// Only test the most recent upgrade paths in regular CI
+	// Test all upgrade paths in regular CI
 	tt := []struct {
 		baseAppVersion   uint64
 		targetAppVersion uint64
 	}{
+		{
+			baseAppVersion:   2,
+			targetAppVersion: 3,
+		},
+		{
+			baseAppVersion:   3,
+			targetAppVersion: 4,
+		},
 		{
 			baseAppVersion:   4,
 			targetAppVersion: 5,
@@ -45,17 +53,17 @@ func (s *CelestiaTestSuite) TestCelestiaAppUpgrade() {
 	}
 }
 
-// TestCelestiaAppUpgradeLegacy tests older app version upgrades using the signaling mechanism.
-// This test is intended to run in nightly CI to save time on PR workflows.
-func (s *CelestiaTestSuite) TestCelestiaAppUpgradeLegacy() {
+// TestAllUpgrades tests all app version upgrades using the signaling mechanism.
+// This test runs all upgrade paths.
+func (s *CelestiaTestSuite) TestAllUpgrades() {
 	if testing.Short() {
-		s.T().Skip("skipping celestia-app legacy upgrade test in short mode")
+		s.T().Skip("skipping celestia-app upgrade test in short mode")
 	}
 
 	tag, err := dockerchain.GetCelestiaTagStrict()
 	s.Require().NoError(err)
 
-	// Legacy upgrade paths for nightly testing
+	// All upgrade paths for comprehensive testing
 	tt := []struct {
 		baseAppVersion   uint64
 		targetAppVersion uint64
@@ -67,6 +75,10 @@ func (s *CelestiaTestSuite) TestCelestiaAppUpgradeLegacy() {
 		{
 			baseAppVersion:   3,
 			targetAppVersion: 4,
+		},
+		{
+			baseAppVersion:   4,
+			targetAppVersion: 5,
 		},
 	}
 
