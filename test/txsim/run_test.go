@@ -7,7 +7,6 @@ package txsim_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math"
 	"testing"
 	"time"

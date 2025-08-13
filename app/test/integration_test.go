@@ -160,7 +160,6 @@ func (s *IntegrationTestSuite) TestUnwrappedPFBRejection() {
 	require.Error(t, err)
 	require.True(t, strings.Contains(err.Error(), blobtypes.ErrNoBlobs.Error()))
 	require.True(t, strings.Contains(err.Error(), fmt.Sprintf("%d", blobtypes.ErrNoBlobs.ABCICode())))
-
 }
 
 func (s *IntegrationTestSuite) TestShareInclusionProof() {
