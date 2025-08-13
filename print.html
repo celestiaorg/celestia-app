@@ -1650,8 +1650,7 @@ there are example implementations that can be found in
 </div>
 <h3 id="badencodingfraudproof"><a class="header" href="#badencodingfraudproof">BadEncodingFraudProof</a></h3>
 <p>Defined as <code>BadEncodingFraudProof</code>:</p>
-<pre><code class="language-protobuf">// https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#badencodingfraudproof
-message BadEncodingFraudProof {
+<pre><code class="language-protobuf">message BadEncodingFraudProof {
   // height of the block with the offending row or column
   int64 height = 1;
   // the available shares in the offending row or column and their Merkle proofs
@@ -1675,8 +1674,7 @@ message BadEncodingFraudProof {
 <p>If a malicious block producer incorrectly computes the state, a fraud proof for this can be presented. We assume that the light clients have the <a href="./data_structures.html#availabledataheader">AvailableDataHeader</a> and the <a href="./data_structures.html#header">Header</a> for each block. Hence, given a <a href="networking.html#shareproof">ShareProof</a>, they can verify if the <code>rowRoot</code> or <code>colRoot</code> specified by <code>isCol</code> and <code>position</code> commits to the corresponding <a href="./data_structures.html#share">Share</a>. Similarly, given the <code>height</code> of a block, they can access all elements within the <a href="./data_structures.html#availabledataheader">AvailableDataHeader</a> and the <a href="./data_structures.html#header">Header</a> of the block.</p>
 <h3 id="statefraudproof"><a class="header" href="#statefraudproof">StateFraudProof</a></h3>
 <p>Defined as <code>StateFraudProof</code>:</p>
-<pre><code class="language-protobuf">// https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#statefraudproof
-message StateFraudProof {
+<pre><code class="language-protobuf">message StateFraudProof {
   // height of the block with the intermediate state roots
   // Subtracting one from height gives the height of the block with the
   // transactions.
