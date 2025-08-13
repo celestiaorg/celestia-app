@@ -101,6 +101,12 @@ func (app App) RegisterUpgradeHandlers() {
 				return nil, err
 			}
 
+			err = app.UpdateValidatorCommissionRates(sdkCtx)
+			if err != nil {
+				sdkCtx.Logger().Error("failed to update validator comission rates ", "error", err)
+				return nil, err
+			}
+
 			sdkCtx.Logger().Info("finished to upgrade", "upgrade-name", upgradeName, "duration-sec", time.Since(start).Seconds())
 
 			return fromVM, nil
@@ -193,6 +199,31 @@ func (a App) SetMinCommisionRate(ctx context.Context) error {
 	if err != nil {
 		sdkCtx.Logger().Error("failed to set staking params", "error", err)
 		return err
+	}
+	return nil
+}
+
+func (a App) UpdateValidatorCommissionRates(ctx context.Context) error {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+
+	validators, err := a.StakingKeeper.GetAllValidators(ctx)
+	if err != nil {
+		sdkCtx.Logger().Error("failed to get all validators", "error", err)
+		return err
+	}
+
+	for _, validator := range validators {
+		if validator.Commission.Rate.GTE(appconsts.MinCommissionRate) {
+			sdkCtx.Logger().Debug("validator commission rate is greater than or equal to the minimum commission rate, skipping", "validator", validator.GetOperator())
+			continue
+		}
+
+		sdkCtx.Logger().Info("updating validator commission rate", "validator", validator.GetOperator(), "old-commission", validator.Commission.Rate, "new-commission", appconsts.MinCommissionRate)
+		_, err := a.StakingKeeper.UpdateValidatorCommission(ctx, validator, appconsts.MinCommissionRate)
+		if err != nil {
+			sdkCtx.Logger().Error("failed to update validator commission rate", "error", err)
+			return err
+		}
 	}
 	return nil
 }
