@@ -130,6 +130,7 @@ func TestApplyUpgrade(t *testing.T) {
 		err = testApp.UpgradeKeeper.ApplyUpgrade(ctx, plan)
 		require.NoError(t, err)
 
+		ctx = testApp.NewContext(false)
 		validators, err = testApp.StakingKeeper.GetAllValidators(ctx)
 		require.NoError(t, err)
 		require.Equal(t, 1, len(validators))

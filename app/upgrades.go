@@ -220,10 +220,27 @@ func (a App) UpdateValidatorCommissionRates(ctx context.Context) error {
 		}
 
 		sdkCtx.Logger().Info("updating validator commission rate", "validator", validator.GetOperator(), "old-commission", validator.Commission.Rate, "new-commission", appconsts.MinCommissionRate)
-		_, err := a.StakingKeeper.UpdateValidatorCommission(ctx, validator, appconsts.MinCommissionRate)
+		commission, err := a.StakingKeeper.UpdateValidatorCommission(ctx, validator, appconsts.MinCommissionRate)
 		if err != nil {
-			// log the error and continue attempting to update the commission rate for the remaining validators
 			sdkCtx.Logger().Error("failed to update validator commission rate", "error", err)
+			continue
+		}
+
+		valAddr, err := sdk.ValAddressFromBech32(validator.GetOperator())
+		if err != nil {
+			sdkCtx.Logger().Error("failed to get validator address", "error", err)
+			continue
+		}
+		if err := a.StakingKeeper.Hooks().BeforeValidatorModified(ctx, valAddr); err != nil {
+			sdkCtx.Logger().Error("failed to call before validator modified hook", "error", err)
+			continue
+		}
+
+		validator.Commission = commission
+		err = a.StakingKeeper.SetValidator(ctx, validator)
+		if err != nil {
+			sdkCtx.Logger().Error("failed to set validator", "error", err)
+			continue
 		}
 	}
 	return nil
