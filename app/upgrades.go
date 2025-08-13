@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	sdkmath "cosmossdk.io/math"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
@@ -203,6 +204,9 @@ func (a App) SetMinCommisionRate(ctx context.Context) error {
 	return nil
 }
 
+// UpdateValidatorCommissionRates iterates over all validators and increases
+// their commission rate and max commission rate if they are below the new
+// minimum commission rate.
 func (a App) UpdateValidatorCommissionRates(ctx context.Context) error {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
@@ -213,17 +217,12 @@ func (a App) UpdateValidatorCommissionRates(ctx context.Context) error {
 	}
 
 	for _, validator := range validators {
-		if validator.Commission.Rate.GTE(appconsts.MinCommissionRate) {
-			sdkCtx.Logger().Debug("validator commission rate is greater than or equal to the minimum commission rate, skipping", "validator", validator.GetOperator())
+		if validator.Commission.Rate.GTE(appconsts.MinCommissionRate) && validator.Commission.MaxRate.GTE(appconsts.MinCommissionRate) {
+			sdkCtx.Logger().Debug("validator commission rate and max commission rate are already greater than or equal to the minimum commission rate", "validator", validator.GetOperator())
 			continue
 		}
-
-		sdkCtx.Logger().Info("updating validator commission rate", "validator", validator.GetOperator(), "old-commission", validator.Commission.Rate, "new-commission", appconsts.MinCommissionRate)
-		commission, err := a.StakingKeeper.UpdateValidatorCommission(ctx, validator, appconsts.MinCommissionRate)
-		if err != nil {
-			sdkCtx.Logger().Error("failed to update validator commission rate", "error", err)
-			continue
-		}
+		rate := getMax(validator.Commission.Rate, appconsts.MinCommissionRate)
+		maxRate := getMax(validator.Commission.MaxRate, appconsts.MinCommissionRate)
 
 		valAddr, err := sdk.ValAddressFromBech32(validator.GetOperator())
 		if err != nil {
@@ -235,11 +234,22 @@ func (a App) UpdateValidatorCommissionRates(ctx context.Context) error {
 			continue
 		}
 
-		validator.Commission = commission
+		validator.Commission.Rate = rate
+		validator.Commission.MaxRate = maxRate
+		validator.Commission.UpdateTime = sdkCtx.BlockTime()
+
+		sdkCtx.Logger().Info("setting validator commission", "validator", validator.GetOperator(), "rate", validator.Commission.Rate, "max rate", validator.Commission.MaxRate)
 		if err = a.StakingKeeper.SetValidator(ctx, validator); err != nil {
 			sdkCtx.Logger().Error("failed to set validator", "error", err)
 			continue
 		}
 	}
 	return nil
+}
+
+func getMax(a, b sdkmath.LegacyDec) sdkmath.LegacyDec {
+	if a.GTE(b) {
+		return a
+	}
+	return b
 }
