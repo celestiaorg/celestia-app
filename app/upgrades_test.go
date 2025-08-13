@@ -122,10 +122,10 @@ func TestApplyUpgrade(t *testing.T) {
 			Height: 1,
 			Info:   "info",
 		}
-		// Set the block time to 25 hours in the future to ensure the commission
-		// rate can be updated. If the block time is within 24 hours of the
-		// genesis block, the commission rate will fail to update due to
-		// ErrCommissionUpdateTime.
+		// Set the block time to 25 hours ahead of the genesis block to ensure
+		// the commission rate can be updated. If the block time is within 24
+		// hours of the genesis block, the commission rate will fail to update
+		// due to ErrCommissionUpdateTime.
 		ctx = testApp.NewContext(false).WithBlockTime(util.GenesisTime.Add(time.Hour * 25))
 		err = testApp.UpgradeKeeper.ApplyUpgrade(ctx, plan)
 		require.NoError(t, err)
