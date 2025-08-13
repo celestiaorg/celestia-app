@@ -194,7 +194,7 @@ func (a App) SetMinCommisionRate(ctx context.Context) error {
 
 	params.MinCommissionRate = appconsts.MinCommissionRate
 
-	fmt.Printf("Setting the staking params min commission rate to %v.\n", appconsts.MinCommissionRate)
+	sdkCtx.Logger().Info("Setting the staking params min commission rate to %v.\n", appconsts.MinCommissionRate)
 	err = a.StakingKeeper.SetParams(ctx, params)
 	if err != nil {
 		sdkCtx.Logger().Error("failed to set staking params", "error", err)
