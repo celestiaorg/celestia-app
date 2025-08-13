@@ -189,7 +189,7 @@ func getSupportedVersions() []string {
 	return versions
 }
 
-// applyV6Configs applies configuration changes needed for v6
+// applyV6Config applies configuration changes needed for v6
 func applyV6Config(cmtCfg *config.Config, appCfg *serverconfig.Config) (*config.Config, *serverconfig.Config) {
 	fmt.Println("Applying v6 updates to configs...")
 
