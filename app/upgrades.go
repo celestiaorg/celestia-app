@@ -213,7 +213,6 @@ func (a App) UpdateValidatorCommissionRates(ctx context.Context) error {
 	}
 
 	for _, validator := range validators {
-		fmt.Printf("validator commission rate: %v\n", validator.Commission.Rate)
 		if validator.Commission.Rate.GTE(appconsts.MinCommissionRate) {
 			sdkCtx.Logger().Debug("validator commission rate is greater than or equal to the minimum commission rate, skipping", "validator", validator.GetOperator())
 			continue
@@ -237,8 +236,7 @@ func (a App) UpdateValidatorCommissionRates(ctx context.Context) error {
 		}
 
 		validator.Commission = commission
-		err = a.StakingKeeper.SetValidator(ctx, validator)
-		if err != nil {
+		if err = a.StakingKeeper.SetValidator(ctx, validator); err != nil {
 			sdkCtx.Logger().Error("failed to set validator", "error", err)
 			continue
 		}
