@@ -55,8 +55,6 @@ const (
 
 )
 
-var (
-	// MinCommissionRate is the minimum commission rate for a validator as
-	// defined in CIP-41.
-	MinCommissionRate = math.LegacyNewDecWithPrec(1, 1) // 10%
-)
+// MinCommissionRate is the minimum commission rate for a validator as
+// defined in CIP-41.
+var MinCommissionRate = math.LegacyNewDecWithPrec(1, 1) // 10%

@@ -77,9 +77,10 @@ func TestApplyUpgrade(t *testing.T) {
 		oldMinComissionRate, err := math.LegacyNewDecFromStr("0.05")
 		require.NoError(t, err)
 		// Set the min commission rate to 5% because that is what is on Mainnet since genesis.
-		testApp.StakingKeeper.SetParams(ctx, stakingtypes.Params{
+		err = testApp.StakingKeeper.SetParams(ctx, stakingtypes.Params{
 			MinCommissionRate: oldMinComissionRate,
 		})
+		require.NoError(t, err)
 		params, err := testApp.StakingKeeper.GetParams(ctx)
 		require.NoError(t, err)
 		require.Equal(t, oldMinComissionRate, params.MinCommissionRate)

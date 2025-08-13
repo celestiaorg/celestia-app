@@ -103,7 +103,7 @@ func (app App) RegisterUpgradeHandlers() {
 
 			err = app.UpdateValidatorCommissionRates(sdkCtx)
 			if err != nil {
-				sdkCtx.Logger().Error("failed to update validator comission rates ", "error", err)
+				sdkCtx.Logger().Error("failed to update validator commission rates", "error", err)
 				return nil, err
 			}
 
@@ -222,7 +222,7 @@ func (a App) UpdateValidatorCommissionRates(ctx context.Context) error {
 		sdkCtx.Logger().Info("updating validator commission rate", "validator", validator.GetOperator(), "old-commission", validator.Commission.Rate, "new-commission", appconsts.MinCommissionRate)
 		_, err := a.StakingKeeper.UpdateValidatorCommission(ctx, validator, appconsts.MinCommissionRate)
 		if err != nil {
-			// log the error and continue attempting to update the comission rate for the remaining validators
+			// log the error and continue attempting to update the commission rate for the remaining validators
 			sdkCtx.Logger().Error("failed to update validator commission rate", "error", err)
 		}
 	}
