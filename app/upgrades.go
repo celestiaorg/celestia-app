@@ -95,6 +95,12 @@ func (app App) RegisterUpgradeHandlers() {
 				return nil, err
 			}
 
+			err = app.SetMinCommisionRate(sdkCtx)
+			if err != nil {
+				sdkCtx.Logger().Error("failed to set min commission rate", "error", err)
+				return nil, err
+			}
+
 			sdkCtx.Logger().Info("finished to upgrade", "upgrade-name", upgradeName, "duration-sec", time.Since(start).Seconds())
 
 			return fromVM, nil
@@ -168,5 +174,25 @@ func (a App) setICAHostParams(ctx context.Context) error {
 		AllowMessages: IcaAllowMessages(),
 	}
 	a.ICAHostKeeper.SetParams(sdkCtx, params)
+	return nil
+}
+
+func (a App) SetMinCommisionRate(ctx context.Context) error {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+
+	params, err := a.StakingKeeper.GetParams(ctx)
+	if err != nil {
+		sdkCtx.Logger().Error("failed to get staking params", "error", err)
+		return err
+	}
+
+	params.MinCommissionRate = appconsts.MinCommissionRate
+
+	fmt.Printf("Setting the staking params min commission rate to %v.\n", appconsts.MinCommissionRate)
+	err = a.StakingKeeper.SetParams(ctx, params)
+	if err != nil {
+		sdkCtx.Logger().Error("failed to set staking params", "error", err)
+		return err
+	}
 	return nil
 }

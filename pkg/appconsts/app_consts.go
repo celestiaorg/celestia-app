@@ -1,6 +1,10 @@
 package appconsts
 
-import "time"
+import (
+	"time"
+
+	"cosmossdk.io/math"
+)
 
 const (
 	// Version is the current application version.
@@ -48,4 +52,11 @@ const (
 	//
 	// Modified from 3 weeks to 14 days + 1 hour in CIP-037.
 	UnbondingTime = 337 * time.Hour // (14 days + 1 hour)
+
+)
+
+var (
+	// MinCommissionRate is the minimum commission rate for a validator as
+	// defined in CIP-41.
+	MinCommissionRate = math.LegacyNewDecWithPrec(1, 2) // 10%
 )
