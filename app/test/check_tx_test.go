@@ -24,6 +24,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	"github.com/stretchr/testify/assert"
@@ -242,8 +243,8 @@ func TestCheckTx(t *testing.T) {
 			expectedABCICode: apperr.ErrTxExceedsMaxSize.ABCICode(),
 		},
 		{
-			// NOTE: this test is in place due to a regression where ledger via amino-json
-			// were not able to submit a MsgCreateVestingAccount transaction.
+			// NOTE: this test verifies that MsgCreateVestingAccount transactions
+			// are rejected when signed with amino-json to prevent potential security issues.
 			name:      "MsgCreateVestingAccount using amino-json",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
@@ -262,7 +263,7 @@ func TestCheckTx(t *testing.T) {
 				require.NoError(t, err)
 				return tx
 			},
-			expectedABCICode: abci.CodeTypeOK,
+			expectedABCICode: sdkerrors.ErrUnauthorized.ABCICode(),
 		},
 	}
 

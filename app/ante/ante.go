@@ -40,6 +40,8 @@ func NewAnteHandler(
 		ante.NewValidateBasicDecorator(),
 		// Ensure the tx has not reached a height timeout.
 		ante.NewTxTimeoutHeightDecorator(),
+		// Ensure that MsgCreateVestingAccount transactions are not signed with amino JSON.
+		NewDisableVestingDecorator(),
 		// Ensure the tx memo <= max memo characters.
 		ante.NewValidateMemoDecorator(accountKeeper),
 		// Ensure the tx's gas limit is > the gas consumed based on the tx size.
