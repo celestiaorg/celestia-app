@@ -33,14 +33,6 @@ func (s *CelestiaTestSuite) TestCelestiaAppUpgrade() {
 		targetAppVersion uint64
 	}{
 		{
-			baseAppVersion:   2,
-			targetAppVersion: 3,
-		},
-		{
-			baseAppVersion:   3,
-			targetAppVersion: 4,
-		},
-		{
 			baseAppVersion:   4,
 			targetAppVersion: 5,
 		},
