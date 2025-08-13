@@ -3,6 +3,8 @@ package app_test
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,7 +20,6 @@ import (
 	square "github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
-	tmconfig "github.com/cometbft/cometbft/config"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -47,9 +48,6 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.accounts = testnode.RandomAccounts(142)
 
 	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...).WithTimeoutCommit(time.Millisecond * 500)
-	// Use priority mempool for consistent test behavior
-	cfg.TmConfig.Mempool.Type = tmconfig.MempoolTypePriority
-
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 
 	s.cctx = cctx
@@ -158,9 +156,11 @@ func (s *IntegrationTestSuite) TestUnwrappedPFBRejection() {
 	btx, isBlob := coretypes.UnmarshalBlobTx(blobTx[0])
 	require.True(t, isBlob)
 
-	res, err := s.cctx.BroadcastTxSync(btx.Tx)
-	require.NoError(t, err)
-	require.Equal(t, blobtypes.ErrNoBlobs.ABCICode(), res.Code)
+	_, err := s.cctx.BroadcastTxSync(btx.Tx)
+	require.Error(t, err)
+	require.True(t, strings.Contains(err.Error(), blobtypes.ErrNoBlobs.Error()))
+	require.True(t, strings.Contains(err.Error(), fmt.Sprintf("%d", blobtypes.ErrNoBlobs.ABCICode())))
+
 }
 
 func (s *IntegrationTestSuite) TestShareInclusionProof() {

@@ -2,6 +2,8 @@ package app_test
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,7 +13,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	"github.com/celestiaorg/go-square/v2/share"
-	tmcfg "github.com/cometbft/cometbft/config"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -38,8 +39,6 @@ func (s *BigBlobSuite) SetupSuite() {
 	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...)
 	// purposefully bypass the configurable mempool check
 	cfg.TmConfig.Mempool.MaxTxBytes = appconsts.MaxTxSize * 2
-	// Use priority mempool for consistent error behavior
-	cfg.TmConfig.Mempool.Type = tmcfg.MempoolTypePriority
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	s.cctx = cctx
@@ -76,8 +75,8 @@ func (s *BigBlobSuite) TestBlobExceedsMaxTxSize() {
 			res, err := txClient.SubmitPayForBlob(subCtx, []*share.Blob{tc.blob}, user.SetGasLimitAndGasPrice(1e9, appconsts.DefaultMinGasPrice))
 			require.Error(t, err)
 			require.Nil(t, res)
-			code := err.(*user.BroadcastTxError).Code
-			require.Equal(t, tc.expectedCode, code, err.Error(), tc.expectedErr)
+			require.True(t, strings.Contains(err.Error(), tc.expectedErr))
+			require.True(t, strings.Contains(err.Error(), fmt.Sprintf("%d", tc.expectedCode)))
 		})
 	}
 }
