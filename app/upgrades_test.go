@@ -74,13 +74,15 @@ func TestApplyUpgrade(t *testing.T) {
 		require.True(t, testApp.UpgradeKeeper.HasHandler("v6"))
 
 		ctx := testApp.NewContext(false)
+		oldMinComissionRate, err := math.LegacyNewDecFromStr("0.05")
+		require.NoError(t, err)
 		// Set the min commission rate to 5% because that is what is on Mainnet since genesis.
 		testApp.StakingKeeper.SetParams(ctx, stakingtypes.Params{
-			MinCommissionRate: math.LegacyNewDecWithPrec(5, 2),
+			MinCommissionRate: oldMinComissionRate,
 		})
 		params, err := testApp.StakingKeeper.GetParams(ctx)
 		require.NoError(t, err)
-		require.Equal(t, math.LegacyNewDecWithPrec(5, 2), params.MinCommissionRate)
+		require.Equal(t, oldMinComissionRate, params.MinCommissionRate)
 
 		// Apply the upgrade.
 		plan := upgradetypes.Plan{
@@ -96,5 +98,41 @@ func TestApplyUpgrade(t *testing.T) {
 		got, err := testApp.StakingKeeper.GetParams(ctx)
 		require.NoError(t, err)
 		require.Equal(t, appconsts.MinCommissionRate, got.MinCommissionRate)
+	})
+	t.Run("apply upgrade should set the commission rate for a validator to 10% if it was less than that", func(t *testing.T) {
+		consensusParams := app.DefaultConsensusParams()
+		consensusParams.Version.App = 5
+		testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
+		require.True(t, testApp.UpgradeKeeper.HasHandler("v6"))
+
+		ctx := testApp.NewContext(false)
+		validators, err := testApp.StakingKeeper.GetAllValidators(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(validators))
+		validator := validators[0]
+		oldMinComissionRate, err := math.LegacyNewDecFromStr("0.05")
+		require.NoError(t, err)
+		require.Equal(t, oldMinComissionRate, validator.Commission.Rate)
+
+		// Apply the upgrade.
+		plan := upgradetypes.Plan{
+			Name:   "v6",
+			Time:   time.Now(),
+			Height: 1,
+			Info:   "info",
+		}
+		// Set the block time to 25 hours in the future to ensure the commission
+		// rate can be updated. If the block time is within 24 hours of the
+		// genesis block, the commission rate will fail to update due to
+		// ErrCommissionUpdateTime.
+		ctx = testApp.NewContext(false).WithBlockTime(util.GenesisTime.Add(time.Hour * 25))
+		err = testApp.UpgradeKeeper.ApplyUpgrade(ctx, plan)
+		require.NoError(t, err)
+
+		validators, err = testApp.StakingKeeper.GetAllValidators(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(validators))
+		validator = validators[0]
+		require.Equal(t, appconsts.MinCommissionRate, validator.Commission.Rate)
 	})
 }
