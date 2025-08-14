@@ -161,8 +161,8 @@ jobs:
           CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
           CELESTIA_TAG: ${{ steps.tag.outputs.value }}
         run: |
-          if [ -n "${{ matrix.suite }}" ]; then
-            make test-docker-e2e test=${{ matrix.testcase }} suite=${{ matrix.suite }}
+          if [ -n "${{ matrix.entrypoint }}" ]; then
+            make test-docker-e2e test=${{ matrix.testcase }} entrypoint=${{ matrix.entrypoint }}
           else
             make test-docker-e2e test=${{ matrix.testcase }}
           fi
