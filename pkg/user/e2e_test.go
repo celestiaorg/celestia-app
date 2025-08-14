@@ -30,7 +30,7 @@ func TestConcurrentTxSubmission(t *testing.T) {
 			// Setup network
 			tmConfig := testnode.DefaultTendermintConfig()
 			tmConfig.Mempool.Type = mempool
-			tmConfig.Consensus.TimeoutCommit = 10 * time.Second
+			tmConfig.Consensus.TimeoutCommit = 1700 * time.Millisecond
 			ctx, _, _ := testnode.NewNetwork(t, testnode.DefaultConfig().WithTendermintConfig(tmConfig))
 			_, err := ctx.WaitForHeight(1)
 			require.NoError(t, err)
