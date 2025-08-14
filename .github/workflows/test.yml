@@ -132,9 +132,9 @@ jobs:
           - testcase: TestE2EFullStackPFB
           - testcase: TestCelestiaAppUpgrade
           - testcase: TestIBC
-            suite: TestIBCTestSuite
+            entrypoint: TestIBCTestSuite
           - testcase: TestICA
-            suite: TestIBCTestSuite
+            entrypoint: TestIBCTestSuite
 
     steps:
       - name: Checkout code

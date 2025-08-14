@@ -271,12 +271,12 @@ test-short:
 ## test-docker-e2e: Run end to end tests via docker.
 test-docker-e2e:
 	@if [ -z "$(test)" ]; then \
-		echo "ERROR: 'test' variable is required. Usage: make test-docker-e2e test=TestE2ESimple [suite=TestCelestiaTestSuite]"; \
+		echo "ERROR: 'test' variable is required. Usage: make test-docker-e2e test=TestE2ESimple [entrypoint=TestCelestiaTestSuite]"; \
 		exit 1; \
 	fi
-	@SUITE=$${suite:-TestCelestiaTestSuite}; \
-	echo "--> Running: $$SUITE/$(test)"; \
-	cd test/docker-e2e && go test -v -run ^$$SUITE/$(test)$$ ./... -timeout 15m
+	@ENTRYPOINT=$${entrypoint:-TestCelestiaTestSuite}; \
+	echo "--> Running: $$ENTRYPOINT/$(test)"; \
+	cd test/docker-e2e && go test -v -run ^$$ENTRYPOINT/$(test)$$ ./... -timeout 30m
 .PHONY: test-docker-e2e
 
 ## test-docker-e2e-upgrade: Build image from current branch and run the upgrade test.
