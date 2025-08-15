@@ -2,25 +2,18 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	"cosmossdk.io/math"
-	storetypes "cosmossdk.io/store/types"
-	circuittypes "cosmossdk.io/x/circuit/types"
+	sdkmath "cosmossdk.io/math"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
-	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v5/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v5/x/minfee/types"
-	cmttypes "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
-	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
@@ -35,18 +28,9 @@ import (
 	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
 )
 
-const tia = int64(1_000_000) // 1 TIA = 1_000_000 utia
-
-// UpgradeName defines the on-chain upgrade name from v3 to v4.
-// IMPORTANT: UpgradeName must be formatted as `v`+ app version.
-const UpgradeName = "v4"
-
-// UpgradeNameV5 defines the on-chain upgrade name from v4 to v5.
-const UpgradeNameV5 = "v5"
-
+// RegisterUpgradeHandlers is used for registering any on-chain upgrades.
 func (app App) RegisterUpgradeHandlers() {
 	for _, subspace := range app.ParamsKeeper.GetSubspaces() {
-
 		var keyTable paramstypes.KeyTable
 		var set bool
 
@@ -85,77 +69,47 @@ func (app App) RegisterUpgradeHandlers() {
 		}
 	}
 
-	baseAppLegacySS := app.ParamsKeeper.Subspace(baseapp.Paramspace).WithKeyTable(paramstypes.ConsensusParamsKeyTable())
-
+	upgradeName := fmt.Sprintf("v%d", appconsts.Version)
 	app.UpgradeKeeper.SetUpgradeHandler(
-		UpgradeName,
+		upgradeName,
 		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 			sdkCtx := sdk.UnwrapSDKContext(ctx)
 
 			start := time.Now()
-			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", UpgradeName, "start", start)
+			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", upgradeName, "start", start)
 
-			// migrate consensus params from the legacy params keeper to consensus params module
-			oldConsensusParams := baseapp.GetConsensusParams(sdkCtx, baseAppLegacySS)
-			if oldConsensusParams != nil {
-				if oldConsensusParams.Version == nil {
-					oldConsensusParams.Version = &cmttypes.VersionParams{
-						App: 3,
-					}
-				}
-
-				if err := app.ConsensusKeeper.ParamsStore.Set(ctx, *oldConsensusParams); err != nil {
-					return nil, err
-				}
-			}
-
-			// block by default msg upgrade proposal from circuit breaker
-			if err := app.CircuitKeeper.DisableList.Set(ctx, sdk.MsgTypeURL(&upgradetypes.MsgSoftwareUpgrade{})); err != nil {
-				return nil, err
-			}
-			if err := app.CircuitKeeper.DisableList.Set(ctx, sdk.MsgTypeURL(&upgradetypes.MsgCancelUpgrade{})); err != nil {
-				return nil, err
-			}
-			if err := app.CircuitKeeper.DisableList.Set(ctx, sdk.MsgTypeURL(&ibcclienttypes.MsgIBCSoftwareUpgrade{})); err != nil {
-				return nil, err
-			}
-
-			// run module migrations
-			vm, err := app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
+			err := app.SetUnbondingTime(ctx)
 			if err != nil {
+				sdkCtx.Logger().Error("failed to set unbonding time", "error", err)
 				return nil, err
 			}
 
-			params, err := app.GovKeeper.Params.Get(ctx)
+			err = app.SetEvidenceParams(ctx)
 			if err != nil {
-				sdkCtx.Logger().Error("failed to get gov params", "error", err)
+				sdkCtx.Logger().Error("failed to set evidence params", "error", err)
 				return nil, err
 			}
 
-			sdkCtx.Logger().Info("Overriding expedited min deposit to 50,000 TIA")
-			params.ExpeditedMinDeposit = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(50_000*tia)))
-
-			err = app.GovKeeper.Params.Set(ctx, params)
+			err = app.setICAHostParams(sdkCtx)
 			if err != nil {
-				sdkCtx.Logger().Error("failed to set expedited min deposit", "error", err)
+				sdkCtx.Logger().Error("failed to set ica/host submodule params", "error", err)
 				return nil, err
 			}
 
-			sdkCtx.Logger().Info("finished to upgrade", "upgrade-name", UpgradeName, "duration-sec", time.Since(start).Seconds())
+			err = app.SetMinCommisionRate(sdkCtx)
+			if err != nil {
+				sdkCtx.Logger().Error("failed to set min commission rate", "error", err)
+				return nil, err
+			}
 
-			return vm, nil
-		},
-	)
+			err = app.UpdateValidatorCommissionRates(sdkCtx)
+			if err != nil {
+				sdkCtx.Logger().Error("failed to update validator commission rates", "error", err)
+				return nil, err
+			}
 
-	app.UpgradeKeeper.SetUpgradeHandler(
-		UpgradeNameV5,
-		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
-			sdkCtx := sdk.UnwrapSDKContext(ctx)
+			sdkCtx.Logger().Info("finished to upgrade", "upgrade-name", upgradeName, "duration-sec", time.Since(start).Seconds())
 
-			start := time.Now()
-			sdkCtx.Logger().Info("starting upgrade handler", "upgrade-name", UpgradeNameV5, "start", start)
-			// TODO: Add any upgrade logic here
-			sdkCtx.Logger().Info("finished upgrade handler", "upgrade-name", UpgradeNameV5, "duration-sec", time.Since(start).Seconds())
 			return fromVM, nil
 		},
 	)
@@ -165,22 +119,137 @@ func (app App) RegisterUpgradeHandlers() {
 		panic(err)
 	}
 
-	if upgradeInfo.Name == UpgradeName && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
-		storeUpgrades := storetypes.StoreUpgrades{
-			Added: []string{
-				circuittypes.StoreKey,
-				consensustypes.StoreKey,
-				hyperlanetypes.ModuleName,
-				warptypes.ModuleName,
-				minfeetypes.StoreKey,
-			},
-			Deleted: []string{
-				crisistypes.StoreKey,
-				"blobstream",
-			},
+	if upgradeInfo.Name == upgradeName && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) { //nolint:staticcheck
+		// TODO: Apply any store upgrades here.
+	}
+}
+
+func (app App) SetUnbondingTime(ctx context.Context) error {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+
+	params, err := app.StakingKeeper.GetParams(ctx)
+	if err != nil {
+		sdkCtx.Logger().Error("failed to get staking params", "error", err)
+		return err
+	}
+
+	sdkCtx.Logger().Info("Setting unbonding time to %v.", appconsts.UnbondingTime)
+	params.UnbondingTime = appconsts.UnbondingTime
+
+	err = app.StakingKeeper.SetParams(ctx, params)
+	if err != nil {
+		sdkCtx.Logger().Error("failed to set staking params", "error", err)
+		return err
+	}
+	return nil
+}
+
+func (app App) SetEvidenceParams(ctx context.Context) error {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+
+	params, err := app.ConsensusKeeper.ParamsStore.Get(ctx)
+	if err != nil {
+		sdkCtx.Logger().Error("failed to get consensus params", "error", err)
+		return err
+	}
+
+	sdkCtx.Logger().Info("Setting evidence MaxAgeDuration to %v.", appconsts.MaxAgeDuration)
+	params.Evidence.MaxAgeDuration = appconsts.MaxAgeDuration
+
+	sdkCtx.Logger().Info("Setting evidence MaxAgeNumBlocks to %v.", appconsts.MaxAgeNumBlocks)
+	params.Evidence.MaxAgeNumBlocks = appconsts.MaxAgeNumBlocks
+
+	err = app.ConsensusKeeper.ParamsStore.Set(ctx, params)
+	if err != nil {
+		sdkCtx.Logger().Error("failed to set consensus params", "error", err)
+		return err
+	}
+	return nil
+}
+
+// setICAHostParams sets the ICA host params to the values defined in CIP-14.
+// This is needed because the ICA host params were previously stored in x/params
+// and in ibc-go v8 they were migrated to use a self-managed store.
+//
+// NOTE: the param migrator included in ibc-go v8 does not work as expected
+// because it sets the params to the default values which do not match the
+// values defined in CIP-14.
+func (a App) setICAHostParams(ctx context.Context) error {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	params := icahosttypes.Params{
+		HostEnabled:   true,
+		AllowMessages: IcaAllowMessages(),
+	}
+	a.ICAHostKeeper.SetParams(sdkCtx, params)
+	return nil
+}
+
+func (a App) SetMinCommisionRate(ctx context.Context) error {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+
+	params, err := a.StakingKeeper.GetParams(ctx)
+	if err != nil {
+		sdkCtx.Logger().Error("failed to get staking params", "error", err)
+		return err
+	}
+
+	params.MinCommissionRate = appconsts.MinCommissionRate
+
+	sdkCtx.Logger().Info("Setting the staking params min commission rate to %v.\n", appconsts.MinCommissionRate)
+	err = a.StakingKeeper.SetParams(ctx, params)
+	if err != nil {
+		sdkCtx.Logger().Error("failed to set staking params", "error", err)
+		return err
+	}
+	return nil
+}
+
+// UpdateValidatorCommissionRates iterates over all validators and increases
+// their commission rate and max commission rate if they are below the new
+// minimum commission rate.
+func (a App) UpdateValidatorCommissionRates(ctx context.Context) error {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+
+	validators, err := a.StakingKeeper.GetAllValidators(ctx)
+	if err != nil {
+		sdkCtx.Logger().Error("failed to get all validators", "error", err)
+		return err
+	}
+
+	for _, validator := range validators {
+		if validator.Commission.Rate.GTE(appconsts.MinCommissionRate) && validator.Commission.MaxRate.GTE(appconsts.MinCommissionRate) {
+			sdkCtx.Logger().Debug("validator commission rate and max commission rate are already greater than or equal to the minimum commission rate", "validator", validator.GetOperator())
+			continue
+		}
+		rate := getMax(validator.Commission.Rate, appconsts.MinCommissionRate)
+		maxRate := getMax(validator.Commission.MaxRate, appconsts.MinCommissionRate)
+
+		valAddr, err := sdk.ValAddressFromBech32(validator.GetOperator())
+		if err != nil {
+			sdkCtx.Logger().Error("failed to get validator address", "error", err)
+			continue
+		}
+		if err := a.StakingKeeper.Hooks().BeforeValidatorModified(ctx, valAddr); err != nil {
+			sdkCtx.Logger().Error("failed to call before validator modified hook", "error", err)
+			continue
 		}
 
-		// configure store loader that checks if version == upgradeHeight and applies store upgrades
-		app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
+		validator.Commission.Rate = rate
+		validator.Commission.MaxRate = maxRate
+		validator.Commission.UpdateTime = sdkCtx.BlockTime()
+
+		sdkCtx.Logger().Info("setting validator commission", "validator", validator.GetOperator(), "rate", validator.Commission.Rate, "max rate", validator.Commission.MaxRate)
+		if err = a.StakingKeeper.SetValidator(ctx, validator); err != nil {
+			sdkCtx.Logger().Error("failed to set validator", "error", err)
+			continue
+		}
 	}
+	return nil
+}
+
+func getMax(a, b sdkmath.LegacyDec) sdkmath.LegacyDec {
+	if a.GTE(b) {
+		return a
+	}
+	return b
 }

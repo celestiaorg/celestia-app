@@ -1,0 +1,21 @@
+{
+  "messages": [
+    {
+      "@type": "/cosmos.staking.v1beta1.MsgUpdateParams",
+      "authority": "celestia10d07y265gmmuvt4z0w9aw880jnsr700jtgz4v7",
+      "params": {
+        "unbonding_time": "337h0m0s",
+        "max_validators": 100,
+        "max_entries": 7,
+        "historical_entries": 10000,
+        "bond_denom": "utia",
+        "min_commission_rate": "0.100000000000000000"
+      }
+    }
+  ],
+  "metadata": "ipfs://QmYourMetadataHashHere",
+  "deposit": "10000000000utia",
+  "title": "Set MinCommissionRate to 10%",
+  "summary": "This proposal aims to update the min_commission_rate staking parameter from 5% to 10%. This change will set a minimum commission rate that all validators must charge, helping to prevent a race to the bottom on validator commissions and ensuring validators can maintain sustainable operations.",
+  "expedited": false
+}

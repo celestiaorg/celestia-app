@@ -13,7 +13,7 @@ import (
 	"sync"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v5/multiplexer/internal"
+	"github.com/celestiaorg/celestia-app/v6/multiplexer/internal"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/p2p"
@@ -497,7 +497,7 @@ func (m *Multiplexer) startEmbeddedApp(version Version) error {
 		}
 
 		if version.Appd.IsStopped() {
-			return fmt.Errorf("app for version %d failed to start", m.nativeApp)
+			return fmt.Errorf("app for version %d stopped", version.AppVersion)
 		}
 
 		m.activeVersion = version

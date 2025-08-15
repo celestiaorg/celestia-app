@@ -1,10 +1,14 @@
 package appconsts
 
-import "time"
+import (
+	"time"
+
+	"cosmossdk.io/math"
+)
 
 const (
 	// Version is the current application version.
-	Version uint64 = 5
+	Version uint64 = 6
 	// SquareSizeUpperBound imposes an upper bound on the max effective square size.
 	SquareSizeUpperBound int = 512
 	// SubtreeRootThreshold works as a target upper bound for the number of subtree
@@ -39,4 +43,18 @@ const (
 	MainnetUpgradeHeightDelay = int64(100_800)
 	// Deprecated: Use MainnetUpgradeHeightDelay instead.
 	UpgradeHeightDelay = MainnetUpgradeHeightDelay
+	// MempoolSize determines the default max mempool size. This is determined
+	// using a multiple of the max possible bytes in a block.
+	MempoolSize = int64(DefaultUpperBoundMaxBytes) * 3
+	// UnbondingTime is the time a validator must wait to unbond in a proof of
+	// stake system. Any validator within this time can be subject to slashing
+	// under conditions of misbehavior.
+	//
+	// Modified from 3 weeks to 14 days + 1 hour in CIP-037.
+	UnbondingTime = 337 * time.Hour // (14 days + 1 hour)
+
 )
+
+// MinCommissionRate is 10%. It is the minimum commission rate for a validator
+// as defined in CIP-41.
+var MinCommissionRate = math.LegacyNewDecWithPrec(1, 1)

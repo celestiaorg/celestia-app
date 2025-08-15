@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v5/internal/embedding"
+	"github.com/celestiaorg/celestia-app/v6/internal/embedding"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,6 +23,7 @@ func TestCreateExecCommand(t *testing.T) {
 	binaryGenerators := []func() (string, []byte, error){
 		embedding.CelestiaAppV3,
 		embedding.CelestiaAppV4,
+		embedding.CelestiaAppV5,
 	}
 
 	for idx, binaryGenerator := range binaryGenerators {

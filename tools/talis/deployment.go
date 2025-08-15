@@ -109,7 +109,7 @@ func deployCmd() *cobra.Command {
 			if directUpload {
 				return deployPayloadDirect(cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute, workers)
 			}
-			return deployPayloadViaS3(cmd.Context(), rootDir, cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute, cfg.S3Config)
+			return deployPayloadViaS3(cmd.Context(), rootDir, cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute, cfg.S3Config, workers)
 		},
 	}
 
@@ -225,6 +225,7 @@ func deployPayloadViaS3(
 	remoteScript string,
 	timeout time.Duration,
 	s3cfg S3Config,
+	workers int,
 ) error {
 	cfg, err := LoadConfig(rootDir)
 	if err != nil {
@@ -246,11 +247,16 @@ func deployPayloadViaS3(
 	var wg sync.WaitGroup
 	errCh := make(chan error, len(ips))
 	counter := atomic.Uint32{}
+	workersChan := make(chan struct{}, workers)
 
 	for _, inst := range ips {
 		wg.Add(1)
 		go func(inst Instance) {
-			defer wg.Done()
+			workersChan <- struct{}{}
+			defer func() {
+				wg.Done()
+				<-workersChan
+			}()
 			ctx, cancel := context.WithTimeout(ctx, timeout)
 			defer cancel()
 

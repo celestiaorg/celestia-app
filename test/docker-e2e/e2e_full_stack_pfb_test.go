@@ -6,15 +6,16 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	"testing"
 	"time"
 
 	"go.uber.org/zap"
 
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/pkg/user"
-	"github.com/celestiaorg/celestia-app/v5/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v5/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
@@ -63,6 +64,10 @@ func (s *CelestiaTestSuite) TestE2EFullStackPFB() {
 	err = celestia.Start(ctx)
 	s.Require().NoError(err, "failed to start celestia chain")
 
+	// Record start height for liveness check
+	startHeight, err := celestia.Height(ctx)
+	s.Require().NoError(err, "failed to get start height")
+
 	// prepare a simple config with one type of each node.
 	daConfig := getDAConfig(s.logger, s.client, s.network)
 
@@ -80,6 +85,12 @@ func (s *CelestiaTestSuite) TestE2EFullStackPFB() {
 
 	// verify blob retrieval from light node
 	s.verifyBlobRetrieval(ctx, daNetwork, blobData)
+
+	s.T().Logf("Checking validator liveness from height %d", startHeight)
+	s.Require().NoError(
+		s.CheckLiveness(ctx, celestia),
+		"validator liveness check failed",
+	)
 
 	t.Log("Full stack blob test completed successfully")
 }
@@ -290,7 +301,7 @@ func getDAConfig(logger *zap.Logger, client *dockerclient.Client, networkID stri
 			BridgeNodeCount: 1,
 			FullNodeCount:   1,
 			LightNodeCount:  1,
-			Image: tastoradockertypes.DockerImage{
+			Image: tastoracontainertypes.Image{
 				Repository: celestiaNodeRepository,
 				Version:    celestiaNodeVersion,
 			},

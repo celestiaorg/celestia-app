@@ -117,7 +117,7 @@ Note: we should use DecCoin to avoid rounding errors. See <https://github.com/os
 
 Q: What is the skew between `BlocksPerYear` on popular Cosmos SDK chains and the actual number of blocks per year?
 
-Cosmos Hub (a.k.a Gaia) sets `BlocksPerYear` to 4,360,000 [here](https://github.com/cosmos/gaia/blob/8a522e98a2863205cf02fb97f8ad27d091670b9d/docs/governance/current-parameters.json#L86). Cosmos Hub has a block time 6.353 ms. Numia data doesn't have complete data for 2021 so we'll examine 2022:
+Cosmos Hub (a.k.a Gaia) sets `BlocksPerYear` to 4,360,000 [here](https://github.com/cosmos/gaia/blob/8a522e98a2863205cf02fb97f8ad27d091670b9d/docs/governance/current-parameters.json#L86). Cosmos Hub has a block time 6.353 s. Numia data doesn't have complete data for 2021 so we'll examine 2022:
 
 | Year | BlocksPerYear | Actual # of Blocks | Skew  |
 |------|---------------|--------------------|-------|

@@ -12,13 +12,13 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v5/app/encoding"
-	"github.com/celestiaorg/celestia-app/v5/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v5/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v5/app/params"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v5/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v6/app/params"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
@@ -563,24 +563,6 @@ func (client *TxClient) deleteFromTxTracker(txHash string) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 	delete(client.txTracker, txHash)
-}
-
-// EstimateGas simulates the transaction, calculating the amount of gas that was
-// consumed during execution.
-// Deprecated: use EstimateGasPriceAndUsage
-func (client *TxClient) EstimateGas(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (uint64, error) {
-	client.mtx.Lock()
-	defer client.mtx.Unlock()
-
-	txBuilder, err := client.signer.txBuilder(msgs, opts...)
-	if err != nil {
-		return 0, err
-	}
-
-	// add at least 1utia as fee to builder as it affects gas calculation.
-	txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
-
-	return client.estimateGas(ctx, txBuilder)
 }
 
 // EstimateGasPriceAndUsage returns the estimated gas price based on the provided priority,

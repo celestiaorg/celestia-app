@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
-	mint "github.com/celestiaorg/celestia-app/v5/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	mint "github.com/celestiaorg/celestia-app/v6/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
 	"github.com/cosmos/gogoproto/proto"
@@ -16,6 +16,8 @@ func (s *IntegrationTestSuite) TestQueryGRPC() {
 	baseURL := s.cctx.APIAddress()
 	baseURL = strings.Replace(baseURL, "tcp", "http", 1)
 	expectedAnnualProvision := mint.InitialInflationRateAsDec().MulInt(math.NewInt(testnode.DefaultInitialBalance))
+	want, err := math.LegacyNewDecFromStr("0.0267")
+	s.Require().NoError(err)
 	testCases := []struct {
 		name     string
 		url      string
@@ -29,7 +31,7 @@ func (s *IntegrationTestSuite) TestQueryGRPC() {
 			map[string]string{},
 			&mint.QueryInflationRateResponse{},
 			&mint.QueryInflationRateResponse{
-				InflationRate: math.LegacyNewDecWithPrec(536, 4),
+				InflationRate: want,
 			},
 		},
 		{

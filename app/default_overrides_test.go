@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v5/app/encoding"
-	"github.com/celestiaorg/celestia-app/v5/app/params"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/app/params"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	tmcfg "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
@@ -63,7 +63,7 @@ func TestDefaultConsensusConfig(t *testing.T) {
 	t.Run("RPC overrides", func(t *testing.T) {
 		want := tmcfg.DefaultRPCConfig()
 		want.TimeoutBroadcastTxCommit = 50 * time.Second
-		want.MaxBodyBytes = int64(appconsts.DefaultUpperBoundMaxBytes) * 3
+		want.MaxBodyBytes = appconsts.MempoolSize + (32 * mebibyte)
 		want.GRPCListenAddress = "tcp://127.0.0.1:9098"
 
 		assert.Equal(t, want, got.RPC)
@@ -82,19 +82,20 @@ func TestDefaultConsensusConfig(t *testing.T) {
 			RecheckTimeout:        1_000_000_000,
 
 			// Overrides
-			MaxTxBytes:   appconsts.MaxTxSize,
-			MaxTxsBytes:  int64(appconsts.DefaultUpperBoundMaxBytes) * 3,
-			TTLDuration:  75 * time.Second,
-			TTLNumBlocks: 12,
-			Type:         tmcfg.MempoolTypePriority,
+			MaxTxBytes:     appconsts.MaxTxSize,
+			MaxTxsBytes:    appconsts.MempoolSize,
+			TTLDuration:    0 * time.Second,
+			TTLNumBlocks:   12,
+			Type:           tmcfg.MempoolTypeCAT,
+			MaxGossipDelay: time.Second * 60,
 		}
 		assert.Equal(t, want, *got.Mempool)
 	})
 
 	t.Run("p2p overrides", func(t *testing.T) {
 		const mebibyte = 1048576
-		assert.Equal(t, int64(10*mebibyte), got.P2P.SendRate)
-		assert.Equal(t, int64(10*mebibyte), got.P2P.RecvRate)
+		assert.Equal(t, int64(24*mebibyte), got.P2P.SendRate)
+		assert.Equal(t, int64(24*mebibyte), got.P2P.RecvRate)
 	})
 }
 
@@ -105,7 +106,16 @@ func Test_icaDefaultGenesis(t *testing.T) {
 	got := icagenesistypes.GenesisState{}
 	enc.Codec.MustUnmarshalJSON(raw, &got)
 
-	assert.Equal(t, got.HostGenesisState.Params.AllowMessages, icaAllowMessages())
+	assert.Equal(t, got.HostGenesisState.Params.AllowMessages, IcaAllowMessages())
 	assert.True(t, got.HostGenesisState.Params.HostEnabled)
 	assert.False(t, got.ControllerGenesisState.Params.ControllerEnabled)
+}
+
+func TestEvidenceParams(t *testing.T) {
+	got := EvidenceParams()
+	mebibyte := int64(1048576)
+
+	assert.Equal(t, appconsts.MaxAgeDuration, got.MaxAgeDuration)
+	assert.Equal(t, int64(appconsts.MaxAgeNumBlocks), got.MaxAgeNumBlocks)
+	assert.Equal(t, mebibyte, got.MaxBytes)
 }

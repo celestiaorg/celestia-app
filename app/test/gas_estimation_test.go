@@ -7,17 +7,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v5/app"
-	"github.com/celestiaorg/celestia-app/v5/app/encoding"
-	"github.com/celestiaorg/celestia-app/v5/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v5/test/util"
-	"github.com/celestiaorg/celestia-app/v5/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v5/test/util/random"
-	"github.com/celestiaorg/celestia-app/v5/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v5/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v6/test/util"
+	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/random"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	coretypes "github.com/cometbft/cometbft/types"
@@ -220,7 +220,7 @@ func TestEstimateGasUsed(t *testing.T) {
 	gasEstimationAPI := gasestimation.NewGasEstimatorClient(cctx.GRPCClient)
 
 	// calculate the expected gas used
-	expectedGasEstimate, err := txClient.EstimateGas(cctx.GoContext(), []sdk.Msg{msg})
+	_, expectedGasEstimate, err := txClient.EstimateGasPriceAndUsage(cctx.GoContext(), []sdk.Msg{msg}, gasestimation.TxPriority_TX_PRIORITY_MEDIUM)
 	require.NoError(t, err)
 	// calculate the actual gas used
 	actualGasEstimate, err := gasEstimationAPI.EstimateGasPriceAndUsage(cctx.GoContext(), &gasestimation.EstimateGasPriceAndUsageRequest{TxBytes: rawTx})
@@ -242,7 +242,7 @@ func TestEstimateGasUsed(t *testing.T) {
 	require.NoError(t, err)
 
 	// calculate the expected gas used
-	expectedGasEstimate, err = txClient.EstimateGas(cctx.GoContext(), []sdk.Msg{pfbMsg})
+	_, expectedGasEstimate, err = txClient.EstimateGasPriceAndUsage(cctx.GoContext(), []sdk.Msg{pfbMsg}, gasestimation.TxPriority_TX_PRIORITY_MEDIUM)
 	require.NoError(t, err)
 	// calculate the actual gas used
 	actualGasEstimate, err = gasEstimationAPI.EstimateGasPriceAndUsage(cctx.GoContext(), &gasestimation.EstimateGasPriceAndUsageRequest{TxBytes: pfbTx})
