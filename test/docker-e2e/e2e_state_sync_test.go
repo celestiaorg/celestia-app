@@ -4,13 +4,14 @@ import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"celestiaorg/celestia-app/test/docker-e2e/networks"
 	"context"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/celestiaorg/tastora/framework/testutil/config"
 	cometcfg "github.com/cometbft/cometbft/config"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	servercfg "github.com/cosmos/cosmos-sdk/server/config"
-	"strings"
-	"testing"
-	"time"
 
 	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
 	addressutil "github.com/celestiaorg/tastora/framework/testutil/address"
@@ -124,6 +125,12 @@ func (s *CelestiaTestSuite) TestStateSync() {
 	})
 
 	s.Require().NoError(err, "failed to wait for state sync to complete")
+
+	s.T().Logf("Checking validator liveness from height %d", initialHeight)
+	s.Require().NoError(
+		s.CheckLiveness(ctx, celestia),
+		"validator liveness check failed",
+	)
 }
 
 // TestStateSyncMocha tests state sync functionality by syncing from the mocha network.

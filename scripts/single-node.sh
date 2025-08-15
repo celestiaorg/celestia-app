@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# This script starts a single node testnet on app version 4.
+# This script starts a single node testnet on the latest app version.
 
 # Stop script execution if an error is encountered
 set -o errexit
@@ -67,19 +67,19 @@ createGenesis() {
         > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     # Override the default RPC server listening address
-    sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' "${APP_HOME}"/config/config.toml
+    sed -i.bak 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' "${APP_HOME}"/config/config.toml
 
     # Enable transaction indexing
-    sed -i'.bak' 's#"null"#"kv"#g' "${APP_HOME}"/config/config.toml
+    sed -i.bak 's#"null"#"kv"#g' "${APP_HOME}"/config/config.toml
 
     # Persist ABCI responses
-    sed -i'.bak' 's#discard_abci_responses = true#discard_abci_responses = false#g' "${APP_HOME}"/config/config.toml
+    sed -i.bak 's#discard_abci_responses = true#discard_abci_responses = false#g' "${APP_HOME}"/config/config.toml
 
     # Override the log level to reduce noisy logs
-    sed -i'.bak' 's#log_level = "info"#log_level = "*:error,p2p:info,state:info"#g' "${APP_HOME}"/config/config.toml
+    sed -i.bak 's#log_level = "info"#log_level = "*:error,p2p:info,state:info"#g' "${APP_HOME}"/config/config.toml
 
     # Override the VotingPeriod from 1 week to 1 minute
-    sed -i'.bak' 's#"604800s"#"60s"#g' "${APP_HOME}"/config/genesis.json
+    sed -i.bak 's#"604800s"#"60s"#g' "${APP_HOME}"/config/genesis.json
 
     trace_type="local"
     sed -i.bak -e "s/^trace_type *=.*/trace_type = \"$trace_type\"/" ${APP_HOME}/config/config.toml
