@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	sdkmath "cosmossdk.io/math"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
@@ -95,6 +96,18 @@ func (app App) RegisterUpgradeHandlers() {
 				return nil, err
 			}
 
+			err = app.SetMinCommisionRate(sdkCtx)
+			if err != nil {
+				sdkCtx.Logger().Error("failed to set min commission rate", "error", err)
+				return nil, err
+			}
+
+			err = app.UpdateValidatorCommissionRates(sdkCtx)
+			if err != nil {
+				sdkCtx.Logger().Error("failed to update validator commission rates", "error", err)
+				return nil, err
+			}
+
 			sdkCtx.Logger().Info("finished to upgrade", "upgrade-name", upgradeName, "duration-sec", time.Since(start).Seconds())
 
 			return fromVM, nil
@@ -169,4 +182,74 @@ func (a App) setICAHostParams(ctx context.Context) error {
 	}
 	a.ICAHostKeeper.SetParams(sdkCtx, params)
 	return nil
+}
+
+func (a App) SetMinCommisionRate(ctx context.Context) error {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+
+	params, err := a.StakingKeeper.GetParams(ctx)
+	if err != nil {
+		sdkCtx.Logger().Error("failed to get staking params", "error", err)
+		return err
+	}
+
+	params.MinCommissionRate = appconsts.MinCommissionRate
+
+	sdkCtx.Logger().Info("Setting the staking params min commission rate to %v.\n", appconsts.MinCommissionRate)
+	err = a.StakingKeeper.SetParams(ctx, params)
+	if err != nil {
+		sdkCtx.Logger().Error("failed to set staking params", "error", err)
+		return err
+	}
+	return nil
+}
+
+// UpdateValidatorCommissionRates iterates over all validators and increases
+// their commission rate and max commission rate if they are below the new
+// minimum commission rate.
+func (a App) UpdateValidatorCommissionRates(ctx context.Context) error {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+
+	validators, err := a.StakingKeeper.GetAllValidators(ctx)
+	if err != nil {
+		sdkCtx.Logger().Error("failed to get all validators", "error", err)
+		return err
+	}
+
+	for _, validator := range validators {
+		if validator.Commission.Rate.GTE(appconsts.MinCommissionRate) && validator.Commission.MaxRate.GTE(appconsts.MinCommissionRate) {
+			sdkCtx.Logger().Debug("validator commission rate and max commission rate are already greater than or equal to the minimum commission rate", "validator", validator.GetOperator())
+			continue
+		}
+		rate := getMax(validator.Commission.Rate, appconsts.MinCommissionRate)
+		maxRate := getMax(validator.Commission.MaxRate, appconsts.MinCommissionRate)
+
+		valAddr, err := sdk.ValAddressFromBech32(validator.GetOperator())
+		if err != nil {
+			sdkCtx.Logger().Error("failed to get validator address", "error", err)
+			continue
+		}
+		if err := a.StakingKeeper.Hooks().BeforeValidatorModified(ctx, valAddr); err != nil {
+			sdkCtx.Logger().Error("failed to call before validator modified hook", "error", err)
+			continue
+		}
+
+		validator.Commission.Rate = rate
+		validator.Commission.MaxRate = maxRate
+		validator.Commission.UpdateTime = sdkCtx.BlockTime()
+
+		sdkCtx.Logger().Info("setting validator commission", "validator", validator.GetOperator(), "rate", validator.Commission.Rate, "max rate", validator.Commission.MaxRate)
+		if err = a.StakingKeeper.SetValidator(ctx, validator); err != nil {
+			sdkCtx.Logger().Error("failed to set validator", "error", err)
+			continue
+		}
+	}
+	return nil
+}
+
+func getMax(a, b sdkmath.LegacyDec) sdkmath.LegacyDec {
+	if a.GTE(b) {
+		return a
+	}
+	return b
 }
