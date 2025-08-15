@@ -8,7 +8,6 @@ import (
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
 
-
 var _ paramtypes.ParamSet = (*Params)(nil)
 
 var KeyNetworkMinGasPrice = []byte("NetworkMinGasPrice")
