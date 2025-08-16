@@ -8,8 +8,6 @@ import (
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
 
-// TODO: this file can be removed once the upgrade to self managed modules has been completed.
-
 var _ paramtypes.ParamSet = (*Params)(nil)
 
 var KeyNetworkMinGasPrice = []byte("NetworkMinGasPrice")
