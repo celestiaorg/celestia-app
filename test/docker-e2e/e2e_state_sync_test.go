@@ -203,7 +203,7 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 	s.Require().Len(allNodes, 1, "expected exactly one node")
 	fullNode := allNodes[0]
 
-	s.Require().Equal("fn", fullNode.GetType(), "expected state sync node to be a full node")
+	s.Require().Equal(tastoratypes.NodeTypeConsensusFull, fullNode.GetType(), "expected state sync node to be a full node")
 
 	stateSyncClient, err := fullNode.GetRPCClient()
 	s.Require().NoError(err, "failed to get state sync client")
