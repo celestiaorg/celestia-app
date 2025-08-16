@@ -4,6 +4,7 @@ import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"celestiaorg/celestia-app/test/docker-e2e/networks"
 	"context"
+	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	"strings"
 	"testing"
 	"time"
@@ -98,7 +99,7 @@ func (s *CelestiaTestSuite) TestStateSync() {
 	t.Log("Adding state sync node")
 	err = celestia.AddNode(ctx,
 		celestiadockertypes.NewChainNodeConfigBuilder().
-			WithNodeType(celestiadockertypes.FullNodeType).
+			WithNodeType(tastoratypes.NodeTypeConsensusFull).
 			WithPostInit(func(ctx context.Context, node *celestiadockertypes.ChainNode) error {
 				return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
 					cfg.StateSync.Enable = true
@@ -171,7 +172,7 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 	// create a mocha chain builder (no validators, just for state sync nodes)
 	mochaChain, err := networks.NewChainBuilder(s.T(), mochaConfig, dockerCfg).
 		WithNodes(celestiadockertypes.NewChainNodeConfigBuilder().
-			WithNodeType(celestiadockertypes.FullNodeType).
+			WithNodeType(tastoratypes.NodeTypeConsensusFull).
 			WithPostInit(func(ctx context.Context, node *celestiadockertypes.ChainNode) error {
 				return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
 					// enable state sync

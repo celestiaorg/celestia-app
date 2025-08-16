@@ -3,6 +3,7 @@ package docker_e2e
 import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"context"
+	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	"testing"
 	"time"
 
@@ -78,7 +79,7 @@ func (s *CelestiaTestSuite) TestBlockSync() {
 	t.Log("Adding block sync node")
 	err = celestia.AddNode(ctx,
 		celestiadockertypes.NewChainNodeConfigBuilder().
-			WithNodeType(celestiadockertypes.FullNodeType).
+			WithNodeType(tastoratypes.NodeTypeConsensusFull).
 			WithPostInit(func(ctx context.Context, node *celestiadockertypes.ChainNode) error {
 				return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
 					// disable state sync to ensure we're testing block sync
