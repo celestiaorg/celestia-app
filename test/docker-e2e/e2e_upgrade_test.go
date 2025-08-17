@@ -47,7 +47,7 @@ func (s *CelestiaTestSuite) TestCelestiaAppUpgrade() {
 // This test runs all upgrade paths.
 func (s *CelestiaTestSuite) TestAllUpgrades() {
 	if testing.Short() {
-		s.T().Skip("skipping celestia-app upgrade test in short mode")
+		s.T().Skip("skipping celestia-app TestAllUpgrades in short mode")
 	}
 
 	tag, err := dockerchain.GetCelestiaTagStrict()
