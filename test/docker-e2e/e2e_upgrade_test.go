@@ -18,7 +18,6 @@ import (
 )
 
 // TestCelestiaAppUpgrade tests app version upgrade using the signaling mechanism.
-// This test runs all upgrade paths in regular CI.
 func (s *CelestiaTestSuite) TestCelestiaAppUpgrade() {
 	if testing.Short() {
 		s.T().Skip("skipping celestia-app major upgrade test in short mode")
