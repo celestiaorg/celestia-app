@@ -26,7 +26,6 @@ func (s *CelestiaTestSuite) TestCelestiaAppUpgrade() {
 	tag, err := dockerchain.GetCelestiaTagStrict()
 	s.Require().NoError(err)
 
-	// Test all upgrade paths in regular CI
 	tt := []struct {
 		baseAppVersion   uint64
 		targetAppVersion uint64
