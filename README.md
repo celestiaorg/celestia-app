@@ -84,13 +84,21 @@ See <https://docs.celestia.org/how-to-guides/celestia-app> for more information.
 
 Enable the [BBR](https://www.ietf.org/archive/id/draft-cardwell-iccrg-bbr-congestion-control-01.html) ("Bottleneck Bandwidth and Round-trip propagation time") congestion control algorithm.
 
+> Note: BBR enablement applies to Linux only. On macOS, Windows, and BSD variants, Celestia skips the BBR check automatically and will run with the OS default congestion control.
+
 ```shell
-# Check if BBR is enabled.
+# Check if BBR is enabled (Linux only).
 make bbr-check
 
-# If BBR is not enabled then enable it.
+# If BBR is not enabled then enable it (Linux only).
 make bbr-enable
 ```
+
+Platform notes:
+- Linux: Requires kernel >= 4.9. The `bbr-check` / `bbr-enable` targets use `modprobe` and `sysctl` to enable and persist BBR.
+- macOS: System-wide BBR is not available. No action is required; the node runs with the default congestion control.
+- Windows: System-wide BBR is not available. No action is required; the node runs with the default congestion control. If using WSL2, BBR can be enabled inside the Linux environment as above.
+- *BSD: Availability varies by distribution and version. If unsupported, the check is skipped automatically.
 
 ### Environment variables
 
