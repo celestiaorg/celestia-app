@@ -98,7 +98,7 @@ func (s *CelestiaTestSuite) TestBlockSync() {
 	allNodes = celestia.GetNodes()
 	blockSyncNode := allNodes[len(allNodes)-1]
 
-	s.Require().Equal("fn", blockSyncNode.GetType(), "expected block sync node to be a full node")
+	s.Require().Equal(tastoratypes.NodeTypeConsensusFull, blockSyncNode.GetType(), "expected block sync node to be a full node")
 
 	blockSyncClient, err := blockSyncNode.GetRPCClient()
 	s.Require().NoError(err)

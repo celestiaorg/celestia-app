@@ -116,7 +116,7 @@ func (s *CelestiaTestSuite) TestStateSync() {
 	allNodes = celestia.GetNodes()
 	fullNode := allNodes[len(allNodes)-1]
 
-	s.Require().Equal("fn", fullNode.GetType(), "expected state sync node to be a full node")
+	s.Require().Equal(tastoratypes.NodeTypeConsensusFull, fullNode.GetType(), "expected state sync node to be a full node")
 
 	stateSyncClient, err := fullNode.GetRPCClient()
 	s.Require().NoError(err)
