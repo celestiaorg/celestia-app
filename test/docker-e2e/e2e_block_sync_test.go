@@ -70,6 +70,7 @@ func (s *CelestiaTestSuite) TestBlockSync() {
 
 	// build peer list for the new node to connect to existing validators
 	peerList, err := addressutil.BuildInternalPeerAddressList(ctx, celestia.GetNodes())
+	s.Require().NoError(err, "failed to build peer address list")
 
 	t.Logf("Latest height: %d", latestHeight)
 	t.Logf("Peers: %s", peerList)
@@ -109,7 +110,7 @@ func (s *CelestiaTestSuite) TestBlockSync() {
 
 	s.T().Logf("Checking validator liveness from height %d", initialHeight)
 	s.Require().NoError(
-		s.CheckLiveness(ctx, celestia, initialHeight),
+		s.CheckLiveness(ctx, celestia),
 		"validator liveness check failed",
 	)
 }

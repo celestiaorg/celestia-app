@@ -125,12 +125,13 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 		txCommand(capp.BasicManager),
 		keys.Commands(),
 		snapshot.Cmd(NewAppServer),
+		updateConfigCmd(),
 	)
 
 	modifyRootCommand(rootCommand)
 
 	// Add hooks run prior to the start command
-	if err := addPreStartHooks(rootCommand, checkAndUpdateMinGasPrices, checkBBR); err != nil {
+	if err := addPreStartHooks(rootCommand, checkBBR); err != nil {
 		panic(fmt.Errorf("failed to add pre-start hooks: %w", err))
 	}
 }

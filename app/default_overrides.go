@@ -97,7 +97,7 @@ type stakingModule struct {
 // DefaultGenesis returns custom x/staking module genesis state.
 func (stakingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genesis := stakingtypes.DefaultGenesisState()
-	genesis.Params.UnbondingTime = appconsts.DefaultUnbondingTime
+	genesis.Params.UnbondingTime = appconsts.UnbondingTime
 	genesis.Params.BondDenom = params.BondDenom
 	genesis.Params.MinCommissionRate = math.LegacyNewDecWithPrec(5, 2) // 5%
 
@@ -148,7 +148,7 @@ type icaModule struct {
 // DefaultGenesis returns custom ica module genesis state.
 func (icaModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	gs := icagenesistypes.DefaultGenesis()
-	gs.HostGenesisState.Params.AllowMessages = icaAllowMessages()
+	gs.HostGenesisState.Params.AllowMessages = IcaAllowMessages()
 	gs.HostGenesisState.Params.HostEnabled = true
 	gs.ControllerGenesisState.Params.ControllerEnabled = false
 	return cdc.MustMarshalJSON(gs)
@@ -226,15 +226,15 @@ func (circuitModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	return cdc.MustMarshalJSON(genState)
 }
 
-// DefaultConsensusParams returns a ConsensusParams with a MaxBytes
-// determined using a goal square size.
+// DefaultConsensusParams returns default consensus params.
 func DefaultConsensusParams() *tmproto.ConsensusParams {
 	return &tmproto.ConsensusParams{
 		Block:    DefaultBlockParams(),
-		Evidence: DefaultEvidenceParams(),
+		Evidence: EvidenceParams(),
 		Validator: &tmproto.ValidatorParams{
 			PubKeyTypes: coretypes.DefaultValidatorParams().PubKeyTypes,
-		}, Version: &tmproto.VersionParams{
+		},
+		Version: &tmproto.VersionParams{
 			App: appconsts.Version,
 		},
 	}
@@ -249,34 +249,32 @@ func DefaultBlockParams() *tmproto.BlockParams {
 	}
 }
 
-// DefaultEvidenceParams returns a default EvidenceParams with a MaxAge
-// determined using a goal block time.
-func DefaultEvidenceParams() *tmproto.EvidenceParams {
-	evdParams := coretypes.DefaultEvidenceParams()
-	evdParams.MaxAgeDuration = appconsts.DefaultUnbondingTime
-	evdParams.MaxAgeNumBlocks = int64(appconsts.DefaultUnbondingTime.Seconds())/int64(appconsts.GoalBlockTime.Seconds()) + 1
+// EvidenceParams returns the evidence params defined in CIP-37. The evidence
+// parameters are not modifiable by governance so a consensus breaking release
+// is needed to modify the evidence parameters.
+func EvidenceParams() *tmproto.EvidenceParams {
 	return &tmproto.EvidenceParams{
-		MaxAgeNumBlocks: evdParams.MaxAgeNumBlocks,
-		MaxAgeDuration:  evdParams.MaxAgeDuration,
-		MaxBytes:        evdParams.MaxBytes,
+		MaxAgeNumBlocks: appconsts.MaxAgeNumBlocks,
+		MaxAgeDuration:  appconsts.MaxAgeDuration,
+		MaxBytes:        coretypes.DefaultEvidenceParams().MaxBytes,
 	}
 }
 
 func DefaultConsensusConfig() *tmcfg.Config {
 	cfg := tmcfg.DefaultConfig()
-	mempoolSize := int64(appconsts.DefaultUpperBoundMaxBytes) * 3
 	// Set broadcast timeout to be 50 seconds in order to avoid timeouts for long block times
 	cfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
 	// this value should be the same as the largest possible response. In this case, that's
-	// likely Unconfirmed txs for a full mempool
-	cfg.RPC.MaxBodyBytes = mempoolSize
+	// likely Unconfirmed txs for a full mempool and a few extra bytes.
+	cfg.RPC.MaxBodyBytes = appconsts.MempoolSize + (mebibyte * 32)
 	cfg.RPC.GRPCListenAddress = "tcp://127.0.0.1:9098"
 
 	cfg.Mempool.TTLNumBlocks = 12
-	cfg.Mempool.TTLDuration = 75 * time.Second
+	cfg.Mempool.TTLDuration = 0 * time.Second
 	cfg.Mempool.MaxTxBytes = appconsts.MaxTxSize
-	cfg.Mempool.MaxTxsBytes = mempoolSize
-	cfg.Mempool.Type = tmcfg.MempoolTypePriority
+	cfg.Mempool.MaxTxsBytes = appconsts.MempoolSize
+	cfg.Mempool.Type = tmcfg.MempoolTypeCAT
+	cfg.Mempool.MaxGossipDelay = time.Second * 60
 
 	cfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
 	cfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
@@ -285,8 +283,8 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg.TxIndex.Indexer = "null"
 	cfg.Storage.DiscardABCIResponses = true
 
-	cfg.P2P.SendRate = 10 * mebibyte
-	cfg.P2P.RecvRate = 10 * mebibyte
+	cfg.P2P.SendRate = 24 * mebibyte
+	cfg.P2P.RecvRate = 24 * mebibyte
 
 	return cfg
 }

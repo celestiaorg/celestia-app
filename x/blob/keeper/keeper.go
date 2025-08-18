@@ -43,7 +43,7 @@ func NewKeeper(
 	}
 }
 
-// GetAuthority returns the client submodule's authority.
+// GetAuthority returns the blob module's authority.
 func (k Keeper) GetAuthority() string {
 	return k.authority
 }

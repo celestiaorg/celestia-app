@@ -4,16 +4,16 @@ This package enables proof queries for Celestia transactions and blobs.
 
 ## Prerequisites
 
-To understand the proof mechanisms, a good understanding of [binary merkle proofs](https://celestiaorg.github.io/celestia-app/specs/data_structures.html#merkle-trees) and [namespace merkle proofs](https://celestiaorg.github.io/celestia-app/specs/data_structures.html#namespace-merkle-tree) is required.
+To understand the proof mechanisms, a good understanding of [binary merkle proofs](https://celestiaorg.github.io/celestia-app/data_structures.html#merkle-trees) and [namespace merkle proofs](https://celestiaorg.github.io/celestia-app/data_structures.html#namespace-merkle-tree) is required.
 
 ## PFB transaction
 
-When creating a [PayForBlob](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/proto/celestia/blob/v1/tx.proto#L16-L31) transaction, the blob data is separated into a set of [shares](https://celestiaorg.github.io/celestia-app/specs/shares.html).
-This set of shares is used to generate a [*share commitment*](https://celestiaorg.github.io/celestia-app/specs/data_square_layout.html?highlight=share%20commitment#blob-share-commitment-rules) which commits to the data contained in the PFB, i.e., the blob.
+When creating a [PayForBlob](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/proto/celestia/blob/v1/tx.proto#L16-L31) transaction, the blob data is separated into a set of [shares](https://celestiaorg.github.io/celestia-app/shares.html).
+This set of shares is used to generate a [*share commitment*](https://celestiaorg.github.io/celestia-app/data_square_layout.html?highlight=share%20commitment#blob-share-commitment-rules) which commits to the data contained in the PFB, i.e., the blob.
 
 ### Share commitment generation
 
-Generating a *share commitment* starts with laying the shares into a [merkle mountain range](https://celestiaorg.github.io/celestia-app/specs/data_square_layout.html?highlight=merkle%20mountain#blob-share-commitment-rules) structure.
+Generating a *share commitment* starts with laying the shares into a [merkle mountain range](https://celestiaorg.github.io/celestia-app/data_square_layout.html?highlight=merkle%20mountain#blob-share-commitment-rules) structure.
 For example, if the blob contains six shares, the following structure will be generated:
 
 <img src="img/subtree_roots.png" alt="subtree roots generation from shares" width="500"/>
@@ -42,8 +42,8 @@ Note: the nodes colored in red are the inner nodes used to construct the inclusi
 
 ## Square layout
 
-Now that the [*share commitment*](https://celestiaorg.github.io/celestia-app/specs/data_square_layout.html?highlight=share%20commitment#blob-share-commitment-rules) is generated, the transaction gets broadcast to the Celestia network to be picked up by validators.
-Once it's included in a block, the transaction, without the blob, is placed in the [transaction namespace](https://celestiaorg.github.io/celestia-app/specs/namespace.html#reserved-namespaces) and the blob is placed in the [namespace](https://github.com/celestiaorg/celestia-app/blob/72be251f044bcece659603248bc27711b2c039a0/proto/celestia/blob/v1/tx.proto#L22) specified in the PFB transaction.
+Now that the [*share commitment*](https://celestiaorg.github.io/celestia-app/data_square_layout.html?highlight=share%20commitment#blob-share-commitment-rules) is generated, the transaction gets broadcast to the Celestia network to be picked up by validators.
+Once it's included in a block, the transaction, without the blob, is placed in the [transaction namespace](https://celestiaorg.github.io/celestia-app/namespace.html#reserved-namespaces) and the blob is placed in the [namespace](https://github.com/celestiaorg/celestia-app/blob/72be251f044bcece659603248bc27711b2c039a0/proto/celestia/blob/v1/tx.proto#L22) specified in the PFB transaction.
 
 If we use the same transaction from above, where the blob consists of six shares, an example Celestia square containing the blob and the PFB transaction can look like this:
 
@@ -53,14 +53,14 @@ The share range `[5, 10]`, colored in orange, is the blob data.
 
 ### Row roots
 
-To compute the Celestia block [data root](https://celestiaorg.github.io/celestia-app/specs/data_structures.html), we first start by computing the row roots and column roots.
+To compute the Celestia block [data root](https://celestiaorg.github.io/celestia-app/data_structures.html), we first start by computing the row roots and column roots.
 
 For instance, if we want to compute the first row root:
 
 <img src="img/row_root_1.png" alt="row root one generation" width="500"/>
 
 We use the first row of shares to generate a namespace merkle root.
-The first four shares, i.e., the shares `[1, 4]` are part of the square data, and the last four are [parity shares](https://celestiaorg.github.io/celestia-app/specs/data_structures.html?highlight=extended#2d-reed-solomon-encoding-scheme).
+The first four shares, i.e., the shares `[1, 4]` are part of the square data, and the last four are [parity shares](https://celestiaorg.github.io/celestia-app/data_structures.html?highlight=extended#2d-reed-solomon-encoding-scheme).
 
 Now if we take the second row, which contains four shares of the above blob `[5,8]`:
 
@@ -74,7 +74,7 @@ Similarly, if we generate the third row, which contains the remaining two shares
 
 We will see that the *subtree root* `SR2` is an inner node of the tree used to compute the third row root.
 
-This property holds for all the subtree roots computed for the blob data and is derived from applying [Blob Share Commitment Rules](https://celestiaorg.github.io/celestia-app/specs/data_square_layout.html#blob-share-commitment-rules) when constructing the square.
+This property holds for all the subtree roots computed for the blob data and is derived from applying [Blob Share Commitment Rules](https://celestiaorg.github.io/celestia-app/data_square_layout.html#blob-share-commitment-rules) when constructing the square.
 This means that it is possible to prove the inclusion of a blob to a set of row roots using the generated *share commitment*.
 The subtree roots used to generate it will be the same regardless of the square size.
 This proof will be discussed in the [prove share commitment inclusion to data root](#prove-share-commitment-inclusion-to-data-root) section.
@@ -85,12 +85,12 @@ Similar to row roots, column roots are the namespace merkle root of the set of s
 
 <img src="img/col_root_1.png" alt="column root one generation" width="427"/>
 
-Generally, the column roots are only used for [bad encoding fraud proofs, BEFP](https://celestiaorg.github.io/celestia-app/specs/fraud_proofs.html#bad-encoding-fraud-proofs) and won't be used concretely in inclusion proofs.
+Generally, the column roots are only used for [bad encoding fraud proofs, BEFP](https://celestiaorg.github.io/celestia-app/fraud_proofs.html#bad-encoding-fraud-proofs) and won't be used concretely in inclusion proofs.
 They're only mentioned for completeness.
 
 ### Data root
 
-The Celestia block [data root](https://celestiaorg.github.io/celestia-app/specs/data_structures.html) is computed by generating a binary merkle root over the set of row roots and column roots of the square:
+The Celestia block [data root](https://celestiaorg.github.io/celestia-app/data_structures.html) is computed by generating a binary merkle root over the set of row roots and column roots of the square:
 
 <img src="img/data_root.png" alt="data root generation" width="443"/>
 
@@ -153,7 +153,7 @@ Proving inclusion of `SR1` or `SR2` to the *share commitment* goes back to creat
 So, if we manage to prove that `SR1` and `SR2` were both committed to by the Celestia data root, and that the *share commitment* was generated using `SR1` and `SR2`, then, we would have proven that the *share commitment* was committed to by the Celestia data root, which means that **the blob data that generated the *share commitment* was included in a Celestia block**.
 
 [IMPORTANT] As of the current version, the API for generating and verifying share commitment proofs to data root is still not exposed.
-These proofs are only used as part of the Celestia [consensus](https://celestiaorg.github.io/celestia-app/specs/consensus.html) internally.
+These proofs are only used as part of the Celestia [consensus](https://celestiaorg.github.io/celestia-app/consensus.html) internally.
 
 #### PFB proofs
 

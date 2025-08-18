@@ -1,11 +1,9 @@
 #!/bin/sh
 
-# This script starts a single node testnet on app version 4.
+# This script starts a single node testnet on the latest app version.
 
-# Stop script execution if an error is encountered
-set -o errexit
-# Stop script execution if an undefined variable is used
-set -o nounset
+set -o errexit # Stop script execution if an error is encountered
+set -o nounset # Stop script execution if an undefined variable is used
 
 if ! [ -x "$(command -v celestia-appd)" ]
 then
@@ -59,6 +57,9 @@ createGenesis() {
       --keyring-backend=${KEYRING_BACKEND} \
       --chain-id ${CHAIN_ID} \
       --home "${APP_HOME}" \
+      --commission-rate=0.05 \
+      --commission-max-rate=1.0 \
+      --commission-max-change-rate=1.0 \
       > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     echo "Collecting genesis txs..."
@@ -78,8 +79,8 @@ createGenesis() {
     # Override the log level to reduce noisy logs
     sed -i.bak 's#log_level = "info"#log_level = "*:error,p2p:info,state:info"#g' "${APP_HOME}"/config/config.toml
 
-    # Override the VotingPeriod from 1 week to 1 minute
-    sed -i.bak 's#"604800s"#"60s"#g' "${APP_HOME}"/config/genesis.json
+    # Override the VotingPeriod from 1 week to 30 seconds
+    sed -i.bak 's#"604800s"#"30s"#g' "${APP_HOME}"/config/genesis.json
 
     trace_type="local"
     sed -i.bak -e "s/^trace_type *=.*/trace_type = \"$trace_type\"/" ${APP_HOME}/config/config.toml
