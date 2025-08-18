@@ -31,7 +31,7 @@ func Build(txs [][]byte, _ uint64, maxSquareSize int, efn ExportFn) (square.Squa
 		blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(tx)
 		if isBlobTx {
 			if err != nil {
-				return nil, nil, fmt.Errorf("unmarshaling blob tx %d: %w", idx, err)
+				return nil, nil, fmt.Errorf("unmarshalling blob tx %d: %w", idx, err)
 			}
 			if builder.AppendBlobTx(blobTx) {
 				blobTxs = append(blobTxs, tx)
