@@ -75,16 +75,16 @@ func TestApplyUpgrade(t *testing.T) {
 		require.True(t, testApp.UpgradeKeeper.HasHandler("v6"))
 
 		ctx := testApp.NewContext(false)
-		oldMinComissionRate, err := math.LegacyNewDecFromStr("0.05")
+		oldMinCommissionRate, err := math.LegacyNewDecFromStr("0.05")
 		require.NoError(t, err)
 		// Set the min commission rate to 5% because that is what is on Mainnet since genesis.
 		err = testApp.StakingKeeper.SetParams(ctx, stakingtypes.Params{
-			MinCommissionRate: oldMinComissionRate,
+			MinCommissionRate: oldMinCommissionRate,
 		})
 		require.NoError(t, err)
 		params, err := testApp.StakingKeeper.GetParams(ctx)
 		require.NoError(t, err)
-		require.Equal(t, oldMinComissionRate, params.MinCommissionRate)
+		require.Equal(t, oldMinCommissionRate, params.MinCommissionRate)
 
 		// Apply the upgrade.
 		plan := upgradetypes.Plan{
@@ -112,9 +112,9 @@ func TestApplyUpgrade(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 1, len(validators))
 		validator := validators[0]
-		oldMinComissionRate, err := math.LegacyNewDecFromStr("0.05")
+		oldMinCommissionRate, err := math.LegacyNewDecFromStr("0.05")
 		require.NoError(t, err)
-		require.Equal(t, oldMinComissionRate, validator.Commission.Rate)
+		require.Equal(t, oldMinCommissionRate, validator.Commission.Rate)
 
 		// Apply the upgrade.
 		plan := upgradetypes.Plan{
