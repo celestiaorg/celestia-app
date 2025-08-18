@@ -28,12 +28,6 @@ const (
 
 	// Liveness check constants
 	defaultBlocksPerValidator = 3 // Minimum blocks each validator should propose for liveness validation
-
-	// Node type constants (matching tastora framework's string representations)
-	validatorNodeTypeString = "val" // String representation of validator nodes
-	fullNodeTypeString      = "fn"  // String representation of full nodes
-
-	homeDir = "/var/cosmos-chain/celestia"
 )
 
 func TestCelestiaTestSuite(t *testing.T) {
