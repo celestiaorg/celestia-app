@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# This script modifies the min comission rate via a governance proposal.
+# This script modifies the min commission rate via a governance proposal.
 # Prerequisites: start single-node.sh in another terminal.
 
 set -o errexit # Stop script execution if an error is encountered
