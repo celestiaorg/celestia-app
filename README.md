@@ -98,7 +98,7 @@ Platform notes:
 - Linux: Requires kernel >= 4.9. The `bbr-check` / `bbr-enable` targets use `modprobe` and `sysctl` to enable and persist BBR.
 - macOS: System-wide BBR is not available. No action is required; the node runs with the default congestion control.
 - Windows: System-wide BBR is not available. No action is required; the node runs with the default congestion control. If using WSL2, BBR can be enabled inside the Linux environment as above.
-- *BSD: Availability varies by distribution and version. If unsupported, the check is skipped automatically.
+- BSD: System-wide BBR is not available. No action is required; the node runs with the default congestion control.
 
 ### Environment variables
 
