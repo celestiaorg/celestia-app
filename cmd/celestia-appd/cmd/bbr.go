@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"strings"
 	"runtime"
+	"strings"
 
 	"cosmossdk.io/log"
 	"github.com/spf13/cobra"
