@@ -28,7 +28,7 @@ func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci
 		},
 	})
 	// filter out invalid transactions.
-	// TODO: we can remove all state independent checks from the ante handler here such as signature verification
+	// TODO: we can remove all state independent checks from the ante handler here, such as signature verification
 	// and only check the state dependent checks like fees and nonces as all these transactions have already
 	// passed CheckTx.
 	handler := ante.NewAnteHandler(

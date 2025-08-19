@@ -31,7 +31,7 @@ func (k Keeper) SetParams(ctx sdk.Context, params types.Params) {
 }
 
 // SetParamsLegacy sets the params in the legacy store space.
-// TODO: this can be removed in versions after migrations have run.
+// TODO: this can be removed in versions after migrations have been run.
 func (k Keeper) SetParamsLegacy(ctx sdk.Context, params types.Params) {
 	k.legacySubspace.SetParamSet(ctx, &params)
 }

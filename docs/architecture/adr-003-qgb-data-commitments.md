@@ -6,7 +6,7 @@ Implemented
 
 ## Context
 
-To accommodate the requirements of the [Quantum Gravity Bridge](https://github.com/celestiaorg/quantum-gravity-bridge/blob/76efeca0be1a17d32ef633c0fdbd3c8f5e4cc53f/src/QuantumGravityBridge.sol), We will need to add support for `DataCommitment`s messages, i.e. commitments generated over a set of blocks to attest their existence.
+To accommodate the requirements of the [Quantum Gravity Bridge](https://github.com/celestiaorg/quantum-gravity-bridge/blob/76efeca0be1a17d32ef633c0fdbd3c8f5e4cc53f/src/QuantumGravityBridge.sol), we will need to add support for `DataCommitment`s messages, i.e. commitments generated over a set of blocks to attest their existence.
 
 ## Decision
 
@@ -24,7 +24,7 @@ Thus, they will contain the commitments along with the signatures and will be us
 
 ### MsgDataCommitmentConfirm
 
-`MsgDataCommitmentConfirm` describe a data commitment for a set of blocks signed by an orchestrator.
+`MsgDataCommitmentConfirm` describes a data commitment for a set of blocks signed by an orchestrator.
 
 ```protobuf
 message MsgDataCommitmentConfirm {

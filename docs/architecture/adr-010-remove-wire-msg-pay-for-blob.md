@@ -21,7 +21,7 @@ For the remainder of this document, sdk.Tx refers to a Cosmos SDK transaction an
 
 ### `WireMsgPayForBlob` vs `MsgPayForBlob`
 
-Historically, `WireMsgPayForBlob` was needed so that a user could create, sign, and send multiple signatures per message share commitment (one per square size). The user would submit their `WireMsgPayForBlob` as the sole message in a transaction to the mempool where a block proposer could pick it, malleate it into a `MsgPayForBlob` that included the appropriate signature for the block being constructed and include it in a block.
+Historically, `WireMsgPayForBlob` was needed so that a user could create, sign, and send multiple signatures per message share commitment (one per square size). The user would submit their `WireMsgPayForBlob` as the sole message in a transaction to the mempool where a block proposer could pick it, malleate it into a `MsgPayForBlob` that included the appropriate signature for the block being constructed, and include it in a block.
 
 With the introduction of [ADR 008: square size independent message commitments](./adr-008-square-size-independent-message-commitments.md), a user no longer needs to create, sign, and send multiple signatures. This enables us to reduce the complexity of the malleation process by removing `WireMsgPayForBlob` entirely. Instead, users will create and publish a `BlobTx` to the mempool. The `BlobTx` will include a `sdk.Tx` which will remain unmodified and end up on-chain.
 

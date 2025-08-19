@@ -16,7 +16,7 @@ type Account struct {
 	pubKey        cryptotypes.PubKey
 	accountNumber uint64
 
-	// the signers local view of the sequence number
+	// the signer's local view of the sequence number
 	sequence uint64
 }
 
@@ -63,7 +63,7 @@ func (a *Account) Copy() *Account {
 // QueryAccount fetches the account number and sequence number from the celestia-app node.
 func QueryAccount(ctx context.Context, conn *grpc.ClientConn, registry codectypes.InterfaceRegistry, address types.AccAddress) (accNum, seqNum uint64, err error) {
 	qclient := authtypes.NewQueryClient(conn)
-	// TODO: ideally we add a way to prove that the accounts rather than simply trusting the full node we are connected with
+	// TODO: ideally we add a way to prove that the account rather than simply trusting the full node we are connected with
 	resp, err := qclient.Account(
 		ctx,
 		&authtypes.QueryAccountRequest{Address: address.String()},

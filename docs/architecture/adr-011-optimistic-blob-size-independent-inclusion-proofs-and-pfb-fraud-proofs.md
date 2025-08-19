@@ -172,7 +172,7 @@ The other way to prove blob inclusion is dependent on the blob size. A blob incl
 
 ## Detailed Design
 
-TODO
+TODO: Detailed design to be implemented
 
 ## Consequences
 
@@ -186,4 +186,4 @@ Optimization 1 will most likely introduce intra-transaction padding. Optimizatio
 
 ### Neutral
 
-TODO
+TODO: Neutral consequences to be documented
