@@ -391,7 +391,7 @@ func (s *IBCTestSuite) newSimappChainBuilder(t *testing.T, cfg *dockerchain.Conf
 		WithName("simapp").
 		WithChainID("chain-b").
 		// TODO: this is a custom built simapp that has the bech32prefix as "celestia" as a workaround for the global
-		// SDK config not being usable when 2 chains have a different beck32 preix (e.g. "celestia" and "cosmos" ) because it is sealed.
+		// SDK config not being usable when 2 chains have a different bech32 prefix (e.g. "celestia" and "cosmos" ) because it is sealed.
 		WithImage(tastoracontainertypes.NewImage("ghcr.io/chatton/ibc-go-simd", "v8.5.0", "1000:1000")).
 		WithBinaryName("simd").
 		WithBech32Prefix("celestia").
