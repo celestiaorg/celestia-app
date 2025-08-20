@@ -19,16 +19,10 @@ import (
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"golang.org/x/sync/errgroup"
 )
 
 const rejectedPropBlockLog = "Rejected proposal block:"
-
-// squareResult holds the result of square construction
-type squareResult struct {
-	dataSquare square.Square
-	dah        da.DataAvailabilityHeader
-	err        error
-}
 
 func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcessProposal) (resp *abci.ResponseProcessProposal, err error) {
 	defer telemetry.MeasureSince(time.Now(), "process_proposal")
@@ -61,27 +55,41 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	)
 	blockHeader := ctx.BlockHeader()
 
-	// Run transaction validation and square construction in parallel
-	txValidationCh := make(chan error, 1)
-	squareConstructionCh := make(chan squareResult, 1)
+	g, gctx := errgroup.WithContext(ctx.Context()) // derived ctx auto-cancels on first error
+	ctx = ctx.WithContext(gctx)
 
-	// Start transaction validation in parallel
-	go func() {
+	g.Go(func() (err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				logInvalidPropBlock(app.Logger(), ctx.BlockHeader(), fmt.Sprintf("caught panic: %v", r))
+				telemetry.IncrCounter(1, "process_proposal", "panics")
+				err = fmt.Errorf("panic in transaction validation: %v", r)
+			}
+		}()
+
+		// check if context is cancelled
+		if err := gctx.Err(); err != nil {
+			return err
+		}
+
 		// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
 		// blobTxs have no PFBs present and all txs are less than or equal to the max tx size limit
 		for idx, rawTx := range req.Txs {
+
 			tx := rawTx
 
 			// all txs must be less than or equal to the max tx size limit
 			currentTxSize := len(tx)
 			if currentTxSize > appconsts.MaxTxSize {
-				txValidationCh <- errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx %d size %d bytes is larger than the application's configured MaxTxSize of %d bytes", idx, currentTxSize, appconsts.MaxTxSize)
+				logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with tx %d", idx), errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes", currentTxSize, appconsts.MaxTxSize))
+				return errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes", currentTxSize, appconsts.MaxTxSize)
 			}
 
 			blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(rawTx)
 			if isBlobTx {
 				if err != nil {
-					txValidationCh <- fmt.Errorf("blob tx %d unmarshal failed: %w", idx, err)
+					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with blob tx %d", idx), err)
+					return err
 				}
 				tx = blobTx.Tx
 			}
@@ -92,7 +100,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 			if err != nil {
 				// An error here means that a tx was included in the block that is not decodable.
-				txValidationCh <- fmt.Errorf("tx %d is not decodable", idx)
+				logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d is not decodable", idx))
+				return err
 			}
 
 			// handle non-blob transactions first
@@ -102,7 +111,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				_, has := hasPFB(msgs)
 				if has {
 					// A non-blob tx has a PFB, which is invalid
-					txValidationCh <- fmt.Errorf("tx %d has PFB but is not a blob tx", idx)
+					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d has PFB but is not a blob tx", idx))
+					return fmt.Errorf("tx %d has PFB but is not a blob tx", idx)
 				}
 
 				// we need to increment the sequence for every transaction so that
@@ -110,7 +120,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				// if the account in question doesn't exist.
 				ctx, err = handler(ctx, sdkTx, false)
 				if err != nil {
-					txValidationCh <- fmt.Errorf("tx %d ante handler failed: %w", idx, err)
+					logInvalidPropBlockError(app.Logger(), blockHeader, "failure to increment sequence", err)
+					return err
 				}
 
 				// we do not need to perform further checks on this transaction,
@@ -125,72 +136,82 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			// - that the namespaces match between blob and PFB
 			// - that the share commitment is correct
 			if err := blobtypes.ValidateBlobTx(app.encodingConfig.TxConfig, blobTx, appconsts.SubtreeRootThreshold, appconsts.Version); err != nil {
-				txValidationCh <- fmt.Errorf("blob tx %d validation failed: %w", idx, err)
+				logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("invalid blob tx %d", idx), err)
+				return err
 			}
 
 			// validated the PFB signature
 			ctx, err = handler(ctx, sdkTx, false)
 			if err != nil {
-				txValidationCh <- fmt.Errorf("blob tx %d ante handler failed: %w", idx, err)
+				logInvalidPropBlockError(app.Logger(), blockHeader, "invalid PFB signature", err)
+				return err
 			}
 		}
 
-		txValidationCh <- err
-	}()
+		return nil
+	})
 
-	// Start square construction in parallel
-	go func() {
+	g.Go(func() (err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				logInvalidPropBlock(app.Logger(), ctx.BlockHeader(), fmt.Sprintf("caught panic: %v", r))
+				telemetry.IncrCounter(1, "process_proposal", "panics")
+				err = fmt.Errorf("panic in square construction: %v", r)
+			}
+		}()
+
+		// check if context is cancelled
+		if gctx.Err() != nil {
+			return gctx.Err()
+		}
+
 		dataSquare, err := square.Construct(req.Txs, app.MaxEffectiveSquareSize(ctx), appconsts.SubtreeRootThreshold)
 		if err != nil {
-			squareConstructionCh <- squareResult{err: fmt.Errorf("data square construction failed: %w", err)}
+			logInvalidPropBlockError(app.Logger(), blockHeader, "failure to compute data square from transactions:", err)
+			return err
+		}
+
+		// Assert that the square size stated by the proposer is correct
+		if uint64(dataSquare.Size()) != req.SquareSize {
+			logInvalidPropBlock(app.Logger(), blockHeader, "proposed square size differs from calculated square size")
+			return fmt.Errorf("proposed square size differs from calculated square size")
+		}
+
+		if err := gctx.Err(); err != nil {
+			return err
 		}
 
 		eds, err := da.ExtendShares(share.ToBytes(dataSquare))
 		if err != nil {
-			squareConstructionCh <- squareResult{err: fmt.Errorf("erasure coding failed: %w", err)}
+			logInvalidPropBlockError(app.Logger(), blockHeader, "failure to erasure the data square", err)
+			return err
+		}
+
+		// check if context is cancelled
+		if gctx.Err() != nil {
+			return gctx.Err()
 		}
 
 		dah, err := da.NewDataAvailabilityHeader(eds)
 		if err != nil {
-			squareConstructionCh <- squareResult{err: fmt.Errorf("DAH creation failed: %w", err)}
+			logInvalidPropBlockError(app.Logger(), blockHeader, "failure to create new data availability header", err)
+			return err
 		}
 
-		squareConstructionCh <- squareResult{
-			dataSquare: dataSquare,
-			dah:        dah,
+		// by comparing the hashes we know the computed IndexWrappers (with the share indexes of the PFB's blobs)
+		// are identical and that square layout is consistent. This also means that the share commitment rules
+		// have been followed and thus each blobs share commitment should be valid
+		if !bytes.Equal(dah.Hash(), req.DataRootHash) {
+			logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.DataRootHash, dah.Hash()))
+			return err
 		}
-	}()
 
-	// Wait for both processes to complete
-	txValidationErr := <-txValidationCh
-	squareRes := <-squareConstructionCh
+		return nil
+	})
 
-	// Check transaction validation result
-	if txValidationErr != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, "transaction validation failed", txValidationErr)
-		return reject(), nil
-	}
-
-	// Check square construction result
-	if squareRes.err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, "square construction failed", squareRes.err)
-		return reject(), nil
-	}
-
-	// Assert that the square size stated by the proposer is correct
-	if uint64(squareRes.dataSquare.Size()) != req.SquareSize {
-		logInvalidPropBlock(app.Logger(), blockHeader, "proposed square size differs from calculated square size")
-		return reject(), nil
-	}
-
-	dah := squareRes.dah
-
-	// by comparing the hashes we know the computed IndexWrappers (with the share indexes of the PFB's blobs)
-	// are identical and that square layout is consistent. This also means that the share commitment rules
-	// have been followed and thus each blobs share commitment should be valid
-	if !bytes.Equal(dah.Hash(), req.DataRootHash) {
-		logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.DataRootHash, dah.Hash()))
-		return reject(), nil
+	if err := g.Wait(); err != nil {
+		logInvalidPropBlockError(app.Logger(), blockHeader, "process proposal failed", err)
+		return reject(), err
 	}
 
 	return accept(), nil
