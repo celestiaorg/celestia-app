@@ -95,7 +95,7 @@ func NewMultiplexer(svrCtx *server.Context, svrCfg serverconfig.Config, clientCt
 		svrCfg:        svrCfg,
 		clientContext: clientCtx,
 		appCreator:    appCreator,
-		logger:        svrCtx.Logger.With("multiplexer"),
+		logger:        svrCtx.Logger.With("module", "multiplexer"),
 		nativeApp:     nil, // app will be initialized if required by the multiplexer.
 		versions:      versions,
 		chainID:       chainID,
