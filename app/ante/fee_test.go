@@ -43,7 +43,6 @@ func TestValidateTxFee(t *testing.T) {
 	validatorMinGasPrice := 0.8
 	validatorMinGasPriceCoin := fmt.Sprintf("%f%s", validatorMinGasPrice, appconsts.BondDenom)
 
-
 	feeAmount := int64(1000)
 
 	paramsKeeper, minFeeKeeper, stateStore := setUp(t)
@@ -142,7 +141,7 @@ func TestValidateTxFee(t *testing.T) {
 			gasLimit:    uint64(float64(feeAmount) / appconsts.DefaultMinGasPrice),
 			isCheckTx:   true,
 			expErr:      false,
-			minGasPrice: "0utia", 
+			minGasPrice: "0utia",
 		},
 	}
 
