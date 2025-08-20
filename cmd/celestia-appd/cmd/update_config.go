@@ -30,7 +30,7 @@ func updateConfigCmd() *cobra.Command {
 		Use:     "update-config",
 		Short:   "Update configuration values to be that of a specific app version",
 		Long:    "Update configuration files (config.toml and app.toml) to be compatible with a specific app version.",
-		Example: "celestia-appd update-config --home ~/.celestia-app\ncelestia-appd update-config --app-version v6 --home ~/.celestia-app --backup false",
+		Example: "celestia-appd update-config --home ~/.celestia-app\ncelestia-appd update-config --app-version 6 --home ~/.celestia-app --backup false",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			homeDir, err := cmd.Flags().GetString(flags.FlagHome)
