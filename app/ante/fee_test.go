@@ -122,7 +122,7 @@ func TestValidateTxFee(t *testing.T) {
 			minGasPrice: validatorMinGasPriceCoin,
 		},
 		{
-			name: "min gas price is empty",
+			name:        "min gas price is empty",
 			fee:         sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
 			gasLimit:    uint64(float64(feeAmount) / appconsts.DefaultMinGasPrice),
 			isCheckTx:   true,
@@ -130,7 +130,7 @@ func TestValidateTxFee(t *testing.T) {
 			minGasPrice: "", // should use the default min gas price
 		},
 		{
-			name: "min gas price is empty",
+			name:        "min gas price is empty",
 			fee:         sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount-1)),
 			gasLimit:    uint64(float64(feeAmount) / appconsts.DefaultMinGasPrice),
 			isCheckTx:   true,
@@ -138,7 +138,7 @@ func TestValidateTxFee(t *testing.T) {
 			minGasPrice: "", // should use the default min gas price
 		},
 		{
-			name: "min gas price is 0utia",
+			name:        "min gas price is 0utia",
 			fee:         sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
 			gasLimit:    uint64(float64(feeAmount) / appconsts.DefaultMinGasPrice),
 			isCheckTx:   true,
@@ -186,7 +186,7 @@ func TestParseMinGasPrice(t *testing.T) {
 
 	oneCoin, err := sdk.ParseDecCoins("0utia")
 	require.NoError(t, err)
-	require.Zero(t, oneCoin.AmountOf(appconsts.BondDenom).BigInt().Int64())	
+	require.Zero(t, oneCoin.AmountOf(appconsts.BondDenom).BigInt().Int64())
 }
 
 func setUp(t *testing.T) (paramkeeper.Keeper, *minfeekeeper.Keeper, storetypes.CommitMultiStore) {
