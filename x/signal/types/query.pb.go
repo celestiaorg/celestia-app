@@ -216,7 +216,7 @@ func (m *QueryGetUpgradeResponse) GetUpgrade() *Upgrade {
 	return nil
 }
 
-// QueryMissingValidatorsRequest is the request type for the MissingValidators query.
+// QueryGetMissingValidatorsRequest is the request type for the MissingValidators query.
 type QueryGetMissingValidatorsRequest struct {
 	Version uint64 `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
 }
@@ -261,7 +261,7 @@ func (m *QueryGetMissingValidatorsRequest) GetVersion() uint64 {
 	return 0
 }
 
-// QueryMissingValidatorsResponse is the response type for the MissingValidators query.
+// QueryGetMissingValidatorsResponse is the response type for the MissingValidators query.
 type QueryGetMissingValidatorsResponse struct {
 	// MissingValidators is a string of validator monikers
 	MissingValidators []string `protobuf:"bytes,1,rep,name=missing_validators,json=missingValidators,proto3" json:"missing_validators,omitempty"`

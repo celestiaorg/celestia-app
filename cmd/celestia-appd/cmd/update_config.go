@@ -20,7 +20,7 @@ type ConfigUpdater func(*config.Config, *serverconfig.Config) (*config.Config, *
 
 // updateRegistry maps version strings to their corresponding update functions
 var updateRegistry = map[string]ConfigUpdater{
-	"v6": applyV6Config,
+	"6": applyV6Config,
 }
 
 // updateConfigCmd returns the update-config command that updates
@@ -54,7 +54,7 @@ func updateConfigCmd() *cobra.Command {
 
 	cmd.Flags().String(flags.FlagHome, app.NodeHome, "The application home directory")
 	cmd.Flags().Bool("backup", true, "Create backups of config files before updating them")
-	cmd.Flags().String("app-version", fmt.Sprintf("v%d", appconsts.Version), "Target version for config changes")
+	cmd.Flags().String("app-version", fmt.Sprintf("%d", appconsts.Version), "Target version for config changes")
 	return cmd
 }
 
@@ -189,7 +189,7 @@ func getSupportedVersions() []string {
 	return versions
 }
 
-// applyV6Configs applies configuration changes needed for v6
+// applyV6Config applies configuration changes needed for v6
 func applyV6Config(cmtCfg *config.Config, appCfg *serverconfig.Config) (*config.Config, *serverconfig.Config) {
 	fmt.Println("Applying v6 updates to configs...")
 
@@ -207,6 +207,7 @@ func applyV6Config(cmtCfg *config.Config, appCfg *serverconfig.Config) (*config.
 	cmtCfg.P2P.RecvRate = defaultCfg.P2P.RecvRate
 
 	defaultAppCfg := app.DefaultAppConfig()
+
 	// only unset the min gas price if it's the legacy default (i.e. untouched)
 	if appCfg.MinGasPrices == fmt.Sprintf("%v%s", appconsts.LegacyDefaultMinGasPrice, appconsts.BondDenom) {
 		appCfg.MinGasPrices = ""

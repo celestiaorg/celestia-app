@@ -6,6 +6,41 @@ This guide provides notes for major version releases. These notes may be helpful
 
 ## v6.0.0 (Unreleased)
 
+This release targets throughput, blob size, inflation redunction, and fee changes.
+
+### Config changes
+
+It introduces a new block propagation reactor and configuration changes to accommodate the increased throughput. The relevant v6 configuration changes can be applied to existing config using the `celestia-appd update-config` command or by manually updating the config.toml and app.toml.
+
+To modify your existing configs, the `celestia-appd update-configs` command can be used.
+
+```
+celestia-appd update-config
+```
+
+this uses version 6 and the default home (.celestia-app). Those can be changed or specified with flags as well.
+
+```
+celestia-appd update-config --version 6 --home ~/.celestia-app
+```
+
+To manually modify the configs, change the following values.
+
+```toml
+[rpc]
+max_body_bytes = 436207616
+
+[p2p]
+send_rate = 25165824
+recv_rate = 25165824
+
+[mempool]
+type = "cat"
+max_tx_bytes = 8388608
+ttl-duration = "0s"
+ttl-num-blocks = 12
+max-gossip-delay = "1m0s"
+```
 ## v5.0.0
 
 This major upgrade is an expedited patch release, fixing the problem with failed IBC transfers caused by the incorrectly configured capability module. There should be no additional API breaking changes.
