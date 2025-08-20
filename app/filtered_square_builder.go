@@ -12,7 +12,7 @@ import (
 )
 
 // FilteredSquareBuilder filters txs and blobs using a copy of the state and tx validity
-// rules before adding it the square.
+// rules before adding it to the square.
 type FilteredSquareBuilder struct {
 	handler  sdk.AnteHandler
 	txConfig client.TxConfig
@@ -45,7 +45,7 @@ func (fsb *FilteredSquareBuilder) Builder() *square.Builder {
 }
 
 func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
-	logger := ctx.Logger().With("app/filtered-square-builder")
+	logger := ctx.Logger().With("module", "app/filtered-square-builder")
 
 	// note that there is an additional filter step for tx size of raw txs here
 	normalTxs, blobTxs := separateTxs(fsb.txConfig, txs)
