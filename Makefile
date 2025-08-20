@@ -60,14 +60,14 @@ endif
 .PHONY: build
 
 ## install-standalone: Build and install the celestia-appd binary into the $GOPATH/bin directory. This target does not install the multiplexer.
-install-standalone: check-bbr
+install-standalone:
 	@echo "--> Installing celestia-appd"
 	@go install $(BUILD_FLAGS_STANDALONE) ./cmd/celestia-appd
 .PHONY: install-standalone
 
 ## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
 # TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
-install: check-bbr download-v3-binaries download-v4-binaries download-v5-binaries
+install: download-v3-binaries download-v4-binaries download-v5-binaries
 	@echo "--> Installing celestia-appd with multiplexer support"
 	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
 .PHONY: install
@@ -421,7 +421,10 @@ goreleaser: prebuilt-binary
 ## check-bbr: Internal command to check if BBR congestion control is enabled on the system.
 check-bbr:
 	@echo "Checking if BBR is enabled..."
-	@if [ "$$(sysctl net.ipv4.tcp_congestion_control | awk '{print $$3}')" != "bbr" ]; then \
+	@if [ "$$(uname -s)" != "Linux" ]; then \
+		echo "BBR is not available on non-Linux systems."; \
+		exit 0; \
+	elif [ "$$(sysctl net.ipv4.tcp_congestion_control | awk '{print $$3}')" != "bbr" ]; then \
 		echo "WARNING: BBR is not enabled. Please enable BBR for optimal performance. Call make enable-bbr or see Usage section in the README."; \
 	else \
 		echo "BBR is enabled."; \
@@ -435,7 +438,10 @@ bbr-check: check-bbr
 ## enable-bbr: Enable BBR congestion control algorithm on your system. This improves network performance. Only works on Linux.
 enable-bbr:
 	@echo "Configuring system to use BBR..."
-	@if [ "$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')" != "bbr" ]; then \
+	@if [ "$$(uname -s)" != "Linux" ]; then \
+		echo "BBR is not available on non-Linux systems."; \
+		exit 0; \
+	elif [ "$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')" != "bbr" ]; then \
 	    echo "BBR is not enabled. Configuring BBR..."; \
 	    sudo modprobe tcp_bbr && \
             echo tcp_bbr | sudo tee -a /etc/modules && \

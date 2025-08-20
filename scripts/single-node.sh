@@ -106,8 +106,7 @@ startCelestiaApp() {
     --api.enable \
     --grpc.enable \
     --grpc-web.enable \
-    --timeout-commit 1s \
-    --force-no-bbr # no need to require BBR usage on a local node
+    --timeout-commit 1s
 }
 
 if [ -f $GENESIS_FILE ]; then
