@@ -183,6 +183,7 @@ func TestParseMinGasPrice(t *testing.T) {
 	emptyCoins, err := sdk.ParseDecCoins("")
 	require.NoError(t, err)
 	require.Equal(t, emptyCoins.String(), "")
+	require.Len(t, emptyCoins, 0)
 
 	oneCoin, err := sdk.ParseDecCoins("0utia")
 	require.NoError(t, err)
