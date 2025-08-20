@@ -142,7 +142,7 @@ func TestValidateTxFee(t *testing.T) {
 			gasLimit:    uint64(float64(feeAmount) / appconsts.DefaultMinGasPrice),
 			isCheckTx:   true,
 			expErr:      false,
-			minGasPrice: "0utia", // should use the default min gas price
+			minGasPrice: "0utia", 
 		},
 	}
 
