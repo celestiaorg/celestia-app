@@ -271,18 +271,18 @@ test-short:
 ## test-docker-e2e: Run end to end tests via docker.
 test-docker-e2e:
 	@if [ -z "$(test)" ]; then \
-		echo "ERROR: 'test' variable is required. Usage: make test-docker-e2e test=TestE2ESimple [suite=TestCelestiaTestSuite]"; \
+		echo "ERROR: 'test' variable is required. Usage: make test-docker-e2e test=TestE2ESimple [entrypoint=TestCelestiaTestSuite]"; \
 		exit 1; \
 	fi
-	@SUITE=$${suite:-TestCelestiaTestSuite}; \
-	echo "--> Running: $$SUITE/$(test)"; \
-	cd test/docker-e2e && go test -v -run ^$$SUITE/$(test)$$ ./...
+	@ENTRYPOINT=$${entrypoint:-TestCelestiaTestSuite}; \
+	echo "--> Running: $$ENTRYPOINT/$(test)"; \
+	cd test/docker-e2e && go test -v -run ^$$ENTRYPOINT/$(test)$$ ./... -timeout 30m
 .PHONY: test-docker-e2e
 
 ## test-docker-e2e-upgrade: Build image from current branch and run the upgrade test.
 test-docker-e2e-upgrade:
 	@echo "--> Building celestia-appd docker image (tag $(CELESTIA_TAG))"
-	@docker build -t "ghcr.io/celestiaorg/celestia-app:$(CELESTIA_TAG)" . -f docker/multiplexer.Dockerfile
+	@DOCKER_BUILDKIT=0 docker build --build-arg BUILDPLATFORM=linux/amd64 --build-arg TARGETOS=linux --build-arg TARGETARCH=amd64 -t "ghcr.io/celestiaorg/celestia-app:$(CELESTIA_TAG)" . -f docker/multiplexer.Dockerfile
 	@echo "--> Running upgrade test"
 	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/TestCelestiaAppUpgrade$$ -count=1 ./... -timeout 15m
 .PHONY: test-docker-e2e-upgrade
@@ -412,7 +412,7 @@ goreleaser-dry-run:
 		-w /go/src/$(PACKAGE_NAME) \
 		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
 		release --snapshot --clean --parallelism 4
-.PHONY: go-releaser-dry-run
+.PHONY: goreleaser-dry-run
 
 ## goreleaser: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
 goreleaser: prebuilt-binary

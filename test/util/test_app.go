@@ -215,6 +215,18 @@ func genesisStateWithValSet(
 		if err != nil {
 			panic(err)
 		}
+		rate, err := math.LegacyNewDecFromStr("0.05")
+		if err != nil {
+			panic(err)
+		}
+		maxRate, err := math.LegacyNewDecFromStr("0.2")
+		if err != nil {
+			panic(err)
+		}
+		maxChangeRate, err := math.LegacyNewDecFromStr("1")
+		if err != nil {
+			panic(err)
+		}
 		validator := stakingtypes.Validator{
 			OperatorAddress:   sdk.ValAddress(val.Address).String(),
 			ConsensusPubkey:   pkAny,
@@ -225,7 +237,7 @@ func genesisStateWithValSet(
 			Description:       stakingtypes.Description{},
 			UnbondingHeight:   int64(0),
 			UnbondingTime:     time.Unix(0, 0).UTC(),
-			Commission:        stakingtypes.NewCommission(math.LegacyZeroDec(), math.LegacyZeroDec(), math.LegacyZeroDec()),
+			Commission:        stakingtypes.NewCommission(rate, maxRate, maxChangeRate),
 			MinSelfDelegation: math.ZeroInt(),
 		}
 		validators = append(validators, validator)

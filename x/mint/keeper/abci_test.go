@@ -37,29 +37,29 @@ func TestInflationRate(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name: "inflation rate is 0.0536 for year zero",
+			name: "inflation rate is 0.0267 for year zero",
 			ctx:  ctx.WithBlockTime(*genesisTime),
-			want: math.LegacyMustNewDecFromStr("0.0536"),
+			want: math.LegacyMustNewDecFromStr("0.0267"),
 		},
 		{
-			name: "inflation rate is 0.0536 for year one minus one second",
+			name: "inflation rate is 0.0267 for year one minus one second",
 			ctx:  ctx.WithBlockTime(yearOneMinusOneSecond),
-			want: math.LegacyMustNewDecFromStr("0.0536"),
+			want: math.LegacyMustNewDecFromStr("0.0267"),
 		},
 		{
-			name: "inflation rate is 0.0500088 for year one",
+			name: "inflation rate is 0.0249111 for year one",
 			ctx:  ctx.WithBlockTime(yearOne),
-			want: math.LegacyMustNewDecFromStr("0.0500088"),
+			want: math.LegacyMustNewDecFromStr("0.0249111"),
 		},
 		{
-			name: "inflation rate is 0.0466582104 for year two",
+			name: "inflation rate is 0.0232420563 for year two",
 			ctx:  ctx.WithBlockTime(yearTwo),
-			want: math.LegacyMustNewDecFromStr("0.0466582104"),
+			want: math.LegacyMustNewDecFromStr("0.0232420563"),
 		},
 		{
-			name: "inflation rate is 0.018940413053647755 for year fifteen",
+			name: "inflation rate is 0.015 for year fifteen",
 			ctx:  ctx.WithBlockTime(yearFifteen),
-			want: math.LegacyMustNewDecFromStr("0.018940413053647755"),
+			want: math.LegacyMustNewDecFromStr("0.015"),
 		},
 		{
 			name: "inflation rate is 0.015 for year twenty",

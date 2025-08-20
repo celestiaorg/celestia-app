@@ -119,11 +119,14 @@ celestia-appd start
 
 # Publish blob data to the local testnet.
 celestia-appd tx blob pay-for-blob 0x00010203040506070809 0x48656c6c6f2c20576f726c6421 \
-	--chain-id private \
+	--chain-id test \
 	--from validator \
 	--keyring-backend test \
 	--fees 21000utia \
 	--yes
+
+# Query the tx
+celestia-appd query tx <txhash from previous command>
 ```
 
 ### Join a public Celestia network
@@ -218,7 +221,9 @@ The source of truth for dependencies is the `go.mod` file but the table below de
 
 | celestia-app | celestia-core      | cosmos-sdk                 |
 |--------------|--------------------|----------------------------|
-| `main`       | `main`             | `release/v0.50.x-celestia` |
+| `main`       | `main`             | `release/v0.51.x-celestia` |
+| `v6.x`       | `v0.39.x-celestia` | `release/v0.51.x-celestia` |
+| `v5.x`       | `v0.38.x-celestia` | `release/v0.50.x-celestia` |
 | `v4.x`       | `v0.38.x-celestia` | `release/v0.50.x-celestia` |
 | `v3.x`       | `v0.34.x-celestia` | `release/v0.46.x-celestia` |
 
