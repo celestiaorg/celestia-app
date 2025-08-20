@@ -35,7 +35,7 @@ node            |  |                               |  |
 
 ### From source
 
-1. [Install Go](https://go.dev/doc/install) 1.24.4
+1. [Install Go](https://go.dev/doc/install) 1.24.6
 1. Clone this repo
 1. Install the celestia-appd binary. This installs a "multiplexer" binary that will also download embedded binaries for the latest celestia-app v3.x.x and v4.x.x release.
 
@@ -119,11 +119,14 @@ celestia-appd start
 
 # Publish blob data to the local testnet.
 celestia-appd tx blob pay-for-blob 0x00010203040506070809 0x48656c6c6f2c20576f726c6421 \
-	--chain-id private \
+	--chain-id test \
 	--from validator \
 	--keyring-backend test \
 	--fees 21000utia \
 	--yes
+
+# Query the tx
+celestia-appd query tx <txhash from previous command>
 ```
 
 ### Join a public Celestia network

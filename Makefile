@@ -10,7 +10,7 @@ HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME := github.com/celestiaorg/celestia-app/v6
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
-GOLANG_CROSS_VERSION  ?= v1.24.2
+GOLANG_CROSS_VERSION  ?= v1.24.6
 # Set this to override v2 upgrade height for the v3 embedded binaries
 V2_UPGRADE_HEIGHT ?= 0
 
@@ -271,12 +271,12 @@ test-short:
 ## test-docker-e2e: Run end to end tests via docker.
 test-docker-e2e:
 	@if [ -z "$(test)" ]; then \
-		echo "ERROR: 'test' variable is required. Usage: make test-docker-e2e test=TestE2ESimple [suite=TestCelestiaTestSuite]"; \
+		echo "ERROR: 'test' variable is required. Usage: make test-docker-e2e test=TestE2ESimple [entrypoint=TestCelestiaTestSuite]"; \
 		exit 1; \
 	fi
-	@SUITE=$${suite:-TestCelestiaTestSuite}; \
-	echo "--> Running: $$SUITE/$(test)"; \
-	cd test/docker-e2e && go test -v -run ^$$SUITE/$(test)$$ ./... -timeout 15m
+	@ENTRYPOINT=$${entrypoint:-TestCelestiaTestSuite}; \
+	echo "--> Running: $$ENTRYPOINT/$(test)"; \
+	cd test/docker-e2e && go test -v -run ^$$ENTRYPOINT/$(test)$$ ./... -timeout 30m
 .PHONY: test-docker-e2e
 
 ## test-docker-e2e-upgrade: Build image from current branch and run the upgrade test.
@@ -412,7 +412,7 @@ goreleaser-dry-run:
 		-w /go/src/$(PACKAGE_NAME) \
 		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
 		release --snapshot --clean --parallelism 4
-.PHONY: go-releaser-dry-run
+.PHONY: goreleaser-dry-run
 
 ## goreleaser: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
 goreleaser: prebuilt-binary

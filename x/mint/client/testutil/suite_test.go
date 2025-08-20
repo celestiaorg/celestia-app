@@ -56,12 +56,12 @@ func (s *IntegrationTestSuite) TestGetCmdQueryInflationRate() {
 		{
 			name: "json output",
 			args: s.jsonArgs(),
-			want: "0.053600000000000000",
+			want: "0.026700000000000000",
 		},
 		{
 			name: "text output",
 			args: s.textArgs(),
-			want: "0.053600000000000000",
+			want: "0.026700000000000000",
 		},
 	}
 

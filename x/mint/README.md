@@ -8,33 +8,27 @@ celestia-app's `x/mint` is a fork of the Cosmos SDK [`x/mint`](https://github.co
 
 [CIP-29](https://github.com/celestiaorg/CIPs/blob/94aa5ad39aa3aba41bf143e6d7324839509b5b93/cips/cip-029.md) reduced two constants (`InitialInflationRate` and `DisinflationRate`) which impacts the inflation schedule. These constants will take effect at the v4 activation height part way through year 1. As a result:
 
-- Inflation for year 0 is calculated based on the [original constants](https://github.com/celestiaorg/celestia-app/blame/93a5c4b85414d811d5ee6d617aaf71bf9d560fbb/x/mint/types/constants.go#L17-L20).
-- Inflation for year 1 is a time-weighted average of the pre- and post-CIP-29 inflation rates.
-- Inflation for years >= 2 is calculated based on the post [CIP-29 constants](https://github.com/celestiaorg/celestia-app/blob/6a2e7513dbb2c11808c1e8c99d35532d4d946aa1/x/mint/types/constants.go#L19-L22).
+[CIP-41](https://github.com/celestiaorg/CIPs/blob/533a133b3c2a5f6dd54934bab30729c1515e6bd0/cips/cip-041.md) also reduced the `InitialInflationRate`.
 
-| Year | Inflation (%)      | Notes                                                                                           |
-|------|--------------------|-------------------------------------------------------------------------------------------------|
-| 0    | 8.00               | Based on original constants                                                                     |
-| 1    | ~6.1               | This is an approximate value. The actual value depends on when the v4 activation height occurs. |
-| 2    | 4.66582104         | Based on CIP-29 constants                                                                       |
-| 3    | 4.35321103032      | Based on CIP-29 constants                                                                       |
-| 4    | 4.06154589128856   | Based on CIP-29 constants                                                                       |
-| 5    | 3.789422316572227  | Based on CIP-29 constants                                                                       |
-| 6    | 3.5355310213618873 | Based on CIP-29 constants                                                                       |
-| 7    | 3.298650442930641  | Based on CIP-29 constants                                                                       |
-| 8    | 3.0776408632542877 | Based on CIP-29 constants                                                                       |
-| 9    | 2.8714389254162507 | Based on CIP-29 constants                                                                       |
-| 10   | 2.6790525174133616 | Based on CIP-29 constants                                                                       |
-| 11   | 2.4995559987466665 | Based on CIP-29 constants                                                                       |
-| 12   | 2.3320857468306398 | Based on CIP-29 constants                                                                       |
-| 13   | 2.175836001792987  | Based on CIP-29 constants                                                                       |
-| 14   | 2.0300549896728567 | Based on CIP-29 constants                                                                       |
-| 15   | 1.8940413053647756 | Based on CIP-29 constants                                                                       |
-| 16   | 1.7671405379053356 | Based on CIP-29 constants                                                                       |
-| 17   | 1.6487421218656782 | Based on CIP-29 constants                                                                       |
-| 18   | 1.5382763997006776 | Based on CIP-29 constants                                                                       |
-| 19   | 1.50               | Based on CIP-29 constants                                                                       |
-| 20   | 1.50               | Based on CIP-29 constants                                                                       |
+- Inflation for year 0 is calculated based on the [original constants](https://github.com/celestiaorg/celestia-app/blame/93a5c4b85414d811d5ee6d617aaf71bf9d560fbb/x/mint/types/constants.go#L17-L20).
+- Inflation for year 1 is a time-weighted average of the original, CIP-29, and CIP-41 inflation rates.
+- Inflation for years >= 2 is calculated based on the post [CIP-41 constants](https://github.com/celestiaorg/CIPs/blob/533a133b3c2a5f6dd54934bab30729c1515e6bd0/cips/cip-041.md).
+
+| Year   | Inflation | Notes                                       |
+|--------|-----------|---------------------------------------------|
+| 0      | 8.00%     | Genesis year used original constants        |
+| 1      | 7.20%     | Year 1 started with original constants      |
+| 1 (v4) | 5.00%     | After CIP-29 reduction                      |
+| 1 (v6) | 2.50%     | After CIP-41 reduction                      |
+| 2      | 2.33%     | Regular annual disinflation applied (6.7%)  |
+| 3      | 2.17%     | Regular annual disinflation applied (6.7%)  |
+| 4      | 2.02%     | Regular annual disinflation applied (6.7%)  |
+| 5      | 1.88%     | Regular annual disinflation applied (6.7%)  |
+| 6      | 1.75%     | Regular annual disinflation applied (6.7%)  |
+| 7      | 1.63%     | Regular annual disinflation applied (6.7%)  |
+| 8      | 1.52%     | Regular annual disinflation applied (6.7%)  |
+| 9      | 1.50%     | Target inflation reached                    |
+| 10     | 1.50%     | Inflation will remain at 1.50% indefinitely |
 
 - **Year** indicates the number of years elapsed since chain genesis.
 - **Inflation (%)** indicates the percentage of the total supply that will be minted in the next year.
