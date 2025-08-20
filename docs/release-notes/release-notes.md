@@ -41,6 +41,7 @@ ttl-duration = "0s"
 ttl-num-blocks = 12
 max-gossip-delay = "1m0s"
 ```
+
 ## v5.0.0
 
 This major upgrade is an expedited patch release, fixing the problem with failed IBC transfers caused by the incorrectly configured capability module. There should be no additional API breaking changes.

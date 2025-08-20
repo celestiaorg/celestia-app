@@ -18,7 +18,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	blob "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	signaltypes "github.com/celestiaorg/celestia-app/v6/x/signal/types"
-	tmconfig "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -152,9 +151,6 @@ func Setup(t testing.TB) (keyring.Keyring, string, string) {
 	t.Helper()
 
 	cfg := testnode.DefaultConfig().WithTimeoutCommit(300 * time.Millisecond).WithFundedAccounts("txsim-master")
-	// Use priority mempool for consistent txsim behavior
-	cfg.TmConfig.Mempool.Type = tmconfig.MempoolTypePriority
-
 	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, cfg)
 
 	return cctx.Keyring, rpcAddr, grpcAddr
@@ -173,8 +169,6 @@ func TestTxSimUpgrade(t *testing.T) {
 		WithTimeoutCommit(300 * time.Millisecond).
 		WithConsensusParams(cp).
 		WithFundedAccounts("txsim-master")
-	// Use priority mempool for consistent txsim behavior
-	cfg.TmConfig.Mempool.Type = tmconfig.MempoolTypePriority
 	cctx, _, grpcAddr := testnode.NewNetwork(t, cfg)
 
 	require.NoError(t, cctx.WaitForNextBlock())
