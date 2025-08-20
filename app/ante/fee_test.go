@@ -43,7 +43,6 @@ func TestValidateTxFee(t *testing.T) {
 	validatorMinGasPrice := 0.8
 	validatorMinGasPriceCoin := fmt.Sprintf("%f%s", validatorMinGasPrice, appconsts.BondDenom)
 
-	// defaultMinGasPrice := sdk.NewDecCoinFromDec(appconsts.BondDenom, sdkmath.LegacyNewDecWithPrec(int64(appconsts.DefaultMinGasPrice*1_000_000), 6))
 
 	feeAmount := int64(1000)
 
