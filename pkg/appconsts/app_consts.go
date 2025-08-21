@@ -23,8 +23,8 @@ const (
 	TxSizeCostPerByte    uint64 = 10
 	GasPerBlobByte       uint32 = 8
 	MaxTxSize            int    = 8_388_608 // 8 MiB in bytes
-	TimeoutPropose              = time.Millisecond * 3500
-	TimeoutCommit               = time.Millisecond * 4200
+	TimeoutPropose              = 12 * time.Second
+	TimeoutCommit               = 7 * time.Second
 
 	// TestUpgradeHeightDelay is the number of blocks that chain-id "test" waits
 	// after a MsgTryUpgrade to activate the next version.
