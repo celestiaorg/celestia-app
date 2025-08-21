@@ -28,12 +28,6 @@ const (
 
 	// Liveness check constants
 	defaultBlocksPerValidator = 3 // Minimum blocks each validator should propose for liveness validation
-
-	// Node type constants (matching tastora framework's string representations)
-	validatorNodeTypeString = "val" // String representation of validator nodes
-	fullNodeTypeString      = "fn"  // String representation of full nodes
-
-	homeDir = "/var/cosmos-chain/celestia"
 )
 
 func TestCelestiaTestSuite(t *testing.T) {
@@ -42,9 +36,9 @@ func TestCelestiaTestSuite(t *testing.T) {
 
 type CelestiaTestSuite struct {
 	suite.Suite
-	logger     *zap.Logger
-	client     *client.Client
-	network    string
+	logger      *zap.Logger
+	client      *client.Client
+	network     string
 	celestiaCfg *dockerchain.Config // Config used to build the celestia chain, needed for upgrades
 }
 
@@ -356,7 +350,7 @@ func (s *CelestiaTestSuite) validateNodesNotHalted(ctx context.Context, chain ta
 	var haltedNodes []string
 	for i, n := range chain.GetNodes() {
 		// Only check validator nodes for height consistency
-		if n.GetType() != validatorNodeTypeString {
+		if n.GetType() != tastoratypes.NodeTypeValidator {
 			continue
 		}
 

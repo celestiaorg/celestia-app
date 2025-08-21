@@ -96,7 +96,7 @@ func (app App) RegisterUpgradeHandlers() {
 				return nil, err
 			}
 
-			err = app.SetMinCommisionRate(sdkCtx)
+			err = app.SetMinCommissionRate(sdkCtx)
 			if err != nil {
 				sdkCtx.Logger().Error("failed to set min commission rate", "error", err)
 				return nil, err
@@ -184,7 +184,7 @@ func (a App) setICAHostParams(ctx context.Context) error {
 	return nil
 }
 
-func (a App) SetMinCommisionRate(ctx context.Context) error {
+func (a App) SetMinCommissionRate(ctx context.Context) error {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
 	params, err := a.StakingKeeper.GetParams(ctx)

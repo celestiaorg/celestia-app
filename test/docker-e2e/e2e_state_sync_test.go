@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	tastoratypes "github.com/celestiaorg/tastora/framework/types"
+
 	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
 	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
@@ -209,7 +211,7 @@ func (s *CelestiaTestSuite) TestStateSync() {
 	t.Log("Adding state sync node")
 	err = celestia.AddNode(ctx,
 		celestiadockertypes.NewChainNodeConfigBuilder().
-			WithNodeType(celestiadockertypes.FullNodeType).
+			WithNodeType(tastoratypes.NodeTypeConsensusFull).
 			WithPostInit(func(ctx context.Context, node *celestiadockertypes.ChainNode) error {
 				return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
 					cfg.StateSync.Enable = true
@@ -226,7 +228,7 @@ func (s *CelestiaTestSuite) TestStateSync() {
 	allNodes = celestia.GetNodes()
 	fullNode := allNodes[len(allNodes)-1]
 
-	s.Require().Equal("fn", fullNode.GetType(), "expected state sync node to be a full node")
+	s.Require().Equal(tastoratypes.NodeTypeConsensusFull, fullNode.GetType(), "expected state sync node to be a full node")
 
 	stateSyncClient, err := fullNode.GetRPCClient()
 	s.Require().NoError(err)
@@ -282,7 +284,7 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 	// create a mocha chain builder (no validators, just for state sync nodes)
 	mochaChain, err := networks.NewChainBuilder(s.T(), mochaConfig, dockerCfg).
 		WithNodes(celestiadockertypes.NewChainNodeConfigBuilder().
-			WithNodeType(celestiadockertypes.FullNodeType).
+			WithNodeType(tastoratypes.NodeTypeConsensusFull).
 			WithPostInit(func(ctx context.Context, node *celestiadockertypes.ChainNode) error {
 				return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
 					// enable state sync
@@ -313,7 +315,7 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 	s.Require().Len(allNodes, 1, "expected exactly one node")
 	fullNode := allNodes[0]
 
-	s.Require().Equal("fn", fullNode.GetType(), "expected state sync node to be a full node")
+	s.Require().Equal(tastoratypes.NodeTypeConsensusFull, fullNode.GetType(), "expected state sync node to be a full node")
 
 	stateSyncClient, err := fullNode.GetRPCClient()
 	s.Require().NoError(err, "failed to get state sync client")

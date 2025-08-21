@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"cosmossdk.io/log"
@@ -19,7 +20,7 @@ func checkBBR(command *cobra.Command, logger log.Logger) error {
 The BBR (Bottleneck Bandwidth and Round-trip propagation time) congestion control algorithm is not enabled in this system's kernel.
 BBR is important for the performance of the p2p stack.
 
-To enable BBR:
+To enable BBR (Linux only):
 sudo modprobe tcp_bbr
 net.core.default_qdisc=fq
 net.ipv4.tcp_congestion_control=bbr
@@ -40,6 +41,12 @@ If you need to bypass this check use the --force-no-bbr flag.
 		return err
 	}
 	if forceNoBBR {
+		return nil
+	}
+
+	// Only enforce BBR on Linux where /proc is available and BBR is supported
+	if runtime.GOOS != "linux" {
+		// Skip check silently for non-Linux OSes (e.g., macOS, Windows, BSD)
 		return nil
 	}
 

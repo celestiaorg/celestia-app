@@ -6,7 +6,7 @@ This guide provides notes for major version releases. These notes may be helpful
 
 ## v6.0.0 (Unreleased)
 
-This release targets throughput, blob size, inflation redunction, and fee changes.
+This release targets throughput, blob size, inflation reduction, and fee changes.
 
 ### Config changes
 

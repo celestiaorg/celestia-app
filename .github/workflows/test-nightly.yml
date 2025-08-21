@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #v4.2.2
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
 
       - name: Set up Go
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 #v5.5.0
@@ -48,12 +48,12 @@ jobs:
 
       # TODO: add slack notification on failure
 
-  test-state-sync-mixed-versions:
+  test-all-upgrades:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 60
     steps:
       - name: Checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #v4.2.2
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
 
       - name: Set up Go
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 #v5.5.0
@@ -73,11 +73,11 @@ jobs:
         if: ${{ !inputs.tag }} # only build an image if no tag is specified
         run: docker build -t "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.value }}" . -f docker/multiplexer.Dockerfile
 
-      - name: Run TestStateSyncAcrossMixedAppVersions
+      - name: Run TestAllUpgrades
         env:
           # Use the locally built image
           CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
           CELESTIA_TAG: ${{ steps.tag.outputs.value }}
-        run: make test-docker-e2e test=TestStateSyncAcrossMixedAppVersions
+        run: make test-docker-e2e test=TestAllUpgrades
 
       # TODO: add slack notification on failure
