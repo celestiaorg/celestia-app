@@ -86,8 +86,14 @@ func initCmd() *cobra.Command {
 		log.Fatalf("failed to get user home directory: %v", err)
 	}
 
+	// Determine a sensible default for src-root: $GOPATH if set, otherwise $HOME/go
+	defaultSrcRoot := os.Getenv("GOPATH")
+	if defaultSrcRoot == "" {
+		defaultSrcRoot = filepath.Join(homeDir, "go")
+	}
+
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory in which to initialize")
-	cmd.Flags().StringVarP(&srcRoot, "src-root", "r", homeDir, "directory from which to copy scripts") // todo: fix the default directory here
+	cmd.Flags().StringVarP(&srcRoot, "src-root", "r", defaultSrcRoot, "directory from which to copy scripts")
 	cmd.Flags().StringVarP(&chainID, "chainID", "c", "", "Chain ID (required)")
 	_ = cmd.MarkFlagRequired("chainID")
 	cmd.Flags().StringVarP(&experiment, "experiment", "e", "test", "the name of the experiment (required)")
@@ -133,8 +139,8 @@ func initDirs(rootDir string) error {
 // is copied into destDir. It first checks GOPATH/src/github.com/.../scripts,
 // and if missing, does a shallow git clone, copies the folder (including subdirectories), then cleans up.
 func CopyTalisScripts(destDir string, srcRoot string) error {
-	// todo: fix import path
-	const importPath = "celestia-app/tools/talis/scripts"
+	// use correct Go import path for local GOPATH lookup
+	const importPath = "github.com/celestiaorg/celestia-app/tools/talis/scripts"
 
 	src := filepath.Join(srcRoot, "src", importPath)
 

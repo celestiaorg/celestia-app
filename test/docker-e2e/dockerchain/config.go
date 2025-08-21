@@ -3,6 +3,7 @@ package dockerchain
 import (
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
@@ -30,15 +31,17 @@ type Config struct {
 func DefaultConfig(client *client.Client, network string) *Config {
 	tnCfg := testnode.DefaultConfig()
 	// default + 2 extra validators.
+	// Ensure validator names are in lexicographical order to match keyrings.Records()
+	validatorNames := []string{"validator1", "validator2"}
+	sort.Strings(validatorNames)
+	validators := make([]genesis.Validator, 0, len(validatorNames))
+	for _, name := range validatorNames {
+		validators = append(validators, genesis.NewDefaultValidator(name))
+	}
+
 	tnCfg.Genesis = tnCfg.Genesis.
 		WithChainID(appconsts.TestChainID).
-		WithValidators(
-			// TODO: ensure names are in lexicographical order.
-			// this is because keyrings.Records() returns them this way.
-			// we should come up with a proper fix as this is a big foot gun.
-			genesis.NewDefaultValidator("validator1"),
-			genesis.NewDefaultValidator("validator2"),
-		)
+		WithValidators(validators...)
 
 	cfg := &Config{}
 	return cfg.
