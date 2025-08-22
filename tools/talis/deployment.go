@@ -143,8 +143,6 @@ func deployPayloadDirect(
 	errCh := make(chan error, len(ips))
 	archiveFile := path.Base(archivePath)
 
-	counter := atomic.Uint32{}
-
 	workerChan := make(chan struct{}, workers)
 	for _, inst := range ips {
 		workerChan <- struct{}{}
@@ -172,13 +170,12 @@ func deployPayloadDirect(
 
 			log.Printf("sent payload to instance 📦 %s: %s\n", inst.Name, inst.PublicIP)
 
-			remoteCmd := strings.Join([]string{
+			// Prepare files on remote host
+			prepareCmd := strings.Join([]string{
 				// unpack
 				fmt.Sprintf("tar -xzf %s -C %s", filepath.Join(remoteDir, archiveFile), remoteDir),
 				// make sure script is executable
 				fmt.Sprintf("chmod +x %s", filepath.Join(remoteDir, remoteScript)),
-				// start in a named, detached tmux session
-				fmt.Sprintf("tmux new-session -d -s app '%s'", filepath.Join(remoteDir, remoteScript)),
 			}, " && ")
 
 			ssh := exec.CommandContext(ctx,
@@ -187,13 +184,13 @@ func deployPayloadDirect(
 				"-o", "StrictHostKeyChecking=no",
 				"-o", "UserKnownHostsFile=/dev/null",
 				fmt.Sprintf("root@%s", inst.PublicIP),
-				remoteCmd,
+				prepareCmd,
 			)
 			if out, err := ssh.CombinedOutput(); err != nil {
 				errCh <- fmt.Errorf("[%s:%s] ssh error in region %s: %v\n%s", inst.Name, inst.PublicIP, inst.Region, err, out)
 				return
 			}
-			log.Printf("started instance ✅ %s: %s (total %d/%d)\n", inst.Name, inst.PublicIP, counter.Add(1), len(ips))
+			log.Printf("prepared files on instance 📁 %s: %s\n", inst.Name, inst.PublicIP)
 		}(inst)
 	}
 
@@ -211,7 +208,9 @@ func deployPayloadDirect(
 		}
 		return errors.New(sb)
 	}
-	return nil
+
+	// Use runScriptInTMux to start the application
+	return runScriptInTMux(ips, sshKeyPath, filepath.Join(remoteDir, remoteScript), "app", timeout)
 }
 
 // deployPayloadViaS3 uploads the payload to S3 first, then has each node download it
@@ -261,11 +260,11 @@ func deployPayloadViaS3(
 			defer cancel()
 
 			archiveFile := filepath.Base(archivePath)
-			remoteCmd := strings.Join([]string{
+			// Prepare files on remote host
+			prepareCmd := strings.Join([]string{
 				fmt.Sprintf("curl -L '%s' -o %s", s3URL, filepath.Join(remoteDir, archiveFile)),
 				fmt.Sprintf("tar -xzf %s -C %s", filepath.Join(remoteDir, archiveFile), remoteDir),
 				fmt.Sprintf("chmod +x %s", filepath.Join(remoteDir, remoteScript)),
-				fmt.Sprintf("tmux new-session -d -s app '%s'", filepath.Join(remoteDir, remoteScript)),
 			}, " && ")
 
 			ssh := exec.CommandContext(ctx,
@@ -274,13 +273,13 @@ func deployPayloadViaS3(
 				"-o", "StrictHostKeyChecking=no",
 				"-o", "UserKnownHostsFile=/dev/null",
 				fmt.Sprintf("root@%s", inst.PublicIP),
-				remoteCmd,
+				prepareCmd,
 			)
 			if out, err := ssh.CombinedOutput(); err != nil {
 				errCh <- fmt.Errorf("[%s:%s] ssh error in region %s: %v\n%s", inst.Name, inst.PublicIP, inst.Region, err, out)
 				return
 			}
-			log.Printf("started instance ✅ %s: %s (total %d/%d)\n", inst.Name, inst.PublicIP, counter.Add(1), len(ips))
+			log.Printf("prepared files on instance 📁 %s: %s (total %d/%d)\n", inst.Name, inst.PublicIP, counter.Add(1), len(ips))
 		}(inst)
 	}
 
@@ -298,7 +297,9 @@ func deployPayloadViaS3(
 		}
 		return errors.New(sb)
 	}
-	return nil
+
+	// Use runScriptInTMux to start the application
+	return runScriptInTMux(ips, sshKeyPath, filepath.Join(remoteDir, remoteScript), "app", timeout)
 }
 
 func uploadToS3(ctx context.Context, client *s3.Client, cfg S3Config, localPath string) (string, error) {
