@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/types"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -35,7 +36,7 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 	record, err := keyring.Key(delegatorName)
 	require.NoError(t, err)
 
-	delegatorAddress, err := record.GetAddress()
+	delegatorAccAddress, err := record.GetAddress()
 	require.NoError(t, err)
 
 	delegationAmount := math.NewInt(1_000_000_000) // 1000 TIA
@@ -44,18 +45,19 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 	validatorsResp, err := stakingClient.Validators(cctx.GoContext(), &stakingtypes.QueryValidatorsRequest{})
 	require.NoError(t, err)
 	require.Greater(t, len(validatorsResp.Validators), 0)
-	validatorAddr := validatorsResp.Validators[0].OperatorAddress
+	validatorAddress := validatorsResp.Validators[0].OperatorAddress
+	delegatorAddress := delegatorAccAddress.String()
 
 	// Step 1: Delegate to validator
 	delegateMsg := &stakingtypes.MsgDelegate{
-		DelegatorAddress: delegatorAddress.String(),
-		ValidatorAddress: validatorAddr,
+		DelegatorAddress: delegatorAddress,
+		ValidatorAddress: validatorAddress,
 		Amount:           types.NewCoin(appconsts.BondDenom, delegationAmount),
 	}
 
-	delegateRes, err := txClient.SubmitTx(cctx.GoContext(), []types.Msg{delegateMsg}, user.SetGasLimit(200000))
+	delegateRes, err := txClient.SubmitTx(cctx.GoContext(), []types.Msg{delegateMsg}, user.SetGasLimit(200_000))
 	require.NoError(t, err)
-	require.Equal(t, uint32(0), delegateRes.Code)
+	require.Equal(t, abci.CodeTypeOK, delegateRes.Code)
 
 	// Wait for transaction to be included
 	err = cctx.WaitForNextBlock()
@@ -63,8 +65,8 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 
 	// Verify delegation exists
 	delegationResp, err := stakingClient.Delegation(cctx.GoContext(), &stakingtypes.QueryDelegationRequest{
-		DelegatorAddr: delegatorAddress.String(),
-		ValidatorAddr: validatorAddr,
+		DelegatorAddr: delegatorAddress,
+		ValidatorAddr: validatorAddress,
 	})
 	require.NoError(t, err)
 	assert.Equal(t, delegationAmount.String(), delegationResp.DelegationResponse.Balance.Amount.String())
@@ -78,8 +80,8 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 	// Verify rewards exist
 	distributionClient := distributiontypes.NewQueryClient(cctx.GRPCClient)
 	rewardsResp, err := distributionClient.DelegationRewards(cctx.GoContext(), &distributiontypes.QueryDelegationRewardsRequest{
-		DelegatorAddress: delegatorAddress.String(),
-		ValidatorAddress: validatorAddr,
+		DelegatorAddress: delegatorAddress,
+		ValidatorAddress: validatorAddress,
 	})
 	require.NoError(t, err)
 	require.Greater(t, len(rewardsResp.Rewards), 0)
@@ -87,14 +89,14 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 
 	// Step 3: Undelegate entirely
 	undelegateMsg := &stakingtypes.MsgUndelegate{
-		DelegatorAddress: delegatorAddress.String(),
-		ValidatorAddress: validatorAddr,
+		DelegatorAddress: delegatorAddress,
+		ValidatorAddress: validatorAddress,
 		Amount:           types.NewCoin(appconsts.BondDenom, delegationAmount),
 	}
 
 	undelegateRes, err := txClient.SubmitTx(cctx.GoContext(), []types.Msg{undelegateMsg}, user.SetGasLimit(200000))
 	require.NoError(t, err)
-	require.Equal(t, uint32(0), undelegateRes.Code)
+	require.Equal(t, abci.CodeTypeOK, undelegateRes.Code)
 
 	// Wait for transaction to be included
 	err = cctx.WaitForNextBlock()
@@ -102,27 +104,27 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 
 	// Verify delegation no longer exists
 	_, err = stakingClient.Delegation(cctx.GoContext(), &stakingtypes.QueryDelegationRequest{
-		DelegatorAddr: delegatorAddress.String(),
-		ValidatorAddr: validatorAddr,
+		DelegatorAddr: delegatorAddress,
+		ValidatorAddr: validatorAddress,
 	})
 	assert.Error(t, err, "delegation should not exist after full undelegation")
 
 	// Check if the rewards can be accessed, currently we expect not
-	rewardsResp, err = distributionClient.DelegationRewards(cctx.GoContext(), &distributiontypes.QueryDelegationRewardsRequest{
-		DelegatorAddress: delegatorAddress.String(),
-		ValidatorAddress: validatorAddr,
+	_, err = distributionClient.DelegationRewards(cctx.GoContext(), &distributiontypes.QueryDelegationRewardsRequest{
+		DelegatorAddress: delegatorAddress,
+		ValidatorAddress: validatorAddress,
 	})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "no delegation for (address, validator) tupl")
 
 	// Step 4: Try to claim rewards and expect no error
 	withdrawRewardsMsg := &distributiontypes.MsgWithdrawDelegatorReward{
-		DelegatorAddress: delegatorAddress.String(),
-		ValidatorAddress: validatorAddr,
+		DelegatorAddress: delegatorAddress,
+		ValidatorAddress: validatorAddress,
 	}
 
 	withdrawRes, err := txClient.SubmitTx(cctx.GoContext(), []types.Msg{withdrawRewardsMsg}, user.SetGasLimit(200000))
 	require.NoError(t, err)
-	require.Equal(t, uint32(0), withdrawRes.Code)
+	require.Equal(t, abci.CodeTypeOK, withdrawRes.Code)
 	fmt.Printf("Withdraw rewards response: %v\n", withdrawRes)
 }
