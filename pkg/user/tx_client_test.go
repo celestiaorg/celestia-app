@@ -102,7 +102,8 @@ func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 
 	t.Run("submit blob with nonce error", func(t *testing.T) {
 		seqBeforeBroadcast := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
-		suite.txClient.Signer().SetSequence(suite.txClient.DefaultAccountName(), seqBeforeBroadcast-5)
+		err := suite.txClient.Signer().SetSequence(suite.txClient.DefaultAccountName(), seqBeforeBroadcast-5)
+		require.NoError(t, err)
 		resp, err := suite.txClient.SubmitPayForBlob(subCtx, blobs)
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
@@ -165,7 +166,8 @@ func (suite *TxClientTestSuite) TestSubmitTx() {
 
 	t.Run("submit tx with nonce error", func(t *testing.T) {
 		seqBeforeBroadcast := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
-		suite.txClient.Signer().SetSequence(suite.txClient.DefaultAccountName(), seqBeforeBroadcast+5)
+		err := suite.txClient.Signer().SetSequence(suite.txClient.DefaultAccountName(), seqBeforeBroadcast+5)
+		require.NoError(t, err)
 		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, feeOption, gasLimitOption)
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
