@@ -443,7 +443,7 @@ func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, 
 }
 
 // retryBroadcastingTx creates a new transaction by copying over an existing transaction but creates a new signature with the
-// new sequence number. It then calls `broadcastTx` and attempts to submit the transaction
+// new sequence number. It then calls `broadcastTxAndIncrementSequence` and attempts to submit the transaction
 func (s *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sdktypes.TxResponse, error) {
 	blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(txBytes)
 	if isBlobTx && err != nil {
