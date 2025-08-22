@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/types"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/assert"
@@ -48,7 +49,7 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 	verifyDelegationDoesNotExist(t, &cctx, stakingClient, delegatorAddress, validatorAddress)
 	verifyDelegationRewardsDoNotExist(t, &cctx, distributionClient, delegatorAddress, validatorAddress)
 
-	claimRewards(t, &cctx, txClient, delegatorAddress, validatorAddress)
+	claimRewards(t, &cctx, txClient, delegatorAddress, validatorAddress, amount)
 }
 
 func getDelegatorAddress(t *testing.T, cctx *testnode.Context, accounts []string) string {
@@ -134,7 +135,7 @@ func verifyDelegationRewardsDoNotExist(t *testing.T, cctx *testnode.Context, dis
 	require.Contains(t, err.Error(), "no delegation for (address, validator) tupl")
 }
 
-func claimRewards(t *testing.T, cctx *testnode.Context, txClient *user.TxClient, delegatorAddress, validatorAddress string) {
+func claimRewards(t *testing.T, cctx *testnode.Context, txClient *user.TxClient, delegatorAddress string, validatorAddress string, amount types.Coin) {
 	withdrawRewardsMsg := &distributiontypes.MsgWithdrawDelegatorReward{
 		DelegatorAddress: delegatorAddress,
 		ValidatorAddress: validatorAddress,
@@ -142,5 +143,48 @@ func claimRewards(t *testing.T, cctx *testnode.Context, txClient *user.TxClient,
 	withdrawRes, err := txClient.SubmitTx(cctx.GoContext(), []types.Msg{withdrawRewardsMsg}, user.SetGasLimit(200000))
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, withdrawRes.Code)
-	fmt.Printf("Withdraw rewards response: %v\n", withdrawRes)
+	txHash := withdrawRes.TxHash
+
+	txServiceClient := txtypes.NewServiceClient(cctx.GRPCClient)
+	getTxResp, err := txServiceClient.GetTx(cctx.GoContext(), &txtypes.GetTxRequest{Hash: txHash})
+	require.NoError(t, err)
+	require.NotNil(t, getTxResp.TxResponse)
+	require.Equal(t, abci.CodeTypeOK, getTxResp.TxResponse.Code)
+
+	event, err := getWithdrawRewardsEvent(t, getTxResp.TxResponse.Events)
+	require.NoError(t, err)
+	require.Equal(t, delegatorAddress, event.DelegatorAddress)
+	require.Equal(t, validatorAddress, event.ValidatorAddress)
+}
+
+func getWithdrawRewardsEvent(t *testing.T, events []abci.Event) (WithdrawRewardsEvent, error) {
+	for _, event := range events {
+		if event.Type == distributiontypes.EventTypeWithdrawRewards {
+			var delegatorAddress string
+			var validatorAddress string
+			var amount string
+			for _, attr := range event.Attributes {
+				switch attr.Key {
+				case distributiontypes.AttributeKeyDelegator:
+					delegatorAddress = attr.Value
+				case distributiontypes.AttributeKeyValidator:
+					validatorAddress = attr.Value
+				case "amount":
+					amount = attr.Value
+				}
+			}
+			return WithdrawRewardsEvent{
+				DelegatorAddress: delegatorAddress,
+				ValidatorAddress: validatorAddress,
+				Amount:           amount,
+			}, nil
+		}
+	}
+	return WithdrawRewardsEvent{}, fmt.Errorf("withdraw_rewards event not found")
+}
+
+type WithdrawRewardsEvent struct {
+	DelegatorAddress string
+	ValidatorAddress string
+	Amount           string
 }
