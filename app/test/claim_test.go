@@ -43,9 +43,11 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 	delegateToValidator(t, &cctx, txClient, delegatorAddress, validatorAddress, amount)
 	verifyDelegationExists(t, &cctx, stakingClient, delegatorAddress, validatorAddress, delegationAmount)
 	verifyRewardsExist(t, &cctx, distributionClient, delegatorAddress, validatorAddress)
+
 	undelegate(t, &cctx, txClient, delegatorAddress, validatorAddress, amount)
 	verifyDelegationDoesNotExist(t, &cctx, stakingClient, delegatorAddress, validatorAddress)
 	verifyDelegationRewardsDoNotExist(t, &cctx, distributionClient, delegatorAddress, validatorAddress)
+
 	claimRewards(t, &cctx, txClient, delegatorAddress, validatorAddress)
 }
 
@@ -119,7 +121,8 @@ func verifyDelegationDoesNotExist(t *testing.T, cctx *testnode.Context, stakingC
 		DelegatorAddr: delegatorAddress,
 		ValidatorAddr: validatorAddress,
 	})
-	assert.Error(t, err, "delegation should not exist after full undelegation")
+	assert.Error(t, err)
+	assert.ErrorContains(t, err, fmt.Sprintf("delegation with delegator %s not found for validator %s", delegatorAddress, validatorAddress))
 }
 
 func verifyDelegationRewardsDoNotExist(t *testing.T, cctx *testnode.Context, distributionClient distributiontypes.QueryClient, delegatorAddress, validatorAddress string) {
