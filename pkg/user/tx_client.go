@@ -31,6 +31,7 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	"google.golang.org/grpc"
@@ -357,10 +358,30 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 			txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
 		}
 		gasLimit, err = client.estimateGas(ctx, txBuilder)
-		// do not return if the error is a nonce mismatch
-		// we will handle it later when we try to broadcast the tx
-		if err != nil && !apperrors.IsNonceMismatch(err) {
-			return nil, err
+		if err != nil {
+			// If not a sequence mismatch, return the error.
+			if !strings.Contains(err.Error(), sdkerrors.ErrWrongSequence.Error()) {
+				return nil, err
+			}
+
+			// Handle the sequence mismatch path by setting the sequence to the expected sequence
+			// and retrying gas estimation.
+			parsedErr := extractSequenceError(err.Error())
+
+			expectedSequence, err := apperrors.ParseExpectedSequence(parsedErr)
+			if err != nil {
+				return nil, fmt.Errorf("parsing sequence mismatch: %w. RawLog: %s", err, err)
+			}
+
+			if err = client.signer.SetSequence(account, expectedSequence); err != nil {
+				return nil, fmt.Errorf("setting sequence: %w", err)
+			}
+
+			// Retry gas estimation with the corrected sequence.
+			gasLimit, err = client.estimateGas(ctx, txBuilder)
+			if err != nil {
+				return nil, fmt.Errorf("retrying gas estimation: %w", err)
+			}
 		}
 		txBuilder.SetGasLimit(gasLimit)
 	}
@@ -497,6 +518,13 @@ func (s *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sd
 		}
 	}
 
+	// txRes, err := s.broadcastTx(ctx, s.conns[0], newTxBytes, signer)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// // add to tx tracker
+	// s.trackTransaction(signer, txRes.TxHash, newTxBytes)
 	return s.broadcastTxAndIncrementSequence(ctx, s.conns[0], newTxBytes, signer)
 }
 
@@ -629,6 +657,18 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			return nil, fmt.Errorf("transaction with hash %s not found", txHash)
 		}
 	}
+}
+
+func extractSequenceError(fullError string) string {
+	start := strings.Index(fullError, "account sequence mismatch")
+	if start == -1 {
+		return fullError
+	}
+	s := fullError[start:]
+	if cut, _, ok := strings.Cut(s, " error estimating gas"); ok {
+		return cut
+	}
+	return s
 }
 
 // deleteFromTxTracker safely deletes a transaction from the local tx tracker.
