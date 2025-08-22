@@ -99,6 +99,19 @@ func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "key not found")
 	})
+
+	t.Run("submit blob with nonce error", func(t *testing.T) {
+		seqBeforeBroadcast := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
+		suite.txClient.Signer().SetSequence(suite.txClient.DefaultAccountName(), seqBeforeBroadcast-5)
+		resp, err := suite.txClient.SubmitPayForBlob(subCtx, blobs)
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, resp.Code)
+
+		// does not block further submissions
+		resp, err = suite.txClient.SubmitPayForBlob(subCtx, blobs)
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, resp.Code)
+	})
 }
 
 func (suite *TxClientTestSuite) TestSubmitTx() {
@@ -146,6 +159,19 @@ func (suite *TxClientTestSuite) TestSubmitTx() {
 		addr := suite.txClient.Account("b").Address()
 		msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
 		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg})
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, resp.Code)
+	})
+
+	t.Run("submit tx with nonce error", func(t *testing.T) {
+		seqBeforeBroadcast := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
+		suite.txClient.Signer().SetSequence(suite.txClient.DefaultAccountName(), seqBeforeBroadcast+5)
+		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, feeOption, gasLimitOption)
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, resp.Code)
+
+		// does not block further submissions
+		resp, err = suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, feeOption, gasLimitOption)
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
 	})

@@ -357,7 +357,9 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 			txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
 		}
 		gasLimit, err = client.estimateGas(ctx, txBuilder)
-		if err != nil {
+		// do not return if the error is a nonce mismatch
+		// we will handle it later when we try to broadcast the tx
+		if err != nil && !apperrors.IsNonceMismatch(err) {
 			return nil, err
 		}
 		txBuilder.SetGasLimit(gasLimit)
