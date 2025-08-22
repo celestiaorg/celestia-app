@@ -435,8 +435,6 @@ func setupTxClient(
 ) (encoding.Config, *user.TxClient, testnode.Context) {
 	defaultTmConfig := testnode.DefaultTendermintConfig()
 	defaultTmConfig.Mempool.TTLNumBlocks = ttlNumBlocks
-	// Use priority mempool for TxClient tests as it doesn't fully support CAT
-	defaultTmConfig.Mempool.Type = tmconfig.MempoolTypePriority
 
 	chainID := unsafe.Str(6)
 	testnodeConfig := testnode.DefaultConfig().
