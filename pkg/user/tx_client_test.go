@@ -23,7 +23,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/random"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	abci "github.com/cometbft/cometbft/abci/types"
-	tmconfig "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/rpc/core"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -435,8 +434,6 @@ func setupTxClient(
 ) (encoding.Config, *user.TxClient, testnode.Context) {
 	defaultTmConfig := testnode.DefaultTendermintConfig()
 	defaultTmConfig.Mempool.TTLNumBlocks = ttlNumBlocks
-	// Use priority mempool for TxClient tests as it doesn't fully support CAT
-	defaultTmConfig.Mempool.Type = tmconfig.MempoolTypePriority
 
 	chainID := unsafe.Str(6)
 	testnodeConfig := testnode.DefaultConfig().
