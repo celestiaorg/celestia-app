@@ -27,26 +27,16 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 	accounts := testnode.RandomAccounts(2)
 	config := testnode.DefaultConfig().WithFundedAccounts(accounts...)
 	cctx, _, _ := testnode.NewNetwork(t, config)
+
 	txClient, err := testnode.NewTxClientFromContext(cctx)
 	require.NoError(t, err)
 
-	delegatorName := accounts[0]
-	keyring := cctx.Keyring
+	stakingClient := stakingtypes.NewQueryClient(cctx.GRPCClient)
 
-	record, err := keyring.Key(delegatorName)
-	require.NoError(t, err)
-
-	delegatorAccAddress, err := record.GetAddress()
-	require.NoError(t, err)
+	delegatorAddress := getDelegatorAddress(t, &cctx, accounts)
+	validatorAddress := getValidatorAddress(t, &cctx, accounts)
 
 	delegationAmount := math.NewInt(1_000_000_000) // 1000 TIA
-
-	stakingClient := stakingtypes.NewQueryClient(cctx.GRPCClient)
-	validatorsResp, err := stakingClient.Validators(cctx.GoContext(), &stakingtypes.QueryValidatorsRequest{})
-	require.NoError(t, err)
-	require.Greater(t, len(validatorsResp.Validators), 0)
-	validatorAddress := validatorsResp.Validators[0].OperatorAddress
-	delegatorAddress := delegatorAccAddress.String()
 
 	// Step 1: Delegate to validator
 	delegateMsg := &stakingtypes.MsgDelegate{
@@ -127,4 +117,26 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, withdrawRes.Code)
 	fmt.Printf("Withdraw rewards response: %v\n", withdrawRes)
+}
+
+func getDelegatorAddress(t *testing.T, cctx *testnode.Context, accounts []string) string {
+	keyring := cctx.Keyring
+	delegatorName := accounts[0]
+
+	record, err := keyring.Key(delegatorName)
+	require.NoError(t, err)
+
+	delegatorAccAddress, err := record.GetAddress()
+	require.NoError(t, err)
+	return delegatorAccAddress.String()
+}
+
+func getValidatorAddress(t *testing.T, cctx *testnode.Context, accounts []string) string {
+	stakingClient := stakingtypes.NewQueryClient(cctx.GRPCClient)
+
+	validatorsResp, err := stakingClient.Validators(cctx.GoContext(), &stakingtypes.QueryValidatorsRequest{})
+	require.NoError(t, err)
+	require.Greater(t, len(validatorsResp.Validators), 0)
+
+	return validatorsResp.Validators[0].OperatorAddress
 }
