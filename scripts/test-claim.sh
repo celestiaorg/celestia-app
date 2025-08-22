@@ -33,5 +33,8 @@ celestia-appd query distribution rewards $DELEGATOR_ADDRESS
 echo "Unbonding from validator..."
 celestia-appd tx staking unbond $VALIDATOR_OPERATOR_ADDRESS 100000utia --keyring-backend=test --fees 10000utia --from $DELEGATOR_ADDRESS --yes
 
-echo "Querying delegation..."
+echo "Querying delegation, this should return an error..."
 celestia-appd query staking delegation $DELEGATOR_ADDRESS $VALIDATOR_OPERATOR_ADDRESS
+
+echo "Withdrawing rewards..."
+celestia-appd tx distribution withdraw-all-rewards --from $DELEGATOR_ADDRESS --keyring-backend=test --fees 10000utia --yes
