@@ -32,71 +32,21 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 	require.NoError(t, err)
 
 	stakingClient := stakingtypes.NewQueryClient(cctx.GRPCClient)
+	distributionClient := distributiontypes.NewQueryClient(cctx.GRPCClient)
 
 	delegatorAddress := getDelegatorAddress(t, &cctx, accounts)
 	validatorAddress := getValidatorAddress(t, &cctx)
-	delegationAmount := math.NewInt(1_000_000_000) // 1,000 TIA
+
+	delegationAmount := math.NewInt(1_000_000_000_000) // 1,000,000 TIA
 	amount := types.NewCoin(appconsts.BondDenom, delegationAmount)
 
 	delegateToValidator(t, &cctx, txClient, delegatorAddress, validatorAddress, amount)
 	verifyDelegationExists(t, &cctx, stakingClient, delegatorAddress, validatorAddress, delegationAmount)
-
-	// Step 2: Wait for rewards to accumulate (advance several blocks)
-	for i := 0; i < 3; i++ {
-		err = cctx.WaitForNextBlock()
-		require.NoError(t, err)
-	}
-
-	// Verify rewards exist
-	distributionClient := distributiontypes.NewQueryClient(cctx.GRPCClient)
-	rewardsResp, err := distributionClient.DelegationRewards(cctx.GoContext(), &distributiontypes.QueryDelegationRewardsRequest{
-		DelegatorAddress: delegatorAddress,
-		ValidatorAddress: validatorAddress,
-	})
-	require.NoError(t, err)
-	require.Greater(t, len(rewardsResp.Rewards), 0)
-	t.Logf("Rewards before undelegation: %v", rewardsResp.Rewards)
-
-	// Step 3: Undelegate entirely
-	undelegateMsg := &stakingtypes.MsgUndelegate{
-		DelegatorAddress: delegatorAddress,
-		ValidatorAddress: validatorAddress,
-		Amount:           amount,
-	}
-
-	undelegateRes, err := txClient.SubmitTx(cctx.GoContext(), []types.Msg{undelegateMsg}, user.SetGasLimit(200000))
-	require.NoError(t, err)
-	require.Equal(t, abci.CodeTypeOK, undelegateRes.Code)
-
-	// Wait for transaction to be included
-	err = cctx.WaitForNextBlock()
-	require.NoError(t, err)
-
-	// Verify delegation no longer exists
-	_, err = stakingClient.Delegation(cctx.GoContext(), &stakingtypes.QueryDelegationRequest{
-		DelegatorAddr: delegatorAddress,
-		ValidatorAddr: validatorAddress,
-	})
-	assert.Error(t, err, "delegation should not exist after full undelegation")
-
-	// Check if the rewards can be accessed, currently we expect not
-	_, err = distributionClient.DelegationRewards(cctx.GoContext(), &distributiontypes.QueryDelegationRewardsRequest{
-		DelegatorAddress: delegatorAddress,
-		ValidatorAddress: validatorAddress,
-	})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "no delegation for (address, validator) tupl")
-
-	// Step 4: Try to claim rewards and expect no error
-	withdrawRewardsMsg := &distributiontypes.MsgWithdrawDelegatorReward{
-		DelegatorAddress: delegatorAddress,
-		ValidatorAddress: validatorAddress,
-	}
-
-	withdrawRes, err := txClient.SubmitTx(cctx.GoContext(), []types.Msg{withdrawRewardsMsg}, user.SetGasLimit(200000))
-	require.NoError(t, err)
-	require.Equal(t, abci.CodeTypeOK, withdrawRes.Code)
-	fmt.Printf("Withdraw rewards response: %v\n", withdrawRes)
+	verifyRewardsExist(t, &cctx, distributionClient, delegatorAddress, validatorAddress)
+	undelegate(t, &cctx, txClient, delegatorAddress, validatorAddress, amount)
+	verifyDelegationDoesNotExist(t, &cctx, stakingClient, delegatorAddress, validatorAddress)
+	verifyDelegationRewardsDoNotExist(t, &cctx, distributionClient, delegatorAddress, validatorAddress)
+	claimRewards(t, &cctx, txClient, delegatorAddress, validatorAddress)
 }
 
 func getDelegatorAddress(t *testing.T, cctx *testnode.Context, accounts []string) string {
@@ -140,4 +90,54 @@ func verifyDelegationExists(t *testing.T, cctx *testnode.Context, stakingClient 
 	})
 	require.NoError(t, err)
 	assert.Equal(t, delegationAmount.String(), delegationResp.DelegationResponse.Balance.Amount.String())
+}
+
+func verifyRewardsExist(t *testing.T, cctx *testnode.Context, distributionClient distributiontypes.QueryClient, delegatorAddress, validatorAddress string) {
+	rewardsResp, err := distributionClient.DelegationRewards(cctx.GoContext(), &distributiontypes.QueryDelegationRewardsRequest{
+		DelegatorAddress: delegatorAddress,
+		ValidatorAddress: validatorAddress,
+	})
+	require.NoError(t, err)
+	require.Greater(t, len(rewardsResp.Rewards), 0)
+	t.Logf("Rewards before undelegation: %v", rewardsResp.Rewards)
+}
+
+func undelegate(t *testing.T, cctx *testnode.Context, txClient *user.TxClient, delegatorAddress, validatorAddress string, amount types.Coin) {
+	undelegateMsg := &stakingtypes.MsgUndelegate{
+		DelegatorAddress: delegatorAddress,
+		ValidatorAddress: validatorAddress,
+		Amount:           amount,
+	}
+
+	undelegateRes, err := txClient.SubmitTx(cctx.GoContext(), []types.Msg{undelegateMsg}, user.SetGasLimit(200_000))
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, undelegateRes.Code)
+}
+
+func verifyDelegationDoesNotExist(t *testing.T, cctx *testnode.Context, stakingClient stakingtypes.QueryClient, delegatorAddress, validatorAddress string) {
+	_, err := stakingClient.Delegation(cctx.GoContext(), &stakingtypes.QueryDelegationRequest{
+		DelegatorAddr: delegatorAddress,
+		ValidatorAddr: validatorAddress,
+	})
+	assert.Error(t, err, "delegation should not exist after full undelegation")
+}
+
+func verifyDelegationRewardsDoNotExist(t *testing.T, cctx *testnode.Context, distributionClient distributiontypes.QueryClient, delegatorAddress, validatorAddress string) {
+	_, err := distributionClient.DelegationRewards(cctx.GoContext(), &distributiontypes.QueryDelegationRewardsRequest{
+		DelegatorAddress: delegatorAddress,
+		ValidatorAddress: validatorAddress,
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no delegation for (address, validator) tupl")
+}
+
+func claimRewards(t *testing.T, cctx *testnode.Context, txClient *user.TxClient, delegatorAddress, validatorAddress string) {
+	withdrawRewardsMsg := &distributiontypes.MsgWithdrawDelegatorReward{
+		DelegatorAddress: delegatorAddress,
+		ValidatorAddress: validatorAddress,
+	}
+	withdrawRes, err := txClient.SubmitTx(cctx.GoContext(), []types.Msg{withdrawRewardsMsg}, user.SetGasLimit(200000))
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, withdrawRes.Code)
+	fmt.Printf("Withdraw rewards response: %v\n", withdrawRes)
 }
