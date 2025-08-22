@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	"github.com/celestiaorg/tastora/framework/testutil/query"
 	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
@@ -384,9 +383,9 @@ func (s *IBCTestSuite) calculateIBCDenom(channel ibc.Channel, baseDenom string) 
 }
 
 // newSimappChainBuilder builds a standard simapp chain without token filters
-func (s *IBCTestSuite) newSimappChainBuilder(t *testing.T, cfg *dockerchain.Config) *tastoradockertypes.ChainBuilder {
+func (s *IBCTestSuite) newSimappChainBuilder(t *testing.T, cfg *dockerchain.Config) *docker.ChainBuilder {
 	encodingConfig := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
-	return tastoradockertypes.NewChainBuilder(t).
+	return docker.NewChainBuilder(t).
 		WithEncodingConfig(&encodingConfig).
 		WithName("simapp").
 		WithChainID("chain-b").
@@ -400,7 +399,7 @@ func (s *IBCTestSuite) newSimappChainBuilder(t *testing.T, cfg *dockerchain.Conf
 		WithDockerNetworkID(cfg.DockerNetworkID).
 		WithDockerClient(cfg.DockerClient).
 		WithChainID("chain-b").
-		WithNode(tastoradockertypes.NewChainNodeConfigBuilder().Build())
+		WithNode(docker.NewChainNodeConfigBuilder().Build())
 }
 
 // registerInterchainAccount registers an ICA using message broadcasting instead of CLI
