@@ -26,7 +26,6 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 	accounts := testnode.RandomAccounts(2)
 	config := testnode.DefaultConfig().WithFundedAccounts(accounts...)
 	cctx, _, _ := testnode.NewNetwork(t, config)
-
 	txClient, err := testnode.NewTxClientFromContext(cctx)
 	require.NoError(t, err)
 
@@ -39,7 +38,7 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 	delegatorAddress, err := record.GetAddress()
 	require.NoError(t, err)
 
-	delegationAmount := math.NewInt(1_000_000) // 1 TIA
+	delegationAmount := math.NewInt(1_000_000_000) // 1000 TIA
 
 	stakingClient := stakingtypes.NewQueryClient(cctx.GRPCClient)
 	validatorsResp, err := stakingClient.Validators(cctx.GoContext(), &stakingtypes.QueryValidatorsRequest{})
@@ -116,7 +115,7 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "no delegation for (address, validator) tupl")
 
-	// Step 4: Try to claim rewards and expect error
+	// Step 4: Try to claim rewards and expect no error
 	withdrawRewardsMsg := &distributiontypes.MsgWithdrawDelegatorReward{
 		DelegatorAddress: delegatorAddress.String(),
 		ValidatorAddress: validatorAddr,
