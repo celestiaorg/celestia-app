@@ -71,7 +71,7 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 	assert.Equal(t, delegationAmount.String(), delegationResp.DelegationResponse.Balance.Amount.String())
 
 	// Step 2: Wait for rewards to accumulate (advance several blocks)
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 3; i++ {
 		err = cctx.WaitForNextBlock()
 		require.NoError(t, err)
 	}
@@ -83,7 +83,7 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 		ValidatorAddress: validatorAddr,
 	})
 	require.NoError(t, err)
-	require.Greater(t, len(rewardsResp.Rewards), 0, "no rewards accumulated")
+	require.Greater(t, len(rewardsResp.Rewards), 0)
 	t.Logf("Rewards before undelegation: %v", rewardsResp.Rewards)
 
 	// Step 3: Undelegate entirely
@@ -113,8 +113,8 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 		DelegatorAddress: delegatorAddress.String(),
 		ValidatorAddress: validatorAddr,
 	})
-	require.NoError(t, err)
-	fmt.Printf("Rewards after undelegation: %v\n", rewardsResp.Rewards)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no delegation for (address, validator) tupl")
 
 	// Step 4: Try to claim rewards and expect error
 	withdrawRewardsMsg := &distributiontypes.MsgWithdrawDelegatorReward{
