@@ -97,8 +97,7 @@ startCelestiaApp() {
     --api.enable \
     --grpc.enable \
     --grpc-web.enable \
-    --timeout-commit 1s \
-    --force-no-bbr
+    --timeout-commit 1s
 }
 
 upgrade() {

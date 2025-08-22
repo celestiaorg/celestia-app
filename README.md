@@ -82,13 +82,13 @@ See <https://docs.celestia.org/how-to-guides/celestia-app> for more information.
 
 ### Prerequisites
 
-Enable the [BBR](https://www.ietf.org/archive/id/draft-cardwell-iccrg-bbr-congestion-control-01.html) ("Bottleneck Bandwidth and Round-trip propagation time") congestion control algorithm.
+If you are on Linux, enable the [BBR](https://www.ietf.org/archive/id/draft-cardwell-iccrg-bbr-congestion-control-01.html) ("Bottleneck Bandwidth and Round-trip propagation time") congestion control algorithm.
 
 ```shell
-# Check if BBR is enabled.
+# Check if BBR is enabled (Linux only).
 make bbr-check
 
-# If BBR is not enabled then enable it.
+# If BBR is not enabled then enable it (Linux only).
 make bbr-enable
 ```
 

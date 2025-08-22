@@ -30,7 +30,7 @@ func updateConfigCmd() *cobra.Command {
 		Use:     "update-config",
 		Short:   "Update configuration values to be that of a specific app version",
 		Long:    "Update configuration files (config.toml and app.toml) to be compatible with a specific app version.",
-		Example: "celestia-appd update-config --home ~/.celestia-app\ncelestia-appd update-config --version 6 --home ~/.celestia-app",
+		Example: "celestia-appd update-config --home ~/.celestia-app\ncelestia-appd update-config --app-version 6 --home ~/.celestia-app --backup false",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			homeDir, err := cmd.Flags().GetString(flags.FlagHome)
@@ -207,7 +207,11 @@ func applyV6Config(cmtCfg *config.Config, appCfg *serverconfig.Config) (*config.
 	cmtCfg.P2P.RecvRate = defaultCfg.P2P.RecvRate
 
 	defaultAppCfg := app.DefaultAppConfig()
-	appCfg.MinGasPrices = ""
+
+	// only unset the min gas price if it's the legacy default (i.e. untouched)
+	if appCfg.MinGasPrices == fmt.Sprintf("%v%s", appconsts.LegacyDefaultMinGasPrice, appconsts.BondDenom) {
+		appCfg.MinGasPrices = ""
+	}
 	appCfg.GRPC.MaxRecvMsgSize = defaultAppCfg.GRPC.MaxRecvMsgSize
 
 	return cmtCfg, appCfg

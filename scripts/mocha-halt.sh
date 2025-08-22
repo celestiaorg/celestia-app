@@ -33,4 +33,4 @@ echo "Setting halt height to 5..."
 sed -i.bak -e "s/^halt-height *=.*/halt-height = 5/" $CELESTIA_APP_HOME/config/app.toml
 
 echo "Starting celestia-appd..."
-celestia-appd start --force-no-bbr
+celestia-appd start
