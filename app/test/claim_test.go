@@ -34,32 +34,12 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 	stakingClient := stakingtypes.NewQueryClient(cctx.GRPCClient)
 
 	delegatorAddress := getDelegatorAddress(t, &cctx, accounts)
-	validatorAddress := getValidatorAddress(t, &cctx, accounts)
+	validatorAddress := getValidatorAddress(t, &cctx)
+	delegationAmount := math.NewInt(1_000_000_000) // 1,000 TIA
+	amount := types.NewCoin(appconsts.BondDenom, delegationAmount)
 
-	delegationAmount := math.NewInt(1_000_000_000) // 1000 TIA
-
-	// Step 1: Delegate to validator
-	delegateMsg := &stakingtypes.MsgDelegate{
-		DelegatorAddress: delegatorAddress,
-		ValidatorAddress: validatorAddress,
-		Amount:           types.NewCoin(appconsts.BondDenom, delegationAmount),
-	}
-
-	delegateRes, err := txClient.SubmitTx(cctx.GoContext(), []types.Msg{delegateMsg}, user.SetGasLimit(200_000))
-	require.NoError(t, err)
-	require.Equal(t, abci.CodeTypeOK, delegateRes.Code)
-
-	// Wait for transaction to be included
-	err = cctx.WaitForNextBlock()
-	require.NoError(t, err)
-
-	// Verify delegation exists
-	delegationResp, err := stakingClient.Delegation(cctx.GoContext(), &stakingtypes.QueryDelegationRequest{
-		DelegatorAddr: delegatorAddress,
-		ValidatorAddr: validatorAddress,
-	})
-	require.NoError(t, err)
-	assert.Equal(t, delegationAmount.String(), delegationResp.DelegationResponse.Balance.Amount.String())
+	delegateToValidator(t, &cctx, txClient, delegatorAddress, validatorAddress, amount)
+	verifyDelegationExists(t, &cctx, stakingClient, delegatorAddress, validatorAddress, delegationAmount)
 
 	// Step 2: Wait for rewards to accumulate (advance several blocks)
 	for i := 0; i < 3; i++ {
@@ -81,7 +61,7 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 	undelegateMsg := &stakingtypes.MsgUndelegate{
 		DelegatorAddress: delegatorAddress,
 		ValidatorAddress: validatorAddress,
-		Amount:           types.NewCoin(appconsts.BondDenom, delegationAmount),
+		Amount:           amount,
 	}
 
 	undelegateRes, err := txClient.SubmitTx(cctx.GoContext(), []types.Msg{undelegateMsg}, user.SetGasLimit(200000))
@@ -131,7 +111,7 @@ func getDelegatorAddress(t *testing.T, cctx *testnode.Context, accounts []string
 	return delegatorAccAddress.String()
 }
 
-func getValidatorAddress(t *testing.T, cctx *testnode.Context, accounts []string) string {
+func getValidatorAddress(t *testing.T, cctx *testnode.Context) string {
 	stakingClient := stakingtypes.NewQueryClient(cctx.GRPCClient)
 
 	validatorsResp, err := stakingClient.Validators(cctx.GoContext(), &stakingtypes.QueryValidatorsRequest{})
@@ -139,4 +119,25 @@ func getValidatorAddress(t *testing.T, cctx *testnode.Context, accounts []string
 	require.Greater(t, len(validatorsResp.Validators), 0)
 
 	return validatorsResp.Validators[0].OperatorAddress
+}
+
+func delegateToValidator(t *testing.T, cctx *testnode.Context, txClient *user.TxClient, delegatorAddress, validatorAddress string, amount types.Coin) {
+	delegateMsg := &stakingtypes.MsgDelegate{
+		DelegatorAddress: delegatorAddress,
+		ValidatorAddress: validatorAddress,
+		Amount:           amount,
+	}
+
+	delegateRes, err := txClient.SubmitTx(cctx.GoContext(), []types.Msg{delegateMsg}, user.SetGasLimit(200_000))
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, delegateRes.Code)
+}
+
+func verifyDelegationExists(t *testing.T, cctx *testnode.Context, stakingClient stakingtypes.QueryClient, delegatorAddress, validatorAddress string, delegationAmount math.Int) {
+	delegationResp, err := stakingClient.Delegation(cctx.GoContext(), &stakingtypes.QueryDelegationRequest{
+		DelegatorAddr: delegatorAddress,
+		ValidatorAddr: validatorAddress,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, delegationAmount.String(), delegationResp.DelegationResponse.Balance.Amount.String())
 }
