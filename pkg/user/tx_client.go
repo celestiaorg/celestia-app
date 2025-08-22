@@ -464,7 +464,7 @@ func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, 
 }
 
 // retryBroadcastingTx creates a new transaction by copying over an existing transaction but creates a new signature with the
-// new sequence number. It then calls `broadcastTxAndIncrementSequence` and attempts to submit the transaction
+// new sequence number. It then calls `broadcastTx` and attempts to submit the transaction.
 func (s *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sdktypes.TxResponse, error) {
 	blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(txBytes)
 	if isBlobTx && err != nil {
@@ -510,7 +510,7 @@ func (s *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sd
 		return nil, err
 	}
 
-	// rewrap the blob tx if it was originally a blob tx
+	// Rewrap the blob tx if it was originally a blob tx.
 	if isBlobTx {
 		newTxBytes, err = blobtx.MarshalBlobTx(newTxBytes, blobTx.Blobs...)
 		if err != nil {
@@ -518,14 +518,14 @@ func (s *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sd
 		}
 	}
 
-	// txRes, err := s.broadcastTx(ctx, s.conns[0], newTxBytes, signer)
-	// if err != nil {
-	// 	return nil, err
-	// }
+	broadcastTxResp, err := s.broadcastTx(ctx, s.conns[0], newTxBytes, signer)
+	if err != nil {
+		return nil, err
+	}
 
-	// // add to tx tracker
-	// s.trackTransaction(signer, txRes.TxHash, newTxBytes)
-	return s.broadcastTxAndIncrementSequence(ctx, s.conns[0], newTxBytes, signer)
+	// Add to tx tracker.
+	s.trackTransaction(signer, broadcastTxResp.TxHash, newTxBytes)
+	return broadcastTxResp, nil
 }
 
 // broadcastMulti broadcasts the transaction to multiple connections concurrently
