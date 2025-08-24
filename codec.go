@@ -105,7 +105,7 @@ func computeRowHashes(rows [][]byte, workerCount int) [][]byte {
 }
 
 // computeRLCOrig computes random linear combinations for original rows
-func computeRLCOrig(rows [][]byte, coeffs [][]field.GF128, config *Config) []field.GF128 {
+func computeRLCOrig(rows [][]byte, coeffs []field.GF128, config *Config) []field.GF128 {
 	results := make([]field.GF128, len(rows))
 
 	var wg sync.WaitGroup

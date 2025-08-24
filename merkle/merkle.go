@@ -2,7 +2,6 @@ package merkle
 
 import (
 	"crypto/sha256"
-	"errors"
 	"fmt"
 	"math/bits"
 )

@@ -1,7 +1,6 @@
 package merkle
 
 import (
-	"crypto/sha256"
 	"fmt"
 )
 
