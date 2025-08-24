@@ -11,11 +11,6 @@ import (
 	"github.com/celestiaorg/rsema1d/merkle"
 )
 
-// merkleTree wraps the merkle package for internal use
-type merkleTree struct {
-	*merkle.Tree
-}
-
 // Encode extends data vertically and creates commitment
 func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, error) {
 	// 1. Validate input
@@ -41,17 +36,17 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, error) {
 
 	// 3. Compute row hashes and Merkle tree
 	rowHashes := computeRowHashes(extended, config.WorkerCount)
-	rowTree := &merkleTree{merkle.NewTree(rowHashes)}
+	rowTree := merkle.NewTree(rowHashes)
 	rowRoot := rowTree.Root()
 
 	// 4. Derive RLC coefficients
 	coeffs := deriveCoefficients(rowRoot, config)
 
 	// 5. Compute RLC results for original rows
-	rlcOriginal := computeRLCResults(data, coeffs, config)
+	rlcOrig := computeRLCOrig(data, coeffs, config)
 
 	// 6. Extend RLC results
-	rlcExtended, err := encoding.ExtendRLCResults(rlcOriginal, config.K, config.N)
+	rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.K, config.N)
 	if err != nil {
 		return nil, Commitment{}, fmt.Errorf("failed to extend RLC results: %w", err)
 	}
@@ -62,7 +57,7 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, error) {
 		bytes := field.ToBytes128(result)
 		rlcLeaves[i] = bytes[:]
 	}
-	rlcTree := &merkleTree{merkle.NewTree(rlcLeaves)}
+	rlcTree := merkle.NewTree(rlcLeaves)
 	rlcRoot := rlcTree.Root()
 
 	// 8. Create commitment: SHA256(rowRoot || rlcRoot)
@@ -79,7 +74,7 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, error) {
 		rowRoot:    rowRoot,
 		rlcRoot:    rlcRoot,
 		rowHashes:  rowHashes,
-		rlcResults: rlcOriginal,
+		rlcOrig:    rlcOrig,
 		rowTree:    rowTree,
 		rlcTree:    rlcTree,
 	}
@@ -109,8 +104,8 @@ func computeRowHashes(rows [][]byte, workerCount int) [][]byte {
 	return hashes
 }
 
-// computeRLCResults computes random linear combinations for original rows
-func computeRLCResults(rows [][]byte, coeffs [][]field.GF128, config *Config) []field.GF128 {
+// computeRLCOrig computes random linear combinations for original rows
+func computeRLCOrig(rows [][]byte, coeffs [][]field.GF128, config *Config) []field.GF128 {
 	results := make([]field.GF128, len(rows))
 
 	var wg sync.WaitGroup
@@ -161,29 +156,19 @@ func (ed *ExtendedData) GenerateProof(index int) (*Proof, error) {
 		proof.RLCProof = rlcProof
 	} else {
 		// Extended row - add all original RLC results and left-subtree proof
-		proof.YOrig = ed.rlcResults
+		proof.RLCOrig = ed.rlcOrig
 
-		// Generate left-subtree proof
-		// TODO: Implement proper subtree proof generation
-		leftProof, err := generateLeftSubtreeProof(ed.rlcTree, ed.config.K)
+		// Generate subtree proof from first K leaves to full tree
+		subtreeProof, err := ed.rlcTree.GenerateSubtreeProof(ed.config.K)
 		if err != nil {
-			return nil, fmt.Errorf("failed to generate left-subtree proof: %w", err)
+			return nil, fmt.Errorf("failed to generate subtree proof: %w", err)
 		}
-		proof.YLeftProof = leftProof
+		proof.RLCOrigProof = subtreeProof
 	}
 
 	return proof, nil
 }
 
-// VerifyProof verifies a row proof against commitment
-func VerifyProof(proof *Proof, commitment Commitment, config *Config) error {
-	// TODO: Implement proof verification
-	// - Extract roots from commitment
-	// - Verify row inclusion
-	// - Recompute RLC
-	// - Branch based on proof type (original vs extended)
-	return errors.New("not implemented")
-}
 
 // Reconstruct recovers original data from any K rows
 func Reconstruct(rows [][]byte, indices []int, config *Config) ([][]byte, error) {
@@ -193,35 +178,3 @@ func Reconstruct(rows [][]byte, indices []int, config *Config) ([][]byte, error)
 	return nil, errors.New("not implemented")
 }
 
-// generateLeftSubtreeProof generates a proof from the Merkle root of K original RLCs to rlcRoot
-func generateLeftSubtreeProof(rlcTree *merkleTree, k int) ([][]byte, error) {
-	// When K and N are powers of 2, the first K leaves form a complete subtree
-	// We need to provide sibling nodes to compute from that subtree's root to the full root
-	
-	totalLeaves := len(rlcTree.leaves)
-	
-	// Build the proof by finding sibling nodes at each level
-	proof := [][]byte{}
-	
-	// Start with the range [0, K) and expand until we reach [0, totalLeaves)
-	leftIdx := 0
-	rightIdx := k
-	
-	for rightIdx < totalLeaves {
-		// At this level, [leftIdx, rightIdx) is our current subtree
-		// The sibling is [rightIdx, rightIdx + (rightIdx - leftIdx))
-		siblingSize := rightIdx - leftIdx
-		siblingLeft := rightIdx
-		siblingRight := rightIdx + siblingSize
-		
-		// Compute the root of the sibling subtree
-		siblingLeaves := rlcTree.leaves[siblingLeft:siblingRight]
-		siblingRoot := merkle.ComputeSubtreeRoot(siblingLeaves)
-		proof = append(proof, siblingRoot[:])
-		
-		// Move up one level (double the range)
-		rightIdx = siblingRight
-	}
-	
-	return proof, nil
-}

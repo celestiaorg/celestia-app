@@ -46,13 +46,25 @@ func FromBytes128(b [16]byte) GF128 {
 	return g
 }
 
-// ExpandToGF128 expands 32 bytes to a GF128 element
-// Takes first 16 bytes and interprets as 8 little-endian uint16 values
-func ExpandToGF128(data []byte) GF128 {
-	if len(data) < 16 {
-		panic("ExpandToGF128 requires at least 16 bytes")
+// HashToGF128 converts a 32-byte hash to a GF128 element
+// XORs the two halves for better randomness distribution
+func HashToGF128(data []byte) GF128 {
+	if len(data) < 32 {
+		panic("HashToGF128 requires at least 32 bytes")
 	}
-	var b [16]byte
-	copy(b[:], data[:16])
-	return FromBytes128(b)
+	
+	// Take first half as 8 little-endian uint16 values
+	var firstHalf GF128
+	for i := 0; i < 8; i++ {
+		firstHalf[i] = GF16(binary.LittleEndian.Uint16(data[i*2:]))
+	}
+	
+	// Take second half as 8 little-endian uint16 values
+	var secondHalf GF128
+	for i := 0; i < 8; i++ {
+		secondHalf[i] = GF16(binary.LittleEndian.Uint16(data[16+i*2:]))
+	}
+	
+	// XOR the two halves for final result
+	return Add128(firstHalf, secondHalf)
 }

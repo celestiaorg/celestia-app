@@ -1,6 +1,9 @@
 package rsema1d
 
-import "github.com/celestiaorg/rsema1d/field"
+import (
+	"github.com/celestiaorg/rsema1d/field"
+	"github.com/celestiaorg/rsema1d/merkle"
+)
 
 // chunkSize is the fixed Leopard chunk size in bytes
 const chunkSize = 64
@@ -16,8 +19,8 @@ type ExtendedData struct {
 	rlcRoot    [32]byte      // Merkle root of RLC results
 	rowHashes  [][]byte      // Cached row hashes
 	rlcResults []field.GF128 // Cached RLC results (original rows)
-	rowTree    *merkleTree   // Cached row Merkle tree
-	rlcTree    *merkleTree   // Cached RLC Merkle tree
+	rowTree    *merkle.Tree  // Cached row Merkle tree
+	rlcTree    *merkle.Tree  // Cached RLC Merkle tree
 }
 
 // Proof represents a proof for a single row
