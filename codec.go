@@ -193,10 +193,35 @@ func Reconstruct(rows [][]byte, indices []int, config *Config) ([][]byte, error)
 	return nil, errors.New("not implemented")
 }
 
-// generateLeftSubtreeProof generates a proof from left-subtree root to rlcRoot
+// generateLeftSubtreeProof generates a proof from the Merkle root of K original RLCs to rlcRoot
 func generateLeftSubtreeProof(rlcTree *merkleTree, k int) ([][]byte, error) {
-	// TODO: Implement proper subtree proof generation
-	// - Compute left-subtree root from first K leaves
-	// - Generate proof path from subtree root to full tree root
-	return nil, errors.New("not implemented")
+	// When K and N are powers of 2, the first K leaves form a complete subtree
+	// We need to provide sibling nodes to compute from that subtree's root to the full root
+	
+	totalLeaves := len(rlcTree.leaves)
+	
+	// Build the proof by finding sibling nodes at each level
+	proof := [][]byte{}
+	
+	// Start with the range [0, K) and expand until we reach [0, totalLeaves)
+	leftIdx := 0
+	rightIdx := k
+	
+	for rightIdx < totalLeaves {
+		// At this level, [leftIdx, rightIdx) is our current subtree
+		// The sibling is [rightIdx, rightIdx + (rightIdx - leftIdx))
+		siblingSize := rightIdx - leftIdx
+		siblingLeft := rightIdx
+		siblingRight := rightIdx + siblingSize
+		
+		// Compute the root of the sibling subtree
+		siblingLeaves := rlcTree.leaves[siblingLeft:siblingRight]
+		siblingRoot := merkle.ComputeSubtreeRoot(siblingLeaves)
+		proof = append(proof, siblingRoot[:])
+		
+		// Move up one level (double the range)
+		rightIdx = siblingRight
+	}
+	
+	return proof, nil
 }
