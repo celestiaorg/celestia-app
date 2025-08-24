@@ -39,6 +39,16 @@ func (c *Config) Validate() error {
 		return errors.New("RowSize must be positive")
 	}
 
+	// Check K is a power of 2 (ensures left subtree is perfect)
+	if !isPowerOfTwo(c.K) {
+		return fmt.Errorf("K must be a power of 2, got %d", c.K)
+	}
+	
+	// Check K + N is a power of 2 (ensures total tree is perfect)
+	if !isPowerOfTwo(c.K + c.N) {
+		return fmt.Errorf("K + N must be a power of 2, got %d", c.K+c.N)
+	}
+
 	// Check K + N <= 65536 (GF(2^16) field size limit)
 	if c.K+c.N > 65536 {
 		return fmt.Errorf("K + N must be <= 65536, got %d", c.K+c.N)
@@ -60,4 +70,9 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
+}
+
+// isPowerOfTwo checks if n is a power of 2
+func isPowerOfTwo(n int) bool {
+	return n > 0 && (n&(n-1)) == 0
 }

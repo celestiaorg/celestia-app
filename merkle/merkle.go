@@ -4,36 +4,23 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"math/bits"
 )
 
 // Tree represents a binary Merkle tree
 type Tree struct {
-	leaves [][]byte
-	nodes  [][]byte // Internal nodes (level 0 = leaves, level h = root)
-	depth  int
+	nodes [][]byte // All nodes: [root, internal nodes..., leaves]
 }
 
 // NewTree builds a binary Merkle tree from the given leaves
+// Requires: len(leaves) must be a power of 2
 func NewTree(leaves [][]byte) *Tree {
-	if len(leaves) == 0 {
+	n := len(leaves)
+	if n == 0 {
 		panic("cannot create Merkle tree with 0 leaves")
 	}
-
-	// Pad to power of 2
-	n := nextPowerOfTwo(len(leaves))
-	paddedLeaves := make([][]byte, n)
-	copy(paddedLeaves, leaves)
-
-	// Pad with hash of empty data for missing leaves
-	emptyHash := sha256.Sum256(nil)
-	for i := len(leaves); i < n; i++ {
-		paddedLeaves[i] = emptyHash[:]
-	}
-
-	// Calculate tree depth
-	depth := 0
-	for size := n; size > 1; size >>= 1 {
-		depth++
+	if n&(n-1) != 0 {
+		panic(fmt.Sprintf("number of leaves must be a power of 2, got %d", n))
 	}
 
 	// Build tree bottom-up
@@ -41,7 +28,7 @@ func NewTree(leaves [][]byte) *Tree {
 	
 	// Copy leaves to the end of the nodes array
 	for i := 0; i < n; i++ {
-		nodes[n-1+i] = paddedLeaves[i]
+		nodes[n-1+i] = leaves[i]
 	}
 
 	// Build internal nodes
@@ -52,10 +39,23 @@ func NewTree(leaves [][]byte) *Tree {
 	}
 
 	return &Tree{
-		leaves: paddedLeaves,
-		nodes:  nodes,
-		depth:  depth,
+		nodes: nodes,
 	}
+}
+
+// numLeaves returns the number of leaves in the tree
+func (t *Tree) numLeaves() int {
+	// With 2n-1 total nodes, n = (total+1)/2
+	return (len(t.nodes) + 1) / 2
+}
+
+// depth returns the depth of the tree (calculated from number of leaves)
+func (t *Tree) depth() int {
+	n := t.numLeaves()
+	if n <= 1 {
+		return 0
+	}
+	return bits.Len(uint(n - 1))
 }
 
 // Root returns the Merkle root
@@ -67,12 +67,12 @@ func (t *Tree) Root() [32]byte {
 
 // GenerateProof generates a Merkle proof for the leaf at the given index
 func (t *Tree) GenerateProof(index int) ([][]byte, error) {
-	if index < 0 || index >= len(t.leaves) {
-		return nil, fmt.Errorf("index %d out of range [0, %d)", index, len(t.leaves))
+	n := t.numLeaves()
+	if index < 0 || index >= n {
+		return nil, fmt.Errorf("index %d out of range [0, %d)", index, n)
 	}
 
-	proof := make([][]byte, 0, t.depth)
-	n := len(t.leaves)
+	proof := make([][]byte, 0, t.depth())
 	pos := n - 1 + index
 
 	// Traverse from leaf to root
@@ -151,14 +151,3 @@ func hashPair(left, right []byte) []byte {
 	return h.Sum(nil)
 }
 
-// nextPowerOfTwo returns the next power of 2 >= n
-func nextPowerOfTwo(n int) int {
-	if n <= 1 {
-		return 1
-	}
-	power := 1
-	for power < n {
-		power <<= 1
-	}
-	return power
-}
