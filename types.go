@@ -18,7 +18,7 @@ type ExtendedData struct {
 	rowRoot    [32]byte      // Merkle root of row hashes
 	rlcRoot    [32]byte      // Merkle root of RLC results
 	rowHashes  [][]byte      // Cached row hashes
-	rlcResults []field.GF128 // Cached RLC results (original rows)
+	rlcOrig    []field.GF128 // Cached RLC results (original rows)
 	rowTree    *merkle.Tree  // Cached row Merkle tree
 	rlcTree    *merkle.Tree  // Cached RLC Merkle tree
 }
@@ -30,8 +30,8 @@ type Proof struct {
 	RowProof [][]byte // Merkle proof for row
 
 	// For extended rows (index >= K)
-	YOrig      []field.GF128 // Original RLC results
-	YLeftProof [][]byte      // Proof from left-subtree
+	RLCOrig      [][]byte // Original RLC results (serialized as 16 bytes each)
+	RLCOrigProof [][]byte // Proof from left-subtree
 
 	// For original rows (index < K)
 	RLCProof [][]byte // Merkle proof for RLC

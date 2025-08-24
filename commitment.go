@@ -8,26 +8,22 @@ import (
 )
 
 // deriveCoefficients generates RLC coefficients via Fiat-Shamir (internal)
-func deriveCoefficients(rowRoot [32]byte, config *Config) [][]field.GF128 {
+func deriveCoefficients(rowRoot [32]byte, config *Config) []field.GF128 {
 	seed := sha256.Sum256(rowRoot[:])
-	numChunks := config.RowSize / chunkSize
-	coeffs := make([][]field.GF128, numChunks)
+	numSymbols := config.RowSize / 2 // Each GF16 symbol is 2 bytes
+	coeffs := make([]field.GF128, numSymbols)
 
-	for c := 0; c < numChunks; c++ {
-		coeffs[c] = make([]field.GF128, 32) // 32 symbols per 64-byte chunk
-		for j := 0; j < 32; j++ {
-			h := sha256.New()
-			h.Write(seed[:])
-			binary.Write(h, binary.LittleEndian, uint32(c))
-			binary.Write(h, binary.LittleEndian, uint32(j))
-			coeffs[c][j] = field.ExpandToGF128(h.Sum(nil))
-		}
+	for i := 0; i < numSymbols; i++ {
+		h := sha256.New()
+		h.Write(seed[:])
+		binary.Write(h, binary.LittleEndian, uint32(i))
+		coeffs[i] = field.HashToGF128(h.Sum(nil))
 	}
 	return coeffs
 }
 
 // computeRLC computes random linear combination for a row (internal)
-func computeRLC(row []byte, coeffs [][]field.GF128, config *Config) field.GF128 {
+func computeRLC(row []byte, coeffs []field.GF128, config *Config) field.GF128 {
 	result := field.Zero()
 	numChunks := len(row) / chunkSize
 
@@ -36,7 +32,8 @@ func computeRLC(row []byte, coeffs [][]field.GF128, config *Config) field.GF128 
 		symbols := extractSymbols(chunk)
 		for j, sym := range symbols {
 			// result += symbol * coefficient
-			product := field.Mul128(sym, coeffs[c][j])
+			symbolIndex := c*32 + j // Overall symbol index in the row
+			product := field.Mul128(sym, coeffs[symbolIndex])
 			result = field.Add128(result, product)
 		}
 	}

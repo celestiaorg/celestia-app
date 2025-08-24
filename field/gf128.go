@@ -46,6 +46,16 @@ func FromBytes128(b [16]byte) GF128 {
 	return g
 }
 
+// Equal checks if two GF128 values are equal
+func Equal128(a, b GF128) bool {
+	for i := 0; i < 8; i++ {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 // HashToGF128 converts a 32-byte hash to a GF128 element
 // XORs the two halves for better randomness distribution
 func HashToGF128(data []byte) GF128 {

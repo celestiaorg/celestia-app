@@ -156,10 +156,15 @@ func (ed *ExtendedData) GenerateProof(index int) (*Proof, error) {
 		proof.RLCProof = rlcProof
 	} else {
 		// Extended row - add all original RLC results and left-subtree proof
-		proof.RLCOrig = ed.rlcOrig
+		// Serialize RLC results for wire format
+		proof.RLCOrig = make([][]byte, len(ed.rlcOrig))
+		for i, rlc := range ed.rlcOrig {
+			bytes := field.ToBytes128(rlc)
+			proof.RLCOrig[i] = bytes[:]
+		}
 
-		// Generate subtree proof from first K leaves to full tree
-		subtreeProof, err := ed.rlcTree.GenerateSubtreeProof(ed.config.K)
+		// Generate left subtree proof from first K leaves to full tree
+		subtreeProof, err := ed.rlcTree.GenerateLeftSubtreeProof(ed.config.K)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate subtree proof: %w", err)
 		}
