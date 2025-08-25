@@ -169,5 +169,6 @@ func replaceLogger(cmd *cobra.Command) error {
 	if err != nil {
 		return fmt.Errorf("failed to create logger: %w", err)
 	}
-	return server.SetCmdServerContext(cmd, sctx)
+	server.SetCmdServerContext(cmd, sctx)
+	return nil
 }
