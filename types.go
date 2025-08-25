@@ -30,8 +30,7 @@ type Proof struct {
 	RowProof [][]byte // Merkle proof for row
 
 	// For extended rows (index >= K)
-	RLCOrig      [][]byte // Original RLC results (serialized as 16 bytes each)
-	RLCOrigProof [][]byte // Proof from left-subtree
+	RLCOrig [][]byte // Original RLC results (serialized as 16 bytes each)
 
 	// For original rows (index < K)
 	RLCProof [][]byte // Merkle proof for RLC

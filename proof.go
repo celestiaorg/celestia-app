@@ -88,15 +88,16 @@ func verifyExtendedRow(proof *Proof, computedRLC field.GF128, config *Config) ([
 		return [32]byte{}, errors.New("computed RLC does not match extended value")
 	}
 
-	// The RLCOrigProof proves that the K original RLCs (proof.RLCOrig) are the first K leaves
-	// of a Merkle tree with K+N leaves
+	// Build the complete RLC Merkle tree from all K+N extended values
+	rlcLeaves := make([][]byte, len(extendedRLCs))
+	for i, rlc := range extendedRLCs {
+		bytes := field.ToBytes128(rlc)
+		rlcLeaves[i] = bytes[:]
+	}
 	
-	// Compute Merkle root of the K original RLCs (already in bytes format)
-	origTree := merkle.NewTree(proof.RLCOrig)
-	origRoot := origTree.Root()
-
-	// Use RLCOrigProof to compute from origRoot to the full rlcRoot
-	rlcRoot := merkle.ComputeRootFromLeftSubtreeProof(origRoot, proof.RLCOrigProof)
+	// Compute the full rlcRoot directly from all K+N leaves
+	rlcTree := merkle.NewTree(rlcLeaves)
+	rlcRoot := rlcTree.Root()
 
 	return rlcRoot, nil
 }
