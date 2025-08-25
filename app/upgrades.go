@@ -119,8 +119,11 @@ func (app App) RegisterUpgradeHandlers() {
 		panic(err)
 	}
 
-	if upgradeInfo.Name == upgradeName && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) { //nolint:staticcheck
-		// TODO: Apply any store upgrades here.
+	if upgradeInfo.Name == upgradeName && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
+		// Apply store upgrades for the current version
+		if err := app.applyStoreUpgrades(ctx, upgradeInfo); err != nil {
+			return fmt.Errorf("failed to apply store upgrades: %w", err)
+		}
 	}
 }
 
