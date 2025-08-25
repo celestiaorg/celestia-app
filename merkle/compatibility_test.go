@@ -46,47 +46,154 @@ func TestCometBFTCompatibility(t *testing.T) {
 	}
 }
 
-// TestCometBFTProofCompatibility tests that our proof generation and verification
-// works correctly alongside CometBFT's implementation
-func TestCometBFTProofCompatibility(t *testing.T) {
-	numLeaves := 8
-	leaves := makeTestLeaves(numLeaves)
+// TestCometBFTProofCrossVerification tests that our implementation
+// produces proofs compatible with CometBFT's verification
+func TestCometBFTProofCrossVerification(t *testing.T) {
+	testCases := []int{1, 2, 4, 8, 16, 32}
 	
-	// Build our tree
+	for _, numLeaves := range testCases {
+		t.Run(fmt.Sprintf("leaves_%d", numLeaves), func(t *testing.T) {
+			leaves := makeTestLeaves(numLeaves)
+			
+			// Build trees with both implementations
+			ourTree := NewTree(leaves)
+			ourRoot := ourTree.Root()
+			
+			// Generate all proofs with CometBFT
+			cometRoot, cometProofs := cmtmerkle.ProofsFromByteSlices(leaves)
+			
+			// Roots should match
+			if !bytes.Equal(ourRoot[:], cometRoot) {
+				t.Fatalf("Root mismatch: our=%x, comet=%x", ourRoot, cometRoot)
+			}
+			
+			// Test each leaf
+			for i := 0; i < numLeaves; i++ {
+				// Get CometBFT proof for this index
+				var cometProof *cmtmerkle.Proof
+				for _, p := range cometProofs {
+					if int(p.Index) == i {
+						cometProof = p
+						break
+					}
+				}
+				if cometProof == nil {
+					t.Fatalf("No CometBFT proof found for index %d", i)
+				}
+				
+				// Verify CometBFT proof with CometBFT
+				err := cometProof.Verify(cometRoot, leaves[i])
+				if err != nil {
+					t.Fatalf("CometBFT self-verification failed for index %d: %v", i, err)
+				}
+				
+				// Generate our proof
+				ourProof, err := ourTree.GenerateProof(i)
+				if err != nil {
+					t.Fatalf("Our GenerateProof failed for index %d: %v", i, err)
+				}
+				
+				// Verify our proof with our implementation
+				computedRoot, err := ComputeRootFromProof(leaves[i], i, ourProof)
+				if err != nil {
+					t.Fatalf("Our verification failed for index %d: %v", i, err)
+				}
+				if !bytes.Equal(computedRoot[:], ourRoot[:]) {
+					t.Errorf("Our proof verification failed for index %d", i)
+				}
+				
+				// Cross-verify: Create a CometBFT proof from our proof
+				// We need to provide the leaf hash with proper prefix
+				leafHash := hashLeaf(leaves[i])
+				crossCheckProof := &cmtmerkle.Proof{
+					Total:    int64(numLeaves),
+					Index:    int64(i),
+					LeafHash: leafHash,
+					Aunts:    ourProof,
+				}
+				
+				// Verify our proof using CometBFT's verifier
+				err = crossCheckProof.Verify(cometRoot, leaves[i])
+				if err != nil {
+					t.Errorf("Cross-verification failed for index %d: %v", i, err)
+				}
+				
+				// Also verify that our proof aunts match CometBFT's aunts
+				if len(ourProof) != len(cometProof.Aunts) {
+					t.Errorf("Proof length mismatch for index %d: our=%d, comet=%d", 
+						i, len(ourProof), len(cometProof.Aunts))
+				} else {
+					for j := range ourProof {
+						if !bytes.Equal(ourProof[j], cometProof.Aunts[j]) {
+							t.Errorf("Proof aunt mismatch at index %d, aunt %d", i, j)
+						}
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestCometBFTProofSimple tests simple proof compatibility
+func TestCometBFTProofSimple(t *testing.T) {
+	// Simple 4-leaf test for debugging
+	leaves := [][]byte{
+		[]byte("leaf0"),
+		[]byte("leaf1"),
+		[]byte("leaf2"),
+		[]byte("leaf3"),
+	}
+	
+	// Our implementation
 	ourTree := NewTree(leaves)
 	ourRoot := ourTree.Root()
 	
-	// CometBFT should produce the same root
-	cometRoot := cmtmerkle.HashFromByteSlices(leaves)
+	// CometBFT implementation
+	cometRoot, cometProofs := cmtmerkle.ProofsFromByteSlices(leaves)
+	
+	t.Logf("Our root:   %x", ourRoot)
+	t.Logf("Comet root: %x", cometRoot)
 	
 	if !bytes.Equal(ourRoot[:], cometRoot) {
-		t.Fatalf("Root mismatch before proof testing")
+		t.Fatalf("Roots don't match")
 	}
 	
-	// Test proof generation and verification for each leaf
-	for i := 0; i < numLeaves; i++ {
-		t.Run(fmt.Sprintf("leaf_%d", i), func(t *testing.T) {
-			// Generate our proof
-			ourProof, err := ourTree.GenerateProof(i)
-			if err != nil {
-				t.Fatalf("Our GenerateProof error: %v", err)
-			}
-			
-			// Verify our proof produces the correct root
-			computedRoot, err := ComputeRootFromProof(leaves[i], i, ourProof)
-			if err != nil {
-				t.Fatalf("ComputeRootFromProof error: %v", err)
-			}
-			
-			if !bytes.Equal(ourRoot[:], computedRoot[:]) {
-				t.Errorf("Our proof verification failed for index %d", i)
-			}
-			
-			// Also verify the proof produces the same root as CometBFT
-			if !bytes.Equal(computedRoot[:], cometRoot) {
-				t.Errorf("Computed root doesn't match CometBFT root for index %d", i)
-			}
-		})
+	// Test index 0
+	ourProof, _ := ourTree.GenerateProof(0)
+	cometProof := cometProofs[0]
+	
+	t.Logf("Our proof aunts for index 0: %d aunts", len(ourProof))
+	for i, aunt := range ourProof {
+		t.Logf("  Aunt %d: %x", i, aunt)
+	}
+	
+	t.Logf("CometBFT proof aunts for index 0: %d aunts", len(cometProof.Aunts))
+	for i, aunt := range cometProof.Aunts {
+		t.Logf("  Aunt %d: %x", i, aunt)
+	}
+	
+	// Verify using CometBFT
+	err := cometProof.Verify(cometRoot, leaves[0])
+	if err != nil {
+		t.Fatalf("CometBFT verification failed: %v", err)
+	}
+	
+	// Cross-verify our proof with CometBFT verifier
+	// CometBFT expects the leaf hash to be computed with the leaf prefix
+	leafHash := hashLeaf(leaves[0])
+	crossProof := &cmtmerkle.Proof{
+		Total:    4,
+		Index:    0,
+		LeafHash: leafHash,
+		Aunts:    ourProof,
+	}
+	err = crossProof.Verify(cometRoot, leaves[0])
+	if err != nil {
+		t.Errorf("Cross-verification failed: %v", err)
+		t.Logf("  LeafHash we provided: %x", leafHash)
+		t.Logf("  CometBFT leaf hash:   %x", cometProof.LeafHash)
+	} else {
+		t.Log("Cross-verification succeeded!")
 	}
 }
 
