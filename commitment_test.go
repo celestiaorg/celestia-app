@@ -1,0 +1,291 @@
+package rsema1d
+
+import (
+	"bytes"
+	"crypto/sha256"
+	"testing"
+
+	"github.com/celestiaorg/rsema1d/field"
+)
+
+func TestDeriveCoefficients(t *testing.T) {
+	configs := []struct {
+		name    string
+		k       int
+		n       int
+		rowSize int
+	}{
+		{"small", 4, 4, 64},
+		{"medium", 8, 8, 128},
+		{"large", 16, 16, 256},
+	}
+
+	for _, tc := range configs {
+		t.Run(tc.name, func(t *testing.T) {
+			config := &Config{
+				K:           tc.k,
+				N:           tc.n,
+				RowSize:     tc.rowSize,
+				WorkerCount: 1,
+			}
+
+			// Create a test rowRoot
+			rowRoot := sha256.Sum256([]byte("test root"))
+
+			// Derive coefficients
+			coeffs1 := deriveCoefficients(rowRoot, config)
+			coeffs2 := deriveCoefficients(rowRoot, config)
+
+			// Test determinism
+			if len(coeffs1) != len(coeffs2) {
+				t.Fatalf("Coefficient lengths differ: %d vs %d", len(coeffs1), len(coeffs2))
+			}
+
+			for i := range coeffs1 {
+				if !field.Equal128(coeffs1[i], coeffs2[i]) {
+					t.Errorf("Coefficient %d not deterministic", i)
+				}
+			}
+
+			// Test expected number of coefficients
+			expectedNumCoeffs := config.RowSize / 2 // Each GF16 symbol is 2 bytes
+			if len(coeffs1) != expectedNumCoeffs {
+				t.Errorf("Got %d coefficients, expected %d", len(coeffs1), expectedNumCoeffs)
+			}
+
+			// Test that different roots produce different coefficients
+			differentRoot := sha256.Sum256([]byte("different root"))
+			coeffs3 := deriveCoefficients(differentRoot, config)
+
+			allSame := true
+			for i := range coeffs1 {
+				if !field.Equal128(coeffs1[i], coeffs3[i]) {
+					allSame = false
+					break
+				}
+			}
+			if allSame {
+				t.Error("Different roots produced identical coefficients")
+			}
+		})
+	}
+}
+
+func TestComputeRLC(t *testing.T) {
+	tests := []struct {
+		name    string
+		rowSize int
+	}{
+		{"single_chunk", 64},
+		{"two_chunks", 128},
+		{"four_chunks", 256},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &Config{
+				K:           4,
+				N:           4,
+				RowSize:     tt.rowSize,
+				WorkerCount: 1,
+			}
+
+			// Create test row data
+			row := make([]byte, tt.rowSize)
+			for i := range row {
+				row[i] = byte(i % 256)
+			}
+
+			// Derive coefficients
+			rowRoot := sha256.Sum256([]byte("test"))
+			coeffs := deriveCoefficients(rowRoot, config)
+
+			// Compute RLC
+			rlc1 := computeRLC(row, coeffs, config)
+			rlc2 := computeRLC(row, coeffs, config)
+
+			// Test determinism
+			if !field.Equal128(rlc1, rlc2) {
+				t.Error("computeRLC is not deterministic")
+			}
+
+			// Test that zero row produces zero RLC
+			zeroRow := make([]byte, tt.rowSize)
+			zeroRLC := computeRLC(zeroRow, coeffs, config)
+			if !field.Equal128(zeroRLC, field.Zero()) {
+				t.Error("Zero row should produce zero RLC")
+			}
+
+			// Test that different data produces different RLC
+			row2 := make([]byte, tt.rowSize)
+			copy(row2, row)
+			row2[0] ^= 1
+			rlc3 := computeRLC(row2, coeffs, config)
+			if field.Equal128(rlc1, rlc3) {
+				t.Error("Different rows produced same RLC")
+			}
+		})
+	}
+}
+
+func TestExtractSymbols(t *testing.T) {
+	// Test that extractSymbols correctly interprets Leopard format
+	chunk := make([]byte, 64)
+
+	// Set up test data in Leopard format:
+	// bytes 0-31: low bytes of symbols
+	// bytes 32-63: high bytes of symbols
+	for i := 0; i < 32; i++ {
+		chunk[i] = byte(i * 2)       // Low byte
+		chunk[32+i] = byte(i * 2 + 1) // High byte
+	}
+
+	symbols := extractSymbols(chunk)
+
+	// Verify we got 32 symbols
+	if len(symbols) != 32 {
+		t.Fatalf("extractSymbols returned %d symbols, expected 32", len(symbols))
+	}
+
+	// Verify each symbol is correctly formed
+	for i := 0; i < 32; i++ {
+		expectedSymbol := field.GF16((i*2+1)<<8 | (i * 2))
+		if symbols[i] != expectedSymbol {
+			t.Errorf("Symbol %d: got %04x, expected %04x", i, symbols[i], expectedSymbol)
+		}
+	}
+}
+
+func TestExtractSymbolsPanic(t *testing.T) {
+	// Test that extractSymbols panics with wrong size chunk
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("extractSymbols should panic with non-64-byte chunk")
+		}
+	}()
+
+	chunk := make([]byte, 63) // Wrong size
+	extractSymbols(chunk)
+}
+
+func TestRLCLinearity(t *testing.T) {
+	// Test that RLC is linear: RLC(a + b) = RLC(a) + RLC(b)
+	config := &Config{
+		K:           4,
+		N:           4,
+		RowSize:     64,
+		WorkerCount: 1,
+	}
+
+	// Create test data
+	rowA := make([]byte, 64)
+	rowB := make([]byte, 64)
+	rowSum := make([]byte, 64)
+
+	for i := range rowA {
+		rowA[i] = byte(i)
+		rowB[i] = byte(i * 2)
+		rowSum[i] = rowA[i] ^ rowB[i] // Addition in GF is XOR
+	}
+
+	// Derive coefficients
+	rowRoot := sha256.Sum256([]byte("test"))
+	coeffs := deriveCoefficients(rowRoot, config)
+
+	// Compute RLCs
+	rlcA := computeRLC(rowA, coeffs, config)
+	rlcB := computeRLC(rowB, coeffs, config)
+	rlcSum := computeRLC(rowSum, coeffs, config)
+
+	// Check linearity: RLC(A + B) = RLC(A) + RLC(B)
+	expectedSum := field.Add128(rlcA, rlcB)
+	if !field.Equal128(rlcSum, expectedSum) {
+		t.Error("RLC is not linear")
+	}
+}
+
+func TestCommitmentDeterminism(t *testing.T) {
+	// Test that the same data always produces the same commitment
+	config := &Config{
+		K:           4,
+		N:           4,
+		RowSize:     64,
+		WorkerCount: 1,
+	}
+
+	// Create test data
+	data := makeTestData(4, 64)
+
+	// Generate commitments multiple times
+	_, commitment1, err := Encode(data, config)
+	if err != nil {
+		t.Fatalf("First Encode failed: %v", err)
+	}
+
+	_, commitment2, err := Encode(data, config)
+	if err != nil {
+		t.Fatalf("Second Encode failed: %v", err)
+	}
+
+	// Commitments should be identical
+	if !bytes.Equal(commitment1[:], commitment2[:]) {
+		t.Error("Encode is not deterministic")
+	}
+
+	// Modify data slightly
+	data[0][0] ^= 1
+
+	_, commitment3, err := Encode(data, config)
+	if err != nil {
+		t.Fatalf("Third Encode failed: %v", err)
+	}
+
+	// Modified data should produce different commitment
+	if bytes.Equal(commitment1[:], commitment3[:]) {
+		t.Error("Different data produced same commitment")
+	}
+}
+
+func TestCoefficientsConsistency(t *testing.T) {
+	// Test that coefficient derivation is consistent across different row counts
+	// but same rowSize
+	configs := []struct {
+		k int
+		n int
+	}{
+		{4, 4},
+		{8, 8},
+		{16, 16},
+	}
+
+	rowSize := 128
+	rowRoot := sha256.Sum256([]byte("consistent root"))
+
+	var prevCoeffs []field.GF128
+
+	for i, tc := range configs {
+		config := &Config{
+			K:           tc.k,
+			N:           tc.n,
+			RowSize:     rowSize,
+			WorkerCount: 1,
+		}
+
+		coeffs := deriveCoefficients(rowRoot, config)
+
+		// All configs with same rowSize should produce same coefficients
+		if i > 0 {
+			if len(coeffs) != len(prevCoeffs) {
+				t.Fatalf("Config %d: coefficient count differs", i)
+			}
+
+			for j := range coeffs {
+				if !field.Equal128(coeffs[j], prevCoeffs[j]) {
+					t.Errorf("Config %d: coefficient %d differs", i, j)
+				}
+			}
+		}
+
+		prevCoeffs = coeffs
+	}
+}
