@@ -43,7 +43,7 @@ func makeTestData(k, rowSize int) [][]byte {
 	for i := range k {
 		data[i] = make([]byte, rowSize)
 		for j := range rowSize {
-			data[i][j] = byte((i*rowSize + j) % 256)
+			data[i][j] = byte((i + j) % 256)
 		}
 	}
 	return data
