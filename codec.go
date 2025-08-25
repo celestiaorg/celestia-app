@@ -33,9 +33,8 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, error) {
 		return nil, Commitment{}, fmt.Errorf("failed to extend data: %w", err)
 	}
 
-	// 3. Compute row hashes and Merkle tree
-	rowHashes := computeRowHashes(extended, config.WorkerCount)
-	rowTree := merkle.NewTree(rowHashes)
+	// 3. Build Merkle tree directly over extended rows
+	rowTree := merkle.NewTree(extended)
 	rowRoot := rowTree.Root()
 
 	// 4. Derive RLC coefficients
@@ -68,40 +67,18 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, error) {
 
 	// Create ExtendedData
 	extData := &ExtendedData{
-		config:     config,
-		rows:       extended,
-		rowRoot:    rowRoot,
-		rlcRoot:    rlcRoot,
-		rowHashes:  rowHashes,
-		rlcOrig:    rlcOrig,
-		rowTree:    rowTree,
-		rlcTree:    rlcTree,
+		config:    config,
+		rows:      extended,
+		rowRoot:   rowRoot,
+		rlcRoot:   rlcRoot,
+		rlcOrig:   rlcOrig,
+		rowTree:   rowTree,
+		rlcTree:   rlcTree,
 	}
 
 	return extData, commitment, nil
 }
 
-// computeRowHashes computes SHA256 hashes of all rows
-func computeRowHashes(rows [][]byte, workerCount int) [][]byte {
-	hashes := make([][]byte, len(rows))
-
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, workerCount)
-
-	for i, row := range rows {
-		wg.Add(1)
-		sem <- struct{}{}
-		go func(idx int, r []byte) {
-			defer wg.Done()
-			defer func() { <-sem }()
-			hash := sha256.Sum256(r)
-			hashes[idx] = hash[:]
-		}(i, row)
-	}
-	wg.Wait()
-
-	return hashes
-}
 
 // computeRLCOrig computes random linear combinations for original rows
 func computeRLCOrig(rows [][]byte, coeffs []field.GF128, config *Config) []field.GF128 {

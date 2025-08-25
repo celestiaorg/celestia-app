@@ -16,9 +16,8 @@ func VerifyProof(proof *Proof, commitment Commitment, config *Config) error {
 		return fmt.Errorf("invalid config: %w", err)
 	}
 
-	// 1. Compute rowRoot from the row proof
-	rowHash := sha256.Sum256(proof.Row)
-	rowRoot, err := merkle.ComputeRootFromProof(rowHash[:], proof.Index, proof.RowProof)
+	// 1. Compute rowRoot from the row proof (directly using row data)
+	rowRoot, err := merkle.ComputeRootFromProof(proof.Row, proof.Index, proof.RowProof)
 	if err != nil {
 		return fmt.Errorf("failed to compute row root: %w", err)
 	}

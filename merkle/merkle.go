@@ -6,6 +6,12 @@ import (
 	"math/bits"
 )
 
+// Prefix bytes for differentiating leaf and internal nodes (matching CometBFT/Tendermint)
+var (
+	leafPrefix  = []byte{0}
+	innerPrefix = []byte{1}
+)
+
 // Tree represents a binary Merkle tree
 type Tree struct {
 	nodes [][]byte // All nodes: [root, internal nodes..., leaves]
@@ -25,9 +31,9 @@ func NewTree(leaves [][]byte) *Tree {
 	// Build tree bottom-up
 	nodes := make([][]byte, 2*n-1)
 
-	// Copy leaves to the end of the nodes array
+	// Hash leaves and copy to the end of the nodes array
 	for i := 0; i < n; i++ {
-		nodes[n-1+i] = leaves[i]
+		nodes[n-1+i] = hashLeaf(leaves[i])
 	}
 
 	// Build internal nodes from position n-2 (last internal) down to 0 (root)
@@ -66,9 +72,18 @@ func (t *Tree) Root() [32]byte {
 }
 
 
-// hashPair computes SHA256(left || right)
+// hashLeaf hashes a leaf node with the leaf prefix
+func hashLeaf(data []byte) []byte {
+	h := sha256.New()
+	h.Write(leafPrefix)
+	h.Write(data)
+	return h.Sum(nil)
+}
+
+// hashPair hashes two nodes with the inner prefix
 func hashPair(left, right []byte) []byte {
 	h := sha256.New()
+	h.Write(innerPrefix)
 	h.Write(left)
 	h.Write(right)
 	return h.Sum(nil)

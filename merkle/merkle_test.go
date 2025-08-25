@@ -292,14 +292,51 @@ func TestHashPair(t *testing.T) {
 		t.Errorf("hashPair returned %d bytes, expected 32", len(hash1))
 	}
 	
-	// Test with actual SHA256
+	// Test with actual SHA256 (now includes inner prefix)
 	h := sha256.New()
+	h.Write(innerPrefix)
 	h.Write(left)
 	h.Write(right)
 	expected := h.Sum(nil)
 	
 	if !bytes.Equal(hash1, expected) {
 		t.Error("hashPair does not match expected SHA256 output")
+	}
+}
+
+func TestHashLeaf(t *testing.T) {
+	data := []byte("leaf data")
+	
+	// Test that hashLeaf is deterministic
+	hash1 := hashLeaf(data)
+	hash2 := hashLeaf(data)
+	
+	if !bytes.Equal(hash1, hash2) {
+		t.Error("hashLeaf is not deterministic")
+	}
+	
+	// Test expected length
+	if len(hash1) != 32 {
+		t.Errorf("hashLeaf returned %d bytes, expected 32", len(hash1))
+	}
+	
+	// Test with actual SHA256 (includes leaf prefix)
+	h := sha256.New()
+	h.Write(leafPrefix)
+	h.Write(data)
+	expected := h.Sum(nil)
+	
+	if !bytes.Equal(hash1, expected) {
+		t.Error("hashLeaf does not match expected SHA256 output")
+	}
+	
+	// Test that hashLeaf differs from raw hash
+	h2 := sha256.New()
+	h2.Write(data)
+	rawHash := h2.Sum(nil)
+	
+	if bytes.Equal(hash1, rawHash) {
+		t.Error("hashLeaf should differ from raw SHA256 due to leaf prefix")
 	}
 }
 

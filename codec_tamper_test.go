@@ -31,9 +31,8 @@ func TestTamperedExtendedDataBeforeCommitment(t *testing.T) {
 			extended[tamperedIndex][0] ^= 0xFF
 
 			// Continue with the rest of the encoding process
-			// Step 2: Compute row hashes and Merkle tree
-			rowHashes := computeRowHashes(extended, config.WorkerCount)
-			rowTree := merkle.NewTree(rowHashes)
+			// Step 2: Build Merkle tree directly over extended rows
+			rowTree := merkle.NewTree(extended)
 			rowRoot := rowTree.Root()
 
 			// Step 3: Derive RLC coefficients
@@ -66,14 +65,13 @@ func TestTamperedExtendedDataBeforeCommitment(t *testing.T) {
 
 			// Create ExtendedData structure
 			extData := &ExtendedData{
-				config:    config,
-				rows:      extended,
-				rowRoot:   rowRoot,
-				rlcRoot:   rlcRoot,
-				rowHashes: rowHashes,
-				rlcOrig:   rlcOrig,
-				rowTree:   rowTree,
-				rlcTree:   rlcTree,
+				config:  config,
+				rows:    extended,
+				rowRoot: rowRoot,
+				rlcRoot: rlcRoot,
+				rlcOrig: rlcOrig,
+				rowTree: rowTree,
+				rlcTree: rlcTree,
 			}
 
 			// Generate proof for the tampered row
@@ -123,9 +121,8 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 				t.Fatalf("ExtendVertical failed: %v", err)
 			}
 
-			// Step 2: Compute row hashes and Merkle tree
-			rowHashes := computeRowHashes(extended, config.WorkerCount)
-			rowTree := merkle.NewTree(rowHashes)
+			// Step 2: Build Merkle tree directly over extended rows
+			rowTree := merkle.NewTree(extended)
 			rowRoot := rowTree.Root()
 
 			// Step 3: Derive RLC coefficients
@@ -162,14 +159,13 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 
 			// Create ExtendedData structure
 			extData := &ExtendedData{
-				config:    config,
-				rows:      extended,
-				rowRoot:   rowRoot,
-				rlcRoot:   rlcRoot,
-				rowHashes: rowHashes,
-				rlcOrig:   rlcOrig,
-				rowTree:   rowTree,
-				rlcTree:   rlcTree,
+				config:  config,
+				rows:    extended,
+				rowRoot: rowRoot,
+				rlcRoot: rlcRoot,
+				rlcOrig: rlcOrig,
+				rowTree: rowTree,
+				rlcTree: rlcTree,
 			}
 
 			// Generate proof for the row whose RLC was tampered
@@ -209,9 +205,8 @@ func TestTamperedOriginalRLCBeforeCommitment(t *testing.T) {
 				t.Fatalf("ExtendVertical failed: %v", err)
 			}
 
-			// Step 2: Compute row hashes and Merkle tree
-			rowHashes := computeRowHashes(extended, config.WorkerCount)
-			rowTree := merkle.NewTree(rowHashes)
+			// Step 2: Build Merkle tree directly over extended rows
+			rowTree := merkle.NewTree(extended)
 			rowRoot := rowTree.Root()
 
 			// Step 3: Derive RLC coefficients
@@ -249,14 +244,13 @@ func TestTamperedOriginalRLCBeforeCommitment(t *testing.T) {
 
 			// Create ExtendedData structure with tampered rlcOrig
 			extData := &ExtendedData{
-				config:    config,
-				rows:      extended,
-				rowRoot:   rowRoot,
-				rlcRoot:   rlcRoot,
-				rowHashes: rowHashes,
-				rlcOrig:   rlcOrig, // This contains the tampered value
-				rowTree:   rowTree,
-				rlcTree:   rlcTree,
+				config:  config,
+				rows:    extended,
+				rowRoot: rowRoot,
+				rlcRoot: rlcRoot,
+				rlcOrig: rlcOrig, // This contains the tampered value
+				rowTree: rowTree,
+				rlcTree: rlcTree,
 			}
 
 			// Test 1: Original row proof at tampered index should fail
@@ -321,8 +315,7 @@ func TestMultipleTamperedRows(t *testing.T) {
 			}
 
 			// Continue with encoding
-			rowHashes := computeRowHashes(extended, config.WorkerCount)
-			rowTree := merkle.NewTree(rowHashes)
+			rowTree := merkle.NewTree(extended)
 			rowRoot := rowTree.Root()
 
 			coeffs := deriveCoefficients(rowRoot, config)
@@ -347,14 +340,13 @@ func TestMultipleTamperedRows(t *testing.T) {
 			h.Sum(commitment[:0])
 
 			extData := &ExtendedData{
-				config:    config,
-				rows:      extended,
-				rowRoot:   rowRoot,
-				rlcRoot:   rlcRoot,
-				rowHashes: rowHashes,
-				rlcOrig:   rlcOrig,
-				rowTree:   rowTree,
-				rlcTree:   rlcTree,
+				config:  config,
+				rows:    extended,
+				rowRoot: rowRoot,
+				rlcRoot: rlcRoot,
+				rlcOrig: rlcOrig,
+				rowTree: rowTree,
+				rlcTree: rlcTree,
 			}
 
 			// All tampered rows should fail verification

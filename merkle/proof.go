@@ -65,8 +65,8 @@ func (t *Tree) GenerateLeftSubtreeProof(k int) ([][]byte, error) {
 
 // ComputeRootFromProof computes the Merkle root given a leaf and its proof
 func ComputeRootFromProof(leaf []byte, index int, proof [][]byte) ([32]byte, error) {
-	// Start with the leaf
-	current := leaf
+	// Start with the hashed leaf (apply leaf prefix like in tree construction)
+	current := hashLeaf(leaf)
 	pos := index
 
 	// Traverse up the tree using the proof
