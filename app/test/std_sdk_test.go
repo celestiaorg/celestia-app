@@ -17,6 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v6/x/fibre/types"
 	signal "github.com/celestiaorg/celestia-app/v6/x/signal/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -316,6 +317,21 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				require.NoError(t, err)
 
 				return []sdk.Msg{msgSubmitProposal}, account
+			},
+			expectedCode: abci.CodeTypeOK,
+		},
+		{
+			name: "set fibre provider info",
+			msgFunc: func() (msgs []sdk.Msg, signer string) {
+				// Use the existing validator account pattern
+				account := s.getValidatorName()
+				valopAccAddr := testfactory.GetAddress(s.cctx.Keyring, account)
+				valopAddr := sdk.ValAddress(valopAccAddr)
+				msg := &fibretypes.MsgSetFibreProviderInfo{
+					ValidatorAddress: valopAddr.String(),
+					IpAddress:        "192.168.1.1",
+				}
+				return []sdk.Msg{msg}, account
 			},
 			expectedCode: abci.CodeTypeOK,
 		},

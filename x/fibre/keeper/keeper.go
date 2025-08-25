@@ -130,5 +130,8 @@ func (k Keeper) IterateAllFibreProviderInfo(ctx context.Context, cb func(validat
 
 // getStore returns the fibre module store
 func (k Keeper) getStore(ctx context.Context) storetypes.KVStore {
-	return ctx.(*sdk.Context).KVStore(k.storeKey)
+	if sdkCtx, ok := ctx.(sdk.Context); ok {
+		return sdkCtx.KVStore(k.storeKey)
+	}
+	return sdk.UnwrapSDKContext(ctx).KVStore(k.storeKey)
 }

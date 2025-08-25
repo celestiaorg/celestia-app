@@ -1,5 +1,9 @@
 package types
 
+import (
+	sdk "github.com/cosmos/cosmos-sdk/types"
+)
+
 // NewGenesisState creates a new GenesisState object
 func NewGenesisState(providers []GenesisProvider) *GenesisState {
 	return &GenesisState{
@@ -20,6 +24,12 @@ func ValidateGenesis(data GenesisState) error {
 
 	for _, provider := range data.Providers {
 		if provider.ValidatorAddress == "" {
+			return ErrInvalidValidatorAddress
+		}
+
+		// Validate validator address format
+		_, err := sdk.ValAddressFromBech32(provider.ValidatorAddress)
+		if err != nil {
 			return ErrInvalidValidatorAddress
 		}
 

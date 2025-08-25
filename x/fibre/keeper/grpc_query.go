@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/celestiaorg/celestia-app/v6/x/fibre/types"
-	"cosmossdk.io/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	"google.golang.org/grpc/codes"
@@ -51,51 +50,34 @@ func (k Keeper) AllActiveFibreProviders(goCtx context.Context, req *types.QueryA
 		return nil, status.Errorf(codes.Internal, "failed to get active fibre providers: %v", err)
 	}
 
-	// Handle pagination if requested
-	var pagedProviders []types.ActiveFibreProvider
-	var pageRes *query.PageResponse
-	
-	if req.Pagination != nil {
-		// Convert providers to a format suitable for pagination
-		store := k.getStore(ctx)
-		prefixStore := prefix.NewStore(store, types.KeyPrefix(types.FibreProviderInfoKey))
-		
-		pageRes, err = query.FilteredPaginate(prefixStore, req.Pagination, func(key []byte, value []byte, accumulate bool) (bool, error) {
-			if accumulate {
-				var info types.FibreProviderInfo
-				k.cdc.MustUnmarshal(value, &info)
-				
-				// Extract validator address from key
-				validatorAddr := string(key)
-				
-				// Check if validator is active
-				valAddr, err := sdk.ValAddressFromBech32(validatorAddr)
-				if err != nil {
-					return false, nil // Skip invalid addresses
-				}
-				
-				isActive, err := k.IsValidatorActive(ctx, valAddr)
-				if err != nil || !isActive {
-					return false, nil // Skip inactive validators
-				}
-				
-				pagedProviders = append(pagedProviders, types.ActiveFibreProvider{
-					ValidatorAddress: validatorAddr,
-					Info:             &info,
-				})
-			}
-			return true, nil
-		})
-		
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
+	// Handle pagination
+	page := req.Pagination
+	if page == nil {
+		page = &query.PageRequest{}
+	}
+
+	offset := page.Offset
+	limit := page.Limit
+	if limit == 0 {
+		limit = query.DefaultLimit
+	}
+
+	total := uint64(len(providers))
+	if offset >= total {
+		// out of bounds, return empty list
+		providers = []types.ActiveFibreProvider{}
 	} else {
-		pagedProviders = providers
+		end := offset + limit
+		if end > total {
+			end = total
+		}
+		providers = providers[offset:end]
 	}
 
 	return &types.QueryAllActiveFibreProvidersResponse{
-		Providers:  pagedProviders,
-		Pagination: pageRes,
+		Providers: providers,
+		Pagination: &query.PageResponse{
+			Total: total,
+		},
 	}, nil
 }
