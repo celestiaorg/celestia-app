@@ -73,7 +73,7 @@ func verifyExtendedRow(proof *Proof, computedRLC field.GF128, config *Config) ([
 	}
 
 	// Extend the original RLC results to get all K+N RLC values
-	extendedRLCs, err := encoding.ExtendRLCResults(rlcOrig, config.K, config.N)
+	extendedRLCs, err := encoding.ExtendRLCResults(rlcOrig, config.N)
 	if err != nil {
 		return [32]byte{}, fmt.Errorf("failed to extend RLC results: %w", err)
 	}

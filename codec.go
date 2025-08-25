@@ -2,7 +2,6 @@ package rsema1d
 
 import (
 	"crypto/sha256"
-	"errors"
 	"fmt"
 	"sync"
 
@@ -29,7 +28,7 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, error) {
 	}
 
 	// 2. Extend data using Leopard RS
-	extended, err := encoding.ExtendVertical(data, config.K, config.N)
+	extended, err := encoding.ExtendVertical(data, config.N)
 	if err != nil {
 		return nil, Commitment{}, fmt.Errorf("failed to extend data: %w", err)
 	}
@@ -46,7 +45,7 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, error) {
 	rlcOrig := computeRLCOrig(data, coeffs, config)
 
 	// 6. Extend RLC results
-	rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.K, config.N)
+	rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
 	if err != nil {
 		return nil, Commitment{}, fmt.Errorf("failed to extend RLC results: %w", err)
 	}
@@ -170,9 +169,11 @@ func (ed *ExtendedData) GenerateProof(index int) (*Proof, error) {
 
 // Reconstruct recovers original data from any K rows
 func Reconstruct(rows [][]byte, indices []int, config *Config) ([][]byte, error) {
-	// TODO: Implement reconstruction using Leopard RS decoding
-	// - Validate we have exactly K rows
-	// - Use Leopard decoder to recover original data
-	return nil, errors.New("not implemented")
+	if err := config.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid config: %w", err)
+	}
+	
+	// Use the encoding package's Reconstruct function
+	return encoding.Reconstruct(rows, indices, config.K, config.N)
 }
 
