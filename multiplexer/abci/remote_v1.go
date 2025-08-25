@@ -347,7 +347,7 @@ func (a *RemoteABCIClientV1) PrepareProposal(req *abciv2.RequestPrepareProposal)
 		BlockData: &typesv1.Data{
 			Txs: req.Txs,
 		},
-		BlockDataSize: math.MaxInt32, // TODO: hardcoded as not available in v0.38 fork
+		BlockDataSize: 0, //value not available in v0.38 fork; interpret as "not set"
 		Height:        req.Height,
 		Time:          req.Time,
 	},
