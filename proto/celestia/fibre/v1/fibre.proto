@@ -1,0 +1,24 @@
+syntax = "proto3";
+package celestia.fibre.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/fibre/types";
+
+// FibreProviderInfo contains the service information for a fibre provider
+message FibreProviderInfo {
+  option (gogoproto.equal) = true;
+  
+  // ip_address is the IP address where users can access the fibre service
+  string ip_address = 1;
+}
+
+// ActiveFibreProvider represents a validator with their fibre provider info
+message ActiveFibreProvider {
+  option (gogoproto.equal) = true;
+  
+  // validator_address is the operator address of the validator
+  string validator_address = 1;
+  // info contains the fibre provider information
+  FibreProviderInfo info = 2;
+}

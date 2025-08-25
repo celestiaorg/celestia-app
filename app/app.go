@@ -38,6 +38,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/x/blob"
 	blobkeeper "github.com/celestiaorg/celestia-app/v6/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v6/x/fibre"
+	fibrekeeper "github.com/celestiaorg/celestia-app/v6/x/fibre/keeper"
+	fibretypes "github.com/celestiaorg/celestia-app/v6/x/fibre/types"
 	"github.com/celestiaorg/celestia-app/v6/x/minfee"
 	minfeekeeper "github.com/celestiaorg/celestia-app/v6/x/minfee/keeper"
 	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
@@ -179,6 +182,7 @@ type App struct {
 	ICAHostKeeper       icahostkeeper.Keeper
 	PacketForwardKeeper *packetforwardkeeper.Keeper
 	BlobKeeper          blobkeeper.Keeper
+	FibreKeeper         fibrekeeper.Keeper
 	CircuitKeeper       circuitkeeper.Keeper
 	HyperlaneKeeper     hyperlanekeeper.Keeper
 	WarpKeeper          warpkeeper.Keeper
@@ -364,6 +368,11 @@ func New(
 		app.GetSubspace(blobtypes.ModuleName),
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 	)
+	app.FibreKeeper = *fibrekeeper.NewKeeper(
+		encodingConfig.Codec,
+		keys[fibretypes.StoreKey],
+		app.StakingKeeper,
+	)
 
 	app.MinFeeKeeper = minfeekeeper.NewKeeper(encodingConfig.Codec, keys[minfeetypes.StoreKey], app.ParamsKeeper, app.GetSubspace(minfeetypes.ModuleName), authtypes.NewModuleAddress(govtypes.ModuleName).String())
 
@@ -414,6 +423,7 @@ func New(
 		capability.NewAppModule(encodingConfig.Codec, *app.CapabilityKeeper, true),
 		transfer.NewAppModule(app.TransferKeeper),
 		blob.NewAppModule(encodingConfig.Codec, app.BlobKeeper),
+		fibre.NewAppModule(encodingConfig.Codec, app.FibreKeeper),
 		signal.NewAppModule(app.SignalKeeper),
 		minfee.NewAppModule(encodingConfig.Codec, app.MinFeeKeeper),
 		pfm{packetforward.NewAppModule(app.PacketForwardKeeper, app.GetSubspace(packetforwardtypes.ModuleName))},

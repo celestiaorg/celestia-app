@@ -1,0 +1,48 @@
+syntax = "proto3";
+package celestia.fibre.v1;
+
+import "gogoproto/gogo.proto";
+import "cosmos/msg/v1/msg.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/fibre/types";
+
+// Msg defines the fibre Msg service.
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+  
+  // SetFibreProviderInfo defines a method for setting fibre provider information
+  rpc SetFibreProviderInfo(MsgSetFibreProviderInfo) returns (MsgSetFibreProviderInfoResponse);
+  
+  // RemoveFibreProviderInfo defines a method for removing fibre provider information
+  rpc RemoveFibreProviderInfo(MsgRemoveFibreProviderInfo) returns (MsgRemoveFibreProviderInfoResponse);
+}
+
+// MsgSetFibreProviderInfo allows a validator to set their fibre provider information
+message MsgSetFibreProviderInfo {
+  option (cosmos.msg.v1.signer) = "validator_address";
+  option (gogoproto.equal) = false;
+  option (gogoproto.goproto_getters) = false;
+  
+  // validator_address is the operator address of the validator
+  string validator_address = 1;
+  // ip_address is the IP address for the fibre service (max 45 characters for IPv6)
+  string ip_address = 2;
+}
+
+// MsgSetFibreProviderInfoResponse defines the Msg/SetFibreProviderInfo response type
+message MsgSetFibreProviderInfoResponse {}
+
+// MsgRemoveFibreProviderInfo allows removal of fibre provider information for inactive validators
+message MsgRemoveFibreProviderInfo {
+  option (cosmos.msg.v1.signer) = "remover_address";
+  option (gogoproto.equal) = false;
+  option (gogoproto.goproto_getters) = false;
+  
+  // validator_address is the operator address of the validator to remove
+  string validator_address = 1;
+  // remover_address is the address of the account requesting removal
+  string remover_address = 2;
+}
+
+// MsgRemoveFibreProviderInfoResponse defines the Msg/RemoveFibreProviderInfo response type
+message MsgRemoveFibreProviderInfoResponse {}

@@ -1,0 +1,50 @@
+syntax = "proto3";
+package celestia.fibre.v1;
+
+import "celestia/fibre/v1/fibre.proto";
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "google/api/annotations.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/fibre/types";
+
+// Query defines the gRPC querier service.
+service Query {
+  // FibreProviderInfo queries fibre provider info for a specific validator
+  rpc FibreProviderInfo(QueryFibreProviderInfoRequest) returns (QueryFibreProviderInfoResponse) {
+    option (google.api.http).get = "/celestia/fibre/v1/provider/{validator_address}";
+  }
+  
+  // AllActiveFibreProviders queries all fibre provider info for active validators
+  rpc AllActiveFibreProviders(QueryAllActiveFibreProvidersRequest) returns (QueryAllActiveFibreProvidersResponse) {
+    option (google.api.http).get = "/celestia/fibre/v1/active-providers";
+  }
+}
+
+// QueryFibreProviderInfoRequest is the request type for Query/FibreProviderInfo
+message QueryFibreProviderInfoRequest {
+  // validator_address is the operator address of the validator
+  string validator_address = 1;
+}
+
+// QueryFibreProviderInfoResponse is the response type for Query/FibreProviderInfo
+message QueryFibreProviderInfoResponse {
+  // info contains the fibre provider information
+  FibreProviderInfo info = 1;
+  // found indicates if the validator has registered info
+  bool found = 2;
+}
+
+// QueryAllActiveFibreProvidersRequest is the request type for Query/AllActiveFibreProviders
+message QueryAllActiveFibreProvidersRequest {
+  // pagination defines optional pagination parameters
+  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+
+// QueryAllActiveFibreProvidersResponse is the response type for Query/AllActiveFibreProviders
+message QueryAllActiveFibreProvidersResponse {
+  // providers contains all active fibre providers
+  repeated ActiveFibreProvider providers = 1 [(gogoproto.nullable) = false];
+  // pagination defines the pagination response
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}

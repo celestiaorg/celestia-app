@@ -1,0 +1,23 @@
+syntax = "proto3";
+package celestia.fibre.v1;
+
+import "celestia/fibre/v1/fibre.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/fibre/types";
+
+// GenesisState defines the fibre module's genesis state
+message GenesisState {
+  // providers contains all fibre provider mappings at genesis
+  repeated GenesisProvider providers = 1 [(gogoproto.nullable) = false];
+}
+
+// GenesisProvider represents a validator-to-info mapping at genesis
+message GenesisProvider {
+  option (gogoproto.equal) = true;
+  
+  // validator_address is the operator address of the validator
+  string validator_address = 1;
+  // info contains the fibre provider information
+  FibreProviderInfo info = 2 [(gogoproto.nullable) = false];
+}

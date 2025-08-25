@@ -1,0 +1,26 @@
+syntax = "proto3";
+package celestia.fibre.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/fibre/types";
+
+// EventSetFibreProviderInfo is emitted when a validator sets fibre provider info
+message EventSetFibreProviderInfo {
+  option (gogoproto.equal) = true;
+  
+  // validator_address is the operator address of the validator
+  string validator_address = 1;
+  // ip_address is the IP address for the fibre service
+  string ip_address = 2;
+}
+
+// EventRemoveFibreProviderInfo is emitted when fibre provider info is removed
+message EventRemoveFibreProviderInfo {
+  option (gogoproto.equal) = true;
+  
+  // validator_address is the operator address of the validator
+  string validator_address = 1;
+  // remover_address is the address of the account that requested removal
+  string remover_address = 2;
+}
