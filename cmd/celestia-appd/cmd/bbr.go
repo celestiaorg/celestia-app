@@ -56,7 +56,7 @@ If you need to bypass this check use the --force-no-bbr flag.
 		return fmt.Errorf("failed to read file '/proc/sys/net/ipv4/tcp_congestion_control' %w", err)
 	}
 
-	if !strings.Contains(string(file), "bbr") {
+	if strings.TrimSpace(string(file)) != "bbr" {
 		logger.Warn(warning)
 		return fmt.Errorf("BBR not enabled because output %v does not contain 'bbr'", string(file))
 	}
