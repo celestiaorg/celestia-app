@@ -54,7 +54,7 @@ func TestGasEstimatorE2E(t *testing.T) {
 	estimatorClient := gasestimation.NewGasEstimatorClient(cctx.GRPCClient)
 	gasPriceResp, err := estimatorClient.EstimateGasPrice(ctx, &gasestimation.EstimateGasPriceRequest{})
 	require.NoError(t, err)
-	require.Equal(t, gasPriceResp.EstimatedGasPrice, appconsts.DefaultMinGasPrice)
+	require.Equal(t, gasPriceResp.EstimatedGasPrice, appconsts.NewDefaultMinGasPrice)
 
 	// Setup transaction client
 	txClient, err := user.SetupTxClient(ctx, cctx.Keyring, cctx.GRPCClient, enc)
@@ -86,7 +86,7 @@ func TestGasEstimatorE2E(t *testing.T) {
 
 	gasPriceResp, err = estimatorClient.EstimateGasPrice(ctx, &gasestimation.EstimateGasPriceRequest{})
 	require.NoError(t, err)
-	require.Equal(t, gasPriceResp.EstimatedGasPrice, appconsts.DefaultMinGasPrice)
+	require.Equal(t, gasPriceResp.EstimatedGasPrice, appconsts.NewDefaultMinGasPrice)
 }
 
 func TestGasEstimatorE2EWithNetworkMinGasPrice(t *testing.T) {
