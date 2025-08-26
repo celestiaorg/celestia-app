@@ -792,8 +792,8 @@ github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0 h1:GyDYfK8dLETlUI7F+w+3QYQgAs
 github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0/go.mod h1:T4K9O18zQNKNpt4YvTL3lcUt4aKOEU05ZIFWVdQi3Ak=
 github.com/celestiaorg/go-square/v2 v2.3.1 h1:CDdiQ+QkKPOQEcyDPODgP/PbAEzqUcftsohCPcbvsnw=
 github.com/celestiaorg/go-square/v2 v2.3.1/go.mod h1:6M2txj0j6dkoE+cgwyG0EqrEPhbZpM2R1lsWEopMIBc=
-github.com/celestiaorg/ibc-go/v8 v8.0.0-20250812222333-dbbce7262310 h1:ft35HWNHWmKLOuMmtrjfCaxpA+ab99mWj/SSE9adXak=
-github.com/celestiaorg/ibc-go/v8 v8.0.0-20250812222333-dbbce7262310/go.mod h1:kubevN8XZBCQCyq2QoYNvdu9z1GibtnAhWDmNTTj4aY=
+github.com/celestiaorg/ibc-go/v8 v8.7.1 h1:ilpHKdR3iavEXRwVGgIJAfUOuLQesky6OKyWAZTVlZ0=
+github.com/celestiaorg/ibc-go/v8 v8.7.1/go.mod h1:G2z+Q6ZQSMcyHI2+BVcJdvfOupb09M2h/tgpXOEdY6k=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n5MFP2MwK0gSRcOVlDlFdQJO1p+FqdxYzmvc=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4/go.mod h1:fzuHnhzj1pUygGz+1ZkB3uQbEUL4htqCGJ4Qs2LwMZA=
 github.com/celestiaorg/nmt v0.24.0 h1:23u/mneledCG/6xWl1cZeTPrzRLpDTAHxMFsqoOL+B4=
