@@ -730,7 +730,7 @@ func (app *App) getGovMaxSquareBytes() (uint64, error) {
 func (app *App) getMinGasPrice() (float64, error) {
 	localMinGasPrice, err := app.GetMinGasPrices().AmountOf(appconsts.BondDenom).Float64()
 	if err != nil {
-		localMinGasPrice = appconsts.DefaultMinGasPrice
+		localMinGasPrice = appconsts.NewDefaultMinGasPrice
 	}
 	ctx, err := app.CreateQueryContext(app.LastBlockHeight(), false)
 	if err != nil {

@@ -137,7 +137,7 @@ func (s *gasEstimatorServer) estimateGasPrice(ctx context.Context, priority TxPr
 
 	if float64(txsResp.TotalBytes) < float64(govMaxSquareBytes)*gasPriceEstimationThreshold {
 		// Return the maximum of the default min gas price and network min gas price
-		return math.Max(appconsts.DefaultMinGasPrice, minGasPrice), nil
+		return minGasPrice, nil
 	}
 	gasPrices, err := SortAndExtractGasPrices(s.txDecoder, txsResp.Txs, int64(appconsts.DefaultUpperBoundMaxBytes))
 	if err != nil {
