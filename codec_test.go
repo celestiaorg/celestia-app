@@ -91,7 +91,7 @@ func getTestRowIndices(k, n int) []int {
 
 // Main tests
 
-func TestEncodeAndVerifyProof(t *testing.T) {
+func TestEncodeAndVerifyWithContext(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			config := makeTestConfig(tc)
@@ -106,70 +106,57 @@ func TestEncodeAndVerifyProof(t *testing.T) {
 				t.Fatalf("Encode() error: %v", err)
 			}
 			
+			// Create verification context
+			ctx, err := CreateVerificationContext(extData.rlcOrig, config)
+			if err != nil {
+				t.Fatalf("CreateVerificationContext() error: %v", err)
+			}
+			
 			for _, index := range getTestRowIndices(tc.k, tc.n) {
 				t.Run(fmt.Sprintf("row_%d", index), func(t *testing.T) {
-					testProofGeneration(t, extData, commitment, config, index)
+					testRowProofGeneration(t, extData, commitment, config, ctx, index)
 				})
 			}
 		})
 	}
 }
 
-func testProofGeneration(t *testing.T, extData *ExtendedData, commitment Commitment, config *Config, index int) {
-	proof, err := extData.GenerateProof(index)
+func testRowProofGeneration(t *testing.T, extData *ExtendedData, commitment Commitment, config *Config, ctx *VerificationContext, index int) {
+	proof, err := extData.GenerateRowProof(index)
 	if err != nil {
-		t.Fatalf("GenerateProof(%d) error: %v", index, err)
+		t.Fatalf("GenerateRowProof(%d) error: %v", index, err)
 	}
 	
-	// Verify proof
-	if err := VerifyProof(proof, commitment, config); err != nil {
-		t.Errorf("VerifyProof(%d) error: %v", index, err)
+	// Verify proof with context
+	if err := VerifyRowWithContext(proof, commitment, ctx); err != nil {
+		t.Errorf("VerifyRowWithContext(%d) error: %v", index, err)
 	}
 	
 	// Verify proof contains correct row data
 	if !bytes.Equal(proof.Row, extData.rows[index]) {
-		t.Errorf("Proof row data doesn't match extended data for index %d", index)
+		t.Errorf("Row proof data doesn't match extended data for index %d", index)
 	}
 	
-	// Check proof type and structure
-	validateProofStructure(t, proof, config, index)
+	// For original rows, also test standalone proof
+	if index < config.K {
+			testStandaloneProof(t, extData, commitment, config, index)
+	}
 }
 
-func validateProofStructure(t *testing.T, proof *Proof, config *Config, index int) {
-	proofType := proof.Type(config)
+func testStandaloneProof(t *testing.T, extData *ExtendedData, commitment Commitment, config *Config, index int) {
+	proof, err := extData.GenerateStandaloneProof(index)
+	if err != nil {
+		t.Fatalf("GenerateStandaloneProof(%d) error: %v", index, err)
+	}
 	
-	if index < config.K {
-		// Original row checks
-		if proofType != ProofTypeOriginal {
-			t.Errorf("Expected ProofTypeOriginal for index %d, got %v", index, proofType)
-		}
-		if proof.RLCProof == nil {
-			t.Errorf("Original proof missing RLCProof for index %d", index)
-		}
-		if proof.RLCOrig != nil {
-			t.Errorf("Original proof should not have RLCOrig for index %d", index)
-		}
-	} else {
-		// Extended row checks
-		if proofType != ProofTypeExtended {
-			t.Errorf("Expected ProofTypeExtended for index %d, got %v", index, proofType)
-		}
-		if proof.RLCOrig == nil {
-			t.Errorf("Extended proof missing RLCOrig for index %d", index)
-		}
-		if len(proof.RLCOrig) != config.K {
-			t.Errorf("Extended proof RLCOrig has %d values, want %d", len(proof.RLCOrig), config.K)
-		}
-		if proof.RLCProof != nil {
-			t.Errorf("Extended proof should not have RLCProof for index %d", index)
-		}
-		
-		// Verify RLC value sizes
-		for j, rlc := range proof.RLCOrig {
-			if len(rlc) != 16 {
-				t.Errorf("RLCOrig[%d] has %d bytes, want 16", j, len(rlc))
-			}
-		}
+	// Verify standalone proof
+	if err := VerifyStandaloneProof(proof, commitment, config); err != nil {
+		t.Errorf("VerifyStandaloneProof(%d) error: %v", index, err)
+	}
+	
+	// Verify proof contains correct row data
+	if !bytes.Equal(proof.Row, extData.rows[index]) {
+		t.Errorf("Standalone proof data doesn't match extended data for index %d", index)
 	}
 }
 
@@ -263,6 +250,12 @@ func TestInvalidProofs(t *testing.T) {
 				t.Fatalf("Encode() error: %v", err)
 			}
 			
+			// Create verification context
+			ctx, err := CreateVerificationContext(extData.rlcOrig, config)
+			if err != nil {
+				t.Fatalf("CreateVerificationContext() error: %v", err)
+			}
+			
 			// Test both original and extended row proofs
 			proofIndices := []int{0} // Original row
 			if tc.n > 0 {
@@ -276,39 +269,53 @@ func TestInvalidProofs(t *testing.T) {
 				}
 				
 				t.Run(proofType, func(t *testing.T) {
-					testInvalidProofVariations(t, extData, commitment, config, index)
+					// Test context-based verification
+					t.Run("context_verification", func(t *testing.T) {
+						testInvalidProofVariations(t, extData, commitment, config, ctx, index)
+					})
+					
+					// Test standalone verification (only for original rows)
+					if index < tc.k {
+						t.Run("standalone_verification", func(t *testing.T) {
+							testInvalidStandaloneProofVariations(t, extData, commitment, config, index)
+						})
+					}
 				})
 			}
 		})
 	}
 }
 
-func testInvalidProofVariations(t *testing.T, extData *ExtendedData, commitment Commitment, config *Config, index int) {
-	validProof, err := extData.GenerateProof(index)
-	if err != nil {
-		t.Fatalf("GenerateProof() error: %v", err)
-	}
-	
-	invalidProofTests := []struct {
+// getCommonRowProofTests returns test cases that apply to both RowProof and StandaloneProof
+func getCommonRowProofTests(index int, config *Config) []struct {
+	name        string
+	corruptRow  func(*RowProof) *RowProof
+} {
+	return []struct {
 		name        string
-		corrupt     func(*Proof) *Proof
-		skipFor     string // "original" or "extended"
+		corruptRow  func(*RowProof) *RowProof
 	}{
 		{
 			name: "valid_proof",
-			corrupt: func(p *Proof) *Proof { return p },
+			corruptRow: func(p *RowProof) *RowProof { return p },
 		},
 		{
 			name: "wrong_index",
-			corrupt: func(p *Proof) *Proof {
+			corruptRow: func(p *RowProof) *RowProof {
 				modified := *p
-				modified.Index = (index + 1) % (config.K + config.N)
+				// For context proofs, can be any valid index
+				// For standalone, must stay within original rows
+				if index < config.K {
+					modified.Index = (index + 1) % config.K
+				} else {
+					modified.Index = (index + 1) % (config.K + config.N)
+				}
 				return &modified
 			},
 		},
 		{
 			name: "corrupted_row_data",
-			corrupt: func(p *Proof) *Proof {
+			corruptRow: func(p *RowProof) *RowProof {
 				modified := *p
 				modified.Row = make([]byte, len(p.Row))
 				copy(modified.Row, p.Row)
@@ -318,7 +325,7 @@ func testInvalidProofVariations(t *testing.T, extData *ExtendedData, commitment 
 		},
 		{
 			name: "corrupted_row_proof",
-			corrupt: func(p *Proof) *Proof {
+			corruptRow: func(p *RowProof) *RowProof {
 				modified := *p
 				if len(p.RowProof) > 0 {
 					modified.RowProof = copyAndCorruptProofSlice(p.RowProof)
@@ -327,55 +334,109 @@ func testInvalidProofVariations(t *testing.T, extData *ExtendedData, commitment 
 			},
 		},
 		{
-			name: "corrupted_rlc_proof",
-			corrupt: func(p *Proof) *Proof {
-				modified := *p
-				if len(p.RLCProof) > 0 {
-					modified.RLCProof = copyAndCorruptProofSlice(p.RLCProof)
-				}
-				return &modified
-			},
-			skipFor: "extended",
-		},
-		{
-			name: "corrupted_rlc_orig",
-			corrupt: func(p *Proof) *Proof {
-				modified := *p
-				if len(p.RLCOrig) > 0 {
-					modified.RLCOrig = copyAndCorruptProofSlice(p.RLCOrig)
-				}
-				return &modified
-			},
-			skipFor: "original",
-		},
-		{
 			name: "nil_row_data",
-			corrupt: func(p *Proof) *Proof {
+			corruptRow: func(p *RowProof) *RowProof {
 				modified := *p
 				modified.Row = nil
 				return &modified
 			},
 		},
 	}
+}
+
+func testInvalidProofVariations(t *testing.T, extData *ExtendedData, commitment Commitment, config *Config, ctx *VerificationContext, index int) {
+	validProof, err := extData.GenerateRowProof(index)
+	if err != nil {
+		t.Fatalf("GenerateRowProof() error: %v", err)
+	}
 	
-	for _, tt := range invalidProofTests {
-		// Skip tests that don't apply to this proof type
-		if tt.skipFor == "original" && index < config.K {
-			continue
-		}
-		if tt.skipFor == "extended" && index >= config.K {
-			continue
-		}
-		
+	// Use common test cases
+	commonTests := getCommonRowProofTests(index, config)
+	
+	for _, tt := range commonTests {
 		t.Run(tt.name, func(t *testing.T) {
-			modifiedProof := tt.corrupt(validProof)
-			err := VerifyProof(modifiedProof, commitment, config)
+			modifiedProof := tt.corruptRow(validProof)
+			err := VerifyRowWithContext(modifiedProof, commitment, ctx)
 			
 			expectError := tt.name != "valid_proof"
 			if expectError && err == nil {
 				t.Errorf("Expected error but got none")
 			} else if !expectError && err != nil {
 				t.Errorf("Unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func testInvalidStandaloneProofVariations(t *testing.T, extData *ExtendedData, commitment Commitment, config *Config, index int) {
+	validProof, err := extData.GenerateStandaloneProof(index)
+	if err != nil {
+		t.Fatalf("GenerateStandaloneProof() error: %v", err)
+	}
+	
+	// Get common test cases and apply them to the embedded RowProof
+	commonTests := getCommonRowProofTests(index, config)
+	
+	// Run common tests by applying corruption to the embedded RowProof
+	for _, tt := range commonTests {
+		t.Run(tt.name, func(t *testing.T) {
+			modified := *validProof
+			// Apply the corruption to the embedded RowProof
+			corruptedRowProof := tt.corruptRow(&validProof.RowProof)
+			modified.RowProof = *corruptedRowProof
+			
+			err := VerifyStandaloneProof(&modified, commitment, config)
+			
+			expectError := tt.name != "valid_proof"
+			if expectError && err == nil {
+				t.Errorf("Expected error but got none")
+			} else if !expectError && err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+		})
+	}
+	
+	// Additional tests specific to standalone proofs
+	standaloneSpecificTests := []struct {
+		name        string
+		corrupt     func(*StandaloneProof) *StandaloneProof
+	}{
+		{
+			name: "corrupted_rlc_proof",
+			corrupt: func(p *StandaloneProof) *StandaloneProof {
+				modified := *p
+				if len(p.RLCProof) > 0 {
+					modified.RLCProof = copyAndCorruptProofSlice(p.RLCProof)
+				}
+				return &modified
+			},
+		},
+		{
+			name: "nil_rlc_proof",
+			corrupt: func(p *StandaloneProof) *StandaloneProof {
+				modified := *p
+				modified.RLCProof = nil
+				return &modified
+			},
+		},
+		{
+			name: "empty_rlc_proof",
+			corrupt: func(p *StandaloneProof) *StandaloneProof {
+				modified := *p
+				modified.RLCProof = [][]byte{}
+				return &modified
+			},
+		},
+	}
+	
+	for _, tt := range standaloneSpecificTests {
+		t.Run(tt.name, func(t *testing.T) {
+			modifiedProof := tt.corrupt(validProof)
+			err := VerifyStandaloneProof(modifiedProof, commitment, config)
+			
+			// All these should cause errors
+			if err == nil {
+				t.Errorf("Expected error for %s but got none", tt.name)
 			}
 		})
 	}
@@ -395,12 +456,8 @@ func copyAndCorruptProofSlice(original [][]byte) [][]byte {
 	return modified
 }
 
-func TestExtendedProofTampering(t *testing.T) {
+func TestCorruptedContext(t *testing.T) {
 	for _, tc := range testCases {
-		if tc.n == 0 {
-			continue // Skip if no extended rows
-		}
-		
 		t.Run(tc.name, func(t *testing.T) {
 			config := makeTestConfig(tc)
 			data := makeTestData(tc.k, tc.rowSize)
@@ -410,23 +467,25 @@ func TestExtendedProofTampering(t *testing.T) {
 				t.Fatalf("Encode() error: %v", err)
 			}
 			
-			// Test first extended row
-			proof, err := extData.GenerateProof(tc.k)
+			// Create context with corrupted RLC values
+			corruptedRLC := make([]field.GF128, len(extData.rlcOrig))
+			copy(corruptedRLC, extData.rlcOrig)
+			corruptedRLC[0][0] ^= 1
+			
+			badCtx, err := CreateVerificationContext(corruptedRLC, config)
 			if err != nil {
-				t.Fatalf("GenerateProof() error: %v", err)
+				t.Fatalf("CreateVerificationContext() error: %v", err)
 			}
 			
-			// Tamper with RLCOrig
-			tamperedProof := *proof
-			tamperedProof.RLCOrig = make([][]byte, len(proof.RLCOrig))
-			for i := range proof.RLCOrig {
-				tamperedProof.RLCOrig[i] = make([]byte, 16)
-				copy(tamperedProof.RLCOrig[i], proof.RLCOrig[i])
+			// Generate a valid proof
+			proof, err := extData.GenerateRowProof(0)
+			if err != nil {
+				t.Fatalf("GenerateRowProof() error: %v", err)
 			}
-			tamperedProof.RLCOrig[0][0] ^= 0xFF
 			
-			if err := VerifyProof(&tamperedProof, commitment, config); err == nil {
-				t.Errorf("VerifyProof() should fail with tampered RLCOrig")
+			// Verification should fail with corrupted context
+			if err := VerifyRowWithContext(proof, commitment, badCtx); err == nil {
+				t.Errorf("VerifyRowWithContext() should fail with corrupted context")
 			}
 		})
 	}

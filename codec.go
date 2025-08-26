@@ -101,48 +101,47 @@ func computeRLCOrig(rows [][]byte, coeffs []field.GF128, config *Config) []field
 	return results
 }
 
-// GenerateProof creates a proof for the specified row
-func (ed *ExtendedData) GenerateProof(index int) (*Proof, error) {
+
+// GenerateRowProof creates a lightweight proof (for use with context)
+func (ed *ExtendedData) GenerateRowProof(index int) (*RowProof, error) {
 	if index < 0 || index >= ed.config.K+ed.config.N {
 		return nil, fmt.Errorf("index %d out of range [0, %d)", index, ed.config.K+ed.config.N)
 	}
-
-	// Get row data
-	row := ed.rows[index]
-
-	// Generate row Merkle proof
+	
 	rowProof, err := ed.rowTree.GenerateProof(index)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate row proof: %w", err)
 	}
-
-	proof := &Proof{
+	
+	return &RowProof{
 		Index:    index,
-		Row:      row,
+		Row:      ed.rows[index],
 		RowProof: rowProof,
-	}
-
-	// Branch based on row type
-	if index < ed.config.K {
-		// Original row - add RLC proof
-		rlcProof, err := ed.rlcTree.GenerateProof(index)
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate RLC proof: %w", err)
-		}
-		proof.RLCProof = rlcProof
-	} else {
-		// Extended row - add all original RLC results (no subtree proof needed)
-		// Serialize RLC results for wire format
-		proof.RLCOrig = make([][]byte, len(ed.rlcOrig))
-		for i, rlc := range ed.rlcOrig {
-			bytes := field.ToBytes128(rlc)
-			proof.RLCOrig[i] = bytes[:]
-		}
-	}
-
-	return proof, nil
+	}, nil
 }
 
+// GenerateStandaloneProof creates a self-contained proof for single row verification
+// Best for reading individual original rows without context
+func (ed *ExtendedData) GenerateStandaloneProof(index int) (*StandaloneProof, error) {
+	if index >= ed.config.K {
+		return nil, fmt.Errorf("standalone proofs only supported for original rows (index < K)")
+	}
+	
+	rowProof, err := ed.GenerateRowProof(index)
+	if err != nil {
+		return nil, err
+	}
+	
+	rlcProof, err := ed.rlcTree.GenerateProof(index)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate RLC proof: %w", err)
+	}
+	
+	return &StandaloneProof{
+		RowProof: *rowProof,
+		RLCProof: rlcProof,
+	}, nil
+}
 
 // Reconstruct recovers original data from any K rows
 func Reconstruct(rows [][]byte, indices []int, config *Config) ([][]byte, error) {

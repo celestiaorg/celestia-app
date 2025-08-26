@@ -74,16 +74,22 @@ func TestTamperedExtendedDataBeforeCommitment(t *testing.T) {
 				rlcTree: rlcTree,
 			}
 
-			// Generate proof for the tampered row
-			proof, err := extData.GenerateProof(tamperedIndex)
+			// Create verification context
+			ctx, err := CreateVerificationContext(rlcOrig, config)
 			if err != nil {
-				t.Fatalf("GenerateProof failed: %v", err)
+				t.Fatalf("CreateVerificationContext failed: %v", err)
+			}
+
+			// Generate proof for the tampered row
+			proof, err := extData.GenerateRowProof(tamperedIndex)
+			if err != nil {
+				t.Fatalf("GenerateRowProof failed: %v", err)
 			}
 
 			// The proof should FAIL verification because:
 			// 1. The row data in the proof is tampered
 			// 2. When verifier computes RLC of the tampered row, it won't match the extended RLC
-			err = VerifyProof(proof, commitment, config)
+			err = VerifyRowWithContext(proof, commitment, ctx)
 			if err == nil {
 				t.Error("Proof verification should fail for tampered extended row, but it passed")
 			} else {
@@ -91,12 +97,12 @@ func TestTamperedExtendedDataBeforeCommitment(t *testing.T) {
 			}
 
 			// Also test an original row to ensure the system still works for untampered rows
-			originalProof, err := extData.GenerateProof(0)
+			originalProof, err := extData.GenerateRowProof(0)
 			if err != nil {
-				t.Fatalf("GenerateProof for original row failed: %v", err)
+				t.Fatalf("GenerateRowProof for original row failed: %v", err)
 			}
 
-			err = VerifyProof(originalProof, commitment, config)
+			err = VerifyRowWithContext(originalProof, commitment, ctx)
 			if err != nil {
 				t.Errorf("Proof verification should pass for untampered original row, but failed: %v", err)
 			}
@@ -168,17 +174,23 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 				rlcTree: rlcTree,
 			}
 
-			// Generate proof for the row whose RLC was tampered
-			proof, err := extData.GenerateProof(tamperedRLCIndex)
+			// Create verification context
+			ctx, err := CreateVerificationContext(rlcOrig, config)
 			if err != nil {
-				t.Fatalf("GenerateProof failed: %v", err)
+				t.Fatalf("CreateVerificationContext failed: %v", err)
+			}
+
+			// Generate proof for the row whose RLC was tampered
+			proof, err := extData.GenerateRowProof(tamperedRLCIndex)
+			if err != nil {
+				t.Fatalf("GenerateRowProof failed: %v", err)
 			}
 
 			// The proof should FAIL verification because:
 			// 1. The verifier will compute the correct RLC from the row data
 			// 2. But when it extends the original RLCs, it will get the correct extended value
 			// 3. This won't match the tampered value in the commitment
-			err = VerifyProof(proof, commitment, config)
+			err = VerifyRowWithContext(proof, commitment, ctx)
 			if err == nil {
 				t.Error("Proof verification should fail for row with tampered RLC, but it passed")
 			} else {
@@ -253,13 +265,19 @@ func TestTamperedOriginalRLCBeforeCommitment(t *testing.T) {
 				rlcTree: rlcTree,
 			}
 
-			// Test 1: Original row proof at tampered index should fail
-			proof, err := extData.GenerateProof(tamperedOrigIndex)
+			// Create verification context with tampered RLC values
+			ctx, err := CreateVerificationContext(rlcOrig, config)
 			if err != nil {
-				t.Fatalf("GenerateProof failed: %v", err)
+				t.Fatalf("CreateVerificationContext failed: %v", err)
 			}
 
-			err = VerifyProof(proof, commitment, config)
+			// Test 1: Original row proof at tampered index should fail
+			proof, err := extData.GenerateRowProof(tamperedOrigIndex)
+			if err != nil {
+				t.Fatalf("GenerateRowProof failed: %v", err)
+			}
+
+			err = VerifyRowWithContext(proof, commitment, ctx)
 			if err == nil {
 				t.Error("Proof verification should fail for original row with tampered RLC, but it passed")
 			} else {
@@ -267,12 +285,12 @@ func TestTamperedOriginalRLCBeforeCommitment(t *testing.T) {
 			}
 
 			// Test 2: Extended row proofs should also fail because they depend on tampered original RLCs
-			extendedProof, err := extData.GenerateProof(config.K + 1)
+			extendedProof, err := extData.GenerateRowProof(config.K + 1)
 			if err != nil {
-				t.Fatalf("GenerateProof for extended row failed: %v", err)
+				t.Fatalf("GenerateRowProof for extended row failed: %v", err)
 			}
 
-			err = VerifyProof(extendedProof, commitment, config)
+			err = VerifyRowWithContext(extendedProof, commitment, ctx)
 			if err == nil {
 				t.Error("Proof verification should fail for extended row when original RLCs are tampered, but it passed")
 			} else {
@@ -349,14 +367,20 @@ func TestMultipleTamperedRows(t *testing.T) {
 				rlcTree: rlcTree,
 			}
 
+			// Create verification context
+			ctx, err := CreateVerificationContext(rlcOrig, config)
+			if err != nil {
+				t.Fatalf("CreateVerificationContext failed: %v", err)
+			}
+
 			// All tampered rows should fail verification
 			for _, idx := range tamperedIndices {
-				proof, err := extData.GenerateProof(idx)
+				proof, err := extData.GenerateRowProof(idx)
 				if err != nil {
-					t.Fatalf("GenerateProof(%d) failed: %v", idx, err)
+					t.Fatalf("GenerateRowProof(%d) failed: %v", idx, err)
 				}
 
-				err = VerifyProof(proof, commitment, config)
+				err = VerifyRowWithContext(proof, commitment, ctx)
 				if err == nil {
 					t.Errorf("Row %d: Proof verification should fail for tampered row, but it passed", idx)
 				} else {
@@ -376,12 +400,12 @@ func TestMultipleTamperedRows(t *testing.T) {
 			}
 			
 			if isUntampered {
-				proof, err := extData.GenerateProof(untamperedIndex)
+				proof, err := extData.GenerateRowProof(untamperedIndex)
 				if err != nil {
-					t.Fatalf("GenerateProof(%d) failed: %v", untamperedIndex, err)
+					t.Fatalf("GenerateRowProof(%d) failed: %v", untamperedIndex, err)
 				}
 
-				err = VerifyProof(proof, commitment, config)
+				err = VerifyRowWithContext(proof, commitment, ctx)
 				if err != nil {
 					t.Errorf("Row %d: Proof verification should pass for untampered row, but failed: %v", untamperedIndex, err)
 				}

@@ -22,31 +22,25 @@ type ExtendedData struct {
 	rlcTree   *merkle.Tree  // Cached RLC Merkle tree
 }
 
-// Proof represents a proof for a single row
-type Proof struct {
+
+// VerificationContext holds precomputed RLC data for efficient batch verification
+type VerificationContext struct {
+	config      *Config
+	rlcOrig     []field.GF128 // Original K RLC values
+	rlcExtended []field.GF128 // Extended K+N RLC values (computed once)
+	rlcTree     *merkle.Tree  // Precomputed RLC Merkle tree
+	rlcRoot     [32]byte      // Cached RLC root
+}
+
+// RowProof is a lightweight proof without RLC data
+type RowProof struct {
 	Index    int      // Row index
 	Row      []byte   // Row data
 	RowProof [][]byte // Merkle proof for row
-
-	// For extended rows (index >= K)
-	RLCOrig [][]byte // Original RLC results (serialized as 16 bytes each)
-
-	// For original rows (index < K)
-	RLCProof [][]byte // Merkle proof for RLC
 }
 
-// ProofType indicates whether proof is for original or extended row
-type ProofType int
-
-const (
-	ProofTypeOriginal ProofType = iota
-	ProofTypeExtended
-)
-
-// Type returns the type of proof based on the index and config
-func (p *Proof) Type(config *Config) ProofType {
-	if p.Index < config.K {
-		return ProofTypeOriginal
-	}
-	return ProofTypeExtended
+// StandaloneProof includes everything needed for single-row verification
+type StandaloneProof struct {
+	RowProof
+	RLCProof [][]byte // Merkle proof for RLC (original rows only)
 }
