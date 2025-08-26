@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/rsema1d/encoding"
-	"github.com/celestiaorg/rsema1d/field"
-	"github.com/celestiaorg/rsema1d/merkle"
 )
 
 // TestTamperedExtendedDataBeforeCommitment tests that if extended data is tampered with
@@ -31,8 +29,11 @@ func TestTamperedExtendedDataBeforeCommitment(t *testing.T) {
 			extended[tamperedIndex][0] ^= 0xFF
 
 			// Continue with the rest of the encoding process
-			// Step 2: Build Merkle tree directly over extended rows
-			rowTree := merkle.NewTree(extended)
+			// Step 2: Build padded Merkle tree (need to validate config first)
+			if err := config.Validate(); err != nil {
+				t.Fatalf("Config validation failed: %v", err)
+			}
+			rowTree := buildPaddedRowTree(extended, config)
 			rowRoot := rowTree.Root()
 
 			// Step 3: Derive RLC coefficients
@@ -47,13 +48,8 @@ func TestTamperedExtendedDataBeforeCommitment(t *testing.T) {
 				t.Fatalf("ExtendRLCResults failed: %v", err)
 			}
 
-			// Step 6: Build RLC Merkle tree
-			rlcLeaves := make([][]byte, len(rlcExtended))
-			for i, result := range rlcExtended {
-				bytes := field.ToBytes128(result)
-				rlcLeaves[i] = bytes[:]
-			}
-			rlcTree := merkle.NewTree(rlcLeaves)
+			// Step 6: Build padded RLC Merkle tree
+			rlcTree := buildPaddedRLCTree(rlcExtended, config)
 			rlcRoot := rlcTree.Root()
 
 			// Step 7: Create commitment
@@ -127,8 +123,11 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 				t.Fatalf("ExtendVertical failed: %v", err)
 			}
 
-			// Step 2: Build Merkle tree directly over extended rows
-			rowTree := merkle.NewTree(extended)
+			// Step 2: Build padded Merkle tree
+			if err := config.Validate(); err != nil {
+				t.Fatalf("Config validation failed: %v", err)
+			}
+			rowTree := buildPaddedRowTree(extended, config)
 			rowRoot := rowTree.Root()
 
 			// Step 3: Derive RLC coefficients
@@ -147,13 +146,8 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 			tamperedRLCIndex := config.K + 2 // Third parity row's RLC
 			rlcExtended[tamperedRLCIndex][0] ^= 0xFFFF
 
-			// Step 6: Build RLC Merkle tree with tampered data
-			rlcLeaves := make([][]byte, len(rlcExtended))
-			for i, result := range rlcExtended {
-				bytes := field.ToBytes128(result)
-				rlcLeaves[i] = bytes[:]
-			}
-			rlcTree := merkle.NewTree(rlcLeaves)
+			// Step 6: Build padded RLC Merkle tree with tampered data
+			rlcTree := buildPaddedRLCTree(rlcExtended, config)
 			rlcRoot := rlcTree.Root()
 
 			// Step 7: Create commitment with tampered RLC root
@@ -217,8 +211,11 @@ func TestTamperedOriginalRLCBeforeCommitment(t *testing.T) {
 				t.Fatalf("ExtendVertical failed: %v", err)
 			}
 
-			// Step 2: Build Merkle tree directly over extended rows
-			rowTree := merkle.NewTree(extended)
+			// Step 2: Build padded Merkle tree
+			if err := config.Validate(); err != nil {
+				t.Fatalf("Config validation failed: %v", err)
+			}
+			rowTree := buildPaddedRowTree(extended, config)
 			rowRoot := rowTree.Root()
 
 			// Step 3: Derive RLC coefficients
@@ -238,13 +235,8 @@ func TestTamperedOriginalRLCBeforeCommitment(t *testing.T) {
 				t.Fatalf("ExtendRLCResults failed: %v", err)
 			}
 
-			// Step 6: Build RLC Merkle tree
-			rlcLeaves := make([][]byte, len(rlcExtended))
-			for i, result := range rlcExtended {
-				bytes := field.ToBytes128(result)
-				rlcLeaves[i] = bytes[:]
-			}
-			rlcTree := merkle.NewTree(rlcLeaves)
+			// Step 6: Build padded RLC Merkle tree
+			rlcTree := buildPaddedRLCTree(rlcExtended, config)
 			rlcRoot := rlcTree.Root()
 
 			// Step 7: Create commitment
@@ -332,8 +324,11 @@ func TestMultipleTamperedRows(t *testing.T) {
 				}
 			}
 
-			// Continue with encoding
-			rowTree := merkle.NewTree(extended)
+			// Continue with encoding - need config validation for padding
+			if err := config.Validate(); err != nil {
+				t.Fatalf("Config validation failed: %v", err)
+			}
+			rowTree := buildPaddedRowTree(extended, config)
 			rowRoot := rowTree.Root()
 
 			coeffs := deriveCoefficients(rowRoot, config)
@@ -343,12 +338,7 @@ func TestMultipleTamperedRows(t *testing.T) {
 				t.Fatalf("ExtendRLCResults failed: %v", err)
 			}
 
-			rlcLeaves := make([][]byte, len(rlcExtended))
-			for i, result := range rlcExtended {
-				bytes := field.ToBytes128(result)
-				rlcLeaves[i] = bytes[:]
-			}
-			rlcTree := merkle.NewTree(rlcLeaves)
+			rlcTree := buildPaddedRLCTree(rlcExtended, config)
 			rlcRoot := rlcTree.Root()
 
 			h := sha256.New()

@@ -7,7 +7,6 @@ import (
 
 	"github.com/celestiaorg/rsema1d/encoding"
 	"github.com/celestiaorg/rsema1d/field"
-	"github.com/celestiaorg/rsema1d/merkle"
 )
 
 // Encode extends data vertically and creates commitment
@@ -33,8 +32,8 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, error) {
 		return nil, Commitment{}, fmt.Errorf("failed to extend data: %w", err)
 	}
 
-	// 3. Build Merkle tree directly over extended rows
-	rowTree := merkle.NewTree(extended)
+	// 3. Build padded Merkle tree for rows
+	rowTree := buildPaddedRowTree(extended, config)
 	rowRoot := rowTree.Root()
 
 	// 4. Derive RLC coefficients
@@ -49,13 +48,8 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, error) {
 		return nil, Commitment{}, fmt.Errorf("failed to extend RLC results: %w", err)
 	}
 
-	// 7. Build RLC Merkle tree
-	rlcLeaves := make([][]byte, len(rlcExtended))
-	for i, result := range rlcExtended {
-		bytes := field.ToBytes128(result)
-		rlcLeaves[i] = bytes[:]
-	}
-	rlcTree := merkle.NewTree(rlcLeaves)
+	// 7. Build padded RLC Merkle tree matching row tree structure
+	rlcTree := buildPaddedRLCTree(rlcExtended, config)
 	rlcRoot := rlcTree.Root()
 
 	// 8. Create commitment: SHA256(rowRoot || rlcRoot)
@@ -108,13 +102,16 @@ func (ed *ExtendedData) GenerateRowProof(index int) (*RowProof, error) {
 		return nil, fmt.Errorf("index %d out of range [0, %d)", index, ed.config.K+ed.config.N)
 	}
 	
-	rowProof, err := ed.rowTree.GenerateProof(index)
+	// Map actual index to padded tree position
+	treeIndex := mapIndexToTreePosition(index, ed.config)
+	
+	rowProof, err := ed.rowTree.GenerateProof(treeIndex)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate row proof: %w", err)
 	}
 	
 	return &RowProof{
-		Index:    index,
+		Index:    index, // Store actual index, not tree position
 		Row:      ed.rows[index],
 		RowProof: rowProof,
 	}, nil

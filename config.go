@@ -9,12 +9,16 @@ import (
 // Config holds all configurable parameters for the codec
 type Config struct {
 	// Core parameters (required)
-	K       int // Number of original rows
-	N       int // Number of parity rows
+	K       int // Number of original rows (can be arbitrary)
+	N       int // Number of parity rows (can be arbitrary)
 	RowSize int // Size of each row in bytes (multiple of 64)
 
 	// Optional parameters with defaults
 	WorkerCount int // Number of parallel workers (minimum 1)
+	
+	// Computed padding values (set during Validate)
+	kPadded     int // Next power of 2 >= K
+	totalPadded int // Next power of 2 >= (kPadded + N)
 }
 
 // DefaultConfig returns a standard configuration
@@ -39,16 +43,6 @@ func (c *Config) Validate() error {
 		return errors.New("RowSize must be positive")
 	}
 
-	// Check K is a power of 2 (ensures left subtree is perfect)
-	if !isPowerOfTwo(c.K) {
-		return fmt.Errorf("K must be a power of 2, got %d", c.K)
-	}
-	
-	// Check K + N is a power of 2 (ensures total tree is perfect)
-	if !isPowerOfTwo(c.K + c.N) {
-		return fmt.Errorf("K + N must be a power of 2, got %d", c.K+c.N)
-	}
-
 	// Check K + N <= 65536 (GF(2^16) field size limit)
 	if c.K+c.N > 65536 {
 		return fmt.Errorf("K + N must be <= 65536, got %d", c.K+c.N)
@@ -68,8 +62,29 @@ func (c *Config) Validate() error {
 	if c.WorkerCount < 1 {
 		return errors.New("WorkerCount must be at least 1")
 	}
+	
+	// Compute padding values for tree construction
+	c.kPadded = nextPowerOfTwo(c.K)
+	c.totalPadded = nextPowerOfTwo(c.kPadded + c.N)
 
 	return nil
+}
+
+// nextPowerOfTwo returns the smallest power of 2 >= n
+func nextPowerOfTwo(n int) int {
+	if n <= 1 {
+		return 1
+	}
+	// If already power of 2, return it
+	if n&(n-1) == 0 {
+		return n
+	}
+	// Find next power of 2
+	power := 1
+	for power < n {
+		power <<= 1
+	}
+	return power
 }
 
 // isPowerOfTwo checks if n is a power of 2

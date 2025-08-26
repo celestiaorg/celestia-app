@@ -19,12 +19,23 @@ type testCase struct {
 
 // Common test configurations used across all tests
 var testCases = []testCase{
+	// Power of 2 cases (original)
 	{name: "1:1 small k=4 n=4", k: 4, n: 4, rowSize: 64},
 	{name: "1:3 small k=4 n=12", k: 4, n: 12, rowSize: 64},
 	{name: "1:1 medium k=8 n=8", k: 8, n: 8, rowSize: 256},
 	{name: "1:3 medium k=8 n=24", k: 8, n: 24, rowSize: 256},
 	{name: "1:1 large k=16 n=16", k: 16, n: 16, rowSize: 512},
 	{name: "1:3 large k=16 n=48", k: 16, n: 48, rowSize: 512},
+	
+	// Arbitrary K and N cases
+	{name: "arbitrary k=3 n=5", k: 3, n: 5, rowSize: 64},
+	{name: "arbitrary k=5 n=7", k: 5, n: 7, rowSize: 128},
+	{name: "arbitrary k=7 n=9", k: 7, n: 9, rowSize: 128},
+	{name: "arbitrary k=10 n=15", k: 10, n: 15, rowSize: 256},
+	{name: "arbitrary k=13 n=19", k: 13, n: 19, rowSize: 256},
+	{name: "arbitrary k=17 n=31", k: 17, n: 31, rowSize: 512},
+	{name: "arbitrary k=100 n=150", k: 100, n: 150, rowSize: 512},
+	{name: "arbitrary k=127 n=129", k: 127, n: 129, rowSize: 512},
 }
 
 // Helper functions

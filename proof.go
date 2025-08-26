@@ -28,13 +28,8 @@ func CreateVerificationContext(rlcOrig []field.GF128, config *Config) (*Verifica
 		return nil, fmt.Errorf("failed to extend RLC results: %w", err)
 	}
 	
-	// Build RLC Merkle tree
-	rlcLeaves := make([][]byte, len(rlcExtended))
-	for i, rlc := range rlcExtended {
-		bytes := field.ToBytes128(rlc)
-		rlcLeaves[i] = bytes[:]
-	}
-	rlcTree := merkle.NewTree(rlcLeaves)
+	// Build padded RLC Merkle tree
+	rlcTree := buildPaddedRLCTree(rlcExtended, config)
 	
 	return &VerificationContext{
 		config:      config,
@@ -52,8 +47,9 @@ func VerifyRowWithContext(proof *RowProof, commitment Commitment, context *Verif
 		return fmt.Errorf("index %d out of range [0, %d)", proof.Index, context.config.K+context.config.N)
 	}
 	
-	// 1. Compute row root from proof
-	rowRoot, err := merkle.ComputeRootFromProof(proof.Row, proof.Index, proof.RowProof)
+	// 1. Compute row root from proof (using mapped tree position)
+	treeIndex := mapIndexToTreePosition(proof.Index, context.config)
+	rowRoot, err := merkle.ComputeRootFromProof(proof.Row, treeIndex, proof.RowProof)
 	if err != nil {
 		return fmt.Errorf("failed to compute row root: %w", err)
 	}
@@ -96,7 +92,7 @@ func VerifyStandaloneProof(proof *StandaloneProof, commitment Commitment, config
 		return errors.New("standalone verification only supports original rows")
 	}
 	
-	// 1. Compute row root
+	// 1. Compute row root (index < K so no shift needed for tree position)
 	rowRoot, err := merkle.ComputeRootFromProof(proof.Row, proof.Index, proof.RowProof.RowProof)
 	if err != nil {
 		return fmt.Errorf("failed to compute row root: %w", err)
