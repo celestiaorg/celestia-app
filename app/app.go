@@ -728,10 +728,9 @@ func (app *App) getGovMaxSquareBytes() (uint64, error) {
 // getMinGasPrice is used by the gas estimation service to get the higher of the network minimum gas price
 // or the nodes locally configured minimum gas price.
 func (app *App) getMinGasPrice() (float64, error) {
-	localMinGasPrice, err := app.GetMinGasPrices().AmountOf(appconsts.BondDenom).Float64()
-	if err != nil {
-		localMinGasPrice = appconsts.DefaultMinGasPrice
-	}
+	// ignore errors as we will just use the NewDefaultMinGasPrice instead
+	localMinGasPrice, _ := app.GetMinGasPrices().AmountOf(appconsts.BondDenom).Float64()
+	localMinGasPrice = math.Max(localMinGasPrice, appconsts.NewDefaultMinGasPrice)
 	ctx, err := app.CreateQueryContext(app.LastBlockHeight(), false)
 	if err != nil {
 		return localMinGasPrice, err

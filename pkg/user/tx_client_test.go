@@ -347,7 +347,7 @@ func (suite *TxClientTestSuite) TestGasPriceAndUsageEstimation() {
 func (suite *TxClientTestSuite) TestGasPriceEstimation() {
 	gasPrice, err := suite.txClient.EstimateGasPrice(suite.ctx.GoContext(), 0)
 	require.NoError(suite.T(), err)
-	require.Equal(suite.T(), gasPrice, appconsts.DefaultMinGasPrice)
+	require.Equal(suite.T(), gasPrice, appconsts.NewDefaultMinGasPrice)
 }
 
 // TestGasConsumption verifies that the amount deducted from a user's balance is
