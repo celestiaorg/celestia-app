@@ -1,8 +1,8 @@
 package rsema1d
 
 import (
-	"crypto/rand"
 	"fmt"
+	"math/rand/v2"
 	"runtime"
 	"testing"
 )
@@ -53,7 +53,10 @@ func generateTestData(k, rowSize int) [][]byte {
 	data := make([][]byte, k)
 	for i := range k {
 		data[i] = make([]byte, rowSize)
-		rand.Read(data[i])
+		// Fill with random bytes using math/rand/v2
+		for j := range data[i] {
+			data[i][j] = byte(rand.IntN(256))
+		}
 	}
 	return data
 }
@@ -71,7 +74,7 @@ type benchmarkConfig struct {
 // runBenchmark is a helper that handles concurrent benchmark execution
 func runBenchmark(b *testing.B, cfg benchmarkConfig, setup func() any, benchFunc func(any) error) {
 	b.SetBytes(int64(cfg.dataSize.bytes))
-	
+
 	if cfg.parallel {
 		// Use b.RunParallel for concurrent execution
 		b.RunParallel(func(pb *testing.PB) {
@@ -196,5 +199,119 @@ func BenchmarkEncode(b *testing.B) {
 			// Run benchmark with the new pattern
 			runBenchmark(b, cfg, setup, benchFunc)
 		})
+	}
+}
+
+// BenchmarkReconstruct benchmarks the Reconstruct function
+func BenchmarkReconstruct(b *testing.B) {
+	// Reconstruct doesn't support worker parallelism directly
+	configs := generateBenchmarkConfigs(false)
+
+	// Test different erasure patterns
+	erasurePatterns := []struct {
+		name       string
+		getIndices func(k, n int) []int
+	}{
+		{
+			name: "all_original",
+			getIndices: func(k, n int) []int {
+				// Use all original rows (fastest case - no actual reconstruction needed)
+				return makeRange(0, k)
+			},
+		},
+		{
+			name: "all_parity",
+			getIndices: func(k, n int) []int {
+				// Use only parity rows (requires full reconstruction)
+				return makeRange(k, k+k)
+			},
+		},
+		{
+			name: "half_half",
+			getIndices: func(k, n int) []int {
+				// Use half original, half parity
+				indices := make([]int, k)
+				halfK := k / 2
+				for i := range halfK {
+					indices[i] = i
+				}
+				for i := range k - halfK {
+					indices[halfK+i] = k + i
+				}
+				return indices
+			},
+		},
+		{
+			name: "random",
+			getIndices: func(k, n int) []int {
+				// Random K rows from all available rows
+				all := make([]int, k+n)
+				for i := range all {
+					all[i] = i
+				}
+
+				// Shuffle using math/rand/v2
+				rand.Shuffle(len(all), func(i, j int) {
+					all[i], all[j] = all[j], all[i]
+				})
+
+				// Take first K indices and sort for consistency
+				return all[:k]
+			},
+		},
+	}
+
+	for _, cfg := range configs {
+		for _, pattern := range erasurePatterns {
+			benchName := fmt.Sprintf("%s/%s", configName(cfg), pattern.name)
+
+			b.Run(benchName, func(b *testing.B) {
+				// Create the codec config
+				codecConfig := &Config{
+					K:           cfg.k,
+					N:           cfg.n,
+					RowSize:     cfg.rowSize,
+					WorkerCount: 1, // Reconstruction uses its own parallelism
+				}
+
+				// Setup returns encoded data for reconstruction
+				setup := func() any {
+					// Generate and encode data once
+					originalData := generateTestData(cfg.k, cfg.rowSize)
+					extData, _, err := Encode(originalData, codecConfig)
+					if err != nil {
+						b.Fatalf("Encode failed: %v", err)
+					}
+
+					// Get indices for this pattern
+					indices := pattern.getIndices(cfg.k, cfg.n)
+
+					// Select the rows
+					rows := make([][]byte, len(indices))
+					for i, idx := range indices {
+						rows[i] = extData.rows[idx]
+					}
+
+					// Return as a map for clarity
+					return map[string]any{
+						"rows":    rows,
+						"indices": indices,
+					}
+				}
+
+				// Benchmark function performs reconstruction
+				benchFunc := func(state any) error {
+					data := state.(map[string]any)
+					rows := data["rows"].([][]byte)
+					indices := data["indices"].([]int)
+
+					_, err := Reconstruct(rows, indices, codecConfig)
+					return err
+				}
+
+				// Run the benchmark
+				runBenchmark(b, cfg, setup, benchFunc)
+			})
+		}
 	}
 }
