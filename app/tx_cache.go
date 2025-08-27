@@ -3,7 +3,6 @@ package app
 import (
 	"crypto/sha256"
 	"sync"
-	"time"
 )
 
 // TxValidationCache caches the results of expensive transaction validation
@@ -14,7 +13,7 @@ type TxValidationCache struct {
 }
 
 // NewTxValidationCache creates a new transaction validation cache
-func NewTxValidationCache(ttl time.Duration) *TxValidationCache {
+func NewTxValidationCache() *TxValidationCache {
 	return &TxValidationCache{
 		cache: make(map[string]*bool),
 	}

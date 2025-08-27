@@ -122,7 +122,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		// - that the sizes match
 		// - that the namespaces match between blob and PFB
 		// - that the share commitment is correct
-		if valid := app.txValidationCache.Get(rawTx); valid && isBlobTx {
+		if valid := app.txValidationCache.Get(tx); valid && isBlobTx {
 			// Use lightweight validation that skips expensive commitment generation
 			// since we already validated it in CheckTx and cached the result
 			if _, err := blobtypes.ValidateBlobTxSkipCommitment(app.encodingConfig.TxConfig, blobTx); err != nil {

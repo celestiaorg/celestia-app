@@ -229,7 +229,7 @@ func New(
 		tkeys:             tkeys,
 		memKeys:           memKeys,
 		timeoutCommit:     timeoutCommit,
-		txValidationCache: NewTxValidationCache(5 * time.Minute), // Cache for 5 minutes
+		txValidationCache: NewTxValidationCache(),
 	}
 
 	// needed for migration from x/params -> module's ownership of own params
