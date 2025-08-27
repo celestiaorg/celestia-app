@@ -5,6 +5,8 @@ import (
 	"math/rand/v2"
 	"runtime"
 	"testing"
+	
+	"github.com/celestiaorg/rsema1d/field"
 )
 
 // dataSize represents a test data size with its human-readable name
@@ -313,5 +315,219 @@ func BenchmarkReconstruct(b *testing.B) {
 				runBenchmark(b, cfg, setup, benchFunc)
 			})
 		}
+	}
+}
+
+// BenchmarkGenerateRowProof benchmarks row proof generation
+func BenchmarkGenerateRowProof(b *testing.B) {
+	configs := generateBenchmarkConfigs(false) // Proof generation doesn't use workers
+
+	for _, cfg := range configs {
+		b.Run(configName(cfg), func(b *testing.B) {
+			// Create the codec config
+			codecConfig := &Config{
+				K:           cfg.k,
+				N:           cfg.n,
+				RowSize:     cfg.rowSize,
+				WorkerCount: 1,
+			}
+
+			// Setup creates the extended data once
+			setup := func() any {
+				originalData := generateTestData(cfg.k, cfg.rowSize)
+				extData, _, err := Encode(originalData, codecConfig)
+				if err != nil {
+					b.Fatalf("Encode failed: %v", err)
+				}
+				return extData
+			}
+
+			// Benchmark proof generation for index 0
+			benchFunc := func(state any) error {
+				extData := state.(*ExtendedData)
+				_, err := extData.GenerateRowProof(0)
+				return err
+			}
+
+			runBenchmark(b, cfg, setup, benchFunc)
+		})
+	}
+}
+
+// BenchmarkGenerateStandaloneProof benchmarks standalone proof generation
+func BenchmarkGenerateStandaloneProof(b *testing.B) {
+	configs := generateBenchmarkConfigs(false) // Proof generation doesn't use workers
+
+	for _, cfg := range configs {
+		b.Run(configName(cfg), func(b *testing.B) {
+			// Create the codec config
+			codecConfig := &Config{
+				K:           cfg.k,
+				N:           cfg.n,
+				RowSize:     cfg.rowSize,
+				WorkerCount: 1,
+			}
+
+			// Setup creates the extended data once
+			setup := func() any {
+				originalData := generateTestData(cfg.k, cfg.rowSize)
+				extData, _, err := Encode(originalData, codecConfig)
+				if err != nil {
+					b.Fatalf("Encode failed: %v", err)
+				}
+				return extData
+			}
+
+			// Benchmark standalone proof generation for index 0
+			benchFunc := func(state any) error {
+				extData := state.(*ExtendedData)
+				_, err := extData.GenerateStandaloneProof(0)
+				return err
+			}
+
+			runBenchmark(b, cfg, setup, benchFunc)
+		})
+	}
+}
+
+// BenchmarkCreateVerificationContext benchmarks context creation
+func BenchmarkCreateVerificationContext(b *testing.B) {
+	configs := generateBenchmarkConfigs(false) // Context creation doesn't use workers
+
+	for _, cfg := range configs {
+		b.Run(configName(cfg), func(b *testing.B) {
+			// Create the codec config
+			codecConfig := &Config{
+				K:           cfg.k,
+				N:           cfg.n,
+				RowSize:     cfg.rowSize,
+				WorkerCount: 1,
+			}
+
+			// Setup prepares the RLC original values
+			setup := func() any {
+				originalData := generateTestData(cfg.k, cfg.rowSize)
+				extData, _, err := Encode(originalData, codecConfig)
+				if err != nil {
+					b.Fatalf("Encode failed: %v", err)
+				}
+				return extData.rlcOrig
+			}
+
+			// Benchmark context creation
+			benchFunc := func(state any) error {
+				rlcOrig := state.([]field.GF128)
+				_, err := CreateVerificationContext(rlcOrig, codecConfig)
+				return err
+			}
+
+			runBenchmark(b, cfg, setup, benchFunc)
+		})
+	}
+}
+
+// BenchmarkVerifyRowWithContext benchmarks row proof verification with context
+func BenchmarkVerifyRowWithContext(b *testing.B) {
+	configs := generateBenchmarkConfigs(false) // Verification doesn't use workers
+
+	for _, cfg := range configs {
+		b.Run(configName(cfg), func(b *testing.B) {
+			// Create the codec config
+			codecConfig := &Config{
+				K:           cfg.k,
+				N:           cfg.n,
+				RowSize:     cfg.rowSize,
+				WorkerCount: 1,
+			}
+
+			// Setup prepares proof and context
+			setup := func() any {
+				originalData := generateTestData(cfg.k, cfg.rowSize)
+				extData, commitment, err := Encode(originalData, codecConfig)
+				if err != nil {
+					b.Fatalf("Encode failed: %v", err)
+				}
+
+				// Create verification context
+				ctx, err := CreateVerificationContext(extData.rlcOrig, codecConfig)
+				if err != nil {
+					b.Fatalf("CreateVerificationContext failed: %v", err)
+				}
+
+				// Pre-generate proof for index 0
+				proof, err := extData.GenerateRowProof(0)
+				if err != nil {
+					b.Fatalf("GenerateRowProof failed: %v", err)
+				}
+
+				return map[string]any{
+					"proof":      proof,
+					"commitment": commitment,
+					"context":    ctx,
+				}
+			}
+
+			// Benchmark verification of the same proof each iteration
+			benchFunc := func(state any) error {
+				data := state.(map[string]any)
+				proof := data["proof"].(*RowProof)
+				commitment := data["commitment"].(Commitment)
+				ctx := data["context"].(*VerificationContext)
+				
+				return VerifyRowWithContext(proof, commitment, ctx)
+			}
+
+			runBenchmark(b, cfg, setup, benchFunc)
+		})
+	}
+}
+
+// BenchmarkVerifyStandaloneProof benchmarks standalone proof verification
+func BenchmarkVerifyStandaloneProof(b *testing.B) {
+	configs := generateBenchmarkConfigs(false) // Verification doesn't use workers
+
+	for _, cfg := range configs {
+		b.Run(configName(cfg), func(b *testing.B) {
+			// Create the codec config
+			codecConfig := &Config{
+				K:           cfg.k,
+				N:           cfg.n,
+				RowSize:     cfg.rowSize,
+				WorkerCount: 1,
+			}
+
+			// Setup prepares standalone proof
+			setup := func() any {
+				originalData := generateTestData(cfg.k, cfg.rowSize)
+				extData, commitment, err := Encode(originalData, codecConfig)
+				if err != nil {
+					b.Fatalf("Encode failed: %v", err)
+				}
+
+				// Pre-generate standalone proof for index 0
+				proof, err := extData.GenerateStandaloneProof(0)
+				if err != nil {
+					b.Fatalf("GenerateStandaloneProof failed: %v", err)
+				}
+
+				return map[string]any{
+					"proof":      proof,
+					"commitment": commitment,
+					"config":     codecConfig,
+				}
+			}
+
+			// Benchmark verification of the same proof each iteration
+			benchFunc := func(state any) error {
+				data := state.(map[string]any)
+				proof := data["proof"].(*StandaloneProof)
+				commitment := data["commitment"].(Commitment)
+				config := data["config"].(*Config)
+				
+				return VerifyStandaloneProof(proof, commitment, config)
+			}
+
+			runBenchmark(b, cfg, setup, benchFunc)
+		})
 	}
 }
