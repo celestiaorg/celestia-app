@@ -74,8 +74,10 @@ type benchmarkConfig struct {
 }
 
 // runBenchmark is a helper that handles concurrent benchmark execution
-func runBenchmark(b *testing.B, cfg benchmarkConfig, setup func() any, benchFunc func(any) error) {
-	b.SetBytes(int64(cfg.dataSize.bytes))
+func runBenchmark(b *testing.B, cfg benchmarkConfig, setup func() any, benchFunc func(any) error, reportBytes bool) {
+	if reportBytes {
+		b.SetBytes(int64(cfg.dataSize.bytes))
+	}
 
 	if cfg.parallel {
 		// Use b.RunParallel for concurrent execution
@@ -199,7 +201,7 @@ func BenchmarkEncode(b *testing.B) {
 			}
 
 			// Run benchmark with the new pattern
-			runBenchmark(b, cfg, setup, benchFunc)
+			runBenchmark(b, cfg, setup, benchFunc, true) // Report MB/s for encoding
 		})
 	}
 }
@@ -312,7 +314,7 @@ func BenchmarkReconstruct(b *testing.B) {
 				}
 
 				// Run the benchmark
-				runBenchmark(b, cfg, setup, benchFunc)
+				runBenchmark(b, cfg, setup, benchFunc, true) // Report MB/s for reconstruction
 			})
 		}
 	}
@@ -349,7 +351,7 @@ func BenchmarkGenerateRowProof(b *testing.B) {
 				return err
 			}
 
-			runBenchmark(b, cfg, setup, benchFunc)
+			runBenchmark(b, cfg, setup, benchFunc, false) // No MB/s for proof operations
 		})
 	}
 }
@@ -385,7 +387,7 @@ func BenchmarkGenerateStandaloneProof(b *testing.B) {
 				return err
 			}
 
-			runBenchmark(b, cfg, setup, benchFunc)
+			runBenchmark(b, cfg, setup, benchFunc, false) // No MB/s for proof operations
 		})
 	}
 }
@@ -421,7 +423,7 @@ func BenchmarkCreateVerificationContext(b *testing.B) {
 				return err
 			}
 
-			runBenchmark(b, cfg, setup, benchFunc)
+			runBenchmark(b, cfg, setup, benchFunc, false) // No MB/s for proof operations
 		})
 	}
 }
@@ -477,7 +479,7 @@ func BenchmarkVerifyRowWithContext(b *testing.B) {
 				return VerifyRowWithContext(proof, commitment, ctx)
 			}
 
-			runBenchmark(b, cfg, setup, benchFunc)
+			runBenchmark(b, cfg, setup, benchFunc, false) // No MB/s for proof operations
 		})
 	}
 }
@@ -527,7 +529,7 @@ func BenchmarkVerifyStandaloneProof(b *testing.B) {
 				return VerifyStandaloneProof(proof, commitment, config)
 			}
 
-			runBenchmark(b, cfg, setup, benchFunc)
+			runBenchmark(b, cfg, setup, benchFunc, false) // No MB/s for proof operations
 		})
 	}
 }
