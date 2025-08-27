@@ -194,6 +194,10 @@ type App struct {
 	// useful for testing purposes and should not be used on public networks
 	// (Arabica, Mocha, or Mainnet Beta).
 	timeoutCommit time.Duration
+
+	// txValidationCache caches expensive blob transaction validation results
+	// from CheckTx to be reused in ProcessProposal.
+	txValidationCache *TxValidationCache
 }
 
 // New returns a reference to an uninitialized app. Callers must subsequently
@@ -220,11 +224,12 @@ func New(
 	govModuleAddr := authtypes.NewModuleAddress(govtypes.ModuleName).String()
 
 	app := &App{
-		BaseApp:       baseApp,
-		keys:          keys,
-		tkeys:         tkeys,
-		memKeys:       memKeys,
-		timeoutCommit: timeoutCommit,
+		BaseApp:           baseApp,
+		keys:              keys,
+		tkeys:             tkeys,
+		memKeys:           memKeys,
+		timeoutCommit:     timeoutCommit,
+		txValidationCache: NewTxValidationCache(5 * time.Minute), // Cache for 5 minutes
 	}
 
 	// needed for migration from x/params -> module's ownership of own params

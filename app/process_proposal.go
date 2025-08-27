@@ -25,6 +25,11 @@ const rejectedPropBlockLog = "Rejected proposal block:"
 
 func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcessProposal) (resp *abci.ResponseProcessProposal, err error) {
 	defer telemetry.MeasureSince(time.Now(), "process_proposal")
+
+	// Clear the cache after ProcessProposal completes (whether accept or reject)
+	// to prevent memory growth and ensure fresh cache for the next block proposal
+	defer app.txValidationCache.Clear()
+
 	// In the case of a panic resulting from an unexpected condition, it is
 	// better for the liveness of the network to catch it, log an error, and
 	// vote nil rather than crashing the node.
@@ -110,15 +115,26 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			continue
 		}
 
-		// validate the blobTx. This is the same validation used in CheckTx ensuring
+		// validate the blobTx. If this tx was cached from CheckTx, we can skip the expensive
+		// commitment verification since it was already validated. Otherwise, fall back to full validation.
 		// - there is one PFB
 		// - that each blob has a valid namespace
 		// - that the sizes match
 		// - that the namespaces match between blob and PFB
 		// - that the share commitment is correct
-		if err := blobtypes.ValidateBlobTx(app.encodingConfig.TxConfig, blobTx, appconsts.SubtreeRootThreshold, appconsts.Version); err != nil {
-			logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("invalid blob tx %d", idx), err)
-			return reject(), nil
+		if valid := app.txValidationCache.Get(rawTx); valid && isBlobTx {
+			// Use lightweight validation that skips expensive commitment generation
+			// since we already validated it in CheckTx and cached the result
+			if _, err := blobtypes.ValidateBlobTxSkipCommitment(app.encodingConfig.TxConfig, blobTx); err != nil {
+				logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("cached blob tx failed lightweight validation %d", idx), err)
+				return reject(), nil
+			}
+		} else {
+			// Fall back to full validation if not cached (should be rare)
+			if err := blobtypes.ValidateBlobTx(app.encodingConfig.TxConfig, blobTx, appconsts.SubtreeRootThreshold, appconsts.Version); err != nil {
+				logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("invalid blob tx %d", idx), err)
+				return reject(), nil
+			}
 		}
 
 		// validated the PFB signature
