@@ -20,7 +20,7 @@ func buildPaddedRowTree(extended [][]byte, config *Config) *merkle.Tree {
 		paddedRows[i] = zeroRow                                                  // Padding at end
 	}
 	
-	return merkle.NewTree(paddedRows)
+	return merkle.NewTreeWithWorkers(paddedRows, config.WorkerCount)
 }
 
 // buildPaddedRLCTree creates a padded Merkle tree from extended RLC values
@@ -44,7 +44,7 @@ func buildPaddedRLCTree(rlcExtended []field.GF128, config *Config) *merkle.Tree 
 		paddedRLCLeaves[i] = zeroRLC // Padding
 	}
 	
-	return merkle.NewTree(paddedRLCLeaves)
+	return merkle.NewTreeWithWorkers(paddedRLCLeaves, config.WorkerCount)
 }
 
 // mapIndexToTreePosition maps an actual row index to its position in the padded tree

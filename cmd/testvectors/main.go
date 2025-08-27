@@ -11,7 +11,8 @@ import (
 func main() {
 	// Test Case 1: K=4, N=4 (both power of 2, no padding needed)
 	fmt.Println("### Test Vector 1: K=4, N=4, rowSize=64")
-	fmt.Println("Power of 2 case - no padding needed\n")
+	fmt.Println("Power of 2 case - no padding needed")
+	fmt.Println()
 	
 	config1 := &rsema1d.Config{
 		K:           4,

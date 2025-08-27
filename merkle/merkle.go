@@ -4,6 +4,8 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"math/bits"
+	"runtime"
+	"sync"
 )
 
 // Prefix bytes for differentiating leaf and internal nodes (matching CometBFT/Tendermint)
@@ -20,6 +22,12 @@ type Tree struct {
 // NewTree builds a binary Merkle tree from the given leaves
 // Requires: len(leaves) must be a power of 2
 func NewTree(leaves [][]byte) *Tree {
+	return NewTreeWithWorkers(leaves, runtime.NumCPU())
+}
+
+// NewTreeWithWorkers builds a binary Merkle tree using specified number of workers
+// Requires: len(leaves) must be a power of 2
+func NewTreeWithWorkers(leaves [][]byte, workerCount int) *Tree {
 	n := len(leaves)
 	if n == 0 {
 		panic("cannot create Merkle tree with 0 leaves")
@@ -31,22 +39,63 @@ func NewTree(leaves [][]byte) *Tree {
 	// Build tree bottom-up
 	nodes := make([][]byte, 2*n-1)
 
-	// Hash leaves and copy to the end of the nodes array
-	for i := 0; i < n; i++ {
+	// Parallel hash leaves and copy to the end of the nodes array
+	parallelizeHashing(n, workerCount, func(i int) {
 		nodes[n-1+i] = hashLeaf(leaves[i])
-	}
+	})
 
-	// Build internal nodes from position n-2 (last internal) down to 0 (root)
-	// n-1 internal nodes occupy positions [0, n-2]
-	for i := n - 2; i >= 0; i-- {
-		left := nodes[2*i+1]
-		right := nodes[2*i+2]
-		nodes[i] = hashPair(left, right)
+	// Build internal nodes level by level, bottom-up
+	for levelSize := n / 2; levelSize > 0; levelSize /= 2 {
+		levelStart := levelSize - 1
+		parallelizeHashing(levelSize, workerCount, func(i int) {
+			pos := levelStart + i
+			left := nodes[2*pos+1]
+			right := nodes[2*pos+2]
+			nodes[pos] = hashPair(left, right)
+		})
 	}
 
 	return &Tree{
 		nodes: nodes,
 	}
+}
+
+// parallelizeHashing runs the hash function in parallel for count items
+func parallelizeHashing(count int, workerCount int, hashFunc func(i int)) {
+	if count <= 64 || workerCount <= 1 { // Small trees or single worker: sequential is faster
+		for i := 0; i < count; i++ {
+			hashFunc(i)
+		}
+		return
+	}
+
+	// Use worker pool pattern for larger trees
+	workers := workerCount
+	if workers > count {
+		workers = count
+	}
+
+	var wg sync.WaitGroup
+	ch := make(chan int, count)
+
+	// Start workers
+	wg.Add(workers)
+	for w := 0; w < workers; w++ {
+		go func() {
+			defer wg.Done()
+			for i := range ch {
+				hashFunc(i)
+			}
+		}()
+	}
+
+	// Send work
+	for i := 0; i < count; i++ {
+		ch <- i
+	}
+	close(ch)
+
+	wg.Wait()
 }
 
 // numLeaves returns the number of leaves in the tree
