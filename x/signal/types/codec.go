@@ -14,7 +14,7 @@ func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(&MsgSignalVersion{}, URLMsgSignalVersion, nil)
 }
 
-// RegisterInterfaces registers the upgrade module types on the provided
+// RegisterInterfaces registers the signal module types on the provided
 // registry.
 func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 	registry.RegisterImplementations((*sdk.Msg)(nil), &MsgTryUpgrade{})
