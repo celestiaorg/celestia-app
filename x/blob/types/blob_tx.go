@@ -2,6 +2,8 @@ package types
 
 import (
 	"bytes"
+	context "context"
+	"runtime"
 	"slices"
 
 	"github.com/celestiaorg/go-square/v2/inclusion"
@@ -11,6 +13,7 @@ import (
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"golang.org/x/sync/errgroup"
 )
 
 // NewV0Blob creates a new V0 Blob from a provided namespace and data.
@@ -114,6 +117,54 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *tx.BlobTx, subtreeRootTh
 	}
 
 	return nil
+}
+
+func ValidateBlobTxsParallel(
+	txcfg client.TxEncodingConfig,
+	blobs []*tx.BlobTx,
+	subtreeRootThreshold int,
+	version uint64,
+	numWorkers int,
+) error {
+	if numWorkers <= 0 {
+		numWorkers = runtime.NumCPU()
+	}
+
+	jobs := make(chan *tx.BlobTx, numWorkers*2)
+
+	g, ctx := errgroup.WithContext(context.Background())
+
+	g.Go(func() error {
+		defer close(jobs)
+		for _, b := range blobs {
+			select {
+			case <-ctx.Done():
+				return nil
+			case jobs <- b:
+			}
+		}
+		return nil
+	})
+
+	for i := 0; i < numWorkers; i++ {
+		g.Go(func() error {
+			for {
+				select {
+				case <-ctx.Done():
+					return nil
+				case b, ok := <-jobs:
+					if !ok {
+						return nil
+					}
+					if err := ValidateBlobTx(txcfg, b, subtreeRootThreshold, version); err != nil {
+						return err // triggers ctx cancel; other goroutines wind down
+					}
+				}
+			}
+		})
+	}
+
+	return g.Wait()
 }
 
 func BlobTxSharesUsed(btx tmproto.BlobTx) int {
