@@ -358,7 +358,7 @@ func downCmd() *cobra.Command {
 			}
 
 			if err := client.Down(cmd.Context(), workers); err != nil {
-				return fmt.Errorf("failed to spin up network: %w", err)
+				return fmt.Errorf("failed to spin down network: %w", err)
 			}
 
 			return nil
