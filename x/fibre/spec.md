@@ -18,7 +18,7 @@ The `x/fibre` module enables validators in the active set to register and manage
 
 ### Fibre Service Provider
 
-Every validator in the active set is a Fibre Service Provider (FSP). Each FSP register's their service address to the celestia-app state. Fibre clients encode data and send unique chunks to each FSP. In return, each FSP signs over a commitment to that data using their consensus key, indicating that they have downloaded it, verified that the encoding is uniquely decodable, and will serve that data upon request for at least the service period.
+Every validator in the active set is a Fibre Service Provider (FSP). Each FSP register's their service addresses to the celestia-app state. Fibre clients encode data and send unique chunks to each FSP. In return, each FSP signs over a commitment to that data using their consensus key, indicating that they have downloaded it, verified that the encoding is uniquely decodable, and will serve that data upon request for at least the service period.
 
 ### State Management
 
@@ -34,8 +34,8 @@ The `x/fibre` module stores the following data:
 
 ```protobuf
 message FibreProviderInfo {
-  // ip_address is the IP address where users can access the fibre service
-  string ip_address = 1;
+  // ip_addresses are the IP addresses where users can access the fibre service (max 5 addresses)
+  repeated string ip_addresses = 1;
 }
 ```
 
@@ -51,14 +51,14 @@ Allows a validator to set or update their fibre provider information.
 
 ```protobuf
 message MsgSetFibreProviderInfo {
-  // ip_address is the IP address for the fibre service (max 45 characters for IPv6)
-  string ip_address = 1;
+  // ip_addresses are the IP addresses for the fibre service (max 5 addresses, each ≤ 90 characters)
+  repeated string ip_addresses = 1;
 }
 ```
 
 **Validation Rules:**
 - `validator_address` must be a valid validator consensus address
-- `ip_address` must be non-empty and ≤ 45 characters
+- `ip_addresses` must contain 1-5 non-empty addresses, each ≤ 90 characters
 - Signer must match the validator operator address for the matching consensus validator address
 - Validator must be in the active set
 
@@ -88,8 +88,8 @@ Emitted when a validator sets or updates their fibre provider information.
 message EventSetFibreProviderInfo {
   // validator_consensus_address is the consensus address of the validator
   string validator_consensus_address = 1;
-  // ip_address is the IP address for the fibre service
-  string ip_address = 2;
+  // ip_addresses are the IP addresses for the fibre service
+  repeated string ip_addresses = 2;
 }
 ```
 
@@ -176,7 +176,7 @@ func NewFibreQueryClient(conn *grpc.ClientConn) fibretypes.QueryClient {
 // Query specific validator info
 func QueryValidatorInfo(ctx context.Context, client fibretypes.QueryClient, valAddr string) (*fibretypes.QueryFibreProviderInfoResponse, error) {
     req := &fibretypes.QueryFibreProviderInfoRequest{
-        ValidatorAddress: valAddr,
+        ValidatorConsensusAddress: valAddr,
     }
     return client.FibreProviderInfo(ctx, req)
 }
@@ -202,7 +202,7 @@ celestia-appd query fibre active-providers
 **Transaction Commands:**
 ```bash
 # Set fibre provider info (must be signed by validator)
-celestia-appd tx fibre set-provider-info <ip-address> <consensus-address> --from <validator-operator-key>
+celestia-appd tx fibre set-provider-info <ip-address1,ip-address2,...> --from <validator-operator-key>
 
 # Remove fibre provider info (can be signed by anyone if validator is not active)
 celestia-appd tx fibre remove-provider-info <validator-address> --from <remover-key>
