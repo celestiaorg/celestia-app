@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
-
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
 )
 

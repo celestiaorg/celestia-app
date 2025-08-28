@@ -4,11 +4,10 @@ import (
 	"context"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
+	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
 )
 
 var _ types.QueryServer = queryServer{}

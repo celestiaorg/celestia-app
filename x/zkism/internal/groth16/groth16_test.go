@@ -6,11 +6,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v6/x/zkism/internal/groth16"
 	"github.com/consensys/gnark-crypto/ecc"
 	bn254fr "github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-app/v6/x/zkism/internal/groth16"
 )
 
 func TestNewVerifyingKey(t *testing.T) {

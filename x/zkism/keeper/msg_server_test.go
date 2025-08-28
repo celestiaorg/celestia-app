@@ -18,9 +18,9 @@ func (suite *KeeperTestSuite) TestCreateZKExecutionISM() {
 			name: "success",
 			setupTest: func() {
 				msg = &types.MsgCreateZKExecutionISM{
-					Creator:                    testfactory.TestAccAddr,
-					StateTransitionVerifierKey: randBytes(32),
-					StateMembershipVerifierKey: randBytes(32),
+					Creator:             testfactory.TestAccAddr,
+					StateTransitionVkey: randBytes(32),
+					StateMembershipVkey: randBytes(32),
 				}
 			},
 			expError: nil,
