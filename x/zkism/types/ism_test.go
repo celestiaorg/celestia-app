@@ -9,9 +9,8 @@ import (
 	"testing"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
-	"github.com/stretchr/testify/require"
-
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
+	"github.com/stretchr/testify/require"
 )
 
 // TODO: Update this test with new generated groth16 proof

@@ -4,10 +4,9 @@ import (
 	"errors"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
-	"github.com/cosmos/cosmos-sdk/types/query"
-
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/keeper"
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
+	"github.com/cosmos/cosmos-sdk/types/query"
 )
 
 func (suite *KeeperTestSuite) TestQueryServerIsm() {

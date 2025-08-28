@@ -4,9 +4,8 @@ import (
 	"context"
 
 	errorsmod "cosmossdk.io/errors"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 var _ types.MsgServer = msgServer{}

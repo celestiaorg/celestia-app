@@ -3,10 +3,9 @@ package cli
 import (
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/spf13/cobra"
-
-	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
 )
 
 // GetQueryCmd returns the module's query command.

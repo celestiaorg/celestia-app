@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/spf13/cobra"
-
-	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
 )
 
 // NewCreateZKExecutionIsmCmd creates and returns the zk ism creation cmd.
