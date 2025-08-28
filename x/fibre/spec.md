@@ -18,12 +18,12 @@ The `x/fibre` module enables validators in the active set to register and manage
 
 ### Fibre Service Provider
 
-Every validator in the active set is a Fibre Service Provider (FSPs). Each FSP register's their service address to the celestia-app state. Fibre clients encode data and send unique chunks to each FSP. In return, each FSP signs over a commitment to that data, indicating that they have downloaded it, verified that the encoding is uniquely decodable, and will serve that data upon request for at least the service period.
+Every validator in the active set is a Fibre Service Provider (FSP). Each FSP register's their service address to the celestia-app state. Fibre clients encode data and send unique chunks to each FSP. In return, each FSP signs over a commitment to that data using their consensus key, indicating that they have downloaded it, verified that the encoding is uniquely decodable, and will serve that data upon request for at least the service period.
 
 ### State Management
 
 The module maintains a simple key-value store where:
-- **Key**: Validator operator address (ValOpAddress)
+- **Key**: Validator consensus address (celestiavalcons...)
 - **Value**: FibreProviderInfo struct containing service details
 
 ## State
@@ -36,14 +36,12 @@ The `x/fibre` module stores the following data:
 message FibreProviderInfo {
   // ip_address is the IP address where users can access the fibre service
   string ip_address = 1;
-  // consensus_address is the validadtor's consensus address (20 bytes) commited to in the validator set hash
-  string consensus_address = 2;
 }
 ```
 
 ### Store Keys
 
-- `0x01 | ValOpAddress -> ProtocolBuffer(FibreProviderInfo)`: Maps validator operator address to fibre provider info
+- `0x01 | ValidatorConsensusAddress -> ProtocolBuffer(FibreProviderInfo)`: Maps validator consensus address to fibre provider info
 
 ## Messages
 
@@ -53,17 +51,15 @@ Allows a validator to set or update their fibre provider information.
 
 ```protobuf
 message MsgSetFibreProviderInfo {
-  // validator_address is the consensus address of the validator
-  string validator_address = 1;
   // ip_address is the IP address for the fibre service (max 45 characters for IPv6)
-  string ip_address = 2;
+  string ip_address = 1;
 }
 ```
 
 **Validation Rules:**
 - `validator_address` must be a valid validator consensus address
 - `ip_address` must be non-empty and ≤ 45 characters
-- Signer must match the validator operator address
+- Signer must match the validator operator address for the matching consensus validator address
 - Validator must be in the active set
 
 ### MsgRemoveFibreProviderInfo
@@ -72,13 +68,13 @@ Allows removal of fibre provider information for validators not in the active se
 
 ```protobuf
 message MsgRemoveFibreProviderInfo {
-  // validator_operator_address is the operator address of the validator to remove
-  string validator_operator_address = 1;
+  // validator_consensus_address is the consensus address of the validator to remove
+  string validator_consensus_address = 1;
 }
 ```
 
 **Validation Rules:**
-- `validator_operator_address` must be a valid validator operator address
+- `validator_consensus_address` must be a valid validator consensus address
 - Validator must NOT be in the active set
 - Provider info must exist for the validator
 
@@ -90,8 +86,8 @@ Emitted when a validator sets or updates their fibre provider information.
 
 ```protobuf
 message EventSetFibreProviderInfo {
-  // validator_address is the consensus address of the validator
-  string validator_address = 1;
+  // validator_consensus_address is the consensus address of the validator
+  string validator_consensus_address = 1;
   // ip_address is the IP address for the fibre service
   string ip_address = 2;
 }
@@ -104,7 +100,7 @@ Emitted when fibre provider information is removed.
 ```protobuf
 message EventRemoveFibreProviderInfo {
   // validator_address is the consensus address of the validator
-  string validator_address = 1;
+  string validator_consensus_address = 1;
 }
 ```
 
@@ -117,8 +113,8 @@ Query fibre provider information for a specific validator.
 **Request:**
 ```protobuf
 message QueryFibreProviderInfoRequest {
-  // validator_address is the consensus address of the validator
-  string validator_address = 1;
+  // validator_consensus_address is the consensus address of the validator
+  string validator_consensus_address = 1;
 }
 ```
 
@@ -138,10 +134,7 @@ Query fibre provider information for all validators in the active set.
 
 **Request:**
 ```protobuf
-message QueryAllActiveFibreProvidersRequest {
-  // pagination defines optional pagination parameters
-  cosmos.base.query.v1beta1.PageRequest pagination = 1;
-}
+message QueryAllActiveFibreProvidersRequest {}
 ```
 
 **Response:**
@@ -149,13 +142,11 @@ message QueryAllActiveFibreProvidersRequest {
 message QueryAllActiveFibreProvidersResponse {
   // providers contains all active fibre providers
   repeated ActiveFibreProvider providers = 1;
-  // pagination defines the pagination response
-  cosmos.base.query.v1beta1.PageResponse pagination = 2;
 }
 
 message ActiveFibreProvider {
-  // validator_address is the consensus address of the validator
-  string validator_address = 1;
+  // validator_consensus_address is the consensus address of the validator
+  string validator_consensus_address = 1;
   // info contains the fibre provider information
   FibreProviderInfo info = 2;
 }
@@ -202,7 +193,7 @@ func QueryAllActiveProviders(ctx context.Context, client fibretypes.QueryClient)
 **Query Commands:**
 ```bash
 # Query specific validator's fibre info
-celestia-appd query fibre provider <validator-address>
+celestia-appd query fibre provider <validator-consensus-address>
 
 # Query all active fibre providers
 celestia-appd query fibre active-providers
@@ -211,7 +202,7 @@ celestia-appd query fibre active-providers
 **Transaction Commands:**
 ```bash
 # Set fibre provider info (must be signed by validator)
-celestia-appd tx fibre set-provider-info <ip-address> --from <validator-key>
+celestia-appd tx fibre set-provider-info <ip-address> <consensus-address> --from <validator-operator-key>
 
 # Remove fibre provider info (can be signed by anyone if validator is not active)
 celestia-appd tx fibre remove-provider-info <validator-address> --from <remover-key>
