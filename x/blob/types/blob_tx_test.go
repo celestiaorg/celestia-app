@@ -2,6 +2,7 @@ package types_test
 
 import (
 	"bytes"
+	"runtime"
 	"testing"
 
 	"cosmossdk.io/math"
@@ -444,6 +445,63 @@ func BenchmarkValidateBlobTx(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				err := types.ValidateBlobTx(encCfg.TxConfig, btx, appconsts.SubtreeRootThreshold, appconsts.Version)
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkValidateBlobTxsComparison(b *testing.B) {
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	signer, err := testnode.NewOfflineSigner()
+	require.NoError(b, err)
+	acc := signer.Account(testfactory.TestAccName)
+	require.NotNil(b, acc)
+
+	benchmarks := []struct {
+		name     string
+		numTxs   int
+		blobSize int
+	}{
+		{"100_tx_300KiB", 100, 300 * 1024},
+		{"10_tx_8MiB", 10, 8 * 1024 * 1024},
+		{"100_tx_1MiB", 50, 1024 * 1024},
+	}
+
+	for _, bm := range benchmarks {
+		var blobTxs []*tx.BlobTx
+		for i := 0; i < bm.numTxs; i++ {
+			rawBtx, _, err := signer.CreatePayForBlobs(
+				acc.Name(),
+				blobfactory.RandV0BlobsWithNamespace(
+					[]share.Namespace{share.RandomBlobNamespace()},
+					[]int{bm.blobSize},
+				),
+			)
+			require.NoError(b, err)
+
+			btx, isBlobTx, err := tx.UnmarshalBlobTx(rawBtx)
+			require.NoError(b, err)
+			require.True(b, isBlobTx)
+			blobTxs = append(blobTxs, btx)
+		}
+
+		b.Run(bm.name+"_sequential", func(b *testing.B) {
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				err := validateBlobTxsSequential(encCfg.TxConfig, blobTxs, appconsts.SubtreeRootThreshold, appconsts.Version)
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+
+		b.Run(bm.name+"_parallel", func(b *testing.B) {
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				err := types.ValidateBlobTxsParallel(encCfg.TxConfig, blobTxs, appconsts.SubtreeRootThreshold, appconsts.Version, runtime.NumCPU())
 				if err != nil {
 					b.Fatal(err)
 				}
