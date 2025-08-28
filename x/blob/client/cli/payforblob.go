@@ -85,8 +85,8 @@ The blob must be a hex encoded string of non-zero length.
 			}
 
 			if path != "" {
-				if filepath.Ext(path) != FileInputExtension {
-					return fmt.Errorf("invalid file extension %v. The only supported extension is %s", filepath.Ext(path), FileInputExtension)
+				if ext := filepath.Ext(path); ext != FileInputExtension {
+					return fmt.Errorf("invalid file extension %v. The only supported extension is %s", ext, FileInputExtension)
 				}
 
 				return nil
