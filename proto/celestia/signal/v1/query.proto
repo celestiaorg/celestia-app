@@ -20,7 +20,7 @@ service Query {
     option (google.api.http).get = "/signal/v1/upgrade";
   }
 
-  // GetMissingValidators enables a client to query for the validators that 
+  // GetMissingValidators enables a client to query for the validators that
   // have not yet signalled for a particular version
   rpc GetMissingValidators(QueryGetMissingValidatorsRequest) returns (QueryGetMissingValidatorsResponse) {
     option (google.api.http).get = "/signal/v1/missing/{version}";
