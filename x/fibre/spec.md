@@ -36,12 +36,14 @@ The `x/fibre` module stores the following data:
 message FibreProviderInfo {
   // ip_address is the IP address where users can access the fibre service
   string ip_address = 1;
+  // consensus_address is the validadtor's consensus address (20 bytes) commited to in the validator set hash
+  string consensus_address = 2;
 }
 ```
 
 ### Store Keys
 
-- `0x01 | ValAddress -> ProtocolBuffer(FibreProviderInfo)`: Maps validator address to fibre provider info
+- `0x01 | ValOpAddress -> ProtocolBuffer(FibreProviderInfo)`: Maps validator operator address to fibre provider info
 
 ## Messages
 
@@ -51,7 +53,7 @@ Allows a validator to set or update their fibre provider information.
 
 ```protobuf
 message MsgSetFibreProviderInfo {
-  // validator_address is the operator address of the validator
+  // validator_address is the consensus address of the validator
   string validator_address = 1;
   // ip_address is the IP address for the fibre service (max 45 characters for IPv6)
   string ip_address = 2;
@@ -59,9 +61,9 @@ message MsgSetFibreProviderInfo {
 ```
 
 **Validation Rules:**
-- `validator_address` must be a valid validator operator address
+- `validator_address` must be a valid validator consensus address
 - `ip_address` must be non-empty and ≤ 45 characters
-- Signer must match the validator address
+- Signer must match the validator operator address
 - Validator must be in the active set
 
 ### MsgRemoveFibreProviderInfo
@@ -70,16 +72,13 @@ Allows removal of fibre provider information for validators not in the active se
 
 ```protobuf
 message MsgRemoveFibreProviderInfo {
-  // validator_address is the operator address of the validator to remove
-  string validator_address = 1;
-  // remover_address is the address of the account requesting removal
-  string remover_address = 2;
+  // validator_operator_address is the operator address of the validator to remove
+  string validator_operator_address = 1;
 }
 ```
 
 **Validation Rules:**
-- `validator_address` must be a valid validator operator address
-- `remover_address` must be a valid account address
+- `validator_operator_address` must be a valid validator operator address
 - Validator must NOT be in the active set
 - Provider info must exist for the validator
 
@@ -91,7 +90,7 @@ Emitted when a validator sets or updates their fibre provider information.
 
 ```protobuf
 message EventSetFibreProviderInfo {
-  // validator_address is the operator address of the validator
+  // validator_address is the consensus address of the validator
   string validator_address = 1;
   // ip_address is the IP address for the fibre service
   string ip_address = 2;
@@ -104,10 +103,8 @@ Emitted when fibre provider information is removed.
 
 ```protobuf
 message EventRemoveFibreProviderInfo {
-  // validator_address is the operator address of the validator
+  // validator_address is the consensus address of the validator
   string validator_address = 1;
-  // remover_address is the address of the account that requested removal
-  string remover_address = 2;
 }
 ```
 
@@ -120,7 +117,7 @@ Query fibre provider information for a specific validator.
 **Request:**
 ```protobuf
 message QueryFibreProviderInfoRequest {
-  // validator_address is the operator address of the validator
+  // validator_address is the consensus address of the validator
   string validator_address = 1;
 }
 ```
@@ -157,7 +154,7 @@ message QueryAllActiveFibreProvidersResponse {
 }
 
 message ActiveFibreProvider {
-  // validator_address is the operator address of the validator
+  // validator_address is the consensus address of the validator
   string validator_address = 1;
   // info contains the fibre provider information
   FibreProviderInfo info = 2;
