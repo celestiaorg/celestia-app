@@ -74,7 +74,9 @@ func TestUpgradeIntegration(t *testing.T) {
 
 	// Verify that if a subsequent call to TryUpgrade is made, it returns an
 	// error because an upgrade is already pending.
-	_, err = app.SignalKeeper.TryUpgrade(ctx, nil)
+	_, err = app.SignalKeeper.TryUpgrade(ctx, &types.MsgTryUpgrade{
+		Signer: valAddr.String(),
+	})
 	require.Error(t, err)
 	require.ErrorIs(t, err, types.ErrUpgradePending)
 
