@@ -42,18 +42,18 @@ func (ism *ZKExecutionISM) Verify(ctx context.Context, metadata []byte, message 
 	}
 
 	if zkProofMetadata.HasExecutionProof() {
-		verified, err := ism.verifyZKProof(zkProofMetadata)
+		verified, err := ism.verifyZKStateTransition(zkProofMetadata)
 		if err != nil || !verified {
 			return false, err
 		}
 	}
 
-	return ism.verifyMerkleProofs(zkProofMetadata, message)
+	return ism.verifyZKStateInclusion(zkProofMetadata, message)
 }
 
-// verifyZKProof verifies a ZK proof to update the ISM's state root and height.
-func (ism *ZKExecutionISM) verifyZKProof(metadata ZkExecutionISMMetadata) (bool, error) {
-	groth16VkHash := sha256.Sum256(ism.StateTransitionVerifierKey)
+// verifyZKStateTransition verifies a ZK proof to update the ISM's state root and height.
+func (ism *ZKExecutionISM) verifyZKStateTransition(metadata ZkExecutionISMMetadata) (bool, error) {
+	groth16VkHash := sha256.Sum256(ism.StateTransitionVkey)
 	if !bytes.Equal(groth16VkHash[:4], metadata.Proof[:4]) {
 		return false, fmt.Errorf("prefix mismatch: first 4 bytes of verifier key hash (%x) do not match proof prefix (%x)", groth16VkHash[:4], metadata.Proof[:4])
 	}
@@ -63,7 +63,7 @@ func (ism *ZKExecutionISM) verifyZKProof(metadata ZkExecutionISMMetadata) (bool,
 		return false, err
 	}
 
-	vk, err := groth16.NewVerifyingKey(ism.StateTransitionVerifierKey)
+	vk, err := groth16.NewVerifyingKey(ism.StateTransitionVkey)
 	if err != nil {
 		return false, err
 	}
@@ -72,7 +72,7 @@ func (ism *ZKExecutionISM) verifyZKProof(metadata ZkExecutionISMMetadata) (bool,
 		return false, err
 	}
 
-	vkCommitment := new(big.Int).SetBytes(ism.VerifierKeyCommitment)
+	vkCommitment := new(big.Int).SetBytes(ism.VkeyCommitment)
 	pubInputs, err := metadata.PublicInputs.Marshal()
 	if err != nil {
 		return false, err
@@ -97,7 +97,9 @@ func (ism *ZKExecutionISM) verifyZKProof(metadata ZkExecutionISMMetadata) (bool,
 }
 
 // TODO: validate public inputs with trusted ism/celestia data
-// - celestia header hash
+// - celestia header hash (from celestia blockchain state)
+// - namespace (from ISM)
+// - sequencer pubkey (from ISM)
 func (ism *ZKExecutionISM) validatePublicInputs(inputs PublicInputs) error {
 	if !bytes.Equal(inputs.TrustedStateRoot[:], ism.StateRoot) {
 		return fmt.Errorf("cannot trust public inputs trusted state root: expected %x, but got %x", ism.StateRoot, inputs.TrustedStateRoot)
@@ -110,8 +112,8 @@ func (ism *ZKExecutionISM) validatePublicInputs(inputs PublicInputs) error {
 	return nil
 }
 
-// verifyMerkleProofs verifies merkle inclusion proofs against the current state root.
-func (ism *ZKExecutionISM) verifyMerkleProofs(_ ZkExecutionISMMetadata, _ util.HyperlaneMessage) (bool, error) {
+// verifyZKStateInclusion verifies merkle inclusion proofs against the current state root.
+func (ism *ZKExecutionISM) verifyZKStateInclusion(_ ZkExecutionISMMetadata, _ util.HyperlaneMessage) (bool, error) {
 	// TODO: https://github.com/celestiaorg/celestia-app/issues/4723
 	return true, nil
 }

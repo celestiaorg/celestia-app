@@ -14,6 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
 )
 
+// TODO: Update this test with new generated groth16 proof
 func TestVerify(t *testing.T) {
 	var (
 		trustedStateRoot = "4913ECE12489492945CEAA6150D99E29A9FFFFE32473E092084E3618C81246B1"
@@ -31,10 +32,12 @@ func TestVerify(t *testing.T) {
 
 	// create an ism with a hardcoded initial trusted state
 	ism := types.ZKExecutionISM{
-		StateTransitionVerifierKey: groth16Vk,
-		VerifierKeyCommitment:      vkCommitment,
-		StateRoot:                  trustedRoot,
-		Height:                     44,
+		StateTransitionVkey: groth16Vk,
+		VkeyCommitment:      vkCommitment,
+		StateRoot:           trustedRoot,
+		Height:              44,
+		NamespaceId:         []byte("TODO: add namespace"),
+		PublicKey:           []byte("TODO: add public key"),
 	}
 
 	metadata := encodeMetadata(t, proofBz, inputsBz)

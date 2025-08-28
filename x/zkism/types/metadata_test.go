@@ -25,6 +25,8 @@ func TestNewZkExecutionISMMetadata(t *testing.T) {
 		TrustedStateRoot:   [32]byte{0x02},
 		NewHeight:          50,
 		NewStateRoot:       [32]byte{0x03},
+		Namespace:          [29]byte{0xCC},
+		PublicKey:          [32]byte{0xDD},
 	}
 
 	pubInputsBz, err := pubInputs.Marshal()
@@ -200,6 +202,8 @@ func TestPublicInputsMarshalUnmarshal(t *testing.T) {
 		TrustedStateRoot:   [32]byte{0xAA},
 		NewHeight:          456,
 		NewStateRoot:       [32]byte{0xBB},
+		Namespace:          [29]byte{0xCC},
+		PublicKey:          [32]byte{0xDD},
 	}
 
 	bz, err := expected.Marshal()
@@ -215,6 +219,8 @@ func TestPublicInputsMarshalUnmarshal(t *testing.T) {
 	require.Equal(t, expected.TrustedStateRoot, decoded.TrustedStateRoot)
 	require.Equal(t, expected.NewHeight, decoded.NewHeight)
 	require.Equal(t, expected.NewStateRoot, decoded.NewStateRoot)
+	require.Equal(t, expected.Namespace, decoded.Namespace)
+	require.Equal(t, expected.PublicKey, decoded.PublicKey)
 }
 
 func TestPublicInputsUnmarshalTrailingData(t *testing.T) {
@@ -224,6 +230,8 @@ func TestPublicInputsUnmarshalTrailingData(t *testing.T) {
 		TrustedStateRoot:   [32]byte{0x02},
 		NewHeight:          2,
 		NewStateRoot:       [32]byte{0x03},
+		Namespace:          [29]byte{0x04},
+		PublicKey:          [32]byte{0x04},
 	}
 
 	bz, err := pubInputs.Marshal()

@@ -28,27 +28,33 @@ func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreat
 	}
 
 	newIsm := types.ZKExecutionISM{
-		Id:                         ismId,
-		Owner:                      msg.Creator,
-		StateRoot:                  msg.StateRoot,
-		Height:                     msg.Height,
-		StateTransitionVerifierKey: msg.StateTransitionVerifierKey,
-		StateMembershipVerifierKey: msg.StateMembershipVerifierKey,
+		Id:                  ismId,
+		Owner:               msg.Creator,
+		StateRoot:           msg.StateRoot,
+		Height:              msg.Height,
+		NamespaceId:         msg.NamespaceId,
+		PublicKey:           msg.PublicKey,
+		StateTransitionVkey: msg.StateTransitionVkey,
+		StateMembershipVkey: msg.StateMembershipVkey,
+		VkeyCommitment:      msg.VkeyCommitment,
 	}
 
-	// validate
+	// TODO: validate. This can be moved to ValidateBasic stateless validation of the msg or implemented as a method on the ISM
 
 	if err := m.isms.Set(ctx, ismId.GetInternalId(), newIsm); err != nil {
 		return nil, errorsmod.Wrap(err, err.Error())
 	}
 
 	if err := sdk.UnwrapSDKContext(ctx).EventManager().EmitTypedEvent(&types.EventCreateZKExecutionISM{
-		Id:                         newIsm.Id,
-		Owner:                      newIsm.Owner,
-		StateRoot:                  newIsm.StateRoot,
-		Height:                     newIsm.Height,
-		StateTransitionVerifierKey: newIsm.StateTransitionVerifierKey,
-		StateMembershipVerifierKey: newIsm.StateMembershipVerifierKey,
+		Id:                  newIsm.Id,
+		Owner:               newIsm.Owner,
+		StateRoot:           newIsm.StateRoot,
+		Height:              newIsm.Height,
+		NamespaceId:         newIsm.NamespaceId,
+		PublicKey:           newIsm.PublicKey,
+		StateTransitionVkey: newIsm.StateTransitionVkey,
+		StateMembershipVkey: newIsm.StateMembershipVkey,
+		VkeyCommitment:      newIsm.VkeyCommitment,
 	}); err != nil {
 		return nil, err
 	}
