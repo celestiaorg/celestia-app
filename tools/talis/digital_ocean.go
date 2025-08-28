@@ -103,7 +103,7 @@ func GetDOSSHKeyMeta(ctx context.Context, client *godo.Client, publicKey string)
 
 // CreateDroplets launches all droplets in parallel, waits for their IPs, and
 // returns the filled-out []Instance slice.
-func CreateDroplets(ctx context.Context, client *godo.Client, insts []Instance, key godo.Key) ([]Instance, error) {
+func CreateDroplets(ctx context.Context, client *godo.Client, insts []Instance, key godo.Key, workers int) ([]Instance, error) {
 	total := len(insts)
 
 	type result struct {
@@ -125,15 +125,15 @@ func CreateDroplets(ctx context.Context, client *godo.Client, insts []Instance, 
 	}
 
 	results := make(chan result, total)
-	workers := make(chan struct{}, 10) // Limit to 10 concurrent workers
+	workerChan := make(chan struct{}, workers)
 	var wg sync.WaitGroup
 	wg.Add(total)
 
 	for _, v := range insts {
 		go func() {
-			workers <- struct{}{}
+			workerChan <- struct{}{}
 			defer func() {
-				<-workers
+				<-workerChan
 				wg.Done()
 			}()
 
@@ -254,7 +254,7 @@ func waitForNetworkIP(ctx context.Context, client *godo.Client, dropletID int) (
 // DestroyDroplets tears down all droplets in parallel, waits until each is
 // confirmed deleted (or errors), then returns the list of successfully removed
 // Instances. It also prints a summary of removed vs untouched droplets.
-func DestroyDroplets(ctx context.Context, client *godo.Client, insts []Instance) ([]Instance, error) {
+func DestroyDroplets(ctx context.Context, client *godo.Client, insts []Instance, workers int) ([]Instance, error) {
 	total := len(insts)
 
 	droplets, err := listAllDroplets(ctx, client)
@@ -269,15 +269,15 @@ func DestroyDroplets(ctx context.Context, client *godo.Client, insts []Instance)
 	}
 
 	results := make(chan result, total)
-	workers := make(chan struct{}, 10)
+	workerChan := make(chan struct{}, workers)
 	var wg sync.WaitGroup
 	wg.Add(total)
 
 	for _, v := range insts {
 		go func(inst Instance) {
-			workers <- struct{}{}
+			workerChan <- struct{}{}
 			defer func() {
-				<-workers
+				<-workerChan
 				wg.Done()
 			}()
 			start := time.Now()
@@ -392,7 +392,7 @@ func listAllDroplets(ctx context.Context, client *godo.Client) ([]godo.Droplet, 
 			break
 		}
 		pageNum, _ := resp.Links.CurrentPage()
-		opt.Page = pageNum + 1.
+		opt.Page = pageNum + 1
 	}
 	return all, nil
 }

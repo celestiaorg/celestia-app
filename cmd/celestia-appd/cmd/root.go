@@ -6,7 +6,7 @@ import (
 
 	"cosmossdk.io/log"
 	confixcmd "cosmossdk.io/tools/confix/cmd"
-	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/cometbft/cometbft/cmd/cometbft/commands"
 	tmcli "github.com/cometbft/cometbft/libs/cli"
 	dbm "github.com/cosmos/cosmos-db"
@@ -125,24 +125,14 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 		txCommand(capp.BasicManager),
 		keys.Commands(),
 		snapshot.Cmd(NewAppServer),
+		updateConfigCmd(),
 	)
 
 	modifyRootCommand(rootCommand)
 
-	// find start command
-	startCmd, _, err := rootCommand.Find([]string{"start"})
-	if err != nil {
-		panic(fmt.Errorf("failed to find start command: %w", err))
-	}
-	startCmdRunE := startCmd.RunE
-
-	// Add the BBR check to the start command
-	startCmd.RunE = func(cmd *cobra.Command, args []string) error {
-		if err := checkBBR(cmd); err != nil {
-			return err
-		}
-
-		return startCmdRunE(cmd, args)
+	// Add hooks run prior to the start command
+	if err := addPreStartHooks(rootCommand, checkBBR); err != nil {
+		panic(fmt.Errorf("failed to add pre-start hooks: %w", err))
 	}
 }
 

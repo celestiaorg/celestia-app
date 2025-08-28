@@ -4,17 +4,15 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
-)
-
-const (
-	// AppdStopped is the process ID of the celestia-appd binary when it is not running.
-	AppdStopped = -1
+	"syscall"
+	"time"
 )
 
 // Appd represents a celestia-appd binary.
@@ -22,13 +20,13 @@ type Appd struct {
 	// version is the version of the celestia-appd binary.
 	// Example: "v3.10.0-arabica"
 	version string
-	// pid is the process ID of the celestia-appd binary.
-	pid int
 	// path is the path to the celestia-appd binary.
 	path   string
 	stdin  io.Reader
 	stderr io.Writer
 	stdout io.Writer
+	// cmd is the started celestia-appd binary.
+	cmd *exec.Cmd
 }
 
 // New returns a new Appd instance.
@@ -46,13 +44,8 @@ func New(version string, compressedBinary []byte) (*Appd, error) {
 		return nil, fmt.Errorf("failed to get path to binary: %w", err)
 	}
 
-	if err = verifyBinaryIsExecutable(pathToBinary); err != nil {
-		return nil, fmt.Errorf("failed to verify binary is executable: %w", err)
-	}
-
 	appd := &Appd{
 		version: version,
-		pid:     AppdStopped,
 		path:    pathToBinary,
 		stdin:   os.Stdin,
 		stdout:  os.Stdout,
@@ -70,56 +63,94 @@ func (a *Appd) Start(args ...string) error {
 	cmd.Stdout = a.stdout
 	cmd.Stderr = a.stderr
 
+	// Start the embedded binary in its own process group.
+	// This prevents the embedded binary from receiving CTRL+C signals directly from the terminal.
+	// That way, the multiplexer can shut down the embedded binary after shutting down CometBFT.
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+		Pgid:    0,
+	}
+
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start %s: %w", a.path, err)
 	}
-
-	a.pid = cmd.Process.Pid
-	go func() {
-		// wait for process to finish
-		if err := cmd.Wait(); err != nil {
-			log.Printf("Process finished with error: %v\n", err)
-		}
-
-		a.pid = -1 // reset pid
-	}()
-
+	a.cmd = cmd
 	return nil
 }
 
-// Stop terminates the running appd process if it exists.
+func (a *Appd) IsRunning() bool {
+	return !a.IsStopped()
+}
+
+func (a *Appd) IsStopped() bool {
+	// Never started or failed to start
+	if a.cmd == nil || a.cmd.Process == nil {
+		return true
+	}
+
+	// If ProcessState is not nil, it means Wait() was called and the process has finished
+	// (either by exiting normally or being terminated by a signal)
+	if a.cmd.ProcessState != nil {
+		return true
+	}
+
+	// ProcessState is nil, which means the process is still running
+	return false
+}
+
+// Stop interrupts and then kills the running appd process if it exists and
+// waits for it to fully exit. If the process is not running, it returns nil.
+// The method will wait up to 6 seconds for graceful shutdown before force killing.
 func (a *Appd) Stop() error {
-	if a.pid == AppdStopped {
+	if a.cmd == nil {
+		return nil
+	}
+	if a.cmd.Process == nil {
 		return nil
 	}
 
-	process, err := os.FindProcess(a.pid)
+	err := a.cmd.Process.Signal(os.Interrupt)
 	if err != nil {
-		return fmt.Errorf("failed to find process with PID %d: %w", a.pid, err)
-	}
-
-	// send SIGTERM for graceful shutdown
-	if err := process.Signal(os.Interrupt); err != nil {
 		log.Printf("Failed to send interrupt signal, attempting to kill: %v", err)
-		// if interrupt fails, try harder with Kill
-		if err := process.Kill(); err != nil {
-			return fmt.Errorf("failed to kill process with PID %d: %w", a.pid, err)
+		if err := a.cmd.Process.Kill(); err != nil {
+			return fmt.Errorf("failed to kill process with PID %d: %w", a.cmd.Process.Pid, err)
 		}
+
+		if err := a.cmd.Wait(); err != nil {
+			log.Printf("Process finished with error: %v\n", err)
+		}
+		return nil
 	}
 
-	// Wait for the process to exit
-	_, err = process.Wait()
-	if err != nil {
-		log.Printf("Error waiting for process to exit: %v", err)
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+	defer cancel()
+
+	done := make(chan error, 1)
+	go func() {
+		done <- a.cmd.Wait()
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			log.Printf("Process finished with error: %v\n", err)
+		} else {
+			log.Printf("Process finished with no error\n")
+		}
+		return nil
+	case <-ctx.Done():
+		log.Printf("Process did not exit within 6 seconds, force killing")
+		if err := a.cmd.Process.Kill(); err != nil {
+			return fmt.Errorf("failed to kill process with PID %d after timeout: %w", a.cmd.Process.Pid, err)
+		}
+
+		if err := <-done; err != nil {
+			log.Printf("Process finished with error after force kill: %v\n", err)
+		} else {
+			log.Printf("Process finished after force kill\n")
+		}
+		return nil
 	}
-
-	a.pid = AppdStopped
-	return nil
-}
-
-// Pid returns the process ID of the appd process.
-func (a *Appd) Pid() int {
-	return a.pid
 }
 
 // CreateExecCommand creates an exec.Cmd for the appd binary.
@@ -226,15 +257,6 @@ func isBinaryDecompressed(version string) bool {
 	dir := getDirectoryForVersion(version)
 	_, err := os.Stat(dir)
 	return err == nil
-}
-
-func verifyBinaryIsExecutable(pathToBinary string) error {
-	testCmd := exec.Command(pathToBinary, "--help")
-	testOutput, err := testCmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("binary validation failed (%s): %w\nOutput: %s", pathToBinary, err, string(testOutput))
-	}
-	return nil
 }
 
 // getDirectoryForCelestiaAppBinaries returns the directory where all

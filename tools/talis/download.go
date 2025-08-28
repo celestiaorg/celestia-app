@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -18,6 +19,7 @@ func downloadCmd() *cobra.Command {
 		SSHKeyPath string
 		nodes      string
 		table      string
+		workers    int
 	)
 
 	cmd := &cobra.Command{
@@ -42,25 +44,64 @@ func downloadCmd() *cobra.Command {
 				return fmt.Errorf("no matching nodes found")
 			}
 
-			remotePath := "/root/.celestia-app/data/traces"
-
+			baseTracesRemotePath := "/root/.celestia-app/data/traces"
+			remotePaths := []string{}
 			switch table {
 			case "logs":
-				remotePath = "/root/logs"
-			case "*":
-			case "":
+				remotePaths = append(remotePaths, "/root/logs")
+			case "*", "":
+				path := filepath.Join(baseTracesRemotePath, "*")
+				remotePaths = append(remotePaths, path)
 			default:
-				remotePath = filepath.Join(remotePath, table+".jsonl")
+				if strings.Contains(table, ",") {
+					tables := strings.SplitSeq(table, ",")
+					for table := range tables {
+						remotePaths = append(remotePaths, filepath.Join(baseTracesRemotePath, table+".jsonl"))
+					}
+				} else {
+					remotePaths = append(remotePaths, filepath.Join(baseTracesRemotePath, table+".jsonl"))
+				}
 			}
 
+			workers := make(chan struct{}, workers)
 			var wg sync.WaitGroup
 			for _, node := range nodes {
 				wg.Add(1)
 				go func() {
-					defer wg.Done()
-					err := sftpDownload(remotePath, filepath.Join(rootDir, "data"), "root", node.PublicIP, SSHKeyPath)
-					if err != nil {
-						fmt.Printf("failed to download from %s: %v\n", node.PublicIP, err)
+					workers <- struct{}{}
+					defer func() {
+						wg.Done()
+						<-workers
+					}()
+					localPath := filepath.Join(rootDir, "data/", node.Name)
+					if strings.Contains(table, ",") {
+						filepath.Join(localPath, "traces")
+					}
+					if err := os.MkdirAll(localPath, 0o755); err != nil {
+						fmt.Printf("failed to create directory %s: %v\n", localPath, err)
+						return
+					}
+					for _, remotePath := range remotePaths {
+						err := sftpDownload(remotePath, localPath, "root", node.PublicIP, SSHKeyPath)
+						if err != nil {
+							fmt.Printf("failed to download from %s: %v\n", node.PublicIP, err)
+						}
+					}
+					if table == "logs" {
+						// usually, the logs from tmux also include color codes. So we will clean them up.
+						logFile := filepath.Join(localPath, "logs")
+						content, err := os.ReadFile(logFile)
+						if err != nil {
+							fmt.Printf("Error reading file: %v\n", err)
+							return
+						}
+						cleaned := stripANSI(string(content))
+						// Write back to the same file
+						err = os.WriteFile(logFile, []byte(cleaned), 0o644)
+						if err != nil {
+							fmt.Printf("Error writing file: %v\n", err)
+							return
+						}
 					}
 				}()
 			}
@@ -75,7 +116,8 @@ func downloadCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&cfgPath, "config", "c", "config.json", "path to your network config file")
 	cmd.Flags().StringVarP(&SSHKeyPath, "ssh-key-path", "k", "", "override path to your SSH private key")
 	cmd.Flags().StringVarP(&nodes, "nodes", "n", "*", "specify the node(s) to download from. * or specific nodes.")
-	cmd.Flags().StringVarP(&table, "tables", "t", "*", "specify a single table to download. 'logs' will download logs")
+	cmd.Flags().StringVarP(&table, "tables", "t", "*", "specify tables to download (comma-separated) or logs to download logs. default is all tables.")
+	cmd.Flags().IntVarP(&workers, "workers", "w", 10, "number of concurrent workers for parallel operations (should be > 0)")
 
 	cmd.AddCommand(downloadS3DataCmd())
 
@@ -86,7 +128,13 @@ func sftpDownload(remotePath, localPath, user, host, sshKeyPath string) error {
 	target := fmt.Sprintf("%s@%s:%s", user, host, remotePath)
 
 	// Use `-r` always — safe for both files and dirs in practice
-	cmd := exec.Command("sftp", "-i", sshKeyPath, "-r", target, localPath)
+	cmd := exec.Command("sftp",
+		"-o", "StrictHostKeyChecking=no",
+		"-o", "UserKnownHostsFile=/dev/null",
+		"-i", sshKeyPath,
+		"-r", target,
+		localPath,
+	)
 
 	fmt.Printf("Running: sftp -i %s -r %s %s\n", sshKeyPath, target, localPath)
 	return cmd.Run()
@@ -121,4 +169,12 @@ func matchPattern(pattern, input string) (bool, error) {
 	}
 
 	return re.MatchString(input), nil
+}
+
+// Regex to match ANSI escape codes
+var ansiEscape = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
+
+// stripANSI removes ANSI escape codes from the input string, returning a plain text version without formatting codes.
+func stripANSI(input string) string {
+	return ansiEscape.ReplaceAllString(input, "")
 }

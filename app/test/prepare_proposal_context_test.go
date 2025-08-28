@@ -5,12 +5,12 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/app/params"
-	"github.com/celestiaorg/celestia-app/v4/pkg/user"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/app/params"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -25,7 +25,7 @@ import (
 // TestTimeInPrepareProposalContext checks for an edge case where the block time
 // needs to be included in the sdk.Context that is being used in the
 // antehandlers. If a time is not included in the context, then the second
-// transaction in this test will always be filtered out, result in vesting
+// transaction in this test will always be filtered out, resulting in vesting
 // accounts never being able to spend funds.
 func TestTimeInPrepareProposalContext(t *testing.T) {
 	if testing.Short() {
@@ -81,7 +81,7 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 			txClient, err := user.SetupTxClient(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, enc)
 			require.NoError(t, err)
 			msgs, _ := tt.msgFunc()
-			res, err := txClient.SubmitTx(cctx.GoContext(), msgs, user.SetGasLimit(1000000), user.SetFee(2000))
+			res, err := txClient.SubmitTx(cctx.GoContext(), msgs, user.SetGasLimit(1000000), user.SetFee(4000))
 			require.NoError(t, err)
 			serviceClient := sdktx.NewServiceClient(cctx.GRPCClient)
 			getTxResp, err := serviceClient.GetTx(cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})

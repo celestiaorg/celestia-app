@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v4/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
 )
 
 func encodeUint32(v uint32) []byte {

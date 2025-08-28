@@ -35,9 +35,9 @@ node            |  |                               |  |
 
 ### From source
 
-1. [Install Go](https://go.dev/doc/install) 1.24.4
+1. [Install Go](https://go.dev/doc/install) 1.24.6
 1. Clone this repo
-1. Install the celestia-appd binary. This installs a "multiplexer" binary that will also download embedded binaries for the latest celestia-app v3.x.x release.
+1. Install the celestia-appd binary. This installs a "multiplexer" binary that will also download embedded binaries for the latest celestia-app v3.x.x and v4.x.x release.
 
     ```shell
     make install
@@ -46,9 +46,6 @@ node            |  |                               |  |
 ### Prebuilt binary
 
 If you'd rather not install from source, you can download a prebuilt binary from the [releases](https://github.com/celestiaorg/celestia-app/releases) page.
-
-> [!WARNING]
-> The v4.x.x prebuilt binaries do not support the multiplexer so they can't be used to upgrade from v3 to v4. They can only be used in standalone mode once a chain has been upgraded to v4. To upgrade from v3 to v4, you must install from source.
 
 1. Navigate to the latest release on <https://github.com/celestiaorg/celestia-app/releases>.
 1. Download the binary for your platform (e.g. `celestia-app_Linux_x86_64.tar.gz`) from the **Assets** section. Tip: if you're not sure what platform you're on, you can run `uname -a` and look for the operating system (e.g. `Linux`, `Darwin`) and architecture (e.g. `x86_64`, `arm64`).
@@ -85,13 +82,13 @@ See <https://docs.celestia.org/how-to-guides/celestia-app> for more information.
 
 ### Prerequisites
 
-Enable the [BBR](https://www.ietf.org/archive/id/draft-cardwell-iccrg-bbr-congestion-control-01.html) ("Bottleneck Bandwidth and Round-trip propagation time") congestion control algorithm.
+If you are on Linux, enable the [BBR](https://www.ietf.org/archive/id/draft-cardwell-iccrg-bbr-congestion-control-01.html) ("Bottleneck Bandwidth and Round-trip propagation time") congestion control algorithm.
 
 ```shell
-# Check if BBR is enabled.
+# Check if BBR is enabled (Linux only).
 make bbr-check
 
-# If BBR is not enabled then enable it.
+# If BBR is not enabled then enable it (Linux only).
 make bbr-enable
 ```
 
@@ -122,11 +119,14 @@ celestia-appd start
 
 # Publish blob data to the local testnet.
 celestia-appd tx blob pay-for-blob 0x00010203040506070809 0x48656c6c6f2c20576f726c6421 \
-	--chain-id private \
+	--chain-id test \
 	--from validator \
 	--keyring-backend test \
 	--fees 21000utia \
 	--yes
+
+# Query the tx
+celestia-appd query tx <txhash from previous command>
 ```
 
 ### Join a public Celestia network
@@ -161,7 +161,7 @@ celestia-app and celestia-core start multiple servers to handle different types 
 | Server   | Default Address         | Configuration               | Purpose                                                                                               |
 |----------|-------------------------|-----------------------------|-------------------------------------------------------------------------------------------------------|
 | **RPC**  | `tcp://127.0.0.1:26657` | `config.toml` under `[rpc]` | HTTP/WebSocket API for blockchain queries, transaction submission, and real-time event subscriptions. |
-| **gRPC** | `tcp://127.0.0.1:9098`  | `config.toml` under `[rpc]` | gRPC API that only supports `/broadcast_tx_commit`.                                                   |
+| **gRPC** | `tcp://127.0.0.1:9098`  | `config.toml` under `[rpc]` | gRPC API for broadcasting txs, querying blocks, and querying blobstream data                          |
 | **P2P**  | `tcp://0.0.0.0:26656`   | `config.toml` under `[p2p]` | Peer-to-peer networking layer for consensus, block synchronization, and mempool gossip.               |
 
 ### Celestia-App (Cosmos SDK) Servers
@@ -221,15 +221,18 @@ The source of truth for dependencies is the `go.mod` file but the table below de
 
 | celestia-app | celestia-core      | cosmos-sdk                 |
 |--------------|--------------------|----------------------------|
-| `main`       | `main`             | `release/v0.50.x-celestia` |
+| `main`       | `main`             | `release/v0.51.x-celestia` |
+| `v6.x`       | `v0.39.x-celestia` | `release/v0.51.x-celestia` |
+| `v5.x`       | `v0.38.x-celestia` | `release/v0.50.x-celestia` |
 | `v4.x`       | `v0.38.x-celestia` | `release/v0.50.x-celestia` |
 | `v3.x`       | `v0.34.x-celestia` | `release/v0.46.x-celestia` |
 
 ## Audits
 
-| Date       | Auditor                                       | Version                                                                                                | Report                                                                                |
-|------------|-----------------------------------------------|--------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
-| 2023/9/15  | [Informal Systems](https://informal.systems/) | [v1.0.0-rc6](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc6)                      | [informal-systems.pdf](docs/audit/informal-systems.pdf)                               |
-| 2023/10/17 | [Binary Builders](https://binary.builders/)   | [v1.0.0-rc10](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc10)                    | [binary-builders.pdf](docs/audit/binary-builders.pdf)                                 |
-| 2024/7/1   | [Informal Systems](https://informal.systems/) | [v2.0.0-rc1](https://github.com/celestiaorg/celestia-app/releases/tag/v2.0.0-rc1)                      | [informal-systems-v2.pdf](docs/audit/informal-systems-v2.pdf)                         |
-| 2024/9/20  | [Informal Systems](https://informal.systems/) | [306c587](https://github.com/celestiaorg/celestia-app/commit/306c58745d135d31c3777a1af2f58d50adbd32c8) | [informal-systems-authored-blobs.pdf](docs/audit/informal-systems-authored-blobs.pdf) |
+| Date       | Auditor                                       | Version                                                                                                  | Report                                                                                |
+|------------|-----------------------------------------------|----------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
+| 2023/9/15  | [Informal Systems](https://informal.systems/) | [v1.0.0-rc6](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc6)                        | [informal-systems.pdf](docs/audit/informal-systems.pdf)                               |
+| 2023/10/17 | [Binary Builders](https://binary.builders/)   | [v1.0.0-rc10](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc10)                      | [binary-builders.pdf](docs/audit/binary-builders.pdf)                                 |
+| 2024/7/1   | [Informal Systems](https://informal.systems/) | [v2.0.0-rc1](https://github.com/celestiaorg/celestia-app/releases/tag/v2.0.0-rc1)                        | [informal-systems-v2.pdf](docs/audit/informal-systems-v2.pdf)                         |
+| 2024/9/20  | [Informal Systems](https://informal.systems/) | [306c587](https://github.com/celestiaorg/celestia-app/commit/306c58745d135d31c3777a1af2f58d50adbd32c8)   | [informal-systems-authored-blobs.pdf](docs/audit/informal-systems-authored-blobs.pdf) |
+| 2025/6/24  | [Informal Systems](https://informal.systems/) | [139bad2](https://github.com/celestiaorg/celestia-core/commit/139bad235a379599670f30d5e28c637dde4bb17a)  | [informal-systems-recovery.pdf](docs/audit/informal-systems-recovery.pdf)             |

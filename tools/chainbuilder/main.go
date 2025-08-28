@@ -8,16 +8,16 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/da"
-	"github.com/celestiaorg/celestia-app/v4/pkg/user"
-	"github.com/celestiaorg/celestia-app/v4/test/util"
-	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/da"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/test/util"
+	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v6/test/util/random"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	"github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
 	dbm "github.com/cometbft/cometbft-db"
@@ -100,7 +100,7 @@ func main() {
 	rootCmd.Flags().String("existing-dir", "", "Existing directory to load chain from")
 	rootCmd.Flags().String("namespace", "", "Custom namespace for the chain")
 	rootCmd.Flags().Bool("up-to-now", false, "Tool will terminate if the block time reaches the current time")
-	rootCmd.Flags().Uint64("app-version", appconsts.LatestVersion, "App version to use for the chain")
+	rootCmd.Flags().Uint64("app-version", appconsts.Version, "App version to use for the chain")
 	rootCmd.Flags().String("chain-id", "", "Chain ID to use for the chain. Defaults to a random 6 character string")
 	rootCmd.SilenceUsage = true
 	rootCmd.SilenceErrors = true
@@ -326,10 +326,9 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 				return fmt.Errorf("failed to convert data from protobuf: %w", err)
 			}
 
-			block := state.MakeBlock(height, data, commit, nil, validatorAddr)
-			blockParts, err := block.MakePartSet(types.BlockPartSizeBytes)
+			block, blockParts, err := state.MakeBlock(height, data, commit, nil, validatorAddr)
 			if err != nil {
-				return fmt.Errorf("failed to make block part set: %w", err)
+				return fmt.Errorf("failed to make block: %w", err)
 			}
 			blockID := types.BlockID{
 				Hash:          block.Hash(),

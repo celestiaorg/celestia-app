@@ -8,7 +8,7 @@ import (
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v4/app/params"
+	"github.com/celestiaorg/celestia-app/v6/app/params"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
@@ -25,27 +25,17 @@ func TestCalculateInflationRate(t *testing.T) {
 	}
 
 	testCases := []testCase{
-		{0, 0.0536},    // NOTE: this value won't be used in production because CIP-29 has been introduced after year 0 (see CIP-29 for details).
-		{1, 0.0500088}, // Note: this value won't manifest as the observed inflation rate for year 1 because CIP-29 was introduced part way through year 1.
-		{2, 0.0466582104},
-		{3, 0.0435321103032},
-		{4, 0.0406154589128856},
-		{5, 0.03789422316572227},
-		{6, 0.035355310213618873},
-		{7, 0.03298650442930641},
-		{8, 0.030776408632542877},
-		{9, 0.028714389254162507},
-		{10, 0.026790525174133616},
-		{11, 0.024995559987466665},
-		{12, 0.023320857468306398},
-		{13, 0.02175836001792987},
-		{14, 0.020300549896728567},
-		{15, 0.018940413053647756},
-		{16, 0.017671405379053356},
-		{17, 0.016487421218656782},
-		{18, 0.015382763997006776},
-		{19, 0.015},
-		{20, 0.015},
+		{0, 0.0267},    // NOTE: this value won't be used in production because CIP-29 and CIP-41 were introduced after year 0.
+		{1, 0.0249111}, // Note: this value won't manifest as the observed inflation rate for year 1 because CIP-29 and CIP-41 were introduced part way through year 1.
+		{2, 0.0232420563},
+		{3, 0.0216848385279},
+		{4, 0.0202319543465307},
+		{5, 0.018876413405313142},
+		{6, 0.017611693707157164},
+		{7, 0.016431710228777634},
+		{8, 0.015330785643449531},
+		{9, 0.015},
+		{10, 0.015},
 	}
 
 	for i, tc := range testCases {
@@ -83,16 +73,14 @@ func TestCalculateBlockProvision(t *testing.T) {
 			annualProvisions: annualProvisions,
 			current:          current,
 			previous:         current.Add(-blockInterval),
-			// 53.6 billion utia (annual provisions) * 15 (seconds) / 31,556,952 (seconds per year) = 25477 utia (truncated)
-			want: sdk.NewCoin(params.BondDenom, math.NewInt(25477)),
+			want:             sdk.NewCoin(params.BondDenom, math.NewInt(12691)),
 		},
 		{
 			name:             "one 30 second block during the first year",
 			annualProvisions: annualProvisions,
 			current:          current,
 			previous:         current.Add(-2 * blockInterval),
-			// 53.6 billion utia (annual provisions) * 30 (seconds) / 31,556,952 (seconds per year) = 50955 utia (truncated)
-			want: sdk.NewCoin(params.BondDenom, math.NewInt(50955)),
+			want:             sdk.NewCoin(params.BondDenom, math.NewInt(25382)),
 		},
 		{
 			name:             "want error when current time is before previous time",
@@ -163,7 +151,7 @@ func BenchmarkCalculateBlockProvision(b *testing.B) {
 	current := time.Unix(r1.Int63n(1000000), 0)
 	previous := current.Add(-time.Second * 15)
 
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		_, err := minter.CalculateBlockProvision(current, previous)
 		require.NoError(b, err)
 	}
@@ -174,7 +162,7 @@ func BenchmarkCalculateInflationRate(b *testing.B) {
 	minter := DefaultMinter()
 	genesisTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
 		minter.CalculateInflationRate(ctx, genesisTime)
 	}

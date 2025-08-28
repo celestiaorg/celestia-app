@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/user"
-	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/random"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cometbft/cometbft/config"
 	"github.com/stretchr/testify/require"
@@ -30,7 +30,7 @@ func TestConcurrentTxSubmission(t *testing.T) {
 			// Setup network
 			tmConfig := testnode.DefaultTendermintConfig()
 			tmConfig.Mempool.Type = mempool
-			tmConfig.Consensus.TimeoutCommit = 10 * time.Second
+			tmConfig.Consensus.TimeoutCommit = 5 * time.Second
 			ctx, _, _ := testnode.NewNetwork(t, testnode.DefaultConfig().WithTendermintConfig(tmConfig))
 			_, err := ctx.WaitForHeight(1)
 			require.NoError(t, err)

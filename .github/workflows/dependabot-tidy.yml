@@ -1,0 +1,50 @@
+name: dependabot-tidy
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '**/go.mod'
+      - '**/go.sum'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  tidy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+
+      - name: Set up Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 #v5.5.0
+        with:
+          go-version-file: "go.mod"
+
+      - name: Run go mod tidy in all modules
+        run: |
+          find . -name 'go.mod' -execdir sh -c '
+            echo "Running go mod tidy in $(pwd)"
+            go mod tidy
+          ' \;
+
+      - name: Commit and push tidy changes (only Dependabot PRs)
+        if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+
+          git config --global credential.helper store
+          echo "https://oauth2:${{ secrets.DEPENDABOT_TIDY_TOKEN }}@github.com" > ~/.git-credentials
+
+          git add .
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit after go mod tidy."
+            exit 0
+          fi
+
+          git commit -m "chore: run go mod tidy on all modules"
+          git push --force origin "HEAD:${{ github.head_ref }}"

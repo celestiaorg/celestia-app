@@ -44,15 +44,15 @@ import (
 	solomachine "github.com/cosmos/ibc-go/v8/modules/light-clients/06-solomachine"
 	ibctm "github.com/cosmos/ibc-go/v8/modules/light-clients/07-tendermint"
 
-	"github.com/celestiaorg/celestia-app/v4/x/blob"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	"github.com/celestiaorg/celestia-app/v4/x/minfee"
-	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
-	minttypes "github.com/celestiaorg/celestia-app/v4/x/mint/types"
-	"github.com/celestiaorg/celestia-app/v4/x/signal"
-	signaltypes "github.com/celestiaorg/celestia-app/v4/x/signal/types"
-	"github.com/celestiaorg/celestia-app/v4/x/zkism"
-	zkismtypes "github.com/celestiaorg/celestia-app/v4/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v6/x/blob"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v6/x/minfee"
+	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
+	minttypes "github.com/celestiaorg/celestia-app/v6/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v6/x/signal"
+	signaltypes "github.com/celestiaorg/celestia-app/v6/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v6/x/zkism"
+	zkismtypes "github.com/celestiaorg/celestia-app/v6/x/zkism/types"
 )
 
 // ModuleEncodingRegisters keeps track of all the module methods needed to

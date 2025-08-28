@@ -7,15 +7,14 @@ import (
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v6/app"
 	dbm "github.com/cosmos/cosmos-db"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	ibctesting "github.com/cosmos/ibc-go/v8/testing"
 	"github.com/stretchr/testify/require"
 )
 
-// SetupTestingApp returns a simapp instance that has PFM wired up, but does not have a token
-// filter like the default app.
+// SetupTestingApp returns a simapp instance that has PFM wired up
 func SetupTestingApp() (ibctesting.TestingApp, map[string]json.RawMessage) {
 	db := dbm.NewMemDB()
 	app := NewSimApp(log.NewNopLogger(), db, nil, true, simtestutil.EmptyAppOptions{})
@@ -42,8 +41,7 @@ func SetupTest(t *testing.T) (*ibctesting.Coordinator, *ibctesting.TestChain,
 	celestiaChain := ibctesting.NewTestChain(t, coordinator, ibctesting.GetChainID(1))
 	setMinFeeToZero(t, celestiaChain)
 
-	// modify the testing package to return the pfm app which does not have a token filter wired up on subsequent
-	// NewTestChain calls.
+	// modify the testing package to return a pfm app
 	ibctesting.DefaultTestingAppInit = SetupTestingApp
 
 	chainA := ibctesting.NewTestChain(t, coordinator, ibctesting.GetChainID(2))

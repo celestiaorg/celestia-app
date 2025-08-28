@@ -8,7 +8,7 @@ import (
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/cosmos/cosmos-sdk/codec"
 
-	"github.com/celestiaorg/celestia-app/v4/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
 )
 
 var _ util.InterchainSecurityModule = (*Keeper)(nil)

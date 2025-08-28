@@ -1,32 +1,36 @@
 VERSION := $(shell echo $(shell git describe --tags --always --match "v*") | sed 's/^v//')
 COMMIT := $(shell git rev-parse --short HEAD)
+CELESTIA_TAG := $(shell git rev-parse --short=8 HEAD)
+export CELESTIA_TAG
 DOCKER := $(shell which docker)
 PROJECTNAME=$(shell basename "$(PWD)")
 DOCKER_GOOS ?= linux
 DOCKER_GOARCH ?= amd64
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
-PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v4
+PACKAGE_NAME := github.com/celestiaorg/celestia-app/v6
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
-GOLANG_CROSS_VERSION  ?= v1.24.2
+GOLANG_CROSS_VERSION  ?= v1.24.6
 # Set this to override v2 upgrade height for the v3 embedded binaries
 V2_UPGRADE_HEIGHT ?= 0
 
-# process linker flags
-ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
-		  -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd \
-		  -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
-		  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
-		  -X github.com/celestiaorg/celestia-app/v4/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT)
+BUILD_TAGS_STANDALONE := ledger
+BUILD_TAGS_MULTIPLEXER := ledger,multiplexer
 
-BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
-BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
+LDFLAGS_COMMON := -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) -X github.com/celestiaorg/celestia-app/v6/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT)
+LDFLAGS_STANDALONE := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_STANDALONE)
+LDFLAGS_MULTIPLEXER := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_MULTIPLEXER)
+
+BUILD_FLAGS_STANDALONE := -tags=$(BUILD_TAGS_STANDALONE) -ldflags '$(LDFLAGS_STANDALONE)'
+BUILD_FLAGS_MULTIPLEXER := -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_MULTIPLEXER)'
 
 # NOTE: This version must be updated at the same time as the version in:
 # internal/embedding/data.go
 # .goreleaser.yaml
 # docker/multiplexer.Dockerfile
-CELESTIA_V3_VERSION := v3.10.3
+CELESTIA_V3_VERSION := v3.10.6
+CELESTIA_V4_VERSION := v4.1.0
+CELESTIA_V5_VERSION := v5.0.4-rc0
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -39,7 +43,7 @@ build-standalone: mod
 	@cd ./cmd/celestia-appd
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd"
-	@go build $(BUILD_FLAGS) -o build/ ./cmd/celestia-appd
+	@go build $(BUILD_FLAGS_STANDALONE) -o build/celestia-appd ./cmd/celestia-appd
 .PHONY: build-standalone
 
 DOWNLOAD ?= true
@@ -47,6 +51,8 @@ DOWNLOAD ?= true
 build: mod
 ifeq ($(DOWNLOAD),true)
 	@$(MAKE) download-v3-binaries
+	@$(MAKE) download-v4-binaries
+	@$(MAKE) download-v5-binaries
 endif
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd with multiplexer enabled"
@@ -54,18 +60,14 @@ endif
 .PHONY: build
 
 ## install-standalone: Build and install the celestia-appd binary into the $GOPATH/bin directory. This target does not install the multiplexer.
-install-standalone: check-bbr
+install-standalone:
 	@echo "--> Installing celestia-appd"
-	@go install $(BUILD_FLAGS) ./cmd/celestia-appd
+	@go install $(BUILD_FLAGS_STANDALONE) ./cmd/celestia-appd
 .PHONY: install-standalone
-
-define EMBED_BIN
-  ./scripts/download_v3_binary.sh $$url $$out $(CELESTIA_V3_VERSION)
-endef
 
 ## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
 # TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
-install: check-bbr download-v3-binaries
+install: download-v3-binaries download-v4-binaries download-v5-binaries
 	@echo "--> Installing celestia-appd with multiplexer support"
 	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
 .PHONY: install
@@ -82,8 +84,38 @@ download-v3-binaries:
 		linux-amd64) url=celestia-app_Linux_x86_64.tar.gz; out=celestia-app_linux_v3_amd64.tar.gz ;; \
 		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
 	esac; \
-	bash scripts/download_v3_binary.sh "$$url" "$$out" "$(CELESTIA_V3_VERSION)"
+	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V3_VERSION)"
 .PHONY: download-v3-binaries
+
+## download-v4-binaries: Download the celestia-app v4 binary for the current platform.
+download-v4-binaries:
+	@echo "--> Downloading celestia-app $(CELESTIA_V4_VERSION) binary"
+	@mkdir -p internal/embedding
+	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
+	case "$$os-$$arch" in \
+		darwin-arm64) url=celestia-app-standalone_Darwin_arm64.tar.gz; out=celestia-app_darwin_v4_arm64.tar.gz ;; \
+		linux-arm64) url=celestia-app-standalone_Linux_arm64.tar.gz; out=celestia-app_linux_v4_arm64.tar.gz ;; \
+		darwin-amd64) url=celestia-app-standalone_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v4_amd64.tar.gz ;; \
+		linux-amd64) url=celestia-app-standalone_Linux_x86_64.tar.gz; out=celestia-app_linux_v4_amd64.tar.gz ;; \
+		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
+	esac; \
+	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V4_VERSION)"
+.PHONY: download-v4-binaries
+
+## download-v5-binaries: Download the celestia-app v5 binary for the current platform.
+download-v5-binaries:
+	@echo "--> Downloading celestia-app $(CELESTIA_V5_VERSION) binary"
+	@mkdir -p internal/embedding
+	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
+	case "$$os-$$arch" in \
+		darwin-arm64) url=celestia-app-standalone_Darwin_arm64.tar.gz; out=celestia-app_darwin_v5_arm64.tar.gz ;; \
+		linux-arm64) url=celestia-app-standalone_Linux_arm64.tar.gz; out=celestia-app_linux_v5_arm64.tar.gz ;; \
+		darwin-amd64) url=celestia-app-standalone_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v5_amd64.tar.gz ;; \
+		linux-amd64) url=celestia-app-standalone_Linux_x86_64.tar.gz; out=celestia-app_linux_v5_amd64.tar.gz ;; \
+		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
+	esac; \
+	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V5_VERSION)"
+.PHONY: download-v5-binaries
 
 ## mod: Update all go.mod files.
 mod:
@@ -145,14 +177,14 @@ proto-update-deps:
 
 .PHONY: proto-all proto-deps proto-gen proto-format proto-lint proto-check-breaking proto-update-deps
 
-## build-docker: Build the celestia-appd Docker image using the local Dockerfile.
-build-docker:
+## build-docker-standalone: Build the celestia-appd Docker image using the local Dockerfile.
+build-docker-standalone:
 	@echo "--> Building Docker image"
-	$(DOCKER) build -t celestiaorg/celestia-app -f docker/Dockerfile .
+	$(DOCKER) build -t celestiaorg/celestia-app -f docker/standalone.Dockerfile .
 .PHONY: build-docker
 
 ## docker-build: Build the celestia-appd docker image from the current branch. Requires docker.
-docker-build: build-docker
+docker-build: build-docker-multiplexer
 .PHONY: docker-build
 
 ## build-docker-multiplexer: Build the celestia-appd docker image with Multiplexer support from the current branch. Requires docker.
@@ -223,7 +255,11 @@ lint-fix: fmt
 ## test: Run tests.
 test:
 	@echo "--> Running tests"
-	@go test -timeout 30m ./...
+	@if [ -z "$(PACKAGES)" ]; then \
+		go test -timeout 30m ./...; \
+	else \
+		go test -timeout 30m $(PACKAGES); \
+	fi
 .PHONY: test
 
 ## test-short: Run tests in short mode.
@@ -235,15 +271,24 @@ test-short:
 ## test-docker-e2e: Run end to end tests via docker.
 test-docker-e2e:
 	@if [ -z "$(test)" ]; then \
-		echo "ERROR: 'test' variable is required. Usage: make test-docker-e2e test=TestE2ESimple"; \
+		echo "ERROR: 'test' variable is required. Usage: make test-docker-e2e test=TestE2ESimple [entrypoint=TestCelestiaTestSuite]"; \
 		exit 1; \
 	fi
-	@echo "--> Running: TestCelestiaTestSuite/$(test)"
-	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/$(test)$$ ./...
+	@ENTRYPOINT=$${entrypoint:-TestCelestiaTestSuite}; \
+	echo "--> Running: $$ENTRYPOINT/$(test)"; \
+	cd test/docker-e2e && go test -v -run ^$$ENTRYPOINT/$(test)$$ ./... -timeout 30m
 .PHONY: test-docker-e2e
 
+## test-docker-e2e-upgrade: Build image from current branch and run the upgrade test.
+test-docker-e2e-upgrade:
+	@echo "--> Building celestia-appd docker image (tag $(CELESTIA_TAG))"
+	@DOCKER_BUILDKIT=0 docker build --build-arg BUILDPLATFORM=linux/amd64 --build-arg TARGETOS=linux --build-arg TARGETARCH=amd64 -t "ghcr.io/celestiaorg/celestia-app:$(CELESTIA_TAG)" . -f docker/multiplexer.Dockerfile
+	@echo "--> Running upgrade test"
+	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/TestCelestiaAppUpgrade$$ -count=1 ./... -timeout 15m
+.PHONY: test-docker-e2e-upgrade
+
 ## test-multiplexer: Run unit tests for the multiplexer package.
-test-multiplexer: download-v3-binaries
+test-multiplexer: download-v3-binaries download-v4-binaries download-v5-binaries
 	@echo "--> Running multiplexer tests"
 	@go test -tags multiplexer ./multiplexer/...
 .PHONY: test-multiplexer
@@ -253,7 +298,7 @@ test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService|TestTxsOverMaxTxSizeGetRejected|TestStart_Success|TestReadBlockchainHeaders|TestPrepareProposalCappingNumberOfMessages"
+	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService|TestTxsOverMaxTxSizeGetRejected|TestStart_Success|TestReadBlockchainHeaders|TestPrepareProposalCappingNumberOfMessages|TestGasEstimatorE2E|TestGasEstimatorE2EWithNetworkMinGasPrice"
 .PHONY: test-race
 
 ## test-bench: Run benchmark unit tests.
@@ -276,7 +321,7 @@ test-fuzz:
 ## txsim-install: Install the tx simulator.
 txsim-install:
 	@echo "--> Installing tx simulator"
-	@go install $(BUILD_FLAGS) ./test/cmd/txsim
+	@go install $(BUILD_FLAGS_STANDALONE) ./test/cmd/txsim
 .PHONY: txsim-install
 
 ## txsim-build: Build the tx simulator binary into the ./build directory.
@@ -284,7 +329,7 @@ txsim-build:
 	@echo "--> Building tx simulator"
 	@cd ./test/cmd/txsim
 	@mkdir -p build/
-	@go build $(BUILD_FLAGS) -o build/ ./test/cmd/txsim
+	@go build $(BUILD_FLAGS_STANDALONE) -o build/ ./test/cmd/txsim
 	@go mod tidy
 .PHONY: txsim-build
 
@@ -299,7 +344,7 @@ build-talis-bins:
 	  --file tools/talis/docker/Dockerfile \
 	  --target builder \
 	  --platform linux/amd64 \
-	  --build-arg LDFLAGS="$(ldflags)" \
+	  --build-arg LDFLAGS="$(LDFLAGS_STANDALONE)" \
 	  --build-arg GOOS=linux \
 	  --build-arg GOARCH=amd64 \
 	  --tag talis-builder:latest \
@@ -367,7 +412,7 @@ goreleaser-dry-run:
 		-w /go/src/$(PACKAGE_NAME) \
 		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
 		release --snapshot --clean --parallelism 4
-.PHONY: go-releaser-dry-run
+.PHONY: goreleaser-dry-run
 
 ## goreleaser: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
 goreleaser: prebuilt-binary
@@ -376,7 +421,10 @@ goreleaser: prebuilt-binary
 ## check-bbr: Internal command to check if BBR congestion control is enabled on the system.
 check-bbr:
 	@echo "Checking if BBR is enabled..."
-	@if [ "$$(sysctl net.ipv4.tcp_congestion_control | awk '{print $$3}')" != "bbr" ]; then \
+	@if [ "$$(uname -s)" != "Linux" ]; then \
+		echo "BBR is not available on non-Linux systems."; \
+		exit 0; \
+	elif [ "$$(sysctl net.ipv4.tcp_congestion_control | awk '{print $$3}')" != "bbr" ]; then \
 		echo "WARNING: BBR is not enabled. Please enable BBR for optimal performance. Call make enable-bbr or see Usage section in the README."; \
 	else \
 		echo "BBR is enabled."; \
@@ -390,7 +438,10 @@ bbr-check: check-bbr
 ## enable-bbr: Enable BBR congestion control algorithm on your system. This improves network performance. Only works on Linux.
 enable-bbr:
 	@echo "Configuring system to use BBR..."
-	@if [ "$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')" != "bbr" ]; then \
+	@if [ "$$(uname -s)" != "Linux" ]; then \
+		echo "BBR is not available on non-Linux systems."; \
+		exit 0; \
+	elif [ "$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')" != "bbr" ]; then \
 	    echo "BBR is not enabled. Configuring BBR..."; \
 	    sudo modprobe tcp_bbr && \
             echo tcp_bbr | sudo tee -a /etc/modules && \

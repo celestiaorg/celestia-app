@@ -2,7 +2,7 @@ package keeper
 
 import (
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v4/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v6/x/minfee/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	params "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
@@ -41,7 +41,7 @@ func (k Keeper) GetParamsKeeper() params.Keeper {
 	return k.paramsKeeper
 }
 
-// GetAuthority returns the client submodule's authority.
+// GetAuthority returns the minfee module's authority.
 func (k Keeper) GetAuthority() string {
 	return k.authority
 }

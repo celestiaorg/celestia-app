@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 

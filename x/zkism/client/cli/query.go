@@ -9,7 +9,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-app/v4/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
 )
 
 // NewQueryIsmCmd creates and returns the query command for a ZK execution ISM.

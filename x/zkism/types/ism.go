@@ -11,7 +11,7 @@ import (
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	ismtypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/01_interchain_security/types"
 
-	"github.com/celestiaorg/celestia-app/v4/x/zkism/internal/groth16"
+	"github.com/celestiaorg/celestia-app/v6/x/zkism/internal/groth16"
 )
 
 const (

@@ -14,9 +14,9 @@ import (
 	gwruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-app/v4/x/zkism/client/cli"
-	"github.com/celestiaorg/celestia-app/v4/x/zkism/keeper"
-	"github.com/celestiaorg/celestia-app/v4/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v6/x/zkism/client/cli"
+	"github.com/celestiaorg/celestia-app/v6/x/zkism/keeper"
+	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
 )
 
 var (

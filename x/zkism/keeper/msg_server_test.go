@@ -1,9 +1,9 @@
 package keeper_test
 
 import (
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v4/x/zkism/keeper"
-	"github.com/celestiaorg/celestia-app/v4/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v6/x/zkism/keeper"
+	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
 )
 
 func (suite *KeeperTestSuite) TestCreateZKExecutionISM() {

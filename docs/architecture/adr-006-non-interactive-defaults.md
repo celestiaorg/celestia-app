@@ -70,7 +70,7 @@ To recap the default constraints of arranging a square:
 - All messages must be ordered lexicographically by namespace.
 - The commitments signed over in each `MsgPayForBlob` must consist only of subtree roots of the data square.
 - If a `MsgPayForBlob` is added to the square, then its corresponding message must also be included.
-- There must not be a message without a `MsgPayForBlob` (does this need to be a rule? cc @adlerjohn).
+- There must not be a message without a `MsgPayForBlob`.
 - Transactions with higher fees should be prioritized by default.
 - The square should be filled as optimally as possible.
 
@@ -380,7 +380,7 @@ The simplest approach, and the one taken in the initial implementation, works by
 ```go
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
    ...
-   // the totalSharesUsed can be larger that the max number of shares if we
+   // the totalSharesUsed can be larger than the max number of shares if we
    // reach the max square size. In this case, we must prune the deprioritized
    // txs (and their messages if they're pfb txs).
    if totalSharesUsed > int(squareSize*squareSize) {

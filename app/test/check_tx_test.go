@@ -3,18 +3,20 @@ package app_test
 import (
 	"bytes"
 	"testing"
+	"time"
 
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	apperr "github.com/celestiaorg/celestia-app/v4/app/errors"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
-	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	sdkmath "cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	apperr "github.com/celestiaorg/celestia-app/v6/app/errors"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v6/test/util"
+	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/random"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/go-square/v2/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -22,6 +24,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
+	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -39,7 +43,7 @@ func TestCheckTx(t *testing.T) {
 	namespace1, err = share.NewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
 	require.NoError(t, err)
 
-	accounts := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m"}
+	accounts := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n"}
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 
 	signers := make([]*user.Signer, len(accounts))
@@ -212,11 +216,11 @@ func TestCheckTx(t *testing.T) {
 			expectedABCICode: abci.CodeTypeOK,
 		},
 		{
-			name:      "v1 blob over 2MiB",
+			name:      "v1 blob over 8MiB",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := signers[11]
-				blob, err := share.NewV1Blob(share.RandomBlobNamespace(), bytes.Repeat([]byte{1}, 2097152), signer.Account(accounts[11]).Address())
+				blob, err := share.NewV1Blob(share.RandomBlobNamespace(), bytes.Repeat([]byte{1}, appconsts.MaxTxSize+1), signer.Account(accounts[11]).Address())
 				require.NoError(t, err)
 				blobTx, _, err := signer.CreatePayForBlobs(accounts[11], []*share.Blob{blob}, opts...)
 				require.NoError(t, err)
@@ -225,17 +229,40 @@ func TestCheckTx(t *testing.T) {
 			expectedABCICode: apperr.ErrTxExceedsMaxSize.ABCICode(),
 		},
 		{
-			name:      "v0 blob over 2MiB",
+			name:      "v0 blob over 8MiB",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := signers[12]
-				blob, err := share.NewV0Blob(share.RandomBlobNamespace(), bytes.Repeat([]byte{1}, 2097152))
+				blob, err := share.NewV0Blob(share.RandomBlobNamespace(), bytes.Repeat([]byte{1}, appconsts.MaxTxSize+1))
 				require.NoError(t, err)
 				blobTx, _, err := signer.CreatePayForBlobs(accounts[12], []*share.Blob{blob}, opts...)
 				require.NoError(t, err)
 				return blobTx
 			},
 			expectedABCICode: apperr.ErrTxExceedsMaxSize.ABCICode(),
+		},
+		{
+			// NOTE: this test is in place due to a regression where ledger via amino-json
+			// were not able to submit a MsgCreateVestingAccount transaction.
+			name:      "MsgCreateVestingAccount using amino-json",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				signer := signers[13]
+				msg := &vestingtypes.MsgCreateVestingAccount{
+					FromAddress: signer.Account(accounts[13]).Address().String(),
+					ToAddress:   testutil.AccPubKeys[0].Address().String(),
+					Amount:      sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1000))),
+					Delayed:     true,
+					EndTime:     time.Now().Add(2 * time.Hour).Unix(),
+					StartTime:   time.Now().Add(1 * time.Hour).Unix(),
+				}
+				tx, _, err := signer.
+					WithSignMode(signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON).
+					CreateTx([]sdk.Msg{msg}, user.SetGasLimitAndGasPrice(100000, appconsts.DefaultMinGasPrice))
+				require.NoError(t, err)
+				return tx
+			},
+			expectedABCICode: abci.CodeTypeOK,
 		},
 	}
 

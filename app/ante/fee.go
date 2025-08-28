@@ -3,8 +3,8 @@ package ante
 import (
 	"cosmossdk.io/errors"
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	minfeekeeper "github.com/celestiaorg/celestia-app/v4/x/minfee/keeper"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	minfeekeeper "github.com/celestiaorg/celestia-app/v6/x/minfee/keeper"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerror "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
@@ -39,7 +39,12 @@ func ValidateTxFee(ctx sdk.Context, tx sdk.Tx, minfeeKeeper *minfeekeeper.Keeper
 	// This is only for local mempool purposes, and thus
 	// is only run on check tx.
 	if ctx.IsCheckTx() {
-		minGasPrice := ctx.MinGasPrices().AmountOf(appconsts.BondDenom)
+		// if the config is "" then we use the default min gas price
+		minGasPrice := math.LegacyNewDecWithPrec(int64(appconsts.DefaultMinGasPrice*1_000_000), 6)
+		if ctx.MinGasPrices().Len() > 0 {
+			minGasPrice = ctx.MinGasPrices().AmountOf(appconsts.BondDenom)
+		}
+		// NOTE: users can still specify a min gas price of 0utia
 		if !minGasPrice.IsZero() {
 			err := verifyMinFee(fee, gas, minGasPrice, "insufficient minimum gas price for this node")
 			if err != nil {

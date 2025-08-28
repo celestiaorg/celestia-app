@@ -8,8 +8,8 @@ import (
 
 	"cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/x/signal/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -83,6 +83,15 @@ func (k Keeper) SignalVersion(ctx context.Context, req *types.MsgSignalVersion) 
 	}
 
 	k.SetValidatorVersion(sdkCtx, valAddr, req.Version)
+
+	sdkCtx.EventManager().EmitEvent(
+		sdk.NewEvent(
+			types.EventTypeSignalVersion,
+			sdk.NewAttribute(types.AttributeKeyValidatorAddress, req.ValidatorAddress),
+			sdk.NewAttribute(sdk.AttributeKeyAction, types.URLMsgSignalVersion),
+		),
+	)
+
 	return &types.MsgSignalVersionResponse{}, nil
 }
 
@@ -90,7 +99,7 @@ func (k Keeper) SignalVersion(ctx context.Context, req *types.MsgSignalVersion) 
 // voting power that has voted on each version. If one version has reached a
 // quorum, an upgrade is persisted to the store. The upgrade is used by the
 // application later when it is time to upgrade to that version.
-func (k *Keeper) TryUpgrade(ctx context.Context, _ *types.MsgTryUpgrade) (*types.MsgTryUpgradeResponse, error) {
+func (k *Keeper) TryUpgrade(ctx context.Context, req *types.MsgTryUpgrade) (*types.MsgTryUpgradeResponse, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
 	if k.IsUpgradePending(sdkCtx) {
@@ -119,6 +128,15 @@ func (k *Keeper) TryUpgrade(ctx context.Context, _ *types.MsgTryUpgrade) (*types
 		}
 		k.setUpgrade(sdkCtx, upgrade)
 	}
+
+	sdkCtx.EventManager().EmitEvent(
+		sdk.NewEvent(
+			types.EventTypeTryUpgrade,
+			sdk.NewAttribute(types.AttributeKeySigner, req.Signer),
+			sdk.NewAttribute(sdk.AttributeKeyAction, types.URLMsgTryUpgrade),
+		),
+	)
+
 	return &types.MsgTryUpgradeResponse{}, nil
 }
 
@@ -159,6 +177,54 @@ func (k Keeper) VersionTally(ctx context.Context, req *types.QueryVersionTallyRe
 		ThresholdPower:   threshold.Uint64(),
 		TotalVotingPower: totalVotingPower.Uint64(),
 	}, nil
+}
+
+// GetMissingValidators returns the validators that have not yet signalled for a particular version
+func (k Keeper) GetMissingValidators(ctx context.Context, req *types.QueryGetMissingValidatorsRequest) (*types.QueryGetMissingValidatorsResponse, error) {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	missingValidators := make([]string, 0)
+
+	// Use IterateValidators to iterate over all validators
+	err := k.stakingKeeper.IterateValidators(sdkCtx, func(index int64, validator stakingtypes.ValidatorI) (stop bool) {
+		valAddr, err := sdk.ValAddressFromBech32(validator.GetOperator())
+		if err != nil {
+			return false
+		}
+
+		// Check if this validator has voting power (is bonded)
+		power, err := k.stakingKeeper.GetLastValidatorPower(sdkCtx, valAddr)
+		if err != nil {
+			return false
+		}
+
+		// Only consider validators with non-zero voting power
+		if power <= 0 {
+			return false
+		}
+
+		// Check if this validator has voted for the requested version
+		store := sdkCtx.KVStore(k.storeKey)
+		votedVersionBytes := store.Get(valAddr)
+
+		// If validator hasn't voted or voted for a different version, add to missing list
+		if votedVersionBytes == nil {
+			// Validator hasn't voted at all
+			missingValidators = append(missingValidators, validator.GetMoniker())
+		} else {
+			votedVersion := VersionFromBytes(votedVersionBytes)
+			if votedVersion != req.Version {
+				// Validator voted for a different version
+				missingValidators = append(missingValidators, validator.GetMoniker())
+			}
+		}
+
+		return false // Continue iteration
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.QueryGetMissingValidatorsResponse{MissingValidators: missingValidators}, nil
 }
 
 // SetValidatorVersion saves a signalled version for a validator.

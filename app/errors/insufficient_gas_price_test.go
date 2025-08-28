@@ -5,15 +5,15 @@ import (
 	"testing"
 
 	"cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	apperr "github.com/celestiaorg/celestia-app/v4/app/errors"
-	"github.com/celestiaorg/celestia-app/v4/app/params"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
-	blob "github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	apperr "github.com/celestiaorg/celestia-app/v6/app/errors"
+	"github.com/celestiaorg/celestia-app/v6/app/params"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v6/test/util"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	blob "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -45,7 +45,7 @@ func TestInsufficientFeeIntegration(t *testing.T) {
 	b, err := blob.NewV0Blob(share.RandomNamespace(), []byte("hello world"))
 	require.NoError(t, err)
 
-	msg, err := blob.NewMsgPayForBlobs(signer.Account(account).Address().String(), appconsts.LatestVersion, b)
+	msg, err := blob.NewMsgPayForBlobs(signer.Account(account).Address().String(), appconsts.Version, b)
 	require.NoError(t, err)
 
 	rawTx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(gasLimit), user.SetFee(feeAmount))

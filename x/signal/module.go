@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 
 	"cosmossdk.io/core/appmodule"
-	"github.com/celestiaorg/celestia-app/v4/x/signal/cli"
-	"github.com/celestiaorg/celestia-app/v4/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v6/x/signal/cli"
+	"github.com/celestiaorg/celestia-app/v6/x/signal/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -29,7 +29,7 @@ var (
 	_ appmodule.HasServices = AppModule{}
 )
 
-// AppModule implements the AppModule interface for the blobstream module.
+// AppModule implements the AppModule interface for the signal module.
 type AppModule struct {
 	keeper Keeper
 }
@@ -47,17 +47,17 @@ func (AppModule) IsAppModule() {}
 
 func (AppModule) IsOnePerModuleType() {}
 
-// RegisterLegacyAminoCodec registers the blob module's types on the LegacyAmino codec.
+// RegisterLegacyAminoCodec registers the signal module's types on the LegacyAmino codec.
 func (AppModule) RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 	types.RegisterLegacyAminoCodec(cdc)
 }
 
-// RegisterInterfaces registers interfaces and implementations of the blob module.
+// RegisterInterfaces registers interfaces and implementations of the signal module.
 func (AppModule) RegisterInterfaces(reg cdctypes.InterfaceRegistry) {
 	types.RegisterInterfaces(reg)
 }
 
-// RegisterGRPCGatewayRoutes registers the gRPC Gateway routes for the upgrade module.
+// RegisterGRPCGatewayRoutes registers the gRPC Gateway routes for the signal module.
 func (AppModule) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *runtime.ServeMux) {
 	if err := types.RegisterQueryHandlerClient(context.Background(), mux, types.NewQueryClient(clientCtx)); err != nil {
 		panic(err)
@@ -75,7 +75,7 @@ func (AppModule) GetTxCmd() *cobra.Command {
 	return cli.GetTxCmd()
 }
 
-// DefaultGenesis returns the blob module's default genesis state.
+// DefaultGenesis returns the signal module's default genesis state.
 func (am AppModule) DefaultGenesis(_ codec.JSONCodec) json.RawMessage {
 	return []byte("{}")
 }

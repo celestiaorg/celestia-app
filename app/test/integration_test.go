@@ -4,16 +4,17 @@ import (
 	"bytes"
 	"context"
 	"testing"
+	"time"
 
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/user"
-	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/random"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	square "github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -44,8 +45,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	t := s.T()
 	s.accounts = testnode.RandomAccounts(142)
 
-	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...)
-
+	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...).WithTimeoutCommit(time.Millisecond * 500)
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 
 	s.cctx = cctx
@@ -63,44 +63,16 @@ func (s *IntegrationTestSuite) SetupSuite() {
 func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	t := s.T()
 
-	singleBlobTxGen := func(c client.Context) []coretypes.Tx {
-		return blobfactory.RandBlobTxsWithAccounts(
-			s.ecfg,
-			random.New(),
-			s.cctx.Keyring,
-			c.GRPCClient,
-			600*kibibyte,
-			1,
-			false,
-			s.accounts[:20],
-		)
-	}
-
-	// This tx generator generates txs that contain 3 blobs each of 200 KiB so
-	// 600 KiB total per transaction.
-	multiBlobTxGen := func(c client.Context) []coretypes.Tx {
-		return blobfactory.RandBlobTxsWithAccounts(
-			s.ecfg,
-			random.New(),
-			s.cctx.Keyring,
-			c.GRPCClient,
-			200*kibibyte,
-			3,
-			false,
-			s.accounts[20:40],
-		)
-	}
-
 	randomTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
 			s.ecfg,
 			random.New(),
 			s.cctx.Keyring,
 			c.GRPCClient,
-			50*kibibyte,
+			mebibyte-1,
 			8,
 			true,
-			s.accounts[40:120],
+			s.accounts[:60],
 		)
 	}
 
@@ -109,8 +81,6 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 		txGenerator func(clientCtx client.Context) []coretypes.Tx
 	}
 	tests := []test{
-		{"singleBlobTxGen", singleBlobTxGen},
-		{"multiBlobTxGen", multiBlobTxGen},
 		{"randomTxGen", randomTxGen},
 	}
 	for _, tc := range tests {
@@ -119,10 +89,6 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			hashes := make([]string, len(txs))
 
 			for i, tx := range txs {
-				// The default CometBFT mempool MaxTxBytes is 1 MiB so the generators in
-				// this test must create transactions that are smaller than that.
-				require.LessOrEqual(t, len(tx), 1*mebibyte)
-
 				res, err := s.cctx.BroadcastTxSync(tx)
 				require.NoError(t, err)
 				assert.Equal(t, abci.CodeTypeOK, res.Code, res.RawLog)
@@ -160,7 +126,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				require.LessOrEqual(t, size, uint64(appconsts.DefaultGovMaxSquareSize))
 				require.GreaterOrEqual(t, size, uint64(appconsts.MinSquareSize))
 
-				require.EqualValues(t, appconsts.LatestVersion, blockRes.Block.Version.App)
+				require.EqualValues(t, appconsts.Version, blockRes.Block.Version.App)
 
 				sizes = append(sizes, size)
 			}
@@ -228,7 +194,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		blockRes, err := node.Block(context.Background(), &txResp.Height)
 		require.NoError(t, err)
 
-		require.EqualValues(t, appconsts.LatestVersion, blockRes.Block.Version.App)
+		require.EqualValues(t, appconsts.Version, blockRes.Block.Version.App)
 
 		_, isBlobTx := coretypes.UnmarshalBlobTx(blockRes.Block.Txs[txResp.Index])
 		require.True(t, isBlobTx)

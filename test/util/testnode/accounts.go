@@ -1,7 +1,7 @@
 package testnode
 
 import (
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
+	"github.com/celestiaorg/celestia-app/v6/test/util/random"
 )
 
 // RandomAccounts returns a list of n random accounts

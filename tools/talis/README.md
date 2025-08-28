@@ -4,7 +4,7 @@
 
 ### DigitalOcean Account
 
-- If you're part of the Celestia engineering team ask for access to Celestia's DigitalOcean account or alternatively use personal account.
+- If you're part of the Celestia engineering team ask for access to Celestia's DigitalOcean account or alternatively use a personal account.
 - **Generate the API token:** Go to Settings → API → Generate New Token.
 - Save the token somewhere that's easily accessible.
 
@@ -43,7 +43,7 @@ All binaries used by nodes in the network are compiled on the user's local machi
 make build-talis-bins
 ```
 
-Note that this doesn't install binaries in the `$GOPATH/bin`, so you must specify the path when creating the payload with the `genesis` subcommand and `-a` (`--app-binary` path) and `-t` (`--txsim-binary` path) flags. See `genesis` subcomand usage below.
+Note that this doesn't install binaries in the `$GOPATH/bin`, so you must specify the path when creating the payload with the `genesis` subcommand and `-a` (`--app-binary` path) and `-t` (`--txsim-binary` path) flags. See `genesis` subcommand usage below.
 
 ## Usage
 
@@ -69,7 +69,7 @@ This will initialize the directory that contains directory structure used for co
 └── scripts/
 ```
 
-the celestia-app configs (config.toml and app.toml) can be manually edited here, and they will copied to each node. `config.json` is the talis specific configuration file that contains all info related to spinning up the network. This is updated after the nodes have been spun up. Basic defaults are set, but the relevant fields can either be edited after generation or via using a flag. At this point, it looks something like this:
+the celestia-app configs (config.toml and app.toml) can be manually edited here, and they will be copied to each node. `config.json` is the talis specific configuration file that contains all info related to spinning up the network. This is updated after the nodes have been spun up. Basic defaults are set, but the relevant fields can either be edited after generation or via using a flag. At this point, it looks something like this:
 
 ```json
 {
@@ -84,12 +84,12 @@ the celestia-app configs (config.toml and app.toml) can be manually edited here,
     "access_key_id": "pulled from AWS_ACCESS_KEY_ID env var if available",
     "secret_access_key": "pulled from AWS_SECRET_ACCESS_KEY env var if available",
     "bucket_name": "pulled from AWS_S3_BUCKET env var if available",
-    "endpoint": "pulled from AWS_S3_ENDPOINT env var if available. Can be left empty if targetting an AWS S3 bucket"
+    "endpoint": "pulled from AWS_S3_ENDPOINT env var if available. Can be left empty if targeting an AWS S3 bucket"
   }
 }
 ```
 
-Notes: 
+Notes:
 
 - The AWS config supports any S3-compatible bucket. So it can be used with Digital Ocean and other cloud providers.
 - Example: The S3 endpoint for Digital Ocean is: `https://<region>.digitaloceanspaces.com/`.
@@ -151,6 +151,10 @@ export TALIS_SSH_KEY_PATH="your_ssh_key_path_here"
 ```sh
 # uses the config to spin up nodes on the relevant cloud services
 talis up
+
+# use more workers for faster instance creation. DigitalOcean has a 5000 requests/hour rate limit per API token.
+# For droplet creation, each worker makes ~3-5 API calls per droplet, so ~20 workers should be safe for most use cases.
+talis up --workers 20
 ```
 
 ### genesis
@@ -173,9 +177,12 @@ This step is when the network is actually started. The payload is uploaded to ea
 ```sh
 # sends the payload to each node and boots the network by executing the relevant startup scripts
 talis deploy
+
+# use more workers for faster deployment (when using direct upload)
+talis deploy --direct-payload-upload --workers 20
 ```
 
-Note: By default, the `deploy` command will upload the payload to the configured S3 bucket, and then download it in the nodes. To upload the payload directly without passing by S3, use the `--direct-payload-upload` flag.
+Note: By default, the `deploy` command will upload the payload to the configured S3 bucket, and then download it in the nodes. To upload the payload directly without passing by S3, use the `--direct-payload-upload` flag. The `--workers` flag only affects the direct upload method.
 
 ### txsim
 
@@ -188,7 +195,7 @@ talis txsim -i <count> -s <blob-sequences> --min-blob-size <size> --max-blob-siz
 
 ### status
 
-Often, its useful to quickly check if all the nodes have caught up to the tip of the chain. This can be done via the status command, which simply prints the height of each validator after querying the `Status` endpoint.
+Often, it's useful to quickly check if all the nodes have caught up to the tip of the chain. This can be done via the status command, which simply prints the height of each validator after querying the `Status` endpoint.
 
 ```sh
 # check which height each validator is at
@@ -202,6 +209,9 @@ To download traces from the network, we can use `talis` to download traces from 
 ```sh
 # download some number of traces directly from nodes to your machine via sftp
 talis download -n <validator-*> -t <table> [flags]
+
+# use more workers for faster downloads from many nodes
+talis download -n <validator-*> -t <table> --workers 20
 ```
 
 To quickly view block times, assuming this table was being traced we can run:
@@ -238,15 +248,30 @@ talis download s3
 
 ### Modifying the nodes in place
 
-Instead of shutting down all of the nodes, if we want to run a slightly modified experiment, we can simply rerun the `genesis` and `deploy` commands. This will create a new payload and restart the network without tearing down the cloud instances. This will delete any trace data.
+Instead of shutting down all of the nodes, if we want to run a slightly modified experiment, we can simply run the [reset](#reset) command then rerun the `genesis` and `deploy` commands. This will create a new payload and restart the network without tearing down the cloud instances. This will delete any trace data.
+
+### reset
+
+This command allows you to stop running services and clean up files created by the `deploy` command for either specific validators or all validators in the network.
+
+```sh
+# Reset all validators in the network
+talis reset
+
+# Reset specific validators
+talis reset -v validator-0,validator-1
+```
 
 ### down
 
-Finally, remember to tear down the cloud instances. This should work first try, but its a good habit to re-run or check the webUI for large experiments to make sure nodes were shut down successfully.
+Finally, remember to tear down the cloud instances. This should work first try, but it's a good habit to re-run or check the webUI for large experiments to make sure nodes were shut down successfully.
 
 ```sh
 # tears down the network
 talis down
+
+# use more workers for faster teardown of many instances
+talis down --workers 20
 ```
 
 ## Running Talis inside of a DigitalOcean droplet
@@ -318,14 +343,14 @@ talis init -c your-chain-id -e your-experiment
 # Add validators
 talis add -t validator -c <count>
 
-# Spin up talis
-talis up -n <key-name> -s <path-to-ssh-key>
+# Spin up talis (use more workers if creating many instances)
+talis up -n <key-name> -s <path-to-ssh-key> --workers 20
 
 # Create payload
 talis genesis -s 128 -a  build/celestia-appd -t build/txsim
 
-# Deploy
-talis deploy -s <path-to-ssh-key>
+# Deploy (use more workers for faster direct deployment)
+talis deploy -s <path-to-ssh-key> --direct-payload-upload --workers 20
 ```
 
 **Save Snapshot:**

@@ -26,7 +26,7 @@ func ParseInsufficientMinGasPrice(err error, gasPrice float64, gasLimit uint64) 
 		return 0, nil
 	}
 
-	// As there are multiple cases of ErrInsufficientFunds, we need to check the error message
+	// As there are multiple cases of ErrInsufficientFee, we need to check the error message
 	// matches the regexp
 	substr := regexpMinGasPrice.FindAllString(err.Error(), -1)
 	if len(substr) != 1 {
@@ -74,7 +74,7 @@ func IsInsufficientFee(err error) bool {
 		return false
 	}
 
-	// As there are multiple cases of ErrInsufficientFunds, we need to check the error message
+	// As there are multiple cases of ErrInsufficientFee, we need to check the error message
 	// matches the regexp
 	return regexpMinGasPrice.MatchString(err.Error())
 }

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	"github.com/celestiaorg/go-square/v2/share"
@@ -31,7 +31,7 @@ func Build(txs [][]byte, _ uint64, maxSquareSize int, efn ExportFn) (square.Squa
 		blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(tx)
 		if isBlobTx {
 			if err != nil {
-				return nil, nil, fmt.Errorf("unmarshaling blob tx %d: %w", idx, err)
+				return nil, nil, fmt.Errorf("unmarshalling blob tx %d: %w", idx, err)
 			}
 			if builder.AppendBlobTx(blobTx) {
 				blobTxs = append(blobTxs, tx)

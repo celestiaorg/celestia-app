@@ -10,11 +10,11 @@ import (
 	"sync/atomic"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/test/util/random"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -33,7 +33,7 @@ func init() {
 }
 
 func TestAddress() sdk.AccAddress {
-	bz, err := sdk.GetFromBech32(testfactory.TestAccAddr, "celestia")
+	bz, err := sdk.GetFromBech32(testfactory.TestAccAddr, appconsts.MainnetChainID)
 	if err != nil {
 		panic(err)
 	}

@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/user"
-	"github.com/celestiaorg/celestia-app/v4/test/txsim"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/test/txsim"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -278,8 +278,8 @@ func parseUpgradeSchedule(schedule string) (map[int64]uint64, error) {
 	if schedule == "" {
 		return nil, nil
 	}
-	scheduleParts := strings.Split(schedule, ",")
-	for _, part := range scheduleParts {
+	scheduleParts := strings.SplitSeq(schedule, ",")
+	for part := range scheduleParts {
 		parts := strings.Split(part, ":")
 		if len(parts) != 2 {
 			return nil, fmt.Errorf("invalid upgrade schedule format: %s", part)

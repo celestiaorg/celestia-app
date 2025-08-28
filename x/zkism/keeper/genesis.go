@@ -3,7 +3,7 @@ package keeper
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-app/v4/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
 )
 
 // InitGenesis initialises the module genesis state.

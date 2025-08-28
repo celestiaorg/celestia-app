@@ -10,13 +10,13 @@ import (
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/ante"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	minfeekeeper "github.com/celestiaorg/celestia-app/v4/x/minfee/keeper"
-	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/ante"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	minfeekeeper "github.com/celestiaorg/celestia-app/v6/x/minfee/keeper"
+	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -41,76 +41,107 @@ func TestValidateTxFee(t *testing.T) {
 
 	// Set the validator's fee
 	validatorMinGasPrice := 0.8
-	validatorMinGasPriceDec, err := sdkmath.LegacyNewDecFromStr(fmt.Sprintf("%f", validatorMinGasPrice))
-	require.NoError(t, err)
-	validatorMinGasPriceCoin := sdk.NewDecCoinFromDec(appconsts.BondDenom, validatorMinGasPriceDec)
+	validatorMinGasPriceCoin := fmt.Sprintf("%f%s", validatorMinGasPrice, appconsts.BondDenom)
 
 	feeAmount := int64(1000)
 
 	paramsKeeper, minFeeKeeper, stateStore := setUp(t)
 
 	testCases := []struct {
-		name      string
-		fee       sdk.Coins
-		gasLimit  uint64
-		isCheckTx bool
-		expErr    bool
+		name        string
+		fee         sdk.Coins
+		gasLimit    uint64
+		isCheckTx   bool
+		expErr      bool
+		minGasPrice string
 	}{
 		{
-			name:      "bad tx; fee below required minimum",
-			fee:       sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount-1)),
-			gasLimit:  uint64(float64(feeAmount) / appconsts.DefaultNetworkMinGasPrice),
-			isCheckTx: false,
-			expErr:    true,
+			name:        "bad tx; fee below required minimum",
+			fee:         sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount-1)),
+			gasLimit:    uint64(float64(feeAmount) / appconsts.DefaultNetworkMinGasPrice),
+			isCheckTx:   false,
+			expErr:      true,
+			minGasPrice: validatorMinGasPriceCoin,
 		},
 		{
-			name:      "good tx; fee equal to required minimum",
-			fee:       sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
-			gasLimit:  uint64(float64(feeAmount) / appconsts.DefaultNetworkMinGasPrice),
-			isCheckTx: false,
-			expErr:    false,
+			name:        "good tx; fee equal to required minimum",
+			fee:         sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
+			gasLimit:    uint64(float64(feeAmount) / appconsts.DefaultNetworkMinGasPrice),
+			isCheckTx:   false,
+			expErr:      false,
+			minGasPrice: validatorMinGasPriceCoin,
 		},
 		{
-			name:      "good tx; fee above required minimum",
-			fee:       sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount+1)),
-			gasLimit:  uint64(float64(feeAmount) / appconsts.DefaultNetworkMinGasPrice),
-			isCheckTx: false,
-			expErr:    false,
+			name:        "good tx; fee above required minimum",
+			fee:         sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount+1)),
+			gasLimit:    uint64(float64(feeAmount) / appconsts.DefaultNetworkMinGasPrice),
+			isCheckTx:   false,
+			expErr:      false,
+			minGasPrice: validatorMinGasPriceCoin,
 		},
 		{
-			name:      "good tx; gas limit and fee are maximum values",
-			fee:       sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, math.MaxInt64)),
-			gasLimit:  math.MaxUint64,
-			isCheckTx: false,
-			expErr:    false,
+			name:        "good tx; gas limit and fee are maximum values",
+			fee:         sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, math.MaxInt64)),
+			gasLimit:    math.MaxUint64,
+			isCheckTx:   false,
+			expErr:      false,
+			minGasPrice: validatorMinGasPriceCoin,
 		},
 		{
-			name:      "bad tx; gas limit and fee are 0",
-			fee:       sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 0)),
-			gasLimit:  0,
-			isCheckTx: false,
-			expErr:    false,
+			name:        "bad tx; gas limit and fee are 0",
+			fee:         sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 0)),
+			gasLimit:    0,
+			isCheckTx:   false,
+			expErr:      false,
+			minGasPrice: validatorMinGasPriceCoin,
 		},
 		{
-			name:      "good tx; minFee = 0.8, rounds up to 1",
-			fee:       sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
-			gasLimit:  400,
-			isCheckTx: false,
-			expErr:    false,
+			name:        "good tx; minFee = 0.8, rounds up to 1",
+			fee:         sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
+			gasLimit:    400,
+			isCheckTx:   false,
+			expErr:      false,
+			minGasPrice: validatorMinGasPriceCoin,
 		},
 		{
-			name:      "good tx; fee above node's required minimum",
-			fee:       sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount+1)),
-			gasLimit:  uint64(float64(feeAmount) / validatorMinGasPrice),
-			isCheckTx: true,
-			expErr:    false,
+			name:        "good tx; fee above node's required minimum",
+			fee:         sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount+1)),
+			gasLimit:    uint64(float64(feeAmount) / validatorMinGasPrice),
+			isCheckTx:   true,
+			expErr:      false,
+			minGasPrice: validatorMinGasPriceCoin,
 		},
 		{
-			name:      "bad tx; fee below node's required minimum",
-			fee:       sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount-1)),
-			gasLimit:  uint64(float64(feeAmount) / validatorMinGasPrice),
-			isCheckTx: true,
-			expErr:    true,
+			name:        "bad tx; fee below node's required minimum",
+			fee:         sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount-1)),
+			gasLimit:    uint64(float64(feeAmount) / validatorMinGasPrice),
+			isCheckTx:   true,
+			expErr:      true,
+			minGasPrice: validatorMinGasPriceCoin,
+		},
+		{
+			name:        "min gas price is empty",
+			fee:         sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
+			gasLimit:    uint64(float64(feeAmount) / appconsts.DefaultMinGasPrice),
+			isCheckTx:   true,
+			expErr:      false,
+			minGasPrice: "", // should use the default min gas price
+		},
+		{
+			name:        "min gas price is empty",
+			fee:         sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount-1)),
+			gasLimit:    uint64(float64(feeAmount) / appconsts.DefaultMinGasPrice),
+			isCheckTx:   true,
+			expErr:      true,
+			minGasPrice: "", // should use the default min gas price
+		},
+		{
+			name:        "min gas price is 0utia",
+			fee:         sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
+			gasLimit:    uint64(float64(feeAmount) / appconsts.DefaultMinGasPrice),
+			isCheckTx:   true,
+			expErr:      false,
+			minGasPrice: "0utia",
 		},
 	}
 
@@ -121,7 +152,9 @@ func TestValidateTxFee(t *testing.T) {
 			tx := builder.GetTx()
 
 			ctx := sdk.NewContext(stateStore, tmproto.Header{}, tc.isCheckTx, log.NewNopLogger())
-			ctx = ctx.WithMinGasPrices(sdk.DecCoins{validatorMinGasPriceCoin})
+			minPrice, err := sdk.ParseDecCoins(tc.minGasPrice)
+			require.NoError(t, err)
+			ctx = ctx.WithMinGasPrices(minPrice)
 
 			networkMinGasPriceDec, err := sdkmath.LegacyNewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultNetworkMinGasPrice))
 			require.NoError(t, err)
@@ -142,6 +175,17 @@ func TestValidateTxFee(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParseMinGasPrice(t *testing.T) {
+	emptyCoins, err := sdk.ParseDecCoins("")
+	require.NoError(t, err)
+	require.Equal(t, emptyCoins.String(), "")
+	require.Len(t, emptyCoins, 0)
+
+	oneCoin, err := sdk.ParseDecCoins("0utia")
+	require.NoError(t, err)
+	require.Zero(t, oneCoin.AmountOf(appconsts.BondDenom).BigInt().Int64())
 }
 
 func setUp(t *testing.T) (paramkeeper.Keeper, *minfeekeeper.Keeper, storetypes.CommitMultiStore) {

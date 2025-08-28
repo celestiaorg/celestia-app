@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v6/app"
 	cmtconfig "github.com/cometbft/cometbft/config"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/spf13/cobra"
@@ -87,7 +87,7 @@ func initCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory in which to initialize")
-	cmd.Flags().StringVarP(&srcRoot, "src-root", "r", homeDir, "directory from which to copy scripts") // todo: fix the default director here
+	cmd.Flags().StringVarP(&srcRoot, "src-root", "r", homeDir, "directory from which to copy scripts") // todo: fix the default directory here
 	cmd.Flags().StringVarP(&chainID, "chainID", "c", "", "Chain ID (required)")
 	_ = cmd.MarkFlagRequired("chainID")
 	cmd.Flags().StringVarP(&experiment, "experiment", "e", "test", "the name of the experiment (required)")

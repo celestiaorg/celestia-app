@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"google.golang.org/grpc"
@@ -25,7 +25,7 @@ const (
 	defaultEndpoint     = "localhost:9090"
 	defaultKeyringDir   = "~/.celestia-app"
 	defaultSubmitRate   = 1.0    // KB per second
-	defaultBlobSize     = 1      // bytes
+	defaultBlobSize     = 1      // KB
 	defaultNamespaceStr = "test" // default namespace for blobs
 )
 
@@ -98,7 +98,14 @@ func monitorLatency(
 		return fmt.Errorf("failed to initialize keyring: %w", err)
 	}
 
-	grpcConn, err := grpc.NewClient(endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	grpcConn, err := grpc.NewClient(
+		endpoint,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallSendMsgSize(math.MaxInt32),
+			grpc.MaxCallRecvMsgSize(math.MaxInt32),
+		),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to create gRPC connection: %w", err)
 	}

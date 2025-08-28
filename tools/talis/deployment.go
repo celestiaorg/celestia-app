@@ -25,6 +25,7 @@ func upCmd() *cobra.Command {
 	var SSHPubKeyPath string
 	var SSHKeyName string
 	var DOAPIToken string
+	var workers int
 
 	cmd := &cobra.Command{
 		Use:   "up",
@@ -51,7 +52,7 @@ func upCmd() *cobra.Command {
 				return fmt.Errorf("failed to create client: %w", err)
 			}
 
-			if err := client.Up(cmd.Context()); err != nil {
+			if err := client.Up(cmd.Context(), workers); err != nil {
 				return fmt.Errorf("failed to spin up network: %w", err)
 			}
 
@@ -68,6 +69,7 @@ func upCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&cfgPath, "config", "c", "config.json", "name of the config")
 	cmd.Flags().StringVarP(&SSHKeyName, "ssh-key-name", "n", "", "name for the SSH key")
 	cmd.Flags().StringVarP(&DOAPIToken, "do-api-token", "t", "", "digital ocean api token (defaults to config or env)")
+	cmd.Flags().IntVarP(&workers, "workers", "w", 10, "number of concurrent workers for parallel operations (should be > 0)")
 
 	return cmd
 }
@@ -78,6 +80,7 @@ func deployCmd() *cobra.Command {
 		cfgPath      string
 		SSHKeyPath   string
 		directUpload bool
+		workers      int
 	)
 
 	cmd := &cobra.Command{
@@ -104,9 +107,9 @@ func deployCmd() *cobra.Command {
 
 			log.Printf("Sending payload to validators...")
 			if directUpload {
-				return deployPayloadDirect(cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute)
+				return deployPayloadDirect(cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute, workers)
 			}
-			return deployPayloadViaS3(cmd.Context(), rootDir, cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute, cfg.S3Config)
+			return deployPayloadViaS3(cmd.Context(), rootDir, cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute, cfg.S3Config, workers)
 		},
 	}
 
@@ -119,6 +122,7 @@ func deployCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory in which to initialize")
 	cmd.Flags().StringVarP(&cfgPath, "config", "c", "config.json", "name of the config")
 	cmd.Flags().BoolVar(&directUpload, "direct-payload-upload", false, "Upload payload directly to nodes instead of using S3")
+	cmd.Flags().IntVarP(&workers, "workers", "w", 10, "number of concurrent workers for parallel operations (should be > 0)")
 
 	return cmd
 }
@@ -133,6 +137,7 @@ func deployPayloadDirect(
 	remoteDir string, // e.g. "/root"
 	remoteScript string, // e.g. "start.sh"
 	timeout time.Duration, // per‐host timeout
+	workers int, // number of concurrent workers
 ) error {
 	var wg sync.WaitGroup
 	errCh := make(chan error, len(ips))
@@ -140,13 +145,13 @@ func deployPayloadDirect(
 
 	counter := atomic.Uint32{}
 
-	workers := make(chan struct{}, 10)
+	workerChan := make(chan struct{}, workers)
 	for _, inst := range ips {
-		workers <- struct{}{}
+		workerChan <- struct{}{}
 		wg.Add(1)
 		go func(inst Instance) {
 			defer func() {
-				<-workers
+				<-workerChan
 				wg.Done()
 			}()
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -220,6 +225,7 @@ func deployPayloadViaS3(
 	remoteScript string,
 	timeout time.Duration,
 	s3cfg S3Config,
+	workers int,
 ) error {
 	cfg, err := LoadConfig(rootDir)
 	if err != nil {
@@ -241,11 +247,16 @@ func deployPayloadViaS3(
 	var wg sync.WaitGroup
 	errCh := make(chan error, len(ips))
 	counter := atomic.Uint32{}
+	workersChan := make(chan struct{}, workers)
 
 	for _, inst := range ips {
 		wg.Add(1)
 		go func(inst Instance) {
-			defer wg.Done()
+			workersChan <- struct{}{}
+			defer func() {
+				wg.Done()
+				<-workersChan
+			}()
 			ctx, cancel := context.WithTimeout(ctx, timeout)
 			defer cancel()
 
@@ -319,6 +330,7 @@ func downCmd() *cobra.Command {
 	var SSHPubKeyPath string
 	var SSHKeyName string
 	var DOAPIToken string
+	var workers int
 
 	cmd := &cobra.Command{
 		Use:   "down",
@@ -345,7 +357,7 @@ func downCmd() *cobra.Command {
 				return fmt.Errorf("failed to create client: %w", err)
 			}
 
-			if err := client.Down(cmd.Context()); err != nil {
+			if err := client.Down(cmd.Context(), workers); err != nil {
 				return fmt.Errorf("failed to spin up network: %w", err)
 			}
 
@@ -357,6 +369,8 @@ func downCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory in which to initialize")
 	cmd.Flags().StringVarP(&cfgPath, "config", "c", "config.json", "name of the config")
 	cmd.Flags().StringVarP(&SSHKeyName, "ssh-key-name", "n", "", "name for the SSH key")
+	cmd.Flags().StringVarP(&DOAPIToken, "do-api-token", "t", "", "digital ocean api token (defaults to config or env)")
+	cmd.Flags().IntVarP(&workers, "workers", "w", 10, "number of concurrent workers for parallel operations (should be > 0)")
 
 	return cmd
 }

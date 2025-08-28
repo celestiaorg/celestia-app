@@ -2,9 +2,56 @@
 
 This guide provides notes for major version releases. These notes may be helpful for users when upgrading from previous major versions.
 
+## Upcoming Major Release
+
+## v6.0.0 (Unreleased)
+
+This release targets throughput, blob size, inflation reduction, and fee changes.
+
+### Config changes
+
+It introduces a new block propagation reactor and configuration changes to accommodate the increased throughput. The relevant v6 configuration changes can be applied to existing config using the `celestia-appd update-config` command or by manually updating the config.toml and app.toml.
+
+To modify your existing configs, the `celestia-appd update-configs` command can be used.
+
+```
+celestia-appd update-config
+```
+
+this uses version 6 and the default home (.celestia-app). Those can be changed or specified with flags as well.
+
+```
+celestia-appd update-config --version 6 --home ~/.celestia-app
+```
+
+To manually modify the configs, change the following values.
+
+```toml
+[rpc]
+max_body_bytes = 436207616
+
+[p2p]
+send_rate = 25165824
+recv_rate = 25165824
+
+[mempool]
+type = "cat"
+max_tx_bytes = 8388608
+ttl-duration = "0s"
+ttl-num-blocks = 12
+max-gossip-delay = "1m0s"
+```
+
+## v5.0.0
+
+This major upgrade is an expedited patch release, fixing the problem with failed IBC transfers caused by the incorrectly configured capability module. There should be no additional API breaking changes.
+This expedited release will have no upgrade delay. The moment 5/6ths signal and the `MsgTryUpgrade` is successful, the network will upgrade to v5.
+
 ## v4.0.0
 
 ### Node Operators (v4.0.0)
+
+Node operators MUST upgrade their binary to this version prior to the v4 activation height. Node operators SHOULD NOT use cosmovisor to upgrade their binary.
 
 #### Multiplexer
 
@@ -50,6 +97,10 @@ grpc_laddr = "tcp://127.0.0.1:9098"
 #### IAVL v1 Migration
 
 Celestia-app v4 uses IAVL v1 for better performance. When upgrading to v4, the migration happens lazily over time. If you'd like to avoid the lazy migration, you can perform a fresh state sync so that your node uses IAVL v1 exclusively.
+
+#### Cosmos SDK default addresses
+
+The default addresses for the Cosmos SDK API server, GRPC server, and GRPC web server have changed from `0.0.0.0` to `localhost`. See [cosmos-sdk#13778](https://github.com/cosmos/cosmos-sdk/pull/13778).
 
 ### State Machine Changes (v4.0.0)
 
@@ -121,6 +172,8 @@ Celestia-app v4.0.0 includes significant state machine changes due to major depe
 
 ### Node Operators (v3.0.0)
 
+Node operators MUST upgrade their binary to this version prior to the v3 activation height. Node operators SHOULD NOT use cosmovisor to upgrade their binary.
+
 #### Enabling BBR and MCTCP
 
 Consensus node operators must enable the BBR (Bottleneck Bandwidth and Round-trip propagation time) congestion control algorithm. See [#3774](https://github.com/celestiaorg/celestia-app/pull/3774).
@@ -190,7 +243,7 @@ For more information refer to the module [docs](../../x/signal/README.md)
 
 If you are a consensus node operator, please follow the communication channels listed under [network upgrades](https://docs.celestia.org/how-to-guides/participate#network-upgrades) to learn when this release is recommended for each network (e.g. Mocha, Mainnet Beta).
 
-Consensus node operators are expected to upgrade to this release _prior_ to the Lemongrass hardfork if they intend to continue participating in the network. The command used to start the [consensus node](https://docs.celestia.org/how-to-guides/consensus-node#start-the-consensus-node) or [validator node](https://docs.celestia.org/how-to-guides/validator-node#run-the-validator-node) will accept an additional `--v2-upgrade-height` flag. See [this table](https://docs.celestia.org/how-to-guides/network-upgrade-process#lemongrass-network-upgrade) for upgrade heights for each network.
+Consensus node operators are expected to upgrade to this release _prior_ to the Lemongrass hardfork if they intend to continue participating in the network. The command used to start the [consensus node](https://docs.celestia.org/how-to-guides/consensus-node#start-the-consensus-node) or [validator node](https://docs.celestia.org/how-to-guides/validator-node#run-the-validator-node) will accept an additional `--v2-upgrade-height` flag. See [this table](https://docs.celestia.org/how-to-guides/network-upgrade-process#lemongrass-network-upgrade) for upgrade heights for each network. Node operators SHOULD NOT use cosmovisor to upgrade their binary.
 
 Consensus node operators should enable the BBR (Bottleneck Bandwidth and Round-trip propagation time) congestion control algorithm. See [#3812](https://github.com/celestiaorg/celestia-app/pull/3812).
 

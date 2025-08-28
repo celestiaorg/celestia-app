@@ -60,7 +60,7 @@ app.mm, err = module.NewManager([]module.VersionedModule{
 
 ### Configurator Changes
 
-The configurator is an object that is used upon initialisation to register the msg server, query server and migrations. In order to know what `sdk.Msg`s corresponded with which app version, a wrapper was added to the configurator that would scrape all the `sdk.Msg`s from the msg server as they were being registered and add them to a map:
+The configurator is an object that is used upon initialization to register the msg server, query server and migrations. In order to know what `sdk.Msg`s corresponded with which app version, a wrapper was added to the configurator that would scrape all the `sdk.Msg`s from the msg server as they were being registered and add them to a map:
 
 ```go
 // acceptedMsgs is a map from appVersion -> msgTypeURL -> struct{}.

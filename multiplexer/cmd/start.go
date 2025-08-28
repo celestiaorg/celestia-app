@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/celestiaorg/celestia-app/v4/multiplexer/abci"
-	"github.com/celestiaorg/celestia-app/v4/multiplexer/internal"
+	"github.com/celestiaorg/celestia-app/v6/multiplexer/abci"
+	"github.com/celestiaorg/celestia-app/v6/multiplexer/internal"
 	dbm "github.com/cometbft/cometbft-db"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
@@ -31,19 +31,19 @@ func start(versions abci.Versions, svrCtx *server.Context, clientCtx client.Cont
 
 	svrCtx.Logger.Info("initializing multiplexer", "app_version", appVersion, "chain_id", chainID)
 
-	mp, err := abci.NewMultiplexer(svrCtx, svrCfg, clientCtx, appCreator, versions, chainID, appVersion)
+	multiplexer, err := abci.NewMultiplexer(svrCtx, svrCfg, clientCtx, appCreator, versions, chainID, appVersion)
 	if err != nil {
 		return err
 	}
 
 	defer func() {
-		if err := mp.Cleanup(); err != nil {
-			svrCtx.Logger.Error("failed to cleanup multiplexer", "err", err)
+		if err := multiplexer.Stop(); err != nil {
+			svrCtx.Logger.Error("failed to stop multiplexer", "err", err)
 		}
 	}()
 
 	// Start will either start the latest app natively, or an embedded app if one is specified.
-	if err := mp.Start(); err != nil {
+	if err := multiplexer.Start(); err != nil {
 		return fmt.Errorf("failed to start multiplexer: %w", err)
 	}
 

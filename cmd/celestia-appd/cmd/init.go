@@ -10,8 +10,8 @@ import (
 
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/math/unsafe"
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	cometconfig "github.com/cometbft/cometbft/config"
 	comettypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -136,6 +136,10 @@ func initCmd(basicManager module.BasicManager, defaultNodeHome string) *cobra.Co
 				return errorsmod.Wrap(err, "Failed to export genesis file")
 			}
 
+			if isKnownChainID(chainID) {
+				fmt.Printf("The chain ID %s is a public network.\nPlease download the genesis file via:\n\tcelestia-appd download-genesis %s\n", chainID, chainID)
+			}
+
 			cometconfig.WriteConfigFile(filepath.Join(config.RootDir, "config", "config.toml"), config)
 
 			toPrint := newPrintInfo(config.Moniker, chainID, nodeID, "", appState)
@@ -182,6 +186,6 @@ func displayInfo(info printInfo) error {
 
 func getConsensusParams() *comettypes.ConsensusParams {
 	params := comettypes.DefaultConsensusParams()
-	params.Version.App = appconsts.LatestVersion
+	params.Version.App = appconsts.Version
 	return params
 }

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# This script starts a local single node testnet on app version 3 and then upgrades to app version 4.
+# This script starts a local single node testnet on app version 5 and then upgrades to app version 6.
 
 # Stop script execution if an error is encountered
 set -o errexit
@@ -17,8 +17,10 @@ fi
 CHAIN_ID="test"
 KEY_NAME="validator"
 KEYRING_BACKEND="test"
-FEES="500utia"
+FEES="1000utia"
 BROADCAST_MODE="sync"
+FROM_VERSION="5"
+TO_VERSION="6"
 
 # Use argument as home directory if provided, else default to ~/.celestia-app
 if [ $# -ge 1 ]; then
@@ -37,7 +39,7 @@ echo ""
 
 createGenesis() {
     echo "Initializing validator and node config files..."
-    celestia-appd passthrough 3 init ${CHAIN_ID} \
+    celestia-appd passthrough ${FROM_VERSION} init ${CHAIN_ID} \
       --chain-id ${CHAIN_ID} \
       --home "${APP_HOME}" \
       > /dev/null 2>&1 # Hide output to reduce terminal noise
@@ -49,13 +51,13 @@ createGenesis() {
       > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     echo "Adding genesis account..."
-    celestia-appd passthrough 3 add-genesis-account \
+    celestia-appd passthrough ${FROM_VERSION} genesis add-genesis-account \
       "$(celestia-appd keys show ${KEY_NAME} -a --keyring-backend=${KEYRING_BACKEND} --home "${APP_HOME}")" \
       "1000000000000000utia" \
       --home "${APP_HOME}"
 
     echo "Creating a genesis tx..."
-    celestia-appd passthrough 3 gentx ${KEY_NAME} 5000000000utia \
+    celestia-appd passthrough ${FROM_VERSION} genesis gentx ${KEY_NAME} 5000000000utia \
       --fees ${FEES} \
       --keyring-backend=${KEYRING_BACKEND} \
       --chain-id ${CHAIN_ID} \
@@ -63,7 +65,7 @@ createGenesis() {
       > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     echo "Collecting genesis txs..."
-    celestia-appd passthrough 3 collect-gentxs \
+    celestia-appd passthrough ${FROM_VERSION} genesis collect-gentxs \
       --home "${APP_HOME}" \
         > /dev/null 2>&1 # Hide output to reduce terminal noise
 
@@ -95,14 +97,13 @@ startCelestiaApp() {
     --api.enable \
     --grpc.enable \
     --grpc-web.enable \
-    --timeout-commit 1s \
-    --force-no-bbr
+    --timeout-commit 1s
 }
 
-upgradeToV4() {
-    sleep 30
-    echo "Submitting signal for v4..."
-    celestia-appd tx signal signal 4 \
+upgrade() {
+    sleep 20
+    echo "Submitting signal for v${TO_VERSION}..."
+    celestia-appd tx signal signal ${TO_VERSION} \
         --keyring-backend=${KEYRING_BACKEND} \
         --home ${APP_HOME} \
         --from ${KEY_NAME} \
@@ -110,11 +111,10 @@ upgradeToV4() {
         --chain-id ${CHAIN_ID} \
         --broadcast-mode ${BROADCAST_MODE} \
         --yes \
-        > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     sleep 10
-    echo "Querying the tally for v4..."
-    celestia-appd query signal tally 4
+    echo "Querying the tally for v${TO_VERSION}..."
+    celestia-appd query signal tally ${TO_VERSION}
 
     sleep 10
     echo "Submitting msg try upgrade..."
@@ -126,7 +126,6 @@ upgradeToV4() {
         --chain-id ${CHAIN_ID} \
         --broadcast-mode ${BROADCAST_MODE} \
         --yes \
-        > /dev/null 2>&1 # Hide output to reduce terminal noise
 
     sleep 2
     echo "Querying for pending upgrade..."
@@ -144,5 +143,5 @@ else
   createGenesis
 fi
 
-upgradeToV4 & # Start the upgrade process from v3 -> v4 in the background.
+upgrade & # Start the upgrade process to the next version in the background.
 startCelestiaApp # Start celestia-app in the foreground.
