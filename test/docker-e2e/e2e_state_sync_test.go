@@ -16,6 +16,7 @@ import (
 	"github.com/celestiaorg/tastora/framework/testutil/config"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	cometcfg "github.com/cometbft/cometbft/config"
+	rpclient "github.com/cometbft/cometbft/rpc/client"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	servercfg "github.com/cosmos/cosmos-sdk/server/config"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -30,174 +31,6 @@ const (
 	stateSyncTrustHeightOffset = 5
 	stateSyncTimeout           = 10 * time.Minute
 )
-
-// keepAliveTransactionGenerator continuously sends small bank transfer transactions
-// to keep the chain producing blocks with changing state. It runs in a goroutine
-// and can be stopped by cancelling the provided context.
-// This version is resilient to connection drops during node restarts (e.g., upgrades).
-func (s *CelestiaTestSuite) keepAliveTransactionGenerator(ctx context.Context, wg *sync.WaitGroup, chain *tastoradockertypes.Chain, cfg *dockerchain.Config, intervalSeconds int) {
-	defer wg.Done()
-
-	// Create a unique recipient wallet for keep-alive transactions
-	recipientWalletName := fmt.Sprintf("keepalive-recipient-%d", time.Now().UnixNano())
-	wallet, err := chain.CreateWallet(ctx, recipientWalletName)
-	if err != nil {
-		s.T().Logf("Failed to create keep-alive recipient wallet: %v", err)
-		return
-	}
-
-	recipientAddr, err := sdk.AccAddressFromBech32(wallet.GetFormattedAddress())
-	if err != nil {
-		s.T().Logf("Failed to parse keep-alive recipient address: %v", err)
-		return
-	}
-
-	s.T().Logf("Keep-alive transaction generator started, recipient: %s", recipientAddr.String())
-
-	ticker := time.NewTicker(time.Duration(intervalSeconds) * time.Second)
-	defer ticker.Stop()
-
-	txCounter := 0
-	var txClient *user.TxClient
-	var fromAddr sdk.AccAddress
-
-	// Helper function to establish or re-establish connection
-	setupConnection := func() bool {
-		// Check if context is canceled before attempting connection
-		select {
-		case <-ctx.Done():
-			s.T().Logf("Keep-alive transaction generator: context canceled, cannot setup connection")
-			return false
-		default:
-		}
-
-		var err error
-		txClient, err = dockerchain.SetupTxClient(ctx, chain.GetNodes()[0].(*tastoradockertypes.ChainNode), cfg)
-		if err != nil {
-			s.T().Logf("Failed to setup TxClient for keep-alive transactions: %v", err)
-			return false
-		}
-		fromAddr = txClient.DefaultAddress()
-		s.T().Logf("Keep-alive transaction generator connected: %s -> %s", fromAddr.String(), recipientAddr.String())
-		return true
-	}
-
-	// Initial connection setup
-	if !setupConnection() {
-		s.T().Logf("Keep-alive transaction generator failed to establish initial connection")
-		return
-	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			s.T().Logf("Keep-alive transaction generator stopped after sending %d transactions", txCounter)
-			return
-		case <-ticker.C:
-			// Send a small bank transfer (1000 utia = 0.001 TIA)
-			sendAmount := sdk.NewCoins(sdk.NewCoin("utia", sdkmath.NewInt(1000)))
-			msg := banktypes.NewMsgSend(fromAddr, recipientAddr, sendAmount)
-
-			// Retry logic with connection re-establishment
-			maxRetries := 3
-			retryDelay := 2 * time.Second
-			success := false
-
-			for attempt := 0; attempt < maxRetries && !success; attempt++ {
-				// Check if context is canceled before attempting transaction
-				select {
-				case <-ctx.Done():
-					s.T().Logf("Keep-alive transaction generator: context canceled, stopping")
-					return
-				default:
-				}
-
-				// Ensure txClient is not nil before using it
-				if txClient == nil {
-					s.T().Logf("Keep-alive transaction %d: txClient is nil, attempting to reconnect", txCounter+1)
-					if !setupConnection() {
-						s.T().Logf("Keep-alive transaction %d: failed to reconnect, skipping", txCounter+1)
-						break
-					}
-					// Update the message with the new fromAddr after reconnection
-					msg = banktypes.NewMsgSend(fromAddr, recipientAddr, sendAmount)
-				}
-
-				// Submit transaction with appropriate gas and fee
-				_, err := txClient.SubmitTx(ctx, []sdk.Msg{msg}, user.SetGasLimit(200000), user.SetFee(5000))
-				if err != nil {
-					// Check if it's a connection error
-					if strings.Contains(err.Error(), "connection") || strings.Contains(err.Error(), "rpc error") || strings.Contains(err.Error(), "Unavailable") {
-						s.T().Logf("Keep-alive transaction %d connection error (attempt %d/%d): %v", txCounter+1, attempt+1, maxRetries, err)
-
-						// Wait before retrying and attempt to re-establish connection
-						if attempt < maxRetries-1 {
-							time.Sleep(retryDelay)
-
-							// Check if context is canceled before attempting reconnection
-							select {
-							case <-ctx.Done():
-								s.T().Logf("Keep-alive transaction generator: context canceled during retry, stopping")
-								return
-							default:
-							}
-
-							if setupConnection() {
-								// Update the message with the new fromAddr after reconnection
-								msg = banktypes.NewMsgSend(fromAddr, recipientAddr, sendAmount)
-								// Double the retry delay for next attempt
-								retryDelay *= 2
-							}
-						}
-					} else {
-						// Non-connection error, check if it's context cancellation
-						if strings.Contains(err.Error(), "context canceled") {
-							s.T().Logf("Keep-alive transaction %d canceled due to context: %v", txCounter+1, err)
-							return
-						}
-						// Other non-connection error, log and move on
-						s.T().Logf("Keep-alive transaction %d failed (non-connection error): %v", txCounter+1, err)
-						break
-					}
-				} else {
-					success = true
-					txCounter++
-					if txCounter%10 == 0 {
-						s.T().Logf("Keep-alive transaction generator: sent %d transactions", txCounter)
-					}
-				}
-			}
-
-			if !success && maxRetries > 0 {
-				s.T().Logf("Keep-alive transaction %d failed after %d retries", txCounter+1, maxRetries)
-			}
-		}
-	}
-}
-
-// validatorStateSyncAppOverrides modifies the app.toml to configure state sync snapshots for the given node.
-func validatorStateSyncAppOverrides(ctx context.Context, node *tastoradockertypes.ChainNode) error {
-	return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
-		cfg.StateSync.SnapshotInterval = 5
-		cfg.StateSync.SnapshotKeepRecent = 2
-	})
-}
-
-// validatorPruningAppOverrides modifies the app.toml to enable aggressive pruning with short retention.
-// This ensures that validators only keep recent blocks, forcing state sync instead of block sync.
-func validatorPruningAppOverrides(ctx context.Context, node *tastoradockertypes.ChainNode) error {
-	return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
-		// Enable custom pruning with aggressive settings
-		cfg.Pruning = "custom"
-		cfg.PruningKeepRecent = "20" // Keep only last 20 blocks
-		cfg.PruningInterval = "10"   // Prune every 10 blocks
-		cfg.MinRetainBlocks = 20     // Minimum blocks to retain for other nodes to catch up
-
-		// Configure state sync snapshots for serving snapshots to state sync nodes
-		cfg.StateSync.SnapshotInterval = 5
-		cfg.StateSync.SnapshotKeepRecent = 2
-	})
-}
 
 func (s *CelestiaTestSuite) TestStateSync() {
 	t := s.T()
@@ -406,15 +239,11 @@ func (s *CelestiaTestSuite) TestStateSyncAcrossMixedAppVersions() {
 	t.Log("Phase 1: Starting v4 chain with 4 validators")
 	cfg := dockerchain.DefaultConfig(s.client, s.network).WithTag(tag)
 
-	// TODO: we will later have a loop and upgrade to multiple versions until we reach the latest version
-	// while spamming the network with txs (txsim) and also make sure the chain is properly pruned so to avoid block sync instead of state sync
-	// Then we mark a paticular tx probably for each version and then we evaluate the state sync node to see if it can sync to the latest version
-	// and the submitted txs are properly synced.
-	// Configure genesis for v4 with 3 validators (default)
+	// Configure genesis for v4 with 3 validators
 	cfg.Genesis = cfg.Genesis.WithAppVersion(4)
 
 	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).
-		WithPostInit(validatorPruningAppOverrides). // Enable aggressive pruning and snapshots
+		WithPostInit(validatorStateSyncProducerOverrides). // Enable state sync snapshots
 		Build(ctx)
 	s.Require().NoError(err, "failed to build chain")
 
@@ -433,6 +262,10 @@ func (s *CelestiaTestSuite) TestStateSyncAcrossMixedAppVersions() {
 	validatorNode := chain.GetNodes()[0]
 	rpcClient, err := validatorNode.GetRPCClient()
 	s.Require().NoError(err, "failed to get RPC client")
+
+	// Wait for state sync snapshots to be created
+	t.Log("Waiting for state sync snapshots to be generated...")
+	s.Require().NoError(wait.ForBlocks(ctx, 10, chain), "the chain should be running to generate snapshots")
 
 	// Verify we're starting with app version 4
 	abciInfo, err := rpcClient.ABCIInfo(ctx)
@@ -463,70 +296,14 @@ func (s *CelestiaTestSuite) TestStateSyncAcrossMixedAppVersions() {
 
 	// Phase 2: Perform v4 → v5 upgrade
 	t.Log("Phase 2: Performing v4 → v5 upgrade")
-
-	kr := cfg.Genesis.Keyring()
-	records, err := kr.List()
-	s.Require().NoError(err, "failed to list keyring records")
-	s.Require().Len(records, len(chain.GetNodes()), "number of accounts should match number of nodes")
-
-	// Signal and execute upgrade from v4 to v5 (following working upgrade test pattern)
-	upgradeHeight := s.signalAndGetUpgradeHeight(ctx, chain, validatorNode, cfg, records, 5)
-
-	// Start keep-alive transaction generator to ensure chain doesn't stall during upgrade
-	upgradeCtx, upgradeCancel := context.WithCancel(ctx)
-	var upgradeWg sync.WaitGroup
-	upgradeWg.Add(1)
-	go s.keepAliveTransactionGenerator(upgradeCtx, &upgradeWg, chain, cfg, 3) // Send tx every 3 seconds
-	t.Log("Started keep-alive transaction generator for upgrade period")
-
-	// Wait for upgrade to complete
-	currentHeight, err := s.GetLatestBlockHeight(ctx, rpcClient)
-	s.Require().NoError(err, "failed to get current height")
-
-	blocksToWait := int(upgradeHeight-currentHeight) + 2
-	t.Logf("Waiting for %d blocks to reach upgrade height %d", blocksToWait, upgradeHeight)
-	s.Require().NoError(wait.ForBlocks(ctx, blocksToWait, chain),
-		"failed to wait for upgrade completion")
-
-	// Stop the upgrade keep-alive generator
-	upgradeCancel()
-	upgradeWg.Wait()
-	t.Log("Stopped keep-alive transaction generator for upgrade period")
-
-	// Verify upgrade completed successfully
-	abciInfo, err = rpcClient.ABCIInfo(ctx)
-	s.Require().NoError(err, "failed to fetch ABCI info after upgrade")
-	s.Require().Equal(uint64(5), abciInfo.Response.GetAppVersion(), "app version should be 5 after upgrade")
-
-	// Start keep-alive transaction generator for post-upgrade block production
-	postUpgradeCtx, postUpgradeCancel := context.WithCancel(ctx)
-	var postUpgradeWg sync.WaitGroup
-	postUpgradeWg.Add(1)
-	go s.keepAliveTransactionGenerator(postUpgradeCtx, &postUpgradeWg, chain, cfg, 2) // Send tx every 2 seconds
-	t.Log("Started keep-alive transaction generator for post-upgrade block production")
-
-	// Produce 20 more blocks at v5
-	t.Log("Producing 20 more blocks at app version 5")
-	s.Require().NoError(wait.ForBlocks(ctx, 20, chain),
-		"failed to wait for 20 blocks after upgrade")
-
-	// Stop the post-upgrade keep-alive generator
-	postUpgradeCancel()
-	postUpgradeWg.Wait()
-	t.Log("Stopped keep-alive transaction generator for post-upgrade block production")
+	upgradeHeight := s.performUpgrade(ctx, chain, cfg)
 
 	finalHeight, err := s.GetLatestBlockHeight(ctx, rpcClient)
 	s.Require().NoError(err, "failed to get final height")
 	t.Logf("Chain now at height %d with mixed version history (v4: blocks 1-%d, v5: blocks %d-%d)",
 		finalHeight, upgradeHeight-1, upgradeHeight, finalHeight)
 
-	// Log pruning configuration to confirm aggressive pruning is enabled
-	t.Logf("Validators configured with aggressive pruning: keep_recent=20, min_retain_blocks=20")
-	t.Logf("This ensures state sync is required (not block sync) for nodes joining at height %d", finalHeight)
-
-	// Verify that pruning is actually working by checking if early blocks are accessible
-	t.Log("Verifying that pruning has actually removed early blocks...")
-	s.verifyBlocksPruned(ctx, t, rpcClient, finalHeight)
+	t.Log("Validators configured with state sync snapshots every 5 blocks")
 
 	// Phase 3: Launch state sync node
 	t.Log("Phase 3: Launching new full node with state sync enabled")
@@ -551,12 +328,8 @@ func (s *CelestiaTestSuite) TestStateSyncAcrossMixedAppVersions() {
 		tastoradockertypes.NewChainNodeConfigBuilder().
 			WithNodeType(tastoratypes.NodeTypeConsensusFull).
 			WithPostInit(func(ctx context.Context, node *tastoradockertypes.ChainNode) error {
-				return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
-					cfg.StateSync.Enable = true
-					cfg.StateSync.TrustHeight = trustHeight
-					cfg.StateSync.TrustHash = trustHash
-					cfg.StateSync.RPCServers = strings.Split(rpcServers, ",")
-				})
+				// Use our helper function to properly configure state sync
+				return configureStateSyncClient(ctx, node, strings.Split(rpcServers, ","), trustHeight, trustHash)
 			}).
 			Build(),
 	)
@@ -572,115 +345,408 @@ func (s *CelestiaTestSuite) TestStateSyncAcrossMixedAppVersions() {
 	// Phase 4: Wait for state sync and validate
 	t.Log("Phase 4: Waiting for state sync completion and validation")
 
-	err = s.WaitForSync(ctx, stateSyncClient, stateSyncTimeout, func(info rpctypes.SyncInfo) bool {
-		return !info.CatchingUp && info.LatestBlockHeight >= latestHeight
-	})
-	s.Require().NoError(err, "failed to wait for state sync to complete")
+	// Monitor sync progress and collect height history
+	heightHistory := s.monitorSyncProgress(ctx, t, stateSyncClient, latestHeight, stateSyncTimeout)
+
+	// Verify that state sync was used (not block sync)
+	dockerNode := stateSyncNode.(*tastoradockertypes.ChainNode)
+	verifySyncMethod(t, heightHistory, dockerNode)
 
 	// Validate: /status shows catching_up=false
 	status, err := stateSyncClient.Status(ctx)
 	s.Require().NoError(err, "failed to get status from state sync node")
 	s.Require().False(status.SyncInfo.CatchingUp, "state sync node should not be catching up")
-	t.Logf("✓ State sync node status: catching_up=%t, height=%d",
+	t.Logf("State sync node status: catching_up=%t, height=%d",
 		status.SyncInfo.CatchingUp, status.SyncInfo.LatestBlockHeight)
 
+	// Get FRESH chain height for accurate comparison (chain continued producing blocks during state sync)
+	currentChainHeight, err := s.GetLatestBlockHeight(ctx, rpcClient)
+	s.Require().NoError(err, "failed to get current chain height")
+
 	// Verify that the node actually performed state sync by checking it reached current height
-	// without having access to the full block history (due to aggressive pruning)
 	nodeHeight := status.SyncInfo.LatestBlockHeight
-	s.Require().GreaterOrEqual(nodeHeight, finalHeight-5,
-		"state sync node should be within 5 blocks of the chain tip")
-	t.Logf("✓ State sync successful: node reached height %d (chain tip: %d) using state sync",
-		nodeHeight, finalHeight)
-	t.Logf("✓ Confirmed: Node used state sync instead of block sync due to aggressive pruning")
+	s.Require().GreaterOrEqual(nodeHeight, currentChainHeight-5,
+		"state sync node should be within 5 blocks of the current chain tip")
+	s.Require().LessOrEqual(nodeHeight, currentChainHeight+2,
+		"state sync node should not be significantly ahead of the chain")
+	t.Logf("State sync successful: node reached height %d (current chain tip: %d)",
+		nodeHeight, currentChainHeight)
 
 	// Validate: ABCIInfo.app_version == 5
 	syncedAbciInfo, err := stateSyncClient.ABCIInfo(ctx)
 	s.Require().NoError(err, "failed to fetch ABCI info from state sync node")
 	s.Require().Equal(uint64(5), syncedAbciInfo.Response.GetAppVersion(),
 		"state sync node should have app version 5")
-	t.Logf("✓ State sync node app version: %d", syncedAbciInfo.Response.GetAppVersion())
+	t.Logf("State sync node app version: %d", syncedAbciInfo.Response.GetAppVersion())
 
 	// Validate: Basic bank send succeeds from synced node
 	t.Log("Testing bank send transaction from state sync node")
 	testBankSend(s.T(), chain, cfg)
-	t.Log("✓ Bank send transaction succeeded")
+	t.Log("Bank send transaction succeeded")
 
 	// Final liveness check
 	t.Log("Performing final liveness check")
 	s.Require().NoError(s.CheckLiveness(ctx, chain), "liveness check failed")
-	t.Log("✓ Liveness check passed")
+	t.Log("Liveness check passed")
 
 	t.Log("State sync across mixed app versions test completed successfully!")
 }
 
-// verifyBlocksPruned checks if early blocks have been pruned by attempting to query them.
-// This confirms that aggressive pruning is working and blocks are actually being removed.
-func (s *CelestiaTestSuite) verifyBlocksPruned(ctx context.Context, t *testing.T, rpcClient interface {
-	Block(ctx context.Context, height *int64) (*rpctypes.ResultBlock, error)
-}, currentHeight int64) {
-	t.Logf("Current chain height: %d", currentHeight)
+// checkSyncMetrics queries Prometheus metrics to determine sync method
+func checkSyncMetrics(t *testing.T, node *tastoradockertypes.ChainNode) (stateSync bool, blockSync bool, err error) {
+	ctx := context.Background()
 
-	// Try to query the first block (height 1) - this should fail if pruning is working
-	t.Log("Attempting to query block at height 1 (should fail if pruned)...")
-	block1Height := int64(1)
-	_, err := rpcClient.Block(ctx, &block1Height)
-	if err != nil {
-		t.Logf("✓ Block 1 is not accessible (pruned): %v", err)
-	} else {
-		t.Log("⚠ Block 1 is still accessible - pruning may not be working as expected")
+	// Try multiple approaches to get metrics
+	endpoints := []string{
+		"http://localhost:26660/metrics", // Default prometheus port
+		"http://127.0.0.1:26660/metrics", // Alternative localhost
+		"http://localhost:26657/metrics", // Alternative CometBFT port
+		"http://127.0.0.1:26657/metrics", // Alternative CometBFT port
 	}
 
-	// Try to query a block that should definitely be pruned (assuming we're far enough along)
-	if currentHeight > 30 {
-		earlyBlockHeight := int64(5)
-		t.Logf("Attempting to query block at height %d (should fail if pruned)...", earlyBlockHeight)
-		_, err := rpcClient.Block(ctx, &earlyBlockHeight)
-		if err != nil {
-			t.Logf("✓ Block %d is not accessible (pruned): %v", earlyBlockHeight, err)
+	for _, endpoint := range endpoints {
+		cmd := []string{"curl", "-s", "--connect-timeout", "5", endpoint}
+		stdout, stderr, execErr := node.Exec(ctx, cmd, nil)
+
+		if execErr != nil {
+			t.Logf("Failed to fetch metrics from %s: %v, stderr: %s", endpoint, execErr, string(stderr))
+			continue
+		}
+
+		metrics := string(stdout)
+		if len(metrics) < 10 {
+			t.Logf("Empty or invalid metrics response from %s", endpoint)
+			continue
+		}
+
+		// Parse metrics for sync indicators
+		if strings.Contains(metrics, "statesync_syncing 1") {
+			t.Logf("Prometheus metrics: State sync active (statesync_syncing=1)")
+			return true, false, nil
+		}
+
+		if strings.Contains(metrics, "blocksync_syncing 1") {
+			t.Logf("Prometheus metrics: Block sync active (blocksync_syncing=1)")
+			return false, true, nil
+		}
+
+		// Check for completed sync metrics
+		if strings.Contains(metrics, "statesync_syncing 0") {
+			t.Logf("Prometheus metrics: State sync completed (statesync_syncing=0)")
+			return true, false, nil
+		}
+
+		if strings.Contains(metrics, "blocksync_syncing 0") {
+			t.Logf("Prometheus metrics: Block sync completed (blocksync_syncing=0)")
+			return false, true, nil
+		}
+
+		t.Logf("Prometheus metrics available but no sync metrics found")
+		return false, false, nil
+	}
+
+	return false, false, fmt.Errorf("could not fetch Prometheus metrics from any endpoint")
+}
+
+// analyzeSyncMethod determines if state sync or block sync was used based on height progression
+func analyzeSyncMethod(t *testing.T, heightHistory []int64) (usedStateSync bool, usedBlockSync bool) {
+	if len(heightHistory) < 2 {
+		t.Logf("Insufficient height data for analysis: %v", heightHistory)
+		return false, false
+	}
+
+	startHeight := heightHistory[0]
+	endHeight := heightHistory[len(heightHistory)-1]
+
+	// State sync pattern: sudden jump from 0 to high number (minimal intermediate values)
+	// Block sync pattern: incremental progression through many intermediate heights
+
+	if len(heightHistory) <= 3 && startHeight == 0 && endHeight > 50 {
+		// Very few data points with sudden jump = state sync
+		t.Logf("Detected state sync: sudden jump from %d to %d with %d data points",
+			startHeight, endHeight, len(heightHistory))
+
+		// Additional validation: ensure it's a true jump, not just fast incremental sync
+		if len(heightHistory) == 2 && heightHistory[1] > heightHistory[0]+20 {
+			t.Logf("Confirmed state sync: classic pattern [0, %d] with large jump", heightHistory[1])
+			return true, false
+		}
+
+		return true, false
+	}
+
+	if len(heightHistory) > 5 {
+		// Many data points = likely incremental block sync
+		intermediateCount := 0
+		for i := 1; i < len(heightHistory)-1; i++ {
+			if heightHistory[i] > 0 && heightHistory[i] < endHeight-10 {
+				intermediateCount++
+			}
+		}
+
+		if intermediateCount > 2 {
+			t.Logf("Detected block sync: incremental progression with %d intermediate heights", intermediateCount)
+			return false, true
 		} else {
-			t.Logf("⚠ Block %d is still accessible - pruning may not be working as expected", earlyBlockHeight)
+			t.Logf("Pattern suggests state sync: few intermediate heights despite %d data points", len(heightHistory))
+			return true, false
 		}
 	}
 
-	// Find the earliest accessible block by binary search
-	t.Log("Finding the earliest accessible block...")
-	earliestAccessible := findEarliestAccessibleBlock(ctx, rpcClient, currentHeight)
-	if earliestAccessible > 0 {
-		t.Logf("✓ Earliest accessible block: %d (pruned blocks 1-%d)", earliestAccessible, earliestAccessible-1)
-
-		// Verify that only recent blocks are kept (should be within our retention policy)
-		expectedEarliest := currentHeight - 20 // We configured keep_recent=20
-		if earliestAccessible >= expectedEarliest {
-			t.Logf("✓ Pruning working correctly: earliest block %d >= expected earliest %d",
-				earliestAccessible, expectedEarliest)
-		} else {
-			t.Logf("⚠ Pruning may be too aggressive: earliest block %d < expected earliest %d",
-				earliestAccessible, expectedEarliest)
+	// Moderate data points - analyze for incremental pattern
+	hasIncremental := false
+	for i := 1; i < len(heightHistory); i++ {
+		if heightHistory[i] > 0 && heightHistory[i-1] >= 0 {
+			diff := heightHistory[i] - heightHistory[i-1]
+			if diff > 0 && diff < 20 && heightHistory[i-1] > 0 {
+				hasIncremental = true
+				break
+			}
 		}
+	}
+
+	if hasIncremental {
+		t.Logf("Detected block sync: incremental progression pattern in %v", heightHistory)
+		return false, true
 	} else {
-		t.Log("⚠ Could not determine earliest accessible block")
+		t.Logf("Detected state sync: no incremental pattern in %v", heightHistory)
+		return true, false
 	}
 }
 
-// findEarliestAccessibleBlock uses binary search to find the earliest block that is still accessible.
-func findEarliestAccessibleBlock(ctx context.Context, rpcClient interface {
-	Block(ctx context.Context, height *int64) (*rpctypes.ResultBlock, error)
-}, currentHeight int64) int64 {
-	left, right := int64(1), currentHeight
-	earliestFound := int64(-1)
+// verifySyncMethod validates that state sync was used and not block sync
+func verifySyncMethod(t *testing.T, heightHistory []int64, stateSyncNode *tastoradockertypes.ChainNode) {
+	t.Logf("Height progression during sync: %v", heightHistory)
 
-	for left <= right {
-		mid := (left + right) / 2
-		_, err := rpcClient.Block(ctx, &mid)
-		if err == nil {
-			// Block exists, try to find an earlier one
-			earliestFound = mid
-			right = mid - 1
-		} else {
-			// Block doesn't exist, search in the higher range
-			left = mid + 1
-		}
+	// Analyze height progression pattern
+	usedStateSync, usedBlockSync := analyzeSyncMethod(t, heightHistory)
+
+	// FAIL if block sync was detected
+	if usedBlockSync {
+		t.Fatalf("CRITICAL FAILURE: Node used BLOCK SYNC instead of STATE SYNC! "+
+			"This test requires state sync. Height progression: %v", heightHistory)
 	}
 
-	return earliestFound
+	// FAIL if we couldn't determine the sync method
+	if !usedStateSync {
+		t.Fatalf("Could not confirm state sync was used. "+
+			"Height progression: %v", heightHistory)
+	}
+
+	t.Logf("Confirmed: Node successfully used state sync")
+
+	// Additional verification using Prometheus metrics
+	metricStateSync, metricBlockSync, metricsErr := checkSyncMetrics(t, stateSyncNode)
+	if metricsErr != nil {
+		t.Logf("Warning: Could not verify sync method via metrics: %v", metricsErr)
+	} else {
+		if metricBlockSync {
+			t.Fatalf("CRITICAL: Prometheus metrics show BLOCK SYNC was used! " +
+				"This contradicts our height progression analysis. Metrics must be checked.")
+		}
+		if metricStateSync {
+			t.Logf("Prometheus metrics confirm: State sync was used")
+		}
+	}
+}
+
+// monitorSyncProgress tracks height progression during sync and detects early block sync patterns
+func (s *CelestiaTestSuite) monitorSyncProgress(ctx context.Context, t *testing.T, stateSyncClient rpclient.StatusClient, latestHeight int64, stateSyncTimeout time.Duration) []int64 {
+	heightHistory := []int64{}
+
+	err := s.WaitForSync(ctx, stateSyncClient, stateSyncTimeout, func(info rpctypes.SyncInfo) bool {
+		heightHistory = append(heightHistory, info.LatestBlockHeight)
+
+		// Log progress for analysis
+		t.Logf("Sync progress: height=%d, catching_up=%t",
+			info.LatestBlockHeight, info.CatchingUp)
+
+		// EARLY DETECTION: If we see incremental height progression, it's likely block sync
+		if len(heightHistory) >= 5 {
+			// Check if we're seeing sequential height increases (block sync pattern)
+			sequential := true
+			for i := 1; i < len(heightHistory); i++ {
+				if heightHistory[i] > 0 && heightHistory[i-1] > 0 {
+					if heightHistory[i]-heightHistory[i-1] > 5 {
+						sequential = false
+						break
+					}
+				}
+			}
+			if sequential && heightHistory[len(heightHistory)-1] > 10 {
+				t.Fatalf("EARLY DETECTION: Node appears to be using BLOCK SYNC (sequential height progression: %v)! "+
+					"State sync should jump directly to target height, not increment slowly.", heightHistory)
+			}
+		}
+
+		return !info.CatchingUp && info.LatestBlockHeight >= latestHeight
+	})
+	s.Require().NoError(err, "failed to wait for state sync to complete")
+
+	return heightHistory
+}
+
+// performUpgrade executes the v4 → v5 upgrade with transaction activity
+func (s *CelestiaTestSuite) performUpgrade(ctx context.Context, chain tastoratypes.Chain, cfg *dockerchain.Config) int64 {
+	t := s.T()
+
+	validatorNode := chain.GetNodes()[0]
+	kr := cfg.Genesis.Keyring()
+	records, err := kr.List()
+	s.Require().NoError(err, "failed to list keyring records")
+	s.Require().Len(records, len(chain.GetNodes()), "number of accounts should match number of nodes")
+
+	// Signal and execute upgrade from v4 to v5
+	upgradeHeight := s.signalAndGetUpgradeHeight(ctx, chain, validatorNode, cfg, records, 5)
+
+	// Start keep-alive transaction generator to ensure chain doesn't stall during upgrade
+	upgradeCtx, upgradeCancel := context.WithCancel(ctx)
+	var upgradeWg sync.WaitGroup
+	upgradeWg.Add(1)
+	go s.keepAliveTransactionGenerator(upgradeCtx, &upgradeWg, chain.(*tastoradockertypes.Chain), cfg, 3) // Send tx every 3 seconds
+	t.Log("Started keep-alive transaction generator for upgrade period")
+
+	// Wait for upgrade to complete
+	rpcClient, err := validatorNode.GetRPCClient()
+	s.Require().NoError(err, "failed to get RPC client")
+
+	currentHeight, err := s.GetLatestBlockHeight(ctx, rpcClient)
+	s.Require().NoError(err, "failed to get current height")
+
+	blocksToWait := int(upgradeHeight-currentHeight) + 2
+	t.Logf("Waiting for %d blocks to reach upgrade height %d", blocksToWait, upgradeHeight)
+	s.Require().NoError(wait.ForBlocks(ctx, blocksToWait, chain),
+		"failed to wait for upgrade completion")
+
+	// Stop the upgrade keep-alive generator
+	upgradeCancel()
+	upgradeWg.Wait()
+	t.Log("Stopped keep-alive transaction generator for upgrade period")
+
+	// Verify upgrade completed successfully
+	abciInfo, err := rpcClient.ABCIInfo(ctx)
+	s.Require().NoError(err, "failed to fetch ABCI info")
+	s.Require().Equal(uint64(5), abciInfo.Response.GetAppVersion(), "should be at app version 5")
+
+	// Start post-upgrade transaction activity
+	postUpgradeCtx, postUpgradeCancel := context.WithCancel(ctx)
+	var postUpgradeWg sync.WaitGroup
+	postUpgradeWg.Add(1)
+	go s.keepAliveTransactionGenerator(postUpgradeCtx, &postUpgradeWg, chain.(*tastoradockertypes.Chain), cfg, 2)
+	t.Log("Started keep-alive transaction generator for post-upgrade block production")
+
+	// Produce additional blocks at app version 5
+	t.Log("Producing 20 more blocks at app version 5")
+	s.Require().NoError(wait.ForBlocks(ctx, 20, chain), "failed to wait for post-upgrade blocks")
+
+	// Stop post-upgrade generator
+	postUpgradeCancel()
+	postUpgradeWg.Wait()
+	t.Log("Stopped keep-alive transaction generator for post-upgrade block production")
+
+	return upgradeHeight
+}
+
+// keepAliveTransactionGenerator sends simple transactions to keep the chain active during upgrades.
+// This ensures continuous block production and snapshot creation for state sync testing.
+func (s *CelestiaTestSuite) keepAliveTransactionGenerator(ctx context.Context, wg *sync.WaitGroup, chain *tastoradockertypes.Chain, cfg *dockerchain.Config, intervalSeconds int) {
+	defer wg.Done()
+
+	t := s.T()
+
+	// Setup simple transaction client
+	nodes := chain.GetNodes()
+	if len(nodes) == 0 {
+		t.Logf("Keep-alive: no nodes available")
+		return
+	}
+
+	validatorNode := nodes[0].(*tastoradockertypes.ChainNode)
+	txClient, err := dockerchain.SetupTxClient(ctx, validatorNode, cfg)
+	if err != nil {
+		t.Logf("Keep-alive: failed to setup tx client: %v", err)
+		return
+	}
+
+	// Create recipient wallet
+	recipientWallet, err := chain.CreateWallet(ctx, fmt.Sprintf("keepalive-recipient-%d", time.Now().UnixNano()))
+	if err != nil {
+		t.Logf("Keep-alive: failed to create recipient wallet: %v", err)
+		return
+	}
+
+	recipientAddr, err := sdk.AccAddressFromBech32(recipientWallet.GetFormattedAddress())
+	if err != nil {
+		t.Logf("Keep-alive: failed to parse recipient address: %v", err)
+		return
+	}
+
+	fromAddr := txClient.DefaultAddress()
+	t.Logf("Keep-alive: started, sending from %s to %s every %ds", fromAddr, recipientAddr, intervalSeconds)
+
+	ticker := time.NewTicker(time.Duration(intervalSeconds) * time.Second)
+	defer ticker.Stop()
+
+	txCounter := 0
+	for {
+		select {
+		case <-ctx.Done():
+			t.Logf("Keep-alive: stopped after %d transactions", txCounter)
+			return
+		case <-ticker.C:
+			txCounter++
+
+			// Send small transaction (1000 utia)
+			sendAmount := sdk.NewCoins(sdk.NewCoin("utia", sdkmath.NewInt(1000)))
+			msg := banktypes.NewMsgSend(fromAddr, recipientAddr, sendAmount)
+
+			_, err := txClient.SubmitTx(ctx, []sdk.Msg{msg}, user.SetGasLimit(200000), user.SetFee(5000))
+			if err != nil {
+				t.Logf("Keep-alive transaction %d failed: %v", txCounter, err)
+			} else {
+				t.Logf("Keep-alive transaction %d successful", txCounter)
+			}
+		}
+	}
+}
+
+// validatorStateSyncAppOverrides modifies the app.toml to configure state sync snapshots for the given node.
+func validatorStateSyncAppOverrides(ctx context.Context, node *tastoradockertypes.ChainNode) error {
+	return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
+		cfg.StateSync.SnapshotInterval = 5
+		cfg.StateSync.SnapshotKeepRecent = 2
+	})
+}
+
+// validatorStateSyncProducerOverrides configures validators to produce state sync snapshots.
+func validatorStateSyncProducerOverrides(ctx context.Context, node *tastoradockertypes.ChainNode) error {
+	return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
+		// Configure frequent state sync snapshots for new nodes to consume
+		cfg.StateSync.SnapshotInterval = 5   // Create snapshot every 5 blocks
+		cfg.StateSync.SnapshotKeepRecent = 3 // Keep 3 recent snapshots
+	})
+}
+
+// configureStateSyncClient configures a node to use state sync.
+func configureStateSyncClient(ctx context.Context, node *tastoradockertypes.ChainNode, rpcEndpoints []string, trustHeight int64, trustHash string) error {
+	return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
+		// Enable state sync
+		cfg.StateSync.Enable = true
+
+		// Set RPC servers for state sync (comma-separated list)
+		if len(rpcEndpoints) > 0 {
+			cfg.StateSync.RPCServers = rpcEndpoints
+		}
+
+		// Set trust parameters
+		cfg.StateSync.TrustHeight = trustHeight
+		cfg.StateSync.TrustHash = trustHash
+
+		// Set reasonable timeouts
+		cfg.StateSync.TrustPeriod = 168 * time.Hour // 1 week
+		cfg.StateSync.DiscoveryTime = 5 * time.Second
+
+		// Enable Prometheus metrics for sync detection
+		cfg.Instrumentation.Prometheus = true
+	})
 }
