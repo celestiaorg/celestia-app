@@ -98,8 +98,6 @@ func (ism *ZKExecutionISM) verifyZKStateTransition(metadata ZkExecutionISMMetada
 
 // TODO: validate public inputs with trusted ism/celestia data
 // - celestia header hash (from celestia blockchain state)
-// - namespace (from ISM)
-// - sequencer pubkey (from ISM)
 func (ism *ZKExecutionISM) validatePublicInputs(inputs PublicInputs) error {
 	if !bytes.Equal(inputs.TrustedStateRoot[:], ism.StateRoot) {
 		return fmt.Errorf("cannot trust public inputs trusted state root: expected %x, but got %x", ism.StateRoot, inputs.TrustedStateRoot)
@@ -107,6 +105,14 @@ func (ism *ZKExecutionISM) validatePublicInputs(inputs PublicInputs) error {
 
 	if inputs.TrustedHeight != ism.Height {
 		return fmt.Errorf("cannot trust public inputs trusted height: expected %d, but got %d", ism.Height, inputs.TrustedHeight)
+	}
+
+	if !bytes.Equal(inputs.Namespace[:], ism.NamespaceId) {
+		return fmt.Errorf("cannot trust public inputs namespace id: expected %x, but got %x", ism.NamespaceId, inputs.Namespace)
+	}
+
+	if !bytes.Equal(inputs.PublicKey[:], ism.PublicKey) {
+		return fmt.Errorf("cannot trust public inputs public key: expected %x, but got %x", ism.PublicKey, inputs.PublicKey)
 	}
 
 	return nil
