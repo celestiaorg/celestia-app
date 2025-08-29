@@ -121,8 +121,6 @@ download-v5-binaries:
 mod:
 	@echo "--> Updating go.mod"
 	@go mod tidy
-	@echo "--> Updating go.mod in ./test/interchain"
-	@(cd ./test/interchain && go mod tidy)
 	@echo "--> Updating go.mod in ./test/docker-e2e"
 	@(cd ./test/docker-e2e && go mod tidy)
 .PHONY: mod
