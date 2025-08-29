@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"fmt"
+	"runtime"
 	"time"
 
 	"cosmossdk.io/errors"
@@ -56,6 +57,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
 	// blobTxs have no PFBs present and all txs are less than or equal to the max tx size limit
+	blobTxs := make([]*blobtx.BlobTx, 0, len(req.Txs))
 	for idx, rawTx := range req.Txs {
 		tx := rawTx
 
@@ -110,16 +112,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			continue
 		}
 
-		// validate the blobTx. This is the same validation used in CheckTx ensuring
-		// - there is one PFB
-		// - that each blob has a valid namespace
-		// - that the sizes match
-		// - that the namespaces match between blob and PFB
-		// - that the share commitment is correct
-		if err := blobtypes.ValidateBlobTx(app.encodingConfig.TxConfig, blobTx, appconsts.SubtreeRootThreshold, appconsts.Version); err != nil {
-			logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("invalid blob tx %d", idx), err)
-			return reject(), nil
-		}
+		// validate the blobTx later in parallel.
+		blobTxs = append(blobTxs, blobTx)
 
 		// validated the PFB signature
 		ctx, err = handler(ctx, sdkTx, false)
@@ -128,6 +122,18 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			return reject(), nil
 		}
 
+	}
+
+	// validate the blobTxs in parallel
+	// This is the same validation used in CheckTx ensuring
+	// - there is one PFB
+	// - that each blob has a valid namespace
+	// - that the sizes match
+	// - that the namespaces match between blob and PFB
+	// - that the share commitment is correct
+	if err := blobtypes.ValidateBlobTxsParallel(app.encodingConfig.TxConfig, blobTxs, appconsts.SubtreeRootThreshold, appconsts.Version, runtime.NumCPU()); err != nil {
+		logInvalidPropBlockError(app.Logger(), blockHeader, "invalid blob tx", err)
+		return reject(), nil
 	}
 
 	dataSquare, err := square.Construct(req.Txs, app.MaxEffectiveSquareSize(ctx), appconsts.SubtreeRootThreshold)
