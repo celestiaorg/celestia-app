@@ -2,6 +2,9 @@
     "ignorePatterns": [
         {
             "pattern": "https://crypto.stackexchange.com/questions/54852/what-happens-if-a-sha-256-input-is-too-long-longer-than-512-bits"
+        },
+        {
+            "pattern": "https://docs.celestia.org/tutorials/node-tutorial#submitting-data"
         }
     ],
     "timeout": "20s",
