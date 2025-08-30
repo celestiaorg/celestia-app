@@ -288,7 +288,7 @@ func writeTx(clientCtx client.Context, txf sdktx.Factory, msgs ...sdk.Msg) ([]by
 		ok, err := input.GetConfirmation("confirm transaction before signing and broadcasting", buf, os.Stderr)
 
 		if err != nil || !ok {
-			_, _ = fmt.Fprintf(os.Stderr, "%s\n", "transaction cancelled")
+			_, _ = fmt.Fprintln(os.Stderr, "transaction cancelled")
 			return nil, err
 		}
 	}
