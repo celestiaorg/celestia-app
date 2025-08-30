@@ -56,7 +56,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	// pkg/wrapper/nmt_wrapper.go for more information.
 	eds, err := da.ExtendShares(share.ToBytes(dataSquare))
 	if err != nil {
-		app.Logger().Error("failure to erasure the data square while creating a proposal block", "error", err.Error())
+		app.Logger().Error("failure to erasure encode the data square while creating a proposal block", "error", err.Error())
 		return nil, fmt.Errorf("failure to erasure the data square while creating a proposal block: %w", err)
 	}
 
