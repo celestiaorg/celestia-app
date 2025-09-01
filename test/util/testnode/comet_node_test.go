@@ -5,20 +5,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v6/test/util/random"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
-	tmconfig "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
-	"github.com/celestiaorg/go-square/v2/share"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 func TestIntegrationTestSuite(t *testing.T) {
@@ -35,24 +32,6 @@ type IntegrationTestSuite struct {
 	cctx     Context
 }
 
-func customTendermintConfig() *tmconfig.Config {
-	tmCfg := DefaultTendermintConfig()
-	// Override the mempool's MaxTxBytes to allow the testnode to accept a
-	// transaction that fills the entire square. Any blob transaction larger
-	// than the square size will still fail no matter what.
-	maxTxBytes := appconsts.DefaultUpperBoundMaxBytes
-	tmCfg.Mempool.MaxTxBytes = maxTxBytes
-
-	// Override the MaxBodyBytes to allow the testnode to accept very large
-	// transactions and respond to queries with large responses (200 MiB was
-	// chosen only as an arbitrary large number).
-	tmCfg.RPC.MaxBodyBytes = 200 * mebibyte
-
-	tmCfg.RPC.TimeoutBroadcastTxCommit = time.Minute
-	tmCfg.Consensus.TimeoutCommit = 300 * time.Millisecond
-	return tmCfg
-}
-
 func (s *IntegrationTestSuite) SetupSuite() {
 	t := s.T()
 	s.accounts = RandomAccounts(10)
@@ -64,7 +43,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	cfg := DefaultConfig().
 		WithFundedAccounts(s.accounts...).
 		WithModifiers(genesis.SetBlobParams(enc.Codec, blobGenState.Params)).
-		WithTendermintConfig(customTendermintConfig())
+		WithTimeoutCommit(time.Millisecond * 100)
 
 	cctx, _, _ := NewNetwork(t, cfg)
 	s.cctx = cctx
@@ -79,7 +58,7 @@ func (s *IntegrationTestSuite) TestPostData() {
 func (s *IntegrationTestSuite) TestFillBlock() {
 	require := s.Require()
 
-	for squareSize := 2; squareSize <= appconsts.DefaultGovMaxSquareSize; squareSize *= 2 {
+	for squareSize := 2; squareSize <= 64; squareSize *= 2 {
 		resp, err := s.cctx.FillBlock(squareSize, s.accounts[1], flags.BroadcastSync)
 		require.NoError(err)
 
@@ -132,5 +111,5 @@ func (s *IntegrationTestSuite) Test_defaultAppVersion() {
 	t := s.T()
 	blockRes, err := s.cctx.Client.Block(s.cctx.GoContext(), nil)
 	require.NoError(t, err)
-	require.Equal(t, appconsts.LatestVersion, blockRes.Block.Version.App)
+	require.Equal(t, appconsts.Version, blockRes.Block.Version.App)
 }

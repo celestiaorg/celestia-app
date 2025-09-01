@@ -4,15 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
 // MockTxService allows controlling the behavior of BroadcastTx calls.
@@ -87,6 +87,10 @@ func StartMockServer(t *testing.T, service *MockTxService) *grpc.ClientConn {
 	conn, err := grpc.NewClient(
 		addr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallSendMsgSize(math.MaxInt32),
+			grpc.MaxCallRecvMsgSize(math.MaxInt32),
+		),
 	)
 	require.NoError(t, err)
 

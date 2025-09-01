@@ -1,9 +1,8 @@
 package keeper
 
 import (
+	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-
-	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 )
 
 // Migrator is responsible for handling migrations related to the minfee module.

@@ -5,17 +5,17 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	maps "github.com/celestiaorg/celestia-app/v6/internal/utils"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
-
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	maps "github.com/celestiaorg/celestia-app/v4/internal/utils"
 )
 
 // DocumentLegacyBytes generates a legacy genesis document as bytes by combining various input configurations and state data.
@@ -77,6 +77,18 @@ func DocumentLegacyBytes(
 	bz, err = maps.SetField(bz, "consensus_params.block.time_iota_ms", "1000")
 	if err != nil {
 		return nil, fmt.Errorf("adding time_iota_ms field: %w", err)
+	}
+
+	// the version field used to be at this consensus_params.version.app_version
+	bz, err = maps.SetField(bz, "consensus_params.version.app_version", strconv.Itoa(int(cp.Version.App)))
+	if err != nil {
+		return nil, fmt.Errorf("adding app_version field: %w", err)
+	}
+
+	// remove the version from the new location.
+	bz, err = maps.RemoveField(bz, "consensus_params.version.app")
+	if err != nil {
+		return nil, fmt.Errorf("removing version.app field: %w", err)
 	}
 
 	return bz, nil

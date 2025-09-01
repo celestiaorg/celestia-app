@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/celestiaorg/celestia-app/v6/x/signal/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/spf13/cobra"
-
-	"github.com/celestiaorg/celestia-app/v4/x/signal/types"
 )
 
 // GetQueryCmd returns the CLI query commands for this module.
@@ -23,6 +22,7 @@ func GetQueryCmd() *cobra.Command {
 
 	cmd.AddCommand(CmdQueryTally())
 	cmd.AddCommand(CmdGetUpgrade())
+	cmd.AddCommand(CmdGetMissingValidators())
 	return cmd
 }
 
@@ -79,6 +79,37 @@ func CmdGetUpgrade() *cobra.Command {
 				return clientCtx.PrintString(fmt.Sprintf("An upgrade is pending to app version %d at height %d.\n", resp.Upgrade.AppVersion, resp.Upgrade.UpgradeHeight))
 			}
 			return clientCtx.PrintString("No upgrade is pending.\n")
+		},
+	}
+
+	flags.AddQueryFlagsToCmd(cmd)
+	return cmd
+}
+
+func CmdGetMissingValidators() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "missing-validators",
+		Short:   "Query for the list of validators who haven't signalled for a particular version",
+		Args:    cobra.ExactArgs(1),
+		Example: "missing-validators 5",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
+
+			version, err := strconv.ParseUint(args[0], 10, 64)
+			if err != nil {
+				return err
+			}
+
+			upgradeQueryClient := types.NewQueryClient(clientCtx)
+			resp, err := upgradeQueryClient.GetMissingValidators(cmd.Context(), &types.QueryGetMissingValidatorsRequest{Version: version})
+			if err != nil {
+				return err
+			}
+
+			return clientCtx.PrintProto(resp)
 		},
 	}
 

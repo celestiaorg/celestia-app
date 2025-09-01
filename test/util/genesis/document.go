@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
@@ -15,9 +17,6 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
-
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 var (

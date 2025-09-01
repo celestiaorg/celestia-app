@@ -4,14 +4,12 @@ import (
 	"testing"
 
 	"cosmossdk.io/log"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	"github.com/celestiaorg/go-square/v2/share"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/go-square/v2/share"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 func TestPayForBlobGas(t *testing.T) {
@@ -51,7 +49,7 @@ func TestPayForBlobGas(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			k, stateStore, _ := CreateKeeper(t, appconsts.LatestVersion)
+			k, stateStore, _ := CreateKeeper(t, appconsts.Version)
 			ctx := sdk.NewContext(stateStore, tmproto.Header{}, false, log.NewNopLogger())
 			_, err := k.PayForBlobs(ctx, &tc.msg)
 			require.NoError(t, err)

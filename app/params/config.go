@@ -1,9 +1,8 @@
 package params
 
 import (
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 const (

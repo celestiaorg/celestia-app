@@ -1,9 +1,8 @@
 package keeper
 
 import (
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 // Migrator is responsible for handling migrations related to the blob module.

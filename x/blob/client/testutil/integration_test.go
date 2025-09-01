@@ -8,6 +8,11 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	paycli "github.com/celestiaorg/celestia-app/v6/x/blob/client/cli"
+	"github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
@@ -15,13 +20,6 @@ import (
 	"github.com/cosmos/gogoproto/proto"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
-	"github.com/celestiaorg/go-square/v2/share"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	paycli "github.com/celestiaorg/celestia-app/v4/x/blob/client/cli"
-	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 // username is used to create a funded genesis account under this name

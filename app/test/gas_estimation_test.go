@@ -7,26 +7,24 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v6/test/util"
+	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/random"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/go-square/v2/share"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
-	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 func TestSortAndExtractGasPrice(t *testing.T) {
@@ -99,7 +97,7 @@ func TestEstimateGasPrice(t *testing.T) {
 	// price, then test the gas estimator API.
 	accountNames := testfactory.GenerateAccounts(10)
 	cfg := testnode.DefaultConfig().WithFundedAccounts(accountNames...).
-		WithTimeoutCommit(20 * time.Second) // to have all transactions in the mempool without being included in a block
+		WithTimeoutCommit(10 * time.Second) // to have all transactions in the mempool without being included in a block
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 
@@ -222,7 +220,7 @@ func TestEstimateGasUsed(t *testing.T) {
 	gasEstimationAPI := gasestimation.NewGasEstimatorClient(cctx.GRPCClient)
 
 	// calculate the expected gas used
-	expectedGasEstimate, err := txClient.EstimateGas(cctx.GoContext(), []sdk.Msg{msg})
+	_, expectedGasEstimate, err := txClient.EstimateGasPriceAndUsage(cctx.GoContext(), []sdk.Msg{msg}, gasestimation.TxPriority_TX_PRIORITY_MEDIUM)
 	require.NoError(t, err)
 	// calculate the actual gas used
 	actualGasEstimate, err := gasEstimationAPI.EstimateGasPriceAndUsage(cctx.GoContext(), &gasestimation.EstimateGasPriceAndUsageRequest{TxBytes: rawTx})
@@ -240,11 +238,11 @@ func TestEstimateGasUsed(t *testing.T) {
 		user.SetFee(1),
 	)
 	require.NoError(t, err)
-	pfbMsg, err := blobtypes.NewMsgPayForBlobs(addr.String(), appconsts.LatestVersion, blobs...)
+	pfbMsg, err := blobtypes.NewMsgPayForBlobs(addr.String(), appconsts.Version, blobs...)
 	require.NoError(t, err)
 
 	// calculate the expected gas used
-	expectedGasEstimate, err = txClient.EstimateGas(cctx.GoContext(), []sdk.Msg{pfbMsg})
+	_, expectedGasEstimate, err = txClient.EstimateGasPriceAndUsage(cctx.GoContext(), []sdk.Msg{pfbMsg}, gasestimation.TxPriority_TX_PRIORITY_MEDIUM)
 	require.NoError(t, err)
 	// calculate the actual gas used
 	actualGasEstimate, err = gasEstimationAPI.EstimateGasPriceAndUsage(cctx.GoContext(), &gasestimation.EstimateGasPriceAndUsageRequest{TxBytes: pfbTx})

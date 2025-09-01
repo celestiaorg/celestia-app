@@ -1,14 +1,17 @@
 package gasestimation
 
 import (
+	"context"
+	"errors"
 	"math"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/test/util/random"
+	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
+	"github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 )
 
 func TestMedian(t *testing.T) {
@@ -253,4 +256,73 @@ func TestStandardDeviation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGasEstimatorWithNetworkMinGasPrice(t *testing.T) {
+	// Test that the gas estimator respects the network minimum gas price
+	networkMinGasPrice := 0.01 // Higher than default min gas price
+
+	// Test with empty mempool
+	emptyMempool := newMockMempoolClient([]types.Tx{})
+
+	server := &gasEstimatorServer{
+		mempoolClient: emptyMempool,
+		minGasPriceFn: func() (float64, error) {
+			return networkMinGasPrice, nil
+		},
+		govMaxSquareBytesFn: func() (uint64, error) {
+			return 1000000, nil
+		},
+	}
+
+	// Test when mempool is empty (should return network min gas price)
+	gasPrice, err := server.estimateGasPrice(context.Background(), TxPriority_TX_PRIORITY_MEDIUM)
+	require.NoError(t, err)
+	require.Equal(t, networkMinGasPrice, gasPrice)
+
+	// Test when minGasPriceFn returns an error (should return default min gas price)
+	serverWithError := &gasEstimatorServer{
+		mempoolClient: emptyMempool,
+		minGasPriceFn: func() (float64, error) {
+			return 0, errors.New("min fee module unavailable")
+		},
+		govMaxSquareBytesFn: func() (uint64, error) {
+			return 1000000, nil
+		},
+	}
+
+	_, err = serverWithError.estimateGasPrice(context.Background(), TxPriority_TX_PRIORITY_MEDIUM)
+	require.Error(t, err)
+}
+
+type mockMempoolClient struct {
+	txs        []types.Tx
+	totalBytes int64
+}
+
+func newMockMempoolClient(txs []types.Tx) *mockMempoolClient {
+	totalBytes := int64(0)
+	for _, tx := range txs {
+		totalBytes += int64(len(tx))
+	}
+	return &mockMempoolClient{
+		txs:        txs,
+		totalBytes: totalBytes,
+	}
+}
+
+func (m *mockMempoolClient) UnconfirmedTxs(ctx context.Context, limit *int) (*rpctypes.ResultUnconfirmedTxs, error) {
+	return &rpctypes.ResultUnconfirmedTxs{
+		Txs:        m.txs,
+		Total:      len(m.txs),
+		TotalBytes: m.totalBytes,
+	}, nil
+}
+
+func (m *mockMempoolClient) NumUnconfirmedTxs(ctx context.Context) (*rpctypes.ResultUnconfirmedTxs, error) {
+	return nil, nil
+}
+
+func (m *mockMempoolClient) CheckTx(ctx context.Context, tx types.Tx) (*rpctypes.ResultCheckTx, error) {
+	return nil, nil
 }

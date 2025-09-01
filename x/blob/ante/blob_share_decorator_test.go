@@ -4,26 +4,24 @@ import (
 	"math"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/random"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v6/x/blob/ante"
+	blob "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	"github.com/celestiaorg/go-square/v2/share"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proto/tendermint/version"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/go-square/v2/share"
-	blobtx "github.com/celestiaorg/go-square/v2/tx"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/user"
-	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	"github.com/celestiaorg/celestia-app/v4/x/blob/ante"
-	blob "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 const (
@@ -146,7 +144,7 @@ func TestBlobShareDecoratorWithMsgExec(t *testing.T) {
 	decorator := ante.NewBlobShareDecorator(mockBlobKeeper{})
 	ctx := sdk.Context{}.
 		WithIsCheckTx(true).
-		WithBlockHeader(tmproto.Header{Version: version.Consensus{App: appconsts.LatestVersion}})
+		WithBlockHeader(tmproto.Header{Version: version.Consensus{App: appconsts.Version}})
 
 	txConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig
 	txBuilder := txConfig.NewTxBuilder()

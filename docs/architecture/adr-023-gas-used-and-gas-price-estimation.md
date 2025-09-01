@@ -46,7 +46,7 @@ There are multiple ways to have a gas price estimation for a priority level. Thi
 - Low Priority: The gas price is the median price of the bottom 10% of gas prices in the mempool.
 - None Priority: This is equivalent to the Medium priority, using is the median price of all gas prices in the mempool.
 
-If the mempool has more transactions that it can fit in the next block, the estimation will be based on the top gas prices that can fit in a full block. Otherwise, if the mempool transactions can't fill more than 70% of the max block size, the minimum gas price will be returned.
+If the mempool has more transactions than it can fit in the next block, the estimation will be based on the top gas prices that can fit in a full block. Otherwise, if the mempool transactions can't fill more than 70% of the max block size, the minimum gas price will be returned.
 
 If the gas prices used for the estimation are tightly clustered, an increase of 30% and 10% will be added for high and medium priority respectively. Tightly clustered values are defined by the standard deviation of the elements being below the `gasPriceAdjustmentThreshold`.
 

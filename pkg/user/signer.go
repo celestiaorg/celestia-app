@@ -6,21 +6,17 @@ import (
 	"fmt"
 
 	"cosmossdk.io/core/address"
+	"github.com/celestiaorg/celestia-app/v6/app/params"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	"github.com/celestiaorg/go-square/v2/share"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cosmos/cosmos-sdk/client"
 	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
-	"google.golang.org/grpc"
-
-	"github.com/celestiaorg/go-square/v2/share"
-	blobtx "github.com/celestiaorg/go-square/v2/tx"
-
-	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v4/app/params"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 var defaultSignMode = signing.SignMode_SIGN_MODE_DIRECT
@@ -37,6 +33,7 @@ type Signer struct {
 	// set of accounts that the signer can manage. Should match the keys on the keyring
 	accounts            map[string]*Account
 	addressToAccountMap map[string]string
+	signMode            signing.SignMode
 }
 
 // NewSigner returns a new signer using the provided keyring
@@ -50,6 +47,7 @@ func NewSigner(keys keyring.Keyring, encCfg client.TxConfig, chainID string, acc
 		addressCodec:        addresscodec.NewBech32Codec(params.Bech32PrefixAccAddr),
 		accounts:            make(map[string]*Account),
 		addressToAccountMap: make(map[string]string),
+		signMode:            defaultSignMode,
 	}
 
 	for _, acc := range accounts {
@@ -66,6 +64,12 @@ func NewSigner(keys keyring.Keyring, encCfg client.TxConfig, chainID string, acc
 	}
 
 	return s, nil
+}
+
+// WithSignMode sets the sign mode for the signer.
+func (s *Signer) WithSignMode(signMode signing.SignMode) *Signer {
+	s.signMode = signMode
+	return s
 }
 
 // populateAddressToAccountMap retrieves keys from the keyring and maps their addresses to account names in the signer.
@@ -127,7 +131,7 @@ func (s *Signer) CreatePayForBlobs(accountName string, blobs []*share.Blob, opts
 		return nil, 0, err
 	}
 
-	msg, err := blobtypes.NewMsgPayForBlobs(addr, appconsts.LatestVersion, blobs...)
+	msg, err := blobtypes.NewMsgPayForBlobs(addr, appconsts.Version, blobs...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -290,7 +294,7 @@ func (s *Signer) signTransaction(builder client.TxBuilder) (string, uint64, erro
 	// a dry run of the signing data
 	err = builder.SetSignatures(signing.SignatureV2{
 		Data: &signing.SingleSignatureData{
-			SignMode:  defaultSignMode,
+			SignMode:  s.signMode,
 			Signature: nil,
 		},
 		PubKey:   account.pubKey,
@@ -307,7 +311,7 @@ func (s *Signer) signTransaction(builder client.TxBuilder) (string, uint64, erro
 
 	err = builder.SetSignatures(signing.SignatureV2{
 		Data: &signing.SingleSignatureData{
-			SignMode:  defaultSignMode,
+			SignMode:  s.signMode,
 			Signature: signature,
 		},
 		PubKey:   account.pubKey,
@@ -334,11 +338,11 @@ func (s *Signer) createSignature(builder client.TxBuilder, account *Account, seq
 		PubKey:        account.pubKey,
 	}
 
-	bytesToSign, err := authsigning.GetSignBytesAdapter(context.Background(), s.enc.SignModeHandler(), defaultSignMode, signerData, builder.GetTx())
+	bytesToSign, err := authsigning.GetSignBytesAdapter(context.Background(), s.enc.SignModeHandler(), s.signMode, signerData, builder.GetTx())
 	if err != nil {
 		return nil, fmt.Errorf("error getting sign bytes: %w", err)
 	}
-	signature, _, err := s.keys.Sign(account.name, bytesToSign, defaultSignMode)
+	signature, _, err := s.keys.Sign(account.name, bytesToSign, s.signMode)
 	if err != nil {
 		return nil, fmt.Errorf("error signing bytes: %w", err)
 	}
@@ -357,49 +361,4 @@ func (s *Signer) txBuilder(msgs []sdktypes.Msg, opts ...TxOption) (client.TxBuil
 		builder = opt(builder)
 	}
 	return builder, nil
-}
-
-// QueryGasPrice takes a priority and an app gRPC client.
-// Returns the current network gas price corresponding to the provided priority.
-// More on the gas price estimation can be found in docs/architecture/adr-023-gas-used-and-gas-price-estimation.md
-// Deprecated: use TxClient.EstimateGasPrice
-func (s *Signer) QueryGasPrice(
-	ctx context.Context,
-	grpcClient *grpc.ClientConn,
-	priority gasestimation.TxPriority,
-) (float64, error) {
-	estimator := gasestimation.NewGasEstimatorClient(grpcClient)
-	gasPrice, err := estimator.EstimateGasPrice(
-		ctx,
-		&gasestimation.EstimateGasPriceRequest{TxPriority: priority},
-	)
-	if err != nil {
-		return 0, err
-	}
-	return gasPrice.EstimatedGasPrice, nil
-}
-
-// QueryGasUsedAndPrice takes a priority, an app gRPC client, and a transaction bytes.
-// Returns the current network gas price corresponding to the provided priority,
-// and the gas used estimation for the provided transaction bytes.
-// More on the gas estimation can be found in docs/architecture/adr-023-gas-used-and-gas-price-estimation.md
-// Deprecated: use TxClient.EstimateGasPriceAndUsage
-func (s *Signer) QueryGasUsedAndPrice(
-	ctx context.Context,
-	grpcClient *grpc.ClientConn,
-	priority gasestimation.TxPriority,
-	txBytes []byte,
-) (float64, uint64, error) {
-	estimator := gasestimation.NewGasEstimatorClient(grpcClient)
-	gasEstimation, err := estimator.EstimateGasPriceAndUsage(
-		ctx,
-		&gasestimation.EstimateGasPriceAndUsageRequest{
-			TxPriority: priority,
-			TxBytes:    txBytes,
-		},
-	)
-	if err != nil {
-		return 0, 0, err
-	}
-	return gasEstimation.EstimatedGasPrice, gasEstimation.EstimatedGasUsed, nil
 }

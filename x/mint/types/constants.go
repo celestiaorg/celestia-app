@@ -16,8 +16,8 @@ const (
 	SecondsPerYear     = int64(SecondsPerMinute * MinutesPerHour * HoursPerDay * DaysPerYear) // 31,556,952
 	NanosecondsPerYear = NanosecondsPerSecond * SecondsPerYear                                // 31,556,952,000,000,000
 
-	// InitialInflationRate is the inflation rate as defined in CIP-29.
-	InitialInflationRate = 0.0536
+	// InitialInflationRate is the inflation rate as defined in CIP-41.
+	InitialInflationRate = 0.0267
 	// DisinflationRate is the rate at which the inflation rate decreases each year as defined in CIP-29.
 	DisinflationRate = 0.067
 	// TargetInflationRate is the inflation rate that the network aims to

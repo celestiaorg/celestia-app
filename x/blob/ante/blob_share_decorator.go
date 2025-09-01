@@ -4,13 +4,11 @@ import (
 	"math"
 
 	"cosmossdk.io/errors"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	"github.com/celestiaorg/go-square/v2/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
-
-	"github.com/celestiaorg/go-square/v2/share"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 // BlobShareDecorator helps to prevent a PFB from being included in a block but
@@ -81,7 +79,7 @@ func (d BlobShareDecorator) getMaxBlobShares(ctx sdk.Context) int {
 // getMaxSquareSize returns the max effective square size.
 func (d BlobShareDecorator) getMaxSquareSize(ctx sdk.Context) int {
 	govMax := d.k.GetParams(ctx).GovMaxSquareSize
-	hardMax := appconsts.SquareSizeUpperBound
+	hardMax := appconsts.GetSquareSizeUpperBound(ctx.ChainID())
 	return min(int(govMax), hardMax)
 }
 

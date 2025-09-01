@@ -6,17 +6,15 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/cometbft/cometbft/crypto/merkle"
-	"github.com/cometbft/cometbft/types"
-	"golang.org/x/exp/constraints"
-
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
+	daproto "github.com/celestiaorg/celestia-app/v6/proto/celestia/core/v1/da"
 	"github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
-	daproto "github.com/celestiaorg/celestia-app/v4/proto/celestia/core/v1/da"
+	"github.com/cometbft/cometbft/crypto/merkle"
+	"github.com/cometbft/cometbft/types"
+	"golang.org/x/exp/constraints"
 )
 
 var (

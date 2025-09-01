@@ -5,16 +5,14 @@ import (
 
 	"cosmossdk.io/core/header"
 	"cosmossdk.io/log"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	testutil "github.com/celestiaorg/celestia-app/v6/test/util"
+	"github.com/celestiaorg/celestia-app/v6/x/signal/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
-	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
-	"github.com/celestiaorg/celestia-app/v4/x/signal/types"
 )
 
 // TestUpgradeIntegration uses the real application including the upgrade keeper (and staking keeper). It
@@ -22,17 +20,20 @@ import (
 // has been reached and then calls TryUpgrade, asserting that the upgrade module returns the new app version
 func TestUpgradeIntegration(t *testing.T) {
 	cp := app.DefaultConsensusParams()
-	cp.Version.App = v2.Version
+
+	versionAfter := appconsts.Version
+	versionBefore := versionAfter - 1
+	cp.Version.App = versionBefore
 	app, _ := testutil.SetupTestAppWithGenesisValSet(cp)
 	ctx := sdk.NewContext(app.CommitMultiStore(), tmproto.Header{
 		Version: tmversion.Consensus{
-			App: v2.Version,
+			App: versionBefore,
 		},
 		ChainID: appconsts.TestChainID,
 	}, false, log.NewNopLogger()).WithHeaderInfo(header.Info{ChainID: appconsts.TestChainID})
 
 	res, err := app.SignalKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{
-		Version: 3,
+		Version: versionAfter,
 	})
 	require.NoError(t, err)
 	require.EqualValues(t, 0, res.VotingPower)
@@ -44,25 +45,27 @@ func TestUpgradeIntegration(t *testing.T) {
 
 	_, err = app.SignalKeeper.SignalVersion(ctx, &types.MsgSignalVersion{
 		ValidatorAddress: valAddr.String(),
-		Version:          3,
+		Version:          versionAfter,
 	})
 	require.NoError(t, err)
 
 	res, err = app.SignalKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{
-		Version: 3,
+		Version: versionAfter,
 	})
 	require.NoError(t, err)
 	require.EqualValues(t, 1, res.VotingPower)
 	require.EqualValues(t, 1, res.ThresholdPower)
 	require.EqualValues(t, 1, res.TotalVotingPower)
 
-	_, err = app.SignalKeeper.TryUpgrade(ctx, nil)
+	_, err = app.SignalKeeper.TryUpgrade(ctx, &types.MsgTryUpgrade{
+		Signer: valAddr.String(),
+	})
 	require.NoError(t, err)
 
 	// Verify that if a user queries the version tally, it still works after a
 	// successful try upgrade.
 	res, err = app.SignalKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{
-		Version: 3,
+		Version: versionAfter,
 	})
 	require.NoError(t, err)
 	require.EqualValues(t, 1, res.VotingPower)
@@ -79,7 +82,7 @@ func TestUpgradeIntegration(t *testing.T) {
 	// returns an error because an upgrade is pending.
 	_, err = app.SignalKeeper.SignalVersion(ctx, &types.MsgSignalVersion{
 		ValidatorAddress: valAddr.String(),
-		Version:          4,
+		Version:          versionAfter + 1,
 	})
 	require.Error(t, err)
 	require.ErrorIs(t, err, types.ErrUpgradePending)
@@ -92,5 +95,5 @@ func TestUpgradeIntegration(t *testing.T) {
 
 	shouldUpgrade, upgrade = app.SignalKeeper.ShouldUpgrade(ctx)
 	require.True(t, shouldUpgrade)
-	require.EqualValues(t, 3, upgrade.AppVersion)
+	require.EqualValues(t, versionAfter, upgrade.AppVersion)
 }

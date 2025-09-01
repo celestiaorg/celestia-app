@@ -6,14 +6,13 @@ import (
 
 	circuitante "cosmossdk.io/x/circuit/ante"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/test/util"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	ibcclienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/test/util"
 )
 
 var terminalAnteHandler = func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {

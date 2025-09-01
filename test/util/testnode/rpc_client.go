@@ -1,6 +1,8 @@
 package testnode
 
 import (
+	"math"
+	"os"
 	"path"
 	"strings"
 	"time"
@@ -71,9 +73,17 @@ func StartGRPCServer(logger log.Logger, app srvtypes.Application, appCfg *srvcon
 
 	go blockAPI.StartNewBlockEventListener(cctx.goContext) //nolint:errcheck
 
+	// Create a goroutine-safe logger for the gRPC server to prevent
+	// "Log in goroutine after test has completed" panics when using test loggers
+	grpcLogger := log.NewNopLogger()
+	if logger != nil {
+		// Use a simple stdout logger that won't become invalid when tests complete
+		grpcLogger = log.NewLogger(os.Stdout)
+	}
+
 	go func() {
 		// StartGRPCServer is a blocking function, we need to run it in a go routine.
-		if err := srvgrpc.StartGRPCServer(cctx.goContext, logger, appCfg.GRPC, grpcSrv); err != nil {
+		if err := srvgrpc.StartGRPCServer(cctx.goContext, grpcLogger, appCfg.GRPC, grpcSrv); err != nil {
 			panic(err)
 		}
 	}()
@@ -84,6 +94,8 @@ func StartGRPCServer(logger log.Logger, app srvtypes.Application, appCfg *srvcon
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(
 			grpc.ForceCodec(codec.NewProtoCodec(cctx.InterfaceRegistry).GRPCCodec()),
+			grpc.MaxCallSendMsgSize(math.MaxInt32),
+			grpc.MaxCallRecvMsgSize(math.MaxInt32),
 		),
 	)
 	if err != nil {

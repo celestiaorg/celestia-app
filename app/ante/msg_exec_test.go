@@ -3,17 +3,16 @@ package ante_test
 import (
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/ante"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/ante"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 func TestMsgExecDecorator(t *testing.T) {

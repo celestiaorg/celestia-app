@@ -1,16 +1,14 @@
 package app
 
 import (
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	square "github.com/celestiaorg/go-square/v2"
+	"github.com/celestiaorg/go-square/v2/tx"
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-
-	square "github.com/celestiaorg/go-square/v2"
-	"github.com/celestiaorg/go-square/v2/tx"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 // FilteredSquareBuilder filters txs and blobs using a copy of the state and tx validity
@@ -49,6 +47,7 @@ func (fsb *FilteredSquareBuilder) Builder() *square.Builder {
 func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
 	logger := ctx.Logger().With("app/filtered-square-builder")
 
+	// note that there is an additional filter step for tx size of raw txs here
 	normalTxs, blobTxs := separateTxs(fsb.txConfig, txs)
 
 	var (
@@ -177,6 +176,13 @@ func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []*tx.BlobTx) {
 	normalTxs := make([][]byte, 0, len(rawTxs))
 	blobTxs := make([]*tx.BlobTx, 0, len(rawTxs))
 	for _, rawTx := range rawTxs {
+		// this check in theory shouldn't get hit, as txs should be filtered
+		// in CheckTx. However in tests we're inserting too large of txs
+		// therefore also filter here.
+		if len(rawTx) > appconsts.MaxTxSize {
+			continue
+		}
+
 		bTx, isBlob, err := tx.UnmarshalBlobTx(rawTx)
 		if isBlob {
 			if err != nil {

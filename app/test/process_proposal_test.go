@@ -6,28 +6,25 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/da"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v6/test/util"
+	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/random"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	"github.com/celestiaorg/go-square/v2"
+	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v2/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/go-square/v2"
-	"github.com/celestiaorg/go-square/v2/share"
-	"github.com/celestiaorg/go-square/v2/tx"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	appv4 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
-	"github.com/celestiaorg/celestia-app/v4/pkg/da"
-	"github.com/celestiaorg/celestia-app/v4/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
-	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 func TestProcessProposal(t *testing.T) {
@@ -247,7 +244,7 @@ func TestProcessProposal(t *testing.T) {
 				falseAddr := testnode.RandomAddress().(sdk.AccAddress)
 				blob, err := share.NewV1Blob(ns1, data, falseAddr)
 				require.NoError(t, err)
-				msg, err := blobtypes.NewMsgPayForBlobs(falseAddr.String(), appconsts.LatestVersion, blob)
+				msg, err := blobtypes.NewMsgPayForBlobs(falseAddr.String(), appconsts.Version, blob)
 				require.NoError(t, err)
 				msg.Signer = addr.String()
 
@@ -265,7 +262,7 @@ func TestProcessProposal(t *testing.T) {
 			name:  "tx size exceeds max tx size limit",
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
-				maxTxSize := appv4.MaxTxSize // max tx size for the latest version
+				maxTxSize := appconsts.MaxTxSize // max tx size for the latest version
 				// set the blob size to maxTxSize so that the raw transaction size will exceeds the max tx size limit
 				blob, err := share.NewBlob(ns1, bytes.Repeat([]byte{1}, maxTxSize), appconsts.DefaultShareVersion, nil)
 				require.NoError(t, err)

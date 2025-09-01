@@ -50,7 +50,7 @@ Users will specify a version (1 byte) and a ID (28 bytes) in their PFB. Addition
 
 ### Criteria 1
 
-The namespace ID must provide at least 72 bits of randomness to satisfy criteria 1. Since an 8 byte namespace ID can only provide 64 bits of randomness, it fail to meet this criteria.
+The namespace ID must provide at least 72 bits of randomness to satisfy criteria 1. Since an 8 byte namespace ID can only provide 64 bits of randomness, it fails to meet this criteria.
 
 | Namespace ID size (bytes) | Criteria 1 |
 |---------------------------|------------|
@@ -155,7 +155,7 @@ If the namespace size is increased, whenever a SHA256 invocation takes place (e.
 | 33                     | 197                                                                                                                                   |
 
 The data size is calculated as follows:
-`SHA256(domain_sep || left_min || left_max || left_data_hash || right_min || right_max || right_data_hash)` = 1 + namespaceSize + namespaceSize + 32 + namespaceSize + namespaceSize + 32 which simplifies to (4 \* namespaceSIze) + (2 \* 32) + 1.
+`SHA256(domain_sep || left_min || left_max || left_data_hash || right_min || right_max || right_data_hash)` = 1 + namespaceSize + namespaceSize + 32 + namespaceSize + namespaceSize + 32 which simplifies to (4 \* namespaceSize) + (2 \* 32) + 1.
 
 Hashing has a high performance impact in ZK contexts. Since a larger namespace size results in a larger data size for the SHA256 operation, increasing the namespace size has a negative performance impact on the cost to perform the SHA256 operation in a ZK context.
 

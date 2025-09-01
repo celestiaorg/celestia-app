@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v6/app/params"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc/metadata"
-
-	"github.com/celestiaorg/celestia-app/v4/app/params"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
 type IntegrationTestSuite struct {

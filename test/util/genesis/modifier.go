@@ -2,19 +2,20 @@ package genesis
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v6/app/params"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
-	"github.com/cosmos/cosmos-sdk/x/gov/types/v1"
+	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
-
-	"github.com/celestiaorg/celestia-app/v4/app/params"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 // Modifier allows for arbitrary changes to be made on the genesis state
@@ -28,6 +29,18 @@ func SetBlobParams(codec codec.Codec, params blobtypes.Params) Modifier {
 		blobGenState := blobtypes.DefaultGenesis()
 		blobGenState.Params = params
 		state[blobtypes.ModuleName] = codec.MustMarshalJSON(blobGenState)
+		return state
+	}
+}
+
+// SetMinGasPrice will set the provided minimum gas price as genesis state.
+// The minGasPrice parameter should be a float64 representing the gas price.
+func SetMinGasPrice(codec codec.Codec, minGasPrice float64) Modifier {
+	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
+		minFeeGenState := minfeetypes.DefaultGenesis()
+		gasPrice := math.LegacyMustNewDecFromStr(fmt.Sprintf("%f", minGasPrice))
+		minFeeGenState.Params.NetworkMinGasPrice = gasPrice
+		state[minfeetypes.ModuleName] = codec.MustMarshalJSON(minFeeGenState)
 		return state
 	}
 }
@@ -46,11 +59,11 @@ func SetSlashingParams(codec codec.Codec, params slashingtypes.Params) Modifier 
 // levels.
 func ImmediateProposals(codec codec.Codec) Modifier {
 	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
-		gs := v1.DefaultGenesisState()
+		gs := govv1.DefaultGenesisState()
 		gs.Params.MinDeposit = sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1)))
 		gs.Params.Quorum = "0.000001"
 		gs.Params.Threshold = "0.000001"
-		vp := time.Second * 10
+		vp := time.Second * 10 // Extended from 4s to 10s to reduce flakiness
 		gs.Params.VotingPeriod = &vp
 		state[govtypes.ModuleName] = codec.MustMarshalJSON(gs)
 		return state

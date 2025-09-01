@@ -5,15 +5,14 @@ import (
 	"fmt"
 
 	"cosmossdk.io/core/appmodule"
+	"github.com/celestiaorg/celestia-app/v6/x/minfee/keeper"
+	"github.com/celestiaorg/celestia-app/v6/x/minfee/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-
-	"github.com/celestiaorg/celestia-app/v4/x/minfee/keeper"
-	"github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 )
 
 var (
@@ -56,7 +55,7 @@ func (AppModule) Name() string {
 	return types.ModuleName
 }
 
-// RegisterLegacyAminoCodec registers the blob module's types on the LegacyAmino codec.
+// RegisterLegacyAminoCodec registers the minfee module's types on the LegacyAmino codec.
 func (AppModule) RegisterLegacyAminoCodec(_ *codec.LegacyAmino) {}
 
 // RegisterInterfaces registers interfaces and implementations of the minfee module.

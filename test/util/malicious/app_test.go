@@ -5,19 +5,17 @@ import (
 	"testing"
 	"time"
 
-	abci "github.com/cometbft/cometbft/abci/types"
-	"github.com/stretchr/testify/require"
-
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/da"
+	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/random"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	square "github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/da"
-	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
-	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/stretchr/testify/require"
 )
 
 // TestOutOfOrderNMT tests that the malicious NMT implementation is able to
@@ -97,7 +95,7 @@ func TestMaliciousTestNode(t *testing.T) {
 
 	// check that we can recalculate the data root using the malicious code but
 	// not the correct code
-	s, err := Construct(block.Block.Txs.ToSliceOfBytes(), appconsts.LatestVersion, appconsts.SquareSizeUpperBound, OutOfOrderExport)
+	s, err := Construct(block.Block.Txs.ToSliceOfBytes(), appconsts.Version, appconsts.SquareSizeUpperBound, OutOfOrderExport)
 	require.NoError(t, err)
 
 	rawSquare := share.ToBytes(s)

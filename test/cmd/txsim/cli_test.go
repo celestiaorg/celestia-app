@@ -7,18 +7,17 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/app/params"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/app/params"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
 func TestTxsimCommandFlags(t *testing.T) {

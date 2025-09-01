@@ -3,9 +3,8 @@ package keeper
 import (
 	"context"
 
+	"github.com/celestiaorg/celestia-app/v6/x/mint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-
-	"github.com/celestiaorg/celestia-app/v4/x/mint/types"
 )
 
 // InitGenesis initializes the x/mint store with data from the genesis state.

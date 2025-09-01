@@ -7,21 +7,18 @@ import (
 
 	"cosmossdk.io/errors"
 	"cosmossdk.io/log"
+	"github.com/celestiaorg/celestia-app/v6/app/ante"
+	apperr "github.com/celestiaorg/celestia-app/v6/app/errors"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/da"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	"github.com/celestiaorg/go-square/v2"
+	"github.com/celestiaorg/go-square/v2/share"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-
-	"github.com/celestiaorg/go-square/v2"
-	"github.com/celestiaorg/go-square/v2/share"
-	blobtx "github.com/celestiaorg/go-square/v2/tx"
-
-	"github.com/celestiaorg/celestia-app/v4/app/ante"
-	apperr "github.com/celestiaorg/celestia-app/v4/app/errors"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	appv4 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
-	"github.com/celestiaorg/celestia-app/v4/pkg/da"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 const rejectedPropBlockLog = "Rejected proposal block:"
@@ -64,8 +61,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 		// all txs must be less than or equal to the max tx size limit
 		currentTxSize := len(tx)
-		if currentTxSize > appv4.MaxTxSize {
-			logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with tx %d", idx), errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes", currentTxSize, appv4.MaxTxSize))
+		if currentTxSize > appconsts.MaxTxSize {
+			logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with tx %d", idx), errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes", currentTxSize, appconsts.MaxTxSize))
 			return reject(), nil
 		}
 
@@ -119,7 +116,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		// - that the sizes match
 		// - that the namespaces match between blob and PFB
 		// - that the share commitment is correct
-		if err := blobtypes.ValidateBlobTx(app.encodingConfig.TxConfig, blobTx, appconsts.SubtreeRootThreshold, appconsts.LatestVersion); err != nil {
+		if err := blobtypes.ValidateBlobTx(app.encodingConfig.TxConfig, blobTx, appconsts.SubtreeRootThreshold, appconsts.Version); err != nil {
 			logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("invalid blob tx %d", idx), err)
 			return reject(), nil
 		}

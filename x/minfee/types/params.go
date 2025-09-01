@@ -4,8 +4,7 @@ import (
 	"fmt"
 
 	"cosmossdk.io/math"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 )
 
 var DefaultNetworkMinGasPrice math.LegacyDec

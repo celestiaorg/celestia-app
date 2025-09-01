@@ -2,35 +2,31 @@ package appconsts
 
 import (
 	"time"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
-)
-
-const (
-	LatestVersion = v4.Version
-)
-
-var (
-	SquareSizeUpperBound = v4.SquareSizeUpperBound
-	TxSizeCostPerByte    = v4.TxSizeCostPerByte
-	GasPerBlobByte       = v4.GasPerBlobByte
-	Version              = v4.Version
-	UpgradeHeightDelay   = v4.UpgradeHeightDelay
-	MaxTxSize            = v4.MaxTxSize
-	SubtreeRootThreshold = v4.SubtreeRootThreshold
-	TimeoutCommit        = v4.TimeoutCommit
-	TimeoutPropose       = v4.TimeoutPropose
 )
 
 func GetTimeoutCommit(_ uint64) time.Duration {
-	return v4.TimeoutCommit
+	return TimeoutCommit
+}
+
+// GetSquareSizeUpperBound return the upper bound (consensus critical) square
+// size given the chain-id. As of app version 5, all networks including
+// testnetworks will have the same size, however in the past (and presumably
+// in the future) this has not been the case hence this function existing.
+func GetSquareSizeUpperBound(_ string) int {
+	return SquareSizeUpperBound
 }
 
 // GetUpgradeHeightDelay returns the delay in blocks after a quorum has been
 // reached that the chain should upgrade to the new version.
 func GetUpgradeHeightDelay(chainID string) int64 {
 	if chainID == TestChainID {
-		return 3
+		return TestUpgradeHeightDelay
 	}
-	return v4.UpgradeHeightDelay
+	if chainID == ArabicaChainID {
+		return ArabicaUpgradeHeightDelay
+	}
+	if chainID == MochaChainID {
+		return MochaUpgradeHeightDelay
+	}
+	return MainnetUpgradeHeightDelay
 }

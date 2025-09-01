@@ -6,9 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/celestiaorg/celestia-app/v6/multiplexer/abci"
 	"github.com/spf13/cobra"
-
-	"github.com/celestiaorg/celestia-app/v4/multiplexer/abci"
 )
 
 // NewPassthroughCmd creates a command that allows executing commands on any app version.

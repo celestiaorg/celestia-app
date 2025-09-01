@@ -13,6 +13,12 @@ import (
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	testutil "github.com/celestiaorg/celestia-app/v6/test/util"
+	"github.com/celestiaorg/celestia-app/v6/x/signal"
+	"github.com/celestiaorg/celestia-app/v6/x/signal/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmtversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	dbm "github.com/cosmos/cosmos-db"
@@ -20,15 +26,6 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
-	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
-	"github.com/celestiaorg/celestia-app/v4/x/signal"
-	"github.com/celestiaorg/celestia-app/v4/x/signal/types"
 )
 
 func TestGetVotingPowerThreshold(t *testing.T) {
@@ -48,23 +45,27 @@ func TestGetVotingPowerThreshold(t *testing.T) {
 		},
 		{
 			name:       "one validator with 6 power returns 5 because the defaultSignalThreshold is 5/6",
-			validators: map[string]int64{"a": 6},
+			validators: map[string]int64{testutil.ValAddrs[0].String(): 6},
 			want:       sdkmath.NewInt(5),
 		},
 		{
 			name:       "one validator with 11 power (11 * 5/6 = 9.16666667) so should round up to 10",
-			validators: map[string]int64{"a": 11},
+			validators: map[string]int64{testutil.ValAddrs[0].String(): 11},
 			want:       sdkmath.NewInt(10),
 		},
 		{
 			name:       "one validator with voting power of math.MaxInt64",
-			validators: map[string]int64{"a": math.MaxInt64},
+			validators: map[string]int64{testutil.ValAddrs[0].String(): math.MaxInt64},
 			want:       sdkmath.NewInt(7686143364045646503),
 		},
 		{
-			name:       "multiple validators with voting power of math.MaxInt64",
-			validators: map[string]int64{"a": math.MaxInt64, "b": math.MaxInt64, "c": math.MaxInt64},
-			want:       sdkmath.NewIntFromBigInt(bigInt),
+			name: "multiple validators with voting power of math.MaxInt64",
+			validators: map[string]int64{
+				testutil.ValAddrs[0].String(): math.MaxInt64,
+				testutil.ValAddrs[1].String(): math.MaxInt64,
+				testutil.ValAddrs[2].String(): math.MaxInt64,
+			},
+			want: sdkmath.NewIntFromBigInt(bigInt),
 		},
 	}
 	for _, tc := range testCases {
@@ -119,6 +120,39 @@ func TestSignalVersion(t *testing.T) {
 		require.EqualValues(t, 100, res.ThresholdPower)
 		require.EqualValues(t, 120, res.TotalVotingPower)
 	})
+	t.Run("should emit custom event", func(t *testing.T) {
+		upgradeKeeper, ctx, _ := setup(t)
+		ctx = ctx.WithEventManager(sdk.NewEventManager())
+
+		valAddr := testutil.ValAddrs[0].String()
+		_, err := upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{
+			ValidatorAddress: valAddr,
+			Version:          2,
+		})
+		require.NoError(t, err)
+
+		events := ctx.EventManager().Events()
+		require.Len(t, events, 1)
+
+		event := events[0]
+		require.Equal(t, types.EventTypeSignalVersion, event.Type)
+		require.Len(t, event.Attributes, 2)
+
+		var validatorAddress, actionAttribute sdk.Attribute
+		for _, attr := range event.Attributes {
+			switch attr.Key {
+			case types.AttributeKeyValidatorAddress:
+				validatorAddress = sdk.Attribute{Key: attr.Key, Value: attr.Value}
+			case sdk.AttributeKeyAction:
+				actionAttribute = sdk.Attribute{Key: attr.Key, Value: attr.Value}
+			}
+		}
+
+		require.Equal(t, types.AttributeKeyValidatorAddress, validatorAddress.Key)
+		require.Equal(t, valAddr, validatorAddress.Value)
+		require.Equal(t, sdk.AttributeKeyAction, actionAttribute.Key)
+		require.Equal(t, types.URLMsgSignalVersion, actionAttribute.Value)
+	})
 }
 
 func TestTallyingLogic(t *testing.T) {
@@ -146,6 +180,13 @@ func TestTallyingLogic(t *testing.T) {
 		Version: 2,
 	})
 	require.NoError(t, err)
+	missingValidators, err := upgradeKeeper.GetMissingValidators(ctx, &types.QueryGetMissingValidatorsRequest{
+		Version: 2,
+	})
+	require.NoError(t, err)
+	require.Contains(t, missingValidators.MissingValidators, testutil.ValAddrs[1].String())
+	require.Contains(t, missingValidators.MissingValidators, testutil.ValAddrs[2].String())
+	require.Contains(t, missingValidators.MissingValidators, testutil.ValAddrs[3].String())
 	require.EqualValues(t, 40, res.VotingPower)
 	require.EqualValues(t, 100, res.ThresholdPower)
 	require.EqualValues(t, 120, res.TotalVotingPower)
@@ -170,12 +211,19 @@ func TestTallyingLogic(t *testing.T) {
 	require.False(t, shouldUpgrade)
 	require.Equal(t, uint64(0), upgrade.AppVersion)
 
-	// we now have 101/120
+	// we now have 100/120
 	_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{
 		ValidatorAddress: testutil.ValAddrs[1].String(),
 		Version:          2,
 	})
 	require.NoError(t, err)
+	res, err = upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{
+		Version: 2,
+	})
+	require.NoError(t, err)
+	require.EqualValues(t, 100, res.VotingPower, res.VotingPower)
+	require.EqualValues(t, 100, res.ThresholdPower)
+	require.EqualValues(t, 120, res.TotalVotingPower)
 
 	_, err = upgradeKeeper.TryUpgrade(ctx, &types.MsgTryUpgrade{})
 	require.NoError(t, err)
@@ -188,7 +236,7 @@ func TestTallyingLogic(t *testing.T) {
 
 	shouldUpgrade, upgrade = upgradeKeeper.ShouldUpgrade(ctx)
 	require.True(t, shouldUpgrade) // should be true because upgrade height has been reached.
-	require.Equal(t, v2.Version, upgrade.AppVersion)
+	require.Equal(t, uint64(2), upgrade.AppVersion)
 
 	upgradeKeeper.ResetTally(ctx)
 
@@ -224,6 +272,13 @@ func TestTallyingLogic(t *testing.T) {
 	require.EqualValues(t, 100, res.ThresholdPower)
 	require.EqualValues(t, 120, res.TotalVotingPower)
 
+	missingValidators, err = upgradeKeeper.GetMissingValidators(ctx, &types.QueryGetMissingValidatorsRequest{
+		Version: 2,
+	})
+	require.NoError(t, err)
+	require.Contains(t, missingValidators.MissingValidators, testutil.ValAddrs[0].String())
+	require.Contains(t, missingValidators.MissingValidators, testutil.ValAddrs[3].String())
+
 	// remove one of the validators from the set
 	delete(mockStakingKeeper.validators, testutil.ValAddrs[1].String())
 	// the validator had 1 voting power, so we deduct it from the total
@@ -258,7 +313,7 @@ func TestTallyingLogic(t *testing.T) {
 // 1, the next version is 2, but the chain can upgrade directly from 1 to 3.
 func TestCanSkipVersion(t *testing.T) {
 	upgradeKeeper, ctx, _ := setup(t)
-	require.Equal(t, v1.Version, ctx.BlockHeader().Version.App)
+	require.Equal(t, uint64(1), ctx.BlockHeader().Version.App)
 
 	validators := []sdk.ValAddress{
 		testutil.ValAddrs[0],
@@ -393,6 +448,39 @@ func TestTryUpgrade(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorIs(t, err, types.ErrInvalidUpgradeVersion)
 	})
+
+	t.Run("should emit custom event", func(t *testing.T) {
+		upgradeKeeper, ctx, _ := setup(t)
+		signerAddr := "celestia1test1234567890abcdef"
+		ctx = ctx.WithEventManager(sdk.NewEventManager())
+
+		_, err := upgradeKeeper.TryUpgrade(ctx, &types.MsgTryUpgrade{
+			Signer: signerAddr,
+		})
+		require.NoError(t, err)
+
+		events := ctx.EventManager().Events()
+		require.Len(t, events, 1)
+
+		event := events[0]
+		require.Equal(t, types.EventTypeTryUpgrade, event.Type)
+		require.Len(t, event.Attributes, 2)
+
+		var signerAttribute, actionAttribute sdk.Attribute
+		for _, attr := range event.Attributes {
+			switch attr.Key {
+			case types.AttributeKeySigner:
+				signerAttribute = sdk.Attribute{Key: attr.Key, Value: attr.Value}
+			case sdk.AttributeKeyAction:
+				actionAttribute = sdk.Attribute{Key: attr.Key, Value: attr.Value}
+			}
+		}
+
+		require.Equal(t, types.AttributeKeySigner, signerAttribute.Key)
+		require.Equal(t, signerAddr, signerAttribute.Value)
+		require.Equal(t, sdk.AttributeKeyAction, actionAttribute.Key)
+		require.Equal(t, types.URLMsgTryUpgrade, actionAttribute.Value)
+	})
 }
 
 func TestGetUpgrade(t *testing.T) {
@@ -420,7 +508,7 @@ func TestGetUpgrade(t *testing.T) {
 
 		got, err := upgradeKeeper.GetUpgrade(ctx, &types.QueryGetUpgradeRequest{})
 		require.NoError(t, err)
-		assert.Equal(t, v2.Version, got.Upgrade.AppVersion)
+		assert.Equal(t, uint64(2), got.Upgrade.AppVersion)
 		assert.Equal(t, appconsts.GetUpgradeHeightDelay(appconsts.TestChainID), got.Upgrade.UpgradeHeight)
 	})
 }
@@ -496,8 +584,11 @@ type mockStakingKeeper struct {
 
 func newMockStakingKeeper(validators map[string]int64) *mockStakingKeeper {
 	totalVotingPower := sdkmath.NewInt(0)
-	for _, power := range validators {
+	for addr, power := range validators {
 		totalVotingPower = totalVotingPower.AddRaw(power)
+		if _, err := sdk.ValAddressFromBech32(addr); err != nil {
+			panic(err)
+		}
 	}
 	return &mockStakingKeeper{
 		totalVotingPower: totalVotingPower,
@@ -520,7 +611,31 @@ func (m *mockStakingKeeper) GetLastValidatorPower(_ context.Context, addr sdk.Va
 func (m *mockStakingKeeper) GetValidator(_ context.Context, addr sdk.ValAddress) (validator stakingtypes.Validator, err error) {
 	addrStr := addr.String()
 	if _, ok := m.validators[addrStr]; ok {
-		return stakingtypes.Validator{Status: stakingtypes.Bonded}, nil
+		return stakingtypes.Validator{
+			Status:          stakingtypes.Bonded,
+			Description:     stakingtypes.Description{Moniker: addrStr},
+			OperatorAddress: addrStr,
+		}, nil
 	}
 	return stakingtypes.Validator{}, stakingtypes.ErrNoValidatorFound
+}
+
+func (m *mockStakingKeeper) IterateValidators(_ context.Context, cb func(index int64, validator stakingtypes.ValidatorI) (stop bool)) error {
+	index := int64(0)
+	for addr := range m.validators {
+		valAddr, err := sdk.ValAddressFromBech32(addr)
+		if err != nil {
+			panic(err)
+		}
+		validator, err := m.GetValidator(context.Background(), valAddr)
+		if err != nil {
+			fmt.Println("error in getting validator", err)
+			continue
+		}
+		if cb(index, validator) {
+			break
+		}
+		index++
+	}
+	return nil
 }

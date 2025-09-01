@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/nmt"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 // Validate runs basic validations on the proof then verifies if it is consistent.

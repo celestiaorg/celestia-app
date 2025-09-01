@@ -3,8 +3,10 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
+	"cosmossdk.io/log"
 	"github.com/spf13/cobra"
 )
 
@@ -12,13 +14,13 @@ const FlagForceNoBBR = "force-no-bbr"
 
 // checkBBR checks if BBR is enabled.
 // It should be first run before RunE of the StartCmd.
-func checkBBR(command *cobra.Command) error {
+func checkBBR(command *cobra.Command, logger log.Logger) error {
 	const (
 		warning = `
 The BBR (Bottleneck Bandwidth and Round-trip propagation time) congestion control algorithm is not enabled in this system's kernel.
 BBR is important for the performance of the p2p stack.
 
-To enable BBR:
+To enable BBR (Linux only):
 sudo modprobe tcp_bbr
 net.core.default_qdisc=fq
 net.ipv4.tcp_congestion_control=bbr
@@ -42,14 +44,20 @@ If you need to bypass this check use the --force-no-bbr flag.
 		return nil
 	}
 
+	// Only enforce BBR on Linux where /proc is available and BBR is supported
+	if runtime.GOOS != "linux" {
+		// Skip check silently for non-Linux OSes (e.g., macOS, Windows, BSD)
+		return nil
+	}
+
 	file, err := os.ReadFile("/proc/sys/net/ipv4/tcp_congestion_control")
 	if err != nil {
-		fmt.Print(warning)
+		logger.Warn(warning)
 		return fmt.Errorf("failed to read file '/proc/sys/net/ipv4/tcp_congestion_control' %w", err)
 	}
 
 	if !strings.Contains(string(file), "bbr") {
-		fmt.Print(warning)
+		logger.Warn(warning)
 		return fmt.Errorf("BBR not enabled because output %v does not contain 'bbr'", string(file))
 	}
 

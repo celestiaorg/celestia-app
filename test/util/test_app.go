@@ -9,6 +9,11 @@ import (
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/params"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -25,12 +30,6 @@ import (
 	simulationcli "github.com/cosmos/cosmos-sdk/x/simulation/client/cli"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/rs/zerolog"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/params"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
 const ChainID = testfactory.ChainID
@@ -92,7 +91,6 @@ func initialiseTestApp(testApp *app.App, valSet *tmtypes.ValidatorSet) {
 
 // NewTestApp creates a new app instance with an empty memDB and a no-op logger.
 func NewTestApp() *app.App {
-	// var anteOpt = func(bapp *baseapp.BaseApp) { bapp.SetAnteHandler(nil) }
 	db := dbm.NewMemDB()
 
 	return app.New(
@@ -217,6 +215,18 @@ func genesisStateWithValSet(
 		if err != nil {
 			panic(err)
 		}
+		rate, err := math.LegacyNewDecFromStr("0.05")
+		if err != nil {
+			panic(err)
+		}
+		maxRate, err := math.LegacyNewDecFromStr("0.2")
+		if err != nil {
+			panic(err)
+		}
+		maxChangeRate, err := math.LegacyNewDecFromStr("1")
+		if err != nil {
+			panic(err)
+		}
 		validator := stakingtypes.Validator{
 			OperatorAddress:   sdk.ValAddress(val.Address).String(),
 			ConsensusPubkey:   pkAny,
@@ -227,7 +237,7 @@ func genesisStateWithValSet(
 			Description:       stakingtypes.Description{},
 			UnbondingHeight:   int64(0),
 			UnbondingTime:     time.Unix(0, 0).UTC(),
-			Commission:        stakingtypes.NewCommission(math.LegacyZeroDec(), math.LegacyZeroDec(), math.LegacyZeroDec()),
+			Commission:        stakingtypes.NewCommission(rate, maxRate, maxChangeRate),
 			MinSelfDelegation: math.ZeroInt(),
 		}
 		validators = append(validators, validator)

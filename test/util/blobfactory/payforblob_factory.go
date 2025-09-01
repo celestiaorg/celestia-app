@@ -6,22 +6,20 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/test/util/random"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v2/tx"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-
-	"github.com/celestiaorg/go-square/v2/share"
-	"github.com/celestiaorg/go-square/v2/tx"
-
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/user"
-	"github.com/celestiaorg/celestia-app/v4/test/util/random"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 var (
@@ -41,7 +39,7 @@ func RandMsgPayForBlobsWithSigner(rand *rand.Rand, signer string, size, blobCoun
 		blobs[i] = blob
 	}
 
-	msg, err := blobtypes.NewMsgPayForBlobs(signer, appconsts.LatestVersion, blobs...)
+	msg, err := blobtypes.NewMsgPayForBlobs(signer, appconsts.Version, blobs...)
 	if err != nil {
 		panic(err)
 	}
@@ -79,7 +77,7 @@ func RandMsgPayForBlobsWithNamespaceAndSigner(signer string, ns share.Namespace,
 	}
 	msg, err := blobtypes.NewMsgPayForBlobs(
 		signer,
-		appconsts.LatestVersion,
+		appconsts.Version,
 		blob,
 	)
 	if err != nil {
@@ -95,7 +93,7 @@ func RandMsgPayForBlobs(rand *rand.Rand, size int) (*blobtypes.MsgPayForBlobs, *
 	}
 	msg, err := blobtypes.NewMsgPayForBlobs(
 		testfactory.TestAccAddr,
-		appconsts.LatestVersion,
+		appconsts.Version,
 		blob,
 	)
 	if err != nil {
@@ -272,7 +270,7 @@ func IndexWrappedTxWithInvalidNamespace(
 	blob := ManyRandBlobs(rand, 100)[0]
 	acc := signer.Accounts()[0]
 	require.NotNil(t, acc)
-	msg, err := blobtypes.NewMsgPayForBlobs(acc.Address().String(), appconsts.LatestVersion, blob)
+	msg, err := blobtypes.NewMsgPayForBlobs(acc.Address().String(), appconsts.Version, blob)
 	require.NoError(t, err)
 	msg.Namespaces[0] = bytes.Repeat([]byte{1}, 33) // invalid namespace
 

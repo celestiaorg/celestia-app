@@ -1,12 +1,12 @@
 module github.com/celestiaorg/celestia-app/test/interchain
 
-go 1.23.6
+go 1.24.6
 
 require (
 	cosmossdk.io/math v1.4.0
-	github.com/cosmos/cosmos-sdk v0.50.13
+	github.com/cosmos/cosmos-sdk v0.50.14
 	github.com/strangelove-ventures/interchaintest/v8 v8.5.0
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.0
 	go.uber.org/zap v1.27.0
 )
 
@@ -109,7 +109,7 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.5-0.20220116011046-fa5810519dcb // indirect
 	github.com/google/btree v1.1.3 // indirect
-	github.com/google/flatbuffers v1.12.1 // indirect
+	github.com/google/flatbuffers v2.0.8+incompatible // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/orderedcode v0.0.1 // indirect
 	github.com/google/pprof v0.0.0-20240827171923-fa2c70bbbfe5 // indirect
@@ -126,7 +126,7 @@ require (
 	github.com/gtank/merlin v0.1.1 // indirect
 	github.com/gtank/ristretto255 v0.1.2 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
-	github.com/hashicorp/go-getter v1.7.5 // indirect
+	github.com/hashicorp/go-getter v1.7.9 // indirect
 	github.com/hashicorp/go-hclog v1.5.0 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/go-metrics v0.5.3 // indirect
@@ -217,7 +217,7 @@ require (
 	github.com/tidwall/btree v1.7.0 // indirect
 	github.com/tyler-smith/go-bip32 v1.0.0 // indirect
 	github.com/tyler-smith/go-bip39 v1.1.0 // indirect
-	github.com/ulikunitz/xz v0.5.11 // indirect
+	github.com/ulikunitz/xz v0.5.14 // indirect
 	github.com/zondax/hid v0.9.2 // indirect
 	github.com/zondax/ledger-go v0.14.3 // indirect
 	go.etcd.io/bbolt v1.4.0-alpha.0.0.20240404170359-43604f3112c5 // indirect
@@ -235,7 +235,7 @@ require (
 	golang.org/x/exp v0.0.0-20240904232852-e7e105dedf7e // indirect
 	golang.org/x/mod v0.21.0 // indirect
 	golang.org/x/net v0.40.0 // indirect
-	golang.org/x/oauth2 v0.26.0 // indirect
+	golang.org/x/oauth2 v0.27.0 // indirect
 	golang.org/x/sync v0.14.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/term v0.32.0 // indirect

@@ -6,14 +6,13 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/x/mint/simulation"
+	"github.com/celestiaorg/celestia-app/v6/x/mint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/kv"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/x/mint/simulation"
-	"github.com/celestiaorg/celestia-app/v4/x/mint/types"
 )
 
 func TestDecodeStore(t *testing.T) {

@@ -5,16 +5,14 @@ import (
 	"testing"
 	"time"
 
+	apperrors "github.com/celestiaorg/celestia-app/v6/app/errors"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
-	"github.com/celestiaorg/go-square/v2/share"
-
-	apperrors "github.com/celestiaorg/celestia-app/v4/app/errors"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/user"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
 func TestBigBlobSuite(t *testing.T) {
@@ -36,16 +34,9 @@ func (s *BigBlobSuite) SetupSuite() {
 
 	s.accounts = testfactory.GenerateAccounts(1)
 
-	tmConfig := testnode.DefaultTendermintConfig()
-	tmConfig.Mempool.MaxTxBytes = 10 * mebibyte
-
-	cParams := testnode.DefaultConsensusParams()
-	cParams.Block.MaxBytes = 10 * mebibyte
-
-	cfg := testnode.DefaultConfig().
-		WithFundedAccounts(s.accounts...).
-		WithTendermintConfig(tmConfig).
-		WithConsensusParams(cParams)
+	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...)
+	// purposefully bypass the configurable mempool check
+	cfg.TmConfig.Mempool.MaxTxBytes = appconsts.MaxTxSize * 2
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	s.cctx = cctx
@@ -65,8 +56,8 @@ func (s *BigBlobSuite) TestBlobExceedsMaxTxSize() {
 	}
 	testCases := []testCase{
 		{
-			name:         "2 MiB blob",
-			blob:         newBlobWithSize(2097152),
+			name:         "1 MiB over the max blob size",
+			blob:         newBlobWithSize(appconsts.MaxTxSize + mebibyte),
 			expectedCode: apperrors.ErrTxExceedsMaxSize.ABCICode(),
 			expectedErr:  apperrors.ErrTxExceedsMaxSize.Error(),
 		},

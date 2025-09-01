@@ -22,7 +22,7 @@ const (
 	// exampleMochaRPC is an example node RPC endpoint for the Mocha testnet.
 	exampleMochaRPC = "https://celestia-mocha-rpc.publicnode.com:443"
 
-	// exampleMainnetHeight is an example node RPC endpoint for Mainnet Beta.
+	// exampleMainnetRPC is an example node RPC endpoint for Mainnet Beta.
 	exampleMainnetRPC = "https://celestia-rpc.publicnode.com:443"
 
 	// exampleArabicaHeight is an example block height for the Arabica testnet.
