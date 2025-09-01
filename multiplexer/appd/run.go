@@ -242,10 +242,14 @@ func ensureBinaryDecompressed(version string, binary []byte) error {
 		}
 
 		if _, err := io.Copy(f, tarReader); err != nil {
-			f.Close()
+			if closeErr := f.Close(); closeErr != nil {
+				log.Printf("failed to close file during error handling: %v", closeErr)
+			}
 			return fmt.Errorf("failed to copy file contents to %s: %w", filePath, err)
 		}
-		f.Close()
+		if err := f.Close(); err != nil {
+			return fmt.Errorf("failed to close file %s: %w", filePath, err)
+		}
 	}
 
 	return nil
