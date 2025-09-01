@@ -414,7 +414,8 @@ func wasRemovedFromTxTracker(txHash string, txClient *user.TxClient) bool {
 	return !exists && seq == 0 && signer == ""
 }
 
-// asserts that a tx was indexed in the tx tracker and that the sequence does not increase
+// asserts that a tx was indexed in the tx tracker with the sequence before increment,
+// and that the sequence was properly incremented after broadcast
 func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash, expectedSigner string, seqBeforeBroadcast uint64) {
 	seqFromTxTracker, signer, exists := txClient.GetTxFromTxTracker(txHash)
 	require.True(t, exists)
