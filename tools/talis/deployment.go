@@ -94,7 +94,7 @@ func deployCmd() *cobra.Command {
 			if output, err := tarCmd.CombinedOutput(); err != nil {
 				return fmt.Errorf("failed to compress payload: %w, output: %s", err, string(output))
 			}
-			log.Printf("✅ Payload compressed to %s\n", tarPath)
+			log.Printf("Payload compressed to %s\n", tarPath)
 
 			cfg, err := LoadConfig(rootDir)
 			if err != nil {
@@ -190,7 +190,7 @@ func deployPayloadDirect(
 				errCh <- fmt.Errorf("[%s:%s] ssh error in region %s: %v\n%s", inst.Name, inst.PublicIP, inst.Region, err, out)
 				return
 			}
-			log.Printf("prepared files on instance 📁 %s: %s\n", inst.Name, inst.PublicIP)
+			log.Printf("prepared files on instance %s: %s\n", inst.Name, inst.PublicIP)
 		}(inst)
 	}
 
@@ -241,7 +241,7 @@ func deployPayloadViaS3(
 		return fmt.Errorf("failed to upload to S3: %w", err)
 	}
 
-	log.Printf("✅ Payload uploaded to S3: %s\n", s3URL)
+	log.Printf("Payload uploaded to S3: %s\n", s3URL)
 
 	var wg sync.WaitGroup
 	errCh := make(chan error, len(ips))
@@ -279,7 +279,7 @@ func deployPayloadViaS3(
 				errCh <- fmt.Errorf("[%s:%s] ssh error in region %s: %v\n%s", inst.Name, inst.PublicIP, inst.Region, err, out)
 				return
 			}
-			log.Printf("prepared files on instance 📁 %s: %s (total %d/%d)\n", inst.Name, inst.PublicIP, counter.Add(1), len(ips))
+			log.Printf("prepared files on instance %s: %s (total %d/%d)\n", inst.Name, inst.PublicIP, counter.Add(1), len(ips))
 		}(inst)
 	}
 
