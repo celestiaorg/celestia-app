@@ -1,0 +1,36 @@
+digraph G {
+    rankdir = "LR";
+    node [shape = record];
+
+    subgraph cluster_block {
+        label = "block";
+
+        subgraph cluster_availableheader {
+            label = "availableDataHeader";
+            struct4 [label = "{<f0> | { rowRoots | colRoots } }"];
+        }
+
+        subgraph cluster_body {
+            label = "availableData";
+            struct3 [label = "{ | { transactionData | intermediateStateRoots | payForBlobData | messageData } }"];
+        }
+
+        subgraph cluster_lastcommit {
+            label = "lastCommit";
+            struct2 [label = "{lastCommit}"];
+        }
+
+        subgraph cluster_header {
+            label = "header";
+            struct1 [label = "version | chainID | height | timestamp | lastHeaderHash | <f5> lastCommitHash | consensusHash | stateCommitment | availableDataOriginalSharesUsed | <f9> availableDataRoot | proposerAddress"];
+        }
+    }
+
+    struct1:f5 -> struct2;
+    struct1:f9 -> struct4 [label = "Merkle root of"];
+    struct4:f0 -> struct3 [label = "NMT roots to\nerasure-coded data"];
+
+    edge [style = invis];
+    struct1 -> struct3;
+    struct1 -> struct4;
+}
