@@ -320,7 +320,7 @@ func benchmarkProcessProposalPFBHalfSecond(b *testing.B, count, size int) {
 		return
 	}
 
-	b.ReportMetric(bestTime.Seconds(), fmt.Sprintf("process_proposal_time(ms)"))
+	b.ReportMetric(float64(bestTime.Nanoseconds())/1e6, fmt.Sprintf("process_proposal_time(ms)"))
 	b.ReportMetric(float64(len(processProposalReq.Txs)), "num_txs")
 	b.ReportMetric(float64(size), "blob_size(bytes)")
 	b.ReportMetric(calculateBlockSizeInMb(processProposalReq.Txs), "block_size(mb)")
