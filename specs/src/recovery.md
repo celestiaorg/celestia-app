@@ -277,7 +277,7 @@ discuss strategies for mitigation.
 
 ### Denial of Service
 
-The purpose of the strict diconnection rules are to prevent all scenarios where
+The purpose of the strict disconnection rules are to prevent all scenarios where
 an attacker can flood the network with valid messages. If invalid messages are
 sent, then the attacker is kicked from their address book.
 
@@ -302,7 +302,7 @@ connections to malicious peers are removed.
 
 > Side note: its easy to confuse a congested peer as a malicious one. This makes
 > peer scoring incredibly difficult for pull based systems. If timeouts for
-> scoring or addional requests are too agressive, feedback loops emerge.
+> scoring or additional requests are too aggressive, feedback loops emerge.
 > Congested nodes can hit timeouts, resulting in requesting more duplicate data,
 > which causes more congestion.
 
