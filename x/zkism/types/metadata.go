@@ -215,7 +215,7 @@ func (pi *PublicInputs) Unmarshal(data []byte) error {
 	}
 
 	if err := readBytes(buf, pi.PublicKey[:]); err != nil {
-		return fmt.Errorf("read NewStateRoot: %w", err)
+		return fmt.Errorf("read PublicKey: %w", err)
 	}
 
 	if buf.Len() != 0 {

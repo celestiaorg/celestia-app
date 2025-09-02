@@ -13,11 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TODO: Update this test with new generated groth16 proof
 func TestVerify(t *testing.T) {
 	var (
-		trustedStateRoot = "4913ECE12489492945CEAA6150D99E29A9FFFFE32473E092084E3618C81246B1"
-		vkeyHash         = "0x00c3cb858670835062dcf40bb14601ad34a39f9fc4fb165e9188c4b48499ca25"
+		trustedStateRoot = "af50a407e7a9fcba29c46ad31e7690bae4e951e3810e5b898eda29d3d3e92dbe"
+		vkeyHash         = "0x00acd6f9c9d0074611353a1e0c94751d3c49beef64ebc3ee82f0ddeadaf242ef"
+		namespaceHex     = "00000000000000000000000000000000000000a8045f161bf468bf4d44"
+		publicKeyHex     = "c87f6c4cdd4c8ac26cb6a06909e5e252b73043fdf85232c18ae92b9922b65507"
 	)
 
 	groth16Vk, proofBz, inputsBz := readProofData(t)
@@ -29,14 +30,20 @@ func TestVerify(t *testing.T) {
 	trustedRoot, err := hex.DecodeString(trustedStateRoot)
 	require.NoError(t, err)
 
+	namespace, err := hex.DecodeString(namespaceHex)
+	require.NoError(t, err)
+
+	pubKey, err := hex.DecodeString(publicKeyHex)
+	require.NoError(t, err)
+
 	// create an ism with a hardcoded initial trusted state
 	ism := types.ZKExecutionISM{
 		StateTransitionVkey: groth16Vk,
 		VkeyCommitment:      vkCommitment,
 		StateRoot:           trustedRoot,
-		Height:              44,
-		NamespaceId:         []byte("TODO: add namespace"),
-		PublicKey:           []byte("TODO: add public key"),
+		Height:              97,
+		NamespaceId:         namespace,
+		PublicKey:           pubKey,
 	}
 
 	metadata := encodeMetadata(t, proofBz, inputsBz)
