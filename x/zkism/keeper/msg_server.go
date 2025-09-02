@@ -38,8 +38,6 @@ func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreat
 		VkeyCommitment:      msg.VkeyCommitment,
 	}
 
-	// TODO: validate. This can be moved to ValidateBasic stateless validation of the msg or implemented as a method on the ISM
-
 	if err := m.isms.Set(ctx, ismId.GetInternalId(), newIsm); err != nil {
 		return nil, errorsmod.Wrap(err, err.Error())
 	}
