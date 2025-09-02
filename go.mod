@@ -272,7 +272,7 @@ replace (
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	// TODO: update to a v0.39.x release after that is created from celestia-core main branch.
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.2
-	github.com/cosmos/cosmos-sdk => ../cosmos-sdk
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.51.1
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
 	// goleveldb: canonical version
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
