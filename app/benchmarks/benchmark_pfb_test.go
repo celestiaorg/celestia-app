@@ -8,16 +8,17 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	"github.com/celestiaorg/celestia-app/v6/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v6/test/util"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	"github.com/celestiaorg/go-square/v2/share"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/crypto"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v6/test/util"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 )
 
 func init() {
@@ -185,23 +186,23 @@ func BenchmarkProcessProposal_PFB_Multi(b *testing.B) {
 	testCases := []struct {
 		numberOfTransactions, blobSize int
 	}{
-		{numberOfTransactions: 15_000, blobSize: 300},
-		{numberOfTransactions: 10_000, blobSize: 500},
-		{numberOfTransactions: 6_000, blobSize: 1000},
-		{numberOfTransactions: 3_000, blobSize: 5000},
-		{numberOfTransactions: 1_000, blobSize: 10_000},
-		{numberOfTransactions: 500, blobSize: 50_000},
-		{numberOfTransactions: 100, blobSize: 100_000},
-		{numberOfTransactions: 100, blobSize: 200_000},
-		{numberOfTransactions: 50, blobSize: 300_000},
-		{numberOfTransactions: 50, blobSize: 400_000},
-		{numberOfTransactions: 30, blobSize: 500_000},
-		{numberOfTransactions: 10, blobSize: 1_000_000},
-		{numberOfTransactions: 5, blobSize: 2_000_000},
-		{numberOfTransactions: 3, blobSize: 3_000_000},
-		{numberOfTransactions: 3, blobSize: 4_000_000},
-		{numberOfTransactions: 2, blobSize: 5_000_000},
-		{numberOfTransactions: 2, blobSize: 6_000_000},
+		//{numberOfTransactions: 15_000, blobSize: 300},
+		//{numberOfTransactions: 10_000, blobSize: 500},
+		//{numberOfTransactions: 6_000, blobSize: 1000},
+		//{numberOfTransactions: 3_000, blobSize: 5000},
+		//{numberOfTransactions: 1_000, blobSize: 10_000},
+		//{numberOfTransactions: 500, blobSize: 50_000},
+		//{numberOfTransactions: 100, blobSize: 100_000},
+		//{numberOfTransactions: 100, blobSize: 200_000},
+		//{numberOfTransactions: 50, blobSize: 300_000},
+		//{numberOfTransactions: 50, blobSize: 400_000},
+		//{numberOfTransactions: 30, blobSize: 500_000},
+		//{numberOfTransactions: 10, blobSize: 1_000_000},
+		//{numberOfTransactions: 5, blobSize: 2_000_000},
+		//{numberOfTransactions: 3, blobSize: 3_000_000},
+		{numberOfTransactions: 32, blobSize: 4_000_000},
+		//{numberOfTransactions: 2, blobSize: 5_000_000},
+		//{numberOfTransactions: 2, blobSize: 6_000_000},
 	}
 	for _, testCase := range testCases {
 		b.Run(fmt.Sprintf("%d transactions of %d bytes", testCase.numberOfTransactions, testCase.blobSize), func(b *testing.B) {
@@ -330,7 +331,7 @@ func benchmarkProcessProposalPFBHalfSecond(b *testing.B, count, size int) {
 // of valid PFB transactions.
 func generatePayForBlobTransactions(b *testing.B, count, size int) (*app.App, [][]byte) {
 	account := "test"
-	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, account)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 512, account)
 	addr := testfactory.GetAddress(kr, account)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	acc := testutil.DirectQueryAccount(testApp, addr)
