@@ -224,7 +224,7 @@ This inherently includes:
 However, it can also include congestion if the `Have` messages and entered into
 the send queue in a FIFO fashion as `Data`. This ensures that a haves take
 longer to be delivered to a congested connection, making it more likely peers
-will recieve that same `Have` message first from a different peer. 
+will receive that same `Have` message first from a different peer. 
 
 - **Nodes SHOULD send `Have` and `Data` messages from a FIFO queue**
 - **Nodes SHOULD request `Data` from the first peer that sends them a `Have`
@@ -240,7 +240,7 @@ rule to ensure this doesn't occur.
   to a single peer**
 
 If this value is set to 2 for example, then there will be a max of two
-concurrent requests open to each peer. After the first request is fullfilled,
+concurrent requests open to each peer. After the first request is fulfilled,
 then the second is sent.
 
 The above scenario describes a node that is honest and has all of the data, however there are also scenarios where the validator could be malicious which is handled by this mechanism. See the security section for discussing how `PerPeerConcurrentRequestCap` is calculated using the block size, number of potential faulty validators, and the amount of parity data added to the block.
@@ -451,7 +451,7 @@ message CompactBlock {
 
 The compact block is signed over by the proposer, and verified by converting to
 signbytes, and verifying using the proposer's public key to verify the included
-signature. This siganture is separate from the proposal signature as it is
+signature. This signature is separate from the proposal signature as it is
 purely related to block propagation, and not meant to be part of the proposal.
 This allows for block propagation to be backwards compatible with older
 implementations.
