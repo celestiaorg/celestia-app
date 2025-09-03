@@ -23,7 +23,7 @@ message ZKExecutionISM {
   // latest tracked height of the remote chain
   uint64 height = 4;
   // the celestia namespace identifier used by the application
-  bytes namespace_id = 5;
+  bytes namespace = 5;
   // the public key of the data signer
   bytes public_key = 6;
   // the zk state transition verifier key
@@ -52,7 +52,7 @@ message EventCreateZKExecutionISM {
   // latest tracked height of the remote chain
   uint64 height = 4;
   // the celestia namespace identifier used by the application
-  bytes namespace_id = 5;
+  bytes namespace = 5;
   // the public key of the data signer
   bytes public_key = 6;
   // the zk state transition verifier key of the sp1 prover client

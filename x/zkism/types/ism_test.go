@@ -42,7 +42,7 @@ func TestVerify(t *testing.T) {
 		VkeyCommitment:      vkCommitment,
 		StateRoot:           trustedRoot,
 		Height:              97,
-		NamespaceId:         namespace,
+		Namespace:           namespace,
 		PublicKey:           pubKey,
 	}
 

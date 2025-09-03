@@ -16,8 +16,8 @@ func (msg *MsgCreateZKExecutionISM) ValidateBasic() error {
 		return errors.New("state root must be exactly 32 bytes")
 	}
 
-	if _, err := share.NewNamespaceFromBytes(msg.NamespaceId); err != nil {
-		return fmt.Errorf("failed to parse namespace from bytes: %x", msg.NamespaceId)
+	if _, err := share.NewNamespaceFromBytes(msg.Namespace); err != nil {
+		return fmt.Errorf("failed to parse namespace from bytes: %x", msg.Namespace)
 	}
 
 	if len(msg.PublicKey) != 32 {

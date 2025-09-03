@@ -106,8 +106,8 @@ func (ism *ZKExecutionISM) validatePublicInputs(inputs PublicInputs) error {
 		return fmt.Errorf("cannot trust public inputs trusted height: expected %d, but got %d", ism.Height, inputs.TrustedHeight)
 	}
 
-	if !bytes.Equal(inputs.Namespace[:], ism.NamespaceId) {
-		return fmt.Errorf("cannot trust public inputs namespace id: expected %x, but got %x", ism.NamespaceId, inputs.Namespace)
+	if !bytes.Equal(inputs.Namespace[:], ism.Namespace) {
+		return fmt.Errorf("cannot trust public inputs namespace: expected %x, but got %x", ism.Namespace, inputs.Namespace)
 	}
 
 	if !bytes.Equal(inputs.PublicKey[:], ism.PublicKey) {
