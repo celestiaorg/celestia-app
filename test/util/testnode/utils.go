@@ -119,12 +119,30 @@ func GetFreePort() (int, error) {
 }
 
 // isPortAvailable checks if a port is available by attempting to listen on it.
+// It checks both TCP and UDP to ensure the port is truly available across platforms.
 func isPortAvailable(port int) bool {
-	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	// Check TCP availability
+	tcpAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return false
 	}
-	defer l.Close()
+	tcpListener, err := net.ListenTCP("tcp", tcpAddr)
+	if err != nil {
+		return false
+	}
+	defer tcpListener.Close()
+
+	// Check UDP availability
+	udpAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		return false
+	}
+	udpConn, err := net.ListenUDP("udp", udpAddr)
+	if err != nil {
+		return false
+	}
+	defer udpConn.Close()
+
 	return true
 }
 
