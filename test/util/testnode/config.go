@@ -149,9 +149,9 @@ func DefaultTendermintConfig() *tmconfig.Config {
 	tmCfg := app.DefaultConsensusConfig()
 
 	// Set all the ports to random open ones.
-	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:0", GetDeterministicPort())
-	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:0", GetDeterministicPort())
-	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:0", GetDeterministicPort())
+	tmCfg.RPC.ListenAddress = "tcp://127.0.0.1:0"
+	tmCfg.P2P.ListenAddress = "tcp://127.0.0.1:0"
+	tmCfg.RPC.GRPCListenAddress = "tcp://127.0.0.1:0"
 
 	tmCfg.TxIndex.Indexer = "kv"
 
@@ -201,8 +201,8 @@ func CustomAppCreator(appOptions ...func(*baseapp.BaseApp)) srvtypes.AppCreator 
 func DefaultAppConfig() *srvconfig.Config {
 	appCfg := app.DefaultAppConfig()
 	appCfg.GRPC.Enable = true
-	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:0", GetDeterministicPort())
+	appCfg.GRPC.Address = "127.0.0.1:0"
 	appCfg.API.Enable = true
-	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:0", GetDeterministicPort())
+	appCfg.API.Address = "tcp://127.0.0.1:0"
 	return appCfg
 }
