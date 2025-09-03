@@ -30,10 +30,10 @@ jobs:
           ' \;
 
       - name: Commit and push tidy changes (only Dependabot PRs)
-        if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
+#        if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
+          git config user.name "dependabot-tidy"
+          git config user.email "dependabot-tidy@github.com"
 
 
           git config --global credential.helper store
