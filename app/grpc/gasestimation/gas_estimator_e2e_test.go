@@ -39,7 +39,7 @@ func TestGasEstimatorE2E(t *testing.T) {
 	// Create test node configuration
 	cfg := testnode.DefaultConfig().
 		WithFundedAccounts(accounts...).
-		WithTimeoutCommit(100 * time.Millisecond).
+		WithBlockTime(100 * time.Millisecond).
 		WithGenesis(
 			genesis.NewDefaultGenesis().
 				WithValidators(genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)).
@@ -110,7 +110,7 @@ func TestGasEstimatorE2EWithNetworkMinGasPrice(t *testing.T) {
 	// Create test node configuration
 	cfg := testnode.DefaultConfig().
 		WithFundedAccounts(accounts...).
-		WithTimeoutCommit(100 * time.Millisecond).
+		WithBlockTime(100 * time.Millisecond).
 		WithGenesis(
 			genesis.NewDefaultGenesis().
 				WithValidators(genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)).

@@ -149,8 +149,7 @@ func DefaultConfig() *Config {
 		WithAppConfig(DefaultAppConfig()).
 		WithAppOptions(DefaultAppOptions()).
 		WithSuppressLogs(true).
-		WithBlockTime(200 * time.Millisecond). // have a block time that is fast, but not overly fast
-		WithTimeoutCommit(200 * time.Millisecond) // keep both for backward compatibility
+		WithBlockTime(200 * time.Millisecond)
 }
 
 func DefaultConsensusParams() *tmproto.ConsensusParams {
