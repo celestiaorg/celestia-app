@@ -134,8 +134,8 @@ func isPortAvailable(port int) bool {
 // It checks port availability and increments until it finds an open port.
 func GetDeterministicPort() int {
 	for {
-		r := rand.Int63() % 20_000
-		port := int(portCounter.Add(r))
+		r := rand.Uint64() % 20_000
+		port := int(portCounter.Add(int64(r)))
 		if isPortAvailable(port) {
 			fmt.Println("returning available port ", r)
 			return port
