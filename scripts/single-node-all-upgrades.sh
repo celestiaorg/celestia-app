@@ -84,6 +84,9 @@ createGenesis() {
     # Override  the log level to debug
     # sed -i'.bak' 's#log_level = "info"#log_level = "debug"#g' "${APP_HOME}"/config/config.toml
 
+    # Override the pruning to nothing
+    sed -i'.bak' 's#pruning = "default"#pruning = "nothing"#g' "${APP_HOME}"/config/app.toml
+
     # Override the VotingPeriod from 1 week to 1 minute
     sed -i'.bak' 's#"604800s"#"60s"#g' "${APP_HOME}"/config/genesis.json
 
@@ -107,7 +110,7 @@ startCelestiaApp() {
     --force-no-bbr
 }
 
-upgradeToV3AndV4() {
+upgradeToV3AndV4AndV5() {
     sleep 30
     echo "Waiting for app version 2 before proceeding..."
     while true; do
@@ -190,9 +193,44 @@ upgradeToV3AndV4() {
         echo "Current version: $current_version, waiting for version 4..."
         sleep 1
     done
+
+    echo "Submitting signal for v5..."
+    celestia-appd tx signal signal 5 \
+        --keyring-backend=${KEYRING_BACKEND} \
+        --home ${APP_HOME} \
+        --from ${KEY_NAME} \
+        --fees ${FEES} \
+        --chain-id ${CHAIN_ID} \
+        --broadcast-mode ${BROADCAST_MODE} \
+        --yes
+
+    sleep 1
+    echo "Querying the tally for v5..."
+    celestia-appd query signal tally 5
+
+    echo "Submitting msg try upgrade..."
+    celestia-appd tx signal try-upgrade \
+        --keyring-backend=${KEYRING_BACKEND} \
+        --home ${APP_HOME} \
+        --from ${KEY_NAME} \
+        --fees ${FEES} \
+        --chain-id ${CHAIN_ID} \
+        --broadcast-mode ${BROADCAST_MODE} \
+        --yes
+
+    echo "Waiting for upgrade to complete..."
+    while true; do
+        current_version=$(celestia-appd status | jq -r '.node_info.protocol_version.app')
+        if [ "$current_version" = "5" ]; then
+            echo "Upgrade to version 5 complete!"
+            break
+        fi
+        echo "Current version: $current_version, waiting for version 5..."
+        sleep 1
+    done
 }
 
 deleteCelestiaAppHome
 createGenesis
-upgradeToV3AndV4 & # Upgrade to app version 3 and 4 in the background.
+upgradeToV3AndV4AndV5 & # Upgrade to app version 3, 4, and 5 in the background.
 startCelestiaApp # Start celestia-app in the foreground.
