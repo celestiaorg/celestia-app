@@ -4,7 +4,7 @@ go 1.24.6
 
 require (
 	cosmossdk.io/math v1.5.3
-	github.com/celestiaorg/celestia-app/v6 v6.0.0-alpha
+	github.com/celestiaorg/celestia-app/v6 v6.0.0-rc0
 	github.com/celestiaorg/go-square/v2 v2.3.1
 	github.com/celestiaorg/tastora v0.2.4
 	github.com/cometbft/cometbft v0.38.17
@@ -271,7 +271,7 @@ replace (
 	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.6
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	github.com/celestiaorg/celestia-app/v6 => ../..
-	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.54.0-tm-v0.38.17.0.20250903195220-126b3c0352b5
+	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.54.0-tm-v0.38.17.0.20250903225553-1d8aab5b15c6
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.51.0
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
 	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
