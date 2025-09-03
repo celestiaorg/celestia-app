@@ -32,6 +32,7 @@ jobs:
           ' \;
 
       - name: Commit and push tidy changes (only Dependabot PRs)
+#        if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
         env:
           PAT: ${{ secrets.DEPENDABOT_TIDY_TOKEN }}
         run: |
@@ -48,5 +49,4 @@ jobs:
           fi
 
           git commit -m "chore: run go mod tidy on all modules"
-          # Push back to the PR branch
           git push origin "HEAD:${{ github.head_ref }}"
