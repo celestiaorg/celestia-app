@@ -68,9 +68,7 @@ func TestGasEstimatorE2E(t *testing.T) {
 	require.NoError(t, err)
 	msg, err := blobtypes.NewMsgPayForBlobs(accounts[0], 0, blob)
 	require.NoError(t, err)
-
 	gasLimit := blobtypes.DefaultEstimateGas(msg)
-	require.NoError(t, err)
 
 	// Broadcast the transaction with the high fee
 	resp, err := txClient.BroadcastPayForBlob(
