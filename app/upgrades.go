@@ -6,10 +6,12 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
+	storetypes "cosmossdk.io/store/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
+	zkismtypes "github.com/celestiaorg/celestia-app/v6/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -120,7 +122,14 @@ func (app App) RegisterUpgradeHandlers() {
 	}
 
 	if upgradeInfo.Name == upgradeName && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) { //nolint:staticcheck
-		// TODO: Apply any store upgrades here.
+		storeUpgrades := storetypes.StoreUpgrades{
+			Added: []string{
+				zkismtypes.StoreKey,
+			},
+		}
+
+		// configure store loader that checks if version == upgradeHeight and applies store upgrades
+		app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
 	}
 }
 
