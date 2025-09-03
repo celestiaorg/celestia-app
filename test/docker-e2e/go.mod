@@ -78,7 +78,7 @@ require (
 	github.com/bytedance/sonic v1.13.1 // indirect
 	github.com/bytedance/sonic/loader v0.2.4 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
-	github.com/celestiaorg/nmt v0.24.0 // indirect
+	github.com/celestiaorg/nmt v0.24.1 // indirect
 	github.com/celestiaorg/rsmt2d v0.14.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -245,13 +245,13 @@ require (
 	go.opentelemetry.io/proto/otlp v1.5.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/arch v0.15.0 // indirect
-	golang.org/x/crypto v0.40.0 // indirect
+	golang.org/x/crypto v0.41.0 // indirect
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
-	golang.org/x/net v0.42.0 // indirect
+	golang.org/x/net v0.43.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
-	golang.org/x/sys v0.34.0 // indirect
-	golang.org/x/term v0.33.0 // indirect
-	golang.org/x/text v0.27.0 // indirect
+	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/term v0.34.0 // indirect
+	golang.org/x/text v0.28.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
 	google.golang.org/api v0.215.0 // indirect
 	google.golang.org/genproto v0.0.0-20241118233622-e639e219e697 // indirect
@@ -271,7 +271,7 @@ replace (
 	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.6
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	github.com/celestiaorg/celestia-app/v6 => ../..
-	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.2
+	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.54.0-tm-v0.38.17.0.20250902184052-0af96e3bbf32
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.51.0
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
 	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
