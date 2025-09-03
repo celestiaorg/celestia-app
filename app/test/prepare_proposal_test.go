@@ -325,7 +325,7 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 	// to be skipped without worrying about the sequence number being
 	// sequential.
 	numberOfAccounts := 8000
-	accounts := testnode.GenerateAccounts(numberOfAccounts)
+	accounts := testfactory.GenerateAccounts(numberOfAccounts)
 	consensusParams := app.DefaultConsensusParams()
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
