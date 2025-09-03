@@ -161,7 +161,7 @@ func DefaultConsensusParams() *tmproto.ConsensusParams {
 func DefaultTendermintConfig() *tmconfig.Config {
 	tmCfg := app.DefaultConsensusConfig()
 
-	// Set all the ports to random open ones.
+	// Set all the ports to deterministic ones with prime increment spacing
 	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
 	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
 	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
