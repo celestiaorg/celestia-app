@@ -159,8 +159,9 @@ func TestMinGasPFBDecoratorWithMsgExec(t *testing.T) {
 	txBuilder := txConfig.NewTxBuilder()
 	msgExec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{
 		&blob.MsgPayForBlobs{
-			Signer:    "celestia...",
-			BlobSizes: []uint32{uint32(math.MaxUint32)},
+			Signer:        "celestia...",
+			BlobSizes:     []uint32{uint32(math.MaxUint32)},
+			ShareVersions: []uint32{uint32(share.ShareVersionZero)},
 		},
 	})
 	require.NoError(t, txBuilder.SetMsgs(&msgExec))
