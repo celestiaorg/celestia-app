@@ -37,6 +37,8 @@ const (
 	BytesPerBlobInfo = 70
 )
 
+// NewMsgPayForBlobs creates a new MsgPayForBlobs with the given signer and blobs.
+// The signer must be a valid bech32 address.
 func NewMsgPayForBlobs(signer string, _ uint64, blobs ...*share.Blob) (*MsgPayForBlobs, error) {
 	err := ValidateBlobs(blobs...)
 	if err != nil {

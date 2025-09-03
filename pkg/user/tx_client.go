@@ -285,7 +285,9 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 		return nil, err
 	}
 
-	msg, err := blobtypes.NewMsgPayForBlobs(account, 0, blobs...)
+	acc := client.Account(account)
+	signer := acc.Address().String()
+	msg, err := blobtypes.NewMsgPayForBlobs(signer, 0, blobs...)
 	if err != nil {
 		return nil, err
 	}
@@ -635,9 +637,8 @@ func (client *TxClient) estimateGas(ctx context.Context, txBuilder client.TxBuil
 	return gasLimit, nil
 }
 
-// Account returns an account of the signer from the key name. Also returns a bool if the
-// account exists.
-// Thread-safe
+// Account returns an account of the signer from the key name.
+// Thread-safe.
 func (client *TxClient) Account(name string) *Account {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
