@@ -110,8 +110,8 @@ func (ism *ZKExecutionISM) validatePublicInputs(inputs PublicInputs) error {
 		return fmt.Errorf("cannot trust public inputs namespace: expected %x, but got %x", ism.Namespace, inputs.Namespace)
 	}
 
-	if !bytes.Equal(inputs.PublicKey[:], ism.PublicKey) {
-		return fmt.Errorf("cannot trust public inputs public key: expected %x, but got %x", ism.PublicKey, inputs.PublicKey)
+	if !bytes.Equal(inputs.PublicKey[:], ism.SequencerPublicKey) {
+		return fmt.Errorf("cannot trust public inputs public key: expected %x, but got %x", ism.SequencerPublicKey, inputs.PublicKey)
 	}
 
 	return nil

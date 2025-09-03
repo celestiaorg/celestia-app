@@ -43,7 +43,7 @@ func TestVerify(t *testing.T) {
 		StateRoot:           trustedRoot,
 		Height:              97,
 		Namespace:           namespace,
-		PublicKey:           pubKey,
+		SequencerPublicKey:  pubKey,
 	}
 
 	metadata := encodeMetadata(t, proofBz, inputsBz)

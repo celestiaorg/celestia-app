@@ -24,8 +24,8 @@ message ZKExecutionISM {
   uint64 height = 4;
   // the celestia namespace identifier used by the application
   bytes namespace = 5;
-  // the public key of the data signer
-  bytes public_key = 6;
+  // the public key of the sequencer
+  bytes sequencer_public_key = 6;
   // the zk state transition verifier key
   bytes state_transition_vkey = 7;
   // the zk state membership verifier key
@@ -53,8 +53,8 @@ message EventCreateZKExecutionISM {
   uint64 height = 4;
   // the celestia namespace identifier used by the application
   bytes namespace = 5;
-  // the public key of the data signer
-  bytes public_key = 6;
+  // the public key of the sequencer
+  bytes sequencer_public_key = 6;
   // the zk state transition verifier key of the sp1 prover client
   bytes state_transition_vkey = 7;
   // the zk state membership verifier key of the sp1 prover client

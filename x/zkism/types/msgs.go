@@ -20,7 +20,7 @@ func (msg *MsgCreateZKExecutionISM) ValidateBasic() error {
 		return fmt.Errorf("failed to parse namespace from bytes: %x", msg.Namespace)
 	}
 
-	if len(msg.PublicKey) != 32 {
+	if len(msg.SequencerPublicKey) != 32 {
 		return errors.New("public key must be exactly 32 bytes")
 	}
 
