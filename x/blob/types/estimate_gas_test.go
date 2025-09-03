@@ -21,9 +21,7 @@ import (
 )
 
 func TestPFBGasEstimation(t *testing.T) {
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	rnd := random.New()
-
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	testCases := []struct {
 		blobSizes []int
 	}{
@@ -37,15 +35,15 @@ func TestPFBGasEstimation(t *testing.T) {
 	}
 	for idx, tc := range testCases {
 		t.Run(fmt.Sprintf("case %d", idx), func(t *testing.T) {
-			accnts := testfactory.GenerateAccounts(1)
-			testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accnts...)
-			signer, err := user.NewSigner(kr, encCfg.TxConfig, testutil.ChainID, user.NewAccount(accnts[0], 1, 0))
+			accounts := testfactory.GenerateAccounts(1)
+			testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+			signer, err := user.NewSigner(kr, encodingConfig.TxConfig, testutil.ChainID, user.NewAccount(accounts[0], 1, 0))
 			require.NoError(t, err)
-			blobs := blobfactory.ManyRandBlobs(rnd, tc.blobSizes...)
-			msg, err := blobtypes.NewMsgPayForBlobs(accnts[0], 0, blobs...)
+			blobs := blobfactory.ManyRandBlobs(random.New(), tc.blobSizes...)
+			msg, err := blobtypes.NewMsgPayForBlobs(accounts[0], 0, blobs...)
 			require.NoError(t, err)
 			gas := blobtypes.DefaultEstimateGas(msg)
-			tx, _, err := signer.CreatePayForBlobs(accnts[0], blobs, user.SetGasLimitAndGasPrice(gas, appconsts.DefaultMinGasPrice))
+			tx, _, err := signer.CreatePayForBlobs(accounts[0], blobs, user.SetGasLimitAndGasPrice(gas, appconsts.DefaultMinGasPrice))
 			require.NoError(t, err)
 			blobTx, ok, err := blobtx.UnmarshalBlobTx(tx)
 			require.NoError(t, err)

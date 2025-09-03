@@ -9,6 +9,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -56,11 +57,17 @@ func RandomAccountNames(count int) []string {
 }
 
 func GenerateAccounts(count int) []string {
-	accs := make([]string, count)
+	accounts := make([]string, count)
 	for i := 0; i < count; i++ {
-		accs[i] = random.Str(20)
+		// Generate a random private key
+		privKey := secp256k1.GenPrivKey()
+		// Get the public key and derive the address
+		pubKey := privKey.PubKey()
+		address := sdk.AccAddress(pubKey.Address())
+		// Convert to bech32 string format
+		accounts[i] = address.String()
 	}
-	return accs
+	return accounts
 }
 
 func GetAddresses(keys keyring.Keyring) []sdk.AccAddress {
