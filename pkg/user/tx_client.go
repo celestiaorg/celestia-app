@@ -285,8 +285,7 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 		return nil, err
 	}
 
-	acc := client.Account(account)
-	signer := acc.Address().String()
+	signer := client.Account(account).Address().String()
 	msg, err := blobtypes.NewMsgPayForBlobs(signer, 0, blobs...)
 	if err != nil {
 		return nil, err
