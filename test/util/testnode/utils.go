@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"math/rand"
 	"net"
 	"os"
 	"path"
@@ -121,7 +120,7 @@ func GetFreePort() (int, error) {
 
 // isPortAvailable checks if a port is available by attempting to listen on it.
 func isPortAvailable(port int) bool {
-	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	l, err := net.Listen("udp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return false
 	}
@@ -134,10 +133,9 @@ func isPortAvailable(port int) bool {
 // It checks port availability and increments until it finds an open port.
 func GetDeterministicPort() int {
 	for {
-		r := rand.Int63() % 20_000
-		port := int(portCounter.Add(r))
+		port := int(portCounter.Add(1))
 		if isPortAvailable(port) {
-			fmt.Println("returning available port ", r)
+			fmt.Println("returning available port ", port)
 			return port
 		}
 		// If port is not available, the loop will continue with the next increment
