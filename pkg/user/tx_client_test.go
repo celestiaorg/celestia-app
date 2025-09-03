@@ -239,7 +239,9 @@ func TestRejections(t *testing.T) {
 	gas := user.SetGasLimit(1e6)
 
 	// Submit a blob tx with user set ttl. After the ttl expires, the tx will be rejected.
-	timeoutHeight := uint64(1)
+	currentHeight, err := ctx.LatestHeight()
+	require.NoError(t, err)
+	timeoutHeight := uint64(currentHeight) // Set timeout to current height (should expire immediately)
 	sender := txClient.Signer().Account(txClient.DefaultAccountName())
 	seqBeforeSubmission := sender.Sequence()
 	blobs := blobfactory.ManyRandBlobs(random.New(), 2, 2)
