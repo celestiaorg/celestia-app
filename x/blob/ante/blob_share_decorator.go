@@ -60,7 +60,7 @@ func (d BlobShareDecorator) validateMsgs(msgs []sdk.Msg, txSize uint32, maxBlobS
 		}
 
 		if pfb, ok := m.(*blobtypes.MsgPayForBlobs); ok {
-			if sharesNeeded := getSharesNeeded(txSize, pfb.BlobSizes); sharesNeeded > maxBlobShares {
+			if sharesNeeded := getSharesNeeded(txSize, pfb); sharesNeeded > maxBlobShares {
 				return errors.Wrapf(blobtypes.ErrBlobsTooLarge, "the number of shares occupied by blobs in this MsgPayForBlobs %d exceeds the max number of shares available for blob data %d", sharesNeeded, maxBlobShares)
 			}
 		}
@@ -85,12 +85,11 @@ func (d BlobShareDecorator) getMaxSquareSize(ctx sdk.Context) int {
 
 // getSharesNeeded returns the total number of shares needed to represent all of
 // the blobs described by blobSizes along with the shares used by the tx.
-func getSharesNeeded(txSize uint32, blobSizes []uint32) (sum int) {
+func getSharesNeeded(txSize uint32, msg *blobtypes.MsgPayForBlobs) (sum int) {
 	sum = share.CompactSharesNeeded(txSize)
-	for _, blobSize := range blobSizes {
-		// Assume that each blob contains a signer because that will result in a
-		// larger sum and this is a worst case estimate.
-		containsSigner := true
+	for i, blobSize := range msg.BlobSizes {
+		shareVersion := msg.ShareVersions[i]
+		containsSigner := shareVersion == uint32(share.ShareVersionOne)
 		sum += share.SparseSharesNeededV2(blobSize, containsSigner)
 	}
 	return sum
