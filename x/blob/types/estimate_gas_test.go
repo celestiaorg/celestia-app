@@ -63,14 +63,6 @@ func TestPFBGasEstimation(t *testing.T) {
 	}
 }
 
-func toUint32(arr []int) []uint32 {
-	res := make([]uint32, len(arr))
-	for i, v := range arr {
-		res[i] = uint32(v)
-	}
-	return res
-}
-
 func FuzzPFBGasEstimation(f *testing.F) {
 	var (
 		numBlobs    = 3
