@@ -65,7 +65,11 @@ func TestGasEstimatorE2E(t *testing.T) {
 	blobSize := 1200
 	data := random.Bytes(blobSize)
 	blob, err := share.NewV0Blob(share.RandomBlobNamespace(), data)
-	gasLimit := blobtypes.DefaultEstimateGas([]uint32{uint32(blobSize)})
+	require.NoError(t, err)
+	msg, err := blobtypes.NewMsgPayForBlobs(accounts[0], 0, blob)
+	require.NoError(t, err)
+
+	gasLimit := blobtypes.DefaultEstimateGas(msg)
 	require.NoError(t, err)
 
 	// Broadcast the transaction with the high fee

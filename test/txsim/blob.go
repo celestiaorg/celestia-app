@@ -123,7 +123,7 @@ func (s *BlobSequence) Next(_ context.Context, _ grpc.ClientConn, rand *rand.Ran
 	op := Operation{
 		Msgs:     []types.Msg{msg},
 		Blobs:    blobs,
-		GasLimit: estimateGas(sizes, s.useFeegrant),
+		GasLimit: estimateGas(msg, s.useFeegrant),
 	}
 
 	if s.gasPrice != 0 {
@@ -151,17 +151,12 @@ func (r Range) Rand(rand *rand.Rand) int {
 }
 
 // estimateGas estimates the gas required to pay for a set of blobs in a PFB.
-func estimateGas(blobSizes []int, useFeegrant bool) uint64 {
-	size := make([]uint32, len(blobSizes))
-	for i, s := range blobSizes {
-		size[i] = uint32(s)
-	}
-
+func estimateGas(msg *blob.MsgPayForBlobs, useFeegrant bool) uint64 {
 	// account for the extra gas required to pay for the fee granter
 	extra := uint64(0)
 	if useFeegrant {
 		extra = 12000
 	}
 
-	return blob.DefaultEstimateGas(size) + extra
+	return blob.DefaultEstimateGas(msg) + extra
 }

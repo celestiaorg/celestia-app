@@ -116,10 +116,16 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *tx.BlobTx, subtreeRootTh
 	return nil
 }
 
+// BlobTxSharesUsed is not used.
+// TODO: delete this function.
 func BlobTxSharesUsed(btx tmproto.BlobTx) int {
 	sharesUsed := 0
 	for _, blob := range btx.Blobs {
-		sharesUsed += share.SparseSharesNeeded(uint32(len(blob.Data)))
+		sharesUsed += share.SparseSharesNeededV2(uint32(len(blob.Data)), containsSigner(blob))
 	}
 	return sharesUsed
+}
+
+func containsSigner(blob *tmproto.Blob) bool {
+	return blob.GetShareVersion() == uint32(share.ShareVersionOne)
 }
