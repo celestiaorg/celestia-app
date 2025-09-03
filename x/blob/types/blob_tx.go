@@ -8,7 +8,6 @@ import (
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cometbft/cometbft/crypto/merkle"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -114,18 +113,4 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *tx.BlobTx, subtreeRootTh
 	}
 
 	return nil
-}
-
-// BlobTxSharesUsed is not used.
-// TODO: delete this function.
-func BlobTxSharesUsed(btx tmproto.BlobTx) int {
-	sharesUsed := 0
-	for _, blob := range btx.Blobs {
-		sharesUsed += share.SparseSharesNeededV2(uint32(len(blob.Data)), containsSigner(blob))
-	}
-	return sharesUsed
-}
-
-func containsSigner(blob *tmproto.Blob) bool {
-	return blob.GetShareVersion() == uint32(share.ShareVersionOne)
 }
