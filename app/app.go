@@ -190,10 +190,10 @@ type App struct {
 	BasicManager  module.BasicManager
 	ModuleManager *module.Manager
 	configurator  module.Configurator
-	// timeoutCommit is used to override the default timeoutCommit. This is
+	// blockTime is used to override the default TimeoutHeightDelay. This is
 	// useful for testing purposes and should not be used on public networks
 	// (Arabica, Mocha, or Mainnet Beta).
-	timeoutCommit time.Duration
+	blockTime time.Duration
 }
 
 // New returns a reference to an uninitialized app. Callers must subsequently
@@ -220,11 +220,11 @@ func New(
 	govModuleAddr := authtypes.NewModuleAddress(govtypes.ModuleName).String()
 
 	app := &App{
-		BaseApp:       baseApp,
-		keys:          keys,
-		tkeys:         tkeys,
-		memKeys:       memKeys,
-		timeoutCommit: timeoutCommit,
+		BaseApp:   baseApp,
+		keys:      keys,
+		tkeys:     tkeys,
+		memKeys:   memKeys,
+		blockTime: timeoutCommit,
 	}
 
 	// needed for migration from x/params -> module's ownership of own params
@@ -509,8 +509,7 @@ func (app *App) Info(req *abci.RequestInfo) (*abci.ResponseInfo, error) {
 		return nil, err
 	}
 
-	res.TimeoutInfo.TimeoutCommit = app.TimeoutCommit()
-	res.TimeoutInfo.TimeoutPropose = app.TimeoutPropose()
+	res.TimeoutInfo = app.TimeoutInfo()
 
 	return res, nil
 }
@@ -563,8 +562,7 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 		}
 	}
 
-	res.TimeoutInfo.TimeoutCommit = app.TimeoutCommit()
-	res.TimeoutInfo.TimeoutPropose = app.TimeoutPropose()
+	res.TimeoutInfo = app.TimeoutInfo()
 
 	return res, nil
 }
@@ -586,9 +584,7 @@ func (app *App) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abci.
 		return nil, err
 	}
 
-	res.TimeoutInfo.TimeoutCommit = app.TimeoutCommit()
-	res.TimeoutInfo.TimeoutPropose = app.TimeoutPropose()
-
+	res.TimeoutInfo = app.TimeoutInfo()
 	return res, nil
 }
 
@@ -811,15 +807,28 @@ func (app *App) NewProposalContext(header tmproto.Header) sdk.Context {
 	return ctx
 }
 
-// TimeoutCommit returns the timeout commit duration to be used on the next block.
-// It returns the user specified value as overridden by the --timeout-commit flag, otherwise
-// the default timeout commit value for the current app version.
-func (app *App) TimeoutCommit() time.Duration {
-	if app.timeoutCommit != 0 {
-		return app.timeoutCommit
+// TimeoutHeightDelay returns the timeout commit duration to be used on the next block.
+// It returns the user specified value as overridden by the --block-time flag, otherwise
+// the default timeout height delay value for the current app version.
+func (app *App) TimeoutHeightDelay() time.Duration {
+	if app.blockTime != 0 {
+		return app.blockTime
 	}
 
 	return appconsts.TimeoutCommit
+}
+
+func (app *App) TimeoutInfo() abci.TimeoutInfo {
+	return abci.TimeoutInfo{
+		TimeoutPropose:          appconsts.TimeoutPropose,
+		TimeoutProposeDelta:     appconsts.TimeoutProposeDelta,
+		TimeoutCommit:           appconsts.TimeoutCommit,
+		TimeoutPrevote:          appconsts.TimeoutPrevote,
+		TimeoutPrevoteDelta:     appconsts.TimeoutPrevoteDelta,
+		TimeoutPrecommit:        appconsts.TimeoutPrecommit,
+		TimeoutPrecommitDelta:   appconsts.TimeoutPrecommitDelta,
+		DelayedPrecommitTimeout: app.blockTime,
+	}
 }
 
 // TimeoutPropose returns the timeout propose duration to be used on the next block.

@@ -25,7 +25,10 @@ const (
 	DefaultValidatorAccountName = "validator"
 	DefaultInitialBalance       = genesis.DefaultInitialBalance
 	// TimeoutCommit is a flag that can be used to override the timeout_commit.
+	// Deprecated: Use BlockTimeFlag instead.
 	TimeoutCommitFlag = "timeout-commit"
+	// BlockTimeFlag is a flag that can be used to override the DelayedPrecommitTimeout.
+	BlockTimeFlag = "block-time"
 )
 
 type UniversalTestingConfig struct {
@@ -85,8 +88,16 @@ func (c *Config) WithSuppressLogs(sl bool) *Config {
 
 // WithTimeoutCommit sets the timeout commit in the cometBFT config and returns
 // the Config.
+// Deprecated: Use WithBlockTime instead.
 func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
 	c.TmConfig.Consensus.TimeoutCommit = d
+	return c
+}
+
+// WithBlockTime sets the block time (DelayedPrecommitTimeout) in the app options and returns
+// the Config. This affects the DelayedPrecommitTimeout used for consistent block timing.
+func (c *Config) WithBlockTime(d time.Duration) *Config {
+	c.AppOptions.Set(BlockTimeFlag, d)
 	return c
 }
 
@@ -136,7 +147,8 @@ func DefaultConfig() *Config {
 		WithAppConfig(DefaultAppConfig()).
 		WithAppOptions(DefaultAppOptions()).
 		WithSuppressLogs(true).
-		WithTimeoutCommit(200 * time.Millisecond) // have a block time that is fast, but not overly fast
+		WithBlockTime(200 * time.Millisecond). // have a block time that is fast, but not overly fast
+		WithTimeoutCommit(200 * time.Millisecond) // keep both for backward compatibility
 }
 
 func DefaultConsensusParams() *tmproto.ConsensusParams {
@@ -165,11 +177,19 @@ func DefaultAppCreator(opts ...AppCreationOptions) srvtypes.AppCreator {
 		baseAppOptions := server.DefaultBaseappOptions(appOptions)
 		baseAppOptions = append(baseAppOptions, baseapp.SetMinGasPrices(fmt.Sprintf("%v%v", appconsts.DefaultMinGasPrice, appconsts.BondDenom)))
 
+		// Check for the new --block-time flag first, then fall back to deprecated --timeout-commit
+		var blockTime time.Duration
+		if blockTimeFromFlag := appOptions.Get(BlockTimeFlag); blockTimeFromFlag != nil {
+			blockTime = blockTimeFromFlag.(time.Duration)
+		} else if timeoutCommitFromFlag := appOptions.Get(TimeoutCommitFlag); timeoutCommitFromFlag != nil {
+			blockTime = timeoutCommitFromFlag.(time.Duration)
+		}
+
 		app := app.New(
 			log.NewNopLogger(),
 			dbm.NewMemDB(),
 			nil, // trace store
-			appOptions.Get(TimeoutCommitFlag).(time.Duration), // timeout commit
+			blockTime,
 			simtestutil.EmptyAppOptions{},
 			baseAppOptions...,
 		)
