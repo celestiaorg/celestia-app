@@ -30,7 +30,7 @@ BUILD_FLAGS_MULTIPLEXER := -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_M
 # docker/multiplexer.Dockerfile
 CELESTIA_V3_VERSION := v3.10.6
 CELESTIA_V4_VERSION := v4.1.0
-CELESTIA_V5_VERSION := v5.0.1
+CELESTIA_V5_VERSION := v5.0.4-rc0
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -121,8 +121,6 @@ download-v5-binaries:
 mod:
 	@echo "--> Updating go.mod"
 	@go mod tidy
-	@echo "--> Updating go.mod in ./test/interchain"
-	@(cd ./test/interchain && go mod tidy)
 	@echo "--> Updating go.mod in ./test/docker-e2e"
 	@(cd ./test/docker-e2e && go mod tidy)
 .PHONY: mod

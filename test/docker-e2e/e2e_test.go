@@ -253,7 +253,7 @@ func (s *CelestiaTestSuite) ensureMinimumBlocks(ctx context.Context, chain tasto
 	return finalStatus.SyncInfo.LatestBlockHeight, nil
 }
 
-// fetchValidatorSets retrieves validator sets at both start and end heights
+// fetchValidatorSets retrieves the validator set at the provided end height
 func (s *CelestiaTestSuite) fetchValidatorSets(ctx context.Context, rpcClient rpcclient.Client, endHeight int64) (*coretypes.ResultValidators, error) {
 	endValidators, err := rpcClient.Validators(ctx, &endHeight, nil, nil)
 	if err != nil {
