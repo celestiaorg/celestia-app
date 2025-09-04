@@ -830,9 +830,3 @@ func (app *App) TimeoutInfo() abci.TimeoutInfo {
 		DelayedPrecommitTimeout: app.blockTime,
 	}
 }
-
-// TimeoutPropose returns the timeout propose duration to be used on the next block.
-// It returns the default timeout propose value for the current app version.
-func (app *App) TimeoutPropose() time.Duration {
-	return appconsts.TimeoutPropose
-}
