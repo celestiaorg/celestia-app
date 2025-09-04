@@ -1,4 +1,3 @@
-
 #!/bin/sh
 
 # This script tests the Ledger integration with celestia-appd.
