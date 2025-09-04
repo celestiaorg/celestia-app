@@ -46,7 +46,6 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.accounts = testnode.RandomAccounts(142)
 
 	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...).WithTimeoutCommit(time.Millisecond * 500)
-
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 
 	s.cctx = cctx

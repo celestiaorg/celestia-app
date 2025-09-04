@@ -55,7 +55,7 @@ func (AppModule) Name() string {
 	return types.ModuleName
 }
 
-// RegisterLegacyAminoCodec registers the blob module's types on the LegacyAmino codec.
+// RegisterLegacyAminoCodec registers the minfee module's types on the LegacyAmino codec.
 func (AppModule) RegisterLegacyAminoCodec(_ *codec.LegacyAmino) {}
 
 // RegisterInterfaces registers interfaces and implementations of the minfee module.

@@ -60,7 +60,7 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 
 	s.T().Logf("Checking validator liveness from height %d", startHeight)
 	s.Require().NoError(
-		s.CheckLiveness(ctx, celestia, startHeight),
+		s.CheckLiveness(ctx, celestia),
 		"validator liveness check failed",
 	)
 }
@@ -108,7 +108,7 @@ func assertTransactionsIncluded(ctx context.Context, t *testing.T, celestia *tas
 func testBankSend(t *testing.T, chain *tastoradockertypes.Chain, cfg *dockerchain.Config) {
 	ctx := context.Background()
 
-	// The key-ring stores wallets by name. Re-using a name causes
+	// The key-ring stores wallets by name. Reusing a name causes
 	// 'celestia-appd keys add' to fail with "key already exists", which would
 	// break repeated or parallel test runs.  A timestamp keeps the name unique.
 	recipientWalletName := fmt.Sprintf("recipient-%d", time.Now().UnixNano())

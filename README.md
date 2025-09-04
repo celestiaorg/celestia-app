@@ -35,7 +35,7 @@ node            |  |                               |  |
 
 ### From source
 
-1. [Install Go](https://go.dev/doc/install) 1.24.4
+1. [Install Go](https://go.dev/doc/install) 1.24.6
 1. Clone this repo
 1. Install the celestia-appd binary. This installs a "multiplexer" binary that will also download embedded binaries for the latest celestia-app v3.x.x and v4.x.x release.
 
@@ -82,13 +82,13 @@ See <https://docs.celestia.org/how-to-guides/celestia-app> for more information.
 
 ### Prerequisites
 
-Enable the [BBR](https://www.ietf.org/archive/id/draft-cardwell-iccrg-bbr-congestion-control-01.html) ("Bottleneck Bandwidth and Round-trip propagation time") congestion control algorithm.
+If you are on Linux, enable the [BBR](https://www.ietf.org/archive/id/draft-cardwell-iccrg-bbr-congestion-control-01.html) ("Bottleneck Bandwidth and Round-trip propagation time") congestion control algorithm.
 
 ```shell
-# Check if BBR is enabled.
+# Check if BBR is enabled (Linux only).
 make bbr-check
 
-# If BBR is not enabled then enable it.
+# If BBR is not enabled then enable it (Linux only).
 make bbr-enable
 ```
 
@@ -119,11 +119,14 @@ celestia-appd start
 
 # Publish blob data to the local testnet.
 celestia-appd tx blob pay-for-blob 0x00010203040506070809 0x48656c6c6f2c20576f726c6421 \
-	--chain-id private \
+	--chain-id test \
 	--from validator \
 	--keyring-backend test \
 	--fees 21000utia \
 	--yes
+
+# Query the tx
+celestia-appd query tx <txhash from previous command>
 ```
 
 ### Join a public Celestia network
@@ -218,7 +221,9 @@ The source of truth for dependencies is the `go.mod` file but the table below de
 
 | celestia-app | celestia-core      | cosmos-sdk                 |
 |--------------|--------------------|----------------------------|
-| `main`       | `main`             | `release/v0.50.x-celestia` |
+| `main`       | `main`             | `release/v0.51.x-celestia` |
+| `v6.x`       | `v0.39.x-celestia` | `release/v0.51.x-celestia` |
+| `v5.x`       | `v0.38.x-celestia` | `release/v0.50.x-celestia` |
 | `v4.x`       | `v0.38.x-celestia` | `release/v0.50.x-celestia` |
 | `v3.x`       | `v0.34.x-celestia` | `release/v0.46.x-celestia` |
 

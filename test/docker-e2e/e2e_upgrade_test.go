@@ -31,6 +31,34 @@ func (s *CelestiaTestSuite) TestCelestiaAppUpgrade() {
 		targetAppVersion uint64
 	}{
 		{
+			baseAppVersion:   5,
+			targetAppVersion: 6,
+		},
+	}
+
+	for _, tc := range tt {
+		s.Run(fmt.Sprintf("upgrade from v%d to v%d", tc.baseAppVersion, tc.targetAppVersion), func() {
+			s.runUpgradeTest(tag, tc.baseAppVersion, tc.targetAppVersion)
+		})
+	}
+}
+
+// TestAllUpgrades tests all app version upgrades using the signaling mechanism.
+// This test runs all upgrade paths.
+func (s *CelestiaTestSuite) TestAllUpgrades() {
+	if testing.Short() {
+		s.T().Skip("skipping celestia-app TestAllUpgrades in short mode")
+	}
+
+	tag, err := dockerchain.GetCelestiaTagStrict()
+	s.Require().NoError(err)
+
+	// All upgrade paths for comprehensive testing
+	tt := []struct {
+		baseAppVersion   uint64
+		targetAppVersion uint64
+	}{
+		{
 			baseAppVersion:   2,
 			targetAppVersion: 3,
 		},
@@ -41,6 +69,10 @@ func (s *CelestiaTestSuite) TestCelestiaAppUpgrade() {
 		{
 			baseAppVersion:   4,
 			targetAppVersion: 5,
+		},
+		{
+			baseAppVersion:   5,
+			targetAppVersion: 6,
 		},
 	}
 
@@ -128,7 +160,7 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 
 	s.T().Logf("Checking validator liveness from height %d with minimum %d blocks per validator", startHeight, defaultBlocksPerValidator)
 	s.Require().NoError(
-		s.CheckLiveness(ctx, chain, startHeight),
+		s.CheckLiveness(ctx, chain),
 		"validator liveness check failed",
 	)
 }

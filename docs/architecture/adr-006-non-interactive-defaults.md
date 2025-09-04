@@ -380,7 +380,7 @@ The simplest approach, and the one taken in the initial implementation, works by
 ```go
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
    ...
-   // the totalSharesUsed can be larger that the max number of shares if we
+   // the totalSharesUsed can be larger than the max number of shares if we
    // reach the max square size. In this case, we must prune the deprioritized
    // txs (and their messages if they're pfb txs).
    if totalSharesUsed > int(squareSize*squareSize) {
