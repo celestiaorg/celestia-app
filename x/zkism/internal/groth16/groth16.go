@@ -82,7 +82,7 @@ func NewBN254FrElement(bigInt *big.Int) *bn254fr.Element {
 // NewPublicWitness constructs a public witness using the provided input values.
 //
 // It initializes a new witness over the BN254 scalar field, fills it with the
-// given public inputs, and returns the public portion of the witness.
+// given public values, and returns the public portion of the witness.
 func NewPublicWitness(inputs ...any) (witness.Witness, error) {
 	w, err := witness.New(ecc.BN254.ScalarField())
 	if err != nil {

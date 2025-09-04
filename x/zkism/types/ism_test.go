@@ -52,7 +52,7 @@ func TestVerify(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, verified)
 
-	inputs := new(types.PublicInputs)
+	inputs := new(types.PublicValues)
 	err = inputs.Unmarshal(inputsBz)
 	require.NoError(t, err)
 

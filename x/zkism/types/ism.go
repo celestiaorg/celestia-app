@@ -67,18 +67,14 @@ func (ism *ZKExecutionISM) verifyZKStateTransition(metadata ZkExecutionISMMetada
 		return false, err
 	}
 
-	if err := ism.validatePublicInputs(metadata.PublicInputs); err != nil {
-		return false, err
-	}
-
 	vkCommitment := new(big.Int).SetBytes(ism.VkeyCommitment)
-	pubInputs, err := metadata.PublicInputs.Marshal()
+	pubVals, err := metadata.PublicValues.Marshal()
 	if err != nil {
 		return false, err
 	}
 
 	vkElement := groth16.NewBN254FrElement(vkCommitment)
-	inputsElement := groth16.NewBN254FrElement(groth16.HashBN254(pubInputs))
+	inputsElement := groth16.NewBN254FrElement(groth16.HashBN254(pubVals))
 
 	pubWitness, err := groth16.NewPublicWitness(vkElement, inputsElement)
 	if err != nil {
@@ -89,32 +85,10 @@ func (ism *ZKExecutionISM) verifyZKStateTransition(metadata ZkExecutionISMMetada
 		return false, fmt.Errorf("failed to verify proof: %w", err)
 	}
 
-	ism.Height = metadata.PublicInputs.NewHeight
-	ism.StateRoot = metadata.PublicInputs.NewStateRoot[:]
+	ism.Height = metadata.PublicValues.NewHeight
+	ism.StateRoot = metadata.PublicValues.NewStateRoot[:]
 
 	return true, nil
-}
-
-// TODO: validate public inputs with trusted ism/celestia data
-// - celestia header hash (from celestia blockchain state)
-func (ism *ZKExecutionISM) validatePublicInputs(inputs PublicInputs) error {
-	if !bytes.Equal(inputs.TrustedStateRoot[:], ism.StateRoot) {
-		return fmt.Errorf("cannot trust public inputs trusted state root: expected %x, but got %x", ism.StateRoot, inputs.TrustedStateRoot)
-	}
-
-	if inputs.TrustedHeight != ism.Height {
-		return fmt.Errorf("cannot trust public inputs trusted height: expected %d, but got %d", ism.Height, inputs.TrustedHeight)
-	}
-
-	if !bytes.Equal(inputs.Namespace[:], ism.Namespace) {
-		return fmt.Errorf("cannot trust public inputs namespace: expected %x, but got %x", ism.Namespace, inputs.Namespace)
-	}
-
-	if !bytes.Equal(inputs.PublicKey[:], ism.SequencerPublicKey) {
-		return fmt.Errorf("cannot trust public inputs public key: expected %x, but got %x", ism.SequencerPublicKey, inputs.PublicKey)
-	}
-
-	return nil
 }
 
 // verifyZKStateInclusion verifies merkle inclusion proofs against the current state root.
