@@ -69,7 +69,7 @@ This will initialize the directory that contains directory structure used for co
 └── scripts/
 ```
 
-the celestia-app configs (config.toml and app.toml) can be manually edited here, and they will be copied to each node. `config.json` is the talis specific configuration file that contains all info related to spinning up the network. This is updated after the nodes have been spun up. Basic defaults are set, but the relevant fields can either be edited after generation or via using a flag. At this point, it looks something like this:
+the celestia-app configs (config.toml and app.toml) can be manually edited here, and they will be copied to each node. `config.json` is the talis specific configuration file that contains all info related to spinning up the network. This is updated after the nodes have been spun up. Basic defaults are set, but the relevant fields can either be edited after generation or by using a flag. At this point, it looks something like this:
 
 ```json
 {
@@ -159,7 +159,7 @@ talis up --workers 20
 
 ### genesis
 
-Before we can start the network, we need to create a payload that contains everything each instance needs to actually start the network. This includes all the required keys, configs, genesis.json, and startup scripts. The `--square-size` flag will change the `GovMaxSquareSize`. By default, the binaries in the $GOPATH/bin will be used, however if specific binaries are needed (likely unless you are running some flavor of debian), use the -a (-a, --app-binary) and -t (-t, --txsim-binary) flags.
+Before we can start the network, we need to create a payload that contains everything each instance needs to actually start the network. This includes all the required keys, configs, genesis.json, and startup scripts. The `--square-size` flag will change the `GovMaxSquareSize`. By default, the binaries in the $GOPATH/bin will be used, however if specific binaries are needed (likely unless you are running some flavor of debian), use the -a (--app-binary) and -t (--txsim-binary) flags.
 
 ```sh
 # creates the payload for the network. This contains all addresses, configs, binaries (from your local GOPATH if not specified), genesis.json, and startup scripts. The `--square-size` flag will change the `GovMaxSquareSize`
@@ -334,7 +334,7 @@ export TALIS_SSH_KEY_PATH="~/.ssh/id_ed25519_no_passphrase"
 
 **Run Talis:**
 
-Talis assumes that you're your default ssh key so if you created a new key above you need to specify it in the commands.
+Talis assumes that you're using your default ssh key so if you created a new key above you need to specify it in the commands.
 
 ```sh
 # Initialize
