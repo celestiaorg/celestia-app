@@ -135,7 +135,7 @@ func MustGetFreePort() int {
 
 // isPortAvailable checks if a port is available by attempting to listen on it.
 func isPortAvailable(port int) bool {
-	l, err := net.Listen("udp", fmt.Sprintf(":%d", port))
+	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return false
 	}
