@@ -26,7 +26,12 @@ import (
 
 // portCounter is a global atomic counter for deterministic port allocation
 // Starting from 20000 to avoid conflicts with common ports
+// We use a larger increment on macOS to account for port release delays
 var portCounter atomic.Int64
+
+// portIncrement defines how much to increment between port allocations
+// Mimic cicaidas by using a prime number to avoid patterns and conflicts with other allocation schemes
+const portIncrement = 11
 
 func init() {
 	portCounter.Store(20000)
@@ -134,25 +139,44 @@ func MustGetFreePort() int {
 }
 
 // isPortAvailable checks if a port is available by attempting to listen on it.
+// It checks both TCP and UDP to ensure the port is truly available across platforms.
 func isPortAvailable(port int) bool {
-	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	// Check TCP availability
+	tcpAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return false
 	}
-	defer l.Close()
+	tcpListener, err := net.ListenTCP("tcp", tcpAddr)
+	if err != nil {
+		return false
+	}
+	defer tcpListener.Close()
+
+	// Check UDP availability
+	udpAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		return false
+	}
+	udpConn, err := net.ListenUDP("udp", udpAddr)
+	if err != nil {
+		return false
+	}
+	defer udpConn.Close()
+
 	return true
 }
 
 // GetDeterministicPort returns a deterministic port using an atomic counter.
 // This eliminates race conditions by ensuring each call gets a unique port.
-// It checks port availability and increments until it finds an open port.
+// Uses larger increments to avoid conflicts from delayed port releases on macOS.
 func GetDeterministicPort() int {
 	for {
-		port := int(portCounter.Add(1))
+		port := int(portCounter.Add(portIncrement))
 		if isPortAvailable(port) {
 			return port
 		}
-		// If port is not available, the loop will continue with the next increment
+		// On macOS, ports may not be immediately available after closing
+		// Continue with next increment if port is still bound
 	}
 }
 
