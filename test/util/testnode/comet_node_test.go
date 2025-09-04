@@ -43,7 +43,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	cfg := DefaultConfig().
 		WithFundedAccounts(s.accounts...).
 		WithModifiers(genesis.SetBlobParams(enc.Codec, blobGenState.Params)).
-		WithBlockTime(time.Millisecond * 100)
+		WithDelayedPrecommitTimeout(time.Millisecond * 100)
 
 	cctx, _, _ := NewNetwork(t, cfg)
 	s.cctx = cctx

@@ -96,9 +96,10 @@ func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
 	return c
 }
 
-// WithBlockTime sets the block time (DelayedPrecommitTimeout) in the app options and returns
-// the Config. This affects the DelayedPrecommitTimeout used for consistent block timing.
-func (c *Config) WithBlockTime(d time.Duration) *Config {
+// WithDelayedPrecommitTimeout sets the target block time using DelayedPrecommitTimeout in the app
+// options and returns the Config. This affects the DelayedPrecommitTimeout used for consistent
+// block timing.
+func (c *Config) WithDelayedPrecommitTimeout(d time.Duration) *Config {
 	c.AppOptions.Set(BlockTimeFlag, d)
 	return c
 }
@@ -149,7 +150,7 @@ func DefaultConfig() *Config {
 		WithAppConfig(DefaultAppConfig()).
 		WithAppOptions(DefaultAppOptions()).
 		WithSuppressLogs(true).
-		WithBlockTime(200 * time.Millisecond)
+		WithDelayedPrecommitTimeout(200 * time.Millisecond)
 }
 
 func DefaultConsensusParams() *tmproto.ConsensusParams {

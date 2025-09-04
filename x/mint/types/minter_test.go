@@ -42,7 +42,7 @@ func TestCalculateInflationRate(t *testing.T) {
 		t.Run(fmt.Sprintf("test: %d", i), func(t *testing.T) {
 			years := time.Duration(tc.year * NanosecondsPerYear * int64(time.Nanosecond))
 			blockTime := genesisTime.Add(years)
-			ctx := sdk.NewContext(nil, tmproto.Header{}, false, nil).WithBlockTime(blockTime)
+			ctx := sdk.NewContext(nil, tmproto.Header{}, false, nil).WithDelayedPrecommitTimeout(blockTime)
 			inflationRate := minter.CalculateInflationRate(ctx, genesisTime)
 			got, err := inflationRate.Float64()
 			assert.NoError(t, err)

@@ -72,7 +72,7 @@ func TestMaliciousTestNode(t *testing.T) {
 	accounts := testfactory.RandomAccountNames(5)
 	cfg := OutOfOrderNamespaceConfig(5).
 		WithFundedAccounts(accounts...).
-		WithBlockTime(100 * time.Millisecond)
+		WithDelayedPrecommitTimeout(100 * time.Millisecond)
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	_, err := cctx.WaitForHeight(6)

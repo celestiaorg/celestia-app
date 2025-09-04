@@ -452,7 +452,7 @@ func setupTxClient(
 		WithTendermintConfig(defaultTmConfig).
 		WithFundedAccounts("a", "b", "c").
 		WithChainID(chainID).
-		WithBlockTime(100 * time.Millisecond).
+		WithDelayedPrecommitTimeout(100 * time.Millisecond).
 		WithAppCreator(testnode.CustomAppCreator(baseapp.SetMinGasPrices(fmt.Sprintf("%v%v", appconsts.DefaultMinGasPrice, appconsts.BondDenom)), baseapp.SetChainID(chainID)))
 	testnodeConfig.Genesis.ConsensusParams.Block.MaxBytes = blocksize
 

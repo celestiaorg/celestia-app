@@ -807,17 +807,6 @@ func (app *App) NewProposalContext(header tmproto.Header) sdk.Context {
 	return ctx
 }
 
-// TimeoutHeightDelay returns the timeout commit duration to be used on the next block.
-// It returns the user specified value as overridden by the --block-time flag, otherwise
-// the default timeout height delay value for the current app version.
-func (app *App) TimeoutHeightDelay() time.Duration {
-	if app.blockTime != 0 {
-		return app.blockTime
-	}
-
-	return appconsts.TimeoutCommit
-}
-
 func (app *App) TimeoutInfo() abci.TimeoutInfo {
 	return abci.TimeoutInfo{
 		TimeoutPropose:          appconsts.TimeoutPropose,
