@@ -26,7 +26,7 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 
 	// check if the transaction contains blobs
 	btx, isBlob, err := blobtx.UnmarshalBlobTx(tx)
-	if isBlob && err != nil {
+	if err != nil {
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 	}
 
