@@ -148,7 +148,7 @@ func addStartFlags(startCmd *cobra.Command) {
 	}
 
 	startCmd.Flags().Duration(TimeoutCommitFlag, 0, "Override the application configured timeout_commit. Note: only for testing purposes.")
-	if err := startCmd.Flags().MarkDeprecated(TimeoutCommitFlag, "Use --block-time instead."); err != nil {
+	if err := startCmd.Flags().MarkDeprecated(TimeoutCommitFlag, "Use --delayed-precommit-timeout instead."); err != nil {
 		panic(err)
 	}
 

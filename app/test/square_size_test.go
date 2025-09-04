@@ -48,7 +48,7 @@ func (s *SquareSizeIntegrationTest) SetupSuite() {
 	s.enc = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	cfg := testnode.DefaultConfig().
 		WithModifiers(genesis.ImmediateProposals(s.enc.Codec)).
-		WithDelayedPrecommitTimeout(time.Millisecond * 500). // long timeout commit to provide time for submitting txs
+		WithDelayedPrecommitTimeout(time.Millisecond * 500). // long time to provide time for submitting txs
 		WithFundedAccounts("txsim")                          // add a specific txsim account
 
 	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, cfg)
