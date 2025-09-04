@@ -11,7 +11,6 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
-	"cosmossdk.io/math/unsafe"
 	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
@@ -25,7 +24,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
-	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/x/authz"
@@ -447,13 +445,10 @@ func setupTxClient(
 	defaultTmConfig := testnode.DefaultTendermintConfig()
 	defaultTmConfig.Mempool.TTLNumBlocks = ttlNumBlocks
 
-	chainID := unsafe.Str(6)
 	testnodeConfig := testnode.DefaultConfig().
 		WithTendermintConfig(defaultTmConfig).
 		WithFundedAccounts("a", "b", "c").
-		WithChainID(chainID).
-		WithDelayedPrecommitTimeout(200 * time.Millisecond).
-		WithAppCreator(testnode.CustomAppCreator(baseapp.SetMinGasPrices(fmt.Sprintf("%v%v", appconsts.DefaultMinGasPrice, appconsts.BondDenom)), baseapp.SetChainID(chainID)))
+		WithDelayedPrecommitTimeout(400 * time.Millisecond)
 	testnodeConfig.Genesis.ConsensusParams.Block.MaxBytes = blocksize
 
 	ctx, _, _ := testnode.NewNetwork(t, testnodeConfig)
