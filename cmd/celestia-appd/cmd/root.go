@@ -37,8 +37,8 @@ const (
 	// Deprecated: Use BlockTimeFlag instead.
 	TimeoutCommitFlag = "timeout-commit"
 
-	// BlockTimeFlag is a flag that can be used to override the DelayedPrecommitTimeout.
-	BlockTimeFlag = "block-time"
+	// DelayedPrecommitTimeoutFlag is a flag that can be used to override the DelayedPrecommitTimeout.
+	DelayedPrecommitTimeoutFlag = "delayed-precommit-timeout"
 )
 
 // NewRootCmd creates a new root command for celestia-appd.
@@ -152,7 +152,7 @@ func addStartFlags(startCmd *cobra.Command) {
 		panic(err)
 	}
 
-	startCmd.Flags().Duration(BlockTimeFlag, 0, "Override the DelayedPrecommitTimeout to control block time. Note: only for testing purposes.")
+	startCmd.Flags().Duration(DelayedPrecommitTimeoutFlag, 0, "Override the DelayedPrecommitTimeout to control block time. Note: only for testing purposes.")
 	startCmd.Flags().Bool(FlagForceNoBBR, false, "bypass the requirement to use bbr locally")
 }
 

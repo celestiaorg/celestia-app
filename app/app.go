@@ -202,7 +202,7 @@ func New(
 	logger log.Logger,
 	db dbm.DB,
 	traceStore io.Writer,
-	timeoutCommit time.Duration,
+	delayedPrecommitTimeout time.Duration,
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
@@ -224,7 +224,7 @@ func New(
 		keys:      keys,
 		tkeys:     tkeys,
 		memKeys:   memKeys,
-		blockTime: timeoutCommit,
+		blockTime: delayedPrecommitTimeout,
 	}
 
 	// needed for migration from x/params -> module's ownership of own params
