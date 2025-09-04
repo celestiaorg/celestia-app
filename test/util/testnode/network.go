@@ -35,12 +35,12 @@ func NewNetworkWithRetry(t testing.TB, config *Config, maxRetries int) (cctx Con
 					cleanup()
 				}
 				time.Sleep(time.Second)
-				config.TmConfig.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
-				config.TmConfig.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
-				config.TmConfig.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
-				config.AppConfig.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", GetDeterministicPort())
+				config.TmConfig.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
+				config.TmConfig.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
+				config.TmConfig.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
+				config.AppConfig.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", MustGetFreePort())
 				config.AppConfig.API.Enable = true
-				config.AppConfig.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
+				config.AppConfig.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
 				continue
 			}
 			t.Fatalf("Failed to start network after %d attempts: %v", attempt+1, err)
