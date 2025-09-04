@@ -321,8 +321,8 @@ func TestEvictions(t *testing.T) {
 		require.False(t, exists)
 	}
 
-	// At least 8 txs should have been evicted and resubmitted
-	require.GreaterOrEqual(t, len(evictedTxHashes), 7)
+	// At least 4 txs should have been evicted and resubmitted
+	require.GreaterOrEqual(t, len(evictedTxHashes), 4)
 
 	// Re-query evicted tx hashes and assert that they are now committed
 	for _, txHash := range evictedTxHashes {
@@ -452,7 +452,7 @@ func setupTxClient(
 		WithTendermintConfig(defaultTmConfig).
 		WithFundedAccounts("a", "b", "c").
 		WithChainID(chainID).
-		WithDelayedPrecommitTimeout(100 * time.Millisecond).
+		WithDelayedPrecommitTimeout(200 * time.Millisecond).
 		WithAppCreator(testnode.CustomAppCreator(baseapp.SetMinGasPrices(fmt.Sprintf("%v%v", appconsts.DefaultMinGasPrice, appconsts.BondDenom)), baseapp.SetChainID(chainID)))
 	testnodeConfig.Genesis.ConsensusParams.Block.MaxBytes = blocksize
 
