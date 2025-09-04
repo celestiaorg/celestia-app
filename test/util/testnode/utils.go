@@ -165,7 +165,6 @@ func GetDeterministicPort() int {
 	}
 }
 
-
 // removeDir removes the directory `rootDir`.
 // The main use of this is to reduce the flakiness of the CI when it's unable to delete
 // the config folder of the tendermint node.
