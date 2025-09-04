@@ -8,6 +8,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
 
 // EventPayForBlobs defines an event that is emitted after a pay for blob has
 // been processed.
+// Additional comment for the protobuf testing
 message EventPayForBlobs {
   string          signer     = 1;
   repeated uint32 blob_sizes = 2;
