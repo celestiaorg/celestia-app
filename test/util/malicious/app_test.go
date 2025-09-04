@@ -75,7 +75,7 @@ func TestMaliciousTestNode(t *testing.T) {
 		WithDelayedPrecommitTimeout(100 * time.Millisecond)
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
-	_, err := cctx.WaitForHeight(6)
+	_, err := cctx.WaitForHeight(2)
 	require.NoError(t, err)
 
 	// submit a multiblob tx where each blob is using a random namespace. This
