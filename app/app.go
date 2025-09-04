@@ -197,7 +197,8 @@ type App struct {
 }
 
 // New returns a reference to an uninitialized app. Callers must subsequently
-// call app.Info or app.InitChain to initialize the baseapp.
+// call app.Info or app.InitChain to initialize the baseapp. Setting
+// delayedPrecommitTimeout to 0 will result in using the default value.
 func New(
 	logger log.Logger,
 	db dbm.DB,
@@ -218,6 +219,10 @@ func New(
 	memKeys := storetypes.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
 
 	govModuleAddr := authtypes.NewModuleAddress(govtypes.ModuleName).String()
+
+	if delayedPrecommitTimeout == 0 {
+		delayedPrecommitTimeout = appconsts.DelayedPrecommitTimeout
+	}
 
 	app := &App{
 		BaseApp:   baseApp,
