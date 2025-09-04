@@ -51,6 +51,10 @@ func TestGasEstimatorE2E(t *testing.T) {
 	// Start the test network
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 
+	// Wait for the first block to ensure the node is ready
+	_, err := cctx.WaitForHeight(1)
+	require.NoError(t, err)
+
 	estimatorClient := gasestimation.NewGasEstimatorClient(cctx.GRPCClient)
 	gasPriceResp, err := estimatorClient.EstimateGasPrice(ctx, &gasestimation.EstimateGasPriceRequest{})
 	require.NoError(t, err)
@@ -123,6 +127,10 @@ func TestGasEstimatorE2EWithNetworkMinGasPrice(t *testing.T) {
 
 	// Start the test network
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
+
+	// Wait for the first block to ensure the node is ready
+	_, err := cctx.WaitForHeight(1)
+	require.NoError(t, err)
 
 	estimatorClient := gasestimation.NewGasEstimatorClient(cctx.GRPCClient)
 	gasPriceResp, err := estimatorClient.EstimateGasPrice(ctx, &gasestimation.EstimateGasPriceRequest{})
