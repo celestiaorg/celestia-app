@@ -110,17 +110,32 @@ func GenerateAccounts(count int) []string {
 
 // GetFreePort returns a free port and optionally an error.
 func GetFreePort() (int, error) {
-	a, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	a, err := net.ResolveUDPAddr("udp", "localhost:0")
 	if err != nil {
 		return 0, err
 	}
 
-	l, err := net.ListenTCP("tcp", a)
+	l, err := net.ListenUDP("udp", a)
 	if err != nil {
 		return 0, err
 	}
 	defer l.Close()
-	return l.Addr().(*net.TCPAddr).Port, nil
+	return l.LocalAddr().(*net.UDPAddr).Port, nil
+}
+
+// MustGetFreePort returns a free port and panics in case of an error.
+func MustGetFreePort() int {
+	a, err := net.ResolveUDPAddr("udp", "localhost:0")
+	if err != nil {
+		panic(err)
+	}
+
+	l, err := net.ListenUDP("udp", a)
+	if err != nil {
+		panic(err)
+	}
+	defer l.Close()
+	return l.LocalAddr().(*net.UDPAddr).Port
 }
 
 // isPortAvailable checks if a port is available by attempting to listen on it.
