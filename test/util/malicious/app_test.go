@@ -72,10 +72,10 @@ func TestMaliciousTestNode(t *testing.T) {
 	accounts := testfactory.RandomAccountNames(5)
 	cfg := OutOfOrderNamespaceConfig(5).
 		WithFundedAccounts(accounts...).
-		WithDelayedPrecommitTimeout(100 * time.Millisecond)
+		WithDelayedPrecommitTimeout(300 * time.Millisecond)
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
-	_, err := cctx.WaitForHeight(2)
+	_, err := cctx.WaitForHeight(5)
 	require.NoError(t, err)
 
 	// submit a multiblob tx where each blob is using a random namespace. This
