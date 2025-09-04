@@ -27,8 +27,8 @@ const (
 	// TimeoutCommit is a flag that can be used to override the timeout_commit.
 	// Deprecated: Use BlockTimeFlag instead.
 	TimeoutCommitFlag = "timeout-commit"
-	// BlockTimeFlag is a flag that can be used to override the DelayedPrecommitTimeout.
-	BlockTimeFlag = "block-time"
+	// DelayedPrecommitTimeout is a flag that can be used to override the DelayedPrecommitTimeout.
+	DelayedPrecommitTimeout = "delayed-precommit-timeout"
 )
 
 type UniversalTestingConfig struct {
@@ -100,7 +100,7 @@ func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
 // options and returns the Config. This affects the DelayedPrecommitTimeout used for consistent
 // block timing.
 func (c *Config) WithDelayedPrecommitTimeout(d time.Duration) *Config {
-	c.AppOptions.Set(BlockTimeFlag, d)
+	c.AppOptions.Set(DelayedPrecommitTimeout, d)
 	return c
 }
 
@@ -181,7 +181,7 @@ func DefaultAppCreator(opts ...AppCreationOptions) srvtypes.AppCreator {
 
 		// Check for the new --block-time flag first, then fall back to deprecated --timeout-commit
 		var blockTime time.Duration
-		if blockTimeFromFlag := appOptions.Get(BlockTimeFlag); blockTimeFromFlag != nil {
+		if blockTimeFromFlag := appOptions.Get(DelayedPrecommitTimeout); blockTimeFromFlag != nil {
 			blockTime = blockTimeFromFlag.(time.Duration)
 		} else if timeoutCommitFromFlag := appOptions.Get(TimeoutCommitFlag); timeoutCommitFromFlag != nil {
 			blockTime = timeoutCommitFromFlag.(time.Duration)

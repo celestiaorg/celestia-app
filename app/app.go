@@ -193,7 +193,7 @@ type App struct {
 	// blockTime is used to override the default TimeoutHeightDelay. This is
 	// useful for testing purposes and should not be used on public networks
 	// (Arabica, Mocha, or Mainnet Beta).
-	blockTime time.Duration
+	delayedPrecommitTimeout time.Duration
 }
 
 // New returns a reference to an uninitialized app. Callers must subsequently
@@ -225,11 +225,11 @@ func New(
 	}
 
 	app := &App{
-		BaseApp:   baseApp,
-		keys:      keys,
-		tkeys:     tkeys,
-		memKeys:   memKeys,
-		blockTime: delayedPrecommitTimeout,
+		BaseApp:                 baseApp,
+		keys:                    keys,
+		tkeys:                   tkeys,
+		memKeys:                 memKeys,
+		delayedPrecommitTimeout: delayedPrecommitTimeout,
 	}
 
 	// needed for migration from x/params -> module's ownership of own params
@@ -821,6 +821,6 @@ func (app *App) TimeoutInfo() abci.TimeoutInfo {
 		TimeoutPrevoteDelta:     appconsts.TimeoutPrevoteDelta,
 		TimeoutPrecommit:        appconsts.TimeoutPrecommit,
 		TimeoutPrecommitDelta:   appconsts.TimeoutPrecommitDelta,
-		DelayedPrecommitTimeout: app.blockTime,
+		DelayedPrecommitTimeout: app.delayedPrecommitTimeout,
 	}
 }
