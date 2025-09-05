@@ -28,9 +28,9 @@ func (suite *KeeperTestSuite) TestInitGenesis() {
 		suite.Require().True(has)
 	}
 
-	headerHashRetention, err := suite.zkISMKeeper.GetHeaderHashRetention(suite.ctx)
+	maxHeaderHashes, err := suite.zkISMKeeper.GetMaxHeaderHashes(suite.ctx)
 	suite.Require().NoError(err)
-	suite.Require().Equal(types.DefaultHeaderHashRetention, headerHashRetention)
+	suite.Require().Equal(types.DefaultMaxHeaderHashes, maxHeaderHashes)
 }
 
 func (suite *KeeperTestSuite) TestExportGenesis() {

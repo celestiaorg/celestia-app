@@ -67,5 +67,5 @@ message EventCreateZKExecutionISM {
 message Params {
   option (gogoproto.goproto_getters) = false;
 
-  uint32 header_hash_retention = 1;
+  uint32 max_header_hashes = 1;
 }

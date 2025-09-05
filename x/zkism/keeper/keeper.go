@@ -67,10 +67,10 @@ func (k *Keeper) GetHeaderHash(ctx context.Context, height uint64) ([]byte, erro
 	return headerHash, nil
 }
 
-// GetHeaderHashRetention returns the header hash retention policy parameter.
-func (k *Keeper) GetHeaderHashRetention(ctx context.Context) (uint32, error) {
+// GetMaxHeaderHashes returns the header hash retention policy parameter.
+func (k *Keeper) GetMaxHeaderHashes(ctx context.Context) (uint32, error) {
 	params, err := k.params.Get(ctx)
-	return params.HeaderHashRetention, err
+	return params.MaxHeaderHashes, err
 }
 
 // Exists implements hyperlane util.InterchainSecurityModule.

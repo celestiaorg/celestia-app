@@ -20,7 +20,7 @@ func (k *Keeper) BeginBlocker(ctx context.Context) error {
 func (k *Keeper) StoreHeaderHash(goCtx context.Context) error {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
-	numEntries, err := k.GetHeaderHashRetention(ctx)
+	numEntries, err := k.GetMaxHeaderHashes(ctx)
 	if err != nil {
 		return err
 	}
