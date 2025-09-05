@@ -121,6 +121,10 @@ type PublicInputs struct {
 	NewHeight uint64
 	// NewStateRoot is the resulting state root after applying the state transition.
 	NewStateRoot [32]byte
+	// Namespace is the celestia namespace used by the application.
+	Namespace [29]byte
+	// PublicKey is the public key of the sequencer.
+	PublicKey [32]byte
 }
 
 // String implements the fmt.Stringer interface.
@@ -131,12 +135,16 @@ func (p *PublicInputs) String() string {
   TrustedStateRoot:   %s,
   NewHeight:          %d,
   NewStateRoot:       %s,
+  Namespace:          %s,
+  PublicKey:          %s,
 }`,
 		hex.EncodeToString(p.CelestiaHeaderHash[:]),
 		p.TrustedHeight,
 		hex.EncodeToString(p.TrustedStateRoot[:]),
 		p.NewHeight,
 		hex.EncodeToString(p.NewStateRoot[:]),
+		hex.EncodeToString(p.Namespace[:]),
+		hex.EncodeToString(p.PublicKey[:]),
 	)
 }
 
@@ -163,6 +171,14 @@ func (pi *PublicInputs) Marshal() ([]byte, error) {
 
 	if err := writeBytes(&buf, pi.NewStateRoot[:]); err != nil {
 		return nil, fmt.Errorf("write NewStateRoot: %w", err)
+	}
+
+	if err := writeBytes(&buf, pi.Namespace[:]); err != nil {
+		return nil, fmt.Errorf("write Namespace: %w", err)
+	}
+
+	if err := writeBytes(&buf, pi.PublicKey[:]); err != nil {
+		return nil, fmt.Errorf("write PublicKey: %w", err)
 	}
 
 	return buf.Bytes(), nil
@@ -192,6 +208,14 @@ func (pi *PublicInputs) Unmarshal(data []byte) error {
 
 	if err := readBytes(buf, pi.NewStateRoot[:]); err != nil {
 		return fmt.Errorf("read NewStateRoot: %w", err)
+	}
+
+	if err := readBytes(buf, pi.Namespace[:]); err != nil {
+		return fmt.Errorf("read Namespace: %w", err)
+	}
+
+	if err := readBytes(buf, pi.PublicKey[:]); err != nil {
+		return fmt.Errorf("read PublicKey: %w", err)
 	}
 
 	if buf.Len() != 0 {

@@ -6,9 +6,8 @@ import (
 	"cosmossdk.io/collections"
 	corestore "cosmossdk.io/core/store"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
-	"github.com/cosmos/cosmos-sdk/codec"
-
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
+	"github.com/cosmos/cosmos-sdk/codec"
 )
 
 var _ util.InterchainSecurityModule = (*Keeper)(nil)

@@ -4,9 +4,8 @@ import (
 	"context"
 
 	errorsmod "cosmossdk.io/errors"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 var _ types.MsgServer = msgServer{}
@@ -28,27 +27,31 @@ func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreat
 	}
 
 	newIsm := types.ZKExecutionISM{
-		Id:                         ismId,
-		Owner:                      msg.Creator,
-		StateRoot:                  msg.StateRoot,
-		Height:                     msg.Height,
-		StateTransitionVerifierKey: msg.StateTransitionVerifierKey,
-		StateMembershipVerifierKey: msg.StateMembershipVerifierKey,
+		Id:                  ismId,
+		Owner:               msg.Creator,
+		StateRoot:           msg.StateRoot,
+		Height:              msg.Height,
+		Namespace:           msg.Namespace,
+		SequencerPublicKey:  msg.SequencerPublicKey,
+		StateTransitionVkey: msg.StateTransitionVkey,
+		StateMembershipVkey: msg.StateMembershipVkey,
+		VkeyCommitment:      msg.VkeyCommitment,
 	}
-
-	// validate
 
 	if err := m.isms.Set(ctx, ismId.GetInternalId(), newIsm); err != nil {
 		return nil, errorsmod.Wrap(err, err.Error())
 	}
 
 	if err := sdk.UnwrapSDKContext(ctx).EventManager().EmitTypedEvent(&types.EventCreateZKExecutionISM{
-		Id:                         newIsm.Id,
-		Owner:                      newIsm.Owner,
-		StateRoot:                  newIsm.StateRoot,
-		Height:                     newIsm.Height,
-		StateTransitionVerifierKey: newIsm.StateTransitionVerifierKey,
-		StateMembershipVerifierKey: newIsm.StateMembershipVerifierKey,
+		Id:                  newIsm.Id,
+		Owner:               newIsm.Owner,
+		StateRoot:           newIsm.StateRoot,
+		Height:              newIsm.Height,
+		Namespace:           newIsm.Namespace,
+		SequencerPublicKey:  newIsm.SequencerPublicKey,
+		StateTransitionVkey: newIsm.StateTransitionVkey,
+		StateMembershipVkey: newIsm.StateMembershipVkey,
+		VkeyCommitment:      newIsm.VkeyCommitment,
 	}); err != nil {
 		return nil, err
 	}

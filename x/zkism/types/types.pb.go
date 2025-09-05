@@ -35,12 +35,16 @@ type ZKExecutionISM struct {
 	StateRoot []byte `protobuf:"bytes,3,opt,name=state_root,json=stateRoot,proto3" json:"state_root,omitempty"`
 	// latest tracked height of the remote chain
 	Height uint64 `protobuf:"varint,4,opt,name=height,proto3" json:"height,omitempty"`
+	// the celestia namespace identifier used by the application
+	Namespace []byte `protobuf:"bytes,5,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	// the public key of the sequencer
+	SequencerPublicKey []byte `protobuf:"bytes,6,opt,name=sequencer_public_key,json=sequencerPublicKey,proto3" json:"sequencer_public_key,omitempty"`
 	// the zk state transition verifier key
-	StateTransitionVerifierKey []byte `protobuf:"bytes,5,opt,name=state_transition_verifier_key,json=stateTransitionVerifierKey,proto3" json:"state_transition_verifier_key,omitempty"`
+	StateTransitionVkey []byte `protobuf:"bytes,7,opt,name=state_transition_vkey,json=stateTransitionVkey,proto3" json:"state_transition_vkey,omitempty"`
 	// the zk state membership verifier key
-	StateMembershipVerifierKey []byte `protobuf:"bytes,6,opt,name=state_membership_verifier_key,json=stateMembershipVerifierKey,proto3" json:"state_membership_verifier_key,omitempty"`
+	StateMembershipVkey []byte `protobuf:"bytes,8,opt,name=state_membership_vkey,json=stateMembershipVkey,proto3" json:"state_membership_vkey,omitempty"`
 	// hash-based commitment to the verifier key used for public input integrity
-	VerifierKeyCommitment []byte `protobuf:"bytes,7,opt,name=verifier_key_commitment,json=verifierKeyCommitment,proto3" json:"verifier_key_commitment,omitempty"`
+	VkeyCommitment []byte `protobuf:"bytes,9,opt,name=vkey_commitment,json=vkeyCommitment,proto3" json:"vkey_commitment,omitempty"`
 }
 
 func (m *ZKExecutionISM) Reset()         { *m = ZKExecutionISM{} }
@@ -77,6 +81,8 @@ func (m *ZKExecutionISM) XXX_DiscardUnknown() {
 var xxx_messageInfo_ZKExecutionISM proto.InternalMessageInfo
 
 // EventCreateZKExecutionISM defines the event type emitted when creating a new ZKExecutionISM.
+// TODO: consider outputting hex encoded strings in favour of bytes in this typed event,
+// note that bytes will be base64 encoded strings when dealing with JSON objects
 type EventCreateZKExecutionISM struct {
 	// unique hyperlane identifier
 	Id github_com_bcp_innovations_hyperlane_cosmos_util.HexAddress `protobuf:"bytes,1,opt,name=id,proto3,customtype=github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress" json:"id"`
@@ -86,10 +92,16 @@ type EventCreateZKExecutionISM struct {
 	StateRoot []byte `protobuf:"bytes,3,opt,name=state_root,json=stateRoot,proto3" json:"state_root,omitempty"`
 	// latest tracked height of the remote chain
 	Height uint64 `protobuf:"varint,4,opt,name=height,proto3" json:"height,omitempty"`
+	// the celestia namespace identifier used by the application
+	Namespace []byte `protobuf:"bytes,5,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	// the public key of the sequencer
+	SequencerPublicKey []byte `protobuf:"bytes,6,opt,name=sequencer_public_key,json=sequencerPublicKey,proto3" json:"sequencer_public_key,omitempty"`
 	// the zk state transition verifier key of the sp1 prover client
-	StateTransitionVerifierKey []byte `protobuf:"bytes,5,opt,name=state_transition_verifier_key,json=stateTransitionVerifierKey,proto3" json:"state_transition_verifier_key,omitempty"`
+	StateTransitionVkey []byte `protobuf:"bytes,7,opt,name=state_transition_vkey,json=stateTransitionVkey,proto3" json:"state_transition_vkey,omitempty"`
 	// the zk state membership verifier key of the sp1 prover client
-	StateMembershipVerifierKey []byte `protobuf:"bytes,6,opt,name=state_membership_verifier_key,json=stateMembershipVerifierKey,proto3" json:"state_membership_verifier_key,omitempty"`
+	StateMembershipVkey []byte `protobuf:"bytes,8,opt,name=state_membership_vkey,json=stateMembershipVkey,proto3" json:"state_membership_vkey,omitempty"`
+	// hash-based commitment to the verifier key used for public input integrity
+	VkeyCommitment []byte `protobuf:"bytes,9,opt,name=vkey_commitment,json=vkeyCommitment,proto3" json:"vkey_commitment,omitempty"`
 }
 
 func (m *EventCreateZKExecutionISM) Reset()         { *m = EventCreateZKExecutionISM{} }
@@ -133,35 +145,36 @@ func init() {
 func init() { proto.RegisterFile("celestia/zkism/v1/types.proto", fileDescriptor_6a9c62eeaf7a9e81) }
 
 var fileDescriptor_6a9c62eeaf7a9e81 = []byte{
-	// 434 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xec, 0x93, 0xc1, 0x6a, 0xdb, 0x40,
-	0x10, 0x86, 0x25, 0xc7, 0x71, 0xc9, 0x52, 0x0a, 0x15, 0x69, 0xab, 0x18, 0x2c, 0x9b, 0x9c, 0x7c,
-	0xb1, 0x84, 0x29, 0xf4, 0xd0, 0x9e, 0x12, 0x13, 0x68, 0x31, 0xb9, 0xc8, 0xa5, 0x87, 0x5c, 0x84,
-	0x2c, 0x4f, 0xa5, 0x25, 0xd6, 0x8e, 0xd8, 0x1d, 0xab, 0x76, 0x9f, 0xa0, 0xc7, 0x3c, 0x42, 0x1f,
-	0xa2, 0x0f, 0x91, 0x63, 0xe8, 0xa9, 0xf4, 0x10, 0x8a, 0xfd, 0x22, 0xc5, 0xbb, 0x8a, 0xad, 0xde,
-	0x7b, 0xcc, 0x6d, 0x77, 0xe6, 0xfb, 0xff, 0x5d, 0x66, 0xf8, 0x59, 0x27, 0x81, 0x39, 0x28, 0xe2,
-	0x71, 0xf0, 0xf5, 0x9a, 0xab, 0x3c, 0x28, 0x87, 0x01, 0xad, 0x0a, 0x50, 0x7e, 0x21, 0x91, 0xd0,
-	0x79, 0xfe, 0xd0, 0xf6, 0x75, 0xdb, 0x2f, 0x87, 0xed, 0x93, 0x04, 0x55, 0x8e, 0x2a, 0xd2, 0x40,
-	0x60, 0x2e, 0x86, 0x6e, 0x1f, 0xa7, 0x98, 0xa2, 0xa9, 0x6f, 0x4f, 0xa6, 0x7a, 0x7a, 0x73, 0xc0,
-	0x9e, 0x5d, 0x8d, 0x2f, 0x96, 0x90, 0x2c, 0x88, 0xa3, 0xf8, 0x30, 0xb9, 0x74, 0x26, 0xac, 0xc1,
-	0x67, 0xae, 0xdd, 0xb3, 0xfb, 0x47, 0xe7, 0xa3, 0xdb, 0xfb, 0xae, 0xf5, 0xfb, 0xbe, 0xfb, 0x2e,
-	0xe5, 0x94, 0x2d, 0xa6, 0x7e, 0x82, 0x79, 0x30, 0x4d, 0x8a, 0x01, 0x17, 0x02, 0xcb, 0x78, 0xab,
-	0x50, 0x41, 0xb6, 0x2a, 0x40, 0xce, 0x63, 0x01, 0x03, 0xf3, 0x5e, 0xb0, 0x20, 0x3e, 0xf7, 0xdf,
-	0xc3, 0xf2, 0x6c, 0x36, 0x93, 0xa0, 0x54, 0xd8, 0xe0, 0x33, 0xc7, 0x67, 0x87, 0xf8, 0x45, 0x80,
-	0x74, 0x1b, 0xda, 0xd7, 0xfd, 0xf9, 0x63, 0x70, 0x5c, 0x7d, 0xaf, 0xc2, 0x26, 0x24, 0xb9, 0x48,
-	0x43, 0x83, 0x39, 0x1d, 0xc6, 0x14, 0xc5, 0x04, 0x91, 0x44, 0x24, 0xf7, 0xa0, 0x67, 0xf7, 0x9f,
-	0x86, 0x47, 0xba, 0x12, 0x22, 0x92, 0xf3, 0x92, 0xb5, 0x32, 0xe0, 0x69, 0x46, 0x6e, 0xb3, 0x67,
-	0xf7, 0x9b, 0x61, 0x75, 0x73, 0xce, 0x58, 0xc7, 0xc8, 0x48, 0xc6, 0x42, 0xf1, 0xed, 0x07, 0xa3,
-	0x12, 0x24, 0xff, 0xcc, 0x41, 0x46, 0xd7, 0xb0, 0x72, 0x0f, 0xb5, 0x53, 0x5b, 0x43, 0x1f, 0x77,
-	0xcc, 0xa7, 0x0a, 0x19, 0xc3, 0x6a, 0x6f, 0x91, 0x43, 0x3e, 0x05, 0xa9, 0x32, 0x5e, 0xfc, 0x6b,
-	0xd1, 0xaa, 0x59, 0x5c, 0xee, 0x98, 0xba, 0xc5, 0x1b, 0xf6, 0xaa, 0xae, 0x88, 0x12, 0xcc, 0x73,
-	0x4e, 0x39, 0x08, 0x72, 0x9f, 0x68, 0xf1, 0x8b, 0x72, 0x4f, 0x8f, 0x76, 0xcd, 0xb7, 0xcd, 0x6f,
-	0xdf, 0xbb, 0xd6, 0xe9, 0xa6, 0xc1, 0x4e, 0x2e, 0x4a, 0x10, 0x34, 0x92, 0x10, 0x13, 0x3c, 0x6e,
-	0xe7, 0xff, 0x6e, 0xc7, 0x4c, 0xf9, 0x7c, 0x7c, 0xbb, 0xf6, 0xec, 0xbb, 0xb5, 0x67, 0xff, 0x59,
-	0x7b, 0xf6, 0xcd, 0xc6, 0xb3, 0xee, 0x36, 0x9e, 0xf5, 0x6b, 0xe3, 0x59, 0x57, 0xc3, 0xda, 0x34,
-	0x1f, 0x12, 0x86, 0x32, 0xdd, 0x9d, 0x07, 0x71, 0x51, 0x04, 0xcb, 0x2a, 0x92, 0x3a, 0x8f, 0xd3,
-	0x96, 0x0e, 0xd3, 0xeb, 0xbf, 0x01, 0x00, 0x00, 0xff, 0xff, 0xfe, 0xa2, 0xf0, 0xec, 0xb1, 0x03,
-	0x00, 0x00,
+	// 464 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xec, 0x94, 0x4f, 0x6e, 0xd3, 0x40,
+	0x14, 0xc6, 0xed, 0x24, 0x0d, 0x64, 0x84, 0x8a, 0x30, 0x01, 0xb9, 0x15, 0x75, 0xa2, 0x6e, 0xc8,
+	0x26, 0x36, 0x81, 0x1d, 0xac, 0x68, 0x54, 0x09, 0x14, 0x55, 0x42, 0x0e, 0x62, 0xd1, 0x8d, 0x65,
+	0x3b, 0x4f, 0xf6, 0x28, 0x99, 0x3f, 0xcc, 0x8c, 0x4d, 0xc2, 0x09, 0x58, 0x72, 0x04, 0xee, 0x00,
+	0x6b, 0xd6, 0x5d, 0x56, 0xac, 0x10, 0x8b, 0x0a, 0x25, 0x17, 0x41, 0x9e, 0x49, 0xac, 0x5c, 0x01,
+	0xa9, 0xbb, 0x99, 0xef, 0xfb, 0x7e, 0xf6, 0x1b, 0x3d, 0xbd, 0x87, 0x4e, 0x52, 0x58, 0x80, 0x54,
+	0x38, 0x0e, 0x3e, 0xcf, 0xb1, 0x24, 0x41, 0x39, 0x0a, 0xd4, 0x8a, 0x83, 0xf4, 0xb9, 0x60, 0x8a,
+	0x39, 0x0f, 0x76, 0xb6, 0xaf, 0x6d, 0xbf, 0x1c, 0x1d, 0x1f, 0xa5, 0x4c, 0x12, 0x26, 0x23, 0x1d,
+	0x08, 0xcc, 0xc5, 0xa4, 0x8f, 0xbb, 0x19, 0xcb, 0x98, 0xd1, 0xab, 0x93, 0x51, 0x4f, 0xbf, 0x37,
+	0xd1, 0xe1, 0xe5, 0xe4, 0x7c, 0x09, 0x69, 0xa1, 0x30, 0xa3, 0x6f, 0xa7, 0x17, 0xce, 0x14, 0x35,
+	0xf0, 0xcc, 0xb5, 0xfb, 0xf6, 0xa0, 0x73, 0x36, 0xbe, 0xba, 0xe9, 0x59, 0x7f, 0x6e, 0x7a, 0xaf,
+	0x32, 0xac, 0xf2, 0x22, 0xf1, 0x53, 0x46, 0x82, 0x24, 0xe5, 0x43, 0x4c, 0x29, 0x2b, 0xe3, 0x8a,
+	0x90, 0x41, 0xbe, 0xe2, 0x20, 0x16, 0x31, 0x85, 0xa1, 0xf9, 0x5f, 0x50, 0x28, 0xbc, 0xf0, 0xdf,
+	0xc0, 0xf2, 0xf5, 0x6c, 0x26, 0x40, 0xca, 0xb0, 0x81, 0x67, 0x8e, 0x8f, 0x0e, 0xd8, 0x27, 0x0a,
+	0xc2, 0x6d, 0xe8, 0xef, 0xba, 0xbf, 0x7e, 0x0c, 0xbb, 0xdb, 0xf2, 0xb6, 0xb1, 0xa9, 0x12, 0x98,
+	0x66, 0xa1, 0x89, 0x39, 0x27, 0x08, 0x49, 0x15, 0x2b, 0x88, 0x04, 0x63, 0xca, 0x6d, 0xf6, 0xed,
+	0xc1, 0xbd, 0xb0, 0xa3, 0x95, 0x90, 0x31, 0xe5, 0x3c, 0x46, 0xed, 0x1c, 0x70, 0x96, 0x2b, 0xb7,
+	0xd5, 0xb7, 0x07, 0xad, 0x70, 0x7b, 0x73, 0x9e, 0xa0, 0x0e, 0x8d, 0x09, 0x48, 0x1e, 0xa7, 0xe0,
+	0x1e, 0x18, 0xaa, 0x16, 0x9c, 0x67, 0xa8, 0x2b, 0xe1, 0x63, 0x01, 0x34, 0x05, 0x11, 0xf1, 0x22,
+	0x59, 0xe0, 0x34, 0x9a, 0xc3, 0xca, 0x6d, 0xeb, 0xa0, 0x53, 0x7b, 0xef, 0xb4, 0x35, 0x81, 0x95,
+	0xf3, 0x1c, 0x3d, 0x32, 0x65, 0x28, 0x11, 0x53, 0x89, 0xab, 0x07, 0x47, 0x65, 0x85, 0xdc, 0xd1,
+	0xc8, 0x43, 0x6d, 0xbe, 0xaf, 0xbd, 0x0f, 0xf3, 0x7d, 0x86, 0x00, 0x49, 0x40, 0xc8, 0x1c, 0x73,
+	0xc3, 0xdc, 0xdd, 0x63, 0x2e, 0x6a, 0x4f, 0x33, 0x4f, 0xd1, 0xfd, 0x2a, 0x12, 0xa5, 0x8c, 0x10,
+	0xac, 0x08, 0x50, 0xe5, 0x76, 0x74, 0xfa, 0xb0, 0x92, 0xc7, 0xb5, 0xfa, 0xb2, 0xf5, 0xe5, 0x5b,
+	0xcf, 0x3a, 0xfd, 0xd9, 0x44, 0x47, 0xe7, 0x25, 0x50, 0x35, 0x16, 0x10, 0x2b, 0xb8, 0x6d, 0xe0,
+	0x7f, 0xd6, 0xc0, 0xb3, 0xc9, 0xd5, 0xda, 0xb3, 0xaf, 0xd7, 0x9e, 0xfd, 0x77, 0xed, 0xd9, 0x5f,
+	0x37, 0x9e, 0x75, 0xbd, 0xf1, 0xac, 0xdf, 0x1b, 0xcf, 0xba, 0x1c, 0xed, 0x35, 0x6a, 0x37, 0xdf,
+	0x4c, 0x64, 0xf5, 0x79, 0x18, 0x73, 0x1e, 0x2c, 0xb7, 0x0b, 0x41, 0x6f, 0x83, 0xa4, 0xad, 0x47,
+	0xf9, 0xc5, 0xbf, 0x00, 0x00, 0x00, 0xff, 0xff, 0x49, 0x4f, 0xe9, 0x8e, 0x2f, 0x04, 0x00, 0x00,
 }
 
 func (m *ZKExecutionISM) Marshal() (dAtA []byte, err error) {
@@ -184,24 +197,38 @@ func (m *ZKExecutionISM) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if len(m.VerifierKeyCommitment) > 0 {
-		i -= len(m.VerifierKeyCommitment)
-		copy(dAtA[i:], m.VerifierKeyCommitment)
-		i = encodeVarintTypes(dAtA, i, uint64(len(m.VerifierKeyCommitment)))
+	if len(m.VkeyCommitment) > 0 {
+		i -= len(m.VkeyCommitment)
+		copy(dAtA[i:], m.VkeyCommitment)
+		i = encodeVarintTypes(dAtA, i, uint64(len(m.VkeyCommitment)))
+		i--
+		dAtA[i] = 0x4a
+	}
+	if len(m.StateMembershipVkey) > 0 {
+		i -= len(m.StateMembershipVkey)
+		copy(dAtA[i:], m.StateMembershipVkey)
+		i = encodeVarintTypes(dAtA, i, uint64(len(m.StateMembershipVkey)))
+		i--
+		dAtA[i] = 0x42
+	}
+	if len(m.StateTransitionVkey) > 0 {
+		i -= len(m.StateTransitionVkey)
+		copy(dAtA[i:], m.StateTransitionVkey)
+		i = encodeVarintTypes(dAtA, i, uint64(len(m.StateTransitionVkey)))
 		i--
 		dAtA[i] = 0x3a
 	}
-	if len(m.StateMembershipVerifierKey) > 0 {
-		i -= len(m.StateMembershipVerifierKey)
-		copy(dAtA[i:], m.StateMembershipVerifierKey)
-		i = encodeVarintTypes(dAtA, i, uint64(len(m.StateMembershipVerifierKey)))
+	if len(m.SequencerPublicKey) > 0 {
+		i -= len(m.SequencerPublicKey)
+		copy(dAtA[i:], m.SequencerPublicKey)
+		i = encodeVarintTypes(dAtA, i, uint64(len(m.SequencerPublicKey)))
 		i--
 		dAtA[i] = 0x32
 	}
-	if len(m.StateTransitionVerifierKey) > 0 {
-		i -= len(m.StateTransitionVerifierKey)
-		copy(dAtA[i:], m.StateTransitionVerifierKey)
-		i = encodeVarintTypes(dAtA, i, uint64(len(m.StateTransitionVerifierKey)))
+	if len(m.Namespace) > 0 {
+		i -= len(m.Namespace)
+		copy(dAtA[i:], m.Namespace)
+		i = encodeVarintTypes(dAtA, i, uint64(len(m.Namespace)))
 		i--
 		dAtA[i] = 0x2a
 	}
@@ -257,17 +284,38 @@ func (m *EventCreateZKExecutionISM) MarshalToSizedBuffer(dAtA []byte) (int, erro
 	_ = i
 	var l int
 	_ = l
-	if len(m.StateMembershipVerifierKey) > 0 {
-		i -= len(m.StateMembershipVerifierKey)
-		copy(dAtA[i:], m.StateMembershipVerifierKey)
-		i = encodeVarintTypes(dAtA, i, uint64(len(m.StateMembershipVerifierKey)))
+	if len(m.VkeyCommitment) > 0 {
+		i -= len(m.VkeyCommitment)
+		copy(dAtA[i:], m.VkeyCommitment)
+		i = encodeVarintTypes(dAtA, i, uint64(len(m.VkeyCommitment)))
+		i--
+		dAtA[i] = 0x4a
+	}
+	if len(m.StateMembershipVkey) > 0 {
+		i -= len(m.StateMembershipVkey)
+		copy(dAtA[i:], m.StateMembershipVkey)
+		i = encodeVarintTypes(dAtA, i, uint64(len(m.StateMembershipVkey)))
+		i--
+		dAtA[i] = 0x42
+	}
+	if len(m.StateTransitionVkey) > 0 {
+		i -= len(m.StateTransitionVkey)
+		copy(dAtA[i:], m.StateTransitionVkey)
+		i = encodeVarintTypes(dAtA, i, uint64(len(m.StateTransitionVkey)))
+		i--
+		dAtA[i] = 0x3a
+	}
+	if len(m.SequencerPublicKey) > 0 {
+		i -= len(m.SequencerPublicKey)
+		copy(dAtA[i:], m.SequencerPublicKey)
+		i = encodeVarintTypes(dAtA, i, uint64(len(m.SequencerPublicKey)))
 		i--
 		dAtA[i] = 0x32
 	}
-	if len(m.StateTransitionVerifierKey) > 0 {
-		i -= len(m.StateTransitionVerifierKey)
-		copy(dAtA[i:], m.StateTransitionVerifierKey)
-		i = encodeVarintTypes(dAtA, i, uint64(len(m.StateTransitionVerifierKey)))
+	if len(m.Namespace) > 0 {
+		i -= len(m.Namespace)
+		copy(dAtA[i:], m.Namespace)
+		i = encodeVarintTypes(dAtA, i, uint64(len(m.Namespace)))
 		i--
 		dAtA[i] = 0x2a
 	}
@@ -333,15 +381,23 @@ func (m *ZKExecutionISM) Size() (n int) {
 	if m.Height != 0 {
 		n += 1 + sovTypes(uint64(m.Height))
 	}
-	l = len(m.StateTransitionVerifierKey)
+	l = len(m.Namespace)
 	if l > 0 {
 		n += 1 + l + sovTypes(uint64(l))
 	}
-	l = len(m.StateMembershipVerifierKey)
+	l = len(m.SequencerPublicKey)
 	if l > 0 {
 		n += 1 + l + sovTypes(uint64(l))
 	}
-	l = len(m.VerifierKeyCommitment)
+	l = len(m.StateTransitionVkey)
+	if l > 0 {
+		n += 1 + l + sovTypes(uint64(l))
+	}
+	l = len(m.StateMembershipVkey)
+	if l > 0 {
+		n += 1 + l + sovTypes(uint64(l))
+	}
+	l = len(m.VkeyCommitment)
 	if l > 0 {
 		n += 1 + l + sovTypes(uint64(l))
 	}
@@ -367,11 +423,23 @@ func (m *EventCreateZKExecutionISM) Size() (n int) {
 	if m.Height != 0 {
 		n += 1 + sovTypes(uint64(m.Height))
 	}
-	l = len(m.StateTransitionVerifierKey)
+	l = len(m.Namespace)
 	if l > 0 {
 		n += 1 + l + sovTypes(uint64(l))
 	}
-	l = len(m.StateMembershipVerifierKey)
+	l = len(m.SequencerPublicKey)
+	if l > 0 {
+		n += 1 + l + sovTypes(uint64(l))
+	}
+	l = len(m.StateTransitionVkey)
+	if l > 0 {
+		n += 1 + l + sovTypes(uint64(l))
+	}
+	l = len(m.StateMembershipVkey)
+	if l > 0 {
+		n += 1 + l + sovTypes(uint64(l))
+	}
+	l = len(m.VkeyCommitment)
 	if l > 0 {
 		n += 1 + l + sovTypes(uint64(l))
 	}
@@ -534,7 +602,7 @@ func (m *ZKExecutionISM) Unmarshal(dAtA []byte) error {
 			}
 		case 5:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field StateTransitionVerifierKey", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Namespace", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -561,14 +629,14 @@ func (m *ZKExecutionISM) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.StateTransitionVerifierKey = append(m.StateTransitionVerifierKey[:0], dAtA[iNdEx:postIndex]...)
-			if m.StateTransitionVerifierKey == nil {
-				m.StateTransitionVerifierKey = []byte{}
+			m.Namespace = append(m.Namespace[:0], dAtA[iNdEx:postIndex]...)
+			if m.Namespace == nil {
+				m.Namespace = []byte{}
 			}
 			iNdEx = postIndex
 		case 6:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field StateMembershipVerifierKey", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field SequencerPublicKey", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -595,14 +663,14 @@ func (m *ZKExecutionISM) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.StateMembershipVerifierKey = append(m.StateMembershipVerifierKey[:0], dAtA[iNdEx:postIndex]...)
-			if m.StateMembershipVerifierKey == nil {
-				m.StateMembershipVerifierKey = []byte{}
+			m.SequencerPublicKey = append(m.SequencerPublicKey[:0], dAtA[iNdEx:postIndex]...)
+			if m.SequencerPublicKey == nil {
+				m.SequencerPublicKey = []byte{}
 			}
 			iNdEx = postIndex
 		case 7:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field VerifierKeyCommitment", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field StateTransitionVkey", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -629,9 +697,77 @@ func (m *ZKExecutionISM) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.VerifierKeyCommitment = append(m.VerifierKeyCommitment[:0], dAtA[iNdEx:postIndex]...)
-			if m.VerifierKeyCommitment == nil {
-				m.VerifierKeyCommitment = []byte{}
+			m.StateTransitionVkey = append(m.StateTransitionVkey[:0], dAtA[iNdEx:postIndex]...)
+			if m.StateTransitionVkey == nil {
+				m.StateTransitionVkey = []byte{}
+			}
+			iNdEx = postIndex
+		case 8:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StateMembershipVkey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTypes
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.StateMembershipVkey = append(m.StateMembershipVkey[:0], dAtA[iNdEx:postIndex]...)
+			if m.StateMembershipVkey == nil {
+				m.StateMembershipVkey = []byte{}
+			}
+			iNdEx = postIndex
+		case 9:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field VkeyCommitment", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTypes
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.VkeyCommitment = append(m.VkeyCommitment[:0], dAtA[iNdEx:postIndex]...)
+			if m.VkeyCommitment == nil {
+				m.VkeyCommitment = []byte{}
 			}
 			iNdEx = postIndex
 		default:
@@ -805,7 +941,7 @@ func (m *EventCreateZKExecutionISM) Unmarshal(dAtA []byte) error {
 			}
 		case 5:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field StateTransitionVerifierKey", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Namespace", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -832,14 +968,14 @@ func (m *EventCreateZKExecutionISM) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.StateTransitionVerifierKey = append(m.StateTransitionVerifierKey[:0], dAtA[iNdEx:postIndex]...)
-			if m.StateTransitionVerifierKey == nil {
-				m.StateTransitionVerifierKey = []byte{}
+			m.Namespace = append(m.Namespace[:0], dAtA[iNdEx:postIndex]...)
+			if m.Namespace == nil {
+				m.Namespace = []byte{}
 			}
 			iNdEx = postIndex
 		case 6:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field StateMembershipVerifierKey", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field SequencerPublicKey", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -866,9 +1002,111 @@ func (m *EventCreateZKExecutionISM) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.StateMembershipVerifierKey = append(m.StateMembershipVerifierKey[:0], dAtA[iNdEx:postIndex]...)
-			if m.StateMembershipVerifierKey == nil {
-				m.StateMembershipVerifierKey = []byte{}
+			m.SequencerPublicKey = append(m.SequencerPublicKey[:0], dAtA[iNdEx:postIndex]...)
+			if m.SequencerPublicKey == nil {
+				m.SequencerPublicKey = []byte{}
+			}
+			iNdEx = postIndex
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StateTransitionVkey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTypes
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.StateTransitionVkey = append(m.StateTransitionVkey[:0], dAtA[iNdEx:postIndex]...)
+			if m.StateTransitionVkey == nil {
+				m.StateTransitionVkey = []byte{}
+			}
+			iNdEx = postIndex
+		case 8:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StateMembershipVkey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTypes
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.StateMembershipVkey = append(m.StateMembershipVkey[:0], dAtA[iNdEx:postIndex]...)
+			if m.StateMembershipVkey == nil {
+				m.StateMembershipVkey = []byte{}
+			}
+			iNdEx = postIndex
+		case 9:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field VkeyCommitment", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTypes
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.VkeyCommitment = append(m.VkeyCommitment[:0], dAtA[iNdEx:postIndex]...)
+			if m.VkeyCommitment == nil {
+				m.VkeyCommitment = []byte{}
 			}
 			iNdEx = postIndex
 		default:
