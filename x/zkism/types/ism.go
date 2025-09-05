@@ -85,9 +85,6 @@ func (ism *ZKExecutionISM) verifyZKStateTransition(metadata ZkExecutionISMMetada
 		return false, fmt.Errorf("failed to verify proof: %w", err)
 	}
 
-	ism.Height = metadata.PublicValues.NewHeight
-	ism.StateRoot = metadata.PublicValues.NewStateRoot[:]
-
 	return true, nil
 }
 

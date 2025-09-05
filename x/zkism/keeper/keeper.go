@@ -81,12 +81,25 @@ func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, metadata []b
 		return false, err
 	}
 
-	// TODO: add celestia height to the ism metadata struct
-	if err := k.validatePublicValues(ctx, 0, ism, meta.PublicValues); err != nil {
+	if err := k.validatePublicValues(ctx, meta.Height, ism, meta.PublicValues); err != nil {
 		return false, err
 	}
 
-	return ism.Verify(ctx, metadata, message)
+	verified, err := ism.Verify(ctx, metadata, message)
+	if err != nil {
+		return false, err
+	}
+
+	if verified {
+		ism.Height = meta.PublicValues.NewHeight
+		ism.StateRoot = meta.PublicValues.NewStateRoot[:]
+
+		if err := k.isms.Set(ctx, ismId.GetInternalId(), ism); err != nil {
+			return false, err
+		}
+	}
+
+	return verified, nil
 }
 
 func (k *Keeper) validatePublicValues(ctx context.Context, height uint64, ism types.ZKExecutionISM, publicValues types.PublicValues) error {

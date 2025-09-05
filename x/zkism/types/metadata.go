@@ -12,10 +12,15 @@ const (
 	ProofTypeSP1Groth16 ProofType = iota
 )
 
+// MetadataMinLength: 1(type) + 8(height) + 4(proofSize) + 4(pubInputsSize) = 17 bytes (even if both sizes are 0)
+const MetadataMinLength int = 17
+
 // ZkExecutionISMMetadata contains the ZK proof and verification data.
 type ZkExecutionISMMetadata struct {
 	// ProofType is the type of ZK proof system used. Default: Groth16.
 	ProofType ProofType
+	// Height is the Celestia height associated with the state transition update.
+	Height uint64
 	// Proof is the ZK proof bytes.
 	Proof []byte
 	// PublicValues defines the public values used for proof verification.
@@ -26,15 +31,16 @@ type ZkExecutionISMMetadata struct {
 
 // NewZkExecutionISMMetadata parses a raw metadata byte slice into a structured format.
 // The ZK Execution ISM metadata follows the following format:
-// [0]          - Type of the ZK Proof System used (e.g. Groth16)
-// [1:5]        - Size of the ZK Proof, N, if it exists
-// [5:N+5]      - The ZK proof
-// [N+5:N+9]    - Size of public values, M
-// [N+9:N+9+M]  - Public values serialized using Rust bincode default format.
-// [N+9+M:]     - Merkle Proofs
+// [0]            - Type of the ZK Proof System used (e.g. Groth16) (uint8)
+// [1:9]          - Height (uint64, big-endian)
+// [9:13]         - Size of the ZK Proof, N (uint32, big-endian). May be 0.
+// [13:13+N]      - The ZK proof
+// [13+N:17+N]    - Size of public values, M (uint32, big-endian). May be 0.
+// [17+N:17+N+M]  - Public values serialized using Rust bincode default format
+// [17+N+M:]      - Merkle proofs (32-byte chunks). Any leftover <32 is an error.
 func NewZkExecutionISMMetadata(metadata []byte) (ZkExecutionISMMetadata, error) {
-	if len(metadata) < 5 {
-		return ZkExecutionISMMetadata{}, errors.New("metadata too short to contain proof type and size")
+	if len(metadata) < MetadataMinLength {
+		return ZkExecutionISMMetadata{}, errors.New("metadata too short to contain valid proof data")
 	}
 
 	offset := 0
@@ -47,20 +53,24 @@ func NewZkExecutionISMMetadata(metadata []byte) (ZkExecutionISMMetadata, error) 
 
 	offset++
 
-	// [1:5] - Size of the proof, N (uint32)
+	// [1:9] - Height (uint64, big-endian)
+	height := binary.BigEndian.Uint64(metadata[offset : offset+8])
+	offset += 8
+
+	// [9:13] - Size of the proof, N (uint32)
 	proofSize := binary.BigEndian.Uint32(metadata[offset : offset+4])
 	offset += 4
 	if len(metadata[offset:]) < int(proofSize) {
 		return ZkExecutionISMMetadata{}, fmt.Errorf("metadata too short to contain full proof: expected %d bytes", proofSize)
 	}
 
-	// [5:N+5] - ZK proof
+	// [13:13+N] - ZK proof
 	proof := metadata[offset : offset+int(proofSize)]
 	offset += int(proofSize)
 
-	// [N+5:N+9] - Size of public values, M (uint32)
+	// [13+N:17+N] - Size of public values, M (uint32)
 	if len(metadata[offset:]) < 4 {
-		return ZkExecutionISMMetadata{}, errors.New("metadata too short to contain number of public values")
+		return ZkExecutionISMMetadata{}, errors.New("metadata too short to contain public values size")
 	}
 
 	pubInputsSize := binary.BigEndian.Uint32(metadata[offset : offset+4])
@@ -70,9 +80,9 @@ func NewZkExecutionISMMetadata(metadata []byte) (ZkExecutionISMMetadata, error) 
 		return ZkExecutionISMMetadata{}, fmt.Errorf("metadata too short to contain public values: expected %d bytes", pubInputsSize)
 	}
 
+	// [17+N:17+N+M] - Public values (bincode)
 	var publicInputs PublicValues
 	if pubInputsSize != 0 {
-		// [N+9:N+9+M] - bincode-encoded PublicInputs
 		pubInputsBz := metadata[offset : offset+int(pubInputsSize)]
 		offset += int(pubInputsSize)
 
@@ -95,6 +105,7 @@ func NewZkExecutionISMMetadata(metadata []byte) (ZkExecutionISMMetadata, error) 
 
 	return ZkExecutionISMMetadata{
 		ProofType:    proofType,
+		Height:       height,
 		Proof:        proof,
 		PublicValues: publicInputs,
 		MerkleProofs: merkleProofs,
