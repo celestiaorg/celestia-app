@@ -100,14 +100,6 @@ func FundKeyringAccounts(accounts ...string) (keyring.Keyring, []banktypes.Balan
 	return kr, genBalances, genAccounts
 }
 
-func GenerateAccounts(count int) []string {
-	accs := make([]string, count)
-	for i := 0; i < count; i++ {
-		accs[i] = random.Str(20)
-	}
-	return accs
-}
-
 // GetFreePort returns a free port and optionally an error.
 func GetFreePort() (int, error) {
 	a, err := net.ResolveUDPAddr("udp", "localhost:0")

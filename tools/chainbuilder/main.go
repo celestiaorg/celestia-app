@@ -470,8 +470,12 @@ func generateSquareRoutine(
 		if err != nil {
 			return err
 		}
+		msg, err := blobtypes.NewMsgPayForBlobs(account.Name(), 0, blob)
+		if err != nil {
+			return err
+		}
 
-		blobGas := blobtypes.DefaultEstimateGas([]uint32{uint32(cfg.BlockSize)})
+		blobGas := blobtypes.DefaultEstimateGas(msg)
 		fee := float64(blobGas) * appconsts.DefaultMinGasPrice * 2
 		tx, _, err := signer.CreatePayForBlobs(account.Name(), []*share.Blob{blob}, user.SetGasLimit(blobGas), user.SetFee(uint64(fee)))
 		if err != nil {

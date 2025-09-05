@@ -13,7 +13,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
 	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v6/test/util/random"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
@@ -64,14 +63,9 @@ func (s *StandardSDKIntegrationTestSuite) SetupSuite() {
 	t := s.T()
 	t.Log("setting up integration test suite")
 
-	accounts := make([]string, 35)
-	for i := 0; i < len(accounts); i++ {
-		accounts[i] = random.Str(9)
-	}
-
-	s.cfg = testnode.DefaultConfig().WithFundedAccounts(accounts...)
+	s.accounts = testfactory.GenerateAccounts(35)
+	s.cfg = testnode.DefaultConfig().WithFundedAccounts(s.accounts...)
 	s.cctx, _, _ = testnode.NewNetwork(t, s.cfg)
-	s.accounts = accounts
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 }
 

@@ -117,7 +117,9 @@ func TestEstimateGasPrice(t *testing.T) {
 	require.NoError(t, err)
 
 	blobSize := (appconsts.DefaultMaxBytes - 1) / len(accountNames)
-	gasLimit := blobtypes.DefaultEstimateGas([]uint32{uint32(blobSize)})
+	msg, err := blobtypes.NewMsgPayForBlobs(accountNames[0], 0, blobfactory.ManyBlobs(random.New(), []share.Namespace{share.RandomBlobNamespace()}, []int{blobSize})...)
+	require.NoError(t, err)
+	gasLimit := blobtypes.DefaultEstimateGas(msg)
 	wg := &sync.WaitGroup{}
 	gasPricesChan := make(chan float64, len(accountNames))
 	for _, accName := range accountNames {
