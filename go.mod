@@ -17,9 +17,9 @@ require (
 	cosmossdk.io/x/tx v0.13.8
 	cosmossdk.io/x/upgrade v0.1.4
 	github.com/aws/aws-sdk-go-v2 v1.38.3
-	github.com/aws/aws-sdk-go-v2/config v1.31.2
+	github.com/aws/aws-sdk-go-v2/config v1.31.6
 	github.com/aws/aws-sdk-go-v2/credentials v1.18.10
-	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.19.0
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.19.4
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.87.3
 	github.com/bcp-innovations/hyperlane-cosmos v1.0.1
 	github.com/celestiaorg/go-square/v2 v2.3.1
