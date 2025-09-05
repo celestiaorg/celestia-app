@@ -16,6 +16,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: bufbuild/buf-setup-action@v1.50.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
       - uses: bufbuild/buf-lint-action@v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -26,6 +28,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: bufbuild/buf-setup-action@v1.50.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
       - uses: bufbuild/buf-breaking-action@v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
