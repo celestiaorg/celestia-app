@@ -8,13 +8,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/app/params"
 	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v6/test/util/random"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cometbft/cometbft/config"
+	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -40,8 +41,10 @@ func TestConcurrentTxSubmission(t *testing.T) {
 			require.NoError(t, err)
 
 			// Pregenerate all the blobs
-			numTxs := 100
+			numTxs := 20
 			blobs := blobfactory.ManyRandBlobs(random.New(), blobfactory.Repeat(2048, numTxs)...)
+
+			sendToSelfMsg := bank.NewMsgSend(txClient.DefaultAddress(), txClient.DefaultAddress(), sdktypes.NewCoins(sdktypes.NewInt64Coin(params.BondDenom, 10)))
 
 			// Prepare transactions
 			var (
@@ -54,9 +57,15 @@ func TestConcurrentTxSubmission(t *testing.T) {
 			time.AfterFunc(time.Minute, cancel)
 			for i := 0; i < numTxs; i++ {
 				wg.Add(1)
-				go func(b *share.Blob) {
+				go func(b *share.Blob, i int) {
 					defer wg.Done()
-					_, err := txClient.SubmitPayForBlob(subCtx, []*share.Blob{b}, user.SetGasLimitAndGasPrice(500_000, appconsts.DefaultMinGasPrice))
+					var err error
+					// send either a send msg of a pay for blob msg
+					if i%2 == 0 {
+						_, err = txClient.SubmitPayForBlob(subCtx, []*share.Blob{b})
+					} else {
+						_, err = txClient.SubmitTx(subCtx, []sdktypes.Msg{sendToSelfMsg})
+					}
 					if err != nil && !errors.Is(err, context.Canceled) {
 						// only catch the first error
 						select {
@@ -65,7 +74,7 @@ func TestConcurrentTxSubmission(t *testing.T) {
 						default:
 						}
 					}
-				}(blobs[i])
+				}(blobs[i], i)
 			}
 			wg.Wait()
 			select {

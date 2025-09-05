@@ -9,6 +9,9 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
+	sdktypes "github.com/cosmos/cosmos-sdk/types"
 )
 
 // CheckTx implements the ABCI interface and executes a tx in CheckTx mode. This
@@ -44,7 +47,16 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 			return responseCheckTxWithEvents(blobtypes.ErrNoBlobs, 0, 0, []abci.Event{}, false), nil
 		}
 		// don't do anything special if we have a normal transaction
-		return app.BaseApp.CheckTx(req)
+		resp, err := app.BaseApp.CheckTx(req)
+		if err != nil {
+			return nil, err
+		}
+
+		resp.Address, resp.Sequence, err = getSignersAndSequence(sdkTx)
+		if err != nil {
+			return nil, err
+		}
+		return resp, nil
 	}
 
 	switch req.Type {
@@ -60,10 +72,26 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	}
 
 	// NOTE: we recreate the reqCheckTx such that we do not mutate the original req.Tx value
-	return app.BaseApp.CheckTx(&abci.RequestCheckTx{
+	resp, err := app.BaseApp.CheckTx(&abci.RequestCheckTx{
 		Tx:   btx.Tx,
 		Type: req.GetType(),
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	// these should not error as they should have already been evaluated in check tx
+	sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(tx)
+	if err != nil {
+		return nil, err
+	}
+
+	resp.Address, resp.Sequence, err = getSignersAndSequence(sdkTx)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
 }
 
 func responseCheckTxWithEvents(err error, gw, gu uint64, events []abci.Event, debug bool) *abci.ResponseCheckTx {
@@ -76,4 +104,23 @@ func responseCheckTxWithEvents(err error, gw, gu uint64, events []abci.Event, de
 		GasUsed:   int64(gu),
 		Events:    events,
 	}
+}
+
+func getSignersAndSequence(sdkTx sdktypes.Tx) ([]byte, uint64, error) {
+	sigTx, ok := sdkTx.(authsigning.Tx)
+	if !ok {
+		return nil, 0, sdkerrors.ErrTxDecode
+	}
+
+	signers, err := sigTx.GetSigners()
+	if err != nil {
+		return nil, 0, err
+	}
+
+	sigs, err := sigTx.GetSignaturesV2()
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return signers[0], sigs[0].Sequence, nil
 }

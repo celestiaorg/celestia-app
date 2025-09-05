@@ -547,7 +547,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				return nil, fmt.Errorf("setting sequence: %w", err)
 			}
 			client.deleteFromTxTracker(txHash)
-			return nil, fmt.Errorf("tx with hash %s was rejected by the node", txHash)
+			return nil, fmt.Errorf("tx with hash %s was rejected by the node. Error code: %d", txHash, resp.ExecutionCode)
 		default:
 			client.deleteFromTxTracker(txHash)
 			if ctx.Err() != nil {
