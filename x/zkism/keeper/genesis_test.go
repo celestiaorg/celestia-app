@@ -15,7 +15,8 @@ func (suite *KeeperTestSuite) TestInitGenesis() {
 	}
 
 	genesisState := types.GenesisState{
-		Isms: isms,
+		Isms:   isms,
+		Params: types.DefaultParams(),
 	}
 
 	err := suite.zkISMKeeper.InitGenesis(suite.ctx, &genesisState)
@@ -26,6 +27,10 @@ func (suite *KeeperTestSuite) TestInitGenesis() {
 		suite.Require().NoError(err)
 		suite.Require().True(has)
 	}
+
+	headerHashRetention, err := suite.zkISMKeeper.GetHeaderHashRetention(suite.ctx)
+	suite.Require().NoError(err)
+	suite.Require().Equal(types.DefaultHeaderHashRetention, headerHashRetention)
 }
 
 func (suite *KeeperTestSuite) TestExportGenesis() {
@@ -43,4 +48,5 @@ func (suite *KeeperTestSuite) TestExportGenesis() {
 	genesisState, err := suite.zkISMKeeper.ExportGenesis(suite.ctx)
 	suite.Require().NoError(err)
 	suite.Require().Equal(isms, genesisState.Isms)
+	suite.Require().Equal(types.DefaultParams(), genesisState.Params)
 }

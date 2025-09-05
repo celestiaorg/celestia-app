@@ -399,7 +399,6 @@ func New(
 		encodingConfig.Codec,
 		runtime.NewKVStoreService(keys[zkismtypes.StoreKey]),
 		&app.HyperlaneKeeper,
-		app.StakingKeeper,
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 	)
 

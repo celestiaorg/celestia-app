@@ -9,7 +9,6 @@ import (
 	corestore "cosmossdk.io/core/store"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
-	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 )
 
@@ -17,19 +16,22 @@ var _ util.InterchainSecurityModule = (*Keeper)(nil)
 
 // Keeper implements the InterchainSecurityModule interface required by the Hyperlane ISM Router.
 type Keeper struct {
-	isms   collections.Map[uint64, types.ZKExecutionISM]
-	schema collections.Schema
+	headers collections.Map[uint64, []byte]
+	isms    collections.Map[uint64, types.ZKExecutionISM]
+	params  collections.Item[types.Params]
+	schema  collections.Schema
 
-	coreKeeper    types.HyperlaneKeeper
-	stakingKeeper types.StakingKeeper
-	authority     string
+	coreKeeper types.HyperlaneKeeper
+	authority  string
 }
 
 // NewKeeper creates and returns a new zkism module Keeper.
-func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlaneKeeper types.HyperlaneKeeper, stakingKeeper types.StakingKeeper, authority string) *Keeper {
+func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlaneKeeper types.HyperlaneKeeper, authority string) *Keeper {
 	sb := collections.NewSchemaBuilder(storeService)
 
+	headers := collections.NewMap(sb, types.HeadersKeyPrefix, "headers", collections.Uint64Key, collections.BytesValue)
 	isms := collections.NewMap(sb, types.IsmsKeyPrefix, "isms", collections.Uint64Key, codec.CollValue[types.ZKExecutionISM](cdc))
+	params := collections.NewItem(sb, types.ParamsKeyPrefix, "params", codec.CollValue[types.Params](cdc))
 
 	schema, err := sb.Build()
 	if err != nil {
@@ -37,11 +39,12 @@ func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlane
 	}
 
 	keeper := &Keeper{
-		coreKeeper:    hyperlaneKeeper,
-		stakingKeeper: stakingKeeper,
-		isms:          isms,
-		schema:        schema,
-		authority:     authority,
+		coreKeeper: hyperlaneKeeper,
+		headers:    headers,
+		isms:       isms,
+		params:     params,
+		schema:     schema,
+		authority:  authority,
 	}
 
 	router := hyperlaneKeeper.IsmRouter()
@@ -50,21 +53,24 @@ func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlane
 	return keeper
 }
 
-// GetHeader retrieves the block header for the provided height using x/staking HistoricalInfo.
-// HistoricalInfo maintains a window of a historical block headers stored within state (default: 10000).
-// See DefaultHistoricalEntries in x/staking params.
-func (k *Keeper) GetHeader(ctx context.Context, height uint64) (coretypes.Header, error) {
-	historicalInfo, err := k.stakingKeeper.GetHistoricalInfo(ctx, int64(height))
+// GetHeaderHash retrieves the block header has for the provided height.
+func (k *Keeper) GetHeaderHash(ctx context.Context, height uint64) ([]byte, error) {
+	headerHash, err := k.headers.Get(ctx, height)
 	if err != nil {
-		return coretypes.Header{}, err
+		return nil, err
 	}
 
-	header, err := coretypes.HeaderFromProto(&historicalInfo.Header)
-	if err != nil {
-		return coretypes.Header{}, err
+	if headerHash == nil {
+		return nil, types.ErrHeaderHashNotFound
 	}
 
-	return header, nil
+	return headerHash, nil
+}
+
+// GetHeaderHashRetention returns the header hash retention policy parameter.
+func (k *Keeper) GetHeaderHashRetention(ctx context.Context) (uint32, error) {
+	params, err := k.params.Get(ctx)
+	return params.HeaderHashRetention, err
 }
 
 // Exists implements hyperlane util.InterchainSecurityModule.
@@ -93,13 +99,13 @@ func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, metadata []b
 }
 
 func (k *Keeper) validatePublicValues(ctx context.Context, height uint64, ism types.ZKExecutionISM, publicValues types.PublicValues) error {
-	header, err := k.GetHeader(ctx, height)
+	headerHash, err := k.GetHeaderHash(ctx, height)
 	if err != nil {
 		return fmt.Errorf("failed to get header for height %d: %w", height, err)
 	}
 
-	if !bytes.Equal(header.Hash().Bytes(), publicValues.CelestiaHeaderHash[:]) {
-		return fmt.Errorf("invalid header hash, expected %x, got %x", header.Hash().Bytes(), publicValues.CelestiaHeaderHash[:])
+	if !bytes.Equal(headerHash, publicValues.CelestiaHeaderHash[:]) {
+		return fmt.Errorf("invalid header hash, expected %x, got %x", headerHash, publicValues.CelestiaHeaderHash[:])
 	}
 
 	if !bytes.Equal(publicValues.TrustedStateRoot[:], ism.StateRoot) {
