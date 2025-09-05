@@ -261,8 +261,8 @@ func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blo
 
 // SubmitPayForBlobWithAccount forms a transaction from the provided blobs, signs it with the provided account, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
-func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
-	resp, err := client.BroadcastPayForBlobWithAccount(ctx, account, blobs, opts...)
+func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, accountName string, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
+	resp, err := client.BroadcastPayForBlobWithAccount(ctx, accountName, blobs, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -278,16 +278,15 @@ func (client *TxClient) BroadcastPayForBlob(ctx context.Context, blobs []*share.
 	return client.BroadcastPayForBlobWithAccount(ctx, client.defaultAccount, blobs, opts...)
 }
 
-func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, account string, blobs []*share.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, accountName string, blobs []*share.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
-	if err := client.checkAccountLoaded(ctx, account); err != nil {
+	if err := client.checkAccountLoaded(ctx, accountName); err != nil {
 		return nil, err
 	}
-
-	acc, exists := client.signer.accounts[account]
+	acc, exists := client.signer.accounts[accountName]
 	if !exists {
-		return nil, fmt.Errorf("account %s not found", account)
+		return nil, fmt.Errorf("account %s not found", accountName)
 	}
 	signer := acc.Address().String()
 	msg, err := blobtypes.NewMsgPayForBlobs(signer, 0, blobs...)
@@ -299,15 +298,15 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 	// prepend calculated params, so it can be overwritten in case the user has specified it.
 	opts = append([]TxOption{SetGasLimit(gasLimit), SetFee(fee)}, opts...)
 
-	txBytes, _, err := client.signer.CreatePayForBlobs(account, blobs, opts...)
+	txBytes, _, err := client.signer.CreatePayForBlobs(accountName, blobs, opts...)
 	if err != nil {
 		return nil, err
 	}
 
 	if len(client.conns) > 1 {
-		return client.broadcastMulti(ctx, txBytes, account)
+		return client.broadcastMulti(ctx, txBytes, accountName)
 	}
-	return client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txBytes, account)
+	return client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txBytes, accountName)
 }
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions

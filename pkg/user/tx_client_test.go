@@ -85,7 +85,20 @@ func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 	})
 
 	t.Run("submit blob with different account", func(t *testing.T) {
-		resp, err := suite.txClient.SubmitPayForBlobWithAccount(subCtx, "c", blobs, user.SetFee(1e6), user.SetGasLimit(1e6))
+		// Get a different account name from the available accounts
+		accounts := suite.txClient.Signer().Accounts()
+		require.GreaterOrEqual(t, len(accounts), 2, "need at least 2 accounts for this test")
+
+		// Find an account that's not the default account
+		var accountName string
+		for _, acc := range accounts {
+			if acc.Name() != suite.txClient.DefaultAccountName() {
+				accountName = acc.Name()
+				break
+			}
+		}
+		require.NotEmpty(t, accountName, "could not find a non-default account")
+		resp, err := suite.txClient.SubmitPayForBlobWithAccount(subCtx, accountName, blobs, user.SetFee(1e6), user.SetGasLimit(1e6))
 		require.NoError(t, err)
 		getTxResp, err := suite.serviceClient.GetTx(subCtx, &sdktx.GetTxRequest{Hash: resp.TxHash})
 		require.NoError(t, err)
@@ -142,7 +155,20 @@ func (suite *TxClientTestSuite) TestSubmitTx() {
 	})
 
 	t.Run("submit tx with a different account", func(t *testing.T) {
-		addr := suite.txClient.Account("b").Address()
+		// Get a different account name from the available accounts
+		accounts := suite.txClient.Signer().Accounts()
+		require.GreaterOrEqual(t, len(accounts), 2, "need at least 2 accounts for this test")
+
+		// Find an account that's not the default account
+		var accountName string
+		for _, acc := range accounts {
+			if acc.Name() != suite.txClient.DefaultAccountName() {
+				accountName = acc.Name()
+				break
+			}
+		}
+		require.NotEmpty(t, accountName, "could not find a non-default account")
+		addr := suite.txClient.Account(accountName).Address()
 		msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
 		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg})
 		require.NoError(t, err)
@@ -402,14 +428,19 @@ func (suite *TxClientTestSuite) TestGasConsumption() {
 }
 
 func (suite *TxClientTestSuite) TestTxClientWithDifferentDefaultAccount() {
-	txClient, err := user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithDefaultAccount("b"))
-	suite.NoError(err)
-	suite.Equal(txClient.DefaultAccountName(), "b")
+	accounts := suite.txClient.Signer().Accounts()
+	require.GreaterOrEqual(suite.T(), len(accounts), 3, "need at least 3 accounts for this test")
 
-	addrC := txClient.Account("c").Address()
-	txClient, err = user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithDefaultAddress(addrC))
+	accountName1 := accounts[1].Name()
+	txClient, err := user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithDefaultAccount(accountName1))
 	suite.NoError(err)
-	suite.Equal(txClient.DefaultAddress(), addrC)
+	suite.Equal(txClient.DefaultAccountName(), accountName1)
+
+	accountName2 := accounts[2].Name()
+	addr2 := txClient.Account(accountName2).Address()
+	txClient, err = user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithDefaultAddress(addr2))
+	suite.NoError(err)
+	suite.Equal(txClient.DefaultAddress(), addr2)
 }
 
 func (suite *TxClientTestSuite) queryCurrentBalance(t *testing.T) int64 {
