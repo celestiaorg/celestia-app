@@ -1,9 +1,7 @@
 package types
 
 const (
-	// DefaultHistoricalEntries is 50000. Apps that don't use IBC can ignore this
-	// value by not adding the staking module to the application module manager's
-	// SetOrderBeginBlockers.
+	// DefaultMaxHeaderHashes is 50000.
 	DefaultMaxHeaderHashes uint32 = 50000
 )
 
