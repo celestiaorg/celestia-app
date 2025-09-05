@@ -45,7 +45,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	t := s.T()
 	s.accounts = testnode.RandomAccounts(142)
 
-	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...).WithTimeoutCommit(time.Millisecond * 500)
+	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...).WithDelayedPrecommitTimeout(time.Millisecond * 500)
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 
 	s.cctx = cctx

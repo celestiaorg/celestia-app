@@ -39,7 +39,7 @@ func TestGasEstimatorE2E(t *testing.T) {
 	// Create test node configuration
 	cfg := testnode.DefaultConfig().
 		WithFundedAccounts(accounts...).
-		WithTimeoutCommit(100 * time.Millisecond).
+		WithDelayedPrecommitTimeout(100 * time.Millisecond).
 		WithGenesis(
 			genesis.NewDefaultGenesis().
 				WithValidators(genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)).
@@ -50,6 +50,10 @@ func TestGasEstimatorE2E(t *testing.T) {
 
 	// Start the test network
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
+
+	// Wait for the first block to ensure the node is ready
+	_, err := cctx.WaitForHeight(1)
+	require.NoError(t, err)
 
 	estimatorClient := gasestimation.NewGasEstimatorClient(cctx.GRPCClient)
 	gasPriceResp, err := estimatorClient.EstimateGasPrice(ctx, &gasestimation.EstimateGasPriceRequest{})
@@ -112,7 +116,7 @@ func TestGasEstimatorE2EWithNetworkMinGasPrice(t *testing.T) {
 	// Create test node configuration
 	cfg := testnode.DefaultConfig().
 		WithFundedAccounts(accounts...).
-		WithTimeoutCommit(100 * time.Millisecond).
+		WithDelayedPrecommitTimeout(100 * time.Millisecond).
 		WithGenesis(
 			genesis.NewDefaultGenesis().
 				WithValidators(genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)).
@@ -125,6 +129,10 @@ func TestGasEstimatorE2EWithNetworkMinGasPrice(t *testing.T) {
 
 	// Start the test network
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
+
+	// Wait for the first block to ensure the node is ready
+	_, err := cctx.WaitForHeight(1)
+	require.NoError(t, err)
 
 	estimatorClient := gasestimation.NewGasEstimatorClient(cctx.GRPCClient)
 	gasPriceResp, err := estimatorClient.EstimateGasPrice(ctx, &gasestimation.EstimateGasPriceRequest{})
