@@ -86,7 +86,7 @@ func (c constructor) NewTree(_ rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
 }
 
 // Push adds the provided data to the underlying NamespaceMerkleTree, and
-// automatically uses the first DefaultNamespaceIDLen number of bytes as the
+// automatically uses the first share.NamespaceSize number of bytes as the
 // namespace unless the data pushed to the second half of the tree. Fulfills the
 // rsmt.Tree interface. NOTE: panics if an error is encountered while pushing or
 // if the tree size is exceeded.
