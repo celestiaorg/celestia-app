@@ -383,7 +383,7 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 }
 
 func (client *TxClient) broadcastTxAndIncrementSequence(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
-	resp, err := client.broadcastTx(ctx, conn, txBytes, signer)
+	resp, err := client.broadcastTx(ctx, conn, txBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -403,7 +403,7 @@ func (client *TxClient) broadcastTxAndIncrementSequence(ctx context.Context, con
 
 // broadcastTx resubmits a transaction that was evicted from the mempool.
 // Unlike the initial broadcast, it doesn't increment the signer's sequence number.
-func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
 	txClient := sdktx.NewServiceClient(conn)
 	resp, err := txClient.BroadcastTx(
 		ctx,
@@ -527,12 +527,12 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			client.deleteFromTxTracker(txHash)
 			return txResponse, nil
 		case core.TxStatusEvicted:
-			_, signer, exists := client.GetTxFromTxTracker(txHash)
+			_, _, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in txTracker; likely failed during broadcast", txHash)
 			}
 			// Resubmit straight away in the event of eviction and keep polling until tx is committed
-			_, err := client.broadcastTx(ctx, client.conns[0], client.txTracker[txHash].txBytes, signer)
+			_, err := client.broadcastTx(ctx, client.conns[0], client.txTracker[txHash].txBytes)
 			if err != nil {
 				return nil, fmt.Errorf("resubmission for evicted tx with hash %s failed: %w", txHash, err)
 			}
