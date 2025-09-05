@@ -15,6 +15,7 @@ import (
 
 func TestVerify(t *testing.T) {
 	var (
+		celHeight        = 30
 		trustedStateRoot = "af50a407e7a9fcba29c46ad31e7690bae4e951e3810e5b898eda29d3d3e92dbe"
 		vkeyHash         = "0x00acd6f9c9d0074611353a1e0c94751d3c49beef64ebc3ee82f0ddeadaf242ef"
 		namespaceHex     = "00000000000000000000000000000000000000a8045f161bf468bf4d44"
@@ -46,24 +47,20 @@ func TestVerify(t *testing.T) {
 		SequencerPublicKey:  pubKey,
 	}
 
-	metadata := encodeMetadata(t, proofBz, inputsBz)
+	metadata := encodeMetadata(t, uint64(celHeight), proofBz, inputsBz)
 
 	verified, err := ism.Verify(context.Background(), metadata, util.HyperlaneMessage{})
 	require.NoError(t, err)
 	require.True(t, verified)
-
-	inputs := new(types.PublicInputs)
-	err = inputs.Unmarshal(inputsBz)
-	require.NoError(t, err)
-
-	require.Equal(t, inputs.NewStateRoot[:], ism.StateRoot)
-	require.Equal(t, inputs.NewHeight, ism.Height)
 }
 
 // encodeMetadata: [proofType][proofSize][proof][pubInputsSize][pubInputs]
 // Note: Merkle proofs for state membership are omitted here
-func encodeMetadata(t *testing.T, proofBz, pubInputs []byte) []byte {
+func encodeMetadata(t *testing.T, height uint64, proofBz, pubInputs []byte) []byte {
 	t.Helper()
+
+	heightBz := make([]byte, 8)
+	binary.BigEndian.PutUint64(heightBz, height)
 
 	proofSize := make([]byte, 4)
 	binary.BigEndian.PutUint32(proofSize, uint32(len(proofBz)))
@@ -73,6 +70,7 @@ func encodeMetadata(t *testing.T, proofBz, pubInputs []byte) []byte {
 
 	var metadata []byte
 	metadata = append(metadata, byte(types.ProofTypeSP1Groth16))
+	metadata = append(metadata, heightBz...)
 	metadata = append(metadata, proofSize...)
 	metadata = append(metadata, proofBz...)
 	metadata = append(metadata, pubInputsSize...)
