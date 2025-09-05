@@ -53,14 +53,9 @@ func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlane
 	return keeper
 }
 
-// GetHeaderHash retrieves the block header has for the provided height.
+// GetHeaderHash retrieves the block header hash for the provided height.
 func (k *Keeper) GetHeaderHash(ctx context.Context, height uint64) ([]byte, error) {
-	headerHash, err := k.headers.Get(ctx, height)
-	if err != nil {
-		return nil, err
-	}
-
-	return headerHash, nil
+	return k.headers.Get(ctx, height)
 }
 
 // GetMaxHeaderHashes returns the header hash retention policy parameter.
