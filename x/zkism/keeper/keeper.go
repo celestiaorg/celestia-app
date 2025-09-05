@@ -60,10 +60,6 @@ func (k *Keeper) GetHeaderHash(ctx context.Context, height uint64) ([]byte, erro
 		return nil, err
 	}
 
-	if headerHash == nil {
-		return nil, types.ErrHeaderHashNotFound
-	}
-
 	return headerHash, nil
 }
 

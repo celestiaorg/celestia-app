@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
+	"cosmossdk.io/collections"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -35,7 +35,7 @@ func (k *Keeper) StoreHeaderHash(goCtx context.Context) error {
 	for i := ctx.BlockHeight() - int64(numEntries); i >= 0; i-- {
 		_, err := k.GetHeaderHash(ctx, uint64(i))
 		if err != nil {
-			if errors.Is(err, types.ErrHeaderHashNotFound) {
+			if errors.Is(err, collections.ErrNotFound) {
 				break
 			}
 			return err
