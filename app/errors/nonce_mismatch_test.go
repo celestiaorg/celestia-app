@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// This will detect any changes to the DeductFeeDecorator which may cause a
+// This will detect any changes to the SigVerificationDecorator which may cause a
 // different error message that does not match the regexp.
 func TestNonceMismatchIntegration(t *testing.T) {
 	account := "test"
