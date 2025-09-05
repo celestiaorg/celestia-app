@@ -20,8 +20,7 @@ import (
 )
 
 const (
-	kibibyte                    = 1024      // bytes
-	mebibyte                    = 1_048_576 // bytes
+	kibibyte                    = 1024 // bytes
 	DefaultValidatorAccountName = "validator"
 	DefaultInitialBalance       = genesis.DefaultInitialBalance
 	// TimeoutCommit is a flag that can be used to override the timeout_commit.
