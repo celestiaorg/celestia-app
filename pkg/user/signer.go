@@ -30,8 +30,7 @@ type Signer struct {
 	enc          client.TxConfig
 	addressCodec address.Codec
 	chainID      string
-	// accounts is a map from accountName to account.
-	// set of accounts that the signer can manage. Should match the keys on the keyring
+	// accounts is a map from accountName to account. The signer can manage these accounts. They should match the keys on the keyring.
 	accounts            map[string]*Account
 	addressToAccountMap map[string]string
 	signMode            signing.SignMode
