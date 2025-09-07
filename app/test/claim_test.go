@@ -48,7 +48,7 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 
 	undelegate(t, &cctx, txClient, delegatorAddress, validatorAddress, amount)
 	verifyDelegationDoesNotExist(t, &cctx, stakingClient, delegatorAddress, validatorAddress)
-	verifyDelegationRewardsDoNotExist(t, &cctx, distributionClient, delegatorAddress, validatorAddress)
+	verifyDelegationRewardsExist(t, &cctx, distributionClient, delegatorAddress, validatorAddress)
 
 	claimRewards(t, &cctx, txClient, delegatorAddress, validatorAddress, amount)
 }
@@ -127,13 +127,13 @@ func verifyDelegationDoesNotExist(t *testing.T, cctx *testnode.Context, stakingC
 	assert.ErrorContains(t, err, fmt.Sprintf("delegation with delegator %s not found for validator %s", delegatorAddress, validatorAddress))
 }
 
-func verifyDelegationRewardsDoNotExist(t *testing.T, cctx *testnode.Context, distributionClient distributiontypes.QueryClient, delegatorAddress, validatorAddress string) {
-	_, err := distributionClient.DelegationRewards(cctx.GoContext(), &distributiontypes.QueryDelegationRewardsRequest{
+func verifyDelegationRewardsExist(t *testing.T, cctx *testnode.Context, distributionClient distributiontypes.QueryClient, delegatorAddress, validatorAddress string) {
+	resp, err := distributionClient.DelegationRewards(cctx.GoContext(), &distributiontypes.QueryDelegationRewardsRequest{
 		DelegatorAddress: delegatorAddress,
 		ValidatorAddress: validatorAddress,
 	})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "no delegation for (address, validator) tupl")
+	require.NoError(t, err)
+	require.True(t, resp.Rewards.AmountOf(appconsts.BondDenom).GT(math.LegacyOneDec()))
 }
 
 func claimRewards(t *testing.T, cctx *testnode.Context, txClient *user.TxClient, delegatorAddress string, validatorAddress string, amount types.Coin) {
