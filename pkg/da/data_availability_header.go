@@ -6,15 +6,16 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
-	daproto "github.com/celestiaorg/celestia-app/v6/proto/celestia/core/v1/da"
 	"github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	"github.com/cometbft/cometbft/types"
 	"golang.org/x/exp/constraints"
+
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
+	daproto "github.com/celestiaorg/celestia-app/v6/proto/celestia/core/v1/da"
 )
 
 var (
@@ -71,7 +72,7 @@ func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 
 	// here we construct a tree
 	// Note: uses the nmt wrapper to construct the tree.
-	return rsmt2d.ComputeExtendedDataSquare(s, appconsts.DefaultCodec(), wrapper.NewConstructor(uint64(squareSize)))
+	return rsmt2d.ComputeExtendedDataSquareLimitParallelOps(s, appconsts.DefaultCodec(), wrapper.NewConstructor(uint64(squareSize)), 40)
 }
 
 // String returns hex representation of merkle hash of the DAHeader.

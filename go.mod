@@ -45,7 +45,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
 	github.com/spf13/viper v1.20.0
-	github.com/stretchr/testify v1.11.0
+	github.com/stretchr/testify v1.11.1
 	github.com/tendermint/tendermint v0.0.0-00010101000000-000000000000
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
 	golang.org/x/oauth2 v0.30.0
@@ -270,8 +270,8 @@ require (
 replace (
 	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.6
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
-	github.com/celestiaorg/nmt => github.com/mcrakhman/nmt v0.24.1-0.20250902084411-80a4a53a2345
-	github.com/celestiaorg/rsmt2d => github.com/mcrakhman/rsmt2d v0.14.1-0.20250902100149-9d8370bc8c27
+	github.com/celestiaorg/nmt => ../nmt //github.com/mcrakhman/nmt v0.24.1-0.20250902084411-80a4a53a2345
+	github.com/celestiaorg/rsmt2d => ../rsmt2d //github.com/mcrakhman/rsmt2d v0.14.1-0.20250902100149-9d8370bc8c27
 	// TODO: update to a v0.39.x release after that is created from celestia-core main branch.
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.2
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.51.0

@@ -200,7 +200,7 @@ func BenchmarkProcessProposal_PFB_Multi(b *testing.B) {
 		//{numberOfTransactions: 10, blobSize: 1_000_000},
 		//{numberOfTransactions: 5, blobSize: 2_000_000},
 		//{numberOfTransactions: 3, blobSize: 3_000_000},
-		{numberOfTransactions: 32, blobSize: 4_000_000},
+		{numberOfTransactions: 64, blobSize: 4_000_000},
 		//{numberOfTransactions: 2, blobSize: 5_000_000},
 		//{numberOfTransactions: 2, blobSize: 6_000_000},
 	}
