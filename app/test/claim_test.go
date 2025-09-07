@@ -7,6 +7,7 @@ import (
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/types"
@@ -25,7 +26,7 @@ import (
 //
 // Inspired by https://github.com/celestiaorg/celestia-app/issues/5381
 func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
-	accounts := testnode.RandomAccounts(2)
+	accounts := testfactory.GenerateAccounts(2)
 	config := testnode.DefaultConfig().WithFundedAccounts(accounts...)
 	cctx, _, _ := testnode.NewNetwork(t, config)
 
