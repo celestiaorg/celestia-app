@@ -13,6 +13,7 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v6/app/errors"
 	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
 	"github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v6/app/params"
@@ -20,6 +21,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
 	"github.com/celestiaorg/go-square/v2/share"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -29,6 +31,7 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	"google.golang.org/grpc"
@@ -356,7 +359,29 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 		}
 		gasLimit, err = client.estimateGas(ctx, txBuilder)
 		if err != nil {
-			return nil, err
+			// If not a sequence mismatch, return the error.
+			if !strings.Contains(err.Error(), sdkerrors.ErrWrongSequence.Error()) {
+				return nil, err
+			}
+
+			// Handle the sequence mismatch path by setting the sequence to the expected sequence
+			// and retrying gas estimation.
+			parsedErr := extractSequenceError(err.Error())
+
+			expectedSequence, err := apperrors.ParseExpectedSequence(parsedErr)
+			if err != nil {
+				return nil, fmt.Errorf("parsing sequence mismatch: %w. RawLog: %s", err, err)
+			}
+
+			if err = client.signer.SetSequence(account, expectedSequence); err != nil {
+				return nil, fmt.Errorf("setting sequence: %w", err)
+			}
+
+			// Retry gas estimation with the corrected sequence.
+			gasLimit, err = client.estimateGas(ctx, txBuilder)
+			if err != nil {
+				return nil, fmt.Errorf("retrying gas estimation: %w", err)
+			}
 		}
 		txBuilder.SetGasLimit(gasLimit)
 	}
@@ -383,7 +408,7 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 }
 
 func (client *TxClient) broadcastTxAndIncrementSequence(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
-	resp, err := client.broadcastTx(ctx, conn, txBytes, signer)
+	resp, err := client.broadcastTx(ctx, conn, txBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -403,7 +428,7 @@ func (client *TxClient) broadcastTxAndIncrementSequence(ctx context.Context, con
 
 // broadcastTx resubmits a transaction that was evicted from the mempool.
 // Unlike the initial broadcast, it doesn't increment the signer's sequence number.
-func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
 	txClient := sdktx.NewServiceClient(conn)
 	resp, err := txClient.BroadcastTx(
 		ctx,
@@ -416,6 +441,17 @@ func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, 
 		return nil, err
 	}
 	if resp.TxResponse.Code != abci.CodeTypeOK {
+		if apperrors.IsNonceMismatchCode(resp.TxResponse.Code) {
+			expectedSequence, err := apperrors.ParseExpectedSequence(resp.TxResponse.RawLog)
+			if err != nil {
+				return nil, fmt.Errorf("error parsing sequence mismatch: %w. RawLog: %s", err, resp.TxResponse.RawLog)
+			}
+			if err := client.signer.SetSequence(signer, expectedSequence); err != nil {
+				return nil, fmt.Errorf("setting sequence: %w", err)
+			}
+
+			return client.retryBroadcastingTx(ctx, txBytes)
+		}
 		broadcastTxErr := &BroadcastTxError{
 			TxHash:   resp.TxResponse.TxHash,
 			Code:     resp.TxResponse.Code,
@@ -425,6 +461,71 @@ func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, 
 	}
 
 	return resp.TxResponse, nil
+}
+
+// retryBroadcastingTx creates a new transaction by copying over an existing transaction but creates a new signature with the
+// new sequence number. It then calls `broadcastTx` and attempts to submit the transaction.
+func (s *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sdktypes.TxResponse, error) {
+	blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(txBytes)
+	if isBlobTx && err != nil {
+		return nil, err
+	}
+	if isBlobTx {
+		txBytes = blobTx.Tx
+	}
+	tx, err := s.signer.DecodeTx(txBytes)
+	if err != nil {
+		return nil, err
+	}
+	txBuilder, err := s.signer.txBuilder(tx.GetMsgs(), []TxOption{}...)
+	if err != nil {
+		return nil, err
+	}
+	if err := txBuilder.SetMsgs(tx.GetMsgs()...); err != nil {
+		return nil, err
+	}
+	if granter := tx.FeeGranter(); granter != nil {
+		txBuilder.SetFeeGranter(granter)
+	}
+	if payer := tx.FeePayer(); payer != nil {
+		txBuilder.SetFeePayer(payer)
+	}
+	if memo := tx.GetMemo(); memo != "" {
+		txBuilder.SetMemo(memo)
+	}
+	if fee := tx.GetFee(); fee != nil {
+		txBuilder.SetFeeAmount(fee)
+	}
+	if gas := tx.GetGas(); gas > 0 {
+		txBuilder.SetGasLimit(gas)
+	}
+
+	signer, _, err := s.signer.signTransaction(txBuilder)
+	if err != nil {
+		return nil, fmt.Errorf("resigning transaction: %w", err)
+	}
+
+	newTxBytes, err := s.signer.EncodeTx(txBuilder.GetTx())
+	if err != nil {
+		return nil, err
+	}
+
+	// Rewrap the blob tx if it was originally a blob tx.
+	if isBlobTx {
+		newTxBytes, err = blobtx.MarshalBlobTx(newTxBytes, blobTx.Blobs...)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	broadcastTxResp, err := s.broadcastTx(ctx, s.conns[0], newTxBytes, signer)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add to tx tracker.
+	s.trackTransaction(signer, broadcastTxResp.TxHash, newTxBytes)
+	return broadcastTxResp, nil
 }
 
 // broadcastMulti broadcasts the transaction to multiple connections concurrently
@@ -527,12 +628,12 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			client.deleteFromTxTracker(txHash)
 			return txResponse, nil
 		case core.TxStatusEvicted:
-			_, signer, exists := client.GetTxFromTxTracker(txHash)
+			_, _, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in txTracker; likely failed during broadcast", txHash)
 			}
 			// Resubmit straight away in the event of eviction and keep polling until tx is committed
-			_, err := client.broadcastTx(ctx, client.conns[0], client.txTracker[txHash].txBytes, signer)
+			_, err := client.broadcastTx(ctx, client.conns[0], client.txTracker[txHash].txBytes)
 			if err != nil {
 				return nil, fmt.Errorf("resubmission for evicted tx with hash %s failed: %w", txHash, err)
 			}
@@ -556,6 +657,18 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			return nil, fmt.Errorf("transaction with hash %s not found", txHash)
 		}
 	}
+}
+
+func extractSequenceError(fullError string) string {
+	start := strings.Index(fullError, "account sequence mismatch")
+	if start == -1 {
+		return fullError
+	}
+	s := fullError[start:]
+	if cut, _, ok := strings.Cut(s, " error estimating gas"); ok {
+		return cut
+	}
+	return s
 }
 
 // deleteFromTxTracker safely deletes a transaction from the local tx tracker.
