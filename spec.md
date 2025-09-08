@@ -110,7 +110,7 @@ message ProcessedPromise {
 
 #### Pruning Mechanism
 
-Processed promises are automatically pruned after 24 hours to prevent unbounded state growth.
+Processed promises are automatically pruned after `promise_timeout_blocks` to prevent unbounded state growth.
 
 ## Messages
 
