@@ -205,11 +205,12 @@ func deployPayloadDirect(
 		errs = append(errs, e)
 	}
 	if len(errs) > 0 {
-		sb := "deployment errors:\n"
+		var sb strings.Builder
+		sb.WriteString("deployment errors:\n")
 		for _, e := range errs {
-			sb += "- " + e.Error() + "\n"
+			sb.WriteString("- " + e.Error() + "\n")
 		}
-		return errors.New(sb)
+		return errors.New(sb.String())
 	}
 	return nil
 }
@@ -292,11 +293,12 @@ func deployPayloadViaS3(
 		errs = append(errs, e)
 	}
 	if len(errs) > 0 {
-		sb := "deployment errors:\n"
+		var sb strings.Builder
+		sb.WriteString("deployment errors:\n")
 		for _, e := range errs {
-			sb += "- " + e.Error() + "\n"
+			sb.WriteString("- " + e.Error() + "\n")
 		}
-		return errors.New(sb)
+		return errors.New(sb.String())
 	}
 	return nil
 }
