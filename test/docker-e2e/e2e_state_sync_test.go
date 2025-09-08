@@ -224,7 +224,7 @@ func (s *CelestiaTestSuite) TestStateSyncCompatibilityAcrossUpgrade() {
 	tag, err := dockerchain.GetCelestiaTagStrict()
 	s.Require().NoError(err)
 
-	t.Log("Phase 1: Starting v4 chain with 4 validators")
+	t.Log("Phase 1: Starting the chain with 3 validators")
 	cfg := dockerchain.DefaultConfig(s.client, s.network).WithTag(tag)
 
 	var (
@@ -324,7 +324,7 @@ func (s *CelestiaTestSuite) TestStateSyncCompatibilityAcrossUpgrade() {
 
 	// Verify that state sync was used (not block sync)
 	dockerNode := stateSyncNode.(*tastoradockertypes.ChainNode)
-	verifySyncMethod(t, heightHistory, dockerNode)
+	verifyStateSync(t, heightHistory, dockerNode)
 
 	// Validate: /status shows catching_up=false
 	status, err := stateSyncClient.Status(ctx)
@@ -366,58 +366,46 @@ func (s *CelestiaTestSuite) TestStateSyncCompatibilityAcrossUpgrade() {
 
 // checkSyncMetrics queries Prometheus metrics to determine sync method
 func checkSyncMetrics(t *testing.T, node *tastoradockertypes.ChainNode) (stateSync bool, blockSync bool, err error) {
-	ctx := context.Background()
+	var (
+		ctx      = context.Background()
+		endpoint = "http://localhost:26657/metrics"
+		cmd      = []string{"curl", "-s", "--connect-timeout", "5", endpoint}
+	)
+	stdout, stderr, execErr := node.Exec(ctx, cmd, nil)
 
-	// Try multiple approaches to get metrics
-	endpoints := []string{
-		"http://localhost:26660/metrics", // Default prometheus port
-		"http://127.0.0.1:26660/metrics", // Alternative localhost
-		"http://localhost:26657/metrics", // Alternative CometBFT port
-		"http://127.0.0.1:26657/metrics", // Alternative CometBFT port
+	if execErr != nil {
+		return false, false, fmt.Errorf("failed to fetch metrics from %s: %v, stderr: %s", endpoint, execErr, string(stderr))
 	}
 
-	for _, endpoint := range endpoints {
-		cmd := []string{"curl", "-s", "--connect-timeout", "5", endpoint}
-		stdout, stderr, execErr := node.Exec(ctx, cmd, nil)
-
-		if execErr != nil {
-			t.Logf("Failed to fetch metrics from %s: %v, stderr: %s", endpoint, execErr, string(stderr))
-			continue
-		}
-
-		metrics := string(stdout)
-		if len(metrics) < 10 {
-			t.Logf("Empty or invalid metrics response from %s", endpoint)
-			continue
-		}
-
-		// Parse metrics for sync indicators
-		if strings.Contains(metrics, "statesync_syncing 1") {
-			t.Logf("Prometheus metrics: State sync active (statesync_syncing=1)")
-			return true, false, nil
-		}
-
-		if strings.Contains(metrics, "blocksync_syncing 1") {
-			t.Logf("Prometheus metrics: Block sync active (blocksync_syncing=1)")
-			return false, true, nil
-		}
-
-		// Check for completed sync metrics
-		if strings.Contains(metrics, "statesync_syncing 0") {
-			t.Logf("Prometheus metrics: State sync completed (statesync_syncing=0)")
-			return true, false, nil
-		}
-
-		if strings.Contains(metrics, "blocksync_syncing 0") {
-			t.Logf("Prometheus metrics: Block sync completed (blocksync_syncing=0)")
-			return false, true, nil
-		}
-
-		t.Logf("Prometheus metrics available but no sync metrics found")
-		return false, false, nil
+	metrics := string(stdout)
+	if len(metrics) < 10 {
+		return false, false, fmt.Errorf("empty or invalid metrics response from %s", endpoint)
 	}
 
-	return false, false, fmt.Errorf("could not fetch Prometheus metrics from any endpoint")
+	// Parse metrics for sync indicators
+	if strings.Contains(metrics, "statesync_syncing 1") {
+		t.Logf("Prometheus metrics: State sync active (statesync_syncing=1)")
+		return true, false, nil
+	}
+
+	if strings.Contains(metrics, "blocksync_syncing 1") {
+		t.Logf("Prometheus metrics: Block sync active (blocksync_syncing=1)")
+		return false, true, nil
+	}
+
+	// Check for completed sync metrics
+	if strings.Contains(metrics, "statesync_syncing 0") {
+		t.Logf("Prometheus metrics: State sync completed (statesync_syncing=0)")
+		return true, false, nil
+	}
+
+	if strings.Contains(metrics, "blocksync_syncing 0") {
+		t.Logf("Prometheus metrics: Block sync completed (blocksync_syncing=0)")
+		return false, true, nil
+	}
+
+	t.Logf("Prometheus metrics available but no sync metrics found")
+	return false, false, nil
 }
 
 // analyzeSyncMethod determines if state sync or block sync was used based on height progression
@@ -486,8 +474,8 @@ func analyzeSyncMethod(t *testing.T, heightHistory []int64) (usedStateSync bool,
 	return true, false
 }
 
-// verifySyncMethod validates that state sync was used and not block sync
-func verifySyncMethod(t *testing.T, heightHistory []int64, stateSyncNode *tastoradockertypes.ChainNode) {
+// verifyStateSync validates that state sync was used and not block sync
+func verifyStateSync(t *testing.T, heightHistory []int64, stateSyncNode *tastoradockertypes.ChainNode) {
 	t.Logf("Height progression during sync: %v", heightHistory)
 
 	// Analyze height progression pattern
