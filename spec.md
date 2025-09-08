@@ -226,7 +226,7 @@ message MsgPayForFibre {
   // promise contains the original payment promise
   PaymentPromise promise = 2;
   // validator_signatures contains signatures from 2/3+ validators
-  repeated ValidatorSignature validator_signatures = 3;
+  repeated bytes validator_signatures = 3;
 }
 
 message PaymentPromise {
