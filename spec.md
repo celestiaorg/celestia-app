@@ -186,35 +186,6 @@ message MsgRequestWithdrawal {
 4. Create PendingWithdrawal with available_at = current_height + withdrawal_delay_blocks
 5. Emit EventRequestWithdrawalFromEscrow
 
-### MsgProcessWithdrawal
-
-Processes a withdrawal request that has passed the delay period.
-
-```proto
-message MsgProcessWithdrawal {
-  // signer is the bech32 encoded signer address (can be anyone)
-  string signer = 1;
-  // owner is the escrow account owner
-  string owner = 2;
-  // requested_at is the block height when withdrawal was requested
-  int64 requested_at = 3;
-}
-```
-
-#### Validation and Processing
-
-**Stateless Validation**:
-- Signer address must be valid
-- Owner address must be valid
-- Requested at must be positive
-
-**Stateful Processing**:
-1. Verify pending withdrawal exists for the given owner and requested_at
-2. Verify current block height >= withdrawal.available_at (delay period has passed)
-3. Transfer funds from module account to escrow owner
-4. Remove pending withdrawal record
-5. Emit EventProcessWithdrawal
-
 ### MsgPayForFibre
 
 Contains the original payment promise with validator signatures, submitted by the user. Successful `MsgPayForFibre` transactions are included in their own reserved namespace. The commitment from the promise is also included in the data square in the namespace specified in the promise.
@@ -393,7 +364,6 @@ sequenceDiagram
     A->>A: Decrease available_balance immediately
 
     Note over C,A: After withdrawal delay
-    C->>A: MsgProcessWithdrawal(owner, requested_at)
     A->>A: Transfer funds to user account
 ```
 
@@ -411,7 +381,7 @@ sequenceDiagram
 
 6. **Timeout Processing (Fallback)**: If user doesn't submit `MsgPayForFibre` within `promise_timeout_blocks`, anyone can submit `MsgProcessPromiseTimeout` to process payment. This prevents the user from getting free service.
 
-7. **Withdrawal**: Users can request withdrawals via `MsgRequestWithdrawal` (decreases available balance immediately) and process them after the delay via `MsgProcessWithdrawal`.
+7. **Withdrawal**: Users can request withdrawals via `MsgRequestWithdrawal` (decreases available balance immediately) and process them after the delay automatically.
 
 ## Events
 
