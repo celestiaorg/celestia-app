@@ -144,7 +144,6 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		appCfg.Pruning = "everything" // we just want the last two states
 		appCfg.StateSync.SnapshotInterval = 0
 		cp := app.DefaultConsensusParams()
-
 		cp.Version.App = cfg.AppVersion // set the app version
 		gen = genesis.NewDefaultGenesis().
 			WithConsensusParams(cp).
@@ -470,7 +469,7 @@ func generateSquareRoutine(
 		if err != nil {
 			return err
 		}
-		msg, err := blobtypes.NewMsgPayForBlobs(account.Name(), 0, blob)
+		msg, err := blobtypes.NewMsgPayForBlobs(account.Address().String(), 0, blob)
 		if err != nil {
 			return err
 		}

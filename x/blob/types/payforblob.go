@@ -38,14 +38,14 @@ const (
 )
 
 // NewMsgPayForBlobs creates a new MsgPayForBlobs with the given signer and blobs.
-// The signer must be a valid bech32 address.
-func NewMsgPayForBlobs(signer string, _ uint64, blobs ...*share.Blob) (*MsgPayForBlobs, error) {
+// The signerAddress must be a valid bech32 address.
+func NewMsgPayForBlobs(signerAddress string, _ uint64, blobs ...*share.Blob) (*MsgPayForBlobs, error) {
 	err := ValidateBlobs(blobs...)
 	if err != nil {
 		return nil, err
 	}
 
-	signerBytes, err := sdk.AccAddressFromBech32(signer)
+	signerBytes, err := sdk.AccAddressFromBech32(signerAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func NewMsgPayForBlobs(signer string, _ uint64, blobs ...*share.Blob) (*MsgPayFo
 	namespaces, sizes, shareVersions := ExtractBlobComponents(blobs)
 
 	msg := &MsgPayForBlobs{
-		Signer:           signer,
+		Signer:           signerAddress,
 		Namespaces:       namespacesToBytes(namespaces),
 		ShareCommitments: commitments,
 		BlobSizes:        sizes,
