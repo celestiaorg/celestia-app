@@ -213,15 +213,15 @@ func SetupTxClient(
 	encCfg encoding.Config,
 	options ...Option,
 ) (*TxClient, error) {
-	resp, err := tmservice.NewServiceClient(conn).GetLatestBlock(
+	resp, err := tmservice.NewServiceClient(conn).GetNodeInfo(
 		ctx,
-		&tmservice.GetLatestBlockRequest{},
+		&tmservice.GetNodeInfoRequest{},
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	chainID := resp.SdkBlock.Header.ChainID
+	chainID := resp.DefaultNodeInfo.Network
 
 	records, err := keys.List()
 	if err != nil {
