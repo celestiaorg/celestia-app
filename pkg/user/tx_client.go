@@ -40,6 +40,7 @@ import (
 const (
 	DefaultPollTime          = 3 * time.Second
 	txTrackerPruningInterval = 10 * time.Minute
+	defaultTrustedMode       = true
 )
 
 type Option func(client *TxClient)
@@ -157,9 +158,16 @@ type TxClient struct {
 	// that was submitted to the chain
 	txTracker           map[string]txInfo
 	gasEstimationClient gasestimation.GasEstimatorClient
+	// trustedMode indicates whether to trust the consensus node for account information.
+	// When true (default), the client trusts the consensus node to provide accurate
+	// account numbers and sequences without additional verification.
+	// When false, additional verification steps would be performed (to be implemented).
+	trustedMode bool
 }
 
-// NewTxClient returns a new signer using the provided keyring
+// NewTxClient returns a new TxClient using the provided keyring.
+// By default, the client operates in trusted mode, which assumes the consensus
+// node is honest.
 func NewTxClient(
 	cdc codec.Codec,
 	signer *Signer,
@@ -190,6 +198,11 @@ func NewTxClient(
 		txTracker:           make(map[string]txInfo),
 		cdc:                 cdc,
 		gasEstimationClient: gasestimation.NewGasEstimatorClient(conn),
+		// By default, the client operates in trusted mode,
+		// which trusts the consensus node to provide accurate account information
+		// without additional verification.
+		// It is advised to use the consensus endpoint that you trust.
+		trustedMode: defaultTrustedMode, // Default to trusted mode is true
 	}
 
 	for _, opt := range options {
@@ -205,7 +218,7 @@ func NewTxClient(
 }
 
 // SetupTxClient uses the underlying grpc connection to populate the chainID, accountNumber and sequence number of all
-// the accounts in the keyring.
+// the accounts in the keyring. By default, the client operates in trusted mode use the consensus endpoint that you trust.
 func SetupTxClient(
 	ctx context.Context,
 	keys keyring.Keyring,
@@ -328,6 +341,10 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 	// pruning has to be done in broadcast, since users
 	// might not always call ConfirmTx().
 	client.pruneTxTracker()
+
+	if !client.trustedMode {
+		return nil, fmt.Errorf("non-trusted mode not yet implemented")
+	}
 
 	account, err := client.getAccountNameFromMsgs(msgs)
 	if err != nil {
@@ -523,8 +540,6 @@ func (s *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sd
 		return nil, err
 	}
 
-	// Add to tx tracker.
-	s.trackTransaction(signer, broadcastTxResp.TxHash, newTxBytes)
 	return broadcastTxResp, nil
 }
 
@@ -786,6 +801,11 @@ func (client *TxClient) DefaultAddress() sdktypes.AccAddress {
 
 func (client *TxClient) DefaultAccountName() string { return client.defaultAccount }
 
+// IsTrustedMode returns whether the client is operating in trusted mode.
+func (client *TxClient) IsTrustedMode() bool {
+	return client.trustedMode
+}
+
 func (client *TxClient) checkAccountLoaded(ctx context.Context, account string) error {
 	if _, exists := client.signer.accounts[account]; exists {
 		return nil
@@ -798,7 +818,15 @@ func (client *TxClient) checkAccountLoaded(ctx context.Context, account string) 
 	if err != nil {
 		return fmt.Errorf("retrieving address from keyring: %w", err)
 	}
-	// FIXME: have a less trusting way of getting the account number and sequence
+
+	if !client.trustedMode {
+		// Non-trusted mode would implement additional verification here
+		// TODO: implement non-trusted account verification
+		return fmt.Errorf("non-trusted mode not yet implemented")
+	}
+
+	// In trusted mode, we trust the consensus node to provide accurate account information
+	// without additional verification. This assumes the node is honest and not compromised.
 	accNum, sequence, err := QueryAccount(ctx, client.conns[0], client.registry, addr)
 	if err != nil {
 		return fmt.Errorf("querying account %s: %w", account, err)
