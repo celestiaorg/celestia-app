@@ -48,7 +48,7 @@ message Params {
 
 #### `PromiseTimeoutBlocks`
 
-`PromiseTimeoutBlocks` is the number of blocks after which anyone can submit an promise for processing if the user hasn't submitted a PFF (default: ~1 hour worth of blocks).
+`PromiseTimeoutBlocks` is the number of blocks after which anyone can submit a promise for processing if the user hasn't submitted a `MsgPayForFibre` (default: ~1 hour worth of blocks).
 
 ### Escrow Accounts
 
@@ -195,7 +195,7 @@ message MsgProcessWithdrawal {
 
 ### MsgPayForFibre
 
-Contains the original payment promise with validator signatures, submitted by the user. Successful inclusion of this message must also include the commitment included in the relevant namespace. The payment messages themselves are included in their own reserved namespace similar to PFBs. Ordering of commitments in the square is determined via the normal account sequence signed over in the transaction that contains this message.
+Contains the original payment promise with validator signatures, submitted by the user. Successful `MsgPayForFibre` transactions are included in their own reserved namespace. The commitment from the promise is also included in the data square in the namespace specified in the promise.
 
 ```proto
 message MsgPayForFibre {
@@ -225,25 +225,50 @@ message PaymentPromise {
 }
 ```
 
-#### Validation and Processing
+#### PaymentPromise Validation
 
 **Stateless Validation**:
-- All promise fields must be valid (similar to PFF validation)
+- `escrow_id` must be non-zero
+- `escrow_owner` must be valid bech32 address
+- `namespace` must be valid (8 or 29 bytes)
+- `blob_size` must be positive
+- `commitment` must be 32 bytes
+- `row_version` must be supported version
+- `creation_height` must be positive
+
+**Stateful Validation**:
+1. Verify `creation_height` is <= current confirmed height and > (current_height - promise_timeout_blocks)
+2. Verify escrow account exists and `escrow_owner` matches
+3. Verify sufficient available balance for gas cost (`blob_size * gas_per_blob_byte`)
+4. Verify promise signature by escrow owner over promise hash
+5. Verify promise hasn't been processed already
+
+#### MsgPayForFibre Validation and Processing
+
+**Stateless Validation**:
 - Must have at least one validator signature
+- All validator signatures must be properly formatted
 
 **Stateful Processing**:
-1. Verify creation_height is <=current confirmed height and > (CurrentHeight - PromiseTimeoutBlock
-1. Verify promise signature by escrow owner
-1. Verify escrow account exists
-1. Verify sufficient available balance for gas cost
-1. Verify validator signatures represent 2/3+ voting power
-1. Calculate and consume gas, deduct from escrow available balance
-1. Include commitment in data square
-1. Emit EventPayForFibre
+1. Validate PaymentPromise (see PaymentPromise Validation above)
+2. Verify validator signatures represent 2/3+ voting power from validator set at `promise.creation_height` (obtained via historical info query from staking module)
+3. Calculate gas cost and deduct from escrow available balance
+4. Mark promise as processed
+5. Include commitment in data square (see Inclusion Processing below)
+6. Emit EventPayForFibre
+
+#### Inclusion Processing
+
+When processing a successful `MsgPayForFibre`, the commitment must be included in the data square:
+
+1. Extract the namespace from `promise.namespace`
+2. Place the commitment as the sole data in the specified namespace
+3. The commitment data is included as a single blob in the namespace
+4. No other data should be present in this namespace for this block
 
 ### MsgProcessPromiseTimeout
 
-Processes a payment promise after the timeout period if no PFF was submitted. This mechanism is critical to guaranteeing that payment occurs.
+Processes a payment promise after the timeout period if no `MsgPayForFibre` was submitted. This mechanism is critical to guaranteeing that payment occurs. `MsgProcessPromiseTimeout` transactions are included in the default transaction reserved namespace.
 
 ```proto
 message MsgProcessPromiseTimeout {
@@ -256,20 +281,19 @@ message MsgProcessPromiseTimeout {
 }
 ```
 
-#### Validation and Processing
+#### MsgProcessPromiseTimeout Validation and Processing
 
 **Stateless Validation**:
-- Promise fields must be valid
-- Promise signature must be valid
+- Promise signature must be properly formatted
 
 **Stateful Processing**:
-1. Verify promise.creation_height + promise_timeout >= current_time
-1. Verify promise hasn't been processed already
-1. Verify escrow account exists and sequence matches
-1. Verify sufficient available balance
-1. Calculate and consume gas, deduct from escrow available balance
-1. DO NOT include commitment (since no validator consensus)
-1. Emit EventProcessPromiseTimeout
+1. Validate PaymentPromise (see PaymentPromise Validation above)
+2. Verify `promise.creation_height + promise_timeout_blocks <= current_height` (timeout has passed)
+3. Verify promise signature by escrow owner over promise hash
+4. Calculate gas cost and deduct from escrow available balance
+5. Mark promise as processed
+6. DO NOT include commitment in data square (since no validator consensus was reached)
+7. Emit EventProcessPromiseTimeout
 
 ## Transaction Flow
 
@@ -277,7 +301,7 @@ The Fibre payment channel mechanism follows this flow:
 
 1. **Setup Phase**: User creates escrow account and deposits funds using `MsgCreateEscrow` and/or `MsgDepositToEscrow`.
 
-2. **Promise Creation**: User creates a signed `PaymentPromise` containing escrow details, commitment, and sequence number.
+2. **Promise Creation**: User creates a signed `PaymentPromise` containing escrow details, commitment, and creation height.
 
 3. **Data Distribution Phase**: User distributes data chunks to validators along with the signed promise.
 
@@ -285,7 +309,7 @@ The Fibre payment channel mechanism follows this flow:
 
 5. **Payment Confirmation (Happy Path)**: User collects 2/3+ validator signatures and submits `MsgPayForFibre` containing the promise and signatures. The commitment gets included in the data square.
 
-6. **Timeout Processing (Fallback)**: If user doesn't submit PFF within `promise_timeout_blocks`, anyone can submit `MsgProcessPromiseTimeout` to process payment via gas mechanism. This prevents the user from getting free service.
+6. **Timeout Processing (Fallback)**: If user doesn't submit `MsgPayForFibre` within `promise_timeout_blocks`, anyone can submit `MsgProcessPromiseTimeout` to process payment. This prevents the user from getting free service.
 
 7. **Withdrawal**: Users can request withdrawals via `MsgRequestWithdrawal` (decreases available balance immediately) and process them after the delay via `MsgProcessWithdrawal`.
 
@@ -425,6 +449,36 @@ message QueryProcessedPromiseResponse {
 }
 ```
 
+### ValidatePaymentPromise
+
+Validates a payment promise for server use, performing all required checks including escrow balance and processing status.
+
+**Request**:
+```proto
+message QueryValidatePaymentPromiseRequest {
+  PaymentPromise promise = 1;
+  bytes promise_signature = 2;
+}
+```
+
+**Response**:
+```proto
+message QueryValidatePaymentPromiseResponse {
+  bool valid = 1;
+  string error_message = 2;
+  bool sufficient_balance = 3;
+  bool already_processed = 4;
+  cosmos.base.v1beta1.Coin required_payment = 5;
+  cosmos.base.v1beta1.Coin available_balance = 6;
+}
+```
+
+**Validation Checks**:
+1. Verify escrow account exists and has sufficient available balance for the gas cost (`promise.blob_size * gas_per_blob_byte`)
+2. Verify promise hasn't been processed already
+3. Perform all standard PaymentPromise validation (see PaymentPromise Validation section)
+4. Verify promise signature by escrow owner
+
 ## Parameters
 
 | Key                  | Type   | Default | Description |
@@ -473,6 +527,9 @@ celestia-appd query fibre pending-withdrawals <escrow_id>
 
 # Query if promise was processed
 celestia-appd query fibre processed-promise <promise_hash>
+
+# Validate payment promise for server (checks balance and processing status)
+celestia-appd query fibre validate-payment-promise <promise_json> <promise_signature>
 
 # Query module parameters
 celestia-appd query fibre params
