@@ -18,7 +18,7 @@ The `x/fibre` payment mechanism enables users to pay for fibre blobs without wai
 
 DoS resistance for a protocol with a global limit on throughput requires a guarantee for payment. Normally this is done simply by paying for gas, however paying for gas requires waiting for a transaction to be confirmed. The payment portion of this module (mainly the `PaymentPromise` and `EscrowAccount`) is to provide a guarantee for payment without having to wait for a transaction to be confirmed.
 
-Therefore, it is an invarient of the payment system that a signed `PaymentPromise` guarantees payment.
+Therefore, it is an invariant of the payment system that a signed `PaymentPromise` guarantees payment.
 
 ## State
 
