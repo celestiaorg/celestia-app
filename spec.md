@@ -44,7 +44,7 @@ message Params {
 
 #### `WithdrawalDelay`
 
-`WithdrawalDelay` is the number of seconds that must pass between requesting a withdrawal and when funds become available for withdrawal (default: ~24 hours worth of blocks).
+`WithdrawalDelay` is the number of seconds that must pass between requesting a withdrawal and when funds become available for withdrawal (default: ~24 hours worth of blocks). This value is also used for pruning ProcessedPromise from the state.
 
 #### `PromiseTimeoutBlocks`
 
@@ -67,7 +67,7 @@ message EscrowAccount {
 
 ### Pending Withdrawals
 
-Withdrawal requests are tracked to implement the delay mechanism that protects validators.
+Withdrawal requests are tracked to implement the delay mechanism.
 
 ```proto
 message PendingWithdrawal {
@@ -110,7 +110,7 @@ message ProcessedPromise {
 
 #### Pruning Mechanism
 
-Processed promises are automatically pruned after `promise_timeout_blocks` to prevent unbounded state growth.
+Processed promises are automatically pruned after `withdrawal_delay` to prevent unbounded state growth.
 
 ## Messages
 
@@ -271,7 +271,10 @@ Where:
 - `gas_per_blob_byte` is the gas cost per byte parameter
 
 **Stateful Validation**:
-1. Verify `creation_height` is <= current confirmed height and > (current_height - promise_timeout_blocks)
+1. Verify `creation_height` is:
+  - less than or equal to current confirmed height
+  - greater than (current_height - WithdrawalDelay)
+
 2. Verify escrow account exists for `owner`
 3. Verify sufficient available balance for gas cost (see Gas Consumption above). This includes all yet to be processed `PaymentPromises` that the validator has signed over.
 4. Verify promise signature by escrow owner over promise sign bytes (see Sign Bytes Format below)
