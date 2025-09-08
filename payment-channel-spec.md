@@ -236,10 +236,23 @@ message PaymentPromise {
 - `row_version` must be supported version
 - `creation_height` must be positive
 
+**Gas Consumption**:
+
+Gas cost is calculated using the following formula:
+```
+total_gas = (sparse_shares_needed(blob_size) * share_size * gas_per_blob_byte) + fixed_cost
+```
+
+Where:
+- `sparse_shares_needed(blob_size)` is the number of shares needed for the blob data
+- `share_size` is the size of each share in bytes
+- `gas_per_blob_byte` is the gas cost per byte parameter
+- `fixed_cost` is a base processing cost
+
 **Stateful Validation**:
 1. Verify `creation_height` is <= current confirmed height and > (current_height - promise_timeout_blocks)
 2. Verify escrow account exists and `escrow_owner` matches
-3. Verify sufficient available balance for gas cost (`blob_size * gas_per_blob_byte`)
+3. Verify sufficient available balance for gas cost (see Gas Consumption above)
 4. Verify promise signature by escrow owner over promise hash
 5. Verify promise hasn't been processed already
 
@@ -252,7 +265,7 @@ message PaymentPromise {
 **Stateful Processing**:
 1. Validate PaymentPromise (see PaymentPromise Validation above)
 2. Verify validator signatures represent 2/3+ voting power from validator set at `promise.creation_height` (obtained via historical info query from staking module)
-3. Calculate gas cost and deduct from escrow available balance
+3. Calculate gas cost (see Gas Consumption in PaymentPromise Validation) and deduct from escrow available balance
 4. Mark promise as processed
 5. Include commitment in data square (see Inclusion Processing below)
 6. Emit EventPayForFibre
@@ -290,7 +303,7 @@ message MsgProcessPromiseTimeout {
 1. Validate PaymentPromise (see PaymentPromise Validation above)
 2. Verify `promise.creation_height + promise_timeout_blocks <= current_height` (timeout has passed)
 3. Verify promise signature by escrow owner over promise hash
-4. Calculate gas cost and deduct from escrow available balance
+4. Calculate gas cost (see Gas Consumption in PaymentPromise Validation) and deduct from escrow available balance
 5. Mark promise as processed
 6. DO NOT include commitment in data square (since no validator consensus was reached)
 7. Emit EventProcessPromiseTimeout
@@ -305,7 +318,7 @@ The Fibre payment channel mechanism follows this flow:
 
 3. **Data Distribution Phase**: User distributes data chunks to validators along with the signed promise.
 
-4. **Validator Verification**: Validators verify the promise signature, check escrow has sufficient funds, and sign over the commitment if valid.
+4. **Validator Verification**: Validators verify the promise, its signature, check escrow has sufficient funds, and sign over the commitment if valid.
 
 5. **Payment Confirmation (Happy Path)**: User collects 2/3+ validator signatures and submits `MsgPayForFibre` containing the promise and signatures. The commitment gets included in the data square.
 
@@ -474,7 +487,7 @@ message QueryValidatePaymentPromiseResponse {
 ```
 
 **Validation Checks**:
-1. Verify escrow account exists and has sufficient available balance for the gas cost (`promise.blob_size * gas_per_blob_byte`)
+1. Verify escrow account exists and has sufficient available balance for the gas cost (see Gas Consumption in PaymentPromise Validation)
 2. Verify promise hasn't been processed already
 3. Perform all standard PaymentPromise validation (see PaymentPromise Validation section)
 4. Verify promise signature by escrow owner
