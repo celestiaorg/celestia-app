@@ -231,7 +231,7 @@ func (s *CelestiaTestSuite) TestStateSyncCompatibilityAcrossUpgrade() {
 		baseAppVersion   = appconsts.Version - 1
 		targetAppVersion = appconsts.Version
 	)
-	t.Logf("Starting chain with app version %d -> %d", baseAppVersion, targetAppVersion)
+	t.Logf("Starting chain with app version %d and will upgrade to %d.", baseAppVersion, targetAppVersion)
 	cfg.Genesis = cfg.Genesis.WithAppVersion(baseAppVersion)
 
 	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).
@@ -495,14 +495,11 @@ func verifySyncMethod(t *testing.T, heightHistory []int64, stateSyncNode *tastor
 
 	// FAIL if block sync was detected
 	if usedBlockSync {
-		t.Fatalf("CRITICAL FAILURE: Node used BLOCK SYNC instead of STATE SYNC! "+
-			"This test requires state sync. Height progression: %v", heightHistory)
+		t.Fatalf("Failed because state sync node used block sync instead of state sync. Height progression: %v", heightHistory)
 	}
 
-	// FAIL if we couldn't determine the sync method
 	if !usedStateSync {
-		t.Fatalf("Could not confirm state sync was used. "+
-			"Height progression: %v", heightHistory)
+		t.Fatalf("Could not confirm state sync was used. Height progression: %v", heightHistory)
 	}
 
 	t.Logf("Confirmed: Node successfully used state sync")
