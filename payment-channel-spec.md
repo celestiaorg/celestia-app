@@ -1,8 +1,8 @@
-# `x/fibre` Payment Channel Specification
+# `x/fibre`
 
 ## Abstract
 
-The `x/fibre` payment channel mechanism enables users to maintain escrow accounts for data publication by the Celestia validator set. This specification outlines a payment system where users deposit funds into escrow accounts, create signed promises for data commitments, validators sign over data chunks they receive, and either the user submits a payment confirmation with aggregated signatures or anyone can process the promise after a timeout period.
+The `x/fibre` payment mechanism enables users to pay for fibre blobs without waiting for a transaction to be confirmed. This is done by users depositing funds into escrow accounts, and signing over offchain messages that can be moved onchain at a later point.
 
 ## Contents
 
@@ -16,7 +16,7 @@ The `x/fibre` payment channel mechanism enables users to maintain escrow account
 
 ## Abstract
 
-Sybil resistance for a protocol with a global limit on throughput requires a guarantee for payment. Normally this is done simply by paying for gas, however paying for gas requires waiting for a transaction to be confirmed. The payment portion of this module (mainly the `PaymentPromise` and `EscrowAccount`) is to provide a guarantee for payment without having to wait for a transaction to be confirmed.
+DoS resistance for a protocol with a global limit on throughput requires a guarantee for payment. Normally this is done simply by paying for gas, however paying for gas requires waiting for a transaction to be confirmed. The payment portion of this module (mainly the `PaymentPromise` and `EscrowAccount`) is to provide a guarantee for payment without having to wait for a transaction to be confirmed.
 
 Therefore, it is an invarient of the payment system that a signed `PaymentPromise` guarantees payment.
 
@@ -154,6 +154,19 @@ message MsgDepositToEscrow {
 }
 ```
 
+#### Validation and Processing
+
+**Stateless Validation**:
+- Signer address must be valid
+- Escrow ID must be non-zero
+- Amount must be positive
+
+**Stateful Processing**:
+1. Verify escrow account exists
+2. Transfer funds from signer to module account
+3. Update escrow account balance and available_balance
+4. Emit EventDepositToEscrow
+
 ### MsgRequestWithdrawal
 
 Requests withdrawal from an escrow account. Funds become available after the withdrawal delay.
@@ -193,6 +206,20 @@ message MsgProcessWithdrawal {
 }
 ```
 
+#### Validation and Processing
+
+**Stateless Validation**:
+- Signer address must be valid
+- Escrow ID must be non-zero
+- Requested at must be positive
+
+**Stateful Processing**:
+1. Verify pending withdrawal exists for the given escrow_id and requested_at
+2. Verify current block height >= withdrawal.available_at (delay period has passed)
+3. Transfer funds from module account to escrow owner
+4. Remove pending withdrawal record
+5. Emit EventProcessWithdrawal
+
 ### MsgPayForFibre
 
 Contains the original payment promise with validator signatures, submitted by the user. Successful `MsgPayForFibre` transactions are included in their own reserved namespace. The commitment from the promise is also included in the data square in the namespace specified in the promise.
@@ -212,7 +239,7 @@ message PaymentPromise {
   uint64 escrow_id = 1;
   // escrow_owner is the owner of the escrow account
   string escrow_owner = 2;
-  // namespace is the namespace the blob is associated with
+  // namespace is the namespace the blob is associated with. namespace version must be 2.
   bytes namespace = 3;
   // blob_size is the size of the blob in bytes
   uint32 blob_size = 4;
@@ -230,7 +257,7 @@ message PaymentPromise {
 **Stateless Validation**:
 - `escrow_id` must be non-zero
 - `escrow_owner` must be valid bech32 address
-- `namespace` must be valid (8 or 29 bytes)
+- `namespace` must be valid and version 2
 - `blob_size` must be positive
 - `commitment` must be 32 bytes
 - `row_version` must be supported version
@@ -240,14 +267,13 @@ message PaymentPromise {
 
 Gas cost is calculated using the following formula:
 ```
-total_gas = (sparse_shares_needed(blob_size) * share_size * gas_per_blob_byte) + fixed_cost
+total_gas = (sparse_shares_needed(blob_size) * share_size * gas_per_blob_byte)
 ```
 
 Where:
-- `sparse_shares_needed(blob_size)` is the number of shares needed for the blob data
-- `share_size` is the size of each share in bytes
+- `rows_needed(blob_size)` is the number of rows needed for the blob data
+- `row_size` is the size of each share in bytes
 - `gas_per_blob_byte` is the gas cost per byte parameter
-- `fixed_cost` is a base processing cost
 
 **Stateful Validation**:
 1. Verify `creation_height` is <= current confirmed height and > (current_height - promise_timeout_blocks)
