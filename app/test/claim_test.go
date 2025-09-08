@@ -49,7 +49,7 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 	verifyDelegationDoesNotExist(t, &cctx, stakingClient, delegatorAddress, validatorAddress)
 	verifyDelegationRewardsExist(t, &cctx, distributionClient, delegatorAddress, validatorAddress)
 
-	claimRewards(t, &cctx, txClient, delegatorAddress, validatorAddress, amount)
+	claimRewards(t, &cctx, txClient, delegatorAddress, validatorAddress)
 }
 
 func getDelegatorAddress(t *testing.T, cctx *testnode.Context, accounts []string) string {
@@ -135,7 +135,7 @@ func verifyDelegationRewardsExist(t *testing.T, cctx *testnode.Context, distribu
 	require.True(t, resp.Rewards.AmountOf(appconsts.BondDenom).GT(math.LegacyOneDec()))
 }
 
-func claimRewards(t *testing.T, cctx *testnode.Context, txClient *user.TxClient, delegatorAddress string, validatorAddress string, amount types.Coin) {
+func claimRewards(t *testing.T, cctx *testnode.Context, txClient *user.TxClient, delegatorAddress string, validatorAddress string) {
 	withdrawRewardsMsg := &distributiontypes.MsgWithdrawDelegatorReward{
 		DelegatorAddress: delegatorAddress,
 		ValidatorAddress: validatorAddress,
@@ -151,13 +151,13 @@ func claimRewards(t *testing.T, cctx *testnode.Context, txClient *user.TxClient,
 	require.NotNil(t, getTxResp.TxResponse)
 	require.Equal(t, abci.CodeTypeOK, getTxResp.TxResponse.Code)
 
-	event, err := getWithdrawRewardsEvent(t, getTxResp.TxResponse.Events)
+	event, err := getWithdrawRewardsEvent(getTxResp.TxResponse.Events)
 	require.NoError(t, err)
 	require.Equal(t, delegatorAddress, event.DelegatorAddress)
 	require.Equal(t, validatorAddress, event.ValidatorAddress)
 }
 
-func getWithdrawRewardsEvent(t *testing.T, events []abci.Event) (WithdrawRewardsEvent, error) {
+func getWithdrawRewardsEvent(events []abci.Event) (WithdrawRewardsEvent, error) {
 	for _, event := range events {
 		if event.Type == distributiontypes.EventTypeWithdrawRewards {
 			var delegatorAddress string
