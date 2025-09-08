@@ -290,7 +290,6 @@ When processing a successful `MsgPayForFibre`, the commitment must be included i
 1. Extract the namespace from `promise.namespace`
 2. Place the commitment as the sole data in the specified namespace
 3. The commitment data is included as a single blob in the namespace
-4. No other data should be present in this namespace for this block
 
 ### MsgProcessPromiseTimeout
 
