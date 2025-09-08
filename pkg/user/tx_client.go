@@ -12,24 +12,14 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
-<<<<<<< HEAD
 	"github.com/celestiaorg/celestia-app/v5/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v5/app/errors"
 	"github.com/celestiaorg/celestia-app/v5/app/grpc/gasestimation"
 	"github.com/celestiaorg/celestia-app/v5/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v5/app/params"
 	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v5/x/blob/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v5/x/minfee/types"
-=======
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v6/app/errors"
-	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v6/app/params"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
->>>>>>> e8ff5f1 (feat: resign nonce rejected txs during broadcast (#5582))
 	"github.com/celestiaorg/go-square/v2/share"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
