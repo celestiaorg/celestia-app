@@ -270,7 +270,7 @@ Where:
 **Stateful Validation**:
 1. Verify `creation_height` is <= current confirmed height and > (current_height - promise_timeout_blocks)
 2. Verify escrow account exists for `owner`
-3. Verify sufficient available balance for gas cost (see Gas Consumption above). This includes all yet to be processed `PaymentPromises` that the validator has signed over
+3. Verify sufficient available balance for gas cost (see Gas Consumption above). This includes all yet to be processed `PaymentPromises` that the validator has signed over.
 4. Verify promise signature by escrow owner over promise message
 5. Verify promise hasn't been processed already
 
