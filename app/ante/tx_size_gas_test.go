@@ -120,7 +120,6 @@ func TestConsumeGasForTxSize(t *testing.T) {
 			// require that simulated tx is smaller than tx with signatures
 			require.True(t, len(simTxBytes) < len(txBytes), "simulated tx still has signatures")
 
-			// Set ctx with smaller simulated TxBytes manually
 			ctx = ctx.WithTxBytes(simTxBytes).WithExecMode(sdk.ExecModeSimulate)
 
 			beforeSimGas := ctx.GasMeter().GasConsumed()
