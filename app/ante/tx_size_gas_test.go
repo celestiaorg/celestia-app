@@ -93,7 +93,6 @@ func TestConsumeGasForTxSize(t *testing.T) {
 			txSizeCostPerByte := appconsts.TxSizeCostPerByte
 			expectedGas := storetypes.Gas(len(txBytes)) * txSizeCostPerByte
 
-			// set ctx with TxBytes manually
 			ctx = ctx.WithTxBytes(txBytes)
 
 			// track how much gas is necessary to retrieve parameters
