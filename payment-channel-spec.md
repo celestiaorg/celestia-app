@@ -312,13 +312,61 @@ message MsgProcessPromiseTimeout {
 
 The Fibre payment channel mechanism follows this flow:
 
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant S as Server/Validator
+    participant A as Celestia-App
+
+    Note over C,A: Setup Phase
+    C->>A: MsgCreateEscrow/MsgDepositToEscrow
+
+    Note over C,A: Promise Creation & Data Distribution
+    C->>C: Create signed PaymentPromise
+    C->>S: Send data chunks + PaymentPromise
+
+    Note over S,A: Validator Verification
+    S->>A: QueryValidatePaymentPromise(promise, signature)
+    A-->>S: ValidationResponse (valid, balance check, etc.)
+
+    alt Promise is valid
+        S->>S: Sign commitment
+        S-->>C: Return validator signature
+    else Promise is invalid
+        S-->>C: Reject request
+    end
+
+    Note over C,A: Happy Path - Payment Confirmation
+    C->>C: Collect 2/3+ validator signatures
+    C->>A: MsgPayForFibre(promise, validator_signatures)
+    A->>A: Deduct payment from escrow
+    A->>A: Include commitment in data square
+
+    Note over C,A: Fallback - Timeout Processing
+    alt User doesn't submit within timeout
+        C->>A: MsgProcessPromiseTimeout(promise, signature)
+        A->>A: Deduct payment from escrow
+        Note right of A: No data square inclusion
+    end
+
+    Note over C,A: Withdrawal Flow
+    C->>A: MsgRequestWithdrawal(escrow_id, amount)
+    A->>A: Decrease available_balance immediately
+
+    Note over C,A: After withdrawal delay
+    C->>A: MsgProcessWithdrawal(escrow_id, requested_at)
+    A->>A: Transfer funds to user account
+```
+
+### Flow Description
+
 1. **Setup Phase**: User creates escrow account and deposits funds using `MsgCreateEscrow` and/or `MsgDepositToEscrow`.
 
 2. **Promise Creation**: User creates a signed `PaymentPromise` containing escrow details, commitment, and creation height.
 
 3. **Data Distribution Phase**: User distributes data chunks to validators along with the signed promise.
 
-4. **Validator Verification**: Validators verify the promise, its signature, check escrow has sufficient funds, and sign over the commitment if valid.
+4. **Validator Verification**: Validators query the celestia-app instance using `QueryValidatePaymentPromise` to verify the promise signature, check escrow has sufficient funds, and confirm the promise hasn't been processed. If valid, validators sign over the commitment.
 
 5. **Payment Confirmation (Happy Path)**: User collects 2/3+ validator signatures and submits `MsgPayForFibre` containing the promise and signatures. The commitment gets included in the data square.
 
