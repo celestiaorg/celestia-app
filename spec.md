@@ -235,13 +235,15 @@ message PaymentPromise {
   // namespace is the namespace the blob is associated with. namespace version must be 2.
   bytes namespace = 2;
   // blob_size is the size of the blob in bytes
-  uint32 blob_size = 3;
+  uint64 blob_size = 3;
   // commitment is the hash of the row root and the RLC root
   bytes commitment = 4;
   // row_version is the version of the row format
   uint32 row_version = 5;
   // creation_height is the block height when this promise was created. This is critical for determining which validators sign along with when service stops for this blob.
   int64 creation_height = 6;
+  // signature is the escrow owner's signature over the sign bytes
+  bytes signature = 7;
 }
 ```
 
@@ -254,6 +256,7 @@ message PaymentPromise {
 - `commitment` must be 32 bytes
 - `row_version` must be supported version
 - `creation_height` must be positive
+- `signature` must be properly formatted and non-empty
 
 **Gas Consumption**:
 
@@ -271,8 +274,26 @@ Where:
 1. Verify `creation_height` is <= current confirmed height and > (current_height - promise_timeout_blocks)
 2. Verify escrow account exists for `owner`
 3. Verify sufficient available balance for gas cost (see Gas Consumption above). This includes all yet to be processed `PaymentPromises` that the validator has signed over.
-4. Verify promise signature by escrow owner over promise message
+4. Verify promise signature by escrow owner over promise sign bytes (see Sign Bytes Format below)
 5. Verify promise hasn't been processed already
+
+#### Sign Bytes Format
+
+The sign bytes for a PaymentPromise signature are constructed by concatenating all fields except the `signature` field:
+
+```
+sign_bytes = owner_bytes || namespace || blob_size_bytes || commitment || row_version_byte || creation_height_bytes
+```
+
+**Field Encoding**:
+- `owner`: raw bytes of owner address secp256k1 (20 bytes)
+- `namespace`: Raw namespace bytes (fixed 29 bytes)
+- `blob_size_bytes`: Varint encoded uint64 (1-10 bytes)
+- `commitment`: Raw commitment bytes (32 bytes)
+- `row_version_bytes`: Big-endian encoded uint32 (4 bytes)
+- `creation_height_bytes`: Big-endian encoded int64 (8 bytes)
+
+**Total Length**: Variable length of 94-103 bytes (20 + 29 + 1-10 + 32 + 4 + 8)
 
 #### MsgPayForFibre Validation and Processing
 
@@ -307,24 +328,21 @@ message MsgProcessPromiseTimeout {
   string signer = 1;
   // promise contains the original payment promise
   PaymentPromise promise = 2;
-  // promise_signature is the escrow owner's signature over the promise
-  bytes promise_signature = 3;
 }
 ```
 
 #### MsgProcessPromiseTimeout Validation and Processing
 
 **Stateless Validation**:
-- Promise signature must be properly formatted
+- All PaymentPromise stateless validation applies (including signature validation)
 
 **Stateful Processing**:
 1. Validate PaymentPromise (see PaymentPromise Validation above)
 2. Verify `promise.creation_height + promise_timeout_blocks <= current_height` (timeout has passed)
-3. Verify promise signature by escrow owner over promise hash
-4. Calculate gas cost (see Gas Consumption in PaymentPromise Validation) and deduct from escrow available balance
-5. Mark promise as processed
-6. DO NOT include commitment in data square (since no validator consensus was reached)
-7. Emit EventProcessPromiseTimeout
+3. Calculate gas cost (see Gas Consumption in PaymentPromise Validation) and deduct from escrow available balance
+4. Mark promise as processed
+5. DO NOT include commitment in data square (since no validator consensus was reached)
+6. Emit EventProcessPromiseTimeout
 
 ## Transaction Flow
 
@@ -510,7 +528,6 @@ Validates a payment promise for server use, performing all required checks inclu
 ```proto
 message QueryValidatePaymentPromiseRequest {
   PaymentPromise promise = 1;
-  bytes promise_signature = 2;
 }
 ```
 
@@ -530,7 +547,7 @@ message QueryValidatePaymentPromiseResponse {
 1. Verify escrow account exists and has sufficient available balance for the gas cost (see Gas Consumption in PaymentPromise Validation)
 2. Verify promise hasn't been processed already
 3. Perform all standard PaymentPromise validation (see PaymentPromise Validation section)
-4. Verify promise signature by escrow owner
+4. Verify promise signature by escrow owner (signature is embedded in the PaymentPromise)
 
 ## Parameters
 
