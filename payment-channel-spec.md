@@ -6,12 +6,19 @@ The `x/fibre` payment channel mechanism enables users to maintain escrow account
 
 ## Contents
 
+1. [Abstract](#abstract)
 1. [State](#state)
 1. [Messages](#messages)
 1. [Events](#events)
 1. [Queries](#queries)
 1. [Parameters](#parameters)
 1. [Client](#client)
+
+## Abstract
+
+Sybil resistance for a protocol with a global limit on throughput requires a guarantee for payment. Normally this is done simply by paying for gas, however paying for gas requires waiting for a transaction to be confirmed. The payment portion of this module (mainly the `PaymentPromise` and `EscrowAccount`) is to provide a guarantee for payment without having to wait for a transaction to be confirmed.
+
+Therefore, it is an invarient of the payment system that a signed `PaymentPromise` guarantees payment.
 
 ## State
 
@@ -24,8 +31,8 @@ message Params {
   option (gogoproto.goproto_stringer) = false;
   uint32 gas_per_blob_byte = 1
       [ (gogoproto.moretags) = "yaml:\"gas_per_blob_byte\"" ];
-  uint64 withdrawal_delay_blocks = 2
-      [ (gogoproto.moretags) = "yaml:\"withdrawal_delay_blocks\"" ];
+  uint64 withdrawal_delay = 2
+      [ (gogoproto.moretags) = "yaml:\"withdrawal_delay\"" ];
   uint64 promise_timeout_blocks = 3
   [ (gogoproto.moretags) = "yaml:\"promise_timeout_blocks\"" ];
 }
@@ -35,9 +42,9 @@ message Params {
 
 `GasPerBlobByte` is the amount of gas consumed per byte of blob data when payment is processed. This determines the gas cost for fibre blob inclusion.
 
-#### `WithdrawalDelayBlocks`
+#### `WithdrawalDelay`
 
-`WithdrawalDelayBlocks` is the number of blocks that must pass between requesting a withdrawal and when funds become available for withdrawal (default: ~24 hours worth of blocks).
+`WithdrawalDelay` is the number of seconds that must pass between requesting a withdrawal and when funds become available for withdrawal (default: ~24 hours worth of blocks).
 
 #### `PromiseTimeoutBlocks`
 
@@ -45,22 +52,16 @@ message Params {
 
 ### Escrow Accounts
 
-Escrow accounts are lightweight payment channels that hold funds for fibre payments. Unlike regular accounts, they don't have keys or addresses and are referenced by a unique number.
+Escrow accounts help guarantee payment for a signed `PaymentPromise` by ensuring that a user does not remove funds directly after validators sign over and provide service for a blob. Unlike regular accounts, they don't have keys or addresses and are referenced by a unique number.
 
 ```proto
 message EscrowAccount {
-  // escrow_id is the unique identifier for this escrow account
-  uint64 escrow_id = 1;
   // owner is the address that controls this escrow account
-  string owner = 2;
+  string owner = 1;
   // balance is the total deposited amount
-  cosmos.base.v1beta1.Coin balance = 3;
+  cosmos.base.v1beta1.Coin balance = 2;
   // available_balance is the amount available for payments (balance - pending_withdrawals)
-  cosmos.base.v1beta1.Coin available_balance = 4;
-  // sequence increments with each promise signed by the owner
-  uint64 sequence = 5;
-  // created_at is the block height when this escrow was created
-  int64 created_at = 6;
+  cosmos.base.v1beta1.Coin available_balance = 3;
 }
 ```
 
@@ -91,8 +92,6 @@ message ProcessedPromise {
   bytes promise_hash = 1;
   // processed_at is the block height when the promise was processed
   int64 processed_at = 2;
-  // processed_via indicates how it was processed ("pff" or "timeout")
-  string processed_via = 3;
 }
 ```
 
@@ -137,13 +136,12 @@ message MsgCreateEscrow {
 
 **Stateful Processing**:
 1. Generate unique escrow_id
-2. Create EscrowAccount with sequence = 0
-3. If initial_deposit > 0, transfer funds and update balances
-4. Emit EventCreateEscrow
+1. If initial_deposit > 0, transfer funds and update balances
+1. Emit EventCreateEscrow
 
 ### MsgDepositToEscrow
 
-Deposits funds to an existing escrow account.
+Deposits funds to an existing escrow account. Deposits are processed instantly.
 
 ```proto
 message MsgDepositToEscrow {
@@ -178,7 +176,7 @@ message MsgRequestWithdrawal {
 2. Verify sufficient available balance
 3. Decrease available_balance immediately
 4. Create PendingWithdrawal with available_at = current_height + withdrawal_delay_blocks
-5. Emit EventRequestWithdrawal
+5. Emit EventRequestWithdrawalFromEscrow
 
 ### MsgProcessWithdrawal
 
@@ -197,7 +195,7 @@ message MsgProcessWithdrawal {
 
 ### MsgPayForFibre
 
-Contains the original payment promise with validator signatures, submitted by the user. Successful inclusion of this message must also include the commitment included in the relevant namespace. The payment messages themselves are included in their own reserved namespace similar to PFBs.
+Contains the original payment promise with validator signatures, submitted by the user. Successful inclusion of this message must also include the commitment included in the relevant namespace. The payment messages themselves are included in their own reserved namespace similar to PFBs. Ordering of commitments in the square is determined via the normal account sequence signed over in the transaction that contains this message.
 
 ```proto
 message MsgPayForFibre {
@@ -214,18 +212,16 @@ message PaymentPromise {
   uint64 escrow_id = 1;
   // escrow_owner is the owner of the escrow account
   string escrow_owner = 2;
-  // sequence must match the escrow account's current sequence
-  uint64 sequence = 3;
   // namespace is the namespace the blob is associated with
-  bytes namespace = 4;
+  bytes namespace = 3;
   // blob_size is the size of the blob in bytes
-  uint32 blob_size = 5;
+  uint32 blob_size = 4;
   // commitment is the hash of the row root and the RLC root
-  bytes commitment = 6;
-  // share_version is the version of the share format
-  uint32 share_version = 7;
-  // created_at is the block height when this promise was created
-  int64 created_at = 8;
+  bytes commitment = 5;
+  // row_version is the version of the row format
+  uint32 row_version = 6;
+  // creation_height is the block height when this promise was created. This is critical for determining which validators sign along with when service stops for this blob.
+  int64 creation_height = 7;
 }
 ```
 
@@ -236,19 +232,18 @@ message PaymentPromise {
 - Must have at least one validator signature
 
 **Stateful Processing**:
+1. Verify creation_height is <=current confirmed height and > (CurrentHeight - PromiseTimeoutBlock
 1. Verify promise signature by escrow owner
-2. Verify escrow account exists and sequence matches
-3. Verify sufficient available balance for gas cost
-4. Verify validator signatures represent 2/3+ voting power
-5. Calculate and consume gas, deduct from escrow available balance
-6. Increment escrow sequence
-7. Mark promise as processed via "pff"
-8. Include commitment in data square
-9. Emit EventPayForFibre
+1. Verify escrow account exists
+1. Verify sufficient available balance for gas cost
+1. Verify validator signatures represent 2/3+ voting power
+1. Calculate and consume gas, deduct from escrow available balance
+1. Include commitment in data square
+1. Emit EventPayForFibre
 
 ### MsgProcessPromiseTimeout
 
-Processes a payment promise after the timeout period if no PFF was submitted.
+Processes a payment promise after the timeout period if no PFF was submitted. This mechanism is critical to guaranteeing that payment occurs.
 
 ```proto
 message MsgProcessPromiseTimeout {
@@ -268,15 +263,13 @@ message MsgProcessPromiseTimeout {
 - Promise signature must be valid
 
 **Stateful Processing**:
-1. Verify promise.created_at + promise_timeout_blocks <= current_height
-2. Verify promise hasn't been processed already
-3. Verify escrow account exists and sequence matches
-4. Verify sufficient available balance
-5. Calculate and consume gas, deduct from escrow available balance
-6. Increment escrow sequence
-7. Mark promise as processed via "timeout"
-8. DO NOT include commitment (since no validator consensus)
-9. Emit EventProcessPromiseTimeout
+1. Verify promise.creation_height + promise_timeout >= current_time
+1. Verify promise hasn't been processed already
+1. Verify escrow account exists and sequence matches
+1. Verify sufficient available balance
+1. Calculate and consume gas, deduct from escrow available balance
+1. DO NOT include commitment (since no validator consensus)
+1. Emit EventProcessPromiseTimeout
 
 ## Transaction Flow
 
@@ -298,7 +291,7 @@ The Fibre payment channel mechanism follows this flow:
 
 ## Events
 
-### Payment Channel Events
+### Escrow Events
 
 #### `EventCreateEscrow`
 
@@ -316,7 +309,7 @@ The Fibre payment channel mechanism follows this flow:
 | escrow_id     | {escrow account ID}                |
 | amount        | {deposit amount}                   |
 
-#### `EventRequestWithdrawal`
+#### `EventRequestWithdrawalFromEscrow`
 
 | Attribute Key | Attribute Value                    |
 |---------------|------------------------------------|
@@ -434,10 +427,10 @@ message QueryProcessedPromiseResponse {
 
 ## Parameters
 
-| Key                 | Type   | Default | Description |
-|---------------------|--------|---------|-------------|
-| GasPerBlobByte      | uint32 | 8       | Gas cost per byte of blob data |
-| WithdrawalDelayBlocks | uint64 | 144     | Blocks to wait before withdrawal (24 hours) |
+| Key                  | Type   | Default | Description |
+|----------------------|--------|---------|-------------|
+| GasPerBlobByte       | uint32 | 8       | Gas cost per byte of blob data |
+| WithdrawalDelay      | uint64 | 144     | Blocks to wait before withdrawal (24 hours) |
 | PromiseTimeoutBlocks | uint64 | 60      | Blocks before promise can be processed by timeout (1 hour) |
 
 ## Client
