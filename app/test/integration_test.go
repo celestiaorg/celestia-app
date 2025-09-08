@@ -43,7 +43,7 @@ type IntegrationTestSuite struct {
 
 func (s *IntegrationTestSuite) SetupSuite() {
 	t := s.T()
-	s.accounts = testnode.RandomAccounts(142)
+	s.accounts = testfactory.GenerateAccounts(142)
 
 	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...).WithDelayedPrecommitTimeout(time.Millisecond * 500)
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
