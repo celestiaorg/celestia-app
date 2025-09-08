@@ -18,7 +18,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v6/app/params"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
@@ -264,8 +264,8 @@ func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blo
 
 // SubmitPayForBlobWithAccount forms a transaction from the provided blobs, signs it with the provided account, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
-func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
-	resp, err := client.BroadcastPayForBlobWithAccount(ctx, account, blobs, opts...)
+func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, accountName string, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
+	resp, err := client.BroadcastPayForBlobWithAccount(ctx, accountName, blobs, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -281,32 +281,35 @@ func (client *TxClient) BroadcastPayForBlob(ctx context.Context, blobs []*share.
 	return client.BroadcastPayForBlobWithAccount(ctx, client.defaultAccount, blobs, opts...)
 }
 
-func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, account string, blobs []*share.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, accountName string, blobs []*share.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
-	if err := client.checkAccountLoaded(ctx, account); err != nil {
+	if err := client.checkAccountLoaded(ctx, accountName); err != nil {
 		return nil, err
 	}
-
-	blobSizes := make([]uint32, len(blobs))
-	for i, blob := range blobs {
-		blobSizes[i] = uint32(len(blob.Data()))
+	acc, exists := client.signer.accounts[accountName]
+	if !exists {
+		return nil, fmt.Errorf("account %s not found", accountName)
 	}
-
-	gasLimit := uint64(float64(types.DefaultEstimateGas(blobSizes)))
+	signer := acc.Address().String()
+	msg, err := blobtypes.NewMsgPayForBlobs(signer, 0, blobs...)
+	if err != nil {
+		return nil, err
+	}
+	gasLimit := uint64(float64(blobtypes.DefaultEstimateGas(msg)))
 	fee := uint64(math.Ceil(appconsts.DefaultMinGasPrice * float64(gasLimit)))
 	// prepend calculated params, so it can be overwritten in case the user has specified it.
 	opts = append([]TxOption{SetGasLimit(gasLimit), SetFee(fee)}, opts...)
 
-	txBytes, _, err := client.signer.CreatePayForBlobs(account, blobs, opts...)
+	txBytes, _, err := client.signer.CreatePayForBlobs(accountName, blobs, opts...)
 	if err != nil {
 		return nil, err
 	}
 
 	if len(client.conns) > 1 {
-		return client.broadcastMulti(ctx, txBytes, account)
+		return client.broadcastMulti(ctx, txBytes, accountName)
 	}
-	return client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txBytes, account)
+	return client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txBytes, accountName)
 }
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
@@ -408,7 +411,7 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 }
 
 func (client *TxClient) broadcastTxAndIncrementSequence(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
-	resp, err := client.broadcastTx(ctx, conn, txBytes)
+	resp, err := client.broadcastTx(ctx, conn, txBytes, signer)
 	if err != nil {
 		return nil, err
 	}
@@ -428,7 +431,7 @@ func (client *TxClient) broadcastTxAndIncrementSequence(ctx context.Context, con
 
 // broadcastTx resubmits a transaction that was evicted from the mempool.
 // Unlike the initial broadcast, it doesn't increment the signer's sequence number.
-func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
+func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
 	txClient := sdktx.NewServiceClient(conn)
 	resp, err := txClient.BroadcastTx(
 		ctx,
@@ -628,12 +631,12 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			client.deleteFromTxTracker(txHash)
 			return txResponse, nil
 		case core.TxStatusEvicted:
-			_, _, exists := client.GetTxFromTxTracker(txHash)
+			_, signer, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in txTracker; likely failed during broadcast", txHash)
 			}
 			// Resubmit straight away in the event of eviction and keep polling until tx is committed
-			_, err := client.broadcastTx(ctx, client.conns[0], client.txTracker[txHash].txBytes)
+			_, err := client.broadcastTx(ctx, client.conns[0], client.txTracker[txHash].txBytes, signer)
 			if err != nil {
 				return nil, fmt.Errorf("resubmission for evicted tx with hash %s failed: %w", txHash, err)
 			}
@@ -749,9 +752,8 @@ func (client *TxClient) estimateGas(ctx context.Context, txBuilder client.TxBuil
 	return gasLimit, nil
 }
 
-// Account returns an account of the signer from the key name. Also returns a bool if the
-// account exists.
-// Thread-safe
+// Account returns an account of the signer from the key name.
+// Thread-safe.
 func (client *TxClient) Account(name string) *Account {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()

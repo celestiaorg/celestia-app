@@ -152,8 +152,9 @@ func TestBlobShareDecoratorWithMsgExec(t *testing.T) {
 	// blob that can not fit in a square.
 	msgExec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{
 		&blob.MsgPayForBlobs{
-			Signer:    "celestia...",
-			BlobSizes: []uint32{uint32(math.MaxUint32)},
+			Signer:        "celestia...",
+			BlobSizes:     []uint32{uint32(math.MaxUint32)},
+			ShareVersions: []uint32{uint32(share.ShareVersionZero)},
 		},
 	})
 	require.NoError(t, txBuilder.SetMsgs(&msgExec))
