@@ -14,7 +14,7 @@ require (
 	github.com/moby/moby v27.5.1+incompatible
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.0
-	golang.org/x/sync v0.16.0
+	golang.org/x/sync v0.17.0
 )
 
 require (
