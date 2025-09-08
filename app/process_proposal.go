@@ -26,10 +26,6 @@ const rejectedPropBlockLog = "Rejected proposal block:"
 func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcessProposal) (resp *abci.ResponseProcessProposal, err error) {
 	defer telemetry.MeasureSince(time.Now(), "process_proposal")
 
-	// Clear the cache after ProcessProposal completes (whether accept or reject)
-	// to prevent memory growth and ensure fresh cache for the next block proposal
-	defer app.txValidationCache.Clear()
-
 	// In the case of a panic resulting from an unexpected condition, it is
 	// better for the liveness of the network to catch it, log an error, and
 	// vote nil rather than crashing the node.
@@ -122,7 +118,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		// - that the sizes match
 		// - that the namespaces match between blob and PFB
 		// - that the share commitment is correct
-		if valid := app.txValidationCache.Get(tx); valid && isBlobTx {
+		if valid, exists := app.txValidationCache.Get(tx); exists && valid && isBlobTx {
 			// Use lightweight validation that skips expensive commitment generation
 			// since we already validated it in CheckTx and cached the result
 			if _, err := blobtypes.ValidateBlobTxSkipCommitment(app.encodingConfig.TxConfig, blobTx); err != nil {

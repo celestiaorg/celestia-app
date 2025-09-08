@@ -8,14 +8,13 @@ import (
 // TxValidationCache caches the results of expensive transaction validation
 // to avoid repeating the same work in ProcessProposal that was already done in CheckTx.
 type TxValidationCache struct {
-	mu    sync.RWMutex
-	cache map[string]*bool
+	cache sync.Map
 }
 
 // NewTxValidationCache creates a new transaction validation cache
 func NewTxValidationCache() *TxValidationCache {
 	return &TxValidationCache{
-		cache: make(map[string]*bool),
+		cache: sync.Map{},
 	}
 }
 
@@ -26,48 +25,51 @@ func (c *TxValidationCache) getTxKey(tx []byte) string {
 }
 
 // Get retrieves a validation result from the cache
-func (c *TxValidationCache) Get(tx []byte) bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
+func (c *TxValidationCache) Get(tx []byte) (valid bool, exists bool) {
 	key := c.getTxKey(tx)
-	result, exists := c.cache[key]
+	result, exists := c.cache.Load(key)
 	if !exists {
-		return false
+		return false, false
 	}
 
-	return *result
+	return result.(bool), exists
 }
 
 // Set stores a validation result in the cache
 func (c *TxValidationCache) Set(tx []byte, result bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	key := c.getTxKey(tx)
-	c.cache[key] = &result
+	c.cache.Store(key, result)
 }
 
 // Clear removes all entries from the cache
 func (c *TxValidationCache) Clear() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.cache = make(map[string]*bool)
+	c.cache.Range(func(key, value interface{}) bool {
+		c.cache.Delete(key)
+		return true
+	})
 }
 
 // Cleanup removes expired entries from the cache
 func (c *TxValidationCache) Cleanup() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.cache.Range(func(key, value interface{}) bool {
+		c.cache.Delete(key)
+		return true
+	})
+}
 
-	for key := range c.cache {
-		delete(c.cache, key)
-	}
+// RemoveTransactions removes specific transactions from the cache
+// This is more efficient than clearing everything when only some transactions are finalized
+func (c *TxValidationCache) RemoveTransaction(tx []byte) {
+	key := c.getTxKey(tx)
+	c.cache.Delete(key)
 }
 
 // Size returns the current number of entries in the cache
 func (c *TxValidationCache) Size() int {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return len(c.cache)
+	count := 0
+	c.cache.Range(func(key, value interface{}) bool {
+		count++
+		return true
+	})
+	return count
 }

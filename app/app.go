@@ -520,6 +520,23 @@ func (app *App) Info(req *abci.RequestInfo) (*abci.ResponseInfo, error) {
 	return res, nil
 }
 
+// FinalizeBlock implements the abci interface. It overrides baseapp's FinalizeBlock method, essentially becoming a decorator
+// in order to add transaction pruning logic after normal finalize block processing.
+func (app *App) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
+	// Call the normal BaseApp FinalizeBlock first
+	res, err := app.BaseApp.FinalizeBlock(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// go through all the transactions that are getting executed and prune the tx tracker
+	for _, tx := range req.Txs {
+		app.txValidationCache.RemoveTransaction(tx)
+	}
+
+	return res, nil
+}
+
 // PreBlocker application updates every pre block
 func (app *App) PreBlocker(ctx sdk.Context, _ *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
 	return app.ModuleManager.PreBlock(ctx)
