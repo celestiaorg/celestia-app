@@ -18,7 +18,7 @@ For horcrux, the following release should be used: [v3.3.2-celestia](https://git
 
 #### TmKMS
 
-Similarly, the following release should be used: [v0.14.0-celestia](https://github.com/celestiaorg/tmkms/releases/tag/v0.14.0-celestia). All the setups and configs remain the same.
+For TmKMS, use [v0.14.0-celestia](https://github.com/celestiaorg/tmkms/releases/tag/v0.14.0-celestia). All the setups and configs remain the same.
 
 ### Config changes
 
