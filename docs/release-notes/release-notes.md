@@ -10,7 +10,7 @@ This release targets throughput, blob size, inflation reduction, and fee changes
 
 ### Key Management Service (KMS) changes
 
-This release introduces a new message type that needs to be signed by KMS. Therefore, we have specific KMS versions supporting these changes. Note that running using a different version would result in failing to participate in consensus.
+This release introduces a new message type that needs to be signed by KMS. **If you use Horcrux or TmKMS, you must use these versions in order to participate in consensus. If you use an alternative KMS, please reach out.**
 
 #### Horcrux
 
