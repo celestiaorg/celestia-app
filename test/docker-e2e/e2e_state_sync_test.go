@@ -14,7 +14,6 @@ import (
 	"github.com/celestiaorg/tastora/framework/testutil/config"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	cometcfg "github.com/cometbft/cometbft/config"
-	rpclient "github.com/cometbft/cometbft/rpc/client"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	servercfg "github.com/cosmos/cosmos-sdk/server/config"
 
@@ -37,7 +36,7 @@ func (s *CelestiaTestSuite) TestStateSync() {
 	ctx := context.TODO()
 	cfg := dockerchain.DefaultConfig(s.client, s.network)
 	celestia, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).
-		WithPostInit(validatorStateSyncAppOverrides).
+		WithPostInit(validatorStateSyncProducerOverrides).
 		Build(ctx)
 
 	s.Require().NoError(err, "failed to get chain")
@@ -277,14 +276,12 @@ func (s *CelestiaTestSuite) TestStateSyncCompatibilityAcrossUpgrade() {
 	s.Require().NoError(err, "failed to get final height")
 	t.Logf("Blocks 1 to %d have app version %d", upgradeHeight-1, baseAppVersion)
 	t.Logf("Blocks %d to %d have app version %d", upgradeHeight, finalHeight, targetAppVersion)
-		finalHeight, baseAppVersion, upgradeHeight-1, targetAppVersion, finalHeight)
-
 
 	t.Log("Phase 3: Launching new full node with state sync enabled")
 
 	// Calculate state sync parameters from the targetAppVersion portion of the chain
 	latestHeight := finalHeight
-	trustHeight  := latestHeight - stateSyncTrustHeightOffset
+	trustHeight := latestHeight - stateSyncTrustHeightOffset
 	s.Require().Greater(trustHeight, upgradeHeight,
 		"trust height %d should be in %d portion (after upgrade height %d)", trustHeight, targetAppVersion, upgradeHeight)
 
@@ -308,7 +305,7 @@ func (s *CelestiaTestSuite) TestStateSyncCompatibilityAcrossUpgrade() {
 	)
 	s.Require().NoError(err, "failed to add state sync node")
 
-	allNodes      := chain.GetNodes()
+	allNodes := chain.GetNodes()
 	stateSyncNode := allNodes[len(allNodes)-1]
 	s.Require().Equal(tastoratypes.NodeTypeConsensusFull, stateSyncNode.GetType(), "expected state sync node to be a full node")
 
@@ -316,11 +313,19 @@ func (s *CelestiaTestSuite) TestStateSyncCompatibilityAcrossUpgrade() {
 	s.Require().NoError(err, "failed to get state sync client")
 
 	t.Log("Waiting for node to state sync...")
-	heightHistory := s.monitorSyncProgress(ctx, t, stateSyncClient, latestHeight, stateSyncTimeout)
+	// Wait for sync to complete
+	err = wait.ForCondition(ctx, 1*time.Second, stateSyncTimeout, func() (bool, error) {
+		status, err := stateSyncClient.Status(ctx)
+		if err != nil {
+			return false, fmt.Errorf("failed to get node status: %w", err)
+		}
+		return !status.SyncInfo.CatchingUp, nil
+	})
+	s.Require().NoError(err, "state sync node failed to complete sync within timeout")
 
-	// Verify that state sync was used (not block sync)
+	// Verify that state sync was used (not block sync) via metrics
 	dockerNode := stateSyncNode.(*tastoradockertypes.ChainNode)
-	verifyStateSync(t, heightHistory, dockerNode)
+	verifyStateSync(t, dockerNode)
 
 	// Validate: /status shows catching_up=false
 	status, err := stateSyncClient.Status(ctx)
@@ -337,8 +342,8 @@ func (s *CelestiaTestSuite) TestStateSyncCompatibilityAcrossUpgrade() {
 	nodeHeight := status.SyncInfo.LatestBlockHeight
 	s.Require().GreaterOrEqual(nodeHeight, currentChainHeight-5,
 		"state sync node should be within 5 blocks of the current chain tip")
-	s.Require().LessOrEqual(nodeHeight, currentChainHeight+2,
-		"state sync node should not be significantly ahead of the chain")
+	s.Require().LessOrEqual(nodeHeight, currentChainHeight,
+		"state sync node should not be ahead of chain tip")
 	t.Logf("State sync successful: node reached height %d (current chain tip: %d)",
 		nodeHeight, currentChainHeight)
 
@@ -349,7 +354,6 @@ func (s *CelestiaTestSuite) TestStateSyncCompatibilityAcrossUpgrade() {
 		"state sync node should have app version %d", targetAppVersion)
 	t.Logf("State sync node app version: %d", syncedAbciInfo.Response.GetAppVersion())
 
-
 	// Final liveness check
 	t.Log("Performing final liveness check")
 	s.Require().NoError(s.CheckLiveness(ctx, chain), "liveness check failed")
@@ -358,9 +362,9 @@ func (s *CelestiaTestSuite) TestStateSyncCompatibilityAcrossUpgrade() {
 
 // checkSyncMetrics queries Prometheus metrics to determine sync method
 func checkSyncMetrics(t *testing.T, node *tastoradockertypes.ChainNode) (stateSync bool, blockSync bool, err error) {
-	ctx      := context.Background()
+	ctx := context.Background()
 	endpoint := "http://localhost:26657/metrics"
-	cmd      := []string{"curl", "--silent", "--connect-timeout", "5", endpoint}
+	cmd := []string{"curl", "--silent", "--connect-timeout", "5", endpoint}
 	stdout, stderr, execErr := node.Exec(ctx, cmd, nil)
 
 	if execErr != nil {
@@ -368,9 +372,6 @@ func checkSyncMetrics(t *testing.T, node *tastoradockertypes.ChainNode) (stateSy
 	}
 
 	metrics := string(stdout)
-	if len(metrics) < 10 {
-		return false, false, fmt.Errorf("empty or invalid metrics response from %s", endpoint)
-	}
 
 	// Parse metrics for sync indicators
 	if strings.Contains(metrics, "statesync_syncing 1") {
@@ -398,140 +399,24 @@ func checkSyncMetrics(t *testing.T, node *tastoradockertypes.ChainNode) (stateSy
 	return false, false, nil
 }
 
-// analyzeSyncMethod determines if state sync or block sync was used based on height progression
-func analyzeSyncMethod(t *testing.T, heightHistory []int64) (usedStateSync bool, usedBlockSync bool) {
-	if len(heightHistory) < 2 {
-		t.Logf("Insufficient height data for analysis: %v", heightHistory)
-		return false, false
-	}
-
-	startHeight := heightHistory[0]
-	endHeight := heightHistory[len(heightHistory)-1]
-
-	// State sync pattern: sudden jump from 0 to high number (minimal intermediate values)
-	// Block sync pattern: incremental progression through many intermediate heights
-
-	if len(heightHistory) <= 3 && startHeight == 0 && endHeight > 50 {
-		// Very few data points with sudden jump = state sync
-		t.Logf("Detected state sync: sudden jump from %d to %d with %d data points",
-			startHeight, endHeight, len(heightHistory))
-
-		// Additional validation: ensure it's a true jump, not just fast incremental sync
-		if len(heightHistory) == 2 && heightHistory[1] > heightHistory[0]+20 {
-			t.Logf("Confirmed state sync: classic pattern [0, %d] with large jump", heightHistory[1])
-			return true, false
-		}
-
-		return true, false
-	}
-
-	if len(heightHistory) > 5 {
-		// Many data points = likely incremental block sync
-		intermediateCount := 0
-		for i := 1; i < len(heightHistory)-1; i++ {
-			if heightHistory[i] > 0 && heightHistory[i] < endHeight-10 {
-				intermediateCount++
-			}
-		}
-
-		if intermediateCount > 2 {
-			t.Logf("Detected block sync: incremental progression with %d intermediate heights", intermediateCount)
-			return false, true
-		}
-
-		t.Logf("Pattern suggests state sync: few intermediate heights despite %d data points", len(heightHistory))
-		return true, false
-	}
-
-	// moderate data points - analyze for incremental pattern
-	hasIncremental := false
-	for i := 1; i < len(heightHistory); i++ {
-		if heightHistory[i] > 0 && heightHistory[i-1] >= 0 {
-			diff := heightHistory[i] - heightHistory[i-1]
-			if diff > 0 && diff < 20 && heightHistory[i-1] > 0 {
-				hasIncremental = true
-				break
-			}
-		}
-	}
-
-	if hasIncremental {
-		t.Logf("Detected block sync: incremental progression pattern in %v", heightHistory)
-		return false, true
-	}
-
-	t.Logf("Detected state sync: no incremental pattern in %v", heightHistory)
-	return true, false
-}
-
 // verifyStateSync validates that state sync was used and not block sync
-func verifyStateSync(t *testing.T, heightHistory []int64, stateSyncNode *tastoradockertypes.ChainNode) {
-	t.Logf("Height progression during sync: %v", heightHistory)
+func verifyStateSync(t *testing.T, stateSyncNode *tastoradockertypes.ChainNode) {
+	t.Log("Verifying sync method via Prometheus metrics...")
 
-	// Analyze height progression pattern
-	usedStateSync, usedBlockSync := analyzeSyncMethod(t, heightHistory)
-
-	// FAIL if block sync was detected
-	if usedBlockSync {
-		t.Fatalf("Failed because state sync node used block sync instead of state sync. Height progression: %v", heightHistory)
-	}
-
-	if !usedStateSync {
-		t.Fatalf("Could not confirm state sync was used. Height progression: %v", heightHistory)
-	}
-
-	t.Logf("Confirmed: Node successfully used state sync")
-
-	// Additional verification using Prometheus metrics
 	metricStateSync, metricBlockSync, metricsErr := checkSyncMetrics(t, stateSyncNode)
 	if metricsErr != nil {
-		t.Logf("Warning: Could not verify sync method via metrics: %v", metricsErr)
+		t.Fatalf("Failed to verify sync method via metrics: %v", metricsErr)
 	}
 
 	if metricBlockSync {
-		t.Fatalf("CRITICAL: Prometheus metrics show BLOCK SYNC was used! " +
-			"This contradicts our height progression analysis. Metrics must be checked.")
+		t.Fatal("FAILED: Prometheus metrics show BLOCK SYNC was used instead of state sync!")
 	}
 
-	if metricStateSync {
-		t.Logf("Prometheus metrics confirm: State sync was used")
+	if !metricStateSync {
+		t.Fatal("FAILED: Could not confirm state sync was used via Prometheus metrics!")
 	}
-}
 
-// monitorSyncProgress tracks height progression during sync and detects early block sync patterns
-func (s *CelestiaTestSuite) monitorSyncProgress(ctx context.Context, t *testing.T, stateSyncClient rpclient.StatusClient, latestHeight int64, stateSyncTimeout time.Duration) []int64 {
-	heightHistory := []int64{}
-
-	err := s.WaitForSync(ctx, stateSyncClient, stateSyncTimeout, func(info rpctypes.SyncInfo) bool {
-		heightHistory = append(heightHistory, info.LatestBlockHeight)
-
-		// Log progress for analysis
-		t.Logf("Sync progress: height=%d, catching_up=%t",
-			info.LatestBlockHeight, info.CatchingUp)
-
-		// EARLY DETECTION: If we see incremental height progression, it's likely block sync
-		if len(heightHistory) >= 5 {
-			// Check if we're seeing sequential height increases (block sync pattern)
-			sequential := true
-			for i := 1; i < len(heightHistory); i++ {
-				if heightHistory[i] > 0 && heightHistory[i-1] > 0 {
-					if heightHistory[i]-heightHistory[i-1] > 5 {
-						sequential = false
-						break
-					}
-				}
-			}
-			if sequential && heightHistory[len(heightHistory)-1] > 10 {
-				t.Fatalf("EARLY DETECTION: Node appears to be using BLOCK SYNC (sequential height progression: %v)! "+
-					"State sync should jump directly to target height, not increment slowly.", heightHistory)
-			}
-		}
-
-		return !info.CatchingUp && info.LatestBlockHeight >= latestHeight
-	})
-	s.Require().NoError(err, "failed to wait for state sync to complete")
-
-	return heightHistory
+	t.Log("SUCCESS: Prometheus metrics confirm state sync was used")
 }
 
 // performUpgrade executes the upgrade to the target app version
@@ -568,14 +453,6 @@ func (s *CelestiaTestSuite) performUpgrade(ctx context.Context, chain tastoratyp
 	s.Require().NoError(wait.ForBlocks(ctx, 20, chain), "failed to wait for post-upgrade blocks")
 
 	return upgradeHeight
-}
-
-// validatorStateSyncAppOverrides modifies the app.toml to configure state sync snapshots for the given node.
-func validatorStateSyncAppOverrides(ctx context.Context, node *tastoradockertypes.ChainNode) error {
-	return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
-		cfg.StateSync.SnapshotInterval = 5
-		cfg.StateSync.SnapshotKeepRecent = 2
-	})
 }
 
 // validatorStateSyncProducerOverrides configures validators to produce state sync snapshots.
