@@ -12,14 +12,6 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v6/app/errors"
-	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v6/app/params"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
 	"github.com/celestiaorg/go-square/v3/share"
 	blobtx "github.com/celestiaorg/go-square/v3/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -34,7 +26,18 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
+
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v6/app/errors"
+	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v6/app/params"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
 )
 
 const (
@@ -255,10 +258,23 @@ func SetupTxClient(
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
 func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
+	span := trace.SpanFromContext(ctx)
+	startTime := time.Now()
+
 	resp, err := client.BroadcastPayForBlob(ctx, blobs, opts...)
 	if err != nil {
+		// span.AddEvent("txclient: failed to broadcast PFB", trace.WithAttributes(
+		// 	attribute.Int("num_blobs", len(blobs)),
+		// 	attribute.String("error", err.Error()),
+		// ))
 		return nil, err
 	}
+
+	span.AddEvent("txclient: broadcasted PFB", trace.WithAttributes(
+		attribute.Int("num_blobs", len(blobs)),
+		attribute.String("tx_hash", resp.TxHash),
+		attribute.Float64("elapsed_seconds", time.Since(startTime).Seconds()),
+	))
 
 	return client.ConfirmTx(ctx, resp.TxHash)
 }
@@ -610,6 +626,9 @@ func (client *TxClient) pruneTxTracker() {
 // hash. It will continually loop until the context is cancelled, the tx is found or an error
 // is encountered.
 func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxResponse, error) {
+	span := trace.SpanFromContext(ctx)
+	startTime := time.Now()
+
 	txClient := tx.NewTxClient(client.conns[0])
 
 	pollTicker := time.NewTicker(client.pollTime)
@@ -619,6 +638,11 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 	for {
 		resp, err := txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
 		if err != nil {
+			span.AddEvent("txclient: error getting tx status", trace.WithAttributes(
+				attribute.String("tx_hash", txHash),
+				attribute.String("error", err.Error()),
+				attribute.Float64("elapsed_seconds", time.Since(startTime).Seconds()),
+			))
 			return nil, err
 		}
 
@@ -632,12 +656,20 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 		case core.TxStatusPending:
 			// Continue polling if the transaction is still pending
 		case core.TxStatusCommitted:
+			elapsed := time.Since(startTime)
 			txResponse := &TxResponse{
 				Height: resp.Height,
 				TxHash: txHash,
 				Code:   resp.ExecutionCode,
 			}
 			if resp.ExecutionCode != abci.CodeTypeOK {
+				// span.AddEvent("txclient: transaction committed with error", trace.WithAttributes(
+				// 	attribute.String("tx_hash", txHash),
+				// 	attribute.Int64("height", resp.Height),
+				// 	attribute.Int("execution_code", int(resp.ExecutionCode)),
+				// 	attribute.String("error_log", resp.Error),
+				// 	attribute.Float64("confirmation_time_seconds", elapsed.Seconds()),
+				// ))
 				executionErr := &ExecutionError{
 					TxHash:   txHash,
 					Code:     resp.ExecutionCode,
@@ -646,9 +678,26 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				client.deleteFromTxTracker(txHash)
 				return nil, executionErr
 			}
+			// if it took more than 7 seconds to confirm, log it
+			if elapsed > 7*time.Second {
+				span.AddEvent("txclient: transaction confirmed successfully", trace.WithAttributes(
+					attribute.String("tx_hash", txHash),
+					attribute.Int64("height", resp.Height),
+					attribute.Float64("confirmation_time_seconds", elapsed.Seconds()),
+				))
+			}
+			span.AddEvent("txclient: transaction confirmed successfully", trace.WithAttributes(
+				attribute.String("tx_hash", txHash),
+				attribute.Int64("height", resp.Height),
+				attribute.Float64("confirmation_time_seconds", elapsed.Seconds()),
+			))
 			client.deleteFromTxTracker(txHash)
 			return txResponse, nil
 		case core.TxStatusEvicted:
+			span.AddEvent("txclient: transaction evicted, attempting resubmission", trace.WithAttributes(
+				attribute.String("tx_hash", txHash),
+				attribute.Float64("elapsed_seconds", time.Since(startTime).Seconds()),
+			))
 			_, _, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in txTracker; likely failed during broadcast", txHash)
@@ -668,10 +717,16 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 					return nil, err
 				}
 				// Start eviction timeout timer on any broadcast error during resubmission
+				span.AddEvent("txclient/ConfirmTx: starting eviction timer for broadcast error")
 				now := time.Now()
 				evictionPollTimeStart = &now
 			}
 		case core.TxStatusRejected:
+			span.AddEvent("txclient: transaction rejected", trace.WithAttributes(
+				attribute.String("tx_hash", txHash),
+				attribute.Int("execution_code", int(resp.ExecutionCode)),
+				attribute.Float64("elapsed_seconds", time.Since(startTime).Seconds()),
+			))
 			sequence, signer, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
@@ -684,6 +739,11 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			client.deleteFromTxTracker(txHash)
 			return nil, fmt.Errorf("tx with hash %s was rejected by the node with execution code %d", txHash, resp.ExecutionCode)
 		default:
+			span.AddEvent("txclient: unexpected tx status", trace.WithAttributes(
+				attribute.String("tx_hash", txHash),
+				attribute.String("status", string(resp.Status)),
+				attribute.Float64("elapsed_seconds", time.Since(startTime).Seconds()),
+			))
 			client.deleteFromTxTracker(txHash)
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
