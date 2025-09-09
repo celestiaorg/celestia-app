@@ -664,9 +664,6 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			client.deleteFromTxTracker(txHash)
 			return txResponse, nil
 		case core.TxStatusEvicted:
-			span.AddEvent("txclient: transaction evicted, attempting resubmission", trace.WithAttributes(
-				attribute.String("tx_hash", txHash),
-			))
 			_, _, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in txTracker; likely failed during broadcast", txHash)
@@ -674,8 +671,13 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 
 			if evictionPollTimeStart != nil {
 				// Eviction timer is running, no need to resubmit again
+				span.AddEvent("txclient/ConfirmTx: eviction timer already running")
 				break
 			}
+
+			span.AddEvent("txclient: transaction evicted, attempting resubmission", trace.WithAttributes(
+				attribute.String("tx_hash", txHash),
+			))
 
 			// If we're not already tracking eviction timeout, try to resubmit
 			_, err := client.broadcastTx(ctx, client.conns[0], client.txTracker[txHash].txBytes)
@@ -690,7 +692,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				now := time.Now()
 				evictionPollTimeStart = &now
 			}
-			span.AddEvent("txclient: transaction resubmitted successfully after eviction")
+			span.AddEvent("txclient/ConfirmTx: transaction resubmitted successfully after eviction")
 		case core.TxStatusRejected:
 			span.AddEvent("txclient: transaction rejected", trace.WithAttributes(
 				attribute.String("error", resp.Error),
