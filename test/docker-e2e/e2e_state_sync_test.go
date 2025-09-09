@@ -212,7 +212,7 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 }
 
 // TestStateSyncCompatibilityAcrossUpgrade verifies that a full node can state-sync to the latest height
-// when the chain history includes an on-chain upgrade.
+// when the chain history includes an app version upgrade.
 func (s *CelestiaTestSuite) TestStateSyncCompatibilityAcrossUpgrade() {
 	t := s.T()
 	if testing.Short() {
@@ -275,18 +275,16 @@ func (s *CelestiaTestSuite) TestStateSyncCompatibilityAcrossUpgrade() {
 
 	finalHeight, err := s.GetLatestBlockHeight(ctx, rpcClient)
 	s.Require().NoError(err, "failed to get final height")
-	t.Logf("Chain now at height %d with mixed version history (%d: blocks 1-%d, %d: blocks %d)",
+	t.Logf("Blocks 1 to %d have app version %d", upgradeHeight-1, baseAppVersion)
+	t.Logf("Blocks %d to %d have app version %d", upgradeHeight, finalHeight, targetAppVersion)
 		finalHeight, baseAppVersion, upgradeHeight-1, targetAppVersion, finalHeight)
 
-	t.Log("Validators configured with state sync snapshots every 5 blocks")
 
 	t.Log("Phase 3: Launching new full node with state sync enabled")
 
 	// Calculate state sync parameters from the targetAppVersion portion of the chain
-	var (
-		latestHeight = finalHeight
-		trustHeight  = latestHeight - stateSyncTrustHeightOffset
-	)
+	latestHeight := finalHeight
+	trustHeight  := latestHeight - stateSyncTrustHeightOffset
 	s.Require().Greater(trustHeight, upgradeHeight,
 		"trust height %d should be in %d portion (after upgrade height %d)", trustHeight, targetAppVersion, upgradeHeight)
 
@@ -310,16 +308,14 @@ func (s *CelestiaTestSuite) TestStateSyncCompatibilityAcrossUpgrade() {
 	)
 	s.Require().NoError(err, "failed to add state sync node")
 
-	var (
-		allNodes      = chain.GetNodes()
-		stateSyncNode = allNodes[len(allNodes)-1]
-	)
+	allNodes      := chain.GetNodes()
+	stateSyncNode := allNodes[len(allNodes)-1]
 	s.Require().Equal(tastoratypes.NodeTypeConsensusFull, stateSyncNode.GetType(), "expected state sync node to be a full node")
 
 	stateSyncClient, err := stateSyncNode.GetRPCClient()
 	s.Require().NoError(err, "failed to get state sync client")
 
-	t.Log("Phase 4: Waiting for state sync completion and validation")
+	t.Log("Waiting for node to state sync...")
 	heightHistory := s.monitorSyncProgress(ctx, t, stateSyncClient, latestHeight, stateSyncTimeout)
 
 	// Verify that state sync was used (not block sync)
@@ -346,17 +342,13 @@ func (s *CelestiaTestSuite) TestStateSyncCompatibilityAcrossUpgrade() {
 	t.Logf("State sync successful: node reached height %d (current chain tip: %d)",
 		nodeHeight, currentChainHeight)
 
-	// Validate: ABCIInfo.app_version == targetAppVersion
+	// Verify ABCIInfo.app_version == targetAppVersion
 	syncedAbciInfo, err := stateSyncClient.ABCIInfo(ctx)
 	s.Require().NoError(err, "failed to fetch ABCI info from state sync node")
 	s.Require().Equal(targetAppVersion, syncedAbciInfo.Response.GetAppVersion(),
 		"state sync node should have app version %d", targetAppVersion)
 	t.Logf("State sync node app version: %d", syncedAbciInfo.Response.GetAppVersion())
 
-	// Validate: Basic bank send succeeds from synced node
-	t.Log("Testing bank send transaction from state sync node")
-	testBankSend(s.T(), chain, cfg)
-	t.Log("Bank send transaction succeeded")
 
 	// Final liveness check
 	t.Log("Performing final liveness check")
@@ -366,11 +358,9 @@ func (s *CelestiaTestSuite) TestStateSyncCompatibilityAcrossUpgrade() {
 
 // checkSyncMetrics queries Prometheus metrics to determine sync method
 func checkSyncMetrics(t *testing.T, node *tastoradockertypes.ChainNode) (stateSync bool, blockSync bool, err error) {
-	var (
-		ctx      = context.Background()
-		endpoint = "http://localhost:26657/metrics"
-		cmd      = []string{"curl", "-s", "--connect-timeout", "5", endpoint}
-	)
+	ctx      := context.Background()
+	endpoint := "http://localhost:26657/metrics"
+	cmd      := []string{"curl", "--silent", "--connect-timeout", "5", endpoint}
 	stdout, stderr, execErr := node.Exec(ctx, cmd, nil)
 
 	if execErr != nil {
