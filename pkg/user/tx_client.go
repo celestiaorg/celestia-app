@@ -259,21 +259,15 @@ func SetupTxClient(
 // TxOptions may be provided to set the fee and gas limit.
 func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
 	span := trace.SpanFromContext(ctx)
-	startTime := time.Now()
 
 	resp, err := client.BroadcastPayForBlob(ctx, blobs, opts...)
 	if err != nil {
-		// span.AddEvent("txclient: failed to broadcast PFB", trace.WithAttributes(
-		// 	attribute.Int("num_blobs", len(blobs)),
-		// 	attribute.String("error", err.Error()),
-		// ))
 		return nil, err
 	}
 
 	span.AddEvent("txclient: broadcasted PFB", trace.WithAttributes(
 		attribute.Int("num_blobs", len(blobs)),
 		attribute.String("tx_hash", resp.TxHash),
-		attribute.Float64("elapsed_seconds", time.Since(startTime).Seconds()),
 	))
 
 	return client.ConfirmTx(ctx, resp.TxHash)
@@ -627,7 +621,6 @@ func (client *TxClient) pruneTxTracker() {
 // is encountered.
 func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxResponse, error) {
 	span := trace.SpanFromContext(ctx)
-	startTime := time.Now()
 
 	txClient := tx.NewTxClient(client.conns[0])
 
@@ -641,7 +634,6 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			span.AddEvent("txclient: error getting tx status", trace.WithAttributes(
 				attribute.String("tx_hash", txHash),
 				attribute.String("error", err.Error()),
-				attribute.Float64("elapsed_seconds", time.Since(startTime).Seconds()),
 			))
 			return nil, err
 		}
@@ -656,20 +648,18 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 		case core.TxStatusPending:
 			// Continue polling if the transaction is still pending
 		case core.TxStatusCommitted:
-			elapsed := time.Since(startTime)
 			txResponse := &TxResponse{
 				Height: resp.Height,
 				TxHash: txHash,
 				Code:   resp.ExecutionCode,
 			}
 			if resp.ExecutionCode != abci.CodeTypeOK {
-				// span.AddEvent("txclient: transaction committed with error", trace.WithAttributes(
-				// 	attribute.String("tx_hash", txHash),
-				// 	attribute.Int64("height", resp.Height),
-				// 	attribute.Int("execution_code", int(resp.ExecutionCode)),
-				// 	attribute.String("error_log", resp.Error),
-				// 	attribute.Float64("confirmation_time_seconds", elapsed.Seconds()),
-				// ))
+				span.AddEvent("txclient: execution error", trace.WithAttributes(
+					attribute.String("tx_hash", txHash),
+					attribute.Int64("height", resp.Height),
+					attribute.Int("execution_code", int(resp.ExecutionCode)),
+					attribute.String("error_log", resp.Error),
+				))
 				executionErr := &ExecutionError{
 					TxHash:   txHash,
 					Code:     resp.ExecutionCode,
@@ -678,20 +668,15 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				client.deleteFromTxTracker(txHash)
 				return nil, executionErr
 			}
-			// if it took more than 7 seconds to confirm, log it
-			if elapsed > 7*time.Second {
-				span.AddEvent("txclient: transaction confirmed successfully", trace.WithAttributes(
-					attribute.String("tx_hash", txHash),
-					attribute.Int64("height", resp.Height),
-					attribute.Float64("confirmation_time_seconds", elapsed.Seconds()),
-				))
-			}
+			span.AddEvent("txclient: transaction confirmed successfully", trace.WithAttributes(
+				attribute.String("tx_hash", txHash),
+				attribute.Int64("height", resp.Height),
+			))
 			client.deleteFromTxTracker(txHash)
 			return txResponse, nil
 		case core.TxStatusEvicted:
 			span.AddEvent("txclient: transaction evicted, attempting resubmission", trace.WithAttributes(
 				attribute.String("tx_hash", txHash),
-				attribute.Float64("elapsed_seconds", time.Since(startTime).Seconds()),
 			))
 			_, _, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
@@ -716,11 +701,13 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				now := time.Now()
 				evictionPollTimeStart = &now
 			}
+			span.AddEvent("txclient: transaction resubmitted successfully after eviction", trace.WithAttributes(
+				attribute.String("tx_hash", txHash),
+			))
 		case core.TxStatusRejected:
 			span.AddEvent("txclient: transaction rejected", trace.WithAttributes(
 				attribute.String("tx_hash", txHash),
 				attribute.Int("execution_code", int(resp.ExecutionCode)),
-				attribute.Float64("elapsed_seconds", time.Since(startTime).Seconds()),
 			))
 			sequence, signer, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
@@ -736,8 +723,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 		default:
 			span.AddEvent("txclient: unexpected tx status", trace.WithAttributes(
 				attribute.String("tx_hash", txHash),
-				attribute.String("status", string(resp.Status)),
-				attribute.Float64("elapsed_seconds", time.Since(startTime).Seconds()),
+				attribute.String("status", resp.Status),
 			))
 			client.deleteFromTxTracker(txHash)
 			if ctx.Err() != nil {
