@@ -686,11 +686,6 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 					attribute.Float64("confirmation_time_seconds", elapsed.Seconds()),
 				))
 			}
-			span.AddEvent("txclient: transaction confirmed successfully", trace.WithAttributes(
-				attribute.String("tx_hash", txHash),
-				attribute.Int64("height", resp.Height),
-				attribute.Float64("confirmation_time_seconds", elapsed.Seconds()),
-			))
 			client.deleteFromTxTracker(txHash)
 			return txResponse, nil
 		case core.TxStatusEvicted:
