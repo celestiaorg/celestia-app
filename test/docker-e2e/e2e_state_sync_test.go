@@ -314,7 +314,7 @@ func (s *CelestiaTestSuite) TestStateSyncCompatibilityAcrossUpgrade() {
 
 	t.Log("Waiting for node to state sync...")
 	// Wait for sync to complete
-	err = wait.ForCondition(ctx, 1*time.Second, stateSyncTimeout, func() (bool, error) {
+	err = wait.ForCondition(ctx, stateSyncTimeout, 1*time.Second, func() (bool, error) {
 		status, err := stateSyncClient.Status(ctx)
 		if err != nil {
 			return false, fmt.Errorf("failed to get node status: %w", err)
