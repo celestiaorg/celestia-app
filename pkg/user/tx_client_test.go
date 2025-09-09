@@ -21,6 +21,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v6/test/util/grpctest"
 	"github.com/celestiaorg/celestia-app/v6/test/util/random"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
@@ -84,7 +85,20 @@ func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 	})
 
 	t.Run("submit blob with different account", func(t *testing.T) {
-		resp, err := suite.txClient.SubmitPayForBlobWithAccount(subCtx, "c", blobs, user.SetFee(1e6), user.SetGasLimit(1e6))
+		// Get a different account name from the available accounts
+		accounts := suite.txClient.Signer().Accounts()
+		require.GreaterOrEqual(t, len(accounts), 2, "need at least 2 accounts for this test")
+
+		// Find an account that's not the default account
+		var accountName string
+		for _, acc := range accounts {
+			if acc.Name() != suite.txClient.DefaultAccountName() {
+				accountName = acc.Name()
+				break
+			}
+		}
+		require.NotEmpty(t, accountName, "could not find a non-default account")
+		resp, err := suite.txClient.SubmitPayForBlobWithAccount(subCtx, accountName, blobs, user.SetFee(1e6), user.SetGasLimit(1e6))
 		require.NoError(t, err)
 		getTxResp, err := suite.serviceClient.GetTx(subCtx, &sdktx.GetTxRequest{Hash: resp.TxHash})
 		require.NoError(t, err)
@@ -97,6 +111,20 @@ func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "key not found")
 	})
+
+	t.Run("submit blob with nonce error", func(t *testing.T) {
+		seqBeforeBroadcast := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
+		err := suite.txClient.Signer().SetSequence(suite.txClient.DefaultAccountName(), seqBeforeBroadcast-5)
+		require.NoError(t, err)
+		resp, err := suite.txClient.SubmitPayForBlob(subCtx, blobs)
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, resp.Code)
+
+		// does not block further submissions
+		resp, err = suite.txClient.SubmitPayForBlob(subCtx, blobs)
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, resp.Code)
+	})
 }
 
 func (suite *TxClientTestSuite) TestSubmitTx() {
@@ -108,6 +136,10 @@ func (suite *TxClientTestSuite) TestSubmitTx() {
 	msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
 
 	t.Run("submit tx without provided fee and gas limit", func(t *testing.T) {
+		// This should fail in gas estimation and recover
+		seqBeforeBroadcast := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
+		err := suite.txClient.Signer().SetSequence(suite.txClient.DefaultAccountName(), seqBeforeBroadcast+1)
+		require.NoError(t, err)
 		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg})
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
@@ -117,6 +149,10 @@ func (suite *TxClientTestSuite) TestSubmitTx() {
 	})
 
 	t.Run("submit tx with provided gas limit", func(t *testing.T) {
+		// This should fail in gas estimation and recover
+		seqBeforeBroadcast := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
+		err := suite.txClient.Signer().SetSequence(suite.txClient.DefaultAccountName(), seqBeforeBroadcast+1)
+		require.NoError(t, err)
 		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg}, gasLimitOption)
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
@@ -141,9 +177,36 @@ func (suite *TxClientTestSuite) TestSubmitTx() {
 	})
 
 	t.Run("submit tx with a different account", func(t *testing.T) {
-		addr := suite.txClient.Account("b").Address()
+		// Get a different account name from the available accounts
+		accounts := suite.txClient.Signer().Accounts()
+		require.GreaterOrEqual(t, len(accounts), 2, "need at least 2 accounts for this test")
+
+		// Find an account that's not the default account
+		var accountName string
+		for _, acc := range accounts {
+			if acc.Name() != suite.txClient.DefaultAccountName() {
+				accountName = acc.Name()
+				break
+			}
+		}
+		require.NotEmpty(t, accountName, "could not find a non-default account")
+		addr := suite.txClient.Account(accountName).Address()
 		msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
 		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg})
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, resp.Code)
+	})
+
+	t.Run("submit tx with nonce error", func(t *testing.T) {
+		seqBeforeBroadcast := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
+		err := suite.txClient.Signer().SetSequence(suite.txClient.DefaultAccountName(), seqBeforeBroadcast+5)
+		require.NoError(t, err)
+		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, feeOption, gasLimitOption)
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, resp.Code)
+
+		// does not block further submissions
+		resp, err = suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, feeOption, gasLimitOption)
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
 	})
@@ -401,14 +464,19 @@ func (suite *TxClientTestSuite) TestGasConsumption() {
 }
 
 func (suite *TxClientTestSuite) TestTxClientWithDifferentDefaultAccount() {
-	txClient, err := user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithDefaultAccount("b"))
-	suite.NoError(err)
-	suite.Equal(txClient.DefaultAccountName(), "b")
+	accounts := suite.txClient.Signer().Accounts()
+	require.GreaterOrEqual(suite.T(), len(accounts), 3, "need at least 3 accounts for this test")
 
-	addrC := txClient.Account("c").Address()
-	txClient, err = user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithDefaultAddress(addrC))
+	accountName1 := accounts[1].Name()
+	txClient, err := user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithDefaultAccount(accountName1))
 	suite.NoError(err)
-	suite.Equal(txClient.DefaultAddress(), addrC)
+	suite.Equal(txClient.DefaultAccountName(), accountName1)
+
+	accountName2 := accounts[2].Name()
+	addr2 := txClient.Account(accountName2).Address()
+	txClient, err = user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithDefaultAddress(addr2))
+	suite.NoError(err)
+	suite.Equal(txClient.DefaultAddress(), addr2)
 }
 
 func (suite *TxClientTestSuite) queryCurrentBalance(t *testing.T) int64 {
@@ -444,10 +512,11 @@ func setupTxClient(
 ) (encoding.Config, *user.TxClient, testnode.Context) {
 	defaultTmConfig := testnode.DefaultTendermintConfig()
 	defaultTmConfig.Mempool.TTLNumBlocks = ttlNumBlocks
+	accounts := testfactory.GenerateAccounts(3)
 
 	testnodeConfig := testnode.DefaultConfig().
 		WithTendermintConfig(defaultTmConfig).
-		WithFundedAccounts("a", "b", "c").
+		WithFundedAccounts(accounts...).
 		WithDelayedPrecommitTimeout(400 * time.Millisecond)
 	testnodeConfig.Genesis.ConsensusParams.Block.MaxBytes = blocksize
 

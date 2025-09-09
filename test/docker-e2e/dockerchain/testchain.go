@@ -127,7 +127,7 @@ func SetupTxClient(ctx context.Context, cn *tastoradockertypes.ChainNode, cfg *C
 //
 //	for i, nodeBuilder := range nodeBuilders {
 //	    version := getVersionForIndex(i)
-//		nodeBuilder.WithImage(tastoradockertypes.NewDockerImage(cfg.Image, version, "10001:10001")
+//		nodeBuilder.WithImage(tastoracontainertypes.NewImage(cfg.Image, version, "10001:10001"))
 //	}
 func NodeConfigBuilders(cfg *Config) ([]*tastoradockertypes.ChainNodeConfigBuilder, error) {
 	kr := cfg.Genesis.Keyring()
