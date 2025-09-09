@@ -492,7 +492,7 @@ func wasRemovedFromTxTracker(txHash string, txClient *user.TxClient) bool {
 	return !exists && seq == 0 && signer == ""
 }
 
-// asserts that a tx was indexed in the tx tracker and that the sequence does not increase
+// assertTxInTxTracker verifies that a tx was indexed in the tx tracker and that the sequence increases by one after broadcast.
 func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash, expectedSigner string, seqBeforeBroadcast uint64) {
 	seqFromTxTracker, signer, exists := txClient.GetTxFromTxTracker(txHash)
 	require.True(t, exists)
@@ -604,7 +604,7 @@ var (
 
 type broadcastTestCase struct {
 	setupMocks  func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn)
-	expectError bool // Changed from error to bool
+	expectError bool
 }
 
 func (suite *TxClientTestSuite) TestMultiConnBroadcast() {
