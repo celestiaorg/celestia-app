@@ -87,3 +87,7 @@ func getMsg(t *testing.T, account sdk.AccountI) sdk.Msg {
 
 	return msg
 }
+
+func nextAnteHandler(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
+	return ctx, nil
+}
