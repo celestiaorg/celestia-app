@@ -34,6 +34,8 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 )
 
@@ -254,10 +256,16 @@ func SetupTxClient(
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
 func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
+	span := trace.SpanFromContext(ctx)
+
 	resp, err := client.BroadcastPayForBlob(ctx, blobs, opts...)
 	if err != nil {
 		return nil, err
 	}
+
+	span.AddEvent("txclient: broadcasted PFB", trace.WithAttributes(
+		attribute.Int("num_blobs", len(blobs)),
+	))
 
 	return client.ConfirmTx(ctx, resp.TxHash)
 }
@@ -593,6 +601,8 @@ func (client *TxClient) pruneTxTracker() {
 // hash. It will continually loop until the context is cancelled, the tx is found or an error
 // is encountered.
 func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxResponse, error) {
+	span := trace.SpanFromContext(ctx)
+
 	txClient := tx.NewTxClient(client.conns[0])
 
 	pollTicker := time.NewTicker(client.pollTime)
@@ -620,6 +630,9 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				Code:   resp.ExecutionCode,
 			}
 			if resp.ExecutionCode != abci.CodeTypeOK {
+				span.AddEvent("txclient: execution error", trace.WithAttributes(
+					attribute.String("error_log", resp.Error),
+				))
 				executionErr := &ExecutionError{
 					TxHash:   txHash,
 					Code:     resp.ExecutionCode,
@@ -628,9 +641,11 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				client.deleteFromTxTracker(txHash)
 				return nil, executionErr
 			}
+			span.AddEvent("txclient: transaction confirmed successfully")
 			client.deleteFromTxTracker(txHash)
 			return txResponse, nil
 		case core.TxStatusEvicted:
+			span.AddEvent("txclient: transaction evicted, attempting resubmission")
 			_, signer, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in txTracker; likely failed during broadcast", txHash)
@@ -638,9 +653,16 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			// Resubmit straight away in the event of eviction and keep polling until tx is committed
 			_, err := client.broadcastTx(ctx, client.conns[0], client.txTracker[txHash].txBytes, signer)
 			if err != nil {
+				span.AddEvent("txclient: resubmission failed after eviction", trace.WithAttributes(
+					attribute.String("error", err.Error()),
+				))
 				return nil, fmt.Errorf("resubmission for evicted tx with hash %s failed: %w", txHash, err)
 			}
+			span.AddEvent("txclient: transaction resubmitted successfully after eviction")
 		case core.TxStatusRejected:
+			span.AddEvent("txclient: transaction rejected", trace.WithAttributes(
+				attribute.String("error", resp.Error),
+			))
 			sequence, signer, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
@@ -653,6 +675,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			client.deleteFromTxTracker(txHash)
 			return nil, fmt.Errorf("tx with hash %s was rejected by the node with execution code %d", txHash, resp.ExecutionCode)
 		default:
+			span.AddEvent("txclient: unknown tx")
 			client.deleteFromTxTracker(txHash)
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
