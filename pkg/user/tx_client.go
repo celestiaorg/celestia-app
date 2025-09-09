@@ -267,7 +267,6 @@ func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blo
 
 	span.AddEvent("txclient: broadcasted PFB", trace.WithAttributes(
 		attribute.Int("num_blobs", len(blobs)),
-		attribute.String("tx_hash", resp.TxHash),
 	))
 
 	return client.ConfirmTx(ctx, resp.TxHash)
@@ -631,10 +630,6 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 	for {
 		resp, err := txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
 		if err != nil {
-			span.AddEvent("txclient: error getting tx status", trace.WithAttributes(
-				attribute.String("tx_hash", txHash),
-				attribute.String("error", err.Error()),
-			))
 			return nil, err
 		}
 
@@ -655,9 +650,6 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			}
 			if resp.ExecutionCode != abci.CodeTypeOK {
 				span.AddEvent("txclient: execution error", trace.WithAttributes(
-					attribute.String("tx_hash", txHash),
-					attribute.Int64("height", resp.Height),
-					attribute.Int("execution_code", int(resp.ExecutionCode)),
 					attribute.String("error_log", resp.Error),
 				))
 				executionErr := &ExecutionError{
@@ -668,10 +660,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				client.deleteFromTxTracker(txHash)
 				return nil, executionErr
 			}
-			span.AddEvent("txclient: transaction confirmed successfully", trace.WithAttributes(
-				attribute.String("tx_hash", txHash),
-				attribute.Int64("height", resp.Height),
-			))
+			span.AddEvent("txclient: transaction confirmed successfully")
 			client.deleteFromTxTracker(txHash)
 			return txResponse, nil
 		case core.TxStatusEvicted:
@@ -701,13 +690,10 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				now := time.Now()
 				evictionPollTimeStart = &now
 			}
-			span.AddEvent("txclient: transaction resubmitted successfully after eviction", trace.WithAttributes(
-				attribute.String("tx_hash", txHash),
-			))
+			span.AddEvent("txclient: transaction resubmitted successfully after eviction")
 		case core.TxStatusRejected:
 			span.AddEvent("txclient: transaction rejected", trace.WithAttributes(
-				attribute.String("tx_hash", txHash),
-				attribute.Int("execution_code", int(resp.ExecutionCode)),
+				attribute.String("error", resp.Error),
 			))
 			sequence, signer, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
@@ -721,10 +707,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			client.deleteFromTxTracker(txHash)
 			return nil, fmt.Errorf("tx with hash %s was rejected by the node with execution code %d", txHash, resp.ExecutionCode)
 		default:
-			span.AddEvent("txclient: unexpected tx status", trace.WithAttributes(
-				attribute.String("tx_hash", txHash),
-				attribute.String("status", resp.Status),
-			))
+			span.AddEvent("txclient: unknown tx")
 			client.deleteFromTxTracker(txHash)
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
