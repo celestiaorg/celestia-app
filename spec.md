@@ -84,12 +84,12 @@ message PendingWithdrawal {
 
 ### Processed Promises
 
-To prevent double payment, the module tracks which promises have been processed.
+To prevent double payment, the module tracks which commitments have been processed. If a duplicate commitment is paid for, it simply gets overwritten in state.
 
 ```proto
 message ProcessedPromise {
-  // promise_hash is the hash of the promise that was processed
-  bytes promise_hash = 1;
+  // commitment is the commitment that was processed
+  bytes commitment = 1;
   // processed_at is the block height when the promise was processed
   int64 processed_at = 2;
 }
@@ -105,8 +105,8 @@ message ProcessedPromise {
 - **By Availability**: `available_withdrawals/{available_at}/{owner}` → `null` (for processing)
 
 **Processed Promises**:
-- **Primary Index**: `processed/{promise_hash}` → `ProcessedPromise`
-- **By Height**: `pruning/{processed_at}/{promise_hash}` → `null` (for pruning)
+- **Primary Index**: `processed/{commitment}` → `ProcessedPromise`
+- **By Height**: `pruning/{processed_at}/{commitment}` → `null` (for pruning)
 
 #### Pruning Mechanism
 
@@ -480,7 +480,7 @@ Queries whether an promise has been processed.
 **Request**:
 ```proto
 message QueryProcessedPromiseRequest {
-  bytes promise_hash = 1;
+  bytes commitment = 1;
 }
 ```
 
@@ -568,7 +568,7 @@ celestia-appd query fibre escrow-account <owner_address>
 celestia-appd query fibre pending-withdrawals <owner_address>
 
 # Query if promise was processed
-celestia-appd query fibre processed-promise <promise_hash>
+celestia-appd query fibre processed-promise <commitment>
 
 # Query module parameters
 celestia-appd query fibre params
