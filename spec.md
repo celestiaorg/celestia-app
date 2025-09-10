@@ -222,7 +222,7 @@ message PaymentPromise {
   // namespace is the namespace the blob is associated with. share version must be 2.
   bytes namespace = 2;
   // blob_size is the size of the blob in bytes
-  uint64 blob_size = 3;
+  uint32 blob_size = 3;
   // commitment is the hash of the row root and the RLC root
   bytes commitment = 4;
   // row_version is the version of the row format
@@ -270,12 +270,12 @@ sign_bytes = signer_bytes || namespace || blob_size_bytes || commitment || row_v
 **Field Encoding**:
 - `signer`: raw bytes of signer address secp256k1 (20 bytes)
 - `namespace`: Raw namespace bytes (fixed 29 bytes)
-- `blob_size_bytes`: Varint encoded uint64 (1-10 bytes)
+- `blob_size_bytes`: Big-endian encoded uint32 (4 bytes)
 - `commitment`: Raw commitment bytes (32 bytes)
 - `row_version_bytes`: Big-endian encoded uint32 (4 bytes)
 - `creation_timestamp_bytes`: Protobuf-encoded google.protobuf.Timestamp (variable length)
 
-**Total Length**: Variable length (20 + 29 + 1-10 + 32 + 4 + timestamp_bytes)
+**Total Length**: Variable length (20 + 29 + 4 + 32 + 4 + timestamp_bytes)
 
 #### MsgPayForFibre Validation and Processing
 
