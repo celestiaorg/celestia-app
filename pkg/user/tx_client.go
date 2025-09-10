@@ -650,7 +650,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			}
 			if resp.ExecutionCode != abci.CodeTypeOK {
 				span.AddEvent("txclient: execution error", trace.WithAttributes(
-					attribute.String("error_log", resp.Error),
+					attribute.String("error", resp.Error),
 				))
 				executionErr := &ExecutionError{
 					TxHash:   txHash,
