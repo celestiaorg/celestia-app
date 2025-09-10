@@ -58,9 +58,9 @@ Escrow accounts help guarantee payment for a signed `PaymentPromise` by ensuring
 message EscrowAccount {
   // owner is the address that controls this escrow account
   string owner = 1;
-  // balance is the total deposited amount
+  // balance is the total amount currently held in escrow
   cosmos.base.v1beta1.Coin balance = 2;
-  // available_balance is the amount available for payments (balance - pending_withdrawals)
+  // available_balance is the amount available for new payments
   cosmos.base.v1beta1.Coin available_balance = 3;
 }
 ```
@@ -182,7 +182,7 @@ message MsgRequestWithdrawal {
 **Stateful Processing**:
 1. Verify signer's escrow account exists
 2. Verify sufficient available balance
-3. Decrease available_balance immediately
+3. Decrease available_balance immediately (balance remains unchanged until withdrawal is processed)
 4. Create PendingWithdrawal with available_at = current_timestamp + withdrawal_delay
 5. Emit EventRequestWithdrawalFromEscrow
 
@@ -278,7 +278,7 @@ sign_bytes = owner_bytes || namespace || blob_size_bytes || commitment || row_ve
 **Stateful Processing**:
 1. Validate PaymentPromise (see PaymentPromise Validation above)
 2. Verify validator signatures represent 2/3+ voting power from validator set at `promise.creation_timestamp` (obtained via historical info query from staking module)
-3. Calculate gas cost (see Gas Consumption in PaymentPromise Validation) and deduct from escrow available balance
+3. Calculate gas cost (see Gas Consumption in PaymentPromise Validation) and deduct from both escrow balance and available_balance
 4. Mark promise as processed
 5. Include commitment in data square (see Inclusion Processing below)
 6. Emit EventPayForFibre
@@ -312,7 +312,7 @@ message MsgProcessPromiseTimeout {
 **Stateful Processing**:
 1. Validate PaymentPromise (see PaymentPromise Validation above)
 2. Verify `promise.creation_timestamp + promise_timeout <= current_timestamp` (timeout has passed)
-3. Calculate gas cost (see Gas Consumption in PaymentPromise Validation) and deduct from escrow available balance
+3. Calculate gas cost (see Gas Consumption in PaymentPromise Validation) and deduct from both escrow balance and available_balance
 4. Mark promise as processed
 5. DO NOT include commitment in data square (since no validator consensus was reached)
 6. Emit EventProcessPromiseTimeout
@@ -380,7 +380,7 @@ sequenceDiagram
 
 6. **Timeout Processing (Fallback)**: If user doesn't submit `MsgPayForFibre` within `promise_timeout_blocks`, anyone can submit `MsgProcessPromiseTimeout` to process payment. This prevents the user from getting free service.
 
-7. **Withdrawal**: Users can request withdrawals via `MsgRequestWithdrawal` (decreases available balance immediately) and process them after the delay automatically.
+7. **Withdrawal**: Users can request withdrawals via `MsgRequestWithdrawal` (decreases available balance immediately) and process them after the delay (which decreases total balance and transfers funds to user).
 
 ## Events
 
