@@ -2,7 +2,7 @@
 
 ## Abstract
 
-The `x/fibre` payment mechanism enables users to pay for fibre blobs without waiting for a transaction to be confirmed. This is done by users depositing funds into escrow accounts, and signing over offchain messages that can be moved onchain at a later point.
+The `x/fibre` payment mechanism enables users to pay for fibre blobs without waiting for a transaction to be confirmed. This is done by users depositing funds into [escrow accounts](#escrow-accounts), and signing over offchain messages that can be moved onchain at a later point.
 
 ## Contents
 
@@ -16,13 +16,13 @@ The `x/fibre` payment mechanism enables users to pay for fibre blobs without wai
 
 ## Abstract
 
-DoS resistance for a protocol with a global limit on throughput requires a guarantee for payment. Normally this is done simply by paying for gas, however paying for gas requires waiting for a transaction to be confirmed. The payment portion of this module (mainly the `PaymentPromise` and `EscrowAccount`) is to provide a guarantee for payment without having to wait for a transaction to be confirmed.
+DoS resistance for a protocol with a global limit on throughput requires a guarantee for payment. Normally this is done simply by paying for gas, however paying for gas requires waiting for a transaction to be confirmed. The payment portion of this module (mainly the [`PaymentPromise`](#msgpayforfibre) and [`EscrowAccount`](#escrow-accounts)) is to provide a guarantee for payment without having to wait for a transaction to be confirmed.
 
-Therefore, it is an invariant of the payment system that a signed `PaymentPromise` guarantees payment.
+Therefore, it is an invariant of the payment system that a signed [`PaymentPromise`](#msgpayforfibre) guarantees payment.
 
 ## State
 
-The fibre module maintains state for escrow accounts, pending withdrawals, and module parameters.
+The fibre module maintains state for [escrow accounts](#escrow-accounts), [pending withdrawals](#pending-withdrawals), and module [parameters](#parameters).
 
 ### Params
 
@@ -44,15 +44,15 @@ message Params {
 
 #### `WithdrawalDelay`
 
-`WithdrawalDelay` is the duration that must pass between requesting a withdrawal and when funds become available for withdrawal (default: 24 hours). This value is also used for pruning ProcessedPromise from the state.
+`WithdrawalDelay` is the duration that must pass between requesting a withdrawal and when funds become available for withdrawal (default: 24 hours). This value is also used for pruning [ProcessedPromise](#processed-promises) from the state.
 
 #### `PromiseTimeout`
 
-`PromiseTimeout` is the duration after which anyone can submit a promise for processing if the user hasn't submitted a `MsgPayForFibre` (default: 1 hour).
+`PromiseTimeout` is the duration after which anyone can submit a promise for processing if the user hasn't submitted a [`MsgPayForFibre`](#msgpayforfibre) (default: 1 hour).
 
 ### Escrow Accounts
 
-Escrow accounts help guarantee payment for a signed `PaymentPromise` by ensuring that a user does not remove funds directly after validators sign over and provide service for a blob. Each user can only have one escrow account, indexed by their signer address.
+Escrow accounts help guarantee payment for a signed [`PaymentPromise`](#msgpayforfibre) by ensuring that a user does not remove funds directly after validators sign over and provide service for a blob. Each user can only have one escrow account, indexed by their signer address.
 
 ```proto
 message EscrowAccount {
@@ -110,7 +110,7 @@ message ProcessedPromise {
 
 #### Pruning Mechanism
 
-Processed promises are automatically pruned after `withdrawal_delay` to prevent unbounded state growth.
+Processed promises are automatically pruned after [`withdrawal_delay`](#withdrawaldelay) to prevent unbounded state growth.
 
 ## Messages
 
@@ -256,7 +256,7 @@ Gas cost is calculated as described in the [Gas Consumption](#gas-consumption) s
 
 2. Verify escrow account exists for `signer`
 3. Verify sufficient available balance for gas cost (see [Gas Consumption](#gas-consumption) section). This includes all yet to be processed `PaymentPromises` that the validator has signed over.
-4. Verify promise signature by escrow owner over promise sign bytes (see Sign Bytes Format below)
+4. Verify promise signature by escrow owner over promise sign bytes (see [Sign Bytes Format](#sign-bytes-format) below)
 5. Verify promise hasn't been processed already
 
 #### Sign Bytes Format
@@ -284,11 +284,11 @@ sign_bytes = signer_bytes || namespace || blob_size_bytes || commitment || row_v
 - All validator signatures must be properly formatted
 
 **Stateful Processing**:
-1. Validate PaymentPromise (see PaymentPromise Validation above)
+1. Validate PaymentPromise (see [PaymentPromise Validation](#paymentpromise-validation) above)
 2. Verify validator signatures represent 2/3+ voting power from validator set at `promise.creation_timestamp` (obtained via historical info query from staking module)
 3. Calculate gas cost (see [Gas Consumption](#gas-consumption) section) and deduct from both escrow balance and available_balance
 4. Mark promise as processed
-5. Include commitment in data square (see Inclusion Processing below)
+5. Include commitment in data square (see [Inclusion Processing](#inclusion-processing) below)
 6. Emit EventPayForFibre
 
 #### Inclusion Processing
@@ -315,10 +315,10 @@ message MsgPaymentTimeout {
 #### MsgPaymentTimeout Validation and Processing
 
 **Stateless Validation**:
-- All PaymentPromise stateless validation applies (including signature validation)
+- All [PaymentPromise](#paymentpromise-validation) stateless validation applies (including signature validation)
 
 **Stateful Processing**:
-1. Validate PaymentPromise (see PaymentPromise Validation above)
+1. Validate PaymentPromise (see [PaymentPromise Validation](#paymentpromise-validation) above)
 2. Verify `promise.creation_timestamp + promise_timeout <= current_timestamp` (timeout has passed)
 3. Calculate gas cost (see [Gas Consumption](#gas-consumption) section) and deduct from both escrow balance and available_balance
 4. Mark promise as processed
@@ -376,19 +376,19 @@ sequenceDiagram
 
 ### Flow Description
 
-1. **Setup Phase**: User creates escrow account and deposits funds using `MsgCreateEscrow` and/or `MsgDepositToEscrow`.
+1. **Setup Phase**: User creates escrow account and deposits funds using [`MsgCreateEscrow`](#msgcreateescrow) and/or [`MsgDepositToEscrow`](#msgdeposittoescrow).
 
-2. **Promise Creation**: User creates a signed `PaymentPromise` containing escrow details, commitment, and creation height.
+2. **Promise Creation**: User creates a signed [`PaymentPromise`](#msgpayforfibre) containing escrow details, commitment, and creation height.
 
 3. **Data Distribution Phase**: User distributes data chunks to validators along with the signed promise.
 
-4. **Validator Verification**: Validators query the celestia-app instance using `QueryValidatePaymentPromise` to verify the promise signature, check escrow has sufficient funds, and confirm the promise hasn't been processed. If valid, validators sign over the commitment.
+4. **Validator Verification**: Validators query the celestia-app instance using [`QueryValidatePaymentPromise`](#validatepaymentpromise) to verify the promise signature, check escrow has sufficient funds, and confirm the promise hasn't been processed. If valid, validators sign over the commitment.
 
-5. **Payment Confirmation (Happy Path)**: User collects 2/3+ validator signatures and submits `MsgPayForFibre` containing the promise and signatures. The commitment gets included in the data square.
+5. **Payment Confirmation (Happy Path)**: User collects 2/3+ validator signatures and submits [`MsgPayForFibre`](#msgpayforfibre) containing the promise and signatures. The commitment gets included in the data square.
 
-6. **Timeout Processing (Fallback)**: If user doesn't submit `MsgPayForFibre` within `promise_timeout_blocks`, anyone can submit `MsgPaymentTimeout` to process payment. This prevents the user from getting free service.
+6. **Timeout Processing (Fallback)**: If user doesn't submit [`MsgPayForFibre`](#msgpayforfibre) within `promise_timeout_blocks`, anyone can submit [`MsgPaymentTimeout`](#msgpaymenttimeout) to process payment. This prevents the user from getting free service.
 
-7. **Withdrawal**: Users can request withdrawals via `MsgRequestWithdrawal` (decreases available balance immediately) and process them after the delay (which decreases total balance and transfers funds to user).
+7. **Withdrawal**: Users can request withdrawals via [`MsgRequestWithdrawal`](#msgrequestwithdrawal) (decreases available balance immediately) and process them after the delay (which decreases total balance and transfers funds to user).
 
 ## Events
 
@@ -444,7 +444,7 @@ sequenceDiagram
 
 ### EscrowAccount
 
-Queries an escrow account by ID.
+Queries an [escrow account](#escrow-accounts) by ID.
 
 **Request**:
 ```proto
@@ -463,7 +463,7 @@ message QueryEscrowAccountResponse {
 
 ### PendingWithdrawals
 
-Queries pending withdrawals for an escrow account.
+Queries [pending withdrawals](#pending-withdrawals) for an escrow account.
 
 **Request**:
 ```proto
@@ -483,7 +483,7 @@ message QueryPendingWithdrawalsResponse {
 
 ### ProcessedPromise
 
-Queries whether an promise has been processed.
+Queries whether a [promise](#processed-promises) has been processed.
 
 **Request**:
 ```proto
@@ -502,7 +502,7 @@ message QueryProcessedPromiseResponse {
 
 ### ValidatePaymentPromise
 
-Validates a payment promise for server use, performing all required checks including escrow balance and processing status.
+Validates a [payment promise](#msgpayforfibre) for server use, performing all required checks including escrow balance and processing status.
 
 **Request**:
 ```proto
@@ -526,7 +526,7 @@ message QueryValidatePaymentPromiseResponse {
 **Validation Checks**:
 1. Verify escrow account exists and has sufficient available balance for the gas cost (see [Gas Consumption](#gas-consumption) section)
 2. Verify promise hasn't been processed already
-3. Perform all standard PaymentPromise validation (see PaymentPromise Validation section)
+3. Perform all standard PaymentPromise validation (see [PaymentPromise Validation](#paymentpromise-validation) section)
 4. Verify promise signature by escrow signer (signature is embedded in the PaymentPromise)
 
 ## Parameters
