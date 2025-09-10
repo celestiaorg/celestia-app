@@ -130,34 +130,9 @@ Where:
 - `row_size(blob_size)` is the size of each row in bytes
 - `gas_per_blob_byte` is the gas cost per byte parameter
 
-### MsgCreateEscrow
-
-Creates a new escrow account for the signer. Each signer can only have one escrow account.
-
-```proto
-message MsgCreateEscrow {
-  // signer is the bech32 encoded signer address who will own the escrow
-  string signer = 1;
-  // initial_deposit is the initial amount to deposit (optional)
-  cosmos.base.v1beta1.Coin initial_deposit = 2;
-}
-```
-
-#### Validation and Processing
-
-**Stateless Validation**:
-- Signer address must be valid
-- Initial deposit amount must be non-negative
-
-**Stateful Processing**:
-1. Verify signer doesn't already have an escrow account
-1. Create escrow account with signer as signer
-1. If initial_deposit > 0, transfer funds and increase both balance and available_balance by deposit amount
-1. Emit EventCreateEscrow
-
 ### MsgDepositToEscrow
 
-Deposits funds to the signer's escrow account. Deposits are processed instantly.
+Deposits funds to the signer's escrow account. If no escrow account exists for the signer, one will be created automatically. Deposits are processed instantly.
 
 ```proto
 message MsgDepositToEscrow {
@@ -175,7 +150,7 @@ message MsgDepositToEscrow {
 - Amount must be positive
 
 **Stateful Processing**:
-1. Verify signer's escrow account exists
+1. If signer's escrow account doesn't exist, create one with zero balance
 2. Transfer funds from signer to module account
 3. Increase both balance and available_balance by deposit amount
 4. Emit EventDepositToEscrow
@@ -344,7 +319,7 @@ sequenceDiagram
     participant A as Celestia-App
 
     Note over C,A: Setup Phase
-    C->>A: MsgCreateEscrow/MsgDepositToEscrow
+    C->>A: MsgDepositToEscrow
 
     Note over C,A: Promise Creation & Data Distribution
     C->>C: Create signed PaymentPromise
@@ -384,7 +359,7 @@ sequenceDiagram
 
 ### Flow Description
 
-1. **Setup Phase**: User creates escrow account and deposits funds using [`MsgCreateEscrow`](#msgcreateescrow) and/or [`MsgDepositToEscrow`](#msgdeposittoescrow).
+1. **Setup Phase**: User deposits funds using [`MsgDepositToEscrow`](#msgdeposittoescrow), which creates an escrow account if one doesn't exist.
 
 2. **Promise Creation**: User creates a signed [`PaymentPromise`](#msgpayforfibre) containing escrow details, commitment, and creation height.
 
@@ -401,13 +376,6 @@ sequenceDiagram
 ## Events
 
 ### Escrow Events
-
-#### `EventCreateEscrow`
-
-| Attribute Key | Attribute Value                    |
-|---------------|------------------------------------|
-| signer         | {bech32 encoded signer address}     |
-| initial_deposit | {initial deposit amount}         |
 
 #### `EventDepositToEscrow`
 
@@ -552,10 +520,7 @@ message QueryValidatePaymentPromiseResponse {
 #### Transactions
 
 ```shell
-# Create new escrow account
-celestia-appd tx fibre create-escrow <initial_deposit> [flags]
-
-# Deposit to escrow account
+# Deposit to escrow account (creates escrow if it doesn't exist)
 celestia-appd tx fibre deposit-to-escrow <amount> [flags]
 
 # Request withdrawal from escrow
