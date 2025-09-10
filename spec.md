@@ -223,7 +223,7 @@ message PaymentPromise {
   bytes namespace = 2;
   // blob_size is the size of the blob in bytes
   uint32 blob_size = 3;
-  // commitment is the hash of the row root and the RLC root
+  // commitment is the hash of the row root and the Random Linear Combination (RLC) root
   bytes commitment = 4;
   // row_version is the version of the row format
   uint32 row_version = 5;
