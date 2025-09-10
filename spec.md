@@ -44,7 +44,7 @@ message Params {
 
 #### `WithdrawalDelay`
 
-`WithdrawalDelay` is the number of seconds that must pass between requesting a withdrawal and when funds become available for withdrawal (default: ~24 hours worth of blocks). This value is also used for pruning ProcessedPromise from the state.
+`WithdrawalDelay` is the number of seconds that must pass between requesting a withdrawal and when funds become available for withdrawal (default: 24 hours). This value is also used for pruning ProcessedPromise from the state.
 
 #### `PromiseTimeoutBlocks`
 
