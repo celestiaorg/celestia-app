@@ -553,8 +553,6 @@ celestia-appd tx fibre deposit-to-escrow <amount> [flags]
 # Request withdrawal from escrow
   celestia-appd tx fibre request-withdrawal <amount> [flags]
 
-# Process withdrawal (after delay)
-celestia-appd tx fibre process-withdrawal <requested_at> [flags]
 
 # Generate signed promise for validators
 celestia-appd tx fibre create-promise <namespace> <blob_size> <commitment> [flags]
