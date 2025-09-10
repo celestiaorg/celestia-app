@@ -135,6 +135,7 @@ jobs:
             entrypoint: TestIBCTestSuite
           - testcase: TestICA
             entrypoint: TestIBCTestSuite
+          - testcase: TestStateSyncCompatibilityAcrossUpgrade
 
     steps:
       - name: Checkout code
