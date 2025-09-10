@@ -223,8 +223,8 @@ func (s *CelestiaTestSuite) TestStateSyncCompatibilityAcrossUpgrade() {
 	tag, err := dockerchain.GetCelestiaTagStrict()
 	s.Require().NoError(err)
 
-	t.Log("Phase 1: Starting the chain with 3 validators")
 	cfg := dockerchain.DefaultConfig(s.client, s.network).WithTag(tag)
+	t.Logf("Phase 1: Starting the chain with %d validators", len(cfg.Genesis.Validators()))
 
 	var (
 		baseAppVersion   = appconsts.Version - 1
@@ -363,8 +363,16 @@ func (s *CelestiaTestSuite) TestStateSyncCompatibilityAcrossUpgrade() {
 // checkSyncMetrics queries Prometheus metrics to determine sync method
 func checkSyncMetrics(t *testing.T, node *tastoradockertypes.ChainNode) (stateSync bool, blockSync bool, err error) {
 	ctx := context.Background()
-	endpoint := "http://localhost:26657/metrics"
-	cmd := []string{"curl", "--silent", "--connect-timeout", "5", endpoint}
+
+	hostname, err := node.GetInternalHostName(ctx)
+	if err != nil {
+		return false, false, fmt.Errorf("failed to get node hostname: %w", err)
+	}
+
+	// NOTE: Due to Tastora's limitation, we must use curl to fetch metrics from the node.
+	// Once the port issue is resolved, we can fetch metrics directly from the node without curl.
+	endpoint := fmt.Sprintf("http://%s:26660/metrics", hostname)
+	cmd := []string{"curl", "--silent", "--connect-timeout", "10", "--max-time", "30", endpoint}
 	stdout, stderr, execErr := node.Exec(ctx, cmd, nil)
 
 	if execErr != nil {
@@ -372,30 +380,32 @@ func checkSyncMetrics(t *testing.T, node *tastoradockertypes.ChainNode) (stateSy
 	}
 
 	metrics := string(stdout)
-
-	// Parse metrics for sync indicators
-	if strings.Contains(metrics, "statesync_syncing 1") {
-		t.Logf("Prometheus metrics: State sync active (statesync_syncing=1)")
-		return true, false, nil
+	if len(metrics) == 0 {
+		return false, false, fmt.Errorf("received empty metrics response from %s", endpoint)
 	}
 
-	if strings.Contains(metrics, "blocksync_syncing 1") {
-		t.Logf("Prometheus metrics: Block sync active (blocksync_syncing=1)")
-		return false, true, nil
+	return parsePrometheusMetrics(t, metrics)
+}
+
+func parsePrometheusMetrics(t *testing.T, metrics string) (stateSync bool, blockSync bool, err error) {
+	// Check for state sync evidence
+	// The presence of apply_snapshot_chunk metrics with non-zero count proves state sync was used
+	lines := strings.Split(metrics, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "apply_snapshot_chunk") && strings.Contains(line, "_count{") {
+			// Look for non-zero count indicating snapshot chunks were applied
+			parts := strings.Fields(line)
+			if len(parts) >= 2 {
+				countStr := parts[len(parts)-1]
+				if countStr != "0" && countStr != "0.0" {
+					t.Logf("State sync confirmed: applied %s snapshot chunks", countStr)
+					return true, false, nil
+				}
+			}
+		}
 	}
 
-	// Check for completed sync metrics
-	if strings.Contains(metrics, "statesync_syncing 0") {
-		t.Logf("Prometheus metrics: State sync completed (statesync_syncing=0)")
-		return true, false, nil
-	}
-
-	if strings.Contains(metrics, "blocksync_syncing 0") {
-		t.Logf("Prometheus metrics: Block sync completed (blocksync_syncing=0)")
-		return false, true, nil
-	}
-
-	t.Logf("Prometheus metrics available but no sync metrics found")
+	// No evidence of state sync found
 	return false, false, nil
 }
 
@@ -457,16 +467,25 @@ func (s *CelestiaTestSuite) performUpgrade(ctx context.Context, chain tastoratyp
 
 // validatorStateSyncProducerOverrides configures validators to produce state sync snapshots.
 func validatorStateSyncProducerOverrides(ctx context.Context, node *tastoradockertypes.ChainNode) error {
-	return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
+	err := config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
 		// configure frequent state sync snapshots for new nodes to consume
 		cfg.StateSync.SnapshotInterval = 5
 		cfg.StateSync.SnapshotKeepRecent = 3
+		cfg.Telemetry.Enabled = true
+	})
+	if err != nil {
+		return err
+	}
+
+	return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
+		cfg.Instrumentation.Prometheus = true
+		cfg.Instrumentation.PrometheusListenAddr = "0.0.0.0:26660"
 	})
 }
 
 // configureStateSyncClient configures a node to use state sync.
 func configureStateSyncClient(ctx context.Context, node *tastoradockertypes.ChainNode, rpcEndpoints []string, trustHeight int64, trustHash string) error {
-	return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
+	err := config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
 		cfg.StateSync.Enable = true
 
 		if len(rpcEndpoints) > 0 {
@@ -480,5 +499,13 @@ func configureStateSyncClient(ctx context.Context, node *tastoradockertypes.Chai
 		cfg.StateSync.DiscoveryTime = 5 * time.Second
 
 		cfg.Instrumentation.Prometheus = true
+		cfg.Instrumentation.PrometheusListenAddr = "0.0.0.0:26660"
+	})
+	if err != nil {
+		return err
+	}
+
+	return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
+		cfg.Telemetry.Enabled = true
 	})
 }
