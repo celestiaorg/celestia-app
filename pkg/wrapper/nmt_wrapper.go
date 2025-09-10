@@ -49,7 +49,7 @@ type Tree interface {
 }
 
 // NewErasuredNamespacedMerkleTree creates a new ErasuredNamespacedMerkleTree
-// with an underlying NMT of namespace size `appconsts.NamespaceSize` and with
+// with an underlying NMT of namespace size `share.NamespaceSize` and with
 // `ignoreMaxNamespace=true`. axisIndex is the index of the row or column that
 // this tree is committing to. squareSize must be greater than zero.
 func NewErasuredNamespacedMerkleTree(squareSize uint64, axisIndex uint, options ...nmt.Option) ErasuredNamespacedMerkleTree {

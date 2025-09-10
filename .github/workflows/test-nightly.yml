@@ -15,7 +15,7 @@ on:
 
 jobs:
   test-state-sync-mocha:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-8
     timeout-minutes: 60
     steps:
       - name: Checkout code
