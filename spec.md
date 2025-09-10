@@ -203,7 +203,7 @@ message MsgPayForFibre {
 message PaymentPromise {
   // signer is the owner of the escrow account to charge
   string signer = 1;
-  // namespace is the namespace the blob is associated with. namespace version must be 2.
+  // namespace is the namespace the blob is associated with. share version must be 2.
   bytes namespace = 2;
   // blob_size is the size of the blob in bytes
   uint64 blob_size = 3;
@@ -222,7 +222,7 @@ message PaymentPromise {
 
 **Stateless Validation**:
 - `signer` must be valid bech32 address
-- `namespace` must be valid and version 2
+- `namespace` must be valid and share version 2
 - `blob_size` must be positive
 - `commitment` must be 32 bytes
 - `row_version` must be supported version
