@@ -197,11 +197,9 @@ func (s *Signer) accountNameByAddress(address sdktypes.AccAddress) string {
 }
 
 func (s *Signer) Accounts() []*Account {
-	accounts := make([]*Account, len(s.accounts))
-	i := 0
+	accounts := make([]*Account, 0, len(s.accounts))
 	for _, acc := range s.accounts {
-		accounts[i] = acc
-		i++
+		accounts = append(accounts, acc)
 	}
 	return accounts
 }
