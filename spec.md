@@ -214,6 +214,10 @@ message MsgPayForFibre {
   PaymentPromise promise = 2;
   // validator_signatures contains signatures from 2/3+ validators
   repeated bytes validator_signatures = 3;
+  // flat_voting_power assumes voting power is even across all validators,
+  // requiring signatures from 2/3+ of the active validators. When false
+  // signature verification requires 2/3+ voting power
+  bool flat_voting_power = 4;
 }
 
 message PaymentPromise {
@@ -227,7 +231,9 @@ message PaymentPromise {
   bytes commitment = 4;
   // row_version is the version of the row format
   uint32 row_version = 5;
-  // creation_timestamp is the timestamp when this promise was created. This is critical for determining which validators sign along with when service stops for this blob.
+  // creation_timestamp is the timestamp when this promise was created. This
+  //  is critical for determining which validators sign along with when
+  // service stops for this blob.
   google.protobuf.Timestamp creation_timestamp = 6;
   // signature is the escrow owner's signature over the sign bytes
   bytes signature = 7;
@@ -285,7 +291,9 @@ sign_bytes = signer_bytes || namespace || blob_size_bytes || commitment || row_v
 
 **Stateful Processing**:
 1. Validate PaymentPromise (see [PaymentPromise Validation](#paymentpromise-validation) above)
-2. Verify validator signatures represent 2/3+ voting power from validator set at `promise.creation_timestamp` (obtained via historical info query from staking module)
+2. Verify validator signatures represent 2/3+ threshold from validator set at `promise.creation_timestamp` (obtained via historical info query from staking module):
+   - If `flat_voting_power` is true: verify signatures represent 2/3+ of validator count
+   - If `flat_voting_power` is false: verify signatures represent 2/3+ of voting power
 3. Calculate gas cost (see [Gas Consumption](#gas-consumption) section) and deduct from both escrow balance and available_balance
 4. Mark promise as processed
 5. Include commitment in data square (see [Inclusion Processing](#inclusion-processing) below)
@@ -384,7 +392,7 @@ sequenceDiagram
 
 4. **Validator Verification**: Validators query the celestia-app instance using [`QueryValidatePaymentPromise`](#validatepaymentpromise) to verify the promise signature, check escrow has sufficient funds, and confirm the promise hasn't been processed. If valid, validators sign over the commitment.
 
-5. **Payment Confirmation (Happy Path)**: User collects 2/3+ validator signatures and submits [`MsgPayForFibre`](#msgpayforfibre) containing the promise and signatures. The commitment gets included in the data square.
+5. **Payment Confirmation (Happy Path)**: User collects 2/3+ validator signatures and submits [`MsgPayForFibre`](#msgpayforfibre) containing the promise, signatures, and validation mode (validator count vs voting power). The commitment gets included in the data square.
 
 6. **Timeout Processing (Fallback)**: If user doesn't submit [`MsgPayForFibre`](#msgpayforfibre) within `promise_timeout_blocks`, anyone can submit [`MsgPaymentTimeout`](#msgpaymenttimeout) to process payment. This prevents the user from getting free service.
 
@@ -560,7 +568,7 @@ celestia-appd tx fibre process-withdrawal <requested_at> [flags]
 celestia-appd tx fibre create-promise <namespace> <blob_size> <commitment> [flags]
 
 # Submit payment with validator signatures
-celestia-appd tx fibre pay-for-fibre <promise_json> <validator_signatures_json> [flags]
+celestia-appd tx fibre pay-for-fibre <promise_json> <validator_signatures_json> <flat_voting_power> [flags]
 
 # Process promise timeout (fallback mechanism)
 celestia-appd tx fibre process-promise-timeout <promise_json> <promise_signature> [flags]
