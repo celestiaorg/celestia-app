@@ -9,7 +9,7 @@ This guide uses the new gov proposal format.
 
 ## Prerequisites
 
-Verify the current parameter values
+Verify the current parameter values:
 
 ```shell
 $ celestia-appd query blob params
