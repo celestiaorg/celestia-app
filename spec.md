@@ -291,12 +291,12 @@ When processing a successful `MsgPayForFibre`, the commitment must be included i
 2. Place the commitment as the sole data in the specified namespace
 3. The commitment data is included as a single blob in the namespace
 
-### MsgProcessPromiseTimeout
+### MsgPaymentTimeout
 
-Processes a payment promise after the timeout period if no `MsgPayForFibre` was submitted. This mechanism is critical to guaranteeing that payment occurs. `MsgProcessPromiseTimeout` transactions are included in the default transaction reserved namespace.
+Processes a payment promise after the timeout period if no `MsgPayForFibre` was submitted. This mechanism is critical to guaranteeing that payment occurs. `MsgPaymentTimeout` transactions are included in the default transaction reserved namespace.
 
 ```proto
-message MsgProcessPromiseTimeout {
+message MsgPaymentTimeout {
   // signer is the bech32 encoded address submitting this message (can be anyone)
   string signer = 1;
   // promise contains the original payment promise
@@ -304,7 +304,7 @@ message MsgProcessPromiseTimeout {
 }
 ```
 
-#### MsgProcessPromiseTimeout Validation and Processing
+#### MsgPaymentTimeout Validation and Processing
 
 **Stateless Validation**:
 - All PaymentPromise stateless validation applies (including signature validation)
@@ -353,7 +353,7 @@ sequenceDiagram
 
     Note over C,A: Fallback - Timeout Processing
     alt User doesn't submit within timeout
-        C->>A: MsgProcessPromiseTimeout(promise, signature)
+        C->>A: MsgPaymentTimeout(promise, signature)
         A->>A: Deduct payment from escrow
         Note right of A: No data square inclusion
     end
@@ -378,7 +378,7 @@ sequenceDiagram
 
 5. **Payment Confirmation (Happy Path)**: User collects 2/3+ validator signatures and submits `MsgPayForFibre` containing the promise and signatures. The commitment gets included in the data square.
 
-6. **Timeout Processing (Fallback)**: If user doesn't submit `MsgPayForFibre` within `promise_timeout_blocks`, anyone can submit `MsgProcessPromiseTimeout` to process payment. This prevents the user from getting free service.
+6. **Timeout Processing (Fallback)**: If user doesn't submit `MsgPayForFibre` within `promise_timeout_blocks`, anyone can submit `MsgPaymentTimeout` to process payment. This prevents the user from getting free service.
 
 7. **Withdrawal**: Users can request withdrawals via `MsgRequestWithdrawal` (decreases available balance immediately) and process them after the delay (which decreases total balance and transfers funds to user).
 
