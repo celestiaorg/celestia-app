@@ -114,6 +114,22 @@ Processed promises are automatically pruned after `withdrawal_delay` to prevent 
 
 ## Messages
 
+### Gas Consumption
+
+All messages use the existing gas consumption mechanism in the cosmos-sdk. In addition to the standard resource pricing, the messages that deduct fees for blobs, `MsgPayForFibre` and `MsgPaymentTimeout`, manually add gas consumption based on blob size.
+
+**Blob Gas Calculation**:
+
+Gas cost is calculated using the following formula:
+```
+total_gas = (rows * row_size(blob_size) * gas_per_blob_byte)
+```
+
+Where:
+- `rows` is the constant number of rows needed for the blob data
+- `row_size(blob_size)` is the size of each row in bytes
+- `gas_per_blob_byte` is the gas cost per byte parameter
+
 ### MsgCreateEscrow
 
 Creates a new escrow account for the signer. Each signer can only have one escrow account.
@@ -231,15 +247,7 @@ message PaymentPromise {
 
 **Gas Consumption**:
 
-Gas cost is calculated using the following formula:
-```
-total_gas = (sparse_shares_needed(blob_size) * share_size * gas_per_blob_byte)
-```
-
-Where:
-- `rows_needed(blob_size)` is the number of rows needed for the blob data
-- `row_size` is the size of each share in bytes
-- `gas_per_blob_byte` is the gas cost per byte parameter
+Gas cost is calculated as described in the [Gas Consumption](#gas-consumption) section.
 
 **Stateful Validation**:
 1. Verify `creation_timestamp` is:
@@ -247,7 +255,7 @@ Where:
   - greater than (current_timestamp - withdrawal_delay)
 
 2. Verify escrow account exists for `signer`
-3. Verify sufficient available balance for gas cost (see Gas Consumption above). This includes all yet to be processed `PaymentPromises` that the validator has signed over.
+3. Verify sufficient available balance for gas cost (see [Gas Consumption](#gas-consumption) section). This includes all yet to be processed `PaymentPromises` that the validator has signed over.
 4. Verify promise signature by escrow owner over promise sign bytes (see Sign Bytes Format below)
 5. Verify promise hasn't been processed already
 
@@ -278,7 +286,7 @@ sign_bytes = signer_bytes || namespace || blob_size_bytes || commitment || row_v
 **Stateful Processing**:
 1. Validate PaymentPromise (see PaymentPromise Validation above)
 2. Verify validator signatures represent 2/3+ voting power from validator set at `promise.creation_timestamp` (obtained via historical info query from staking module)
-3. Calculate gas cost (see Gas Consumption in PaymentPromise Validation) and deduct from both escrow balance and available_balance
+3. Calculate gas cost (see [Gas Consumption](#gas-consumption) section) and deduct from both escrow balance and available_balance
 4. Mark promise as processed
 5. Include commitment in data square (see Inclusion Processing below)
 6. Emit EventPayForFibre
@@ -312,7 +320,7 @@ message MsgPaymentTimeout {
 **Stateful Processing**:
 1. Validate PaymentPromise (see PaymentPromise Validation above)
 2. Verify `promise.creation_timestamp + promise_timeout <= current_timestamp` (timeout has passed)
-3. Calculate gas cost (see Gas Consumption in PaymentPromise Validation) and deduct from both escrow balance and available_balance
+3. Calculate gas cost (see [Gas Consumption](#gas-consumption) section) and deduct from both escrow balance and available_balance
 4. Mark promise as processed
 5. DO NOT include commitment in data square (since no validator consensus was reached)
 6. Emit EventProcessPromiseTimeout
@@ -516,7 +524,7 @@ message QueryValidatePaymentPromiseResponse {
 ```
 
 **Validation Checks**:
-1. Verify escrow account exists and has sufficient available balance for the gas cost (see Gas Consumption in PaymentPromise Validation)
+1. Verify escrow account exists and has sufficient available balance for the gas cost (see [Gas Consumption](#gas-consumption) section)
 2. Verify promise hasn't been processed already
 3. Perform all standard PaymentPromise validation (see PaymentPromise Validation section)
 4. Verify promise signature by escrow signer (signature is embedded in the PaymentPromise)
