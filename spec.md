@@ -428,7 +428,7 @@ sequenceDiagram
 | Attribute Key | Attribute Value                      |
 |---------------|--------------------------------------|
 | signer        | {bech32 encoded submitter address}   |
-| signer  | {bech32 encoded escrow signer}        |
+| signer  | {bech32 encoded escrow owner}        |
 | namespace     | {namespace the blob is published to} |
 | validator_count | {number of validator signatures}   |
 
@@ -437,8 +437,8 @@ sequenceDiagram
 | Attribute Key | Attribute Value                      |
 |---------------|--------------------------------------|
 | processor     | {bech32 encoded processor address}   |
-| signer  | {bech32 encoded escrow signer}        |
-| namespace     | {namespace the blob is published to} |
+| signer  | {bech32 encoded escrow owner}        |
+| promise_hash  | {hash for the promise that is being timed out} |
 
 ## Queries
 
