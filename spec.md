@@ -227,7 +227,7 @@ message PaymentPromise {
   bytes namespace = 2;
   // blob_size is the size of the blob in bytes
   uint32 blob_size = 3;
-  // commitment is the hash of the row root and the RLC root
+  // commitment is the hash of the row root and the Random Linear Combination (RLC) root
   bytes commitment = 4;
   // row_version is the version of the row format
   uint32 row_version = 5;
@@ -561,8 +561,6 @@ celestia-appd tx fibre deposit-to-escrow <amount> [flags]
 # Request withdrawal from escrow
   celestia-appd tx fibre request-withdrawal <amount> [flags]
 
-# Process withdrawal (after delay)
-celestia-appd tx fibre process-withdrawal <requested_at> [flags]
 
 # Generate signed promise for validators
 celestia-appd tx fibre create-promise <namespace> <blob_size> <commitment> [flags]
