@@ -31,10 +31,10 @@ message Params {
   option (gogoproto.goproto_stringer) = false;
   uint32 gas_per_blob_byte = 1
       [ (gogoproto.moretags) = "yaml:\"gas_per_blob_byte\"" ];
-  uint64 withdrawal_delay = 2
+  google.protobuf.Duration withdrawal_delay = 2
       [ (gogoproto.moretags) = "yaml:\"withdrawal_delay\"" ];
-  uint64 promise_timeout_blocks = 3
-  [ (gogoproto.moretags) = "yaml:\"promise_timeout_blocks\"" ];
+  google.protobuf.Duration promise_timeout = 3
+  [ (gogoproto.moretags) = "yaml:\"promise_timeout\"" ];
 }
 ```
 
@@ -44,11 +44,11 @@ message Params {
 
 #### `WithdrawalDelay`
 
-`WithdrawalDelay` is the number of seconds that must pass between requesting a withdrawal and when funds become available for withdrawal (default: ~24 hours worth of blocks). This value is also used for pruning ProcessedPromise from the state.
+`WithdrawalDelay` is the duration that must pass between requesting a withdrawal and when funds become available for withdrawal (default: 24 hours). This value is also used for pruning ProcessedPromise from the state.
 
-#### `PromiseTimeoutBlocks`
+#### `PromiseTimeout`
 
-`PromiseTimeoutBlocks` is the number of blocks after which anyone can submit a promise for processing if the user hasn't submitted a `MsgPayForFibre` (default: ~1 hour worth of blocks).
+`PromiseTimeout` is the duration after which anyone can submit a promise for processing if the user hasn't submitted a `MsgPayForFibre` (default: 1 hour).
 
 ### Escrow Accounts
 
@@ -75,10 +75,10 @@ message PendingWithdrawal {
   string owner = 1;
   // amount is the amount to be withdrawn
   cosmos.base.v1beta1.Coin amount = 2;
-  // requested_at is the block height when withdrawal was requested
-  int64 requested_at = 3;
-  // available_at is the block height when funds become available
-  int64 available_at = 4;
+  // requested_at is the timestamp when withdrawal was requested
+  google.protobuf.Timestamp requested_at = 3;
+  // available_at is the timestamp when funds become available
+  google.protobuf.Timestamp available_at = 4;
 }
 ```
 
@@ -90,8 +90,8 @@ To prevent double payment, the module tracks which commitments have been process
 message ProcessedPromise {
   // commitment is the commitment that was processed
   bytes commitment = 1;
-  // processed_at is the block height when the promise was processed
-  int64 processed_at = 2;
+  // processed_at is the timestamp when the promise was processed
+  google.protobuf.Timestamp processed_at = 2;
 }
 ```
 
@@ -183,7 +183,7 @@ message MsgRequestWithdrawal {
 1. Verify signer's escrow account exists
 2. Verify sufficient available balance
 3. Decrease available_balance immediately
-4. Create PendingWithdrawal with available_at = current_height + withdrawal_delay_blocks
+4. Create PendingWithdrawal with available_at = current_timestamp + withdrawal_delay
 5. Emit EventRequestWithdrawalFromEscrow
 
 ### MsgPayForFibre
@@ -211,8 +211,8 @@ message PaymentPromise {
   bytes commitment = 4;
   // row_version is the version of the row format
   uint32 row_version = 5;
-  // creation_height is the block height when this promise was created. This is critical for determining which validators sign along with when service stops for this blob.
-  int64 creation_height = 6;
+  // creation_timestamp is the timestamp when this promise was created. This is critical for determining which validators sign along with when service stops for this blob.
+  google.protobuf.Timestamp creation_timestamp = 6;
   // signature is the escrow owner's signature over the sign bytes
   bytes signature = 7;
 }
@@ -226,7 +226,7 @@ message PaymentPromise {
 - `blob_size` must be positive
 - `commitment` must be 32 bytes
 - `row_version` must be supported version
-- `creation_height` must be positive
+- `creation_timestamp` must be positive
 - `signature` must be properly formatted and non-empty
 
 **Gas Consumption**:
@@ -242,9 +242,9 @@ Where:
 - `gas_per_blob_byte` is the gas cost per byte parameter
 
 **Stateful Validation**:
-1. Verify `creation_height` is:
-  - less than or equal to current confirmed height
-  - greater than (current_height - WithdrawalDelay)
+1. Verify `creation_timestamp` is:
+  - less than or equal to current confirmed timestamp
+  - greater than (current_timestamp - withdrawal_delay)
 
 2. Verify escrow account exists for `owner`
 3. Verify sufficient available balance for gas cost (see Gas Consumption above). This includes all yet to be processed `PaymentPromises` that the validator has signed over.
@@ -256,7 +256,7 @@ Where:
 The sign bytes for a PaymentPromise signature are constructed by concatenating all fields except the `signature` field:
 
 ```
-sign_bytes = owner_bytes || namespace || blob_size_bytes || commitment || row_version_byte || creation_height_bytes
+sign_bytes = owner_bytes || namespace || blob_size_bytes || commitment || row_version_byte || creation_timestamp_bytes
 ```
 
 **Field Encoding**:
@@ -265,9 +265,9 @@ sign_bytes = owner_bytes || namespace || blob_size_bytes || commitment || row_ve
 - `blob_size_bytes`: Varint encoded uint64 (1-10 bytes)
 - `commitment`: Raw commitment bytes (32 bytes)
 - `row_version_bytes`: Big-endian encoded uint32 (4 bytes)
-- `creation_height_bytes`: Big-endian encoded int64 (8 bytes)
+- `creation_timestamp_bytes`: Protobuf-encoded google.protobuf.Timestamp (variable length)
 
-**Total Length**: Variable length of 94-103 bytes (20 + 29 + 1-10 + 32 + 4 + 8)
+**Total Length**: Variable length (20 + 29 + 1-10 + 32 + 4 + timestamp_bytes)
 
 #### MsgPayForFibre Validation and Processing
 
@@ -277,7 +277,7 @@ sign_bytes = owner_bytes || namespace || blob_size_bytes || commitment || row_ve
 
 **Stateful Processing**:
 1. Validate PaymentPromise (see PaymentPromise Validation above)
-2. Verify validator signatures represent 2/3+ voting power from validator set at `promise.creation_height` (obtained via historical info query from staking module)
+2. Verify validator signatures represent 2/3+ voting power from validator set at `promise.creation_timestamp` (obtained via historical info query from staking module)
 3. Calculate gas cost (see Gas Consumption in PaymentPromise Validation) and deduct from escrow available balance
 4. Mark promise as processed
 5. Include commitment in data square (see Inclusion Processing below)
@@ -311,7 +311,7 @@ message MsgProcessPromiseTimeout {
 
 **Stateful Processing**:
 1. Validate PaymentPromise (see PaymentPromise Validation above)
-2. Verify `promise.creation_height + promise_timeout_blocks <= current_height` (timeout has passed)
+2. Verify `promise.creation_timestamp + promise_timeout <= current_timestamp` (timeout has passed)
 3. Calculate gas cost (see Gas Consumption in PaymentPromise Validation) and deduct from escrow available balance
 4. Mark promise as processed
 5. DO NOT include commitment in data square (since no validator consensus was reached)
@@ -406,7 +406,7 @@ sequenceDiagram
 |---------------|------------------------------------|
 | owner         | {bech32 encoded owner address}     |
 | amount        | {withdrawal amount}                |
-| available_at  | {block height when available}      |
+| available_at  | {timestamp when available}          |
 
 #### `EventProcessWithdrawal`
 
@@ -523,11 +523,11 @@ message QueryValidatePaymentPromiseResponse {
 
 ## Parameters
 
-| Key                  | Type   | Default | Description |
-|----------------------|--------|---------|-------------|
-| GasPerBlobByte       | uint32 | 8       | Gas cost per byte of blob data |
-| WithdrawalDelay      | uint64 | 144     | Blocks to wait before withdrawal |
-| PromiseTimeoutBlocks | uint64 | 100     | Blocks before promise can be processed by timeout |
+| Key                | Type                        | Default    | Description |
+|--------------------|-----------------------------|-----------:|-------------|
+| GasPerBlobByte     | uint32                      | 8          | Gas cost per byte of blob data |
+| WithdrawalDelay    | google.protobuf.Duration    | 24h        | Duration to wait before withdrawal |
+| PromiseTimeout     | google.protobuf.Duration    | 1h         | Duration before promise can be processed by timeout |
 
 ## Client
 
