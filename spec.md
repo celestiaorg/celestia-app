@@ -52,12 +52,12 @@ message Params {
 
 ### Escrow Accounts
 
-Escrow accounts help guarantee payment for a signed `PaymentPromise` by ensuring that a user does not remove funds directly after validators sign over and provide service for a blob. Each user can only have one escrow account, indexed by their owner address.
+Escrow accounts help guarantee payment for a signed `PaymentPromise` by ensuring that a user does not remove funds directly after validators sign over and provide service for a blob. Each user can only have one escrow account, indexed by their signer address.
 
 ```proto
 message EscrowAccount {
-  // owner is the address that controls this escrow account
-  string owner = 1;
+  // signer is the address that controls this escrow account
+  string signer = 1;
   // balance is the total amount currently held in escrow
   cosmos.base.v1beta1.Coin balance = 2;
   // available_balance is the amount available for new payments
@@ -71,8 +71,8 @@ Withdrawal requests are tracked to implement the delay mechanism.
 
 ```proto
 message PendingWithdrawal {
-  // owner is the address that owns the escrow account this withdrawal is for
-  string owner = 1;
+  // signer is the address that owns the escrow account this withdrawal is for
+  string signer = 1;
   // amount is the amount to be withdrawn
   cosmos.base.v1beta1.Coin amount = 2;
   // requested_at is the timestamp when withdrawal was requested
@@ -98,11 +98,11 @@ message ProcessedPromise {
 #### Indexing
 
 **Escrow Accounts**:
-- **Primary Index**: `escrows/{owner}` → `EscrowAccount`
+- **Primary Index**: `escrows/{signer}` → `EscrowAccount`
 
 **Pending Withdrawals**:
-- **By Owner**: `withdrawals/{owner}/{requested_at}` → `PendingWithdrawal`
-- **By Availability**: `available_withdrawals/{available_at}/{owner}` → `null` (for processing)
+- **By signer**: `withdrawals/{signer}/{requested_at}` → `PendingWithdrawal`
+- **By Availability**: `available_withdrawals/{available_at}/{signer}` → `null` (for processing)
 
 **Processed Promises**:
 - **Primary Index**: `processed/{commitment}` → `ProcessedPromise`
@@ -135,7 +135,7 @@ message MsgCreateEscrow {
 
 **Stateful Processing**:
 1. Verify signer doesn't already have an escrow account
-1. Create escrow account with signer as owner
+1. Create escrow account with signer as signer
 1. If initial_deposit > 0, transfer funds and increase both balance and available_balance by deposit amount
 1. Emit EventCreateEscrow
 
@@ -201,8 +201,8 @@ message MsgPayForFibre {
 }
 
 message PaymentPromise {
-  // owner is the owner of the escrow account to charge
-  string owner = 1;
+  // signer is the owner of the escrow account to charge
+  string signer = 1;
   // namespace is the namespace the blob is associated with. namespace version must be 2.
   bytes namespace = 2;
   // blob_size is the size of the blob in bytes
@@ -221,7 +221,7 @@ message PaymentPromise {
 #### PaymentPromise Validation
 
 **Stateless Validation**:
-- `owner` must be valid bech32 address
+- `signer` must be valid bech32 address
 - `namespace` must be valid and version 2
 - `blob_size` must be positive
 - `commitment` must be 32 bytes
@@ -246,7 +246,7 @@ Where:
   - less than or equal to current confirmed timestamp
   - greater than (current_timestamp - withdrawal_delay)
 
-2. Verify escrow account exists for `owner`
+2. Verify escrow account exists for `signer`
 3. Verify sufficient available balance for gas cost (see Gas Consumption above). This includes all yet to be processed `PaymentPromises` that the validator has signed over.
 4. Verify promise signature by escrow owner over promise sign bytes (see Sign Bytes Format below)
 5. Verify promise hasn't been processed already
@@ -256,11 +256,11 @@ Where:
 The sign bytes for a PaymentPromise signature are constructed by concatenating all fields except the `signature` field:
 
 ```
-sign_bytes = owner_bytes || namespace || blob_size_bytes || commitment || row_version_byte || creation_timestamp_bytes
+sign_bytes = signer_bytes || namespace || blob_size_bytes || commitment || row_version_byte || creation_timestamp_bytes
 ```
 
 **Field Encoding**:
-- `owner`: raw bytes of owner address secp256k1 (20 bytes)
+- `signer`: raw bytes of signer address secp256k1 (20 bytes)
 - `namespace`: Raw namespace bytes (fixed 29 bytes)
 - `blob_size_bytes`: Varint encoded uint64 (1-10 bytes)
 - `commitment`: Raw commitment bytes (32 bytes)
@@ -359,7 +359,7 @@ sequenceDiagram
     end
 
     Note over C,A: Withdrawal Flow
-    C->>A: MsgRequestWithdrawal(owner, amount)
+    C->>A: MsgRequestWithdrawal(signer, amount)
     A->>A: Decrease available_balance immediately
 
     Note over C,A: After withdrawal delay
@@ -390,7 +390,7 @@ sequenceDiagram
 
 | Attribute Key | Attribute Value                    |
 |---------------|------------------------------------|
-| owner         | {bech32 encoded owner address}     |
+| signer         | {bech32 encoded signer address}     |
 | initial_deposit | {initial deposit amount}         |
 
 #### `EventDepositToEscrow`
@@ -404,7 +404,7 @@ sequenceDiagram
 
 | Attribute Key | Attribute Value                    |
 |---------------|------------------------------------|
-| owner         | {bech32 encoded owner address}     |
+| signer         | {bech32 encoded signer address}     |
 | amount        | {withdrawal amount}                |
 | available_at  | {timestamp when available}          |
 
@@ -420,7 +420,7 @@ sequenceDiagram
 | Attribute Key | Attribute Value                      |
 |---------------|--------------------------------------|
 | signer        | {bech32 encoded submitter address}   |
-| owner  | {bech32 encoded escrow owner}        |
+| signer  | {bech32 encoded escrow signer}        |
 | namespace     | {namespace the blob is published to} |
 | validator_count | {number of validator signatures}   |
 
@@ -429,7 +429,7 @@ sequenceDiagram
 | Attribute Key | Attribute Value                      |
 |---------------|--------------------------------------|
 | processor     | {bech32 encoded processor address}   |
-| owner  | {bech32 encoded escrow owner}        |
+| signer  | {bech32 encoded escrow signer}        |
 | namespace     | {namespace the blob is published to} |
 
 ## Queries
@@ -441,7 +441,7 @@ Queries an escrow account by ID.
 **Request**:
 ```proto
 message QueryEscrowAccountRequest {
-  string owner = 1;
+  string signer = 1;
 }
 ```
 
@@ -460,7 +460,7 @@ Queries pending withdrawals for an escrow account.
 **Request**:
 ```proto
 message QueryPendingWithdrawalsRequest {
-  uint64 owner = 1;
+  uint64 signer = 1;
   cosmos.base.query.v1beta1.PageRequest pagination = 2;
 }
 ```
@@ -519,7 +519,7 @@ message QueryValidatePaymentPromiseResponse {
 1. Verify escrow account exists and has sufficient available balance for the gas cost (see Gas Consumption in PaymentPromise Validation)
 2. Verify promise hasn't been processed already
 3. Perform all standard PaymentPromise validation (see PaymentPromise Validation section)
-4. Verify promise signature by escrow owner (signature is embedded in the PaymentPromise)
+4. Verify promise signature by escrow signer (signature is embedded in the PaymentPromise)
 
 ## Parameters
 
@@ -562,10 +562,10 @@ celestia-appd tx fibre process-promise-timeout <promise_json> <promise_signature
 
 ```shell
 # Query escrow account
-celestia-appd query fibre escrow-account <owner_address>
+celestia-appd query fibre escrow-account <signer_address>
 
 # Query pending withdrawals
-celestia-appd query fibre pending-withdrawals <owner_address>
+celestia-appd query fibre pending-withdrawals <signer_address>
 
 # Query if promise was processed
 celestia-appd query fibre processed-promise <commitment>
