@@ -136,7 +136,7 @@ message MsgCreateEscrow {
 **Stateful Processing**:
 1. Verify signer doesn't already have an escrow account
 1. Create escrow account with signer as owner
-1. If initial_deposit > 0, transfer funds and update balances
+1. If initial_deposit > 0, transfer funds and increase both balance and available_balance by deposit amount
 1. Emit EventCreateEscrow
 
 ### MsgDepositToEscrow
@@ -161,7 +161,7 @@ message MsgDepositToEscrow {
 **Stateful Processing**:
 1. Verify signer's escrow account exists
 2. Transfer funds from signer to module account
-3. Update escrow account balance and available_balance
+3. Increase both balance and available_balance by deposit amount
 4. Emit EventDepositToEscrow
 
 ### MsgRequestWithdrawal
