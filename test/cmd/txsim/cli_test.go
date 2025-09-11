@@ -59,7 +59,7 @@ func TestTxsimCommandEnvVar(t *testing.T) {
 func TestTxsimFillingBlocks(t *testing.T) {
 	_, _, grpcAddr := setup(t)
 	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	kr, err := keyring.New(app.Name, keyring.BackendTest, app.NodeHome, nil, cdc)
@@ -92,7 +92,7 @@ func TestTxsimFillingBlocks(t *testing.T) {
 func TestTxsimFillingBlocksWithShareOverhead(t *testing.T) {
 	_, _, grpcAddr := setup(t)
 	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	kr, err := keyring.New(app.Name, keyring.BackendTest, app.NodeHome, nil, cdc)
