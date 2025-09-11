@@ -112,7 +112,7 @@ func (app App) RegisterUpgradeHandlers() {
 
 			sdkCtx.Logger().Info("finished to upgrade", "upgrade-name", upgradeName, "duration-sec", time.Since(start).Seconds())
 
-			return fromVM, nil
+			return app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
 		},
 	)
 

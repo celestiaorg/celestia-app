@@ -114,6 +114,7 @@ func (app *App) setModuleOrder() {
 		minfeetypes.ModuleName,
 		icatypes.ModuleName,
 		packetforwardtypes.ModuleName,
+		zkismtypes.ModuleName,
 	)
 
 	app.ModuleManager.SetOrderPreBlockers(

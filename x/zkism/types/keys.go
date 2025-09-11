@@ -10,4 +10,8 @@ const (
 	StoreKey = ModuleName
 )
 
-var IsmsKeyPrefix = collections.NewPrefix(0)
+var (
+	IsmsKeyPrefix    = collections.NewPrefix(0)
+	HeadersKeyPrefix = collections.NewPrefix(1)
+	ParamsKeyPrefix  = collections.NewPrefix(2)
+)

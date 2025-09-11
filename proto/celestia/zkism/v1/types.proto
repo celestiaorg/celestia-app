@@ -62,3 +62,10 @@ message EventCreateZKExecutionISM {
   // hash-based commitment to the verifier key used for public input integrity
   bytes vkey_commitment = 9;
 }
+
+// Params defines the zk ism module parameters.
+message Params {
+  option (gogoproto.goproto_getters) = false;
+
+  uint32 max_header_hashes = 1;
+}

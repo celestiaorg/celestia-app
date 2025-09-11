@@ -155,3 +155,53 @@ func (suite *KeeperTestSuite) TestQueryServerIsms() {
 		})
 	}
 }
+
+func (suite *KeeperTestSuite) TestQueryServerParams() {
+	var (
+		expParams types.Params
+		req       *types.QueryParamsRequest
+	)
+
+	testCases := []struct {
+		name      string
+		setupTest func()
+		expError  error
+	}{
+		{
+			name: "success",
+			setupTest: func() {
+				req = &types.QueryParamsRequest{}
+
+				expParams = types.DefaultParams()
+			},
+			expError: nil,
+		},
+		{
+			name: "request cannot be empty",
+			setupTest: func() {
+				req = nil
+			},
+			expError: errors.New("request cannot be empty"),
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			suite.SetupTest() // reset
+
+			tc.setupTest()
+
+			queryServer := keeper.NewQueryServerImpl(suite.zkISMKeeper)
+			res, err := queryServer.Params(suite.ctx, req)
+
+			if tc.expError != nil {
+				suite.Require().Nil(res)
+				suite.Require().Error(err)
+				suite.Require().ErrorContains(err, tc.expError.Error())
+			} else {
+				suite.Require().NoError(err)
+				suite.Require().Equal(expParams, res.Params)
+			}
+		})
+	}
+}
