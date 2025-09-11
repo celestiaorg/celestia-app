@@ -2,9 +2,11 @@ package da
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
@@ -79,7 +81,7 @@ func (dah *DataAvailabilityHeader) String() string {
 	if dah == nil {
 		return "<nil DAHeader>"
 	}
-	return fmt.Sprintf("%X", dah.Hash())
+	return strings.ToUpper(hex.EncodeToString(dah.Hash()))
 }
 
 // Equals checks equality of two DAHeaders.
