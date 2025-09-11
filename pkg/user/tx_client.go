@@ -159,7 +159,7 @@ type TxClient struct {
 	gasEstimationClient gasestimation.GasEstimatorClient
 }
 
-// NewTxClient returns a new TxClient using the provided keyring
+// NewTxClient returns a new TxClient
 func NewTxClient(
 	cdc codec.Codec,
 	signer *Signer,
