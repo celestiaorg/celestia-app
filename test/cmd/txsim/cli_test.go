@@ -56,6 +56,73 @@ func TestTxsimCommandEnvVar(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestTxsimFillingBlocks(t *testing.T) {
+	_, _, grpcAddr := setup(t)
+	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	kr, err := keyring.New(app.Name, keyring.BackendTest, app.NodeHome, nil, cdc)
+	if err != nil {
+		t.Fatal("Keyring failed with ", err)
+	}
+	defer func() {
+		if err := kr.Delete(testfactory.TestAccName); err != nil {
+			t.Error("Failed to delete test account: ", err)
+		}
+	}()
+
+	if _, err = kr.NewAccount(testfactory.TestAccName, testfactory.TestAccMnemo, "", "", hd.Secp256k1); err != nil {
+		t.Error("NewAccount failed with", err)
+	}
+	cmd := command()
+
+	cmd.SetArgs([]string{
+		"fill-blocks",
+		"--grpc-endpoint", grpcAddr,
+		"--seed", "1223",
+		"--poll-time", "1s",
+		"--feegrant",
+	})
+	err = cmd.ExecuteContext(ctx)
+
+	require.NoError(t, err)
+}
+
+func TestTxsimFillingBlocksWithShareOverhead(t *testing.T) {
+	_, _, grpcAddr := setup(t)
+	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	kr, err := keyring.New(app.Name, keyring.BackendTest, app.NodeHome, nil, cdc)
+	if err != nil {
+		t.Fatal("Keyring failed with ", err)
+	}
+	defer func() {
+		if err := kr.Delete(testfactory.TestAccName); err != nil {
+			t.Error("Failed to delete test account: ", err)
+		}
+	}()
+
+	if _, err = kr.NewAccount(testfactory.TestAccName, testfactory.TestAccMnemo, "", "", hd.Secp256k1); err != nil {
+		t.Error("NewAccount failed with", err)
+	}
+	cmd := command()
+
+	cmd.SetArgs([]string{
+		"fill-blocks",
+		"--grpc-endpoint", grpcAddr,
+		"--seed", "1223",
+		"--poll-time", "1s",
+		"--feegrant",
+		"--share-overhead", "25",
+	})
+	err = cmd.ExecuteContext(ctx)
+
+	require.NoError(t, err)
+}
+
 func TestTxsimDefaultKeypath(t *testing.T) {
 	_, _, grpcAddr := setup(t)
 	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
