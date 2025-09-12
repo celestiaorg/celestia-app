@@ -26,14 +26,14 @@ This release introduces a new block propagation reactor and configuration change
 
 To modify your existing configs, the `celestia-appd update-configs` command can be used.
 
-```
+```shell
 celestia-appd update-config
 ```
 
 this uses version 6 and the default home (.celestia-app). Those can be changed or specified with flags as well.
 
-```
-celestia-appd update-config --version 6 --home ~/.celestia-app
+```shell
+celestia-appd update-config --app-version 6 --home ~/.celestia-app
 ```
 
 To manually modify the configs, change the following values.
