@@ -147,6 +147,7 @@ func (app App) RegisterUpgradeHandlers() {
 		},
 	)
 
+<<<<<<< HEAD
 	app.UpgradeKeeper.SetUpgradeHandler(
 		UpgradeNameV5,
 		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
@@ -157,6 +158,9 @@ func (app App) RegisterUpgradeHandlers() {
 			// TODO: Add any upgrade logic here
 			sdkCtx.Logger().Info("finished upgrade handler", "upgrade-name", UpgradeNameV5, "duration-sec", time.Since(start).Seconds())
 			return fromVM, nil
+=======
+			return app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
+>>>>>>> bebf5d7 (fix: use correct upgrade height when dumping info to disk (#5724))
 		},
 	)
 
