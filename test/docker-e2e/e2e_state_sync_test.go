@@ -265,7 +265,6 @@ func (s *CelestiaTestSuite) TestStateSyncCompatibilityAcrossUpgrade() {
 	s.Require().NoError(wait.ForBlocks(ctx, 20, chain), "failed to wait for 20 blocks")
 
 	t.Log("Testing functionality before upgrade")
-
 	testBankSend(s.T(), chain, cfg)
 	testPFBSubmission(s.T(), chain, cfg)
 
@@ -313,7 +312,6 @@ func (s *CelestiaTestSuite) TestStateSyncCompatibilityAcrossUpgrade() {
 	s.Require().NoError(err, "failed to get state sync client")
 
 	t.Log("Waiting for node to state sync...")
-	// Wait for sync to complete
 	err = wait.ForCondition(ctx, stateSyncTimeout, 1*time.Second, func() (bool, error) {
 		status, err := stateSyncClient.Status(ctx)
 		if err != nil {
@@ -441,7 +439,6 @@ func (s *CelestiaTestSuite) performUpgrade(ctx context.Context, chain tastoratyp
 
 	upgradeHeight := s.signalAndGetUpgradeHeight(ctx, chain, validatorNode, cfg, records, targetAppVersion)
 
-	// Wait for upgrade to complete
 	rpcClient, err := validatorNode.GetRPCClient()
 	s.Require().NoError(err, "failed to get RPC client")
 
@@ -450,8 +447,7 @@ func (s *CelestiaTestSuite) performUpgrade(ctx context.Context, chain tastoratyp
 
 	blocksToWait := int(upgradeHeight-currentHeight) + 2
 	t.Logf("Waiting for %d blocks to reach upgrade height %d", blocksToWait, upgradeHeight)
-	s.Require().NoError(wait.ForBlocks(ctx, blocksToWait, chain),
-		"failed to wait for upgrade completion")
+	s.Require().NoError(wait.ForBlocks(ctx, blocksToWait, chain), "failed to wait for upgrade completion")
 
 	// Verify upgrade completed successfully
 	abciInfo, err := rpcClient.ABCIInfo(ctx)
