@@ -14,6 +14,8 @@ The modules used in app version 6 are:
 - [auth](https://github.com/celestiaorg/cosmos-sdk/blob/d44ddbb106ad0cd510c170e7d23ee8a48d003ba5/x/auth/README.md)
 - [authz](https://github.com/celestiaorg/cosmos-sdk/blob/d44ddbb106ad0cd510c170e7d23ee8a48d003ba5/x/authz/README.md)
 - [bank](https://github.com/celestiaorg/cosmos-sdk/blob/d44ddbb106ad0cd510c170e7d23ee8a48d003ba5/x/bank/README.md)
+- [circuit](https://github.com/cosmos/cosmos-sdk/blob/c625f47d31e24244c34ea3f47f97453f03fc0318/x/circuit/README.md)
+- [consensus](https://github.com/celestiaorg/cosmos-sdk/blob/f7d1253120878aa35dd67b1c0d9bb5c46d83ce03/x/consensus/README.md)
 - [distribution](https://github.com/celestiaorg/cosmos-sdk/blob/d44ddbb106ad0cd510c170e7d23ee8a48d003ba5/x/distribution/README.md)
 - [evidence](https://github.com/celestiaorg/cosmos-sdk/blob/d44ddbb106ad0cd510c170e7d23ee8a48d003ba5/x/evidence/README.md)
 - [feegrant](https://github.com/celestiaorg/cosmos-sdk/blob/d44ddbb106ad0cd510c170e7d23ee8a48d003ba5/x/feegrant/README.md)
@@ -22,10 +24,12 @@ The modules used in app version 6 are:
 - [params](https://github.com/celestiaorg/cosmos-sdk/blob/d44ddbb106ad0cd510c170e7d23ee8a48d003ba5/x/params/README.md)
 - [slashing](https://github.com/celestiaorg/cosmos-sdk/blob/d44ddbb106ad0cd510c170e7d23ee8a48d003ba5/x/slashing/README.md)
 - [staking](https://github.com/celestiaorg/cosmos-sdk/blob/d44ddbb106ad0cd510c170e7d23ee8a48d003ba5/x/staking/README.md)
+- [upgrade](https://github.com/cosmos/cosmos-sdk/blob/c625f47d31e24244c34ea3f47f97453f03fc0318/x/upgrade/README.md)
 - [vesting](https://github.com/celestiaorg/cosmos-sdk/blob/d44ddbb106ad0cd510c170e7d23ee8a48d003ba5/x/auth/vesting/README.md)
 
 ## Third-party modules
 
+- [capability](https://github.com/cosmos/ibc-go/tree/90ee107b3b06d37ee647177368332e32a5cc27cd/modules/capability)
 - [hyperlane/core](https://github.com/bcp-innovations/hyperlane-cosmos/tree/f2bd6ed84c791b17a46bcc3d329e8c9eba97b425/x/core)
 - [hyperlane/warp](https://github.com/bcp-innovations/hyperlane-cosmos/tree/f2bd6ed84c791b17a46bcc3d329e8c9eba97b425/x/warp)
 - [ibc](https://github.com/cosmos/ibc/blob/f990a7f96eb7753c2fabbd49ed50b64d3a807629/README.md)
