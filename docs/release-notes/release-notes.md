@@ -2,11 +2,19 @@
 
 This guide provides notes for major version releases. These notes may be helpful for users when upgrading from previous major versions.
 
-## Upcoming Major Release
+## v6.0.0
 
-## v6.0.0 (Unreleased)
+This release contains all the changes from [CIP-042](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-042.md). Notably:
 
-This release targets throughput, blob size, inflation reduction, and fee changes.
+- Lowers the unbonding period to ~14 days
+- Increases maximum block, square, and transaction size
+- Removes the token filter for Hyperlane and IBC
+- Privval Interface Extension for Arbitrary Message Signing
+- Reduce issuance to 2.5% and increase minimum commission to 10%
+
+### Hardware Requirements
+
+v6 changes the [hardware requirements](https://docs.celestia.org/how-to-guides/nodes-overview#consensus-nodes) for consensus nodes. Please ensure your consensus node meets these requirements.
 
 ### Key Management Service (KMS) changes
 
