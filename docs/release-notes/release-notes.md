@@ -8,9 +8,21 @@ This guide provides notes for major version releases. These notes may be helpful
 
 This release targets throughput, blob size, inflation reduction, and fee changes.
 
+### Key Management Service (KMS) changes
+
+This release introduces a new message type that needs to be signed by KMS. **If you use Horcrux or TmKMS, you must use these versions in order to participate in consensus. If you use an alternative KMS, please reach out.**
+
+#### Horcrux
+
+For horcrux, use [v3.3.2-celestia](https://github.com/celestiaorg/horcrux/releases/tag/v3.3.2-celestia). All the setups and configs remain the same.
+
+#### TmKMS
+
+For TmKMS, use [v0.14.0-celestia](https://github.com/celestiaorg/tmkms/releases/tag/v0.14.0-celestia). All the setups and configs remain the same.
+
 ### Config changes
 
-It introduces a new block propagation reactor and configuration changes to accommodate the increased throughput. The relevant v6 configuration changes can be applied to existing config using the `celestia-appd update-config` command or by manually updating the config.toml and app.toml.
+This release introduces a new block propagation reactor and configuration changes to accommodate the increased throughput. The relevant v6 configuration changes can be applied to existing config using the `celestia-appd update-config` command or by manually updating the config.toml and app.toml.
 
 To modify your existing configs, the `celestia-appd update-configs` command can be used.
 

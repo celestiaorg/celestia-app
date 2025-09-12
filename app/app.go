@@ -190,19 +190,20 @@ type App struct {
 	BasicManager  module.BasicManager
 	ModuleManager *module.Manager
 	configurator  module.Configurator
-	// timeoutCommit is used to override the default timeoutCommit. This is
+	// blockTime is used to override the default TimeoutHeightDelay. This is
 	// useful for testing purposes and should not be used on public networks
 	// (Arabica, Mocha, or Mainnet Beta).
-	timeoutCommit time.Duration
+	delayedPrecommitTimeout time.Duration
 }
 
 // New returns a reference to an uninitialized app. Callers must subsequently
-// call app.Info or app.InitChain to initialize the baseapp.
+// call app.Info or app.InitChain to initialize the baseapp. Setting
+// delayedPrecommitTimeout to 0 will result in using the default value.
 func New(
 	logger log.Logger,
 	db dbm.DB,
 	traceStore io.Writer,
-	timeoutCommit time.Duration,
+	delayedPrecommitTimeout time.Duration,
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
@@ -219,12 +220,16 @@ func New(
 
 	govModuleAddr := authtypes.NewModuleAddress(govtypes.ModuleName).String()
 
+	if delayedPrecommitTimeout == 0 {
+		delayedPrecommitTimeout = appconsts.DelayedPrecommitTimeout
+	}
+
 	app := &App{
-		BaseApp:       baseApp,
-		keys:          keys,
-		tkeys:         tkeys,
-		memKeys:       memKeys,
-		timeoutCommit: timeoutCommit,
+		BaseApp:                 baseApp,
+		keys:                    keys,
+		tkeys:                   tkeys,
+		memKeys:                 memKeys,
+		delayedPrecommitTimeout: delayedPrecommitTimeout,
 	}
 
 	// needed for migration from x/params -> module's ownership of own params
@@ -509,8 +514,7 @@ func (app *App) Info(req *abci.RequestInfo) (*abci.ResponseInfo, error) {
 		return nil, err
 	}
 
-	res.TimeoutInfo.TimeoutCommit = app.TimeoutCommit()
-	res.TimeoutInfo.TimeoutPropose = app.TimeoutPropose()
+	res.TimeoutInfo = app.TimeoutInfo()
 
 	return res, nil
 }
@@ -563,8 +567,7 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 		}
 	}
 
-	res.TimeoutInfo.TimeoutCommit = app.TimeoutCommit()
-	res.TimeoutInfo.TimeoutPropose = app.TimeoutPropose()
+	res.TimeoutInfo = app.TimeoutInfo()
 
 	return res, nil
 }
@@ -586,9 +589,7 @@ func (app *App) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abci.
 		return nil, err
 	}
 
-	res.TimeoutInfo.TimeoutCommit = app.TimeoutCommit()
-	res.TimeoutInfo.TimeoutPropose = app.TimeoutPropose()
-
+	res.TimeoutInfo = app.TimeoutInfo()
 	return res, nil
 }
 
@@ -769,7 +770,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 
 // AutoCliOpts returns the autocli options for the app.
 func (app *App) AutoCliOpts() autocli.AppOptions {
-	modules := make(map[string]appmodule.AppModule, 0)
+	modules := make(map[string]appmodule.AppModule)
 	for _, m := range app.ModuleManager.Modules {
 		if moduleWithName, ok := m.(module.HasName); ok {
 			moduleName := moduleWithName.Name()
@@ -811,19 +812,15 @@ func (app *App) NewProposalContext(header tmproto.Header) sdk.Context {
 	return ctx
 }
 
-// TimeoutCommit returns the timeout commit duration to be used on the next block.
-// It returns the user specified value as overridden by the --timeout-commit flag, otherwise
-// the default timeout commit value for the current app version.
-func (app *App) TimeoutCommit() time.Duration {
-	if app.timeoutCommit != 0 {
-		return app.timeoutCommit
+func (app *App) TimeoutInfo() abci.TimeoutInfo {
+	return abci.TimeoutInfo{
+		TimeoutPropose:          appconsts.TimeoutPropose,
+		TimeoutProposeDelta:     appconsts.TimeoutProposeDelta,
+		TimeoutCommit:           appconsts.TimeoutCommit,
+		TimeoutPrevote:          appconsts.TimeoutPrevote,
+		TimeoutPrevoteDelta:     appconsts.TimeoutPrevoteDelta,
+		TimeoutPrecommit:        appconsts.TimeoutPrecommit,
+		TimeoutPrecommitDelta:   appconsts.TimeoutPrecommitDelta,
+		DelayedPrecommitTimeout: app.delayedPrecommitTimeout,
 	}
-
-	return appconsts.TimeoutCommit
-}
-
-// TimeoutPropose returns the timeout propose duration to be used on the next block.
-// It returns the default timeout propose value for the current app version.
-func (app *App) TimeoutPropose() time.Duration {
-	return appconsts.TimeoutPropose
 }
