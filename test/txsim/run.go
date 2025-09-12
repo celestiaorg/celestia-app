@@ -196,6 +196,13 @@ func (o *Options) WithGasPrice(gasPrice float64) *Options {
 	return o
 }
 
+func BuildGrpcConn(grpcEndpoint string, config *tls.Config) (*grpc.ClientConn, error) {
+	if config == nil {
+		config = defaultTLSConfig
+	}
+	return buildGrpcConn(grpcEndpoint, config)
+}
+
 // buildGrpcConn applies the config if the handshake succeeds; otherwise, it falls back to an insecure connection.
 func buildGrpcConn(grpcEndpoint string, config *tls.Config) (*grpc.ClientConn, error) {
 	netConn, err := net.Dial("tcp", grpcEndpoint)

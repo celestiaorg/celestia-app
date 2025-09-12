@@ -14,23 +14,27 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
 	"github.com/celestiaorg/celestia-app/v6/test/txsim"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 )
 
 // A set of environment variables that can be used instead of flags
 const (
-	TxsimGRPC          = "TXSIM_GRPC"
-	TxsimSeed          = "TXSIM_SEED"
-	TxsimPoll          = "TXSIM_POLL"
-	TxsimKeypath       = "TXSIM_KEYPATH"
-	TxsimMasterAccName = "TXSIM_MASTER_ACC_NAME"
-	TxsimMnemonic      = "TXSIM_MNEMONIC"
+	TxsimGRPC              = "TXSIM_GRPC"
+	TxsimSeed              = "TXSIM_SEED"
+	TxsimPoll              = "TXSIM_POLL"
+	TxsimKeypath           = "TXSIM_KEYPATH"
+	TxsimMasterAccName     = "TXSIM_MASTER_ACC_NAME"
+	TxsimMnemonic          = "TXSIM_MNEMONIC"
+	FillBlocksBlobTxAmount = 1
 )
 
 // Values for all flags
@@ -47,6 +51,7 @@ var (
 	gasLimit                                          uint64
 	gasPrice                                          float64
 	namespaces                                        []string
+	perShareOverheadSize                              int
 )
 
 func main() {
@@ -219,9 +224,65 @@ account that can act as the master account. The command runs until all sequences
 			return err
 		},
 	}
-	cmd.Flags().AddFlagSet(flags())
+	cmd.PersistentFlags().AddFlagSet(flags())
+
+	fillBlocksCmd := &cobra.Command{
+		Use:   "fill-blocks",
+		Short: "Fill blocks to their max capacity",
+		RunE:  fillBlocksExecute,
+		Long: `
+The subcommand is designed to simplify filling blocks to near-max capacity by submitting a single blob transaction.
+It targets a blob payload size of approximately (maxBytes / 4) - txOverhead, where maxBytes is the block size limit 
+is calculated using max square size, and txOverhead accounts for protocol-level overhead — 
+such as namespace size, share info, signer bytes, blob headers`,
+		PostRunE: cmd.RunE,
+	}
+
+	fillBlocksCmd.Flags().IntVar(&perShareOverheadSize, "share-overhead", share.ShareSize-share.ContinuationSparseShareContentSize,
+		"Per-share byte metadata overhead in bytes",
+	)
+	cmd.AddCommand(fillBlocksCmd)
 
 	return cmd
+}
+
+func fillBlocksExecute(cmd *cobra.Command, args []string) error {
+	grpcConn, err := txsim.BuildGrpcConn(grpcEndpoint, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to build grpc conn: %v; error: %v", grpcEndpoint, err)
+	}
+
+	blobQueryClient := blobtypes.NewQueryClient(grpcConn)
+	blobParamsResp, err := blobQueryClient.Params(cmd.Context(), &blobtypes.QueryParamsRequest{})
+	if err != nil {
+		return fmt.Errorf("Could not get blob params due to error: %v", err)
+	}
+
+	govMaxSquareSize := blobParamsResp.Params.GovMaxSquareSize
+	hardMaxSquareSize := appconsts.SquareSizeUpperBound // use getter instead???
+	maxSquareSize := min(int(govMaxSquareSize), hardMaxSquareSize)
+
+	// NOTE: Division by 4 accounts for 2d erasure coding schema
+	maxSquareShares := (maxSquareSize * maxSquareSize)
+	maxBytes := maxSquareShares * share.ShareSize
+
+	blobSize := (maxBytes - maxSquareShares*perShareOverheadSize) / 4
+	blobAmount := maxBytes / blobSize / 4
+
+	blob = FillBlocksBlobTxAmount
+	blobSizes = strconv.Itoa(blobSize)
+	blobAmounts = strconv.Itoa(blobAmount)
+
+	log.Info().
+		Int("blob", blob).
+		Str("blobAmounts", blobAmounts).
+		Str("blobSizes", blobSizes).
+		Int("maxSquareSize", maxSquareSize).
+		Int("maxBytes", maxBytes).
+		Int("perShareOverheadSize", perShareOverheadSize).
+		Msg("fill-blocks blob values")
+
+	return nil
 }
 
 func flags() *flag.FlagSet {
