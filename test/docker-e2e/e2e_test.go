@@ -51,11 +51,13 @@ func (s *CelestiaTestSuite) SetupSuite() {
 // CreateTxSim deploys and starts a txsim container to simulate transactions against the given celestia chain in the test environment.
 func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain tastoratypes.Chain) {
 	t := s.T()
+	t.Log("CreateTxSim: Getting network name from ID...")
 	networkName, err := getNetworkNameFromID(ctx, s.client, s.network)
 	s.Require().NoError(err)
+	t.Logf("CreateTxSim: Network name: %s", networkName)
 
 	// Deploy txsim image
-	t.Log("Deploying txsim image")
+	t.Log("CreateTxSim: Deploying txsim image")
 	txsimImage := tastoracontainertypes.NewJob(s.logger, s.client, networkName, t.Name(), txsimImage, txSimTag)
 
 	opts := tastoracontainertypes.Options{
@@ -64,9 +66,13 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain tastoratypes.
 		// this ensures txsim has access to a keyring and is able to broadcast transactions.
 		Binds: []string{chain.GetVolumeName() + ":/celestia-home"},
 	}
+	t.Log("CreateTxSim: Created container options")
 
-	internalHostname, err := chain.GetNodes()[0].GetInternalHostName(ctx)
-	s.Require().NoError(err)
+	t.Log("CreateTxSim: Getting network info from chain node...")
+	networkInfo, err := chain.GetNodes()[0].GetNetworkInfo(ctx)
+	s.Require().NoError(err, "failed to get network info from chain node")
+	internalHostname := networkInfo.Internal.Hostname
+	t.Logf("CreateTxSim: Internal hostname: %s", internalHostname)
 
 	args := []string{
 		"/bin/txsim",
