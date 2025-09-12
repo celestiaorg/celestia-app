@@ -12,7 +12,7 @@ import (
 	cometcfg "github.com/cometbft/cometbft/config"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 
-	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
+	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 )
 
@@ -70,7 +70,7 @@ func (s *CelestiaTestSuite) TestBlockSync() {
 	s.Require().Greater(latestHeight, int64(0), "latest height is zero")
 
 	// build peer list for the new node to connect to existing validators
-	peerList, err := addressutil.BuildInternalPeerAddressList(ctx, celestia.GetNodes())
+	peerList, err := addressutil.BuildInternalPeerAddressList(ctx, celestia.Nodes())
 	s.Require().NoError(err, "failed to build peer address list")
 
 	t.Logf("Latest height: %d", latestHeight)

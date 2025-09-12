@@ -55,7 +55,6 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain tastoratypes.
 	s.Require().NoError(err)
 
 	// Deploy txsim image
-	t.Log("Deploying txsim image")
 	txsimImage := tastoracontainertypes.NewJob(s.logger, s.client, networkName, t.Name(), txsimImage, txSimTag)
 
 	opts := tastoracontainertypes.Options{
@@ -65,8 +64,9 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain tastoratypes.
 		Binds: []string{chain.GetVolumeName() + ":/celestia-home"},
 	}
 
-	internalHostname, err := chain.GetNodes()[0].GetInternalHostName(ctx)
-	s.Require().NoError(err)
+	networkInfo, err := chain.GetNodes()[0].GetNetworkInfo(ctx)
+	s.Require().NoError(err, "failed to get network info from chain node")
+	internalHostname := networkInfo.Internal.Hostname
 
 	args := []string{
 		"/bin/txsim",

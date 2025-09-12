@@ -10,14 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"go.uber.org/zap"
-
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
-	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
+	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
+	da "github.com/celestiaorg/tastora/framework/docker/dataavailability"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	dockerclient "github.com/moby/moby/client"
@@ -68,11 +67,8 @@ func (s *CelestiaTestSuite) TestE2EFullStackPFB() {
 	startHeight, err := celestia.Height(ctx)
 	s.Require().NoError(err, "failed to get start height")
 
-	// prepare a simple config with one type of each node.
-	daConfig := getDAConfig(s.logger, s.client, s.network)
-
 	// create a da network, wiring up the provided chain using the CELESTIA_CUSTOM environment variable.
-	daNetwork := s.DeployDANetwork(ctx, celestia, daConfig)
+	daNetwork := s.DeployDANetwork(ctx, celestia, s.client, s.network)
 
 	txClient, err := dockerchain.SetupTxClient(ctx, celestia.Nodes()[0], cfg)
 	s.Require().NoError(err, "failed to setup TxClient")
@@ -96,17 +92,43 @@ func (s *CelestiaTestSuite) TestE2EFullStackPFB() {
 }
 
 // DeployDANetwork deploys a data availability network with bridge, full, and light nodes
-func (s *CelestiaTestSuite) DeployDANetwork(ctx context.Context, celestia *tastoradockertypes.Chain, daConfig tastoradockertypes.Config) tastoratypes.DataAvailabilityNetwork {
+func (s *CelestiaTestSuite) DeployDANetwork(ctx context.Context, celestia *tastoradockertypes.Chain, dockerClient *dockerclient.Client, networkID string) *da.Network {
 	t := s.T()
 
-	// build DA network using provider
-	provider := tastoradockertypes.NewProvider(daConfig, t)
-	daNetwork, err := provider.GetDataAvailabilityNetwork(ctx)
+	// Create node configurations
+	bridgeNodeConfig := da.NewNodeBuilder().
+		WithNodeType(tastoratypes.BridgeNode).
+		Build()
+
+	fullNodeConfig := da.NewNodeBuilder().
+		WithNodeType(tastoratypes.FullNode).
+		Build()
+
+	lightNodeConfig := da.NewNodeBuilder().
+		WithNodeType(tastoratypes.LightNode).
+		Build()
+
+	// Create DA image configuration
+	daImage := tastoracontainertypes.Image{
+		Repository: celestiaNodeRepository,
+		Version:    celestiaNodeVersion,
+		UIDGID:     "10001:10001",
+	}
+
+	// Build DA network
+	daNetwork, err := da.NewNetworkBuilder(t).
+		WithChainID(celestia.GetChainID()).
+		WithDockerClient(dockerClient).
+		WithDockerNetworkID(networkID).
+		WithImage(daImage).
+		WithNodes(bridgeNodeConfig, lightNodeConfig, fullNodeConfig).
+		Build(ctx)
 	s.Require().NoError(err, "failed to create DA network")
 
 	// get celestia-app node hostname for core connection
-	coreNodeHostname, err := celestia.Nodes()[0].GetInternalHostName(ctx)
-	s.Require().NoError(err, "failed to get core node hostname")
+	chainNetworkInfo, err := celestia.GetNodes()[0].GetNetworkInfo(ctx)
+	s.Require().NoError(err, "failed to get network info")
+	coreNodeHostname := chainNetworkInfo.Internal.Hostname
 
 	// get genesis hash for DA network connection
 	genesisHash, err := s.getGenesisHash(ctx, celestia)
@@ -119,9 +141,9 @@ func (s *CelestiaTestSuite) DeployDANetwork(ctx context.Context, celestia *tasto
 	bridgeNodes := daNetwork.GetBridgeNodes()
 	for _, node := range bridgeNodes {
 		err := node.Start(ctx,
-			tastoratypes.WithChainID(celestia.GetChainID()),
-			tastoratypes.WithAdditionalStartArguments("--p2p.network", celestia.GetChainID(), "--core.ip", coreNodeHostname, "--rpc.addr", "0.0.0.0"),
-			tastoratypes.WithEnvironmentVariables(map[string]string{
+			da.WithChainID(celestia.GetChainID()),
+			da.WithAdditionalStartArguments("--p2p.network", celestia.GetChainID(), "--core.ip", coreNodeHostname, "--rpc.addr", "0.0.0.0"),
+			da.WithEnvironmentVariables(map[string]string{
 				"CELESTIA_CUSTOM": celestiaCustom,
 				"P2P_NETWORK":     celestia.GetChainID(),
 			}),
@@ -142,9 +164,9 @@ func (s *CelestiaTestSuite) DeployDANetwork(ctx context.Context, celestia *tasto
 	fullNodes := daNetwork.GetFullNodes()
 	for _, node := range fullNodes {
 		err := node.Start(ctx,
-			tastoratypes.WithChainID(celestia.GetChainID()),
-			tastoratypes.WithAdditionalStartArguments("--p2p.network", celestia.GetChainID(), "--core.ip", coreNodeHostname, "--rpc.addr", "0.0.0.0"),
-			tastoratypes.WithEnvironmentVariables(map[string]string{
+			da.WithChainID(celestia.GetChainID()),
+			da.WithAdditionalStartArguments("--p2p.network", celestia.GetChainID(), "--core.ip", coreNodeHostname, "--rpc.addr", "0.0.0.0"),
+			da.WithEnvironmentVariables(map[string]string{
 				"CELESTIA_CUSTOM": tastoratypes.BuildCelestiaCustomEnvVar(celestia.GetChainID(), genesisHash, bridgeP2PAddr),
 				"P2P_NETWORK":     celestia.GetChainID(),
 			}),
@@ -165,9 +187,9 @@ func (s *CelestiaTestSuite) DeployDANetwork(ctx context.Context, celestia *tasto
 	lightNodes := daNetwork.GetLightNodes()
 	for _, node := range lightNodes {
 		err := node.Start(ctx,
-			tastoratypes.WithChainID(celestia.GetChainID()),
-			tastoratypes.WithAdditionalStartArguments("--p2p.network", celestia.GetChainID(), "--rpc.addr", "0.0.0.0"),
-			tastoratypes.WithEnvironmentVariables(map[string]string{
+			da.WithChainID(celestia.GetChainID()),
+			da.WithAdditionalStartArguments("--p2p.network", celestia.GetChainID(), "--rpc.addr", "0.0.0.0"),
+			da.WithEnvironmentVariables(map[string]string{
 				"CELESTIA_CUSTOM": tastoratypes.BuildCelestiaCustomEnvVar(celestia.GetChainID(), genesisHash, fullP2PAddr),
 				"P2P_NETWORK":     celestia.GetChainID(),
 			}),
@@ -225,7 +247,7 @@ func (s *CelestiaTestSuite) submitBlobTransactions(ctx context.Context, txClient
 }
 
 // verifyBlobRetrieval verifies that blob data can be retrieved from the light node
-func (s *CelestiaTestSuite) verifyBlobRetrieval(ctx context.Context, daNetwork tastoratypes.DataAvailabilityNetwork, blobData []blobData) {
+func (s *CelestiaTestSuite) verifyBlobRetrieval(ctx context.Context, daNetwork *da.Network, blobData []blobData) {
 	t := s.T()
 
 	// get light node from DA network
@@ -291,29 +313,10 @@ func (s *CelestiaTestSuite) getGenesisHash(ctx context.Context, celestia *tastor
 	return genesisHash, nil
 }
 
-// getDAConfig returns a DataAvailabilityNetworkConfig for the given networkID with a single bridge, full, and light node.
-func getDAConfig(logger *zap.Logger, client *dockerclient.Client, networkID string) tastoradockertypes.Config {
-	return tastoradockertypes.Config{
-		Logger:          logger,
-		DockerClient:    client,
-		DockerNetworkID: networkID,
-		DataAvailabilityNetworkConfig: &tastoradockertypes.DataAvailabilityNetworkConfig{
-			BridgeNodeCount: 1,
-			FullNodeCount:   1,
-			LightNodeCount:  1,
-			Image: tastoracontainertypes.Image{
-				Repository: celestiaNodeRepository,
-				Version:    celestiaNodeVersion,
-			},
-		},
-	}
-}
 
 // stopDANetwork stops all nodes in the Data Availability Network, including bridge, full, and light nodes.
 // Returns an error if any node fails to stop.
-//
-// remove after: https://github.com/celestiaorg/tastora/issues/74 is done
-func stopDANetwork(ctx context.Context, daNetwork tastoratypes.DataAvailabilityNetwork) error {
+func stopDANetwork(ctx context.Context, daNetwork *da.Network) error {
 	var errs []error
 	for _, node := range daNetwork.GetBridgeNodes() {
 		if err := node.Stop(ctx); err != nil {

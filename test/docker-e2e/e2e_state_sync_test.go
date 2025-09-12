@@ -14,7 +14,7 @@ import (
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	servercfg "github.com/cosmos/cosmos-sdk/server/config"
 
-	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
+	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	addressutil "github.com/celestiaorg/tastora/framework/testutil/address"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 )
