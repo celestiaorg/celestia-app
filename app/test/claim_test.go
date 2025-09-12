@@ -7,6 +7,7 @@ import (
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/types"
@@ -25,7 +26,7 @@ import (
 //
 // Inspired by https://github.com/celestiaorg/celestia-app/issues/5381
 func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
-	accounts := testnode.RandomAccounts(2)
+	accounts := testfactory.GenerateAccounts(2)
 	config := testnode.DefaultConfig().WithFundedAccounts(accounts...)
 	cctx, _, _ := testnode.NewNetwork(t, config)
 
@@ -47,9 +48,9 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 
 	undelegate(t, &cctx, txClient, delegatorAddress, validatorAddress, amount)
 	verifyDelegationDoesNotExist(t, &cctx, stakingClient, delegatorAddress, validatorAddress)
-	verifyDelegationRewardsDoNotExist(t, &cctx, distributionClient, delegatorAddress, validatorAddress)
+	verifyDelegationRewardsExist(t, &cctx, distributionClient, delegatorAddress, validatorAddress)
 
-	claimRewards(t, &cctx, txClient, delegatorAddress, validatorAddress, amount)
+	claimRewards(t, &cctx, txClient, delegatorAddress, validatorAddress)
 }
 
 func getDelegatorAddress(t *testing.T, cctx *testnode.Context, accounts []string) string {
@@ -126,16 +127,16 @@ func verifyDelegationDoesNotExist(t *testing.T, cctx *testnode.Context, stakingC
 	assert.ErrorContains(t, err, fmt.Sprintf("delegation with delegator %s not found for validator %s", delegatorAddress, validatorAddress))
 }
 
-func verifyDelegationRewardsDoNotExist(t *testing.T, cctx *testnode.Context, distributionClient distributiontypes.QueryClient, delegatorAddress, validatorAddress string) {
-	_, err := distributionClient.DelegationRewards(cctx.GoContext(), &distributiontypes.QueryDelegationRewardsRequest{
+func verifyDelegationRewardsExist(t *testing.T, cctx *testnode.Context, distributionClient distributiontypes.QueryClient, delegatorAddress, validatorAddress string) {
+	resp, err := distributionClient.DelegationRewards(cctx.GoContext(), &distributiontypes.QueryDelegationRewardsRequest{
 		DelegatorAddress: delegatorAddress,
 		ValidatorAddress: validatorAddress,
 	})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "no delegation for (address, validator) tupl")
+	require.NoError(t, err)
+	require.True(t, resp.Rewards.AmountOf(appconsts.BondDenom).GT(math.LegacyOneDec()))
 }
 
-func claimRewards(t *testing.T, cctx *testnode.Context, txClient *user.TxClient, delegatorAddress string, validatorAddress string, amount types.Coin) {
+func claimRewards(t *testing.T, cctx *testnode.Context, txClient *user.TxClient, delegatorAddress string, validatorAddress string) {
 	withdrawRewardsMsg := &distributiontypes.MsgWithdrawDelegatorReward{
 		DelegatorAddress: delegatorAddress,
 		ValidatorAddress: validatorAddress,
@@ -151,13 +152,13 @@ func claimRewards(t *testing.T, cctx *testnode.Context, txClient *user.TxClient,
 	require.NotNil(t, getTxResp.TxResponse)
 	require.Equal(t, abci.CodeTypeOK, getTxResp.TxResponse.Code)
 
-	event, err := getWithdrawRewardsEvent(t, getTxResp.TxResponse.Events)
+	event, err := getWithdrawRewardsEvent(getTxResp.TxResponse.Events)
 	require.NoError(t, err)
 	require.Equal(t, delegatorAddress, event.DelegatorAddress)
 	require.Equal(t, validatorAddress, event.ValidatorAddress)
 }
 
-func getWithdrawRewardsEvent(t *testing.T, events []abci.Event) (WithdrawRewardsEvent, error) {
+func getWithdrawRewardsEvent(events []abci.Event) (WithdrawRewardsEvent, error) {
 	for _, event := range events {
 		if event.Type == distributiontypes.EventTypeWithdrawRewards {
 			var delegatorAddress string
