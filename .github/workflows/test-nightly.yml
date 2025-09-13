@@ -46,8 +46,6 @@ jobs:
           CELESTIA_TAG: ${{ steps.tag.outputs.value }}
         run: make test-docker-e2e test=TestStateSyncMocha
 
-      # TODO: add slack notification on failure
-
   test-all-upgrades:
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -80,4 +78,16 @@ jobs:
           CELESTIA_TAG: ${{ steps.tag.outputs.value }}
         run: make test-docker-e2e test=TestAllUpgrades
 
-      # TODO: add slack notification on failure
+  notify-slack-on-failure:
+    name: Notify Slack on failure
+    runs-on: ubuntu-latest
+    needs: [test-state-sync-mocha, test-all-upgrades]
+    if: ${{ always() && (needs.test-state-sync-mocha.result == 'failure' || needs.test-all-upgrades.result == 'failure') }}
+    steps:
+      - name: Post to Slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+            --data '{"text":":rotating_light: Nightly E2E FAILED. See run -> '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'"}' \
+            $SLACK_WEBHOOK_URL
