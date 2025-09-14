@@ -51,7 +51,7 @@ message MsgPayForBlobs {
 // of a PayForBlobs
 message MsgPayForBlobsResponse {}
 
-// MsgUpdateBlobParams defines the sdk.Msg type to update the client parameters.
+// MsgUpdateBlobParams defines the sdk.Msg type to update the blob parameters.
 message MsgUpdateBlobParams {
   option (cosmos.msg.v1.signer) = "authority";
   // authority is the address of the governance account.
