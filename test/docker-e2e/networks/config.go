@@ -15,7 +15,7 @@ func NewMochaConfig() *Config {
 	return &Config{
 		Name:    "mocha",
 		ChainID: appconsts.MochaChainID,
-		RPCs:    []string{"https://celestia-testnet-rpc.itrocket.net:443", "https://celestia-testnet-rpc.itrocket.net:443"},
+		RPCs:    []string{"https://celestia-testnet-rpc.itrocket.net:443", "https://celestia-mocha-rpc.publicnode.com:443"},
 		Seeds:   "5d0bf034d6e6a8b5ee31a2f42f753f1107b3a00e@celestia-testnet-seed.itrocket.net:11656",
 	}
 }
