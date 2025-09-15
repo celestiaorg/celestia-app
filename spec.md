@@ -114,6 +114,8 @@ Gas cost is calculated using the following formula:
 total_gas = (rows * row_size(blob_size) * gas_per_blob_byte)
 ```
 
+This means that users pay for padding as well, just like PFBs.
+
 Where:
 - `rows` is the constant number of rows needed for the blob data
 - `row_size(blob_size)` is the size of each row in bytes
