@@ -165,9 +165,10 @@ message MsgRequestWithdrawal {
 **Stateful Processing**:
 1. Verify signer's escrow account exists
 2. Verify sufficient available balance
-3. Decrease available_balance immediately (balance remains unchanged until withdrawal is processed)
-4. Store withdrawal amount in both indexes with available_at = current_timestamp + withdrawal_delay
-5. Emit EventRequestWithdrawalFromEscrow
+3. Verify no existing withdrawal request at current timestamp (prevent key collision)
+4. Decrease available_balance immediately (balance remains unchanged until withdrawal is processed)
+5. Store withdrawal amount in both indexes with available_at = current_timestamp + withdrawal_delay
+6. Emit EventRequestWithdrawalFromEscrow
 
 #### Automatic Withdrawal Processing
 
