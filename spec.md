@@ -248,8 +248,8 @@ message PaymentPromise {
   // row_version is the version of the row format
   uint32 row_version = 5;
   // creation_timestamp is the timestamp when this promise was created. This
-  //  is critical for determining which validators sign along with when
-  // service stops for this blob.
+  // is critical for determining which validators sign the commitment and
+  // determining when service stops for this blob.
   google.protobuf.Timestamp creation_timestamp = 6;
   // signature is the escrow owner's signature over the sign bytes
   bytes signature = 7;
