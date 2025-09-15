@@ -248,7 +248,7 @@ func (c *Context) PostData(account, broadcastMode string, ns share.Namespace, bl
 	if err != nil {
 		return nil, err
 	}
-	msg, err := types.NewMsgPayForBlobs(account, 0, b)
+	msg, err := types.NewMsgPayForBlobs(addr.String(), 0, b)
 	if err != nil {
 		return nil, err
 	}
