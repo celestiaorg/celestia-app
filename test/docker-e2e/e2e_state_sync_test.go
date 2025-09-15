@@ -4,17 +4,16 @@ import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"celestiaorg/celestia-app/test/docker-e2e/networks"
 	"context"
-	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	"strings"
 	"testing"
 	"time"
 
+	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
+	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	cometcfg "github.com/cometbft/cometbft/config"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
-	servercfg "github.com/cosmos/cosmos-sdk/server/config"
 
-	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
 	addressutil "github.com/celestiaorg/tastora/framework/testutil/address"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 )
@@ -25,14 +24,6 @@ const (
 	stateSyncTimeout           = 10 * time.Minute
 )
 
-// validatorStateSyncAppOverrides modifies the app.toml to configure state sync snapshots for the given node.
-func validatorStateSyncAppOverrides(ctx context.Context, node *celestiadockertypes.ChainNode) error {
-	return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
-		cfg.StateSync.SnapshotInterval = 5
-		cfg.StateSync.SnapshotKeepRecent = 2
-	})
-}
-
 func (s *CelestiaTestSuite) TestStateSync() {
 	t := s.T()
 	if testing.Short() {
@@ -42,7 +33,7 @@ func (s *CelestiaTestSuite) TestStateSync() {
 	ctx := context.TODO()
 	cfg := dockerchain.DefaultConfig(s.client, s.network)
 	celestia, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).
-		WithPostInit(validatorStateSyncAppOverrides).
+		WithPostInit(validatorStateSyncProducerOverrides).
 		Build(ctx)
 
 	s.Require().NoError(err, "failed to get chain")
@@ -82,6 +73,7 @@ func (s *CelestiaTestSuite) TestStateSync() {
 
 	t.Logf("Gathering state sync parameters")
 	latestHeight, err := s.GetLatestBlockHeight(ctx, nodeClient)
+	s.Require().NoError(err, "failed to get latest height for state sync parameters")
 	trustHeight := latestHeight - stateSyncTrustHeightOffset
 	s.Require().Greater(trustHeight, int64(0), "calculated trust height %d is too low (latest height: %d)", trustHeight, latestHeight)
 
@@ -98,9 +90,9 @@ func (s *CelestiaTestSuite) TestStateSync() {
 
 	t.Log("Adding state sync node")
 	err = celestia.AddNode(ctx,
-		celestiadockertypes.NewChainNodeConfigBuilder().
+		tastoradockertypes.NewChainNodeConfigBuilder().
 			WithNodeType(tastoratypes.NodeTypeConsensusFull).
-			WithPostInit(func(ctx context.Context, node *celestiadockertypes.ChainNode) error {
+			WithPostInit(func(ctx context.Context, node *tastoradockertypes.ChainNode) error {
 				return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
 					cfg.StateSync.Enable = true
 					cfg.StateSync.TrustHeight = trustHeight
@@ -171,9 +163,9 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 
 	// create a mocha chain builder (no validators, just for state sync nodes)
 	mochaChain, err := networks.NewChainBuilder(s.T(), mochaConfig, dockerCfg).
-		WithNodes(celestiadockertypes.NewChainNodeConfigBuilder().
+		WithNodes(tastoradockertypes.NewChainNodeConfigBuilder().
 			WithNodeType(tastoratypes.NodeTypeConsensusFull).
-			WithPostInit(func(ctx context.Context, node *celestiadockertypes.ChainNode) error {
+			WithPostInit(func(ctx context.Context, node *tastoradockertypes.ChainNode) error {
 				return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
 					// enable state sync
 					cfg.StateSync.Enable = true
