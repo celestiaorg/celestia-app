@@ -91,8 +91,8 @@ To prevent double payment, the module tracks which promises have been processed.
 - **Primary Index**: `escrows/{signer}` → `EscrowAccount`
 
 **Pending Withdrawals**:
-- **By signer**: `withdrawals/{signer}/{requested_at}` → `PendingWithdrawal`
-- **By Availability**: `available_withdrawals/{available_at}/{signer}` → `null` (for processing)
+- **By signer**: `withdrawals/{signer}/{requested_at}` → `cosmos.base.v1beta1.Coin` (amount)
+- **By Availability**: `available_withdrawals/{available_at}/{signer}` → `cosmos.base.v1beta1.Coin` (amount)
 
 **Processed Promises**:
 - **Primary Index**: `processed/{promise_hash}` → `google.protobuf.Timestamp` (processed_at)
@@ -166,7 +166,7 @@ message MsgRequestWithdrawal {
 1. Verify signer's escrow account exists
 2. Verify sufficient available balance
 3. Decrease available_balance immediately (balance remains unchanged until withdrawal is processed)
-4. Create PendingWithdrawal with available_at = current_timestamp + withdrawal_delay
+4. Store withdrawal amount in both indexes with available_at = current_timestamp + withdrawal_delay
 5. Emit EventRequestWithdrawalFromEscrow
 
 #### Automatic Withdrawal Processing
@@ -182,37 +182,42 @@ func processAvailableWithdrawals(ctx sdk.Context, k Keeper) {
     defer iterator.Close()
 
     for ; iterator.Valid(); iterator.Next() {
-        var withdrawal PendingWithdrawal
-        k.cdc.Unmarshal(iterator.Value(), &withdrawal)
+        // Parse key to extract available_at timestamp and signer address
+        available_at, signer := k.ParseAvailableWithdrawalKey(iterator.Key())
 
         // Stop if we've reached withdrawals not yet available
-        if withdrawal.available_at.After(currentTime) {
+        if available_at.After(currentTime) {
             break
         }
 
+        // Get withdrawal amount from value
+        var amount cosmos.base.v1beta1.Coin
+        k.cdc.Unmarshal(iterator.Value(), &amount)
+
         // Process withdrawal: transfer from module to user account
         err := k.bankKeeper.SendCoinsFromModuleToAccount(
-            ctx, types.ModuleName, withdrawal.signer, withdrawal.amount)
+            ctx, types.ModuleName, signer, amount)
         if err != nil {
             // Log error but continue processing other withdrawals
-            ctx.Logger().Error("failed to process withdrawal", "error", err, "signer", withdrawal.signer)
+            ctx.Logger().Error("failed to process withdrawal", "error", err, "signer", signer)
             continue
         }
 
         // Update escrow account balance (decrease total balance)
-        escrow := k.GetEscrowAccount(ctx, withdrawal.signer)
-        escrow.balance = escrow.balance.Sub(withdrawal.amount)
+        escrow := k.GetEscrowAccount(ctx, signer)
+        escrow.balance = escrow.balance.Sub(amount)
         k.SetEscrowAccount(ctx, escrow)
 
         // Remove from both withdrawal indexes
-        k.DeletePendingWithdrawal(ctx, withdrawal.signer, withdrawal.requested_at)
-        k.DeleteAvailableWithdrawal(ctx, withdrawal.available_at, withdrawal.signer)
+        requested_at := available_at.Add(-k.GetWithdrawalDelay(ctx))
+        k.DeletePendingWithdrawal(ctx, signer, requested_at)
+        k.DeleteAvailableWithdrawal(ctx, available_at, signer)
 
         // Emit event
         ctx.EventManager().EmitEvent(EventProcessWithdrawal{
             processor: types.AutomaticProcessor, // system account
-            signer:    withdrawal.signer,
-            amount:    withdrawal.amount,
+            signer:    signer,
+            amount:    amount,
         })
     }
 }
@@ -228,12 +233,8 @@ message MsgPayForFibre {
   string signer = 1;
   // promise contains the original payment promise
   PaymentPromise promise = 2;
-  // validator_signatures contains signatures from 2/3+ validators
+  // validator_signatures contains signatures from validators
   repeated bytes validator_signatures = 3;
-  // flat_voting_power assumes voting power is even across all validators,
-  // requiring signatures from 2/3+ of the active validators. When false
-  // signature verification requires 2/3+ voting power
-  bool flat_voting_power = 4;
 }
 
 message PaymentPromise {
@@ -308,8 +309,7 @@ sign_bytes = signer_bytes || namespace || blob_size_bytes || commitment || row_v
 **Stateful Processing**:
 1. Validate PaymentPromise (see [PaymentPromise Validation](#paymentpromise-validation) above)
 2. Verify validator signatures represent 2/3+ threshold from validator set at `promise.creation_timestamp` (obtained via historical info query from staking module):
-   - If `flat_voting_power` is true: verify signatures represent 2/3+ of validator count
-   - If `flat_voting_power` is false: verify signatures represent 2/3+ of voting power
+   - Signatures must represent 2/3+ of total voting power AND 2/3+ of validator count
 3. Calculate gas cost (see [Gas Consumption](#gas-consumption) section) and deduct from both escrow balance and available_balance
 4. Mark promise as processed (stores `processed_at` timestamp and creates pruning index entry)
 5. Include commitment in data square (see [Inclusion Processing](#inclusion-processing) below)
@@ -437,7 +437,7 @@ sequenceDiagram
 
 4. **Validator Verification**: Validators query the celestia-app instance using [`QueryValidatePaymentPromise`](#validatepaymentpromise) to verify the promise signature, check escrow has sufficient funds, and confirm the promise hasn't been processed. If valid, validators sign over the commitment.
 
-5. **Payment Confirmation (Happy Path)**: User collects 2/3+ validator signatures and submits [`MsgPayForFibre`](#msgpayforfibre) containing the promise, signatures, and validation mode (validator count vs voting power). The commitment gets included in the data square.
+5. **Payment Confirmation (Happy Path)**: User collects 2/3+ validator signatures and submits [`MsgPayForFibre`](#msgpayforfibre) containing the promise and signatures. The commitment gets included in the data square.
 
 6. **Timeout Processing (Fallback)**: If user doesn't submit [`MsgPayForFibre`](#msgpayforfibre) within `promise_timeout_blocks`, anyone can submit [`MsgPaymentTimeout`](#msgpaymenttimeout) to process payment. This prevents the user from getting free service.
 
@@ -534,7 +534,7 @@ Queries [pending withdrawals](#pending-withdrawals) for an escrow account.
 **Request**:
 ```proto
 message QueryPendingWithdrawalsRequest {
-  uint64 signer = 1;
+  string signer = 1;
   cosmos.base.query.v1beta1.PageRequest pagination = 2;
 }
 ```
@@ -621,7 +621,7 @@ celestia-appd tx fibre deposit-to-escrow <amount> [flags]
 celestia-appd tx fibre create-promise <namespace> <blob_size> <commitment> [flags]
 
 # Submit payment with validator signatures
-celestia-appd tx fibre pay-for-fibre <promise_json> <validator_signatures_json> <flat_voting_power> [flags]
+celestia-appd tx fibre pay-for-fibre <promise_json> <validator_signatures_json> [flags]
 
 # Process promise timeout (fallback mechanism)
 celestia-appd tx fibre process-promise-timeout <promise_json> <promise_signature> [flags]
