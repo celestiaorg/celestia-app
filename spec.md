@@ -9,6 +9,7 @@ The `x/fibre` payment mechanism enables users to pay for fibre blobs without wai
 1. [Abstract](#abstract)
 1. [State](#state)
 1. [Messages](#messages)
+1. [Automatic State Transitions](#automatic-state-transitions)
 1. [Events](#events)
 1. [Queries](#queries)
 1. [Parameters](#parameters)
@@ -99,7 +100,7 @@ To prevent double payment, the module tracks which promises have been processed.
 
 #### Pruning Mechanism
 
-Processed promises are automatically pruned after [`withdrawal_delay`](#withdrawaldelay) to prevent unbounded state growth.
+Processed promises are automatically pruned after [`withdrawal_delay`](#withdrawaldelay) to prevent unbounded state growth. See [Automatic Promise Pruning](#automatic-promise-pruning) for implementation details.
 
 ## Messages
 
@@ -167,6 +168,55 @@ message MsgRequestWithdrawal {
 3. Decrease available_balance immediately (balance remains unchanged until withdrawal is processed)
 4. Create PendingWithdrawal with available_at = current_timestamp + withdrawal_delay
 5. Emit EventRequestWithdrawalFromEscrow
+
+#### Automatic Withdrawal Processing
+
+Withdrawals are automatically processed in `BeginBlocker` when `current_time >= withdrawal.available_at`:
+
+```go
+func processAvailableWithdrawals(ctx sdk.Context, k Keeper) {
+    currentTime := ctx.BlockTime()
+
+    // Iterate over available_withdrawals index starting from earliest timestamp
+    iterator := k.GetAvailableWithdrawalsIterator(ctx, currentTime)
+    defer iterator.Close()
+
+    for ; iterator.Valid(); iterator.Next() {
+        var withdrawal PendingWithdrawal
+        k.cdc.Unmarshal(iterator.Value(), &withdrawal)
+
+        // Stop if we've reached withdrawals not yet available
+        if withdrawal.available_at.After(currentTime) {
+            break
+        }
+
+        // Process withdrawal: transfer from module to user account
+        err := k.bankKeeper.SendCoinsFromModuleToAccount(
+            ctx, types.ModuleName, withdrawal.signer, withdrawal.amount)
+        if err != nil {
+            // Log error but continue processing other withdrawals
+            ctx.Logger().Error("failed to process withdrawal", "error", err, "signer", withdrawal.signer)
+            continue
+        }
+
+        // Update escrow account balance (decrease total balance)
+        escrow := k.GetEscrowAccount(ctx, withdrawal.signer)
+        escrow.balance = escrow.balance.Sub(withdrawal.amount)
+        k.SetEscrowAccount(ctx, escrow)
+
+        // Remove from both withdrawal indexes
+        k.DeletePendingWithdrawal(ctx, withdrawal.signer, withdrawal.requested_at)
+        k.DeleteAvailableWithdrawal(ctx, withdrawal.available_at, withdrawal.signer)
+
+        // Emit event
+        ctx.EventManager().EmitEvent(EventProcessWithdrawal{
+            processor: types.AutomaticProcessor, // system account
+            signer:    withdrawal.signer,
+            amount:    withdrawal.amount,
+        })
+    }
+}
+```
 
 ### MsgPayForFibre
 
@@ -261,7 +311,7 @@ sign_bytes = signer_bytes || namespace || blob_size_bytes || commitment || row_v
    - If `flat_voting_power` is true: verify signatures represent 2/3+ of validator count
    - If `flat_voting_power` is false: verify signatures represent 2/3+ of voting power
 3. Calculate gas cost (see [Gas Consumption](#gas-consumption) section) and deduct from both escrow balance and available_balance
-4. Mark promise as processed
+4. Mark promise as processed (stores `processed_at` timestamp and creates pruning index entry)
 5. Include commitment in data square (see [Inclusion Processing](#inclusion-processing) below)
 6. Emit EventPayForFibre
 
@@ -295,9 +345,38 @@ message MsgPaymentTimeout {
 1. Validate PaymentPromise (see [PaymentPromise Validation](#paymentpromise-validation) above)
 2. Verify `promise.creation_timestamp + promise_timeout <= current_timestamp` (timeout has passed)
 3. Calculate gas cost (see [Gas Consumption](#gas-consumption) section) and deduct from both escrow balance and available_balance
-4. Mark promise as processed
+4. Mark promise as processed (stores `processed_at` timestamp and creates pruning index entry)
 5. DO NOT include commitment in data square (since no validator consensus was reached)
 6. Emit EventProcessPromiseTimeout
+
+#### Automatic Promise Pruning
+
+Processed promises are automatically pruned in `BeginBlocker` when `current_time >= processed_at + withdrawal_delay` to prevent unbounded state growth:
+
+```go
+func pruneProcessedPromises(ctx sdk.Context, k Keeper) {
+    currentTime := ctx.BlockTime()
+    pruneThreshold := currentTime.Add(-k.GetWithdrawalDelay(ctx))
+
+    // Iterate over pruning index starting from earliest timestamp
+    iterator := k.GetPruningIterator(ctx, pruneThreshold)
+    defer iterator.Close()
+
+    for ; iterator.Valid(); iterator.Next() {
+        // Extract processed_at timestamp and promise_hash from key
+        processed_at, promise_hash := k.ParsePruningKey(iterator.Key())
+
+        // Stop if we've reached promises not yet eligible for pruning
+        if processed_at.After(pruneThreshold) {
+            break
+        }
+
+        // Remove from both indexes atomically
+        k.DeleteProcessedPromise(ctx, promise_hash)
+        k.DeletePruningEntry(ctx, processed_at, promise_hash)
+    }
+}
+```
 
 ## Transaction Flow
 
@@ -362,7 +441,26 @@ sequenceDiagram
 
 6. **Timeout Processing (Fallback)**: If user doesn't submit [`MsgPayForFibre`](#msgpayforfibre) within `promise_timeout_blocks`, anyone can submit [`MsgPaymentTimeout`](#msgpaymenttimeout) to process payment. This prevents the user from getting free service.
 
-7. **Withdrawal**: Users can request withdrawals via [`MsgRequestWithdrawal`](#msgrequestwithdrawal) (decreases available balance immediately) and process them after the delay (which decreases total balance and transfers funds to user).
+7. **Withdrawal**: Users can request withdrawals via [`MsgRequestWithdrawal`](#msgrequestwithdrawal) (decreases available balance immediately) and process them after the delay (which decreases total balance and transfers funds to user). Processing occurs automatically in BeginBlocker (see [Automatic Withdrawal Processing](#automatic-withdrawal-processing)).
+
+## Automatic State Transitions
+
+The fibre module requires automatic processing in `BeginBlocker` to handle time-based state transitions that cannot rely on user-submitted transactions. Two key operations must occur automatically:
+
+1. **Withdrawal Processing**: Transfer funds from escrow to user accounts when withdrawal delay expires (see [Automatic Withdrawal Processing](#automatic-withdrawal-processing))
+2. **Promise Pruning**: Remove old processed promises to prevent unbounded state growth (see [Automatic Promise Pruning](#automatic-promise-pruning))
+
+### BeginBlocker Implementation
+
+```go
+func BeginBlocker(ctx sdk.Context, k Keeper) {
+    // Process available withdrawals first (affects escrow balances)
+    processAvailableWithdrawals(ctx, k)
+
+    // Prune old processed promises (cleanup operation)
+    pruneProcessedPromises(ctx, k)
+}
+```
 
 ## Events
 
@@ -388,6 +486,7 @@ sequenceDiagram
 | Attribute Key | Attribute Value                    |
 |---------------|------------------------------------|
 | processor     | {bech32 encoded processor address} |
+| signer        | {bech32 encoded escrow owner}      |
 | amount        | {withdrawal amount}                |
 
 #### `EventPayForFibre`
