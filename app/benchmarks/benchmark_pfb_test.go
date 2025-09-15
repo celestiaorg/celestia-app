@@ -186,9 +186,7 @@ func BenchmarkProcessProposal_PFB_Multi(b *testing.B) {
 	testCases := []struct {
 		numberOfTransactions, blobSize int
 	}{
-		//{numberOfTransactions: 15_000, blobSize: 300},
-		//{numberOfTransactions: 10_000, blobSize: 500},
-		//{numberOfTransactions: 6_000, blobSize: 1000},
+		{numberOfTransactions: 32, blobSize: 4_000_000},
 		//{numberOfTransactions: 3_000, blobSize: 5000},
 		//{numberOfTransactions: 1_000, blobSize: 10_000},
 		//{numberOfTransactions: 500, blobSize: 50_000},
@@ -200,7 +198,7 @@ func BenchmarkProcessProposal_PFB_Multi(b *testing.B) {
 		//{numberOfTransactions: 10, blobSize: 1_000_000},
 		//{numberOfTransactions: 5, blobSize: 2_000_000},
 		//{numberOfTransactions: 3, blobSize: 3_000_000},
-		{numberOfTransactions: 64, blobSize: 4_000_000},
+		//{numberOfTransactions: 32, blobSize: 4_000_000},
 		//{numberOfTransactions: 2, blobSize: 5_000_000},
 		//{numberOfTransactions: 2, blobSize: 6_000_000},
 	}
