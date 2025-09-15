@@ -84,10 +84,13 @@ jobs:
     needs: [test-state-sync-mocha, test-all-upgrades]
     if: ${{ always() && (needs.test-state-sync-mocha.result == 'failure' || needs.test-all-upgrades.result == 'failure') }}
     steps:
-      - name: Post to Slack
+      - name: Slack Notification
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          payload: |
+            {
+              "text": "🚨 Nightly E2E Tests Failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        run: |
-          curl -X POST -H 'Content-type: application/json' \
-            --data '{"text":":rotating_light: Nightly E2E FAILED. See run -> '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'"}' \
-            $SLACK_WEBHOOK_URL
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
