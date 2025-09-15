@@ -24,7 +24,7 @@ require (
 	github.com/bcp-innovations/hyperlane-cosmos v1.0.1
 	github.com/celestiaorg/go-square/v2 v2.3.2
 	github.com/celestiaorg/nmt v0.24.1
-	github.com/celestiaorg/rsmt2d v0.14.0
+	github.com/celestiaorg/rsmt2d v0.15.0
 	github.com/cometbft/cometbft v0.38.17
 	github.com/cometbft/cometbft-db v1.0.4
 	github.com/cosmos/cosmos-db v1.1.1
