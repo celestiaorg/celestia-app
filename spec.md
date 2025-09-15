@@ -77,8 +77,6 @@ message PendingWithdrawal {
   cosmos.base.v1beta1.Coin amount = 2;
   // requested_at is the timestamp when withdrawal was requested
   google.protobuf.Timestamp requested_at = 3;
-  // available_at is the timestamp when funds become available
-  google.protobuf.Timestamp available_at = 4;
 }
 ```
 
