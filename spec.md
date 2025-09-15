@@ -260,7 +260,7 @@ message PaymentPromise {
 
 **Stateless Validation**:
 - `signer` must be valid bech32 address
-- `namespace` must be valid and share version 2
+- `namespace` must be valid
 - `blob_size` must be positive
 - `commitment` must be 32 bytes
 - `row_version` must be supported version
