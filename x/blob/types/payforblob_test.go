@@ -184,6 +184,36 @@ func validMsgPayForBlobs(t *testing.T) *types.MsgPayForBlobs {
 }
 
 func TestNewMsgPayForBlobs(t *testing.T) {
+	// This test demonstrates how blobs are organized into shares for PayForBlobs transactions.
+	// 
+	// Share Structure for Small Blob (fits in single share):
+	// ┌──────────────────────────────────────────────────────────────────────────────────┐
+	// │  0   │  1   │  29  │  30  │  34  │                    512                        │
+	// ├──────┼──────┼──────┼──────┼──────┼───────────────────────────────────────────────┤
+	// │ ns_v │ ns_id       │ info │ len  │ blob_data... (padded with 0s if needed)        │
+	// └──────┴──────┴──────┴──────┴──────┴───────────────────────────────────────────────┘
+	//
+	// Share Structure for Large Blob (spans multiple shares):
+	// Share 1 (start):
+	// ┌──────────────────────────────────────────────────────────────────────────────────┐
+	// │  0   │  1   │  29  │  30  │  34  │                    512                        │
+	// ├──────┼──────┼──────┼──────┼──────┼───────────────────────────────────────────────┤
+	// │ ns_v │ ns_id       │ 0x01 │ len  │ first_part_of_blob_data...                    │
+	// └──────┴──────┴──────┴──────┴──────┴───────────────────────────────────────────────┘
+	//
+	// Share 2+ (continuation):
+	// ┌──────────────────────────────────────────────────────────────────────────────────┐
+	// │  0   │  1   │  29  │  30  │                         512                          │
+	// ├──────┼──────┼──────┼──────┼──────────────────────────────────────────────────────┤
+	// │ ns_v │ ns_id       │ 0x00 │ remaining_blob_data... (padded if last share)       │
+	// └──────┴──────┴──────┴──────┴──────────────────────────────────────────────────────┘
+	//
+	// Where:
+	// - ns_v: namespace version (1 byte)
+	// - ns_id: namespace ID (28 bytes)  
+	// - info: share info byte (0x01 = start, 0x00 = continuation)
+	// - len: sequence length (4 bytes, only in start share)
+
 	type testCase struct {
 		name        string
 		signer      string
@@ -196,16 +226,43 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 
 	testCases := []testCase{
 		{
+			// Single share blob example:
+			// ┌──────────────────────────────────────────────────────────────────────────┐
+			// │ 0│    1    │  29 │30│  34  │                478 bytes                 │
+			// ├──┼─────────┼─────┼──┼──────┼──────────────────────────────────────────┤
+			// │ 0│ns_id..  │0x01 │sz│ blob │ data... (1 byte)                       │
+			// └──┴─────────┴─────┴──┴──────┴──────────────────────────────────────────┘
 			name:   "valid msg PFB with small blob",
 			signer: testfactory.TestAccAddr,
 			blobs:  []*share.Blob{mustNewBlob(t, ns1, []byte{1}, share.ShareVersionZero, nil)},
 		},
 		{
+			// Multi-share blob example (large blob):
+			// Share 1 (start):
+			// ┌──────────────────────────────────────────────────────────────────────────┐
+			// │ 0│    1    │  29 │30│  34  │                478 bytes                 │
+			// ├──┼─────────┼─────┼──┼──────┼──────────────────────────────────────────┤
+			// │ 0│ns_id..  │0x01 │sz│ blob │ data[0:478]                             │
+			// └──┴─────────┴─────┴──┴──────┴──────────────────────────────────────────┘
+			// 
+			// Share 2+ (continuation):
+			// ┌──────────────────────────────────────────────────────────────────────────┐
+			// │ 0│    1    │  29 │30│                482 bytes                         │
+			// ├──┼─────────┼─────┼──┼──────────────────────────────────────────────────┤
+			// │ 0│ns_id..  │0x00 │  │ data[478:960] or data[960:1442] etc...          │
+			// └──┴─────────┴─────┴──┴──────────────────────────────────────────────────┘
 			name:   "valid msg PFB with large blob",
 			signer: testfactory.TestAccAddr,
 			blobs:  []*share.Blob{mustNewBlob(t, ns1, random.Bytes(1000000), share.ShareVersionZero, nil)},
 		},
 		{
+			// Two blobs in separate namespaces:
+			// Data square layout (example):
+			// ┌─────────────────┬─────────────────┐
+			// │ Tx Share (PFB)  │ Blob1 NS1 data  │
+			// ├─────────────────┼─────────────────┤  
+			// │ Blob2 NS2 data  │ Padding/Parity  │
+			// └─────────────────┴─────────────────┘
 			name:   "valid msg PFB with two blobs",
 			signer: testfactory.TestAccAddr,
 			blobs: []*share.Blob{
@@ -215,6 +272,15 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 			expectedErr: false,
 		},
 		{
+			// Share Version 1 (with signer):
+			// ┌──────────────────────────────────────────────────────────────────────────┐
+			// │ 0│    1    │  29 │30│  34  │     20     │         458 bytes             │
+			// ├──┼─────────┼─────┼──┼──────┼────────────┼───────────────────────────────┤
+			// │ 0│ns_id..  │0x11 │sz│ blob │ signer_addr│ data... (with signer info)    │
+			// └──┴─────────┴─────┴──┴──────┴────────────┴───────────────────────────────┘
+			//                   ^              ^
+			//                   │              └─ Signer address (20 bytes)
+			//                   └─ Share version 1 (0x11 = 0x01 | 0x10)
 			name:   "valid msg PFB with share version 1",
 			signer: testfactory.TestAccAddr,
 			blobs: []*share.Blob{
@@ -268,6 +334,27 @@ func mustNewBlob(t *testing.T, ns share.Namespace, data []byte, shareVersion uin
 }
 
 func TestValidateBlobs(t *testing.T) {
+	// This test validates blob structure and demonstrates namespace restrictions.
+	//
+	// Valid Blob Share Layout:
+	// ┌──────────────────────────────────────────────────────────────────────────────────┐
+	// │     Namespace (29 bytes)      │Info│ Len │           Blob Data                   │
+	// ├─────────┬─────────────────────┼────┼─────┼───────────────────────────────────────┤
+	// │ Version │     ID (28 bytes)   │0x01│ len │ user_data... (padded to 512 bytes)    │
+	// └─────────┴─────────────────────┴────┴─────┴───────────────────────────────────────┘
+	//     ^                             ^     ^
+	//     │                             │     └─ Sequence length (4 bytes)
+	//     │                             └─ Share info: 0x01=start, 0x00=continuation  
+	//     └─ Must be user namespace (not reserved)
+	//
+	// Reserved Namespaces (INVALID for user blobs):
+	// - Transaction namespace:      0x00...00 0x01
+	// - Intermediate state roots:   0x00...00 0x02  
+	// - PayForBlob namespace:       0x00...00 0x04
+	// - Primary reserved padding:   0x00...00 0xFF
+	// - Parity shares:              0xFF...FF 0xFE
+	// - Tail padding:               0xFF...FF 0xFF
+
 	type test struct {
 		name        string
 		blob        *share.Blob

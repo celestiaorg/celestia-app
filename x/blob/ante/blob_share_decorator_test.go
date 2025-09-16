@@ -30,6 +30,36 @@ const (
 )
 
 func TestBlobShareDecorator(t *testing.T) {
+	// This test validates that blob transactions don't exceed the maximum square size.
+	// It demonstrates how blobs are split into shares and arranged in the data square.
+	//
+	// Share Calculation Example (64x64 square = 4096 total shares):
+	// ┌─────────────────────────────────────────────────────────────────────────────────┐
+	// │                        64x64 Data Square (4096 shares)                         │
+	// ├─────────────────────────────────────────────────────────────────────────────────┤
+	// │  Transaction Shares  │                  Blob Shares                            │
+	// │  (compact format)    │              (sparse format)                           │
+	// │                      │                                                         │
+	// │  ┌─────────────────┐ │  ┌─────────────────┬─────────────────┬─────────────────┐ │
+	// │  │ PFB Tx Share 1  │ │  │   Blob 1        │   Blob 1        │   Blob 1        │ │
+	// │  │ PFB Tx Share 2  │ │  │   (NS: 0x01...) │   (continuation)│   (continuation)│ │
+	// │  │ Other Tx Shares │ │  │   Share 1       │   Share 2       │   Share 3       │ │
+	// │  └─────────────────┘ │  ├─────────────────┼─────────────────┼─────────────────┤ │
+	// │                      │  │   Blob 2        │   Blob 2        │      ...        │ │
+	// │                      │  │   (NS: 0x02...) │   (continuation)│                 │ │
+	// │                      │  │   Share 1       │   Share 2       │                 │ │
+	// │                      │  └─────────────────┴─────────────────┴─────────────────┘ │
+	// └─────────────────────────────────────────────────────────────────────────────────┘
+	//
+	// Share Size Constraints:
+	// - Each share: 512 bytes
+	// - Namespace: 29 bytes (1 version + 28 ID)
+	// - Share info: 1 byte
+	// - Sequence length: 4 bytes (first share only)
+	// - Available data per share:
+	//   * First sparse share: 512 - 29 - 1 - 4 = 478 bytes
+	//   * Continuation share: 512 - 29 - 1 = 482 bytes
+
 	type testCase struct {
 		name                  string
 		blobsPerPFB, blobSize int

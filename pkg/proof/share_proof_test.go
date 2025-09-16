@@ -7,6 +7,35 @@ import (
 )
 
 func TestShareProofValidate(t *testing.T) {
+	// This test validates share inclusion proofs within the data square.
+	// Share proofs demonstrate that a specific share exists at a given position.
+	//
+	// Share Proof Structure:
+	// ┌─────────────────────────────────────────────────────────────────────────────────┐
+	// │                            Share Inclusion Proof                               │
+	// ├─────────────────────────────────────────────────────────────────────────────────┤
+	// │  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────────────────┐ │
+	// │  │   Share Data    │    │   Row Proof     │    │      Namespace Info         │ │
+	// │  │                 │    │                 │    │                             │ │
+	// │  │ ┌─────────────┐ │    │ ┌─────────────┐ │    │ ┌─────────────────────────┐ │ │
+	// │  │ │ Namespace   │ │    │ │ Merkle Path │ │    │ │ Namespace ID            │ │ │
+	// │  │ │ (29 bytes)  │ │ <- │ │ to Row Root │ │    │ │ Namespace Version       │ │ │
+	// │  │ ├─────────────┤ │    │ └─────────────┘ │    │ └─────────────────────────┘ │ │
+	// │  │ │ Share Info  │ │    │                 │    │                             │ │
+	// │  │ │ (1 byte)    │ │    │                 │    │                             │ │
+	// │  │ ├─────────────┤ │    │                 │    │                             │ │
+	// │  │ │ Data        │ │    │                 │    │                             │ │
+	// │  │ │ (482 bytes) │ │    │                 │    │                             │ │
+	// │  │ └─────────────┘ │    │                 │    │                             │ │
+	// │  └─────────────────┘    └─────────────────┘    └─────────────────────────────┘ │
+	// └─────────────────────────────────────────────────────────────────────────────────┘
+	//
+	// Verification Process:
+	// 1. Verify the share data matches the claimed namespace
+	// 2. Verify the row proof connects the share to the row root
+	// 3. Verify the row root exists in the data availability header
+	// 4. Verify namespace ordering within the data square
+
 	type testCase struct {
 		name    string
 		sp      ShareProof

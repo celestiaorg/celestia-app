@@ -38,6 +38,40 @@ func TestNewV0Blob(t *testing.T) {
 }
 
 func TestValidateBlobTx(t *testing.T) {
+	// This test validates BlobTx structure and demonstrates the relationship between
+	// the transaction and its associated blobs in the data square.
+	//
+	// BlobTx Structure:
+	// ┌─────────────────────────────────────────────────────────────────────────────────┐
+	// │                               BlobTx                                            │
+	// ├─────────────────────────────────┬───────────────────────────────────────────────┤
+	// │            Tx                   │                 Blobs[]                       │
+	// │  ┌─────────────────────────────┐│  ┌─────────────────────────────────────────┐ │
+	// │  │       MsgPayForBlobs        ││  │              Blob 1                     │ │
+	// │  │  - Namespaces[]             ││  │  - Namespace (must match PFB)           │ │
+	// │  │  - ShareCommitments[]       ││  │  - Data                                 │ │
+	// │  │  - BlobSizes[]              ││  │  - ShareVersion                         │ │
+	// │  │  - ShareVersions[]          ││  └─────────────────────────────────────────┘ │
+	// │  └─────────────────────────────┘│  ┌─────────────────────────────────────────┐ │
+	// │                                 │  │              Blob N                     │ │
+	// │                                 │  │  - Namespace (must match PFB)           │ │
+	// │                                 │  │  - Data                                 │ │
+	// │                                 │  │  - ShareVersion                         │ │
+	// │                                 │  └─────────────────────────────────────────┘ │
+	// └─────────────────────────────────┴───────────────────────────────────────────────┘
+	//
+	// Data Square Layout (example with 2x2 square):
+	// ┌─────────────────┬─────────────────┐
+	// │   Tx Share      │   Blob Share 1  │  <- Original data
+	// │ (PFB message)   │ (User namespace)│
+	// ├─────────────────┼─────────────────┤
+	// │   Blob Share 2  │   Parity Data   │
+	// │ (User namespace)│                 │
+	// └─────────────────┴─────────────────┘
+	//         ^                  ^
+	//    Original data      Parity shares
+	//                      (Reed-Solomon)
+
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	signer, err := testnode.NewOfflineSigner()
 	require.NoError(t, err)

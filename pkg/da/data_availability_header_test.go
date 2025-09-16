@@ -68,6 +68,37 @@ func TestNewDataAvailabilityHeader(t *testing.T) {
 }
 
 func TestExtendShares(t *testing.T) {
+	// This test demonstrates the Reed-Solomon encoding process that extends
+	// original data shares into parity shares for data availability.
+	//
+	// Original 2x2 Data Square:
+	// ┌─────────────────┬─────────────────┐
+	// │   Share 1       │   Share 2       │
+	// │ (tx data)       │ (blob data)     │
+	// ├─────────────────┼─────────────────┤
+	// │   Share 3       │   Share 4       │ 
+	// │ (blob data)     │ (padding)       │
+	// └─────────────────┴─────────────────┘
+	//
+	// Extended 4x4 Data Square (after Reed-Solomon):
+	// ┌─────────────────┬─────────────────┬─────────────────┬─────────────────┐
+	// │   Share 1       │   Share 2       │  Parity 1-1     │  Parity 1-2     │
+	// │ (tx data)       │ (blob data)     │ (row parity)    │ (row parity)    │
+	// ├─────────────────┼─────────────────┼─────────────────┼─────────────────┤
+	// │   Share 3       │   Share 4       │  Parity 2-1     │  Parity 2-2     │
+	// │ (blob data)     │ (padding)       │ (row parity)    │ (row parity)    │
+	// ├─────────────────┼─────────────────┼─────────────────┼─────────────────┤
+	// │  Parity 3-1     │  Parity 3-2     │  Parity 3-3     │  Parity 3-4     │
+	// │ (col parity)    │ (col parity)    │ (corner parity) │ (corner parity) │
+	// ├─────────────────┼─────────────────┼─────────────────┼─────────────────┤
+	// │  Parity 4-1     │  Parity 4-2     │  Parity 4-3     │  Parity 4-4     │
+	// │ (col parity)    │ (col parity)    │ (corner parity) │ (corner parity) │
+	// └─────────────────┴─────────────────┴─────────────────┴─────────────────┘
+	//         ^                 ^                    ^                 ^
+	//    Original Data     Original Data      Row Parity       Row Parity
+	//
+	// This allows recovery of any missing quadrant using the remaining three.
+
 	type test struct {
 		name        string
 		expectedErr bool
