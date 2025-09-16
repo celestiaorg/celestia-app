@@ -142,7 +142,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		return reject(), nil
 	}
 
-	eds, err := da.ExtendSharesWithTreeFactory(share.ToBytes(dataSquare), app.TreePool().GetTreeFactory(uint64(dataSquare.Size())))
+	eds, err := da.ExtendSharesWithTreeFactory(share.ToBytes(dataSquare), app.TreePool().GetTreePool(uint64(dataSquare.Size())))
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to erasure the data square", err)
 		return reject(), nil

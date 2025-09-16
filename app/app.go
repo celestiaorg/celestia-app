@@ -196,7 +196,7 @@ type App struct {
 	// blockTime is used to override the default TimeoutHeightDelay. This is
 	// useful for testing purposes and should not be used on public networks
 	// (Arabica, Mocha, or Mainnet Beta).
-	processProposalTreePool *wrapper.TreeFactoryProvider
+	processProposalTreePool *wrapper.TreePoolProvider
 	delayedPrecommitTimeout time.Duration
 }
 
@@ -233,7 +233,7 @@ func New(
 		keys:                    keys,
 		tkeys:                   tkeys,
 		memKeys:                 memKeys,
-		processProposalTreePool: wrapper.NewTreeFactoryProvider(goruntime.NumCPU() * 4),
+		processProposalTreePool: wrapper.NewTreePoolProvider(goruntime.NumCPU() * 4),
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
 	}
 
@@ -696,7 +696,7 @@ func (app *App) GetSubspace(moduleName string) paramstypes.Subspace {
 	return subspace
 }
 
-func (app *App) TreePool() *wrapper.TreeFactoryProvider {
+func (app *App) TreePool() *wrapper.TreePoolProvider {
 	return app.processProposalTreePool
 }
 

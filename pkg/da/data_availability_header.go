@@ -75,7 +75,7 @@ func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 	return rsmt2d.ComputeExtendedDataSquare(s, appconsts.DefaultCodec(), wrapper.NewConstructor(uint64(squareSize)))
 }
 
-func ExtendSharesWithTreeFactory(s [][]byte, treeFactory *wrapper.TreeFactory) (*rsmt2d.ExtendedDataSquare, error) {
+func ExtendSharesWithTreeFactory(s [][]byte, treeFactory *wrapper.TreePool) (*rsmt2d.ExtendedDataSquare, error) {
 	// Check that the length of the square is a power of 2.
 	if !square.IsPowerOfTwo(len(s)) {
 		return nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(s))

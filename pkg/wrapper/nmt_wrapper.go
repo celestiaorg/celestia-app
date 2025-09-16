@@ -47,24 +47,24 @@ func (p *fixedTreePool) release(tree *ErasuredNamespacedMerkleTree) {
 	p.availableNMTs <- tree
 }
 
-type TreeFactoryProvider struct {
+type TreePoolProvider struct {
 	mutex     sync.Mutex
-	factories map[uint64]*TreeFactory
+	factories map[uint64]*TreePool
 	poolSize  int
 	opts      []nmt.Option
 }
 
-// NewTreeFactoryProvider creates a new TreeFactoryProvider with the given default pool size and options
-func NewTreeFactoryProvider(poolSize int, opts ...nmt.Option) *TreeFactoryProvider {
-	return &TreeFactoryProvider{
-		factories: make(map[uint64]*TreeFactory),
+// NewTreePoolProvider creates a new TreePoolProvider with the given default pool size and options
+func NewTreePoolProvider(poolSize int, opts ...nmt.Option) *TreePoolProvider {
+	return &TreePoolProvider{
+		factories: make(map[uint64]*TreePool),
 		poolSize:  poolSize,
 		opts:      opts,
 	}
 }
 
-// GetTreeFactory returns a cached TreeFactory for the given square size, creating one if it doesn't exist
-func (tfp *TreeFactoryProvider) GetTreeFactory(squareSize uint64) *TreeFactory {
+// GetTreePool returns a cached TreePool for the given square size, creating one if it doesn't exist
+func (tfp *TreePoolProvider) GetTreePool(squareSize uint64) *TreePool {
 	tfp.mutex.Lock()
 	defer tfp.mutex.Unlock()
 
@@ -78,29 +78,29 @@ func (tfp *TreeFactoryProvider) GetTreeFactory(squareSize uint64) *TreeFactory {
 }
 
 // Clear removes all cached factories (useful for testing or cleanup)
-func (tfp *TreeFactoryProvider) Clear() {
+func (tfp *TreePoolProvider) Clear() {
 	tfp.mutex.Lock()
 	defer tfp.mutex.Unlock()
-	tfp.factories = make(map[uint64]*TreeFactory)
+	tfp.factories = make(map[uint64]*TreePool)
 }
 
 // Size returns the number of cached factories
-func (tfp *TreeFactoryProvider) Size() int {
+func (tfp *TreePoolProvider) Size() int {
 	tfp.mutex.Lock()
 	defer tfp.mutex.Unlock()
 	return len(tfp.factories)
 }
 
-// treeFactory provides factory methods for creating tree constructors
-type TreeFactory struct {
+// TreePool provides pool methods for creating tree constructors
+type TreePool struct {
 	squareSize uint64
 	opts       []nmt.Option
 	poolSize   int
 	treePool   *fixedTreePool
 }
 
-func NewTreeFactory(squareSize uint64, poolSize int, opts ...nmt.Option) *TreeFactory {
-	return &TreeFactory{
+func NewTreeFactory(squareSize uint64, poolSize int, opts ...nmt.Option) *TreePool {
+	return &TreePool{
 		squareSize: squareSize,
 		opts:       opts,
 		poolSize:   poolSize,
@@ -108,16 +108,16 @@ func NewTreeFactory(squareSize uint64, poolSize int, opts ...nmt.Option) *TreeFa
 	}
 }
 
-func (f *TreeFactory) PoolSize() int {
+func (f *TreePool) PoolSize() int {
 	return f.poolSize
 }
 
-// SquareSize returns the square size this factory was configured for
-func (f *TreeFactory) SquareSize() uint64 {
+// SquareSize returns the square size this pool was configured for
+func (f *TreePool) SquareSize() uint64 {
 	return f.squareSize
 }
 
-func (f *TreeFactory) NewConstructor() rsmt2d.TreeConstructorFn {
+func (f *TreePool) NewConstructor() rsmt2d.TreeConstructorFn {
 	return func(_ rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
 		tree := f.treePool.acquire()
 		tree.axisIndex = uint64(axisIndex)
@@ -153,10 +153,9 @@ type ErasuredNamespacedMerkleTree struct {
 	// 2*squareSize. shareIndex is used to help determine which quadrant each
 	// leaf belongs to, along with keeping track of how many leaves have been
 	// added to the tree so far.
-	shareIndex      uint64
-	pool            *fixedTreePool // reference to the pool this tree belongs to
-	buffer          []byte         // Pre-allocated buffer for share data
-	parityNamespace []byte         // Pre-allocated parity namespace bytes
+	shareIndex uint64
+	pool       *fixedTreePool // reference to the pool this tree belongs to
+	buffer     []byte         // Pre-allocated buffer for share data
 }
 
 // Tree is the interface that rsmt2d expects
@@ -177,58 +176,57 @@ func NewErasuredNamespacedMerkleTree(squareSize uint64, axisIndex uint, options 
 		panic("cannot create an ErasuredNamespacedMerkleTree of squareSize == 0")
 	}
 
+	options = append(options, nmt.NamespaceIDSize(share.NamespaceSize))
 	options = append(options, nmt.IgnoreMaxNamespace(true))
 	return ErasuredNamespacedMerkleTree{
-		squareSize:      squareSize,
-		options:         options,
-		tree:            nmt.New(appconsts.NewBaseHashFunc(), options...),
-		axisIndex:       uint64(axisIndex),
-		shareIndex:      0,
-		parityNamespace: share.ParitySharesNamespace.Bytes(),
+		squareSize: squareSize,
+		options:    options,
+		tree:       nmt.New(appconsts.NewBaseHashFunc(), options...),
+		axisIndex:  uint64(axisIndex),
+		shareIndex: 0,
 	}
 }
 
 type constructor struct {
 	squareSize uint64
 	opts       []nmt.Option
-	factory    *TreeFactory
+	pool       *TreePool
 }
 
-// NewConstructor creates a tree constructor function as required by rsmt2d to
+// NewBufferedConstructor creates a tree constructor function as required by rsmt2d to
 // calculate the data root. It creates that tree using the
-// wrapper.ErasuredNamespacedMerkleTree.
-func NewBufferedConstructor(squareSize uint64, factory *TreeFactory, opts ...nmt.Option) rsmt2d.TreeConstructorFn {
+// wrapper.ErasuredNamespacedMerkleTree. It pools the trees for reuse.
+func NewBufferedConstructor(squareSize uint64, pool *TreePool, opts ...nmt.Option) rsmt2d.TreeConstructorFn {
 	return constructor{
 		squareSize: squareSize,
 		opts:       opts,
-		factory:    factory,
-	}.NewBufferedTree
+		pool:       pool,
+	}.newBufferedTree
 }
 
-// NewDefaultConstructor creates a tree constructor function as required by rsmt2d to
+// NewConstructor creates a tree constructor function as required by rsmt2d to
 // calculate the data root. It creates that tree using the
 // wrapper.ErasuredNamespacedMerkleTree.
 func NewConstructor(squareSize uint64, opts ...nmt.Option) rsmt2d.TreeConstructorFn {
 	return constructor{
 		squareSize: squareSize,
 		opts:       opts,
-	}.NewTree
+	}.newTree
 }
 
-// NewTree creates a new rsmt2d.Tree using the
+// newTree creates a new rsmt2d.Tree using the
 // wrapper.ErasuredNamespacedMerkleTree with predefined square size and
 // nmt.Options
-func (c constructor) NewTree(axis rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
+func (c constructor) newTree(axis rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
 	tree := NewErasuredNamespacedMerkleTree(c.squareSize, axisIndex, c.opts...)
 	return &tree
 }
 
-// NewTree creates a new rsmt2d.Tree using the
-// wrapper.ErasuredNamespacedMerkleTree with predefined square size and
-// nmt.Options
-func (c constructor) NewBufferedTree(axis rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
-	// Use the factory's NewConstructor method to create a tree
-	constructorFn := c.factory.NewConstructor()
+// newBufferedTree gets a new rsmt2d.Tree from pool
+// with predefined square size and nmt.Options
+func (c constructor) newBufferedTree(axis rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
+	// Use the pool's NewConstructor method to create a tree
+	constructorFn := c.pool.NewConstructor()
 	return constructorFn(axis, axisIndex)
 }
 
@@ -247,8 +245,7 @@ func (w *ErasuredNamespacedMerkleTree) Push(data []byte) error {
 
 	var nidAndData []byte
 	if w.buffer != nil {
-		shareSize := share.ShareSize
-		offset := int(w.shareIndex) * shareSize
+		offset := int(w.shareIndex) * share.ShareSize
 		nidAndData = w.buffer[offset : offset+len(data)]
 	} else {
 		nidAndData = make([]byte, len(data))
@@ -259,7 +256,7 @@ func (w *ErasuredNamespacedMerkleTree) Push(data []byte) error {
 	if w.isQuadrantZero() {
 		copy(nidAndData[:share.NamespaceSize], data[:share.NamespaceSize])
 	} else {
-		copy(nidAndData[:share.NamespaceSize], w.parityNamespace)
+		copy(nidAndData[:share.NamespaceSize], share.ParitySharesNamespace.Bytes())
 	}
 
 	err := w.tree.Push(nidAndData)
