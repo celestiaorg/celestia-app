@@ -104,10 +104,7 @@ func OutOfOrderExport(b *square.Builder) (square.Square, error) {
 	for i, element := range b.Blobs {
 		// NextShareIndex returned where the next blob should start so as to comply with the share commitment rules
 		// We fill out the remaining
-		cursor, err := inclusion.NextShareIndex(cursor, element.NumShares, b.SubtreeRootThreshold())
-		if err != nil {
-			return nil, fmt.Errorf("failed to calculate next share index for blob %d: %w", i, err)
-		}
+		cursor, _ = inclusion.NextShareIndex(cursor, element.NumShares, b.SubtreeRootThreshold())
 		if i == 0 {
 			nonReservedStart = cursor
 		}

@@ -88,7 +88,7 @@ func TestMaliciousTestNode(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, txres.Code)
 
-	// fetch the block that included in the tx
+	// fetch the block that included the tx
 	inclusionHeight := txres.Height
 	block, err := cctx.Client.Block(cctx.GoContext(), &inclusionHeight)
 	require.NoError(t, err)
