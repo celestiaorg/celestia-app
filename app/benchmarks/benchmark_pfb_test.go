@@ -209,6 +209,11 @@ func BenchmarkProcessProposal_PFB_Multi(b *testing.B) {
 	}
 }
 
+func BenchmarkProcessProposal_PFB_Multi_WithProfiling(b *testing.B) {
+	// Single test case for detailed profiling
+	benchmarkProcessProposalPFBWithProfiling(b, 32, 4_000_000)
+}
+
 func benchmarkProcessProposalPFB(b *testing.B, count, size int) {
 	testApp, rawTxs := generatePayForBlobTransactions(b, count, size)
 
@@ -239,6 +244,48 @@ func benchmarkProcessProposalPFB(b *testing.B, count, size int) {
 	b.ReportMetric(float64(len(rawTxs[0])), "transactions_size(byte)")
 	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResp.Txs), "block_size(mb)")
 	b.ReportMetric(float64(calculateTotalGasUsed(testApp, rawTxs)), "total_gas_used")
+}
+
+func benchmarkProcessProposalPFBWithProfiling(b *testing.B, count, size int) {
+	testApp, rawTxs := generatePayForBlobTransactions(b, count, size)
+
+	prepareProposalReq := types.RequestPrepareProposal{
+		Txs:    rawTxs,
+		Height: testApp.LastBlockHeight() + 1,
+	}
+
+	prepareProposalResp, err := testApp.PrepareProposal(&prepareProposalReq)
+	require.NoError(b, err)
+	require.GreaterOrEqual(b, len(prepareProposalResp.Txs), 1)
+
+	processProposalReq := types.RequestProcessProposal{
+		Txs:          prepareProposalResp.Txs,
+		Height:       testApp.LastBlockHeight() + 1,
+		DataRootHash: prepareProposalResp.DataRootHash,
+		SquareSize:   prepareProposalResp.SquareSize,
+	}
+
+	// Run multiple iterations for better profiling data
+	iterations := 10
+	b.ResetTimer()
+	start := time.Now()
+
+	for i := 0; i < iterations; i++ {
+		resp, err := testApp.ProcessProposal(&processProposalReq)
+		require.NoError(b, err)
+		require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Status)
+	}
+
+	elapsed := time.Since(start)
+	b.StopTimer()
+
+	avgTime := elapsed / time.Duration(iterations)
+	b.ReportMetric(float64(avgTime.Nanoseconds()), "avg_process_proposal_time(ns)")
+	b.ReportMetric(float64(len(prepareProposalResp.Txs)), "number_of_transactions")
+	b.ReportMetric(float64(len(rawTxs[0])), "transactions_size(byte)")
+	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResp.Txs), "block_size(mb)")
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, rawTxs)), "total_gas_used")
+	b.ReportMetric(float64(iterations), "iterations")
 }
 
 func BenchmarkProcessProposal_PFB_Half_Second(b *testing.B) {

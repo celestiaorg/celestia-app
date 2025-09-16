@@ -72,7 +72,22 @@ func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 
 	// here we construct a tree
 	// Note: uses the nmt wrapper to construct the tree.
-	return rsmt2d.ComputeExtendedDataSquareLimitParallelOps(s, appconsts.DefaultCodec(), wrapper.NewConstructor(uint64(squareSize)), 40)
+	return rsmt2d.ComputeExtendedDataSquare(s, appconsts.DefaultCodec(), wrapper.NewConstructor(uint64(squareSize)))
+}
+
+func ExtendSharesWithTreeFactory(s [][]byte, treeFactory *wrapper.TreeFactory) (*rsmt2d.ExtendedDataSquare, error) {
+	// Check that the length of the square is a power of 2.
+	if !square.IsPowerOfTwo(len(s)) {
+		return nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(s))
+	}
+	squareSize := SquareSize(len(s))
+
+	// here we construct a tree
+	// Note: uses the nmt wrapper to construct the tree.
+	return rsmt2d.ComputeExtendedDataSquareLimitParallelOps(s,
+		appconsts.DefaultCodec(),
+		wrapper.NewBufferedConstructor(uint64(squareSize), treeFactory),
+		treeFactory.PoolSize())
 }
 
 // String returns hex representation of merkle hash of the DAHeader.

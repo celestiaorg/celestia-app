@@ -270,8 +270,8 @@ require (
 replace (
 	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.6
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
-	github.com/celestiaorg/nmt => ../nmt //github.com/mcrakhman/nmt v0.24.1-0.20250902084411-80a4a53a2345
-	github.com/celestiaorg/rsmt2d => ../rsmt2d //github.com/mcrakhman/rsmt2d v0.14.1-0.20250902100149-9d8370bc8c27
+	github.com/celestiaorg/nmt => github.com/mcrakhman/nmt v0.24.2-0.20250915144931-84f9b6f163b8
+	github.com/celestiaorg/rsmt2d => github.com/mcrakhman/rsmt2d v0.14.1-0.20250916093323-dcf1a21ab623
 	// TODO: update to a v0.39.x release after that is created from celestia-core main branch.
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.2
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.51.0

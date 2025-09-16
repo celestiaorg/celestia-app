@@ -5,6 +5,7 @@ import (
 	"io"
 	"math"
 	"os"
+	goruntime "runtime"
 	"time"
 
 	"cosmossdk.io/client/v2/autocli"
@@ -35,6 +36,7 @@ import (
 	celestiatx "github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
 	"github.com/celestiaorg/celestia-app/v6/x/blob"
 	blobkeeper "github.com/celestiaorg/celestia-app/v6/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
@@ -193,7 +195,8 @@ type App struct {
 	// timeoutCommit is used to override the default timeoutCommit. This is
 	// useful for testing purposes and should not be used on public networks
 	// (Arabica, Mocha, or Mainnet Beta).
-	timeoutCommit time.Duration
+	timeoutCommit           time.Duration
+	processProposalTreePool *wrapper.TreeFactoryProvider
 }
 
 // New returns a reference to an uninitialized app. Callers must subsequently
@@ -220,11 +223,12 @@ func New(
 	govModuleAddr := authtypes.NewModuleAddress(govtypes.ModuleName).String()
 
 	app := &App{
-		BaseApp:       baseApp,
-		keys:          keys,
-		tkeys:         tkeys,
-		memKeys:       memKeys,
-		timeoutCommit: timeoutCommit,
+		BaseApp:                 baseApp,
+		keys:                    keys,
+		tkeys:                   tkeys,
+		memKeys:                 memKeys,
+		timeoutCommit:           timeoutCommit,
+		processProposalTreePool: wrapper.NewTreeFactoryProvider(goruntime.NumCPU() * 4),
 	}
 
 	// needed for migration from x/params -> module's ownership of own params
@@ -687,6 +691,10 @@ func (app *App) GetMemKey(storeKey string) *storetypes.MemoryStoreKey {
 func (app *App) GetSubspace(moduleName string) paramstypes.Subspace {
 	subspace, _ := app.ParamsKeeper.GetSubspace(moduleName)
 	return subspace
+}
+
+func (app *App) TreePool() *wrapper.TreeFactoryProvider {
+	return app.processProposalTreePool
 }
 
 // RegisterAPIRoutes registers all application module routes with the provided
