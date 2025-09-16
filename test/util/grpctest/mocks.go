@@ -134,7 +134,7 @@ func StartBufConnMockServer(t *testing.T, service *MockTxService) *grpc.ClientCo
 	}()
 
 	conn, err := grpc.NewClient(
-		"bufnet",
+		"passthrough:///bufnet",
 		grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
 			return lis.Dial()
 		}),
