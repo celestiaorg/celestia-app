@@ -22,7 +22,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.19.6
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.88.1
 	github.com/bcp-innovations/hyperlane-cosmos v1.0.1
-	github.com/celestiaorg/go-square/v2 v2.3.2
+	github.com/celestiaorg/go-square/v3 v3.0.0-rc0
 	github.com/celestiaorg/nmt v0.24.1
 	github.com/celestiaorg/rsmt2d v0.15.0
 	github.com/cometbft/cometbft v0.38.17
@@ -100,6 +100,7 @@ require (
 	github.com/bufbuild/protocompile v0.14.1 // indirect
 	github.com/bytedance/sonic v1.13.1 // indirect
 	github.com/bytedance/sonic/loader v0.2.4 // indirect
+	github.com/celestiaorg/go-square/v2 v2.3.1 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
