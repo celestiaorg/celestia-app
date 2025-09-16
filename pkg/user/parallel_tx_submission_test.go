@@ -90,7 +90,7 @@ func TestParallelSubmitPayForBlobSuccess(t *testing.T) {
 		statusStore[hash] = &tx.TxStatusResponse{
 			Height:        33,
 			ExecutionCode: abci.CodeTypeOK,
-			Status:        string(core.TxStatusCommitted),
+			Status:        core.TxStatusCommitted,
 		}
 		mu.Unlock()
 
@@ -109,7 +109,7 @@ func TestParallelSubmitPayForBlobSuccess(t *testing.T) {
 			return resp, nil
 		}
 
-		return &tx.TxStatusResponse{Status: string(core.TxStatusPending)}, nil
+		return &tx.TxStatusResponse{Status: core.TxStatusPending}, nil
 	}
 
 	workerAccounts := []string{"worker-1", "worker-2"}
@@ -154,7 +154,7 @@ func TestParallelSubmitPayForBlobBroadcastError(t *testing.T) {
 		}, nil
 	}
 	svc.TxStatusHandler = func(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error) {
-		return &tx.TxStatusResponse{Status: string(core.TxStatusCommitted)}, nil
+		return &tx.TxStatusResponse{Status: core.TxStatusCommitted}, nil
 	}
 
 	workerAccounts := []string{"worker-1"}
