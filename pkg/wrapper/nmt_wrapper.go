@@ -31,7 +31,7 @@ func newFixedTreePool(size int, squareSize uint64, opts []nmt.Option) *fixedTree
 		treePtr := &tree
 		treePtr.pool = pool
 		// Pre-allocate a buffer for all share data (2 * squareSize * shareSize bytes total)
-		shareSize := share.ShareSize
+		shareSize := share.ShareSize + share.NamespaceSize
 		treePtr.buffer = make([]byte, 2*squareSize*uint64(shareSize))
 		pool.availableNMTs <- treePtr
 	}
@@ -245,10 +245,11 @@ func (w *ErasuredNamespacedMerkleTree) Push(data []byte) error {
 
 	var nidAndData []byte
 	if w.buffer != nil {
-		offset := int(w.shareIndex) * share.ShareSize
-		nidAndData = w.buffer[offset : offset+len(data)]
+		elementSize := share.ShareSize + share.NamespaceSize
+		offset := int(w.shareIndex) * elementSize
+		nidAndData = w.buffer[offset : offset+elementSize]
 	} else {
-		nidAndData = make([]byte, len(data))
+		nidAndData = make([]byte, share.NamespaceSize+len(data))
 	}
 	copy(nidAndData[share.NamespaceSize:], data)
 
