@@ -41,10 +41,9 @@ const (
 	DefaultPollTime          = 3 * time.Second
 	txTrackerPruningInterval = 10 * time.Minute
 	// Gas limits for initialization transactions
-	SendGasLimit     = 100000
-	FeegrantGasLimit = 800000
-	// Default balance to fund new worker accounts (1 TIA = 1e6 utia)
-	DefaultWorkerBalance = 1_000_000
+	SendGasLimit         = 100000
+	FeegrantGasLimit     = 800000
+	DefaultWorkerBalance = 1
 )
 
 type Option func(client *TxClient)
