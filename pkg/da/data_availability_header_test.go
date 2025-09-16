@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	sh "github.com/celestiaorg/go-square/v2/share"
+	sh "github.com/celestiaorg/go-square/v3/share"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

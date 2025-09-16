@@ -17,7 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
 	signal "github.com/celestiaorg/celestia-app/v6/x/signal/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
