@@ -90,7 +90,7 @@ func getSharesNeeded(txSize uint32, msg *blobtypes.MsgPayForBlobs) (sum int) {
 	for i, blobSize := range msg.BlobSizes {
 		shareVersion := msg.ShareVersions[i]
 		containsSigner := shareVersion == uint32(share.ShareVersionOne)
-		sum += share.SparseSharesNeededV2(blobSize, containsSigner)
+		sum += share.SparseSharesNeeded(blobSize, containsSigner)
 	}
 	return sum
 }
