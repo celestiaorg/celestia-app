@@ -89,7 +89,7 @@ jobs:
         with:
           payload: |
             {
-              "text": "🚨 Nightly E2E Tests Failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              "text": "test-nightly tests failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
