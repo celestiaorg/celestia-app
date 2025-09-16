@@ -130,6 +130,7 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 		keys.Commands(),
 		snapshot.Cmd(NewAppServer),
 		updateConfigCmd(),
+		listTypesCmd(),
 	)
 
 	modifyRootCommand(rootCommand)
