@@ -40,12 +40,16 @@ func NewChainBuilder(t *testing.T, chainConfig *Config, cfg *dockerchain.Config)
 
 	encodingConfig := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
 
+	// Use dynamic port allocation to avoid conflicts in parallel tests
+	port := testnode.GetDeterministicPort()
+	portMapping := fmt.Sprintf("%d:10001", port)
+
 	return celestiadockertypes.NewChainBuilder(t).
 		WithName(chainConfig.Name).
 		WithChainID(chainConfig.ChainID).
 		WithDockerClient(cfg.DockerClient).
 		WithDockerNetworkID(cfg.DockerNetworkID).
-		WithImage(tastoracontainertypes.NewImage(cfg.Image, cfg.Tag, "10001:10001")).
+		WithImage(tastoracontainertypes.NewImage(cfg.Image, cfg.Tag, portMapping)).
 		WithAdditionalStartArgs("--force-no-bbr").
 		WithEncodingConfig(&encodingConfig).
 		WithGenesis(genesisBz)
