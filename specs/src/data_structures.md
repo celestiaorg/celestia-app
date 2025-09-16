@@ -26,12 +26,11 @@
 
 Blocks are the top-level data structure of the Celestia blockchain.
 
-| name                  | type                                        | description                                                           |
-|-----------------------|---------------------------------------------|-----------------------------------------------------------------------|
-| `header`              | [Header](#header)                           | Block header. Contains primarily identification info and commitments. |
-| `availableDataHeader` | [AvailableDataHeader](#availabledataheader) | Header of available data. Contains commitments to erasure-coded data. |
-| `availableData`       | [AvailableData](#availabledata)             | Data that is erasure-coded for availability.                          |
-| `lastCommit`          | [Commit](#commit)                           | Previous block's Tendermint commit.                                   |
+| name            | type                        | description                                                           |
+|-----------------|-----------------------------|--------------------------------------------------------------------|
+| `header`        | [Header](#header)           | Block header. Contains primarily identification info and commitments. |
+| `availableData` | [AvailableData](#availabledata) | Data that is erasure-coded for availability.                          |
+| `lastCommit`    | [Commit](#commit)           | Previous block's Tendermint commit.                                   |
 
 ### Header
 

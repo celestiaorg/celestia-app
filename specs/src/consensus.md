@@ -72,7 +72,6 @@ Before executing [state transitions](#state-transitions), the structure of the [
 The following block fields are acquired from the network and parsed (i.e. [deserialized](./data_structures.md#serialization)). If they cannot be parsed, the block is ignored but is not explicitly considered invalid by consensus rules. Further implications of ignoring a block are found in the [networking spec](./networking.md).
 
 1. [block.header](./data_structures.md#header)
-1. [block.availableDataHeader](./data_structures.md#availabledataheader)
 1. [block.lastCommit](./data_structures.md#commit)
 
 If the above fields are parsed successfully, the available data `block.availableData` is acquired in erasure-coded form as [a list of share rows](./networking.md#availabledata), then parsed. If it cannot be parsed, the block is ignored but not explicitly invalid, as above.
@@ -90,16 +89,8 @@ The [block header](./data_structures.md#header) `block.header` (`header` for sho
 1. `header.consensusHash` == the value computed [here](./data_structures.md#consensus-parameters).
 1. `header.stateCommitment` == the root of the state, computed [with the application of all state transitions in this block](#state-transitions).
 1. `availableDataOriginalSquareSize` <= [`AVAILABLE_DATA_ORIGINAL_SQUARE_MAX`](#constants).
-1. `header.availableDataRoot` == the [Merkle root](./data_structures.md#binary-merkle-tree) of the tree with the row and column roots of `block.availableDataHeader` as leaves.
+1. `header.availableDataRoot` == the [Merkle root](./data_structures.md#binary-merkle-tree) of the row and column roots computed from the [erasure-coded extended](./data_structures.md#2d-reed-solomon-encoding-scheme) `availableData`.
 1. `header.proposerAddress` == the [leader](#leader-selection) for `header.height`.
-
-### `block.availableDataHeader`
-
-The [available data header](./data_structures.md#availabledataheader) `block.availableDataHeader` (`availableDataHeader` for short) is then processed. This commits to the available data, which is only downloaded after the [consensus commit](#blocklastcommit) is processed. The following checks must be `true`:
-
-1. Length of `availableDataHeader.rowRoots` == `availableDataOriginalSquareSize * 2`.
-1. Length of `availableDataHeader.colRoots` == `availableDataOriginalSquareSize * 2`.
-1. The length of each element in `availableDataHeader.rowRoots` and `availableDataHeader.colRoots` must be [`32`](./data_structures.md#hashing).
 
 ### `block.lastCommit`
 
@@ -118,7 +109,7 @@ The block's [available data](./data_structures.md#availabledata) (analogous to t
 
 Once parsed, the following checks must be `true`:
 
-1. The commitments of the [erasure-coded extended](./data_structures.md#2d-reed-solomon-encoding-scheme) `availableData` must match those in `header.availableDataHeader`. Implicitly, this means that both rows and columns must be ordered lexicographically by namespace since they are committed to in a [Namespace Merkle Tree](data_structures.md#namespace-merkle-tree).
+1. The commitments of the [erasure-coded extended](./data_structures.md#2d-reed-solomon-encoding-scheme) `availableData` must match those in `header.availableDataRoot`. Implicitly, this means that both rows and columns must be ordered lexicographically by namespace since they are committed to in a [Namespace Merkle Tree](data_structures.md#namespace-merkle-tree).
 1. Length of `availableData.intermediateStateRootData` == length of `availableData.transactionData` + length of `availableData.payForBlobData` + 2. (Two additional state transitions are the [begin](#begin-block) and [end block](#end-block) implicit transitions.)
 
 ## State Transitions
