@@ -590,8 +590,8 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 	close(errCh)
 
 	// Return first successful response, if any
-	if resp, ok := <-respCh; ok {
-		client.TrackTransaction(signer, resp.TxHash, txBytes)
+	if resp, ok := <-respCh; ok && resp != nil {
+		client.trackTransaction(signer, resp.TxHash, txBytes)
 
 		if err := client.signer.IncrementSequence(signer); err != nil {
 			return nil, fmt.Errorf("increment sequencing: %w", err)
