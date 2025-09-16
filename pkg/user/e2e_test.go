@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
 	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
@@ -75,4 +77,65 @@ func TestConcurrentTxSubmission(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParallelTxSubmission(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+
+	// Setup network
+	tmConfig := testnode.DefaultTendermintConfig()
+	tmConfig.Consensus.TimeoutCommit = 3 * time.Second
+	ctx, _, _ := testnode.NewNetwork(t, testnode.DefaultConfig().WithTendermintConfig(tmConfig))
+	_, err := ctx.WaitForHeight(1)
+	require.NoError(t, err)
+
+	// Setup signer with parallel workers (accounts will be auto-created)
+	numWorkers := 3
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg, user.WithTxWorkers(numWorkers, nil))
+	require.NoError(t, err)
+
+	// Initialize worker accounts (create, fund, and setup fee grants)
+	err = txClient.InitializeWorkerAccounts(ctx.GoContext())
+	require.NoError(t, err)
+
+	// Generate test blobs
+	numJobs := 10
+	blobs := blobfactory.ManyRandBlobs(random.New(), blobfactory.Repeat(1024, numJobs)...)
+
+	// Submit jobs in parallel and collect result channels
+	resultChannels := make([]chan *user.SubmissionResult, numJobs)
+	for i := 0; i < numJobs; i++ {
+		resultC, err := txClient.SubmitPayForBlobParallel(ctx.GoContext(), []*share.Blob{blobs[i]}, user.SetGasLimitAndGasPrice(500_000, appconsts.DefaultMinGasPrice))
+		require.NoError(t, err)
+		require.NotNil(t, resultC)
+		resultChannels[i] = resultC
+	}
+
+	// Wait for all results
+	results := make([]*user.SubmissionResult, numJobs)
+	for i, resultC := range resultChannels {
+		select {
+		case result := <-resultC:
+			require.NotNil(t, result)
+			require.NoError(t, result.Error, "transaction should succeed")
+			require.NotNil(t, result.TxResponse, "should have tx response")
+			require.NotEmpty(t, result.TxResponse.TxHash, "should have tx hash")
+			results[i] = result
+		case <-time.After(2 * time.Minute):
+			t.Fatalf("timeout waiting for result %d", i)
+		}
+	}
+
+	// Verify all transactions are unique
+	txHashes := make(map[string]bool)
+	for _, result := range results {
+		txHash := result.TxResponse.TxHash
+		require.False(t, txHashes[txHash], "duplicate tx hash: %s", txHash)
+		txHashes[txHash] = true
+	}
+
+	t.Logf("Successfully submitted %d parallel transactions with unique hashes", numJobs)
 }

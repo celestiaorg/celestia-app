@@ -1,0 +1,381 @@
+package user
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"sync"
+	"time"
+
+	"cosmossdk.io/x/feegrant"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
+)
+
+// SubmissionJob represents a transaction submission task for parallel processing
+type SubmissionJob struct {
+	ID      string
+	Blobs   []*share.Blob
+	Options []TxOption
+	ResultC chan *SubmissionResult
+}
+
+// SubmissionResult contains the result of a parallel transaction submission
+type SubmissionResult struct {
+	TxResponse *TxResponse
+	Error      error
+}
+
+// ParallelTxPool manages parallel transaction submission
+type ParallelTxPool struct {
+	mtx      sync.RWMutex
+	client   *TxClient
+	jobQueue chan *SubmissionJob
+	workers  []*TxWorker
+	results  map[string]chan *SubmissionResult
+	started  bool
+	stopCh   chan struct{}
+}
+
+// TxWorker represents a worker that processes transactions using a specific account
+type TxWorker struct {
+	id          int
+	accountName string
+	client      *TxClient
+	jobQueue    chan *SubmissionJob
+	stopCh      chan struct{}
+}
+
+// NewParallelTxPool creates a new parallel transaction submission pool
+func NewParallelTxPool(client *TxClient, numWorkers int, workerAccounts []string) *ParallelTxPool {
+	pool := &ParallelTxPool{
+		client:   client,
+		jobQueue: make(chan *SubmissionJob, 100), // Default queue size
+		workers:  make([]*TxWorker, numWorkers),
+		results:  make(map[string]chan *SubmissionResult),
+		stopCh:   make(chan struct{}),
+	}
+
+	// If no worker accounts provided, use auto-generated names that will be created during initialization
+	if len(workerAccounts) == 0 {
+		workerAccounts = make([]string, numWorkers)
+		for i := 0; i < numWorkers; i++ {
+			workerAccounts[i] = fmt.Sprintf("parallel-worker-%d", i+1)
+		}
+	} else if len(workerAccounts) < numWorkers {
+		// Extend with auto-generated names if not enough provided
+		for i := len(workerAccounts); i < numWorkers; i++ {
+			workerAccounts = append(workerAccounts, fmt.Sprintf("parallel-worker-%d", i+1))
+		}
+	}
+
+	// Create workers
+	for i := 0; i < numWorkers; i++ {
+		accountName := workerAccounts[i]
+		worker := &TxWorker{
+			id:          i,
+			accountName: accountName,
+			client:      client,
+			jobQueue:    pool.jobQueue,
+			stopCh:      make(chan struct{}),
+		}
+		pool.workers[i] = worker
+	}
+
+	return pool
+}
+
+// Start initiates all workers in the pool
+func (p *ParallelTxPool) Start() {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
+	if p.started {
+		return
+	}
+
+	for _, worker := range p.workers {
+		go worker.Start()
+	}
+	p.started = true
+}
+
+// Stop shuts down all workers in the pool
+func (p *ParallelTxPool) Stop() {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
+	if !p.started {
+		return
+	}
+
+	close(p.stopCh)
+	for _, worker := range p.workers {
+		close(worker.stopCh)
+	}
+	p.started = false
+}
+
+// SubmitJob submits a job to the parallel worker pool
+func (p *ParallelTxPool) SubmitJob(job *SubmissionJob) {
+	p.mtx.Lock()
+	p.results[job.ID] = job.ResultC
+	p.mtx.Unlock()
+
+	select {
+	case p.jobQueue <- job:
+	case <-p.stopCh:
+		job.ResultC <- &SubmissionResult{Error: errors.New("parallel pool stopped")}
+		close(job.ResultC) // Close the channel to signal completion
+	}
+}
+
+// GetResult retrieves the result for a job ID
+func (p *ParallelTxPool) GetResult(jobID string) (chan *SubmissionResult, bool) {
+	p.mtx.RLock()
+	defer p.mtx.RUnlock()
+
+	resultC, exists := p.results[jobID]
+	return resultC, exists
+}
+
+// CleanupResult removes the result channel for a completed job
+func (p *ParallelTxPool) CleanupResult(jobID string) {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
+	delete(p.results, jobID)
+}
+
+// Start begins the worker's job processing loop
+func (w *TxWorker) Start() {
+	for {
+		select {
+		case job := <-w.jobQueue:
+			w.processJob(job)
+		case <-w.stopCh:
+			return
+		}
+	}
+}
+
+// processJob handles the actual transaction submission for a job
+func (w *TxWorker) processJob(job *SubmissionJob) {
+	ctx := context.Background()
+
+	// Use the worker's dedicated account to submit the transaction
+	txResponse, err := w.client.SubmitPayForBlobWithAccount(ctx, w.accountName, job.Blobs, job.Options...)
+
+	result := &SubmissionResult{
+		TxResponse: txResponse,
+		Error:      err,
+	}
+
+	// Send result back through the job's result channel
+	select {
+	case job.ResultC <- result:
+		close(job.ResultC) // Close the channel to signal completion
+	case <-w.stopCh:
+		// Worker is shutting down, send error and close
+		select {
+		case job.ResultC <- &SubmissionResult{Error: errors.New("worker shutting down")}:
+			close(job.ResultC)
+		default:
+			close(job.ResultC)
+		}
+	}
+}
+
+// SubmitPayForBlobParallel submits a transaction for parallel processing and returns immediately with a job ID.
+// The result can be retrieved later using GetSubmissionResult.
+// Returns an error only if the parallel pool is not configured or if job submission fails.
+func (client *TxClient) SubmitPayForBlobParallel(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (chan *SubmissionResult, error) {
+	resultC := make(chan *SubmissionResult, 1)
+	if client.parallelPool == nil {
+		return resultC, errors.New("parallel submission not configured - use WithTxWorkers option")
+	}
+
+	if !client.parallelPool.started {
+		client.parallelPool.Start()
+	}
+
+	jobID := fmt.Sprintf("job_%d", time.Now().UnixNano())
+
+	job := &SubmissionJob{
+		ID:      jobID,
+		Blobs:   blobs,
+		Options: opts,
+		ResultC: resultC,
+	}
+
+	client.parallelPool.SubmitJob(job)
+
+	return resultC, nil
+}
+
+// GetSubmissionResult retrieves the result of a parallel submission by job ID.
+// Returns the result channel and a boolean indicating if the job was found.
+// The caller should read from the returned channel to get the final result.
+func (client *TxClient) GetSubmissionResult(jobID string) (chan *SubmissionResult, bool) {
+	if client.parallelPool == nil {
+		return nil, false
+	}
+
+	return client.parallelPool.GetResult(jobID)
+}
+
+// WaitForSubmissionResult waits for a parallel submission to complete and returns the final result.
+// This is a convenience method that handles the channel communication.
+func (client *TxClient) WaitForSubmissionResult(ctx context.Context, jobID string) (*SubmissionResult, error) {
+	resultC, exists := client.GetSubmissionResult(jobID)
+	if !exists {
+		return nil, fmt.Errorf("job %s not found", jobID)
+	}
+
+	select {
+	case result := <-resultC:
+		// Clean up the result channel
+		client.parallelPool.CleanupResult(jobID)
+		return result, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+// InitializeWorkerAccounts creates and initializes all worker accounts for parallel submission.
+// It creates the accounts in the keyring if they don't exist, funds them with a small balance,
+// and sets up fee grants so the main account pays for transaction fees.
+// This method should be called after TxClient creation but before parallel submissions.
+func (client *TxClient) InitializeWorkerAccounts(ctx context.Context) error {
+	if client.parallelPool == nil {
+		return errors.New("parallel pool not configured - use WithTxWorkers option")
+	}
+
+	// Get the list of worker accounts that need to be initialized
+	var workersToInit []*TxWorker
+	for _, worker := range client.parallelPool.workers {
+		// Check if account exists in signer
+		if _, exists := client.signer.accounts[worker.accountName]; !exists {
+			workersToInit = append(workersToInit, worker)
+		}
+	}
+
+	if len(workersToInit) == 0 {
+		return nil // All accounts already exist
+	}
+
+	// Create accounts in keyring if they don't exist
+	for _, worker := range workersToInit {
+		if err := client.createWorkerAccount(worker.accountName); err != nil {
+			return fmt.Errorf("failed to create worker account %s: %w", worker.accountName, err)
+		}
+	}
+
+	// Fund accounts and set up fee grants in a single transaction
+	if err := client.fundAndGrantWorkerAccounts(ctx, workersToInit); err != nil {
+		return fmt.Errorf("failed to fund and grant worker accounts: %w", err)
+	}
+
+	return nil
+}
+
+// createWorkerAccount creates a new account in the keyring
+func (client *TxClient) createWorkerAccount(accountName string) error {
+	// Check if account already exists in keyring
+	if _, err := client.signer.keys.Key(accountName); err == nil {
+		return nil // Account already exists
+	}
+
+	// Create new account
+	path := hd.CreateHDPath(sdktypes.CoinType, 0, 0).String()
+	_, _, err := client.signer.keys.NewMnemonic(accountName, keyring.English, path, keyring.DefaultBIP39Passphrase, hd.Secp256k1)
+	if err != nil {
+		return fmt.Errorf("failed to create account %s in keyring: %w", accountName, err)
+	}
+
+	return nil
+}
+
+// fundAndGrantWorkerAccounts sends funds to worker accounts and sets up fee grants
+func (client *TxClient) fundAndGrantWorkerAccounts(ctx context.Context, workers []*TxWorker) error {
+	if len(workers) == 0 {
+		return nil
+	}
+
+	msgs := make([]sdktypes.Msg, 0, len(workers)*2) // Each worker needs 2 msgs: send + feegrant
+	totalGasLimit := uint64(0)
+
+	masterAddress := client.defaultAddress
+
+	for _, worker := range workers {
+		// Get worker address
+		record, err := client.signer.keys.Key(worker.accountName)
+		if err != nil {
+			return fmt.Errorf("failed to get worker account %s from keyring: %w", worker.accountName, err)
+		}
+
+		workerAddress, err := record.GetAddress()
+		if err != nil {
+			return fmt.Errorf("failed to get address for worker account %s: %w", worker.accountName, err)
+		}
+
+		// Create send message to fund the account
+		sendMsg := bank.NewMsgSend(
+			masterAddress,
+			workerAddress,
+			sdktypes.NewCoins(sdktypes.NewInt64Coin(appconsts.BondDenom, DefaultWorkerBalance)),
+		)
+		msgs = append(msgs, sendMsg)
+		totalGasLimit += SendGasLimit
+
+		// Create feegrant message so master account pays for worker fees
+		feegrantMsg, err := feegrant.NewMsgGrantAllowance(
+			&feegrant.BasicAllowance{}, // Unlimited allowance
+			masterAddress,
+			workerAddress,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create feegrant message for worker %s: %w", worker.accountName, err)
+		}
+		msgs = append(msgs, feegrantMsg)
+		totalGasLimit += FeegrantGasLimit
+	}
+
+	// Submit the initialization transaction
+	opts := []TxOption{SetGasLimit(totalGasLimit)}
+	_, err := client.SubmitTx(ctx, msgs, opts...)
+	if err != nil {
+		return fmt.Errorf("failed to submit initialization transaction: %w", err)
+	}
+
+	// Add the worker accounts to the signer
+	for _, worker := range workers {
+		record, err := client.signer.keys.Key(worker.accountName)
+		if err != nil {
+			return fmt.Errorf("failed to get worker account %s from keyring: %w", worker.accountName, err)
+		}
+
+		workerAddress, err := record.GetAddress()
+		if err != nil {
+			return fmt.Errorf("failed to get address for worker account %s: %w", worker.accountName, err)
+		}
+
+		// Query the account info from chain
+		accNum, seqNum, err := QueryAccount(ctx, client.conns[0], client.registry, workerAddress)
+		if err != nil {
+			return fmt.Errorf("failed to query worker account %s on chain: %w", worker.accountName, err)
+		}
+
+		// Add account to signer
+		account := NewAccount(worker.accountName, accNum, seqNum)
+		if err := client.signer.AddAccount(account); err != nil {
+			return fmt.Errorf("failed to add worker account %s to signer: %w", worker.accountName, err)
+		}
+	}
+
+	return nil
+}
