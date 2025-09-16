@@ -120,7 +120,7 @@ jobs:
         run: make test-multiplexer
 
   test-docker-e2e:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-8
     # if one test fails, continue running the rest.
     continue-on-error: true
     strategy:
@@ -135,6 +135,7 @@ jobs:
             entrypoint: TestIBCTestSuite
           - testcase: TestICA
             entrypoint: TestIBCTestSuite
+          - testcase: TestStateSyncWithAppUpgrade
 
     steps:
       - name: Checkout code

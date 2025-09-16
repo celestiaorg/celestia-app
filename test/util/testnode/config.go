@@ -24,7 +24,7 @@ const (
 	DefaultValidatorAccountName = "validator"
 	DefaultInitialBalance       = genesis.DefaultInitialBalance
 	// TimeoutCommit is a flag that can be used to override the timeout_commit.
-	// Deprecated: Use BlockTimeFlag instead.
+	// Deprecated: Use DelayedPrecommitTimeout instead.
 	TimeoutCommitFlag = "timeout-commit"
 	// DelayedPrecommitTimeout is a flag that can be used to override the DelayedPrecommitTimeout.
 	DelayedPrecommitTimeout = "delayed-precommit-timeout"

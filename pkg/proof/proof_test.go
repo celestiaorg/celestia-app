@@ -154,7 +154,7 @@ func TestNewShareInclusionProof(t *testing.T) {
 			expectErr:     true,
 		},
 		{
-			name:          "ending share higher than number of shares available in square size of 32",
+			name:          "ending share higher than number of shares available in square size of 64",
 			startingShare: 0,
 			endingShare:   4097,
 			namespaceID:   share.TxNamespace,

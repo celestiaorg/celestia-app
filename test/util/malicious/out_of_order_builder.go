@@ -146,9 +146,9 @@ func OutOfOrderExport(b *square.Builder) (square.Square, error) {
 		}
 	}
 
-	// defensively check that the counter is always greater in share count than the pfbTxWriter.
+	// defensively check that the counter is always greater in share count than the pfbWriter.
 	if b.PfbCounter.Size() < pfbWriter.Count() {
-		return nil, fmt.Errorf("pfbCounter.Size() < pfbTxWriter.Count(): %d < %d", b.PfbCounter.Size(), pfbWriter.Count())
+		return nil, fmt.Errorf("pfbCounter.Size() < pfbWriter.Count(): %d < %d", b.PfbCounter.Size(), pfbWriter.Count())
 	}
 
 	// Write out the square
