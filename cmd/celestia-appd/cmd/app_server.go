@@ -21,8 +21,11 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOptions
 		delayedPrecommitTimeout = cast.ToDuration(timeoutCommitFromFlag)
 	}
 
+	// Wrap the logger to downgrade transaction error logs from INFO to DEBUG
+	wrappedLogger := app.NewTxErrorLoggerWrapper(logger)
+
 	return app.New(
-		logger,
+		wrappedLogger,
 		db,
 		traceStore,
 		delayedPrecommitTimeout,
