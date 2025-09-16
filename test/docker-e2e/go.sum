@@ -781,8 +781,6 @@ github.com/celestiaorg/cosmos-sdk/api v0.7.6 h1:81in9Zk+noz0ko+hZFSSK8L1aawFN8/C
 github.com/celestiaorg/cosmos-sdk/api v0.7.6/go.mod h1:1BgQSufu6ZQkst3YBIHDCo/TPUrhfU4fV7tOI0ftql8=
 github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0 h1:GyDYfK8dLETlUI7F+w+3QYQgAszUegMXgB6cTbDm7CA=
 github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0/go.mod h1:T4K9O18zQNKNpt4YvTL3lcUt4aKOEU05ZIFWVdQi3Ak=
-github.com/celestiaorg/go-square/v2 v2.3.1 h1:CDdiQ+QkKPOQEcyDPODgP/PbAEzqUcftsohCPcbvsnw=
-github.com/celestiaorg/go-square/v2 v2.3.1/go.mod h1:6M2txj0j6dkoE+cgwyG0EqrEPhbZpM2R1lsWEopMIBc=
 github.com/celestiaorg/go-square/v3 v3.0.0 h1:ivLUUuVr7SpkvPiPLPvuH8/Vrm+iw9X3QL8gX25j+Sk=
 github.com/celestiaorg/go-square/v3 v3.0.0/go.mod h1:IROQinUbHNyFWW1J5idanVLOSLHaK1wWwVmuVSfiCVo=
 github.com/celestiaorg/ibc-go/v8 v8.7.2 h1:AWae851fdX7pJWlGnUBKlKJzpr4c2t5m4TLs6vDfmAY=
@@ -793,8 +791,8 @@ github.com/celestiaorg/nmt v0.24.1 h1:MhGKqp257eq2EQQKcva1H/BSYFqIt0Trk8/t3IWfWS
 github.com/celestiaorg/nmt v0.24.1/go.mod h1:IhLnJDgCdP70crZFpgihFmU6G+PGeXN37tnMRm+/4iU=
 github.com/celestiaorg/rsmt2d v0.15.0 h1:iCw+ghtH+xUK0dFIVZv4dGptoXJK/76UBj6aVsu9h7w=
 github.com/celestiaorg/rsmt2d v0.15.0/go.mod h1:E1GzIiYgMw1mPVWXyQSCSOFVGXoTMHQouh4C6fj5IT0=
-github.com/celestiaorg/tastora v0.2.4 h1:xQs+OOiPHlZP2XBltqdZKchFmemB0aaNGWYRMZwyC0U=
-github.com/celestiaorg/tastora v0.2.4/go.mod h1:28BiTBJ4Yz6K5iT57NwS1NVLJFN/hmZHx9j0CVz4QXM=
+github.com/celestiaorg/tastora v0.4.0 h1:9HDPE/Nc5WdDwtZL6voAPpOKs1ejZsXT3FvscGjW0X8=
+github.com/celestiaorg/tastora v0.4.0/go.mod h1:BicIJEfk3udsScvSYwFNcDe2FMbW6M7EjtcodS16V14=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
 github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
 github.com/cenkalti/backoff/v4 v4.1.1/go.mod h1:scbssz8iZGpm3xbr14ovlUdkxfGXNInqkPWOWmG2CLw=
