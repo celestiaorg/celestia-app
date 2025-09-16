@@ -1385,8 +1385,8 @@ github.com/mattn/go-sqlite3 v1.14.14/go.mod h1:NyWgC/yNuGj7Q9rpYnZvas74GogHl5/Z4
 github.com/matttproud/golang_protobuf_extensions v1.0.1/go.mod h1:D8He9yQNgCq6Z5Ld7szi9bcBfOoFv/3dc6xSMkL2PC0=
 github.com/mcrakhman/nmt v0.24.2-0.20250915144931-84f9b6f163b8 h1:vgStBCiE1mg1H+JYJgHMaOC02BRgqMtd82MzaXcCO5Y=
 github.com/mcrakhman/nmt v0.24.2-0.20250915144931-84f9b6f163b8/go.mod h1:vgLBpWBi8F5KLxTdXSwb7AU4NhiIQ1AQRGa+PzdcLEA=
-github.com/mcrakhman/rsmt2d v0.14.1-0.20250916093323-dcf1a21ab623 h1:jUfwhg4hbd+3VFJp60TTWpr6JNgt9ygCzlsqWfkIAZQ=
-github.com/mcrakhman/rsmt2d v0.14.1-0.20250916093323-dcf1a21ab623/go.mod h1:6FlXVqaPqR0prKyffFKwyAl+F/AKYcnFHrPmY27b0Aw=
+github.com/mcrakhman/rsmt2d v0.15.1-0.20250916115557-07e2097a7eb2 h1:8jPopRm+vS7F4DsiM0+KauXujeoYxmNSUSKlPm3A0AI=
+github.com/mcrakhman/rsmt2d v0.15.1-0.20250916115557-07e2097a7eb2/go.mod h1:KMI0p/Qu6zZ9Ggw3/+p9xVVxLvtGqt4xq0e6l12X/Nk=
 github.com/miekg/dns v1.0.14/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
 github.com/mimoo/StrobeGo v0.0.0-20181016162300-f8f6d4d2b643/go.mod h1:43+3pMjjKimDBf5Kr4ZFNGbLql1zKkbImw+fZbw3geM=
 github.com/mimoo/StrobeGo v0.0.0-20210601165009-122bf33a46e0 h1:QRUSJEgZn2Snx0EmT/QLXibWjSUDjKWvXIT19NBVp94=
