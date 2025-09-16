@@ -5,11 +5,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/spf13/cobra"
-	dbm "github.com/cosmos/cosmos-db"
 	"cosmossdk.io/log"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	dbm "github.com/cosmos/cosmos-db"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
+	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
@@ -35,11 +35,11 @@ in the interface registry.`,
 			fmt.Println("=== All Registered Interfaces ===")
 			for _, iface := range interfaces {
 				fmt.Printf("Interface: %s\n", iface)
-				
+
 				// Get implementations for this interface
 				implementations := registry.ListImplementations(iface)
 				sort.Strings(implementations)
-				
+
 				for _, impl := range implementations {
 					fmt.Printf("  Implementation: %s\n", impl)
 				}
@@ -50,14 +50,14 @@ in the interface registry.`,
 			var allProtoTypes []string
 			var eventTypes []string
 			var messageTypes []string
-			
+
 			registry.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
 				messages := fd.Messages()
 				for i := 0; i < messages.Len(); i++ {
 					msg := messages.Get(i)
 					fullName := string(msg.FullName())
 					allProtoTypes = append(allProtoTypes, fullName)
-					
+
 					// Categorize event types vs other message types
 					if strings.Contains(strings.ToLower(fullName), "event") {
 						eventTypes = append(eventTypes, fullName)

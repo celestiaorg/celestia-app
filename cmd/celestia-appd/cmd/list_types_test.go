@@ -9,7 +9,7 @@ import (
 
 func TestListTypesCmd(t *testing.T) {
 	cmd := listTypesCmd()
-	
+
 	// Test that the command can be created
 	require.NotNil(t, cmd)
 	assert.Equal(t, "list-types", cmd.Use)
