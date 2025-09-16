@@ -217,35 +217,6 @@ func (client *TxClient) SubmitPayForBlobParallel(ctx context.Context, blobs []*s
 	return resultC, nil
 }
 
-// GetSubmissionResult retrieves the result of a parallel submission by job ID.
-// Returns the result channel and a boolean indicating if the job was found.
-// The caller should read from the returned channel to get the final result.
-func (client *TxClient) GetSubmissionResult(jobID string) (chan *SubmissionResult, bool) {
-	if client.parallelPool == nil {
-		return nil, false
-	}
-
-	return client.parallelPool.GetResult(jobID)
-}
-
-// WaitForSubmissionResult waits for a parallel submission to complete and returns the final result.
-// This is a convenience method that handles the channel communication.
-func (client *TxClient) WaitForSubmissionResult(ctx context.Context, jobID string) (*SubmissionResult, error) {
-	resultC, exists := client.GetSubmissionResult(jobID)
-	if !exists {
-		return nil, fmt.Errorf("job %s not found", jobID)
-	}
-
-	select {
-	case result := <-resultC:
-		// Clean up the result channel
-		client.parallelPool.CleanupResult(jobID)
-		return result, nil
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
-}
-
 // InitializeWorkerAccounts creates and initializes all worker accounts for parallel submission.
 // It creates the accounts in the keyring if they don't exist, funds them with a small balance,
 // and sets up fee grants so the main account pays for transaction fees.
