@@ -5,7 +5,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/app/ante"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/da"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	core "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proto/tendermint/version"

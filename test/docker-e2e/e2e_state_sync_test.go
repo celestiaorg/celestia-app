@@ -8,14 +8,13 @@ import (
 	"testing"
 	"time"
 
-	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
+	"github.com/celestiaorg/tastora/framework/docker/cosmos"
+	addressutil "github.com/celestiaorg/tastora/framework/testutil/address"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
+	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	cometcfg "github.com/cometbft/cometbft/config"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
-
-	addressutil "github.com/celestiaorg/tastora/framework/testutil/address"
-	"github.com/celestiaorg/tastora/framework/testutil/wait"
 )
 
 const (
@@ -90,9 +89,9 @@ func (s *CelestiaTestSuite) TestStateSync() {
 
 	t.Log("Adding state sync node")
 	err = celestia.AddNode(ctx,
-		tastoradockertypes.NewChainNodeConfigBuilder().
+		cosmos.NewChainNodeConfigBuilder().
 			WithNodeType(tastoratypes.NodeTypeConsensusFull).
-			WithPostInit(func(ctx context.Context, node *tastoradockertypes.ChainNode) error {
+			WithPostInit(func(ctx context.Context, node *cosmos.ChainNode) error {
 				return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
 					cfg.StateSync.Enable = true
 					cfg.StateSync.TrustHeight = trustHeight
@@ -163,9 +162,9 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 
 	// create a mocha chain builder (no validators, just for state sync nodes)
 	mochaChain, err := networks.NewChainBuilder(s.T(), mochaConfig, dockerCfg).
-		WithNodes(tastoradockertypes.NewChainNodeConfigBuilder().
+		WithNodes(cosmos.NewChainNodeConfigBuilder().
 			WithNodeType(tastoratypes.NodeTypeConsensusFull).
-			WithPostInit(func(ctx context.Context, node *tastoradockertypes.ChainNode) error {
+			WithPostInit(func(ctx context.Context, node *cosmos.ChainNode) error {
 				return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
 					// enable state sync
 					cfg.StateSync.Enable = true
