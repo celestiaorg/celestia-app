@@ -180,6 +180,4 @@ hyperlane.warp.v1.EventReceiveRemoteTransfer
 hyperlane.warp.v1.EventSendRemoteTransfer
 hyperlane.warp.v1.EventSetToken
 hyperlane.warp.v1.EventUnrollRemoteRouter
-tendermint.abci.Event
-tendermint.abci.EventAttribute
 ```
