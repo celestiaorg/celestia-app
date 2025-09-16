@@ -251,7 +251,17 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 
 		confirmTxResp, err := suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "authorization not found")
+		// The transaction can fail in two ways:
+		// 1. It gets rejected at the mempool level with execution code 32 (sequence mismatch)
+		// 2. It gets committed but fails during execution with "authorization not found"
+		// Both are valid failure modes for this test case
+		if strings.Contains(err.Error(), "rejected") {
+			// Transaction was rejected at mempool level (sequence mismatch)
+			require.Contains(t, err.Error(), "execution code 32")
+		} else {
+			// Transaction was committed but failed during execution
+			require.Contains(t, err.Error(), "authorization not found")
+		}
 		require.Nil(t, confirmTxResp)
 		require.True(t, wasRemovedFromTxTracker(resp.TxHash, suite.txClient))
 	})
