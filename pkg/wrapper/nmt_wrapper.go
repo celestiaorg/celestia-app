@@ -12,35 +12,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 )
 
-// bytePool provides a reusable pool for byte slices
-type bytePool struct {
-	pool *sync.Pool
-}
-
-func newBytePool() *bytePool {
-	return &bytePool{
-		pool: &sync.Pool{
-			New: func() interface{} {
-				return make([]byte, 0, share.NamespaceSize+share.ShareSize)
-			},
-		},
-	}
-}
-
-func (bp *bytePool) getOrAlloc(requiredLen int) []byte {
-	if pooled := bp.pool.Get(); pooled != nil {
-		b := pooled.([]byte)
-		if cap(b) >= requiredLen {
-			return b[:requiredLen]
-		}
-	}
-	return make([]byte, requiredLen)
-}
-
-func (bp *bytePool) put(b []byte) {
-	bp.pool.Put(b[:0]) // Reset length to 0 before returning to pool
-}
-
 // fixedTreePool provides a fixed-size pool of erasuredNamespacedMerkleTree instances
 type fixedTreePool struct {
 	availableNMTs chan *ErasuredNamespacedMerkleTree
@@ -59,6 +30,9 @@ func newFixedTreePool(size int, squareSize uint64, opts []nmt.Option) *fixedTree
 		tree := NewErasuredNamespacedMerkleTree(squareSize, 0, opts...)
 		treePtr := &tree
 		treePtr.pool = pool
+		// Pre-allocate a buffer for all share data (2 * squareSize * shareSize bytes total)
+		shareSize := share.ShareSize
+		treePtr.buffer = make([]byte, 2*squareSize*uint64(shareSize))
 		pool.availableNMTs <- treePtr
 	}
 
@@ -75,18 +49,16 @@ func (p *fixedTreePool) release(tree *ErasuredNamespacedMerkleTree) {
 
 // treeFactory provides factory methods for creating tree constructors
 type treeFactory struct {
-	squareSize    uint64
-	opts          []nmt.Option
-	treePool      *fixedTreePool
-	byteSlicePool *bytePool
+	squareSize uint64
+	opts       []nmt.Option
+	treePool   *fixedTreePool
 }
 
 func newTreeFactory(squareSize uint64, poolSize int, opts ...nmt.Option) *treeFactory {
 	return &treeFactory{
-		squareSize:    squareSize,
-		opts:          opts,
-		treePool:      newFixedTreePool(poolSize, squareSize, opts),
-		byteSlicePool: newBytePool(),
+		squareSize: squareSize,
+		opts:       opts,
+		treePool:   newFixedTreePool(poolSize, squareSize, opts),
 	}
 }
 
@@ -95,14 +67,9 @@ func (f *treeFactory) NewConstructor() rsmt2d.TreeConstructorFn {
 		tree := f.treePool.acquire()
 		tree.axisIndex = uint64(axisIndex)
 		tree.shareIndex = 0
-		tree.byteSlicePool = f.byteSlicePool
 
-		leaves := tree.tree.Reset()
-		for _, leaf := range leaves {
-			if leaf != nil {
-				f.byteSlicePool.put(leaf)
-			}
-		}
+		// Reset the tree (but don't put leaves back to pool anymore)
+		tree.tree.Reset()
 
 		return tree
 	}
@@ -155,7 +122,7 @@ type ErasuredNamespacedMerkleTree struct {
 	// added to the tree so far.
 	shareIndex      uint64
 	pool            *fixedTreePool // reference to the pool this tree belongs to
-	byteSlicePool   *bytePool      // reference to the byte slice pool
+	buffer          []byte         // Pre-allocated buffer for share data
 	parityNamespace []byte         // Pre-allocated parity namespace bytes
 }
 
@@ -228,18 +195,16 @@ func (w *ErasuredNamespacedMerkleTree) Push(data []byte) error {
 		return fmt.Errorf("data is too short to contain namespace ID")
 	}
 
-	var (
-		nidAndData  []byte
-		requiredLen = share.NamespaceSize + len(data)
-	)
-
-	// Use the dedicated byteSlicePool if available, otherwise create new slice
-	if w.byteSlicePool != nil {
-		nidAndData = w.byteSlicePool.getOrAlloc(requiredLen)
+	var nidAndData []byte
+	if w.buffer != nil {
+		shareSize := share.ShareSize
+		offset := int(w.shareIndex) * shareSize
+		nidAndData = w.buffer[offset : offset+len(data)]
 	} else {
-		nidAndData = make([]byte, requiredLen)
+		nidAndData = make([]byte, len(data))
 	}
 	copy(nidAndData[share.NamespaceSize:], data)
+
 	// use the parity namespace if the cell is not in Q0 of the extended data square
 	if w.isQuadrantZero() {
 		copy(nidAndData[:share.NamespaceSize], data[:share.NamespaceSize])
