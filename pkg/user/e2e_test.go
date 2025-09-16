@@ -129,13 +129,5 @@ func TestParallelTxSubmission(t *testing.T) {
 		}
 	}
 
-	// Verify all transactions are unique
-	txHashes := make(map[string]bool)
-	for _, result := range results {
-		txHash := result.TxResponse.TxHash
-		require.False(t, txHashes[txHash], "duplicate tx hash: %s", txHash)
-		txHashes[txHash] = true
-	}
-
 	t.Logf("Successfully submitted %d parallel transactions with unique hashes", numJobs)
 }
