@@ -167,8 +167,11 @@ func (w *TxWorker) Start() {
 func (w *TxWorker) processJob(job *SubmissionJob) {
 	ctx := context.Background()
 
+	// Add fee granter option so master account pays for worker transaction fees
+	opts := append(job.Options, SetFeeGranter(w.client.DefaultAddress()))
+
 	// Use the worker's dedicated account to submit the transaction
-	txResponse, err := w.client.SubmitPayForBlobWithAccount(ctx, w.accountName, job.Blobs, job.Options...)
+	txResponse, err := w.client.SubmitPayForBlobWithAccount(ctx, w.accountName, job.Blobs, opts...)
 
 	result := &SubmissionResult{
 		TxResponse: txResponse,
