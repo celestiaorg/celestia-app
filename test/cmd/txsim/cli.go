@@ -28,12 +28,14 @@ import (
 
 // A set of environment variables that can be used instead of flags
 const (
-	TxsimGRPC              = "TXSIM_GRPC"
-	TxsimSeed              = "TXSIM_SEED"
-	TxsimPoll              = "TXSIM_POLL"
-	TxsimKeypath           = "TXSIM_KEYPATH"
-	TxsimMasterAccName     = "TXSIM_MASTER_ACC_NAME"
-	TxsimMnemonic          = "TXSIM_MNEMONIC"
+	TxsimGRPC          = "TXSIM_GRPC"
+	TxsimSeed          = "TXSIM_SEED"
+	TxsimPoll          = "TXSIM_POLL"
+	TxsimKeypath       = "TXSIM_KEYPATH"
+	TxsimMasterAccName = "TXSIM_MASTER_ACC_NAME"
+	TxsimMnemonic      = "TXSIM_MNEMONIC"
+)
+const (
 	FillBlocksBlobTxAmount = 1
 )
 
@@ -249,23 +251,23 @@ such as namespace size, share info, signer bytes, blob headers`,
 func fillBlocksExecute(cmd *cobra.Command, args []string) error {
 	grpcConn, err := txsim.BuildGrpcConn(grpcEndpoint, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to build grpc conn: %v; error: %v", grpcEndpoint, err)
+		return fmt.Errorf("failed to build grpc conn: %v; error: %v", grpcEndpoint, err)
 	}
 
 	blobQueryClient := blobtypes.NewQueryClient(grpcConn)
 	blobParamsResp, err := blobQueryClient.Params(cmd.Context(), &blobtypes.QueryParamsRequest{})
 	if err != nil {
-		return fmt.Errorf("Could not get blob params due to error: %v", err)
+		return fmt.Errorf("could not get blob params due to error: %v", err)
 	}
 
 	govMaxSquareSize := blobParamsResp.Params.GovMaxSquareSize
 	hardMaxSquareSize := appconsts.SquareSizeUpperBound // use getter instead???
 	maxSquareSize := min(int(govMaxSquareSize), hardMaxSquareSize)
 
-	// NOTE: Division by 4 accounts for 2d erasure coding schema
 	maxSquareShares := (maxSquareSize * maxSquareSize)
 	maxBytes := maxSquareShares * share.ShareSize
 
+	// NOTE: Division by 4 accounts for 2d erasure coding schema
 	blobSize := (maxBytes - maxSquareShares*perShareOverheadSize) / 4
 	blobAmount := maxBytes / blobSize / 4
 
