@@ -53,6 +53,7 @@ type txInfo struct {
 	txBytes   []byte
 }
 
+
 // TxResponse is a response from the chain after
 // a transaction has been submitted.
 type TxResponse struct {
@@ -157,6 +158,8 @@ type TxClient struct {
 	// that was submitted to the chain
 	txTracker           map[string]txInfo
 	gasEstimationClient gasestimation.GasEstimatorClient
+	// unorderedPool manages parallel transaction submission
+	unorderedPool *UnorderedTxPool
 }
 
 // NewTxClient returns a new TxClient
@@ -903,3 +906,5 @@ func QueryNetworkMinGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (fl
 	}
 	return networkMinPrice, nil
 }
+
+
