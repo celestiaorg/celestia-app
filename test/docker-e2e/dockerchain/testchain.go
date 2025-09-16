@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
@@ -58,12 +59,16 @@ func NewCelestiaChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.Chai
 	// Create the wallet with all required fields
 	faucetWallet := tastoradockertypes.NewWallet(addr, addr.String(), "celestia", records[0].Name)
 
+	// Use dynamic port allocation to avoid conflicts in parallel tests
+	port := testnode.GetDeterministicPort()
+	portMapping := fmt.Sprintf("%d:10001", port)
+
 	return tastoradockertypes.NewChainBuilder(t).
 		WithName("celestia"). // just influences home directory on the host.
 		WithChainID(cfg.Genesis.ChainID).
 		WithDockerClient(cfg.DockerClient).
 		WithDockerNetworkID(cfg.DockerNetworkID).
-		WithImage(tastoracontainertypes.NewImage(cfg.Image, cfg.Tag, "10001:10001")).
+		WithImage(tastoracontainertypes.NewImage(cfg.Image, cfg.Tag, portMapping)).
 		WithAdditionalStartArgs("--force-no-bbr").
 		WithEncodingConfig(&encodingConfig).
 		WithPostInit(getPostInitModifications("0.025utia")...).
@@ -147,10 +152,14 @@ func NodeConfigBuilders(cfg *Config) ([]*tastoradockertypes.ChainNodeConfigBuild
 			return nil, fmt.Errorf("failed to get validator private key bytes: %w", err)
 		}
 
+		// Use dynamic port allocation to avoid conflicts in parallel tests
+		port := testnode.GetDeterministicPort()
+		portMapping := fmt.Sprintf("%d:10001", port)
+
 		chainNodeBuilders[i] = tastoradockertypes.NewChainNodeConfigBuilder().
 			WithPrivValidatorKey(privKeyBz).
 			WithAccountName(record.Name).
-			WithImage(tastoracontainertypes.NewImage(cfg.Image, cfg.Tag, "10001:10001")).
+			WithImage(tastoracontainertypes.NewImage(cfg.Image, cfg.Tag, portMapping)).
 			WithKeyring(kr)
 	}
 
