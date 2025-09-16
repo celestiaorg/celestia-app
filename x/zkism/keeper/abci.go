@@ -25,7 +25,7 @@ func (k *Keeper) StoreHeaderHash(goCtx context.Context) error {
 		return err
 	}
 
-	// Prune store to ensure we only have parameter-defined entries.
+	// Prune store to ensure the number of entries in store does not exceed the max header hashes parameter.
 	// In most cases, this will involve removing a single entry.
 	// In the rare scenario when the entries gets reduced to a lower value k'
 	// from the original value k. k - k' entries must be deleted from the store.

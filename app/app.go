@@ -564,7 +564,7 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 				return sdk.EndBlock{}, fmt.Errorf("failed to schedule upgrade: %v", err)
 			}
 
-			if err := app.UpgradeKeeper.DumpUpgradeInfoToDisk(upgrade.UpgradeHeight+1, plan); err != nil {
+			if err := app.UpgradeKeeper.DumpUpgradeInfoToDisk(plan.Height, plan); err != nil {
 				return sdk.EndBlock{}, fmt.Errorf("failed to dump upgrade info to disk: %v", err)
 			}
 
