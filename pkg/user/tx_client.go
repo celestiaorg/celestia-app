@@ -549,7 +549,7 @@ func (s *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sd
 		return nil, err
 	}
 
-	s.TrackTransaction(signer, broadcastTxResp.TxHash, newTxBytes)
+	s.trackTransaction(signer, broadcastTxResp.TxHash, newTxBytes)
 	return broadcastTxResp, nil
 }
 
@@ -858,13 +858,6 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 		return "", err
 	}
 	return record.Name, nil
-}
-
-// TrackTransaction tracks a transaction in the tx client's local tx tracker.
-func (client *TxClient) TrackTransaction(signer, txHash string, txBytes []byte) {
-	client.mtx.Lock()
-	defer client.mtx.Unlock()
-	client.trackTransaction(signer, txHash, txBytes)
 }
 
 // trackTransaction tracks a transaction without acquiring the mutex.
