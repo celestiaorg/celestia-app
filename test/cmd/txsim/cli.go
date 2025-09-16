@@ -35,6 +35,7 @@ const (
 	TxsimMasterAccName = "TXSIM_MASTER_ACC_NAME"
 	TxsimMnemonic      = "TXSIM_MNEMONIC"
 )
+
 const (
 	FillBlocksBlobTxAmount = 1
 )
