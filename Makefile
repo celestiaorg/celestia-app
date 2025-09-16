@@ -28,9 +28,10 @@ BUILD_FLAGS_MULTIPLEXER := -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_M
 # internal/embedding/data.go
 # .goreleaser.yaml
 # docker/multiplexer.Dockerfile
+# dockerchain/config.go
 CELESTIA_V3_VERSION := v3.10.6
 CELESTIA_V4_VERSION := v4.1.0
-CELESTIA_V5_VERSION := v5.0.5-arabica
+CELESTIA_V5_VERSION := v5.0.5
 
 ## help: Get more info on make commands.
 help: Makefile
