@@ -3,12 +3,14 @@ package cmd
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/spf13/cobra"
 	dbm "github.com/cosmos/cosmos-db"
 	"cosmossdk.io/log"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 // listTypesCmd returns a command that lists all registered SDK messages, events, and proto types
@@ -26,7 +28,7 @@ in the interface registry.`,
 			encConfig := tempApp.GetEncodingConfig()
 			registry := encConfig.InterfaceRegistry
 
-			// Get all registered interfaces
+			// Get all registered interfaces and their implementations
 			interfaces := registry.ListAllInterfaces()
 			sort.Strings(interfaces)
 
@@ -44,6 +46,46 @@ in the interface registry.`,
 				fmt.Println()
 			}
 
+			// Get all protobuf types from file descriptors
+			var allProtoTypes []string
+			var eventTypes []string
+			var messageTypes []string
+			
+			registry.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
+				messages := fd.Messages()
+				for i := 0; i < messages.Len(); i++ {
+					msg := messages.Get(i)
+					fullName := string(msg.FullName())
+					allProtoTypes = append(allProtoTypes, fullName)
+					
+					// Categorize event types vs other message types
+					if strings.Contains(strings.ToLower(fullName), "event") {
+						eventTypes = append(eventTypes, fullName)
+					} else {
+						messageTypes = append(messageTypes, fullName)
+					}
+				}
+				return true
+			})
+
+			sort.Strings(allProtoTypes)
+			sort.Strings(eventTypes)
+			sort.Strings(messageTypes)
+
+			// Print event types
+			fmt.Println("=== Event Types ===")
+			for _, eventType := range eventTypes {
+				fmt.Printf("Event: %s\n", eventType)
+			}
+			fmt.Println()
+
+			// Print all protobuf message types
+			fmt.Println("=== All Protobuf Message Types ===")
+			for _, msgType := range allProtoTypes {
+				fmt.Printf("Message: %s\n", msgType)
+			}
+			fmt.Println()
+
 			// Print summary statistics
 			totalInterfaces := len(interfaces)
 			totalImplementations := 0
@@ -55,6 +97,8 @@ in the interface registry.`,
 			fmt.Println("=== Summary ===")
 			fmt.Printf("Total Interfaces: %d\n", totalInterfaces)
 			fmt.Printf("Total Implementations: %d\n", totalImplementations)
+			fmt.Printf("Total Protobuf Message Types: %d\n", len(allProtoTypes))
+			fmt.Printf("Total Event Types: %d\n", len(eventTypes))
 
 			return nil
 		},
