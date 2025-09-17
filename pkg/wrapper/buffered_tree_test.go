@@ -167,9 +167,6 @@ func TestComputeExtendedDataSquare_WithAndWithoutPool(t *testing.T) {
 				assert.True(t, bytes.Equal(colRootsWithoutPool[i], colRootsWithPool[i]),
 					"Column root %d should be equal", i)
 			}
-
-			// The row and column roots equality check above is sufficient
-			// to verify that both extended data squares are equivalent
 		})
 	}
 }
@@ -221,8 +218,6 @@ func TestTreePool_ConcurrentAccess(t *testing.T) {
 			root, err := tree.Root()
 			require.NoError(t, err)
 			concurrentRoots[index] = root
-
-			// No need to manually release, Root() handles it internally for bufferedTree
 		}(i)
 	}
 

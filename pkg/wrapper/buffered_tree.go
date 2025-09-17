@@ -19,6 +19,7 @@ type fixedTreePool struct {
 	squareSize    uint64
 }
 
+// newFixedTreePool creates a fixed-size pool of bufferedTree instances
 func newFixedTreePool(size int, squareSize uint64, opts []nmt.Option) *fixedTreePool {
 	pool := &fixedTreePool{
 		availableNMTs: make(chan *bufferedTree, size),
@@ -33,10 +34,12 @@ func newFixedTreePool(size int, squareSize uint64, opts []nmt.Option) *fixedTree
 	return pool
 }
 
+// acquire retrieves a bufferedTree from the pool
 func (p *fixedTreePool) acquire() *bufferedTree {
 	return <-p.availableNMTs
 }
 
+// release returns a bufferedTree to the pool for reuse
 func (p *fixedTreePool) release(tree *bufferedTree) {
 	p.availableNMTs <- tree
 }
@@ -56,6 +59,7 @@ func NewTreePoolProvider() *TreePoolProvider {
 	}
 }
 
+// PreallocatePool creates a pool for the given square size and allocates buffers
 func (p *TreePoolProvider) PreallocatePool(squareSize uint64) {
 	_ = p.GetTreePool(squareSize)
 }
@@ -82,6 +86,7 @@ type TreePool struct {
 	treePool   *fixedTreePool
 }
 
+// NewTreePool creates a new TreePool with the specified configuration
 func NewTreePool(squareSize uint64, poolSize int, opts ...nmt.Option) *TreePool {
 	return &TreePool{
 		squareSize: squareSize,
@@ -91,6 +96,7 @@ func NewTreePool(squareSize uint64, poolSize int, opts ...nmt.Option) *TreePool 
 	}
 }
 
+// BufferSize returns the number of trees in the pool
 func (f *TreePool) BufferSize() int {
 	return f.poolSize
 }
@@ -100,6 +106,7 @@ func (f *TreePool) SquareSize() uint64 {
 	return f.squareSize
 }
 
+// NewConstructor returns a tree constructor function that uses the pool
 func (f *TreePool) NewConstructor() rsmt2d.TreeConstructorFn {
 	return func(_ rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
 		tree := f.treePool.acquire()
@@ -112,6 +119,8 @@ func (f *TreePool) NewConstructor() rsmt2d.TreeConstructorFn {
 		return tree
 	}
 }
+
+var _ rsmt2d.Tree = &bufferedTree{}
 
 // bufferedTree is a wrapper around NamespaceMerkleTree with buffer pooling support
 // for efficient memory management in high-throughput scenarios.
@@ -132,7 +141,7 @@ type bufferedTree struct {
 	buffer     []byte         // Pre-allocated buffer for share data
 }
 
-// newBufferedTree creates a new bufferedTree with buffer pooling support
+// newBufferedTree creates a new bufferedTree with pre-allocated buffer and pool reference
 func newBufferedTree(squareSize uint64, axisIndex uint, pool *fixedTreePool, options ...nmt.Option) *bufferedTree {
 	if squareSize == 0 {
 		panic("cannot create a bufferedTree of squareSize == 0")
@@ -155,7 +164,7 @@ func newBufferedTree(squareSize uint64, axisIndex uint, pool *fixedTreePool, opt
 	}
 }
 
-// Push adds the provided data to the underlying NamespaceMerkleTree for bufferedTree
+// Push adds share data to the tree using the pre-allocated buffer to avoid memory allocation
 func (w *bufferedTree) Push(data []byte) error {
 	if w.axisIndex+1 > 2*w.squareSize || w.shareIndex+1 > 2*w.squareSize {
 		return fmt.Errorf("pushed past predetermined square size: boundary at %d index at %d %d", 2*w.squareSize, w.axisIndex, w.shareIndex)
@@ -190,21 +199,18 @@ func (w *bufferedTree) Push(data []byte) error {
 	return nil
 }
 
-// Root fulfills the rsmt2d.Tree interface for bufferedTree
+// Root calculates the tree root using FastRoot and releases the tree back to the pool
 func (w *bufferedTree) Root() ([]byte, error) {
 	defer w.pool.release(w)
 	return w.tree.FastRoot()
 }
 
-// incrementShareIndex increments the share index by one.
+// incrementShareIndex advances to the next share position in the tree
 func (w *bufferedTree) incrementShareIndex() {
 	w.shareIndex++
 }
 
-// isQuadrantZero returns true if the current share index and axis index are both
-// in the original data square.
+// isQuadrantZero checks if the current position is in the original (non-parity) data quadrant
 func (w *bufferedTree) isQuadrantZero() bool {
 	return w.shareIndex < w.squareSize && w.axisIndex < w.squareSize
 }
-
-var _ rsmt2d.Tree = &bufferedTree{}
