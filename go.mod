@@ -22,6 +22,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.19.6
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.88.1
 	github.com/bcp-innovations/hyperlane-cosmos v1.0.1
+	github.com/celestiaorg/go-square/v2 v2.3.3-rc0
 	github.com/celestiaorg/go-square/v3 v3.0.0
 	github.com/celestiaorg/nmt v0.24.1
 	github.com/celestiaorg/rsmt2d v0.15.0
@@ -273,6 +274,7 @@ require (
 replace (
 	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.6
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
+	github.com/celestiaorg/go-square/v3 => /Users/callum/Developer/go/src/github.com/celestiaorg/go-square
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.4
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.51.2
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
