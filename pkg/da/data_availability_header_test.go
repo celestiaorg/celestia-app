@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	v5 "github.com/celestiaorg/celestia-app/v6/pkg/appconsts/v5"
+	appconstsv5 "github.com/celestiaorg/celestia-app/v6/pkg/appconsts/v5"
 	sharev2 "github.com/celestiaorg/go-square/v2/share"
 	sh "github.com/celestiaorg/go-square/v3/share"
 	"github.com/stretchr/testify/assert"
@@ -281,15 +281,15 @@ func TestConstructEDS_SquareSize(t *testing.T) {
 	testCases := []testCase{
 		{
 			name:         "v5 version with custom square size",
-			appVersion:   v5.Version,
+			appVersion:   appconstsv5.Version,
 			maxSquare:    4,
 			expectedSize: 4,
 		},
 		{
 			name:         "v5 version with default square size",
-			appVersion:   v5.Version,
+			appVersion:   appconstsv5.Version,
 			maxSquare:    -1,
-			expectedSize: v5.SquareSizeUpperBound,
+			expectedSize: appconstsv5.SquareSizeUpperBound,
 		},
 		{
 			name:         "latest version with custom square size",
