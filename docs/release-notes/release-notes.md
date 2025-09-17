@@ -242,7 +242,7 @@ You can track the tally of signalling by validators using the following query
 celestia-appd query signal tally 3
 ```
 
-Once 5/6+ of the voting power have signalled, the upgrade will be ready. There is a hard coded delay between confirmation of the upgrade and execution to the new state machine.
+Once 5/6+ of the voting power has signalled, the upgrade will be ready. There is a hard coded delay between confirmation of the upgrade and execution to the new state machine.
 
 To view the upcoming upgrade height use the following query:
 
