@@ -787,10 +787,6 @@ github.com/celestiaorg/ibc-go/v8 v8.7.2 h1:AWae851fdX7pJWlGnUBKlKJzpr4c2t5m4TLs6
 github.com/celestiaorg/ibc-go/v8 v8.7.2/go.mod h1:E3WTax+cfyDIehNRpwEI96/0E8GBtU1g9XWr18qUGZ8=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n5MFP2MwK0gSRcOVlDlFdQJO1p+FqdxYzmvc=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4/go.mod h1:fzuHnhzj1pUygGz+1ZkB3uQbEUL4htqCGJ4Qs2LwMZA=
-github.com/celestiaorg/nmt v0.24.1 h1:MhGKqp257eq2EQQKcva1H/BSYFqIt0Trk8/t3IWfWSw=
-github.com/celestiaorg/nmt v0.24.1/go.mod h1:IhLnJDgCdP70crZFpgihFmU6G+PGeXN37tnMRm+/4iU=
-github.com/celestiaorg/rsmt2d v0.15.0 h1:iCw+ghtH+xUK0dFIVZv4dGptoXJK/76UBj6aVsu9h7w=
-github.com/celestiaorg/rsmt2d v0.15.0/go.mod h1:E1GzIiYgMw1mPVWXyQSCSOFVGXoTMHQouh4C6fj5IT0=
 github.com/celestiaorg/tastora v0.4.1 h1:49/yKDKS5NZtonGqHRsXcS7jwwqG7Tn8NCLaYl+aa90=
 github.com/celestiaorg/tastora v0.4.1/go.mod h1:BicIJEfk3udsScvSYwFNcDe2FMbW6M7EjtcodS16V14=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
@@ -1368,6 +1364,10 @@ github.com/mattn/go-runewidth v0.0.2/go.mod h1:LwmH8dsx7+W8Uxz3IHJYH5QSwggIsqBzp
 github.com/mattn/go-runewidth v0.0.4/go.mod h1:LwmH8dsx7+W8Uxz3IHJYH5QSwggIsqBzpuz5H//U1FU=
 github.com/mattn/go-sqlite3 v1.14.14/go.mod h1:NyWgC/yNuGj7Q9rpYnZvas74GogHl5/Z4A/KQRfk6bU=
 github.com/matttproud/golang_protobuf_extensions v1.0.1/go.mod h1:D8He9yQNgCq6Z5Ld7szi9bcBfOoFv/3dc6xSMkL2PC0=
+github.com/mcrakhman/nmt v0.24.2-0.20250915144931-84f9b6f163b8 h1:vgStBCiE1mg1H+JYJgHMaOC02BRgqMtd82MzaXcCO5Y=
+github.com/mcrakhman/nmt v0.24.2-0.20250915144931-84f9b6f163b8/go.mod h1:vgLBpWBi8F5KLxTdXSwb7AU4NhiIQ1AQRGa+PzdcLEA=
+github.com/mcrakhman/rsmt2d v0.15.1-0.20250917163334-9b91fdc60be9 h1:R/h+uorH7TFdPhBxk2trVTnml6vzI0bUfbgEQbmxD8o=
+github.com/mcrakhman/rsmt2d v0.15.1-0.20250917163334-9b91fdc60be9/go.mod h1:KMI0p/Qu6zZ9Ggw3/+p9xVVxLvtGqt4xq0e6l12X/Nk=
 github.com/miekg/dns v1.0.14/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
 github.com/minio/asm2plan9s v0.0.0-20200509001527-cdd76441f9d8/go.mod h1:mC1jAcsrzbxHt8iiaC+zU4b1ylILSosueou12R++wfY=
 github.com/minio/c2goasm v0.0.0-20190812172519-36a3d3bbc4f3/go.mod h1:RagcQ7I8IeTMnF8JTXieKnO4Z6JCsikNEzj0DwauVzE=
