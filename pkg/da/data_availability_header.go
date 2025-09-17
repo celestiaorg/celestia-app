@@ -81,10 +81,7 @@ func ExtendSharesWithTreePool(s [][]byte, treePool *wrapper.TreePool) (*rsmt2d.E
 	}
 	// here we construct a tree
 	// Note: uses the nmt wrapper to construct the tree.
-	return rsmt2d.ComputeExtendedDataSquareLimitParallelOps(s,
-		appconsts.DefaultCodec(),
-		treePool.NewConstructor(),
-		treePool.PoolSize())
+	return rsmt2d.ComputeExtendedDataSquareWithBuffer(s, appconsts.DefaultCodec(), treePool)
 }
 
 // String returns hex representation of merkle hash of the DAHeader.

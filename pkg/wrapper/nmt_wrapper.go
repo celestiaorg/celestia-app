@@ -2,8 +2,6 @@ package wrapper
 
 import (
 	"fmt"
-	"runtime"
-	"sync"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/go-square/v3/share"
@@ -12,112 +10,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
-// fixedTreePool provides a fixed-size pool of erasuredNamespacedMerkleTree instances
-type fixedTreePool struct {
-	availableNMTs chan *ErasuredNamespacedMerkleTree
-	opts          []nmt.Option
-	squareSize    uint64
-}
-
-func newFixedTreePool(size int, squareSize uint64, opts []nmt.Option) *fixedTreePool {
-	pool := &fixedTreePool{
-		availableNMTs: make(chan *ErasuredNamespacedMerkleTree, size),
-		opts:          opts,
-		squareSize:    squareSize,
-	}
-
-	for i := 0; i < size; i++ {
-		tree := NewErasuredNamespacedMerkleTree(squareSize, 0, opts...)
-		treePtr := &tree
-		treePtr.pool = pool
-		entrySize := share.ShareSize + share.NamespaceSize
-		treePtr.buffer = make([]byte, 2*squareSize*uint64(entrySize))
-		pool.availableNMTs <- treePtr
-	}
-
-	return pool
-}
-
-func (p *fixedTreePool) acquire() *ErasuredNamespacedMerkleTree {
-	return <-p.availableNMTs
-}
-
-func (p *fixedTreePool) release(tree *ErasuredNamespacedMerkleTree) {
-	p.availableNMTs <- tree
-}
-
-type TreePoolProvider struct {
-	mutex    sync.Mutex
-	pools    map[uint64]*TreePool
-	poolSize int
-	opts     []nmt.Option
-}
-
-// NewTreePoolProvider creates a new TreePoolProvider with the given default pool size and options
-func NewTreePoolProvider() *TreePoolProvider {
-	return &TreePoolProvider{
-		pools:    make(map[uint64]*TreePool),
-		poolSize: runtime.NumCPU() * 4,
-	}
-}
-
-func (p *TreePoolProvider) PreallocatePool(squareSize uint64) {
-	_ = p.GetTreePool(squareSize)
-}
-
-// GetTreePool returns a cached TreePool for the given square size, creating one if it doesn't exist
-func (p *TreePoolProvider) GetTreePool(squareSize uint64) *TreePool {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-
-	if pool, exists := p.pools[squareSize]; exists {
-		return pool
-	}
-
-	pool := NewTreePool(squareSize, p.poolSize, p.opts...)
-	p.pools[squareSize] = pool
-	return pool
-}
-
-// TreePool provides pool methods for creating tree constructors
-type TreePool struct {
-	squareSize uint64
-	opts       []nmt.Option
-	poolSize   int
-	treePool   *fixedTreePool
-}
-
-func NewTreePool(squareSize uint64, poolSize int, opts ...nmt.Option) *TreePool {
-	return &TreePool{
-		squareSize: squareSize,
-		opts:       opts,
-		poolSize:   poolSize,
-		treePool:   newFixedTreePool(poolSize, squareSize, opts),
-	}
-}
-
-func (f *TreePool) PoolSize() int {
-	return f.poolSize
-}
-
-// SquareSize returns the square size this pool was configured for
-func (f *TreePool) SquareSize() uint64 {
-	return f.squareSize
-}
-
-func (f *TreePool) NewConstructor() rsmt2d.TreeConstructorFn {
-	return func(_ rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
-		tree := f.treePool.acquire()
-		tree.axisIndex = uint64(axisIndex)
-		tree.shareIndex = 0
-
-		// Reset the tree (but don't put leaves back to pool anymore)
-		tree.tree.Reset()
-
-		return tree
-	}
-}
-
+// Fulfills the rsmt2d.Tree interface and rsmt2d.TreeConstructorFn function
 var (
 	_ rsmt2d.TreeConstructorFn = NewConstructor(0)
 	_ rsmt2d.Tree              = &ErasuredNamespacedMerkleTree{}
@@ -143,8 +36,6 @@ type ErasuredNamespacedMerkleTree struct {
 	// leaf belongs to, along with keeping track of how many leaves have been
 	// added to the tree so far.
 	shareIndex uint64
-	pool       *fixedTreePool // reference to the pool this tree belongs to
-	buffer     []byte         // Pre-allocated buffer for share data
 }
 
 // Tree is an interface that wraps the methods of the underlying
@@ -153,10 +44,8 @@ type ErasuredNamespacedMerkleTree struct {
 // interface by implementing a different implementation.
 type Tree interface {
 	Root() ([]byte, error)
-	FastRoot() ([]byte, error)
 	Push(namespacedData namespace.PrefixedData) error
 	ProveRange(start, end int) (nmt.Proof, error)
-	Reset() [][]byte
 }
 
 // NewErasuredNamespacedMerkleTree creates a new ErasuredNamespacedMerkleTree
@@ -208,21 +97,7 @@ func (w *ErasuredNamespacedMerkleTree) Push(data []byte) error {
 	if len(data) < share.NamespaceSize {
 		return fmt.Errorf("data is too short to contain namespace ID")
 	}
-	var (
-		nidAndData      []byte
-		bufferEntrySize = share.NamespaceSize + share.ShareSize
-		nidDataLen      = share.NamespaceSize + len(data)
-	)
-
-	if w.buffer != nil {
-		if nidDataLen > bufferEntrySize {
-			return fmt.Errorf("data is too large to be used with allocated buffer")
-		}
-		offset := int(w.shareIndex) * bufferEntrySize
-		nidAndData = w.buffer[offset : offset+nidDataLen]
-	} else {
-		nidAndData = make([]byte, nidDataLen)
-	}
+	nidAndData := make([]byte, share.NamespaceSize+len(data))
 	copy(nidAndData[share.NamespaceSize:], data)
 	// use the parity namespace if the cell is not in Q0 of the extended data square
 	if w.isQuadrantZero() {
@@ -236,20 +111,6 @@ func (w *ErasuredNamespacedMerkleTree) Push(data []byte) error {
 	}
 	w.incrementShareIndex()
 	return nil
-}
-
-func (w *ErasuredNamespacedMerkleTree) Release() {
-	if w.pool != nil {
-		w.axisIndex = 0
-		w.shareIndex = 0
-
-		w.pool.release(w)
-	}
-}
-
-// FastRoot returns the Merkle root by consuming internal tree state for faster computation
-func (w *ErasuredNamespacedMerkleTree) FastRoot() ([]byte, error) {
-	return w.tree.FastRoot()
 }
 
 // Root fulfills the rsmt2d.Tree interface by generating and returning the

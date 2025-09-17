@@ -274,7 +274,7 @@ replace (
 	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.6
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	github.com/celestiaorg/nmt => github.com/mcrakhman/nmt v0.24.2-0.20250915144931-84f9b6f163b8
-	github.com/celestiaorg/rsmt2d => github.com/mcrakhman/rsmt2d v0.15.1-0.20250916115557-07e2097a7eb2
+	github.com/celestiaorg/rsmt2d => github.com/mcrakhman/rsmt2d v0.15.1-0.20250917163334-9b91fdc60be9
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.4
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.51.2
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
