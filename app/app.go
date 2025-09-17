@@ -35,6 +35,7 @@ import (
 	celestiatx "github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
 	"github.com/celestiaorg/celestia-app/v6/x/blob"
 	blobkeeper "github.com/celestiaorg/celestia-app/v6/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
@@ -193,6 +194,7 @@ type App struct {
 	// blockTime is used to override the default TimeoutHeightDelay. This is
 	// useful for testing purposes and should not be used on public networks
 	// (Arabica, Mocha, or Mainnet Beta).
+	processProposalTreePool *wrapper.TreePoolProvider
 	delayedPrecommitTimeout time.Duration
 }
 
@@ -480,6 +482,8 @@ func New(
 		&app.CircuitKeeper,
 		app.GovParamFilters(),
 	))
+	app.processProposalTreePool = wrapper.NewTreePoolProvider()
+	app.processProposalTreePool.PreallocatePool(uint64(appconsts.SquareSizeUpperBound))
 
 	protoFiles, err := proto.MergedRegistry()
 	if err != nil {
@@ -689,6 +693,10 @@ func (app *App) GetMemKey(storeKey string) *storetypes.MemoryStoreKey {
 func (app *App) GetSubspace(moduleName string) paramstypes.Subspace {
 	subspace, _ := app.ParamsKeeper.GetSubspace(moduleName)
 	return subspace
+}
+
+func (app *App) TreePool() *wrapper.TreePoolProvider {
+	return app.processProposalTreePool
 }
 
 // RegisterAPIRoutes registers all application module routes with the provided
