@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts/v5"
+	v5 "github.com/celestiaorg/celestia-app/v6/pkg/appconsts/v5"
 	sharev2 "github.com/celestiaorg/go-square/v2/share"
 	sh "github.com/celestiaorg/go-square/v3/share"
 	"github.com/stretchr/testify/assert"
@@ -253,12 +253,14 @@ func TestSquareSize(t *testing.T) {
 }
 
 func TestConstructEDS_Versions(t *testing.T) {
-	for version := uint64(0); version <= appconsts.Version*uint64(2); version++ {
-		t.Run(fmt.Sprintf("version %d", version), func(t *testing.T) {
-			// Use a small valid number of shares for a 2x2 square
+	minAppVersion := uint64(0)
+	maxAppVersion := appconsts.Version + 1
+	for appVersion := minAppVersion; appVersion <= maxAppVersion; appVersion++ {
+		t.Run(fmt.Sprintf("app version %d", appVersion), func(t *testing.T) {
 			shares := generateShares(4)
-			eds, err := ConstructEDS(shares, version, -1)
-			if version > appconsts.Version || version == 0 {
+			maxSquareSize := -1
+			eds, err := ConstructEDS(shares, appVersion, maxSquareSize)
+			if appVersion > appconsts.Version || appVersion == 0 {
 				require.Error(t, err)
 				require.Nil(t, eds)
 			} else {
