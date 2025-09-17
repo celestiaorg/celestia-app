@@ -143,7 +143,6 @@ func WithAdditionalCoreEndpoints(conns []*grpc.ClientConn) Option {
 
 // WithTxWorkers enables parallel transaction submission with the specified number of worker accounts.
 // Each worker will use a separate account for transaction submission.
-// If workerAccounts is nil or empty, worker accounts will be automatically created and initialized.
 func WithTxWorkers(numWorkers int, workerAccounts []string) Option {
 	return func(c *TxClient) {
 		if numWorkers > 0 {
