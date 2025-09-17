@@ -82,7 +82,7 @@ func ConstructEDS(txs [][]byte, appVersion uint64, maxSquareSize int) (*rsmt2d.E
 		}
 		return ExtendShares(sharev2.ToBytes(square))
 	}
-	if appVersion <= appconsts.Version {
+	if appVersion == appconsts.Version {
 		if maxSquareSize < 0 {
 			maxSquareSize = appconsts.SquareSizeUpperBound
 		}
