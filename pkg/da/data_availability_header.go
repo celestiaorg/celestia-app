@@ -6,16 +6,15 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
+	daproto "github.com/celestiaorg/celestia-app/v6/proto/celestia/core/v1/da"
 	"github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	"github.com/cometbft/cometbft/types"
 	"golang.org/x/exp/constraints"
-
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
-	daproto "github.com/celestiaorg/celestia-app/v6/proto/celestia/core/v1/da"
 )
 
 var (
@@ -75,19 +74,17 @@ func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 	return rsmt2d.ComputeExtendedDataSquare(s, appconsts.DefaultCodec(), wrapper.NewConstructor(uint64(squareSize)))
 }
 
-func ExtendSharesWithTreeFactory(s [][]byte, treeFactory *wrapper.TreePool) (*rsmt2d.ExtendedDataSquare, error) {
+func ExtendSharesWithTreePool(s [][]byte, treePool *wrapper.TreePool) (*rsmt2d.ExtendedDataSquare, error) {
 	// Check that the length of the square is a power of 2.
 	if !square.IsPowerOfTwo(len(s)) {
 		return nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(s))
 	}
-	squareSize := SquareSize(len(s))
-
 	// here we construct a tree
 	// Note: uses the nmt wrapper to construct the tree.
 	return rsmt2d.ComputeExtendedDataSquareLimitParallelOps(s,
 		appconsts.DefaultCodec(),
-		wrapper.NewBufferedConstructor(uint64(squareSize), treeFactory),
-		treeFactory.PoolSize())
+		treePool.NewConstructor(),
+		treePool.PoolSize())
 }
 
 // String returns hex representation of merkle hash of the DAHeader.

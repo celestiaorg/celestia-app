@@ -5,7 +5,6 @@ import (
 	"io"
 	"math"
 	"os"
-	goruntime "runtime"
 	"time"
 
 	"cosmossdk.io/client/v2/autocli"
@@ -30,6 +29,24 @@ import (
 	"github.com/bcp-innovations/hyperlane-cosmos/x/warp"
 	warpkeeper "github.com/bcp-innovations/hyperlane-cosmos/x/warp/keeper"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
+	"github.com/celestiaorg/celestia-app/v6/app/ante"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
+	celestiatx "github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v6/x/blob"
+	blobkeeper "github.com/celestiaorg/celestia-app/v6/x/blob/keeper"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v6/x/minfee"
+	minfeekeeper "github.com/celestiaorg/celestia-app/v6/x/minfee/keeper"
+	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v6/x/mint"
+	mintkeeper "github.com/celestiaorg/celestia-app/v6/x/mint/keeper"
+	minttypes "github.com/celestiaorg/celestia-app/v6/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v6/x/signal"
+	signaltypes "github.com/celestiaorg/celestia-app/v6/x/signal/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmjson "github.com/cometbft/cometbft/libs/json"
@@ -106,25 +123,6 @@ import (
 	ibctesting "github.com/cosmos/ibc-go/v8/testing"
 	ibctestingtypes "github.com/cosmos/ibc-go/v8/testing/types"
 	"github.com/spf13/cast"
-
-	"github.com/celestiaorg/celestia-app/v6/app/ante"
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
-	celestiatx "github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/proof"
-	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
-	"github.com/celestiaorg/celestia-app/v6/x/blob"
-	blobkeeper "github.com/celestiaorg/celestia-app/v6/x/blob/keeper"
-	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/celestia-app/v6/x/minfee"
-	minfeekeeper "github.com/celestiaorg/celestia-app/v6/x/minfee/keeper"
-	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
-	"github.com/celestiaorg/celestia-app/v6/x/mint"
-	mintkeeper "github.com/celestiaorg/celestia-app/v6/x/mint/keeper"
-	minttypes "github.com/celestiaorg/celestia-app/v6/x/mint/types"
-	"github.com/celestiaorg/celestia-app/v6/x/signal"
-	signaltypes "github.com/celestiaorg/celestia-app/v6/x/signal/types"
 )
 
 // maccPerms is short for module account permissions. It is a map from module
@@ -233,7 +231,6 @@ func New(
 		keys:                    keys,
 		tkeys:                   tkeys,
 		memKeys:                 memKeys,
-		processProposalTreePool: wrapper.NewTreePoolProvider(goruntime.NumCPU() * 4),
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
 	}
 
@@ -485,6 +482,8 @@ func New(
 		&app.CircuitKeeper,
 		app.GovParamFilters(),
 	))
+	app.processProposalTreePool = wrapper.NewTreePoolProvider()
+	app.processProposalTreePool.PreallocatePool(uint64(appconsts.SquareSizeUpperBound))
 
 	protoFiles, err := proto.MergedRegistry()
 	if err != nil {
