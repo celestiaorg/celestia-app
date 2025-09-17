@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
+	"github.com/celestiaorg/tastora/framework/docker/cosmos"
 	addressutil "github.com/celestiaorg/tastora/framework/testutil/address"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
@@ -17,6 +17,7 @@ import (
 	cometcfg "github.com/cometbft/cometbft/config"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	servercfg "github.com/cosmos/cosmos-sdk/server/config"
+	"github.com/stretchr/testify/require"
 )
 
 // TestStateSyncWithAppUpgrade verifies that a full node can state-sync across app version
@@ -109,9 +110,9 @@ func (s *CelestiaTestSuite) TestStateSyncWithAppUpgrade() {
 
 	// Add state sync node
 	err = chain.AddNode(ctx,
-		tastoradockertypes.NewChainNodeConfigBuilder().
+		cosmos.NewChainNodeConfigBuilder().
 			WithNodeType(tastoratypes.NodeTypeConsensusFull).
-			WithPostInit(func(ctx context.Context, node *tastoradockertypes.ChainNode) error {
+			WithPostInit(func(ctx context.Context, node *cosmos.ChainNode) error {
 				return configureStateSyncClient(ctx, node, strings.Split(rpcServers, ","), trustHeight, trustHash)
 			}).
 			Build(),
@@ -136,7 +137,7 @@ func (s *CelestiaTestSuite) TestStateSyncWithAppUpgrade() {
 	s.Require().NoError(err, "state sync node failed to complete sync within timeout")
 
 	// Verify that state sync was used (not block sync) via metrics
-	dockerNode := stateSyncNode.(*tastoradockertypes.ChainNode)
+	dockerNode := stateSyncNode.(*cosmos.ChainNode)
 	verifyStateSync(t, dockerNode)
 
 	// Validate: /status shows catching_up=false
@@ -172,13 +173,12 @@ func (s *CelestiaTestSuite) TestStateSyncWithAppUpgrade() {
 }
 
 // detectStateSyncFromMetrics queries Prometheus metrics to determine if state sync was used
-func detectStateSyncFromMetrics(t *testing.T, node *tastoradockertypes.ChainNode) (usedStateSync bool, err error) {
+func detectStateSyncFromMetrics(t *testing.T, node *cosmos.ChainNode) (usedStateSync bool, err error) {
 	ctx := context.Background()
 
-	hostname, err := node.GetInternalHostName(ctx)
-	if err != nil {
-		return false, fmt.Errorf("failed to get node hostname: %w", err)
-	}
+	networkInfo, err := node.GetNetworkInfo(ctx)
+	require.NoError(t, err, "failed to get network info from chain node")
+	hostname := networkInfo.Internal.Hostname
 
 	// NOTE: Due to Tastora's limitation, we must use curl to fetch metrics from the node.
 	// Once the port issue is resolved, we can fetch metrics directly from the node without curl.
@@ -221,7 +221,7 @@ func findStateSyncMetrics(t *testing.T, metrics string) (usedStateSync bool, err
 }
 
 // verifyStateSync validates that state sync was used and not block sync
-func verifyStateSync(t *testing.T, stateSyncNode *tastoradockertypes.ChainNode) {
+func verifyStateSync(t *testing.T, stateSyncNode *cosmos.ChainNode) {
 	t.Log("Verifying sync method via Prometheus metrics...")
 
 	usedStateSync, metricsErr := detectStateSyncFromMetrics(t, stateSyncNode)
@@ -271,7 +271,7 @@ func (s *CelestiaTestSuite) performUpgrade(ctx context.Context, chain tastoratyp
 }
 
 // validatorStateSyncProducerOverrides configures validators to produce state sync snapshots.
-func validatorStateSyncProducerOverrides(ctx context.Context, node *tastoradockertypes.ChainNode) error {
+func validatorStateSyncProducerOverrides(ctx context.Context, node *cosmos.ChainNode) error {
 	return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
 		cfg.StateSync.SnapshotInterval = 5
 		cfg.StateSync.SnapshotKeepRecent = 3
@@ -279,7 +279,7 @@ func validatorStateSyncProducerOverrides(ctx context.Context, node *tastoradocke
 }
 
 // configureStateSyncClient configures a node to use state sync.
-func configureStateSyncClient(ctx context.Context, node *tastoradockertypes.ChainNode, rpcEndpoints []string, trustHeight int64, trustHash string) error {
+func configureStateSyncClient(ctx context.Context, node *cosmos.ChainNode, rpcEndpoints []string, trustHeight int64, trustHash string) error {
 	err := config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
 		cfg.StateSync.Enable = true
 

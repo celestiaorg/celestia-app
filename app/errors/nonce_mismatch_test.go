@@ -13,7 +13,7 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/v6/test/util"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	blob "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/stretchr/testify/require"
