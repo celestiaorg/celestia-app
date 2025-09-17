@@ -411,7 +411,7 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 }
 
 func (client *TxClient) broadcastTxAndIncrementSequence(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
-	resp, err := client.broadcastTx(ctx, conn, txBytes, signer)
+	resp, err := client.broadcastTxWithRetry(ctx, conn, txBytes, signer)
 	if err != nil {
 		return nil, err
 	}
@@ -431,7 +431,8 @@ func (client *TxClient) broadcastTxAndIncrementSequence(ctx context.Context, con
 
 // broadcastTx resubmits a transaction that was evicted from the mempool.
 // Unlike the initial broadcast, it doesn't increment the signer's sequence number.
-func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+// broadcastTx broadcasts a transaction to the chain and returns the response.
+func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
 	txClient := sdktx.NewServiceClient(conn)
 	resp, err := txClient.BroadcastTx(
 		ctx,
@@ -444,17 +445,6 @@ func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, 
 		return nil, err
 	}
 	if resp.TxResponse.Code != abci.CodeTypeOK {
-		if apperrors.IsNonceMismatchCode(resp.TxResponse.Code) {
-			expectedSequence, err := apperrors.ParseExpectedSequence(resp.TxResponse.RawLog)
-			if err != nil {
-				return nil, fmt.Errorf("error parsing sequence mismatch: %w. RawLog: %s", err, resp.TxResponse.RawLog)
-			}
-			if err := client.signer.SetSequence(signer, expectedSequence); err != nil {
-				return nil, fmt.Errorf("setting sequence: %w", err)
-			}
-
-			return client.retryBroadcastingTx(ctx, txBytes)
-		}
 		broadcastTxErr := &BroadcastTxError{
 			TxHash:   resp.TxResponse.TxHash,
 			Code:     resp.TxResponse.Code,
@@ -464,6 +454,27 @@ func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, 
 	}
 
 	return resp.TxResponse, nil
+}
+
+// broadcastTxWithRetry broadcasts a transaction and retries if it encounters a sequence mismatch.
+func (client *TxClient) broadcastTxWithRetry(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+	resp, err := client.broadcastTx(ctx, conn, txBytes)
+	if err != nil {
+		broadcastTxErr, ok := err.(*BroadcastTxError)
+		if !ok || !apperrors.IsNonceMismatchCode(broadcastTxErr.Code) {
+			return nil, err
+		}
+		expectedSequence, err := apperrors.ParseExpectedSequence(broadcastTxErr.ErrorLog)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing sequence mismatch: %w. ErrorLog: %s", err, broadcastTxErr.ErrorLog)
+		}
+		if err := client.signer.SetSequence(signer, expectedSequence); err != nil {
+			return nil, fmt.Errorf("setting sequence: %w", err)
+		}
+		return client.retryBroadcastingTx(ctx, txBytes)
+	}
+
+	return resp, nil
 }
 
 // retryBroadcastingTx creates a new transaction by copying over an existing transaction but creates a new signature with the
@@ -521,7 +532,7 @@ func (s *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sd
 		}
 	}
 
-	broadcastTxResp, err := s.broadcastTx(ctx, s.conns[0], newTxBytes, signer)
+	broadcastTxResp, err := s.broadcastTxWithRetry(ctx, s.conns[0], newTxBytes, signer)
 	if err != nil {
 		return nil, err
 	}
@@ -597,11 +608,20 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 
 	pollTicker := time.NewTicker(client.pollTime)
 	defer pollTicker.Stop()
+	var evictionPollTimeStart *time.Time
 
 	for {
 		resp, err := txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
 		if err != nil {
 			return nil, err
+		}
+		fmt.Println("resp status", resp.Status)
+
+		fmt.Println("evictionPollTimeStart", evictionPollTimeStart)
+		if evictionPollTimeStart != nil {
+			if time.Since(*evictionPollTimeStart) > time.Second*1 {
+				return nil, fmt.Errorf("transaction %s failed resubmission with sequence mismatch for over 1 minute", txHash)
+			}
 		}
 
 		switch resp.Status {
@@ -631,15 +651,30 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			client.deleteFromTxTracker(txHash)
 			return txResponse, nil
 		case core.TxStatusEvicted:
-			_, signer, exists := client.GetTxFromTxTracker(txHash)
+			_, _, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in txTracker; likely failed during broadcast", txHash)
 			}
-			// Resubmit straight away in the event of eviction and keep polling until tx is committed
-			_, err := client.broadcastTx(ctx, client.conns[0], client.txTracker[txHash].txBytes, signer)
+
+			// Attempt to resubmit evicted transaction without resigning to preserve replay protection
+			// If resubmission fails, keep polling - the transaction might still get included by another node
+			_, err := client.broadcastTx(ctx, client.conns[0], client.txTracker[txHash].txBytes)
 			if err != nil {
-				return nil, fmt.Errorf("resubmission for evicted tx with hash %s failed: %w", txHash, err)
+				// check if the error is a sequence mismatch
+				broadcastTxErr, ok := err.(*BroadcastTxError)
+				if !ok {
+					return nil, err
+				}
+				if apperrors.IsNonceMismatchCode(broadcastTxErr.Code) {
+					fmt.Println("sequence mismatch")
+					// Mark the start time for sequence mismatch retry tracking
+					now := time.Now()
+					evictionPollTimeStart = &now
+					// Continue polling to see if the transaction gets included
+					continue
+				}
 			}
+			// In all cases, continue polling for the original transaction
 		case core.TxStatusRejected:
 			sequence, signer, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
