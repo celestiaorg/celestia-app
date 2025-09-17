@@ -151,6 +151,18 @@ func (p *ParallelTxPool) CleanupResult(jobID string) {
 	delete(p.results, jobID)
 }
 
+// Workers returns the workers in the parallel pool
+func (p *ParallelTxPool) Workers() []*TxWorker {
+	return p.workers
+}
+
+// IsStarted returns whether the parallel pool is started
+func (p *ParallelTxPool) IsStarted() bool {
+	p.mtx.RLock()
+	defer p.mtx.RUnlock()
+	return p.started
+}
+
 // Start begins the worker's job processing loop
 func (w *TxWorker) Start() {
 	for {

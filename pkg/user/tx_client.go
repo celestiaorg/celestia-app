@@ -889,18 +889,6 @@ func (client *TxClient) ParallelPool() *ParallelTxPool {
 	return client.parallelPool
 }
 
-// Workers returns the workers in the parallel pool
-func (p *ParallelTxPool) Workers() []*TxWorker {
-	return p.workers
-}
-
-// IsStarted returns whether the parallel pool is started
-func (p *ParallelTxPool) IsStarted() bool {
-	p.mtx.RLock()
-	defer p.mtx.RUnlock()
-	return p.started
-}
-
 // AccountName returns the account name for this worker
 func (w *TxWorker) AccountName() string {
 	return w.accountName
