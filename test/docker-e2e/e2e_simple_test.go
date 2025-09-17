@@ -38,8 +38,8 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 
 	// Cleanup resources when the test is done
 	t.Cleanup(func() {
-		if err := celestia.Stop(ctx); err != nil {
-			t.Logf("Error stopping chain: %v", err)
+		if stopErr := celestia.Stop(ctx); stopErr != nil {
+			t.Logf("Error stopping chain: %v", stopErr)
 		}
 	})
 
@@ -167,7 +167,7 @@ func testPFBSubmission(t *testing.T, chain *tastoradockertypes.Chain, cfg *docke
 
 	// submit blob transaction using TxClient with proper minimum fee
 	// Required: 0.025utia per gas unit, so 200000 * 0.025 = 5000 utia minimum
-	txResp, err := txClient.SubmitPayForBlob(ctx, []*share.Blob{blob}, user.SetGasLimit(200000), user.SetFee(5000))
+	txResp, err := txClient.SubmitPayForBlob(ctx, []*types.Blob{blob}, user.SetGasLimit(200000), user.SetFee(5000))
 	require.NoError(t, err, "failed to submit PFB transaction")
 	require.Equal(t, uint32(0), txResp.Code, "PFB transaction failed with code %d", txResp.Code)
 
