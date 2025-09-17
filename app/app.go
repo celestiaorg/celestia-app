@@ -47,7 +47,7 @@ import (
 	minttypes "github.com/celestiaorg/celestia-app/v6/x/mint/types"
 	"github.com/celestiaorg/celestia-app/v6/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v6/x/signal/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmjson "github.com/cometbft/cometbft/libs/json"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
