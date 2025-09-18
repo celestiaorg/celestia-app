@@ -37,12 +37,12 @@ message MsgCreateZKExecutionISM {
   bytes namespace = 4;
   // the public key of the sequencer
   bytes sequencer_public_key = 5;
-  // the zk state transition verifier key of the sp1 prover client
-  bytes state_transition_vkey = 6;
-  // the zk state membership verifier key of the sp1 prover client
-  bytes state_membership_vkey = 7;
-  // hash-based commitment to the verifier key used for public input integrity
-  bytes vkey_commitment = 9;
+  // the sp1 groth16 verifier key
+  bytes groth16_vkey = 6;
+  // hash-based commitment to the verifier key used for state transition
+  bytes state_transition_vkey = 7;
+  // hash-based commitment to the verifier key used for state membership
+  bytes state_membership_vkey = 8;
 }
 
 // MsgCreateZKExecutionISMResponse is the response type for CreateZKExecutionISM.

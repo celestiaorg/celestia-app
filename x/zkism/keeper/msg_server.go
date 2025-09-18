@@ -35,9 +35,9 @@ func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreat
 		Height:              msg.Height,
 		Namespace:           msg.Namespace,
 		SequencerPublicKey:  msg.SequencerPublicKey,
+		Groth16Vkey:         msg.Groth16Vkey,
 		StateTransitionVkey: msg.StateTransitionVkey,
 		StateMembershipVkey: msg.StateMembershipVkey,
-		VkeyCommitment:      msg.VkeyCommitment,
 	}
 
 	if err := m.isms.Set(ctx, ismId.GetInternalId(), newIsm); err != nil {
@@ -51,9 +51,9 @@ func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreat
 		Height:              newIsm.Height,
 		Namespace:           newIsm.Namespace,
 		SequencerPublicKey:  newIsm.SequencerPublicKey,
+		Groth16Vkey:         newIsm.Groth16Vkey,
 		StateTransitionVkey: newIsm.StateTransitionVkey,
 		StateMembershipVkey: newIsm.StateMembershipVkey,
-		VkeyCommitment:      newIsm.VkeyCommitment,
 	}); err != nil {
 		return nil, err
 	}

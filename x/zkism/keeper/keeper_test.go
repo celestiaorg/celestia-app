@@ -73,8 +73,9 @@ func (suite *KeeperTestSuite) CreateTestIsm() types.ZKExecutionISM {
 
 	ism := types.ZKExecutionISM{
 		Id:                  util.CreateMockHexAddress("ism", 1),
-		StateTransitionVkey: groth16Vkey,
-		VkeyCommitment:      vkCommitment,
+		Groth16Vkey:         groth16Vkey,
+		StateTransitionVkey: vkCommitment,
+		StateMembershipVkey: []byte("todo"),
 		StateRoot:           trustedRoot,
 		Height:              97,
 		Namespace:           namespace,
@@ -131,8 +132,9 @@ func (suite *KeeperTestSuite) TestVerify() {
 	// create an ism with a hardcoded initial trusted state
 	ism := types.ZKExecutionISM{
 		Id:                  util.CreateMockHexAddress("ism", 1),
-		StateTransitionVkey: groth16Vkey,
-		VkeyCommitment:      vkCommitment,
+		Groth16Vkey:         groth16Vkey,
+		StateTransitionVkey: vkCommitment,
+		StateMembershipVkey: []byte("todo"),
 		StateRoot:           trustedRoot,
 		Height:              97,
 		Namespace:           namespace,

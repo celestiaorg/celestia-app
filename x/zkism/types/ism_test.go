@@ -39,8 +39,9 @@ func TestVerify(t *testing.T) {
 
 	// create an ism with a hardcoded initial trusted state
 	ism := types.ZKExecutionISM{
-		StateTransitionVkey: groth16Vk,
-		VkeyCommitment:      vkCommitment,
+		Groth16Vkey:         groth16Vk,
+		StateTransitionVkey: vkCommitment,
+		StateMembershipVkey: []byte("todo"),
 		StateRoot:           trustedRoot,
 		Height:              97,
 		Namespace:           namespace,

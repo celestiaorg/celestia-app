@@ -24,7 +24,11 @@ func (msg *MsgCreateZKExecutionISM) ValidateBasic() error {
 		return errors.New("state root must be exactly 32 bytes")
 	}
 
-	if len(msg.VkeyCommitment) != 32 {
+	if len(msg.StateTransitionVkey) != 32 {
+		return errors.New("vkey commitment must be exactly 32 bytes")
+	}
+
+	if len(msg.StateMembershipVkey) != 32 {
 		return errors.New("vkey commitment must be exactly 32 bytes")
 	}
 
