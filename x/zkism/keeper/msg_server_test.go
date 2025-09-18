@@ -1,6 +1,8 @@
 package keeper_test
 
 import (
+	"encoding/hex"
+
 	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/keeper"
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
@@ -44,6 +46,55 @@ func (suite *KeeperTestSuite) TestCreateZKExecutionISM() {
 			} else {
 				suite.Require().NoError(err)
 				suite.Require().NotNil(res)
+			}
+		})
+	}
+}
+
+func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
+	ism := suite.CreateTestIsm()
+	proofBz, pubValues := readProofData(suite.T())
+
+	var msg *types.MsgUpdateZKExecutionISM
+
+	testCases := []struct {
+		name      string
+		setupTest func()
+		expError  error
+	}{
+		{
+			name: "success",
+			setupTest: func() {
+				msg = &types.MsgUpdateZKExecutionISM{
+					Id:           ism.Id,
+					Height:       uint64(celestiaHeight),
+					Proof:        proofBz,
+					PublicValues: pubValues,
+				}
+			},
+			expError: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			tc.setupTest()
+
+			msgServer := keeper.NewMsgServerImpl(suite.zkISMKeeper)
+			res, err := msgServer.UpdateZKExecutionISM(suite.ctx, msg)
+
+			if tc.expError != nil {
+				suite.Require().Error(err)
+				suite.Require().Nil(res)
+			} else {
+				suite.Require().NoError(err)
+				suite.Require().NotNil(res)
+
+				publicValues := new(types.PublicValues)
+				suite.Require().NoError(publicValues.Unmarshal(pubValues))
+
+				suite.Require().Equal(publicValues.NewHeight, res.Height)
+				suite.Require().Equal(hex.EncodeToString(publicValues.NewStateRoot[:]), res.StateRoot)
 			}
 		})
 	}

@@ -178,6 +178,127 @@ func (m *MsgCreateZKExecutionISMResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MsgCreateZKExecutionISMResponse proto.InternalMessageInfo
 
+// MsgUpdateZKExecutionISM is the request type for UpdateZKExecutionISM.
+type MsgUpdateZKExecutionISM struct {
+	// ism identifier
+	Id github_com_bcp_innovations_hyperlane_cosmos_util.HexAddress `protobuf:"bytes,1,opt,name=id,proto3,customtype=github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress" json:"id"`
+	// height is the Celestia height associated with the state transition update.
+	Height uint64 `protobuf:"varint,2,opt,name=height,proto3" json:"height,omitempty"`
+	// proof is the ZK proof bytes (groth16).
+	Proof []byte `protobuf:"bytes,3,opt,name=proof,proto3" json:"proof,omitempty"`
+	// the public values used for proof verification.
+	PublicValues []byte `protobuf:"bytes,4,opt,name=public_values,json=publicValues,proto3" json:"public_values,omitempty"`
+}
+
+func (m *MsgUpdateZKExecutionISM) Reset()         { *m = MsgUpdateZKExecutionISM{} }
+func (m *MsgUpdateZKExecutionISM) String() string { return proto.CompactTextString(m) }
+func (*MsgUpdateZKExecutionISM) ProtoMessage()    {}
+func (*MsgUpdateZKExecutionISM) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9627100907186bb5, []int{2}
+}
+func (m *MsgUpdateZKExecutionISM) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgUpdateZKExecutionISM) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgUpdateZKExecutionISM.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgUpdateZKExecutionISM) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgUpdateZKExecutionISM.Merge(m, src)
+}
+func (m *MsgUpdateZKExecutionISM) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgUpdateZKExecutionISM) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgUpdateZKExecutionISM.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgUpdateZKExecutionISM proto.InternalMessageInfo
+
+func (m *MsgUpdateZKExecutionISM) GetHeight() uint64 {
+	if m != nil {
+		return m.Height
+	}
+	return 0
+}
+
+func (m *MsgUpdateZKExecutionISM) GetProof() []byte {
+	if m != nil {
+		return m.Proof
+	}
+	return nil
+}
+
+func (m *MsgUpdateZKExecutionISM) GetPublicValues() []byte {
+	if m != nil {
+		return m.PublicValues
+	}
+	return nil
+}
+
+// MsgUpdateZKExecutionISMResponse is the response type for UpdateZKExecutionISM.
+type MsgUpdateZKExecutionISMResponse struct {
+	// updated ism trusted state root (hex-encoded)
+	StateRoot string `protobuf:"bytes,1,opt,name=state_root,json=stateRoot,proto3" json:"state_root,omitempty"`
+	// updated ism trusted height
+	Height uint64 `protobuf:"varint,2,opt,name=height,proto3" json:"height,omitempty"`
+}
+
+func (m *MsgUpdateZKExecutionISMResponse) Reset()         { *m = MsgUpdateZKExecutionISMResponse{} }
+func (m *MsgUpdateZKExecutionISMResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgUpdateZKExecutionISMResponse) ProtoMessage()    {}
+func (*MsgUpdateZKExecutionISMResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9627100907186bb5, []int{3}
+}
+func (m *MsgUpdateZKExecutionISMResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgUpdateZKExecutionISMResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgUpdateZKExecutionISMResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgUpdateZKExecutionISMResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgUpdateZKExecutionISMResponse.Merge(m, src)
+}
+func (m *MsgUpdateZKExecutionISMResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgUpdateZKExecutionISMResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgUpdateZKExecutionISMResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgUpdateZKExecutionISMResponse proto.InternalMessageInfo
+
+func (m *MsgUpdateZKExecutionISMResponse) GetStateRoot() string {
+	if m != nil {
+		return m.StateRoot
+	}
+	return ""
+}
+
+func (m *MsgUpdateZKExecutionISMResponse) GetHeight() uint64 {
+	if m != nil {
+		return m.Height
+	}
+	return 0
+}
+
 // MsgUpdateParams is the request type for UpdateParams.
 type MsgUpdateParams struct {
 	// authority is the address that controls the module (defaults to x/gov unless overwritten).
@@ -192,7 +313,7 @@ func (m *MsgUpdateParams) Reset()         { *m = MsgUpdateParams{} }
 func (m *MsgUpdateParams) String() string { return proto.CompactTextString(m) }
 func (*MsgUpdateParams) ProtoMessage()    {}
 func (*MsgUpdateParams) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9627100907186bb5, []int{2}
+	return fileDescriptor_9627100907186bb5, []int{4}
 }
 func (m *MsgUpdateParams) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -243,7 +364,7 @@ func (m *MsgUpdateParamsResponse) Reset()         { *m = MsgUpdateParamsResponse
 func (m *MsgUpdateParamsResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgUpdateParamsResponse) ProtoMessage()    {}
 func (*MsgUpdateParamsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9627100907186bb5, []int{3}
+	return fileDescriptor_9627100907186bb5, []int{5}
 }
 func (m *MsgUpdateParamsResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -275,6 +396,8 @@ var xxx_messageInfo_MsgUpdateParamsResponse proto.InternalMessageInfo
 func init() {
 	proto.RegisterType((*MsgCreateZKExecutionISM)(nil), "celestia.zkism.v1.MsgCreateZKExecutionISM")
 	proto.RegisterType((*MsgCreateZKExecutionISMResponse)(nil), "celestia.zkism.v1.MsgCreateZKExecutionISMResponse")
+	proto.RegisterType((*MsgUpdateZKExecutionISM)(nil), "celestia.zkism.v1.MsgUpdateZKExecutionISM")
+	proto.RegisterType((*MsgUpdateZKExecutionISMResponse)(nil), "celestia.zkism.v1.MsgUpdateZKExecutionISMResponse")
 	proto.RegisterType((*MsgUpdateParams)(nil), "celestia.zkism.v1.MsgUpdateParams")
 	proto.RegisterType((*MsgUpdateParamsResponse)(nil), "celestia.zkism.v1.MsgUpdateParamsResponse")
 }
@@ -282,45 +405,50 @@ func init() {
 func init() { proto.RegisterFile("celestia/zkism/v1/tx.proto", fileDescriptor_9627100907186bb5) }
 
 var fileDescriptor_9627100907186bb5 = []byte{
-	// 600 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x54, 0x4f, 0x6b, 0x13, 0x41,
-	0x14, 0xcf, 0xa6, 0x6d, 0x4a, 0xc6, 0xd2, 0xe2, 0x18, 0xed, 0x36, 0xd8, 0xb4, 0xe4, 0x62, 0x09,
-	0x64, 0xd7, 0x46, 0x50, 0xa8, 0x27, 0x5b, 0x04, 0xa5, 0x04, 0xca, 0x56, 0x3d, 0xf4, 0x60, 0x98,
-	0x6c, 0x1e, 0x9b, 0xa1, 0x99, 0x9d, 0x71, 0x66, 0x76, 0x49, 0x3c, 0x89, 0x9f, 0x40, 0xfc, 0x24,
-	0x3d, 0xf8, 0x21, 0x7a, 0x2c, 0x9e, 0xd4, 0x43, 0x91, 0x56, 0xe8, 0xd7, 0x90, 0x9d, 0xfd, 0xd3,
-	0x88, 0x29, 0x7a, 0xdb, 0xf7, 0xfb, 0xf3, 0xe6, 0xf1, 0x9b, 0xb7, 0x83, 0xea, 0x3e, 0x8c, 0x40,
-	0x69, 0x4a, 0xdc, 0xf7, 0xc7, 0x54, 0x31, 0x37, 0xde, 0x76, 0xf5, 0xd8, 0x11, 0x92, 0x6b, 0x8e,
-	0x6f, 0xe7, 0x9c, 0x63, 0x38, 0x27, 0xde, 0xae, 0xaf, 0xcf, 0x90, 0x4f, 0x04, 0xa8, 0xd4, 0x51,
-	0x5f, 0xf5, 0xb9, 0x62, 0x5c, 0xb9, 0x4c, 0x05, 0x09, 0xc5, 0x54, 0x90, 0x11, 0x6b, 0x29, 0xd1,
-	0x33, 0x95, 0x9b, 0x16, 0x19, 0x55, 0x0b, 0x78, 0xc0, 0x53, 0x3c, 0xf9, 0x4a, 0xd1, 0xe6, 0xf7,
-	0x32, 0x5a, 0xed, 0xaa, 0x60, 0x4f, 0x02, 0xd1, 0x70, 0xb4, 0xff, 0x7c, 0x0c, 0x7e, 0xa4, 0x29,
-	0x0f, 0x5f, 0x1e, 0x76, 0xb1, 0x8d, 0x16, 0xfd, 0x04, 0xe7, 0xd2, 0xb6, 0x36, 0xad, 0xad, 0xaa,
-	0x97, 0x97, 0x78, 0x1d, 0x21, 0xa5, 0x89, 0x86, 0x9e, 0xe4, 0x5c, 0xdb, 0xe5, 0x4d, 0x6b, 0x6b,
-	0xc9, 0xab, 0x1a, 0xc4, 0xe3, 0x5c, 0xe3, 0x7b, 0xa8, 0x32, 0x04, 0x1a, 0x0c, 0xb5, 0x3d, 0xb7,
-	0x69, 0x6d, 0xcd, 0x7b, 0x59, 0x85, 0xef, 0xa3, 0x6a, 0x48, 0x18, 0x28, 0x41, 0x7c, 0xb0, 0xe7,
-	0x53, 0x57, 0x01, 0xe0, 0x87, 0xa8, 0xa6, 0xe0, 0x5d, 0x04, 0xa1, 0x0f, 0xb2, 0x27, 0xa2, 0xfe,
-	0x88, 0xfa, 0xbd, 0x63, 0x98, 0xd8, 0x0b, 0x46, 0x88, 0x0b, 0xee, 0xc0, 0x50, 0xfb, 0x30, 0xc1,
-	0x1d, 0x74, 0x37, 0x1d, 0x43, 0x4b, 0x12, 0x2a, 0x9a, 0xcc, 0xdd, 0x8b, 0x13, 0x4b, 0xc5, 0x58,
-	0xee, 0x18, 0xf2, 0x55, 0xc1, 0xbd, 0x39, 0x9e, 0xf6, 0x30, 0x60, 0x7d, 0x90, 0x6a, 0x48, 0x45,
-	0xea, 0x59, 0x9c, 0xf2, 0x74, 0x0b, 0xce, 0x78, 0x1e, 0xa0, 0x95, 0x44, 0xd2, 0xf3, 0x39, 0x63,
-	0x54, 0x33, 0x08, 0xb5, 0x5d, 0x35, 0xea, 0xe5, 0x04, 0xde, 0x2b, 0xd0, 0x9d, 0xa5, 0x8f, 0x57,
-	0x27, 0xad, 0x3c, 0xa5, 0x66, 0x8c, 0x36, 0x6e, 0x88, 0xd6, 0x03, 0x25, 0x78, 0xa8, 0x00, 0x1f,
-	0xa2, 0x32, 0x1d, 0xa4, 0xe9, 0xee, 0xee, 0x9d, 0x9e, 0x6f, 0x94, 0x7e, 0x9c, 0x6f, 0x3c, 0x0d,
-	0xa8, 0x1e, 0x46, 0x7d, 0xc7, 0xe7, 0xcc, 0xed, 0xfb, 0xa2, 0x4d, 0xc3, 0x90, 0xc7, 0x24, 0x71,
-	0x2a, 0x77, 0x38, 0x11, 0x20, 0x47, 0x24, 0x84, 0x76, 0xb6, 0x01, 0x91, 0xa6, 0x23, 0xe7, 0x05,
-	0x8c, 0x9f, 0x0d, 0x06, 0x12, 0x94, 0xf2, 0xca, 0x74, 0xd0, 0xfc, 0x6c, 0xa1, 0x95, 0xae, 0x0a,
-	0x5e, 0x8b, 0x01, 0xd1, 0x70, 0x40, 0x24, 0x61, 0x0a, 0x3f, 0x46, 0x55, 0x12, 0xe9, 0x21, 0x97,
-	0x54, 0x4f, 0xb2, 0xf3, 0xec, 0xaf, 0x5f, 0xda, 0xb5, 0x6c, 0x45, 0x32, 0xfb, 0xa1, 0x96, 0x34,
-	0x0c, 0xbc, 0x6b, 0x29, 0x7e, 0x82, 0x2a, 0xc2, 0x74, 0x30, 0xb7, 0x7c, 0xab, 0xb3, 0xe6, 0xfc,
-	0xb5, 0xac, 0x4e, 0x7a, 0xc4, 0xee, 0x7c, 0x32, 0xbf, 0x97, 0xc9, 0x77, 0x96, 0x93, 0x28, 0xae,
-	0x1b, 0x35, 0xd7, 0xcc, 0x9e, 0x4d, 0xcf, 0x94, 0x87, 0xd0, 0xf9, 0x65, 0xa1, 0xb9, 0xae, 0x0a,
-	0x70, 0x8c, 0x6a, 0x33, 0xf7, 0xb0, 0x35, 0xe3, 0xcc, 0x1b, 0x82, 0xad, 0x77, 0xfe, 0x5f, 0x5b,
-	0x5c, 0xc2, 0x5b, 0xb4, 0xf4, 0x47, 0x56, 0xcd, 0xd9, 0x3d, 0xa6, 0x35, 0xf5, 0xd6, 0xbf, 0x35,
-	0x79, 0xff, 0xfa, 0xc2, 0x87, 0xab, 0x93, 0x96, 0xb5, 0xbb, 0x7f, 0x7a, 0xd1, 0xb0, 0xce, 0x2e,
-	0x1a, 0xd6, 0xcf, 0x8b, 0x86, 0xf5, 0xe9, 0xb2, 0x51, 0x3a, 0xbb, 0x6c, 0x94, 0xbe, 0x5d, 0x36,
-	0x4a, 0x47, 0xdb, 0x53, 0x37, 0x9e, 0xb7, 0xe5, 0x32, 0x28, 0xbe, 0xdb, 0x44, 0x08, 0x77, 0x9c,
-	0x3d, 0x05, 0xe6, 0x1d, 0xe8, 0x57, 0xcc, 0xef, 0xfb, 0xe8, 0x77, 0x00, 0x00, 0x00, 0xff, 0xff,
-	0xb3, 0xad, 0x0a, 0x29, 0x58, 0x04, 0x00, 0x00,
+	// 683 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x54, 0x41, 0x6b, 0x13, 0x4f,
+	0x14, 0xcf, 0xa6, 0x6d, 0x4a, 0xe6, 0x9f, 0x7f, 0x8b, 0x63, 0xb4, 0xdb, 0x60, 0xd3, 0x12, 0x0f,
+	0x96, 0x40, 0x76, 0x6d, 0x04, 0x85, 0x7a, 0xb2, 0x45, 0x50, 0x4a, 0xa0, 0x6c, 0xb5, 0x48, 0x0f,
+	0x86, 0xc9, 0x66, 0xdc, 0x0c, 0xcd, 0xee, 0x8c, 0x33, 0xb3, 0x4b, 0xe2, 0x49, 0xfc, 0x04, 0xe2,
+	0x27, 0xe9, 0xc1, 0x2f, 0xe0, 0xad, 0xc7, 0xe2, 0x49, 0x45, 0x8a, 0xb4, 0x87, 0x7e, 0x0d, 0xd9,
+	0x99, 0xcd, 0x36, 0xa1, 0x9b, 0xea, 0xc5, 0xdb, 0xbe, 0xf7, 0xfb, 0xfd, 0xde, 0xdb, 0x79, 0xef,
+	0x37, 0x03, 0x2a, 0x2e, 0xee, 0x63, 0x21, 0x09, 0xb2, 0xdf, 0x1d, 0x12, 0xe1, 0xdb, 0xd1, 0x86,
+	0x2d, 0x07, 0x16, 0xe3, 0x54, 0x52, 0x78, 0x63, 0x84, 0x59, 0x0a, 0xb3, 0xa2, 0x8d, 0xca, 0x4a,
+	0x06, 0x7d, 0xc8, 0xb0, 0xd0, 0x8a, 0xca, 0x92, 0x4b, 0x85, 0x4f, 0x85, 0xed, 0x0b, 0x2f, 0x86,
+	0x7c, 0xe1, 0x25, 0xc0, 0xb2, 0x06, 0xda, 0x2a, 0xb2, 0x75, 0x90, 0x40, 0x65, 0x8f, 0x7a, 0x54,
+	0xe7, 0xe3, 0x2f, 0x9d, 0xad, 0x7d, 0xcf, 0x83, 0xa5, 0x96, 0xf0, 0xb6, 0x39, 0x46, 0x12, 0x1f,
+	0xec, 0x3c, 0x1d, 0x60, 0x37, 0x94, 0x84, 0x06, 0xcf, 0xf7, 0x5a, 0xd0, 0x04, 0xf3, 0x6e, 0x9c,
+	0xa7, 0xdc, 0x34, 0xd6, 0x8c, 0xf5, 0xa2, 0x33, 0x0a, 0xe1, 0x0a, 0x00, 0x42, 0x22, 0x89, 0xdb,
+	0x9c, 0x52, 0x69, 0xe6, 0xd7, 0x8c, 0xf5, 0x92, 0x53, 0x54, 0x19, 0x87, 0x52, 0x09, 0x6f, 0x83,
+	0x42, 0x0f, 0x13, 0xaf, 0x27, 0xcd, 0x99, 0x35, 0x63, 0x7d, 0xd6, 0x49, 0x22, 0x78, 0x07, 0x14,
+	0x03, 0xe4, 0x63, 0xc1, 0x90, 0x8b, 0xcd, 0x59, 0xad, 0x4a, 0x13, 0xf0, 0x3e, 0x28, 0x0b, 0xfc,
+	0x36, 0xc4, 0x81, 0x8b, 0x79, 0x9b, 0x85, 0x9d, 0x3e, 0x71, 0xdb, 0x87, 0x78, 0x68, 0xce, 0x29,
+	0x22, 0x4c, 0xb1, 0x5d, 0x05, 0xed, 0xe0, 0x21, 0x6c, 0x82, 0x5b, 0xfa, 0x37, 0x24, 0x47, 0x81,
+	0x20, 0xf1, 0x7f, 0xb7, 0xa3, 0x58, 0x52, 0x50, 0x92, 0x9b, 0x0a, 0x7c, 0x91, 0x62, 0xfb, 0x87,
+	0xe3, 0x1a, 0x1f, 0xfb, 0x1d, 0xcc, 0x45, 0x8f, 0x30, 0xad, 0x99, 0x1f, 0xd3, 0xb4, 0x52, 0x4c,
+	0x69, 0xee, 0x81, 0xc5, 0x98, 0xd2, 0x76, 0xa9, 0xef, 0x13, 0xe9, 0xe3, 0x40, 0x9a, 0x45, 0xc5,
+	0x5e, 0x88, 0xd3, 0xdb, 0x69, 0x76, 0xb3, 0xf4, 0xe1, 0xe2, 0xa8, 0x3e, 0x9a, 0x52, 0x2d, 0x02,
+	0xab, 0x53, 0x46, 0xeb, 0x60, 0xc1, 0x68, 0x20, 0x30, 0xdc, 0x03, 0x79, 0xd2, 0xd5, 0xd3, 0xdd,
+	0xda, 0x3e, 0x3e, 0x5d, 0xcd, 0xfd, 0x38, 0x5d, 0x7d, 0xec, 0x11, 0xd9, 0x0b, 0x3b, 0x96, 0x4b,
+	0x7d, 0xbb, 0xe3, 0xb2, 0x06, 0x09, 0x02, 0x1a, 0xa1, 0x58, 0x29, 0xec, 0xde, 0x90, 0x61, 0xde,
+	0x47, 0x01, 0x6e, 0x24, 0x0e, 0x08, 0x25, 0xe9, 0x5b, 0xcf, 0xf0, 0xe0, 0x49, 0xb7, 0xcb, 0xb1,
+	0x10, 0x4e, 0x9e, 0x74, 0x6b, 0x5f, 0x0c, 0xb5, 0xd3, 0x97, 0xac, 0x7b, 0x75, 0xa7, 0xff, 0xa2,
+	0xe1, 0xd8, 0xbe, 0xf3, 0x13, 0xfb, 0x2e, 0x83, 0x39, 0xc6, 0x29, 0x7d, 0xa3, 0x6c, 0x50, 0x72,
+	0x74, 0x00, 0xef, 0x82, 0xff, 0x93, 0xed, 0x46, 0xa8, 0x1f, 0x62, 0x91, 0x38, 0xa1, 0xa4, 0x93,
+	0xfb, 0x2a, 0x57, 0x7b, 0xa5, 0x66, 0x97, 0x75, 0x84, 0x74, 0x76, 0x93, 0x26, 0xd4, 0x0e, 0xcd,
+	0x34, 0xe1, 0xc4, 0x4f, 0xd5, 0x3e, 0x19, 0x60, 0x31, 0x2d, 0xbd, 0x8b, 0x38, 0xf2, 0x05, 0x7c,
+	0x08, 0x8a, 0x28, 0x94, 0x3d, 0xca, 0x89, 0x1c, 0x26, 0xc3, 0x31, 0xbf, 0x7e, 0x6e, 0x94, 0x93,
+	0x0b, 0x94, 0x9c, 0x75, 0x4f, 0x72, 0x12, 0x78, 0xce, 0x25, 0x15, 0x3e, 0x02, 0x05, 0xa6, 0x2a,
+	0xa8, 0x1e, 0xff, 0x35, 0x97, 0xad, 0x2b, 0x57, 0xd9, 0xd2, 0x2d, 0xb6, 0x66, 0xe3, 0x61, 0x3b,
+	0x09, 0x7d, 0x73, 0x21, 0x36, 0xca, 0x65, 0xa1, 0xda, 0xf2, 0xd8, 0xc6, 0xb4, 0x60, 0x74, 0xcc,
+	0xe6, 0xcf, 0x3c, 0x98, 0x69, 0x09, 0x0f, 0x46, 0xa0, 0x9c, 0x79, 0x4b, 0xeb, 0x19, 0x3d, 0xa7,
+	0xd8, 0xae, 0xd2, 0xfc, 0x7b, 0x6e, 0x3a, 0xe6, 0x08, 0x94, 0x33, 0x9d, 0x34, 0xa5, 0x6f, 0x16,
+	0x77, 0x5a, 0xdf, 0x6b, 0xd7, 0xfb, 0x1a, 0x94, 0x26, 0x76, 0x54, 0xbb, 0xae, 0x86, 0xe6, 0x54,
+	0xea, 0x7f, 0xe6, 0x8c, 0xea, 0x57, 0xe6, 0xde, 0x5f, 0x1c, 0xd5, 0x8d, 0xad, 0x9d, 0xe3, 0xb3,
+	0xaa, 0x71, 0x72, 0x56, 0x35, 0x7e, 0x9d, 0x55, 0x8d, 0x8f, 0xe7, 0xd5, 0xdc, 0xc9, 0x79, 0x35,
+	0xf7, 0xed, 0xbc, 0x9a, 0x3b, 0xd8, 0x18, 0xbb, 0x16, 0xa3, 0xb2, 0x94, 0x7b, 0xe9, 0x77, 0x03,
+	0x31, 0x66, 0x0f, 0x92, 0x07, 0x5a, 0xbd, 0xce, 0x9d, 0x82, 0x7a, 0x54, 0x1f, 0xfc, 0x0e, 0x00,
+	0x00, 0xff, 0xff, 0x70, 0x04, 0x9c, 0x4f, 0xee, 0x05, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -337,6 +465,8 @@ const _ = grpc.SupportPackageIsVersion4
 type MsgClient interface {
 	// CreateZKExecutionISM defines the rpc method for creating a new ZK execution ISM.
 	CreateZKExecutionISM(ctx context.Context, in *MsgCreateZKExecutionISM, opts ...grpc.CallOption) (*MsgCreateZKExecutionISMResponse, error)
+	// UpdateZKExecutionISM defines the rpc method for updating a new ZK execution ISM.
+	UpdateZKExecutionISM(ctx context.Context, in *MsgUpdateZKExecutionISM, opts ...grpc.CallOption) (*MsgUpdateZKExecutionISMResponse, error)
 	// UpdateParams defines the rpc method for updating the module parameters.
 	UpdateParams(ctx context.Context, in *MsgUpdateParams, opts ...grpc.CallOption) (*MsgUpdateParamsResponse, error)
 }
@@ -358,6 +488,15 @@ func (c *msgClient) CreateZKExecutionISM(ctx context.Context, in *MsgCreateZKExe
 	return out, nil
 }
 
+func (c *msgClient) UpdateZKExecutionISM(ctx context.Context, in *MsgUpdateZKExecutionISM, opts ...grpc.CallOption) (*MsgUpdateZKExecutionISMResponse, error) {
+	out := new(MsgUpdateZKExecutionISMResponse)
+	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Msg/UpdateZKExecutionISM", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *msgClient) UpdateParams(ctx context.Context, in *MsgUpdateParams, opts ...grpc.CallOption) (*MsgUpdateParamsResponse, error) {
 	out := new(MsgUpdateParamsResponse)
 	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Msg/UpdateParams", in, out, opts...)
@@ -371,6 +510,8 @@ func (c *msgClient) UpdateParams(ctx context.Context, in *MsgUpdateParams, opts 
 type MsgServer interface {
 	// CreateZKExecutionISM defines the rpc method for creating a new ZK execution ISM.
 	CreateZKExecutionISM(context.Context, *MsgCreateZKExecutionISM) (*MsgCreateZKExecutionISMResponse, error)
+	// UpdateZKExecutionISM defines the rpc method for updating a new ZK execution ISM.
+	UpdateZKExecutionISM(context.Context, *MsgUpdateZKExecutionISM) (*MsgUpdateZKExecutionISMResponse, error)
 	// UpdateParams defines the rpc method for updating the module parameters.
 	UpdateParams(context.Context, *MsgUpdateParams) (*MsgUpdateParamsResponse, error)
 }
@@ -381,6 +522,9 @@ type UnimplementedMsgServer struct {
 
 func (*UnimplementedMsgServer) CreateZKExecutionISM(ctx context.Context, req *MsgCreateZKExecutionISM) (*MsgCreateZKExecutionISMResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateZKExecutionISM not implemented")
+}
+func (*UnimplementedMsgServer) UpdateZKExecutionISM(ctx context.Context, req *MsgUpdateZKExecutionISM) (*MsgUpdateZKExecutionISMResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateZKExecutionISM not implemented")
 }
 func (*UnimplementedMsgServer) UpdateParams(ctx context.Context, req *MsgUpdateParams) (*MsgUpdateParamsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateParams not implemented")
@@ -404,6 +548,24 @@ func _Msg_CreateZKExecutionISM_Handler(srv interface{}, ctx context.Context, dec
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MsgServer).CreateZKExecutionISM(ctx, req.(*MsgCreateZKExecutionISM))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Msg_UpdateZKExecutionISM_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgUpdateZKExecutionISM)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).UpdateZKExecutionISM(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/celestia.zkism.v1.Msg/UpdateZKExecutionISM",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).UpdateZKExecutionISM(ctx, req.(*MsgUpdateZKExecutionISM))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -434,6 +596,10 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateZKExecutionISM",
 			Handler:    _Msg_CreateZKExecutionISM_Handler,
+		},
+		{
+			MethodName: "UpdateZKExecutionISM",
+			Handler:    _Msg_UpdateZKExecutionISM_Handler,
 		},
 		{
 			MethodName: "UpdateParams",
@@ -551,6 +717,93 @@ func (m *MsgCreateZKExecutionISMResponse) MarshalToSizedBuffer(dAtA []byte) (int
 	}
 	i--
 	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgUpdateZKExecutionISM) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgUpdateZKExecutionISM) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgUpdateZKExecutionISM) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.PublicValues) > 0 {
+		i -= len(m.PublicValues)
+		copy(dAtA[i:], m.PublicValues)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.PublicValues)))
+		i--
+		dAtA[i] = 0x22
+	}
+	if len(m.Proof) > 0 {
+		i -= len(m.Proof)
+		copy(dAtA[i:], m.Proof)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.Proof)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if m.Height != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.Height))
+		i--
+		dAtA[i] = 0x10
+	}
+	{
+		size := m.Id.Size()
+		i -= size
+		if _, err := m.Id.MarshalTo(dAtA[i:]); err != nil {
+			return 0, err
+		}
+		i = encodeVarintTx(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgUpdateZKExecutionISMResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgUpdateZKExecutionISMResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgUpdateZKExecutionISMResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Height != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.Height))
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.StateRoot) > 0 {
+		i -= len(m.StateRoot)
+		copy(dAtA[i:], m.StateRoot)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.StateRoot)))
+		i--
+		dAtA[i] = 0xa
+	}
 	return len(dAtA) - i, nil
 }
 
@@ -676,6 +929,44 @@ func (m *MsgCreateZKExecutionISMResponse) Size() (n int) {
 	_ = l
 	l = m.Id.Size()
 	n += 1 + l + sovTx(uint64(l))
+	return n
+}
+
+func (m *MsgUpdateZKExecutionISM) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = m.Id.Size()
+	n += 1 + l + sovTx(uint64(l))
+	if m.Height != 0 {
+		n += 1 + sovTx(uint64(m.Height))
+	}
+	l = len(m.Proof)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	l = len(m.PublicValues)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	return n
+}
+
+func (m *MsgUpdateZKExecutionISMResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.StateRoot)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	if m.Height != 0 {
+		n += 1 + sovTx(uint64(m.Height))
+	}
 	return n
 }
 
@@ -1077,6 +1368,278 @@ func (m *MsgCreateZKExecutionISMResponse) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgUpdateZKExecutionISM) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgUpdateZKExecutionISM: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgUpdateZKExecutionISM: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Id", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.Id.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Height", wireType)
+			}
+			m.Height = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Height |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Proof", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Proof = append(m.Proof[:0], dAtA[iNdEx:postIndex]...)
+			if m.Proof == nil {
+				m.Proof = []byte{}
+			}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PublicValues", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.PublicValues = append(m.PublicValues[:0], dAtA[iNdEx:postIndex]...)
+			if m.PublicValues == nil {
+				m.PublicValues = []byte{}
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgUpdateZKExecutionISMResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgUpdateZKExecutionISMResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgUpdateZKExecutionISMResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StateRoot", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.StateRoot = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Height", wireType)
+			}
+			m.Height = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Height |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipTx(dAtA[iNdEx:])

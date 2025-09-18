@@ -23,6 +23,15 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+var (
+	celestiaHeight     = 30
+	celestiaHeaderHash = "2e08a0f992a86551adcb11fe86423e198831739b1b7ce42daefa761d4195b3a3"
+	trustedStateRoot   = "af50a407e7a9fcba29c46ad31e7690bae4e951e3810e5b898eda29d3d3e92dbe"
+	vkeyHash           = "0x00acd6f9c9d0074611353a1e0c94751d3c49beef64ebc3ee82f0ddeadaf242ef"
+	namespaceHex       = "00000000000000000000000000000000000000a8045f161bf468bf4d44"
+	publicKeyHex       = "c87f6c4cdd4c8ac26cb6a06909e5e252b73043fdf85232c18ae92b9922b65507"
+)
+
 type KeeperTestSuite struct {
 	suite.Suite
 
@@ -38,6 +47,44 @@ func (suite *KeeperTestSuite) SetupTest() {
 	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	suite.ctx = testApp.NewUncachedContext(false, cmtproto.Header{Version: version.Consensus{App: appconsts.Version}})
 	suite.zkISMKeeper = testApp.ZKExecutionISMKeeper
+}
+
+func (suite *KeeperTestSuite) CreateTestIsm() types.ZKExecutionISM {
+	headerHash, err := hex.DecodeString(celestiaHeaderHash)
+	suite.Require().NoError(err)
+
+	err = suite.zkISMKeeper.SetHeaderHash(suite.ctx, uint64(celestiaHeight), headerHash)
+	suite.Require().NoError(err)
+
+	groth16Vkey := readGroth16Vkey(suite.T())
+
+	vkCommitmentHex := strings.TrimPrefix(vkeyHash, "0x")
+	vkCommitment, err := hex.DecodeString(vkCommitmentHex)
+	suite.Require().NoError(err)
+
+	trustedRoot, err := hex.DecodeString(trustedStateRoot)
+	suite.Require().NoError(err)
+
+	namespace, err := hex.DecodeString(namespaceHex)
+	suite.Require().NoError(err)
+
+	pubKey, err := hex.DecodeString(publicKeyHex)
+	suite.Require().NoError(err)
+
+	ism := types.ZKExecutionISM{
+		Id:                  util.CreateMockHexAddress("ism", 1),
+		StateTransitionVkey: groth16Vkey,
+		VkeyCommitment:      vkCommitment,
+		StateRoot:           trustedRoot,
+		Height:              97,
+		Namespace:           namespace,
+		SequencerPublicKey:  pubKey,
+	}
+
+	err = suite.zkISMKeeper.SetIsm(suite.ctx, ism.Id, ism)
+	suite.Require().NoError(err)
+
+	return ism
 }
 
 func randBytes(size uint64) []byte {
@@ -78,12 +125,13 @@ func (suite *KeeperTestSuite) TestVerify() {
 	pubKey, err := hex.DecodeString(publicKeyHex)
 	suite.Require().NoError(err)
 
-	groth16Vk, proofBz, inputsBz := readProofData(suite.T())
+	groth16Vkey := readGroth16Vkey(suite.T())
+	proofBz, inputsBz := readProofData(suite.T())
 
 	// create an ism with a hardcoded initial trusted state
 	ism := types.ZKExecutionISM{
 		Id:                  util.CreateMockHexAddress("ism", 1),
-		StateTransitionVkey: groth16Vk,
+		StateTransitionVkey: groth16Vkey,
 		VkeyCommitment:      vkCommitment,
 		StateRoot:           trustedRoot,
 		Height:              97,
@@ -137,11 +185,17 @@ func encodeMetadata(t *testing.T, height uint64, proofBz, pubInputs []byte) []by
 	return metadata
 }
 
-func readProofData(t *testing.T) ([]byte, []byte, []byte) {
+func readGroth16Vkey(t *testing.T) []byte {
 	t.Helper()
 
-	groth16Vk, err := os.ReadFile("../internal/testdata/groth16_vk.bin")
+	groth16Vkey, err := os.ReadFile("../internal/testdata/groth16_vk.bin")
 	require.NoError(t, err, "failed to read verifier key file")
+
+	return groth16Vkey
+}
+
+func readProofData(t *testing.T) ([]byte, []byte) {
+	t.Helper()
 
 	proofBz, err := os.ReadFile("../internal/testdata/proof.bin")
 	require.NoError(t, err, "failed to read proof file")
@@ -149,5 +203,5 @@ func readProofData(t *testing.T) ([]byte, []byte, []byte) {
 	inputsBz, err := os.ReadFile("../internal/testdata/sp1_inputs.bin")
 	require.NoError(t, err, "failed to read proof file")
 
-	return groth16Vk, proofBz, inputsBz
+	return proofBz, inputsBz
 }
