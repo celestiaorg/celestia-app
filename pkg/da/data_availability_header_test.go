@@ -34,14 +34,14 @@ func TestMinDataAvailabilityHeader(t *testing.T) {
 	require.NoError(t, dah.ValidateBasic())
 }
 
-func TestMinDataAvailabilityHeaderVersioning(t *testing.T) {
-	dah := MinDataAvailabilityHeader()
+func TestMinDataAvailabilityHeaderBackwardsCompatibility(t *testing.T) {
+	dahv3 := MinDataAvailabilityHeader()
 	shareV2 := sharev2.ToBytes(sharev2.TailPaddingShares(appconsts.MinShareCount))
 	eds, err := ExtendShares(shareV2)
 	require.NoError(t, err)
 	dahV2, err := NewDataAvailabilityHeader(eds)
 	require.NoError(t, err)
-	require.Equal(t, dah.hash, dahV2.hash)
+	require.Equal(t, dahv3.hash, dahV2.hash)
 }
 
 func TestNewDataAvailabilityHeader(t *testing.T) {
@@ -254,13 +254,13 @@ func TestSquareSize(t *testing.T) {
 
 func TestConstructEDS_Versions(t *testing.T) {
 	minAppVersion := uint64(0)
-	maxAppVersion := appconsts.Version + 1
+	maxAppVersion := appconsts.Version + 1 // even future versions won't error and assume compatibility with v3
 	for appVersion := minAppVersion; appVersion <= maxAppVersion; appVersion++ {
 		t.Run(fmt.Sprintf("app version %d", appVersion), func(t *testing.T) {
 			shares := generateShares(4)
 			maxSquareSize := -1
 			eds, err := ConstructEDS(shares, appVersion, maxSquareSize)
-			if appVersion > appconsts.Version || appVersion == 0 {
+			if appVersion == 0 {
 				require.Error(t, err)
 				require.Nil(t, eds)
 			} else {
