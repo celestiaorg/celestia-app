@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"math"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts/v5"
@@ -17,7 +16,6 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	"github.com/cometbft/cometbft/types"
-	"golang.org/x/exp/constraints"
 )
 
 var (
@@ -68,10 +66,10 @@ func NewDataAvailabilityHeader(eds *rsmt2d.ExtendedDataSquare) (DataAvailability
 // ConstructEDS constructs an ExtendedDataSquare from the given transactions and app version.
 // If maxSquareSize is less than 0, it will use the upper bound square size for the given app version.
 func ConstructEDS(txs [][]byte, appVersion uint64, maxSquareSize int) (*rsmt2d.ExtendedDataSquare, error) {
-	if appVersion == 0 {
+	switch appVersion {
+	case 0:
 		return nil, fmt.Errorf("app version cannot be 0")
-	}
-	if appVersion <= v5.Version {
+	case 1, 2, 3, 4, 5: // versions 1-5 are all compatible with v2 of the square package
 		if maxSquareSize < 0 {
 			maxSquareSize = v5.SquareSizeUpperBound
 		}
@@ -81,8 +79,7 @@ func ConstructEDS(txs [][]byte, appVersion uint64, maxSquareSize int) (*rsmt2d.E
 			return nil, err
 		}
 		return ExtendShares(sharev2.ToBytes(square))
-	}
-	if appVersion == appconsts.Version {
+	default: // assume all other versions are compatible with v3 of the square package
 		if maxSquareSize < 0 {
 			maxSquareSize = appconsts.SquareSizeUpperBound
 		}
@@ -92,7 +89,6 @@ func ConstructEDS(txs [][]byte, appVersion uint64, maxSquareSize int) (*rsmt2d.E
 		}
 		return ExtendShares(sharev3.ToBytes(square))
 	}
-	return nil, fmt.Errorf("unsupported app version: %d", appVersion)
 }
 
 func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
@@ -100,7 +96,7 @@ func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 	if !squarev3.IsPowerOfTwo(len(s)) {
 		return nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(s))
 	}
-	squareSize := SquareSize(len(s))
+	squareSize := squarev3.Size(len(s))
 
 	// here we construct a tree
 	// Note: uses the nmt wrapper to construct the tree.
@@ -226,26 +222,5 @@ func MinDataAvailabilityHeader() DataAvailabilityHeader {
 
 // MinShares returns one tail-padded share.
 func MinShares() [][]byte {
-	return sharev3.ToBytes(EmptySquareShares())
-}
-
-// EmptySquareShares is a copy of the function defined in the square package to avoid
-// a circular dependency. TODO deduplicate
-func EmptySquareShares() []sharev3.Share {
-	return sharev3.TailPaddingShares(appconsts.MinShareCount)
-}
-
-// SquareSize is a copy of the function defined in the square package to avoid
-// a circular dependency. TODO deduplicate
-func SquareSize(length int) int {
-	return RoundUpPowerOfTwo(int(math.Ceil(math.Sqrt(float64(length)))))
-}
-
-// RoundUpPowerOfTwo returns the next power of two greater than or equal to input.
-func RoundUpPowerOfTwo[I constraints.Integer](input I) I {
-	var result I = 1
-	for result < input {
-		result <<= 1
-	}
-	return result
+	return sharev3.ToBytes(squarev3.EmptySquare())
 }
