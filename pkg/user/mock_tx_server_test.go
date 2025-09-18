@@ -101,8 +101,8 @@ func setupTxClientWithMockGRPCServer(t *testing.T, responseSequences map[string]
 	}()
 
 	// Create client connection
-	conn, err := grpc.NewClient(
-		"bufnet",
+	//nolint:staticcheck
+	conn, err := grpc.DialContext(context.Background(), "bufnet",
 		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
 			return lis.Dial()
 		}),
