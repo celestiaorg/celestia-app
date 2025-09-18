@@ -11,6 +11,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/zkism/types";
 message GenesisState {
   // list of zk execution isms.
   repeated ZKExecutionISM isms = 1 [(gogoproto.nullable) = false];
+  // TODO: add messages to genesis state
   // params is the module parameters.
   Params params = 2 [(gogoproto.nullable) = false];
 }
