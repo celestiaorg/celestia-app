@@ -46,7 +46,7 @@ import (
 	minttypes "github.com/celestiaorg/celestia-app/v6/x/mint/types"
 	"github.com/celestiaorg/celestia-app/v6/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v6/x/signal/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmjson "github.com/cometbft/cometbft/libs/json"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -541,26 +541,27 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 		return sdk.EndBlock{}, err
 	}
 
-	shouldUpgrade, upgrade := app.SignalKeeper.ShouldUpgrade(ctx)
+	shouldUpgrade, signalUpgrade := app.SignalKeeper.ShouldUpgrade(ctx)
 	if shouldUpgrade {
 		// Version changes must be increasing. Downgrades are not permitted
-		if upgrade.AppVersion > currentVersion {
-			app.BaseApp.Logger().Info("upgrading app version", "current version", currentVersion, "new version", upgrade.AppVersion)
+		if signalUpgrade.AppVersion > currentVersion {
+			app.BaseApp.Logger().Info("upgrading app version", "current version", currentVersion, "new version", signalUpgrade.AppVersion)
 
+			upgradeHeight := signalUpgrade.UpgradeHeight + 1 // next block is performing the upgrade.
 			plan := upgradetypes.Plan{
-				Name:   fmt.Sprintf("v%d", upgrade.AppVersion),
-				Height: upgrade.UpgradeHeight + 1, // next block is performing the upgrade.
+				Name:   fmt.Sprintf("v%d", signalUpgrade.AppVersion),
+				Height: upgradeHeight,
 			}
 
 			if err := app.UpgradeKeeper.ScheduleUpgrade(ctx, plan); err != nil {
 				return sdk.EndBlock{}, fmt.Errorf("failed to schedule upgrade: %v", err)
 			}
 
-			if err := app.UpgradeKeeper.DumpUpgradeInfoToDisk(upgrade.UpgradeHeight, plan); err != nil {
+			if err := app.UpgradeKeeper.DumpUpgradeInfoToDisk(upgradeHeight, plan); err != nil {
 				return sdk.EndBlock{}, fmt.Errorf("failed to dump upgrade info to disk: %v", err)
 			}
 
-			if err := app.SetAppVersion(ctx, upgrade.AppVersion); err != nil {
+			if err := app.SetAppVersion(ctx, signalUpgrade.AppVersion); err != nil {
 				return sdk.EndBlock{}, err
 			}
 			app.SignalKeeper.ResetTally(ctx)

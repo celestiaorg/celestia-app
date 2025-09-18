@@ -12,9 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/da"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2"
-	"github.com/celestiaorg/go-square/v2/share"
-	blobtx "github.com/celestiaorg/go-square/v2/tx"
+	blobtx "github.com/celestiaorg/go-square/v3/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
@@ -130,21 +128,15 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 	}
 
-	dataSquare, err := square.Construct(req.Txs, app.MaxEffectiveSquareSize(ctx), appconsts.SubtreeRootThreshold)
+	eds, err := da.ConstructEDS(req.Txs, appconsts.Version, app.MaxEffectiveSquareSize(ctx))
 	if err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to compute data square from transactions:", err)
+		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to compute extended data square from transactions:", err)
 		return reject(), nil
 	}
 
 	// Assert that the square size stated by the proposer is correct
-	if uint64(dataSquare.Size()) != req.SquareSize {
+	if uint64(eds.Width()) != req.SquareSize*2 {
 		logInvalidPropBlock(app.Logger(), blockHeader, "proposed square size differs from calculated square size")
-		return reject(), nil
-	}
-
-	eds, err := da.ExtendShares(share.ToBytes(dataSquare))
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to erasure the data square", err)
 		return reject(), nil
 	}
 

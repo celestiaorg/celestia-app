@@ -20,8 +20,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
-	"github.com/celestiaorg/go-square/v2/share"
-	blobtx "github.com/celestiaorg/go-square/v2/tx"
+	"github.com/celestiaorg/go-square/v3/share"
+	blobtx "github.com/celestiaorg/go-square/v3/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -159,7 +159,7 @@ type TxClient struct {
 	gasEstimationClient gasestimation.GasEstimatorClient
 }
 
-// NewTxClient returns a new signer using the provided keyring
+// NewTxClient returns a new TxClient
 func NewTxClient(
 	cdc codec.Codec,
 	signer *Signer,
