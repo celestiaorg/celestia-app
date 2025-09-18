@@ -2,6 +2,8 @@ package da
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"sort"
 	"strings"
@@ -318,6 +320,37 @@ func TestConstructEDS_SquareSize(t *testing.T) {
 	}
 }
 
+func TestConstructEDS_historicalBlocks(t *testing.T) {
+	t.Run("v1", func(t *testing.T) {
+		appVersion := uint64(1)
+		maxSquareSize := -1
+
+		// Transaction data from Celestia mainnet block height 2371493
+		// Data fetched via curl --location 'https://docs-demo.celestia-mainnet.quiknode.pro/block?height=2371493'
+		txs := [][]byte{
+			mustDecodeBase64(t, "CpMBCpABCi4vY29zbW9zLmRpc3RyaWJ1dGlvbi52MWJldGExLk1zZ1dpdGhkcmF3RGVsZWdhdG9yUmV3YXJkEl4KLWNlbGVzdGlhMXQ4djN0bmV2cHg2cHV0bjh3dmYwa3k2d3NrNm1oc2ptNGo3Znd3Ei1jZWxlc3RpYXZhbG9wZXIxdDh2M3R0ZW52cHg2cHV0bjh3dmYwa3k2d3NrNm1oc2ptNGo3Znd3EmoKWgpQCigvY29zbW9zLmNyeXB0by5zZWNwMjU2azEuUHViS2V5EiQKIgIhLdEOPjebYLnBdBaQLTAZYcYVis+bNvzRprCbVDygA0X4EgQKAggBGAQSBhDjzwYQrwEaQMJRkLaRyEuWJsQJd8WK+MlHQqxgUNaQAAs+TYJ5D4j+Uw3aQPXsJ1JI9E4CRNCnikmvMuEDXMVTSjMl+UqBRamX"),
+			mustDecodeBase64(t, "CqUCCqICCi8vaWJjLmFwcGxpY2F0aW9ucy50cmFuc2Zlci52MS5Nc2dUcmFuc2ZlchJvCgh0cmFuc2ZlchISY29ubmVjdGlvbi0wGgV1dGlhIgoKMTAwMDAwMDAwMCotY2VsZXN0aWExcDlleTZ0ZTV0MHR3OTVkY3VzNnJhZ210Y3dmNjg2M2t1dTY4NjI6CgoFdXRpYRIBMRJqClgKUAooL2Nvc21vcy5jcnlwdG8uc2VjcDI1NmsxLlB1YktleRIkCiIDD1n0QXSgkIDUwNWUslZvX4YRFT4M5kOJalhhRDnMPdfvEgQKAggBGAMSBhDjzwYQqAEaQGhWitHPy0+WjL+EW119B8FAELg+E39ksX/8pNIQRBfUQhP//Yvwl8FlGjWK0BGdLtAreohj+A1d3Nc="),
+			mustDecodeBase64(t, "CqUCCqICCi8vaWJjLmFwcGxpY2F0aW9ucy50cmFuc2Zlci52MS5Nc2dUcmFuc2ZlchJvCgh0cmFuc2ZlchISY29ubmVjdGlvbi0wGgV1dGlhIgoKMTAwMDAwMDAwMCotY2VsZXN0aWExZnN5NTdoejZnMjA3NWNtd3RmaGtqdTRkNzRsMGw3ejl3M2YwcTI6CgoFdXRpYRIBMRJqClgKUAooL2Nvc21vcy5jcnlwdG8uc2VjcDI1NmsxLlB1YktleRIkCiIDD1n0QXSgkIDUwNWUslZvX4YRFT4M5kOJalhhRDnMPdfvEgQKAggBGAISBhDjzwYQqAEaQGhWitHPy0+WjL+EW119B8FAELg+E39ksX/8pNIQRBfUQhP//Yvwl8FlGjWK0BGdLtAreohj+A1d3Nc="),
+			mustDecodeBase64(t, "CtgECtUECiplaWJjLmNvcmUuY2xpZW50LnYxLk1zZ1VwZGF0ZUNsaWVudBKKBAowNy10ZW5kZXJtaW50LTAShAQKKi9pYmMubGlnaHRjbGllbnRzLnRlbmRlcm1pbnQudjEuSGVhZGVyElYIDBIECAkQABgBIAIqSAogKOHbhOKD5MYvXa1MBgfJQTTCFNXhPfwHfXAIwGLUYKgSJNGfxzGb3L3wEr4Gqm7L3V4+cjZHgZYwQVNEgWDQdKPFGTIqSAog6Z/HMZvcvfASvgaqbsvdXj5yNkeBljBBU0SBYNB0o8UZMhIkgJmEqFe/GEYZUOb5x4J8WUjqUfJzODEjJZJOHb3T2/qJIAo6CggIDBIECAsQABgBKkgKIKmEqFe/GEYZUOb5x4J8WUjqUfJzODEjJZJOHb3T2/qJIAoSJOmfxzGb3L3wEr4Gqm7L3V4+cjZHgZYwQVNEgWDQdKPFGTJAIAIqSAog6Z/HMZvcvfASvgaqbsvdXj5yNkeBljBBU0SBYNB0o8UZMhIk2Z/HMZvcvfASvgaqbsvdXj5yNkeBljBBU0SBYNB0o8UZMkAgAhJqClgKUAooL2Nvc21vcy5jcnlwdG8uc2VjcDI1NmsxLlB1YktleRIkCiICISwybzJGdjJzRmhOYWF5UHgyZGFEWjk1TDV4VEVUa0NrMnBLEgQKAggBGBISBhDjzwYQ1wEaQG16jZY6qKYxlE43ZGIxRnYyNEZoTmFheVB4MzJkYURaOTVMNXhURVRLQ2sycEs="),
+			mustDecodeBase64(t, "Co8BCowBChwvY29zbW9zLmF1dGh6LnYxYmV0YTEuTXNnRXhlYxJsCi1jZWxlc3RpYTFtMGp3a3p1dmQ4bnQzNDc1NWFjYzAweWZhc3BzNDN2a3BubjNsEjsKOWNlbGVzdGlhMW0wandrenV2ZDhudDM0NzU1YWNjMDB5ZmFzcHM0M3ZrcG5uM2wvd2l0aGRyYXctZGVsZWdhdG9yLXJld2FyZBJqClgKUAooL2Nvc21vcy5jcnlwdG8uc2VjcDI1NmsxLlB1YktleRIkCiIDD1n0QXSgkIDUwNWUslZvX4YRFT4M5kOJalhhRDnMPdfvEgQKAggBGAESBhDjzwYQqAEaQGhWitHPy0+WjL+EW119B8FAELg+E39ksX/8pNIQRBfUQhP//Yvwl8FlGjWK0BGdLtAreohj+A1d3Nc="),
+			mustDecodeBase64(t, "Cl4KXAooL2NlbGVzdGlhLmJsb2IudjEuTXNnUGF5Rm9yQmxvYnMSMAotY2VsZXN0aWExaHV2eGVya20zYWdnd3kyYWRhejZ4MG1nODNnZmE1ZGVtcjU0EgEBGAEgARJqClgKUAooL2Nvc21vcy5jcnlwdG8uc2VjcDI1NmsxLlB1YktleRIkCiIDD1n0QXSgkIDUwNWUslZvX4YRFT4M5kOJalhhRDnMPdfvEgQKAggBGAUSBhDjzwYQygEaQGhWitHPy0+WjL+EW119B8FAELg+E39ksX/8pNIQRBfUQhP//Yvwl8FlGjWK0BGdLtAreohj+A1d3Nc="),
+			mustDecodeBase64(t, "Cl4KXAooL2NlbGVzdGlhLmJsb2IudjEuTXNnUGF5Rm9yQmxvYnMSMAotY2VsZXN0aWExZmMyNWh0bWZ2ZzI4eWdqY2traHJ4cjd0NzNlazZzMGx5OGRzaGp1EgEBGAEgARJqClgKUAooL2Nvc21vcy5jcnlwdG8uc2VjcDI1NmsxLlB1YktleRIkCiIDD1n0QXSgkIDUwNWUslZvX4YRFT4M5kOJalhhRDnMPdfvEgQKAggBGAYSBhDjzwYQzAEaQGhWitHPy0+WjL+EW119B8FAELg+E39ksX/8pNIQRBfUQhP//Yvwl8FlGjWK0BGdLtAreohj+A1d3Nc="),
+		}
+		eds, err := ConstructEDS(txs, appVersion, maxSquareSize)
+		require.NoError(t, err)
+		require.NotNil(t, eds)
+
+		dah, err := NewDataAvailabilityHeader(eds)
+		require.NoError(t, err)
+		require.NotNil(t, dah)
+
+		// See https://celenium.io/block/2371493?tab=transactions
+		want := "C876ED10DCE0CC52F985FDB1666E40351B68C0122AAA991A9F0ED177F2010844"
+		got := strings.ToUpper(hex.EncodeToString(dah.Hash()))
+		require.Equal(t, want, got)
+	})
+}
+
 // generateShares generates count number of shares with a constant namespace and
 // share contents.
 func generateShares(count int) (shares [][]byte) {
@@ -356,4 +389,12 @@ func maxDataAvailabilityHeader(t *testing.T) (dah DataAvailabilityHeader) {
 	require.NoError(t, err)
 
 	return dah
+}
+
+// mustDecodeBase64 decodes a base64 string and panics on error.
+// This is only used for test data that should always be valid.
+func mustDecodeBase64(t *testing.T, s string) []byte {
+	data, err := base64.StdEncoding.DecodeString(s)
+	require.NoError(t, err)
+	return data
 }
