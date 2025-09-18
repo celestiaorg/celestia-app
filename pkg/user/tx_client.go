@@ -411,6 +411,8 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 	return client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txBytes, account)
 }
 
+// broadcastTxAndIncrementSequence submits a transaction to the chain and increments the sequence of the signer.
+// It will retry the transaction if it encounters a sequence mismatch.
 func (client *TxClient) broadcastTxAndIncrementSequence(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
 	resp, err := client.broadcastTxWithRetry(ctx, conn, txBytes, signer)
 	if err != nil {
@@ -430,8 +432,6 @@ func (client *TxClient) broadcastTxAndIncrementSequence(ctx context.Context, con
 	return resp, nil
 }
 
-// broadcastTx resubmits a transaction that was evicted from the mempool.
-// Unlike the initial broadcast, it doesn't increment the signer's sequence number.
 // broadcastTx broadcasts a transaction to the chain and returns the response.
 func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
 	txClient := sdktx.NewServiceClient(conn)
