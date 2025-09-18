@@ -43,12 +43,6 @@ func Run() error {
 		return fmt.Errorf("failed to get block: %w", err)
 	}
 
-	for _, tx := range block.Block.Txs.ToSliceOfBytes() {
-		fmt.Printf("TX: %s\n\n", base64.StdEncoding.EncodeToString(tx))
-	}
-
-	fmt.Println(len(block.Block.Txs))
-
 	eds, err := da.ConstructEDS(block.Block.Txs.ToSliceOfBytes(), block.Block.Header.Version.App, -1)
 	if err != nil {
 		return fmt.Errorf("failed to construct EDS: %w", err)
