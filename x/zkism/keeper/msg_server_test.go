@@ -52,8 +52,11 @@ func (suite *KeeperTestSuite) TestCreateZKExecutionISM() {
 }
 
 func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
-	ism := suite.CreateTestIsm()
-	proofBz, pubValues := readProofData(suite.T())
+	trustedRoot, err := hex.DecodeString("af50a407e7a9fcba29c46ad31e7690bae4e951e3810e5b898eda29d3d3e92dbe")
+	suite.Require().NoError(err)
+
+	ism := suite.CreateTestIsm(trustedRoot)
+	proofBz, pubValues := readStateTransitionProofData(suite.T())
 
 	var msg *types.MsgUpdateZKExecutionISM
 
@@ -101,10 +104,11 @@ func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
 }
 
 func (suite *KeeperTestSuite) TestSubmitMessages() {
-	suite.T().Skip()
+	trustedRoot, err := hex.DecodeString("acd4fcbcd3bbf25bd2055b2125f7d361f9f58d97ad167fe35a5b7f1806f5f8ea")
+	suite.Require().NoError(err)
 
-	ism := suite.CreateTestIsm()
-	proofBz, pubValues := readProofData(suite.T()) // TODO: read inclusion proof data
+	ism := suite.CreateTestIsm(trustedRoot)
+	proofBz, pubValues := readStateMembershipProofData(suite.T())
 
 	var msg *types.MsgSubmitMessages
 
@@ -141,11 +145,14 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 				suite.Require().NoError(err)
 				suite.Require().NotNil(res)
 
-				// publicValues := new(types.StateMembershipPublicValues)
-				// suite.Require().NoError(publicValues.Unmarshal(pubValues))
+				publicValues := new(types.StateMembershipPublicValues)
+				suite.Require().NoError(publicValues.Unmarshal(pubValues))
 
-				// suite.Require().Equal(publicValues.NewHeight, res.Height)
-				// suite.Require().Equal(hex.EncodeToString(publicValues.NewStateRoot[:]), res.StateRoot)
+				for _, id := range publicValues.MessageIds {
+					has, err := suite.zkISMKeeper.HasMessageId(suite.ctx, id[:])
+					suite.Require().NoError(err)
+					suite.Require().True(has)
+				}
 			}
 		})
 	}
