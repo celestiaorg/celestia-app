@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"strings"
 
-	// "strings"
 	"testing"
 	"time"
 
@@ -35,7 +35,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/test/bufconn"
 )
 
 func TestTxClientTestSuite(t *testing.T) {
@@ -54,118 +53,6 @@ type TxClientTestSuite struct {
 	serviceClient sdktx.ServiceClient
 }
 
-// mockTxServer implements both gRPC ServiceServer and TxServer interfaces for testing
-type mockTxServer struct {
-	sdktx.UnimplementedServiceServer
-	tx.UnimplementedTxServer
-	responses           map[string][]*tx.TxStatusResponse // txHash -> sequence of responses
-	txStatusCallCounts  map[string]int                    // txHash -> number of TxStatus calls made
-	broadcastCallCounts map[string]int                    // txHash -> number of BroadcastTx calls made
-}
-
-func (m *mockTxServer) TxStatus(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error) {
-
-	if responseSequence, exists := m.responses[req.TxId]; exists {
-		callCount := m.txStatusCallCounts[req.TxId]
-		m.txStatusCallCounts[req.TxId]++
-
-		// Return response based on call count
-		if callCount < len(responseSequence) {
-			resp := responseSequence[callCount]
-			fmt.Printf("TxStatus call %d, returning: %s\n", callCount+1, resp.Status)
-			return resp, nil
-		}
-		// If we've exhausted the sequence, return the last response
-		lastResp := responseSequence[len(responseSequence)-1]
-		fmt.Printf("TxStatus call %d (exhausted), returning: %s\n", callCount+1, lastResp.Status)
-		return lastResp, nil
-	}
-
-	// Default response
-	return &tx.TxStatusResponse{
-		Status:        core.TxStatusPending,
-		Height:        1,
-		ExecutionCode: 0,
-	}, nil
-}
-
-func (m *mockTxServer) BroadcastTx(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
-
-	// Use a predictable transaction hash for testing
-	txHash := "test-tx-hash-123"
-	fmt.Println("BroadcastTx called, count:", m.broadcastCallCounts[txHash])
-
-	// Increment broadcast call count
-	m.broadcastCallCounts[txHash]++
-
-	// When it's called for the second time return mismatch error
-	if m.broadcastCallCounts[txHash] > 1 {
-		return &sdktx.BroadcastTxResponse{
-			TxResponse: &sdk.TxResponse{
-				TxHash: txHash,
-				Code:   32, // sequence mismatch error
-				Height: 1,
-				RawLog: "account sequence mismatch, expected: 2, got: 1",
-			},
-		}, nil
-	}
-
-	// Return successful broadcast response
-	return &sdktx.BroadcastTxResponse{
-		TxResponse: &sdk.TxResponse{
-			TxHash: txHash,
-			Code:   0, // Success
-			Height: 1,
-			Data:   "",
-			RawLog: "",
-		},
-	}, nil
-}
-
-// setupMockTxClientWithSequence creates a TxClient connected to a mock gRPC server with response sequences
-func setupMockTxClientWithSequence(t *testing.T, responseSequences map[string][]*tx.TxStatusResponse) (*user.TxClient, *grpc.ClientConn) {
-	// Create mock server with provided response sequences
-	mockServer := &mockTxServer{
-		responses:           responseSequences,
-		txStatusCallCounts:  make(map[string]int),
-		broadcastCallCounts: make(map[string]int),
-	}
-
-	// Set up in-memory gRPC server
-	lis := bufconn.Listen(1024 * 1024)
-	s := grpc.NewServer()
-	sdktx.RegisterServiceServer(s, mockServer) // For BroadcastTx
-	tx.RegisterTxServer(s, mockServer)         // For TxStatus
-
-	go func() {
-		if err := s.Serve(lis); err != nil {
-			t.Logf("Server exited with error: %v", err)
-		}
-	}()
-
-	// Create client connection
-	conn, err := grpc.DialContext(context.Background(), "bufnet",
-		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
-			return lis.Dial()
-		}),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	require.NoError(t, err)
-
-	// Create TxClient with mock connection
-	encCfg, txClient, _ := setupTxClientWithDefaultParams(t)
-
-	// Create new TxClient with our mock connection
-	mockTxClient, err := user.NewTxClient(
-		encCfg.Codec,
-		txClient.Signer(),
-		conn,
-		encCfg.InterfaceRegistry,
-	)
-	require.NoError(t, err)
-
-	return mockTxClient, conn
-}
 
 func (suite *TxClientTestSuite) SetupSuite() {
 	suite.encCfg, suite.txClient, suite.ctx = setupTxClientWithDefaultParams(suite.T())
@@ -446,108 +333,127 @@ func TestRejections(t *testing.T) {
 }
 
 func TestEvictions(t *testing.T) {
-	// if testing.Short() {
-	// 	t.Skip("skipping evictions test in short mode")
-	// }
+	if testing.Short() {
+		t.Skip("skipping evictions test in short mode")
+	}
 
-	// ttlNumBlocks := int64(1)
-	// blocksize := int64(1048576) // 1 MiB
-	// _, txClient, ctx := setupTxClient(t, ttlNumBlocks, blocksize)
-	// grpcTxClient := tx.NewTxClient(ctx.GRPCClient)
+	ttlNumBlocks := int64(1)
+	blocksize := int64(1048576) // 1 MiB
+	_, txClient, ctx := setupTxClient(t, ttlNumBlocks, blocksize)
+	grpcTxClient := tx.NewTxClient(ctx.GRPCClient)
 
-	// fee := user.SetFee(1e6)
-	// gas := user.SetGasLimit(10e6)
+	fee := user.SetFee(1e6)
+	gas := user.SetGasLimit(10e6)
 
-	// responses := make([]*sdk.TxResponse, 10)
+	responses := make([]*sdk.TxResponse, 10)
 
-	// // Submit more transactions than a single block can fit with a 1-block TTL.
-	// // Txs will be evicted from the mempool and automatically resubmitted by the txClient during confirm().
-	// for i := 0; i < len(responses); i++ {
-	// 	blobs := blobfactory.ManyRandBlobs(random.New(), 500000, 500000) // ~1.5MiB per transaction
-	// 	resp, err := txClient.BroadcastPayForBlob(ctx.GoContext(), blobs, fee, gas)
-	// 	require.NoError(t, err)
-	// 	require.Equal(t, resp.Code, abci.CodeTypeOK)
-	// 	responses[i] = resp
-	// }
+	// Submit more transactions than a single block can fit with a 1-block TTL.
+	// Txs will be evicted from the mempool and automatically resubmitted by the txClient during confirm().
+	for i := 0; i < len(responses); i++ {
+		blobs := blobfactory.ManyRandBlobs(random.New(), 500000, 500000) // ~1.5MiB per transaction
+		resp, err := txClient.BroadcastPayForBlob(ctx.GoContext(), blobs, fee, gas)
+		require.NoError(t, err)
+		require.Equal(t, resp.Code, abci.CodeTypeOK)
+		responses[i] = resp
+	}
 
-	// evictedTxHashes := make([]string, 0)
-	// for _, resp := range responses {
-	// 	// Check txs for eviction and save them for confirmation verification later
-	// 	txInfo, err := grpcTxClient.TxStatus(ctx.GoContext(), &tx.TxStatusRequest{TxId: resp.TxHash})
-	// 	require.NoError(t, err)
-	// 	if txInfo.Status == core.TxStatusEvicted {
-	// 		evictedTxHashes = append(evictedTxHashes, resp.TxHash)
-	// 	}
+	evictedTxHashes := make([]string, 0)
+	for _, resp := range responses {
+		// Check txs for eviction and save them for confirmation verification later
+		txInfo, err := grpcTxClient.TxStatus(ctx.GoContext(), &tx.TxStatusRequest{TxId: resp.TxHash})
+		require.NoError(t, err)
+		if txInfo.Status == core.TxStatusEvicted {
+			evictedTxHashes = append(evictedTxHashes, resp.TxHash)
+		}
 
-	// 	// Confirm should see they were evicted and automatically resubmit
-	// 	res, err := txClient.ConfirmTx(ctx.GoContext(), resp.TxHash)
-	// 	// the txs can get rejected if one is evicted with execution code 32 (sequence mismatch). Therefore,
-	// 	// we need to skip those.
-	// 	if err != nil {
-	// 		if strings.Contains(err.Error(), "rejected") {
-	// 			continue
-	// 		}
-	// 		// purposefully fail as this is an unexpected error
-	// 		require.NoError(t, err)
-	// 	}
-	// 	require.NoError(t, err)
-	// 	require.Equal(t, res.Code, abci.CodeTypeOK)
-	// 	// They should be removed from the tx tracker after confirmation
-	// 	_, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
-	// 	require.False(t, exists)
-	// }
+		// Confirm should see they were evicted and automatically resubmit
+		res, err := txClient.ConfirmTx(ctx.GoContext(), resp.TxHash)
+		// the txs can get rejected if one is evicted with execution code 32 (sequence mismatch). Therefore,
+		// we need to skip those.
+		if err != nil {
+			if strings.Contains(err.Error(), "rejected") {
+				continue
+			}
+			// purposefully fail as this is an unexpected error
+			require.NoError(t, err)
+		}
+		require.NoError(t, err)
+		require.Equal(t, res.Code, abci.CodeTypeOK)
+		// They should be removed from the tx tracker after confirmation
+		_, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
+		require.False(t, exists)
+	}
 
-	// // At least 4 txs should have been evicted and resubmitted
-	// require.GreaterOrEqual(t, len(evictedTxHashes), 4)
+	// At least 4 txs should have been evicted and resubmitted
+	require.GreaterOrEqual(t, len(evictedTxHashes), 4)
 
-	// // Re-query evicted tx hashes and assert that they are now committed
-	// for _, txHash := range evictedTxHashes {
-	// 	txInfo, err := grpcTxClient.TxStatus(ctx.GoContext(), &tx.TxStatusRequest{TxId: txHash})
-	// 	require.NoError(t, err)
-	// 	require.Equal(t, txInfo.Status, core.TxStatusCommitted)
-	// }
+	// Re-query evicted tx hashes and assert that they are now committed
+	for _, txHash := range evictedTxHashes {
+		txInfo, err := grpcTxClient.TxStatus(ctx.GoContext(), &tx.TxStatusRequest{TxId: txHash})
+		require.NoError(t, err)
+		require.Equal(t, txInfo.Status, core.TxStatusCommitted)
+	}
 
-	t.Run("sequence-based tx status responses during ConfirmTx execution", func(t *testing.T) {
-		fee := user.SetFee(1e6)
-		gas := user.SetGasLimit(10e6)
+	t.Run("gets nonce mismatch during eviction and gets confirmed in the meantime", func(t *testing.T) {
 		expectedTxHash := "test-tx-hash-123" // This matches what our mock server returns
 
-		// Define response sequence: PENDING -> EVICTED -> COMMITTED
+		// Happy path: PENDING -> EVICTED -> COMMITTED
 		responseSequences := map[string][]*tx.TxStatusResponse{
 			expectedTxHash: {
-				{Status: core.TxStatusPending, Height: 98, ExecutionCode: 0},    // 1st call
-				{Status: core.TxStatusEvicted, Height: 99, ExecutionCode: 0},    // 2nd call
-				{Status: core.TxStatusPending, Height: 100, ExecutionCode: 0},   // 3rd call
-				{Status: core.TxStatusPending, Height: 101, ExecutionCode: 0},   // 4th call
+				{Status: core.TxStatusPending},                                  // 1st call
+				{Status: core.TxStatusEvicted},                                  // 2nd call
+				{Status: core.TxStatusEvicted},                                  // 3rd call
+				{Status: core.TxStatusEvicted},                                  // 4th call
 				{Status: core.TxStatusCommitted, Height: 102, ExecutionCode: 0}, // 3rd call
 			},
 		}
 
-		// Create TxClient with sequence-based mock server
-		mockTxClient, conn := setupMockTxClientWithSequence(t, responseSequences)
+		mockTxClient, conn := setupTxClientWithMockGRPCServer(t, responseSequences, user.WithPollTime(1*time.Second))
 		defer conn.Close()
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		// Broadcast transaction to get the hash
-		blobs := blobfactory.ManyRandBlobs(random.New(), 500000, 500000) // ~1.5MiB per transaction
-		resp, err := mockTxClient.BroadcastPayForBlob(ctx, blobs, fee, gas)
+		blobs := blobfactory.ManyRandBlobs(random.New(), 1, 1)
+		resp, err := mockTxClient.BroadcastPayForBlob(ctx, blobs, user.SetFee(1), user.SetGasLimit(1))
 		require.NoError(t, err)
-		require.Equal(t, resp.Code, uint32(0))
+		require.Equal(t, resp.Code, abci.CodeTypeOK)
 		require.Equal(t, resp.TxHash, expectedTxHash)
-		t.Logf("Broadcast transaction hash: %s", resp.TxHash)
-
-		// The sequence will automatically handle the polling:
-		// 1st call: PENDING (keeps polling)
-		// 2nd call: EVICTED (triggers resubmission, continues polling)
-		// 3rd call: COMMITTED (returns success)
 
 		response, err := mockTxClient.ConfirmTx(ctx, resp.TxHash)
 		require.NoError(t, err)
 		require.Equal(t, response.TxHash, resp.TxHash)
-		require.Equal(t, response.Code, uint32(0))
-		t.Logf("Transaction confirmed at height: %d", response.Height)
+		require.Equal(t, response.Code, abci.CodeTypeOK)
+	})
+
+	t.Run("gets nonce mismatch during eviction and hits eviction poll timeout", func(t *testing.T) {
+		expectedTxHash := "test-tx-hash-123"
+
+		// Transaction will get evicted and then resubmitted with nonce mismatch error
+		// Define response sequence: PENDING -> EVICTED -> Sequence mismatch -> EVICTED -> Eviction Poll Timeout
+		// Responses will return evicted until the eviction poll timeout is reached
+		responseSequences := map[string][]*tx.TxStatusResponse{
+			expectedTxHash: {
+				{Status: core.TxStatusPending}, // 1st call
+				{Status: core.TxStatusEvicted}, // 2nd call
+				{Status: core.TxStatusEvicted}, // 3rd and following calls
+			},
+		}
+
+		mockTxClient, conn := setupTxClientWithMockGRPCServer(t, responseSequences, user.WithPollTime(5*time.Second))
+		defer conn.Close()
+
+		ctx := context.Background()
+
+		blobs := blobfactory.ManyRandBlobs(random.New(), 1, 1)
+		resp, err := mockTxClient.BroadcastPayForBlob(ctx, blobs, user.SetFee(1), user.SetGasLimit(1))
+		require.NoError(t, err)
+		require.Equal(t, resp.Code, abci.CodeTypeOK)
+		require.Equal(t, resp.TxHash, expectedTxHash)
+
+		_, err = mockTxClient.ConfirmTx(ctx, resp.TxHash)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "eviction poll timeout")
 	})
 }
 

@@ -40,6 +40,7 @@ import (
 const (
 	DefaultPollTime          = 3 * time.Second
 	txTrackerPruningInterval = 10 * time.Minute
+	evictionPollTime         = 1 * time.Minute
 )
 
 type Option func(client *TxClient)
@@ -615,24 +616,16 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println("resp status", resp.Status)
 
-		fmt.Println("evictionPollTimeStart", evictionPollTimeStart)
 		if evictionPollTimeStart != nil {
-			if time.Since(*evictionPollTimeStart) > time.Second*1 {
-				return nil, fmt.Errorf("transaction %s failed resubmission with sequence mismatch for over 1 minute", txHash)
+			if time.Since(*evictionPollTimeStart) > evictionPollTime {
+				return nil, fmt.Errorf("eviction poll timeout:transaction %s was evicted ", txHash)
 			}
 		}
 
 		switch resp.Status {
 		case core.TxStatusPending:
 			// Continue polling if the transaction is still pending
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-pollTicker.C:
-				continue
-			}
 		case core.TxStatusCommitted:
 			txResponse := &TxResponse{
 				Height: resp.Height,
@@ -656,25 +649,25 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				return nil, fmt.Errorf("tx: %s not found in txTracker; likely failed during broadcast", txHash)
 			}
 
-			// Attempt to resubmit evicted transaction without resigning to preserve replay protection
-			// If resubmission fails, keep polling - the transaction might still get included by another node
+			if evictionPollTimeStart != nil {
+				// if evictionPollTimeStart is not nil, we're already tracking the eviction timeout
+				// so we can break out of the loop and wait for the next ticker
+				break
+			}
+
+			// If we're not already tracking eviction timeout, try to resubmit
 			_, err := client.broadcastTx(ctx, client.conns[0], client.txTracker[txHash].txBytes)
 			if err != nil {
-				// check if the error is a sequence mismatch
-				broadcastTxErr, ok := err.(*BroadcastTxError)
+				// check if the error is broadcast tx error
+				_, ok := err.(*BroadcastTxError)
 				if !ok {
 					return nil, err
 				}
-				if apperrors.IsNonceMismatchCode(broadcastTxErr.Code) {
-					fmt.Println("sequence mismatch")
-					// Mark the start time for sequence mismatch retry tracking
-					now := time.Now()
-					evictionPollTimeStart = &now
-					// Continue polling to see if the transaction gets included
-					continue
-				}
+				// Start eviction timeout timer on any broadcast error during resubmission
+				fmt.Println("Resubmission failed - starting eviction timer")
+				now := time.Now()
+				evictionPollTimeStart = &now
 			}
-			// In all cases, continue polling for the original transaction
 		case core.TxStatusRejected:
 			sequence, signer, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
@@ -693,6 +686,14 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				return nil, ctx.Err()
 			}
 			return nil, fmt.Errorf("transaction with hash %s not found", txHash)
+		}
+
+		// Single ticker wait point for all continuing cases
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-pollTicker.C:
+			continue
 		}
 	}
 }
