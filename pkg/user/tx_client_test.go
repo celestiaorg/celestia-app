@@ -7,7 +7,6 @@ import (
 	"math"
 	"net"
 	"strings"
-
 	"testing"
 	"time"
 
