@@ -34,7 +34,7 @@ func TestNilDataAvailabilityHeaderHashDoesntCrash(t *testing.T) {
 // 3. Extract roots: Row and column merkle roots are computed from the extended square:
 //   - 2 row roots (one for each row of the extended square)
 //   - 2 column roots (one for each column of the extended square)
-//  4. Compute hash: A binary merkle tree is built from the concatenated row and column roots
+//     4. Compute hash: A binary merkle tree is built from the concatenated row and column roots
 //     (rowRoots || columnRoots) to produce the final data availability header hash
 //
 // The expectedHash below (0x3d96b7d2...) represents the merkle root of the concatenated
