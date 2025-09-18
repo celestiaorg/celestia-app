@@ -2,11 +2,14 @@ package da
 
 import (
 	"bytes"
+	"fmt"
 	"sort"
 	"strings"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	appconstsv5 "github.com/celestiaorg/celestia-app/v6/pkg/appconsts/v5"
+	sharev2 "github.com/celestiaorg/go-square/v2/share"
 	sh "github.com/celestiaorg/go-square/v3/share"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,6 +32,16 @@ func TestMinDataAvailabilityHeader(t *testing.T) {
 	expectedHash := []byte{0x3d, 0x96, 0xb7, 0xd2, 0x38, 0xe7, 0xe0, 0x45, 0x6f, 0x6a, 0xf8, 0xe7, 0xcd, 0xf0, 0xa6, 0x7b, 0xd6, 0xcf, 0x9c, 0x20, 0x89, 0xec, 0xb5, 0x59, 0xc6, 0x59, 0xdc, 0xaa, 0x1f, 0x88, 0x3, 0x53}
 	require.Equal(t, expectedHash, dah.hash)
 	require.NoError(t, dah.ValidateBasic())
+}
+
+func TestMinDataAvailabilityHeaderVersioning(t *testing.T) {
+	dah := MinDataAvailabilityHeader()
+	shareV2 := sharev2.ToBytes(sharev2.TailPaddingShares(appconsts.MinShareCount))
+	eds, err := ExtendShares(shareV2)
+	require.NoError(t, err)
+	dahV2, err := NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
+	require.Equal(t, dah.hash, dahV2.hash)
 }
 
 func TestNewDataAvailabilityHeader(t *testing.T) {
@@ -235,6 +248,72 @@ func TestSquareSize(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := tc.dah.SquareSize()
 			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestConstructEDS_Versions(t *testing.T) {
+	minAppVersion := uint64(0)
+	maxAppVersion := appconsts.Version + 1
+	for appVersion := minAppVersion; appVersion <= maxAppVersion; appVersion++ {
+		t.Run(fmt.Sprintf("app version %d", appVersion), func(t *testing.T) {
+			shares := generateShares(4)
+			maxSquareSize := -1
+			eds, err := ConstructEDS(shares, appVersion, maxSquareSize)
+			if appVersion > appconsts.Version || appVersion == 0 {
+				require.Error(t, err)
+				require.Nil(t, eds)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, eds)
+			}
+		})
+	}
+}
+
+func TestConstructEDS_SquareSize(t *testing.T) {
+	type testCase struct {
+		name         string
+		appVersion   uint64
+		maxSquare    int
+		expectedSize int
+	}
+	testCases := []testCase{
+		{
+			name:         "v5 version with custom square size",
+			appVersion:   appconstsv5.Version,
+			maxSquare:    4,
+			expectedSize: 4,
+		},
+		{
+			name:         "v5 version with default square size",
+			appVersion:   appconstsv5.Version,
+			maxSquare:    -1,
+			expectedSize: appconstsv5.SquareSizeUpperBound,
+		},
+		{
+			name:         "latest version with custom square size",
+			appVersion:   appconsts.Version,
+			maxSquare:    8,
+			expectedSize: 8,
+		},
+		{
+			name:         "latest version with default square size",
+			appVersion:   appconsts.Version,
+			maxSquare:    -1,
+			expectedSize: appconsts.SquareSizeUpperBound,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			txLength := sh.AvailableBytesFromCompactShares((tc.expectedSize * tc.expectedSize) - 1)
+			tx := bytes.Repeat([]byte{0x1}, txLength)
+			eds, err := ConstructEDS([][]byte{tx}, tc.appVersion, tc.maxSquare)
+			require.NoError(t, err)
+			require.NotNil(t, eds)
+			// The EDS width should be 2*expectedSize
+			require.Equal(t, tc.expectedSize*2, int(eds.Width()))
 		})
 	}
 }

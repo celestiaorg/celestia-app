@@ -5,7 +5,7 @@ go 1.24.6
 require (
 	cosmossdk.io/math v1.5.3
 	github.com/celestiaorg/celestia-app/v6 v6.0.0-rc0
-	github.com/celestiaorg/go-square/v3 v3.0.0
+	github.com/celestiaorg/go-square/v3 v3.0.1
 	github.com/celestiaorg/tastora v0.4.1
 	github.com/cometbft/cometbft v0.38.17
 	github.com/cosmos/cosmos-sdk v0.50.13
@@ -77,6 +77,7 @@ require (
 	github.com/bits-and-blooms/bitset v1.17.0 // indirect
 	github.com/bytedance/sonic v1.14.0 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
+	github.com/celestiaorg/go-square/v2 v2.3.3 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
 	github.com/celestiaorg/nmt v0.24.1 // indirect
 	github.com/celestiaorg/rsmt2d v0.15.0 // indirect
