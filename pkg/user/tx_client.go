@@ -619,7 +619,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 
 		if evictionPollTimeStart != nil {
 			if time.Since(*evictionPollTimeStart) > evictionPollTime {
-				return nil, fmt.Errorf("eviction poll timeout:transaction %s was evicted ", txHash)
+				return nil, fmt.Errorf("eviction poll timeout: transaction %s was evicted ", txHash)
 			}
 		}
 
@@ -650,21 +650,19 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			}
 
 			if evictionPollTimeStart != nil {
-				// if evictionPollTimeStart is not nil, we're already tracking the eviction timeout
-				// so we can break out of the loop and wait for the next ticker
+				// Eviction timer is running, no need to resubmit again
 				break
 			}
 
 			// If we're not already tracking eviction timeout, try to resubmit
 			_, err := client.broadcastTx(ctx, client.conns[0], client.txTracker[txHash].txBytes)
 			if err != nil {
-				// check if the error is broadcast tx error
+				// Check if the error is a broadcast tx error
 				_, ok := err.(*BroadcastTxError)
 				if !ok {
 					return nil, err
 				}
 				// Start eviction timeout timer on any broadcast error during resubmission
-				fmt.Println("Resubmission failed - starting eviction timer")
 				now := time.Now()
 				evictionPollTimeStart = &now
 			}
