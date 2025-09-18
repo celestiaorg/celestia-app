@@ -42,7 +42,7 @@ func Run() error {
 		return fmt.Errorf("failed to get block: %w", err)
 	}
 
-	eds, err := da.ConstructEDS(block.Block.Txs.ToSliceOfBytes(), block.Block.Header.Version.App, -1)
+	eds, err := da.ConstructEDS(block.Block.Txs.ToSliceOfBytes(), block.Block.Version.App, -1)
 	if err != nil {
 		return fmt.Errorf("failed to construct EDS: %w", err)
 	}
@@ -52,7 +52,7 @@ func Run() error {
 		return fmt.Errorf("failed to create DAH: %w", err)
 	}
 
-	fmt.Printf("Got data root: %X\n", block.Block.Header.DataHash)
+	fmt.Printf("Got data root: %X\n", block.Block.DataHash)
 	fmt.Printf("Computed data root: %X\n", dah.Hash())
 
 	return nil
