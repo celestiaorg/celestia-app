@@ -2,7 +2,7 @@ package user_test
 
 import (
 	"context"
-	"math"
+	"net"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
@@ -101,12 +101,11 @@ func setupTxClientWithMockGRPCServer(t *testing.T, responseSequences map[string]
 	}()
 
 	// Create client connection
-	conn, err := grpc.NewClient(lis.Addr().String(),
+	conn, err := grpc.DialContext(context.Background(), "bufnet",
+		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
+			return lis.Dial()
+		}),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultCallOptions(
-			grpc.MaxCallSendMsgSize(math.MaxInt32),
-			grpc.MaxCallRecvMsgSize(math.MaxInt32),
-		),
 	)
 	require.NoError(t, err)
 
