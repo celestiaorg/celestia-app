@@ -150,6 +150,7 @@ func newBufferedTree(squareSize uint64, axisIndex uint, pool *fixedTreePool, opt
 	}
 	options = append(options, nmt.NamespaceIDSize(share.NamespaceSize))
 	options = append(options, nmt.IgnoreMaxNamespace(true))
+	options = append(options, nmt.ReuseBuffer(true))
 	tree := nmt.New(appconsts.NewBaseHashFunc(), options...)
 	entrySize := share.ShareSize + share.NamespaceSize
 	return &bufferedTree{
@@ -201,7 +202,7 @@ func (w *bufferedTree) Push(data []byte) error {
 // Root calculates the tree root using FastRoot and releases the tree back to the pool
 func (w *bufferedTree) Root() ([]byte, error) {
 	defer w.pool.release(w)
-	return w.tree.FastRoot()
+	return w.tree.Root()
 }
 
 // incrementShareIndex advances to the next share position in the tree
