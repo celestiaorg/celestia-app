@@ -52,7 +52,7 @@ func (ism *ZKExecutionISM) Verify(ctx context.Context, metadata []byte, message 
 
 // verifyZKStateTransition verifies a ZK proof to update the ISM's state root and height.
 func (ism *ZKExecutionISM) verifyZKStateTransition(metadata ZkExecutionISMMetadata) (bool, error) {
-	groth16VkHash := sha256.Sum256(ism.StateTransitionVkey)
+	groth16VkHash := sha256.Sum256(ism.Groth16Vkey)
 	if !bytes.Equal(groth16VkHash[:4], metadata.Proof[:4]) {
 		return false, fmt.Errorf("prefix mismatch: first 4 bytes of verifier key hash (%x) do not match proof prefix (%x)", groth16VkHash[:4], metadata.Proof[:4])
 	}
@@ -62,12 +62,12 @@ func (ism *ZKExecutionISM) verifyZKStateTransition(metadata ZkExecutionISMMetada
 		return false, err
 	}
 
-	vk, err := groth16.NewVerifyingKey(ism.StateTransitionVkey)
+	vk, err := groth16.NewVerifyingKey(ism.Groth16Vkey)
 	if err != nil {
 		return false, err
 	}
 
-	vkCommitment := new(big.Int).SetBytes(ism.VkeyCommitment)
+	vkCommitment := new(big.Int).SetBytes(ism.StateTransitionVkey)
 	pubVals, err := metadata.PublicValues.Marshal()
 	if err != nil {
 		return false, err
@@ -94,8 +94,9 @@ func (ism *ZKExecutionISM) verifyZKStateInclusion(_ ZkExecutionISMMetadata, _ ut
 	return true, nil
 }
 
-func VerifyGroth16(ctx context.Context, ism ZKExecutionISM, proofBz, publicValues []byte) error {
-	groth16VkHash := sha256.Sum256(ism.StateTransitionVkey)
+// TODO: remove ism arg and add two vars for groth16 vkey and state transition/membership vkey
+func VerifyGroth16(ctx context.Context, groth16Vkey, programVkey, proofBz, publicValues []byte) error {
+	groth16VkHash := sha256.Sum256(groth16Vkey)
 	if !bytes.Equal(groth16VkHash[:4], proofBz[:4]) {
 		return fmt.Errorf("prefix mismatch: first 4 bytes of verifier key hash (%x) do not match proof prefix (%x)", groth16VkHash[:4], proofBz[:4])
 	}
@@ -105,16 +106,16 @@ func VerifyGroth16(ctx context.Context, ism ZKExecutionISM, proofBz, publicValue
 		return err
 	}
 
-	vk, err := groth16.NewVerifyingKey(ism.StateTransitionVkey)
+	vk, err := groth16.NewVerifyingKey(groth16Vkey)
 	if err != nil {
 		return err
 	}
 
-	vkCommitment := new(big.Int).SetBytes(ism.VkeyCommitment)
-	vkElement := groth16.NewBN254FrElement(vkCommitment)
+	vkeyCommitment := new(big.Int).SetBytes(programVkey)
+	vkeyElement := groth16.NewBN254FrElement(vkeyCommitment)
 	inputsElement := groth16.NewBN254FrElement(groth16.HashBN254(publicValues))
 
-	pubWitness, err := groth16.NewPublicWitness(vkElement, inputsElement)
+	pubWitness, err := groth16.NewPublicWitness(vkeyElement, inputsElement)
 	if err != nil {
 		return err
 	}

@@ -16,10 +16,11 @@ var _ util.InterchainSecurityModule = (*Keeper)(nil)
 
 // Keeper implements the InterchainSecurityModule interface required by the Hyperlane ISM Router.
 type Keeper struct {
-	headers collections.Map[uint64, []byte]
-	isms    collections.Map[uint64, types.ZKExecutionISM]
-	params  collections.Item[types.Params]
-	schema  collections.Schema
+	headers  collections.Map[uint64, []byte]
+	isms     collections.Map[uint64, types.ZKExecutionISM]
+	messages collections.KeySet[[]byte]
+	params   collections.Item[types.Params]
+	schema   collections.Schema
 
 	coreKeeper types.HyperlaneKeeper
 	authority  string
@@ -31,6 +32,7 @@ func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlane
 
 	headers := collections.NewMap(sb, types.HeadersKeyPrefix, "headers", collections.Uint64Key, collections.BytesValue)
 	isms := collections.NewMap(sb, types.IsmsKeyPrefix, "isms", collections.Uint64Key, codec.CollValue[types.ZKExecutionISM](cdc))
+	messages := collections.NewKeySet(sb, types.MessageKeyPrefix, "messages", collections.BytesKey)
 	params := collections.NewItem(sb, types.ParamsKeyPrefix, "params", codec.CollValue[types.Params](cdc))
 
 	schema, err := sb.Build()
@@ -42,6 +44,7 @@ func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlane
 		coreKeeper: hyperlaneKeeper,
 		headers:    headers,
 		isms:       isms,
+		messages:   messages,
 		params:     params,
 		schema:     schema,
 		authority:  authority,
@@ -103,7 +106,7 @@ func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, metadata []b
 	return verified, nil
 }
 
-func (k *Keeper) validatePublicValues(ctx context.Context, height uint64, ism types.ZKExecutionISM, publicValues types.PublicValues) error {
+func (k *Keeper) validatePublicValues(ctx context.Context, height uint64, ism types.ZKExecutionISM, publicValues types.StateTransitionPublicValues) error {
 	headerHash, err := k.GetHeaderHash(ctx, height)
 	if err != nil {
 		return fmt.Errorf("failed to get header for height %d: %w", height, err)

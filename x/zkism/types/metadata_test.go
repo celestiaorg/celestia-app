@@ -26,7 +26,7 @@ func TestNewZkExecutionISMMetadata(t *testing.T) {
 	const height uint64 = 12345
 
 	proof := []byte{0xAA, 0xBB, 0xCC}
-	pubInputs := types.PublicValues{
+	pubInputs := types.StateTransitionPublicValues{
 		CelestiaHeaderHash: [32]byte{0x01},
 		TrustedHeight:      42,
 		TrustedStateRoot:   [32]byte{0x02},

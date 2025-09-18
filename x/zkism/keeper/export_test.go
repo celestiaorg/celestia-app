@@ -8,6 +8,11 @@ import (
 )
 
 // GetIsm is a test func used for getting an ISM in the store collection.
+func (k *Keeper) HasMessageId(ctx context.Context, messageId []byte) (bool, error) {
+	return k.messages.Has(ctx, messageId)
+}
+
+// GetIsm is a test func used for getting an ISM in the store collection.
 func (k *Keeper) GetIsm(ctx context.Context, ismId util.HexAddress) (types.ZKExecutionISM, error) {
 	return k.isms.Get(ctx, ismId.GetInternalId())
 }

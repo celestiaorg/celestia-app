@@ -8,7 +8,7 @@ import (
 )
 
 func TestPublicValuesMarshalUnmarshal(t *testing.T) {
-	expected := types.PublicValues{
+	expected := types.StateTransitionPublicValues{
 		CelestiaHeaderHash: [32]byte{0x01},
 		TrustedHeight:      123,
 		TrustedStateRoot:   [32]byte{0xAA},
@@ -22,7 +22,7 @@ func TestPublicValuesMarshalUnmarshal(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, bz)
 
-	var decoded types.PublicValues
+	var decoded types.StateTransitionPublicValues
 	err = decoded.Unmarshal(bz)
 	require.NoError(t, err)
 
@@ -36,7 +36,7 @@ func TestPublicValuesMarshalUnmarshal(t *testing.T) {
 }
 
 func TestPublicValuesUnmarshalTrailingData(t *testing.T) {
-	pubInputs := types.PublicValues{
+	pubInputs := types.StateTransitionPublicValues{
 		CelestiaHeaderHash: [32]byte{0x01},
 		TrustedHeight:      1,
 		TrustedStateRoot:   [32]byte{0x02},
@@ -51,7 +51,7 @@ func TestPublicValuesUnmarshalTrailingData(t *testing.T) {
 
 	bz = append(bz, 0xFF) // append trailing data to force error
 
-	var decoded types.PublicValues
+	var decoded types.StateTransitionPublicValues
 	err = decoded.Unmarshal(bz)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "trailing data")
