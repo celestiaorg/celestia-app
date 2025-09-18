@@ -154,7 +154,7 @@ func (suite *KeeperTestSuite) TestVerify() {
 	ism, err = suite.zkISMKeeper.GetIsm(suite.ctx, ism.Id)
 	suite.Require().NoError(err)
 
-	inputs := new(types.PublicValues)
+	inputs := new(types.StateTransitionPublicValues)
 	err = inputs.Unmarshal(inputsBz)
 	suite.Require().NoError(err)
 

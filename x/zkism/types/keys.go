@@ -13,5 +13,6 @@ const (
 var (
 	IsmsKeyPrefix    = collections.NewPrefix(0)
 	HeadersKeyPrefix = collections.NewPrefix(1)
-	ParamsKeyPrefix  = collections.NewPrefix(2)
+	MessageKeyPrefix = collections.NewPrefix(2)
+	ParamsKeyPrefix  = collections.NewPrefix(3)
 )

@@ -19,6 +19,9 @@ service Msg {
   // UpdateZKExecutionISM defines the rpc method for updating a new ZK execution ISM.
   rpc UpdateZKExecutionISM(MsgUpdateZKExecutionISM) returns (MsgUpdateZKExecutionISMResponse);
 
+  // SubmitMessages defines the rpc method for verifying state membership of messages.
+  rpc SubmitMessages(MsgSubmitMessages) returns (MsgSubmitMessagesResponse);
+
   // UpdateParams defines the rpc method for updating the module parameters.
   rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
 }
@@ -75,6 +78,24 @@ message MsgUpdateZKExecutionISMResponse {
   // updated ism trusted height
   uint64 height = 2;
 }
+
+// MsgSubmitMessages is the request type for SubmitMessages.
+message MsgSubmitMessages {
+  // ism identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // height is the EVM application height associated with the state transition update.
+  uint64 height = 2;
+  // proof is the ZK proof bytes (groth16).
+  bytes proof = 3;
+  // the public values used for proof verification.
+  bytes public_values = 4;
+}
+
+// MsgSubmitMessagesResponse is the response type for SubmitMessages.
+message MsgSubmitMessagesResponse {}
 
 // MsgUpdateParams is the request type for UpdateParams.
 message MsgUpdateParams {

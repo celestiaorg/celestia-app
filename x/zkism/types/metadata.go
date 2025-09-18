@@ -25,7 +25,7 @@ type ZkExecutionISMMetadata struct {
 	// Proof is the ZK proof bytes.
 	Proof []byte
 	// PublicValues defines the public values used for proof verification.
-	PublicValues PublicValues
+	PublicValues StateTransitionPublicValues
 	// MerkleProofs defines a set of merkle proofs used for proving inclusion of a message - TBD.
 	MerkleProofs [][]byte
 }
@@ -82,7 +82,7 @@ func NewZkExecutionISMMetadata(metadata []byte) (ZkExecutionISMMetadata, error) 
 	}
 
 	// [17+N:17+N+M] - Public values (bincode)
-	var publicInputs PublicValues
+	var publicInputs StateTransitionPublicValues
 	if pubInputsSize != 0 {
 		pubInputsBz := metadata[offset : offset+int(pubInputsSize)]
 		offset += int(pubInputsSize)

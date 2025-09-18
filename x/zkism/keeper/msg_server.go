@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 
@@ -70,7 +71,7 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 		return nil, err
 	}
 
-	var publicValues types.PublicValues
+	var publicValues types.StateTransitionPublicValues
 	if err := publicValues.Unmarshal(msg.PublicValues); err != nil {
 		return nil, err
 	}
@@ -79,7 +80,7 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 		return nil, err
 	}
 
-	if err := types.VerifyGroth16(ctx, ism, msg.Proof, msg.PublicValues); err != nil {
+	if err := types.VerifyGroth16(ctx, ism.Groth16Vkey, ism.StateTransitionVkey, msg.Proof, msg.PublicValues); err != nil {
 		return nil, err
 	}
 
@@ -93,6 +94,35 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 		Height:    ism.Height,
 		StateRoot: hex.EncodeToString(ism.StateRoot),
 	}, nil
+}
+
+// SubmitMessages implements types.MsgServer.
+func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessages) (*types.MsgSubmitMessagesResponse, error) {
+	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
+	if err != nil {
+		return nil, err
+	}
+
+	var publicValues types.StateMembershipPublicValues
+	if err := publicValues.Unmarshal(msg.PublicValues); err != nil {
+		return nil, err
+	}
+
+	if !bytes.Equal(publicValues.StateRoot[:], ism.StateRoot) {
+		return nil, err
+	}
+
+	if err := types.VerifyGroth16(ctx, ism.Groth16Vkey, ism.StateMembershipVkey, msg.Proof, msg.PublicValues); err != nil {
+		return nil, err
+	}
+
+	for _, messageId := range publicValues.MessageIds {
+		if err := m.messages.Set(ctx, messageId[:]); err != nil {
+			return nil, err
+		}
+	}
+
+	return &types.MsgSubmitMessagesResponse{}, nil
 }
 
 // UpdateParams implements types.MsgServer.

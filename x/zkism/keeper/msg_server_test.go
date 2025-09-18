@@ -90,11 +90,62 @@ func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
 				suite.Require().NoError(err)
 				suite.Require().NotNil(res)
 
-				publicValues := new(types.PublicValues)
+				publicValues := new(types.StateTransitionPublicValues)
 				suite.Require().NoError(publicValues.Unmarshal(pubValues))
 
 				suite.Require().Equal(publicValues.NewHeight, res.Height)
 				suite.Require().Equal(hex.EncodeToString(publicValues.NewStateRoot[:]), res.StateRoot)
+			}
+		})
+	}
+}
+
+func (suite *KeeperTestSuite) TestSubmitMessages() {
+	suite.T().Skip()
+
+	ism := suite.CreateTestIsm()
+	proofBz, pubValues := readProofData(suite.T()) // TODO: read inclusion proof data
+
+	var msg *types.MsgSubmitMessages
+
+	testCases := []struct {
+		name      string
+		setupTest func()
+		expError  error
+	}{
+		{
+			name: "success",
+			setupTest: func() {
+				msg = &types.MsgSubmitMessages{
+					Id:           ism.Id,
+					Height:       0,
+					Proof:        proofBz,
+					PublicValues: pubValues,
+				}
+			},
+			expError: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			tc.setupTest()
+
+			msgServer := keeper.NewMsgServerImpl(suite.zkISMKeeper)
+			res, err := msgServer.SubmitMessages(suite.ctx, msg)
+
+			if tc.expError != nil {
+				suite.Require().Error(err)
+				suite.Require().Nil(res)
+			} else {
+				suite.Require().NoError(err)
+				suite.Require().NotNil(res)
+
+				// publicValues := new(types.StateMembershipPublicValues)
+				// suite.Require().NoError(publicValues.Unmarshal(pubValues))
+
+				// suite.Require().Equal(publicValues.NewHeight, res.Height)
+				// suite.Require().Equal(hex.EncodeToString(publicValues.NewStateRoot[:]), res.StateRoot)
 			}
 		})
 	}
