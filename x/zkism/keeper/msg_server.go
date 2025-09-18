@@ -62,6 +62,35 @@ func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreat
 	}, nil
 }
 
+// UpdateZKExecutionISM implements types.MsgServer.
+func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdateZKExecutionISM) (*types.MsgUpdateZKExecutionISMResponse, error) {
+	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
+	if err != nil {
+		return nil, err
+	}
+
+	var publicValues types.PublicValues
+	if err := publicValues.Unmarshal(msg.PublicValues); err != nil {
+		return nil, err
+	}
+
+	if err := m.validatePublicValues(ctx, msg.Height, ism, publicValues); err != nil {
+		return nil, err
+	}
+
+	if err := types.VerifyGroth16(ctx, ism, msg.Proof, msg.PublicValues); err != nil {
+		return nil, err
+	}
+
+	ism.Height = publicValues.NewHeight
+	ism.StateRoot = publicValues.NewStateRoot[:]
+	if err := m.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
+		return nil, err
+	}
+
+	return &types.MsgUpdateZKExecutionISMResponse{}, nil
+}
+
 // UpdateParams implements types.MsgServer.
 func (m msgServer) UpdateParams(ctx context.Context, msg *types.MsgUpdateParams) (*types.MsgUpdateParamsResponse, error) {
 	if msg.Authority != m.authority {

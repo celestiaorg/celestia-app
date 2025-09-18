@@ -125,6 +125,38 @@ func (pi *PublicValues) Unmarshal(data []byte) error {
 	return nil
 }
 
+type StateMembershipPublicValues struct {
+	StateRoot  [32]byte
+	MessageIds [][32]byte
+}
+
+func (m *StateMembershipPublicValues) Unmarshal(data []byte) error {
+	buf := bytes.NewReader(data)
+
+	if _, err := buf.Read(m.StateRoot[:]); err != nil {
+		return fmt.Errorf("read StateRoot: %w", err)
+	}
+
+	var count uint64 // read uint64 (little-endian) length prefix
+	if err := binary.Read(buf, binary.LittleEndian, &count); err != nil {
+		return fmt.Errorf("read message ids length: %w", err)
+	}
+
+	remaining := buf.Len()
+	if remaining < int(count*32) {
+		return fmt.Errorf("buffer too short: need %d, have %d", count*32, remaining)
+	}
+
+	m.MessageIds = make([][32]byte, count)
+	for i := 0; i < int(count); i++ {
+		if _, err := buf.Read(m.MessageIds[i][:]); err != nil {
+			return fmt.Errorf("read message_id %d: %w", i, err)
+		}
+	}
+
+	return nil
+}
+
 func readBytes(buf *bytes.Reader, dst []byte) error {
 	n, err := io.ReadFull(buf, dst)
 	if err != nil {
