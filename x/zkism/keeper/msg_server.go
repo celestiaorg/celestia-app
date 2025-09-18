@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"context"
+	"encoding/hex"
 
 	errorsmod "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
@@ -88,7 +89,10 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 		return nil, err
 	}
 
-	return &types.MsgUpdateZKExecutionISMResponse{}, nil
+	return &types.MsgUpdateZKExecutionISMResponse{
+		Height:    ism.Height,
+		StateRoot: hex.EncodeToString(ism.StateRoot),
+	}, nil
 }
 
 // UpdateParams implements types.MsgServer.
