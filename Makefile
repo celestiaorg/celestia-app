@@ -1,4 +1,4 @@
-VERSION := $(shell echo $(shell git describe --tags --always --match "v*") | sed 's/^v//')
+VERSION ?= $(shell echo $(shell git describe --tags --always --match "v*") | sed 's/^v//')
 COMMIT := $(shell git rev-parse --short HEAD)
 CELESTIA_TAG := $(shell git rev-parse --short=8 HEAD)
 export CELESTIA_TAG
