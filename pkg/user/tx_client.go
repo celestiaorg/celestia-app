@@ -547,7 +547,7 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 		go func(conn *grpc.ClientConn) {
 			defer wg.Done()
 
-			resp, err := client.broadcastTxAndIncrementSequence(ctx, conn, txBytes, signer)
+			resp, err := client.broadcastTx(ctx, conn, txBytes, signer)
 			if err != nil {
 				errCh <- err
 				return
@@ -569,6 +569,11 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 
 	// Return first successful response, if any
 	if resp, ok := <-respCh; ok {
+		client.trackTransaction(signer, resp.TxHash, txBytes)
+
+		if err := client.signer.IncrementSequence(signer); err != nil {
+			return nil, fmt.Errorf("increment sequencing: %w", err)
+		}
 		return resp, nil
 	}
 
