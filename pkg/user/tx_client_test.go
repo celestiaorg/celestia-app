@@ -398,11 +398,11 @@ func TestEvictions(t *testing.T) {
 		// Happy path: PENDING -> EVICTED -> COMMITTED
 		responseSequences := map[string][]*tx.TxStatusResponse{
 			expectedTxHash: {
-				{Status: core.TxStatusPending},                                  // 1st call
-				{Status: core.TxStatusEvicted},                                  // 2nd call
-				{Status: core.TxStatusEvicted},                                  // 3rd call
-				{Status: core.TxStatusEvicted},                                  // 4th call
-				{Status: core.TxStatusCommitted, Height: 102, ExecutionCode: 0}, // 3rd call
+				{Status: core.TxStatusPending},
+				{Status: core.TxStatusEvicted},
+				{Status: core.TxStatusEvicted},
+				{Status: core.TxStatusEvicted},
+				{Status: core.TxStatusCommitted, Height: 102, ExecutionCode: 0},
 			},
 		}
 
