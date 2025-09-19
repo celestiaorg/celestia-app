@@ -27,8 +27,27 @@ func TestNilDataAvailabilityHeaderHashDoesntCrash(t *testing.T) {
 	assert.Equal(t, emptyBytes, new(DataAvailabilityHeader).Hash())
 }
 
+// TestMinDataAvailabilityHeader tests the minimum valid data availability header.
+//
+// This test verifies that MinDataAvailabilityHeader() produces a deterministic hash
+// that matches the expected value. The expected hash is generated through the following process:
+//
+// 1. Create minimum shares: MinShareCount (1) tail padding shares are created
+// 2. Extend shares: The single share is extended using Reed-Solomon encoding to create a 2x2 extended data square
+// 3. Extract roots: Row and column merkle roots are computed from the extended square:
+//   - 2 row roots (one for each row of the extended square)
+//   - 2 column roots (one for each column of the extended square)
+//     4. Compute hash: A binary merkle tree is built from the concatenated row and column roots
+//     (rowRoots || columnRoots) to produce the final data availability header hash
+//
+// The expectedHash below (0x3d96b7d2...) represents the merkle root of the concatenated
+// row and column roots from a 2x2 extended data square containing one tail padding share.
+// This hash is deterministic and will always be the same for the minimum data availability header
+// since it represents the smallest possible valid data square in the Celestia network.
 func TestMinDataAvailabilityHeader(t *testing.T) {
 	dah := MinDataAvailabilityHeader()
+	// Expected hash generated from merkle root of (rowRoots || columnRoots)
+	// where the roots come from a 2x2 extended data square with one tail padding share
 	expectedHash := []byte{0x3d, 0x96, 0xb7, 0xd2, 0x38, 0xe7, 0xe0, 0x45, 0x6f, 0x6a, 0xf8, 0xe7, 0xcd, 0xf0, 0xa6, 0x7b, 0xd6, 0xcf, 0x9c, 0x20, 0x89, 0xec, 0xb5, 0x59, 0xc6, 0x59, 0xdc, 0xaa, 0x1f, 0x88, 0x3, 0x53}
 	require.Equal(t, expectedHash, dah.hash)
 	require.NoError(t, dah.ValidateBasic())
