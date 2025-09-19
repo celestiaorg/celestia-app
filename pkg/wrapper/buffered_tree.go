@@ -3,7 +3,6 @@ package wrapper
 import (
 	"fmt"
 	"runtime"
-	"sync"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/go-square/v3/share"
@@ -11,206 +10,178 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
-// fixedTreePool provides a fixed-size pool of bufferedTree instances
-type fixedTreePool struct {
-	availableNMTs chan *bufferedTree
+// TreePool provides a fixed-size pool of resizeableBufferTree instances.
+type TreePool struct {
+	availableNMTs chan *resizeableBufferTree
 	opts          []nmt.Option
-	squareSize    uint64
+	poolSize      int
 }
 
-// newFixedTreePool creates a fixed-size pool of bufferedTree instances
-func newFixedTreePool(size int, squareSize uint64, opts []nmt.Option) *fixedTreePool {
-	pool := &fixedTreePool{
-		availableNMTs: make(chan *bufferedTree, size),
+func DefaultPreallocatedTreePool(squareSize uint) *TreePool {
+	return NewTreePool(squareSize, runtime.NumCPU()*4)
+}
+
+// NewTreePool creates a new TreePool with the specified configuration.
+func NewTreePool(initSquareSize uint, poolSize int, opts ...nmt.Option) *TreePool {
+	pool := &TreePool{
+		availableNMTs: make(chan *resizeableBufferTree, poolSize),
 		opts:          opts,
-		squareSize:    squareSize,
+		poolSize:      poolSize,
 	}
 
-	for i := 0; i < size; i++ {
-		pool.availableNMTs <- newBufferedTree(squareSize, 0, pool, opts...)
+	// initialize the pool with trees configured for initSquareSize
+	for i := 0; i < poolSize; i++ {
+		pool.availableNMTs <- newResizeableBufferTree(initSquareSize, 0, pool, opts...)
 	}
 
 	return pool
 }
 
-// acquire retrieves a bufferedTree from the pool
-func (p *fixedTreePool) acquire() *bufferedTree {
+// acquire retrieves a resizeableBufferTree from the pool.
+func (p *TreePool) acquire() *resizeableBufferTree {
 	return <-p.availableNMTs
 }
 
-// release returns a bufferedTree to the pool for reuse
-func (p *fixedTreePool) release(tree *bufferedTree) {
+// release returns a resizeableBufferTree to the pool for reuse.
+func (p *TreePool) release(tree *resizeableBufferTree) {
 	p.availableNMTs <- tree
 }
 
-type TreePoolProvider struct {
-	mutex    sync.Mutex
-	pools    map[uint64]*TreePool
-	poolSize int
-	opts     []nmt.Option
+// TreeCount returns the number of trees in the pool.
+func (p *TreePool) TreeCount() int {
+	return p.poolSize
 }
 
-// NewTreePoolProvider creates a new TreePoolProvider with the given default pool size and options
-func NewTreePoolProvider() *TreePoolProvider {
-	return &TreePoolProvider{
-		pools:    make(map[uint64]*TreePool),
-		poolSize: runtime.NumCPU() * 4,
-	}
-}
-
-// PreallocatePool creates a pool for the given square size and allocates buffers
-func (p *TreePoolProvider) PreallocatePool(squareSize uint64) {
-	_ = p.GetTreePool(squareSize)
-}
-
-// GetTreePool returns a cached TreePool for the given square size, creating one if it doesn't exist
-func (p *TreePoolProvider) GetTreePool(squareSize uint64) *TreePool {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-
-	if pool, exists := p.pools[squareSize]; exists {
-		return pool
-	}
-
-	pool := NewTreePool(squareSize, p.poolSize, p.opts...)
-	p.pools[squareSize] = pool
-	return pool
-}
-
-// TreePool provides pool methods for creating tree constructors
-type TreePool struct {
-	squareSize uint64
-	opts       []nmt.Option
-	poolSize   int
-	treePool   *fixedTreePool
-}
-
-// NewTreePool creates a new TreePool with the specified configuration
-func NewTreePool(squareSize uint64, poolSize int, opts ...nmt.Option) *TreePool {
-	return &TreePool{
-		squareSize: squareSize,
-		opts:       opts,
-		poolSize:   poolSize,
-		treePool:   newFixedTreePool(poolSize, squareSize, opts),
-	}
-}
-
-// BufferSize returns the number of trees in the pool
-func (f *TreePool) BufferSize() int {
-	return f.poolSize
-}
-
-// SquareSize returns the square size this pool was configured for
-func (f *TreePool) SquareSize() uint64 {
-	return f.squareSize
-}
-
-// NewConstructor returns a tree constructor function that uses the pool
-func (f *TreePool) NewConstructor() rsmt2d.TreeConstructorFn {
+// NewConstructor returns a tree constructor function that uses the pool with the specified square size.
+func (p *TreePool) NewConstructor(squareSize uint) rsmt2d.TreeConstructorFn {
 	return func(_ rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
-		tree := f.treePool.acquire()
-		tree.axisIndex = uint64(axisIndex)
-		tree.shareIndex = 0
-
-		// Reset the tree (but don't put leaves back to pool anymore)
-		tree.tree.Reset()
+		tree := p.acquire()
+		tree.resize(squareSize)
+		tree.reset(axisIndex)
 
 		return tree
 	}
 }
 
-var _ rsmt2d.Tree = &bufferedTree{}
+var _ rsmt2d.Tree = &resizeableBufferTree{}
 
-// bufferedTree is a wrapper around NamespaceMerkleTree with buffer pooling support
+// resizeableBufferTree is a wrapper around NamespaceMerkleTree with buffer pooling support
 // for efficient memory management in high-throughput scenarios.
-type bufferedTree struct {
-	squareSize uint64 // note: this refers to the width of the original square before erasure-coded
-	options    []nmt.Option
-	tree       *nmt.NamespacedMerkleTree
+type resizeableBufferTree struct {
+	squareSize    uint // note: this refers to the width of the original square before erasure-coded
+	maxSquareSize uint // maximum square size this tree's buffer can handle without reallocation
+	options       []nmt.Option
+	tree          *nmt.NamespacedMerkleTree
 	// axisIndex is the index of the axis (row or column) that this tree is on. This is passed
 	// by rsmt2d and used to help determine which quadrant each leaf belongs to.
-	axisIndex uint64
+	axisIndex uint
 	// shareIndex is the index of the share in a row or column that is being
 	// pushed to the tree. It is expected to be in the range: 0 <= shareIndex <
 	// 2*squareSize. shareIndex is used to help determine which quadrant each
 	// leaf belongs to, along with keeping track of how many leaves have been
 	// added to the tree so far.
-	shareIndex uint64
-	pool       *fixedTreePool // reference to the pool this tree belongs to
-	buffer     []byte         // Pre-allocated buffer for share data
+	shareIndex      uint
+	namespaceSize   int
+	parityNamespace []byte
+	pool            *TreePool // reference to the pool this tree belongs to
+	buffer          []byte    // Pre-allocated buffer for share data
+	bufferEntrySize int
 }
 
-// newBufferedTree creates a new bufferedTree with pre-allocated buffer and pool reference
-func newBufferedTree(squareSize uint64, axisIndex uint, pool *fixedTreePool, options ...nmt.Option) *bufferedTree {
-	if squareSize == 0 {
-		panic("cannot create a bufferedTree of squareSize == 0")
+// newResizeableBufferTree creates a new resizeableBufferTree with pre-allocated buffer and pool reference.
+func newResizeableBufferTree(maxSquareSize uint, axisIndex uint, pool *TreePool, options ...nmt.Option) *resizeableBufferTree {
+	// this should never happen (we also check this with tests), because this is a private
+	if maxSquareSize == 0 {
+		panic("cannot create a resizeableBufferTree of maxSquareSize == 0")
 	}
 	if pool == nil {
-		panic("cannot create a bufferedTree of pool == nil")
+		panic("cannot create a resizeableBufferTree of pool == nil")
 	}
 	options = append(options, nmt.NamespaceIDSize(share.NamespaceSize))
-	options = append(options, nmt.IgnoreMaxNamespace(true))
-	options = append(options, nmt.ReuseBuffer(true))
+	options = append(options, nmt.IgnoreMaxNamespace(true), nmt.ReuseBuffers(true))
 	tree := nmt.New(appconsts.NewBaseHashFunc(), options...)
-	entrySize := share.ShareSize + share.NamespaceSize
-	return &bufferedTree{
-		squareSize: squareSize,
-		options:    options,
-		tree:       tree,
-		pool:       pool,
-		axisIndex:  uint64(axisIndex),
-		buffer:     make([]byte, 2*squareSize*uint64(entrySize)),
-		shareIndex: 0,
+	namespaceSize := share.NamespaceSize
+	entrySize := share.ShareSize + namespaceSize
+	return &resizeableBufferTree{
+		squareSize:      maxSquareSize,
+		maxSquareSize:   maxSquareSize,
+		options:         options,
+		tree:            tree,
+		pool:            pool,
+		bufferEntrySize: entrySize,
+		namespaceSize:   namespaceSize,
+		parityNamespace: share.ParitySharesNamespace.Bytes(),
+		axisIndex:       axisIndex,
+		buffer:          make([]byte, 2*maxSquareSize*uint(entrySize)),
+		shareIndex:      0,
 	}
 }
 
-// Push adds share data to the tree using the pre-allocated buffer to avoid memory allocation
-func (w *bufferedTree) Push(data []byte) error {
-	if w.axisIndex+1 > 2*w.squareSize || w.shareIndex+1 > 2*w.squareSize {
-		return fmt.Errorf("pushed past predetermined square size: boundary at %d index at %d %d", 2*w.squareSize, w.axisIndex, w.shareIndex)
+// Push adds share data to the tree using the pre-allocated buffer to avoid memory allocation.
+func (t *resizeableBufferTree) Push(data []byte) error {
+	if t.axisIndex+1 > 2*t.squareSize || t.shareIndex+1 > 2*t.squareSize {
+		return fmt.Errorf("pushed past predetermined square size: boundary at %d index at %d %d", 2*t.squareSize, t.axisIndex, t.shareIndex)
 	}
-	if len(data) < share.NamespaceSize {
+	if len(data) < t.namespaceSize {
 		return fmt.Errorf("data is too short to contain namespace ID")
 	}
 	var (
-		nidAndData      []byte
-		bufferEntrySize = share.NamespaceSize + share.ShareSize
-		nidDataLen      = share.NamespaceSize + len(data)
+		nidAndData []byte
+		nidDataLen = t.namespaceSize + len(data)
 	)
 
-	if nidDataLen > bufferEntrySize {
+	if nidDataLen > t.bufferEntrySize {
 		return fmt.Errorf("data is too large to be used with allocated buffer")
 	}
-	offset := int(w.shareIndex) * bufferEntrySize
-	nidAndData = w.buffer[offset : offset+nidDataLen]
+	offset := int(t.shareIndex) * t.bufferEntrySize
+	nidAndData = t.buffer[offset : offset+nidDataLen]
 
-	copy(nidAndData[share.NamespaceSize:], data)
+	copy(nidAndData[t.namespaceSize:], data)
 	// use the parity namespace if the cell is not in Q0 of the extended data square
-	if w.isQuadrantZero() {
-		copy(nidAndData[:share.NamespaceSize], data[:share.NamespaceSize])
+	if t.isQuadrantZero() {
+		copy(nidAndData[:t.namespaceSize], data[:t.namespaceSize])
 	} else {
-		copy(nidAndData[:share.NamespaceSize], share.ParitySharesNamespace.Bytes())
+		copy(nidAndData[:t.namespaceSize], t.parityNamespace)
 	}
-	err := w.tree.Push(nidAndData)
+	err := t.tree.Push(nidAndData)
 	if err != nil {
 		return err
 	}
-	w.incrementShareIndex()
+	t.incrementShareIndex()
 	return nil
 }
 
-// Root calculates the tree root using FastRoot and releases the tree back to the pool
-func (w *bufferedTree) Root() ([]byte, error) {
-	defer w.pool.release(w)
-	return w.tree.Root()
+// Root calculates the tree root using FastRoot and releases the tree back to the pool.
+func (t *resizeableBufferTree) Root() ([]byte, error) {
+	defer t.pool.release(t)
+	return t.tree.Root()
 }
 
-// incrementShareIndex advances to the next share position in the tree
-func (w *bufferedTree) incrementShareIndex() {
-	w.shareIndex++
+// incrementShareIndex advances to the next share position in the tree.
+func (t *resizeableBufferTree) incrementShareIndex() {
+	t.shareIndex++
 }
 
-// isQuadrantZero checks if the current position is in the original (non-parity) data quadrant
-func (w *bufferedTree) isQuadrantZero() bool {
-	return w.shareIndex < w.squareSize && w.axisIndex < w.squareSize
+// isQuadrantZero checks if the current position is in the original (non-parity) data quadrant.
+func (t *resizeableBufferTree) isQuadrantZero() bool {
+	return t.shareIndex < t.squareSize && t.axisIndex < t.squareSize
+}
+
+// resize adjusts the tree's square size and resizes the buffer if the new size exceeds the current maximum capacity.
+func (t *resizeableBufferTree) resize(squareSize uint) {
+	if t.squareSize != squareSize {
+		t.squareSize = squareSize
+		if squareSize > t.maxSquareSize {
+			entrySize := t.bufferEntrySize
+			t.buffer = make([]byte, 2*squareSize*uint(entrySize))
+			t.maxSquareSize = squareSize
+		}
+	}
+}
+
+// reset reinitializes the resizeableBufferTree for reuse.
+func (t *resizeableBufferTree) reset(axisIndex uint) {
+	t.axisIndex = axisIndex
+	t.shareIndex = 0
+	t.tree.Reset()
 }

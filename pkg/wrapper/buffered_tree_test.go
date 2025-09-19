@@ -14,72 +14,41 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestTreePoolProvider_MultipleSizes(t *testing.T) {
-	provider := NewTreePoolProvider()
-
-	squareSizes := []uint64{4, 8, 16, 32}
-	pools := make(map[uint64]*TreePool)
-
-	for _, size := range squareSizes {
-		pool := provider.GetTreePool(size)
-		require.NotNil(t, pool)
-		assert.Equal(t, size, pool.SquareSize())
-		assert.Equal(t, runtime.NumCPU()*4, pool.BufferSize())
-		pools[size] = pool
-	}
-
-	for size, pool := range pools {
-		poolAgain := provider.GetTreePool(size)
-		assert.Same(t, pool, poolAgain, "should return the same pool instance")
-	}
-}
-
-func TestTreePoolProvider_PreallocatePool(t *testing.T) {
-	provider := NewTreePoolProvider()
-
-	squareSize := uint64(16)
-	provider.PreallocatePool(squareSize)
-
-	pool := provider.GetTreePool(squareSize)
-	require.NotNil(t, pool)
-	assert.Equal(t, squareSize, pool.SquareSize())
-}
-
-func TestFixedTreePool_AcquireRelease(t *testing.T) {
-	squareSize := uint64(8)
+func TestTreePool_AcquireRelease(t *testing.T) {
+	squareSize := uint(8)
 	poolSize := 4
 	pool := NewTreePool(squareSize, poolSize)
 
-	trees := make([]*bufferedTree, 0, poolSize)
+	trees := make([]*resizeableBufferTree, 0, poolSize)
 
 	for i := 0; i < poolSize; i++ {
-		constructor := pool.NewConstructor()
+		constructor := pool.NewConstructor(squareSize)
 		tree := constructor(rsmt2d.Row, uint(i))
-		nmt, ok := tree.(*bufferedTree)
+		nmt, ok := tree.(*resizeableBufferTree)
 		require.True(t, ok)
 		trees = append(trees, nmt)
 	}
 
 	for _, tree := range trees {
-		// Call Root() which internally calls release()
+		// Root() which internally calls release()
 		_, _ = tree.Root()
 	}
 
 	for i := 0; i < poolSize; i++ {
-		constructor := pool.NewConstructor()
+		constructor := pool.NewConstructor(squareSize)
 		tree := constructor(rsmt2d.Row, uint(i))
 		require.NotNil(t, tree)
 	}
 }
 
-func TestBufferedTree_WithPoolReuse(t *testing.T) {
-	squareSize := uint64(8)
+func TestResizeableBufferTree_WithPoolReuse(t *testing.T) {
+	squareSize := uint(8)
 	poolSize := 4
 	pool := NewTreePool(squareSize, poolSize)
 
 	data := testfactory.GenerateRandNamespacedRawData(int(squareSize * 2))
 
-	constructor := pool.NewConstructor()
+	constructor := pool.NewConstructor(squareSize)
 	tree := constructor(rsmt2d.Row, 0)
 
 	for _, d := range data {
@@ -137,11 +106,11 @@ func TestComputeExtendedDataSquare_WithAndWithoutPool(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			pool := NewTreePool(uint64(tc.squareSize), runtime.NumCPU()*4)
-			edsWithPool, err := rsmt2d.ComputeExtendedDataSquareWithBuffer(
+			pool := NewTreePool(uint(tc.squareSize), runtime.NumCPU()*4)
+			edsWithPool, err := rsmt2d.ComputeExtendedDataSquare(
 				data,
 				appconsts.DefaultCodec(),
-				pool,
+				pool.NewConstructor(uint(tc.squareSize)),
 			)
 			require.NoError(t, err)
 
@@ -171,7 +140,7 @@ func TestComputeExtendedDataSquare_WithAndWithoutPool(t *testing.T) {
 }
 
 func TestTreePool_ConcurrentAccess(t *testing.T) {
-	squareSize := uint64(16)
+	squareSize := uint(16)
 	poolSize := 8
 	pool := NewTreePool(squareSize, poolSize)
 
@@ -186,7 +155,7 @@ func TestTreePool_ConcurrentAccess(t *testing.T) {
 	sequentialRoots := make([][]byte, numTrees)
 	for i := 0; i < numTrees; i++ {
 		// Use the standard constructor without pool
-		tree := NewErasuredNamespacedMerkleTree(squareSize, uint(i))
+		tree := NewErasuredNamespacedMerkleTree(uint64(squareSize), uint(i))
 
 		for _, d := range treeData[i] {
 			err := tree.Push(d)
@@ -207,7 +176,7 @@ func TestTreePool_ConcurrentAccess(t *testing.T) {
 		go func(index int) {
 			defer wg.Done()
 
-			constructor := pool.NewConstructor()
+			constructor := pool.NewConstructor(squareSize)
 			tree := constructor(rsmt2d.Row, uint(index))
 
 			for _, d := range treeData[index] {
@@ -229,11 +198,11 @@ func TestTreePool_ConcurrentAccess(t *testing.T) {
 	}
 }
 
-func TestBufferedTree_RootConsistency(t *testing.T) {
-	squareSize := uint64(8)
+func TestResizeableBufferTree_RootConsistency(t *testing.T) {
+	squareSize := uint(8)
 
 	// Test with ErasuredNamespacedMerkleTree (no buffer)
-	tree1 := NewErasuredNamespacedMerkleTree(squareSize, 0)
+	tree1 := NewErasuredNamespacedMerkleTree(uint64(squareSize), 0)
 
 	data := testfactory.GenerateRandNamespacedRawData(int(squareSize * 2))
 
@@ -245,9 +214,9 @@ func TestBufferedTree_RootConsistency(t *testing.T) {
 	root1, err := tree1.Root()
 	require.NoError(t, err)
 
-	// Test with bufferedTree (with buffer) - acquire from pool properly
+	// Test with resizeableBufferTree (with buffer) - acquire from pool properly
 	pool := NewTreePool(squareSize, 1)
-	constructor := pool.NewConstructor()
+	constructor := pool.NewConstructor(squareSize)
 	tree2 := constructor(rsmt2d.Row, 0)
 
 	for _, d := range data {
@@ -258,7 +227,7 @@ func TestBufferedTree_RootConsistency(t *testing.T) {
 	root2, err := tree2.Root()
 	require.NoError(t, err)
 
-	assert.True(t, bytes.Equal(root1, root2), "bufferedTree should produce the same root as ErasuredNamespacedMerkleTree")
+	assert.True(t, bytes.Equal(root1, root2), "resizeableBufferTree should produce the same root as ErasuredNamespacedMerkleTree")
 }
 
 func BenchmarkExtendedDataSquare_WithPool(b *testing.B) {
@@ -267,15 +236,15 @@ func BenchmarkExtendedDataSquare_WithPool(b *testing.B) {
 	for _, size := range squareSizes {
 		b.Run(fmt.Sprintf("SquareSize-%d", size), func(b *testing.B) {
 			data := testfactory.GenerateRandNamespacedRawData(size * size)
-			pool := NewTreePool(uint64(size), runtime.NumCPU()*4)
+			pool := NewTreePool(uint(size), runtime.NumCPU()*4)
 
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				square, err := rsmt2d.ComputeExtendedDataSquareWithBuffer(
+				square, err := rsmt2d.ComputeExtendedDataSquare(
 					data,
 					appconsts.DefaultCodec(),
-					pool,
+					pool.NewConstructor(uint(size)),
 				)
 				require.NoError(b, err)
 				_, err = square.RowRoots()

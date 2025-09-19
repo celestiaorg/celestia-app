@@ -74,6 +74,7 @@ func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 	return rsmt2d.ComputeExtendedDataSquare(s, appconsts.DefaultCodec(), wrapper.NewConstructor(uint64(squareSize)))
 }
 
+// ExtendSharesWithTreePool injects tree pool into rsmt2d to reuse allocs in root computation
 func ExtendSharesWithTreePool(s [][]byte, treePool *wrapper.TreePool) (*rsmt2d.ExtendedDataSquare, error) {
 	// Check that the length of the square is a power of 2.
 	if !square.IsPowerOfTwo(len(s)) {

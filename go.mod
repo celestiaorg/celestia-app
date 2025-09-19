@@ -23,8 +23,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.88.1
 	github.com/bcp-innovations/hyperlane-cosmos v1.0.1
 	github.com/celestiaorg/go-square/v3 v3.0.0
-	github.com/celestiaorg/nmt v0.24.2-0.20250918161004-dcaa76b80708
-	github.com/celestiaorg/rsmt2d v0.15.0
+	github.com/celestiaorg/nmt v0.24.2-0.20250918183924-34ea794437b6
+	github.com/celestiaorg/rsmt2d v0.15.1-0.20250919110934-5677c0cb7614
 	github.com/cometbft/cometbft v0.38.17
 	github.com/cometbft/cometbft-db v1.0.4
 	github.com/cosmos/cosmos-db v1.1.1
@@ -273,7 +273,6 @@ require (
 replace (
 	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.6
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
-	github.com/celestiaorg/rsmt2d => github.com/mcrakhman/rsmt2d v0.15.1-0.20250917163334-9b91fdc60be9
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.4
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.51.2
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
