@@ -96,7 +96,7 @@ To prevent double payment, the module tracks which promises have been processed.
 
 **Processed Promises**:
 - **Primary Index**: `processed/{promise_hash}` → `google.protobuf.Timestamp` (processed_at)
-- **By Height**: `pruning/{processed_at}/{promise_hash}` → `null` (for pruning)
+- **By Timestamp**: `pruning/{processed_at}/{promise_hash}` → `null` (for pruning)
 
 #### Pruning Mechanism
 
