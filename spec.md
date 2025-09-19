@@ -238,7 +238,7 @@ message MsgPayForFibre {
   repeated bytes validator_signatures = 3;
 }
 
-message PaymentPromise {
+message PaymentPromise {f
   // signer is the owner of the escrow account to charge
   string signer = 1;
   // namespace is the namespace the blob is associated with. share version must be 2.
@@ -249,12 +249,14 @@ message PaymentPromise {
   bytes commitment = 4;
   // row_version is the version of the row format
   uint32 row_version = 5;
+  // valset_height is the height that is used to determine the validator set.
+  int64 valset_height = 6;
   // creation_timestamp is the timestamp when this promise was created. This
   // is critical for determining which validators sign the commitment and
   // determining when service stops for this blob.
-  google.protobuf.Timestamp creation_timestamp = 6;
+  google.protobuf.Timestamp creation_timestamp = 7;
   // signature is the escrow owner's signature over the sign bytes
-  bytes signature = 7;
+  bytes signature = 8;
 }
 ```
 
@@ -266,6 +268,7 @@ message PaymentPromise {
 - `blob_size` must be positive
 - `commitment` must be 32 bytes
 - `row_version` must be supported version
+- `valset_height` must be positive
 - `creation_timestamp` must be positive
 - `signature` must be properly formatted and non-empty
 
@@ -285,10 +288,10 @@ Gas cost is calculated as described in the [Gas Consumption](#gas-consumption) s
 
 #### Sign Bytes Format
 
-The sign bytes for a PaymentPromise signature are constructed by concatenating all fields except the `signature` field:
+The sign bytes for a PaymentPromise signature are constructed by concatenating all fields except the `signature` field, along with prepending the chainID:
 
 ```
-sign_bytes = signer_bytes || namespace || blob_size_bytes || commitment || row_version_byte || creation_timestamp_bytes
+sign_bytes = chainID || signer_bytes || namespace || blob_size_bytes || commitment || row_version_bytes || valset_height_bytes || creation_timestamp_bytes
 ```
 
 **Field Encoding**:
@@ -297,9 +300,10 @@ sign_bytes = signer_bytes || namespace || blob_size_bytes || commitment || row_v
 - `blob_size_bytes`: Big-endian encoded uint32 (4 bytes)
 - `commitment`: Raw commitment bytes (32 bytes)
 - `row_version_bytes`: Big-endian encoded uint32 (4 bytes)
+- `valset_height_bytes`: Big-endian encoded int64 (8 bytes)
 - `creation_timestamp_bytes`: Protobuf-encoded google.protobuf.Timestamp (variable length)
 
-**Total Length**: Variable length (20 + 29 + 4 + 32 + 4 + timestamp_bytes)
+**Total Length**: Variable length (20 + 29 + 4 + 32 + 4 + 8 + timestamp_bytes)
 
 #### MsgPayForFibre Validation and Processing
 
@@ -309,7 +313,7 @@ sign_bytes = signer_bytes || namespace || blob_size_bytes || commitment || row_v
 
 **Stateful Processing**:
 1. Validate PaymentPromise (see [PaymentPromise Validation](#paymentpromise-validation) above)
-2. Verify validator signatures represent 2/3+ threshold from validator set at `promise.creation_timestamp` (obtained via historical info query from staking module):
+2. Verify validator signatures represent 2/3+ threshold from validator set at `promise.valset_height` (obtained via historical info query from staking module):
    - Signatures must represent 2/3+ of total voting power AND 2/3+ of validator count
 3. Calculate gas cost (see [Gas Consumption](#gas-consumption) section) and deduct from both escrow balance and available_balance
 4. Mark promise as processed (stores `processed_at` timestamp and creates pruning index entry)
@@ -432,7 +436,7 @@ sequenceDiagram
 
 1. **Setup Phase**: User deposits funds using [`MsgDepositToEscrow`](#msgdeposittoescrow), which creates an escrow account if one doesn't exist.
 
-2. **Promise Creation**: User creates a signed [`PaymentPromise`](#msgpayforfibre) containing escrow details, commitment, and creation height.
+2. **Promise Creation**: User creates a signed [`PaymentPromise`](#msgpayforfibre) containing escrow details, commitment, validator set height, and creation timestamp.
 
 3. **Data Distribution Phase**: User distributes data chunks to validators along with the signed promise.
 
