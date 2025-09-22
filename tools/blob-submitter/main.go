@@ -26,16 +26,18 @@ const (
 	defaultEndpoint     = "localhost:9091"
 	defaultKeyringDir   = "~/.celestia-app"
 	defaultBlobSize     = 7 * 1024 * 1024 // bytes
-	defaultConcurrency  = 1               // number of concurrent blob submissions
-	defaultNamespaceStr = "blobstress"    // default namespace for blobs
+	maxBlobs            = 30
+	defaultConcurrency  = 1            // number of concurrent blob submissions
+	defaultNamespaceStr = "blobstress" // default namespace for blobs
 )
 
 type submissionResult struct {
-	txHash      string
-	submitTime  time.Time
-	confirmed   bool
-	confirmTime *time.Time
-	err         error
+	txHash       string
+	submitTime   time.Time
+	confirmed    bool
+	confirmTime  *time.Time
+	err          error
+	releaseBlobSlot func() // Function to release blob semaphore slot
 }
 
 type stats struct {
@@ -145,6 +147,9 @@ func runBlobSubmitter(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("Starting blob submissions...")
 
+	// Global semaphore to limit max in-flight blobs
+	blobSemaphore := make(chan struct{}, maxBlobs)
+
 	// Channel for submission results - limit buffer to prevent memory accumulation
 	results := make(chan *submissionResult, concurrency*2)
 
@@ -162,7 +167,7 @@ func runBlobSubmitter(cmd *cobra.Command, args []string) error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		confirmationWorker(ctx, txClient, results)
+		confirmationWorker(ctx, txClient, results, blobSemaphore)
 	}()
 
 	// Start submission workers
@@ -170,7 +175,7 @@ func runBlobSubmitter(cmd *cobra.Command, args []string) error {
 		wg.Add(1)
 		go func(workerID int) {
 			defer wg.Done()
-			submissionWorker(ctx, workerID, txClient, namespace, results)
+			submissionWorker(ctx, workerID, txClient, namespace, results, blobSemaphore)
 		}(i)
 	}
 
@@ -192,7 +197,7 @@ func runBlobSubmitter(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func submissionWorker(ctx context.Context, workerID int, txClient *user.TxClient, namespace share.Namespace, results chan<- *submissionResult) {
+func submissionWorker(ctx context.Context, workerID int, txClient *user.TxClient, namespace share.Namespace, results chan<- *submissionResult, blobSemaphore chan struct{}) {
 	counter := 0
 	baseDelay := 100 * time.Millisecond
 	maxDelay := 5 * time.Second
@@ -207,6 +212,18 @@ func submissionWorker(ctx context.Context, workerID int, txClient *user.TxClient
 			return
 		case <-ticker.C:
 			counter++
+
+			// Try to acquire blob semaphore slot (non-blocking)
+			select {
+			case blobSemaphore <- struct{}{}:
+				// Successfully acquired slot, proceed with blob submission
+			case <-ctx.Done():
+				return
+			default:
+				// No available slots, skip this submission attempt
+				fmt.Printf("Worker %d-%d: Max blobs (%d) reached, skipping submission\n", workerID, counter, maxBlobs)
+				continue
+			}
 
 			// Create random blob data
 			blobData := make([]byte, blobSize)
@@ -227,6 +244,9 @@ func submissionWorker(ctx context.Context, workerID int, txClient *user.TxClient
 			result := &submissionResult{
 				submitTime: submitTime,
 				err:        err,
+				releaseBlobSlot: func() {
+					<-blobSemaphore // Release semaphore slot
+				},
 			}
 
 			if err != nil {
@@ -277,7 +297,7 @@ func statsReporter(ctx context.Context) {
 	}
 }
 
-func confirmationWorker(ctx context.Context, txClient *user.TxClient, results <-chan *submissionResult) {
+func confirmationWorker(ctx context.Context, txClient *user.TxClient, results <-chan *submissionResult, blobSemaphore chan struct{}) {
 	// Limit concurrent confirmations to prevent goroutine leak
 	const maxConcurrentConfirmations = 50
 	semaphore := make(chan struct{}, maxConcurrentConfirmations)
@@ -302,6 +322,10 @@ func confirmationWorker(ctx context.Context, txClient *user.TxClient, results <-
 
 	for result := range results {
 		if result.err != nil || result.txHash == "" {
+			// Release blob slot immediately for failed submissions
+			if result.releaseBlobSlot != nil {
+				result.releaseBlobSlot()
+			}
 			continue
 		}
 
@@ -315,12 +339,16 @@ func confirmationWorker(ctx context.Context, txClient *user.TxClient, results <-
 		confirmWg.Add(1)
 		go func(r *submissionResult) {
 			defer func() {
-				<-semaphore // Release semaphore slot
+				<-semaphore // Release confirmation semaphore slot
 				confirmWg.Done()
+				// Release blob semaphore slot after confirmation completes
+				if r.releaseBlobSlot != nil {
+					r.releaseBlobSlot()
+				}
 			}()
 
 			// Create a timeout context for confirmation to prevent hanging
-			confirmCtx, confirmCancel := context.WithTimeout(ctx, 30*time.Second)
+			confirmCtx, confirmCancel := context.WithTimeout(ctx, 5*time.Minute)
 			defer confirmCancel()
 
 			// Check if main context is already cancelled
