@@ -67,7 +67,7 @@ func TestVerifyProof(t *testing.T) {
 	verifier, err := types.NewSP1Groth16Verifier(groth16Vk)
 	require.NoError(t, err)
 
-	testcases := []struct {
+	tests := []struct {
 		name      string
 		proofBz   []byte
 		programVk []byte
@@ -117,7 +117,7 @@ func TestVerifyProof(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testcases {
+	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			err := verifier.VerifyProof(tc.proofBz, tc.programVk, tc.valuesBz)
 			if tc.expError {
