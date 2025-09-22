@@ -559,7 +559,7 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 		go func(conn *grpc.ClientConn) {
 			defer wg.Done()
 
-			resp, err := client.broadcastTx(ctx, conn, txBytes, signer)
+			resp, err := client.broadcastTx(ctx, conn, txBytes)
 			if err != nil {
 				errCh <- err
 				return
