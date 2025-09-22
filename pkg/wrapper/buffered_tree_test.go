@@ -3,9 +3,11 @@ package wrapper
 import (
 	"bytes"
 	"fmt"
+	"math/rand"
 	"runtime"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
@@ -14,9 +16,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var standardSizes = []int{2, 4, 8, 16, 32, 64, 128, 256, 512}
+
 func TestTreePool_AcquireRelease(t *testing.T) {
-	squareSize := uint(8)
-	poolSize := 4
+	squareSize := uint(512)
+	poolSize := 100
 	pool := NewTreePool(squareSize, poolSize)
 
 	trees := make([]*resizeableBufferTree, 0, poolSize)
@@ -42,100 +46,122 @@ func TestTreePool_AcquireRelease(t *testing.T) {
 }
 
 func TestResizeableBufferTree_WithPoolReuse(t *testing.T) {
-	squareSize := uint(8)
-	poolSize := 4
-	pool := NewTreePool(squareSize, poolSize)
+	for _, size := range standardSizes {
+		t.Run(fmt.Sprintf("size_%d", size), func(t *testing.T) {
+			squareSize := uint(size)
+			poolSize := 4
+			pool := NewTreePool(squareSize, poolSize)
 
-	data := testfactory.GenerateRandNamespacedRawData(int(squareSize * 2))
+			data := testfactory.GenerateRandNamespacedRawData(int(squareSize * 2))
 
-	constructor := pool.NewConstructor(squareSize)
-	tree := constructor(rsmt2d.Row, 0)
+			constructor := pool.NewConstructor(squareSize)
+			tree := constructor(rsmt2d.Row, 0)
 
-	for _, d := range data {
-		err := tree.Push(d)
-		require.NoError(t, err)
+			for _, d := range data {
+				err := tree.Push(d)
+				require.NoError(t, err)
+			}
+
+			root, err := tree.Root()
+			require.NoError(t, err)
+			require.NotEmpty(t, root)
+
+			tree2 := constructor(rsmt2d.Row, 0) // Use same axis index for same root
+			require.NotNil(t, tree2)
+
+			for _, d := range data {
+				err := tree2.Push(d)
+				require.NoError(t, err)
+			}
+
+			root2, err := tree2.Root()
+			require.NoError(t, err)
+			require.NotEmpty(t, root2)
+
+			// Verify that both trees produce the same root for the same data
+			assert.True(t, bytes.Equal(root, root2),
+				"Reused tree should produce the same root for the same data (size %d)", size)
+		})
 	}
-
-	root, err := tree.Root()
-	require.NoError(t, err)
-	require.NotEmpty(t, root)
-
-	tree2 := constructor(rsmt2d.Row, 0) // Use same axis index for same root
-	require.NotNil(t, tree2)
-
-	for _, d := range data {
-		err := tree2.Push(d)
-		require.NoError(t, err)
-	}
-
-	root2, err := tree2.Root()
-	require.NoError(t, err)
-	require.NotEmpty(t, root2)
-
-	// Verify that both trees produce the same root for the same data
-	assert.True(t, bytes.Equal(root, root2), "Reused tree should produce the same root for the same data")
 }
 
 func TestComputeExtendedDataSquare_WithAndWithoutPool(t *testing.T) {
-	testCases := []struct {
-		name       string
-		squareSize int
-	}{
-		{
-			name:       "small square 4x4",
-			squareSize: 4,
-		},
-		{
-			name:       "medium square 16x16",
-			squareSize: 16,
-		},
-		{
-			name:       "large square 64x64",
-			squareSize: 64,
-		},
+	rand.Seed(time.Now().UnixNano())
+	testSquareSize := func(t *testing.T, sizes []int, pool *TreePool) {
+		for _, squareSize := range sizes {
+			t.Run(fmt.Sprintf("size_%d", squareSize), func(t *testing.T) {
+				// Create a new pool for each iteration (no reuse)
+				comparePoolAndNonPoolEDS(t, squareSize, pool)
+			})
+		}
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			data := testfactory.GenerateRandNamespacedRawData(tc.squareSize * tc.squareSize)
+	genRandomSizes := func(size, max int) []int {
+		sizes := make([]int, size)
+		for i := range sizes {
+			sizes[i] = rand.Intn(max) + 1
+		}
+		return sizes
+	}
 
-			edsWithoutPool, err := rsmt2d.ComputeExtendedDataSquare(
-				data,
-				appconsts.DefaultCodec(),
-				NewConstructor(uint64(tc.squareSize)),
-			)
-			require.NoError(t, err)
+	t.Run("sizes - reuse small pool", func(t *testing.T) {
+		pool := NewTreePool(2, runtime.NumCPU()*4)
+		testSquareSize(t, standardSizes, pool)
+		pool = NewTreePool(2, runtime.NumCPU()*4)
+		// test is not very fast, so we do less fuzzing
+		testSquareSize(t, genRandomSizes(6, 512), pool)
+	})
 
-			pool := NewTreePool(uint(tc.squareSize), runtime.NumCPU()*4)
-			edsWithPool, err := rsmt2d.ComputeExtendedDataSquare(
-				data,
-				appconsts.DefaultCodec(),
-				pool.NewConstructor(uint(tc.squareSize)),
-			)
-			require.NoError(t, err)
+	t.Run("sizes - reuse large pool", func(t *testing.T) {
+		pool := NewTreePool(512, runtime.NumCPU()*4)
+		testSquareSize(t, standardSizes, pool)
+		// test is not very fast, so we do less fuzzing
+		testSquareSize(t, genRandomSizes(6, 512), pool)
+	})
+}
 
-			rowRootsWithoutPool, err := edsWithoutPool.RowRoots()
-			require.NoError(t, err)
-			rowRootsWithPool, err := edsWithPool.RowRoots()
-			require.NoError(t, err)
+func comparePoolAndNonPoolEDS(t *testing.T, squareSize int, pool *TreePool) {
+	data := testfactory.GenerateRandNamespacedRawData(squareSize * squareSize)
 
-			assert.Equal(t, len(rowRootsWithoutPool), len(rowRootsWithPool))
-			for i := range rowRootsWithoutPool {
-				assert.True(t, bytes.Equal(rowRootsWithoutPool[i], rowRootsWithPool[i]),
-					"Row root %d should be equal", i)
-			}
+	edsWithoutPool, err := rsmt2d.ComputeExtendedDataSquare(
+		data,
+		appconsts.DefaultCodec(),
+		NewConstructor(uint64(squareSize)),
+	)
+	require.NoError(t, err)
 
-			colRootsWithoutPool, err := edsWithoutPool.ColRoots()
-			require.NoError(t, err)
-			colRootsWithPool, err := edsWithPool.ColRoots()
-			require.NoError(t, err)
+	// If no pool is provided, create a new one for this test
+	if pool == nil {
+		pool = NewTreePool(uint(squareSize), runtime.NumCPU()*4)
+	}
 
-			assert.Equal(t, len(colRootsWithoutPool), len(colRootsWithPool))
-			for i := range colRootsWithoutPool {
-				assert.True(t, bytes.Equal(colRootsWithoutPool[i], colRootsWithPool[i]),
-					"Column root %d should be equal", i)
-			}
-		})
+	edsWithPool, err := rsmt2d.ComputeExtendedDataSquareWithBuffer(
+		data,
+		appconsts.DefaultCodec(),
+		pool,
+	)
+	require.NoError(t, err)
+
+	rowRootsWithoutPool, err := edsWithoutPool.RowRoots()
+	require.NoError(t, err)
+	rowRootsWithPool, err := edsWithPool.RowRoots()
+	require.NoError(t, err)
+
+	assert.Equal(t, len(rowRootsWithoutPool), len(rowRootsWithPool))
+	for i := range rowRootsWithoutPool {
+		assert.True(t, bytes.Equal(rowRootsWithoutPool[i], rowRootsWithPool[i]),
+			"Row root %d should be equal for square size %d", i, squareSize)
+	}
+
+	colRootsWithoutPool, err := edsWithoutPool.ColRoots()
+	require.NoError(t, err)
+	colRootsWithPool, err := edsWithPool.ColRoots()
+	require.NoError(t, err)
+
+	assert.Equal(t, len(colRootsWithoutPool), len(colRootsWithPool))
+	for i := range colRootsWithoutPool {
+		assert.True(t, bytes.Equal(colRootsWithoutPool[i], colRootsWithPool[i]),
+			"Column root %d should be equal for square size %d", i, squareSize)
 	}
 }
 
@@ -144,14 +170,14 @@ func TestTreePool_ConcurrentAccess(t *testing.T) {
 	poolSize := 8
 	pool := NewTreePool(squareSize, poolSize)
 
-	// Generate test data for multiple trees
+	// generate test data for multiple trees
 	numTrees := 20
 	treeData := make([][][]byte, numTrees)
 	for i := 0; i < numTrees; i++ {
 		treeData[i] = testfactory.GenerateRandNamespacedRawData(int(squareSize * 2))
 	}
 
-	// First, compute roots sequentially using standard trees (without pool/buffer)
+	// first, compute roots sequentially using standard trees (without pool/buffer)
 	sequentialRoots := make([][]byte, numTrees)
 	for i := 0; i < numTrees; i++ {
 		// Use the standard constructor without pool
@@ -167,7 +193,7 @@ func TestTreePool_ConcurrentAccess(t *testing.T) {
 		sequentialRoots[i] = root
 	}
 
-	// Now compute the same roots concurrently using the pool
+	// now compute the same roots concurrently using the pool
 	concurrentRoots := make([][]byte, numTrees)
 	var wg sync.WaitGroup
 	wg.Add(numTrees)
@@ -191,49 +217,15 @@ func TestTreePool_ConcurrentAccess(t *testing.T) {
 
 	wg.Wait()
 
-	// Verify that all concurrent roots (with pool) match sequential roots (without pool)
+	// verify that all concurrent roots (with pool) match sequential roots (without pool)
 	for i := 0; i < numTrees; i++ {
 		assert.True(t, bytes.Equal(sequentialRoots[i], concurrentRoots[i]),
 			"Tree %d: concurrent root (with pool) should match sequential root (without pool)", i)
 	}
 }
 
-func TestResizeableBufferTree_RootConsistency(t *testing.T) {
-	squareSize := uint(8)
-
-	// Test with ErasuredNamespacedMerkleTree (no buffer)
-	tree1 := NewErasuredNamespacedMerkleTree(uint64(squareSize), 0)
-
-	data := testfactory.GenerateRandNamespacedRawData(int(squareSize * 2))
-
-	for _, d := range data {
-		err := tree1.Push(d)
-		require.NoError(t, err)
-	}
-
-	root1, err := tree1.Root()
-	require.NoError(t, err)
-
-	// Test with resizeableBufferTree (with buffer) - acquire from pool properly
-	pool := NewTreePool(squareSize, 1)
-	constructor := pool.NewConstructor(squareSize)
-	tree2 := constructor(rsmt2d.Row, 0)
-
-	for _, d := range data {
-		err := tree2.Push(d)
-		require.NoError(t, err)
-	}
-
-	root2, err := tree2.Root()
-	require.NoError(t, err)
-
-	assert.True(t, bytes.Equal(root1, root2), "resizeableBufferTree should produce the same root as ErasuredNamespacedMerkleTree")
-}
-
 func BenchmarkExtendedDataSquare_WithPool(b *testing.B) {
-	squareSizes := []int{4, 8, 16, 32, 64, 128}
-
-	for _, size := range squareSizes {
+	for _, size := range standardSizes {
 		b.Run(fmt.Sprintf("SquareSize-%d", size), func(b *testing.B) {
 			data := testfactory.GenerateRandNamespacedRawData(size * size)
 			pool := NewTreePool(uint(size), runtime.NumCPU()*4)
@@ -241,10 +233,10 @@ func BenchmarkExtendedDataSquare_WithPool(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				square, err := rsmt2d.ComputeExtendedDataSquare(
+				square, err := rsmt2d.ComputeExtendedDataSquareWithBuffer(
 					data,
 					appconsts.DefaultCodec(),
-					pool.NewConstructor(uint(size)),
+					pool,
 				)
 				require.NoError(b, err)
 				_, err = square.RowRoots()
@@ -255,9 +247,7 @@ func BenchmarkExtendedDataSquare_WithPool(b *testing.B) {
 }
 
 func BenchmarkExtendedDataSquare_WithoutPool(b *testing.B) {
-	squareSizes := []int{4, 8, 16, 32, 64, 128}
-
-	for _, size := range squareSizes {
+	for _, size := range standardSizes {
 		b.Run(fmt.Sprintf("SquareSize-%d", size), func(b *testing.B) {
 			data := testfactory.GenerateRandNamespacedRawData(size * size)
 
