@@ -127,9 +127,6 @@ func TestVerifyProof(t *testing.T) {
 			}
 		})
 	}
-
-	// err = verifier.VerifyProof(proofBz, programVk, valuesBz)
-	// require.NoError(t, err, "failed to verify sp1 groth16 proof")
 }
 
 func readGroth16Vkey(t *testing.T) []byte {

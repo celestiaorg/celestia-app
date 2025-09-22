@@ -15,7 +15,7 @@ import (
 	"github.com/consensys/gnark/backend/witness"
 )
 
-// VerifyingKey is a simple type alias for the underlying gnark groth16 VerifyingKey
+// VerifyingKey is a simple type alias for the underlying gnark groth16 VerifyingKey.
 type VerifyingKey = groth16.VerifyingKey
 
 // NewVerifyingKey deserializes a Groth16 verifying key for the BN254 curve from a byte slice.
