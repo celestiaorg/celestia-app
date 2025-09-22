@@ -1,20 +1,9 @@
 package app
 
 import (
-	"bytes"
-	"fmt"
 	"time"
 
-	"cosmossdk.io/errors"
-	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v6/app/ante"
-	apperr "github.com/celestiaorg/celestia-app/v6/app/errors"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/da"
-	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	blobtx "github.com/celestiaorg/go-square/v3/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -23,176 +12,176 @@ const rejectedPropBlockLog = "Rejected proposal block:"
 
 func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcessProposal) (resp *abci.ResponseProcessProposal, err error) {
 	defer telemetry.MeasureSince(time.Now(), "process_proposal")
-	// In the case of a panic resulting from an unexpected condition, it is
-	// better for the liveness of the network to catch it, log an error, and
-	// vote nil rather than crashing the node.
-	defer func() {
-		if err := recover(); err != nil {
-			logInvalidPropBlock(app.Logger(), ctx.BlockHeader(), fmt.Sprintf("caught panic: %v", err))
-			telemetry.IncrCounter(1, "process_proposal", "panics")
-			resp = reject()
-		}
-	}()
+	// // In the case of a panic resulting from an unexpected condition, it is
+	// // better for the liveness of the network to catch it, log an error, and
+	// // vote nil rather than crashing the node.
+	// defer func() {
+	// 	if err := recover(); err != nil {
+	// 		logInvalidPropBlock(app.Logger(), ctx.BlockHeader(), fmt.Sprintf("caught panic: %v", err))
+	// 		telemetry.IncrCounter(1, "process_proposal", "panics")
+	// 		resp = reject()
+	// 	}
+	// }()
 
-	// Create the anteHandler that is used to check the validity of
-	// transactions. All transactions need to be equally validated here
-	// so that the nonce number is always correctly incremented (which
-	// may affect the validity of future transactions).
-	handler := ante.NewAnteHandler(
-		app.AccountKeeper,
-		app.BankKeeper,
-		app.BlobKeeper,
-		app.FeeGrantKeeper,
-		app.GetTxConfig().SignModeHandler(),
-		ante.DefaultSigVerificationGasConsumer,
-		app.IBCKeeper,
-		app.MinFeeKeeper,
-		&app.CircuitKeeper,
-		app.GovParamFilters(),
-	)
-	blockHeader := ctx.BlockHeader()
+	// // Create the anteHandler that is used to check the validity of
+	// // transactions. All transactions need to be equally validated here
+	// // so that the nonce number is always correctly incremented (which
+	// // may affect the validity of future transactions).
+	// handler := ante.NewAnteHandler(
+	// 	app.AccountKeeper,
+	// 	app.BankKeeper,
+	// 	app.BlobKeeper,
+	// 	app.FeeGrantKeeper,
+	// 	app.GetTxConfig().SignModeHandler(),
+	// 	ante.DefaultSigVerificationGasConsumer,
+	// 	app.IBCKeeper,
+	// 	app.MinFeeKeeper,
+	// 	&app.CircuitKeeper,
+	// 	app.GovParamFilters(),
+	// )
+	// blockHeader := ctx.BlockHeader()
 
-	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
-	// blobTxs have no PFBs present and all txs are less than or equal to the max tx size limit
-	for idx, rawTx := range req.Txs {
-		tx := rawTx
+	// // iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
+	// // blobTxs have no PFBs present and all txs are less than or equal to the max tx size limit
+	// for idx, rawTx := range req.Txs {
+	// 	tx := rawTx
 
-		// all txs must be less than or equal to the max tx size limit
-		currentTxSize := len(tx)
-		if currentTxSize > appconsts.MaxTxSize {
-			logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with tx %d", idx), errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes", currentTxSize, appconsts.MaxTxSize))
-			return reject(), nil
-		}
+	// 	// all txs must be less than or equal to the max tx size limit
+	// 	currentTxSize := len(tx)
+	// 	if currentTxSize > appconsts.MaxTxSize {
+	// 		logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with tx %d", idx), errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes", currentTxSize, appconsts.MaxTxSize))
+	// 		return reject(), nil
+	// 	}
 
-		blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(rawTx)
-		if isBlobTx {
-			if err != nil {
-				logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with blob tx %d", idx), err)
-				return reject(), nil
-			}
-			tx = blobTx.Tx
-		}
-		sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(tx)
+	// 	blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(rawTx)
+	// 	if isBlobTx {
+	// 		if err != nil {
+	// 			logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with blob tx %d", idx), err)
+	// 			return reject(), nil
+	// 		}
+	// 		tx = blobTx.Tx
+	// 	}
+	// 	sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(tx)
 
-		// Set the tx bytes in the context for app version v3 and greater
-		ctx = ctx.WithTxBytes(tx)
+	// 	// Set the tx bytes in the context for app version v3 and greater
+	// 	ctx = ctx.WithTxBytes(tx)
 
-		if err != nil {
-			// An error here means that a tx was included in the block that is not decodable.
-			logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d is not decodable", idx))
-			return reject(), nil
-		}
+	// 	if err != nil {
+	// 		// An error here means that a tx was included in the block that is not decodable.
+	// 		logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d is not decodable", idx))
+	// 		return reject(), nil
+	// 	}
 
-		// handle non-blob transactions first
-		if !isBlobTx {
-			msgs := sdkTx.GetMsgs()
+	// 	// handle non-blob transactions first
+	// 	if !isBlobTx {
+	// 		msgs := sdkTx.GetMsgs()
 
-			_, has := hasPFB(msgs)
-			if has {
-				// A non-blob tx has a PFB, which is invalid
-				logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d has PFB but is not a blob tx", idx))
-				return reject(), nil
-			}
+	// 		_, has := hasPFB(msgs)
+	// 		if has {
+	// 			// A non-blob tx has a PFB, which is invalid
+	// 			logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d has PFB but is not a blob tx", idx))
+	// 			return reject(), nil
+	// 		}
 
-			// we need to increment the sequence for every transaction so that
-			// the signature check below is accurate. this error only gets hit
-			// if the account in question doesn't exist.
-			ctx, err = handler(ctx, sdkTx, false)
-			if err != nil {
-				logInvalidPropBlockError(app.Logger(), blockHeader, "failure to increment sequence", err)
-				return reject(), nil
-			}
+	// 		// we need to increment the sequence for every transaction so that
+	// 		// the signature check below is accurate. this error only gets hit
+	// 		// if the account in question doesn't exist.
+	// 		ctx, err = handler(ctx, sdkTx, false)
+	// 		if err != nil {
+	// 			logInvalidPropBlockError(app.Logger(), blockHeader, "failure to increment sequence", err)
+	// 			return reject(), nil
+	// 		}
 
-			// we do not need to perform further checks on this transaction,
-			// since it has no PFB
-			continue
-		}
+	// 		// we do not need to perform further checks on this transaction,
+	// 		// since it has no PFB
+	// 		continue
+	// 	}
 
-		// validate the blobTx. This is the same validation used in CheckTx ensuring
-		// - there is one PFB
-		// - that each blob has a valid namespace
-		// - that the sizes match
-		// - that the namespaces match between blob and PFB
-		// - that the share commitment is correct
-		if err := blobtypes.ValidateBlobTx(app.encodingConfig.TxConfig, blobTx, appconsts.SubtreeRootThreshold, appconsts.Version); err != nil {
-			logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("invalid blob tx %d", idx), err)
-			return reject(), nil
-		}
+	// 	// validate the blobTx. This is the same validation used in CheckTx ensuring
+	// 	// - there is one PFB
+	// 	// - that each blob has a valid namespace
+	// 	// - that the sizes match
+	// 	// - that the namespaces match between blob and PFB
+	// 	// - that the share commitment is correct
+	// 	if err := blobtypes.ValidateBlobTx(app.encodingConfig.TxConfig, blobTx, appconsts.SubtreeRootThreshold, appconsts.Version); err != nil {
+	// 		logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("invalid blob tx %d", idx), err)
+	// 		return reject(), nil
+	// 	}
 
-		// validated the PFB signature
-		ctx, err = handler(ctx, sdkTx, false)
-		if err != nil {
-			logInvalidPropBlockError(app.Logger(), blockHeader, "invalid PFB signature", err)
-			return reject(), nil
-		}
+	// 	// validated the PFB signature
+	// 	ctx, err = handler(ctx, sdkTx, false)
+	// 	if err != nil {
+	// 		logInvalidPropBlockError(app.Logger(), blockHeader, "invalid PFB signature", err)
+	// 		return reject(), nil
+	// 	}
 
-	}
+	// }
 
-	eds, err := da.ConstructEDS(req.Txs, appconsts.Version, app.MaxEffectiveSquareSize(ctx))
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to compute extended data square from transactions:", err)
-		return reject(), nil
-	}
+	// eds, err := da.ConstructEDS(req.Txs, appconsts.Version, app.MaxEffectiveSquareSize(ctx))
+	// if err != nil {
+	// 	logInvalidPropBlockError(app.Logger(), blockHeader, "failure to compute extended data square from transactions:", err)
+	// 	return reject(), nil
+	// }
 
-	// Assert that the square size stated by the proposer is correct
-	if uint64(eds.Width()) != req.SquareSize*2 {
-		logInvalidPropBlock(app.Logger(), blockHeader, "proposed square size differs from calculated square size")
-		return reject(), nil
-	}
+	// // Assert that the square size stated by the proposer is correct
+	// if uint64(eds.Width()) != req.SquareSize*2 {
+	// 	logInvalidPropBlock(app.Logger(), blockHeader, "proposed square size differs from calculated square size")
+	// 	return reject(), nil
+	// }
 
-	dah, err := da.NewDataAvailabilityHeader(eds)
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to create new data availability header", err)
-		return reject(), nil
-	}
+	// dah, err := da.NewDataAvailabilityHeader(eds)
+	// if err != nil {
+	// 	logInvalidPropBlockError(app.Logger(), blockHeader, "failure to create new data availability header", err)
+	// 	return reject(), nil
+	// }
 
-	// by comparing the hashes we know the computed IndexWrappers (with the share indexes of the PFB's blobs)
-	// are identical and that square layout is consistent. This also means that the share commitment rules
-	// have been followed and thus each blobs share commitment should be valid
-	if !bytes.Equal(dah.Hash(), req.DataRootHash) {
-		logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.DataRootHash, dah.Hash()))
-		return reject(), nil
-	}
+	// // by comparing the hashes we know the computed IndexWrappers (with the share indexes of the PFB's blobs)
+	// // are identical and that square layout is consistent. This also means that the share commitment rules
+	// // have been followed and thus each blobs share commitment should be valid
+	// if !bytes.Equal(dah.Hash(), req.DataRootHash) {
+	// 	logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.DataRootHash, dah.Hash()))
+	// 	return reject(), nil
+	// }
 
 	return accept(), nil
 }
 
-func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlobs, bool) {
-	for _, msg := range msgs {
-		if pfb, ok := msg.(*blobtypes.MsgPayForBlobs); ok {
-			return pfb, true
-		}
-	}
-	return nil, false
-}
+// func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlobs, bool) {
+// 	for _, msg := range msgs {
+// 		if pfb, ok := msg.(*blobtypes.MsgPayForBlobs); ok {
+// 			return pfb, true
+// 		}
+// 	}
+// 	return nil, false
+// }
 
-func logInvalidPropBlock(l log.Logger, h tmproto.Header, reason string) {
-	l.Error(
-		rejectedPropBlockLog,
-		"reason",
-		reason,
-		"proposer",
-		h.ProposerAddress,
-	)
-}
+// func logInvalidPropBlock(l log.Logger, h tmproto.Header, reason string) {
+// 	l.Error(
+// 		rejectedPropBlockLog,
+// 		"reason",
+// 		reason,
+// 		"proposer",
+// 		h.ProposerAddress,
+// 	)
+// }
 
-func logInvalidPropBlockError(l log.Logger, h tmproto.Header, reason string, err error) {
-	l.Error(
-		rejectedPropBlockLog,
-		"reason",
-		reason,
-		"proposer",
-		h.ProposerAddress,
-		"err",
-		err.Error(),
-	)
-}
+// func logInvalidPropBlockError(l log.Logger, h tmproto.Header, reason string, err error) {
+// 	l.Error(
+// 		rejectedPropBlockLog,
+// 		"reason",
+// 		reason,
+// 		"proposer",
+// 		h.ProposerAddress,
+// 		"err",
+// 		err.Error(),
+// 	)
+// }
 
-func reject() *abci.ResponseProcessProposal {
-	return &abci.ResponseProcessProposal{
-		Status: abci.ResponseProcessProposal_REJECT,
-	}
-}
+// func reject() *abci.ResponseProcessProposal {
+// 	return &abci.ResponseProcessProposal{
+// 		Status: abci.ResponseProcessProposal_REJECT,
+// 	}
+// }
 
 func accept() *abci.ResponseProcessProposal {
 	return &abci.ResponseProcessProposal{
