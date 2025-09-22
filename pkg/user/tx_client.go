@@ -649,14 +649,12 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				Code:   resp.ExecutionCode,
 			}
 			if resp.ExecutionCode != abci.CodeTypeOK {
-				span.AddEvent("txclient: execution error", trace.WithAttributes(
-					attribute.String("error", resp.Error),
-				))
 				executionErr := &ExecutionError{
 					TxHash:   txHash,
 					Code:     resp.ExecutionCode,
 					ErrorLog: resp.Error,
 				}
+				span.RecordError(fmt.Errorf("execution error: %w", resp.Error))
 				client.deleteFromTxTracker(txHash)
 				return nil, executionErr
 			}
@@ -675,7 +673,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				break
 			}
 
-			span.AddEvent("txclient: transaction evicted, attempting resubmission", trace.WithAttributes(
+			span.AddEvent("txclient/ConfirmTx: transaction evicted, attempting resubmission", trace.WithAttributes(
 				attribute.String("tx_hash", txHash),
 			))
 
@@ -694,9 +692,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			}
 			span.AddEvent("txclient/ConfirmTx: transaction resubmitted successfully after eviction")
 		case core.TxStatusRejected:
-			span.AddEvent("txclient: transaction rejected", trace.WithAttributes(
-				attribute.String("error", resp.Error),
-			))
+			span.RecordError(fmt.Errorf("transaction rejected: %s", resp.Error))
 			sequence, signer, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
@@ -709,7 +705,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			client.deleteFromTxTracker(txHash)
 			return nil, fmt.Errorf("tx with hash %s was rejected by the node with execution code %d", txHash, resp.ExecutionCode)
 		default:
-			span.AddEvent("txclient: unknown tx")
+			span.RecordError(fmt.Errorf("unknown tx: %s", txHash))
 			client.deleteFromTxTracker(txHash)
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
