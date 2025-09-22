@@ -86,7 +86,7 @@ func TestResizeableBufferTree_WithPoolReuse(t *testing.T) {
 }
 
 func TestComputeExtendedDataSquare_WithAndWithoutPool(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	testSquareSize := func(t *testing.T, sizes []int, pool *TreePool) {
 		for _, squareSize := range sizes {
 			t.Run(fmt.Sprintf("size_%d", squareSize), func(t *testing.T) {
@@ -99,7 +99,7 @@ func TestComputeExtendedDataSquare_WithAndWithoutPool(t *testing.T) {
 	genRandomSizes := func(size, max int) []int {
 		sizes := make([]int, size)
 		for i := range sizes {
-			sizes[i] = rand.Intn(max) + 1
+			sizes[i] = rng.Intn(max) + 1
 		}
 		return sizes
 	}
