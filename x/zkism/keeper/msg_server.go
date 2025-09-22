@@ -81,7 +81,12 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 		return nil, err
 	}
 
-	if err := types.VerifyGroth16(ctx, ism.Groth16Vkey, ism.StateTransitionVkey, msg.Proof, msg.PublicValues); err != nil {
+	verifier, err := types.NewSP1Groth16Verifier(ism.Groth16Vkey)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := verifier.VerifyProof(msg.Proof, ism.StateTransitionVkey, msg.PublicValues); err != nil {
 		return nil, err
 	}
 
@@ -113,7 +118,12 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 		return nil, fmt.Errorf("invalid state root: expected %x, got %x", ism.StateRoot, publicValues.StateRoot)
 	}
 
-	if err := types.VerifyGroth16(ctx, ism.Groth16Vkey, ism.StateMembershipVkey, msg.Proof, msg.PublicValues); err != nil {
+	verifier, err := types.NewSP1Groth16Verifier(ism.Groth16Vkey)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := verifier.VerifyProof(msg.Proof, ism.StateMembershipVkey, msg.PublicValues); err != nil {
 		return nil, err
 	}
 
