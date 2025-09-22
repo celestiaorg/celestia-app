@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v6/app"
@@ -22,7 +23,7 @@ import (
 )
 
 const (
-	defaultEndpoint     = "localhost:9090"
+	defaultEndpoint     = "localhost:9091"
 	defaultKeyringDir   = "~/.celestia-app"
 	defaultBlobSize     = 7 * 1024 * 1024 // bytes
 	defaultConcurrency  = 1               // number of concurrent blob submissions
@@ -78,12 +79,12 @@ func runBlobSubmitter(cmd *cobra.Command, args []string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Handle interrupt signal
+	// Handle interrupt and termination signals
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	go func() {
-		<-sigChan
-		fmt.Println("\nReceived interrupt signal, stopping...")
+		sig := <-sigChan
+		fmt.Printf("\nReceived %s signal, stopping...\n", sig)
 		cancel()
 	}()
 
@@ -144,8 +145,8 @@ func runBlobSubmitter(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("Starting blob submissions...")
 
-	// Channel for submission results
-	results := make(chan *submissionResult, concurrency*10)
+	// Channel for submission results - limit buffer to prevent memory accumulation
+	results := make(chan *submissionResult, concurrency*2)
 
 	// WaitGroup for tracking goroutines
 	var wg sync.WaitGroup
@@ -175,7 +176,12 @@ func runBlobSubmitter(cmd *cobra.Command, args []string) error {
 
 	// Wait for interrupt or context cancellation
 	wg.Wait()
+
+	// Close results channel and drain any remaining items to prevent goroutine leaks
 	close(results)
+
+	// Brief pause to allow confirmation worker to process remaining results
+	time.Sleep(200 * time.Millisecond)
 
 	// Print final stats
 	fmt.Printf("\nFinal stats:\n")
@@ -188,24 +194,29 @@ func runBlobSubmitter(cmd *cobra.Command, args []string) error {
 
 func submissionWorker(ctx context.Context, workerID int, txClient *user.TxClient, namespace share.Namespace, results chan<- *submissionResult) {
 	counter := 0
+	baseDelay := 100 * time.Millisecond
+	maxDelay := 5 * time.Second
+	currentDelay := baseDelay
+
+	ticker := time.NewTicker(baseDelay)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		default:
+		case <-ticker.C:
 			counter++
 
 			// Create random blob data
 			blobData := make([]byte, blobSize)
 			if _, err := rand.Read(blobData); err != nil {
-				atomic.AddInt64(&runStats.failed, 1)
-				continue
+				panic(err)
 			}
 
 			blob, err := share.NewBlob(namespace, blobData, 0, nil)
 			if err != nil {
-				atomic.AddInt64(&runStats.failed, 1)
-				continue
+				panic(err)
 			}
 
 			submitTime := time.Now()
@@ -221,21 +232,30 @@ func submissionWorker(ctx context.Context, workerID int, txClient *user.TxClient
 			if err != nil {
 				atomic.AddInt64(&runStats.failed, 1)
 				fmt.Printf("Worker %d-%d: Failed to submit blob: %v\n", workerID, counter, err)
+				// Exponential backoff on errors
+				currentDelay = time.Duration(float64(currentDelay) * 1.5)
+				if currentDelay > maxDelay {
+					currentDelay = maxDelay
+				}
 			} else {
 				result.txHash = resp.TxHash
 				atomic.AddInt64(&runStats.submitted, 1)
 				fmt.Printf("Worker %d-%d: Submitted blob, txHash: %s\n", workerID, counter, resp.TxHash)
+				// Reset delay on success
+				currentDelay = baseDelay
 			}
 
-			// Send result to confirmation worker
+			ticker.Reset(currentDelay)
+
+			// Send result to confirmation worker (non-blocking)
 			select {
 			case results <- result:
 			case <-ctx.Done():
 				return
+			default:
+				// If results channel is full, skip this result to prevent blocking
+				fmt.Printf("Worker %d-%d: Results channel full, dropping result\n", workerID, counter)
 			}
-
-			// Small delay to prevent overwhelming the network
-			time.Sleep(100 * time.Millisecond)
 		}
 	}
 }
@@ -258,21 +278,70 @@ func statsReporter(ctx context.Context) {
 }
 
 func confirmationWorker(ctx context.Context, txClient *user.TxClient, results <-chan *submissionResult) {
+	// Limit concurrent confirmations to prevent goroutine leak
+	const maxConcurrentConfirmations = 50
+	semaphore := make(chan struct{}, maxConcurrentConfirmations)
+	var confirmWg sync.WaitGroup
+
+	defer func() {
+		// Wait for all confirmation goroutines to complete with timeout
+		done := make(chan struct{})
+		go func() {
+			confirmWg.Wait()
+			close(done)
+		}()
+
+		select {
+		case <-done:
+			// All goroutines completed normally
+		case <-time.After(2 * time.Second):
+			// Force exit after timeout
+			fmt.Println("Timeout waiting for confirmation goroutines, forcing exit...")
+		}
+	}()
+
 	for result := range results {
 		if result.err != nil || result.txHash == "" {
 			continue
 		}
 
-		// Start a goroutine for each transaction confirmation
+		// Acquire semaphore slot
+		select {
+		case semaphore <- struct{}{}:
+		case <-ctx.Done():
+			return
+		}
+
+		confirmWg.Add(1)
 		go func(r *submissionResult) {
+			defer func() {
+				<-semaphore // Release semaphore slot
+				confirmWg.Done()
+			}()
+
+			// Create a timeout context for confirmation to prevent hanging
+			confirmCtx, confirmCancel := context.WithTimeout(ctx, 30*time.Second)
+			defer confirmCancel()
+
+			// Check if main context is already cancelled
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
 			// Use the real ConfirmTx method to check if transaction was included
-			txResp, err := txClient.ConfirmTx(ctx, r.txHash)
+			txResp, err := txClient.ConfirmTx(confirmCtx, r.txHash)
 
 			confirmTime := time.Now()
 			r.confirmTime = &confirmTime
 			latency := confirmTime.Sub(r.submitTime)
 
 			if err != nil {
+				// Check if error is due to context cancellation
+				if confirmCtx.Err() != nil {
+					return // Silent exit on cancellation
+				}
 				fmt.Printf("Failed to confirm %s: %v (latency: %v)\n", r.txHash, err, latency)
 				return
 			}
