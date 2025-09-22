@@ -353,6 +353,68 @@ func TestEvictions(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, txInfo.Status, core.TxStatusCommitted)
 	}
+
+	t.Run("gets nonce mismatch during eviction and gets confirmed in the meantime", func(t *testing.T) {
+		expectedTxHash := "test-tx-hash-123" // This matches what our mock server returns
+
+		// Happy path: PENDING -> EVICTED -> COMMITTED
+		responseSequences := map[string][]*tx.TxStatusResponse{
+			expectedTxHash: {
+				{Status: core.TxStatusPending},
+				{Status: core.TxStatusEvicted},
+				{Status: core.TxStatusEvicted},
+				{Status: core.TxStatusEvicted},
+				{Status: core.TxStatusCommitted, Height: 102, ExecutionCode: 0},
+			},
+		}
+
+		mockTxClient, conn := setupTxClientWithMockGRPCServer(t, responseSequences, user.WithPollTime(1*time.Second))
+		defer conn.Close()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		blobs := blobfactory.ManyRandBlobs(random.New(), 1, 1)
+		resp, err := mockTxClient.BroadcastPayForBlob(ctx, blobs, user.SetFee(1), user.SetGasLimit(1))
+		require.NoError(t, err)
+		require.Equal(t, resp.Code, abci.CodeTypeOK)
+		require.Equal(t, resp.TxHash, expectedTxHash)
+
+		response, err := mockTxClient.ConfirmTx(ctx, resp.TxHash)
+		require.NoError(t, err)
+		require.Equal(t, response.TxHash, resp.TxHash)
+		require.Equal(t, response.Code, abci.CodeTypeOK)
+	})
+
+	t.Run("gets nonce mismatch during eviction and hits eviction poll timeout", func(t *testing.T) {
+		expectedTxHash := "test-tx-hash-123"
+
+		// Transaction will get evicted and then resubmitted with nonce mismatch error
+		// Define response sequence: PENDING -> EVICTED -> Sequence mismatch -> EVICTED -> Eviction Poll Timeout
+		// Responses will return evicted until the eviction poll timeout is reached
+		responseSequences := map[string][]*tx.TxStatusResponse{
+			expectedTxHash: {
+				{Status: core.TxStatusPending}, // 1st call
+				{Status: core.TxStatusEvicted}, // 2nd call
+				{Status: core.TxStatusEvicted}, // 3rd and following calls
+			},
+		}
+
+		mockTxClient, conn := setupTxClientWithMockGRPCServer(t, responseSequences, user.WithPollTime(5*time.Second))
+		defer conn.Close()
+
+		ctx := context.Background()
+
+		blobs := blobfactory.ManyRandBlobs(random.New(), 1, 1)
+		resp, err := mockTxClient.BroadcastPayForBlob(ctx, blobs, user.SetFee(1), user.SetGasLimit(1))
+		require.NoError(t, err)
+		require.Equal(t, resp.Code, abci.CodeTypeOK)
+		require.Equal(t, resp.TxHash, expectedTxHash)
+
+		_, err = mockTxClient.ConfirmTx(ctx, resp.TxHash)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "eviction poll timeout")
+	})
 }
 
 // TestWithEstimatorService ensures that if the WithEstimatorService
