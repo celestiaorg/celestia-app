@@ -654,7 +654,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 					Code:     resp.ExecutionCode,
 					ErrorLog: resp.Error,
 				}
-				span.RecordError(fmt.Errorf("execution error: %w", resp.Error))
+				span.RecordError(fmt.Errorf("execution error: %s", resp.Error))
 				client.deleteFromTxTracker(txHash)
 				return nil, executionErr
 			}
