@@ -32,13 +32,13 @@ type SP1Groth16Verifier struct {
 // the hash prefix used to validate proofs.
 //
 // Returns an error if the verifying key cannot be parsed.
-func NewSP1Groth16Verifier(groth16Vk []byte) (*SP1Groth16Verifier, error) {
-	vk, err := groth16.NewVerifyingKey(groth16Vk)
+func NewSP1Groth16Verifier(vkBytes []byte) (*SP1Groth16Verifier, error) {
+	vk, err := groth16.NewVerifyingKey(vkBytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new verifying key: %w", err)
 	}
 
-	vkHash := sha256.Sum256(groth16Vk)
+	vkHash := sha256.Sum256(vkBytes)
 	var prefix [PrefixLen]byte
 	copy(prefix[:], vkHash[:PrefixLen])
 
