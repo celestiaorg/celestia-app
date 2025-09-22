@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -474,6 +475,160 @@ func listCmd() *cobra.Command {
 				// set the page we want for the next request
 				opts.Page = page + 1
 			}
+
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory in which to initialize")
+	cmd.Flags().StringVarP(&cfgPath, "config", "c", "config.json", "name of the config")
+	cmd.Flags().StringVarP(&DOAPIToken, "do-api-token", "t", "", "digital ocean api token (defaults to config or env)")
+
+	return cmd
+}
+
+func syncCmd() *cobra.Command {
+	var rootDir string
+	var cfgPath string
+	var DOAPIToken string
+
+	cmd := &cobra.Command{
+		Use:   "sync",
+		Short: "Syncs config.json with running DigitalOcean droplets",
+		Long:  "Queries all DigitalOcean droplets with the 'talis' tag and updates config.json with their current IP addresses",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := LoadConfig(rootDir)
+			if err != nil {
+				return fmt.Errorf("failed to load config: %w", err)
+			}
+
+			// overwrite the config values if flags or env vars are set
+			// flag > env > config
+			cfg.DigitalOceanToken = resolveValue(DOAPIToken, EnvVarDigitalOceanToken, cfg.DigitalOceanToken)
+
+			client, err := NewClient(cfg)
+			if err != nil {
+				return fmt.Errorf("failed to create client: %w", err)
+			}
+
+			// Get all droplets from DigitalOcean
+			var allDroplets []godo.Droplet
+			opts := &godo.ListOptions{}
+			for {
+				droplets, resp, err := client.do.Droplets.List(cmd.Context(), opts)
+				if err != nil {
+					return fmt.Errorf("failed to list droplets: %w", err)
+				}
+				allDroplets = append(allDroplets, droplets...)
+
+				// if we are at the last page, break out the for loop
+				if resp.Links == nil || resp.Links.IsLastPage() {
+					break
+				}
+				page, err := resp.Links.CurrentPage()
+				if err != nil {
+					return fmt.Errorf("failed to paginate droplets list: %w", err)
+				}
+
+				// set the page we want for the next request
+				opts.Page = page + 1
+			}
+
+			// Filter droplets that have the "talis" tag
+			var talisDroplets []godo.Droplet
+			for _, droplet := range allDroplets {
+				if slices.Contains(droplet.Tags, "talis") {
+					talisDroplets = append(talisDroplets, droplet)
+				}
+			}
+
+			fmt.Printf("Found %d talis droplets in DigitalOcean\n", len(talisDroplets))
+
+			// Track sync results
+			var syncedCount int
+			var unmatchedDroplets []godo.Droplet
+			var unmatchedConfigInstances []Instance
+
+			// Create a map of droplet names to droplets for quick lookup
+			dropletMap := make(map[string]godo.Droplet)
+			for _, droplet := range talisDroplets {
+				dropletMap[droplet.Name] = droplet
+			}
+
+			// Check validators
+			for i, instance := range cfg.Validators {
+				if droplet, exists := dropletMap[instance.Name]; exists {
+					// Get IP addresses from droplet
+					publicIP := ""
+					privateIP := ""
+					if len(droplet.Networks.V4) > 0 {
+						for _, network := range droplet.Networks.V4 {
+							if network.Type == "public" && publicIP == "" {
+								publicIP = network.IPAddress
+							}
+							if network.Type == "private" && privateIP == "" {
+								privateIP = network.IPAddress
+							}
+						}
+					}
+
+					// Update config if IPs have changed
+					if instance.PublicIP != publicIP || instance.PrivateIP != privateIP {
+						cfg.Validators[i].PublicIP = publicIP
+						cfg.Validators[i].PrivateIP = privateIP
+						fmt.Printf("Synced %s: %s (was: %s)\n", instance.Name, publicIP, instance.PublicIP)
+						syncedCount++
+					} else {
+						fmt.Printf("%s: already up-to-date (%s)\n", instance.Name, publicIP)
+					}
+
+					// Remove from droplet map to track processed droplets
+					delete(dropletMap, instance.Name)
+				} else {
+					unmatchedConfigInstances = append(unmatchedConfigInstances, instance)
+				}
+			}
+
+			// Remaining droplets in the map are unmatched
+			for _, droplet := range dropletMap {
+				unmatchedDroplets = append(unmatchedDroplets, droplet)
+			}
+
+			// Save updated config if any changes were made
+			if syncedCount > 0 {
+				if err := cfg.Save(rootDir); err != nil {
+					return fmt.Errorf("failed to save config: %w", err)
+				}
+				fmt.Printf("\nConfig saved with %d updates\n", syncedCount)
+			}
+
+			// Report unmatched instances
+			if len(unmatchedConfigInstances) > 0 {
+				fmt.Printf("\nConfig instances not found in DigitalOcean:\n")
+				for _, instance := range unmatchedConfigInstances {
+					fmt.Printf("  - %s (type: %s)\n", instance.Name, instance.NodeType)
+				}
+			}
+
+			// Report unmatched droplets
+			if len(unmatchedDroplets) > 0 {
+				fmt.Printf("\nDigitalOcean droplets not found in config:\n")
+				for _, droplet := range unmatchedDroplets {
+					publicIP := ""
+					if len(droplet.Networks.V4) > 0 {
+						for _, network := range droplet.Networks.V4 {
+							if network.Type == "public" && publicIP == "" {
+								publicIP = network.IPAddress
+								break
+							}
+						}
+					}
+					fmt.Printf("  - %s (%s, region: %s)\n", droplet.Name, publicIP, droplet.Region.Slug)
+				}
+			}
+
+			fmt.Printf("\nSync completed: %d instances updated, %d unmatched config instances, %d unmatched droplets\n",
+				syncedCount, len(unmatchedConfigInstances), len(unmatchedDroplets))
 
 			return nil
 		},

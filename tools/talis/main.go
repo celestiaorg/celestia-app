@@ -22,6 +22,7 @@ func main() {
 		initCmd(),
 		statusCmd(),
 		listCmd(),
+		syncCmd(),
 		upCmd(),
 		downCmd(),
 		deployCmd(),
