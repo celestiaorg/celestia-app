@@ -17,6 +17,7 @@ type TreePool struct {
 	poolSize      int
 }
 
+// DefaultPreallocatedTreePool creates a new TreePool with a default pool size
 func DefaultPreallocatedTreePool(squareSize uint) *TreePool {
 	return NewTreePool(squareSize, runtime.NumCPU()*4)
 }
