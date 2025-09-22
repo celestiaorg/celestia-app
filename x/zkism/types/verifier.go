@@ -35,7 +35,7 @@ type SP1Groth16Verifier struct {
 func NewSP1Groth16Verifier(groth16Vk []byte) (*SP1Groth16Verifier, error) {
 	vk, err := groth16.NewVerifyingKey(groth16Vk)
 	if err != nil {
-		return nil, fmt.Errorf("new verifying key: %w", err)
+		return nil, fmt.Errorf("failed to create new verifying key: %w", err)
 	}
 
 	vkHash := sha256.Sum256(groth16Vk)
@@ -59,7 +59,7 @@ func (v *SP1Groth16Verifier) Prefix() []byte {
 // Returns nil if the proof is valid, or an error otherwise.
 func (v *SP1Groth16Verifier) VerifyProof(proofBz, programVk, publicValues []byte) error {
 	if len(proofBz) != (PrefixLen + ProofSize) {
-		return fmt.Errorf("proof too short: expected %d, got %d", len(proofBz), (PrefixLen + ProofSize))
+		return fmt.Errorf("invalid proof length: expected %d, got %d", len(proofBz), (PrefixLen + ProofSize))
 	}
 
 	if !bytes.Equal(v.Prefix(), proofBz[:PrefixLen]) {
@@ -68,7 +68,7 @@ func (v *SP1Groth16Verifier) VerifyProof(proofBz, programVk, publicValues []byte
 
 	proof, err := groth16.UnmarshalProof(proofBz[PrefixLen:])
 	if err != nil {
-		return fmt.Errorf("unmarshal proof: %w", err)
+		return fmt.Errorf("failed to unmarshal proof: %w", err)
 	}
 
 	vkCommitment := new(big.Int).SetBytes(programVk)
@@ -81,7 +81,7 @@ func (v *SP1Groth16Verifier) VerifyProof(proofBz, programVk, publicValues []byte
 	}
 
 	if err := groth16.VerifyProof(proof, v.vk, pubWitness); err != nil {
-		return fmt.Errorf("verify proof: %w", err)
+		return fmt.Errorf("failed to verify proof: %w", err)
 	}
 
 	return nil
