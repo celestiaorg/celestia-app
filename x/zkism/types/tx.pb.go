@@ -465,7 +465,7 @@ const _ = grpc.SupportPackageIsVersion4
 type MsgClient interface {
 	// CreateZKExecutionISM defines the rpc method for creating a new ZK execution ISM.
 	CreateZKExecutionISM(ctx context.Context, in *MsgCreateZKExecutionISM, opts ...grpc.CallOption) (*MsgCreateZKExecutionISMResponse, error)
-	// UpdateZKExecutionISM defines the rpc method for updating a new ZK execution ISM.
+	// UpdateZKExecutionISM defines the rpc method for updating an existing ZK execution ISM.
 	UpdateZKExecutionISM(ctx context.Context, in *MsgUpdateZKExecutionISM, opts ...grpc.CallOption) (*MsgUpdateZKExecutionISMResponse, error)
 	// UpdateParams defines the rpc method for updating the module parameters.
 	UpdateParams(ctx context.Context, in *MsgUpdateParams, opts ...grpc.CallOption) (*MsgUpdateParamsResponse, error)
@@ -510,7 +510,7 @@ func (c *msgClient) UpdateParams(ctx context.Context, in *MsgUpdateParams, opts 
 type MsgServer interface {
 	// CreateZKExecutionISM defines the rpc method for creating a new ZK execution ISM.
 	CreateZKExecutionISM(context.Context, *MsgCreateZKExecutionISM) (*MsgCreateZKExecutionISMResponse, error)
-	// UpdateZKExecutionISM defines the rpc method for updating a new ZK execution ISM.
+	// UpdateZKExecutionISM defines the rpc method for updating an existing ZK execution ISM.
 	UpdateZKExecutionISM(context.Context, *MsgUpdateZKExecutionISM) (*MsgUpdateZKExecutionISMResponse, error)
 	// UpdateParams defines the rpc method for updating the module parameters.
 	UpdateParams(context.Context, *MsgUpdateParams) (*MsgUpdateParamsResponse, error)
