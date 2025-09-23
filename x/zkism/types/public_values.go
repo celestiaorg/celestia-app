@@ -84,7 +84,7 @@ func (pi *StateTransitionPublicValues) Marshal() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Unmarshal decodes a bincode-serialized PublicInputs struct.
+// Unmarshal decodes a bincode-serialized StateTransitionPublicInputs struct.
 // This function expects the input byte slice to be encoded using Rust bincode's
 // default configuration: (little-endian, fixed-width integers, length-prefixed slices).
 func (pi *StateTransitionPublicValues) Unmarshal(data []byte) error {
@@ -125,11 +125,16 @@ func (pi *StateTransitionPublicValues) Unmarshal(data []byte) error {
 	return nil
 }
 
+// StateMembershipPublicValues are the set of proof public values used when verifying state membership inclusion of
+// Hyperlane messages.
 type StateMembershipPublicValues struct {
 	StateRoot  [32]byte
 	MessageIds [][32]byte
 }
 
+// Unmarshal decodes a bincode-serialized StateMembershipPublicValues struct.
+// This function expects the input byte slice to be encoded using Rust bincode's
+// default configuration: (little-endian, fixed-width integers, length-prefixed slices).
 func (m *StateMembershipPublicValues) Unmarshal(data []byte) error {
 	buf := bytes.NewReader(data)
 

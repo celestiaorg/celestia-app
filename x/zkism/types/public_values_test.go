@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPublicValuesMarshalUnmarshal(t *testing.T) {
+func TestStateTransitionPublicValuesEncoding(t *testing.T) {
 	expected := types.StateTransitionPublicValues{
 		CelestiaHeaderHash: [32]byte{0x01},
 		TrustedHeight:      123,
@@ -35,7 +35,7 @@ func TestPublicValuesMarshalUnmarshal(t *testing.T) {
 	require.Equal(t, expected.PublicKey, decoded.PublicKey)
 }
 
-func TestPublicValuesUnmarshalTrailingData(t *testing.T) {
+func TestStateTransitionPublicValuesTrailingData(t *testing.T) {
 	pubInputs := types.StateTransitionPublicValues{
 		CelestiaHeaderHash: [32]byte{0x01},
 		TrustedHeight:      1,

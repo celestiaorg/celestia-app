@@ -73,7 +73,7 @@ func (k *Keeper) Exists(ctx context.Context, ismId util.HexAddress) (bool, error
 }
 
 // Verify implements hyperlane util.InterchainSecurityModule.
-// TODO: Refactor this method to check for authorized messages in kv store (Follow up PR).
+// TODO: Refactor this method to check for authorized messages in kv store.
 func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, metadata []byte, message util.HyperlaneMessage) (bool, error) {
 	ism, err := k.isms.Get(ctx, ismId.GetInternalId())
 	if err != nil {

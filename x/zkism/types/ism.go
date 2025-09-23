@@ -94,3 +94,36 @@ func (ism *ZKExecutionISM) verifyZKStateInclusion(_ ZkExecutionISMMetadata, _ ut
 	// TODO: https://github.com/celestiaorg/celestia-app/issues/4723
 	return true, nil
 }
+
+// TODO: remove ism arg and add two vars for groth16 vkey and state transition/membership vkey
+func VerifyGroth16(ctx context.Context, groth16Vkey, programVkey, proofBz, publicValues []byte) error {
+	groth16VkHash := sha256.Sum256(groth16Vkey)
+	if !bytes.Equal(groth16VkHash[:4], proofBz[:4]) {
+		return fmt.Errorf("prefix mismatch: first 4 bytes of verifier key hash (%x) do not match proof prefix (%x)", groth16VkHash[:4], proofBz[:4])
+	}
+
+	proof, err := groth16.UnmarshalProof(proofBz[4:])
+	if err != nil {
+		return err
+	}
+
+	vk, err := groth16.NewVerifyingKey(groth16Vkey)
+	if err != nil {
+		return err
+	}
+
+	vkeyCommitment := new(big.Int).SetBytes(programVkey)
+	vkeyElement := groth16.NewBN254FrElement(vkeyCommitment)
+	inputsElement := groth16.NewBN254FrElement(groth16.HashBN254(publicValues))
+
+	pubWitness, err := groth16.NewPublicWitness(vkeyElement, inputsElement)
+	if err != nil {
+		return err
+	}
+
+	if err := groth16.VerifyProof(proof, vk, pubWitness); err != nil {
+		return fmt.Errorf("failed to verify proof: %w", err)
+	}
+
+	return nil
+}
