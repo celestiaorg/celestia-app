@@ -11,6 +11,8 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 	registry.RegisterImplementations(
 		(*sdk.Msg)(nil),
 		&MsgCreateZKExecutionISM{},
+		&MsgUpdateZKExecutionISM{},
+		&MsgSubmitMessages{},
 		&MsgUpdateParams{},
 	)
 
