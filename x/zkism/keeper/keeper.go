@@ -80,7 +80,7 @@ func (k *Keeper) Exists(ctx context.Context, ismId util.HexAddress) (bool, error
 }
 
 // Verify implements hyperlane util.InterchainSecurityModule.
-func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, metadata []byte, message util.HyperlaneMessage) (bool, error) {
+func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, _ []byte, message util.HyperlaneMessage) (bool, error) {
 	ism, err := k.isms.Get(ctx, ismId.GetInternalId())
 	if err != nil {
 		return false, errorsmod.Wrap(types.ErrIsmNotFound, err.Error())

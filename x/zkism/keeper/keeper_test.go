@@ -129,3 +129,72 @@ func readStateMembershipProofData(t *testing.T) ([]byte, []byte) {
 
 	return proofBz, inputsBz
 }
+
+func (suite *KeeperTestSuite) TestVerify() {
+	ism := suite.CreateTestIsm([]byte("trusted_root"))
+
+	message := util.HyperlaneMessage{
+		Nonce: uint32(1234),
+	}
+
+	testCases := []struct {
+		name       string
+		ismId      util.HexAddress
+		message    util.HyperlaneMessage
+		authorized bool
+		expError   error
+	}{
+		{
+			name:       "success",
+			ismId:      ism.Id,
+			message:    message,
+			authorized: true,
+			expError:   nil,
+		},
+		{
+			name:       "ism not found",
+			ismId:      util.HexAddress{},
+			message:    message,
+			authorized: false,
+			expError:   types.ErrIsmNotFound,
+		},
+		{
+			name:       "empty message",
+			ismId:      ism.Id,
+			message:    util.HyperlaneMessage{},
+			authorized: false,
+			expError:   nil,
+		},
+		{
+			name:       "message id does not exist",
+			ismId:      ism.Id,
+			message:    util.HyperlaneMessage{Nonce: uint32(10)},
+			authorized: false,
+			expError:   nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			err := suite.zkISMKeeper.SetMessageId(suite.ctx, message.Id().Bytes())
+			suite.Require().NoError(err)
+
+			authorized, err := suite.zkISMKeeper.Verify(suite.ctx, tc.ismId, nil, tc.message)
+
+			if tc.expError != nil {
+				suite.Require().Error(err)
+				suite.Require().ErrorIs(err, tc.expError)
+			} else {
+				suite.Require().Equal(tc.authorized, authorized)
+				suite.Require().NoError(err)
+
+				if authorized {
+					// assert that the message id has been pruned from the store
+					has, err := suite.zkISMKeeper.HasMessageId(suite.ctx, message.Id().Bytes())
+					suite.Require().NoError(err)
+					suite.Require().False(has, "unexpected message id in store")
+				}
+			}
+		})
+	}
+}
