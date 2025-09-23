@@ -7,9 +7,11 @@ import (
 	"cosmossdk.io/collections"
 	corestore "cosmossdk.io/core/store"
 	errorsmod "cosmossdk.io/errors"
+	"cosmossdk.io/log"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
 	"github.com/cosmos/cosmos-sdk/codec"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 var _ util.InterchainSecurityModule = (*Keeper)(nil)
@@ -56,6 +58,11 @@ func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlane
 	return keeper
 }
 
+// Logger returns the module logger extracted using the sdk context.
+func (k *Keeper) Logger(ctx context.Context) log.Logger {
+	return sdk.UnwrapSDKContext(ctx).Logger().With("module", "x/"+types.ModuleName)
+}
+
 // GetHeaderHash retrieves the block header hash for the provided height.
 func (k *Keeper) GetHeaderHash(ctx context.Context, height uint64) ([]byte, error) {
 	return k.headers.Get(ctx, height)
@@ -73,40 +80,29 @@ func (k *Keeper) Exists(ctx context.Context, ismId util.HexAddress) (bool, error
 }
 
 // Verify implements hyperlane util.InterchainSecurityModule.
-// TODO: Refactor this method to check for authorized messages in kv store.
-func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, metadata []byte, message util.HyperlaneMessage) (bool, error) {
+func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, _ []byte, message util.HyperlaneMessage) (bool, error) {
 	ism, err := k.isms.Get(ctx, ismId.GetInternalId())
 	if err != nil {
-		return false, err
+		return false, errorsmod.Wrap(types.ErrIsmNotFound, err.Error())
 	}
 
-	meta, err := types.NewZkExecutionISMMetadata(metadata)
+	k.Logger(ctx).Info("processing message", "id", message.Id().String(), "ism", ism.Id.String())
+
+	authorized, err := k.messages.Has(ctx, message.Id().Bytes())
 	if err != nil {
 		return false, err
 	}
 
-	if err := k.validatePublicValues(ctx, meta.Height, ism, meta.PublicValues); err != nil {
-		return false, err
-	}
-
-	verified, err := ism.Verify(ctx, metadata, message)
-	if err != nil {
-		return false, err
-	}
-
-	if verified {
-		ism.Height = meta.PublicValues.NewHeight
-		ism.StateRoot = meta.PublicValues.NewStateRoot[:]
-
-		if err := k.isms.Set(ctx, ismId.GetInternalId(), ism); err != nil {
+	if authorized {
+		if err := k.messages.Remove(ctx, message.Id().Bytes()); err != nil {
 			return false, err
 		}
 	}
 
-	return verified, nil
+	return authorized, nil
 }
 
-func (k *Keeper) validatePublicValues(ctx context.Context, height uint64, ism types.ZKExecutionISM, publicValues types.StateTransitionPublicValues) error {
+func (k *Keeper) validatePublicValues(ctx context.Context, height uint64, ism types.ZKExecutionISM, publicValues types.EvExecutionPublicValues) error {
 	headerHash, err := k.GetHeaderHash(ctx, height)
 	if err != nil {
 		return errorsmod.Wrapf(types.ErrHeaderHashNotFound, "failed to get header for height %d", height)

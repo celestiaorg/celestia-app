@@ -1,16 +1,12 @@
 package types
 
 import (
-	"bytes"
 	"context"
-	"crypto/sha256"
 	"errors"
-	"fmt"
-	"math/big"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	ismtypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/01_interchain_security/types"
-	"github.com/celestiaorg/celestia-app/v6/x/zkism/internal/groth16"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 const (
@@ -34,96 +30,8 @@ func (ism *ZKExecutionISM) ModuleType() uint8 {
 }
 
 // Verify implements types.HyperlaneInterchainSecurityModule.
-// TODO: follow up PR, refactor/remove this code from here
+// NOTE: The following method returns an ErrNotSupported error as this method is implemented primarily to satisfy the ISM interface.
+// ISM verification is performed exclusively through the x/zkism keeper entrypoint. This method should never be called by integration points.
 func (ism *ZKExecutionISM) Verify(ctx context.Context, metadata []byte, message util.HyperlaneMessage) (bool, error) {
-	zkProofMetadata, err := NewZkExecutionISMMetadata(metadata)
-	if err != nil {
-		return false, err
-	}
-
-	if zkProofMetadata.HasExecutionProof() {
-		verified, err := ism.verifyZKStateTransition(zkProofMetadata)
-		if err != nil || !verified {
-			return false, err
-		}
-	}
-
-	return ism.verifyZKStateInclusion(zkProofMetadata, message)
-}
-
-// verifyZKStateTransition verifies a ZK proof to update the ISM's state root and height.
-func (ism *ZKExecutionISM) verifyZKStateTransition(metadata ZkExecutionISMMetadata) (bool, error) {
-	groth16VkHash := sha256.Sum256(ism.Groth16Vkey)
-	if !bytes.Equal(groth16VkHash[:4], metadata.Proof[:4]) {
-		return false, fmt.Errorf("prefix mismatch: first 4 bytes of verifier key hash (%x) do not match proof prefix (%x)", groth16VkHash[:4], metadata.Proof[:4])
-	}
-
-	proof, err := groth16.UnmarshalProof(metadata.Proof[4:])
-	if err != nil {
-		return false, err
-	}
-
-	vk, err := groth16.NewVerifyingKey(ism.Groth16Vkey)
-	if err != nil {
-		return false, err
-	}
-
-	vkCommitment := new(big.Int).SetBytes(ism.StateTransitionVkey)
-	pubVals, err := metadata.PublicValues.Marshal()
-	if err != nil {
-		return false, err
-	}
-
-	vkElement := groth16.NewBN254FrElement(vkCommitment)
-	inputsElement := groth16.NewBN254FrElement(groth16.HashBN254(pubVals))
-
-	pubWitness, err := groth16.NewPublicWitness(vkElement, inputsElement)
-	if err != nil {
-		return false, err
-	}
-
-	if err := groth16.VerifyProof(proof, vk, pubWitness); err != nil {
-		return false, fmt.Errorf("failed to verify proof: %w", err)
-	}
-
-	return true, nil
-}
-
-// verifyZKStateInclusion verifies merkle inclusion proofs against the current state root.
-func (ism *ZKExecutionISM) verifyZKStateInclusion(_ ZkExecutionISMMetadata, _ util.HyperlaneMessage) (bool, error) {
-	// TODO: https://github.com/celestiaorg/celestia-app/issues/4723
-	return true, nil
-}
-
-// TODO: remove ism arg and add two vars for groth16 vkey and state transition/membership vkey
-func VerifyGroth16(ctx context.Context, groth16Vkey, programVkey, proofBz, publicValues []byte) error {
-	groth16VkHash := sha256.Sum256(groth16Vkey)
-	if !bytes.Equal(groth16VkHash[:4], proofBz[:4]) {
-		return fmt.Errorf("prefix mismatch: first 4 bytes of verifier key hash (%x) do not match proof prefix (%x)", groth16VkHash[:4], proofBz[:4])
-	}
-
-	proof, err := groth16.UnmarshalProof(proofBz[4:])
-	if err != nil {
-		return err
-	}
-
-	vk, err := groth16.NewVerifyingKey(groth16Vkey)
-	if err != nil {
-		return err
-	}
-
-	vkeyCommitment := new(big.Int).SetBytes(programVkey)
-	vkeyElement := groth16.NewBN254FrElement(vkeyCommitment)
-	inputsElement := groth16.NewBN254FrElement(groth16.HashBN254(publicValues))
-
-	pubWitness, err := groth16.NewPublicWitness(vkeyElement, inputsElement)
-	if err != nil {
-		return err
-	}
-
-	if err := groth16.VerifyProof(proof, vk, pubWitness); err != nil {
-		return fmt.Errorf("failed to verify proof: %w", err)
-	}
-
-	return nil
+	return false, sdkerrors.ErrNotSupported
 }

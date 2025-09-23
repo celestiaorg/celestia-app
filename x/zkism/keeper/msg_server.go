@@ -71,7 +71,7 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
 	}
 
-	var publicValues types.StateTransitionPublicValues
+	var publicValues types.EvExecutionPublicValues
 	if err := publicValues.Unmarshal(msg.PublicValues); err != nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
 	}
@@ -108,7 +108,7 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
 	}
 
-	var publicValues types.StateMembershipPublicValues
+	var publicValues types.EvHyperlanePublicValues
 	if err := publicValues.Unmarshal(msg.PublicValues); err != nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
 	}
