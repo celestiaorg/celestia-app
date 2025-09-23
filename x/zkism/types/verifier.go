@@ -59,7 +59,7 @@ func (v *SP1Groth16Verifier) Prefix() []byte {
 // Returns nil if the proof is valid, or an error otherwise.
 func (v *SP1Groth16Verifier) VerifyProof(proofBz, programVk, publicValues []byte) error {
 	if len(proofBz) != (PrefixLen + ProofSize) {
-		return fmt.Errorf("invalid proof length: expected %d, got %d", len(proofBz), (PrefixLen + ProofSize))
+		return fmt.Errorf("invalid proof length: expected %d, got %d", (PrefixLen + ProofSize), len(proofBz))
 	}
 
 	if !bytes.Equal(v.Prefix(), proofBz[:PrefixLen]) {
