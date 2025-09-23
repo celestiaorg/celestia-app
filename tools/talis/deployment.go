@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -424,15 +425,7 @@ func listCmd() *cobra.Command {
 				cnt := 0
 				for _, droplet := range droplets {
 					// Check if droplet has TalisChainID tag
-					hasTalisTag := false
-					for _, tag := range droplet.Tags {
-						if tag == "talis" {
-							hasTalisTag = true
-							break
-						}
-					}
-
-					if hasTalisTag {
+					if slices.Contains(droplet.Tags, "talis") {
 						publicIP := ""
 						privateIP := ""
 						if len(droplet.Networks.V4) > 0 {
