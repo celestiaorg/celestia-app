@@ -16,7 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/random"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	"github.com/cometbft/cometbft/rpc/client"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cometbft/cometbft/types"
@@ -74,7 +74,7 @@ func BenchmarkGasPriceEstimation(b *testing.B) {
 				func(txBytes []byte) (sdk.GasInfo, *sdk.Result, error) { return sdk.GasInfo{}, nil, nil },
 				func() (float64, error) { return appconsts.DefaultNetworkMinGasPrice, nil },
 			)
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				_, err := gasEstimationServer.EstimateGasPrice(context.Background(), &gasestimation.EstimateGasPriceRequest{})
 				require.NoError(b, err)
 			}

@@ -9,8 +9,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/app/params"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
-	blobtx "github.com/celestiaorg/go-square/v2/tx"
+	"github.com/celestiaorg/go-square/v3/share"
+	blobtx "github.com/celestiaorg/go-square/v3/tx"
 	"github.com/cosmos/cosmos-sdk/client"
 	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -197,11 +197,9 @@ func (s *Signer) accountNameByAddress(address sdktypes.AccAddress) string {
 }
 
 func (s *Signer) Accounts() []*Account {
-	accounts := make([]*Account, len(s.accounts))
-	i := 0
+	accounts := make([]*Account, 0, len(s.accounts))
 	for _, acc := range s.accounts {
-		accounts[i] = acc
-		i++
+		accounts = append(accounts, acc)
 	}
 	return accounts
 }

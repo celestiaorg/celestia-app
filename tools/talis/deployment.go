@@ -16,6 +16,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/digitalocean/godo"
 	"github.com/spf13/cobra"
 )
 
@@ -389,4 +390,100 @@ func resolveValue(flagVal, envKey, configVal string) string {
 		return env
 	}
 	return configVal
+}
+
+func listCmd() *cobra.Command {
+	var rootDir string
+	var cfgPath string
+	var DOAPIToken string
+
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "Lists the instances in the network",
+		Long:  "Lists the instances in the network. Can be used to see if someone is running experiments at the moment",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := LoadConfig(rootDir)
+			if err != nil {
+				return fmt.Errorf("failed to load config: %w", err)
+			}
+
+			// overwrite the config values if flags or env vars are set
+			// flag > env > config
+			cfg.DigitalOceanToken = resolveValue(DOAPIToken, EnvVarDigitalOceanToken, cfg.DigitalOceanToken)
+
+			client, err := NewClient(cfg)
+			if err != nil {
+				return fmt.Errorf("failed to create client: %w", err)
+			}
+
+			opts := &godo.ListOptions{}
+			for {
+				droplets, resp, err := client.do.Droplets.List(cmd.Context(), opts)
+				if err != nil {
+					return fmt.Errorf("failed to list droplets: %w", err)
+				}
+
+				cnt := 0
+				for _, droplet := range droplets {
+					// Check if droplet has TalisChainID tag
+					hasTalisTag := false
+					for _, tag := range droplet.Tags {
+						if tag == "talis" {
+							hasTalisTag = true
+							break
+						}
+					}
+
+					if hasTalisTag {
+						publicIP := ""
+						privateIP := ""
+						if len(droplet.Networks.V4) > 0 {
+							for _, network := range droplet.Networks.V4 {
+								if network.Type == "public" && publicIP == "" {
+									publicIP = network.IPAddress
+								}
+								if network.Type == "private" && privateIP == "" {
+									privateIP = network.IPAddress
+								}
+							}
+						}
+
+						if cnt == 0 {
+							fmt.Printf("%-30s %-10s %-15s %-15s %s\n", "Name", "Status", "Region", "Public IP", "Created")
+							fmt.Printf("%-30s %-10s %-15s %-15s %s\n", "----", "------", "------", "---------", "-------")
+						}
+
+						fmt.Printf("%-30s %-10s %-15s %-15s %s\n",
+							droplet.Name,
+							droplet.Status,
+							droplet.Region.Slug,
+							publicIP,
+							droplet.Created)
+						cnt++
+					}
+				}
+				fmt.Println("Total number of talis instances: ", cnt)
+
+				// if we are at the last page, break out the for loop
+				if resp.Links == nil || resp.Links.IsLastPage() {
+					break
+				}
+				page, err := resp.Links.CurrentPage()
+				if err != nil {
+					return fmt.Errorf("failed to paginate droplets list: %w", err)
+				}
+
+				// set the page we want for the next request
+				opts.Page = page + 1
+			}
+
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory in which to initialize")
+	cmd.Flags().StringVarP(&cfgPath, "config", "c", "config.json", "name of the config")
+	cmd.Flags().StringVarP(&DOAPIToken, "do-api-token", "t", "", "digital ocean api token (defaults to config or env)")
+
+	return cmd
 }

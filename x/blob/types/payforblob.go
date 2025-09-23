@@ -7,8 +7,8 @@ import (
 
 	"cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/go-square/v2/inclusion"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/inclusion"
+	"github.com/celestiaorg/go-square/v3/share"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -149,7 +149,7 @@ func GasToConsume(msg *MsgPayForBlobs, gasPerByte uint32) uint64 {
 	for i, size := range msg.BlobSizes {
 		shareVersion := msg.ShareVersions[i]
 		containsSigner := shareVersion == uint32(share.ShareVersionOne)
-		totalSharesUsed += uint64(share.SparseSharesNeededV2(size, containsSigner))
+		totalSharesUsed += uint64(share.SparseSharesNeeded(size, containsSigner))
 	}
 
 	return totalSharesUsed * share.ShareSize * uint64(gasPerByte)

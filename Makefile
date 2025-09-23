@@ -28,9 +28,10 @@ BUILD_FLAGS_MULTIPLEXER := -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_M
 # internal/embedding/data.go
 # .goreleaser.yaml
 # docker/multiplexer.Dockerfile
+# dockerchain/config.go
 CELESTIA_V3_VERSION := v3.10.6
 CELESTIA_V4_VERSION := v4.1.0
-CELESTIA_V5_VERSION := v5.0.5-arabica
+CELESTIA_V5_VERSION := v5.0.5
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -396,7 +397,7 @@ prebuilt-binary:
 		release --clean --parallelism 2
 .PHONY: prebuilt-binary
 
-## goreleaser-dry-run: ensures that the go releaser tool can build all the artefacts correctly.
+## goreleaser-dry-run: ensures that the go releaser tool can build all the artifacts correctly.
 goreleaser-dry-run:
 # Specifies parallelism as 4 so should be run locally. On the regular github runners 2 should be the max.
 	@echo "Running GoReleaser in dry-run mode..."

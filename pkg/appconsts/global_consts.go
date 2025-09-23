@@ -3,7 +3,7 @@ package appconsts
 import (
 	"crypto/sha256"
 
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
 )
 
@@ -17,11 +17,11 @@ const (
 	DefaultShareVersion = share.ShareVersionZero
 
 	// MinSquareSize is the smallest original square width.
-	MinSquareSize = 1
+	MinSquareSize = share.MinSquareSize
 
 	// MinShareCount is the minimum number of shares allowed in the original
 	// data square.
-	MinShareCount = MinSquareSize * MinSquareSize
+	MinShareCount = share.MinShareCount
 
 	// BondDenom defines the native staking denomination
 	BondDenom = "utia"
