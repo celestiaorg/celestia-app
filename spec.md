@@ -162,6 +162,10 @@ message MsgRequestWithdrawal {
 
 #### Validation and Processing
 
+**Stateless Validation**:
+- Signer address must be valid
+- Amount must be positive
+
 **Stateful Processing**:
 1. Verify signer's escrow account exists
 2. Verify sufficient available balance
@@ -598,7 +602,6 @@ message QueryValidatePaymentPromiseResponse {
 1. Verify escrow account exists and has sufficient available balance for the gas cost (see [Gas Consumption](#gas-consumption) section)
 2. Verify promise hasn't been processed already
 3. Perform all standard PaymentPromise validation (see [PaymentPromise Validation](#paymentpromise-validation) section)
-4. Verify promise signature by escrow signer (signature is embedded in the PaymentPromise)
 
 ## Parameters
 
