@@ -34,6 +34,7 @@ func (ism *ZKExecutionISM) ModuleType() uint8 {
 }
 
 // Verify implements types.HyperlaneInterchainSecurityModule.
+// TODO: follow up PR, refactor/remove this code from here
 func (ism *ZKExecutionISM) Verify(ctx context.Context, metadata []byte, message util.HyperlaneMessage) (bool, error) {
 	zkProofMetadata, err := NewZkExecutionISMMetadata(metadata)
 	if err != nil {
