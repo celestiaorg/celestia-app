@@ -74,7 +74,7 @@ func BenchmarkGasPriceEstimation(b *testing.B) {
 				func(txBytes []byte) (sdk.GasInfo, *sdk.Result, error) { return sdk.GasInfo{}, nil, nil },
 				func() (float64, error) { return appconsts.DefaultNetworkMinGasPrice, nil },
 			)
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				_, err := gasEstimationServer.EstimateGasPrice(context.Background(), &gasestimation.EstimateGasPriceRequest{})
 				require.NoError(b, err)
 			}
