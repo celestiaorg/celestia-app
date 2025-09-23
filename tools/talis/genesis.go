@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	chainIDFlag = "chainID"
-	rootDirFlag = "directory"
+	chainIDFlag   = "chainID"
+	rootDirFlag   = "directory"
+	binaryDirFlag = "binary-dir"
 )
 
 // generateCmd is the Cobra command for creating the payload for the experiment.
@@ -25,6 +26,7 @@ func generateCmd() *cobra.Command {
 		appBinaryPath                 string
 		nodeBinaryPath                string
 		txsimBinaryPath               string
+		binaryDir                     string
 		useMainnetStakingDistribution bool
 	)
 	cmd := &cobra.Command{
@@ -70,16 +72,24 @@ func generateCmd() *cobra.Command {
 				return fmt.Errorf("failed to copy scripts: %w", err)
 			}
 
-			if err := copyFile(appBinaryPath, filepath.Join(payloadDir, "build", "celestia-appd"), 0o755); err != nil {
-				return fmt.Errorf("failed to copy app binary: %w", err)
-			}
+			// If binary directory is specified, copy all files from there
+			if binaryDir != "" {
+				if err := copyAllBinaries(binaryDir, filepath.Join(payloadDir, "build")); err != nil {
+					return fmt.Errorf("failed to copy binaries from directory %s: %w", binaryDir, err)
+				}
+			} else {
+				// Use individual binary paths (existing behavior)
+				if err := copyFile(appBinaryPath, filepath.Join(payloadDir, "build", "celestia-appd"), 0o755); err != nil {
+					return fmt.Errorf("failed to copy app binary: %w", err)
+				}
 
-			if err := copyFile(nodeBinaryPath, filepath.Join(payloadDir, "build", "celestia"), 0o755); err != nil {
-				log.Println("failed to copy celestia binary, bridge and light nodes will not be able to start")
-			}
+				if err := copyFile(nodeBinaryPath, filepath.Join(payloadDir, "build", "celestia"), 0o755); err != nil {
+					log.Println("failed to copy celestia binary, bridge and light nodes will not be able to start")
+				}
 
-			if err := copyFile(txsimBinaryPath, filepath.Join(payloadDir, "build", "txsim"), 0o755); err != nil {
-				return fmt.Errorf("failed to copy txsim binary: %w", err)
+				if err := copyFile(txsimBinaryPath, filepath.Join(payloadDir, "build", "txsim"), 0o755); err != nil {
+					return fmt.Errorf("failed to copy txsim binary: %w", err)
+				}
 			}
 
 			if err := writeAWSEnv(filepath.Join(payloadDir, "vars.sh"), cfg); err != nil {
@@ -103,6 +113,7 @@ func generateCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&chainID, chainIDFlag, "c", "", "Override the chainID in the config")
 	cmd.Flags().StringVarP(&rootDir, rootDirFlag, "d", ".", "root directory in which to initialize (default is the current directory)")
 	cmd.Flags().IntVarP(&squareSize, "ods-size", "s", appconsts.SquareSizeUpperBound, "The size of the ODS for the network (make sure to also build a celestia-app binary with a greater SquareSizeUpperBound)")
+	cmd.Flags().StringVarP(&binaryDir, binaryDirFlag, "b", "", "directory containing all binaries to include in the payload (overrides individual binary flags)")
 	cmd.Flags().StringVarP(&appBinaryPath, "app-binary", "a", filepath.Join(gopath, "celestia-appd"), "app binary to include in the payload (assumes the binary is installed")
 	cmd.Flags().StringVarP(&nodeBinaryPath, "node-binary", "n", filepath.Join(gopath, "celestia"), "node binary to include in the payload (assumes the binary is installed")
 	cmd.Flags().StringVarP(&txsimBinaryPath, "txsim-binary", "t", filepath.Join(gopath, "txsim"), "txsim binary to include in the payload (assumes the binary is installed)")
@@ -203,6 +214,43 @@ func writeAWSEnv(varsPath string, cfg Config) error {
 	for _, line := range exports {
 		if _, err := f.WriteString(line); err != nil {
 			return fmt.Errorf("failed to append to vars.sh: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// copyAllBinaries copies all files from the source directory to the destination directory,
+// preserving their names and making them executable.
+func copyAllBinaries(srcDir, destDir string) error {
+	// Create the destination directory if it doesn't exist
+	if err := os.MkdirAll(destDir, 0o755); err != nil {
+		return fmt.Errorf("failed to create destination directory %s: %w", destDir, err)
+	}
+
+	// Walk through all files in the source directory (non-recursive)
+	entries, err := os.ReadDir(srcDir)
+	if err != nil {
+		return fmt.Errorf("failed to read source directory %s: %w", srcDir, err)
+	}
+
+	for _, entry := range entries {
+		// Only process regular files, skip directories and symlinks
+		if entry.Type().IsRegular() {
+			srcFile := filepath.Join(srcDir, entry.Name())
+			destFile := filepath.Join(destDir, entry.Name())
+
+			info, err := entry.Info()
+			if err != nil {
+				return fmt.Errorf("failed to get file info for %s: %w", srcFile, err)
+			}
+
+			// Copy the file with executable permissions
+			if err := copyFile(srcFile, destFile, info.Mode()|0o755); err != nil {
+				return fmt.Errorf("failed to copy binary %s: %w", entry.Name(), err)
+			}
+
+			log.Printf("Copied binary: %s", entry.Name())
 		}
 	}
 

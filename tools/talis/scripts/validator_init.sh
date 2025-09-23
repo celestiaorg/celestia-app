@@ -83,8 +83,15 @@ hostname=$(hostname)
 # Parse the first part of the hostname
 parsed_hostname=$(echo $hostname | awk -F'-' '{print $1 "-" $2}')
 
-cp payload/build/celestia-appd /bin/celestia-appd
-cp payload/build/txsim /bin/txsim
+# Copy all binaries from build directory to /bin with executable permissions
+for binary in payload/build/*; do
+  if [ -f "$binary" ]; then
+    binary_name=$(basename "$binary")
+    cp "$binary" "/bin/$binary_name"
+    chmod +x "/bin/$binary_name"
+    echo "Installed binary: $binary_name"
+  fi
+done
 
 cd $HOME
 
@@ -110,8 +117,7 @@ mv payload/$parsed_hostname/config.toml $HOME/$CELES_HOME/config/config.toml
 
 cp -r payload/$parsed_hostname/keyring-test $HOME/$CELES_HOME
 
-# run txsim script which starts a sleep timer and txsim in a different tmux session
-source payload/txsim.sh
+# Note: txsim is now managed via talis txsim command, not through a startup script
 
 # Get the hostname of the machine
 HOSTNAME=$(hostname)
