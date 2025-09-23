@@ -3,6 +3,7 @@ package types_test
 import (
 	"testing"
 
+	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
 	"github.com/stretchr/testify/require"
 )
@@ -55,4 +56,32 @@ func TestStateTransitionPublicValuesTrailingData(t *testing.T) {
 	err = decoded.Unmarshal(bz)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "trailing data")
+}
+
+func TestStateMembershipPublicValuesEncoding(t *testing.T) {
+	messageIds := make([][32]byte, 0, 5)
+	for i := range 5 {
+		msg := util.HyperlaneMessage{
+			Nonce: uint32(i),
+		}
+
+		messageIds = append(messageIds, msg.Id())
+	}
+
+	expected := types.StateMembershipPublicValues{
+		StateRoot:  [32]byte{0x01},
+		MessageIds: messageIds,
+	}
+
+	bz, err := expected.Marshal()
+	require.NoError(t, err)
+	require.NotEmpty(t, bz)
+
+	var decoded types.StateMembershipPublicValues
+	err = decoded.Unmarshal(bz)
+	require.NoError(t, err)
+
+	require.Equal(t, expected.StateRoot, decoded.StateRoot)
+	require.Len(t, decoded.MessageIds, len(expected.MessageIds))
+	require.Equal(t, expected.MessageIds, decoded.MessageIds)
 }

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
-	"fmt"
 
 	errorsmod "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
@@ -116,7 +115,7 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 
 	// TODO: https://github.com/celestiaorg/celestia-app/issues/5809
 	if !bytes.Equal(publicValues.StateRoot[:], ism.StateRoot) {
-		return nil, fmt.Errorf("invalid state root: expected %x, got %x", ism.StateRoot, publicValues.StateRoot)
+		return nil, errorsmod.Wrapf(types.ErrInvalidStateRoot, "expected %x, got %x", ism.StateRoot, publicValues.StateRoot)
 	}
 
 	verifier, err := types.NewSP1Groth16Verifier(ism.Groth16Vkey)
