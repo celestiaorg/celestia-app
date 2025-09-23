@@ -101,12 +101,12 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessages) (*types.MsgSubmitMessagesResponse, error) {
 	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
 	if err != nil {
-		return nil, err
+		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
 	}
 
 	var publicValues types.StateMembershipPublicValues
 	if err := publicValues.Unmarshal(msg.PublicValues); err != nil {
-		return nil, err
+		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
 	}
 
 	if !bytes.Equal(publicValues.StateRoot[:], ism.StateRoot) {

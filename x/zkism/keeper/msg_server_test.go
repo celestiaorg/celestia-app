@@ -151,6 +151,27 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 			},
 			expError: nil,
 		},
+		{
+			name: "ism not found",
+			setupTest: func() {
+				msg = &types.MsgSubmitMessages{
+					Id: util.HexAddress{},
+				}
+			},
+			expError: types.ErrIsmNotFound,
+		},
+		{
+			name: "failed to unmarshal public values",
+			setupTest: func() {
+				msg = &types.MsgSubmitMessages{
+					Id:           ism.Id,
+					Height:       0,
+					Proof:        proofBz,
+					PublicValues: []byte("invalid"),
+				}
+			},
+			expError: sdkerrors.ErrInvalidType,
+		},
 	}
 
 	for _, tc := range testCases {
