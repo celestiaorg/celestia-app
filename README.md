@@ -145,11 +145,11 @@ If you import celestia-app as a Go module, you may need to add some Go module `r
 
 ### Usage in tests
 
-If you are running celestia-app in tests, you may want to override the `timeout_commit` to produce blocks faster. By default, a celestia-app chain with app version >= 3 will produce blocks every ~6 seconds. To produce blocks faster, you can override the `timeout_commit` with the `--timeout-commit` flag.
+If you are running celestia-app in tests, you may want to override the `delayed_precommit_timeout` to produce blocks faster. By default, a celestia-app chain with app version >= 3 will produce blocks every ~6 seconds. To produce blocks faster, you can override the `delayed_precommit_timeout` with the `--delayed-precommit-timeout` flag.
 
 ```shell
-# Start celestia-appd with a one-second timeout commit.
-celestia-appd start --timeout-commit 1s
+# Start celestia-appd with a one-second block time.
+celestia-appd start --delayed-precommit-timeout 1s
 ```
 
 ## Server Architecture
