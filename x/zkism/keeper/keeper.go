@@ -102,7 +102,7 @@ func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, _ []byte, me
 	return authorized, nil
 }
 
-func (k *Keeper) validatePublicValues(ctx context.Context, height uint64, ism types.ZKExecutionISM, publicValues types.StateTransitionPublicValues) error {
+func (k *Keeper) validatePublicValues(ctx context.Context, height uint64, ism types.ZKExecutionISM, publicValues types.EvExecutionPublicValues) error {
 	headerHash, err := k.GetHeaderHash(ctx, height)
 	if err != nil {
 		return errorsmod.Wrapf(types.ErrHeaderHashNotFound, "failed to get header for height %d", height)

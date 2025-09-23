@@ -9,7 +9,7 @@ import (
 )
 
 func TestStateTransitionPublicValuesEncoding(t *testing.T) {
-	expected := types.StateTransitionPublicValues{
+	expected := types.EvExecutionPublicValues{
 		CelestiaHeaderHash: [32]byte{0x01},
 		TrustedHeight:      123,
 		TrustedStateRoot:   [32]byte{0xAA},
@@ -23,7 +23,7 @@ func TestStateTransitionPublicValuesEncoding(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, bz)
 
-	var decoded types.StateTransitionPublicValues
+	var decoded types.EvExecutionPublicValues
 	err = decoded.Unmarshal(bz)
 	require.NoError(t, err)
 
@@ -37,7 +37,7 @@ func TestStateTransitionPublicValuesEncoding(t *testing.T) {
 }
 
 func TestStateTransitionPublicValuesTrailingData(t *testing.T) {
-	pubInputs := types.StateTransitionPublicValues{
+	pubInputs := types.EvExecutionPublicValues{
 		CelestiaHeaderHash: [32]byte{0x01},
 		TrustedHeight:      1,
 		TrustedStateRoot:   [32]byte{0x02},
@@ -52,7 +52,7 @@ func TestStateTransitionPublicValuesTrailingData(t *testing.T) {
 
 	bz = append(bz, 0xFF) // append trailing data to force error
 
-	var decoded types.StateTransitionPublicValues
+	var decoded types.EvExecutionPublicValues
 	err = decoded.Unmarshal(bz)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "trailing data")
@@ -68,7 +68,7 @@ func TestStateMembershipPublicValuesEncoding(t *testing.T) {
 		messageIds = append(messageIds, msg.Id())
 	}
 
-	expected := types.StateMembershipPublicValues{
+	expected := types.EvHyperlanePublicValues{
 		StateRoot:  [32]byte{0x01},
 		MessageIds: messageIds,
 	}
@@ -77,7 +77,7 @@ func TestStateMembershipPublicValuesEncoding(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, bz)
 
-	var decoded types.StateMembershipPublicValues
+	var decoded types.EvHyperlanePublicValues
 	err = decoded.Unmarshal(bz)
 	require.NoError(t, err)
 

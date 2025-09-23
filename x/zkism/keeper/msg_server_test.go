@@ -115,7 +115,7 @@ func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
 				suite.Require().NoError(err)
 				suite.Require().NotNil(res)
 
-				publicValues := new(types.StateTransitionPublicValues)
+				publicValues := new(types.EvExecutionPublicValues)
 				suite.Require().NoError(publicValues.Unmarshal(pubValues))
 
 				suite.Require().Equal(publicValues.NewHeight, res.Height)
@@ -188,7 +188,7 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 				suite.Require().NoError(err)
 				suite.Require().NotNil(res)
 
-				publicValues := new(types.StateMembershipPublicValues)
+				publicValues := new(types.EvHyperlanePublicValues)
 				suite.Require().NoError(publicValues.Unmarshal(pubValues))
 
 				for _, id := range publicValues.MessageIds {
