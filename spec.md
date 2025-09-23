@@ -253,7 +253,8 @@ message PaymentPromise {f
   bytes commitment = 4;
   // row_version is the version of the row format
   uint32 row_version = 5;
-  // valset_height is the height that is used to determine the validator set.
+  // valset_height is the height that is used to determine the validator set that is used
+  // for the row dispersion algorithm (what validator has what rows) and for verifying signatures.
   int64 valset_height = 6;
   // creation_timestamp is the timestamp when this promise was created. This
   // is critical for determining which validators sign the commitment and
