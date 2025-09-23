@@ -16,27 +16,27 @@ func TestNewGroth16Verifier(t *testing.T) {
 	tests := []struct {
 		name     string
 		vk       []byte
-		expError bool
+		expError error
 	}{
 		{
 			name:     "valid verifier key",
 			vk:       groth16Vk,
-			expError: false,
+			expError: nil,
 		},
 		{
 			name:     "empty verifier key",
 			vk:       []byte{},
-			expError: true,
+			expError: types.ErrInvalidVerifyingKey,
 		},
 		{
 			name:     "truncated verifier key",
 			vk:       groth16Vk[:16],
-			expError: true,
+			expError: types.ErrInvalidVerifyingKey,
 		},
 		{
 			name:     "random garbage",
 			vk:       []byte{0x01, 0x02, 0x03, 0x04},
-			expError: true,
+			expError: types.ErrInvalidVerifyingKey,
 		},
 	}
 
@@ -44,8 +44,9 @@ func TestNewGroth16Verifier(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			verifier, err := types.NewSP1Groth16Verifier(tc.vk)
 
-			if tc.expError {
+			if tc.expError != nil {
 				require.Error(t, err, "expected error but got none")
+				require.ErrorIs(t, err, tc.expError, "unexpected error")
 				require.Nil(t, verifier)
 			} else {
 				require.NoError(t, err, "unexpected error constructing verifier")
@@ -72,21 +73,21 @@ func TestVerifyProof(t *testing.T) {
 		proofBz   []byte
 		programVk []byte
 		valuesBz  []byte
-		expError  bool
+		expError  error
 	}{
 		{
 			name:      "valid proof",
 			proofBz:   proofBz,
 			programVk: programVk,
 			valuesBz:  valuesBz,
-			expError:  false,
+			expError:  nil,
 		},
 		{
 			name:      "invalid proof length",
 			proofBz:   proofBz[:10],
 			programVk: programVk,
 			valuesBz:  valuesBz,
-			expError:  true,
+			expError:  types.ErrInvalidProofLength,
 		},
 		{
 			name: "invalid prefix",
@@ -99,29 +100,30 @@ func TestVerifyProof(t *testing.T) {
 			}(),
 			programVk: programVk,
 			valuesBz:  valuesBz,
-			expError:  true,
+			expError:  types.ErrInvalidProofPrefix,
 		},
 		{
 			name:      "nil program key",
 			proofBz:   proofBz,
 			programVk: nil,
 			valuesBz:  valuesBz,
-			expError:  true,
+			expError:  types.ErrInvalidProof,
 		},
 		{
 			name:      "corrupted values",
 			proofBz:   proofBz,
 			programVk: programVk,
 			valuesBz:  []byte{0x01, 0x02, 0x03, 0x04},
-			expError:  true,
+			expError:  types.ErrInvalidProof,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			err := verifier.VerifyProof(tc.proofBz, tc.programVk, tc.valuesBz)
-			if tc.expError {
+			if tc.expError != nil {
 				require.Error(t, err, "expected error but got none")
+				require.ErrorIs(t, err, tc.expError, "unexpected error")
 			} else {
 				require.NoError(t, err, "expected no error but got one")
 			}

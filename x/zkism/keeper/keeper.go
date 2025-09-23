@@ -3,10 +3,10 @@ package keeper
 import (
 	"bytes"
 	"context"
-	"fmt"
 
 	"cosmossdk.io/collections"
 	corestore "cosmossdk.io/core/store"
+	errorsmod "cosmossdk.io/errors"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -109,27 +109,27 @@ func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, metadata []b
 func (k *Keeper) validatePublicValues(ctx context.Context, height uint64, ism types.ZKExecutionISM, publicValues types.StateTransitionPublicValues) error {
 	headerHash, err := k.GetHeaderHash(ctx, height)
 	if err != nil {
-		return fmt.Errorf("failed to get header for height %d: %w", height, err)
+		return errorsmod.Wrapf(types.ErrHeaderHashNotFound, "failed to get header for height %d", height)
 	}
 
 	if !bytes.Equal(headerHash, publicValues.CelestiaHeaderHash[:]) {
-		return fmt.Errorf("invalid header hash, expected %x, got %x", headerHash, publicValues.CelestiaHeaderHash[:])
+		return errorsmod.Wrapf(types.ErrInvalidHeaderHash, "invalid header hash, expected %x, got %x", headerHash, publicValues.CelestiaHeaderHash[:])
 	}
 
 	if !bytes.Equal(publicValues.TrustedStateRoot[:], ism.StateRoot) {
-		return fmt.Errorf("invalid trusted state root: expected %x, got %x", ism.StateRoot, publicValues.TrustedStateRoot)
+		return errorsmod.Wrapf(types.ErrInvalidStateRoot, "invalid trusted state root: expected %x, got %x", ism.StateRoot, publicValues.TrustedStateRoot)
 	}
 
 	if publicValues.TrustedHeight != ism.Height {
-		return fmt.Errorf("invalid trusted height: expected %d, got %d", ism.Height, publicValues.TrustedHeight)
+		return errorsmod.Wrapf(types.ErrInvalidHeight, "invalid trusted height: expected %d, got %d", ism.Height, publicValues.TrustedHeight)
 	}
 
 	if !bytes.Equal(publicValues.Namespace[:], ism.Namespace) {
-		return fmt.Errorf("invalid namespace: expected %x, got %x", ism.Namespace, publicValues.Namespace)
+		return errorsmod.Wrapf(types.ErrInvalidNamespace, "invalid namespace: expected %x, got %x", ism.Namespace, publicValues.Namespace)
 	}
 
 	if !bytes.Equal(publicValues.PublicKey[:], ism.SequencerPublicKey) {
-		return fmt.Errorf("invalid sequencer public key: expected %x, got %x", ism.SequencerPublicKey, publicValues.PublicKey)
+		return errorsmod.Wrapf(types.ErrInvalidSequencerKey, "invalid sequencer public key: expected %x, got %x", ism.SequencerPublicKey, publicValues.PublicKey)
 	}
 
 	return nil

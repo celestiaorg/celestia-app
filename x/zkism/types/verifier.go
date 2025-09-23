@@ -3,9 +3,9 @@ package types
 import (
 	"bytes"
 	"crypto/sha256"
-	"fmt"
 	"math/big"
 
+	errorsmod "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/internal/groth16"
 )
 
@@ -35,7 +35,7 @@ type SP1Groth16Verifier struct {
 func NewSP1Groth16Verifier(vkBytes []byte) (*SP1Groth16Verifier, error) {
 	vk, err := groth16.NewVerifyingKey(vkBytes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new verifying key: %w", err)
+		return nil, ErrInvalidVerifyingKey
 	}
 
 	vkHash := sha256.Sum256(vkBytes)
@@ -59,16 +59,16 @@ func (v *SP1Groth16Verifier) Prefix() []byte {
 // Returns nil if the proof is valid, or an error otherwise.
 func (v *SP1Groth16Verifier) VerifyProof(proofBz, programVk, publicValues []byte) error {
 	if len(proofBz) != (PrefixLen + ProofSize) {
-		return fmt.Errorf("invalid proof length: expected %d, got %d", (PrefixLen + ProofSize), len(proofBz))
+		return errorsmod.Wrapf(ErrInvalidProofLength, "expected %d, got %d", (PrefixLen + ProofSize), len(proofBz))
 	}
 
 	if !bytes.Equal(v.Prefix(), proofBz[:PrefixLen]) {
-		return fmt.Errorf("invalid proof prefix expected %x, got %x", v.prefix[:], proofBz[:PrefixLen])
+		return errorsmod.Wrapf(ErrInvalidProofPrefix, "expected %x, got %x", v.Prefix(), proofBz[:PrefixLen])
 	}
 
 	proof, err := groth16.UnmarshalProof(proofBz[PrefixLen:])
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal proof: %w", err)
+		return errorsmod.Wrap(err, "failed to unmarshal proof")
 	}
 
 	vkCommitment := new(big.Int).SetBytes(programVk)
@@ -81,7 +81,7 @@ func (v *SP1Groth16Verifier) VerifyProof(proofBz, programVk, publicValues []byte
 	}
 
 	if err := groth16.VerifyProof(proof, v.vk, pubWitness); err != nil {
-		return fmt.Errorf("failed to verify proof: %w", err)
+		return errorsmod.Wrapf(ErrInvalidProof, "failed to verify proof: %s", err.Error())
 	}
 
 	return nil
