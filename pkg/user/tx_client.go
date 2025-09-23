@@ -40,6 +40,8 @@ import (
 const (
 	DefaultPollTime          = 3 * time.Second
 	txTrackerPruningInterval = 10 * time.Minute
+	// evictionPollTime is the time interval to check if a transaction gets committed
+	// if it experiences a broadcast error after resubmission
 	evictionPollTime         = 1 * time.Minute
 )
 
