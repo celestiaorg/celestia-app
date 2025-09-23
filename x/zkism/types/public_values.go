@@ -48,7 +48,7 @@ func (p *StateTransitionPublicValues) String() string {
 	)
 }
 
-// Marshal encodes the PublicInputs struct into a bincode-compatible byte slice.
+// Marshal encodes the StateTransitionPublicValues struct into a bincode-compatible byte slice.
 // The output format uses Rust bincode's default configuration: (little-endian, fixed-width integers, length-prefixed slices).
 func (pi *StateTransitionPublicValues) Marshal() ([]byte, error) {
 	var buf bytes.Buffer
@@ -130,6 +130,29 @@ func (pi *StateTransitionPublicValues) Unmarshal(data []byte) error {
 type StateMembershipPublicValues struct {
 	StateRoot  [32]byte
 	MessageIds [][32]byte
+}
+
+// Marshal encodes the StateMembershipPublicValues struct into a bincode-compatible byte slice.
+// The output format uses Rust bincode's default configuration: (little-endian, fixed-width integers, length-prefixed slices).
+func (m *StateMembershipPublicValues) Marshal() ([]byte, error) {
+	var buf bytes.Buffer
+
+	if err := writeBytes(&buf, m.StateRoot[:]); err != nil {
+		return nil, fmt.Errorf("write StateRoot: %w", err)
+	}
+
+	count := uint64(len(m.MessageIds))
+	if err := binary.Write(&buf, binary.LittleEndian, count); err != nil {
+		return nil, fmt.Errorf("write MessageIds length: %w", err)
+	}
+
+	for i, id := range m.MessageIds {
+		if err := writeBytes(&buf, id[:]); err != nil {
+			return nil, fmt.Errorf("write MessageIds[%d]: %w", i, err)
+		}
+	}
+
+	return buf.Bytes(), nil
 }
 
 // Unmarshal decodes a bincode-serialized StateMembershipPublicValues struct.
