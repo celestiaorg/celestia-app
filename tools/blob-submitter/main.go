@@ -32,11 +32,11 @@ const (
 )
 
 type submissionResult struct {
-	txHash       string
-	submitTime   time.Time
-	confirmed    bool
-	confirmTime  *time.Time
-	err          error
+	txHash          string
+	submitTime      time.Time
+	confirmed       bool
+	confirmTime     *time.Time
+	err             error
 	releaseBlobSlot func() // Function to release blob semaphore slot
 }
 
@@ -211,7 +211,6 @@ func submissionWorker(ctx context.Context, workerID int, txClient *user.TxClient
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			counter++
 
 			// Try to acquire blob semaphore slot (non-blocking)
 			select {
@@ -221,7 +220,6 @@ func submissionWorker(ctx context.Context, workerID int, txClient *user.TxClient
 				return
 			default:
 				// No available slots, skip this submission attempt
-				fmt.Printf("Worker %d-%d: Max blobs (%d) reached, skipping submission\n", workerID, counter, maxBlobs)
 				continue
 			}
 
