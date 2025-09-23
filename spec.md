@@ -283,7 +283,7 @@ Gas cost is calculated as described in the [Gas Consumption](#gas-consumption) s
 **Stateful Validation**:
 1. Verify `creation_timestamp` is:
   - less than or equal to current confirmed timestamp
-  - greater than (current_timestamp - withdrawal_delay)
+  - greater than (header_timestamp - withdrawal_delay)
 
 2. Verify escrow account exists for `signer`
 3. Verify sufficient available balance for gas cost (see [Gas Consumption](#gas-consumption) section). This includes all yet to be processed `PaymentPromises` that the validator has signed over.
@@ -352,7 +352,7 @@ message MsgPaymentTimeout {
 
 **Stateful Processing**:
 1. Validate PaymentPromise (see [PaymentPromise Validation](#paymentpromise-validation) above)
-2. Verify `promise.creation_timestamp + promise_timeout <= current_timestamp` (timeout has passed)
+2. Verify `promise.creation_timestamp + promise_timeout <= header_timestamp` (timeout has passed)
 3. Calculate gas cost (see [Gas Consumption](#gas-consumption) section) and deduct from both escrow balance and available_balance
 4. Mark promise as processed (stores `processed_at` timestamp and creates pruning index entry)
 5. DO NOT include commitment in data square (since no validator consensus was reached)
