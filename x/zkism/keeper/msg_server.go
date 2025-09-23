@@ -1,8 +1,10 @@
 package keeper
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
+	"fmt"
 
 	errorsmod "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
@@ -35,9 +37,9 @@ func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreat
 		Height:              msg.Height,
 		Namespace:           msg.Namespace,
 		SequencerPublicKey:  msg.SequencerPublicKey,
+		Groth16Vkey:         msg.Groth16Vkey,
 		StateTransitionVkey: msg.StateTransitionVkey,
 		StateMembershipVkey: msg.StateMembershipVkey,
-		VkeyCommitment:      msg.VkeyCommitment,
 	}
 
 	if err := m.isms.Set(ctx, ismId.GetInternalId(), newIsm); err != nil {
@@ -51,9 +53,9 @@ func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreat
 		Height:              newIsm.Height,
 		Namespace:           newIsm.Namespace,
 		SequencerPublicKey:  newIsm.SequencerPublicKey,
+		Groth16Vkey:         newIsm.Groth16Vkey,
 		StateTransitionVkey: newIsm.StateTransitionVkey,
 		StateMembershipVkey: newIsm.StateMembershipVkey,
-		VkeyCommitment:      newIsm.VkeyCommitment,
 	}); err != nil {
 		return nil, err
 	}
@@ -70,7 +72,7 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
 	}
 
-	var publicValues types.PublicValues
+	var publicValues types.StateTransitionPublicValues
 	if err := publicValues.Unmarshal(msg.PublicValues); err != nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
 	}
@@ -79,7 +81,7 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 		return nil, err
 	}
 
-	if err := types.VerifyGroth16(ctx, ism, msg.Proof, msg.PublicValues); err != nil {
+	if err := types.VerifyGroth16(ctx, ism.Groth16Vkey, ism.StateTransitionVkey, msg.Proof, msg.PublicValues); err != nil {
 		return nil, err
 	}
 
@@ -93,6 +95,36 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 		Height:    ism.Height,
 		StateRoot: hex.EncodeToString(ism.StateRoot),
 	}, nil
+}
+
+// SubmitMessages implements types.MsgServer.
+func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessages) (*types.MsgSubmitMessagesResponse, error) {
+	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
+	if err != nil {
+		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
+	}
+
+	var publicValues types.StateMembershipPublicValues
+	if err := publicValues.Unmarshal(msg.PublicValues); err != nil {
+		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
+	}
+
+	// TODO: https://github.com/celestiaorg/celestia-app/issues/5809
+	if !bytes.Equal(publicValues.StateRoot[:], ism.StateRoot) {
+		return nil, fmt.Errorf("invalid state root: expected %x, got %x", ism.StateRoot, publicValues.StateRoot)
+	}
+
+	if err := types.VerifyGroth16(ctx, ism.Groth16Vkey, ism.StateMembershipVkey, msg.Proof, msg.PublicValues); err != nil {
+		return nil, err
+	}
+
+	for _, messageId := range publicValues.MessageIds {
+		if err := m.messages.Set(ctx, messageId[:]); err != nil {
+			return nil, err
+		}
+	}
+
+	return &types.MsgSubmitMessagesResponse{}, nil
 }
 
 // UpdateParams implements types.MsgServer.

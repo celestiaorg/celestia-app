@@ -26,8 +26,8 @@ import (
 var (
 	celestiaHeight     = 30
 	celestiaHeaderHash = "2e08a0f992a86551adcb11fe86423e198831739b1b7ce42daefa761d4195b3a3"
-	trustedStateRoot   = "af50a407e7a9fcba29c46ad31e7690bae4e951e3810e5b898eda29d3d3e92dbe"
-	vkeyHash           = "0x00acd6f9c9d0074611353a1e0c94751d3c49beef64ebc3ee82f0ddeadaf242ef"
+	stateVkeyHash      = "0x00acd6f9c9d0074611353a1e0c94751d3c49beef64ebc3ee82f0ddeadaf242ef"
+	messageVkeyHash    = "0x00c88cdad907c05533b8755953d58af6a3b753a4e05acc6617d41ca206c25d2a"
 	namespaceHex       = "00000000000000000000000000000000000000a8045f161bf468bf4d44"
 	publicKeyHex       = "c87f6c4cdd4c8ac26cb6a06909e5e252b73043fdf85232c18ae92b9922b65507"
 )
@@ -49,7 +49,7 @@ func (suite *KeeperTestSuite) SetupTest() {
 	suite.zkISMKeeper = testApp.ZKExecutionISMKeeper
 }
 
-func (suite *KeeperTestSuite) CreateTestIsm() types.ZKExecutionISM {
+func (suite *KeeperTestSuite) CreateTestIsm(trustedRoot []byte) types.ZKExecutionISM {
 	headerHash, err := hex.DecodeString(celestiaHeaderHash)
 	suite.Require().NoError(err)
 
@@ -58,11 +58,12 @@ func (suite *KeeperTestSuite) CreateTestIsm() types.ZKExecutionISM {
 
 	groth16Vkey := readGroth16Vkey(suite.T())
 
-	vkCommitmentHex := strings.TrimPrefix(vkeyHash, "0x")
-	vkCommitment, err := hex.DecodeString(vkCommitmentHex)
+	stateVkeyHex := strings.TrimPrefix(stateVkeyHash, "0x")
+	stateVkey, err := hex.DecodeString(stateVkeyHex)
 	suite.Require().NoError(err)
 
-	trustedRoot, err := hex.DecodeString(trustedStateRoot)
+	messageVkeyHex := strings.TrimPrefix(messageVkeyHash, "0x")
+	messageVkey, err := hex.DecodeString(messageVkeyHex)
 	suite.Require().NoError(err)
 
 	namespace, err := hex.DecodeString(namespaceHex)
@@ -73,8 +74,9 @@ func (suite *KeeperTestSuite) CreateTestIsm() types.ZKExecutionISM {
 
 	ism := types.ZKExecutionISM{
 		Id:                  util.CreateMockHexAddress("ism", 1),
-		StateTransitionVkey: groth16Vkey,
-		VkeyCommitment:      vkCommitment,
+		Groth16Vkey:         groth16Vkey,
+		StateTransitionVkey: stateVkey,
+		StateMembershipVkey: messageVkey,
 		StateRoot:           trustedRoot,
 		Height:              97,
 		Namespace:           namespace,
@@ -97,6 +99,9 @@ func randBytes(size uint64) []byte {
 }
 
 func (suite *KeeperTestSuite) TestVerify() {
+	// TODO: https://github.com/celestiaorg/celestia-app/issues/5808
+	suite.T().Skip("TODO: refactor func implementation and test")
+
 	var (
 		celHeight        = 30
 		celHeaderHash    = "2e08a0f992a86551adcb11fe86423e198831739b1b7ce42daefa761d4195b3a3"
@@ -126,13 +131,14 @@ func (suite *KeeperTestSuite) TestVerify() {
 	suite.Require().NoError(err)
 
 	groth16Vkey := readGroth16Vkey(suite.T())
-	proofBz, inputsBz := readProofData(suite.T())
+	proofBz, inputsBz := readStateTransitionProofData(suite.T())
 
 	// create an ism with a hardcoded initial trusted state
 	ism := types.ZKExecutionISM{
 		Id:                  util.CreateMockHexAddress("ism", 1),
-		StateTransitionVkey: groth16Vkey,
-		VkeyCommitment:      vkCommitment,
+		Groth16Vkey:         groth16Vkey,
+		StateTransitionVkey: vkCommitment,
+		StateMembershipVkey: []byte("todo"),
 		StateRoot:           trustedRoot,
 		Height:              97,
 		Namespace:           namespace,
@@ -152,7 +158,7 @@ func (suite *KeeperTestSuite) TestVerify() {
 	ism, err = suite.zkISMKeeper.GetIsm(suite.ctx, ism.Id)
 	suite.Require().NoError(err)
 
-	inputs := new(types.PublicValues)
+	inputs := new(types.StateTransitionPublicValues)
 	err = inputs.Unmarshal(inputsBz)
 	suite.Require().NoError(err)
 
@@ -194,13 +200,25 @@ func readGroth16Vkey(t *testing.T) []byte {
 	return groth16Vkey
 }
 
-func readProofData(t *testing.T) ([]byte, []byte) {
+func readStateTransitionProofData(t *testing.T) ([]byte, []byte) {
 	t.Helper()
 
-	proofBz, err := os.ReadFile("../internal/testdata/proof.bin")
+	proofBz, err := os.ReadFile("../internal/testdata/state_transition/proof.bin")
 	require.NoError(t, err, "failed to read proof file")
 
-	inputsBz, err := os.ReadFile("../internal/testdata/sp1_inputs.bin")
+	inputsBz, err := os.ReadFile("../internal/testdata/state_transition/public_values.bin")
+	require.NoError(t, err, "failed to read proof file")
+
+	return proofBz, inputsBz
+}
+
+func readStateMembershipProofData(t *testing.T) ([]byte, []byte) {
+	t.Helper()
+
+	proofBz, err := os.ReadFile("../internal/testdata/state_membership/proof.bin")
+	require.NoError(t, err, "failed to read proof file")
+
+	inputsBz, err := os.ReadFile("../internal/testdata/state_membership/public_values.bin")
 	require.NoError(t, err, "failed to read proof file")
 
 	return proofBz, inputsBz

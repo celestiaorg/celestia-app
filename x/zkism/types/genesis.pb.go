@@ -27,6 +27,7 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 type GenesisState struct {
 	// list of zk execution isms.
 	Isms []ZKExecutionISM `protobuf:"bytes,1,rep,name=isms,proto3" json:"isms"`
+	// TODO: add messages to genesis state
 	// params is the module parameters.
 	Params Params `protobuf:"bytes,2,opt,name=params,proto3" json:"params"`
 }

@@ -53,8 +53,11 @@ func (suite *KeeperTestSuite) TestCreateZKExecutionISM() {
 }
 
 func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
-	ism := suite.CreateTestIsm()
-	proofBz, pubValues := readProofData(suite.T())
+	trustedRoot, err := hex.DecodeString("af50a407e7a9fcba29c46ad31e7690bae4e951e3810e5b898eda29d3d3e92dbe")
+	suite.Require().NoError(err)
+
+	ism := suite.CreateTestIsm(trustedRoot)
+	proofBz, pubValues := readStateTransitionProofData(suite.T())
 
 	var msg *types.MsgUpdateZKExecutionISM
 
@@ -112,11 +115,87 @@ func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
 				suite.Require().NoError(err)
 				suite.Require().NotNil(res)
 
-				publicValues := new(types.PublicValues)
+				publicValues := new(types.StateTransitionPublicValues)
 				suite.Require().NoError(publicValues.Unmarshal(pubValues))
 
 				suite.Require().Equal(publicValues.NewHeight, res.Height)
 				suite.Require().Equal(hex.EncodeToString(publicValues.NewStateRoot[:]), res.StateRoot)
+			}
+		})
+	}
+}
+
+func (suite *KeeperTestSuite) TestSubmitMessages() {
+	trustedRoot, err := hex.DecodeString("acd4fcbcd3bbf25bd2055b2125f7d361f9f58d97ad167fe35a5b7f1806f5f8ea")
+	suite.Require().NoError(err)
+
+	ism := suite.CreateTestIsm(trustedRoot)
+	proofBz, pubValues := readStateMembershipProofData(suite.T())
+
+	var msg *types.MsgSubmitMessages
+
+	testCases := []struct {
+		name      string
+		setupTest func()
+		expError  error
+	}{
+		{
+			name: "success",
+			setupTest: func() {
+				msg = &types.MsgSubmitMessages{
+					Id:           ism.Id,
+					Height:       0,
+					Proof:        proofBz,
+					PublicValues: pubValues,
+				}
+			},
+			expError: nil,
+		},
+		{
+			name: "ism not found",
+			setupTest: func() {
+				msg = &types.MsgSubmitMessages{
+					Id: util.HexAddress{},
+				}
+			},
+			expError: types.ErrIsmNotFound,
+		},
+		{
+			name: "failed to unmarshal public values",
+			setupTest: func() {
+				msg = &types.MsgSubmitMessages{
+					Id:           ism.Id,
+					Height:       0,
+					Proof:        proofBz,
+					PublicValues: []byte("invalid"),
+				}
+			},
+			expError: sdkerrors.ErrInvalidType,
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			tc.setupTest()
+
+			msgServer := keeper.NewMsgServerImpl(suite.zkISMKeeper)
+			res, err := msgServer.SubmitMessages(suite.ctx, msg)
+
+			if tc.expError != nil {
+				suite.Require().Error(err)
+				suite.Require().Nil(res)
+			} else {
+				suite.Require().NoError(err)
+				suite.Require().NotNil(res)
+
+				publicValues := new(types.StateMembershipPublicValues)
+				suite.Require().NoError(publicValues.Unmarshal(pubValues))
+
+				for _, id := range publicValues.MessageIds {
+					has, err := suite.zkISMKeeper.HasMessageId(suite.ctx, id[:])
+					suite.Require().NoError(err)
+					suite.Require().True(has)
+				}
 			}
 		})
 	}

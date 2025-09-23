@@ -43,12 +43,12 @@ type MsgCreateZKExecutionISM struct {
 	Namespace []byte `protobuf:"bytes,4,opt,name=namespace,proto3" json:"namespace,omitempty"`
 	// the public key of the sequencer
 	SequencerPublicKey []byte `protobuf:"bytes,5,opt,name=sequencer_public_key,json=sequencerPublicKey,proto3" json:"sequencer_public_key,omitempty"`
-	// the zk state transition verifier key of the sp1 prover client
-	StateTransitionVkey []byte `protobuf:"bytes,6,opt,name=state_transition_vkey,json=stateTransitionVkey,proto3" json:"state_transition_vkey,omitempty"`
-	// the zk state membership verifier key of the sp1 prover client
-	StateMembershipVkey []byte `protobuf:"bytes,7,opt,name=state_membership_vkey,json=stateMembershipVkey,proto3" json:"state_membership_vkey,omitempty"`
-	// hash-based commitment to the verifier key used for public input integrity
-	VkeyCommitment []byte `protobuf:"bytes,9,opt,name=vkey_commitment,json=vkeyCommitment,proto3" json:"vkey_commitment,omitempty"`
+	// the sp1 groth16 verifier key
+	Groth16Vkey []byte `protobuf:"bytes,6,opt,name=groth16_vkey,json=groth16Vkey,proto3" json:"groth16_vkey,omitempty"`
+	// hash-based commitment to the verifier key used for state transition
+	StateTransitionVkey []byte `protobuf:"bytes,7,opt,name=state_transition_vkey,json=stateTransitionVkey,proto3" json:"state_transition_vkey,omitempty"`
+	// hash-based commitment to the verifier key used for state membership
+	StateMembershipVkey []byte `protobuf:"bytes,8,opt,name=state_membership_vkey,json=stateMembershipVkey,proto3" json:"state_membership_vkey,omitempty"`
 }
 
 func (m *MsgCreateZKExecutionISM) Reset()         { *m = MsgCreateZKExecutionISM{} }
@@ -119,6 +119,13 @@ func (m *MsgCreateZKExecutionISM) GetSequencerPublicKey() []byte {
 	return nil
 }
 
+func (m *MsgCreateZKExecutionISM) GetGroth16Vkey() []byte {
+	if m != nil {
+		return m.Groth16Vkey
+	}
+	return nil
+}
+
 func (m *MsgCreateZKExecutionISM) GetStateTransitionVkey() []byte {
 	if m != nil {
 		return m.StateTransitionVkey
@@ -129,13 +136,6 @@ func (m *MsgCreateZKExecutionISM) GetStateTransitionVkey() []byte {
 func (m *MsgCreateZKExecutionISM) GetStateMembershipVkey() []byte {
 	if m != nil {
 		return m.StateMembershipVkey
-	}
-	return nil
-}
-
-func (m *MsgCreateZKExecutionISM) GetVkeyCommitment() []byte {
-	if m != nil {
-		return m.VkeyCommitment
 	}
 	return nil
 }
@@ -299,6 +299,109 @@ func (m *MsgUpdateZKExecutionISMResponse) GetHeight() uint64 {
 	return 0
 }
 
+// MsgSubmitMessages is the request type for SubmitMessages.
+type MsgSubmitMessages struct {
+	// ism identifier
+	Id github_com_bcp_innovations_hyperlane_cosmos_util.HexAddress `protobuf:"bytes,1,opt,name=id,proto3,customtype=github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress" json:"id"`
+	// height is the EVM application height associated with the state transition update.
+	Height uint64 `protobuf:"varint,2,opt,name=height,proto3" json:"height,omitempty"`
+	// proof is the ZK proof bytes (groth16).
+	Proof []byte `protobuf:"bytes,3,opt,name=proof,proto3" json:"proof,omitempty"`
+	// the public values used for proof verification.
+	PublicValues []byte `protobuf:"bytes,4,opt,name=public_values,json=publicValues,proto3" json:"public_values,omitempty"`
+}
+
+func (m *MsgSubmitMessages) Reset()         { *m = MsgSubmitMessages{} }
+func (m *MsgSubmitMessages) String() string { return proto.CompactTextString(m) }
+func (*MsgSubmitMessages) ProtoMessage()    {}
+func (*MsgSubmitMessages) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9627100907186bb5, []int{4}
+}
+func (m *MsgSubmitMessages) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgSubmitMessages) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgSubmitMessages.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgSubmitMessages) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgSubmitMessages.Merge(m, src)
+}
+func (m *MsgSubmitMessages) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgSubmitMessages) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgSubmitMessages.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgSubmitMessages proto.InternalMessageInfo
+
+func (m *MsgSubmitMessages) GetHeight() uint64 {
+	if m != nil {
+		return m.Height
+	}
+	return 0
+}
+
+func (m *MsgSubmitMessages) GetProof() []byte {
+	if m != nil {
+		return m.Proof
+	}
+	return nil
+}
+
+func (m *MsgSubmitMessages) GetPublicValues() []byte {
+	if m != nil {
+		return m.PublicValues
+	}
+	return nil
+}
+
+// MsgSubmitMessagesResponse is the response type for SubmitMessages.
+type MsgSubmitMessagesResponse struct {
+}
+
+func (m *MsgSubmitMessagesResponse) Reset()         { *m = MsgSubmitMessagesResponse{} }
+func (m *MsgSubmitMessagesResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgSubmitMessagesResponse) ProtoMessage()    {}
+func (*MsgSubmitMessagesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9627100907186bb5, []int{5}
+}
+func (m *MsgSubmitMessagesResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgSubmitMessagesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgSubmitMessagesResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgSubmitMessagesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgSubmitMessagesResponse.Merge(m, src)
+}
+func (m *MsgSubmitMessagesResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgSubmitMessagesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgSubmitMessagesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgSubmitMessagesResponse proto.InternalMessageInfo
+
 // MsgUpdateParams is the request type for UpdateParams.
 type MsgUpdateParams struct {
 	// authority is the address that controls the module (defaults to x/gov unless overwritten).
@@ -313,7 +416,7 @@ func (m *MsgUpdateParams) Reset()         { *m = MsgUpdateParams{} }
 func (m *MsgUpdateParams) String() string { return proto.CompactTextString(m) }
 func (*MsgUpdateParams) ProtoMessage()    {}
 func (*MsgUpdateParams) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9627100907186bb5, []int{4}
+	return fileDescriptor_9627100907186bb5, []int{6}
 }
 func (m *MsgUpdateParams) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -364,7 +467,7 @@ func (m *MsgUpdateParamsResponse) Reset()         { *m = MsgUpdateParamsResponse
 func (m *MsgUpdateParamsResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgUpdateParamsResponse) ProtoMessage()    {}
 func (*MsgUpdateParamsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9627100907186bb5, []int{5}
+	return fileDescriptor_9627100907186bb5, []int{7}
 }
 func (m *MsgUpdateParamsResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -398,6 +501,8 @@ func init() {
 	proto.RegisterType((*MsgCreateZKExecutionISMResponse)(nil), "celestia.zkism.v1.MsgCreateZKExecutionISMResponse")
 	proto.RegisterType((*MsgUpdateZKExecutionISM)(nil), "celestia.zkism.v1.MsgUpdateZKExecutionISM")
 	proto.RegisterType((*MsgUpdateZKExecutionISMResponse)(nil), "celestia.zkism.v1.MsgUpdateZKExecutionISMResponse")
+	proto.RegisterType((*MsgSubmitMessages)(nil), "celestia.zkism.v1.MsgSubmitMessages")
+	proto.RegisterType((*MsgSubmitMessagesResponse)(nil), "celestia.zkism.v1.MsgSubmitMessagesResponse")
 	proto.RegisterType((*MsgUpdateParams)(nil), "celestia.zkism.v1.MsgUpdateParams")
 	proto.RegisterType((*MsgUpdateParamsResponse)(nil), "celestia.zkism.v1.MsgUpdateParamsResponse")
 }
@@ -405,50 +510,53 @@ func init() {
 func init() { proto.RegisterFile("celestia/zkism/v1/tx.proto", fileDescriptor_9627100907186bb5) }
 
 var fileDescriptor_9627100907186bb5 = []byte{
-	// 683 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x54, 0x41, 0x6b, 0x13, 0x4f,
-	0x14, 0xcf, 0xa6, 0x6d, 0x4a, 0xe6, 0x9f, 0x7f, 0x8b, 0x63, 0xb4, 0xdb, 0x60, 0xd3, 0x12, 0x0f,
-	0x96, 0x40, 0x76, 0x6d, 0x04, 0x85, 0x7a, 0xb2, 0x45, 0x50, 0x4a, 0xa0, 0x6c, 0xb5, 0x48, 0x0f,
-	0x86, 0xc9, 0x66, 0xdc, 0x0c, 0xcd, 0xee, 0x8c, 0x33, 0xb3, 0x4b, 0xe2, 0x49, 0xfc, 0x04, 0xe2,
-	0x27, 0xe9, 0xc1, 0x2f, 0xe0, 0xad, 0xc7, 0xe2, 0x49, 0x45, 0x8a, 0xb4, 0x87, 0x7e, 0x0d, 0xd9,
-	0x99, 0xcd, 0x36, 0xa1, 0x9b, 0xea, 0xc5, 0xdb, 0xbe, 0xf7, 0xfb, 0xfd, 0xde, 0xdb, 0x79, 0xef,
-	0x37, 0x03, 0x2a, 0x2e, 0xee, 0x63, 0x21, 0x09, 0xb2, 0xdf, 0x1d, 0x12, 0xe1, 0xdb, 0xd1, 0x86,
-	0x2d, 0x07, 0x16, 0xe3, 0x54, 0x52, 0x78, 0x63, 0x84, 0x59, 0x0a, 0xb3, 0xa2, 0x8d, 0xca, 0x4a,
-	0x06, 0x7d, 0xc8, 0xb0, 0xd0, 0x8a, 0xca, 0x92, 0x4b, 0x85, 0x4f, 0x85, 0xed, 0x0b, 0x2f, 0x86,
-	0x7c, 0xe1, 0x25, 0xc0, 0xb2, 0x06, 0xda, 0x2a, 0xb2, 0x75, 0x90, 0x40, 0x65, 0x8f, 0x7a, 0x54,
-	0xe7, 0xe3, 0x2f, 0x9d, 0xad, 0x7d, 0xcf, 0x83, 0xa5, 0x96, 0xf0, 0xb6, 0x39, 0x46, 0x12, 0x1f,
-	0xec, 0x3c, 0x1d, 0x60, 0x37, 0x94, 0x84, 0x06, 0xcf, 0xf7, 0x5a, 0xd0, 0x04, 0xf3, 0x6e, 0x9c,
-	0xa7, 0xdc, 0x34, 0xd6, 0x8c, 0xf5, 0xa2, 0x33, 0x0a, 0xe1, 0x0a, 0x00, 0x42, 0x22, 0x89, 0xdb,
-	0x9c, 0x52, 0x69, 0xe6, 0xd7, 0x8c, 0xf5, 0x92, 0x53, 0x54, 0x19, 0x87, 0x52, 0x09, 0x6f, 0x83,
-	0x42, 0x0f, 0x13, 0xaf, 0x27, 0xcd, 0x99, 0x35, 0x63, 0x7d, 0xd6, 0x49, 0x22, 0x78, 0x07, 0x14,
-	0x03, 0xe4, 0x63, 0xc1, 0x90, 0x8b, 0xcd, 0x59, 0xad, 0x4a, 0x13, 0xf0, 0x3e, 0x28, 0x0b, 0xfc,
-	0x36, 0xc4, 0x81, 0x8b, 0x79, 0x9b, 0x85, 0x9d, 0x3e, 0x71, 0xdb, 0x87, 0x78, 0x68, 0xce, 0x29,
-	0x22, 0x4c, 0xb1, 0x5d, 0x05, 0xed, 0xe0, 0x21, 0x6c, 0x82, 0x5b, 0xfa, 0x37, 0x24, 0x47, 0x81,
-	0x20, 0xf1, 0x7f, 0xb7, 0xa3, 0x58, 0x52, 0x50, 0x92, 0x9b, 0x0a, 0x7c, 0x91, 0x62, 0xfb, 0x87,
-	0xe3, 0x1a, 0x1f, 0xfb, 0x1d, 0xcc, 0x45, 0x8f, 0x30, 0xad, 0x99, 0x1f, 0xd3, 0xb4, 0x52, 0x4c,
-	0x69, 0xee, 0x81, 0xc5, 0x98, 0xd2, 0x76, 0xa9, 0xef, 0x13, 0xe9, 0xe3, 0x40, 0x9a, 0x45, 0xc5,
-	0x5e, 0x88, 0xd3, 0xdb, 0x69, 0x76, 0xb3, 0xf4, 0xe1, 0xe2, 0xa8, 0x3e, 0x9a, 0x52, 0x2d, 0x02,
-	0xab, 0x53, 0x46, 0xeb, 0x60, 0xc1, 0x68, 0x20, 0x30, 0xdc, 0x03, 0x79, 0xd2, 0xd5, 0xd3, 0xdd,
-	0xda, 0x3e, 0x3e, 0x5d, 0xcd, 0xfd, 0x38, 0x5d, 0x7d, 0xec, 0x11, 0xd9, 0x0b, 0x3b, 0x96, 0x4b,
-	0x7d, 0xbb, 0xe3, 0xb2, 0x06, 0x09, 0x02, 0x1a, 0xa1, 0x58, 0x29, 0xec, 0xde, 0x90, 0x61, 0xde,
-	0x47, 0x01, 0x6e, 0x24, 0x0e, 0x08, 0x25, 0xe9, 0x5b, 0xcf, 0xf0, 0xe0, 0x49, 0xb7, 0xcb, 0xb1,
-	0x10, 0x4e, 0x9e, 0x74, 0x6b, 0x5f, 0x0c, 0xb5, 0xd3, 0x97, 0xac, 0x7b, 0x75, 0xa7, 0xff, 0xa2,
-	0xe1, 0xd8, 0xbe, 0xf3, 0x13, 0xfb, 0x2e, 0x83, 0x39, 0xc6, 0x29, 0x7d, 0xa3, 0x6c, 0x50, 0x72,
-	0x74, 0x00, 0xef, 0x82, 0xff, 0x93, 0xed, 0x46, 0xa8, 0x1f, 0x62, 0x91, 0x38, 0xa1, 0xa4, 0x93,
-	0xfb, 0x2a, 0x57, 0x7b, 0xa5, 0x66, 0x97, 0x75, 0x84, 0x74, 0x76, 0x93, 0x26, 0xd4, 0x0e, 0xcd,
-	0x34, 0xe1, 0xc4, 0x4f, 0xd5, 0x3e, 0x19, 0x60, 0x31, 0x2d, 0xbd, 0x8b, 0x38, 0xf2, 0x05, 0x7c,
-	0x08, 0x8a, 0x28, 0x94, 0x3d, 0xca, 0x89, 0x1c, 0x26, 0xc3, 0x31, 0xbf, 0x7e, 0x6e, 0x94, 0x93,
-	0x0b, 0x94, 0x9c, 0x75, 0x4f, 0x72, 0x12, 0x78, 0xce, 0x25, 0x15, 0x3e, 0x02, 0x05, 0xa6, 0x2a,
-	0xa8, 0x1e, 0xff, 0x35, 0x97, 0xad, 0x2b, 0x57, 0xd9, 0xd2, 0x2d, 0xb6, 0x66, 0xe3, 0x61, 0x3b,
-	0x09, 0x7d, 0x73, 0x21, 0x36, 0xca, 0x65, 0xa1, 0xda, 0xf2, 0xd8, 0xc6, 0xb4, 0x60, 0x74, 0xcc,
-	0xe6, 0xcf, 0x3c, 0x98, 0x69, 0x09, 0x0f, 0x46, 0xa0, 0x9c, 0x79, 0x4b, 0xeb, 0x19, 0x3d, 0xa7,
-	0xd8, 0xae, 0xd2, 0xfc, 0x7b, 0x6e, 0x3a, 0xe6, 0x08, 0x94, 0x33, 0x9d, 0x34, 0xa5, 0x6f, 0x16,
-	0x77, 0x5a, 0xdf, 0x6b, 0xd7, 0xfb, 0x1a, 0x94, 0x26, 0x76, 0x54, 0xbb, 0xae, 0x86, 0xe6, 0x54,
-	0xea, 0x7f, 0xe6, 0x8c, 0xea, 0x57, 0xe6, 0xde, 0x5f, 0x1c, 0xd5, 0x8d, 0xad, 0x9d, 0xe3, 0xb3,
-	0xaa, 0x71, 0x72, 0x56, 0x35, 0x7e, 0x9d, 0x55, 0x8d, 0x8f, 0xe7, 0xd5, 0xdc, 0xc9, 0x79, 0x35,
-	0xf7, 0xed, 0xbc, 0x9a, 0x3b, 0xd8, 0x18, 0xbb, 0x16, 0xa3, 0xb2, 0x94, 0x7b, 0xe9, 0x77, 0x03,
-	0x31, 0x66, 0x0f, 0x92, 0x07, 0x5a, 0xbd, 0xce, 0x9d, 0x82, 0x7a, 0x54, 0x1f, 0xfc, 0x0e, 0x00,
-	0x00, 0xff, 0xff, 0x70, 0x04, 0x9c, 0x4f, 0xee, 0x05, 0x00, 0x00,
+	// 728 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xd4, 0x55, 0x3f, 0x6f, 0xd3, 0x4e,
+	0x18, 0x8e, 0xd3, 0x36, 0xfd, 0xe5, 0x9a, 0x5f, 0x51, 0x4d, 0xa0, 0x49, 0xa0, 0x69, 0x31, 0x0c,
+	0x55, 0x44, 0x62, 0x12, 0xa4, 0x22, 0x95, 0x89, 0x56, 0x48, 0xa0, 0x2a, 0x52, 0xe5, 0x40, 0x85,
+	0x3a, 0x10, 0x5d, 0x9c, 0xc3, 0x39, 0x35, 0xf6, 0x99, 0xbb, 0xb3, 0x95, 0x30, 0x21, 0x3e, 0x01,
+	0xe2, 0x93, 0x74, 0x60, 0x63, 0x82, 0xa9, 0x63, 0x05, 0x0b, 0x62, 0xa8, 0x50, 0x3b, 0xf4, 0x6b,
+	0x20, 0xdf, 0xd9, 0x6e, 0x42, 0x9d, 0xd2, 0x85, 0x81, 0xcd, 0xef, 0xfb, 0x3c, 0xef, 0x1f, 0xbf,
+	0xef, 0x73, 0x77, 0xa0, 0x64, 0xa2, 0x3e, 0x62, 0x1c, 0x43, 0xfd, 0xcd, 0x1e, 0x66, 0xb6, 0xee,
+	0xd7, 0x75, 0x3e, 0xa8, 0xb9, 0x94, 0x70, 0xa2, 0x2e, 0x44, 0x58, 0x4d, 0x60, 0x35, 0xbf, 0x5e,
+	0x5a, 0x4a, 0xa0, 0x0f, 0x5d, 0xc4, 0x64, 0x44, 0x69, 0xd1, 0x24, 0xcc, 0x26, 0x4c, 0xb7, 0x99,
+	0x15, 0x40, 0x36, 0xb3, 0x42, 0xa0, 0x28, 0x81, 0xb6, 0xb0, 0x74, 0x69, 0x84, 0x50, 0xde, 0x22,
+	0x16, 0x91, 0xfe, 0xe0, 0x4b, 0x7a, 0xb5, 0x6f, 0x69, 0xb0, 0xd8, 0x64, 0xd6, 0x26, 0x45, 0x90,
+	0xa3, 0xdd, 0xad, 0xc7, 0x03, 0x64, 0x7a, 0x1c, 0x13, 0xe7, 0x69, 0xab, 0xa9, 0x16, 0xc0, 0xac,
+	0x19, 0xf8, 0x09, 0x2d, 0x28, 0x2b, 0xca, 0x6a, 0xd6, 0x88, 0x4c, 0x75, 0x09, 0x00, 0xc6, 0x21,
+	0x47, 0x6d, 0x4a, 0x08, 0x2f, 0xa4, 0x57, 0x94, 0xd5, 0x9c, 0x91, 0x15, 0x1e, 0x83, 0x10, 0xae,
+	0x5e, 0x07, 0x99, 0x1e, 0xc2, 0x56, 0x8f, 0x17, 0xa6, 0x56, 0x94, 0xd5, 0x69, 0x23, 0xb4, 0xd4,
+	0x9b, 0x20, 0xeb, 0x40, 0x1b, 0x31, 0x17, 0x9a, 0xa8, 0x30, 0x2d, 0xa3, 0x62, 0x87, 0x7a, 0x0f,
+	0xe4, 0x19, 0x7a, 0xed, 0x21, 0xc7, 0x44, 0xb4, 0xed, 0x7a, 0x9d, 0x3e, 0x36, 0xdb, 0x7b, 0x68,
+	0x58, 0x98, 0x11, 0x44, 0x35, 0xc6, 0xb6, 0x05, 0xb4, 0x85, 0x86, 0xea, 0x2d, 0x90, 0xb3, 0x28,
+	0xe1, 0xbd, 0xfa, 0x5a, 0xdb, 0x0f, 0x98, 0x19, 0xc1, 0x9c, 0x0b, 0x7d, 0x3b, 0x7b, 0x68, 0xa8,
+	0x36, 0xc0, 0x35, 0xd9, 0x29, 0xa7, 0xd0, 0x61, 0x38, 0xf8, 0x35, 0xc9, 0x9d, 0x15, 0xdc, 0xab,
+	0x02, 0x7c, 0x16, 0x63, 0xe3, 0x31, 0x36, 0xb2, 0x3b, 0x88, 0xb2, 0x1e, 0x76, 0x65, 0xcc, 0x7f,
+	0x23, 0x31, 0xcd, 0x18, 0x0b, 0x62, 0xd6, 0x73, 0xef, 0x4e, 0xf7, 0x2b, 0xd1, 0x7c, 0x34, 0x1f,
+	0x2c, 0x4f, 0x18, 0xaa, 0x81, 0x98, 0x4b, 0x1c, 0x86, 0xd4, 0x16, 0x48, 0xe3, 0xae, 0x9c, 0xeb,
+	0xc6, 0xe6, 0xc1, 0xd1, 0x72, 0xea, 0xc7, 0xd1, 0xf2, 0x43, 0x0b, 0xf3, 0x9e, 0xd7, 0xa9, 0x99,
+	0xc4, 0xd6, 0x3b, 0xa6, 0x5b, 0xc5, 0x8e, 0x43, 0x7c, 0x18, 0x44, 0x32, 0xbd, 0x37, 0x74, 0x11,
+	0xed, 0x43, 0x07, 0x55, 0xc3, 0xdd, 0x7b, 0x1c, 0xf7, 0x6b, 0x4f, 0xd0, 0xe0, 0x51, 0xb7, 0x4b,
+	0x11, 0x63, 0x46, 0x1a, 0x77, 0xb5, 0xcf, 0x8a, 0xd8, 0xe6, 0x73, 0xb7, 0x7b, 0x7e, 0x9b, 0x7f,
+	0xa3, 0xe0, 0xc8, 0xa6, 0xd3, 0x63, 0x9b, 0xce, 0x83, 0x19, 0x97, 0x12, 0xf2, 0x4a, 0x08, 0x20,
+	0x67, 0x48, 0x43, 0xbd, 0x0d, 0xfe, 0x0f, 0xf7, 0xea, 0xc3, 0xbe, 0x87, 0x58, 0xa8, 0x81, 0x9c,
+	0x74, 0xee, 0x08, 0x9f, 0xf6, 0x42, 0xcc, 0x2e, 0xe9, 0x17, 0xe2, 0xd9, 0x8d, 0xcb, 0x4f, 0x6a,
+	0x33, 0x51, 0x7e, 0x63, 0x4d, 0x69, 0x9f, 0x14, 0xb0, 0xd0, 0x64, 0x56, 0xcb, 0xeb, 0xd8, 0x98,
+	0x37, 0x11, 0x63, 0xd0, 0x42, 0xec, 0x9f, 0x99, 0xcb, 0x0d, 0x50, 0x3c, 0xd7, 0x7c, 0x34, 0x11,
+	0xed, 0x83, 0x02, 0xae, 0xc4, 0x53, 0xdb, 0x86, 0x14, 0xda, 0x4c, 0x5d, 0x03, 0x59, 0xe8, 0xf1,
+	0x1e, 0xa1, 0x98, 0x0f, 0xc3, 0xff, 0x2b, 0x7c, 0xfd, 0x58, 0xcd, 0x87, 0xb7, 0x42, 0xd8, 0x6e,
+	0x8b, 0x53, 0xec, 0x58, 0xc6, 0x19, 0x55, 0x7d, 0x00, 0x32, 0xae, 0xc8, 0x20, 0x7a, 0x9f, 0x6b,
+	0x14, 0x6b, 0xe7, 0xee, 0xa7, 0x9a, 0x2c, 0xb1, 0x31, 0x1d, 0xcc, 0xcb, 0x08, 0xe9, 0xeb, 0xf3,
+	0xc1, 0x19, 0x38, 0x4b, 0xa4, 0x15, 0x47, 0xc4, 0x28, 0x03, 0xa2, 0x7e, 0x1b, 0x5f, 0xa6, 0xc0,
+	0x54, 0x93, 0x59, 0xaa, 0x0f, 0xf2, 0x89, 0x57, 0x4f, 0x25, 0xa1, 0xe6, 0x84, 0x13, 0x55, 0x6a,
+	0x5c, 0x9e, 0x1b, 0x2b, 0xc8, 0x07, 0xf9, 0xc4, 0x43, 0x32, 0xa1, 0x6e, 0x12, 0x77, 0x52, 0xdd,
+	0x0b, 0x95, 0xdb, 0x05, 0xf3, 0xbf, 0xc9, 0xef, 0x4e, 0x72, 0x96, 0x71, 0x56, 0xe9, 0xee, 0x65,
+	0x58, 0x71, 0x95, 0x97, 0x20, 0x37, 0xa6, 0x04, 0xed, 0xa2, 0x4e, 0x25, 0xa7, 0x54, 0xf9, 0x33,
+	0x27, 0xca, 0x5f, 0x9a, 0x79, 0x7b, 0xba, 0x5f, 0x51, 0x36, 0xb6, 0x0e, 0x8e, 0xcb, 0xca, 0xe1,
+	0x71, 0x59, 0xf9, 0x79, 0x5c, 0x56, 0xde, 0x9f, 0x94, 0x53, 0x87, 0x27, 0xe5, 0xd4, 0xf7, 0x93,
+	0x72, 0x6a, 0xb7, 0x3e, 0x72, 0x7e, 0xa2, 0xb4, 0x84, 0x5a, 0xf1, 0x77, 0x15, 0xba, 0xae, 0x3e,
+	0x08, 0xdf, 0x36, 0xf1, 0xb0, 0x75, 0x32, 0xe2, 0x3d, 0xba, 0xff, 0x2b, 0x00, 0x00, 0xff, 0xff,
+	0x09, 0x0c, 0xa8, 0xe4, 0x29, 0x07, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -467,6 +575,8 @@ type MsgClient interface {
 	CreateZKExecutionISM(ctx context.Context, in *MsgCreateZKExecutionISM, opts ...grpc.CallOption) (*MsgCreateZKExecutionISMResponse, error)
 	// UpdateZKExecutionISM defines the rpc method for updating an existing ZK execution ISM.
 	UpdateZKExecutionISM(ctx context.Context, in *MsgUpdateZKExecutionISM, opts ...grpc.CallOption) (*MsgUpdateZKExecutionISMResponse, error)
+	// SubmitMessages defines the rpc method for verifying state membership of messages.
+	SubmitMessages(ctx context.Context, in *MsgSubmitMessages, opts ...grpc.CallOption) (*MsgSubmitMessagesResponse, error)
 	// UpdateParams defines the rpc method for updating the module parameters.
 	UpdateParams(ctx context.Context, in *MsgUpdateParams, opts ...grpc.CallOption) (*MsgUpdateParamsResponse, error)
 }
@@ -497,6 +607,15 @@ func (c *msgClient) UpdateZKExecutionISM(ctx context.Context, in *MsgUpdateZKExe
 	return out, nil
 }
 
+func (c *msgClient) SubmitMessages(ctx context.Context, in *MsgSubmitMessages, opts ...grpc.CallOption) (*MsgSubmitMessagesResponse, error) {
+	out := new(MsgSubmitMessagesResponse)
+	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Msg/SubmitMessages", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *msgClient) UpdateParams(ctx context.Context, in *MsgUpdateParams, opts ...grpc.CallOption) (*MsgUpdateParamsResponse, error) {
 	out := new(MsgUpdateParamsResponse)
 	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Msg/UpdateParams", in, out, opts...)
@@ -512,6 +631,8 @@ type MsgServer interface {
 	CreateZKExecutionISM(context.Context, *MsgCreateZKExecutionISM) (*MsgCreateZKExecutionISMResponse, error)
 	// UpdateZKExecutionISM defines the rpc method for updating an existing ZK execution ISM.
 	UpdateZKExecutionISM(context.Context, *MsgUpdateZKExecutionISM) (*MsgUpdateZKExecutionISMResponse, error)
+	// SubmitMessages defines the rpc method for verifying state membership of messages.
+	SubmitMessages(context.Context, *MsgSubmitMessages) (*MsgSubmitMessagesResponse, error)
 	// UpdateParams defines the rpc method for updating the module parameters.
 	UpdateParams(context.Context, *MsgUpdateParams) (*MsgUpdateParamsResponse, error)
 }
@@ -525,6 +646,9 @@ func (*UnimplementedMsgServer) CreateZKExecutionISM(ctx context.Context, req *Ms
 }
 func (*UnimplementedMsgServer) UpdateZKExecutionISM(ctx context.Context, req *MsgUpdateZKExecutionISM) (*MsgUpdateZKExecutionISMResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateZKExecutionISM not implemented")
+}
+func (*UnimplementedMsgServer) SubmitMessages(ctx context.Context, req *MsgSubmitMessages) (*MsgSubmitMessagesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SubmitMessages not implemented")
 }
 func (*UnimplementedMsgServer) UpdateParams(ctx context.Context, req *MsgUpdateParams) (*MsgUpdateParamsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateParams not implemented")
@@ -570,6 +694,24 @@ func _Msg_UpdateZKExecutionISM_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Msg_SubmitMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgSubmitMessages)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).SubmitMessages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/celestia.zkism.v1.Msg/SubmitMessages",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).SubmitMessages(ctx, req.(*MsgSubmitMessages))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Msg_UpdateParams_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(MsgUpdateParams)
 	if err := dec(in); err != nil {
@@ -602,6 +744,10 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 			Handler:    _Msg_UpdateZKExecutionISM_Handler,
 		},
 		{
+			MethodName: "SubmitMessages",
+			Handler:    _Msg_SubmitMessages_Handler,
+		},
+		{
 			MethodName: "UpdateParams",
 			Handler:    _Msg_UpdateParams_Handler,
 		},
@@ -630,24 +776,24 @@ func (m *MsgCreateZKExecutionISM) MarshalToSizedBuffer(dAtA []byte) (int, error)
 	_ = i
 	var l int
 	_ = l
-	if len(m.VkeyCommitment) > 0 {
-		i -= len(m.VkeyCommitment)
-		copy(dAtA[i:], m.VkeyCommitment)
-		i = encodeVarintTx(dAtA, i, uint64(len(m.VkeyCommitment)))
-		i--
-		dAtA[i] = 0x4a
-	}
 	if len(m.StateMembershipVkey) > 0 {
 		i -= len(m.StateMembershipVkey)
 		copy(dAtA[i:], m.StateMembershipVkey)
 		i = encodeVarintTx(dAtA, i, uint64(len(m.StateMembershipVkey)))
 		i--
-		dAtA[i] = 0x3a
+		dAtA[i] = 0x42
 	}
 	if len(m.StateTransitionVkey) > 0 {
 		i -= len(m.StateTransitionVkey)
 		copy(dAtA[i:], m.StateTransitionVkey)
 		i = encodeVarintTx(dAtA, i, uint64(len(m.StateTransitionVkey)))
+		i--
+		dAtA[i] = 0x3a
+	}
+	if len(m.Groth16Vkey) > 0 {
+		i -= len(m.Groth16Vkey)
+		copy(dAtA[i:], m.Groth16Vkey)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.Groth16Vkey)))
 		i--
 		dAtA[i] = 0x32
 	}
@@ -807,6 +953,81 @@ func (m *MsgUpdateZKExecutionISMResponse) MarshalToSizedBuffer(dAtA []byte) (int
 	return len(dAtA) - i, nil
 }
 
+func (m *MsgSubmitMessages) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgSubmitMessages) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgSubmitMessages) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.PublicValues) > 0 {
+		i -= len(m.PublicValues)
+		copy(dAtA[i:], m.PublicValues)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.PublicValues)))
+		i--
+		dAtA[i] = 0x22
+	}
+	if len(m.Proof) > 0 {
+		i -= len(m.Proof)
+		copy(dAtA[i:], m.Proof)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.Proof)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if m.Height != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.Height))
+		i--
+		dAtA[i] = 0x10
+	}
+	{
+		size := m.Id.Size()
+		i -= size
+		if _, err := m.Id.MarshalTo(dAtA[i:]); err != nil {
+			return 0, err
+		}
+		i = encodeVarintTx(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgSubmitMessagesResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgSubmitMessagesResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgSubmitMessagesResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
 func (m *MsgUpdateParams) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -906,15 +1127,15 @@ func (m *MsgCreateZKExecutionISM) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
+	l = len(m.Groth16Vkey)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
 	l = len(m.StateTransitionVkey)
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
 	l = len(m.StateMembershipVkey)
-	if l > 0 {
-		n += 1 + l + sovTx(uint64(l))
-	}
-	l = len(m.VkeyCommitment)
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
@@ -967,6 +1188,37 @@ func (m *MsgUpdateZKExecutionISMResponse) Size() (n int) {
 	if m.Height != 0 {
 		n += 1 + sovTx(uint64(m.Height))
 	}
+	return n
+}
+
+func (m *MsgSubmitMessages) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = m.Id.Size()
+	n += 1 + l + sovTx(uint64(l))
+	if m.Height != 0 {
+		n += 1 + sovTx(uint64(m.Height))
+	}
+	l = len(m.Proof)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	l = len(m.PublicValues)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	return n
+}
+
+func (m *MsgSubmitMessagesResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
 	return n
 }
 
@@ -1184,6 +1436,40 @@ func (m *MsgCreateZKExecutionISM) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 6:
 			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Groth16Vkey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Groth16Vkey = append(m.Groth16Vkey[:0], dAtA[iNdEx:postIndex]...)
+			if m.Groth16Vkey == nil {
+				m.Groth16Vkey = []byte{}
+			}
+			iNdEx = postIndex
+		case 7:
+			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field StateTransitionVkey", wireType)
 			}
 			var byteLen int
@@ -1216,7 +1502,7 @@ func (m *MsgCreateZKExecutionISM) Unmarshal(dAtA []byte) error {
 				m.StateTransitionVkey = []byte{}
 			}
 			iNdEx = postIndex
-		case 7:
+		case 8:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field StateMembershipVkey", wireType)
 			}
@@ -1248,40 +1534,6 @@ func (m *MsgCreateZKExecutionISM) Unmarshal(dAtA []byte) error {
 			m.StateMembershipVkey = append(m.StateMembershipVkey[:0], dAtA[iNdEx:postIndex]...)
 			if m.StateMembershipVkey == nil {
 				m.StateMembershipVkey = []byte{}
-			}
-			iNdEx = postIndex
-		case 9:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field VkeyCommitment", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTx
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthTx
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthTx
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.VkeyCommitment = append(m.VkeyCommitment[:0], dAtA[iNdEx:postIndex]...)
-			if m.VkeyCommitment == nil {
-				m.VkeyCommitment = []byte{}
 			}
 			iNdEx = postIndex
 		default:
@@ -1640,6 +1892,227 @@ func (m *MsgUpdateZKExecutionISMResponse) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgSubmitMessages) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgSubmitMessages: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgSubmitMessages: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Id", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.Id.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Height", wireType)
+			}
+			m.Height = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Height |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Proof", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Proof = append(m.Proof[:0], dAtA[iNdEx:postIndex]...)
+			if m.Proof == nil {
+				m.Proof = []byte{}
+			}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PublicValues", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.PublicValues = append(m.PublicValues[:0], dAtA[iNdEx:postIndex]...)
+			if m.PublicValues == nil {
+				m.PublicValues = []byte{}
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgSubmitMessagesResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgSubmitMessagesResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgSubmitMessagesResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
 		default:
 			iNdEx = preIndex
 			skippy, err := skipTx(dAtA[iNdEx:])
