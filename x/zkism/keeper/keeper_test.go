@@ -99,6 +99,7 @@ func randBytes(size uint64) []byte {
 }
 
 func (suite *KeeperTestSuite) TestVerify() {
+	// TODO: https://github.com/celestiaorg/celestia-app/issues/5808
 	suite.T().Skip("TODO: refactor func implementation and test")
 
 	var (

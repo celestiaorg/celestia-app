@@ -109,6 +109,7 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
 	}
 
+	// TODO: https://github.com/celestiaorg/celestia-app/issues/5809
 	if !bytes.Equal(publicValues.StateRoot[:], ism.StateRoot) {
 		return nil, fmt.Errorf("invalid state root: expected %x, got %x", ism.StateRoot, publicValues.StateRoot)
 	}
