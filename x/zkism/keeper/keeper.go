@@ -113,23 +113,23 @@ func (k *Keeper) validatePublicValues(ctx context.Context, height uint64, ism ty
 	}
 
 	if !bytes.Equal(headerHash, publicValues.CelestiaHeaderHash[:]) {
-		return errorsmod.Wrapf(types.ErrInvalidHeaderHash, "invalid header hash, expected %x, got %x", headerHash, publicValues.CelestiaHeaderHash[:])
+		return errorsmod.Wrapf(types.ErrInvalidHeaderHash, "expected %x, got %x", headerHash, publicValues.CelestiaHeaderHash[:])
 	}
 
 	if !bytes.Equal(publicValues.TrustedStateRoot[:], ism.StateRoot) {
-		return errorsmod.Wrapf(types.ErrInvalidStateRoot, "invalid trusted state root: expected %x, got %x", ism.StateRoot, publicValues.TrustedStateRoot)
+		return errorsmod.Wrapf(types.ErrInvalidStateRoot, "expected %x, got %x", ism.StateRoot, publicValues.TrustedStateRoot)
 	}
 
 	if publicValues.TrustedHeight != ism.Height {
-		return errorsmod.Wrapf(types.ErrInvalidHeight, "invalid trusted height: expected %d, got %d", ism.Height, publicValues.TrustedHeight)
+		return errorsmod.Wrapf(types.ErrInvalidHeight, "expected %d, got %d", ism.Height, publicValues.TrustedHeight)
 	}
 
 	if !bytes.Equal(publicValues.Namespace[:], ism.Namespace) {
-		return errorsmod.Wrapf(types.ErrInvalidNamespace, "invalid namespace: expected %x, got %x", ism.Namespace, publicValues.Namespace)
+		return errorsmod.Wrapf(types.ErrInvalidNamespace, "expected %x, got %x", ism.Namespace, publicValues.Namespace)
 	}
 
 	if !bytes.Equal(publicValues.PublicKey[:], ism.SequencerPublicKey) {
-		return errorsmod.Wrapf(types.ErrInvalidSequencerKey, "invalid sequencer public key: expected %x, got %x", ism.SequencerPublicKey, publicValues.PublicKey)
+		return errorsmod.Wrapf(types.ErrInvalidSequencerKey, "expected %x, got %x", ism.SequencerPublicKey, publicValues.PublicKey)
 	}
 
 	return nil
