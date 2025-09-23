@@ -16,6 +16,9 @@ service Msg {
   // CreateZKExecutionISM defines the rpc method for creating a new ZK execution ISM.
   rpc CreateZKExecutionISM(MsgCreateZKExecutionISM) returns (MsgCreateZKExecutionISMResponse);
 
+  // UpdateZKExecutionISM defines the rpc method for updating an existing ZK execution ISM.
+  rpc UpdateZKExecutionISM(MsgUpdateZKExecutionISM) returns (MsgUpdateZKExecutionISMResponse);
+
   // UpdateParams defines the rpc method for updating the module parameters.
   rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
 }
@@ -48,6 +51,29 @@ message MsgCreateZKExecutionISMResponse {
     (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
     (gogoproto.nullable)   = false
   ];
+}
+
+// MsgUpdateZKExecutionISM is the request type for UpdateZKExecutionISM.
+message MsgUpdateZKExecutionISM {
+  // ism identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // height is the Celestia height associated with the state transition update.
+  uint64 height = 2;
+  // proof is the ZK proof bytes (groth16).
+  bytes proof = 3;
+  // the public values used for proof verification.
+  bytes public_values = 4;
+}
+
+// MsgUpdateZKExecutionISMResponse is the response type for UpdateZKExecutionISM.
+message MsgUpdateZKExecutionISMResponse {
+  // updated ism trusted state root (hex-encoded)
+  string state_root = 1;
+  // updated ism trusted height
+  uint64 height = 2;
 }
 
 // MsgUpdateParams is the request type for UpdateParams.

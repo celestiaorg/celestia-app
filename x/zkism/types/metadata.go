@@ -16,6 +16,7 @@ const (
 const MetadataMinLength int = 17
 
 // ZkExecutionISMMetadata contains the ZK proof and verification data.
+// TODO: Eventually remove this metadata structure as superseded by dedicated rpc.
 type ZkExecutionISMMetadata struct {
 	// ProofType is the type of ZK proof system used. Default: Groth16.
 	ProofType ProofType

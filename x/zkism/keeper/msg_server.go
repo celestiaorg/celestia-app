@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"context"
+	"encoding/hex"
 
 	errorsmod "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
@@ -59,6 +60,38 @@ func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreat
 
 	return &types.MsgCreateZKExecutionISMResponse{
 		Id: ismId,
+	}, nil
+}
+
+// UpdateZKExecutionISM implements types.MsgServer.
+func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdateZKExecutionISM) (*types.MsgUpdateZKExecutionISMResponse, error) {
+	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
+	if err != nil {
+		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
+	}
+
+	var publicValues types.PublicValues
+	if err := publicValues.Unmarshal(msg.PublicValues); err != nil {
+		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
+	}
+
+	if err := m.validatePublicValues(ctx, msg.Height, ism, publicValues); err != nil {
+		return nil, err
+	}
+
+	if err := types.VerifyGroth16(ctx, ism, msg.Proof, msg.PublicValues); err != nil {
+		return nil, err
+	}
+
+	ism.Height = publicValues.NewHeight
+	ism.StateRoot = publicValues.NewStateRoot[:]
+	if err := m.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
+		return nil, err
+	}
+
+	return &types.MsgUpdateZKExecutionISMResponse{
+		Height:    ism.Height,
+		StateRoot: hex.EncodeToString(ism.StateRoot),
 	}, nil
 }
 
