@@ -67,12 +67,12 @@ func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreat
 func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdateZKExecutionISM) (*types.MsgUpdateZKExecutionISMResponse, error) {
 	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
 	if err != nil {
-		return nil, err
+		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
 	}
 
 	var publicValues types.PublicValues
 	if err := publicValues.Unmarshal(msg.PublicValues); err != nil {
-		return nil, err
+		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
 	}
 
 	if err := m.validatePublicValues(ctx, msg.Height, ism, publicValues); err != nil {

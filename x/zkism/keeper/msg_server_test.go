@@ -3,6 +3,7 @@ package keeper_test
 import (
 	"encoding/hex"
 
+	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/keeper"
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
@@ -73,6 +74,27 @@ func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
 				}
 			},
 			expError: nil,
+		},
+		{
+			name: "ism not found",
+			setupTest: func() {
+				msg = &types.MsgUpdateZKExecutionISM{
+					Id: util.HexAddress{},
+				}
+			},
+			expError: types.ErrIsmNotFound,
+		},
+		{
+			name: "failed to unmarshal public values",
+			setupTest: func() {
+				msg = &types.MsgUpdateZKExecutionISM{
+					Id:           ism.Id,
+					Height:       uint64(celestiaHeight),
+					Proof:        proofBz,
+					PublicValues: []byte("invalid"),
+				}
+			},
+			expError: sdkerrors.ErrInvalidType,
 		},
 	}
 
