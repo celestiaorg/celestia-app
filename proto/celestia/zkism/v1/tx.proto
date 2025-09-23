@@ -16,7 +16,7 @@ service Msg {
   // CreateZKExecutionISM defines the rpc method for creating a new ZK execution ISM.
   rpc CreateZKExecutionISM(MsgCreateZKExecutionISM) returns (MsgCreateZKExecutionISMResponse);
 
-  // UpdateZKExecutionISM defines the rpc method for updating a new ZK execution ISM.
+  // UpdateZKExecutionISM defines the rpc method for updating an existing ZK execution ISM.
   rpc UpdateZKExecutionISM(MsgUpdateZKExecutionISM) returns (MsgUpdateZKExecutionISMResponse);
 
   // SubmitMessages defines the rpc method for verifying state membership of messages.
