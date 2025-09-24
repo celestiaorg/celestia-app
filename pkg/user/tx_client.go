@@ -405,8 +405,7 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 	return client.submitTx(ctx, txBytes, account)
 }
 
-// submitTx is the core transaction submission function that handles all submission scenarios.
-// It consolidates retry logic, sequence management, and multi-connection handling.
+// submitTx routes to single or multi-connection submission
 func (client *TxClient) submitTx(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
 	if len(client.conns) > 1 {
 		return client.submitToMultipleConnections(ctx, txBytes, signer)
@@ -414,7 +413,7 @@ func (client *TxClient) submitTx(ctx context.Context, txBytes []byte, signer str
 	return client.submitToSingleConnection(ctx, txBytes, signer)
 }
 
-// submitToSingleConnection handles submission to a single connection with full retry and sequence management
+// submitToSingleConnection handles submission to a single connection with retry logic at sequence mismatches and sequence management
 func (client *TxClient) submitToSingleConnection(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
 	resp, err := client.sendTxToConnection(ctx, client.conns[0], txBytes)
 	if err != nil {
@@ -422,15 +421,15 @@ func (client *TxClient) submitToSingleConnection(ctx context.Context, txBytes []
 		if !ok || !apperrors.IsNonceMismatchCode(broadcastTxErr.Code) {
 			return nil, err
 		}
-		// Handle sequence mismatch by updating sequence and retrying
-		expectedSequence, parseErr := apperrors.ParseExpectedSequence(broadcastTxErr.ErrorLog)
-		if parseErr != nil {
-			return nil, fmt.Errorf("error parsing sequence mismatch: %w. ErrorLog: %s", parseErr, broadcastTxErr.ErrorLog)
+		// Handle sequence mismatch by updating to expected sequence and retrying
+		expectedSequence, err := apperrors.ParseExpectedSequence(broadcastTxErr.ErrorLog)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing sequence mismatch: %w. ErrorLog: %s", err, broadcastTxErr.ErrorLog)
 		}
 		if err = client.signer.SetSequence(signer, expectedSequence); err != nil {
 			return nil, fmt.Errorf("setting sequence: %w", err)
 		}
-		// Retry with updated sequence - use recursion since we fixed the sequence issue
+		// Retry with updated sequence
 		retryTxBytes, err := client.resignTransactionWithNewSequence(txBytes)
 		if err != nil {
 			return nil, err
@@ -443,13 +442,13 @@ func (client *TxClient) submitToSingleConnection(ctx context.Context, txBytes []
 
 	// Increment sequence after successful submission
 	if err := client.signer.IncrementSequence(signer); err != nil {
-		return nil, fmt.Errorf("increment sequencing: %w", err)
+		return nil, fmt.Errorf("error incrementing sequence: %w", err)
 	}
 
 	return resp, nil
 }
 
-// sendTxToConnection performs the actual gRPC call to broadcast a transaction and returns the response.
+// sendTxToConnection broadcasts a transaction to the chain and returns the response.
 func (client *TxClient) sendTxToConnection(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
 	txClient := sdktx.NewServiceClient(conn)
 	resp, err := txClient.BroadcastTx(
