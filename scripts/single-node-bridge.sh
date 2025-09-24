@@ -4,10 +4,8 @@
 # Prerequisites:
 # 1. Run ./scripts/single-node.sh in another terminal window.
 
-# Stop script execution if an error is encountered
-set -o errexit
-# Stop script execution if an undefined variable is used
-set -o nounset
+set -o errexit # Stop script execution if an error is encountered
+set -o nounset # Stop script execution if an undefined variable is used
 
 if ! [ -x "$(command -v celestia)" ]
 then
