@@ -46,7 +46,7 @@ pull_request_rules:
     actions:
       backport:
         branches:
-          - v6.x          
+          - v6.x
   - name: forward-port patches to main branch
     conditions:
       - label=forwardport:main
