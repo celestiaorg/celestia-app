@@ -40,9 +40,9 @@ import (
 const (
 	DefaultPollTime          = 3 * time.Second
 	txTrackerPruningInterval = 10 * time.Minute
-	// evictionPollTime is the time interval to check if a transaction gets committed
-	// if it experiences a broadcast error after resubmission
-	evictionPollTime         = 1 * time.Minute
+	// evictionPollTime is the polling interval for checking if an evicted transaction
+	// gets committed after experiencing a broadcast error during resubmission
+	evictionPollTime = 1 * time.Minute
 )
 
 type Option func(client *TxClient)
