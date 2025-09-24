@@ -27,7 +27,7 @@ func TestCreateExecCommand(t *testing.T) {
 	}
 
 	for idx, binaryGenerator := range binaryGenerators {
-		t.Run(fmt.Sprintf("%d", idx), func(t *testing.T) {
+		t.Run(fmt.Sprintf("v%d", idx+3), func(t *testing.T) {
 			version, compressedBinary, err := binaryGenerator()
 			require.NoError(t, err)
 
