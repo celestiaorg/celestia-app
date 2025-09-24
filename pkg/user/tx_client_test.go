@@ -406,8 +406,8 @@ func TestEvictions(t *testing.T) {
 			},
 		}
 
-		mockTxClient, conn := setupTxClientWithMockGRPCServer(t, responseSequences, user.WithPollTime(1*time.Second))
-		defer conn.Close()
+		mockTxClient, conns := setupTxClientWithMockServers(t, []BroadcastHandler{nil}, responseSequences, user.WithPollTime(1*time.Second))
+		defer conns[0].Close()
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -438,8 +438,8 @@ func TestEvictions(t *testing.T) {
 			},
 		}
 
-		mockTxClient, conn := setupTxClientWithMockGRPCServer(t, responseSequences, user.WithPollTime(5*time.Second))
-		defer conn.Close()
+		mockTxClient, conns := setupTxClientWithMockServers(t, []BroadcastHandler{nil}, responseSequences, user.WithPollTime(5*time.Second))
+		defer conns[0].Close()
 
 		ctx := context.Background()
 
@@ -662,29 +662,27 @@ func (suite *TxClientTestSuite) TestMultiConnBroadcast() {
 
 	// Default options for most tests - used only to create a valid tx.
 	defaultOpts := []user.TxOption{user.SetGasLimit(100000), user.SetFee(1000)}
-	// Basic MsgSend for testing - use the main suite's default address.
-	defaultMsg := bank.NewMsgSend(suite.txClient.DefaultAddress(), suite.txClient.DefaultAddress(), sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(10))))
 
 	testCases := []struct {
 		name        string
-		setupMocks  func(t *testing.T) []*grpc.ClientConn
+		setupMocks  func(t *testing.T) (*user.TxClient, []*grpc.ClientConn)
 		expectError bool
 	}{
 		{
 			name: "Primary Success (Single Conn)",
-			setupMocks: func(t *testing.T) []*grpc.ClientConn {
+			setupMocks: func(t *testing.T) (*user.TxClient, []*grpc.ClientConn) {
 				handlers := []BroadcastHandler{
 					func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
 						return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "HASH1"}}, nil
 					},
 				}
-				return setupMultipleMockServers(t, handlers)
+				return setupTxClientWithMockServers(t, handlers, nil)
 			},
 			expectError: false,
 		},
-		{ // Secondary Success
+		{
 			name: "Secondary Success",
-			setupMocks: func(t *testing.T) []*grpc.ClientConn {
+			setupMocks: func(t *testing.T) (*user.TxClient, []*grpc.ClientConn) {
 				handlers := []BroadcastHandler{
 					func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) { // Primary fails after delay
 						time.Sleep(1 * time.Second)
@@ -702,13 +700,13 @@ func (suite *TxClientTestSuite) TestMultiConnBroadcast() {
 						}
 					},
 				}
-				return setupMultipleMockServers(t, handlers)
+				return setupTxClientWithMockServers(t, handlers, nil)
 			},
 			expectError: false,
 		},
-		{ // All Fail
+		{
 			name: "All Fail",
-			setupMocks: func(t *testing.T) []*grpc.ClientConn {
+			setupMocks: func(t *testing.T) (*user.TxClient, []*grpc.ClientConn) {
 				handlers := []BroadcastHandler{
 					func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
 						return nil, errors.New("mock1 failed")
@@ -720,13 +718,13 @@ func (suite *TxClientTestSuite) TestMultiConnBroadcast() {
 						return nil, errors.New("mock3 failed")
 					},
 				}
-				return setupMultipleMockServers(t, handlers)
+				return setupTxClientWithMockServers(t, handlers, nil)
 			},
 			expectError: true,
 		},
-		{ // Context Deadline
+		{
 			name: "Context Deadline",
-			setupMocks: func(t *testing.T) []*grpc.ClientConn {
+			setupMocks: func(t *testing.T) (*user.TxClient, []*grpc.ClientConn) {
 				mockHandler := func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
 					select {
 					case <-time.After(1 * time.Second):
@@ -736,13 +734,13 @@ func (suite *TxClientTestSuite) TestMultiConnBroadcast() {
 					}
 				}
 				handlers := []BroadcastHandler{mockHandler, mockHandler, mockHandler}
-				return setupMultipleMockServers(t, handlers)
+				return setupTxClientWithMockServers(t, handlers, nil)
 			},
 			expectError: true,
 		},
-		{ // Less Than Three Conns (Success)
+		{
 			name: "Less Than Three Conns (Success)",
-			setupMocks: func(t *testing.T) []*grpc.ClientConn {
+			setupMocks: func(t *testing.T) (*user.TxClient, []*grpc.ClientConn) {
 				handlers := []BroadcastHandler{
 					func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
 						return nil, errors.New("mock1 failed")
@@ -751,20 +749,20 @@ func (suite *TxClientTestSuite) TestMultiConnBroadcast() {
 						return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "HASH_LT3"}}, nil
 					},
 				}
-				return setupMultipleMockServers(t, handlers)
+				return setupTxClientWithMockServers(t, handlers, nil)
 			},
 			expectError: false,
 		},
-		{ // Non-Zero Code Failure
+		{
 			name: "Non-Zero Code Failure",
-			setupMocks: func(t *testing.T) []*grpc.ClientConn {
+			setupMocks: func(t *testing.T) (*user.TxClient, []*grpc.ClientConn) {
 				handlers := []BroadcastHandler{
 					func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
 						resp := &sdk.TxResponse{Code: 5, TxHash: "HASH_FAIL", RawLog: sdkerrors.ErrInsufficientFunds.Error()}
 						return &sdktx.BroadcastTxResponse{TxResponse: resp}, nil
 					},
 				}
-				return setupMultipleMockServers(t, handlers)
+				return setupTxClientWithMockServers(t, handlers, nil)
 			},
 			expectError: true,
 		},
@@ -772,25 +770,11 @@ func (suite *TxClientTestSuite) TestMultiConnBroadcast() {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			conns := tc.setupMocks(t)
+			tempTxClient, conns := tc.setupMocks(t)
 			require.NotEmpty(t, conns, "Need at least one connection for broadcast test client")
 
-			primaryConn := conns[0]
-			otherConns := conns[1:]
-
-			// Seed a new signer with the suite's default account to avoid querying auth service on mock servers
-			origSigner := suite.txClient.Signer()
-			origAcc := origSigner.Account(suite.txClient.DefaultAccountName()).Copy()
-			signer, err := user.NewSigner(suite.ctx.Keyring, suite.encCfg.TxConfig, origSigner.ChainID(), origAcc)
-			require.NoError(t, err)
-			tempTxClient, err := user.NewTxClient(
-				suite.encCfg.Codec,
-				signer,
-				primaryConn,
-				suite.encCfg.InterfaceRegistry,
-				user.WithAdditionalCoreEndpoints(otherConns),
-			)
-			require.NoError(t, err, "Failed to create temporary TxClient for test case %s", tc.name)
+			// Create message using the mock TxClient's address
+			defaultMsg := bank.NewMsgSend(tempTxClient.DefaultAddress(), tempTxClient.DefaultAddress(), sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(10))))
 
 			var ctx context.Context
 			var cancel context.CancelFunc
@@ -832,23 +816,7 @@ func (suite *TxClientTestSuite) TestSequenceIncrementOnlyOnceInMultiConnBroadcas
 			return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "SUCCESS3"}}, nil
 		},
 	}
-	conns := setupMultipleMockServers(t, handlers)
-	conn1, conn2, conn3 := conns[0], conns[1], conns[2]
-
-	// Create a TxClient with multiple connections
-	origSigner := suite.txClient.Signer()
-	origAcc := origSigner.Account(suite.txClient.DefaultAccountName()).Copy()
-	signer, err := user.NewSigner(suite.ctx.Keyring, suite.encCfg.TxConfig, origSigner.ChainID(), origAcc)
-	require.NoError(t, err)
-
-	multiConnClient, err := user.NewTxClient(
-		suite.encCfg.Codec,
-		signer,
-		conn1,
-		suite.encCfg.InterfaceRegistry,
-		user.WithAdditionalCoreEndpoints([]*grpc.ClientConn{conn2, conn3}),
-	)
-	require.NoError(t, err)
+	multiConnClient, _ := setupTxClientWithMockServers(t, handlers, nil)
 
 	// Capture sequence before broadcast
 	seqBefore := multiConnClient.Signer().Account(multiConnClient.DefaultAccountName()).Sequence()

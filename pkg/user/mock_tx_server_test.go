@@ -88,16 +88,10 @@ func (m *mockTxServer) BroadcastTx(ctx context.Context, req *sdktx.BroadcastTxRe
 	}, nil
 }
 
-// setupTxClientWithMockGRPCServer creates a TxClient connected to a mock gRPC server that lets you mock broadcast and tx status responses
-func setupTxClientWithMockGRPCServer(t *testing.T, responseSequences map[string][]*tx.TxStatusResponse, opts ...user.Option) (*user.TxClient, *grpc.ClientConn) {
-	return setupTxClientWithMockGRPCServerAndBroadcastHandler(t, responseSequences, nil, opts...)
-}
-
-// setupTxClientWithMockGRPCServerAndBroadcastHandler creates a TxClient connected to a mock gRPC server with custom broadcast handler
-func setupTxClientWithMockGRPCServerAndBroadcastHandler(t *testing.T, responseSequences map[string][]*tx.TxStatusResponse, broadcastHandler BroadcastHandler, opts ...user.Option) (*user.TxClient, *grpc.ClientConn) {
-	// Create mock server with provided response sequences
+// createMockServer creates a single mock gRPC server with the given configuration
+func createMockServer(t *testing.T, txStatusResponses map[string][]*tx.TxStatusResponse, broadcastHandler BroadcastHandler) *grpc.ClientConn {
 	mockServer := &mockTxServer{
-		txStatusResponses:   responseSequences,
+		txStatusResponses:   txStatusResponses,
 		txStatusCallCounts:  make(map[string]int),
 		broadcastCallCounts: make(map[string]int),
 		broadcastHandler:    broadcastHandler,
@@ -125,58 +119,48 @@ func setupTxClientWithMockGRPCServerAndBroadcastHandler(t *testing.T, responseSe
 	)
 	require.NoError(t, err)
 
+	return conn
+}
+
+// setupTxClientWithMockServers creates mock gRPC servers with different broadcast handlers (works for single or multiple servers)
+func setupTxClientWithMockServers(t *testing.T, broadcastHandlers []BroadcastHandler, txStatusResponses map[string][]*tx.TxStatusResponse, opts ...user.Option) (*user.TxClient, []*grpc.ClientConn) {
+	var conns []*grpc.ClientConn
+
+	for i, handler := range broadcastHandlers {
+		// Use provided txStatusResponses for first server, empty for others
+		var responses map[string][]*tx.TxStatusResponse
+		if i == 0 && txStatusResponses != nil {
+			responses = txStatusResponses
+		} else {
+			responses = make(map[string][]*tx.TxStatusResponse)
+		}
+		conn := createMockServer(t, responses, handler)
+		conns = append(conns, conn)
+	}
+
+	primaryConn := conns[0]
+	var otherConns []*grpc.ClientConn
+	if len(conns) > 1 {
+		otherConns = conns[1:]
+	}
+
 	// Create TxClient with mock connection
 	encCfg, txClient, _ := setupTxClientWithDefaultParams(t)
+
+	// Build options list
+	clientOpts := opts
+	if len(otherConns) > 0 {
+		clientOpts = append(clientOpts, user.WithAdditionalCoreEndpoints(otherConns))
+	}
 
 	mockTxClient, err := user.NewTxClient(
 		encCfg.Codec,
 		txClient.Signer(),
-		conn,
+		primaryConn,
 		encCfg.InterfaceRegistry,
-		opts...,
+		clientOpts...,
 	)
 	require.NoError(t, err)
 
-	return mockTxClient, conn
-}
-
-// setupMultipleMockServers creates multiple mock gRPC servers with different broadcast handlers
-func setupMultipleMockServers(t *testing.T, broadcastHandlers []BroadcastHandler) []*grpc.ClientConn {
-	var conns []*grpc.ClientConn
-
-	for _, handler := range broadcastHandlers {
-		// Create mock server with custom broadcast handler
-		mockServer := &mockTxServer{
-			txStatusResponses:   make(map[string][]*tx.TxStatusResponse),
-			txStatusCallCounts:  make(map[string]int),
-			broadcastCallCounts: make(map[string]int),
-			broadcastHandler:    handler,
-		}
-
-		// Set up in-memory gRPC server
-		lis := bufconn.Listen(1024 * 1024)
-		s := grpc.NewServer()
-		sdktx.RegisterServiceServer(s, mockServer) // For BroadcastTx
-		tx.RegisterTxServer(s, mockServer)         // For TxStatus
-
-		go func() {
-			if err := s.Serve(lis); err != nil {
-				t.Logf("Server exited with error: %v", err)
-			}
-		}()
-
-		// Create client connection
-		//nolint:staticcheck
-		conn, err := grpc.DialContext(context.Background(), "bufnet",
-			grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
-				return lis.Dial()
-			}),
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-		)
-		require.NoError(t, err)
-
-		conns = append(conns, conn)
-	}
-
-	return conns
+	return mockTxClient, conns
 }
