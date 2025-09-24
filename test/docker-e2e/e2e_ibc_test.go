@@ -16,10 +16,11 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
-	"github.com/celestiaorg/tastora/framework/docker"
+	"github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/docker/ibc"
 	"github.com/celestiaorg/tastora/framework/docker/ibc/relayer"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
+	"github.com/celestiaorg/tastora/framework/types"
 	sdktx "github.com/cosmos/cosmos-sdk/client/tx"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -41,8 +42,8 @@ type IBCTestSuite struct {
 	CelestiaTestSuite
 
 	// IBC-specific fields set up in SetupTest
-	chainA          *docker.Chain // Celestia
-	chainB          *docker.Chain // Simapp
+	chainA          *cosmos.Chain // Celestia
+	chainB          *cosmos.Chain // Simapp
 	hermes          *relayer.Hermes
 	connection      ibc.Connection
 	transferChannel ibc.Channel
@@ -253,8 +254,8 @@ func (s *IBCTestSuite) establishIBCConnection(ctx context.Context) (ibc.Connecti
 
 // testTokenTransfers tests token transfers from Celestia to simapp
 func (s *IBCTestSuite) testTokenTransfers(ctx context.Context, channel ibc.Channel) {
-	sourceWallet := s.chainA.GetFaucetWallet().(*docker.Wallet)
-	destWallet := s.chainB.GetFaucetWallet().(*docker.Wallet)
+	sourceWallet := s.chainA.GetFaucetWallet()
+	destWallet := s.chainB.GetFaucetWallet()
 	ibcTransfer := s.createIBCTransferMsg(sourceWallet, destWallet, channel, "utia", 100000)
 
 	// Submit transaction and verify results - always use TxClient since we only transfer from Celestia
@@ -262,7 +263,7 @@ func (s *IBCTestSuite) testTokenTransfers(ctx context.Context, channel ibc.Chann
 }
 
 // createIBCTransferMsg creates an IBC transfer message
-func (s *IBCTestSuite) createIBCTransferMsg(sourceWallet, destWallet *docker.Wallet, channel ibc.Channel, denom string, amount int64) *ibctransfertypes.MsgTransfer {
+func (s *IBCTestSuite) createIBCTransferMsg(sourceWallet, destWallet *types.Wallet, channel ibc.Channel, denom string, amount int64) *ibctransfertypes.MsgTransfer {
 	destAddr, err := sdkacc.AddressFromWallet(destWallet)
 	s.Require().NoError(err, "failed to parse destination address")
 
@@ -284,7 +285,7 @@ func (s *IBCTestSuite) submitTransactionAndVerify(ctx context.Context, msg *ibct
 	channel := ibc.Channel{PortID: msg.SourcePort, CounterpartyID: msg.SourceChannel}
 	ibcDenom := s.calculateIBCDenom(channel, denom)
 
-	destWallet := s.chainB.GetFaucetWallet().(*docker.Wallet)
+	destWallet := s.chainB.GetFaucetWallet()
 	destBalance := s.getBalance(ctx, s.chainB, destWallet.GetFormattedAddress(), ibcDenom)
 
 	// Use TxClient for Celestia chain
@@ -301,7 +302,7 @@ func (s *IBCTestSuite) submitTransactionAndVerify(ctx context.Context, msg *ibct
 }
 
 // verifyTransferResults checks the final balances and verifies the transfer results
-func (s *IBCTestSuite) verifyTransferResults(ctx context.Context, destWallet *docker.Wallet, ibcDenom string, destBalance, transferAmount sdkmath.Int) {
+func (s *IBCTestSuite) verifyTransferResults(ctx context.Context, destWallet *types.Wallet, ibcDenom string, destBalance, transferAmount sdkmath.Int) {
 	finalDestBalance := s.getBalance(ctx, s.chainB, destWallet.GetFormattedAddress(), ibcDenom)
 
 	expectedDestBalance := destBalance.Add(transferAmount)
@@ -311,7 +312,7 @@ func (s *IBCTestSuite) verifyTransferResults(ctx context.Context, destWallet *do
 
 // upgradeChain upgrades the celestia chain from baseAppVersion to targetAppVersion
 // This reuses the existing upgrade logic from e2e_upgrade_test.go
-func (s *IBCTestSuite) upgradeChain(ctx context.Context, chain *docker.Chain, targetAppVersion uint64) {
+func (s *IBCTestSuite) upgradeChain(ctx context.Context, chain *cosmos.Chain, targetAppVersion uint64) {
 	validatorNode := chain.GetNodes()[0]
 	cfg := s.celestiaCfg
 	kr := cfg.Genesis.Keyring()
@@ -341,8 +342,8 @@ func (s *IBCTestSuite) upgradeChain(ctx context.Context, chain *docker.Chain, ta
 }
 
 // setupTxClient sets up a tx client using the node's keyring
-func (s *IBCTestSuite) setupTxClient(ctx context.Context, chain *docker.Chain) (*user.TxClient, error) {
-	node := chain.GetNodes()[0].(*docker.ChainNode)
+func (s *IBCTestSuite) setupTxClient(ctx context.Context, chain *cosmos.Chain) (*user.TxClient, error) {
+	node := chain.GetNodes()[0].(*cosmos.ChainNode)
 
 	keyring, err := node.GetKeyring()
 	if err != nil {
@@ -360,7 +361,7 @@ func (s *IBCTestSuite) setupTxClient(ctx context.Context, chain *docker.Chain) (
 }
 
 // getBalance gets the balance of a specific denom for an address
-func (s *IBCTestSuite) getBalance(ctx context.Context, chain *docker.Chain, address, denom string) sdkmath.Int {
+func (s *IBCTestSuite) getBalance(ctx context.Context, chain *cosmos.Chain, address, denom string) sdkmath.Int {
 	node := chain.GetNode()
 	if node.GrpcConn == nil {
 		s.T().Logf("GRPC connection is nil for chain %s, returning zero balance", chain.GetChainID())
@@ -383,9 +384,9 @@ func (s *IBCTestSuite) calculateIBCDenom(channel ibc.Channel, baseDenom string) 
 }
 
 // newSimappChainBuilder builds a standard simapp chain without token filters
-func (s *IBCTestSuite) newSimappChainBuilder(t *testing.T, cfg *dockerchain.Config) *docker.ChainBuilder {
+func (s *IBCTestSuite) newSimappChainBuilder(t *testing.T, cfg *dockerchain.Config) *cosmos.ChainBuilder {
 	encodingConfig := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
-	return docker.NewChainBuilder(t).
+	return cosmos.NewChainBuilder(t).
 		WithEncodingConfig(&encodingConfig).
 		WithName("simapp").
 		WithChainID("chain-b").
@@ -399,7 +400,7 @@ func (s *IBCTestSuite) newSimappChainBuilder(t *testing.T, cfg *dockerchain.Conf
 		WithDockerNetworkID(cfg.DockerNetworkID).
 		WithDockerClient(cfg.DockerClient).
 		WithChainID("chain-b").
-		WithNode(docker.NewChainNodeConfigBuilder().Build())
+		WithNode(cosmos.NewChainNodeConfigBuilder().Build())
 }
 
 // registerInterchainAccount registers an ICA using message broadcasting instead of CLI
@@ -413,7 +414,7 @@ func (s *IBCTestSuite) registerInterchainAccount(ctx context.Context) {
 	)
 
 	// Use Broadcaster for simapp (chainB)
-	broadcaster := docker.NewBroadcaster(s.chainB)
+	broadcaster := cosmos.NewBroadcaster(s.chainB)
 	broadcaster.ConfigureFactoryOptions(func(factory sdktx.Factory) sdktx.Factory {
 		return factory.WithGas(400000) // set higher gas limit for ICA registration
 	})
@@ -435,7 +436,7 @@ func (s *IBCTestSuite) verifyICARegistration(ctx context.Context) string {
 	controllerWallet := s.chainB.GetFaucetWallet()
 
 	// query the ICA account address using gRPC
-	controllerNode := s.chainB.GetNodes()[0].(*docker.ChainNode)
+	controllerNode := s.chainB.GetNodes()[0].(*cosmos.ChainNode)
 	s.Require().NotNil(controllerNode.GrpcConn, "controller gRPC connection is nil")
 
 	s.T().Logf("Querying ICA for owner: %s, connection: %s", controllerWallet.GetFormattedAddress(), s.connection.ConnectionID)
@@ -521,7 +522,7 @@ func (s *IBCTestSuite) performICABankSend(ctx context.Context, icaAddress string
 	)
 
 	// Use Broadcaster for simapp (chainB)
-	broadcaster := docker.NewBroadcaster(s.chainB)
+	broadcaster := cosmos.NewBroadcaster(s.chainB)
 	broadcaster.ConfigureFactoryOptions(func(factory sdktx.Factory) sdktx.Factory {
 		return factory.WithGas(500000)
 	})

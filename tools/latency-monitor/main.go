@@ -15,7 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
