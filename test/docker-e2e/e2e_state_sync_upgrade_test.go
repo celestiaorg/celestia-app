@@ -11,13 +11,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/tastora/framework/docker/cosmos"
 	addressutil "github.com/celestiaorg/tastora/framework/testutil/address"
-	"github.com/celestiaorg/tastora/framework/testutil/config"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
-	cometcfg "github.com/cometbft/cometbft/config"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
-	servercfg "github.com/cosmos/cosmos-sdk/server/config"
-	"github.com/stretchr/testify/require"
 )
 
 // TestStateSyncWithAppUpgrade verifies that a full node can state-sync across app version
@@ -172,70 +168,6 @@ func (s *CelestiaTestSuite) TestStateSyncWithAppUpgrade() {
 	t.Log("Liveness check passed")
 }
 
-// detectStateSyncFromMetrics queries Prometheus metrics to determine if state sync was used
-func detectStateSyncFromMetrics(t *testing.T, node *cosmos.ChainNode) (usedStateSync bool, err error) {
-	ctx := context.Background()
-
-	networkInfo, err := node.GetNetworkInfo(ctx)
-	require.NoError(t, err, "failed to get network info from chain node")
-	hostname := networkInfo.Internal.Hostname
-
-	// NOTE: Due to Tastora's limitation, we must use curl to fetch metrics from the node.
-	// Once the port issue is resolved, we can fetch metrics directly from the node without curl.
-	endpoint := fmt.Sprintf("http://%s:26660/metrics", hostname)
-	cmd := []string{"curl", "--silent", "--connect-timeout", "10", "--max-time", "30", endpoint}
-	stdout, stderr, execErr := node.Exec(ctx, cmd, nil)
-
-	if execErr != nil {
-		return false, fmt.Errorf("failed to fetch metrics from %s: %v, stderr: %s", endpoint, execErr, string(stderr))
-	}
-
-	metrics := string(stdout)
-	if len(metrics) == 0 {
-		return false, fmt.Errorf("received empty metrics response from %s", endpoint)
-	}
-
-	return findStateSyncMetrics(t, metrics)
-}
-
-func findStateSyncMetrics(t *testing.T, metrics string) (usedStateSync bool, err error) {
-	// Check for state sync evidence
-	// The presence of apply_snapshot_chunk metrics with non-zero count proves state sync was used
-	lines := strings.Split(metrics, "\n")
-	for _, line := range lines {
-		if strings.Contains(line, "apply_snapshot_chunk") && strings.Contains(line, "_count{") {
-			// Look for non-zero count indicating snapshot chunks were applied
-			parts := strings.Fields(line)
-			if len(parts) >= 2 {
-				countStr := parts[len(parts)-1]
-				if countStr != "0" && countStr != "0.0" {
-					t.Logf("State sync confirmed: applied %s snapshot chunks", countStr)
-					return true, nil
-				}
-			}
-		}
-	}
-
-	// No evidence of state sync found
-	return false, nil
-}
-
-// verifyStateSync validates that state sync was used and not block sync
-func verifyStateSync(t *testing.T, stateSyncNode *cosmos.ChainNode) {
-	t.Log("Verifying sync method via Prometheus metrics...")
-
-	usedStateSync, metricsErr := detectStateSyncFromMetrics(t, stateSyncNode)
-	if metricsErr != nil {
-		t.Fatalf("Failed to verify sync method via metrics: %v", metricsErr)
-	}
-
-	if !usedStateSync {
-		t.Fatal("Failed to confirm state sync was used via Prometheus metrics")
-	}
-
-	t.Log("Success: Prometheus metrics confirm state sync was used")
-}
-
 // performUpgrade executes the upgrade to the target app version
 func (s *CelestiaTestSuite) performUpgrade(ctx context.Context, chain tastoratypes.Chain, cfg *dockerchain.Config, targetAppVersion uint64) (upgradeHeight int64) {
 	t := s.T()
@@ -268,41 +200,6 @@ func (s *CelestiaTestSuite) performUpgrade(ctx context.Context, chain tastoratyp
 	s.Require().NoError(wait.ForBlocks(ctx, 20, chain), "failed to wait for post-upgrade blocks")
 
 	return upgradeHeight
-}
-
-// validatorStateSyncProducerOverrides configures validators to produce state sync snapshots.
-func validatorStateSyncProducerOverrides(ctx context.Context, node *cosmos.ChainNode) error {
-	return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
-		cfg.StateSync.SnapshotInterval = 5
-		cfg.StateSync.SnapshotKeepRecent = 3
-	})
-}
-
-// configureStateSyncClient configures a node to use state sync.
-func configureStateSyncClient(ctx context.Context, node *cosmos.ChainNode, rpcEndpoints []string, trustHeight int64, trustHash string) error {
-	err := config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
-		cfg.StateSync.Enable = true
-
-		if len(rpcEndpoints) > 0 {
-			cfg.StateSync.RPCServers = rpcEndpoints
-		}
-
-		cfg.StateSync.TrustHeight = trustHeight
-		cfg.StateSync.TrustHash = trustHash
-
-		cfg.StateSync.TrustPeriod = 168 * time.Hour // 1 week
-		cfg.StateSync.DiscoveryTime = 5 * time.Second
-
-		cfg.Instrumentation.Prometheus = true
-		cfg.Instrumentation.PrometheusListenAddr = "0.0.0.0:26660"
-	})
-	if err != nil {
-		return err
-	}
-
-	return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
-		cfg.Telemetry.Enabled = true
-	})
 }
 
 // waitForSnapshotCreation waits for a snapshot to be created and returns its height
