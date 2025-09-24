@@ -22,7 +22,7 @@ This release introduces a new message type that needs to be signed by KMS. **If 
 
 #### Horcrux
 
-For horcrux, use [v3.3.2-celestia](https://github.com/celestiaorg/horcrux/releases/tag/v3.3.2-celestia). All the setups and configs remain the same.
+For horcrux, use [v3.3.3-celestia](https://github.com/celestiaorg/horcrux/releases/tag/v3.3.3-celestia). All the setups and configs remain the same.
 
 #### TmKMS
 
