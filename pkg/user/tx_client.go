@@ -307,7 +307,7 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 		return nil, err
 	}
 
-	return client.submitTx(ctx, txBytes, accountName)
+	return client.routeTx(ctx, txBytes, accountName)
 }
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
@@ -402,11 +402,11 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 		return nil, err
 	}
 
-	return client.submitTx(ctx, txBytes, account)
+	return client.routeTx(ctx, txBytes, account)
 }
 
-// submitTx routes to single or multi-connection submission
-func (client *TxClient) submitTx(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+// routeTx routes to single or multi-connection handling
+func (client *TxClient) routeTx(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
 	if len(client.conns) > 1 {
 		return client.submitToMultipleConnections(ctx, txBytes, signer)
 	}
@@ -434,7 +434,6 @@ func (client *TxClient) submitToSingleConnection(ctx context.Context, txBytes []
 		if err != nil {
 			return nil, err
 		}
-		// Recursive call - this should succeed now that we have the correct sequence
 		return client.submitToSingleConnection(ctx, retryTxBytes, signer)
 	}
 	// Track the original transaction
