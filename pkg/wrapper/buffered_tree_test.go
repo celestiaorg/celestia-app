@@ -21,7 +21,8 @@ var standardSizes = []int{2, 4, 8, 16, 32, 64, 128, 256, 512}
 func TestTreePool_AcquireRelease(t *testing.T) {
 	squareSize := uint(512)
 	poolSize := 100
-	pool := NewTreePool(squareSize, poolSize)
+	pool, err := NewTreePool(squareSize, poolSize)
+	require.NoError(t, err)
 
 	trees := make([]*resizeableBufferTree, 0, poolSize)
 
@@ -50,7 +51,8 @@ func TestResizeableBufferTree_WithPoolReuse(t *testing.T) {
 		t.Run(fmt.Sprintf("size_%d", size), func(t *testing.T) {
 			squareSize := uint(size)
 			poolSize := 4
-			pool := NewTreePool(squareSize, poolSize)
+			pool, err := NewTreePool(squareSize, poolSize)
+			require.NoError(t, err)
 
 			data := testfactory.GenerateRandNamespacedRawData(int(squareSize * 2))
 
@@ -105,15 +107,18 @@ func TestComputeExtendedDataSquare_WithAndWithoutPool(t *testing.T) {
 	}
 
 	t.Run("sizes - reuse small pool", func(t *testing.T) {
-		pool := NewTreePool(2, runtime.NumCPU()*4)
+		pool, err := NewTreePool(2, runtime.NumCPU()*4)
+		require.NoError(t, err)
 		testSquareSize(t, standardSizes, pool)
-		pool = NewTreePool(2, runtime.NumCPU()*4)
+		pool, err = NewTreePool(2, runtime.NumCPU()*4)
+		require.NoError(t, err)
 		// test is not very fast, so we do less fuzzing
 		testSquareSize(t, genRandomSizes(6, 512), pool)
 	})
 
 	t.Run("sizes - reuse large pool", func(t *testing.T) {
-		pool := NewTreePool(512, runtime.NumCPU()*4)
+		pool, err := NewTreePool(512, runtime.NumCPU()*4)
+		require.NoError(t, err)
 		testSquareSize(t, standardSizes, pool)
 		// test is not very fast, so we do less fuzzing
 		testSquareSize(t, genRandomSizes(6, 512), pool)
@@ -132,7 +137,8 @@ func comparePoolAndNonPoolEDS(t *testing.T, squareSize int, pool *TreePool) {
 
 	// If no pool is provided, create a new one for this test
 	if pool == nil {
-		pool = NewTreePool(uint(squareSize), runtime.NumCPU()*4)
+		pool, err = NewTreePool(uint(squareSize), runtime.NumCPU()*4)
+		require.NoError(t, err)
 	}
 
 	edsWithPool, err := rsmt2d.ComputeExtendedDataSquareWithBuffer(
@@ -168,7 +174,8 @@ func comparePoolAndNonPoolEDS(t *testing.T, squareSize int, pool *TreePool) {
 func TestTreePool_ConcurrentAccess(t *testing.T) {
 	squareSize := uint(16)
 	poolSize := 8
-	pool := NewTreePool(squareSize, poolSize)
+	pool, err := NewTreePool(squareSize, poolSize)
+	require.NoError(t, err)
 
 	// generate test data for multiple trees
 	numTrees := 20
@@ -228,7 +235,8 @@ func BenchmarkExtendedDataSquare_WithPool(b *testing.B) {
 	for _, size := range standardSizes {
 		b.Run(fmt.Sprintf("SquareSize-%d", size), func(b *testing.B) {
 			data := testfactory.GenerateRandNamespacedRawData(size * size)
-			pool := NewTreePool(uint(size), runtime.NumCPU()*4)
+			pool, err := NewTreePool(uint(size), runtime.NumCPU()*4)
+			require.NoError(b, err)
 
 			b.ReportAllocs()
 			b.ResetTimer()

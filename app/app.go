@@ -194,8 +194,8 @@ type App struct {
 	// blockTime is used to override the default TimeoutHeightDelay. This is
 	// useful for testing purposes and should not be used on public networks
 	// (Arabica, Mocha, or Mainnet Beta).
-	// nmtTreePool used for ProcessPropsal and PrepareProposal to optimize root calculation allocs
-	nmtTreePool             *wrapper.TreePool
+	// treePool used for ProcessPropsal and PrepareProposal to optimize root calculation allocs
+	treePool                *wrapper.TreePool
 	delayedPrecommitTimeout time.Duration
 }
 
@@ -483,9 +483,12 @@ func New(
 		&app.CircuitKeeper,
 		app.GovParamFilters(),
 	))
-	app.nmtTreePool = wrapper.DefaultPreallocatedTreePool(uint(appconsts.SquareSizeUpperBound))
 
 	protoFiles, err := proto.MergedRegistry()
+	if err != nil {
+		panic(err)
+	}
+	app.treePool, err = wrapper.DefaultPreallocatedTreePool(uint(appconsts.SquareSizeUpperBound))
 	if err != nil {
 		panic(err)
 	}
@@ -697,7 +700,7 @@ func (app *App) GetSubspace(moduleName string) paramstypes.Subspace {
 
 // TreePool returns the instance used for managing a pool of Merkle trees.
 func (app *App) TreePool() *wrapper.TreePool {
-	return app.nmtTreePool
+	return app.treePool
 }
 
 // RegisterAPIRoutes registers all application module routes with the provided

@@ -18,12 +18,15 @@ type TreePool struct {
 }
 
 // DefaultPreallocatedTreePool creates a new TreePool with a default pool size
-func DefaultPreallocatedTreePool(squareSize uint) *TreePool {
+func DefaultPreallocatedTreePool(squareSize uint) (*TreePool, error) {
 	return NewTreePool(squareSize, runtime.NumCPU()*4)
 }
 
 // NewTreePool creates a new TreePool with the specified configuration.
-func NewTreePool(initSquareSize uint, poolSize int, opts ...nmt.Option) *TreePool {
+func NewTreePool(initSquareSize uint, poolSize int, opts ...nmt.Option) (*TreePool, error) {
+	if poolSize <= 0 {
+		return nil, fmt.Errorf("pool size must be positive: %d", poolSize)
+	}
 	pool := &TreePool{
 		availableNMTs: make(chan *resizeableBufferTree, poolSize),
 		opts:          opts,
@@ -32,10 +35,14 @@ func NewTreePool(initSquareSize uint, poolSize int, opts ...nmt.Option) *TreePoo
 
 	// initialize the pool with trees configured for initSquareSize
 	for i := 0; i < poolSize; i++ {
-		pool.availableNMTs <- newResizeableBufferTree(initSquareSize, 0, pool, opts...)
+		tree, err := newResizeableBufferTree(initSquareSize, 0, pool, opts...)
+		if err != nil {
+			return nil, err
+		}
+		pool.availableNMTs <- tree
 	}
 
-	return pool
+	return pool, nil
 }
 
 // acquire retrieves a resizeableBufferTree from the pool.
@@ -90,13 +97,13 @@ type resizeableBufferTree struct {
 }
 
 // newResizeableBufferTree creates a new resizeableBufferTree with pre-allocated buffer and pool reference.
-func newResizeableBufferTree(maxSquareSize uint, axisIndex uint, pool *TreePool, options ...nmt.Option) *resizeableBufferTree {
+func newResizeableBufferTree(maxSquareSize uint, axisIndex uint, pool *TreePool, options ...nmt.Option) (*resizeableBufferTree, error) {
 	// this should never happen (we also check this with tests), because this is a private
 	if maxSquareSize == 0 {
-		panic("cannot create a resizeableBufferTree of maxSquareSize == 0")
+		return nil, fmt.Errorf("cannot create a resizeableBufferTree of maxSquareSize == 0")
 	}
 	if pool == nil {
-		panic("cannot create a resizeableBufferTree of pool == nil")
+		return nil, fmt.Errorf("cannot create a resizeableBufferTree of pool == nil")
 	}
 	options = append(options, nmt.NamespaceIDSize(share.NamespaceSize))
 	options = append(options, nmt.IgnoreMaxNamespace(true), nmt.ReuseBuffers(true))
@@ -115,7 +122,7 @@ func newResizeableBufferTree(maxSquareSize uint, axisIndex uint, pool *TreePool,
 		axisIndex:       axisIndex,
 		buffer:          make([]byte, 2*maxSquareSize*uint(entrySize)),
 		shareIndex:      0,
-	}
+	}, nil
 }
 
 // Push adds share data to the tree using the pre-allocated buffer to avoid memory allocation.
@@ -152,7 +159,7 @@ func (t *resizeableBufferTree) Push(data []byte) error {
 	return nil
 }
 
-// Root calculates the tree root using FastRoot and releases the tree back to the pool.
+// Root calculates the tree root and releases the tree back to the pool.
 func (t *resizeableBufferTree) Root() ([]byte, error) {
 	defer t.pool.release(t)
 	return t.tree.Root()

@@ -63,14 +63,20 @@ type (
 // extendSharesWithPool works exactly the same as ExtendShares,
 // but it uses treePool to reuse the allocs.
 func extendSharesWithPool(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
-	treePool := wrapper.DefaultPreallocatedTreePool(512)
+	treePool, err := wrapper.DefaultPreallocatedTreePool(512)
+	if err != nil {
+		return nil, err
+	}
 	return ExtendSharesWithTreePool(s, treePool)
 }
 
 // constructEDSWithPool works exactly the same as ConstructEDS,
 // but it uses treePool to reuse the allocs.
 func constructEDSWithPool(txs [][]byte, appVersion uint64, maxSquareSize int) (*rsmt2d.ExtendedDataSquare, error) {
-	treePool := wrapper.DefaultPreallocatedTreePool(512)
+	treePool, err := wrapper.DefaultPreallocatedTreePool(512)
+	if err != nil {
+		return nil, err
+	}
 	return ConstructEDSWithTreePool(txs, appVersion, maxSquareSize, treePool)
 }
 
