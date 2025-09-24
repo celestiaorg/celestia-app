@@ -12,14 +12,6 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v6/app/errors"
-	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v6/app/params"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
 	"github.com/celestiaorg/go-square/v3/share"
 	blobtx "github.com/celestiaorg/go-square/v3/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -37,6 +29,15 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
+
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v6/app/errors"
+	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v6/app/params"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
 )
 
 const (
@@ -732,7 +733,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			client.deleteFromTxTracker(txHash)
 			return nil, fmt.Errorf("tx with hash %s was rejected by the node with execution code %d", txHash, resp.ExecutionCode)
 		default:
-			span.RecordError(fmt.Errorf("txclient/ConfirmTx: unknown tx: %s", txHash))
+			span.RecordError(fmt.Errorf("txclient/ConfirmTx: unknown tx status for tx: %s", txHash))
 			client.deleteFromTxTracker(txHash)
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
@@ -882,7 +883,7 @@ func (client *TxClient) AccountByAddress(ctx context.Context, address sdktypes.A
 
 	accountName := client.signer.accountNameByAddress(address)
 	if accountName == "" {
-		span.AddEvent("txclient/AccountByAddress: account not found for address")
+		span.AddEvent(fmt.Sprintf("txclient/AccountByAddress: account not found for accountName: %s", accountName))
 		return nil
 	}
 
