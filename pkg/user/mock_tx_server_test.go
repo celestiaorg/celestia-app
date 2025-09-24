@@ -124,7 +124,7 @@ func createMockServer(t *testing.T, txStatusResponses map[string][]*tx.TxStatusR
 
 // setupTxClientWithMockServers creates mock gRPC servers with different broadcast handlers (works for single or multiple servers)
 func setupTxClientWithMockServers(t *testing.T, broadcastHandlers []BroadcastHandler, txStatusResponses map[string][]*tx.TxStatusResponse, opts ...user.Option) (*user.TxClient, []*grpc.ClientConn) {
-	var conns []*grpc.ClientConn
+	conns := make([]*grpc.ClientConn, 0, len(broadcastHandlers))
 
 	for i, handler := range broadcastHandlers {
 		// Use provided txStatusResponses for first server, empty for others
