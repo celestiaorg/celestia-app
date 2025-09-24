@@ -434,9 +434,11 @@ func (client *TxClient) submitToSingleConnection(ctx context.Context, txBytes []
 		if err != nil {
 			return nil, err
 		}
+
 		return client.submitToSingleConnection(ctx, retryTxBytes, signer)
 	}
-	// Track the original transaction
+	// Save the sequence, signer and txBytes of the in the local txTracker
+	// before the sequence is incremented
 	client.trackTransaction(signer, resp.TxHash, txBytes)
 
 	// Increment sequence after successful submission
