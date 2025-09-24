@@ -40,9 +40,9 @@ import (
 const (
 	DefaultPollTime          = 3 * time.Second
 	txTrackerPruningInterval = 10 * time.Minute
-	// evictionPollTime is the timeout for checking if an evicted transaction
+	// evictionPollTimeOut is the timeout for checking if an evicted transaction
 	// gets committed after experiencing a broadcast error during resubmission
-	evictionPollTime = 1 * time.Minute
+	evictionPollTimeOut = 1 * time.Minute
 )
 
 type Option func(client *TxClient)
@@ -625,7 +625,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 		}
 
 		if evictionPollTimeStart != nil {
-			if time.Since(*evictionPollTimeStart) > evictionPollTime {
+			if time.Since(*evictionPollTimeStart) > evictionPollTimeOut {
 				return nil, fmt.Errorf("eviction poll timeout: transaction %s was evicted ", txHash)
 			}
 		}
