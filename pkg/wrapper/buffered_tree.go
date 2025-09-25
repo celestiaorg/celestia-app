@@ -131,7 +131,7 @@ func (t *resizeableBufferTree) Push(data []byte) error {
 		return fmt.Errorf("pushed past predetermined square size: boundary at %d index at %d %d", 2*t.squareSize, t.axisIndex, t.shareIndex)
 	}
 	if len(data) < t.namespaceSize {
-		return fmt.Errorf("data is too short to contain namespace ID")
+		return fmt.Errorf("data is too short to contain namespace")
 	}
 	var (
 		nidAndData []byte
