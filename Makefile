@@ -372,13 +372,8 @@ goreleaser-dry-run:
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
 		-w /go/src/$(PACKAGE_NAME) \
 		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
-<<<<<<< HEAD
-		release --snapshot --clean --parallelism 4
-.PHONY: go-releaser-dry-run
-=======
 		release --snapshot --clean --parallelism 1
 .PHONY: goreleaser-dry-run
->>>>>>> fe8e47e (fix: reduce goreleaser parallelism (#5838))
 
 ## goreleaser: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
 goreleaser: prebuilt-binary
