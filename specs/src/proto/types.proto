@@ -41,7 +41,7 @@ message AvailableDataHeader {
 // Protobuf definitions for the contents of state elements
 
 // AccountStatus
-enum AccountStatus: uint8_t {
+enum AccountStatus {
   None = 1, DelegationBonded = 2, DelegationUnbonding = 3, ValidatorQueued = 4, ValidatorBonded = 5,
   ValidatorUnbonding = 6, ValidatorUnbonded = 7,
 }
@@ -56,7 +56,7 @@ message Decimal {
   // Rational numerator
   uint64 numerator = 1;
   // Rational denominator
-  uint64 denominator = 1;
+  uint64 denominator = 2;
 }
 
 message MessagePaid {
@@ -199,7 +199,7 @@ message StateElement {
   // key of the state element
   // value can be of different types depending on the state element.
   // There exists a unique protobuf for different state elements.
-  oneof value = {
+  oneof value {
     Account account = 2;
   Delegation                 delegation                 = 3;
   StateValidator             stateValidator             = 4;
