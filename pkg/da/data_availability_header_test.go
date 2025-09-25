@@ -342,7 +342,7 @@ func TestConstructEDS_SquareSize(t *testing.T) {
 func generateShares(count int) (shares [][]byte) {
 	ns1 := sh.MustNewV0Namespace(bytes.Repeat([]byte{1}, sh.NamespaceVersionZeroIDSize))
 
-	for i := 0; i < count; i++ {
+	for range count {
 		share := generateShare(ns1.Bytes())
 		shares = append(shares, share)
 	}

@@ -232,7 +232,7 @@ func TestValidateBlobTx(t *testing.T) {
 				ns := share.RandomBlobNamespace()
 				sizes := make([]int, count)
 				namespaces := make([]share.Namespace, count)
-				for i := 0; i < count; i++ {
+				for i := range count {
 					sizes[i] = 100
 					namespaces[i] = ns
 				}
