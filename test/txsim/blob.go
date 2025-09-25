@@ -63,7 +63,7 @@ func (s *BlobSequence) WithGasPrice(gasPrice float64) *BlobSequence {
 
 func (s *BlobSequence) Clone(n int) []Sequence {
 	sequenceGroup := make([]Sequence, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		sequenceGroup[i] = &BlobSequence{
 			namespaces:    s.namespaces,
 			sizes:         s.sizes,
