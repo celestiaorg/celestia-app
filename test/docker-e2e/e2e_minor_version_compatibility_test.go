@@ -62,7 +62,6 @@ func (s *CelestiaTestSuite) runMinorVersionCompatibilityTest(ctx context.Context
 
 	if len(versionTags) < 1 {
 		t.Skip("Need at least 1 version tag to test")
-		return
 	}
 
 	t.Logf("Testing compatibility between versions: %v", versionTags)
