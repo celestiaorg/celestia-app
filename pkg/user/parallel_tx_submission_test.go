@@ -168,6 +168,9 @@ func TestParallelSubmitPayForBlobSuccess(t *testing.T) {
 	defer conn.Close()
 	require.NotNil(t, client.ParallelPool())
 
+	// Start the parallel pool
+	client.ParallelPool().Start()
+
 	blob := randomBlob(t)
 
 	jobCount := 3
@@ -211,6 +214,10 @@ func TestParallelSubmitPayForBlobBroadcastError(t *testing.T) {
 	workerAccounts := []string{"worker-1"}
 	client, conn := newMockTxClientWithCustomHandlers(t, broadcastHandler, txStatusHandler, workerAccounts)
 	defer conn.Close()
+	require.NotNil(t, client.ParallelPool())
+
+	// Start the parallel pool
+	client.ParallelPool().Start()
 
 	blob := randomBlob(t)
 
@@ -227,5 +234,98 @@ func TestParallelSubmitPayForBlobBroadcastError(t *testing.T) {
 
 	for _, worker := range client.ParallelPool().Workers() {
 		require.Equal(t, uint64(0), client.Signer().Account(worker.AccountName()).Sequence())
+	}
+}
+
+func TestParallelSubmissionSignerAddress(t *testing.T) {
+	t.Parallel()
+
+	statusStore := make(map[string]*tx.TxStatusResponse)
+	var mu sync.Mutex
+
+	broadcastHandler := func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+		hash := hashTxBytes(req.TxBytes)
+
+		mu.Lock()
+		statusStore[hash] = &tx.TxStatusResponse{
+			Height:        33,
+			ExecutionCode: abci.CodeTypeOK,
+			Status:        core.TxStatusCommitted,
+		}
+		mu.Unlock()
+
+		return &sdktx.BroadcastTxResponse{
+			TxResponse: &sdktypes.TxResponse{
+				Code:   abci.CodeTypeOK,
+				TxHash: hash,
+			},
+		}, nil
+	}
+	txStatusHandler := func(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		if resp, ok := statusStore[strings.ToUpper(req.TxId)]; ok {
+			return resp, nil
+		}
+
+		return &tx.TxStatusResponse{Status: core.TxStatusPending}, nil
+	}
+
+	workerAccounts := []string{"worker-1", "worker-2"}
+	client, conn := newMockTxClientWithCustomHandlers(t, broadcastHandler, txStatusHandler, workerAccounts)
+	defer conn.Close()
+	require.NotNil(t, client.ParallelPool())
+
+	// Start the parallel pool
+	client.ParallelPool().Start()
+
+	blob := randomBlob(t)
+
+	// Submit multiple jobs to test different workers
+	jobCount := 4
+	results := make([]*user.SubmissionResult, 0, jobCount)
+
+	for i := 0; i < jobCount; i++ {
+		resCh, err := client.SubmitPayForBlobParallel(context.Background(), []*share.Blob{blob})
+		require.NoError(t, err)
+		result := <-resCh
+		require.NotNil(t, result)
+		require.NoError(t, result.Error)
+		require.NotNil(t, result.TxResponse)
+		require.Equal(t, abci.CodeTypeOK, result.TxResponse.Code)
+		
+		// Verify that Signer field is populated with a valid address
+		require.NotEmpty(t, result.Signer, "Signer address should not be empty")
+		require.True(t, len(result.Signer) > 0, "Signer address should be non-empty")
+		
+		// Verify it looks like a valid address (basic validation)
+		require.True(t, strings.HasPrefix(result.Signer, "celestia") || len(result.Signer) > 30, 
+			"Signer should look like a valid address, got: %s", result.Signer)
+		
+		results = append(results, result)
+	}
+
+	// Collect all unique signers
+	signerSet := make(map[string]bool)
+	for _, result := range results {
+		signerSet[result.Signer] = true
+	}
+
+	// Verify we have at most as many unique signers as workers
+	require.LessOrEqual(t, len(signerSet), len(workerAccounts), 
+		"Should not have more unique signers than workers")
+
+	// Verify each signer corresponds to a worker address
+	for signer := range signerSet {
+		found := false
+		for _, worker := range client.ParallelPool().Workers() {
+			expectedAddr := client.Signer().Account(worker.AccountName()).Address().String()
+			if signer == expectedAddr {
+				found = true
+				break
+			}
+		}
+		require.True(t, found, "Signer %s should match a worker address", signer)
 	}
 }

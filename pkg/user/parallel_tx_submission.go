@@ -27,6 +27,7 @@ type SubmissionJob struct {
 
 // SubmissionResult contains the result of a parallel transaction submission
 type SubmissionResult struct {
+	Signer     string
 	TxResponse *TxResponse
 	Error      error
 }
@@ -46,6 +47,7 @@ type ParallelTxPool struct {
 type TxWorker struct {
 	id          int
 	accountName string
+	address     string
 	client      *TxClient
 	jobQueue    chan *SubmissionJob
 	stopCh      chan struct{}
@@ -77,9 +79,19 @@ func NewParallelTxPool(client *TxClient, numWorkers int, workerAccounts []string
 	// Create workers
 	for i := 0; i < numWorkers; i++ {
 		accountName := workerAccounts[i]
+		
+		// Get worker address from keyring if account exists
+		var address string
+		if record, err := client.signer.keys.Key(accountName); err == nil {
+			if addr, err := record.GetAddress(); err == nil {
+				address = addr.String()
+			}
+		}
+		
 		worker := &TxWorker{
 			id:          i,
 			accountName: accountName,
+			address:     address,
 			client:      client,
 			jobQueue:    pool.jobQueue,
 			stopCh:      make(chan struct{}),
@@ -186,6 +198,7 @@ func (w *TxWorker) processJob(job *SubmissionJob) {
 	txResponse, err := w.client.SubmitPayForBlobWithAccount(ctx, w.accountName, job.Blobs, job.Options...)
 
 	result := &SubmissionResult{
+		Signer:     w.address,
 		TxResponse: txResponse,
 		Error:      err,
 	}
@@ -361,6 +374,9 @@ func (client *TxClient) fundAndGrantWorkerAccounts(ctx context.Context, workers 
 		if err := client.signer.AddAccount(account); err != nil {
 			return fmt.Errorf("failed to add worker account %s to signer: %w", worker.accountName, err)
 		}
+		
+		// Update worker address now that account is created
+		worker.address = workerAddress.String()
 	}
 
 	return nil
