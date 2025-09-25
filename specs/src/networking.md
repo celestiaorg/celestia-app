@@ -21,7 +21,10 @@
 Defined as `ConsensusProposal`:
 
 ```protobuf
-{{#include ./proto/consensus.proto:ConsensusProposal}}
+// ConsensusProposal message definition (removed from specs)
+message ConsensusProposal {
+  // See processing steps below for field descriptions
+}
 ```
 
 When receiving a new block proposal `proposal` from the network, the following steps are performed in order. _Must_ indicates that peers must be blacklisted (to prevent DoS attacks) and _should_ indicates that the network blob can simply be ignored.
@@ -54,7 +57,10 @@ When receiving a new block proposal `proposal` from the network, the following s
 Defined as `MsgWirePayForData`:
 
 ```protobuf
-{{#include ./proto/wire.proto:MsgWirePayForData}}
+// MsgWirePayForData message definition (removed from specs)
+message MsgWirePayForData {
+  // See description below for field information
+}
 ```
 
 Accepting a `MsgWirePayForData` into the mempool requires different logic than other transactions in Celestia, since it leverages the paradigm of block proposers being able to malleate transaction data. Unlike [SignedTransactionDataMsgPayForData](./data_structures.md#signedtransactiondatamsgpayfordata) (the canonical data type that is included in blocks and committed to with a data root in the block header), each `MsgWirePayForData` (the over-the-wire representation of the same) has potentially multiple signatures.
@@ -81,7 +87,10 @@ If a malicious block producer incorrectly computes the 2D Reed-Solomon code for 
 Defined as `BadEncodingFraudProof`:
 
 ```protobuf
-{{#include ./proto/types.proto:BadEncodingFraudProof}}
+// BadEncodingFraudProof message definition (removed from specs)
+message BadEncodingFraudProof {
+  // See table below for field descriptions
+}
 ```
 
 | name          | type                                        | description                                                                       |
@@ -100,7 +109,10 @@ If a malicious block producer incorrectly computes the state, a fraud proof for 
 Defined as `StateFraudProof`:
 
 ```protobuf
-{{#include ./proto/types.proto:StateFraudProof}}
+// StateFraudProof message definition (removed from specs)
+message StateFraudProof {
+  // See table below for field descriptions
+}
 ```
 
 | name                        | type                                                                                      | description                                                                                                                                                                                           |
