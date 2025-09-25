@@ -125,7 +125,7 @@ type Config struct {
 	LinodeToken string `json:"linode_token,omitempty"`
 	// S3Config is used to configure the S3 bucket that will be used to store
 	// traces, logs, and other data.
-	S3Config S3Config `json:"s3_config,omitempty"`
+	S3Config S3Config `json:"s3_config"`
 }
 
 func NewConfig(experiment, chainID string) Config {
