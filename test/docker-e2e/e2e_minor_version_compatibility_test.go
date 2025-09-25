@@ -104,13 +104,9 @@ func (s *CelestiaTestSuite) buildMixedVersionChain(ctx context.Context, versionT
 	nodeBuilders, err := dockerchain.NodeConfigBuilders(baseCfg)
 	s.Require().NoError(err, "failed to get node config builders")
 
-	for i, nb := range nodeBuilders {
-		nb.WithImage(tastoracontainertypes.NewImage(baseCfg.Image, versionTags[i], "10001:10001"))
-	}
-
 	nodeConfigs := make([]tastoradockertypes.ChainNodeConfig, len(nodeBuilders))
 	for i, nb := range nodeBuilders {
-		nodeConfigs[i] = nb.Build()
+		nodeConfigs[i] = nb.WithImage(tastoracontainertypes.NewImage(baseCfg.Image, versionTags[i], "10001:10001")).Build()
 	}
 
 	// The Cosmos SDK requires consensus.params.version.app to be set in genesis for proper chain startup.
