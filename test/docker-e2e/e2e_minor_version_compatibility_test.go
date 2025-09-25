@@ -43,7 +43,7 @@ func (s *CelestiaTestSuite) TestMinorVersionCompatibility() {
 	}{
 		{
 			name: "v5 minor versions",
-			tags: []string{"v5.0.5", "v5.0.2", "v5.0.1"},
+			tags: []string{"v5.0.5", "v5.0.2", "v5.0.1", "v5.0.8", "v5.0.6"},
 		},
 	}
 
