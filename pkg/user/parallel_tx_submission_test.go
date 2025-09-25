@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"net"
 	"strings"
 	"sync"
 	"testing"
@@ -13,7 +14,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
-	"github.com/celestiaorg/celestia-app/v6/test/util/grpctest"
 	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
@@ -22,9 +22,12 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/test/bufconn"
 )
 
-func newMockTxClient(t *testing.T, svc *grpctest.MockTxService, workerAccounts []string) *user.TxClient {
+func newMockTxClientWithCustomHandlers(t *testing.T, broadcastHandler func(context.Context, *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error), txStatusHandler func(context.Context, *tx.TxStatusRequest) (*tx.TxStatusResponse, error), workerAccounts []string) (*user.TxClient, *grpc.ClientConn) {
 	t.Helper()
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -48,8 +51,6 @@ func newMockTxClient(t *testing.T, svc *grpctest.MockTxService, workerAccounts [
 	signer, err := user.NewSigner(kr, encCfg.TxConfig, "test-chain", accounts...)
 	require.NoError(t, err)
 
-	conn := grpctest.StartBufConnMockServer(t, svc)
-
 	options := []user.Option{
 		user.WithPollTime(10 * time.Millisecond),
 	}
@@ -57,10 +58,61 @@ func newMockTxClient(t *testing.T, svc *grpctest.MockTxService, workerAccounts [
 		options = append(options, user.WithTxWorkers(len(workerAccounts), workerAccounts))
 	}
 
-	client, err := user.NewTxClient(encCfg.Codec, signer, conn, encCfg.InterfaceRegistry, options...)
+	return setupTxClientWithMockGRPCServerAndSigner(t, make(map[string][]*tx.TxStatusResponse), broadcastHandler, txStatusHandler, encCfg, signer, options...)
+}
+
+func setupTxClientWithMockGRPCServerAndSigner(t *testing.T, responseSequences map[string][]*tx.TxStatusResponse, broadcastHandler func(context.Context, *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error), txStatusHandler func(context.Context, *tx.TxStatusRequest) (*tx.TxStatusResponse, error), encCfg encoding.Config, signer *user.Signer, opts ...user.Option) (*user.TxClient, *grpc.ClientConn) {
+	t.Helper()
+
+	mockServer := &mockTxServer{
+		txStatusResponses:   responseSequences,
+		txStatusCallCounts:  make(map[string]int),
+		broadcastCallCounts: make(map[string]int),
+	}
+
+	// Set handlers: use provided custom handlers or default to original behavior
+	if broadcastHandler != nil {
+		mockServer.broadcastHandler = broadcastHandler
+	} else {
+		mockServer.broadcastHandler = mockServer.defaultBroadcastHandler
+	}
+
+	if txStatusHandler != nil {
+		mockServer.txStatusHandler = txStatusHandler
+	} else {
+		mockServer.txStatusHandler = mockServer.defaultTxStatusHandler
+	}
+
+	lis := bufconn.Listen(1024 * 1024)
+	s := grpc.NewServer()
+	sdktx.RegisterServiceServer(s, mockServer)
+	tx.RegisterTxServer(s, mockServer)
+
+	go func() {
+		if err := s.Serve(lis); err != nil {
+			t.Logf("Server exited with error: %v", err)
+		}
+	}()
+
+	//nolint:staticcheck
+	conn, err := grpc.DialContext(context.Background(), "bufnet",
+		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
+			return lis.Dial()
+		}),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
 	require.NoError(t, err)
 
-	return client
+	mockTxClient, err := user.NewTxClient(
+		encCfg.Codec,
+		signer,
+		conn,
+		encCfg.InterfaceRegistry,
+		opts...,
+	)
+	require.NoError(t, err)
+
+	return mockTxClient, conn
 }
 
 func randomBlob(t *testing.T) *share.Blob {
@@ -82,8 +134,7 @@ func TestParallelSubmitPayForBlobSuccess(t *testing.T) {
 	statusStore := make(map[string]*tx.TxStatusResponse)
 	var mu sync.Mutex
 
-	svc := &grpctest.MockTxService{}
-	svc.BroadcastHandler = func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+	broadcastHandler := func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
 		hash := hashTxBytes(req.TxBytes)
 
 		mu.Lock()
@@ -101,7 +152,7 @@ func TestParallelSubmitPayForBlobSuccess(t *testing.T) {
 			},
 		}, nil
 	}
-	svc.TxStatusHandler = func(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error) {
+	txStatusHandler := func(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error) {
 		mu.Lock()
 		defer mu.Unlock()
 
@@ -113,7 +164,8 @@ func TestParallelSubmitPayForBlobSuccess(t *testing.T) {
 	}
 
 	workerAccounts := []string{"worker-1", "worker-2"}
-	client := newMockTxClient(t, svc, workerAccounts)
+	client, conn := newMockTxClientWithCustomHandlers(t, broadcastHandler, txStatusHandler, workerAccounts)
+	defer conn.Close()
 	require.NotNil(t, client.ParallelPool())
 
 	blob := randomBlob(t)
@@ -142,8 +194,7 @@ func TestParallelSubmitPayForBlobSuccess(t *testing.T) {
 func TestParallelSubmitPayForBlobBroadcastError(t *testing.T) {
 	t.Parallel()
 
-	svc := &grpctest.MockTxService{}
-	svc.BroadcastHandler = func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+	broadcastHandler := func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
 		hash := hashTxBytes(req.TxBytes)
 		return &sdktx.BroadcastTxResponse{
 			TxResponse: &sdktypes.TxResponse{
@@ -153,12 +204,13 @@ func TestParallelSubmitPayForBlobBroadcastError(t *testing.T) {
 			},
 		}, nil
 	}
-	svc.TxStatusHandler = func(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error) {
+	txStatusHandler := func(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error) {
 		return &tx.TxStatusResponse{Status: core.TxStatusCommitted}, nil
 	}
 
 	workerAccounts := []string{"worker-1"}
-	client := newMockTxClient(t, svc, workerAccounts)
+	client, conn := newMockTxClientWithCustomHandlers(t, broadcastHandler, txStatusHandler, workerAccounts)
+	defer conn.Close()
 
 	blob := randomBlob(t)
 

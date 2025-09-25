@@ -24,9 +24,23 @@ type mockTxServer struct {
 	txStatusResponses   map[string][]*tx.TxStatusResponse // txHash with sequence of responses
 	txStatusCallCounts  map[string]int                    // txHash with number of TxStatus calls made
 	broadcastCallCounts map[string]int                    // txHash with number of BroadcastTx calls made
+	
+	// Optional custom handlers - if set, these override default behavior
+	broadcastHandler func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error)
+	txStatusHandler  func(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error)
 }
 
 func (m *mockTxServer) TxStatus(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error) {
+	return m.txStatusHandler(ctx, req)
+}
+
+func (m *mockTxServer) BroadcastTx(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+	return m.broadcastHandler(ctx, req)
+}
+
+// defaultTxStatusHandler implements the original default behavior for TxStatus
+func (m *mockTxServer) defaultTxStatusHandler(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error) {
+	// Use predefined response sequences
 	if responses, exists := m.txStatusResponses[req.TxId]; exists {
 		callCount := m.txStatusCallCounts[req.TxId]
 		m.txStatusCallCounts[req.TxId]++
@@ -48,8 +62,9 @@ func (m *mockTxServer) TxStatus(ctx context.Context, req *tx.TxStatusRequest) (*
 	}, nil
 }
 
-func (m *mockTxServer) BroadcastTx(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
-	// Same hash for all broadcast calls
+// defaultBroadcastHandler implements the original default behavior for BroadcastTx
+func (m *mockTxServer) defaultBroadcastHandler(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+	// Default behavior: same hash for all broadcast calls
 	txHash := "test-tx-hash-123"
 
 	// Increment broadcast call count
@@ -79,13 +94,32 @@ func (m *mockTxServer) BroadcastTx(ctx context.Context, req *sdktx.BroadcastTxRe
 	}, nil
 }
 
-// setupTxClientWithMockGPRCServer creates a TxClient connected to a mock gRPC server that lets you mock broadcast and tx status responses
+// setupTxClientWithMockGRPCServer creates a TxClient connected to a mock gRPC server that lets you mock broadcast and tx status responses
 func setupTxClientWithMockGRPCServer(t *testing.T, responseSequences map[string][]*tx.TxStatusResponse, opts ...user.Option) (*user.TxClient, *grpc.ClientConn) {
-	// Create mock server with provided response sequences
+	// Use default handlers for backward compatibility
+	return setupTxClientWithMockGRPCServerAndHandlers(t, responseSequences, nil, nil, opts...)
+}
+
+// setupTxClientWithMockGRPCServerAndHandlers creates a TxClient with optional custom handlers
+func setupTxClientWithMockGRPCServerAndHandlers(t *testing.T, responseSequences map[string][]*tx.TxStatusResponse, broadcastHandler func(context.Context, *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error), txStatusHandler func(context.Context, *tx.TxStatusRequest) (*tx.TxStatusResponse, error), opts ...user.Option) (*user.TxClient, *grpc.ClientConn) {
+	// Create mock server with provided response sequences and handlers
 	mockServer := &mockTxServer{
 		txStatusResponses:   responseSequences,
 		txStatusCallCounts:  make(map[string]int),
 		broadcastCallCounts: make(map[string]int),
+	}
+
+	// Set handlers: use provided custom handlers or default to original behavior
+	if broadcastHandler != nil {
+		mockServer.broadcastHandler = broadcastHandler
+	} else {
+		mockServer.broadcastHandler = mockServer.defaultBroadcastHandler
+	}
+
+	if txStatusHandler != nil {
+		mockServer.txStatusHandler = txStatusHandler
+	} else {
+		mockServer.txStatusHandler = mockServer.defaultTxStatusHandler
 	}
 
 	// Set up in-memory gRPC server
@@ -101,8 +135,7 @@ func setupTxClientWithMockGRPCServer(t *testing.T, responseSequences map[string]
 	}()
 
 	// Create client connection
-	//nolint:staticcheck
-	conn, err := grpc.DialContext(context.Background(), "bufnet",
+	conn, err := grpc.NewClient("bufnet",
 		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
 			return lis.Dial()
 		}),
