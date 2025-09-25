@@ -27,7 +27,7 @@ The `Verify` method consumes the stored message IDs and authorizes the message f
 
 ## Messages (Tx RPCs)
 
-Protobuf definitions: `proto/celestia/zkism/v1/tx.proto:1`
+Protobuf definitions: [`proto/celestia/zkism/v1/tx.proto`](../../proto/celestia/zkism/v1/tx.proto)
 
 - CreateZKExecutionISM: Creates an ISM with initial trusted state and verifier configuration.
 - UpdateZKExecutionISM: Verifies a state transition proof, then updates the ISM’s trusted `state_root` and `height`.
@@ -48,17 +48,20 @@ type SP1Groth16Verifier struct {
 }
 ```
 
-### SP1 Proof Format:
+### SP1 Proof Format
+
 - Total size: 260 bytes = 4‑byte prefix + 256‑byte Groth16 proof payload.
 - The proof prefix must equal `sha256(vkBytes)[:PrefixLen]`, otherwise `ErrInvalidProofPrefix` is returned.
 - An invalid proof length results in `ErrInvalidProofLength`.
 
-- Public inputs construction (BN254 field):
+- Public witness construction:
   - `vk_element = Fr(program_vk_commitment)` where `program_vk_commitment` is a 32‑byte commitment for the specific SP1 program.
   - `inputs_element = Fr(HashBN254(public_values_bytes))` where `HashBN254` is `sha256(public_values)`, with the top 3 bits masked, interpreted as a BN254 scalar.
-  - The public witness is `[vk_element, inputs_element]` (see `NewPublicWitness`).
+  - The public witness is `[vk_element, inputs_element]` (see `groth16.NewPublicWitness`).
 
-### Verification algorithm: 
+### Verification algorithm
+
+The `SP1Groth16Verifier` leverages `github.com/consensys/gnark` for groth16 proof verification. All invocations to the library are encapsulated within the `internal/groth16` package of this module.
 
 ```golang
 func VerifyProof(proofBz, programVk, publicValues []byte) error
@@ -93,6 +96,8 @@ Thus, the expected flow is:
 3) Hyperlane core invokes `Verify` per message; the module authorizes exactly those pre‑submitted message IDs.
 
 ## Queries (gRPC/REST)
+
+Protobuf definitions: [`proto/celestia/zkism/v1/query.proto`](../../proto/celestia/zkism/v1/query.proto)
 
 - `Ism(id) -> ZKExecutionISM` — `GET /celestia/zkism/v1/isms/{id}`
 - `Isms(pagination) -> [ZKExecutionISM]` — `GET /celestia/zkism/v1/isms`
