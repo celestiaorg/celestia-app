@@ -143,13 +143,16 @@ func WithAdditionalCoreEndpoints(conns []*grpc.ClientConn) Option {
 }
 
 // WithTxWorkers enables parallel transaction submission with the specified number of worker accounts.
-// Each worker will use a separate account for transaction submission.
-func WithTxWorkers(numWorkers int, workerAccounts []string) Option {
-	return func(c *TxClient) {
+// Returns both the Option to configure the client and a channel to receive results.
+// Worker accounts are automatically generated with hardcoded names.
+func WithTxWorkers(numWorkers int) (Option, chan *SubmissionResult) {
+	var resultsC chan *SubmissionResult
+	option := func(c *TxClient) {
 		if numWorkers > 0 {
-			c.parallelPool = NewParallelTxPool(c, numWorkers, workerAccounts)
+			c.parallelPool, resultsC = NewParallelTxPool(c, numWorkers)
 		}
 	}
+	return option, resultsC
 }
 
 // WithParallelQueueSize sets the buffer size for the parallel submission job queue.

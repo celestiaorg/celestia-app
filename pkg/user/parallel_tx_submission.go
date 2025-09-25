@@ -22,7 +22,6 @@ type SubmissionJob struct {
 	ID      string
 	Blobs   []*share.Blob
 	Options []TxOption
-	ResultC chan *SubmissionResult
 }
 
 // SubmissionResult contains the result of a parallel transaction submission
@@ -34,13 +33,13 @@ type SubmissionResult struct {
 
 // ParallelTxPool manages parallel transaction submission
 type ParallelTxPool struct {
-	mtx      sync.RWMutex
-	client   *TxClient
-	jobQueue chan *SubmissionJob
-	workers  []*TxWorker
-	results  map[string]chan *SubmissionResult
-	started  atomic.Bool
-	stopCh   chan struct{}
+	mtx       sync.RWMutex
+	client    *TxClient
+	jobQueue  chan *SubmissionJob
+	workers   []*TxWorker
+	resultsC  chan *SubmissionResult
+	started   atomic.Bool
+	stopCh    chan struct{}
 }
 
 // TxWorker represents a worker that processes transactions using a specific account
@@ -54,26 +53,20 @@ type TxWorker struct {
 }
 
 // NewParallelTxPool creates a new parallel transaction submission pool
-func NewParallelTxPool(client *TxClient, numWorkers int, workerAccounts []string) *ParallelTxPool {
+func NewParallelTxPool(client *TxClient, numWorkers int) (*ParallelTxPool, chan *SubmissionResult) {
+	resultsC := make(chan *SubmissionResult, 100)
 	pool := &ParallelTxPool{
-		client:   client,
-		jobQueue: make(chan *SubmissionJob, 100), // Default queue size
-		workers:  make([]*TxWorker, numWorkers),
-		results:  make(map[string]chan *SubmissionResult),
-		stopCh:   make(chan struct{}),
+		client:    client,
+		jobQueue:  make(chan *SubmissionJob, 100), // Default queue size
+		workers:   make([]*TxWorker, numWorkers),
+		resultsC:  resultsC,
+		stopCh:    make(chan struct{}),
 	}
 
-	// If no worker accounts provided, use auto-generated names that will be created during initialization
-	if len(workerAccounts) == 0 {
-		workerAccounts = make([]string, numWorkers)
-		for i := 0; i < numWorkers; i++ {
-			workerAccounts[i] = fmt.Sprintf("parallel-worker-%d", i+1)
-		}
-	} else if len(workerAccounts) < numWorkers {
-		// Extend with auto-generated names if not enough provided
-		for i := len(workerAccounts); i < numWorkers; i++ {
-			workerAccounts = append(workerAccounts, fmt.Sprintf("parallel-worker-%d", i+1))
-		}
+	// Generate worker account names
+	workerAccounts := make([]string, numWorkers)
+	for i := 0; i < numWorkers; i++ {
+		workerAccounts[i] = fmt.Sprintf("parallel-worker-%d", i+1)
 	}
 
 	// Create workers
@@ -99,7 +92,7 @@ func NewParallelTxPool(client *TxClient, numWorkers int, workerAccounts []string
 		pool.workers[i] = worker
 	}
 
-	return pool
+	return pool, resultsC
 }
 
 // Start initiates all workers in the pool
@@ -136,33 +129,16 @@ func (p *ParallelTxPool) Stop() {
 
 // SubmitJob submits a job to the parallel worker pool
 func (p *ParallelTxPool) SubmitJob(job *SubmissionJob) {
-	p.mtx.Lock()
-	p.results[job.ID] = job.ResultC
-	p.mtx.Unlock()
-
 	select {
 	case p.jobQueue <- job:
 	case <-p.stopCh:
-		job.ResultC <- &SubmissionResult{Error: errors.New("parallel pool stopped")}
-		close(job.ResultC) // Close the channel to signal completion
+		p.resultsC <- &SubmissionResult{Error: errors.New("parallel pool stopped")}
 	}
 }
 
-// GetResult retrieves the result for a job ID
-func (p *ParallelTxPool) GetResult(jobID string) (chan *SubmissionResult, bool) {
-	p.mtx.RLock()
-	defer p.mtx.RUnlock()
-
-	resultC, exists := p.results[jobID]
-	return resultC, exists
-}
-
-// CleanupResult removes the result channel for a completed job
-func (p *ParallelTxPool) CleanupResult(jobID string) {
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
-
-	delete(p.results, jobID)
+// ResultsChannel returns the global results channel
+func (p *ParallelTxPool) ResultsChannel() chan *SubmissionResult {
+	return p.resultsC
 }
 
 // Workers returns the workers in the parallel pool
@@ -203,32 +179,31 @@ func (w *TxWorker) processJob(job *SubmissionJob) {
 		Error:      err,
 	}
 
-	// Send result back through the job's result channel
+	// Get the pool's results channel from the client
+	resultsC := w.client.parallelPool.resultsC
+
+	// Send result back through the global results channel
 	select {
-	case job.ResultC <- result:
-		close(job.ResultC) // Close the channel to signal completion
+	case resultsC <- result:
 	case <-w.stopCh:
-		// Worker is shutting down, send error and close
+		// Worker is shutting down, send error
 		select {
-		case job.ResultC <- &SubmissionResult{Error: errors.New("worker shutting down")}:
-			close(job.ResultC)
+		case resultsC <- &SubmissionResult{Error: errors.New("worker shutting down")}:
 		default:
-			close(job.ResultC)
 		}
 	}
 }
 
-// SubmitPayForBlobParallel submits a transaction for parallel processing and returns immediately with a job ID.
-// The result can be retrieved later using GetSubmissionResult.
+// SubmitPayForBlobParallel submits a transaction for parallel processing and returns immediately.
+// Results are sent to the global results channel returned when creating the parallel pool.
 // Returns an error only if the parallel pool is not configured or if job submission fails.
-func (client *TxClient) SubmitPayForBlobParallel(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (chan *SubmissionResult, error) {
-	resultC := make(chan *SubmissionResult, 1)
+func (client *TxClient) SubmitPayForBlobParallel(ctx context.Context, blobs []*share.Blob, opts ...TxOption) error {
 	if client.parallelPool == nil {
-		return resultC, errors.New("parallel submission not configured - use WithTxWorkers option")
+		return errors.New("parallel submission not configured - use WithTxWorkers option")
 	}
 
 	if !client.parallelPool.started.Load() {
-		return nil, errors.New("parallel submission is shutting down")
+		return errors.New("parallel submission is shutting down")
 	}
 
 	jobID := fmt.Sprintf("job_%d", time.Now().UnixNano())
@@ -237,12 +212,11 @@ func (client *TxClient) SubmitPayForBlobParallel(ctx context.Context, blobs []*s
 		ID:      jobID,
 		Blobs:   blobs,
 		Options: opts,
-		ResultC: resultC,
 	}
 
 	client.parallelPool.SubmitJob(job)
 
-	return resultC, nil
+	return nil
 }
 
 // InitializeWorkerAccounts creates and initializes all worker accounts for parallel submission.
