@@ -23,8 +23,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.88.1
 	github.com/bcp-innovations/hyperlane-cosmos v1.0.1
 	github.com/celestiaorg/go-square/v2 v2.3.3
-	github.com/celestiaorg/go-square/v3 v3.0.1
-	github.com/celestiaorg/nmt v0.24.1
+	github.com/celestiaorg/go-square/v3 v3.0.2-0.20250925152542-2a754d2dea27
+	github.com/celestiaorg/nmt v0.24.2
 	github.com/celestiaorg/rsmt2d v0.15.0
 	github.com/cometbft/cometbft v0.38.17
 	github.com/cometbft/cometbft-db v1.0.4
