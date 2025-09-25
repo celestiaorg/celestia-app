@@ -79,7 +79,7 @@ func analyzeBlockTimes(times []time.Time) (float64, float64, float64, float64) {
 	totalTime := times[numberOfObservations].Sub(times[0])
 	averageTime := float64(totalTime.Milliseconds()) / float64(numberOfObservations)
 	variance, minTime, maxTime := float64(0), float64(0), float64(0)
-	for i := 0; i < numberOfObservations; i++ {
+	for i := range numberOfObservations {
 		diff := float64(times[i+1].Sub(times[i]).Milliseconds())
 		if minTime == 0 || diff < minTime {
 			minTime = diff

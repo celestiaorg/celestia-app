@@ -54,7 +54,7 @@ func TestConcurrentTxSubmission(t *testing.T) {
 			subCtx, cancel := context.WithCancel(ctx.GoContext())
 			defer cancel()
 			time.AfterFunc(time.Minute, cancel)
-			for i := 0; i < numTxs; i++ {
+			for i := range numTxs {
 				wg.Add(1)
 				go func(b *share.Blob) {
 					defer wg.Done()

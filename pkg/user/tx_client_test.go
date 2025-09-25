@@ -347,7 +347,7 @@ func TestEvictions(t *testing.T) {
 
 	// Submit more transactions than a single block can fit with a 1-block TTL.
 	// Txs will be evicted from the mempool and automatically resubmitted by the txClient during confirm().
-	for i := 0; i < len(responses); i++ {
+	for i := range responses {
 		blobs := blobfactory.ManyRandBlobs(random.New(), 500000, 500000) // ~1.5MiB per transaction
 		resp, err := txClient.BroadcastPayForBlob(ctx.GoContext(), blobs, fee, gas)
 		require.NoError(t, err)
@@ -391,6 +391,68 @@ func TestEvictions(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, txInfo.Status, core.TxStatusCommitted)
 	}
+
+	t.Run("gets nonce mismatch during eviction and gets confirmed in the meantime", func(t *testing.T) {
+		expectedTxHash := "test-tx-hash-123" // This matches what our mock server returns
+
+		// Happy path: PENDING -> EVICTED -> COMMITTED
+		responseSequences := map[string][]*tx.TxStatusResponse{
+			expectedTxHash: {
+				{Status: core.TxStatusPending},
+				{Status: core.TxStatusEvicted},
+				{Status: core.TxStatusEvicted},
+				{Status: core.TxStatusEvicted},
+				{Status: core.TxStatusCommitted, Height: 102, ExecutionCode: 0},
+			},
+		}
+
+		mockTxClient, conn := setupTxClientWithMockGRPCServer(t, responseSequences, user.WithPollTime(1*time.Second))
+		defer conn.Close()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		blobs := blobfactory.ManyRandBlobs(random.New(), 1, 1)
+		resp, err := mockTxClient.BroadcastPayForBlob(ctx, blobs, user.SetFee(1), user.SetGasLimit(1))
+		require.NoError(t, err)
+		require.Equal(t, resp.Code, abci.CodeTypeOK)
+		require.Equal(t, resp.TxHash, expectedTxHash)
+
+		response, err := mockTxClient.ConfirmTx(ctx, resp.TxHash)
+		require.NoError(t, err)
+		require.Equal(t, response.TxHash, resp.TxHash)
+		require.Equal(t, response.Code, abci.CodeTypeOK)
+	})
+
+	t.Run("gets nonce mismatch during eviction and hits eviction poll timeout", func(t *testing.T) {
+		expectedTxHash := "test-tx-hash-123"
+
+		// Transaction will get evicted and then resubmitted with nonce mismatch error
+		// Define response sequence: PENDING -> EVICTED -> Sequence mismatch -> EVICTED -> Eviction Poll Timeout
+		// Responses will return evicted until the eviction poll timeout is reached
+		responseSequences := map[string][]*tx.TxStatusResponse{
+			expectedTxHash: {
+				{Status: core.TxStatusPending}, // 1st call
+				{Status: core.TxStatusEvicted}, // 2nd call
+				{Status: core.TxStatusEvicted}, // 3rd and following calls
+			},
+		}
+
+		mockTxClient, conn := setupTxClientWithMockGRPCServer(t, responseSequences, user.WithPollTime(5*time.Second))
+		defer conn.Close()
+
+		ctx := context.Background()
+
+		blobs := blobfactory.ManyRandBlobs(random.New(), 1, 1)
+		resp, err := mockTxClient.BroadcastPayForBlob(ctx, blobs, user.SetFee(1), user.SetGasLimit(1))
+		require.NoError(t, err)
+		require.Equal(t, resp.Code, abci.CodeTypeOK)
+		require.Equal(t, resp.TxHash, expectedTxHash)
+
+		_, err = mockTxClient.ConfirmTx(ctx, resp.TxHash)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "eviction poll timeout")
+	})
 }
 
 // TestWithEstimatorService ensures that if the WithEstimatorService
@@ -793,4 +855,76 @@ func (suite *TxClientTestSuite) TestMultiConnBroadcast() {
 			}
 		})
 	}
+}
+
+// TestSequenceIncrementOnlyOnceInMultiConnBroadcast specifically tests that the sequence
+// is incremented exactly once even when multiple connections succeed simultaneously.
+// This test would fail if we naively called broadcastTxAndIncrementSequence in each goroutine.
+func (suite *TxClientTestSuite) TestSequenceIncrementOnlyOnceInMultiConnBroadcast() {
+	t := suite.T()
+
+	// Create mock services that all succeed immediately
+	mockSvc1 := &grpctest.MockTxService{
+		BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+			return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "SUCCESS1"}}, nil
+		},
+	}
+	mockSvc2 := &grpctest.MockTxService{
+		BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+			return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "SUCCESS2"}}, nil
+		},
+	}
+	mockSvc3 := &grpctest.MockTxService{
+		BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+			return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "SUCCESS3"}}, nil
+		},
+	}
+
+	conn1 := grpctest.StartMockServer(t, mockSvc1)
+	conn2 := grpctest.StartMockServer(t, mockSvc2)
+	conn3 := grpctest.StartMockServer(t, mockSvc3)
+
+	// Create a TxClient with multiple connections
+	origSigner := suite.txClient.Signer()
+	origAcc := origSigner.Account(suite.txClient.DefaultAccountName()).Copy()
+	signer, err := user.NewSigner(suite.ctx.Keyring, suite.encCfg.TxConfig, origSigner.ChainID(), origAcc)
+	require.NoError(t, err)
+
+	multiConnClient, err := user.NewTxClient(
+		suite.encCfg.Codec,
+		signer,
+		conn1,
+		suite.encCfg.InterfaceRegistry,
+		user.WithAdditionalCoreEndpoints([]*grpc.ClientConn{conn2, conn3}),
+	)
+	require.NoError(t, err)
+
+	// Capture sequence before broadcast
+	seqBefore := multiConnClient.Signer().Account(multiConnClient.DefaultAccountName()).Sequence()
+
+	// Create a simple message
+	msg := bank.NewMsgSend(
+		multiConnClient.DefaultAddress(),
+		multiConnClient.DefaultAddress(),
+		sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))),
+	)
+
+	// Broadcast the transaction
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resp, err := multiConnClient.BroadcastTx(ctx, []sdk.Msg{msg}, user.SetGasLimit(100000), user.SetFee(1000))
+	require.NoError(t, err, "BroadcastTx should succeed")
+	require.NotNil(t, resp, "Response should not be nil")
+	require.Equal(t, abci.CodeTypeOK, resp.Code, "Response code should be OK")
+
+	// Verify sequence was incremented by exactly 1
+	seqAfter := multiConnClient.Signer().Account(multiConnClient.DefaultAccountName()).Sequence()
+	require.Equal(t, seqBefore+1, seqAfter, "Sequence should be incremented by exactly 1, not by number of connections")
+
+	// Verify the transaction is tracked
+	trackedSeq, trackedSigner, exists := multiConnClient.GetTxFromTxTracker(resp.TxHash)
+	require.True(t, exists, "Transaction should be in tracker")
+	require.Equal(t, seqBefore, trackedSeq, "Tracked sequence should be the sequence before increment")
+	require.Equal(t, multiConnClient.DefaultAccountName(), trackedSigner, "Tracked signer should match")
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"cosmossdk.io/x/feegrant"
@@ -37,7 +38,7 @@ type ParallelTxPool struct {
 	jobQueue chan *SubmissionJob
 	workers  []*TxWorker
 	results  map[string]chan *SubmissionResult
-	started  bool
+	started  atomic.Bool
 	stopCh   chan struct{}
 }
 
@@ -94,14 +95,15 @@ func (p *ParallelTxPool) Start() {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
-	if p.started {
+	if p.started.Load() {
 		return
 	}
 
 	for _, worker := range p.workers {
 		go worker.Start()
 	}
-	p.started = true
+
+	p.started.Store(true)
 }
 
 // Stop shuts down all workers in the pool
@@ -109,7 +111,7 @@ func (p *ParallelTxPool) Stop() {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
-	if !p.started {
+	if !p.started.Load() {
 		return
 	}
 
@@ -117,7 +119,7 @@ func (p *ParallelTxPool) Stop() {
 	for _, worker := range p.workers {
 		close(worker.stopCh)
 	}
-	p.started = false
+	p.started.Store(false)
 }
 
 // SubmitJob submits a job to the parallel worker pool
@@ -158,9 +160,7 @@ func (p *ParallelTxPool) Workers() []*TxWorker {
 
 // IsStarted returns whether the parallel pool is started
 func (p *ParallelTxPool) IsStarted() bool {
-	p.mtx.RLock()
-	defer p.mtx.RUnlock()
-	return p.started
+	return p.started.Load()
 }
 
 // Start begins the worker's job processing loop
@@ -214,8 +214,8 @@ func (client *TxClient) SubmitPayForBlobParallel(ctx context.Context, blobs []*s
 		return resultC, errors.New("parallel submission not configured - use WithTxWorkers option")
 	}
 
-	if !client.parallelPool.started {
-		client.parallelPool.Start()
+	if !client.parallelPool.started.Load() {
+		return nil, errors.New("parallel submission is shutting down")
 	}
 
 	jobID := fmt.Sprintf("job_%d", time.Now().UnixNano())
