@@ -134,7 +134,7 @@ func createS3Client(ctx context.Context, cfg Config) (*s3.Client, error) {
 	var awsCfg aws.Config
 	var err error
 	if cfg.S3Config.Endpoint != "" {
-		customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) { //nolint:staticcheck
+		customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...any) (aws.Endpoint, error) { //nolint:staticcheck
 			return aws.Endpoint{ //nolint:staticcheck
 				URL:           cfg.S3Config.Endpoint,
 				SigningRegion: region,
