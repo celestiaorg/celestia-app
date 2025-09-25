@@ -40,5 +40,5 @@ func TestMochaConfigUpdate(t *testing.T) {
 		t.Error("Expected to find itrocket peer in peer list")
 	}
 	
-	t.Logf("✓ Mocha config updated successfully with %d peers and correct seeds", len(peerList))
+	t.Logf("Mocha config updated successfully with %d peers and correct seeds", len(peerList))
 }
