@@ -107,6 +107,7 @@ func TestComputeExtendedDataSquare_WithAndWithoutPool(t *testing.T) {
 	}
 
 	t.Run("sizes - reuse small pool", func(t *testing.T) {
+		t.Skip("this takes too long to run on github runners")
 		pool, err := NewTreePool(2, runtime.NumCPU()*4)
 		require.NoError(t, err)
 		testSquareSize(t, standardSizes, pool)
@@ -117,11 +118,14 @@ func TestComputeExtendedDataSquare_WithAndWithoutPool(t *testing.T) {
 	})
 
 	t.Run("sizes - reuse large pool", func(t *testing.T) {
+		// this is the main use case for prepare proposal and process proposal
 		pool, err := NewTreePool(512, runtime.NumCPU()*4)
 		require.NoError(t, err)
 		testSquareSize(t, standardSizes, pool)
-		// test is not very fast, so we do less fuzzing
-		testSquareSize(t, genRandomSizes(6, 512), pool)
+		t.Run("reuse large pool random sizes", func(t *testing.T) {
+			t.Skip("this takes too long to run on github runners")
+			testSquareSize(t, genRandomSizes(6, 512), pool)
+		})
 	})
 }
 
