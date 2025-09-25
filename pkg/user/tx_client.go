@@ -883,7 +883,7 @@ func (client *TxClient) AccountByAddress(ctx context.Context, address sdktypes.A
 	accountName := client.signer.accountNameByAddress(address)
 	if accountName == "" {
 		span.AddEvent(
-			fmt.Sprintf("txclient/AccountByAddress: account not found for accountName: %s", address.String()),
+			fmt.Sprintf("txclient/AccountByAddress: account not found for address: %s", address.String()),
 		)
 		return nil
 	}
