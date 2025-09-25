@@ -129,9 +129,7 @@ func (s *CelestiaTestSuite) verifyAPICompatibilityAcrossVersions(ctx context.Con
 	t := s.T()
 
 	nodes := chain.GetNodes()
-	if len(nodes) == 0 {
-		t.Fatal("No nodes available for testing")
-	}
+	s.Require().NotEmpty(nodes, "no nodes available for testing")
 
 	// Collect API responses from all nodes for comparison
 	var allResponses []apiResponses
@@ -170,43 +168,35 @@ func (s *CelestiaTestSuite) verifyAPICompatibilityAcrossVersions(ctx context.Con
 // This is the core of API breakage detection - ensuring response structures, field types,
 // and critical values remain consistent across minor version updates.
 func (s *CelestiaTestSuite) verifyResponseCompatibility(responses []apiResponses) {
-	t := s.T()
-
-	if len(responses) < 2 {
-		t.Log("Only one node - skipping compatibility comparison")
-		return
-	}
+	s.Require().GreaterOrEqual(len(responses), 2, "need at least 2 nodes for compatibility comparison")
 
 	s.verifyGenesisCompatibility(responses)
 	s.verifyStatusCompatibility(responses)
 	s.verifyABCIInfoCompatibility(responses)
 
-	t.Log("All API responses are compatible across versions")
+	s.T().Log("All API responses are compatible across versions")
 }
 
 // verifyGenesisCompatibility ensures Genesis responses are identical across versions
 // Any difference in genesis indicates a critical incompatibility
 func (s *CelestiaTestSuite) verifyGenesisCompatibility(responses []apiResponses) {
-	t := s.T()
-
 	baseGenesis := responses[0].genesis
-	for i := 1; i < len(responses); i++ {
+	for i := range len(responses) {
 		resp := responses[i]
 
 		s.Require().Equal(baseGenesis.Genesis.ChainID, resp.genesis.Genesis.ChainID, "Genesis chain_id differs between %s and %s - this indicates incompatible networks", responses[0].version, resp.version)
 		s.Require().Equal(baseGenesis.Genesis.GenesisTime, resp.genesis.Genesis.GenesisTime, "Genesis genesis_time differs between %s and %s - this indicates different networks", responses[0].version, resp.version)
 		s.Require().Equal(baseGenesis.Genesis.AppHash, resp.genesis.Genesis.AppHash, "Genesis app_hash differs between %s and %s - this indicates incompatible genesis", responses[0].version, resp.version)
 
-		t.Logf("Genesis compatibility verified: %s <-> %s", responses[0].version, resp.version)
+		s.T().Logf("Genesis compatibility verified: %s <-> %s", responses[0].version, resp.version)
 	}
 }
 
 // verifyStatusCompatibility ensures Status responses have compatible structure and content
 func (s *CelestiaTestSuite) verifyStatusCompatibility(responses []apiResponses) {
-	t := s.T()
 
 	baseStatus := responses[0].status
-	for i := 1; i < len(responses); i++ {
+	for i := range len(responses) {
 		resp := responses[i]
 
 		s.Require().Equal(baseStatus.NodeInfo.Network, resp.status.NodeInfo.Network, "Status network differs between %s and %s - nodes on different chains", responses[0].version, resp.version)
@@ -218,16 +208,14 @@ func (s *CelestiaTestSuite) verifyStatusCompatibility(responses []apiResponses) 
 		respHeight := resp.status.SyncInfo.LatestBlockHeight
 		s.Require().InDelta(float64(baseHeight), float64(respHeight), 10.0, "Heights too different between %s (height %d) and %s (height %d) - indicates sync problems", responses[0].version, baseHeight, resp.version, respHeight)
 
-		t.Logf("Status compatibility verified: %s <-> %s", responses[0].version, resp.version)
+		s.T().Logf("Status compatibility verified: %s <-> %s", responses[0].version, resp.version)
 	}
 }
 
 // verifyABCIInfoCompatibility ensures ABCI Info responses are compatible across versions
 func (s *CelestiaTestSuite) verifyABCIInfoCompatibility(responses []apiResponses) {
-	t := s.T()
-
 	baseABCI := responses[0].abciInfo
-	for i := 1; i < len(responses); i++ {
+	for i := range len(responses) {
 		resp := responses[i]
 
 		// Critical: App version must be same across all nodes for compatibility
@@ -236,7 +224,7 @@ func (s *CelestiaTestSuite) verifyABCIInfoCompatibility(responses []apiResponses
 		expectedMinorVersion := strings.TrimPrefix(resp.version, "v")
 		s.Require().Contains(resp.abciInfo.Response.GetVersion(), expectedMinorVersion, "Node %d (%s) reports ABCI version '%s', should contain '%s'", resp.nodeIndex, resp.version, resp.abciInfo.Response.GetVersion(), expectedMinorVersion)
 
-		t.Logf("ABCI Info compatibility verified: %s <-> %s (both app version %d)", responses[0].version, resp.version, resp.abciInfo.Response.GetAppVersion())
+		s.T().Logf("ABCI Info compatibility verified: %s <-> %s (both app version %d)", responses[0].version, resp.version, resp.abciInfo.Response.GetAppVersion())
 	}
 }
 
@@ -249,7 +237,7 @@ func (s *CelestiaTestSuite) extractMajorVersionFromTag(tag string) uint64 {
 	// Regex to match version format vX.Y.Z and capture major version
 	versionRegex := regexp.MustCompile(`^v(\d+)\.\d+\.\d+$`)
 	matches := versionRegex.FindStringSubmatch(tag)
-	s.Require().True(len(matches) == 2, "Invalid version tag format: %s. Expected format: vX.Y.Z (e.g., v5.0.5, v10.1.0)", tag)
+	s.Require().Len(matches, 2, "Invalid version tag format: %s. Expected format: vX.Y.Z (e.g., v5.0.5, v10.1.0)", tag)
 
 	// Convert captured major version to number
 	majorVersion, err := strconv.ParseUint(matches[1], 10, 64)
