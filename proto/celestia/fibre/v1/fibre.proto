@@ -20,21 +20,12 @@ message EscrowAccount {
   cosmos.base.v1beta1.Coin available_balance = 3 [(gogoproto.nullable) = false];
 }
 
-// PendingWithdrawal tracks withdrawal requests to implement the delay mechanism.
-message PendingWithdrawal {
-  // signer is the address that owns the escrow account this withdrawal is for
-  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
-  // amount is the amount to be withdrawn
-  cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
-  // requested_at is the timestamp when withdrawal was requested
-  google.protobuf.Timestamp requested_at = 3 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
-}
-
-// PaymentPromise contains the commitment and payment details for a fibre blob.
+// PaymentPromise is a promise to pay for a fibre blob. It contains the
+// commitment and payment details for the fibre blob.
 message PaymentPromise {
   // signer is the owner of the escrow account to charge
   string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
-  // namespace is the namespace the blob is associated with. share version must be 2.
+  // namespace is the namespace the blob is associated with.
   bytes namespace = 2;
   // blob_size is the size of the blob in bytes
   uint32 blob_size = 3;
@@ -46,8 +37,18 @@ message PaymentPromise {
   // is critical for determining which validators sign the commitment and
   // determining when service stops for this blob.
   google.protobuf.Timestamp creation_timestamp = 6 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
-  // signature is the escrow owner's signature over the sign bytes
+  // signature is the signer (escrow account owner) signature over the sign bytes
   bytes signature = 7;
   // height is the height that is used to determine the validator set that is used
   int64 height = 8;
+}
+
+// PendingWithdrawal tracks withdrawal requests to implement the delay mechanism.
+message PendingWithdrawal {
+  // signer is the address that owns the escrow account this withdrawal is for
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // amount is the amount to be withdrawn
+  cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
+  // requested_at is the timestamp when withdrawal was requested
+  google.protobuf.Timestamp requested_at = 3 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
 }

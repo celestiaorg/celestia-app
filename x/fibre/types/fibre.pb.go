@@ -95,75 +95,12 @@ func (m *EscrowAccount) GetAvailableBalance() types.Coin {
 	return types.Coin{}
 }
 
-// PendingWithdrawal tracks withdrawal requests to implement the delay mechanism.
-type PendingWithdrawal struct {
-	// signer is the address that owns the escrow account this withdrawal is for
-	Signer string `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
-	// amount is the amount to be withdrawn
-	Amount types.Coin `protobuf:"bytes,2,opt,name=amount,proto3" json:"amount"`
-	// requested_at is the timestamp when withdrawal was requested
-	RequestedAt time.Time `protobuf:"bytes,3,opt,name=requested_at,json=requestedAt,proto3,stdtime" json:"requested_at"`
-}
-
-func (m *PendingWithdrawal) Reset()         { *m = PendingWithdrawal{} }
-func (m *PendingWithdrawal) String() string { return proto.CompactTextString(m) }
-func (*PendingWithdrawal) ProtoMessage()    {}
-func (*PendingWithdrawal) Descriptor() ([]byte, []int) {
-	return fileDescriptor_0a166b9003c3a966, []int{1}
-}
-func (m *PendingWithdrawal) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *PendingWithdrawal) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_PendingWithdrawal.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *PendingWithdrawal) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PendingWithdrawal.Merge(m, src)
-}
-func (m *PendingWithdrawal) XXX_Size() int {
-	return m.Size()
-}
-func (m *PendingWithdrawal) XXX_DiscardUnknown() {
-	xxx_messageInfo_PendingWithdrawal.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_PendingWithdrawal proto.InternalMessageInfo
-
-func (m *PendingWithdrawal) GetSigner() string {
-	if m != nil {
-		return m.Signer
-	}
-	return ""
-}
-
-func (m *PendingWithdrawal) GetAmount() types.Coin {
-	if m != nil {
-		return m.Amount
-	}
-	return types.Coin{}
-}
-
-func (m *PendingWithdrawal) GetRequestedAt() time.Time {
-	if m != nil {
-		return m.RequestedAt
-	}
-	return time.Time{}
-}
-
-// PaymentPromise contains the commitment and payment details for a fibre blob.
+// PaymentPromise is a promise to pay for a fibre blob. It contains the
+// commitment and payment details for the fibre blob.
 type PaymentPromise struct {
 	// signer is the owner of the escrow account to charge
 	Signer string `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
-	// namespace is the namespace the blob is associated with. share version must be 2.
+	// namespace is the namespace the blob is associated with.
 	Namespace []byte `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
 	// blob_size is the size of the blob in bytes
 	BlobSize uint32 `protobuf:"varint,3,opt,name=blob_size,json=blobSize,proto3" json:"blob_size,omitempty"`
@@ -175,7 +112,7 @@ type PaymentPromise struct {
 	// is critical for determining which validators sign the commitment and
 	// determining when service stops for this blob.
 	CreationTimestamp time.Time `protobuf:"bytes,6,opt,name=creation_timestamp,json=creationTimestamp,proto3,stdtime" json:"creation_timestamp"`
-	// signature is the escrow owner's signature over the sign bytes
+	// signature is the signer (escrow account owner) signature over the sign bytes
 	Signature []byte `protobuf:"bytes,7,opt,name=signature,proto3" json:"signature,omitempty"`
 	// height is the height that is used to determine the validator set that is used
 	Height int64 `protobuf:"varint,8,opt,name=height,proto3" json:"height,omitempty"`
@@ -185,7 +122,7 @@ func (m *PaymentPromise) Reset()         { *m = PaymentPromise{} }
 func (m *PaymentPromise) String() string { return proto.CompactTextString(m) }
 func (*PaymentPromise) ProtoMessage()    {}
 func (*PaymentPromise) Descriptor() ([]byte, []int) {
-	return fileDescriptor_0a166b9003c3a966, []int{2}
+	return fileDescriptor_0a166b9003c3a966, []int{1}
 }
 func (m *PaymentPromise) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -270,49 +207,113 @@ func (m *PaymentPromise) GetHeight() int64 {
 	return 0
 }
 
+// PendingWithdrawal tracks withdrawal requests to implement the delay mechanism.
+type PendingWithdrawal struct {
+	// signer is the address that owns the escrow account this withdrawal is for
+	Signer string `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
+	// amount is the amount to be withdrawn
+	Amount types.Coin `protobuf:"bytes,2,opt,name=amount,proto3" json:"amount"`
+	// requested_at is the timestamp when withdrawal was requested
+	RequestedAt time.Time `protobuf:"bytes,3,opt,name=requested_at,json=requestedAt,proto3,stdtime" json:"requested_at"`
+}
+
+func (m *PendingWithdrawal) Reset()         { *m = PendingWithdrawal{} }
+func (m *PendingWithdrawal) String() string { return proto.CompactTextString(m) }
+func (*PendingWithdrawal) ProtoMessage()    {}
+func (*PendingWithdrawal) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0a166b9003c3a966, []int{2}
+}
+func (m *PendingWithdrawal) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *PendingWithdrawal) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_PendingWithdrawal.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *PendingWithdrawal) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PendingWithdrawal.Merge(m, src)
+}
+func (m *PendingWithdrawal) XXX_Size() int {
+	return m.Size()
+}
+func (m *PendingWithdrawal) XXX_DiscardUnknown() {
+	xxx_messageInfo_PendingWithdrawal.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PendingWithdrawal proto.InternalMessageInfo
+
+func (m *PendingWithdrawal) GetSigner() string {
+	if m != nil {
+		return m.Signer
+	}
+	return ""
+}
+
+func (m *PendingWithdrawal) GetAmount() types.Coin {
+	if m != nil {
+		return m.Amount
+	}
+	return types.Coin{}
+}
+
+func (m *PendingWithdrawal) GetRequestedAt() time.Time {
+	if m != nil {
+		return m.RequestedAt
+	}
+	return time.Time{}
+}
+
 func init() {
 	proto.RegisterType((*EscrowAccount)(nil), "celestia.fibre.v1.EscrowAccount")
-	proto.RegisterType((*PendingWithdrawal)(nil), "celestia.fibre.v1.PendingWithdrawal")
 	proto.RegisterType((*PaymentPromise)(nil), "celestia.fibre.v1.PaymentPromise")
+	proto.RegisterType((*PendingWithdrawal)(nil), "celestia.fibre.v1.PendingWithdrawal")
 }
 
 func init() { proto.RegisterFile("celestia/fibre/v1/fibre.proto", fileDescriptor_0a166b9003c3a966) }
 
 var fileDescriptor_0a166b9003c3a966 = []byte{
-	// 524 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x53, 0xc1, 0x6e, 0xd3, 0x40,
-	0x10, 0x8d, 0xdb, 0x92, 0xb6, 0xdb, 0x16, 0x91, 0x55, 0x85, 0xdc, 0x00, 0x4e, 0x94, 0x53, 0x2e,
+	// 527 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x53, 0xcd, 0x6e, 0xd3, 0x40,
+	0x10, 0x8e, 0xdb, 0x92, 0x26, 0x9b, 0x16, 0x91, 0x55, 0x85, 0xdc, 0x00, 0x4e, 0x94, 0x53, 0x2e,
 	0xb5, 0x09, 0x1c, 0x10, 0xc7, 0x04, 0x21, 0x0e, 0x70, 0x88, 0x1c, 0x04, 0x12, 0x17, 0x6b, 0xed,
-	0x4c, 0x9d, 0x95, 0xec, 0x1d, 0xb3, 0xbb, 0x49, 0x68, 0xbf, 0xa2, 0x1f, 0xc3, 0x3f, 0x50, 0x38,
-	0x55, 0x9c, 0x38, 0x01, 0x4a, 0x7e, 0x04, 0x39, 0xbb, 0x36, 0x1c, 0x4b, 0x6f, 0x33, 0x6f, 0xde,
-	0x1b, 0xcd, 0x9b, 0xd9, 0x25, 0x8f, 0x12, 0xc8, 0x40, 0x69, 0xce, 0x82, 0x33, 0x1e, 0x4b, 0x08,
-	0x16, 0x03, 0x13, 0xf8, 0x85, 0x44, 0x8d, 0xb4, 0x55, 0x95, 0x7d, 0x83, 0x2e, 0x06, 0xed, 0xe3,
-	0x14, 0x53, 0xdc, 0x54, 0x83, 0x32, 0x32, 0xc4, 0xb6, 0x97, 0xa0, 0xca, 0x51, 0x05, 0x31, 0x53,
-	0x65, 0x93, 0x18, 0x34, 0x1b, 0x04, 0x09, 0x72, 0x61, 0xeb, 0x9d, 0x14, 0x31, 0xcd, 0x20, 0xd8,
-	0x64, 0xf1, 0xfc, 0x2c, 0xd0, 0x3c, 0x07, 0xa5, 0x59, 0x5e, 0x58, 0xc2, 0x89, 0x69, 0x10, 0x99,
-	0xce, 0x26, 0x31, 0xa5, 0xde, 0x37, 0x87, 0x1c, 0xbd, 0x54, 0x89, 0xc4, 0xe5, 0x30, 0x49, 0x70,
-	0x2e, 0x34, 0x7d, 0x4c, 0x9a, 0x8a, 0xa7, 0x02, 0xa4, 0xeb, 0x74, 0x9d, 0xfe, 0xfe, 0xc8, 0xfd,
-	0xfe, 0xf9, 0xf4, 0xd8, 0x6a, 0x86, 0xd3, 0xa9, 0x04, 0xa5, 0x26, 0x5a, 0x72, 0x91, 0x86, 0x96,
-	0x47, 0x9f, 0x93, 0xdd, 0x98, 0x65, 0x4c, 0x24, 0xe0, 0x6e, 0x75, 0x9d, 0xfe, 0xc1, 0x93, 0x13,
-	0xdf, 0xf2, 0xcb, 0x89, 0x7d, 0x3b, 0xb1, 0xff, 0x02, 0xb9, 0x18, 0xed, 0x5c, 0xfd, 0xec, 0x34,
-	0xc2, 0x8a, 0x4f, 0xdf, 0x90, 0x16, 0x5b, 0x30, 0x9e, 0xb1, 0x38, 0x83, 0xa8, 0x6a, 0xb2, 0x7d,
-	0xb3, 0x26, 0xf7, 0x6a, 0xe5, 0xc8, 0x08, 0x7b, 0x5f, 0x1c, 0xd2, 0x1a, 0x83, 0x98, 0x72, 0x91,
-	0xbe, 0xe7, 0x7a, 0x36, 0x95, 0x6c, 0xc9, 0xb2, 0x5b, 0x18, 0x7a, 0x46, 0x9a, 0x2c, 0x2f, 0x97,
-	0x71, 0x53, 0x3f, 0x96, 0x4e, 0x5f, 0x91, 0x43, 0x09, 0x1f, 0xe7, 0xa0, 0x34, 0x4c, 0x23, 0xa6,
-	0xad, 0x93, 0xb6, 0x6f, 0x0e, 0xe4, 0x57, 0x07, 0xf2, 0xdf, 0x56, 0x07, 0x1a, 0xed, 0x95, 0xfa,
-	0xcb, 0x5f, 0x1d, 0x27, 0x3c, 0xa8, 0x95, 0x43, 0xdd, 0xfb, 0xba, 0x45, 0xee, 0x8e, 0xd9, 0x79,
-	0x0e, 0x42, 0x8f, 0x25, 0xe6, 0x5c, 0xc1, 0x2d, 0x6c, 0x3c, 0x24, 0xfb, 0x82, 0xe5, 0xa0, 0x0a,
-	0x66, 0x2f, 0x73, 0x18, 0xfe, 0x05, 0xe8, 0x03, 0xb2, 0x1f, 0x67, 0x18, 0x47, 0x8a, 0x5f, 0x98,
-	0x95, 0x1f, 0x85, 0x7b, 0x25, 0x30, 0xe1, 0x17, 0x40, 0x3d, 0x42, 0x12, 0xcc, 0x73, 0xae, 0xcb,
-	0x09, 0xdc, 0x9d, 0x8d, 0xf6, 0x1f, 0x84, 0x76, 0xc8, 0x81, 0xc4, 0x65, 0xb4, 0x00, 0xa9, 0x38,
-	0x0a, 0xf7, 0xce, 0x46, 0x4e, 0x24, 0x2e, 0xdf, 0x19, 0x84, 0x4e, 0x08, 0x4d, 0x24, 0x30, 0xcd,
-	0x51, 0x44, 0xf5, 0x73, 0x74, 0x9b, 0xff, 0xb1, 0x8f, 0x56, 0xa5, 0xaf, 0x8b, 0xa5, 0xa1, 0xd2,
-	0x1a, 0xd3, 0x73, 0x09, 0xee, 0xae, 0x31, 0x54, 0x03, 0xf4, 0x3e, 0x69, 0xce, 0x80, 0xa7, 0x33,
-	0xed, 0xee, 0x75, 0x9d, 0xfe, 0x76, 0x68, 0xb3, 0xd1, 0xeb, 0xab, 0x95, 0xe7, 0x5c, 0xaf, 0x3c,
-	0xe7, 0xf7, 0xca, 0x73, 0x2e, 0xd7, 0x5e, 0xe3, 0x7a, 0xed, 0x35, 0x7e, 0xac, 0xbd, 0xc6, 0x87,
-	0x41, 0xca, 0xf5, 0x6c, 0x1e, 0xfb, 0x09, 0xe6, 0x41, 0xf5, 0x19, 0x51, 0xa6, 0x75, 0x7c, 0xca,
-	0x8a, 0x22, 0xf8, 0x64, 0x7f, 0xaf, 0x3e, 0x2f, 0x40, 0xc5, 0xcd, 0xcd, 0xcc, 0x4f, 0xff, 0x04,
-	0x00, 0x00, 0xff, 0xff, 0xa7, 0x18, 0x3f, 0x98, 0xdc, 0x03, 0x00, 0x00,
+	0x4c, 0x9d, 0x95, 0xec, 0x5d, 0xb3, 0xbb, 0x4e, 0x68, 0x9f, 0xa2, 0x0f, 0xc3, 0x3b, 0x50, 0x38,
+	0x55, 0x9c, 0x38, 0x01, 0x4a, 0x5e, 0x04, 0xd9, 0xbb, 0x36, 0x3d, 0x46, 0xbd, 0xcd, 0x7c, 0xf3,
+	0x7d, 0xb3, 0xf3, 0xb7, 0xe8, 0x49, 0x04, 0x09, 0x48, 0x45, 0x89, 0x77, 0x4e, 0x43, 0x01, 0xde,
+	0x6a, 0xac, 0x0d, 0x37, 0x13, 0x5c, 0x71, 0xdc, 0xad, 0xc2, 0xae, 0x46, 0x57, 0xe3, 0xde, 0x49,
+	0xcc, 0x63, 0x5e, 0x46, 0xbd, 0xc2, 0xd2, 0xc4, 0x9e, 0x13, 0x71, 0x99, 0x72, 0xe9, 0x85, 0x44,
+	0x16, 0x49, 0x42, 0x50, 0x64, 0xec, 0x45, 0x9c, 0x32, 0x13, 0xef, 0xc7, 0x9c, 0xc7, 0x09, 0x78,
+	0xa5, 0x17, 0xe6, 0xe7, 0x9e, 0xa2, 0x29, 0x48, 0x45, 0xd2, 0xcc, 0x10, 0x4e, 0x75, 0x82, 0x40,
+	0x67, 0xd6, 0x8e, 0x0e, 0x0d, 0x7f, 0x58, 0xe8, 0xf8, 0xb5, 0x8c, 0x04, 0x5f, 0x4f, 0xa2, 0x88,
+	0xe7, 0x4c, 0xe1, 0xa7, 0xa8, 0x29, 0x69, 0xcc, 0x40, 0xd8, 0xd6, 0xc0, 0x1a, 0xb5, 0xa7, 0xf6,
+	0xcf, 0xaf, 0x67, 0x27, 0x46, 0x33, 0x59, 0x2c, 0x04, 0x48, 0x39, 0x57, 0x82, 0xb2, 0xd8, 0x37,
+	0x3c, 0xfc, 0x12, 0x1d, 0x86, 0x24, 0x21, 0x2c, 0x02, 0x7b, 0x6f, 0x60, 0x8d, 0x3a, 0xcf, 0x4e,
+	0x5d, 0xc3, 0x2f, 0x2a, 0x76, 0x4d, 0xc5, 0xee, 0x2b, 0x4e, 0xd9, 0xf4, 0xe0, 0xfa, 0x77, 0xbf,
+	0xe1, 0x57, 0x7c, 0xfc, 0x0e, 0x75, 0xc9, 0x8a, 0xd0, 0x84, 0x84, 0x09, 0x04, 0x55, 0x92, 0xfd,
+	0xdd, 0x92, 0x3c, 0xa8, 0x95, 0x53, 0x2d, 0x1c, 0x7e, 0xdf, 0x43, 0xf7, 0x67, 0xe4, 0x22, 0x05,
+	0xa6, 0x66, 0x82, 0xa7, 0x54, 0xc2, 0x1d, 0xba, 0x79, 0x8c, 0xda, 0x8c, 0xa4, 0x20, 0x33, 0x62,
+	0xfa, 0x39, 0xf2, 0xff, 0x03, 0xf8, 0x11, 0x6a, 0x87, 0x09, 0x0f, 0x03, 0x49, 0x2f, 0x75, 0xa1,
+	0xc7, 0x7e, 0xab, 0x00, 0xe6, 0xf4, 0x12, 0xb0, 0x83, 0x50, 0xc4, 0xd3, 0x94, 0xaa, 0xa2, 0x02,
+	0xfb, 0xa0, 0xd4, 0xde, 0x42, 0x70, 0x1f, 0x75, 0x04, 0x5f, 0x07, 0x2b, 0x10, 0x92, 0x72, 0x66,
+	0xdf, 0x2b, 0xe5, 0x48, 0xf0, 0xf5, 0x07, 0x8d, 0xe0, 0x39, 0xc2, 0x91, 0x00, 0xa2, 0x28, 0x67,
+	0x41, 0xbd, 0x44, 0xbb, 0x59, 0xce, 0xa3, 0xe7, 0xea, 0x35, 0xbb, 0xd5, 0x9a, 0xdd, 0xf7, 0x15,
+	0x63, 0xda, 0x2a, 0x06, 0x72, 0xf5, 0xa7, 0x6f, 0xf9, 0xdd, 0x4a, 0x5f, 0x07, 0x8b, 0x86, 0x8a,
+	0xd6, 0x88, 0xca, 0x05, 0xd8, 0x87, 0xba, 0xa1, 0x1a, 0xc0, 0x0f, 0x51, 0x73, 0x09, 0x34, 0x5e,
+	0x2a, 0xbb, 0x35, 0xb0, 0x46, 0xfb, 0xbe, 0xf1, 0x86, 0xdf, 0x2c, 0xd4, 0x9d, 0x01, 0x5b, 0x50,
+	0x16, 0x7f, 0xa4, 0x6a, 0xb9, 0x10, 0x64, 0x4d, 0x92, 0x3b, 0x8c, 0xf3, 0x05, 0x6a, 0x92, 0xb4,
+	0x38, 0xac, 0x5d, 0x6f, 0xc3, 0xd0, 0xf1, 0x1b, 0x74, 0x24, 0xe0, 0x73, 0x0e, 0x52, 0xc1, 0x22,
+	0x20, 0xca, 0x5c, 0xc5, 0x6e, 0x53, 0xe8, 0xd4, 0xca, 0x89, 0x9a, 0xbe, 0xbd, 0xde, 0x38, 0xd6,
+	0xcd, 0xc6, 0xb1, 0xfe, 0x6e, 0x1c, 0xeb, 0x6a, 0xeb, 0x34, 0x6e, 0xb6, 0x4e, 0xe3, 0xd7, 0xd6,
+	0x69, 0x7c, 0x1a, 0xc7, 0x54, 0x2d, 0xf3, 0xd0, 0x8d, 0x78, 0xea, 0x55, 0x9f, 0x91, 0x8b, 0xb8,
+	0xb6, 0xcf, 0x48, 0x96, 0x79, 0x5f, 0xcc, 0xef, 0x55, 0x17, 0x19, 0xc8, 0xb0, 0x59, 0xbe, 0xfb,
+	0xfc, 0x5f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x90, 0x1a, 0xaa, 0x42, 0xdc, 0x03, 0x00, 0x00,
 }
 
 func (m *EscrowAccount) Marshal() (dAtA []byte, err error) {
@@ -365,54 +366,6 @@ func (m *EscrowAccount) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *PendingWithdrawal) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *PendingWithdrawal) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *PendingWithdrawal) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	n3, err3 := github_com_cosmos_gogoproto_types.StdTimeMarshalTo(m.RequestedAt, dAtA[i-github_com_cosmos_gogoproto_types.SizeOfStdTime(m.RequestedAt):])
-	if err3 != nil {
-		return 0, err3
-	}
-	i -= n3
-	i = encodeVarintFibre(dAtA, i, uint64(n3))
-	i--
-	dAtA[i] = 0x1a
-	{
-		size, err := m.Amount.MarshalToSizedBuffer(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = encodeVarintFibre(dAtA, i, uint64(size))
-	}
-	i--
-	dAtA[i] = 0x12
-	if len(m.Signer) > 0 {
-		i -= len(m.Signer)
-		copy(dAtA[i:], m.Signer)
-		i = encodeVarintFibre(dAtA, i, uint64(len(m.Signer)))
-		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
-}
-
 func (m *PaymentPromise) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -445,12 +398,12 @@ func (m *PaymentPromise) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x3a
 	}
-	n5, err5 := github_com_cosmos_gogoproto_types.StdTimeMarshalTo(m.CreationTimestamp, dAtA[i-github_com_cosmos_gogoproto_types.SizeOfStdTime(m.CreationTimestamp):])
-	if err5 != nil {
-		return 0, err5
+	n3, err3 := github_com_cosmos_gogoproto_types.StdTimeMarshalTo(m.CreationTimestamp, dAtA[i-github_com_cosmos_gogoproto_types.SizeOfStdTime(m.CreationTimestamp):])
+	if err3 != nil {
+		return 0, err3
 	}
-	i -= n5
-	i = encodeVarintFibre(dAtA, i, uint64(n5))
+	i -= n3
+	i = encodeVarintFibre(dAtA, i, uint64(n3))
 	i--
 	dAtA[i] = 0x32
 	if m.RowVersion != 0 {
@@ -477,6 +430,54 @@ func (m *PaymentPromise) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x12
 	}
+	if len(m.Signer) > 0 {
+		i -= len(m.Signer)
+		copy(dAtA[i:], m.Signer)
+		i = encodeVarintFibre(dAtA, i, uint64(len(m.Signer)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *PendingWithdrawal) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *PendingWithdrawal) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *PendingWithdrawal) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	n4, err4 := github_com_cosmos_gogoproto_types.StdTimeMarshalTo(m.RequestedAt, dAtA[i-github_com_cosmos_gogoproto_types.SizeOfStdTime(m.RequestedAt):])
+	if err4 != nil {
+		return 0, err4
+	}
+	i -= n4
+	i = encodeVarintFibre(dAtA, i, uint64(n4))
+	i--
+	dAtA[i] = 0x1a
+	{
+		size, err := m.Amount.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintFibre(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x12
 	if len(m.Signer) > 0 {
 		i -= len(m.Signer)
 		copy(dAtA[i:], m.Signer)
@@ -515,23 +516,6 @@ func (m *EscrowAccount) Size() (n int) {
 	return n
 }
 
-func (m *PendingWithdrawal) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.Signer)
-	if l > 0 {
-		n += 1 + l + sovFibre(uint64(l))
-	}
-	l = m.Amount.Size()
-	n += 1 + l + sovFibre(uint64(l))
-	l = github_com_cosmos_gogoproto_types.SizeOfStdTime(m.RequestedAt)
-	n += 1 + l + sovFibre(uint64(l))
-	return n
-}
-
 func (m *PaymentPromise) Size() (n int) {
 	if m == nil {
 		return 0
@@ -565,6 +549,23 @@ func (m *PaymentPromise) Size() (n int) {
 	if m.Height != 0 {
 		n += 1 + sovFibre(uint64(m.Height))
 	}
+	return n
+}
+
+func (m *PendingWithdrawal) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Signer)
+	if l > 0 {
+		n += 1 + l + sovFibre(uint64(l))
+	}
+	l = m.Amount.Size()
+	n += 1 + l + sovFibre(uint64(l))
+	l = github_com_cosmos_gogoproto_types.SizeOfStdTime(m.RequestedAt)
+	n += 1 + l + sovFibre(uint64(l))
 	return n
 }
 
@@ -698,154 +699,6 @@ func (m *EscrowAccount) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if err := m.AvailableBalance.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipFibre(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthFibre
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *PendingWithdrawal) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowFibre
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: PendingWithdrawal: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: PendingWithdrawal: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Signer", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowFibre
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthFibre
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthFibre
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Signer = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Amount", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowFibre
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthFibre
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthFibre
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if err := m.Amount.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field RequestedAt", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowFibre
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthFibre
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthFibre
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if err := github_com_cosmos_gogoproto_types.StdTimeUnmarshal(&m.RequestedAt, dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -1123,6 +976,154 @@ func (m *PaymentPromise) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipFibre(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthFibre
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *PendingWithdrawal) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowFibre
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: PendingWithdrawal: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: PendingWithdrawal: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Signer", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowFibre
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthFibre
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthFibre
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Signer = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Amount", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowFibre
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthFibre
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthFibre
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.Amount.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RequestedAt", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowFibre
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthFibre
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthFibre
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := github_com_cosmos_gogoproto_types.StdTimeUnmarshal(&m.RequestedAt, dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipFibre(dAtA[iNdEx:])
