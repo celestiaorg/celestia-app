@@ -623,15 +623,19 @@ func (app *App) ModuleAccountAddrs() map[string]bool {
 
 // BlockedAddresses returns all the app's blocked account addresses.
 func (app *App) BlockedAddresses() map[string]bool {
-	modAccAddrs := make(map[string]bool)
-	for acc := range app.ModuleAccountAddrs() {
-		modAccAddrs[authtypes.NewModuleAddress(acc).String()] = true
+	// Start with all module account addresses
+	modAccAddrs := app.ModuleAccountAddrs()
+	
+	// Create a copy to avoid modifying the original
+	blockedAddrs := make(map[string]bool, len(modAccAddrs))
+	for addr := range modAccAddrs {
+		blockedAddrs[addr] = true
 	}
 
 	// allow the following addresses to receive funds
-	delete(modAccAddrs, authtypes.NewModuleAddress(govtypes.ModuleName).String())
+	delete(blockedAddrs, authtypes.NewModuleAddress(govtypes.ModuleName).String())
 
-	return modAccAddrs
+	return blockedAddrs
 }
 
 // GetBaseApp implements the TestingApp interface.
