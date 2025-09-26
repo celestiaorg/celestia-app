@@ -40,7 +40,11 @@ import (
 const (
 	DefaultPollTime          = 3 * time.Second
 	txTrackerPruningInterval = 10 * time.Minute
-	evictionPollTime         = 1 * time.Minute
+	// Gas limits for initialization transactions
+	SendGasLimit         = 100000
+	FeegrantGasLimit     = 800000
+	DefaultWorkerBalance = 1
+	evictionPollTime     = 1 * time.Minute
 )
 
 type Option func(client *TxClient)
@@ -138,6 +142,44 @@ func WithAdditionalCoreEndpoints(conns []*grpc.ClientConn) Option {
 	}
 }
 
+// WithTxWorkers enables parallel transaction submission with the specified number of worker accounts.
+// Worker accounts are automatically generated with hardcoded names unless numWorkers is 1, in which case
+// the existing default account is used.
+// By default, workers are initialized automatically when SetupTxClient is called.
+func WithTxWorkers(numWorkers int) Option {
+	if numWorkers <= 0 {
+		return func(*TxClient) {}
+	}
+
+	return func(c *TxClient) {
+		pool := newParallelTxPool(c, numWorkers, true)
+		c.parallelPool = pool
+	}
+}
+
+// WithTxWorkersNoInit enables parallel transaction submission without automatic initialization.
+// InitializeWorkerAccounts must be called manually when using this option.
+func WithTxWorkersNoInit(numWorkers int) Option {
+	if numWorkers <= 0 {
+		return func(*TxClient) {}
+	}
+
+	return func(c *TxClient) {
+		pool := newParallelTxPool(c, numWorkers, false)
+		c.parallelPool = pool
+	}
+}
+
+// WithParallelQueueSize sets the buffer size for the parallel submission job queue.
+// Default is 100 if not specified.
+func WithParallelQueueSize(size int) Option {
+	return func(c *TxClient) {
+		if c.parallelPool != nil {
+			c.parallelPool.jobQueue = make(chan *SubmissionJob, size)
+		}
+	}
+}
+
 // TxClient is an abstraction for building, signing, and broadcasting Celestia transactions
 // It supports multiple accounts. If none is specified, it will
 // try to use the default account.
@@ -158,6 +200,8 @@ type TxClient struct {
 	// that was submitted to the chain
 	txTracker           map[string]txInfo
 	gasEstimationClient gasestimation.GasEstimatorClient
+	// parallelPool manages parallel transaction submission when enabled
+	parallelPool *ParallelTxPool
 }
 
 // NewTxClient returns a new TxClient
@@ -195,11 +239,6 @@ func NewTxClient(
 
 	for _, opt := range options {
 		opt(txClient)
-	}
-
-	// Sanity check to ensure we don't have more than 3 connections
-	if len(txClient.conns) > 3 {
-		txClient.conns = txClient.conns[:3]
 	}
 
 	return txClient, nil
@@ -249,7 +288,19 @@ func SetupTxClient(
 		return nil, fmt.Errorf("failed to create signer: %w", err)
 	}
 
-	return NewTxClient(encCfg.Codec, signer, conn, encCfg.InterfaceRegistry, options...)
+	txClient, err := NewTxClient(encCfg.Codec, signer, conn, encCfg.InterfaceRegistry, options...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Start parallel pool if configured with initialization
+	if txClient.parallelPool != nil && txClient.parallelPool.initialize {
+		if err := txClient.parallelPool.Start(ctx); err != nil {
+			return nil, fmt.Errorf("failed to start parallel pool: %w", err)
+		}
+	}
+
+	return txClient, nil
 }
 
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
@@ -568,7 +619,7 @@ func (client *TxClient) submitToMultipleConnections(ctx context.Context, txBytes
 	close(errCh)
 
 	// Return first successful response, if any
-	if resp, ok := <-respCh; ok {
+	if resp, ok := <-respCh; ok && resp != nil {
 		client.trackTransaction(signer, resp.TxHash, txBytes)
 
 		if err := client.signer.IncrementSequence(signer); err != nil {
@@ -859,7 +910,8 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 	return record.Name, nil
 }
 
-// trackTransaction tracks a transaction in the tx client's local tx tracker.
+// trackTransaction tracks a transaction without acquiring the mutex.
+// This should only be called when the caller already holds the mutex.
 func (client *TxClient) trackTransaction(signer, txHash string, txBytes []byte) {
 	sequence := client.signer.Account(signer).Sequence()
 	client.txTracker[txHash] = txInfo{
@@ -881,6 +933,16 @@ func (client *TxClient) GetTxFromTxTracker(hash string) (sequence uint64, signer
 // Signer exposes the tx clients underlying signer
 func (client *TxClient) Signer() *Signer {
 	return client.signer
+}
+
+// ParallelPool exposes the tx client's parallel pool (may be nil if not configured)
+func (client *TxClient) ParallelPool() *ParallelTxPool {
+	return client.parallelPool
+}
+
+// AccountName returns the account name for this worker
+func (w *TxWorker) AccountName() string {
+	return w.accountName
 }
 
 // QueryMinimumGasPrice queries both the nodes local and network wide
