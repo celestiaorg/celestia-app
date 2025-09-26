@@ -22,6 +22,7 @@ type SubmissionJob struct {
 	ID       string
 	Blobs    []*share.Blob
 	Options  []TxOption
+	Ctx      context.Context
 	ResultsC chan SubmissionResult
 }
 
@@ -39,19 +40,20 @@ type ParallelTxPool struct {
 	jobQueue    chan *SubmissionJob
 	workers     []*TxWorker
 	started     atomic.Bool
-	stopCh      chan struct{}
+	ctx         context.Context
+	cancel      context.CancelFunc
 	initialize  bool        // whether to initialize workers automatically
 	initialized atomic.Bool // whether workers have been initialized
 }
 
 // TxWorker represents a worker that processes transactions using a specific account
 type TxWorker struct {
+	ctx         context.Context
 	id          int
 	accountName string
 	address     string
 	client      *TxClient
 	jobQueue    chan *SubmissionJob
-	stopCh      chan struct{}
 }
 
 const (
@@ -63,7 +65,6 @@ func newParallelTxPool(client *TxClient, numWorkers int, initialize bool) *Paral
 		client:     client,
 		jobQueue:   make(chan *SubmissionJob, defaultParallelQueueSize),
 		workers:    make([]*TxWorker, numWorkers),
-		stopCh:     make(chan struct{}),
 		initialize: initialize,
 	}
 
@@ -93,7 +94,6 @@ func newParallelTxPool(client *TxClient, numWorkers int, initialize bool) *Paral
 			address:     address,
 			client:      client,
 			jobQueue:    pool.jobQueue,
-			stopCh:      make(chan struct{}),
 		}
 		pool.workers[i] = worker
 	}
@@ -123,7 +123,11 @@ func (p *ParallelTxPool) Start(ctx context.Context) error {
 		p.initialized.Store(true)
 	}
 
+	// Create a new context for this pool instance
+	p.ctx, p.cancel = context.WithCancel(ctx)
+
 	for _, worker := range p.workers {
+		worker.ctx = p.ctx
 		go worker.Start()
 	}
 
@@ -140,18 +144,22 @@ func (p *ParallelTxPool) Stop() {
 		return
 	}
 
-	close(p.stopCh)
-	for _, worker := range p.workers {
-		close(worker.stopCh)
+	if p.cancel != nil {
+		p.cancel()
 	}
 	p.started.Store(false)
 }
 
 // SubmitJob submits a job to the parallel worker pool
 func (p *ParallelTxPool) SubmitJob(job *SubmissionJob) {
+	p.mtx.RLock()
+	jobQueue := p.jobQueue
+	ctx := p.ctx
+	p.mtx.RUnlock()
+
 	select {
-	case p.jobQueue <- job:
-	case <-p.stopCh:
+	case jobQueue <- job:
+	case <-ctx.Done():
 		job.ResultsC <- SubmissionResult{Error: errors.New("parallel pool full or has stopped")}
 	}
 }
@@ -172,7 +180,7 @@ func (w *TxWorker) Start() {
 		select {
 		case job := <-w.jobQueue:
 			w.processJob(job)
-		case <-w.stopCh:
+		case <-w.ctx.Done():
 			return
 		}
 	}
@@ -180,13 +188,26 @@ func (w *TxWorker) Start() {
 
 // processJob handles the actual transaction submission for a job
 func (w *TxWorker) processJob(job *SubmissionJob) {
-	ctx := context.Background()
+	jobCtx := job.Ctx
+	if jobCtx == nil {
+		jobCtx = context.Background()
+	}
+
+	select {
+	case <-jobCtx.Done():
+		job.ResultsC <- SubmissionResult{Signer: w.address, Error: jobCtx.Err()}
+		return
+	case <-w.ctx.Done():
+		job.ResultsC <- SubmissionResult{Signer: w.address, Error: w.ctx.Err()}
+		return
+	default:
+	}
 
 	// Add fee granter option so master account pays for worker transaction fees
-	job.Options = append(job.Options, SetFeeGranter(w.client.DefaultAddress()))
+	options := append([]TxOption{SetFeeGranter(w.client.DefaultAddress())}, job.Options...)
 
 	// Use the worker's dedicated account to submit the transaction
-	txResponse, err := w.client.SubmitPayForBlobWithAccount(ctx, w.accountName, job.Blobs, job.Options...)
+	txResponse, err := w.client.SubmitPayForBlobWithAccount(jobCtx, w.accountName, job.Blobs, options...)
 
 	result := SubmissionResult{
 		Signer:     w.address,
@@ -223,6 +244,7 @@ func (client *TxClient) SubmitPayForBlobParallel(ctx context.Context, blobs []*s
 		ID:       jobID,
 		Blobs:    blobs,
 		Options:  opts,
+		Ctx:      ctx,
 		ResultsC: resultsC,
 	}
 

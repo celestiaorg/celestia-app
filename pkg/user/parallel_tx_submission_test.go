@@ -23,7 +23,9 @@ import (
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 )
 
@@ -358,5 +360,128 @@ func TestParallelSubmissionSignerAddress(t *testing.T) {
 			}
 		}
 		require.True(t, found, "Signer %s should match a worker address", signer)
+	}
+}
+
+func TestParallelPoolRestart(t *testing.T) {
+	t.Parallel()
+
+	statusStore := make(map[string]*tx.TxStatusResponse)
+	var mu sync.Mutex
+
+	broadcastHandler := func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+		hash := hashTxBytes(req.TxBytes)
+
+		mu.Lock()
+		statusStore[hash] = &tx.TxStatusResponse{
+			Height:        12,
+			ExecutionCode: abci.CodeTypeOK,
+			Status:        core.TxStatusCommitted,
+		}
+		mu.Unlock()
+
+		return &sdktx.BroadcastTxResponse{
+			TxResponse: &sdktypes.TxResponse{
+				Code:   abci.CodeTypeOK,
+				TxHash: hash,
+			},
+		}, nil
+	}
+
+	txStatusHandler := func(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		if resp, ok := statusStore[strings.ToUpper(req.TxId)]; ok {
+			return resp, nil
+		}
+		return &tx.TxStatusResponse{Status: core.TxStatusPending}, nil
+	}
+
+	workerAccounts := []string{"parallel-worker-1"}
+	client, conn := newMockTxClientWithCustomHandlers(t, broadcastHandler, txStatusHandler, workerAccounts)
+	defer conn.Close()
+
+	require.NotNil(t, client.ParallelPool())
+
+	ctx := context.Background()
+	require.NoError(t, client.ParallelPool().Start(ctx))
+	pool := client.ParallelPool()
+	require.True(t, pool.IsStarted())
+
+	blob := randomBlob(t)
+
+	submitAndAssert := func(t *testing.T) {
+		t.Helper()
+
+		resultsC, err := client.SubmitPayForBlobParallel(ctx, []*share.Blob{blob})
+		require.NoError(t, err)
+
+		select {
+		case result := <-resultsC:
+			require.NoError(t, result.Error)
+			require.NotNil(t, result.TxResponse)
+			require.Equal(t, abci.CodeTypeOK, result.TxResponse.Code)
+		case <-time.After(5 * time.Second):
+			t.Fatalf("timeout waiting for submission result")
+		}
+	}
+
+	submitAndAssert(t)
+
+	pool.Stop()
+	require.False(t, pool.IsStarted())
+
+	require.NoError(t, pool.Start(ctx))
+	require.True(t, pool.IsStarted())
+
+	submitAndAssert(t)
+}
+
+func TestParallelSubmitPayForBlobContextCancellation(t *testing.T) {
+	t.Parallel()
+
+	startedCh := make(chan struct{})
+	broadcastHandler := func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+		close(startedCh)
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+
+	txStatusHandler := func(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error) {
+		return &tx.TxStatusResponse{Status: core.TxStatusPending}, nil
+	}
+
+	workerAccounts := []string{"parallel-worker-1"}
+	client, conn := newMockTxClientWithCustomHandlers(t, broadcastHandler, txStatusHandler, workerAccounts)
+	defer conn.Close()
+
+	require.NotNil(t, client.ParallelPool())
+	require.NoError(t, client.ParallelPool().Start(context.Background()))
+
+	blob := randomBlob(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	resultsC, err := client.SubmitPayForBlobParallel(ctx, []*share.Blob{blob})
+	require.NoError(t, err)
+
+	select {
+	case <-startedCh:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("broadcast handler was not invoked")
+	}
+
+	cancel()
+
+	select {
+	case result := <-resultsC:
+		require.Error(t, result.Error)
+		st, ok := status.FromError(result.Error)
+		require.True(t, ok, "expected gRPC status error")
+		require.Equal(t, codes.Canceled, st.Code())
+		require.Nil(t, result.TxResponse)
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timeout waiting for cancellation result")
 	}
 }
