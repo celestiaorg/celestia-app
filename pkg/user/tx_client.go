@@ -34,6 +34,8 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 )
 
@@ -260,6 +262,11 @@ func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blo
 		return nil, err
 	}
 
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("txclient: broadcasted PFB", trace.WithAttributes(
+		attribute.Int("num_blobs", len(blobs)),
+	))
+
 	return client.ConfirmTx(ctx, resp.TxHash)
 }
 
@@ -270,6 +277,12 @@ func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account
 	if err != nil {
 		return nil, err
 	}
+
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("txclient: broadcasted PFB with account", trace.WithAttributes(
+		attribute.Int("num_blobs", len(blobs)),
+		attribute.String("account", accountName),
+	))
 
 	return client.ConfirmTx(ctx, resp.TxHash)
 }
@@ -307,9 +320,15 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 		return nil, err
 	}
 
+	span := trace.SpanFromContext(ctx)
+
 	if len(client.conns) > 1 {
+		span.AddEvent("txclient: broadcasting PFB to multiple endpoints",
+			trace.WithAttributes(attribute.Int("num_endpoints", len(client.conns))),
+		)
 		return client.broadcastMulti(ctx, txBytes, accountName)
 	}
+	span.AddEvent("txclient: broadcasting PFB to single endpoint")
 	return client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txBytes, accountName)
 }
 
@@ -434,6 +453,8 @@ func (client *TxClient) broadcastTxAndIncrementSequence(ctx context.Context, con
 
 // broadcastTx broadcasts a transaction to the chain and returns the response.
 func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
+	span := trace.SpanFromContext(ctx)
+
 	txClient := sdktx.NewServiceClient(conn)
 	resp, err := txClient.BroadcastTx(
 		ctx,
@@ -443,6 +464,7 @@ func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, 
 		},
 	)
 	if err != nil {
+		span.RecordError(fmt.Errorf("txclient/broadcastTx: broadcast error: %w", err))
 		return nil, err
 	}
 	if resp.TxResponse.Code != abci.CodeTypeOK {
@@ -533,10 +555,14 @@ func (s *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sd
 		}
 	}
 
+	span := trace.SpanFromContext(ctx)
+
 	broadcastTxResp, err := s.broadcastTxWithRetry(ctx, s.conns[0], newTxBytes, signer)
 	if err != nil {
+		span.RecordError(fmt.Errorf("txclient/retryBroadcastingTx: rebroadcast error: %w", err))
 		return nil, err
 	}
+	span.AddEvent("txclient/retryBroadcastingTx: successfully rebroadcasted tx after sequence mismatch")
 
 	// Add to tx tracker.
 	s.trackTransaction(signer, broadcastTxResp.TxHash, newTxBytes)
@@ -546,6 +572,8 @@ func (s *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sd
 // broadcastMulti broadcasts the transaction to multiple connections concurrently
 // and returns the response from the first successful broadcast.
 func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+	span := trace.SpanFromContext(ctx)
+
 	respCh := make(chan *sdktypes.TxResponse, 1)
 	errCh := make(chan error, len(client.conns))
 
@@ -568,6 +596,9 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 			// On first successful response, send it and cancel others
 			select {
 			case respCh <- resp:
+				span.AddEvent("txclient/broadcastMulti: successful broadcast",
+					trace.WithAttributes(attribute.String("endpoint", conn.Target())),
+				)
 				cancel()
 			case <-ctx.Done():
 			}
@@ -610,6 +641,8 @@ func (client *TxClient) pruneTxTracker() {
 // hash. It will continually loop until the context is cancelled, the tx is found or an error
 // is encountered.
 func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxResponse, error) {
+	span := trace.SpanFromContext(ctx)
+
 	txClient := tx.NewTxClient(client.conns[0])
 
 	pollTicker := time.NewTicker(client.pollTime)
@@ -617,6 +650,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 	var evictionPollTimeStart *time.Time
 
 	for {
+		span.AddEvent("txclient/ConfirmTx: polling for TxStatus")
 		resp, err := txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
 		if err != nil {
 			return nil, err
@@ -630,8 +664,12 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 
 		switch resp.Status {
 		case core.TxStatusPending:
+			span.AddEvent("txclient/ConfirmTx: transaction pending")
 			// Continue polling if the transaction is still pending
 		case core.TxStatusCommitted:
+			span.AddEvent("txclient/ConfirmTx: transaction committed", trace.WithAttributes(
+				attribute.Int("resp_code", int(resp.ExecutionCode)),
+			))
 			txResponse := &TxResponse{
 				Height: resp.Height,
 				TxHash: txHash,
@@ -643,9 +681,11 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 					Code:     resp.ExecutionCode,
 					ErrorLog: resp.Error,
 				}
+				span.RecordError(fmt.Errorf("txclient/ConfirmTx: execution error: %s", resp.Error))
 				client.deleteFromTxTracker(txHash)
 				return nil, executionErr
 			}
+			span.AddEvent("txclient/ConfirmTx: transaction confirmed successfully")
 			client.deleteFromTxTracker(txHash)
 			return txResponse, nil
 		case core.TxStatusEvicted:
@@ -656,8 +696,13 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 
 			if evictionPollTimeStart != nil {
 				// Eviction timer is running, no need to resubmit again
+				span.AddEvent("txclient/ConfirmTx: eviction timer already running")
 				break
 			}
+
+			span.AddEvent("txclient/ConfirmTx: transaction evicted, attempting resubmission", trace.WithAttributes(
+				attribute.String("tx_hash", txHash),
+			))
 
 			// If we're not already tracking eviction timeout, try to resubmit
 			_, err := client.broadcastTx(ctx, client.conns[0], client.txTracker[txHash].txBytes)
@@ -668,10 +713,13 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 					return nil, err
 				}
 				// Start eviction timeout timer on any broadcast error during resubmission
+				span.AddEvent("txclient/ConfirmTx: starting eviction timer for broadcast error")
 				now := time.Now()
 				evictionPollTimeStart = &now
 			}
+			span.AddEvent("txclient/ConfirmTx: transaction resubmitted successfully after eviction")
 		case core.TxStatusRejected:
+			span.RecordError(fmt.Errorf("txclient/ConfirmTx: transaction rejected: %s", resp.Error))
 			sequence, signer, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
@@ -684,6 +732,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			client.deleteFromTxTracker(txHash)
 			return nil, fmt.Errorf("tx with hash %s was rejected by the node with execution code %d", txHash, resp.ExecutionCode)
 		default:
+			span.RecordError(fmt.Errorf("txclient/ConfirmTx: unknown tx status for tx: %s", txHash))
 			client.deleteFromTxTracker(txHash)
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
@@ -748,15 +797,23 @@ func (client *TxClient) EstimateGasPriceAndUsage(
 	if err != nil {
 		return 0, 0, err
 	}
+
+	span := trace.SpanFromContext(ctx)
+
 	resp, err := client.gasEstimationClient.EstimateGasPriceAndUsage(ctx, &gasestimation.EstimateGasPriceAndUsageRequest{
 		TxPriority: priority,
 		TxBytes:    txBytes,
 	})
 	if err != nil {
+		span.RecordError(fmt.Errorf("txclient/EstimateGasPriceAndUsage: estimation error: %w", err))
 		return 0, 0, fmt.Errorf("failed to estimate gas price and usage: %w", err)
 	}
 
 	gasUsed = uint64(float64(resp.EstimatedGasUsed))
+	span.AddEvent("txclient/EstimateGasPriceAndUsage: estimation successful", trace.WithAttributes(
+		attribute.Int64("gas_used", int64(gasUsed)),
+		attribute.Int64("gas_price", int64(resp.EstimatedGasPrice)),
+	))
 
 	return resp.EstimatedGasPrice, gasUsed, nil
 }
@@ -769,6 +826,12 @@ func (client *TxClient) EstimateGasPrice(ctx context.Context, priority gasestima
 	if err != nil {
 		return 0, err
 	}
+
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("txclient/EstimateGasPrice: estimation successful",
+		trace.WithAttributes(attribute.Int64("gas_price", int64(resp.EstimatedGasPrice))),
+	)
+
 	return resp.EstimatedGasPrice, nil
 }
 
@@ -788,6 +851,12 @@ func (client *TxClient) estimateGas(ctx context.Context, txBuilder client.TxBuil
 	}
 
 	gasLimit := uint64(float64(resp.EstimatedGasUsed))
+
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("txclient/estimateGas: estimation successful",
+		trace.WithAttributes(attribute.Int64("gas_used", int64(gasLimit))),
+	)
+
 	return gasLimit, nil
 }
 
@@ -809,12 +878,18 @@ func (client *TxClient) AccountByAddress(ctx context.Context, address sdktypes.A
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 
+	span := trace.SpanFromContext(ctx)
+
 	accountName := client.signer.accountNameByAddress(address)
 	if accountName == "" {
+		span.AddEvent(
+			fmt.Sprintf("txclient/AccountByAddress: account not found for address: %s", address.String()),
+		)
 		return nil
 	}
 
 	if err := client.checkAccountLoaded(ctx, accountName); err != nil {
+		span.RecordError(fmt.Errorf("txclient/AccountByAddress: checking account loaded error: %w", err))
 		return nil
 	}
 

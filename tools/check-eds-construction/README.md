@@ -32,5 +32,3 @@ If the two hashes match, the construction method is compatible with currently pr
 - Requires access to a live node's RPC endpoint.
 - The tool uses the block's App version when reconstructing the EDS.
 - Ensure the target height exists and the node is synced.
-
-
