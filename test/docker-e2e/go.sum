@@ -774,8 +774,8 @@ github.com/bytedance/sonic v1.14.1/go.mod h1:gi6uhQLMbTdeP0muCnrjHLeCUPyb70ujhnN
 github.com/bytedance/sonic/loader v0.3.0 h1:dskwH8edlzNMctoruo8FPTJDF3vLtDT0sXZwvZJyqeA=
 github.com/bytedance/sonic/loader v0.3.0/go.mod h1:N8A3vUdtUebEY2/VQC0MyhYeKUFosQU6FxH2JmUe6VI=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
-github.com/celestiaorg/celestia-core v0.39.4 h1:h0WaG8KsP0JyiAVhHipoIgvBP0CYLG/9whUccy1lDlY=
-github.com/celestiaorg/celestia-core v0.39.4/go.mod h1:t7cSYwLFmpz5RjIBpC3QjpbRoa+RfQ0ULdh+LciKuq8=
+github.com/celestiaorg/celestia-core v0.39.6 h1:5QZUJBw1uQaw1M/1quA59GCOCAawgm720DwvSFlboYA=
+github.com/celestiaorg/celestia-core v0.39.6/go.mod h1:PKAwAsKDbnYCilrWKTYwZhiUlMLjVFImcIJLLVmCKTU=
 github.com/celestiaorg/cosmos-sdk v0.51.2 h1:a9WguK7BaeuqCVnOa3m3ThwXKBL/RxQ46gRz+TP4yKQ=
 github.com/celestiaorg/cosmos-sdk v0.51.2/go.mod h1:KSCi5EM7aWwZRtCHCOH4K51a9OcjEKt4i/pr1txrnRA=
 github.com/celestiaorg/cosmos-sdk/api v0.7.6 h1:81in9Zk+noz0ko+hZFSSK8L1aawFN8/CmdcQAUhbiUU=
