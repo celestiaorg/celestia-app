@@ -6,11 +6,11 @@ import (
 )
 
 type KVAppOptions struct {
-	options map[string]interface{}
+	options map[string]any
 }
 
 // Get returns the option value for the given option key.
-func (ao *KVAppOptions) Get(option string) interface{} {
+func (ao *KVAppOptions) Get(option string) any {
 	return ao.options[option]
 }
 
@@ -20,13 +20,13 @@ func (ao *KVAppOptions) GetString(option string) string {
 }
 
 // Set sets a key-value app option.
-func (ao *KVAppOptions) Set(option string, value interface{}) {
+func (ao *KVAppOptions) Set(option string, value any) {
 	ao.options[option] = value
 }
 
 // DefaultAppOptions returns the default application options.
 func DefaultAppOptions() *KVAppOptions {
-	opts := &KVAppOptions{options: make(map[string]interface{})}
+	opts := &KVAppOptions{options: make(map[string]any)}
 	opts.Set(server.FlagPruning, pruningtypes.PruningOptionNothing)
 	return opts
 }
