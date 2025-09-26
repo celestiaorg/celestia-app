@@ -23,7 +23,12 @@ service Query {
     option (google.api.http).get = "/fibre/v1/escrow-account/{signer}";
   }
 
-  // PendingWithdrawals queries pending withdrawals for an escrow account.
+  // Withdrawals queries all withdrawals for an escrow account by signer address.
+  rpc Withdrawals(QueryWithdrawalsRequest) returns (QueryWithdrawalsResponse) {
+    option (google.api.http).get = "/fibre/v1/withdrawals/{signer}";
+  }
+
+  // PendingWithdrawals queries pending withdrawals for an escrow account by signer address.
   rpc PendingWithdrawals(QueryPendingWithdrawalsRequest) returns (QueryPendingWithdrawalsResponse) {
     option (google.api.http).get = "/fibre/v1/pending-withdrawals/{signer}";
   }
@@ -61,6 +66,18 @@ message QueryEscrowAccountResponse {
   bool found = 2;
 }
 
+// QueryWithdrawalsRequest is the request type for the Query/Withdrawals RPC method.
+message QueryWithdrawalsRequest {
+  string signer = 1;
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+
+// QueryWithdrawalsResponse is the response type for the Query/Withdrawals RPC method.
+message QueryWithdrawalsResponse {
+  repeated Withdrawal withdrawals = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
 // QueryPendingWithdrawalsRequest is the request type for the Query/PendingWithdrawals RPC method.
 message QueryPendingWithdrawalsRequest {
   string signer = 1;
@@ -69,7 +86,7 @@ message QueryPendingWithdrawalsRequest {
 
 // QueryPendingWithdrawalsResponse is the response type for the Query/PendingWithdrawals RPC method.
 message QueryPendingWithdrawalsResponse {
-  repeated PendingWithdrawal pending_withdrawals = 1 [(gogoproto.nullable) = false];
+  repeated Withdrawal withdrawals = 1 [(gogoproto.nullable) = false];
   cosmos.base.query.v1beta1.PageResponse pagination = 2;
 }
 

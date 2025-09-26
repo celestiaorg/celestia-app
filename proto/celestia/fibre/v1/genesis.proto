@@ -12,7 +12,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/fibre/types";
 message GenesisState {
   Params params = 1 [(gogoproto.nullable) = false];
   repeated EscrowAccount escrow_accounts = 2 [(gogoproto.nullable) = false];
-  repeated PendingWithdrawal pending_withdrawals = 3 [(gogoproto.nullable) = false];
+  repeated Withdrawal withdrawals = 3 [(gogoproto.nullable) = false];
   repeated ProcessedPromiseEntry processed_promises = 4 [(gogoproto.nullable) = false];
 }
 
