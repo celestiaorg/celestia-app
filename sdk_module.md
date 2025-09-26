@@ -86,13 +86,16 @@ To prevent double payment, the module tracks which promises have been processed.
 #### Indexing
 
 **Escrow Accounts**:
+
 - **Primary Index**: `escrows/{signer}` → `EscrowAccount`
 
 **Pending Withdrawals**:
+
 - **By signer**: `withdrawals/{signer}/{requested_at}` → `cosmos.base.v1beta1.Coin` (amount)
 - **By Availability**: `available_withdrawals/{available_at}/{signer}` → `cosmos.base.v1beta1.Coin` (amount)
 
 **Processed Promises**:
+
 - **Primary Index**: `processed/{promise_hash}` → `google.protobuf.Timestamp` (processed_at)
 - **By Timestamp**: `pruning/{processed_at}/{promise_hash}` → `null` (for pruning)
 
@@ -109,13 +112,15 @@ All messages use the existing gas consumption mechanism in the cosmos-sdk. In ad
 **Blob Gas Calculation**:
 
 Gas cost is calculated using the following formula:
-```
+
+```text
 total_gas = (rows * row_size(blob_size) * gas_per_blob_byte)
 ```
 
 This means that users pay for padding as well, just like PFBs.
 
 Where:
+
 - `rows` is the constant number of rows needed for the blob data
 - `row_size(blob_size)` is the size of each row in bytes
 - `gas_per_blob_byte` is the gas cost per byte parameter
@@ -136,10 +141,12 @@ message MsgDepositToEscrow {
 #### Validation and Processing
 
 **Stateless Validation**:
+
 - Signer address must be valid
 - Amount must be positive
 
 **Stateful Processing**:
+
 1. If signer's escrow account doesn't exist, create one with zero balance
 2. Transfer funds from signer to module account
 3. Increase both balance and available_balance by deposit amount
@@ -158,13 +165,15 @@ message MsgRequestWithdrawal {
 }
 ```
 
-#### Validation and Processing
+#### Validation
 
 **Stateless Validation**:
+
 - Signer address must be valid
 - Amount must be positive
 
 **Stateful Processing**:
+
 1. Verify signer's escrow account exists
 2. Verify sufficient available balance
 3. Verify no existing withdrawal request at current timestamp (prevent key collision)
@@ -266,6 +275,7 @@ message PaymentPromise {f
 #### PaymentPromise Validation
 
 **Stateless Validation**:
+
 - `signer` must be valid bech32 address
 - `namespace` must be valid
 - `blob_size` must be positive
@@ -280,9 +290,11 @@ message PaymentPromise {f
 Gas cost is calculated as described in the [Gas Consumption](#gas-consumption) section.
 
 **Stateful Validation**:
+
 1. Verify `creation_timestamp` is:
-  - less than or equal to current confirmed timestamp
-  - greater than (header_timestamp - withdrawal_delay)
+
+    - less than or equal to current confirmed timestamp
+    - greater than (header_timestamp - withdrawal_delay)
 
 2. Verify escrow account exists for `signer`
 3. Verify sufficient available balance for gas cost (see [Gas Consumption](#gas-consumption) section). This includes all yet to be processed `PaymentPromises` that the validator has signed over.
@@ -293,11 +305,12 @@ Gas cost is calculated as described in the [Gas Consumption](#gas-consumption) s
 
 The sign bytes for a PaymentPromise signature are constructed by concatenating all fields except the `signature` field, along with prepending the chainID:
 
-```
+```text
 sign_bytes = chainID || signer_bytes || namespace || blob_size_bytes || commitment || row_version_bytes || valset_height_bytes || creation_timestamp_bytes
 ```
 
 **Field Encoding**:
+
 - `signer`: raw bytes of signer address secp256k1 (20 bytes)
 - `namespace`: Raw namespace bytes (fixed 29 bytes)
 - `blob_size_bytes`: Big-endian encoded uint32 (4 bytes)
@@ -311,10 +324,12 @@ sign_bytes = chainID || signer_bytes || namespace || blob_size_bytes || commitme
 #### MsgPayForFibre Validation and Processing
 
 **Stateless Validation**:
+
 - Must have at least one validator signature
 - All validator signatures must be properly formatted
 
 **Stateful Processing**:
+
 1. Validate PaymentPromise (see [PaymentPromise Validation](#paymentpromise-validation) above)
 2. Verify validator signatures represent 2/3+ threshold from validator set at `promise.valset_height` (obtained via historical info query from staking module):
    - Signatures must represent 2/3+ of total voting power AND 2/3+ of validator count
@@ -347,9 +362,11 @@ message MsgPaymentTimeout {
 #### MsgPaymentTimeout Validation and Processing
 
 **Stateless Validation**:
+
 - All [PaymentPromise](#paymentpromise-validation) stateless validation applies (including signature validation)
 
 **Stateful Processing**:
+
 1. Validate PaymentPromise (see [PaymentPromise Validation](#paymentpromise-validation) above)
 2. Verify `promise.creation_timestamp + promise_timeout <= header_timestamp` (timeout has passed)
 3. Calculate gas cost (see [Gas Consumption](#gas-consumption) section) and deduct from both escrow balance and available_balance
@@ -521,6 +538,7 @@ func BeginBlocker(ctx sdk.Context, k Keeper) {
 Queries an [escrow account](#escrow-accounts) by ID.
 
 **Request**:
+
 ```proto
 message QueryEscrowAccountRequest {
   string signer = 1;
@@ -528,6 +546,7 @@ message QueryEscrowAccountRequest {
 ```
 
 **Response**:
+
 ```proto
 message QueryEscrowAccountResponse {
   EscrowAccount escrow_account = 1;
@@ -540,6 +559,7 @@ message QueryEscrowAccountResponse {
 Queries [pending withdrawals](#pending-withdrawals) for an escrow account.
 
 **Request**:
+
 ```proto
 message QueryPendingWithdrawalsRequest {
   string signer = 1;
@@ -548,6 +568,7 @@ message QueryPendingWithdrawalsRequest {
 ```
 
 **Response**:
+
 ```proto
 message QueryPendingWithdrawalsResponse {
   repeated PendingWithdrawal pending_withdrawals = 1;
@@ -560,6 +581,7 @@ message QueryPendingWithdrawalsResponse {
 Queries whether a [promise](#processed-promises) has been processed.
 
 **Request**:
+
 ```proto
 message QueryProcessedPromiseRequest {
   bytes promise_hash = 1;
@@ -567,6 +589,7 @@ message QueryProcessedPromiseRequest {
 ```
 
 **Response**:
+
 ```proto
 message QueryProcessedPromiseResponse {
   google.protobuf.Timestamp processed_at = 1;
@@ -579,6 +602,7 @@ message QueryProcessedPromiseResponse {
 Validates a [payment promise](#msgpayforfibre) for server use, performing all required checks including escrow balance and processing status.
 
 **Request**:
+
 ```proto
 message QueryValidatePaymentPromiseRequest {
   PaymentPromise promise = 1;
@@ -586,6 +610,7 @@ message QueryValidatePaymentPromiseRequest {
 ```
 
 **Response**:
+
 ```proto
 message QueryValidatePaymentPromiseResponse {
   bool valid = 1;
@@ -598,6 +623,7 @@ message QueryValidatePaymentPromiseResponse {
 ```
 
 **Validation Checks**:
+
 1. Verify escrow account exists and has sufficient available balance for the gas cost (see [Gas Consumption](#gas-consumption) section)
 2. Verify promise hasn't been processed already
 3. Perform all standard PaymentPromise validation (see [PaymentPromise Validation](#paymentpromise-validation) section)
@@ -621,8 +647,7 @@ message QueryValidatePaymentPromiseResponse {
 celestia-appd tx fibre deposit-to-escrow <amount> [flags]
 
 # Request withdrawal from escrow
-  celestia-appd tx fibre request-withdrawal <amount> [flags]
-
+celestia-appd tx fibre request-withdrawal <amount> [flags]
 
 # Generate signed promise for validators
 celestia-appd tx fibre create-promise <namespace> <blob_size> <commitment> [flags]
@@ -634,7 +659,7 @@ celestia-appd tx fibre pay-for-fibre <promise_json> <validator_signatures_json> 
 celestia-appd tx fibre process-promise-timeout <promise_json> <promise_signature> [flags]
 ```
 
-#### Queries
+#### CLI Queries
 
 ```shell
 # Query escrow account
