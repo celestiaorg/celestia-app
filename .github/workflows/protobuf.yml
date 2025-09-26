@@ -33,3 +33,30 @@ jobs:
         with:
           input: "proto"
           against: "https://github.com/${{ github.repository }}.git#branch=${{ github.event.pull_request.base.ref }},ref=HEAD~1,subdir=proto"
+
+  proto-gen-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+      - name: Install proto dependencies
+        run: make proto-deps
+      - name: Generate protobuf files
+        run: make proto-gen
+      - name: Check if proto generation is up to date
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "ERROR: Generated protobuf files are not up to date."
+            echo "Please run 'make proto-gen' and commit the changes."
+            echo ""
+            echo "Changed files:"
+            git status --porcelain
+            echo ""
+            echo "Diff:"
+            git diff
+            exit 1
+          else
+            echo "Generated protobuf files are up to date."
+          fi
