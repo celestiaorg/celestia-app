@@ -304,10 +304,14 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 		return nil, err
 	}
 
+<<<<<<< HEAD
 	if len(client.conns) > 1 {
 		return client.broadcastMulti(ctx, txBytes, account)
 	}
 	return client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txBytes, account)
+=======
+	return client.routeTx(ctx, txBytes, accountName)
+>>>>>>> b5643a0 (refactor: tx client to deduplicate broadcast methods (#5834))
 }
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
@@ -402,35 +406,55 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 		return nil, err
 	}
 
-	if len(client.conns) > 1 {
-		return client.broadcastMulti(ctx, txBytes, account)
-	}
-	return client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txBytes, account)
+	return client.routeTx(ctx, txBytes, account)
 }
 
-// broadcastTxAndIncrementSequence submits a transaction to the chain and increments the sequence of the signer.
-// It will retry the transaction if it encounters a sequence mismatch.
-func (client *TxClient) broadcastTxAndIncrementSequence(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
-	resp, err := client.broadcastTxWithRetry(ctx, conn, txBytes, signer)
-	if err != nil {
-		return nil, err
+// routeTx routes to single or multi-connection handling
+func (client *TxClient) routeTx(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+	if len(client.conns) > 1 {
+		return client.submitToMultipleConnections(ctx, txBytes, signer)
 	}
+	return client.submitToSingleConnection(ctx, txBytes, signer)
+}
 
-	// save the sequence and signer of the transaction in the local txTracker
+// submitToSingleConnection handles submission to a single connection with retry logic at sequence mismatches and sequence management
+func (client *TxClient) submitToSingleConnection(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+	resp, err := client.sendTxToConnection(ctx, client.conns[0], txBytes)
+	if err != nil {
+		broadcastTxErr, ok := err.(*BroadcastTxError)
+		if !ok || !apperrors.IsNonceMismatchCode(broadcastTxErr.Code) {
+			return nil, err
+		}
+		// Handle sequence mismatch by updating to expected sequence and retrying
+		expectedSequence, err := apperrors.ParseExpectedSequence(broadcastTxErr.ErrorLog)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing sequence mismatch: %w. ErrorLog: %s", err, broadcastTxErr.ErrorLog)
+		}
+		if err = client.signer.SetSequence(signer, expectedSequence); err != nil {
+			return nil, fmt.Errorf("setting sequence: %w", err)
+		}
+		// Retry with updated sequence
+		retryTxBytes, err := client.resignTransactionWithNewSequence(txBytes)
+		if err != nil {
+			return nil, err
+		}
+
+		return client.submitToSingleConnection(ctx, retryTxBytes, signer)
+	}
+	// Save the sequence, signer and txBytes of the in the local txTracker
 	// before the sequence is incremented
 	client.trackTransaction(signer, resp.TxHash, txBytes)
 
-	// after the transaction has been submitted, we can increment the
-	// sequence of the signer
+	// Increment sequence after successful submission
 	if err := client.signer.IncrementSequence(signer); err != nil {
-		return nil, fmt.Errorf("increment sequencing: %w", err)
+		return nil, fmt.Errorf("error incrementing sequence: %w", err)
 	}
 
 	return resp, nil
 }
 
-// broadcastTx broadcasts a transaction to the chain and returns the response.
-func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
+// sendTxToConnection broadcasts a transaction to the chain and returns the response.
+func (client *TxClient) sendTxToConnection(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
 	txClient := sdktx.NewServiceClient(conn)
 	resp, err := txClient.BroadcastTx(
 		ctx,
@@ -454,30 +478,8 @@ func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, 
 	return resp.TxResponse, nil
 }
 
-// broadcastTxWithRetry broadcasts a transaction and retries if it encounters a sequence mismatch.
-func (client *TxClient) broadcastTxWithRetry(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
-	resp, err := client.broadcastTx(ctx, conn, txBytes)
-	if err != nil {
-		broadcastTxErr, ok := err.(*BroadcastTxError)
-		if !ok || !apperrors.IsNonceMismatchCode(broadcastTxErr.Code) {
-			return nil, err
-		}
-		expectedSequence, err := apperrors.ParseExpectedSequence(broadcastTxErr.ErrorLog)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing sequence mismatch: %w. ErrorLog: %s", err, broadcastTxErr.ErrorLog)
-		}
-		if err := client.signer.SetSequence(signer, expectedSequence); err != nil {
-			return nil, fmt.Errorf("setting sequence: %w", err)
-		}
-		return client.retryBroadcastingTx(ctx, txBytes)
-	}
-
-	return resp, nil
-}
-
-// retryBroadcastingTx creates a new transaction by copying over an existing transaction but creates a new signature with the
-// new sequence number. It then calls `broadcastTx` and attempts to submit the transaction.
-func (s *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sdktypes.TxResponse, error) {
+// resignTransactionWithNewSequence creates a new transaction with updated sequence from existing tx bytes
+func (client *TxClient) resignTransactionWithNewSequence(txBytes []byte) ([]byte, error) {
 	blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(txBytes)
 	if isBlobTx && err != nil {
 		return nil, err
@@ -485,11 +487,11 @@ func (s *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sd
 	if isBlobTx {
 		txBytes = blobTx.Tx
 	}
-	tx, err := s.signer.DecodeTx(txBytes)
+	tx, err := client.signer.DecodeTx(txBytes)
 	if err != nil {
 		return nil, err
 	}
-	txBuilder, err := s.signer.txBuilder(tx.GetMsgs(), []TxOption{}...)
+	txBuilder, err := client.signer.txBuilder(tx.GetMsgs(), []TxOption{}...)
 	if err != nil {
 		return nil, err
 	}
@@ -512,17 +514,17 @@ func (s *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sd
 		txBuilder.SetGasLimit(gas)
 	}
 
-	signer, _, err := s.signer.signTransaction(txBuilder)
+	_, _, err = client.signer.signTransaction(txBuilder)
 	if err != nil {
 		return nil, fmt.Errorf("resigning transaction: %w", err)
 	}
 
-	newTxBytes, err := s.signer.EncodeTx(txBuilder.GetTx())
+	newTxBytes, err := client.signer.EncodeTx(txBuilder.GetTx())
 	if err != nil {
 		return nil, err
 	}
 
-	// Rewrap the blob tx if it was originally a blob tx.
+	// Rewrap the blob tx if it was originally a blob tx
 	if isBlobTx {
 		newTxBytes, err = blobtx.MarshalBlobTx(newTxBytes, blobTx.Blobs...)
 		if err != nil {
@@ -530,19 +532,12 @@ func (s *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sd
 		}
 	}
 
-	broadcastTxResp, err := s.broadcastTxWithRetry(ctx, s.conns[0], newTxBytes, signer)
-	if err != nil {
-		return nil, err
-	}
-
-	// Add to tx tracker.
-	s.trackTransaction(signer, broadcastTxResp.TxHash, newTxBytes)
-	return broadcastTxResp, nil
+	return newTxBytes, nil
 }
 
-// broadcastMulti broadcasts the transaction to multiple connections concurrently
-// and returns the response from the first successful broadcast.
-func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+// submitToMultipleConnections submits the transaction to multiple connections concurrently
+// and returns the response from the first successful submission.
+func (client *TxClient) submitToMultipleConnections(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
 	respCh := make(chan *sdktypes.TxResponse, 1)
 	errCh := make(chan error, len(client.conns))
 
@@ -556,7 +551,11 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 		go func(conn *grpc.ClientConn) {
 			defer wg.Done()
 
+<<<<<<< HEAD
 			resp, err := client.broadcastTxAndIncrementSequence(ctx, conn, txBytes, signer)
+=======
+			resp, err := client.sendTxToConnection(ctx, conn, txBytes)
+>>>>>>> b5643a0 (refactor: tx client to deduplicate broadcast methods (#5834))
 			if err != nil {
 				errCh <- err
 				return
@@ -652,7 +651,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			}
 
 			// If we're not already tracking eviction timeout, try to resubmit
-			_, err := client.broadcastTx(ctx, client.conns[0], client.txTracker[txHash].txBytes)
+			_, err := client.sendTxToConnection(ctx, client.conns[0], client.txTracker[txHash].txBytes)
 			if err != nil {
 				// Check if the error is a broadcast tx error
 				_, ok := err.(*BroadcastTxError)
