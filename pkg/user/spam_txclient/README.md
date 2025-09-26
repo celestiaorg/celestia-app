@@ -1,0 +1,16 @@
+# TxClient Stress Test
+
+This tool repeatedly broadcasts blob transactions to **Mocha node** with short TTLs and monitors the Celestia TxClient to ensure it never halts.
+
+## What it does
+
+- Submits random blob transactions at a fixed interval (`intervalMs`).
+- Tracks the time since the last successful broadcast.
+- Fails if no successful submission happens for more than 10 seconds.
+- Runs for `testDurationSec` seconds by default, then exits cleanly.
+
+## How to run
+
+```bash
+ go run pkg/user/spam_txclient/main.go
+ ```
