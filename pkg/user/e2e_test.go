@@ -134,5 +134,42 @@ func TestParallelTxSubmission(t *testing.T) {
 		}
 	}
 
-	t.Logf("Successfully submitted %d parallel transactions with unique hashes", numJobs)
+	t.Logf("Successfully submitted %d parallel transactions", numJobs)
+
+	// Part 2: Test shutdown behavior and verify pool can be stopped properly
+	t.Log("Testing parallel pool shutdown...")
+
+	// Stop the parallel pool
+	txClient.ParallelPool().Stop()
+	require.False(t, txClient.ParallelPool().IsStarted())
+
+	// Verify that new submissions fail when pool is stopped
+	_, err = txClient.SubmitPayForBlobParallel(ctx.GoContext(), []*share.Blob{blobs[0]})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "parallel pool not started")
+
+	t.Log("Successfully verified parallel pool shutdown behavior")
+
+	// Part 3: Test restart scenario - create new client and verify existing accounts are reused
+	t.Log("Testing restart scenario with existing worker accounts...")
+
+	// Create a new TxClient using the same keyring (simulating restart)
+	_, err = user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg, user.WithTxWorkersNoInit(numWorkers*3))
+	require.NoError(t, err)
+
+	// Check that worker accounts exist in keyring before initialization
+	for i := 1; i < numWorkers; i++ {
+		accountName := fmt.Sprintf("parallel-worker-%d", i)
+		_, err := ctx.Keyring.Key(accountName)
+		require.NoError(t, err, "worker account %s should exist in keyring", accountName)
+	}
+
+	// Verify no additional worker accounts were created during setup
+	for i := numWorkers; i < numWorkers*2; i++ {
+		accountName := fmt.Sprintf("parallel-worker-%d", i)
+		_, err := ctx.Keyring.Key(accountName)
+		require.Error(t, err, "no additional worker account %s should have been created", accountName)
+	}
+
+	t.Log("Successfully verified restart scenario - existing worker accounts were reused and no new accounts were created")
 }

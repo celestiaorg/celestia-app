@@ -270,14 +270,32 @@ func (client *TxClient) InitializeWorkerAccounts(ctx context.Context) error {
 	// Get the list of worker accounts that need to be initialized
 	// Skip the first worker (index 0) as it always uses the existing signer account
 	var workersToInit []*TxWorker
+	var workersToLoad []*TxWorker
 	for i, worker := range client.parallelPool.workers {
 		if i == 0 {
 			// Skip first worker - it uses existing account
 			continue
 		}
+		
 		// Check if account exists in signer
 		if _, exists := client.signer.accounts[worker.accountName]; !exists {
-			workersToInit = append(workersToInit, worker)
+			// Check if account exists in keyring but not loaded in signer
+			if _, err := client.signer.keys.Key(worker.accountName); err == nil {
+				// Account exists in keyring but not loaded - add to load list
+				workersToLoad = append(workersToLoad, worker)
+			} else {
+				// Account doesn't exist anywhere - needs full initialization
+				workersToInit = append(workersToInit, worker)
+			}
+		}
+	}
+
+	// Load existing accounts from keyring into signer
+	if len(workersToLoad) > 0 {
+		for _, worker := range workersToLoad {
+			if err := client.loadWorkerAccount(worker); err != nil {
+				return fmt.Errorf("failed to load existing worker account %s: %w", worker.accountName, err)
+			}
 		}
 	}
 
@@ -298,6 +316,72 @@ func (client *TxClient) InitializeWorkerAccounts(ctx context.Context) error {
 		return fmt.Errorf("failed to fund and grant worker accounts: %w", err)
 	}
 
+	return nil
+}
+
+// createFeeGrantMessages creates fee grant messages for the given workers
+func (client *TxClient) createFeeGrantMessages(workers []*TxWorker) ([]sdktypes.Msg, uint64, error) {
+	msgs := make([]sdktypes.Msg, 0, len(workers))
+	totalGasLimit := uint64(0)
+	masterAddress := client.defaultAddress
+
+	for _, worker := range workers {
+		// Get worker address
+		record, err := client.signer.keys.Key(worker.accountName)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to get worker account %s from keyring: %w", worker.accountName, err)
+		}
+
+		workerAddress, err := record.GetAddress()
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to get address for worker account %s: %w", worker.accountName, err)
+		}
+
+		// Create feegrant message so master account pays for worker fees
+		feegrantMsg, err := feegrant.NewMsgGrantAllowance(
+			&feegrant.BasicAllowance{}, // Unlimited allowance
+			masterAddress,
+			workerAddress,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to create feegrant message for worker %s: %w", worker.accountName, err)
+		}
+		msgs = append(msgs, feegrantMsg)
+		totalGasLimit += FeegrantGasLimit
+	}
+
+	return msgs, totalGasLimit, nil
+}
+
+
+// loadWorkerAccount loads an existing account from keyring into the signer
+func (client *TxClient) loadWorkerAccount(worker *TxWorker) error {
+	// Get account from keyring
+	record, err := client.signer.keys.Key(worker.accountName)
+	if err != nil {
+		return fmt.Errorf("failed to get worker account %s from keyring: %w", worker.accountName, err)
+	}
+
+	workerAddress, err := record.GetAddress()
+	if err != nil {
+		return fmt.Errorf("failed to get address for worker account %s: %w", worker.accountName, err)
+	}
+
+	// Query account info from chain
+	accNum, seqNum, err := QueryAccount(context.Background(), client.conns[0], client.registry, workerAddress)
+	if err != nil {
+		return fmt.Errorf("failed to query worker account %s on chain: %w", worker.accountName, err)
+	}
+
+	// Add account to signer
+	account := NewAccount(worker.accountName, accNum, seqNum)
+	if err := client.signer.AddAccount(account); err != nil {
+		return fmt.Errorf("failed to add worker account %s to signer: %w", worker.accountName, err)
+	}
+
+	// Update worker address 
+	worker.address = workerAddress.String()
+	
 	return nil
 }
 
@@ -329,6 +413,7 @@ func (client *TxClient) fundAndGrantWorkerAccounts(ctx context.Context, workers 
 
 	masterAddress := client.defaultAddress
 
+	// Create send messages for funding accounts
 	for _, worker := range workers {
 		// Get worker address
 		record, err := client.signer.keys.Key(worker.accountName)
@@ -349,23 +434,19 @@ func (client *TxClient) fundAndGrantWorkerAccounts(ctx context.Context, workers 
 		)
 		msgs = append(msgs, sendMsg)
 		totalGasLimit += SendGasLimit
-
-		// Create feegrant message so master account pays for worker fees
-		feegrantMsg, err := feegrant.NewMsgGrantAllowance(
-			&feegrant.BasicAllowance{}, // Unlimited allowance
-			masterAddress,
-			workerAddress,
-		)
-		if err != nil {
-			return fmt.Errorf("failed to create feegrant message for worker %s: %w", worker.accountName, err)
-		}
-		msgs = append(msgs, feegrantMsg)
-		totalGasLimit += FeegrantGasLimit
 	}
+
+	// Add fee grant messages
+	feeGrantMsgs, feeGrantGasLimit, err := client.createFeeGrantMessages(workers)
+	if err != nil {
+		return err
+	}
+	msgs = append(msgs, feeGrantMsgs...)
+	totalGasLimit += feeGrantGasLimit
 
 	// Submit the initialization transaction
 	opts := []TxOption{SetGasLimit(totalGasLimit)}
-	_, err := client.SubmitTx(ctx, msgs, opts...)
+	_, err = client.SubmitTx(ctx, msgs, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to submit initialization transaction: %w", err)
 	}
