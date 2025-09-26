@@ -5,6 +5,7 @@
 [![GitHub Release](https://img.shields.io/github/v/release/celestiaorg/celestia-app)](https://github.com/celestiaorg/celestia-app/releases/latest)
 [![Go Report Card](https://goreportcard.com/badge/github.com/celestiaorg/celestia-app)](https://goreportcard.com/report/github.com/celestiaorg/celestia-app)
 [![GitPOAP Badge](https://public-api.gitpoap.io/v1/repo/celestiaorg/celestia-app/badge)](https://www.gitpoap.io/gh/celestiaorg/celestia-app)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/celestiaorg/celestia-app)
 
 celestia-app is the software used by [validators](https://docs.celestia.org/how-to-guides/validator-node) and [consensus nodes](https://docs.celestia.org/how-to-guides/consensus-node) on the Celestia consensus network. celestia-app is a blockchain application built using parts of the Cosmos stack:
 
