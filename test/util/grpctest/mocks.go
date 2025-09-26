@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/test/bufconn"
 )
 
 // MockTxService allows controlling the behavior of BroadcastTx calls.
@@ -115,41 +114,3 @@ func StartMockServer(t *testing.T, service *MockTxService) *grpc.ClientConn {
 	return conn
 }
 
-const bufConnSize = 1024 * 1024
-
-// StartBufConnMockServer starts a mock gRPC server backed by an in-memory listener.
-func StartBufConnMockServer(t *testing.T, service *MockTxService) *grpc.ClientConn {
-	t.Helper()
-
-	lis := bufconn.Listen(bufConnSize)
-	s := grpc.NewServer()
-	sdktx.RegisterServiceServer(s, service)
-	tx.RegisterTxServer(s, service)
-
-	go func() {
-		if err := s.Serve(lis); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-			t.Logf("Mock bufconn server error: %v", err)
-			panic(err)
-		}
-	}()
-
-	conn, err := grpc.NewClient(
-		"passthrough:///bufnet",
-		grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
-			return lis.Dial()
-		}),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultCallOptions(
-			grpc.MaxCallSendMsgSize(math.MaxInt32),
-			grpc.MaxCallRecvMsgSize(math.MaxInt32),
-		),
-	)
-	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		s.Stop()
-		_ = conn.Close()
-	})
-
-	return conn
-}
