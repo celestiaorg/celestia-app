@@ -171,7 +171,8 @@ func TestParallelSubmitPayForBlobSuccess(t *testing.T) {
 	require.NotNil(t, client.ParallelPool())
 
 	// Start the parallel pool
-	client.ParallelPool().Start(context.Background())
+	err := client.ParallelPool().Start(context.Background())
+	require.NoError(t, err)
 
 	// Get the results channel from the parallel pool
 	resultsC := client.ParallelPool().ResultsChannel()
@@ -183,7 +184,7 @@ func TestParallelSubmitPayForBlobSuccess(t *testing.T) {
 
 	// Submit all jobs first
 	for i := 0; i < jobCount; i++ {
-		err := client.SubmitPayForBlobParallel(context.Background(), []*share.Blob{blob})
+		err = client.SubmitPayForBlobParallel(context.Background(), []*share.Blob{blob})
 		require.NoError(t, err)
 	}
 
@@ -231,14 +232,15 @@ func TestParallelSubmitPayForBlobBroadcastError(t *testing.T) {
 	require.NotNil(t, client.ParallelPool())
 
 	// Start the parallel pool
-	client.ParallelPool().Start(context.Background())
+	err := client.ParallelPool().Start(context.Background())
+	require.NoError(t, err)
 
 	// Get the results channel from the parallel pool
 	resultsC := client.ParallelPool().ResultsChannel()
 
 	blob := randomBlob(t)
 
-	err := client.SubmitPayForBlobParallel(context.Background(), []*share.Blob{blob})
+	err = client.SubmitPayForBlobParallel(context.Background(), []*share.Blob{blob})
 	require.NoError(t, err)
 
 	// Get result from the global channel
@@ -302,7 +304,8 @@ func TestParallelSubmissionSignerAddress(t *testing.T) {
 	require.NotNil(t, client.ParallelPool())
 
 	// Start the parallel pool
-	client.ParallelPool().Start(context.Background())
+	err := client.ParallelPool().Start(context.Background())
+	require.NoError(t, err)
 
 	// Get the results channel from the parallel pool
 	resultsC := client.ParallelPool().ResultsChannel()
@@ -315,7 +318,7 @@ func TestParallelSubmissionSignerAddress(t *testing.T) {
 
 	// Submit all jobs first
 	for i := 0; i < jobCount; i++ {
-		err := client.SubmitPayForBlobParallel(context.Background(), []*share.Blob{blob})
+		err = client.SubmitPayForBlobParallel(context.Background(), []*share.Blob{blob})
 		require.NoError(t, err)
 	}
 

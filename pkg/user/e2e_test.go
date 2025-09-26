@@ -121,7 +121,6 @@ func TestParallelTxSubmission(t *testing.T) {
 	}
 
 	// Wait for all results from the global channel
-	results := make([]*user.SubmissionResult, 0, numJobs)
 	for i := 0; i < numJobs; i++ {
 		select {
 		case result := <-resultsC:
@@ -129,7 +128,6 @@ func TestParallelTxSubmission(t *testing.T) {
 			require.NoError(t, result.Error, "transaction should succeed")
 			require.NotNil(t, result.TxResponse, "should have tx response")
 			require.NotEmpty(t, result.TxResponse.TxHash, "should have tx hash")
-			results = append(results, result)
 		case <-time.After(2 * time.Minute):
 			t.Fatalf("timeout waiting for result %d", i)
 		}

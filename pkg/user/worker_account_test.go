@@ -45,7 +45,7 @@ func newTestSetup(t *testing.T, accountNames []string) *testSetup {
 
 	// Create mock GRPC connection
 	listener := bufconn.Listen(1024 * 1024)
-	conn, err := grpc.Dial("", grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
+	conn, err := grpc.NewClient("", grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
 		return listener.Dial()
 	}), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
@@ -107,7 +107,7 @@ func TestWorkerZeroAlwaysUsesMainAccount(t *testing.T) {
 
 			// CRITICAL TEST: Worker 0 must ALWAYS use the main account passed to TxClient
 			worker0 := workers[0]
-			require.Equal(t, customAccountName, worker0.AccountName(), 
+			require.Equal(t, customAccountName, worker0.AccountName(),
 				"Worker 0 must always use the main account passed to TxClient")
 			require.Equal(t, client.DefaultAccountName(), worker0.AccountName(),
 				"Worker 0 must use the same account as client.DefaultAccountName()")
