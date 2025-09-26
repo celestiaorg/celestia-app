@@ -260,9 +260,9 @@ message PaymentPromise {f
   bytes commitment = 4;
   // row_version is the version of the row format
   uint32 row_version = 5;
-  // valset_height is the height that is used to determine the validator set that is used
+  // height is the height that is used to determine the validator set that is used
   // for the row dispersion algorithm (what validator has what rows) and for verifying signatures.
-  int64 valset_height = 6;
+  int64 height = 6;
   // creation_timestamp is the timestamp when this promise was created. This
   // is critical for determining which validators sign the commitment and
   // determining when service stops for this blob.
@@ -281,7 +281,7 @@ message PaymentPromise {f
 - `blob_size` must be positive
 - `commitment` must be 32 bytes
 - `row_version` must be supported version
-- `valset_height` must be positive
+- `height` must be positive
 - `creation_timestamp` must be positive
 - `signature` must be properly formatted and non-empty
 
@@ -306,7 +306,7 @@ Gas cost is calculated as described in the [Gas Consumption](#gas-consumption) s
 The sign bytes for a PaymentPromise signature are constructed by concatenating all fields except the `signature` field, along with prepending the chainID:
 
 ```text
-sign_bytes = chainID || signer_bytes || namespace || blob_size_bytes || commitment || row_version_bytes || valset_height_bytes || creation_timestamp_bytes
+sign_bytes = chainID || signer_bytes || namespace || blob_size_bytes || commitment || row_version_bytes || height_bytes || creation_timestamp_bytes
 ```
 
 **Field Encoding**:
@@ -316,7 +316,7 @@ sign_bytes = chainID || signer_bytes || namespace || blob_size_bytes || commitme
 - `blob_size_bytes`: Big-endian encoded uint32 (4 bytes)
 - `commitment`: Raw commitment bytes (32 bytes)
 - `row_version_bytes`: Big-endian encoded uint32 (4 bytes)
-- `valset_height_bytes`: Big-endian encoded int64 (8 bytes)
+- `height_bytes`: Big-endian encoded int64 (8 bytes)
 - `creation_timestamp_bytes`: Protobuf-encoded google.protobuf.Timestamp (variable length)
 
 **Total Length**: Variable length (20 + 29 + 4 + 32 + 4 + 8 + timestamp_bytes)
@@ -331,7 +331,7 @@ sign_bytes = chainID || signer_bytes || namespace || blob_size_bytes || commitme
 **Stateful Processing**:
 
 1. Validate PaymentPromise (see [PaymentPromise Validation](#paymentpromise-validation) above)
-2. Verify validator signatures represent 2/3+ threshold from validator set at `promise.valset_height` (obtained via historical info query from staking module):
+2. Verify validator signatures represent 2/3+ threshold from validator set at `promise.height` (obtained via historical info query from staking module):
    - Signatures must represent 2/3+ of total voting power AND 2/3+ of validator count
 3. Calculate gas cost (see [Gas Consumption](#gas-consumption) section) and deduct from both escrow balance and available_balance
 4. Mark promise as processed (stores `processed_at` timestamp and creates pruning index entry)
