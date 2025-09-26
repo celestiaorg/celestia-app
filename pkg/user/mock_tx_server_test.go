@@ -24,7 +24,7 @@ type mockTxServer struct {
 	txStatusResponses   map[string][]*tx.TxStatusResponse // txHash with sequence of responses
 	txStatusCallCounts  map[string]int                    // txHash with number of TxStatus calls made
 	broadcastCallCounts map[string]int                    // txHash with number of BroadcastTx calls made
-	
+
 	// Optional custom handlers - if set, these override default behavior
 	broadcastHandler func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error)
 	txStatusHandler  func(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error)
@@ -135,7 +135,8 @@ func setupTxClientWithMockGRPCServerAndHandlers(t *testing.T, responseSequences 
 	}()
 
 	// Create client connection
-	conn, err := grpc.NewClient("bufnet",
+	conn, err := grpc.NewClient(
+		"passthrough:///bufnet",
 		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
 			return lis.Dial()
 		}),

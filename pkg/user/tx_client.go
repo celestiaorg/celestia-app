@@ -148,11 +148,14 @@ func WithAdditionalCoreEndpoints(conns []*grpc.ClientConn) Option {
 // the existing default account is used.
 // By default, workers are initialized automatically when SetupTxClient is called.
 func WithTxWorkers(numWorkers int) (Option, chan *SubmissionResult) {
-	var resultsC chan *SubmissionResult
+	if numWorkers <= 0 {
+		return func(*TxClient) {}, nil
+	}
+
+	resultsC := make(chan *SubmissionResult, defaultParallelResultsSize)
 	option := func(c *TxClient) {
-		if numWorkers > 0 {
-			c.parallelPool, resultsC = NewParallelTxPool(c, numWorkers, true) // default to auto-initialize
-		}
+		pool, _ := newParallelTxPool(c, numWorkers, true, resultsC)
+		c.parallelPool = pool
 	}
 	return option, resultsC
 }
@@ -160,11 +163,14 @@ func WithTxWorkers(numWorkers int) (Option, chan *SubmissionResult) {
 // WithTxWorkersNoInit enables parallel transaction submission without automatic initialization.
 // InitializeWorkerAccounts must be called manually when using this option.
 func WithTxWorkersNoInit(numWorkers int) (Option, chan *SubmissionResult) {
-	var resultsC chan *SubmissionResult
+	if numWorkers <= 0 {
+		return func(*TxClient) {}, nil
+	}
+
+	resultsC := make(chan *SubmissionResult, defaultParallelResultsSize)
 	option := func(c *TxClient) {
-		if numWorkers > 0 {
-			c.parallelPool, resultsC = NewParallelTxPool(c, numWorkers, false) // no auto-initialization
-		}
+		pool, _ := newParallelTxPool(c, numWorkers, false, resultsC)
+		c.parallelPool = pool
 	}
 	return option, resultsC
 }

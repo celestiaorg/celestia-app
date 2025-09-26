@@ -94,11 +94,21 @@ func TestParallelTxSubmission(t *testing.T) {
 	// Setup signer with parallel workers (accounts will be auto-created)
 	numWorkers := 3
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	txWorkersOpt, resultsC := user.WithTxWorkers(numWorkers)
+	txWorkersOpt, resultsC := user.WithTxWorkersNoInit(numWorkers)
 	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg, txWorkersOpt)
 	require.NoError(t, err)
 
-	// Workers are automatically initialized by SetupTxClient
+	// Initialize worker accounts manually for e2e test
+	err = txClient.InitializeWorkerAccounts(ctx.GoContext())
+	require.NoError(t, err)
+
+	// Re-initialization should be a no-op
+	err = txClient.InitializeWorkerAccounts(ctx.GoContext())
+	require.NoError(t, err)
+
+	// Start the parallel pool manually
+	err = txClient.ParallelPool().Start(ctx.GoContext())
+	require.NoError(t, err)
 
 	// Generate test blobs
 	numJobs := 10

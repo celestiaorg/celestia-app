@@ -54,12 +54,19 @@ type TxWorker struct {
 	stopCh      chan struct{}
 }
 
-// NewParallelTxPool creates a new parallel transaction submission pool
-func NewParallelTxPool(client *TxClient, numWorkers int, initialize bool) (*ParallelTxPool, chan *SubmissionResult) {
-	resultsC := make(chan *SubmissionResult, 100)
+const (
+	defaultParallelQueueSize   = 100
+	defaultParallelResultsSize = 100
+)
+
+func newParallelTxPool(client *TxClient, numWorkers int, initialize bool, resultsC chan *SubmissionResult) (*ParallelTxPool, chan *SubmissionResult) {
+	if resultsC == nil {
+		resultsC = make(chan *SubmissionResult, defaultParallelResultsSize)
+	}
+
 	pool := &ParallelTxPool{
 		client:     client,
-		jobQueue:   make(chan *SubmissionJob, 100), // Default queue size
+		jobQueue:   make(chan *SubmissionJob, defaultParallelQueueSize),
 		workers:    make([]*TxWorker, numWorkers),
 		resultsC:   resultsC,
 		stopCh:     make(chan struct{}),
@@ -69,7 +76,7 @@ func NewParallelTxPool(client *TxClient, numWorkers int, initialize bool) (*Para
 	// Create workers: first worker always uses existing signer account
 	for i := 0; i < numWorkers; i++ {
 		var accountName, address string
-		
+
 		if i == 0 {
 			// First worker uses the existing default account
 			accountName = client.DefaultAccountName()
@@ -77,7 +84,7 @@ func NewParallelTxPool(client *TxClient, numWorkers int, initialize bool) (*Para
 		} else {
 			// Additional workers use generated account names
 			accountName = fmt.Sprintf("parallel-worker-%d", i)
-			
+
 			// Get worker address from keyring if account exists
 			if record, err := client.signer.keys.Key(accountName); err == nil {
 				if addr, err := record.GetAddress(); err == nil {
@@ -98,6 +105,11 @@ func NewParallelTxPool(client *TxClient, numWorkers int, initialize bool) (*Para
 	}
 
 	return pool, resultsC
+}
+
+// NewParallelTxPool creates a new parallel transaction submission pool with default buffers.
+func NewParallelTxPool(client *TxClient, numWorkers int, initialize bool) (*ParallelTxPool, chan *SubmissionResult) {
+	return newParallelTxPool(client, numWorkers, initialize, nil)
 }
 
 // Start initiates all workers in the pool
@@ -216,8 +228,15 @@ func (client *TxClient) SubmitPayForBlobParallel(ctx context.Context, blobs []*s
 		return errors.New("parallel submission not configured - use WithTxWorkers option")
 	}
 
+	// Initialize and start the pool on first use when auto-initialization is enabled.
 	if !client.parallelPool.started.Load() {
-		return errors.New("parallel submission is shutting down")
+		if client.parallelPool.initialize {
+			if err := client.parallelPool.Start(ctx); err != nil {
+				return fmt.Errorf("failed to start parallel pool: %w", err)
+			}
+		} else {
+			return errors.New("parallel pool not started - call ParallelPool().Start() first")
+		}
 	}
 
 	jobID := fmt.Sprintf("job_%d", time.Now().UnixNano())
@@ -242,6 +261,11 @@ func (client *TxClient) InitializeWorkerAccounts(ctx context.Context) error {
 		return errors.New("parallel pool not configured - use WithTxWorkers option")
 	}
 
+	// No work required if we've already initialized all workers.
+	if client.parallelPool.initialized.Load() {
+		return nil
+	}
+
 	// Get the list of worker accounts that need to be initialized
 	// Skip the first worker (index 0) as it always uses the existing signer account
 	var workersToInit []*TxWorker
@@ -257,6 +281,7 @@ func (client *TxClient) InitializeWorkerAccounts(ctx context.Context) error {
 	}
 
 	if len(workersToInit) == 0 {
+		client.parallelPool.initialized.Store(true)
 		return nil // All accounts already exist
 	}
 
@@ -372,5 +397,6 @@ func (client *TxClient) fundAndGrantWorkerAccounts(ctx context.Context, workers 
 		worker.address = workerAddress.String()
 	}
 
+	client.parallelPool.initialized.Store(true)
 	return nil
 }
