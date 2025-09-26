@@ -632,6 +632,8 @@ message QueryValidatePaymentPromiseResponse {
 
 ## Parameters
 
+All parameters are modifiable via governance.
+
 | Key                           | Type                     | Default | Description                                                              |
 |-------------------------------|--------------------------|--------:|--------------------------------------------------------------------------|
 | GasPerBlobByte                | uint32                   |       8 | Gas cost per byte of blob data                                           |
