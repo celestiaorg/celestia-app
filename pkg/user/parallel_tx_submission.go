@@ -319,8 +319,8 @@ func (client *TxClient) InitializeWorkerAccounts(ctx context.Context) error {
 	return nil
 }
 
-// createFeeGrantMessages creates fee grant messages for the given workers
-func (client *TxClient) createFeeGrantMessages(workers []*TxWorker) ([]sdktypes.Msg, uint64, error) {
+// createFeeGrantMessages creates fee grant messages for workers that don't already have grants
+func (client *TxClient) createFeeGrantMessages(ctx context.Context, workers []*TxWorker) ([]sdktypes.Msg, uint64, error) {
 	msgs := make([]sdktypes.Msg, 0, len(workers))
 	totalGasLimit := uint64(0)
 	masterAddress := client.defaultAddress
@@ -337,17 +337,25 @@ func (client *TxClient) createFeeGrantMessages(workers []*TxWorker) ([]sdktypes.
 			return nil, 0, fmt.Errorf("failed to get address for worker account %s: %w", worker.accountName, err)
 		}
 
-		// Create feegrant message so master account pays for worker fees
-		feegrantMsg, err := feegrant.NewMsgGrantAllowance(
-			&feegrant.BasicAllowance{}, // Unlimited allowance
-			masterAddress,
-			workerAddress,
-		)
+		// Check if fee grant already exists
+		hasGrant, err := client.hasFeeGrant(ctx, masterAddress, workerAddress)
 		if err != nil {
-			return nil, 0, fmt.Errorf("failed to create feegrant message for worker %s: %w", worker.accountName, err)
+			return nil, 0, fmt.Errorf("failed to check fee grant for worker %s: %w", worker.accountName, err)
 		}
-		msgs = append(msgs, feegrantMsg)
-		totalGasLimit += FeegrantGasLimit
+
+		if !hasGrant {
+			// Create feegrant message so master account pays for worker fees
+			feegrantMsg, err := feegrant.NewMsgGrantAllowance(
+				&feegrant.BasicAllowance{}, // Unlimited allowance
+				masterAddress,
+				workerAddress,
+			)
+			if err != nil {
+				return nil, 0, fmt.Errorf("failed to create feegrant message for worker %s: %w", worker.accountName, err)
+			}
+			msgs = append(msgs, feegrantMsg)
+			totalGasLimit += FeegrantGasLimit
+		}
 	}
 
 	return msgs, totalGasLimit, nil
@@ -402,18 +410,46 @@ func (client *TxClient) createWorkerAccount(accountName string) error {
 	return nil
 }
 
+// accountNeedsFunding checks if an account needs funding by querying its balance
+func (client *TxClient) accountNeedsFunding(ctx context.Context, address sdktypes.AccAddress) (bool, error) {
+	// Query account balance
+	balance, err := QueryAccountBalance(ctx, client.conns[0], client.registry, address, appconsts.BondDenom)
+	if err != nil {
+		// If account doesn't exist, it needs funding
+		return true, nil
+	}
+
+	// Check if balance is less than the default worker balance
+	// Note: we check for >= DefaultWorkerBalance to avoid re-funding accounts that already have sufficient balance
+	return balance.Amount.Int64() < DefaultWorkerBalance, nil
+}
+
+// hasFeeGrant checks if a fee grant exists between granter and grantee
+func (client *TxClient) hasFeeGrant(ctx context.Context, granter, grantee sdktypes.AccAddress) (bool, error) {
+	feegrantQuery := feegrant.NewQueryClient(client.conns[0])
+	_, err := feegrantQuery.Allowance(ctx, &feegrant.QueryAllowanceRequest{
+		Granter: granter.String(),
+		Grantee: grantee.String(),
+	})
+	if err != nil {
+		// If error contains "not found" or similar, grant doesn't exist
+		return false, nil
+	}
+	return true, nil
+}
+
 // fundAndGrantWorkerAccounts sends funds to worker accounts and sets up fee grants
 func (client *TxClient) fundAndGrantWorkerAccounts(ctx context.Context, workers []*TxWorker) error {
 	if len(workers) == 0 {
 		return nil
 	}
 
-	msgs := make([]sdktypes.Msg, 0, len(workers)*2) // Each worker needs 2 msgs: send + feegrant
+	msgs := make([]sdktypes.Msg, 0, len(workers)*2) // Each worker needs up to 2 msgs: send + feegrant
 	totalGasLimit := uint64(0)
 
 	masterAddress := client.defaultAddress
 
-	// Create send messages for funding accounts
+	// Create send messages for funding accounts that need funding
 	for _, worker := range workers {
 		// Get worker address
 		record, err := client.signer.keys.Key(worker.accountName)
@@ -426,29 +462,40 @@ func (client *TxClient) fundAndGrantWorkerAccounts(ctx context.Context, workers 
 			return fmt.Errorf("failed to get address for worker account %s: %w", worker.accountName, err)
 		}
 
-		// Create send message to fund the account
-		sendMsg := bank.NewMsgSend(
-			masterAddress,
-			workerAddress,
-			sdktypes.NewCoins(sdktypes.NewInt64Coin(appconsts.BondDenom, DefaultWorkerBalance)),
-		)
-		msgs = append(msgs, sendMsg)
-		totalGasLimit += SendGasLimit
+		// Check if account already has sufficient balance
+		needsFunding, err := client.accountNeedsFunding(ctx, workerAddress)
+		if err != nil {
+			// If we can't check balance, assume it needs funding to avoid blocking
+			needsFunding = true
+		}
+
+		if needsFunding {
+			// Create send message to fund the account
+			sendMsg := bank.NewMsgSend(
+				masterAddress,
+				workerAddress,
+				sdktypes.NewCoins(sdktypes.NewInt64Coin(appconsts.BondDenom, DefaultWorkerBalance)),
+			)
+			msgs = append(msgs, sendMsg)
+			totalGasLimit += SendGasLimit
+		}
 	}
 
 	// Add fee grant messages
-	feeGrantMsgs, feeGrantGasLimit, err := client.createFeeGrantMessages(workers)
+	feeGrantMsgs, feeGrantGasLimit, err := client.createFeeGrantMessages(ctx, workers)
 	if err != nil {
 		return err
 	}
 	msgs = append(msgs, feeGrantMsgs...)
 	totalGasLimit += feeGrantGasLimit
 
-	// Submit the initialization transaction
-	opts := []TxOption{SetGasLimit(totalGasLimit)}
-	_, err = client.SubmitTx(ctx, msgs, opts...)
-	if err != nil {
-		return fmt.Errorf("failed to submit initialization transaction: %w", err)
+	// Submit the initialization transaction only if there are messages to send
+	if len(msgs) > 0 {
+		opts := []TxOption{SetGasLimit(totalGasLimit)}
+		_, err = client.SubmitTx(ctx, msgs, opts...)
+		if err != nil {
+			return fmt.Errorf("failed to submit initialization transaction: %w", err)
+		}
 	}
 
 	// Add the worker accounts to the signer
