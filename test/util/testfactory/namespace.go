@@ -29,7 +29,7 @@ func RandomBlobNamespaceWithPRG(rand *rand.Rand) share.Namespace {
 }
 
 func RandomBlobNamespaces(rand *rand.Rand, count int) (namespaces []share.Namespace) {
-	for i := 0; i < count; i++ {
+	for range count {
 		namespaces = append(namespaces, RandomBlobNamespaceWithPRG(rand))
 	}
 	return namespaces
