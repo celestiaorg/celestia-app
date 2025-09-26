@@ -171,9 +171,10 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 				if err != nil {
 					return err
 				}
-				// Configure P2P seeds specific to mocha network
+				// Configure P2P seeds and peers specific to mocha network
 				return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
 					cfg.P2P.Seeds = mochaConfig.Seeds
+					cfg.P2P.PersistentPeers = mochaConfig.Peers
 				})
 			}).
 			Build(),
