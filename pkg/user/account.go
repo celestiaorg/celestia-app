@@ -93,10 +93,10 @@ func QueryAccountBalance(ctx context.Context, conn *grpc.ClientConn, registry co
 	if err != nil {
 		return types.Coin{}, err
 	}
-	
+
 	if balanceResp.Balance == nil {
 		return types.NewInt64Coin(denom, 0), nil
 	}
-	
+
 	return *balanceResp.Balance, nil
 }

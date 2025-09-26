@@ -276,7 +276,7 @@ func (client *TxClient) InitializeWorkerAccounts(ctx context.Context) error {
 			// Skip first worker - it uses existing account
 			continue
 		}
-		
+
 		// Check if account exists in signer
 		if _, exists := client.signer.accounts[worker.accountName]; !exists {
 			// Check if account exists in keyring but not loaded in signer
@@ -361,7 +361,6 @@ func (client *TxClient) createFeeGrantMessages(ctx context.Context, workers []*T
 	return msgs, totalGasLimit, nil
 }
 
-
 // loadWorkerAccount loads an existing account from keyring into the signer
 func (client *TxClient) loadWorkerAccount(worker *TxWorker) error {
 	// Get account from keyring
@@ -387,9 +386,9 @@ func (client *TxClient) loadWorkerAccount(worker *TxWorker) error {
 		return fmt.Errorf("failed to add worker account %s to signer: %w", worker.accountName, err)
 	}
 
-	// Update worker address 
+	// Update worker address
 	worker.address = workerAddress.String()
-	
+
 	return nil
 }
 

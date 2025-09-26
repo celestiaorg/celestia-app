@@ -113,4 +113,3 @@ func StartMockServer(t *testing.T, service *MockTxService) *grpc.ClientConn {
 
 	return conn
 }
-
