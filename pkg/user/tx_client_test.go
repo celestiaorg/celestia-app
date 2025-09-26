@@ -347,7 +347,7 @@ func TestEvictions(t *testing.T) {
 
 	// Submit more transactions than a single block can fit with a 1-block TTL.
 	// Txs will be evicted from the mempool and automatically resubmitted by the txClient during confirm().
-	for i := 0; i < len(responses); i++ {
+	for i := range responses {
 		blobs := blobfactory.ManyRandBlobs(random.New(), 500000, 500000) // ~1.5MiB per transaction
 		resp, err := txClient.BroadcastPayForBlob(ctx.GoContext(), blobs, fee, gas)
 		require.NoError(t, err)
