@@ -28,12 +28,10 @@ The fibre module maintains state for [escrow accounts](#escrow-accounts), [pendi
 ```proto
 message Params {
   option (gogoproto.goproto_stringer) = false;
-  uint32 gas_per_blob_byte = 1
-      [ (gogoproto.moretags) = "yaml:\"gas_per_blob_byte\"" ];
-  google.protobuf.Duration withdrawal_delay = 2
-      [ (gogoproto.moretags) = "yaml:\"withdrawal_delay\"" ];
-  google.protobuf.Duration promise_timeout = 3
-  [ (gogoproto.moretags) = "yaml:\"promise_timeout\"" ];
+  uint32 gas_per_blob_byte = 1 [ (gogoproto.moretags) = "yaml:\"gas_per_blob_byte\"" ];
+  google.protobuf.Duration withdrawal_delay = 2 [ (gogoproto.moretags) = "yaml:\"withdrawal_delay\"" ];
+  google.protobuf.Duration promise_timeout = 3 [ (gogoproto.moretags) = "yaml:\"promise_timeout\"" ];
+  google.protobuf.Duration payment_promise_retention_window = 4 [ (gogoproto.moretags) = "yaml:\"payment_promise_retention_window\"" ];
 }
 ```
 
@@ -41,13 +39,17 @@ message Params {
 
 `GasPerBlobByte` is the amount of gas consumed per byte of blob data when payment is processed. This determines the gas cost for fibre blob inclusion.
 
+#### `PromiseTimeout`
+
+`PromiseTimeout` is the duration after which anyone can submit a promise for processing if the user hasn't submitted a [`MsgPayForFibre`](#msgpayforfibre) (default: 1 hour).
+
 #### `WithdrawalDelay`
 
 `WithdrawalDelay` is the duration that must pass between requesting a withdrawal and when funds become available for withdrawal (default: 24 hours). This value is also used for pruning [ProcessedPromise](#processed-promises) from the state.
 
-#### `PromiseTimeout`
+#### `PaymentPromiseRetentionWindow`
 
-`PromiseTimeout` is the duration after which anyone can submit a promise for processing if the user hasn't submitted a [`MsgPayForFibre`](#msgpayforfibre) (default: 1 hour).
+`PaymentPromiseRetentionWindow` is the duration after which a payment promise can be pruned from the state machine (default: 24 hours).
 
 ### Escrow Accounts
 
@@ -101,7 +103,7 @@ To prevent double payment, the module tracks which promises have been processed.
 
 #### Pruning Mechanism
 
-Processed promises are automatically pruned after [`withdrawal_delay`](#withdrawaldelay) to prevent unbounded state growth. See [Automatic Promise Pruning](#automatic-promise-pruning) for implementation details.
+Processed payment promises are automatically pruned after [`payment_promise_retention_window`](#paymentpromiseretentionwindow) to prevent unbounded state growth. See [Automatic Promise Pruning](#automatic-promise-pruning) for implementation details.
 
 ## Messages
 
@@ -376,12 +378,12 @@ message MsgPaymentTimeout {
 
 #### Automatic Promise Pruning
 
-Processed promises are automatically pruned in `BeginBlocker` when `current_time >= processed_at + withdrawal_delay` to prevent unbounded state growth:
+Processed pyament promises are automatically pruned in `BeginBlocker` when `current_time >= processed_at + payment_promise_retention_window` to prevent unbounded state growth:
 
 ```go
 func pruneProcessedPromises(ctx sdk.Context, k Keeper) {
     currentTime := ctx.BlockTime()
-    pruneThreshold := currentTime.Add(-k.GetWithdrawalDelay(ctx))
+    pruneThreshold := currentTime.Add(-k.GetPaymentPromiseRetentionWindow(ctx))
 
     // Iterate over pruning index starting from earliest timestamp
     iterator := k.GetPruningIterator(ctx, pruneThreshold)
@@ -493,18 +495,18 @@ func BeginBlocker(ctx sdk.Context, k Keeper) {
 
 #### `EventDepositToEscrow`
 
-| Attribute Key | Attribute Value                    |
-|---------------|------------------------------------|
-| signer        | {bech32 encoded signer address}    |
-| amount        | {deposit amount}                   |
+| Attribute Key | Attribute Value                 |
+|---------------|---------------------------------|
+| signer        | {bech32 encoded signer address} |
+| amount        | {deposit amount}                |
 
 #### `EventRequestWithdrawalFromEscrow`
 
-| Attribute Key | Attribute Value                    |
-|---------------|------------------------------------|
-| signer         | {bech32 encoded signer address}     |
-| amount        | {withdrawal amount}                |
-| available_at  | {timestamp when available}          |
+| Attribute Key | Attribute Value                 |
+|---------------|---------------------------------|
+| signer        | {bech32 encoded signer address} |
+| amount        | {withdrawal amount}             |
+| available_at  | {timestamp when available}      |
 
 #### `EventProcessWithdrawal`
 
@@ -516,19 +518,19 @@ func BeginBlocker(ctx sdk.Context, k Keeper) {
 
 #### `EventPayForFibre`
 
-| Attribute Key | Attribute Value                      |
-|---------------|--------------------------------------|
-| signer        | {bech32 encoded submitter address}   |
-| signer  | {bech32 encoded escrow owner}        |
-| namespace     | {namespace the blob is published to} |
-| validator_count | {number of validator signatures}   |
+| Attribute Key   | Attribute Value                      |
+|-----------------|--------------------------------------|
+| signer          | {bech32 encoded submitter address}   |
+| signer          | {bech32 encoded escrow owner}        |
+| namespace       | {namespace the blob is published to} |
+| validator_count | {number of validator signatures}     |
 
 #### `EventProcessPromiseTimeout`
 
-| Attribute Key | Attribute Value                      |
-|---------------|--------------------------------------|
-| processor     | {bech32 encoded processor address}   |
-| signer  | {bech32 encoded escrow owner}        |
+| Attribute Key | Attribute Value                                |
+|---------------|------------------------------------------------|
+| processor     | {bech32 encoded processor address}             |
+| signer        | {bech32 encoded escrow owner}                  |
 | promise_hash  | {hash for the promise that is being timed out} |
 
 ## Queries
@@ -630,11 +632,12 @@ message QueryValidatePaymentPromiseResponse {
 
 ## Parameters
 
-| Key                | Type                        | Default    | Description |
-|--------------------|-----------------------------|-----------:|-------------|
-| GasPerBlobByte     | uint32                      | 8          | Gas cost per byte of blob data |
-| WithdrawalDelay    | google.protobuf.Duration    | 24h        | Duration to wait before withdrawal |
-| PromiseTimeout     | google.protobuf.Duration    | 1h         | Duration before promise can be processed by timeout |
+| Key                           | Type                     | Default | Description                                                              |
+|-------------------------------|--------------------------|--------:|--------------------------------------------------------------------------|
+| GasPerBlobByte                | uint32                   |       8 | Gas cost per byte of blob data                                           |
+| PromiseTimeout                | google.protobuf.Duration |      1h | Duration before promise can be processed by timeout                      |
+| WithdrawalDelay               | google.protobuf.Duration |     24h | Duration to wait before withdrawal                                       |
+| PaymentPromiseRetentionWindow | google.protobuf.Duration |     24h | Duration to wait before processed payment promises are pruned from state |
 
 ## Client
 
