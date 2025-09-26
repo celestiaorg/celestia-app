@@ -33,16 +33,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions: write-all
     steps:
-<<<<<<< HEAD
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #v4.2.2
-=======
       - name: Free disk space
         run: |
           set -euxo pipefail
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android || true
           docker system prune -af || true
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
->>>>>>> a7c33e4 (ci(goreleaser): reduce disk space usage (#5851))
         with:
           fetch-depth: 0
       - run: git fetch --force --tags
