@@ -55,7 +55,9 @@ func newMockTxClientWithCustomHandlers(t *testing.T, broadcastHandler func(conte
 		user.WithPollTime(10 * time.Millisecond),
 	}
 	if len(workerAccounts) > 0 {
-		options = append(options, user.WithTxWorkers(len(workerAccounts), workerAccounts))
+		// For mock tests, use WithTxWorkersNoInit since we're providing mock accounts
+		option, _ := user.WithTxWorkersNoInit(len(workerAccounts))
+		options = append(options, option)
 	}
 
 	return setupTxClientWithMockGRPCServerAndSigner(t, make(map[string][]*tx.TxStatusResponse), broadcastHandler, txStatusHandler, encCfg, signer, options...)
@@ -163,28 +165,40 @@ func TestParallelSubmitPayForBlobSuccess(t *testing.T) {
 		return &tx.TxStatusResponse{Status: core.TxStatusPending}, nil
 	}
 
-	workerAccounts := []string{"worker-1", "worker-2"}
+	workerAccounts := []string{"parallel-worker-1", "parallel-worker-2"}
 	client, conn := newMockTxClientWithCustomHandlers(t, broadcastHandler, txStatusHandler, workerAccounts)
 	defer conn.Close()
 	require.NotNil(t, client.ParallelPool())
 
 	// Start the parallel pool
-	client.ParallelPool().Start()
+	client.ParallelPool().Start(context.Background())
+
+	// Get the results channel from the parallel pool
+	resultsC := client.ParallelPool().ResultsChannel()
 
 	blob := randomBlob(t)
 
 	jobCount := 3
 	results := make([]*user.SubmissionResult, 0, jobCount)
 
+	// Submit all jobs first
 	for i := 0; i < jobCount; i++ {
-		resCh, err := client.SubmitPayForBlobParallel(context.Background(), []*share.Blob{blob})
+		err := client.SubmitPayForBlobParallel(context.Background(), []*share.Blob{blob})
 		require.NoError(t, err)
-		result := <-resCh
-		require.NotNil(t, result)
-		require.NoError(t, result.Error)
-		require.NotNil(t, result.TxResponse)
-		require.Equal(t, abci.CodeTypeOK, result.TxResponse.Code)
-		results = append(results, result)
+	}
+
+	// Collect results from the global channel
+	for i := 0; i < jobCount; i++ {
+		select {
+		case result := <-resultsC:
+			require.NotNil(t, result)
+			require.NoError(t, result.Error)
+			require.NotNil(t, result.TxResponse)
+			require.Equal(t, abci.CodeTypeOK, result.TxResponse.Code)
+			results = append(results, result)
+		case <-time.After(5 * time.Second):
+			t.Fatalf("timeout waiting for result %d", i)
+		}
 	}
 
 	var totalSequence uint64
@@ -211,22 +225,32 @@ func TestParallelSubmitPayForBlobBroadcastError(t *testing.T) {
 		return &tx.TxStatusResponse{Status: core.TxStatusCommitted}, nil
 	}
 
-	workerAccounts := []string{"worker-1"}
+	workerAccounts := []string{"parallel-worker-1"}
 	client, conn := newMockTxClientWithCustomHandlers(t, broadcastHandler, txStatusHandler, workerAccounts)
 	defer conn.Close()
 	require.NotNil(t, client.ParallelPool())
 
 	// Start the parallel pool
-	client.ParallelPool().Start()
+	client.ParallelPool().Start(context.Background())
+
+	// Get the results channel from the parallel pool
+	resultsC := client.ParallelPool().ResultsChannel()
 
 	blob := randomBlob(t)
 
-	resCh, err := client.SubmitPayForBlobParallel(context.Background(), []*share.Blob{blob})
+	err := client.SubmitPayForBlobParallel(context.Background(), []*share.Blob{blob})
 	require.NoError(t, err)
-	result := <-resCh
-	require.NotNil(t, result)
-	require.Nil(t, result.TxResponse)
-	require.Error(t, result.Error)
+
+	// Get result from the global channel
+	var result *user.SubmissionResult
+	select {
+	case result = <-resultsC:
+		require.NotNil(t, result)
+		require.Nil(t, result.TxResponse)
+		require.Error(t, result.Error)
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timeout waiting for error result")
+	}
 
 	var broadcastErr *user.BroadcastTxError
 	require.ErrorAs(t, result.Error, &broadcastErr)
@@ -272,13 +296,16 @@ func TestParallelSubmissionSignerAddress(t *testing.T) {
 		return &tx.TxStatusResponse{Status: core.TxStatusPending}, nil
 	}
 
-	workerAccounts := []string{"worker-1", "worker-2"}
+	workerAccounts := []string{"parallel-worker-1", "parallel-worker-2"}
 	client, conn := newMockTxClientWithCustomHandlers(t, broadcastHandler, txStatusHandler, workerAccounts)
 	defer conn.Close()
 	require.NotNil(t, client.ParallelPool())
 
 	// Start the parallel pool
-	client.ParallelPool().Start()
+	client.ParallelPool().Start(context.Background())
+
+	// Get the results channel from the parallel pool
+	resultsC := client.ParallelPool().ResultsChannel()
 
 	blob := randomBlob(t)
 
@@ -286,24 +313,33 @@ func TestParallelSubmissionSignerAddress(t *testing.T) {
 	jobCount := 4
 	results := make([]*user.SubmissionResult, 0, jobCount)
 
+	// Submit all jobs first
 	for i := 0; i < jobCount; i++ {
-		resCh, err := client.SubmitPayForBlobParallel(context.Background(), []*share.Blob{blob})
+		err := client.SubmitPayForBlobParallel(context.Background(), []*share.Blob{blob})
 		require.NoError(t, err)
-		result := <-resCh
-		require.NotNil(t, result)
-		require.NoError(t, result.Error)
-		require.NotNil(t, result.TxResponse)
-		require.Equal(t, abci.CodeTypeOK, result.TxResponse.Code)
-		
-		// Verify that Signer field is populated with a valid address
-		require.NotEmpty(t, result.Signer, "Signer address should not be empty")
-		require.True(t, len(result.Signer) > 0, "Signer address should be non-empty")
-		
-		// Verify it looks like a valid address (basic validation)
-		require.True(t, strings.HasPrefix(result.Signer, "celestia") || len(result.Signer) > 30, 
-			"Signer should look like a valid address, got: %s", result.Signer)
-		
-		results = append(results, result)
+	}
+
+	// Collect results from the global channel
+	for i := 0; i < jobCount; i++ {
+		select {
+		case result := <-resultsC:
+			require.NotNil(t, result)
+			require.NoError(t, result.Error)
+			require.NotNil(t, result.TxResponse)
+			require.Equal(t, abci.CodeTypeOK, result.TxResponse.Code)
+
+			// Verify that Signer field is populated with a valid address
+			require.NotEmpty(t, result.Signer, "Signer address should not be empty")
+			require.True(t, len(result.Signer) > 0, "Signer address should be non-empty")
+
+			// Verify it looks like a valid address (basic validation)
+			require.True(t, strings.HasPrefix(result.Signer, "celestia") || len(result.Signer) > 30,
+				"Signer should look like a valid address, got: %s", result.Signer)
+
+			results = append(results, result)
+		case <-time.After(5 * time.Second):
+			t.Fatalf("timeout waiting for result %d", i)
+		}
 	}
 
 	// Collect all unique signers
@@ -313,7 +349,7 @@ func TestParallelSubmissionSignerAddress(t *testing.T) {
 	}
 
 	// Verify we have at most as many unique signers as workers
-	require.LessOrEqual(t, len(signerSet), len(workerAccounts), 
+	require.LessOrEqual(t, len(signerSet), len(workerAccounts),
 		"Should not have more unique signers than workers")
 
 	// Verify each signer corresponds to a worker address

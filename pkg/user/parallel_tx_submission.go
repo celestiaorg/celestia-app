@@ -33,13 +33,15 @@ type SubmissionResult struct {
 
 // ParallelTxPool manages parallel transaction submission
 type ParallelTxPool struct {
-	mtx       sync.RWMutex
-	client    *TxClient
-	jobQueue  chan *SubmissionJob
-	workers   []*TxWorker
-	resultsC  chan *SubmissionResult
-	started   atomic.Bool
-	stopCh    chan struct{}
+	mtx         sync.RWMutex
+	client      *TxClient
+	jobQueue    chan *SubmissionJob
+	workers     []*TxWorker
+	resultsC    chan *SubmissionResult
+	started     atomic.Bool
+	stopCh      chan struct{}
+	initialize  bool        // whether to initialize workers automatically
+	initialized atomic.Bool // whether workers have been initialized
 }
 
 // TxWorker represents a worker that processes transactions using a specific account
@@ -53,34 +55,37 @@ type TxWorker struct {
 }
 
 // NewParallelTxPool creates a new parallel transaction submission pool
-func NewParallelTxPool(client *TxClient, numWorkers int) (*ParallelTxPool, chan *SubmissionResult) {
+func NewParallelTxPool(client *TxClient, numWorkers int, initialize bool) (*ParallelTxPool, chan *SubmissionResult) {
 	resultsC := make(chan *SubmissionResult, 100)
 	pool := &ParallelTxPool{
-		client:    client,
-		jobQueue:  make(chan *SubmissionJob, 100), // Default queue size
-		workers:   make([]*TxWorker, numWorkers),
-		resultsC:  resultsC,
-		stopCh:    make(chan struct{}),
+		client:     client,
+		jobQueue:   make(chan *SubmissionJob, 100), // Default queue size
+		workers:    make([]*TxWorker, numWorkers),
+		resultsC:   resultsC,
+		stopCh:     make(chan struct{}),
+		initialize: initialize,
 	}
 
-	// Generate worker account names
-	workerAccounts := make([]string, numWorkers)
+	// Create workers: first worker always uses existing signer account
 	for i := 0; i < numWorkers; i++ {
-		workerAccounts[i] = fmt.Sprintf("parallel-worker-%d", i+1)
-	}
-
-	// Create workers
-	for i := 0; i < numWorkers; i++ {
-		accountName := workerAccounts[i]
+		var accountName, address string
 		
-		// Get worker address from keyring if account exists
-		var address string
-		if record, err := client.signer.keys.Key(accountName); err == nil {
-			if addr, err := record.GetAddress(); err == nil {
-				address = addr.String()
+		if i == 0 {
+			// First worker uses the existing default account
+			accountName = client.DefaultAccountName()
+			address = client.DefaultAddress().String()
+		} else {
+			// Additional workers use generated account names
+			accountName = fmt.Sprintf("parallel-worker-%d", i)
+			
+			// Get worker address from keyring if account exists
+			if record, err := client.signer.keys.Key(accountName); err == nil {
+				if addr, err := record.GetAddress(); err == nil {
+					address = addr.String()
+				}
 			}
 		}
-		
+
 		worker := &TxWorker{
 			id:          i,
 			accountName: accountName,
@@ -96,12 +101,20 @@ func NewParallelTxPool(client *TxClient, numWorkers int) (*ParallelTxPool, chan 
 }
 
 // Start initiates all workers in the pool
-func (p *ParallelTxPool) Start() {
+func (p *ParallelTxPool) Start(ctx context.Context) error {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
 	if p.started.Load() {
-		return
+		return nil
+	}
+
+	// Initialize workers if configured to do so
+	if p.initialize && !p.initialized.Load() {
+		if err := p.client.InitializeWorkerAccounts(ctx); err != nil {
+			return fmt.Errorf("failed to initialize worker accounts: %w", err)
+		}
+		p.initialized.Store(true)
 	}
 
 	for _, worker := range p.workers {
@@ -109,6 +122,7 @@ func (p *ParallelTxPool) Start() {
 	}
 
 	p.started.Store(true)
+	return nil
 }
 
 // Stop shuts down all workers in the pool
@@ -229,8 +243,13 @@ func (client *TxClient) InitializeWorkerAccounts(ctx context.Context) error {
 	}
 
 	// Get the list of worker accounts that need to be initialized
+	// Skip the first worker (index 0) as it always uses the existing signer account
 	var workersToInit []*TxWorker
-	for _, worker := range client.parallelPool.workers {
+	for i, worker := range client.parallelPool.workers {
+		if i == 0 {
+			// Skip first worker - it uses existing account
+			continue
+		}
 		// Check if account exists in signer
 		if _, exists := client.signer.accounts[worker.accountName]; !exists {
 			workersToInit = append(workersToInit, worker)
@@ -348,7 +367,7 @@ func (client *TxClient) fundAndGrantWorkerAccounts(ctx context.Context, workers 
 		if err := client.signer.AddAccount(account); err != nil {
 			return fmt.Errorf("failed to add worker account %s to signer: %w", worker.accountName, err)
 		}
-		
+
 		// Update worker address now that account is created
 		worker.address = workerAddress.String()
 	}

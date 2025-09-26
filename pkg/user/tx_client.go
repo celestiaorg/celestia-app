@@ -144,12 +144,26 @@ func WithAdditionalCoreEndpoints(conns []*grpc.ClientConn) Option {
 
 // WithTxWorkers enables parallel transaction submission with the specified number of worker accounts.
 // Returns both the Option to configure the client and a channel to receive results.
-// Worker accounts are automatically generated with hardcoded names.
+// Worker accounts are automatically generated with hardcoded names unless numWorkers is 1, in which case
+// the existing default account is used.
+// By default, workers are initialized automatically when SetupTxClient is called.
 func WithTxWorkers(numWorkers int) (Option, chan *SubmissionResult) {
 	var resultsC chan *SubmissionResult
 	option := func(c *TxClient) {
 		if numWorkers > 0 {
-			c.parallelPool, resultsC = NewParallelTxPool(c, numWorkers)
+			c.parallelPool, resultsC = NewParallelTxPool(c, numWorkers, true) // default to auto-initialize
+		}
+	}
+	return option, resultsC
+}
+
+// WithTxWorkersNoInit enables parallel transaction submission without automatic initialization.
+// InitializeWorkerAccounts must be called manually when using this option.
+func WithTxWorkersNoInit(numWorkers int) (Option, chan *SubmissionResult) {
+	var resultsC chan *SubmissionResult
+	option := func(c *TxClient) {
+		if numWorkers > 0 {
+			c.parallelPool, resultsC = NewParallelTxPool(c, numWorkers, false) // no auto-initialization
 		}
 	}
 	return option, resultsC
@@ -273,7 +287,19 @@ func SetupTxClient(
 		return nil, fmt.Errorf("failed to create signer: %w", err)
 	}
 
-	return NewTxClient(encCfg.Codec, signer, conn, encCfg.InterfaceRegistry, options...)
+	txClient, err := NewTxClient(encCfg.Codec, signer, conn, encCfg.InterfaceRegistry, options...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Start parallel pool if configured with initialization
+	if txClient.parallelPool != nil && txClient.parallelPool.initialize {
+		if err := txClient.parallelPool.Start(ctx); err != nil {
+			return nil, fmt.Errorf("failed to start parallel pool: %w", err)
+		}
+	}
+
+	return txClient, nil
 }
 
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
