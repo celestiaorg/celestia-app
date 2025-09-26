@@ -252,7 +252,7 @@ message MsgPayForFibre {
 message PaymentPromise {f
   // signer is the owner of the escrow account to charge
   string signer = 1;
-  // namespace is the namespace the blob is associated with. share version must be 2.
+  // namespace is the namespace the blob is associated with.
   bytes namespace = 2;
   // blob_size is the size of the blob in bytes
   uint32 blob_size = 3;
