@@ -56,7 +56,7 @@ func newMockTxClientWithCustomHandlers(t *testing.T, broadcastHandler func(conte
 	}
 	if len(workerAccounts) > 0 {
 		// For mock tests, use WithTxWorkersNoInit since we're providing mock accounts
-		option, _ := user.WithTxWorkersNoInit(len(workerAccounts))
+		option := user.WithTxWorkersNoInit(len(workerAccounts))
 		options = append(options, option)
 	}
 
@@ -174,25 +174,23 @@ func TestParallelSubmitPayForBlobSuccess(t *testing.T) {
 	err := client.ParallelPool().Start(context.Background())
 	require.NoError(t, err)
 
-	// Get the results channel from the parallel pool
-	resultsC := client.ParallelPool().ResultsChannel()
-
 	blob := randomBlob(t)
 
 	jobCount := 3
-	results := make([]*user.SubmissionResult, 0, jobCount)
+	results := make([]user.SubmissionResult, 0, jobCount)
+	var resultChannels []chan user.SubmissionResult
 
 	// Submit all jobs first
 	for i := 0; i < jobCount; i++ {
-		err = client.SubmitPayForBlobParallel(context.Background(), []*share.Blob{blob})
+		resultsC, err := client.SubmitPayForBlobParallel(context.Background(), []*share.Blob{blob})
 		require.NoError(t, err)
+		resultChannels = append(resultChannels, resultsC)
 	}
 
-	// Collect results from the global channel
-	for i := 0; i < jobCount; i++ {
+	// Collect results from individual channels
+	for i, resultsC := range resultChannels {
 		select {
 		case result := <-resultsC:
-			require.NotNil(t, result)
 			require.NoError(t, result.Error)
 			require.NotNil(t, result.TxResponse)
 			require.Equal(t, abci.CodeTypeOK, result.TxResponse.Code)
@@ -235,19 +233,15 @@ func TestParallelSubmitPayForBlobBroadcastError(t *testing.T) {
 	err := client.ParallelPool().Start(context.Background())
 	require.NoError(t, err)
 
-	// Get the results channel from the parallel pool
-	resultsC := client.ParallelPool().ResultsChannel()
-
 	blob := randomBlob(t)
 
-	err = client.SubmitPayForBlobParallel(context.Background(), []*share.Blob{blob})
+	resultsC, err := client.SubmitPayForBlobParallel(context.Background(), []*share.Blob{blob})
 	require.NoError(t, err)
 
-	// Get result from the global channel
-	var result *user.SubmissionResult
+	// Get result from the submission-specific channel
+	var result user.SubmissionResult
 	select {
 	case result = <-resultsC:
-		require.NotNil(t, result)
 		require.Nil(t, result.TxResponse)
 		require.Error(t, result.Error)
 	case <-time.After(5 * time.Second):
@@ -307,26 +301,24 @@ func TestParallelSubmissionSignerAddress(t *testing.T) {
 	err := client.ParallelPool().Start(context.Background())
 	require.NoError(t, err)
 
-	// Get the results channel from the parallel pool
-	resultsC := client.ParallelPool().ResultsChannel()
-
 	blob := randomBlob(t)
 
 	// Submit multiple jobs to test different workers
 	jobCount := 4
-	results := make([]*user.SubmissionResult, 0, jobCount)
+	results := make([]user.SubmissionResult, 0, jobCount)
+	var resultChannels []chan user.SubmissionResult
 
 	// Submit all jobs first
 	for i := 0; i < jobCount; i++ {
-		err = client.SubmitPayForBlobParallel(context.Background(), []*share.Blob{blob})
+		resultsC, err := client.SubmitPayForBlobParallel(context.Background(), []*share.Blob{blob})
 		require.NoError(t, err)
+		resultChannels = append(resultChannels, resultsC)
 	}
 
-	// Collect results from the global channel
-	for i := 0; i < jobCount; i++ {
+	// Collect results from individual channels
+	for i, resultsC := range resultChannels {
 		select {
 		case result := <-resultsC:
-			require.NotNil(t, result)
 			require.NoError(t, result.Error)
 			require.NotNil(t, result.TxResponse)
 			require.Equal(t, abci.CodeTypeOK, result.TxResponse.Code)

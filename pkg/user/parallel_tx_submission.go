@@ -19,9 +19,10 @@ import (
 
 // SubmissionJob represents a transaction submission task for parallel processing
 type SubmissionJob struct {
-	ID      string
-	Blobs   []*share.Blob
-	Options []TxOption
+	ID       string
+	Blobs    []*share.Blob
+	Options  []TxOption
+	ResultsC chan SubmissionResult
 }
 
 // SubmissionResult contains the result of a parallel transaction submission
@@ -37,7 +38,6 @@ type ParallelTxPool struct {
 	client      *TxClient
 	jobQueue    chan *SubmissionJob
 	workers     []*TxWorker
-	resultsC    chan *SubmissionResult
 	started     atomic.Bool
 	stopCh      chan struct{}
 	initialize  bool        // whether to initialize workers automatically
@@ -55,20 +55,14 @@ type TxWorker struct {
 }
 
 const (
-	defaultParallelQueueSize   = 100
-	defaultParallelResultsSize = 100
+	defaultParallelQueueSize = 100
 )
 
-func newParallelTxPool(client *TxClient, numWorkers int, initialize bool, resultsC chan *SubmissionResult) (*ParallelTxPool, chan *SubmissionResult) {
-	if resultsC == nil {
-		resultsC = make(chan *SubmissionResult, defaultParallelResultsSize)
-	}
-
+func newParallelTxPool(client *TxClient, numWorkers int, initialize bool) *ParallelTxPool {
 	pool := &ParallelTxPool{
 		client:     client,
 		jobQueue:   make(chan *SubmissionJob, defaultParallelQueueSize),
 		workers:    make([]*TxWorker, numWorkers),
-		resultsC:   resultsC,
 		stopCh:     make(chan struct{}),
 		initialize: initialize,
 	}
@@ -104,12 +98,12 @@ func newParallelTxPool(client *TxClient, numWorkers int, initialize bool, result
 		pool.workers[i] = worker
 	}
 
-	return pool, resultsC
+	return pool
 }
 
-// NewParallelTxPool creates a new parallel transaction submission pool with default buffers.
-func NewParallelTxPool(client *TxClient, numWorkers int, initialize bool) (*ParallelTxPool, chan *SubmissionResult) {
-	return newParallelTxPool(client, numWorkers, initialize, nil)
+// NewParallelTxPool creates a new parallel transaction submission pool.
+func NewParallelTxPool(client *TxClient, numWorkers int, initialize bool) *ParallelTxPool {
+	return newParallelTxPool(client, numWorkers, initialize)
 }
 
 // Start initiates all workers in the pool
@@ -158,13 +152,8 @@ func (p *ParallelTxPool) SubmitJob(job *SubmissionJob) {
 	select {
 	case p.jobQueue <- job:
 	case <-p.stopCh:
-		p.resultsC <- &SubmissionResult{Error: errors.New("parallel pool stopped")}
+		job.ResultsC <- SubmissionResult{Error: errors.New("parallel pool full or has stopped")}
 	}
-}
-
-// ResultsChannel returns the global results channel
-func (p *ParallelTxPool) ResultsChannel() chan *SubmissionResult {
-	return p.resultsC
 }
 
 // Workers returns the workers in the parallel pool
@@ -199,57 +188,47 @@ func (w *TxWorker) processJob(job *SubmissionJob) {
 	// Use the worker's dedicated account to submit the transaction
 	txResponse, err := w.client.SubmitPayForBlobWithAccount(ctx, w.accountName, job.Blobs, job.Options...)
 
-	result := &SubmissionResult{
+	result := SubmissionResult{
 		Signer:     w.address,
 		TxResponse: txResponse,
 		Error:      err,
 	}
 
-	// Get the pool's results channel from the client
-	resultsC := w.client.parallelPool.resultsC
-
-	// Send result back through the global results channel
-	select {
-	case resultsC <- result:
-	case <-w.stopCh:
-		// Worker is shutting down, send error
-		select {
-		case resultsC <- &SubmissionResult{Error: errors.New("worker shutting down")}:
-		default:
-		}
-	}
+	// Send result back through the job-specific results channel
+	job.ResultsC <- result
 }
 
-// SubmitPayForBlobParallel submits a transaction for parallel processing and returns immediately.
-// Results are sent to the global results channel returned when creating the parallel pool.
-// Returns an error only if the parallel pool is not configured or if job submission fails.
-func (client *TxClient) SubmitPayForBlobParallel(ctx context.Context, blobs []*share.Blob, opts ...TxOption) error {
+// SubmitPayForBlobParallel submits a transaction for parallel processing and returns a channel for the result.
+// Returns a channel that will receive the result and an error only if the parallel pool is not configured.
+func (client *TxClient) SubmitPayForBlobParallel(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (chan SubmissionResult, error) {
 	if client.parallelPool == nil {
-		return errors.New("parallel submission not configured - use WithTxWorkers option")
+		return nil, errors.New("parallel submission not configured - use WithTxWorkers option")
 	}
 
 	// Initialize and start the pool on first use when auto-initialization is enabled.
 	if !client.parallelPool.started.Load() {
 		if client.parallelPool.initialize {
 			if err := client.parallelPool.Start(ctx); err != nil {
-				return fmt.Errorf("failed to start parallel pool: %w", err)
+				return nil, fmt.Errorf("failed to start parallel pool: %w", err)
 			}
 		} else {
-			return errors.New("parallel pool not started - call ParallelPool().Start() first")
+			return nil, errors.New("parallel pool not started - call ParallelPool().Start() first")
 		}
 	}
 
 	jobID := fmt.Sprintf("job_%d", time.Now().UnixNano())
+	resultsC := make(chan SubmissionResult, 1)
 
 	job := &SubmissionJob{
-		ID:      jobID,
-		Blobs:   blobs,
-		Options: opts,
+		ID:       jobID,
+		Blobs:    blobs,
+		Options:  opts,
+		ResultsC: resultsC,
 	}
 
 	client.parallelPool.SubmitJob(job)
 
-	return nil
+	return resultsC, nil
 }
 
 // InitializeWorkerAccounts creates and initializes all worker accounts for parallel submission.

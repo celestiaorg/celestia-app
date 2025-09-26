@@ -94,7 +94,7 @@ func TestParallelTxSubmission(t *testing.T) {
 	// Setup signer with parallel workers (accounts will be auto-created)
 	numWorkers := 3
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	txWorkersOpt, resultsC := user.WithTxWorkersNoInit(numWorkers)
+	txWorkersOpt := user.WithTxWorkersNoInit(numWorkers)
 	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg, txWorkersOpt)
 	require.NoError(t, err)
 
@@ -114,17 +114,18 @@ func TestParallelTxSubmission(t *testing.T) {
 	numJobs := 10
 	blobs := blobfactory.ManyRandBlobs(random.New(), blobfactory.Repeat(1024, numJobs)...)
 
-	// Submit jobs in parallel - all results come through the global channel
+	// Submit jobs in parallel - each returns its own results channel
+	var resultChannels []chan user.SubmissionResult
 	for i := 0; i < numJobs; i++ {
-		err := txClient.SubmitPayForBlobParallel(ctx.GoContext(), []*share.Blob{blobs[i]}, user.SetGasLimitAndGasPrice(500_000, appconsts.DefaultMinGasPrice))
+		resultsC, err := txClient.SubmitPayForBlobParallel(ctx.GoContext(), []*share.Blob{blobs[i]}, user.SetGasLimitAndGasPrice(500_000, appconsts.DefaultMinGasPrice))
 		require.NoError(t, err)
+		resultChannels = append(resultChannels, resultsC)
 	}
 
-	// Wait for all results from the global channel
-	for i := 0; i < numJobs; i++ {
+	// Wait for all results from individual channels
+	for i, resultsC := range resultChannels {
 		select {
 		case result := <-resultsC:
-			require.NotNil(t, result)
 			require.NoError(t, result.Error, "transaction should succeed")
 			require.NotNil(t, result.TxResponse, "should have tx response")
 			require.NotEmpty(t, result.TxResponse.TxHash, "should have tx hash")

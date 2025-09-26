@@ -143,36 +143,31 @@ func WithAdditionalCoreEndpoints(conns []*grpc.ClientConn) Option {
 }
 
 // WithTxWorkers enables parallel transaction submission with the specified number of worker accounts.
-// Returns both the Option to configure the client and a channel to receive results.
 // Worker accounts are automatically generated with hardcoded names unless numWorkers is 1, in which case
 // the existing default account is used.
 // By default, workers are initialized automatically when SetupTxClient is called.
-func WithTxWorkers(numWorkers int) (Option, chan *SubmissionResult) {
+func WithTxWorkers(numWorkers int) Option {
 	if numWorkers <= 0 {
-		return func(*TxClient) {}, nil
+		return func(*TxClient) {}
 	}
 
-	resultsC := make(chan *SubmissionResult, defaultParallelResultsSize)
-	option := func(c *TxClient) {
-		pool, _ := newParallelTxPool(c, numWorkers, true, resultsC)
+	return func(c *TxClient) {
+		pool := newParallelTxPool(c, numWorkers, true)
 		c.parallelPool = pool
 	}
-	return option, resultsC
 }
 
 // WithTxWorkersNoInit enables parallel transaction submission without automatic initialization.
 // InitializeWorkerAccounts must be called manually when using this option.
-func WithTxWorkersNoInit(numWorkers int) (Option, chan *SubmissionResult) {
+func WithTxWorkersNoInit(numWorkers int) Option {
 	if numWorkers <= 0 {
-		return func(*TxClient) {}, nil
+		return func(*TxClient) {}
 	}
 
-	resultsC := make(chan *SubmissionResult, defaultParallelResultsSize)
-	option := func(c *TxClient) {
-		pool, _ := newParallelTxPool(c, numWorkers, false, resultsC)
+	return func(c *TxClient) {
+		pool := newParallelTxPool(c, numWorkers, false)
 		c.parallelPool = pool
 	}
-	return option, resultsC
 }
 
 // WithParallelQueueSize sets the buffer size for the parallel submission job queue.
