@@ -80,8 +80,9 @@ message QueryProcessedPromiseRequest {
 
 // QueryProcessedPromiseResponse is the response type for the Query/ProcessedPromise RPC method.
 message QueryProcessedPromiseResponse {
-  google.protobuf.Timestamp processed_at = 1 [(gogoproto.stdtime) = true];
-  bool found = 2;
+  PaymentPromise promise = 1 [(gogoproto.nullable) = false];
+  google.protobuf.Timestamp processed_at = 2 [(gogoproto.stdtime) = true];
+  bool found = 3;
 }
 
 // QueryValidatePaymentPromiseRequest is the request type for the Query/ValidatePaymentPromise RPC method.
