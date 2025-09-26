@@ -37,7 +37,10 @@ type EscrowAccount struct {
 	Signer string `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
 	// balance is the total amount currently held in escrow
 	Balance types.Coin `protobuf:"bytes,2,opt,name=balance,proto3" json:"balance"`
-	// available_balance is the amount available for new payments
+	// available_balance is the amount available for new payments. This is usually
+	// the same as balance except if a user has requested a withdrawal in the past
+	// 24 hours in which case available_balance = balance - pending withdrawal
+	// amount.
 	AvailableBalance types.Coin `protobuf:"bytes,3,opt,name=available_balance,json=availableBalance,proto3" json:"available_balance"`
 }
 

@@ -16,7 +16,10 @@ message EscrowAccount {
   string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   // balance is the total amount currently held in escrow
   cosmos.base.v1beta1.Coin balance = 2 [(gogoproto.nullable) = false];
-  // available_balance is the amount available for new payments
+  // available_balance is the amount available for new payments. This is usually
+  // the same as balance except if a user has requested a withdrawal in the past
+  // 24 hours in which case available_balance = balance - pending withdrawal
+  // amount.
   cosmos.base.v1beta1.Coin available_balance = 3 [(gogoproto.nullable) = false];
 }
 
