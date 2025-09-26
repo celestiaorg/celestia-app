@@ -31,7 +31,7 @@ message EventProcessWithdrawal {
 message EventPayForFibre {
   string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   bytes namespace = 2;
-  uint32 validator_count = 3;
+  bytes commitment = 3;
 }
 
 // EventProcessPromiseTimeout is emitted when a promise timeout is processed.
