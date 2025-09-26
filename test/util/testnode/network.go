@@ -27,7 +27,7 @@ func NewNetwork(t testing.TB, config *Config) (cctx Context, rpcAddr, grpcAddr s
 func NewNetworkWithRetry(t testing.TB, config *Config, maxRetries int) (cctx Context, rpcAddr, grpcAddr string) {
 	t.Helper()
 
-	for attempt := 0; attempt < maxRetries; attempt++ {
+	for attempt := range maxRetries {
 		result, rpc, grpc, cleanup, err := tryStartNetwork(t, config)
 		if err != nil {
 			if isPortBindingError(err) {
