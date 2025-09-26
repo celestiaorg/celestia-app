@@ -48,4 +48,6 @@ message PaymentPromise {
   google.protobuf.Timestamp creation_timestamp = 6 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
   // signature is the escrow owner's signature over the sign bytes
   bytes signature = 7;
+  // height is the height that is used to determine the validator set that is used
+  int64 height = 8;
 }
