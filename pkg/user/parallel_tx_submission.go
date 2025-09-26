@@ -48,7 +48,6 @@ type ParallelTxPool struct {
 
 // TxWorker represents a worker that processes transactions using a specific account
 type TxWorker struct {
-	ctx         context.Context
 	id          int
 	accountName string
 	address     string
@@ -127,8 +126,7 @@ func (p *ParallelTxPool) Start(ctx context.Context) error {
 	p.ctx, p.cancel = context.WithCancel(ctx)
 
 	for _, worker := range p.workers {
-		worker.ctx = p.ctx
-		go worker.Start()
+		go worker.Start(p.ctx)
 	}
 
 	p.started.Store(true)
@@ -175,19 +173,19 @@ func (p *ParallelTxPool) IsStarted() bool {
 }
 
 // Start begins the worker's job processing loop
-func (w *TxWorker) Start() {
+func (w *TxWorker) Start(ctx context.Context) {
 	for {
 		select {
 		case job := <-w.jobQueue:
-			w.processJob(job)
-		case <-w.ctx.Done():
+			w.processJob(job, ctx)
+		case <-ctx.Done():
 			return
 		}
 	}
 }
 
 // processJob handles the actual transaction submission for a job
-func (w *TxWorker) processJob(job *SubmissionJob) {
+func (w *TxWorker) processJob(job *SubmissionJob, workerCtx context.Context) {
 	jobCtx := job.Ctx
 	if jobCtx == nil {
 		jobCtx = context.Background()
@@ -197,8 +195,8 @@ func (w *TxWorker) processJob(job *SubmissionJob) {
 	case <-jobCtx.Done():
 		job.ResultsC <- SubmissionResult{Signer: w.address, Error: jobCtx.Err()}
 		return
-	case <-w.ctx.Done():
-		job.ResultsC <- SubmissionResult{Signer: w.address, Error: w.ctx.Err()}
+	case <-workerCtx.Done():
+		job.ResultsC <- SubmissionResult{Signer: w.address, Error: workerCtx.Err()}
 		return
 	default:
 	}
