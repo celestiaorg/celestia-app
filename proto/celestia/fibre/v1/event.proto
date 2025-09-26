@@ -23,9 +23,8 @@ message EventRequestWithdrawalFromEscrow {
 
 // EventProcessWithdrawal is emitted when a withdrawal is processed.
 message EventProcessWithdrawal {
-  string processor = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
-  string signer = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
-  cosmos.base.v1beta1.Coin amount = 3 [(gogoproto.nullable) = false];
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
 }
 
 // EventPayForFibre is emitted when a payment for fibre is processed.
