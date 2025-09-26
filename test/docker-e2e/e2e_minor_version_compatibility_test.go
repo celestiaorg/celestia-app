@@ -43,7 +43,7 @@ func (s *CelestiaTestSuite) TestMinorVersionCompatibility() {
 	}{
 		{
 			name: "v5 minor versions",
-			tags: []string{"v5.0.5", "v5.0.2", "v5.0.1", "v5.0.8", "v5.0.6"},
+			tags: []string{"v5.0.1", "v5.0.2", "v5.0.5", "v5.0.6", "v5.0.8"},
 		},
 	}
 
@@ -135,29 +135,29 @@ func (s *CelestiaTestSuite) verifyAPICompatibilityAcrossVersions(ctx context.Con
 	var allResponses []apiResponses
 
 	for i, node := range nodes {
-		expectedVersion := versionTags[i]
-		t.Logf("Testing APIs on node %d (version %s)", i, expectedVersion)
+		binaryVersion := versionTags[i]
+		t.Logf("Testing APIs on node %d (version %s)", i, binaryVersion)
 
 		rpcClient, err := node.GetRPCClient()
 		s.Require().NoError(err, "failed to get RPC client for node %d", i)
 
 		resp := apiResponses{
 			nodeIndex: i,
-			version:   expectedVersion,
+			version:   binaryVersion,
 		}
 
 		resp.status, err = rpcClient.Status(ctx)
-		s.Require().NoError(err, "Status API failed on node %d (version %s)", i, expectedVersion)
+		s.Require().NoError(err, "Status API failed on node %d (version %s)", i, binaryVersion)
 		s.Require().False(resp.status.SyncInfo.CatchingUp, "node %d should not be catching up", i)
 
 		resp.genesis, err = rpcClient.Genesis(ctx)
-		s.Require().NoError(err, "Genesis API failed on node %d (version %s)", i, expectedVersion)
+		s.Require().NoError(err, "Genesis API failed on node %d (version %s)", i, binaryVersion)
 
 		resp.abciInfo, err = rpcClient.ABCIInfo(ctx)
-		s.Require().NoError(err, "ABCI Info API failed on node %d (version %s)", i, expectedVersion)
+		s.Require().NoError(err, "ABCI Info API failed on node %d (version %s)", i, binaryVersion)
 
 		allResponses = append(allResponses, resp)
-		t.Logf("Node %d (%s): App version %d, ABCI version %s", i, expectedVersion, resp.abciInfo.Response.GetAppVersion(), resp.abciInfo.Response.GetVersion())
+		t.Logf("Node %d (%s): App version %d, ABCI version %s", i, binaryVersion, resp.abciInfo.Response.GetAppVersion(), resp.abciInfo.Response.GetVersion())
 	}
 
 	s.verifyResponseCompatibility(allResponses)
@@ -222,7 +222,7 @@ func (s *CelestiaTestSuite) verifyABCIInfoCompatibility(responses []apiResponses
 		s.Require().Equal(baseABCI.Response.GetAppVersion(), resp.abciInfo.Response.GetAppVersion(), "App versions differ between %s (app version %d) and %s (app version %d) - major version incompatibility", responses[0].version, baseABCI.Response.GetAppVersion(), resp.version, resp.abciInfo.Response.GetAppVersion())
 
 		expectedMinorVersion := strings.TrimPrefix(resp.version, "v")
-		s.Require().Contains(resp.abciInfo.Response.GetVersion(), expectedMinorVersion, "Node %d (%s) reports ABCI version '%s', should contain '%s'", resp.nodeIndex, resp.version, resp.abciInfo.Response.GetVersion(), expectedMinorVersion)
+		s.Require().Contains(resp.abciInfo.Response.GetVersion(), expectedMinorVersion, "Node %d reports ABCI version '%s', should contain '%s'", resp.nodeIndex, resp.abciInfo.Response.GetVersion(), expectedMinorVersion)
 
 		s.T().Logf("ABCI Info compatibility verified: %s <-> %s (both app version %d)", responses[0].version, resp.version, resp.abciInfo.Response.GetAppVersion())
 	}
@@ -235,7 +235,7 @@ func (s *CelestiaTestSuite) extractMajorVersionFromTag(tag string) uint64 {
 	s.Require().NotEmpty(tag, "Version tag cannot be empty")
 
 	// Regex to match version format vX.Y.Z and capture major version
-	versionRegex := regexp.MustCompile(`^v(\d+)\.\d+\.\d+$`)
+	versionRegex := regexp.MustCompile(`^v(\d+)\.\d+\.\d+`)
 	matches := versionRegex.FindStringSubmatch(tag)
 	s.Require().Len(matches, 2, "Invalid version tag format: %s. Expected format: vX.Y.Z (e.g., v5.0.5, v10.1.0)", tag)
 
