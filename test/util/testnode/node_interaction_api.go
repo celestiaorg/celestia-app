@@ -145,15 +145,15 @@ func (c *Context) WaitForTimestampWithTimeout(t time.Time, d time.Duration) (tim
 	}
 }
 
-// WaitForHeight performs a blocking check where it waits for a block to be
-// committed after a given block. If that height is not reached within a timeout,
+// WaitForHeight performs a blocking check where it waits for the network to reach
+// the specified height. If that height is not reached within a timeout,
 // an error is returned. Regardless, the latest height queried is returned.
 func (c *Context) WaitForHeight(h int64) (int64, error) {
 	return c.WaitForHeightWithTimeout(h, DefaultTimeout)
 }
 
 // WaitForTimestamp performs a blocking check where it waits for a block to be
-// committed after a given timestamp. If that height is not reached within a timeout,
+// committed after a given timestamp. If that timestamp is not reached within a timeout,
 // an error is returned. Regardless, the latest timestamp queried is returned.
 func (c *Context) WaitForTimestamp(t time.Time) (time.Time, error) {
 	return c.WaitForTimestampWithTimeout(t, 10*time.Second)
