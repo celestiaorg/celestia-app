@@ -251,6 +251,12 @@ fmt:
 lint-fix: fmt
 .PHONY: lint-fix
 
+## modernize-fix: Apply modernize suggestions automatically.
+modernize-fix:
+	@echo "--> Applying modernize fixes"
+	@bash scripts/modernize.sh
+.PHONY: modernize-fix
+
 ## test: Run tests.
 test:
 	@echo "--> Running tests"
