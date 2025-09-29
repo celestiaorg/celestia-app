@@ -85,7 +85,7 @@ jobs:
     if: ${{ always() && (needs.test-state-sync-mocha.result == 'failure' || needs.test-all-upgrades.result == 'failure') }}
     steps:
       - name: Slack Notification
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: slackapi/slack-github-action@v2.1.1
         with:
           payload: |
             {
