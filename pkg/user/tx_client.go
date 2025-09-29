@@ -299,7 +299,7 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 	if err != nil {
 		return nil, err
 	}
-	gasLimit := uint64(float64(blobtypes.DefaultEstimateGas(msg)))
+	gasLimit := blobtypes.DefaultEstimateGas(msg)
 	fee := uint64(math.Ceil(appconsts.DefaultMinGasPrice * float64(gasLimit)))
 	// prepend calculated params, so it can be overwritten in case the user has specified it.
 	opts = append([]TxOption{SetGasLimit(gasLimit), SetFee(fee)}, opts...)
