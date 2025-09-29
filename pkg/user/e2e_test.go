@@ -109,7 +109,7 @@ func TestParallelTxSubmission(t *testing.T) {
 	// Submit jobs in parallel using goroutines
 	var wg sync.WaitGroup
 	errCh := make(chan error, numJobs)
-	for i := 0; i < numJobs; i++ {
+	for i := range numJobs {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
@@ -164,7 +164,7 @@ func TestParallelTxSubmission(t *testing.T) {
 	// Submit jobs in parallel using goroutines
 	var wg2 sync.WaitGroup
 	errCh2 := make(chan error, numJobs)
-	for i := 0; i < numJobs; i++ {
+	for i := range numJobs {
 		wg2.Add(1)
 		go func(idx int) {
 			defer wg2.Done()

@@ -19,6 +19,7 @@ import (
 
 // BroadcastHandler is a function type for handling broadcast requests
 type BroadcastHandler func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error)
+
 type TxStatusHandler func(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error)
 
 // mockTxServer implements both gRPC ServiceServer and TxServer interfaces for mocking broadcast and tx status responses
@@ -66,6 +67,7 @@ func (m *mockTxServer) defaultTxStatusHandler(ctx context.Context, req *tx.TxSta
 	}, nil
 }
 
+// nolint:unused
 // defaultBroadcastHandler implements the original default behavior for BroadcastTx
 func (m *mockTxServer) defaultBroadcastHandler(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
 	// Default behavior: same hash for all broadcast calls
@@ -98,12 +100,14 @@ func (m *mockTxServer) defaultBroadcastHandler(ctx context.Context, req *sdktx.B
 	}, nil
 }
 
+// nolint:unused
 // setupTxClientWithMockGRPCServer creates a TxClient connected to a mock gRPC server that lets you mock broadcast and tx status responses
 func setupTxClientWithMockGRPCServer(t *testing.T, responseSequences map[string][]*tx.TxStatusResponse, opts ...user.Option) (*user.TxClient, *grpc.ClientConn) {
 	// Use default handlers for backward compatibility
 	return setupTxClientWithMockGRPCServerAndHandlers(t, responseSequences, nil, nil, opts...)
 }
 
+// nolint:unused
 // setupTxClientWithMockGRPCServerAndHandlers creates a TxClient with optional custom handlers
 func setupTxClientWithMockGRPCServerAndHandlers(t *testing.T, responseSequences map[string][]*tx.TxStatusResponse, broadcastHandler func(context.Context, *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error), txStatusHandler func(context.Context, *tx.TxStatusRequest) (*tx.TxStatusResponse, error), opts ...user.Option) (*user.TxClient, *grpc.ClientConn) {
 	// Create mock server with provided response sequences and handlers

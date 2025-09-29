@@ -65,7 +65,7 @@ func newParallelTxPool(client *TxClient, numWorkers int) *ParallelTxPool {
 	}
 
 	// Create workers: first worker always uses existing signer account
-	for i := 0; i < numWorkers; i++ {
+	for i := range numWorkers {
 		var accountName, address string
 
 		if i == 0 {
@@ -219,7 +219,6 @@ func (w *TxWorker) processJob(job *SubmissionJob, workerCtx context.Context) {
 	// Send result back through the job-specific results channel
 	job.ResultsC <- result
 }
-
 
 // InitializeWorkerAccounts creates and initializes all worker accounts for parallel submission.
 // It creates the accounts in the keyring if they don't exist, funds them with a small balance,
