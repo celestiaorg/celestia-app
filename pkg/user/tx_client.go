@@ -304,14 +304,7 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 		return nil, err
 	}
 
-<<<<<<< HEAD
-	if len(client.conns) > 1 {
-		return client.broadcastMulti(ctx, txBytes, account)
-	}
-	return client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txBytes, account)
-=======
 	return client.routeTx(ctx, txBytes, accountName)
->>>>>>> b5643a0 (refactor: tx client to deduplicate broadcast methods (#5834))
 }
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
@@ -551,11 +544,7 @@ func (client *TxClient) submitToMultipleConnections(ctx context.Context, txBytes
 		go func(conn *grpc.ClientConn) {
 			defer wg.Done()
 
-<<<<<<< HEAD
-			resp, err := client.broadcastTxAndIncrementSequence(ctx, conn, txBytes, signer)
-=======
 			resp, err := client.sendTxToConnection(ctx, conn, txBytes)
->>>>>>> b5643a0 (refactor: tx client to deduplicate broadcast methods (#5834))
 			if err != nil {
 				errCh <- err
 				return
