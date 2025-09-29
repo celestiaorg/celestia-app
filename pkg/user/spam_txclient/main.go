@@ -8,7 +8,6 @@ import (
 	"log"
 	"math"
 	"math/rand"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -27,21 +26,22 @@ const (
 	mochaEndpoint   = "rpc-mocha.pops.one:9090"
 	blobSizeKB      = 300  // 300 KiB blobs
 	intervalMs      = 1000 // Submit every 1 second
-	testDurationSec = 60   // Run for 60 seconds
+	testDurationSec = 120  // Run for 120 seconds
 )
 
 func main() {
-	log.Println("Setting up tx client and connecting to mocha")
+	log.Println("Setting up tx client and connecting to a mocha node")
 
-	txClient, grpcConn, cancel, err := NewMochaTxClient()
+	// Global test context with configured timeout
+	ctx, testCancel := context.WithTimeout(context.Background(), testDurationSec*time.Second)
+	defer testCancel()
+
+	txClient, grpcConn, cancel, err := NewMochaTxClient(ctx)
 	if err != nil {
 		log.Fatalf("failed to set up tx client: %v", err)
 	}
 	defer grpcConn.Close()
 	defer cancel()
-
-	ctx, testCancel := context.WithTimeout(context.Background(), testDurationSec*time.Second)
-	defer testCancel()
 
 	var (
 		txCounter            int64
@@ -56,51 +56,52 @@ func main() {
 
 	g, ctx := errgroup.WithContext(ctx)
 
-	// Submission loop
 	ticker := time.NewTicker(time.Duration(intervalMs) * time.Millisecond)
 	defer ticker.Stop()
 
+	// Submission loop which breaks out if the text duration is exceeded
 	g.Go(func() error {
 		for {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
+
 			case <-ticker.C:
-				// Health check first
-				since := time.Since(time.Unix(0, lastSuccess.Load()))
-				if since > 10*time.Second {
-					return fmt.Errorf("TxClient appears halted: no successful submission for %v", since)
+				if time.Since(time.Unix(0, lastSuccess.Load())) > 5*time.Second {
+					return fmt.Errorf("TxClient appears halted: no successful submission recently")
 				}
 
-				id := atomic.AddInt64(&txCounter, 1) // Tells us which transactions in the loop we are on
-				go func(id int64) {
+				id := atomic.AddInt64(&txCounter, 1)
+
+				// Separate goroutine for broadcasting and confirming txs
+				g.Go(func() error {
 					hash, err := BroadcastPayForBlob(ctx, txClient, grpcConn, blobSizeKB, id)
 					if err != nil || hash == "" {
 						fmt.Printf("\nTX-%d: Broadcast failed: %v\n", id, err)
 						failedBroadcasts.Add(1)
-						return
+						return nil
 					}
 
 					lastSuccess.Store(time.Now().UnixNano())
 					fmt.Printf("\nTX-%d: Broadcast success (hash %s)\n", id, hash)
 					successfulBroadcasts.Add(1)
 
-					// Confirm in background
-					go func(hash string) {
-						resp, err := txClient.ConfirmTx(context.Background(), hash)
-						if err != nil {
-							fmt.Printf("\nTX-%d: Confirm failed: %v\n", id, err)
-							failedConfirms.Add(1)
-							return
-						}
-						fmt.Printf("\nTX-%d: Confirm tx success for %s: %d\n", id, hash, resp.Code)
-						successfulConfirms.Add(1)
-					}(hash)
-				}(id)
+					resp, err := txClient.ConfirmTx(ctx, hash)
+					if err != nil {
+						fmt.Printf("\nTX-%d: Confirm failed: %v\n", id, err)
+						failedConfirms.Add(1)
+						return nil
+					}
+
+					fmt.Printf("\nTX-%d: Confirm success for %s: %d\n", id, hash, resp.Code)
+					successfulConfirms.Add(1)
+					return nil
+				})
 			}
 		}
 	})
 
+	// This only fails if the client halts
 	if err := g.Wait(); err != nil {
 		if !errors.Is(err, context.DeadlineExceeded) {
 			log.Fatalf("Script failed: %v", err)
@@ -133,7 +134,7 @@ func BroadcastPayForBlob(ctx context.Context, txClient *user.TxClient, grpcConn 
 
 	// Set timeout height to be between 1 and 5 blocks from the current height
 	timeoutHeight := currentHeight + int64(rand.Intn(5))
-	resp, err := txClient.BroadcastPayForBlob(context.Background(), []*share.Blob{blob}, user.SetTimeoutHeight(uint64(timeoutHeight)))
+	resp, err := txClient.BroadcastPayForBlob(ctx, []*share.Blob{blob}, user.SetTimeoutHeight(uint64(timeoutHeight)))
 	if err != nil {
 		return "", err
 	}
@@ -143,19 +144,24 @@ func BroadcastPayForBlob(ctx context.Context, txClient *user.TxClient, grpcConn 
 
 // getCurrentBlockHeight gets the current block height from the chain
 func getCurrentBlockHeight(ctx context.Context, grpcConn *grpc.ClientConn) (int64, error) {
-	queryCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	// Give this call its own deadline (so it doesn't hang indefinitely)
+	callCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	serviceClient := cmtservice.NewServiceClient(grpcConn)
-	resp, err := serviceClient.GetLatestBlock(queryCtx, &cmtservice.GetLatestBlockRequest{})
-	if err != nil && !strings.Contains(err.Error(), "context deadline exceeded") {
+	resp, err := serviceClient.GetLatestBlock(callCtx, &cmtservice.GetLatestBlockRequest{})
+	if err != nil {
 		return 0, fmt.Errorf("failed to get latest block: %w", err)
+	}
+
+	if resp == nil || resp.SdkBlock == nil {
+		return 0, fmt.Errorf("failed to get latest block: response was incomplete")
 	}
 
 	return resp.SdkBlock.Header.Height, nil
 }
 
-func NewMochaTxClient() (*user.TxClient, *grpc.ClientConn, context.CancelFunc, error) {
+func NewMochaTxClient(ctx context.Context) (*user.TxClient, *grpc.ClientConn, context.CancelFunc, error) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	kr, err := keyring.New(app.Name, keyring.BackendTest, "~/.celestia-app", nil, encCfg.Codec)
 	if err != nil {
@@ -174,8 +180,8 @@ func NewMochaTxClient() (*user.TxClient, *grpc.ClientConn, context.CancelFunc, e
 		return nil, nil, nil, fmt.Errorf("failed to create gRPC connection: %w", err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	txClient, err := user.SetupTxClient(ctx, kr, grpcConn, encCfg)
+	clientCtx, cancel := context.WithCancel(ctx)
+	txClient, err := user.SetupTxClient(clientCtx, kr, grpcConn, encCfg)
 	if err != nil {
 		grpcConn.Close()
 		cancel()
