@@ -257,6 +257,12 @@ modernize-fix:
 	@bash scripts/modernize.sh
 .PHONY: modernize-fix
 
+## modernize-check: Check for modernize issues without applying fixes.
+modernize-check:
+	@echo "--> Checking for modernize issues"
+	@bash scripts/modernize-check.sh
+.PHONY: modernize-check
+
 ## test: Run tests.
 test:
 	@echo "--> Running tests"
