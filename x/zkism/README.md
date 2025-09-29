@@ -112,10 +112,57 @@ Protobuf definitions: [`proto/celestia/zkism/v1/query.proto`](../../proto/celest
 
 The `x/zkism` module leverages the `BeginBlocker` lifecycle method of ABCI. For each block, it stores `header_hash` keyed by block `height` and prunes to `max_header_hashes` entries.
 
+## Security Considerations
+
+### Threat Model
+
+The `x/zkism` module is designed under the assumption that:
+- The on-chain verifier (`SP1Groth16Verifier`) is correct, deterministic, and cannot be subverted by malformed proofs.
+- Cryptographic primitives (BN254 pairing operations, SHA-256, Groth16) are secure under their standard hardness assumptions.
+- The off-chain prover is honest but untrusted: the verifier must reject any invalid or malformed proof.
+- Hyperlane core will only process messages that the module explicitly authorizes.
+
+Potential adversaries include:
+- Malicious actors attempting to forge proofs or replay stale proofs.
+- Entities submitting malformed or oversized inputs to trigger denial-of-service conditions.
+- Adversaries attempting to exploit prover liveness delays to censor or stall message authorization.
+
+### Security Assumptions
+
+- Correctness of gnark's Groth16 implementation and its integration within the module.
+- Collision resistance of SHA-256, used for both verifying key prefixes and hashing public values into field elements.
+- Availability of accurate Celestia header hashes (populated in `BeginBlocker`) as an anchor for verifying state transition proofs.
+- Off-chain SP1 program correctness: the verifier assumes public values were produced correctly by the corresponding SP1 program.
+
+### Invariants
+
+The module enforces the following invariants:
+- Proof prefix must match the expected verifying key hash prefix.
+- Proof length must be exactly 256 bytes + the 4 byte prefix, equalling a total of 260 bytes.
+- State transition proofs must update trusted state monotonically: new height and associated state root replace prior values.
+- State membership proofs must bind to a trusted root and authorize exactly the listed message IDs, which can each be consumed once.
+- Once consumed, message IDs cannot be reused, preventing replay of previously authorized messages. Note that replay protection is also enforced by the Hyperlane Mailbox configured with the ISM.
+
+### Liveness and Availability Risks
+
+- If the off-chain prover is delayed or unavailable, message authorization halts. Hyperlane will be unable to process new messages until valid proofs are submitted.
+- The system does not guarantee liveness independently; availability is contingent on timely prover operation and proof relay.
+- While delayed proofs cannot compromise safety (invalid messages will not be authorized), they may result in service degradation if provers are prevented from submitting in time.
+- Mitigation relies on redundant or decentralized prover infrastructure to reduce single points of failure.
+
+### Additional Considerations
+
+- Parameters such as `MaxHeaderHashes` bound memory growth but also constrain the look-back window for valid proofs. This parameter should be tuned to balance liveness and resource limits. 
+- In the event of a prover liveness issue, the prover will be required to prove from beyond the look-back window up to an available header hash resume operation.
+- Future extension to multiple proof systems will require addition of new public values types and validation against an on-chain trusted state anchor.
+
 ## Notes & TODOs
 
-- SubmitMessages currently checks only `public_values.StateRoot == ism.state_root` prior to verification
-  - In order to prevent missing a proof submission window we must allow state root lookup against a historical height(see inline TODO in `msg_server.go`).
-- CLI `create` command is scaffolded and needs additional flags for full ISM configuration.
-- CLI commands for proof submission rpcs are required.
-- Extension of the module to support consumption of other proof system types. Currently we only support Evolve's `ev-reth` execution.
+- [ ] Event emission on proof submission rpcs.
+- [ ] SubmitMessages currently checks only `public_values.StateRoot == ism.state_root` prior to verification. Allow higher availability of trusted roots (see inline TODO in `msg_server.go`).
+  - Note, message inclusion proofs can be generated much faster than state transition proofs. In the event of missing a proof submission window (stale against a trusted root), messages cannot be censored as in order to prove against the trusted root _all_ messages must be included. 
+- [ ] Add basic validation of proof submission messgaes (enforce length checks on proofs etc. so txs do not enter the mempool).
+- [ ] CLI `create` command is scaffolded and needs additional flags for full ISM configuration.
+- [ ] CLI commands for proof submission rpcs are required.
+- [ ] Extension of the module to support consumption of other proof system types. Currently we only support Evolve's `ev-reth` execution.
+- [ ] The Evolve `ev-reth` execution client can encapsulate the `Namespace` and `SequencerPublicKey` values within its state root, eliminating the need for validation within this verifier module.
