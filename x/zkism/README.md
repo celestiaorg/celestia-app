@@ -131,7 +131,7 @@ Potential adversaries include:
 
 - Correctness of gnark's Groth16 implementation and its integration within the module.
 - Collision resistance of SHA-256, used for both verifying key prefixes and hashing public values into field elements.
-- Availability of accurate Celestia header hashes (populated in `BeginBlocker`) as an anchor for verifying state transition proofs.
+- Availability of trusted Celestia header hashes (populated in `BeginBlocker`) as an anchor for verifying state transition proofs.
 - Off-chain SP1 program correctness: the verifier assumes public values were produced correctly by the corresponding SP1 program.
 
 ### Invariants
