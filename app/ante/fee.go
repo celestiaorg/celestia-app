@@ -81,6 +81,13 @@ func verifyMinFee(fee math.Int, gas uint64, minGasPrice math.LegacyDec, errMsg s
 // NOTE: This implementation should not be used for txs with multiple coins.
 func getTxPriority(fee sdk.Coins, gas int64) int64 {
 	var priority int64
+
+	// This should never happen in practice as gas limit cannot be 0 for valid transactions,
+	// but we handle it defensively to avoid division by zero panic
+	if gas == 0 {
+		return 0
+	}
+
 	for _, c := range fee {
 		p := c.Amount.Mul(math.NewInt(priorityScalingFactor)).QuoRaw(gas)
 		if !p.IsInt64() {
