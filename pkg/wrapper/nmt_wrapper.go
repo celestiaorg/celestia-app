@@ -58,7 +58,7 @@ func NewErasuredNamespacedMerkleTree(squareSize uint64, axisIndex uint, options 
 	options = append(options, nmt.NamespaceIDSize(share.NamespaceSize))
 	options = append(options, nmt.IgnoreMaxNamespace(true))
 	tree := nmt.New(appconsts.NewBaseHashFunc(), options...)
-    return ErasuredNamespacedMerkleTree{squareSize: squareSize, tree: tree, axisIndex: uint64(axisIndex), shareIndex: 0}
+	return ErasuredNamespacedMerkleTree{squareSize: squareSize, tree: tree, axisIndex: uint64(axisIndex), shareIndex: 0}
 }
 
 type constructor struct {
