@@ -34,7 +34,7 @@ func NewTreePool(initSquareSize uint, poolSize int, opts ...nmt.Option) (*TreePo
 	}
 
 	// initialize the pool with trees configured for initSquareSize
-	for i := 0; i < poolSize; i++ {
+	for range poolSize {
 		tree, err := newResizeableBufferTree(initSquareSize, 0, pool, opts...)
 		if err != nil {
 			return nil, err
