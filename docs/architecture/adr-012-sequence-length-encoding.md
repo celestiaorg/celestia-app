@@ -102,4 +102,4 @@ Option D
 
 ## References
 
-- <https://protobuf.dev/programming-guides/encoding/#non-varint-nums>
+- <https://protobuf.dev/programming-guides/encoding/#non-varints>
