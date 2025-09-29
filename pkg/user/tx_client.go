@@ -123,6 +123,12 @@ func WithDefaultAccount(name string) Option {
 		}
 		c.defaultAccount = name
 		c.defaultAddress = addr
+
+		// Update worker 0's account if parallel pool already exists
+		if c.parallelPool != nil && len(c.parallelPool.workers) > 0 {
+			c.parallelPool.workers[0].accountName = name
+			c.parallelPool.workers[0].address = addr.String()
+		}
 	}
 }
 

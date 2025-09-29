@@ -37,8 +37,9 @@ func TestConcurrentTxSubmission(t *testing.T) {
 			_, err := ctx.WaitForHeight(1)
 			require.NoError(t, err)
 
-			// Setup signer
-			txClient, err := testnode.NewTxClientFromContext(ctx)
+			// Setup signer with multiple workers for concurrent submission
+			encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+			txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg, user.WithTxWorkers(10))
 			require.NoError(t, err)
 
 			// Pregenerate all the blobs

@@ -64,16 +64,14 @@ func newParallelTxPool(client *TxClient, numWorkers int) *ParallelTxPool {
 		workers:  make([]*TxWorker, numWorkers),
 	}
 
-	// Create workers: first worker always uses existing signer account (set at Start time)
+	// Create workers: first worker always uses existing signer account
 	for i := 0; i < numWorkers; i++ {
 		var accountName, address string
 
 		if i == 0 {
-			// First worker uses the existing default account
-			// Note: We don't set accountName/address here because the default account
-			// might not be set yet (options are still being applied). We'll set it in Start().
-			accountName = ""
-			address = ""
+			// First worker uses the current default account
+			accountName = client.DefaultAccountName()
+			address = client.DefaultAddress().String()
 		} else {
 			// Additional workers use generated account names
 			accountName = fmt.Sprintf("parallel-worker-%d", i)
@@ -108,14 +106,7 @@ func (p *ParallelTxPool) Start(ctx context.Context) error {
 		return nil
 	}
 
-	// Set worker 0's account to the current default account
-	// (it might not have been set correctly at pool creation time due to option ordering)
-	if len(p.workers) > 0 && p.workers[0].accountName == "" {
-		p.workers[0].accountName = p.client.DefaultAccountName()
-		p.workers[0].address = p.client.DefaultAddress().String()
-	}
-
-	// Always initialize workers
+	// Initialize worker accounts if needed
 	if !p.initialized.Load() {
 		if err := p.client.InitializeWorkerAccounts(ctx); err != nil {
 			return fmt.Errorf("failed to initialize worker accounts: %w", err)

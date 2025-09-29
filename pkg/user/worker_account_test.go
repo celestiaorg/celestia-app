@@ -71,6 +71,7 @@ func (ts *testSetup) newTxClientWithWorkers(t *testing.T, numWorkers int, defaul
 	client, err := user.NewTxClient(ts.encCfg.Codec, ts.signer, ts.conn, ts.encCfg.InterfaceRegistry,
 		user.WithDefaultAccount(defaultAccount), txWorkersOpt)
 	require.NoError(t, err)
+
 	return client
 }
 
