@@ -100,11 +100,6 @@ func newParallelTxPool(client *TxClient, numWorkers int, initialize bool) *Paral
 	return pool
 }
 
-// NewParallelTxPool creates a new parallel transaction submission pool.
-func NewParallelTxPool(client *TxClient, numWorkers int, initialize bool) *ParallelTxPool {
-	return newParallelTxPool(client, numWorkers, initialize)
-}
-
 // Start initiates all workers in the pool
 func (p *ParallelTxPool) Start(ctx context.Context) error {
 	p.mtx.Lock()
