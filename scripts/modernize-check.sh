@@ -13,5 +13,3 @@ echo "Running Go modernize check..."
 # Run modernize without -fix flag to only check for issues
 # The tool will exit with non-zero code if issues are found
 go run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest -test ./...
-
-echo "No modernize issues found!"
