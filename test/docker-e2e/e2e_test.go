@@ -3,12 +3,14 @@ package docker_e2e
 import (
 	"context"
 	"fmt"
-	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	"testing"
 	"time"
 
+	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
+
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
-	"github.com/celestiaorg/go-square/v2/share"
+
+	"github.com/celestiaorg/go-square/v3/share"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
@@ -55,7 +57,6 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain tastoratypes.
 	s.Require().NoError(err)
 
 	// Deploy txsim image
-	t.Log("Deploying txsim image")
 	txsimImage := tastoracontainertypes.NewJob(s.logger, s.client, networkName, t.Name(), txsimImage, txSimTag)
 
 	opts := tastoracontainertypes.Options{
@@ -65,8 +66,9 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain tastoratypes.
 		Binds: []string{chain.GetVolumeName() + ":/celestia-home"},
 	}
 
-	internalHostname, err := chain.GetNodes()[0].GetInternalHostName(ctx)
-	s.Require().NoError(err)
+	networkInfo, err := chain.GetNodes()[0].GetNetworkInfo(ctx)
+	s.Require().NoError(err, "failed to get network info from chain node")
+	internalHostname := networkInfo.Internal.Hostname
 
 	args := []string{
 		"/bin/txsim",
@@ -253,7 +255,7 @@ func (s *CelestiaTestSuite) ensureMinimumBlocks(ctx context.Context, chain tasto
 	return finalStatus.SyncInfo.LatestBlockHeight, nil
 }
 
-// fetchValidatorSets retrieves validator sets at both start and end heights
+// fetchValidatorSets retrieves the validator set at the provided end height
 func (s *CelestiaTestSuite) fetchValidatorSets(ctx context.Context, rpcClient rpcclient.Client, endHeight int64) (*coretypes.ResultValidators, error) {
 	endValidators, err := rpcClient.Validators(ctx, &endHeight, nil, nil)
 	if err != nil {

@@ -3,10 +3,8 @@
 # This script starts a single node and attempts to state sync with a node
 # started via ./single-node.sh
 
-# Stop script execution if an error is encountered
-set -o errexit
-# Stop script execution if an undefined variable is used
-set -o nounset
+set -o errexit # Stop script execution if an error is encountered
+set -o nounset # Stop script execution if an undefined variable is used
 
 if ! [ -x "$(command -v celestia-appd)" ]
 then

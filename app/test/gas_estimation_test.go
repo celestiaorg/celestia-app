@@ -18,7 +18,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -97,7 +97,7 @@ func TestEstimateGasPrice(t *testing.T) {
 	// price, then test the gas estimator API.
 	accountNames := testfactory.GenerateAccounts(10)
 	cfg := testnode.DefaultConfig().WithFundedAccounts(accountNames...).
-		WithTimeoutCommit(10 * time.Second) // to have all transactions in the mempool without being included in a block
+		WithDelayedPrecommitTimeout(10 * time.Second) // to have all transactions in the mempool without being included in a block
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 
@@ -117,7 +117,9 @@ func TestEstimateGasPrice(t *testing.T) {
 	require.NoError(t, err)
 
 	blobSize := (appconsts.DefaultMaxBytes - 1) / len(accountNames)
-	gasLimit := blobtypes.DefaultEstimateGas([]uint32{uint32(blobSize)})
+	msg, err := blobtypes.NewMsgPayForBlobs(accountNames[0], 0, blobfactory.ManyBlobs(random.New(), []share.Namespace{share.RandomBlobNamespace()}, []int{blobSize})...)
+	require.NoError(t, err)
+	gasLimit := blobtypes.DefaultEstimateGas(msg)
 	wg := &sync.WaitGroup{}
 	gasPricesChan := make(chan float64, len(accountNames))
 	for _, accName := range accountNames {

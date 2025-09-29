@@ -14,7 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -172,7 +172,7 @@ func (am *AccountManager) AllocateAccounts(n, balance int) []types.AccAddress {
 
 	path := hd.CreateHDPath(types.CoinType, 0, 0).String()
 	addresses := make([]types.AccAddress, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		name := am.nextAccountName()
 		record, _, err := am.keys.NewMnemonic(name, keyring.English, path, keyring.DefaultBIP39Passphrase, hd.Secp256k1)
 		if err != nil {

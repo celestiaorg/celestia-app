@@ -6,7 +6,7 @@ import (
 	"cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 )
@@ -60,7 +60,7 @@ func (d BlobShareDecorator) validateMsgs(msgs []sdk.Msg, txSize uint32, maxBlobS
 		}
 
 		if pfb, ok := m.(*blobtypes.MsgPayForBlobs); ok {
-			if sharesNeeded := getSharesNeeded(txSize, pfb.BlobSizes); sharesNeeded > maxBlobShares {
+			if sharesNeeded := getSharesNeeded(txSize, pfb); sharesNeeded > maxBlobShares {
 				return errors.Wrapf(blobtypes.ErrBlobsTooLarge, "the number of shares occupied by blobs in this MsgPayForBlobs %d exceeds the max number of shares available for blob data %d", sharesNeeded, maxBlobShares)
 			}
 		}
@@ -84,11 +84,13 @@ func (d BlobShareDecorator) getMaxSquareSize(ctx sdk.Context) int {
 }
 
 // getSharesNeeded returns the total number of shares needed to represent all of
-// the blobs described by blobSizes along with the shares used by the tx
-func getSharesNeeded(txSize uint32, blobSizes []uint32) (sum int) {
+// the blobs described by blobSizes along with the shares used by the tx.
+func getSharesNeeded(txSize uint32, msg *blobtypes.MsgPayForBlobs) (sum int) {
 	sum = share.CompactSharesNeeded(txSize)
-	for _, blobSize := range blobSizes {
-		sum += share.SparseSharesNeeded(blobSize)
+	for i, blobSize := range msg.BlobSizes {
+		shareVersion := msg.ShareVersions[i]
+		containsSigner := shareVersion == uint32(share.ShareVersionOne)
+		sum += share.SparseSharesNeeded(blobSize, containsSigner)
 	}
 	return sum
 }

@@ -1,4 +1,10 @@
-VERSION := $(shell echo $(shell git describe --tags --always --match "v*") | sed 's/^v//')
+VERSION := $(shell \
+	if [ $$(git tag --points-at HEAD | wc -l) -gt 1 ]; then \
+		git describe --tags --always --match "v*" | cut -d'-' -f1 | sed 's/^v//'; \
+	else \
+		git describe --tags --always --match "v*" | sed 's/^v//'; \
+	fi \
+)
 COMMIT := $(shell git rev-parse --short HEAD)
 CELESTIA_TAG := $(shell git rev-parse --short=8 HEAD)
 export CELESTIA_TAG
@@ -28,9 +34,10 @@ BUILD_FLAGS_MULTIPLEXER := -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_M
 # internal/embedding/data.go
 # .goreleaser.yaml
 # docker/multiplexer.Dockerfile
+# dockerchain/config.go
 CELESTIA_V3_VERSION := v3.10.6
 CELESTIA_V4_VERSION := v4.1.0
-CELESTIA_V5_VERSION := v5.0.4-rc0
+CELESTIA_V5_VERSION := v5.0.10
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -121,8 +128,6 @@ download-v5-binaries:
 mod:
 	@echo "--> Updating go.mod"
 	@go mod tidy
-	@echo "--> Updating go.mod in ./test/interchain"
-	@(cd ./test/interchain && go mod tidy)
 	@echo "--> Updating go.mod in ./test/docker-e2e"
 	@(cd ./test/docker-e2e && go mod tidy)
 .PHONY: mod
@@ -252,6 +257,18 @@ fmt:
 lint-fix: fmt
 .PHONY: lint-fix
 
+## modernize-fix: Apply modernize suggestions automatically.
+modernize-fix:
+	@echo "--> Applying modernize fixes"
+	@bash scripts/modernize.sh
+.PHONY: modernize-fix
+
+## modernize-check: Check for modernize issues without applying fixes.
+modernize-check:
+	@echo "--> Checking for modernize issues"
+	@bash scripts/modernize-check.sh
+.PHONY: modernize-check
+
 ## test: Run tests.
 test:
 	@echo "--> Running tests"
@@ -298,7 +315,7 @@ test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService|TestTxsOverMaxTxSizeGetRejected|TestStart_Success|TestReadBlockchainHeaders|TestPrepareProposalCappingNumberOfMessages|TestGasEstimatorE2E|TestGasEstimatorE2EWithNetworkMinGasPrice"
+	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService|TestTxsOverMaxTxSizeGetRejected|TestStart_Success|TestReadBlockchainHeaders|TestPrepareProposalCappingNumberOfMessages|TestGasEstimatorE2E|TestGasEstimatorE2EWithNetworkMinGasPrice|TestRejections|TestClaimRewardsAfterFullUndelegation"
 .PHONY: test-race
 
 ## test-bench: Run benchmark unit tests.
@@ -395,10 +412,10 @@ prebuilt-binary:
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
 		-w /go/src/$(PACKAGE_NAME) \
 		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
-		release --clean --parallelism 2
+		release --clean --parallelism 1
 .PHONY: prebuilt-binary
 
-## goreleaser-dry-run: ensures that the go releaser tool can build all the artefacts correctly.
+## goreleaser-dry-run: ensures that the go releaser tool can build all the artifacts correctly.
 goreleaser-dry-run:
 # Specifies parallelism as 4 so should be run locally. On the regular github runners 2 should be the max.
 	@echo "Running GoReleaser in dry-run mode..."
@@ -411,7 +428,7 @@ goreleaser-dry-run:
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
 		-w /go/src/$(PACKAGE_NAME) \
 		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
-		release --snapshot --clean --parallelism 4
+		release --snapshot --clean --parallelism 1
 .PHONY: goreleaser-dry-run
 
 ## goreleaser: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
@@ -441,7 +458,7 @@ enable-bbr:
 	@if [ "$$(uname -s)" != "Linux" ]; then \
 		echo "BBR is not available on non-Linux systems."; \
 		exit 0; \
-	elif [ "$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')" != "bbr" ]; then \
+	elif [ "$$(sysctl net.ipv4.tcp_congestion_control | awk '{print $$3}')" != "bbr" ]; then \
 	    echo "BBR is not enabled. Configuring BBR..."; \
 	    sudo modprobe tcp_bbr && \
             echo tcp_bbr | sudo tee -a /etc/modules && \

@@ -109,7 +109,7 @@ type slashingModule struct {
 	slashing.AppModule
 }
 
-// DefaultGenesis returns custom x/staking module genesis state.
+// DefaultGenesis returns custom x/slashing module genesis state.
 func (slashingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genesis := slashingtypes.DefaultGenesisState()
 	genesis.Params.MinSignedPerWindow = math.LegacyNewDecWithPrec(75, 2) // 75%
