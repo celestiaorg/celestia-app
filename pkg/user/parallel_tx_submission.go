@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"cosmossdk.io/x/feegrant"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
@@ -42,7 +41,6 @@ type ParallelTxPool struct {
 	started     atomic.Bool
 	ctx         context.Context
 	cancel      context.CancelFunc
-	initialize  bool        // whether to initialize workers automatically
 	initialized atomic.Bool // whether workers have been initialized
 }
 
@@ -59,22 +57,23 @@ const (
 	defaultParallelQueueSize = 100
 )
 
-func newParallelTxPool(client *TxClient, numWorkers int, initialize bool) *ParallelTxPool {
+func newParallelTxPool(client *TxClient, numWorkers int) *ParallelTxPool {
 	pool := &ParallelTxPool{
-		client:     client,
-		jobQueue:   make(chan *SubmissionJob, defaultParallelQueueSize),
-		workers:    make([]*TxWorker, numWorkers),
-		initialize: initialize,
+		client:   client,
+		jobQueue: make(chan *SubmissionJob, defaultParallelQueueSize),
+		workers:  make([]*TxWorker, numWorkers),
 	}
 
-	// Create workers: first worker always uses existing signer account
+	// Create workers: first worker always uses existing signer account (set at Start time)
 	for i := 0; i < numWorkers; i++ {
 		var accountName, address string
 
 		if i == 0 {
 			// First worker uses the existing default account
-			accountName = client.DefaultAccountName()
-			address = client.DefaultAddress().String()
+			// Note: We don't set accountName/address here because the default account
+			// might not be set yet (options are still being applied). We'll set it in Start().
+			accountName = ""
+			address = ""
 		} else {
 			// Additional workers use generated account names
 			accountName = fmt.Sprintf("parallel-worker-%d", i)
@@ -109,8 +108,15 @@ func (p *ParallelTxPool) Start(ctx context.Context) error {
 		return nil
 	}
 
-	// Initialize workers if configured to do so
-	if p.initialize && !p.initialized.Load() {
+	// Set worker 0's account to the current default account
+	// (it might not have been set correctly at pool creation time due to option ordering)
+	if len(p.workers) > 0 && p.workers[0].accountName == "" {
+		p.workers[0].accountName = p.client.DefaultAccountName()
+		p.workers[0].address = p.client.DefaultAddress().String()
+	}
+
+	// Always initialize workers
+	if !p.initialized.Load() {
 		if err := p.client.InitializeWorkerAccounts(ctx); err != nil {
 			return fmt.Errorf("failed to initialize worker accounts: %w", err)
 		}
@@ -148,7 +154,13 @@ func (p *ParallelTxPool) SubmitJob(job *SubmissionJob) {
 	p.mtx.RLock()
 	jobQueue := p.jobQueue
 	ctx := p.ctx
+	started := p.started.Load()
 	p.mtx.RUnlock()
+
+	if !started || ctx == nil {
+		job.ResultsC <- SubmissionResult{Error: errors.New("parallel pool not started")}
+		return
+	}
 
 	select {
 	case jobQueue <- job:
@@ -196,8 +208,13 @@ func (w *TxWorker) processJob(job *SubmissionJob, workerCtx context.Context) {
 	default:
 	}
 
-	// Add fee granter option so master account pays for worker transaction fees
-	options := append([]TxOption{SetFeeGranter(w.client.DefaultAddress())}, job.Options...)
+	options := job.Options
+
+	// Only add fee granter option for workers that aren't the primary account (worker 0)
+	if w.id != 0 {
+		// Add fee granter option so master account pays for worker transaction fees
+		options = append([]TxOption{SetFeeGranter(w.client.DefaultAddress())}, options...)
+	}
 
 	// Use the worker's dedicated account to submit the transaction
 	txResponse, err := w.client.SubmitPayForBlobWithAccount(jobCtx, w.accountName, job.Blobs, options...)
@@ -212,39 +229,6 @@ func (w *TxWorker) processJob(job *SubmissionJob, workerCtx context.Context) {
 	job.ResultsC <- result
 }
 
-// SubmitPayForBlobParallel submits a transaction for parallel processing and returns a channel for the result.
-// Returns a channel that will receive the result and an error only if the parallel pool is not configured.
-func (client *TxClient) SubmitPayForBlobParallel(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (chan SubmissionResult, error) {
-	if client.parallelPool == nil {
-		return nil, errors.New("parallel submission not configured - use WithTxWorkers option")
-	}
-
-	// Initialize and start the pool on first use when auto-initialization is enabled.
-	if !client.parallelPool.started.Load() {
-		if client.parallelPool.initialize {
-			if err := client.parallelPool.Start(ctx); err != nil {
-				return nil, fmt.Errorf("failed to start parallel pool: %w", err)
-			}
-		} else {
-			return nil, errors.New("parallel pool not started - call ParallelPool().Start() first")
-		}
-	}
-
-	jobID := fmt.Sprintf("job_%d", time.Now().UnixNano())
-	resultsC := make(chan SubmissionResult, 1)
-
-	job := &SubmissionJob{
-		ID:       jobID,
-		Blobs:    blobs,
-		Options:  opts,
-		Ctx:      ctx,
-		ResultsC: resultsC,
-	}
-
-	client.parallelPool.SubmitJob(job)
-
-	return resultsC, nil
-}
 
 // InitializeWorkerAccounts creates and initializes all worker accounts for parallel submission.
 // It creates the accounts in the keyring if they don't exist, funds them with a small balance,
@@ -257,6 +241,12 @@ func (client *TxClient) InitializeWorkerAccounts(ctx context.Context) error {
 
 	// No work required if we've already initialized all workers.
 	if client.parallelPool.initialized.Load() {
+		return nil
+	}
+
+	// If we only have one worker (index 0), skip all initialization as it uses the existing signer account
+	if len(client.parallelPool.workers) == 1 {
+		client.parallelPool.initialized.Store(true)
 		return nil
 	}
 

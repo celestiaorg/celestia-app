@@ -91,47 +91,45 @@ func TestParallelTxSubmission(t *testing.T) {
 	_, err := ctx.WaitForHeight(1)
 	require.NoError(t, err)
 
-	// Setup signer with parallel workers (accounts will be auto-created)
+	// Setup signer with parallel workers (accounts will be auto-created and started)
 	numWorkers := 3
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	txWorkersOpt := user.WithTxWorkersNoInit(numWorkers)
+	txWorkersOpt := user.WithTxWorkers(numWorkers)
 	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg, txWorkersOpt)
 	require.NoError(t, err)
 
-	// Initialize worker accounts manually for e2e test
-	err = txClient.InitializeWorkerAccounts(ctx.GoContext())
-	require.NoError(t, err)
-
-	// Re-initialization should be a no-op
-	err = txClient.InitializeWorkerAccounts(ctx.GoContext())
-	require.NoError(t, err)
-
-	// Start the parallel pool manually
-	err = txClient.ParallelPool().Start(ctx.GoContext())
-	require.NoError(t, err)
+	// Pool should already be started by SetupTxClient
+	require.True(t, txClient.ParallelPool().IsStarted())
 
 	// Generate test blobs
 	numJobs := 10
 	blobs := blobfactory.ManyRandBlobs(random.New(), blobfactory.Repeat(1024, numJobs)...)
 
-	// Submit jobs in parallel - each returns its own results channel
-	var resultChannels []chan user.SubmissionResult
+	// Submit jobs in parallel using goroutines
+	var wg sync.WaitGroup
+	errCh := make(chan error, numJobs)
 	for i := 0; i < numJobs; i++ {
-		resultsC, err := txClient.SubmitPayForBlobParallel(ctx.GoContext(), []*share.Blob{blobs[i]}, user.SetGasLimitAndGasPrice(500_000, appconsts.DefaultMinGasPrice))
-		require.NoError(t, err)
-		resultChannels = append(resultChannels, resultsC)
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			resp, err := txClient.SubmitPayForBlob(ctx.GoContext(), []*share.Blob{blobs[idx]}, user.SetGasLimitAndGasPrice(500_000, appconsts.DefaultMinGasPrice))
+			if err != nil {
+				errCh <- fmt.Errorf("transaction %d failed: %w", idx, err)
+				return
+			}
+			if resp == nil || resp.TxHash == "" {
+				errCh <- fmt.Errorf("transaction %d returned nil or empty response", idx)
+			}
+		}(i)
 	}
 
-	// Wait for all results from individual channels
-	for i, resultsC := range resultChannels {
-		select {
-		case result := <-resultsC:
-			require.NoError(t, result.Error, "transaction should succeed")
-			require.NotNil(t, result.TxResponse, "should have tx response")
-			require.NotEmpty(t, result.TxResponse.TxHash, "should have tx hash")
-		case <-time.After(2 * time.Minute):
-			t.Fatalf("timeout waiting for result %d", i)
-		}
+	// Wait for all to complete
+	wg.Wait()
+	close(errCh)
+
+	// Check for any errors
+	for err := range errCh {
+		require.NoError(t, err)
 	}
 
 	t.Logf("Successfully submitted %d parallel transactions", numJobs)
@@ -144,7 +142,7 @@ func TestParallelTxSubmission(t *testing.T) {
 	require.False(t, txClient.ParallelPool().IsStarted())
 
 	// Verify that new submissions fail when pool is stopped
-	_, err = txClient.SubmitPayForBlobParallel(ctx.GoContext(), []*share.Blob{blobs[0]})
+	_, err = txClient.SubmitPayForBlob(ctx.GoContext(), []*share.Blob{blobs[0]})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "parallel pool not started")
 
@@ -156,35 +154,37 @@ func TestParallelTxSubmission(t *testing.T) {
 	// Create a new TxClient using the same keyring (simulating restart)
 	// Use the same default account as the first client to avoid using a worker account as default
 	originalDefaultAccount := txClient.DefaultAccountName()
-	txClient2, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg, user.WithTxWorkersNoInit(numWorkers*3), user.WithDefaultAccount(originalDefaultAccount))
+	txClient2, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg, user.WithTxWorkers(numWorkers*3), user.WithDefaultAccount(originalDefaultAccount))
 	require.NoError(t, err)
 
-	// Initialize worker accounts manually for e2e test
-	err = txClient2.InitializeWorkerAccounts(ctx.GoContext())
-	require.NoError(t, err)
+	// Pool should already be started by SetupTxClient
+	require.True(t, txClient2.ParallelPool().IsStarted())
 
-	// Start the parallel pool
-	err = txClient2.ParallelPool().Start(ctx.GoContext())
-	require.NoError(t, err)
-
-	// Submit jobs in parallel - each returns its own results channel
-	var resultChannels2 []chan user.SubmissionResult
+	// Submit jobs in parallel using goroutines
+	var wg2 sync.WaitGroup
+	errCh2 := make(chan error, numJobs)
 	for i := 0; i < numJobs; i++ {
-		resultsC, err := txClient2.SubmitPayForBlobParallel(ctx.GoContext(), []*share.Blob{blobs[i]}, user.SetGasLimitAndGasPrice(500_000, appconsts.DefaultMinGasPrice))
-		require.NoError(t, err)
-		resultChannels2 = append(resultChannels2, resultsC)
+		wg2.Add(1)
+		go func(idx int) {
+			defer wg2.Done()
+			resp, err := txClient2.SubmitPayForBlob(ctx.GoContext(), []*share.Blob{blobs[idx]}, user.SetGasLimitAndGasPrice(500_000, appconsts.DefaultMinGasPrice))
+			if err != nil {
+				errCh2 <- fmt.Errorf("transaction %d failed: %w", idx, err)
+				return
+			}
+			if resp == nil || resp.TxHash == "" {
+				errCh2 <- fmt.Errorf("transaction %d returned nil or empty response", idx)
+			}
+		}(i)
 	}
 
-	// Wait for all results from individual channels
-	for i, resultsC := range resultChannels2 {
-		select {
-		case result := <-resultsC:
-			require.NoError(t, result.Error, "transaction should succeed")
-			require.NotNil(t, result.TxResponse, "should have tx response")
-			require.NotEmpty(t, result.TxResponse.TxHash, "should have tx hash")
-		case <-time.After(2 * time.Minute):
-			t.Fatalf("timeout waiting for result %d", i)
-		}
+	// Wait for all to complete
+	wg2.Wait()
+	close(errCh2)
+
+	// Check for any errors
+	for err := range errCh2 {
+		require.NoError(t, err)
 	}
 
 	// Check that worker accounts exist in keyring before initialization

@@ -147,27 +147,14 @@ func WithAdditionalCoreEndpoints(conns []*grpc.ClientConn) Option {
 // WithTxWorkers enables parallel transaction submission with the specified number of worker accounts.
 // Worker accounts are automatically generated with hardcoded names unless numWorkers is 1, in which case
 // the existing default account is used.
-// By default, workers are initialized automatically when SetupTxClient is called.
+// Workers are initialized automatically when SetupTxClient is called.
 func WithTxWorkers(numWorkers int) Option {
 	if numWorkers <= 0 {
 		return func(*TxClient) {}
 	}
 
 	return func(c *TxClient) {
-		pool := newParallelTxPool(c, numWorkers, true)
-		c.parallelPool = pool
-	}
-}
-
-// WithTxWorkersNoInit enables parallel transaction submission without automatic initialization.
-// InitializeWorkerAccounts must be called manually when using this option.
-func WithTxWorkersNoInit(numWorkers int) Option {
-	if numWorkers <= 0 {
-		return func(*TxClient) {}
-	}
-
-	return func(c *TxClient) {
-		pool := newParallelTxPool(c, numWorkers, false)
+		pool := newParallelTxPool(c, numWorkers)
 		c.parallelPool = pool
 	}
 }
@@ -243,6 +230,12 @@ func NewTxClient(
 		opt(txClient)
 	}
 
+	// Always create a parallel pool with at least 1 worker (the default account)
+	// unless already configured by WithTxWorkers option
+	if txClient.parallelPool == nil {
+		txClient.parallelPool = newParallelTxPool(txClient, 1)
+	}
+
 	return txClient, nil
 }
 
@@ -295,8 +288,8 @@ func SetupTxClient(
 		return nil, err
 	}
 
-	// Start parallel pool if configured with initialization
-	if txClient.parallelPool != nil && txClient.parallelPool.initialize {
+	// Always start the parallel pool
+	if txClient.parallelPool != nil {
 		if err := txClient.parallelPool.Start(ctx); err != nil {
 			return nil, fmt.Errorf("failed to start parallel pool: %w", err)
 		}
@@ -307,13 +300,36 @@ func SetupTxClient(
 
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
+// This method uses the parallel pool infrastructure and blocks until the transaction is confirmed.
 func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
-	resp, err := client.BroadcastPayForBlob(ctx, blobs, opts...)
-	if err != nil {
-		return nil, err
+	if client.parallelPool == nil {
+		return nil, errors.New("parallel pool not configured")
 	}
 
-	return client.ConfirmTx(ctx, resp.TxHash)
+	if !client.parallelPool.started.Load() {
+		return nil, errors.New("parallel pool not started")
+	}
+
+	jobID := fmt.Sprintf("job_%d", time.Now().UnixNano())
+	resultsC := make(chan SubmissionResult, 1)
+
+	job := &SubmissionJob{
+		ID:       jobID,
+		Blobs:    blobs,
+		Options:  opts,
+		Ctx:      ctx,
+		ResultsC: resultsC,
+	}
+
+	client.parallelPool.SubmitJob(job)
+
+	// Block waiting for the result
+	result := <-resultsC
+	if result.Error != nil {
+		return result.TxResponse, result.Error
+	}
+
+	return result.TxResponse, nil
 }
 
 // SubmitPayForBlobWithAccount forms a transaction from the provided blobs, signs it with the provided account, and submits it to the chain.

@@ -67,7 +67,7 @@ func (ts *testSetup) Close() {
 func (ts *testSetup) newTxClientWithWorkers(t *testing.T, numWorkers int, defaultAccount string) *user.TxClient {
 	t.Helper()
 
-	txWorkersOpt := user.WithTxWorkersNoInit(numWorkers)
+	txWorkersOpt := user.WithTxWorkers(numWorkers)
 	client, err := user.NewTxClient(ts.encCfg.Codec, ts.signer, ts.conn, ts.encCfg.InterfaceRegistry,
 		user.WithDefaultAccount(defaultAccount), txWorkersOpt)
 	require.NoError(t, err)
