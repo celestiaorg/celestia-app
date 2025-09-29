@@ -4,6 +4,10 @@
 
 The `x/fibre` payment mechanism enables users to pay for fibre blobs without waiting for a transaction to be confirmed. This is done by users depositing funds into [escrow accounts](#escrow-accounts), and signing over offchain messages that can be moved onchain at a later point.
 
+DoS resistance for a protocol with a global limit on throughput requires a guarantee for payment. Normally this is done simply by paying for gas, however paying for gas requires waiting for a transaction to be confirmed. The payment portion of this module (mainly the [`PaymentPromise`](#msgpayforfibre) and [`EscrowAccount`](#escrow-accounts)) is to provide a guarantee for payment without having to wait for a transaction to be confirmed.
+
+Therefore, it is an invariant of the payment system that a signed [`PaymentPromise`](#msgpayforfibre) guarantees payment.
+
 ## Contents
 
 1. [Abstract](#abstract)
@@ -15,12 +19,6 @@ The `x/fibre` payment mechanism enables users to pay for fibre blobs without wai
 1. [Parameters](#parameters)
 1. [Client](#client)
 
-## Abstract
-
-DoS resistance for a protocol with a global limit on throughput requires a guarantee for payment. Normally this is done simply by paying for gas, however paying for gas requires waiting for a transaction to be confirmed. The payment portion of this module (mainly the [`PaymentPromise`](#msgpayforfibre) and [`EscrowAccount`](#escrow-accounts)) is to provide a guarantee for payment without having to wait for a transaction to be confirmed.
-
-Therefore, it is an invariant of the payment system that a signed [`PaymentPromise`](#msgpayforfibre) guarantees payment.
-
 ## State
 
 The fibre module maintains state for [escrow accounts](#escrow-accounts), [pending withdrawals](#pending-withdrawals), and module [parameters](#parameters).
@@ -30,12 +28,10 @@ The fibre module maintains state for [escrow accounts](#escrow-accounts), [pendi
 ```proto
 message Params {
   option (gogoproto.goproto_stringer) = false;
-  uint32 gas_per_blob_byte = 1
-      [ (gogoproto.moretags) = "yaml:\"gas_per_blob_byte\"" ];
-  google.protobuf.Duration withdrawal_delay = 2
-      [ (gogoproto.moretags) = "yaml:\"withdrawal_delay\"" ];
-  google.protobuf.Duration promise_timeout = 3
-  [ (gogoproto.moretags) = "yaml:\"promise_timeout\"" ];
+  uint32 gas_per_blob_byte = 1 [ (gogoproto.moretags) = "yaml:\"gas_per_blob_byte\"" ];
+  google.protobuf.Duration withdrawal_delay = 2 [ (gogoproto.moretags) = "yaml:\"withdrawal_delay\"" ];
+  google.protobuf.Duration promise_timeout = 3 [ (gogoproto.moretags) = "yaml:\"promise_timeout\"" ];
+  google.protobuf.Duration payment_promise_retention_window = 4 [ (gogoproto.moretags) = "yaml:\"payment_promise_retention_window\"" ];
 }
 ```
 
@@ -43,17 +39,21 @@ message Params {
 
 `GasPerBlobByte` is the amount of gas consumed per byte of blob data when payment is processed. This determines the gas cost for fibre blob inclusion.
 
-#### `WithdrawalDelay`
-
-`WithdrawalDelay` is the duration that must pass between requesting a withdrawal and when funds become available for withdrawal (default: 24 hours). This value is also used for pruning [ProcessedPromise](#processed-promises) from the state.
-
 #### `PromiseTimeout`
 
 `PromiseTimeout` is the duration after which anyone can submit a promise for processing if the user hasn't submitted a [`MsgPayForFibre`](#msgpayforfibre) (default: 1 hour).
 
+#### `WithdrawalDelay`
+
+`WithdrawalDelay` is the duration that must pass between requesting a withdrawal and when funds become available for withdrawal (default: 24 hours). This value is also used for pruning [ProcessedPromise](#processed-promises) from the state.
+
+#### `PaymentPromiseRetentionWindow`
+
+`PaymentPromiseRetentionWindow` is the duration after which a payment promise can be pruned from the state machine (default: 24 hours).
+
 ### Escrow Accounts
 
-Escrow accounts help guarantee payment for a signed [`PaymentPromise`](#msgpayforfibre) by ensuring that a user does not remove funds directly after validators sign over and provide service for a blob. Each user can only have one escrow account, indexed by their signer address.
+Escrow accounts help guarantee payment for a signed [`PaymentPromise`](#msgpayforfibre) by ensuring that a user does not remove funds directly after validators sign over and provide service for a blob. Each address can only have one escrow account, indexed by their signer address.
 
 ```proto
 message EscrowAccount {
@@ -88,19 +88,22 @@ To prevent double payment, the module tracks which promises have been processed.
 #### Indexing
 
 **Escrow Accounts**:
+
 - **Primary Index**: `escrows/{signer}` → `EscrowAccount`
 
 **Pending Withdrawals**:
+
 - **By signer**: `withdrawals/{signer}/{requested_at}` → `cosmos.base.v1beta1.Coin` (amount)
 - **By Availability**: `available_withdrawals/{available_at}/{signer}` → `cosmos.base.v1beta1.Coin` (amount)
 
 **Processed Promises**:
+
 - **Primary Index**: `processed/{promise_hash}` → `google.protobuf.Timestamp` (processed_at)
 - **By Timestamp**: `pruning/{processed_at}/{promise_hash}` → `null` (for pruning)
 
 #### Pruning Mechanism
 
-Processed promises are automatically pruned after [`withdrawal_delay`](#withdrawaldelay) to prevent unbounded state growth. See [Automatic Promise Pruning](#automatic-promise-pruning) for implementation details.
+Processed payment promises are automatically pruned after [`payment_promise_retention_window`](#paymentpromiseretentionwindow) to prevent unbounded state growth. See [Automatic Promise Pruning](#automatic-promise-pruning) for implementation details.
 
 ## Messages
 
@@ -111,13 +114,15 @@ All messages use the existing gas consumption mechanism in the cosmos-sdk. In ad
 **Blob Gas Calculation**:
 
 Gas cost is calculated using the following formula:
-```
+
+```text
 total_gas = (rows * row_size(blob_size) * gas_per_blob_byte)
 ```
 
 This means that users pay for padding as well, just like PFBs.
 
 Where:
+
 - `rows` is the constant number of rows needed for the blob data
 - `row_size(blob_size)` is the size of each row in bytes
 - `gas_per_blob_byte` is the gas cost per byte parameter
@@ -138,10 +143,12 @@ message MsgDepositToEscrow {
 #### Validation and Processing
 
 **Stateless Validation**:
+
 - Signer address must be valid
 - Amount must be positive
 
 **Stateful Processing**:
+
 1. If signer's escrow account doesn't exist, create one with zero balance
 2. Transfer funds from signer to module account
 3. Increase both balance and available_balance by deposit amount
@@ -160,13 +167,15 @@ message MsgRequestWithdrawal {
 }
 ```
 
-#### Validation and Processing
+#### Validation
 
 **Stateless Validation**:
+
 - Signer address must be valid
 - Amount must be positive
 
 **Stateful Processing**:
+
 1. Verify signer's escrow account exists
 2. Verify sufficient available balance
 3. Verify no existing withdrawal request at current timestamp (prevent key collision)
@@ -245,7 +254,7 @@ message MsgPayForFibre {
 message PaymentPromise {f
   // signer is the owner of the escrow account to charge
   string signer = 1;
-  // namespace is the namespace the blob is associated with. share version must be 2.
+  // namespace is the namespace the blob is associated with.
   bytes namespace = 2;
   // blob_size is the size of the blob in bytes
   uint32 blob_size = 3;
@@ -253,9 +262,9 @@ message PaymentPromise {f
   bytes commitment = 4;
   // row_version is the version of the row format
   uint32 row_version = 5;
-  // valset_height is the height that is used to determine the validator set that is used
+  // height is the height that is used to determine the validator set that is used
   // for the row dispersion algorithm (what validator has what rows) and for verifying signatures.
-  int64 valset_height = 6;
+  int64 height = 6;
   // creation_timestamp is the timestamp when this promise was created. This
   // is critical for determining which validators sign the commitment and
   // determining when service stops for this blob.
@@ -268,12 +277,13 @@ message PaymentPromise {f
 #### PaymentPromise Validation
 
 **Stateless Validation**:
+
 - `signer` must be valid bech32 address
 - `namespace` must be valid
 - `blob_size` must be positive
 - `commitment` must be 32 bytes
 - `row_version` must be supported version
-- `valset_height` must be positive
+- `height` must be positive
 - `creation_timestamp` must be positive
 - `signature` must be properly formatted and non-empty
 
@@ -282,9 +292,11 @@ message PaymentPromise {f
 Gas cost is calculated as described in the [Gas Consumption](#gas-consumption) section.
 
 **Stateful Validation**:
+
 1. Verify `creation_timestamp` is:
-  - less than or equal to current confirmed timestamp
-  - greater than (header_timestamp - withdrawal_delay)
+
+    - less than or equal to current confirmed timestamp
+    - greater than (header_timestamp - withdrawal_delay)
 
 2. Verify escrow account exists for `signer`
 3. Verify sufficient available balance for gas cost (see [Gas Consumption](#gas-consumption) section). This includes all yet to be processed `PaymentPromises` that the validator has signed over.
@@ -295,17 +307,18 @@ Gas cost is calculated as described in the [Gas Consumption](#gas-consumption) s
 
 The sign bytes for a PaymentPromise signature are constructed by concatenating all fields except the `signature` field, along with prepending the chainID:
 
-```
-sign_bytes = chainID || signer_bytes || namespace || blob_size_bytes || commitment || row_version_bytes || valset_height_bytes || creation_timestamp_bytes
+```text
+sign_bytes = chainID || signer_bytes || namespace || blob_size_bytes || commitment || row_version_bytes || height_bytes || creation_timestamp_bytes
 ```
 
 **Field Encoding**:
+
 - `signer`: raw bytes of signer address secp256k1 (20 bytes)
 - `namespace`: Raw namespace bytes (fixed 29 bytes)
 - `blob_size_bytes`: Big-endian encoded uint32 (4 bytes)
 - `commitment`: Raw commitment bytes (32 bytes)
 - `row_version_bytes`: Big-endian encoded uint32 (4 bytes)
-- `valset_height_bytes`: Big-endian encoded int64 (8 bytes)
+- `height_bytes`: Big-endian encoded int64 (8 bytes)
 - `creation_timestamp_bytes`: Protobuf-encoded google.protobuf.Timestamp (variable length)
 
 **Total Length**: Variable length (20 + 29 + 4 + 32 + 4 + 8 + timestamp_bytes)
@@ -313,12 +326,14 @@ sign_bytes = chainID || signer_bytes || namespace || blob_size_bytes || commitme
 #### MsgPayForFibre Validation and Processing
 
 **Stateless Validation**:
+
 - Must have at least one validator signature
 - All validator signatures must be properly formatted
 
 **Stateful Processing**:
+
 1. Validate PaymentPromise (see [PaymentPromise Validation](#paymentpromise-validation) above)
-2. Verify validator signatures represent 2/3+ threshold from validator set at `promise.valset_height` (obtained via historical info query from staking module):
+2. Verify validator signatures represent 2/3+ threshold from validator set at `promise.height` (obtained via historical info query from staking module):
    - Signatures must represent 2/3+ of total voting power AND 2/3+ of validator count
 3. Calculate gas cost (see [Gas Consumption](#gas-consumption) section) and deduct from both escrow balance and available_balance
 4. Mark promise as processed (stores `processed_at` timestamp and creates pruning index entry)
@@ -349,9 +364,11 @@ message MsgPaymentTimeout {
 #### MsgPaymentTimeout Validation and Processing
 
 **Stateless Validation**:
+
 - All [PaymentPromise](#paymentpromise-validation) stateless validation applies (including signature validation)
 
 **Stateful Processing**:
+
 1. Validate PaymentPromise (see [PaymentPromise Validation](#paymentpromise-validation) above)
 2. Verify `promise.creation_timestamp + promise_timeout <= header_timestamp` (timeout has passed)
 3. Calculate gas cost (see [Gas Consumption](#gas-consumption) section) and deduct from both escrow balance and available_balance
@@ -361,12 +378,12 @@ message MsgPaymentTimeout {
 
 #### Automatic Promise Pruning
 
-Processed promises are automatically pruned in `BeginBlocker` when `current_time >= processed_at + withdrawal_delay` to prevent unbounded state growth:
+Processed pyament promises are automatically pruned in `BeginBlocker` when `current_time >= processed_at + payment_promise_retention_window` to prevent unbounded state growth:
 
 ```go
 func pruneProcessedPromises(ctx sdk.Context, k Keeper) {
     currentTime := ctx.BlockTime()
-    pruneThreshold := currentTime.Add(-k.GetWithdrawalDelay(ctx))
+    pruneThreshold := currentTime.Add(-k.GetPaymentPromiseRetentionWindow(ctx))
 
     // Iterate over pruning index starting from earliest timestamp
     iterator := k.GetPruningIterator(ctx, pruneThreshold)
@@ -478,18 +495,18 @@ func BeginBlocker(ctx sdk.Context, k Keeper) {
 
 #### `EventDepositToEscrow`
 
-| Attribute Key | Attribute Value                    |
-|---------------|------------------------------------|
-| signer        | {bech32 encoded signer address}    |
-| amount        | {deposit amount}                   |
+| Attribute Key | Attribute Value                 |
+|---------------|---------------------------------|
+| signer        | {bech32 encoded signer address} |
+| amount        | {deposit amount}                |
 
 #### `EventRequestWithdrawalFromEscrow`
 
-| Attribute Key | Attribute Value                    |
-|---------------|------------------------------------|
-| signer         | {bech32 encoded signer address}     |
-| amount        | {withdrawal amount}                |
-| available_at  | {timestamp when available}          |
+| Attribute Key | Attribute Value                 |
+|---------------|---------------------------------|
+| signer        | {bech32 encoded signer address} |
+| amount        | {withdrawal amount}             |
+| available_at  | {timestamp when available}      |
 
 #### `EventProcessWithdrawal`
 
@@ -501,19 +518,19 @@ func BeginBlocker(ctx sdk.Context, k Keeper) {
 
 #### `EventPayForFibre`
 
-| Attribute Key | Attribute Value                      |
-|---------------|--------------------------------------|
-| signer        | {bech32 encoded submitter address}   |
-| signer  | {bech32 encoded escrow owner}        |
-| namespace     | {namespace the blob is published to} |
-| validator_count | {number of validator signatures}   |
+| Attribute Key   | Attribute Value                      |
+|-----------------|--------------------------------------|
+| signer          | {bech32 encoded submitter address}   |
+| signer          | {bech32 encoded escrow owner}        |
+| namespace       | {namespace the blob is published to} |
+| validator_count | {number of validator signatures}     |
 
 #### `EventProcessPromiseTimeout`
 
-| Attribute Key | Attribute Value                      |
-|---------------|--------------------------------------|
-| processor     | {bech32 encoded processor address}   |
-| signer  | {bech32 encoded escrow owner}        |
+| Attribute Key | Attribute Value                                |
+|---------------|------------------------------------------------|
+| processor     | {bech32 encoded processor address}             |
+| signer        | {bech32 encoded escrow owner}                  |
 | promise_hash  | {hash for the promise that is being timed out} |
 
 ## Queries
@@ -523,6 +540,7 @@ func BeginBlocker(ctx sdk.Context, k Keeper) {
 Queries an [escrow account](#escrow-accounts) by ID.
 
 **Request**:
+
 ```proto
 message QueryEscrowAccountRequest {
   string signer = 1;
@@ -530,6 +548,7 @@ message QueryEscrowAccountRequest {
 ```
 
 **Response**:
+
 ```proto
 message QueryEscrowAccountResponse {
   EscrowAccount escrow_account = 1;
@@ -542,6 +561,7 @@ message QueryEscrowAccountResponse {
 Queries [pending withdrawals](#pending-withdrawals) for an escrow account.
 
 **Request**:
+
 ```proto
 message QueryPendingWithdrawalsRequest {
   string signer = 1;
@@ -550,6 +570,7 @@ message QueryPendingWithdrawalsRequest {
 ```
 
 **Response**:
+
 ```proto
 message QueryPendingWithdrawalsResponse {
   repeated PendingWithdrawal pending_withdrawals = 1;
@@ -562,6 +583,7 @@ message QueryPendingWithdrawalsResponse {
 Queries whether a [promise](#processed-promises) has been processed.
 
 **Request**:
+
 ```proto
 message QueryProcessedPromiseRequest {
   bytes promise_hash = 1;
@@ -569,6 +591,7 @@ message QueryProcessedPromiseRequest {
 ```
 
 **Response**:
+
 ```proto
 message QueryProcessedPromiseResponse {
   google.protobuf.Timestamp processed_at = 1;
@@ -581,6 +604,7 @@ message QueryProcessedPromiseResponse {
 Validates a [payment promise](#msgpayforfibre) for server use, performing all required checks including escrow balance and processing status.
 
 **Request**:
+
 ```proto
 message QueryValidatePaymentPromiseRequest {
   PaymentPromise promise = 1;
@@ -588,6 +612,7 @@ message QueryValidatePaymentPromiseRequest {
 ```
 
 **Response**:
+
 ```proto
 message QueryValidatePaymentPromiseResponse {
   bool valid = 1;
@@ -600,17 +625,21 @@ message QueryValidatePaymentPromiseResponse {
 ```
 
 **Validation Checks**:
+
 1. Verify escrow account exists and has sufficient available balance for the gas cost (see [Gas Consumption](#gas-consumption) section)
 2. Verify promise hasn't been processed already
 3. Perform all standard PaymentPromise validation (see [PaymentPromise Validation](#paymentpromise-validation) section)
 
 ## Parameters
 
-| Key                | Type                        | Default    | Description |
-|--------------------|-----------------------------|-----------:|-------------|
-| GasPerBlobByte     | uint32                      | 8          | Gas cost per byte of blob data |
-| WithdrawalDelay    | google.protobuf.Duration    | 24h        | Duration to wait before withdrawal |
-| PromiseTimeout     | google.protobuf.Duration    | 1h         | Duration before promise can be processed by timeout |
+All parameters are modifiable via governance.
+
+| Key                           | Type                     | Default | Description                                                              |
+|-------------------------------|--------------------------|--------:|--------------------------------------------------------------------------|
+| GasPerBlobByte                | uint32                   |       8 | Gas cost per byte of blob data                                           |
+| PromiseTimeout                | google.protobuf.Duration |      1h | Duration before promise can be processed by timeout                      |
+| WithdrawalDelay               | google.protobuf.Duration |     24h | Duration to wait before withdrawal                                       |
+| PaymentPromiseRetentionWindow | google.protobuf.Duration |     24h | Duration to wait before processed payment promises are pruned from state |
 
 ## Client
 
@@ -623,8 +652,7 @@ message QueryValidatePaymentPromiseResponse {
 celestia-appd tx fibre deposit-to-escrow <amount> [flags]
 
 # Request withdrawal from escrow
-  celestia-appd tx fibre request-withdrawal <amount> [flags]
-
+celestia-appd tx fibre request-withdrawal <amount> [flags]
 
 # Generate signed promise for validators
 celestia-appd tx fibre create-promise <namespace> <blob_size> <commitment> [flags]
@@ -636,7 +664,7 @@ celestia-appd tx fibre pay-for-fibre <promise_json> <validator_signatures_json> 
 celestia-appd tx fibre process-promise-timeout <promise_json> <promise_signature> [flags]
 ```
 
-#### Queries
+#### CLI Queries
 
 ```shell
 # Query escrow account
