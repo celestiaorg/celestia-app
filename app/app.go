@@ -194,7 +194,7 @@ type App struct {
 	// blockTime is used to override the default TimeoutHeightDelay. This is
 	// useful for testing purposes and should not be used on public networks
 	// (Arabica, Mocha, or Mainnet Beta).
-	// treePool used for ProcessPropsal and PrepareProposal to optimize root calculation allocs
+	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
 	treePool                *wrapper.TreePool
 	delayedPrecommitTimeout time.Duration
 }
