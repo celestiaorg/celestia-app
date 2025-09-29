@@ -44,7 +44,9 @@ const (
 	SendGasLimit         = 100000
 	FeegrantGasLimit     = 800000
 	DefaultWorkerBalance = 1
-	evictionPollTime     = 1 * time.Minute
+	// evictionPollTimeOut is the timeout for checking if an evicted transaction
+	// gets committed after experiencing a broadcast error during resubmission
+	evictionPollTimeOut = 1 * time.Minute
 )
 
 type Option func(client *TxClient)
@@ -662,7 +664,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 		}
 
 		if evictionPollTimeStart != nil {
-			if time.Since(*evictionPollTimeStart) > evictionPollTime {
+			if time.Since(*evictionPollTimeStart) > evictionPollTimeOut {
 				return nil, fmt.Errorf("eviction poll timeout: transaction %s was evicted ", txHash)
 			}
 		}
