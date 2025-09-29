@@ -111,7 +111,7 @@ func TestParallelTxSubmission(t *testing.T) {
 	errCh := make(chan error, numJobs)
 	for i := range numJobs {
 		wg.Add(1)
-		go func(idx int) {
+		go func(idx int) { //nolint:contextcheck
 			defer wg.Done()
 			resp, err := txClient.SubmitPayForBlob(ctx.GoContext(), []*share.Blob{blobs[idx]}, user.SetGasLimitAndGasPrice(500_000, appconsts.DefaultMinGasPrice))
 			if err != nil {

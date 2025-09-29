@@ -184,7 +184,7 @@ func TestParallelSubmitPayForBlobSuccess(t *testing.T) {
 	var resultsMu sync.Mutex
 
 	// Submit all jobs in parallel
-	for i := range jobCount {
+	for range jobCount {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -309,7 +309,7 @@ func TestParallelSubmissionSignerAddress(t *testing.T) {
 	var resultsMu sync.Mutex
 
 	// Submit all jobs in parallel
-	for i := range jobCount {
+	for range jobCount {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
