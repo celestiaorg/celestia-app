@@ -257,6 +257,12 @@ modernize-fix:
 	@bash scripts/modernize.sh
 .PHONY: modernize-fix
 
+## modernize-check: Check for modernize issues without applying fixes.
+modernize-check:
+	@echo "--> Checking for modernize issues"
+	@bash scripts/modernize-check.sh
+.PHONY: modernize-check
+
 ## test: Run tests.
 test:
 	@echo "--> Running tests"
@@ -446,7 +452,7 @@ enable-bbr:
 	@if [ "$$(uname -s)" != "Linux" ]; then \
 		echo "BBR is not available on non-Linux systems."; \
 		exit 0; \
-	elif [ "$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')" != "bbr" ]; then \
+	elif [ "$$(sysctl net.ipv4.tcp_congestion_control | awk '{print $$3}')" != "bbr" ]; then \
 	    echo "BBR is not enabled. Configuring BBR..."; \
 	    sudo modprobe tcp_bbr && \
             echo tcp_bbr | sudo tee -a /etc/modules && \
