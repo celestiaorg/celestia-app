@@ -78,7 +78,6 @@ var _ rsmt2d.Tree = &resizeableBufferTree{}
 type resizeableBufferTree struct {
 	squareSize    uint // note: this refers to the width of the original square before erasure-coded
 	maxSquareSize uint // maximum square size this tree's buffer can handle without reallocation
-	options       []nmt.Option
 	tree          *nmt.NamespacedMerkleTree
 	// axisIndex is the index of the axis (row or column) that this tree is on. This is passed
 	// by rsmt2d and used to help determine which quadrant each leaf belongs to.
@@ -113,7 +112,6 @@ func newResizeableBufferTree(maxSquareSize uint, axisIndex uint, pool *TreePool,
 	return &resizeableBufferTree{
 		squareSize:      maxSquareSize,
 		maxSquareSize:   maxSquareSize,
-		options:         options,
 		tree:            tree,
 		pool:            pool,
 		bufferEntrySize: entrySize,
