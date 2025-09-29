@@ -15,7 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
 	"github.com/celestiaorg/go-square/v3/share"
-	cmtservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
+	"github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -33,15 +33,12 @@ func main() {
 	log.Println("Setting up tx client and connecting to a mocha node")
 
 	// Global test context with configured timeout
-	ctx, testCancel := context.WithTimeout(context.Background(), testDurationSec*time.Second)
-	defer testCancel()
+	ctx, cancel := context.WithTimeout(context.Background(), testDurationSec*time.Second)
 
-	txClient, grpcConn, cancel, err := NewMochaTxClient(ctx)
+	txClient, grpcConn, _, err := NewMochaTxClient(ctx)
 	if err != nil {
 		log.Fatalf("failed to set up tx client: %v", err)
 	}
-	defer grpcConn.Close()
-	defer cancel()
 
 	var (
 		txCounter            int64
@@ -57,7 +54,6 @@ func main() {
 	g, ctx := errgroup.WithContext(ctx)
 
 	ticker := time.NewTicker(time.Duration(intervalMs) * time.Millisecond)
-	defer ticker.Stop()
 
 	// Submission loop which breaks out if the text duration is exceeded
 	g.Go(func() error {
@@ -102,16 +98,22 @@ func main() {
 	})
 
 	// This only fails if the client halts
-	if err := g.Wait(); err != nil {
+	err = g.Wait()
+	ticker.Stop() // Stop ticker after errgroup finishes
+
+	if err != nil {
 		if !errors.Is(err, context.DeadlineExceeded) {
 			log.Fatalf("Script failed: %v", err)
 		}
-		fmt.Println("\nScript completed successfully!!")
-		fmt.Printf("Successful broadcasts: %d\n", successfulBroadcasts.Load())
-		fmt.Printf("Successful confirms: %d\n", successfulConfirms.Load())
-		fmt.Printf("Failed confirms: %d\n", failedConfirms.Load())
-		fmt.Printf("Failed broadcasts: %d\n", failedBroadcasts.Load())
 	}
+
+	fmt.Println("\nScript completed successfully!!")
+	fmt.Printf("Successful broadcasts: %d\n", successfulBroadcasts.Load())
+	fmt.Printf("Successful confirms: %d\n", successfulConfirms.Load())
+	fmt.Printf("Failed confirms: %d\n", failedConfirms.Load())
+	fmt.Printf("Failed broadcasts: %d\n", failedBroadcasts.Load())
+
+	cancel() // Clean up context before exit
 }
 
 func BroadcastPayForBlob(ctx context.Context, txClient *user.TxClient, grpcConn *grpc.ClientConn, blobSizeKB int, txID int64) (hash string, err error) {
