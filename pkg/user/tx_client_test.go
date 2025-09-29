@@ -9,7 +9,6 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
-<<<<<<< HEAD
 	"cosmossdk.io/math/unsafe"
 	"github.com/celestiaorg/celestia-app/v5/app"
 	"github.com/celestiaorg/celestia-app/v5/app/encoding"
@@ -19,22 +18,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v5/pkg/user"
 	"github.com/celestiaorg/celestia-app/v5/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v5/test/util/grpctest"
 	"github.com/celestiaorg/celestia-app/v5/test/util/random"
 	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
-=======
-	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v6/app/params"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/user"
-	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v6/test/util/random"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
->>>>>>> 82ac36d (refactor: tx client rejection bug flups (#5824))
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -624,21 +609,6 @@ func setupEstimatorService(t *testing.T) *mockEstimatorServer {
 	return mes
 }
 
-<<<<<<< HEAD
-var (
-	errMock1             = errors.New("mock1 failed")
-	errMock2             = errors.New("mock2 failed")
-	errMock3             = errors.New("mock3 failed")
-	errInsufficientFunds = errors.New("insufficient funds") // Replicates SDK error text
-)
-
-type broadcastTestCase struct {
-	setupMocks  func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn)
-	expectError bool // Changed from error to bool
-}
-
-=======
->>>>>>> 82ac36d (refactor: tx client rejection bug flups (#5824))
 func (suite *TxClientTestSuite) TestMultiConnBroadcast() {
 	t := suite.T()
 
@@ -779,56 +749,3 @@ func (suite *TxClientTestSuite) TestMultiConnBroadcast() {
 		})
 	}
 }
-<<<<<<< HEAD
-=======
-
-// TestSequenceIncrementOnlyOnceInMultiConnBroadcast specifically tests that the sequence
-// is incremented exactly once even when multiple connections succeed simultaneously.
-// This test would fail if we naively called broadcastTxAndIncrementSequence in each goroutine.
-func (suite *TxClientTestSuite) TestSequenceIncrementOnlyOnceInMultiConnBroadcast() {
-	t := suite.T()
-
-	// Create mock services that all succeed immediately
-	handlers := []BroadcastHandler{
-		func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
-			return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "SUCCESS1"}}, nil
-		},
-		func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
-			return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "SUCCESS2"}}, nil
-		},
-		func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
-			return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "SUCCESS3"}}, nil
-		},
-	}
-	multiConnClient, _ := setupTxClientWithMockServers(t, handlers, nil)
-
-	// Capture sequence before broadcast
-	seqBefore := multiConnClient.Signer().Account(multiConnClient.DefaultAccountName()).Sequence()
-
-	// Create a simple message
-	msg := bank.NewMsgSend(
-		multiConnClient.DefaultAddress(),
-		multiConnClient.DefaultAddress(),
-		sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))),
-	)
-
-	// Broadcast the transaction
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	resp, err := multiConnClient.BroadcastTx(ctx, []sdk.Msg{msg}, user.SetGasLimit(100000), user.SetFee(1000))
-	require.NoError(t, err, "BroadcastTx should succeed")
-	require.NotNil(t, resp, "Response should not be nil")
-	require.Equal(t, abci.CodeTypeOK, resp.Code, "Response code should be OK")
-
-	// Verify sequence was incremented by exactly 1
-	seqAfter := multiConnClient.Signer().Account(multiConnClient.DefaultAccountName()).Sequence()
-	require.Equal(t, seqBefore+1, seqAfter, "Sequence should be incremented by exactly 1, not by number of connections")
-
-	// Verify the transaction is tracked
-	trackedSeq, trackedSigner, exists := multiConnClient.GetTxFromTxTracker(resp.TxHash)
-	require.True(t, exists, "Transaction should be in tracker")
-	require.Equal(t, seqBefore, trackedSeq, "Tracked sequence should be the sequence before increment")
-	require.Equal(t, multiConnClient.DefaultAccountName(), trackedSigner, "Tracked signer should match")
-}
->>>>>>> 82ac36d (refactor: tx client rejection bug flups (#5824))
