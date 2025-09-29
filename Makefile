@@ -31,7 +31,7 @@ BUILD_FLAGS_MULTIPLEXER := -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_M
 # dockerchain/config.go
 CELESTIA_V3_VERSION := v3.10.6
 CELESTIA_V4_VERSION := v4.1.0
-CELESTIA_V5_VERSION := v5.0.7
+CELESTIA_V5_VERSION := v5.0.10
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -251,6 +251,12 @@ fmt:
 lint-fix: fmt
 .PHONY: lint-fix
 
+## modernize-fix: Apply modernize suggestions automatically.
+modernize-fix:
+	@echo "--> Applying modernize fixes"
+	@bash scripts/modernize.sh
+.PHONY: modernize-fix
+
 ## test: Run tests.
 test:
 	@echo "--> Running tests"
@@ -394,7 +400,7 @@ prebuilt-binary:
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
 		-w /go/src/$(PACKAGE_NAME) \
 		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
-		release --clean --parallelism 2
+		release --clean --parallelism 1
 .PHONY: prebuilt-binary
 
 ## goreleaser-dry-run: ensures that the go releaser tool can build all the artifacts correctly.
@@ -410,7 +416,7 @@ goreleaser-dry-run:
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
 		-w /go/src/$(PACKAGE_NAME) \
 		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
-		release --snapshot --clean --parallelism 4
+		release --snapshot --clean --parallelism 1
 .PHONY: goreleaser-dry-run
 
 ## goreleaser: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
