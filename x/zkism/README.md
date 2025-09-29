@@ -141,7 +141,7 @@ The module enforces the following invariants:
 - Proof length must be exactly 256 bytes + the 4 byte prefix, equalling a total of 260 bytes.
 - State transition proofs must update trusted state monotonically: new height and associated state root replace prior values.
 - State membership proofs must bind to a trusted root and authorize exactly the listed message IDs, which can each be consumed once.
-- Once consumed, message IDs cannot be reused, preventing replay of previously authorized messages. Note that replay protection is also enforced by the Hyperlane Mailbox configured with the ISM.
+- Once consumed, message IDs cannot be reused, preventing replay of previously authorized messages. Note that replay protection is also enforced by the [Hyperlane Mailbox](https://docs.hyperlane.xyz/docs/protocol/core/mailbox) configured with the ISM.
 
 ### Liveness and Availability Risks
 
