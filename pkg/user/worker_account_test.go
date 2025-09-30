@@ -99,27 +99,26 @@ func TestWorkerZeroAlwaysUsesMainAccount(t *testing.T) {
 			// Verify client uses our custom account as default
 			require.Equal(t, customAccountName, client.DefaultAccountName())
 
-			// Verify parallel pool exists
-			require.NotNil(t, client.ParallelPool())
+			// Verify tx queue exists
+			require.True(t, client.TxQueueWorkerCount() > 0)
 
 			// Get all workers
-			workers := client.ParallelPool().Workers()
-			require.Len(t, workers, tc.numWorkers)
+			require.Equal(t, tc.numWorkers, client.TxQueueWorkerCount())
 
 			// CRITICAL TEST: Worker 0 must ALWAYS use the main account passed to TxClient
-			worker0 := workers[0]
-			require.Equal(t, customAccountName, worker0.AccountName(),
+			worker0Name := client.TxQueueWorkerAccountName(0)
+			require.Equal(t, customAccountName, worker0Name,
 				"Worker 0 must always use the main account passed to TxClient")
-			require.Equal(t, client.DefaultAccountName(), worker0.AccountName(),
+			require.Equal(t, client.DefaultAccountName(), worker0Name,
 				"Worker 0 must use the same account as client.DefaultAccountName()")
 
 			// For multiple workers, verify additional workers use generated names
 			if tc.numWorkers > 1 {
 				for i := 1; i < tc.numWorkers; i++ {
 					expectedName := "parallel-worker-" + string(rune('0'+i))
-					require.Equal(t, expectedName, workers[i].AccountName(),
+					require.Equal(t, expectedName, client.TxQueueWorkerAccountName(i),
 						"Additional workers should use generated names")
-					require.NotEqual(t, customAccountName, workers[i].AccountName(),
+					require.NotEqual(t, customAccountName, client.TxQueueWorkerAccountName(i),
 						"Additional workers should NOT use the main account")
 				}
 			}
@@ -143,16 +142,15 @@ func TestWorkerZeroWithDifferentDefaultAccounts(t *testing.T) {
 			require.Equal(t, defaultAccount, client.DefaultAccountName())
 
 			// Get workers
-			workers := client.ParallelPool().Workers()
-			require.Len(t, workers, 3)
+			require.Equal(t, 3, client.TxQueueWorkerCount())
 
 			// CRITICAL: Worker 0 must use whatever account is configured as default
-			require.Equal(t, defaultAccount, workers[0].AccountName(),
+			require.Equal(t, defaultAccount, client.TxQueueWorkerAccountName(0),
 				"Worker 0 must always use the configured default account (%s)", defaultAccount)
 
 			// Other workers use generated names
-			require.Equal(t, "parallel-worker-1", workers[1].AccountName())
-			require.Equal(t, "parallel-worker-2", workers[2].AccountName())
+			require.Equal(t, "parallel-worker-1", client.TxQueueWorkerAccountName(1))
+			require.Equal(t, "parallel-worker-2", client.TxQueueWorkerAccountName(2))
 		})
 	}
 }

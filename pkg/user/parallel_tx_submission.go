@@ -31,20 +31,20 @@ type SubmissionResult struct {
 	Error      error
 }
 
-// ParallelTxPool manages parallel transaction submission
-type ParallelTxPool struct {
+// txQueue manages parallel transaction submission
+type txQueue struct {
 	mtx         sync.RWMutex
 	client      *TxClient
 	jobQueue    chan *SubmissionJob
-	workers     []*TxWorker
+	workers     []*txWorker
 	started     atomic.Bool
 	ctx         context.Context
 	cancel      context.CancelFunc
 	initialized atomic.Bool // whether workers have been initialized
 }
 
-// TxWorker represents a worker that processes transactions using a specific account
-type TxWorker struct {
+// txWorker represents a worker that processes transactions using a specific account
+type txWorker struct {
 	id          int
 	accountName string
 	address     string
@@ -56,11 +56,11 @@ const (
 	defaultParallelQueueSize = 100
 )
 
-func newParallelTxPool(client *TxClient, numWorkers int) *ParallelTxPool {
-	pool := &ParallelTxPool{
+func newTxQueue(client *TxClient, numWorkers int) *txQueue {
+	pool := &txQueue{
 		client:   client,
 		jobQueue: make(chan *SubmissionJob, defaultParallelQueueSize),
-		workers:  make([]*TxWorker, numWorkers),
+		workers:  make([]*txWorker, numWorkers),
 	}
 
 	// Create workers: first worker always uses existing signer account
@@ -83,7 +83,7 @@ func newParallelTxPool(client *TxClient, numWorkers int) *ParallelTxPool {
 			}
 		}
 
-		worker := &TxWorker{
+		worker := &txWorker{
 			id:          i,
 			accountName: accountName,
 			address:     address,
@@ -96,8 +96,8 @@ func newParallelTxPool(client *TxClient, numWorkers int) *ParallelTxPool {
 	return pool
 }
 
-// Start initiates all workers in the pool
-func (p *ParallelTxPool) Start(ctx context.Context) error {
+// start initiates all workers in the pool
+func (p *txQueue) start(ctx context.Context) error {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
@@ -117,15 +117,15 @@ func (p *ParallelTxPool) Start(ctx context.Context) error {
 	p.ctx, p.cancel = context.WithCancel(ctx)
 
 	for _, worker := range p.workers {
-		go worker.Start(p.ctx)
+		go worker.start(p.ctx)
 	}
 
 	p.started.Store(true)
 	return nil
 }
 
-// Stop shuts down all workers in the pool
-func (p *ParallelTxPool) Stop() {
+// stop shuts down all workers in the pool
+func (p *txQueue) stop() {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
@@ -139,8 +139,8 @@ func (p *ParallelTxPool) Stop() {
 	p.started.Store(false)
 }
 
-// SubmitJob submits a job to the parallel worker pool
-func (p *ParallelTxPool) SubmitJob(job *SubmissionJob) {
+// submitJob submits a job to the parallel worker pool
+func (p *txQueue) submitJob(job *SubmissionJob) {
 	p.mtx.RLock()
 	jobQueue := p.jobQueue
 	ctx := p.ctx
@@ -148,29 +148,24 @@ func (p *ParallelTxPool) SubmitJob(job *SubmissionJob) {
 	p.mtx.RUnlock()
 
 	if !started || ctx == nil {
-		job.ResultsC <- SubmissionResult{Error: errors.New("parallel pool not started")}
+		job.ResultsC <- SubmissionResult{Error: errors.New("tx queue not started")}
 		return
 	}
 
 	select {
 	case jobQueue <- job:
 	case <-ctx.Done():
-		job.ResultsC <- SubmissionResult{Error: errors.New("parallel pool full or has stopped")}
+		job.ResultsC <- SubmissionResult{Error: errors.New("tx queue full or has stopped")}
 	}
 }
 
-// Workers returns the workers in the parallel pool
-func (p *ParallelTxPool) Workers() []*TxWorker {
-	return p.workers
-}
-
-// IsStarted returns whether the parallel pool is started
-func (p *ParallelTxPool) IsStarted() bool {
+// isStarted returns whether the tx queue is started
+func (p *txQueue) isStarted() bool {
 	return p.started.Load()
 }
 
-// Start begins the worker's job processing loop
-func (w *TxWorker) Start(ctx context.Context) {
+// start begins the worker's job processing loop
+func (w *txWorker) start(ctx context.Context) {
 	for {
 		select {
 		case job := <-w.jobQueue:
@@ -182,7 +177,7 @@ func (w *TxWorker) Start(ctx context.Context) {
 }
 
 // processJob handles the actual transaction submission for a job
-func (w *TxWorker) processJob(job *SubmissionJob, workerCtx context.Context) {
+func (w *txWorker) processJob(job *SubmissionJob, workerCtx context.Context) {
 	jobCtx := job.Ctx
 	if jobCtx == nil {
 		jobCtx = context.Background()
@@ -224,26 +219,26 @@ func (w *TxWorker) processJob(job *SubmissionJob, workerCtx context.Context) {
 // and sets up fee grants so the main account pays for transaction fees.
 // This method should be called after TxClient creation but before parallel submissions.
 func (client *TxClient) InitializeWorkerAccounts(ctx context.Context) error {
-	if client.parallelPool == nil {
-		return errors.New("parallel pool not configured - use WithTxWorkers option")
+	if client.txQueue == nil {
+		return errors.New("tx queue not configured - use WithTxWorkers option")
 	}
 
 	// No work required if we've already initialized all workers.
-	if client.parallelPool.initialized.Load() {
+	if client.txQueue.initialized.Load() {
 		return nil
 	}
 
 	// If we only have one worker (index 0), skip all initialization as it uses the existing signer account
-	if len(client.parallelPool.workers) == 1 {
-		client.parallelPool.initialized.Store(true)
+	if len(client.txQueue.workers) == 1 {
+		client.txQueue.initialized.Store(true)
 		return nil
 	}
 
 	// Get the list of worker accounts that need to be initialized
 	// Skip the first worker (index 0) as it always uses the existing signer account
-	var workersToInit []*TxWorker
-	var workersToLoad []*TxWorker
-	for i, worker := range client.parallelPool.workers {
+	var workersToInit []*txWorker
+	var workersToLoad []*txWorker
+	for i, worker := range client.txQueue.workers {
 		if i == 0 {
 			// Skip first worker - it uses existing account
 			continue
@@ -272,7 +267,7 @@ func (client *TxClient) InitializeWorkerAccounts(ctx context.Context) error {
 	}
 
 	if len(workersToInit) == 0 {
-		client.parallelPool.initialized.Store(true)
+		client.txQueue.initialized.Store(true)
 		return nil // All accounts already exist
 	}
 
@@ -292,7 +287,7 @@ func (client *TxClient) InitializeWorkerAccounts(ctx context.Context) error {
 }
 
 // createFeeGrantMessages creates fee grant messages for workers that don't already have grants
-func (client *TxClient) createFeeGrantMessages(ctx context.Context, workers []*TxWorker) ([]sdktypes.Msg, uint64, error) {
+func (client *TxClient) createFeeGrantMessages(ctx context.Context, workers []*txWorker) ([]sdktypes.Msg, uint64, error) {
 	msgs := make([]sdktypes.Msg, 0, len(workers))
 	totalGasLimit := uint64(0)
 	masterAddress := client.defaultAddress
@@ -334,7 +329,7 @@ func (client *TxClient) createFeeGrantMessages(ctx context.Context, workers []*T
 }
 
 // loadWorkerAccount loads an existing account from keyring into the signer
-func (client *TxClient) loadWorkerAccount(worker *TxWorker) error {
+func (client *TxClient) loadWorkerAccount(worker *txWorker) error {
 	// Get account from keyring
 	record, err := client.signer.keys.Key(worker.accountName)
 	if err != nil {
@@ -410,7 +405,7 @@ func (client *TxClient) hasFeeGrant(ctx context.Context, granter, grantee sdktyp
 }
 
 // fundAndGrantWorkerAccounts sends funds to worker accounts and sets up fee grants
-func (client *TxClient) fundAndGrantWorkerAccounts(ctx context.Context, workers []*TxWorker) error {
+func (client *TxClient) fundAndGrantWorkerAccounts(ctx context.Context, workers []*txWorker) error {
 	if len(workers) == 0 {
 		return nil
 	}
@@ -497,6 +492,6 @@ func (client *TxClient) fundAndGrantWorkerAccounts(ctx context.Context, workers 
 		worker.address = workerAddress.String()
 	}
 
-	client.parallelPool.initialized.Store(true)
+	client.txQueue.initialized.Store(true)
 	return nil
 }

@@ -124,10 +124,10 @@ func WithDefaultAccount(name string) Option {
 		c.defaultAccount = name
 		c.defaultAddress = addr
 
-		// Update worker 0's account if parallel pool already exists
-		if c.parallelPool != nil && len(c.parallelPool.workers) > 0 {
-			c.parallelPool.workers[0].accountName = name
-			c.parallelPool.workers[0].address = addr.String()
+		// Update worker 0's account if tx queue already exists
+		if c.txQueue != nil && len(c.txQueue.workers) > 0 {
+			c.txQueue.workers[0].accountName = name
+			c.txQueue.workers[0].address = addr.String()
 		}
 	}
 }
@@ -160,8 +160,8 @@ func WithTxWorkers(numWorkers int) Option {
 	}
 
 	return func(c *TxClient) {
-		pool := newParallelTxPool(c, numWorkers)
-		c.parallelPool = pool
+		pool := newTxQueue(c, numWorkers)
+		c.txQueue = pool
 	}
 }
 
@@ -169,8 +169,8 @@ func WithTxWorkers(numWorkers int) Option {
 // Default is 100 if not specified.
 func WithParallelQueueSize(size int) Option {
 	return func(c *TxClient) {
-		if c.parallelPool != nil {
-			c.parallelPool.jobQueue = make(chan *SubmissionJob, size)
+		if c.txQueue != nil {
+			c.txQueue.jobQueue = make(chan *SubmissionJob, size)
 		}
 	}
 }
@@ -195,8 +195,8 @@ type TxClient struct {
 	// that was submitted to the chain
 	txTracker           map[string]txInfo
 	gasEstimationClient gasestimation.GasEstimatorClient
-	// parallelPool manages parallel transaction submission when enabled
-	parallelPool *ParallelTxPool
+	// txQueue manages parallel transaction submission when enabled
+	txQueue *txQueue
 }
 
 // NewTxClient returns a new TxClient
@@ -236,10 +236,10 @@ func NewTxClient(
 		opt(txClient)
 	}
 
-	// Always create a parallel pool with at least 1 worker (the default account)
+	// Always create a tx queue with at least 1 worker (the default account)
 	// unless already configured by WithTxWorkers option
-	if txClient.parallelPool == nil {
-		txClient.parallelPool = newParallelTxPool(txClient, 1)
+	if txClient.txQueue == nil {
+		txClient.txQueue = newTxQueue(txClient, 1)
 	}
 
 	return txClient, nil
@@ -294,10 +294,10 @@ func SetupTxClient(
 		return nil, err
 	}
 
-	// Always start the parallel pool
-	if txClient.parallelPool != nil {
-		if err := txClient.parallelPool.Start(ctx); err != nil {
-			return nil, fmt.Errorf("failed to start parallel pool: %w", err)
+	// Always start the tx queue
+	if txClient.txQueue != nil {
+		if err := txClient.txQueue.start(ctx); err != nil {
+			return nil, fmt.Errorf("failed to start tx queue: %w", err)
 		}
 	}
 
@@ -306,28 +306,26 @@ func SetupTxClient(
 
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
-// This method uses the parallel pool infrastructure and blocks until the transaction is confirmed.
+// This method uses the tx queue infrastructure and blocks until the transaction is confirmed.
 func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
-	if client.parallelPool == nil {
-		return nil, errors.New("parallel pool not configured")
+	if client.txQueue == nil {
+		return nil, errors.New("tx queue not configured")
 	}
 
-	if !client.parallelPool.started.Load() {
-		return nil, errors.New("parallel pool not started")
+	if !client.txQueue.started.Load() {
+		return nil, errors.New("tx queue not started")
 	}
 
-	jobID := fmt.Sprintf("job_%d", time.Now().UnixNano())
 	resultsC := make(chan SubmissionResult, 1)
 
 	job := &SubmissionJob{
-		ID:       jobID,
 		Blobs:    blobs,
 		Options:  opts,
 		Ctx:      ctx,
 		ResultsC: resultsC,
 	}
 
-	client.parallelPool.SubmitJob(job)
+	client.SubmitJob(job)
 
 	// Block waiting for the result
 	result := <-resultsC
@@ -336,6 +334,15 @@ func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blo
 	}
 
 	return result.TxResponse, nil
+}
+
+// SubmitJob submits a job to the tx queue for parallel processing
+func (client *TxClient) SubmitJob(job *SubmissionJob) {
+	if client.txQueue != nil {
+		client.txQueue.submitJob(job)
+	} else {
+		job.ResultsC <- SubmissionResult{Error: errors.New("tx queue not configured")}
+	}
 }
 
 // SubmitPayForBlobWithAccount forms a transaction from the provided blobs, signs it with the provided account, and submits it to the chain.
@@ -959,14 +966,51 @@ func (client *TxClient) Signer() *Signer {
 	return client.signer
 }
 
-// ParallelPool exposes the tx client's parallel pool (may be nil if not configured)
-func (client *TxClient) ParallelPool() *ParallelTxPool {
-	return client.parallelPool
+// StartTxQueue starts the tx queue if not already started
+func (client *TxClient) StartTxQueue(ctx context.Context) error {
+	if client.txQueue == nil {
+		return errors.New("tx queue not configured")
+	}
+	return client.txQueue.start(ctx)
 }
 
-// AccountName returns the account name for this worker
-func (w *TxWorker) AccountName() string {
-	return w.accountName
+// StopTxQueue stops the tx queue if running
+func (client *TxClient) StopTxQueue() {
+	if client.txQueue != nil {
+		client.txQueue.stop()
+	}
+}
+
+// IsTxQueueStarted returns whether the tx queue is started
+func (client *TxClient) IsTxQueueStarted() bool {
+	if client.txQueue == nil {
+		return false
+	}
+	return client.txQueue.isStarted()
+}
+
+// TxQueueWorkerCount returns the number of workers in the tx queue
+func (client *TxClient) TxQueueWorkerCount() int {
+	if client.txQueue == nil {
+		return 0
+	}
+	return len(client.txQueue.workers)
+}
+
+// TxQueueWorkerAddress returns the address for the worker at the given index
+func (client *TxClient) TxQueueWorkerAddress(index int) string {
+	if client.txQueue == nil || index < 0 || index >= len(client.txQueue.workers) {
+		return ""
+	}
+	return client.txQueue.workers[index].address
+}
+
+// TxQueueWorkerAccountName returns the account name for the worker at the given index
+func (client *TxClient) TxQueueWorkerAccountName(index int) string {
+	if client.txQueue == nil || index < 0 || index >= len(client.txQueue.workers) {
+		return ""
+	}
+	return client.txQueue.workers[index].accountName
 }
 
 // QueryMinimumGasPrice queries both the nodes local and network wide

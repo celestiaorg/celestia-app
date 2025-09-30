@@ -170,10 +170,10 @@ func TestParallelSubmitPayForBlobSuccess(t *testing.T) {
 	workerAccounts := []string{"parallel-worker-1", "parallel-worker-2"}
 	client, conn := newMockTxClientWithCustomHandlers(t, broadcastHandler, txStatusHandler, workerAccounts)
 	defer conn.Close()
-	require.NotNil(t, client.ParallelPool())
+	require.True(t, client.TxQueueWorkerCount() > 0)
 
-	// Start the parallel pool
-	err := client.ParallelPool().Start(context.Background())
+	// Start the tx queue
+	err := client.StartTxQueue(context.Background())
 	require.NoError(t, err)
 
 	blob := randomBlob(t)
@@ -210,8 +210,9 @@ func TestParallelSubmitPayForBlobSuccess(t *testing.T) {
 	}
 
 	var totalSequence uint64
-	for _, worker := range client.ParallelPool().Workers() {
-		totalSequence += client.Signer().Account(worker.AccountName()).Sequence()
+	for i := 0; i < client.TxQueueWorkerCount(); i++ {
+		accountName := client.TxQueueWorkerAccountName(i)
+		totalSequence += client.Signer().Account(accountName).Sequence()
 	}
 	require.Equal(t, uint64(len(results)), totalSequence)
 }
@@ -236,10 +237,10 @@ func TestParallelSubmitPayForBlobBroadcastError(t *testing.T) {
 	workerAccounts := []string{"parallel-worker-1"}
 	client, conn := newMockTxClientWithCustomHandlers(t, broadcastHandler, txStatusHandler, workerAccounts)
 	defer conn.Close()
-	require.NotNil(t, client.ParallelPool())
+	require.True(t, client.TxQueueWorkerCount() > 0)
 
-	// Start the parallel pool
-	err := client.ParallelPool().Start(context.Background())
+	// Start the tx queue
+	err := client.StartTxQueue(context.Background())
 	require.NoError(t, err)
 
 	blob := randomBlob(t)
@@ -251,8 +252,9 @@ func TestParallelSubmitPayForBlobBroadcastError(t *testing.T) {
 	require.ErrorAs(t, err, &broadcastErr)
 	require.Equal(t, uint32(5), broadcastErr.Code)
 
-	for _, worker := range client.ParallelPool().Workers() {
-		require.Equal(t, uint64(0), client.Signer().Account(worker.AccountName()).Sequence())
+	for i := 0; i < client.TxQueueWorkerCount(); i++ {
+		accountName := client.TxQueueWorkerAccountName(i)
+		require.Equal(t, uint64(0), client.Signer().Account(accountName).Sequence())
 	}
 }
 
@@ -294,10 +296,10 @@ func TestParallelSubmissionSignerAddress(t *testing.T) {
 	workerAccounts := []string{"parallel-worker-1", "parallel-worker-2"}
 	client, conn := newMockTxClientWithCustomHandlers(t, broadcastHandler, txStatusHandler, workerAccounts)
 	defer conn.Close()
-	require.NotNil(t, client.ParallelPool())
+	require.True(t, client.TxQueueWorkerCount() > 0)
 
-	// Start the parallel pool
-	err := client.ParallelPool().Start(context.Background())
+	// Start the tx queue
+	err := client.StartTxQueue(context.Background())
 	require.NoError(t, err)
 
 	blob := randomBlob(t)
@@ -339,8 +341,9 @@ func TestParallelSubmissionSignerAddress(t *testing.T) {
 
 	// Verify that multiple workers were used by checking sequence numbers
 	var totalSequence uint64
-	for _, worker := range client.ParallelPool().Workers() {
-		totalSequence += client.Signer().Account(worker.AccountName()).Sequence()
+	for i := 0; i < client.TxQueueWorkerCount(); i++ {
+		accountName := client.TxQueueWorkerAccountName(i)
+		totalSequence += client.Signer().Account(accountName).Sequence()
 	}
 	require.Equal(t, uint64(len(results)), totalSequence)
 }
@@ -383,12 +386,11 @@ func TestParallelPoolRestart(t *testing.T) {
 	client, conn := newMockTxClientWithCustomHandlers(t, broadcastHandler, txStatusHandler, workerAccounts)
 	defer conn.Close()
 
-	require.NotNil(t, client.ParallelPool())
+	require.True(t, client.TxQueueWorkerCount() > 0)
 
 	ctx := context.Background()
-	require.NoError(t, client.ParallelPool().Start(ctx))
-	pool := client.ParallelPool()
-	require.True(t, pool.IsStarted())
+	require.NoError(t, client.StartTxQueue(ctx))
+	require.True(t, client.IsTxQueueStarted())
 
 	blob := randomBlob(t)
 
@@ -403,11 +405,11 @@ func TestParallelPoolRestart(t *testing.T) {
 
 	submitAndAssert(t)
 
-	pool.Stop()
-	require.False(t, pool.IsStarted())
+	client.StopTxQueue()
+	require.False(t, client.IsTxQueueStarted())
 
-	require.NoError(t, pool.Start(ctx))
-	require.True(t, pool.IsStarted())
+	require.NoError(t, client.StartTxQueue(ctx))
+	require.True(t, client.IsTxQueueStarted())
 
 	submitAndAssert(t)
 }
@@ -430,8 +432,8 @@ func TestParallelSubmitPayForBlobContextCancellation(t *testing.T) {
 	client, conn := newMockTxClientWithCustomHandlers(t, broadcastHandler, txStatusHandler, workerAccounts)
 	defer conn.Close()
 
-	require.NotNil(t, client.ParallelPool())
-	require.NoError(t, client.ParallelPool().Start(context.Background()))
+	require.True(t, client.TxQueueWorkerCount() > 0)
+	require.NoError(t, client.StartTxQueue(context.Background()))
 
 	blob := randomBlob(t)
 
@@ -511,11 +513,10 @@ func TestSingleWorkerNoFeeGranter(t *testing.T) {
 	// Create client with default single worker (no WithTxWorkers option)
 	client, conn := newMockTxClientWithCustomHandlers(t, broadcastHandler, txStatusHandler, nil)
 	defer conn.Close()
-	require.NotNil(t, client.ParallelPool())
-	require.Equal(t, 1, len(client.ParallelPool().Workers()))
+	require.Equal(t, 1, client.TxQueueWorkerCount())
 
-	// Start the parallel pool
-	err := client.ParallelPool().Start(context.Background())
+	// Start the tx queue
+	err := client.StartTxQueue(context.Background())
 	require.NoError(t, err)
 
 	blob := randomBlob(t)
