@@ -17,6 +17,9 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 )
 
+// BroadcastHandler is a function type for handling broadcast requests
+type BroadcastHandler func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error)
+
 // mockTxServer implements both gRPC ServiceServer and TxServer interfaces for mocking broadcast and tx status responses
 type mockTxServer struct {
 	sdktx.UnimplementedServiceServer
@@ -24,6 +27,7 @@ type mockTxServer struct {
 	txStatusResponses   map[string][]*tx.TxStatusResponse // txHash with sequence of responses
 	txStatusCallCounts  map[string]int                    // txHash with number of TxStatus calls made
 	broadcastCallCounts map[string]int                    // txHash with number of BroadcastTx calls made
+	broadcastHandler    BroadcastHandler                  // Custom broadcast handler
 }
 
 func (m *mockTxServer) TxStatus(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error) {
@@ -49,7 +53,12 @@ func (m *mockTxServer) TxStatus(ctx context.Context, req *tx.TxStatusRequest) (*
 }
 
 func (m *mockTxServer) BroadcastTx(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
-	// Same hash for all broadcast calls
+	// Use custom handler if provided
+	if m.broadcastHandler != nil {
+		return m.broadcastHandler(ctx, req)
+	}
+
+	// Default behavior: Same hash for all broadcast calls
 	txHash := "test-tx-hash-123"
 
 	// Increment broadcast call count
@@ -79,13 +88,13 @@ func (m *mockTxServer) BroadcastTx(ctx context.Context, req *sdktx.BroadcastTxRe
 	}, nil
 }
 
-// setupTxClientWithMockGPRCServer creates a TxClient connected to a mock gRPC server that lets you mock broadcast and tx status responses
-func setupTxClientWithMockGRPCServer(t *testing.T, responseSequences map[string][]*tx.TxStatusResponse, opts ...user.Option) (*user.TxClient, *grpc.ClientConn) {
-	// Create mock server with provided response sequences
+// createMockServer creates a single mock gRPC server with the given configuration
+func createMockServer(t *testing.T, txStatusResponses map[string][]*tx.TxStatusResponse, broadcastHandler BroadcastHandler) *grpc.ClientConn {
 	mockServer := &mockTxServer{
-		txStatusResponses:   responseSequences,
+		txStatusResponses:   txStatusResponses,
 		txStatusCallCounts:  make(map[string]int),
 		broadcastCallCounts: make(map[string]int),
+		broadcastHandler:    broadcastHandler,
 	}
 
 	// Set up in-memory gRPC server
@@ -110,17 +119,48 @@ func setupTxClientWithMockGRPCServer(t *testing.T, responseSequences map[string]
 	)
 	require.NoError(t, err)
 
+	return conn
+}
+
+// setupTxClientWithMockServers creates mock gRPC servers with different broadcast handlers (works for single or multiple servers)
+func setupTxClientWithMockServers(t *testing.T, broadcastHandlers []BroadcastHandler, txStatusResponses map[string][]*tx.TxStatusResponse, opts ...user.Option) (*user.TxClient, []*grpc.ClientConn) {
+	conns := make([]*grpc.ClientConn, 0, len(broadcastHandlers))
+
+	for i, handler := range broadcastHandlers {
+		// Use provided txStatusResponses for first server, empty for others
+		var responses map[string][]*tx.TxStatusResponse
+		if i == 0 && txStatusResponses != nil {
+			responses = txStatusResponses
+		} else {
+			responses = make(map[string][]*tx.TxStatusResponse)
+		}
+		conn := createMockServer(t, responses, handler)
+		conns = append(conns, conn)
+	}
+
+	primaryConn := conns[0]
+	var otherConns []*grpc.ClientConn
+	if len(conns) > 1 {
+		otherConns = conns[1:]
+	}
+
 	// Create TxClient with mock connection
 	encCfg, txClient, _ := setupTxClientWithDefaultParams(t)
+
+	// Build options list
+	clientOpts := opts
+	if len(otherConns) > 0 {
+		clientOpts = append(clientOpts, user.WithAdditionalCoreEndpoints(otherConns))
+	}
 
 	mockTxClient, err := user.NewTxClient(
 		encCfg.Codec,
 		txClient.Signer(),
-		conn,
+		primaryConn,
 		encCfg.InterfaceRegistry,
-		opts...,
+		clientOpts...,
 	)
 	require.NoError(t, err)
 
-	return mockTxClient, conn
+	return mockTxClient, conns
 }
