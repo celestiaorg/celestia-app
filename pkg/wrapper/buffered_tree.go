@@ -13,7 +13,6 @@ import (
 // TreePool provides a fixed-size pool of resizeableBufferTree instances.
 type TreePool struct {
 	availableNMTs chan *resizeableBufferTree
-	opts          []nmt.Option
 	poolSize      int
 }
 
@@ -29,7 +28,6 @@ func NewTreePool(initSquareSize uint, poolSize int, opts ...nmt.Option) (*TreePo
 	}
 	pool := &TreePool{
 		availableNMTs: make(chan *resizeableBufferTree, poolSize),
-		opts:          opts,
 		poolSize:      poolSize,
 	}
 
