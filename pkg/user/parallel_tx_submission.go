@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"sync/atomic"
 
 	"cosmossdk.io/x/feegrant"
@@ -39,6 +40,7 @@ type txQueue struct {
 	ctx         context.Context
 	cancel      context.CancelFunc
 	initialized atomic.Bool // whether workers have been initialized
+	wg          sync.WaitGroup
 }
 
 // txWorker represents a worker that processes transactions using a specific account
@@ -110,7 +112,7 @@ func (p *txQueue) start(ctx context.Context) error {
 
 	// Recreate job queue channel if it was closed during previous stop
 	p.jobQueue = make(chan *SubmissionJob, defaultParallelQueueSize)
-	// Update workers to use new job queue
+	// Update workers to use new job queue BEFORE starting goroutines
 	for _, worker := range p.workers {
 		worker.jobQueue = p.jobQueue
 	}
@@ -118,11 +120,18 @@ func (p *txQueue) start(ctx context.Context) error {
 	// Create a new context for this pool instance
 	p.ctx, p.cancel = context.WithCancel(ctx)
 
+	// Set started flag before starting workers to prevent race
+	p.started.Store(true)
+
+	// Start workers after everything is set up
 	for _, worker := range p.workers {
-		go worker.start(p.ctx)
+		p.wg.Add(1)
+		go func(w *txWorker) {
+			defer p.wg.Done()
+			w.start(p.ctx)
+		}(worker)
 	}
 
-	p.started.Store(true)
 	return nil
 }
 
@@ -138,6 +147,9 @@ func (p *txQueue) stop() {
 
 	// Close the job queue to signal workers to stop accepting new jobs
 	close(p.jobQueue)
+
+	// Wait for all workers to finish before marking as stopped
+	p.wg.Wait()
 
 	p.started.Store(false)
 }
