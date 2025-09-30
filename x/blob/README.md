@@ -87,6 +87,19 @@ message MsgPayForBlobs {
 }
 ```
 
+### Message Definition Support
+
+`MsgPayForBlobs` supports both modern Cosmos SDK message definition approaches:
+
+1. **Msg Services (gRPC)**: Uses protocol buffers and gRPC service definitions for type-safe message handling. This is the preferred approach for new applications.
+
+2. **Legacy Amino Codec**: Maintains backward compatibility with amino JSON encoding/decoding, which is required for certain use cases such as:
+   - Ledger hardware wallet signing
+   - Legacy client applications
+   - Amino-based transaction serialization
+
+Both encoding methods are fully supported and can be used interchangeably. The module registers `MsgPayForBlobs` with both the protobuf interface registry (via `RegisterInterfaces`) and the legacy amino codec (via `RegisterLegacyAminoCodec`).
+
 > [!NOTE]
 > The internal representation of share versions is always `uint8`. Since protobuf doesn't support the `uint8` type, they are encoded and decoded as `uint32`.
 

@@ -80,7 +80,7 @@ One namespace ID is located in the first `NamespaceIDSize` bytes, while the othe
 - Celestia constants: <https://github.com/celestiaorg/celestia-app/blob/main/specs/src/consensus.md#constants>
 - Celestia reserved namespace IDs: <https://github.com/celestiaorg/celestia-app/blob/main/specs/src/consensus.md#reserved-namespace-ids>
 
-[nmtlink]: https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md
+[nmtlink]: https://github.com/celestiaorg/nmt/blob/main/docs/spec/nmt.md
 [nmtwrapper-link]: https://github.com/celestiaorg/celestia-app/blob/main/pkg/wrapper/nmt_wrapper.go
 [nmt-ds-link]:  https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md#nmt-data-structure
 [nmt-hash-link]: https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md#namespaced-hash
