@@ -406,7 +406,7 @@ func TestEvictions(t *testing.T) {
 			},
 		}
 
-		mockTxClient, conns := setupTxClientWithMockServers(t, []BroadcastHandler{nil}, responseSequences, user.WithPollTime(1*time.Second))
+		mockTxClient, conns := setupTxClientWithMockServers(t, []BroadcastHandler{nil}, responseSequences, user.WithPollTime(100*time.Millisecond))
 		defer conns[0].Close()
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -579,7 +579,7 @@ func setupTxClient(
 	testnodeConfig := testnode.DefaultConfig().
 		WithTendermintConfig(defaultTmConfig).
 		WithFundedAccounts(accounts...).
-		WithDelayedPrecommitTimeout(400 * time.Millisecond)
+		WithDelayedPrecommitTimeout(300 * time.Millisecond)
 	testnodeConfig.Genesis.ConsensusParams.Block.MaxBytes = blocksize
 
 	ctx, _, _ := testnode.NewNetwork(t, testnodeConfig)
