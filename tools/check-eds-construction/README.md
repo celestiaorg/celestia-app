@@ -29,8 +29,15 @@ If the two hashes match, the construction method is compatible with currently pr
 
 ## Notes
 
+<<<<<<< HEAD
 - Requires access to a live node's RPC endpoint.
 - The tool uses the block's App version when reconstructing the EDS.
 - Ensure the target height exists and the node is synced.
 
 
+=======
+- Requires access to a live node's RPC endpoint
+- The tool uses the block's App version when reconstructing the EDS
+- For `random` mode, blocks are selected randomly from height 2 to the latest block height
+- Ensure the target height exists and the node is synced
+>>>>>>> 9c1e04d (feat: add open telemetry traces (#5707))
