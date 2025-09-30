@@ -51,12 +51,10 @@ func RunLoadTest(cfg Config) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.TestDurationSec)*time.Second)
 	defer cancel()
 
-	txClient, grpcConn, clientCancel, err := NewMochaTxClient(ctx, cfg)
+	txClient, grpcConn, _, err := NewMochaTxClient(ctx, cfg)
 	if err != nil {
 		return fmt.Errorf("failed to set up tx client: %w", err)
 	}
-	defer grpcConn.Close()
-	defer clientCancel()
 
 	var (
 		txCounter            int64
