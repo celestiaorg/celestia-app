@@ -54,12 +54,18 @@ type SP1Groth16Verifier struct {
 - The proof prefix must equal `sha256(vkBytes)[:PrefixLen]`, otherwise `ErrInvalidProofPrefix` is returned.
 - An invalid proof length results in `ErrInvalidProofLength`.
 
-- Public witness construction:
-  - `vk_element = Fr(program_vk_commitment)` where `program_vk_commitment` is a 32‑byte commitment for the specific SP1 program.
-  - `inputs_element = Fr(HashBN254(public_values_bytes))` where `HashBN254` is `sha256(public_values)`, with the top 3 bits masked, interpreted as a BN254 scalar.
-  - The public witness is `[vk_element, inputs_element]` (see `groth16.NewPublicWitness`).
+### Public Witness Construction
 
-### Verification algorithm
+In zk-SNARK systems, 𝔽ᵣ denotes the scalar field of the curve in use, i.e. the finite field of order equal to the curve's group order, for example in BN254 `r` (≈2²⁵⁴). 
+The function `Fr()` reduces a byte string into an element of this field.
+
+- `vk_element = Fr(program_vk_commitment)`
+  where `program_vk_commitment` is a 32-byte commitment for the specific SP1 program.
+- `inputs_element = Fr(HashBN254(public_values_bytes))`
+  where `HashBN254` is `sha256(public_values)`, with the top 3 bits masked and the result interpreted as a scalar in 𝔽ᵣ.
+- The public witness is `[vk_element, inputs_element]` (see `groth16.NewPublicWitness`).
+
+### Verification
 
 The `SP1Groth16Verifier` leverages `github.com/consensys/gnark` for groth16 proof verification. All invocations to the library are encapsulated within the `internal/groth16` package of this module.
 
