@@ -40,7 +40,9 @@ import (
 const (
 	DefaultPollTime          = 3 * time.Second
 	txTrackerPruningInterval = 10 * time.Minute
-	evictionPollTime         = 1 * time.Minute
+	// evictionPollTimeOut is the timeout for checking if an evicted transaction
+	// gets committed after experiencing a broadcast error during resubmission
+	evictionPollTimeOut = 1 * time.Minute
 )
 
 type Option func(client *TxClient)
@@ -297,7 +299,7 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 	if err != nil {
 		return nil, err
 	}
-	gasLimit := uint64(float64(blobtypes.DefaultEstimateGas(msg)))
+	gasLimit := blobtypes.DefaultEstimateGas(msg)
 	fee := uint64(math.Ceil(appconsts.DefaultMinGasPrice * float64(gasLimit)))
 	// prepend calculated params, so it can be overwritten in case the user has specified it.
 	opts = append([]TxOption{SetGasLimit(gasLimit), SetFee(fee)}, opts...)
@@ -611,7 +613,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 		}
 
 		if evictionPollTimeStart != nil {
-			if time.Since(*evictionPollTimeStart) > evictionPollTime {
+			if time.Since(*evictionPollTimeStart) > evictionPollTimeOut {
 				return nil, fmt.Errorf("eviction poll timeout: transaction %s was evicted ", txHash)
 			}
 		}
