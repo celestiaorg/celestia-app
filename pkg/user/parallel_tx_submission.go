@@ -33,7 +33,6 @@ type SubmissionResult struct {
 
 // txQueue manages parallel transaction submission
 type txQueue struct {
-	mtx         sync.RWMutex
 	client      *TxClient
 	jobQueue    chan *SubmissionJob
 	workers     []*txWorker
@@ -98,16 +97,13 @@ func newTxQueue(client *TxClient, numWorkers int) *txQueue {
 
 // start initiates all workers in the pool
 func (p *txQueue) start(ctx context.Context) error {
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
-
 	if p.started.Load() {
 		return nil
 	}
 
 	// Initialize worker accounts if needed
 	if !p.initialized.Load() {
-		if err := p.client.InitializeWorkerAccounts(ctx); err != nil {
+		if err := p.initializeWorkerAccounts(ctx); err != nil {
 			return fmt.Errorf("failed to initialize worker accounts: %w", err)
 		}
 		p.initialized.Store(true)
@@ -126,9 +122,6 @@ func (p *txQueue) start(ctx context.Context) error {
 
 // stop shuts down all workers in the pool
 func (p *txQueue) stop() {
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
-
 	if !p.started.Load() {
 		return
 	}
@@ -141,20 +134,14 @@ func (p *txQueue) stop() {
 
 // submitJob submits a job to the parallel worker pool
 func (p *txQueue) submitJob(job *SubmissionJob) {
-	p.mtx.RLock()
-	jobQueue := p.jobQueue
-	ctx := p.ctx
-	started := p.started.Load()
-	p.mtx.RUnlock()
-
-	if !started || ctx == nil {
+	if !p.started.Load() || p.ctx == nil {
 		job.ResultsC <- SubmissionResult{Error: errors.New("tx queue not started")}
 		return
 	}
 
 	select {
-	case jobQueue <- job:
-	case <-ctx.Done():
+	case p.jobQueue <- job:
+	case <-p.ctx.Done():
 		job.ResultsC <- SubmissionResult{Error: errors.New("tx queue full or has stopped")}
 	}
 }
@@ -214,23 +201,18 @@ func (w *txWorker) processJob(job *SubmissionJob, workerCtx context.Context) {
 	job.ResultsC <- result
 }
 
-// InitializeWorkerAccounts creates and initializes all worker accounts for parallel submission.
+// initializeWorkerAccounts creates and initializes all worker accounts for parallel submission.
 // It creates the accounts in the keyring if they don't exist, funds them with a small balance,
 // and sets up fee grants so the main account pays for transaction fees.
-// This method should be called after TxClient creation but before parallel submissions.
-func (client *TxClient) InitializeWorkerAccounts(ctx context.Context) error {
-	if client.txQueue == nil {
-		return errors.New("tx queue not configured - use WithTxWorkers option")
-	}
-
+func (p *txQueue) initializeWorkerAccounts(ctx context.Context) error {
 	// No work required if we've already initialized all workers.
-	if client.txQueue.initialized.Load() {
+	if p.initialized.Load() {
 		return nil
 	}
 
 	// If we only have one worker (index 0), skip all initialization as it uses the existing signer account
-	if len(client.txQueue.workers) == 1 {
-		client.txQueue.initialized.Store(true)
+	if len(p.workers) == 1 {
+		p.initialized.Store(true)
 		return nil
 	}
 
@@ -238,16 +220,16 @@ func (client *TxClient) InitializeWorkerAccounts(ctx context.Context) error {
 	// Skip the first worker (index 0) as it always uses the existing signer account
 	var workersToInit []*txWorker
 	var workersToLoad []*txWorker
-	for i, worker := range client.txQueue.workers {
+	for i, worker := range p.workers {
 		if i == 0 {
 			// Skip first worker - it uses existing account
 			continue
 		}
 
 		// Check if account exists in signer
-		if _, exists := client.signer.accounts[worker.accountName]; !exists {
+		if _, exists := p.client.signer.accounts[worker.accountName]; !exists {
 			// Check if account exists in keyring but not loaded in signer
-			if _, err := client.signer.keys.Key(worker.accountName); err == nil {
+			if _, err := p.client.signer.keys.Key(worker.accountName); err == nil {
 				// Account exists in keyring but not loaded - add to load list
 				workersToLoad = append(workersToLoad, worker)
 			} else {
@@ -260,26 +242,26 @@ func (client *TxClient) InitializeWorkerAccounts(ctx context.Context) error {
 	// Load existing accounts from keyring into signer
 	if len(workersToLoad) > 0 {
 		for _, worker := range workersToLoad {
-			if err := client.loadWorkerAccount(worker); err != nil {
+			if err := p.client.loadWorkerAccount(worker); err != nil {
 				return fmt.Errorf("failed to load existing worker account %s: %w", worker.accountName, err)
 			}
 		}
 	}
 
 	if len(workersToInit) == 0 {
-		client.txQueue.initialized.Store(true)
+		p.initialized.Store(true)
 		return nil // All accounts already exist
 	}
 
 	// Create accounts in keyring if they don't exist
 	for _, worker := range workersToInit {
-		if err := client.createWorkerAccount(worker.accountName); err != nil {
+		if err := p.client.createWorkerAccount(worker.accountName); err != nil {
 			return fmt.Errorf("failed to create worker account %s: %w", worker.accountName, err)
 		}
 	}
 
 	// Fund accounts and set up fee grants in a single transaction
-	if err := client.fundAndGrantWorkerAccounts(ctx, workersToInit); err != nil {
+	if err := p.client.fundAndGrantWorkerAccounts(ctx, workersToInit); err != nil {
 		return fmt.Errorf("failed to fund and grant worker accounts: %w", err)
 	}
 
