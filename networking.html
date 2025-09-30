@@ -150,60 +150,6 @@
 <tr><td><code>shares</code></td><td><a href="./data_structures.html#share">Share</a><code>[]</code></td><td>Shares in a row.</td></tr>
 </tbody></table>
 </div>
-<h3 id="consensusproposal"><a class="header" href="#consensusproposal">ConsensusProposal</a></h3>
-<p>Defined as <code>ConsensusProposal</code>:</p>
-<pre><code class="language-protobuf">message ConsensusProposal {
-  SignedMsgType type      = 1;
-  int32         round     = 2;
-  int32         pol_round = 3;
-  // 32-byte hash
-  // Proposed block header
-  Header              header    = 4;
-  AvailableDataHeader da_header = 5;
-  // 64-byte signature
-  bytes proposer_signature = 6;
-}
-</code></pre>
-<p>When receiving a new block proposal <code>proposal</code> from the network, the following steps are performed in order. <em>Must</em> indicates that peers must be blacklisted (to prevent DoS attacks) and <em>should</em> indicates that the network blob can simply be ignored.</p>
-<ol>
-<li><code>proposal.type</code> must be a <code>SignedMsgType</code>.</li>
-<li><code>proposal.round</code> is processed identically to Tendermint.</li>
-<li><code>proposal.pol_round</code> is processed identically to Tendermint.</li>
-<li><code>proposal.header</code> must be well-formed.</li>
-<li><code>proposal.header.version.block</code> must be <a href="./consensus.html#constants"><code>VERSION_BLOCK</code></a>.</li>
-<li><code>proposal.header.version.app</code> must be a supported app version.</li>
-<li><code>proposal.header.height</code> should be previous known height + 1.</li>
-<li><code>proposal.header.chain_id</code> must be <a href="./consensus.html#constants"><code>CHAIN_ID</code></a>.</li>
-<li><code>proposal.header.time</code> is processed identically to Tendermint.</li>
-<li><code>proposal.header.last_header_hash</code> must be previous block's header hash.</li>
-<li><code>proposal.header.last_commit_hash</code> must be the previous block's commit hash.</li>
-<li><code>proposal.header.consensus_hash</code> must be the hash of <a href="./data_structures.html#header">consensus parameters</a>.</li>
-<li><code>proposal.header.state_commitment</code> must be the state root after applying the previous block's transactions.</li>
-<li><code>proposal.header.available_data_original_shares_used</code> must be at most <a href="./consensus.html#constants"><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX ** 2</code></a>.</li>
-<li><code>proposal.header.available_data_root</code> must be the <a href="./data_structures.html#availabledataheader">root</a> of <code>proposal.da_header</code>.</li>
-<li><code>proposal.header.proposer_address</code> must be the <a href="./consensus.html#leader-selection">correct leader</a>.</li>
-<li><code>proposal.da_header</code> must be well-formed.</li>
-<li>The number of elements in <code>proposal.da_header.row_roots</code> and <code>proposal.da_header.row_roots</code> must be equal.</li>
-<li>The number of elements in <code>proposal.da_header.row_roots</code> must be the same as computed <a href="./data_structures.html#header">here</a>.</li>
-<li><code>proposal.proposer_signature</code> must be a valid <a href="./data_structures.html#public-key-cryptography">digital signature</a> over the header hash of <code>proposal.header</code> that recovers to <code>proposal.header.proposer_address</code>.</li>
-<li>For full nodes, <code>proposal.da_header</code> must be the result of computing the roots of the shares (received separately).</li>
-<li>For light nodes, <code>proposal.da_header</code> should be sampled from for availability.</li>
-</ol>
-<h3 id="msgwirepayfordata"><a class="header" href="#msgwirepayfordata">MsgWirePayForData</a></h3>
-<p>Defined as <code>MsgWirePayForData</code>:</p>
-<pre><code class="language-protobuf">message MsgWirePayForData {
-  TransactionFee fee   = 1;
-  uint64         nonce = 2;
-  // 8-byte namespace ID
-  bytes                                  message_namespace_id             = 3;
-  uint64                                 message_size                     = 4;
-  bytes                                  message                          = 5;
-  repeated MessageCommitmentAndSignature message_commitment_and_signature = 6;
-}
-</code></pre>
-<p>Accepting a <code>MsgWirePayForData</code> into the mempool requires different logic than other transactions in Celestia, since it leverages the paradigm of block proposers being able to malleate transaction data. Unlike <a href="./data_structures.html#signedtransactiondatamsgpayfordata">SignedTransactionDataMsgPayForData</a> (the canonical data type that is included in blocks and committed to with a data root in the block header), each <code>MsgWirePayForData</code> (the over-the-wire representation of the same) has potentially multiple signatures.</p>
-<p>Transaction senders who want to pay for a blob will create a <a href="./data_structures.html#signedtransactiondatamsgpayfordata">SignedTransactionDataMsgPayForData</a> object, <code>stx</code>, filling in the <code>stx.blobShareCommitment</code> field based on the <a href="./data_square_layout.html#blob-share-commitment-rules">blob share commitment rules</a>, then signing it to get a <a href="./data_structures.html#transaction">transaction</a> <code>tx</code>.</p>
-<p>Receiving a <code>MsgWirePayForData</code> object from the network follows the reverse process: verify using the <a href="./data_square_layout.html#blob-share-commitment-rules">blob share commitment rules</a> that the signature is valid.</p>
 <h2 id="invalid-erasure-coding"><a class="header" href="#invalid-erasure-coding">Invalid Erasure Coding</a></h2>
 <p>If a malicious block producer incorrectly computes the 2D Reed-Solomon code for a block's data, a fraud proof for this can be presented. We assume that the light clients have the <a href="./data_structures.html#availabledataheader">AvailableDataHeader</a> and the <a href="./data_structures.html#header">Header</a> for each block. Hence, given a <a href="#shareproof">ShareProof</a>, they can verify if the <code>rowRoot</code> or <code>colRoot</code> specified by <code>isCol</code> and <code>position</code> commits to the corresponding <a href="./data_structures.html#share">Share</a>. Similarly, given the <code>height</code> of a block, they can access all elements within the <a href="./data_structures.html#availabledataheader">AvailableDataHeader</a> and the <a href="./data_structures.html#header">Header</a> of the block.</p>
 <h3 id="shareproof"><a class="header" href="#shareproof">ShareProof</a></h3>
@@ -214,63 +160,9 @@
 <tr><td><code>position</code></td><td><code>uint64</code></td><td>The index of the share in the offending row or column.</td></tr>
 </tbody></table>
 </div>
-<h3 id="badencodingfraudproof"><a class="header" href="#badencodingfraudproof">BadEncodingFraudProof</a></h3>
-<p>Defined as <code>BadEncodingFraudProof</code>:</p>
-<pre><code class="language-protobuf">message BadEncodingFraudProof {
-  // height of the block with the offending row or column
-  int64 height = 1;
-  // the available shares in the offending row or column and their Merkle proofs
-  // array of ShareProofs
-  repeated ShareProof shareProofs = 2;
-  // a Boolean indicating if it is an offending row or column; false if it is a
-  // row
-  bool isCol = 3;
-  // the index of the offending row or column in the square
-  uint64 position = 4;
-}
-</code></pre>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>height</code></td><td><a href="./data_structures.html#type-aliases">Height</a></td><td>Height of the block with the offending row or column.</td></tr>
-<tr><td><code>shareProofs</code></td><td><a href="#shareproof">ShareProof</a><code>[]</code></td><td>The available shares in the offending row or column.</td></tr>
-<tr><td><code>isCol</code></td><td><code>bool</code></td><td>A Boolean indicating if it is an offending row or column; <code>false</code> if it is a row.</td></tr>
-<tr><td><code>position</code></td><td><code>uint64</code></td><td>The index of the offending row or column in the square.</td></tr>
-</tbody></table>
-</div>
 <h2 id="invalid-state-update"><a class="header" href="#invalid-state-update">Invalid State Update</a></h2>
 <p>If a malicious block producer incorrectly computes the state, a fraud proof for this can be presented. We assume that the light clients have the <a href="./data_structures.html#availabledataheader">AvailableDataHeader</a> and the <a href="./data_structures.html#header">Header</a> for each block. Hence, given a <a href="#shareproof">ShareProof</a>, they can verify if the <code>rowRoot</code> or <code>colRoot</code> specified by <code>isCol</code> and <code>position</code> commits to the corresponding <a href="./data_structures.html#share">Share</a>. Similarly, given the <code>height</code> of a block, they can access all elements within the <a href="./data_structures.html#availabledataheader">AvailableDataHeader</a> and the <a href="./data_structures.html#header">Header</a> of the block.</p>
-<h3 id="statefraudproof"><a class="header" href="#statefraudproof">StateFraudProof</a></h3>
-<p>Defined as <code>StateFraudProof</code>:</p>
-<pre><code class="language-protobuf">message StateFraudProof {
-  // height of the block with the intermediate state roots
-  // Subtracting one from height gives the height of the block with the
-  // transactions.
-  int64 height = 1;
-  // shares containing the transactions and their Merkle proofs
-  // isCol within the ShareProof must be false.
-  // array of ShareProofs
-  repeated ShareProof transactionShareProofs = 2;
-  // shares containing the intermediate state roots and their Merkle proofs
-  // isCol within the ShareProof must be false.
-  // array of ShareProofs
-  repeated ShareProof isrShareProofs = 3;
-  // index for connecting the WrappedIntermediateStateRoot and
-  // WrappedTransaction after shares are parsed
-  uint64 index = 4;
-  // state elements that were changed by the transactions
-  // array of StateElements
-  repeated StateElement intermediateStateElements = 5;
-  // sparse Merkle tree inclusion proofs for the state elements
-  // array of SparseMerkleTreeInclusionProofs
-  repeated SparseMerkleTreeInclusionProof stateInclusionProofs = 6;
-}
-</code></pre>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>height</code></td><td><a href="./data_structures.html#type-aliases">Height</a></td><td>Height of the block with the intermediate state roots. Subtracting one from <code>height</code> gives the height of the block with the transactions.</td></tr>
-<tr><td><code>transactionShareProofs</code></td><td><a href="#shareproof">ShareProof</a><code>[]</code></td><td><code>isCol</code> of type <code>bool</code> must be <code>false</code>.</td></tr>
-<tr><td><code>isrShareProofs</code></td><td><a href="#shareproof">ShareProof</a><code>[]</code></td><td><code>isCol</code> of type <code>bool</code> must be <code>false</code>.</td></tr>
-<tr><td><code>index</code></td><td><code>uint64</code></td><td>Index for connecting the <a href="./data_structures.html#wrappedintermediatestateroot">WrappedIntermediateStateRoot</a> and <a href="./data_structures.html#wrappedtransaction">WrappedTransaction</a> after shares are parsed.</td></tr>
-</tbody></table>
-</div>
+
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
