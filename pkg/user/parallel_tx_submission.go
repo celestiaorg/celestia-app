@@ -129,6 +129,10 @@ func (p *txQueue) stop() {
 	if p.cancel != nil {
 		p.cancel()
 	}
+
+	// Close the job queue to signal workers to stop accepting new jobs
+	close(p.jobQueue)
+
 	p.started.Store(false)
 }
 
