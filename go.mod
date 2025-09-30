@@ -23,7 +23,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.88.3
 	github.com/bcp-innovations/hyperlane-cosmos v1.0.1
 	github.com/celestiaorg/go-square/v2 v2.3.3
-	github.com/celestiaorg/go-square/v3 v3.0.2-0.20250925152542-2a754d2dea27
+	github.com/celestiaorg/go-square/v3 v3.0.2-0.20250927083839-c59ef05c084a
 	github.com/celestiaorg/nmt v0.24.2
 	github.com/celestiaorg/rsmt2d v0.15.1
 	github.com/cometbft/cometbft v0.38.17
@@ -256,7 +256,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/arch v0.15.0 // indirect
 	golang.org/x/crypto v0.41.0 // indirect
-	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
+	golang.org/x/exp v0.0.0-20250911091902-df9299821621 // indirect
 	golang.org/x/net v0.43.0 // indirect
 	golang.org/x/sys v0.35.0 // indirect
 	golang.org/x/term v0.34.0 // indirect
