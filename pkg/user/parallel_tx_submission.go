@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 	"sync/atomic"
 
 	"cosmossdk.io/x/feegrant"
@@ -109,6 +108,13 @@ func (p *txQueue) start(ctx context.Context) error {
 		p.initialized.Store(true)
 	}
 
+	// Recreate job queue channel if it was closed during previous stop
+	p.jobQueue = make(chan *SubmissionJob, defaultParallelQueueSize)
+	// Update workers to use new job queue
+	for _, worker := range p.workers {
+		worker.jobQueue = p.jobQueue
+	}
+
 	// Create a new context for this pool instance
 	p.ctx, p.cancel = context.WithCancel(ctx)
 
@@ -159,7 +165,11 @@ func (p *txQueue) isStarted() bool {
 func (w *txWorker) start(ctx context.Context) {
 	for {
 		select {
-		case job := <-w.jobQueue:
+		case job, ok := <-w.jobQueue:
+			if !ok {
+				// Channel closed, exit worker
+				return
+			}
 			w.processJob(job, ctx)
 		case <-ctx.Done():
 			return

@@ -116,6 +116,10 @@ func setupTxClientWithMockGRPCServerAndSigner(t *testing.T, responseSequences ma
 	)
 	require.NoError(t, err)
 
+	// Start the tx queue (mirroring SetupTxClient behavior)
+	err = mockTxClient.StartTxQueueForTest(context.Background())
+	require.NoError(t, err)
+
 	return mockTxClient, conn
 }
 
@@ -171,10 +175,6 @@ func TestParallelSubmitPayForBlobSuccess(t *testing.T) {
 	client, conn := newMockTxClientWithCustomHandlers(t, broadcastHandler, txStatusHandler, workerAccounts)
 	defer conn.Close()
 	require.True(t, client.TxQueueWorkerCount() > 0)
-
-	// Start the tx queue
-	err := client.StartTxQueue(context.Background())
-	require.NoError(t, err)
 
 	blob := randomBlob(t)
 
@@ -239,13 +239,9 @@ func TestParallelSubmitPayForBlobBroadcastError(t *testing.T) {
 	defer conn.Close()
 	require.True(t, client.TxQueueWorkerCount() > 0)
 
-	// Start the tx queue
-	err := client.StartTxQueue(context.Background())
-	require.NoError(t, err)
-
 	blob := randomBlob(t)
 
-	_, err = client.SubmitPayForBlob(context.Background(), []*share.Blob{blob})
+	_, err := client.SubmitPayForBlob(context.Background(), []*share.Blob{blob})
 	require.Error(t, err)
 
 	var broadcastErr *user.BroadcastTxError
@@ -297,10 +293,6 @@ func TestParallelSubmissionSignerAddress(t *testing.T) {
 	client, conn := newMockTxClientWithCustomHandlers(t, broadcastHandler, txStatusHandler, workerAccounts)
 	defer conn.Close()
 	require.True(t, client.TxQueueWorkerCount() > 0)
-
-	// Start the tx queue
-	err := client.StartTxQueue(context.Background())
-	require.NoError(t, err)
 
 	blob := randomBlob(t)
 
@@ -389,8 +381,7 @@ func TestParallelPoolRestart(t *testing.T) {
 	require.True(t, client.TxQueueWorkerCount() > 0)
 
 	ctx := context.Background()
-	require.NoError(t, client.StartTxQueue(ctx))
-	require.True(t, client.IsTxQueueStarted())
+	require.True(t, client.IsTxQueueStartedForTest())
 
 	blob := randomBlob(t)
 
@@ -405,11 +396,11 @@ func TestParallelPoolRestart(t *testing.T) {
 
 	submitAndAssert(t)
 
-	client.StopTxQueue()
-	require.False(t, client.IsTxQueueStarted())
+	client.StopTxQueueForTest()
+	require.False(t, client.IsTxQueueStartedForTest())
 
-	require.NoError(t, client.StartTxQueue(ctx))
-	require.True(t, client.IsTxQueueStarted())
+	require.NoError(t, client.StartTxQueueForTest(ctx))
+	require.True(t, client.IsTxQueueStartedForTest())
 
 	submitAndAssert(t)
 }
@@ -433,7 +424,6 @@ func TestParallelSubmitPayForBlobContextCancellation(t *testing.T) {
 	defer conn.Close()
 
 	require.True(t, client.TxQueueWorkerCount() > 0)
-	require.NoError(t, client.StartTxQueue(context.Background()))
 
 	blob := randomBlob(t)
 
@@ -514,10 +504,6 @@ func TestSingleWorkerNoFeeGranter(t *testing.T) {
 	client, conn := newMockTxClientWithCustomHandlers(t, broadcastHandler, txStatusHandler, nil)
 	defer conn.Close()
 	require.Equal(t, 1, client.TxQueueWorkerCount())
-
-	// Start the tx queue
-	err := client.StartTxQueue(context.Background())
-	require.NoError(t, err)
 
 	blob := randomBlob(t)
 

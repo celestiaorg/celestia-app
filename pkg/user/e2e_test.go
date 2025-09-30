@@ -37,7 +37,7 @@ func TestParallelTxSubmission(t *testing.T) {
 	require.NoError(t, err)
 
 	// Pool should already be started by SetupTxClient
-	require.True(t, txClient.IsTxQueueStarted())
+	require.True(t, txClient.IsTxQueueStartedForTest())
 
 	// Generate test blobs
 	numJobs := 10
@@ -76,8 +76,8 @@ func TestParallelTxSubmission(t *testing.T) {
 	t.Log("Testing parallel pool shutdown...")
 
 	// Stop the parallel pool
-	txClient.StopTxQueue()
-	require.False(t, txClient.IsTxQueueStarted())
+	txClient.StopTxQueueForTest()
+	require.False(t, txClient.IsTxQueueStartedForTest())
 
 	// Verify that new submissions fail when tx queue is stopped
 	_, err = txClient.SubmitPayForBlob(ctx.GoContext(), []*share.Blob{blobs[0]})
@@ -96,7 +96,7 @@ func TestParallelTxSubmission(t *testing.T) {
 	require.NoError(t, err)
 
 	// Tx queue should already be started by SetupTxClient
-	require.True(t, txClient2.IsTxQueueStarted())
+	require.True(t, txClient2.IsTxQueueStartedForTest())
 
 	// Submit jobs in parallel using goroutines
 	var wg2 sync.WaitGroup
