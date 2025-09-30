@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - "proto/**"
+  merge_group:
 
 permissions:
   contents: read

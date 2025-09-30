@@ -35,6 +35,7 @@ import (
 	celestiatx "github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
 	"github.com/celestiaorg/celestia-app/v6/x/blob"
 	blobkeeper "github.com/celestiaorg/celestia-app/v6/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
@@ -46,7 +47,7 @@ import (
 	minttypes "github.com/celestiaorg/celestia-app/v6/x/mint/types"
 	"github.com/celestiaorg/celestia-app/v6/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v6/x/signal/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmjson "github.com/cometbft/cometbft/libs/json"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -193,6 +194,8 @@ type App struct {
 	// blockTime is used to override the default TimeoutHeightDelay. This is
 	// useful for testing purposes and should not be used on public networks
 	// (Arabica, Mocha, or Mainnet Beta).
+	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
+	treePool                *wrapper.TreePool
 	delayedPrecommitTimeout time.Duration
 }
 
@@ -485,6 +488,10 @@ func New(
 	if err != nil {
 		panic(err)
 	}
+	app.treePool, err = wrapper.DefaultPreallocatedTreePool(uint(appconsts.SquareSizeUpperBound))
+	if err != nil {
+		panic(err)
+	}
 	err = msgservice.ValidateProtoAnnotations(protoFiles)
 	if err != nil {
 		// Once we switch to using protoreflect-based antehandlers, we might
@@ -689,6 +696,11 @@ func (app *App) GetMemKey(storeKey string) *storetypes.MemoryStoreKey {
 func (app *App) GetSubspace(moduleName string) paramstypes.Subspace {
 	subspace, _ := app.ParamsKeeper.GetSubspace(moduleName)
 	return subspace
+}
+
+// TreePool returns the instance used for managing a pool of Merkle trees.
+func (app *App) TreePool() *wrapper.TreePool {
+	return app.treePool
 }
 
 // RegisterAPIRoutes registers all application module routes with the provided

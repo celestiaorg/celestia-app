@@ -8,7 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
 	blob "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/gogoproto/grpc"
 )
@@ -63,7 +63,7 @@ func (s *BlobSequence) WithGasPrice(gasPrice float64) *BlobSequence {
 
 func (s *BlobSequence) Clone(n int) []Sequence {
 	sequenceGroup := make([]Sequence, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		sequenceGroup[i] = &BlobSequence{
 			namespaces:    s.namespaces,
 			sizes:         s.sizes,
