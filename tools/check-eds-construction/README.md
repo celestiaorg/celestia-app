@@ -28,11 +28,12 @@ go run ./tools/check-eds-construction [command]
 #### Check random blocks
 
 ```bash
-./check-eds-construction --rpc <node_rpc> random [n]
+./check-eds-construction --rpc <node_rpc> random [n] [--delay <ms>]
 ```
 
 - `--rpc`: CometBFT HTTP RPC endpoint
 - `[n]`: Number of random blocks to check (optional, defaults to 10)
+- `--delay`: Delay between block checks in milliseconds (optional, defaults to 100ms)
 
 ### Examples
 
@@ -45,12 +46,12 @@ Computed data root: 3C7F...ABCD
 Computed data root (with pool): 3C7F...ABCD
 All roots match!
 
-# Check 20 random blocks
+# Check 20 random blocks with default 100ms delay
 $ go run ./tools/check-eds-construction --rpc https://rpc.celestia-arabica-11.com:443 random 20
 Connected to https://rpc.celestia-arabica-11.com:443 on chain arabica-11
 Latest block height: 5165100
 
-Checking 20 random blocks...
+Checking 20 random blocks with 100ms delay between checks...
 
 [1/20] Checking block at height 4932156
 Got data root: ABC1...2345
@@ -62,8 +63,11 @@ Block 4932156 passed
 [2/20] Checking block at height 5012437
 ...
 
-# Check 10 random blocks (default)
-$ go run ./tools/check-eds-construction --rpc https://rpc.celestia-arabica-11.com:443 random
+# Check 10 random blocks (default) with custom 500ms delay
+$ go run ./tools/check-eds-construction --rpc https://rpc.celestia-arabica-11.com:443 random --delay 500
+
+# Check 10 random blocks with no delay
+$ go run ./tools/check-eds-construction --rpc https://rpc.celestia-arabica-11.com:443 random --delay 0
 ```
 
 ### Help

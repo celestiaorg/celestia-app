@@ -74,14 +74,15 @@ with and without tree pool optimization.`,
 				}
 			}
 
+			delay, _ := cmd.Flags().GetInt("delay")
 			treePool, err := wrapper.DefaultPreallocatedTreePool(512)
 			if err != nil {
 				return fmt.Errorf("failed to create tree pool: %w", err)
 			}
-			return checkRandomBlocks(rpc, numBlocks, treePool)
+			return checkRandomBlocks(rpc, numBlocks, treePool, time.Duration(delay)*time.Millisecond)
 		},
 	}
-
+	randomCmd.Flags().Int("delay", 100, "Delay between block checks in milliseconds")
 	rootCmd.AddCommand(checkCmd, randomCmd)
 
 	if err := rootCmd.Execute(); err != nil {
@@ -109,7 +110,7 @@ func checkBlock(url string, height int64, treePool *wrapper.TreePool) error {
 	return compareEDSConstructions(block.Block.Txs.ToSliceOfBytes(), block.Block.Version.App, block.Block.DataHash, height, treePool)
 }
 
-func checkRandomBlocks(url string, numBlocks int, treePool *wrapper.TreePool) error {
+func checkRandomBlocks(url string, numBlocks int, treePool *wrapper.TreePool, delay time.Duration) error {
 	c, err := http.New(url, "/websocket")
 	if err != nil {
 		return fmt.Errorf("failed to create RPC client: %w", err)
@@ -130,7 +131,7 @@ func checkRandomBlocks(url string, numBlocks int, treePool *wrapper.TreePool) er
 
 	selectedHeights := generateRandomHeights(latestHeight, numBlocks)
 
-	fmt.Printf("\nChecking %d random blocks...\n", numBlocks)
+	fmt.Printf("\nChecking %d random blocks with %dms delay between checks...\n", numBlocks, delay.Milliseconds())
 	for i, height := range selectedHeights {
 		fmt.Printf("\n[%d/%d] Checking block at height %d\n", i+1, numBlocks, height)
 
@@ -143,6 +144,10 @@ func checkRandomBlocks(url string, numBlocks int, treePool *wrapper.TreePool) er
 			return fmt.Errorf("failed to compare EDS constructions for block at height %d: %w", height, err)
 		}
 		fmt.Printf("Block %d passed\n", height)
+
+		if i < len(selectedHeights)-1 && delay > 0 {
+			time.Sleep(delay)
+		}
 	}
 
 	return nil
