@@ -84,7 +84,7 @@ func QueryAccount(ctx context.Context, conn *grpc.ClientConn, registry codectype
 }
 
 // QueryAccountBalance fetches the balance of a specific denomination for an account.
-func QueryAccountBalance(ctx context.Context, conn *grpc.ClientConn, registry codectypes.InterfaceRegistry, address types.AccAddress, denom string) (types.Coin, error) {
+func QueryAccountBalance(ctx context.Context, conn *grpc.ClientConn, _ codectypes.InterfaceRegistry, address types.AccAddress, denom string) (types.Coin, error) {
 	balanceQuery := banktypes.NewQueryClient(conn)
 	balanceResp, err := balanceQuery.Balance(ctx, &banktypes.QueryBalanceRequest{
 		Address: address.String(),

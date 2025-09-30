@@ -294,11 +294,8 @@ func SetupTxClient(
 		return nil, err
 	}
 
-	// Always start the tx queue
-	if txClient.txQueue != nil {
-		if err := txClient.txQueue.start(ctx); err != nil {
-			return nil, fmt.Errorf("failed to start tx queue: %w", err)
-		}
+	if err := txClient.txQueue.start(ctx); err != nil {
+		return nil, fmt.Errorf("failed to start tx queue: %w", err)
 	}
 
 	return txClient, nil
