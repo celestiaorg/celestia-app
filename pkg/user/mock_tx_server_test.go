@@ -17,6 +17,14 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 )
 
+<<<<<<< HEAD
+=======
+// BroadcastHandler is a function type for handling broadcast requests
+type BroadcastHandler func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error)
+
+type TxStatusHandler func(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error)
+
+>>>>>>> e8bf59a (feat: ability to submit PFBs in parallel (#5776))
 // mockTxServer implements both gRPC ServiceServer and TxServer interfaces for mocking broadcast and tx status responses
 type mockTxServer struct {
 	sdktx.UnimplementedServiceServer
@@ -24,9 +32,26 @@ type mockTxServer struct {
 	txStatusResponses   map[string][]*tx.TxStatusResponse // txHash with sequence of responses
 	txStatusCallCounts  map[string]int                    // txHash with number of TxStatus calls made
 	broadcastCallCounts map[string]int                    // txHash with number of BroadcastTx calls made
+<<<<<<< HEAD
+=======
+
+	// Optional custom handlers - if set, these override default behavior
+	broadcastHandler BroadcastHandler
+	txStatusHandler  TxStatusHandler
+>>>>>>> e8bf59a (feat: ability to submit PFBs in parallel (#5776))
 }
 
 func (m *mockTxServer) TxStatus(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error) {
+	return m.txStatusHandler(ctx, req)
+}
+
+func (m *mockTxServer) BroadcastTx(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+	return m.broadcastHandler(ctx, req)
+}
+
+// defaultTxStatusHandler implements the original default behavior for TxStatus
+func (m *mockTxServer) defaultTxStatusHandler(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error) {
+	// Use predefined response sequences
 	if responses, exists := m.txStatusResponses[req.TxId]; exists {
 		callCount := m.txStatusCallCounts[req.TxId]
 		m.txStatusCallCounts[req.TxId]++
@@ -48,8 +73,15 @@ func (m *mockTxServer) TxStatus(ctx context.Context, req *tx.TxStatusRequest) (*
 	}, nil
 }
 
+<<<<<<< HEAD
 func (m *mockTxServer) BroadcastTx(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
 	// Same hash for all broadcast calls
+=======
+// nolint:unused
+// defaultBroadcastHandler implements the original default behavior for BroadcastTx
+func (m *mockTxServer) defaultBroadcastHandler(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+	// Default behavior: same hash for all broadcast calls
+>>>>>>> e8bf59a (feat: ability to submit PFBs in parallel (#5776))
 	txHash := "test-tx-hash-123"
 
 	// Increment broadcast call count
@@ -79,13 +111,43 @@ func (m *mockTxServer) BroadcastTx(ctx context.Context, req *sdktx.BroadcastTxRe
 	}, nil
 }
 
+<<<<<<< HEAD
 // setupTxClientWithMockGPRCServer creates a TxClient connected to a mock gRPC server that lets you mock broadcast and tx status responses
 func setupTxClientWithMockGRPCServer(t *testing.T, responseSequences map[string][]*tx.TxStatusResponse, opts ...user.Option) (*user.TxClient, *grpc.ClientConn) {
 	// Create mock server with provided response sequences
+=======
+// nolint:unused
+// setupTxClientWithMockGRPCServer creates a TxClient connected to a mock gRPC server that lets you mock broadcast and tx status responses
+func setupTxClientWithMockGRPCServer(t *testing.T, responseSequences map[string][]*tx.TxStatusResponse, opts ...user.Option) (*user.TxClient, *grpc.ClientConn) {
+	// Use default handlers for backward compatibility
+	return setupTxClientWithMockGRPCServerAndHandlers(t, responseSequences, nil, nil, opts...)
+}
+
+// nolint:unused
+// setupTxClientWithMockGRPCServerAndHandlers creates a TxClient with optional custom handlers
+func setupTxClientWithMockGRPCServerAndHandlers(t *testing.T, responseSequences map[string][]*tx.TxStatusResponse, broadcastHandler func(context.Context, *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error), txStatusHandler func(context.Context, *tx.TxStatusRequest) (*tx.TxStatusResponse, error), opts ...user.Option) (*user.TxClient, *grpc.ClientConn) {
+	// Create mock server with provided response sequences and handlers
+>>>>>>> e8bf59a (feat: ability to submit PFBs in parallel (#5776))
 	mockServer := &mockTxServer{
 		txStatusResponses:   responseSequences,
 		txStatusCallCounts:  make(map[string]int),
 		broadcastCallCounts: make(map[string]int),
+<<<<<<< HEAD
+=======
+	}
+
+	// Set handlers: use provided custom handlers or default to original behavior
+	if broadcastHandler != nil {
+		mockServer.broadcastHandler = broadcastHandler
+	} else {
+		mockServer.broadcastHandler = mockServer.defaultBroadcastHandler
+	}
+
+	if txStatusHandler != nil {
+		mockServer.txStatusHandler = txStatusHandler
+	} else {
+		mockServer.txStatusHandler = mockServer.defaultTxStatusHandler
+>>>>>>> e8bf59a (feat: ability to submit PFBs in parallel (#5776))
 	}
 
 	// Set up in-memory gRPC server
@@ -101,8 +163,61 @@ func setupTxClientWithMockGRPCServer(t *testing.T, responseSequences map[string]
 	}()
 
 	// Create client connection
-	//nolint:staticcheck
-	conn, err := grpc.DialContext(context.Background(), "bufnet",
+	conn, err := grpc.NewClient(
+		"passthrough:///bufnet",
+		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
+			return lis.Dial()
+		}),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	require.NoError(t, err)
+
+	// Create TxClient with mock connection
+	encCfg, txClient, _ := setupTxClientWithDefaultParams(t)
+
+	mockTxClient, err := user.NewTxClient(
+		encCfg.Codec,
+		txClient.Signer(),
+		conn,
+		encCfg.InterfaceRegistry,
+		opts...,
+	)
+	require.NoError(t, err)
+
+	return mockTxClient, conn
+}
+
+// createMockServer creates a single mock gRPC server with the given configuration
+func createMockServer(t *testing.T, txStatusResponses map[string][]*tx.TxStatusResponse, broadcastHandler BroadcastHandler) *grpc.ClientConn {
+	mockServer := &mockTxServer{
+		txStatusResponses:   txStatusResponses,
+		txStatusCallCounts:  make(map[string]int),
+		broadcastCallCounts: make(map[string]int),
+	}
+
+	// Set handlers: use provided custom handler or default behavior
+	if broadcastHandler != nil {
+		mockServer.broadcastHandler = broadcastHandler
+	} else {
+		mockServer.broadcastHandler = mockServer.defaultBroadcastHandler
+	}
+	mockServer.txStatusHandler = mockServer.defaultTxStatusHandler
+
+	// Set up in-memory gRPC server
+	lis := bufconn.Listen(1024 * 1024)
+	s := grpc.NewServer()
+	sdktx.RegisterServiceServer(s, mockServer) // For BroadcastTx
+	tx.RegisterTxServer(s, mockServer)         // For TxStatus
+
+	go func() {
+		if err := s.Serve(lis); err != nil {
+			t.Logf("Server exited with error: %v", err)
+		}
+	}()
+
+	// Create client connection
+	conn, err := grpc.NewClient(
+		"passthrough:///bufnet",
 		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
 			return lis.Dial()
 		}),

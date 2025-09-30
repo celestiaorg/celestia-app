@@ -40,7 +40,17 @@ import (
 const (
 	DefaultPollTime          = 3 * time.Second
 	txTrackerPruningInterval = 10 * time.Minute
+<<<<<<< HEAD
 	evictionPollTime         = 1 * time.Minute
+=======
+	// Gas limits for initialization transactions
+	SendGasLimit         = 100000
+	FeegrantGasLimit     = 800000
+	DefaultWorkerBalance = 1
+	// evictionPollTimeOut is the timeout for checking if an evicted transaction
+	// gets committed after experiencing a broadcast error during resubmission
+	evictionPollTimeOut = 1 * time.Minute
+>>>>>>> e8bf59a (feat: ability to submit PFBs in parallel (#5776))
 )
 
 type Option func(client *TxClient)
@@ -117,6 +127,12 @@ func WithDefaultAccount(name string) Option {
 		}
 		c.defaultAccount = name
 		c.defaultAddress = addr
+
+		// Update worker 0's account if tx queue already exists
+		if c.txQueue != nil && len(c.txQueue.workers) > 0 {
+			c.txQueue.workers[0].accountName = name
+			c.txQueue.workers[0].address = addr.String()
+		}
 	}
 }
 
@@ -135,6 +151,31 @@ func WithEstimatorService(conn *grpc.ClientConn) Option {
 func WithAdditionalCoreEndpoints(conns []*grpc.ClientConn) Option {
 	return func(c *TxClient) {
 		c.conns = append(c.conns, conns...)
+	}
+}
+
+// WithTxWorkers enables parallel transaction submission with the specified number of worker accounts.
+// Worker accounts are automatically generated with hardcoded names unless numWorkers is 1, in which case
+// the existing default account is used.
+// Workers are initialized automatically when SetupTxClient is called.
+func WithTxWorkers(numWorkers int) Option {
+	if numWorkers <= 0 {
+		return func(*TxClient) {}
+	}
+
+	return func(c *TxClient) {
+		pool := newTxQueue(c, numWorkers)
+		c.txQueue = pool
+	}
+}
+
+// WithParallelQueueSize sets the buffer size for the parallel submission job queue.
+// Default is 100 if not specified.
+func WithParallelQueueSize(size int) Option {
+	return func(c *TxClient) {
+		if c.txQueue != nil {
+			c.txQueue.jobQueue = make(chan *SubmissionJob, size)
+		}
 	}
 }
 
@@ -158,6 +199,8 @@ type TxClient struct {
 	// that was submitted to the chain
 	txTracker           map[string]txInfo
 	gasEstimationClient gasestimation.GasEstimatorClient
+	// txQueue manages parallel transaction submission when enabled
+	txQueue *txQueue
 }
 
 // NewTxClient returns a new TxClient
@@ -181,6 +224,7 @@ func NewTxClient(
 	if err != nil {
 		return nil, err
 	}
+
 	txClient := &TxClient{
 		signer:              signer,
 		registry:            registry,
@@ -197,9 +241,10 @@ func NewTxClient(
 		opt(txClient)
 	}
 
-	// Sanity check to ensure we don't have more than 3 connections
-	if len(txClient.conns) > 3 {
-		txClient.conns = txClient.conns[:3]
+	// Always create a tx queue with at least 1 worker (the default account)
+	// unless already configured by WithTxWorkers option
+	if txClient.txQueue == nil {
+		txClient.txQueue = newTxQueue(txClient, 1)
 	}
 
 	return txClient, nil
@@ -249,18 +294,62 @@ func SetupTxClient(
 		return nil, fmt.Errorf("failed to create signer: %w", err)
 	}
 
-	return NewTxClient(encCfg.Codec, signer, conn, encCfg.InterfaceRegistry, options...)
-}
-
-// SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
-// TxOptions may be provided to set the fee and gas limit.
-func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
-	resp, err := client.BroadcastPayForBlob(ctx, blobs, opts...)
+	txClient, err := NewTxClient(encCfg.Codec, signer, conn, encCfg.InterfaceRegistry, options...)
 	if err != nil {
 		return nil, err
 	}
 
+<<<<<<< HEAD
 	return client.ConfirmTx(ctx, resp.TxHash)
+=======
+	if err := txClient.txQueue.start(ctx); err != nil {
+		return nil, fmt.Errorf("failed to start tx queue: %w", err)
+	}
+
+	return txClient, nil
+}
+
+// SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
+// TxOptions may be provided to set the fee and gas limit.
+// This method uses the tx queue infrastructure and blocks until the transaction is confirmed.
+func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
+	if client.txQueue == nil {
+		return nil, errors.New("tx queue not configured")
+	}
+
+	if !client.txQueue.started.Load() {
+		return nil, errors.New("tx queue not started")
+	}
+
+	resultsC := make(chan SubmissionResult, 1)
+	defer close(resultsC)
+
+	job := &SubmissionJob{
+		Blobs:    blobs,
+		Options:  opts,
+		Ctx:      ctx,
+		ResultsC: resultsC,
+	}
+
+	client.SubmitJob(job)
+
+	// Block waiting for the result
+	result := <-resultsC
+	if result.Error != nil {
+		return result.TxResponse, result.Error
+	}
+
+	return result.TxResponse, nil
+}
+
+// SubmitJob submits a job to the tx queue for parallel processing
+func (client *TxClient) SubmitJob(job *SubmissionJob) {
+	if client.txQueue != nil {
+		client.txQueue.submitJob(job)
+	} else {
+		job.ResultsC <- SubmissionResult{Error: errors.New("tx queue not configured")}
+	}
+>>>>>>> e8bf59a (feat: ability to submit PFBs in parallel (#5776))
 }
 
 // SubmitPayForBlobWithAccount forms a transaction from the provided blobs, signs it with the provided account, and submits it to the chain.
@@ -580,7 +669,7 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 	close(errCh)
 
 	// Return first successful response, if any
-	if resp, ok := <-respCh; ok {
+	if resp, ok := <-respCh; ok && resp != nil {
 		client.trackTransaction(signer, resp.TxHash, txBytes)
 
 		if err := client.signer.IncrementSequence(signer); err != nil {
@@ -871,7 +960,8 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 	return record.Name, nil
 }
 
-// trackTransaction tracks a transaction in the tx client's local tx tracker.
+// trackTransaction tracks a transaction without acquiring the mutex.
+// This should only be called when the caller already holds the mutex.
 func (client *TxClient) trackTransaction(signer, txHash string, txBytes []byte) {
 	sequence := client.signer.Account(signer).Sequence()
 	client.txTracker[txHash] = txInfo{
@@ -893,6 +983,56 @@ func (client *TxClient) GetTxFromTxTracker(hash string) (sequence uint64, signer
 // Signer exposes the tx clients underlying signer
 func (client *TxClient) Signer() *Signer {
 	return client.signer
+}
+
+// StartTxQueueForTest starts the tx queue for testing purposes.
+// This function is only intended for use in tests.
+func (client *TxClient) StartTxQueueForTest(ctx context.Context) error {
+	if client.txQueue == nil {
+		return nil
+	}
+	return client.txQueue.start(ctx)
+}
+
+// StopTxQueueForTest stops the tx queue for testing purposes.
+// This function is only intended for use in tests.
+func (client *TxClient) StopTxQueueForTest() {
+	if client.txQueue != nil {
+		client.txQueue.stop()
+	}
+}
+
+// IsTxQueueStartedForTest returns whether the tx queue is started, for testing purposes.
+// This function is only intended for use in tests.
+func (client *TxClient) IsTxQueueStartedForTest() bool {
+	if client.txQueue == nil {
+		return false
+	}
+	return client.txQueue.isStarted()
+}
+
+// TxQueueWorkerCount returns the number of workers in the tx queue
+func (client *TxClient) TxQueueWorkerCount() int {
+	if client.txQueue == nil {
+		return 0
+	}
+	return len(client.txQueue.workers)
+}
+
+// TxQueueWorkerAddress returns the address for the worker at the given index
+func (client *TxClient) TxQueueWorkerAddress(index int) string {
+	if client.txQueue == nil || index < 0 || index >= len(client.txQueue.workers) {
+		return ""
+	}
+	return client.txQueue.workers[index].address
+}
+
+// TxQueueWorkerAccountName returns the account name for the worker at the given index
+func (client *TxClient) TxQueueWorkerAccountName(index int) string {
+	if client.txQueue == nil || index < 0 || index >= len(client.txQueue.workers) {
+		return ""
+	}
+	return client.txQueue.workers[index].accountName
 }
 
 // QueryMinimumGasPrice queries both the nodes local and network wide

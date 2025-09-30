@@ -8,6 +8,7 @@ import (
 	"net"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/stretchr/testify/require"
@@ -18,8 +19,10 @@ import (
 // MockTxService allows controlling the behavior of BroadcastTx calls.
 type MockTxService struct {
 	sdktx.UnimplementedServiceServer // Embed the unimplemented server
+	tx.UnimplementedTxServer         // Embed the unimplemented server
 
 	BroadcastHandler func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error)
+	TxStatusHandler  func(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error)
 }
 
 func (m *MockTxService) BroadcastTx(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
@@ -27,6 +30,13 @@ func (m *MockTxService) BroadcastTx(ctx context.Context, req *sdktx.BroadcastTxR
 		return m.BroadcastHandler(ctx, req)
 	}
 	return nil, fmt.Errorf("MockTxService.BroadcastHandler not set")
+}
+
+func (m *MockTxService) TxStatus(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error) {
+	if m.TxStatusHandler != nil {
+		return m.TxStatusHandler(ctx, req)
+	}
+	return nil, fmt.Errorf("MockTxService.TxStatusHandler not set")
 }
 
 func (m *MockTxService) Simulate(context.Context, *sdktx.SimulateRequest) (*sdktx.SimulateResponse, error) {
@@ -76,6 +86,7 @@ func StartMockServer(t *testing.T, service *MockTxService) *grpc.ClientConn {
 
 	s := grpc.NewServer()
 	sdktx.RegisterServiceServer(s, service)
+	tx.RegisterTxServer(s, service)
 
 	go func() {
 		if err := s.Serve(lis); err != nil && !errors.Is(err, grpc.ErrServerStopped) {

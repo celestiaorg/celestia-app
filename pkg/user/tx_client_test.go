@@ -406,8 +406,13 @@ func TestEvictions(t *testing.T) {
 			},
 		}
 
+<<<<<<< HEAD
 		mockTxClient, conn := setupTxClientWithMockGRPCServer(t, responseSequences, user.WithPollTime(1*time.Second))
 		defer conn.Close()
+=======
+		mockTxClient, conns := setupTxClientWithMockServers(t, []BroadcastHandler{nil}, responseSequences, user.WithPollTime(100*time.Millisecond))
+		defer conns[0].Close()
+>>>>>>> e8bf59a (feat: ability to submit PFBs in parallel (#5776))
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -579,7 +584,7 @@ func setupTxClient(
 	testnodeConfig := testnode.DefaultConfig().
 		WithTendermintConfig(defaultTmConfig).
 		WithFundedAccounts(accounts...).
-		WithDelayedPrecommitTimeout(400 * time.Millisecond)
+		WithDelayedPrecommitTimeout(300 * time.Millisecond)
 	testnodeConfig.Genesis.ConsensusParams.Block.MaxBytes = blocksize
 
 	ctx, _, _ := testnode.NewNetwork(t, testnodeConfig)
