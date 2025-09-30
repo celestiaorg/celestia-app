@@ -317,6 +317,7 @@ func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blo
 	}
 
 	resultsC := make(chan SubmissionResult, 1)
+	defer close(resultsC)
 
 	job := &SubmissionJob{
 		Blobs:    blobs,
