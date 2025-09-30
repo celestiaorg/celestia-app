@@ -329,12 +329,15 @@ func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blo
 	client.SubmitJob(job)
 
 	// Block waiting for the result
-	result := <-resultsC
-	if result.Error != nil {
-		return result.TxResponse, result.Error
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case result := <-resultsC:
+		if result.Error != nil {
+			return result.TxResponse, result.Error
+		}
+		return result.TxResponse, nil
 	}
-
-	return result.TxResponse, nil
 }
 
 // SubmitJob submits a job to the tx queue for parallel processing
@@ -967,23 +970,26 @@ func (client *TxClient) Signer() *Signer {
 	return client.signer
 }
 
-// StartTxQueue starts the tx queue if not already started
-func (client *TxClient) StartTxQueue(ctx context.Context) error {
+// StartTxQueueForTest starts the tx queue for testing purposes.
+// This function is only intended for use in tests.
+func (client *TxClient) StartTxQueueForTest(ctx context.Context) error {
 	if client.txQueue == nil {
-		return errors.New("tx queue not configured")
+		return nil
 	}
 	return client.txQueue.start(ctx)
 }
 
-// StopTxQueue stops the tx queue if running
-func (client *TxClient) StopTxQueue() {
+// StopTxQueueForTest stops the tx queue for testing purposes.
+// This function is only intended for use in tests.
+func (client *TxClient) StopTxQueueForTest() {
 	if client.txQueue != nil {
 		client.txQueue.stop()
 	}
 }
 
-// IsTxQueueStarted returns whether the tx queue is started
-func (client *TxClient) IsTxQueueStarted() bool {
+// IsTxQueueStartedForTest returns whether the tx queue is started, for testing purposes.
+// This function is only intended for use in tests.
+func (client *TxClient) IsTxQueueStartedForTest() bool {
 	if client.txQueue == nil {
 		return false
 	}
