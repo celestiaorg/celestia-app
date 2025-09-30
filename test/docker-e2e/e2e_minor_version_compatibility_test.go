@@ -45,6 +45,10 @@ func (s *CelestiaTestSuite) TestMinorVersionCompatibility() {
 			name: "v5 minor versions",
 			tags: []string{"v5.0.1", "v5.0.2", "v5.0.5", "v5.0.6", "v5.0.8"},
 		},
+		{
+			name: "v6 minor versions",
+			tags: []string{"v6.0.0-arabica", "v6.0.1-arabica", "v6.0.2-arabica", "v6.0.3-arabica", "v6.0.4-arabica", "v6.0.5-arabica"},
+		},
 	}
 
 	ctx := context.Background()
@@ -80,6 +84,7 @@ func (s *CelestiaTestSuite) runMinorVersionCompatibilityTest(ctx context.Context
 	dockerChain := chain.(*tastoradockertypes.Chain)
 	testBankSend(s.T(), dockerChain, cfg)
 	testPFBSubmission(s.T(), dockerChain, cfg)
+	testVestingAminoTx(s.T(), dockerChain, cfg)
 
 	s.Require().NoError(s.CheckLiveness(ctx, chain), "liveness check failed - network may have halted")
 

@@ -15,9 +15,13 @@ import (
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
+	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 )
 
@@ -172,4 +176,81 @@ func testPFBSubmission(t *testing.T, chain *tastoradockertypes.Chain, cfg *docke
 	require.Equal(t, uint32(0), txResp.Code, "PFB transaction failed with code %d", txResp.Code)
 
 	t.Logf("PFB transaction included on-chain. TxHash: %s, Height: %d", txResp.TxHash, txResp.Height)
+}
+
+// testVestingAminoTx performs a vesting account creation using amino-json encoding to test for compatibility issues.
+// This test was added because amino-encoded vesting transactions were observed to break in certain version combinations.
+func testVestingAminoTx(t *testing.T, chain *tastoradockertypes.Chain, cfg *dockerchain.Config) {
+	ctx := context.Background()
+
+	wallet, err := chain.CreateWallet(ctx, fmt.Sprintf("vesting-%d", time.Now().UnixNano()))
+	require.NoError(t, err, "failed to create vesting wallet")
+
+	txClient, err := dockerchain.SetupTxClient(ctx, chain.Nodes()[0], cfg)
+	require.NoError(t, err, "failed to setup TxClient")
+
+	// CRITICAL: Test amino-json encoding specifically (this is what fails between some older versions)
+	// Create a separate amino-json signer to test the problematic encoding
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	keyring := cfg.Genesis.Keyring()
+	chainID := cfg.Genesis.ChainID
+
+	accounts, err := keyring.List()
+	require.NoError(t, err, "failed to list keyring accounts")
+	require.NotEmpty(t, accounts, "no accounts found in keyring")
+	validatorAccount := accounts[0] // Use first account (validator)
+
+	validatorAddr, err := validatorAccount.GetAddress()
+	require.NoError(t, err, "failed to get validator address")
+
+	toAddr, err := sdk.AccAddressFromBech32(wallet.GetFormattedAddress())
+	require.NoError(t, err, "failed to parse vesting address")
+
+	t.Logf("Creating amino-json vesting account from: %s to: %s", validatorAddr.String(), toAddr.String())
+
+	vestingAmount := sdk.NewCoins(sdk.NewCoin("utia", sdkmath.NewInt(1000000)))
+	startTime := time.Now().Add(1 * time.Hour).Unix()
+	endTime := time.Now().Add(24 * time.Hour).Unix()
+
+	msg := &vestingtypes.MsgCreateVestingAccount{
+		FromAddress: validatorAddr.String(),
+		ToAddress:   toAddr.String(),
+		Amount:      vestingAmount,
+		StartTime:   startTime,
+		EndTime:     endTime,
+		Delayed:     false,
+	}
+
+	rpcClient, err := chain.Nodes()[0].GetRPCClient()
+	require.NoError(t, err, "failed to get RPC client")
+
+	// Verify we're using the correct validator account (should match TxClient's default)
+	defaultAddr := txClient.DefaultAddress()
+	require.Equal(t, validatorAddr.String(), defaultAddr.String(), "validator addresses should match")
+
+	// Get current sequence from TxClient's internal signer (which has been managing this account)
+	// This is critical - we need the CURRENT sequence, not 0
+	// Access the internal signer to get the current account state
+	validatorAccountName := txClient.DefaultAccountName()
+	internalAccount := txClient.Signer().Account(validatorAccountName)
+	require.NotNil(t, internalAccount, "internal account should exist")
+
+	currentSequence := internalAccount.Sequence()
+	currentAccountNumber := internalAccount.AccountNumber()
+	t.Logf("Using current account sequence: %d, account number: %d for amino signer", currentSequence, currentAccountNumber)
+
+	account := user.NewAccount(validatorAccount.Name, currentAccountNumber, currentSequence)
+	aminoSigner, err := user.NewSigner(keyring, encCfg.TxConfig, chainID, account)
+	require.NoError(t, err, "failed to create amino signer")
+
+	aminoSigner = aminoSigner.WithSignMode(signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON)
+
+	txBytes, _, err := aminoSigner.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(200000), user.SetFee(5000))
+	require.NoError(t, err, "amino-json vesting transaction creation failed - indicates version incompatibility")
+
+	txResp, err := rpcClient.BroadcastTxSync(ctx, txBytes)
+	require.NoError(t, err, "amino-json vesting transaction broadcast failed - indicates version incompatibility")
+	require.Equal(t, uint32(0), txResp.Code, "amino-json vesting transaction failed with code %d - indicates version incompatibility", txResp.Code)
+
+	t.Logf("Amino-json vesting transaction successful! TxHash: %s", txResp.Hash.String())
 }
