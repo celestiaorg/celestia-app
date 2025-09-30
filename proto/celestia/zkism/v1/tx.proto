@@ -58,6 +58,8 @@ message MsgCreateZKExecutionISMResponse {
 
 // MsgUpdateZKExecutionISM is the request type for UpdateZKExecutionISM.
 message MsgUpdateZKExecutionISM {
+  option (cosmos.msg.v1.signer) = "signer";
+
   // ism identifier
   string id = 1 [
     (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
@@ -69,6 +71,8 @@ message MsgUpdateZKExecutionISM {
   bytes proof = 3;
   // the public values used for proof verification.
   bytes public_values = 4;
+  // the tx signer address
+  string signer = 5;
 }
 
 // MsgUpdateZKExecutionISMResponse is the response type for UpdateZKExecutionISM.
@@ -81,6 +85,8 @@ message MsgUpdateZKExecutionISMResponse {
 
 // MsgSubmitMessages is the request type for SubmitMessages.
 message MsgSubmitMessages {
+  option (cosmos.msg.v1.signer) = "signer";
+
   // ism identifier
   string id = 1 [
     (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
@@ -92,6 +98,8 @@ message MsgSubmitMessages {
   bytes proof = 3;
   // the public values used for proof verification.
   bytes public_values = 4;
+  // the tx signer address
+  string signer = 5;
 }
 
 // MsgSubmitMessagesResponse is the response type for SubmitMessages.
