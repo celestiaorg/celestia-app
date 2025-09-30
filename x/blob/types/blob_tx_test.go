@@ -14,9 +14,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/inclusion"
-	"github.com/celestiaorg/go-square/v2/share"
-	"github.com/celestiaorg/go-square/v2/tx"
+	"github.com/celestiaorg/go-square/v3/inclusion"
+	"github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/go-square/v3/tx"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -232,7 +232,7 @@ func TestValidateBlobTx(t *testing.T) {
 				ns := share.RandomBlobNamespace()
 				sizes := make([]int, count)
 				namespaces := make([]share.Namespace, count)
-				for i := 0; i < count; i++ {
+				for i := range count {
 					sizes[i] = 100
 					namespaces[i] = ns
 				}

@@ -2,26 +2,46 @@
 
 This guide provides notes for major version releases. These notes may be helpful for users when upgrading from previous major versions.
 
-## Upcoming Major Release
+## v6.0.0
 
-## v6.0.0 (Unreleased)
+This release contains all the changes from [CIP-042](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-042.md). Notably:
 
-This release targets throughput, blob size, inflation reduction, and fee changes.
+- Lowers the unbonding period to ~14 days
+- Increases maximum block, square, and transaction size
+- Removes the token filter for Hyperlane and IBC
+- Privval Interface Extension for Arbitrary Message Signing
+- Reduce issuance to 2.5% and increase minimum commission to 10%
+
+### Hardware Requirements
+
+v6 changes the [hardware requirements](https://docs.celestia.org/how-to-guides/nodes-overview#consensus-nodes) for consensus nodes. Please ensure your consensus node meets these requirements.
+
+### Key Management Service (KMS) changes
+
+This release introduces a new message type that needs to be signed by KMS. **If you use Horcrux or TmKMS, you must use these versions in order to participate in consensus. If you use an alternative KMS, please reach out.**
+
+#### Horcrux
+
+For horcrux, use [v3.3.3-celestia](https://github.com/celestiaorg/horcrux/releases/tag/v3.3.3-celestia). All the setups and configs remain the same.
+
+#### TmKMS
+
+For TmKMS, use [v0.14.0-celestia](https://github.com/celestiaorg/tmkms/releases/tag/v0.14.0-celestia). All the setups and configs remain the same.
 
 ### Config changes
 
-It introduces a new block propagation reactor and configuration changes to accommodate the increased throughput. The relevant v6 configuration changes can be applied to existing config using the `celestia-appd update-config` command or by manually updating the config.toml and app.toml.
+This release introduces a new block propagation reactor and configuration changes to accommodate the increased throughput. The relevant v6 configuration changes can be applied to existing config using the `celestia-appd update-config` command or by manually updating the config.toml and app.toml.
 
 To modify your existing configs, the `celestia-appd update-configs` command can be used.
 
-```
+```shell
 celestia-appd update-config
 ```
 
 this uses version 6 and the default home (.celestia-app). Those can be changed or specified with flags as well.
 
-```
-celestia-appd update-config --version 6 --home ~/.celestia-app
+```shell
+celestia-appd update-config --app-version 6 --home ~/.celestia-app
 ```
 
 To manually modify the configs, change the following values.
@@ -152,7 +172,7 @@ Celestia-app v4.0.0 includes significant state machine changes due to major depe
 - **Consensus parameters** moved from CometBFT to dedicated `x/consensus` module
 - **All modules** now use module-specific parameter update messages instead of legacy `x/params` proposals
 
-**IBC v6 to v8 Protocol Changes** ([v6 to v7](https://ibc.cosmos.network/main/migrations/v6-to-v7), [v7 to v8](https://ibc.cosmos.network/main/migrations/v7-to-v8))
+**IBC v6 to v8 Protocol Changes** ([v6 to v7](https://ibc.cosmos.network/v8/migrations/v6-to-v7/), [v7 to v8](https://ibc.cosmos.network/v8/migrations/v7-to-v8))
 
 ### Library Consumers (v4.0.0)
 

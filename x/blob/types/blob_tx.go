@@ -4,11 +4,10 @@ import (
 	"bytes"
 	"slices"
 
-	"github.com/celestiaorg/go-square/v2/inclusion"
-	"github.com/celestiaorg/go-square/v2/share"
-	"github.com/celestiaorg/go-square/v2/tx"
+	"github.com/celestiaorg/go-square/v3/inclusion"
+	"github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/go-square/v3/tx"
 	"github.com/cometbft/cometbft/crypto/merkle"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -129,10 +128,10 @@ func ValidateBlobTxSkipCommitment(txcfg client.TxEncodingConfig, bTx *tx.BlobTx)
 	return msgPFB, nil
 }
 
-func BlobTxSharesUsed(btx tmproto.BlobTx) int {
+func BlobTxSharesUsed(btx tx.BlobTx) int {
 	sharesUsed := 0
 	for _, blob := range btx.Blobs {
-		sharesUsed += share.SparseSharesNeeded(uint32(len(blob.Data)))
+		sharesUsed += share.SparseSharesNeeded(uint32(len(blob.Data())), false)
 	}
 	return sharesUsed
 }

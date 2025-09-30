@@ -9,7 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/pkg/da"
 	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
 	"github.com/celestiaorg/celestia-app/v6/test/util/random"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
@@ -24,7 +24,7 @@ func TestWalkCachedSubTreeRoot(t *testing.T) {
 	ns1 := share.MustNewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
 
 	data := append(ns1.Bytes(), []byte("data")...)
-	for i := 0; i < 8; i++ {
+	for range 8 {
 		err := tr.Push(data)
 		assert.NoError(t, err)
 	}
@@ -33,7 +33,7 @@ func TestWalkCachedSubTreeRoot(t *testing.T) {
 
 	// create a short sub tree
 	shortSubTree := wrapper.NewErasuredNamespacedMerkleTree(squareSize, 0)
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		err := shortSubTree.Push(data)
 		assert.NoError(t, err)
 	}
@@ -42,7 +42,7 @@ func TestWalkCachedSubTreeRoot(t *testing.T) {
 
 	// create a tall sub tree root
 	tallSubTree := wrapper.NewErasuredNamespacedMerkleTree(squareSize, 0)
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		err := tallSubTree.Push(data)
 		assert.NoError(t, err)
 	}
@@ -143,7 +143,7 @@ func TestEDSSubRootCacher(t *testing.T) {
 // nmt wrapper makes this difficult.
 func calculateSubTreeRoots(t *testing.T, row [][]byte, depth int) [][]byte {
 	subLeafRange := len(row)
-	for i := 0; i < depth; i++ {
+	for range depth {
 		subLeafRange /= 2
 	}
 
@@ -182,7 +182,7 @@ func chunkSlice(slice [][]byte, chunkSize int) [][][]byte {
 // of random data is of size shareSize and is prefixed with a random blob
 // namespace.
 func generateRandNamespacedRawData(count int) (result [][]byte) {
-	for i := 0; i < count; i++ {
+	for range count {
 		rawData := random.Bytes(share.ShareSize)
 		namespace := share.RandomBlobNamespace().Bytes()
 		copy(rawData, namespace)

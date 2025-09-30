@@ -10,7 +10,7 @@ import (
 func Test_validateGovMaxSquareSize(t *testing.T) {
 	type test struct {
 		name      string
-		input     interface{}
+		input     any
 		expectErr bool
 	}
 	tests := []test{
