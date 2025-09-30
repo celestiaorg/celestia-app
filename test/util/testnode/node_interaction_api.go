@@ -14,7 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v6/test/util/random"
 	"github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmconfig "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
@@ -248,7 +248,7 @@ func (c *Context) PostData(account, broadcastMode string, ns share.Namespace, bl
 	if err != nil {
 		return nil, err
 	}
-	msg, err := types.NewMsgPayForBlobs(account, 0, b)
+	msg, err := types.NewMsgPayForBlobs(addr.String(), 0, b)
 	if err != nil {
 		return nil, err
 	}

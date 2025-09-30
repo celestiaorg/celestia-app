@@ -13,7 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v6/test/util/random"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	"github.com/cometbft/cometbft/config"
 	"github.com/stretchr/testify/require"
 )
@@ -52,7 +52,7 @@ func TestConcurrentTxSubmission(t *testing.T) {
 			subCtx, cancel := context.WithCancel(ctx.GoContext())
 			defer cancel()
 			time.AfterFunc(time.Minute, cancel)
-			for i := 0; i < numTxs; i++ {
+			for i := range numTxs {
 				wg.Add(1)
 				go func(b *share.Blob) {
 					defer wg.Done()

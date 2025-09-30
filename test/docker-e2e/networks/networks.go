@@ -9,7 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
-	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
+	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"

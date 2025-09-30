@@ -22,7 +22,7 @@ const (
 
 var (
 	DORegions = []string{
-		"nyc1", "nyc3", "tor1", "sfo2", "sfo3", "ams3", "sgp1", "lon1", "fra1", "syd1", "blr1",
+		"nyc1", "nyc3", "tor1", "sfo2", "sfo3", "ams3", "sgp1", "lon1", "fra1", "syd1",
 	}
 
 	DOLargeRegions = map[string]int{

@@ -15,7 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/random"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	blobtx "github.com/celestiaorg/go-square/v2/tx"
+	blobtx "github.com/celestiaorg/go-square/v3/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/stretchr/testify/require"
 )
@@ -105,7 +105,7 @@ func FuzzPFBGasEstimation(f *testing.F) {
 
 func randBlobSize(seed int64, numBlobs, maxBlobSize int) []int {
 	res := make([]int, numBlobs)
-	for i := 0; i < numBlobs; i++ {
+	for i := range numBlobs {
 		if maxBlobSize == 1 {
 			res[i] = 1
 			continue
