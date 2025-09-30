@@ -1,4 +1,10 @@
-VERSION := $(shell echo $(shell git describe --tags --always --match "v*") | sed 's/^v//')
+VERSION := $(shell \
+	if [ $$(git tag --points-at HEAD | wc -l) -gt 1 ]; then \
+		git describe --tags --always --match "v*" | cut -d'-' -f1 | sed 's/^v//'; \
+	else \
+		git describe --tags --always --match "v*" | sed 's/^v//'; \
+	fi \
+)
 COMMIT := $(shell git rev-parse --short HEAD)
 CELESTIA_TAG := $(shell git rev-parse --short=8 HEAD)
 export CELESTIA_TAG
@@ -251,6 +257,18 @@ fmt:
 lint-fix: fmt
 .PHONY: lint-fix
 
+## modernize-fix: Apply modernize suggestions automatically.
+modernize-fix:
+	@echo "--> Applying modernize fixes"
+	@bash scripts/modernize.sh
+.PHONY: modernize-fix
+
+## modernize-check: Check for modernize issues without applying fixes.
+modernize-check:
+	@echo "--> Checking for modernize issues"
+	@bash scripts/modernize-check.sh
+.PHONY: modernize-check
+
 ## test: Run tests.
 test:
 	@echo "--> Running tests"
@@ -440,7 +458,7 @@ enable-bbr:
 	@if [ "$$(uname -s)" != "Linux" ]; then \
 		echo "BBR is not available on non-Linux systems."; \
 		exit 0; \
-	elif [ "$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')" != "bbr" ]; then \
+	elif [ "$$(sysctl net.ipv4.tcp_congestion_control | awk '{print $$3}')" != "bbr" ]; then \
 	    echo "BBR is not enabled. Configuring BBR..."; \
 	    sudo modprobe tcp_bbr && \
             echo tcp_bbr | sudo tee -a /etc/modules && \

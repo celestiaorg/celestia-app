@@ -22,7 +22,7 @@ RUN uname -a &&\
     make txsim-build
 
 # Stage 2: create a minimal image with the binary
-FROM docker.io/alpine:3.20
+FROM docker.io/alpine:3.22
 
 # Use UID 10,001 because UIDs below 10,000 are a security risk.
 # Ref: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
