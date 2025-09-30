@@ -455,11 +455,11 @@ func (client *TxClient) submitToSingleConnection(ctx context.Context, txBytes []
 		// Retry with updated sequence
 		retryTxBytes, err := client.resignTransactionWithNewSequence(txBytes)
 		if err != nil {
-			span.RecordError(fmt.Errorf("txclient/retryBroadcastingTx: rebroadcast error: %w", err))
+			span.RecordError(fmt.Errorf("txclient/submitToSingleConnection: rebroadcast error: %w", err))
 			return nil, err
 		}
 
-		span.AddEvent("txclient/retryBroadcastingTx: successfully rebroadcasted tx after sequence mismatch")
+		span.AddEvent("txclient/submitToSingleConnection: successfully rebroadcasted tx after sequence mismatch")
 		return client.submitToSingleConnection(ctx, retryTxBytes, signer)
 	}
 	// Save the sequence, signer and txBytes of the in the local txTracker
