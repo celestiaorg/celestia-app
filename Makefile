@@ -186,7 +186,7 @@ proto-update-deps:
 build-docker-standalone:
 	@echo "--> Building Docker image"
 	$(DOCKER) build -t celestiaorg/celestia-app -f docker/standalone.Dockerfile .
-.PHONY: build-docker
+.PHONY: build-docker-standalone
 
 ## docker-build: Build the celestia-appd docker image from the current branch. Requires docker.
 docker-build: build-docker-multiplexer
