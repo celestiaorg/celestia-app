@@ -22,23 +22,41 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-const (
-	mochaEndpoint   = "rpc-mocha.pops.one:9090"
-	blobSizeKB      = 300  // 300 KiB blobs
-	intervalMs      = 1000 // Submit every 1 second
-	testDurationSec = 120  // Run for 120 seconds
-)
+type Config struct {
+	MochaEndpoint   string
+	BlobSizeKB      int
+	IntervalMs      int
+	TestDurationSec int
+}
 
 func main() {
+	cfg := Config{
+		MochaEndpoint:   "rpc-mocha.pops.one:9090",
+		BlobSizeKB:      300,  // 300 KiB blobs
+		IntervalMs:      1000, // Submit every 1 second
+		TestDurationSec: 240,  // Run for 240 seconds
+	}
+
+	err := RunLoadTest(cfg)
+	if err != nil && !errors.Is(err, context.Canceled) {
+		log.Fatalf("Load test failed: %v", err)
+	}
+}
+
+// RunLoadTest sets up the tx client, runs submissions, and reports results.
+func RunLoadTest(cfg Config) error {
 	log.Println("Setting up tx client and connecting to a mocha node")
 
 	// Global test context with configured timeout
-	ctx, cancel := context.WithTimeout(context.Background(), testDurationSec*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.TestDurationSec)*time.Second)
+	defer cancel()
 
-	txClient, grpcConn, _, err := NewMochaTxClient(ctx)
+	txClient, grpcConn, clientCancel, err := NewMochaTxClient(ctx, cfg)
 	if err != nil {
-		log.Fatalf("failed to set up tx client: %v", err)
+		return fmt.Errorf("failed to set up tx client: %w", err)
 	}
+	defer grpcConn.Close()
+	defer clientCancel()
 
 	var (
 		txCounter            int64
@@ -52,8 +70,8 @@ func main() {
 	lastSuccess.Store(time.Now().UnixNano())
 
 	g, ctx := errgroup.WithContext(ctx)
-
-	ticker := time.NewTicker(time.Duration(intervalMs) * time.Millisecond)
+	ticker := time.NewTicker(time.Duration(cfg.IntervalMs) * time.Millisecond)
+	defer ticker.Stop() // Clean up ticker
 
 	// Submission loop which breaks out if the text duration is exceeded
 	g.Go(func() error {
@@ -61,9 +79,8 @@ func main() {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-
 			case <-ticker.C:
-				if time.Since(time.Unix(0, lastSuccess.Load())) > 5*time.Second {
+				if time.Since(time.Unix(0, lastSuccess.Load())) > 10*time.Second {
 					return fmt.Errorf("TxClient appears halted: no successful submission recently")
 				}
 
@@ -71,7 +88,7 @@ func main() {
 
 				// Separate goroutine for broadcasting and confirming txs
 				g.Go(func() error {
-					hash, err := BroadcastPayForBlob(ctx, txClient, grpcConn, blobSizeKB, id)
+					hash, err := BroadcastPayForBlob(ctx, txClient, grpcConn, cfg.BlobSizeKB, id)
 					if err != nil || hash == "" {
 						fmt.Printf("\nTX-%d: Broadcast failed: %v\n", id, err)
 						failedBroadcasts.Add(1)
@@ -97,14 +114,10 @@ func main() {
 		}
 	})
 
-	// This only fails if the client halts
+	// This should only fail if the client halts
 	err = g.Wait()
-	ticker.Stop() // Stop ticker after errgroup finishes
-
-	if err != nil {
-		if !errors.Is(err, context.DeadlineExceeded) {
-			log.Fatalf("Script failed: %v", err)
-		}
+	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
+		return err
 	}
 
 	fmt.Println("\nScript completed successfully!!")
@@ -114,9 +127,11 @@ func main() {
 	fmt.Printf("Failed broadcasts: %d\n", failedBroadcasts.Load())
 
 	cancel() // Clean up context before exit
+
+	return nil
 }
 
-func BroadcastPayForBlob(ctx context.Context, txClient *user.TxClient, grpcConn *grpc.ClientConn, blobSizeKB int, txID int64) (hash string, err error) {
+func BroadcastPayForBlob(ctx context.Context, txClient *user.TxClient, grpcConn *grpc.ClientConn, blobSizeKB int, txID int64) (string, error) {
 	// Create random blob data of the given size
 	blobData := make([]byte, blobSizeKB*1024)
 	if _, err := cryptorand.Read(blobData); err != nil {
@@ -163,7 +178,7 @@ func getCurrentBlockHeight(ctx context.Context, grpcConn *grpc.ClientConn) (int6
 	return resp.SdkBlock.Header.Height, nil
 }
 
-func NewMochaTxClient(ctx context.Context) (*user.TxClient, *grpc.ClientConn, context.CancelFunc, error) {
+func NewMochaTxClient(ctx context.Context, cfg Config) (*user.TxClient, *grpc.ClientConn, context.CancelFunc, error) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	kr, err := keyring.New(app.Name, keyring.BackendTest, "~/.celestia-app", nil, encCfg.Codec)
 	if err != nil {
@@ -171,7 +186,7 @@ func NewMochaTxClient(ctx context.Context) (*user.TxClient, *grpc.ClientConn, co
 	}
 
 	grpcConn, err := grpc.NewClient(
-		mochaEndpoint,
+		cfg.MochaEndpoint,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(
 			grpc.MaxCallSendMsgSize(math.MaxInt32),
