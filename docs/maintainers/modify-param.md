@@ -87,7 +87,7 @@ params:
     export GAS_ADJUSTMENT="1.5"
 
     # Submit the proposal
-    celestia-appd tx gov submit-proposal gov-proposal.json --from $FROM --fees $FEES --gas $GAS --gas-adjustment $GAS_ADJUSTMENT
+    celestia-appd tx gov submit-proposal proposal.json --from $FROM --fees $FEES --gas $GAS --gas-adjustment $GAS_ADJUSTMENT
 
     # Query the proposals
     celestia-appd query gov proposals --output json | jq .
