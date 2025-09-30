@@ -18,7 +18,6 @@ import (
 
 // SubmissionJob represents a transaction submission task for parallel processing
 type SubmissionJob struct {
-	ID       string
 	Blobs    []*share.Blob
 	Options  []TxOption
 	Ctx      context.Context
