@@ -329,15 +329,12 @@ func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blo
 	client.SubmitJob(job)
 
 	// Block waiting for the result
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case result := <-resultsC:
-		if result.Error != nil {
-			return result.TxResponse, result.Error
-		}
-		return result.TxResponse, nil
+	result := <-resultsC
+	if result.Error != nil {
+		return result.TxResponse, result.Error
 	}
+
+	return result.TxResponse, nil
 }
 
 // SubmitJob submits a job to the tx queue for parallel processing
