@@ -441,7 +441,7 @@ sequenceDiagram
 
     Note over C,A: Fallback - Timeout Processing
     alt User doesn't submit within timeout
-        C->>A: MsgPaymentTimeout(promise, signature)
+        C->>A: MsgPaymentTimeout(promise)
         A->>A: Deduct payment from escrow
         Note right of A: No data square inclusion
     end
