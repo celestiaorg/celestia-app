@@ -34,12 +34,18 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 )
 
 const (
 	DefaultPollTime          = 3 * time.Second
 	txTrackerPruningInterval = 10 * time.Minute
+	// Gas limits for initialization transactions
+	SendGasLimit         = 100000
+	FeegrantGasLimit     = 800000
+	DefaultWorkerBalance = 1
 	// evictionPollTimeOut is the timeout for checking if an evicted transaction
 	// gets committed after experiencing a broadcast error during resubmission
 	evictionPollTimeOut = 1 * time.Minute
@@ -119,6 +125,12 @@ func WithDefaultAccount(name string) Option {
 		}
 		c.defaultAccount = name
 		c.defaultAddress = addr
+
+		// Update worker 0's account if tx queue already exists
+		if c.txQueue != nil && len(c.txQueue.workers) > 0 {
+			c.txQueue.workers[0].accountName = name
+			c.txQueue.workers[0].address = addr.String()
+		}
 	}
 }
 
@@ -137,6 +149,31 @@ func WithEstimatorService(conn *grpc.ClientConn) Option {
 func WithAdditionalCoreEndpoints(conns []*grpc.ClientConn) Option {
 	return func(c *TxClient) {
 		c.conns = append(c.conns, conns...)
+	}
+}
+
+// WithTxWorkers enables parallel transaction submission with the specified number of worker accounts.
+// Worker accounts are automatically generated with hardcoded names unless numWorkers is 1, in which case
+// the existing default account is used.
+// Workers are initialized automatically when SetupTxClient is called.
+func WithTxWorkers(numWorkers int) Option {
+	if numWorkers <= 0 {
+		return func(*TxClient) {}
+	}
+
+	return func(c *TxClient) {
+		pool := newTxQueue(c, numWorkers)
+		c.txQueue = pool
+	}
+}
+
+// WithParallelQueueSize sets the buffer size for the parallel submission job queue.
+// Default is 100 if not specified.
+func WithParallelQueueSize(size int) Option {
+	return func(c *TxClient) {
+		if c.txQueue != nil {
+			c.txQueue.jobQueue = make(chan *SubmissionJob, size)
+		}
 	}
 }
 
@@ -160,6 +197,8 @@ type TxClient struct {
 	// that was submitted to the chain
 	txTracker           map[string]txInfo
 	gasEstimationClient gasestimation.GasEstimatorClient
+	// txQueue manages parallel transaction submission when enabled
+	txQueue *txQueue
 }
 
 // NewTxClient returns a new TxClient
@@ -183,6 +222,7 @@ func NewTxClient(
 	if err != nil {
 		return nil, err
 	}
+
 	txClient := &TxClient{
 		signer:              signer,
 		registry:            registry,
@@ -199,9 +239,10 @@ func NewTxClient(
 		opt(txClient)
 	}
 
-	// Sanity check to ensure we don't have more than 3 connections
-	if len(txClient.conns) > 3 {
-		txClient.conns = txClient.conns[:3]
+	// Always create a tx queue with at least 1 worker (the default account)
+	// unless already configured by WithTxWorkers option
+	if txClient.txQueue == nil {
+		txClient.txQueue = newTxQueue(txClient, 1)
 	}
 
 	return txClient, nil
@@ -251,18 +292,58 @@ func SetupTxClient(
 		return nil, fmt.Errorf("failed to create signer: %w", err)
 	}
 
-	return NewTxClient(encCfg.Codec, signer, conn, encCfg.InterfaceRegistry, options...)
-}
-
-// SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
-// TxOptions may be provided to set the fee and gas limit.
-func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
-	resp, err := client.BroadcastPayForBlob(ctx, blobs, opts...)
+	txClient, err := NewTxClient(encCfg.Codec, signer, conn, encCfg.InterfaceRegistry, options...)
 	if err != nil {
 		return nil, err
 	}
 
-	return client.ConfirmTx(ctx, resp.TxHash)
+	if err := txClient.txQueue.start(ctx); err != nil {
+		return nil, fmt.Errorf("failed to start tx queue: %w", err)
+	}
+
+	return txClient, nil
+}
+
+// SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
+// TxOptions may be provided to set the fee and gas limit.
+// This method uses the tx queue infrastructure and blocks until the transaction is confirmed.
+func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
+	if client.txQueue == nil {
+		return nil, errors.New("tx queue not configured")
+	}
+
+	if !client.txQueue.started.Load() {
+		return nil, errors.New("tx queue not started")
+	}
+
+	resultsC := make(chan SubmissionResult, 1)
+	defer close(resultsC)
+
+	job := &SubmissionJob{
+		Blobs:    blobs,
+		Options:  opts,
+		Ctx:      ctx,
+		ResultsC: resultsC,
+	}
+
+	client.SubmitJob(job)
+
+	// Block waiting for the result
+	result := <-resultsC
+	if result.Error != nil {
+		return result.TxResponse, result.Error
+	}
+
+	return result.TxResponse, nil
+}
+
+// SubmitJob submits a job to the tx queue for parallel processing
+func (client *TxClient) SubmitJob(job *SubmissionJob) {
+	if client.txQueue != nil {
+		client.txQueue.submitJob(job)
+	} else {
+		job.ResultsC <- SubmissionResult{Error: errors.New("tx queue not configured")}
+	}
 }
 
 // SubmitPayForBlobWithAccount forms a transaction from the provided blobs, signs it with the provided account, and submits it to the chain.
@@ -272,6 +353,12 @@ func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account
 	if err != nil {
 		return nil, err
 	}
+
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("txclient: broadcasted PFB with account", trace.WithAttributes(
+		attribute.Int("num_blobs", len(blobs)),
+		attribute.String("account", accountName),
+	))
 
 	return client.ConfirmTx(ctx, resp.TxHash)
 }
@@ -409,14 +496,22 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 
 // routeTx routes to single or multi-connection handling
 func (client *TxClient) routeTx(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+	span := trace.SpanFromContext(ctx)
+
 	if len(client.conns) > 1 {
+		span.AddEvent("txclient: broadcasting PFB to multiple endpoints",
+			trace.WithAttributes(attribute.Int("num_endpoints", len(client.conns))),
+		)
 		return client.submitToMultipleConnections(ctx, txBytes, signer)
 	}
+	span.AddEvent("txclient: broadcasting PFB to single endpoint")
 	return client.submitToSingleConnection(ctx, txBytes, signer)
 }
 
 // submitToSingleConnection handles submission to a single connection with retry logic at sequence mismatches and sequence management
 func (client *TxClient) submitToSingleConnection(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+	span := trace.SpanFromContext(ctx)
+
 	resp, err := client.sendTxToConnection(ctx, client.conns[0], txBytes)
 	if err != nil {
 		broadcastTxErr, ok := err.(*BroadcastTxError)
@@ -434,9 +529,11 @@ func (client *TxClient) submitToSingleConnection(ctx context.Context, txBytes []
 		// Retry with updated sequence
 		retryTxBytes, err := client.resignTransactionWithNewSequence(txBytes)
 		if err != nil {
+			span.RecordError(fmt.Errorf("txclient/submitToSingleConnection: rebroadcast error: %w", err))
 			return nil, err
 		}
 
+		span.AddEvent("txclient/submitToSingleConnection: successfully rebroadcasted tx after sequence mismatch")
 		return client.submitToSingleConnection(ctx, retryTxBytes, signer)
 	}
 	// Save the sequence, signer and txBytes of the in the local txTracker
@@ -453,6 +550,8 @@ func (client *TxClient) submitToSingleConnection(ctx context.Context, txBytes []
 
 // sendTxToConnection broadcasts a transaction to the chain and returns the response.
 func (client *TxClient) sendTxToConnection(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
+	span := trace.SpanFromContext(ctx)
+
 	txClient := sdktx.NewServiceClient(conn)
 	resp, err := txClient.BroadcastTx(
 		ctx,
@@ -462,6 +561,7 @@ func (client *TxClient) sendTxToConnection(ctx context.Context, conn *grpc.Clien
 		},
 	)
 	if err != nil {
+		span.RecordError(fmt.Errorf("txclient/broadcastTx: broadcast error: %w", err))
 		return nil, err
 	}
 	if resp.TxResponse.Code != abci.CodeTypeOK {
@@ -536,6 +636,8 @@ func (client *TxClient) resignTransactionWithNewSequence(txBytes []byte) ([]byte
 // submitToMultipleConnections submits the transaction to multiple connections concurrently
 // and returns the response from the first successful submission.
 func (client *TxClient) submitToMultipleConnections(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+	span := trace.SpanFromContext(ctx)
+
 	respCh := make(chan *sdktypes.TxResponse, 1)
 	errCh := make(chan error, len(client.conns))
 
@@ -558,6 +660,9 @@ func (client *TxClient) submitToMultipleConnections(ctx context.Context, txBytes
 			// On first successful response, send it and cancel others
 			select {
 			case respCh <- resp:
+				span.AddEvent("txclient/broadcastMulti: successful broadcast",
+					trace.WithAttributes(attribute.String("endpoint", conn.Target())),
+				)
 				cancel()
 			case <-ctx.Done():
 			}
@@ -570,7 +675,7 @@ func (client *TxClient) submitToMultipleConnections(ctx context.Context, txBytes
 	close(errCh)
 
 	// Return first successful response, if any
-	if resp, ok := <-respCh; ok {
+	if resp, ok := <-respCh; ok && resp != nil {
 		client.trackTransaction(signer, resp.TxHash, txBytes)
 
 		if err := client.signer.IncrementSequence(signer); err != nil {
@@ -600,6 +705,8 @@ func (client *TxClient) pruneTxTracker() {
 // hash. It will continually loop until the context is cancelled, the tx is found or an error
 // is encountered.
 func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxResponse, error) {
+	span := trace.SpanFromContext(ctx)
+
 	txClient := tx.NewTxClient(client.conns[0])
 
 	pollTicker := time.NewTicker(client.pollTime)
@@ -607,6 +714,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 	var evictionPollTimeStart *time.Time
 
 	for {
+		span.AddEvent("txclient/ConfirmTx: polling for TxStatus")
 		resp, err := txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
 		if err != nil {
 			return nil, err
@@ -620,8 +728,12 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 
 		switch resp.Status {
 		case core.TxStatusPending:
+			span.AddEvent("txclient/ConfirmTx: transaction pending")
 			// Continue polling if the transaction is still pending
 		case core.TxStatusCommitted:
+			span.AddEvent("txclient/ConfirmTx: transaction committed", trace.WithAttributes(
+				attribute.Int("resp_code", int(resp.ExecutionCode)),
+			))
 			txResponse := &TxResponse{
 				Height: resp.Height,
 				TxHash: txHash,
@@ -633,9 +745,11 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 					Code:     resp.ExecutionCode,
 					ErrorLog: resp.Error,
 				}
+				span.RecordError(fmt.Errorf("txclient/ConfirmTx: execution error: %s", resp.Error))
 				client.deleteFromTxTracker(txHash)
 				return nil, executionErr
 			}
+			span.AddEvent("txclient/ConfirmTx: transaction confirmed successfully")
 			client.deleteFromTxTracker(txHash)
 			return txResponse, nil
 		case core.TxStatusEvicted:
@@ -646,8 +760,13 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 
 			if evictionPollTimeStart != nil {
 				// Eviction timer is running, no need to resubmit again
+				span.AddEvent("txclient/ConfirmTx: eviction timer already running")
 				break
 			}
+
+			span.AddEvent("txclient/ConfirmTx: transaction evicted, attempting resubmission", trace.WithAttributes(
+				attribute.String("tx_hash", txHash),
+			))
 
 			// If we're not already tracking eviction timeout, try to resubmit
 			_, err := client.sendTxToConnection(ctx, client.conns[0], client.txTracker[txHash].txBytes)
@@ -658,10 +777,13 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 					return nil, err
 				}
 				// Start eviction timeout timer on any broadcast error during resubmission
+				span.AddEvent("txclient/ConfirmTx: starting eviction timer for broadcast error")
 				now := time.Now()
 				evictionPollTimeStart = &now
 			}
+			span.AddEvent("txclient/ConfirmTx: transaction resubmitted successfully after eviction")
 		case core.TxStatusRejected:
+			span.RecordError(fmt.Errorf("txclient/ConfirmTx: transaction rejected: %s", resp.Error))
 			sequence, signer, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
@@ -674,6 +796,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			client.deleteFromTxTracker(txHash)
 			return nil, fmt.Errorf("tx with hash %s was rejected by the node with execution code %d", txHash, resp.ExecutionCode)
 		default:
+			span.RecordError(fmt.Errorf("txclient/ConfirmTx: unknown tx status for tx: %s", txHash))
 			client.deleteFromTxTracker(txHash)
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
@@ -738,15 +861,23 @@ func (client *TxClient) EstimateGasPriceAndUsage(
 	if err != nil {
 		return 0, 0, err
 	}
+
+	span := trace.SpanFromContext(ctx)
+
 	resp, err := client.gasEstimationClient.EstimateGasPriceAndUsage(ctx, &gasestimation.EstimateGasPriceAndUsageRequest{
 		TxPriority: priority,
 		TxBytes:    txBytes,
 	})
 	if err != nil {
+		span.RecordError(fmt.Errorf("txclient/EstimateGasPriceAndUsage: estimation error: %w", err))
 		return 0, 0, fmt.Errorf("failed to estimate gas price and usage: %w", err)
 	}
 
 	gasUsed = uint64(float64(resp.EstimatedGasUsed))
+	span.AddEvent("txclient/EstimateGasPriceAndUsage: estimation successful", trace.WithAttributes(
+		attribute.Int64("gas_used", int64(gasUsed)),
+		attribute.Int64("gas_price", int64(resp.EstimatedGasPrice)),
+	))
 
 	return resp.EstimatedGasPrice, gasUsed, nil
 }
@@ -759,6 +890,12 @@ func (client *TxClient) EstimateGasPrice(ctx context.Context, priority gasestima
 	if err != nil {
 		return 0, err
 	}
+
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("txclient/EstimateGasPrice: estimation successful",
+		trace.WithAttributes(attribute.Int64("gas_price", int64(resp.EstimatedGasPrice))),
+	)
+
 	return resp.EstimatedGasPrice, nil
 }
 
@@ -778,6 +915,12 @@ func (client *TxClient) estimateGas(ctx context.Context, txBuilder client.TxBuil
 	}
 
 	gasLimit := uint64(float64(resp.EstimatedGasUsed))
+
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("txclient/estimateGas: estimation successful",
+		trace.WithAttributes(attribute.Int64("gas_used", int64(gasLimit))),
+	)
+
 	return gasLimit, nil
 }
 
@@ -799,12 +942,18 @@ func (client *TxClient) AccountByAddress(ctx context.Context, address sdktypes.A
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 
+	span := trace.SpanFromContext(ctx)
+
 	accountName := client.signer.accountNameByAddress(address)
 	if accountName == "" {
+		span.AddEvent(
+			fmt.Sprintf("txclient/AccountByAddress: account not found for address: %s", address.String()),
+		)
 		return nil
 	}
 
 	if err := client.checkAccountLoaded(ctx, accountName); err != nil {
+		span.RecordError(fmt.Errorf("txclient/AccountByAddress: checking account loaded error: %w", err))
 		return nil
 	}
 
@@ -861,7 +1010,8 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 	return record.Name, nil
 }
 
-// trackTransaction tracks a transaction in the tx client's local tx tracker.
+// trackTransaction tracks a transaction without acquiring the mutex.
+// This should only be called when the caller already holds the mutex.
 func (client *TxClient) trackTransaction(signer, txHash string, txBytes []byte) {
 	sequence := client.signer.Account(signer).Sequence()
 	client.txTracker[txHash] = txInfo{
@@ -883,6 +1033,56 @@ func (client *TxClient) GetTxFromTxTracker(hash string) (sequence uint64, signer
 // Signer exposes the tx clients underlying signer
 func (client *TxClient) Signer() *Signer {
 	return client.signer
+}
+
+// StartTxQueueForTest starts the tx queue for testing purposes.
+// This function is only intended for use in tests.
+func (client *TxClient) StartTxQueueForTest(ctx context.Context) error {
+	if client.txQueue == nil {
+		return nil
+	}
+	return client.txQueue.start(ctx)
+}
+
+// StopTxQueueForTest stops the tx queue for testing purposes.
+// This function is only intended for use in tests.
+func (client *TxClient) StopTxQueueForTest() {
+	if client.txQueue != nil {
+		client.txQueue.stop()
+	}
+}
+
+// IsTxQueueStartedForTest returns whether the tx queue is started, for testing purposes.
+// This function is only intended for use in tests.
+func (client *TxClient) IsTxQueueStartedForTest() bool {
+	if client.txQueue == nil {
+		return false
+	}
+	return client.txQueue.isStarted()
+}
+
+// TxQueueWorkerCount returns the number of workers in the tx queue
+func (client *TxClient) TxQueueWorkerCount() int {
+	if client.txQueue == nil {
+		return 0
+	}
+	return len(client.txQueue.workers)
+}
+
+// TxQueueWorkerAddress returns the address for the worker at the given index
+func (client *TxClient) TxQueueWorkerAddress(index int) string {
+	if client.txQueue == nil || index < 0 || index >= len(client.txQueue.workers) {
+		return ""
+	}
+	return client.txQueue.workers[index].address
+}
+
+// TxQueueWorkerAccountName returns the account name for the worker at the given index
+func (client *TxClient) TxQueueWorkerAccountName(index int) string {
+	if client.txQueue == nil || index < 0 || index >= len(client.txQueue.workers) {
+		return ""
+	}
+	return client.txQueue.workers[index].accountName
 }
 
 // QueryMinimumGasPrice queries both the nodes local and network wide
