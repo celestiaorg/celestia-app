@@ -247,7 +247,7 @@ func testVestingAminoTx(t *testing.T, chain *tastoradockertypes.Chain, cfg *dock
 
 	txResp, err := rpcClient.BroadcastTxSync(ctx, txBytes)
 	require.NoError(t, err)
-	require.Equal(t, uint32(0), txResp.Code, "amino-json vesting transaction failed with code %d - indicates version incompatibility", txResp.Code)
+	require.Equal(t, uint32(0), txResp.Code)
 
 	t.Logf("Amino-json vesting transaction successful! TxHash: %s", txResp.Hash.String())
 }
