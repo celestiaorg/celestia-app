@@ -88,14 +88,8 @@ func (m *mockTxServer) BroadcastTx(ctx context.Context, req *sdktx.BroadcastTxRe
 	}, nil
 }
 
-<<<<<<< HEAD
-// setupTxClientWithMockGPRCServer creates a TxClient connected to a mock gRPC server that lets you mock broadcast and tx status responses
-func setupTxClientWithMockGRPCServer(t *testing.T, responseSequences map[string][]*tx.TxStatusResponse, opts ...user.Option) (*user.TxClient, *grpc.ClientConn) {
-	// Create mock server with provided response sequences
-=======
 // createMockServer creates a single mock gRPC server with the given configuration
 func createMockServer(t *testing.T, txStatusResponses map[string][]*tx.TxStatusResponse, broadcastHandler BroadcastHandler) *grpc.ClientConn {
->>>>>>> 82ac36d (refactor: tx client rejection bug flups (#5824))
 	mockServer := &mockTxServer{
 		txStatusResponses:   txStatusResponses,
 		txStatusCallCounts:  make(map[string]int),
