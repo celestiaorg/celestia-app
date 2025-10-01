@@ -179,7 +179,6 @@ func testPFBSubmission(t *testing.T, chain *tastoradockertypes.Chain, cfg *docke
 }
 
 // testVestingAminoTx performs a vesting account creation using amino-json encoding to test for compatibility issues.
-// This test was added because amino-encoded vesting transactions were observed to break in certain version combinations.
 func testVestingAminoTx(t *testing.T, chain *tastoradockertypes.Chain, cfg *dockerchain.Config) {
 	ctx := context.Background()
 
