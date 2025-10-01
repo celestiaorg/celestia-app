@@ -103,7 +103,7 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *tx.BlobTx, subtreeRootTh
 	}
 
 	// verify that the commitment of the blob matches that of the msgPFB
-	calculatedCommitments, err := inclusion.CreateParallelCommitments(bTx.Blobs, merkle.HashFromByteSlices, subtreeRootThreshold, runtime.NumCPU()*4)
+	calculatedCommitments, err := inclusion.CreateParallelCommitments(bTx.Blobs, merkle.HashFromByteSlices, subtreeRootThreshold, runtime.NumCPU()*2)
 	if err != nil {
 		return ErrCalculateCommitment
 	}
