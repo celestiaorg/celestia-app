@@ -418,13 +418,17 @@ func listCmd() *cobra.Command {
 			}
 
 			opts := &godo.ListOptions{}
+
+			cnt := 0
+			fmt.Printf("%-30s %-10s %-15s %-15s %s\n", "Name", "Status", "Region", "Public IP", "Created")
+			fmt.Printf("%-30s %-10s %-15s %-15s %s\n", "----", "------", "------", "---------", "-------")
+
 			for {
 				droplets, resp, err := client.do.Droplets.List(cmd.Context(), opts)
 				if err != nil {
 					return fmt.Errorf("failed to list droplets: %w", err)
 				}
 
-				cnt := 0
 				for _, droplet := range droplets {
 					// Check if droplet has TalisChainID tag
 					if slices.Contains(droplet.Tags, "talis") {
@@ -441,11 +445,6 @@ func listCmd() *cobra.Command {
 							}
 						}
 
-						if cnt == 0 {
-							fmt.Printf("%-30s %-10s %-15s %-15s %s\n", "Name", "Status", "Region", "Public IP", "Created")
-							fmt.Printf("%-30s %-10s %-15s %-15s %s\n", "----", "------", "------", "---------", "-------")
-						}
-
 						fmt.Printf("%-30s %-10s %-15s %-15s %s\n",
 							droplet.Name,
 							droplet.Status,
@@ -455,7 +454,6 @@ func listCmd() *cobra.Command {
 						cnt++
 					}
 				}
-				fmt.Println("Total number of talis instances: ", cnt)
 
 				// if we are at the last page, break out the for loop
 				if resp.Links == nil || resp.Links.IsLastPage() {
@@ -469,6 +467,7 @@ func listCmd() *cobra.Command {
 				// set the page we want for the next request
 				opts.Page = page + 1
 			}
+			fmt.Println("Total number of talis instances: ", cnt)
 
 			return nil
 		},

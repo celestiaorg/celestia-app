@@ -186,7 +186,7 @@ proto-update-deps:
 build-docker-standalone:
 	@echo "--> Building Docker image"
 	$(DOCKER) build -t celestiaorg/celestia-app -f docker/standalone.Dockerfile .
-.PHONY: build-docker
+.PHONY: build-docker-standalone
 
 ## docker-build: Build the celestia-appd docker image from the current branch. Requires docker.
 docker-build: build-docker-multiplexer
@@ -315,7 +315,7 @@ test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService|TestTxsOverMaxTxSizeGetRejected|TestStart_Success|TestReadBlockchainHeaders|TestPrepareProposalCappingNumberOfMessages|TestGasEstimatorE2E|TestGasEstimatorE2EWithNetworkMinGasPrice|TestRejections|TestClaimRewardsAfterFullUndelegation"
+	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService|TestTxsOverMaxTxSizeGetRejected|TestStart_Success|TestReadBlockchainHeaders|TestPrepareProposalCappingNumberOfMessages|TestGasEstimatorE2E|TestGasEstimatorE2EWithNetworkMinGasPrice|TestRejections|TestClaimRewardsAfterFullUndelegation|TestParallelTxSubmission"
 .PHONY: test-race
 
 ## test-bench: Run benchmark unit tests.

@@ -10,7 +10,7 @@ The target audience for this guide is maintainers of this repo. In general, the 
 
 ## Notes
 
-The versions of previous binaries are hard-coded at multiple places in celestia-app due to the multiplexer (until https://github.com/celestiaorg/celestia-app/issues/4921 is resolved). In order to include code changes to historical binaries, you need to make a release of that code change and bump the hard-coded versions.
+The versions of previous binaries are hard-coded at multiple places in celestia-app due to the multiplexer (until <https://github.com/celestiaorg/celestia-app/issues/4921> is resolved). In order to include code changes to historical binaries, you need to make a release of that code change and bump the hard-coded versions.
 
 ## Release branch
 
