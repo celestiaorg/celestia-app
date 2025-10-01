@@ -148,7 +148,7 @@ enum CommitFlag : uint8_t {
 
 ## Serialization
 
-Objects that are committed to or signed over require a canonical serialization. This is done using a deterministic (and thus, bijective) variant of protobuf defined [here](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-027-deterministic-protobuf-serialization.md).
+Objects that are committed to or signed over require a canonical serialization. This is done using a deterministic (and thus, bijective) variant of protobuf defined [here](https://github.com/cosmos/cosmos-sdk/blob/d48854eeb750b3441f866b610b873bba54d00a85/docs/architecture/adr-027-deterministic-protobuf-serialization.md).
 
 Note: there are two requirements for a serialization scheme, should this need to be changed:
 
