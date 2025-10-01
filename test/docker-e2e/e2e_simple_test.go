@@ -188,8 +188,6 @@ func testVestingAminoTx(t *testing.T, chain *tastoradockertypes.Chain, cfg *dock
 	txClient, err := dockerchain.SetupTxClient(ctx, chain.Nodes()[0], cfg)
 	require.NoError(t, err, "failed to setup TxClient")
 
-	// CRITICAL: Test amino-json encoding specifically (this is what fails between some older versions)
-	// Create a separate amino-json signer to test the problematic encoding
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	keyring := cfg.Genesis.Keyring()
 	chainID := cfg.Genesis.ChainID
