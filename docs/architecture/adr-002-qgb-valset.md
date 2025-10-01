@@ -79,7 +79,7 @@ message MsgSetOrchestratorAddress {
    // The orchestrator field is a celes1... string  (i.e. sdk.AccAddress) that
    // references the key that is being delegated to
    string orchestrator = 2;
-   // This is a hex-encoded 0x Ethereum public key that will be used by this
+   // This is a hex-encoded, 0x-prefixed Ethereum address that will be used by this
    // validator on Ethereum
    string eth_address = 3;
 }
