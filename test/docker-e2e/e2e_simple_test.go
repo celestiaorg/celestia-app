@@ -226,7 +226,7 @@ func testVestingAminoTx(t *testing.T, chain *tastoradockertypes.Chain, cfg *dock
 	require.Equal(t, validatorAddr.String(), defaultAddr.String(), "validator addresses should match")
 
 	// Get current sequence from TxClient's internal signer (which has been managing this account)
-	// This is critical - we need the CURRENT sequence, not 0
+	// This is critical - we need the current sequence, not 0
 	// Access the internal signer to get the current account state
 	validatorAccountName := txClient.DefaultAccountName()
 	internalAccount := txClient.Signer().Account(validatorAccountName)
