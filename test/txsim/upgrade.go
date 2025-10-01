@@ -39,7 +39,7 @@ func (s *UpgradeSequence) Clone(_ int) []Sequence {
 	panic("cloning not supported for upgrade sequence. Only a single sequence is needed")
 }
 
-// this is a no-op for the upgrade sequence
+// Init allocates a funding account used later to submit MsgTryUpgrade
 func (s *UpgradeSequence) Init(_ context.Context, _ grpc.ClientConn, allocateAccounts AccountAllocator, _ *rand.Rand, _ bool) {
 	s.account = allocateAccounts(1, fundsForUpgrade)[0]
 }
@@ -65,7 +65,7 @@ func (s *UpgradeSequence) Next(ctx context.Context, querier grpc.ClientConn, _ *
 		delay = uint64(s.height)
 	}
 
-	// Choose a random validator to be the authority
+	// Select the next validator who has not signalled yet (deterministic order)
 	for _, validator := range validatorsResp.Validators {
 		if !s.signalled[validator.OperatorAddress] {
 			s.signalled[validator.OperatorAddress] = true
