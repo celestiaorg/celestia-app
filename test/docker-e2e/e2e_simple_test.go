@@ -243,7 +243,7 @@ func testVestingAminoTx(t *testing.T, chain *tastoradockertypes.Chain, cfg *dock
 	aminoSigner = aminoSigner.WithSignMode(signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON)
 
 	txBytes, _, err := aminoSigner.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(200000), user.SetFee(5000))
-	require.NoError(t, err, "amino-json vesting transaction creation failed - indicates version incompatibility")
+	require.NoError(t, err)
 
 	txResp, err := rpcClient.BroadcastTxSync(ctx, txBytes)
 	require.NoError(t, err, "amino-json vesting transaction broadcast failed - indicates version incompatibility")
