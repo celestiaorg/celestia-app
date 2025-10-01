@@ -188,7 +188,7 @@ func TestParallelSubmitPayForBlobSuccess(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			resp, err := client.SubmitPayForBlob(context.Background(), []*share.Blob{blob})
+			resp, err := client.SubmitPayForBlobInQueue(context.Background(), []*share.Blob{blob})
 			resultsMu.Lock()
 			defer resultsMu.Unlock()
 			if err != nil {
@@ -241,7 +241,7 @@ func TestParallelSubmitPayForBlobBroadcastError(t *testing.T) {
 
 	blob := randomBlob(t)
 
-	_, err := client.SubmitPayForBlob(context.Background(), []*share.Blob{blob})
+	_, err := client.SubmitPayForBlobInQueue(context.Background(), []*share.Blob{blob})
 	require.Error(t, err)
 
 	var broadcastErr *user.BroadcastTxError
@@ -307,7 +307,7 @@ func TestParallelSubmissionSignerAddress(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			resp, err := client.SubmitPayForBlob(context.Background(), []*share.Blob{blob})
+			resp, err := client.SubmitPayForBlobInQueue(context.Background(), []*share.Blob{blob})
 
 			resultsMu.Lock()
 			defer resultsMu.Unlock()
@@ -388,7 +388,7 @@ func TestParallelPoolRestart(t *testing.T) {
 	submitAndAssert := func(t *testing.T) {
 		t.Helper()
 
-		resp, err := client.SubmitPayForBlob(ctx, []*share.Blob{blob})
+		resp, err := client.SubmitPayForBlobInQueue(ctx, []*share.Blob{blob})
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
@@ -432,7 +432,7 @@ func TestParallelSubmitPayForBlobContextCancellation(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		_, err := client.SubmitPayForBlob(ctx, []*share.Blob{blob})
+		_, err := client.SubmitPayForBlobInQueue(ctx, []*share.Blob{blob})
 		errCh <- err
 	}()
 
@@ -507,8 +507,8 @@ func TestSingleWorkerNoFeeGranter(t *testing.T) {
 
 	blob := randomBlob(t)
 
-	// Submit via the new SubmitPayForBlob which uses the parallel pool
-	resp, err := client.SubmitPayForBlob(context.Background(), []*share.Blob{blob})
+	// Submit via SubmitPayForBlobInQueue which uses the parallel pool
+	resp, err := client.SubmitPayForBlobInQueue(context.Background(), []*share.Blob{blob})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.Equal(t, abci.CodeTypeOK, resp.Code)
