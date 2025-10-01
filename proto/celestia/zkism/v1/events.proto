@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package celestia.zkism.v1;
+
+option go_package = "github.com/celestiaorg/celestia-app/x/zkism/types";
+
+import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
+
+// EventCreateZKExecutionISM defines the event type emitted when creating a new ZKExecutionISM.
+message EventCreateZKExecutionISM {
+  option (gogoproto.goproto_getters) = false;
+
+  // unique hyperlane identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // the owner or creator of the ism
+  string owner = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // state commitment root of the remote chain (hex encoded)
+  string state_root = 3;
+  // latest tracked height of the remote chain
+  uint64 height = 4;
+  // the celestia namespace identifier used by the application (hex-encoded)
+  string namespace = 5;
+  // the public key of the sequencer (hex-encoded)
+  string sequencer_public_key = 6;
+  // the sp1 groth16 verifier key (hex-encoded)
+  string groth16_vkey = 7;
+  // hash-based commitment to the verifier key used for state transition (hex-encoded)
+  string state_transition_vkey = 8;
+  // hash-based commitment to the verifier key used for state membership (hex-encoded)
+  string state_membership_vkey = 9;
+}
+
+// EventUpdateZKExecutionISM defines the event type emitted when updating a ZKExecutionISM.
+message EventUpdateZKExecutionISM {
+  option (gogoproto.goproto_getters) = false;
+
+  // unique hyperlane identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // new state commitment root of the remote chain (hex-encoded)
+  string state_root = 2;
+  // new latest height of the remote chain
+  uint64 height = 3;
+}
+
+// EventSubmitMessages defines the event type emitted after successful message submission.
+message EventMessageAuthorized {
+  option (gogoproto.goproto_getters) = false;
+
+  // unique hyperlane identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // state commitment root used to verify messages (hex-encoded)
+  string state_root = 2;
+  // list of authorized messages ids
+  repeated string messages = 3;
+}

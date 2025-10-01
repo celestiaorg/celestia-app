@@ -14,6 +14,9 @@ import (
 func (suite *KeeperTestSuite) TestCreateZKExecutionISM() {
 	var msg *types.MsgCreateZKExecutionISM
 
+	namespace, err := hex.DecodeString(namespaceHex)
+	suite.Require().NoError(err)
+
 	testCases := []struct {
 		name      string
 		setupTest func()
@@ -24,6 +27,7 @@ func (suite *KeeperTestSuite) TestCreateZKExecutionISM() {
 			setupTest: func() {
 				msg = &types.MsgCreateZKExecutionISM{
 					Creator:             testfactory.TestAccAddr,
+					Namespace:           namespace,
 					StateTransitionVkey: randBytes(32),
 					StateMembershipVkey: randBytes(32),
 				}

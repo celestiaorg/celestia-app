@@ -80,63 +80,6 @@ func (m *ZKExecutionISM) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ZKExecutionISM proto.InternalMessageInfo
 
-// EventCreateZKExecutionISM defines the event type emitted when creating a new ZKExecutionISM.
-// TODO: consider outputting hex encoded strings in favour of bytes in this typed event,
-// note that bytes will be base64 encoded strings when dealing with JSON objects
-type EventCreateZKExecutionISM struct {
-	// unique hyperlane identifier
-	Id github_com_bcp_innovations_hyperlane_cosmos_util.HexAddress `protobuf:"bytes,1,opt,name=id,proto3,customtype=github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress" json:"id"`
-	// the owner or creator of the ism
-	Owner string `protobuf:"bytes,2,opt,name=owner,proto3" json:"owner,omitempty"`
-	// state commitment root of the remote chain
-	StateRoot []byte `protobuf:"bytes,3,opt,name=state_root,json=stateRoot,proto3" json:"state_root,omitempty"`
-	// latest tracked height of the remote chain
-	Height uint64 `protobuf:"varint,4,opt,name=height,proto3" json:"height,omitempty"`
-	// the celestia namespace identifier used by the application
-	Namespace []byte `protobuf:"bytes,5,opt,name=namespace,proto3" json:"namespace,omitempty"`
-	// the public key of the sequencer
-	SequencerPublicKey []byte `protobuf:"bytes,6,opt,name=sequencer_public_key,json=sequencerPublicKey,proto3" json:"sequencer_public_key,omitempty"`
-	// the sp1 groth16 verifier key
-	Groth16Vkey []byte `protobuf:"bytes,7,opt,name=groth16_vkey,json=groth16Vkey,proto3" json:"groth16_vkey,omitempty"`
-	// hash-based commitment to the verifier key used for state transition
-	StateTransitionVkey []byte `protobuf:"bytes,8,opt,name=state_transition_vkey,json=stateTransitionVkey,proto3" json:"state_transition_vkey,omitempty"`
-	// hash-based commitment to the verifier key used for state membership
-	StateMembershipVkey []byte `protobuf:"bytes,9,opt,name=state_membership_vkey,json=stateMembershipVkey,proto3" json:"state_membership_vkey,omitempty"`
-}
-
-func (m *EventCreateZKExecutionISM) Reset()         { *m = EventCreateZKExecutionISM{} }
-func (m *EventCreateZKExecutionISM) String() string { return proto.CompactTextString(m) }
-func (*EventCreateZKExecutionISM) ProtoMessage()    {}
-func (*EventCreateZKExecutionISM) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6a9c62eeaf7a9e81, []int{1}
-}
-func (m *EventCreateZKExecutionISM) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *EventCreateZKExecutionISM) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_EventCreateZKExecutionISM.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *EventCreateZKExecutionISM) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_EventCreateZKExecutionISM.Merge(m, src)
-}
-func (m *EventCreateZKExecutionISM) XXX_Size() int {
-	return m.Size()
-}
-func (m *EventCreateZKExecutionISM) XXX_DiscardUnknown() {
-	xxx_messageInfo_EventCreateZKExecutionISM.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_EventCreateZKExecutionISM proto.InternalMessageInfo
-
 // Params defines the zk ism module parameters.
 type Params struct {
 	MaxHeaderHashes uint32 `protobuf:"varint,1,opt,name=max_header_hashes,json=maxHeaderHashes,proto3" json:"max_header_hashes,omitempty"`
@@ -146,7 +89,7 @@ func (m *Params) Reset()         { *m = Params{} }
 func (m *Params) String() string { return proto.CompactTextString(m) }
 func (*Params) ProtoMessage()    {}
 func (*Params) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6a9c62eeaf7a9e81, []int{2}
+	return fileDescriptor_6a9c62eeaf7a9e81, []int{1}
 }
 func (m *Params) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -177,46 +120,43 @@ var xxx_messageInfo_Params proto.InternalMessageInfo
 
 func init() {
 	proto.RegisterType((*ZKExecutionISM)(nil), "celestia.zkism.v1.ZKExecutionISM")
-	proto.RegisterType((*EventCreateZKExecutionISM)(nil), "celestia.zkism.v1.EventCreateZKExecutionISM")
 	proto.RegisterType((*Params)(nil), "celestia.zkism.v1.Params")
 }
 
 func init() { proto.RegisterFile("celestia/zkism/v1/types.proto", fileDescriptor_6a9c62eeaf7a9e81) }
 
 var fileDescriptor_6a9c62eeaf7a9e81 = []byte{
-	// 499 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xec, 0x94, 0x41, 0x6e, 0xd3, 0x40,
-	0x18, 0x85, 0xe3, 0x24, 0x0d, 0x64, 0x28, 0xa0, 0x0e, 0x01, 0xb9, 0x15, 0x75, 0x42, 0x57, 0x11,
-	0x52, 0x6c, 0x02, 0x12, 0x8b, 0xb2, 0xa2, 0x55, 0xa5, 0xa0, 0xa8, 0x52, 0xe5, 0x20, 0x16, 0xdd,
-	0x58, 0x13, 0xe7, 0x97, 0x3d, 0x4a, 0x3c, 0x63, 0x66, 0x26, 0xc1, 0xe6, 0x04, 0x2c, 0x39, 0x02,
-	0x17, 0x60, 0xc7, 0x82, 0x23, 0x74, 0x59, 0xb1, 0x42, 0x2c, 0x2a, 0x94, 0x5c, 0x04, 0x79, 0xc6,
-	0xb5, 0xca, 0x11, 0x90, 0xd8, 0xcd, 0xbc, 0xf7, 0x3d, 0xfb, 0x97, 0x9f, 0xfc, 0xa3, 0xfd, 0x10,
-	0x16, 0x20, 0x15, 0x25, 0xde, 0xc7, 0x39, 0x95, 0x89, 0xb7, 0x1a, 0x7a, 0x2a, 0x4f, 0x41, 0xba,
-	0xa9, 0xe0, 0x8a, 0xe3, 0x9d, 0x6b, 0xdb, 0xd5, 0xb6, 0xbb, 0x1a, 0xee, 0xed, 0x86, 0x5c, 0x26,
-	0x5c, 0x06, 0x1a, 0xf0, 0xcc, 0xc5, 0xd0, 0x7b, 0x9d, 0x88, 0x47, 0xdc, 0xe8, 0xc5, 0xc9, 0xa8,
-	0x07, 0x5f, 0x1b, 0xe8, 0xde, 0xf9, 0xf8, 0x24, 0x83, 0x70, 0xa9, 0x28, 0x67, 0x6f, 0x26, 0xa7,
-	0x78, 0x82, 0xea, 0x74, 0x66, 0x5b, 0x3d, 0xab, 0xdf, 0x3e, 0x3a, 0xbe, 0xb8, 0xea, 0xd6, 0x7e,
-	0x5d, 0x75, 0x5f, 0x45, 0x54, 0xc5, 0xcb, 0xa9, 0x1b, 0xf2, 0xc4, 0x9b, 0x86, 0xe9, 0x80, 0x32,
-	0xc6, 0x57, 0xa4, 0x48, 0x48, 0x2f, 0xce, 0x53, 0x10, 0x0b, 0xc2, 0x60, 0x60, 0xde, 0xe7, 0x2d,
-	0x15, 0x5d, 0xb8, 0x23, 0xc8, 0x5e, 0xcf, 0x66, 0x02, 0xa4, 0xf4, 0xeb, 0x74, 0x86, 0x5d, 0xb4,
-	0xc5, 0x3f, 0x30, 0x10, 0x76, 0x5d, 0x3f, 0xd7, 0xfe, 0xf1, 0x6d, 0xd0, 0x29, 0xc7, 0x2b, 0xb1,
-	0x89, 0x12, 0x94, 0x45, 0xbe, 0xc1, 0xf0, 0x3e, 0x42, 0x52, 0x11, 0x05, 0x81, 0xe0, 0x5c, 0xd9,
-	0x8d, 0x9e, 0xd5, 0xdf, 0xf6, 0xdb, 0x5a, 0xf1, 0x39, 0x57, 0xf8, 0x11, 0x6a, 0xc5, 0x40, 0xa3,
-	0x58, 0xd9, 0xcd, 0x9e, 0xd5, 0x6f, 0xfa, 0xe5, 0x0d, 0x3f, 0x46, 0x6d, 0x46, 0x12, 0x90, 0x29,
-	0x09, 0xc1, 0xde, 0x32, 0xa9, 0x4a, 0xc0, 0xcf, 0x50, 0x47, 0xc2, 0xfb, 0x25, 0xb0, 0x10, 0x44,
-	0x90, 0x2e, 0xa7, 0x0b, 0x1a, 0x06, 0x73, 0xc8, 0xed, 0x96, 0x06, 0x71, 0xe5, 0x9d, 0x69, 0x6b,
-	0x0c, 0x39, 0x7e, 0x82, 0xb6, 0x23, 0xc1, 0x55, 0x3c, 0x7c, 0x19, 0xac, 0x0a, 0xf2, 0x96, 0x26,
-	0xef, 0x94, 0xda, 0xbb, 0x39, 0xe4, 0xf8, 0x39, 0x7a, 0x68, 0x26, 0x55, 0x82, 0x30, 0x49, 0x8b,
-	0x6f, 0x62, 0xd8, 0xdb, 0x9a, 0x7d, 0xa0, 0xcd, 0xb7, 0x95, 0xf7, 0x77, 0x26, 0x81, 0x64, 0x0a,
-	0x42, 0xc6, 0x34, 0x35, 0x99, 0xf6, 0x8d, 0xcc, 0x69, 0xe5, 0x15, 0x99, 0xc3, 0xe6, 0xa7, 0x2f,
-	0xdd, 0xda, 0xc1, 0xf7, 0x06, 0xda, 0x3d, 0x59, 0x01, 0x53, 0xc7, 0x02, 0x88, 0x82, 0xff, 0xd5,
-	0xfd, 0x3b, 0xd5, 0x1d, 0xa2, 0xd6, 0x19, 0x11, 0x24, 0x91, 0xf8, 0x29, 0xda, 0x49, 0x48, 0x16,
-	0xc4, 0x40, 0x66, 0x20, 0x82, 0x98, 0xc8, 0x18, 0xa4, 0x6e, 0xed, 0xae, 0x7f, 0x3f, 0x21, 0xd9,
-	0x48, 0xeb, 0x23, 0x2d, 0x9b, 0xec, 0xd1, 0xf8, 0x62, 0xed, 0x58, 0x97, 0x6b, 0xc7, 0xfa, 0xbd,
-	0x76, 0xac, 0xcf, 0x1b, 0xa7, 0x76, 0xb9, 0x71, 0x6a, 0x3f, 0x37, 0x4e, 0xed, 0x7c, 0x78, 0xa3,
-	0xde, 0xeb, 0x7d, 0xc0, 0x45, 0x54, 0x9d, 0x07, 0x24, 0x4d, 0xbd, 0xac, 0x5c, 0x20, 0x7a, 0x7b,
-	0x4c, 0x5b, 0xfa, 0xd7, 0x7f, 0xf1, 0x27, 0x00, 0x00, 0xff, 0xff, 0x7a, 0xed, 0xfc, 0xab, 0x5f,
-	0x04, 0x00, 0x00,
+	// 476 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x54, 0x92, 0xc1, 0x6e, 0xd3, 0x30,
+	0x1c, 0xc6, 0x93, 0xae, 0x2b, 0xd4, 0x0c, 0xd0, 0x4c, 0x41, 0x61, 0x62, 0x69, 0xd9, 0xa9, 0x42,
+	0x6a, 0x42, 0x41, 0xe2, 0x30, 0x4e, 0x0c, 0x21, 0x15, 0x55, 0x93, 0xa6, 0x14, 0x71, 0xd8, 0x25,
+	0x72, 0x92, 0xbf, 0x12, 0xab, 0x4d, 0x1c, 0x6c, 0xa7, 0x24, 0x3c, 0x01, 0x47, 0x1e, 0x81, 0x17,
+	0xe0, 0xc6, 0x43, 0xec, 0x38, 0x71, 0x42, 0x1c, 0x26, 0xd4, 0xbe, 0x08, 0x8a, 0x9d, 0x45, 0xe3,
+	0x66, 0x7f, 0xdf, 0xef, 0x4b, 0xfe, 0xf2, 0xff, 0x43, 0x87, 0x21, 0xac, 0x40, 0x48, 0x4a, 0xdc,
+	0x2f, 0x4b, 0x2a, 0x52, 0x77, 0x3d, 0x75, 0x65, 0x95, 0x83, 0x70, 0x72, 0xce, 0x24, 0xc3, 0xfb,
+	0xd7, 0xb6, 0xa3, 0x6c, 0x67, 0x3d, 0x3d, 0x78, 0x1c, 0x32, 0x91, 0x32, 0xe1, 0x2b, 0xc0, 0xd5,
+	0x17, 0x4d, 0x1f, 0x0c, 0x62, 0x16, 0x33, 0xad, 0xd7, 0x27, 0xad, 0x1e, 0xfd, 0xd8, 0x41, 0xf7,
+	0xce, 0xe7, 0xef, 0x4a, 0x08, 0x0b, 0x49, 0x59, 0xf6, 0x7e, 0x71, 0x8a, 0x17, 0xa8, 0x43, 0x23,
+	0xcb, 0x1c, 0x99, 0xe3, 0xfe, 0xc9, 0xdb, 0x8b, 0xab, 0xa1, 0xf1, 0xe7, 0x6a, 0xf8, 0x3a, 0xa6,
+	0x32, 0x29, 0x02, 0x27, 0x64, 0xa9, 0x1b, 0x84, 0xf9, 0x84, 0x66, 0x19, 0x5b, 0x93, 0x3a, 0x21,
+	0xdc, 0xa4, 0xca, 0x81, 0xaf, 0x48, 0x06, 0x13, 0xfd, 0x3f, 0xb7, 0x90, 0x74, 0xe5, 0xcc, 0xa0,
+	0x7c, 0x13, 0x45, 0x1c, 0x84, 0xf0, 0x3a, 0x34, 0xc2, 0x0e, 0xda, 0x65, 0x9f, 0x33, 0xe0, 0x56,
+	0x47, 0x7d, 0xd7, 0xfa, 0xf5, 0x73, 0x32, 0x68, 0xc6, 0x6b, 0xb0, 0x85, 0xe4, 0x34, 0x8b, 0x3d,
+	0x8d, 0xe1, 0x43, 0x84, 0x84, 0x24, 0x12, 0x7c, 0xce, 0x98, 0xb4, 0x76, 0x46, 0xe6, 0x78, 0xcf,
+	0xeb, 0x2b, 0xc5, 0x63, 0x4c, 0xe2, 0x47, 0xa8, 0x97, 0x00, 0x8d, 0x13, 0x69, 0x75, 0x47, 0xe6,
+	0xb8, 0xeb, 0x35, 0x37, 0xfc, 0x04, 0xf5, 0x33, 0x92, 0x82, 0xc8, 0x49, 0x08, 0xd6, 0xae, 0x4e,
+	0xb5, 0x02, 0x7e, 0x8e, 0x06, 0x02, 0x3e, 0x15, 0x90, 0x85, 0xc0, 0xfd, 0xbc, 0x08, 0x56, 0x34,
+	0xf4, 0x97, 0x50, 0x59, 0x3d, 0x05, 0xe2, 0xd6, 0x3b, 0x53, 0xd6, 0x1c, 0x2a, 0xfc, 0x14, 0xed,
+	0xc5, 0x9c, 0xc9, 0x64, 0xfa, 0xca, 0x5f, 0xd7, 0xe4, 0x2d, 0x45, 0xde, 0x69, 0xb4, 0x8f, 0x4b,
+	0xa8, 0xf0, 0x0b, 0xf4, 0x50, 0x4f, 0x2a, 0x39, 0xc9, 0x04, 0xad, 0xdf, 0x44, 0xb3, 0xb7, 0x15,
+	0xfb, 0x40, 0x99, 0x1f, 0x5a, 0xef, 0xff, 0x4c, 0x0a, 0x69, 0x00, 0x5c, 0x24, 0x34, 0xd7, 0x99,
+	0xfe, 0x8d, 0xcc, 0x69, 0xeb, 0xd5, 0x99, 0xe3, 0xee, 0xd7, 0xef, 0x43, 0xe3, 0xe8, 0x18, 0xf5,
+	0xce, 0x08, 0x27, 0xa9, 0xc0, 0xcf, 0xd0, 0x7e, 0x4a, 0x4a, 0x3f, 0x01, 0x12, 0x01, 0xf7, 0x13,
+	0x22, 0x12, 0x10, 0x6a, 0x6b, 0x77, 0xbd, 0xfb, 0x29, 0x29, 0x67, 0x4a, 0x9f, 0x29, 0x59, 0x67,
+	0x4f, 0xe6, 0x17, 0x1b, 0xdb, 0xbc, 0xdc, 0xd8, 0xe6, 0xdf, 0x8d, 0x6d, 0x7e, 0xdb, 0xda, 0xc6,
+	0xe5, 0xd6, 0x36, 0x7e, 0x6f, 0x6d, 0xe3, 0x7c, 0x7a, 0x63, 0xbd, 0xd7, 0xa5, 0x62, 0x3c, 0x6e,
+	0xcf, 0x13, 0x92, 0xe7, 0x6e, 0xd9, 0xb4, 0x50, 0x55, 0x30, 0xe8, 0xa9, 0xfe, 0xbc, 0xfc, 0x17,
+	0x00, 0x00, 0xff, 0xff, 0x81, 0xd0, 0x03, 0xaf, 0xa4, 0x02, 0x00, 0x00,
 }
 
 func (m *ZKExecutionISM) Marshal() (dAtA []byte, err error) {
@@ -235,93 +175,6 @@ func (m *ZKExecutionISM) MarshalTo(dAtA []byte) (int, error) {
 }
 
 func (m *ZKExecutionISM) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if len(m.StateMembershipVkey) > 0 {
-		i -= len(m.StateMembershipVkey)
-		copy(dAtA[i:], m.StateMembershipVkey)
-		i = encodeVarintTypes(dAtA, i, uint64(len(m.StateMembershipVkey)))
-		i--
-		dAtA[i] = 0x4a
-	}
-	if len(m.StateTransitionVkey) > 0 {
-		i -= len(m.StateTransitionVkey)
-		copy(dAtA[i:], m.StateTransitionVkey)
-		i = encodeVarintTypes(dAtA, i, uint64(len(m.StateTransitionVkey)))
-		i--
-		dAtA[i] = 0x42
-	}
-	if len(m.Groth16Vkey) > 0 {
-		i -= len(m.Groth16Vkey)
-		copy(dAtA[i:], m.Groth16Vkey)
-		i = encodeVarintTypes(dAtA, i, uint64(len(m.Groth16Vkey)))
-		i--
-		dAtA[i] = 0x3a
-	}
-	if len(m.SequencerPublicKey) > 0 {
-		i -= len(m.SequencerPublicKey)
-		copy(dAtA[i:], m.SequencerPublicKey)
-		i = encodeVarintTypes(dAtA, i, uint64(len(m.SequencerPublicKey)))
-		i--
-		dAtA[i] = 0x32
-	}
-	if len(m.Namespace) > 0 {
-		i -= len(m.Namespace)
-		copy(dAtA[i:], m.Namespace)
-		i = encodeVarintTypes(dAtA, i, uint64(len(m.Namespace)))
-		i--
-		dAtA[i] = 0x2a
-	}
-	if m.Height != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.Height))
-		i--
-		dAtA[i] = 0x20
-	}
-	if len(m.StateRoot) > 0 {
-		i -= len(m.StateRoot)
-		copy(dAtA[i:], m.StateRoot)
-		i = encodeVarintTypes(dAtA, i, uint64(len(m.StateRoot)))
-		i--
-		dAtA[i] = 0x1a
-	}
-	if len(m.Owner) > 0 {
-		i -= len(m.Owner)
-		copy(dAtA[i:], m.Owner)
-		i = encodeVarintTypes(dAtA, i, uint64(len(m.Owner)))
-		i--
-		dAtA[i] = 0x12
-	}
-	{
-		size := m.Id.Size()
-		i -= size
-		if _, err := m.Id.MarshalTo(dAtA[i:]); err != nil {
-			return 0, err
-		}
-		i = encodeVarintTypes(dAtA, i, uint64(size))
-	}
-	i--
-	dAtA[i] = 0xa
-	return len(dAtA) - i, nil
-}
-
-func (m *EventCreateZKExecutionISM) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *EventCreateZKExecutionISM) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *EventCreateZKExecutionISM) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -474,48 +327,6 @@ func (m *ZKExecutionISM) Size() (n int) {
 	return n
 }
 
-func (m *EventCreateZKExecutionISM) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = m.Id.Size()
-	n += 1 + l + sovTypes(uint64(l))
-	l = len(m.Owner)
-	if l > 0 {
-		n += 1 + l + sovTypes(uint64(l))
-	}
-	l = len(m.StateRoot)
-	if l > 0 {
-		n += 1 + l + sovTypes(uint64(l))
-	}
-	if m.Height != 0 {
-		n += 1 + sovTypes(uint64(m.Height))
-	}
-	l = len(m.Namespace)
-	if l > 0 {
-		n += 1 + l + sovTypes(uint64(l))
-	}
-	l = len(m.SequencerPublicKey)
-	if l > 0 {
-		n += 1 + l + sovTypes(uint64(l))
-	}
-	l = len(m.Groth16Vkey)
-	if l > 0 {
-		n += 1 + l + sovTypes(uint64(l))
-	}
-	l = len(m.StateTransitionVkey)
-	if l > 0 {
-		n += 1 + l + sovTypes(uint64(l))
-	}
-	l = len(m.StateMembershipVkey)
-	if l > 0 {
-		n += 1 + l + sovTypes(uint64(l))
-	}
-	return n
-}
-
 func (m *Params) Size() (n int) {
 	if m == nil {
 		return 0
@@ -561,345 +372,6 @@ func (m *ZKExecutionISM) Unmarshal(dAtA []byte) error {
 		}
 		if fieldNum <= 0 {
 			return fmt.Errorf("proto: ZKExecutionISM: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Id", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthTypes
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthTypes
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if err := m.Id.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Owner", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthTypes
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthTypes
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Owner = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field StateRoot", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthTypes
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthTypes
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.StateRoot = append(m.StateRoot[:0], dAtA[iNdEx:postIndex]...)
-			if m.StateRoot == nil {
-				m.StateRoot = []byte{}
-			}
-			iNdEx = postIndex
-		case 4:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Height", wireType)
-			}
-			m.Height = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.Height |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 5:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Namespace", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthTypes
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthTypes
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Namespace = append(m.Namespace[:0], dAtA[iNdEx:postIndex]...)
-			if m.Namespace == nil {
-				m.Namespace = []byte{}
-			}
-			iNdEx = postIndex
-		case 6:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field SequencerPublicKey", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthTypes
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthTypes
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.SequencerPublicKey = append(m.SequencerPublicKey[:0], dAtA[iNdEx:postIndex]...)
-			if m.SequencerPublicKey == nil {
-				m.SequencerPublicKey = []byte{}
-			}
-			iNdEx = postIndex
-		case 7:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Groth16Vkey", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthTypes
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthTypes
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Groth16Vkey = append(m.Groth16Vkey[:0], dAtA[iNdEx:postIndex]...)
-			if m.Groth16Vkey == nil {
-				m.Groth16Vkey = []byte{}
-			}
-			iNdEx = postIndex
-		case 8:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field StateTransitionVkey", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthTypes
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthTypes
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.StateTransitionVkey = append(m.StateTransitionVkey[:0], dAtA[iNdEx:postIndex]...)
-			if m.StateTransitionVkey == nil {
-				m.StateTransitionVkey = []byte{}
-			}
-			iNdEx = postIndex
-		case 9:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field StateMembershipVkey", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthTypes
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthTypes
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.StateMembershipVkey = append(m.StateMembershipVkey[:0], dAtA[iNdEx:postIndex]...)
-			if m.StateMembershipVkey == nil {
-				m.StateMembershipVkey = []byte{}
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipTypes(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthTypes
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *EventCreateZKExecutionISM) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowTypes
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: EventCreateZKExecutionISM: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: EventCreateZKExecutionISM: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
