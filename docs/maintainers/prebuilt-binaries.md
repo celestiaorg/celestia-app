@@ -27,7 +27,7 @@ Prebuilt binaries are attached to each release via [GoReleaser](https://goreleas
             -e CGO_ENABLED=1 \
             --env-file .release-env \
             -v /var/run/docker.sock:/var/run/docker.sock \
-            -v `pwd`:/go/src/$(PACKAGE_NAME) \
+            -v $(shell pwd):/go/src/$(PACKAGE_NAME) \
             -w /go/src/$(PACKAGE_NAME) \
             ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
     -       release --clean
