@@ -48,12 +48,13 @@ func main() {
     }
 
     // Encode and generate commitment
-    extended, commitment, err := rsema1d.Encode(data, config)
+    extended, commitment, rlcOrig, err := rsema1d.Encode(data, config)
     if err != nil {
         panic(err)
     }
 
     fmt.Printf("Commitment: %x\n", commitment)
+    fmt.Printf("RLC coefficients: %d\n", len(rlcOrig))
 }
 ```
 

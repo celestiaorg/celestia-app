@@ -196,7 +196,7 @@ func BenchmarkEncode(b *testing.B) {
 			// Benchmark function receives the test data
 			benchFunc := func(state any) error {
 				data := state.([][]byte)
-				_, _, err := Encode(data, codecConfig)
+				_, _, _, err := Encode(data, codecConfig)
 				return err
 			}
 
@@ -282,7 +282,7 @@ func BenchmarkReconstruct(b *testing.B) {
 				setup := func() any {
 					// Generate and encode data once
 					originalData := generateTestData(cfg.k, cfg.rowSize)
-					extData, _, err := Encode(originalData, codecConfig)
+					extData, _, _, err := Encode(originalData, codecConfig)
 					if err != nil {
 						b.Fatalf("Encode failed: %v", err)
 					}
@@ -337,7 +337,7 @@ func BenchmarkGenerateRowProof(b *testing.B) {
 			// Setup creates the extended data once
 			setup := func() any {
 				originalData := generateTestData(cfg.k, cfg.rowSize)
-				extData, _, err := Encode(originalData, codecConfig)
+				extData, _, _, err := Encode(originalData, codecConfig)
 				if err != nil {
 					b.Fatalf("Encode failed: %v", err)
 				}
@@ -373,7 +373,7 @@ func BenchmarkGenerateStandaloneProof(b *testing.B) {
 			// Setup creates the extended data once
 			setup := func() any {
 				originalData := generateTestData(cfg.k, cfg.rowSize)
-				extData, _, err := Encode(originalData, codecConfig)
+				extData, _, _, err := Encode(originalData, codecConfig)
 				if err != nil {
 					b.Fatalf("Encode failed: %v", err)
 				}
@@ -409,7 +409,7 @@ func BenchmarkCreateVerificationContext(b *testing.B) {
 			// Setup prepares the RLC original values
 			setup := func() any {
 				originalData := generateTestData(cfg.k, cfg.rowSize)
-				extData, _, err := Encode(originalData, codecConfig)
+				extData, _, _, err := Encode(originalData, codecConfig)
 				if err != nil {
 					b.Fatalf("Encode failed: %v", err)
 				}
@@ -445,7 +445,7 @@ func BenchmarkVerifyRowWithContext(b *testing.B) {
 			// Setup prepares proof and context
 			setup := func() any {
 				originalData := generateTestData(cfg.k, cfg.rowSize)
-				extData, commitment, err := Encode(originalData, codecConfig)
+				extData, commitment, _, err := Encode(originalData, codecConfig)
 				if err != nil {
 					b.Fatalf("Encode failed: %v", err)
 				}
@@ -501,7 +501,7 @@ func BenchmarkVerifyStandaloneProof(b *testing.B) {
 			// Setup prepares standalone proof
 			setup := func() any {
 				originalData := generateTestData(cfg.k, cfg.rowSize)
-				extData, commitment, err := Encode(originalData, codecConfig)
+				extData, commitment, _, err := Encode(originalData, codecConfig)
 				if err != nil {
 					b.Fatalf("Encode failed: %v", err)
 				}

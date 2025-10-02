@@ -112,7 +112,7 @@ func TestEncodeAndVerifyWithContext(t *testing.T) {
 			}
 			
 			data := makeTestData(tc.k, tc.rowSize)
-			extData, commitment, err := Encode(data, config)
+			extData, commitment, _, err := Encode(data, config)
 			if err != nil {
 				t.Fatalf("Encode() error: %v", err)
 			}
@@ -177,7 +177,7 @@ func TestReconstruction(t *testing.T) {
 			config := makeTestConfig(tc)
 			originalData := makeTestData(tc.k, tc.rowSize)
 			
-			extData, _, err := Encode(originalData, config)
+			extData, _, _, err := Encode(originalData, config)
 			if err != nil {
 				t.Fatalf("Encode() error: %v", err)
 			}
@@ -228,7 +228,7 @@ func TestRLCCommutationProperty(t *testing.T) {
 			config := makeTestConfig(tc)
 			data := makeTestData(tc.k, tc.rowSize)
 			
-			extData, _, err := Encode(data, config)
+			extData, _, _, err := Encode(data, config)
 			if err != nil {
 				t.Fatalf("Encode() error: %v", err)
 			}
@@ -256,7 +256,7 @@ func TestInvalidProofs(t *testing.T) {
 			config := makeTestConfig(tc)
 			data := makeTestData(tc.k, tc.rowSize)
 			
-			extData, commitment, err := Encode(data, config)
+			extData, commitment, _, err := Encode(data, config)
 			if err != nil {
 				t.Fatalf("Encode() error: %v", err)
 			}
@@ -473,7 +473,7 @@ func TestCorruptedContext(t *testing.T) {
 			config := makeTestConfig(tc)
 			data := makeTestData(tc.k, tc.rowSize)
 			
-			extData, commitment, err := Encode(data, config)
+			extData, commitment, _, err := Encode(data, config)
 			if err != nil {
 				t.Fatalf("Encode() error: %v", err)
 			}

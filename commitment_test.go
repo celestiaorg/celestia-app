@@ -217,12 +217,12 @@ func TestCommitmentDeterminism(t *testing.T) {
 	data := makeTestData(4, 64)
 
 	// Generate commitments multiple times
-	_, commitment1, err := Encode(data, config)
+	_, commitment1, _, err := Encode(data, config)
 	if err != nil {
 		t.Fatalf("First Encode failed: %v", err)
 	}
 
-	_, commitment2, err := Encode(data, config)
+	_, commitment2, _, err := Encode(data, config)
 	if err != nil {
 		t.Fatalf("Second Encode failed: %v", err)
 	}
@@ -235,7 +235,7 @@ func TestCommitmentDeterminism(t *testing.T) {
 	// Modify data slightly
 	data[0][0] ^= 1
 
-	_, commitment3, err := Encode(data, config)
+	_, commitment3, _, err := Encode(data, config)
 	if err != nil {
 		t.Fatalf("Third Encode failed: %v", err)
 	}

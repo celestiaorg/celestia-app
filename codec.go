@@ -9,27 +9,29 @@ import (
 	"github.com/celestiaorg/rsema1d/field"
 )
 
-// Encode extends data vertically and creates commitment
-func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, error) {
+// Encode extends data vertically and creates commitment.
+// Returns the extended data structure, the commitment hash, the RLC coefficients
+// for original rows, and an error if encoding fails.
+func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, []field.GF128, error) {
 	// 1. Validate input
 	if err := config.Validate(); err != nil {
-		return nil, Commitment{}, fmt.Errorf("invalid config: %w", err)
+		return nil, Commitment{}, nil, fmt.Errorf("invalid config: %w", err)
 	}
 
 	if len(data) != config.K {
-		return nil, Commitment{}, fmt.Errorf("expected %d rows, got %d", config.K, len(data))
+		return nil, Commitment{}, nil, fmt.Errorf("expected %d rows, got %d", config.K, len(data))
 	}
 
 	for i, row := range data {
 		if len(row) != config.RowSize {
-			return nil, Commitment{}, fmt.Errorf("row %d has size %d, expected %d", i, len(row), config.RowSize)
+			return nil, Commitment{}, nil, fmt.Errorf("row %d has size %d, expected %d", i, len(row), config.RowSize)
 		}
 	}
 
 	// 2. Extend data using Leopard RS
 	extended, err := encoding.ExtendVertical(data, config.N)
 	if err != nil {
-		return nil, Commitment{}, fmt.Errorf("failed to extend data: %w", err)
+		return nil, Commitment{}, nil, fmt.Errorf("failed to extend data: %w", err)
 	}
 
 	// 3. Build padded Merkle tree for rows
@@ -45,7 +47,7 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, error) {
 	// 6. Extend RLC results
 	rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
 	if err != nil {
-		return nil, Commitment{}, fmt.Errorf("failed to extend RLC results: %w", err)
+		return nil, Commitment{}, nil, fmt.Errorf("failed to extend RLC results: %w", err)
 	}
 
 	// 7. Build padded RLC Merkle tree matching row tree structure
@@ -70,7 +72,7 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, error) {
 		rlcTree:   rlcTree,
 	}
 
-	return extData, commitment, nil
+	return extData, commitment, rlcOrig, nil
 }
 
 
