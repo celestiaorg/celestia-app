@@ -310,10 +310,10 @@ func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blo
 	return client.SubmitPayForBlobWithAccount(ctx, client.defaultAccount, blobs, opts...)
 }
 
-// SubmitPayForBlobInQueue submits blobs to the parallel transaction queue and blocks until confirmed.
+// SubmitPayForBlobToQueue submits blobs to the parallel transaction queue and blocks until confirmed.
 // TxOptions may be provided to set the fee and gas limit. This method uses the tx queue infrastructure
 // for parallel submission.
-func (client *TxClient) SubmitPayForBlobInQueue(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
+func (client *TxClient) SubmitPayForBlobToQueue(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
 	resultsC := make(chan SubmissionResult, 1)
 	defer close(resultsC)
 

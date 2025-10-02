@@ -50,7 +50,7 @@ func TestParallelTxSubmission(t *testing.T) {
 		wg.Add(1)
 		go func(idx int) { //nolint:contextcheck
 			defer wg.Done()
-			resp, err := txClient.SubmitPayForBlobInQueue(ctx.GoContext(), []*share.Blob{blobs[idx]}, user.SetGasLimitAndGasPrice(500_000, appconsts.DefaultMinGasPrice))
+			resp, err := txClient.SubmitPayForBlobToQueue(ctx.GoContext(), []*share.Blob{blobs[idx]}, user.SetGasLimitAndGasPrice(500_000, appconsts.DefaultMinGasPrice))
 			if err != nil {
 				errCh <- fmt.Errorf("transaction %d failed: %w", idx, err)
 				return
@@ -80,7 +80,7 @@ func TestParallelTxSubmission(t *testing.T) {
 	require.False(t, txClient.IsTxQueueStartedForTest())
 
 	// Verify that new submissions fail when tx queue is stopped
-	_, err = txClient.SubmitPayForBlobInQueue(ctx.GoContext(), []*share.Blob{blobs[0]})
+	_, err = txClient.SubmitPayForBlobToQueue(ctx.GoContext(), []*share.Blob{blobs[0]})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "tx queue not started")
 
@@ -105,7 +105,7 @@ func TestParallelTxSubmission(t *testing.T) {
 		wg2.Add(1)
 		go func(idx int) {
 			defer wg2.Done()
-			resp, err := txClient2.SubmitPayForBlobInQueue(ctx.GoContext(), []*share.Blob{blobs[idx]}, user.SetGasLimitAndGasPrice(500_000, appconsts.DefaultMinGasPrice))
+			resp, err := txClient2.SubmitPayForBlobToQueue(ctx.GoContext(), []*share.Blob{blobs[idx]}, user.SetGasLimitAndGasPrice(500_000, appconsts.DefaultMinGasPrice))
 			if err != nil {
 				errCh2 <- fmt.Errorf("transaction %d failed: %w", idx, err)
 				return
