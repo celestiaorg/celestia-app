@@ -42,14 +42,21 @@ func (s *CelestiaTestSuite) TestMinorVersionCompatibility() {
 		tags []string
 	}{
 		{
-			name: "v5 minor versions",
-			tags: []string{"v5.0.1", "v5.0.2", "v5.0.5", "v5.0.6", "v5.0.8"},
+			name: "v6 minor versions",
+			tags: []string{"v6.0.0-arabica", "v6.0.1-arabica", "v6.0.2-arabica", "v6.0.3-arabica", "v6.0.4-arabica", "v6.0.5-arabica"},
 		},
 	}
 
 	ctx := context.Background()
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
+			// If the test case version matches the main branch version, add the main branch tag to the test case
+			tcAppVersion := s.extractMajorVersionFromTag(tc.tags[0])
+			if tcAppVersion == appconsts.Version {
+				mainBranchTag, err := dockerchain.GetCelestiaTagStrict()
+				s.Require().NoError(err)
+				tc.tags = append(tc.tags, mainBranchTag)
+			}
 			s.runMinorVersionCompatibilityTest(ctx, tc.tags)
 		})
 	}
