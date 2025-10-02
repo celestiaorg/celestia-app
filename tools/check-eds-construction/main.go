@@ -246,7 +246,7 @@ func checkRandomBlocks(url string, numBlocks int, treePool *wrapper.TreePool, de
 func generateRandomHeights(maxHeight int64, count int) []int64 {
 	heights := make([]int64, 0, maxHeight)
 
-	for i := int64(109_035); i < maxHeight; i++ {
+	for i := maxHeight; i > int64(109_035); i-- {
 		heights = append(heights, i)
 	}
 
