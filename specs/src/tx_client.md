@@ -131,8 +131,7 @@ func (client *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts 
 - **Path**: Direct processing, no worker queue
 - **Input**: Cosmos SDK messages
 - **Process**: Transaction building -> Broadcast -> Confirmation
-
-note: should only work with sequential submission
+- **Usage**: Should only work with sequential submission
 
 #### SubmitPayForBlob
 
@@ -143,7 +142,7 @@ func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blo
 - **Path**: Direct processing with default account, no worker queue
 - **Input**: Celestia blobs
 - **Process**: PayForBlob creation -> Broadcast -> Confirmation
-- **Note**: Only for sequential submissions using the default account
+- **Usage**: Only for sequential submissions using the default account
 
 #### SubmitPayForBlobToQueue
 
@@ -154,7 +153,7 @@ func (client *TxClient) SubmitPayForBlobToQueue(ctx context.Context, blobs []*sh
 - **Path**: Uses worker queue for parallel processing
 - **Input**: Celestia blobs
 - **Process**: Job queued -> Worker assignment -> PayForBlob creation -> Broadcast -> Confirmation
-- **Note**: Works with sequential processing with a single worker or parallel processing with multiple. If you only create a single worker it will be sequential processing and ordered. If there are multiple workers then it will spin up as many accounts as the workers and submits in parallel.
+- **Usage**: Works with sequential processing with a single worker or parallel processing with multiple. If you only create a single worker it will be sequential processing and ordered. If there are multiple workers then it will spin up as many accounts as the workers and submits in parallel.
 
 #### SubmitPayForBlobWithAccount
 
@@ -165,8 +164,7 @@ func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account
 - **Path**: Bypasses worker queue, uses specified account directly
 - **Input**: Celestia blobs + account name
 - **Process**: Direct account usage -> PayForBlob creation -> Broadcast -> Confirmation
-
-note: this bypasses having to spin up workers at all and can be used with a signle account for sequential submissions.
+- **Usage**: This bypasses having to spin up workers at all and can be used with a signle account for sequential submissions
 
 #### QueueBlob
 
@@ -177,7 +175,11 @@ func (client *TxClient) QueueBlob(ctx context.Context, resultC chan SubmissionRe
 - **Path**: Direct job submission to worker queue
 - **Input**: Context, result channel, Celestia blobs, and transaction options
 - **Process**: Job queued directly -> Worker assignment -> Processing
-- **Note**: This method adds a job into the queue directly, bypassing the normal submission flow
+- **Usage**: This method adds a job into the queue directly, bypassing the normal submission flow
+
+### Submission API Summary
+
+All submission APIs ultimately delegate into the same broadcast and confirmation methods, they differ only in account selection, tx types and whether jobs go through the worker queue.
 
 ## Broadcast
 
@@ -221,9 +223,7 @@ Once transactions are concluded they are automatically pruned from the `TxTracke
 
 ## Message Structure/Communication Format
 
-The client communicates with Celestia nodes through gRPC services for transaction broadcasting, status checking, and gas estimation. It maintains persistent connections to multiple endpoints for redundancy and supports both synchronous and asynchronous transaction submission patterns.
-
-The TxClient communicates with Celestia full nodes through existing gRPC services:
+The client communicates with Celestia full nodes through gRPC services for transaction broadcasting, status checking, and gas estimation.
 
 #### Transaction Broadcast
 
