@@ -120,7 +120,7 @@ The transaction tracker is a critical component that enables the TxClient to han
 
 ## Tx Submission API
 
-The submission phase handles transaction creation, job queuing, and worker assignment. The TxClient provides four main submission APIs with different execution paths:
+The submission phase handles transaction creation, job queuing, and worker assignment. The TxClient provides five main submission APIs with different execution paths:
 
 #### SubmitTx
 
@@ -140,12 +140,21 @@ note: should only work with sequential submission
 func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error)
 ```
 
+- **Path**: Direct processing with default account, no worker queue
+- **Input**: Celestia blobs
+- **Process**: PayForBlob creation -> Broadcast -> Confirmation
+- **Note**: Only for sequential submissions using the default account
+
+#### SubmitPayForBlobToQueue
+
+```go
+func (client *TxClient) SubmitPayForBlobToQueue(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error)
+```
+
 - **Path**: Uses worker queue for parallel processing
 - **Input**: Celestia blobs
 - **Process**: Job queued -> Worker assignment -> PayForBlob creation -> Broadcast -> Confirmation
-
-note: works with sequential processing with a single worker or parallel processing with multiple.
-if you only create a single worker it will be sequenial processing and ordered. if there are multiple workers then it will spin up as many accoounts as the workers and submits in parallel.
+- **Note**: Works with sequential processing with a single worker or parallel processing with multiple. If you only create a single worker it will be sequential processing and ordered. If there are multiple workers then it will spin up as many accounts as the workers and submits in parallel.
 
 #### SubmitPayForBlobWithAccount
 
@@ -159,63 +168,56 @@ func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account
 
 note: this bypasses having to spin up workers at all and can be used with a signle account for sequential submissions.
 
-### Key Protocol Components
+#### QueueBlob
 
-**Purpose**: Enables resubmission on eviction and sequence rollback on rejection.
+```go
+func (client *TxClient) QueueBlob(ctx context.Context, resultC chan SubmissionResult, blobs []*share.Blob, opts ...TxOption)
+```
 
-#### Worker Queue Management
-
-- **Job Distribution**: Round-robin assignment to available workers
-- **Worker 0**: Uses the primary account (default)
-- **Additional Workers**: Auto-generated accounts with fee grants from primary account
-- **Fee Grant Setup**: Primary account pays fees for worker transactions
-
-#### Gas Estimation and Nonce Management
-
-**Gas Estimation Process**:
-
-1. If gas limit not provided, simulate transaction with minimal fee (1 utia)
-2. Call gas estimation service with transaction bytes
-3. Handle sequence mismatch errors by updating local sequence and retrying
-4. Set calculated gas limit and fee
-
-**Nonce (Sequence) Management**:
-
-- **Local Tracking**: Client maintains local sequence numbers for all accounts
-- **Synchronization**: Query account info from chain on first use
-- **Conflict Resolution**: Automatic sequence correction on mismatch errors
-- **Increment**: Sequence incremented after successful broadcast
-- **Rollback**: Sequence rolled back on transaction rejection
+- **Path**: Direct job submission to worker queue
+- **Input**: Context, result channel, Celestia blobs, and transaction options
+- **Process**: Job queued directly -> Worker assignment -> Processing
+- **Note**: This method adds a job into the queue directly, bypassing the normal submission flow
 
 ## Broadcast
 
-Broadcasting steps are more or less universal for both SDK txs and blob txs.
+Broadcasting steps are universal across SDK transactions and blob transactions.
 
-The client prepares a transaction by building, signing, and encoding it, and by assigning gas and fees. If gas is not set, it simulates the transaction to estimate usage. If simulation fails due to a sequence mismatch, the client updates the sequence locally with expected and retries. The signed transaction is then broadcast to the network using gRPC.
+**Process:**
 
-⚠️ note: this approach assumes that tx client is connected to a trusted consensus node in order to not break replay protection.
+1. **Build & Sign**: Transaction is built and signed using the Signer
+2. **Gas Estimation**:
+   - If no gas provided, simulate with minimal fee
+   - Call gas estimation service to determine gas usage and price
+   - If estimation fails due to a sequence mismatch, update local sequence to expected and retry
+3. **Fee Setting**: Fee is computed as `ceil(minGasPrice * gasLimit)` unless explicitly set by the user
+4. **Broadcast**: Transaction is encoded and submitted via gRPC:
+   - **Single-endpoint mode**: Retries on mismatch until success or failure
+   - **Multi-endpoint mode**: Broadcasts concurrently to multiple endpoints and accepts the first successful response
+5. **Tracker Entry**: On successful broadcast, a record is added to the transaction tracker containing (signer, sequence, txBytes, timestamp) so the transaction can be resubmitted or rolled back if needed
+6. **Sequence Increment**: After a successful broadcast, the local sequence for that account is incremented
 
-Single-endpoint mode retries on mismatch until success or failure.
-
-Multi-endpoint mode broadcasts concurrently to all configured endpoints and accepts the first successful result.
-
-On successful broadcast, the transaction is added to a local tracker(TODO: explain the role of tx tracker) containing (signer, sequence, txBytes, timestamp) to enable rollback or resubmission if required.
-
-And we increase the local sequence
+⚠️ **Note**: This approach assumes the TxClient is connected to a trusted consensus node in order to maintain replay protection.
 
 ## Confirmation
 
-After broadcast, the client continuously polls the chain for transaction status until resolution. Outcomes are:
+After broadcast, the TxClient continuously polls the chain for transaction status until resolution. This is the tx confrimation life cycle:
 
-- Pending: transaction observed but not yet included; continue polling.
+- **Pending**: Transaction in the mempool but not yet included -> continue polling
+- **Committed**: Transaction included in a block
+  - If execution succeeded (code = OK): return success
+  - If execution failed: return an execution error and remove from tx tracker
+- **Rejected**:
+  - Transaction explicitly refused by the node during `ReCheck()`(This usually happens in the mempool after a block is committed).
+  - The client rolls back the sequence to the rejected transaction's sequence
+  - Removes the `TxTracker` entry
+  - Returns error
+- **Evicted**: Transaction dropped from mempool (e.g. low fees).
+  - The client resubmits using txBytes stored in the tracker
+  - If resubmission fails again (e.g. mismatch), an eviction timeout window (1 minute) begins before reporting failure
+- **Unknown/Not Found**: Treated as failure and error gets returned to the user.
 
-- Committed: transaction included in a block. If execution succeeded (code = OK), return success. If failed, return an execution error and remove from tracker.
-
-- Rejected: transaction definitively refused by the node. The client rolls back the account sequence to the rejected transaction’s sequence, removes it from the tracker, and reports error.
-
-- Evicted: transaction dropped from mempool(probably low fee). The client resubmits using locally stored txBytes. If resubmission fails(seq mismatch, etc), an eviction timeout window (1 minute) begins before failure is reported.
-
-Unknown/Not Found: treated as failure unless still tracked locally; in that case, polling continues until timeout.
+Once transactions are concluded they are automatically pruned from the `TxTracker`. Additionally, the tracker periodically prunes entries older than 10 minutes to prevent unbounded growth.
 
 ## Message Structure/Communication Format
 
@@ -248,22 +250,24 @@ Response: EstimatedGasUsed, EstimatedGasPrice
 
 ## Assumptions and Considerations
 
-Account Sequences must be consistent with the chain. The client assumes nodes provide reliable expected sequence numbers in error logs.
+- Trusted Node: The client depends on a trusted consensus node for account state, sequence numbers, and gas estimation (no proof verification).
 
-Eviction Handling requires storing raw txBytes locally for potential resubmission.
+- Sequence Consistency: Currently we rely on consensus node to provide us with the correct sequence in case of sequence mismatch errors. If we are connected to a malicious node this could break replay protection.
 
-Fee Grants allow secondary worker accounts to submit transactions with fees covered by the primary account.
+- Eviction Behavior: Evictions are local to a node. A transaction evicted by one node may still be proposed by another, so users must not re-sign the transaction immediately to avoid double-spending.
 
-Resilience depends on at least one connected gRPC endpoint being live and connected to consensus.
+- Submission Modes: Only sequential (single account) or parallel (worker accounts with fee grants) are safe; other patterns cause sequence mismatches.
+
+- Resilience: At least one gRPC endpoint must remain live and connected for reliable broadcast and confirmation.
 
 ## Implementation
 
-The TxClient implementation can be found in the Celestia Go client libraries:
+The TxClient implementation can be found in the `celestia-app` repo in the `pkg/user` directory:
 
-celestia-app:
+**Core TxClient code is located in:**
 
-Core TxClient code is located in:
-
-user/tx_client.go (transaction submission and queue).
-
-user/parallel_tx_submission.go (parallel worker management).
+- [`pkg/user/tx_client.go`](https://github.com/celestiaorg/celestia-app/blob/main/pkg/user/tx_client.go) - Transaction submission, broadcasting, and confirmation logic
+- [`pkg/user/parallel_tx_submission.go`](https://github.com/celestiaorg/celestia-app/blob/main/pkg/user/parallel_tx_submission.go) - Parallel worker management and job queuing
+- [`pkg/user/signer.go`](https://github.com/celestiaorg/celestia-app/blob/main/pkg/user/signer.go) - Transaction signing and account management
+- [`pkg/user/account.go`](https://github.com/celestiaorg/celestia-app/blob/main/pkg/user/account.go) - Account state management
+- [`pkg/user/tx_options.go`](https://github.com/celestiaorg/celestia-app/blob/main/pkg/user/tx_options.go) - Transaction configuration options
