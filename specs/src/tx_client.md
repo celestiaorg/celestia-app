@@ -210,7 +210,7 @@ After broadcast, the TxClient continuously polls the chain for transaction statu
   - If execution succeeded (code = OK): return success
   - If execution failed: return an execution error and remove from tx tracker
 - **Rejected**:
-  - Transaction explicitly refused by the node during `ReCheck()`(This usually happens in the mempool after a block is committed).
+  - Transaction explicitly refused by the node during `ReCheck()`(This happens in the mempool after a block is committed).
   - The client rolls back the sequence to the rejected transaction's sequence
   - Removes the `TxTracker` entry
   - Returns error
