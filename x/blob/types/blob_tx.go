@@ -2,6 +2,7 @@ package types
 
 import (
 	"bytes"
+	"runtime"
 	"slices"
 
 	"github.com/celestiaorg/go-square/v3/inclusion"
@@ -42,12 +43,12 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *tx.BlobTx, subtreeRootTh
 	}
 
 	// verify that the commitment of the blob matches that of the msgPFB
+	calculatedCommitments, err := inclusion.CreateParallelCommitments(bTx.Blobs, merkle.HashFromByteSlices, subtreeRootThreshold, runtime.NumCPU()*2)
+	if err != nil {
+		return ErrCalculateCommitment
+	}
 	for i, commitment := range msgPFB.ShareCommitments {
-		calculatedCommit, err := inclusion.CreateCommitment(bTx.Blobs[i], merkle.HashFromByteSlices, subtreeRootThreshold)
-		if err != nil {
-			return ErrCalculateCommitment
-		}
-		if !bytes.Equal(calculatedCommit, commitment) {
+		if !bytes.Equal(calculatedCommitments[i], commitment) {
 			return ErrInvalidShareCommitment
 		}
 	}

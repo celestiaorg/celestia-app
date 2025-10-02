@@ -14,5 +14,5 @@ This tool repeatedly broadcasts blob transactions to **Mocha node** with short T
 Before running the script you will have to set up a keyring directory with an address that has mocha tia on it.
 
 ```bash
- go run pkg/user/spam_txclient/main.go
+ go run tools/spam_txclient/main.go
  ```
