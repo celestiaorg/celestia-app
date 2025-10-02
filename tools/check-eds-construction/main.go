@@ -127,7 +127,7 @@ func checkRandomBlocksConcurrent(url string, numBlocks int, treePool *wrapper.Tr
 
 	// Create error group with context
 	g, ctx := errgroup.WithContext(context.Background())
-	g.SetLimit(16) // Limit to 16 concurrent goroutines
+	g.SetLimit(64) // Limit to 16 concurrent goroutines
 
 	// Mutex for thread-safe printing
 	var mu sync.Mutex
@@ -213,7 +213,7 @@ func checkRandomBlocks(url string, numBlocks int, treePool *wrapper.TreePool, de
 func generateRandomHeights(maxHeight int64, count int) []int64 {
 	heights := make([]int64, 0, maxHeight)
 
-	for i := int64(1); i < maxHeight; i++ {
+	for i := int64(920_000); i < maxHeight; i++ {
 		heights = append(heights, i)
 	}
 
