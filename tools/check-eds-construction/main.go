@@ -127,12 +127,45 @@ func checkRandomBlocksConcurrent(url string, numBlocks int, treePool *wrapper.Tr
 
 	// Create error group with context
 	g, ctx := errgroup.WithContext(context.Background())
-	g.SetLimit(64) // Limit to 16 concurrent goroutines
+	g.SetLimit(180) // Limit to 16 concurrent goroutines
 
 	// Mutex for thread-safe printing
 	var mu sync.Mutex
 	completed := 0
+	/*
+				   celestia-appd tx staking create-validator \
+				       --moniker=$MONIKER \
+				       --chain-id=$CHAIN_ID \
+				       --from=$VALIDATOR_WALLET \
+				       --keyring-backend=test \
+				       --fees=21000utia \
+				       --gas=220000 \
+				       --yes
 
+
+				{
+				        "pubkey": {"@type":"/cosmos.crypto.ed25519.PubKey","key":"LnIVFVeft/MqwdiVEJGH41/te7/xy5fgVjfRbAe4HO4="},
+				        "amount": "1000000stake",
+				        "moniker": "Hello_Bug",
+		"commission-rate": "0.1",
+		  "commission-max-rate": "0.2",
+		  "commission-max-change-rate": "0.01",
+		  "min-self-delegation": "1"
+				}
+
+
+			- address: celestia1vt4dcnr6xpmg2uultv5a2530rnvwheulvvzp5w
+			  name: validator
+			  pubkey: '{"@type":"/cosmos.crypto.secp256k1.PubKey","key":"A5lzozrYo8xxe5KDpH2gloKZP+UIGy4L/UE1+ziXihie"}'
+			  type: local
+
+
+			**Important** write this mnemonic phrase in a safe place.
+			It is the only way to recover your account if you ever forget your password.
+
+			amateur unknown appear luggage used cigar explain height demand rather struggle pattern market forget dream main cash crop burger rib beyond radar copy hand
+
+	*/
 	for _, height := range selectedHeights {
 		height := height // Capture loop variable
 
@@ -213,7 +246,7 @@ func checkRandomBlocks(url string, numBlocks int, treePool *wrapper.TreePool, de
 func generateRandomHeights(maxHeight int64, count int) []int64 {
 	heights := make([]int64, 0, maxHeight)
 
-	for i := int64(920_000); i < maxHeight; i++ {
+	for i := int64(109_035); i < maxHeight; i++ {
 		heights = append(heights, i)
 	}
 
