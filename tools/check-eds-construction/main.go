@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"golang.org/x/sync/errgroup"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/da"
@@ -77,7 +79,7 @@ with and without tree pool optimization.`,
 			if err != nil {
 				return fmt.Errorf("failed to create tree pool: %w", err)
 			}
-			return checkRandomBlocks(rpc, numBlocks, treePool, time.Duration(1)*time.Millisecond)
+			return checkRandomBlocksConcurrent(rpc, numBlocks, treePool, time.Duration(110)*time.Nanosecond)
 		},
 	}
 	randomCmd.Flags().Int("delay", 100, "Delay between block checks in milliseconds")
@@ -106,6 +108,63 @@ func checkBlock(url string, height int64, treePool *wrapper.TreePool) error {
 	}
 
 	return compareEDSConstructions(block.Block.Txs.ToSliceOfBytes(), block.Block.Version.App, block.Block.DataHash, height, treePool)
+}
+
+// Replace the sequential loop with this concurrent version
+func checkRandomBlocksConcurrent(url string, numBlocks int, treePool *wrapper.TreePool, delay time.Duration) error {
+	c, err := http.New(url, "/websocket")
+	if err != nil {
+		return fmt.Errorf("failed to create RPC client: %w", err)
+	}
+
+	status, err := c.Status(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to get status: %w", err)
+	}
+
+	latestHeight := status.SyncInfo.LatestBlockHeight
+	selectedHeights := generateRandomHeights(latestHeight, numBlocks)
+
+	// Create error group with context
+	g, ctx := errgroup.WithContext(context.Background())
+	g.SetLimit(16) // Limit to 16 concurrent goroutines
+
+	// Mutex for thread-safe printing
+	var mu sync.Mutex
+	completed := 0
+
+	for _, height := range selectedHeights {
+		height := height // Capture loop variable
+
+		g.Go(func() error {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+
+			block, err := c.Block(ctx, &height)
+			if err != nil {
+				return fmt.Errorf("failed to get block at height %d: %w", height, err)
+			}
+
+			err = compareEDSConstructions(block.Block.Txs.ToSliceOfBytes(), block.Block.Version.App, block.Block.DataHash, height, treePool)
+			if err != nil {
+				return fmt.Errorf("failed to compare EDS constructions for block at height %d: %w", height, err)
+			}
+
+			// Thread-safe progress reporting
+			mu.Lock()
+			completed++
+			fmt.Printf("[%d/%d] Block %d passed\n", completed, numBlocks, height)
+			mu.Unlock()
+
+			return nil
+		})
+	}
+
+	// Wait for all goroutines to complete
+	return g.Wait()
 }
 
 func checkRandomBlocks(url string, numBlocks int, treePool *wrapper.TreePool, delay time.Duration) error {
