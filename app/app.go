@@ -191,10 +191,6 @@ type App struct {
 	BasicManager  module.BasicManager
 	ModuleManager *module.Manager
 	configurator  module.Configurator
-	// blockTime is used to override the default TimeoutHeightDelay. This is
-	// useful for testing purposes and should not be used on public networks
-	// (Arabica, Mocha, or Mainnet Beta).
-	timeoutCommit time.Duration
 
 	// txValidationCache caches expensive blob transaction validation results
 	// from CheckTx to be reused in ProcessProposal.
@@ -238,7 +234,6 @@ func New(
 		keys:                    keys,
 		tkeys:                   tkeys,
 		memKeys:                 memKeys,
-		timeoutCommit:           timeoutCommit,
 		txValidationCache:       NewTxValidationCache(),
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
 	}

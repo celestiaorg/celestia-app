@@ -24,40 +24,20 @@ func (c *TxValidationCache) getTxKey(tx []byte) string {
 	return string(hash[:])
 }
 
-// Get retrieves a validation result from the cache
-func (c *TxValidationCache) Get(tx []byte) (valid bool, exists bool) {
+// Exists retrieves a validation result from the cache
+func (c *TxValidationCache) Exists(tx []byte) (exists bool) {
 	key := c.getTxKey(tx)
-	result, exists := c.cache.Load(key)
-	if !exists {
-		return false, false
-	}
-
-	return result.(bool), exists
+	_, exists = c.cache.Load(key)
+	return exists
 }
 
 // Set stores a validation result in the cache
-func (c *TxValidationCache) Set(tx []byte, result bool) {
+func (c *TxValidationCache) Set(tx []byte) {
 	key := c.getTxKey(tx)
-	c.cache.Store(key, result)
+	c.cache.Store(key, struct{}{})
 }
 
-// Clear removes all entries from the cache
-func (c *TxValidationCache) Clear() {
-	c.cache.Range(func(key, value interface{}) bool {
-		c.cache.Delete(key)
-		return true
-	})
-}
-
-// Cleanup removes expired entries from the cache
-func (c *TxValidationCache) Cleanup() {
-	c.cache.Range(func(key, value interface{}) bool {
-		c.cache.Delete(key)
-		return true
-	})
-}
-
-// RemoveTransactions removes specific transactions from the cache
+// RemoveTransaction removes specific transactions from the cache
 // This is more efficient than clearing everything when only some transactions are finalized
 func (c *TxValidationCache) RemoveTransaction(tx []byte) {
 	key := c.getTxKey(tx)
@@ -67,7 +47,7 @@ func (c *TxValidationCache) RemoveTransaction(tx []byte) {
 // Size returns the current number of entries in the cache
 func (c *TxValidationCache) Size() int {
 	count := 0
-	c.cache.Range(func(key, value interface{}) bool {
+	c.cache.Range(func(key, value any) bool {
 		count++
 		return true
 	})

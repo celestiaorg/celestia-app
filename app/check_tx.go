@@ -55,7 +55,7 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 			return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 		}
 		// Cache the validation result for ProcessProposal to reuse
-		app.txValidationCache.Set(tx, err == nil)
+		app.txValidationCache.Set(btx.Tx)
 	case abci.CheckTxType_Recheck:
 	default:
 		panic(fmt.Sprintf("unknown RequestCheckTx type: %s", req.Type))
