@@ -23,7 +23,6 @@ const rejectedPropBlockLog = "Rejected proposal block:"
 
 func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcessProposal) (resp *abci.ResponseProcessProposal, err error) {
 	defer telemetry.MeasureSince(time.Now(), "process_proposal")
-
 	// In the case of a panic resulting from an unexpected condition, it is
 	// better for the liveness of the network to catch it, log an error, and
 	// vote nil rather than crashing the node.
