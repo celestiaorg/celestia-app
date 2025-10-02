@@ -188,9 +188,9 @@ func checkRandomBlocks(url string, numBlocks int, treePool *wrapper.TreePool, de
 
 	selectedHeights := generateRandomHeights(latestHeight, numBlocks)
 
-	fmt.Printf("\nChecking %d random blocks with %dms delay between checks...\n", numBlocks, delay.Milliseconds())
+	//fmt.Printf("\nChecking %d random blocks with %dms delay between checks...\n", numBlocks, delay.Milliseconds())
 	for i, height := range selectedHeights {
-		fmt.Printf("\n[%d/%d] Checking block at height %d\n", i+1, numBlocks, height)
+		//fmt.Printf("\n[%d/%d] Checking block at height %d\n", i+1, numBlocks, height)
 
 		block, err := c.Block(context.Background(), &height)
 		if err != nil {
@@ -241,9 +241,9 @@ func compareEDSConstructions(txs [][]byte, appVersion uint64, blockDataHash []by
 		return fmt.Errorf("failed to create DAH with pool: %w", err)
 	}
 
-	fmt.Printf("Got data root: %X\n", blockDataHash)
-	fmt.Printf("Computed data root: %X\n", dah.Hash())
-	fmt.Printf("Computed data root (with pool): %X\n", dahWithPool.Hash())
+	//fmt.Printf("Got data root: %X\n", blockDataHash)
+	//fmt.Printf("Computed data root: %X\n", dah.Hash())
+	//fmt.Printf("Computed data root (with pool): %X\n", dahWithPool.Hash())
 
 	dahHash := dah.Hash()
 	dahWithPoolHash := dahWithPool.Hash()
