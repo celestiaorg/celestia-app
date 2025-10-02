@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"os"
 	"strconv"
 	"time"
@@ -74,12 +73,11 @@ with and without tree pool optimization.`,
 				}
 			}
 
-			delay, _ := cmd.Flags().GetInt("delay")
 			treePool, err := wrapper.DefaultPreallocatedTreePool(512)
 			if err != nil {
 				return fmt.Errorf("failed to create tree pool: %w", err)
 			}
-			return checkRandomBlocks(rpc, numBlocks, treePool, time.Duration(delay)*time.Millisecond)
+			return checkRandomBlocks(rpc, numBlocks, treePool, time.Duration(1)*time.Millisecond)
 		},
 	}
 	randomCmd.Flags().Int("delay", 100, "Delay between block checks in milliseconds")
@@ -154,19 +152,10 @@ func checkRandomBlocks(url string, numBlocks int, treePool *wrapper.TreePool, de
 }
 
 func generateRandomHeights(maxHeight int64, count int) []int64 {
-	source := rand.NewSource(time.Now().UnixNano())
-	rng := rand.New(source)
+	heights := make([]int64, 0, maxHeight)
 
-	selected := make(map[int64]struct{})
-	heights := make([]int64, 0, count)
-
-	for len(heights) < count && len(selected) < int(maxHeight-1) {
-		// random between 2 and maxHeight
-		h := rng.Int63n(maxHeight-1) + 2
-		if _, exists := selected[h]; !exists {
-			selected[h] = struct{}{}
-			heights = append(heights, h)
-		}
+	for i := int64(1); i < maxHeight; i++ {
+		heights = append(heights, i)
 	}
 
 	return heights
