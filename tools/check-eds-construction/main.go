@@ -255,7 +255,6 @@ func compareEDSConstructions(txs [][]byte, appVersion uint64, blockDataHash []by
 		return fmt.Errorf("mismatch: computed root does not match block data hash")
 	}
 
-	fmt.Printf("All roots match!\n")
 	return nil
 }
 
