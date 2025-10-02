@@ -228,8 +228,11 @@ func (s *CelestiaTestSuite) verifyABCIInfoCompatibility(responses []apiResponses
 		// Critical: App version must be same across all nodes for compatibility
 		s.Require().Equal(baseABCI.Response.GetAppVersion(), resp.abciInfo.Response.GetAppVersion(), "App versions differ between %s (app version %d) and %s (app version %d) - major version incompatibility", responses[0].version, baseABCI.Response.GetAppVersion(), resp.version, resp.abciInfo.Response.GetAppVersion())
 
-		expectedMinorVersion := strings.TrimPrefix(resp.version, "v")
-		s.Require().Contains(resp.abciInfo.Response.GetVersion(), expectedMinorVersion, "Node %d reports ABCI version '%s', should contain '%s'", resp.nodeIndex, resp.abciInfo.Response.GetVersion(), expectedMinorVersion)
+		// Check only on semantic version like "v6.0.5-arabica" as the ci fails to pass the full commit hash
+		if strings.HasPrefix(resp.version, "v") {
+			expectedMinorVersion := strings.TrimPrefix(resp.version, "v")
+			s.Require().Contains(resp.abciInfo.Response.GetVersion(), expectedMinorVersion, "Node %d reports ABCI version '%s', should contain '%s'", resp.nodeIndex, resp.abciInfo.Response.GetVersion(), expectedMinorVersion)
+		}
 
 		s.T().Logf("ABCI Info compatibility verified: %s <-> %s (both app version %d)", responses[0].version, resp.version, resp.abciInfo.Response.GetAppVersion())
 	}
