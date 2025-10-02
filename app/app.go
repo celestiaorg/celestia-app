@@ -496,10 +496,7 @@ func New(
 	if err != nil {
 		// Once we switch to using protoreflect-based antehandlers, we might
 		// want to panic here instead of logging a warning.
-		_, err := fmt.Fprintln(os.Stderr, err.Error())
-		if err != nil {
-			fmt.Println("could not write to stderr")
-		}
+		fmt.Fprintf(os.Stderr, "proto annotation validation warning: %v\n", err)
 	}
 
 	app.encodingConfig = encodingConfig
