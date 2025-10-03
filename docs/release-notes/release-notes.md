@@ -20,7 +20,7 @@ v6 changes the [hardware requirements](https://docs.celestia.org/how-to-guides/n
 
 **Validators MUST build binaries in freshly created environments or download pre-built binaries from official releases.** Many validators have experienced issues due to building binaries in environments with outdated dependencies, conflicting libraries, or stale build artifacts.
 
-For long-running validators, consider migrating to a fresh environment as host libraries may not be compatible with new binary requirements.
+For long-running validators, consider migrating from time to time to a fresh environment as host libraries may not be compatible with new binary requirements.
 
 ### Key Management Service (KMS) changes
 
