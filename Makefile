@@ -77,6 +77,7 @@ install-standalone:
 install: download-v3-binaries download-v4-binaries download-v5-binaries
 	@echo "--> Installing celestia-appd with multiplexer support"
 	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
+	@$(MAKE) check-cpu-features
 .PHONY: install
 
 ## download-v3-binaries: Download the celestia-app v3 binary for the current platform.
@@ -496,6 +497,28 @@ disable-bbr:
 ## bbr-disable: Disable BBR congestion control algorithm and revert to default.
 bbr-disable: disable-bbr
 .PHONY: bbr-disable
+
+## check-cpu-features: Check if CPU supports GFNI and SHA_NI features for optimal performance. Only works on Linux.
+check-cpu-features:
+	@echo "Checking CPU features (GFNI and SHA_NI)..."
+	@if [ "$$(uname -s)" != "Linux" ]; then \
+		echo "CPU feature check is not available on non-Linux systems."; \
+		exit 0; \
+	elif ! grep -q -E 'gfni.*sha_ni|sha_ni.*gfni' /proc/cpuinfo; then \
+		if ! grep -q 'gfni' /proc/cpuinfo; then \
+			echo "WARNING: GFNI CPU feature not found. Consider upgrading to a CPU with GFNI support for optimal cryptographic performance."; \
+		fi; \
+		if ! grep -q 'sha_ni' /proc/cpuinfo; then \
+			echo "WARNING: SHA_NI CPU feature not found. Consider upgrading to a CPU with SHA_NI support for optimal cryptographic performance."; \
+		fi; \
+	else \
+		echo "CPU features GFNI and SHA_NI are available."; \
+	fi
+.PHONY: check-cpu-features
+
+## cpu-features-check: Check if CPU supports GFNI and SHA_NI features. Only works on Linux.
+cpu-features-check: check-cpu-features
+.PHONY: cpu-features-check
 
 ## enable-mptcp: Enable Multi-Path TCP over multiple ports (not interfaces). Improves connection reliability and throughput. Only works on Linux Kernel 5.6+.
 enable-mptcp:
