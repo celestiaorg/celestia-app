@@ -148,7 +148,7 @@ func (k Keeper) VersionTally(ctx context.Context, req *types.QueryVersionTallyRe
 	if err != nil {
 		return nil, err
 	}
-	currentVotingPower := math.NewInt(0)
+	currentVotingPower := math.ZeroInt()
 	store := sdkCtx.KVStore(k.storeKey)
 	iterator := store.Iterator(types.FirstSignalKey, nil)
 	defer iterator.Close()
