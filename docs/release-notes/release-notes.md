@@ -20,42 +20,6 @@ v6 changes the [hardware requirements](https://docs.celestia.org/how-to-guides/n
 
 **Validators MUST build binaries in freshly created environments or download pre-built binaries from official releases.** Many validators on Mocha have experienced issues due to building binaries in environments with outdated dependencies, conflicting libraries, or stale build artifacts.
 
-#### Why Fresh Environments Matter
-
-Building celestia-app in environments with existing dependencies, cached builds, or system libraries can lead to:
-
-- Incompatible binary artifacts that cause runtime failures
-- Version conflicts with system libraries that prevent proper execution
-- Cached dependencies that don't match the expected versions
-- Build pollution from previous versions or other Go projects
-
-#### Required Actions for Validators
-
-**For new deployments:**
-- Use a clean Docker container, fresh VM, or newly provisioned system
-- Avoid building on systems with existing Go projects or cached dependencies
-- Verify your environment has the correct Go version and clean GOPATH/GOMODCACHE
-
-**For existing validators that have been running without updates:**
-- **STRONGLY RECOMMENDED**: Migrate to a fresh environment or new validator setup
-- Host system libraries may no longer be compatible with the new binary requirements
-- Long-running systems often accumulate library versions that conflict with new releases
-- Consider this an opportunity to audit and refresh your validator infrastructure
-
-**Alternative: Use Pre-built Binaries**
-- Download official pre-built binaries from [GitHub releases](https://github.com/celestiaorg/celestia-app/releases)
-- Pre-built binaries are tested and guaranteed to work in clean environments
-- This eliminates build environment concerns entirely
-
-#### Verification Steps
-
-After building or downloading:
-1. Test the binary in an isolated environment first
-2. Verify all expected functionality before deploying to production
-3. Monitor logs carefully during the initial startup phase
-
-**This requirement cannot be overstated - environment cleanliness is critical for network stability and validator reliability.**
-
 ### Key Management Service (KMS) changes
 
 This release introduces a new message type that needs to be signed by KMS. **If you use Horcrux or TmKMS, you must use these versions in order to participate in consensus. If you use an alternative KMS, please reach out.**
