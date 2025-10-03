@@ -247,7 +247,7 @@ Response: EstimatedGasUsed, EstimatedGasPrice
 
 - Eviction Behavior: Evictions are local to a node. A transaction evicted by one node may still be proposed by another, so users must not re-sign the transaction immediately to avoid double-spending.
 
-- Submission Modes: Only sequential (single account) or parallel (worker accounts with fee grants) are safe; other patterns cause sequence mismatches.
+- Submission Modes: Only sequential (single account) or parallel (worker accounts with fee grants) are safe; other patterns may lead to sequence mismatches.
 
 ## Implementation
 
