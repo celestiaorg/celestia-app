@@ -44,6 +44,9 @@ message PaymentPromise {
   bytes signature = 7;
   // height is the height that is used to determine the validator set that is used
   int64 height = 8;
+  // chain_id is the chain ID that this payment promise is valid for.
+  // Example: arabica-11, mocha-4, or celestia.
+  string chain_id = 9;
 }
 
 // Withdrawal tracks requests to withdraw funds from an escrow account. It is
