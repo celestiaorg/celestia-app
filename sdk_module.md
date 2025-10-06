@@ -27,15 +27,15 @@ The fibre module maintains state for [escrow accounts](#escrow-accounts), [pendi
 
 #### `GasPerBlobByte`
 
-`GasPerBlobByte` is the amount of gas consumed per byte of blob data when payment is processed. This determines the gas cost for fibre blob inclusion.
-
-#### `PromiseTimeout`
-
-`PromiseTimeout` is the duration after which anyone can submit a promise for processing if the user hasn't submitted a [`MsgPayForFibre`](#msgpayforfibre) (default: 1 hour).
+`GasPerBlobByte` is the amount of gas consumed per byte of blob data when a payment promise is processed. This determines the gas cost for fibre blob inclusion.
 
 #### `WithdrawalDelay`
 
-`WithdrawalDelay` is the duration that must pass between requesting a withdrawal and when funds become available for withdrawal (default: 24 hours). This value is also used for pruning [ProcessedPromise](#processed-promises) from the state.
+`WithdrawalDelay` is the duration that must pass between requesting a withdrawal and when funds are withdrawn (default: 24 hours).
+
+#### `PaymentPromiseTimeout`
+
+`PaymentPromiseTimeout` is the duration after which anyone can submit a payment promise for processing if the user hasn't submitted a [`MsgPayForFibre`](#msgpayforfibre) (default: 1 hour).
 
 #### `PaymentPromiseRetentionWindow`
 
