@@ -6,28 +6,6 @@ The Transaction Client (TxClient) provides a high-level abstraction for construc
 
 ## Protocol/Component Description
 
-### Signer
-
-**Signer interface is not strictly required for all tx client implementations.** It is only specific to the golang implementation in `celestia-app`.
-
-The Signer is a core component that handles transaction creation, signing, and encoding. It manages multiple accounts and provides the cryptographic operations needed for transaction submission.
-
-**How TxClient Uses Signer**: The TxClient delegates all transaction creation, signing, and encoding operations to the Signer, which handles sequence management, multi-account support, and blob transaction handling.
-
-**Key Functionality**:
-
-- **Transaction Building**: Creates transactions from messages and blobs
-  - `CreateTx(msgs []sdktypes.Msg, opts ...TxOption) ([]byte, authsigning.Tx, error)`
-  - `CreatePayForBlobs(accountName string, blobs []*share.Blob, opts ...TxOption) ([]byte, uint64, error)`
-- **Signing**: Signs transactions using account private keys
-  - `SignTx(msgs []sdktypes.Msg, opts ...TxOption) (authsigning.Tx, string, uint64, error)`
-- **Encoding/Decoding**: Converts transactions to bytes and vice versa
-  - `EncodeTx(tx sdktypes.Tx) ([]byte, error)`
-  - `DecodeTx(txBytes []byte) (authsigning.Tx, error)`
-- **Account Management**: Tracks account sequences and manages multiple signers
-  - `IncrementSequence(accountName string) error`
-  - `SetSequence(accountName string, seq uint64) error`
-
 ### Gas Estimator
 
 The gas estimation service is an external dependency that provides accurate gas and fee calculations for transaction submission.
@@ -43,21 +21,6 @@ TxClient calls the gas estimation service during broadcast to ensure transaction
 - `EstimateGasPriceAndUsage(ctx context.Context, msgs []sdktypes.Msg, priority gasestimation.TxPriority, opts ...TxOption) (gasPrice float64, gasUsed uint64, err error)`
 - `EstimateGasPrice(ctx context.Context, priority gasestimation.TxPriority) (float64, error)`
 
-#### Transaction Tracker
-
-TxClient maintains a local transaction tracker (`txTracker`) that stores:
-
-```go
-type txInfo struct {
-    sequence  uint64    // Account sequence at submission time
-    signer    string    // Account name that signed the transaction
-    timestamp time.Time // Submission timestamp
-    txBytes   []byte    // Raw transaction bytes for resubmission
-}
-```
-
-The transaction tracker is a critical component that enables the TxClient to handle network failures and mempool evictions. After successfully broadcasting a transaction, the client stores essential metadata locally to enable different recovery mechanisms.
-
 ## Tx Flow
 
 Below will be described tx flow from submission to broadcasting it on celestia chain to confirmation and how transaction client handles it. It will be split into 3 sub-sections.
@@ -68,15 +31,14 @@ Below will be described tx flow from submission to broadcasting it on celestia c
 
 ### Ordered Submission
 
-**Characteristics**: Low Throughput, Sequential Submission, Better ordering guarantees
+**Characteristics**: Low Throughput, Sequential Submission, Less error prone
 
 - **Single Account**: All transactions signed by one account
 - **Sequential**: Max one tx per block, each tx must be confirmed before subsequent can be resubmitted
-- **Ordering Guarantees**: Transactions are processed in exact submission order
+- **Ordering**: Transactions will likely be processed in submission order
 - **Low Throughput**: One tx per block per account
 - **Use Case**:
-  - Applications requiring transaction ordering
-  - Users who require that all their blobs are signed by the same account.
+  - Applications and users requiring all blobs to be signed by a single account and reliably executed.
 
 **APIs**:
 
@@ -116,7 +78,7 @@ Below will be described tx flow from submission to broadcasting it on celestia c
 - **Account Reuse**: Worker accounts are persisted across runtimes when parallel submission is enabled.
 - **Use Case**: Best suited for applications that prioritize throughput over ordering.
 
-**note:** If initialized with only one worker, this mode behaves identically to Sequential Submission (one tx per block).
+**Note:** If initialized with only one worker, this mode behaves identically to Sequential Submission (one tx per block).
 
 **APIs**:
 
@@ -133,8 +95,6 @@ Below will be described tx flow from submission to broadcasting it on celestia c
     ```go
     func (client *TxClient) QueueBlob(ctx context.Context, resultC chan SubmissionResult, blobs []*share.Blob, opts ...TxOption)
     ```
-
-### Submission API Summary
 
 All submission APIs ultimately delegate into the same broadcast and confirmation methods, they differ only in account selection, tx types and whether jobs go through the worker queue.
 
@@ -174,7 +134,7 @@ Broadcasting steps are universal across SDK transactions and blob transactions.
                 }
                 ```
 
-6. **Tracker Entry**: On success, record (`signer`, `sequence`, `txBytes`, `timestamp`) in TxTracker. Entries older than 10 minutes are pruned automatically.
+6. **Transaction Entry**: On success, record (`signer`, `sequence`, `txBytes`, `timestamp`).
 7. **Sequence Increment**: After successful broadcast, increment the signer’s local sequence by calling **signer.SetSequence()**
 
 ### Confirmation
@@ -197,8 +157,8 @@ After broadcast, the TxClient continuously polls the chain for transaction statu
     ```
 
 - **Rejected**: Transaction was explicitly refused by the node during `ReCheck()` (after each block commit).
-  - Retrieve tx sequence from `TxTracker`
-  - Roll back the sequence to the retrieved tx sequence
+  - Retrieve tx sequence from the tracker.
+  - Roll back the sequence to the retrieved tx sequence.
   - Construct and return a rejection error with the tx hash and response code. (no specific error type)
 
 - **Evicted**: Transaction dropped from mempool (low fees, mempool full).
@@ -212,7 +172,7 @@ After broadcast, the TxClient continuously polls the chain for transaction statu
 
 - **Unknown/Not Found**: Tx is neither evicted nor rejected or confirmed. Return error to the user that tx is unknown.
 
-- Once transactions are concluded (rejected/evicted/confirmed) they should get pruned from the `TxTracker` before function returns.
+- Once transactions are concluded (rejected/evicted/confirmed) they should get pruned from the tracker before function returns.
 
 ## Message Structure/Communication Format
 
@@ -242,8 +202,6 @@ Response: EstimatedGasUsed, EstimatedGasPrice
 ## Assumptions and Considerations
 
 - Trusted Node: The client depends on a trusted consensus node for account state, sequence numbers, and gas estimation (no proof verification).
-
-- Sequence Consistency: Currently we rely on consensus node to provide us with the correct sequence in case of sequence mismatch errors. If we are connected to a malicious node this could break replay protection.
 
 - Eviction Behavior: Evictions are local to a node. A transaction evicted by one node may still be proposed by another, so users must not re-sign the transaction immediately to avoid double-spending.
 
