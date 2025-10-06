@@ -136,7 +136,7 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 	modifyRootCommand(rootCommand)
 
 	// Add hooks run prior to the start command
-	if err := addPreStartHooks(rootCommand, checkBBR); err != nil {
+	if err := addPreStartHooks(rootCommand, checkBBR, checkCPUFeatures); err != nil {
 		panic(fmt.Errorf("failed to add pre-start hooks: %w", err))
 	}
 }
@@ -155,6 +155,7 @@ func addStartFlags(startCmd *cobra.Command) {
 
 	startCmd.Flags().Duration(DelayedPrecommitTimeoutFlag, 0, "Override the DelayedPrecommitTimeout to control block time. Note: only for testing purposes.")
 	startCmd.Flags().Bool(FlagForceNoBBR, false, "bypass the requirement to use bbr locally")
+	startCmd.Flags().Bool(FlagTestingEnvironment, false, "bypass CPU feature checks for testing environments")
 }
 
 // replaceLogger optionally replaces the logger with a file logger if the flag
