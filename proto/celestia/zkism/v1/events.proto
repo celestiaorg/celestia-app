@@ -50,7 +50,7 @@ message EventUpdateZKExecutionISM {
 }
 
 // EventSubmitMessages defines the event type emitted after successful message submission.
-message EventMessageAuthorized {
+message EventSubmitMessages {
   option (gogoproto.goproto_getters) = false;
 
   // unique hyperlane identifier

@@ -46,7 +46,7 @@ func EmitSubmitMessagesEvent(ctx sdk.Context, root []byte, messageIds [][32]byte
 		messages = append(messages, encodeHex(msg[:]))
 	}
 
-	return ctx.EventManager().EmitTypedEvent(&types.EventMessageAuthorized{
+	return ctx.EventManager().EmitTypedEvent(&types.EventSubmitMessages{
 		StateRoot: encodeHex(root),
 		Messages:  messages,
 	})
