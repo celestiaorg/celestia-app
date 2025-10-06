@@ -128,11 +128,3 @@ func ValidateBlobTxSkipCommitment(txcfg client.TxEncodingConfig, bTx *tx.BlobTx)
 
 	return msgPFB, nil
 }
-
-func BlobTxSharesUsed(btx tx.BlobTx) int {
-	sharesUsed := 0
-	for _, blob := range btx.Blobs {
-		sharesUsed += share.SparseSharesNeeded(uint32(len(blob.Data())), false)
-	}
-	return sharesUsed
-}
