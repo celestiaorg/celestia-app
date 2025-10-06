@@ -25,16 +25,6 @@ The fibre module maintains state for [escrow accounts](#escrow-accounts), [pendi
 
 ### Params
 
-```proto
-message Params {
-  option (gogoproto.goproto_stringer) = false;
-  uint32 gas_per_blob_byte = 1 [ (gogoproto.moretags) = "yaml:\"gas_per_blob_byte\"" ];
-  google.protobuf.Duration withdrawal_delay = 2 [ (gogoproto.moretags) = "yaml:\"withdrawal_delay\"" ];
-  google.protobuf.Duration promise_timeout = 3 [ (gogoproto.moretags) = "yaml:\"promise_timeout\"" ];
-  google.protobuf.Duration payment_promise_retention_window = 4 [ (gogoproto.moretags) = "yaml:\"payment_promise_retention_window\"" ];
-}
-```
-
 #### `GasPerBlobByte`
 
 `GasPerBlobByte` is the amount of gas consumed per byte of blob data when payment is processed. This determines the gas cost for fibre blob inclusion.
