@@ -183,6 +183,7 @@ func (s *CelestiaTestSuite) WaitForSync(ctx context.Context, statusClient rpccli
 // CheckLiveness validates that all validators proposed blocks and no nodes halted.
 // Automatically waits for sufficient blocks (3 per validator minimum) if needed.
 //
+// Range: currently checks from height 1 up to the latest height.
 // Upgrade-agnostic: can be called before/after upgrades or spanning the entire period.
 // Call at the end of E2E tests to validate network health.
 func (s *CelestiaTestSuite) CheckLiveness(ctx context.Context, chain tastoratypes.Chain) error {
