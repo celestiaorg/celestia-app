@@ -134,7 +134,6 @@ Below will be described tx flow from submission to broadcasting it on celestia c
     func (client *TxClient) QueueBlob(ctx context.Context, resultC chan SubmissionResult, blobs []*share.Blob, opts ...TxOption)
     ```
 
-### Submission API Summary
 
 All submission APIs ultimately delegate into the same broadcast and confirmation methods, they differ only in account selection, tx types and whether jobs go through the worker queue.
 
