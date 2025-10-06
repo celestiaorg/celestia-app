@@ -50,17 +50,33 @@ func NewMsgPayForBlobs(signerAddress string, _ uint64, blobs ...*share.Blob) (*M
 		return nil, err
 	}
 
-	err = ValidateBlobShareVersion(signerBytes, blobs...)
+	// Handle v1 blobs with no signers set on the struct by filling them with the signer
+	// passed in the message.
+	signedBlobs := make([]*share.Blob, len(blobs))
+	for i, blob := range blobs {
+		if blob.ShareVersion() == share.ShareVersionOne && len(blob.Signer()) == 0 {
+			// Create a new v1 blob with the transaction signer filled in
+			newBlob, err := share.NewV1Blob(blob.Namespace(), blob.Data(), blob.Signer())
+			if err != nil {
+				return nil, fmt.Errorf("creating v1 blob with filled signer: %w", err)
+			}
+			signedBlobs[i] = newBlob
+		} else {
+			signedBlobs[i] = blob
+		}
+	}
+
+	err = ValidateBlobShareVersion(signerBytes, signedBlobs...)
 	if err != nil {
 		return nil, err
 	}
 
-	commitments, err := inclusion.CreateCommitments(blobs, merkle.HashFromByteSlices, appconsts.SubtreeRootThreshold)
+	commitments, err := inclusion.CreateCommitments(signedBlobs, merkle.HashFromByteSlices, appconsts.SubtreeRootThreshold)
 	if err != nil {
 		return nil, fmt.Errorf("creating commitments: %w", err)
 	}
 
-	namespaces, sizes, shareVersions := ExtractBlobComponents(blobs)
+	namespaces, sizes, shareVersions := ExtractBlobComponents(signedBlobs)
 
 	msg := &MsgPayForBlobs{
 		Signer:           signerAddress,
