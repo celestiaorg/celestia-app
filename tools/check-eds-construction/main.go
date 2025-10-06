@@ -122,14 +122,15 @@ func checkRandomBlocks(url string, numBlocks int, treePool *wrapper.TreePool, de
 	}
 
 	latestHeight := status.SyncInfo.LatestBlockHeight
+	earliestHeight := status.SyncInfo.EarliestBlockHeight
 	fmt.Printf("Connected to %s on chain %s\n", url, status.NodeInfo.Network)
 	fmt.Printf("Latest block height: %d\n", latestHeight)
 
-	if latestHeight < int64(numBlocks) {
+	if latestHeight-earliestHeight+1 < int64(numBlocks) {
 		return fmt.Errorf("not enough blocks: latest height is %d but requested %d blocks", latestHeight, numBlocks)
 	}
 
-	selectedHeights := generateRandomHeights(latestHeight, numBlocks)
+	selectedHeights := generateRandomHeights(earliestHeight, latestHeight, numBlocks)
 
 	fmt.Printf("\nChecking %d random blocks with %dms delay between checks...\n", numBlocks, delay.Milliseconds())
 	for i, height := range selectedHeights {
@@ -153,16 +154,16 @@ func checkRandomBlocks(url string, numBlocks int, treePool *wrapper.TreePool, de
 	return nil
 }
 
-func generateRandomHeights(maxHeight int64, count int) []int64 {
+func generateRandomHeights(minHeight, maxHeight int64, count int) []int64 {
 	source := rand.NewSource(time.Now().UnixNano())
 	rng := rand.New(source)
 
 	selected := make(map[int64]struct{})
 	heights := make([]int64, 0, count)
 
-	for len(heights) < count && len(selected) < int(maxHeight-1) {
-		// random between 2 and maxHeight
-		h := rng.Int63n(maxHeight-1) + 2
+	for len(heights) < count && len(selected) < int(maxHeight-minHeight+1) {
+		// random between minHeight and maxHeight
+		h := rng.Int63n(maxHeight-(minHeight-1)) + minHeight
 		if _, exists := selected[h]; !exists {
 			selected[h] = struct{}{}
 			heights = append(heights, h)
