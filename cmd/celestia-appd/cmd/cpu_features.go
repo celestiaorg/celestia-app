@@ -56,7 +56,7 @@ If you need to bypass this check, use the --testing-environment flag.
 	if err != nil {
 		logger.Warn(warning)
 		// TODO: enable when we want to start enforcing the new CPU features.
-		//return fmt.Errorf("failed to read file '/proc/cpuinfo' %w", err)
+		// return fmt.Errorf("failed to read file '/proc/cpuinfo' %w", err)
 		return nil
 	}
 
@@ -77,7 +77,7 @@ If you need to bypass this check, use the --testing-environment flag.
 
 	if !hasGFNI {
 		// TODO: enable when we want to start enforcing the new CPU features.
-		//return fmt.Errorf("missing GFNI")
+		// return fmt.Errorf("missing GFNI")
 		return nil
 	}
 
