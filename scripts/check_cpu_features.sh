@@ -9,7 +9,7 @@ CPU Performance Warning: Missing hardware acceleration features
 
 Your CPU does not support one or more of the following hardware acceleration features:
 - GFNI (Galois Field New Instructions)
-- SHA_NI (SHA Extensions)
+- SHA_NI (Secure Hash Algorithm New Instructions)
 
 These features significantly improve cryptographic performance for blockchain operations.
 
