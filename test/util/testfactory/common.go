@@ -23,7 +23,7 @@ const (
 
 func Repeat[T any](s T, count int) []T {
 	ss := make([]T, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		ss[i] = s
 	}
 	return ss
@@ -33,7 +33,7 @@ func Repeat[T any](s T, count int) []T {
 // of random data is of size shareSize and is prefixed with a random blob
 // namespace.
 func GenerateRandNamespacedRawData(count int) (result [][]byte) {
-	for i := 0; i < count; i++ {
+	for range count {
 		rawData := random.Bytes(share.ShareSize)
 		namespace := share.RandomBlobNamespace().Bytes()
 		copy(rawData, namespace)
@@ -50,7 +50,7 @@ func sortByteArrays(src [][]byte) {
 
 func RandomAccountNames(count int) []string {
 	accounts := make([]string, 0, count)
-	for i := 0; i < count; i++ {
+	for range count {
 		accounts = append(accounts, random.Str(10))
 	}
 	return accounts
@@ -58,7 +58,7 @@ func RandomAccountNames(count int) []string {
 
 func GenerateAccounts(count int) []string {
 	accounts := make([]string, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		// Generate a random private key
 		privKey := secp256k1.GenPrivKey()
 		// Get the public key and derive the address

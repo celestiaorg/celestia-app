@@ -7,6 +7,7 @@ import (
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"google.golang.org/grpc"
 )
 
@@ -80,4 +81,22 @@ func QueryAccount(ctx context.Context, conn *grpc.ClientConn, registry codectype
 
 	accNum, seqNum = acc.GetAccountNumber(), acc.GetSequence()
 	return accNum, seqNum, nil
+}
+
+// QueryAccountBalance fetches the balance of a specific denomination for an account.
+func QueryAccountBalance(ctx context.Context, conn *grpc.ClientConn, _ codectypes.InterfaceRegistry, address types.AccAddress, denom string) (types.Coin, error) {
+	balanceQuery := banktypes.NewQueryClient(conn)
+	balanceResp, err := balanceQuery.Balance(ctx, &banktypes.QueryBalanceRequest{
+		Address: address.String(),
+		Denom:   denom,
+	})
+	if err != nil {
+		return types.Coin{}, err
+	}
+
+	if balanceResp.Balance == nil {
+		return types.NewInt64Coin(denom, 0), nil
+	}
+
+	return *balanceResp.Balance, nil
 }

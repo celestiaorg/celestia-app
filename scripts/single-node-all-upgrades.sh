@@ -101,7 +101,7 @@ startCelestiaApp() {
     --api.enable \
     --grpc.enable \
     --grpc-web.enable \
-    --timeout-commit 1s
+    --delayed-precommit-timeout 1s
 }
 
 # Function to perform upgrade to a specific version
