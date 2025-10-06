@@ -62,6 +62,36 @@ ttl-num-blocks = 12
 max-gossip-delay = "1m0s"
 ```
 
+### Preparing for 128MB/6s
+
+This release introduces new CPU feature checks and updated hardware recommendations in preparation for future network upgrades to 128MB/6s blocks.
+**These requirements are not necessary for the current 32MB/6s block configuration
+but will become essential when the network transitions to higher throughput.**
+
+#### CPU Feature Checks
+
+Celestia-app v6 now includes checks for hardware acceleration features during both installation and node startup:
+
+- **GFNI (Galois Field New Instructions)**
+- **SHA_NI (SHA Extensions)**
+
+These CPU features significantly improve cryptographic performance. Modern Intel CPUs (10th gen+) and AMD CPUs (Zen 4+) typically support these features.
+
+#### Updated Hardware Requirements
+
+In preparation for 128MB/6s blocks, the recommended consensus validator should have 32 CPU cores (increased from 16 cores).
+
+**Note:** These upgraded requirements are not mandatory for the current network configuration but are recommended for validators who want to prepare their infrastructure for future high-throughput upgrades.
+
+#### Checking Your CPU Features
+
+To verify if your CPU supports the required features:
+```bash
+grep -o -E 'sha_ni|gfni' /proc/cpuinfo
+```
+
+If both features are present, your output should include both `gfni` and `sha_ni`.
+
 ## v5.0.0
 
 This major upgrade is an expedited patch release, fixing the problem with failed IBC transfers caused by the incorrectly configured capability module. There should be no additional API breaking changes.
