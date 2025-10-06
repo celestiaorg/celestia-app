@@ -108,7 +108,13 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			continue
 		}
 
-		// validate the blobTx. If this tx was cached from CheckTx, we can skip the expensive
+		// validate the blobTx. This is the same validation used in CheckTx ensuring
+		// - there is one PFB
+		// - that each blob has a valid namespace
+		// - that the sizes match
+		// - that the namespaces match between blob and PFB
+		// - that the share commitment is correct
+		// If this tx was cached from CheckTx, we can skip the expensive
 		// commitment verification since it was already validated. Otherwise, fall back to full validation.
 		if _, err := app.ValidateBlobTxWithCache(blobTx); err != nil {
 			logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("blob tx validation failed %d", idx), err)
