@@ -45,17 +45,7 @@ func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreat
 		return nil, errorsmod.Wrap(err, err.Error())
 	}
 
-	if err := sdk.UnwrapSDKContext(ctx).EventManager().EmitTypedEvent(&types.EventCreateZKExecutionISM{
-		Id:                  newIsm.Id,
-		Owner:               newIsm.Owner,
-		StateRoot:           newIsm.StateRoot,
-		Height:              newIsm.Height,
-		Namespace:           newIsm.Namespace,
-		SequencerPublicKey:  newIsm.SequencerPublicKey,
-		Groth16Vkey:         newIsm.Groth16Vkey,
-		StateTransitionVkey: newIsm.StateTransitionVkey,
-		StateMembershipVkey: newIsm.StateMembershipVkey,
-	}); err != nil {
+	if err := EmitCreateISMEvent(sdk.UnwrapSDKContext(ctx), newIsm); err != nil {
 		return nil, err
 	}
 
@@ -95,6 +85,10 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 		return nil, err
 	}
 
+	if err := EmitUpdateISMEvent(sdk.UnwrapSDKContext(ctx), ism); err != nil {
+		return nil, err
+	}
+
 	return &types.MsgUpdateZKExecutionISMResponse{
 		Height:    ism.Height,
 		StateRoot: hex.EncodeToString(ism.StateRoot),
@@ -131,6 +125,10 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 		if err := m.messages.Set(ctx, messageId[:]); err != nil {
 			return nil, err
 		}
+	}
+
+	if err := EmitSubmitMessagesEvent(sdk.UnwrapSDKContext(ctx), ism.StateRoot, publicValues.MessageIds); err != nil {
+		return nil, err
 	}
 
 	return &types.MsgSubmitMessagesResponse{}, nil
