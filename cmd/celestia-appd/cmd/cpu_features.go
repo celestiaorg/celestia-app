@@ -31,7 +31,7 @@ To check what features your CPU supports:
 grep -o -E 'sha_ni|gfni' /proc/cpuinfo
 
 Modern Intel CPUs (10th gen+) and AMD CPUs (Zen 4+) typically support these features.
-If you are running this node in production, consider upgrading to a CPU with these features.
+If you are running this node, consider upgrading to a CPU with these features.
 
 This node will continue to run, but may experience reduced performance for cryptographic operations.
 If you need to bypass this check, use the --testing-environment flag.
