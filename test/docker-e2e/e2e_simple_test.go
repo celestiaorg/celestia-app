@@ -50,7 +50,6 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 
 	s.CreateTxSim(ctx, celestia)
 
-	// Record start height for liveness check
 
 	assertTransactionsIncluded(ctx, t, celestia)
 
