@@ -158,7 +158,7 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 	s.T().Log("Testing PFB submission functionality after upgrade")
 	testPFBSubmission(s.T(), chain, cfg)
 
-	s.T().Logf("Checking validator liveness from height %d with minimum %d blocks per validator", startHeight, defaultBlocksPerValidator)
+	s.T().Logf("Checking validator liveness (minimum %d blocks per validator)", defaultBlocksPerValidator)
 	s.Require().NoError(
 		s.CheckLiveness(ctx, chain),
 		"validator liveness check failed",
