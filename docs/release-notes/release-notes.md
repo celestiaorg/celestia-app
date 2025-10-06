@@ -73,7 +73,7 @@ but will become essential when the network transitions to higher throughput.**
 Celestia-app v6 now includes checks for hardware acceleration features during both installation and node startup:
 
 - **GFNI (Galois Field New Instructions)**
-- **SHA_NI (SHA Extensions)**
+- **SHA_NI (Secure Hash Algorithm New Instructions)**
 
 These CPU features significantly improve cryptographic performance. Modern Intel CPUs (10th gen+) and AMD CPUs (Zen 4+) typically support these features.
 
