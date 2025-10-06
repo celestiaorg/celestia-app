@@ -24,24 +24,25 @@ func populateCache(cache *TxValidationCache, txs [][]byte) {
 
 // BenchmarkTxValidationCache_Operations benchmarks cache operations
 func BenchmarkTxValidationCache_Operations(b *testing.B) {
-	// this is what I got in tests for signed and encoded PFB tx
-	pfbSize := 338
+	// this is the avg size of `Tx` part of `blobTx` which consists commitments from blob shares,
+	// we hash it to use as key for transaction cache,
+	// I got after checking 30000 blocks,the max was 4450
+	txSize := 1130
 	testCases := []struct {
 		name   string
 		numTxs int
 	}{
-		{"1000_txs", 1000},
-		{"2000_txs", 2000},
-		// it seems this should be a realistic number given the fact that we would have max 2000
-		// or less txs per block and around 2 block wait until the transaction is included
-		{"4000_txs", 4000},
-		{"10000_txs", 10000},
+		// this is the max num I got after checking 30000 blocks
+		{"15_txs", 15},
+		{"20_txs", 20},
+		// this is the max num possible in block
+		{"200_txs", 200},
 	}
 
 	b.Run("Set", func(b *testing.B) {
 		for _, tc := range testCases {
 			b.Run(tc.name, func(b *testing.B) {
-				txs := generateRandomTxs(tc.numTxs, pfbSize)
+				txs := generateRandomTxs(tc.numTxs, txSize)
 				b.ResetTimer()
 				for b.Loop() {
 					b.StopTimer()
@@ -60,7 +61,7 @@ func BenchmarkTxValidationCache_Operations(b *testing.B) {
 		for _, tc := range testCases {
 			b.Run(tc.name, func(b *testing.B) {
 				cache := NewTxValidationCache()
-				txs := generateRandomTxs(tc.numTxs, pfbSize)
+				txs := generateRandomTxs(tc.numTxs, txSize)
 				populateCache(cache, txs)
 				b.ResetTimer()
 
@@ -76,7 +77,7 @@ func BenchmarkTxValidationCache_Operations(b *testing.B) {
 	b.Run("RemoveTransactions", func(b *testing.B) {
 		for _, tc := range testCases {
 			b.Run(tc.name, func(b *testing.B) {
-				txs := generateRandomTxs(tc.numTxs, pfbSize)
+				txs := generateRandomTxs(tc.numTxs, txSize)
 				b.ResetTimer()
 
 				for b.Loop() {
@@ -93,14 +94,14 @@ func BenchmarkTxValidationCache_Operations(b *testing.B) {
 		}
 	})
 
-	b.Run("MemoryUsage", func(b *testing.B) {
+	b.Run("All operations (set, exists, remove)", func(b *testing.B) {
 		for _, tc := range testCases {
 			b.Run(tc.name, func(b *testing.B) {
 				b.ReportAllocs()
 
 				for b.Loop() {
 					cache := NewTxValidationCache()
-					txs := generateRandomTxs(tc.numTxs, pfbSize)
+					txs := generateRandomTxs(tc.numTxs, txSize)
 
 					for _, tx := range txs {
 						cache.Set(tx)
