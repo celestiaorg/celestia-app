@@ -63,10 +63,6 @@ func (s *CelestiaTestSuite) TestE2EFullStackPFB() {
 	err = celestia.Start(ctx)
 	s.Require().NoError(err, "failed to start celestia chain")
 
-	// Record start height for liveness check
-	startHeight, err := celestia.Height(ctx)
-	s.Require().NoError(err, "failed to get start height")
-
 	// create a da network, wiring up the provided chain using the CELESTIA_CUSTOM environment variable.
 	daNetwork := s.DeployDANetwork(ctx, celestia, s.client, s.network)
 
@@ -82,7 +78,7 @@ func (s *CelestiaTestSuite) TestE2EFullStackPFB() {
 	// verify blob retrieval from light node
 	s.verifyBlobRetrieval(ctx, daNetwork, blobData)
 
-	s.T().Logf("Checking validator liveness from height %d", startHeight)
+	s.T().Log("Checking validator liveness")
 	s.Require().NoError(
 		s.CheckLiveness(ctx, celestia),
 		"validator liveness check failed",
