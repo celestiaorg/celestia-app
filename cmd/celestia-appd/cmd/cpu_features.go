@@ -23,7 +23,7 @@ Your CPU does not support one or more of the following hardware acceleration fea
 
 These features significantly improve cryptographic performance for blockchain operations.
 
-Note: These features are not required for the current 32MB/6s block configuration but will become
+Note: These features are not required for the 32MB/6s block configuration but will become
 essential when the network transitions to 128MB/6s blocks. Validators should prepare by upgrading
 their hardware to ensure optimal performance during future network upgrades.
 
