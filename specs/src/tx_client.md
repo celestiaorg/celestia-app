@@ -134,7 +134,7 @@ Broadcasting steps are universal across SDK transactions and blob transactions.
                 }
                 ```
 
-6. **Transaction Entry**: On success, record (`signer`, `sequence`, `txBytes`, `timestamp`).
+6. **Transaction Entry**: On success, record (`signer`, `sequence`, `txBytes`).
 7. **Sequence Increment**: After successful broadcast, increment the signer’s local sequence by calling **signer.SetSequence()**
 
 ### Confirmation
