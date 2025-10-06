@@ -154,8 +154,8 @@ func WithAdditionalCoreEndpoints(conns []*grpc.ClientConn) Option {
 
 // WithTxWorkers enables parallel transaction submission with the specified number of worker accounts.
 // Worker accounts are automatically generated with hardcoded names unless numWorkers is 1, in which case
-// the existing default account is used.
-// Workers are initialized automatically when SetupTxClient is called.
+// the existing default account is used. Workers are initialized automatically when SetupTxClient is
+// called.
 func WithTxWorkers(numWorkers int) Option {
 	if numWorkers <= 0 {
 		return func(*TxClient) {}
@@ -178,8 +178,7 @@ func WithParallelQueueSize(size int) Option {
 }
 
 // TxClient is an abstraction for building, signing, and broadcasting Celestia transactions
-// It supports multiple accounts. If none is specified, it will
-// try to use the default account.
+// It supports multiple accounts.
 // TxClient is thread-safe.
 type TxClient struct {
 	mtx      sync.Mutex
@@ -306,27 +305,19 @@ func SetupTxClient(
 
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
-// This method uses the tx queue infrastructure and blocks until the transaction is confirmed.
+// This method broadcasts the transaction and waits for confirmation using the default account.
 func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
-	if client.txQueue == nil {
-		return nil, errors.New("tx queue not configured")
-	}
+	return client.SubmitPayForBlobWithAccount(ctx, client.defaultAccount, blobs, opts...)
+}
 
-	if !client.txQueue.started.Load() {
-		return nil, errors.New("tx queue not started")
-	}
-
+// SubmitPayForBlobToQueue submits blobs to the parallel transaction queue and blocks until confirmed.
+// TxOptions may be provided to set the fee and gas limit. This method uses the tx queue infrastructure
+// for parallel submission.
+func (client *TxClient) SubmitPayForBlobToQueue(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
 	resultsC := make(chan SubmissionResult, 1)
 	defer close(resultsC)
 
-	job := &SubmissionJob{
-		Blobs:    blobs,
-		Options:  opts,
-		Ctx:      ctx,
-		ResultsC: resultsC,
-	}
-
-	client.SubmitJob(job)
+	client.QueueBlob(ctx, resultsC, blobs, opts...)
 
 	// Block waiting for the result
 	result := <-resultsC
@@ -337,13 +328,28 @@ func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blo
 	return result.TxResponse, nil
 }
 
-// SubmitJob submits a job to the tx queue for parallel processing
-func (client *TxClient) SubmitJob(job *SubmissionJob) {
-	if client.txQueue != nil {
-		client.txQueue.submitJob(job)
-	} else {
-		job.ResultsC <- SubmissionResult{Error: errors.New("tx queue not configured")}
+// QueueBlob submits blobs to the parallel transaction queue without blocking. The result will be sent
+// to the provided channel when the transaction is confirmed. The caller is responsible for creating and
+// closing the result channel.
+func (client *TxClient) QueueBlob(ctx context.Context, resultC chan SubmissionResult, blobs []*share.Blob, opts ...TxOption) {
+	if client.txQueue == nil {
+		resultC <- SubmissionResult{Error: errors.New("tx queue not configured")}
+		return
 	}
+
+	if !client.txQueue.started.Load() {
+		resultC <- SubmissionResult{Error: errors.New("tx queue not started")}
+		return
+	}
+
+	job := &SubmissionJob{
+		Blobs:    blobs,
+		Options:  opts,
+		Ctx:      ctx,
+		ResultsC: resultC,
+	}
+
+	client.txQueue.submitJob(job)
 }
 
 // SubmitPayForBlobWithAccount forms a transaction from the provided blobs, signs it with the provided account, and submits it to the chain.
