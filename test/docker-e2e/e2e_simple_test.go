@@ -51,14 +51,12 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 	s.CreateTxSim(ctx, celestia)
 
 	// Record start height for liveness check
-	startHeight, err := celestia.Height(ctx)
-	s.Require().NoError(err, "failed to get start height")
 
 	assertTransactionsIncluded(ctx, t, celestia)
 
 	testBankSend(t, celestia, cfg)
 
-	s.T().Logf("Checking validator liveness from height %d", startHeight)
+	s.T().Log("Checking validator liveness")
 	s.Require().NoError(
 		s.CheckLiveness(ctx, celestia),
 		"validator liveness check failed",
