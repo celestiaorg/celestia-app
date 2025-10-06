@@ -26,7 +26,7 @@ func TestValidateBlobTxWithCache(t *testing.T) {
 	namespace1, err := share.NewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
 	require.NoError(t, err)
 
-	accounts := []string{"a", "b", "c"}
+	accounts := []string{"a", "b", "c", "d"}
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 
 	signers := make([]*user.Signer, len(accounts))
@@ -102,7 +102,7 @@ func TestValidateBlobTxWithCache(t *testing.T) {
 
 	t.Run("cache is cleaned after FinalizeBlock", func(t *testing.T) {
 		blobTxBytes := blobfactory.RandBlobTxsWithNamespacesAndSigner(
-			signers[0],
+			signers[3],
 			[]share.Namespace{namespace1},
 			[]int{100},
 		)[0]
