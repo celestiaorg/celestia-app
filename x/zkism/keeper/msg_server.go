@@ -125,7 +125,6 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 		if err := m.messages.Set(ctx, messageId[:]); err != nil {
 			return nil, err
 		}
-
 	}
 
 	if err := EmitSubmitMessagesEvent(sdk.UnwrapSDKContext(ctx), ism.StateRoot, publicValues.MessageIds); err != nil {
