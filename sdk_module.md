@@ -411,9 +411,9 @@ The Fibre blob submission follows this flow:
 
 ```mermaid
 sequenceDiagram
-    participant C as Client
-    participant S as Server/Validator
-    participant A as Celestia-App
+    participant C as Client (user)
+    participant S as Server (celestia-app validators)
+    participant A as State Machine
 
     Note over C,A: Setup Phase
     C->>A: MsgDepositToEscrow
