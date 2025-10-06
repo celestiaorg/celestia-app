@@ -69,6 +69,7 @@ type TxResponse struct {
 	Height int64
 	TxHash string
 	Code   uint32
+	Signer string // Address of the signer of the transaction (populated by TxClient)
 }
 
 // BroadcastTxError is an error that occurs when broadcasting a transaction.
@@ -740,11 +741,18 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			span.AddEvent("txclient/ConfirmTx: transaction committed", trace.WithAttributes(
 				attribute.Int("resp_code", int(resp.ExecutionCode)),
 			))
+			_, signer, exists := client.GetTxFromTxTracker(txHash)
+			if !exists {
+				return nil, fmt.Errorf("signer for the tx with hash %s could not be retrieved", txHash)
+			}
+
 			txResponse := &TxResponse{
 				Height: resp.Height,
 				TxHash: txHash,
 				Code:   resp.ExecutionCode,
+				Signer: signer,
 			}
+
 			if resp.ExecutionCode != abci.CodeTypeOK {
 				executionErr := &ExecutionError{
 					TxHash:   txHash,

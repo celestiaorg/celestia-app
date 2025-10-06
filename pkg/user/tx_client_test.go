@@ -268,6 +268,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		ctx, cancel := context.WithTimeout(suite.ctx.GoContext(), 30*time.Second)
 		defer cancel()
 		confirmTxResp, err := suite.txClient.ConfirmTx(ctx, resp.TxHash)
+		assert.Equal(t, confirmTxResp.Signer, suite.txClient.DefaultAccountName())
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, confirmTxResp.Code)
 		require.True(t, wasRemovedFromTxTracker(resp.TxHash, suite.txClient))
