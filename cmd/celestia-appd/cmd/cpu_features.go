@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const FlagTestingEnvironment = "testing-environment"
+const FlagCPUFeaturesCheck = "force-no-cpu-features"
 
 // checkCPUFeatures checks if CPU supports GFNI and SHA_NI extensions.
 func checkCPUFeatures(command *cobra.Command, logger log.Logger) error {
@@ -30,11 +30,11 @@ Modern Intel CPUs (10th gen+) and AMD CPUs (Zen 4+) typically support these feat
 If you're running this node in production, consider upgrading to a CPU with these features.
 
 This node will continue to run but may have reduced performance for cryptographic operations.
-If you need to bypass this check use the --testing-environment flag.
+If you need to bypass this check use the --force-no-cpu-features flag.
 `
 	)
 
-	testingEnvironment, err := command.Flags().GetBool(FlagTestingEnvironment)
+	testingEnvironment, err := command.Flags().GetBool(FlagCPUFeaturesCheck)
 	if err != nil {
 		return err
 	}
