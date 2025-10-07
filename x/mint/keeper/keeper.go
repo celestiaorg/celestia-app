@@ -81,7 +81,6 @@ func (k Keeper) SetGenesisTime(ctx sdk.Context, gt types.GenesisTime) {
 // StakingTokenSupply implements an alias call to the underlying staking keeper's
 // StakingTokenSupply.
 func (k Keeper) StakingTokenSupply(ctx sdk.Context) math.Int {
-	// TODO not clear what to do if error is not nil as this was added in 0.52.
 	n, _ := k.stakingKeeper.StakingTokenSupply(ctx)
 	return n
 }
