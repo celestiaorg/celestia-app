@@ -39,8 +39,8 @@ service Msg {
     };
   }
 
-  // PaymentTimeout processes a payment promise after the timeout period
-  rpc ProcessPaymentTimeout(MsgProcessPaymentTimeout) returns (MsgProcessPaymentTimeoutResponse) {
+  // PaymentPromiseTimeout processes a payment promise after the timeout period
+  rpc PaymentPromiseTimeout(MsgPaymentPromiseTimeout) returns (MsgPaymentPromiseTimeoutResponse) {
     option (google.api.http) = {
       post: "/fibre/v1/payment-timeout",
       body: "*"
@@ -89,8 +89,8 @@ message MsgPayForFibre {
 // MsgPayForFibreResponse describes the response returned after paying for fibre.
 message MsgPayForFibreResponse {}
 
-// MsgProcessPaymentTimeout processes a payment promise after the timeout period.
-message MsgProcessPaymentTimeout {
+// MsgPaymentPromiseTimeout processes a payment promise after the timeout period.
+message MsgPaymentPromiseTimeout {
   option (cosmos.msg.v1.signer) = "signer";
   // signer is the bech32 encoded address submitting this message (can be anyone)
   string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
@@ -98,8 +98,9 @@ message MsgProcessPaymentTimeout {
   PaymentPromise payment_promise = 2 [(gogoproto.nullable) = false];
 }
 
-// MsgProcessPaymentTimeoutResponse describes the response returned after processing payment timeout.
-message MsgProcessPaymentTimeoutResponse {}
+// MsgPaymentPromiseTimeoutResponse describes the response returned after
+// processing a payment promise timeout.
+message MsgPaymentPromiseTimeoutResponse {}
 
 // MsgUpdateFibreParams defines the sdk.Msg type to update the fibre parameters.
 message MsgUpdateFibreParams {
