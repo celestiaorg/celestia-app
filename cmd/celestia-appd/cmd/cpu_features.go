@@ -19,18 +19,22 @@ CPU Performance Warning: Missing hardware acceleration features
 
 Your CPU does not support one or more of the following hardware acceleration features:
 - GFNI (Galois Field New Instructions)
-- SHA_NI (SHA Extensions)
+- SHA_NI (Secure Hash Algorithm New Instructions)
 
-These features can significantly improve cryptographic performance for high throughput.
+These features significantly improve cryptographic performance for blockchain operations.
+
+Note: These features are not required for the 32MB/6s block configuration but will become
+essential when the network transitions to 128MB/6s blocks. Validators should prepare by upgrading
+their hardware to ensure optimal performance during future network upgrades.
 
 To check what features your CPU supports:
 grep -o -E 'sha_ni|gfni' /proc/cpuinfo
 
 Modern Intel CPUs (10th gen+) and AMD CPUs (Zen 4+) typically support these features.
-If you're running this node in production, consider upgrading to a CPU with these features.
+If you are running this node, consider upgrading to a CPU with these features.
 
-This node will continue to run but may have reduced performance for cryptographic operations.
-If you need to bypass this check use the --force-no-cpu-features flag.
+This node will continue to run, but may experience reduced performance for cryptographic operations.
+If you need to bypass this check, use the --force-no-cpu-features flag.
 `
 	)
 
@@ -52,7 +56,7 @@ If you need to bypass this check use the --force-no-cpu-features flag.
 	if err != nil {
 		logger.Warn(warning)
 		// TODO: enable when we want to start enforcing the new CPU features.
-		//return fmt.Errorf("failed to read file '/proc/cpuinfo' %w", err)
+		// return fmt.Errorf("failed to read file '/proc/cpuinfo' %w", err)
 		return nil
 	}
 
@@ -73,7 +77,7 @@ If you need to bypass this check use the --force-no-cpu-features flag.
 
 	if !hasGFNI {
 		// TODO: enable when we want to start enforcing the new CPU features.
-		//return fmt.Errorf("missing GFNI")
+		// return fmt.Errorf("missing GFNI")
 		return nil
 	}
 
