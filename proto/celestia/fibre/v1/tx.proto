@@ -42,7 +42,7 @@ service Msg {
   // PaymentPromiseTimeout processes a payment promise after the timeout period
   rpc PaymentPromiseTimeout(MsgPaymentPromiseTimeout) returns (MsgPaymentPromiseTimeoutResponse) {
     option (google.api.http) = {
-      post: "/fibre/v1/payment-timeout",
+      post: "/fibre/v1/payment-promise-timeout",
       body: "*"
     };
   }
