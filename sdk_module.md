@@ -2,36 +2,36 @@
 
 ## Abstract
 
-**Problem**: Celestia's data availability network requires immediate payment guarantees to prevent DoS attacks and ensure fair resource allocation. However, traditional blockchain payments require waiting for transaction confirmation, creating UX friction and delaying data availability service.
+**Problem**: Currently, users must wait for a `MsgPayForBlob` transaction to be included on-chain for a blob to be available on the network. This creates UX friction and delays data availability service.
 
 **Solution**: The `x/fibre` module enables instant payment for data availability through a pre-funded escrow system. Users deposit funds into escrow accounts and create signed PaymentPromises that guarantee future payment without requiring immediate on-chain confirmation.
 
 **How it works**:
 
-1. Users pre-fund escrow accounts with the module
-2. When submitting data, users create signed PaymentPromises referencing their escrow balance
-3. Validators verify promises off-chain and provide immediate service
+1. A user funds their escrow account via `MsgDepositToEscrow`
+2. When a user wants to make data available, they create a PaymentPromise off-chain and submit it along with their blob data to validators.
+3. Validators verify the PaymentPromise off-chain and immediately start providing service for the data they received.
 4. Payment settlement occurs later through on-chain transactions (`MsgPayForFibre`) or timeout mechanisms (`MsgPaymentPromiseTimeout`)
 
-**Key guarantee**: A signed [`PaymentPromise`](#paymentpromise-validation) cryptographically guarantees payment, enabling validators to provide immediate service with confidence they will be compensated.
+**Key guarantee**: A valid [`PaymentPromise`](#paymentpromise-validation) guarantees payment for a blob, enabling validators to provide immediate service for blob data with confidence that the protocol will charge the user later when the `MsgPayForFibre` or `MsgPaymentPromiseTimeout` transactions are submitted on-chain.
 
 ## Key Concepts
 
 ### Fibre Blob
 
-A Fibre blob is a piece of data that users want to make available through Celestia's data availability network with guaranteed inclusion and immediate service. Unlike regular blob submissions that require waiting for transaction confirmation, Fibre blobs use pre-paid escrow accounts to enable instant processing by validators.
+A Fibre blob is a piece of data that users want to make available through Celestia's data availability network with immediate service. Unlike regular blob submissions that require waiting for transaction confirmation, Fibre blobs use pre-paid escrow accounts to enable instant processing by validators.
 
 ### PaymentPromise
 
-A PaymentPromise is an off-chain signed message that commits a user to pay for a specific Fibre blob. It contains the blob commitment, size, namespace, and cryptographic proof that the user has sufficient funds in escrow. Validators can verify this promise instantly without waiting for on-chain confirmation.
+A PaymentPromise is an off-chain signed message that commits a user to pay for a specific Fibre blob. It contains the blob commitment, size, namespace, and cryptographic proof that the user has sufficient funds in escrow. Validators can verify this promise instantly without waiting for on-chain transaction confirmation.
 
 ### Escrow Account
 
-An escrow account is a module-controlled account that holds user funds to guarantee payment for PaymentPromises. Users deposit funds in advance, and the module ensures these funds cannot be withdrawn immediately, providing validators with payment assurance when they process Fibre blobs.
+An escrow account is a module-controlled account that holds user funds to guarantee payment for PaymentPromises. Users deposit funds in advance, and the module ensures these funds cannot be withdrawn immediately, providing validators with payment assurance so they can process Fibre blobs.
 
 ### Commitment
 
-A cryptographic hash that uniquely identifies a Fibre blob's content. Validators sign over this commitment to prove they have received and will make the data available. The commitment is eventually included in Celestia's data square for permanent availability.
+A cryptographic hash that uniquely identifies a Fibre blob's content. Validators sign over this commitment to prove they have received and will make the data available. The commitment is eventually included in Celestia's data square.
 
 ## Contents
 
