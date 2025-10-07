@@ -37,7 +37,7 @@ A cryptographic hash that uniquely identifies a Fibre blob's content. Validators
 
 1. [Abstract](#abstract)
 1. [Key Concepts](#key-concepts)
-1. [Transaction Flow](#transaction-flow)
+1. [Sequence Diagram](#sequence-diagrams)
 1. [State](#state)
 1. [Messages](#messages)
 1. [Automatic State Transitions](#automatic-state-transitions)
@@ -46,9 +46,9 @@ A cryptographic hash that uniquely identifies a Fibre blob's content. Validators
 1. [Parameters](#parameters)
 1. [Client](#client)
 
-## Transaction Flow
+## Sequence Diagrams
 
-The Fibre blob submission follows this flow:
+### Fibre blob flow
 
 ```mermaid
 sequenceDiagram
@@ -92,8 +92,6 @@ sequenceDiagram
     Note right of SM: No data square inclusion
 ```
 
-### Flow Description
-
 1. **Setup Phase**: User deposits funds using [`MsgDepositToEscrow`](#msgdeposittoescrow), which creates or updates their escrow account with the specified amount.
 
 2. **Fibre Blob Submission**:
@@ -115,33 +113,32 @@ sequenceDiagram
 ### Key Insights
 
 - **Immediate Service**: Validators start serving blob data as soon as they verify the PaymentPromise, before any on-chain payment
-- **Payment Guarantee**: The PaymentPromise cryptographically guarantees payment will occur either via user submission or timeout mechanism
+- **Payment Guarantee**: The PaymentPromise guarantees payment will occur either via user submission or timeout mechanism
 - **Data Square Inclusion**: Only successful `MsgPayForFibre` submissions result in commitment inclusion in the data square
 
 ## Withdrawal Processing Flow
 
-Users can withdraw funds from their escrow accounts, but withdrawals are subject to a delay mechanism to ensure payment guarantees remain valid:
+Users can withdraw funds from their escrow accounts but withdrawals are subject to a delay period to ensure that the protocol can charge user's for any pending PaymentPromises.
 
 ```mermaid
 sequenceDiagram
     participant U as User
     participant SM as State Machine
-    participant BB as BeginBlocker
 
-    Note over U,BB: Withdrawal Request
+    Note over U,SM: Withdrawal Request
     U->>SM: MsgRequestWithdrawal(amount)
     SM->>SM: Verify sufficient available_balance
     SM->>SM: Decrease available_balance immediately
     SM->>SM: Store withdrawal request with delay
     Note right of SM: Funds locked for WithdrawalDelay period
 
-    Note over U,BB: Automatic Processing (after delay)
-    BB->>SM: Check for available withdrawals
+    Note over U,SM: Automatic Processing (after delay)
+    SM->>SM: BeginBlocker checks for available withdrawals
     SM->>SM: Find withdrawals past delay period
-    SM->>SM: Transfer funds to user account
     SM->>SM: Decrease total escrow balance
+    SM->>U: Transfer funds to user account
     SM->>SM: Remove withdrawal request
-    Note right of SM: Funds returned to user
+    Note right of SM: Withdrawal complete
 ```
 
 ### Withdrawal Flow Details
@@ -149,7 +146,7 @@ sequenceDiagram
 1. **Request Phase**: User submits [`MsgRequestWithdrawal`](#msgrequestwithdrawal) specifying the amount to withdraw
 2. **Immediate Lock**: The system immediately decreases the user's `available_balance` to prevent double-spending, but keeps the funds in the escrow account
 3. **Delay Period**: Funds remain locked for the `WithdrawalDelay` period (default: 24 hours) to ensure any pending PaymentPromises can still be processed
-4. **Automatic Processing**: The `BeginBlocker` automatically processes eligible withdrawals, transferring funds back to the user and updating the escrow account balance
+4. **Automatic Processing**: The state machine's `BeginBlocker` automatically processes eligible withdrawals, transferring funds back to the user and updating the escrow account balance
 
 This delay mechanism ensures that validators can trust PaymentPromises even when users have requested withdrawals, since the funds remain available for the delay period.
 
