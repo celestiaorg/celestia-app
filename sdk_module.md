@@ -45,7 +45,9 @@ The fibre module maintains state for [escrow accounts](#escrow-accounts), [withd
 
 ### Escrow Accounts
 
-Escrow accounts help guarantee payment for a signed [`PaymentPromise`](#msgpayforfibre) by ensuring that a user does not remove funds directly after validators sign over and provide service for a blob. Each address can only have one escrow account, indexed by their signer address.
+Escrow accounts help guarantee payment for a signed [`PaymentPromise`](#msgpayforfibre) by ensuring that a user does not remove funds after validators sign over and provide service for a Fibre blob. Each address can only have one escrow account, indexed by their signer address.
+
+// TODO: should signer here be changed to a public key?
 
 ```proto
 message EscrowAccount {
