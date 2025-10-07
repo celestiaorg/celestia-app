@@ -20,7 +20,6 @@ import (
 	"github.com/celestiaorg/tastora/framework/docker/ibc"
 	"github.com/celestiaorg/tastora/framework/docker/ibc/relayer"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
-	"github.com/celestiaorg/tastora/framework/types"
 	sdktx "github.com/cosmos/cosmos-sdk/client/tx"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -189,11 +188,6 @@ func (s *IBCTestSuite) TestIBC() {
 		t.Logf("Performing transfers over new channel")
 		s.testTokenTransfers(ctx, channel)
 	})
-
-	t.Run("new_channel_transfers_simapp_to_celestia", func(t *testing.T) {
-		t.Logf("Verifying token filter removal over new channel")
-		s.testReverseTokenTransfers(ctx, channel)
-	})
 }
 
 // TestICA tests ICA functionality by
@@ -262,94 +256,25 @@ func (s *IBCTestSuite) establishIBCConnection(ctx context.Context) (ibc.Connecti
 	return connection, channel
 }
 
-// testTokenTransfers tests token transfers from Celestia to simapp
-func (s *IBCTestSuite) testTokenTransfers(ctx context.Context, channel ibc.Channel) {
-	sourceWallet := s.chainA.GetFaucetWallet()
-	destWallet := s.chainB.GetFaucetWallet()
-	ibcTransfer := s.createIBCTransferMsg(sourceWallet, destWallet, channel, "utia", 100000)
+// transferAndVerify performs an IBC transfer between any two chains and verifies the result
+func (s *IBCTestSuite) transferAndVerify(
+	ctx context.Context,
+	sourceChain, destChain *cosmos.Chain,
+	sourcePort, sourceChannel string,
+	denom string,
+	amount int64,
+) {
+	sourceWallet := sourceChain.GetFaucetWallet()
+	destWallet := destChain.GetFaucetWallet()
 
-	// Submit transaction and verify results - always use TxClient since we only transfer from Celestia
-	s.submitTransactionAndVerify(ctx, ibcTransfer, "utia", 100000)
-}
-
-// testReverseTokenTransfers tests token transfers from simapp to Celestia
-func (s *IBCTestSuite) testReverseTokenTransfers(ctx context.Context, channel ibc.Channel) {
-	sourceWallet := s.chainB.GetFaucetWallet()
-	destWallet := s.chainA.GetFaucetWallet()
-
-	// transfer stake from simapp (chain-b) to celestia (chain-a)
-	amount := int64(100000)
 	destAddr, err := sdkacc.AddressFromWallet(destWallet)
 	s.Require().NoError(err, "failed to parse destination address")
 
 	transferAmount := sdkmath.NewInt(amount)
+
 	msg := ibctransfertypes.NewMsgTransfer(
-		channel.CounterpartyPort,
-		channel.CounterpartyID,
-		sdk.NewCoin("stake", transferAmount),
-		sourceWallet.GetFormattedAddress(),
-		destAddr.String(),
-		clienttypes.ZeroHeight(),
-		uint64(time.Now().Add(time.Hour).UnixNano()),
-		"",
-	)
-
-	// calculate expected IBC denom on celestia (chain-a)
-	// when tokens arrive on chain-a from chain-b, the path is: destPort/destChannel/stake
-	// which is channel.PortID/channel.ChannelID/stake (the receiving side on chain-a)
-	receiveChannel := ibc.Channel{
-		PortID:         channel.CounterpartyPort,
-		CounterpartyID: channel.CounterpartyID,
-	}
-	ibcDenom := s.calculateIBCDenom(receiveChannel, "stake")
-
-	s.T().Logf("Transfer details - Source: %s/%s, Dest: %s/%s, IBC denom: %s",
-		channel.CounterpartyPort, channel.CounterpartyID,
-		channel.PortID, channel.ChannelID, ibcDenom)
-
-	// get initial balance on celestia
-	initialBalance := s.getBalance(ctx, s.chainA, destWallet.GetFormattedAddress(), ibcDenom)
-
-	// broadcast from simapp using Broadcaster
-	broadcaster := cosmos.NewBroadcaster(s.chainB)
-	broadcaster.ConfigureFactoryOptions(func(factory sdktx.Factory) sdktx.Factory {
-		return factory.WithGas(200000)
-	})
-
-	txResponse, err := broadcaster.BroadcastMessages(ctx, sourceWallet, msg)
-	s.Require().NoError(err, "failed to broadcast IBC transfer from simapp")
-
-	s.T().Logf("Transaction response - Code: %d, TxHash: %s, RawLog: %s",
-		txResponse.Code, txResponse.TxHash, txResponse.RawLog)
-
-	s.Require().Equal(uint32(0), txResponse.Code, "IBC transfer tx failed with code %d", txResponse.Code)
-
-	// wait for blocks and packet relay on both chains (increased wait time)
-	err = wait.ForBlocks(ctx, 15, s.chainB, s.chainA)
-	s.Require().NoError(err, "failed to wait for blocks")
-
-	// verify balance increased on celestia
-	finalBalance := s.getBalance(ctx, s.chainA, destWallet.GetFormattedAddress(), ibcDenom)
-	expectedBalance := initialBalance.Add(transferAmount)
-
-	s.T().Logf("Balance check - Initial: %s, Final: %s, Expected: %s, Denom: %s",
-		initialBalance.String(), finalBalance.String(), expectedBalance.String(), ibcDenom)
-
-	s.Require().True(finalBalance.Equal(expectedBalance),
-		"destination balance mismatch: expected %s, got %s", expectedBalance.String(), finalBalance.String())
-
-	s.T().Logf("Successfully transferred %s stake from simapp to celestia (IBC denom: %s)", transferAmount.String(), ibcDenom)
-}
-
-// createIBCTransferMsg creates an IBC transfer message
-func (s *IBCTestSuite) createIBCTransferMsg(sourceWallet, destWallet *types.Wallet, channel ibc.Channel, denom string, amount int64) *ibctransfertypes.MsgTransfer {
-	destAddr, err := sdkacc.AddressFromWallet(destWallet)
-	s.Require().NoError(err, "failed to parse destination address")
-
-	transferAmount := sdkmath.NewInt(amount)
-	return ibctransfertypes.NewMsgTransfer(
-		channel.PortID,
-		channel.ChannelID,
+		sourcePort,
+		sourceChannel,
 		sdk.NewCoin(denom, transferAmount),
 		sourceWallet.GetFormattedAddress(),
 		destAddr.String(),
@@ -357,36 +282,55 @@ func (s *IBCTestSuite) createIBCTransferMsg(sourceWallet, destWallet *types.Wall
 		uint64(time.Now().Add(time.Hour).UnixNano()),
 		"",
 	)
-}
 
-// submitTransactionAndVerify submits a transaction using the appropriate method and verifies results
-func (s *IBCTestSuite) submitTransactionAndVerify(ctx context.Context, msg *ibctransfertypes.MsgTransfer, denom string, amount int64) {
-	channel := ibc.Channel{PortID: msg.SourcePort, CounterpartyID: msg.SourceChannel}
-	ibcDenom := s.calculateIBCDenom(channel, denom)
+	// calculate expected IBC denom on destination chain
+	ibcDenom := s.calculateIBCDenom(sourcePort, sourceChannel, denom)
 
-	destWallet := s.chainB.GetFaucetWallet()
-	destBalance := s.getBalance(ctx, s.chainB, destWallet.GetFormattedAddress(), ibcDenom)
+	initialBalance := s.getBalance(ctx, destChain, destWallet.GetFormattedAddress(), ibcDenom)
 
-	// Use TxClient for Celestia chain
-	resp, err := s.celestiaTxClient.SubmitTx(ctx, []sdk.Msg{msg}, user.SetGasLimit(200000), user.SetFee(5000))
-	s.Require().NoError(err, "failed to submit IBC transfer via TxClient")
+	// broadcast transaction based on source chain
+	var txResponse sdk.TxResponse
+	// use txclient when interacting with celestia.
+	if sourceChain.GetChainID() == s.chainA.GetChainID() {
+		resp, err := s.celestiaTxClient.SubmitTx(ctx, []sdk.Msg{msg}, user.SetGasLimit(200000), user.SetFee(5000))
+		s.Require().NoError(err, "failed to submit IBC transfer via TxClient")
+		txResponse = sdk.TxResponse{
+			Height: resp.Height,
+			TxHash: resp.TxHash,
+			Code:   resp.Code,
+		}
+	} else {
+		// use built in tastora broadcaster for simapp.
+		broadcaster := cosmos.NewBroadcaster(sourceChain)
+		broadcaster.ConfigureFactoryOptions(func(factory sdktx.Factory) sdktx.Factory {
+			return factory.WithGas(200000)
+		})
+		resp, err := broadcaster.BroadcastMessages(ctx, sourceWallet, msg)
+		s.Require().NoError(err, "failed to broadcast IBC transfer")
+		txResponse = resp
+	}
 
-	s.Require().Equal(uint32(0), resp.Code, "IBC transfer tx failed with code %d", resp.Code)
+	s.Require().Equal(uint32(0), txResponse.Code, "IBC transfer tx failed with code %d: %s",
+		txResponse.Code, txResponse.RawLog)
 
-	err = wait.ForBlocks(ctx, 5, s.chainA, s.chainB)
+	err = wait.ForBlocks(ctx, 5, sourceChain, destChain)
 	s.Require().NoError(err, "failed to wait for blocks")
 
-	transferAmount := sdkmath.NewInt(amount)
-	s.verifyTransferResults(ctx, destWallet, ibcDenom, destBalance, transferAmount)
+	finalBalance := s.getBalance(ctx, destChain, destWallet.GetFormattedAddress(), ibcDenom)
+	expectedBalance := initialBalance.Add(transferAmount)
+
+	s.Require().True(finalBalance.Equal(expectedBalance),
+		"destination balance mismatch: expected %s, got %s", expectedBalance.String(), finalBalance.String())
 }
 
-// verifyTransferResults checks the final balances and verifies the transfer results
-func (s *IBCTestSuite) verifyTransferResults(ctx context.Context, destWallet *types.Wallet, ibcDenom string, destBalance, transferAmount sdkmath.Int) {
-	finalDestBalance := s.getBalance(ctx, s.chainB, destWallet.GetFormattedAddress(), ibcDenom)
+// testTokenTransfers tests token transfers from Celestia to simapp
+func (s *IBCTestSuite) testTokenTransfers(ctx context.Context, channel ibc.Channel) {
+	s.transferAndVerify(ctx, s.chainA, s.chainB, channel.PortID, channel.ChannelID, "utia", 100000)
+}
 
-	expectedDestBalance := destBalance.Add(transferAmount)
-	s.Require().True(finalDestBalance.Equal(expectedDestBalance),
-		"destination balance mismatch: expected %s, got %s", expectedDestBalance.String(), finalDestBalance.String())
+// testReverseTokenTransfers tests token transfers from simapp to Celestia
+func (s *IBCTestSuite) testReverseTokenTransfers(ctx context.Context, channel ibc.Channel) {
+	s.transferAndVerify(ctx, s.chainB, s.chainA, channel.CounterpartyPort, channel.CounterpartyID, "stake", 100000)
 }
 
 // upgradeChain upgrades the celestia chain from baseAppVersion to targetAppVersion
@@ -453,10 +397,10 @@ func (s *IBCTestSuite) getBalance(ctx context.Context, chain *cosmos.Chain, addr
 }
 
 // calculateIBCDenom calculates the IBC denomination using ibc-go utilities
-func (s *IBCTestSuite) calculateIBCDenom(channel ibc.Channel, baseDenom string) string {
+func (s *IBCTestSuite) calculateIBCDenom(portID, channelID string, baseDenom string) string {
 	prefixedDenom := ibctransfertypes.GetPrefixedDenom(
-		channel.PortID,
-		channel.CounterpartyID,
+		portID,
+		channelID,
 		baseDenom,
 	)
 	return ibctransfertypes.ParseDenomTrace(prefixedDenom).IBCDenom()
