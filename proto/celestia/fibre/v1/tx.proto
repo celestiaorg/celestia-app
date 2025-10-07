@@ -80,11 +80,10 @@ message MsgRequestWithdrawalResponse {}
 // MsgPayForFibre contains the original payment promise with validator signatures.
 message MsgPayForFibre {
   option (cosmos.msg.v1.signer) = "signer";
-
   // signer is the bech32 encoded address submitting this message
   string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
-  // promise contains the original payment promise
-  PaymentPromise promise = 2 [(gogoproto.nullable) = false];
+  // payment_promise is the original payment promise
+  PaymentPromise payment_promise = 2 [(gogoproto.nullable) = false];
   // validator_signatures contains signatures from validators
   repeated bytes validator_signatures = 3;
 }
@@ -95,11 +94,10 @@ message MsgPayForFibreResponse {}
 // MsgProcessPaymentTimeout processes a payment promise after the timeout period.
 message MsgProcessPaymentTimeout {
   option (cosmos.msg.v1.signer) = "signer";
-
   // signer is the bech32 encoded address submitting this message (can be anyone)
   string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
-  // promise contains the original payment promise
-  PaymentPromise promise = 2 [(gogoproto.nullable) = false];
+  // payment_promise is the original payment promise
+  PaymentPromise payment_promise = 2 [(gogoproto.nullable) = false];
 }
 
 // MsgProcessPaymentTimeoutResponse describes the response returned after processing payment timeout.
