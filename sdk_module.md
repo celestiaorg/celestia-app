@@ -56,18 +56,27 @@ message EscrowAccount {
 }
 ```
 
-### Pending Withdrawals
+### Withdrawals
 
 Withdrawal requests are tracked to implement the delay mechanism.
 
 ```proto
-message PendingWithdrawal {
+// Withdrawal tracks requests to withdraw funds from an escrow account. It is
+// needed to implement a delay mechanism between when a withdrawal is requested
+// and when it is executed. By default the withdrawal delay is 24 hours.
+message Withdrawal {
   // signer is the address that owns the escrow account this withdrawal is for
-  string signer = 1;
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   // amount is the amount to be withdrawn
-  cosmos.base.v1beta1.Coin amount = 2;
-  // requested_at is the timestamp when withdrawal was requested
-  google.protobuf.Timestamp requested_at = 3;
+  cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
+  // requested_height is the block height when the withdrawal was requested
+  int64 requested_height = 3;
+  // executed_height is the block height when the withdrawal was executed
+  int64 executed_height = 4;
+  // requested_timestamp is the timestamp when withdrawal was requested
+  google.protobuf.Timestamp requested_timetstamp = 5 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+  // executed_timestamp is the timestamp when the withdrawal was executed
+  google.protobuf.Timestamp executed_timestamp = 6 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
 }
 ```
 
