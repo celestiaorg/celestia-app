@@ -8,6 +8,7 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - dependencies
+      - docker
 
   # Github Actions
   - package-ecosystem: github-actions
@@ -17,6 +18,7 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - dependencies
+      - ci
 
   # Go
   - package-ecosystem: gomod
@@ -26,6 +28,19 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - dependencies
+      - go
+    groups:
+      protobuf:
+        patterns:
+          - "google.golang.org/protobuf*"
+      grpc:
+        patterns:
+          - "google.golang.org/grpc*"
+      go-std:
+        patterns:
+          - "golang.org/x/*"
+
+  # Go dependencies
   - package-ecosystem: gomod
     directory: "test/docker-e2e"
     schedule:
@@ -33,3 +48,11 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - dependencies
+      - go
+    groups:
+      protobuf:
+        patterns:
+          - "google.golang.org/protobuf*"
+      grpc:
+        patterns:
+          - "google.golang.org/grpc*"
