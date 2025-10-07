@@ -112,17 +112,17 @@ func (s *IBCTestSuite) TearDownTest() {
 	t := s.T()
 
 	if s.chainA != nil {
-		if err := s.chainA.Stop(ctx); err != nil {
+		if err := s.chainA.Remove(ctx); err != nil {
 			t.Logf("Error stopping chain A: %v", err)
 		}
 	}
 	if s.chainB != nil {
-		if err := s.chainB.Stop(ctx); err != nil {
+		if err := s.chainB.Remove(ctx); err != nil {
 			t.Logf("Error stopping chain B: %v", err)
 		}
 	}
 	if s.hermes != nil {
-		if err := s.hermes.Stop(ctx); err != nil {
+		if err := s.hermes.Remove(ctx); err != nil {
 			t.Logf("Error stopping hermes: %v", err)
 		}
 	}
@@ -161,8 +161,8 @@ func (s *IBCTestSuite) TestIBC() {
 		s.Require().NoError(err, "failed to start hermes relayer")
 	})
 
-	t.Run("initial_transfers", func(t *testing.T) {
-		t.Logf("Performing initial transfers")
+	t.Run("initial_transfers_celestia_to_simapp", func(t *testing.T) {
+		t.Logf("Performing initial transfers from celestia to simapp")
 		s.testTokenTransfers(ctx, s.transferChannel)
 	})
 
@@ -171,8 +171,13 @@ func (s *IBCTestSuite) TestIBC() {
 		s.upgradeChain(ctx, s.chainA, targetAppVersion)
 	})
 
-	t.Run("existing_channel_transfers", func(t *testing.T) {
+	t.Run("existing_channel_transfers_celestia_to_simapp", func(t *testing.T) {
 		s.testTokenTransfers(ctx, s.transferChannel)
+	})
+
+	t.Run("existing_channel_transfers_simapp_to_celestia", func(t *testing.T) {
+		t.Logf("Verifying token filter removal after upgrade")
+		s.testReverseTokenTransfers(ctx, s.transferChannel)
 	})
 
 	t.Run("new_connection_and_channel", func(t *testing.T) {
@@ -180,9 +185,14 @@ func (s *IBCTestSuite) TestIBC() {
 		_, channel = s.establishIBCConnection(ctx)
 	})
 
-	t.Run("new_channel_transfers", func(t *testing.T) {
+	t.Run("new_channel_transfers_celestia_to_simapp", func(t *testing.T) {
 		t.Logf("Performing transfers over new channel")
 		s.testTokenTransfers(ctx, channel)
+	})
+
+	t.Run("new_channel_transfers_simapp_to_celestia", func(t *testing.T) {
+		t.Logf("Verifying token filter removal over new channel")
+		s.testReverseTokenTransfers(ctx, channel)
 	})
 }
 
@@ -262,6 +272,75 @@ func (s *IBCTestSuite) testTokenTransfers(ctx context.Context, channel ibc.Chann
 	s.submitTransactionAndVerify(ctx, ibcTransfer, "utia", 100000)
 }
 
+// testReverseTokenTransfers tests token transfers from simapp to Celestia
+func (s *IBCTestSuite) testReverseTokenTransfers(ctx context.Context, channel ibc.Channel) {
+	sourceWallet := s.chainB.GetFaucetWallet()
+	destWallet := s.chainA.GetFaucetWallet()
+
+	// transfer stake from simapp (chain-b) to celestia (chain-a)
+	amount := int64(100000)
+	destAddr, err := sdkacc.AddressFromWallet(destWallet)
+	s.Require().NoError(err, "failed to parse destination address")
+
+	transferAmount := sdkmath.NewInt(amount)
+	msg := ibctransfertypes.NewMsgTransfer(
+		channel.CounterpartyPort,
+		channel.CounterpartyID,
+		sdk.NewCoin("stake", transferAmount),
+		sourceWallet.GetFormattedAddress(),
+		destAddr.String(),
+		clienttypes.ZeroHeight(),
+		uint64(time.Now().Add(time.Hour).UnixNano()),
+		"",
+	)
+
+	// calculate expected IBC denom on celestia (chain-a)
+	// when tokens arrive on chain-a from chain-b, the path is: destPort/destChannel/stake
+	// which is channel.PortID/channel.ChannelID/stake (the receiving side on chain-a)
+	receiveChannel := ibc.Channel{
+		PortID:         channel.CounterpartyPort,
+		CounterpartyID: channel.CounterpartyID,
+	}
+	ibcDenom := s.calculateIBCDenom(receiveChannel, "stake")
+
+	s.T().Logf("Transfer details - Source: %s/%s, Dest: %s/%s, IBC denom: %s",
+		channel.CounterpartyPort, channel.CounterpartyID,
+		channel.PortID, channel.ChannelID, ibcDenom)
+
+	// get initial balance on celestia
+	initialBalance := s.getBalance(ctx, s.chainA, destWallet.GetFormattedAddress(), ibcDenom)
+
+	// broadcast from simapp using Broadcaster
+	broadcaster := cosmos.NewBroadcaster(s.chainB)
+	broadcaster.ConfigureFactoryOptions(func(factory sdktx.Factory) sdktx.Factory {
+		return factory.WithGas(200000)
+	})
+
+	txResponse, err := broadcaster.BroadcastMessages(ctx, sourceWallet, msg)
+	s.Require().NoError(err, "failed to broadcast IBC transfer from simapp")
+
+	s.T().Logf("Transaction response - Code: %d, TxHash: %s, RawLog: %s",
+		txResponse.Code, txResponse.TxHash, txResponse.RawLog)
+
+	s.Require().Equal(uint32(0), txResponse.Code, "IBC transfer tx failed with code %d", txResponse.Code)
+
+	// wait for blocks and packet relay on both chains (increased wait time)
+	err = wait.ForBlocks(ctx, 15, s.chainB, s.chainA)
+	s.Require().NoError(err, "failed to wait for blocks")
+
+	// verify balance increased on celestia
+	finalBalance := s.getBalance(ctx, s.chainA, destWallet.GetFormattedAddress(), ibcDenom)
+	expectedBalance := initialBalance.Add(transferAmount)
+
+	s.T().Logf("Balance check - Initial: %s, Final: %s, Expected: %s, Denom: %s",
+		initialBalance.String(), finalBalance.String(), expectedBalance.String(), ibcDenom)
+
+	s.Require().True(finalBalance.Equal(expectedBalance),
+		"destination balance mismatch: expected %s, got %s", expectedBalance.String(), finalBalance.String())
+
+	s.T().Logf("Successfully transferred %s stake from simapp to celestia (IBC denom: %s)", transferAmount.String(), ibcDenom)
+}
+
 // createIBCTransferMsg creates an IBC transfer message
 func (s *IBCTestSuite) createIBCTransferMsg(sourceWallet, destWallet *types.Wallet, channel ibc.Channel, denom string, amount int64) *ibctransfertypes.MsgTransfer {
 	destAddr, err := sdkacc.AddressFromWallet(destWallet)
@@ -294,7 +373,7 @@ func (s *IBCTestSuite) submitTransactionAndVerify(ctx context.Context, msg *ibct
 
 	s.Require().Equal(uint32(0), resp.Code, "IBC transfer tx failed with code %d", resp.Code)
 
-	err = wait.ForBlocks(ctx, 5, s.chainA)
+	err = wait.ForBlocks(ctx, 5, s.chainA, s.chainB)
 	s.Require().NoError(err, "failed to wait for blocks")
 
 	transferAmount := sdkmath.NewInt(amount)
@@ -395,8 +474,8 @@ func (s *IBCTestSuite) newSimappChainBuilder(t *testing.T, cfg *dockerchain.Conf
 		WithImage(tastoracontainertypes.NewImage("ghcr.io/chatton/ibc-go-simd", "v8.5.0", "1000:1000")).
 		WithBinaryName("simd").
 		WithBech32Prefix("celestia").
-		WithDenom("utia").
-		WithGasPrices("0.000001utia").
+		WithDenom("stake").
+		WithGasPrices("0.000001stake").
 		WithDockerNetworkID(cfg.DockerNetworkID).
 		WithDockerClient(cfg.DockerClient).
 		WithChainID("chain-b").
