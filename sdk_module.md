@@ -52,64 +52,106 @@ The Fibre blob submission follows this flow:
 
 ```mermaid
 sequenceDiagram
-    participant C as Client (user)
-    participant S as Server (validators)
-    participant A as State Machine
+    participant U as User (client)
+    participant V as Validator (server)
+    participant SM as State Machine
+    participant X as Anyone
 
-    Note over C,A: Setup Phase
-    C->>A: MsgDepositToEscrow
+    Note over U,SM: 1. Setup Phase
+    U->>SM: MsgDepositToEscrow(amount)
+    SM->>SM: Create/update escrow account
 
-    Note over C,A: Promise Creation & Data Distribution
-    C->>C: Create signed PaymentPromise
-    C->>S: Send data chunks + PaymentPromise
+    Note over U,V: 2. Fibre Blob Submission
+    U->>U: Calculate blob commitment
+    U->>U: Create signed PaymentPromise
+    U->>V: Send blob data + PaymentPromise
 
-    Note over S,A: Validator Verification
-    S->>A: QueryValidatePaymentPromise(promise, signature)
-    A-->>S: ValidationResponse (valid, balance check, etc.)
+    Note over V,SM: 3. Validator Processing
+    V->>SM: QueryValidatePaymentPromise(promise)
+    SM-->>V: ValidationResponse(valid, balance_ok)
 
-    alt Promise is valid
-        S->>S: Sign commitment
-        S-->>C: Return validator signature
-    else Promise is invalid
-        S-->>C: Reject request
+    alt PaymentPromise is valid
+        V->>V: Store blob data & start serving immediately
+        V->>V: Sign commitment
+        V-->>U: Return validator signature
+    else PaymentPromise is invalid
+        V-->>U: Reject (insufficient funds/invalid signature)
     end
 
-    Note over C,A: Happy Path - Payment Confirmation
-    C->>C: Collect 2/3+ validator signatures
-    C->>A: MsgPayForFibre(promise, validator_signatures)
-    A->>A: Deduct payment from escrow
-    A->>A: Include commitment in data square
+    Note over U,SM: 4a. Happy Path - User Submits Payment
+    U->>U: Collect 2/3+ validator signatures
+    U->>SM: MsgPayForFibre(promise, signatures)
+    SM->>SM: Verify signatures & deduct payment
+    SM->>SM: Include commitment in data square
+    Note right of SM: Commitment included in data square
 
-    Note over C,A: Fallback - Timeout Processing
-    alt User doesn't submit within timeout
-        C->>A: MsgPaymentPromiseTimeout(promise)
-        A->>A: Deduct payment from escrow
-        Note right of A: No data square inclusion
-    end
-
-    Note over C,A: Withdrawal Flow
-    C->>A: MsgRequestWithdrawal(signer, amount)
-    A->>A: Decrease available_balance immediately
-
-    Note over C,A: After withdrawal delay
-    A->>A: Transfer funds to user account
+    Note over X,SM: 4b. Fallback - Timeout Processing
+    Note over X,SM: After PaymentPromiseTimeout elapses
+    X->>SM: MsgPaymentPromiseTimeout(promise)
+    SM->>SM: Verify timeout & deduct payment
+    Note right of SM: No data square inclusion
 ```
 
 ### Flow Description
 
-1. **Setup Phase**: User deposits funds using [`MsgDepositToEscrow`](#msgdeposittoescrow), which creates an escrow account if one doesn't exist.
+1. **Setup Phase**: User deposits funds using [`MsgDepositToEscrow`](#msgdeposittoescrow), which creates or updates their escrow account with the specified amount.
 
-2. **Promise Creation**: User creates a signed [`PaymentPromise`](#paymentpromise-validation) containing escrow details, commitment, validator set height, and creation timestamp.
+2. **Fibre Blob Submission**:
+   - User calculates the cryptographic commitment for their blob data
+   - User creates a signed [`PaymentPromise`](#paymentpromise-validation) containing the commitment, blob size, namespace, and escrow account reference
+   - User sends the blob data and PaymentPromise to validators
 
-3. **Data Distribution Phase**: User distributes data chunks to validators along with the signed promise.
+3. **Validator Processing**:
+   - Validators query the state machine using [`QueryValidatePaymentPromise`](#validatepaymentpromise) to verify the promise signature, check escrow balance, and confirm the promise hasn't been processed
+   - If valid: validators store the blob data locally, sign the commitment, return their signature to the user, and **immediately start serving the blob data**
+   - If invalid: validators reject the request (insufficient funds, invalid signature, etc.)
 
-4. **Validator Verification**: Validators query the state machine using [`QueryValidatePaymentPromise`](#validatepaymentpromise) to verify the promise signature, check escrow has sufficient funds, and confirm the promise hasn't been processed. If valid, validators sign over the commitment.
+4. **Payment Settlement** (Two possible paths):
 
-5. **Payment Confirmation (Happy Path)**: User collects 2/3+ validator signatures and submits [`MsgPayForFibre`](#msgpayforfibre) containing the promise and signatures. The commitment gets included in the data square.
+   **4a. Happy Path - User Submits Payment**: User collects 2/3+ validator signatures and submits [`MsgPayForFibre`](#msgpayforfibre). The state machine verifies signatures, deducts payment from escrow, and includes the commitment in the data square.
 
-6. **Timeout Processing (Fallback)**: If user doesn't submit [`MsgPayForFibre`](#msgpayforfibre) within `promise_timeout_blocks`, anyone can submit [`MsgPaymentPromiseTimeout`](#msgpaymentpromisetimeout) to process payment. This prevents the user from getting free service.
+   **4b. Fallback - Timeout Processing**: If the user doesn't submit [`MsgPayForFibre`](#msgpayforfibre) within the timeout period, anyone can submit [`MsgPaymentPromiseTimeout`](#msgpaymentpromisetimeout) to force payment. The state machine deducts payment but does **not** include the commitment in the data square.
 
-7. **Withdrawal**: Users can request withdrawals via [`MsgRequestWithdrawal`](#msgrequestwithdrawal) (decreases available balance immediately) and process them after the delay (which decreases total balance and transfers funds to user). Processing occurs automatically in BeginBlocker (see [Withdrawal Processing](#withdrawal-processing)).
+### Key Insights
+
+- **Immediate Service**: Validators start serving blob data as soon as they verify the PaymentPromise, before any on-chain payment
+- **Payment Guarantee**: The PaymentPromise cryptographically guarantees payment will occur either via user submission or timeout mechanism
+- **Data Square Inclusion**: Only successful `MsgPayForFibre` submissions result in commitment inclusion in the data square
+
+## Withdrawal Processing Flow
+
+Users can withdraw funds from their escrow accounts, but withdrawals are subject to a delay mechanism to ensure payment guarantees remain valid:
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant SM as State Machine
+    participant BB as BeginBlocker
+
+    Note over U,BB: Withdrawal Request
+    U->>SM: MsgRequestWithdrawal(amount)
+    SM->>SM: Verify sufficient available_balance
+    SM->>SM: Decrease available_balance immediately
+    SM->>SM: Store withdrawal request with delay
+    Note right of SM: Funds locked for WithdrawalDelay period
+
+    Note over U,BB: Automatic Processing (after delay)
+    BB->>SM: Check for available withdrawals
+    SM->>SM: Find withdrawals past delay period
+    SM->>SM: Transfer funds to user account
+    SM->>SM: Decrease total escrow balance
+    SM->>SM: Remove withdrawal request
+    Note right of SM: Funds returned to user
+```
+
+### Withdrawal Flow Details
+
+1. **Request Phase**: User submits [`MsgRequestWithdrawal`](#msgrequestwithdrawal) specifying the amount to withdraw
+2. **Immediate Lock**: The system immediately decreases the user's `available_balance` to prevent double-spending, but keeps the funds in the escrow account
+3. **Delay Period**: Funds remain locked for the `WithdrawalDelay` period (default: 24 hours) to ensure any pending PaymentPromises can still be processed
+4. **Automatic Processing**: The `BeginBlocker` automatically processes eligible withdrawals, transferring funds back to the user and updating the escrow account balance
+
+This delay mechanism ensures that validators can trust PaymentPromises even when users have requested withdrawals, since the funds remain available for the delay period.
 
 ## State
 
