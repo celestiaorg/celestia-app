@@ -53,7 +53,7 @@ The Fibre blob submission follows this flow:
 ```mermaid
 sequenceDiagram
     participant C as Client (user)
-    participant S as Server (celestia-app validators)
+    participant S as Server (validators)
     participant A as State Machine
 
     Note over C,A: Setup Phase
@@ -103,7 +103,7 @@ sequenceDiagram
 
 3. **Data Distribution Phase**: User distributes data chunks to validators along with the signed promise.
 
-4. **Validator Verification**: Validators query the celestia-app instance using [`QueryValidatePaymentPromise`](#validatepaymentpromise) to verify the promise signature, check escrow has sufficient funds, and confirm the promise hasn't been processed. If valid, validators sign over the commitment.
+4. **Validator Verification**: Validators query the state machine using [`QueryValidatePaymentPromise`](#validatepaymentpromise) to verify the promise signature, check escrow has sufficient funds, and confirm the promise hasn't been processed. If valid, validators sign over the commitment.
 
 5. **Payment Confirmation (Happy Path)**: User collects 2/3+ validator signatures and submits [`MsgPayForFibre`](#msgpayforfibre) containing the promise and signatures. The commitment gets included in the data square.
 
@@ -119,7 +119,7 @@ The fibre module maintains state for [escrow accounts](#escrow-accounts), [withd
 
 #### `GasPerBlobByte`
 
-`GasPerBlobByte` is the amount of gas consumed per byte of blob data when a payment promise is processed. This determines the gas cost for fibre blob inclusion.
+`GasPerBlobByte` is the amount of gas consumed per byte of blob data when a PaymentPromise is processed. This determines the gas cost for Fibre blob inclusion.
 
 #### `WithdrawalDelay`
 
@@ -127,7 +127,7 @@ The fibre module maintains state for [escrow accounts](#escrow-accounts), [withd
 
 #### `PaymentPromiseTimeout`
 
-`PaymentPromiseTimeout` is the duration after which anyone can submit a `MsgPaymentPromiseTimeout` transaction on-chain if the user hasn't submitted a [`MsgPayForFibre`](#msgpayforfibre) for their payment promise (default: 1 hour).
+`PaymentPromiseTimeout` is the duration after which anyone can submit a `MsgPaymentPromiseTimeout` transaction on-chain if the user hasn't submitted a [`MsgPayForFibre`](#msgpayforfibre) for their PaymentPromise (default: 1 hour).
 
 #### `PaymentPromiseRetentionWindow`
 
@@ -333,22 +333,22 @@ func processAvailableWithdrawals(ctx sdk.Context, k Keeper) {
 
 ### MsgPayForFibre
 
-Contains the original payment promise with validator signatures, submitted by the user. Successful `MsgPayForFibre` transactions are included in their own reserved namespace. The commitment from the payment promise is also included in the original data square in the namespace specified in the payment promise.
+Contains the original PaymentPromise with validator signatures, submitted by the user. Successful `MsgPayForFibre` transactions are included in their own reserved namespace. The commitment from the PaymentPromise is also included in the original data square in the namespace specified in the PaymentPromise.
 
 ```proto
-// MsgPayForFibre contains the original payment promise with validator signatures.
+// MsgPayForFibre contains the original PaymentPromise with validator signatures.
 message MsgPayForFibre {
   option (cosmos.msg.v1.signer) = "signer";
   // signer is the bech32 encoded address submitting this message
   string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
-  // payment_promise is the original payment promise
+  // payment_promise is the original PaymentPromise
   PaymentPromise payment_promise = 2 [(gogoproto.nullable) = false];
   // validator_signatures contains signatures from validators
   repeated bytes validator_signatures = 3;
 }
 
-// PaymentPromise is a promise to pay for a fibre blob. It contains the
-// commitment and payment details for the fibre blob.
+// PaymentPromise is a promise to pay for a Fibre blob. It contains the
+// commitment and payment details for the Fibre blob.
 message PaymentPromise {
   // signer_public_key is the public key of the owner of the escrow account to charge
   google.protobuf.Any signer_public_key = 1 [(cosmos_proto.accepts_interface) = "cosmos.crypto.PubKey"];
@@ -444,18 +444,18 @@ sign_bytes = chainID || signer_bytes || namespace || blob_size_bytes || commitme
 
 When processing a successful `MsgPayForFibre`, two pieces of metadata are written to the original data square:
 
-1. The tx containing the `MsgPayForFibre` is included in the reserved namespace for fibre transactions.
-2. A system-level blob is generated with the namespace from the payment promise and the blob data is the fibre blob commitment.
+1. The tx containing the `MsgPayForFibre` is included in the reserved namespace for Fibre transactions.
+2. A system-level blob is generated with the namespace from the PaymentPromise and the blob data is the Fibre blob commitment.
 
 ### MsgPaymentPromiseTimeout
 
-Processes a payment promise after the timeout period if no `MsgPayForFibre` was submitted. This mechanism is critical to guaranteeing that payment occurs. `MsgPaymentPromiseTimeout` transactions are included in the default transaction reserved namespace. A system-level blob is not generated for this transaction.
+Processes a PaymentPromise after the timeout period if no `MsgPayForFibre` was submitted. This mechanism is critical to guaranteeing that payment occurs. `MsgPaymentPromiseTimeout` transactions are included in the default transaction reserved namespace. A system-level blob is not generated for this transaction.
 
 ```proto
 message MsgPaymentPromiseTimeout {
   // signer is the bech32 encoded address submitting this message (can be anyone)
   string signer = 1;
-  // promise contains the original payment promise
+  // promise contains the original PaymentPromise
   PaymentPromise promise = 2;
 }
 ```
@@ -635,7 +635,7 @@ message QueryProcessedPromiseResponse {
 
 ### ValidatePaymentPromise
 
-Validates a [payment promise](#paymentpromise-validation) for server use, performing all required checks including escrow balance and processing status.
+Validates a [PaymentPromise](#paymentpromise-validation) for server use, performing all required checks including escrow balance and processing status.
 
 **Request**:
 
