@@ -16,7 +16,7 @@ The Fibre DA scheme does not store Fibre blob data in the original data square. 
 
     ![System-level blob](./figures/system-level-blob.svg)
 
-## What goes into the RSEMA1D row?
+## What goes into the RSEMA1D original rows?
 
 ### Assumptions
 
@@ -27,4 +27,6 @@ Taken from [network params](https://github.com/celestiaorg/fibre-da-spec/pull/6/
 
 ### RSEMA1D row encoding
 
-The Fibre blob data is encoded into RSEMA1d rows.
+The Fibre blob data is encoded into RSEMA1d original rows.
+
+- TODO: what happens if the fibre blob size is not a multiple of the number of original rows? What happens if the row size is not a multiple of 64? Do we need to pad the row?
