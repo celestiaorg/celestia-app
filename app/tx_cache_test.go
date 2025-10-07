@@ -9,14 +9,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewTxValidationCache(t *testing.T) {
-	cache := NewTxValidationCache()
+func TestNewTxCache(t *testing.T) {
+	cache := NewTxCache()
 	require.NotNil(t, cache)
 	assert.Equal(t, 0, cache.Size())
 }
 
-func TestTxValidationCache_Set(t *testing.T) {
-	cache := NewTxValidationCache()
+func TestTxCache_Set(t *testing.T) {
+	cache := NewTxCache()
 	tx := []byte("test transaction")
 
 	cache.Set(tx)
@@ -24,8 +24,8 @@ func TestTxValidationCache_Set(t *testing.T) {
 	assert.True(t, cache.Exists(tx))
 }
 
-func TestTxValidationCache_SetMultiple(t *testing.T) {
-	cache := NewTxValidationCache()
+func TestTxCache_SetMultiple(t *testing.T) {
+	cache := NewTxCache()
 	txs := [][]byte{
 		[]byte("tx1"),
 		[]byte("tx2"),
@@ -42,8 +42,8 @@ func TestTxValidationCache_SetMultiple(t *testing.T) {
 	}
 }
 
-func TestTxValidationCache_SetDuplicate(t *testing.T) {
-	cache := NewTxValidationCache()
+func TestTxCache_SetDuplicate(t *testing.T) {
+	cache := NewTxCache()
 	tx := []byte("test transaction")
 
 	cache.Set(tx)
@@ -53,8 +53,8 @@ func TestTxValidationCache_SetDuplicate(t *testing.T) {
 	assert.True(t, cache.Exists(tx))
 }
 
-func TestTxValidationCache_Exists(t *testing.T) {
-	cache := NewTxValidationCache()
+func TestTxCache_Exists(t *testing.T) {
+	cache := NewTxCache()
 	tx := []byte("test transaction")
 	nonExistentTx := []byte("non existent")
 
@@ -64,15 +64,15 @@ func TestTxValidationCache_Exists(t *testing.T) {
 	assert.False(t, cache.Exists(nonExistentTx))
 }
 
-func TestTxValidationCache_ExistsEmpty(t *testing.T) {
-	cache := NewTxValidationCache()
+func TestTxCache_ExistsEmpty(t *testing.T) {
+	cache := NewTxCache()
 	tx := []byte("test transaction")
 
 	assert.False(t, cache.Exists(tx))
 }
 
-func TestTxValidationCache_RemoveTransaction(t *testing.T) {
-	cache := NewTxValidationCache()
+func TestTxCache_RemoveTransaction(t *testing.T) {
+	cache := NewTxCache()
 	tx1 := []byte("tx1")
 	tx2 := []byte("tx2")
 	tx3 := []byte("tx3")
@@ -90,8 +90,8 @@ func TestTxValidationCache_RemoveTransaction(t *testing.T) {
 	assert.True(t, cache.Exists(tx3))
 }
 
-func TestTxValidationCache_RemoveTransactionNonExistent(t *testing.T) {
-	cache := NewTxValidationCache()
+func TestTxCache_RemoveTransactionNonExistent(t *testing.T) {
+	cache := NewTxCache()
 	tx := []byte("tx1")
 	nonExistentTx := []byte("non existent")
 
@@ -103,8 +103,8 @@ func TestTxValidationCache_RemoveTransactionNonExistent(t *testing.T) {
 	assert.True(t, cache.Exists(tx))
 }
 
-func TestTxValidationCache_GetTxKey(t *testing.T) {
-	cache := NewTxValidationCache()
+func TestTxCache_GetTxKey(t *testing.T) {
+	cache := NewTxCache()
 	tx := []byte("test transaction")
 
 	// same transaction should produce same key
@@ -118,8 +118,8 @@ func TestTxValidationCache_GetTxKey(t *testing.T) {
 	assert.NotEqual(t, key1, key3)
 }
 
-func TestTxValidationCache_GetTxKeyEmptyTx(t *testing.T) {
-	cache := NewTxValidationCache()
+func TestTxCache_GetTxKeyEmptyTx(t *testing.T) {
+	cache := NewTxCache()
 	emptyTx := []byte{}
 
 	// Should handle empty transaction
@@ -127,8 +127,8 @@ func TestTxValidationCache_GetTxKeyEmptyTx(t *testing.T) {
 	assert.NotEmpty(t, key)
 }
 
-func TestTxValidationCache_ConcurrentSet(t *testing.T) {
-	cache := NewTxValidationCache()
+func TestTxCache_ConcurrentSet(t *testing.T) {
+	cache := NewTxCache()
 	numGoroutines := 100
 	numTxsPerGoroutine := 100
 
@@ -150,8 +150,8 @@ func TestTxValidationCache_ConcurrentSet(t *testing.T) {
 	assert.Equal(t, numGoroutines*numTxsPerGoroutine, cache.Size())
 }
 
-func TestTxValidationCache_ConcurrentBatches(t *testing.T) {
-	cache := NewTxValidationCache()
+func TestTxCache_ConcurrentBatches(t *testing.T) {
+	cache := NewTxCache()
 
 	batch1 := makeBatch(1, 100)
 	batch2 := makeBatch(2, 200)

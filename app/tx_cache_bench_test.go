@@ -16,37 +16,37 @@ func generateRandomTxs(count int, size int) [][]byte {
 }
 
 // populateCache fills the cache with the given transactions
-func populateCache(cache *TxValidationCache, txs [][]byte) {
+func populateCache(cache *TxCache, txs [][]byte) {
 	for _, tx := range txs {
 		cache.Set(tx)
 	}
 }
 
-// BenchmarkTxValidationCache_Operations benchmarks cache operations
-func BenchmarkTxValidationCache_Operations(b *testing.B) {
-	// this is the avg size of `Tx` part of `blobTx` which consists commitments from blob shares,
-	// we hash it to use as key for transaction cache,
-	// I got after checking 30000 blocks,the max was 4450
+// BenchmarkTxCache_Operations benchmarks cache operations
+func BenchmarkTxCache_Operations(b *testing.B) {
+	// this is the avg size of `Tx` part of `blobTx`
+	// which consists of commitments from blob shares,
+	// we hash it to use as key for transaction cache
+	// the numbers used here are average for block transactions
 	txSize := 1130
 	testCases := []struct {
-		name   string
-		numTxs int
+		name       string
+		numBlobTxs int
 	}{
-		// this is the max num I got after checking 30000 blocks
 		{"15_txs", 15},
 		{"20_txs", 20},
-		// this is the max num possible in block
+		// this is the max num possible in a block
 		{"200_txs", 200},
 	}
 
 	b.Run("Set", func(b *testing.B) {
 		for _, tc := range testCases {
 			b.Run(tc.name, func(b *testing.B) {
-				txs := generateRandomTxs(tc.numTxs, txSize)
+				txs := generateRandomTxs(tc.numBlobTxs, txSize)
 				b.ResetTimer()
 				for b.Loop() {
 					b.StopTimer()
-					cache := NewTxValidationCache()
+					cache := NewTxCache()
 					b.StartTimer()
 
 					for _, tx := range txs {
@@ -60,8 +60,8 @@ func BenchmarkTxValidationCache_Operations(b *testing.B) {
 	b.Run("Exists", func(b *testing.B) {
 		for _, tc := range testCases {
 			b.Run(tc.name, func(b *testing.B) {
-				cache := NewTxValidationCache()
-				txs := generateRandomTxs(tc.numTxs, txSize)
+				cache := NewTxCache()
+				txs := generateRandomTxs(tc.numBlobTxs, txSize)
 				populateCache(cache, txs)
 				b.ResetTimer()
 
@@ -77,12 +77,12 @@ func BenchmarkTxValidationCache_Operations(b *testing.B) {
 	b.Run("RemoveTransactions", func(b *testing.B) {
 		for _, tc := range testCases {
 			b.Run(tc.name, func(b *testing.B) {
-				txs := generateRandomTxs(tc.numTxs, txSize)
+				txs := generateRandomTxs(tc.numBlobTxs, txSize)
 				b.ResetTimer()
 
 				for b.Loop() {
 					b.StopTimer()
-					cache := NewTxValidationCache()
+					cache := NewTxCache()
 					populateCache(cache, txs)
 					b.StartTimer()
 
@@ -100,8 +100,8 @@ func BenchmarkTxValidationCache_Operations(b *testing.B) {
 				b.ReportAllocs()
 
 				for b.Loop() {
-					cache := NewTxValidationCache()
-					txs := generateRandomTxs(tc.numTxs, txSize)
+					cache := NewTxCache()
+					txs := generateRandomTxs(tc.numBlobTxs, txSize)
 
 					for _, tx := range txs {
 						cache.Set(tx)

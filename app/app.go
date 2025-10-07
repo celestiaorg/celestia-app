@@ -191,11 +191,8 @@ type App struct {
 	BasicManager  module.BasicManager
 	ModuleManager *module.Manager
 	configurator  module.Configurator
-
-	// txValidationCache caches expensive blob transaction validation results
-	// from CheckTx to be reused in ProcessProposal.
-	txValidationCache *TxValidationCache
-
+	// txCache caches blob transaction from CheckTx to be reused in ProcessProposal
+	txCache *TxCache
 	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
 	treePool                *wrapper.TreePool
 	delayedPrecommitTimeout time.Duration
@@ -234,7 +231,7 @@ func New(
 		keys:                    keys,
 		tkeys:                   tkeys,
 		memKeys:                 memKeys,
-		txValidationCache:       NewTxValidationCache(),
+		txCache:                 NewTxCache(),
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
 	}
 
@@ -538,9 +535,9 @@ func (app *App) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFin
 		return nil, err
 	}
 
-	// go through all the transactions that are getting executed and prune the tx tracker
+	// Go through all the transactions that are getting executed and prune the tx tracker
 	for _, tx := range req.Txs {
-		app.txValidationCache.RemoveTransaction(tx)
+		app.txCache.RemoveTransaction(tx)
 	}
 
 	return res, nil
