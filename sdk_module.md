@@ -223,7 +223,6 @@ func processAvailableWithdrawals(ctx sdk.Context, k Keeper) {
 
         // Remove from both withdrawal indexes
         requested_at := available_at.Add(-k.GetWithdrawalDelay(ctx))
-        k.DeletePendingWithdrawal(ctx, signer, requested_at)
         k.DeleteAvailableWithdrawal(ctx, available_at, signer)
 
         // Emit event
@@ -557,7 +556,7 @@ message QueryEscrowAccountResponse {
 
 ### PendingWithdrawals
 
-Queries [pending withdrawals](#pending-withdrawals) for an escrow account.
+Queries pending [withdrawals](#withdrawals) for an escrow account.
 
 **Request**:
 
