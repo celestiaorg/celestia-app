@@ -64,6 +64,8 @@ message EscrowAccount {
 
 Withdrawal requests are tracked to implement the delay mechanism.
 
+// TODO: should signer here be changed to a public key?
+
 ```proto
 // Withdrawal tracks requests to withdraw funds from an escrow account. It is
 // needed to implement a delay mechanism between when a withdrawal is requested
@@ -84,9 +86,9 @@ message Withdrawal {
 }
 ```
 
-### Processed Promises
+### Payment Promises
 
-To prevent double payment, the module tracks which promises have been processed. Only the processing timestamp is stored, indexed by the promise hash.
+To prevent double payment, the module tracks which payment promises have been processed. Only the processing timestamp is stored, indexed by the promise hash.
 
 #### Indexing
 
@@ -94,15 +96,14 @@ To prevent double payment, the module tracks which promises have been processed.
 
 - **Primary Index**: `escrows/{signer}` → `EscrowAccount`
 
-**Pending Withdrawals**:
+**Withdrawals**:
 
 - **By signer**: `withdrawals/{signer}/{requested_at}` → `cosmos.base.v1beta1.Coin` (amount)
 - **By Availability**: `available_withdrawals/{available_at}/{signer}` → `cosmos.base.v1beta1.Coin` (amount)
 
-**Processed Promises**:
+**Payment Promises**:
 
 - **Primary Index**: `processed/{promise_hash}` → `google.protobuf.Timestamp` (processed_at)
-- **By Timestamp**: `pruning/{processed_at}/{promise_hash}` → `null` (for pruning)
 
 #### Pruning Mechanism
 
