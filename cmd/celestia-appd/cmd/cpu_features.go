@@ -38,11 +38,11 @@ If you need to bypass this check, use the --force-no-cpu-features flag.
 `
 	)
 
-	isCPUFeaturesCheckEnabled, err := command.Flags().GetBool(FlagCPUFeaturesCheck)
+	isCPUFeaturesCheckDisabled, err := command.Flags().GetBool(FlagCPUFeaturesCheck)
 	if err != nil {
 		return err
 	}
-	if isCPUFeaturesCheckEnabled {
+	if isCPUFeaturesCheckDisabled {
 		return nil
 	}
 
