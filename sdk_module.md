@@ -2,15 +2,41 @@
 
 ## Abstract
 
-The `x/fibre` payment mechanism enables users to pay for fibre blobs without waiting for a transaction to be confirmed. This is done by users depositing funds into [escrow accounts](#escrow-accounts), and signing over off-chain messages (a.k.a `PaymentPromise`) that can be moved on-chain (a.k.a `MsgPayForFibre`) at a later point.
+**Problem**: Celestia's data availability network requires immediate payment guarantees to prevent DoS attacks and ensure fair resource allocation. However, traditional blockchain payments require waiting for transaction confirmation, creating UX friction and delaying data availability service.
 
-DoS resistance for a protocol with a global limit on throughput requires a guarantee for payment. Normally this is done simply by paying for gas, however paying for gas requires waiting for a transaction to be confirmed. The payment portion of this module (mainly the [`PaymentPromise`](#paymentpromise-validation) and [`EscrowAccount`](#escrow-accounts)) is to provide a guarantee for payment without having to wait for a transaction to be confirmed.
+**Solution**: The `x/fibre` module enables instant payment for data availability through a pre-funded escrow system. Users deposit funds into escrow accounts and create signed PaymentPromises that guarantee future payment without requiring immediate on-chain confirmation.
 
-Therefore, it is an invariant of the payment system that a signed [`PaymentPromise`](#paymentpromise-validation) guarantees payment.
+**How it works**:
+
+1. Users pre-fund escrow accounts with the module
+2. When submitting data, users create signed PaymentPromises referencing their escrow balance
+3. Validators verify promises off-chain and provide immediate service
+4. Payment settlement occurs later through on-chain transactions (`MsgPayForFibre`) or timeout mechanisms (`MsgPaymentPromiseTimeout`)
+
+**Key guarantee**: A signed [`PaymentPromise`](#paymentpromise-validation) cryptographically guarantees payment, enabling validators to provide immediate service with confidence they will be compensated.
+
+## Key Concepts
+
+### Fibre Blob
+
+A Fibre blob is a piece of data that users want to make available through Celestia's data availability network with guaranteed inclusion and immediate service. Unlike regular blob submissions that require waiting for transaction confirmation, Fibre blobs use pre-paid escrow accounts to enable instant processing by validators.
+
+### PaymentPromise
+
+A PaymentPromise is an off-chain signed message that commits a user to pay for a specific Fibre blob. It contains the blob commitment, size, namespace, and cryptographic proof that the user has sufficient funds in escrow. Validators can verify this promise instantly without waiting for on-chain confirmation.
+
+### Escrow Account
+
+An escrow account is a module-controlled account that holds user funds to guarantee payment for PaymentPromises. Users deposit funds in advance, and the module ensures these funds cannot be withdrawn immediately, providing validators with payment assurance when they process Fibre blobs.
+
+### Commitment
+
+A cryptographic hash that uniquely identifies a Fibre blob's content. Validators sign over this commitment to prove they have received and will make the data available. The commitment is eventually included in Celestia's data square for permanent availability.
 
 ## Contents
 
 1. [Abstract](#abstract)
+1. [Key Concepts](#key-concepts)
 1. [State](#state)
 1. [Messages](#messages)
 1. [Automatic State Transitions](#automatic-state-transitions)
