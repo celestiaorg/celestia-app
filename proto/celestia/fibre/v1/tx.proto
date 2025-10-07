@@ -54,7 +54,6 @@ service Msg {
 // MsgDepositToEscrow deposits funds to the signer's escrow account.
 message MsgDepositToEscrow {
   option (cosmos.msg.v1.signer) = "signer";
-
   // signer is the bech32 encoded signer address
   string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   // amount is the amount to deposit
@@ -67,7 +66,6 @@ message MsgDepositToEscrowResponse {}
 // MsgRequestWithdrawal requests withdrawal from the signer's escrow account.
 message MsgRequestWithdrawal {
   option (cosmos.msg.v1.signer) = "signer";
-
   // signer is the bech32 encoded signer address
   string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   // amount is the amount to withdraw
