@@ -41,13 +41,9 @@ The fibre module maintains state for [escrow accounts](#escrow-accounts), [withd
 
 `PaymentPromiseRetentionWindow` is the duration after which a payment promise can be pruned from the state machine (default: 24 hours).
 
-// TODO: Why is this called PaymentPromiseRetentionWindow instead of MsgPayForFibreRetentionWindow? The PaymentPromise is the off-chain message, the MsgPayForFibre is the on-chain message.
-
 ### Escrow Accounts
 
 Escrow accounts help guarantee payment for a signed [`PaymentPromise`](#paymentpromise-validation) by ensuring that a user does not remove funds after validators sign over and provide service for a Fibre blob. Each address can only have one escrow account, indexed by their signer address.
-
-// TODO: should signer here be changed to a public key?
 
 ```proto
 // EscrowAccount helps guarantee payment for a signed PaymentPromise by ensuring
@@ -70,9 +66,6 @@ message EscrowAccount {
 
 Withdrawal requests are tracked to implement the delay mechanism.
 
-// TODO: should signer here be changed to a public key?
-// TODO: why do we need requested_height, executed_height, executed_timestamp?
-
 ```proto
 // Withdrawal tracks requests to withdraw funds from an escrow account. It is
 // needed to implement a delay mechanism between when a withdrawal is requested
@@ -82,14 +75,8 @@ message Withdrawal {
   string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   // amount is the amount to be withdrawn
   cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
-  // requested_height is the block height when the withdrawal was requested
-  int64 requested_height = 3;
-  // executed_height is the block height when the withdrawal was executed
-  int64 executed_height = 4;
   // requested_timestamp is the timestamp when withdrawal was requested
-  google.protobuf.Timestamp requested_timetstamp = 5 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
-  // executed_timestamp is the timestamp when the withdrawal was executed
-  google.protobuf.Timestamp executed_timestamp = 6 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+  google.protobuf.Timestamp requested_timestamp = 3 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
 }
 ```
 
@@ -99,20 +86,19 @@ To prevent double payment, the module tracks which payment promises have been pr
 
 #### Indexing
 
-// TODO: revisit this entire indexing section because it doesn't make sense.
-
-Escrow Accounts:
+**Escrow Accounts:**
 
 - Primary Index: `escrows/{signer}` → `EscrowAccount`
 
-Withdrawals:
+**Withdrawals:**
 
-- By signer: `withdrawals/{signer}/{requested_at}` → `cosmos.base.v1beta1.Coin` (amount)
-- By Availability: `available_withdrawals/{available_at}/{signer}` → `cosmos.base.v1beta1.Coin` (amount)
+- By signer: `withdrawals/{signer}/{requested_timestamp}` → `Withdrawal`
+- By availability: `available_withdrawals/{available_at}/{signer}` → `cosmos.base.v1beta1.Coin` (amount only, for efficient processing)
 
-Payment Promises:
+**Payment Promises:**
 
-- Primary Index: `processed/{promise_hash}` → `google.protobuf.Timestamp` (processed_at)
+- Processed promises: `processed/{promise_hash}` → `google.protobuf.Timestamp` (processed_at)
+- Pruning index: `pruning/{processed_at}/{promise_hash}` → `∅` (empty value, used for time-ordered iteration)
 
 #### Pruning
 
@@ -144,8 +130,6 @@ Where:
 
 Deposits funds to the signer's escrow account. If no escrow account exists for the signer, one will be created automatically. Deposits are processed instantly.
 
-// TODO: should signer here be changed to a public key?
-
 ```proto
 // MsgDepositToEscrow deposits funds to the signer's escrow account.
 message MsgDepositToEscrow {
@@ -175,8 +159,6 @@ message MsgDepositToEscrow {
 
 Requests withdrawal from the signer's escrow account. Funds are withdrawn after the withdrawal delay.
 
-// TODO: should signer here be changed to a public key?
-
 ```proto
 // MsgRequestWithdrawal requests withdrawal from the signer's escrow account.
 message MsgRequestWithdrawal {
@@ -199,7 +181,7 @@ message MsgRequestWithdrawal {
 
 1. Verify signer's escrow account exists
 2. Verify sufficient available balance
-3. Verify no existing withdrawal request at current timestamp (prevent key collision) // Question: what is the key collision?
+3. Verify no existing withdrawal request at current timestamp (prevents key collision in `withdrawals/{signer}/{requested_timestamp}` index)
 4. Decrease available_balance immediately (balance remains unchanged until withdrawal is processed)
 5. Store withdrawal amount in both indexes with available_at = current_timestamp + withdrawal_delay
 6. Emit EventRequestWithdrawalFromEscrow
@@ -304,7 +286,7 @@ message PaymentPromise {
 
 **Stateless Validation**:
 
-- `signer` must be valid bech32 address // TODO: update to validate the signer public key
+- `signer_public_key` must be a valid public key and the derived address must match the escrow account owner
 - `namespace` must be valid
 - `blob_size` must be positive
 - `commitment` must be 32 bytes
@@ -403,7 +385,7 @@ message MsgPaymentPromiseTimeout {
 
 #### Payment Promise Pruning
 
-Payament promises are automatically pruned in `BeginBlocker` when `current_time >= processed_at + payment_promise_retention_window` to prevent unbounded state growth:
+Payment promises are automatically pruned in `BeginBlocker` when `current_time >= processed_at + payment_promise_retention_window` to prevent unbounded state growth:
 
 ```go
 func pruneProcessedPromises(ctx sdk.Context, k Keeper) {
