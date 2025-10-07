@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"os"
 	"time"
 
+	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -27,31 +27,56 @@ import (
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
-	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
+	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
 )
 
 var (
-	grpcAddr = flag.String("grpc", "localhost:9090", "gRPC endpoint address")
-	height   = flag.Int64("height", 0, "Block height to query (0 for latest)")
-	output   = flag.String("output", "json", "Output format: json or text")
+	grpcAddr string
+	height   int64
+	output   string
 )
 
 func main() {
-	flag.Parse()
-
-	// Initialize SDK config with Celestia's address prefix
+	// Initialize SDK config with Celestia's address prefix (only if not already sealed)
 	sdkConfig := sdk.GetConfig()
-	sdkConfig.SetBech32PrefixForAccount("celestia", "celestiapub")
-	sdkConfig.Seal()
+	if sdkConfig.GetBech32AccountAddrPrefix() == "" {
+		sdkConfig.SetBech32PrefixForAccount("celestia", "celestiapub")
+		sdkConfig.Seal()
+	}
 
-	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
+}
+
+var rootCmd = &cobra.Command{
+	Use:   "query-params [grpc-endpoint]",
+	Short: "Query blockchain parameters from a Celestia node",
+	Long: `Query all module parameters from a Celestia node via gRPC.
+
+Examples:
+  query-params                                    # Query localhost:9090
+  query-params consensus.lunaroasis.net:9090      # Query remote node
+  query-params -g consensus.lunaroasis.net:9090   # Using flag
+  query-params --height 1000000                   # Query at specific height`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// If positional arg provided, use it as grpc address
+		if len(args) > 0 {
+			grpcAddr = args[0]
+		}
+		return run()
+	},
+}
+
+func init() {
+	rootCmd.Flags().StringVarP(&grpcAddr, "grpc", "g", "localhost:9090", "gRPC endpoint address")
+	rootCmd.Flags().Int64Var(&height, "height", 0, "Block height to query (0 for latest)")
+	rootCmd.Flags().StringVarP(&output, "output", "o", "json", "Output format: json or text")
 }
 
 func run() error {
@@ -59,34 +84,34 @@ func run() error {
 	defer cancel()
 
 	// Connect to gRPC endpoint
-	conn, err := grpc.NewClient(*grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return fmt.Errorf("failed to connect to gRPC: %w", err)
 	}
 	defer conn.Close()
 
 	// Get header information for the specified height
-	headerInfo, appVersion, err := getHeaderInfo(ctx, conn, *height)
+	headerInfo, appVersion, err := getHeaderInfo(ctx, conn, height)
 	if err != nil {
 		return fmt.Errorf("failed to get header info: %w", err)
 	}
 
-	if *output == "text" {
+	if output == "text" {
 		fmt.Printf("Height: %d\n", headerInfo.Height)
 		fmt.Printf("App Version: %d\n", appVersion)
 		fmt.Printf("Chain ID: %s\n", headerInfo.ChainID)
-		fmt.Println("\n=== Module Parameters ===\n")
+		fmt.Println("=== Module Parameters ===")
 	}
 
 	// Query parameters for all modules based on app version
-	params, err := queryAllParams(ctx, conn, *height, appVersion)
+	params, err := queryAllParams(ctx, conn, height, appVersion)
 	if err != nil {
 		return fmt.Errorf("failed to query parameters: %w", err)
 	}
 
 	// Output results
-	if *output == "json" {
-		output := map[string]interface{}{
+	if output == "json" {
+		result := map[string]interface{}{
 			"height":      headerInfo.Height,
 			"app_version": appVersion,
 			"chain_id":    headerInfo.ChainID,
@@ -95,7 +120,7 @@ func run() error {
 		}
 		encoder := json.NewEncoder(os.Stdout)
 		encoder.SetIndent("", "  ")
-		if err := encoder.Encode(output); err != nil {
+		if err := encoder.Encode(result); err != nil {
 			return fmt.Errorf("failed to encode JSON: %w", err)
 		}
 	} else {
