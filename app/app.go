@@ -191,9 +191,8 @@ type App struct {
 	BasicManager  module.BasicManager
 	ModuleManager *module.Manager
 	configurator  module.Configurator
-	// blockTime is used to override the default TimeoutHeightDelay. This is
-	// useful for testing purposes and should not be used on public networks
-	// (Arabica, Mocha, or Mainnet Beta).
+	// txCache caches blob transaction from CheckTx to be reused in ProcessProposal
+	txCache *TxCache
 	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
 	treePool                *wrapper.TreePool
 	delayedPrecommitTimeout time.Duration
@@ -232,6 +231,7 @@ func New(
 		keys:                    keys,
 		tkeys:                   tkeys,
 		memKeys:                 memKeys,
+		txCache:                 NewTxCache(),
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
 	}
 
@@ -522,6 +522,23 @@ func (app *App) Info(req *abci.RequestInfo) (*abci.ResponseInfo, error) {
 	}
 
 	res.TimeoutInfo = app.TimeoutInfo()
+
+	return res, nil
+}
+
+// FinalizeBlock implements the abci interface. It overrides baseapp's FinalizeBlock method, essentially becoming a decorator
+// in order to add transaction pruning logic after normal finalize block processing.
+func (app *App) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
+	// Call the normal BaseApp FinalizeBlock first
+	res, err := app.BaseApp.FinalizeBlock(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Go through all the transactions that are getting executed and prune the tx tracker
+	for _, tx := range req.Txs {
+		app.txCache.RemoveTransaction(tx)
+	}
 
 	return res, nil
 }
