@@ -92,6 +92,8 @@ To prevent double payment, the module tracks which payment promises have been pr
 
 #### Indexing
 
+// TODO: revisit this entire indexing section because it doesn't make sense.
+
 Escrow Accounts:
 
 - Primary Index: `escrows/{signer}` → `EscrowAccount`
@@ -105,15 +107,15 @@ Payment Promises:
 
 - Primary Index: `processed/{promise_hash}` → `google.protobuf.Timestamp` (processed_at)
 
-#### Pruning Mechanism
+#### Pruning
 
-Processed payment promises are automatically pruned after [`payment_promise_retention_window`](#paymentpromiseretentionwindow) to prevent unbounded state growth. See [Automatic Promise Pruning](#automatic-promise-pruning) for implementation details.
+Payment promises are automatically pruned after [`payment_promise_retention_window`](#paymentpromiseretentionwindow) to prevent unbounded state growth. See [Automatic Promise Pruning](#automatic-promise-pruning) for implementation details.
 
 ## Messages
 
 ### Gas Consumption
 
-All messages use the existing gas consumption mechanism in the cosmos-sdk. In addition to the standard resource pricing, the messages that deduct fees for blobs, `MsgPayForFibre` and `MsgPaymentTimeout`, manually add gas consumption based on blob size.
+All messages use the existing gas consumption mechanism in the cosmos-sdk. In addition to the standard resource pricing, the messages that deduct fees for blobs, `MsgPayForFibre` and `MsgPaymentPromiseTimeout`, manually add gas consumption based on blob size.
 
 **Blob Gas Calculation**:
 
@@ -351,12 +353,12 @@ When processing a successful `MsgPayForFibre`, the commitment must be included i
 2. Place the commitment as the sole data in the specified namespace
 3. The commitment data is included as a single blob in the namespace
 
-### MsgPaymentTimeout
+### MsgPaymentPromiseTimeout
 
-Processes a payment promise after the timeout period if no `MsgPayForFibre` was submitted. This mechanism is critical to guaranteeing that payment occurs. `MsgPaymentTimeout` transactions are included in the default transaction reserved namespace.
+Processes a payment promise after the timeout period if no `MsgPayForFibre` was submitted. This mechanism is critical to guaranteeing that payment occurs. `MsgPaymentPromiseTimeout` transactions are included in the default transaction reserved namespace.
 
 ```proto
-message MsgPaymentTimeout {
+message MsgPaymentPromiseTimeout {
   // signer is the bech32 encoded address submitting this message (can be anyone)
   string signer = 1;
   // promise contains the original payment promise
@@ -364,7 +366,7 @@ message MsgPaymentTimeout {
 }
 ```
 
-#### MsgPaymentTimeout Validation and Processing
+#### MsgPaymentPromiseTimeout Validation and Processing
 
 **Stateless Validation**:
 
@@ -444,7 +446,7 @@ sequenceDiagram
 
     Note over C,A: Fallback - Timeout Processing
     alt User doesn't submit within timeout
-        C->>A: MsgPaymentTimeout(promise)
+        C->>A: MsgPaymentPromiseTimeout(promise)
         A->>A: Deduct payment from escrow
         Note right of A: No data square inclusion
     end
@@ -469,7 +471,7 @@ sequenceDiagram
 
 5. **Payment Confirmation (Happy Path)**: User collects 2/3+ validator signatures and submits [`MsgPayForFibre`](#msgpayforfibre) containing the promise and signatures. The commitment gets included in the data square.
 
-6. **Timeout Processing (Fallback)**: If user doesn't submit [`MsgPayForFibre`](#msgpayforfibre) within `promise_timeout_blocks`, anyone can submit [`MsgPaymentTimeout`](#msgpaymenttimeout) to process payment. This prevents the user from getting free service.
+6. **Timeout Processing (Fallback)**: If user doesn't submit [`MsgPayForFibre`](#msgpayforfibre) within `promise_timeout_blocks`, anyone can submit [`MsgPaymentPromiseTimeout`](#MsgPaymentPromiseTimeout) to process payment. This prevents the user from getting free service.
 
 7. **Withdrawal**: Users can request withdrawals via [`MsgRequestWithdrawal`](#msgrequestwithdrawal) (decreases available balance immediately) and process them after the delay (which decreases total balance and transfers funds to user). Processing occurs automatically in BeginBlocker (see [Automatic Withdrawal Processing](#automatic-withdrawal-processing)).
 
