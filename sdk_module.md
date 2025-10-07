@@ -21,7 +21,7 @@ Therefore, it is an invariant of the payment system that a signed [`PaymentPromi
 
 ## State
 
-The fibre module maintains state for [escrow accounts](#escrow-accounts), [pending withdrawals](#pending-withdrawals), and module [parameters](#parameters).
+The fibre module maintains state for [escrow accounts](#escrow-accounts), [withdrawals](#withdrawals), and module [parameters](#parameters).
 
 ### Params
 
@@ -31,15 +31,17 @@ The fibre module maintains state for [escrow accounts](#escrow-accounts), [pendi
 
 #### `WithdrawalDelay`
 
-`WithdrawalDelay` is the duration that must pass between requesting a withdrawal and when funds are withdrawn (default: 24 hours).
+`WithdrawalDelay` is the duration that must pass between a user requesting a withdrawal and when funds are withdrawn (default: 24 hours).
 
 #### `PaymentPromiseTimeout`
 
-`PaymentPromiseTimeout` is the duration after which anyone can submit a payment promise for processing if the user hasn't submitted a [`MsgPayForFibre`](#msgpayforfibre) (default: 1 hour).
+`PaymentPromiseTimeout` is the duration after which anyone can submit a `MsgPayForFibre` transaction on-chain if the user hasn't submitted a [`MsgPayForFibre`](#msgpayforfibre) for their payment promise (default: 1 hour).
 
 #### `PaymentPromiseRetentionWindow`
 
 `PaymentPromiseRetentionWindow` is the duration after which a payment promise can be pruned from the state machine (default: 24 hours).
+
+// TODO: Why is this called PaymentPromiseRetentionWindow instead of MsgPayForFibreRetentionWindow? The PaymentPromise is the off-chain message, the MsgPayForFibre is the on-chain message.
 
 ### Escrow Accounts
 
