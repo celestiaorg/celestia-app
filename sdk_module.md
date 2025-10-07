@@ -37,6 +37,7 @@ A cryptographic hash that uniquely identifies a Fibre blob's content. Validators
 
 1. [Abstract](#abstract)
 1. [Key Concepts](#key-concepts)
+1. [Transaction Flow](#transaction-flow)
 1. [State](#state)
 1. [Messages](#messages)
 1. [Automatic State Transitions](#automatic-state-transitions)
@@ -44,6 +45,71 @@ A cryptographic hash that uniquely identifies a Fibre blob's content. Validators
 1. [Queries](#queries)
 1. [Parameters](#parameters)
 1. [Client](#client)
+
+## Transaction Flow
+
+The Fibre blob submission follows this flow:
+
+```mermaid
+sequenceDiagram
+    participant C as Client (user)
+    participant S as Server (celestia-app validators)
+    participant A as State Machine
+
+    Note over C,A: Setup Phase
+    C->>A: MsgDepositToEscrow
+
+    Note over C,A: Promise Creation & Data Distribution
+    C->>C: Create signed PaymentPromise
+    C->>S: Send data chunks + PaymentPromise
+
+    Note over S,A: Validator Verification
+    S->>A: QueryValidatePaymentPromise(promise, signature)
+    A-->>S: ValidationResponse (valid, balance check, etc.)
+
+    alt Promise is valid
+        S->>S: Sign commitment
+        S-->>C: Return validator signature
+    else Promise is invalid
+        S-->>C: Reject request
+    end
+
+    Note over C,A: Happy Path - Payment Confirmation
+    C->>C: Collect 2/3+ validator signatures
+    C->>A: MsgPayForFibre(promise, validator_signatures)
+    A->>A: Deduct payment from escrow
+    A->>A: Include commitment in data square
+
+    Note over C,A: Fallback - Timeout Processing
+    alt User doesn't submit within timeout
+        C->>A: MsgPaymentPromiseTimeout(promise)
+        A->>A: Deduct payment from escrow
+        Note right of A: No data square inclusion
+    end
+
+    Note over C,A: Withdrawal Flow
+    C->>A: MsgRequestWithdrawal(signer, amount)
+    A->>A: Decrease available_balance immediately
+
+    Note over C,A: After withdrawal delay
+    A->>A: Transfer funds to user account
+```
+
+### Flow Description
+
+1. **Setup Phase**: User deposits funds using [`MsgDepositToEscrow`](#msgdeposittoescrow), which creates an escrow account if one doesn't exist.
+
+2. **Promise Creation**: User creates a signed [`PaymentPromise`](#paymentpromise-validation) containing escrow details, commitment, validator set height, and creation timestamp.
+
+3. **Data Distribution Phase**: User distributes data chunks to validators along with the signed promise.
+
+4. **Validator Verification**: Validators query the celestia-app instance using [`QueryValidatePaymentPromise`](#validatepaymentpromise) to verify the promise signature, check escrow has sufficient funds, and confirm the promise hasn't been processed. If valid, validators sign over the commitment.
+
+5. **Payment Confirmation (Happy Path)**: User collects 2/3+ validator signatures and submits [`MsgPayForFibre`](#msgpayforfibre) containing the promise and signatures. The commitment gets included in the data square.
+
+6. **Timeout Processing (Fallback)**: If user doesn't submit [`MsgPayForFibre`](#msgpayforfibre) within `promise_timeout_blocks`, anyone can submit [`MsgPaymentPromiseTimeout`](#msgpaymentpromisetimeout) to process payment. This prevents the user from getting free service.
+
+7. **Withdrawal**: Users can request withdrawals via [`MsgRequestWithdrawal`](#msgrequestwithdrawal) (decreases available balance immediately) and process them after the delay (which decreases total balance and transfers funds to user). Processing occurs automatically in BeginBlocker (see [Withdrawal Processing](#withdrawal-processing)).
 
 ## State
 
@@ -437,71 +503,6 @@ func pruneProcessedPromises(ctx sdk.Context, k Keeper) {
     }
 }
 ```
-
-## Transaction Flow
-
-The Fibre blob submission follows this flow:
-
-```mermaid
-sequenceDiagram
-    participant C as Client (user)
-    participant S as Server (celestia-app validators)
-    participant A as State Machine
-
-    Note over C,A: Setup Phase
-    C->>A: MsgDepositToEscrow
-
-    Note over C,A: Promise Creation & Data Distribution
-    C->>C: Create signed PaymentPromise
-    C->>S: Send data chunks + PaymentPromise
-
-    Note over S,A: Validator Verification
-    S->>A: QueryValidatePaymentPromise(promise, signature)
-    A-->>S: ValidationResponse (valid, balance check, etc.)
-
-    alt Promise is valid
-        S->>S: Sign commitment
-        S-->>C: Return validator signature
-    else Promise is invalid
-        S-->>C: Reject request
-    end
-
-    Note over C,A: Happy Path - Payment Confirmation
-    C->>C: Collect 2/3+ validator signatures
-    C->>A: MsgPayForFibre(promise, validator_signatures)
-    A->>A: Deduct payment from escrow
-    A->>A: Include commitment in data square
-
-    Note over C,A: Fallback - Timeout Processing
-    alt User doesn't submit within timeout
-        C->>A: MsgPaymentPromiseTimeout(promise)
-        A->>A: Deduct payment from escrow
-        Note right of A: No data square inclusion
-    end
-
-    Note over C,A: Withdrawal Flow
-    C->>A: MsgRequestWithdrawal(signer, amount)
-    A->>A: Decrease available_balance immediately
-
-    Note over C,A: After withdrawal delay
-    A->>A: Transfer funds to user account
-```
-
-### Flow Description
-
-1. **Setup Phase**: User deposits funds using [`MsgDepositToEscrow`](#msgdeposittoescrow), which creates an escrow account if one doesn't exist.
-
-2. **Promise Creation**: User creates a signed [`PaymentPromise`](#paymentpromise-validation) containing escrow details, commitment, validator set height, and creation timestamp.
-
-3. **Data Distribution Phase**: User distributes data chunks to validators along with the signed promise.
-
-4. **Validator Verification**: Validators query the celestia-app instance using [`QueryValidatePaymentPromise`](#validatepaymentpromise) to verify the promise signature, check escrow has sufficient funds, and confirm the promise hasn't been processed. If valid, validators sign over the commitment.
-
-5. **Payment Confirmation (Happy Path)**: User collects 2/3+ validator signatures and submits [`MsgPayForFibre`](#msgpayforfibre) containing the promise and signatures. The commitment gets included in the data square.
-
-6. **Timeout Processing (Fallback)**: If user doesn't submit [`MsgPayForFibre`](#msgpayforfibre) within `promise_timeout_blocks`, anyone can submit [`MsgPaymentPromiseTimeout`](#msgpaymentpromisetimeout) to process payment. This prevents the user from getting free service.
-
-7. **Withdrawal**: Users can request withdrawals via [`MsgRequestWithdrawal`](#msgrequestwithdrawal) (decreases available balance immediately) and process them after the delay (which decreases total balance and transfers funds to user). Processing occurs automatically in BeginBlocker (see [Withdrawal Processing](#withdrawal-processing)).
 
 ## Automatic State Transitions
 
