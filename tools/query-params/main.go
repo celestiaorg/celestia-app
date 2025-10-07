@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 
 	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
@@ -180,7 +182,9 @@ func queryAllParams(ctx context.Context, conn *grpc.ClientConn, height int64, ap
 	// Create a metadata context with height for historical queries
 	var queryCtx context.Context
 	if height > 0 {
-		queryCtx = ctx
+		heightStr := strconv.FormatInt(height, 10)
+		md := metadata.Pairs("x-cosmos-block-height", heightStr)
+		queryCtx = metadata.NewOutgoingContext(ctx, md)
 	} else {
 		queryCtx = ctx
 	}
