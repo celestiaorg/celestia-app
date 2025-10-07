@@ -4,9 +4,9 @@
 
 The `x/fibre` payment mechanism enables users to pay for fibre blobs without waiting for a transaction to be confirmed. This is done by users depositing funds into [escrow accounts](#escrow-accounts), and signing over off-chain messages (a.k.a `PaymentPromise`) that can be moved on-chain (a.k.a `MsgPayForFibre`) at a later point.
 
-DoS resistance for a protocol with a global limit on throughput requires a guarantee for payment. Normally this is done simply by paying for gas, however paying for gas requires waiting for a transaction to be confirmed. The payment portion of this module (mainly the [`PaymentPromise`](#msgpayforfibre) and [`EscrowAccount`](#escrow-accounts)) is to provide a guarantee for payment without having to wait for a transaction to be confirmed.
+DoS resistance for a protocol with a global limit on throughput requires a guarantee for payment. Normally this is done simply by paying for gas, however paying for gas requires waiting for a transaction to be confirmed. The payment portion of this module (mainly the [`PaymentPromise`](#paymentpromise-validation) and [`EscrowAccount`](#escrow-accounts)) is to provide a guarantee for payment without having to wait for a transaction to be confirmed.
 
-Therefore, it is an invariant of the payment system that a signed [`PaymentPromise`](#msgpayforfibre) guarantees payment.
+Therefore, it is an invariant of the payment system that a signed [`PaymentPromise`](#paymentpromise-validation) guarantees payment.
 
 ## Contents
 
@@ -35,7 +35,7 @@ The fibre module maintains state for [escrow accounts](#escrow-accounts), [withd
 
 #### `PaymentPromiseTimeout`
 
-`PaymentPromiseTimeout` is the duration after which anyone can submit a `MsgPayForFibre` transaction on-chain if the user hasn't submitted a [`MsgPayForFibre`](#msgpayforfibre) for their payment promise (default: 1 hour).
+`PaymentPromiseTimeout` is the duration after which anyone can submit a `MsgPaymentPromiseTimeout` transaction on-chain if the user hasn't submitted a [`MsgPayForFibre`](#msgpayforfibre) for their payment promise (default: 1 hour).
 
 #### `PaymentPromiseRetentionWindow`
 
@@ -45,18 +45,24 @@ The fibre module maintains state for [escrow accounts](#escrow-accounts), [withd
 
 ### Escrow Accounts
 
-Escrow accounts help guarantee payment for a signed [`PaymentPromise`](#msgpayforfibre) by ensuring that a user does not remove funds after validators sign over and provide service for a Fibre blob. Each address can only have one escrow account, indexed by their signer address.
+Escrow accounts help guarantee payment for a signed [`PaymentPromise`](#paymentpromise-validation) by ensuring that a user does not remove funds after validators sign over and provide service for a Fibre blob. Each address can only have one escrow account, indexed by their signer address.
 
 // TODO: should signer here be changed to a public key?
 
 ```proto
+// EscrowAccount helps guarantee payment for a signed PaymentPromise by ensuring
+// that a user does not remove funds directly after validators sign over and
+// provide service for a blob.
 message EscrowAccount {
   // signer is the address that controls this escrow account
-  string signer = 1;
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   // balance is the total amount currently held in escrow
-  cosmos.base.v1beta1.Coin balance = 2;
-  // available_balance is the amount available for new payments
-  cosmos.base.v1beta1.Coin available_balance = 3;
+  cosmos.base.v1beta1.Coin balance = 2 [(gogoproto.nullable) = false];
+  // available_balance is the amount available for new payments. This is usually
+  // the same as balance except if a user has requested a withdrawal in the past
+  // 24 hours in which case available_balance = balance - pending withdrawal
+  // amount.
+  cosmos.base.v1beta1.Coin available_balance = 3 [(gogoproto.nullable) = false];
 }
 ```
 
@@ -65,6 +71,7 @@ message EscrowAccount {
 Withdrawal requests are tracked to implement the delay mechanism.
 
 // TODO: should signer here be changed to a public key?
+// TODO: why do we need requested_height, executed_height, executed_timestamp?
 
 ```proto
 // Withdrawal tracks requests to withdraw funds from an escrow account. It is
@@ -109,7 +116,7 @@ Payment Promises:
 
 #### Pruning
 
-Payment promises are automatically pruned after [`payment_promise_retention_window`](#paymentpromiseretentionwindow) to prevent unbounded state growth. See [Automatic Promise Pruning](#automatic-promise-pruning) for implementation details.
+Payment promises are automatically pruned after [`payment_promise_retention_window`](#paymentpromiseretentionwindow) to prevent unbounded state growth. See [Payment Promise Pruning](#payment-promise-pruning) for implementation details.
 
 ## Messages
 
@@ -137,12 +144,16 @@ Where:
 
 Deposits funds to the signer's escrow account. If no escrow account exists for the signer, one will be created automatically. Deposits are processed instantly.
 
+// TODO: should signer here be changed to a public key?
+
 ```proto
+// MsgDepositToEscrow deposits funds to the signer's escrow account.
 message MsgDepositToEscrow {
+  option (cosmos.msg.v1.signer) = "signer";
   // signer is the bech32 encoded signer address
-  string signer = 1;
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   // amount is the amount to deposit
-  cosmos.base.v1beta1.Coin amount = 2;
+  cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
 }
 ```
 
@@ -156,20 +167,24 @@ message MsgDepositToEscrow {
 **Stateful Processing**:
 
 1. If signer's escrow account doesn't exist, create one with zero balance
-2. Transfer funds from signer to module account
+2. Transfer funds from signer to module account // Question: is the same module account used for all escrow accounts?
 3. Increase both balance and available_balance by deposit amount
 4. Emit EventDepositToEscrow
 
 ### MsgRequestWithdrawal
 
-Requests withdrawal from the signer's escrow account. Funds become available after the withdrawal delay.
+Requests withdrawal from the signer's escrow account. Funds are withdrawn after the withdrawal delay.
+
+// TODO: should signer here be changed to a public key?
 
 ```proto
+// MsgRequestWithdrawal requests withdrawal from the signer's escrow account.
 message MsgRequestWithdrawal {
+  option (cosmos.msg.v1.signer) = "signer";
   // signer is the bech32 encoded signer address
-  string signer = 1;
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   // amount is the amount to withdraw
-  cosmos.base.v1beta1.Coin amount = 2;
+  cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
 }
 ```
 
@@ -184,12 +199,12 @@ message MsgRequestWithdrawal {
 
 1. Verify signer's escrow account exists
 2. Verify sufficient available balance
-3. Verify no existing withdrawal request at current timestamp (prevent key collision)
+3. Verify no existing withdrawal request at current timestamp (prevent key collision) // Question: what is the key collision?
 4. Decrease available_balance immediately (balance remains unchanged until withdrawal is processed)
 5. Store withdrawal amount in both indexes with available_at = current_timestamp + withdrawal_delay
 6. Emit EventRequestWithdrawalFromEscrow
 
-#### Automatic Withdrawal Processing
+#### Withdrawal Processing
 
 Withdrawals are automatically processed in `BeginBlocker` when `current_time >= withdrawal.available_at`:
 
@@ -244,21 +259,25 @@ func processAvailableWithdrawals(ctx sdk.Context, k Keeper) {
 
 ### MsgPayForFibre
 
-Contains the original payment promise with validator signatures, submitted by the user. Successful `MsgPayForFibre` transactions are included in their own reserved namespace. The commitment from the promise is also included in the data square in the namespace specified in the promise.
+Contains the original payment promise with validator signatures, submitted by the user. Successful `MsgPayForFibre` transactions are included in their own reserved namespace. The commitment from the payment promise is also included in the original data square in the namespace specified in the payment promise.
 
 ```proto
+// MsgPayForFibre contains the original payment promise with validator signatures.
 message MsgPayForFibre {
+  option (cosmos.msg.v1.signer) = "signer";
   // signer is the bech32 encoded address submitting this message
-  string signer = 1;
-  // promise contains the original payment promise
-  PaymentPromise promise = 2;
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // payment_promise is the original payment promise
+  PaymentPromise payment_promise = 2 [(gogoproto.nullable) = false];
   // validator_signatures contains signatures from validators
   repeated bytes validator_signatures = 3;
 }
 
-message PaymentPromise {f
-  // signer is the owner of the escrow account to charge
-  string signer = 1;
+// PaymentPromise is a promise to pay for a fibre blob. It contains the
+// commitment and payment details for the fibre blob.
+message PaymentPromise {
+  // signer_public_key is the public key of the owner of the escrow account to charge
+  google.protobuf.Any signer_public_key = 1 [(cosmos_proto.accepts_interface) = "cosmos.crypto.PubKey"];
   // namespace is the namespace the blob is associated with.
   bytes namespace = 2;
   // blob_size is the size of the blob in bytes
@@ -267,15 +286,17 @@ message PaymentPromise {f
   bytes commitment = 4;
   // row_version is the version of the row format
   uint32 row_version = 5;
-  // height is the height that is used to determine the validator set that is used
-  // for the row dispersion algorithm (what validator has what rows) and for verifying signatures.
-  int64 height = 6;
   // creation_timestamp is the timestamp when this promise was created. This
   // is critical for determining which validators sign the commitment and
   // determining when service stops for this blob.
-  google.protobuf.Timestamp creation_timestamp = 7;
-  // signature is the escrow owner's signature over the sign bytes
-  bytes signature = 8;
+  google.protobuf.Timestamp creation_timestamp = 6 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+  // signature is the signer (escrow account owner) signature over the sign bytes
+  bytes signature = 7;
+  // height is the height that is used to determine the validator set that is used
+  int64 height = 8;
+  // chain_id is the chain ID that this payment promise is valid for.
+  // Example: arabica-11, mocha-4, or celestia.
+  string chain_id = 9;
 }
 ```
 
@@ -283,7 +304,7 @@ message PaymentPromise {f
 
 **Stateless Validation**:
 
-- `signer` must be valid bech32 address
+- `signer` must be valid bech32 address // TODO: update to validate the signer public key
 - `namespace` must be valid
 - `blob_size` must be positive
 - `commitment` must be 32 bytes
@@ -342,20 +363,19 @@ sign_bytes = chainID || signer_bytes || namespace || blob_size_bytes || commitme
    - Signatures must represent 2/3+ of total voting power AND 2/3+ of validator count
 3. Calculate gas cost (see [Gas Consumption](#gas-consumption) section) and deduct from both escrow balance and available_balance
 4. Mark promise as processed (stores `processed_at` timestamp and creates pruning index entry)
-5. Include commitment in data square (see [Inclusion Processing](#inclusion-processing) below)
+5. Include commitment in data square (see [MsgPayForFibre Processing](#msgpayforfibre-processing))
 6. Emit EventPayForFibre
 
-#### Inclusion Processing
+#### MsgPayForFibre Processing
 
-When processing a successful `MsgPayForFibre`, the commitment must be included in the data square:
+When processing a successful `MsgPayForFibre`, two pieces of metadata are written to the original data square:
 
-1. Extract the namespace from `promise.namespace`
-2. Place the commitment as the sole data in the specified namespace
-3. The commitment data is included as a single blob in the namespace
+1. The tx containing the `MsgPayForFibre` is included in the reserved namespace for fibre transactions.
+2. A system-level blob is generated with the namespace from the payment promise and the blob data is the fibre blob commitment.
 
 ### MsgPaymentPromiseTimeout
 
-Processes a payment promise after the timeout period if no `MsgPayForFibre` was submitted. This mechanism is critical to guaranteeing that payment occurs. `MsgPaymentPromiseTimeout` transactions are included in the default transaction reserved namespace.
+Processes a payment promise after the timeout period if no `MsgPayForFibre` was submitted. This mechanism is critical to guaranteeing that payment occurs. `MsgPaymentPromiseTimeout` transactions are included in the default transaction reserved namespace. A system-level blob is not generated for this transaction.
 
 ```proto
 message MsgPaymentPromiseTimeout {
@@ -381,9 +401,9 @@ message MsgPaymentPromiseTimeout {
 5. DO NOT include commitment in data square (since no validator consensus was reached)
 6. Emit EventProcessPromiseTimeout
 
-#### Automatic Promise Pruning
+#### Payment Promise Pruning
 
-Processed pyament promises are automatically pruned in `BeginBlocker` when `current_time >= processed_at + payment_promise_retention_window` to prevent unbounded state growth:
+Payament promises are automatically pruned in `BeginBlocker` when `current_time >= processed_at + payment_promise_retention_window` to prevent unbounded state growth:
 
 ```go
 func pruneProcessedPromises(ctx sdk.Context, k Keeper) {
@@ -463,7 +483,7 @@ sequenceDiagram
 
 1. **Setup Phase**: User deposits funds using [`MsgDepositToEscrow`](#msgdeposittoescrow), which creates an escrow account if one doesn't exist.
 
-2. **Promise Creation**: User creates a signed [`PaymentPromise`](#msgpayforfibre) containing escrow details, commitment, validator set height, and creation timestamp.
+2. **Promise Creation**: User creates a signed [`PaymentPromise`](#paymentpromise-validation) containing escrow details, commitment, validator set height, and creation timestamp.
 
 3. **Data Distribution Phase**: User distributes data chunks to validators along with the signed promise.
 
@@ -471,16 +491,16 @@ sequenceDiagram
 
 5. **Payment Confirmation (Happy Path)**: User collects 2/3+ validator signatures and submits [`MsgPayForFibre`](#msgpayforfibre) containing the promise and signatures. The commitment gets included in the data square.
 
-6. **Timeout Processing (Fallback)**: If user doesn't submit [`MsgPayForFibre`](#msgpayforfibre) within `promise_timeout_blocks`, anyone can submit [`MsgPaymentPromiseTimeout`](#MsgPaymentPromiseTimeout) to process payment. This prevents the user from getting free service.
+6. **Timeout Processing (Fallback)**: If user doesn't submit [`MsgPayForFibre`](#msgpayforfibre) within `promise_timeout_blocks`, anyone can submit [`MsgPaymentPromiseTimeout`](#msgpaymentpromisetimeout) to process payment. This prevents the user from getting free service.
 
-7. **Withdrawal**: Users can request withdrawals via [`MsgRequestWithdrawal`](#msgrequestwithdrawal) (decreases available balance immediately) and process them after the delay (which decreases total balance and transfers funds to user). Processing occurs automatically in BeginBlocker (see [Automatic Withdrawal Processing](#automatic-withdrawal-processing)).
+7. **Withdrawal**: Users can request withdrawals via [`MsgRequestWithdrawal`](#msgrequestwithdrawal) (decreases available balance immediately) and process them after the delay (which decreases total balance and transfers funds to user). Processing occurs automatically in BeginBlocker (see [Withdrawal Processing](#withdrawal-processing)).
 
 ## Automatic State Transitions
 
 The fibre module requires automatic processing in `BeginBlocker` to handle time-based state transitions that cannot rely on user-submitted transactions. Two key operations must occur automatically:
 
-1. **Withdrawal Processing**: Transfer funds from escrow to user accounts when withdrawal delay expires (see [Automatic Withdrawal Processing](#automatic-withdrawal-processing))
-2. **Promise Pruning**: Remove old processed promises to prevent unbounded state growth (see [Automatic Promise Pruning](#automatic-promise-pruning))
+1. **Withdrawal Processing**: Transfer funds from escrow to user accounts when withdrawal delay expires (see [Withdrawal Processing](#withdrawal-processing))
+2. **Promise Pruning**: Remove old processed promises to prevent unbounded state growth (see [Payment Promise Pruning](#payment-promise-pruning))
 
 ### BeginBlocker Implementation
 
@@ -585,7 +605,7 @@ message QueryPendingWithdrawalsResponse {
 
 ### ProcessedPromise
 
-Queries whether a [promise](#processed-promises) has been processed.
+Queries whether a [promise](#payment-promises) has been processed.
 
 **Request**:
 
@@ -606,7 +626,7 @@ message QueryProcessedPromiseResponse {
 
 ### ValidatePaymentPromise
 
-Validates a [payment promise](#msgpayforfibre) for server use, performing all required checks including escrow balance and processing status.
+Validates a [payment promise](#paymentpromise-validation) for server use, performing all required checks including escrow balance and processing status.
 
 **Request**:
 
