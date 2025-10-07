@@ -207,7 +207,7 @@ build-docker-multiplexer:
 ## build-ghcr-docker: Build the celestia-appd Docker image tagged with the current commit hash for GitHub Container Registry.
 build-ghcr-docker:
 	@echo "--> Building Docker image"
-	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app-standalone:$(COMMIT) -f docker/Dockerfile .
+	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app-standalone:$(COMMIT) -f docker/standalone.Dockerfile .
 .PHONY: build-ghcr-docker
 
 ## docker-build-ghcr: Build the celestia-appd docker image from the last commit. Requires docker.

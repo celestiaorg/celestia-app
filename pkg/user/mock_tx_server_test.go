@@ -67,7 +67,6 @@ func (m *mockTxServer) defaultTxStatusHandler(ctx context.Context, req *tx.TxSta
 	}, nil
 }
 
-// nolint:unused
 // defaultBroadcastHandler implements the original default behavior for BroadcastTx
 func (m *mockTxServer) defaultBroadcastHandler(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
 	// Default behavior: same hash for all broadcast calls

@@ -42,14 +42,21 @@ func (s *CelestiaTestSuite) TestMinorVersionCompatibility() {
 		tags []string
 	}{
 		{
-			name: "v5 minor versions",
-			tags: []string{"v5.0.1", "v5.0.2", "v5.0.5", "v5.0.6", "v5.0.8"},
+			name: "v6 minor versions",
+			tags: []string{"v6.0.0-arabica", "v6.0.1-arabica", "v6.0.2-arabica", "v6.0.3-arabica", "v6.0.4-arabica", "v6.0.5-arabica"},
 		},
 	}
 
 	ctx := context.Background()
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
+			// If the test case version matches the main branch version, add the main branch tag to the test case
+			tcAppVersion := s.extractMajorVersionFromTag(tc.tags[0])
+			if tcAppVersion == appconsts.Version {
+				mainBranchTag, err := dockerchain.GetCelestiaTagStrict()
+				s.Require().NoError(err)
+				tc.tags = append(tc.tags, mainBranchTag)
+			}
 			s.runMinorVersionCompatibilityTest(ctx, tc.tags)
 		})
 	}
@@ -221,8 +228,11 @@ func (s *CelestiaTestSuite) verifyABCIInfoCompatibility(responses []apiResponses
 		// Critical: App version must be same across all nodes for compatibility
 		s.Require().Equal(baseABCI.Response.GetAppVersion(), resp.abciInfo.Response.GetAppVersion(), "App versions differ between %s (app version %d) and %s (app version %d) - major version incompatibility", responses[0].version, baseABCI.Response.GetAppVersion(), resp.version, resp.abciInfo.Response.GetAppVersion())
 
-		expectedMinorVersion := strings.TrimPrefix(resp.version, "v")
-		s.Require().Contains(resp.abciInfo.Response.GetVersion(), expectedMinorVersion, "Node %d reports ABCI version '%s', should contain '%s'", resp.nodeIndex, resp.abciInfo.Response.GetVersion(), expectedMinorVersion)
+		// Check only on semantic version like "v6.0.5-arabica" as the ci fails to pass the full commit hash
+		if strings.HasPrefix(resp.version, "v") {
+			expectedMinorVersion := strings.TrimPrefix(resp.version, "v")
+			s.Require().Contains(resp.abciInfo.Response.GetVersion(), expectedMinorVersion, "Node %d reports ABCI version '%s', should contain '%s'", resp.nodeIndex, resp.abciInfo.Response.GetVersion(), expectedMinorVersion)
+		}
 
 		s.T().Logf("ABCI Info compatibility verified: %s <-> %s (both app version %d)", responses[0].version, resp.version, resp.abciInfo.Response.GetAppVersion())
 	}
