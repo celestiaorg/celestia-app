@@ -92,18 +92,18 @@ To prevent double payment, the module tracks which payment promises have been pr
 
 #### Indexing
 
-**Escrow Accounts**:
+Escrow Accounts:
 
-- **Primary Index**: `escrows/{signer}` → `EscrowAccount`
+- Primary Index: `escrows/{signer}` → `EscrowAccount`
 
-**Withdrawals**:
+Withdrawals:
 
-- **By signer**: `withdrawals/{signer}/{requested_at}` → `cosmos.base.v1beta1.Coin` (amount)
-- **By Availability**: `available_withdrawals/{available_at}/{signer}` → `cosmos.base.v1beta1.Coin` (amount)
+- By signer: `withdrawals/{signer}/{requested_at}` → `cosmos.base.v1beta1.Coin` (amount)
+- By Availability: `available_withdrawals/{available_at}/{signer}` → `cosmos.base.v1beta1.Coin` (amount)
 
-**Payment Promises**:
+Payment Promises:
 
-- **Primary Index**: `processed/{promise_hash}` → `google.protobuf.Timestamp` (processed_at)
+- Primary Index: `processed/{promise_hash}` → `google.protobuf.Timestamp` (processed_at)
 
 #### Pruning Mechanism
 
