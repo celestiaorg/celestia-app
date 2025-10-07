@@ -47,11 +47,11 @@ RUN apk update && apk add --no-cache \
 # Copy in the txsim binary
 COPY --from=builder /celestia-app/build/txsim /bin/txsim
 
-COPY --chown=${USER_NAME}:${USER_NAME} docker/txsim/entrypoint.sh /opt/entrypoint.sh
+COPY --chown=${USER_NAME}:${USER_NAME} docker/txsim/entrypoint.sh ${CELESTIA_APP_HOME}/entrypoint.sh
 
 USER ${USER_NAME}
 
 # Set the working directory to the home directory.
 WORKDIR ${CELESTIA_APP_HOME}
 
-ENTRYPOINT [ "/bin/bash", "/opt/entrypoint.sh" ]
+ENTRYPOINT [ "/bin/bash", "/home/celestia/.celestia-app/entrypoint.sh" ]
