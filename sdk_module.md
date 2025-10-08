@@ -695,10 +695,10 @@ celestia-appd tx fibre deposit-to-escrow <amount> [flags]
 celestia-appd tx fibre withdraw-from-escrow <amount> [flags]
 
 # Submit payment with validator signatures
-celestia-appd tx fibre pay-for-fibre <promise_json> <validator_signatures_json> [flags]
+celestia-appd tx fibre pay-for-fibre <payment_promise_json> <validator_signatures_json> [flags]
 
-# Process PaymentPromise timeout (fallback mechanism)
-celestia-appd tx fibre process-payment-promise-timeout <promise_json> <promise_signature> [flags]
+# Submit a PaymentPromise timeout
+celestia-appd tx fibre payment-promise-timeout <payment_promise_json> [flags]
 ```
 
 #### CLI Queries
