@@ -360,7 +360,6 @@ func processAvailableWithdrawals(ctx sdk.Context, k Keeper) {
 
         // Emit event
         ctx.EventManager().EmitEvent(EventProcessWithdrawal{
-            processor: types.AutomaticProcessor, // system account
             signer:    signer,
             amount:    amount,
         })
