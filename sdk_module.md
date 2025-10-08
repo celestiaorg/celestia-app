@@ -4,14 +4,14 @@
 
 **Problem**: Currently, users must wait for a `MsgPayForBlob` transaction to be included on-chain for a blob to be available on the network. This creates UX friction and delays data availability service.
 
-**Solution**: The `x/fibre` module enables instant payment for data availability through a pre-funded escrow system. Users deposit funds into escrow accounts and create signed PaymentPromises that guarantee future payment without requiring immediate on-chain confirmation.
+**Solution**: The `x/fibre` module enables data availability for Fibre blobs without waiting for a transaction to be included on-chain by using a pre-funded escrow system. Users deposit funds into escrow accounts and then create signed PaymentPromises that guarantee future payment from the escrow account. This enables users to get data availability for the Fibre blob before the PaymentPromise transaction is included on-chain. This also enables validators to start providing data availability service for the Fibre blob before the PaymentPromise transaction is included on-chain.
 
 **How it works**:
 
 1. A user funds their escrow account via `MsgDepositToEscrow`
 2. When a user wants to make data available, they create a PaymentPromise off-chain and submit it along with their blob data to validators.
 3. Validators verify the PaymentPromise off-chain and immediately start providing service for the data they received.
-4. Payment settlement occurs later through on-chain transactions (`MsgPayForFibre`) or timeout mechanisms (`MsgPaymentPromiseTimeout`)
+4. Payment settlement occurs later through on-chain transactions (`MsgPayForFibre`) or a timeout mechanism (`MsgPaymentPromiseTimeout`)
 
 **Key guarantee**: A valid [`PaymentPromise`](#paymentpromise-validation) guarantees payment for a blob, enabling validators to provide immediate service for blob data with confidence that the protocol will charge the user later when the `MsgPayForFibre` or `MsgPaymentPromiseTimeout` transactions are submitted on-chain.
 
@@ -67,7 +67,7 @@ sequenceDiagram
     U->>V: Send blob data + PaymentPromise
 
     Note over V,SM: 3. Validator Processing
-    V->>SM: QueryValidatePaymentPromise(promise)
+    V->>SM: ValidatePaymentPromise(payment_promise)
     SM-->>V: ValidationResponse(valid, balance_ok)
 
     alt PaymentPromise is valid
@@ -80,14 +80,14 @@ sequenceDiagram
 
     Note over U,SM: 4a. Happy Path - User Submits Payment
     U->>U: Collect 2/3+ validator signatures
-    U->>SM: MsgPayForFibre(promise, signatures)
+    U->>SM: MsgPayForFibre(payment_promise, signatures)
     SM->>SM: Verify signatures & deduct payment
     SM->>SM: Include commitment in data square
     Note right of SM: Commitment included in data square
 
     Note over X,SM: 4b. Fallback - Timeout Processing
     Note over X,SM: After PaymentPromiseTimeout elapses
-    X->>SM: MsgPaymentPromiseTimeout(promise)
+    X->>SM: MsgPaymentPromiseTimeout(payment_promise)
     SM->>SM: Verify timeout & deduct payment
     Note right of SM: No data square inclusion
 ```
@@ -100,7 +100,7 @@ sequenceDiagram
    - User sends the blob data and PaymentPromise to validators
 
 3. **Validator Processing**:
-   - Validators query the state machine using [`QueryValidatePaymentPromise`](#validatepaymentpromise) to verify the promise signature, check escrow balance, and confirm the promise hasn't been processed
+   - Validators query the state machine using [`ValidatePaymentPromise`](#validatepaymentpromise) to validate the promise signature, check escrow balance, and confirm the promise hasn't been processed
    - If valid: validators store the blob data locally, sign the commitment, return their signature to the user, and **immediately start serving the blob data**
    - If invalid: validators reject the request (insufficient funds, invalid signature, etc.)
 
@@ -217,6 +217,8 @@ To prevent double payment, the module tracks which payment promises have been pr
 
 #### Indexing
 
+// TODO: These indexing cases may not be correct and likely need to be updated after the implementation is complete.
+
 **Escrow Accounts:**
 
 - Primary Index: `escrows/{signer}` → `EscrowAccount`
@@ -230,10 +232,6 @@ To prevent double payment, the module tracks which payment promises have been pr
 
 - Processed promises: `processed/{promise_hash}` → `google.protobuf.Timestamp` (processed_at)
 - Pruning index: `pruning/{processed_at}/{promise_hash}` → `∅` (empty value, used for time-ordered iteration)
-
-#### Pruning
-
-Payment promises are automatically pruned after [`payment_promise_retention_window`](#paymentpromiseretentionwindow) to prevent unbounded state growth. See [Payment Promise Pruning](#payment-promise-pruning) for implementation details.
 
 ## Messages
 
