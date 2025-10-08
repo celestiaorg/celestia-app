@@ -80,7 +80,7 @@ func (p Params) String() string {
 }
 
 // validateGasPerBlobByte validates the GasPerBlobByte param
-func validateGasPerBlobByte(v interface{}) error {
+func validateGasPerBlobByte(v any) error {
 	gasPerBlobByte, ok := v.(uint32)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", v)
@@ -94,7 +94,7 @@ func validateGasPerBlobByte(v interface{}) error {
 }
 
 // validateWithdrawalDelay validates the WithdrawalDelay param
-func validateWithdrawalDelay(v interface{}) error {
+func validateWithdrawalDelay(v any) error {
 	duration, ok := v.(*time.Duration)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", v)
@@ -112,7 +112,7 @@ func validateWithdrawalDelay(v interface{}) error {
 }
 
 // validatePaymentPromiseTimeout validates the PaymentPromiseTimeout param
-func validatePaymentPromiseTimeout(v interface{}) error {
+func validatePaymentPromiseTimeout(v any) error {
 	duration, ok := v.(*time.Duration)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", v)
@@ -130,7 +130,7 @@ func validatePaymentPromiseTimeout(v interface{}) error {
 }
 
 // validatePaymentPromiseRetentionWindow validates the PaymentPromiseRetentionWindow param
-func validatePaymentPromiseRetentionWindow(v interface{}) error {
+func validatePaymentPromiseRetentionWindow(v any) error {
 	duration, ok := v.(*time.Duration)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", v)
