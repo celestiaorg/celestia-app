@@ -491,7 +491,7 @@ message MsgPaymentPromiseTimeout {
 3. Calculate gas cost (see [Gas Consumption](#gas-consumption) section) and deduct from both escrow balance and available_balance
 4. Mark promise as processed (stores `processed_at` timestamp and creates pruning index entry)
 5. DO NOT include commitment in data square (since no validator consensus was reached)
-6. Emit EventProcessPaymentPromiseTimeout
+6. Emit EventPaymentPromiseTimeout
 
 #### Payment Promise Pruning
 
@@ -575,7 +575,7 @@ func BeginBlocker(ctx sdk.Context, k Keeper) {
 | namespace       | {namespace the blob is published to} |
 | validator_count | {number of validator signatures}     |
 
-#### `EventProcessPaymentPromiseTimeout`
+#### `EventPaymentPromiseTimeout`
 
 | Attribute Key | Attribute Value                                       |
 |---------------|-------------------------------------------------------|
