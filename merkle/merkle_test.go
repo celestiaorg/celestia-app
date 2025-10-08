@@ -192,11 +192,11 @@ func TestGenerateLeftSubtreeProof(t *testing.T) {
 		wantErr   bool
 		proofLen  int
 	}{
-		{"k4_n4", 8, 4, false, 1},      // 4 original, 4 parity
-		{"k4_n12", 16, 4, false, 2},    // 4 original, 12 parity
-		{"k8_n8", 16, 8, false, 1},     // 8 original, 8 parity
-		{"k16_n48", 64, 16, false, 2},  // 16 original, 48 parity
-		{"k32_n32", 64, 32, false, 1},  // 32 original, 32 parity
+		{"k4_n4", 8, 4, false, 1},     // 4 original, 4 parity
+		{"k4_n12", 16, 4, false, 2},   // 4 original, 12 parity
+		{"k8_n8", 16, 8, false, 1},    // 8 original, 8 parity
+		{"k16_n48", 64, 16, false, 2}, // 16 original, 48 parity
+		{"k32_n32", 64, 32, false, 1}, // 32 original, 32 parity
 		{"invalid_k0", 8, 0, true, 0},
 		{"invalid_k_equals_n", 8, 8, true, 0},
 		{"invalid_k_not_power", 8, 3, true, 0},
@@ -260,7 +260,7 @@ func TestTreeDepth(t *testing.T) {
 		t.Run(fmt.Sprintf("leaves_%d", tt.numLeaves), func(t *testing.T) {
 			leaves := makeTestLeaves(tt.numLeaves)
 			tree := NewTree(leaves)
-			
+
 			depth := tree.depth()
 			if depth != tt.wantDepth {
 				t.Errorf("depth() = %d, want %d", depth, tt.wantDepth)
@@ -272,33 +272,33 @@ func TestTreeDepth(t *testing.T) {
 func TestHashPair(t *testing.T) {
 	left := []byte("left data")
 	right := []byte("right data")
-	
+
 	// Test that hashPair is deterministic
 	hash1 := hashPair(left, right)
 	hash2 := hashPair(left, right)
-	
+
 	if !bytes.Equal(hash1, hash2) {
 		t.Error("hashPair is not deterministic")
 	}
-	
+
 	// Test that order matters
 	hash3 := hashPair(right, left)
 	if bytes.Equal(hash1, hash3) {
 		t.Error("hashPair(left, right) should differ from hashPair(right, left)")
 	}
-	
+
 	// Test expected length
 	if len(hash1) != 32 {
 		t.Errorf("hashPair returned %d bytes, expected 32", len(hash1))
 	}
-	
+
 	// Test with actual SHA256 (now includes inner prefix)
 	h := sha256.New()
 	h.Write(innerPrefix)
 	h.Write(left)
 	h.Write(right)
 	expected := h.Sum(nil)
-	
+
 	if !bytes.Equal(hash1, expected) {
 		t.Error("hashPair does not match expected SHA256 output")
 	}
@@ -306,35 +306,35 @@ func TestHashPair(t *testing.T) {
 
 func TestHashLeaf(t *testing.T) {
 	data := []byte("leaf data")
-	
+
 	// Test that hashLeaf is deterministic
 	hash1 := hashLeaf(data)
 	hash2 := hashLeaf(data)
-	
+
 	if !bytes.Equal(hash1, hash2) {
 		t.Error("hashLeaf is not deterministic")
 	}
-	
+
 	// Test expected length
 	if len(hash1) != 32 {
 		t.Errorf("hashLeaf returned %d bytes, expected 32", len(hash1))
 	}
-	
+
 	// Test with actual SHA256 (includes leaf prefix)
 	h := sha256.New()
 	h.Write(leafPrefix)
 	h.Write(data)
 	expected := h.Sum(nil)
-	
+
 	if !bytes.Equal(hash1, expected) {
 		t.Error("hashLeaf does not match expected SHA256 output")
 	}
-	
+
 	// Test that hashLeaf differs from raw hash
 	h2 := sha256.New()
 	h2.Write(data)
 	rawHash := h2.Sum(nil)
-	
+
 	if bytes.Equal(hash1, rawHash) {
 		t.Error("hashLeaf should differ from raw SHA256 due to leaf prefix")
 	}

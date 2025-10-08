@@ -117,29 +117,28 @@ func TestGF16SpecificValues(t *testing.T) {
 func TestGF16KnownValues(t *testing.T) {
 	// Test some known properties of GF(2^16) multiplication
 	// In GF(2^16), 2 is a generator, so powers of 2 cycle through all non-zero elements
-	
+
 	// Test that x * 0 = 0 for all x
 	for _, x := range []GF16{0, 1, 2, 255, 0xFFFF} {
 		if Mul16(x, 0) != 0 {
 			t.Errorf("Mul16(%d, 0) != 0", x)
 		}
 	}
-	
+
 	// Test that x * 1 = x for all x
 	for _, x := range []GF16{0, 1, 2, 255, 0xFFFF} {
 		if Mul16(x, 1) != x {
 			t.Errorf("Mul16(%d, 1) != %d", x, x)
 		}
 	}
-	
+
 	// Test that multiplication is closed (result is in the field)
-	// This is implicitly tested by the type system, but let's be explicit
+	// This is guaranteed by the type system since GF16 is uint16
 	a := GF16(0xFFFF)
 	b := GF16(0xFFFF)
 	result := Mul16(a, b)
-	if result > 0xFFFF {
-		t.Errorf("Mul16(0xFFFF, 0xFFFF) = %d, which exceeds field size", result)
-	}
+	// Just verify the operation completes without panic
+	_ = result
 }
 
 func TestGF16Associativity(t *testing.T) {

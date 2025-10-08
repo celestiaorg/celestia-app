@@ -16,7 +16,7 @@ func ExtendVertical(data [][]byte, n int) ([][]byte, error) {
 	if n <= 0 {
 		return nil, fmt.Errorf("n must be positive, got %d", n)
 	}
-	
+
 	// Check that all rows have the same size
 	rowSize := len(data[0])
 	if rowSize == 0 || rowSize%64 != 0 {
@@ -27,33 +27,33 @@ func ExtendVertical(data [][]byte, n int) ([][]byte, error) {
 			return nil, fmt.Errorf("row %d has size %d, expected %d", i, len(row), rowSize)
 		}
 	}
-	
+
 	// Create Reed-Solomon encoder
 	// Always use Leopard GF16 for consistency, even for small shard counts
 	enc, err := reedsolomon.New(k, n, reedsolomon.WithLeopardGF16(true))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create encoder: %w", err)
 	}
-	
+
 	// Create shards array with data and space for parity
 	shards := make([][]byte, k+n)
-	
+
 	// Copy data rows
 	for i := 0; i < k; i++ {
 		shards[i] = make([]byte, rowSize)
 		copy(shards[i], data[i])
 	}
-	
+
 	// Create empty parity shards
 	for i := k; i < k+n; i++ {
 		shards[i] = make([]byte, rowSize)
 	}
-	
+
 	// Encode to generate parity shards
 	if err := enc.Encode(shards); err != nil {
 		return nil, fmt.Errorf("failed to encode: %w", err)
 	}
-	
+
 	// Return all shards (original + parity)
 	return shards, nil
 }
@@ -63,16 +63,16 @@ func ExtendVertical(data [][]byte, n int) ([][]byte, error) {
 // with the remaining 24 symbol positions zero-padded
 func packGF128ToLeopard(g field.GF128) []byte {
 	shard := make([]byte, 64)
-	
+
 	// Pack 8 GF16 symbols in Leopard interleaved format
 	// Symbols 0-7 from GF128, symbols 8-31 are zero
 	for i := 0; i < 8; i++ {
 		symbol := g[i]
-		shard[i] = byte(symbol & 0xFF)      // Low byte at position i
-		shard[32+i] = byte(symbol >> 8)     // High byte at position 32+i
+		shard[i] = byte(symbol & 0xFF)  // Low byte at position i
+		shard[32+i] = byte(symbol >> 8) // High byte at position 32+i
 	}
 	// Positions 8-31 and 40-63 remain zero (24 zero symbols)
-	
+
 	return shard
 }
 
@@ -82,7 +82,7 @@ func unpackGF128FromLeopard(shard []byte) field.GF128 {
 	if len(shard) != 64 {
 		panic("unpackGF128FromLeopard requires exactly 64-byte shard")
 	}
-	
+
 	var g field.GF128
 	// Extract first 8 GF16 symbols from Leopard interleaved format
 	for i := 0; i < 8; i++ {
@@ -90,7 +90,7 @@ func unpackGF128FromLeopard(shard []byte) field.GF128 {
 		highByte := shard[32+i]
 		g[i] = field.GF16(highByte)<<8 | field.GF16(lowByte)
 	}
-	
+
 	return g
 }
 
@@ -103,7 +103,7 @@ func ExtendRLCResults(rlcOriginal []field.GF128, n int) ([]field.GF128, error) {
 	if n <= 0 {
 		return nil, fmt.Errorf("n must be positive, got %d", n)
 	}
-	
+
 	// Convert GF128 values to Leopard-formatted shards
 	// Each GF128 (8 GF16 symbols) is packed into a 64-byte Leopard shard
 	// with 24 zero symbols for padding
@@ -111,19 +111,19 @@ func ExtendRLCResults(rlcOriginal []field.GF128, n int) ([]field.GF128, error) {
 	for i := 0; i < k; i++ {
 		shards[i] = packGF128ToLeopard(rlcOriginal[i])
 	}
-	
+
 	// Extend using vertical RS
 	extendedShards, err := ExtendVertical(shards, n)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extend RLC results: %w", err)
 	}
-	
+
 	// Extract GF128 values from extended Leopard shards
 	extended := make([]field.GF128, k+n)
 	for i := 0; i < k+n; i++ {
 		extended[i] = unpackGF128FromLeopard(extendedShards[i])
 	}
-	
+
 	return extended, nil
 }
 
@@ -133,51 +133,51 @@ func Reconstruct(rows [][]byte, indices []int, k, n int) ([][]byte, error) {
 	if len(rows) != len(indices) {
 		return nil, fmt.Errorf("rows and indices must have same length: %d != %d", len(rows), len(indices))
 	}
-	
+
 	if len(rows) < k {
 		return nil, fmt.Errorf("need at least %d rows, got %d", k, len(rows))
 	}
-	
+
 	if k <= 0 {
 		return nil, fmt.Errorf("k must be positive, got %d", k)
 	}
-	
+
 	if n <= 0 {
 		return nil, fmt.Errorf("n must be positive, got %d", n)
 	}
-	
+
 	// Validate indices are in range
 	for _, idx := range indices {
 		if idx < 0 || idx >= k+n {
 			return nil, fmt.Errorf("index %d out of range [0, %d)", idx, k+n)
 		}
 	}
-	
+
 	// Create Reed-Solomon decoder with same parameters as encoder
 	// Always use Leopard GF16 for consistency
 	enc, err := reedsolomon.New(k, n, reedsolomon.WithLeopardGF16(true))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create decoder: %w", err)
 	}
-	
+
 	// Create shards array with nils for missing data
 	shards := make([][]byte, k+n)
-	
+
 	// Place available rows in their positions
 	for i, idx := range indices {
 		shards[idx] = rows[i]
 	}
-	
+
 	// Reconstruct missing shards
 	if err := enc.Reconstruct(shards); err != nil {
 		return nil, fmt.Errorf("failed to reconstruct: %w", err)
 	}
-	
+
 	// Return only the original k rows
 	original := make([][]byte, k)
 	for i := 0; i < k; i++ {
 		original[i] = shards[i]
 	}
-	
+
 	return original, nil
 }

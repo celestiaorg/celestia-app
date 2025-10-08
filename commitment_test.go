@@ -136,8 +136,8 @@ func TestExtractSymbols(t *testing.T) {
 	// bytes 0-31: low bytes of symbols
 	// bytes 32-63: high bytes of symbols
 	for i := 0; i < 32; i++ {
-		chunk[i] = byte(i * 2)       // Low byte
-		chunk[32+i] = byte(i * 2 + 1) // High byte
+		chunk[i] = byte(i * 2)      // Low byte
+		chunk[32+i] = byte(i*2 + 1) // High byte
 	}
 
 	symbols := extractSymbols(chunk)

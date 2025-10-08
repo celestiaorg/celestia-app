@@ -9,17 +9,17 @@ import (
 func buildPaddedRowTree(extended [][]byte, config *Config) *merkle.Tree {
 	zeroRow := make([]byte, config.RowSize)
 	paddedRows := make([][]byte, config.totalPadded)
-	
+
 	// Fill padded array: [original | padding | extended | padding]
-	copy(paddedRows[0:config.K], extended[0:config.K])                           // Original rows
+	copy(paddedRows[0:config.K], extended[0:config.K]) // Original rows
 	for i := config.K; i < config.kPadded; i++ {
-		paddedRows[i] = zeroRow                                                  // Padding after K
+		paddedRows[i] = zeroRow // Padding after K
 	}
-	copy(paddedRows[config.kPadded:config.kPadded+config.N], extended[config.K:]) // Extended rows  
+	copy(paddedRows[config.kPadded:config.kPadded+config.N], extended[config.K:]) // Extended rows
 	for i := config.kPadded + config.N; i < config.totalPadded; i++ {
-		paddedRows[i] = zeroRow                                                  // Padding at end
+		paddedRows[i] = zeroRow // Padding at end
 	}
-	
+
 	return merkle.NewTreeWithWorkers(paddedRows, config.WorkerCount)
 }
 
@@ -27,7 +27,7 @@ func buildPaddedRowTree(extended [][]byte, config *Config) *merkle.Tree {
 func buildPaddedRLCTree(rlcExtended []field.GF128, config *Config) *merkle.Tree {
 	zeroRLC := make([]byte, 16) // Zero GF128 value
 	paddedRLCLeaves := make([][]byte, config.totalPadded)
-	
+
 	// Fill matching row tree layout
 	for i := 0; i < config.K; i++ {
 		bytes := field.ToBytes128(rlcExtended[i])
@@ -43,7 +43,7 @@ func buildPaddedRLCTree(rlcExtended []field.GF128, config *Config) *merkle.Tree 
 	for i := config.kPadded + config.N; i < config.totalPadded; i++ {
 		paddedRLCLeaves[i] = zeroRLC // Padding
 	}
-	
+
 	return merkle.NewTreeWithWorkers(paddedRLCLeaves, config.WorkerCount)
 }
 

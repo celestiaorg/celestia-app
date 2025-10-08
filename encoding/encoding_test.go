@@ -289,7 +289,7 @@ func TestReconstruct(t *testing.T) {
 			rowSize: 64,
 		},
 		{
-			name:    "1:3 encoding k=4 n=12", 
+			name:    "1:3 encoding k=4 n=12",
 			k:       4,
 			n:       12,
 			rowSize: 64,
@@ -461,7 +461,7 @@ func TestRLCPaddingConsistency(t *testing.T) {
 	// Test that extended RLC shards maintain zero padding
 	k := 4
 	n := 4
-	
+
 	// Create test RLC values
 	rlcOrig := make([]field.GF128, k)
 	for i := 0; i < k; i++ {
@@ -469,7 +469,7 @@ func TestRLCPaddingConsistency(t *testing.T) {
 			rlcOrig[i][j] = field.GF16(i*8 + j + 1) // Non-zero values
 		}
 	}
-	
+
 	// Pack original RLC values and verify padding
 	for i := 0; i < k; i++ {
 		shard := packGF128ToLeopard(rlcOrig[i])
@@ -480,13 +480,13 @@ func TestRLCPaddingConsistency(t *testing.T) {
 			}
 		}
 	}
-	
+
 	// Extend RLC results
 	extended, err := ExtendRLCResults(rlcOrig, n)
 	if err != nil {
 		t.Fatalf("ExtendRLCResults() error: %v", err)
 	}
-	
+
 	// Verify extended shards also maintain zero padding
 	// This tests our assumption that RS extension of zeros gives zeros
 	// We need to pack the extended values to check their format
@@ -517,15 +517,15 @@ func mixedIndices(k, n int, seed int) []int {
 	// Create a deterministic mixed set of k indices
 	total := k + n
 	indices := make([]int, k)
-	
+
 	// Simple deterministic mixing based on seed
 	step := total / k
 	offset := seed % step
-	
+
 	for i := 0; i < k; i++ {
 		indices[i] = (i*step + offset) % total
 	}
-	
+
 	// Ensure no duplicates
 	seen := make(map[int]bool)
 	for i, idx := range indices {
@@ -535,6 +535,6 @@ func mixedIndices(k, n int, seed int) []int {
 		indices[i] = idx
 		seen[idx] = true
 	}
-	
+
 	return indices
 }

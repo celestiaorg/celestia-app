@@ -5,7 +5,7 @@ import (
 	"math/rand/v2"
 	"runtime"
 	"testing"
-	
+
 	"github.com/celestiaorg/rsema1d/field"
 )
 
@@ -475,7 +475,7 @@ func BenchmarkVerifyRowWithContext(b *testing.B) {
 				proof := data["proof"].(*RowProof)
 				commitment := data["commitment"].(Commitment)
 				ctx := data["context"].(*VerificationContext)
-				
+
 				return VerifyRowWithContext(proof, commitment, ctx)
 			}
 
@@ -525,7 +525,7 @@ func BenchmarkVerifyStandaloneProof(b *testing.B) {
 				proof := data["proof"].(*StandaloneProof)
 				commitment := data["commitment"].(Commitment)
 				config := data["config"].(*Config)
-				
+
 				return VerifyStandaloneProof(proof, commitment, config)
 			}
 
