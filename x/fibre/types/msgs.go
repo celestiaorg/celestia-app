@@ -29,12 +29,10 @@ func (msg *MsgDepositToEscrow) ValidateBasic() error {
 
 // ValidateBasic performs stateless validation for MsgRequestWithdrawal
 func (msg *MsgRequestWithdrawal) ValidateBasic() error {
-	// Validate signer address
 	if _, err := sdk.AccAddressFromBech32(msg.Signer); err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid signer address: %s", err)
 	}
 
-	// Validate amount is valid and positive
 	if !msg.Amount.IsValid() {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidCoins, msg.Amount.String())
 	}

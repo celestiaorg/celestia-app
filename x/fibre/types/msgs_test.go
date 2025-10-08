@@ -21,14 +21,15 @@ func TestMsgDepositToEscrowValidateBasic(t *testing.T) {
 	// negativeCoin does not use sdk.NewCoin because sdk.NewCoin panics if the amount is negative.
 	negativeCoin := sdk.Coin{Denom: "utia", Amount: math.NewInt(-100)}
 
-	tests := []struct {
+	type testCase struct {
 		name    string
-		msg     *MsgDepositToEscrow
+		msg     MsgDepositToEscrow
 		wantErr error
-	}{
+	}
+	testCases := []testCase{
 		{
 			name: "valid message",
-			msg: &MsgDepositToEscrow{
+			msg: MsgDepositToEscrow{
 				Signer: signer,
 				Amount: oneCoin,
 			},
@@ -36,7 +37,7 @@ func TestMsgDepositToEscrowValidateBasic(t *testing.T) {
 		},
 		{
 			name: "invalid signer address",
-			msg: &MsgDepositToEscrow{
+			msg: MsgDepositToEscrow{
 				Signer: "invalid-address",
 				Amount: oneCoin,
 			},
@@ -44,7 +45,7 @@ func TestMsgDepositToEscrowValidateBasic(t *testing.T) {
 		},
 		{
 			name: "empty signer address",
-			msg: &MsgDepositToEscrow{
+			msg: MsgDepositToEscrow{
 				Signer: "",
 				Amount: oneCoin,
 			},
@@ -52,7 +53,7 @@ func TestMsgDepositToEscrowValidateBasic(t *testing.T) {
 		},
 		{
 			name: "zero amount",
-			msg: &MsgDepositToEscrow{
+			msg: MsgDepositToEscrow{
 				Signer: signer,
 				Amount: zeroCoin,
 			},
@@ -60,7 +61,7 @@ func TestMsgDepositToEscrowValidateBasic(t *testing.T) {
 		},
 		{
 			name: "negative coin",
-			msg: &MsgDepositToEscrow{
+			msg: MsgDepositToEscrow{
 				Signer: signer,
 				Amount: negativeCoin,
 			},
@@ -68,7 +69,7 @@ func TestMsgDepositToEscrowValidateBasic(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.msg.ValidateBasic()
 			if tc.wantErr != nil {
@@ -81,53 +82,59 @@ func TestMsgDepositToEscrowValidateBasic(t *testing.T) {
 	}
 }
 
-func TestMsgRequestWithdrawal_ValidateBasic(t *testing.T) {
-	validAddr := "cosmos1qypqxpq9qcrsszg2pvxq6rs0zqg3yyc5lzv7xu"
-	validCoin := sdk.NewCoin("utia", math.NewInt(1000))
+func TestMsgRequestWithdrawalValidateBasic(t *testing.T) {
+	signer := "cosmos1qypqxpq9qcrsszg2pvxq6rs0zqg3yyc5lzv7xu"
+	oneCoin := sdk.NewCoin("utia", math.NewInt(1))
 	zeroCoin := sdk.NewCoin("utia", math.NewInt(0))
+	// negativeCoin does not use sdk.NewCoin because sdk.NewCoin panics if the amount is negative.
+	negativeCoin := sdk.Coin{Denom: "utia", Amount: math.NewInt(-100)}
 
-	tests := []struct {
+	type testCase struct {
 		name    string
-		msg     *MsgRequestWithdrawal
-		wantErr bool
-		errType error
-	}{
+		msg     MsgRequestWithdrawal
+		wantErr error
+	}
+	testCases := []testCase{
 		{
 			name: "valid message",
-			msg: &MsgRequestWithdrawal{
-				Signer: validAddr,
-				Amount: validCoin,
+			msg: MsgRequestWithdrawal{
+				Signer: signer,
+				Amount: oneCoin,
 			},
-			wantErr: false,
+			wantErr: nil,
 		},
 		{
 			name: "invalid signer address",
-			msg: &MsgRequestWithdrawal{
+			msg: MsgRequestWithdrawal{
 				Signer: "invalid-address",
-				Amount: validCoin,
+				Amount: oneCoin,
 			},
-			wantErr: true,
-			errType: sdkerrors.ErrInvalidAddress,
+			wantErr: sdkerrors.ErrInvalidAddress,
 		},
 		{
 			name: "zero amount",
-			msg: &MsgRequestWithdrawal{
-				Signer: validAddr,
+			msg: MsgRequestWithdrawal{
+				Signer: signer,
 				Amount: zeroCoin,
 			},
-			wantErr: true,
-			errType: sdkerrors.ErrInvalidCoins,
+			wantErr: sdkerrors.ErrInvalidCoins,
+		},
+		{
+			name: "negative amount",
+			msg: MsgRequestWithdrawal{
+				Signer: signer,
+				Amount: negativeCoin,
+			},
+			wantErr: sdkerrors.ErrInvalidCoins,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.msg.ValidateBasic()
-			if tt.wantErr {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.msg.ValidateBasic()
+			if tc.wantErr != nil {
 				require.Error(t, err)
-				if tt.errType != nil {
-					assert.Contains(t, err.Error(), tt.errType.Error())
-				}
+				require.ErrorIs(t, err, tc.wantErr)
 			} else {
 				require.NoError(t, err)
 			}
