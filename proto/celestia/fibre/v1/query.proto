@@ -1,0 +1,102 @@
+syntax = "proto3";
+package celestia.fibre.v1;
+
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "cosmos/base/v1beta1/coin.proto";
+import "celestia/fibre/v1/params.proto";
+import "celestia/fibre/v1/fibre.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/fibre/types";
+
+// Query defines the gRPC query service.
+service Query {
+  // Params queries the parameters of the fibre module.
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/fibre/v1/params";
+  }
+
+  // EscrowAccount queries an escrow account by signer address.
+  rpc EscrowAccount(QueryEscrowAccountRequest) returns (QueryEscrowAccountResponse) {
+    option (google.api.http).get = "/fibre/v1/escrow-account/{signer}";
+  }
+
+  // Withdrawals queries all withdrawals for an escrow account by signer address.
+  rpc Withdrawals(QueryWithdrawalsRequest) returns (QueryWithdrawalsResponse) {
+    option (google.api.http).get = "/fibre/v1/withdrawals/{signer}";
+  }
+
+
+  // ProcessedPaymentPromise queries whether a payment promise has been processed.
+  rpc ProcessedPaymentPromise(QueryProcessedPaymentPromiseRequest) returns (QueryProcessedPaymentPromiseResponse) {
+    option (google.api.http).get = "/fibre/v1/processed-payment-promise/{promise_hash}";
+  }
+
+  // ValidatePaymentPromise validates a payment promise for server use.
+  rpc ValidatePaymentPromise(QueryValidatePaymentPromiseRequest) returns (QueryValidatePaymentPromiseResponse) {
+    option (google.api.http) = {
+      post: "/fibre/v1/validate-payment-promise",
+      body: "*"
+    };
+  }
+}
+
+// QueryParamsRequest is the request type for the Query/Params RPC method.
+message QueryParamsRequest {}
+
+// QueryParamsResponse is the response type for the Query/Params RPC method.
+message QueryParamsResponse {
+  Params params = 1 [(gogoproto.nullable) = false];
+}
+
+// QueryEscrowAccountRequest is the request type for the Query/EscrowAccount RPC method.
+message QueryEscrowAccountRequest {
+  string signer = 1;
+}
+
+// QueryEscrowAccountResponse is the response type for the Query/EscrowAccount RPC method.
+message QueryEscrowAccountResponse {
+  EscrowAccount escrow_account = 1;
+  bool found = 2;
+}
+
+// QueryWithdrawalsRequest is the request type for the Query/Withdrawals RPC method.
+message QueryWithdrawalsRequest {
+  string signer = 1;
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+
+// QueryWithdrawalsResponse is the response type for the Query/Withdrawals RPC method.
+message QueryWithdrawalsResponse {
+  repeated Withdrawal withdrawals = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+
+// QueryProcessedPaymentPromiseRequest is the request type for the Query/ProcessedPaymentPromise RPC method.
+message QueryProcessedPaymentPromiseRequest {
+  bytes promise_hash = 1;
+}
+
+// QueryProcessedPaymentPromiseResponse is the response type for the Query/ProcessedPaymentPromise RPC method.
+message QueryProcessedPaymentPromiseResponse {
+  google.protobuf.Timestamp processed_at = 1 [(gogoproto.stdtime) = true];
+  bool found = 2;
+}
+
+// QueryValidatePaymentPromiseRequest is the request type for the Query/ValidatePaymentPromise RPC method.
+message QueryValidatePaymentPromiseRequest {
+  PaymentPromise promise = 1 [(gogoproto.nullable) = false];
+}
+
+// QueryValidatePaymentPromiseResponse is the response type for the Query/ValidatePaymentPromise RPC method.
+message QueryValidatePaymentPromiseResponse {
+  bool valid = 1;
+  string error_message = 2;
+  bool sufficient_balance = 3;
+  bool already_processed = 4;
+  cosmos.base.v1beta1.Coin required_payment = 5 [(gogoproto.nullable) = false];
+  cosmos.base.v1beta1.Coin available_balance = 6 [(gogoproto.nullable) = false];
+}
