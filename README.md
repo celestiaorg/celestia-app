@@ -61,6 +61,7 @@ func main() {
 ### Proof Generation and Verification
 
 This implementation provides two verification modes with different trade-offs:
+
 - **Standalone**: Self-contained proofs for original rows, no external dependencies
 - **Context-based**: Requires pre-downloaded RLC values but verifies both original and extended rows efficiently
 
@@ -176,17 +177,23 @@ type Config struct {
 ## Use Cases
 
 ### 1. Data Availability Sampling
+
 Light clients randomly sample rows to verify data availability:
+
 - Use context-based verification for efficiency
 - Download RLC original values once, verify multiple rows
 
 ### 2. Rollup Data Retrieval
+
 Full nodes download all original data:
+
 - Use bulk proof functions (when implemented)
 - Efficient subtree proofs for K original rows
 
 ### 3. Single Row Verification
+
 Applications reading specific rows:
+
 - Use standalone proofs for original rows
 - No additional downloads required
 
@@ -226,6 +233,7 @@ go test -bench=. ./...
 ## Specification
 
 See [SPEC.md](SPEC.md) for the complete technical specification including:
+
 - Mathematical foundations
 - Detailed algorithms
 - Security analysis
