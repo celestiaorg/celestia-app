@@ -6,11 +6,12 @@ import (
 	"slices"
 
 	"cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/go-square/v3/inclusion"
 	"github.com/celestiaorg/go-square/v3/share"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 )
 
 const (
@@ -208,9 +209,12 @@ func ValidateBlobs(blobs ...*share.Blob) error {
 func ValidateBlobShareVersion(signer sdk.AccAddress, blobs ...*share.Blob) error {
 	for _, blob := range blobs {
 		if blob.ShareVersion() == share.ShareVersionOne {
-			if signer == nil || !bytes.Equal(blob.Signer(), signer) {
-				return ErrInvalidBlobSigner.Wrapf("blob signer %X does not match msgPFB signer %X",
-					blob.Signer(), signer)
+			if signer == nil {
+				return ErrInvalidBlobSigner.Wrapf("MsgPayForBlobs signer is nil")
+			}
+			if !bytes.Equal(blob.Signer(), signer) {
+				return ErrInvalidBlobSigner.Wrapf("blob signer %X does not match MsgPayForBlobs signer "+
+					"%X", blob.Signer(), signer)
 			}
 		}
 	}
