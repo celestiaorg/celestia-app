@@ -120,7 +120,6 @@ func (t *Tree) Root() [32]byte {
 	return root
 }
 
-
 // hashLeaf hashes a leaf node with the leaf prefix
 func hashLeaf(data []byte) []byte {
 	h := sha256.New()

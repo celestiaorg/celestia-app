@@ -15,7 +15,7 @@ type Config struct {
 
 	// Optional parameters with defaults
 	WorkerCount int // Number of parallel workers (minimum 1)
-	
+
 	// Computed padding values (set during Validate)
 	kPadded     int // Next power of 2 >= K
 	totalPadded int // Next power of 2 >= (kPadded + N)
@@ -34,10 +34,10 @@ func DefaultConfig() *Config {
 // Validate checks configuration constraints
 func (c *Config) Validate() error {
 	if c.K <= 0 {
-		return errors.New("K must be positive")
+		return errors.New("k must be positive")
 	}
 	if c.N <= 0 {
-		return errors.New("N must be positive")
+		return errors.New("n must be positive")
 	}
 	if c.RowSize <= 0 {
 		return errors.New("RowSize must be positive")
@@ -45,7 +45,7 @@ func (c *Config) Validate() error {
 
 	// Check K + N <= 65536 (GF(2^16) field size limit)
 	if c.K+c.N > 65536 {
-		return fmt.Errorf("K + N must be <= 65536, got %d", c.K+c.N)
+		return fmt.Errorf("k + n must be <= 65536, got %d", c.K+c.N)
 	}
 
 	// Check RowSize is multiple of 64 (Leopard constraint)
@@ -62,7 +62,7 @@ func (c *Config) Validate() error {
 	if c.WorkerCount < 1 {
 		return errors.New("WorkerCount must be at least 1")
 	}
-	
+
 	// Compute padding values for tree construction
 	c.kPadded = nextPowerOfTwo(c.K)
 	c.totalPadded = nextPowerOfTwo(c.kPadded + c.N)
@@ -85,9 +85,4 @@ func nextPowerOfTwo(n int) int {
 		power <<= 1
 	}
 	return power
-}
-
-// isPowerOfTwo checks if n is a power of 2
-func isPowerOfTwo(n int) bool {
-	return n > 0 && (n&(n-1)) == 0
 }

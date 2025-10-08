@@ -16,7 +16,11 @@ func deriveCoefficients(rowRoot [32]byte, config *Config) []field.GF128 {
 	for i := 0; i < numSymbols; i++ {
 		h := sha256.New()
 		h.Write(seed[:])
-		binary.Write(h, binary.LittleEndian, uint32(i))
+		err := binary.Write(h, binary.LittleEndian, uint32(i))
+		if err != nil {
+			// TODO: propagate error
+			panic(err)
+		}
 		coeffs[i] = field.HashToGF128(h.Sum(nil))
 	}
 	return coeffs

@@ -57,7 +57,7 @@ func (t *Tree) GenerateLeftSubtreeProof(k int) ([][]byte, error) {
 		// (n + currentSize - 2) / currentSize
 		siblingPos := (n + currentSize - 2) / currentSize
 		proof = append(proof, t.nodes[siblingPos])
-		currentSize = currentSize * 2
+		currentSize *= 2
 	}
 
 	return proof, nil
@@ -90,16 +90,15 @@ func ComputeRootFromProof(leaf []byte, index int, proof [][]byte) ([32]byte, err
 // The subtree is assumed to be the leftmost k leaves where k is a power of 2
 func ComputeRootFromLeftSubtreeProof(leftSubtreeRoot [32]byte, siblingRoots [][]byte) [32]byte {
 	current := leftSubtreeRoot[:]
-	
+
 	// Process each sibling in the proof
 	for _, sibling := range siblingRoots {
 		// At each level, our current subtree is on the left,
 		// and the sibling is on the right
 		current = hashPair(current, sibling)
 	}
-	
+
 	var fullRoot [32]byte
 	copy(fullRoot[:], current)
 	return fullRoot
 }
-

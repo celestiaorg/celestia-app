@@ -63,18 +63,17 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, []field.G
 
 	// Create ExtendedData
 	extData := &ExtendedData{
-		config:    config,
-		rows:      extended,
-		rowRoot:   rowRoot,
-		rlcRoot:   rlcRoot,
-		rlcOrig:   rlcOrig,
-		rowTree:   rowTree,
-		rlcTree:   rlcTree,
+		config:  config,
+		rows:    extended,
+		rowRoot: rowRoot,
+		rlcRoot: rlcRoot,
+		rlcOrig: rlcOrig,
+		rowTree: rowTree,
+		rlcTree: rlcTree,
 	}
 
 	return extData, commitment, rlcOrig, nil
 }
-
 
 // computeRLCOrig computes random linear combinations for original rows
 func computeRLCOrig(rows [][]byte, coeffs []field.GF128, config *Config) []field.GF128 {
@@ -97,21 +96,20 @@ func computeRLCOrig(rows [][]byte, coeffs []field.GF128, config *Config) []field
 	return results
 }
 
-
 // GenerateRowProof creates a lightweight proof (for use with context)
 func (ed *ExtendedData) GenerateRowProof(index int) (*RowProof, error) {
 	if index < 0 || index >= ed.config.K+ed.config.N {
 		return nil, fmt.Errorf("index %d out of range [0, %d)", index, ed.config.K+ed.config.N)
 	}
-	
+
 	// Map actual index to padded tree position
 	treeIndex := mapIndexToTreePosition(index, ed.config)
-	
+
 	rowProof, err := ed.rowTree.GenerateProof(treeIndex)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate row proof: %w", err)
 	}
-	
+
 	return &RowProof{
 		Index:    index, // Store actual index, not tree position
 		Row:      ed.rows[index],
@@ -125,17 +123,17 @@ func (ed *ExtendedData) GenerateStandaloneProof(index int) (*StandaloneProof, er
 	if index >= ed.config.K {
 		return nil, fmt.Errorf("standalone proofs only supported for original rows (index < K)")
 	}
-	
+
 	rowProof, err := ed.GenerateRowProof(index)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	rlcProof, err := ed.rlcTree.GenerateProof(index)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate RLC proof: %w", err)
 	}
-	
+
 	return &StandaloneProof{
 		RowProof: *rowProof,
 		RLCProof: rlcProof,
@@ -147,8 +145,7 @@ func Reconstruct(rows [][]byte, indices []int, config *Config) ([][]byte, error)
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
 	}
-	
+
 	// Use the encoding package's Reconstruct function
 	return encoding.Reconstruct(rows, indices, config.K, config.N)
 }
-

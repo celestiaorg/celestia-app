@@ -13,7 +13,7 @@ func TestTamperedExtendedDataBeforeCommitment(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			config := makeTestConfig(tc)
-			
+
 			// Create test data
 			data := makeTestData(config.K, config.RowSize)
 
@@ -316,7 +316,7 @@ func TestMultipleTamperedRows(t *testing.T) {
 			if config.N > 5 {
 				tamperedIndices = append(tamperedIndices, config.K+5)
 			}
-			
+
 			for _, idx := range tamperedIndices {
 				extended[idx][10%len(extended[idx])] ^= 0xAA
 				if len(extended[idx]) > 20 {
@@ -388,7 +388,7 @@ func TestMultipleTamperedRows(t *testing.T) {
 					break
 				}
 			}
-			
+
 			if isUntampered {
 				proof, err := extData.GenerateRowProof(untamperedIndex)
 				if err != nil {

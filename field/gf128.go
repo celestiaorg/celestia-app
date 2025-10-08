@@ -62,19 +62,19 @@ func HashToGF128(data []byte) GF128 {
 	if len(data) < 32 {
 		panic("HashToGF128 requires at least 32 bytes")
 	}
-	
+
 	// Take first half as 8 little-endian uint16 values
 	var firstHalf GF128
 	for i := 0; i < 8; i++ {
 		firstHalf[i] = GF16(binary.LittleEndian.Uint16(data[i*2:]))
 	}
-	
+
 	// Take second half as 8 little-endian uint16 values
 	var secondHalf GF128
 	for i := 0; i < 8; i++ {
 		secondHalf[i] = GF16(binary.LittleEndian.Uint16(data[16+i*2:]))
 	}
-	
+
 	// XOR the two halves for final result
 	return Add128(firstHalf, secondHalf)
 }
