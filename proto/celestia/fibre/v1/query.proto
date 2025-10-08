@@ -28,10 +28,6 @@ service Query {
     option (google.api.http).get = "/fibre/v1/withdrawals/{signer}";
   }
 
-  // PendingWithdrawals queries pending withdrawals for an escrow account by signer address.
-  rpc PendingWithdrawals(QueryPendingWithdrawalsRequest) returns (QueryPendingWithdrawalsResponse) {
-    option (google.api.http).get = "/fibre/v1/pending-withdrawals/{signer}";
-  }
 
   // ProcessedPaymentPromise queries whether a payment promise has been processed.
   rpc ProcessedPaymentPromise(QueryProcessedPaymentPromiseRequest) returns (QueryProcessedPaymentPromiseResponse) {
@@ -78,17 +74,6 @@ message QueryWithdrawalsResponse {
   cosmos.base.query.v1beta1.PageResponse pagination = 2;
 }
 
-// QueryPendingWithdrawalsRequest is the request type for the Query/PendingWithdrawals RPC method.
-message QueryPendingWithdrawalsRequest {
-  string signer = 1;
-  cosmos.base.query.v1beta1.PageRequest pagination = 2;
-}
-
-// QueryPendingWithdrawalsResponse is the response type for the Query/PendingWithdrawals RPC method.
-message QueryPendingWithdrawalsResponse {
-  repeated Withdrawal withdrawals = 1 [(gogoproto.nullable) = false];
-  cosmos.base.query.v1beta1.PageResponse pagination = 2;
-}
 
 // QueryProcessedPaymentPromiseRequest is the request type for the Query/ProcessedPaymentPromise RPC method.
 message QueryProcessedPaymentPromiseRequest {
