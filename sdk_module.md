@@ -688,7 +688,7 @@ All parameters are modifiable via governance.
 #### Transactions
 
 ```shell
-# Deposit to escrow account (creates escrow if it doesn't exist)
+# Deposit to escrow account
 celestia-appd tx fibre deposit-to-escrow <amount> [flags]
 
 # Request withdrawal from escrow
@@ -704,17 +704,17 @@ celestia-appd tx fibre payment-promise-timeout <payment_promise_json> [flags]
 #### CLI Queries
 
 ```shell
+# Query module parameters
+celestia-appd query fibre params
+
 # Query escrow account
 celestia-appd query fibre escrow-account <signer_address>
 
-# Query pending withdrawals
-celestia-appd query fibre pending-withdrawals <signer_address>
+# Query withdrawals
+celestia-appd query fibre withdrawals <signer_address>
 
 # Query if PaymentPromise was processed
-celestia-appd query fibre processed-payment-promise <promise_hash>
-
-# Query module parameters
-celestia-appd query fibre params
+celestia-appd query fibre processed-payment-promise <payment_promise_hash>
 ```
 
 ## Indexing
