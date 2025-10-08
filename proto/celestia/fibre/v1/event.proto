@@ -14,15 +14,15 @@ message EventDepositToEscrow {
   cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
 }
 
-// EventRequestWithdrawalFromEscrow is emitted when a withdrawal is requested from an escrow account.
-message EventRequestWithdrawalFromEscrow {
+// EventWithdrawFromEscrowRequest is emitted when a withdrawal is requested from an escrow account.
+message EventWithdrawFromEscrowRequest {
   string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
   google.protobuf.Timestamp available_at = 3 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
 }
 
-// EventProcessWithdrawal is emitted when a withdrawal is processed.
-message EventProcessWithdrawal {
+// EventWithdrawFromEscrowExecuted is emitted when a withdrawal is processed.
+message EventWithdrawFromEscrowExecuted {
   string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
 }
