@@ -1,28 +1,28 @@
 package docker_e2e
 
 import (
-	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"context"
 	"fmt"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
-	"github.com/celestiaorg/tastora/framework/testutil/query"
-	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
-	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"testing"
 	"time"
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	"github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/docker/ibc"
 	"github.com/celestiaorg/tastora/framework/docker/ibc/relayer"
+	"github.com/celestiaorg/tastora/framework/testutil/query"
+	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
+	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	sdktx "github.com/cosmos/cosmos-sdk/client/tx"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	icacontrollertypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/controller/types"
 	icatypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/types"
@@ -30,6 +30,8 @@ import (
 	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/sync/errgroup"
+
+	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 )
 
 func TestIBCTestSuite(t *testing.T) {
@@ -90,7 +92,7 @@ func (s *IBCTestSuite) setupIBCInfrastructure(appVersion uint64) {
 	s.hermes, err = relayer.NewHermes(ctx, s.client, t.Name(), s.network, 0, s.logger)
 	s.Require().NoError(err, "failed to create hermes")
 
-	err = s.hermes.Init(ctx, s.chainA, s.chainB)
+	err = s.hermes.Init(ctx, []tastoratypes.Chain{s.chainA, s.chainB})
 	s.Require().NoError(err, "failed to initialize hermes")
 
 	// create IBC clients

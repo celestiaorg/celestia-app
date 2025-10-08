@@ -55,7 +55,7 @@ func (s *CelestiaTestSuite) TestE2EFullStackPFB() {
 	s.Require().NoError(err, "failed to build celestia chain")
 
 	t.Cleanup(func() {
-		if err := celestia.Stop(ctx); err != nil {
+		if err := celestia.Remove(ctx); err != nil {
 			t.Logf("Error stopping celestia chain: %v", err)
 		}
 	})
@@ -199,7 +199,7 @@ func (s *CelestiaTestSuite) DeployDANetwork(ctx context.Context, celestia *tasto
 
 	// cleanup DA network when test is done
 	t.Cleanup(func() {
-		if err := stopDANetwork(ctx, daNetwork); err != nil {
+		if err := removeDANetwork(ctx, daNetwork); err != nil {
 			t.Logf("Error stopping DA network: %v", err)
 		}
 	})
@@ -313,23 +313,23 @@ func (s *CelestiaTestSuite) getGenesisHash(ctx context.Context, celestia *tastor
 	return genesisHash, nil
 }
 
-// stopDANetwork stops all nodes in the Data Availability Network, including bridge, full, and light nodes.
-// Returns an error if any node fails to stop.
-func stopDANetwork(ctx context.Context, daNetwork *da.Network) error {
+// removeDANetwork removes all nodes in the Data Availability Network, including bridge, full, and light nodes.
+// Returns an error if any node fails to remove.
+func removeDANetwork(ctx context.Context, daNetwork *da.Network) error {
 	var errs []error
 	for _, node := range daNetwork.GetBridgeNodes() {
-		if err := node.Stop(ctx); err != nil {
-			errs = append(errs, fmt.Errorf("failed to stop bridge node: %w", err))
+		if err := node.Remove(ctx); err != nil {
+			errs = append(errs, fmt.Errorf("failed to remove bridge node: %w", err))
 		}
 	}
 	for _, node := range daNetwork.GetFullNodes() {
-		if err := node.Stop(ctx); err != nil {
-			errs = append(errs, fmt.Errorf("failed to stop full node: %w", err))
+		if err := node.Remove(ctx); err != nil {
+			errs = append(errs, fmt.Errorf("failed to remove full node: %w", err))
 		}
 	}
 	for _, node := range daNetwork.GetLightNodes() {
-		if err := node.Stop(ctx); err != nil {
-			errs = append(errs, fmt.Errorf("failed to stop light node: %w", err))
+		if err := node.Remove(ctx); err != nil {
+			errs = append(errs, fmt.Errorf("failed to remove light node: %w", err))
 		}
 	}
 	return errors.Join(errs...)
