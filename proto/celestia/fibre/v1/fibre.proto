@@ -58,12 +58,6 @@ message Withdrawal {
   string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   // amount is the amount to be withdrawn
   cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
-  // requested_height is the block height when the withdrawal was requested
-  int64 requested_height = 3;
-  // executed_height is the block height when the withdrawal was executed
-  int64 executed_height = 4;
   // requested_timestamp is the timestamp when withdrawal was requested
-  google.protobuf.Timestamp requested_timetstamp = 5 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
-  // executed_timestamp is the timestamp when the withdrawal was executed
-  google.protobuf.Timestamp executed_timestamp = 6 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+  google.protobuf.Timestamp requested_timestamp = 3 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
 }

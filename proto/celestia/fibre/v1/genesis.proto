@@ -13,11 +13,11 @@ message GenesisState {
   Params params = 1 [(gogoproto.nullable) = false];
   repeated EscrowAccount escrow_accounts = 2 [(gogoproto.nullable) = false];
   repeated Withdrawal withdrawals = 3 [(gogoproto.nullable) = false];
-  repeated ProcessedPromiseEntry processed_promises = 4 [(gogoproto.nullable) = false];
+  repeated ProcessedPaymentPromiseEntry processed_payment_promises = 4 [(gogoproto.nullable) = false];
 }
 
-// ProcessedPromiseEntry represents a processed promise in genesis state.
-message ProcessedPromiseEntry {
+// ProcessedPaymentPromiseEntry represents a processed PaymentPromise in genesis state.
+message ProcessedPaymentPromiseEntry {
   bytes promise_hash = 1;
   google.protobuf.Timestamp processed_at = 2 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
 }
