@@ -684,16 +684,9 @@ message QueryValidatePaymentPromiseResponse {
 
 All parameters are modifiable via governance.
 
-| Key                           | Type                     | Default | Description                                                              |
-|-------------------------------|--------------------------|--------:|--------------------------------------------------------------------------|
-| GasPerBlobByte                | uint32                   |       8 | Gas cost per byte of Fibre blob data                                     |
-| WithdrawalDelay               | google.protobuf.Duration |     24h | Duration to wait before withdrawal                                       |
-| PaymentPromiseTimeout         | google.protobuf.Duration |      1h | Duration before payment promise can be processed by timeout              |
-| PaymentPromiseRetentionWindow | google.protobuf.Duration |     24h | Duration to wait before processed payment promises are pruned from state |
-
 ### `GasPerBlobByte`
 
-`GasPerBlobByte` is the amount of gas consumed per byte of blob data when a PaymentPromise is processed. This determines the gas cost for Fibre blob inclusion.
+`GasPerBlobByte` is the amount of gas consumed per byte of blob data when a PaymentPromise is processed. This determines the gas cost for Fibre blob inclusion (default: 1).
 
 ### `WithdrawalDelay`
 
