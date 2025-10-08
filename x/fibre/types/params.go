@@ -11,16 +11,19 @@ import (
 var _ paramtypes.ParamSet = (*Params)(nil)
 
 var (
-	KeyGasPerBlobByte  = []byte("GasPerBlobByte")
-	KeyWithdrawalDelay = []byte("WithdrawalDelay")
-	KeyPromiseTimeout  = []byte("PromiseTimeout")
+	KeyGasPerBlobByte                = []byte("GasPerBlobByte")
+	KeyWithdrawalDelay               = []byte("WithdrawalDelay")
+	KeyPaymentPromiseTimeout         = []byte("PaymentPromiseTimeout")
+	KeyPaymentPromiseRetentionWindow = []byte("PaymentPromiseRetentionWindow")
 
 	// DefaultGasPerBlobByte is the initial value of the gas per blob byte parameter.
 	DefaultGasPerBlobByte uint32 = 1
 	// DefaultWithdrawalDelay is the initial value of the withdrawal delay parameter.
 	DefaultWithdrawalDelay = 24 * time.Hour
-	// DefaultPromiseTimeout is the initial value of the promise timeout parameter.
-	DefaultPromiseTimeout = 1 * time.Hour
+	// DefaultPaymentPromiseTimeout is the initial value of the payment promise timeout parameter.
+	DefaultPaymentPromiseTimeout = 1 * time.Hour
+	// DefaultPaymentPromiseRetentionWindow is the initial value of the payment promise retention window parameter.
+	DefaultPaymentPromiseRetentionWindow = 24 * time.Hour
 )
 
 // ParamKeyTable returns the param key table for the fibre module
@@ -29,17 +32,18 @@ func ParamKeyTable() paramtypes.KeyTable {
 }
 
 // NewParams creates a new Params instance
-func NewParams(gasPerBlobByte uint32, withdrawalDelay, promiseTimeout time.Duration) Params {
+func NewParams(gasPerBlobByte uint32, withdrawalDelay, paymentPromiseTimeout, paymentPromiseRetentionWindow time.Duration) Params {
 	return Params{
-		GasPerBlobByte:  gasPerBlobByte,
-		WithdrawalDelay: withdrawalDelay,
-		PromiseTimeout:  promiseTimeout,
+		GasPerBlobByte:                gasPerBlobByte,
+		WithdrawalDelay:               withdrawalDelay,
+		PaymentPromiseTimeout:         paymentPromiseTimeout,
+		PaymentPromiseRetentionWindow: paymentPromiseRetentionWindow,
 	}
 }
 
 // DefaultParams returns a default set of parameters
 func DefaultParams() Params {
-	return NewParams(DefaultGasPerBlobByte, DefaultWithdrawalDelay, DefaultPromiseTimeout)
+	return NewParams(DefaultGasPerBlobByte, DefaultWithdrawalDelay, DefaultPaymentPromiseTimeout, DefaultPaymentPromiseRetentionWindow)
 }
 
 // ParamSetPairs gets the list of param key-value pairs
@@ -47,7 +51,8 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 	return paramtypes.ParamSetPairs{
 		paramtypes.NewParamSetPair(KeyGasPerBlobByte, &p.GasPerBlobByte, validateGasPerBlobByte),
 		paramtypes.NewParamSetPair(KeyWithdrawalDelay, &p.WithdrawalDelay, validateWithdrawalDelay),
-		paramtypes.NewParamSetPair(KeyPromiseTimeout, &p.PromiseTimeout, validatePromiseTimeout),
+		paramtypes.NewParamSetPair(KeyPaymentPromiseTimeout, &p.PaymentPromiseTimeout, validatePaymentPromiseTimeout),
+		paramtypes.NewParamSetPair(KeyPaymentPromiseRetentionWindow, &p.PaymentPromiseRetentionWindow, validatePaymentPromiseRetentionWindow),
 	}
 }
 
@@ -59,7 +64,13 @@ func (p Params) Validate() error {
 	if err := validateWithdrawalDelay(p.WithdrawalDelay); err != nil {
 		return err
 	}
-	return validatePromiseTimeout(p.PromiseTimeout)
+	if err := validatePaymentPromiseTimeout(p.PaymentPromiseTimeout); err != nil {
+		return err
+	}
+	if err := validatePaymentPromiseRetentionWindow(p.PaymentPromiseRetentionWindow); err != nil {
+		return err
+	}
+	return nil
 }
 
 // String implements the Stringer interface.
@@ -100,19 +111,37 @@ func validateWithdrawalDelay(v interface{}) error {
 	return nil
 }
 
-// validatePromiseTimeout validates the PromiseTimeout param
-func validatePromiseTimeout(v interface{}) error {
+// validatePaymentPromiseTimeout validates the PaymentPromiseTimeout param
+func validatePaymentPromiseTimeout(v interface{}) error {
 	duration, ok := v.(*time.Duration)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", v)
 	}
 
 	if duration == nil {
-		return fmt.Errorf("promise timeout cannot be nil")
+		return fmt.Errorf("payment promise timeout cannot be nil")
 	}
 
 	if *duration <= 0 {
-		return fmt.Errorf("promise timeout must be positive: %s", *duration)
+		return fmt.Errorf("payment promise timeout must be positive: %s", *duration)
+	}
+
+	return nil
+}
+
+// validatePaymentPromiseRetentionWindow validates the PaymentPromiseRetentionWindow param
+func validatePaymentPromiseRetentionWindow(v interface{}) error {
+	duration, ok := v.(*time.Duration)
+	if !ok {
+		return fmt.Errorf("invalid parameter type: %T", v)
+	}
+
+	if duration == nil {
+		return fmt.Errorf("payment promise retention window cannot be nil")
+	}
+
+	if *duration <= 0 {
+		return fmt.Errorf("payment promise retention window must be positive: %s", *duration)
 	}
 
 	return nil
