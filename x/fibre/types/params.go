@@ -61,13 +61,13 @@ func (p Params) Validate() error {
 	if err := validateGasPerBlobByte(p.GasPerBlobByte); err != nil {
 		return err
 	}
-	if err := validateWithdrawalDelay(p.WithdrawalDelay); err != nil {
+	if err := validateWithdrawalDelay(&p.WithdrawalDelay); err != nil {
 		return err
 	}
-	if err := validatePaymentPromiseTimeout(p.PaymentPromiseTimeout); err != nil {
+	if err := validatePaymentPromiseTimeout(&p.PaymentPromiseTimeout); err != nil {
 		return err
 	}
-	if err := validatePaymentPromiseRetentionWindow(p.PaymentPromiseRetentionWindow); err != nil {
+	if err := validatePaymentPromiseRetentionWindow(&p.PaymentPromiseRetentionWindow); err != nil {
 		return err
 	}
 	return nil
