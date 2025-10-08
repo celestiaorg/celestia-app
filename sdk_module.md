@@ -583,7 +583,6 @@ func BeginBlocker(ctx sdk.Context, k Keeper) {
 
 | Attribute Key | Attribute Value                    |
 |---------------|------------------------------------|
-| processor     | {bech32 encoded processor address} |
 | signer        | {bech32 encoded escrow owner}      |
 | amount        | {withdrawal amount}                |
 
@@ -592,7 +591,6 @@ func BeginBlocker(ctx sdk.Context, k Keeper) {
 | Attribute Key   | Attribute Value                      |
 |-----------------|--------------------------------------|
 | signer          | {bech32 encoded submitter address}   |
-| signer          | {bech32 encoded escrow owner}        |
 | namespace       | {namespace the blob is published to} |
 | validator_count | {number of validator signatures}     |
 
