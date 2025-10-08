@@ -197,23 +197,6 @@ message Withdrawal {
 
 To prevent double payment, the module tracks which payment promises have been processed. Only the processing timestamp is stored, indexed by the promise hash.
 
-#### Indexing
-
-// TODO: These indexing cases may not be correct and likely need to be updated after the implementation is complete.
-
-**Escrow Accounts:**
-
-- Primary Index: `escrows/{signer}` → `EscrowAccount`
-
-**Withdrawals:**
-
-- By signer: `withdrawals/{signer}/{requested_timestamp}` → `Withdrawal`
-- By availability: `available_withdrawals/{available_at}/{signer}` → `cosmos.base.v1beta1.Coin` (amount only, for efficient processing)
-
-**Payment Promises:**
-
-- Processed promises: `processed/{promise_hash}` → `google.protobuf.Timestamp` (processed_at)
-- Pruning index: `pruning/{processed_at}/{promise_hash}` → `∅` (empty value, used for time-ordered iteration)
 
 ## Messages
 
@@ -543,16 +526,14 @@ func BeginBlocker(ctx sdk.Context, k Keeper) {
 
 ## Events
 
-### Escrow Events
-
-#### `EventDepositToEscrow`
+### `EventDepositToEscrow`
 
 | Attribute Key | Attribute Value                 |
 |---------------|---------------------------------|
 | signer        | {bech32 encoded signer address} |
 | amount        | {deposit amount}                |
 
-#### `EventWithdrawFromEscrowRequest`
+### `EventWithdrawFromEscrowRequest`
 
 | Attribute Key | Attribute Value                 |
 |---------------|---------------------------------|
@@ -560,14 +541,14 @@ func BeginBlocker(ctx sdk.Context, k Keeper) {
 | amount        | {withdrawal amount}             |
 | available_at  | {timestamp when available}      |
 
-#### `EventWithdrawFromEscrowExecuted`
+### `EventWithdrawFromEscrowExecuted`
 
 | Attribute Key | Attribute Value               |
 |---------------|-------------------------------|
 | signer        | {bech32 encoded escrow owner} |
 | amount        | {withdrawal amount}           |
 
-#### `EventPayForFibre`
+### `EventPayForFibre`
 
 | Attribute Key   | Attribute Value                      |
 |-----------------|--------------------------------------|
@@ -575,19 +556,19 @@ func BeginBlocker(ctx sdk.Context, k Keeper) {
 | namespace       | {namespace the blob is published to} |
 | validator_count | {number of validator signatures}     |
 
-#### `EventPaymentPromiseTimeout`
+### `EventPaymentPromiseTimeout`
 
-| Attribute Key | Attribute Value                                       |
-|---------------|-------------------------------------------------------|
-| processor     | {bech32 encoded processor address}                    |
-| signer        | {bech32 encoded escrow owner}                         |
-| promise_hash  | {hash for the PaymentPromise that is being timed out} |
+| Attribute Key        | Attribute Value                                       |
+|----------------------|-------------------------------------------------------|
+| processor            | {bech32 encoded processor address}                    |
+| signer               | {bech32 encoded escrow owner}                         |
+| payment_promise_hash | {hash for the PaymentPromise that is being timed out} |
 
 ## Queries
 
 ### EscrowAccount
 
-Queries an [escrow account](#escrow-accounts) by ID.
+Queries an [escrow account](#escrow-accounts) by signer.
 
 **Request**:
 
@@ -711,10 +692,7 @@ All parameters are modifiable via governance.
 celestia-appd tx fibre deposit-to-escrow <amount> [flags]
 
 # Request withdrawal from escrow
-celestia-appd tx fibre request-withdrawal <amount> [flags]
-
-# Generate signed PaymentPromise for validators
-celestia-appd tx fibre create-payment-promise <namespace> <blob_size> <commitment> [flags]
+celestia-appd tx fibre withdraw-from-escrow <amount> [flags]
 
 # Submit payment with validator signatures
 celestia-appd tx fibre pay-for-fibre <promise_json> <validator_signatures_json> [flags]
@@ -738,3 +716,21 @@ celestia-appd query fibre processed-payment-promise <promise_hash>
 # Query module parameters
 celestia-appd query fibre params
 ```
+
+## Indexing
+
+// TODO: These indexing cases may not be correct and likely need to be updated after the implementation is complete.
+
+**Escrow Accounts:**
+
+- Primary Index: `escrows/{signer}` → `EscrowAccount`
+
+**Withdrawals:**
+
+- By signer: `withdrawals/{signer}/{requested_timestamp}` → `Withdrawal`
+- By availability: `available_withdrawals/{available_at}/{signer}` → `cosmos.base.v1beta1.Coin` (amount only, for efficient processing)
+
+**Payment Promises:**
+
+- Processed promises: `processed/{promise_hash}` → `google.protobuf.Timestamp` (processed_at)
+- Pruning index: `pruning/{processed_at}/{promise_hash}` → `∅` (empty value, used for time-ordered iteration)
