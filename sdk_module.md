@@ -606,14 +606,14 @@ message QueryEscrowAccountResponse {
 }
 ```
 
-### PendingWithdrawals
+### Query Withdrawals
 
-Queries pending [withdrawals](#withdrawals) for an escrow account.
+Queries [withdrawals](#withdrawals) for an escrow account. Since withdrawals are automatically deleted from state when executed, this query returns all pending withdrawals for the specified signer.
 
 **Request**:
 
 ```proto
-message QueryPendingWithdrawalsRequest {
+message QueryWithdrawalsRequest {
   string signer = 1;
   cosmos.base.query.v1beta1.PageRequest pagination = 2;
 }
@@ -622,7 +622,7 @@ message QueryPendingWithdrawalsRequest {
 **Response**:
 
 ```proto
-message QueryPendingWithdrawalsResponse {
+message QueryWithdrawalsResponse {
   repeated Withdrawal withdrawals = 1;
   cosmos.base.query.v1beta1.PageResponse pagination = 2;
 }
