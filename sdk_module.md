@@ -100,7 +100,7 @@ sequenceDiagram
    - User sends the blob data and PaymentPromise to validators
 
 3. **Validator Processing**:
-   - Validators query the state machine using [`ValidatePaymentPromise`](#validatepaymentpromise) to validate the promise signature, check escrow balance, and confirm the promise hasn't been processed
+   - Validators query the state machine using [`ValidatePaymentPromise`](#validatepaymentpromise) to validate the PaymentPromise signature, check escrow balance, and confirm the PaymentPromise hasn't been processed
    - If valid: validators store the blob data locally, sign the commitment, return their signature to the user, and **immediately start serving the blob data**
    - If invalid: validators reject the request (insufficient funds, invalid signature, etc.)
 
@@ -237,7 +237,7 @@ To prevent double payment, the module tracks which payment promises have been pr
 
 ### Gas Consumption
 
-All messages use the existing gas consumption mechanism in the cosmos-sdk. In addition to the standard resource pricing, the messages that deduct fees for blobs, `MsgPayForFibre` and `MsgPaymentPromiseTimeout`, manually add gas consumption based on blob size.
+All messages use the existing gas consumption mechanism in the cosmos-sdk. In addition to the standard resource pricing, the messages that deduct fees for blobs, `MsgPayForFibre` and `MsgPaymentPromiseTimeout`, manually add gas consumption based on Fibre blob size.
 
 **Blob Gas Calculation**:
 
@@ -280,7 +280,7 @@ message MsgDepositToEscrow {
 **Stateful Processing**:
 
 1. If signer's escrow account doesn't exist, create one with zero balance
-2. Transfer funds from signer to module account // Question: is the same module account used for all escrow accounts?
+2. Transfer funds from signer to module account
 3. Increase both balance and available_balance by deposit amount
 4. Emit EventDepositToEscrow
 
@@ -437,8 +437,8 @@ Gas cost is calculated as described in the [Gas Consumption](#gas-consumption) s
 
 2. Verify escrow account exists for `signer`
 3. Verify sufficient available balance for gas cost (see [Gas Consumption](#gas-consumption) section). This includes all yet to be processed `PaymentPromises` that the validator has signed over.
-4. Verify promise signature by escrow owner over promise sign bytes (see [Sign Bytes Format](#sign-bytes-format) below)
-5. Verify promise hasn't been processed already
+4. Verify PaymentPromise signature by escrow owner over PaymentPromise sign bytes (see [Sign Bytes Format](#sign-bytes-format) below)
+5. Verify PaymentPromise hasn't been processed already
 
 #### Sign Bytes Format
 
@@ -474,10 +474,8 @@ sign_bytes = chainID || signer_bytes || namespace || blob_size_bytes || commitme
    - Signatures must represent 2/3+ of total voting power AND 2/3+ of validator count
 3. Calculate gas cost (see [Gas Consumption](#gas-consumption) section) and deduct from both escrow balance and available_balance
 4. Mark promise as processed (stores `processed_at` timestamp and creates pruning index entry)
-5. Include commitment in data square (see [MsgPayForFibre Processing](#msgpayforfibre-processing))
+5. Include commitment in data square
 6. Emit EventPayForFibre
-
-#### MsgPayForFibre Processing
 
 When processing a successful `MsgPayForFibre`, two pieces of metadata are written to the original data square:
 
@@ -489,11 +487,13 @@ When processing a successful `MsgPayForFibre`, two pieces of metadata are writte
 Processes a PaymentPromise after the timeout period if no `MsgPayForFibre` was submitted. This mechanism is critical to guaranteeing that payment occurs. `MsgPaymentPromiseTimeout` transactions are included in the default transaction reserved namespace. A system-level blob is not generated for this transaction.
 
 ```proto
+// MsgPaymentPromiseTimeout processes a payment promise after the timeout period.
 message MsgPaymentPromiseTimeout {
+  option (cosmos.msg.v1.signer) = "signer";
   // signer is the bech32 encoded address submitting this message (can be anyone)
-  string signer = 1;
-  // promise contains the original PaymentPromise
-  PaymentPromise promise = 2;
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // payment_promise is the original payment promise
+  PaymentPromise payment_promise = 2 [(gogoproto.nullable) = false];
 }
 ```
 
@@ -506,11 +506,11 @@ message MsgPaymentPromiseTimeout {
 **Stateful Processing**:
 
 1. Validate PaymentPromise (see [PaymentPromise Validation](#paymentpromise-validation) above)
-2. Verify `promise.creation_timestamp + promise_timeout <= header_timestamp` (timeout has passed)
+2. Verify `promise.creation_timestamp + payment_promise_timeout <= header_timestamp` (timeout has passed)
 3. Calculate gas cost (see [Gas Consumption](#gas-consumption) section) and deduct from both escrow balance and available_balance
 4. Mark promise as processed (stores `processed_at` timestamp and creates pruning index entry)
 5. DO NOT include commitment in data square (since no validator consensus was reached)
-6. Emit EventProcessPromiseTimeout
+6. Emit EventProcessPaymentPromiseTimeout
 
 #### Payment Promise Pruning
 
@@ -596,13 +596,13 @@ func BeginBlocker(ctx sdk.Context, k Keeper) {
 | namespace       | {namespace the blob is published to} |
 | validator_count | {number of validator signatures}     |
 
-#### `EventProcessPromiseTimeout`
+#### `EventProcessPaymentPromiseTimeout`
 
 | Attribute Key | Attribute Value                                |
 |---------------|------------------------------------------------|
 | processor     | {bech32 encoded processor address}             |
 | signer        | {bech32 encoded escrow owner}                  |
-| promise_hash  | {hash for the promise that is being timed out} |
+| promise_hash  | {hash for the PaymentPromise that is being timed out} |
 
 ## Queries
 
@@ -644,19 +644,19 @@ message QueryPendingWithdrawalsRequest {
 
 ```proto
 message QueryPendingWithdrawalsResponse {
-  repeated PendingWithdrawal pending_withdrawals = 1;
+  repeated Withdrawal withdrawals = 1;
   cosmos.base.query.v1beta1.PageResponse pagination = 2;
 }
 ```
 
-### ProcessedPromise
+### ProcessedPaymentPromise
 
-Queries whether a [promise](#payment-promises) has been processed.
+Queries whether a [PaymentPromise](#payment-promises) has been processed.
 
 **Request**:
 
 ```proto
-message QueryProcessedPromiseRequest {
+message QueryProcessedPaymentPromiseRequest {
   bytes promise_hash = 1;
 }
 ```
@@ -664,7 +664,7 @@ message QueryProcessedPromiseRequest {
 **Response**:
 
 ```proto
-message QueryProcessedPromiseResponse {
+message QueryProcessedPaymentPromiseResponse {
   google.protobuf.Timestamp processed_at = 1;
   bool found = 2;
 }
@@ -698,7 +698,7 @@ message QueryValidatePaymentPromiseResponse {
 **Validation Checks**:
 
 1. Verify escrow account exists and has sufficient available balance for the gas cost (see [Gas Consumption](#gas-consumption) section)
-2. Verify promise hasn't been processed already
+2. Verify PaymentPromise hasn't been processed already
 3. Perform all standard PaymentPromise validation (see [PaymentPromise Validation](#paymentpromise-validation) section)
 
 ## Parameters
@@ -708,7 +708,7 @@ All parameters are modifiable via governance.
 | Key                           | Type                     | Default | Description                                                              |
 |-------------------------------|--------------------------|--------:|--------------------------------------------------------------------------|
 | GasPerBlobByte                | uint32                   |       8 | Gas cost per byte of blob data                                           |
-| PromiseTimeout                | google.protobuf.Duration |      1h | Duration before promise can be processed by timeout                      |
+| PaymentPromiseTimeout         | google.protobuf.Duration |      1h | Duration before payment promise can be processed by timeout              |
 | WithdrawalDelay               | google.protobuf.Duration |     24h | Duration to wait before withdrawal                                       |
 | PaymentPromiseRetentionWindow | google.protobuf.Duration |     24h | Duration to wait before processed payment promises are pruned from state |
 
@@ -725,14 +725,14 @@ celestia-appd tx fibre deposit-to-escrow <amount> [flags]
 # Request withdrawal from escrow
 celestia-appd tx fibre request-withdrawal <amount> [flags]
 
-# Generate signed promise for validators
-celestia-appd tx fibre create-promise <namespace> <blob_size> <commitment> [flags]
+# Generate signed PaymentPromise for validators
+celestia-appd tx fibre create-payment-promise <namespace> <blob_size> <commitment> [flags]
 
 # Submit payment with validator signatures
 celestia-appd tx fibre pay-for-fibre <promise_json> <validator_signatures_json> [flags]
 
-# Process promise timeout (fallback mechanism)
-celestia-appd tx fibre process-promise-timeout <promise_json> <promise_signature> [flags]
+# Process PaymentPromise timeout (fallback mechanism)
+celestia-appd tx fibre process-payment-promise-timeout <promise_json> <promise_signature> [flags]
 ```
 
 #### CLI Queries
@@ -744,8 +744,8 @@ celestia-appd query fibre escrow-account <signer_address>
 # Query pending withdrawals
 celestia-appd query fibre pending-withdrawals <signer_address>
 
-# Query if promise was processed
-celestia-appd query fibre processed-promise <promise_hash>
+# Query if PaymentPromise was processed
+celestia-appd query fibre processed-payment-promise <promise_hash>
 
 # Query module parameters
 celestia-appd query fibre params
