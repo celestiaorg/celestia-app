@@ -77,7 +77,8 @@ func SetMinFee(codec codec.Codec, minFee float64) genesis.Modifier {
 		if err != nil {
 			panic(err)
 		}
-		minFeeGenState.NetworkMinGasPrice = gasPrice
+		// Write into params because InitGenesis reads min fee from Params only.
+        minFeeGenState.Params.NetworkMinGasPrice = gasPrice
 		state[minfeetypes.ModuleName] = codec.MustMarshalJSON(minFeeGenState)
 		return state
 	}
