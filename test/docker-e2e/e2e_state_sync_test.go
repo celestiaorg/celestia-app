@@ -1,8 +1,6 @@
 package docker_e2e
 
 import (
-	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
-	"celestiaorg/celestia-app/test/docker-e2e/networks"
 	"context"
 	"fmt"
 	"strings"
@@ -18,6 +16,9 @@ import (
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	servercfg "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/stretchr/testify/require"
+
+	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
+	"celestiaorg/celestia-app/test/docker-e2e/networks"
 )
 
 const (
@@ -45,7 +46,7 @@ func (s *CelestiaTestSuite) TestStateSync() {
 
 	// Cleanup resources when the test is done
 	t.Cleanup(func() {
-		if err := celestia.Stop(ctx); err != nil {
+		if err := celestia.Remove(ctx); err != nil {
 			t.Logf("Error stopping chain: %v", err)
 		}
 	})
@@ -188,7 +189,7 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 	s.Require().NoError(err, "failed to start chain")
 
 	t.Cleanup(func() {
-		if err := mochaChain.Stop(ctx); err != nil {
+		if err := mochaChain.Remove(ctx); err != nil {
 			t.Logf("Error stopping chain: %v", err)
 		}
 	})

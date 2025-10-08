@@ -14,7 +14,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
 	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
-	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 )
 
@@ -72,11 +71,10 @@ func (s *CelestiaTestSuite) runMinorVersionCompatibilityTest(ctx context.Context
 	}
 
 	t.Logf("Testing compatibility between versions: %v", versionTags)
-
 	chain, cfg := s.buildMixedVersionChain(ctx, versionTags)
 
 	t.Cleanup(func() {
-		if err := chain.Stop(ctx); err != nil {
+		if err := chain.Remove(ctx); err != nil {
 			t.Logf("Error stopping chain: %v", err)
 		}
 	})
@@ -84,9 +82,8 @@ func (s *CelestiaTestSuite) runMinorVersionCompatibilityTest(ctx context.Context
 	s.Require().NoError(chain.Start(ctx), "failed to start mixed version chain")
 	s.verifyAPICompatibilityAcrossVersions(ctx, chain, versionTags)
 
-	dockerChain := chain.(*tastoradockertypes.Chain)
-	testBankSend(s.T(), dockerChain, cfg)
-	testPFBSubmission(s.T(), dockerChain, cfg)
+	testBankSend(s.T(), chain, cfg)
+	testPFBSubmission(s.T(), chain, cfg)
 
 	s.Require().NoError(s.CheckLiveness(ctx, chain), "liveness check failed - network may have halted")
 
@@ -94,7 +91,7 @@ func (s *CelestiaTestSuite) runMinorVersionCompatibilityTest(ctx context.Context
 }
 
 // buildMixedVersionChain creates a chain with nodes running different version tags
-func (s *CelestiaTestSuite) buildMixedVersionChain(ctx context.Context, versionTags []string) (tastoratypes.Chain, *dockerchain.Config) {
+func (s *CelestiaTestSuite) buildMixedVersionChain(ctx context.Context, versionTags []string) (*tastoradockertypes.Chain, *dockerchain.Config) {
 	t := s.T()
 
 	// Use the first version tag as the base configuration
@@ -132,7 +129,7 @@ func (s *CelestiaTestSuite) buildMixedVersionChain(ctx context.Context, versionT
 // verifyAPICompatibilityAcrossVersions tests RPC API compatibility across different minor versions
 // This ensures that API responses are structurally consistent and clients built for one minor version
 // can successfully communicate with nodes running other minor versions of the same major version.
-func (s *CelestiaTestSuite) verifyAPICompatibilityAcrossVersions(ctx context.Context, chain tastoratypes.Chain, versionTags []string) {
+func (s *CelestiaTestSuite) verifyAPICompatibilityAcrossVersions(ctx context.Context, chain *tastoradockertypes.Chain, versionTags []string) {
 	t := s.T()
 
 	nodes := chain.GetNodes()
