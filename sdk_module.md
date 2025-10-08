@@ -295,7 +295,7 @@ message MsgRequestWithdrawal {
 3. Verify no existing withdrawal request at current timestamp (prevents key collision in `withdrawals/{signer}/{requested_timestamp}` index)
 4. Decrease available_balance immediately (balance remains unchanged until withdrawal is processed)
 5. Store withdrawal amount in both indexes with available_at = current_timestamp + withdrawal_delay
-6. Emit EventRequestWithdrawalFromEscrow
+6. Emit EventWithdrawFromEscrowRequest
 
 #### Withdrawal Processing
 
@@ -341,7 +341,7 @@ func processAvailableWithdrawals(ctx sdk.Context, k Keeper) {
         k.DeleteAvailableWithdrawal(ctx, available_at, signer)
 
         // Emit event
-        ctx.EventManager().EmitEvent(EventProcessWithdrawal{
+        ctx.EventManager().EmitEvent(EventWithdrawFromEscrowExecuted{
             signer:    signer,
             amount:    amount,
         })
@@ -552,7 +552,7 @@ func BeginBlocker(ctx sdk.Context, k Keeper) {
 | signer        | {bech32 encoded signer address} |
 | amount        | {deposit amount}                |
 
-#### `EventRequestWithdrawalFromEscrow`
+#### `EventWithdrawFromEscrowRequest`
 
 | Attribute Key | Attribute Value                 |
 |---------------|---------------------------------|
@@ -560,7 +560,7 @@ func BeginBlocker(ctx sdk.Context, k Keeper) {
 | amount        | {withdrawal amount}             |
 | available_at  | {timestamp when available}      |
 
-#### `EventProcessWithdrawal`
+#### `EventWithdrawFromEscrowExecuted`
 
 | Attribute Key | Attribute Value               |
 |---------------|-------------------------------|
