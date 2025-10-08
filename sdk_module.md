@@ -154,24 +154,6 @@ This delay mechanism ensures that validators can trust PaymentPromises even when
 
 The fibre module maintains state for [escrow accounts](#escrow-accounts), [withdrawals](#withdrawals), and module [parameters](#parameters).
 
-### Params
-
-#### `GasPerBlobByte`
-
-`GasPerBlobByte` is the amount of gas consumed per byte of blob data when a PaymentPromise is processed. This determines the gas cost for Fibre blob inclusion.
-
-#### `WithdrawalDelay`
-
-`WithdrawalDelay` is the duration that must pass between a user requesting a withdrawal and when funds are withdrawn (default: 24 hours).
-
-#### `PaymentPromiseTimeout`
-
-`PaymentPromiseTimeout` is the duration after which anyone can submit a `MsgPaymentPromiseTimeout` transaction on-chain if the user hasn't submitted a [`MsgPayForFibre`](#msgpayforfibre) for their PaymentPromise (default: 1 hour).
-
-#### `PaymentPromiseRetentionWindow`
-
-`PaymentPromiseRetentionWindow` is the duration after which a payment promise can be pruned from the state machine (default: 24 hours).
-
 ### Escrow Accounts
 
 Escrow accounts help guarantee payment for a signed [`PaymentPromise`](#paymentpromise-validation) by ensuring that a user does not remove funds after validators sign over and provide service for a Fibre blob. Each address can only have one escrow account, indexed by their signer address.
@@ -580,10 +562,10 @@ func BeginBlocker(ctx sdk.Context, k Keeper) {
 
 #### `EventProcessWithdrawal`
 
-| Attribute Key | Attribute Value                    |
-|---------------|------------------------------------|
-| signer        | {bech32 encoded escrow owner}      |
-| amount        | {withdrawal amount}                |
+| Attribute Key | Attribute Value               |
+|---------------|-------------------------------|
+| signer        | {bech32 encoded escrow owner} |
+| amount        | {withdrawal amount}           |
 
 #### `EventPayForFibre`
 
@@ -595,10 +577,10 @@ func BeginBlocker(ctx sdk.Context, k Keeper) {
 
 #### `EventProcessPaymentPromiseTimeout`
 
-| Attribute Key | Attribute Value                                |
-|---------------|------------------------------------------------|
-| processor     | {bech32 encoded processor address}             |
-| signer        | {bech32 encoded escrow owner}                  |
+| Attribute Key | Attribute Value                                       |
+|---------------|-------------------------------------------------------|
+| processor     | {bech32 encoded processor address}                    |
+| signer        | {bech32 encoded escrow owner}                         |
 | promise_hash  | {hash for the PaymentPromise that is being timed out} |
 
 ## Queries
@@ -704,10 +686,26 @@ All parameters are modifiable via governance.
 
 | Key                           | Type                     | Default | Description                                                              |
 |-------------------------------|--------------------------|--------:|--------------------------------------------------------------------------|
-| GasPerBlobByte                | uint32                   |       8 | Gas cost per byte of blob data                                           |
-| PaymentPromiseTimeout         | google.protobuf.Duration |      1h | Duration before payment promise can be processed by timeout              |
+| GasPerBlobByte                | uint32                   |       8 | Gas cost per byte of Fibre blob data                                     |
 | WithdrawalDelay               | google.protobuf.Duration |     24h | Duration to wait before withdrawal                                       |
+| PaymentPromiseTimeout         | google.protobuf.Duration |      1h | Duration before payment promise can be processed by timeout              |
 | PaymentPromiseRetentionWindow | google.protobuf.Duration |     24h | Duration to wait before processed payment promises are pruned from state |
+
+### `GasPerBlobByte`
+
+`GasPerBlobByte` is the amount of gas consumed per byte of blob data when a PaymentPromise is processed. This determines the gas cost for Fibre blob inclusion.
+
+### `WithdrawalDelay`
+
+`WithdrawalDelay` is the duration that must pass between a user requesting a withdrawal and when funds are withdrawn (default: 24 hours).
+
+### `PaymentPromiseTimeout`
+
+`PaymentPromiseTimeout` is the duration after which anyone can submit a `MsgPaymentPromiseTimeout` transaction on-chain if the user hasn't submitted a [`MsgPayForFibre`](#msgpayforfibre) for their PaymentPromise (default: 1 hour).
+
+### `PaymentPromiseRetentionWindow`
+
+`PaymentPromiseRetentionWindow` is the duration after which a payment promise can be pruned from the state machine (default: 24 hours).
 
 ## Client
 
