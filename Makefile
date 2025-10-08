@@ -1,8 +1,6 @@
-PROJECTNAME=$(shell basename "$(PWD)")
-
 ## help: Get more info on make commands.
 help: Makefile
-	@echo " Choose a command run in "$(PROJECTNAME)":"
+	@echo "Choose a command run in rsema1d:"
 	@sed -n 's/^##//p' $< | sort | column -t -s ':' | sed -e 's/^/ /'
 .PHONY: help
 
