@@ -67,8 +67,8 @@ func NewAnteHandler(
 		NewMsgExecDecorator(),
 		// Ensure that the tx's gas limit is > the gas consumed based on the blob size(s).
 		// Contract: must be called after all decorators that consume gas.
-		// Note: does not consume gas from the gas meter.
-		blobante.NewMinGasPFBDecorator(blobKeeper),
+        // Note: does not consume gas from the gas meter.
+        blobante.NewMinGasPFBDecorator(),
 		// Ensure that the blob shares occupied by the tx <= the max shares
 		// available to blob data in a data square.
 		blobante.NewBlobShareDecorator(blobKeeper),
