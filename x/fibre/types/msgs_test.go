@@ -2,6 +2,7 @@ package types
 
 import (
 	"bytes"
+	fmt "fmt"
 	"testing"
 	"time"
 
@@ -11,7 +12,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -438,43 +438,49 @@ func TestMsgPaymentPromiseTimeoutValidateBasic(t *testing.T) {
 	}
 }
 
-func TestMsgUpdateFibreParams_ValidateBasic(t *testing.T) {
-	validAddr := "cosmos1qypqxpq9qcrsszg2pvxq6rs0zqg3yyc5lzv7xu"
-	validParams := DefaultParams()
+func TestMsgUpdateFibreParamsValidateBasic(t *testing.T) {
+	authority := "cosmos1qypqxpq9qcrsszg2pvxq6rs0zqg3yyc5lzv7xu"
+	params := DefaultParams()
+	invalidParams := DefaultParams()
+	invalidParams.GasPerBlobByte = 0
 
 	tests := []struct {
 		name    string
-		msg     *MsgUpdateFibreParams
-		wantErr bool
-		errType error
+		msg     MsgUpdateFibreParams
+		wantErr error
 	}{
 		{
 			name: "valid message",
-			msg: &MsgUpdateFibreParams{
-				Authority: validAddr,
-				Params:    validParams,
+			msg: MsgUpdateFibreParams{
+				Authority: authority,
+				Params:    params,
 			},
-			wantErr: false,
+			wantErr: nil,
 		},
 		{
 			name: "invalid authority address",
-			msg: &MsgUpdateFibreParams{
+			msg: MsgUpdateFibreParams{
 				Authority: "invalid-address",
-				Params:    validParams,
+				Params:    params,
 			},
-			wantErr: true,
-			errType: sdkerrors.ErrInvalidAddress,
+			wantErr: sdkerrors.ErrInvalidAddress,
+		},
+		{
+			name: "invalid params",
+			msg: MsgUpdateFibreParams{
+				Authority: authority,
+				Params:    invalidParams,
+			},
+			wantErr: fmt.Errorf("invalid params"),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.msg.ValidateBasic()
-			if tt.wantErr {
+			if tt.wantErr != nil {
 				require.Error(t, err)
-				if tt.errType != nil {
-					assert.Contains(t, err.Error(), tt.errType.Error())
-				}
+				require.ErrorContains(t, err, tt.wantErr.Error())
 			} else {
 				require.NoError(t, err)
 			}
