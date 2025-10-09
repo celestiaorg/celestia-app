@@ -50,7 +50,7 @@ func Run(
 	opts.Fill()
 	r := rand.New(rand.NewSource(opts.seed))
 
-	conn, err := buildGrpcConn(grpcEndpoint, defaultTLSConfig)
+	conn, err := BuildGrpcConn(grpcEndpoint, nil)
 	if err != nil {
 		return fmt.Errorf("error connecting to %s: %w", grpcEndpoint, err)
 	}
@@ -196,15 +196,12 @@ func (o *Options) WithGasPrice(gasPrice float64) *Options {
 	return o
 }
 
+// BuildGrpcConn applies the config if the handshake succeeds; otherwise, it falls back to an insecure connection.
 func BuildGrpcConn(grpcEndpoint string, config *tls.Config) (*grpc.ClientConn, error) {
 	if config == nil {
 		config = defaultTLSConfig
 	}
-	return buildGrpcConn(grpcEndpoint, config)
-}
 
-// buildGrpcConn applies the config if the handshake succeeds; otherwise, it falls back to an insecure connection.
-func buildGrpcConn(grpcEndpoint string, config *tls.Config) (*grpc.ClientConn, error) {
 	netConn, err := net.Dial("tcp", grpcEndpoint)
 	if err != nil {
 		log.Error().Str("errorMessage", err.Error()).Msg("grpc server is not reachable via tcp")

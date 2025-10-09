@@ -36,10 +36,6 @@ const (
 	TxsimMnemonic      = "TXSIM_MNEMONIC"
 )
 
-const (
-	FillBlocksBlobTxAmount = 1
-)
-
 // Values for all flags
 var (
 	keyPath, masterAccName, keyMnemonic, grpcEndpoint string
@@ -234,10 +230,11 @@ account that can act as the master account. The command runs until all sequences
 		Short: "Fill blocks to their max capacity",
 		RunE:  fillBlocksExecute,
 		Long: `
-The subcommand is designed to simplify filling blocks to near-max capacity by submitting a single blob transaction.
-It targets a blob payload size of approximately (maxBytes / 4) - txOverhead, where maxBytes is the block size limit 
-is calculated using max square size, and txOverhead accounts for protocol-level overhead — 
-such as namespace size, share info, signer bytes, blob headers`,
+Fills blocks to near max capacity by submitting batches of transactions.
+Each tx targets a blob size close to maxTxSize - txOverhead by default.
+Batch size (--blob) and share overhead (--share-overhead) can be configured based on the
+desired test load.
+`,
 		PostRunE: cmd.RunE,
 	}
 
@@ -262,28 +259,25 @@ func fillBlocksExecute(cmd *cobra.Command, args []string) error {
 	}
 
 	govMaxSquareSize := blobParamsResp.Params.GovMaxSquareSize
-	hardMaxSquareSize := appconsts.SquareSizeUpperBound // use getter instead???
-	maxSquareSize := min(int(govMaxSquareSize), hardMaxSquareSize)
+	maxSquareSize := min(int(govMaxSquareSize), appconsts.SquareSizeUpperBound)
 
 	maxSquareShares := (maxSquareSize * maxSquareSize)
 	maxBytes := maxSquareShares * share.ShareSize
 
-	// NOTE: Division by 4 accounts for 2d erasure coding schema
-	blobSize := (maxBytes - maxSquareShares*perShareOverheadSize) / 4
-	blobAmount := maxBytes / blobSize / 4
-
-	blob = FillBlocksBlobTxAmount
-	blobSizes = strconv.Itoa(blobSize)
-	blobAmounts = strconv.Itoa(blobAmount)
+	if blob == 0 {
+		blob = maxBytes / appconsts.MaxTxSize
+	}
+	blobSizes = strconv.Itoa(appconsts.MaxTxSize - maxSquareShares*perShareOverheadSize)
 
 	log.Info().
 		Int("blob", blob).
 		Str("blobAmounts", blobAmounts).
 		Str("blobSizes", blobSizes).
+		Int("maxTxSize", appconsts.MaxTxSize).
 		Int("maxSquareSize", maxSquareSize).
 		Int("maxBytes", maxBytes).
 		Int("perShareOverheadSize", perShareOverheadSize).
-		Msg("fill-blocks blob values")
+		Msg("fill-blocks runtime values")
 
 	return nil
 }
