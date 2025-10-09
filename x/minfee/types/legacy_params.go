@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
 
@@ -13,14 +12,6 @@ import (
 var _ paramtypes.ParamSet = (*Params)(nil)
 
 var KeyNetworkMinGasPrice = []byte("NetworkMinGasPrice")
-
-func init() {
-	DefaultNetworkMinGasPriceDec, err := math.LegacyNewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultNetworkMinGasPrice))
-	if err != nil {
-		panic(err)
-	}
-	DefaultNetworkMinGasPrice = DefaultNetworkMinGasPriceDec
-}
 
 // RegisterMinFeeParamTable returns a subspace with a key table attached.
 func RegisterMinFeeParamTable(subspace paramtypes.Subspace) paramtypes.Subspace {
