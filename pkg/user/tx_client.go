@@ -40,7 +40,7 @@ import (
 )
 
 const (
-	DefaultPollTime          = 3 * time.Second
+	DefaultPollTime          = 1 * time.Second
 	txTrackerPruningInterval = 10 * time.Minute
 	// Gas limits for initialization transactions
 	SendGasLimit         = 100000
@@ -879,7 +879,7 @@ func (client *TxClient) EstimateGasPriceAndUsage(
 		return 0, 0, fmt.Errorf("failed to estimate gas price and usage: %w", err)
 	}
 
-	gasUsed = uint64(float64(resp.EstimatedGasUsed))
+	gasUsed = resp.EstimatedGasUsed
 	span.AddEvent("txclient/EstimateGasPriceAndUsage: estimation successful", trace.WithAttributes(
 		attribute.Int64("gas_used", int64(gasUsed)),
 		attribute.Int64("gas_price", int64(resp.EstimatedGasPrice)),
@@ -920,7 +920,7 @@ func (client *TxClient) estimateGas(ctx context.Context, txBuilder client.TxBuil
 		return 0, err
 	}
 
-	gasLimit := uint64(float64(resp.EstimatedGasUsed))
+	gasLimit := resp.EstimatedGasUsed
 
 	span := trace.SpanFromContext(ctx)
 	span.AddEvent("txclient/estimateGas: estimation successful",
