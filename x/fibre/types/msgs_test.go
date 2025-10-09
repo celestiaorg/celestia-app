@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"testing"
 	"time"
 
@@ -142,202 +143,181 @@ func TestMsgRequestWithdrawalValidateBasic(t *testing.T) {
 	}
 }
 
-func TestPaymentPromise_ValidateBasic(t *testing.T) {
-	// Create a valid public key
-	privKey := secp256k1.GenPrivKey()
-	pubKey := privKey.PubKey()
-	pubKeyAny, err := types.NewAnyWithValue(pubKey)
-	require.NoError(t, err)
+func TestPaymentPromiseValidateBasic(t *testing.T) {
+	signerPublicKey := generatePubKeyAny(t)
+	namespace := generateNamespace(t)
+	blobSize := uint32(1000)
+	commitment := generateCommitment(t)
+	rowVersion := RowVersionZero
+	creationTimestamp := time.Now()
+	signature := []byte("valid-signature")
+	height := int64(100)
+	chainId := "test"
 
-	// Create a valid namespace (version 0 with 18 leading zeros)
-	validNamespace := make([]byte, share.NamespaceSize)
-	validNamespace[0] = 0 // version 0
-	// bytes 1-18 are already zero (18 leading zeros for version 0)
-	// Set bytes 19-28 to create a valid user namespace
-	for i := 19; i < share.NamespaceSize; i++ {
-		validNamespace[i] = 1
-	}
-
-	validCommitment := make([]byte, 32)
-	for i := range validCommitment {
-		validCommitment[i] = byte(i)
-	}
-
-	tests := []struct {
+	type testCase struct {
 		name    string
-		msg     *PaymentPromise
-		wantErr bool
-		errType error
-	}{
+		msg     PaymentPromise
+		wantErr error
+	}
+	testCases := []testCase{
 		{
 			name: "valid payment promise",
-			msg: &PaymentPromise{
-				SignerPublicKey:   pubKeyAny,
-				Namespace:         validNamespace,
-				BlobSize:          1000,
-				Commitment:        validCommitment,
-				RowVersion:        uint32(share.ShareVersionZero),
-				CreationTimestamp: time.Now(),
-				Signature:         []byte("valid-signature"),
-				Height:            100,
-				ChainId:           "celestia-test",
+			msg: PaymentPromise{
+				SignerPublicKey:   signerPublicKey,
+				Namespace:         namespace,
+				BlobSize:          blobSize,
+				Commitment:        commitment,
+				RowVersion:        rowVersion,
+				CreationTimestamp: creationTimestamp,
+				Signature:         signature,
+				Height:            height,
+				ChainId:           chainId,
 			},
-			wantErr: false,
+			wantErr: nil,
 		},
 		{
-			name: "nil public key",
-			msg: &PaymentPromise{
+			name: "nil signer public key",
+			msg: PaymentPromise{
 				SignerPublicKey:   nil,
-				Namespace:         validNamespace,
-				BlobSize:          1000,
-				Commitment:        validCommitment,
-				RowVersion:        uint32(share.ShareVersionZero),
-				CreationTimestamp: time.Now(),
-				Signature:         []byte("valid-signature"),
-				Height:            100,
-				ChainId:           "celestia-test",
+				Namespace:         namespace,
+				BlobSize:          blobSize,
+				Commitment:        commitment,
+				RowVersion:        rowVersion,
+				CreationTimestamp: creationTimestamp,
+				Signature:         signature,
+				Height:            height,
+				ChainId:           chainId,
 			},
-			wantErr: true,
-			errType: sdkerrors.ErrInvalidPubKey,
+			wantErr: sdkerrors.ErrInvalidPubKey,
 		},
 		{
 			name: "empty namespace",
-			msg: &PaymentPromise{
-				SignerPublicKey:   pubKeyAny,
+			msg: PaymentPromise{
+				SignerPublicKey:   signerPublicKey,
 				Namespace:         []byte{},
-				BlobSize:          1000,
-				Commitment:        validCommitment,
-				RowVersion:        uint32(share.ShareVersionZero),
-				CreationTimestamp: time.Now(),
-				Signature:         []byte("valid-signature"),
-				Height:            100,
-				ChainId:           "celestia-test",
+				BlobSize:          blobSize,
+				Commitment:        commitment,
+				RowVersion:        rowVersion,
+				CreationTimestamp: creationTimestamp,
+				Signature:         signature,
+				Height:            height,
+				ChainId:           chainId,
 			},
-			wantErr: true,
-			errType: sdkerrors.ErrInvalidRequest,
+			wantErr: sdkerrors.ErrInvalidRequest,
 		},
 		{
 			name: "invalid namespace size",
-			msg: &PaymentPromise{
-				SignerPublicKey:   pubKeyAny,
-				Namespace:         []byte{1, 2, 3}, // wrong size
-				BlobSize:          1000,
-				Commitment:        validCommitment,
-				RowVersion:        uint32(share.ShareVersionZero),
-				CreationTimestamp: time.Now(),
-				Signature:         []byte("valid-signature"),
-				Height:            100,
-				ChainId:           "celestia-test",
+			msg: PaymentPromise{
+				SignerPublicKey:   signerPublicKey,
+				Namespace:         []byte{1, 2, 3},
+				BlobSize:          blobSize,
+				Commitment:        commitment,
+				RowVersion:        rowVersion,
+				CreationTimestamp: creationTimestamp,
+				Signature:         signature,
+				Height:            height,
+				ChainId:           chainId,
 			},
-			wantErr: true,
-			errType: sdkerrors.ErrInvalidRequest,
+			wantErr: sdkerrors.ErrInvalidRequest,
 		},
 		{
 			name: "zero blob size",
-			msg: &PaymentPromise{
-				SignerPublicKey:   pubKeyAny,
-				Namespace:         validNamespace,
+			msg: PaymentPromise{
+				SignerPublicKey:   signerPublicKey,
+				Namespace:         namespace,
 				BlobSize:          0,
-				Commitment:        validCommitment,
-				RowVersion:        uint32(share.ShareVersionZero),
-				CreationTimestamp: time.Now(),
-				Signature:         []byte("valid-signature"),
-				Height:            100,
-				ChainId:           "celestia-test",
+				Commitment:        commitment,
+				RowVersion:        rowVersion,
+				CreationTimestamp: creationTimestamp,
+				Signature:         signature,
+				Height:            height,
+				ChainId:           chainId,
 			},
-			wantErr: true,
-			errType: sdkerrors.ErrInvalidRequest,
+			wantErr: sdkerrors.ErrInvalidRequest,
 		},
 		{
 			name: "invalid commitment size",
-			msg: &PaymentPromise{
-				SignerPublicKey:   pubKeyAny,
-				Namespace:         validNamespace,
-				BlobSize:          1000,
+			msg: PaymentPromise{
+				SignerPublicKey:   signerPublicKey,
+				Namespace:         namespace,
+				BlobSize:          blobSize,
 				Commitment:        []byte{1, 2, 3}, // wrong size
-				RowVersion:        uint32(share.ShareVersionZero),
-				CreationTimestamp: time.Now(),
-				Signature:         []byte("valid-signature"),
-				Height:            100,
-				ChainId:           "celestia-test",
+				RowVersion:        rowVersion,
+				CreationTimestamp: creationTimestamp,
+				Signature:         signature,
+				Height:            height,
+				ChainId:           chainId,
 			},
-			wantErr: true,
-			errType: sdkerrors.ErrInvalidRequest,
+			wantErr: sdkerrors.ErrInvalidRequest,
 		},
 		{
 			name: "unsupported row version",
-			msg: &PaymentPromise{
-				SignerPublicKey:   pubKeyAny,
-				Namespace:         validNamespace,
-				BlobSize:          1000,
-				Commitment:        validCommitment,
-				RowVersion:        999, // unsupported version
-				CreationTimestamp: time.Now(),
-				Signature:         []byte("valid-signature"),
-				Height:            100,
-				ChainId:           "celestia-test",
+			msg: PaymentPromise{
+				SignerPublicKey:   signerPublicKey,
+				Namespace:         namespace,
+				BlobSize:          blobSize,
+				Commitment:        commitment,
+				RowVersion:        999,
+				CreationTimestamp: creationTimestamp,
+				Signature:         signature,
+				Height:            height,
+				ChainId:           chainId,
 			},
-			wantErr: true,
-			errType: sdkerrors.ErrInvalidRequest,
+			wantErr: sdkerrors.ErrInvalidRequest,
 		},
 		{
 			name: "zero height",
-			msg: &PaymentPromise{
-				SignerPublicKey:   pubKeyAny,
-				Namespace:         validNamespace,
-				BlobSize:          1000,
-				Commitment:        validCommitment,
-				RowVersion:        uint32(share.ShareVersionZero),
-				CreationTimestamp: time.Now(),
-				Signature:         []byte("valid-signature"),
+			msg: PaymentPromise{
+				SignerPublicKey:   signerPublicKey,
+				Namespace:         namespace,
+				BlobSize:          blobSize,
+				Commitment:        commitment,
+				RowVersion:        rowVersion,
+				CreationTimestamp: creationTimestamp,
+				Signature:         signature,
 				Height:            0,
-				ChainId:           "celestia-test",
+				ChainId:           chainId,
 			},
-			wantErr: true,
-			errType: sdkerrors.ErrInvalidRequest,
+			wantErr: sdkerrors.ErrInvalidRequest,
 		},
 		{
 			name: "empty signature",
-			msg: &PaymentPromise{
-				SignerPublicKey:   pubKeyAny,
-				Namespace:         validNamespace,
-				BlobSize:          1000,
-				Commitment:        validCommitment,
-				RowVersion:        uint32(share.ShareVersionZero),
-				CreationTimestamp: time.Now(),
+			msg: PaymentPromise{
+				SignerPublicKey:   signerPublicKey,
+				Namespace:         namespace,
+				BlobSize:          blobSize,
+				Commitment:        commitment,
+				RowVersion:        rowVersion,
+				CreationTimestamp: creationTimestamp,
 				Signature:         []byte{},
-				Height:            100,
-				ChainId:           "celestia-test",
+				Height:            height,
+				ChainId:           chainId,
 			},
-			wantErr: true,
-			errType: sdkerrors.ErrInvalidRequest,
+			wantErr: sdkerrors.ErrInvalidRequest,
 		},
 		{
 			name: "empty chain ID",
-			msg: &PaymentPromise{
-				SignerPublicKey:   pubKeyAny,
-				Namespace:         validNamespace,
-				BlobSize:          1000,
-				Commitment:        validCommitment,
-				RowVersion:        uint32(share.ShareVersionZero),
-				CreationTimestamp: time.Now(),
-				Signature:         []byte("valid-signature"),
-				Height:            100,
+			msg: PaymentPromise{
+				SignerPublicKey:   signerPublicKey,
+				Namespace:         namespace,
+				BlobSize:          blobSize,
+				Commitment:        commitment,
+				RowVersion:        rowVersion,
+				CreationTimestamp: creationTimestamp,
+				Signature:         signature,
+				Height:            height,
 				ChainId:           "",
 			},
-			wantErr: true,
-			errType: sdkerrors.ErrInvalidRequest,
+			wantErr: sdkerrors.ErrInvalidRequest,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.msg.ValidateBasic()
-			if tt.wantErr {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.msg.ValidateBasic()
+			if tc.wantErr != nil {
 				require.Error(t, err)
-				if tt.errType != nil {
-					assert.Contains(t, err.Error(), tt.errType.Error())
-				}
+				require.ErrorIs(t, err, tc.wantErr)
 			} else {
 				require.NoError(t, err)
 			}
@@ -366,7 +346,7 @@ func TestMsgPayForFibre_ValidateBasic(t *testing.T) {
 		validCommitment[i] = byte(i)
 	}
 
-	validPromise := &PaymentPromise{
+	validPromise := PaymentPromise{
 		SignerPublicKey:   pubKeyAny,
 		Namespace:         validNamespace,
 		BlobSize:          1000,
@@ -388,7 +368,7 @@ func TestMsgPayForFibre_ValidateBasic(t *testing.T) {
 			name: "valid message",
 			msg: &MsgPayForFibre{
 				Signer:              validAddr,
-				PaymentPromise:      *validPromise,
+				PaymentPromise:      validPromise,
 				ValidatorSignatures: [][]byte{[]byte("sig1"), []byte("sig2")},
 			},
 			wantErr: false,
@@ -397,7 +377,7 @@ func TestMsgPayForFibre_ValidateBasic(t *testing.T) {
 			name: "invalid signer address",
 			msg: &MsgPayForFibre{
 				Signer:              "invalid-address",
-				PaymentPromise:      *validPromise,
+				PaymentPromise:      validPromise,
 				ValidatorSignatures: [][]byte{[]byte("sig1")},
 			},
 			wantErr: true,
@@ -407,7 +387,7 @@ func TestMsgPayForFibre_ValidateBasic(t *testing.T) {
 			name: "no validator signatures",
 			msg: &MsgPayForFibre{
 				Signer:              validAddr,
-				PaymentPromise:      *validPromise,
+				PaymentPromise:      validPromise,
 				ValidatorSignatures: [][]byte{},
 			},
 			wantErr: true,
@@ -417,7 +397,7 @@ func TestMsgPayForFibre_ValidateBasic(t *testing.T) {
 			name: "empty validator signature",
 			msg: &MsgPayForFibre{
 				Signer:              validAddr,
-				PaymentPromise:      *validPromise,
+				PaymentPromise:      validPromise,
 				ValidatorSignatures: [][]byte{[]byte("sig1"), []byte{}},
 			},
 			wantErr: true,
@@ -555,4 +535,26 @@ func TestMsgUpdateFibreParams_ValidateBasic(t *testing.T) {
 			}
 		})
 	}
+}
+
+func generateNamespace(t *testing.T) []byte {
+	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
+	require.NoError(t, err)
+	return namespace.Bytes()
+}
+
+func generateCommitment(t *testing.T) []byte {
+	commitment := make([]byte, 32)
+	for i := range commitment {
+		commitment[i] = byte(i)
+	}
+	return commitment
+}
+
+func generatePubKeyAny(t *testing.T) *types.Any {
+	privKey := secp256k1.GenPrivKey()
+	pubKey := privKey.PubKey()
+	pubKeyAny, err := types.NewAnyWithValue(pubKey)
+	require.NoError(t, err)
+	return pubKeyAny
 }

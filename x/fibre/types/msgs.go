@@ -10,6 +10,10 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
+const (
+	RowVersionZero = uint32(0)
+)
+
 // ValidateBasic performs stateless validation for MsgDepositToEscrow
 func (msg *MsgDepositToEscrow) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(msg.Signer); err != nil {
@@ -46,7 +50,6 @@ func (msg *MsgRequestWithdrawal) ValidateBasic() error {
 
 // ValidateBasic performs stateless validation for PaymentPromise
 func (msg *PaymentPromise) ValidateBasic() error {
-	// Validate signer_public_key is a valid public key
 	if msg.SignerPublicKey == nil {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidPubKey, "signer public key cannot be nil")
 	}
@@ -60,58 +63,47 @@ func (msg *PaymentPromise) ValidateBasic() error {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidPubKey, "signer public key cannot be nil")
 	}
 
-	// Validate namespace
 	if len(msg.Namespace) == 0 {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "namespace cannot be empty")
 	}
 
-	// Validate namespace format (29 bytes total)
 	if len(msg.Namespace) != share.NamespaceSize {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "namespace must be %d bytes, got %d", share.NamespaceSize, len(msg.Namespace))
 	}
 
-	// Parse and validate namespace
-	ns, err := share.NewNamespaceFromBytes(msg.Namespace)
+	namespace, err := share.NewNamespaceFromBytes(msg.Namespace)
 	if err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "invalid namespace: %s", err)
 	}
 
-	// Check if namespace is reserved (not allowed for user blobs)
-	if err := ValidateBlobNamespace(ns); err != nil {
+	if err := ValidateBlobNamespace(namespace); err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "invalid blob namespace: %s", err)
 	}
 
-	// Validate blob_size is positive
 	if msg.BlobSize == 0 {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "blob size must be positive")
 	}
 
-	// Validate commitment is 32 bytes
 	if len(msg.Commitment) != 32 {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "commitment must be 32 bytes, got %d", len(msg.Commitment))
 	}
 
-	// Validate row_version is supported
-	if msg.RowVersion != uint32(share.ShareVersionZero) && msg.RowVersion != uint32(share.ShareVersionOne) {
-		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "unsupported row version: %d", msg.RowVersion)
+	if err := ValidateRowVersion(msg.RowVersion); err != nil {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "invalid row version: %s", err)
 	}
 
-	// Validate height is positive
 	if msg.Height <= 0 {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "height must be positive")
 	}
 
-	// Validate creation_timestamp is not zero
 	if msg.CreationTimestamp.IsZero() {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "creation timestamp cannot be zero")
 	}
 
-	// Validate signature is properly formatted and non-empty
 	if len(msg.Signature) == 0 {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "signature cannot be empty")
 	}
 
-	// Validate chain_id is not empty
 	if msg.ChainId == "" {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "chain ID cannot be empty")
 	}
@@ -186,5 +178,12 @@ func ValidateBlobNamespace(ns share.Namespace) error {
 	// Additional validation can be added here if needed
 	// The IsReserved() check above covers the main validation requirements
 
+	return nil
+}
+
+func ValidateRowVersion(rowVersion uint32) error {
+	if rowVersion != RowVersionZero {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "unsupported row version: %d", rowVersion)
+	}
 	return nil
 }
