@@ -386,72 +386,51 @@ func TestMsgPayForFibreValidateBasic(t *testing.T) {
 	}
 }
 
-func TestMsgPaymentPromiseTimeout_ValidateBasic(t *testing.T) {
-	validAddr := "cosmos1qypqxpq9qcrsszg2pvxq6rs0zqg3yyc5lzv7xu"
+func TestMsgPaymentPromiseTimeoutValidateBasic(t *testing.T) {
+	signer := "cosmos1qypqxpq9qcrsszg2pvxq6rs0zqg3yyc5lzv7xu"
+	paymentPromise := generatePaymentPromise(t)
+	invalidPaymentPromise := generatePaymentPromise(t)
+	invalidPaymentPromise.Signature = []byte{}
 
-	// Create a valid PaymentPromise
-	privKey := secp256k1.GenPrivKey()
-	pubKey := privKey.PubKey()
-	pubKeyAny, err := types.NewAnyWithValue(pubKey)
-	require.NoError(t, err)
-
-	validNamespace := make([]byte, share.NamespaceSize)
-	validNamespace[0] = 0 // version 0
-	// Set bytes 19-28 to create a valid user namespace
-	for i := 19; i < share.NamespaceSize; i++ {
-		validNamespace[i] = 1
-	}
-
-	validCommitment := make([]byte, 32)
-	for i := range validCommitment {
-		validCommitment[i] = byte(i)
-	}
-
-	validPromise := &PaymentPromise{
-		SignerPublicKey:   pubKeyAny,
-		Namespace:         validNamespace,
-		BlobSize:          1000,
-		Commitment:        validCommitment,
-		RowVersion:        uint32(share.ShareVersionZero),
-		CreationTimestamp: time.Now(),
-		Signature:         []byte("valid-signature"),
-		Height:            100,
-		ChainId:           "celestia-test",
-	}
-
-	tests := []struct {
+	type testCase struct {
 		name    string
-		msg     *MsgPaymentPromiseTimeout
-		wantErr bool
-		errType error
-	}{
+		msg     MsgPaymentPromiseTimeout
+		wantErr error
+	}
+
+	tests := []testCase{
 		{
 			name: "valid message",
-			msg: &MsgPaymentPromiseTimeout{
-				Signer:         validAddr,
-				PaymentPromise: *validPromise,
+			msg: MsgPaymentPromiseTimeout{
+				Signer:         signer,
+				PaymentPromise: paymentPromise,
 			},
-			wantErr: false,
+			wantErr: nil,
 		},
 		{
 			name: "invalid signer address",
-			msg: &MsgPaymentPromiseTimeout{
+			msg: MsgPaymentPromiseTimeout{
 				Signer:         "invalid-address",
-				PaymentPromise: *validPromise,
+				PaymentPromise: paymentPromise,
 			},
-			wantErr: true,
-			errType: sdkerrors.ErrInvalidAddress,
+			wantErr: sdkerrors.ErrInvalidAddress,
+		},
+		{
+			name: "invalid payment promise",
+			msg: MsgPaymentPromiseTimeout{
+				Signer:         signer,
+				PaymentPromise: invalidPaymentPromise,
+			},
+			wantErr: sdkerrors.ErrInvalidAddress,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.msg.ValidateBasic()
-			if tt.wantErr {
+			if tt.wantErr != nil {
 				require.Error(t, err)
-				if tt.errType != nil {
-					assert.Contains(t, err.Error(), tt.errType.Error())
-				}
+				require.ErrorIs(t, err, tt.wantErr)
 			} else {
 				require.NoError(t, err)
 			}

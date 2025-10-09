@@ -136,12 +136,10 @@ func (msg *MsgPayForFibre) ValidateBasic() error {
 
 // ValidateBasic performs stateless validation for MsgPaymentPromiseTimeout
 func (msg *MsgPaymentPromiseTimeout) ValidateBasic() error {
-	// Validate signer address (can be anyone)
 	if _, err := sdk.AccAddressFromBech32(msg.Signer); err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid signer address: %s", err)
 	}
 
-	// Validate PaymentPromise (including signature validation)
 	if err := msg.PaymentPromise.ValidateBasic(); err != nil {
 		return errorsmod.Wrap(err, "invalid payment promise")
 	}
