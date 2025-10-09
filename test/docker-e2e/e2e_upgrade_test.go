@@ -5,16 +5,15 @@ import (
 	"fmt"
 	"testing"
 
-	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
-
-	signaltypes "github.com/celestiaorg/celestia-app/v6/x/signal/types"
-
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	signaltypes "github.com/celestiaorg/celestia-app/v6/x/signal/types"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 )
 
 // TestCelestiaAppUpgrade tests app version upgrade using the signaling mechanism.
@@ -101,7 +100,7 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 	s.Require().NoError(err)
 
 	s.T().Cleanup(func() {
-		if err := chain.Stop(ctx); err != nil {
+		if err := chain.Remove(ctx); err != nil {
 			s.T().Logf("Error stopping chain: %v", err)
 		}
 	})
