@@ -60,7 +60,7 @@ func (s *CelestiaTestSuite) TestBlockSync() {
 	targetHeight := initialHeight + blockSyncBlocksToProduce
 	t.Logf("Successfully reached initial height %d", initialHeight)
 
-	s.Require().NoError(wait.ForBlocks(ctx, int(targetHeight), celestia), "failed to wait for target height")
+	s.Require().NoError(wait.ForBlocks(ctx, blockSyncBlocksToProduce, celestia), "failed to wait for target height")
 
 	t.Logf("Successfully reached target height %d", targetHeight)
 
