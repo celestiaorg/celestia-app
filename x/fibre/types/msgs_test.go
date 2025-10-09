@@ -325,94 +325,60 @@ func TestPaymentPromiseValidateBasic(t *testing.T) {
 	}
 }
 
-func TestMsgPayForFibre_ValidateBasic(t *testing.T) {
-	validAddr := "cosmos1qypqxpq9qcrsszg2pvxq6rs0zqg3yyc5lzv7xu"
+func TestMsgPayForFibreValidateBasic(t *testing.T) {
+	signer := "cosmos1qypqxpq9qcrsszg2pvxq6rs0zqg3yyc5lzv7xu"
+	paymentPromise := generatePaymentPromise(t)
+	validatorSignatures := [][]byte{[]byte("sig1"), []byte("sig2")}
 
-	// Create a valid PaymentPromise
-	privKey := secp256k1.GenPrivKey()
-	pubKey := privKey.PubKey()
-	pubKeyAny, err := types.NewAnyWithValue(pubKey)
-	require.NoError(t, err)
-
-	validNamespace := make([]byte, share.NamespaceSize)
-	validNamespace[0] = 0 // version 0
-	// Set bytes 19-28 to create a valid user namespace
-	for i := 19; i < share.NamespaceSize; i++ {
-		validNamespace[i] = 1
-	}
-
-	validCommitment := make([]byte, 32)
-	for i := range validCommitment {
-		validCommitment[i] = byte(i)
-	}
-
-	validPromise := PaymentPromise{
-		SignerPublicKey:   pubKeyAny,
-		Namespace:         validNamespace,
-		BlobSize:          1000,
-		Commitment:        validCommitment,
-		RowVersion:        uint32(share.ShareVersionZero),
-		CreationTimestamp: time.Now(),
-		Signature:         []byte("valid-signature"),
-		Height:            100,
-		ChainId:           "celestia-test",
-	}
-
-	tests := []struct {
+	type testCase struct {
 		name    string
 		msg     *MsgPayForFibre
-		wantErr bool
-		errType error
-	}{
+		wantErr error
+	}
+	testCases := []testCase{
 		{
-			name: "valid message",
+			name: "valid MsgPayForFibre",
 			msg: &MsgPayForFibre{
-				Signer:              validAddr,
-				PaymentPromise:      validPromise,
-				ValidatorSignatures: [][]byte{[]byte("sig1"), []byte("sig2")},
+				Signer:              signer,
+				PaymentPromise:      paymentPromise,
+				ValidatorSignatures: validatorSignatures,
 			},
-			wantErr: false,
 		},
 		{
 			name: "invalid signer address",
 			msg: &MsgPayForFibre{
 				Signer:              "invalid-address",
-				PaymentPromise:      validPromise,
-				ValidatorSignatures: [][]byte{[]byte("sig1")},
+				PaymentPromise:      paymentPromise,
+				ValidatorSignatures: validatorSignatures,
 			},
-			wantErr: true,
-			errType: sdkerrors.ErrInvalidAddress,
+			wantErr: sdkerrors.ErrInvalidAddress,
 		},
 		{
 			name: "no validator signatures",
 			msg: &MsgPayForFibre{
-				Signer:              validAddr,
-				PaymentPromise:      validPromise,
+				Signer:              signer,
+				PaymentPromise:      paymentPromise,
 				ValidatorSignatures: [][]byte{},
 			},
-			wantErr: true,
-			errType: sdkerrors.ErrInvalidRequest,
+			wantErr: sdkerrors.ErrInvalidRequest,
 		},
 		{
 			name: "empty validator signature",
 			msg: &MsgPayForFibre{
-				Signer:              validAddr,
-				PaymentPromise:      validPromise,
-				ValidatorSignatures: [][]byte{[]byte("sig1"), []byte{}},
+				Signer:              signer,
+				PaymentPromise:      paymentPromise,
+				ValidatorSignatures: [][]byte{[]byte("sig1"), {}},
 			},
-			wantErr: true,
-			errType: sdkerrors.ErrInvalidRequest,
+			wantErr: sdkerrors.ErrInvalidRequest,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.msg.ValidateBasic()
-			if tt.wantErr {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.msg.ValidateBasic()
+			if tc.wantErr != nil {
 				require.Error(t, err)
-				if tt.errType != nil {
-					assert.Contains(t, err.Error(), tt.errType.Error())
-				}
+				require.ErrorIs(t, err, tc.wantErr)
 			} else {
 				require.NoError(t, err)
 			}
@@ -557,4 +523,18 @@ func generatePubKeyAny(t *testing.T) *types.Any {
 	pubKeyAny, err := types.NewAnyWithValue(pubKey)
 	require.NoError(t, err)
 	return pubKeyAny
+}
+
+func generatePaymentPromise(t *testing.T) PaymentPromise {
+	return PaymentPromise{
+		SignerPublicKey:   generatePubKeyAny(t),
+		Namespace:         generateNamespace(t),
+		BlobSize:          1000,
+		Commitment:        generateCommitment(t),
+		RowVersion:        uint32(share.ShareVersionZero),
+		CreationTimestamp: time.Now(),
+		Signature:         []byte("valid-signature"),
+		Height:            100,
+		ChainId:           "celestia-test",
+	}
 }

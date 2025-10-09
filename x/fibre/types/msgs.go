@@ -113,24 +113,20 @@ func (msg *PaymentPromise) ValidateBasic() error {
 
 // ValidateBasic performs stateless validation for MsgPayForFibre
 func (msg *MsgPayForFibre) ValidateBasic() error {
-	// Validate signer address
 	if _, err := sdk.AccAddressFromBech32(msg.Signer); err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid signer address: %s", err)
 	}
 
-	// Validate PaymentPromise
 	if err := msg.PaymentPromise.ValidateBasic(); err != nil {
 		return errorsmod.Wrap(err, "invalid payment promise")
 	}
 
-	// Must have at least one validator signature
 	if len(msg.ValidatorSignatures) == 0 {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "must have at least one validator signature")
 	}
 
-	// All validator signatures must be properly formatted (non-empty)
-	for i, sig := range msg.ValidatorSignatures {
-		if len(sig) == 0 {
+	for i, signature := range msg.ValidatorSignatures {
+		if len(signature) == 0 {
 			return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "validator signature at index %d cannot be empty", i)
 		}
 	}
