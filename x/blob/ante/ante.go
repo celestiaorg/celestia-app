@@ -13,11 +13,10 @@ import (
 // but running out of gas in DeliverTx (effectively getting DA for free)
 // This decorator should be run after any decorator that consumes gas.
 type MinGasPFBDecorator struct {
-	k BlobKeeper
 }
 
-func NewMinGasPFBDecorator(k BlobKeeper) MinGasPFBDecorator {
-	return MinGasPFBDecorator{k}
+func NewMinGasPFBDecorator() MinGasPFBDecorator {
+    return MinGasPFBDecorator{}
 }
 
 // AnteHandle implements the AnteHandler interface. It checks to see
