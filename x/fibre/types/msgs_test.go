@@ -221,6 +221,21 @@ func TestPaymentPromiseValidateBasic(t *testing.T) {
 			wantErr: sdkerrors.ErrInvalidRequest,
 		},
 		{
+			name: "not a valid blob namespace",
+			msg: PaymentPromise{
+				SignerPublicKey:   signerPublicKey,
+				Namespace:         share.TxNamespace.Bytes(),
+				BlobSize:          blobSize,
+				Commitment:        commitment,
+				RowVersion:        rowVersion,
+				CreationTimestamp: creationTimestamp,
+				Signature:         signature,
+				Height:            height,
+				ChainId:           chainId,
+			},
+			wantErr: sdkerrors.ErrInvalidRequest,
+		},
+		{
 			name: "zero blob size",
 			msg: PaymentPromise{
 				SignerPublicKey:   signerPublicKey,

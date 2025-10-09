@@ -1,8 +1,6 @@
 package types
 
 import (
-	"fmt"
-
 	errorsmod "cosmossdk.io/errors"
 	"github.com/celestiaorg/go-square/v2/share"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
@@ -76,7 +74,7 @@ func (msg *PaymentPromise) ValidateBasic() error {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "invalid namespace: %s", err)
 	}
 
-	if err := ValidateBlobNamespace(namespace); err != nil {
+	if err := namespace.ValidateForBlob(); err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "invalid blob namespace: %s", err)
 	}
 
@@ -158,19 +156,6 @@ func (msg *MsgUpdateFibreParams) ValidateBasic() error {
 	if err := msg.Params.Validate(); err != nil {
 		return errorsmod.Wrap(err, "invalid params")
 	}
-
-	return nil
-}
-
-// ValidateBlobNamespace validates that a namespace is suitable for blob data
-// This is adapted from the blob module's validation logic
-func ValidateBlobNamespace(ns share.Namespace) error {
-	if ns.IsReserved() {
-		return fmt.Errorf("namespace %s is reserved", ns)
-	}
-
-	// Additional validation can be added here if needed
-	// The IsReserved() check above covers the main validation requirements
 
 	return nil
 }
