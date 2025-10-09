@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="359pt" height="61pt" viewBox="0.00 0.00 359.00 61.00">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 56.6)">
+<title>G</title>
+<polygon fill="white" stroke="none" points="-4,4 -4,-56.6 355.48,-56.6 355.48,4 -4,4"/>
+<!-- share -->
+<g id="node1" class="node">
+<title>share</title>
+<polygon fill="none" stroke="black" stroke-width="0" points="0,-0.5 0,-52.1 351.48,-52.1 351.48,-0.5 0,-0.5"/>
+<text xml:space="preserve" text-anchor="start" x="8" y="-35.5" font-family="Times,serif" font-size="14.00">0</text>
+<text xml:space="preserve" text-anchor="start" x="84.49" y="-35.5" font-family="Times,serif" font-size="14.00">1</text>
+<text xml:space="preserve" text-anchor="start" x="129.48" y="-35.5" font-family="Times,serif" font-size="14.00">5</text>
+<text xml:space="preserve" text-anchor="start" x="229.48" y="-35.5" font-family="Times,serif" font-size="14.00">50</text>
+<text xml:space="preserve" text-anchor="start" x="329.48" y="-35.5" font-family="Times,serif" font-size="14.00">64</text>
+<polygon fill="none" stroke="black" points="8,-4.5 8,-31.3 84.49,-31.3 84.49,-4.5 8,-4.5"/>
+<text xml:space="preserve" text-anchor="start" x="13" y="-13.7" font-family="Times,serif" font-size="14.00">row version</text>
+<polygon fill="none" stroke="black" points="84.49,-4.5 84.49,-31.3 129.48,-31.3 129.48,-4.5 84.49,-4.5"/>
+<text xml:space="preserve" text-anchor="start" x="89.49" y="-13.7" font-family="Times,serif" font-size="14.00">length</text>
+<polygon fill="none" stroke="black" points="129.48,-4.5 129.48,-31.3 229.48,-31.3 229.48,-4.5 129.48,-4.5"/>
+<text xml:space="preserve" text-anchor="start" x="167.03" y="-13.7" font-family="Times,serif" font-size="14.00">blob</text>
+<polygon fill="none" stroke="black" points="229.48,-4.5 229.48,-31.3 329.48,-31.3 329.48,-4.5 229.48,-4.5"/>
+<text xml:space="preserve" text-anchor="start" x="256.93" y="-13.7" font-family="Times,serif" font-size="14.00">padding</text>
+</g>
+</g>
+</svg>

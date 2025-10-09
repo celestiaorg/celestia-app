@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="838pt" height="61pt" viewBox="0.00 0.00 838.00 61.00">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 56.6)">
+<title>G</title>
+<polygon fill="white" stroke="none" points="-4,4 -4,-56.6 834.26,-56.6 834.26,4 -4,4"/>
+<!-- share -->
+<g id="node1" class="node">
+<title>share</title>
+<polygon fill="none" stroke="black" stroke-width="0" points="0,-0.5 0,-52.1 830.26,-52.1 830.26,-0.5 0,-0.5"/>
+<text xml:space="preserve" text-anchor="start" x="8" y="-35.5" font-family="Times,serif" font-size="14.00">0</text>
+<text xml:space="preserve" text-anchor="start" x="124.12" y="-35.5" font-family="Times,serif" font-size="14.00">1</text>
+<text xml:space="preserve" text-anchor="start" x="209.92" y="-35.5" font-family="Times,serif" font-size="14.00">29</text>
+<text xml:space="preserve" text-anchor="start" x="270.07" y="-35.5" font-family="Times,serif" font-size="14.00">30</text>
+<text xml:space="preserve" text-anchor="start" x="369.87" y="-35.5" font-family="Times,serif" font-size="14.00">34</text>
+<text xml:space="preserve" text-anchor="start" x="414.08" y="-35.5" font-family="Times,serif" font-size="14.00">54</text>
+<text xml:space="preserve" text-anchor="start" x="490.57" y="-35.5" font-family="Times,serif" font-size="14.00">55</text>
+<text xml:space="preserve" text-anchor="start" x="601.26" y="-35.5" font-family="Times,serif" font-size="14.00">87</text>
+<text xml:space="preserve" text-anchor="start" x="801.26" y="-35.5" font-family="Times,serif" font-size="14.00">512</text>
+<polygon fill="none" stroke="black" points="8,-4.5 8,-31.3 124.12,-31.3 124.12,-4.5 8,-4.5"/>
+<text xml:space="preserve" text-anchor="start" x="13" y="-13.7" font-family="Times,serif" font-size="14.00">namespace version</text>
+<polygon fill="none" stroke="black" points="124.12,-4.5 124.12,-31.3 209.92,-31.3 209.92,-4.5 124.12,-4.5"/>
+<text xml:space="preserve" text-anchor="start" x="129.12" y="-13.7" font-family="Times,serif" font-size="14.00">namespace id</text>
+<polygon fill="none" stroke="black" points="209.92,-4.5 209.92,-31.3 270.07,-31.3 270.07,-4.5 209.92,-4.5"/>
+<text xml:space="preserve" text-anchor="start" x="214.92" y="-13.7" font-family="Times,serif" font-size="14.00">info byte</text>
+<polygon fill="none" stroke="black" points="270.07,-4.5 270.07,-31.3 369.87,-31.3 369.87,-4.5 270.07,-4.5"/>
+<text xml:space="preserve" text-anchor="start" x="275.07" y="-13.7" font-family="Times,serif" font-size="14.00">sequence length</text>
+<polygon fill="none" stroke="black" points="369.87,-4.5 369.87,-31.3 414.08,-31.3 414.08,-4.5 369.87,-4.5"/>
+<text xml:space="preserve" text-anchor="start" x="374.87" y="-13.7" font-family="Times,serif" font-size="14.00">signer</text>
+<polygon fill="none" stroke="black" points="414.08,-4.5 414.08,-31.3 490.57,-31.3 490.57,-4.5 414.08,-4.5"/>
+<text xml:space="preserve" text-anchor="start" x="419.08" y="-13.7" font-family="Times,serif" font-size="14.00">row version</text>
+<polygon fill="none" stroke="black" points="490.57,-4.5 490.57,-31.3 601.26,-31.3 601.26,-4.5 490.57,-4.5"/>
+<text xml:space="preserve" text-anchor="start" x="495.57" y="-13.7" font-family="Times,serif" font-size="14.00">fibre commitment</text>
+<polygon fill="none" stroke="black" points="601.26,-4.5 601.26,-31.3 801.26,-31.3 801.26,-4.5 601.26,-4.5"/>
+<text xml:space="preserve" text-anchor="start" x="678.71" y="-13.7" font-family="Times,serif" font-size="14.00">padding</text>
+</g>
+</g>
+</svg>
