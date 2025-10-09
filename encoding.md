@@ -30,4 +30,8 @@ Taken from [network params](https://github.com/celestiaorg/fibre-da-spec/pull/6/
 
 The Fibre blob data is encoded into RSEMA1d original rows.
 
-- TODO: what happens if the fibre blob size is not a multiple of the number of original rows? What happens if the row size is not a multiple of 64? Do we need to pad the row?
+If the blob content in a row does not fill the entire row, the row is padded with zeros. To differentiate between significant zeros and padding zeros, the row is prefixed with a length.
+
+![Fibre row](./figures/fibre-row.svg)
+
+Note: this diagram uses a row length of 64 bytes but the actual row length can be a multiple of 64 bytes.
