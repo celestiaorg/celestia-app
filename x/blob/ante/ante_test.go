@@ -114,7 +114,7 @@ func TestPFBAnteHandler(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			anteHandler := ante.NewMinGasPFBDecorator(mockBlobKeeper{})
+            anteHandler := ante.NewMinGasPFBDecorator()
 			header := tmproto.Header{
 				Height: 1,
 				Version: version.Consensus{
@@ -143,7 +143,7 @@ func TestPFBAnteHandler(t *testing.T) {
 // MsgExec that contains a MsgExec with a MsgPayForBlob where the MsgPayForBlob
 // gas cost is greater than the tx's gas limit.
 func TestMinGasPFBDecoratorWithMsgExec(t *testing.T) {
-	anteHandler := ante.NewMinGasPFBDecorator(mockBlobKeeper{})
+    anteHandler := ante.NewMinGasPFBDecorator()
 	txConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig
 
 	// Create a context with a gas meter with a high gas limit
