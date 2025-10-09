@@ -36,6 +36,10 @@ const (
 	TxsimMnemonic      = "TXSIM_MNEMONIC"
 )
 
+const (
+	FillBlocksDefaultBlobAmt = 16
+)
+
 // Values for all flags
 var (
 	keyPath, masterAccName, keyMnemonic, grpcEndpoint string
@@ -265,7 +269,7 @@ func fillBlocksExecute(cmd *cobra.Command, args []string) error {
 	maxBytes := maxSquareShares * share.ShareSize
 
 	if blob == 0 {
-		blob = maxBytes / appconsts.MaxTxSize
+		blob = FillBlocksDefaultBlobAmt
 	}
 	blobSizes = strconv.Itoa(appconsts.MaxTxSize - maxSquareShares*perShareOverheadSize)
 
