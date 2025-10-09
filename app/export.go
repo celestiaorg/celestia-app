@@ -6,6 +6,8 @@ import (
 	"log"
 
 	storetypes "cosmossdk.io/store/types"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	comettypes "github.com/cometbft/cometbft/types"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
@@ -39,11 +41,22 @@ func (app *App) ExportAppStateAndValidators(
 	}
 
 	validators, err := staking.WriteValidators(ctx, app.StakingKeeper)
+
+	// Ensure consensus params include a populated version field
+	consensusParams := app.GetConsensusParams(ctx)
+	if consensusParams != nil {
+		if consensusParams.Version == nil {
+			consensusParams.Version = &comettypes.VersionParams{App: appconsts.Version}
+		} else if consensusParams.Version.App == 0 {
+			consensusParams.Version.App = appconsts.Version
+		}
+	}
+
 	return servertypes.ExportedApp{
 		AppState:        appState,
 		Validators:      validators,
 		Height:          height,
-		ConsensusParams: app.GetConsensusParams(ctx),
+		ConsensusParams: consensusParams,
 	}, err
 }
 
