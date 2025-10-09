@@ -40,7 +40,7 @@ import (
 )
 
 const (
-	DefaultPollTime          = 3 * time.Second
+	DefaultPollTime          = 1 * time.Second
 	txTrackerPruningInterval = 10 * time.Minute
 	// Gas limits for initialization transactions
 	SendGasLimit         = 100000
