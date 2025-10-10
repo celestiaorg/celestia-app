@@ -471,6 +471,8 @@ message MsgPayForFibre {
 
 Stateless Validation:
 
+- Signer must be a valid address
+- PaymentPromise must be valid
 - Must have at least one validator signature
 - All validator signatures must be properly formatted
 
