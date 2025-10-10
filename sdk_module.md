@@ -401,8 +401,19 @@ sign_bytes = chain_id || namespace || blob_size || commitment || row_version || 
 - `commitment`: Raw commitment bytes (32 bytes)
 - `row_version`: Big-endian encoded uint32 (4 bytes)
 - `height`: Big-endian encoded int64 (8 bytes)
-- `creation_timestamp`: Protobuf-encoded google.protobuf.Timestamp (variable length)
-- `signer_public_key`: raw bytes of signer address secp256k1 (20 bytes)
+- `creation_timestamp`: UTC timestamp encoded using Go's time.Time.MarshalBinary() (15 bytes)
+- `signer_public_key`: Raw bytes of signer address secp256k1 (20 bytes)
+
+#### Payment Promise Hash
+
+The PaymentPromise hash is calculated using the following formula:
+
+```text
+payment_promise_hash = SHA256(sign_bytes || signature)
+```
+
+- `sign_bytes`: Raw sign bytes (variable length)
+- `signature`: Raw signature bytes (64 bytes)
 
 #### Payment Promise Pruning
 
