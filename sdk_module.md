@@ -33,6 +33,14 @@ An escrow account is a module-controlled account that holds user funds to guaran
 
 A cryptographic hash that uniquely identifies a Fibre blob's content. Validators sign over this commitment to prove they have received and will make the data available. The commitment is eventually included in Celestia's data square.
 
+### Signature Schemes
+
+The `x/fibre` module uses two different cryptographic signature schemes, following the same pattern as celestia-app:
+
+1. **User Signatures (secp256k1)**: PaymentPromises are signed by users using secp256k1, the same curve used for transaction submission in celestia-app.
+
+2. **Validator Signatures (ed25519)**: Validators sign blob commitments using ed25519, the same curve used for validator consensus signatures in celestia-app.
+
 ## Contents
 
 1. [Abstract](#abstract)
@@ -197,7 +205,6 @@ message Withdrawal {
 
 To prevent double payment, the module tracks which payment promises have been processed. Only the processing timestamp is stored, indexed by the promise hash.
 
-
 ## Messages
 
 ### Gas Consumption
@@ -344,7 +351,7 @@ message MsgPayForFibre {
   string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   // payment_promise is the original PaymentPromise
   PaymentPromise payment_promise = 2 [(gogoproto.nullable) = false];
-  // validator_signatures contains signatures from validators
+  // validator_signatures contains ed25519 signatures from validators
   repeated bytes validator_signatures = 3;
 }
 
@@ -365,7 +372,7 @@ message PaymentPromise {
   // is critical for determining which validators sign the commitment and
   // determining when service stops for this blob.
   google.protobuf.Timestamp creation_timestamp = 6 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
-  // signature is the signer (escrow account owner) signature over the sign bytes
+  // signature is the signer (escrow account owner) secp256k1 signature over the sign bytes
   bytes signature = 7;
   // height is the height that is used to determine the validator set that is used
   int64 height = 8;
@@ -401,12 +408,12 @@ Gas cost is calculated as described in the [Gas Consumption](#gas-consumption) s
 
 2. Verify escrow account exists for `signer`
 3. Verify sufficient available balance for gas cost (see [Gas Consumption](#gas-consumption) section). This includes all yet to be processed `PaymentPromises` that the validator has signed over.
-4. Verify PaymentPromise signature by escrow owner over PaymentPromise sign bytes (see [Sign Bytes Format](#sign-bytes-format) below)
+4. Verify PaymentPromise secp256k1 signature by escrow owner over PaymentPromise sign bytes (see [Sign Bytes Format](#sign-bytes-format) below)
 5. Verify PaymentPromise hasn't been processed already
 
 #### Sign Bytes Format
 
-The sign bytes for a PaymentPromise signature are constructed by concatenating all fields except the `signature` field, along with prepending the chainID:
+The sign bytes for a PaymentPromise secp256k1 signature are constructed by concatenating all fields except the `signature` field, along with prepending the chainID:
 
 ```text
 sign_bytes = chainID || signer_bytes || namespace || blob_size_bytes || commitment || row_version_bytes || height_bytes || creation_timestamp_bytes
@@ -434,8 +441,9 @@ sign_bytes = chainID || signer_bytes || namespace || blob_size_bytes || commitme
 **Stateful Processing**:
 
 1. Validate PaymentPromise (see [PaymentPromise Validation](#paymentpromise-validation) above)
-2. Verify validator signatures represent 2/3+ threshold from validator set at `promise.height` (obtained via historical info query from staking module):
+2. Verify validator ed25519 signatures represent 2/3+ threshold from validator set at `promise.height` (obtained via historical info query from staking module):
    - Signatures must represent 2/3+ of total voting power AND 2/3+ of validator count
+   - Each signature is verified using the validator's ed25519 public key from the validator set
 3. Calculate gas cost (see [Gas Consumption](#gas-consumption) section) and deduct from both escrow balance and available_balance
 4. Mark promise as processed (stores `processed_at` timestamp and creates pruning index entry)
 5. Include commitment in data square
@@ -465,7 +473,7 @@ message MsgPaymentPromiseTimeout {
 
 **Stateless Validation**:
 
-- All [PaymentPromise](#paymentpromise-validation) stateless validation applies (including signature validation)
+- All [PaymentPromise](#paymentpromise-validation) stateless validation applies (including secp256k1 signature validation)
 
 **Stateful Processing**:
 
