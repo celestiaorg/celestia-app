@@ -332,6 +332,106 @@ func processAvailableWithdrawals(ctx sdk.Context, k Keeper) {
 }
 ```
 
+### PaymentPromise
+
+```proto
+// PaymentPromise is a promise to pay for a Fibre blob. It contains the
+// commitment and payment details for the Fibre blob.
+message PaymentPromise {
+  // chain_id is the chain ID that this payment promise is valid for.
+  // Example: arabica-11, mocha-4, or celestia.
+  string chain_id = 1;
+  // namespace is the namespace the blob is associated with.
+  bytes namespace = 2;
+  // blob_size is the size of the blob in bytes
+  uint32 blob_size = 3;
+  // commitment is the hash of the row root and the Random Linear Combination (RLC) root
+  bytes commitment = 4;
+  // row_version is the version of the row format
+  uint32 row_version = 5;
+  // height is the height that is used to determine the validator set that is used
+  int64 height = 6;
+  // creation_timestamp is the timestamp when this promise was created. This
+  // is critical for determining which validators sign the commitment and
+  // determining when service stops for this blob.
+  google.protobuf.Timestamp creation_timestamp = 7 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+  // signer_public_key is the public key of the owner of the escrow account to charge
+  google.protobuf.Any signer_public_key = 8 [(cosmos_proto.accepts_interface) = "cosmos.crypto.PubKey"];
+  // signature is the signer (escrow account owner) secp256k1 signature over the sign bytes
+  bytes signature = 9;
+}
+```
+
+Stateless Validation
+
+- `chain_id` must be non-empty.
+- `namespace` must be a valid blob namespace. Must be 29 bytes.
+- `blob_size` must be positive.
+- `commitment` must be 32 bytes.
+- `row_version` must be a supported row version.
+- `height` must be positive.
+- `creation_timestamp` must be positive.
+- `signer_public_key` must be non-empty. TBD.
+- `signature` must be properly formatted and non-empty.
+
+Stateful Validation
+
+1. Verify `creation_timestamp` is:
+
+    - less than or equal to current confirmed timestamp
+    - greater than (header_timestamp - withdrawal_delay)
+
+2. Verify escrow account exists for `signer_public_key`
+3. Verify sufficient available balance for gas cost (see [Gas Consumption](#gas-consumption) section). This includes all yet to be processed `PaymentPromises` that the validator has signed over.
+4. Verify PaymentPromise secp256k1 signature by escrow owner over PaymentPromise sign bytes
+5. Verify PaymentPromise hasn't been processed already
+
+#### Sign Bytes Format
+
+The sign bytes for a PaymentPromise secp256k1 signature are constructed by concatenating all fields except the `signature` field:
+
+```text
+sign_bytes = chain_id || namespace || blob_size || commitment || row_version || height || creation_timestamp || signer_public_key
+```
+
+- `chain_id`: Raw chain ID bytes (variable length)
+- `namespace`: Raw namespace bytes (fixed 29 bytes)
+- `blob_size`: Big-endian encoded uint32 (4 bytes)
+- `commitment`: Raw commitment bytes (32 bytes)
+- `row_version`: Big-endian encoded uint32 (4 bytes)
+- `height`: Big-endian encoded int64 (8 bytes)
+- `creation_timestamp`: Protobuf-encoded google.protobuf.Timestamp (variable length)
+- `signer_public_key`: raw bytes of signer address secp256k1 (20 bytes)
+
+#### Payment Promise Pruning
+
+Payment promises are automatically pruned in `BeginBlocker` when `current_time >= processed_at + payment_promise_retention_window` to prevent unbounded state growth:
+
+```go
+func pruneProcessedPromises(ctx sdk.Context, k Keeper) {
+    currentTime := ctx.BlockTime()
+    pruneThreshold := currentTime.Add(-k.GetPaymentPromiseRetentionWindow(ctx))
+
+    // Iterate over pruning index starting from earliest timestamp
+    iterator := k.GetPruningIterator(ctx, pruneThreshold)
+    defer iterator.Close()
+
+    for ; iterator.Valid(); iterator.Next() {
+        // Extract processed_at timestamp and promise_hash from key
+        processed_at, promise_hash := k.ParsePruningKey(iterator.Key())
+
+        // Stop if we've reached promises not yet eligible for pruning
+        if processed_at.After(pruneThreshold) {
+            break
+        }
+
+        // Remove from both indexes atomically
+        k.DeleteProcessedPromise(ctx, promise_hash)
+        k.DeletePruningEntry(ctx, processed_at, promise_hash)
+    }
+}
+```
+
 ### MsgPayForFibre
 
 Contains the original PaymentPromise with validator signatures, submitted by the user. Successful `MsgPayForFibre` transactions are included in their own reserved namespace. The commitment from the PaymentPromise is also included in the original data square in the namespace specified in the PaymentPromise.
@@ -347,94 +447,17 @@ message MsgPayForFibre {
   // validator_signatures contains signatures from validators
   repeated bytes validator_signatures = 3;
 }
-
-// PaymentPromise is a promise to pay for a Fibre blob. It contains the
-// commitment and payment details for the Fibre blob.
-message PaymentPromise {
-  // signer_public_key is the public key of the owner of the escrow account to charge
-  google.protobuf.Any signer_public_key = 1 [(cosmos_proto.accepts_interface) = "cosmos.crypto.PubKey"];
-  // namespace is the namespace the blob is associated with.
-  bytes namespace = 2;
-  // blob_size is the size of the blob in bytes
-  uint32 blob_size = 3;
-  // commitment is the hash of the row root and the Random Linear Combination (RLC) root
-  bytes commitment = 4;
-  // row_version is the version of the row format
-  uint32 row_version = 5;
-  // creation_timestamp is the timestamp when this promise was created. This
-  // is critical for determining which validators sign the commitment and
-  // determining when service stops for this blob.
-  google.protobuf.Timestamp creation_timestamp = 6 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
-  // signature is the signer (escrow account owner) signature over the sign bytes
-  bytes signature = 7;
-  // height is the height that is used to determine the validator set that is used
-  int64 height = 8;
-  // chain_id is the chain ID that this payment promise is valid for.
-  // Example: arabica-11, mocha-4, or celestia.
-  string chain_id = 9;
-}
 ```
 
-#### PaymentPromise Validation
-
-**Stateless Validation**:
-
-- `signer_public_key` must be a valid public key and the derived address must match the escrow account owner
-- `namespace` must be valid
-- `blob_size` must be positive
-- `commitment` must be 32 bytes
-- `row_version` must be supported version
-- `height` must be positive
-- `creation_timestamp` must be positive
-- `signature` must be properly formatted and non-empty
-
-**Gas Consumption**:
-
-Gas cost is calculated as described in the [Gas Consumption](#gas-consumption) section.
-
-**Stateful Validation**:
-
-1. Verify `creation_timestamp` is:
-
-    - less than or equal to current confirmed timestamp
-    - greater than (header_timestamp - withdrawal_delay)
-
-2. Verify escrow account exists for `signer`
-3. Verify sufficient available balance for gas cost (see [Gas Consumption](#gas-consumption) section). This includes all yet to be processed `PaymentPromises` that the validator has signed over.
-4. Verify PaymentPromise signature by escrow owner over PaymentPromise sign bytes (see [Sign Bytes Format](#sign-bytes-format) below)
-5. Verify PaymentPromise hasn't been processed already
-
-#### Sign Bytes Format
-
-The sign bytes for a PaymentPromise signature are constructed by concatenating all fields except the `signature` field, along with prepending the chainID:
-
-```text
-sign_bytes = chainID || signer_bytes || namespace || blob_size_bytes || commitment || row_version_bytes || height_bytes || creation_timestamp_bytes
-```
-
-**Field Encoding**:
-
-- `signer`: raw bytes of signer address secp256k1 (20 bytes)
-- `namespace`: Raw namespace bytes (fixed 29 bytes)
-- `blob_size_bytes`: Big-endian encoded uint32 (4 bytes)
-- `commitment`: Raw commitment bytes (32 bytes)
-- `row_version_bytes`: Big-endian encoded uint32 (4 bytes)
-- `height_bytes`: Big-endian encoded int64 (8 bytes)
-- `creation_timestamp_bytes`: Protobuf-encoded google.protobuf.Timestamp (variable length)
-
-**Total Length**: Variable length (20 + 29 + 4 + 32 + 4 + 8 + timestamp_bytes)
-
-#### MsgPayForFibre Validation and Processing
-
-**Stateless Validation**:
+Stateless Validation:
 
 - Must have at least one validator signature
 - All validator signatures must be properly formatted
 
-**Stateful Processing**:
+Stateful Processing:
 
-1. Validate PaymentPromise (see [PaymentPromise Validation](#paymentpromise-validation) above)
-2. Verify validator signatures represent 2/3+ threshold from validator set at `promise.height` (obtained via historical info query from staking module):
+1. Validate PaymentPromise
+2. Verify validator ed25519 signatures represent 2/3+ threshold from validator set at `promise.height` (obtained via historical info query from staking module):
    - Signatures must represent 2/3+ of total voting power AND 2/3+ of validator count
 3. Calculate gas cost (see [Gas Consumption](#gas-consumption) section) and deduct from both escrow balance and available_balance
 4. Mark promise as processed (stores `processed_at` timestamp and creates pruning index entry)
@@ -476,34 +499,6 @@ message MsgPaymentPromiseTimeout {
 5. DO NOT include commitment in data square (since no validator consensus was reached)
 6. Emit EventPaymentPromiseTimeout
 
-#### Payment Promise Pruning
-
-Payment promises are automatically pruned in `BeginBlocker` when `current_time >= processed_at + payment_promise_retention_window` to prevent unbounded state growth:
-
-```go
-func pruneProcessedPromises(ctx sdk.Context, k Keeper) {
-    currentTime := ctx.BlockTime()
-    pruneThreshold := currentTime.Add(-k.GetPaymentPromiseRetentionWindow(ctx))
-
-    // Iterate over pruning index starting from earliest timestamp
-    iterator := k.GetPruningIterator(ctx, pruneThreshold)
-    defer iterator.Close()
-
-    for ; iterator.Valid(); iterator.Next() {
-        // Extract processed_at timestamp and promise_hash from key
-        processed_at, promise_hash := k.ParsePruningKey(iterator.Key())
-
-        // Stop if we've reached promises not yet eligible for pruning
-        if processed_at.After(pruneThreshold) {
-            break
-        }
-
-        // Remove from both indexes atomically
-        k.DeleteProcessedPromise(ctx, promise_hash)
-        k.DeletePruningEntry(ctx, processed_at, promise_hash)
-    }
-}
-```
 
 ## Automatic State Transitions
 
