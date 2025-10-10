@@ -380,7 +380,7 @@ Stateless Validation
 - `row_version` must be a supported row version.
 - `height` must be positive.
 - `creation_timestamp` must be positive.
-- `signer_public_key` must be non-empty. TBD.
+- `signer_public_key` must be non-empty.
 - `signature` must be properly formatted and non-empty.
 
 Stateful Validation
