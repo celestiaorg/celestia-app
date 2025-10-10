@@ -33,6 +33,14 @@ An escrow account is a module-controlled account that holds user funds to guaran
 
 A cryptographic hash that uniquely identifies a Fibre blob's content. Validators sign over this commitment to prove they have received and will make the data available. The commitment is eventually included in Celestia's data square.
 
+### Signature Schemes
+
+The `x/fibre` module uses two different cryptographic signature schemes, following the same pattern as celestia-app:
+
+1. **User Signatures (secp256k1)**: PaymentPromises are signed by users using secp256k1, the same curve used for transaction submission in celestia-app.
+
+2. **Validator Signatures (ed25519)**: Validators sign blob commitments using ed25519, the same curve used for validator consensus signatures in celestia-app.
+
 ## Contents
 
 1. [Abstract](#abstract)
@@ -456,7 +464,7 @@ message MsgPayForFibre {
   string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   // payment_promise is the original PaymentPromise
   PaymentPromise payment_promise = 2 [(gogoproto.nullable) = false];
-  // validator_signatures contains signatures from validators
+  // validator_signatures contains ed25519 signatures from validators
   repeated bytes validator_signatures = 3;
 }
 ```
@@ -471,6 +479,7 @@ Stateful Processing:
 1. Validate PaymentPromise
 2. Verify validator ed25519 signatures represent 2/3+ threshold from validator set at `promise.height` (obtained via historical info query from staking module):
    - Signatures must represent 2/3+ of total voting power AND 2/3+ of validator count
+   - Each signature is verified using the validator's ed25519 public key from the validator set
 3. Calculate gas cost (see [Gas Consumption](#gas-consumption) section) and deduct from both escrow balance and available_balance
 4. Mark promise as processed (stores `processed_at` timestamp and creates pruning index entry)
 5. Include commitment in data square
