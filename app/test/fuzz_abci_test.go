@@ -152,9 +152,18 @@ func TestPrepareProposalConsistency(t *testing.T) {
 					require.GreaterOrEqual(t, len(resp.Txs), sendTxCount+1)
 					// at this point valid 100 valid txs and 1 blob
 					// we check the amount of blob that made it into block
-					// len(resp.Txs) - sendTxCount gives total of valid_blob
-					// for % valid_blob/n_blob
-					_ = n_blob
+
+					// We determine the number of included blob in block
+					// then calculate the rate(%) of included blob
+					// but we need to have a min_rate first so we run test
+					// and log obtained rates(%) and find the min
+					valid_blob := len(resp.Txs) - sendTxCount
+					incl_rate := valid_blob / n_blob
+					///* We need this to determine the min rate of included blob
+					t.Logf("included blob: %d", incl_rate)
+					//*/
+					//min_rate := 50 / 100 // the min_rate goes here after testings
+					//require.GreaterOrEqual(t, min_rate, incl_rate)
 				}
 			})
 		}
