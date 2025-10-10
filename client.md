@@ -1,3 +1,5 @@
+# Fibre Client Specification
+
 ## 0) Glossary
 
 * **FSP**: validator‑operated Fibre Service Provider.
@@ -7,7 +9,9 @@
 * **Assignment**: permutation mapping `(commitment, valset@height)` → rows per validator.
 
 ## 1) Construction & Config
+
 The client library can be constructed in two modes:
+
 1. Light-node backed. This mode will run a light-node in-process to fetch headers and validator sets as needed.
 2. Connected to a full node or a light node via RPC. This mode will query the node for headers and validator sets as needed.
 
@@ -19,17 +23,17 @@ NewFibdreDAModule(cfg ModuleConfig, vtMode ValTrackerMode, opts ...Option) (*Cli
 NewFibdreDAClient(cfg ClientConfig, vtMode ValTrackerMode, opts ...Option) (*Client, error)
 ```
 
-**Key config**
+### Key config
 
 * `ChainID string` (MUST be in validator sign‑bytes domain)
 * `EscrowOwner string` (bech32 signer)
 * `DefaultFSPs []string` (grpc endpoints)
 
-**Options**
+### Options
 
 * `WithSendWorkers(int)`, `WithReadWorkers(int)` — concurrency controls
 
-**Sub‑components**
+### Sub‑components
 
 * **ValTracker** — track current validator set (height, members, power).
 * **Keystore** — PP signer key (sdk.Keyring).
@@ -74,16 +78,16 @@ type Client interface {
   Put(ctx context.Context, ns Namespace, data []byte) (PutResult, error)
 
   // Retrieves and reconstructs data by commitment.
-    // Errors: 
+    // Errors:
     // `ErrCommitmentNotFound`: no FSP had any rows for the commitment.
      // `ErrNotEnoughRows`: not enough rows were retrieved to reconstruct the original data.
      // `ErrRLCMismatch`: RLC computed from retrieved rows does not match the commitment.
      // `Ctx` errors: timeouts, cancellations.
   Get(ctx context.Context, ns Namespace, commitment [32]byte) ([]byte, error)
-  
+
   // Access to escrow account management API.
   Account() AccountClient
-  
+
   // Closes all connections and resources.
   Close() error
 }
@@ -91,7 +95,7 @@ type Client interface {
 // AccountClient provides access to the DFSP's FibreAccount gRPC service.
 type AccountClient interface {
 // Mirrors: FibreAccount.QueryEscrowAccount
-// Queries the escrow account for `signer`. Returns current & available balance.	
+// Queries the escrow account for `signer`. Returns current & available balance.
 QueryEscrowAccount(ctx context.Context, signer string) (curr_balance,avail_balance uint64,  err error)
 
 // Mirrors: FibreAccount.Deposit
@@ -99,7 +103,7 @@ QueryEscrowAccount(ctx context.Context, signer string) (curr_balance,avail_balan
 Deposit(ctx context.Context, signer string, amount sdk.Coin) (balance uint64, error)
 
 // Mirrors: FibreAccount.Withdraw
-// Requests a withdrawal of `amount` from the escrow account for `signer`. 
+// Requests a withdrawal of `amount` from the escrow account for `signer`.
 Withdraw(ctx context.Context, signer string, amount sdk.Coin) (*PendingWithdrawal, error)
 
 // Mirrors: FibreAccount.PendingWithdrawals
@@ -112,7 +116,7 @@ PendingWithdrawals(ctx context.Context, signer string) ([]PendingWithdrawal, err
 
 Validator signatures are over the PP preimage + ChainID domain tag. APIs use `google.protobuf.Timestamp` for `creation_timestamp`.
 
-```
+```text
 SignBytes = SHA256(
   "fibre/pp:v1" || Chain_id || signer_bytes || namespace ||
   blob_size_u32be || commitment || row_version_u32be ||
@@ -124,8 +128,8 @@ SignBytes = SHA256(
 * `namespace`: 29 bytes (version MUST be 2).
 * **Signature scheme**: ed25519.
 
-
 ## 4) Assignment (non‑overlapping; permutation‑based)
+
 ShardMap: Assignment(commitment, valset@height) → map[validator]rows
 Inputs: `seed = commitment`, `n = 16384`, validators `k = |valset@PP.creation_height|`.
 
@@ -135,9 +139,10 @@ Inputs: `seed = commitment`, `n = 16384`, validators `k = |valset@PP.creation_he
 4. `base = n // k`, `r = n % k`; first `r` in chosen validator order get `base+1`, others `base`.
 5. Walk permuted shares handing contiguous blocks to validators in that order.
 
-## 6) ValTracker 
+## 6) ValTracker
 
-### API:
+### API
+
 ```go
 type ValTracker interface {
   // CurrentSet returns the validator set and height at the latest known block.
@@ -149,13 +154,14 @@ type ValTracker interface {
 
 type Validator struct {
     Address     Address      // Address is hex bytes. From Tendermint heeader
-    PubKey      crypto.PubKey 
-    VotingPower int64         
+    PubKey      crypto.PubKey
+    VotingPower int64
     FSPAddr     net.IP // FSP IP address
 }
 ```
 
-### Modes:
+### Modes
+
 * `ValTrackerModeLight`: use embedded light client to track headers/valsets.
 * `ValTrackerModeRPC`: use json-RPC to fetch headers/valsets from remote Light or Bridge node.
 
@@ -179,13 +185,12 @@ type Validator struct {
 
 ### Get()
 
-1. Get Valset: `vals, _ := vt.CurrentSet(ctx)`. 
-   - This could be a different validator set to the the validator set that actually has the shares. It probably won't be problematic because the validator sets will likely have a high degree of overlap and the erasure coding ensures enough redundancy
+1. Get Valset: `vals, _ := vt.CurrentSet(ctx)`.
+   * This could be a different validator set to the the validator set that actually has the shares. It probably won't be problematic because the validator sets will likely have a high degree of overlap and the erasure coding ensures enough redundancy
 2. Send `GetRowsRequest{commitment}` to FSPs in parallel (≤ `read_workers`).
 3. Collect `GetRowsResponse{rows[], rlc_orig_coefs}` from each FSP in parallel; Where rlc_orig_coefs should match only returned rows and have inclusion proofs. Verify all merkle proofs against `commitment`.
 4. Decode data once amount of collected rows > `original_rows`; cancel remaining ongoing requests. recompute & verify **RLC**.
 5. Return `data` or error.
-
 
 ## 6) Account Management API (client ↔ DFSP)
 
@@ -195,13 +200,13 @@ The client exposes `Account()` which returns an `AccountClient` bound to the **D
 
 * **Endpoint**: DFSP gRPC connection from client config. **Best‑effort** relay policy (no obligation for any given FSP to accept beyond availability).
 * **Fallback**: if DFSP is unavailable, client MAY connect to any other FSP from config (same API).
-* **Retries**: transient gRPC errors use exponential backoff with jitter. 
+* **Retries**: transient gRPC errors use exponential backoff with jitter.
 * **Idempotency**:
 
   * `QueryEscrowAccount` & `PendingWithdrawals` are read‑only.
-  * `Deposit`/`Withdraw` are **not** idempotent by default; callers must ensure they don’t replay the same request. 
+  * `Deposit`/`Withdraw` are **not** idempotent by default; callers must ensure they don’t replay the same request.
 
-### 6.2 Grpc Requests & Responses 
+### 6.2 Grpc Requests & Responses
 
 Use the Protobuf messages from the payments spec:
 
@@ -214,10 +219,9 @@ TODO: Consider to include optional proofs for escrow state queries so clients ca
 
 ### 6.3 Errors
 
-TODO: Map gRPC status codes to client errors 
+TODO: Map gRPC status codes to client errors
 
 ## 7) Client Defaults & Metrics
 
 * `send_workers = 20`, `read_workers = 20`.
 * Metrics: encode latency, chosen `row_size`, per‑FSP upload latency, signatures collected, quorum time, PFF submit/inclusion, balance cache age, insufficient‑proofs processed.
-
