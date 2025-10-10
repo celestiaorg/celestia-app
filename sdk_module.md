@@ -471,8 +471,8 @@ message MsgPayForFibre {
 
 Stateless Validation:
 
-- Signer must be a valid address
-- PaymentPromise must be valid
+- `signer` must be a valid address
+- `PaymentPromise` must be valid
 - Must have at least one validator signature
 - All validator signatures must be non-empty
 
@@ -507,11 +507,10 @@ message MsgPaymentPromiseTimeout {
 }
 ```
 
-#### MsgPaymentPromiseTimeout Validation and Processing
-
 **Stateless Validation**:
 
-- All [PaymentPromise](#paymentpromise) stateless validation applies (including signature validation)
+- `signer` must be a valid address
+- `PaymentPromise` must be valid
 
 **Stateful Processing**:
 
