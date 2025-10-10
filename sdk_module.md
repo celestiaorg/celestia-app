@@ -419,7 +419,7 @@ func pruneProcessedPromises(ctx sdk.Context, k Keeper) {
 
     for ; iterator.Valid(); iterator.Next() {
         // Extract processed_at timestamp and promise_hash from key
-        processed_at, promise_hash := k.ParsePruningKey(iterator.Key())
+        processed_at, payment_promise_hash := k.ParsePruningKey(iterator.Key())
 
         // Stop if we've reached promises not yet eligible for pruning
         if processed_at.After(pruneThreshold) {
@@ -427,8 +427,8 @@ func pruneProcessedPromises(ctx sdk.Context, k Keeper) {
         }
 
         // Remove from both indexes atomically
-        k.DeleteProcessedPromise(ctx, promise_hash)
-        k.DeletePruningEntry(ctx, processed_at, promise_hash)
+        k.DeleteProcessedPromise(ctx, payment_promise_hash)
+        k.DeletePruningEntry(ctx, processed_at, payment_promise_hash)
     }
 }
 ```
@@ -727,5 +727,5 @@ celestia-appd query fibre processed-payment-promise <payment_promise_hash>
 
 **Payment Promises:**
 
-- Processed promises: `processed/{promise_hash}` → `google.protobuf.Timestamp` (processed_at)
-- Pruning index: `pruning/{processed_at}/{promise_hash}` → `∅` (empty value, used for time-ordered iteration)
+- Processed promises: `processed/{payment_promise_hash}` → `google.protobuf.Timestamp` (processed_at)
+- Pruning index: `pruning/{processed_at}/{payment_promise_hash}` → `∅` (empty value, used for time-ordered iteration)
