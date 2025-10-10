@@ -13,7 +13,7 @@
 3. Validators verify the PaymentPromise off-chain and immediately start providing service for the data they received.
 4. Payment settlement occurs later through on-chain transactions (`MsgPayForFibre`) or a timeout mechanism (`MsgPaymentPromiseTimeout`)
 
-**Key guarantee**: A valid [`PaymentPromise`](#paymentpromise-validation) guarantees payment for a blob, enabling validators to provide immediate service for blob data with confidence that the protocol will charge the user later when the `MsgPayForFibre` or `MsgPaymentPromiseTimeout` transactions are submitted on-chain.
+**Key guarantee**: A valid [`PaymentPromise`](#paymentpromise) guarantees payment for a blob, enabling validators to provide immediate service for blob data with confidence that the protocol will charge the user later when the `MsgPayForFibre` or `MsgPaymentPromiseTimeout` transactions are submitted on-chain.
 
 ## Key Concepts
 
@@ -96,7 +96,7 @@ sequenceDiagram
 
 2. **Fibre Blob Submission**:
    - User calculates the cryptographic commitment for their blob data
-   - User creates a signed [`PaymentPromise`](#paymentpromise-validation) containing the commitment, blob size, namespace, and escrow account reference
+   - User creates a signed [`PaymentPromise`](#paymentpromise) containing the commitment, blob size, namespace, and escrow account reference
    - User sends the blob data and PaymentPromise to validators
 
 3. **Validator Processing**:
@@ -156,7 +156,7 @@ The fibre module maintains state for [escrow accounts](#escrow-accounts), [withd
 
 ### Escrow Accounts
 
-Escrow accounts help guarantee payment for a signed [`PaymentPromise`](#paymentpromise-validation) by ensuring that a user does not remove funds after validators sign over and provide service for a Fibre blob. Each address can only have one escrow account, indexed by their signer address.
+Escrow accounts help guarantee payment for a signed [`PaymentPromise`](#paymentpromise) by ensuring that a user does not remove funds after validators sign over and provide service for a Fibre blob. Each address can only have one escrow account, indexed by their signer address.
 
 ```proto
 // EscrowAccount helps guarantee payment for a signed PaymentPromise by ensuring
@@ -196,7 +196,6 @@ message Withdrawal {
 ### Payment Promises
 
 To prevent double payment, the module tracks which payment promises have been processed. Only the processing timestamp is stored, indexed by the promise hash.
-
 
 ## Messages
 
@@ -332,7 +331,9 @@ func processAvailableWithdrawals(ctx sdk.Context, k Keeper) {
 }
 ```
 
+<!-- markdownlint-disable MD024 -->
 ### PaymentPromise
+<!-- markdownlint-enable MD024 -->
 
 ```proto
 // PaymentPromise is a promise to pay for a Fibre blob. It contains the
@@ -488,17 +489,16 @@ message MsgPaymentPromiseTimeout {
 
 **Stateless Validation**:
 
-- All [PaymentPromise](#paymentpromise-validation) stateless validation applies (including signature validation)
+- All [PaymentPromise](#paymentpromise) stateless validation applies (including signature validation)
 
 **Stateful Processing**:
 
-1. Validate PaymentPromise (see [PaymentPromise Validation](#paymentpromise-validation) above)
+1. Validate PaymentPromise
 2. Verify `promise.creation_timestamp + payment_promise_timeout <= header_timestamp` (timeout has passed)
 3. Calculate gas cost (see [Gas Consumption](#gas-consumption) section) and deduct from both escrow balance and available_balance
 4. Mark promise as processed (stores `processed_at` timestamp and creates pruning index entry)
 5. DO NOT include commitment in data square (since no validator consensus was reached)
 6. Emit EventPaymentPromiseTimeout
-
 
 ## Automatic State Transitions
 
@@ -627,7 +627,7 @@ message QueryProcessedPaymentPromiseResponse {
 
 ### ValidatePaymentPromise
 
-Validates a [PaymentPromise](#paymentpromise-validation) for server use, performing all required checks including escrow balance and processing status.
+Validates a [PaymentPromise](#paymentpromise) for server use, performing all required checks including escrow balance and processing status.
 
 **Request**:
 
@@ -654,7 +654,7 @@ message QueryValidatePaymentPromiseResponse {
 
 1. Verify escrow account exists and has sufficient available balance for the gas cost (see [Gas Consumption](#gas-consumption) section)
 2. Verify PaymentPromise hasn't been processed already
-3. Perform all standard PaymentPromise validation (see [PaymentPromise Validation](#paymentpromise-validation) section)
+3. Perform all standard PaymentPromise validation
 
 ## Parameters
 
