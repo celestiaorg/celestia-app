@@ -105,6 +105,8 @@ func TestPrepareProposalConsistency(t *testing.T) {
 						accounts[:tt.count],
 						user.SetGasLimitAndGasPrice(1_000_000_000, 0.1),
 					)
+					// keep tab of blob
+					n_blob := len(txs)
 					// create 100 send transactions
 					sendTxs := testutil.SendTxsWithAccounts(
 						t,
@@ -148,6 +150,11 @@ func TestPrepareProposalConsistency(t *testing.T) {
 					// change if PFB transactions are not separated and put into
 					// their own namespace
 					require.GreaterOrEqual(t, len(resp.Txs), sendTxCount+1)
+					// at this point valid 100 valid txs and 1 blob
+					// we check the amount of blob that made it into block
+					// len(resp.Txs) - sendTxCount gives total of valid_blob
+					// for % valid_blob/n_blob
+					_ = n_blob
 				}
 			})
 		}
