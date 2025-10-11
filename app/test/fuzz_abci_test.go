@@ -160,11 +160,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 					valid_blob := len(resp.Txs) - sendTxCount
 					incl_rate := float64(valid_blob) / float64(n_blob)
 					///* We need this to determine the min rate of included blob
-					t.Logf("Tx count %d", sendTxCount)
-					t.Logf("valid blob %d", valid_blob)
-					t.Logf("Max num blob %d", n_blob)
-					t.Logf("resquest txs %d", len(resp.Txs))
-					t.Logf("included blob: %.2f", incl_rate)
+					t.Logf("included blob: %.2f %", incl_rate*float(100))
 					//*/
 					//min_rate := 50 / 100 // the min_rate goes here after testings
 					//require.GreaterOrEqual(t, min_rate, incl_rate)
