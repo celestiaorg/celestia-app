@@ -166,5 +166,5 @@ func getPrivValidatorKeyJsonBytes(key privval.FilePVKey) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("marshaling priv_validator_key.json: %w", err)
 	}
-	return privValidatorKeyBz, err
+	return privValidatorKeyBz, nil
 }
