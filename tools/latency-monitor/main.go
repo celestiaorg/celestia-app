@@ -52,44 +52,46 @@ type txResult struct {
 }
 
 func main() {
-	if err := rootCmd.Execute(); err != nil {
+	if err := newRootCmd().Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		//nolint:gocritic
 		os.Exit(1)
 	}
 }
 
-var rootCmd = &cobra.Command{
-	Use:   "latency-monitor",
-	Short: "Monitor and measure transaction latency in Celestia networks",
-	Long: `A tool for monitoring and measuring transaction latency in Celestia networks.
+func newRootCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "latency-monitor",
+		Short: "Monitor and measure transaction latency in Celestia networks",
+		Long: `A tool for monitoring and measuring transaction latency in Celestia networks.
 This tool submits PayForBlob transactions at a specified rate and measures the time
 between submission and commitment, providing detailed latency statistics.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		// Create cancellable context
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Create cancellable context
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 
-		// Handle interrupt signal
-		sigChan := make(chan os.Signal, 1)
-		signal.Notify(sigChan, os.Interrupt)
-		go func() {
-			<-sigChan
-			cancel()
-		}()
+			// Handle interrupt signal
+			sigChan := make(chan os.Signal, 1)
+			signal.Notify(sigChan, os.Interrupt)
+			go func() {
+				<-sigChan
+				cancel()
+			}()
 
-		return monitorLatency(ctx, endpoint, keyringDir, accountName, blobSize, namespaceStr, disableMetrics, submissionDelay)
-	},
-}
+			return monitorLatency(ctx, endpoint, keyringDir, accountName, blobSize, namespaceStr, disableMetrics, submissionDelay)
+		},
+	}
 
-func init() {
-	rootCmd.Flags().StringVarP(&endpoint, "grpc-endpoint", "e", defaultEndpoint, "gRPC endpoint to connect to")
-	rootCmd.Flags().StringVarP(&keyringDir, "keyring-dir", "k", defaultKeyringDir, "Directory containing the keyring")
-	rootCmd.Flags().StringVarP(&accountName, "account", "a", "", "Account name to use from keyring (defaults to first account)")
-	rootCmd.Flags().IntVarP(&blobSize, "blob-size", "b", defaultBlobSize, "Maximum size of blob data in bytes (actual size will be random up to this value)")
-	rootCmd.Flags().StringVarP(&namespaceStr, "namespace", "n", defaultNamespaceStr, "Namespace for blob submission")
-	rootCmd.Flags().BoolVarP(&disableMetrics, "disable-metrics", "m", false, "Disable metrics collection")
-	rootCmd.Flags().DurationVarP(&submissionDelay, "submission-delay", "d", defaultSubmissionDelay, "Delay between transaction submissions")
+	cmd.Flags().StringVarP(&endpoint, "grpc-endpoint", "e", defaultEndpoint, "gRPC endpoint to connect to")
+	cmd.Flags().StringVarP(&keyringDir, "keyring-dir", "k", defaultKeyringDir, "Directory containing the keyring")
+	cmd.Flags().StringVarP(&accountName, "account", "a", "", "Account name to use from keyring (defaults to first account)")
+	cmd.Flags().IntVarP(&blobSize, "blob-size", "b", defaultBlobSize, "Maximum size of blob data in bytes (actual size will be random up to this value)")
+	cmd.Flags().StringVarP(&namespaceStr, "namespace", "n", defaultNamespaceStr, "Namespace for blob submission")
+	cmd.Flags().BoolVarP(&disableMetrics, "disable-metrics", "m", false, "Disable metrics collection")
+	cmd.Flags().DurationVarP(&submissionDelay, "submission-delay", "d", defaultSubmissionDelay, "Delay between transaction submissions")
+
+	return cmd
 }
 
 func monitorLatency(
@@ -266,11 +268,11 @@ func writeResults(results []txResult) error {
 
 	// Calculate statistics
 	var (
-		totalLatency  float64
-		latencies     = make([]float64, 0, len(results))
-		successCount  int
-		failureCount  int
-		totalCount    = len(results)
+		totalLatency float64
+		latencies    = make([]float64, 0, len(results))
+		successCount int
+		failureCount int
+		totalCount   = len(results)
 	)
 
 	// Write results and collect statistics
