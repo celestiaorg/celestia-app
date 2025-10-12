@@ -2,15 +2,16 @@ package user
 
 import (
 	"context"
-	"cosmossdk.io/x/feegrant"
 	"errors"
 	"fmt"
+	"sync"
+
+	"cosmossdk.io/x/feegrant"
 	"github.com/celestiaorg/go-square/v3/share"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"sync"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 )
