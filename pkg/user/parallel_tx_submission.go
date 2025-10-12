@@ -229,6 +229,10 @@ func (p *txQueue) initializeWorkerAccounts(ctx context.Context) error {
 			// Skip first worker - it uses existing account
 			continue
 		}
+		if _, exists := p.client.signer.accounts[worker.accountName]; exists {
+			// worker account already loaded into signer
+			continue
+		}
 
 		if err := p.client.ensureAccountInKeyring(worker.accountName); err != nil {
 			return fmt.Errorf("failed to create worker account %s: %w", worker.accountName, err)
