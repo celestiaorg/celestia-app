@@ -52,20 +52,3 @@ func TestRemoveStart(t *testing.T) {
 		require.Equal(t, test.want, got)
 	}
 }
-
-func TestErrGroupUsage(t *testing.T) {
-	t.Run("errgroup documentation should match actual usage", func(t *testing.T) {
-		// This test documents what is actually added to the errgroup.
-		// The errgroup contains:
-		// 1. Signal listener (from getCtx/ListenForQuitSignals)
-		// 2. gRPC server (when enabled)
-		// 3. API server (when enabled)
-		// 4. Block event listener (when gRPC is enabled)
-		//
-		// Notable: CometBFT node is NOT added to the errgroup - it's started synchronously
-		// in startCmtNode() and managed separately.
-		//
-		// This test serves as documentation to prevent regression of the documentation fix.
-		require.True(t, true, "errgroup contains signal listener, gRPC server, API server, and block event listener but NOT CometBFT node")
-	})
-}
