@@ -2,6 +2,7 @@ package types
 
 import (
 	"bytes"
+	"runtime"
 	"slices"
 
 	"github.com/celestiaorg/go-square/v3/inclusion"
@@ -36,29 +37,53 @@ func NewV1Blob(ns share.Namespace, data []byte, signer sdk.AccAddress) (*share.B
 // ValidateBlobTx performs stateless checks on the BlobTx to ensure that the
 // blobs attached to the transaction are valid.
 func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *tx.BlobTx, subtreeRootThreshold int, _ uint64) error {
+	msgPFB, err := ValidateBlobTxSkipCommitment(txcfg, bTx)
+	if err != nil {
+		return err
+	}
+
+	// verify that the commitment of the blob matches that of the msgPFB
+	calculatedCommitments, err := inclusion.CreateParallelCommitments(bTx.Blobs, merkle.HashFromByteSlices, subtreeRootThreshold, runtime.NumCPU()*2)
+	if err != nil {
+		return ErrCalculateCommitment
+	}
+	for i, commitment := range msgPFB.ShareCommitments {
+		if !bytes.Equal(calculatedCommitments[i], commitment) {
+			return ErrInvalidShareCommitment
+		}
+	}
+
+	return nil
+}
+
+// ValidateBlobTxSkipCommitment performs the same validation as ValidateBlobTx but skips
+// the expensive commitment generation and verification step. This should only be used
+// when the commitment validation has already been performed (e.g., in CheckTx) and
+// cached for reuse in ProcessProposal.
+func ValidateBlobTxSkipCommitment(txcfg client.TxEncodingConfig, bTx *tx.BlobTx) (*MsgPayForBlobs, error) {
 	if bTx == nil {
-		return ErrNoBlobs
+		return nil, ErrNoBlobs
 	}
 
 	sdkTx, err := txcfg.TxDecoder()(bTx.Tx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// TODO: remove this check once support for multiple sdk.Msgs in a BlobTx is
 	// supported.
 	msgs := sdkTx.GetMsgs()
 	if len(msgs) != 1 {
-		return ErrMultipleMsgsInBlobTx
+		return nil, ErrMultipleMsgsInBlobTx
 	}
 	msg := msgs[0]
 	msgPFB, ok := msg.(*MsgPayForBlobs)
 	if !ok {
-		return ErrNoPFB
+		return nil, ErrNoPFB
 	}
 	err = msgPFB.ValidateBasic()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// perform basic checks on the blobs
@@ -68,49 +93,38 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *tx.BlobTx, subtreeRootTh
 	}
 	err = ValidateBlobs(bTx.Blobs...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	signer, err := sdk.AccAddressFromBech32(msgPFB.Signer)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	for _, blob := range bTx.Blobs {
 		// If share version is 1, assert that the signer in the blob
 		// matches the signer in the msgPFB.
 		if blob.ShareVersion() == share.ShareVersionOne {
 			if !bytes.Equal(blob.Signer(), signer) {
-				return ErrInvalidBlobSigner.Wrapf("blob signer %s does not match msgPFB signer %s", sdk.AccAddress(blob.Signer()).String(), msgPFB.Signer)
+				return nil, ErrInvalidBlobSigner.Wrapf("blob signer %s does not match msgPFB signer %s", sdk.AccAddress(blob.Signer()).String(), msgPFB.Signer)
 			}
 		}
 	}
 
 	// check that the sizes in the blobTx match the sizes in the msgPFB
 	if !slices.Equal(sizes, msgPFB.BlobSizes) {
-		return ErrBlobSizeMismatch.Wrapf("actual %v declared %v", sizes, msgPFB.BlobSizes)
+		return nil, ErrBlobSizeMismatch.Wrapf("actual %v declared %v", sizes, msgPFB.BlobSizes)
 	}
 
 	for i, ns := range msgPFB.Namespaces {
 		msgPFBNamespace, err := share.NewNamespaceFromBytes(ns)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		if !bytes.Equal(bTx.Blobs[i].Namespace().Bytes(), msgPFBNamespace.Bytes()) {
-			return ErrNamespaceMismatch.Wrapf("%v %v", bTx.Blobs[i].Namespace().Bytes(), msgPFB.Namespaces[i])
+			return nil, ErrNamespaceMismatch.Wrapf("%v %v", bTx.Blobs[i].Namespace().Bytes(), msgPFB.Namespaces[i])
 		}
 	}
 
-	// verify that the commitment of the blob matches that of the msgPFB
-	for i, commitment := range msgPFB.ShareCommitments {
-		calculatedCommit, err := inclusion.CreateCommitment(bTx.Blobs[i], merkle.HashFromByteSlices, subtreeRootThreshold)
-		if err != nil {
-			return ErrCalculateCommitment
-		}
-		if !bytes.Equal(calculatedCommit, commitment) {
-			return ErrInvalidShareCommitment
-		}
-	}
-
-	return nil
+	return msgPFB, nil
 }

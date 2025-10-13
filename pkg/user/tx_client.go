@@ -40,7 +40,7 @@ import (
 )
 
 const (
-	DefaultPollTime          = 3 * time.Second
+	DefaultPollTime          = 1 * time.Second
 	txTrackerPruningInterval = 10 * time.Minute
 	// Gas limits for initialization transactions
 	SendGasLimit         = 100000
@@ -49,6 +49,11 @@ const (
 	// evictionPollTimeOut is the timeout for checking if an evicted transaction
 	// gets committed after experiencing a broadcast error during resubmission
 	evictionPollTimeOut = 1 * time.Minute
+)
+
+var (
+	errTxQueueNotStarted    = errors.New("tx queue not started")
+	errTxQueueNotConfigured = errors.New("tx queue not configured")
 )
 
 type Option func(client *TxClient)
@@ -154,16 +159,15 @@ func WithAdditionalCoreEndpoints(conns []*grpc.ClientConn) Option {
 
 // WithTxWorkers enables parallel transaction submission with the specified number of worker accounts.
 // Worker accounts are automatically generated with hardcoded names unless numWorkers is 1, in which case
-// the existing default account is used.
-// Workers are initialized automatically when SetupTxClient is called.
+// the existing default account is used. Workers are initialized automatically when SetupTxClient is
+// called.
 func WithTxWorkers(numWorkers int) Option {
 	if numWorkers <= 0 {
 		return func(*TxClient) {}
 	}
 
 	return func(c *TxClient) {
-		pool := newTxQueue(c, numWorkers)
-		c.txQueue = pool
+		c.txQueue = newTxQueue(c, numWorkers)
 	}
 }
 
@@ -178,8 +182,7 @@ func WithParallelQueueSize(size int) Option {
 }
 
 // TxClient is an abstraction for building, signing, and broadcasting Celestia transactions
-// It supports multiple accounts. If none is specified, it will
-// try to use the default account.
+// It supports multiple accounts.
 // TxClient is thread-safe.
 type TxClient struct {
 	mtx      sync.Mutex
@@ -248,8 +251,9 @@ func NewTxClient(
 	return txClient, nil
 }
 
-// SetupTxClient uses the underlying grpc connection to populate the chainID, accountNumber and sequence number of all
-// the accounts in the keyring.
+// SetupTxClient initializes a TxClient by querying the chain ID and account
+// details for all accounts in the keyring, then starts the transaction queue.
+// The queue runs until the provided context is cancelled.
 func SetupTxClient(
 	ctx context.Context,
 	keys keyring.Keyring,
@@ -257,6 +261,8 @@ func SetupTxClient(
 	encCfg encoding.Config,
 	options ...Option,
 ) (*TxClient, error) {
+	// consider wrapping ctx with timeout for short-lived setup operations
+
 	resp, err := tmservice.NewServiceClient(conn).GetNodeInfo(
 		ctx,
 		&tmservice.GetNodeInfoRequest{},
@@ -306,27 +312,19 @@ func SetupTxClient(
 
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
-// This method uses the tx queue infrastructure and blocks until the transaction is confirmed.
+// This method broadcasts the transaction and waits for confirmation using the default account.
 func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
-	if client.txQueue == nil {
-		return nil, errors.New("tx queue not configured")
-	}
+	return client.SubmitPayForBlobWithAccount(ctx, client.defaultAccount, blobs, opts...)
+}
 
-	if !client.txQueue.started.Load() {
-		return nil, errors.New("tx queue not started")
-	}
-
+// SubmitPayForBlobToQueue submits blobs to the parallel transaction queue and blocks until confirmed.
+// TxOptions may be provided to set the fee and gas limit. This method uses the tx queue infrastructure
+// for parallel submission.
+func (client *TxClient) SubmitPayForBlobToQueue(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
 	resultsC := make(chan SubmissionResult, 1)
 	defer close(resultsC)
 
-	job := &SubmissionJob{
-		Blobs:    blobs,
-		Options:  opts,
-		Ctx:      ctx,
-		ResultsC: resultsC,
-	}
-
-	client.SubmitJob(job)
+	client.QueueBlob(ctx, resultsC, blobs, opts...)
 
 	// Block waiting for the result
 	result := <-resultsC
@@ -337,13 +335,28 @@ func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blo
 	return result.TxResponse, nil
 }
 
-// SubmitJob submits a job to the tx queue for parallel processing
-func (client *TxClient) SubmitJob(job *SubmissionJob) {
-	if client.txQueue != nil {
-		client.txQueue.submitJob(job)
-	} else {
-		job.ResultsC <- SubmissionResult{Error: errors.New("tx queue not configured")}
+// QueueBlob submits blobs to the parallel transaction queue without blocking. The result will be sent
+// to the provided channel when the transaction is confirmed. The caller is responsible for creating and
+// closing the result channel.
+func (client *TxClient) QueueBlob(ctx context.Context, resultC chan SubmissionResult, blobs []*share.Blob, opts ...TxOption) {
+	if client.txQueue == nil {
+		resultC <- SubmissionResult{Error: errTxQueueNotConfigured}
+		return
 	}
+
+	if !client.txQueue.isStarted() {
+		resultC <- SubmissionResult{Error: errTxQueueNotStarted}
+		return
+	}
+
+	job := &SubmissionJob{
+		Blobs:    blobs,
+		Options:  opts,
+		Ctx:      ctx,
+		ResultsC: resultC,
+	}
+
+	client.txQueue.submitJob(job)
 }
 
 // SubmitPayForBlobWithAccount forms a transaction from the provided blobs, signs it with the provided account, and submits it to the chain.
@@ -552,8 +565,7 @@ func (client *TxClient) submitToSingleConnection(ctx context.Context, txBytes []
 func (client *TxClient) sendTxToConnection(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
 	span := trace.SpanFromContext(ctx)
 
-	txClient := sdktx.NewServiceClient(conn)
-	resp, err := txClient.BroadcastTx(
+	resp, err := sdktx.NewServiceClient(conn).BroadcastTx(
 		ctx,
 		&sdktx.BroadcastTxRequest{
 			Mode:    sdktx.BroadcastMode_BROADCAST_MODE_SYNC,
@@ -873,7 +885,7 @@ func (client *TxClient) EstimateGasPriceAndUsage(
 		return 0, 0, fmt.Errorf("failed to estimate gas price and usage: %w", err)
 	}
 
-	gasUsed = uint64(float64(resp.EstimatedGasUsed))
+	gasUsed = resp.EstimatedGasUsed
 	span.AddEvent("txclient/EstimateGasPriceAndUsage: estimation successful", trace.WithAttributes(
 		attribute.Int64("gas_used", int64(gasUsed)),
 		attribute.Int64("gas_price", int64(resp.EstimatedGasPrice)),
@@ -914,7 +926,7 @@ func (client *TxClient) estimateGas(ctx context.Context, txBuilder client.TxBuil
 		return 0, err
 	}
 
-	gasLimit := uint64(float64(resp.EstimatedGasUsed))
+	gasLimit := resp.EstimatedGasUsed
 
 	span := trace.SpanFromContext(ctx)
 	span.AddEvent("txclient/estimateGas: estimation successful",
