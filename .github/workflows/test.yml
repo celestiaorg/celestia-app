@@ -137,6 +137,7 @@ jobs:
             entrypoint: TestIBCTestSuite
           - testcase: TestStateSyncWithAppUpgrade
           - testcase: TestMinorVersionCompatibility
+          - testcase: TestCelestiaAppV5ToV6UpgradeValidation
 
     steps:
       - name: Checkout code
