@@ -50,7 +50,7 @@ params:
     },
     {
       "@type": "/cosmos.consensus.v1.MsgUpdateParams",
-      "authority": "celestia1yhrw8pjp6slez3nyn2ewymkanpcaxe2gxxqqkx",
+      "authority": "celestia10d07y265gmmuvt4z0w9aw880jnsr700jtgz4v7",
       "block": {
         "max_bytes": "134217728",
         "max_gas": "-1"
