@@ -470,6 +470,13 @@ func (a *RemoteABCIClientV1) ExtendVote(ctx context.Context, req *abciv2.Request
 	return &abciv2.ResponseExtendVote{}, nil
 }
 
+// QuerySequence implements abciv2.ABCI
+func (a *RemoteABCIClientV1) QuerySequence(_ context.Context, _ *abciv2.RequestQuerySequence) (*abciv2.ResponseQuerySequence, error) {
+	return &abciv2.ResponseQuerySequence{
+		Sequence: 0,
+	}, nil
+}
+
 // abciEventV1ToV2 converts a slice of abciv1.Event to a slice of abciv2.Event.
 func abciEventV1ToV2(events ...abciv1.Event) []abciv2.Event {
 	v2Events := make([]abciv2.Event, 0, len(events))
