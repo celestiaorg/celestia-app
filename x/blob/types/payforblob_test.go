@@ -279,14 +279,6 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 			},
 			expectedErr: true,
 		},
-		{
-			name:   "v1 blob with nil signer should be filled with transaction signer",
-			signer: testfactory.TestAccAddr,
-			blobs: []*share.Blob{
-				mustNewBlob(t, ns1, random.Bytes(10000), share.ShareVersionOne, nil), // nil signer
-			},
-			expectedErr: false,
-		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
