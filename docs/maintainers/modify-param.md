@@ -42,7 +42,7 @@ params:
   "messages": [
     {
       "@type": "/celestia.blob.v1.MsgUpdateBlobParams",
-      "authority": "celestia1yhrw8pjp6slez3nyn2ewymkanpcaxe2gxxqqkx",
+      "authority": "celestia10d07y265gmmuvt4z0w9aw880jnsr700jtgz4v7",
       "params": {
         "gas_per_blob_byte": 8,
         "gov_max_square_size": 512
