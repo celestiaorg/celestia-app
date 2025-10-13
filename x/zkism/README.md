@@ -171,10 +171,6 @@ The module enforces the following invariants:
 
 ## Notes & TODOs
 
-- [ ] Event emission on proof submission rpcs.
-- [ ] SubmitMessages currently checks only `public_values.StateRoot == ism.state_root` prior to verification. Allow higher availability of trusted roots (see inline TODO in `msg_server.go`).
-  - Note, message inclusion proofs can be generated much faster than state transition proofs. In the event of missing a proof submission window (stale against a trusted root), messages cannot be censored as in order to prove against the trusted root _all_ messages must be included.
-- [ ] CLI `create` command is scaffolded and needs additional flags for full ISM configuration.
-- [ ] CLI commands for proof submission rpcs are required.
+- [ ] CLI commands for proof submission rpcs are required, CLI for ism creation must be updated.
 - [ ] Extension of the module to support consumption of other proof system types. Currently we only support Evolve's `ev-reth` execution.
 - [ ] The Evolve `ev-reth` execution client can encapsulate the `Namespace` and `SequencerPublicKey` values within its state root, eliminating the need for validation within this verifier module.
