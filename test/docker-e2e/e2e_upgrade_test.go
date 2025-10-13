@@ -82,11 +82,11 @@ func (s *CelestiaTestSuite) TestAllUpgrades() {
 	}
 }
 
-// TestCelestiaAppV5ToV6UpgradeValidation validates that parameters are correctly applied across the v5 -> v6 upgrade,
+// TestCelestiaAppV5ToV6UpgradeValidation validates that parameters are correctly applied across the v5 to v6 upgrade,
 // including changes introduced by CIP-042 as well as earlier CIPs and pre-v5 defaults.
 func (s *CelestiaTestSuite) TestCelestiaAppV5ToV6UpgradeValidation() {
 	if testing.Short() {
-		s.T().Skip("skipping v5->v6 upgrade validation test in short mode")
+		s.T().Skip("skipping v5 to v6 upgrade validation test in short mode")
 	}
 
 	ctx := context.Background()
