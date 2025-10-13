@@ -65,7 +65,7 @@ max-gossip-delay = "1m0s"
 ### Preparing for 128MB/6s
 
 This release introduces new CPU feature checks and updated hardware recommendations in preparation for future network upgrades to 128MB/6s blocks.
-**These requirements are not necessary for the 32MB/6s block configuration
+**These requirements are not necessary for the 8MB or 32MB block sizes
 but will become essential when the network transitions to higher throughput.**
 
 #### CPU Feature Checks
