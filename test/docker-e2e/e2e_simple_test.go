@@ -1,7 +1,6 @@
 package docker_e2e
 
 import (
-	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"context"
 	"fmt"
 	"testing"
@@ -10,6 +9,7 @@ import (
 	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	"github.com/celestiaorg/go-square/v3/share"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
@@ -18,7 +18,7 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 )
 
 func (s *CelestiaTestSuite) TestE2ESimple() {
@@ -38,7 +38,7 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 
 	// Cleanup resources when the test is done
 	t.Cleanup(func() {
-		if err := celestia.Stop(ctx); err != nil {
+		if err := celestia.Remove(ctx); err != nil {
 			t.Logf("Error stopping chain: %v", err)
 		}
 	})
