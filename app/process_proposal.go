@@ -121,10 +121,9 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			return reject(), nil
 		}
 
-		// validated the PFB signature
 		ctx, err = handler(ctx, sdkTx, false)
 		if err != nil {
-			logInvalidPropBlockError(app.Logger(), blockHeader, "invalid PFB signature", err)
+			logInvalidPropBlockError(app.Logger(), blockHeader, "ante handler validation failed", err)
 			return reject(), nil
 		}
 
