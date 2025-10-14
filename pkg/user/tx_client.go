@@ -51,6 +51,11 @@ const (
 	evictionPollTimeOut = 1 * time.Minute
 )
 
+var (
+	errTxQueueNotStarted    = errors.New("tx queue not started")
+	errTxQueueNotConfigured = errors.New("tx queue not configured")
+)
+
 type Option func(client *TxClient)
 
 // txInfo is a struct that holds the sequence and the signer of a transaction
@@ -162,8 +167,7 @@ func WithTxWorkers(numWorkers int) Option {
 	}
 
 	return func(c *TxClient) {
-		pool := newTxQueue(c, numWorkers)
-		c.txQueue = pool
+		c.txQueue = newTxQueue(c, numWorkers)
 	}
 }
 
@@ -247,8 +251,9 @@ func NewTxClient(
 	return txClient, nil
 }
 
-// SetupTxClient uses the underlying grpc connection to populate the chainID, accountNumber and sequence number of all
-// the accounts in the keyring.
+// SetupTxClient initializes a TxClient by querying the chain ID and account
+// details for all accounts in the keyring, then starts the transaction queue.
+// The queue runs until the provided context is cancelled.
 func SetupTxClient(
 	ctx context.Context,
 	keys keyring.Keyring,
@@ -256,6 +261,8 @@ func SetupTxClient(
 	encCfg encoding.Config,
 	options ...Option,
 ) (*TxClient, error) {
+	// consider wrapping ctx with timeout for short-lived setup operations
+
 	resp, err := tmservice.NewServiceClient(conn).GetNodeInfo(
 		ctx,
 		&tmservice.GetNodeInfoRequest{},
@@ -333,12 +340,12 @@ func (client *TxClient) SubmitPayForBlobToQueue(ctx context.Context, blobs []*sh
 // closing the result channel.
 func (client *TxClient) QueueBlob(ctx context.Context, resultC chan SubmissionResult, blobs []*share.Blob, opts ...TxOption) {
 	if client.txQueue == nil {
-		resultC <- SubmissionResult{Error: errors.New("tx queue not configured")}
+		resultC <- SubmissionResult{Error: errTxQueueNotConfigured}
 		return
 	}
 
-	if !client.txQueue.started.Load() {
-		resultC <- SubmissionResult{Error: errors.New("tx queue not started")}
+	if !client.txQueue.isStarted() {
+		resultC <- SubmissionResult{Error: errTxQueueNotStarted}
 		return
 	}
 
@@ -558,8 +565,7 @@ func (client *TxClient) submitToSingleConnection(ctx context.Context, txBytes []
 func (client *TxClient) sendTxToConnection(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
 	span := trace.SpanFromContext(ctx)
 
-	txClient := sdktx.NewServiceClient(conn)
-	resp, err := txClient.BroadcastTx(
+	resp, err := sdktx.NewServiceClient(conn).BroadcastTx(
 		ctx,
 		&sdktx.BroadcastTxRequest{
 			Mode:    sdktx.BroadcastMode_BROADCAST_MODE_SYNC,
