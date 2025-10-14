@@ -43,9 +43,16 @@ func setOrDeleteNestedField(doc map[string]any, path string, value any) error {
 			return nil
 		}
 
-		next, ok := current[key].(map[string]any)
+		nextValue, exists := current[key]
+		next, ok := nextValue.(map[string]any)
 		if !ok {
-			return fmt.Errorf("invalid path: %s is not a map", strings.Join(keys[:i+1], "."))
+			// create missing intermediate map when inserting new fields
+			if value != nil && (!exists || nextValue == nil) {
+				next = make(map[string]any)
+				current[key] = next
+			} else {
+				return fmt.Errorf("invalid path: %s is not a map", strings.Join(keys[:i+1], "."))
+			}
 		}
 		current = next
 	}

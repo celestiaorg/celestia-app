@@ -32,6 +32,20 @@ func TestSetField(t *testing.T) {
 			want:  `{"x": {"y": {"z": "new"}}}`,
 		},
 		{
+			name:  "add missing intermediate map",
+			input: `{"x": {}}`,
+			path:  "x.y.z",
+			value: "new",
+			want:  `{"x": {"y": {"z": "new"}}}`,
+		},
+		{
+			name:  "add entirely new branch",
+			input: `{"existing": 1}`,
+			path:  "new.y.z",
+			value: 42,
+			want:  `{"existing": 1, "new": {"y": {"z": 42}}}`,
+		},
+		{
 			name:  "overwrite existing top-level field",
 			input: `{"x": "old"}`,
 			path:  "x",
@@ -109,6 +123,12 @@ func TestDeleteField(t *testing.T) {
 		{
 			name:    "delete invalid nested path",
 			input:   `{"x": 5}`,
+			path:    "x.y.z",
+			wantErr: errors.New("invalid path"),
+		},
+		{
+			name:    "delete with missing intermediate",
+			input:   `{"x": {}}`,
 			path:    "x.y.z",
 			wantErr: errors.New("invalid path"),
 		},
