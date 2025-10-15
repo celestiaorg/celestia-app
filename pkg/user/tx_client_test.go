@@ -871,29 +871,3 @@ func (suite *TxClientTestSuite) TestSequenceIncrementOnlyOnceInMultiConnBroadcas
 	require.Equal(t, seqBefore, trackedSeq, "Tracked sequence should be the sequence before increment")
 	require.Equal(t, multiConnClient.DefaultAccountName(), trackedSigner, "Tracked signer should match")
 }
-
-func (suite *TxClientTestSuite) TestBlobSigner() {
-	t := suite.T()
-
-	blob, err := share.NewV1Blob(share.RandomBlobNamespace(), random.Bytes(100), testnode.RandomAddress().(sdk.AccAddress))
-	require.NoError(t, err)
-
-	// not let's submit this pfb with default account
-	resp, err := suite.txClient.SubmitPayForBlobWithAccount(context.Background(), suite.txClient.DefaultAccountName(), []*share.Blob{blob})
-	require.NoError(t, err)
-	require.Equal(t, abci.CodeTypeOK, resp.Code)
-
-	// Get the transaction details
-	getTxResp, err := suite.serviceClient.GetTx(context.Background(), &sdktx.GetTxRequest{Hash: resp.TxHash})
-	require.NoError(t, err)
-
-	// Decode the transaction to check the signer
-	tx, err := suite.txClient.Signer().DecodeTx(getTxResp.TxResponse.Tx.GetValue())
-	require.NoError(t, err)
-
-	// Verify the transaction was signed by the default account
-	signers, err := tx.GetSigners()
-	require.NoError(t, err)
-	require.Len(t, signers, 1)
-	require.Equal(t, suite.txClient.DefaultAddress().Bytes(), signers[0])
-}

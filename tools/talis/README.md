@@ -59,7 +59,7 @@ talis init -c <chain-id> -e <experiment>
 
 This will initialize the directory that contains directory structure used for conducting an experiment.
 
-```
+```text
 .
 ├── app.toml
 ├── config.json

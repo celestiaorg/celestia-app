@@ -389,17 +389,6 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 	}
 	signer := acc.Address().String()
 
-	// Fill in the signer for v1 blobs to match the transaction signer
-	for i, blob := range blobs {
-		if blob.ShareVersion() == share.ShareVersionOne && !bytes.Equal(blob.Signer(), acc.Address()) {
-			newBlob, err := share.NewV1Blob(blob.Namespace(), blob.Data(), acc.Address())
-			if err != nil {
-				return nil, fmt.Errorf("creating v1 blob with filled signer: %w", err)
-			}
-			blobs[i] = newBlob
-		}
-	}
-
 	msg, err := blobtypes.NewMsgPayForBlobs(signer, 0, blobs...)
 	if err != nil {
 		return nil, err
