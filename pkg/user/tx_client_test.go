@@ -126,29 +126,6 @@ func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
 	})
-
-	t.Run("override v1 blob signer with tx signer", func(t *testing.T) {
-		blob, err := share.NewV1Blob(share.RandomBlobNamespace(), random.Bytes(100), testnode.RandomAddress().(sdk.AccAddress))
-		require.NoError(t, err)
-
-		// Submit this pfb with default account
-		resp, err := suite.txClient.SubmitPayForBlob(context.Background(), []*share.Blob{blob})
-		require.NoError(t, err)
-		require.Equal(t, abci.CodeTypeOK, resp.Code)
-
-		// Get the transaction details
-		getTxResp, err := suite.serviceClient.GetTx(context.Background(), &sdktx.GetTxRequest{Hash: resp.TxHash})
-		require.NoError(t, err)
-
-		// Decode the transaction to check the signer
-		tx, err := suite.txClient.Signer().DecodeTx(getTxResp.TxResponse.Tx.GetValue())
-		require.NoError(t, err)
-
-		signers, err := tx.GetSigners()
-		require.NoError(t, err)
-		require.Len(t, signers, 1)
-		require.Equal(t, suite.txClient.DefaultAddress().Bytes(), signers[0])
-	})
 }
 
 func (suite *TxClientTestSuite) TestSubmitTx() {

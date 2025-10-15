@@ -395,7 +395,6 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 		return nil, fmt.Errorf("account %s not found", accountName)
 	}
 	signer := acc.Address().String()
-
 	msg, err := blobtypes.NewMsgPayForBlobs(signer, 0, blobs...)
 	if err != nil {
 		return nil, err
