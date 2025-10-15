@@ -86,11 +86,11 @@ func (s *CelestiaTestSuite) TestAllUpgrades() {
 	}
 }
 
-// TestCelestiaAppV5ToV6UpgradeValidation validates that parameters are correctly applied across the v5 to v6 upgrade,
-// including changes introduced by CIP-042 as well as earlier CIPs and pre-v5 defaults.
-func (s *CelestiaTestSuite) TestCelestiaAppV5ToV6UpgradeValidation() {
+// TestCelestiaAppV5ToV6 validates that parameters are correctly applied across the v5 to v6 upgrade,
+// including changes introduced by CIP-042.
+func (s *CelestiaTestSuite) TestCelestiaAppV5ToV6() {
 	if testing.Short() {
-		s.T().Skip("skipping v5 to v6 upgrade validation test in short mode")
+		s.T().Skip("skipping v5 to v6 test in short mode")
 	}
 
 	ctx := context.Background()
@@ -308,24 +308,24 @@ func getSignalQueryClient(node tastoratypes.ChainNode) (signaltypes.QueryClient,
 // getICAHostQueryClient returns an icahosttypes.QueryClient for the provided node.
 // If the node is a docker ChainNode with a live *grpc.ClientConn, it is reused.
 // Returns an error if no gRPC connection is available.
-func getICAHostQueryClient(node tastoratypes.ChainNode) (icahosttypes.QueryClient, func(), error) {
+func getICAHostQueryClient(node tastoratypes.ChainNode) (icahosttypes.QueryClient, error) {
 	if dcNode, ok := node.(*tastoradockertypes.ChainNode); ok && dcNode.GrpcConn != nil {
-		return icahosttypes.NewQueryClient(dcNode.GrpcConn), func() {}, nil
+		return icahosttypes.NewQueryClient(dcNode.GrpcConn), nil
 	}
-	return nil, nil, fmt.Errorf("GRPC connection is nil")
+	return nil, fmt.Errorf("GRPC connection is nil")
 }
 
 // validateParameters validates that all parameters match expected values for the given app version
-func (s *CelestiaTestSuite) validateParameters(ctx context.Context, node tastoratypes.ChainNode, version uint64) {
+func (s *CelestiaTestSuite) validateParameters(ctx context.Context, node tastoratypes.ChainNode, appVersion uint64) {
 	// Verify we're running the correct app version
 	rpcClient, err := node.GetRPCClient()
 	s.Require().NoError(err, "failed to get RPC client")
 
 	abciInfo, err := rpcClient.ABCIInfo(ctx)
 	s.Require().NoError(err, "failed to fetch ABCI info")
-	s.Require().Equal(version, abciInfo.Response.GetAppVersion(), "should be running v%d", version)
+	s.Require().Equal(appVersion, abciInfo.Response.GetAppVersion(), "should be running v%d", appVersion)
 
-	if version == AppVersionV5 {
+	if appVersion == AppVersionV5 {
 		s.validateInflationRate(ctx, node, InflationRateV5, AppVersionV5)
 		s.validateUnbondingTime(ctx, node, UnbondingTimeV5Hours, AppVersionV5)
 		s.validateMinCommissionRate(ctx, node, MinCommissionRateV5, AppVersionV5)
@@ -333,13 +333,18 @@ func (s *CelestiaTestSuite) validateParameters(ctx context.Context, node tastora
 		return
 	}
 
-	s.validateInflationRate(ctx, node, InflationRateV6, AppVersionV6)
-	s.validateUnbondingTime(ctx, node, UnbondingTimeV6Hours, AppVersionV6)
-	s.validateMinCommissionRate(ctx, node, MinCommissionRateV6, AppVersionV6)
-	s.validateEvidenceParams(ctx, node, EvidenceMaxAgeV6Hours, EvidenceMaxAgeV6Blocks, AppVersionV6)
-	// Check ICA host params only on v6: v5 doesn't expose the icahost gRPC query service;
-	// the v6 upgrade applies these params per CIP-14.
-	s.validateICAHostParams(ctx, node, true, app.IcaAllowMessages(), AppVersionV6)
+	if appVersion == AppVersionV6 {
+		s.validateInflationRate(ctx, node, InflationRateV6, AppVersionV6)
+		s.validateUnbondingTime(ctx, node, UnbondingTimeV6Hours, AppVersionV6)
+		s.validateMinCommissionRate(ctx, node, MinCommissionRateV6, AppVersionV6)
+		s.validateEvidenceParams(ctx, node, EvidenceMaxAgeV6Hours, EvidenceMaxAgeV6Blocks, AppVersionV6)
+		// Check ICA host params only on v6: v5 doesn't expose the icahost gRPC query service;
+		// the v6 upgrade applies these params per CIP-14.
+		s.validateICAHostParams(ctx, node, true, app.IcaAllowMessages(), AppVersionV6)
+		return
+	}
+
+	s.T().Fatalf("invalid app version: %d", appVersion)
 }
 
 // validateInflationRate queries and validates the current inflation rate using CLI
@@ -483,9 +488,8 @@ func (s *CelestiaTestSuite) validateEvidenceParams(ctx context.Context, node tas
 
 // validateICAHostParams queries and validates ICA host params (host_enabled and allow_messages) via gRPC
 func (s *CelestiaTestSuite) validateICAHostParams(ctx context.Context, node tastoratypes.ChainNode, expectedHostEnabled bool, expectedAllowMessages []string, appVersion uint64) {
-	client, cleanup, err := getICAHostQueryClient(node)
+	client, err := getICAHostQueryClient(node)
 	s.Require().NoError(err)
-	defer cleanup()
 
 	resp, err := client.Params(ctx, &icahosttypes.QueryParamsRequest{})
 	s.Require().NoError(err, "failed to query ICA host params")
