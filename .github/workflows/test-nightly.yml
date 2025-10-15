@@ -40,7 +40,7 @@ jobs:
           fi
 
       - name: Build Docker image locally
-        if: ${{ !inputs.tag }} # only build an image if no tag is specified
+        if: ${{ inputs.tag == '' }} # only build an image if no tag is specified
         run: docker build -t "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.value }}" . -f docker/multiplexer.Dockerfile
 
       - name: Run TestStateSyncMocha (with retry)
@@ -50,7 +50,6 @@ jobs:
           max_attempts: 2
           command: make test-docker-e2e test=TestStateSyncMocha
         env:
-          # Use the locally built image
           CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
           CELESTIA_TAG: ${{ steps.tag.outputs.value }}
 
@@ -77,7 +76,7 @@ jobs:
           fi
 
       - name: Build Docker image locally
-        if: ${{ !inputs.tag }} # only build an image if no tag is specified
+        if: ${{ inputs.tag == '' }} # only build an image if no tag is specified
         run: docker build -t "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.value }}" . -f docker/multiplexer.Dockerfile
 
       - name: Run TestAllUpgrades (with retry)
@@ -87,7 +86,6 @@ jobs:
           max_attempts: 2
           command: make test-docker-e2e test=TestAllUpgrades
         env:
-          # Use the locally built image
           CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
           CELESTIA_TAG: ${{ steps.tag.outputs.value }}
 
