@@ -12,6 +12,8 @@ import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
 	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
 
 	"cosmossdk.io/math"
@@ -97,6 +99,20 @@ func (s *CelestiaTestSuite) TestCelestiaAppV5ToV6UpgradeValidation() {
 
 	cfg := dockerchain.DefaultConfig(s.client, s.network).WithTag(tag)
 	cfg.Genesis = cfg.Genesis.WithAppVersion(AppVersionV5)
+
+	// For v5 genesis, set legacy (pre–CIP-037) values so the v6 upgrade can update them.
+	enc := cfg.Genesis.EncodingConfig()
+	cfg.Config = cfg.Config.WithModifiers(genesis.Modifier(func(state map[string]json.RawMessage) map[string]json.RawMessage {
+		var gs stakingtypes.GenesisState
+		enc.Codec.MustUnmarshalJSON(state[stakingtypes.ModuleName], &gs)
+		gs.Params.UnbondingTime = UnbondingTimeV5Hours * time.Hour
+		state[stakingtypes.ModuleName] = enc.Codec.MustMarshalJSON(&gs)
+		return state
+	}))
+	cparams := cfg.Genesis.ConsensusParams
+	cparams.Evidence.MaxAgeDuration = EvidenceMaxAgeV5Hours * time.Hour
+	cparams.Evidence.MaxAgeNumBlocks = EvidenceMaxAgeV5Blocks
+	cfg.Config = cfg.Config.WithConsensusParams(cparams)
 
 	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
 	s.Require().NoError(err)

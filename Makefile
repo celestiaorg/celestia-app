@@ -301,7 +301,7 @@ test-docker-e2e-upgrade:
 	@echo "--> Building celestia-appd docker image (tag $(CELESTIA_TAG))"
 	@DOCKER_BUILDKIT=0 docker build --build-arg BUILDPLATFORM=linux/amd64 --build-arg TARGETOS=linux --build-arg TARGETARCH=amd64 -t "ghcr.io/celestiaorg/celestia-app:$(CELESTIA_TAG)" . -f docker/multiplexer.Dockerfile
 	@echo "--> Running upgrade test"
-	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/TestCelestiaAppUpgrade$$ -count=1 ./... -timeout 15m
+	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/TestAllUpgrades$$ -count=1 ./... -timeout 15m
 .PHONY: test-docker-e2e-upgrade
 
 ## test-multiplexer: Run unit tests for the multiplexer package.
