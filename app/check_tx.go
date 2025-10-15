@@ -54,6 +54,8 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		if err != nil {
 			return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 		}
+		// Cache the tx, so ProcessProposal will skip the validation step
+		app.txCache.Set(btx.Tx)
 	case abci.CheckTxType_Recheck:
 	default:
 		panic(fmt.Sprintf("unknown RequestCheckTx type: %s", req.Type))
