@@ -46,7 +46,7 @@ jobs:
       - name: Run TestStateSyncMocha (with retry)
         uses: nick-fields/retry@v3
         with:
-          timeout_minutes: 55
+          timeout_minutes: 20
           max_attempts: 2
           command: make test-docker-e2e test=TestStateSyncMocha
         env:
@@ -82,7 +82,7 @@ jobs:
       - name: Run TestAllUpgrades (with retry)
         uses: nick-fields/retry@v3
         with:
-          timeout_minutes: 55
+          timeout_minutes: 20
           max_attempts: 2
           command: make test-docker-e2e test=TestAllUpgrades
         env:
