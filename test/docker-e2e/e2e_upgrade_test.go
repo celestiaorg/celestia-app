@@ -24,7 +24,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// CIP-042 Network Upgrade parameter values
 const (
 	AppVersionV5 uint64 = 5
 	AppVersionV6 uint64 = 6
@@ -32,17 +31,17 @@ const (
 	InflationRateV5 = "0.0536" // 5.36%
 	InflationRateV6 = "0.0267" // 2.67%
 
-	UnbondingTimeV5Hours = 337 // Current codebase default (CIP-037 already applied)
-	UnbondingTimeV6Hours = 337 // Same as v5 (no change in this upgrade test)
+	UnbondingTimeV5Hours = 504
+	UnbondingTimeV6Hours = 337
 
 	MinCommissionRateV5 = "0.05" // 5%
 	MinCommissionRateV6 = "0.10" // 10%
 
-	EvidenceMaxAgeV5Hours = 337 // Current codebase default
-	EvidenceMaxAgeV6Hours = 337 // Same as v5 (no change in this upgrade test)
+	EvidenceMaxAgeV5Hours = 504
+	EvidenceMaxAgeV6Hours = 337
 
-	EvidenceMaxAgeV5Blocks = 242640 // Current codebase default
-	EvidenceMaxAgeV6Blocks = 242640 // Same as v5 (no change in this upgrade test)
+	EvidenceMaxAgeV5Blocks = 120960
+	EvidenceMaxAgeV6Blocks = 242640
 )
 
 // TestAllUpgrades tests all app version upgrades using the signaling mechanism.
