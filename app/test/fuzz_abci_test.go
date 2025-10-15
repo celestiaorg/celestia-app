@@ -243,10 +243,9 @@ func TestPrepareProposalInclusion(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				// repeat the test multiple times with random data each
-				// iteration.
+				// repeat and generate PFB each time
 				for i := 0; i < tt.iterations; i++ {
-					txs := testutil.RandBlobTxsWithAccounts(
+					txs := generatePayForBlobTransactions(
 						t,
 						testApp,
 						enc.TxConfig,
@@ -260,6 +259,9 @@ func TestPrepareProposalInclusion(t *testing.T) {
 					)
 					// keep tab of blob
 					n_blob := len(txs)
+					t.Logf("%d", n_blob)
+					require.Equal(t, n_blob, len(accounts))
+
 					// create 100 send transactions
 					sendTxs := testutil.SendTxsWithAccounts(
 						t,
@@ -324,7 +326,8 @@ func TestPrepareProposalInclusion(t *testing.T) {
 }
 
 // generatePayForBlobTransactions creates a number of valid PFB txs
-// for a single account
+// for accounts
+// We try to make sure it integrates nicely without breaking anything
 func generatePayForBlobTransactions(
 	t *testing.T,
 	testApp *app.App,
@@ -332,29 +335,36 @@ func generatePayForBlobTransactions(
 	kr keyring.Keyring,
 	size int,
 	count int,
+	_ bool, // not sure about supporting randsize
 	chainid string,
-	account string,
+	accounts []string,
 	extraOpts ...user.TxOption,
-) [][]byte {
+) []coretypes.Tx {
 	opts := append(blobfactory.DefaultTxOpts(), extraOpts...)
 	require.Greater(t, size, 0)
-	require.Greater(t, count, 0)
-	addr := testfactory.GetAddress(kr, account)
-	acc := testutil.DirectQueryAccount(testApp, addr)
-	accountSequence := acc.GetSequence()
-	signer, err := user.NewSigner(kr, cfg, chainid, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
-	require.NoError(t, err)
-	rawTxs := make([][]byte, 0, count)
-	randomBytes := crypto.CRandBytes(size)
-	blob, err := share.NewBlob(share.RandomNamespace(), randomBytes, 1, acc.GetAddress().Bytes())
-	require.NoError(t, err)
-	for i := 0; i < count; i++ {
-		tx, _, err := signer.CreatePayForBlobs(account, []*share.Blob{blob}, opts...)
+	require.Greater(t, count, 0) // neeed to remove it
+	rawTxs := make([]coretypes.Tx, 0, len(accounts))
+	for i := range accounts {
+		addr := testfactory.GetAddress(kr, accounts[i])
+		acc := testutil.DirectQueryAccount(testApp, addr)
+		accountSequence := acc.GetSequence()
+		account := user.NewAccount(accounts[i], acc.GetAccountNumber(), accountSequence)
+		signer, err := user.NewSigner(kr, cfg, chainid, account)
+		require.NoError(t, err)
+		randomBytes := crypto.CRandBytes(size)
+		blobs := make([]*share.Blob, count)
+
+		for i := range count {
+			blob, err := share.NewBlob(share.RandomNamespace(), randomBytes, 1, acc.GetAddress().Bytes())
+			require.NoError(t, err)
+			blobs[i] = blob
+		}
+		// create blobs per account
+		tx, _, err := signer.CreatePayForBlobs(account.Name(), blobs, opts...)
 		require.NoError(t, err)
 		rawTxs = append(rawTxs, tx)
-		accountSequence++
-		err = signer.SetSequence(account, accountSequence)
-		require.NoError(t, err)
+
 	}
+
 	return rawTxs
 }
