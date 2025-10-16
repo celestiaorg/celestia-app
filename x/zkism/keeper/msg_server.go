@@ -34,6 +34,8 @@ func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreat
 		Owner:               msg.Creator,
 		StateRoot:           msg.StateRoot,
 		Height:              msg.Height,
+		CelestiaStateRoot:   msg.CelestiaStateRoot,
+		CelestiaHeight:      msg.CelestiaHeight,
 		Namespace:           msg.Namespace,
 		SequencerPublicKey:  msg.SequencerPublicKey,
 		Groth16Vkey:         msg.Groth16Vkey,
