@@ -14,6 +14,11 @@ on:
   pull_request:
   merge_group:
 
+# Explicitly define permissions to ensure dependabot PRs can run CI
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   lint:
     uses: ./.github/workflows/lint.yml
