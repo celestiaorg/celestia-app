@@ -55,14 +55,13 @@ func main() {
 		//os.Exit(1)
 	}
 
-	info := &CPUInfo{}
-	//info, err := getCPUInfo()
-	//if err != nil {
-	//fmt.Printf("Error getting CPU info: %v\n", err)
-	//os.Exit(1)
-	//}
+	info, err := getCPUInfo()
+	if err != nil {
+		fmt.Printf("Error getting CPU info: %v\n", err)
+		os.Exit(1)
+	}
 
-	//displayCPUInfo(info)
+	displayCPUInfo(info)
 
 	app, txs, err := generatePayForBlobTransactions(127, 1024*1024)
 	if err != nil {
