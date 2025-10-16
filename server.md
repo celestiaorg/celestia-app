@@ -1,3 +1,5 @@
+# Fibre Server Specification
+
 ## 1) Public gRPC APIs
 
 ### 1.1 Fibre API (data plane)
@@ -91,7 +93,7 @@ service PaymentProcessor {
 
 1. **Validate stateless:**
 
-    * msg size ≤ 8 MiB (enforced by max gRPC message size), TODO: update based on latest params 
+    * msg size ≤ 8 MiB (enforced by max gRPC message size), TODO: update based on latest params
     * size bounds: `0 < blob_size ≤ 128 MiB` (derived from params),
     * row inclusion proof size matches `original_rows` size (network level params)
     * `signer` bech32, `namespace` version=2 and 29 bytes,
@@ -151,11 +153,11 @@ service PaymentProcessor {
 3. If none: `NOT_FOUND` (ErrCommitmentNotFound).
 4. Return `rows` + `rlc_orig` and `ttl`/`backoff_ms` hints.
 
-### 2.3 Validator `SignBytes` 
+### 2.3 Validator `SignBytes`
 
 Validators sign the PP domain to attest service for the data:
 
-```
+```text
 SignBytes = SHA256(
   "fibre/pp:v1" || Chain_id ||
   signer_bytes || namespace ||
@@ -178,8 +180,8 @@ SignBytes = SHA256(
 
     * Implements `Fibre` service.
     * Manages lifecycle, config, and subcomponents.
-    * Delegates to subcomponents: 
-      * `StateAccessor`, 
+    * Delegates to subcomponents:
+      * `StateAccessor`,
       * `ValidatorTracker`,
       * `ShardMap`,
       * `RowsStorage`,
@@ -190,7 +192,7 @@ SignBytes = SHA256(
 
     * Two logical indexes:
 
-        * **Unprocessed**: PPs seen but not finalized on-chain. Cleanup  via `MsgPayForFibre` or `MsgPaymentTimeout`. 
+        * **Unprocessed**: PPs seen but not finalized on-chain. Cleanup  via `MsgPayForFibre` or `MsgPaymentTimeout`.
     * Responsibilities:
 
         * Idempotency checks (first-seen vs. duplicates).
@@ -232,28 +234,29 @@ SignBytes = SHA256(
         * Relay helpers for `SubmitPayForFibre`, `SubmitPaymentTimeout`.
     * May return **proofs** (if enabled) for client verification.
 
-7**RateLimiter / Back-pressure**
+7. **RateLimiter / Back-pressure**
 
-    * Token buckets **per peer** and **total throughput**,
-    * Global concurrency caps: `max_concurrent_uploads`, `max_concurrent_gets`,
-    * Emits `RESOURCE_EXHAUSTED` with `backoff_ms`.
+```text
+* Token buckets **per peer** and **total throughput**,
+* Global concurrency caps: `max_concurrent_uploads`, `max_concurrent_gets`,
+* Emits `RESOURCE_EXHAUSTED` with `backoff_ms`.
+```
 
-8**Telemetry**
+1. **Telemetry**
 
-    * Metrics: RPS, bytes/s, assignment mismatches, proof/RLC failures, write latency, GC times, validator\_sig issuance, PP validation latency, insufficient-balance events, backoff distribution.
+```text
+* Metrics: RPS, bytes/s, assignment mismatches, proof/RLC failures, write latency, GC times, validator_sig issuance, PP validation latency, insufficient-balance events, backoff distribution.
+```
 
 ### 3.2 Data Model & Keys
 
 * **PP keys**
-
-    * `pp/unprocessed/h/<promise_hash>` → PP metadata without user signature (signer, creation\_timestamp, valset\_height, gas\_bound, …)
-    * `pp/unprocessed/b/<YYYYMMDDHHmm>/<promise_hash>` → TTL bucket index
-
+  * `pp/unprocessed/h/<promise_hash>` → PP metadata without user signature (signer, creation\_timestamp, valset\_height, gas\_bound, …)
+  * `pp/unprocessed/b/<YYYYMMDDHHmm>/<promise_hash>` → TTL bucket index
 
 * **Commitment data**
-
-    * `d/<commitment>/<valset_height>` → rows blob, rlc\_orig
-    * `b/<YYYYMMDDHHmm>/<commitment>/<valset_height>` → TTL bucket index
+  * `d/<commitment>/<valset_height>` → rows blob, rlc\_orig
+  * `b/<YYYYMMDDHHmm>/<commitment>/<valset_height>` → TTL bucket index
 
 **Note:** `promise_hash = SHA256( PaymentPromise (canonical bytes) )`.
 
@@ -313,7 +316,7 @@ TODO: `rows_per_message_limit` should be derived at runtime from the **actual** 
 
 ---
 
-## 7) Errors 
+## 7) Errors
 
 | Code                  | When                                                         |
 | --------------------- | ------------------------------------------------------------ |
@@ -327,4 +330,3 @@ TODO: `rows_per_message_limit` should be derived at runtime from the **actual** 
 | `INTERNAL`            | Unhandled server error.                                      |
 
 TODO: Add machine-readable error **details** (e.g., `{available_balance, required_payment}` on balance failures).
-
