@@ -120,6 +120,21 @@ func (k *Keeper) validatePublicValues(ctx context.Context, height uint64, ism ty
 		return errorsmod.Wrapf(types.ErrInvalidHeight, "expected %d, got %d", ism.Height, publicValues.TrustedHeight)
 	}
 
+	if publicValues.PreviousCelestiaHeight != ism.CelestiaHeight {
+		return errorsmod.Wrapf(types.ErrInvalidHeight, "expected %d, got %d", ism.CelestiaHeight, publicValues.PreviousCelestiaHeight)
+	}
+
+	if len(publicValues.PreviousCelestiaHeaderHash[:]) != 32 {
+		return errorsmod.Wrapf(types.ErrInvalidStateRoot, "expected 32 bytes, got %d", len(publicValues.PreviousCelestiaHeaderHash))
+	}
+
+	var celestiaIsmRoot [32]byte
+	copy(celestiaIsmRoot[:], ism.CelestiaStateRoot)
+
+	if publicValues.PreviousCelestiaHeaderHash != celestiaIsmRoot {
+		return errorsmod.Wrapf(types.ErrInvalidStateRoot, "expected %x, got %x", ism.CelestiaStateRoot, publicValues.PreviousCelestiaHeaderHash)
+	}
+
 	if !bytes.Equal(publicValues.Namespace[:], ism.Namespace) {
 		return errorsmod.Wrapf(types.ErrInvalidNamespace, "expected %x, got %x", ism.Namespace, publicValues.Namespace)
 	}
