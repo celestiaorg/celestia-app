@@ -43,12 +43,8 @@ jobs:
         if: ${{ inputs.tag == '' }} # only build an image if no tag is specified
         run: docker build -t "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.value }}" . -f docker/multiplexer.Dockerfile
 
-      - name: Run TestStateSyncMocha (with retry)
-        uses: nick-fields/retry@v3
-        with:
-          timeout_minutes: 20
-          max_attempts: 2
-          command: make test-docker-e2e test=TestStateSyncMocha
+      - name: Run TestStateSyncMocha
+        run: make test-docker-e2e test=TestStateSyncMocha
         env:
           CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
           CELESTIA_TAG: ${{ steps.tag.outputs.value }}
@@ -79,12 +75,8 @@ jobs:
         if: ${{ inputs.tag == '' }} # only build an image if no tag is specified
         run: docker build -t "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.value }}" . -f docker/multiplexer.Dockerfile
 
-      - name: Run TestAllUpgrades (with retry)
-        uses: nick-fields/retry@v3
-        with:
-          timeout_minutes: 20
-          max_attempts: 2
-          command: make test-docker-e2e test=TestAllUpgrades
+      - name: Run TestAllUpgrades
+        run: make test-docker-e2e test=TestAllUpgrades
         env:
           CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
           CELESTIA_TAG: ${{ steps.tag.outputs.value }}
