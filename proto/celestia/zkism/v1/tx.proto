@@ -29,7 +29,6 @@ service Msg {
 // MsgCreateZKExecutionISM is the request type for CreateZKExecutionISM.
 message MsgCreateZKExecutionISM {
   option (cosmos.msg.v1.signer) = "creator";
-
   // creator is the message sender.
   string creator = 1;
   // state commitment root of the remote chain
