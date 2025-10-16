@@ -42,6 +42,8 @@ func (p *EvExecutionPublicValues) String() string {
   Namespace:          %s,
   PublicKey:          %s,
 }`,
+		p.PreviousCelestiaHeight,
+		hex.EncodeToString(p.PreviousCelestiaHeaderHash[:]),
 		hex.EncodeToString(p.CelestiaHeaderHash[:]),
 		p.TrustedHeight,
 		hex.EncodeToString(p.TrustedStateRoot[:]),
@@ -56,6 +58,14 @@ func (p *EvExecutionPublicValues) String() string {
 // The output format uses Rust bincode's default configuration: (little-endian, fixed-width integers, length-prefixed slices).
 func (pi *EvExecutionPublicValues) Marshal() ([]byte, error) {
 	var buf bytes.Buffer
+
+	if err := writeBytes(&buf, pi.PreviousCelestiaHeaderHash[:]); err != nil {
+		return nil, fmt.Errorf("write PreviousCelestiaHeaderHash: %w", err)
+	}
+
+	if err := binary.Write(&buf, binary.LittleEndian, pi.PreviousCelestiaHeight); err != nil {
+		return nil, fmt.Errorf("write PreviousCelestiaHeight: %w", err)
+	}
 
 	if err := writeBytes(&buf, pi.CelestiaHeaderHash[:]); err != nil {
 		return nil, fmt.Errorf("write CelestiaHeaderHash: %w", err)
@@ -93,6 +103,14 @@ func (pi *EvExecutionPublicValues) Marshal() ([]byte, error) {
 // default configuration: (little-endian, fixed-width integers, length-prefixed slices).
 func (pi *EvExecutionPublicValues) Unmarshal(data []byte) error {
 	buf := bytes.NewReader(data)
+
+	if err := readBytes(buf, pi.PreviousCelestiaHeaderHash[:]); err != nil {
+		return fmt.Errorf("read PreviousCelestiaHeaderHash: %w", err)
+	}
+
+	if err := binary.Read(buf, binary.LittleEndian, &pi.PreviousCelestiaHeight); err != nil {
+		return fmt.Errorf("read PreviousCelestiaHeight: %w", err)
+	}
 
 	if err := readBytes(buf, pi.CelestiaHeaderHash[:]); err != nil {
 		return fmt.Errorf("read CelestiaHeaderHash: %w", err)
