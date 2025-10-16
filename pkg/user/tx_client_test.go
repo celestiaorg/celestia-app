@@ -326,7 +326,7 @@ func TestRejections(t *testing.T) {
 	seqAfterConfirmation := sender.Sequence()
 	require.Equal(t, seqBeforeSubmission+1, seqAfterConfirmation)
 	// Was removed from the tx tracker
-	_, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
+	_, _, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
 	require.False(t, exists)
 }
 
@@ -378,7 +378,7 @@ func TestEvictions(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, res.Code, abci.CodeTypeOK)
 		// They should be removed from the tx tracker after confirmation
-		_, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
+		_, _, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
 		require.False(t, exists)
 	}
 
@@ -550,13 +550,13 @@ func (suite *TxClientTestSuite) queryCurrentBalance(t *testing.T) int64 {
 }
 
 func wasRemovedFromTxTracker(txHash string, txClient *user.TxClient) bool {
-	seq, signer, exists := txClient.GetTxFromTxTracker(txHash)
+	seq, signer, _, exists := txClient.GetTxFromTxTracker(txHash)
 	return !exists && seq == 0 && signer == ""
 }
 
 // assertTxInTxTracker verifies that a tx was indexed in the tx tracker and that the sequence increases by one after broadcast.
 func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash, expectedSigner string, seqBeforeBroadcast uint64) {
-	seqFromTxTracker, signer, exists := txClient.GetTxFromTxTracker(txHash)
+	seqFromTxTracker, signer, _, exists := txClient.GetTxFromTxTracker(txHash)
 	require.True(t, exists)
 	require.Equal(t, expectedSigner, signer)
 	seqAfterBroadcast := txClient.Signer().Account(expectedSigner).Sequence()
@@ -842,7 +842,7 @@ func (suite *TxClientTestSuite) TestSequenceIncrementOnlyOnceInMultiConnBroadcas
 	require.Equal(t, seqBefore+1, seqAfter, "Sequence should be incremented by exactly 1, not by number of connections")
 
 	// Verify the transaction is tracked
-	trackedSeq, trackedSigner, exists := multiConnClient.GetTxFromTxTracker(resp.TxHash)
+	trackedSeq, trackedSigner, _, exists := multiConnClient.GetTxFromTxTracker(resp.TxHash)
 	require.True(t, exists, "Transaction should be in tracker")
 	require.Equal(t, seqBefore, trackedSeq, "Tracked sequence should be the sequence before increment")
 	require.Equal(t, multiConnClient.DefaultAccountName(), trackedSigner, "Tracked signer should match")
