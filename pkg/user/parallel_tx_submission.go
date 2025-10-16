@@ -1,6 +1,7 @@
 package user
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -198,6 +199,19 @@ func (w *txWorker) processJob(job *SubmissionJob, workerCtx context.Context) {
 	if w.id != 0 {
 		// Add fee granter option so master account pays for worker transaction fees
 		options = append([]TxOption{SetFeeGranter(w.client.DefaultAddress())}, options...)
+	}
+
+	// Fill in the signer for v1 blobs to match the transaction signer
+	workerAddrBytes := w.client.signer.Account(w.accountName).Address().Bytes()
+	for i, blob := range job.Blobs {
+		if blob.ShareVersion() == share.ShareVersionOne && !bytes.Equal(blob.Signer(), workerAddrBytes) {
+			newBlob, err := share.NewV1Blob(blob.Namespace(), blob.Data(), workerAddrBytes)
+			if err != nil {
+				job.ResultsC <- SubmissionResult{Signer: w.address, Error: fmt.Errorf("creating v1 blob with filled signer: %w", err)}
+				return
+			}
+			job.Blobs[i] = newBlob
+		}
 	}
 
 	// Use the worker's dedicated account to submit the transaction
