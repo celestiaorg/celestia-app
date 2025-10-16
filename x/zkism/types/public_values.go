@@ -17,6 +17,8 @@ type EvExecutionPublicValues struct {
 	PrevCelestiaHeight uint64
 	// CelestiaHeaderHash is the hash of the celestia header at which new_height is available.
 	CelestiaHeaderHash [32]byte
+	// NewCelestiaHeight is the height of the celestia header at which new_height is available.
+	NewCelestiaHeight uint64
 	// TrustedHeight is the trusted block height from which we are updating.
 	TrustedHeight uint64
 	// TrustedStateRoot is the trusted state root from which we are updating.
@@ -152,24 +154,14 @@ func (pi *EvExecutionPublicValues) Unmarshal(data []byte) error {
 // EvHyperlanePublicValues are the set of proof public values used when verifying state membership inclusion of
 // Hyperlane messages.
 type EvHyperlanePublicValues struct {
-	StateRoot              [32]byte
-	MessageIds             [][32]byte
-	PrevCelestiaHeaderHash [32]byte
-	PrevCelestiaHeight     uint64
+	StateRoot  [32]byte
+	MessageIds [][32]byte
 }
 
 // Marshal encodes the EvHyperlanePublicValues struct into a bincode-compatible byte slice.
 // The output format uses Rust bincode's default configuration: (little-endian, fixed-width integers, length-prefixed slices).
 func (m *EvHyperlanePublicValues) Marshal() ([]byte, error) {
 	var buf bytes.Buffer
-
-	if err := writeBytes(&buf, m.PrevCelestiaHeaderHash[:]); err != nil {
-		return nil, fmt.Errorf("write PrevCelestiaHeaderHash: %w", err)
-	}
-
-	if err := binary.Write(&buf, binary.LittleEndian, m.PrevCelestiaHeight); err != nil {
-		return nil, fmt.Errorf("write PrevCelestiaHeight: %w", err)
-	}
 
 	if err := writeBytes(&buf, m.StateRoot[:]); err != nil {
 		return nil, fmt.Errorf("write StateRoot: %w", err)
@@ -194,14 +186,6 @@ func (m *EvHyperlanePublicValues) Marshal() ([]byte, error) {
 // default configuration: (little-endian, fixed-width integers, length-prefixed slices).
 func (m *EvHyperlanePublicValues) Unmarshal(data []byte) error {
 	buf := bytes.NewReader(data)
-
-	if err := readBytes(buf, m.PrevCelestiaHeaderHash[:]); err != nil {
-		return fmt.Errorf("read PrevCelestiaHeaderHash: %w", err)
-	}
-
-	if err := binary.Read(buf, binary.LittleEndian, &m.PrevCelestiaHeight); err != nil {
-		return fmt.Errorf("read PrevCelestiaHeight: %w", err)
-	}
 
 	if _, err := buf.Read(m.StateRoot[:]); err != nil {
 		return fmt.Errorf("read StateRoot: %w", err)

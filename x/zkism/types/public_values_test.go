@@ -41,6 +41,7 @@ func TestStateTransitionPublicValuesTrailingData(t *testing.T) {
 		PrevCelestiaHeaderHash: [32]byte{0x00},
 		PrevCelestiaHeight:     0,
 		CelestiaHeaderHash:     [32]byte{0x01},
+		NewCelestiaHeight:      0,
 		TrustedHeight:          1,
 		TrustedStateRoot:       [32]byte{0x02},
 		NewHeight:              2,
@@ -71,10 +72,8 @@ func TestStateMembershipPublicValuesEncoding(t *testing.T) {
 	}
 
 	expected := types.EvHyperlanePublicValues{
-		StateRoot:              [32]byte{0x01},
-		MessageIds:             messageIds,
-		PrevCelestiaHeaderHash: [32]byte{0x02},
-		PrevCelestiaHeight:     1,
+		StateRoot:  [32]byte{0x01},
+		MessageIds: messageIds,
 	}
 
 	bz, err := expected.Marshal()
