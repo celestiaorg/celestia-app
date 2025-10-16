@@ -77,6 +77,8 @@ func (suite *KeeperTestSuite) CreateTestIsm(trustedRoot []byte) types.ZKExecutio
 		StateTransitionVkey: stateVkey,
 		StateMembershipVkey: messageVkey,
 		StateRoot:           trustedRoot,
+		CelestiaStateRoot:   trustedRoot,
+		CelestiaHeight:      0,
 		Height:              97,
 		Namespace:           namespace,
 		SequencerPublicKey:  pubKey,

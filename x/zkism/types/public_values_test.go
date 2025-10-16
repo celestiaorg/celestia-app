@@ -71,8 +71,10 @@ func TestStateMembershipPublicValuesEncoding(t *testing.T) {
 	}
 
 	expected := types.EvHyperlanePublicValues{
-		StateRoot:  [32]byte{0x01},
-		MessageIds: messageIds,
+		StateRoot:              [32]byte{0x01},
+		MessageIds:             messageIds,
+		PrevCelestiaHeaderHash: [32]byte{0x02},
+		PrevCelestiaHeight:     1,
 	}
 
 	bz, err := expected.Marshal()

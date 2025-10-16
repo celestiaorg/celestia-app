@@ -27,7 +27,13 @@ func (suite *KeeperTestSuite) TestCreateZKExecutionISM() {
 			setupTest: func() {
 				msg = &types.MsgCreateZKExecutionISM{
 					Creator:             testfactory.TestAccAddr,
+					StateRoot:           randBytes(32),
+					Height:              97,
+					CelestiaStateRoot:   randBytes(32),
+					CelestiaHeight:      0,
 					Namespace:           namespace,
+					SequencerPublicKey:  randBytes(32),
+					Groth16Vkey:         randBytes(32),
 					StateTransitionVkey: randBytes(32),
 					StateMembershipVkey: randBytes(32),
 				}
