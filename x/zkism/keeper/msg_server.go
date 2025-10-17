@@ -34,6 +34,8 @@ func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreat
 		Owner:               msg.Creator,
 		StateRoot:           msg.StateRoot,
 		Height:              msg.Height,
+		CelestiaStateRoot:   msg.CelestiaStateRoot,
+		CelestiaHeight:      msg.CelestiaHeight,
 		Namespace:           msg.Namespace,
 		SequencerPublicKey:  msg.SequencerPublicKey,
 		Groth16Vkey:         msg.Groth16Vkey,
@@ -81,6 +83,8 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 
 	ism.Height = publicValues.NewHeight
 	ism.StateRoot = publicValues.NewStateRoot[:]
+	ism.CelestiaHeight = publicValues.NewCelestiaHeight
+	ism.CelestiaStateRoot = publicValues.CelestiaHeaderHash[:]
 	if err := m.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
 		return nil, err
 	}
@@ -90,8 +94,10 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 	}
 
 	return &types.MsgUpdateZKExecutionISMResponse{
-		Height:    ism.Height,
-		StateRoot: hex.EncodeToString(ism.StateRoot),
+		Height:            ism.Height,
+		StateRoot:         hex.EncodeToString(ism.StateRoot),
+		CelestiaStateRoot: hex.EncodeToString(ism.CelestiaStateRoot),
+		CelestiaHeight:    ism.CelestiaHeight,
 	}, nil
 }
 
