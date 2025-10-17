@@ -1,11 +1,11 @@
 package user
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"sync"
-	"sync/atomic"
 
 	"cosmossdk.io/x/feegrant"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
@@ -33,14 +33,13 @@ type SubmissionResult struct {
 
 // txQueue manages parallel transaction submission
 type txQueue struct {
-	client      *TxClient
-	jobQueue    chan *SubmissionJob
-	workers     []*txWorker
-	started     atomic.Bool
-	ctx         context.Context
-	cancel      context.CancelFunc
-	initialized atomic.Bool // whether workers have been initialized
-	wg          sync.WaitGroup
+	wg     sync.WaitGroup
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	client   *TxClient
+	jobQueue chan *SubmissionJob
+	workers  []*txWorker
 }
 
 // txWorker represents a worker that processes transactions using a specific account
@@ -98,16 +97,9 @@ func newTxQueue(client *TxClient, numWorkers int) *txQueue {
 
 // start initiates all workers in the pool
 func (p *txQueue) start(ctx context.Context) error {
-	if p.started.Load() {
-		return nil
-	}
-
-	// Initialize worker accounts if needed
-	if !p.initialized.Load() {
-		if err := p.initializeWorkerAccounts(ctx); err != nil {
-			return fmt.Errorf("failed to initialize worker accounts: %w", err)
-		}
-		p.initialized.Store(true)
+	// load and initialize worker accounts if needed
+	if err := p.initializeWorkerAccounts(ctx); err != nil {
+		return fmt.Errorf("failed to initialize worker accounts: %w", err)
 	}
 
 	// Recreate job queue channel if it was closed during previous stop
@@ -119,9 +111,6 @@ func (p *txQueue) start(ctx context.Context) error {
 
 	// Create a new context for this pool instance
 	p.ctx, p.cancel = context.WithCancel(ctx)
-
-	// Set started flag before starting workers to prevent race
-	p.started.Store(true)
 
 	// Start workers after everything is set up
 	for _, worker := range p.workers {
@@ -137,13 +126,11 @@ func (p *txQueue) start(ctx context.Context) error {
 
 // stop shuts down all workers in the pool
 func (p *txQueue) stop() {
-	if !p.started.Load() {
-		return
+	if !p.isStarted() {
+		return // Already stopped
 	}
 
-	if p.cancel != nil {
-		p.cancel()
-	}
+	p.cancel()
 
 	// Close the job queue to signal workers to stop accepting new jobs
 	close(p.jobQueue)
@@ -151,12 +138,12 @@ func (p *txQueue) stop() {
 	// Wait for all workers to finish before marking as stopped
 	p.wg.Wait()
 
-	p.started.Store(false)
+	p.ctx, p.cancel = nil, nil
 }
 
 // submitJob submits a job to the parallel worker pool
 func (p *txQueue) submitJob(job *SubmissionJob) {
-	if !p.started.Load() || p.ctx == nil {
+	if !p.isStarted() {
 		job.ResultsC <- SubmissionResult{Error: errors.New("tx queue not started")}
 		return
 	}
@@ -170,7 +157,7 @@ func (p *txQueue) submitJob(job *SubmissionJob) {
 
 // isStarted returns whether the tx queue is started
 func (p *txQueue) isStarted() bool {
-	return p.started.Load()
+	return p.ctx != nil && p.cancel != nil
 }
 
 // start begins the worker's job processing loop
@@ -214,6 +201,19 @@ func (w *txWorker) processJob(job *SubmissionJob, workerCtx context.Context) {
 		options = append([]TxOption{SetFeeGranter(w.client.DefaultAddress())}, options...)
 	}
 
+	// Fill in the signer for v1 blobs to match the transaction signer
+	workerAddrBytes := w.client.signer.Account(w.accountName).Address().Bytes()
+	for i, blob := range job.Blobs {
+		if blob.ShareVersion() == share.ShareVersionOne && !bytes.Equal(blob.Signer(), workerAddrBytes) {
+			newBlob, err := share.NewV1Blob(blob.Namespace(), blob.Data(), workerAddrBytes)
+			if err != nil {
+				job.ResultsC <- SubmissionResult{Signer: w.address, Error: fmt.Errorf("creating v1 blob with filled signer: %w", err)}
+				return
+			}
+			job.Blobs[i] = newBlob
+		}
+	}
+
 	// Use the worker's dedicated account to submit the transaction
 	txResponse, err := w.client.SubmitPayForBlobWithAccount(jobCtx, w.accountName, job.Blobs, options...)
 
@@ -231,63 +231,41 @@ func (w *txWorker) processJob(job *SubmissionJob, workerCtx context.Context) {
 // It creates the accounts in the keyring if they don't exist, funds them with a small balance,
 // and sets up fee grants so the main account pays for transaction fees.
 func (p *txQueue) initializeWorkerAccounts(ctx context.Context) error {
-	// No work required if we've already initialized all workers.
-	if p.initialized.Load() {
-		return nil
-	}
-
 	// If we only have one worker (index 0), skip all initialization as it uses the existing signer account
 	if len(p.workers) == 1 {
-		p.initialized.Store(true)
 		return nil
 	}
 
-	// Get the list of worker accounts that need to be initialized
-	// Skip the first worker (index 0) as it always uses the existing signer account
-	var workersToInit []*txWorker
-	var workersToLoad []*txWorker
+	needFunding := make([]*txWorker, 0)
 	for i, worker := range p.workers {
 		if i == 0 {
 			// Skip first worker - it uses existing account
 			continue
 		}
-
-		// Check if account exists in signer
-		if _, exists := p.client.signer.accounts[worker.accountName]; !exists {
-			// Check if account exists in keyring but not loaded in signer
-			if _, err := p.client.signer.keys.Key(worker.accountName); err == nil {
-				// Account exists in keyring but not loaded - add to load list
-				workersToLoad = append(workersToLoad, worker)
-			} else {
-				// Account doesn't exist anywhere - needs full initialization
-				workersToInit = append(workersToInit, worker)
-			}
+		if _, exists := p.client.signer.accounts[worker.accountName]; exists {
+			// worker account already loaded into signer
+			continue
 		}
-	}
 
-	// Load existing accounts from keyring into signer
-	if len(workersToLoad) > 0 {
-		for _, worker := range workersToLoad {
-			if err := p.client.loadWorkerAccount(worker); err != nil {
-				return fmt.Errorf("failed to load existing worker account %s: %w", worker.accountName, err)
-			}
-		}
-	}
-
-	if len(workersToInit) == 0 {
-		p.initialized.Store(true)
-		return nil // All accounts already exist
-	}
-
-	// Create accounts in keyring if they don't exist
-	for _, worker := range workersToInit {
-		if err := p.client.createWorkerAccount(worker.accountName); err != nil {
+		if err := p.client.ensureAccountInKeyring(worker.accountName); err != nil {
 			return fmt.Errorf("failed to create worker account %s: %w", worker.accountName, err)
 		}
+
+		// try loading account into signer
+		if err := p.client.loadWorkerAccount(worker); err == nil {
+			continue // account exists + is funded
+		}
+
+		// otherwise add to funding list
+		needFunding = append(needFunding, worker)
+	}
+
+	if len(needFunding) == 0 {
+		return nil // All accounts already exist + are funded
 	}
 
 	// Fund accounts and set up fee grants in a single transaction
-	if err := p.client.fundAndGrantWorkerAccounts(ctx, workersToInit); err != nil {
+	if err := p.client.fundAndGrantWorkerAccounts(ctx, needFunding); err != nil {
 		return fmt.Errorf("failed to fund and grant worker accounts: %w", err)
 	}
 
@@ -363,20 +341,19 @@ func (client *TxClient) loadWorkerAccount(worker *txWorker) error {
 
 	// Update worker address
 	worker.address = workerAddress.String()
-
 	return nil
 }
 
-// createWorkerAccount creates a new account in the keyring
-func (client *TxClient) createWorkerAccount(accountName string) error {
-	// Check if account already exists in keyring
+// ensureAccountInKeyring creates a keyring account if it doesn't already exist.
+func (client *TxClient) ensureAccountInKeyring(accountName string) error {
 	if _, err := client.signer.keys.Key(accountName); err == nil {
 		return nil // Account already exists
 	}
 
 	// Create new account
 	path := hd.CreateHDPath(sdktypes.CoinType, 0, 0).String()
-	_, _, err := client.signer.keys.NewMnemonic(accountName, keyring.English, path, keyring.DefaultBIP39Passphrase, hd.Secp256k1)
+	_, _, err := client.signer.keys.NewMnemonic(accountName, keyring.English, path,
+		keyring.DefaultBIP39Passphrase, hd.Secp256k1)
 	if err != nil {
 		return fmt.Errorf("failed to create account %s in keyring: %w", accountName, err)
 	}
@@ -500,6 +477,5 @@ func (client *TxClient) fundAndGrantWorkerAccounts(ctx context.Context, workers 
 		worker.address = workerAddress.String()
 	}
 
-	client.txQueue.initialized.Store(true)
 	return nil
 }
