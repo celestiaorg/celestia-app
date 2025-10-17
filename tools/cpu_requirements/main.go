@@ -554,10 +554,11 @@ func displayPerformanceResults(
 		referenceFinalizeBlockMs > 0 || referenceProposeBlockMs > 0 ||
 		referenceEncodeBlockMs > 0 || referenceDecodeBlockMs > 0
 
-	if !hasReferenceTimes {
+	switch {
+	case !hasReferenceTimes:
 		fmt.Println("No reference times have been set yet.")
 		fmt.Println("Please update the reference constants in the code with your target values.")
-	} else if anySlower {
+	case anySlower:
 		fmt.Println("\nWARNING: Your system does NOT meet the 128MB/6s upgrade requirements!")
 		fmt.Println("\nRECOMMENDATION:")
 		fmt.Println("To handle the 128MB/6s upgrade, you need to upgrade your hardware to:")
@@ -568,7 +569,7 @@ func displayPerformanceResults(
 		fmt.Printf("  - CPU cores: %d\n", cpuInfo.Cores)
 		fmt.Printf("  - GFNI support: %v\n", cpuInfo.HasGFNI)
 		fmt.Printf("  - SHA-NI support: %v\n", cpuInfo.HasSHANI)
-	} else {
+	default:
 		fmt.Println("\nCONGRATULATIONS! Your system is ready for the 128MB/6s upgrade.")
 		fmt.Println("Your hardware meets the performance requirements for handling 128MB blocks every 6 seconds.")
 	}
