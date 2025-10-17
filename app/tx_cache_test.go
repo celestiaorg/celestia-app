@@ -71,7 +71,7 @@ func TestTxCache_ExistsEmpty(t *testing.T) {
 	assert.False(t, cache.Exists(tx))
 }
 
-func TestTxCache_RemoveTransaction(t *testing.T) {
+func TestTxCache_Remove(t *testing.T) {
 	cache := NewTxCache()
 	tx1 := []byte("tx1")
 	tx2 := []byte("tx2")
@@ -82,7 +82,7 @@ func TestTxCache_RemoveTransaction(t *testing.T) {
 	cache.Set(tx3)
 	assert.Equal(t, 3, cache.Size())
 
-	cache.RemoveTransaction(tx2)
+	cache.Remove(tx2)
 
 	assert.Equal(t, 2, cache.Size())
 	assert.True(t, cache.Exists(tx1))
@@ -90,7 +90,7 @@ func TestTxCache_RemoveTransaction(t *testing.T) {
 	assert.True(t, cache.Exists(tx3))
 }
 
-func TestTxCache_RemoveTransactionNonExistent(t *testing.T) {
+func TestTxCache_RemoveNonExistent(t *testing.T) {
 	cache := NewTxCache()
 	tx := []byte("tx1")
 	nonExistentTx := []byte("non existent")
@@ -98,7 +98,7 @@ func TestTxCache_RemoveTransactionNonExistent(t *testing.T) {
 	cache.Set(tx)
 	assert.Equal(t, 1, cache.Size())
 
-	cache.RemoveTransaction(nonExistentTx)
+	cache.Remove(nonExistentTx)
 	assert.Equal(t, 1, cache.Size())
 	assert.True(t, cache.Exists(tx))
 }
@@ -195,7 +195,7 @@ func TestTxCache_ConcurrentBatches(t *testing.T) {
 		wg.Add(1)
 		go func(transaction []byte) {
 			defer wg.Done()
-			cache.RemoveTransaction(transaction)
+			cache.Remove(transaction)
 		}(tx)
 	}
 
