@@ -3,7 +3,6 @@ package tx
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
 
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -78,9 +77,6 @@ func (s *txServer) TxStatus(ctx context.Context, req *TxStatusRequest) (*TxStatu
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Println(resTx, "RES TX")
-	fmt.Println(resTx.Error, "RES TX ERROR")
 
 	return &TxStatusResponse{
 		Height:        resTx.Height,
