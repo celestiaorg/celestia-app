@@ -13,7 +13,6 @@ import (
 	"github.com/celestiaorg/go-square/v3/share"
 	dbm "github.com/cometbft/cometbft-db"
 	"github.com/cometbft/cometbft/abci/types"
-	abcimocks "github.com/cometbft/cometbft/abci/types/mocks"
 	propagationtypes "github.com/cometbft/cometbft/consensus/propagation/types"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/libs/log"
@@ -32,14 +31,15 @@ import (
 	"time"
 )
 
-// Reference times in milliseconds (to be filled with actual values)
+// Reference times in milliseconds
 const (
 	referencePrepareProposalMs = 1000
 	referenceProcessProposalMs = 1000
 	referenceFinalizeBlockMs   = 500
-	referenceProposeBlockMs    = 0.0
-	referenceEncodeBlockMs     = 400
-	referenceDecodeBlockMs     = 0.0
+	// propose block without prepare proposal
+	referenceProposeBlockMs = 200
+	referenceEncodeBlockMs  = 300
+	referenceDecodeBlockMs  = 500
 
 	// Number of iterations to run for each benchmark
 	benchmarkIterations = 20
@@ -243,10 +243,7 @@ func runFinalizeBlock(testApp *app.App, txs [][]byte) (time.Duration, error) {
 }
 
 func runProposeBlock(testApp *app.App, txs [][]byte) (proposeBlockTime, encodeBlockTime, decodeBlockTime time.Duration, err error) {
-	app := &abcimocks.Application{}
-	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(&types.ResponsePrepareProposal{
-		Txs: txs,
-	}, nil)
+	app := mockApp{txs}
 	cc := proxy.NewLocalClientCreator(app)
 	proxyApp := proxy.NewAppConns(cc, proxy.NopMetrics())
 	err = proxyApp.Start()
@@ -610,3 +607,81 @@ func generatePayForBlobTransactions(count, size int) (*app.App, [][]byte, error)
 	}
 	return testApp, rawTxs, nil
 }
+
+type mockApp struct {
+	txs [][]byte
+}
+
+func (m mockApp) Info(ctx context.Context, info *types.RequestInfo) (*types.ResponseInfo, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m mockApp) Query(ctx context.Context, query *types.RequestQuery) (*types.ResponseQuery, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m mockApp) CheckTx(ctx context.Context, tx *types.RequestCheckTx) (*types.ResponseCheckTx, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m mockApp) InitChain(ctx context.Context, chain *types.RequestInitChain) (*types.ResponseInitChain, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m mockApp) PrepareProposal(ctx context.Context, proposal *types.RequestPrepareProposal) (*types.ResponsePrepareProposal, error) {
+	return &types.ResponsePrepareProposal{
+		Txs:        m.txs,
+		SquareSize: 512,
+	}, nil
+}
+
+func (m mockApp) ProcessProposal(ctx context.Context, proposal *types.RequestProcessProposal) (*types.ResponseProcessProposal, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m mockApp) FinalizeBlock(ctx context.Context, block *types.RequestFinalizeBlock) (*types.ResponseFinalizeBlock, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m mockApp) ExtendVote(ctx context.Context, vote *types.RequestExtendVote) (*types.ResponseExtendVote, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m mockApp) VerifyVoteExtension(ctx context.Context, extension *types.RequestVerifyVoteExtension) (*types.ResponseVerifyVoteExtension, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m mockApp) Commit(ctx context.Context, commit *types.RequestCommit) (*types.ResponseCommit, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m mockApp) ListSnapshots(ctx context.Context, snapshots *types.RequestListSnapshots) (*types.ResponseListSnapshots, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m mockApp) OfferSnapshot(ctx context.Context, snapshot *types.RequestOfferSnapshot) (*types.ResponseOfferSnapshot, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m mockApp) LoadSnapshotChunk(ctx context.Context, chunk *types.RequestLoadSnapshotChunk) (*types.ResponseLoadSnapshotChunk, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m mockApp) ApplySnapshotChunk(ctx context.Context, chunk *types.RequestApplySnapshotChunk) (*types.ResponseApplySnapshotChunk, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+var _ types.Application = &mockApp{}
