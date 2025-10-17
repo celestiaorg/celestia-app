@@ -411,44 +411,23 @@ func hasAllTags(candidate, want []string) bool {
 	return true
 }
 
-// CheckForRunningExperiments checks if there are any talis instances running
-// that don't belong to the current configuration.
-// It returns a list of droplets from other experiments.
-func CheckForRunningExperiments(ctx context.Context, client *godo.Client, currentInstances []Instance) ([]godo.Droplet, error) {
+// checkForRunningExperiments checks if there are any talis instances running.
+// It returns a list of all talis droplets.
+func checkForRunningExperiments(ctx context.Context, client *godo.Client) ([]godo.Droplet, error) {
 	droplets, err := listAllDroplets(ctx, client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list droplets: %w", err)
 	}
 
-	var otherExperiments []godo.Droplet
+	var talisDroplets []godo.Droplet
 	for _, d := range droplets {
-		if !containsTag(d.Tags, "talis") {
-			continue
-		}
-
-		// Check if this droplet belongs to current configuration
-		belongsToCurrent := false
-		for _, inst := range currentInstances {
-			if hasAllTags(d.Tags, inst.Tags) {
-				belongsToCurrent = true
+		for _, tag := range d.Tags {
+			if tag == "talis" {
+				talisDroplets = append(talisDroplets, d)
 				break
 			}
 		}
-
-		if !belongsToCurrent {
-			otherExperiments = append(otherExperiments, d)
-		}
 	}
 
-	return otherExperiments, nil
-}
-
-// containsTag checks if a tag slice contains a specific tag
-func containsTag(tags []string, target string) bool {
-	for _, tag := range tags {
-		if tag == target {
-			return true
-		}
-	}
-	return false
+	return talisDroplets, nil
 }

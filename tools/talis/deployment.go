@@ -28,7 +28,6 @@ func upCmd() *cobra.Command {
 	var SSHKeyName string
 	var DOAPIToken string
 	var workers int
-	var force bool
 
 	cmd := &cobra.Command{
 		Use:   "up",
@@ -55,28 +54,25 @@ func upCmd() *cobra.Command {
 				return fmt.Errorf("failed to create client: %w", err)
 			}
 
-			// Check for running experiments unless --force is specified
-			if !force {
-				otherExperiments, err := CheckForRunningExperiments(cmd.Context(), client.do, cfg.Validators)
-				if err != nil {
-					log.Printf("⚠️  Warning: failed to check for running experiments: %v", err)
-				} else if len(otherExperiments) > 0 {
-					log.Println("⚠️  WARNING: Found other talis experiments running!")
-					log.Println("This may interfere with your experiment or consume resources.")
-					log.Println("\nRunning experiments:")
-					for _, d := range otherExperiments {
-						publicIP := ""
-						for _, net := range d.Networks.V4 {
-							if net.Type == "public" {
-								publicIP = net.IPAddress
-								break
-							}
+			// Check for running experiments
+			runningDroplets, err := checkForRunningExperiments(cmd.Context(), client.do)
+			if err != nil {
+				log.Printf("⚠️  Warning: failed to check for running experiments: %v", err)
+			}
+			if len(runningDroplets) > 0 {
+				log.Println("⚠️  WARNING: Found other talis experiments running!")
+				log.Println("\nRunning validators:")
+				for _, d := range runningDroplets {
+					publicIP := ""
+					for _, net := range d.Networks.V4 {
+						if net.Type == "public" {
+							publicIP = net.IPAddress
+							break
 						}
-						log.Printf("  - %s (Region: %s, IP: %s, Created: %s)", d.Name, d.Region.Slug, publicIP, d.Created)
 					}
-					log.Printf("\nTotal: %d instance(s) from other experiments\n", len(otherExperiments))
-					return fmt.Errorf("other experiments are running. Use --force to proceed anyway")
+					log.Printf("  - %s (Region: %s, IP: %s, Created: %s)", d.Name, d.Region.Slug, publicIP, d.Created)
 				}
+				log.Printf("\nTotal: %d instance(s)\n", len(runningDroplets))
 			}
 
 			if err := client.Up(cmd.Context(), workers); err != nil {
@@ -97,7 +93,6 @@ func upCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&SSHKeyName, "ssh-key-name", "n", "", "name for the SSH key")
 	cmd.Flags().StringVarP(&DOAPIToken, "do-api-token", "t", "", "digital ocean api token (defaults to config or env)")
 	cmd.Flags().IntVarP(&workers, "workers", "w", 10, "number of concurrent workers for parallel operations (should be > 0)")
-	cmd.Flags().BoolVarP(&force, "force", "f", false, "skip check for running experiments")
 
 	return cmd
 }
