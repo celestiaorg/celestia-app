@@ -73,6 +73,7 @@ func upCmd() *cobra.Command {
 					log.Printf("  - %s (Region: %s, IP: %s, Created: %s)", d.Name, d.Region.Slug, publicIP, d.Created)
 				}
 				log.Printf("\nTotal: %d instance(s)\n", len(runningDroplets))
+				return fmt.Errorf("existing talis experiments are running")
 			}
 
 			if err := client.Up(cmd.Context(), workers); err != nil {

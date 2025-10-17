@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -421,11 +422,8 @@ func checkForRunningExperiments(ctx context.Context, client *godo.Client) ([]god
 
 	var talisDroplets []godo.Droplet
 	for _, d := range droplets {
-		for _, tag := range d.Tags {
-			if tag == "talis" {
-				talisDroplets = append(talisDroplets, d)
-				break
-			}
+		if slices.Contains(d.Tags, "talis") {
+			talisDroplets = append(talisDroplets, d)
 		}
 	}
 
