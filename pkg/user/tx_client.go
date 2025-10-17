@@ -66,9 +66,13 @@ type txInfo struct {
 // a transaction has been submitted.
 type TxResponse struct {
 	// Height is the block height at which the transaction was included on-chain.
-	Height int64
-	TxHash string
-	Code   uint32
+	Height    int64
+	TxHash    string
+	Code      uint32
+	GasWanted int64
+	GasUsed   int64
+	Codespace string
+	Signers   []string
 }
 
 // BroadcastTxError is an error that occurs when broadcasting a transaction.
@@ -740,10 +744,21 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			span.AddEvent("txclient/ConfirmTx: transaction committed", trace.WithAttributes(
 				attribute.Int("resp_code", int(resp.ExecutionCode)),
 			))
+
+			accounts := client.signer.Accounts()
+			signerAddresses := make([]string, len(accounts))
+			for i, acct := range accounts {
+				signerAddresses[i] = acct.Address().String()
+			}
+
 			txResponse := &TxResponse{
-				Height: resp.Height,
-				TxHash: txHash,
-				Code:   resp.ExecutionCode,
+				Height:    resp.Height,
+				TxHash:    txHash,
+				Code:      resp.ExecutionCode,
+				Codespace: resp.Codespace,
+				GasWanted: resp.GasWanted,
+				GasUsed:   resp.GasUsed,
+				Signers:   signerAddresses,
 			}
 			if resp.ExecutionCode != abci.CodeTypeOK {
 				executionErr := &ExecutionError{

@@ -84,5 +84,8 @@ func (s *txServer) TxStatus(ctx context.Context, req *TxStatusRequest) (*TxStatu
 		ExecutionCode: resTx.ExecutionCode,
 		Error:         resTx.Error,
 		Status:        resTx.Status,
+		Codespace:     resTx.Codespace,
+		GasWanted:     resTx.GasWanted,
+		GasUsed:       resTx.GasUsed,
 	}, nil
 }
