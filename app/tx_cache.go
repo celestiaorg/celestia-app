@@ -36,8 +36,8 @@ func (c *TxCache) Set(tx []byte) {
 	c.cache.Store(key, struct{}{})
 }
 
-// RemoveTransaction removes specific transactions from the cache
-func (c *TxCache) RemoveTransaction(tx []byte) {
+// Remove removes a transaction from the cache
+func (c *TxCache) Remove(tx []byte) {
 	key := c.getTxKey(tx)
 	c.cache.Delete(key)
 }
