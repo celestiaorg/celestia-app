@@ -565,15 +565,15 @@ func displayPerformanceResults(
 		fmt.Println("  - 32 CPU cores (or more)")
 		fmt.Println("  - CPUs that support GFNI (Galois Field New Instructions)")
 		fmt.Println("  - CPUs that support SHA-NI (SHA New Instructions)")
-		fmt.Println("\nYour current system:")
-		fmt.Printf("  - CPU cores: %d\n", cpuInfo.Cores)
-		fmt.Printf("  - GFNI support: %v\n", cpuInfo.HasGFNI)
-		fmt.Printf("  - SHA-NI support: %v\n", cpuInfo.HasSHANI)
 	default:
 		fmt.Println("\nCONGRATULATIONS! Your system is ready for the 128MB/6s upgrade.")
 		fmt.Println("Your hardware meets the performance requirements for handling 128MB blocks every 6 seconds.")
 	}
 
+	fmt.Println("\nYour current system:")
+	fmt.Printf("  - CPU cores: %d\n", cpuInfo.Cores)
+	fmt.Printf("  - GFNI support: %v\n", cpuInfo.HasGFNI)
+	fmt.Printf("  - SHA-NI support: %v\n", cpuInfo.HasSHANI)
 	fmt.Println("================================")
 }
 
