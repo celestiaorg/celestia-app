@@ -27,26 +27,55 @@ import (
 	"github.com/stretchr/testify/mock"
 	"os"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 )
 
 // Reference times in milliseconds (to be filled with actual values)
 const (
-	referencePrepareProposalMs = 0.0
-	referenceProcessProposalMs = 0.0
-	referenceFinalizeBlockMs   = 0.0
+	referencePrepareProposalMs = 1000
+	referenceProcessProposalMs = 1000
+	referenceFinalizeBlockMs   = 500
 	referenceProposeBlockMs    = 0.0
-	referenceEncodeBlockMs     = 0.0
+	referenceEncodeBlockMs     = 400
 	referenceDecodeBlockMs     = 0.0
+
+	// Number of iterations to run for each benchmark
+	benchmarkIterations = 20
 )
 
-type CPUInfo struct {
+type cpuInfo struct {
 	Cores      int
 	Threads    int
 	ClockSpeed string
 	HasGFNI    bool
 	HasSHANI   bool
+}
+
+// calculateMedian calculates the median of a slice of time.Duration values
+func calculateMedian(durations []time.Duration) time.Duration {
+	if len(durations) == 0 {
+		return 0
+	}
+
+	// Create a copy to avoid modifying the original slice
+	sorted := make([]time.Duration, len(durations))
+	copy(sorted, durations)
+
+	// Sort the durations
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i] < sorted[j]
+	})
+
+	// Calculate median
+	n := len(sorted)
+	if n%2 == 0 {
+		// Even number of elements: average of middle two
+		return (sorted[n/2-1] + sorted[n/2]) / 2
+	}
+	// Odd number of elements: middle element
+	return sorted[n/2]
 }
 
 func main() {
@@ -63,43 +92,74 @@ func main() {
 
 	displayCPUInfo(info)
 
-	app, txs, err := generatePayForBlobTransactions(127, 1024*1024)
-	if err != nil {
-		fmt.Printf("Error generating transactions: %v\n", err)
-		os.Exit(1)
+	fmt.Printf("\nRunning benchmarks with %d iterations...\n", benchmarkIterations)
+
+	// Initialize slices to store all timing results
+	prepareTimes := make([]time.Duration, 0, benchmarkIterations)
+	processTimes := make([]time.Duration, 0, benchmarkIterations)
+	finalizeTimes := make([]time.Duration, 0, benchmarkIterations)
+	proposeTimes := make([]time.Duration, 0, benchmarkIterations)
+	encodeTimes := make([]time.Duration, 0, benchmarkIterations)
+	decodeTimes := make([]time.Duration, 0, benchmarkIterations)
+
+	// Run benchmarks multiple times
+	for i := 0; i < benchmarkIterations; i++ {
+		fmt.Printf("Iteration %d/%d...\n", i+1, benchmarkIterations)
+		app, txs, err := generatePayForBlobTransactions(127, 1024*1024)
+		if err != nil {
+			fmt.Printf("Error generating transactions: %v\n", err)
+			os.Exit(1)
+		}
+
+		prepareProposalTime, err := runPrepareProposal(app, txs)
+		if err != nil {
+			fmt.Printf("Error running PrepareProposal: %v\n", err)
+			os.Exit(1)
+		}
+		prepareTimes = append(prepareTimes, prepareProposalTime)
+
+		processProposalTime, err := runProcessProposal(app, txs)
+		if err != nil {
+			fmt.Printf("Error running ProcessProposal: %v\n", err)
+			os.Exit(1)
+		}
+		processTimes = append(processTimes, processProposalTime)
+
+		finalizeBlockTime, err := runFinalizeBlock(app, txs)
+		if err != nil {
+			fmt.Printf("Error running FinalizeBlock: %v\n", err)
+			os.Exit(1)
+		}
+		finalizeTimes = append(finalizeTimes, finalizeBlockTime)
+
+		proposeBlockTime, encodeBlockTime, decodeBlockTime, err := runProposeBlock(app, txs)
+		if err != nil {
+			fmt.Printf("Error running ProposeBlock: %v\n", err)
+			os.Exit(1)
+		}
+		proposeTimes = append(proposeTimes, proposeBlockTime)
+		encodeTimes = append(encodeTimes, encodeBlockTime)
+		decodeTimes = append(decodeTimes, decodeBlockTime)
 	}
 
-	fmt.Printf("Generated %d transactions of size %d\n", len(txs), len(txs[0]))
+	// Calculate medians
+	medianPrepare := calculateMedian(prepareTimes)
+	medianProcess := calculateMedian(processTimes)
+	medianFinalize := calculateMedian(finalizeTimes)
+	medianPropose := calculateMedian(proposeTimes)
+	medianEncode := calculateMedian(encodeTimes)
+	medianDecode := calculateMedian(decodeTimes)
 
-	prepareProposalTime, err := runPrepareProposal(app, txs)
-	if err != nil {
-		fmt.Printf("Error running PrepareProposal: %v\n", err)
-		os.Exit(1)
-	}
-	processProposalTime, err := runProcessProposal(app, txs)
-	if err != nil {
-		fmt.Printf("Error running ProcessProposal: %v\n", err)
-		os.Exit(1)
-	}
-	finalizeBlockTime, err := runFinalizeBlock(app, txs)
-	if err != nil {
-		fmt.Printf("Error running FinalizeBlock: %v\n", err)
-		os.Exit(1)
-	}
-	proposeBlockTime, encodeBlockTime, decodeBlockTime, err := runProposeBlock(app, txs)
-	if err != nil {
-		fmt.Printf("Error running ProposeBlock: %v\n", err)
-		os.Exit(1)
-	}
+	fmt.Println("\nBenchmarking complete!")
 
 	// Display performance results with comparison to reference times
 	displayPerformanceResults(
-		prepareProposalTime,
-		processProposalTime,
-		finalizeBlockTime,
-		proposeBlockTime,
-		encodeBlockTime,
-		decodeBlockTime,
+		medianPrepare,
+		medianProcess,
+		medianFinalize,
+		medianPropose,
+		medianEncode,
+		medianDecode,
 		info,
 	)
 
@@ -249,7 +309,7 @@ func runProposeBlock(testApp *app.App, txs [][]byte) (proposeBlockTime, encodeBl
 	blockStore := store.NewBlockStore(dbm.NewMemDB())
 	blockExec := sm.NewBlockExecutor(
 		stateStore,
-		log.NewNopLogger(),
+		log.NewTMLogger(log.NewSyncWriter(os.Stdout)),
 		proxyApp.Consensus(),
 		mp,
 		evpool,
@@ -336,14 +396,14 @@ func makeValidCommit(
 }
 
 // getCPUInfo reads and parses /proc/cpuinfo to extract CPU details
-func getCPUInfo() (*CPUInfo, error) {
+func getCPUInfo() (*cpuInfo, error) {
 	file, err := os.Open("/proc/cpuinfo")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open /proc/cpuinfo: %w", err)
 	}
 	defer file.Close()
 
-	info := &CPUInfo{
+	info := &cpuInfo{
 		Threads: runtime.NumCPU(),
 	}
 
@@ -404,7 +464,7 @@ func getCPUInfo() (*CPUInfo, error) {
 }
 
 // displayCPUInfo prints the CPU specifications
-func displayCPUInfo(info *CPUInfo) {
+func displayCPUInfo(info *cpuInfo) {
 	fmt.Println("=== CPU Specifications ===")
 	fmt.Printf("Number of Cores:   %d\n", info.Cores)
 	fmt.Printf("Number of Threads: %d\n", info.Threads)
@@ -418,7 +478,7 @@ func displayCPUInfo(info *CPUInfo) {
 func displayPerformanceResults(
 	prepareProposalTime, processProposalTime, finalizeBlockTime,
 	proposeBlockTime, encodeBlockTime, decodeBlockTime time.Duration,
-	cpuInfo *CPUInfo,
+	cpuInfo *cpuInfo,
 ) {
 	fmt.Println("\n=== Performance Test Results ===")
 
