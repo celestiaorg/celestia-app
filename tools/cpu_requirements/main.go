@@ -33,13 +33,13 @@ import (
 
 // Reference times in milliseconds
 const (
-	referencePrepareProposalMs = 1000
-	referenceProcessProposalMs = 1000
+	referencePrepareProposalMs = 800
+	referenceProcessProposalMs = 800
 	referenceFinalizeBlockMs   = 500
 	// propose block without prepare proposal
-	referenceProposeBlockMs = 200
-	referenceEncodeBlockMs  = 300
-	referenceDecodeBlockMs  = 500
+	referenceProposeBlockMs = 500
+	referenceEncodeBlockMs  = 400
+	referenceDecodeBlockMs  = 900
 
 	// Number of iterations to run for each benchmark
 	benchmarkIterations = 20
@@ -79,18 +79,18 @@ func calculateMedian(durations []time.Duration) time.Duration {
 }
 
 func main() {
-	if runtime.GOOS != "linux" {
-		fmt.Println("Error: This script only runs on Linux")
-		os.Exit(1)
-	}
+	//if runtime.GOOS != "linux" {
+	//	fmt.Println("Error: This script only runs on Linux")
+	//	os.Exit(1)
+	//}
 
-	info, err := getCPUInfo()
-	if err != nil {
-		fmt.Printf("Error getting CPU info: %v\n", err)
-		os.Exit(1)
-	}
+	//info, err := getCPUInfo()
+	//if err != nil {
+	//	fmt.Printf("Error getting CPU info: %v\n", err)
+	//	os.Exit(1)
+	//}
 
-	displayCPUInfo(info)
+	//displayCPUInfo(info)
 
 	fmt.Printf("\nRunning benchmarks with %d iterations...\n", benchmarkIterations)
 
@@ -160,7 +160,7 @@ func main() {
 		medianPropose,
 		medianEncode,
 		medianDecode,
-		info,
+		&cpuInfo{},
 	)
 
 	fmt.Println("\nDone")
