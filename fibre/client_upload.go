@@ -81,6 +81,16 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 	requests := makeUploadRequests(shardMap, promise.ToProto(), blob.RLCOrig())
 	sigSet := valSet.NewSignatureSet(c.cfg.UploadTargetVotingPower, c.cfg.UploadTargetSignaturesCount, signBytes)
 
+	// Log upload initiation
+	c.log.DebugContext(ctx, "initiating blob upload",
+		"promise_hash", hex.EncodeToString(promiseHash),
+		"height", promise.Height,
+		"namespace", ns.String(),
+		"blob_size", promise.BlobSize,
+		"commitment", promise.Commitment.String(),
+		"validators", len(requests),
+	)
+
 	// 3) upload data
 	if err = c.uploadAll(ctx, requests, blob, sigSet); err != nil {
 		span.RecordError(err)
@@ -95,6 +105,13 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 		span.SetStatus(codes.Error, "failed to collect signatures")
 		return result, err
 	}
+
+	// Log upload completion status
+	c.log.DebugContext(ctx, "blob upload completed",
+		"promise_hash", hex.EncodeToString(promiseHash),
+		"commitment", promise.Commitment.String(),
+		"signatures_collected", len(sigs),
+	)
 
 	span.SetStatus(codes.Ok, "")
 	return SignedPaymentPromise{
@@ -175,7 +192,7 @@ func (c *Client) uploadToValidator(
 	// get a new or cached client with active connection
 	client, err := c.clientCache.GetClient(ctx, val)
 	if err != nil {
-		c.log.ErrorContext(ctx, "getting FibreClient for validator", "validator", val.Address.String(), "error", err)
+		c.log.WarnContext(ctx, "failed to get client for validator", "validator", val.Address.String(), "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to get client")
 		return
@@ -187,7 +204,7 @@ func (c *Client) uploadToValidator(
 	for i, rowPb := range req.Rows {
 		row, err := blob.Row(int(rowPb.Index))
 		if err != nil {
-			c.log.ErrorContext(ctx, "generating proof for row", "validator", val.Address.String(), "row_index", rowPb.Index, "error", err)
+			c.log.WarnContext(ctx, "failed to generate proof for row", "validator", val.Address.String(), "row_index", rowPb.Index, "error", err)
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "failed to generate proof")
 			return
@@ -201,7 +218,7 @@ func (c *Client) uploadToValidator(
 	// actually push the data to the validator
 	resp, err := client.UploadRows(ctx, req)
 	if err != nil {
-		c.log.ErrorContext(ctx, "uploading rows to validator", "validator", val.Address.String(), "error", err)
+		c.log.WarnContext(ctx, "failed to upload rows to validator", "validator", val.Address.String(), "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to upload rows")
 		return
@@ -211,13 +228,18 @@ func (c *Client) uploadToValidator(
 	// apply signature response
 	err = sigSet.Add(val, resp.ValidatorSignature)
 	if err != nil {
-		c.log.ErrorContext(ctx, "adding signature from validator", "validator", val.Address.String(), "error", err)
+		c.log.WarnContext(ctx, "failed to add signature from validator", "validator", val.Address.String(), "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to add signature")
 		return
 	}
+
 	span.AddEvent("signature_verified")
 	span.SetStatus(codes.Ok, "")
+	c.log.DebugContext(ctx, "successfully uploaded to validator",
+		"validator", val.Address.String(),
+		"rows", len(req.Rows),
+	)
 }
 
 // uploadAll pushes rows to all validators concurrently and collects signature responses.
