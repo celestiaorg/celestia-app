@@ -9,9 +9,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
+
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 )
 
 // chainIDToSha256 is a map of chainID to the SHA-256 hash of the genesis file for that chain ID.
@@ -96,6 +97,10 @@ func downloadFile(filepath, url string) error {
 		return err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected HTTP status: %s", resp.Status)
+	}
 
 	out, err := os.Create(filepath)
 	if err != nil {
