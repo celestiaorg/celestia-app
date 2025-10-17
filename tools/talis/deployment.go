@@ -60,7 +60,7 @@ func upCmd() *cobra.Command {
 				log.Printf("⚠️  Warning: failed to check for running experiments: %v", err)
 			}
 			if len(runningDroplets) > 0 {
-				log.Println("⚠️  WARNING: Found other talis experiments running!")
+				log.Println("⚠️  Warning: Found another talis experiment running!")
 				log.Println("\nRunning validators:")
 				for _, d := range runningDroplets {
 					publicIP := ""
