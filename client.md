@@ -1,4 +1,4 @@
-# Fibre Client Specification
+# Fibre Client
 
 ## 0) Glossary
 

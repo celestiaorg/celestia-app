@@ -1,4 +1,4 @@
-# Fibre Server Specification
+# Fibre Server
 
 ## 1) Public gRPC APIs
 
