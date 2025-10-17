@@ -52,7 +52,7 @@ type CPUInfo struct {
 func main() {
 	if runtime.GOOS != "linux" {
 		fmt.Println("Error: This script only runs on Linux")
-		//os.Exit(1)
+		os.Exit(1)
 	}
 
 	info, err := getCPUInfo()
@@ -434,9 +434,8 @@ func displayPerformanceResults(
 	anySlower := false
 
 	// Helper function to compare and display
-	compareAndDisplay := func(name, description string, actualMs int64, referenceMs float64) bool {
+	compareAndDisplay := func(name string, actualMs int64, referenceMs float64) bool {
 		fmt.Printf("\n%s:\n", name)
-		fmt.Printf("  What it does: %s\n", description)
 		fmt.Printf("  Your time: %d ms\n", actualMs)
 
 		if referenceMs > 0 {
@@ -456,42 +455,36 @@ func displayPerformanceResults(
 	// Display each operation
 	anySlower = compareAndDisplay(
 		"Prepare Proposal",
-		"Getting transactions ready to be included in a block",
 		prepareMs,
 		referencePrepareProposalMs,
 	) || anySlower
 
 	anySlower = compareAndDisplay(
 		"Process Proposal",
-		"Validating a proposed block before accepting it",
 		processMs,
 		referenceProcessProposalMs,
 	) || anySlower
 
 	anySlower = compareAndDisplay(
 		"Finalize Block",
-		"Committing the block to the blockchain",
 		finalizeMs,
 		referenceFinalizeBlockMs,
 	) || anySlower
 
 	anySlower = compareAndDisplay(
 		"Propose Block",
-		"Creating a new block proposal",
 		proposeMs,
 		referenceProposeBlockMs,
 	) || anySlower
 
 	anySlower = compareAndDisplay(
 		"Encode Block",
-		"Converting the block to transmittable format",
 		encodeMs,
 		referenceEncodeBlockMs,
 	) || anySlower
 
 	anySlower = compareAndDisplay(
 		"Decode Block",
-		"Converting received block data back to usable format",
 		decodeMs,
 		referenceDecodeBlockMs,
 	) || anySlower
