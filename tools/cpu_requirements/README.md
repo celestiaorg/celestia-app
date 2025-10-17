@@ -6,18 +6,9 @@ This tool tests whether your hardware is compatible with the **128MB/6s** upgrad
 
 ## What It Does
 
-1. Runs 20 iterations of the following blockchain operations (with 127 x 1MB transactions):
-   - **Prepare Proposal**: Getting transactions ready to be included in a block
-   - **Process Proposal**: Validating a proposed block before accepting it
-   - **Finalize Block**: Committing the block to the blockchain
-   - **Propose Block**: Creating a new block proposal
-   - **Encode Block**: Converting the block to transmittable format
-   - **Decode Block**: Converting received block data back to usable format
-
+1. Runs 20 iterations of the consensus steps with a 128MB block (with 127 x 1MB transactions)
 2. Calculates the **median** time for each operation
-
 3. Compares your results against reference times required for 128MB/6s
-
 4. Provides a clear recommendation on whether your hardware is ready for the upgrade
 
 ## Requirements
