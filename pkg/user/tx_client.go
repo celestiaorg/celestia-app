@@ -84,14 +84,14 @@ type ExecutionError struct {
 	TxHash string
 	Code   uint32
 	// ErrorLog is the error output of the app's logger
-	RawLog    string
+	ErrorLog  string
 	Codespace string
 	GasWanted int64
 	GasUsed   int64
 }
 
 func (e *ExecutionError) Error() string {
-	return fmt.Sprintf("tx execution failed with code %d: %s", e.Code, e.RawLog)
+	return fmt.Sprintf("tx execution failed with code %d: %s", e.Code, e.ErrorLog)
 }
 
 // WithPollTime sets a custom polling interval with which to check if a transaction has been submitted
@@ -707,7 +707,7 @@ func (client *TxClient) pruneTxTracker() {
 	}
 }
 
-// buildSDKTxResponse creates a complete SDK TxResponse from TxStatus response
+// buildSDKTxResponse populates the SDK TxResponse from the TxStatus response
 func (client *TxClient) buildSDKTxResponse(txHash string, statusResp *tx.TxStatusResponse, signers []string) *sdktypes.TxResponse {
 	return &sdktypes.TxResponse{
 		Height:    statusResp.Height,
@@ -720,11 +720,11 @@ func (client *TxClient) buildSDKTxResponse(txHash string, statusResp *tx.TxStatu
 	}
 }
 
-// buildExecutionError creates an ExecutionError from TxStatus response
+// buildExecutionError populates the ExecutionError from the TxStatus response
 func (client *TxClient) buildExecutionError(txHash string, statusResp *tx.TxStatusResponse) *ExecutionError {
 	return &ExecutionError{
 		TxHash:    txHash,
-		RawLog:    statusResp.Error,
+		ErrorLog:  statusResp.Error,
 		Codespace: statusResp.Codespace,
 		Code:      statusResp.ExecutionCode,
 		GasWanted: statusResp.GasWanted,

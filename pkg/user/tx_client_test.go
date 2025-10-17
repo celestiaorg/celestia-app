@@ -309,7 +309,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		getTxResp, getTxErr := suite.serviceClient.GetTx(suite.ctx.GoContext(), &sdktx.GetTxRequest{Hash: resp.TxHash})
 		require.NoError(t, getTxErr)
 		// This is a workaround because they are different types
-		require.Contains(t, err.(*user.ExecutionError).RawLog, getTxResp.TxResponse.RawLog)
+		require.Contains(t, err.(*user.ExecutionError).ErrorLog, getTxResp.TxResponse.RawLog)
 		require.Equal(t, getTxResp.TxResponse.Codespace, err.(*user.ExecutionError).Codespace)
 		require.Equal(t, getTxResp.TxResponse.GasWanted, err.(*user.ExecutionError).GasWanted)
 		require.Equal(t, getTxResp.TxResponse.GasUsed, err.(*user.ExecutionError).GasUsed)
