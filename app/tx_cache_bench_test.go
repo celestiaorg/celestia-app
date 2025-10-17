@@ -74,7 +74,7 @@ func BenchmarkTxCache_Operations(b *testing.B) {
 		}
 	})
 
-	b.Run("RemoveTransactions", func(b *testing.B) {
+b.Run("RemoveTransactions", func(b *testing.B) {
 		for _, tc := range testCases {
 			b.Run(tc.name, func(b *testing.B) {
 				txs := generateRandomTxs(tc.numBlobTxs, txSize)
@@ -87,7 +87,7 @@ func BenchmarkTxCache_Operations(b *testing.B) {
 					b.StartTimer()
 
 					for _, tx := range txs {
-						cache.RemoveTransaction(tx)
+						cache.Remove(tx)
 					}
 				}
 			})
@@ -112,7 +112,7 @@ func BenchmarkTxCache_Operations(b *testing.B) {
 					}
 
 					for _, tx := range txs {
-						cache.RemoveTransaction(tx)
+						cache.Remove(tx)
 					}
 				}
 			})
