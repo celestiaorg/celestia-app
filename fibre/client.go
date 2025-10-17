@@ -81,9 +81,9 @@ type Client struct {
 	uploadSem   chan struct{}
 	downloadSem chan struct{}
 
-	// closeWg tracks ongoing Put/Get operations and their spawned goroutines.
+	// closeWg tracks subroutines spawned by Upload/Download operations.
 	// Close() waits for this WaitGroup to ensure all operations complete before releasing resources.
-	// Put/Get operations don't wait for their spawned goroutines, allowing them to return early for low latency.
+	// Upload/Download operations don't wait for their spawned goroutines, allowing them to return early for low latency.
 	closeWg sync.WaitGroup
 }
 
