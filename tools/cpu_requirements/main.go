@@ -79,18 +79,18 @@ func calculateMedian(durations []time.Duration) time.Duration {
 }
 
 func main() {
-	//if runtime.GOOS != "linux" {
-	//	fmt.Println("Error: This script only runs on Linux")
-	//	os.Exit(1)
-	//}
+	if runtime.GOOS != "linux" {
+		fmt.Println("Error: This script only runs on Linux")
+		os.Exit(1)
+	}
 
-	//info, err := getCPUInfo()
-	//if err != nil {
-	//	fmt.Printf("Error getting CPU info: %v\n", err)
-	//	os.Exit(1)
-	//}
+	info, err := getCPUInfo()
+	if err != nil {
+		fmt.Printf("Error getting CPU info: %v\n", err)
+		os.Exit(1)
+	}
 
-	//displayCPUInfo(info)
+	displayCPUInfo(info)
 
 	fmt.Printf("\nRunning benchmarks with %d iterations...\n", benchmarkIterations)
 
@@ -160,7 +160,7 @@ func main() {
 		medianPropose,
 		medianEncode,
 		medianDecode,
-		&cpuInfo{},
+		info,
 	)
 
 	fmt.Println("\nDone")
@@ -477,7 +477,7 @@ func displayPerformanceResults(
 	proposeBlockTime, encodeBlockTime, decodeBlockTime time.Duration,
 	cpuInfo *cpuInfo,
 ) {
-	fmt.Println("\n=== Performance Test Results ===")
+	fmt.Println("\n=== Performance Test Results (128MB/6s Compatibility) ===")
 
 	// Convert to milliseconds for easier reading
 	prepareMs := prepareProposalTime.Milliseconds()
@@ -557,9 +557,9 @@ func displayPerformanceResults(
 		fmt.Println("No reference times have been set yet.")
 		fmt.Println("Please update the reference constants in the code with your target values.")
 	} else if anySlower {
-		fmt.Println("\nWARNING: Your system is slower than the reference requirements!")
+		fmt.Println("\nWARNING: Your system does NOT meet the 128MB/6s upgrade requirements!")
 		fmt.Println("\nRECOMMENDATION:")
-		fmt.Println("To meet the performance requirements, you need to upgrade your hardware to:")
+		fmt.Println("To handle the 128MB/6s upgrade, you need to upgrade your hardware to:")
 		fmt.Println("  - 32 CPU cores (or more)")
 		fmt.Println("  - CPUs that support GFNI (Galois Field New Instructions)")
 		fmt.Println("  - CPUs that support SHA-NI (SHA New Instructions)")
@@ -568,8 +568,8 @@ func displayPerformanceResults(
 		fmt.Printf("  - GFNI support: %v\n", cpuInfo.HasGFNI)
 		fmt.Printf("  - SHA-NI support: %v\n", cpuInfo.HasSHANI)
 	} else {
-		fmt.Println("\nCONGRATULATIONS! Your system meets or exceeds the performance requirements.")
-		fmt.Println("Your hardware is capable of running the validator node efficiently.")
+		fmt.Println("\nCONGRATULATIONS! Your system is ready for the 128MB/6s upgrade.")
+		fmt.Println("Your hardware meets the performance requirements for handling 128MB blocks every 6 seconds.")
 	}
 
 	fmt.Println("================================")
