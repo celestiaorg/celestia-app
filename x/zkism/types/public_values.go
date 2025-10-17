@@ -75,6 +75,10 @@ func (pi *EvExecutionPublicValues) Marshal() ([]byte, error) {
 		return nil, fmt.Errorf("write CelestiaHeaderHash: %w", err)
 	}
 
+	if err := binary.Write(&buf, binary.LittleEndian, pi.NewCelestiaHeight); err != nil {
+		return nil, fmt.Errorf("write NewCelestiaHeight: %w", err)
+	}
+
 	if err := binary.Write(&buf, binary.LittleEndian, pi.TrustedHeight); err != nil {
 		return nil, fmt.Errorf("write TrustedHeight: %w", err)
 	}
@@ -118,6 +122,10 @@ func (pi *EvExecutionPublicValues) Unmarshal(data []byte) error {
 
 	if err := readBytes(buf, pi.CelestiaHeaderHash[:]); err != nil {
 		return fmt.Errorf("read CelestiaHeaderHash: %w", err)
+	}
+
+	if err := binary.Read(buf, binary.LittleEndian, &pi.NewCelestiaHeight); err != nil {
+		return fmt.Errorf("read NewCelestiaHeight: %w", err)
 	}
 
 	if err := binary.Read(buf, binary.LittleEndian, &pi.TrustedHeight); err != nil {
