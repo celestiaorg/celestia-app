@@ -4,6 +4,12 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"os"
+	"runtime"
+	"slices"
+	"strings"
+	"time"
+
 	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
@@ -24,11 +30,6 @@ import (
 	"github.com/cometbft/cometbft/store"
 	comettypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/mock"
-	"os"
-	"runtime"
-	"sort"
-	"strings"
-	"time"
 )
 
 // Reference times in milliseconds
@@ -64,9 +65,7 @@ func calculateMedian(durations []time.Duration) time.Duration {
 	copy(sorted, durations)
 
 	// Sort the durations
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i] < sorted[j]
-	})
+	slices.Sort(sorted)
 
 	// Calculate median
 	n := len(sorted)
@@ -103,7 +102,7 @@ func main() {
 	decodeTimes := make([]time.Duration, 0, benchmarkIterations)
 
 	// Run benchmarks multiple times
-	for i := 0; i < benchmarkIterations; i++ {
+	for i := range benchmarkIterations {
 		fmt.Printf("Iteration %d/%d...\n", i+1, benchmarkIterations)
 		app, txs, err := generatePayForBlobTransactions(127, 1024*1024)
 		if err != nil {
@@ -228,7 +227,7 @@ func runFinalizeBlock(testApp *app.App, txs [][]byte) (time.Duration, error) {
 	}
 
 	finalizeBlockReq := types.RequestFinalizeBlock{
-		Time:   testutil.GenesisTime.Add(time.Duration(6 * time.Second)),
+		Time:   testutil.GenesisTime.Add(6 * time.Second),
 		Height: testApp.LastBlockHeight() + 1,
 		Hash:   testApp.LastCommitID().Hash,
 		Txs:    txs,
@@ -250,7 +249,9 @@ func runProposeBlock(testApp *app.App, txs [][]byte) (proposeBlockTime, encodeBl
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("error starting proxy app: %w", err)
 	}
-	defer proxyApp.Stop()
+	defer func() {
+		_ = proxyApp.Stop()
+	}()
 
 	evpool := &mocks.EvidencePool{}
 	evpool.On("PendingEvidence", mock.Anything).Return([]comettypes.Evidence{}, int64(0))
@@ -262,15 +263,15 @@ func runProposeBlock(testApp *app.App, txs [][]byte) (proposeBlockTime, encodeBl
 	nVals := 1
 	vals := make([]comettypes.GenesisValidator, nVals)
 	privVals := make(map[string]comettypes.PrivValidator, nVals)
-	for i := 0; i < nVals; i++ {
-		secret := []byte(fmt.Sprintf("test%d", i))
+	for i := range nVals {
+		secret := append([]byte("test"), fmt.Appendf(nil, "%d", i)...)
 		pk := ed25519.GenPrivKeyFromSecret(secret)
 		valAddr := pk.PubKey().Address()
 		vals[i] = comettypes.GenesisValidator{
 			Address: valAddr,
 			PubKey:  pk.PubKey(),
 			Power:   1000,
-			Name:    fmt.Sprintf("test%d", i),
+			Name:    string(append([]byte("test"), fmt.Appendf(nil, "%d", i)...)),
 		}
 		privVals[valAddr.String()] = comettypes.NewMockPVWithParams(pk, false, false)
 	}
@@ -355,7 +356,7 @@ func runProposeBlock(testApp *app.App, txs [][]byte) (proposeBlockTime, encodeBl
 		return 0, 0, 0, fmt.Errorf("error decoding proposal block: %w", err)
 	}
 	decodeBlockTime = time.Since(decodeBlockStart)
-	return
+	return proposeBlockTime, encodeBlockTime, decodeBlockTime, nil
 }
 
 func makeValidCommit(
@@ -593,7 +594,7 @@ func generatePayForBlobTransactions(count, size int) (*app.App, [][]byte, error)
 	if err != nil {
 		return nil, nil, err
 	}
-	for i := 0; i < count; i++ {
+	for range count {
 		tx, _, err := signer.CreatePayForBlobs(account, []*share.Blob{blob}, user.SetGasLimitAndGasPrice(2549760000, 1), user.SetFee(1_000_000))
 		if err != nil {
 			return nil, nil, err
@@ -613,22 +614,22 @@ type mockApp struct {
 }
 
 func (m mockApp) Info(ctx context.Context, info *types.RequestInfo) (*types.ResponseInfo, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (m mockApp) Query(ctx context.Context, query *types.RequestQuery) (*types.ResponseQuery, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (m mockApp) CheckTx(ctx context.Context, tx *types.RequestCheckTx) (*types.ResponseCheckTx, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (m mockApp) InitChain(ctx context.Context, chain *types.RequestInitChain) (*types.ResponseInitChain, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -640,47 +641,47 @@ func (m mockApp) PrepareProposal(ctx context.Context, proposal *types.RequestPre
 }
 
 func (m mockApp) ProcessProposal(ctx context.Context, proposal *types.RequestProcessProposal) (*types.ResponseProcessProposal, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (m mockApp) FinalizeBlock(ctx context.Context, block *types.RequestFinalizeBlock) (*types.ResponseFinalizeBlock, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (m mockApp) ExtendVote(ctx context.Context, vote *types.RequestExtendVote) (*types.ResponseExtendVote, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (m mockApp) VerifyVoteExtension(ctx context.Context, extension *types.RequestVerifyVoteExtension) (*types.ResponseVerifyVoteExtension, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (m mockApp) Commit(ctx context.Context, commit *types.RequestCommit) (*types.ResponseCommit, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (m mockApp) ListSnapshots(ctx context.Context, snapshots *types.RequestListSnapshots) (*types.ResponseListSnapshots, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (m mockApp) OfferSnapshot(ctx context.Context, snapshot *types.RequestOfferSnapshot) (*types.ResponseOfferSnapshot, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (m mockApp) LoadSnapshotChunk(ctx context.Context, chunk *types.RequestLoadSnapshotChunk) (*types.ResponseLoadSnapshotChunk, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (m mockApp) ApplySnapshotChunk(ctx context.Context, chunk *types.RequestApplySnapshotChunk) (*types.ResponseApplySnapshotChunk, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
