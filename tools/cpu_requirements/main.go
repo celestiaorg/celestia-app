@@ -33,13 +33,13 @@ import (
 
 // Reference times in milliseconds
 const (
-	referencePrepareProposalMs = 800
-	referenceProcessProposalMs = 800
-	referenceFinalizeBlockMs   = 500
+	referencePrepareProposalMs = 700
+	referenceProcessProposalMs = 700
+	referenceFinalizeBlockMs   = 400
 	// propose block without prepare proposal
-	referenceProposeBlockMs = 500
-	referenceEncodeBlockMs  = 400
-	referenceDecodeBlockMs  = 900
+	referenceProposeBlockMs = 400
+	referenceEncodeBlockMs  = 300
+	referenceDecodeBlockMs  = 400
 
 	// Number of iterations to run for each benchmark
 	benchmarkIterations = 20
