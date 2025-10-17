@@ -84,14 +84,14 @@ type ExecutionError struct {
 	TxHash string
 	Code   uint32
 	// ErrorLog is the error output of the app's logger
-	ErrorLog  string
+	RawLog    string
 	Codespace string
 	GasWanted int64
 	GasUsed   int64
 }
 
 func (e *ExecutionError) Error() string {
-	return fmt.Sprintf("tx execution failed with code %d: %s", e.Code, e.ErrorLog)
+	return fmt.Sprintf("tx execution failed with code %d: %s", e.Code, e.RawLog)
 }
 
 // WithPollTime sets a custom polling interval with which to check if a transaction has been submitted
@@ -708,7 +708,7 @@ func (client *TxClient) pruneTxTracker() {
 }
 
 // buildSDKTxResponse creates a complete SDK TxResponse from TxStatus response
-func (client *TxClient) buildSDKTxResponse(txHash string, statusResp *tx.TxStatusResponse, signers [][]byte) *sdktypes.TxResponse {
+func (client *TxClient) buildSDKTxResponse(txHash string, statusResp *tx.TxStatusResponse, signers []string) *sdktypes.TxResponse {
 	return &sdktypes.TxResponse{
 		Height:    statusResp.Height,
 		TxHash:    txHash,
@@ -724,9 +724,9 @@ func (client *TxClient) buildSDKTxResponse(txHash string, statusResp *tx.TxStatu
 func (client *TxClient) buildExecutionError(txHash string, statusResp *tx.TxStatusResponse) *ExecutionError {
 	return &ExecutionError{
 		TxHash:    txHash,
-		Code:      statusResp.ExecutionCode,
-		ErrorLog:  statusResp.Error,
+		RawLog:    statusResp.Error,
 		Codespace: statusResp.Codespace,
+		Code:      statusResp.ExecutionCode,
 		GasWanted: statusResp.GasWanted,
 		GasUsed:   statusResp.GasUsed,
 	}
@@ -846,7 +846,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*sdktypes
 }
 
 // GetSignersFromTxBytes extracts signers from transaction bytes stored in the tx tracker
-func (client *TxClient) GetSignersFromTxBytes(txHash string) ([][]byte, error) {
+func (client *TxClient) GetSignersFromTxBytes(txHash string) ([]string, error) {
 	_, _, txBytes, exists := client.GetTxFromTxTracker(txHash)
 	if !exists {
 		return nil, fmt.Errorf("failed to get signers from tx: %s not found in txTracker", txHash)
@@ -862,7 +862,16 @@ func (client *TxClient) GetSignersFromTxBytes(txHash string) ([][]byte, error) {
 		return nil, fmt.Errorf("failed to extract signers: %w", err)
 	}
 
-	return signers, nil
+	signersStr := make([]string, 0, len(signers))
+	for range signers {
+		signerAddr, err := client.signer.addressCodec.BytesToString(signers[0])
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert signer to address: %w", err)
+		}
+		signersStr = append(signersStr, signerAddr)
+	}
+
+	return signersStr, nil
 }
 
 func extractSequenceError(fullError string) string {

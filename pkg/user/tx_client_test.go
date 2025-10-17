@@ -270,6 +270,19 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		confirmTxResp, err := suite.txClient.ConfirmTx(ctx, resp.TxHash)
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, confirmTxResp.Code)
+
+		// Verify the response against the getTx response
+		getTxResp, getTxErr := suite.serviceClient.GetTx(suite.ctx.GoContext(), &sdktx.GetTxRequest{Hash: resp.TxHash})
+		require.NoError(t, getTxErr)
+		require.Empty(t, getTxResp.TxResponse.RawLog)
+		require.Equal(t, confirmTxResp.Code, getTxResp.TxResponse.Code)
+		require.Equal(t, confirmTxResp.Codespace, getTxResp.TxResponse.Codespace)
+		require.Equal(t, confirmTxResp.GasWanted, getTxResp.TxResponse.GasWanted)
+		require.Equal(t, confirmTxResp.GasUsed, getTxResp.TxResponse.GasUsed)
+		require.Equal(t, confirmTxResp.Height, getTxResp.TxResponse.Height)
+		require.Equal(t, len(confirmTxResp.Signers), 1)
+		require.Equal(t, confirmTxResp.Signers[0], suite.txClient.DefaultAddress().String())
+
 		require.True(t, wasRemovedFromTxTracker(resp.TxHash, suite.txClient))
 	})
 
@@ -286,9 +299,20 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 
 		confirmTxResp, err := suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
 		require.Error(t, err)
+		// During errors response does not get populated
 		require.Nil(t, confirmTxResp)
 		code := err.(*user.ExecutionError).Code
 		require.NotEqual(t, abci.CodeTypeOK, code)
+		require.Equal(t, resp.TxHash, err.(*user.ExecutionError).TxHash)
+
+		// Compare it to the getTx response
+		getTxResp, getTxErr := suite.serviceClient.GetTx(suite.ctx.GoContext(), &sdktx.GetTxRequest{Hash: resp.TxHash})
+		require.NoError(t, getTxErr)
+		// This is a workaround because they are different types
+		require.Contains(t, err.(*user.ExecutionError).RawLog, getTxResp.TxResponse.RawLog)
+		require.Equal(t, getTxResp.TxResponse.Codespace, err.(*user.ExecutionError).Codespace)
+		require.Equal(t, getTxResp.TxResponse.GasWanted, err.(*user.ExecutionError).GasWanted)
+		require.Equal(t, getTxResp.TxResponse.GasUsed, err.(*user.ExecutionError).GasUsed)
 		require.True(t, wasRemovedFromTxTracker(resp.TxHash, suite.txClient))
 	})
 }
@@ -314,7 +338,7 @@ func TestRejections(t *testing.T) {
 
 	_, err = txClient.ConfirmTx(ctx.GoContext(), resp.TxHash)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "was rejected by the node")
+	require.Contains(t, err.Error(), "was rejected by the node with execution code: 30 and log: block height: 5, timeout height: 4: tx timeout height")
 	seqAfterRejection := sender.Sequence()
 	require.Equal(t, seqBeforeSubmission, seqAfterRejection)
 
@@ -550,13 +574,13 @@ func (suite *TxClientTestSuite) queryCurrentBalance(t *testing.T) int64 {
 }
 
 func wasRemovedFromTxTracker(txHash string, txClient *user.TxClient) bool {
-	seq, signer, _, exists := txClient.GetTxFromTxTracker(txHash)
-	return !exists && seq == 0 && signer == ""
+	seq, signer, txBytes, exists := txClient.GetTxFromTxTracker(txHash)
+	return !exists && seq == 0 && signer == "" && len(txBytes) == 0
 }
 
 // assertTxInTxTracker verifies that a tx was indexed in the tx tracker and that the sequence increases by one after broadcast.
 func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash, expectedSigner string, seqBeforeBroadcast uint64) {
-	seqFromTxTracker, signer, _, exists := txClient.GetTxFromTxTracker(txHash)
+	seqFromTxTracker, signer, txBytes, exists := txClient.GetTxFromTxTracker(txHash)
 	require.True(t, exists)
 	require.Equal(t, expectedSigner, signer)
 	seqAfterBroadcast := txClient.Signer().Account(expectedSigner).Sequence()
@@ -564,6 +588,7 @@ func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash, expected
 	require.Equal(t, seqBeforeBroadcast, seqFromTxTracker)
 	// Successfully broadcast transaction increases the sequence
 	require.Equal(t, seqAfterBroadcast, seqBeforeBroadcast+1)
+	require.NotEmpty(t, txBytes)
 }
 
 func setupTxClient(

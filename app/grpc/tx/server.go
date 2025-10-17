@@ -3,6 +3,7 @@ package tx
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -78,11 +79,17 @@ func (s *txServer) TxStatus(ctx context.Context, req *TxStatusRequest) (*TxStatu
 		return nil, err
 	}
 
+	fmt.Println(resTx, "RES TX")
+	fmt.Println(resTx.Error, "RES TX ERROR")
+
 	return &TxStatusResponse{
 		Height:        resTx.Height,
 		Index:         resTx.Index,
 		ExecutionCode: resTx.ExecutionCode,
 		Error:         resTx.Error,
 		Status:        resTx.Status,
+		GasWanted:     resTx.GasWanted,
+		GasUsed:       resTx.GasUsed,
+		Codespace:     resTx.Codespace,
 	}, nil
 }
