@@ -38,8 +38,8 @@ const (
 	referenceFinalizeBlockMs   = 400
 	// propose block without prepare proposal
 	referenceProposeBlockMs = 400
-	referenceEncodeBlockMs  = 300
-	referenceDecodeBlockMs  = 400
+	referenceEncodeBlockMs  = 400
+	referenceDecodeBlockMs  = 500
 
 	// Number of iterations to run for each benchmark
 	benchmarkIterations = 20
