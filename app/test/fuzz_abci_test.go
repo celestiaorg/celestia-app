@@ -3,7 +3,7 @@ package app_test
 import (
 	"testing"
 	"time"
-
+	"math/rand"
 	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
@@ -110,8 +110,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 						accounts[:tt.count],
 						user.SetGasLimitAndGasPrice(1_000_000_000, 0.1),
 					)
-					// keep tab of blob
-					n_blob := len(txs)
+					
 					// create 100 send transactions
 					sendTxs := testutil.SendTxsWithAccounts(
 						t,
@@ -155,26 +154,18 @@ func TestPrepareProposalConsistency(t *testing.T) {
 					// change if PFB transactions are not separated and put into
 					// their own namespace
 					require.GreaterOrEqual(t, len(resp.Txs), sendTxCount+1)
-					// at this point valid 100 valid txs and 1 blob
-					// we check the amount of blob that made it into block
-
-					// We determine the number of included blob in block
-					// then calculate the rate(%) of included blob
-					// but we need to have a min_rate first so we run test
-					// and log obtained rates(%) and find the min
-					valid_blob := len(resp.Txs) - sendTxCount
-					incl_rate := float64(valid_blob) / float64(n_blob)
-					///* We need this to determine the min rate of included blob
-					t.Logf("included blob: %2.f %%", incl_rate)
-					//*/
-					//min_rate := 50 / 100 // the min_rate goes here after testings
-					//require.GreaterOrEqual(t, min_rate, incl_rate)
 				}
 			})
 		}
 	}
 }
 
+
+// TestPrepareProposalInclusion produces blocks with random data using
+// PrepareProposal and then tests those blocks by calling ProcessProposal.
+// It ensure the inclusion rate of blob in a block is constant
+// we use both randomblobs and constant size PFB transaction to test the inclusion rate
+// not all randomblobs produced will get included but constant size PFB transactions will get included
 func TestPrepareProposalInclusion(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping TestPrepareProposalInclusion in short mode.")
@@ -188,17 +179,20 @@ func TestPrepareProposalInclusion(t *testing.T) {
 
 	type test struct {
 		name                   string
-		count, blobCount, size int
+		count, blobCount, minsize, maxsize int
 		iterations             int
+		rate float64
 	}
 	tests := []test{
 		// running these tests more than once in CI will sometimes timeout, so we
 		// have to run them each once per square size. However, we can run these
 		// more locally by increasing the iterations.
-		{"many small single share single blob transactions", 1000, 1, 400, 1},
-		{"one hundred normal sized single blob transactions", 100, 1, 400000, 1},
-		{"many single share multi-blob transactions", 1000, 100, 400, 1},
-		{"one hundred normal sized multi-blob transactions", 100, 4, 400000, 1},
+		{"many small single share single blob transactions", 500, 1, 1,400, 1, 0.04},
+		{"one hundred normal sized single blob transactions", 100, 1, 10000,400000, 1, 0.1},
+
+		// the range of those test are to big so with random with have inconsistencty
+		{"many single share multi-blob transactions", 1000, 1000, 1,400, 1, 0.02}, // rates with random true are lower
+		{"one hundred normal sized multi-blob transactions", 100, 10,1000, 400000, 1, 0.1}, // rates with random true are lower
 	}
 
 	type testSize struct {
@@ -238,29 +232,38 @@ func TestPrepareProposalInclusion(t *testing.T) {
 		cparams.Block.MaxBytes = size.maxBytes
 
 		testApp, kr := testutil.SetupTestAppWithGenesisValSet(cparams, accounts...)
-
 		sendTxCount := 100
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
 				// repeat and generate PFB each time
 				for i := 0; i < tt.iterations; i++ {
+					// I guess it tries to include as much txs as possible per block
+					// so most txs generated here are excluded
+					// half accounts are used for first Blob txs
+					// here lightweight PFB txs so most of them get included
+					// the other half produce PFB lightweight txs
+					// adding more varying input for count and size would make it better
+					// but we only want have a constant inclusion rate
+					// keep tab of blob
 					txs := generatePayForBlobTransactions(
 						t,
 						testApp,
 						enc.TxConfig,
 						kr,
-						tt.size,
-						tt.count,
-						true,
+						tt.minsize,
+						tt.maxsize,
+						tt.blobCount,
+						false,
 						testutil.ChainID,
 						accounts[:tt.count],
 						user.SetGasLimitAndGasPrice(1_000_000_000, 0.1),
 					)
-					// keep tab of blob
+					
 					n_blob := len(txs)
-					t.Logf("%d", n_blob)
-					require.Equal(t, n_blob, len(accounts))
+					// blob produced must be equal number of account
+					// since each account create a single PFB
+					require.Equal(t, n_blob, len(accounts[:tt.count]))
 
 					// create 100 send transactions
 					sendTxs := testutil.SendTxsWithAccounts(
@@ -298,7 +301,6 @@ func TestPrepareProposalInclusion(t *testing.T) {
 					},
 					)
 					require.NoError(t, err)
-
 					require.Equal(t, abci.ResponseProcessProposal_ACCEPT, res.Status)
 					// At least all of the send transactions and one blob tx
 					// should make it into the block. This should be expected to
@@ -313,12 +315,9 @@ func TestPrepareProposalInclusion(t *testing.T) {
 					// but we need to have a min_rate first so we run test
 					// and log obtained rates(%) and find the min
 					valid_blob := len(resp.Txs) - sendTxCount
+
 					incl_rate := float64(valid_blob) / float64(n_blob)
-					///* We need this to determine the min rate of included blob
-					t.Logf("included blob: %2.f %%", incl_rate)
-					//*/
-					//min_rate := 50 / 100 // the min_rate goes here after testings
-					//require.GreaterOrEqual(t, min_rate, incl_rate)
+					require.GreaterOrEqual(t, incl_rate, tt.rate)
 				}
 			})
 		}
@@ -327,22 +326,21 @@ func TestPrepareProposalInclusion(t *testing.T) {
 
 // generatePayForBlobTransactions creates a number of valid PFB txs
 // for accounts
-// We try to make sure it integrates nicely without breaking anything
 func generatePayForBlobTransactions(
 	t *testing.T,
 	testApp *app.App,
 	cfg client.TxConfig,
 	kr keyring.Keyring,
-	size int,
-	count int,
-	_ bool, // not sure about supporting randsize
+	minsize int,
+	maxs int,
+	blobcount int,
+	randomize bool, 
 	chainid string,
 	accounts []string,
 	extraOpts ...user.TxOption,
 ) []coretypes.Tx {
 	opts := append(blobfactory.DefaultTxOpts(), extraOpts...)
-	require.Greater(t, size, 0)
-	require.Greater(t, count, 0) // neeed to remove it
+	require.Greater(t, blobcount, 0) // neeed to remove it
 	rawTxs := make([]coretypes.Tx, 0, len(accounts))
 	for i := range accounts {
 		addr := testfactory.GetAddress(kr, accounts[i])
@@ -351,15 +349,30 @@ func generatePayForBlobTransactions(
 		account := user.NewAccount(accounts[i], acc.GetAccountNumber(), accountSequence)
 		signer, err := user.NewSigner(kr, cfg, chainid, account)
 		require.NoError(t, err)
-		randomBytes := crypto.CRandBytes(size)
+		var count, size int
+		if randomize{
+			count = randInRange(1, blobcount)
+			size = randInRange(minsize, maxs)
+		}else{
+			if minsize < 0 {
+				size = maxs
+			} else {
+				size = 1
+			}
+			if blobcount < 0 {
+				count = randInRange(1, blobcount)
+			} else {
+				count = 1
+			}
+		}
 		blobs := make([]*share.Blob, count)
-
-		for i := range count {
+		randomBytes := crypto.CRandBytes(size)
+		for i := 0; i < count; i++ {
 			blob, err := share.NewBlob(share.RandomNamespace(), randomBytes, 1, acc.GetAddress().Bytes())
 			require.NoError(t, err)
 			blobs[i] = blob
 		}
-		// create blobs per account
+		// create PFB tx per account
 		tx, _, err := signer.CreatePayForBlobs(account.Name(), blobs, opts...)
 		require.NoError(t, err)
 		rawTxs = append(rawTxs, tx)
@@ -367,4 +380,9 @@ func generatePayForBlobTransactions(
 	}
 
 	return rawTxs
+}
+
+// generate random numbers in specified range
+func randInRange(min, max int) int {
+    return rand.Intn(max-min+1) + min
 }
