@@ -69,6 +69,7 @@ endif
 ## install-standalone: Build and install the celestia-appd binary into the $GOPATH/bin directory. This target does not install the multiplexer.
 install-standalone:
 	@echo "--> Installing celestia-appd"
+	@bash scripts/check_cpu_features.sh
 	@go install $(BUILD_FLAGS_STANDALONE) ./cmd/celestia-appd
 .PHONY: install-standalone
 
@@ -76,6 +77,7 @@ install-standalone:
 # TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
 install: download-v3-binaries download-v4-binaries download-v5-binaries
 	@echo "--> Installing celestia-appd with multiplexer support"
+	@bash scripts/check_cpu_features.sh
 	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
 .PHONY: install
 
