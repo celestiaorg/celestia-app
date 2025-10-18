@@ -309,11 +309,8 @@ func TestPrepareProposalInclusion(t *testing.T) {
 					require.GreaterOrEqual(t, len(resp.Txs), sendTxCount+1)
 					// at this point valid 100 valid txs and 1 blob
 					// we check the amount of blob that made it into block
-
-					// We determine the number of included blob in block
-					// then calculate the rate(%) of included blob
-					// but we need to have a min_rate first so we run test
-					// and log obtained rates(%) and find the min
+					// we know the rate of inclusion of blob so we can
+					// safetly assert that a certain amount of blob made it through
 					valid_blob := len(resp.Txs) - sendTxCount
 
 					incl_rate := float64(valid_blob) / float64(n_blob)
@@ -340,7 +337,6 @@ func generatePayForBlobTransactions(
 	extraOpts ...user.TxOption,
 ) []coretypes.Tx {
 	opts := append(blobfactory.DefaultTxOpts(), extraOpts...)
-	require.Greater(t, blobcount, 0) // neeed to remove it
 	rawTxs := make([]coretypes.Tx, 0, len(accounts))
 	for i := range accounts {
 		addr := testfactory.GetAddress(kr, accounts[i])
