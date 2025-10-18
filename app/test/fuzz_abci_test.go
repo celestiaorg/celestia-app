@@ -179,7 +179,7 @@ func TestPrepareProposalInclusion(t *testing.T) {
 
 	type test struct {
 		name                   string
-		count, blobCount, minsize, maxsize int
+		count, blobCount, minsize, maxsize int 
 		iterations             int
 		rate float64
 	}
@@ -238,14 +238,8 @@ func TestPrepareProposalInclusion(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				// repeat and generate PFB each time
 				for i := 0; i < tt.iterations; i++ {
-					// I guess it tries to include as much txs as possible per block
-					// so most txs generated here are excluded
-					// half accounts are used for first Blob txs
-					// here lightweight PFB txs so most of them get included
-					// the other half produce PFB lightweight txs
-					// adding more varying input for count and size would make it better
-					// but we only want have a constant inclusion rate
-					// keep tab of blob
+					// generate PFB txs using inputs
+					// we use ranges to ensure the tests are consistence with random
 					txs := generatePayForBlobTransactions(
 						t,
 						testApp,
