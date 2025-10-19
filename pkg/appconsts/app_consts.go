@@ -47,8 +47,6 @@ const (
 	// after a MsgTryUpgrade to activate the next version. Assuming a block
 	// interval of 6 seconds, this is 7 days.
 	MainnetUpgradeHeightDelay = int64(100_800)
-	// Deprecated: Use MainnetUpgradeHeightDelay instead.
-	UpgradeHeightDelay = MainnetUpgradeHeightDelay
 	// MempoolSize determines the default max mempool size. This is determined
 	// using a multiple of the max possible bytes in a block.
 	MempoolSize = int64(DefaultUpperBoundMaxBytes) * 3
