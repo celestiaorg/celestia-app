@@ -14,12 +14,8 @@ import (
 // ensure it queries from the latest committed state.
 func (app *App) QuerySequence(_ context.Context, req *abci.RequestQuerySequence) (*abci.ResponseQuerySequence, error) {
 	addr := sdk.AccAddress(req.Signer)
-	// queryCtx, err := app.BaseApp.CreateQueryContext(app.LastBlockHeight(), false)
-	// if err != nil {
-	// 	return nil, err
-	// }
 
-	checkTxCtx, ok := app.BaseApp.CheckState()
+	checkTxCtx, ok := app.CheckState()
 	if !ok {
 		return &abci.ResponseQuerySequence{}, errors.New("checkState not set")
 	}
