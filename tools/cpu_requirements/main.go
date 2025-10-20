@@ -686,4 +686,8 @@ func (m mockApp) ApplySnapshotChunk(ctx context.Context, chunk *types.RequestApp
 	panic("implement me")
 }
 
+func (m mockApp) QuerySequence(ctx context.Context, req *types.RequestQuerySequence) (*types.ResponseQuerySequence, error) {
+	return &types.ResponseQuerySequence{Sequence: 0}, nil
+}
+
 var _ types.Application = &mockApp{}
