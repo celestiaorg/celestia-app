@@ -224,7 +224,6 @@ func monitorLatency(
 			// Launch background goroutine to confirm the transaction
 			go func(txHash string, submitTime time.Time) {
 				confirmed, err := txClient.ConfirmTx(ctx, txHash)
-
 				if err != nil {
 					if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 						fmt.Printf("[CANCELLED] tx=%s context closed before confirmation\n", txHash[:16])
