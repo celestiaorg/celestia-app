@@ -52,6 +52,9 @@ func (s *MempoolQuerySequenceSuite) SetupSuite() {
 	cctx, _, _ := NewNetwork(t, cfg)
 	s.cctx = cctx
 
+	// Wait for the first block to be produced so checkState is initialized
+	require.NoError(t, s.cctx.WaitForBlocks(1))
+
 	txClient, err := user.SetupTxClient(
 		s.cctx.GoContext(),
 		s.cctx.Keyring,
