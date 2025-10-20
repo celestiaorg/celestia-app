@@ -182,6 +182,11 @@ func (m *Multiplexer) VerifyVoteExtension(_ context.Context, req *abci.RequestVe
 }
 
 func (m *Multiplexer) QuerySequence(ctx context.Context, req *abci.RequestQuerySequence) (*abci.ResponseQuerySequence, error) {
+	// Return noop (sequence 0) for app version <= 4
+	if m.appVersion <= 4 {
+		return &abci.ResponseQuerySequence{Sequence: 0}, nil
+	}
+
 	app, err := m.getApp()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
