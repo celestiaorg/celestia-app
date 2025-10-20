@@ -29,16 +29,16 @@ import (
 // Results with 100 validators (averaged over 5 iterations):
 //
 //	Blob Size      Time/op    Throughput    Memory/op    Allocs/op
-//	1 KiB          ~20.7 ms   ~0.047 MiB/s  ~29.3 MB     ~253k
-//	16 KiB         ~20.8 ms   ~0.75 MiB/s   ~29.3 MB     ~252.5k
-//	128 KiB        ~20.8 ms   ~6.0 MiB/s    ~29.2 MB     ~251k
-//	1 MiB          ~23.5 ms   ~42.6 MiB/s   ~41.9 MB     ~250k
-//	128 MiB (max)  ~725 ms    ~177 MiB/s    ~1,776 MB    ~294k
+//	1 KiB          ~19.8 ms   ~0.049 MiB/s  ~27.0 MB     ~236.8k
+//	16 KiB         ~20.1 ms   ~0.78 MiB/s   ~27.0 MB     ~236.6k
+//	128 KiB        ~20.3 ms   ~6.2 MiB/s    ~26.9 MB     ~234.8k
+//	1 MiB          ~23.4 ms   ~42.7 MiB/s   ~39.6 MB     ~233.9k
+//	128 MiB (max)  ~834 ms    ~156 MiB/s    ~1,773 MB    ~279.8k
 //
 // Key observations:
-//   - Small blobs (<=128 KiB): overhead-dominated, fixed ~20.8ms cost limits throughput
-//   - Medium blobs (1 MiB): ~23.5ms with ~42.6 MiB/s throughput
-//   - Large blobs (128 MiB): throughput reaches ~177 MiB/s as encoding work dominates
+//   - Small blobs (<=128 KiB): overhead-dominated, fixed ~20ms cost limits throughput
+//   - Medium blobs (1 MiB): ~23.4ms with ~42.7 MiB/s throughput
+//   - Large blobs (128 MiB): throughput reaches ~156 MiB/s as encoding work dominates
 //   - Throughput scales with blob size as fixed overhead becomes less significant
 func BenchmarkClient_Upload(b *testing.B) {
 	benchmarks := []struct {
@@ -55,14 +55,14 @@ func BenchmarkClient_Upload(b *testing.B) {
 
 	for _, bm := range benchmarks {
 		b.Run(bm.name, func(b *testing.B) {
-			// Create benchmark-optimized client with 100 validators
+			// create benchmark-optimized client with 100 validators
 			ctx := context.Background()
 			client := makeBenchmarkClient(&testing.T{}, 100)
 			defer func() { _ = client.Close() }()
 
 			namespace := share.MustNewV0Namespace([]byte("bench"))
 
-			// Pre-generate random data to exclude from benchmark
+			// pre-generate random data to exclude from benchmark
 			data := make([]byte, bm.numBytes)
 			_, err := rand.Read(data)
 			require.NoError(b, err)
@@ -76,7 +76,7 @@ func BenchmarkClient_Upload(b *testing.B) {
 				require.NotEmpty(b, result.ValidatorSignatures)
 			}
 
-			// Calculate and report throughput
+			// calculate and report throughput
 			bytesProcessed := int64(b.N) * int64(bm.numBytes)
 			b.ReportMetric(float64(bytesProcessed)/b.Elapsed().Seconds()/(1024*1024), "MiB/s")
 		})
@@ -91,21 +91,21 @@ func BenchmarkClient_Upload(b *testing.B) {
 // Results with 100 validators (averaged over 5 iterations):
 //
 //	Blob Size    Concurrency    Time/op     Throughput     Memory/op    Allocs/op
-//	128 KiB      1              ~20.4 ms    ~6.1 MiB/s     ~29.2 MB     ~251k
-//	128 KiB      4              ~27.9 ms    ~17.9 MiB/s    ~114 MB      ~986k
-//	128 KiB      8              ~42.5 ms    ~23.5 MiB/s    ~223 MB      ~1.94M
-//	1 MiB        1              ~23.5 ms    ~42.6 MiB/s    ~41.9 MB     ~250k
-//	1 MiB        4              ~42.1 ms    ~95.1 MiB/s    ~165.7 MB    ~987k
-//	1 MiB        8              ~80.1 ms    ~99.9 MiB/s    ~329 MB      ~1.96M
-//	1 MiB        16             ~168 ms     ~95.4 MiB/s    ~647 MB      ~3.85M
-//	128 MiB      1              ~716 ms     ~179 MiB/s     ~1,776 MB    ~294k
-//	128 MiB      4              ~2,791 ms   ~184 MiB/s     ~7,103 MB    ~1.18M
+//	128 KiB      1              ~20.0 ms    ~6.3 MiB/s     ~26.9 MB     ~234.8k
+//	128 KiB      4              ~27.5 ms    ~18.2 MiB/s    ~107.5 MB    ~939k
+//	128 KiB      8              ~42.5 ms    ~23.5 MiB/s    ~215 MB      ~1.88M
+//	1 MiB        1              ~23.0 ms    ~43.4 MiB/s    ~39.6 MB     ~233.9k
+//	1 MiB        4              ~41.3 ms    ~96.7 MiB/s    ~158.4 MB    ~935.7k
+//	1 MiB        8              ~80.3 ms    ~99.7 MiB/s    ~316.9 MB    ~1.87M
+//	1 MiB        16             ~173 ms     ~92.5 MiB/s    ~633.7 MB    ~3.74M
+//	128 MiB      1              ~760 ms     ~168.7 MiB/s   ~1,773 MB    ~279.5k
+//	128 MiB      4              ~2,615 ms   ~196 MiB/s     ~7,094 MB    ~1.12M
 //
 // Key observations:
-//   - Small blobs (128 KiB): good concurrency scaling from ~6.1 to ~23.5 MiB/s aggregate at concurrency 8
-//   - Medium blobs (1 MiB): peak throughput at concurrency 8 (~99.9 MiB/s)
-//   - Medium blobs (1 MiB): slight diminishing returns at concurrency 16 (~95.4 MiB/s, 4.5% drop) due to coordination overhead
-//   - Large blobs (128 MiB): best aggregate throughput at concurrency 4 (~184 MiB/s)
+//   - Small blobs (128 KiB): good concurrency scaling from ~6.3 to ~23.5 MiB/s aggregate at concurrency 8
+//   - Medium blobs (1 MiB): peak throughput at concurrency 8 (~99.7 MiB/s), slight drop at 16 due to overhead
+//   - Medium blobs (1 MiB): strong throughput gains from concurrency 4 (~96.7 MiB/s) to 8 (~99.7 MiB/s)
+//   - Large blobs (128 MiB): best aggregate throughput at concurrency 4 (~196 MiB/s, 1.2x single upload)
 //   - Concurrency benefits increase with blob size as encoding work parallelizes better
 func BenchmarkClient_Upload_Concurrent(b *testing.B) {
 	benchmarks := []struct {
@@ -132,33 +132,33 @@ func BenchmarkClient_Upload_Concurrent(b *testing.B) {
 
 			namespace := share.MustNewV0Namespace([]byte("bench"))
 
-			// Pre-generate random data to exclude from benchmark
+			// pre-generate random data to exclude from benchmark
 			data := make([]byte, bm.blobSize)
 			_, err := rand.Read(data)
 			require.NoError(b, err)
 
 			for b.Loop() {
-				blob, err := fibre.NewBlob(data, client.Config().BlobConfig)
-				require.NoError(b, err)
-
-				// Launch concurrent uploads
+				// launch concurrent uploads
 				errChan := make(chan error, bm.concurrency)
 				for range bm.concurrency {
 					go func() {
-						_, err := client.Upload(ctx, namespace, blob)
+						blob, err := fibre.NewBlob(data, client.Config().BlobConfig)
+						require.NoError(b, err)
+
+						_, err = client.Upload(ctx, namespace, blob)
 						errChan <- err
 					}()
 				}
 
-				// Wait for all uploads to complete
+				// wait for all uploads to complete
 				for range bm.concurrency {
 					err := <-errChan
 					require.NoError(b, err)
 				}
 			}
 
-			// Calculate and report aggregate throughput
-			// Each iteration processes bm.concurrency blobs
+			// calculate and report aggregate throughput
+			// each iteration processes bm.concurrency blobs
 			bytesProcessed := int64(b.N) * int64(bm.concurrency) * int64(bm.blobSize)
 			b.ReportMetric(float64(bytesProcessed)/b.Elapsed().Seconds()/(1024*1024), "MiB/s")
 		})
