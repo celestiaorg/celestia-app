@@ -40,11 +40,29 @@ func TestClientUpload(t *testing.T) {
 		{"InsufficientVotingPower", testClientUploadInsufficientVotingPower},
 		{"InsufficientSignaturesCount", testClientUploadInsufficientSignaturesCount},
 		{"AllValidatorsReceiveData", testClientUploadAllValidatorsReceiveData},
+		{"ClosedClient", testClientUploadClosedClient},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, tt.fn)
 	}
+}
+
+func TestNewClient_KeyNotFound(t *testing.T) {
+	validators, _ := makeTestValidators(t, 10)
+	valSet := validator.Set{ValidatorSet: core.NewValidatorSet(validators), Height: 100}
+
+	// Create empty keyring (no keys)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	emptyKeyring := keyring.NewInMemory(encCfg.Codec)
+
+	cfg := fibre.DefaultClientConfig()
+
+	// Attempt to create client with non-existent key
+	_, err := fibre.NewClient(nil, emptyKeyring, &mockValidatorSetGetter{set: valSet}, &mockHostRegistry{}, cfg)
+	require.Error(t, err)
+	require.ErrorIs(t, err, fibre.ErrKeyNotFound, "expected ErrKeyNotFound when key doesn't exist")
+	require.Contains(t, err.Error(), cfg.DefaultKeyName, "error should mention the key name")
 }
 
 func testClientConcurrentUploads(t *testing.T) {
@@ -169,12 +187,13 @@ func testClientUploadAllValidatorsReceiveData(t *testing.T) {
 	cfg.NewClientFn = mockClientFn
 
 	valSet := validator.Set{ValidatorSet: core.NewValidatorSet(validators), Height: 100}
-	client := fibre.NewClient(nil, makeTestKeyring(t), &mockValidatorSetGetter{set: valSet}, &mockHostRegistry{}, cfg)
+	client, err := fibre.NewClient(nil, makeTestKeyring(t), &mockValidatorSetGetter{set: valSet}, &mockHostRegistry{}, cfg)
+	require.NoError(t, err)
 
 	ns := share.MustNewV0Namespace([]byte(testNamespace))
 	blob := makeTestBlob(t, client, 256*1024)
 
-	_, err := client.Upload(t.Context(), ns, blob)
+	_, err = client.Upload(t.Context(), ns, blob)
 	require.NoError(t, err)
 
 	// Close waits for all background upload goroutines to complete
@@ -212,7 +231,9 @@ func makeTestClient(t *testing.T, numValidators int, customCfg func(*fibre.Clien
 	}
 
 	valSet := validator.Set{ValidatorSet: core.NewValidatorSet(validators), Height: 100}
-	return fibre.NewClient(nil, makeTestKeyring(t), &mockValidatorSetGetter{set: valSet}, &mockHostRegistry{}, cfg)
+	client, err := fibre.NewClient(nil, makeTestKeyring(t), &mockValidatorSetGetter{set: valSet}, &mockHostRegistry{}, cfg)
+	require.NoError(t, err)
+	return client
 }
 
 func makeTestClientWithFailures(t *testing.T, numValidators, numFailures int, customCfg func(*fibre.ClientConfig)) *fibre.Client {
@@ -245,7 +266,9 @@ func makeTestClientWithFailures(t *testing.T, numValidators, numFailures int, cu
 	}
 
 	valSet := validator.Set{ValidatorSet: core.NewValidatorSet(validators), Height: 100}
-	return fibre.NewClient(nil, makeTestKeyring(t), &mockValidatorSetGetter{set: valSet}, &mockHostRegistry{}, cfg)
+	client, err := fibre.NewClient(nil, makeTestKeyring(t), &mockValidatorSetGetter{set: valSet}, &mockHostRegistry{}, cfg)
+	require.NoError(t, err)
+	return client
 }
 
 func makeTestValidators(t *testing.T, n int) ([]*core.Validator, []cmted25519.PrivKey) {
@@ -379,4 +402,22 @@ func (u *uploadTracker) hasUpload(validatorAddr string) bool {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	return u.uploads[validatorAddr]
+}
+
+func testClientUploadClosedClient(t *testing.T) {
+	client := makeTestClient(t, 100, nil)
+
+	// Close the client
+	require.NoError(t, client.Close())
+
+	// Close again - should be idempotent
+	require.NoError(t, client.Close())
+	require.NoError(t, client.Close())
+
+	ns := share.MustNewV0Namespace([]byte(testNamespace))
+	blob := makeTestBlob(t, client, 256*1024)
+
+	// Attempt to upload after closing
+	_, err := client.Upload(t.Context(), ns, blob)
+	require.ErrorIs(t, err, fibre.ErrClientClosed, "expected ErrClientClosed when uploading to closed client")
 }
