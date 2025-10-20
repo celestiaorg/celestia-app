@@ -32,7 +32,7 @@ A tool for monitoring and measuring transaction latency in Celestia networks. Th
 | `--keyring-dir` | `-k` | `~/.celestia-app` | Directory containing the keyring |
 | `--account` | `-a` | _(first account)_ | Account name to use from keyring |
 | `--blob-size` | `-b` | `1024` | Maximum blob size in bytes (blobs will be random size between this value and the minimum) |
-| `--blob-size-min` |  | `1` | Minimum blob size in bytes (blobs will be random size between this value and the maximum) |
+| `--blob-size-min` | `-z` | `1` | Minimum blob size in bytes (blobs will be random size between this value and the maximum) |
 | `--submission-delay` | `-d` | `4000ms` | Delay between transaction submissions |
 | `--namespace` | `-n` | `test` | Namespace for blob submission |
 | `--disable-metrics` | `-m` | `false` | Disable metrics collection |
@@ -47,7 +47,7 @@ go run ./tools/latency-monitor
 go run ./tools/latency-monitor --grpc-endpoint localhost:9090 --submission-delay 200ms --blob-size 4096 --blob-size-min 1024 --namespace custom
 
 # Run with custom settings (short flags)
-go run ./tools/latency-monitor -e localhost:9090 -d 200ms -b 4096 -n custom
+go run ./tools/latency-monitor -e localhost:9090 -d 200ms -b 4096 -z 1024 -n custom
 
 # Use a specific account from keyring
 go run ./tools/latency-monitor -a validator
