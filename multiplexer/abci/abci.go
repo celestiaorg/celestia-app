@@ -191,12 +191,8 @@ func (m *Multiplexer) QuerySequence(ctx context.Context, req *abci.RequestQueryS
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
 	}
-	resp, err := app.QuerySequence(ctx, req)
-	if err != nil {
-		// If the app doesn't implement QuerySequence, return a noop response
-		return &abci.ResponseQuerySequence{Sequence: 0}, nil
-	}
-	return resp, nil
+
+	return app.QuerySequence(ctx, req)
 }
 
 // checkHaltConditions returns an error if the node should halt based on a halt-height or

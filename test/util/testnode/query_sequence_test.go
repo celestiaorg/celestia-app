@@ -42,11 +42,12 @@ func (s *MempoolQuerySequenceSuite) SetupSuite() {
 	blobGenState := blobtypes.DefaultGenesis()
 	blobGenState.Params.GovMaxSquareSize = uint64(appconsts.SquareSizeUpperBound)
 
-	// Create a config with a longer block time (3 seconds) to allow time to query
+	// Create a config with a longer block time (2 seconds) to allow time to query
 	// the sequence before the transaction is included in a block
 	cfg := DefaultConfig().
 		WithFundedAccounts(s.accounts...).
-		WithModifiers(genesis.SetBlobParams(enc.Codec, blobGenState.Params))
+		WithModifiers(genesis.SetBlobParams(enc.Codec, blobGenState.Params)).
+		WithDelayedPrecommitTimeout(time.Second * 2)
 
 	cctx, _, _ := NewNetwork(t, cfg)
 	s.cctx = cctx
