@@ -92,32 +92,29 @@ func Run() error {
 
 	metrics := NewBlockMetrics(100) // Keep track of last 100 blocks
 
-	newBlocksSub, err := client.Subscribe(ctx, "blocks-watcher", "tm.event = 'NewBlock'")
+	newHeightSub, err := client.Subscribe(ctx, "heights-watcher", "tm.event = 'NewBlockHeader'")
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to new blocks: %w", err)
+		return fmt.Errorf("failed to subscribe to new block headers: %w", err)
 	}
 	defer func() {
-		err := client.Unsubscribe(ctx, "blocks-watcher", "tm.event = 'NewBlock'")
+		err := client.Unsubscribe(ctx, "heights-watcher", "tm.event = 'NewBlockHeader'")
 		if err != nil {
 			fmt.Printf("error while unsubscribing: %s", err.Error())
 		}
 	}()
 
-	fmt.Println("Listening for new blocks...")
+	fmt.Println("Listening for new heights...")
 
 	for {
 		select {
-		case event := <-newBlocksSub:
-			blockEvent := event.Data.(types.EventDataNewBlock)
-			block := blockEvent.Block
+		case event := <-newHeightSub:
+			heightEvent := event.Data.(types.EventDataNewBlockHeader)
+			header := heightEvent.Header
 
 			// Calculate block size (including transactions)
-			blockSize := 0
-			for _, tx := range block.Txs {
-				blockSize += len(tx)
-			}
+			blockSize := header.LastBlockID.PartSetHeader.Total * types.BlockPartSizeBytes
 
-			metrics.AddBlock(block.Time, blockSize)
+			metrics.AddBlock(header.Time, int(blockSize))
 
 			// Calculate and print metrics immediately after adding a block
 			avgBlockTime, avgBlockSize, throughput := metrics.CalculateMetrics()

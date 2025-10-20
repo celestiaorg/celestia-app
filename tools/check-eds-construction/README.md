@@ -84,6 +84,7 @@ $ go run ./tools/check-eds-construction --rpc https://rpc.celestia-arabica-11.co
 ## What It Does
 
 The tool performs the following for each block:
+
 1. Fetches the block from the specified RPC endpoint
 2. Constructs the EDS using the standard method (without tree pool)
 3. Constructs the EDS using the optimized method (with preallocated tree pool)
