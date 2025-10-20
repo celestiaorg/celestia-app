@@ -2,6 +2,7 @@ package abci
 
 import (
 	"context"
+	"fmt"
 	"math"
 
 	abciv2 "github.com/cometbft/cometbft/abci/types"
@@ -472,9 +473,7 @@ func (a *RemoteABCIClientV1) ExtendVote(ctx context.Context, req *abciv2.Request
 
 // QuerySequence implements abciv2.ABCI
 func (a *RemoteABCIClientV1) QuerySequence(_ context.Context, _ *abciv2.RequestQuerySequence) (*abciv2.ResponseQuerySequence, error) {
-	return &abciv2.ResponseQuerySequence{
-		Sequence: 0,
-	}, nil
+	return &abciv2.ResponseQuerySequence{}, fmt.Errorf("RemoteABCIClientV1 does not support QuerySequence")
 }
 
 // abciEventV1ToV2 converts a slice of abciv1.Event to a slice of abciv2.Event.
