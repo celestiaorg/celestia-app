@@ -29,12 +29,6 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 		return result, ErrClientClosed
 	}
 
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("fibre upload: %w", err)
-		}
-	}()
-
 	ctx, span := c.tracer.Start(ctx, "fibre.Client.Upload",
 		trace.WithAttributes(
 			attribute.String("namespace", ns.String()),
@@ -86,7 +80,6 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 	requests := makeUploadRequests(shardMap, promise.ToProto(), blob.RLCOrig())
 	sigSet := valSet.NewSignatureSet(c.cfg.UploadTargetVotingPower, c.cfg.UploadTargetSignaturesCount, signBytes)
 
-	// Log upload initiation
 	c.log.DebugContext(ctx, "initiating blob upload",
 		"promise_hash", hex.EncodeToString(promiseHash),
 		"height", promise.Height,
@@ -111,7 +104,6 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 		return result, err
 	}
 
-	// Log upload completion status
 	c.log.DebugContext(ctx, "blob upload completed",
 		"promise_hash", hex.EncodeToString(promiseHash),
 		"commitment", promise.Commitment.String(),
