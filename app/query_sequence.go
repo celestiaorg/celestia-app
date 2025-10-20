@@ -13,6 +13,9 @@ import (
 // We bypass BaseApp's mempool-aware implementation so the application can
 // ensure it queries from the latest committed state.
 func (app *App) QuerySequence(_ context.Context, req *abci.RequestQuerySequence) (*abci.ResponseQuerySequence, error) {
+	app.checkStateMu.RLock()
+	defer app.checkStateMu.RUnlock()
+
 	addr := sdk.AccAddress(req.Signer)
 	// queryCtx, err := app.BaseApp.CreateQueryContext(app.LastBlockHeight(), false)
 	// if err != nil {
