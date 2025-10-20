@@ -22,6 +22,14 @@ This tool tests whether your hardware is compatible with the **128MB/6s** upgrad
 go run ./tools/cpu_requirements
 ```
 
+## Docker
+
+You can also run the benchmarking tool using docker:
+
+```bash
+docker run ghcr.io/celestiaorg/128mb-6s-benchmark:v0.0.1
+```
+
 ## Output
 
 The tool displays:
