@@ -2,11 +2,13 @@ package genesis
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v5/app/params"
 	blobtypes "github.com/celestiaorg/celestia-app/v5/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v5/x/minfee/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -27,6 +29,18 @@ func SetBlobParams(codec codec.Codec, params blobtypes.Params) Modifier {
 		blobGenState := blobtypes.DefaultGenesis()
 		blobGenState.Params = params
 		state[blobtypes.ModuleName] = codec.MustMarshalJSON(blobGenState)
+		return state
+	}
+}
+
+// SetMinGasPrice will set the provided minimum gas price as genesis state.
+// The minGasPrice parameter should be a float64 representing the gas price.
+func SetMinGasPrice(codec codec.Codec, minGasPrice float64) Modifier {
+	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
+		minFeeGenState := minfeetypes.DefaultGenesis()
+		gasPrice := math.LegacyMustNewDecFromStr(fmt.Sprintf("%f", minGasPrice))
+		minFeeGenState.Params.NetworkMinGasPrice = gasPrice
+		state[minfeetypes.ModuleName] = codec.MustMarshalJSON(minFeeGenState)
 		return state
 	}
 }

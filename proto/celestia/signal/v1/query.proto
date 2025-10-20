@@ -19,6 +19,12 @@ service Query {
   rpc GetUpgrade(QueryGetUpgradeRequest) returns (QueryGetUpgradeResponse) {
     option (google.api.http).get = "/signal/v1/upgrade";
   }
+
+  // GetMissingValidators enables a client to query for the validators that 
+  // have not yet signalled for a particular version
+  rpc GetMissingValidators(QueryGetMissingValidatorsRequest) returns (QueryGetMissingValidatorsResponse) {
+    option (google.api.http).get = "/signal/v1/missing/{version}";
+  }
 }
 
 // QueryVersionTallyRequest is the request type for the VersionTally query.
@@ -39,4 +45,15 @@ message QueryGetUpgradeRequest {}
 // QueryGetUpgradeResponse is the response type for the GetUpgrade query.
 message QueryGetUpgradeResponse {
   Upgrade upgrade = 1;
+}
+
+// QueryMissingValidatorsRequest is the request type for the MissingValidators query.
+message QueryGetMissingValidatorsRequest {
+  uint64 version = 1;
+}
+
+// QueryMissingValidatorsResponse is the response type for the MissingValidators query.
+message QueryGetMissingValidatorsResponse {
+  // MissingValidators is a string of validator monikers
+  repeated string missing_validators = 1;
 }

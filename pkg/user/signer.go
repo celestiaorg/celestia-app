@@ -35,6 +35,7 @@ type Signer struct {
 	// set of accounts that the signer can manage. Should match the keys on the keyring
 	accounts            map[string]*Account
 	addressToAccountMap map[string]string
+	signMode            signing.SignMode
 }
 
 // NewSigner returns a new signer using the provided keyring
@@ -48,6 +49,7 @@ func NewSigner(keys keyring.Keyring, encCfg client.TxConfig, chainID string, acc
 		addressCodec:        addresscodec.NewBech32Codec(params.Bech32PrefixAccAddr),
 		accounts:            make(map[string]*Account),
 		addressToAccountMap: make(map[string]string),
+		signMode:            defaultSignMode,
 	}
 
 	for _, acc := range accounts {
@@ -64,6 +66,12 @@ func NewSigner(keys keyring.Keyring, encCfg client.TxConfig, chainID string, acc
 	}
 
 	return s, nil
+}
+
+// WithSignMode sets the sign mode for the signer.
+func (s *Signer) WithSignMode(signMode signing.SignMode) *Signer {
+	s.signMode = signMode
+	return s
 }
 
 // populateAddressToAccountMap retrieves keys from the keyring and maps their addresses to account names in the signer.
@@ -288,7 +296,7 @@ func (s *Signer) signTransaction(builder client.TxBuilder) (string, uint64, erro
 	// a dry run of the signing data
 	err = builder.SetSignatures(signing.SignatureV2{
 		Data: &signing.SingleSignatureData{
-			SignMode:  defaultSignMode,
+			SignMode:  s.signMode,
 			Signature: nil,
 		},
 		PubKey:   account.pubKey,
@@ -305,7 +313,7 @@ func (s *Signer) signTransaction(builder client.TxBuilder) (string, uint64, erro
 
 	err = builder.SetSignatures(signing.SignatureV2{
 		Data: &signing.SingleSignatureData{
-			SignMode:  defaultSignMode,
+			SignMode:  s.signMode,
 			Signature: signature,
 		},
 		PubKey:   account.pubKey,
@@ -332,11 +340,11 @@ func (s *Signer) createSignature(builder client.TxBuilder, account *Account, seq
 		PubKey:        account.pubKey,
 	}
 
-	bytesToSign, err := authsigning.GetSignBytesAdapter(context.Background(), s.enc.SignModeHandler(), defaultSignMode, signerData, builder.GetTx())
+	bytesToSign, err := authsigning.GetSignBytesAdapter(context.Background(), s.enc.SignModeHandler(), s.signMode, signerData, builder.GetTx())
 	if err != nil {
 		return nil, fmt.Errorf("error getting sign bytes: %w", err)
 	}
-	signature, _, err := s.keys.Sign(account.name, bytesToSign, defaultSignMode)
+	signature, _, err := s.keys.Sign(account.name, bytesToSign, s.signMode)
 	if err != nil {
 		return nil, fmt.Errorf("error signing bytes: %w", err)
 	}

@@ -10,7 +10,7 @@ import (
 // NOTE: This version must be updated at the same time as the version in the
 // Makefile.
 const (
-	v3Version = "v3.10.5"
+	v3Version = "v3.10.6"
 	v4Version = "v4.1.0"
 )
 

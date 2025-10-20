@@ -27,11 +27,15 @@ type baseAppSimulateFn func(txBytes []byte) (sdk.GasInfo, *sdk.Result, error)
 // current max square size in bytes.
 type govMaxSquareBytesFn func() (uint64, error)
 
+// minGasPriceFn is the signature of a function that returns the
+// current network minimum gas price.
+type minGasPriceFn func() (float64, error)
+
 // RegisterGasEstimationService registers the gas estimation service on the gRPC router.
-func RegisterGasEstimationService(qrt gogogrpc.Server, clientCtx client.Context, txDecoder sdk.TxDecoder, govMaxSquareBytesFn govMaxSquareBytesFn, simulateFn baseAppSimulateFn) {
+func RegisterGasEstimationService(qrt gogogrpc.Server, clientCtx client.Context, txDecoder sdk.TxDecoder, govMaxSquareBytesFn govMaxSquareBytesFn, simulateFn baseAppSimulateFn, minGasPriceFn minGasPriceFn) {
 	RegisterGasEstimatorServer(
 		qrt,
-		NewGasEstimatorServer(clientCtx.Client, txDecoder, govMaxSquareBytesFn, simulateFn),
+		NewGasEstimatorServer(clientCtx.Client, txDecoder, govMaxSquareBytesFn, simulateFn, minGasPriceFn),
 	)
 }
 
@@ -42,14 +46,16 @@ type gasEstimatorServer struct {
 	simulateFn          baseAppSimulateFn
 	txDecoder           sdk.TxDecoder
 	govMaxSquareBytesFn govMaxSquareBytesFn
+	minGasPriceFn       minGasPriceFn
 }
 
-func NewGasEstimatorServer(mempoolClient cmtclient.MempoolClient, txDecoder sdk.TxDecoder, govMaxSquareBytesFn govMaxSquareBytesFn, simulateFn baseAppSimulateFn) GasEstimatorServer {
+func NewGasEstimatorServer(mempoolClient cmtclient.MempoolClient, txDecoder sdk.TxDecoder, govMaxSquareBytesFn govMaxSquareBytesFn, simulateFn baseAppSimulateFn, minGasPriceFn minGasPriceFn) GasEstimatorServer {
 	return &gasEstimatorServer{
 		mempoolClient:       mempoolClient,
 		simulateFn:          simulateFn,
 		txDecoder:           txDecoder,
 		govMaxSquareBytesFn: govMaxSquareBytesFn,
+		minGasPriceFn:       minGasPriceFn,
 	}
 }
 
@@ -122,14 +128,28 @@ func (s *gasEstimatorServer) estimateGasPrice(ctx context.Context, priority TxPr
 	if err != nil {
 		return 0, err
 	}
+
+	// Get the network minimum gas price from the min fee module
+	minGasPrice, err := s.minGasPriceFn()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get min gas price: %w", err)
+	}
+
 	if float64(txsResp.TotalBytes) < float64(govMaxSquareBytes)*gasPriceEstimationThreshold {
-		return appconsts.DefaultMinGasPrice, nil
+		// Return the maximum of the default min gas price and network min gas price
+		return minGasPrice, nil
 	}
 	gasPrices, err := SortAndExtractGasPrices(s.txDecoder, txsResp.Txs, int64(appconsts.DefaultUpperBoundMaxBytes))
 	if err != nil {
 		return 0, err
 	}
-	return estimateGasPriceForTransactions(gasPrices, priority)
+	estimatedGasPrice, err := estimateGasPriceForTransactions(gasPrices, priority)
+	if err != nil {
+		return 0, err
+	}
+
+	// Ensure the estimated gas price is at least greater than the network minimum fee
+	return math.Max(estimatedGasPrice, minGasPrice), nil
 }
 
 const (

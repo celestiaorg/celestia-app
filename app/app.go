@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"sync"
 	"time"
@@ -546,26 +547,27 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 		return sdk.EndBlock{}, err
 	}
 
-	shouldUpgrade, upgrade := app.SignalKeeper.ShouldUpgrade(ctx)
+	shouldUpgrade, signalUpgrade := app.SignalKeeper.ShouldUpgrade(ctx)
 	if shouldUpgrade {
 		// Version changes must be increasing. Downgrades are not permitted
-		if upgrade.AppVersion > currentVersion {
-			app.BaseApp.Logger().Info("upgrading app version", "current version", currentVersion, "new version", upgrade.AppVersion)
+		if signalUpgrade.AppVersion > currentVersion {
+			app.BaseApp.Logger().Info("upgrading app version", "current version", currentVersion, "new version", signalUpgrade.AppVersion)
 
+			upgradeHeight := signalUpgrade.UpgradeHeight + 1 // next block is performing the upgrade.
 			plan := upgradetypes.Plan{
-				Name:   fmt.Sprintf("v%d", upgrade.AppVersion),
-				Height: upgrade.UpgradeHeight + 1, // next block is performing the upgrade.
+				Name:   fmt.Sprintf("v%d", signalUpgrade.AppVersion),
+				Height: upgradeHeight,
 			}
 
 			if err := app.UpgradeKeeper.ScheduleUpgrade(ctx, plan); err != nil {
 				return sdk.EndBlock{}, fmt.Errorf("failed to schedule upgrade: %v", err)
 			}
 
-			if err := app.UpgradeKeeper.DumpUpgradeInfoToDisk(upgrade.UpgradeHeight, plan); err != nil {
+			if err := app.UpgradeKeeper.DumpUpgradeInfoToDisk(upgradeHeight, plan); err != nil {
 				return sdk.EndBlock{}, fmt.Errorf("failed to dump upgrade info to disk: %v", err)
 			}
 
-			if err := app.SetAppVersion(ctx, upgrade.AppVersion); err != nil {
+			if err := app.SetAppVersion(ctx, signalUpgrade.AppVersion); err != nil {
 				return sdk.EndBlock{}, err
 			}
 			app.SignalKeeper.ResetTally(ctx)
@@ -718,7 +720,7 @@ func (app *App) RegisterAPIRoutes(apiSvr *api.Server, _ config.APIConfig) {
 func (app *App) RegisterTxService(clientCtx client.Context) {
 	authtx.RegisterTxService(app.GRPCQueryRouter(), clientCtx, app.Simulate, app.encodingConfig.InterfaceRegistry)
 	celestiatx.RegisterTxService(app.GRPCQueryRouter(), clientCtx, app.encodingConfig.InterfaceRegistry)
-	gasestimation.RegisterGasEstimationService(app.GRPCQueryRouter(), clientCtx, app.encodingConfig.TxConfig.TxDecoder(), app.getGovMaxSquareBytes, app.Simulate)
+	gasestimation.RegisterGasEstimationService(app.GRPCQueryRouter(), clientCtx, app.encodingConfig.TxConfig.TxDecoder(), app.getGovMaxSquareBytes, app.Simulate, app.getMinGasPrice)
 }
 
 func (app *App) getGovMaxSquareBytes() (uint64, error) {
@@ -728,6 +730,21 @@ func (app *App) getGovMaxSquareBytes() (uint64, error) {
 	}
 	maxSquareSize := app.BlobKeeper.GetParams(ctx).GovMaxSquareSize
 	return maxSquareSize * maxSquareSize * share.ShareSize, nil
+}
+
+// getMinGasPrice is used by the gas estimation service to get the higher of the network minimum gas price
+// or the nodes locally configured minimum gas price.
+func (app *App) getMinGasPrice() (float64, error) {
+	// ignore errors as we will just use the NewDefaultMinGasPrice instead
+	localMinGasPrice, _ := app.GetMinGasPrices().AmountOf(appconsts.BondDenom).Float64()
+	localMinGasPrice = math.Max(localMinGasPrice, appconsts.NewDefaultMinGasPrice)
+	ctx, err := app.CreateQueryContext(app.LastBlockHeight(), false)
+	if err != nil {
+		return localMinGasPrice, err
+	}
+	params := app.MinFeeKeeper.GetParams(ctx)
+	networkMinGasPrice := params.NetworkMinGasPrice.MustFloat64()
+	return math.Max(networkMinGasPrice, localMinGasPrice), nil
 }
 
 // RegisterTendermintService implements the Application.RegisterTendermintService method.

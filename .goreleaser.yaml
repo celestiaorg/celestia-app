@@ -9,10 +9,10 @@ before:
     - go mod tidy
     # These hooks get run once. We want to explicitly download every embedded binary so we can build the multiplexer
     # for every architecture. These versions must be updated at the same time as the version in the Makefile.
-    - ./scripts/download_binary.sh celestia-app_Darwin_arm64.tar.gz celestia-app_darwin_v3_arm64.tar.gz v3.10.5
-    - ./scripts/download_binary.sh celestia-app_Linux_arm64.tar.gz celestia-app_linux_v3_arm64.tar.gz v3.10.5
-    - ./scripts/download_binary.sh celestia-app_Darwin_x86_64.tar.gz celestia-app_darwin_v3_amd64.tar.gz v3.10.5
-    - ./scripts/download_binary.sh celestia-app_Linux_x86_64.tar.gz celestia-app_linux_v3_amd64.tar.gz v3.10.5
+    - ./scripts/download_binary.sh celestia-app_Darwin_arm64.tar.gz celestia-app_darwin_v3_arm64.tar.gz v3.10.6
+    - ./scripts/download_binary.sh celestia-app_Linux_arm64.tar.gz celestia-app_linux_v3_arm64.tar.gz v3.10.6
+    - ./scripts/download_binary.sh celestia-app_Darwin_x86_64.tar.gz celestia-app_darwin_v3_amd64.tar.gz v3.10.6
+    - ./scripts/download_binary.sh celestia-app_Linux_x86_64.tar.gz celestia-app_linux_v3_amd64.tar.gz v3.10.6
     - ./scripts/download_binary.sh celestia-app-standalone_Darwin_arm64.tar.gz celestia-app_darwin_v4_arm64.tar.gz v4.1.0
     - ./scripts/download_binary.sh celestia-app-standalone_Linux_arm64.tar.gz celestia-app_linux_v4_arm64.tar.gz v4.1.0
     - ./scripts/download_binary.sh celestia-app-standalone_Darwin_x86_64.tar.gz celestia-app_darwin_v4_amd64.tar.gz v4.1.0
@@ -34,10 +34,14 @@ builds:
     tags:
       - ledger
       - multiplexer
+    flags:
+      - -trimpath
     ldflags:
       # Ref: https://goreleaser.com/customization/templates/#common-fields
       # .Version is the version being released
       # .FullCommit is git commit hash goreleaser is using for the release
+      - -s
+      - -w
       - -X "{{ .Env.SDKPath }}.Name=celestia-app"
       - -X "{{ .Env.SDKPath }}.AppName=celestia-appd"
       - -X "{{ .Env.SDKPath }}.Version={{ .Version }}"
@@ -57,10 +61,14 @@ builds:
     tags:
       - ledger
       - multiplexer
+    flags:
+      - -trimpath
     ldflags:
       # Ref: https://goreleaser.com/customization/templates/#common-fields
       # .Version is the version being released
       # .FullCommit is git commit hash goreleaser is using for the release
+      - -s
+      - -w
       - -X "{{ .Env.SDKPath }}.Name=celestia-app"
       - -X "{{ .Env.SDKPath }}.AppName=celestia-appd"
       - -X "{{ .Env.SDKPath }}.Version={{ .Version }}"
@@ -80,10 +88,14 @@ builds:
     tags:
       - ledger
       - multiplexer
+    flags:
+      - -trimpath
     ldflags:
       # Ref: https://goreleaser.com/customization/templates/#common-fields
       # .Version is the version being released
       # .FullCommit is git commit hash goreleaser is using for the release
+      - -s
+      - -w
       - -X "{{ .Env.SDKPath }}.Name=celestia-app"
       - -X "{{ .Env.SDKPath }}.AppName=celestia-appd"
       - -X "{{ .Env.SDKPath }}.Version={{ .Version }}"
@@ -103,10 +115,14 @@ builds:
     tags:
       - ledger
       - multiplexer
+    flags:
+      - -trimpath
     ldflags:
       # Ref: https://goreleaser.com/customization/templates/#common-fields
       # .Version is the version being released
       # .FullCommit is git commit hash goreleaser is using for the release
+      - -s
+      - -w
       - -X "{{ .Env.SDKPath }}.Name=celestia-app"
       - -X "{{ .Env.SDKPath }}.AppName=celestia-appd"
       - -X "{{ .Env.SDKPath }}.Version={{ .Version }}"
@@ -125,10 +141,14 @@ builds:
       - darwin
     tags:
       - ledger
+    flags:
+      - -trimpath
     ldflags:
       # Ref: https://goreleaser.com/customization/templates/#common-fields
       # .Version is the version being released
       # .FullCommit is git commit hash goreleaser is using for the release
+      - -s
+      - -w
       - -X "{{ .Env.SDKPath }}.Name=celestia-app"
       - -X "{{ .Env.SDKPath }}.AppName=celestia-appd"
       - -X "{{ .Env.SDKPath }}.Version={{ .Version }}"
@@ -147,10 +167,14 @@ builds:
       - darwin
     tags:
       - ledger
+    flags:
+      - -trimpath
     ldflags:
       # Ref: https://goreleaser.com/customization/templates/#common-fields
       # .Version is the version being released
       # .FullCommit is git commit hash goreleaser is using for the release
+      - -s
+      - -w
       - -X "{{ .Env.SDKPath }}.Name=celestia-app"
       - -X "{{ .Env.SDKPath }}.AppName=celestia-appd"
       - -X "{{ .Env.SDKPath }}.Version={{ .Version }}"
@@ -168,10 +192,14 @@ builds:
       - linux
     tags:
       - ledger
+    flags:
+      - -trimpath
     ldflags:
       # Ref: https://goreleaser.com/customization/templates/#common-fields
       # .Version is the version being released
       # .FullCommit is git commit hash goreleaser is using for the release
+      - -s
+      - -w
       - -X "{{ .Env.SDKPath }}.Name=celestia-app"
       - -X "{{ .Env.SDKPath }}.AppName=celestia-appd"
       - -X "{{ .Env.SDKPath }}.Version={{ .Version }}"
@@ -189,10 +217,14 @@ builds:
       - linux
     tags:
       - ledger
+    flags:
+      - -trimpath
     ldflags:
       # Ref: https://goreleaser.com/customization/templates/#common-fields
       # .Version is the version being released
       # .FullCommit is git commit hash goreleaser is using for the release
+      - -s
+      - -w
       - -X "{{ .Env.SDKPath }}.Name=celestia-app"
       - -X "{{ .Env.SDKPath }}.AppName=celestia-appd"
       - -X "{{ .Env.SDKPath }}.Version={{ .Version }}"

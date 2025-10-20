@@ -45,23 +45,27 @@ func TestGetVotingPowerThreshold(t *testing.T) {
 		},
 		{
 			name:       "one validator with 6 power returns 5 because the defaultSignalThreshold is 5/6",
-			validators: map[string]int64{"a": 6},
+			validators: map[string]int64{testutil.ValAddrs[0].String(): 6},
 			want:       sdkmath.NewInt(5),
 		},
 		{
 			name:       "one validator with 11 power (11 * 5/6 = 9.16666667) so should round up to 10",
-			validators: map[string]int64{"a": 11},
+			validators: map[string]int64{testutil.ValAddrs[0].String(): 11},
 			want:       sdkmath.NewInt(10),
 		},
 		{
 			name:       "one validator with voting power of math.MaxInt64",
-			validators: map[string]int64{"a": math.MaxInt64},
+			validators: map[string]int64{testutil.ValAddrs[0].String(): math.MaxInt64},
 			want:       sdkmath.NewInt(7686143364045646503),
 		},
 		{
-			name:       "multiple validators with voting power of math.MaxInt64",
-			validators: map[string]int64{"a": math.MaxInt64, "b": math.MaxInt64, "c": math.MaxInt64},
-			want:       sdkmath.NewIntFromBigInt(bigInt),
+			name: "multiple validators with voting power of math.MaxInt64",
+			validators: map[string]int64{
+				testutil.ValAddrs[0].String(): math.MaxInt64,
+				testutil.ValAddrs[1].String(): math.MaxInt64,
+				testutil.ValAddrs[2].String(): math.MaxInt64,
+			},
+			want: sdkmath.NewIntFromBigInt(bigInt),
 		},
 	}
 	for _, tc := range testCases {
@@ -176,6 +180,13 @@ func TestTallyingLogic(t *testing.T) {
 		Version: 2,
 	})
 	require.NoError(t, err)
+	missingValidators, err := upgradeKeeper.GetMissingValidators(ctx, &types.QueryGetMissingValidatorsRequest{
+		Version: 2,
+	})
+	require.NoError(t, err)
+	require.Contains(t, missingValidators.MissingValidators, testutil.ValAddrs[1].String())
+	require.Contains(t, missingValidators.MissingValidators, testutil.ValAddrs[2].String())
+	require.Contains(t, missingValidators.MissingValidators, testutil.ValAddrs[3].String())
 	require.EqualValues(t, 40, res.VotingPower)
 	require.EqualValues(t, 100, res.ThresholdPower)
 	require.EqualValues(t, 120, res.TotalVotingPower)
@@ -200,12 +211,19 @@ func TestTallyingLogic(t *testing.T) {
 	require.False(t, shouldUpgrade)
 	require.Equal(t, uint64(0), upgrade.AppVersion)
 
-	// we now have 101/120
+	// we now have 100/120
 	_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{
 		ValidatorAddress: testutil.ValAddrs[1].String(),
 		Version:          2,
 	})
 	require.NoError(t, err)
+	res, err = upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{
+		Version: 2,
+	})
+	require.NoError(t, err)
+	require.EqualValues(t, 100, res.VotingPower, res.VotingPower)
+	require.EqualValues(t, 100, res.ThresholdPower)
+	require.EqualValues(t, 120, res.TotalVotingPower)
 
 	_, err = upgradeKeeper.TryUpgrade(ctx, &types.MsgTryUpgrade{})
 	require.NoError(t, err)
@@ -253,6 +271,13 @@ func TestTallyingLogic(t *testing.T) {
 	require.EqualValues(t, 60, res.VotingPower)
 	require.EqualValues(t, 100, res.ThresholdPower)
 	require.EqualValues(t, 120, res.TotalVotingPower)
+
+	missingValidators, err = upgradeKeeper.GetMissingValidators(ctx, &types.QueryGetMissingValidatorsRequest{
+		Version: 2,
+	})
+	require.NoError(t, err)
+	require.Contains(t, missingValidators.MissingValidators, testutil.ValAddrs[0].String())
+	require.Contains(t, missingValidators.MissingValidators, testutil.ValAddrs[3].String())
 
 	// remove one of the validators from the set
 	delete(mockStakingKeeper.validators, testutil.ValAddrs[1].String())
@@ -559,8 +584,11 @@ type mockStakingKeeper struct {
 
 func newMockStakingKeeper(validators map[string]int64) *mockStakingKeeper {
 	totalVotingPower := sdkmath.NewInt(0)
-	for _, power := range validators {
+	for addr, power := range validators {
 		totalVotingPower = totalVotingPower.AddRaw(power)
+		if _, err := sdk.ValAddressFromBech32(addr); err != nil {
+			panic(err)
+		}
 	}
 	return &mockStakingKeeper{
 		totalVotingPower: totalVotingPower,
@@ -583,7 +611,31 @@ func (m *mockStakingKeeper) GetLastValidatorPower(_ context.Context, addr sdk.Va
 func (m *mockStakingKeeper) GetValidator(_ context.Context, addr sdk.ValAddress) (validator stakingtypes.Validator, err error) {
 	addrStr := addr.String()
 	if _, ok := m.validators[addrStr]; ok {
-		return stakingtypes.Validator{Status: stakingtypes.Bonded}, nil
+		return stakingtypes.Validator{
+			Status:          stakingtypes.Bonded,
+			Description:     stakingtypes.Description{Moniker: addrStr},
+			OperatorAddress: addrStr,
+		}, nil
 	}
 	return stakingtypes.Validator{}, stakingtypes.ErrNoValidatorFound
+}
+
+func (m *mockStakingKeeper) IterateValidators(_ context.Context, cb func(index int64, validator stakingtypes.ValidatorI) (stop bool)) error {
+	index := int64(0)
+	for addr := range m.validators {
+		valAddr, err := sdk.ValAddressFromBech32(addr)
+		if err != nil {
+			panic(err)
+		}
+		validator, err := m.GetValidator(context.Background(), valAddr)
+		if err != nil {
+			fmt.Println("error in getting validator", err)
+			continue
+		}
+		if cb(index, validator) {
+			break
+		}
+		index++
+	}
+	return nil
 }
