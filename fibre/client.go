@@ -1,8 +1,11 @@
 package fibre
 
 import (
+	"errors"
+	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 
 	"github.com/celestiaorg/celestia-app/v6/fibre/grpc"
 	"github.com/celestiaorg/celestia-app/v6/fibre/validator"
@@ -17,6 +20,13 @@ import (
 // DefaultKeyName is the default key name for the client.
 // Exposed for testing purposes.
 const DefaultKeyName = "default-fibre"
+
+var (
+	// ErrClientClosed is returned when an operation is attempted on a closed client.
+	ErrClientClosed = errors.New("fibre client is closed")
+	// ErrKeyNotFound is returned when the configured key is not found in the keyring.
+	ErrKeyNotFound = errors.New("key not found in keyring")
+)
 
 // ClientConfig contains configuration options for the Fibre [Client].
 type ClientConfig struct {
@@ -85,10 +95,19 @@ type Client struct {
 	// Close() waits for this WaitGroup to ensure all operations complete before releasing resources.
 	// Upload/Download operations don't wait for their spawned goroutines, allowing them to return early for low latency.
 	closeWg sync.WaitGroup
+	// closed indicates whether Close() has been called.
+	closed atomic.Bool
 }
 
 // NewClient creates a new [Client] with the provided dependencies.
-func NewClient(txClient *user.TxClient, kr keyring.Keyring, valGet validator.SetGetter, hostReg validator.HostRegistry, cfg ClientConfig) *Client {
+// Returns an error if the configured key is not found in the keyring.
+func NewClient(txClient *user.TxClient, kr keyring.Keyring, valGet validator.SetGetter, hostReg validator.HostRegistry, cfg ClientConfig) (*Client, error) {
+	// Verify the key exists in the keyring
+	_, err := kr.Key(cfg.DefaultKeyName)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrKeyNotFound, cfg.DefaultKeyName, err)
+	}
+
 	if cfg.NewClientFn == nil {
 		cfg.NewClientFn = grpc.DefaultNewClientFn(hostReg)
 	}
@@ -114,7 +133,7 @@ func NewClient(txClient *user.TxClient, kr keyring.Keyring, valGet validator.Set
 		clientCache: grpc.NewClientCache(cfg.NewClientFn, cfg.UploadConcurrency),
 		uploadSem:   make(chan struct{}, cfg.UploadConcurrency),
 		downloadSem: make(chan struct{}, cfg.DownloadConcurrency),
-	}
+	}, nil
 }
 
 // Config returns the [ClientConfig] used by this client.
@@ -123,8 +142,14 @@ func (c *Client) Config() ClientConfig {
 }
 
 // Close closes the client and releases any associated resources.
-// It waits for all ongoing Put/Get operations to complete before closing.
+// It waits for all ongoing [Client.Upload]/[Client.Download] operations to complete before closing.
+// After Close is called, subsequent [Client.Upload/Client.Download] calls will return an error.
+// Close is idempotent and safe to call multiple times.
 func (c *Client) Close() error {
+	if !c.closed.CompareAndSwap(false, true) {
+		return nil
+	}
+
 	c.closeWg.Wait()
 	return c.clientCache.Close()
 }

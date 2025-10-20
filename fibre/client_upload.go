@@ -23,7 +23,12 @@ import (
 // It creates a [PaymentPromise], uploads the data to validators, and collects signatures confirming the upload.
 // Returns a [SignedPaymentPromise] containing the promise and validator signatures.
 // May keep uploading data in background after returning successfully.
+// Returns [ErrClientClosed] if the client has been closed.
 func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (result SignedPaymentPromise, err error) {
+	if c.closed.Load() {
+		return result, ErrClientClosed
+	}
+
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("fibre upload: %w", err)
@@ -98,7 +103,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 		return result, err
 	}
 
-	// 4) collect signatures
+	// 5) collect signatures
 	sigs, err := sigSet.Signatures()
 	if err != nil {
 		span.RecordError(err)
@@ -199,8 +204,7 @@ func (c *Client) uploadToValidator(
 	}
 	span.AddEvent("client_acquired")
 
-	// generate proofs for assigned rows in
-	// we do this in upload routines to parallelize proofs generation which show 50-64% performance increase for 256KB-4MB blobs
+	// get proofs and rows here in per request routine which is in parallel which ~39% faster for max blob size
 	for i, rowPb := range req.Rows {
 		row, err := blob.Row(int(rowPb.Index))
 		if err != nil {
@@ -209,7 +213,6 @@ func (c *Client) uploadToValidator(
 			span.SetStatus(codes.Error, "failed to generate proof")
 			return
 		}
-
 		req.Rows[i].Data = row.Row
 		req.Rows[i].Proof = row.RowProof
 	}
