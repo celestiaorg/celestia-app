@@ -75,8 +75,9 @@ require (
 	github.com/bgentry/speakeasy v0.2.0 // indirect
 	github.com/bits-and-blooms/bitset v1.17.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.5 // indirect
-	github.com/bytedance/sonic v1.13.1 // indirect
-	github.com/bytedance/sonic/loader v0.2.4 // indirect
+	github.com/bytedance/gopkg v0.1.3 // indirect
+	github.com/bytedance/sonic v1.14.1 // indirect
+	github.com/bytedance/sonic/loader v0.3.0 // indirect
 	github.com/celestiaorg/go-square/v3 v3.0.2 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
 	github.com/celestiaorg/nmt v0.24.2 // indirect
@@ -84,7 +85,7 @@ require (
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chzyer/readline v1.5.1 // indirect
-	github.com/cloudwego/base64x v0.1.5 // indirect
+	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/cncf/xds/go v0.0.0-20250501225837-2ac532fd4443 // indirect
 	github.com/cockroachdb/apd/v2 v2.0.2 // indirect
 	github.com/cockroachdb/errors v1.11.3 // indirect
@@ -277,7 +278,7 @@ replace (
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	github.com/celestiaorg/celestia-app/v5 => ../..
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.10 // v1.57.2-tm-v0.38.17
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.7-sdk-v0.50.14 // v1.29.4-sdk-v0.50.14
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.7-sdk-v0.50.14.0.20251020212316-462f31da6939 // v1.29.4-sdk-v0.50.14
 	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
 	// goleveldb: canonical version
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7

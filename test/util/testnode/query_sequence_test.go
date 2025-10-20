@@ -62,12 +62,6 @@ func (s *MempoolQuerySequenceSuite) SetupSuite() {
 	s.txClient = txClient
 }
 
-func (s *MempoolQuerySequenceSuite) TearDownSuite() {
-	if s.txClient != nil {
-		s.txClient.StopTxQueueForTest()
-	}
-}
-
 func (s *MempoolQuerySequenceSuite) TestQuerySequence() {
 	t := s.T()
 	require := require.New(t)
