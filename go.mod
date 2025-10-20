@@ -1,6 +1,6 @@
 module github.com/celestiaorg/celestia-app/v5
 
-go 1.24.2
+go 1.24.6
 
 require (
 	cosmossdk.io/api v0.7.6
@@ -272,6 +272,7 @@ replace (
 	// TODO: update to a v0.39.x release after that is created from celestia-core main branch.
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.10 // v1.57.2-tm-v0.38.17
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.7-sdk-v0.50.14.0.20251020212316-462f31da6939 // v1.29.4-sdk-v0.50.14
+	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
 	// goleveldb: canonical version
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	// celestia-core(v0.34.x): used for multiplexing abci v1 requests
