@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -409,4 +410,22 @@ func hasAllTags(candidate, want []string) bool {
 		}
 	}
 	return true
+}
+
+// checkForRunningExperiments checks if there are any talis instances running.
+// It returns a list of all talis droplets.
+func checkForRunningExperiments(ctx context.Context, client *godo.Client) ([]godo.Droplet, error) {
+	droplets, err := listAllDroplets(ctx, client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list droplets: %w", err)
+	}
+
+	var talisDroplets []godo.Droplet
+	for _, d := range droplets {
+		if slices.Contains(d.Tags, "talis") {
+			talisDroplets = append(talisDroplets, d)
+		}
+	}
+
+	return talisDroplets, nil
 }
