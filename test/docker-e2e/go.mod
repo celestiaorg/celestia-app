@@ -273,6 +273,7 @@ require (
 )
 
 replace (
+	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.6
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	github.com/celestiaorg/celestia-app/v5 => ../..
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.57.5-tm-v0.38.17.0.20251021045733-51f47a5af58b // v1.57.2-tm-v0.38.17
