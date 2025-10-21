@@ -1,4 +1,4 @@
-# `x/fibre`
+# Fibre SDK Module `x/fibre`
 
 ## Abstract
 
