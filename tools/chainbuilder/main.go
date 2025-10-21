@@ -326,10 +326,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 				return fmt.Errorf("failed to convert data from protobuf: %w", err)
 			}
 
-			block, err := state.MakeBlock(height, data, commit, nil, validatorAddr)
-			if err != nil {
-				return fmt.Errorf("failed to make block: %w", err)
-			}
+			block := state.MakeBlock(height, data, commit, nil, validatorAddr)
 			blockParts, err := block.MakePartSet(types.BlockPartSizeBytes)
 			if err != nil {
 				return fmt.Errorf("failed to make part set: %w", err)
