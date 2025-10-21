@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"fmt"
 
 	errorsmod "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
@@ -59,6 +60,7 @@ func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreat
 // UpdateZKExecutionISM implements types.MsgServer.
 func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdateZKExecutionISM) (*types.MsgUpdateZKExecutionISMResponse, error) {
 	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
+
 	if err != nil {
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
 	}
@@ -76,7 +78,7 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 	if err != nil {
 		return nil, err
 	}
-
+	fmt.Println("checkpoint 1")
 	if err := verifier.VerifyProof(msg.Proof, ism.StateTransitionVkey, msg.PublicValues); err != nil {
 		return nil, err
 	}
