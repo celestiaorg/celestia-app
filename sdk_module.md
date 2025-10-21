@@ -410,7 +410,7 @@ sign_bytes = chain_id || namespace || blob_size || commitment || row_version || 
 - `row_version`: Big-endian encoded uint32 (4 bytes)
 - `height`: Big-endian encoded int64 (8 bytes)
 - `creation_timestamp`: UTC timestamp encoded using Go's time.Time.MarshalBinary() (15 bytes)
-- `signer_public_key`: Raw bytes of signer address secp256k1 (20 bytes)
+- `signer_public_key`: Raw bytes of signer public key secp256k1 (33 bytes)
 
 #### Payment Promise Hash
 
