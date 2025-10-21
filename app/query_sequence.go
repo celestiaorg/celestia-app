@@ -16,18 +16,12 @@ func (app *App) QuerySequence(_ context.Context, req *abci.RequestQuerySequence)
 	app.checkStateMu.RLock()
 	defer app.checkStateMu.RUnlock()
 
-	addr := sdk.AccAddress(req.Signer)
-	// queryCtx, err := app.BaseApp.CreateQueryContext(app.LastBlockHeight(), false)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	checkTxCtx, ok := app.BaseApp.CheckState()
+	checkTxCtx, ok := app.CheckState()
 	if !ok {
 		return &abci.ResponseQuerySequence{}, errors.New("checkState not set")
 	}
 
-	sequence, err := app.AccountKeeper.GetSequence(checkTxCtx, addr)
+	sequence, err := app.AccountKeeper.GetSequence(checkTxCtx, sdk.AccAddress(req.Signer))
 	if err != nil {
 		if errors.Is(err, sdkerrors.ErrUnknownAddress) {
 			return &abci.ResponseQuerySequence{Sequence: 0}, nil
