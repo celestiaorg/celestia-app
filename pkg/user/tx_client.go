@@ -67,6 +67,18 @@ type txInfo struct {
 	txBytes   []byte
 }
 
+// TxResponse is a response from the chain after
+// a transaction has been submitted.
+type TxResponse struct {
+	Height    int64
+	TxHash    string
+	Code      uint32
+	Codespace string
+	GasWanted int64
+	GasUsed   int64
+	Signers   []string
+}
+
 // BroadcastTxError is an error that occurs when broadcasting a transaction.
 type BroadcastTxError struct {
 	TxHash string
@@ -92,6 +104,31 @@ type ExecutionError struct {
 
 func (e *ExecutionError) Error() string {
 	return fmt.Sprintf("tx execution failed with code %d: %s", e.Code, e.ErrorLog)
+}
+
+// buildTxResponse populates the TxResponse from the TxStatus response
+func (client *TxClient) buildTxResponse(txHash string, statusResp *tx.TxStatusResponse, signers []string) *TxResponse {
+	return &TxResponse{
+		Height:    statusResp.Height,
+		TxHash:    txHash,
+		Code:      statusResp.ExecutionCode,
+		Codespace: statusResp.Codespace,
+		GasWanted: statusResp.GasWanted,
+		GasUsed:   statusResp.GasUsed,
+		Signers:   signers,
+	}
+}
+
+// buildExecutionError populates the ExecutionError from the TxStatus response
+func (client *TxClient) buildExecutionError(txHash string, statusResp *tx.TxStatusResponse) *ExecutionError {
+	return &ExecutionError{
+		TxHash:    txHash,
+		ErrorLog:  statusResp.Error,
+		Codespace: statusResp.Codespace,
+		Code:      statusResp.ExecutionCode,
+		GasWanted: statusResp.GasWanted,
+		GasUsed:   statusResp.GasUsed,
+	}
 }
 
 // WithPollTime sets a custom polling interval with which to check if a transaction has been submitted
@@ -307,14 +344,14 @@ func SetupTxClient(
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
 // This method broadcasts the transaction and waits for confirmation using the default account.
-func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
 	return client.SubmitPayForBlobWithAccount(ctx, client.defaultAccount, blobs, opts...)
 }
 
 // SubmitPayForBlobToQueue submits blobs to the parallel transaction queue and blocks until confirmed.
 // TxOptions may be provided to set the fee and gas limit. This method uses the tx queue infrastructure
 // for parallel submission.
-func (client *TxClient) SubmitPayForBlobToQueue(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (client *TxClient) SubmitPayForBlobToQueue(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
 	resultsC := make(chan SubmissionResult, 1)
 	defer close(resultsC)
 
@@ -355,7 +392,7 @@ func (client *TxClient) QueueBlob(ctx context.Context, resultC chan SubmissionRe
 
 // SubmitPayForBlobWithAccount forms a transaction from the provided blobs, signs it with the provided account, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
-func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, accountName string, blobs []*share.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, accountName string, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastPayForBlobWithAccount(ctx, accountName, blobs, opts...)
 	if err != nil {
 		return nil, err
@@ -408,7 +445,7 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
 // may be provided to set the fee and gas limit.
-func (client *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (client *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastTx(ctx, msgs, opts...)
 	if err != nil {
 		return nil, err
@@ -707,35 +744,10 @@ func (client *TxClient) pruneTxTracker() {
 	}
 }
 
-// buildSDKTxResponse populates the SDK TxResponse from the TxStatus response
-func (client *TxClient) buildSDKTxResponse(txHash string, statusResp *tx.TxStatusResponse, signers []string) *sdktypes.TxResponse {
-	return &sdktypes.TxResponse{
-		Height:    statusResp.Height,
-		TxHash:    txHash,
-		Code:      statusResp.ExecutionCode,
-		Codespace: statusResp.Codespace,
-		GasWanted: statusResp.GasWanted,
-		GasUsed:   statusResp.GasUsed,
-		Signers:   signers,
-	}
-}
-
-// buildExecutionError populates the ExecutionError from the TxStatus response
-func (client *TxClient) buildExecutionError(txHash string, statusResp *tx.TxStatusResponse) *ExecutionError {
-	return &ExecutionError{
-		TxHash:    txHash,
-		ErrorLog:  statusResp.Error,
-		Codespace: statusResp.Codespace,
-		Code:      statusResp.ExecutionCode,
-		GasWanted: statusResp.GasWanted,
-		GasUsed:   statusResp.GasUsed,
-	}
-}
-
 // ConfirmTx periodically pings the provided node for the commitment of a transaction by its
 // hash. It will continually loop until the context is cancelled, the tx is found or an error
 // is encountered.
-func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResponse, error) {
+func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxResponse, error) {
 	span := trace.SpanFromContext(ctx)
 
 	txClient := tx.NewTxClient(client.conns[0])
@@ -765,24 +777,20 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*sdktypes
 			span.AddEvent("txclient/ConfirmTx: transaction committed", trace.WithAttributes(
 				attribute.Int("resp_code", int(resp.ExecutionCode)),
 			))
-
-			signers, err := client.GetSignersFromTxBytes(txHash)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get signers from tx: %s: %w", txHash, err)
-			}
-
 			if resp.ExecutionCode != abci.CodeTypeOK {
 				span.RecordError(fmt.Errorf("txclient/ConfirmTx: execution error: %s", resp.Error))
 				client.deleteFromTxTracker(txHash)
 				return nil, client.buildExecutionError(txHash, resp)
 			}
 
-			txResponse := client.buildSDKTxResponse(txHash, resp, signers)
+			signers, err := client.getSignersFromTxBytes(txHash)
+			if err != nil {
+				return nil, err
+			}
 
 			span.AddEvent("txclient/ConfirmTx: transaction confirmed successfully")
 			client.deleteFromTxTracker(txHash)
-
-			return txResponse, nil
+			return client.buildTxResponse(txHash, resp, signers), nil
 		case core.TxStatusEvicted:
 			_, _, txBytes, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
@@ -845,8 +853,8 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*sdktypes
 	}
 }
 
-// GetSignersFromTxBytes extracts signers from transaction bytes stored in the tx tracker
-func (client *TxClient) GetSignersFromTxBytes(txHash string) ([]string, error) {
+// getSignersFromTxBytes extracts signers from transaction bytes stored in the tx tracker
+func (client *TxClient) getSignersFromTxBytes(txHash string) ([]string, error) {
 	_, _, txBytes, exists := client.GetTxFromTxTracker(txHash)
 	if !exists {
 		return nil, fmt.Errorf("failed to get signers from tx: %s not found in txTracker", txHash)

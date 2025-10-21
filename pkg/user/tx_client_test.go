@@ -11,16 +11,15 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
 	"github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v6/app/params"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user/utils"
 	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v6/test/util/random"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
@@ -53,7 +52,7 @@ type TxClientTestSuite struct {
 }
 
 func (suite *TxClientTestSuite) SetupSuite() {
-	suite.encCfg, suite.txClient, suite.ctx = setupTxClientWithDefaultParams(suite.T())
+	suite.encCfg, suite.txClient, suite.ctx = utils.SetupTxClientWithDefaultParams(suite.T())
 	suite.serviceClient = sdktx.NewServiceClient(suite.ctx.GRPCClient)
 }
 
@@ -272,14 +271,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		require.Equal(t, abci.CodeTypeOK, confirmTxResp.Code)
 
 		// Verify the response against the getTx response
-		getTxResp, getTxErr := suite.serviceClient.GetTx(suite.ctx.GoContext(), &sdktx.GetTxRequest{Hash: resp.TxHash})
-		require.NoError(t, getTxErr)
-		require.Empty(t, getTxResp.TxResponse.RawLog)
-		require.Equal(t, confirmTxResp.Code, getTxResp.TxResponse.Code)
-		require.Equal(t, confirmTxResp.Codespace, getTxResp.TxResponse.Codespace)
-		require.Equal(t, confirmTxResp.GasWanted, getTxResp.TxResponse.GasWanted)
-		require.Equal(t, confirmTxResp.GasUsed, getTxResp.TxResponse.GasUsed)
-		require.Equal(t, confirmTxResp.Height, getTxResp.TxResponse.Height)
+		utils.VerifyTxResponse(t, suite.ctx.GoContext(), suite.serviceClient, confirmTxResp)
 		require.Equal(t, len(confirmTxResp.Signers), 1)
 		require.Equal(t, confirmTxResp.Signers[0], suite.txClient.DefaultAddress().String())
 
@@ -319,7 +311,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 
 func TestRejections(t *testing.T) {
 	ttlNumBlocks := int64(5)
-	_, txClient, ctx := setupTxClient(t, ttlNumBlocks, appconsts.DefaultMaxBytes)
+	_, txClient, ctx := utils.SetupTxClient(t, ttlNumBlocks, appconsts.DefaultMaxBytes)
 
 	fee := user.SetFee(1e6)
 	gas := user.SetGasLimit(1e6)
@@ -361,7 +353,7 @@ func TestEvictions(t *testing.T) {
 
 	ttlNumBlocks := int64(1)
 	blocksize := int64(1048576) // 1 MiB
-	_, txClient, ctx := setupTxClient(t, ttlNumBlocks, blocksize)
+	_, txClient, ctx := utils.SetupTxClient(t, ttlNumBlocks, blocksize)
 	grpcTxClient := tx.NewTxClient(ctx.GRPCClient)
 
 	fee := user.SetFee(1e6)
@@ -484,7 +476,7 @@ func TestEvictions(t *testing.T) {
 // used to estimate gas price and usage instead of the default connection.
 func TestWithEstimatorService(t *testing.T) {
 	mockEstimator := setupEstimatorService(t)
-	_, txClient, ctx := setupTxClientWithDefaultParams(t, user.WithEstimatorService(mockEstimator.conn))
+	_, txClient, ctx := utils.SetupTxClientWithDefaultParams(t, user.WithEstimatorService(mockEstimator.conn))
 
 	msg := bank.NewMsgSend(txClient.DefaultAddress(), testnode.RandomAddress().(sdk.AccAddress),
 		sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
@@ -589,37 +581,6 @@ func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash, expected
 	// Successfully broadcast transaction increases the sequence
 	require.Equal(t, seqAfterBroadcast, seqBeforeBroadcast+1)
 	require.NotEmpty(t, txBytes)
-}
-
-func setupTxClient(
-	t *testing.T,
-	ttlNumBlocks int64,
-	blocksize int64,
-	opts ...user.Option,
-) (encoding.Config, *user.TxClient, testnode.Context) {
-	defaultTmConfig := testnode.DefaultTendermintConfig()
-	defaultTmConfig.Mempool.TTLNumBlocks = ttlNumBlocks
-	accounts := testfactory.GenerateAccounts(3)
-
-	testnodeConfig := testnode.DefaultConfig().
-		WithTendermintConfig(defaultTmConfig).
-		WithFundedAccounts(accounts...).
-		WithDelayedPrecommitTimeout(300 * time.Millisecond)
-	testnodeConfig.Genesis.ConsensusParams.Block.MaxBytes = blocksize
-
-	ctx, _, _ := testnode.NewNetwork(t, testnodeConfig)
-	_, err := ctx.WaitForHeight(1)
-	require.NoError(t, err)
-	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
-	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, enc, opts...)
-	require.NoError(t, err)
-
-	return enc, txClient, ctx
-}
-
-func setupTxClientWithDefaultParams(t *testing.T, opts ...user.Option) (encoding.Config, *user.TxClient, testnode.Context) {
-	return setupTxClient(t, 0, 8388608, opts...) // no ttl and 8MiB block size
 }
 
 type mockEstimatorServer struct {

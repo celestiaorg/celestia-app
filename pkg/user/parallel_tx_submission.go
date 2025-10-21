@@ -27,7 +27,7 @@ type SubmissionJob struct {
 // SubmissionResult contains the result of a parallel transaction submission
 type SubmissionResult struct {
 	Signer     string
-	TxResponse *sdktypes.TxResponse
+	TxResponse *TxResponse
 	Error      error
 }
 
