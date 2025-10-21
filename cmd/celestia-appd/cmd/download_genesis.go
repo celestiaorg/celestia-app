@@ -9,10 +9,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
-
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 )
 
 // chainIDToSha256 is a map of chainID to the SHA-256 hash of the genesis file for that chain ID.
