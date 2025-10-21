@@ -70,6 +70,7 @@ type txInfo struct {
 // TxResponse is a response from the chain after
 // a transaction has been submitted.
 type TxResponse struct {
+	// Height is the block height at which the transaction was included on-chain.
 	Height    int64
 	TxHash    string
 	Code      uint32

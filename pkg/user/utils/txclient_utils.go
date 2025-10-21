@@ -63,11 +63,9 @@ func VerifyTxResponse(
 
 	switch v := confirmTxResp.(type) {
 	case *user.TxResponse:
-		expTxHash, expCode, expCodespace, expGasWanted, expGasUsed, expHeight =
-			v.TxHash, v.Code, v.Codespace, v.GasWanted, v.GasUsed, v.Height
+		expTxHash, expCode, expCodespace, expGasWanted, expGasUsed, expHeight = v.TxHash, v.Code, v.Codespace, v.GasWanted, v.GasUsed, v.Height
 	case *sdktypes.TxResponse:
-		expTxHash, expCode, expCodespace, expGasWanted, expGasUsed, expHeight =
-			v.TxHash, v.Code, v.Codespace, v.GasWanted, v.GasUsed, v.Height
+		expTxHash, expCode, expCodespace, expGasWanted, expGasUsed, expHeight = v.TxHash, v.Code, v.Codespace, v.GasWanted, v.GasUsed, v.Height
 	default:
 		require.FailNowf(t, "unexpected type", "unsupported confirmTxResp type: %T", confirmTxResp)
 	}
