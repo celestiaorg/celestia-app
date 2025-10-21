@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"math"
 	mathrand "math/rand"
@@ -26,6 +27,7 @@ const (
 	defaultEndpoint        = "localhost:9090"
 	defaultKeyringDir      = "~/.celestia-app"
 	defaultBlobSize        = 1024                    // bytes
+	defaultMinBlobSize     = 1                       // bytes
 	defaultNamespaceStr    = "test"                  // default namespace for blobs
 	defaultSubmissionDelay = 4000 * time.Millisecond // delay between submissions
 )
@@ -35,6 +37,7 @@ var (
 	keyringDir      string
 	accountName     string
 	blobSize        int
+	minBlobSize     int
 	namespaceStr    string
 	disableMetrics  bool
 	submissionDelay time.Duration
@@ -79,14 +82,15 @@ between submission and commitment, providing detailed latency statistics.`,
 				cancel()
 			}()
 
-			return monitorLatency(ctx, endpoint, keyringDir, accountName, blobSize, namespaceStr, disableMetrics, submissionDelay)
+			return monitorLatency(ctx, endpoint, keyringDir, accountName, blobSize, minBlobSize, namespaceStr, disableMetrics, submissionDelay)
 		},
 	}
 
 	cmd.Flags().StringVarP(&endpoint, "grpc-endpoint", "e", defaultEndpoint, "gRPC endpoint to connect to")
 	cmd.Flags().StringVarP(&keyringDir, "keyring-dir", "k", defaultKeyringDir, "Directory containing the keyring")
 	cmd.Flags().StringVarP(&accountName, "account", "a", "", "Account name to use from keyring (defaults to first account)")
-	cmd.Flags().IntVarP(&blobSize, "blob-size", "b", defaultBlobSize, "Maximum size of blob data in bytes (actual size will be random up to this value)")
+	cmd.Flags().IntVarP(&blobSize, "blob-size", "b", defaultBlobSize, "Maximum size of blob data in bytes (actual size will be random between this value and the minimum)")
+	cmd.Flags().IntVarP(&minBlobSize, "blob-size-min", "z", defaultMinBlobSize, "Minimum size of blob data in bytes (actual size will be random between this value and the maximum)")
 	cmd.Flags().StringVarP(&namespaceStr, "namespace", "n", defaultNamespaceStr, "Namespace for blob submission")
 	cmd.Flags().BoolVarP(&disableMetrics, "disable-metrics", "m", false, "Disable metrics collection")
 	cmd.Flags().DurationVarP(&submissionDelay, "submission-delay", "d", defaultSubmissionDelay, "Delay between transaction submissions")
@@ -100,12 +104,20 @@ func monitorLatency(
 	keyringDir string,
 	accountName string,
 	blobSize int,
+	blobMinSize int,
 	namespaceStr string,
 	disableMetrics bool,
 	submissionDelay time.Duration,
 ) error {
-	fmt.Printf("Monitoring latency with max blob size: %d bytes, submission delay: %s, namespace: %s\n",
-		blobSize, submissionDelay, namespaceStr)
+	if blobMinSize < 1 {
+		return fmt.Errorf("minimum blob size must be at least 1 byte (got %d)", blobMinSize)
+	}
+	if blobSize < blobMinSize {
+		return fmt.Errorf("maximum blob size (%d) must be greater than or equal to minimum blob size (%d)", blobSize, blobMinSize)
+	}
+
+	fmt.Printf("Monitoring latency with min blob size: %d bytes, max blob size: %d bytes, submission delay: %s, namespace: %s\n",
+		blobMinSize, blobSize, submissionDelay, namespaceStr)
 	fmt.Printf("Press Ctrl+C to stop\n\n")
 
 	fmt.Println("Setting up tx client...")
@@ -177,10 +189,10 @@ func monitorLatency(
 			fmt.Printf("Transactions submitted: %d\n", counter)
 		case <-ticker.C:
 			counter++
-			// Create random blob data with random size (1 to blobSize bytes)
-			randomSize := 1
-			if blobSize > 1 {
-				randomSize = 1 + mathrand.Intn(blobSize)
+			// Create random blob data with random size (blobMinSize to blobSize bytes)
+			randomSize := blobMinSize
+			if blobSize > blobMinSize {
+				randomSize = blobMinSize + mathrand.Intn(blobSize-blobMinSize+1)
 			}
 			blobData := make([]byte, randomSize)
 			if _, err := rand.Read(blobData); err != nil {
@@ -210,11 +222,14 @@ func monitorLatency(
 			}
 
 			// Launch background goroutine to confirm the transaction
-			go func(txHash string, submitTime time.Time, blobSize int) {
+			go func(txHash string, submitTime time.Time) {
 				confirmed, err := txClient.ConfirmTx(ctx, txHash)
-
-				resultsMux.Lock()
 				if err != nil {
+					if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+						fmt.Printf("[CANCELLED] tx=%s context closed before confirmation\n", txHash[:16])
+						return
+					}
+					resultsMux.Lock()
 					// Track failed confirmation
 					fmt.Printf("[FAILED] tx=%s error=%v\n", txHash[:16], err)
 					results = append(results, txResult{
@@ -227,25 +242,28 @@ func monitorLatency(
 						failed:     true,
 						errorMsg:   err.Error(),
 					})
-				} else {
-					// Track successful confirmation
-					commitTime := time.Now()
-					latency := commitTime.Sub(submitTime)
-					fmt.Printf("[CONFIRM] tx=%s height=%d latency=%dms code=%d time=%s\n",
-						confirmed.TxHash[:16], confirmed.Height, latency.Milliseconds(), confirmed.Code, commitTime.Format("15:04:05.000"))
-					results = append(results, txResult{
-						submitTime: submitTime,
-						commitTime: commitTime,
-						latency:    latency,
-						txHash:     confirmed.TxHash,
-						code:       confirmed.Code,
-						height:     confirmed.Height,
-						failed:     false,
-						errorMsg:   "",
-					})
+					resultsMux.Unlock()
+					return
 				}
+
+				resultsMux.Lock()
+				// Track successful confirmation
+				commitTime := time.Now()
+				latency := commitTime.Sub(submitTime)
+				fmt.Printf("[CONFIRM] tx=%s height=%d latency=%dms code=%d time=%s\n",
+					confirmed.TxHash[:16], confirmed.Height, latency.Milliseconds(), confirmed.Code, commitTime.Format("15:04:05.000"))
+				results = append(results, txResult{
+					submitTime: submitTime,
+					commitTime: commitTime,
+					latency:    latency,
+					txHash:     confirmed.TxHash,
+					code:       confirmed.Code,
+					height:     confirmed.Height,
+					failed:     false,
+					errorMsg:   "",
+				})
 				resultsMux.Unlock()
-			}(resp.TxHash, submitTime, randomSize)
+			}(resp.TxHash, submitTime)
 		}
 	}
 }
