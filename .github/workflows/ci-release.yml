@@ -14,21 +14,21 @@ on:
   pull_request:
 
 jobs:
-  #lint:
-  #  uses: ./.github/workflows/lint.yml
+  lint:
+    uses: ./.github/workflows/lint.yml
 
-  #markdown-linter:
-  #  uses: ./.github/workflows/markdown-linter.yml
+  markdown-linter:
+    uses: ./.github/workflows/markdown-linter.yml
 
-  #build:
-  #  uses: ./.github/workflows/build.yml
+  build:
+    uses: ./.github/workflows/build.yml
 
-  #test:
-  #  uses: ./.github/workflows/test.yml
+  test:
+    uses: ./.github/workflows/test.yml
 
-  #goreleaser:
-  #  if: github.event_name == 'release'
-  #  uses: ./.github/workflows/goreleaser.yml
-  #  permissions: write-all
-  #  secrets:
-  #    GORELEASER_ACCESS_TOKEN: ${{ secrets.GORELEASER_ACCESS_TOKEN }}
+  goreleaser:
+    if: github.event_name == 'release'
+    uses: ./.github/workflows/goreleaser.yml
+    permissions: write-all
+    secrets:
+      GORELEASER_ACCESS_TOKEN: ${{ secrets.GORELEASER_ACCESS_TOKEN }}
