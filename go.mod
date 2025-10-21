@@ -275,6 +275,9 @@ replace (
 	// TODO: update to a v0.39.x release after that is created from celestia-core main branch.
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.57.5-tm-v0.38.17.0.20251021045733-51f47a5af58b // v1.57.2-tm-v0.38.17
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.7-sdk-v0.50.14.0.20251021051442-a823a1670604
+	// Use ledger-cosmos-go v0.16.0 because v0.15.0 causes "hidapi: unknown failure"
+	// See https://github.com/celestiaorg/celestia-app/issues/5453
+	// This replace can be removed once celestiaorg/cosmos-sdk is updated to use ledger-cosmos-go v0.16.0.
 	github.com/cosmos/ledger-cosmos-go => github.com/cosmos/ledger-cosmos-go v0.16.0
 
 	// goleveldb: canonical version
