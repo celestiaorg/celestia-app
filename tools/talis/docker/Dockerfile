@@ -1,5 +1,5 @@
 # Use the official Go builder image
-FROM golang:1.24 AS builder
+FROM golang:1.24.6 AS builder
 
 ARG LDFLAGS
 
@@ -13,4 +13,5 @@ RUN go mod download
 COPY . .
 
 RUN GOOS=${GOOS} GOARCH=${GOARCH} CGO_ENABLED=0 go build -tags="ledger" -ldflags="${LDFLAGS}" -o /out/txsim ./test/cmd/txsim \
- && GOOS=${GOOS} GOARCH=${GOARCH} CGO_ENABLED=0 GOOS=linux go build -tags="ledger" -ldflags="${LDFLAGS}" -o /out/celestia-appd ./cmd/celestia-appd 
+ && GOOS=${GOOS} GOARCH=${GOARCH} CGO_ENABLED=0 GOOS=linux go build -tags="ledger" -ldflags="${LDFLAGS}" -o /out/celestia-appd ./cmd/celestia-appd \
+ && GOOS=${GOOS} GOARCH=${GOARCH} CGO_ENABLED=0 go build -tags="ledger" -ldflags="${LDFLAGS}" -o /out/latency-monitor ./tools/latency-monitor

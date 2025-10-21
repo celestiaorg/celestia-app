@@ -5,6 +5,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"sync"
 	"time"
 
 	"cosmossdk.io/client/v2/autocli"
@@ -196,6 +197,10 @@ type App struct {
 	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
 	treePool                *wrapper.TreePool
 	delayedPrecommitTimeout time.Duration
+	// checkStateMu protects concurrent access to BaseApp's checkState (mempool state).
+	// This prevents data races between Commit updating checkState and QuerySequence
+	// reading it via CheckState().
+	checkStateMu *sync.RWMutex
 }
 
 // New returns a reference to an uninitialized app. Callers must subsequently
@@ -233,6 +238,7 @@ func New(
 		memKeys:                 memKeys,
 		txCache:                 NewTxCache(),
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
+		checkStateMu:            &sync.RWMutex{},
 	}
 
 	// needed for migration from x/params -> module's ownership of own params
@@ -853,4 +859,13 @@ func (app *App) TimeoutInfo() abci.TimeoutInfo {
 		TimeoutPrecommitDelta:   appconsts.TimeoutPrecommitDelta,
 		DelayedPrecommitTimeout: app.delayedPrecommitTimeout,
 	}
+}
+
+// Commit overrides BaseApp's Commit to add synchronization with QuerySequence.
+// This prevents data races between commit updating checkState (mempool state) and
+// QuerySequence reading it via CheckState().
+func (app *App) Commit() (*abci.ResponseCommit, error) {
+	app.checkStateMu.Lock()
+	defer app.checkStateMu.Unlock()
+	return app.BaseApp.Commit()
 }

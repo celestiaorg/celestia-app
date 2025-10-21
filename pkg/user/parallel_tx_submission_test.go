@@ -14,7 +14,10 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/test/util/random"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	"github.com/celestiaorg/go-square/v3/share"
+	blobtx "github.com/celestiaorg/go-square/v3/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -517,4 +520,53 @@ func TestSingleWorkerNoFeeGranter(t *testing.T) {
 	feeTx, ok := capturedTx.(sdktypes.FeeTx)
 	require.True(t, ok, "Transaction should implement FeeTx interface")
 	require.Nil(t, feeTx.FeeGranter(), "Single worker should not use fee granter")
+}
+
+func TestParallelSubmissionV1BlobSignerOverride(t *testing.T) {
+	t.Parallel()
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+	numBlobs := 3
+	txBytes := make([][]byte, 0, numBlobs)
+	broadcastHandler := func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+		txBytes = append(txBytes, req.TxBytes)
+		return &sdktx.BroadcastTxResponse{
+			TxResponse: &sdktypes.TxResponse{Code: abci.CodeTypeOK, TxHash: hashTxBytes(req.TxBytes)},
+		}, nil
+	}
+
+	txStatusHandler := func(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error) {
+		return &tx.TxStatusResponse{Status: core.TxStatusCommitted}, nil
+	}
+
+	workerAccounts := []string{"parallel-worker-1", "parallel-worker-2"}
+	client, conn := newMockTxClientWithCustomHandlers(t, broadcastHandler, txStatusHandler, workerAccounts)
+	defer conn.Close()
+
+	for range numBlobs {
+		blob, err := share.NewV1Blob(share.RandomBlobNamespace(), random.Bytes(100), testnode.RandomAddress().Bytes())
+		require.NoError(t, err)
+
+		resp, err := client.SubmitPayForBlobToQueue(context.Background(), []*share.Blob{blob})
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, resp.Code)
+	}
+
+	require.Len(t, txBytes, numBlobs)
+
+	for _, txBytes := range txBytes {
+		blobTx, _, err := blobtx.UnmarshalBlobTx(txBytes)
+		require.NoError(t, err)
+
+		sdkTx, err := encCfg.TxConfig.TxDecoder()(blobTx.Tx)
+		require.NoError(t, err)
+
+		signers, _, err := encCfg.Codec.GetMsgV1Signers(sdkTx.GetMsgs()[0])
+		require.NoError(t, err)
+		txSigner := sdktypes.AccAddress(signers[0])
+
+		for _, blob := range blobTx.Blobs {
+			require.Equal(t, txSigner.Bytes(), blob.Signer())
+		}
+	}
 }
