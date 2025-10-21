@@ -60,7 +60,6 @@ func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreat
 // UpdateZKExecutionISM implements types.MsgServer.
 func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdateZKExecutionISM) (*types.MsgUpdateZKExecutionISMResponse, error) {
 	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
-
 	if err != nil {
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
 	}

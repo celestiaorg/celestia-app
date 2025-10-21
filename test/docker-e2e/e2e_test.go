@@ -3,9 +3,10 @@ package docker_e2e
 import (
 	"context"
 	"fmt"
-	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	"testing"
 	"time"
+
+	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"github.com/celestiaorg/go-square/v2/share"
