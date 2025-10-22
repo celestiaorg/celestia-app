@@ -116,23 +116,16 @@ func (k *Keeper) validatePublicValues(ctx context.Context, height uint64, ism ty
 		return errorsmod.Wrapf(types.ErrInvalidStateRoot, "expected %x, got %x", ism.StateRoot, publicValues.TrustedStateRoot)
 	}
 
-	if publicValues.TrustedHeight != ism.Height {
-		return errorsmod.Wrapf(types.ErrInvalidHeight, "expected %d, got %d", ism.Height, publicValues.TrustedHeight)
-	}
-
 	if publicValues.PrevCelestiaHeight != ism.CelestiaHeight {
 		return errorsmod.Wrapf(types.ErrInvalidHeight, "expected %d, got %d", ism.CelestiaHeight, publicValues.PrevCelestiaHeight)
 	}
 
-	if len(publicValues.PrevCelestiaHeaderHash[:]) != 32 {
-		return errorsmod.Wrapf(types.ErrInvalidStateRoot, "expected 32 bytes, got %d", len(publicValues.PrevCelestiaHeaderHash))
+	if !bytes.Equal(publicValues.PrevCelestiaHeaderHash[:], ism.CelestiaHeaderHash) {
+		return errorsmod.Wrapf(types.ErrInvalidHeaderHash, "expected %x, got %x", ism.CelestiaHeaderHash, publicValues.PrevCelestiaHeaderHash)
 	}
 
-	var celestiaIsmRoot [32]byte
-	copy(celestiaIsmRoot[:], ism.CelestiaStateRoot)
-
-	if publicValues.PrevCelestiaHeaderHash != celestiaIsmRoot {
-		return errorsmod.Wrapf(types.ErrInvalidStateRoot, "expected %x, got %x", ism.CelestiaStateRoot, publicValues.PrevCelestiaHeaderHash)
+	if publicValues.TrustedHeight != ism.Height {
+		return errorsmod.Wrapf(types.ErrInvalidHeight, "expected %d, got %d", ism.Height, publicValues.TrustedHeight)
 	}
 
 	if !bytes.Equal(publicValues.Namespace[:], ism.Namespace) {

@@ -22,8 +22,8 @@ message ZKExecutionISM {
   bytes state_root = 3;
   // latest tracked height of the remote chain
   uint64 height = 4;
-  // trusted celestia root
-  bytes celestia_state_root = 5;
+  // trusted celestia header hash
+  bytes celestia_header_hash = 5;
   // trusted celestia height
   uint64 celestia_height = 6;
   // the celestia namespace identifier used by the application

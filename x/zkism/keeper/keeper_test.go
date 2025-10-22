@@ -77,7 +77,7 @@ func (suite *KeeperTestSuite) CreateTestIsm(trustedRoot []byte, trustedCelestiaH
 		StateTransitionVkey: stateVkey,
 		StateMembershipVkey: messageVkey,
 		StateRoot:           trustedRoot,
-		CelestiaStateRoot:   trustedCelestiaHash,
+		CelestiaHeaderHash:  trustedCelestiaHash,
 		CelestiaHeight:      trustedCelestiaHeight,
 		Height:              97,
 		Namespace:           namespace,

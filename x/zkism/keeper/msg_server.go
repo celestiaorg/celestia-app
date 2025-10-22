@@ -35,7 +35,7 @@ func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreat
 		Owner:               msg.Creator,
 		StateRoot:           msg.StateRoot,
 		Height:              msg.Height,
-		CelestiaStateRoot:   msg.CelestiaStateRoot,
+		CelestiaHeaderHash:  msg.CelestiaHeaderHash,
 		CelestiaHeight:      msg.CelestiaHeight,
 		Namespace:           msg.Namespace,
 		SequencerPublicKey:  msg.SequencerPublicKey,
@@ -85,7 +85,7 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 	ism.Height = publicValues.NewHeight
 	ism.StateRoot = publicValues.NewStateRoot[:]
 	ism.CelestiaHeight = publicValues.NewCelestiaHeight
-	ism.CelestiaStateRoot = publicValues.CelestiaHeaderHash[:]
+	ism.CelestiaHeaderHash = publicValues.CelestiaHeaderHash[:]
 	if err := m.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
 		return nil, err
 	}
@@ -95,10 +95,10 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 	}
 
 	return &types.MsgUpdateZKExecutionISMResponse{
-		Height:            ism.Height,
-		StateRoot:         hex.EncodeToString(ism.StateRoot),
-		CelestiaStateRoot: hex.EncodeToString(ism.CelestiaStateRoot),
-		CelestiaHeight:    ism.CelestiaHeight,
+		Height:             ism.Height,
+		StateRoot:          hex.EncodeToString(ism.StateRoot),
+		CelestiaHeaderHash: hex.EncodeToString(ism.CelestiaHeaderHash),
+		CelestiaHeight:     ism.CelestiaHeight,
 	}, nil
 }
 
@@ -114,7 +114,6 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
 	}
 
-	// TODO: https://github.com/celestiaorg/celestia-app/issues/5809
 	if !bytes.Equal(publicValues.StateRoot[:], ism.StateRoot) {
 		return nil, errorsmod.Wrapf(types.ErrInvalidStateRoot, "expected %x, got %x", ism.StateRoot, publicValues.StateRoot)
 	}
