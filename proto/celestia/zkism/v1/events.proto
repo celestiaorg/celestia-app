@@ -51,8 +51,8 @@ message EventUpdateZKExecutionISM {
   string state_root = 2;
   // latest tracked height of the remote chain
   uint64 height = 3;
-  // trusted celestia root
-  string celestia_state_root = 4;
+  // trusted celestia header hash
+  string celestia_header_hash = 4;
   // trusted celestia height
   uint64 celestia_height = 5;
 }
