@@ -397,20 +397,23 @@ Stateful Validation
 
 #### Sign Bytes Format
 
-The sign bytes for a PaymentPromise secp256k1 signature are constructed by concatenating all fields except the `signature` field:
+The sign bytes for a PaymentPromise secp256k1 signature are constructed by concatenating a prefix and all fields except the `signature` field:
 
 ```text
-sign_bytes = chain_id || namespace || blob_size || commitment || row_version || height || creation_timestamp || signer_public_key
+sign_bytes = prefix || chain_id || signer_public_key || namespace || blob_size || commitment || blob_version || height || creation_timestamp
 ```
 
+- `prefix`: "fibre/pp:v0" (11 bytes)
 - `chain_id`: Raw chain ID bytes (variable length)
-- `namespace`: Raw namespace bytes (fixed 29 bytes)
+- `signer_public_key`: Raw bytes of signer public key secp256k1 (33 bytes)
+- `namespace`: Raw namespace bytes (29 bytes)
 - `blob_size`: Big-endian encoded uint32 (4 bytes)
 - `commitment`: Raw commitment bytes (32 bytes)
-- `row_version`: Big-endian encoded uint32 (4 bytes)
+- `blob_version`: Big-endian encoded uint32 (4 bytes)
 - `height`: Big-endian encoded int64 (8 bytes)
-- `creation_timestamp`: UTC timestamp encoded using Go's time.Time.MarshalBinary() (15 bytes)
-- `signer_public_key`: Raw bytes of signer public key secp256k1 (33 bytes)
+- `creation_timestamp`: UTC timestamp encoded using Go's time.Time.MarshalBinary() (variable but usually 15 bytes)
+
+The total length of the sign bytes is: 1 + len(chain_id) + 33 + 29 + 4 + 32 + 4 + 8 + len(creation_timestamp) = 111 + len(chain_id) + len(creation_timestamp) bytes.
 
 #### Payment Promise Hash
 
