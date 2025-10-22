@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
-	"fmt"
 
 	errorsmod "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
@@ -77,7 +76,7 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("checkpoint 1")
+
 	if err := verifier.VerifyProof(msg.Proof, ism.StateTransitionVkey, msg.PublicValues); err != nil {
 		return nil, err
 	}
