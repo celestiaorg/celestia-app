@@ -32,3 +32,4 @@ config.json
 memory-bank/*
 .clinerules
 tools/talis/talis
+.gocache
