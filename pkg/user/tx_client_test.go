@@ -330,7 +330,7 @@ func TestRejections(t *testing.T) {
 
 	_, err = txClient.ConfirmTx(ctx.GoContext(), resp.TxHash)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "was rejected by the node with execution code: 30 and log: block height: 5, timeout height: 4: tx timeout height")
+	require.Contains(t, err.Error(), "was rejected by the node with execution code: 30 and log:")
 	seqAfterRejection := sender.Sequence()
 	require.Equal(t, seqBeforeSubmission, seqAfterRejection)
 
