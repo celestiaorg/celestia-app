@@ -65,9 +65,9 @@ func (suite *KeeperTestSuite) TestCreateZKExecutionISM() {
 func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
 	trustedRoot, err := hex.DecodeString("340623e91b5a72c72a9214357cbc99a6b59ef23e5069ac5354a3a1619af0d568")
 	suite.Require().NoError(err)
-	trustedCelestiaHash, err := hex.DecodeString("0a02e7b488766f5ba73f8b44d96e97e27ca61580050e4a798bb664216876aa44")
-	suite.Require().NoError(err)
+
 	trustedCelestiaHeight := uint64(29)
+	trustedCelestiaHash, err := hex.DecodeString("0a02e7b488766f5ba73f8b44d96e97e27ca61580050e4a798bb664216876aa44")
 	suite.Require().NoError(err)
 
 	ism := suite.CreateTestIsm(trustedRoot, trustedCelestiaHash, trustedCelestiaHeight)
