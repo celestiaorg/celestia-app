@@ -628,14 +628,14 @@ message QueryWithdrawalsResponse {
 }
 ```
 
-### ProcessedPaymentPromise
+### IsPaymentProcessed
 
 Queries whether a [PaymentPromise](#payment-promises) has been processed.
 
 **Request**:
 
 ```proto
-message QueryProcessedPaymentPromiseRequest {
+message QueryIsPaymentProcessedRequest {
   bytes promise_hash = 1;
 }
 ```
@@ -643,7 +643,7 @@ message QueryProcessedPaymentPromiseRequest {
 **Response**:
 
 ```proto
-message QueryProcessedPaymentPromiseResponse {
+message QueryIsPaymentProcessedResponse {
   google.protobuf.Timestamp processed_at = 1;
   bool found = 2;
 }
@@ -665,12 +665,7 @@ message QueryValidatePaymentPromiseRequest {
 
 ```proto
 message QueryValidatePaymentPromiseResponse {
-  bool valid = 1;
-  string error_message = 2;
-  bool sufficient_balance = 3;
-  bool already_processed = 4;
-  cosmos.base.v1beta1.Coin required_payment = 5;
-  cosmos.base.v1beta1.Coin available_balance = 6;
+  bool is_valid = 1;
 }
 ```
 
