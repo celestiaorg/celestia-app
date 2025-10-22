@@ -21,7 +21,7 @@ func TestV2SubmitMethods(t *testing.T) {
 		t.Skip("skipping in short mode")
 	}
 
-	// Setup test client
+	// setup test client
 	_, txClient, ctx := utils.SetupTxClientWithDefaultParams(t)
 	v2Client := NewTxClient(txClient)
 	serviceClient := sdktx.NewServiceClient(ctx.GRPCClient)
@@ -39,30 +39,39 @@ func TestV2SubmitMethods(t *testing.T) {
 		expectedSigner string
 	}{
 		{
-			name: "SubmitPayForBlob",
+			name: "SubmitPayForBlob processes tx and populates sdk response",
 			submitFunc: func() (*sdktypes.TxResponse, error) {
 				return v2Client.SubmitPayForBlob(testCtx, blobs)
 			},
 			expectedSigner: expectedSigner,
 		},
 		{
-			name: "SubmitPayForBlobWithAccount",
+			name: "SubmitPayForBlobWithAccount processes tx and populates sdk response",
 			submitFunc: func() (*sdktypes.TxResponse, error) {
 				return v2Client.SubmitPayForBlobWithAccount(testCtx, txClient.DefaultAccountName(), blobs)
 			},
 			expectedSigner: expectedSigner,
 		},
 		{
-			name: "SubmitPayForBlobToQueue",
+			name: "SubmitPayForBlobToQueue processes tx and populates sdk response",
 			submitFunc: func() (*sdktypes.TxResponse, error) {
 				return v2Client.SubmitPayForBlobToQueue(testCtx, blobs)
 			},
 			expectedSigner: expectedSigner,
 		},
 		{
-			name: "SubmitTx",
+			name: "SubmitTx processes tx and populates sdk response",
 			submitFunc: func() (*sdktypes.TxResponse, error) {
 				return v2Client.SubmitTx(testCtx, []sdktypes.Msg{msg})
+			},
+			expectedSigner: expectedSigner,
+		},
+		{
+			name: "ConfirmTx processes tx and populates sdk response",
+			submitFunc: func() (*sdktypes.TxResponse, error) {
+				resp, err := v2Client.BroadcastPayForBlob(testCtx, blobs)
+				require.NoError(t, err)
+				return v2Client.ConfirmTx(testCtx, resp.TxHash)
 			},
 			expectedSigner: expectedSigner,
 		},
