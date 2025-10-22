@@ -23,12 +23,12 @@ import (
 )
 
 var (
-	celestiaHeight     = 30
-	celestiaHeaderHash = "2e08a0f992a86551adcb11fe86423e198831739b1b7ce42daefa761d4195b3a3"
-	stateVkeyHash      = "0x00acd6f9c9d0074611353a1e0c94751d3c49beef64ebc3ee82f0ddeadaf242ef"
+	celestiaHeight     = 29
+	celestiaHeaderHash = "70566104cdb660b297eccbe088fd90b5fd30fd325a3f044b8b098544e152ffbd"
+	stateVkeyHash      = "0x00df3145949eb56db158ad091421d334b4d2a9fda09c2aeed7fd114eacef7403"
 	messageVkeyHash    = "0x00c88cdad907c05533b8755953d58af6a3b753a4e05acc6617d41ca206c25d2a"
 	namespaceHex       = "00000000000000000000000000000000000000a8045f161bf468bf4d44"
-	publicKeyHex       = "c87f6c4cdd4c8ac26cb6a06909e5e252b73043fdf85232c18ae92b9922b65507"
+	publicKeyHex       = "cb01eb93b686fd25866a9f9f13e6a8903a13126e2735e1daf89a35019765d0cc"
 )
 
 type KeeperTestSuite struct {
@@ -48,7 +48,7 @@ func (suite *KeeperTestSuite) SetupTest() {
 	suite.zkISMKeeper = testApp.ZKExecutionISMKeeper
 }
 
-func (suite *KeeperTestSuite) CreateTestIsm(trustedRoot []byte) types.ZKExecutionISM {
+func (suite *KeeperTestSuite) CreateTestIsm(trustedRoot []byte, trustedCelestiaHash []byte, trustedCelestiaHeight uint64) types.ZKExecutionISM {
 	headerHash, err := hex.DecodeString(celestiaHeaderHash)
 	suite.Require().NoError(err)
 
@@ -77,6 +77,8 @@ func (suite *KeeperTestSuite) CreateTestIsm(trustedRoot []byte) types.ZKExecutio
 		StateTransitionVkey: stateVkey,
 		StateMembershipVkey: messageVkey,
 		StateRoot:           trustedRoot,
+		CelestiaHeaderHash:  trustedCelestiaHash,
+		CelestiaHeight:      trustedCelestiaHeight,
 		Height:              97,
 		Namespace:           namespace,
 		SequencerPublicKey:  pubKey,
@@ -131,7 +133,7 @@ func readStateMembershipProofData(t *testing.T) ([]byte, []byte) {
 }
 
 func (suite *KeeperTestSuite) TestVerify() {
-	ism := suite.CreateTestIsm([]byte("trusted_root"))
+	ism := suite.CreateTestIsm([]byte("trusted_root"), []byte("trusted_celestia_hash"), 29)
 
 	message := util.HyperlaneMessage{
 		Nonce: uint32(1234),

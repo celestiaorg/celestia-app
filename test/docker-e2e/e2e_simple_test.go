@@ -1,11 +1,12 @@
 package docker_e2e
 
 import (
-	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"context"
 	"fmt"
 	"testing"
 	"time"
+
+	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"

@@ -20,6 +20,8 @@ func EmitCreateISMEvent(ctx sdk.Context, ism types.ZKExecutionISM) error {
 	return ctx.EventManager().EmitTypedEvent(&types.EventCreateZKExecutionISM{
 		Id:                  ism.Id,
 		Owner:               ism.Owner,
+		CelestiaHeaderHash:  encodeHex(ism.CelestiaHeaderHash),
+		CelestiaHeight:      ism.CelestiaHeight,
 		StateRoot:           encodeHex(ism.StateRoot),
 		Height:              ism.Height,
 		Namespace:           namespace.String(),
@@ -33,9 +35,11 @@ func EmitCreateISMEvent(ctx sdk.Context, ism types.ZKExecutionISM) error {
 // EmitUpdateISMEvent emits a typed event to signal updating of an ism.
 func EmitUpdateISMEvent(ctx sdk.Context, ism types.ZKExecutionISM) error {
 	return ctx.EventManager().EmitTypedEvent(&types.EventUpdateZKExecutionISM{
-		Id:        ism.Id,
-		StateRoot: encodeHex(ism.StateRoot),
-		Height:    ism.Height,
+		Id:                 ism.Id,
+		StateRoot:          encodeHex(ism.StateRoot),
+		Height:             ism.Height,
+		CelestiaHeaderHash: encodeHex(ism.CelestiaHeaderHash),
+		CelestiaHeight:     ism.CelestiaHeight,
 	})
 }
 

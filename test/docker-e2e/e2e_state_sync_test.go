@@ -1,13 +1,15 @@
 package docker_e2e
 
 import (
-	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
-	"celestiaorg/celestia-app/test/docker-e2e/networks"
 	"context"
-	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	"strings"
 	"testing"
 	"time"
+
+	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
+	"celestiaorg/celestia-app/test/docker-e2e/networks"
+
+	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 
 	"github.com/celestiaorg/tastora/framework/testutil/config"
 	cometcfg "github.com/cometbft/cometbft/config"

@@ -38,13 +38,16 @@ func TestStateTransitionPublicValuesEncoding(t *testing.T) {
 
 func TestStateTransitionPublicValuesTrailingData(t *testing.T) {
 	pubInputs := types.EvExecutionPublicValues{
-		CelestiaHeaderHash: [32]byte{0x01},
-		TrustedHeight:      1,
-		TrustedStateRoot:   [32]byte{0x02},
-		NewHeight:          2,
-		NewStateRoot:       [32]byte{0x03},
-		Namespace:          [29]byte{0x04},
-		PublicKey:          [32]byte{0x04},
+		PrevCelestiaHeaderHash: [32]byte{0x00},
+		PrevCelestiaHeight:     0,
+		CelestiaHeaderHash:     [32]byte{0x01},
+		NewCelestiaHeight:      0,
+		TrustedHeight:          1,
+		TrustedStateRoot:       [32]byte{0x02},
+		NewHeight:              2,
+		NewStateRoot:           [32]byte{0x03},
+		Namespace:              [29]byte{0x04},
+		PublicKey:              [32]byte{0x04},
 	}
 
 	bz, err := pubInputs.Marshal()

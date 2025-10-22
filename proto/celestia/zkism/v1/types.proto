@@ -22,16 +22,20 @@ message ZKExecutionISM {
   bytes state_root = 3;
   // latest tracked height of the remote chain
   uint64 height = 4;
+  // trusted celestia header hash
+  bytes celestia_header_hash = 5;
+  // trusted celestia height
+  uint64 celestia_height = 6;
   // the celestia namespace identifier used by the application
-  bytes namespace = 5;
+  bytes namespace = 7;
   // the public key of the sequencer
-  bytes sequencer_public_key = 6;
+  bytes sequencer_public_key = 8;
   // the sp1 groth16 verifier key
-  bytes groth16_vkey = 7;
+  bytes groth16_vkey = 9;
   // hash-based commitment to the verifier key used for state transition
-  bytes state_transition_vkey = 8;
+  bytes state_transition_vkey = 10;
   // hash-based commitment to the verifier key used for state membership
-  bytes state_membership_vkey = 9;
+  bytes state_membership_vkey = 11;
 }
 
 // Params defines the zk ism module parameters.

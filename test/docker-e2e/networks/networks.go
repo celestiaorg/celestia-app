@@ -1,11 +1,12 @@
 package networks
 
 import (
-	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"fmt"
 	"io"
 	"net/http"
 	"testing"
+
+	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
 	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"

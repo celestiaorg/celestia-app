@@ -29,23 +29,26 @@ service Msg {
 // MsgCreateZKExecutionISM is the request type for CreateZKExecutionISM.
 message MsgCreateZKExecutionISM {
   option (cosmos.msg.v1.signer) = "creator";
-
   // creator is the message sender.
   string creator = 1;
   // state commitment root of the remote chain
   bytes state_root = 2;
   // latest tracked height of the remote chain
   uint64 height = 3;
+  // trusted celestia header hash
+  bytes celestia_header_hash = 4;
+  // trusted celestia height
+  uint64 celestia_height = 5;
   // the celestia namespace identifier used by the application
-  bytes namespace = 4;
+  bytes namespace = 6;
   // the public key of the sequencer
-  bytes sequencer_public_key = 5;
+  bytes sequencer_public_key = 7;
   // the sp1 groth16 verifier key
-  bytes groth16_vkey = 6;
+  bytes groth16_vkey = 8;
   // hash-based commitment to the verifier key used for state transition
-  bytes state_transition_vkey = 7;
+  bytes state_transition_vkey = 9;
   // hash-based commitment to the verifier key used for state membership
-  bytes state_membership_vkey = 8;
+  bytes state_membership_vkey = 10;
 }
 
 // MsgCreateZKExecutionISMResponse is the response type for CreateZKExecutionISM.
@@ -77,10 +80,14 @@ message MsgUpdateZKExecutionISM {
 
 // MsgUpdateZKExecutionISMResponse is the response type for UpdateZKExecutionISM.
 message MsgUpdateZKExecutionISMResponse {
-  // updated ism trusted state root (hex-encoded)
+  // state commitment root of the remote chain
   string state_root = 1;
-  // updated ism trusted height
+  // latest tracked height of the remote chain
   uint64 height = 2;
+  // trusted celestia header hash
+  string celestia_header_hash = 3;
+  // trusted celestia height
+  uint64 celestia_height = 4;
 }
 
 // MsgSubmitMessages is the request type for SubmitMessages.

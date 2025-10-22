@@ -1,14 +1,16 @@
 package docker_e2e
 
 import (
-	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
-	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	"testing"
 	"time"
+
+	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
+
+	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 
 	"go.uber.org/zap"
 

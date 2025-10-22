@@ -27,7 +27,13 @@ func (suite *KeeperTestSuite) TestCreateZKExecutionISM() {
 			setupTest: func() {
 				msg = &types.MsgCreateZKExecutionISM{
 					Creator:             testfactory.TestAccAddr,
+					StateRoot:           randBytes(32),
+					Height:              97,
+					CelestiaHeaderHash:  randBytes(32),
+					CelestiaHeight:      0,
 					Namespace:           namespace,
+					SequencerPublicKey:  randBytes(32),
+					Groth16Vkey:         randBytes(32),
 					StateTransitionVkey: randBytes(32),
 					StateMembershipVkey: randBytes(32),
 				}
@@ -57,10 +63,14 @@ func (suite *KeeperTestSuite) TestCreateZKExecutionISM() {
 }
 
 func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
-	trustedRoot, err := hex.DecodeString("af50a407e7a9fcba29c46ad31e7690bae4e951e3810e5b898eda29d3d3e92dbe")
+	trustedRoot, err := hex.DecodeString("340623e91b5a72c72a9214357cbc99a6b59ef23e5069ac5354a3a1619af0d568")
 	suite.Require().NoError(err)
 
-	ism := suite.CreateTestIsm(trustedRoot)
+	trustedCelestiaHeight := uint64(29)
+	trustedCelestiaHash, err := hex.DecodeString("0a02e7b488766f5ba73f8b44d96e97e27ca61580050e4a798bb664216876aa44")
+	suite.Require().NoError(err)
+
+	ism := suite.CreateTestIsm(trustedRoot, trustedCelestiaHash, trustedCelestiaHeight)
 	proofBz, pubValues := readStateTransitionProofData(suite.T())
 
 	var msg *types.MsgUpdateZKExecutionISM
@@ -132,8 +142,11 @@ func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
 func (suite *KeeperTestSuite) TestSubmitMessages() {
 	trustedRoot, err := hex.DecodeString("acd4fcbcd3bbf25bd2055b2125f7d361f9f58d97ad167fe35a5b7f1806f5f8ea")
 	suite.Require().NoError(err)
+	trustedCelestiaHash, err := hex.DecodeString("0a02e7b488766f5ba73f8b44d96e97e27ca61580050e4a798bb664216876aa44")
+	suite.Require().NoError(err)
+	trustedCelestiaHeight := uint64(29)
 
-	ism := suite.CreateTestIsm(trustedRoot)
+	ism := suite.CreateTestIsm(trustedRoot, trustedCelestiaHash, trustedCelestiaHeight)
 	proofBz, pubValues := readStateMembershipProofData(suite.T())
 
 	var msg *types.MsgSubmitMessages
