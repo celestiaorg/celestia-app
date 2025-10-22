@@ -230,7 +230,7 @@ func migrateSingleDB(dbName, sourceDir, destDir string) error {
 
 		// Commit batch periodically
 		if batchSize >= maxBatchSize {
-			if err := batch.Write(); err != nil {
+			if err := batch.WriteSync(); err != nil {
 				batch.Close()
 				destDB.Close()
 				return fmt.Errorf("failed to write batch: %w", err)
@@ -247,7 +247,7 @@ func migrateSingleDB(dbName, sourceDir, destDir string) error {
 
 	// Write final batch
 	if batchSize > 0 {
-		if err := batch.Write(); err != nil {
+		if err := batch.WriteSync(); err != nil {
 			batch.Close()
 			destDB.Close()
 			return fmt.Errorf("failed to write final batch: %w", err)
