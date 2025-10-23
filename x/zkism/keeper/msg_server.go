@@ -68,7 +68,7 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
 	}
 
-	if err := m.validatePublicValues(ctx, msg.Height, ism, publicValues); err != nil {
+	if err := m.validatePublicValues(ctx, ism, publicValues); err != nil {
 		return nil, err
 	}
 
@@ -83,7 +83,7 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 
 	ism.Height = publicValues.NewHeight
 	ism.StateRoot = publicValues.NewStateRoot[:]
-	ism.CelestiaHeight = publicValues.NewCelestiaHeight
+	ism.CelestiaHeight = publicValues.CelestiaHeight
 	ism.CelestiaHeaderHash = publicValues.CelestiaHeaderHash[:]
 	if err := m.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
 		return nil, err
