@@ -15,6 +15,9 @@ import (
 // method wraps the default Baseapp's method so that it can parse and check
 // transactions that contain blobs.
 func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
+	app.checkStateMu.Lock()
+	defer app.checkStateMu.Unlock()
+
 	tx := req.Tx
 
 	// all txs must be less than or equal to the max tx size limit

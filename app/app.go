@@ -5,6 +5,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"sync"
 	"time"
 
 	"cosmossdk.io/client/v2/autocli"
@@ -194,6 +195,10 @@ type App struct {
 	// useful for testing purposes and should not be used on public networks
 	// (Arabica, Mocha, or Mainnet Beta).
 	timeoutCommit time.Duration
+	// checkStateMu protects concurrent access to BaseApp's checkState (mempool state).
+	// This prevents data races between Commit updating checkState and QuerySequence
+	// reading it via CheckState().
+	checkStateMu *sync.RWMutex
 }
 
 // New returns a reference to an uninitialized app. Callers must subsequently
@@ -225,6 +230,7 @@ func New(
 		tkeys:         tkeys,
 		memKeys:       memKeys,
 		timeoutCommit: timeoutCommit,
+		checkStateMu:  &sync.RWMutex{},
 	}
 
 	// needed for migration from x/params -> module's ownership of own params
@@ -830,4 +836,13 @@ func (app *App) TimeoutCommit() time.Duration {
 // It returns the default timeout propose value for the current app version.
 func (app *App) TimeoutPropose() time.Duration {
 	return appconsts.TimeoutPropose
+}
+
+// Commit overrides BaseApp's Commit to add synchronization with QuerySequence.
+// This prevents data races between commit updating checkState (mempool state) and
+// QuerySequence reading it via CheckState().
+func (app *App) Commit() (*abci.ResponseCommit, error) {
+	app.checkStateMu.Lock()
+	defer app.checkStateMu.Unlock()
+	return app.BaseApp.Commit()
 }

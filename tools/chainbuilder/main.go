@@ -329,7 +329,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 			block := state.MakeBlock(height, data, commit, nil, validatorAddr)
 			blockParts, err := block.MakePartSet(types.BlockPartSizeBytes)
 			if err != nil {
-				return fmt.Errorf("failed to make block part set: %w", err)
+				return fmt.Errorf("failed to make part set: %w", err)
 			}
 			blockID := types.BlockID{
 				Hash:          block.Hash(),
