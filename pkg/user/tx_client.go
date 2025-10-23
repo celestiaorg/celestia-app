@@ -108,7 +108,7 @@ func (e *ExecutionError) Error() string {
 }
 
 // buildTxResponse populates the TxResponse from the TxStatus response
-func (client *TxClient) buildTxResponse(txHash string, statusResp *tx.TxStatusResponse, signers []string) *TxResponse {
+func (client *TxClient) buildTxResponse(txHash string, statusResp *tx.TxStatusResponse) *TxResponse {
 	return &TxResponse{
 		Height:    statusResp.Height,
 		TxHash:    txHash,
@@ -116,7 +116,7 @@ func (client *TxClient) buildTxResponse(txHash string, statusResp *tx.TxStatusRe
 		Codespace: statusResp.Codespace,
 		GasWanted: statusResp.GasWanted,
 		GasUsed:   statusResp.GasUsed,
-		Signers:   signers,
+		Signers:   statusResp.Signers,
 	}
 }
 
@@ -784,14 +784,9 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				return nil, client.buildExecutionError(txHash, resp)
 			}
 
-			signers, err := client.getSignersFromTxBytes(txHash)
-			if err != nil {
-				return nil, err
-			}
-
 			span.AddEvent("txclient/ConfirmTx: transaction confirmed successfully")
 			client.deleteFromTxTracker(txHash)
-			return client.buildTxResponse(txHash, resp, signers), nil
+			return client.buildTxResponse(txHash, resp), nil
 		case core.TxStatusEvicted:
 			_, _, txBytes, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
@@ -852,35 +847,6 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			continue
 		}
 	}
-}
-
-// getSignersFromTxBytes extracts signers from transaction bytes stored in the tx tracker
-func (client *TxClient) getSignersFromTxBytes(txHash string) ([]string, error) {
-	_, _, txBytes, exists := client.GetTxFromTxTracker(txHash)
-	if !exists {
-		return nil, fmt.Errorf("failed to get signers from tx: %s not found in txTracker", txHash)
-	}
-
-	authTx, err := client.signer.DecodeTx(txBytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode transaction: %w", err)
-	}
-
-	signers, err := authTx.GetSigners()
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract signers: %w", err)
-	}
-
-	signersStr := make([]string, 0, len(signers))
-	for range signers {
-		signerAddr, err := client.signer.addressCodec.BytesToString(signers[0])
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert signer to address: %w", err)
-		}
-		signersStr = append(signersStr, signerAddr)
-	}
-
-	return signersStr, nil
 }
 
 func extractSequenceError(fullError string) string {

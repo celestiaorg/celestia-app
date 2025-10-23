@@ -87,5 +87,6 @@ func (s *txServer) TxStatus(ctx context.Context, req *TxStatusRequest) (*TxStatu
 		GasWanted:     resTx.GasWanted,
 		GasUsed:       resTx.GasUsed,
 		Codespace:     resTx.Codespace,
+		Signers:       resTx.Signers,
 	}, nil
 }
