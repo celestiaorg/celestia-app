@@ -38,7 +38,7 @@ Databases migrated:
 
 Options:
 `
-		fmt.Fprint(os.Stderr, "%s", usage)
+		fmt.Fprintf(os.Stderr, "%s", usage)
 		flag.PrintDefaults()
 		examples := `
 Examples:
@@ -54,7 +54,7 @@ Examples:
   # Migration with custom home directory
   migrate-db --home /custom/path/.celestia-app
 `
-		fmt.Fprint(os.Stderr, "%s", examples)
+		fmt.Fprintf(os.Stderr, "%s", examples)
 	}
 
 	flag.Parse()
