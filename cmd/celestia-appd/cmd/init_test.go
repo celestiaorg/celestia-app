@@ -3,10 +3,10 @@ package cmd
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-
 	"github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 )
 
 func Test_getConsensusParams(t *testing.T) {
