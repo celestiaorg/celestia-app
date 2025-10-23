@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cockroachdb/pebble"
 	"github.com/cosmos/cosmos-db"
 )
 
@@ -18,28 +20,39 @@ func main() {
 	cleanup := flag.Bool("cleanup", false, "Remove old LevelDB files after successful migration (not recommended)")
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [options]\n\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "Migrate celestia-app databases from LevelDB to PebbleDB.\n\n")
-		fmt.Fprintf(os.Stderr, "This tool will:\n")
-		fmt.Fprintf(os.Stderr, "1. Create a new 'data_pebble' directory in your home folder\n")
-		fmt.Fprintf(os.Stderr, "2. Create backups of existing LevelDB databases\n")
-		fmt.Fprintf(os.Stderr, "3. Migrate all databases to PebbleDB format in 'data_pebble'\n")
-		fmt.Fprintf(os.Stderr, "4. After migration, you can move the databases to the 'data' directory\n\n")
-		fmt.Fprintf(os.Stderr, "Databases migrated:\n")
-		fmt.Fprintf(os.Stderr, "- application.db (Application state)\n")
-		fmt.Fprintf(os.Stderr, "- blockstore.db (Block storage)\n")
-		fmt.Fprintf(os.Stderr, "- state.db (Consensus state)\n")
-		fmt.Fprintf(os.Stderr, "- tx_index.db (Transaction index)\n")
-		fmt.Fprintf(os.Stderr, "- evidence.db (Evidence storage)\n\n")
-		fmt.Fprintf(os.Stderr, "Options:\n")
+		usage := `Usage: migrate-db [options]
+
+Migrate celestia-app databases from LevelDB to PebbleDB.
+
+This tool will:
+1. Create a new 'data_pebble' directory in your celestia-app home folder
+2. Create backups of existing LevelDB databases
+3. Migrate all databases to PebbleDB format in 'data_pebble'
+4. After migration, you can move the databases to the 'data' directory using the provided commands
+
+Databases migrated:
+- application.db (Application state)
+- blockstore.db (Block storage)
+- state.db (Consensus state)
+- tx_index.db (Transaction index)
+- evidence.db (Evidence storage)
+
+Options:
+`
+		fmt.Fprintf(os.Stderr, usage)
 		flag.PrintDefaults()
-		fmt.Fprintf(os.Stderr, "\nExamples:\n")
-		fmt.Fprintf(os.Stderr, "  # Dry-run to test\n")
-		fmt.Fprintf(os.Stderr, "  %s --dry-run\n\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "  # Actual migration\n")
-		fmt.Fprintf(os.Stderr, "  %s\n\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "  # Migration with custom home directory\n")
-		fmt.Fprintf(os.Stderr, "  %s --home /custom/path/.celestia-app\n", os.Args[0])
+		examples := `
+Examples:
+  # Dry-run to test
+  migrate-db --dry-run
+
+  # Actual migration
+  migrate-db
+
+  # Migration with custom home directory
+  migrate-db --home /custom/path/.celestia-app
+`
+		fmt.Fprintf(os.Stderr, examples)
 	}
 
 	flag.Parse()
@@ -60,7 +73,6 @@ func migrateDB(homeDir string, dryRun, cleanup, backup bool) error {
 	}
 
 	// Database names to migrate
-	// Note: cs.wal, priv_validator_state.json, snapshots, and traces are not databases
 	databases := []string{
 		"application",
 		"blockstore",
@@ -76,6 +88,36 @@ func migrateDB(homeDir string, dryRun, cleanup, backup bool) error {
 	fmt.Printf("Dry-run mode: %v\n", dryRun)
 	fmt.Printf("Cleanup old files: %v\n", cleanup)
 	fmt.Printf("Create backups: %v\n\n", backup)
+
+	// Ask for confirmation before proceeding (unless in dry-run mode)
+	if !dryRun {
+		fmt.Print("Do you want to continue with the migration? (yes/no): ")
+		reader := bufio.NewReader(os.Stdin)
+		response, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("failed to read user input: %w", err)
+		}
+		response = strings.TrimSpace(strings.ToLower(response))
+		if response != "yes" && response != "y" {
+			fmt.Println("Migration cancelled by user.")
+			return nil
+		}
+		fmt.Println()
+	}
+
+	// Create backup of entire data directory if requested
+	if backup && !dryRun {
+		backupDir := filepath.Join(homeDir, "data_backup")
+		if _, err := os.Stat(backupDir); err == nil {
+			return fmt.Errorf("backup directory already exists: %s\nPlease remove it or move it before running migration", backupDir)
+		}
+		fmt.Printf("Creating backup of data directory...\n")
+		fmt.Printf("Backup: %s -> %s\n", dataDir, backupDir)
+		if err := copyDir(dataDir, backupDir); err != nil {
+			return fmt.Errorf("failed to create backup: %w", err)
+		}
+		fmt.Printf("Backup created successfully\n\n")
+	}
 
 	// Create data_pebble directory
 	if !dryRun {
@@ -103,13 +145,6 @@ func migrateDB(homeDir string, dryRun, cleanup, backup bool) error {
 			continue
 		}
 
-		// Create backup if requested
-		if backup {
-			if err := createBackup(levelDBPath); err != nil {
-				return fmt.Errorf("failed to create backup for %s: %w", dbName, err)
-			}
-		}
-
 		// Perform migration
 		if err := migrateSingleDB(dbName, dataDir, pebbleDataDir); err != nil {
 			return fmt.Errorf("failed to migrate %s: %w", dbName, err)
@@ -123,60 +158,49 @@ func migrateDB(homeDir string, dryRun, cleanup, backup bool) error {
 		return nil
 	}
 
-	fmt.Println("Migration completed successfully!")
-	fmt.Println("\n" + strings.Repeat("=", 60))
-	fmt.Println("NEXT STEPS:")
-	fmt.Println(strings.Repeat("=", 60))
-	fmt.Println("\n1. STOP your node if it's running:")
-	fmt.Println("   sudo systemctl stop celestia-appd")
-	fmt.Println("\n2. UPDATE config.toml to use PebbleDB:")
-	fmt.Println("   nano ~/.celestia-app/config/config.toml")
-	fmt.Println("   Change:")
-	fmt.Println("   [db]")
-	fmt.Println("   backend = \"pebbledb\"")
-	fmt.Println("\n3. MOVE the migrated databases:")
-	fmt.Println("   # Backup originals first (if not already done)")
-	if !backup {
-		for _, dbName := range databases {
-			fmt.Printf("   mv %s/%s.db %s/%s.db.backup\n", dataDir, dbName, dataDir, dbName)
-		}
-	}
-	fmt.Println("   # Move PebbleDB files")
+	// Build the removal commands
+	var rmCommands strings.Builder
 	for _, dbName := range databases {
-		fmt.Printf("   mv %s/%s.db %s/%s.db\n", pebbleDataDir, dbName, dataDir, dbName)
+		fmt.Fprintf(&rmCommands, "   rm -rf %s/%s.db\n", dataDir, dbName)
 	}
-	fmt.Println("\n4. START your node:")
-	fmt.Println("   sudo systemctl start celestia-appd")
-	fmt.Println("\n5. VERIFY it's working:")
-	fmt.Println("   celestia-appd status")
-	fmt.Println("   journalctl -u celestia-appd -f")
-	fmt.Println("\n6. CLEANUP after verifying (optional):")
-	fmt.Printf("   rm -rf %s\n", pebbleDataDir)
+
+	// Build the move commands
+	var mvCommands strings.Builder
+	for _, dbName := range databases {
+		fmt.Fprintf(&mvCommands, "   mv %s/%s.db %s/%s.db\n", pebbleDataDir, dbName, dataDir, dbName)
+	}
+
+	// Build cleanup commands
+	cleanupCommands := fmt.Sprintf("   rm -rf %s\n", pebbleDataDir)
 	if backup {
-		fmt.Println("   rm -rf " + dataDir + "/*.db.leveldb.backup")
-	}
-	fmt.Println("\n" + strings.Repeat("=", 60))
-
-	return nil
-}
-
-func createBackup(dbPath string) error {
-	backupPath := dbPath + ".leveldb.backup"
-
-	fmt.Printf("Creating backup: %s -> %s\n", dbPath, backupPath)
-
-	// Check if backup already exists
-	if _, err := os.Stat(backupPath); err == nil {
-		fmt.Printf("Backup already exists at %s, skipping\n", backupPath)
-		return nil
+		backupDir := filepath.Join(homeDir, "data_backup")
+		cleanupCommands += fmt.Sprintf("   rm -rf %s\n", backupDir)
 	}
 
-	// Copy directory recursively
-	if err := copyDir(dbPath, backupPath); err != nil {
-		return err
-	}
+	nextSteps := `
+Migration completed successfully!
 
-	fmt.Printf("Backup created successfully\n")
+============================================================
+NEXT STEPS:
+============================================================
+
+1. UPDATE config.toml to use PebbleDB:
+   [db]
+   backend = "pebbledb"
+
+2. MOVE the migrated databases:
+   # Remove old databases
+%s
+   # Move PebbleDB files
+%s
+3. Start your node and verify that it is running properly
+
+4. CLEANUP after verifying (optional):
+%s
+============================================================
+`
+	fmt.Printf(nextSteps, rmCommands.String(), mvCommands.String(), cleanupCommands)
+
 	return nil
 }
 
