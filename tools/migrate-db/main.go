@@ -9,14 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cockroachdb/pebble"
 	"github.com/cosmos/cosmos-db"
 )
 
 func main() {
 	homeDir := flag.String("home", os.ExpandEnv("$HOME/.celestia-app"), "Node home directory")
 	dryRun := flag.Bool("dry-run", false, "Run migration in dry-run mode without making changes")
-	backup := flag.Bool("backup", true, "Create backup of LevelDB databases before migration")
+	noBackup := flag.Bool("no-backup", false, "Skip creating backup of data directory before migration")
 	cleanup := flag.Bool("cleanup", false, "Remove old LevelDB files after successful migration (not recommended)")
 
 	flag.Usage = func() {
@@ -25,8 +24,8 @@ func main() {
 Migrate celestia-app databases from LevelDB to PebbleDB.
 
 This tool will:
-1. Create a new 'data_pebble' directory in your celestia-app home folder
-2. Create backups of existing LevelDB databases
+1. Create a backup of the entire data directory (unless --no-backup is specified)
+2. Create a new 'data_pebble' directory in your celestia-app home folder
 3. Migrate all databases to PebbleDB format in 'data_pebble'
 4. After migration, you can move the databases to the 'data' directory using the provided commands
 
@@ -46,8 +45,11 @@ Examples:
   # Dry-run to test
   migrate-db --dry-run
 
-  # Actual migration
+  # Actual migration (with backup)
   migrate-db
+
+  # Migration without backup
+  migrate-db --no-backup
 
   # Migration with custom home directory
   migrate-db --home /custom/path/.celestia-app
@@ -57,7 +59,7 @@ Examples:
 
 	flag.Parse()
 
-	if err := migrateDB(*homeDir, *dryRun, *cleanup, *backup); err != nil {
+	if err := migrateDB(*homeDir, *dryRun, *cleanup, !*noBackup); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
@@ -91,7 +93,7 @@ func migrateDB(homeDir string, dryRun, cleanup, backup bool) error {
 
 	// Ask for confirmation before proceeding (unless in dry-run mode)
 	if !dryRun {
-		fmt.Print("Do you want to continue with the migration? (yes/no): ")
+		fmt.Print("Do you want to continue with the migration? (y/n): ")
 		reader := bufio.NewReader(os.Stdin)
 		response, err := reader.ReadString('\n')
 		if err != nil {
@@ -148,6 +150,11 @@ func migrateDB(homeDir string, dryRun, cleanup, backup bool) error {
 		// Perform migration
 		if err := migrateSingleDB(dbName, dataDir, pebbleDataDir); err != nil {
 			return fmt.Errorf("failed to migrate %s: %w", dbName, err)
+		}
+
+		// Verify the migrated database
+		if err := verifyDB(dbName, pebbleDataDir); err != nil {
+			return fmt.Errorf("failed to verify %s: %w", dbName, err)
 		}
 
 		fmt.Printf("Successfully migrated %s.db\n\n", dbName)
@@ -213,6 +220,12 @@ func migrateSingleDB(dbName, sourceDir, destDir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open source LevelDB: %w", err)
 	}
+	defer func(sourceDB db.DB) {
+		err := sourceDB.Close()
+		if err != nil {
+			fmt.Println("failed to close source DB: %w", err)
+		}
+	}(sourceDB)
 
 	// Open destination PebbleDB
 	// db.NewDB will create: destDir/dbName.db/
@@ -221,6 +234,14 @@ func migrateSingleDB(dbName, sourceDir, destDir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create destination PebbleDB: %w", err)
 	}
+	defer func(destDB db.DB) {
+		err := destDB.Close()
+		if err != nil {
+			if err != nil {
+				fmt.Println("failed to close destination DB: %w", err)
+			}
+		}
+	}(destDB)
 
 	// Migrate data
 	fmt.Printf("Migrating data...\n")
@@ -229,10 +250,16 @@ func migrateSingleDB(dbName, sourceDir, destDir string) error {
 
 	iter, err := sourceDB.Iterator(nil, nil)
 	if err != nil {
-		destDB.Close()
 		return fmt.Errorf("failed to create iterator: %w", err)
 	}
-	defer iter.Close()
+	defer func(iter db.Iterator) {
+		err := iter.Close()
+		if err != nil {
+			if err != nil {
+				fmt.Println("failed to close iterator: %w", err)
+			}
+		}
+	}(iter)
 
 	batch := destDB.NewBatch()
 	batchSize := 0
@@ -244,7 +271,6 @@ func migrateSingleDB(dbName, sourceDir, destDir string) error {
 
 		if err := batch.Set(key, value); err != nil {
 			batch.Close()
-			destDB.Close()
 			return fmt.Errorf("failed to set key in batch: %w", err)
 		}
 
@@ -256,10 +282,12 @@ func migrateSingleDB(dbName, sourceDir, destDir string) error {
 		if batchSize >= maxBatchSize {
 			if err := batch.WriteSync(); err != nil {
 				batch.Close()
-				destDB.Close()
 				return fmt.Errorf("failed to write batch: %w", err)
 			}
-			batch.Close()
+			err := batch.Close()
+			if err != nil {
+				return err
+			}
 			batch = destDB.NewBatch()
 			batchSize = 0
 
@@ -273,41 +301,45 @@ func migrateSingleDB(dbName, sourceDir, destDir string) error {
 	if batchSize > 0 {
 		if err := batch.WriteSync(); err != nil {
 			batch.Close()
-			destDB.Close()
 			return fmt.Errorf("failed to write final batch: %w", err)
 		}
 	}
-	batch.Close()
 
 	if err := iter.Error(); err != nil {
-		destDB.Close()
 		return fmt.Errorf("iterator error: %w", err)
 	}
 
-	// Close source DB first
-	if err := sourceDB.Close(); err != nil {
-		fmt.Printf("WARNING: Failed to close source DB: %v\n", err)
-	}
+	duration := time.Since(startTime)
+	fmt.Printf("Migrated %d keys (%d bytes) in %s\n", count, totalBytes, duration)
 
-	// Close destination DB properly
-	fmt.Printf("Closing PebbleDB...\n")
-	if err := destDB.Close(); err != nil {
-		return fmt.Errorf("failed to close destination DB: %w", err)
-	}
+	return nil
+}
 
-	// Verify the database can be reopened
+func verifyDB(dbName, destDir string) error {
 	fmt.Printf("Verifying PebbleDB integrity...\n")
+
 	testDB, err := db.NewDB(dbName, db.PebbleDBBackend, destDir)
 	if err != nil {
-		return fmt.Errorf("failed to reopen PebbleDB for verification: %w", err)
+		return fmt.Errorf("failed to open PebbleDB for verification: %w", err)
 	}
+	defer func(testDB db.DB) {
+		err := testDB.Close()
+		if err != nil {
+			fmt.Println("failed to close verification DB: %w", err)
+		}
+	}(testDB)
 
 	// Try to create an iterator to verify the database is readable
 	testIter, err := testDB.Iterator(nil, nil)
 	if err != nil {
-		testDB.Close()
-		return fmt.Errorf("failed to create iterator on new PebbleDB: %w", err)
+		return fmt.Errorf("failed to create iterator on PebbleDB: %w", err)
 	}
+	defer func(testIter db.Iterator) {
+		err := testIter.Close()
+		if err != nil {
+			fmt.Println("failed to close verification iterator: %w", err)
+		}
+	}(testIter)
 
 	// Count keys to verify
 	verifyCount := 0
@@ -317,23 +349,12 @@ func migrateSingleDB(dbName, sourceDir, destDir string) error {
 			fmt.Printf("Verified %d keys...\n", verifyCount)
 		}
 	}
-	testIter.Close()
 
 	if err := testIter.Error(); err != nil {
-		testDB.Close()
 		return fmt.Errorf("iterator error during verification: %w", err)
 	}
 
-	testDB.Close()
-
-	if verifyCount != count {
-		return fmt.Errorf("verification failed: expected %d keys, found %d keys", count, verifyCount)
-	}
-
-	duration := time.Since(startTime)
-	fmt.Printf("Migrated and verified %d keys (%d bytes) in %s\n", count, totalBytes, duration)
-	fmt.Printf("Successfully created PebbleDB at %s/%s.db\n", destDir, dbName)
-
+	fmt.Printf("Verified %d keys successfully\n", verifyCount)
 	return nil
 }
 
