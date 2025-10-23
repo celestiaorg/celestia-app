@@ -22,15 +22,17 @@ go build -o migrate-db
 ```
 
 This will:
-1. Create a `data_pebble` directory in `~/.celestia-app/`
-2. Migrate all databases to PebbleDB format
-3. Display instructions for completing the migration
+1. Create a backup of the entire `data` directory to `data_backup`
+2. Create a `data_pebble` directory in `~/.celestia-app/`
+3. Migrate all databases to PebbleDB format
+4. Verify the integrity of migrated databases
+5. Display instructions for completing the migration
 
 ### Options
 
 - `--home <path>` - Specify custom home directory (default: `~/.celestia-app`)
 - `--dry-run` - Test the migration without making changes
-- `--backup=false` - Skip creating backups (not recommended)
+- `--no-backup` - Skip creating backup of data directory (not recommended)
 - `--cleanup` - Remove old LevelDB files after migration (use with caution)
 
 ### Examples
@@ -43,11 +45,6 @@ This will:
 **Custom home directory:**
 ```bash
 ./migrate-db --home /custom/path/.celestia-app
-```
-
-**Migration without backup (not recommended):**
-```bash
-./migrate-db --backup=false
 ```
 
 ## Migrated Databases
@@ -82,6 +79,8 @@ go build
 ./migrate-db
 ```
 
+The tool will ask for confirmation before proceeding. Type `y` or `yes` to continue.
+
 ### 3. Update Configuration
 
 Edit `~/.celestia-app/config/config.toml`:
@@ -96,15 +95,19 @@ backend = "pebbledb"
 ```bash
 cd ~/.celestia-app
 
-# Backup originals (if not already done)
-mv data/application.db data/application.db.backup
-mv data/blockstore.db data/blockstore.db.backup
-mv data/state.db data/state.db.backup
-mv data/tx_index.db data/tx_index.db.backup
-mv data/evidence.db data/evidence.db.backup
+# Remove old databases
+rm -rf data/application.db
+rm -rf data/blockstore.db
+rm -rf data/state.db
+rm -rf data/tx_index.db
+rm -rf data/evidence.db
 
 # Move PebbleDB files
-mv data_pebble/*.db data/
+mv data_pebble/application.db data/application.db
+mv data_pebble/blockstore.db data/blockstore.db
+mv data_pebble/state.db data/state.db
+mv data_pebble/tx_index.db data/tx_index.db
+mv data_pebble/evidence.db data/evidence.db
 ```
 
 ### 5. Start Your Node
@@ -131,9 +134,8 @@ After confirming everything works for a few days:
 # Remove migration directory
 rm -rf ~/.celestia-app/data_pebble
 
-# Remove backups
-rm -rf ~/.celestia-app/data/*.backup
-rm -rf ~/.celestia-app/data/*.leveldb.backup
+# Remove backup directory
+rm -rf ~/.celestia-app/data_backup
 ```
 
 ## Troubleshooting
@@ -149,21 +151,19 @@ If migration fails partway through, simply run it again. The tool will create a 
    journalctl -u celestia-appd -n 100
    ```
 
-2. Verify config.toml has correct backend:
+2. Verify config.toml has the correct backend:
    ```bash
    cat ~/.celestia-app/config/config.toml | grep backend
    ```
 
 3. Restore from backup if needed:
    ```bash
-   cd ~/.celestia-app/data
-   rm -rf *.db
-   mv application.db.backup application.db
-   mv blockstore.db.backup blockstore.db
-   mv state.db.backup state.db
-   mv tx_index.db.backup tx_index.db
-   mv evidence.db.backup evidence.db
+   cd ~/.celestia-app
+   rm -rf data
+   mv data_backup data
    ```
+
+   Then change config.toml back to `backend = "goleveldb"` and restart.
 
 ### Insufficient Disk Space
 
@@ -176,26 +176,3 @@ du -sh ~/.celestia-app/data
 # Check available space
 df -h ~/.celestia-app
 ```
-
-## Performance Notes
-
-Migration time depends on database size:
-
-- Small node (< 100GB): 30-60 minutes
-- Medium node (100-500GB): 1-3 hours
-- Large node (> 500GB): 3-6+ hours
-
-Progress is displayed every 10,000 keys migrated.
-
-## Safety Features
-
-- ✅ Automatic backups before migration
-- ✅ Data integrity verification after migration
-- ✅ Dry-run mode for testing
-- ✅ No modification of original data
-- ✅ Rollback capability via backups
-
-## Support
-
-For issues or questions, please open an issue at:
-https://github.com/celestiaorg/celestia-app/issues
