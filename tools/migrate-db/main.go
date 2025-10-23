@@ -38,7 +38,7 @@ Databases migrated:
 
 Options:
 `
-		fmt.Fprintf(os.Stderr, usage)
+		fmt.Fprint(os.Stderr, "%s", usage)
 		flag.PrintDefaults()
 		examples := `
 Examples:
@@ -54,7 +54,7 @@ Examples:
   # Migration with custom home directory
   migrate-db --home /custom/path/.celestia-app
 `
-		fmt.Fprintf(os.Stderr, examples)
+		fmt.Fprint(os.Stderr, "%s", examples)
 	}
 
 	flag.Parse()
@@ -126,7 +126,7 @@ func migrateDB(homeDir string, dryRun, cleanup, backup bool) error {
 		if _, err := os.Stat(pebbleDataDir); err == nil {
 			return fmt.Errorf("destination directory already exists: %s\nPlease remove it or move it before running migration", pebbleDataDir)
 		}
-		if err := os.MkdirAll(pebbleDataDir, 0755); err != nil {
+		if err := os.MkdirAll(pebbleDataDir, 0o755); err != nil {
 			return fmt.Errorf("failed to create pebble data directory: %w", err)
 		}
 		fmt.Printf("Created destination directory: %s\n\n", pebbleDataDir)
@@ -364,7 +364,7 @@ func copyDir(src, dst string) error {
 		return err
 	}
 
-	if err := os.MkdirAll(dst, 0755); err != nil {
+	if err := os.MkdirAll(dst, 0o755); err != nil {
 		return err
 	}
 
@@ -392,5 +392,5 @@ func copyFile(src, dst string) error {
 		return err
 	}
 
-	return os.WriteFile(dst, data, 0644)
+	return os.WriteFile(dst, data, 0o644)
 }
