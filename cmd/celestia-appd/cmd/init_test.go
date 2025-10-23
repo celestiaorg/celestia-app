@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"testing"
 
 	"github.com/cometbft/cometbft/types"
@@ -9,7 +10,7 @@ import (
 
 func Test_getConsensusParams(t *testing.T) {
 	want := types.ConsensusParams{
-		Block:     types.BlockParams{MaxBytes: 22020096, MaxGas: -1},
+		Block:     types.BlockParams{MaxBytes: appconsts.DefaultMaxBytes, MaxGas: -1},
 		Evidence:  types.EvidenceParams{MaxAgeNumBlocks: 100000, MaxAgeDuration: 172800000000000, MaxBytes: 1048576},
 		Validator: types.ValidatorParams{PubKeyTypes: []string{"ed25519"}},
 		Version:   types.VersionParams{App: 0x6},
