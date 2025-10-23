@@ -41,7 +41,7 @@ func TestStateTransitionPublicValuesTrailingData(t *testing.T) {
 		PrevCelestiaHeaderHash: [32]byte{0x00},
 		PrevCelestiaHeight:     0,
 		CelestiaHeaderHash:     [32]byte{0x01},
-		NewCelestiaHeight:      0,
+		CelestiaHeight:         0,
 		TrustedHeight:          1,
 		TrustedStateRoot:       [32]byte{0x02},
 		NewHeight:              2,

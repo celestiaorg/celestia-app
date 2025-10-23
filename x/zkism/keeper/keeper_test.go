@@ -23,9 +23,9 @@ import (
 )
 
 var (
-	celestiaHeight     = 29
+	newCelestiaHeight  = 31
 	celestiaHeaderHash = "70566104cdb660b297eccbe088fd90b5fd30fd325a3f044b8b098544e152ffbd"
-	stateVkeyHash      = "0x00df3145949eb56db158ad091421d334b4d2a9fda09c2aeed7fd114eacef7403"
+	stateVkeyHash      = "0x003317b21c6a8b0731e07e26e90366fb295f00e572e5b6211cad51d699747ea2"
 	messageVkeyHash    = "0x00c88cdad907c05533b8755953d58af6a3b753a4e05acc6617d41ca206c25d2a"
 	namespaceHex       = "00000000000000000000000000000000000000a8045f161bf468bf4d44"
 	publicKeyHex       = "cb01eb93b686fd25866a9f9f13e6a8903a13126e2735e1daf89a35019765d0cc"
@@ -52,7 +52,7 @@ func (suite *KeeperTestSuite) CreateTestIsm(trustedRoot []byte, trustedCelestiaH
 	headerHash, err := hex.DecodeString(celestiaHeaderHash)
 	suite.Require().NoError(err)
 
-	err = suite.zkISMKeeper.SetHeaderHash(suite.ctx, uint64(celestiaHeight), headerHash)
+	err = suite.zkISMKeeper.SetHeaderHash(suite.ctx, uint64(newCelestiaHeight), headerHash)
 	suite.Require().NoError(err)
 
 	groth16Vkey := readGroth16Vkey(suite.T())

@@ -102,10 +102,10 @@ func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, _ []byte, me
 	return authorized, nil
 }
 
-func (k *Keeper) validatePublicValues(ctx context.Context, height uint64, ism types.ZKExecutionISM, publicValues types.EvExecutionPublicValues) error {
-	headerHash, err := k.GetHeaderHash(ctx, height)
+func (k *Keeper) validatePublicValues(ctx context.Context, ism types.ZKExecutionISM, publicValues types.EvExecutionPublicValues) error {
+	headerHash, err := k.GetHeaderHash(ctx, publicValues.CelestiaHeight)
 	if err != nil {
-		return errorsmod.Wrapf(types.ErrHeaderHashNotFound, "failed to get header for height %d", height)
+		return errorsmod.Wrapf(types.ErrHeaderHashNotFound, "failed to get header for height %d", publicValues.CelestiaHeight)
 	}
 
 	if !bytes.Equal(headerHash, publicValues.CelestiaHeaderHash[:]) {

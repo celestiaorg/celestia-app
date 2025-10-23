@@ -85,7 +85,6 @@ func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
 			setupTest: func() {
 				msg = &types.MsgUpdateZKExecutionISM{
 					Id:           ism.Id,
-					Height:       uint64(celestiaHeight),
 					Proof:        proofBz,
 					PublicValues: pubValues,
 				}
@@ -106,7 +105,6 @@ func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
 			setupTest: func() {
 				msg = &types.MsgUpdateZKExecutionISM{
 					Id:           ism.Id,
-					Height:       uint64(celestiaHeight),
 					Proof:        proofBz,
 					PublicValues: []byte("invalid"),
 				}

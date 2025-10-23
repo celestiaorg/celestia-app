@@ -68,14 +68,12 @@ message MsgUpdateZKExecutionISM {
     (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
     (gogoproto.nullable)   = false
   ];
-  // height is the Celestia height associated with the state transition update.
-  uint64 height = 2;
   // proof is the ZK proof bytes (groth16).
-  bytes proof = 3;
+  bytes proof = 2;
   // the public values used for proof verification.
-  bytes public_values = 4;
+  bytes public_values = 3;
   // the tx signer address
-  string signer = 5;
+  string signer = 4;
 }
 
 // MsgUpdateZKExecutionISMResponse is the response type for UpdateZKExecutionISM.

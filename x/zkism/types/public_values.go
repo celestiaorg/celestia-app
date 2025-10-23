@@ -17,8 +17,8 @@ type EvExecutionPublicValues struct {
 	PrevCelestiaHeight uint64
 	// CelestiaHeaderHash is the hash of the celestia header at which new_height is available.
 	CelestiaHeaderHash [32]byte
-	// NewCelestiaHeight is the height of the celestia header at which new_height is available.
-	NewCelestiaHeight uint64
+	// CelestiaHeight is the height of the celestia header at which new_height is available.
+	CelestiaHeight uint64
 	// TrustedHeight is the trusted block height from which we are updating.
 	TrustedHeight uint64
 	// TrustedStateRoot is the trusted state root from which we are updating.
@@ -39,6 +39,7 @@ func (p *EvExecutionPublicValues) String() string {
 	PrevCelestiaHeaderHash: %s,
 	PrevCelestiaHeight:     %d,
 	CelestiaHeaderHash: %s,
+	CelestiaHeight:     %d,
 	TrustedHeight:      %d,
 	TrustedStateRoot:   %s,
 	NewHeight:          %d,
@@ -49,6 +50,7 @@ func (p *EvExecutionPublicValues) String() string {
 		hex.EncodeToString(p.PrevCelestiaHeaderHash[:]),
 		p.PrevCelestiaHeight,
 		hex.EncodeToString(p.CelestiaHeaderHash[:]),
+		p.CelestiaHeight,
 		p.TrustedHeight,
 		hex.EncodeToString(p.TrustedStateRoot[:]),
 		p.NewHeight,
@@ -75,7 +77,7 @@ func (pi *EvExecutionPublicValues) Marshal() ([]byte, error) {
 		return nil, fmt.Errorf("write CelestiaHeaderHash: %w", err)
 	}
 
-	if err := binary.Write(&buf, binary.LittleEndian, pi.NewCelestiaHeight); err != nil {
+	if err := binary.Write(&buf, binary.LittleEndian, pi.CelestiaHeight); err != nil {
 		return nil, fmt.Errorf("write NewCelestiaHeight: %w", err)
 	}
 
@@ -124,7 +126,7 @@ func (pi *EvExecutionPublicValues) Unmarshal(data []byte) error {
 		return fmt.Errorf("read CelestiaHeaderHash: %w", err)
 	}
 
-	if err := binary.Read(buf, binary.LittleEndian, &pi.NewCelestiaHeight); err != nil {
+	if err := binary.Read(buf, binary.LittleEndian, &pi.CelestiaHeight); err != nil {
 		return fmt.Errorf("read NewCelestiaHeight: %w", err)
 	}
 
