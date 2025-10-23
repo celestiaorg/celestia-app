@@ -297,7 +297,7 @@ func migrateSingleDB(dbName, sourceDir, destDir string) error {
 		}
 	}
 
-	// Write final batch
+	// Write the final batch
 	if batchSize > 0 {
 		if err := batch.WriteSync(); err != nil {
 			batch.Close()
