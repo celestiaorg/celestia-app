@@ -1,8 +1,9 @@
 package cmd
 
 import (
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"testing"
+
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 
 	"github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
