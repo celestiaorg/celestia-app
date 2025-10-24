@@ -558,6 +558,7 @@ func BeginBlocker(ctx sdk.Context, k Keeper) {
 |---------------|---------------------------------|
 | signer        | {bech32 encoded signer address} |
 | amount        | {withdrawal amount}             |
+| requested_at  | {timestamp when requested}      |
 | available_at  | {timestamp when available}      |
 
 ### `EventWithdrawFromEscrowExecuted`
