@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v6/test/util"
 	"github.com/celestiaorg/celestia-app/v6/test/util/random"
+	"github.com/cometbft/cometbft/crypto/tmhash"
 	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	coretypes "github.com/cometbft/cometbft/types"
@@ -133,6 +134,23 @@ func TestPrepareProposalConsistency(t *testing.T) {
 					// the specified size
 					require.LessOrEqual(t, resp.SquareSize, uint64(size.govMaxSquareSize))
 
+					respSet := txHashes(resp.Txs)
+					txsSet := txHashes(coretypes.Txs(txs).ToSliceOfBytes())
+					// check that all sendTxs were included
+					for _, txs := range sendTxs {
+						h := tmhash.Sum(txs)
+						var k [32]byte
+						copy(k[:], h)
+						require.Contains(t, respSet, k, "missing SendTxs from PrepareProposal")
+					}
+					// check that no extras txs were added to proposal
+					for _, txs := range resp.Txs {
+						h := tmhash.Sum(txs)
+						var k [32]byte
+						copy(k[:], h)
+						require.Contains(t, txsSet, k, "proposal contains unknown tx")
+					}
+
 					res, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
 						Height:       height,
 						DataRootHash: resp.DataRootHash,
@@ -148,8 +166,20 @@ func TestPrepareProposalConsistency(t *testing.T) {
 					// change if PFB transactions are not separated and put into
 					// their own namespace
 					require.GreaterOrEqual(t, len(resp.Txs), sendTxCount+1)
+
 				}
 			})
 		}
 	}
+}
+
+func txHashes(txs [][]byte) map[[32]byte]int {
+	m := make(map[[32]byte]int, len(txs))
+	for i, b := range txs {
+		h := tmhash.Sum(b)
+		var k [32]byte
+		copy(k[:], h)
+		m[k] = i
+	}
+	return m
 }
