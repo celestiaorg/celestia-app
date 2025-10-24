@@ -146,12 +146,13 @@ func migrateDB(homeDir string, dryRun, backup bool) error {
 		}
 
 		// Perform migration
-		if err := migrateSingleDB(dbName, dataDir, pebbleDataDir); err != nil {
+		migratedCount, err := migrateSingleDB(dbName, dataDir, pebbleDataDir)
+		if err != nil {
 			return fmt.Errorf("failed to migrate %s: %w", dbName, err)
 		}
 
 		// Verify the migrated database
-		if err := verifyDB(dbName, pebbleDataDir); err != nil {
+		if err := verifyDB(dbName, pebbleDataDir, migratedCount); err != nil {
 			return fmt.Errorf("failed to verify %s: %w", dbName, err)
 		}
 
@@ -209,14 +210,14 @@ Next Steps:
 	return nil
 }
 
-func migrateSingleDB(dbName, sourceDir, destDir string) error {
+func migrateSingleDB(dbName, sourceDir, destDir string) (int, error) {
 	startTime := time.Now()
 
 	// Open source LevelDB
 	fmt.Printf("Opening LevelDB from %s...\n", sourceDir)
 	sourceDB, err := db.NewDB(dbName, db.GoLevelDBBackend, sourceDir)
 	if err != nil {
-		return fmt.Errorf("failed to open source LevelDB: %w", err)
+		return 0, fmt.Errorf("failed to open source LevelDB: %w", err)
 	}
 	defer func(sourceDB db.DB) {
 		err := sourceDB.Close()
@@ -230,7 +231,7 @@ func migrateSingleDB(dbName, sourceDir, destDir string) error {
 	fmt.Printf("Creating PebbleDB in %s...\n", destDir)
 	destDB, err := db.NewDB(dbName, db.PebbleDBBackend, destDir)
 	if err != nil {
-		return fmt.Errorf("failed to create destination PebbleDB: %w", err)
+		return 0, fmt.Errorf("failed to create destination PebbleDB: %w", err)
 	}
 	defer func(destDB db.DB) {
 		err := destDB.Close()
@@ -248,7 +249,7 @@ func migrateSingleDB(dbName, sourceDir, destDir string) error {
 
 	iter, err := sourceDB.Iterator(nil, nil)
 	if err != nil {
-		return fmt.Errorf("failed to create iterator: %w", err)
+		return 0, fmt.Errorf("failed to create iterator: %w", err)
 	}
 	defer func(iter db.Iterator) {
 		err := iter.Close()
@@ -269,7 +270,7 @@ func migrateSingleDB(dbName, sourceDir, destDir string) error {
 
 		if err := batch.Set(key, value); err != nil {
 			batch.Close()
-			return fmt.Errorf("failed to set key in batch: %w", err)
+			return 0, fmt.Errorf("failed to set key in batch: %w", err)
 		}
 
 		count++
@@ -280,11 +281,11 @@ func migrateSingleDB(dbName, sourceDir, destDir string) error {
 		if batchSize >= maxBatchSize {
 			if err := batch.WriteSync(); err != nil {
 				batch.Close()
-				return fmt.Errorf("failed to write batch: %w", err)
+				return 0, fmt.Errorf("failed to write batch: %w", err)
 			}
 			err := batch.Close()
 			if err != nil {
-				return err
+				return 0, err
 			}
 			batch = destDB.NewBatch()
 			batchSize = 0
@@ -299,60 +300,64 @@ func migrateSingleDB(dbName, sourceDir, destDir string) error {
 	if batchSize > 0 {
 		if err := batch.WriteSync(); err != nil {
 			batch.Close()
-			return fmt.Errorf("failed to write final batch: %w", err)
+			return 0, fmt.Errorf("failed to write final batch: %w", err)
 		}
 	}
 
 	if err := iter.Error(); err != nil {
-		return fmt.Errorf("iterator error: %w", err)
+		return 0, fmt.Errorf("iterator error: %w", err)
 	}
 
 	duration := time.Since(startTime)
 	fmt.Printf("Migrated %d keys (%d bytes) in %s\n", count, totalBytes, duration)
 
-	return nil
+	return count, nil
 }
 
-func verifyDB(dbName, destDir string) error {
+func verifyDB(dbName, destDir string, expectedCount int) error {
 	fmt.Printf("Verifying PebbleDB integrity...\n")
 
-	testDB, err := db.NewDB(dbName, db.PebbleDBBackend, destDir)
+	// Open destination PebbleDB
+	destDB, err := db.NewDB(dbName, db.PebbleDBBackend, destDir)
 	if err != nil {
 		return fmt.Errorf("failed to open PebbleDB for verification: %w", err)
 	}
-	defer func(testDB db.DB) {
-		err := testDB.Close()
+	defer func(destDB db.DB) {
+		err := destDB.Close()
 		if err != nil {
 			fmt.Println("failed to close verification DB: %w", err)
 		}
-	}(testDB)
+	}(destDB)
 
-	// Try to create an iterator to verify the database is readable
-	testIter, err := testDB.Iterator(nil, nil)
+	// Count keys in destination DB
+	destIter, err := destDB.Iterator(nil, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create iterator on PebbleDB: %w", err)
 	}
-	defer func(testIter db.Iterator) {
-		err := testIter.Close()
+	defer func(destIter db.Iterator) {
+		err := destIter.Close()
 		if err != nil {
 			fmt.Println("failed to close verification iterator: %w", err)
 		}
-	}(testIter)
+	}(destIter)
 
-	// Count keys to verify
-	verifyCount := 0
-	for ; testIter.Valid(); testIter.Next() {
-		verifyCount++
-		if verifyCount%10000 == 0 {
-			fmt.Printf("Verified %d keys...\n", verifyCount)
+	actualCount := 0
+	for ; destIter.Valid(); destIter.Next() {
+		actualCount++
+		if actualCount%10000 == 0 {
+			fmt.Printf("Verified %d keys...\n", actualCount)
 		}
 	}
 
-	if err := testIter.Error(); err != nil {
+	if err := destIter.Error(); err != nil {
 		return fmt.Errorf("iterator error during verification: %w", err)
 	}
 
-	fmt.Printf("Verified %d keys successfully\n", verifyCount)
+	if actualCount != expectedCount {
+		return fmt.Errorf("verification failed: expected %d keys, found %d keys", expectedCount, actualCount)
+	}
+
+	fmt.Printf("Verified %d keys successfully - count matches!\n", actualCount)
 	return nil
 }
 

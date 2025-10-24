@@ -33,7 +33,6 @@ This will:
 - `--home <path>` - Specify custom home directory (default: `~/.celestia-app`)
 - `--dry-run` - Test the migration without making changes
 - `--no-backup` - Skip creating backup of data directory (not recommended)
-- `--cleanup` - Remove old LevelDB files after migration (use with caution)
 
 ### Examples
 
