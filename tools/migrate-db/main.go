@@ -16,7 +16,6 @@ func main() {
 	homeDir := flag.String("home", os.ExpandEnv("$HOME/.celestia-app"), "Node home directory")
 	dryRun := flag.Bool("dry-run", false, "Run migration in dry-run mode without making changes")
 	noBackup := flag.Bool("no-backup", false, "Skip creating backup of data directory before migration")
-	cleanup := flag.Bool("cleanup", false, "Remove old LevelDB files after successful migration (not recommended)")
 
 	flag.Usage = func() {
 		usage := `Usage: migrate-db [options]
@@ -59,13 +58,13 @@ Examples:
 
 	flag.Parse()
 
-	if err := migrateDB(*homeDir, *dryRun, *cleanup, !*noBackup); err != nil {
+	if err := migrateDB(*homeDir, *dryRun, !*noBackup); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func migrateDB(homeDir string, dryRun, cleanup, backup bool) error {
+func migrateDB(homeDir string, dryRun, backup bool) error {
 	dataDir := filepath.Join(homeDir, "data")
 	pebbleDataDir := filepath.Join(homeDir, "data_pebble")
 
@@ -88,7 +87,6 @@ func migrateDB(homeDir string, dryRun, cleanup, backup bool) error {
 	fmt.Printf("Source directory (LevelDB): %s\n", dataDir)
 	fmt.Printf("Destination directory (PebbleDB): %s\n", pebbleDataDir)
 	fmt.Printf("Dry-run mode: %v\n", dryRun)
-	fmt.Printf("Cleanup old files: %v\n", cleanup)
 	fmt.Printf("Create backups: %v\n\n", backup)
 
 	// Ask for confirmation before proceeding (unless in dry-run mode)
