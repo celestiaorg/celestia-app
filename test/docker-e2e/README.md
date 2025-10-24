@@ -100,18 +100,17 @@ If you need to test changes to celestia-core (the consensus layer), follow these
 Edit the main `go.mod` file to point to your custom celestia-core:
 
 ```go
-// In go.mod, modify or add the replace directive:
-replace github.com/cometbft/cometbft => /path/to/your/celestia-core v0.39.10
-
-// Or use a remote fork:
+// In go.mod, modify the existing replace directive:
 replace github.com/cometbft/cometbft => github.com/yourusername/celestia-core v0.39.10-your-changes
+
+// Or use a local path for development:
+replace github.com/cometbft/cometbft => /path/to/your/celestia-core v0.39.10
 ```
 
-Also update the docker-e2e go.mod:
+The docker-e2e tests use the same go.mod as the main project, so they will automatically use your custom celestia-core. Just run:
 ```bash
-cd test/docker-e2e
-go mod edit -replace github.com/cometbft/cometbft=/path/to/your/celestia-core
-go mod tidy
+# Update dependencies after modifying go.mod
+make mod
 ```
 
 ### 2. Build Custom Docker Image
@@ -207,6 +206,8 @@ make build-docker-standalone
 # Build for GitHub Container Registry
 make build-ghcr-docker
 ```
+
+**Note**: Building Docker images requires internet access to download dependencies. If you encounter network issues during builds, ensure your Docker daemon has proper internet connectivity.
 
 ### Troubleshooting Docker Images
 
