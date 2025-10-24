@@ -138,12 +138,12 @@ func migrateDB(homeDir string, dryRun, cleanup, backup bool) error {
 		// Check if LevelDB exists
 		levelDBPath := filepath.Join(dataDir, dbName+".db")
 		if _, err := os.Stat(levelDBPath); os.IsNotExist(err) {
-			fmt.Printf("WARNING: LevelDB not found at %s, skipping\n\n", levelDBPath)
+			fmt.Printf("Warning: LevelDB not found at %s, skipping\n\n", levelDBPath)
 			continue
 		}
 
 		if dryRun {
-			fmt.Printf("DRY-RUN: Would migrate %s to %s/%s.db\n\n", levelDBPath, pebbleDataDir, dbName)
+			fmt.Printf("Dry-run: Would migrate %s to %s/%s.db\n\n", levelDBPath, pebbleDataDir, dbName)
 			continue
 		}
 
@@ -188,21 +188,21 @@ func migrateDB(homeDir string, dryRun, cleanup, backup bool) error {
 Migration completed successfully!
 
 ============================================================
-NEXT STEPS:
+Next Steps:
 ============================================================
 
-1. UPDATE config.toml to use PebbleDB:
+1. Update config.toml to use PebbleDB:
    [db]
    backend = "pebbledb"
 
-2. MOVE the migrated databases:
+2. Move the migrated databases:
    # Remove old databases
 %s
    # Move PebbleDB files
 %s
 3. Start your node and verify that it is running properly
 
-4. CLEANUP after verifying (optional):
+4. Cleanup after verifying (optional):
 %s
 ============================================================
 `
