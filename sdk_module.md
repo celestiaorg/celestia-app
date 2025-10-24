@@ -558,6 +558,7 @@ func BeginBlocker(ctx sdk.Context, k Keeper) {
 |---------------|---------------------------------|
 | signer        | {bech32 encoded signer address} |
 | amount        | {withdrawal amount}             |
+| requested_at  | {timestamp when requested}      |
 | available_at  | {timestamp when available}      |
 
 ### `EventWithdrawFromEscrowExecuted`
@@ -582,6 +583,13 @@ func BeginBlocker(ctx sdk.Context, k Keeper) {
 | processor            | {bech32 encoded processor address}                    |
 | signer               | {bech32 encoded escrow owner}                         |
 | payment_promise_hash | {hash for the PaymentPromise that is being timed out} |
+
+### `EventUpdateFibreParams`
+
+| Attribute Key | Attribute Value                 |
+|---------------|---------------------------------|
+| signer        | {bech32 encoded authority address} |
+| params        | {updated fibre module parameters} |
 
 ## Queries
 
