@@ -706,10 +706,10 @@ All parameters are modifiable via governance.
 celestia-appd tx fibre deposit-to-escrow <amount> [flags]
 
 # Request withdrawal from escrow
-celestia-appd tx fibre withdraw-from-escrow <amount> [flags]
+celestia-appd tx fibre request-withdrawal <amount> [flags]
 
-# Submit payment with validator signatures
-celestia-appd tx fibre pay-for-fibre <payment_promise_json> <validator_signatures_json> [flags]
+# Submit payment with validator signatures (hex-encoded signatures)
+celestia-appd tx fibre pay-for-fibre <payment_promise_json> <hex_validator_signatures> [flags]
 
 # Submit a PaymentPromise timeout
 celestia-appd tx fibre payment-promise-timeout <payment_promise_json> [flags]
@@ -728,7 +728,7 @@ celestia-appd query fibre escrow-account <signer_address>
 celestia-appd query fibre withdrawals <signer_address>
 
 # Query if PaymentPromise was processed
-celestia-appd query fibre processed-payment-promise <payment_promise_hash>
+celestia-appd query fibre is-payment-processed <payment_promise_hash>
 ```
 
 ## Indexing
