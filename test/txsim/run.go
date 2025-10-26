@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"sync/atomic"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
@@ -28,6 +29,14 @@ const (
 )
 
 var defaultTLSConfig = &tls.Config{InsecureSkipVerify: true}
+
+func opBytes(op Operation) int64 {
+	var n int64
+	for _, b := range op.Blobs {
+		n += int64(len(b.Data()))
+	}
+	return n
+}
 
 // Run is the entrypoint function for starting the txsim client. The lifecycle of the client is managed
 // through the context. A grpc endpoint must be provided. The client relies on a
@@ -60,8 +69,11 @@ func Run(
 		zerolog.SetGlobalLevel(zerolog.Disabled)
 	}
 
+	ctx2, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	// Create the account manager to handle account transactions.
-	manager, err := NewAccountManager(ctx, keys, encCfg, opts.masterAcc, conn, opts.pollTime, opts.useFeeGrant)
+	manager, err := NewAccountManager(ctx2, keys, encCfg, opts.masterAcc, conn, opts.pollTime, opts.useFeeGrant)
 	if err != nil {
 		return err
 	}
@@ -78,15 +90,16 @@ func Run(
 
 	// Initialize each of the sequences by allowing them to allocate accounts.
 	for _, sequence := range sequences {
-		sequence.Init(ctx, manager.conn, manager.AllocateAccounts, r, opts.useFeeGrant)
+		sequence.Init(ctx2, manager.conn, manager.AllocateAccounts, r, opts.useFeeGrant)
 	}
 
 	// Generate the allotted accounts on chain by sending them sufficient funds
-	if err := manager.GenerateAccounts(ctx); err != nil {
+	if err := manager.GenerateAccounts(ctx2); err != nil {
 		return err
 	}
 
 	errCh := make(chan error, len(sequences))
+	var totalBytes int64
 
 	// Spin up a task group to run each of the sequences concurrently.
 	for idx, sequence := range sequences {
@@ -96,16 +109,32 @@ func Run(
 			// each sequence loops through the next set of operations, the new messages are then
 			// submitted on chain
 			for {
-				ops, err := sequence.Next(ctx, manager.conn, r)
+				if ctx2.Err() != nil {
+					errCh <- context.Canceled
+					return
+				}
+				ops, err := sequence.Next(ctx2, manager.conn, r)
 				if err != nil {
 					errCh <- fmt.Errorf("sequence %d: %w", seqID, err)
 					return
 				}
 
 				// Submit the messages to the chain.
-				if err := manager.Submit(ctx, ops); err != nil {
+				if err := manager.Submit(ctx2, ops); err != nil {
 					errCh <- fmt.Errorf("sequence %d: %w", seqID, err)
 					return
+				}
+
+				if opts.byteLimit > 0 {
+					sz := opBytes(ops)
+					if sz > 0 {
+						cur := atomic.AddInt64(&totalBytes, sz)
+						if cur >= opts.byteLimit {
+							cancel()
+							errCh <- ErrEndOfSequence
+							return
+						}
+					}
 				}
 				opNum++
 			}
@@ -144,6 +173,7 @@ type Options struct {
 	suppressLogger bool
 	gasLimit       uint64
 	gasPrice       float64
+	byteLimit      int64
 }
 
 func (o *Options) Fill() {
@@ -193,6 +223,11 @@ func (o *Options) WithGasLimit(gasLimit uint64) *Options {
 
 func (o *Options) WithGasPrice(gasPrice float64) *Options {
 	o.gasPrice = gasPrice
+	return o
+}
+
+func (o *Options) WithByteLimit(limit int64) *Options {
+	o.byteLimit = limit
 	return o
 }
 
