@@ -70,7 +70,7 @@ RUN apk update && apk add --no-cache \
 # Copy the celestia-appd binary from the builder into the final image.
 COPY --from=builder /celestia-app/build/celestia-appd /bin/celestia-appd
 # Copy the entrypoint script into the final image.
-COPY --chown=${USER_NAME}:${USER_NAME} docker/entrypoint.sh ${CELESTIA_APP_HOME}/entrypoint.sh
+COPY --chown=${USER_NAME}:${USER_NAME} docker/entrypoint.sh /opt/entrypoint.sh
 # Set the user to celestia.
 USER ${USER_NAME}
 # Set the working directory to the home directory.
@@ -83,4 +83,4 @@ WORKDIR ${CELESTIA_APP_HOME}
 # 26660 is the port used for Prometheus.
 # 26661 is the port used for tracing.
 EXPOSE 1317 9090 26656 26657 26660 26661
-ENTRYPOINT [ "/bin/bash", "/home/celestia/.celestia-app/entrypoint.sh" ]
+ENTRYPOINT [ "/bin/bash", "/opt/entrypoint.sh" ]
