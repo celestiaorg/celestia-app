@@ -47,6 +47,7 @@ var (
 	gasLimit                                          uint64
 	gasPrice                                          float64
 	namespaces                                        []string
+	loadBytes                                         int64
 )
 
 func main() {
@@ -110,6 +111,10 @@ account that can act as the master account. The command runs until all sequences
 
 			if stake == 0 && send == 0 && blob == 0 && upgradeSchedule == "" {
 				return errors.New("no sequences specified. Use --stake, --send, --upgrade-schedule or --blob")
+			}
+
+			if loadBytes > 0 && blob == 0 {
+				return errors.New("--load-bytes requires --blob to be set (byte counting applies to blobs)")
 			}
 
 			// setup the sequences
@@ -204,6 +209,10 @@ account that can act as the master account. The command runs until all sequences
 				opts.WithGasPrice(gasPrice)
 			}
 
+			if loadBytes > 0 {
+				opts.WithByteLimit(loadBytes)
+			}
+
 			encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 			err = txsim.Run(
 				cmd.Context(),
@@ -247,6 +256,7 @@ func flags() *flag.FlagSet {
 	flags.Uint64Var(&gasLimit, "gas-limit", 0, "custom gas limit to use for transactions (0 = auto-estimate)")
 	flags.Float64Var(&gasPrice, "gas-price", 0, "custom gas price to use for transactions (0 = use default)")
 	flags.StringArrayVar(&namespaces, "namespace", []string{}, "define namespace to use for blob submission -- MUST BE PROVIDED IN HEX FORMAT. Can define multiple namespaces for submission just by passing --namespace several times. Provided namespaces will be used at random.")
+	flags.Int64Var(&loadBytes, "load-bytes", 0, "total blob bytes to submit before exiting (0 = unlimited)")
 	return flags
 }
 
