@@ -1,7 +1,6 @@
 package docker_e2e
 
 import (
-	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"context"
 	"fmt"
 	"strings"
@@ -14,6 +13,8 @@ import (
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
+
+	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 )
 
 // TestStateSyncWithAppUpgrade verifies that a full node can state-sync across app version
@@ -42,7 +43,7 @@ func (s *CelestiaTestSuite) TestStateSyncWithAppUpgrade() {
 	s.Require().NoError(err, "failed to build chain")
 
 	t.Cleanup(func() {
-		if err := chain.Stop(ctx); err != nil {
+		if err := chain.Remove(ctx); err != nil {
 			t.Logf("Error stopping chain: %v", err)
 		}
 	})

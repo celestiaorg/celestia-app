@@ -37,69 +37,9 @@ func NewV1Blob(ns share.Namespace, data []byte, signer sdk.AccAddress) (*share.B
 // ValidateBlobTx performs stateless checks on the BlobTx to ensure that the
 // blobs attached to the transaction are valid.
 func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *tx.BlobTx, subtreeRootThreshold int, _ uint64) error {
-	if bTx == nil {
-		return ErrNoBlobs
-	}
-
-	sdkTx, err := txcfg.TxDecoder()(bTx.Tx)
+	msgPFB, err := ValidateBlobTxSkipCommitment(txcfg, bTx)
 	if err != nil {
 		return err
-	}
-
-	// TODO: remove this check once support for multiple sdk.Msgs in a BlobTx is
-	// supported.
-	msgs := sdkTx.GetMsgs()
-	if len(msgs) != 1 {
-		return ErrMultipleMsgsInBlobTx
-	}
-	msg := msgs[0]
-	msgPFB, ok := msg.(*MsgPayForBlobs)
-	if !ok {
-		return ErrNoPFB
-	}
-	err = msgPFB.ValidateBasic()
-	if err != nil {
-		return err
-	}
-
-	// perform basic checks on the blobs
-	sizes := make([]uint32, len(bTx.Blobs))
-	for i, pblob := range bTx.Blobs {
-		sizes[i] = uint32(len(pblob.Data()))
-	}
-	err = ValidateBlobs(bTx.Blobs...)
-	if err != nil {
-		return err
-	}
-
-	signer, err := sdk.AccAddressFromBech32(msgPFB.Signer)
-	if err != nil {
-		return err
-	}
-	for _, blob := range bTx.Blobs {
-		// If share version is 1, assert that the signer in the blob
-		// matches the signer in the msgPFB.
-		if blob.ShareVersion() == share.ShareVersionOne {
-			if !bytes.Equal(blob.Signer(), signer) {
-				return ErrInvalidBlobSigner.Wrapf("blob signer %s does not match msgPFB signer %s", sdk.AccAddress(blob.Signer()).String(), msgPFB.Signer)
-			}
-		}
-	}
-
-	// check that the sizes in the blobTx match the sizes in the msgPFB
-	if !slices.Equal(sizes, msgPFB.BlobSizes) {
-		return ErrBlobSizeMismatch.Wrapf("actual %v declared %v", sizes, msgPFB.BlobSizes)
-	}
-
-	for i, ns := range msgPFB.Namespaces {
-		msgPFBNamespace, err := share.NewNamespaceFromBytes(ns)
-		if err != nil {
-			return err
-		}
-
-		if !bytes.Equal(bTx.Blobs[i].Namespace().Bytes(), msgPFBNamespace.Bytes()) {
-			return ErrNamespaceMismatch.Wrapf("%v %v", bTx.Blobs[i].Namespace().Bytes(), msgPFB.Namespaces[i])
-		}
 	}
 
 	// verify that the commitment of the blob matches that of the msgPFB
@@ -114,4 +54,77 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *tx.BlobTx, subtreeRootTh
 	}
 
 	return nil
+}
+
+// ValidateBlobTxSkipCommitment performs the same validation as ValidateBlobTx but skips
+// the expensive commitment generation and verification step. This should only be used
+// when the commitment validation has already been performed (e.g., in CheckTx) and
+// cached for reuse in ProcessProposal.
+func ValidateBlobTxSkipCommitment(txcfg client.TxEncodingConfig, bTx *tx.BlobTx) (*MsgPayForBlobs, error) {
+	if bTx == nil {
+		return nil, ErrNoBlobs
+	}
+
+	sdkTx, err := txcfg.TxDecoder()(bTx.Tx)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: remove this check once support for multiple sdk.Msgs in a BlobTx is
+	// supported.
+	msgs := sdkTx.GetMsgs()
+	if len(msgs) != 1 {
+		return nil, ErrMultipleMsgsInBlobTx
+	}
+	msg := msgs[0]
+	msgPFB, ok := msg.(*MsgPayForBlobs)
+	if !ok {
+		return nil, ErrNoPFB
+	}
+	err = msgPFB.ValidateBasic()
+	if err != nil {
+		return nil, err
+	}
+
+	// perform basic checks on the blobs
+	sizes := make([]uint32, len(bTx.Blobs))
+	for i, pblob := range bTx.Blobs {
+		sizes[i] = uint32(len(pblob.Data()))
+	}
+	err = ValidateBlobs(bTx.Blobs...)
+	if err != nil {
+		return nil, err
+	}
+
+	signer, err := sdk.AccAddressFromBech32(msgPFB.Signer)
+	if err != nil {
+		return nil, err
+	}
+	for _, blob := range bTx.Blobs {
+		// If share version is 1, assert that the signer in the blob
+		// matches the signer in the msgPFB.
+		if blob.ShareVersion() == share.ShareVersionOne {
+			if !bytes.Equal(blob.Signer(), signer) {
+				return nil, ErrInvalidBlobSigner.Wrapf("blob signer %s does not match msgPFB signer %s", sdk.AccAddress(blob.Signer()).String(), msgPFB.Signer)
+			}
+		}
+	}
+
+	// check that the sizes in the blobTx match the sizes in the msgPFB
+	if !slices.Equal(sizes, msgPFB.BlobSizes) {
+		return nil, ErrBlobSizeMismatch.Wrapf("actual %v declared %v", sizes, msgPFB.BlobSizes)
+	}
+
+	for i, ns := range msgPFB.Namespaces {
+		msgPFBNamespace, err := share.NewNamespaceFromBytes(ns)
+		if err != nil {
+			return nil, err
+		}
+
+		if !bytes.Equal(bTx.Blobs[i].Namespace().Bytes(), msgPFBNamespace.Bytes()) {
+			return nil, ErrNamespaceMismatch.Wrapf("%v %v", bTx.Blobs[i].Namespace().Bytes(), msgPFB.Namespaces[i])
+		}
+	}
+
+	return msgPFB, nil
 }

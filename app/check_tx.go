@@ -15,6 +15,9 @@ import (
 // method wraps the default Baseapp's method so that it can parse and check
 // transactions that contain blobs.
 func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
+	app.checkStateMu.Lock()
+	defer app.checkStateMu.Unlock()
+
 	tx := req.Tx
 
 	// all txs must be less than or equal to the max tx size limit
@@ -54,6 +57,8 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		if err != nil {
 			return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 		}
+		// Cache the tx, so ProcessProposal will skip the validation step
+		app.txCache.Set(btx.Tx)
 	case abci.CheckTxType_Recheck:
 	default:
 		panic(fmt.Sprintf("unknown RequestCheckTx type: %s", req.Type))

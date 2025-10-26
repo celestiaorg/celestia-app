@@ -5,6 +5,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"sync"
 	"time"
 
 	"cosmossdk.io/client/v2/autocli"
@@ -191,12 +192,15 @@ type App struct {
 	BasicManager  module.BasicManager
 	ModuleManager *module.Manager
 	configurator  module.Configurator
-	// blockTime is used to override the default TimeoutHeightDelay. This is
-	// useful for testing purposes and should not be used on public networks
-	// (Arabica, Mocha, or Mainnet Beta).
+	// txCache caches blob transaction from CheckTx to be reused in ProcessProposal
+	txCache *TxCache
 	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
 	treePool                *wrapper.TreePool
 	delayedPrecommitTimeout time.Duration
+	// checkStateMu protects concurrent access to BaseApp's checkState (mempool state).
+	// This prevents data races between Commit updating checkState and QuerySequence
+	// reading it via CheckState().
+	checkStateMu *sync.RWMutex
 }
 
 // New returns a reference to an uninitialized app. Callers must subsequently
@@ -232,7 +236,9 @@ func New(
 		keys:                    keys,
 		tkeys:                   tkeys,
 		memKeys:                 memKeys,
+		txCache:                 NewTxCache(),
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
+		checkStateMu:            &sync.RWMutex{},
 	}
 
 	// needed for migration from x/params -> module's ownership of own params
@@ -522,6 +528,23 @@ func (app *App) Info(req *abci.RequestInfo) (*abci.ResponseInfo, error) {
 	}
 
 	res.TimeoutInfo = app.TimeoutInfo()
+
+	return res, nil
+}
+
+// FinalizeBlock implements the abci interface. It overrides baseapp's FinalizeBlock method, essentially becoming a decorator
+// in order to add transaction pruning logic after normal finalize block processing.
+func (app *App) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
+	// Call the normal BaseApp FinalizeBlock first
+	res, err := app.BaseApp.FinalizeBlock(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Go through all the transactions that are getting executed and prune the tx tracker
+	for _, tx := range req.Txs {
+		app.txCache.RemoveTransaction(tx)
+	}
 
 	return res, nil
 }
@@ -836,4 +859,13 @@ func (app *App) TimeoutInfo() abci.TimeoutInfo {
 		TimeoutPrecommitDelta:   appconsts.TimeoutPrecommitDelta,
 		DelayedPrecommitTimeout: app.delayedPrecommitTimeout,
 	}
+}
+
+// Commit overrides BaseApp's Commit to add synchronization with QuerySequence.
+// This prevents data races between commit updating checkState (mempool state) and
+// QuerySequence reading it via CheckState().
+func (app *App) Commit() (*abci.ResponseCommit, error) {
+	app.checkStateMu.Lock()
+	defer app.checkStateMu.Unlock()
+	return app.BaseApp.Commit()
 }

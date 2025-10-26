@@ -139,7 +139,7 @@ Broadcasting steps are universal across SDK transactions and blob transactions.
 
 ### Confirmation
 
-After broadcast, the TxClient continuously polls the chain for transaction status until resolution. This is the tx confrimation life cycle:
+After broadcast, the TxClient continuously polls the chain for transaction status until resolution. This is the tx confirmation life cycle:
 
 - **Pending**: Transaction in the mempool but not yet included, continue polling
 
