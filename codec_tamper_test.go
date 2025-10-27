@@ -2,9 +2,11 @@ package rsema1d
 
 import (
 	"crypto/sha256"
+	"fmt"
 	"testing"
 
 	"github.com/celestiaorg/rsema1d/encoding"
+	"github.com/celestiaorg/rsema1d/merkle"
 )
 
 // TestTamperedExtendedDataBeforeCommitment tests that if extended data is tampered with
@@ -399,6 +401,95 @@ func TestMultipleTamperedRows(t *testing.T) {
 				if err != nil {
 					t.Errorf("Row %d: Proof verification should pass for untampered row, but failed: %v", untamperedIndex, err)
 				}
+			}
+		})
+	}
+}
+
+// TestInvalidRowProofDepth tests that tampering with the proof depth is detected
+func TestInvalidRowProofDepth(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			config := makeTestConfig(tc)
+
+			// Create test data
+			data := makeTestData(config.K, config.RowSize)
+
+			// Perform normal encoding
+			extended, err := encoding.ExtendVertical(data, config.N)
+			if err != nil {
+				t.Fatalf("ExtendVertical failed: %v", err)
+			}
+
+			if err := config.Validate(); err != nil {
+				t.Fatalf("Config validation failed: %v", err)
+			}
+			rowTree := buildPaddedRowTree(extended, config)
+			rowRoot := rowTree.Root()
+
+			coeffs := deriveCoefficients(rowRoot, config)
+			rlcOrig := computeRLCOrig(data, coeffs, config)
+			rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
+			if err != nil {
+				t.Fatalf("ExtendRLCResults failed: %v", err)
+			}
+
+			rlcTree := buildPaddedRLCTree(rlcExtended, config)
+			rlcRoot := rlcTree.Root()
+
+			extData := &ExtendedData{
+				config:  config,
+				rows:    extended,
+				rowRoot: rowRoot,
+				rlcRoot: rlcRoot,
+				rlcOrig: rlcOrig,
+				rowTree: rowTree,
+				rlcTree: rlcTree,
+			}
+
+			// Create verification context
+			ctx, err := CreateVerificationContext(rlcOrig, config)
+			if err != nil {
+				t.Fatalf("CreateVerificationContext failed: %v", err)
+			}
+
+			leafIndex := 1
+
+			validProof, err := extData.GenerateRowProof(leafIndex)
+			if err != nil {
+				t.Fatalf("GenerateRowProof(%d) failed: %v", leafIndex, err)
+			}
+
+			// Create malicious proof with incorrect depth
+			// Try to use a higher-level node (depth n-1) at the same tree index
+			// This simulates an attacker trying to provide an internal node instead of a leaf
+			maliciousProof := &RowProof{
+				Index:    leafIndex,
+				Row:      extended[leafIndex],
+				RowProof: validProof.RowProof[:len(validProof.RowProof)-1], // Remove one level to simulate wrong depth
+			}
+
+			treeIndex := mapIndexToTreePosition(maliciousProof.Index, config)
+			fakeRowRoot, err := merkle.ComputeRootFromProof(maliciousProof.Row, treeIndex, maliciousProof.RowProof)
+			if err != nil {
+				t.Errorf("Failed to compute fake row root: %v", err)
+			}
+			fakeCoeffs := deriveCoefficients(fakeRowRoot, config)
+			fakeRlcCommitment := computeRLC(maliciousProof.Row, fakeCoeffs, config)
+			ctx.rlcRoot = rlcRoot
+
+			ctx.rlcExtended[leafIndex] = fakeRlcCommitment
+
+			h := sha256.New()
+			h.Write(fakeRowRoot[:])
+			h.Write(ctx.rlcRoot[:])
+			fakeCommitment := h.Sum(nil)
+			err = VerifyRowWithContext(maliciousProof, Commitment(fakeCommitment), ctx)
+			if err == nil {
+				t.Errorf("Proof verification should fail for proof with incorrect depth (higher level node), but it passed")
+			} else {
+				t.Logf("Expected failure for malicious proof with wrong depth: %v", err)
+				fmt.Println("err", err)
 			}
 		})
 	}
