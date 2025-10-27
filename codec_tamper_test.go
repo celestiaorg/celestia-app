@@ -2,7 +2,6 @@ package rsema1d
 
 import (
 	"crypto/sha256"
-	"fmt"
 	"testing"
 
 	"github.com/celestiaorg/rsema1d/encoding"
@@ -489,7 +488,6 @@ func TestInvalidRowProofDepth(t *testing.T) {
 				t.Errorf("Proof verification should fail for proof with incorrect depth (higher level node), but it passed")
 			} else {
 				t.Logf("Expected failure for malicious proof with wrong depth: %v", err)
-				fmt.Println("err", err)
 			}
 		})
 	}
