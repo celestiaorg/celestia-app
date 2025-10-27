@@ -87,7 +87,6 @@ func VerifyRowWithContext(proof *RowProof, commitment Commitment, context *Verif
 	h.Write(context.rlcRoot[:])
 	computedCommitment := h.Sum(nil)
 
-	fmt.Println("computedCommitment: ", computedCommitment)
 	if commitment != [32]byte(computedCommitment) {
 		return errors.New("commitment verification failed")
 	}
