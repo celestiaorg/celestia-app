@@ -198,6 +198,9 @@ message Withdrawal {
   cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
   // requested_timestamp is the timestamp when withdrawal was requested
   google.protobuf.Timestamp requested_timestamp = 3 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+  // available_timestamp is the timestamp when withdrawal becomes available for processing
+  // This is calculated as requested_timestamp + withdrawal_delay at creation time
+  google.protobuf.Timestamp available_timestamp = 4 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
 }
 ```
 
@@ -282,59 +285,80 @@ message MsgRequestWithdrawal {
 
 1. Verify signer's escrow account exists
 2. Verify sufficient available balance
-3. Verify no existing withdrawal request at current timestamp (prevents key collision in `withdrawals/{signer}/{requested_timestamp}` index)
-4. Decrease available_balance immediately (balance remains unchanged until withdrawal is processed)
-5. Store withdrawal amount in both indexes with available_at = current_timestamp + withdrawal_delay
-6. Emit EventWithdrawFromEscrowRequest
+3. Verify no existing withdrawal request at current timestamp (prevents key collision in `withdrawals_by_signer/{signer}/{requested_timestamp}` index)
+4. Calculate available_timestamp = requested_timestamp + withdrawal_delay
+5. Create Withdrawal with both requested_timestamp and available_timestamp
+6. Decrease available_balance immediately (balance remains unchanged until withdrawal is processed)
+7. Store withdrawal in both indexes (by signer and by available time)
+8. Emit EventWithdrawFromEscrowRequest
 
 #### Withdrawal Processing
 
-Withdrawals are automatically processed in `BeginBlocker` when `current_time >= withdrawal.available_at`:
+Withdrawals are automatically processed in `BeginBlocker` when `current_time >= withdrawal.available_timestamp`:
 
 ```go
 func processAvailableWithdrawals(ctx sdk.Context, k Keeper) {
     currentTime := ctx.BlockTime()
 
-    // Iterate over available_withdrawals index starting from earliest timestamp
-    iterator := k.GetAvailableWithdrawalsIterator(ctx, currentTime)
+    // Iterate over withdrawals-by-available index starting from earliest timestamp
+    iterator := k.GetWithdrawalsByAvailableIterator(ctx, currentTime)
     defer iterator.Close()
 
     for ; iterator.Valid(); iterator.Next() {
         // Parse key to extract available_at timestamp and signer address
-        available_at, signer := k.ParseAvailableWithdrawalKey(iterator.Key())
+        availableAt, signer, err := k.ParseWithdrawalsByAvailableKey(iterator.Key())
+        if err != nil {
+            // Log error but continue processing other withdrawals
+            k.Logger(ctx).Error("failed to parse withdrawals-by-available key", "error", err)
+            continue
+        }
 
         // Stop if we've reached withdrawals not yet available
-        if available_at.After(currentTime) {
+        if availableAt.After(currentTime) {
             break
         }
 
-        // Get withdrawal amount from value
-        var amount cosmos.base.v1beta1.Coin
-        k.cdc.Unmarshal(iterator.Value(), &amount)
+        // Get full withdrawal from value
+        var withdrawal types.Withdrawal
+        k.cdc.MustUnmarshal(iterator.Value(), &withdrawal)
+        amount := withdrawal.Amount
 
-        // Process withdrawal: transfer from module to user account
-        err := k.bankKeeper.SendCoinsFromModuleToAccount(
-            ctx, types.ModuleName, signer, amount)
+        // Convert signer string to AccAddress
+        signerAddr, err := sdk.AccAddressFromBech32(signer)
         if err != nil {
             // Log error but continue processing other withdrawals
-            ctx.Logger().Error("failed to process withdrawal", "error", err, "signer", signer)
+            k.Logger(ctx).Error("failed to parse signer address", "error", err, "signer", signer)
+            continue
+        }
+
+        // Process withdrawal: transfer from module to user account
+        err = k.bankKeeper.SendCoinsFromModuleToAccount(
+            ctx, types.ModuleName, signerAddr, sdk.NewCoins(amount))
+        if err != nil {
+            // Log error but continue processing other withdrawals
+            k.Logger(ctx).Error("failed to process withdrawal", "error", err, "signer", signer)
             continue
         }
 
         // Update escrow account balance (decrease total balance)
-        escrow := k.GetEscrowAccount(ctx, signer)
-        escrow.balance = escrow.balance.Sub(amount)
-        k.SetEscrowAccount(ctx, escrow)
+        escrowAccount, found := k.GetEscrowAccount(ctx, signer)
+        if !found {
+            // This shouldn't happen, but log and continue
+            k.Logger(ctx).Error("escrow account not found during withdrawal processing", "signer", signer)
+            continue
+        }
+        escrowAccount.Balance = escrowAccount.Balance.Sub(amount)
+        k.SetEscrowAccount(ctx, escrowAccount)
 
-        // Remove from both withdrawal indexes
-        requested_at := available_at.Add(-k.GetWithdrawalDelay(ctx))
-        k.DeleteAvailableWithdrawal(ctx, available_at, signer)
+        // Remove from both withdrawal indexes using withdrawal.AvailableTimestamp
+        k.DeleteWithdrawal(ctx, withdrawal)
 
         // Emit event
-        ctx.EventManager().EmitEvent(EventWithdrawFromEscrowExecuted{
-            signer:    signer,
-            amount:    amount,
-        })
+        event := types.NewEventWithdrawFromEscrowExecuted(signer, amount)
+        if err := ctx.EventManager().EmitTypedEvent(event); err != nil {
+            // Log error but continue - event emission failure shouldn't stop processing
+            k.Logger(ctx).Error("failed to emit withdrawal executed event", "error", err, "signer", signer)
+        }
     }
 }
 ```
@@ -741,16 +765,18 @@ celestia-appd query fibre is-payment-processed <payment_promise_hash>
 
 ## Indexing
 
-// TODO: These indexing cases may not be correct and likely need to be updated after the implementation is complete.
-
 **Escrow Accounts:**
 
-- Primary Index: `escrows/{signer}` → `EscrowAccount`
+- Primary Index: `escrow_accounts/{signer}` → `EscrowAccount`
 
 **Withdrawals:**
 
-- By signer: `withdrawals/{signer}/{requested_timestamp}` → `Withdrawal`
-- By availability: `available_withdrawals/{available_at}/{signer}` → `cosmos.base.v1beta1.Coin` (amount only, for efficient processing)
+Withdrawals use a dual-index pattern for efficient querying:
+
+- By signer: `withdrawals_by_signer/{signer}/{requested_timestamp}` → `Withdrawal` (complete struct)
+- By availability: `withdrawals_by_available/{available_timestamp}/{signer}` → `Withdrawal` (complete struct)
+
+Both indexes store the full `Withdrawal` struct. The `available_timestamp` field in the struct is set at creation time and never changes, even if the `WithdrawalDelay` parameter changes via governance. This ensures correct deletion from both indexes.
 
 **Payment Promises:**
 
