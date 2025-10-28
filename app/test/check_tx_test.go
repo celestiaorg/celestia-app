@@ -26,6 +26,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -275,6 +276,44 @@ func TestCheckTx(t *testing.T) {
 			assert.Equal(t, tt.expectedABCICode, resp.Code, resp.Log)
 		})
 	}
+}
+
+func TestCheckTxReturnsSignerData(t *testing.T) {
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{2}, share.NamespaceVersionZeroIDSize))
+	require.NoError(t, err)
+
+	accounts := []string{"signer"}
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+
+	accountInfo := testutil.DirectQueryAccount(testApp, testfactory.GetAddress(kr, accounts[0]))
+	signer := createSigner(t, kr, accounts[0], encodingConfig.TxConfig, accountInfo.GetAccountNumber())
+
+	blobTx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
+		signer,
+		[]share.Namespace{namespace},
+		[]int{100},
+	)[0]
+
+	resp, err := testApp.CheckTx(&abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: blobTx})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, resp.Code)
+
+	signerAddr := signer.Account(accounts[0]).Address()
+	require.Equal(t, signerAddr.Bytes(), resp.Address)
+	require.Equal(t, uint64(0), resp.Sequence)
+
+	require.NoError(t, signer.IncrementSequence(accounts[0]))
+
+	msg := banktypes.NewMsgSend(signerAddr, signerAddr, sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)))
+	sendTx, _, err := signer.CreateTx([]sdk.Msg{msg})
+	require.NoError(t, err)
+
+	resp, err = testApp.CheckTx(&abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: sendTx})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, resp.Code)
+	require.Equal(t, signerAddr.Bytes(), resp.Address)
+	require.Equal(t, uint64(1), resp.Sequence)
 }
 
 func createSigner(t *testing.T, kr keyring.Keyring, accountName string, enc client.TxConfig, accNum uint64) *user.Signer {
