@@ -28,7 +28,7 @@ This release introduces a new message type that needs to be signed by KMS. **If 
 
 For horcrux, use [v3.3.3-celestia](https://github.com/celestiaorg/horcrux/releases/tag/v3.3.3-celestia). All the setups and configs remain the same.
 
-**Disclaimer:** We maintain a fork of Horcrux that enables node operators to support v6. However, due to limited ongoing maintenance and the associated double-signing risks observed in previous incidents, the use of Horcrux comes with operational risk. For improved security and reliability, we recommend using (TmKMS)[https://github.com/celestiaorg/tmkms/releases/tag/v0.14.0-celestia] or the local file signer instead. **Validators choosing to run Horcrux do so at their own risk.**
+**Disclaimer:** We maintain a fork of Horcrux that enables node operators to support v6. However, due to limited ongoing maintenance and the associated double-signing risks observed in previous incidents, the use of Horcrux comes with operational risk. For improved security and reliability, we recommend using [TmKMS](https://github.com/celestiaorg/tmkms/releases/tag/v0.14.0-celestia) or the local file signer instead. **Validators choosing to run Horcrux do so at their own risk.**
 
 #### TmKMS
 
