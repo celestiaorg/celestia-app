@@ -25,8 +25,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
+	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -269,51 +269,38 @@ func TestCheckTx(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err = testApp.CheckTx(&abci.RequestCheckTx{Type: tt.checkType, Tx: tt.getTx()})
+			txBz := tt.getTx()
+			resp, err = testApp.CheckTx(&abci.RequestCheckTx{Type: tt.checkType, Tx: txBz})
 			if resp.Code == 0 {
 				require.NoError(t, err)
 			}
 			assert.Equal(t, tt.expectedABCICode, resp.Code, resp.Log)
+
+			if resp.Code != abci.CodeTypeOK {
+				return
+			}
+
+			baseTxBz := txBz
+			decodedBlobTx, isBlob, err := tx.UnmarshalBlobTx(txBz)
+			require.NoError(t, err)
+			if isBlob {
+				baseTxBz = decodedBlobTx.Tx
+			}
+
+			sdkTx, err := encodingConfig.TxConfig.TxDecoder()(baseTxBz)
+			require.NoError(t, err)
+
+			sigTx, ok := sdkTx.(authsigning.SigVerifiableTx)
+			require.True(t, ok, "tx must implement SigVerifiableTx")
+
+			sigs, err := sigTx.GetSignaturesV2()
+			require.NoError(t, err)
+			require.NotEmpty(t, sigs)
+
+			require.Equal(t, sigs[0].PubKey.Address().Bytes(), resp.Address)
+			require.Equal(t, sigs[0].Sequence, resp.Sequence)
 		})
 	}
-}
-
-func TestCheckTxReturnsSignerData(t *testing.T) {
-	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{2}, share.NamespaceVersionZeroIDSize))
-	require.NoError(t, err)
-
-	accounts := []string{"signer"}
-	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
-
-	accountInfo := testutil.DirectQueryAccount(testApp, testfactory.GetAddress(kr, accounts[0]))
-	signer := createSigner(t, kr, accounts[0], encodingConfig.TxConfig, accountInfo.GetAccountNumber())
-
-	blobTx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
-		signer,
-		[]share.Namespace{namespace},
-		[]int{100},
-	)[0]
-
-	resp, err := testApp.CheckTx(&abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: blobTx})
-	require.NoError(t, err)
-	require.Equal(t, abci.CodeTypeOK, resp.Code)
-
-	signerAddr := signer.Account(accounts[0]).Address()
-	require.Equal(t, signerAddr.Bytes(), resp.Address)
-	require.Equal(t, uint64(0), resp.Sequence)
-
-	require.NoError(t, signer.IncrementSequence(accounts[0]))
-
-	msg := banktypes.NewMsgSend(signerAddr, signerAddr, sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)))
-	sendTx, _, err := signer.CreateTx([]sdk.Msg{msg})
-	require.NoError(t, err)
-
-	resp, err = testApp.CheckTx(&abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: sendTx})
-	require.NoError(t, err)
-	require.Equal(t, abci.CodeTypeOK, resp.Code)
-	require.Equal(t, signerAddr.Bytes(), resp.Address)
-	require.Equal(t, uint64(1), resp.Sequence)
 }
 
 func createSigner(t *testing.T, kr keyring.Keyring, accountName string, enc client.TxConfig, accNum uint64) *user.Signer {
