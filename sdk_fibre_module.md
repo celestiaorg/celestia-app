@@ -466,57 +466,13 @@ payment_promise_hash = SHA256(sign_bytes || signature)
 - `sign_bytes`: Raw sign bytes (variable length)
 - `signature`: Raw signature bytes (64 bytes)
 
-#### Payment Promise Pruning
+#### Processed Payments Pruning
 
-Processed payment promises are automatically pruned in `BeginBlocker` when `current_time >= processed_at + payment_promise_retention_window` to prevent unbounded state growth:
-
-```go
-func pruneProcessedPayments(ctx sdk.Context, k Keeper) error {
-    currentTime := ctx.BlockTime()
-    params := k.GetParams(ctx)
-
-    // Calculate the cutoff time: anything processed before this should be pruned
-    cutoffTime := currentTime.Add(-params.PaymentPromiseRetentionWindow)
-
-    // Iterate over processed payments by time, starting from earliest
-    iterator := k.GetProcessedPaymentsByTimeIterator(ctx, cutoffTime)
-    defer iterator.Close()
-
-    for ; iterator.Valid(); iterator.Next() {
-        // Parse key to extract processed_at timestamp and payment promise hash
-        processedAt, paymentPromiseHash, err := k.ParseProcessedPaymentsByTimeKey(iterator.Key())
-        if err != nil {
-            // Log error but continue processing other payments
-            k.Logger(ctx).Error("failed to parse processed-payments-by-time key", "error", err)
-            continue
-        }
-
-        // Stop if we've reached payments within the retention window
-        if processedAt.After(cutoffTime) {
-            break
-        }
-
-        // Get full processed payment from value
-        var processedPayment types.ProcessedPayment
-        k.cdc.MustUnmarshal(iterator.Value(), &processedPayment)
-
-        // Delete the processed payment from both indexes
-        k.DeleteProcessedPayment(ctx, processedPayment)
-
-        // Emit event for pruned payment
-        event := types.NewEventProcessedPaymentPruned(paymentPromiseHash, processedAt)
-        if err := ctx.EventManager().EmitTypedEvent(event); err != nil {
-            // Log error but continue - event emission failure shouldn't stop processing
-            k.Logger(ctx).Error("failed to emit processed payment pruned event", "error", err, "hash", paymentPromiseHash)
-        }
-    }
-
-    return nil
-}
-```
+Processed payments are automatically pruned in `BeginBlocker` when `current_time >= processed_at + payment_promise_retention_window` to prevent unbounded state growth:
 
 The pruning mechanism ensures that:
-- Old processed payments are removed to prevent unbounded state growth
+
+- Processed payments outside the retention window are removed to prevent unbounded state growth
 - Both indexes (by hash and by time) are deleted atomically
 - An event is emitted for each pruned payment for observability
 - Errors in parsing or deleting individual entries don't stop the entire pruning process
