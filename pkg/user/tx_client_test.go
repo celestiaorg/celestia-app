@@ -362,7 +362,6 @@ func TestEvictions(t *testing.T) {
 		txInfo, err := grpcTxClient.TxStatus(ctx.GoContext(), &tx.TxStatusRequest{TxId: resp.TxHash})
 		require.NoError(t, err)
 		if txInfo.Status == core.TxStatusEvicted {
-			fmt.Println("FOUND EVICTED TX------------")
 			evictedTxHashes = append(evictedTxHashes, resp.TxHash)
 		}
 
