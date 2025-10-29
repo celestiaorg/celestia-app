@@ -555,7 +555,7 @@ message MsgPaymentPromiseTimeout {
 The fibre module requires automatic processing in `BeginBlocker` to handle time-based state transitions that cannot rely on user-submitted transactions. Two key operations must occur automatically:
 
 1. **Withdrawal Processing**: Transfer funds from escrow to user accounts when withdrawal delay expires (see [Withdrawal Processing](#withdrawal-processing))
-2. **Promise Pruning**: Remove old processed promises to prevent unbounded state growth (see [Payment Promise Pruning](#payment-promise-pruning))
+2. **Processed Payment Pruning**: Remove old processed payments to prevent unbounded state growth (see [Processed Payments Pruning](#processed-payments-pruning))
 
 ### BeginBlocker Implementation
 
@@ -677,7 +677,7 @@ message QueryWithdrawalsResponse {
 
 ### IsPaymentProcessed
 
-Queries whether a [PaymentPromise](#payment-promises) has been processed.
+Queries whether a payment has been processed.
 
 **Request**:
 
@@ -801,6 +801,7 @@ Processed payments use a dual-index pattern for efficient replay protection and 
 - By time: `processed_payments_by_time/{processed_at}/{payment_promise_hash}` → `ProcessedPayment` (complete struct, for time-ordered pruning)
 
 Both indexes store the full `ProcessedPayment` struct. This dual-index design enables:
+
 1. Fast O(1) lookup by hash to prevent double-processing of payment promises
 2. Efficient time-ordered iteration for automatic pruning in `BeginBlocker`
 3. Atomic deletion from both indexes when pruning occurs
