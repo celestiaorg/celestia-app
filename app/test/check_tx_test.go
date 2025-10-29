@@ -282,9 +282,14 @@ func TestCheckTx(t *testing.T) {
 
 			baseTxBz := txBz
 			decodedBlobTx, isBlob, err := tx.UnmarshalBlobTx(txBz)
-			require.NoError(t, err)
 			if isBlob {
+				require.NoError(t, err)
+				require.NotNil(t, decodedBlobTx)
 				baseTxBz = decodedBlobTx.Tx
+			} else {
+				// Non-blob transactions can surface decoding errors (e.g. invalid UTF-8 inside signatures)
+				// which we can safely ignore since we only need the raw tx bytes for non-blob txs.
+				baseTxBz = txBz
 			}
 
 			sdkTx, err := encodingConfig.TxConfig.TxDecoder()(baseTxBz)
