@@ -204,9 +204,25 @@ message Withdrawal {
 }
 ```
 
-### Payment Promises
+### Processed Payments
 
-To prevent double payment, the module tracks which payment promises have been processed. Only the processing timestamp is stored, indexed by the promise hash.
+To prevent double payment, the module tracks which payment promises have been processed. Each processed payment stores the payment promise hash and the timestamp when it was processed.
+
+```proto
+// ProcessedPayment represents a PaymentPromise that has been processed and
+// stored in genesis state. ProcessedPayment intentionally omits many fields
+// from the original PaymentPromise to avoid bloating the state. This exists for
+// replay protection.
+message ProcessedPayment {
+  bytes payment_promise_hash = 1;
+  google.protobuf.Timestamp processed_at = 2 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+}
+```
+
+Processed payments use a dual-index pattern for efficient querying and pruning:
+
+- **By hash**: `processed_payments_by_hash/{payment_promise_hash}` → `ProcessedPayment` (for replay protection)
+- **By time**: `processed_payments_by_time/{processed_at}/{payment_promise_hash}` → `ProcessedPayment` (for time-ordered pruning)
 
 ## Messages
 
@@ -452,32 +468,58 @@ payment_promise_hash = SHA256(sign_bytes || signature)
 
 #### Payment Promise Pruning
 
-Payment promises are automatically pruned in `BeginBlocker` when `current_time >= processed_at + payment_promise_retention_window` to prevent unbounded state growth:
+Processed payment promises are automatically pruned in `BeginBlocker` when `current_time >= processed_at + payment_promise_retention_window` to prevent unbounded state growth:
 
 ```go
-func pruneProcessedPromises(ctx sdk.Context, k Keeper) {
+func pruneProcessedPayments(ctx sdk.Context, k Keeper) error {
     currentTime := ctx.BlockTime()
-    pruneThreshold := currentTime.Add(-k.GetPaymentPromiseRetentionWindow(ctx))
+    params := k.GetParams(ctx)
 
-    // Iterate over pruning index starting from earliest timestamp
-    iterator := k.GetPruningIterator(ctx, pruneThreshold)
+    // Calculate the cutoff time: anything processed before this should be pruned
+    cutoffTime := currentTime.Add(-params.PaymentPromiseRetentionWindow)
+
+    // Iterate over processed payments by time, starting from earliest
+    iterator := k.GetProcessedPaymentsByTimeIterator(ctx, cutoffTime)
     defer iterator.Close()
 
     for ; iterator.Valid(); iterator.Next() {
-        // Extract processed_at timestamp and promise_hash from key
-        processed_at, payment_promise_hash := k.ParsePruningKey(iterator.Key())
+        // Parse key to extract processed_at timestamp and payment promise hash
+        processedAt, paymentPromiseHash, err := k.ParseProcessedPaymentsByTimeKey(iterator.Key())
+        if err != nil {
+            // Log error but continue processing other payments
+            k.Logger(ctx).Error("failed to parse processed-payments-by-time key", "error", err)
+            continue
+        }
 
-        // Stop if we've reached promises not yet eligible for pruning
-        if processed_at.After(pruneThreshold) {
+        // Stop if we've reached payments within the retention window
+        if processedAt.After(cutoffTime) {
             break
         }
 
-        // Remove from both indexes atomically
-        k.DeleteProcessedPromise(ctx, payment_promise_hash)
-        k.DeletePruningEntry(ctx, processed_at, payment_promise_hash)
+        // Get full processed payment from value
+        var processedPayment types.ProcessedPayment
+        k.cdc.MustUnmarshal(iterator.Value(), &processedPayment)
+
+        // Delete the processed payment from both indexes
+        k.DeleteProcessedPayment(ctx, processedPayment)
+
+        // Emit event for pruned payment
+        event := types.NewEventProcessedPaymentPruned(paymentPromiseHash, processedAt)
+        if err := ctx.EventManager().EmitTypedEvent(event); err != nil {
+            // Log error but continue - event emission failure shouldn't stop processing
+            k.Logger(ctx).Error("failed to emit processed payment pruned event", "error", err, "hash", paymentPromiseHash)
+        }
     }
+
+    return nil
 }
 ```
+
+The pruning mechanism ensures that:
+- Old processed payments are removed to prevent unbounded state growth
+- Both indexes (by hash and by time) are deleted atomically
+- An event is emitted for each pruned payment for observability
+- Errors in parsing or deleting individual entries don't stop the entire pruning process
 
 ### MsgPayForFibre
 
@@ -510,7 +552,9 @@ Stateful Processing:
    - Signatures must represent 2/3+ of total voting power AND 2/3+ of validator count
    - Each signature is verified using the validator's ed25519 public key from the validator set
 3. Calculate gas cost (see [Gas Consumption](#gas-consumption) section) and deduct from both escrow balance and available_balance
-4. Mark promise as processed (stores `processed_at` timestamp and creates pruning index entry)
+4. Mark promise as processed by storing `ProcessedPayment` with `processed_at` timestamp in both indexes:
+   - `processed_payments_by_hash/{payment_promise_hash}` for replay protection
+   - `processed_payments_by_time/{processed_at}/{payment_promise_hash}` for time-ordered pruning
 5. Include commitment in data square
 6. Emit EventPayForFibre
 
@@ -544,7 +588,9 @@ message MsgPaymentPromiseTimeout {
 1. Validate PaymentPromise
 2. Verify `promise.creation_timestamp + payment_promise_timeout <= header_timestamp` (timeout has passed)
 3. Calculate gas cost (see [Gas Consumption](#gas-consumption) section) and deduct from both escrow balance and available_balance
-4. Mark promise as processed (stores `processed_at` timestamp and creates pruning index entry)
+4. Mark promise as processed by storing `ProcessedPayment` with `processed_at` timestamp in both indexes:
+   - `processed_payments_by_hash/{payment_promise_hash}` for replay protection
+   - `processed_payments_by_time/{processed_at}/{payment_promise_hash}` for time-ordered pruning
 5. DO NOT include commitment in data square (since no validator consensus was reached)
 6. Emit EventPaymentPromiseTimeout
 
@@ -558,12 +604,18 @@ The fibre module requires automatic processing in `BeginBlocker` to handle time-
 ### BeginBlocker Implementation
 
 ```go
-func BeginBlocker(ctx sdk.Context, k Keeper) {
+func BeginBlocker(ctx sdk.Context, k Keeper) error {
     // Process available withdrawals first (affects escrow balances)
-    processAvailableWithdrawals(ctx, k)
+    if err := k.processAvailableWithdrawals(ctx); err != nil {
+        return err
+    }
 
-    // Prune old processed promises (cleanup operation)
-    pruneProcessedPromises(ctx, k)
+    // Prune payment promises that are outside the retention window
+    if err := k.pruneProcessedPayments(ctx); err != nil {
+        return err
+    }
+
+    return nil
 }
 ```
 
@@ -614,6 +666,13 @@ func BeginBlocker(ctx sdk.Context, k Keeper) {
 |---------------|---------------------------------|
 | signer        | {bech32 encoded authority address} |
 | params        | {updated fibre module parameters} |
+
+### `EventProcessedPaymentPruned`
+
+| Attribute Key        | Attribute Value                                   |
+|----------------------|---------------------------------------------------|
+| payment_promise_hash | {hash of the PaymentPromise that was pruned}      |
+| processed_at         | {timestamp when the payment was originally processed} |
 
 ## Queries
 
@@ -778,7 +837,14 @@ Withdrawals use a dual-index pattern for efficient querying:
 
 Both indexes store the full `Withdrawal` struct. The `available_timestamp` field in the struct is set at creation time and never changes, even if the `WithdrawalDelay` parameter changes via governance. This ensures correct deletion from both indexes.
 
-**Payment Promises:**
+**Processed Payments:**
 
-- Processed promises: `processed/{payment_promise_hash}` → `google.protobuf.Timestamp` (processed_at)
-- Pruning index: `pruning/{processed_at}/{payment_promise_hash}` → `∅` (empty value, used for time-ordered iteration)
+Processed payments use a dual-index pattern for efficient replay protection and time-ordered pruning:
+
+- By hash: `processed_payments_by_hash/{payment_promise_hash}` → `ProcessedPayment` (complete struct, for replay protection)
+- By time: `processed_payments_by_time/{processed_at}/{payment_promise_hash}` → `ProcessedPayment` (complete struct, for time-ordered pruning)
+
+Both indexes store the full `ProcessedPayment` struct. This dual-index design enables:
+1. Fast O(1) lookup by hash to prevent double-processing of payment promises
+2. Efficient time-ordered iteration for automatic pruning in `BeginBlocker`
+3. Atomic deletion from both indexes when pruning occurs
