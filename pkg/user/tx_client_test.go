@@ -383,7 +383,6 @@ func TestEvictions(t *testing.T) {
 		require.False(t, exists)
 	}
 
-	fmt.Println("checking ")
 	// At least 4 txs should have been evicted and resubmitted
 	require.GreaterOrEqual(t, len(evictedTxHashes), 4)
 
