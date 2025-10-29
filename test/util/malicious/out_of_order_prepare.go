@@ -54,7 +54,7 @@ func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci
 		panic(err)
 	}
 
-	txs := fsb.Fill(sdkCtx, req.Txs)
+	txs := fsb.Fill(sdkCtx, req.Txs, req.MaxTxBytes)
 
 	// build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block
