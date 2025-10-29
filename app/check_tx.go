@@ -62,7 +62,7 @@ func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) 
 		// Cache the tx, so ProcessProposal will skip the validation step
 		app.txCache.Set(btx.Tx)
 	case abci.CheckTxType_Recheck:
-		// nothing to do
+		// no need to re-validate a blob
 	default:
 		panic(fmt.Sprintf("unknown RequestCheckTx type: %s", req.Type))
 	}
