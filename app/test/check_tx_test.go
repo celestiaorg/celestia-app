@@ -280,7 +280,7 @@ func TestCheckTx(t *testing.T) {
 				return
 			}
 
-			baseTxBz := txBz
+			var baseTxBz []byte
 			decodedBlobTx, isBlob, err := tx.UnmarshalBlobTx(txBz)
 			if isBlob {
 				require.NoError(t, err)
