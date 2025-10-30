@@ -19,9 +19,11 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
 	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v6/test/util/random"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -295,7 +297,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 
 func TestRejections(t *testing.T) {
 	ttlNumBlocks := int64(5)
-	_, txClient, ctx := setupTxClient(t, ttlNumBlocks, appconsts.DefaultMaxBytes)
+	_, txClient, ctx := setupTxClient(t, ttlNumBlocks, appconsts.DefaultGovMaxSquareSize, appconsts.DefaultMaxBytes)
 
 	fee := user.SetFee(1e6)
 	gas := user.SetGasLimit(1e6)
@@ -335,9 +337,8 @@ func TestEvictions(t *testing.T) {
 		t.Skip("skipping evictions test in short mode")
 	}
 
-	ttlNumBlocks := int64(1)
-	blocksize := int64(1048576) // 1 MiB
-	_, txClient, ctx := setupTxClient(t, ttlNumBlocks, blocksize)
+	blocksize := int64(1024 * 1024 * 2) // 2 MiB
+	_, txClient, ctx := setupTxClient(t, 1, 64, blocksize)
 	grpcTxClient := tx.NewTxClient(ctx.GRPCClient)
 
 	fee := user.SetFee(1e6)
@@ -569,23 +570,30 @@ func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash, expected
 func setupTxClient(
 	t *testing.T,
 	ttlNumBlocks int64,
+	squareSize uint64,
 	blocksize int64,
 	opts ...user.Option,
 ) (encoding.Config, *user.TxClient, testnode.Context) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	defaultTmConfig := testnode.DefaultTendermintConfig()
 	defaultTmConfig.Mempool.TTLNumBlocks = ttlNumBlocks
 	accounts := testfactory.GenerateAccounts(3)
 
+	defaultBlobParams := blobtypes.DefaultParams()
+	defaultBlobParams.GovMaxSquareSize = squareSize
+
 	testnodeConfig := testnode.DefaultConfig().
 		WithTendermintConfig(defaultTmConfig).
 		WithFundedAccounts(accounts...).
-		WithDelayedPrecommitTimeout(300 * time.Millisecond)
+		WithDelayedPrecommitTimeout(300 * time.Millisecond).
+		WithModifiers(genesis.SetBlobParams(enc.Codec, defaultBlobParams))
+		// WithSuppressLogs(false)
+
 	testnodeConfig.Genesis.ConsensusParams.Block.MaxBytes = blocksize
 
 	ctx, _, _ := testnode.NewNetwork(t, testnodeConfig)
 	_, err := ctx.WaitForHeight(1)
 	require.NoError(t, err)
-	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, enc, opts...)
 	require.NoError(t, err)
@@ -594,7 +602,7 @@ func setupTxClient(
 }
 
 func setupTxClientWithDefaultParams(t *testing.T, opts ...user.Option) (encoding.Config, *user.TxClient, testnode.Context) {
-	return setupTxClient(t, 0, 8388608, opts...) // no ttl and 8MiB block size
+	return setupTxClient(t, 0, 128, 8388608, opts...) // no ttl and 8MiB block size
 }
 
 type mockEstimatorServer struct {
