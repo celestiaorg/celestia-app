@@ -48,7 +48,7 @@ const (
 	DefaultWorkerBalance = 1
 	// evictionPollTimeOut is the timeout for checking if an evicted transaction
 	// gets committed after experiencing a broadcast error during resubmission
-	evictionPollTimeOut = 1 * time.Minute
+	evictionPollTimeOut = 3 * time.Minute
 )
 
 var (

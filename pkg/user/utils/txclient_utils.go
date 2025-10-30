@@ -8,8 +8,10 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/stretchr/testify/require"
@@ -18,23 +20,30 @@ import (
 func SetupTxClient(
 	t *testing.T,
 	ttlNumBlocks int64,
+	squareSize uint64,
 	blocksize int64,
 	opts ...user.Option,
 ) (encoding.Config, *user.TxClient, testnode.Context) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	defaultTmConfig := testnode.DefaultTendermintConfig()
 	defaultTmConfig.Mempool.TTLNumBlocks = ttlNumBlocks
 	accounts := testfactory.GenerateAccounts(3)
 
+	defaultBlobParams := blobtypes.DefaultParams()
+	defaultBlobParams.GovMaxSquareSize = squareSize
+
 	testnodeConfig := testnode.DefaultConfig().
 		WithTendermintConfig(defaultTmConfig).
 		WithFundedAccounts(accounts...).
-		WithDelayedPrecommitTimeout(300 * time.Millisecond)
+		WithDelayedPrecommitTimeout(300 * time.Millisecond).
+		WithModifiers(genesis.SetBlobParams(enc.Codec, defaultBlobParams))
+		// WithSuppressLogs(false)
+
 	testnodeConfig.Genesis.ConsensusParams.Block.MaxBytes = blocksize
 
 	ctx, _, _ := testnode.NewNetwork(t, testnodeConfig)
 	_, err := ctx.WaitForHeight(1)
 	require.NoError(t, err)
-	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, enc, opts...)
 	require.NoError(t, err)
@@ -43,7 +52,7 @@ func SetupTxClient(
 }
 
 func SetupTxClientWithDefaultParams(t *testing.T, opts ...user.Option) (encoding.Config, *user.TxClient, testnode.Context) {
-	return SetupTxClient(t, 0, 8388608, opts...) // no ttl and 8MiB block size
+	return SetupTxClient(t, 0, 128, 8388608, opts...) // no ttl and 8MiB block size
 }
 
 func VerifyTxResponse(

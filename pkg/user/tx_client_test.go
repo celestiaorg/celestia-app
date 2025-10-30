@@ -311,7 +311,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 
 func TestRejections(t *testing.T) {
 	ttlNumBlocks := int64(5)
-	_, txClient, ctx := utils.SetupTxClient(t, ttlNumBlocks, appconsts.DefaultMaxBytes)
+	_, txClient, ctx := utils.SetupTxClient(t, ttlNumBlocks, appconsts.DefaultGovMaxSquareSize, appconsts.DefaultMaxBytes)
 
 	fee := user.SetFee(1e6)
 	gas := user.SetGasLimit(1e6)
@@ -351,9 +351,8 @@ func TestEvictions(t *testing.T) {
 		t.Skip("skipping evictions test in short mode")
 	}
 
-	ttlNumBlocks := int64(1)
-	blocksize := int64(1048576) // 1 MiB
-	_, txClient, ctx := utils.SetupTxClient(t, ttlNumBlocks, blocksize)
+	blocksize := int64(1024 * 1024 * 2) // 2 MiB
+	_, txClient, ctx := utils.SetupTxClient(t, 1, 64, blocksize)
 	grpcTxClient := tx.NewTxClient(ctx.GRPCClient)
 
 	fee := user.SetFee(1e6)

@@ -206,6 +206,8 @@ func applyV6Config(cmtCfg *config.Config, appCfg *serverconfig.Config) (*config.
 	cmtCfg.P2P.SendRate = defaultCfg.P2P.SendRate
 	cmtCfg.P2P.RecvRate = defaultCfg.P2P.RecvRate
 
+	cmtCfg.Consensus.EnableLegacyBlockProp = true
+
 	defaultAppCfg := app.DefaultAppConfig()
 
 	// only unset the min gas price if it's the legacy default (i.e. untouched)

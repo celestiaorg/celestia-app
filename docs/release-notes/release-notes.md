@@ -64,6 +64,9 @@ max_tx_bytes = 8388608
 ttl-duration = "0s"
 ttl-num-blocks = 12
 max-gossip-delay = "1m0s"
+
+[consensus]
+enable_legacy_block_prop = true
 ```
 
 ## v5.0.0
