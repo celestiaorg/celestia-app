@@ -76,14 +76,14 @@ func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) 
 }
 
 func (app *App) forwardCheckTx(req *abci.RequestCheckTx, sdkTx sdk.Tx) (*abci.ResponseCheckTx, error) {
-	signerAddr, signerSeq, err := signerDataFromTx(sdkTx)
-	if err != nil {
-		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
-	}
-
 	res, err := app.BaseApp.CheckTx(req)
 	if err != nil {
 		return res, err
+	}
+
+	signerAddr, signerSeq, err := signerDataFromTx(sdkTx)
+	if err != nil {
+		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 	}
 
 	res.Address = signerAddr
