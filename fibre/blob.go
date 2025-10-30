@@ -69,7 +69,7 @@ type Blob struct {
 
 	extendedData *rsema1d.ExtendedData
 	commitment   Commitment
-	rlcOrig      []field.GF128
+	rlcCoeffs    []field.GF128
 
 	// holds meta fields about the blob
 	header blobHeaderV0
@@ -95,7 +95,7 @@ func NewBlob(data []byte, cfg BlobConfig) (d *Blob, err error) {
 	}
 
 	rows := d.header.encodeToRows(data, cfg)
-	d.extendedData, d.commitment, d.rlcOrig, err = rsema1d.Encode(rows, &rsema1d.Config{
+	d.extendedData, d.commitment, d.rlcCoeffs, err = rsema1d.Encode(rows, &rsema1d.Config{
 		K:           cfg.OriginalRows,
 		N:           cfg.ParityRows,
 		RowSize:     len(rows[0]),
@@ -113,9 +113,9 @@ func (d *Blob) Commitment() Commitment {
 	return d.commitment
 }
 
-// RLCOrig returns the original RLC coefficients.
-func (d *Blob) RLCOrig() []field.GF128 {
-	return d.rlcOrig
+// RLCCoeffs returns RLC coefficients of the original data.
+func (d *Blob) RLCCoeffs() []field.GF128 {
+	return d.rlcCoeffs
 }
 
 // RowSize returns the size of each row in bytes.

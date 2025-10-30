@@ -77,7 +77,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 		return result, fmt.Errorf("preparing bytes to sign: %w", err)
 	}
 
-	requests := makeUploadRequests(shardMap, promise.ToProto(), blob.RLCOrig())
+	requests := makeUploadRequests(shardMap, promise.ToProto(), blob.RLCCoeffs())
 	sigSet := valSet.NewSignatureSet(c.cfg.UploadTargetVotingPower, c.cfg.UploadTargetSignaturesCount, signBytes)
 
 	c.log.DebugContext(ctx, "initiating blob upload",
@@ -181,7 +181,7 @@ func (c *Client) uploadToValidator(
 	ctx, span := c.tracer.Start(ctx, "fibre.upload_to_validator",
 		trace.WithAttributes(
 			attribute.String("validator_address", val.Address.String()),
-			attribute.Int("row_count", len(req.Rows)),
+			attribute.Int("row_count", len(req.Rows.Rows)),
 		),
 	)
 	defer span.End()
@@ -197,7 +197,7 @@ func (c *Client) uploadToValidator(
 	span.AddEvent("client_acquired")
 
 	// get proofs and rows here in per request routine which is in parallel which ~39% faster for max blob size
-	for i, rowPb := range req.Rows {
+	for i, rowPb := range req.Rows.Rows {
 		row, err := blob.Row(int(rowPb.Index))
 		if err != nil {
 			c.log.WarnContext(ctx, "failed to generate proof for row", "validator", val.Address.String(), "row_index", rowPb.Index, "error", err)
@@ -205,8 +205,8 @@ func (c *Client) uploadToValidator(
 			span.SetStatus(codes.Error, "failed to generate proof")
 			return
 		}
-		req.Rows[i].Data = row.Row
-		req.Rows[i].Proof = row.RowProof
+		req.Rows.Rows[i].Data = row.Row
+		req.Rows.Rows[i].Proof = row.RowProof
 	}
 	span.AddEvent("proofs_generated")
 
@@ -233,7 +233,7 @@ func (c *Client) uploadToValidator(
 	span.SetStatus(codes.Ok, "")
 	c.log.DebugContext(ctx, "successfully uploaded to validator",
 		"validator", val.Address.String(),
-		"rows", len(req.Rows),
+		"rows", len(req.Rows.Rows),
 	)
 }
 
@@ -292,25 +292,29 @@ func (c *Client) uploadAll(
 func makeUploadRequests(
 	shardMap validator.ShardMap,
 	pbPromise *types.PaymentPromise,
-	rlcOrig []field.GF128,
+	rlcCoeffs []field.GF128,
 ) map[*core.Validator]*types.UploadRowsRequest {
-	rlcOrigBytes := make([][]byte, len(rlcOrig))
-	for i, coeff := range rlcOrig {
+	// flatten rlc coefficients into a single byte slice (16 bytes per coefficient)
+	rlcCoeffsBytes := make([]byte, len(rlcCoeffs)*16)
+	for i, coeff := range rlcCoeffs {
 		b := field.ToBytes128(coeff)
-		rlcOrigBytes[i] = b[:]
+		copy(rlcCoeffsBytes[i*16:(i+1)*16], b[:])
 	}
 
 	requests := make(map[*core.Validator]*types.UploadRowsRequest, len(shardMap))
 	for val, rowIndices := range shardMap {
-		req := &types.UploadRowsRequest{
-			Promise: pbPromise,
-			Rows:    make([]*types.Row, 0, len(rowIndices)),
-			RlcOrig: rlcOrigBytes,
-		}
+		rows := make([]*types.Row, 0, len(rowIndices))
 		for _, rowIndex := range rowIndices {
-			req.Rows = append(req.Rows, &types.Row{
+			rows = append(rows, &types.Row{
 				Index: uint32(rowIndex),
 			})
+		}
+		req := &types.UploadRowsRequest{
+			Promise: pbPromise,
+			Rows: &types.Rows{
+				Rows: rows,
+				Rlc:  &types.Rows_Coefficients{Coefficients: rlcCoeffsBytes},
+			},
 		}
 		requests[val] = req
 	}
