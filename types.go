@@ -24,11 +24,9 @@ type ExtendedData struct {
 
 // VerificationContext holds precomputed RLC data for efficient batch verification
 type VerificationContext struct {
-	config      *Config
-	rlcOrig     []field.GF128 // Original K RLC values
-	rlcExtended []field.GF128 // Extended K+N RLC values (computed once)
-	rlcTree     *merkle.Tree  // Precomputed RLC Merkle tree
-	rlcRoot     [32]byte      // Cached RLC root
+	config  *Config
+	rlcOrig []field.GF128 // Original K RLC values
+	rlcRoot [32]byte      // Cached RLC root
 }
 
 // RowProof is a lightweight proof without RLC data

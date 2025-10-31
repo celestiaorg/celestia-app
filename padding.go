@@ -36,13 +36,6 @@ func buildPaddedRLCTree(rlcExtended []field.GF128, config *Config) *merkle.Tree 
 	for i := config.K; i < config.kPadded; i++ {
 		paddedRLCLeaves[i] = zeroRLC // Padding
 	}
-	for i := 0; i < config.N; i++ {
-		bytes := field.ToBytes128(rlcExtended[config.K+i])
-		paddedRLCLeaves[config.kPadded+i] = bytes[:]
-	}
-	for i := config.kPadded + config.N; i < config.totalPadded; i++ {
-		paddedRLCLeaves[i] = zeroRLC // Padding
-	}
 
 	return merkle.NewTreeWithWorkers(paddedRLCLeaves, config.WorkerCount)
 }

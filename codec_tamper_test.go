@@ -136,18 +136,12 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 			// Step 4: Compute RLC results for original rows
 			rlcOrig := computeRLCOrig(data, coeffs, config)
 
-			// Step 5: Extend RLC results
-			rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
-			if err != nil {
-				t.Fatalf("ExtendRLCResults failed: %v", err)
-			}
-
 			// TAMPER: Modify one of the extended RLC values
-			tamperedRLCIndex := config.K + 2 // Third parity row's RLC
-			rlcExtended[tamperedRLCIndex][0] ^= 0xFFFF
+			tamperedRLCIndex := config.K - 1 // Third parity row's RLC
+			rlcOrig[tamperedRLCIndex][0] ^= 0xFFFF
 
 			// Step 6: Build padded RLC Merkle tree with tampered data
-			rlcTree := buildPaddedRLCTree(rlcExtended, config)
+			rlcTree := buildPaddedRLCTree(rlcOrig, config)
 			rlcRoot := rlcTree.Root()
 
 			// Step 7: Create commitment with tampered RLC root

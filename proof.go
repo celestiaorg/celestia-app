@@ -21,21 +21,13 @@ func CreateVerificationContext(rlcOrig []field.GF128, config *Config) (*Verifica
 		return nil, fmt.Errorf("expected %d RLC values, got %d", config.K, len(rlcOrig))
 	}
 
-	// Extend RLC results to get all K+N values
-	rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
-	if err != nil {
-		return nil, fmt.Errorf("failed to extend RLC results: %w", err)
-	}
-
 	// Build padded RLC Merkle tree
-	rlcTree := buildPaddedRLCTree(rlcExtended, config)
+	rlcTree := buildPaddedRLCTree(rlcOrig, config)
 
 	return &VerificationContext{
-		config:      config,
-		rlcOrig:     rlcOrig,
-		rlcExtended: rlcExtended,
-		rlcTree:     rlcTree,
-		rlcRoot:     rlcTree.Root(),
+		config:  config,
+		rlcOrig: rlcOrig,
+		rlcRoot: rlcTree.Root(),
 	}, nil
 }
 
@@ -44,6 +36,12 @@ func CreateVerificationContext(rlcOrig []field.GF128, config *Config) (*Verifica
 func VerifyRowWithContext(proof *RowProof, commitment Commitment, context *VerificationContext) error {
 	if proof.Index < 0 || proof.Index >= context.config.K+context.config.N {
 		return fmt.Errorf("index %d out of range [0, %d)", proof.Index, context.config.K+context.config.N)
+	}
+
+	// Extend RLC results to get all K+N values
+	rlcExtended, err := encoding.ExtendRLCResults(context.rlcOrig, context.config.N)
+	if err != nil {
+		return fmt.Errorf("failed to extend RLC results: %w", err)
 	}
 
 	// 1. Compute row root from proof (using mapped tree position)
@@ -58,11 +56,11 @@ func VerifyRowWithContext(proof *RowProof, commitment Commitment, context *Verif
 	computedRLC := computeRLC(proof.Row, coeffs, context.config)
 
 	// 3. Verify RLC matches the extended value at this index
-	if proof.Index >= len(context.rlcExtended) {
+	if proof.Index >= len(rlcExtended) {
 		return fmt.Errorf("index %d out of range", proof.Index)
 	}
 
-	expectedRLC := context.rlcExtended[proof.Index]
+	expectedRLC := rlcExtended[proof.Index]
 	if !field.Equal128(computedRLC, expectedRLC) {
 		return errors.New("computed RLC does not match expected value")
 	}
