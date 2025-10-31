@@ -50,10 +50,10 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, []field.G
 		return nil, Commitment{}, nil, fmt.Errorf("failed to extend RLC results: %w", err)
 	}
 
-	rlcExtendedTree := buildPaddedRLCTree(rlcExtended, config)
+	rlcExtendedTree := buildPaddedRLCTree(rlcExtended, config, true)
 	// Step 6: Build padded RLC Merkle tree
 
-	rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
+	rlcOrigTree := buildPaddedRLCTree(rlcOrig, config, false)
 	rlcRoot := rlcOrigTree.Root()
 
 	// 8. Create commitment: SHA256(rowRoot || rlcRoot)
@@ -131,7 +131,9 @@ func (ed *ExtendedData) GenerateStandaloneProof(index int) (*StandaloneProof, er
 		return nil, err
 	}
 
-	rlcProof, err := ed.rlcExtendedTree.GenerateProof(index)
+	rlcOrigTree := buildPaddedRLCTree(ed.rlcOrig, ed.config, false)
+
+	rlcProof, err := rlcOrigTree.GenerateProof(index)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate RLC proof: %w", err)
 	}

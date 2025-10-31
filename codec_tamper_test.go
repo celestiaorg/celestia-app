@@ -49,10 +49,10 @@ func TestTamperedExtendedDataBeforeCommitment(t *testing.T) {
 			}
 
 			// Step 6: Build the extended RLC Merkle tree
-			rlcExtendedTree := buildPaddedRLCTree(rlcExtended, config)
+			rlcExtendedTree := buildPaddedRLCTree(rlcExtended, config, true)
 
 			// Step 7: Build padded RLC Merkle tree
-			rlcTree := buildPaddedRLCTree(rlcOrig, config)
+			rlcTree := buildPaddedRLCTree(rlcOrig, config, false)
 			rlcRoot := rlcTree.Root()
 
 			// Step 8: Create commitment
@@ -150,10 +150,10 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 			}
 
 			// Step 6: Build extended RLC Merkle tree
-			rlcExtendedTree := buildPaddedRLCTree(rlcExtended, config)
+			rlcExtendedTree := buildPaddedRLCTree(rlcExtended, config, true)
 
 			// Step 7: Build padded RLC Merkle tree
-			rlcTree := buildPaddedRLCTree(rlcOrig, config)
+			rlcTree := buildPaddedRLCTree(rlcOrig, config, false)
 			rlcRoot := rlcTree.Root()
 
 			// Step 8: Create commitment with tampered RLC root
@@ -242,10 +242,10 @@ func TestTamperedOriginalRLCBeforeCommitment(t *testing.T) {
 			}
 
 			// Step 6: Build extended RLC Merkle tree
-			rlcExtendedTree := buildPaddedRLCTree(rlcExtended, config)
+			rlcExtendedTree := buildPaddedRLCTree(rlcExtended, config, true)
 
 			// Step 7: Build padded RLC Merkle tree
-			rlcTree := buildPaddedRLCTree(rlcOrig, config)
+			rlcTree := buildPaddedRLCTree(rlcOrig, config, false)
 			rlcRoot := rlcTree.Root()
 
 			// Step 8: Create commitment
@@ -350,10 +350,10 @@ func TestMultipleTamperedRows(t *testing.T) {
 			}
 
 			// Build extended RLC Merkle tree
-			rlcExtendedTree := buildPaddedRLCTree(rlcExtended, config)
+			rlcExtendedTree := buildPaddedRLCTree(rlcExtended, config, true)
 
 			// Build padded RLC Merkle tree
-			rlcTree := buildPaddedRLCTree(rlcOrig, config)
+			rlcTree := buildPaddedRLCTree(rlcOrig, config, false)
 			rlcRoot := rlcTree.Root()
 
 			// Create commitment
