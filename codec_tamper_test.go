@@ -53,12 +53,12 @@ func TestTamperedExtendedDataBeforeCommitment(t *testing.T) {
 
 			// Step 7: Build padded RLC Merkle tree
 			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config, false)
-			rlcRoot := rlcOrigTree.Root()
+			rlcOrigRoot := rlcOrigTree.Root()
 
 			// Step 8: Create commitment
 			h := sha256.New()
 			h.Write(rowRoot[:])
-			h.Write(rlcRoot[:])
+			h.Write(rlcOrigRoot[:])
 			var commitment Commitment
 			h.Sum(commitment[:0])
 
@@ -67,7 +67,7 @@ func TestTamperedExtendedDataBeforeCommitment(t *testing.T) {
 				config:          config,
 				rows:            extended,
 				rowRoot:         rowRoot,
-				rlcRoot:         rlcRoot,
+				rlcOrigRoot:     rlcOrigRoot,
 				rlcOrig:         rlcOrig,
 				rowTree:         rowTree,
 				rlcExtendedTree: rlcExtendedTree,
@@ -154,12 +154,12 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 
 			// Step 7: Build padded RLC Merkle tree
 			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config, false)
-			rlcRoot := rlcOrigTree.Root()
+			rlcOrigRoot := rlcOrigTree.Root()
 
 			// Step 8: Create commitment with tampered RLC root
 			h := sha256.New()
 			h.Write(rowRoot[:])
-			h.Write(rlcRoot[:])
+			h.Write(rlcOrigRoot[:])
 			var commitment Commitment
 			h.Sum(commitment[:0])
 
@@ -168,7 +168,7 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 				config:          config,
 				rows:            extended,
 				rowRoot:         rowRoot,
-				rlcRoot:         rlcRoot,
+				rlcOrigRoot:     rlcOrigRoot,
 				rlcOrig:         rlcOrig,
 				rowTree:         rowTree,
 				rlcExtendedTree: rlcExtendedTree,
@@ -246,12 +246,12 @@ func TestTamperedOriginalRLCBeforeCommitment(t *testing.T) {
 
 			// Step 7: Build padded RLC Merkle tree
 			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config, false)
-			rlcRoot := rlcOrigTree.Root()
+			rlcOrigRoot := rlcOrigTree.Root()
 
 			// Step 8: Create commitment
 			h := sha256.New()
 			h.Write(rowRoot[:])
-			h.Write(rlcRoot[:])
+			h.Write(rlcOrigRoot[:])
 			var commitment Commitment
 			h.Sum(commitment[:0])
 
@@ -260,7 +260,7 @@ func TestTamperedOriginalRLCBeforeCommitment(t *testing.T) {
 				config:          config,
 				rows:            extended,
 				rowRoot:         rowRoot,
-				rlcRoot:         rlcRoot,
+				rlcOrigRoot:     rlcOrigRoot,
 				rlcOrig:         rlcOrig, // This contains the tampered value
 				rowTree:         rowTree,
 				rlcExtendedTree: rlcExtendedTree,
@@ -354,12 +354,12 @@ func TestMultipleTamperedRows(t *testing.T) {
 
 			// Build padded RLC Merkle tree
 			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config, false)
-			rlcRoot := rlcOrigTree.Root()
+			rlcOrigRoot := rlcOrigTree.Root()
 
 			// Create commitment
 			h := sha256.New()
 			h.Write(rowRoot[:])
-			h.Write(rlcRoot[:])
+			h.Write(rlcOrigRoot[:])
 			var commitment Commitment
 			h.Sum(commitment[:0])
 
@@ -367,7 +367,7 @@ func TestMultipleTamperedRows(t *testing.T) {
 				config:          config,
 				rows:            extended,
 				rowRoot:         rowRoot,
-				rlcRoot:         rlcRoot,
+				rlcOrigRoot:     rlcOrigRoot,
 				rlcOrig:         rlcOrig,
 				rowTree:         rowTree,
 				rlcExtendedTree: rlcExtendedTree,

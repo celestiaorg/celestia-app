@@ -54,12 +54,12 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, []field.G
 	// Step 6: Build padded RLC Merkle tree
 
 	rlcOrigTree := buildPaddedRLCTree(rlcOrig, config, false)
-	rlcRoot := rlcOrigTree.Root()
+	rlcOrigRoot := rlcOrigTree.Root()
 
-	// 8. Create commitment: SHA256(rowRoot || rlcRoot)
+	// 8. Create commitment: SHA256(rowRoot || rlcOrigRoot)
 	h := sha256.New()
 	h.Write(rowRoot[:])
-	h.Write(rlcRoot[:])
+	h.Write(rlcOrigRoot[:])
 	var commitment Commitment
 	h.Sum(commitment[:0])
 
@@ -68,7 +68,7 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, []field.G
 		config:          config,
 		rows:            extended,
 		rowRoot:         rowRoot,
-		rlcRoot:         rlcRoot,
+		rlcOrigRoot:     rlcOrigRoot,
 		rlcOrig:         rlcOrig,
 		rowTree:         rowTree,
 		rlcExtendedTree: rlcExtendedTree,

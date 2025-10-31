@@ -9,14 +9,14 @@ import (
 const chunkSize = 64
 
 // Commitment is the cryptographic commitment to encoded data
-type Commitment = [32]byte // SHA256(rowRoot || rlcRoot)
+type Commitment = [32]byte // SHA256(rowRoot || rlcOrigRoot)
 
 // ExtendedData holds the encoded data matrix
 type ExtendedData struct {
 	config          *Config
 	rows            [][]byte      // K+N rows of data
 	rowRoot         [32]byte      // Merkle root of rows
-	rlcRoot         [32]byte      // Merkle root of RLC results
+	rlcOrigRoot     [32]byte      // Merkle root of RLC results
 	rlcOrig         []field.GF128 // Cached RLC results (original rows)
 	rowTree         *merkle.Tree  // Cached row Merkle tree
 	rlcExtendedTree *merkle.Tree  // Cached RLC Merkle tree
@@ -24,9 +24,9 @@ type ExtendedData struct {
 
 // VerificationContext holds precomputed RLC data for efficient batch verification
 type VerificationContext struct {
-	config  *Config
-	rlcOrig []field.GF128 // Original K RLC values
-	rlcRoot [32]byte      // Cached RLC root
+	config      *Config
+	rlcOrig     []field.GF128 // Original K RLC values
+	rlcOrigRoot [32]byte      // Cached RLC root
 }
 
 // RowProof is a lightweight proof without RLC data

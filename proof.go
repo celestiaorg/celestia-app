@@ -25,9 +25,9 @@ func CreateVerificationContext(rlcOrig []field.GF128, config *Config) (*Verifica
 	rlcOrigTree := buildPaddedRLCTree(rlcOrig, config, false)
 
 	return &VerificationContext{
-		config:  config,
-		rlcOrig: rlcOrig,
-		rlcRoot: rlcOrigTree.Root(),
+		config:      config,
+		rlcOrig:     rlcOrig,
+		rlcOrigRoot: rlcOrigTree.Root(),
 	}, nil
 }
 
@@ -68,7 +68,7 @@ func VerifyRowWithContext(proof *RowProof, commitment Commitment, context *Verif
 	// 4. Verify commitment
 	h := sha256.New()
 	h.Write(rowRoot[:])
-	h.Write(context.rlcRoot[:])
+	h.Write(context.rlcOrigRoot[:])
 	computedCommitment := h.Sum(nil)
 
 	if commitment != [32]byte(computedCommitment) {
@@ -101,7 +101,7 @@ func VerifyStandaloneProof(proof *StandaloneProof, commitment Commitment, config
 
 	// 3. Compute RLC root from proof
 	rlcBytes := field.ToBytes128(computedRLC)
-	rlcRoot, err := merkle.ComputeRootFromProof(rlcBytes[:], proof.Index, proof.RLCProof)
+	rlcOrigRoot, err := merkle.ComputeRootFromProof(rlcBytes[:], proof.Index, proof.RLCProof)
 	if err != nil {
 		return fmt.Errorf("failed to compute RLC root: %w", err)
 	}
@@ -109,7 +109,7 @@ func VerifyStandaloneProof(proof *StandaloneProof, commitment Commitment, config
 	// 4. Verify commitment
 	h := sha256.New()
 	h.Write(rowRoot[:])
-	h.Write(rlcRoot[:])
+	h.Write(rlcOrigRoot[:])
 	computedCommitment := h.Sum(nil)
 
 	if commitment != [32]byte(computedCommitment) {
