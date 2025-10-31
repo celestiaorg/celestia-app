@@ -24,13 +24,13 @@ func CreateVerificationContext(rlcOrig []field.GF128, config *Config) (*Verifica
 
 	// Build padded RLC Merkle tree
 	rlcOrigTree := buildPaddedRLCTree(rlcOrig, config, false)
+	rlcOrigRoot := rlcOrigTree.Root()
 
-	rlcRoot := rlcTree.Root()
 	return &VerificationContext{
 		config:      config,
 		rlcOrig:     rlcOrig,
-		rlcOrigRoot: rlcOrigTree.Root(),
-	}, nil
+		rlcOrigRoot: rlcOrigRoot,
+	}, rlcOrigRoot, nil
 }
 
 // VerifyRowWithContext verifies a row proof using pre-initialized context

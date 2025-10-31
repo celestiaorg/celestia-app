@@ -101,20 +101,14 @@ func EncodeParity(extended [][]byte, config *Config) (*ExtendedData, Commitment,
 	originalRows := extended[:config.K]
 	rlcOrig := computeRLCOrig(originalRows, coeffs, config)
 
-	// 5. Extend RLC results
-	rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
-	if err != nil {
-		return nil, Commitment{}, nil, fmt.Errorf("failed to extend RLC results: %w", err)
-	}
+	// 5. Build padded RLC Merkle tree matching row tree structure
+	rlcOrigTree := buildPaddedRLCTree(rlcOrig, config, false)
+	rlcOrigRoot := rlcOrigTree.Root()
 
-	// 6. Build padded RLC Merkle tree matching row tree structure
-	rlcTree := buildPaddedRLCTree(rlcExtended, config)
-	rlcRoot := rlcTree.Root()
-
-	// 7. Create commitment: SHA256(rowRoot || rlcRoot)
+	// 6. Create commitment: SHA256(rowRoot || rlcOrigRoot)
 	h := sha256.New()
 	h.Write(rowRoot[:])
-	h.Write(rlcRoot[:])
+	h.Write(rlcOrigRoot[:])
 	var commitment Commitment
 	h.Sum(commitment[:0])
 
@@ -123,10 +117,8 @@ func EncodeParity(extended [][]byte, config *Config) (*ExtendedData, Commitment,
 		config:  config,
 		rows:    extended,
 		rowRoot: rowRoot,
-		rlcRoot: rlcRoot,
 		rlcOrig: rlcOrig,
 		rowTree: rowTree,
-		rlcTree: rlcTree,
 	}
 
 	return extData, commitment, rlcOrig, nil
@@ -212,9 +204,12 @@ func (ed *ExtendedData) GenerateRowInclusionProof(index int) (*RowInclusionProof
 		return nil, err
 	}
 
+	rlcOrigTree := buildPaddedRLCTree(ed.rlcOrig, ed.config, false)
+	rlcOrigRoot := rlcOrigTree.Root()
+
 	return &RowInclusionProof{
 		RowProof: *rowProof,
-		RLCRoot:  ed.rlcRoot,
+		RLCRoot:  rlcOrigRoot,
 	}, nil
 }
 
