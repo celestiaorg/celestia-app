@@ -1,4 +1,4 @@
-## Transaction Client
+# Transaction Client
 
 ## Abstract
 
