@@ -48,11 +48,14 @@ func TestTamperedExtendedDataBeforeCommitment(t *testing.T) {
 				t.Fatalf("ExtendRLCResults failed: %v", err)
 			}
 
-			// Step 6: Build padded RLC Merkle tree
+			// Step 6: Build the extended RLC Merkle tree
 			rlcTree := buildPaddedRLCTree(rlcExtended, config)
-			rlcRoot := rlcTree.Root()
 
-			// Step 7: Create commitment
+			// Step 7: Build padded RLC Merkle tree
+			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
+			rlcRoot := rlcOrigTree.Root()
+
+			// Step 8: Create commitment
 			h := sha256.New()
 			h.Write(rowRoot[:])
 			h.Write(rlcRoot[:])
@@ -140,11 +143,20 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 			tamperedRLCIndex := config.K - 1 // Third parity row's RLC
 			rlcOrig[tamperedRLCIndex][0] ^= 0xFFFF
 
-			// Step 6: Build padded RLC Merkle tree with tampered data
-			rlcTree := buildPaddedRLCTree(rlcOrig, config)
-			rlcRoot := rlcTree.Root()
+			// Step 5: Extend RLC results
+			rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
+			if err != nil {
+				t.Fatalf("ExtendRLCResults failed: %v", err)
+			}
 
-			// Step 7: Create commitment with tampered RLC root
+			// Step 6: Build extended RLC Merkle tree
+			rlcTree := buildPaddedRLCTree(rlcExtended, config)
+
+			// Step 7: Build padded RLC Merkle tree
+			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
+			rlcRoot := rlcOrigTree.Root()
+
+			// Step 8: Create commitment with tampered RLC root
 			h := sha256.New()
 			h.Write(rowRoot[:])
 			h.Write(rlcRoot[:])
@@ -229,11 +241,14 @@ func TestTamperedOriginalRLCBeforeCommitment(t *testing.T) {
 				t.Fatalf("ExtendRLCResults failed: %v", err)
 			}
 
-			// Step 6: Build padded RLC Merkle tree
+			// Step 6: Build extended RLC Merkle tree
 			rlcTree := buildPaddedRLCTree(rlcExtended, config)
-			rlcRoot := rlcTree.Root()
 
-			// Step 7: Create commitment
+			// Step 7: Build padded RLC Merkle tree
+			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
+			rlcRoot := rlcOrigTree.Root()
+
+			// Step 8: Create commitment
 			h := sha256.New()
 			h.Write(rowRoot[:])
 			h.Write(rlcRoot[:])
@@ -327,14 +342,21 @@ func TestMultipleTamperedRows(t *testing.T) {
 
 			coeffs := deriveCoefficients(rowRoot, config)
 			rlcOrig := computeRLCOrig(data, coeffs, config)
+
+			// Extend RLC results
 			rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
 			if err != nil {
 				t.Fatalf("ExtendRLCResults failed: %v", err)
 			}
 
+			// Build extended RLC Merkle tree
 			rlcTree := buildPaddedRLCTree(rlcExtended, config)
-			rlcRoot := rlcTree.Root()
 
+			// Build padded RLC Merkle tree
+			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
+			rlcRoot := rlcOrigTree.Root()
+
+			// Create commitment
 			h := sha256.New()
 			h.Write(rowRoot[:])
 			h.Write(rlcRoot[:])

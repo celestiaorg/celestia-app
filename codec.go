@@ -50,9 +50,11 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, []field.G
 		return nil, Commitment{}, nil, fmt.Errorf("failed to extend RLC results: %w", err)
 	}
 
-	// 7. Build padded RLC Merkle tree matching row tree structure
 	rlcTree := buildPaddedRLCTree(rlcExtended, config)
-	rlcRoot := rlcTree.Root()
+	// Step 6: Build padded RLC Merkle tree
+
+	rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
+	rlcRoot := rlcOrigTree.Root()
 
 	// 8. Create commitment: SHA256(rowRoot || rlcRoot)
 	h := sha256.New()
