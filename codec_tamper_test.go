@@ -129,7 +129,7 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 			rlcOrig := computeRLCOrig(data, coeffs, config)
 
 			// TAMPER: Modify one of the extended RLC values
-			tamperedRLCIndex := config.K - 1 // Third parity row's RLC
+			tamperedRLCIndex := config.K - 1
 			rlcOrig[tamperedRLCIndex][0] ^= 0xFFFF
 
 			// Step 7: Build padded RLC Merkle tree
