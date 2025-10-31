@@ -118,7 +118,7 @@ func TestEncodeAndVerifyWithContext(t *testing.T) {
 			}
 
 			// Create verification context
-			ctx, err := CreateVerificationContext(extData.rlcOrig, config)
+			ctx, _, err := CreateVerificationContext(extData.rlcOrig, config)
 			if err != nil {
 				t.Fatalf("CreateVerificationContext() error: %v", err)
 			}
@@ -262,7 +262,7 @@ func TestInvalidProofs(t *testing.T) {
 			}
 
 			// Create verification context
-			ctx, err := CreateVerificationContext(extData.rlcOrig, config)
+			ctx, _, err := CreateVerificationContext(extData.rlcOrig, config)
 			if err != nil {
 				t.Fatalf("CreateVerificationContext() error: %v", err)
 			}
@@ -483,7 +483,7 @@ func TestCorruptedContext(t *testing.T) {
 			copy(corruptedRLC, extData.rlcOrig)
 			corruptedRLC[0][0] ^= 1
 
-			badCtx, err := CreateVerificationContext(corruptedRLC, config)
+			badCtx, _, err := CreateVerificationContext(corruptedRLC, config)
 			if err != nil {
 				t.Fatalf("CreateVerificationContext() error: %v", err)
 			}
@@ -497,6 +497,145 @@ func TestCorruptedContext(t *testing.T) {
 			// Verification should fail with corrupted context
 			if err := VerifyRowWithContext(proof, commitment, badCtx); err == nil {
 				t.Errorf("VerifyRowWithContext() should fail with corrupted context")
+			}
+		})
+	}
+}
+
+func TestRowInclusionProof(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			config := makeTestConfig(tc)
+			data := makeTestData(tc.k, tc.rowSize)
+			extData, commitment, rlcOrig, err := Encode(data, config)
+			if err != nil {
+				t.Fatalf("Encode() error: %v", err)
+			}
+
+			_, rlcRoot, err := CreateVerificationContext(rlcOrig, config)
+			if err != nil {
+				t.Fatalf("CreateVerificationContext() error: %v", err)
+			}
+
+			// Test all rows (original and parity)
+			for index := 0; index < tc.k+tc.n; index++ {
+				// Test via ExtendedData
+				proof, err := extData.GenerateRowInclusionProof(index)
+				if err != nil {
+					t.Errorf("GenerateRowInclusionProof(%d) error: %v", index, err)
+					continue
+				}
+
+				if err := VerifyRowInclusionProof(proof, commitment, config); err != nil {
+					t.Errorf("VerifyRowInclusionProof(%d) error: %v", index, err)
+				}
+
+				if !bytes.Equal(proof.Row, extData.rows[index]) {
+					t.Errorf("Row data mismatch at index %d", index)
+				}
+
+				// Test via VerificationContext - construct RowInclusionProof manually
+				rowProof, err := extData.GenerateRowProof(index)
+				if err != nil {
+					t.Errorf("GenerateRowProof(%d) error: %v", index, err)
+					continue
+				}
+
+				ctxProof := &RowInclusionProof{
+					RowProof: *rowProof,
+					RLCRoot:  rlcRoot,
+				}
+				if err := VerifyRowInclusionProof(ctxProof, commitment, config); err != nil {
+					t.Errorf("VerifyRowInclusionProof via context(%d) error: %v", index, err)
+				}
+			}
+
+			// Test invalid cases
+			proof, _ := extData.GenerateRowInclusionProof(0)
+
+			// Corrupt commitment
+			badCommit := commitment
+			badCommit[0] ^= 0xFF
+			if err := VerifyRowInclusionProof(proof, badCommit, config); err == nil {
+				t.Error("Should fail with corrupted commitment")
+			}
+
+			// Corrupt row
+			proof.Row[0] ^= 0xFF
+			if err := VerifyRowInclusionProof(proof, commitment, config); err == nil {
+				t.Error("Should fail with corrupted row")
+			}
+
+			// Out of bounds
+			if _, err := extData.GenerateRowInclusionProof(-1); err == nil {
+				t.Error("Should fail with negative index")
+			}
+			if _, err := extData.GenerateRowInclusionProof(tc.k + tc.n); err == nil {
+				t.Error("Should fail with index >= K+N")
+			}
+		})
+	}
+}
+
+func TestEncodeParity(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			config := makeTestConfig(tc)
+			data := makeTestData(tc.k, tc.rowSize)
+
+			// Use Encode to get extended rows and expected commitment
+			extData1, commitment1, rlcOrig1, err := Encode(data, config)
+			if err != nil {
+				t.Fatalf("Encode() error: %v", err)
+			}
+
+			// Use EncodeParity with the same extended rows
+			extData2, commitment2, rlcOrig2, err := EncodeParity(extData1.rows, config)
+			if err != nil {
+				t.Fatalf("EncodeParity() error: %v", err)
+			}
+
+			// Verify commitments match
+			if commitment1 != commitment2 {
+				t.Errorf("Commitments don't match:\nEncode:       %x\nEncodeParity: %x", commitment1, commitment2)
+			}
+
+			// Verify RLC orig values match
+			if len(rlcOrig1) != len(rlcOrig2) {
+				t.Errorf("RLC orig length mismatch: Encode=%d, EncodeParity=%d", len(rlcOrig1), len(rlcOrig2))
+			}
+			for i := range rlcOrig1 {
+				if !field.Equal128(rlcOrig1[i], rlcOrig2[i]) {
+					t.Errorf("RLC orig mismatch at index %d", i)
+				}
+			}
+
+			// Verify all rows match
+			if len(extData1.rows) != len(extData2.rows) {
+				t.Errorf("Row count mismatch: Encode=%d, EncodeParity=%d", len(extData1.rows), len(extData2.rows))
+			}
+			for i := range extData1.rows {
+				if !bytes.Equal(extData1.rows[i], extData2.rows[i]) {
+					t.Errorf("Row %d doesn't match", i)
+				}
+			}
+
+			// Verify proofs work with both
+			ctx, _, err := CreateVerificationContext(rlcOrig2, config)
+			if err != nil {
+				t.Fatalf("CreateVerificationContext() error: %v", err)
+			}
+
+			for _, index := range getTestRowIndices(tc.k, tc.n) {
+				proof, err := extData2.GenerateRowProof(index)
+				if err != nil {
+					t.Errorf("GenerateRowProof(%d) error: %v", index, err)
+					continue
+				}
+
+				if err := VerifyRowWithContext(proof, commitment2, ctx); err != nil {
+					t.Errorf("VerifyRowWithContext(%d) error: %v", index, err)
+				}
 			}
 		})
 	}
