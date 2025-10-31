@@ -177,7 +177,7 @@ func removeDir(rootDir string) error {
 		return err
 	}
 	for _, d := range dir {
-		path := path.Join([]string{rootDir, d.Name()}...)
+		path := path.Join(rootDir, d.Name())
 		err := os.RemoveAll(path)
 		if err != nil {
 			return err
