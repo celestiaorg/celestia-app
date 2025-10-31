@@ -85,9 +85,9 @@ func TestDefaultConsensusConfig(t *testing.T) {
 			MaxTxBytes:     appconsts.MaxTxSize,
 			MaxTxsBytes:    appconsts.MempoolSize,
 			TTLDuration:    0 * time.Second,
-			TTLNumBlocks:   12,
+			TTLNumBlocks:   36,
 			Type:           tmcfg.MempoolTypeCAT,
-			MaxGossipDelay: time.Second * 60,
+			MaxGossipDelay: time.Second * 20,
 		}
 		assert.Equal(t, want, *got.Mempool)
 	})

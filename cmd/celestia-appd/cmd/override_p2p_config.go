@@ -3,6 +3,7 @@ package cmd
 import (
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v6/app"
+	tmcfg "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
 )
@@ -41,5 +42,52 @@ func overrideP2PConfig(cmd *cobra.Command, logger log.Logger) error {
 		cfg.P2P.RecvRate = minRecvRate
 	}
 
+	// Override mempool configs
+	overrideMempoolConfig(cfg, defaultCfg, logger)
+
 	return nil
+}
+
+// overrideMempoolConfig overrides mempool configuration values to ensure they
+// meet the minimum required values or are set to specific values as needed.
+func overrideMempoolConfig(cfg, defaultCfg *tmcfg.Config, logger log.Logger) {
+	const minTTLNumBlocks = int64(36)
+	const minMaxTxsBytes = int64(400 * mebibyte) // 400 MiB
+
+	// Override TTLNumBlocks if it's less than the minimum and not 0
+	// If it's 0, the user has explicitly disabled it, so we leave it alone
+	if cfg.Mempool.TTLNumBlocks > 0 && cfg.Mempool.TTLNumBlocks < minTTLNumBlocks {
+		logger.Info("Overriding Mempool TTLNumBlocks to minimum",
+			"configured", cfg.Mempool.TTLNumBlocks,
+			"minimum", minTTLNumBlocks,
+		)
+		cfg.Mempool.TTLNumBlocks = minTTLNumBlocks
+	}
+
+	// Force TTLDuration to 0
+	if cfg.Mempool.TTLDuration != 0 {
+		logger.Info("Overriding Mempool TTLDuration to 0",
+			"configured", cfg.Mempool.TTLDuration,
+		)
+		cfg.Mempool.TTLDuration = 0
+	}
+
+	// Override MaxGossipDelay if it's the old default value (60s)
+	const oldMaxGossipDelay = 60 * 1e9 // 60 seconds in nanoseconds
+	if cfg.Mempool.MaxGossipDelay == oldMaxGossipDelay {
+		logger.Info("Overriding Mempool MaxGossipDelay",
+			"configured_seconds", cfg.Mempool.MaxGossipDelay/1e9,
+			"new_seconds", defaultCfg.Mempool.MaxGossipDelay/1e9,
+		)
+		cfg.Mempool.MaxGossipDelay = defaultCfg.Mempool.MaxGossipDelay
+	}
+
+	// Override MaxTxsBytes if it's less than the minimum
+	if cfg.Mempool.MaxTxsBytes < minMaxTxsBytes {
+		logger.Info("Overriding Mempool MaxTxsBytes to minimum",
+			"configured_mib", cfg.Mempool.MaxTxsBytes/mebibyte,
+			"minimum_mib", minMaxTxsBytes/mebibyte,
+		)
+		cfg.Mempool.MaxTxsBytes = minMaxTxsBytes
+	}
 }
