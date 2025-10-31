@@ -22,12 +22,12 @@ func CreateVerificationContext(rlcOrig []field.GF128, config *Config) (*Verifica
 	}
 
 	// Build padded RLC Merkle tree
-	rlcTree := buildPaddedRLCTree(rlcOrig, config, false)
+	rlcOrigTree := buildPaddedRLCTree(rlcOrig, config, false)
 
 	return &VerificationContext{
 		config:  config,
 		rlcOrig: rlcOrig,
-		rlcRoot: rlcTree.Root(),
+		rlcRoot: rlcOrigTree.Root(),
 	}, nil
 }
 
