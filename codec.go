@@ -44,13 +44,6 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, []field.G
 	// 5. Compute RLC results for original rows
 	rlcOrig := computeRLCOrig(data, coeffs, config)
 
-	// 6. Extend RLC results
-	rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
-	if err != nil {
-		return nil, Commitment{}, nil, fmt.Errorf("failed to extend RLC results: %w", err)
-	}
-
-	rlcExtendedTree := buildPaddedRLCTree(rlcExtended, config, true)
 	// Step 6: Build padded RLC Merkle tree
 
 	rlcOrigTree := buildPaddedRLCTree(rlcOrig, config, false)
@@ -65,13 +58,11 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, []field.G
 
 	// Create ExtendedData
 	extData := &ExtendedData{
-		config:          config,
-		rows:            extended,
-		rowRoot:         rowRoot,
-		rlcOrigRoot:     rlcOrigRoot,
-		rlcOrig:         rlcOrig,
-		rowTree:         rowTree,
-		rlcExtendedTree: rlcExtendedTree,
+		config:  config,
+		rows:    extended,
+		rowRoot: rowRoot,
+		rlcOrig: rlcOrig,
+		rowTree: rowTree,
 	}
 
 	return extData, commitment, rlcOrig, nil

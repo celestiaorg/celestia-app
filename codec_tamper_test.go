@@ -42,20 +42,11 @@ func TestTamperedExtendedDataBeforeCommitment(t *testing.T) {
 			// Step 4: Compute RLC results for original rows
 			rlcOrig := computeRLCOrig(data, coeffs, config)
 
-			// Step 5: Extend RLC results
-			rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
-			if err != nil {
-				t.Fatalf("ExtendRLCResults failed: %v", err)
-			}
-
-			// Step 6: Build the extended RLC Merkle tree
-			rlcExtendedTree := buildPaddedRLCTree(rlcExtended, config, true)
-
-			// Step 7: Build padded RLC Merkle tree
+			// Step 5: Build padded RLC Merkle tree
 			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config, false)
 			rlcOrigRoot := rlcOrigTree.Root()
 
-			// Step 8: Create commitment
+			// Step 6: Create commitment
 			h := sha256.New()
 			h.Write(rowRoot[:])
 			h.Write(rlcOrigRoot[:])
@@ -64,13 +55,11 @@ func TestTamperedExtendedDataBeforeCommitment(t *testing.T) {
 
 			// Create ExtendedData structure
 			extData := &ExtendedData{
-				config:          config,
-				rows:            extended,
-				rowRoot:         rowRoot,
-				rlcOrigRoot:     rlcOrigRoot,
-				rlcOrig:         rlcOrig,
-				rowTree:         rowTree,
-				rlcExtendedTree: rlcExtendedTree,
+				config:  config,
+				rows:    extended,
+				rowRoot: rowRoot,
+				rlcOrig: rlcOrig,
+				rowTree: rowTree,
 			}
 
 			// Create verification context
@@ -143,15 +132,6 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 			tamperedRLCIndex := config.K - 1 // Third parity row's RLC
 			rlcOrig[tamperedRLCIndex][0] ^= 0xFFFF
 
-			// Step 5: Extend RLC results
-			rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
-			if err != nil {
-				t.Fatalf("ExtendRLCResults failed: %v", err)
-			}
-
-			// Step 6: Build extended RLC Merkle tree
-			rlcExtendedTree := buildPaddedRLCTree(rlcExtended, config, true)
-
 			// Step 7: Build padded RLC Merkle tree
 			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config, false)
 			rlcOrigRoot := rlcOrigTree.Root()
@@ -165,13 +145,11 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 
 			// Create ExtendedData structure
 			extData := &ExtendedData{
-				config:          config,
-				rows:            extended,
-				rowRoot:         rowRoot,
-				rlcOrigRoot:     rlcOrigRoot,
-				rlcOrig:         rlcOrig,
-				rowTree:         rowTree,
-				rlcExtendedTree: rlcExtendedTree,
+				config:  config,
+				rows:    extended,
+				rowRoot: rowRoot,
+				rlcOrig: rlcOrig,
+				rowTree: rowTree,
 			}
 
 			// Create verification context
@@ -235,20 +213,11 @@ func TestTamperedOriginalRLCBeforeCommitment(t *testing.T) {
 			tamperedOrigIndex := min(2, config.K-1)
 			rlcOrig[tamperedOrigIndex][0] ^= 0xFFFF
 
-			// Step 5: Extend RLC results (will now produce wrong extended values)
-			rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
-			if err != nil {
-				t.Fatalf("ExtendRLCResults failed: %v", err)
-			}
-
-			// Step 6: Build extended RLC Merkle tree
-			rlcExtendedTree := buildPaddedRLCTree(rlcExtended, config, true)
-
-			// Step 7: Build padded RLC Merkle tree
+			// Step 5: Build padded RLC Merkle tree
 			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config, false)
 			rlcOrigRoot := rlcOrigTree.Root()
 
-			// Step 8: Create commitment
+			// Step 6: Create commitment
 			h := sha256.New()
 			h.Write(rowRoot[:])
 			h.Write(rlcOrigRoot[:])
@@ -257,13 +226,11 @@ func TestTamperedOriginalRLCBeforeCommitment(t *testing.T) {
 
 			// Create ExtendedData structure with tampered rlcOrig
 			extData := &ExtendedData{
-				config:          config,
-				rows:            extended,
-				rowRoot:         rowRoot,
-				rlcOrigRoot:     rlcOrigRoot,
-				rlcOrig:         rlcOrig, // This contains the tampered value
-				rowTree:         rowTree,
-				rlcExtendedTree: rlcExtendedTree,
+				config:  config,
+				rows:    extended,
+				rowRoot: rowRoot,
+				rlcOrig: rlcOrig, // This contains the tampered value
+				rowTree: rowTree,
 			}
 
 			// Create verification context with tampered RLC values
@@ -343,15 +310,6 @@ func TestMultipleTamperedRows(t *testing.T) {
 			coeffs := deriveCoefficients(rowRoot, config)
 			rlcOrig := computeRLCOrig(data, coeffs, config)
 
-			// Extend RLC results
-			rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
-			if err != nil {
-				t.Fatalf("ExtendRLCResults failed: %v", err)
-			}
-
-			// Build extended RLC Merkle tree
-			rlcExtendedTree := buildPaddedRLCTree(rlcExtended, config, true)
-
 			// Build padded RLC Merkle tree
 			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config, false)
 			rlcOrigRoot := rlcOrigTree.Root()
@@ -364,13 +322,11 @@ func TestMultipleTamperedRows(t *testing.T) {
 			h.Sum(commitment[:0])
 
 			extData := &ExtendedData{
-				config:          config,
-				rows:            extended,
-				rowRoot:         rowRoot,
-				rlcOrigRoot:     rlcOrigRoot,
-				rlcOrig:         rlcOrig,
-				rowTree:         rowTree,
-				rlcExtendedTree: rlcExtendedTree,
+				config:  config,
+				rows:    extended,
+				rowRoot: rowRoot,
+				rlcOrig: rlcOrig,
+				rowTree: rowTree,
 			}
 
 			// Create verification context
