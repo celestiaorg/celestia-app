@@ -66,7 +66,7 @@ func DefaultClientConfig() ClientConfig {
 	return ClientConfig{
 		DefaultKeyName:              DefaultKeyName,
 		ChainID:                     "celestia",
-		BlobConfig:                  DefaultBlobConfig(),
+		BlobConfig:                  DefaultBlobConfigV0(),
 		UploadTargetVotingPower:     cmtmath.Fraction{Numerator: 2, Denominator: 3},
 		UploadTargetSignaturesCount: cmtmath.Fraction{Numerator: 2, Denominator: 3},
 		UploadConcurrency:           100, // matches expected number of validators to maximize throughput by default
@@ -112,10 +112,10 @@ func NewClient(txClient *user.TxClient, kr keyring.Keyring, valGet validator.Set
 		cfg.NewClientFn = grpc.DefaultNewClientFn(hostReg)
 	}
 	if cfg.Tracer == nil {
-		cfg.Tracer = otel.Tracer("fibre")
+		cfg.Tracer = otel.Tracer("fibre-client")
 	}
 	if cfg.Log == nil {
-		cfg.Log = slog.Default()
+		cfg.Log = slog.Default().WithGroup("fibre-client")
 	}
 	if cfg.Clock == nil {
 		cfg.Clock = clock.New()

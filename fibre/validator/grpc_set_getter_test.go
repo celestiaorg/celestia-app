@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v6/fibre/validator"
-
 	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	core "github.com/cometbft/cometbft/types"
