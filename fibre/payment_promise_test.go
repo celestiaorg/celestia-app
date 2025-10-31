@@ -17,7 +17,7 @@ func makePaymentPromise(t *testing.T, privKey *secp256k1.PrivKey) *fibre.Payment
 		ChainID:     "test-chain-1",
 		Height:      12345,
 		Namespace:   share.MustNewV0Namespace([]byte("test")),
-		BlobSize:    1024,
+		UploadSize:  1024,
 		BlobVersion: 0,
 		Commitment: fibre.Commitment{
 			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
@@ -50,7 +50,7 @@ func TestPaymentPromise(t *testing.T) {
 		require.Equal(t, original.SignerKey, decoded.SignerKey)
 		require.Equal(t, original.ChainID, decoded.ChainID)
 		require.Equal(t, original.Namespace, decoded.Namespace)
-		require.Equal(t, original.BlobSize, decoded.BlobSize)
+		require.Equal(t, original.UploadSize, decoded.UploadSize)
 		require.Equal(t, original.Commitment, decoded.Commitment)
 		require.Equal(t, original.BlobVersion, decoded.BlobVersion)
 		require.True(t, decoded.CreationTimestamp.Equal(original.CreationTimestamp))

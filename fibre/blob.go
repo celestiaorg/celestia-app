@@ -32,13 +32,16 @@ func (c Commitment) String() string {
 	return hex.EncodeToString(c[:])
 }
 
-// BlobConfig contains configuration for erasure coding and data handling.
+// Equals returns true if the two commitments are equal.
+func (c Commitment) Equals(other Commitment) bool {
+	return c == other
+}
+
+// BlobConfig contains constant configuration parameters for blob encoding and decoding.
 type BlobConfig struct {
-	// OriginalRows is the number of original rows before erasure coding.
-	// Here we use explicit naming: OriginalRows (K in rsema1d) and ParityRows (N in rsema1d).
-	// SPECDO: The spec uses N to represent total rows (original + parity), while rsema1d defines N as parity only.
+	// OriginalRows is the number of original rows before erasure coding (K in rsema1d).
 	OriginalRows int
-	// ParityRows is the number of parity rows added by erasure coding.
+	// ParityRows is the number of parity rows added by erasure coding (N in rsema1d).
 	// Total rows = OriginalRows + ParityRows.
 	ParityRows int
 	// RowSizeMin is the minimum row size in bytes.
@@ -51,8 +54,8 @@ type BlobConfig struct {
 	CodingWorkers int
 }
 
-// DefaultBlobConfig returns a [BlobConfig] with default values.
-func DefaultBlobConfig() BlobConfig {
+// DefaultBlobConfigV0 returns a [BlobConfig] with default values for version 0.
+func DefaultBlobConfigV0() BlobConfig {
 	return BlobConfig{
 		OriginalRows:  4096,
 		ParityRows:    12288, // (3 * OriginalRows, TotalRows = 16384)
@@ -63,7 +66,41 @@ func DefaultBlobConfig() BlobConfig {
 	}
 }
 
+// RowSize computes the row size for the given data length and config.
+// Row size is calculated as ceil((dataLen + headerSize) / OriginalRows),
+// rounded up to the nearest multiple of RowSizeMin.
+func (c BlobConfig) RowSize(dataLen int) int {
+	if dataLen == 0 {
+		return 0
+	}
+
+	totalLen := dataLen + blobHeaderLen
+	rowSize := (totalLen + c.OriginalRows - 1) / c.OriginalRows // ceil(totalLen / OriginalRows)
+
+	// round up to nearest multiple of RowSizeMin
+	if rowSize%c.RowSizeMin != 0 {
+		rowSize = ((rowSize / c.RowSizeMin) + 1) * c.RowSizeMin
+	}
+
+	return rowSize
+}
+
+// MaxRowSize calculates the maximum allowed row size based on MaxBlobSize and OriginalRows.
+// This is the row size that would result from encoding a blob of MaxBlobSize.
+func (c BlobConfig) MaxRowSize() int {
+	return c.RowSize(c.MaxBlobSize)
+}
+
+// UploadSize calculates size of blob data with padding and w/o parity.
+// This is the size included in the [PaymentPromise] and the one actually paid for.
+func (c BlobConfig) UploadSize(dataLen int) int {
+	return c.RowSize(dataLen) * c.OriginalRows
+}
+
 // Blob represents encoded data with Reed-Solomon erasure coding.
+// NOTE: The Blob currently embeds the versioned header. The long-term intention is to keep the Blob struct version independent,
+// while the respective header+config combination is versioned and produce general Blob.
+// Once the new version is introduced, we can consider restricting the Blob to be general, i.e. without keeping the header of a particular version.
 type Blob struct {
 	cfg BlobConfig
 
@@ -80,6 +117,7 @@ type Blob struct {
 // NewBlob creates a new [Blob] instance by encoding the data.
 // It takes the data and a [BlobConfig].
 // The data is prefixed with a header containing the blob version and data size.
+// Returns [ErrBlobTooLarge] if the data size exceeds the maximum allowed size.
 func NewBlob(data []byte, cfg BlobConfig) (d *Blob, err error) {
 	if len(data) == 0 {
 		return nil, fmt.Errorf("data cannot be empty")
@@ -121,11 +159,7 @@ func (d *Blob) RLCCoeffs() []field.GF128 {
 // RowSize returns the size of each row in bytes.
 // Returns 0 if no original data available to determine row size.
 func (d *Blob) RowSize() int {
-	if len(d.data) == 0 {
-		return 0
-	}
-
-	return d.header.calculateRowSize(len(d.data), d.cfg)
+	return d.cfg.RowSize(len(d.data))
 }
 
 // DataSize returns the size of the original data (without header) by reading from the blob header.
@@ -134,14 +168,10 @@ func (d *Blob) DataSize() int {
 	return len(d.data)
 }
 
-// Size returns the total size of the blob including the header overhead.
-// Returns 0 if no original data available to determine blob size.
-func (d *Blob) Size() int {
-	dataSize := d.DataSize()
-	if dataSize == 0 {
-		return 0
-	}
-	return blobHeaderLen + dataSize
+// UploadSize calculates size of the [Blob] data with padding and w/o parity.
+// This is the size included in the [PaymentPromise] and the one actually paid for.
+func (d *Blob) UploadSize() int {
+	return d.cfg.UploadSize(d.DataSize())
 }
 
 // Data returns the cached original data (without header).
@@ -150,13 +180,13 @@ func (d *Blob) Data() []byte {
 	return d.data
 }
 
-// Row returns the [rsema1d.RowProof] for the given index from the extended data.
-func (d *Blob) Row(index int) (*rsema1d.RowProof, error) {
+// Row returns the [rsema1d.RowInclusionProof] for the given index from the extended data.
+func (d *Blob) Row(index int) (*rsema1d.RowInclusionProof, error) {
 	if d.extendedData == nil {
 		return nil, fmt.Errorf("no extended data available")
 	}
 
-	return d.extendedData.GenerateRowProof(index)
+	return d.extendedData.GenerateRowInclusionProof(index)
 }
 
 const (
@@ -187,7 +217,7 @@ func newBlobHeaderV0(dataSize int) blobHeaderV0 {
 // Returns OriginalRows rows of calculated rowSize bytes each, padding with zeros as needed.
 // The first row contains the header followed by data.
 func (h blobHeaderV0) encodeToRows(data []byte, cfg BlobConfig) [][]byte {
-	rowSize := h.calculateRowSize(len(data), cfg)
+	rowSize := cfg.RowSize(len(data))
 	rows := make([][]byte, cfg.OriginalRows)
 
 	// First row: allocate and write header + beginning of data
@@ -269,21 +299,6 @@ func (h *blobHeaderV0) decodeFromRows(rows [][]byte, cfg BlobConfig) ([]byte, er
 	}
 
 	return data, nil
-}
-
-// calculateRowSize computes the row size for the given data length and config.
-// Row size is calculated as ceil((dataLen + headerSize) / OriginalRows),
-// rounded up to the nearest multiple of RowSizeMin.
-func (h blobHeaderV0) calculateRowSize(dataLen int, cfg BlobConfig) int {
-	totalLen := dataLen + blobHeaderLen
-	minRowSize := (totalLen + cfg.OriginalRows - 1) / cfg.OriginalRows // ceil(totalLen / OriginalRows)
-
-	// Round up to nearest multiple of RowSizeMin
-	if minRowSize%cfg.RowSizeMin != 0 {
-		minRowSize = ((minRowSize / cfg.RowSizeMin) + 1) * cfg.RowSizeMin
-	}
-
-	return minRowSize
 }
 
 // encode writes the version 0 blob header into the provided buffer.

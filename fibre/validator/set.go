@@ -1,9 +1,11 @@
 package validator
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/celestiaorg/rsema1d"
+	"github.com/cometbft/cometbft/crypto"
 	core "github.com/cometbft/cometbft/types"
 )
 
@@ -11,6 +13,18 @@ import (
 type Set struct {
 	*core.ValidatorSet
 	Height uint64
+}
+
+// GetByAddress finds a validator in the set by address.
+// Returns the validator pointer from ValidatorSet.Validators (required for shard map lookups)
+// and true if found, or nil and false if not found.
+func (s Set) GetByAddress(address crypto.Address) (*core.Validator, bool) {
+	for _, val := range s.Validators {
+		if val.Address.String() == address.String() {
+			return val, true
+		}
+	}
+	return nil, false
 }
 
 // ShardMap maps validators to the row indices they are assigned.
@@ -47,4 +61,31 @@ func (s Set) Assign(commitment rsema1d.Commitment, totalRows int) ShardMap {
 	}
 
 	return shardMap
+}
+
+// Verify checks if all given row indices are assigned to [core.Validator].
+// Returns error if validator is not in the map, count doesn't match, or any row is not assigned.
+// This method builds a temporary set for O(r + n) complexity instead of O(n × r).
+func (sm ShardMap) Verify(val *core.Validator, rowIndices []uint32) error {
+	rows, ok := sm[val]
+	if !ok {
+		return fmt.Errorf("validator not in shard map")
+	}
+
+	// verify count matches total assigned
+	if len(rowIndices) != len(rows) {
+		return fmt.Errorf("expected %d rows, got %d", len(rows), len(rowIndices))
+	}
+
+	assignedSet := make(map[int]struct{}, len(rows))
+	for _, idx := range rows {
+		assignedSet[idx] = struct{}{}
+	}
+
+	for _, rowIdx := range rowIndices {
+		if _, ok := assignedSet[int(rowIdx)]; !ok {
+			return fmt.Errorf("row %d not assigned to validator", rowIdx)
+		}
+	}
+	return nil
 }

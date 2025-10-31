@@ -80,7 +80,7 @@ func testClientConcurrentUploads(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
-			blob := makeTestBlob(t, client, 256*1024)
+			blob := makeTestBlobV0(t, 256*1024)
 			result, err := client.Upload(t.Context(), ns, blob)
 			require.NoError(t, err)
 
@@ -101,7 +101,7 @@ func testClientUploadContextCancellation(t *testing.T) {
 	cancel()
 
 	ns := share.MustNewV0Namespace([]byte(testNamespace))
-	blob := makeTestBlob(t, client, 1024*1024)
+	blob := makeTestBlobV0(t, 1024*1024)
 
 	_, err := client.Upload(ctx, ns, blob)
 	require.ErrorIs(t, err, context.Canceled)
@@ -113,7 +113,7 @@ func testClientUploadSucceedsWithOneThirdFailures(t *testing.T) {
 	defer client.Close()
 
 	ns := share.MustNewV0Namespace([]byte(testNamespace))
-	blob := makeTestBlob(t, client, 256*1024)
+	blob := makeTestBlobV0(t, 256*1024)
 
 	result, err := client.Upload(t.Context(), ns, blob)
 	require.NoError(t, err)
@@ -130,7 +130,7 @@ func testClientUploadSucceedsWithOneThirdFailuresHighConcurrency(t *testing.T) {
 	defer client.Close()
 
 	ns := share.MustNewV0Namespace([]byte(testNamespace))
-	blob := makeTestBlob(t, client, 256*1024)
+	blob := makeTestBlobV0(t, 256*1024)
 
 	result, err := client.Upload(t.Context(), ns, blob)
 	require.NoError(t, err)
@@ -144,7 +144,7 @@ func testClientUploadInsufficientVotingPower(t *testing.T) {
 	defer client.Close()
 
 	ns := share.MustNewV0Namespace([]byte(testNamespace))
-	blob := makeTestBlob(t, client, 512*1024)
+	blob := makeTestBlobV0(t, 512*1024)
 
 	_, err := client.Upload(t.Context(), ns, blob)
 	require.Error(t, err)
@@ -165,7 +165,7 @@ func testClientUploadInsufficientSignaturesCount(t *testing.T) {
 	defer client.Close()
 
 	ns := share.MustNewV0Namespace([]byte(testNamespace))
-	blob := makeTestBlob(t, client, 512*1024)
+	blob := makeTestBlobV0(t, 512*1024)
 
 	_, err := client.Upload(t.Context(), ns, blob)
 	require.Error(t, err)
@@ -191,7 +191,7 @@ func testClientUploadAllValidatorsReceiveData(t *testing.T) {
 	require.NoError(t, err)
 
 	ns := share.MustNewV0Namespace([]byte(testNamespace))
-	blob := makeTestBlob(t, client, 256*1024)
+	blob := makeTestBlobV0(t, 256*1024)
 
 	_, err = client.Upload(t.Context(), ns, blob)
 	require.NoError(t, err)
@@ -206,15 +206,13 @@ func testClientUploadAllValidatorsReceiveData(t *testing.T) {
 	}
 }
 
-// Test helpers
-
-func makeTestBlob(t *testing.T, client *fibre.Client, sizeBytes int) *fibre.Blob {
+func makeTestBlobV0(t *testing.T, sizeBytes int) *fibre.Blob {
 	t.Helper()
 	data := make([]byte, sizeBytes)
 	_, err := rand.Read(data)
 	require.NoError(t, err)
 
-	blob, err := fibre.NewBlob(data, client.Config().BlobConfig)
+	blob, err := fibre.NewBlob(data, fibre.DefaultBlobConfigV0())
 	require.NoError(t, err)
 	return blob
 }
@@ -415,7 +413,7 @@ func testClientUploadClosedClient(t *testing.T) {
 	require.NoError(t, client.Close())
 
 	ns := share.MustNewV0Namespace([]byte(testNamespace))
-	blob := makeTestBlob(t, client, 256*1024)
+	blob := makeTestBlobV0(t, 256*1024)
 
 	// Attempt to upload after closing
 	_, err := client.Upload(t.Context(), ns, blob)

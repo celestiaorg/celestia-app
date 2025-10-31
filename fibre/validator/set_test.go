@@ -147,6 +147,65 @@ func BenchmarkSet_Assign(b *testing.B) {
 	}
 }
 
+func TestShardMap_Verify(t *testing.T) {
+	commitment := rsema1d.Commitment{
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+	}
+	valSet := makeValidatorSet(3)
+	shardMap := valSet.Assign(commitment, 10)
+
+	// test valid assignments
+	for val, rows := range shardMap {
+		rowIndices := make([]uint32, len(rows))
+		for i, idx := range rows {
+			rowIndices[i] = uint32(idx)
+		}
+		require.NoError(t, shardMap.Verify(val, rowIndices))
+	}
+
+	// test too few rows provided
+	for val, rows := range shardMap {
+		if len(rows) < 2 {
+			continue
+		}
+		// provide only first row when multiple are expected
+		partialRows := []uint32{uint32(rows[0])}
+		require.ErrorContains(t, shardMap.Verify(val, partialRows), "expected")
+		break
+	}
+
+	// test too many rows provided
+	for val, rows := range shardMap {
+		if len(rows) == 0 {
+			continue
+		}
+		// provide extra row that isn't assigned
+		extraRows := make([]uint32, len(rows)+1)
+		for i, idx := range rows {
+			extraRows[i] = uint32(idx)
+		}
+		extraRows[len(rows)] = 999 // extra row not assigned
+		require.ErrorContains(t, shardMap.Verify(val, extraRows), "expected")
+		break
+	}
+
+	// test invalid row index with correct count
+	for val, rows := range shardMap {
+		if len(rows) == 0 {
+			continue
+		}
+		// replace valid row with invalid one (999 not assigned)
+		invalidRows := make([]uint32, len(rows))
+		for i, idx := range rows {
+			invalidRows[i] = uint32(idx)
+		}
+		invalidRows[0] = 999 // replace first with invalid
+		require.ErrorContains(t, shardMap.Verify(val, invalidRows), "not assigned")
+		break
+	}
+}
+
 func makeValidatorSet(n int) validator.Set {
 	validators := make([]*core.Validator, n)
 	for i := range n {

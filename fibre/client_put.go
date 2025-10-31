@@ -49,7 +49,7 @@ func (c *Client) Put(ctx context.Context, ns share.Namespace, data []byte) (resu
 
 	commitment := blob.Commitment()
 	span.AddEvent("blob_encoded", trace.WithAttributes(
-		attribute.String("commitment", commitment.String()),
+		attribute.String("blob_commitment", commitment.String()),
 		attribute.Int("row_size", blob.RowSize()),
 	))
 
