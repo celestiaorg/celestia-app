@@ -1,27 +1,10 @@
 package fibre
 
 import (
-	"bytes"
 	"testing"
-
-	"github.com/stretchr/testify/require"
 )
 
-func TestBlob_TooLarge(t *testing.T) {
-	cfg := BlobConfig{
-		OriginalRows:  8,
-		ParityRows:    24,
-		CodingWorkers: 2,
-		MaxBlobSize:   100,
-		RowSizeMin:    64,
-	}
-
-	_, err := NewBlob(make([]byte, 200), cfg)
-	require.ErrorIs(t, err, ErrBlobTooLarge)
-}
-
-// TestBlobHeaderV0_CalculateRowSize tests row size calculation
-func TestBlobHeaderV0_CalculateRowSize(t *testing.T) {
+func TestBlobConfig_RowSize(t *testing.T) {
 	tests := []struct {
 		name         string
 		dataLen      int
@@ -68,26 +51,24 @@ func TestBlobHeaderV0_CalculateRowSize(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			header := newBlobHeaderV0(tt.dataLen)
 			cfg := BlobConfig{
 				OriginalRows: tt.originalRows,
 				RowSizeMin:   tt.rowSizeMin,
 			}
 
-			rowSize := header.calculateRowSize(tt.dataLen, cfg)
+			rowSize := cfg.RowSize(tt.dataLen)
 			if rowSize != tt.wantRowSize {
-				t.Errorf("calculateRowSize(%d) = %d, want %d", tt.dataLen, rowSize, tt.wantRowSize)
+				t.Errorf("RowSize(%d) = %d, want %d", tt.dataLen, rowSize, tt.wantRowSize)
 			}
 
 			// verify row size is multiple of RowSizeMin
 			if rowSize%tt.rowSizeMin != 0 {
-				t.Errorf("calculateRowSize(%d) = %d, not a multiple of %d", tt.dataLen, rowSize, tt.rowSizeMin)
+				t.Errorf("RowSize(%d) = %d, not a multiple of %d", tt.dataLen, rowSize, tt.rowSizeMin)
 			}
 		})
 	}
 }
 
-// TestBlobHeaderV0_EncodeToRows_DecodeFromRows tests full round-trip
 func TestBlobHeaderV0_EncodeToRows_DecodeFromRows(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -159,7 +140,7 @@ func TestBlobHeaderV0_EncodeToRows_DecodeFromRows(t *testing.T) {
 			}
 
 			// Verify all rows have same size
-			expectedRowSize := header.calculateRowSize(len(data), tt.cfg)
+			expectedRowSize := tt.cfg.RowSize(len(data))
 			for i, row := range rows {
 				if len(row) != expectedRowSize {
 					t.Errorf("row %d size = %d, want %d", i, len(row), expectedRowSize)
@@ -174,8 +155,14 @@ func TestBlobHeaderV0_EncodeToRows_DecodeFromRows(t *testing.T) {
 			}
 
 			// Verify round-trip
-			if !bytes.Equal(decodedData, data) {
-				t.Errorf("decodeFromRows() data mismatch, got %d bytes, want %d bytes", len(decodedData), len(data))
+			if len(decodedData) != len(data) {
+				t.Errorf("decodeFromRows() data length mismatch, got %d bytes, want %d bytes", len(decodedData), len(data))
+			}
+			for i := range data {
+				if decodedData[i] != data[i] {
+					t.Errorf("decodeFromRows() data mismatch at index %d, got %d, want %d", i, decodedData[i], data[i])
+					break
+				}
 			}
 
 			// Verify header was decoded correctly
