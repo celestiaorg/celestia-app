@@ -68,6 +68,70 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, []field.G
 	return extData, commitment, rlcOrig, nil
 }
 
+// EncodeParity creates commitment from already extended rows (K+N rows).
+// Unlike Encode which extends K rows to K+N rows internally, this function
+// takes pre-extended data and computes the commitment and RLC proofs.
+// Returns the extended data structure, the commitment hash, the RLC coefficients
+// for original rows, and an error if encoding fails.
+func EncodeParity(extended [][]byte, config *Config) (*ExtendedData, Commitment, []field.GF128, error) {
+	// 1. Validate input
+	if err := config.Validate(); err != nil {
+		return nil, Commitment{}, nil, fmt.Errorf("invalid config: %w", err)
+	}
+
+	expectedRows := config.K + config.N
+	if len(extended) != expectedRows {
+		return nil, Commitment{}, nil, fmt.Errorf("expected %d rows (K+N), got %d", expectedRows, len(extended))
+	}
+
+	for i, row := range extended {
+		if len(row) != config.RowSize {
+			return nil, Commitment{}, nil, fmt.Errorf("row %d has size %d, expected %d", i, len(row), config.RowSize)
+		}
+	}
+
+	// 2. Build padded Merkle tree for rows
+	rowTree := buildPaddedRowTree(extended, config)
+	rowRoot := rowTree.Root()
+
+	// 3. Derive RLC coefficients
+	coeffs := deriveCoefficients(rowRoot, config)
+
+	// 4. Compute RLC results for original rows (first K rows)
+	originalRows := extended[:config.K]
+	rlcOrig := computeRLCOrig(originalRows, coeffs, config)
+
+	// 5. Extend RLC results
+	rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
+	if err != nil {
+		return nil, Commitment{}, nil, fmt.Errorf("failed to extend RLC results: %w", err)
+	}
+
+	// 6. Build padded RLC Merkle tree matching row tree structure
+	rlcTree := buildPaddedRLCTree(rlcExtended, config)
+	rlcRoot := rlcTree.Root()
+
+	// 7. Create commitment: SHA256(rowRoot || rlcRoot)
+	h := sha256.New()
+	h.Write(rowRoot[:])
+	h.Write(rlcRoot[:])
+	var commitment Commitment
+	h.Sum(commitment[:0])
+
+	// Create ExtendedData
+	extData := &ExtendedData{
+		config:  config,
+		rows:    extended,
+		rowRoot: rowRoot,
+		rlcRoot: rlcRoot,
+		rlcOrig: rlcOrig,
+		rowTree: rowTree,
+		rlcTree: rlcTree,
+	}
+
+	return extData, commitment, rlcOrig, nil
+}
+
 // computeRLCOrig computes random linear combinations for original rows
 func computeRLCOrig(rows [][]byte, coeffs []field.GF128, config *Config) []field.GF128 {
 	results := make([]field.GF128, len(rows))
@@ -132,6 +196,25 @@ func (ed *ExtendedData) GenerateStandaloneProof(index int) (*StandaloneProof, er
 	return &StandaloneProof{
 		RowProof: *rowProof,
 		RLCProof: rlcProof,
+	}, nil
+}
+
+// GenerateRowInclusionProof creates a proof that verifies row inclusion in commitment.
+// Works for both original and parity rows. Only verifies inclusion, not RLC correctness.
+// Smallest proof size: only adds 32 bytes (rlcRoot) to RowProof.
+func (ed *ExtendedData) GenerateRowInclusionProof(index int) (*RowInclusionProof, error) {
+	if index < 0 || index >= ed.config.K+ed.config.N {
+		return nil, fmt.Errorf("index %d out of range [0, %d)", index, ed.config.K+ed.config.N)
+	}
+
+	rowProof, err := ed.GenerateRowProof(index)
+	if err != nil {
+		return nil, err
+	}
+
+	return &RowInclusionProof{
+		RowProof: *rowProof,
+		RLCRoot:  ed.rlcRoot,
 	}, nil
 }
 
