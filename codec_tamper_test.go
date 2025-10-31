@@ -49,11 +49,11 @@ func TestTamperedExtendedDataBeforeCommitment(t *testing.T) {
 			}
 
 			// Step 6: Build the extended RLC Merkle tree
-			rlcTree := buildPaddedRLCTree(rlcExtended, config)
+			rlcExtendedTree := buildPaddedRLCTree(rlcExtended, config)
 
 			// Step 7: Build padded RLC Merkle tree
-			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
-			rlcRoot := rlcOrigTree.Root()
+			rlcTree := buildPaddedRLCTree(rlcOrig, config)
+			rlcRoot := rlcTree.Root()
 
 			// Step 8: Create commitment
 			h := sha256.New()
@@ -64,13 +64,13 @@ func TestTamperedExtendedDataBeforeCommitment(t *testing.T) {
 
 			// Create ExtendedData structure
 			extData := &ExtendedData{
-				config:  config,
-				rows:    extended,
-				rowRoot: rowRoot,
-				rlcRoot: rlcRoot,
-				rlcOrig: rlcOrig,
-				rowTree: rowTree,
-				rlcTree: rlcTree,
+				config:          config,
+				rows:            extended,
+				rowRoot:         rowRoot,
+				rlcRoot:         rlcRoot,
+				rlcOrig:         rlcOrig,
+				rowTree:         rowTree,
+				rlcExtendedTree: rlcExtendedTree,
 			}
 
 			// Create verification context
@@ -150,11 +150,11 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 			}
 
 			// Step 6: Build extended RLC Merkle tree
-			rlcTree := buildPaddedRLCTree(rlcExtended, config)
+			rlcExtendedTree := buildPaddedRLCTree(rlcExtended, config)
 
 			// Step 7: Build padded RLC Merkle tree
-			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
-			rlcRoot := rlcOrigTree.Root()
+			rlcTree := buildPaddedRLCTree(rlcOrig, config)
+			rlcRoot := rlcTree.Root()
 
 			// Step 8: Create commitment with tampered RLC root
 			h := sha256.New()
@@ -165,13 +165,13 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 
 			// Create ExtendedData structure
 			extData := &ExtendedData{
-				config:  config,
-				rows:    extended,
-				rowRoot: rowRoot,
-				rlcRoot: rlcRoot,
-				rlcOrig: rlcOrig,
-				rowTree: rowTree,
-				rlcTree: rlcTree,
+				config:          config,
+				rows:            extended,
+				rowRoot:         rowRoot,
+				rlcRoot:         rlcRoot,
+				rlcOrig:         rlcOrig,
+				rowTree:         rowTree,
+				rlcExtendedTree: rlcExtendedTree,
 			}
 
 			// Create verification context
@@ -242,11 +242,11 @@ func TestTamperedOriginalRLCBeforeCommitment(t *testing.T) {
 			}
 
 			// Step 6: Build extended RLC Merkle tree
-			rlcTree := buildPaddedRLCTree(rlcExtended, config)
+			rlcExtendedTree := buildPaddedRLCTree(rlcExtended, config)
 
 			// Step 7: Build padded RLC Merkle tree
-			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
-			rlcRoot := rlcOrigTree.Root()
+			rlcTree := buildPaddedRLCTree(rlcOrig, config)
+			rlcRoot := rlcTree.Root()
 
 			// Step 8: Create commitment
 			h := sha256.New()
@@ -257,13 +257,13 @@ func TestTamperedOriginalRLCBeforeCommitment(t *testing.T) {
 
 			// Create ExtendedData structure with tampered rlcOrig
 			extData := &ExtendedData{
-				config:  config,
-				rows:    extended,
-				rowRoot: rowRoot,
-				rlcRoot: rlcRoot,
-				rlcOrig: rlcOrig, // This contains the tampered value
-				rowTree: rowTree,
-				rlcTree: rlcTree,
+				config:          config,
+				rows:            extended,
+				rowRoot:         rowRoot,
+				rlcRoot:         rlcRoot,
+				rlcOrig:         rlcOrig, // This contains the tampered value
+				rowTree:         rowTree,
+				rlcExtendedTree: rlcExtendedTree,
 			}
 
 			// Create verification context with tampered RLC values
@@ -350,11 +350,11 @@ func TestMultipleTamperedRows(t *testing.T) {
 			}
 
 			// Build extended RLC Merkle tree
-			rlcTree := buildPaddedRLCTree(rlcExtended, config)
+			rlcExtendedTree := buildPaddedRLCTree(rlcExtended, config)
 
 			// Build padded RLC Merkle tree
-			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
-			rlcRoot := rlcOrigTree.Root()
+			rlcTree := buildPaddedRLCTree(rlcOrig, config)
+			rlcRoot := rlcTree.Root()
 
 			// Create commitment
 			h := sha256.New()
@@ -364,13 +364,13 @@ func TestMultipleTamperedRows(t *testing.T) {
 			h.Sum(commitment[:0])
 
 			extData := &ExtendedData{
-				config:  config,
-				rows:    extended,
-				rowRoot: rowRoot,
-				rlcRoot: rlcRoot,
-				rlcOrig: rlcOrig,
-				rowTree: rowTree,
-				rlcTree: rlcTree,
+				config:          config,
+				rows:            extended,
+				rowRoot:         rowRoot,
+				rlcRoot:         rlcRoot,
+				rlcOrig:         rlcOrig,
+				rowTree:         rowTree,
+				rlcExtendedTree: rlcExtendedTree,
 			}
 
 			// Create verification context

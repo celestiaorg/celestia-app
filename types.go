@@ -13,13 +13,13 @@ type Commitment = [32]byte // SHA256(rowRoot || rlcRoot)
 
 // ExtendedData holds the encoded data matrix
 type ExtendedData struct {
-	config  *Config
-	rows    [][]byte      // K+N rows of data
-	rowRoot [32]byte      // Merkle root of rows
-	rlcRoot [32]byte      // Merkle root of RLC results
-	rlcOrig []field.GF128 // Cached RLC results (original rows)
-	rowTree *merkle.Tree  // Cached row Merkle tree
-	rlcTree *merkle.Tree  // Cached RLC Merkle tree
+	config          *Config
+	rows            [][]byte      // K+N rows of data
+	rowRoot         [32]byte      // Merkle root of rows
+	rlcRoot         [32]byte      // Merkle root of RLC results
+	rlcOrig         []field.GF128 // Cached RLC results (original rows)
+	rowTree         *merkle.Tree  // Cached row Merkle tree
+	rlcExtendedTree *merkle.Tree  // Cached RLC Merkle tree
 }
 
 // VerificationContext holds precomputed RLC data for efficient batch verification
