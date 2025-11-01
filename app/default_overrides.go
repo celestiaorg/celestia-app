@@ -36,9 +36,7 @@ import (
 	ibctypes "github.com/cosmos/ibc-go/v8/modules/core/types"
 )
 
-const (
-	mebibyte = 1048576
-)
+const mebibyte = appconsts.DefaultUpperBoundMaxBytes / 128
 
 var (
 	_ module.HasGenesisBasics = bankModule{}
