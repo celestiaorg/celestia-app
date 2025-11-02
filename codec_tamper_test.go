@@ -132,11 +132,11 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 			tamperedRLCIndex := config.K - 1
 			rlcOrig[tamperedRLCIndex][0] ^= 0xFFFF
 
-			// Step 7: Build padded RLC Merkle tree
+			// Step 5: Build padded RLC Merkle tree
 			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config, false)
 			rlcOrigRoot := rlcOrigTree.Root()
 
-			// Step 8: Create commitment with tampered RLC root
+			// Step 6: Create commitment with tampered RLC root
 			h := sha256.New()
 			h.Write(rowRoot[:])
 			h.Write(rlcOrigRoot[:])

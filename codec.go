@@ -49,7 +49,7 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, []field.G
 	rlcOrigTree := buildPaddedRLCTree(rlcOrig, config, false)
 	rlcOrigRoot := rlcOrigTree.Root()
 
-	// 8. Create commitment: SHA256(rowRoot || rlcOrigRoot)
+	// 7. Create commitment: SHA256(rowRoot || rlcOrigRoot)
 	h := sha256.New()
 	h.Write(rowRoot[:])
 	h.Write(rlcOrigRoot[:])
@@ -58,11 +58,12 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, []field.G
 
 	// Create ExtendedData
 	extData := &ExtendedData{
-		config:  config,
-		rows:    extended,
-		rowRoot: rowRoot,
-		rlcOrig: rlcOrig,
-		rowTree: rowTree,
+		config:      config,
+		rows:        extended,
+		rowRoot:     rowRoot,
+		rlcOrig:     rlcOrig,
+		rowTree:     rowTree,
+		rlcOrigTree: rlcOrigTree,
 	}
 
 	return extData, commitment, rlcOrig, nil
@@ -114,11 +115,12 @@ func EncodeParity(extended [][]byte, config *Config) (*ExtendedData, Commitment,
 
 	// Create ExtendedData
 	extData := &ExtendedData{
-		config:  config,
-		rows:    extended,
-		rowRoot: rowRoot,
-		rlcOrig: rlcOrig,
-		rowTree: rowTree,
+		config:      config,
+		rows:        extended,
+		rowRoot:     rowRoot,
+		rlcOrig:     rlcOrig,
+		rowTree:     rowTree,
+		rlcOrigTree: rlcOrigTree,
 	}
 
 	return extData, commitment, rlcOrig, nil
@@ -178,9 +180,7 @@ func (ed *ExtendedData) GenerateStandaloneProof(index int) (*StandaloneProof, er
 		return nil, err
 	}
 
-	rlcOrigTree := buildPaddedRLCTree(ed.rlcOrig, ed.config, false)
-
-	rlcProof, err := rlcOrigTree.GenerateProof(index)
+	rlcProof, err := ed.rlcOrigTree.GenerateProof(index)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate RLC proof: %w", err)
 	}
@@ -204,8 +204,7 @@ func (ed *ExtendedData) GenerateRowInclusionProof(index int) (*RowInclusionProof
 		return nil, err
 	}
 
-	rlcOrigTree := buildPaddedRLCTree(ed.rlcOrig, ed.config, false)
-	rlcOrigRoot := rlcOrigTree.Root()
+	rlcOrigRoot := ed.rlcOrigTree.Root()
 
 	return &RowInclusionProof{
 		RowProof: *rowProof,
