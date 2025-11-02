@@ -43,7 +43,7 @@ func TestTamperedExtendedDataBeforeCommitment(t *testing.T) {
 			rlcOrig := computeRLCOrig(data, coeffs, config)
 
 			// Step 5: Build padded RLC Merkle tree
-			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config, false)
+			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
 			rlcOrigRoot := rlcOrigTree.Root()
 
 			// Step 6: Create commitment
@@ -133,7 +133,7 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 			rlcOrig[tamperedRLCIndex][0] ^= 0xFFFF
 
 			// Step 5: Build padded RLC Merkle tree
-			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config, false)
+			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
 			rlcOrigRoot := rlcOrigTree.Root()
 
 			// Step 6: Create commitment with tampered RLC root
@@ -214,7 +214,7 @@ func TestTamperedOriginalRLCBeforeCommitment(t *testing.T) {
 			rlcOrig[tamperedOrigIndex][0] ^= 0xFFFF
 
 			// Step 5: Build padded RLC Merkle tree
-			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config, false)
+			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
 			rlcOrigRoot := rlcOrigTree.Root()
 
 			// Step 6: Create commitment
@@ -311,7 +311,7 @@ func TestMultipleTamperedRows(t *testing.T) {
 			rlcOrig := computeRLCOrig(data, coeffs, config)
 
 			// Build padded RLC Merkle tree
-			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config, false)
+			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
 			rlcOrigRoot := rlcOrigTree.Root()
 
 			// Create commitment

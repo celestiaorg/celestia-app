@@ -46,7 +46,7 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, []field.G
 
 	// Step 6: Build padded RLC Merkle tree
 
-	rlcOrigTree := buildPaddedRLCTree(rlcOrig, config, false)
+	rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
 	rlcOrigRoot := rlcOrigTree.Root()
 
 	// 7. Create commitment: SHA256(rowRoot || rlcOrigRoot)
@@ -103,7 +103,7 @@ func EncodeParity(extended [][]byte, config *Config) (*ExtendedData, Commitment,
 	rlcOrig := computeRLCOrig(originalRows, coeffs, config)
 
 	// 5. Build padded RLC Merkle tree matching row tree structure
-	rlcOrigTree := buildPaddedRLCTree(rlcOrig, config, false)
+	rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
 	rlcOrigRoot := rlcOrigTree.Root()
 
 	// 6. Create commitment: SHA256(rowRoot || rlcOrigRoot)
