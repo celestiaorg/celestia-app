@@ -64,6 +64,7 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, []field.G
 		rlcOrig:     rlcOrig,
 		rowTree:     rowTree,
 		rlcOrigTree: rlcOrigTree,
+		rlcOrigRoot: rlcOrigRoot,
 	}
 
 	return extData, commitment, rlcOrig, nil
@@ -121,6 +122,7 @@ func EncodeParity(extended [][]byte, config *Config) (*ExtendedData, Commitment,
 		rlcOrig:     rlcOrig,
 		rowTree:     rowTree,
 		rlcOrigTree: rlcOrigTree,
+		rlcOrigRoot: rlcOrigRoot,
 	}
 
 	return extData, commitment, rlcOrig, nil
@@ -204,11 +206,9 @@ func (ed *ExtendedData) GenerateRowInclusionProof(index int) (*RowInclusionProof
 		return nil, err
 	}
 
-	rlcOrigRoot := ed.rlcOrigTree.Root()
-
 	return &RowInclusionProof{
 		RowProof: *rowProof,
-		RLCRoot:  rlcOrigRoot,
+		RLCRoot:  ed.rlcOrigRoot,
 	}, nil
 }
 

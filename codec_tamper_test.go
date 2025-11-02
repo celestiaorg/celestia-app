@@ -61,6 +61,7 @@ func TestTamperedExtendedDataBeforeCommitment(t *testing.T) {
 				rlcOrig:     rlcOrig,
 				rowTree:     rowTree,
 				rlcOrigTree: rlcOrigTree,
+				rlcOrigRoot: rlcOrigRoot,
 			}
 
 			// Create verification context
@@ -152,6 +153,7 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 				rlcOrig:     rlcOrig,
 				rowTree:     rowTree,
 				rlcOrigTree: rlcOrigTree,
+				rlcOrigRoot: rlcOrigRoot,
 			}
 
 			// Create verification context
@@ -234,6 +236,7 @@ func TestTamperedOriginalRLCBeforeCommitment(t *testing.T) {
 				rlcOrig:     rlcOrig, // This contains the tampered value
 				rowTree:     rowTree,
 				rlcOrigTree: rlcOrigTree,
+				rlcOrigRoot: rlcOrigRoot,
 			}
 
 			// Create verification context with tampered RLC values
@@ -331,6 +334,7 @@ func TestMultipleTamperedRows(t *testing.T) {
 				rlcOrig:     rlcOrig,
 				rowTree:     rowTree,
 				rlcOrigTree: rlcOrigTree,
+				rlcOrigRoot: rlcOrigRoot,
 			}
 
 			// Create verification context

@@ -19,6 +19,7 @@ type ExtendedData struct {
 	rlcOrig     []field.GF128 // Cached RLC results (original rows)
 	rowTree     *merkle.Tree  // Cached row Merkle tree
 	rlcOrigTree *merkle.Tree  // Cached RLC Merkle tree
+	rlcOrigRoot [32]byte      // Cached RLC root
 }
 
 // VerificationContext holds precomputed RLC data for efficient batch verification
