@@ -55,11 +55,12 @@ func TestTamperedExtendedDataBeforeCommitment(t *testing.T) {
 
 			// Create ExtendedData structure
 			extData := &ExtendedData{
-				config:  config,
-				rows:    extended,
-				rowRoot: rowRoot,
-				rlcOrig: rlcOrig,
-				rowTree: rowTree,
+				config:      config,
+				rows:        extended,
+				rowRoot:     rowRoot,
+				rlcOrig:     rlcOrig,
+				rowTree:     rowTree,
+				rlcOrigTree: rlcOrigTree,
 			}
 
 			// Create verification context
@@ -145,11 +146,12 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 
 			// Create ExtendedData structure
 			extData := &ExtendedData{
-				config:  config,
-				rows:    extended,
-				rowRoot: rowRoot,
-				rlcOrig: rlcOrig,
-				rowTree: rowTree,
+				config:      config,
+				rows:        extended,
+				rowRoot:     rowRoot,
+				rlcOrig:     rlcOrig,
+				rowTree:     rowTree,
+				rlcOrigTree: rlcOrigTree,
 			}
 
 			// Create verification context
@@ -226,11 +228,12 @@ func TestTamperedOriginalRLCBeforeCommitment(t *testing.T) {
 
 			// Create ExtendedData structure with tampered rlcOrig
 			extData := &ExtendedData{
-				config:  config,
-				rows:    extended,
-				rowRoot: rowRoot,
-				rlcOrig: rlcOrig, // This contains the tampered value
-				rowTree: rowTree,
+				config:      config,
+				rows:        extended,
+				rowRoot:     rowRoot,
+				rlcOrig:     rlcOrig, // This contains the tampered value
+				rowTree:     rowTree,
+				rlcOrigTree: rlcOrigTree,
 			}
 
 			// Create verification context with tampered RLC values
@@ -322,11 +325,12 @@ func TestMultipleTamperedRows(t *testing.T) {
 			h.Sum(commitment[:0])
 
 			extData := &ExtendedData{
-				config:  config,
-				rows:    extended,
-				rowRoot: rowRoot,
-				rlcOrig: rlcOrig,
-				rowTree: rowTree,
+				config:      config,
+				rows:        extended,
+				rowRoot:     rowRoot,
+				rlcOrig:     rlcOrig,
+				rowTree:     rowTree,
+				rlcOrigTree: rlcOrigTree,
 			}
 
 			// Create verification context
