@@ -494,7 +494,12 @@ func DestroyGCInstances(ctx context.Context, project string, insts []Instance, o
 			delCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 			defer cancel()
 
-			zone := RandomGCZone(inst.Region)
+			zone, err := findGCInstanceZone(delCtx, project, inst.Name, inst.Region, opts)
+			if err != nil {
+				results <- result{inst: inst, err: fmt.Errorf("find zone for %s: %w", inst.Name, err)}
+				return
+			}
+
 			if err := deleteGCInstance(delCtx, project, zone, inst.Name, opts); err != nil {
 				results <- result{inst: inst, err: fmt.Errorf("delete %s: %w", inst.Name, err)}
 				return
@@ -524,6 +529,33 @@ func DestroyGCInstances(ctx context.Context, project string, insts []Instance, o
 	}
 
 	return removed, nil
+}
+
+func findGCInstanceZone(ctx context.Context, project, instanceName, region string, opts []option.ClientOption) (string, error) {
+	client, err := compute.NewInstancesRESTClient(ctx, opts...)
+	if err != nil {
+		return "", fmt.Errorf("failed to create compute client: %w", err)
+	}
+	defer client.Close()
+
+	zones := GCZones[region]
+	if len(zones) == 0 {
+		zones = []string{region + "-a", region + "-b", region + "-c"}
+	}
+
+	for _, zone := range zones {
+		req := &computepb.GetInstanceRequest{
+			Project:  project,
+			Zone:     zone,
+			Instance: instanceName,
+		}
+		_, err := client.Get(ctx, req)
+		if err == nil {
+			return zone, nil
+		}
+	}
+
+	return "", fmt.Errorf("instance %s not found in any zone of region %s", instanceName, region)
 }
 
 func deleteGCInstance(ctx context.Context, project, zone, name string, opts []option.ClientOption) error {
