@@ -1,6 +1,7 @@
 package app
 
 import (
+	log "cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	square "github.com/celestiaorg/go-square/v3"
 	"github.com/celestiaorg/go-square/v3/tx"
@@ -45,7 +46,7 @@ func (fsb *FilteredSquareBuilder) Builder() *square.Builder {
 }
 
 func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
-	logger := ctx.Logger().With("app/filtered-square-builder")
+	logger := ctx.Logger().With(log.ModuleKey, "filtered-square-builder")
 
 	// note that there is an additional filter step for tx size of raw txs here
 	normalTxs, blobTxs := separateTxs(fsb.txConfig, txs)
