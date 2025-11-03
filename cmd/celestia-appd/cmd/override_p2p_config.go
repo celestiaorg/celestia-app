@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	mebibyte              = 1048576
+	mebibyte               = 1048576
 	bypassOverridesFlagKey = "bypass-config-overrides"
 )
 
