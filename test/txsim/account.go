@@ -148,11 +148,10 @@ func (am *AccountManager) setupMasterAccount(ctx context.Context, masterAccName 
 		return fmt.Errorf("error getting master account %s balance: %w", masterAccName, err)
 	}
 
-	txClient, err := user.SetupTxClient(ctx, am.keys, am.conn, am.encCfg, user.WithDefaultAccount(masterAccName), user.WithPollTime(am.pollTime))
+	am.txClient, err = txclientv2.SetupTxClient(ctx, am.keys, am.conn, am.encCfg, user.WithDefaultAccount(masterAccName), user.WithPollTime(am.pollTime))
 	if err != nil {
 		return err
 	}
-	am.txClient = txclientv2.NewTxClient(txClient)
 
 	log.Info().
 		Str("address", masterAddress.String()).

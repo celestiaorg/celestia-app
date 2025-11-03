@@ -3,9 +3,14 @@ package v2
 import (
 	"context"
 
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
 	"github.com/celestiaorg/go-square/v3/share"
+	"github.com/cosmos/cosmos-sdk/codec"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	"google.golang.org/grpc"
 )
 
 // TxClient is a v2 wrapper around the original TxClient that
@@ -15,11 +20,41 @@ type TxClient struct {
 	*user.TxClient
 }
 
-// NewTxClient creates a new v2 TxClient wrapper around the provided TxClient
-func NewTxClient(client *user.TxClient) *TxClient {
-	return &TxClient{
-		TxClient: client,
+// NewTxClient creates a new v2 TxClient by wrapping the original NewTxClient function.
+func NewTxClient(
+	cdc codec.Codec,
+	signer *user.Signer,
+	conn *grpc.ClientConn,
+	registry codectypes.InterfaceRegistry,
+	options ...user.Option,
+) (*TxClient, error) {
+	v1Client, err := user.NewTxClient(cdc, signer, conn, registry, options...)
+	if err != nil {
+		return nil, err
 	}
+
+	return &TxClient{TxClient: v1Client}, nil
+}
+
+// SetupTxClient creates and initializes a new v2 TxClient by wrapping the original setupTxClient method.
+func SetupTxClient(
+	ctx context.Context,
+	keys keyring.Keyring,
+	conn *grpc.ClientConn,
+	encCfg encoding.Config,
+	options ...user.Option,
+) (*TxClient, error) {
+	v1Client, err := user.SetupTxClient(ctx, keys, conn, encCfg, options...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &TxClient{TxClient: v1Client}, nil
+}
+
+// Wrapv1TxClient wraps a v1 TxClient and returns a v2 TxClient.
+func Wrapv1TxClient(v1Client *user.TxClient) *TxClient {
+	return &TxClient{TxClient: v1Client}
 }
 
 func (c *TxClient) buildSDKTxResponse(legacyResp *user.TxResponse) *sdktypes.TxResponse {

@@ -23,7 +23,7 @@ func TestV2SubmitMethods(t *testing.T) {
 
 	// setup test client
 	_, txClient, ctx := utils.SetupTxClientWithDefaultParams(t)
-	v2Client := NewTxClient(txClient)
+	v2Client := Wrapv1TxClient(txClient)
 	serviceClient := sdktx.NewServiceClient(ctx.GRPCClient)
 	testCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

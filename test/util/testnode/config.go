@@ -135,6 +135,11 @@ func (c *Config) WithConsensusParams(params *tmproto.ConsensusParams) *Config {
 	return c
 }
 
+func (c *Config) WithMaxBytes(maxBytes int64) *Config {
+	c.Genesis.ConsensusParams.Block.MaxBytes = maxBytes
+	return c
+}
+
 // DefaultConfig returns the default configuration of a test node.
 func DefaultConfig() *Config {
 	cfg := &Config{}

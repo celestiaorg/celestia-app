@@ -33,12 +33,11 @@ func SetupTxClient(
 	blobParams.GovMaxSquareSize = squareSize
 
 	testnodeConfig := testnode.DefaultConfig().
-		WithTendermintConfig(defaultTmConfig).
+		WithTendermintConfig(tmConfig).
 		WithFundedAccounts(accounts...).
 		WithDelayedPrecommitTimeout(300 * time.Millisecond).
-		WithModifiers(genesis.SetBlobParams(enc.Codec, defaultBlobParams))
-
-	testnodeConfig.Genesis.ConsensusParams.Block.MaxBytes = blocksize
+		WithModifiers(genesis.SetBlobParams(enc.Codec, blobParams)).
+		WithMaxBytes(blocksize)
 
 	ctx, _, _ := testnode.NewNetwork(t, testnodeConfig)
 	_, err := ctx.WaitForHeight(1)
