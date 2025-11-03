@@ -85,16 +85,6 @@ func (c *Config) WithSuppressLogs(sl bool) *Config {
 	return c
 }
 
-// WithTimeoutCommit sets the timeout commit in the cometBFT config and returns
-// the Config. For backward compatibility, it also sets the app's block time.
-// Deprecated: Use WithDelayedPrecommitTimeout instead.
-func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
-	c.TmConfig.Consensus.TimeoutCommit = d
-	// For backward compatibility, also set the app option so existing tests continue to work
-	c.AppOptions.Set(TimeoutCommitFlag, d)
-	return c
-}
-
 // WithDelayedPrecommitTimeout sets the target block time using DelayedPrecommitTimeout in the app
 // options and returns the Config. This affects the DelayedPrecommitTimeout used for consistent
 // block timing.
