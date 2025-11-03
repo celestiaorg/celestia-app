@@ -56,7 +56,7 @@ func VerifyRowWithContext(proof *RowProof, commitment Commitment, context *Verif
 
 	// 2. Derive coefficients and compute RLC for the row
 	coeffs := deriveCoefficients(rowRoot, context.config)
-	computedRLC := computeRLC(proof.Row, coeffs, context.config)
+	computedRLC := computeRLC(proof.Row, coeffs)
 
 	// 3. Verify RLC matches the extended value at this index
 	if proof.Index >= len(context.rlcExtended) {
@@ -100,7 +100,7 @@ func VerifyStandaloneProof(proof *StandaloneProof, commitment Commitment, config
 
 	// 2. Compute RLC for the row
 	coeffs := deriveCoefficients(rowRoot, config)
-	computedRLC := computeRLC(proof.Row, coeffs, config)
+	computedRLC := computeRLC(proof.Row, coeffs)
 
 	// 3. Compute RLC root from proof
 	rlcBytes := field.ToBytes128(computedRLC)

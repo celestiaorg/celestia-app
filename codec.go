@@ -141,7 +141,7 @@ func computeRLCOrig(rows [][]byte, coeffs []field.GF128, config *Config) []field
 		go func(idx int, r []byte) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			results[idx] = computeRLC(r, coeffs, config)
+			results[idx] = computeRLC(r, coeffs)
 		}(i, row)
 	}
 	wg.Wait()

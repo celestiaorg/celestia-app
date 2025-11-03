@@ -241,7 +241,7 @@ func TestRLCCommutationProperty(t *testing.T) {
 
 			// Verify commutation for each extended row
 			for i := tc.k; i < tc.k+tc.n; i++ {
-				rowRLC := computeRLC(extData.rows[i], coeffs, config)
+				rowRLC := computeRLC(extData.rows[i], coeffs)
 				if !field.Equal128(rowRLC, extendedRLCs[i]) {
 					t.Errorf("RLC commutation failed for row %d", i)
 				}
