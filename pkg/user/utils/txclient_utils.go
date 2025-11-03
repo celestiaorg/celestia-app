@@ -25,19 +25,18 @@ func SetupTxClient(
 	opts ...user.Option,
 ) (encoding.Config, *user.TxClient, testnode.Context) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	defaultTmConfig := testnode.DefaultTendermintConfig()
-	defaultTmConfig.Mempool.TTLNumBlocks = ttlNumBlocks
+	tmConfig := testnode.DefaultTendermintConfig()
+	tmConfig.Mempool.TTLNumBlocks = ttlNumBlocks
 	accounts := testfactory.GenerateAccounts(3)
 
-	defaultBlobParams := blobtypes.DefaultParams()
-	defaultBlobParams.GovMaxSquareSize = squareSize
+	blobParams := blobtypes.DefaultParams()
+	blobParams.GovMaxSquareSize = squareSize
 
 	testnodeConfig := testnode.DefaultConfig().
 		WithTendermintConfig(defaultTmConfig).
 		WithFundedAccounts(accounts...).
 		WithDelayedPrecommitTimeout(300 * time.Millisecond).
 		WithModifiers(genesis.SetBlobParams(enc.Codec, defaultBlobParams))
-		// WithSuppressLogs(false)
 
 	testnodeConfig.Genesis.ConsensusParams.Block.MaxBytes = blocksize
 
