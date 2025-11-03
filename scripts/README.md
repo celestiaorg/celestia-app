@@ -2,6 +2,20 @@
 
 This directory contains a handful of scripts that may be helpful for contributors.
 
+## check-rpc-endpoints.sh
+
+This script queries multiple archive RPC providers to check the availability of block_results at a specific height. It's useful for debugging data availability issues across different RPC endpoints.
+
+```bash
+# Query at default height (1034505)
+./scripts/check-rpc-endpoints.sh
+
+# Query at a specific height
+./scripts/check-rpc-endpoints.sh 1000000
+```
+
+For more detailed usage and options, see the [RPC Checker tool documentation](../tools/rpc-checker/README.md).
+
 ## build-run-single-node.sh
 
 This script will build the project and run a single node devnet. After running this script, the text output will contain a "Home directory" that you can use as a parameter for subsequent commands.
