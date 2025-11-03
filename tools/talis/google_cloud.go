@@ -322,13 +322,18 @@ func createGCInstance(ctx context.Context, project string, inst Instance, zone s
 	sshKeyParts := strings.Split(strings.TrimSpace(sshKey), " ")
 	var sshKeyMetadata string
 	if len(sshKeyParts) >= 2 {
-		username := "root"
+		username := "talis"
 		if len(sshKeyParts) >= 3 {
-			username = sshKeyParts[2]
+			comment := sshKeyParts[2]
+			if strings.Contains(comment, "@") {
+				username = strings.Split(comment, "@")[0]
+			} else {
+				username = comment
+			}
 		}
 		sshKeyMetadata = fmt.Sprintf("%s:%s %s", username, sshKeyParts[0], sshKeyParts[1])
 	} else {
-		sshKeyMetadata = "root:" + sshKey
+		sshKeyMetadata = "talis:" + sshKey
 	}
 
 	machineType := fmt.Sprintf("zones/%s/machineTypes/%s", zone, inst.Slug)
