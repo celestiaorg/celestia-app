@@ -102,7 +102,8 @@ func checkEndpoints(height int64, timeout time.Duration, endpoints []string) err
 	fmt.Printf("Checking block_results at height %d across %d RPC providers\n", height, len(endpoints))
 	fmt.Printf("Request timeout: %s\n\n", timeout)
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout*time.Duration(len(endpoints)))
+	// Since requests run concurrently, we only need a small buffer beyond the timeout
+	ctx, cancel := context.WithTimeout(context.Background(), timeout+5*time.Second)
 	defer cancel()
 
 	results := make([]checkResult, len(endpoints))
@@ -143,15 +144,20 @@ func checkEndpoint(ctx context.Context, endpoint string, height int64, timeout t
 		return result
 	}
 
+	// Create HTTP client with timeout
+	client := &http.Client{
+		Timeout: timeout,
+	}
+
 	start := time.Now()
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
+	result.latency = time.Since(start)
+
 	if err != nil {
 		result.error = fmt.Sprintf("request failed: %v", err)
 		return result
 	}
 	defer resp.Body.Close()
-
-	result.latency = time.Since(start)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
