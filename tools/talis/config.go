@@ -49,10 +49,8 @@ func NodeName(nodeType NodeType) string {
 type Provider string
 
 const (
-	// DO represents DigitalOcean as a provider.
 	DigitalOcean Provider = "digitalocean"
-	// Linode represents Linode as a provider.
-	Linode Provider = "linode"
+	GoogleCloud  Provider = "googlecloud"
 )
 
 // Instance represents a single instance in the network. It contains
@@ -119,13 +117,10 @@ type Config struct {
 	SSHKeyName string `json:"ssh_key_name"`
 	// DigitalOceanToken is used to authenticate with DigitalOcean. It can be
 	// provided via an env var or flag.
-	DigitalOceanToken string `json:"digitalocean_token,omitempty"`
-	// LinodeToken is used to authenticate with Linode. It can be provided via
-	// an env var or flag.
-	LinodeToken string `json:"linode_token,omitempty"`
-	// S3Config is used to configure the S3 bucket that will be used to store
-	// traces, logs, and other data.
-	S3Config S3Config `json:"s3_config,omitempty"`
+	DigitalOceanToken  string   `json:"digitalocean_token"`
+	GoogleCloudProject string   `json:"google_cloud_project"`
+	GoogleCloudKeyJSON string   `json:"google_cloud_key_json"`
+	S3Config           S3Config `json:"s3_config"`
 }
 
 func NewConfig(experiment, chainID string) Config {
@@ -160,8 +155,13 @@ func (cfg Config) WithDigitalOceanToken(token string) Config {
 	return cfg
 }
 
-func (cfg Config) WithLinodeToken(token string) Config {
-	cfg.LinodeToken = token
+func (cfg Config) WithGoogleCloudProject(project string) Config {
+	cfg.GoogleCloudProject = project
+	return cfg
+}
+
+func (cfg Config) WithGoogleCloudKeyJSON(keyJSON string) Config {
+	cfg.GoogleCloudKeyJSON = keyJSON
 	return cfg
 }
 
@@ -172,6 +172,12 @@ func (cfg Config) WithS3Config(s3 S3Config) Config {
 
 func (cfg Config) WithDigitalOceanValidator(region string) Config {
 	i := NewDigitalOceanValidator(region)
+	cfg.Validators = append(cfg.Validators, i)
+	return cfg
+}
+
+func (cfg Config) WithGoogleCloudValidator(region string) Config {
+	i := NewGoogleCloudValidator(region)
 	cfg.Validators = append(cfg.Validators, i)
 	return cfg
 }

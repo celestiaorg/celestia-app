@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/digitalocean/godo"
-	"golang.org/x/oauth2"
 )
 
 const (
@@ -51,11 +50,6 @@ func NewDigitalOceanValidator(region string) Instance {
 
 func RandomDORegion() string {
 	return DORegions[rand.Intn(len(DORegions))]
-}
-
-func DOClient(token string) *godo.Client {
-	tokenSource := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
-	return godo.NewClient(oauth2.NewClient(context.Background(), tokenSource))
 }
 
 // GetDOSSHKeyMeta checks if the provided raw SSH public key is registered in DigitalOcean

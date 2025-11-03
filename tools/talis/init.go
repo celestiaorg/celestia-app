@@ -21,6 +21,8 @@ const (
 	EnvVarPubSSHKeyPath      = "TALIS_SSH_PUB_KEY_PATH"
 	EnvVarSSHKeyPath         = "TALIS_SSH_KEY_PATH"
 	EnvVarDigitalOceanToken  = "DIGITALOCEAN_TOKEN"
+	EnvVarGoogleCloudProject = "GOOGLE_CLOUD_PROJECT"
+	EnvVarGoogleCloudKeyJSON = "GOOGLE_CLOUD_KEY_JSON"
 	EnvVarAWSAccessKeyID     = "AWS_ACCESS_KEY_ID"
 	EnvVarAWSSecretAccessKey = "AWS_SECRET_ACCESS_KEY"
 	EnvVarAWSRegion          = "AWS_DEFAULT_REGION"
