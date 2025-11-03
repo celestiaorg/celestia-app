@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	GCDefaultValidatorMachineType = "n2-standard-16"
+	GCDefaultValidatorMachineType = "c2d-highcpu-16"
 	GCDefaultImage                = "projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts"
 	GCDefaultDiskSizeGB           = 400
 )
