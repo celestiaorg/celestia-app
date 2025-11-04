@@ -10,7 +10,7 @@ The Fibre DA scheme does not store Fibre blob data in the original data square. 
     - namespace: the namespace specified in the `MsgPayForFibre`
     - share version: 2
     - sequence start indicator: 1
-    - sequence length: length of the Fibre commitment (32 bytes)
+    - sequence length: Fibre blob version (4 bytes) + Fibre commitment (32 bytes) = 36 bytes
     - signer: the signer of the `MsgPayForFibre`
     - fibre blob version: the version of the Fibre blob encoding
     - commitment: the Fibre commitment
