@@ -26,7 +26,7 @@ func CreateVerificationContext(rlcOrig []field.GF128, config *Config) (*Verifica
 	rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
 	rlcOrigRoot := rlcOrigTree.Root()
 
-	// Build extended RLC Merkle tree
+	// Extend RLC results to get all K+N values
 	rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
 	if err != nil {
 		return nil, [32]byte{}, fmt.Errorf("failed to extend RLC results: %w", err)
