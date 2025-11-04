@@ -12,7 +12,7 @@ import (
 const (
 	v3Version = "v3.10.6"
 	v4Version = "v4.1.0"
-	v5Version = "v5.0.10"
+	v5Version = "v5.0.11"
 )
 
 // CelestiaAppV3 returns the compressed platform specific Celestia binary and
