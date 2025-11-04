@@ -10,7 +10,7 @@ Implemented
 
 ## Context
 
-The `TxClient` must expose which account signed each transaction once it’s confirmed onchain. With parallel tx submission, multiple worker accounts can sign transactions concurrently, so users can’t assume which account signed a given one. Applications need to track which worker was responsible, and users should be able to easily see the signing address.
+The `TxClient` must expose which account signed each transaction once it’s confirmed onchain. With parallel tx submission, different worker accounts sign transactions, so users can’t assume which account signed a given one. Applications need to track which worker was signing a given tx, and users should be able to easily see the signing address.
 
 ### Initial Approach and Its Limitations
 
@@ -50,5 +50,6 @@ The solution involved changes across three repositories:
 ### Negative
 
 - **Storage Overhead**: Each transaction result now stores signer information (typically 1-5 addresses per transaction)
-- **Tech Debt** - Introduces tech debt in the API
+- **Tech Debt**: Introduces tech debt in the API
+- **Upstream Divergence**: Increases the diff between upstream and our forked repos (cosmos-sdk and celestia-core), especially since the changes include updates to protobuf definitions.
 
