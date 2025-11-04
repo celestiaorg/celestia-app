@@ -396,8 +396,8 @@ message PaymentPromise {
   uint32 blob_size = 3;
   // commitment is the hash of the row root and the Random Linear Combination (RLC) root
   bytes commitment = 4;
-  // row_version is the version of the row format
-  uint32 row_version = 5;
+  // fibre_blob_version is the version of the Fibre blob encoding
+  uint32 fibre_blob_version = 5;
   // height is the height that is used to determine the validator set that is used
   int64 height = 6;
   // creation_timestamp is the timestamp when this promise was created. This
@@ -417,7 +417,7 @@ Stateless Validation
 - `namespace` must be a valid blob namespace. Must be 29 bytes.
 - `blob_size` must be positive.
 - `commitment` must be 32 bytes.
-- `row_version` must be a supported row version.
+- `fibre_blob_version` must be a supported Fibre blob version.
 - `height` must be positive.
 - `creation_timestamp` must be positive.
 - `signer_public_key` must be non-empty.
@@ -440,7 +440,7 @@ Stateful Validation
 The sign bytes for a PaymentPromise secp256k1 signature are constructed by concatenating a prefix and all fields except the `signature` field:
 
 ```text
-sign_bytes = prefix || chain_id || signer_public_key || namespace || blob_size || commitment || blob_version || height || creation_timestamp
+sign_bytes = prefix || chain_id || signer_public_key || namespace || blob_size || commitment || fibre_blob_version || height || creation_timestamp
 ```
 
 - `prefix`: "fibre/pp:v0" (11 bytes)
@@ -449,7 +449,7 @@ sign_bytes = prefix || chain_id || signer_public_key || namespace || blob_size |
 - `namespace`: Raw namespace bytes (29 bytes)
 - `blob_size`: Big-endian encoded uint32 (4 bytes)
 - `commitment`: Raw commitment bytes (32 bytes)
-- `blob_version`: Big-endian encoded uint32 (4 bytes)
+- `fibre_blob_version`: Big-endian encoded uint32 (4 bytes)
 - `height`: Big-endian encoded int64 (8 bytes)
 - `creation_timestamp`: UTC timestamp encoded using Go's time.Time.MarshalBinary() (variable but usually 15 bytes)
 

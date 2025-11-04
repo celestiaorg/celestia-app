@@ -5,7 +5,7 @@
 * **FSP**: validator‑operated Fibre Service Provider.
 * **DFSP**: preferred endpoint for non‑quorum ops (escrow queries; PFF relay).
 * **Commitment**: `SHA256(rowRoot || rlcRoot)`.
-* **PaymentPromise (PP)**: per `x/fibre`, fields `{signer, namespace(v2), blob_size, commitment, row_version=1, creation_timestamp:Timestamp, valset_height, signature}`.
+* **PaymentPromise (PP)**: per `x/fibre`, fields `{signer, namespace(v2), blob_size, commitment, fibre_blob_version=1, creation_timestamp:Timestamp, valset_height, signature}`.
 * **Assignment**: permutation mapping `(commitment, valset@height)` → rows per validator.
 
 ## 1) Construction & Config
@@ -119,7 +119,7 @@ Validator signatures are over the PP preimage + ChainID domain tag. APIs use `go
 ```text
 SignBytes = SHA256(
   "fibre/pp:v1" || Chain_id || signer_bytes || namespace ||
-  blob_size_u32be || commitment || row_version_u32be ||
+  blob_size_u32be || commitment || fibre_blob_version_u32be ||
   creation_timestamp_pb || valset_height_u64be
 )
 ```
@@ -173,7 +173,7 @@ type Validator struct {
 2. `vals, valset_height := vt.CurrentSet(ctx)`.
 3. `creation_timestamp := now.UTC()` (Timestamp).
 4. Encode: choose `row_size`, build `rows[]`, `proofs[]`, `rlc_orig`, compute `commitment`.
-5. Construct PP: `{signer, ns(v2), blob_size, commitment, row_version=1, creation_timestamp, valset_height}` + signer signature.
+5. Construct PP: `{signer, ns(v2), blob_size, commitment, fibre_blob_version=1, creation_timestamp, valset_height}` + signer signature.
 6. Assignment for `valset_height`.
 7. Fan‑out uploads to assigned FSPs (≤ `send_workers`): `UploadRowsRequest{promise, commitment, rows subset + proofs, rlc_orig}` → collect `validator_signature`s.
 8. Verify received signatures.
