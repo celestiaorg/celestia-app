@@ -9,7 +9,8 @@ import (
 )
 
 const (
-	mebibyte = 1048576
+	mebibyte               = 1048576
+	bypassOverridesFlagKey = "bypass-config-overrides"
 )
 
 // overrideP2PConfig overrides the P2P send and recv rates to ensure they meet
@@ -17,6 +18,13 @@ const (
 // their config.toml file. If the user has configured higher values, those are
 // preserved.
 func overrideP2PConfig(cmd *cobra.Command, logger log.Logger) error {
+	// Check if overrides should be bypassed
+	bypass, err := cmd.Flags().GetBool(bypassOverridesFlagKey)
+	if err == nil && bypass {
+		logger.Info("Bypassing config overrides due to flag")
+		return nil
+	}
+
 	sctx := server.GetServerContextFromCmd(cmd)
 	cfg := sctx.Config
 
@@ -53,6 +61,15 @@ func overrideP2PConfig(cmd *cobra.Command, logger log.Logger) error {
 func overrideMempoolConfig(cfg, defaultCfg *tmcfg.Config, logger log.Logger) {
 	const minTTLNumBlocks = int64(36)
 	const minMaxTxsBytes = int64(400 * mebibyte) // 400 MiB
+
+	// Force mempool type to CAT if it's not already set to CAT
+	if cfg.Mempool.Type != tmcfg.MempoolTypeCAT {
+		logger.Info("Overriding Mempool Type to CAT",
+			"configured", cfg.Mempool.Type,
+			"default", tmcfg.MempoolTypeCAT,
+		)
+		cfg.Mempool.Type = tmcfg.MempoolTypeCAT
+	}
 
 	// Override TTLNumBlocks if it's less than the minimum and not 0
 	// If it's 0, the user has explicitly disabled it, so we leave it alone
