@@ -39,6 +39,9 @@ const (
 
 	// DelayedPrecommitTimeoutFlag is a flag that can be used to override the DelayedPrecommitTimeout.
 	DelayedPrecommitTimeoutFlag = "delayed-precommit-timeout"
+
+	// FlagEnableLegacyBlockProp is the flag to enable/disable legacy block propagation
+	FlagEnableLegacyBlockProp = "enable-legacy-block-prop"
 )
 
 // NewRootCmd creates a new root command for celestia-appd.
@@ -136,7 +139,7 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 	modifyRootCommand(rootCommand)
 
 	// Add hooks run prior to the start command
-	if err := addPreStartHooks(rootCommand, overrideP2PConfig, checkBBR); err != nil {
+	if err := addPreStartHooks(rootCommand, overrideP2PConfig, overrideLegacyBlockProp, checkBBR); err != nil {
 		panic(fmt.Errorf("failed to add pre-start hooks: %w", err))
 	}
 }
@@ -156,6 +159,7 @@ func addStartFlags(startCmd *cobra.Command) {
 	startCmd.Flags().Duration(DelayedPrecommitTimeoutFlag, 0, "Override the DelayedPrecommitTimeout to control block time. Note: only for testing purposes.")
 	startCmd.Flags().Bool(FlagForceNoBBR, false, "bypass the requirement to use bbr locally")
 	startCmd.Flags().Bool(bypassOverridesFlagKey, false, "bypass all config overrides (P2P rates, mempool config, etc.). WARNING: Only use if strictly required. Using this flag may prevent your node from staying at the tip of the chain.")
+	startCmd.Flags().Bool(FlagEnableLegacyBlockProp, false, "Enable legacy block propagation mechanism. Can also be set via config.toml (enable_legacy_block_prop)")
 }
 
 // replaceLogger optionally replaces the logger with a file logger if the flag
