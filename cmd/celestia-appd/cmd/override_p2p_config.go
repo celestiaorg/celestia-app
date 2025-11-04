@@ -108,3 +108,28 @@ func overrideMempoolConfig(cfg, defaultCfg *tmcfg.Config, logger log.Logger) {
 		cfg.Mempool.MaxTxsBytes = minMaxTxsBytes
 	}
 }
+
+// overrideLegacyBlockProp handles the --enable-legacy-block-prop flag to override
+// the legacy block propagation setting in the config.
+func overrideLegacyBlockProp(cmd *cobra.Command, logger log.Logger) error {
+	// Check if the flag was set
+	flagValue, err := cmd.Flags().GetBool(FlagEnableLegacyBlockProp)
+	if err != nil {
+		// Flag not set, use config value
+		return nil
+	}
+
+	sctx := server.GetServerContextFromCmd(cmd)
+	cfg := sctx.Config
+
+	// Only override if the flag was explicitly set
+	// We check if flag was changed from default by checking if it was set
+	if cmd.Flags().Changed(FlagEnableLegacyBlockProp) {
+		logger.Info("Overriding legacy block propagation setting from flag",
+			"enable_legacy_block_prop", flagValue,
+		)
+		cfg.Consensus.EnableLegacyBlockProp = flagValue
+	}
+
+	return nil
+}
