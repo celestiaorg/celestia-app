@@ -179,9 +179,6 @@ func (s *SquareSizeIntegrationTest) SetupBlockSizeParams(t *testing.T, squareSiz
 
 	res, err := txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msgSubmitProp}, opt)
 	require.NoError(t, err)
-
-	res, err = txClient.ConfirmTx(s.cctx.GoContext(), res.TxHash)
-	require.NoError(t, err)
 	require.Equal(t, uint32(0), res.Code)
 
 	txService := sdktx.NewServiceClient(s.cctx.GRPCClient)

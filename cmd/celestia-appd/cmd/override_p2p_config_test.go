@@ -183,7 +183,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			configPath := filepath.Join(configDir, "config.toml")
 			tmcfg.WriteConfigFile(configPath, cfg)
 
-				// Create a mock cobra command with server context
+			// Create a mock cobra command with server context
 			cmd := &cobra.Command{
 				Use: "test",
 			}
