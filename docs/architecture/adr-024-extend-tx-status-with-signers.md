@@ -52,6 +52,3 @@ The solution involved changes across three repositories:
 - **Storage Overhead**: Each transaction result now stores signer information (typically 1-5 addresses per transaction)
 - **Tech Debt** - Introduces tech debt in the API
 
-### Testing
-
-- Unit and integration
