@@ -52,7 +52,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	)
 	blockHeader := ctx.BlockHeader()
 
-	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
+	// Iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non-
 	// blobTxs have no PFBs present and all txs are less than or equal to the max tx size limit
 	for idx, rawTx := range req.Txs {
 		tx := rawTx
@@ -108,7 +108,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			continue
 		}
 
-		// validate the blobTx. This is the same validation used in CheckTx ensuring
+		// Validate the blobTx. This is the same validation used in CheckTx ensuring:
 		// - there is one PFB
 		// - that each blob has a valid namespace
 		// - that the sizes match
@@ -147,9 +147,9 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		return reject(), nil
 	}
 
-	// by comparing the hashes we know the computed IndexWrappers (with the share indexes of the PFB's blobs)
+	// By comparing the hashes we know the computed IndexWrappers (with the share indexes of the PFB's blobs)
 	// are identical and that square layout is consistent. This also means that the share commitment rules
-	// have been followed and thus each blobs share commitment should be valid
+	// have been followed and thus each blob's share commitment should be valid
 	if !bytes.Equal(dah.Hash(), req.DataRootHash) {
 		logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.DataRootHash, dah.Hash()))
 		return reject(), nil
