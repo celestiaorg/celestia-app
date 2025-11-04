@@ -32,7 +32,8 @@ func ValidateTxFee(ctx sdk.Context, tx sdk.Tx, minfeeKeeper *minfeekeeper.Keeper
 		return nil, 0, errors.Wrap(sdkerror.ErrTxDecode, "Tx must be a FeeTx")
 	}
 
-	fee := feeTx.GetFee().AmountOf(appconsts.BondDenom)
+	feeCoins := feeTx.GetFee()
+	fee := feeCoins.AmountOf(appconsts.BondDenom)
 	gas := feeTx.GetGas()
 
 	// Ensure that the provided fee meets a minimum threshold for the node.
@@ -60,8 +61,8 @@ func ValidateTxFee(ctx sdk.Context, tx sdk.Tx, minfeeKeeper *minfeekeeper.Keeper
 		return nil, 0, err
 	}
 
-	priority := getTxPriority(feeTx.GetFee(), int64(gas))
-	return feeTx.GetFee(), priority, nil
+	priority := getTxPriority(feeCoins, int64(gas))
+	return feeCoins, priority, nil
 }
 
 // verifyMinFee validates that the provided transaction fee is sufficient given the provided minimum gas price.
