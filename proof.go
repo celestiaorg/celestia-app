@@ -85,6 +85,9 @@ func VerifyRowWithContext(proof *RowProof, commitment Commitment, context *Verif
 // VerifyStandaloneProof verifies a self-contained proof without context
 // Best for single row verification without downloading RLC orig
 func VerifyStandaloneProof(proof *StandaloneProof, commitment Commitment, config *Config) error {
+	if proof.Index < 0 {
+		return fmt.Errorf("negative proof index not allowed: %d", proof.Index)
+	}
 	if err := config.Validate(); err != nil {
 		return fmt.Errorf("invalid config: %w", err)
 	}
