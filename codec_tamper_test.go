@@ -555,6 +555,7 @@ func TestVerifyRowWithContextWithMultipleOpenings(t *testing.T) {
 	assert.Error(t, err, "Expected verification to fail with row size mismatch")
 	assert.Contains(t, err.Error(), "row size mismatch")
 }
+
 func buildAdversarialPaddedRowTree(extended [][]byte) ([][]byte, [][]byte) {
 	nodes := make([][]byte, 31)
 	asNodes := make([][]byte, 31) // adversary subtree nodes
