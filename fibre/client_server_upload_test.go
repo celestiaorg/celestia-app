@@ -2,8 +2,8 @@ package fibre_test
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
-	"math/rand"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v6/fibre"
@@ -36,7 +36,7 @@ func TestClientServerUpload(t *testing.T) {
 	err := env.ForEachClient(t.Context(), func(ctx context.Context, client *fibre.Client, clientIdx int) error {
 		for blobIdx := range blobsPerClient {
 			data := make([]byte, blobSize)
-			if _, err := rand.Read(data); err != nil { //nolint:staticcheck
+			if _, err := rand.Read(data); err != nil {
 				return fmt.Errorf("generating random data for blob %d: %w", blobIdx, err)
 			}
 

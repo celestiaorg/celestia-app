@@ -182,7 +182,7 @@ func (s *Server) verifyAssignment(ctx context.Context, promise *PaymentPromise, 
 // verifyRows verifies the row data and proofs using [rsema1d.VerificationContext].
 // Essentially checks correctness of blob data by only sampling some of the rows.
 // Sets the RLC root on the rows and clears the coefficients after verification.
-func (s *Server) verifyRows(ctx context.Context, promise *PaymentPromise, rows *types.Rows) error {
+func (s *Server) verifyRows(_ context.Context, promise *PaymentPromise, rows *types.Rows) error {
 	rowSize, err := parseRowSize(rows.Rows)
 	if err != nil {
 		return err
