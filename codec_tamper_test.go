@@ -2,9 +2,12 @@ package rsema1d
 
 import (
 	"crypto/sha256"
+	"crypto/sha512"
 	"testing"
 
 	"github.com/celestiaorg/rsema1d/encoding"
+	"github.com/celestiaorg/rsema1d/merkle"
+	"github.com/stretchr/testify/assert"
 )
 
 // TestTamperedExtendedDataBeforeCommitment tests that if extended data is tampered with
@@ -382,4 +385,210 @@ func TestMultipleTamperedRows(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestInvalidRowProofDepth tests that tampering with the proof depth is detected
+func TestInvalidRowProofDepth(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			config := makeTestConfig(tc)
+
+			// Create test data
+			data := makeTestData(config.K, config.RowSize)
+
+			// Perform normal encoding
+			extended, err := encoding.ExtendVertical(data, config.N)
+			if err != nil {
+				t.Fatalf("ExtendVertical failed: %v", err)
+			}
+
+			if err := config.Validate(); err != nil {
+				t.Fatalf("Config validation failed: %v", err)
+			}
+			rowTree := buildPaddedRowTree(extended, config)
+			rowRoot := rowTree.Root()
+
+			coeffs := deriveCoefficients(rowRoot, config)
+			rlcOrig := computeRLCOrig(data, coeffs, config)
+			rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
+			if err != nil {
+				t.Fatalf("ExtendRLCResults failed: %v", err)
+			}
+
+			rlcTree := buildPaddedRLCTree(rlcExtended, config)
+			rlcRoot := rlcTree.Root()
+
+			extData := &ExtendedData{
+				config:  config,
+				rows:    extended,
+				rowRoot: rowRoot,
+				rlcRoot: rlcRoot,
+				rlcOrig: rlcOrig,
+				rowTree: rowTree,
+				rlcTree: rlcTree,
+			}
+
+			// Create verification context
+			ctx, rlcRoot, err := CreateVerificationContext(rlcOrig, config)
+			if err != nil {
+				t.Fatalf("CreateVerificationContext failed: %v", err)
+			}
+
+			leafIndex := 1
+
+			validProof, err := extData.GenerateRowProof(leafIndex)
+			if err != nil {
+				t.Fatalf("GenerateRowProof(%d) failed: %v", leafIndex, err)
+			}
+
+			// Create malicious proof with incorrect depth
+			// Try to use a higher-level node (depth n-1) at the same tree index
+			// This simulates an attacker trying to provide an internal node instead of a leaf
+			maliciousProof := &RowProof{
+				Index:    leafIndex,
+				Row:      extended[leafIndex],
+				RowProof: validProof.RowProof[:len(validProof.RowProof)-1], // Remove one level to simulate wrong depth
+			}
+
+			treeIndex := mapIndexToTreePosition(maliciousProof.Index, config)
+			fakeRowRoot, err := merkle.ComputeRootFromProof(maliciousProof.Row, treeIndex, maliciousProof.RowProof)
+			if err != nil {
+				t.Errorf("Failed to compute fake row root: %v", err)
+			}
+			fakeCoeffs := deriveCoefficients(fakeRowRoot, config)
+			fakeRlcCommitment := computeRLC(maliciousProof.Row, fakeCoeffs, config)
+			ctx.rlcRoot = rlcRoot
+
+			ctx.rlcExtended[leafIndex] = fakeRlcCommitment
+
+			h := sha256.New()
+			h.Write(fakeRowRoot[:])
+			h.Write(ctx.rlcRoot[:])
+			fakeCommitment := h.Sum(nil)
+			err = VerifyRowWithContext(maliciousProof, Commitment(fakeCommitment), ctx)
+			assert.Error(t, err, "Expected verification to fail with row size mismatch")
+			assert.Contains(t, err.Error(), "row proof depth mismatch")
+		})
+	}
+}
+
+func TestVerifyRowWithContextWithMultipleOpenings(t *testing.T) {
+	config := &Config{
+		K:           8,
+		N:           8,
+		RowSize:     256,
+		WorkerCount: 1,
+	}
+	_ = config.Validate() // populate .kPadded and .totalPadded
+	// === PROVER ===
+	// the prover are being malicious, and they hope that no one will open at index 0
+	data := make([][]byte, 8)
+	for i := 0; i < 8; i++ {
+		digest := sha512.Sum512([]byte{byte(i)})
+		data[i] = append(digest[:], 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	}
+	// mostly copied from the Encode function from codec.go
+	extended, err := encoding.ExtendVertical(data, config.N)
+	assert.NoError(t, err)
+	nodes, asNodes := buildAdversarialPaddedRowTree(extended)
+	rowRoot := nodes[0]
+	coeffs := deriveCoefficients([32]byte(rowRoot), config)
+	rlcOrig := computeRLCOrig(data, coeffs, config)
+	rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
+	assert.NoError(t, err)
+	rlcTree := buildPaddedRLCTree(rlcExtended, config)
+	rlcRoot := rlcTree.Root()
+	h := sha256.New()
+	h.Write(rowRoot)
+	h.Write(rlcRoot[:])
+	var commitment Commitment
+	h.Sum(commitment[:0])
+	// === VERIFIER ===
+	// assuming that the verifier wants to open at index 3
+	ctx, rlcRoot, err := CreateVerificationContext(rlcOrig, config)
+	assert.NoError(t, err)
+	// ...it is possible to open as some data (doing nicely)
+	proof1 := &RowProof{
+		Index:    3,
+		Row:      extended[3],
+		RowProof: [][]byte{nodes[17], nodes[7], nodes[4], nodes[2]},
+	}
+	if err := VerifyRowWithContext(proof1, commitment, ctx); err !=
+		nil {
+		t.Error("VerifyStandaloneProof error:", err)
+	}
+	// ...attempting to open with truncated data should fail with row size mismatch
+	proof2 := &RowProof{
+		Index:    3,
+		Row:      extended[3][:256-64],
+		RowProof: [][]byte{asNodes[17], asNodes[7], asNodes[4], asNodes[2], nodes[16], nodes[8], nodes[4], nodes[2]},
+	}
+	err = VerifyRowWithContext(proof2, commitment, ctx)
+	assert.Error(t, err, "Expected verification to fail with row size mismatch")
+	assert.Contains(t, err.Error(), "row size mismatch")
+}
+
+func buildAdversarialPaddedRowTree(extended [][]byte) ([][]byte, [][]byte) {
+	nodes := make([][]byte, 31)
+	asNodes := make([][]byte, 31) // adversary subtree nodes
+	// build the adversary subtree
+	for i := 0; i < 16; i++ {
+		digest := sha256.Sum256(append([]byte{0}, extended[i][:256-
+			64]...))
+		asNodes[15+i] = digest[:] // SHA256(00 || data) for leaf nodes
+	}
+	for i := 0; i < 8; i++ {
+		digest := sha256.Sum256(append([]byte{1},
+			append(asNodes[15+2*i], asNodes[15+2*i+1]...)...))
+		asNodes[7+i] = digest[:] // SHA256(01 || left || right) for non-leaf nodes 20 / 28
+	}
+	for i := 0; i < 4; i++ {
+		digest := sha256.Sum256(append([]byte{1},
+			append(asNodes[7+2*i], asNodes[7+2*i+1]...)...))
+		asNodes[3+i] = digest[:]
+	}
+	for i := 0; i < 2; i++ {
+		digest := sha256.Sum256(append([]byte{1},
+			append(asNodes[3+2*i], asNodes[3+2*i+1]...)...))
+		asNodes[1+i] = digest[:]
+	}
+	for i := 0; i < 1; i++ {
+		digest := sha256.Sum256(append([]byte{1},
+			append(asNodes[1+2*i], asNodes[1+2*i+1]...)...))
+		asNodes[0+i] = digest[:]
+	}
+	nodes[15+0] = asNodes[0]
+	for i := 1; i < 16; i++ { // starts from one
+		digest := sha256.Sum256(append([]byte{0}, extended[i][:256]...))
+		nodes[15+i] = digest[:]
+	}
+	for i := 0; i < 8; i++ {
+		digest := sha256.Sum256(append([]byte{1},
+			append(nodes[15+2*i], nodes[15+2*i+1]...)...))
+		nodes[7+i] = digest[:]
+	}
+	for i := 0; i < 4; i++ {
+		digest := sha256.Sum256(append([]byte{1},
+			append(nodes[7+2*i], nodes[7+2*i+1]...)...))
+		nodes[3+i] = digest[:]
+	}
+	for i := 0; i < 2; i++ {
+		digest := sha256.Sum256(append([]byte{1},
+			append(nodes[3+2*i], nodes[3+2*i+1]...)...))
+		nodes[1+i] = digest[:]
+	}
+	for i := 0; i < 1; i++ {
+		digest := sha256.Sum256(append([]byte{1},
+			append(nodes[1+2*i], nodes[1+2*i+1]...)...))
+		nodes[0+i] = digest[:]
+	}
+	return nodes, asNodes
 }

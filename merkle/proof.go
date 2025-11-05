@@ -41,8 +41,8 @@ func (t *Tree) GenerateProof(index int) ([][]byte, error) {
 func (t *Tree) GenerateLeftSubtreeProof(k int) ([][]byte, error) {
 	n := t.numLeaves()
 
-	if k <= 0 || k >= n {
-		return nil, fmt.Errorf("k must be in range (0, %d), got %d", n, k)
+	if k <= 1 || k >= n {
+		return nil, fmt.Errorf("k must be in range (1, %d), got %d", n, k)
 	}
 	if k&(k-1) != 0 {
 		return nil, fmt.Errorf("k must be a power of 2, got %d", k)
