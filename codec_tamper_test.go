@@ -449,7 +449,7 @@ func TestInvalidRowProofDepth(t *testing.T) {
 			}
 
 			// Create verification context
-			ctx, err := CreateVerificationContext(rlcOrig, config)
+			ctx, rlcRoot, err := CreateVerificationContext(rlcOrig, config)
 			if err != nil {
 				t.Fatalf("CreateVerificationContext failed: %v", err)
 			}
@@ -533,7 +533,7 @@ func TestVerifyRowWithContextWithMultipleOpenings(t *testing.T) {
 	h.Sum(commitment[:0])
 	// === VERIFIER ===
 	// assuming that the verifier wants to open at index 3
-	ctx, err := CreateVerificationContext(rlcOrig, config)
+	ctx, rlcRoot, err := CreateVerificationContext(rlcOrig, config)
 	assert.NoError(t, err)
 	// ...it is possible to open as some data (doing nicely)
 	proof1 := &RowProof{
