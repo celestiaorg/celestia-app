@@ -486,11 +486,8 @@ func TestInvalidRowProofDepth(t *testing.T) {
 			h.Write(ctx.rlcRoot[:])
 			fakeCommitment := h.Sum(nil)
 			err = VerifyRowWithContext(maliciousProof, Commitment(fakeCommitment), ctx)
-			if err == nil {
-				t.Errorf("Proof verification should fail for proof with incorrect depth (higher level node), but it passed")
-			} else {
-				t.Logf("Expected failure for malicious proof with wrong depth: %v", err)
-			}
+			assert.Error(t, err, "Expected verification to fail with row size mismatch")
+			assert.Contains(t, err.Error(), "row proof depth mismatch")
 		})
 	}
 }
@@ -555,11 +552,9 @@ func TestVerifyRowWithContextWithMultipleOpenings(t *testing.T) {
 		RowProof: [][]byte{asNodes[17], asNodes[7], asNodes[4],
 			asNodes[2], nodes[16], nodes[8], nodes[4], nodes[2]},
 	}
-	if err := VerifyRowWithContext(proof2, commitment, ctx); err == nil {
-		t.Error("Expected verification to fail with row size mismatch, but it passed")
-	} else {
-		t.Logf("Expected failure: %v", err)
-	}
+	err = VerifyRowWithContext(proof2, commitment, ctx)
+	assert.Error(t, err, "Expected verification to fail with row size mismatch")
+	assert.Contains(t, err.Error(), "row size mismatch")
 }
 func buildAdversarialPaddedRowTree(extended [][]byte) ([][]byte, [][]byte) {
 	nodes := make([][]byte, 31)
