@@ -11,8 +11,8 @@ import (
 	"github.com/celestiaorg/rsema1d/merkle"
 )
 
-// CreateVerificationContext initializes context with RLC original values
-// Used for DA sampling with multiple proofs
+// CreateVerificationContext initializes context with RLC original values.
+// Used for DA sampling with multiple proofs.
 func CreateVerificationContext(rlcOrig []field.GF128, config *Config) (*VerificationContext, error) {
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
