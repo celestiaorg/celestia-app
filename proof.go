@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"math/bits"
 
 	"github.com/celestiaorg/rsema1d/encoding"
 	"github.com/celestiaorg/rsema1d/field"
@@ -50,6 +51,19 @@ func VerifyRowWithContext(proof *RowProof, commitment Commitment, context *Verif
 
 	if proof.Index < 0 || proof.Index >= context.config.K+context.config.N {
 		return fmt.Errorf("index %d out of range [0, %d)", proof.Index, context.config.K+context.config.N)
+	}
+
+	// The row size must match the config
+	if len(proof.Row) != context.config.RowSize {
+		return fmt.Errorf("row size mismatch: expected %d, got %d", context.config.RowSize, len(proof.Row))
+	}
+
+	// The row proof depth must match the tree depth
+	kPadded := nextPowerOfTwo(context.config.K)
+	totalPadded := nextPowerOfTwo(kPadded + context.config.N)
+	treeDepth := bits.Len(uint(totalPadded)) - 1
+	if len(proof.RowProof) != treeDepth {
+		return fmt.Errorf("row proof depth mismatch: expected %d, got %d", treeDepth, len(proof.RowProof))
 	}
 
 	// 1. Compute row root from proof (using mapped tree position)
@@ -101,6 +115,19 @@ func VerifyStandaloneProof(proof *StandaloneProof, commitment Commitment, config
 
 	if proof.Index >= config.K {
 		return errors.New("standalone verification only supports original rows")
+	}
+
+	// The row size must match the config
+	if len(proof.Row) != config.RowSize {
+		return fmt.Errorf("row size mismatch: expected %d, got %d", config.RowSize, len(proof.Row))
+	}
+
+	// The row proof depth must match the tree depth
+	kPadded := nextPowerOfTwo(config.K)
+	totalPadded := nextPowerOfTwo(kPadded + config.N)
+	treeDepth := bits.Len(uint(totalPadded)) - 1
+	if len(proof.RLCProof) != treeDepth {
+		return fmt.Errorf("row proof depth mismatch: expected %d, got %d", treeDepth, len(proof.RLCProof))
 	}
 
 	// 1. Compute row root (index < K so no shift needed for tree position)
