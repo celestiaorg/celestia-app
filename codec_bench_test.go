@@ -419,7 +419,7 @@ func BenchmarkCreateVerificationContext(b *testing.B) {
 			// Benchmark context creation
 			benchFunc := func(state any) error {
 				rlcOrig := state.([]field.GF128)
-				_, err := CreateVerificationContext(rlcOrig, codecConfig)
+				_, _, err := CreateVerificationContext(rlcOrig, codecConfig)
 				return err
 			}
 
@@ -451,7 +451,7 @@ func BenchmarkVerifyRowWithContext(b *testing.B) {
 				}
 
 				// Create verification context
-				ctx, err := CreateVerificationContext(extData.rlcOrig, codecConfig)
+				ctx, _, err := CreateVerificationContext(extData.rlcOrig, codecConfig)
 				if err != nil {
 					b.Fatalf("CreateVerificationContext failed: %v", err)
 				}
