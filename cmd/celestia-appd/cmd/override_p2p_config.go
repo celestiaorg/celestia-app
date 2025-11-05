@@ -99,6 +99,15 @@ func overrideMempoolConfig(cfg, defaultCfg *tmcfg.Config, logger log.Logger) {
 		cfg.Mempool.MaxGossipDelay = defaultCfg.Mempool.MaxGossipDelay
 	}
 
+	// Override MaxTxBytes if it's less than the default
+	if cfg.Mempool.MaxTxBytes < defaultCfg.Mempool.MaxTxBytes {
+		logger.Info("Overriding Mempool MaxTxBytes to minimum",
+			"configured", cfg.Mempool.MaxTxBytes,
+			"minimum", defaultCfg.Mempool.MaxTxBytes,
+		)
+		cfg.Mempool.MaxTxBytes = defaultCfg.Mempool.MaxTxBytes
+	}
+
 	// Override MaxTxsBytes if it's less than the minimum
 	if cfg.Mempool.MaxTxsBytes < minMaxTxsBytes {
 		logger.Info("Overriding Mempool MaxTxsBytes to minimum",
