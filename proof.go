@@ -44,6 +44,10 @@ func CreateVerificationContext(rlcOrig []field.GF128, config *Config) (*Verifica
 // VerifyRowWithContext verifies a row proof using pre-initialized context
 // Efficient for multiple verifications with same commitment
 func VerifyRowWithContext(proof *RowProof, commitment Commitment, context *VerificationContext) error {
+	if proof == nil || context == nil {
+		return fmt.Errorf("received nil proof or context in verifier")
+	}
+
 	if proof.Index < 0 || proof.Index >= context.config.K+context.config.N {
 		return fmt.Errorf("index %d out of range [0, %d)", proof.Index, context.config.K+context.config.N)
 	}
@@ -85,6 +89,9 @@ func VerifyRowWithContext(proof *RowProof, commitment Commitment, context *Verif
 // VerifyStandaloneProof verifies a self-contained proof without context
 // Best for single row verification without downloading RLC orig
 func VerifyStandaloneProof(proof *StandaloneProof, commitment Commitment, config *Config) error {
+	if proof == nil {
+		return fmt.Errorf("received nil proof in verifier")
+	}
 	if proof.Index < 0 {
 		return fmt.Errorf("negative proof index not allowed: %d", proof.Index)
 	}
