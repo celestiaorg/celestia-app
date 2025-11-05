@@ -71,7 +71,7 @@ func TestTamperedExtendedDataBeforeCommitment(t *testing.T) {
 			}
 
 			// Create verification context
-			ctx, err := CreateVerificationContext(rlcOrig, config)
+			ctx, _, err := CreateVerificationContext(rlcOrig, config)
 			if err != nil {
 				t.Fatalf("CreateVerificationContext failed: %v", err)
 			}
@@ -169,7 +169,7 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 			}
 
 			// Create verification context
-			ctx, err := CreateVerificationContext(rlcOrig, config)
+			ctx, _, err := CreateVerificationContext(rlcOrig, config)
 			if err != nil {
 				t.Fatalf("CreateVerificationContext failed: %v", err)
 			}
@@ -258,7 +258,7 @@ func TestTamperedOriginalRLCBeforeCommitment(t *testing.T) {
 			}
 
 			// Create verification context with tampered RLC values
-			ctx, err := CreateVerificationContext(rlcOrig, config)
+			ctx, _, err := CreateVerificationContext(rlcOrig, config)
 			if err != nil {
 				t.Fatalf("CreateVerificationContext failed: %v", err)
 			}
@@ -358,7 +358,7 @@ func TestMultipleTamperedRows(t *testing.T) {
 			}
 
 			// Create verification context
-			ctx, err := CreateVerificationContext(rlcOrig, config)
+			ctx, _, err := CreateVerificationContext(rlcOrig, config)
 			if err != nil {
 				t.Fatalf("CreateVerificationContext failed: %v", err)
 			}

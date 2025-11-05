@@ -43,3 +43,11 @@ type StandaloneProof struct {
 	RowProof
 	RLCProof [][]byte // Merkle proof for RLC (original rows only)
 }
+
+// RowInclusionProof verifies row inclusion in commitment without RLC verification.
+// Works for both original and parity rows. Only verifies that the row is part
+// of the committed data, not that RLC computation is correct.
+type RowInclusionProof struct {
+	RowProof
+	RLCRoot [32]byte // RLC root for commitment verification
+}
