@@ -512,7 +512,7 @@ func TestRowInclusionProof(t *testing.T) {
 				t.Fatalf("Encode() error: %v", err)
 			}
 
-			_, rlcRoot, err := CreateVerificationContext(rlcOrig, config)
+			_, rlcOrigRoot, err := CreateVerificationContext(rlcOrig, config)
 			if err != nil {
 				t.Fatalf("CreateVerificationContext() error: %v", err)
 			}
@@ -543,7 +543,7 @@ func TestRowInclusionProof(t *testing.T) {
 
 				ctxProof := &RowInclusionProof{
 					RowProof: *rowProof,
-					RLCRoot:  rlcRoot,
+					RLCRoot:  rlcOrigRoot,
 				}
 				if err := VerifyRowInclusionProof(ctxProof, commitment, config); err != nil {
 					t.Errorf("VerifyRowInclusionProof via context(%d) error: %v", index, err)

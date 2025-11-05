@@ -177,7 +177,7 @@ func VerifyRowInclusionProof(proof *RowInclusionProof, commitment Commitment, co
 		return fmt.Errorf("failed to compute row root: %w", err)
 	}
 
-	// 2. Verify commitment: SHA256(rowRoot || rlcRoot)
+	// 2. Verify commitment: SHA256(rowRoot || rlcOrigRoot)
 	h := sha256.New()
 	h.Write(rowRoot[:])
 	h.Write(proof.RLCRoot[:])

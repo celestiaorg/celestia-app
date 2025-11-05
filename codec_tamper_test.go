@@ -410,26 +410,25 @@ func TestInvalidRowProofDepth(t *testing.T) {
 
 			coeffs := deriveCoefficients(rowRoot, config)
 			rlcOrig := computeRLCOrig(data, coeffs, config)
-			rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
 			if err != nil {
 				t.Fatalf("ExtendRLCResults failed: %v", err)
 			}
 
-			rlcTree := buildPaddedRLCTree(rlcExtended, config)
-			rlcRoot := rlcTree.Root()
+			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
+			rlcOrigRoot := rlcOrigTree.Root()
 
 			extData := &ExtendedData{
 				config:      config,
 				rows:        extended,
 				rowRoot:     rowRoot,
-				rlcOrigRoot: rlcRoot,
+				rlcOrigRoot: rlcOrigRoot,
 				rlcOrig:     rlcOrig,
 				rowTree:     rowTree,
-				rlcOrigTree: rlcTree,
+				rlcOrigTree: rlcOrigTree,
 			}
 
 			// Create verification context
-			ctx, rlcRoot, err := CreateVerificationContext(rlcOrig, config)
+			ctx, rlcOrigRoot, err := CreateVerificationContext(rlcOrig, config)
 			if err != nil {
 				t.Fatalf("CreateVerificationContext failed: %v", err)
 			}
@@ -457,7 +456,7 @@ func TestInvalidRowProofDepth(t *testing.T) {
 			}
 			fakeCoeffs := deriveCoefficients(fakeRowRoot, config)
 			fakeRlcCommitment := computeRLC(maliciousProof.Row, fakeCoeffs)
-			ctx.rlcOrigRoot = rlcRoot
+			ctx.rlcOrigRoot = rlcOrigRoot
 
 			ctx.rlcExtended[leafIndex] = fakeRlcCommitment
 
@@ -502,18 +501,16 @@ func TestVerifyRowWithContextWithMultipleOpenings(t *testing.T) {
 	rowRoot := nodes[0]
 	coeffs := deriveCoefficients([32]byte(rowRoot), config)
 	rlcOrig := computeRLCOrig(data, coeffs, config)
-	rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
-	assert.NoError(t, err)
-	rlcTree := buildPaddedRLCTree(rlcExtended, config)
-	rlcRoot := rlcTree.Root()
+	rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
+	rlcOrigRoot := rlcOrigTree.Root()
 	h := sha256.New()
 	h.Write(rowRoot)
-	h.Write(rlcRoot[:])
+	h.Write(rlcOrigRoot[:])
 	var commitment Commitment
 	h.Sum(commitment[:0])
 	// === VERIFIER ===
 	// assuming that the verifier wants to open at index 3
-	ctx, rlcRoot, err := CreateVerificationContext(rlcOrig, config)
+	ctx, rlcOrigRoot, err := CreateVerificationContext(rlcOrig, config)
 	assert.NoError(t, err)
 	// ...it is possible to open as some data (doing nicely)
 	proof1 := &RowProof{
