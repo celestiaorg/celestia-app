@@ -419,13 +419,13 @@ func TestInvalidRowProofDepth(t *testing.T) {
 			rlcRoot := rlcTree.Root()
 
 			extData := &ExtendedData{
-				config:  config,
-				rows:    extended,
-				rowRoot: rowRoot,
-				rlcRoot: rlcRoot,
-				rlcOrig: rlcOrig,
-				rowTree: rowTree,
-				rlcTree: rlcTree,
+				config:      config,
+				rows:        extended,
+				rowRoot:     rowRoot,
+				rlcOrigRoot: rlcRoot,
+				rlcOrig:     rlcOrig,
+				rowTree:     rowTree,
+				rlcOrigTree: rlcTree,
 			}
 
 			// Create verification context
@@ -456,14 +456,14 @@ func TestInvalidRowProofDepth(t *testing.T) {
 				t.Errorf("Failed to compute fake row root: %v", err)
 			}
 			fakeCoeffs := deriveCoefficients(fakeRowRoot, config)
-			fakeRlcCommitment := computeRLC(maliciousProof.Row, fakeCoeffs, config)
-			ctx.rlcRoot = rlcRoot
+			fakeRlcCommitment := computeRLC(maliciousProof.Row, fakeCoeffs)
+			ctx.rlcOrigRoot = rlcRoot
 
 			ctx.rlcExtended[leafIndex] = fakeRlcCommitment
 
 			h := sha256.New()
 			h.Write(fakeRowRoot[:])
-			h.Write(ctx.rlcRoot[:])
+			h.Write(ctx.rlcOrigRoot[:])
 			fakeCommitment := h.Sum(nil)
 			err = VerifyRowWithContext(maliciousProof, Commitment(fakeCommitment), ctx)
 			assert.Error(t, err, "Expected verification to fail with row size mismatch")
