@@ -44,7 +44,6 @@ func CreateVerificationContext(rlcOrig []field.GF128, config *Config) (*Verifica
 // VerifyRowWithContext verifies a row proof using pre-initialized context
 // Efficient for multiple verifications with same commitment
 func VerifyRowWithContext(proof *RowProof, commitment Commitment, context *VerificationContext) error {
-	// check if proof or context are nil and error
 	if proof == nil || context == nil {
 		return fmt.Errorf("received nil proof or context in verifier")
 	}
