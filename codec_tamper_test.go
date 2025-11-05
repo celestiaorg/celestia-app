@@ -499,7 +499,7 @@ func TestVerifyRowWithContextWithMultipleOpenings(t *testing.T) {
 		RowSize:     256,
 		WorkerCount: 1,
 	}
-	config.Validate() // populate .kPadded and .totalPadded
+	_ = config.Validate() // populate .kPadded and .totalPadded
 	// === PROVER ===
 	// the prover are being malicious, and they hope that no one will open at index 0
 	data := make([][]byte, 8)
@@ -527,7 +527,7 @@ func TestVerifyRowWithContextWithMultipleOpenings(t *testing.T) {
 	rlcTree := buildPaddedRLCTree(rlcExtended, config)
 	rlcRoot := rlcTree.Root()
 	h := sha256.New()
-	h.Write(rowRoot[:])
+	h.Write(rowRoot)
 	h.Write(rlcRoot[:])
 	var commitment Commitment
 	h.Sum(commitment[:0])
@@ -547,10 +547,9 @@ func TestVerifyRowWithContextWithMultipleOpenings(t *testing.T) {
 	}
 	// ...attempting to open with truncated data should fail with row size mismatch
 	proof2 := &RowProof{
-		Index: 3,
-		Row:   extended[3][:256-64],
-		RowProof: [][]byte{asNodes[17], asNodes[7], asNodes[4],
-			asNodes[2], nodes[16], nodes[8], nodes[4], nodes[2]},
+		Index:    3,
+		Row:      extended[3][:256-64],
+		RowProof: [][]byte{asNodes[17], asNodes[7], asNodes[4], asNodes[2], nodes[16], nodes[8], nodes[4], nodes[2]},
 	}
 	err = VerifyRowWithContext(proof2, commitment, ctx)
 	assert.Error(t, err, "Expected verification to fail with row size mismatch")
