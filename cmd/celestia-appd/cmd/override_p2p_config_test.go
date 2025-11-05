@@ -24,6 +24,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 		expectedTTLBlocks   int64
 		expectedTTLDur      time.Duration
 		expectedGossipDelay time.Duration
+		expectedMaxTxBytes  int
 		expectedMaxTxsBytes int64
 		expectedMempoolType string
 	}{
@@ -38,6 +39,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			expectedTTLBlocks:   36,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
+			expectedMaxTxBytes:  8388608,
 			expectedMaxTxsBytes: 400 * mebibyte,
 			expectedMempoolType: tmcfg.MempoolTypeCAT,
 		},
@@ -52,6 +54,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			expectedTTLBlocks:   36,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
+			expectedMaxTxBytes:  8388608,
 			expectedMaxTxsBytes: 400 * mebibyte,
 			expectedMempoolType: tmcfg.MempoolTypeCAT,
 		},
@@ -65,6 +68,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			expectedTTLBlocks:   36,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
+			expectedMaxTxBytes:  8388608,
 			expectedMaxTxsBytes: 400 * mebibyte,
 			expectedMempoolType: tmcfg.MempoolTypeCAT,
 		},
@@ -78,6 +82,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			expectedTTLBlocks:   0,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
+			expectedMaxTxBytes:  8388608,
 			expectedMaxTxsBytes: 400 * mebibyte,
 			expectedMempoolType: tmcfg.MempoolTypeCAT,
 		},
@@ -91,6 +96,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			expectedTTLBlocks:   100,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
+			expectedMaxTxBytes:  8388608,
 			expectedMaxTxsBytes: 400 * mebibyte,
 			expectedMempoolType: tmcfg.MempoolTypeCAT,
 		},
@@ -104,6 +110,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			expectedTTLBlocks:   36,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
+			expectedMaxTxBytes:  8388608,
 			expectedMaxTxsBytes: 400 * mebibyte,
 			expectedMempoolType: tmcfg.MempoolTypeCAT,
 		},
@@ -117,6 +124,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			expectedTTLBlocks:   36,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
+			expectedMaxTxBytes:  8388608,
 			expectedMaxTxsBytes: 400 * mebibyte,
 			expectedMempoolType: tmcfg.MempoolTypeCAT,
 		},
@@ -130,6 +138,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			expectedTTLBlocks:   36,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 30 * time.Second,
+			expectedMaxTxBytes:  8388608,
 			expectedMaxTxsBytes: 400 * mebibyte,
 			expectedMempoolType: tmcfg.MempoolTypeCAT,
 		},
@@ -143,6 +152,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			expectedTTLBlocks:   36,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
+			expectedMaxTxBytes:  8388608,
 			expectedMaxTxsBytes: 400 * mebibyte,
 			expectedMempoolType: tmcfg.MempoolTypeCAT,
 		},
@@ -156,6 +166,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			expectedTTLBlocks:   36,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
+			expectedMaxTxBytes:  8388608,
 			expectedMaxTxsBytes: 500 * mebibyte,
 			expectedMempoolType: tmcfg.MempoolTypeCAT,
 		},
@@ -174,6 +185,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			expectedTTLBlocks:   36,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
+			expectedMaxTxBytes:  8388608,
 			expectedMaxTxsBytes: 400 * mebibyte,
 			expectedMempoolType: tmcfg.MempoolTypeCAT,
 		},
@@ -187,6 +199,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			expectedTTLBlocks:   36,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
+			expectedMaxTxBytes:  8388608,
 			expectedMaxTxsBytes: 400 * mebibyte,
 			expectedMempoolType: tmcfg.MempoolTypeCAT,
 		},
@@ -200,6 +213,35 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			expectedTTLBlocks:   36,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
+			expectedMaxTxBytes:  8388608,
+			expectedMaxTxsBytes: 400 * mebibyte,
+			expectedMempoolType: tmcfg.MempoolTypeCAT,
+		},
+		{
+			name: "Override MaxTxBytes when less than default",
+			setupConfig: func(cfg *tmcfg.Config) {
+				cfg.Mempool.MaxTxBytes = 1 * mebibyte
+			},
+			expectedSendRate:    24 * mebibyte,
+			expectedRecvRate:    24 * mebibyte,
+			expectedTTLBlocks:   36,
+			expectedTTLDur:      0,
+			expectedGossipDelay: 20 * time.Second,
+			expectedMaxTxBytes:  8388608,
+			expectedMaxTxsBytes: 400 * mebibyte,
+			expectedMempoolType: tmcfg.MempoolTypeCAT,
+		},
+		{
+			name: "Preserve MaxTxBytes when greater than default",
+			setupConfig: func(cfg *tmcfg.Config) {
+				cfg.Mempool.MaxTxBytes = 10 * mebibyte
+			},
+			expectedSendRate:    24 * mebibyte,
+			expectedRecvRate:    24 * mebibyte,
+			expectedTTLBlocks:   36,
+			expectedTTLDur:      0,
+			expectedGossipDelay: 20 * time.Second,
+			expectedMaxTxBytes:  10 * mebibyte,
 			expectedMaxTxsBytes: 400 * mebibyte,
 			expectedMempoolType: tmcfg.MempoolTypeCAT,
 		},
@@ -262,6 +304,8 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 				"Mempool TTLDuration should be %v", tc.expectedTTLDur)
 			require.Equal(t, tc.expectedGossipDelay, modifiedCfg.Mempool.MaxGossipDelay,
 				"Mempool MaxGossipDelay should be %v", tc.expectedGossipDelay)
+			require.Equal(t, tc.expectedMaxTxBytes, modifiedCfg.Mempool.MaxTxBytes,
+				"Mempool MaxTxBytes should be %d", tc.expectedMaxTxBytes)
 			require.Equal(t, tc.expectedMaxTxsBytes, modifiedCfg.Mempool.MaxTxsBytes,
 				"Mempool MaxTxsBytes should be %d", tc.expectedMaxTxsBytes)
 		})
