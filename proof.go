@@ -60,9 +60,9 @@ func VerifyRowWithContext(proof *RowProof, commitment Commitment, context *Verif
 	// The row proof depth must match the tree depth
 	kPadded := nextPowerOfTwo(context.config.K)
 	totalPadded := nextPowerOfTwo(kPadded + context.config.N)
-	treeDepth := bits.Len(uint(totalPadded)) - 1
-	if len(proof.RowProof) != treeDepth {
-		return fmt.Errorf("row proof depth mismatch: expected %d, got %d", treeDepth, len(proof.RowProof))
+	rowTreeDepth := bits.Len(uint(totalPadded)) - 1
+	if len(proof.RowProof) != rowTreeDepth {
+		return fmt.Errorf("row proof depth mismatch: expected %d, got %d", rowTreeDepth, len(proof.RowProof))
 	}
 
 	// 1. Compute row root from proof (using mapped tree position)
@@ -124,9 +124,9 @@ func VerifyStandaloneProof(proof *StandaloneProof, commitment Commitment, config
 	// The row proof depth must match the tree depth
 	kPadded := nextPowerOfTwo(config.K)
 	totalPadded := nextPowerOfTwo(kPadded + config.N)
-	treeDepth := bits.Len(uint(totalPadded)) - 1
-	if len(proof.RowProof.RowProof) != treeDepth {
-		return fmt.Errorf("row proof depth mismatch: expected %d, got %d", treeDepth, len(proof.RowProof.RowProof))
+	rowTreeDepth := bits.Len(uint(totalPadded)) - 1
+	if len(proof.RowProof.RowProof) != rowTreeDepth {
+		return fmt.Errorf("row proof depth mismatch: expected %d, got %d", rowTreeDepth, len(proof.RowProof.RowProof))
 	}
 
 	// The RLC proof depth must match the rlcOrig tree depth (K leaves, not K+N)
