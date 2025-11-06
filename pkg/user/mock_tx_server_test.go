@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user/utils"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -163,7 +164,7 @@ func setupTxClientWithMockServers(t *testing.T, broadcastHandlers []BroadcastHan
 	}
 
 	// Create TxClient with mock connection
-	encCfg, txClient, _ := setupTxClientWithDefaultParams(t)
+	encCfg, txClient, _ := utils.SetupTxClientWithDefaultParams(t)
 
 	// Build options list
 	clientOpts := opts

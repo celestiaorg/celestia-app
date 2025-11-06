@@ -49,9 +49,8 @@ const (
 	MainnetUpgradeHeightDelay = int64(100_800)
 	// Deprecated: Use MainnetUpgradeHeightDelay instead.
 	UpgradeHeightDelay = MainnetUpgradeHeightDelay
-	// MempoolSize determines the default max mempool size. This is determined
-	// using a multiple of the max possible bytes in a block.
-	MempoolSize = int64(DefaultUpperBoundMaxBytes) * 3
+	// MempoolSize determines the default max mempool size.
+	MempoolSize = 400 * mebibyte // 400 MiB
 	// UnbondingTime is the time a validator must wait to unbond in a proof of
 	// stake system. Any validator within this time can be subject to slashing
 	// under conditions of misbehavior.

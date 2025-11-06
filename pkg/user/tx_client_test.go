@@ -11,16 +11,15 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
 	"github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v6/app/params"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user/utils"
 	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v6/test/util/random"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
@@ -53,7 +52,7 @@ type TxClientTestSuite struct {
 }
 
 func (suite *TxClientTestSuite) SetupSuite() {
-	suite.encCfg, suite.txClient, suite.ctx = setupTxClientWithDefaultParams(suite.T())
+	suite.encCfg, suite.txClient, suite.ctx = utils.SetupTxClientWithDefaultParams(suite.T())
 	suite.serviceClient = sdktx.NewServiceClient(suite.ctx.GRPCClient)
 }
 
@@ -270,6 +269,12 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		confirmTxResp, err := suite.txClient.ConfirmTx(ctx, resp.TxHash)
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, confirmTxResp.Code)
+
+		// Verify the response against the getTx response
+		utils.VerifyTxResponse(t, suite.ctx.GoContext(), suite.serviceClient, confirmTxResp)
+		require.Equal(t, len(confirmTxResp.Signers), 1)
+		require.Equal(t, confirmTxResp.Signers[0], suite.txClient.DefaultAddress().String())
+
 		require.True(t, wasRemovedFromTxTracker(resp.TxHash, suite.txClient))
 	})
 
@@ -286,16 +291,27 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 
 		confirmTxResp, err := suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
 		require.Error(t, err)
+		// During errors response does not get populated
 		require.Nil(t, confirmTxResp)
 		code := err.(*user.ExecutionError).Code
 		require.NotEqual(t, abci.CodeTypeOK, code)
+		require.Equal(t, resp.TxHash, err.(*user.ExecutionError).TxHash)
+
+		// Compare it to the getTx response
+		getTxResp, getTxErr := suite.serviceClient.GetTx(suite.ctx.GoContext(), &sdktx.GetTxRequest{Hash: resp.TxHash})
+		require.NoError(t, getTxErr)
+		// This is a workaround because they are different types
+		require.Contains(t, err.(*user.ExecutionError).ErrorLog, getTxResp.TxResponse.RawLog)
+		require.Equal(t, getTxResp.TxResponse.Codespace, err.(*user.ExecutionError).Codespace)
+		require.Equal(t, getTxResp.TxResponse.GasWanted, err.(*user.ExecutionError).GasWanted)
+		require.Equal(t, getTxResp.TxResponse.GasUsed, err.(*user.ExecutionError).GasUsed)
 		require.True(t, wasRemovedFromTxTracker(resp.TxHash, suite.txClient))
 	})
 }
 
 func TestRejections(t *testing.T) {
 	ttlNumBlocks := int64(5)
-	_, txClient, ctx := setupTxClient(t, ttlNumBlocks, appconsts.DefaultMaxBytes)
+	_, txClient, ctx := utils.SetupTxClient(t, ttlNumBlocks, appconsts.DefaultGovMaxSquareSize, appconsts.DefaultMaxBytes)
 
 	fee := user.SetFee(1e6)
 	gas := user.SetGasLimit(1e6)
@@ -314,7 +330,7 @@ func TestRejections(t *testing.T) {
 
 	_, err = txClient.ConfirmTx(ctx.GoContext(), resp.TxHash)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "was rejected by the node")
+	require.Contains(t, err.Error(), "was rejected by the node with execution code: 30 and log:")
 	seqAfterRejection := sender.Sequence()
 	require.Equal(t, seqBeforeSubmission, seqAfterRejection)
 
@@ -326,7 +342,7 @@ func TestRejections(t *testing.T) {
 	seqAfterConfirmation := sender.Sequence()
 	require.Equal(t, seqBeforeSubmission+1, seqAfterConfirmation)
 	// Was removed from the tx tracker
-	_, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
+	_, _, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
 	require.False(t, exists)
 }
 
@@ -335,9 +351,8 @@ func TestEvictions(t *testing.T) {
 		t.Skip("skipping evictions test in short mode")
 	}
 
-	ttlNumBlocks := int64(1)
-	blocksize := int64(1048576) // 1 MiB
-	_, txClient, ctx := setupTxClient(t, ttlNumBlocks, blocksize)
+	blocksize := int64(1024 * 1024 * 2) // 2 MiB
+	_, txClient, ctx := utils.SetupTxClient(t, 1, 64, blocksize)
 	grpcTxClient := tx.NewTxClient(ctx.GRPCClient)
 
 	fee := user.SetFee(1e6)
@@ -378,7 +393,7 @@ func TestEvictions(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, res.Code, abci.CodeTypeOK)
 		// They should be removed from the tx tracker after confirmation
-		_, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
+		_, _, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
 		require.False(t, exists)
 	}
 
@@ -460,7 +475,7 @@ func TestEvictions(t *testing.T) {
 // used to estimate gas price and usage instead of the default connection.
 func TestWithEstimatorService(t *testing.T) {
 	mockEstimator := setupEstimatorService(t)
-	_, txClient, ctx := setupTxClientWithDefaultParams(t, user.WithEstimatorService(mockEstimator.conn))
+	_, txClient, ctx := utils.SetupTxClientWithDefaultParams(t, user.WithEstimatorService(mockEstimator.conn))
 
 	msg := bank.NewMsgSend(txClient.DefaultAddress(), testnode.RandomAddress().(sdk.AccAddress),
 		sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
@@ -550,13 +565,13 @@ func (suite *TxClientTestSuite) queryCurrentBalance(t *testing.T) int64 {
 }
 
 func wasRemovedFromTxTracker(txHash string, txClient *user.TxClient) bool {
-	seq, signer, exists := txClient.GetTxFromTxTracker(txHash)
-	return !exists && seq == 0 && signer == ""
+	seq, signer, txBytes, exists := txClient.GetTxFromTxTracker(txHash)
+	return !exists && seq == 0 && signer == "" && len(txBytes) == 0
 }
 
 // assertTxInTxTracker verifies that a tx was indexed in the tx tracker and that the sequence increases by one after broadcast.
 func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash, expectedSigner string, seqBeforeBroadcast uint64) {
-	seqFromTxTracker, signer, exists := txClient.GetTxFromTxTracker(txHash)
+	seqFromTxTracker, signer, txBytes, exists := txClient.GetTxFromTxTracker(txHash)
 	require.True(t, exists)
 	require.Equal(t, expectedSigner, signer)
 	seqAfterBroadcast := txClient.Signer().Account(expectedSigner).Sequence()
@@ -564,37 +579,7 @@ func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash, expected
 	require.Equal(t, seqBeforeBroadcast, seqFromTxTracker)
 	// Successfully broadcast transaction increases the sequence
 	require.Equal(t, seqAfterBroadcast, seqBeforeBroadcast+1)
-}
-
-func setupTxClient(
-	t *testing.T,
-	ttlNumBlocks int64,
-	blocksize int64,
-	opts ...user.Option,
-) (encoding.Config, *user.TxClient, testnode.Context) {
-	defaultTmConfig := testnode.DefaultTendermintConfig()
-	defaultTmConfig.Mempool.TTLNumBlocks = ttlNumBlocks
-	accounts := testfactory.GenerateAccounts(3)
-
-	testnodeConfig := testnode.DefaultConfig().
-		WithTendermintConfig(defaultTmConfig).
-		WithFundedAccounts(accounts...).
-		WithDelayedPrecommitTimeout(300 * time.Millisecond)
-	testnodeConfig.Genesis.ConsensusParams.Block.MaxBytes = blocksize
-
-	ctx, _, _ := testnode.NewNetwork(t, testnodeConfig)
-	_, err := ctx.WaitForHeight(1)
-	require.NoError(t, err)
-	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
-	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, enc, opts...)
-	require.NoError(t, err)
-
-	return enc, txClient, ctx
-}
-
-func setupTxClientWithDefaultParams(t *testing.T, opts ...user.Option) (encoding.Config, *user.TxClient, testnode.Context) {
-	return setupTxClient(t, 0, 8388608, opts...) // no ttl and 8MiB block size
+	require.NotEmpty(t, txBytes)
 }
 
 type mockEstimatorServer struct {
@@ -842,7 +827,7 @@ func (suite *TxClientTestSuite) TestSequenceIncrementOnlyOnceInMultiConnBroadcas
 	require.Equal(t, seqBefore+1, seqAfter, "Sequence should be incremented by exactly 1, not by number of connections")
 
 	// Verify the transaction is tracked
-	trackedSeq, trackedSigner, exists := multiConnClient.GetTxFromTxTracker(resp.TxHash)
+	trackedSeq, trackedSigner, _, exists := multiConnClient.GetTxFromTxTracker(resp.TxHash)
 	require.True(t, exists, "Transaction should be in tracker")
 	require.Equal(t, seqBefore, trackedSeq, "Tracked sequence should be the sequence before increment")
 	require.Equal(t, multiConnClient.DefaultAccountName(), trackedSigner, "Tracked signer should match")

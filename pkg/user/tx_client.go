@@ -48,7 +48,7 @@ const (
 	DefaultWorkerBalance = 1
 	// evictionPollTimeOut is the timeout for checking if an evicted transaction
 	// gets committed after experiencing a broadcast error during resubmission
-	evictionPollTimeOut = 1 * time.Minute
+	evictionPollTimeOut = 3 * time.Minute
 )
 
 var (
@@ -71,9 +71,13 @@ type txInfo struct {
 // a transaction has been submitted.
 type TxResponse struct {
 	// Height is the block height at which the transaction was included on-chain.
-	Height int64
-	TxHash string
-	Code   uint32
+	Height    int64
+	TxHash    string
+	Code      uint32
+	Codespace string
+	GasWanted int64
+	GasUsed   int64
+	Signers   []string
 }
 
 // BroadcastTxError is an error that occurs when broadcasting a transaction.
@@ -93,11 +97,39 @@ type ExecutionError struct {
 	TxHash string
 	Code   uint32
 	// ErrorLog is the error output of the app's logger
-	ErrorLog string
+	ErrorLog  string
+	Codespace string
+	GasWanted int64
+	GasUsed   int64
 }
 
 func (e *ExecutionError) Error() string {
 	return fmt.Sprintf("tx execution failed with code %d: %s", e.Code, e.ErrorLog)
+}
+
+// buildTxResponse populates the TxResponse from the TxStatus response
+func (client *TxClient) buildTxResponse(txHash string, statusResp *tx.TxStatusResponse) *TxResponse {
+	return &TxResponse{
+		Height:    statusResp.Height,
+		TxHash:    txHash,
+		Code:      statusResp.ExecutionCode,
+		Codespace: statusResp.Codespace,
+		GasWanted: statusResp.GasWanted,
+		GasUsed:   statusResp.GasUsed,
+		Signers:   statusResp.Signers,
+	}
+}
+
+// buildExecutionError populates the ExecutionError from the TxStatus response
+func (client *TxClient) buildExecutionError(txHash string, statusResp *tx.TxStatusResponse) *ExecutionError {
+	return &ExecutionError{
+		TxHash:    txHash,
+		ErrorLog:  statusResp.Error,
+		Codespace: statusResp.Codespace,
+		Code:      statusResp.ExecutionCode,
+		GasWanted: statusResp.GasWanted,
+		GasUsed:   statusResp.GasUsed,
+	}
 }
 
 // WithPollTime sets a custom polling interval with which to check if a transaction has been submitted
@@ -746,26 +778,17 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			span.AddEvent("txclient/ConfirmTx: transaction committed", trace.WithAttributes(
 				attribute.Int("resp_code", int(resp.ExecutionCode)),
 			))
-			txResponse := &TxResponse{
-				Height: resp.Height,
-				TxHash: txHash,
-				Code:   resp.ExecutionCode,
-			}
 			if resp.ExecutionCode != abci.CodeTypeOK {
-				executionErr := &ExecutionError{
-					TxHash:   txHash,
-					Code:     resp.ExecutionCode,
-					ErrorLog: resp.Error,
-				}
 				span.RecordError(fmt.Errorf("txclient/ConfirmTx: execution error: %s", resp.Error))
 				client.deleteFromTxTracker(txHash)
-				return nil, executionErr
+				return nil, client.buildExecutionError(txHash, resp)
 			}
+
 			span.AddEvent("txclient/ConfirmTx: transaction confirmed successfully")
 			client.deleteFromTxTracker(txHash)
-			return txResponse, nil
+			return client.buildTxResponse(txHash, resp), nil
 		case core.TxStatusEvicted:
-			_, _, exists := client.GetTxFromTxTracker(txHash)
+			_, _, txBytes, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in txTracker; likely failed during broadcast", txHash)
 			}
@@ -781,7 +804,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			))
 
 			// If we're not already tracking eviction timeout, try to resubmit
-			_, err := client.sendTxToConnection(ctx, client.conns[0], client.txTracker[txHash].txBytes)
+			_, err := client.sendTxToConnection(ctx, client.conns[0], txBytes)
 			if err != nil {
 				// Check if the error is a broadcast tx error
 				_, ok := err.(*BroadcastTxError)
@@ -796,7 +819,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			span.AddEvent("txclient/ConfirmTx: transaction resubmitted successfully after eviction")
 		case core.TxStatusRejected:
 			span.RecordError(fmt.Errorf("txclient/ConfirmTx: transaction rejected: %s", resp.Error))
-			sequence, signer, exists := client.GetTxFromTxTracker(txHash)
+			sequence, signer, _, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
 			}
@@ -806,7 +829,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				return nil, fmt.Errorf("setting sequence: %w", err)
 			}
 			client.deleteFromTxTracker(txHash)
-			return nil, fmt.Errorf("tx with hash %s was rejected by the node with execution code %d", txHash, resp.ExecutionCode)
+			return nil, fmt.Errorf("tx with hash %s was rejected by the node with execution code: %d and log: %s", txHash, resp.ExecutionCode, resp.Error)
 		default:
 			span.RecordError(fmt.Errorf("txclient/ConfirmTx: unknown tx status for tx: %s", txHash))
 			client.deleteFromTxTracker(txHash)
@@ -1035,11 +1058,11 @@ func (client *TxClient) trackTransaction(signer, txHash string, txBytes []byte) 
 }
 
 // GetTxFromTxTracker gets transaction info from the tx client's local tx tracker by its hash
-func (client *TxClient) GetTxFromTxTracker(hash string) (sequence uint64, signer string, exists bool) {
+func (client *TxClient) GetTxFromTxTracker(hash string) (sequence uint64, signer string, txBytes []byte, exists bool) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 	txInfo, exists := client.txTracker[hash]
-	return txInfo.sequence, txInfo.signer, exists
+	return txInfo.sequence, txInfo.signer, txInfo.txBytes, exists
 }
 
 // Signer exposes the tx clients underlying signer
