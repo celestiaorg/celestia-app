@@ -213,7 +213,7 @@ operation occur at essentially the same time.
 ### Optimal Routing
 
 One of the benefits of generating the route of data on fly instead of
-pre-planning the route is that the plan can incorporate real time data. 
+pre-planning the route is that the plan can incorporate real time data.
 
 This inherently includes:
 
@@ -224,7 +224,7 @@ This inherently includes:
 However, it can also include congestion if the `Have` messages and entered into
 the send queue in a FIFO fashion as `Data`. This ensures that a haves take
 longer to be delivered to a congested connection, making it more likely peers
-will receive that same `Have` message first from a different peer. 
+will receive that same `Have` message first from a different peer.
 
 - **Nodes SHOULD send `Have` and `Data` messages from a FIFO queue**
 - **Nodes SHOULD request `Data` from the first peer that sends them a `Have`
@@ -402,7 +402,7 @@ achieved our original goal.
 If we have the ability to know what portion of the voting power already has a
 given transaction, and the network is able to reuse the transactions they have
 already downloaded in the block, then we can use that to our advantage when
-combating sybil attacks. 
+combating sybil attacks.
 
 The more voting power that has signaled that they have a transaction, then the
 more difficult it is to stop the distribution of that transaction.

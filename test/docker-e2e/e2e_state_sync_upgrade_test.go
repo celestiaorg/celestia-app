@@ -1,7 +1,6 @@
 package docker_e2e
 
 import (
-	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"context"
 	"fmt"
 	"strings"
@@ -14,6 +13,8 @@ import (
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
+
+	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 )
 
 // TestStateSyncWithAppUpgrade verifies that a full node can state-sync across app version
@@ -42,7 +43,7 @@ func (s *CelestiaTestSuite) TestStateSyncWithAppUpgrade() {
 	s.Require().NoError(err, "failed to build chain")
 
 	t.Cleanup(func() {
-		if err := chain.Stop(ctx); err != nil {
+		if err := chain.Remove(ctx); err != nil {
 			t.Logf("Error stopping chain: %v", err)
 		}
 	})
@@ -72,7 +73,7 @@ func (s *CelestiaTestSuite) TestStateSyncWithAppUpgrade() {
 	testPFBSubmission(s.T(), chain, cfg)
 
 	t.Log("Phase 2: Waiting for snapshot creation before upgrade")
-	// Wait for a snapshot to be created at the current app version (5)
+	// Wait for a snapshot to be created at the base app version
 	// This ensures we have a snapshot from the old version to test cross-version state sync
 	snapshotHeight := s.waitForSnapshotCreation(ctx, chain, rpcClient)
 	t.Logf("Snapshot created at height %d (app version %d)", snapshotHeight, baseAppVersion)
@@ -102,7 +103,6 @@ func (s *CelestiaTestSuite) TestStateSyncWithAppUpgrade() {
 	s.Require().NoError(err, "failed to build RPC address list")
 
 	t.Logf("State sync parameters: trust_height=%d, trust_hash=%s", trustHeight, trustHash)
-	t.Logf("Cross-version state sync: snapshot from app version %d, consumer on app version %d", baseAppVersion, targetAppVersion)
 
 	// Add state sync node
 	err = chain.AddNode(ctx,
@@ -158,9 +158,10 @@ func (s *CelestiaTestSuite) TestStateSyncWithAppUpgrade() {
 	s.Require().NoError(err, "failed to fetch ABCI info from state sync node")
 	s.Require().Equal(targetAppVersion, syncedAbciInfo.Response.GetAppVersion(), "state sync node should have app version %d", targetAppVersion)
 	t.Logf("State sync node app version: %d", syncedAbciInfo.Response.GetAppVersion())
+	binaryVersion := syncedAbciInfo.Response.GetVersion()
 
 	// Verify cross-version state sync success
-	t.Logf("Success: Cross-version state sync completed - consumed snapshot from app version %d with node running app version %d", baseAppVersion, targetAppVersion)
+	t.Logf("Success: Cross-version state sync completed - consumed snapshot from app version %d with node running binary version %s", baseAppVersion, binaryVersion)
 
 	// Final liveness check
 	t.Log("Performing final liveness check")
@@ -169,7 +170,7 @@ func (s *CelestiaTestSuite) TestStateSyncWithAppUpgrade() {
 }
 
 // performUpgrade executes the upgrade to the target app version
-func (s *CelestiaTestSuite) performUpgrade(ctx context.Context, chain tastoratypes.Chain, cfg *dockerchain.Config, targetAppVersion uint64) (upgradeHeight int64) {
+func (s *CelestiaTestSuite) performUpgrade(ctx context.Context, chain tastoratypes.Chain, cfg *dockerchain.Config, appVersion uint64) (upgradeHeight int64) {
 	t := s.T()
 
 	validatorNode := chain.GetNodes()[0]
@@ -178,7 +179,7 @@ func (s *CelestiaTestSuite) performUpgrade(ctx context.Context, chain tastoratyp
 	s.Require().NoError(err, "failed to list keyring records")
 	s.Require().Len(records, len(chain.GetNodes()), "number of accounts should match number of nodes")
 
-	upgradeHeight = s.signalAndGetUpgradeHeight(ctx, chain, validatorNode, cfg, records, targetAppVersion)
+	upgradeHeight = s.signalAndGetUpgradeHeight(ctx, chain, validatorNode, cfg, records, appVersion)
 
 	rpcClient, err := validatorNode.GetRPCClient()
 	s.Require().NoError(err, "failed to get RPC client")
@@ -193,10 +194,10 @@ func (s *CelestiaTestSuite) performUpgrade(ctx context.Context, chain tastoratyp
 	// Verify upgrade completed successfully
 	abciInfo, err := rpcClient.ABCIInfo(ctx)
 	s.Require().NoError(err, "failed to fetch ABCI info")
-	s.Require().Equal(targetAppVersion, abciInfo.Response.GetAppVersion(), "should be at app version %v", targetAppVersion)
+	s.Require().Equal(appVersion, abciInfo.Response.GetAppVersion(), "should be at app version %v", appVersion)
 
 	// Produce additional blocks at the target app version (TxSim is still running)
-	t.Logf("Producing 20 more blocks at app version %v", targetAppVersion)
+	t.Logf("Producing 20 more blocks at app version %v", appVersion)
 	s.Require().NoError(wait.ForBlocks(ctx, 20, chain), "failed to wait for post-upgrade blocks")
 
 	return upgradeHeight

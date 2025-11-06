@@ -86,7 +86,7 @@ func createBlobTxs(t *testing.T, testApp *app.App, encConf encoding.Config, keyr
 	blobSize := 1 * mebibyte
 	blobCount := 1
 
-	for i := 0; i < 8; i++ {
+	for range 8 {
 		tx := testutil.BlobTxWithManualSequence(t, encConf.TxConfig, keyring, blobSize, blobCount, testutil.ChainID, accountName, sequence, accountNumber)
 		txs = append(txs, tx)
 		sequence++
@@ -349,7 +349,7 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 	_, err := rand.Read(randomBytes)
 	require.NoError(t, err)
 	accountIndex := 0
-	for i := 0; i < numberOfPFBs; i++ {
+	for range numberOfPFBs {
 		blob, err := share.NewBlob(share.RandomNamespace(), randomBytes, 1, accs[accountIndex].GetAddress().Bytes())
 		require.NoError(t, err)
 		tx, _, err := signers[accountIndex].CreatePayForBlobs(accounts[accountIndex], []*share.Blob{blob}, user.SetGasLimit(2549760000), user.SetFee(10000))
@@ -360,10 +360,10 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 
 	multiPFBsPerTxs := make([][]byte, 0, numberOfPFBs)
 	numberOfMsgsPerTx := 10
-	for i := 0; i < numberOfPFBs; i++ {
+	for range numberOfPFBs {
 		msgs := make([]sdk.Msg, 0)
 		blobs := make([]*share.Blob, 0)
-		for j := 0; j < numberOfMsgsPerTx; j++ {
+		for range numberOfMsgsPerTx {
 			blob, err := share.NewBlob(share.RandomNamespace(), randomBytes, 1, accs[accountIndex].GetAddress().Bytes())
 			require.NoError(t, err)
 			msg, err := blobtypes.NewMsgPayForBlobs(addrs[accountIndex].String(), appconsts.Version, blob)
@@ -381,7 +381,7 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 
 	numberOfMsgSends := appconsts.MaxNonPFBMessages + 500
 	msgSendTxs := make([][]byte, 0, numberOfMsgSends)
-	for i := 0; i < numberOfMsgSends; i++ {
+	for range numberOfMsgSends {
 		msg := banktypes.NewMsgSend(
 			addrs[accountIndex],
 			testnode.RandomAddress().(sdk.AccAddress),

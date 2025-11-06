@@ -105,7 +105,7 @@ func FuzzPFBGasEstimation(f *testing.F) {
 
 func randBlobSize(seed int64, numBlobs, maxBlobSize int) []int {
 	res := make([]int, numBlobs)
-	for i := 0; i < numBlobs; i++ {
+	for i := range numBlobs {
 		if maxBlobSize == 1 {
 			res[i] = 1
 			continue

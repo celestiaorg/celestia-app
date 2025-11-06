@@ -187,5 +187,6 @@ func displayInfo(info printInfo) error {
 func getConsensusParams() *comettypes.ConsensusParams {
 	params := comettypes.DefaultConsensusParams()
 	params.Version.App = appconsts.Version
+	params.Block.MaxBytes = appconsts.DefaultMaxBytes
 	return params
 }

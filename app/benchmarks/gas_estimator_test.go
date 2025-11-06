@@ -84,8 +84,10 @@ func BenchmarkGasPriceEstimation(b *testing.B) {
 
 func generateRandomPFBs(b *testing.B, signer *user.Signer, account string, numberOfTransactions int, blobSize int) []types.Tx {
 	rand := random.New()
-	gasLimit := blobtypes.DefaultEstimateGas([]uint32{uint32(blobSize)})
 	blobs := blobfactory.ManyBlobs(rand, []share.Namespace{share.RandomBlobNamespace()}, []int{blobSize})
+	tempMsg, err := blobtypes.NewMsgPayForBlobs(signer.Account(account).Address().String(), appconsts.Version, blobs...)
+	require.NoError(b, err)
+	gasLimit := blobtypes.DefaultEstimateGas(tempMsg)
 	txs := make([]types.Tx, numberOfTransactions)
 	bTxFee := rand.Uint64() % 10000
 	for i := 0; i < numberOfTransactions; i++ {

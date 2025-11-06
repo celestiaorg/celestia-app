@@ -43,7 +43,7 @@ All binaries used by nodes in the network are compiled on the user's local machi
 make build-talis-bins
 ```
 
-Note that this doesn't install binaries in the `$GOPATH/bin`, so you must specify the path when creating the payload with the `genesis` subcommand and `-a` (`--app-binary` path) and `-t` (`--txsim-binary` path) flags. See `genesis` subcommand usage below.
+Note that this doesn't install binaries in the `$GOPATH/bin`, so you must specify the path when creating the payload with the `genesis` subcommand using `-b` (`--build-dir`) to copy an entire build directory, or the per-binary flags such as `-a` (`--app-binary`) and `-t` (`--txsim-binary`). See `genesis` subcommand usage below.
 
 ## Usage
 
@@ -59,7 +59,7 @@ talis init -c <chain-id> -e <experiment>
 
 This will initialize the directory that contains directory structure used for conducting an experiment.
 
-```
+```text
 .
 ├── app.toml
 ├── config.json
@@ -159,11 +159,11 @@ talis up --workers 20
 
 ### genesis
 
-Before we can start the network, we need to create a payload that contains everything each instance needs to actually start the network. This includes all the required keys, configs, genesis.json, and startup scripts. The `--square-size` flag will change the `GovMaxSquareSize`. By default, the binaries in the $GOPATH/bin will be used, however if specific binaries are needed (likely unless you are running some flavor of debian), use the -a (-a, --app-binary) and -t (-t, --txsim-binary) flags.
+Before we can start the network, we need to create a payload that contains everything each instance needs to actually start the network. This includes all the required keys, configs, genesis.json, and startup scripts. The `--square-size` flag will change the `GovMaxSquareSize`. By default, the binaries in the $GOPATH/bin will be used, however if specific binaries are needed (likely unless you are running some flavor of debian), use the `-b` (`--build-dir`) flag to copy every binary from a build directory, or the individual flags such as `-a` (`--app-binary`) and `-t` (`--txsim-binary`) when you only need to override specific executables.
 
 ```sh
 # creates the payload for the network. This contains all addresses, configs, binaries (from your local GOPATH if not specified), genesis.json, and startup scripts. The `--square-size` flag will change the `GovMaxSquareSize`
-talis genesis -s 128 -a /home/$HOSTNAME/go/src/github.com/celestiaorg/celestia-app/build/celestia-appd -t /home/$HOSTNAME/go/src/github.com/celestiaorg/celestia-app/build/txsim
+talis genesis -s 128 -b /home/$HOSTNAME/go/src/github.com/celestiaorg/celestia-app/build
 ```
 
 Keep in mind that we can still edit anything in the payload before deploying the network.
@@ -347,7 +347,7 @@ talis add -t validator -c <count>
 talis up -n <key-name> -s <path-to-ssh-key> --workers 20
 
 # Create payload
-talis genesis -s 128 -a  build/celestia-appd -t build/txsim
+talis genesis -s 128 -b build
 
 # Deploy (use more workers for faster direct deployment)
 talis deploy -s <path-to-ssh-key> --direct-payload-upload --workers 20

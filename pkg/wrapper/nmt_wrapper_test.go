@@ -161,7 +161,7 @@ func TestErasuredNamespacedMerkleTree_ProveRange(t *testing.T) {
 		root, err := tree.Root()
 		assert.NoError(t, err)
 		// iterate over all the shares and check that the proof is non-empty and can be verified
-		for i := 0; i < len(data); i++ {
+		for i := range data {
 			proof, err := tree.ProveRange(i, i+1)
 			assert.NoError(t, err)
 			assert.NotEmpty(t, proof.Nodes())

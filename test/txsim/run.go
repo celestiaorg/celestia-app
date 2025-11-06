@@ -113,7 +113,7 @@ func Run(
 	}
 
 	var finalErr error
-	for i := 0; i < len(sequences); i++ {
+	for range sequences {
 		err := <-errCh
 		if err == nil { // should never happen
 			continue

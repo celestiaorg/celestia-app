@@ -1,5 +1,5 @@
 #!/bin/bash
-# Usage: ./scripts/download_v3_binary.sh <url> <out> <version>
+# Usage: ./scripts/download_binary.sh <url> <out> <version>
 
 set -euo pipefail
 

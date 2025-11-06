@@ -17,7 +17,7 @@ func TestPruningInTxTracker(t *testing.T) {
 	// Add 10 transactions to the tracker that are 10 and 5 minutes old
 	var txsToBePruned int
 	var txsNotReadyToBePruned int
-	for i := 0; i < numTransactions; i++ {
+	for i := range numTransactions {
 		// 5 transactions will be pruned
 		if i%2 == 0 {
 			txClient.txTracker["tx"+fmt.Sprint(i)] = txInfo{

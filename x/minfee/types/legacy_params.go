@@ -43,7 +43,7 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 }
 
 // validateMinGasPrice validates the param type
-func validateMinGasPrice(i interface{}) error {
+func validateMinGasPrice(i any) error {
 	_, ok := i.(math.LegacyDec)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)

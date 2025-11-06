@@ -16,6 +16,10 @@ This release contains all the changes from [CIP-042](https://github.com/celestia
 
 v6 changes the [hardware requirements](https://docs.celestia.org/how-to-guides/nodes-overview#consensus-nodes) for consensus nodes. Please ensure your consensus node meets these requirements.
 
+### Binary Building
+
+Validators should build binaries in freshly created environments or download pre-built binaries from official releases. Many validators have experienced issues due to building binaries in environments with outdated dependencies, conflicting libraries, or stale build artifacts.
+
 ### Key Management Service (KMS) changes
 
 This release introduces a new message type that needs to be signed by KMS. **If you use Horcrux or TmKMS, you must use these versions in order to participate in consensus. If you use an alternative KMS, please reach out.**
@@ -60,6 +64,9 @@ max_tx_bytes = 8388608
 ttl-duration = "0s"
 ttl-num-blocks = 12
 max-gossip-delay = "1m0s"
+
+[consensus]
+enable_legacy_block_prop = true
 ```
 
 ## v5.0.0

@@ -91,6 +91,35 @@ func ConstructEDS(txs [][]byte, appVersion uint64, maxSquareSize int) (*rsmt2d.E
 	}
 }
 
+// ConstructEDSWithTreePool constructs an ExtendedDataSquare from the given transactions and app version,
+// it uses treePool to optimize allocations.
+// If maxSquareSize is less than 0, it will use the upper bound square size for the given app version.
+func ConstructEDSWithTreePool(txs [][]byte, appVersion uint64, maxSquareSize int, treePool *wrapper.TreePool) (*rsmt2d.ExtendedDataSquare, error) {
+	switch appVersion {
+	case 0:
+		return nil, fmt.Errorf("app version cannot be 0")
+	case 1, 2, 3, 4, 5: // versions 1-5 are all compatible with v2 of the square package
+		if maxSquareSize < 0 {
+			maxSquareSize = v5.SquareSizeUpperBound
+		}
+		// all versions 5 and below have the same parameters and algorithm
+		square, err := squarev2.Construct(txs, maxSquareSize, v5.SubtreeRootThreshold)
+		if err != nil {
+			return nil, err
+		}
+		return ExtendSharesWithTreePool(sharev2.ToBytes(square), treePool)
+	default: // assume all other versions are compatible with v3 of the square package
+		if maxSquareSize < 0 {
+			maxSquareSize = appconsts.SquareSizeUpperBound
+		}
+		square, err := squarev3.Construct(txs, maxSquareSize, appconsts.SubtreeRootThreshold)
+		if err != nil {
+			return nil, err
+		}
+		return ExtendSharesWithTreePool(sharev3.ToBytes(square), treePool)
+	}
+}
+
 func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 	// Check that the length of the square is a power of 2.
 	if !squarev3.IsPowerOfTwo(len(s)) {
@@ -101,6 +130,17 @@ func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 	// here we construct a tree
 	// Note: uses the nmt wrapper to construct the tree.
 	return rsmt2d.ComputeExtendedDataSquare(s, appconsts.DefaultCodec(), wrapper.NewConstructor(uint64(squareSize)))
+}
+
+// ExtendSharesWithTreePool injects tree pool into rsmt2d to reuse allocs in root computation
+func ExtendSharesWithTreePool(s [][]byte, treePool *wrapper.TreePool) (*rsmt2d.ExtendedDataSquare, error) {
+	// Check that the length of the square is a power of 2.
+	if !squarev3.IsPowerOfTwo(len(s)) {
+		return nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(s))
+	}
+	// here we construct a tree
+	// Note: uses the nmt wrapper to construct the tree.
+	return rsmt2d.ComputeExtendedDataSquareWithBuffer(s, appconsts.DefaultCodec(), treePool)
 }
 
 // String returns hex representation of merkle hash of the DAHeader.

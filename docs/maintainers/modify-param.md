@@ -37,45 +37,41 @@ params:
 
 1. Create a proposal.json file with contents:
 
-    ```json
+```json
+{
+  "messages": [
     {
-    "messages": [
-        {
-        "@type": "/celestiaorg.celestia_app.blob.MsgUpdateParams",
-        "authority": "celestia10d07y265gmmuvt4z0w9aw880jnsr700jtgz4v7",
-        "params": {
-            "gas_per_blob_byte": 8,
-            "gov_max_square_size": 256
-        }
-        },
-        {
-        "@type": "/cosmos.consensus.v1.MsgUpdateParams",
-        "authority": "celestia10d07y265gmmuvt4z0w9aw880jnsr700jtgz4v7",
-        "block": {
-            "max_bytes": "33554432",
-            "max_gas": "-1",
-            "time_iota_ms": "1000"
-        },
-        "evidence": {
-            "max_age_num_blocks": "120960",
-            "max_age_duration": "1814400000000000",
-            "max_bytes": "1048576"
-        },
-        "validator": {
-            "pub_key_types": ["ed25519"]
-        },
-        "version": {
-            "app_version": "6"
-        }
-        }
-    ],
-    "metadata": "",
-    "deposit": "10000000000utia",
-    "title": "Increase Max Square Size to 256 and Block Size to 32 MiB",
-    "summary": "Increase Max Square Size to 256 and Block Size to 32 MiB",
-    "expedited": false
+      "@type": "/celestia.blob.v1.MsgUpdateBlobParams",
+      "authority": "celestia10d07y265gmmuvt4z0w9aw880jnsr700jtgz4v7",
+      "params": {
+        "gas_per_blob_byte": 8,
+        "gov_max_square_size": 512
+      }
+    },
+    {
+      "@type": "/cosmos.consensus.v1.MsgUpdateParams",
+      "authority": "celestia10d07y265gmmuvt4z0w9aw880jnsr700jtgz4v7",
+      "block": {
+        "max_bytes": "134217728",
+        "max_gas": "-1"
+      },
+      "evidence": {
+        "max_age_num_blocks": "242640",
+        "max_age_duration": "337h0m0s",
+        "max_bytes": "1048576"
+      },
+      "validator": {
+        "pub_key_types": ["ed25519"]
+      }
     }
-    ```
+  ],
+  "metadata": "",
+  "deposit": "10000000000utia",
+  "title": "Increase Max Square Size to 512 and Block Size to 128 MiB",
+  "summary": "Increase Max Square Size to 512 and Block Size to 128 MiB",
+  "expedited": false
+}
+```
 
 2. Submit the proposal and vote on it:
 
@@ -87,7 +83,7 @@ params:
     export GAS_ADJUSTMENT="1.5"
 
     # Submit the proposal
-    celestia-appd tx gov submit-proposal gov-proposal.json --from $FROM --fees $FEES --gas $GAS --gas-adjustment $GAS_ADJUSTMENT
+    celestia-appd tx gov submit-proposal proposal.json --from $FROM --fees $FEES --gas $GAS --gas-adjustment $GAS_ADJUSTMENT
 
     # Query the proposals
     celestia-appd query gov proposals --output json | jq .

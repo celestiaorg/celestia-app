@@ -9,8 +9,10 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	appconstsv5 "github.com/celestiaorg/celestia-app/v6/pkg/appconsts/v5"
+	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
 	sharev2 "github.com/celestiaorg/go-square/v2/share"
 	sh "github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -37,8 +39,9 @@ func TestNilDataAvailabilityHeaderHashDoesntCrash(t *testing.T) {
 // 3. Extract roots: Row and column merkle roots are computed from the extended square:
 //   - 2 row roots (one for each row of the extended square)
 //   - 2 column roots (one for each column of the extended square)
-//     4. Compute hash: A binary merkle tree is built from the concatenated row and column roots
-//     (rowRoots || columnRoots) to produce the final data availability header hash
+//
+// 4. Compute hash: A binary merkle tree is built from the concatenated row and column roots
+// (rowRoots || columnRoots) to produce the final data availability header hash
 //
 // The expectedHash below (0x3d96b7d2...) represents the merkle root of the concatenated
 // row and column roots from a 2x2 extended data square containing one tail padding share.
@@ -53,14 +56,44 @@ func TestMinDataAvailabilityHeader(t *testing.T) {
 	require.NoError(t, dah.ValidateBasic())
 }
 
+type (
+	extendFunc    = func([][]byte) (*rsmt2d.ExtendedDataSquare, error)
+	constructFunc = func(txs [][]byte, appVersion uint64, maxSquareSize int) (*rsmt2d.ExtendedDataSquare, error)
+)
+
+// extendSharesWithPool works exactly the same as ExtendShares,
+// but it uses treePool to reuse the allocs.
+func extendSharesWithPool(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
+	treePool, err := wrapper.DefaultPreallocatedTreePool(512)
+	if err != nil {
+		return nil, err
+	}
+	return ExtendSharesWithTreePool(s, treePool)
+}
+
+// constructEDSWithPool works exactly the same as ConstructEDS,
+// but it uses treePool to reuse the allocs.
+func constructEDSWithPool(txs [][]byte, appVersion uint64, maxSquareSize int) (*rsmt2d.ExtendedDataSquare, error) {
+	treePool, err := wrapper.DefaultPreallocatedTreePool(512)
+	if err != nil {
+		return nil, err
+	}
+	return ConstructEDSWithTreePool(txs, appVersion, maxSquareSize, treePool)
+}
+
 func TestMinDataAvailabilityHeaderBackwardsCompatibility(t *testing.T) {
-	dahv3 := MinDataAvailabilityHeader()
-	shareV2 := sharev2.ToBytes(sharev2.TailPaddingShares(appconsts.MinShareCount))
-	eds, err := ExtendShares(shareV2)
-	require.NoError(t, err)
-	dahV2, err := NewDataAvailabilityHeader(eds)
-	require.NoError(t, err)
-	require.Equal(t, dahv3.hash, dahV2.hash)
+	for _, extendShares := range []extendFunc{
+		extendSharesWithPool,
+		ExtendShares,
+	} {
+		dahv3 := MinDataAvailabilityHeader()
+		shareV2 := sharev2.ToBytes(sharev2.TailPaddingShares(appconsts.MinShareCount))
+		eds, err := extendShares(shareV2)
+		require.NoError(t, err)
+		dahV2, err := NewDataAvailabilityHeader(eds)
+		require.NoError(t, err)
+		require.Equal(t, dahv3.hash, dahV2.hash)
+	}
 }
 
 func TestNewDataAvailabilityHeader(t *testing.T) {
@@ -88,13 +121,18 @@ func TestNewDataAvailabilityHeader(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			eds, err := ExtendShares(tt.shares)
-			require.NoError(t, err)
-			got, err := NewDataAvailabilityHeader(eds)
-			require.NoError(t, err)
-			require.Equal(t, tt.squareSize*2, uint64(len(got.ColumnRoots)), tt.name)
-			require.Equal(t, tt.squareSize*2, uint64(len(got.RowRoots)), tt.name)
-			require.Equal(t, tt.expectedHash, got.hash, tt.name)
+			for _, extendShares := range []extendFunc{
+				extendSharesWithPool,
+				ExtendShares,
+			} {
+				eds, err := extendShares(tt.shares)
+				require.NoError(t, err)
+				got, err := NewDataAvailabilityHeader(eds)
+				require.NoError(t, err)
+				require.Equal(t, tt.squareSize*2, uint64(len(got.ColumnRoots)))
+				require.Equal(t, tt.squareSize*2, uint64(len(got.RowRoots)))
+				require.Equal(t, tt.expectedHash, got.hash)
+			}
 		})
 	}
 }
@@ -120,23 +158,39 @@ func TestExtendShares(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		_, err := ExtendShares(tt.shares)
-		if tt.expectedErr {
-			require.NotNil(t, err)
-			continue
-		}
-		require.NoError(t, err)
+		t.Run(tt.name, func(t *testing.T) {
+			for _, extendShares := range []extendFunc{
+				extendSharesWithPool,
+				ExtendShares,
+			} {
+				_, err := extendShares(tt.shares)
+				if tt.expectedErr {
+					require.NotNil(t, err)
+				} else {
+					require.NoError(t, err)
+				}
+			}
+		})
 	}
 }
 
 func TestDataAvailabilityHeaderProtoConversion(t *testing.T) {
+	for _, extendShares := range []extendFunc{
+		extendSharesWithPool,
+		ExtendShares,
+	} {
+		testDataAvailabilityHeaderProtoConversion(t, extendShares)
+	}
+}
+
+func testDataAvailabilityHeaderProtoConversion(t *testing.T, extendShares func([][]byte) (*rsmt2d.ExtendedDataSquare, error)) {
 	type test struct {
 		name string
 		dah  DataAvailabilityHeader
 	}
 
 	shares := generateShares(appconsts.SquareSizeUpperBound * appconsts.SquareSizeUpperBound)
-	eds, err := ExtendShares(shares)
+	eds, err := extendShares(shares)
 	require.NoError(t, err)
 	bigdah, err := NewDataAvailabilityHeader(eds)
 	require.NoError(t, err)
@@ -163,6 +217,15 @@ func TestDataAvailabilityHeaderProtoConversion(t *testing.T) {
 }
 
 func Test_DAHValidateBasic(t *testing.T) {
+	for _, extendShares := range []extendFunc{
+		extendSharesWithPool,
+		ExtendShares,
+	} {
+		testDAHValidateBasic(t, extendShares)
+	}
+}
+
+func testDAHValidateBasic(t *testing.T, extendShares func([][]byte) (*rsmt2d.ExtendedDataSquare, error)) {
 	type test struct {
 		name      string
 		dah       DataAvailabilityHeader
@@ -173,7 +236,7 @@ func Test_DAHValidateBasic(t *testing.T) {
 	maxSize := appconsts.SquareSizeUpperBound * appconsts.SquareSizeUpperBound
 
 	shares := generateShares(maxSize)
-	eds, err := ExtendShares(shares)
+	eds, err := extendShares(shares)
 	require.NoError(t, err)
 	bigdah, err := NewDataAvailabilityHeader(eds)
 	require.NoError(t, err)
@@ -276,15 +339,20 @@ func TestConstructEDS_Versions(t *testing.T) {
 	maxAppVersion := appconsts.Version + 1 // even future versions won't error and assume compatibility with v3
 	for appVersion := minAppVersion; appVersion <= maxAppVersion; appVersion++ {
 		t.Run(fmt.Sprintf("app version %d", appVersion), func(t *testing.T) {
-			shares := generateShares(4)
-			maxSquareSize := -1
-			eds, err := ConstructEDS(shares, appVersion, maxSquareSize)
-			if appVersion == 0 {
-				require.Error(t, err)
-				require.Nil(t, eds)
-			} else {
-				require.NoError(t, err)
-				require.NotNil(t, eds)
+			for _, constructEDS := range []constructFunc{
+				constructEDSWithPool,
+				ConstructEDS,
+			} {
+				shares := generateShares(4)
+				maxSquareSize := -1
+				eds, err := constructEDS(shares, appVersion, maxSquareSize)
+				if appVersion == 0 {
+					require.Error(t, err)
+					require.Nil(t, eds)
+				} else {
+					require.NoError(t, err)
+					require.NotNil(t, eds)
+				}
 			}
 		})
 	}
@@ -326,13 +394,18 @@ func TestConstructEDS_SquareSize(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			txLength := sh.AvailableBytesFromCompactShares((tc.expectedSize * tc.expectedSize) - 1)
-			tx := bytes.Repeat([]byte{0x1}, txLength)
-			eds, err := ConstructEDS([][]byte{tx}, tc.appVersion, tc.maxSquare)
-			require.NoError(t, err)
-			require.NotNil(t, eds)
-			// The EDS width should be 2*expectedSize
-			require.Equal(t, tc.expectedSize*2, int(eds.Width()))
+			for _, construct := range []constructFunc{
+				constructEDSWithPool,
+				ConstructEDS,
+			} {
+				txLength := sh.AvailableBytesFromCompactShares((tc.expectedSize * tc.expectedSize) - 1)
+				tx := bytes.Repeat([]byte{0x1}, txLength)
+				eds, err := construct([][]byte{tx}, tc.appVersion, tc.maxSquare)
+				require.NoError(t, err)
+				require.NotNil(t, eds)
+				// The EDS width should be 2*expectedSize
+				require.Equal(t, tc.expectedSize*2, int(eds.Width()))
+			}
 		})
 	}
 }
@@ -342,7 +415,7 @@ func TestConstructEDS_SquareSize(t *testing.T) {
 func generateShares(count int) (shares [][]byte) {
 	ns1 := sh.MustNewV0Namespace(bytes.Repeat([]byte{1}, sh.NamespaceVersionZeroIDSize))
 
-	for i := 0; i < count; i++ {
+	for range count {
 		share := generateShare(ns1.Bytes())
 		shares = append(shares, share)
 	}
@@ -366,9 +439,15 @@ func sortByteArrays(arr [][]byte) {
 // maxDataAvailabilityHeader returns a DataAvailabilityHeader the maximum square
 // size. This should only be used for testing.
 func maxDataAvailabilityHeader(t *testing.T) (dah DataAvailabilityHeader) {
+	return maxDataAvailabilityHeaderWithExtendShares(t, ExtendShares)
+}
+
+// maxDataAvailabilityHeaderWithExtendShares returns a DataAvailabilityHeader the maximum square
+// size using the provided extendShares function. This should only be used for testing.
+func maxDataAvailabilityHeaderWithExtendShares(t *testing.T, extendShares func([][]byte) (*rsmt2d.ExtendedDataSquare, error)) (dah DataAvailabilityHeader) {
 	shares := generateShares(appconsts.SquareSizeUpperBound * appconsts.SquareSizeUpperBound)
 
-	eds, err := ExtendShares(shares)
+	eds, err := extendShares(shares)
 	require.NoError(t, err)
 
 	dah, err = NewDataAvailabilityHeader(eds)

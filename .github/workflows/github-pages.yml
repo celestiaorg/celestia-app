@@ -7,6 +7,7 @@ on:
     paths:
       - specs/**
   pull_request:
+  merge_group:
     paths:
       - specs/**
   workflow_dispatch:

@@ -130,12 +130,13 @@ jobs:
           - testcase: TestStateSync
           - testcase: TestBlockSync
           - testcase: TestE2EFullStackPFB
-          - testcase: TestCelestiaAppUpgrade
           - testcase: TestIBC
             entrypoint: TestIBCTestSuite
           - testcase: TestICA
             entrypoint: TestIBCTestSuite
           - testcase: TestStateSyncWithAppUpgrade
+          - testcase: TestMinorVersionCompatibility
+          - testcase: TestCelestiaAppV5ToV6
 
     steps:
       - name: Checkout code

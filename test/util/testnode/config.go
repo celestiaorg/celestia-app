@@ -87,7 +87,7 @@ func (c *Config) WithSuppressLogs(sl bool) *Config {
 
 // WithTimeoutCommit sets the timeout commit in the cometBFT config and returns
 // the Config. For backward compatibility, it also sets the app's block time.
-// Deprecated: Use WithBlockTime instead.
+// Deprecated: Use WithDelayedPrecommitTimeout instead.
 func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
 	c.TmConfig.Consensus.TimeoutCommit = d
 	// For backward compatibility, also set the app option so existing tests continue to work
@@ -132,6 +132,11 @@ func (c *Config) WithChainID(id string) *Config {
 // WithConsensusParams sets the consensus params and returns the Config.
 func (c *Config) WithConsensusParams(params *tmproto.ConsensusParams) *Config {
 	c.Genesis = c.Genesis.WithConsensusParams(params)
+	return c
+}
+
+func (c *Config) WithMaxBytes(maxBytes int64) *Config {
+	c.Genesis.ConsensusParams.Block.MaxBytes = maxBytes
 	return c
 }
 

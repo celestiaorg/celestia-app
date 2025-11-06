@@ -268,12 +268,12 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg.RPC.MaxBodyBytes = appconsts.MempoolSize + (mebibyte * 32)
 	cfg.RPC.GRPCListenAddress = "tcp://127.0.0.1:9098"
 
-	cfg.Mempool.TTLNumBlocks = 12
+	cfg.Mempool.TTLNumBlocks = 36
 	cfg.Mempool.TTLDuration = 0 * time.Second
 	cfg.Mempool.MaxTxBytes = appconsts.MaxTxSize
 	cfg.Mempool.MaxTxsBytes = appconsts.MempoolSize
 	cfg.Mempool.Type = tmcfg.MempoolTypeCAT
-	cfg.Mempool.MaxGossipDelay = time.Second * 60
+	cfg.Mempool.MaxGossipDelay = time.Second * 20
 
 	cfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
 	cfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit

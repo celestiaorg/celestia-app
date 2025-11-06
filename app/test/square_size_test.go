@@ -179,9 +179,6 @@ func (s *SquareSizeIntegrationTest) SetupBlockSizeParams(t *testing.T, squareSiz
 
 	res, err := txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msgSubmitProp}, opt)
 	require.NoError(t, err)
-
-	res, err = txClient.ConfirmTx(s.cctx.GoContext(), res.TxHash)
-	require.NoError(t, err)
 	require.Equal(t, uint32(0), res.Code)
 
 	txService := sdktx.NewServiceClient(s.cctx.GRPCClient)
@@ -195,7 +192,7 @@ func (s *SquareSizeIntegrationTest) SetupBlockSizeParams(t *testing.T, squareSiz
 
 	// try to query and vote on the proposal within the voting period
 	govQueryClient := govv1.NewQueryClient(s.cctx.GRPCClient)
-	for i := 0; i < 30; i++ {
+	for range 30 {
 		// query the proposal to get the id
 		propResp, err := govQueryClient.Proposals(s.cctx.GoContext(), &govv1.QueryProposalsRequest{ProposalStatus: govv1.StatusVotingPeriod})
 		require.NoError(t, err)
@@ -226,7 +223,7 @@ func (s *SquareSizeIntegrationTest) SetupBlockSizeParams(t *testing.T, squareSiz
 	require.Equal(t, uint32(0), res.Code)
 
 	// try to query a few times until the voting period has passed
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		// check that the parameters were updated as expected
 		blobQueryClient := blobtypes.NewQueryClient(s.cctx.GRPCClient)
 		blobParamsResp, err := blobQueryClient.Params(s.cctx.GoContext(), &blobtypes.QueryParamsRequest{})

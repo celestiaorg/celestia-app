@@ -22,4 +22,4 @@ State fraud proofs allow light clients to avoid making an honest majority assump
 state validity. While these are not incorporated into the protocol as of v1.0.0,
 there are example implementations that can be found in
 [Rollkit](https://github.com/rollkit/rollkit). More info in
-[rollkit-ADR009](https://github.com/rollkit/rollkit/blob/4fd97ba8b8352771f2e66454099785d06fd0c31b/docs/lazy-adr/adr-009-state-fraud-proofs.md).
+[rollkit-ADR009](https://github.com/evstack/ev-node/blob/4fd97ba8b8352771f2e66454099785d06fd0c31b/docs/lazy-adr/adr-009-state-fraud-proofs.md).
