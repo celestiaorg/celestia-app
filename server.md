@@ -21,7 +21,7 @@ message PaymentPromise {
   bytes namespace = 2;                                    // 29 raw bytes
   uint32 blob_size = 3;                                   // original length (pre-padding)
   bytes commitment = 4;                                   // 32 bytes
-  uint32 row_version = 5;                                 // = 1
+  uint32 fibre_blob_version = 5;                          // = 1
   google.protobuf.Timestamp creation_timestamp = 6;       // UTC
   uint64 valset_height = 7;                               // assignment height
   bytes signature = 8;                                    // signer signature over PP sign-bytes
@@ -98,7 +98,7 @@ service PaymentProcessor {
     * row inclusion proof size matches `original_rows` size (network level params)
     * `signer` bech32, `namespace` version=2 and 29 bytes,
     * `commitment` 32 bytes,
-    * `row_version == 1`,
+    * `fibre_blob_version == 1`,
     * `creation_timestamp` ∈ `[now - withdrawal_delay - skew, now + skew]`,
     * `valset_height > 0`,
     * `signature` present.
@@ -162,7 +162,7 @@ SignBytes = SHA256(
   "fibre/pp:v1" || Chain_id ||
   signer_bytes || namespace ||
   blob_size_u32be || commitment ||
-  row_version_u32be || creation_timestamp_pb || valset_height_u64be
+  fibre_blob_version_u32be || creation_timestamp_pb || valset_height_u64be
 )
 ```
 
