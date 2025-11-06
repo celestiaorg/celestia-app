@@ -235,6 +235,68 @@ func RandomGCZone(region string) string {
 	return zones[rand.Intn(len(zones))]
 }
 
+func ensureGCFirewallRule(ctx context.Context, project string, opts []option.ClientOption) error {
+	client, err := compute.NewFirewallsRESTClient(ctx, opts...)
+	if err != nil {
+		return fmt.Errorf("failed to create firewall client: %w", err)
+	}
+	defer client.Close()
+
+	firewallName := "talis-allow-all-ports"
+
+	// Check if firewall rule already exists
+	getReq := &computepb.GetFirewallRequest{
+		Project:  project,
+		Firewall: firewallName,
+	}
+	_, err = client.Get(ctx, getReq)
+	if err == nil {
+		// Firewall rule already exists
+		log.Println("Firewall rule", firewallName, "already exists")
+		return nil
+	}
+
+	// Create firewall rule to allow all incoming traffic
+	log.Println("Creating firewall rule", firewallName, "to allow all incoming traffic")
+
+	firewall := &computepb.Firewall{
+		Name: &firewallName,
+		Allowed: []*computepb.Allowed{
+			{
+				IPProtocol: ptr("tcp"),
+				Ports:      []string{"0-65535"},
+			},
+			{
+				IPProtocol: ptr("udp"),
+				Ports:      []string{"0-65535"},
+			},
+			{
+				IPProtocol: ptr("icmp"),
+			},
+		},
+		Direction:    ptr(computepb.Firewall_INGRESS.String()),
+		SourceRanges: []string{"0.0.0.0/0"},
+		TargetTags:   []string{"talis-allow-all"},
+	}
+
+	insertReq := &computepb.InsertFirewallRequest{
+		Project:          project,
+		FirewallResource: firewall,
+	}
+
+	op, err := client.Insert(ctx, insertReq)
+	if err != nil {
+		return fmt.Errorf("failed to insert firewall rule: %w", err)
+	}
+
+	if err := op.Wait(ctx); err != nil {
+		return fmt.Errorf("failed to wait for firewall rule creation: %w", err)
+	}
+
+	log.Println("Firewall rule", firewallName, "created successfully")
+	return nil
+}
+
 func CreateGCInstances(ctx context.Context, project string, insts []Instance, sshKey string, opts []option.ClientOption, workers int) ([]Instance, error) {
 	total := len(insts)
 
@@ -254,6 +316,11 @@ func CreateGCInstances(ctx context.Context, project string, insts []Instance, ss
 		for _, v := range existing {
 			log.Println("Skipping", v.Name, v.PublicIP, v.Tags)
 		}
+	}
+
+	// Ensure a firewall rule exists to allow all ports
+	if err := ensureGCFirewallRule(ctx, project, opts); err != nil {
+		return nil, fmt.Errorf("failed to ensure firewall rule: %w", err)
 	}
 
 	results := make(chan result, total)
@@ -333,6 +400,9 @@ func createGCInstance(ctx context.Context, project string, inst Instance, zone s
 			Name:        &inst.Name,
 			MachineType: &machineType,
 			Labels:      labels,
+			Tags: &computepb.Tags{
+				Items: []string{"talis-allow-all"},
+			},
 			Disks: []*computepb.AttachedDisk{
 				{
 					Boot:       ptr(true),
