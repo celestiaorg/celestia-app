@@ -17,21 +17,22 @@ import (
 )
 
 const (
-	GCDefaultValidatorMachineType = "c2d-highcpu-16"
+	GCDefaultValidatorMachineType = "c3d-highcpu-16"
 	GCDefaultImage                = "projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts"
 	GCDefaultDiskSizeGB           = 400
 )
 
 var (
 	GCRegions = []string{
-		"us-central1", "us-east1", "us-west1", "europe-west1", "asia-east1",
+		"us-central1", "us-east1", "us-east4", "asia-southeast1", "europe-west1", "asia-east1",
 	}
 	GCZones = map[string][]string{
-		"us-central1":  {"us-central1-a", "us-central1-b", "us-central1-c"},
-		"us-east1":     {"us-east1-b", "us-east1-c", "us-east1-d"},
-		"us-west1":     {"us-west1-a", "us-west1-b", "us-west1-c"},
-		"europe-west1": {"europe-west1-b", "europe-west1-c", "europe-west1-d"},
-		"asia-east1":   {"asia-east1-a", "asia-east1-b", "asia-east1-c"},
+		"us-central1":     {"us-central1-a", "us-central1-b", "us-central1-c"},
+		"us-east1":        {"us-east1-b", "us-east1-c", "us-east1-d"},
+		"us-east4":        {"us-east4-a", "us-east4-b", "us-east4-c"},
+		"asia-southeast1": {"asia-southeast1-a", "asia-southeast1-b", "asia-southeast1-c"},
+		"europe-west1":    {"europe-west1-b", "europe-west1-c", "europe-west1-d"},
+		"asia-east1":      {"asia-east1-a", "asia-east1-b", "asia-east1-c"},
 	}
 )
 
