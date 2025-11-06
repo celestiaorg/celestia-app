@@ -121,11 +121,18 @@ func VerifyStandaloneProof(proof *StandaloneProof, commitment Commitment, config
 		return fmt.Errorf("row size mismatch: expected %d, got %d", config.RowSize, len(proof.Row))
 	}
 
-	// The RLC proof depth must match the rlcOrig tree depth (K leaves, not K+N)
+	// The row proof depth must match the tree depth
 	kPadded := nextPowerOfTwo(config.K)
+	totalPadded := nextPowerOfTwo(kPadded + config.N)
+	treeDepth := bits.Len(uint(totalPadded)) - 1
+	if len(proof.RowProof.RowProof) != treeDepth {
+		return fmt.Errorf("row proof depth mismatch: expected %d, got %d", treeDepth, len(proof.RowProof.RowProof))
+	}
+
+	// The RLC proof depth must match the rlcOrig tree depth (K leaves, not K+N)
 	rlcTreeDepth := bits.Len(uint(kPadded)) - 1
 	if len(proof.RLCProof) != rlcTreeDepth {
-		return fmt.Errorf("row proof depth mismatch: expected %d, got %d", rlcTreeDepth, len(proof.RLCProof))
+		return fmt.Errorf("rlc proof depth mismatch: expected %d, got %d", rlcTreeDepth, len(proof.RLCProof))
 	}
 
 	// 1. Compute row root (index < K so no shift needed for tree position)
