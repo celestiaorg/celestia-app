@@ -56,27 +56,27 @@ func upCmd() *cobra.Command {
 				return fmt.Errorf("failed to create client: %w", err)
 			}
 
-			// Check for running experiments
-			runningDroplets, err := checkForRunningExperiments(cmd.Context(), client.do)
-			if err != nil {
-				log.Printf("⚠️  Warning: failed to check for running experiments: %v", err)
-			}
-			if len(runningDroplets) > 0 {
-				log.Println("⚠️  Warning: Found another talis experiment running!")
-				log.Println("\nRunning validators:")
-				for _, d := range runningDroplets {
-					publicIP := ""
-					for _, net := range d.Networks.V4 {
-						if net.Type == "public" {
-							publicIP = net.IPAddress
-							break
-						}
-					}
-					log.Printf("  - %s (Region: %s, IP: %s, Created: %s)", d.Name, d.Region.Slug, publicIP, d.Created)
-				}
-				log.Printf("\nTotal: %d instance(s)\n", len(runningDroplets))
-				return fmt.Errorf("existing talis experiments are running")
-			}
+			//// Check for running experiments
+			//runningDroplets, err := checkForRunningExperiments(cmd.Context(), client.do)
+			//if err != nil {
+			//	log.Printf("⚠️  Warning: failed to check for running experiments: %v", err)
+			//}
+			//if len(runningDroplets) > 0 {
+			//	log.Println("⚠️  Warning: Found another talis experiment running!")
+			//	log.Println("\nRunning validators:")
+			//	for _, d := range runningDroplets {
+			//		publicIP := ""
+			//		for _, net := range d.Networks.V4 {
+			//			if net.Type == "public" {
+			//				publicIP = net.IPAddress
+			//				break
+			//			}
+			//		}
+			//		log.Printf("  - %s (Region: %s, IP: %s, Created: %s)", d.Name, d.Region.Slug, publicIP, d.Created)
+			//	}
+			//	log.Printf("\nTotal: %d instance(s)\n", len(runningDroplets))
+			//	return fmt.Errorf("existing talis experiments are running")
+			//}
 
 			if err := client.Up(cmd.Context(), workers); err != nil {
 				return fmt.Errorf("failed to spin up network: %w", err)
