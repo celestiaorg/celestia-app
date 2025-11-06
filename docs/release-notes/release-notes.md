@@ -24,11 +24,16 @@ Validators should build binaries in freshly created environments or download pre
 
 This release introduces a new message type that needs to be signed by KMS. **If you use Horcrux or TmKMS, you must use these versions in order to participate in consensus. If you use an alternative KMS, please reach out.**
 
+**Disclaimer:** (KMS) are third-party software. Validators are responsible for ensuring their own KMS setup is correctly configured.
+An incorrect setup may result in double signing, which can lead to slashing. So, any error log should be thoroughly investigated, even if the KMS appears to be signing normally.
+
+Validators must also ensure they maintain a fast and reliable setup. Future network upgrades will require low signing latency, so server colocation can be explored to achieve faster signatures.
+
+**Validators choosing to run KMS do so at their own risk.**
+
 #### Horcrux
 
 For horcrux, use [v3.3.3-celestia](https://github.com/celestiaorg/horcrux/releases/tag/v3.3.3-celestia). All the setups and configs remain the same.
-
-**Disclaimer:** We maintain a fork of Horcrux that enables node operators to support v6. However, due to limited ongoing maintenance and the associated double-signing risks observed in previous incidents, the use of Horcrux comes with operational risk. For improved security and reliability, we recommend using [TmKMS](https://github.com/celestiaorg/tmkms/releases/tag/v0.14.0-celestia) or the local file signer instead. **Validators choosing to run Horcrux do so at their own risk.**
 
 #### TmKMS
 
