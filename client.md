@@ -5,7 +5,7 @@
 * **FSP**: validator‑operated Fibre Service Provider.
 * **DFSP**: preferred endpoint for non‑quorum ops (escrow queries; PFF relay).
 * **Commitment**: `SHA256(rowRoot || rlcRoot)`.
-* **PaymentPromise (PP)**: per `x/fibre`, fields `{signer, namespace(v2), blob_size, commitment, fibre_blob_version=1, creation_timestamp:Timestamp, valset_height, signature}`.
+* **PaymentPromise (PP)**: per `x/fibre`, fields `{signer, namespace, blob_size, commitment, fibre_blob_version=1, creation_timestamp:Timestamp, valset_height, signature}`.
 * **Assignment**: permutation mapping `(commitment, valset@height)` → rows per validator.
 
 ## 1) Construction & Config
