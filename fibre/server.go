@@ -5,10 +5,13 @@ import (
 	"log/slog"
 	"time"
 
+	fibregrpc "github.com/celestiaorg/celestia-app/v6/fibre/grpc"
 	"github.com/celestiaorg/celestia-app/v6/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v6/x/fibre/types"
 	"github.com/cometbft/cometbft/crypto"
+	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	core "github.com/cometbft/cometbft/types"
+	"github.com/cosmos/gogoproto/grpc"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -65,7 +68,6 @@ func NewServer(
 	privVal core.PrivValidator,
 	queryClient types.QueryClient,
 	valGet validator.SetGetter,
-	store *Store,
 	cfg ServerConfig,
 ) (*Server, error) {
 	if cfg.Log == nil {
@@ -81,7 +83,12 @@ func NewServer(
 		return nil, fmt.Errorf("getting validator public key: %w", err)
 	}
 
-	return &Server{
+	store, err := NewBadgerStore(cfg.StoreConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Fibre store: %w", err)
+	}
+
+	server := &Server{
 		cfg:         cfg,
 		privVal:     privVal,
 		pubKey:      pubKey,
@@ -90,11 +97,37 @@ func NewServer(
 		store:       store,
 		log:         cfg.Log,
 		tracer:      cfg.Tracer,
-	}, nil
+	}
+
+	return server, nil
+}
+
+// NewServerFromGRPC creates a new Fibre [Server] from a gRPC server and client.
+// It registers the server with the gRPC server and returns the Fibre [Server].
+func NewServerFromGRPC(
+	privVal core.PrivValidator,
+	grpcServer grpc.Server,
+	grpcClient grpc.ClientConn,
+	cfg ServerConfig,
+) (*Server, error) {
+	queryClient := types.NewQueryClient(grpcClient)
+	valGet := fibregrpc.NewSetGetter(coregrpc.NewBlockAPIClient(grpcClient))
+
+	server, err := NewServer(privVal, queryClient, valGet, cfg)
+	if err != nil {
+		return nil, err
+	}
+	types.RegisterFibreServer(grpcServer, server)
+	return server, nil
 }
 
 func (s *Server) Config() ServerConfig {
 	return s.cfg
+}
+
+// Store returns the server's store.
+func (s *Server) Store() *Store {
+	return s.store
 }
 
 // Stop stops the server.
