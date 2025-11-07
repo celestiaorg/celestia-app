@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync/atomic"
-
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 )
 
 type NodeType string
@@ -89,8 +89,28 @@ func NewBaseInstance(nodeType NodeType) Instance {
 		PublicIP:  "TBD",
 		PrivateIP: "TBD",
 		Name:      name,
-		Tags:      []string{appconsts.TalisChainID, string(nodeType), name},
+		Tags:      []string{"talis"},
 	}
+}
+
+func (i Instance) WithExperiment(experimentID, chainID string) Instance {
+	index := extractIndexFromName(i.Name)
+	experimentTag := ExperimentTag(i.NodeType, index, experimentID, chainID)
+	i.Tags = append(i.Tags, experimentTag)
+	return i
+}
+
+func extractIndexFromName(name string) int {
+	parts := strings.Split(name, "-")
+	if len(parts) < 2 {
+		return 0
+	}
+	index, _ := strconv.Atoi(parts[len(parts)-1])
+	return index
+}
+
+func ExperimentTag(nodeType NodeType, index int, experimentID, chainID string) string {
+	return fmt.Sprintf("%s-%d-%s-%s", nodeType, index, experimentID, chainID)
 }
 
 // Config describes the desired state of the network.
@@ -171,13 +191,13 @@ func (cfg Config) WithS3Config(s3 S3Config) Config {
 }
 
 func (cfg Config) WithDigitalOceanValidator(region string) Config {
-	i := NewDigitalOceanValidator(region)
+	i := NewDigitalOceanValidator(region).WithExperiment(cfg.Experiment, cfg.ChainID)
 	cfg.Validators = append(cfg.Validators, i)
 	return cfg
 }
 
 func (cfg Config) WithGoogleCloudValidator(region string) Config {
-	i := NewGoogleCloudValidator(region)
+	i := NewGoogleCloudValidator(region).WithExperiment(cfg.Experiment, cfg.ChainID)
 	cfg.Validators = append(cfg.Validators, i)
 	return cfg
 }

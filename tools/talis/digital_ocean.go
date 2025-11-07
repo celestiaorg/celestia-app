@@ -198,8 +198,13 @@ func filterExistingInstances(ctx context.Context, client *godo.Client, insts []I
 	var newInsts []Instance //nolint:prealloc
 	for _, inst := range insts {
 		var exists bool
+		experimentTag := getExperimentTag(inst.Tags)
+		if experimentTag == "" {
+			newInsts = append(newInsts, inst)
+			continue
+		}
 		for _, d := range droplets {
-			if hasAllTags(d.Tags, inst.Tags) {
+			if slices.Contains(d.Tags, experimentTag) {
 				exists = true
 				break
 			}
@@ -214,6 +219,15 @@ func filterExistingInstances(ctx context.Context, client *godo.Client, insts []I
 	}
 
 	return newInsts, existing, nil
+}
+
+func getExperimentTag(tags []string) string {
+	for _, tag := range tags {
+		if strings.Contains(tag, "validator-") || strings.Contains(tag, "bridge-") || strings.Contains(tag, "light-") {
+			return tag
+		}
+	}
+	return ""
 }
 
 // waitForNetworkIP polls until the droplet has an IPv4 of the given type ("public" or "private")
@@ -246,29 +260,70 @@ func waitForNetworkIP(ctx context.Context, client *godo.Client, dropletID int) (
 	}
 }
 
-// DestroyDroplets tears down all droplets in parallel, waits until each is
-// confirmed deleted (or errors), then returns the list of successfully removed
-// Instances. It also prints a summary of removed vs untouched droplets.
 func DestroyDroplets(ctx context.Context, client *godo.Client, insts []Instance, workers int) ([]Instance, error) {
-	total := len(insts)
-
 	droplets, err := listAllDroplets(ctx, client)
 	if err != nil {
-		return nil, fmt.Errorf("listing before delete: %w", err)
+		return nil, fmt.Errorf("listing droplets: %w", err)
 	}
 
+	return destroyDropletsByMatch(ctx, client, droplets, insts, workers, matchByExperimentTag)
+}
+
+func destroyAllTalisDroplets(ctx context.Context, client *godo.Client, workers int) ([]Instance, error) {
+	droplets, err := listAllDroplets(ctx, client)
+	if err != nil {
+		return nil, fmt.Errorf("listing droplets: %w", err)
+	}
+
+	var talisInstances []Instance
+	for _, d := range droplets {
+		if slices.Contains(d.Tags, "talis") {
+			publicIP := ""
+			for _, net := range d.Networks.V4 {
+				if net.Type == "public" {
+					publicIP = net.IPAddress
+					break
+				}
+			}
+			talisInstances = append(talisInstances, Instance{
+				Name:     d.Name,
+				PublicIP: publicIP,
+			})
+		}
+	}
+
+	if len(talisInstances) == 0 {
+		log.Println("No talis droplets found to destroy")
+		return nil, nil
+	}
+
+	return destroyDropletsByMatch(ctx, client, droplets, talisInstances, workers, matchByName)
+}
+
+type dropletMatcher func(inst Instance, d godo.Droplet) bool
+
+func matchByExperimentTag(inst Instance, d godo.Droplet) bool {
+	experimentTag := getExperimentTag(inst.Tags)
+	return experimentTag != "" && slices.Contains(d.Tags, experimentTag)
+}
+
+func matchByName(inst Instance, d godo.Droplet) bool {
+	return d.Name == inst.Name
+}
+
+func destroyDropletsByMatch(ctx context.Context, client *godo.Client, droplets []godo.Droplet, insts []Instance, workers int, matcher dropletMatcher) ([]Instance, error) {
 	type result struct {
 		inst         Instance
 		err          error
 		timeRequired time.Duration
 	}
 
-	results := make(chan result, total)
+	results := make(chan result, len(insts))
 	workerChan := make(chan struct{}, workers)
 	var wg sync.WaitGroup
-	wg.Add(total)
+	wg.Add(len(insts))
 
-	for _, v := range insts {
+	for _, inst := range insts {
 		go func(inst Instance) {
 			workerChan <- struct{}{}
 			defer func() {
@@ -279,51 +334,40 @@ func DestroyDroplets(ctx context.Context, client *godo.Client, insts []Instance,
 
 			fmt.Println("⏳ Deleting droplet", inst.Name, inst.PublicIP)
 
-			// timeout per droplet
 			delCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 			defer cancel()
 
-			// note: this attempts to delete all droplets with the tags listed
-			// in the instance. If those are not accurate, then the droplet will
-			// not be deleted.
-			var matches []int
+			var matchIDs []int
 			for _, d := range droplets {
-				if hasAllTags(d.Tags, inst.Tags) {
-					matches = append(matches, d.ID)
+				if matcher(inst, d) {
+					matchIDs = append(matchIDs, d.ID)
 				}
 			}
 
-			if len(matches) > 1 {
-				results <- result{
-					inst: inst,
-					err: fmt.Errorf(
-						"deleting multiple droplets with tags %v",
-						inst.Tags),
-				}
-				// don't return, still try to delete droplets
+			if len(matchIDs) > 1 {
+				results <- result{inst: inst, err: fmt.Errorf("multiple droplets match %s", inst.Name)}
 			}
 
-			if len(matches) == 0 {
-				results <- result{inst: inst, err: fmt.Errorf("no droplets found with tags %v", inst.Tags)}
+			if len(matchIDs) == 0 {
+				results <- result{inst: inst, err: fmt.Errorf("no droplets found for %s", inst.Name)}
 				return
 			}
 
-			for _, match := range matches {
-				_, err := client.Droplets.Delete(delCtx, match)
+			for _, id := range matchIDs {
+				_, err := client.Droplets.Delete(delCtx, id)
 				if err != nil {
 					results <- result{inst: inst, err: fmt.Errorf("delete %s: %w", inst.Name, err)}
 					return
 				}
 
-				// wait until Get() returns a 404
-				if err := waitForDeletion(delCtx, client, match); err != nil {
+				if err := waitForDeletion(delCtx, client, id); err != nil {
 					results <- result{inst: inst, err: fmt.Errorf("confirm delete %s: %w", inst.Name, err)}
 					return
 				}
 
 				results <- result{inst: inst, err: nil, timeRequired: time.Since(start)}
 			}
-		}(v)
+		}(inst)
 	}
 
 	go func() {
@@ -331,7 +375,6 @@ func DestroyDroplets(ctx context.Context, client *godo.Client, insts []Instance,
 		close(results)
 	}()
 
-	// 3) collect results
 	var removed []Instance
 	var failed []result
 	for res := range results {
@@ -343,7 +386,7 @@ func DestroyDroplets(ctx context.Context, client *godo.Client, insts []Instance,
 			removed = append(removed, res.inst)
 			fmt.Printf("✅ %s deleted (took %v)\n", res.inst.Name, res.timeRequired)
 		}
-		fmt.Printf("---- Progress: %d/%d\n", len(removed)+len(failed), total)
+		fmt.Printf("---- Progress: %d/%d\n", len(removed)+len(failed), len(insts))
 	}
 
 	return removed, nil
@@ -406,20 +449,30 @@ func hasAllTags(candidate, want []string) bool {
 	return true
 }
 
-// checkForRunningExperiments checks if there are any talis instances running.
-// It returns a list of all talis droplets.
-func checkForRunningExperiments(ctx context.Context, client *godo.Client) ([]godo.Droplet, error) {
-	droplets, err := listAllDroplets(ctx, client)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list droplets: %w", err)
+func checkForRunningDOExperiments(ctx context.Context, client *godo.Client) (bool, error) {
+	if client == nil {
+		return false, nil
 	}
 
-	var talisDroplets []godo.Droplet
+	droplets, err := listAllDroplets(ctx, client)
+	if err != nil {
+		return false, fmt.Errorf("failed to list droplets: %w", err)
+	}
+
 	for _, d := range droplets {
-		if slices.Contains(d.Tags, "talis") {
-			talisDroplets = append(talisDroplets, d)
+		if slices.Contains(d.Tags, "talis") && hasValidatorTag(d.Tags) {
+			return true, nil
 		}
 	}
 
-	return talisDroplets, nil
+	return false, nil
+}
+
+func hasValidatorTag(tags []string) bool {
+	for _, tag := range tags {
+		if strings.HasPrefix(tag, "validator-") || strings.HasPrefix(tag, "bridge-") || strings.HasPrefix(tag, "light-") {
+			return true
+		}
+	}
+	return false
 }

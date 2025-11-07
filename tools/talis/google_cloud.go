@@ -495,7 +495,7 @@ func filterExistingGCInstances(ctx context.Context, project string, insts []Inst
 	}
 	defer client.Close()
 
-	existingMap := make(map[string]bool)
+	existingTags := make(map[string]bool)
 	for _, region := range GCRegions {
 		zones := GCZones[region]
 		for _, zone := range zones {
@@ -509,8 +509,10 @@ func filterExistingGCInstances(ctx context.Context, project string, insts []Inst
 				if err != nil {
 					break
 				}
-				if instance.Name != nil {
-					existingMap[*instance.Name] = true
+				if instance.Labels != nil {
+					for label := range instance.Labels {
+						existingTags[strings.ReplaceAll(label, "_", "-")] = true
+					}
 				}
 			}
 		}
@@ -518,79 +520,28 @@ func filterExistingGCInstances(ctx context.Context, project string, insts []Inst
 
 	var newInsts, existing []Instance
 	for _, inst := range insts {
-		if existingMap[inst.Name] {
-			existing = append(existing, inst)
-		} else {
+		experimentTag := getGCExperimentTag(inst.Tags)
+		if experimentTag == "" || !existingTags[experimentTag] {
 			newInsts = append(newInsts, inst)
+		} else {
+			existing = append(existing, inst)
 		}
 	}
 
 	return newInsts, existing, nil
 }
 
-func DestroyGCInstances(ctx context.Context, project string, insts []Instance, opts []option.ClientOption, workers int) ([]Instance, error) {
-	total := len(insts)
-
-	type result struct {
-		inst         Instance
-		err          error
-		timeRequired time.Duration
-	}
-
-	results := make(chan result, total)
-	workerChan := make(chan struct{}, workers)
-	var wg sync.WaitGroup
-	wg.Add(total)
-
-	for _, inst := range insts {
-		go func(inst Instance) {
-			workerChan <- struct{}{}
-			defer func() {
-				<-workerChan
-				wg.Done()
-			}()
-			start := time.Now()
-
-			fmt.Println("⏳ Deleting instance", inst.Name, inst.PublicIP)
-
-			delCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
-			defer cancel()
-
-			zone, err := findGCInstanceZone(delCtx, project, inst.Name, inst.Region, opts)
-			if err != nil {
-				results <- result{inst: inst, err: fmt.Errorf("find zone for %s: %w", inst.Name, err)}
-				return
-			}
-
-			if err := deleteGCInstance(delCtx, project, zone, inst.Name, opts); err != nil {
-				results <- result{inst: inst, err: fmt.Errorf("delete %s: %w", inst.Name, err)}
-				return
-			}
-
-			results <- result{inst: inst, err: nil, timeRequired: time.Since(start)}
-		}(inst)
-	}
-
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
-
-	var removed []Instance
-	var failed []result
-	for res := range results {
-		if res.err != nil {
-			fmt.Printf("❌ %s failed to delete after %v: %v\n",
-				res.inst.Name, res.timeRequired, res.err)
-			failed = append(failed, res)
-		} else {
-			removed = append(removed, res.inst)
-			fmt.Printf("✅ %s deleted (took %v)\n", res.inst.Name, res.timeRequired)
+func getGCExperimentTag(tags []string) string {
+	for _, tag := range tags {
+		if strings.Contains(tag, "validator-") || strings.Contains(tag, "bridge-") || strings.Contains(tag, "light-") {
+			return tag
 		}
-		fmt.Printf("---- Progress: %d/%d\n", len(removed)+len(failed), total)
 	}
+	return ""
+}
 
-	return removed, nil
+func DestroyGCInstances(ctx context.Context, project string, insts []Instance, opts []option.ClientOption, workers int) ([]Instance, error) {
+	return destroyGCInstancesInternal(ctx, project, insts, opts, workers)
 }
 
 func findGCInstanceZone(ctx context.Context, project, instanceName, region string, opts []option.ClientOption) (string, error) {
@@ -643,6 +594,166 @@ func deleteGCInstance(ctx context.Context, project, zone, name string, opts []op
 	}
 
 	return nil
+}
+
+func checkForRunningGCExperiments(ctx context.Context, project string, opts []option.ClientOption) (bool, error) {
+	if project == "" {
+		return false, nil
+	}
+
+	client, err := compute.NewInstancesRESTClient(ctx, opts...)
+	if err != nil {
+		return false, fmt.Errorf("failed to create compute client: %w", err)
+	}
+	defer client.Close()
+
+	for _, region := range GCRegions {
+		zones := GCZones[region]
+		for _, zone := range zones {
+			req := &computepb.ListInstancesRequest{
+				Project: project,
+				Zone:    zone,
+			}
+			it := client.List(ctx, req)
+			for {
+				instance, err := it.Next()
+				if err != nil {
+					break
+				}
+				if instance.Labels != nil {
+					if _, hasTalis := instance.Labels["talis"]; hasTalis {
+						for label := range instance.Labels {
+							if hasGCValidatorLabel(label) {
+								return true, nil
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return false, nil
+}
+
+func hasGCValidatorLabel(label string) bool {
+	return strings.HasPrefix(label, "validator_") || strings.HasPrefix(label, "bridge_") || strings.HasPrefix(label, "light_")
+}
+
+func destroyAllTalisGCInstances(ctx context.Context, project string, opts []option.ClientOption, workers int) ([]Instance, error) {
+	client, err := compute.NewInstancesRESTClient(ctx, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create compute client: %w", err)
+	}
+	defer client.Close()
+
+	var talisInstances []Instance
+	for _, region := range GCRegions {
+		zones := GCZones[region]
+		for _, zone := range zones {
+			req := &computepb.ListInstancesRequest{
+				Project: project,
+				Zone:    zone,
+			}
+			it := client.List(ctx, req)
+			for {
+				instance, err := it.Next()
+				if err != nil {
+					break
+				}
+				if instance.Labels != nil {
+					if _, hasTalis := instance.Labels["talis"]; hasTalis {
+						publicIP := ""
+						if len(instance.NetworkInterfaces) > 0 {
+							ni := instance.NetworkInterfaces[0]
+							if len(ni.AccessConfigs) > 0 && ni.AccessConfigs[0].NatIP != nil {
+								publicIP = *ni.AccessConfigs[0].NatIP
+							}
+						}
+						name := ""
+						if instance.Name != nil {
+							name = *instance.Name
+						}
+						talisInstances = append(talisInstances, Instance{
+							Name:     name,
+							PublicIP: publicIP,
+							Region:   region,
+						})
+					}
+				}
+			}
+		}
+	}
+
+	if len(talisInstances) == 0 {
+		log.Println("No talis instances found to destroy")
+		return nil, nil
+	}
+
+	return destroyGCInstancesInternal(ctx, project, talisInstances, opts, workers)
+}
+
+func destroyGCInstancesInternal(ctx context.Context, project string, insts []Instance, opts []option.ClientOption, workers int) ([]Instance, error) {
+	type result struct {
+		inst         Instance
+		err          error
+		timeRequired time.Duration
+	}
+
+	results := make(chan result, len(insts))
+	workerChan := make(chan struct{}, workers)
+	var wg sync.WaitGroup
+	wg.Add(len(insts))
+
+	for _, inst := range insts {
+		go func(inst Instance) {
+			workerChan <- struct{}{}
+			defer func() {
+				<-workerChan
+				wg.Done()
+			}()
+			start := time.Now()
+
+			fmt.Println("⏳ Deleting instance", inst.Name, inst.PublicIP)
+
+			delCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+			defer cancel()
+
+			zone, err := findGCInstanceZone(delCtx, project, inst.Name, inst.Region, opts)
+			if err != nil {
+				results <- result{inst: inst, err: fmt.Errorf("find zone for %s: %w", inst.Name, err)}
+				return
+			}
+
+			if err := deleteGCInstance(delCtx, project, zone, inst.Name, opts); err != nil {
+				results <- result{inst: inst, err: fmt.Errorf("delete %s: %w", inst.Name, err)}
+				return
+			}
+
+			results <- result{inst: inst, err: nil, timeRequired: time.Since(start)}
+		}(inst)
+	}
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	var removed []Instance
+	var failed []result
+	for res := range results {
+		if res.err != nil {
+			fmt.Printf("❌ %s failed to delete after %v: %v\n",
+				res.inst.Name, res.timeRequired, res.err)
+			failed = append(failed, res)
+		} else {
+			removed = append(removed, res.inst)
+			fmt.Printf("✅ %s deleted (took %v)\n", res.inst.Name, res.timeRequired)
+		}
+		fmt.Printf("---- Progress: %d/%d\n", len(removed)+len(failed), len(insts))
+	}
+
+	return removed, nil
 }
 
 func ptr[T any](v T) *T {

@@ -16,7 +16,9 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/digitalocean/godo"
 	"github.com/spf13/cobra"
+	"golang.org/x/oauth2"
 )
 
 func upCmd() *cobra.Command {
@@ -51,32 +53,14 @@ func upCmd() *cobra.Command {
 			cfg.GoogleCloudProject = resolveValue(GCProject, EnvVarGoogleCloudProject, cfg.GoogleCloudProject)
 			cfg.GoogleCloudKeyJSON = resolveValue(GCKeyJSON, EnvVarGoogleCloudKeyJSON, cfg.GoogleCloudKeyJSON)
 
+			if err := checkForRunningExperiments(cmd.Context(), cfg); err != nil {
+				return err
+			}
+
 			client, err := NewClient(cfg)
 			if err != nil {
 				return fmt.Errorf("failed to create client: %w", err)
 			}
-
-			//// Check for running experiments
-			//runningDroplets, err := checkForRunningExperiments(cmd.Context(), client.do)
-			//if err != nil {
-			//	log.Printf("⚠️  Warning: failed to check for running experiments: %v", err)
-			//}
-			//if len(runningDroplets) > 0 {
-			//	log.Println("⚠️  Warning: Found another talis experiment running!")
-			//	log.Println("\nRunning validators:")
-			//	for _, d := range runningDroplets {
-			//		publicIP := ""
-			//		for _, net := range d.Networks.V4 {
-			//			if net.Type == "public" {
-			//				publicIP = net.IPAddress
-			//				break
-			//			}
-			//		}
-			//		log.Printf("  - %s (Region: %s, IP: %s, Created: %s)", d.Name, d.Region.Slug, publicIP, d.Created)
-			//	}
-			//	log.Printf("\nTotal: %d instance(s)\n", len(runningDroplets))
-			//	return fmt.Errorf("existing talis experiments are running")
-			//}
 
 			if err := client.Up(cmd.Context(), workers); err != nil {
 				return fmt.Errorf("failed to spin up network: %w", err)
@@ -363,6 +347,7 @@ func downCmd() *cobra.Command {
 	var GCProject string
 	var GCKeyJSON string
 	var workers int
+	var all bool
 
 	cmd := &cobra.Command{
 		Use:   "down",
@@ -370,21 +355,26 @@ func downCmd() *cobra.Command {
 		Long:  "Destroys the Talis network with the provided configuration.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := LoadConfig(rootDir)
-			if err != nil {
+			if err != nil && !all {
 				return fmt.Errorf("failed to load config: %w", err)
+			}
+
+			// overwrite the config values if flags or env vars are set
+			// flag > env > config
+			cfg.DigitalOceanToken = resolveValue(DOAPIToken, EnvVarDigitalOceanToken, cfg.DigitalOceanToken)
+			cfg.GoogleCloudProject = resolveValue(GCProject, EnvVarGoogleCloudProject, cfg.GoogleCloudProject)
+			cfg.GoogleCloudKeyJSON = resolveValue(GCKeyJSON, EnvVarGoogleCloudKeyJSON, cfg.GoogleCloudKeyJSON)
+
+			if all {
+				return destroyAllInstances(cmd.Context(), cfg, workers)
 			}
 
 			if len(cfg.Validators) == 0 {
 				return fmt.Errorf("no validators found in config")
 			}
 
-			// overwrite the config values if flags or env vars are set
-			// flag > env > config
 			cfg.SSHKeyName = resolveValue(SSHKeyName, EnvVarSSHKeyName, cfg.SSHKeyName)
 			cfg.SSHPubKeyPath = resolveValue(SSHPubKeyPath, EnvVarSSHKeyPath, cfg.SSHPubKeyPath)
-			cfg.DigitalOceanToken = resolveValue(DOAPIToken, EnvVarDigitalOceanToken, cfg.DigitalOceanToken)
-			cfg.GoogleCloudProject = resolveValue(GCProject, EnvVarGoogleCloudProject, cfg.GoogleCloudProject)
-			cfg.GoogleCloudKeyJSON = resolveValue(GCKeyJSON, EnvVarGoogleCloudKeyJSON, cfg.GoogleCloudKeyJSON)
 
 			client, err := NewClient(cfg)
 			if err != nil {
@@ -392,7 +382,7 @@ func downCmd() *cobra.Command {
 			}
 
 			if err := client.Down(cmd.Context(), workers); err != nil {
-				return fmt.Errorf("failed to spin up network: %w", err)
+				return fmt.Errorf("failed to spin down network: %w", err)
 			}
 
 			return nil
@@ -407,6 +397,7 @@ func downCmd() *cobra.Command {
 	cmd.Flags().StringVar(&GCProject, "gc-project", "", "google cloud project (defaults to config or env)")
 	cmd.Flags().StringVar(&GCKeyJSON, "gc-key-json", "", "path to google cloud service account key JSON file (defaults to config or env)")
 	cmd.Flags().IntVarP(&workers, "workers", "w", 10, "number of concurrent workers for parallel operations (should be > 0)")
+	cmd.Flags().BoolVar(&all, "all", false, "destroy all talis instances across all providers and all experiments")
 
 	return cmd
 }
@@ -464,4 +455,95 @@ func listCmd() *cobra.Command {
 	cmd.Flags().StringVar(&GCKeyJSON, "gc-key-json", "", "path to google cloud service account key JSON file (defaults to config or env)")
 
 	return cmd
+}
+
+func checkForRunningExperiments(ctx context.Context, cfg Config) error {
+	var hasRunningExperiments bool
+
+	if cfg.DigitalOceanToken != "" {
+		tokenSource := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: cfg.DigitalOceanToken})
+		doClient := godo.NewClient(oauth2.NewClient(ctx, tokenSource))
+		running, err := checkForRunningDOExperiments(ctx, doClient)
+		if err != nil {
+			log.Printf("⚠️  Warning: failed to check DigitalOcean for running experiments: %v", err)
+		} else if running {
+			hasRunningExperiments = true
+			log.Println("⚠️  Found running experiments in DigitalOcean")
+		}
+	}
+
+	if cfg.GoogleCloudProject != "" {
+		opts, err := gcClientOptions(cfg)
+		if err != nil {
+			log.Printf("⚠️  Warning: failed to create Google Cloud client options: %v", err)
+		} else {
+			running, err := checkForRunningGCExperiments(ctx, cfg.GoogleCloudProject, opts)
+			if err != nil {
+				log.Printf("⚠️  Warning: failed to check Google Cloud for running experiments: %v", err)
+			} else if running {
+				hasRunningExperiments = true
+				log.Println("⚠️  Found running experiments in Google Cloud")
+			}
+		}
+	}
+
+	if hasRunningExperiments {
+		return fmt.Errorf("existing talis experiments are running")
+	}
+
+	return nil
+}
+
+func destroyAllInstances(ctx context.Context, cfg Config, workers int) error {
+	var wg sync.WaitGroup
+	errCh := make(chan error, 2)
+
+	if cfg.DigitalOceanToken != "" {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			log.Println("Destroying all DigitalOcean instances...")
+			tokenSource := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: cfg.DigitalOceanToken})
+			doClient := godo.NewClient(oauth2.NewClient(ctx, tokenSource))
+			if _, err := destroyAllTalisDroplets(ctx, doClient, workers); err != nil {
+				errCh <- fmt.Errorf("DigitalOcean: %w", err)
+			}
+		}()
+	}
+
+	if cfg.GoogleCloudProject != "" {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			log.Println("Destroying all Google Cloud instances...")
+			opts, err := gcClientOptions(cfg)
+			if err != nil {
+				errCh <- fmt.Errorf("google Cloud client options: %w", err)
+				return
+			}
+			if _, err := destroyAllTalisGCInstances(ctx, cfg.GoogleCloudProject, opts, workers); err != nil {
+				errCh <- fmt.Errorf("google Cloud: %w", err)
+			}
+		}()
+	}
+
+	wg.Wait()
+	close(errCh)
+
+	var errs []error
+	for err := range errCh {
+		errs = append(errs, err)
+	}
+
+	if len(errs) > 0 {
+		var sb strings.Builder
+		sb.WriteString("errors destroying instances:\n")
+		for _, err := range errs {
+			sb.WriteString("- " + err.Error() + "\n")
+		}
+		return errors.New(sb.String())
+	}
+
+	log.Println("✅ All talis instances destroyed")
+	return nil
 }
