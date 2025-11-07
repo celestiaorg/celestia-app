@@ -28,7 +28,7 @@ func upCmd() *cobra.Command {
 	var SSHKeyName string
 	var DOAPIToken string
 	var GCProject string
-	var GCKeyJSON string
+	var GCKeyJSONPath string
 	var workers int
 
 	cmd := &cobra.Command{
@@ -51,7 +51,7 @@ func upCmd() *cobra.Command {
 			cfg.SSHPubKeyPath = resolveValue(SSHPubKeyPath, EnvVarSSHKeyPath, cfg.SSHPubKeyPath)
 			cfg.DigitalOceanToken = resolveValue(DOAPIToken, EnvVarDigitalOceanToken, cfg.DigitalOceanToken)
 			cfg.GoogleCloudProject = resolveValue(GCProject, EnvVarGoogleCloudProject, cfg.GoogleCloudProject)
-			cfg.GoogleCloudKeyJSON = resolveValue(GCKeyJSON, EnvVarGoogleCloudKeyJSON, cfg.GoogleCloudKeyJSON)
+			cfg.GoogleCloudKeyJSONPath = resolveValue(GCKeyJSONPath, EnvVarGoogleCloudKeyJSONPath, cfg.GoogleCloudKeyJSONPath)
 
 			if err := checkForRunningExperiments(cmd.Context(), cfg); err != nil {
 				return err
@@ -80,7 +80,7 @@ func upCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&SSHKeyName, "ssh-key-name", "n", "", "name for the SSH key")
 	cmd.Flags().StringVarP(&DOAPIToken, "do-api-token", "t", "", "digital ocean api token (defaults to config or env)")
 	cmd.Flags().StringVar(&GCProject, "gc-project", "", "google cloud project (defaults to config or env)")
-	cmd.Flags().StringVar(&GCKeyJSON, "gc-key-json", "", "path to google cloud service account key JSON file (defaults to config or env)")
+	cmd.Flags().StringVar(&GCKeyJSONPath, "gc-key-json-path", "", "path to google cloud service account key JSON file (defaults to config or env)")
 	cmd.Flags().IntVarP(&workers, "workers", "w", 10, "number of concurrent workers for parallel operations (should be > 0)")
 
 	return cmd
@@ -345,7 +345,7 @@ func downCmd() *cobra.Command {
 	var SSHKeyName string
 	var DOAPIToken string
 	var GCProject string
-	var GCKeyJSON string
+	var GCKeyJSONPath string
 	var workers int
 	var all bool
 
@@ -363,7 +363,7 @@ func downCmd() *cobra.Command {
 			// flag > env > config
 			cfg.DigitalOceanToken = resolveValue(DOAPIToken, EnvVarDigitalOceanToken, cfg.DigitalOceanToken)
 			cfg.GoogleCloudProject = resolveValue(GCProject, EnvVarGoogleCloudProject, cfg.GoogleCloudProject)
-			cfg.GoogleCloudKeyJSON = resolveValue(GCKeyJSON, EnvVarGoogleCloudKeyJSON, cfg.GoogleCloudKeyJSON)
+			cfg.GoogleCloudKeyJSONPath = resolveValue(GCKeyJSONPath, EnvVarGoogleCloudKeyJSONPath, cfg.GoogleCloudKeyJSONPath)
 
 			if all {
 				return destroyAllInstances(cmd.Context(), cfg, workers)
@@ -395,7 +395,7 @@ func downCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&SSHKeyName, "ssh-key-name", "n", "", "name for the SSH key")
 	cmd.Flags().StringVarP(&DOAPIToken, "do-api-token", "t", "", "digital ocean api token (defaults to config or env)")
 	cmd.Flags().StringVar(&GCProject, "gc-project", "", "google cloud project (defaults to config or env)")
-	cmd.Flags().StringVar(&GCKeyJSON, "gc-key-json", "", "path to google cloud service account key JSON file (defaults to config or env)")
+	cmd.Flags().StringVar(&GCKeyJSONPath, "gc-key-json-path", "", "path to google cloud service account key JSON file (defaults to config or env)")
 	cmd.Flags().IntVarP(&workers, "workers", "w", 10, "number of concurrent workers for parallel operations (should be > 0)")
 	cmd.Flags().BoolVar(&all, "all", false, "destroy all talis instances across all providers and all experiments")
 
@@ -421,7 +421,7 @@ func listCmd() *cobra.Command {
 	var cfgPath string
 	var DOAPIToken string
 	var GCProject string
-	var GCKeyJSON string
+	var GCKeyJSONPath string
 
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -437,7 +437,7 @@ func listCmd() *cobra.Command {
 			// flag > env > config
 			cfg.DigitalOceanToken = resolveValue(DOAPIToken, EnvVarDigitalOceanToken, cfg.DigitalOceanToken)
 			cfg.GoogleCloudProject = resolveValue(GCProject, EnvVarGoogleCloudProject, cfg.GoogleCloudProject)
-			cfg.GoogleCloudKeyJSON = resolveValue(GCKeyJSON, EnvVarGoogleCloudKeyJSON, cfg.GoogleCloudKeyJSON)
+			cfg.GoogleCloudKeyJSONPath = resolveValue(GCKeyJSONPath, EnvVarGoogleCloudKeyJSONPath, cfg.GoogleCloudKeyJSONPath)
 
 			client, err := NewClient(cfg)
 			if err != nil {
@@ -452,7 +452,7 @@ func listCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&cfgPath, "config", "c", "config.json", "name of the config")
 	cmd.Flags().StringVarP(&DOAPIToken, "do-api-token", "t", "", "digital ocean api token (defaults to config or env)")
 	cmd.Flags().StringVar(&GCProject, "gc-project", "", "google cloud project (defaults to config or env)")
-	cmd.Flags().StringVar(&GCKeyJSON, "gc-key-json", "", "path to google cloud service account key JSON file (defaults to config or env)")
+	cmd.Flags().StringVar(&GCKeyJSONPath, "gc-key-json-path", "", "path to google cloud service account key JSON file (defaults to config or env)")
 
 	return cmd
 }

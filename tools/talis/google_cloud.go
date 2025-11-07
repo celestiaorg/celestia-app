@@ -216,11 +216,11 @@ func RandomGCRegion() string {
 }
 
 func gcClientOptions(cfg Config) ([]option.ClientOption, error) {
-	opts := []option.ClientOption{}
-	if cfg.GoogleCloudKeyJSON != "" {
-		keyJSON, err := os.ReadFile(cfg.GoogleCloudKeyJSON)
+	var opts []option.ClientOption
+	if cfg.GoogleCloudKeyJSONPath != "" {
+		keyJSON, err := os.ReadFile(cfg.GoogleCloudKeyJSONPath)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read Google Cloud key file at %s: %w", cfg.GoogleCloudKeyJSON, err)
+			return nil, fmt.Errorf("failed to read Google Cloud key file at %s: %w", cfg.GoogleCloudKeyJSONPath, err)
 		}
 		opts = append(opts, option.WithCredentialsJSON(keyJSON))
 	}

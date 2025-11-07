@@ -146,10 +146,10 @@ type Config struct {
 	SSHKeyName string `json:"ssh_key_name"`
 	// DigitalOceanToken is used to authenticate with DigitalOcean. It can be
 	// provided via an env var or flag.
-	DigitalOceanToken  string   `json:"digitalocean_token"`
-	GoogleCloudProject string   `json:"google_cloud_project"`
-	GoogleCloudKeyJSON string   `json:"google_cloud_key_json"`
-	S3Config           S3Config `json:"s3_config"`
+	DigitalOceanToken      string   `json:"digitalocean_token"`
+	GoogleCloudProject     string   `json:"google_cloud_project"`
+	GoogleCloudKeyJSONPath string   `json:"google_cloud_key_json_path"`
+	S3Config               S3Config `json:"s3_config"`
 }
 
 func NewConfig(experiment, chainID string) Config {
@@ -189,8 +189,8 @@ func (cfg Config) WithGoogleCloudProject(project string) Config {
 	return cfg
 }
 
-func (cfg Config) WithGoogleCloudKeyJSON(keyJSON string) Config {
-	cfg.GoogleCloudKeyJSON = keyJSON
+func (cfg Config) WithGoogleCloudKeyJSONPath(keyJSONPath string) Config {
+	cfg.GoogleCloudKeyJSONPath = keyJSONPath
 	return cfg
 }
 
