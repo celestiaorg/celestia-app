@@ -62,14 +62,9 @@ func TestSignatureSet(t *testing.T) {
 		for i := range 3 {
 			signature, err := s.privKeys[i].Sign(s.signBytes)
 			require.NoError(t, err)
-			require.NoError(t, s.sigSet.Add(s.validators[i], signature))
-		}
-
-		// Check that Done() is NOT closed when thresholds are not met
-		select {
-		case <-s.sigSet.Done():
-			t.Fatal("Done() should not be closed when thresholds are not met")
-		default:
+			hasEnough, err := s.sigSet.Add(s.validators[i], signature)
+			require.NoError(t, err)
+			require.False(t, hasEnough)
 		}
 
 		sigs, err := s.sigSet.Signatures()
@@ -92,14 +87,9 @@ func TestSignatureSet(t *testing.T) {
 		for i := range 2 {
 			signature, err := s.privKeys[i].Sign(s.signBytes)
 			require.NoError(t, err)
-			require.NoError(t, s.sigSet.Add(s.validators[i], signature))
-		}
-
-		// Check that Done() is NOT closed when thresholds are not met
-		select {
-		case <-s.sigSet.Done():
-			t.Fatal("Done() should not be closed when thresholds are not met")
-		default:
+			hasEnough, err := s.sigSet.Add(s.validators[i], signature)
+			require.NoError(t, err)
+			require.False(t, hasEnough)
 		}
 
 		sigs, err := s.sigSet.Signatures()
@@ -122,14 +112,8 @@ func TestSignatureSet(t *testing.T) {
 		for i := range 4 {
 			signature, err := s.privKeys[i].Sign(s.signBytes)
 			require.NoError(t, err)
-			require.NoError(t, s.sigSet.Add(s.validators[i], signature))
-		}
-
-		// Check that Done() is closed
-		select {
-		case <-s.sigSet.Done():
-		default:
-			t.Fatal("Done() should be closed when thresholds are met")
+			_, err = s.sigSet.Add(s.validators[i], signature)
+			require.NoError(t, err)
 		}
 
 		sigs, err := s.sigSet.Signatures()
@@ -147,17 +131,11 @@ func TestSignatureSet(t *testing.T) {
 				defer wg.Done()
 				signature, err := s.privKeys[idx].Sign(s.signBytes)
 				require.NoError(t, err)
-				require.NoError(t, s.sigSet.Add(s.validators[idx], signature))
+				_, err = s.sigSet.Add(s.validators[idx], signature)
+				require.NoError(t, err)
 			}(i)
 		}
 		wg.Wait()
-
-		// Check that Done() is closed
-		select {
-		case <-s.sigSet.Done():
-		default:
-			t.Fatal("Done() should be closed when thresholds are met")
-		}
 
 		sigs, err := s.sigSet.Signatures()
 		require.NoError(t, err)
@@ -171,9 +149,10 @@ func TestSignatureSet(t *testing.T) {
 		signature, err := s.privKeys[0].Sign(wrongSignBytes)
 		require.NoError(t, err)
 
-		err = s.sigSet.Add(s.validators[0], signature)
+		hasEnough, err := s.sigSet.Add(s.validators[0], signature)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid signature")
+		require.False(t, hasEnough)
 	})
 
 	t.Run("MixedMissAndValid", func(t *testing.T) {
@@ -183,14 +162,8 @@ func TestSignatureSet(t *testing.T) {
 		for i := range 3 {
 			signature, err := s.privKeys[i].Sign(s.signBytes)
 			require.NoError(t, err)
-			require.NoError(t, s.sigSet.Add(s.validators[i], signature))
-		}
-
-		// Check that Done() is closed
-		select {
-		case <-s.sigSet.Done():
-		default:
-			t.Fatal("Done() should be closed when thresholds are met")
+			_, err = s.sigSet.Add(s.validators[i], signature)
+			require.NoError(t, err)
 		}
 
 		sigs, err := s.sigSet.Signatures()
