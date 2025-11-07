@@ -468,7 +468,7 @@ func checkForRunningExperiments(ctx context.Context, cfg Config) error {
 			log.Printf("⚠️  Warning: failed to check DigitalOcean for running experiments: %v", err)
 		} else if running {
 			hasRunningExperiments = true
-			log.Printf("⚠️  Found experiment '%s' with chain '%s' already running in DigitalOcean", cfg.Experiment, cfg.ChainID)
+			log.Printf("⚠️  Found experiment '%s' with chainID '%s' already running in DigitalOcean", cfg.Experiment, cfg.ChainID)
 		}
 	}
 
@@ -482,13 +482,13 @@ func checkForRunningExperiments(ctx context.Context, cfg Config) error {
 				log.Printf("⚠️  Warning: failed to check Google Cloud for running experiments: %v", err)
 			} else if running {
 				hasRunningExperiments = true
-				log.Printf("⚠️  Found experiment '%s' with chain '%s' already running in Google Cloud", cfg.Experiment, cfg.ChainID)
+				log.Printf("⚠️  Found experiment '%s' with chainID '%s' already running in Google Cloud", cfg.Experiment, cfg.ChainID)
 			}
 		}
 	}
 
 	if hasRunningExperiments {
-		return fmt.Errorf("experiment '%s' with chain '%s' is already running", cfg.Experiment, cfg.ChainID)
+		return fmt.Errorf("experiment '%s' with chainID '%s' is already running", cfg.Experiment, cfg.ChainID)
 	}
 
 	return nil

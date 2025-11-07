@@ -461,8 +461,8 @@ func checkForRunningDOExperiments(ctx context.Context, client *godo.Client, expe
 
 func hasExperimentTag(tags []string, experimentID, chainID string) bool {
 	for _, tag := range tags {
-		if strings.Contains(tag, experimentID) && strings.Contains(tag, chainID) &&
-			(strings.HasPrefix(tag, "validator-") || strings.HasPrefix(tag, "bridge-") || strings.HasPrefix(tag, "light-")) {
+		if (strings.HasPrefix(tag, "validator-") || strings.HasPrefix(tag, "bridge-") || strings.HasPrefix(tag, "light-")) &&
+			strings.Contains(tag, experimentID) && strings.Contains(tag, chainID) {
 			return true
 		}
 	}

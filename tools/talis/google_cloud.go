@@ -628,10 +628,12 @@ func checkForRunningGCExperiments(ctx context.Context, project string, opts []op
 }
 
 func hasGCExperimentLabel(label, experimentID, chainID string) bool {
+	if !(strings.HasPrefix(label, "validator_") || strings.HasPrefix(label, "bridge_") || strings.HasPrefix(label, "light_")) {
+		return false
+	}
 	experimentIDLabel := strings.ReplaceAll(experimentID, "-", "_")
 	chainIDLabel := strings.ReplaceAll(chainID, "-", "_")
-	return strings.Contains(label, experimentIDLabel) && strings.Contains(label, chainIDLabel) &&
-		(strings.HasPrefix(label, "validator_") || strings.HasPrefix(label, "bridge_") || strings.HasPrefix(label, "light_"))
+	return strings.Contains(label, experimentIDLabel) && strings.Contains(label, chainIDLabel)
 }
 
 func destroyAllTalisGCInstances(ctx context.Context, project string, opts []option.ClientOption, workers int) ([]Instance, error) {
