@@ -115,7 +115,7 @@ func ExperimentTag(nodeType NodeType, index int, experimentID, chainID string) s
 
 func GetExperimentTag(tags []string) string {
 	for _, tag := range tags {
-		if strings.Contains(tag, "validator-") || strings.Contains(tag, "bridge-") || strings.Contains(tag, "light-") {
+		if strings.HasPrefix(tag, "validator-") || strings.HasPrefix(tag, "bridge-") || strings.HasPrefix(tag, "light-") {
 			return tag
 		}
 	}
