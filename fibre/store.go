@@ -20,6 +20,8 @@ var ErrStoreNotFound = errors.New("no rows found in store")
 
 // StoreConfig contains configuration options for the [Store].
 type StoreConfig struct {
+	// Path is the path to the store directory.
+	Path string
 	// DataRetentionDuration defines how long uploaded blob data is retained.
 	// Data older than this duration will be automatically deleted by TTL expiration.
 	DataRetentionDuration time.Duration
@@ -53,13 +55,13 @@ func NewMemoryStore(cfg StoreConfig) *Store {
 }
 
 // NewBadgerStore creates a new [Store] with a badger4 datastore at the given path.
-func NewBadgerStore(path string, cfg StoreConfig) (*Store, error) {
+func NewBadgerStore(cfg StoreConfig) (*Store, error) {
 	opts := badger.DefaultOptions
 	opts.GcDiscardRatio = 0.2
 	opts.GcSleep = time.Second
 	opts.GcInterval = time.Minute
 
-	bds, err := badger.NewDatastore(path, &opts)
+	bds, err := badger.NewDatastore(cfg.Path, &opts)
 	if err != nil {
 		return nil, fmt.Errorf("creating badger datastore: %w", err)
 	}
