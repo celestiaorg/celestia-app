@@ -171,14 +171,15 @@ func (c *Client) signedPromise(ns share.Namespace, blob *Blob, height uint64) (*
 	return promise, nil
 }
 
-// uploadTo uploads rows to a single validator and adds the response signature to the signature set.
+// uploadTo uploads shard to a single validator and adds the response signature to the signature set.
+// Returns true if enough signatures have been collected after adding this signature.
 func (c *Client) uploadTo(
 	ctx context.Context,
 	val *core.Validator,
 	req *types.UploadRowsRequest,
 	blob *Blob,
 	sigSet *validator.SignatureSet,
-) {
+) bool {
 	log := c.log.With(
 		"validator", val.Address.String(),
 		"blob_commitment", blob.Commitment(),
@@ -199,7 +200,7 @@ func (c *Client) uploadTo(
 		log.WarnContext(ctx, "can't get grpc.FibreClient", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "can't get grpc.FibreClient")
-		return
+		return false
 	}
 	span.AddEvent("client_acquired")
 
@@ -210,7 +211,7 @@ func (c *Client) uploadTo(
 			log.WarnContext(ctx, "failed to generate proof for row", "row_index", rowPb.Index, "error", err)
 			span.RecordError(err, trace.WithAttributes(attribute.Int("row_index", int(rowPb.Index))))
 			span.SetStatus(codes.Error, "failed to generate proof for row")
-			return
+			return false
 		}
 		req.Rows.Rows[i].Data = row.Row
 		req.Rows.Rows[i].Proof = row.RowProof.RowProof
@@ -223,7 +224,7 @@ func (c *Client) uploadTo(
 		log.WarnContext(ctx, "failed to upload rows", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to upload rows")
-		return
+		return false
 	}
 	span.AddEvent("rows_uploaded")
 
@@ -233,21 +234,22 @@ func (c *Client) uploadTo(
 		log.WarnContext(ctx, "failed to parse signature", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to parse signature")
-		return
+		return false
 	}
 
-	// apply signature response
-	err = sigSet.Add(val, signature)
+	// apply signature response and check if we have enough
+	hasEnough, err := sigSet.Add(val, signature)
 	if err != nil {
 		log.WarnContext(ctx, "failed to add signature", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to add signature")
-		return
+		return false
 	}
 
 	log.DebugContext(ctx, "successfully uploaded to validator")
 	span.AddEvent("signature_verified")
 	span.SetStatus(codes.Ok, "")
+	return hasEnough
 }
 
 // uploadRows pushes rows to all validators concurrently and collects signature responses.
@@ -262,6 +264,11 @@ func (c *Client) uploadRows(
 	var (
 		responses            atomic.Uint32         // tracks finished responses
 		responsesExhaustedCh = make(chan struct{}) // closes when all responses complete
+	)
+
+	var (
+		sigsCollectedOnce atomic.Bool
+		sigsCollectedCh   = make(chan struct{}) // closes when enough signatures are collected
 	)
 
 	for val, req := range requests {
@@ -287,13 +294,16 @@ func (c *Client) uploadRows(
 				c.closeWg.Done()
 			}()
 
-			c.uploadTo(ctx, val, req, blob, sigSet)
+			isDone := c.uploadTo(ctx, val, req, blob, sigSet)
+			if isDone && sigsCollectedOnce.CompareAndSwap(false, true) {
+				close(sigsCollectedCh)
+			}
 		}(val, req)
 	}
 
 	select {
 	case <-responsesExhaustedCh: // no more responses to wait for
-	case <-sigSet.Done(): // enough signatures collected
+	case <-sigsCollectedCh: // enough signatures collected
 	case <-ctx.Done():
 		return ctx.Err()
 	}

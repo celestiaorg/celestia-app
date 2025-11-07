@@ -19,7 +19,6 @@ type SignatureSet struct {
 	mu          sync.Mutex
 	votingPower int64
 	signatures  [][]byte
-	done        chan struct{}
 }
 
 // NewSignatureSet creates a new [SignatureSet] for collecting and validating signatures.
@@ -32,17 +31,17 @@ func (s Set) NewSignatureSet(targetVotingPower, targetValidatorsCount cmtmath.Fr
 		minRequiredVotingPower: minRequiredVotingPower,
 		minRequiredSignatures:  minRequiredSignatures,
 		signatures:             make([][]byte, 0, s.Size()),
-		done:                   make(chan struct{}),
 	}
 }
 
 // Add validates and adds a signature from the given validator.
 // Returns an error if the signature is invalid.
-func (ss *SignatureSet) Add(val *core.Validator, signature []byte) error {
+// Returns true if enough signatures have been collected to meet both thresholds.
+func (ss *SignatureSet) Add(val *core.Validator, signature []byte) (bool, error) {
 	// verify signature
 	pubKey := val.PubKey.Bytes()
 	if !ed25519.Verify(ed25519.PublicKey(pubKey), ss.requiredBytesSigned, signature) {
-		return fmt.Errorf("invalid signature from validator %s", val.Address.String())
+		return false, fmt.Errorf("invalid signature from validator %s", val.Address.String())
 	}
 
 	ss.mu.Lock()
@@ -52,22 +51,8 @@ func (ss *SignatureSet) Add(val *core.Validator, signature []byte) error {
 	ss.votingPower += val.VotingPower
 	ss.signatures = append(ss.signatures, signature)
 
-	// check if thresholds are met and close done channel
-	if len(ss.signatures) >= ss.minRequiredSignatures && ss.votingPower >= ss.minRequiredVotingPower {
-		select {
-		case <-ss.done:
-			// already closed
-		default:
-			close(ss.done)
-		}
-	}
-
-	return nil
-}
-
-// Done returns a channel that is closed when enough signatures are collected to meet both thresholds.
-func (ss *SignatureSet) Done() <-chan struct{} {
-	return ss.done
+	// check if thresholds are met
+	return len(ss.signatures) >= ss.minRequiredSignatures && ss.votingPower >= ss.minRequiredVotingPower, nil
 }
 
 // Signatures returns all collected signatures if thresholds are met.
