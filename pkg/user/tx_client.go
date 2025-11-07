@@ -145,29 +145,32 @@ func WithDefaultAddress(address sdktypes.AccAddress) Option {
 		if err != nil {
 			panic(err)
 		}
-		c.defaultAccount = record.Name
-		c.defaultAddress = address
+		c.setDefaultAccount(record)
 	}
 }
 
 func WithDefaultAccount(name string) Option {
 	return func(c *TxClient) {
-		rec, err := c.signer.keys.Key(name)
+		record, err := c.signer.keys.Key(name)
 		if err != nil {
 			panic(err)
 		}
-		addr, err := rec.GetAddress()
-		if err != nil {
-			panic(err)
-		}
-		c.defaultAccount = name
-		c.defaultAddress = addr
+		c.setDefaultAccount(record)
+	}
+}
 
-		// Update worker 0's account if tx queue already exists
-		if c.txQueue != nil && len(c.txQueue.workers) > 0 {
-			c.txQueue.workers[0].accountName = name
-			c.txQueue.workers[0].address = addr.String()
-		}
+func (c *TxClient) setDefaultAccount(record *keyring.Record) {
+	addr, err := record.GetAddress()
+	if err != nil {
+		panic(err)
+	}
+
+	c.defaultAccount = record.Name
+	c.defaultAddress = addr
+
+	if c.txQueue != nil && len(c.txQueue.workers) > 0 {
+		c.txQueue.workers[0].accountName = record.Name
+		c.txQueue.workers[0].address = addr.String()
 	}
 }
 
