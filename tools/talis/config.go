@@ -113,6 +113,15 @@ func ExperimentTag(nodeType NodeType, index int, experimentID, chainID string) s
 	return fmt.Sprintf("%s-%d-%s-%s", nodeType, index, experimentID, chainID)
 }
 
+func GetExperimentTag(tags []string) string {
+	for _, tag := range tags {
+		if strings.Contains(tag, "validator-") || strings.Contains(tag, "bridge-") || strings.Contains(tag, "light-") {
+			return tag
+		}
+	}
+	return ""
+}
+
 // Config describes the desired state of the network.
 type Config struct {
 	Validators []Instance `json:"validators"`

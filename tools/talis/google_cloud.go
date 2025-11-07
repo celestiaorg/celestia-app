@@ -520,7 +520,7 @@ func filterExistingGCInstances(ctx context.Context, project string, insts []Inst
 
 	var newInsts, existing []Instance
 	for _, inst := range insts {
-		experimentTag := getGCExperimentTag(inst.Tags)
+		experimentTag := GetExperimentTag(inst.Tags)
 		if experimentTag == "" || !existingTags[experimentTag] {
 			newInsts = append(newInsts, inst)
 		} else {
@@ -529,15 +529,6 @@ func filterExistingGCInstances(ctx context.Context, project string, insts []Inst
 	}
 
 	return newInsts, existing, nil
-}
-
-func getGCExperimentTag(tags []string) string {
-	for _, tag := range tags {
-		if strings.Contains(tag, "validator-") || strings.Contains(tag, "bridge-") || strings.Contains(tag, "light-") {
-			return tag
-		}
-	}
-	return ""
 }
 
 func DestroyGCInstances(ctx context.Context, project string, insts []Instance, opts []option.ClientOption, workers int) ([]Instance, error) {

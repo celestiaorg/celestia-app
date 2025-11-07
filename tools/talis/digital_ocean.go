@@ -198,7 +198,7 @@ func filterExistingInstances(ctx context.Context, client *godo.Client, insts []I
 	var newInsts []Instance //nolint:prealloc
 	for _, inst := range insts {
 		var exists bool
-		experimentTag := getExperimentTag(inst.Tags)
+		experimentTag := GetExperimentTag(inst.Tags)
 		if experimentTag == "" {
 			newInsts = append(newInsts, inst)
 			continue
@@ -219,15 +219,6 @@ func filterExistingInstances(ctx context.Context, client *godo.Client, insts []I
 	}
 
 	return newInsts, existing, nil
-}
-
-func getExperimentTag(tags []string) string {
-	for _, tag := range tags {
-		if strings.Contains(tag, "validator-") || strings.Contains(tag, "bridge-") || strings.Contains(tag, "light-") {
-			return tag
-		}
-	}
-	return ""
 }
 
 // waitForNetworkIP polls until the droplet has an IPv4 of the given type ("public" or "private")
@@ -303,7 +294,7 @@ func destroyAllTalisDroplets(ctx context.Context, client *godo.Client, workers i
 type dropletMatcher func(inst Instance, d godo.Droplet) bool
 
 func matchByExperimentTag(inst Instance, d godo.Droplet) bool {
-	experimentTag := getExperimentTag(inst.Tags)
+	experimentTag := GetExperimentTag(inst.Tags)
 	return experimentTag != "" && slices.Contains(d.Tags, experimentTag)
 }
 
