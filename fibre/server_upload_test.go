@@ -1,8 +1,9 @@
 package fibre_test
 
 import (
-	"context"
 	"crypto/ed25519"
+	"net"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -14,11 +15,13 @@ import (
 	"github.com/celestiaorg/rsema1d/field"
 	"github.com/cometbft/cometbft/crypto"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	txsigning "github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // TestServerUploadRows unit tests the [Server.UploadRows].
@@ -150,9 +153,10 @@ func makeTestServer(t *testing.T) (*fibre.Server, validator.Set, *core.Validator
 		Height:       100,
 	}
 
-	// create server with memory store
-	store := fibre.NewMemoryStore(fibre.DefaultStoreConfig())
 	cfg := fibre.DefaultServerConfig()
+	// Set a temporary directory for the BadgerDB store
+	tmpDir := t.TempDir()
+	cfg.StoreConfig.Path = filepath.Join(tmpDir, "fibre-store")
 
 	// use first validator as the server's identity
 	privVal := newTestPrivValidator(privKeys[0])
@@ -167,15 +171,45 @@ func makeTestServer(t *testing.T) (*fibre.Server, validator.Set, *core.Validator
 	require.True(t, found, "server validator not found in validator set")
 	require.NotNil(t, serverValidator, "server validator is nil")
 
-	// create server
-	server, err := fibre.NewServer(
-		privVal,
-		&mockQueryClient{},
-		&mockValidatorSetGetter{set: valSet},
-		store,
-		cfg,
+	// Create gRPC server with mock services
+	grpcServer := grpc.NewServer()
+
+	// Register mock Query service
+	mockQueryServer := &mockQueryServer{}
+	types.RegisterQueryServer(grpcServer, mockQueryServer)
+
+	// Register mock BlockAPI service
+	valSetProto, err := valSet.ValidatorSet.ToProto()
+	require.NoError(t, err)
+	mockBlockAPIServer := &mockBlockAPIServer{
+		validatorSetResponse: &coregrpc.ValidatorSetResponse{
+			ValidatorSet: valSetProto,
+			Height:       int64(valSet.Height),
+		},
+	}
+	coregrpc.RegisterBlockAPIServer(grpcServer, mockBlockAPIServer)
+
+	// Create in-memory listener
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+
+	// Create client connection to the mock server (will connect after server starts)
+	conn, err := grpc.NewClient(
+		listener.Addr().String(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	require.NoError(t, err)
+
+	// Create server with gRPC infrastructure - this registers the Fibre service
+	server, err := fibre.NewServerFromGRPC(privVal, grpcServer, conn, cfg)
+	require.NoError(t, err)
+
+	// Start gRPC server after all services are registered
+	go func() {
+		if err := grpcServer.Serve(listener); err != nil {
+			t.Logf("gRPC server error: %v", err)
+		}
+	}()
 
 	return server, valSet, serverValidator
 }
@@ -304,28 +338,4 @@ func (m *testPrivValidator) SignProposal(chainID string, proposal *cmtproto.Prop
 
 func (m *testPrivValidator) GetAddress() core.Address {
 	return m.privKey.PubKey().Address()
-}
-
-// mockQueryClient is a mock implementation of types.QueryClient for testing.
-type mockQueryClient struct{}
-
-func (m *mockQueryClient) Params(ctx context.Context, in *types.QueryParamsRequest, opts ...grpc.CallOption) (*types.QueryParamsResponse, error) {
-	return &types.QueryParamsResponse{}, nil
-}
-
-func (m *mockQueryClient) EscrowAccount(ctx context.Context, in *types.QueryEscrowAccountRequest, opts ...grpc.CallOption) (*types.QueryEscrowAccountResponse, error) {
-	return &types.QueryEscrowAccountResponse{}, nil
-}
-
-func (m *mockQueryClient) Withdrawals(ctx context.Context, in *types.QueryWithdrawalsRequest, opts ...grpc.CallOption) (*types.QueryWithdrawalsResponse, error) {
-	return &types.QueryWithdrawalsResponse{}, nil
-}
-
-func (m *mockQueryClient) IsPaymentProcessed(ctx context.Context, in *types.QueryIsPaymentProcessedRequest, opts ...grpc.CallOption) (*types.QueryIsPaymentProcessedResponse, error) {
-	return &types.QueryIsPaymentProcessedResponse{}, nil
-}
-
-func (m *mockQueryClient) ValidatePaymentPromise(ctx context.Context, in *types.QueryValidatePaymentPromiseRequest, opts ...grpc.CallOption) (*types.QueryValidatePaymentPromiseResponse, error) {
-	// Always return valid for testing
-	return &types.QueryValidatePaymentPromiseResponse{IsValid: true}, nil
 }
