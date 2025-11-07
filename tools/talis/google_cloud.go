@@ -587,7 +587,7 @@ func deleteGCInstance(ctx context.Context, project, zone, name string, opts []op
 	return nil
 }
 
-func checkForRunningGCExperiments(ctx context.Context, project string, opts []option.ClientOption) (bool, error) {
+func checkForRunningGCExperiments(ctx context.Context, project string, opts []option.ClientOption, experimentID, chainID string) (bool, error) {
 	if project == "" {
 		return false, nil
 	}
@@ -614,7 +614,7 @@ func checkForRunningGCExperiments(ctx context.Context, project string, opts []op
 				if instance.Labels != nil {
 					if _, hasTalis := instance.Labels["talis"]; hasTalis {
 						for label := range instance.Labels {
-							if hasGCValidatorLabel(label) {
+							if hasGCExperimentLabel(label, experimentID, chainID) {
 								return true, nil
 							}
 						}
@@ -627,8 +627,11 @@ func checkForRunningGCExperiments(ctx context.Context, project string, opts []op
 	return false, nil
 }
 
-func hasGCValidatorLabel(label string) bool {
-	return strings.HasPrefix(label, "validator_") || strings.HasPrefix(label, "bridge_") || strings.HasPrefix(label, "light_")
+func hasGCExperimentLabel(label, experimentID, chainID string) bool {
+	experimentIDLabel := strings.ReplaceAll(experimentID, "-", "_")
+	chainIDLabel := strings.ReplaceAll(chainID, "-", "_")
+	return strings.Contains(label, experimentIDLabel) && strings.Contains(label, chainIDLabel) &&
+		(strings.HasPrefix(label, "validator_") || strings.HasPrefix(label, "bridge_") || strings.HasPrefix(label, "light_"))
 }
 
 func destroyAllTalisGCInstances(ctx context.Context, project string, opts []option.ClientOption, workers int) ([]Instance, error) {

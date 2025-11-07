@@ -463,12 +463,12 @@ func checkForRunningExperiments(ctx context.Context, cfg Config) error {
 	if cfg.DigitalOceanToken != "" {
 		tokenSource := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: cfg.DigitalOceanToken})
 		doClient := godo.NewClient(oauth2.NewClient(ctx, tokenSource))
-		running, err := checkForRunningDOExperiments(ctx, doClient)
+		running, err := checkForRunningDOExperiments(ctx, doClient, cfg.Experiment, cfg.ChainID)
 		if err != nil {
 			log.Printf("⚠️  Warning: failed to check DigitalOcean for running experiments: %v", err)
 		} else if running {
 			hasRunningExperiments = true
-			log.Println("⚠️  Found running experiments in DigitalOcean")
+			log.Printf("⚠️  Found experiment '%s' with chain '%s' already running in DigitalOcean", cfg.Experiment, cfg.ChainID)
 		}
 	}
 
@@ -477,18 +477,18 @@ func checkForRunningExperiments(ctx context.Context, cfg Config) error {
 		if err != nil {
 			log.Printf("⚠️  Warning: failed to create Google Cloud client options: %v", err)
 		} else {
-			running, err := checkForRunningGCExperiments(ctx, cfg.GoogleCloudProject, opts)
+			running, err := checkForRunningGCExperiments(ctx, cfg.GoogleCloudProject, opts, cfg.Experiment, cfg.ChainID)
 			if err != nil {
 				log.Printf("⚠️  Warning: failed to check Google Cloud for running experiments: %v", err)
 			} else if running {
 				hasRunningExperiments = true
-				log.Println("⚠️  Found running experiments in Google Cloud")
+				log.Printf("⚠️  Found experiment '%s' with chain '%s' already running in Google Cloud", cfg.Experiment, cfg.ChainID)
 			}
 		}
 	}
 
 	if hasRunningExperiments {
-		return fmt.Errorf("existing talis experiments are running")
+		return fmt.Errorf("experiment '%s' with chain '%s' is already running", cfg.Experiment, cfg.ChainID)
 	}
 
 	return nil

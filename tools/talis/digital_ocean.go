@@ -440,7 +440,7 @@ func hasAllTags(candidate, want []string) bool {
 	return true
 }
 
-func checkForRunningDOExperiments(ctx context.Context, client *godo.Client) (bool, error) {
+func checkForRunningDOExperiments(ctx context.Context, client *godo.Client, experimentID, chainID string) (bool, error) {
 	if client == nil {
 		return false, nil
 	}
@@ -451,7 +451,7 @@ func checkForRunningDOExperiments(ctx context.Context, client *godo.Client) (boo
 	}
 
 	for _, d := range droplets {
-		if slices.Contains(d.Tags, "talis") && hasValidatorTag(d.Tags) {
+		if slices.Contains(d.Tags, "talis") && hasExperimentTag(d.Tags, experimentID, chainID) {
 			return true, nil
 		}
 	}
@@ -459,9 +459,10 @@ func checkForRunningDOExperiments(ctx context.Context, client *godo.Client) (boo
 	return false, nil
 }
 
-func hasValidatorTag(tags []string) bool {
+func hasExperimentTag(tags []string, experimentID, chainID string) bool {
 	for _, tag := range tags {
-		if strings.HasPrefix(tag, "validator-") || strings.HasPrefix(tag, "bridge-") || strings.HasPrefix(tag, "light-") {
+		if strings.Contains(tag, experimentID) && strings.Contains(tag, chainID) &&
+			(strings.HasPrefix(tag, "validator-") || strings.HasPrefix(tag, "bridge-") || strings.HasPrefix(tag, "light-")) {
 			return true
 		}
 	}
