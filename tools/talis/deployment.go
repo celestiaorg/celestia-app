@@ -530,7 +530,7 @@ func destroyAllInstances(ctx context.Context, cfg Config, workers int) error {
 	wg.Wait()
 	close(errCh)
 
-	var errs []error
+	errs := make([]error, 0, 2)
 	for err := range errCh {
 		errs = append(errs, err)
 	}

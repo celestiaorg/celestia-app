@@ -43,7 +43,7 @@ type GCClient struct {
 
 func NewGCClient(cfg Config) (*GCClient, error) {
 	if cfg.GoogleCloudProject == "" {
-		return nil, errors.New("Google Cloud project is required")
+		return nil, errors.New("google cloud project is required")
 	}
 
 	sshKey, err := os.ReadFile(cfg.SSHPubKeyPath)
