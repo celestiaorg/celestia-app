@@ -18,6 +18,7 @@ import (
 type TxClient struct {
 	// Embed the underlying client to automatically delegate all methods
 	*user.TxClient
+	TxQueue map[string]user.TxInfo
 }
 
 // NewTxClient creates a new v2 TxClient by wrapping the original NewTxClient function.

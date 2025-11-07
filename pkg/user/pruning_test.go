@@ -3,14 +3,13 @@ package user
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 )
 
 func TestPruningInTxTracker(t *testing.T) {
 	txClient := &TxClient{
-		txTracker: make(map[string]txInfo),
+		TxTracker: NewTxTracker(),
 	}
 	numTransactions := 10
 
@@ -20,31 +19,21 @@ func TestPruningInTxTracker(t *testing.T) {
 	for i := range numTransactions {
 		// 5 transactions will be pruned
 		if i%2 == 0 {
-			txClient.txTracker["tx"+fmt.Sprint(i)] = txInfo{
-				signer:   "signer" + fmt.Sprint(i),
-				sequence: uint64(i),
-				timestamp: time.Now().
-					Add(-10 * time.Minute),
-			}
+			txClient.TxTracker.trackTransaction("signer"+fmt.Sprint(i), uint64(i), "tx"+fmt.Sprint(i), []byte(fmt.Sprintf("tx%d", i)))
 			txsToBePruned++
 		} else {
-			txClient.txTracker["tx"+fmt.Sprint(i)] = txInfo{
-				signer:   "signer" + fmt.Sprint(i),
-				sequence: uint64(i),
-				timestamp: time.Now().
-					Add(-5 * time.Minute),
-			}
+			txClient.TxTracker.trackTransaction("signer"+fmt.Sprint(i), uint64(i), "tx"+fmt.Sprint(i), []byte(fmt.Sprintf("tx%d", i)))
 			txsNotReadyToBePruned++
 		}
 	}
 
-	txTrackerBeforePruning := len(txClient.txTracker)
+	txTrackerBeforePruning := len(txClient.TxTracker.TxQueue)
 
 	// All transactions were indexed
-	require.Equal(t, numTransactions, len(txClient.txTracker))
-	txClient.pruneTxTracker()
+	require.Equal(t, numTransactions, len(txClient.TxTracker.TxQueue))
+	txClient.TxTracker.pruneTxTracker()
 	// Prunes the transactions that are 10 minutes old
 	// 5 transactions will be pruned
 	require.Equal(t, txsNotReadyToBePruned, txTrackerBeforePruning-txsToBePruned)
-	require.Equal(t, len(txClient.txTracker), txsNotReadyToBePruned)
+	require.Equal(t, len(txClient.TxTracker.TxQueue), txsNotReadyToBePruned)
 }

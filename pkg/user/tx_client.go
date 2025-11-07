@@ -58,15 +58,6 @@ var (
 
 type Option func(client *TxClient)
 
-// txInfo is a struct that holds the sequence and the signer of a transaction
-// in the local tx pool.
-type txInfo struct {
-	sequence  uint64
-	signer    string
-	timestamp time.Time
-	txBytes   []byte
-}
-
 // TxResponse is a response from the chain after
 // a transaction has been submitted.
 type TxResponse struct {
@@ -230,7 +221,7 @@ type TxClient struct {
 	defaultAddress sdktypes.AccAddress
 	// txTracker maps the tx hash to the Sequence and signer of the transaction
 	// that was submitted to the chain
-	txTracker           map[string]txInfo
+	TxTracker           *txTracker
 	gasEstimationClient gasestimation.GasEstimatorClient
 	// txQueue manages parallel transaction submission when enabled
 	txQueue *txQueue
@@ -265,7 +256,7 @@ func NewTxClient(
 		pollTime:            DefaultPollTime,
 		defaultAccount:      records[0].Name,
 		defaultAddress:      addr,
-		txTracker:           make(map[string]txInfo),
+		TxTracker:           NewTxTracker(),
 		cdc:                 cdc,
 		gasEstimationClient: gasestimation.NewGasEstimatorClient(conn),
 	}
@@ -462,7 +453,7 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 	// prune transactions that are older than 10 minutes
 	// pruning has to be done in broadcast, since users
 	// might not always call ConfirmTx().
-	client.pruneTxTracker()
+	client.TxTracker.pruneTxTracker()
 
 	account, err := client.getAccountNameFromMsgs(msgs)
 	if err != nil {
@@ -583,7 +574,8 @@ func (client *TxClient) submitToSingleConnection(ctx context.Context, txBytes []
 	}
 	// Save the sequence, signer and txBytes of the in the local txTracker
 	// before the sequence is incremented
-	client.trackTransaction(signer, resp.TxHash, txBytes)
+	sequence := client.signer.Account(signer).Sequence()
+	client.TxTracker.trackTransaction(signer, sequence, resp.TxHash, txBytes)
 
 	// Increment sequence after successful submission
 	if err := client.signer.IncrementSequence(signer); err != nil {
@@ -720,7 +712,8 @@ func (client *TxClient) submitToMultipleConnections(ctx context.Context, txBytes
 
 	// Return first successful response, if any
 	if resp, ok := <-respCh; ok && resp != nil {
-		client.trackTransaction(signer, resp.TxHash, txBytes)
+		sequence := client.signer.Account(signer).Sequence()
+		client.TxTracker.trackTransaction(signer, sequence, resp.TxHash, txBytes)
 
 		if err := client.signer.IncrementSequence(signer); err != nil {
 			return nil, fmt.Errorf("increment sequencing: %w", err)
@@ -734,15 +727,6 @@ func (client *TxClient) submitToMultipleConnections(ctx context.Context, txBytes
 		errs = append(errs, err)
 	}
 	return nil, errors.Join(errs...)
-}
-
-// pruneTxTracker removes transactions from the local tx tracker that are older than 10 minutes
-func (client *TxClient) pruneTxTracker() {
-	for hash, txInfo := range client.txTracker {
-		if time.Since(txInfo.timestamp) >= txTrackerPruningInterval {
-			delete(client.txTracker, hash)
-		}
-	}
 }
 
 // ConfirmTx periodically pings the provided node for the commitment of a transaction by its
@@ -780,15 +764,15 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			))
 			if resp.ExecutionCode != abci.CodeTypeOK {
 				span.RecordError(fmt.Errorf("txclient/ConfirmTx: execution error: %s", resp.Error))
-				client.deleteFromTxTracker(txHash)
+				client.TxTracker.deleteFromTxTracker(txHash)
 				return nil, client.buildExecutionError(txHash, resp)
 			}
 
 			span.AddEvent("txclient/ConfirmTx: transaction confirmed successfully")
-			client.deleteFromTxTracker(txHash)
+			client.TxTracker.deleteFromTxTracker(txHash)
 			return client.buildTxResponse(txHash, resp), nil
 		case core.TxStatusEvicted:
-			_, _, txBytes, exists := client.GetTxFromTxTracker(txHash)
+			_, _, txBytes, exists := client.TxTracker.GetTxFromTxTracker(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in txTracker; likely failed during broadcast", txHash)
 			}
@@ -819,7 +803,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			span.AddEvent("txclient/ConfirmTx: transaction resubmitted successfully after eviction")
 		case core.TxStatusRejected:
 			span.RecordError(fmt.Errorf("txclient/ConfirmTx: transaction rejected: %s", resp.Error))
-			sequence, signer, _, exists := client.GetTxFromTxTracker(txHash)
+			sequence, signer, _, exists := client.TxTracker.GetTxFromTxTracker(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
 			}
@@ -828,11 +812,11 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			if err := client.signer.SetSequence(signer, sequence); err != nil {
 				return nil, fmt.Errorf("setting sequence: %w", err)
 			}
-			client.deleteFromTxTracker(txHash)
+			client.TxTracker.deleteFromTxTracker(txHash)
 			return nil, fmt.Errorf("tx with hash %s was rejected by the node with execution code: %d and log: %s", txHash, resp.ExecutionCode, resp.Error)
 		default:
 			span.RecordError(fmt.Errorf("txclient/ConfirmTx: unknown tx status for tx: %s", txHash))
-			client.deleteFromTxTracker(txHash)
+			client.TxTracker.deleteFromTxTracker(txHash)
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
 			}
@@ -859,13 +843,6 @@ func extractSequenceError(fullError string) string {
 		return cut
 	}
 	return s
-}
-
-// deleteFromTxTracker safely deletes a transaction from the local tx tracker.
-func (client *TxClient) deleteFromTxTracker(txHash string) {
-	client.mtx.Lock()
-	defer client.mtx.Unlock()
-	delete(client.txTracker, txHash)
 }
 
 // EstimateGasPriceAndUsage returns the estimated gas price based on the provided priority,
@@ -1043,26 +1020,6 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 		return "", err
 	}
 	return record.Name, nil
-}
-
-// trackTransaction tracks a transaction without acquiring the mutex.
-// This should only be called when the caller already holds the mutex.
-func (client *TxClient) trackTransaction(signer, txHash string, txBytes []byte) {
-	sequence := client.signer.Account(signer).Sequence()
-	client.txTracker[txHash] = txInfo{
-		sequence:  sequence,
-		signer:    signer,
-		timestamp: time.Now(),
-		txBytes:   txBytes,
-	}
-}
-
-// GetTxFromTxTracker gets transaction info from the tx client's local tx tracker by its hash
-func (client *TxClient) GetTxFromTxTracker(hash string) (sequence uint64, signer string, txBytes []byte, exists bool) {
-	client.mtx.Lock()
-	defer client.mtx.Unlock()
-	txInfo, exists := client.txTracker[hash]
-	return txInfo.sequence, txInfo.signer, txInfo.txBytes, exists
 }
 
 // Signer exposes the tx clients underlying signer
