@@ -17,17 +17,19 @@ import (
 )
 
 const (
-	EnvVarSSHKeyName         = "TALIS_SSH_KEY_NAME"
-	EnvVarPubSSHKeyPath      = "TALIS_SSH_PUB_KEY_PATH"
-	EnvVarSSHKeyPath         = "TALIS_SSH_KEY_PATH"
-	EnvVarDigitalOceanToken  = "DIGITALOCEAN_TOKEN"
-	EnvVarAWSAccessKeyID     = "AWS_ACCESS_KEY_ID"
-	EnvVarAWSSecretAccessKey = "AWS_SECRET_ACCESS_KEY"
-	EnvVarAWSRegion          = "AWS_DEFAULT_REGION"
-	EnvVarS3Bucket           = "AWS_S3_BUCKET"
-	EnvVarS3Endpoint         = "AWS_S3_ENDPOINT"
-	EnvVarChainID            = "CHAIN_ID"
-	mebibyte                 = 1_048_576
+	EnvVarSSHKeyName             = "TALIS_SSH_KEY_NAME"
+	EnvVarPubSSHKeyPath          = "TALIS_SSH_PUB_KEY_PATH"
+	EnvVarSSHKeyPath             = "TALIS_SSH_KEY_PATH"
+	EnvVarDigitalOceanToken      = "DIGITALOCEAN_TOKEN"
+	EnvVarGoogleCloudProject     = "GOOGLE_CLOUD_PROJECT"
+	EnvVarGoogleCloudKeyJSONPath = "GOOGLE_CLOUD_KEY_JSON_PATH"
+	EnvVarAWSAccessKeyID         = "AWS_ACCESS_KEY_ID"
+	EnvVarAWSSecretAccessKey     = "AWS_SECRET_ACCESS_KEY"
+	EnvVarAWSRegion              = "AWS_DEFAULT_REGION"
+	EnvVarS3Bucket               = "AWS_S3_BUCKET"
+	EnvVarS3Endpoint             = "AWS_S3_ENDPOINT"
+	EnvVarChainID                = "CHAIN_ID"
+	mebibyte                     = 1_048_576
 )
 
 func initCmd() *cobra.Command {

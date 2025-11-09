@@ -11,14 +11,35 @@ import (
 	"golang.org/x/oauth2"
 )
 
-type Client struct {
-	do       *godo.Client
-	sshKey   []byte
-	doSSHKey godo.Key
-	cfg      Config
+type Client interface {
+	Up(ctx context.Context, workers int) error
+	Down(ctx context.Context, workers int) error
+	List(ctx context.Context) error
+	GetConfig() Config
 }
 
-func NewClient(cfg Config) (*Client, error) {
+type ClientInfo struct {
+	sshKey []byte
+	cfg    Config
+}
+
+type DOClient struct {
+	ClientInfo
+	do       *godo.Client
+	doSSHKey godo.Key
+}
+
+func NewClient(cfg Config) (Client, error) {
+	if cfg.DigitalOceanToken != "" {
+		return NewDOClient(cfg)
+	}
+	if cfg.GoogleCloudProject != "" {
+		return NewGCClient(cfg)
+	}
+	return nil, errors.New("no cloud provider credentials found")
+}
+
+func NewDOClient(cfg Config) (*DOClient, error) {
 	if cfg.DigitalOceanToken == "" {
 		return nil, errors.New("DigitalOcean token is required")
 	}
@@ -40,15 +61,17 @@ func NewClient(cfg Config) (*Client, error) {
 		return nil, fmt.Errorf("failed to get SSH key ID: %w", err)
 	}
 
-	return &Client{
+	return &DOClient{
+		ClientInfo: ClientInfo{
+			sshKey: sshKey,
+			cfg:    cfg,
+		},
 		do:       client,
-		sshKey:   sshKey,
 		doSSHKey: key,
-		cfg:      cfg,
 	}, nil
 }
 
-func (c *Client) Up(ctx context.Context, workers int) error {
+func (c *DOClient) Up(ctx context.Context, workers int) error {
 	insts := make([]Instance, 0)
 	for _, v := range c.cfg.Validators {
 		if v.Provider != DigitalOcean {
@@ -83,7 +106,7 @@ func (c *Client) Up(ctx context.Context, workers int) error {
 	return err
 }
 
-func (c *Client) Down(ctx context.Context, workers int) error {
+func (c *DOClient) Down(ctx context.Context, workers int) error {
 	insts := make([]Instance, 0)
 	for _, v := range c.cfg.Validators {
 		if v.Provider != DigitalOcean {
@@ -102,4 +125,62 @@ func (c *Client) Down(ctx context.Context, workers int) error {
 
 	_, err := DestroyDroplets(ctx, c.do, insts, workers)
 	return err
+}
+
+func (c *DOClient) List(ctx context.Context) error {
+	opts := &godo.ListOptions{}
+	cnt := 0
+	for {
+		droplets, resp, err := c.do.Droplets.List(ctx, opts)
+		if err != nil {
+			return fmt.Errorf("failed to list droplets: %w", err)
+		}
+
+		for _, droplet := range droplets {
+			if hasAllTags(droplet.Tags, []string{"talis"}) {
+				publicIP := ""
+				privateIP := ""
+				if len(droplet.Networks.V4) > 0 {
+					for _, network := range droplet.Networks.V4 {
+						if network.Type == "public" && publicIP == "" {
+							publicIP = network.IPAddress
+						}
+						if network.Type == "private" && privateIP == "" {
+							privateIP = network.IPAddress
+						}
+					}
+				}
+
+				if cnt == 0 {
+					fmt.Printf("%-30s %-10s %-15s %-15s %s\n", "Name", "Status", "Region", "Public IP", "Created")
+					fmt.Printf("%-30s %-10s %-15s %-15s %s\n", "----", "------", "------", "---------", "-------")
+				}
+
+				fmt.Printf("%-30s %-10s %-15s %-15s %s\n",
+					droplet.Name,
+					droplet.Status,
+					droplet.Region.Slug,
+					publicIP,
+					droplet.Created)
+				cnt++
+			}
+		}
+
+		if resp.Links == nil || resp.Links.IsLastPage() {
+			break
+		}
+		page, err := resp.Links.CurrentPage()
+		if err != nil {
+			return fmt.Errorf("failed to paginate droplets list: %w", err)
+		}
+
+		opts.Page = page + 1
+	}
+
+	fmt.Println("Total number of talis instances:", cnt)
+	return nil
+}
+
+func (c *DOClient) GetConfig() Config {
+	return c.cfg
 }
