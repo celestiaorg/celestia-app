@@ -18,10 +18,9 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// UploadRows handles the [types.FibreServer.UploadRows] RPC call.
-// It validates the [PaymentPromise], verifies row proofs, checks assignment, stores the data, and returns a signature.
-func (s *Server) UploadRows(ctx context.Context, req *types.UploadRowsRequest) (*types.UploadRowsResponse, error) {
-	ctx, span := s.tracer.Start(ctx, "fibre.Server.UploadRows")
+// UploadShard handles the [types.FibreServer.UploadShard] RPC call.
+func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest) (*types.UploadShardResponse, error) {
+	ctx, span := s.tracer.Start(ctx, "fibre.Server.UploadShard")
 	defer span.End()
 
 	promise, promiseHash, err := s.verifyPromise(ctx, req.Promise)
@@ -42,35 +41,35 @@ func (s *Server) UploadRows(ctx context.Context, req *types.UploadRowsRequest) (
 		attribute.Int64("upload_size", int64(promise.UploadSize)),
 	))
 
-	// verify assignment - check that all rows belong to us
-	if err := s.verifyAssignment(ctx, promise, req.Rows); err != nil {
-		log.WarnContext(ctx, "row assignment verification failed", "error", err)
+	// verify assignment - check that the shard belongs to us
+	if err := s.verifyAssignment(ctx, promise, req.Shard); err != nil {
+		log.WarnContext(ctx, "shard assignment verification failed", "error", err)
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "row assignment verification failed")
-		return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("row assignment verification failed: %v", err))
+		span.SetStatus(codes.Error, "shard assignment verification failed")
+		return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("shard assignment verification failed: %v", err))
 	}
 	span.AddEvent("assignment_verified")
 
 	// verify row proofs using rsema1d and set RLC root
-	if err := s.verifyRows(ctx, promise, req.Rows); err != nil {
-		log.WarnContext(ctx, "row verification failed", "error", err)
+	if err := s.verifyShard(ctx, promise, req.Shard); err != nil {
+		log.WarnContext(ctx, "shard verification failed", "error", err)
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "row verification failed")
-		return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("row verification failed: %v", err))
+		span.SetStatus(codes.Error, "shard verification failed")
+		return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("shard verification failed: %v", err))
 	}
-	span.AddEvent("rows_verified", trace.WithAttributes(
-		attribute.Int("row_size", len(req.Rows.Rows[0].Data)), // this must be valid, as we just verified the rows, so no panics
-		attribute.Int("row_count", len(req.Rows.Rows)),
+	span.AddEvent("shard_verified", trace.WithAttributes(
+		attribute.Int("row_size", len(req.Shard.Rows[0].Data)), // this must be valid, as we just verified the rows, so no panics
+		attribute.Int("rows_count", len(req.Shard.Rows)),
 	))
 
-	// store payment promise and rows with RLC root
-	if err := s.store.Put(ctx, promise, req.Rows); err != nil {
+	// store payment promise and shard with RLC roots
+	if err := s.store.Put(ctx, promise, req.Shard); err != nil {
 		log.ErrorContext(ctx, "failed to store upload data", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to store upload data")
 		return nil, status.Error(grpccodes.Internal, fmt.Sprintf("failed to store upload data: %v", err))
 	}
-	span.AddEvent("data_stored")
+	span.AddEvent("shard_stored")
 
 	// sign the payment promise
 	signature, err := s.signPromise(promise)
@@ -84,12 +83,12 @@ func (s *Server) UploadRows(ctx context.Context, req *types.UploadRowsRequest) (
 
 	log.InfoContext(ctx, "successful upload",
 		"upload_size", promise.UploadSize,
-		"rows", len(req.Rows.Rows),
-		"row_size", len(req.Rows.Rows[0].Data),
+		"rows_count", len(req.Shard.Rows),
+		"row_size", len(req.Shard.Rows[0].Data),
 	)
 
 	span.SetStatus(codes.Ok, "")
-	return &types.UploadRowsResponse{
+	return &types.UploadShardResponse{
 		ValidatorSignature: signature,
 	}, nil
 }
@@ -151,10 +150,10 @@ func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentProm
 	return promise, promiseHash, nil
 }
 
-// verifyAssignment verifies that all rows in the request are assigned to this validator.
+// verifyAssignment verifies that the [types.BlobShard] in the request is assigned to this validator.
 // It fetches the validator set at the promise height, identifies this validator,
 // computes the shard map, and checks that every row index belongs to this validator.
-func (s *Server) verifyAssignment(ctx context.Context, promise *PaymentPromise, rows *types.Rows) error {
+func (s *Server) verifyAssignment(ctx context.Context, promise *PaymentPromise, shard *types.BlobShard) error {
 	valSet, err := s.valGet.GetByHeight(ctx, promise.Height)
 	if err != nil {
 		return fmt.Errorf("getting validator set at height %d: %w", promise.Height, err)
@@ -167,8 +166,8 @@ func (s *Server) verifyAssignment(ctx context.Context, promise *PaymentPromise, 
 	}
 
 	// compute and verify assignment of rows in the request are assigned to us
-	rowIndices := make([]uint32, len(rows.Rows))
-	for i, row := range rows.GetRows() {
+	rowIndices := make([]uint32, len(shard.Rows))
+	for i, row := range shard.GetRows() {
 		rowIndices[i] = row.Index
 	}
 	shardMap := valSet.Assign(rsema1d.Commitment(promise.Commitment), s.cfg.OriginalRows+s.cfg.ParityRows)
@@ -179,11 +178,11 @@ func (s *Server) verifyAssignment(ctx context.Context, promise *PaymentPromise, 
 	return nil
 }
 
-// verifyRows verifies the row data and proofs using [rsema1d.VerificationContext].
-// Essentially checks correctness of blob data by only sampling some of the rows.
-// Sets the RLC root on the rows and clears the coefficients after verification.
-func (s *Server) verifyRows(_ context.Context, promise *PaymentPromise, rows *types.Rows) error {
-	rowSize, err := parseRowSize(rows.Rows)
+// verifyShard verifies [types.BlobShard]'s rows and proofs using [rsema1d.VerificationContext].
+// Essentially checks correctness of the entire [Blob]'s data by only sampling subset of data rows.
+// Sets the RLC root on the shard and clears the coefficients after verification.
+func (s *Server) verifyShard(_ context.Context, promise *PaymentPromise, shard *types.BlobShard) error {
+	rowSize, err := parseRowSize(shard.Rows)
 	if err != nil {
 		return err
 	}
@@ -195,7 +194,7 @@ func (s *Server) verifyRows(_ context.Context, promise *PaymentPromise, rows *ty
 			promise.UploadSize, rowSize, s.cfg.OriginalRows, expectedUploadSize)
 	}
 
-	rlcCoeffs, err := parseRLCCoeffs(rows.GetCoefficients(), s.cfg.OriginalRows)
+	rlcCoeffs, err := parseRLCCoeffs(shard.GetCoefficients(), s.cfg.OriginalRows)
 	if err != nil {
 		return err
 	}
@@ -211,7 +210,7 @@ func (s *Server) verifyRows(_ context.Context, promise *PaymentPromise, rows *ty
 	}
 
 	totalRows := s.cfg.OriginalRows + s.cfg.ParityRows
-	for _, rowPb := range rows.Rows {
+	for _, rowPb := range shard.Rows {
 		row, err := parseRow(rowPb, totalRows)
 		if err != nil {
 			return err
@@ -223,7 +222,7 @@ func (s *Server) verifyRows(_ context.Context, promise *PaymentPromise, rows *ty
 	}
 
 	// set RLC root and clear coefficients
-	rows.Rlc = &types.Rows_Root{Root: rlcRoot[:]}
+	shard.Rlc = &types.BlobShard_Root{Root: rlcRoot[:]}
 	return nil
 }
 
@@ -265,7 +264,7 @@ func parseRLCCoeffs(rlcCoeffs []byte, expectedCount int) ([]field.GF128, error) 
 
 // parseRowSize determines and validates the row size from all rows.
 // Ensures that all rows have the same size.
-func parseRowSize(rows []*types.Row) (int, error) {
+func parseRowSize(rows []*types.BlobRow) (int, error) {
 	if len(rows) == 0 {
 		return 0, errors.New("no rows provided")
 	}
@@ -285,7 +284,7 @@ func parseRowSize(rows []*types.Row) (int, error) {
 }
 
 // parseRow validates and converts a single proto row to rsema1d.RowProof format.
-func parseRow(row *types.Row, totalRows int) (*rsema1d.RowProof, error) {
+func parseRow(row *types.BlobRow, totalRows int) (*rsema1d.RowProof, error) {
 	if int(row.Index) >= totalRows {
 		return nil, fmt.Errorf("row index %d out of bounds (total rows: %d)", row.Index, totalRows)
 	}

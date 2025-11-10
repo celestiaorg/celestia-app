@@ -66,9 +66,9 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 		attribute.String("promise_hash", hex.EncodeToString(promiseHash)),
 	))
 
-	// 2) assign rows to validators
+	// 2) assign shards to validators
 	shardMap := valSet.Assign(rsema1d.Commitment(blob.Commitment()), c.cfg.OriginalRows+c.cfg.ParityRows)
-	span.AddEvent("rows_assigned")
+	span.AddEvent("shards_assigned")
 
 	signBytes, err := promise.SignBytes()
 	if err != nil {
@@ -90,7 +90,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 	)
 
 	// 3) upload data
-	if err = c.uploadRows(ctx, requests, blob, sigSet); err != nil {
+	if err = c.uploadShards(ctx, requests, blob, sigSet); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to upload")
 		return result, err
@@ -171,25 +171,25 @@ func (c *Client) signedPromise(ns share.Namespace, blob *Blob, height uint64) (*
 	return promise, nil
 }
 
-// uploadTo uploads shard to a single validator and adds the response signature to the signature set.
+// uploadTo uploads blob shard to a single validator and adds the response signature to the signature set.
 // Returns true if enough signatures have been collected after adding this signature.
 func (c *Client) uploadTo(
 	ctx context.Context,
 	val *core.Validator,
-	req *types.UploadRowsRequest,
+	req *types.UploadShardRequest,
 	blob *Blob,
 	sigSet *validator.SignatureSet,
 ) bool {
 	log := c.log.With(
 		"validator", val.Address.String(),
 		"blob_commitment", blob.Commitment(),
-		"rows_count", len(req.Rows.Rows),
+		"rows_count", len(req.Shard.Rows),
 	)
 
 	ctx, span := c.tracer.Start(ctx, "upload_to",
 		trace.WithAttributes(
 			attribute.String("validator_address", val.Address.String()),
-			attribute.Int("rows_count", len(req.Rows.Rows)),
+			attribute.Int("rows_count", len(req.Shard.Rows)),
 		),
 	)
 	defer span.End()
@@ -205,7 +205,7 @@ func (c *Client) uploadTo(
 	span.AddEvent("client_acquired")
 
 	// get proofs and rows here in per request routine which is in parallel which ~39% faster for max blob size
-	for i, rowPb := range req.Rows.Rows {
+	for i, rowPb := range req.Shard.Rows {
 		row, err := blob.Row(int(rowPb.Index))
 		if err != nil {
 			log.WarnContext(ctx, "failed to generate proof for row", "row_index", rowPb.Index, "error", err)
@@ -213,13 +213,13 @@ func (c *Client) uploadTo(
 			span.SetStatus(codes.Error, "failed to generate proof for row")
 			return false
 		}
-		req.Rows.Rows[i].Data = row.Row
-		req.Rows.Rows[i].Proof = row.RowProof.RowProof
+		req.Shard.Rows[i].Data = row.Row
+		req.Shard.Rows[i].Proof = row.RowProof.RowProof
 	}
 	span.AddEvent("proofs_generated")
 
 	// actually push the data to the validator
-	resp, err := client.UploadRows(ctx, req)
+	resp, err := client.UploadShard(ctx, req)
 	if err != nil {
 		log.WarnContext(ctx, "failed to upload rows", "error", err)
 		span.RecordError(err)
@@ -252,12 +252,12 @@ func (c *Client) uploadTo(
 	return hasEnough
 }
 
-// uploadRows pushes rows to all validators concurrently and collects signature responses.
+// uploadShards pushes assigned [types.BlobShard]s to all validators concurrently and collects signature responses.
 // Returns when either all the responses are exhausted or signatures collected or the context is done.
-// It continues uploading to every validator even after necessary amount of signatures are collected.
-func (c *Client) uploadRows(
+// It continues uploading to every validator even after necessary amount of signatures is reached.
+func (c *Client) uploadShards(
 	ctx context.Context,
-	requests map[*core.Validator]*types.UploadRowsRequest,
+	requests map[*core.Validator]*types.UploadShardRequest,
 	blob *Blob,
 	sigSet *validator.SignatureSet,
 ) error {
@@ -280,7 +280,7 @@ func (c *Client) uploadRows(
 		}
 
 		c.closeWg.Add(1)
-		go func(val *core.Validator, req *types.UploadRowsRequest) {
+		go func(val *core.Validator, req *types.UploadShardRequest) {
 			defer func() {
 				// release semaphore
 				<-c.uploadSem
@@ -316,7 +316,7 @@ func makeUploadRequests(
 	shardMap validator.ShardMap,
 	pbPromise *types.PaymentPromise,
 	rlcCoeffs []field.GF128,
-) map[*core.Validator]*types.UploadRowsRequest {
+) map[*core.Validator]*types.UploadShardRequest {
 	// flatten rlc coefficients into a single byte slice (16 bytes per coefficient)
 	rlcCoeffsBytes := make([]byte, len(rlcCoeffs)*16)
 	for i, coeff := range rlcCoeffs {
@@ -324,19 +324,19 @@ func makeUploadRequests(
 		copy(rlcCoeffsBytes[i*16:(i+1)*16], b[:])
 	}
 
-	requests := make(map[*core.Validator]*types.UploadRowsRequest, len(shardMap))
+	requests := make(map[*core.Validator]*types.UploadShardRequest, len(shardMap))
 	for val, rowIndices := range shardMap {
-		rows := make([]*types.Row, 0, len(rowIndices))
+		rows := make([]*types.BlobRow, 0, len(rowIndices))
 		for _, rowIndex := range rowIndices {
-			rows = append(rows, &types.Row{
+			rows = append(rows, &types.BlobRow{
 				Index: uint32(rowIndex),
 			})
 		}
-		req := &types.UploadRowsRequest{
+		req := &types.UploadShardRequest{
 			Promise: pbPromise,
-			Rows: &types.Rows{
+			Shard: &types.BlobShard{
 				Rows: rows,
-				Rlc:  &types.Rows_Coefficients{Coefficients: rlcCoeffsBytes},
+				Rlc:  &types.BlobShard_Coefficients{Coefficients: rlcCoeffsBytes},
 			},
 		}
 		requests[val] = req
