@@ -9,7 +9,7 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	circuittypes "cosmossdk.io/x/circuit/types"
 	evidencetypes "cosmossdk.io/x/evidence/types"
-	feegrant "cosmossdk.io/x/feegrant"
+	"cosmossdk.io/x/feegrant"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v6/app"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
@@ -200,22 +200,20 @@ Example:
 					} else {
 						fmt.Printf("   ✓ GetImmutable succeeded\n")
 					}
-				} else {
+				} else if commitInfo != nil {
 					// Check if store existed at this version according to commit info
-					if commitInfo != nil {
-						storeExisted := false
-						for _, storeInfo := range commitInfo.StoreInfos {
-							if storeInfo.Name == storeKey.Name() {
-								storeExisted = true
-								break
-							}
+					storeExisted := false
+					for _, storeInfo := range commitInfo.StoreInfos {
+						if storeInfo.Name == storeKey.Name() {
+							storeExisted = true
+							break
 						}
-						if storeExisted {
-							fmt.Printf("   ⚠️  Store existed at this version but version is missing from IAVL tree!\n")
-							fmt.Printf("   This indicates the version was pruned or the IAVL tree is missing this version.\n")
-						} else {
-							fmt.Printf("   ℹ️  Store did not exist at this version (this is normal for new stores)\n")
-						}
+					}
+					if storeExisted {
+						fmt.Printf("   ⚠️  Store existed at this version but version is missing from IAVL tree!\n")
+						fmt.Printf("   This indicates the version was pruned or the IAVL tree is missing this version.\n")
+					} else {
+						fmt.Printf("   ℹ️  Store did not exist at this version (this is normal for new stores)\n")
 					}
 				}
 				fmt.Println()
