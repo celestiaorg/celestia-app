@@ -70,7 +70,7 @@ func TestPFMTestSuite(t *testing.T) {
 }
 
 // TestPFMMultiHop sends tokens from chain A to chain C via chain B using PFM and
-// asserts the funds arrive over the two-hop denom (A→B→C) while no direct A→C
+// asserts the funds arrive over the two-hop denom (A->B->C) while no direct A->C
 // denom is minted.
 func (s *PFMTestSuite) TestPFMMultiHop() {
 	if testing.Short() {
