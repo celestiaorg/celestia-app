@@ -136,7 +136,7 @@ func makeTestServers(
 		serverCfg := fibre.DefaultServerConfig()
 		// Set a temporary directory for the BadgerDB store
 		tmpDir := t.TempDir()
-		serverCfg.StoreConfig.Path = filepath.Join(tmpDir, "fibre-store")
+		serverCfg.Path = filepath.Join(tmpDir, "fibre-store")
 		// create logger with unique server identifier
 		serverCfg.Log = slog.Default().With(
 			"server_idx", i,
@@ -157,7 +157,7 @@ func makeTestServers(
 		types.RegisterQueryServer(grpcServer, mockQueryServer)
 
 		// Register mock BlockAPI service
-		valSetProto, err := valSet.ValidatorSet.ToProto()
+		valSetProto, err := valSet.ToProto()
 		require.NoError(t, err)
 		mockBlockAPIServer := &mockBlockAPIServer{
 			validatorSetResponse: &coregrpc.ValidatorSetResponse{
