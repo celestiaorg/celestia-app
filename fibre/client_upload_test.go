@@ -338,7 +338,7 @@ type validatorMockClient struct {
 	tracker   *uploadTracker
 }
 
-func (v *validatorMockClient) UploadRows(ctx context.Context, req *types.UploadRowsRequest, opts ...grpclib.CallOption) (*types.UploadRowsResponse, error) {
+func (v *validatorMockClient) UploadShard(ctx context.Context, req *types.UploadShardRequest, opts ...grpclib.CallOption) (*types.UploadShardResponse, error) {
 	if v.tracker != nil {
 		v.tracker.recordUpload(v.validator.Address.String())
 	}
@@ -358,13 +358,13 @@ func (v *validatorMockClient) UploadRows(ctx context.Context, req *types.UploadR
 		return nil, fmt.Errorf("invalid private key size: got %d, want %d", len(privKeyBytes), ed25519.PrivateKeySize)
 	}
 
-	return &types.UploadRowsResponse{
+	return &types.UploadShardResponse{
 		ValidatorSignature: ed25519.Sign(ed25519.PrivateKey(privKeyBytes), signBytes),
 	}, nil
 }
 
-func (v *validatorMockClient) DownloadRows(ctx context.Context, req *types.DownloadRowsRequest, opts ...grpclib.CallOption) (*types.DownloadRowsResponse, error) {
-	return &types.DownloadRowsResponse{}, nil
+func (v *validatorMockClient) DownloadShard(ctx context.Context, req *types.DownloadShardRequest, opts ...grpclib.CallOption) (*types.DownloadShardResponse, error) {
+	return &types.DownloadShardResponse{}, nil
 }
 
 func (v *validatorMockClient) Close() error {
@@ -375,7 +375,7 @@ type failingMockClient struct {
 	*validatorMockClient
 }
 
-func (m *failingMockClient) UploadRows(ctx context.Context, req *types.UploadRowsRequest, opts ...grpclib.CallOption) (*types.UploadRowsResponse, error) {
+func (m *failingMockClient) UploadShard(ctx context.Context, req *types.UploadShardRequest, opts ...grpclib.CallOption) (*types.UploadShardResponse, error) {
 	return nil, fmt.Errorf("simulated upload failure")
 }
 
