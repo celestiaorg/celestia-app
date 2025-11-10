@@ -11,6 +11,10 @@ import (
 	"golang.org/x/oauth2"
 )
 
+const (
+	DODropletLimit = 100
+)
+
 type Client interface {
 	Up(ctx context.Context, workers int) error
 	Down(ctx context.Context, workers int) error
@@ -90,7 +94,19 @@ func (c *DOClient) Up(ctx context.Context, workers int) error {
 		return fmt.Errorf("no instances to create")
 	}
 
-	insts, err := CreateDroplets(ctx, c.do, insts, c.doSSHKey, workers)
+	// Check if spinning up these instances would exceed the 100-droplet limit
+	currentCount, err := c.countRunningDroplets(ctx)
+	if err != nil {
+		log.Printf("⚠️  Warning: failed to count running droplets: %v", err)
+	} else {
+		totalAfterUp := currentCount + len(insts)
+		if totalAfterUp > DODropletLimit {
+			excess := totalAfterUp - DODropletLimit
+			return fmt.Errorf("cannot spin up %d instances: would exceed DigitalOcean's %d droplet limit (currently %d running, would be %d total). Please reduce the number of instances by %d", len(insts), DODropletLimit, currentCount, totalAfterUp, excess)
+		}
+	}
+
+	insts, err = CreateDroplets(ctx, c.do, insts, c.doSSHKey, workers)
 	if err != nil {
 		return fmt.Errorf("failed to create droplets: %w", err)
 	}
@@ -104,6 +120,31 @@ func (c *DOClient) Up(ctx context.Context, workers int) error {
 	}
 
 	return err
+}
+
+func (c *DOClient) countRunningDroplets(ctx context.Context) (int, error) {
+	opts := &godo.ListOptions{}
+	count := 0
+	for {
+		droplets, resp, err := c.do.Droplets.List(ctx, opts)
+		if err != nil {
+			return 0, fmt.Errorf("failed to list droplets: %w", err)
+		}
+
+		count += len(droplets)
+
+		if resp.Links == nil || resp.Links.IsLastPage() {
+			break
+		}
+		page, err := resp.Links.CurrentPage()
+		if err != nil {
+			return 0, fmt.Errorf("failed to paginate droplets list: %w", err)
+		}
+
+		opts.Page = page + 1
+	}
+
+	return count, nil
 }
 
 func (c *DOClient) Down(ctx context.Context, workers int) error {
