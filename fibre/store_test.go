@@ -33,20 +33,20 @@ func testStorePutGetRoundtrip(t *testing.T) {
 
 	blob := makeTestBlobV0(t, 256)
 	commitment := blob.Commitment()
-	rows := makeRowsFrom(t, blob, 0, 1, 2)
+	shard := makeRowsFrom(t, blob, 0, 1, 2)
 	promise := makeTestPaymentPromise(100, commitment)
 
 	// put data
-	err := store.Put(ctx, promise, rows)
+	err := store.Put(ctx, promise, shard)
 	require.NoError(t, err)
 
-	// get rows by commitment
-	gotRows, err := store.Get(ctx, promise.Commitment)
+	// get shard by commitment
+	gotShard, err := store.Get(ctx, promise.Commitment)
 	require.NoError(t, err)
-	require.Len(t, gotRows.Rows, 3)
-	require.Equal(t, rows.Rows[0].Index, gotRows.Rows[0].Index)
-	require.Equal(t, rows.Rows[1].Index, gotRows.Rows[1].Index)
-	require.Equal(t, rows.Rows[2].Index, gotRows.Rows[2].Index)
+	require.Len(t, gotShard.Rows, 3)
+	require.Equal(t, shard.Rows[0].Index, gotShard.Rows[0].Index)
+	require.Equal(t, shard.Rows[1].Index, gotShard.Rows[1].Index)
+	require.Equal(t, shard.Rows[2].Index, gotShard.Rows[2].Index)
 
 	// get payment promise by hash
 	promiseHash, err := promise.Hash()
@@ -64,22 +64,22 @@ func testStorePutSameCommitmentSamePromise(t *testing.T) {
 
 	blob := makeTestBlobV0(t, 256)
 	commitment := blob.Commitment()
-	rows := makeRowsFrom(t, blob, 0, 1)
+	shard := makeRowsFrom(t, blob, 0, 1)
 	promise := makeTestPaymentPromise(100, commitment)
 
 	// put data first time
-	err := store.Put(ctx, promise, rows)
+	err := store.Put(ctx, promise, shard)
 	require.NoError(t, err)
 
 	// put the same data again (same commitment, same promise)
-	err = store.Put(ctx, promise, rows)
+	err = store.Put(ctx, promise, shard)
 	require.NoError(t, err)
 
 	// should be able to retrieve
-	gotRows, err := store.Get(ctx, commitment)
+	gotShard, err := store.Get(ctx, commitment)
 	require.NoError(t, err)
-	require.NotNil(t, gotRows)
-	require.Len(t, gotRows.Rows, 2)
+	require.NotNil(t, gotShard)
+	require.Len(t, gotShard.Rows, 2)
 }
 
 func testStorePutSameCommitmentDifferentPromises(t *testing.T) {
@@ -91,8 +91,8 @@ func testStorePutSameCommitmentDifferentPromises(t *testing.T) {
 	commitment := blob.Commitment()
 
 	// extract different row sets from the same blob
-	rows1 := makeRowsFrom(t, blob, 0, 1)
-	rows2 := makeRowsFrom(t, blob, 2, 3)
+	shard1 := makeRowsFrom(t, blob, 0, 1)
+	shard2 := makeRowsFrom(t, blob, 2, 3)
 
 	// first promise with rows 0, 1
 	promise1 := makeTestPaymentPromise(100, commitment)
@@ -101,22 +101,22 @@ func testStorePutSameCommitmentDifferentPromises(t *testing.T) {
 	promise2 := makeTestPaymentPromise(101, commitment)
 
 	// put first promise
-	err := store.Put(ctx, promise1, rows1)
+	err := store.Put(ctx, promise1, shard1)
 	require.NoError(t, err)
 
 	// put second promise with same commitment but different promise
-	err = store.Put(ctx, promise2, rows2)
+	err = store.Put(ctx, promise2, shard2)
 	require.NoError(t, err)
 
 	// get should return combined rows from both promises
-	gotRows, err := store.Get(ctx, commitment)
+	gotShard, err := store.Get(ctx, commitment)
 	require.NoError(t, err)
-	require.NotNil(t, gotRows)
-	require.Len(t, gotRows.Rows, 4, "should have all 4 rows from both promises")
+	require.NotNil(t, gotShard)
+	require.Len(t, gotShard.Rows, 4, "should have all 4 rows from both promises")
 
 	// verify all rows are present
 	rowIndices := make(map[uint32]bool)
-	for _, row := range gotRows.Rows {
+	for _, row := range gotShard.Rows {
 		rowIndices[row.Index] = true
 	}
 	require.True(t, rowIndices[0], "should have row 0")
@@ -152,23 +152,23 @@ func testStoreGetNotFound(t *testing.T) {
 }
 
 // makeRowsFrom extracts rows from a blob at the given indices.
-func makeRowsFrom(t *testing.T, blob *fibre.Blob, indices ...int) *types.Rows {
+func makeRowsFrom(t *testing.T, blob *fibre.Blob, indices ...int) *types.BlobShard {
 	t.Helper()
 
-	rows := make([]*types.Row, len(indices))
+	rows := make([]*types.BlobRow, len(indices))
 	for i, idx := range indices {
 		rowProof, err := blob.Row(idx)
 		require.NoError(t, err)
-		rows[i] = &types.Row{
+		rows[i] = &types.BlobRow{
 			Index: uint32(idx),
 			Data:  rowProof.Row,
 			Proof: rowProof.RowProof.RowProof,
 		}
 	}
 
-	return &types.Rows{
+	return &types.BlobShard{
 		Rows: rows,
-		Rlc:  &types.Rows_Root{Root: make([]byte, 32)},
+		Rlc:  &types.BlobShard_Root{Root: make([]byte, 32)},
 	}
 }
 

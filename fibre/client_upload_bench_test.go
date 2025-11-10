@@ -192,7 +192,7 @@ func makeBenchmarkMockClient(validators []*core.Validator, privKeys []cmted25519
 	}
 }
 
-func (b *benchmarkValidatorClient) UploadRows(ctx context.Context, req *types.UploadRowsRequest, opts ...grpclib.CallOption) (*types.UploadRowsResponse, error) {
+func (b *benchmarkValidatorClient) UploadShard(ctx context.Context, req *types.UploadShardRequest, opts ...grpclib.CallOption) (*types.UploadShardResponse, error) {
 	// Sign the real PaymentPromise data on first call and cache it.
 	// We must sign the actual PaymentPromise because SignatureSet verifies signatures against
 	// the real sign bytes. Since we use a mocked clock, all PaymentPromises have the same
@@ -215,14 +215,14 @@ func (b *benchmarkValidatorClient) UploadRows(ctx context.Context, req *types.Up
 		b.cachedSignature = ed25519.Sign(ed25519.PrivateKey(privKeyBytes), signBytes)
 	})
 
-	return &types.UploadRowsResponse{
+	return &types.UploadShardResponse{
 		ValidatorSignature: b.cachedSignature,
 	}, nil
 }
 
-func (b *benchmarkValidatorClient) DownloadRows(ctx context.Context, req *types.DownloadRowsRequest, opts ...grpclib.CallOption) (*types.DownloadRowsResponse, error) {
+func (b *benchmarkValidatorClient) DownloadShard(ctx context.Context, req *types.DownloadShardRequest, opts ...grpclib.CallOption) (*types.DownloadShardResponse, error) {
 	// Benchmarks don't use downloads, return empty response
-	return &types.DownloadRowsResponse{Rows: nil}, nil
+	return &types.DownloadShardResponse{Shard: nil}, nil
 }
 
 func (b *benchmarkValidatorClient) Close() error {
