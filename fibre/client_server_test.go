@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"path/filepath"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v6/fibre"
@@ -13,12 +12,10 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v6/x/fibre/types"
 	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
-	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 // testEnv holds the test environment with servers, clients, and validator set
@@ -91,7 +88,7 @@ func makeTestEnv(
 	clients := make([]*fibre.Client, numClients)
 	for i := range numClients {
 		clientCfg := fibre.DefaultClientConfig()
-		clientCfg.NewClientFn = grpcfibre.DefaultNewClientFn(&testHostRegistry{addresses: addresses})
+		clientCfg.ShardingFactor = numValidators
 
 		// create logger with unique client identifier
 		clientCfg.Log = slog.Default().With("client_idx", i)
@@ -100,6 +97,7 @@ func makeTestEnv(
 		if modifyClientConfig != nil {
 			modifyClientConfig(&clientCfg)
 		}
+		clientCfg.NewClientFn = grpcfibre.DefaultNewClientFn(&testHostRegistry{addresses: addresses}, fibre.MaxMessageSize(clientCfg.BlobConfig))
 
 		client, err := fibre.NewClient(nil, makeTestKeyring(t), &mockValidatorSetGetter{set: valSet}, &mockHostRegistry{}, clientCfg)
 		require.NoError(t, err)
@@ -125,7 +123,6 @@ func makeTestServers(
 	t.Helper()
 
 	grpcServers := make([]*grpc.Server, len(validators))
-	fibreServers := make([]*fibre.Server, len(validators))
 	stores := make([]*fibre.Store, len(validators))
 	addresses := make(map[string]string)
 
@@ -134,9 +131,8 @@ func makeTestServers(
 		require.NoError(t, err)
 
 		serverCfg := fibre.DefaultServerConfig()
-		// Set a temporary directory for the BadgerDB store
-		tmpDir := t.TempDir()
-		serverCfg.Path = filepath.Join(tmpDir, "fibre-store")
+		serverCfg.ShardingFactor = len(validators)
+
 		// create logger with unique server identifier
 		serverCfg.Log = slog.Default().With(
 			"server_idx", i,
@@ -149,47 +145,24 @@ func makeTestServers(
 			modifyServerConfig(&serverCfg)
 		}
 
-		// Create gRPC server with mock services
-		grpcServer := grpc.NewServer()
-
-		// Register mock Query service
-		mockQueryServer := &mockQueryServer{}
-		types.RegisterQueryServer(grpcServer, mockQueryServer)
-
-		// Register mock BlockAPI service
-		valSetProto, err := valSet.ToProto()
-		require.NoError(t, err)
-		mockBlockAPIServer := &mockBlockAPIServer{
-			validatorSetResponse: &coregrpc.ValidatorSetResponse{
-				ValidatorSet: valSetProto,
-				Height:       int64(valSet.Height),
-			},
-		}
-		coregrpc.RegisterBlockAPIServer(grpcServer, mockBlockAPIServer)
-
-		// Create client connection to the mock server (will be used after server starts)
-		// Create connection before starting server
-		conn, err := grpc.NewClient(
-			listener.Addr().String(),
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-		)
-		require.NoError(t, err)
-
-		// Create Fibre server - this will register the Fibre service on grpcServer
-		fibreServer, err := fibre.NewServerFromGRPC(
+		fibreServer, err := fibre.NewInMemoryServer(
 			newTestPrivValidator(privKeys[i]),
-			grpcServer,
-			conn,
+			&mockQueryClient{},
+			&mockValidatorSetGetter{set: valSet},
 			serverCfg,
 		)
 		require.NoError(t, err)
 
-		// Now start the gRPC server after all services are registered
+		maxMsgSize := fibre.MaxMessageSize(fibreServer.Config().BlobConfig)
+		grpcServer := grpc.NewServer(
+			grpc.MaxRecvMsgSize(maxMsgSize),
+			grpc.MaxSendMsgSize(maxMsgSize),
+		)
+		types.RegisterFibreServer(grpcServer, fibreServer)
+
 		go func() { _ = grpcServer.Serve(listener) }()
 
 		grpcServers[i] = grpcServer
-		fibreServers[i] = fibreServer
-		// Extract store from server for test access
 		stores[i] = fibreServer.Store()
 		addresses[val.Address.String()] = listener.Addr().String()
 	}
@@ -208,40 +181,4 @@ func (r *testHostRegistry) GetHost(ctx context.Context, val *core.Validator) (va
 		return "", fmt.Errorf("no address for validator %s", val.Address.String())
 	}
 	return validator.Host(addr), nil
-}
-
-// mockQueryServer is a mock implementation of types.QueryServer for testing.
-type mockQueryServer struct {
-	types.UnimplementedQueryServer
-}
-
-func (m *mockQueryServer) Params(ctx context.Context, in *types.QueryParamsRequest) (*types.QueryParamsResponse, error) {
-	return &types.QueryParamsResponse{}, nil
-}
-
-func (m *mockQueryServer) EscrowAccount(ctx context.Context, in *types.QueryEscrowAccountRequest) (*types.QueryEscrowAccountResponse, error) {
-	return &types.QueryEscrowAccountResponse{}, nil
-}
-
-func (m *mockQueryServer) Withdrawals(ctx context.Context, in *types.QueryWithdrawalsRequest) (*types.QueryWithdrawalsResponse, error) {
-	return &types.QueryWithdrawalsResponse{}, nil
-}
-
-func (m *mockQueryServer) IsPaymentProcessed(ctx context.Context, in *types.QueryIsPaymentProcessedRequest) (*types.QueryIsPaymentProcessedResponse, error) {
-	return &types.QueryIsPaymentProcessedResponse{}, nil
-}
-
-func (m *mockQueryServer) ValidatePaymentPromise(ctx context.Context, in *types.QueryValidatePaymentPromiseRequest) (*types.QueryValidatePaymentPromiseResponse, error) {
-	// Always return valid for testing
-	return &types.QueryValidatePaymentPromiseResponse{IsValid: true}, nil
-}
-
-// mockBlockAPIServer is a mock implementation of coregrpc.BlockAPIServer for testing.
-type mockBlockAPIServer struct {
-	coregrpc.UnimplementedBlockAPIServer
-	validatorSetResponse *coregrpc.ValidatorSetResponse
-}
-
-func (m *mockBlockAPIServer) ValidatorSet(ctx context.Context, req *coregrpc.ValidatorSetRequest) (*coregrpc.ValidatorSetResponse, error) {
-	return m.validatorSetResponse, nil
 }
