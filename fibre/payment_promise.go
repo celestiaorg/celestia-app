@@ -123,9 +123,12 @@ func (p *PaymentPromise) Validate() error {
 		return fmt.Errorf("signer key must be %d bytes, got %d", secp256k1.PubKeySize, len(p.SignerKey.Key))
 	}
 
-	// chain ID must not be empty
+	// chain ID must not be empty and within length limit
 	if p.ChainID == "" {
 		return errors.New("chain id must not be empty")
+	}
+	if len(p.ChainID) > maxChainIDSize {
+		return fmt.Errorf("chain id length %d exceeds maximum %d", len(p.ChainID), maxChainIDSize)
 	}
 
 	// upload size must be positive
@@ -167,12 +170,23 @@ func (p *PaymentPromise) Validate() error {
 }
 
 const (
+	// MaxPaymentPromiseSize is the theoretical maximum size of all PaymentPromise fields
+	// (excluding encoding overhead, like protobuf)
+	MaxPaymentPromiseSize = signBytesFixedSize + signatureSize + maxChainIDSize
+
 	// signBytesPrefix is prepended to the sign bytes to ensure the resulting signed message
 	// can't be confused with a consensus message (domain separation).
 	signBytesPrefix = "fibre/pp:v0"
 	// signBytesFixedSize is the size of all the constant fixed size fields.
-	// Format: signerPubKey(33) + namespace(29) + blobSize(4) + commitment(32) + blobVersion(4) + height(8)
-	signBytesFixedSize = secp256k1.PubKeySize + share.NamespaceSize + 4 + 32 + 4 + 8
+	// Format: signerPubKey(33) + namespace(29) + blobSize(4) + commitment(32) + blobVersion(4) + height(8) + timestamp(15)
+	signBytesFixedSize = secp256k1.PubKeySize + share.NamespaceSize + 4 + 32 + 4 + 8 + 15
+
+	// maxChainIDSize is the maximum allowed chain ID length.
+	// Examples: "celestia" (8), "mocha-4" (7), "arabica-11" (10)
+	maxChainIDSize = 20
+
+	// signatureSize is the size of a secp256k1 signature in compact format (32 bytes r + 32 bytes s)
+	signatureSize = 64
 )
 
 // SignBytes returns the bytes that should be signed for this [PaymentPromise].
@@ -194,7 +208,7 @@ func (p *PaymentPromise) SignBytes() ([]byte, error) {
 		}
 
 		// calculate total size including the prefix
-		totalSize := len(signBytesPrefix) + len(p.ChainID) + signBytesFixedSize + len(timestampBytes)
+		totalSize := len(signBytesPrefix) + len(p.ChainID) + signBytesFixedSize
 		buf := make([]byte, 0, totalSize)
 
 		// prepend domain separation prefix
