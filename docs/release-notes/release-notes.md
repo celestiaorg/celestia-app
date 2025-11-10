@@ -22,7 +22,7 @@ Validators should build binaries in freshly created environments or download pre
 
 ### Key Management Service (KMS) changes
 
-This release introduces a new message type that needs to be signed by KMS. **If you use Horcrux or TmKMS, you must use these versions in order to participate in consensus. If you use an alternative KMS, please reach out.**
+This release introduces a new message type that needs to be signed by KMS. **If you use Horcrux or TmKMS, you must use these versions to participate in consensus. If you use an alternative KMS, please reach out.**
 
 **Disclaimer:** (KMS) are third-party software. Validators are responsible for ensuring their own KMS setup is correctly configured.
 An incorrect setup may result in double signing, which can lead to slashing. So, any error log should be thoroughly investigated, even if the KMS appears to be signing normally.
@@ -37,7 +37,7 @@ For horcrux, use [v3.3.3-celestia](https://github.com/celestiaorg/horcrux/releas
 
 #### TmKMS
 
-For TmKMS, use [v0.14.0-celestia](https://github.com/celestiaorg/tmkms/releases/tag/v0.14.0-celestia). All the setups and configs remain the same.
+For TmKMS, use [v0.15.0](https://github.com/iqlusioninc/tmkms/releases/tag/v0.15.0). All the setups and configs remain the same. Using a prior version will not allow you to propose blocks.
 
 ### Config changes
 
