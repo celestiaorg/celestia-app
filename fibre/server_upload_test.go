@@ -3,7 +3,6 @@ package fibre_test
 import (
 	"context"
 	"crypto/ed25519"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -151,15 +150,10 @@ func makeTestServer(t *testing.T) (*fibre.Server, validator.Set, *core.Validator
 		Height:       100,
 	}
 
-	cfg := fibre.DefaultServerConfig()
-	// Set a temporary directory for the BadgerDB store
-	tmpDir := t.TempDir()
-	cfg.Path = filepath.Join(tmpDir, "fibre-store")
-
 	// use first validator as the server's identity
 	privVal := newTestPrivValidator(privKeys[0])
 
-	// Find the server validator in the ValidatorSet by matching the address
+	// find the server validator in the ValidatorSet by matching the address
 	// Note: core.NewValidatorSet may reorder validators, so we can't assume validators[0] == privKeys[0]
 	serverPubKey, err := privVal.GetPubKey()
 	require.NoError(t, err)
@@ -174,7 +168,7 @@ func makeTestServer(t *testing.T) (*fibre.Server, validator.Set, *core.Validator
 		privVal,
 		&mockQueryClient{},
 		&mockValidatorSetGetter{set: valSet},
-		cfg,
+		fibre.DefaultServerConfig(),
 	)
 	require.NoError(t, err)
 

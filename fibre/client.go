@@ -109,7 +109,7 @@ func NewClient(txClient *user.TxClient, kr keyring.Keyring, valGet validator.Set
 	}
 
 	if cfg.NewClientFn == nil {
-		cfg.NewClientFn = grpc.DefaultNewClientFn(hostReg)
+		cfg.NewClientFn = grpc.DefaultNewClientFn(hostReg, MaxMessageSize(cfg.BlobConfig))
 	}
 	if cfg.Tracer == nil {
 		cfg.Tracer = otel.Tracer("fibre-client")
@@ -152,4 +152,10 @@ func (c *Client) Close() error {
 
 	c.closeWg.Wait()
 	return c.clientCache.Close()
+}
+
+// MaxMessageSize returns the maximum message size that can be sent over the network.
+func MaxMessageSize(cfg BlobConfig) int {
+	msgSize := cfg.MaxShardSize() + MaxPaymentPromiseSize
+	return msgSize + (msgSize / 50) // add 2% protobuf overhead
 }
