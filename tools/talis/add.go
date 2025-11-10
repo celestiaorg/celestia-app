@@ -12,6 +12,7 @@ func addCmd() *cobra.Command {
 		rootDir  string
 		count    int
 		nodeType string
+		provider string
 		region   string
 	)
 	cmd := &cobra.Command{
@@ -24,10 +25,21 @@ func addCmd() *cobra.Command {
 				return fmt.Errorf("failed to load config %q: %w", rootDir, err)
 			}
 
+			if provider == "" {
+				provider = "digitalocean"
+			}
+
 			switch nodeType {
 			case "validator":
 				for i := 0; i < count; i++ {
-					cfg = cfg.WithDigitalOceanValidator(region)
+					switch provider {
+					case "digitalocean":
+						cfg = cfg.WithDigitalOceanValidator(region)
+					case "googlecloud":
+						cfg = cfg.WithGoogleCloudValidator(region)
+					default:
+						return fmt.Errorf("unknown provider %q (supported: digitalocean, googlecloud)", provider)
+					}
 				}
 			case "bridge":
 				log.Println("bridges are not yet supported")
@@ -48,7 +60,7 @@ func addCmd() *cobra.Command {
 	_ = cmd.MarkFlagRequired("count")
 	cmd.Flags().StringVarP(&nodeType, "type", "t", "", "Type of the node (validator, bridge, light)")
 	_ = cmd.MarkFlagRequired("type")
-	cmd.Flags().StringP("provider", "p", "", "Provider for the node (digitalocean)")
+	cmd.Flags().StringVarP(&provider, "provider", "p", "digitalocean", "Provider for the node (digitalocean, googlecloud)")
 	cmd.Flags().StringVarP(&region, "region", "r", "random", "the region to deploy the instance in (random if blank)")
 
 	return cmd

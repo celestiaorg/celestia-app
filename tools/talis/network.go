@@ -259,8 +259,6 @@ func (n *Network) SaveAddressBook(payloadRoot string, peers []string) error {
 	return WriteAddressBook(peers, addrBookFile)
 }
 
-type Option func(*cmtconfig.Config)
-
 func WriteAddressBook(peers []string, file string) error {
 	book := pex.NewAddrBook(file, false)
 	for _, peer := range peers {
@@ -275,9 +273,4 @@ func WriteAddressBook(peers []string, file string) error {
 	}
 	book.Save()
 	return nil
-}
-
-type Regions struct {
-	DigitalOcean map[string]int
-	Linode       map[string]int
 }

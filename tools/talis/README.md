@@ -1,12 +1,28 @@
 # talis
 
-## Prerequisite - DigitalOcean setup
+## Prerequisites
 
-### DigitalOcean Account
+Talis supports DigitalOcean and Google Cloud. **Use only one provider per experiment.**
 
-- If you're part of the Celestia engineering team ask for access to Celestia's DigitalOcean account or alternatively use a personal account.
+### DigitalOcean Setup
+
+#### Account
+
+- If you're part of the Celestia engineering team, ask for access to Celestia's DigitalOcean account or alternatively use a personal account.
 - **Generate the API token:** Go to Settings → API → Generate New Token.
 - Save the token somewhere that's easily accessible.
+
+### Google Cloud Setup
+
+#### Account
+
+- If you're part of the Celestia engineering team, ask for access to Celestia's Google Cloud account. **Make sure to use Google Cloud on when the experiment requires beefy hardware and high bandwidth. Otherwise, use DO**
+- Create a service account with Compute Engine Admin permissions.
+- Download the service account key JSON file.
+
+#### Firewall
+
+Firewall rules are automatically created when spinning up instances. They allow all incoming and outgoing traffic.
 
 ### SSH Key
 
@@ -79,6 +95,8 @@ the celestia-app configs (config.toml and app.toml) can be manually edited here,
   "ssh_pub_key_path": "/home/HOSTNAME/.ssh/id_ed25519.pub",
   "ssh_key_name": "HOSTNAME",
   "digitalocean_token": "pulled from env var if available",
+  "google_cloud_project": "pulled from env var if available",
+  "google_cloud_key_json_path": "pulled from env var if available",
   "s3_config": {
     "region": "pulled from AWS_DEFAULT_REGION env var if available",
     "access_key_id": "pulled from AWS_ACCESS_KEY_ID env var if available",
@@ -91,6 +109,7 @@ the celestia-app configs (config.toml and app.toml) can be manually edited here,
 
 Notes:
 
+- **Only use one cloud provider per experiment.** Fill out either DigitalOcean or Google Cloud fields, not both. Filling them both might end up ruining other experiments or having stuck experiments that need to be removed by hand.
 - The AWS config supports any S3-compatible bucket. So it can be used with Digital Ocean and other cloud providers.
 - Example: The S3 endpoint for Digital Ocean is: `https://<region>.digitaloceanspaces.com/`.
 
