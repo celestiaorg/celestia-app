@@ -62,44 +62,27 @@ type Server struct {
 	tracer trace.Tracer
 }
 
-// NewServer creates a new Fibre [Server] with the provided dependencies.
-// Returns an error if the validator's public key cannot be retrieved.
+// NewServer creates a new Fibre [Server] with default Badger store backend.
+// Returns an error if the validator's public key cannot be retrieved or
+// if Badger instance cannot be started.
 func NewServer(
 	privVal core.PrivValidator,
 	queryClient types.QueryClient,
 	valGet validator.SetGetter,
 	cfg ServerConfig,
 ) (*Server, error) {
-	if cfg.Log == nil {
-		cfg.Log = slog.Default().WithGroup("fibre-server")
-	}
-	if cfg.Tracer == nil {
-		cfg.Tracer = otel.Tracer("fibre-server")
-	}
-
-	// cache the validator's public key in case the implementation does IO internally
-	pubKey, err := privVal.GetPubKey()
-	if err != nil {
-		return nil, fmt.Errorf("getting validator public key: %w", err)
-	}
-
 	store, err := NewBadgerStore(cfg.StoreConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Fibre store: %w", err)
 	}
 
-	server := &Server{
-		cfg:         cfg,
-		privVal:     privVal,
-		pubKey:      pubKey,
-		queryClient: queryClient,
-		valGet:      valGet,
-		store:       store,
-		log:         cfg.Log,
-		tracer:      cfg.Tracer,
-	}
-
-	return server, nil
+	return newServer(
+		privVal,
+		queryClient,
+		valGet,
+		store,
+		cfg,
+	)
 }
 
 // NewServerFromGRPC creates a new Fibre [Server] from a gRPC server and client.
@@ -118,6 +101,57 @@ func NewServerFromGRPC(
 		return nil, err
 	}
 	types.RegisterFibreServer(grpcServer, server)
+	return server, nil
+}
+
+// NewInMemoryServer creates a new Fibre [Server] with an in-memory store backend.
+func NewInMemoryServer(
+	privVal core.PrivValidator,
+	queryClient types.QueryClient,
+	valGet validator.SetGetter,
+	cfg ServerConfig,
+) (*Server, error) {
+	memStore := NewMemoryStore(cfg.StoreConfig)
+	return newServer(
+		privVal,
+		queryClient,
+		valGet,
+		memStore,
+		cfg,
+	)
+}
+
+func newServer(
+	privVal core.PrivValidator,
+	queryClient types.QueryClient,
+	valGet validator.SetGetter,
+	store *Store,
+	cfg ServerConfig,
+) (*Server, error) {
+	if cfg.Log == nil {
+		cfg.Log = slog.Default().WithGroup("fibre-server")
+	}
+	if cfg.Tracer == nil {
+		cfg.Tracer = otel.Tracer("fibre-server")
+	}
+
+	// cache the validator's public key in case the implementation does IO internally
+	pubKey, err := privVal.GetPubKey()
+	if err != nil {
+		return nil, fmt.Errorf("getting validator public key: %w", err)
+	}
+
+	server := &Server{
+		cfg:         cfg,
+		privVal:     privVal,
+		pubKey:      pubKey,
+		queryClient: queryClient,
+		valGet:      valGet,
+		store:       store,
+		log:         cfg.Log,
+		tracer:      cfg.Tracer,
+	}
+
 	return server, nil
 }
 
