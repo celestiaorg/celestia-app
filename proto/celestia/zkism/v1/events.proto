@@ -7,6 +7,24 @@ option go_package = "github.com/celestiaorg/celestia-app/x/zkism/types";
 import "cosmos_proto/cosmos.proto";
 import "gogoproto/gogo.proto";
 
+// EventCreateStateTransitionVerifier defines the event type emitted when creating a generic State Transition Verifier.
+message EventCreateStateTransitionVerifier{
+  option (gogoproto.goproto_getters) = false;
+
+  // the owner or creator 
+  string owner = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  bytes trusted_state = 2;
+  // the sp1 groth16 verifier key (hex-encoded)
+  string groth16_vkey = 3;
+  // hash-based commitment to the verifier key used for state transition (hex-encoded)
+  string state_transition_vkey = 4;
+}
+
+// EventUpdateStateTransitionVerifier defines the event type emitted when updating a generic State Transition Verifier.
+message EventUpdateStateTransitionVerifier{
+  bytes trusted_state = 1;
+}
+
 // EventCreateZKExecutionISM defines the event type emitted when creating a new ZKExecutionISM.
 message EventCreateZKExecutionISM {
   option (gogoproto.goproto_getters) = false;

@@ -43,6 +43,12 @@ func EmitUpdateISMEvent(ctx sdk.Context, ism types.ZKExecutionISM) error {
 	})
 }
 
+func EmitUpdateStateTransitionVerifierEvent(ctx sdk.Context, vrf types.StateTransitionVerifier) error {
+	return ctx.EventManager().EmitTypedEvent(&types.EventUpdateStateTransitionVerifier{
+		TrustedState: vrf.TrustedState,
+	})
+}
+
 // EmitSubmitMessagesEvent emits a typed event to signal authorization of new messages.
 func EmitSubmitMessagesEvent(ctx sdk.Context, root []byte, messageIds [][32]byte) error {
 	messages := make([]string, 0, len(messageIds))

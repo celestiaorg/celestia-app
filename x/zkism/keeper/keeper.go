@@ -18,11 +18,12 @@ var _ util.InterchainSecurityModule = (*Keeper)(nil)
 
 // Keeper implements the InterchainSecurityModule interface required by the Hyperlane ISM Router.
 type Keeper struct {
-	headers  collections.Map[uint64, []byte]
-	isms     collections.Map[uint64, types.ZKExecutionISM]
-	messages collections.KeySet[[]byte]
-	params   collections.Item[types.Params]
-	schema   collections.Schema
+	headers   collections.Map[uint64, []byte]
+	isms      collections.Map[uint64, types.ZKExecutionISM]
+	verifiers collections.Map[uint64, types.StateTransitionVerifier]
+	messages  collections.KeySet[[]byte]
+	params    collections.Item[types.Params]
+	schema    collections.Schema
 
 	coreKeeper types.HyperlaneKeeper
 	authority  string
@@ -136,5 +137,14 @@ func (k *Keeper) validatePublicValues(ctx context.Context, ism types.ZKExecution
 		return errorsmod.Wrapf(types.ErrInvalidSequencerKey, "expected %x, got %x", ism.SequencerPublicKey, publicValues.PublicKey)
 	}
 
+	return nil
+}
+
+func (k *Keeper) validateGenericPublicValues(ctx context.Context, verifier types.StateTransitionVerifier, publicValues types.StateTransitionPublicValues) error {
+	if !bytes.Equal(publicValues.TrustedState[:], verifier.TrustedState) {
+		return errorsmod.Wrapf(types.ErrInvalidStateRoot, "expected %x, got %x", verifier.TrustedState, publicValues.TrustedState)
+	}
+
+	// todo: implement public values and verify against trusted state
 	return nil
 }

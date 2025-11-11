@@ -22,6 +22,67 @@ func NewMsgServerImpl(keeper *Keeper) types.MsgServer {
 	return &msgServer{keeper}
 }
 
+// CreateStateTransitionVerifier implements types.MsgServer.
+func (m msgServer) CreateStateTransitionVerifier(ctx context.Context, msg *types.MsgCreateStateTransitionVerifier) (*types.MsgCreateStateTransitionVerifierResponse, error) {
+	// TODO: Implement CreateStateTransitionVerifier
+	verifierId, err := m.coreKeeper.IsmRouter().GetNextSequence(ctx, types.InterchainSecurityModuleTypeZKExecution)
+	if err != nil {
+		return nil, errorsmod.Wrap(err, err.Error())
+	}
+
+	newVerifier := types.StateTransitionVerifier{
+		Id:                  verifierId,
+		Owner:               msg.Creator,
+		TrustedState:        msg.TrustedState,
+		Groth16Vkey:         msg.Groth16Vkey,
+		StateTransitionVkey: msg.StateTransitionVkey,
+	}
+
+	if err := m.verifiers.Set(ctx, verifierId.GetInternalId(), newVerifier); err != nil {
+		return nil, errorsmod.Wrap(err, err.Error())
+	}
+
+	return &types.MsgCreateStateTransitionVerifierResponse{
+		TrustedState: msg.TrustedState,
+	}, nil
+}
+
+// UpdateStateTranstionVerifier implements types.MsgServer.
+func (m msgServer) UpdateStateTranstionVerifier(ctx context.Context, msg *types.MsgUpdateStateTranstionVerifier) (*types.MsgUpdateStateTranstionVerifierResponse, error) {
+	vrf, err := m.verifiers.Get(ctx, msg.Id.GetInternalId())
+
+	var publicValues types.StateTransitionPublicValues
+	if err := publicValues.Unmarshal(msg.PublicValues); err != nil {
+		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
+	}
+
+	if err := m.validateGenericPublicValues(ctx, vrf, publicValues); err != nil {
+		return nil, err
+	}
+
+	verifier, err := types.NewSP1Groth16Verifier(vrf.Groth16Vkey)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := verifier.VerifyProof(msg.Proof, vrf.StateTransitionVkey, msg.PublicValues); err != nil {
+		return nil, err
+	}
+
+	vrf.TrustedState = publicValues.NewTrustedState[:]
+	if err := m.verifiers.Set(ctx, vrf.Id.GetInternalId(), vrf); err != nil {
+		return nil, err
+	}
+
+	if err := EmitUpdateStateTransitionVerifierEvent(sdk.UnwrapSDKContext(ctx), vrf); err != nil {
+		return nil, err
+	}
+
+	return &types.MsgUpdateStateTranstionVerifierResponse{
+		TrustedState: vrf.TrustedState,
+	}, nil
+}
+
 // CreateZKExecutionISM implements types.MsgServer.
 func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreateZKExecutionISM) (*types.MsgCreateZKExecutionISMResponse, error) {
 	ismId, err := m.coreKeeper.IsmRouter().GetNextSequence(ctx, types.InterchainSecurityModuleTypeZKExecution)

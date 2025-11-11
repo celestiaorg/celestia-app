@@ -13,6 +13,12 @@ option go_package = "github.com/celestiaorg/celestia-app/x/zkism/types";
 service Msg {
   option (cosmos.msg.v1.service) = true;
 
+  // Create a generic State Transition Verifier
+  rpc CreateStateTransitionVerifier(MsgCreateStateTransitionVerifier) returns (MsgCreateStateTransitionVerifierResponse);
+
+  // Update a generic State Transition Verifier
+  rpc UpdateStateTranstionVerifier(MsgUpdateStateTranstionVerifier) returns (MsgUpdateStateTranstionVerifierResponse);
+
   // CreateZKExecutionISM defines the rpc method for creating a new ZK execution ISM.
   rpc CreateZKExecutionISM(MsgCreateZKExecutionISM) returns (MsgCreateZKExecutionISMResponse);
 
@@ -24,6 +30,44 @@ service Msg {
 
   // UpdateParams defines the rpc method for updating the module parameters.
   rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
+}
+
+// MsgCreateStateTransitionVerifier is the request type for CreateStateTransitionVerifier
+message MsgCreateStateTransitionVerifier{
+  option (cosmos.msg.v1.signer) = "creator";
+  // creator is the message sender.
+  string creator = 1;
+  // the initial trusted state that must be used to generate the first proof
+  bytes trusted_state = 2;
+  // the sp1 groth16 verifier key
+  bytes groth16_vkey = 3;
+  // hash-based commitment to the verifier key used for state transition
+  bytes state_transition_vkey = 4;
+}
+
+// MsgCreateStateTransitionVerifierResponse is the response type for CreateStateTransitionVerifier
+message MsgCreateStateTransitionVerifierResponse{
+  bytes trusted_state = 1;
+}
+
+// MsgUpdateStateTranstionVerifier is the request type for UpdateZKExecutionISM.
+message MsgUpdateStateTranstionVerifier {
+  // ism identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // proof is the ZK proof bytes (groth16).
+  bytes proof = 2;
+  // the public values used for proof verification.
+  bytes public_values = 3;
+  // the tx signer address
+  string signer = 4;
+}
+
+// MsgUpdateStateTranstionVerifierResponse is the response type for State Transition Verifier.
+message MsgUpdateStateTranstionVerifierResponse {
+  bytes trusted_state = 1;
 }
 
 // MsgCreateZKExecutionISM is the request type for CreateZKExecutionISM.
