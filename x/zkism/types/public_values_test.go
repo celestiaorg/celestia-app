@@ -8,6 +8,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestGenericPublicValuesEncoding(t *testing.T) {
+	expected := types.StateTransitionPublicValues{
+		TrustedState: []byte{0x01, 0x02, 0x03, 0x04, 0x05},
+		StateSize:    5,
+	}
+
+	bz, err := expected.Marshal()
+	require.NoError(t, err)
+	require.NotEmpty(t, bz)
+
+	var decoded types.StateTransitionPublicValues
+	err = decoded.Unmarshal(bz)
+	require.NoError(t, err)
+
+	require.Equal(t, expected.TrustedState, decoded.TrustedState)
+	require.Equal(t, expected.StateSize, decoded.StateSize)
+
+}
+
 func TestStateTransitionPublicValuesEncoding(t *testing.T) {
 	expected := types.EvExecutionPublicValues{
 		CelestiaHeaderHash: [32]byte{0x01},

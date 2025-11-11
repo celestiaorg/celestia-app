@@ -20,33 +20,54 @@ type StateTransitionPublicValues struct {
 func (p *StateTransitionPublicValues) String() string {
 	return fmt.Sprintf(`PublicInputs{
 	TrustedState: %s,
-	NewTrustedState:     %d,
+	NewTrustedState:     %s,
 }`,
 		hex.EncodeToString(p.TrustedState[:p.StateSize]),
 		hex.EncodeToString(p.TrustedState[p.StateSize:]),
 	)
 }
 
-// Marshal encodes the EvExecutionPublicValues struct into a bincode-compatible byte slice.
-// The output format uses Rust bincode's default configuration: (little-endian, fixed-width integers, length-prefixed slices).
 func (pi *StateTransitionPublicValues) Marshal() ([]byte, error) {
 	var buf bytes.Buffer
 
-	if err := writeBytes(&buf, pi.TrustedState[:]); err != nil {
-		return nil, fmt.Errorf("write PrevCelestiaHeaderHash: %w", err)
+	// write slice length
+	if err := binary.Write(&buf, binary.LittleEndian, uint64(len(pi.TrustedState))); err != nil {
+		return nil, err
+	}
+
+	// write bytes
+	if _, err := buf.Write(pi.TrustedState); err != nil {
+		return nil, err
+	}
+
+	// write StateSize
+	if err := binary.Write(&buf, binary.LittleEndian, pi.StateSize); err != nil {
+		return nil, err
 	}
 
 	return buf.Bytes(), nil
 }
 
-// Unmarshal decodes a bincode-serialized EvExecutionPublicValues struct.
-// This function expects the input byte slice to be encoded using Rust bincode's
-// default configuration: (little-endian, fixed-width integers, length-prefixed slices).
 func (pi *StateTransitionPublicValues) Unmarshal(data []byte) error {
 	buf := bytes.NewReader(data)
 
-	if err := readBytes(buf, pi.TrustedState[:]); err != nil {
-		return fmt.Errorf("read PrevCelestiaHeaderHash: %w", err)
+	// read slice length
+	var l uint64
+	if err := binary.Read(buf, binary.LittleEndian, &l); err != nil {
+		return err
+	}
+
+	// allocate the slice
+	pi.TrustedState = make([]byte, l)
+
+	// read bytes
+	if _, err := io.ReadFull(buf, pi.TrustedState); err != nil {
+		return err
+	}
+
+	// read StateSize
+	if err := binary.Read(buf, binary.LittleEndian, &pi.StateSize); err != nil {
+		return err
 	}
 
 	return nil
