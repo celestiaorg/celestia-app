@@ -2,7 +2,7 @@ package validator
 
 import (
 	"fmt"
-	"math/big"
+	"math/rand/v2"
 
 	"github.com/celestiaorg/rsema1d"
 	"github.com/cometbft/cometbft/crypto"
@@ -31,33 +31,42 @@ func (s Set) GetByAddress(address crypto.Address) (*core.Validator, bool) {
 type ShardMap map[*core.Validator][]int
 
 // Assign returns a ShardMap containing all validators and their assigned row indices
-// for the given commitment and total number of rows. The assignment uses the formula:
+// for the given commitment and total number of rows.
 //
-//	validator_index = (commitment + row_index) mod num_validators
-//
-// The commitment is converted to a big.Int, added to the row index, and the result
-// is taken modulo the number of validators to determine the assignment.
-//
-// TODO(@Wondertan): This assignment algorithm is not final and may be changed
-// to improve distribution properties or security guarantees.
+// It uses a chacha8 RNG with the commitment as the seed to shuffle the row indices
+// using the Fisher-Yates algorithm.
 func (s Set) Assign(commitment rsema1d.Commitment, totalRows int) ShardMap {
 	if len(s.Validators) == 0 || totalRows == 0 {
 		return make(ShardMap)
 	}
 
+	var seed [32]byte
+	copy(seed[:], commitment[:])
+
+	// chacha8 RNG with seed being the commitment
+	rng := rand.New(rand.NewChaCha8(seed))
+
+	// shuffle row indices with Fisher-Yates algorithm
+	rowsIndicies := make([]int, totalRows)
+	for i := range totalRows {
+		rowsIndicies[i] = i
+	}
+	rng.Shuffle(totalRows, func(i, j int) {
+		rowsIndicies[i], rowsIndicies[j] = rowsIndicies[j], rowsIndicies[i]
+	})
+
+	// assign rows to validators in a ShardMap
 	shardMap := make(ShardMap)
+	for i, validator := range s.Validators {
 
-	// TODO(@Wondertan): If we ever end up using this assignment algorithm,
-	// we should move to uint256 libraries for up to 60% speedups per arithmetic operations
-	commitmentInt := new(big.Int).SetBytes(commitment[:])
-	valLenBig := big.NewInt(int64(len(s.Validators)))
+		// TODO(@Wondertan): As per Nashqueue, we no longer want to send every row to validators and some might be not assigned.
+		// So the number of rows to assign should be given as parameter to Assign and which probably would be taken from BlobConfig.
+		rowsToAssign := totalRows / len(s.Validators)
+		if i < totalRows%len(s.Validators) {
+			rowsToAssign++
+		}
 
-	for rowIndex := range totalRows {
-		rowIndexInt := big.NewInt(int64(rowIndex))
-		sum := new(big.Int).Add(commitmentInt, rowIndexInt)
-		idx := new(big.Int).Mod(sum, valLenBig)
-		validator := s.Validators[idx.Int64()]
-		shardMap[validator] = append(shardMap[validator], rowIndex)
+		shardMap[validator] = rowsIndicies[i*rowsToAssign : (i+1)*rowsToAssign]
 	}
 
 	return shardMap
