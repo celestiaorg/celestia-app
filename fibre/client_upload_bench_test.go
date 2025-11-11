@@ -29,16 +29,16 @@ import (
 // Results with 100 validators (averaged over 5 iterations):
 //
 //	Blob Size      Time/op    Throughput    Memory/op    Allocs/op
-//	1 KiB          ~19.8 ms   ~0.049 MiB/s  ~27.0 MB     ~236.8k
-//	16 KiB         ~20.1 ms   ~0.78 MiB/s   ~27.0 MB     ~236.6k
-//	128 KiB        ~20.3 ms   ~6.2 MiB/s    ~26.9 MB     ~234.8k
-//	1 MiB          ~23.4 ms   ~42.7 MiB/s   ~39.6 MB     ~233.9k
-//	128 MiB (max)  ~834 ms    ~156 MiB/s    ~1,773 MB    ~279.8k
+//	1 KiB          ~21.6 ms   ~0.046 MiB/s  ~25.6 MB     ~200.9k
+//	16 KiB         ~18.2 ms   ~0.86 MiB/s   ~25.5 MB     ~200.7k
+//	128 KiB        ~18.1 ms   ~6.9 MiB/s    ~25.4 MB     ~198.9k
+//	1 MiB          ~21.2 ms   ~47.2 MiB/s   ~38.2 MB     ~198.0k
+//	128 MiB (max)  ~845 ms    ~154 MiB/s    ~1,771 MB    ~240.0k
 //
 // Key observations:
-//   - Small blobs (<=128 KiB): overhead-dominated, fixed ~20ms cost limits throughput
-//   - Medium blobs (1 MiB): ~23.4ms with ~42.7 MiB/s throughput
-//   - Large blobs (128 MiB): throughput reaches ~156 MiB/s as encoding work dominates
+//   - Small blobs (<=128 KiB): overhead-dominated, fixed ~18-22ms cost limits throughput
+//   - Medium blobs (1 MiB): ~21.2ms with ~47.2 MiB/s throughput
+//   - Large blobs (128 MiB): throughput reaches ~154 MiB/s as encoding work dominates
 //   - Throughput scales with blob size as fixed overhead becomes less significant
 func BenchmarkClient_Upload(b *testing.B) {
 	benchmarks := []struct {
@@ -91,21 +91,21 @@ func BenchmarkClient_Upload(b *testing.B) {
 // Results with 100 validators (averaged over 5 iterations):
 //
 //	Blob Size    Concurrency    Time/op     Throughput     Memory/op    Allocs/op
-//	128 KiB      1              ~20.0 ms    ~6.3 MiB/s     ~26.9 MB     ~234.8k
-//	128 KiB      4              ~27.5 ms    ~18.2 MiB/s    ~107.5 MB    ~939k
-//	128 KiB      8              ~42.5 ms    ~23.5 MiB/s    ~215 MB      ~1.88M
-//	1 MiB        1              ~23.0 ms    ~43.4 MiB/s    ~39.6 MB     ~233.9k
-//	1 MiB        4              ~41.3 ms    ~96.7 MiB/s    ~158.4 MB    ~935.7k
-//	1 MiB        8              ~80.3 ms    ~99.7 MiB/s    ~316.9 MB    ~1.87M
-//	1 MiB        16             ~173 ms     ~92.5 MiB/s    ~633.7 MB    ~3.74M
-//	128 MiB      1              ~760 ms     ~168.7 MiB/s   ~1,773 MB    ~279.5k
-//	128 MiB      4              ~2,615 ms   ~196 MiB/s     ~7,094 MB    ~1.12M
+//	128 KiB      1              ~17.8 ms    ~7.0 MiB/s     ~25.4 MB     ~198.9k
+//	128 KiB      4              ~26.5 ms    ~18.9 MiB/s    ~101.8 MB    ~796k
+//	128 KiB      8              ~54.1 ms    ~18.7 MiB/s    ~203.5 MB    ~1.59M
+//	1 MiB        1              ~22.8 ms    ~44.2 MiB/s    ~38.2 MB     ~198.0k
+//	1 MiB        4              ~40.9 ms    ~97.9 MiB/s    ~152.7 MB    ~792k
+//	1 MiB        8              ~80.3 ms    ~99.8 MiB/s    ~305.4 MB    ~1.58M
+//	1 MiB        16             ~167 ms     ~95.5 MiB/s    ~610.8 MB    ~3.17M
+//	128 MiB      1              ~852 ms     ~151 MiB/s     ~1,772 MB    ~242k
+//	128 MiB      4              ~2,680 ms   ~191 MiB/s     ~7,088 MB    ~976k
 //
 // Key observations:
-//   - Small blobs (128 KiB): good concurrency scaling from ~6.3 to ~23.5 MiB/s aggregate at concurrency 8
-//   - Medium blobs (1 MiB): peak throughput at concurrency 8 (~99.7 MiB/s), slight drop at 16 due to overhead
-//   - Medium blobs (1 MiB): strong throughput gains from concurrency 4 (~96.7 MiB/s) to 8 (~99.7 MiB/s)
-//   - Large blobs (128 MiB): best aggregate throughput at concurrency 4 (~196 MiB/s, 1.2x single upload)
+//   - Small blobs (128 KiB): good concurrency scaling from ~7.0 to ~18.9 MiB/s aggregate at concurrency 4
+//   - Medium blobs (1 MiB): peak throughput at concurrency 8 (~99.8 MiB/s), slight drop at 16 due to overhead
+//   - Medium blobs (1 MiB): strong throughput gains from concurrency 4 (~97.9 MiB/s) to 8 (~99.8 MiB/s)
+//   - Large blobs (128 MiB): best aggregate throughput at concurrency 4 (~191 MiB/s, 1.26x single upload)
 //   - Concurrency benefits increase with blob size as encoding work parallelizes better
 func BenchmarkClient_Upload_Concurrent(b *testing.B) {
 	benchmarks := []struct {
