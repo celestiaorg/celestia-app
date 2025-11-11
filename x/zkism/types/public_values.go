@@ -13,7 +13,7 @@ type StateTransitionPublicValues struct {
 	// TrustedState is the trusted state before the state transition.
 	TrustedState []byte
 	// StateSize is the size of the trusted state.
-	StateSize uint64
+	NewTrustedState []byte
 }
 
 // String implements the fmt.Stringer interface.
@@ -22,26 +22,27 @@ func (p *StateTransitionPublicValues) String() string {
 	TrustedState: %s,
 	NewTrustedState:     %s,
 }`,
-		hex.EncodeToString(p.TrustedState[:p.StateSize]),
-		hex.EncodeToString(p.TrustedState[p.StateSize:]),
+		hex.EncodeToString(p.TrustedState[:]),
+		hex.EncodeToString(p.TrustedState[:]),
 	)
 }
 
 func (pi *StateTransitionPublicValues) Marshal() ([]byte, error) {
 	var buf bytes.Buffer
 
-	// write slice length
-	if err := binary.Write(&buf, binary.LittleEndian, uint64(len(pi.TrustedState))); err != nil {
+	// write length of TrustedState
+	l := uint64(len(pi.TrustedState))
+	if err := binary.Write(&buf, binary.LittleEndian, l); err != nil {
 		return nil, err
 	}
 
-	// write bytes
+	// write TrustedState
 	if _, err := buf.Write(pi.TrustedState); err != nil {
 		return nil, err
 	}
 
-	// write StateSize
-	if err := binary.Write(&buf, binary.LittleEndian, pi.StateSize); err != nil {
+	// write NewTrustedState
+	if _, err := buf.Write(pi.NewTrustedState); err != nil {
 		return nil, err
 	}
 
@@ -51,24 +52,24 @@ func (pi *StateTransitionPublicValues) Marshal() ([]byte, error) {
 func (pi *StateTransitionPublicValues) Unmarshal(data []byte) error {
 	buf := bytes.NewReader(data)
 
-	// read slice length
+	// read length of TrustedState
 	var l uint64
 	if err := binary.Read(buf, binary.LittleEndian, &l); err != nil {
 		return err
 	}
 
-	// allocate the slice
+	// read TrustedState
 	pi.TrustedState = make([]byte, l)
-
-	// read bytes
 	if _, err := io.ReadFull(buf, pi.TrustedState); err != nil {
 		return err
 	}
 
-	// read StateSize
-	if err := binary.Read(buf, binary.LittleEndian, &pi.StateSize); err != nil {
+	// everything else becomes NewTrustedState
+	remaining, err := io.ReadAll(buf)
+	if err != nil {
 		return err
 	}
+	pi.NewTrustedState = remaining
 
 	return nil
 }

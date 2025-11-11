@@ -10,8 +10,8 @@ import (
 
 func TestGenericPublicValuesEncoding(t *testing.T) {
 	expected := types.StateTransitionPublicValues{
-		TrustedState: []byte{0x01, 0x02, 0x03, 0x04, 0x05},
-		StateSize:    5,
+		TrustedState:    []byte{0x01, 0x02, 0x03, 0x04, 0x05},
+		NewTrustedState: []byte{0x06, 0x07, 0x08, 0x09, 0x0A},
 	}
 
 	bz, err := expected.Marshal()
@@ -23,7 +23,6 @@ func TestGenericPublicValuesEncoding(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, expected.TrustedState, decoded.TrustedState)
-	require.Equal(t, expected.StateSize, decoded.StateSize)
 
 }
 
