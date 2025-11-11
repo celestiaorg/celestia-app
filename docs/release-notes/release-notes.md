@@ -17,11 +17,12 @@ After upgrading to 128mb/6s, specific validator hardware specifications are requ
 - AMD Ryzen 9 7950X3D
 - AMD Ryzen 9 9900X
 - AMD Ryzen 7 PRO 8700GE
+- AMD Ryzen 7 3700X
+- AMD Ryzen 3900X
 - AMD 7600
 - AMD 7700X
 - AMD 7900X
 - AMD Ryzen 7900
-- Ryzen 7 3700X
 - AMD EPYC 4344P
 - AMD EPYC 4464P
 - AMD EPYC 4545P
@@ -36,12 +37,7 @@ After upgrading to 128mb/6s, specific validator hardware specifications are requ
 - 13th Gen Intel Core i5-13500
 - Core i7-1270P
 - Intel Xeon-E 2386G
-</details>
 
-<details>
-  <summary>Preferable to switch to one of the supported CPUs:</summary>
-  - AMD Ryzen 7 3700X
-  - AMD Ryzen 3900X
 </details>
 
 <details>
