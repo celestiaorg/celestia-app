@@ -69,7 +69,8 @@ func (m msgServer) UpdateStateTranstionVerifier(ctx context.Context, msg *types.
 		return nil, err
 	}
 
-	vrf.TrustedState = publicValues.NewTrustedState[:]
+	// extract the new trusted state from trusted state
+	vrf.TrustedState = publicValues.TrustedState[publicValues.StateSize:]
 	if err := m.verifiers.Set(ctx, vrf.Id.GetInternalId(), vrf); err != nil {
 		return nil, err
 	}

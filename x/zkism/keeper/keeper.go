@@ -141,10 +141,8 @@ func (k *Keeper) validatePublicValues(ctx context.Context, ism types.ZKExecution
 }
 
 func (k *Keeper) validateGenericPublicValues(ctx context.Context, verifier types.StateTransitionVerifier, publicValues types.StateTransitionPublicValues) error {
-	if !bytes.Equal(publicValues.TrustedState[:], verifier.TrustedState) {
-		return errorsmod.Wrapf(types.ErrInvalidStateRoot, "expected %x, got %x", verifier.TrustedState, publicValues.TrustedState)
+	if !bytes.Equal(publicValues.TrustedState[:publicValues.StateSize], verifier.TrustedState) {
+		return errorsmod.Wrapf(types.ErrInvalidStateRoot, "expected %x, got %x", verifier.TrustedState, publicValues.TrustedState[:publicValues.StateSize])
 	}
-
-	// todo: implement public values and verify against trusted state
 	return nil
 }

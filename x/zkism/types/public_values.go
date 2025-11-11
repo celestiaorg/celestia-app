@@ -12,8 +12,8 @@ import (
 type StateTransitionPublicValues struct {
 	// TrustedState is the trusted state before the state transition.
 	TrustedState []byte
-	// NewTrustedState is the new trusted state after the state transition.
-	NewTrustedState []byte
+	// StateSize is the size of the trusted state.
+	StateSize uint64
 }
 
 // String implements the fmt.Stringer interface.
@@ -22,8 +22,8 @@ func (p *StateTransitionPublicValues) String() string {
 	TrustedState: %s,
 	NewTrustedState:     %d,
 }`,
-		hex.EncodeToString(p.TrustedState[:]),
-		hex.EncodeToString(p.NewTrustedState[:]),
+		hex.EncodeToString(p.TrustedState[:p.StateSize]),
+		hex.EncodeToString(p.TrustedState[p.StateSize:]),
 	)
 }
 
@@ -36,9 +36,6 @@ func (pi *StateTransitionPublicValues) Marshal() ([]byte, error) {
 		return nil, fmt.Errorf("write PrevCelestiaHeaderHash: %w", err)
 	}
 
-	if err := writeBytes(&buf, pi.NewTrustedState[:]); err != nil {
-		return nil, fmt.Errorf("write PrevCelestiaHeaderHash: %w", err)
-	}
 	return buf.Bytes(), nil
 }
 
@@ -50,10 +47,6 @@ func (pi *StateTransitionPublicValues) Unmarshal(data []byte) error {
 
 	if err := readBytes(buf, pi.TrustedState[:]); err != nil {
 		return fmt.Errorf("read PrevCelestiaHeaderHash: %w", err)
-	}
-
-	if err := readBytes(buf, pi.NewTrustedState[:]); err != nil {
-		return fmt.Errorf("read CelestiaHeaderHash: %w", err)
 	}
 
 	return nil
