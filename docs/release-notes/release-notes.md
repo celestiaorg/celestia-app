@@ -8,7 +8,7 @@ This section is specific to bumping from 32mb/6s in the v6 release to 128mb/6s. 
 
 ### Hardware requirements
 
-To participate in consensus and be able to propose blocks, specific validators hardware specs are required. As per our survey for validators, the following contains the details of CPUs that passed the benchmark, and others that didn't. If your CPU is not mentioned, please run the benchmark in [`tools/cpu_requirements`](../../tools/cpu_requirements/README.md).
+After upgrading to 128mb/6s block times, specific validator hardware specifications are required to participate in consensus and propose blocks. Based on our validator survey, the following lists the CPUs that passed the benchmark and those that did not. If your CPU is not listed, please run the benchmark available [`tools/cpu_requirements`](../../tools/cpu_requirements/README.md).
 
 <details>
   <summary>Supported CPUs:</summary>
