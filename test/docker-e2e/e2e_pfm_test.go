@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/docker/ibc"
 	"github.com/celestiaorg/tastora/framework/docker/ibc/relayer"
+	"github.com/celestiaorg/tastora/framework/testutil/query"
 	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
@@ -22,8 +23,8 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	ibcclienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
-	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/sync/errgroup"
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 )
@@ -65,6 +66,11 @@ type PFMTestSuite struct {
 	txClientA *user.TxClient
 }
 
+type hop struct {
+	port      string
+	channelID string
+}
+
 func TestPFMTestSuite(t *testing.T) {
 	suite.Run(t, new(PFMTestSuite))
 }
@@ -91,23 +97,17 @@ func (s *PFMTestSuite) TestPFMMultiHop() {
 	// Create PFM memo: chain-a sends to chain-b, which forwards to chain-c
 	memoJSON := makePFMMemo(addrC.String(), s.chBToC.PortID, s.chBToC.ChannelID, nil)
 
-	s.waitChannelOpen(ctx, s.chainA, s.chAToB.PortID, s.chAToB.ChannelID, s.chainB, s.chAToB.CounterpartyPort, s.chAToB.CounterpartyID)
-	s.waitChannelOpen(ctx, s.chainB, s.chBToC.PortID, s.chBToC.ChannelID, s.chainC, s.chBToC.CounterpartyPort, s.chBToC.CounterpartyID)
-
 	initialA := s.getBalance(ctx, s.chainA, walletA.GetFormattedAddress(), baseDenom)
 	denomOnB := calculateIBCDenomTrace(
-		[]struct{ port, channel string }{
-			{s.chAToB.CounterpartyPort, s.chAToB.CounterpartyID},
-		},
 		baseDenom,
+		hop{port: s.chAToB.CounterpartyPort, channelID: s.chAToB.CounterpartyID},
 	)
 	initialBonB := s.getBalance(ctx, s.chainB, walletB.GetFormattedAddress(), denomOnB)
 
 	denomOnC := calculateIBCDenomTrace(
-		[]struct{ port, channel string }{
-			{s.chAToB.CounterpartyPort, s.chAToB.CounterpartyID},
-			{s.chBToC.CounterpartyPort, s.chBToC.CounterpartyID},
-		}, baseDenom,
+		baseDenom,
+		hop{port: s.chAToB.CounterpartyPort, channelID: s.chAToB.CounterpartyID},
+		hop{port: s.chBToC.CounterpartyPort, channelID: s.chBToC.CounterpartyID},
 	)
 	initialConC := s.getBalance(ctx, s.chainC, walletC.GetFormattedAddress(), denomOnC)
 
@@ -132,49 +132,31 @@ func (s *PFMTestSuite) TestPFMMultiHop() {
 	expectedAAfter := initialA.Sub(amt).SubRaw(feePaid)
 	s.T().Logf("Waiting for PFM multi-hop transfer to complete...")
 
-	err = wait.ForCondition(ctx, 3*time.Minute, 5*time.Second, func() (bool, error) {
-		if err := wait.ForBlocks(ctx, 5, s.chainA, s.chainB, s.chainC); err != nil {
-			return false, err
-		}
-
+	err = wait.ForCondition(ctx, 3*time.Minute, 10*time.Second, func() (bool, error) {
 		finalConC := s.getBalance(ctx, s.chainC, walletC.GetFormattedAddress(), denomOnC)
-		finalBonB := s.getBalance(ctx, s.chainB, walletB.GetFormattedAddress(), denomOnB)
-		finalA := s.getBalance(ctx, s.chainA, walletA.GetFormattedAddress(), baseDenom)
-
-		conditionsMet := true
-		if !finalConC.Sub(initialConC).Equal(amt) {
-			s.T().Logf("Chain C has not received tokens yet (got %s, expected %s)", finalConC.Sub(initialConC).String(), amt.String())
-			conditionsMet = false
-		} else {
-			s.T().Logf("Chain C received correct amount")
+		delta := finalConC.Sub(initialConC)
+		if !delta.Equal(amt) {
+			s.T().Logf("Chain C has not received tokens yet (got %s, expected %s)", delta.String(), amt.String())
+			return false, nil
 		}
-
-		if !finalBonB.Equal(initialBonB) {
-			s.T().Logf("Chain B incorrectly retained funds (got %s, expected %s)", finalBonB.String(), initialBonB.String())
-			conditionsMet = false
-		} else {
-			s.T().Logf("Chain B correctly forwarded (balance unchanged)")
-		}
-
-		if !finalA.Equal(expectedAAfter) {
-			s.T().Logf("Chain A balance incorrect (got %s, expected %s)", finalA.String(), expectedAAfter.String())
-			conditionsMet = false
-		} else {
-			s.T().Logf("Chain A balance correct")
-		}
-
-		return conditionsMet, nil
+		s.T().Logf("Chain C received correct amount")
+		return true, nil
 	})
 
 	s.Require().NoError(err, "PFM multi-hop transfer failed")
 
+	finalBonB := s.getBalance(ctx, s.chainB, walletB.GetFormattedAddress(), denomOnB)
+	s.Require().True(finalBonB.Equal(initialBonB), "chain-b retained funds: before=%s after=%s", initialBonB.String(), finalBonB.String())
+
+	finalA := s.getBalance(ctx, s.chainA, walletA.GetFormattedAddress(), baseDenom)
+	s.Require().True(expectedAAfter.Equal(finalA), "chain-a balance mismatch: expected %s got %s", expectedAAfter.String(), finalA.String())
+
 	s.T().Logf("Verifying PFM used two-hop path (not direct A->C)")
 
 	twoHopDenom := calculateIBCDenomTrace(
-		[]struct{ port, channel string }{
-			{s.chAToB.CounterpartyPort, s.chAToB.CounterpartyID},
-			{s.chBToC.CounterpartyPort, s.chBToC.CounterpartyID},
-		}, baseDenom,
+		baseDenom,
+		hop{port: s.chAToB.CounterpartyPort, channelID: s.chAToB.CounterpartyID},
+		hop{port: s.chBToC.CounterpartyPort, channelID: s.chBToC.CounterpartyID},
 	)
 	twoHopBalance := s.getBalance(ctx, s.chainC, walletC.GetFormattedAddress(), twoHopDenom)
 	s.T().Logf("Two-hop path (A->B->C) balance: %s %s", twoHopBalance.String(), twoHopDenom)
@@ -186,13 +168,6 @@ func (s *PFMTestSuite) TestPFMMultiHop() {
 	} else {
 		s.T().Fatalf("expected %d via two-hop path, got %s", sendAmount, twoHopBalance.String())
 	}
-
-	// Final verification
-	finalBonB := s.getBalance(ctx, s.chainB, walletB.GetFormattedAddress(), denomOnB)
-	s.Require().True(finalBonB.Equal(initialBonB), "chain-b retained funds: before=%s after=%s", initialBonB.String(), finalBonB.String())
-
-	finalABalance := s.getBalance(ctx, s.chainA, walletA.GetFormattedAddress(), baseDenom)
-	s.Require().True(expectedAAfter.Equal(finalABalance), "chain-a balance mismatch: expected %s got %s", expectedAAfter.String(), finalABalance.String())
 }
 
 func (s *PFMTestSuite) TearDownTest() {
@@ -225,7 +200,17 @@ func (s *PFMTestSuite) getAllBalances(ctx context.Context, chain *cosmos.Chain, 
 	resp, err := banktypes.NewQueryClient(node.GrpcConn).AllBalances(ctx, &banktypes.QueryAllBalancesRequest{Address: address})
 	s.Require().NoError(err, "failed to query balances for %s on %s", address, chain.GetChainID())
 
-	return resp.Balances
+	balances := make(sdk.Coins, 0, len(resp.Balances))
+	for _, coin := range resp.Balances {
+		amount, err := query.Balance(ctx, node.GrpcConn, address, coin.Denom)
+		s.Require().NoError(err, "failed to query balance for %s denom %s", address, coin.Denom)
+		balances = append(balances, sdk.Coin{
+			Denom:  coin.Denom,
+			Amount: amount,
+		})
+	}
+
+	return balances
 }
 
 // assertOnlyTwoHopDenom ensures no unexpected IBC denom holds funds.
@@ -246,9 +231,32 @@ func (s *PFMTestSuite) setupPFMInfrastructure(ctx context.Context) {
 	tag, err := dockerchain.GetCelestiaTagStrict()
 	s.Require().NoError(err, "failed to get celestia tag")
 
-	s.chainA = s.buildChain(ctx, "chain-a", tag)
-	s.chainB = s.buildChain(ctx, "chain-b", tag)
-	s.chainC = s.buildChain(ctx, "chain-c", tag)
+	g, egCtx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		chain, err := s.buildChain(egCtx, "chain-a", tag)
+		if err != nil {
+			return fmt.Errorf("chain-a: %w", err)
+		}
+		s.chainA = chain
+		return nil
+	})
+	g.Go(func() error {
+		chain, err := s.buildChain(egCtx, "chain-b", tag)
+		if err != nil {
+			return fmt.Errorf("chain-b: %w", err)
+		}
+		s.chainB = chain
+		return nil
+	})
+	g.Go(func() error {
+		chain, err := s.buildChain(egCtx, "chain-c", tag)
+		if err != nil {
+			return fmt.Errorf("chain-c: %w", err)
+		}
+		s.chainC = chain
+		return nil
+	})
+	s.Require().NoError(g.Wait(), "failed to build celestia chains")
 
 	s.hermes, err = relayer.NewHermes(ctx, s.client, t.Name(), s.network, 0, s.logger)
 	s.Require().NoError(err, "failed to create hermes")
@@ -268,7 +276,7 @@ func (s *PFMTestSuite) setupPFMInfrastructure(ctx context.Context) {
 }
 
 // buildChain creates and starts a single celestia-app chain with one validator.
-func (s *PFMTestSuite) buildChain(ctx context.Context, chainID, tag string) *cosmos.Chain {
+func (s *PFMTestSuite) buildChain(ctx context.Context, chainID, tag string) (*cosmos.Chain, error) {
 	cfg := &dockerchain.Config{
 		Config: &testnode.Config{
 			Genesis: genesis.NewDefaultGenesis().
@@ -290,10 +298,14 @@ func (s *PFMTestSuite) buildChain(ctx context.Context, chainID, tag string) *cos
 	}
 
 	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
-	s.Require().NoError(err, "failed to build chain %s", chainID)
-	s.Require().NoError(chain.Start(ctx), "failed to start chain %s", chainID)
+	if err != nil {
+		return nil, fmt.Errorf("build chain %s: %w", chainID, err)
+	}
+	if err := chain.Start(ctx); err != nil {
+		return nil, fmt.Errorf("start chain %s: %w", chainID, err)
+	}
 
-	return chain
+	return chain, nil
 }
 
 // establishConnectionAndChannel creates a connection and ICS20 channel between two chains.
@@ -313,42 +325,6 @@ func (s *PFMTestSuite) establishConnectionAndChannel(ctx context.Context, a, b *
 	return connection, channel
 }
 
-// waitChannelOpen waits for a channel to be in OPEN state on both ends.
-func (s *PFMTestSuite) waitChannelOpen(ctx context.Context, src *cosmos.Chain, srcPort, srcChan string, dst *cosmos.Chain, dstPort, dstChan string) {
-	s.Require().NoError(
-		wait.ForCondition(ctx, 30*time.Second, time.Second, func() (bool, error) {
-			if err := s.checkChannelState(ctx, src, srcPort, srcChan); err != nil {
-				return false, nil
-			}
-			if err := s.checkChannelState(ctx, dst, dstPort, dstChan); err != nil {
-				return false, nil
-			}
-			return true, nil
-		}),
-		"channels failed to reach OPEN state",
-	)
-}
-
-// checkChannelState verifies a channel is in OPEN state.
-func (s *PFMTestSuite) checkChannelState(ctx context.Context, chain *cosmos.Chain, portID, channelID string) error {
-	node := chain.GetNode()
-	if node.GrpcConn == nil {
-		return fmt.Errorf("grpc connection not available for %s", chain.GetChainID())
-	}
-
-	qc := channeltypes.NewQueryClient(node.GrpcConn)
-	res, err := qc.Channel(ctx, &channeltypes.QueryChannelRequest{PortId: portID, ChannelId: channelID})
-	if err != nil {
-		return fmt.Errorf("query channel failed: %w", err)
-	}
-
-	if res.Channel == nil || res.Channel.State != channeltypes.OPEN {
-		return fmt.Errorf("channel %s/%s on %s not OPEN (state: %v)", portID, channelID, chain.GetChainID(), res.Channel.GetState())
-	}
-
-	return nil
-}
-
 // makePFMMemo creates a PFM forward memo JSON string.
 func makePFMMemo(receiver, port, channel string, next *string) string {
 	b, err := json.Marshal(&PacketMetadata{Forward: &ForwardMetadata{
@@ -365,10 +341,10 @@ func makePFMMemo(receiver, port, channel string, next *string) string {
 }
 
 // calculateIBCDenomTrace calculates the IBC denom for multi-hop transfers.
-func calculateIBCDenomTrace(hops []struct{ port, channel string }, baseDenom string) string {
+func calculateIBCDenomTrace(baseDenom string, hops ...hop) string {
 	denom := baseDenom
 	for _, hop := range hops {
-		denom = ibctransfertypes.GetPrefixedDenom(hop.port, hop.channel, denom)
+		denom = ibctransfertypes.GetPrefixedDenom(hop.port, hop.channelID, denom)
 	}
 	return ibctransfertypes.ParseDenomTrace(denom).IBCDenom()
 }
