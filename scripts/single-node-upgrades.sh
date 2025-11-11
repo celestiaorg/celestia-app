@@ -146,5 +146,5 @@ else
   createGenesis
 fi
 
-upgradeToV4 & # Start the upgrade process from v3 -> v4 in the background.
+# upgradeToV4 & # Start the upgrade process from v3 -> v4 in the background.
 startCelestiaApp # Start celestia-app in the foreground.
