@@ -48,7 +48,7 @@ func (m msgServer) CreateStateTransitionVerifier(ctx context.Context, msg *types
 }
 
 // UpdateStateTranstionVerifier implements types.MsgServer.
-func (m msgServer) UpdateStateTranstionVerifier(ctx context.Context, msg *types.MsgUpdateStateTranstionVerifier) (*types.MsgUpdateStateTranstionVerifierResponse, error) {
+func (m msgServer) UpdateStateTransitionVerifier(ctx context.Context, msg *types.MsgUpdateStateTransitionVerifier) (*types.MsgUpdateStateTransitionVerifierResponse, error) {
 	vrf, err := m.verifiers.Get(ctx, msg.Id.GetInternalId())
 
 	var publicValues types.StateTransitionPublicValues
@@ -79,7 +79,7 @@ func (m msgServer) UpdateStateTranstionVerifier(ctx context.Context, msg *types.
 		return nil, err
 	}
 
-	return &types.MsgUpdateStateTranstionVerifierResponse{
+	return &types.MsgUpdateStateTransitionVerifierResponse{
 		TrustedState: vrf.TrustedState,
 	}, nil
 }

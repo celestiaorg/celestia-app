@@ -17,7 +17,7 @@ service Msg {
   rpc CreateStateTransitionVerifier(MsgCreateStateTransitionVerifier) returns (MsgCreateStateTransitionVerifierResponse);
 
   // Update a generic State Transition Verifier
-  rpc UpdateStateTranstionVerifier(MsgUpdateStateTranstionVerifier) returns (MsgUpdateStateTranstionVerifierResponse);
+  rpc UpdateStateTransitionVerifier(MsgUpdateStateTransitionVerifier) returns (MsgUpdateStateTransitionVerifierResponse);
 
   // CreateZKExecutionISM defines the rpc method for creating a new ZK execution ISM.
   rpc CreateZKExecutionISM(MsgCreateZKExecutionISM) returns (MsgCreateZKExecutionISMResponse);
@@ -50,8 +50,8 @@ message MsgCreateStateTransitionVerifierResponse{
   bytes trusted_state = 1;
 }
 
-// MsgUpdateStateTranstionVerifier is the request type for UpdateZKExecutionISM.
-message MsgUpdateStateTranstionVerifier {
+// MsgUpdateStateTransitionVerifier is the request type for UpdateZKExecutionISM.
+message MsgUpdateStateTransitionVerifier {
   // ism identifier
   string id = 1 [
     (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
@@ -65,8 +65,8 @@ message MsgUpdateStateTranstionVerifier {
   string signer = 4;
 }
 
-// MsgUpdateStateTranstionVerifierResponse is the response type for State Transition Verifier.
-message MsgUpdateStateTranstionVerifierResponse {
+// MsgUpdateStateTransitionVerifierResponse is the response type for State Transition Verifier.
+message MsgUpdateStateTransitionVerifierResponse {
   bytes trusted_state = 1;
 }
 
