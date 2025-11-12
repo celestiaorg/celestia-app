@@ -19,7 +19,6 @@ import (
 	da "github.com/celestiaorg/tastora/framework/docker/dataavailability"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
-	dockerclient "github.com/moby/moby/client"
 )
 
 const (
@@ -92,7 +91,7 @@ func (s *CelestiaTestSuite) TestE2EFullStackPFB() {
 }
 
 // DeployDANetwork deploys a data availability network with bridge, full, and light nodes
-func (s *CelestiaTestSuite) DeployDANetwork(ctx context.Context, celestia *tastoradockertypes.Chain, dockerClient *dockerclient.Client, networkID string) *da.Network {
+func (s *CelestiaTestSuite) DeployDANetwork(ctx context.Context, celestia *tastoradockertypes.Chain, dockerClient tastoratypes.TastoraDockerClient, networkID string) *da.Network {
 	t := s.T()
 
 	// Create node configurations
