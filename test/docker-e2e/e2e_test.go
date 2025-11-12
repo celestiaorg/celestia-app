@@ -17,7 +17,6 @@ import (
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/docker/docker/api/types/network"
-	"github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
@@ -39,7 +38,7 @@ func TestCelestiaTestSuite(t *testing.T) {
 type CelestiaTestSuite struct {
 	suite.Suite
 	logger      *zap.Logger
-	client      *client.Client
+	client      tastoratypes.TastoraDockerClient
 	network     string
 	celestiaCfg *dockerchain.Config // Config used to build the celestia chain, needed for upgrades
 }
@@ -47,7 +46,7 @@ type CelestiaTestSuite struct {
 func (s *CelestiaTestSuite) SetupSuite() {
 	s.logger = zaptest.NewLogger(s.T())
 	s.logger.Info("Setting up Celestia test suite: " + s.T().Name())
-	s.client, s.network = tastoradockertypes.DockerSetup(s.T())
+	s.client, s.network = tastoradockertypes.Setup(s.T())
 }
 
 // CreateTxSim deploys and starts a txsim container to simulate transactions against the given celestia chain in the test environment.
@@ -98,7 +97,7 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain tastoratypes.
 }
 
 // getNetworkNameFromID resolves the network name given its ID.
-func getNetworkNameFromID(ctx context.Context, cli *client.Client, networkID string) (string, error) {
+func getNetworkNameFromID(ctx context.Context, cli tastoratypes.TastoraDockerClient, networkID string) (string, error) {
 	network, err := cli.NetworkInspect(ctx, networkID, network.InspectOptions{})
 	if err != nil {
 		return "", fmt.Errorf("failed to inspect network %s: %w", networkID, err)
