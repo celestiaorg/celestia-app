@@ -20,6 +20,8 @@ func GetQueryCmd() *cobra.Command {
 
 	cmd.AddCommand(NewQueryIsmCmd())
 	cmd.AddCommand(NewQueryIsmsCmd())
+	cmd.AddCommand(NewQueryVerifierCmd())
+	cmd.AddCommand(NewQueryVerifiersCmd())
 
 	return cmd
 }

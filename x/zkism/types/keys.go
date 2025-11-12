@@ -11,8 +11,9 @@ const (
 )
 
 var (
-	IsmsKeyPrefix    = collections.NewPrefix(0)
-	HeadersKeyPrefix = collections.NewPrefix(1)
-	MessageKeyPrefix = collections.NewPrefix(2)
-	ParamsKeyPrefix  = collections.NewPrefix(3)
+	IsmsKeyPrefix      = collections.NewPrefix(0)
+	HeadersKeyPrefix   = collections.NewPrefix(1)
+	MessageKeyPrefix   = collections.NewPrefix(2)
+	ParamsKeyPrefix    = collections.NewPrefix(3)
+	VerifiersKeyPrefix = collections.NewPrefix(4)
 )

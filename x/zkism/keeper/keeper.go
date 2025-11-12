@@ -35,6 +35,7 @@ func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlane
 
 	headers := collections.NewMap(sb, types.HeadersKeyPrefix, "headers", collections.Uint64Key, collections.BytesValue)
 	isms := collections.NewMap(sb, types.IsmsKeyPrefix, "isms", collections.Uint64Key, codec.CollValue[types.ZKExecutionISM](cdc))
+	verifiers := collections.NewMap(sb, types.VerifiersKeyPrefix, "verifiers", collections.Uint64Key, codec.CollValue[types.StateTransitionVerifier](cdc))
 	messages := collections.NewKeySet(sb, types.MessageKeyPrefix, "messages", collections.BytesKey)
 	params := collections.NewItem(sb, types.ParamsKeyPrefix, "params", codec.CollValue[types.Params](cdc))
 
@@ -47,6 +48,7 @@ func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlane
 		coreKeeper: hyperlaneKeeper,
 		headers:    headers,
 		isms:       isms,
+		verifiers:  verifiers,
 		messages:   messages,
 		params:     params,
 		schema:     schema,
