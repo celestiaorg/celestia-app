@@ -648,7 +648,7 @@ func (app *App) ModuleAccountAddrs() map[string]bool {
 func (app *App) BlockedAddresses() map[string]bool {
 	modAccAddrs := make(map[string]bool)
 	for acc := range app.ModuleAccountAddrs() {
-		modAccAddrs[authtypes.NewModuleAddress(acc).String()] = true
+		modAccAddrs[acc] = true
 	}
 
 	// allow the following addresses to receive funds
