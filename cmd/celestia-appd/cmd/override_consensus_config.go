@@ -1,13 +1,14 @@
 package cmd
 
 import (
+	"time"
+
 	"cosmossdk.io/log"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
-	"time"
 )
 
-// overrideP2PConfig overrides the values set for consensus timeouts.
+// overrideConsensusTimeouts overrides the values set for consensus timeouts.
 // temporary fix until https://github.com/celestiaorg/celestia-app/issues/6178 is fixed.
 func overrideConsensusTimeouts(cmd *cobra.Command, logger log.Logger) error {
 	// Check if overrides should be bypassed
