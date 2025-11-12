@@ -89,7 +89,7 @@ Efficient for verifying multiple rows with the same commitment. The context pre-
 
 ```go
 // Create verification context once
-context, rlcRoot, err := rsema1d.CreateVerificationContext(extended.rlcOrig, config)
+context, rlcOrigRoot, err := rsema1d.CreateVerificationContext(extended.rlcOrig, config)
 if err != nil {
     panic(err)
 }

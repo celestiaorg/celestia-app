@@ -241,7 +241,7 @@ func TestRLCCommutationProperty(t *testing.T) {
 
 			// Verify commutation for each extended row
 			for i := tc.k; i < tc.k+tc.n; i++ {
-				rowRLC := computeRLC(extData.rows[i], coeffs, config)
+				rowRLC := computeRLC(extData.rows[i], coeffs)
 				if !field.Equal128(rowRLC, extendedRLCs[i]) {
 					t.Errorf("RLC commutation failed for row %d", i)
 				}
@@ -512,7 +512,7 @@ func TestRowInclusionProof(t *testing.T) {
 				t.Fatalf("Encode() error: %v", err)
 			}
 
-			_, rlcRoot, err := CreateVerificationContext(rlcOrig, config)
+			_, rlcOrigRoot, err := CreateVerificationContext(rlcOrig, config)
 			if err != nil {
 				t.Fatalf("CreateVerificationContext() error: %v", err)
 			}
@@ -543,7 +543,7 @@ func TestRowInclusionProof(t *testing.T) {
 
 				ctxProof := &RowInclusionProof{
 					RowProof: *rowProof,
-					RLCRoot:  rlcRoot,
+					RLCRoot:  rlcOrigRoot,
 				}
 				if err := VerifyRowInclusionProof(ctxProof, commitment, config); err != nil {
 					t.Errorf("VerifyRowInclusionProof via context(%d) error: %v", index, err)

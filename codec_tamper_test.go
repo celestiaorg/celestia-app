@@ -45,32 +45,26 @@ func TestTamperedExtendedDataBeforeCommitment(t *testing.T) {
 			// Step 4: Compute RLC results for original rows
 			rlcOrig := computeRLCOrig(data, coeffs, config)
 
-			// Step 5: Extend RLC results
-			rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
-			if err != nil {
-				t.Fatalf("ExtendRLCResults failed: %v", err)
-			}
+			// Step 5: Build padded RLC Merkle tree
+			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
+			rlcOrigRoot := rlcOrigTree.Root()
 
-			// Step 6: Build padded RLC Merkle tree
-			rlcTree := buildPaddedRLCTree(rlcExtended, config)
-			rlcRoot := rlcTree.Root()
-
-			// Step 7: Create commitment
+			// Step 6: Create commitment
 			h := sha256.New()
 			h.Write(rowRoot[:])
-			h.Write(rlcRoot[:])
+			h.Write(rlcOrigRoot[:])
 			var commitment Commitment
 			h.Sum(commitment[:0])
 
 			// Create ExtendedData structure
 			extData := &ExtendedData{
-				config:  config,
-				rows:    extended,
-				rowRoot: rowRoot,
-				rlcRoot: rlcRoot,
-				rlcOrig: rlcOrig,
-				rowTree: rowTree,
-				rlcTree: rlcTree,
+				config:      config,
+				rows:        extended,
+				rowRoot:     rowRoot,
+				rlcOrig:     rlcOrig,
+				rowTree:     rowTree,
+				rlcOrigTree: rlcOrigTree,
+				rlcOrigRoot: rlcOrigRoot,
 			}
 
 			// Create verification context
@@ -139,36 +133,30 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 			// Step 4: Compute RLC results for original rows
 			rlcOrig := computeRLCOrig(data, coeffs, config)
 
-			// Step 5: Extend RLC results
-			rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
-			if err != nil {
-				t.Fatalf("ExtendRLCResults failed: %v", err)
-			}
-
 			// TAMPER: Modify one of the extended RLC values
-			tamperedRLCIndex := config.K + 2 // Third parity row's RLC
-			rlcExtended[tamperedRLCIndex][0] ^= 0xFFFF
+			tamperedRLCIndex := config.K - 1
+			rlcOrig[tamperedRLCIndex][0] ^= 0xFFFF
 
-			// Step 6: Build padded RLC Merkle tree with tampered data
-			rlcTree := buildPaddedRLCTree(rlcExtended, config)
-			rlcRoot := rlcTree.Root()
+			// Step 5: Build padded RLC Merkle tree
+			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
+			rlcOrigRoot := rlcOrigTree.Root()
 
-			// Step 7: Create commitment with tampered RLC root
+			// Step 6: Create commitment with tampered RLC root
 			h := sha256.New()
 			h.Write(rowRoot[:])
-			h.Write(rlcRoot[:])
+			h.Write(rlcOrigRoot[:])
 			var commitment Commitment
 			h.Sum(commitment[:0])
 
 			// Create ExtendedData structure
 			extData := &ExtendedData{
-				config:  config,
-				rows:    extended,
-				rowRoot: rowRoot,
-				rlcRoot: rlcRoot,
-				rlcOrig: rlcOrig,
-				rowTree: rowTree,
-				rlcTree: rlcTree,
+				config:      config,
+				rows:        extended,
+				rowRoot:     rowRoot,
+				rlcOrig:     rlcOrig,
+				rowTree:     rowTree,
+				rlcOrigTree: rlcOrigTree,
+				rlcOrigRoot: rlcOrigRoot,
 			}
 
 			// Create verification context
@@ -232,32 +220,26 @@ func TestTamperedOriginalRLCBeforeCommitment(t *testing.T) {
 			tamperedOrigIndex := min(2, config.K-1)
 			rlcOrig[tamperedOrigIndex][0] ^= 0xFFFF
 
-			// Step 5: Extend RLC results (will now produce wrong extended values)
-			rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
-			if err != nil {
-				t.Fatalf("ExtendRLCResults failed: %v", err)
-			}
+			// Step 5: Build padded RLC Merkle tree
+			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
+			rlcOrigRoot := rlcOrigTree.Root()
 
-			// Step 6: Build padded RLC Merkle tree
-			rlcTree := buildPaddedRLCTree(rlcExtended, config)
-			rlcRoot := rlcTree.Root()
-
-			// Step 7: Create commitment
+			// Step 6: Create commitment
 			h := sha256.New()
 			h.Write(rowRoot[:])
-			h.Write(rlcRoot[:])
+			h.Write(rlcOrigRoot[:])
 			var commitment Commitment
 			h.Sum(commitment[:0])
 
 			// Create ExtendedData structure with tampered rlcOrig
 			extData := &ExtendedData{
-				config:  config,
-				rows:    extended,
-				rowRoot: rowRoot,
-				rlcRoot: rlcRoot,
-				rlcOrig: rlcOrig, // This contains the tampered value
-				rowTree: rowTree,
-				rlcTree: rlcTree,
+				config:      config,
+				rows:        extended,
+				rowRoot:     rowRoot,
+				rlcOrig:     rlcOrig, // This contains the tampered value
+				rowTree:     rowTree,
+				rlcOrigTree: rlcOrigTree,
+				rlcOrigRoot: rlcOrigRoot,
 			}
 
 			// Create verification context with tampered RLC values
@@ -336,28 +318,26 @@ func TestMultipleTamperedRows(t *testing.T) {
 
 			coeffs := deriveCoefficients(rowRoot, config)
 			rlcOrig := computeRLCOrig(data, coeffs, config)
-			rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
-			if err != nil {
-				t.Fatalf("ExtendRLCResults failed: %v", err)
-			}
 
-			rlcTree := buildPaddedRLCTree(rlcExtended, config)
-			rlcRoot := rlcTree.Root()
+			// Build padded RLC Merkle tree
+			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
+			rlcOrigRoot := rlcOrigTree.Root()
 
+			// Create commitment
 			h := sha256.New()
 			h.Write(rowRoot[:])
-			h.Write(rlcRoot[:])
+			h.Write(rlcOrigRoot[:])
 			var commitment Commitment
 			h.Sum(commitment[:0])
 
 			extData := &ExtendedData{
-				config:  config,
-				rows:    extended,
-				rowRoot: rowRoot,
-				rlcRoot: rlcRoot,
-				rlcOrig: rlcOrig,
-				rowTree: rowTree,
-				rlcTree: rlcTree,
+				config:      config,
+				rows:        extended,
+				rowRoot:     rowRoot,
+				rlcOrig:     rlcOrig,
+				rowTree:     rowTree,
+				rlcOrigTree: rlcOrigTree,
+				rlcOrigRoot: rlcOrigRoot,
 			}
 
 			// Create verification context
@@ -430,26 +410,25 @@ func TestInvalidRowProofDepth(t *testing.T) {
 
 			coeffs := deriveCoefficients(rowRoot, config)
 			rlcOrig := computeRLCOrig(data, coeffs, config)
-			rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
 			if err != nil {
 				t.Fatalf("ExtendRLCResults failed: %v", err)
 			}
 
-			rlcTree := buildPaddedRLCTree(rlcExtended, config)
-			rlcRoot := rlcTree.Root()
+			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
+			rlcOrigRoot := rlcOrigTree.Root()
 
 			extData := &ExtendedData{
-				config:  config,
-				rows:    extended,
-				rowRoot: rowRoot,
-				rlcRoot: rlcRoot,
-				rlcOrig: rlcOrig,
-				rowTree: rowTree,
-				rlcTree: rlcTree,
+				config:      config,
+				rows:        extended,
+				rowRoot:     rowRoot,
+				rlcOrigRoot: rlcOrigRoot,
+				rlcOrig:     rlcOrig,
+				rowTree:     rowTree,
+				rlcOrigTree: rlcOrigTree,
 			}
 
 			// Create verification context
-			ctx, rlcRoot, err := CreateVerificationContext(rlcOrig, config)
+			ctx, rlcOrigRoot, err := CreateVerificationContext(rlcOrig, config)
 			if err != nil {
 				t.Fatalf("CreateVerificationContext failed: %v", err)
 			}
@@ -476,14 +455,14 @@ func TestInvalidRowProofDepth(t *testing.T) {
 				t.Errorf("Failed to compute fake row root: %v", err)
 			}
 			fakeCoeffs := deriveCoefficients(fakeRowRoot, config)
-			fakeRlcCommitment := computeRLC(maliciousProof.Row, fakeCoeffs, config)
-			ctx.rlcRoot = rlcRoot
+			fakeRlcCommitment := computeRLC(maliciousProof.Row, fakeCoeffs)
+			ctx.rlcOrigRoot = rlcOrigRoot
 
 			ctx.rlcExtended[leafIndex] = fakeRlcCommitment
 
 			h := sha256.New()
 			h.Write(fakeRowRoot[:])
-			h.Write(ctx.rlcRoot[:])
+			h.Write(ctx.rlcOrigRoot[:])
 			fakeCommitment := h.Sum(nil)
 			err = VerifyRowWithContext(maliciousProof, Commitment(fakeCommitment), ctx)
 			assert.Error(t, err, "Expected verification to fail with row size mismatch")
@@ -522,18 +501,16 @@ func TestVerifyRowWithContextWithMultipleOpenings(t *testing.T) {
 	rowRoot := nodes[0]
 	coeffs := deriveCoefficients([32]byte(rowRoot), config)
 	rlcOrig := computeRLCOrig(data, coeffs, config)
-	rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
-	assert.NoError(t, err)
-	rlcTree := buildPaddedRLCTree(rlcExtended, config)
-	rlcRoot := rlcTree.Root()
+	rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
+	rlcOrigRoot := rlcOrigTree.Root()
 	h := sha256.New()
 	h.Write(rowRoot)
-	h.Write(rlcRoot[:])
+	h.Write(rlcOrigRoot[:])
 	var commitment Commitment
 	h.Sum(commitment[:0])
 	// === VERIFIER ===
 	// assuming that the verifier wants to open at index 3
-	ctx, rlcRoot, err := CreateVerificationContext(rlcOrig, config)
+	ctx, rlcOrigRoot, err := CreateVerificationContext(rlcOrig, config)
 	assert.NoError(t, err)
 	// ...it is possible to open as some data (doing nicely)
 	proof1 := &RowProof{

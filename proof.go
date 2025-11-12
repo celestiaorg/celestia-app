@@ -23,23 +23,22 @@ func CreateVerificationContext(rlcOrig []field.GF128, config *Config) (*Verifica
 		return nil, [32]byte{}, fmt.Errorf("expected %d RLC values, got %d", config.K, len(rlcOrig))
 	}
 
+	// Build padded RLC Merkle tree
+	rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
+	rlcOrigRoot := rlcOrigTree.Root()
+
 	// Extend RLC results to get all K+N values
 	rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
 	if err != nil {
 		return nil, [32]byte{}, fmt.Errorf("failed to extend RLC results: %w", err)
 	}
 
-	// Build padded RLC Merkle tree
-	rlcTree := buildPaddedRLCTree(rlcExtended, config)
-
-	rlcRoot := rlcTree.Root()
 	return &VerificationContext{
 		config:      config,
 		rlcOrig:     rlcOrig,
 		rlcExtended: rlcExtended,
-		rlcTree:     rlcTree,
-		rlcRoot:     rlcRoot,
-	}, rlcRoot, nil
+		rlcOrigRoot: rlcOrigRoot,
+	}, rlcOrigRoot, nil
 }
 
 // VerifyRowWithContext verifies a row proof using pre-initialized context
@@ -61,9 +60,9 @@ func VerifyRowWithContext(proof *RowProof, commitment Commitment, context *Verif
 	// The row proof depth must match the tree depth
 	kPadded := nextPowerOfTwo(context.config.K)
 	totalPadded := nextPowerOfTwo(kPadded + context.config.N)
-	treeDepth := bits.Len(uint(totalPadded)) - 1
-	if len(proof.RowProof) != treeDepth {
-		return fmt.Errorf("row proof depth mismatch: expected %d, got %d", treeDepth, len(proof.RowProof))
+	rowTreeDepth := bits.Len(uint(totalPadded)) - 1
+	if len(proof.RowProof) != rowTreeDepth {
+		return fmt.Errorf("row proof depth mismatch: expected %d, got %d", rowTreeDepth, len(proof.RowProof))
 	}
 
 	// 1. Compute row root from proof (using mapped tree position)
@@ -75,7 +74,7 @@ func VerifyRowWithContext(proof *RowProof, commitment Commitment, context *Verif
 
 	// 2. Derive coefficients and compute RLC for the row
 	coeffs := deriveCoefficients(rowRoot, context.config)
-	computedRLC := computeRLC(proof.Row, coeffs, context.config)
+	computedRLC := computeRLC(proof.Row, coeffs)
 
 	// 3. Verify RLC matches the extended value at this index
 	if proof.Index >= len(context.rlcExtended) {
@@ -90,7 +89,7 @@ func VerifyRowWithContext(proof *RowProof, commitment Commitment, context *Verif
 	// 4. Verify commitment
 	h := sha256.New()
 	h.Write(rowRoot[:])
-	h.Write(context.rlcRoot[:])
+	h.Write(context.rlcOrigRoot[:])
 	computedCommitment := h.Sum(nil)
 
 	if commitment != [32]byte(computedCommitment) {
@@ -125,9 +124,15 @@ func VerifyStandaloneProof(proof *StandaloneProof, commitment Commitment, config
 	// The row proof depth must match the tree depth
 	kPadded := nextPowerOfTwo(config.K)
 	totalPadded := nextPowerOfTwo(kPadded + config.N)
-	treeDepth := bits.Len(uint(totalPadded)) - 1
-	if len(proof.RLCProof) != treeDepth {
-		return fmt.Errorf("row proof depth mismatch: expected %d, got %d", treeDepth, len(proof.RLCProof))
+	rowTreeDepth := bits.Len(uint(totalPadded)) - 1
+	if len(proof.RowProof.RowProof) != rowTreeDepth {
+		return fmt.Errorf("row proof depth mismatch: expected %d, got %d", rowTreeDepth, len(proof.RowProof.RowProof))
+	}
+
+	// The RLC proof depth must match the rlcOrig tree depth (K leaves, not K+N)
+	rlcTreeDepth := bits.Len(uint(kPadded)) - 1
+	if len(proof.RLCProof) != rlcTreeDepth {
+		return fmt.Errorf("rlc proof depth mismatch: expected %d, got %d", rlcTreeDepth, len(proof.RLCProof))
 	}
 
 	// 1. Compute row root (index < K so no shift needed for tree position)
@@ -138,11 +143,11 @@ func VerifyStandaloneProof(proof *StandaloneProof, commitment Commitment, config
 
 	// 2. Compute RLC for the row
 	coeffs := deriveCoefficients(rowRoot, config)
-	computedRLC := computeRLC(proof.Row, coeffs, config)
+	computedRLC := computeRLC(proof.Row, coeffs)
 
 	// 3. Compute RLC root from proof
 	rlcBytes := field.ToBytes128(computedRLC)
-	rlcRoot, err := merkle.ComputeRootFromProof(rlcBytes[:], proof.Index, proof.RLCProof)
+	rlcOrigRoot, err := merkle.ComputeRootFromProof(rlcBytes[:], proof.Index, proof.RLCProof)
 	if err != nil {
 		return fmt.Errorf("failed to compute RLC root: %w", err)
 	}
@@ -150,7 +155,7 @@ func VerifyStandaloneProof(proof *StandaloneProof, commitment Commitment, config
 	// 4. Verify commitment
 	h := sha256.New()
 	h.Write(rowRoot[:])
-	h.Write(rlcRoot[:])
+	h.Write(rlcOrigRoot[:])
 	computedCommitment := h.Sum(nil)
 
 	if commitment != [32]byte(computedCommitment) {
@@ -179,7 +184,7 @@ func VerifyRowInclusionProof(proof *RowInclusionProof, commitment Commitment, co
 		return fmt.Errorf("failed to compute row root: %w", err)
 	}
 
-	// 2. Verify commitment: SHA256(rowRoot || rlcRoot)
+	// 2. Verify commitment: SHA256(rowRoot || rlcOrigRoot)
 	h := sha256.New()
 	h.Write(rowRoot[:])
 	h.Write(proof.RLCRoot[:])

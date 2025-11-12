@@ -44,32 +44,27 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, []field.G
 	// 5. Compute RLC results for original rows
 	rlcOrig := computeRLCOrig(data, coeffs, config)
 
-	// 6. Extend RLC results
-	rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
-	if err != nil {
-		return nil, Commitment{}, nil, fmt.Errorf("failed to extend RLC results: %w", err)
-	}
+	// Step 6: Build padded RLC Merkle tree
 
-	// 7. Build padded RLC Merkle tree matching row tree structure
-	rlcTree := buildPaddedRLCTree(rlcExtended, config)
-	rlcRoot := rlcTree.Root()
+	rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
+	rlcOrigRoot := rlcOrigTree.Root()
 
-	// 8. Create commitment: SHA256(rowRoot || rlcRoot)
+	// 7. Create commitment: SHA256(rowRoot || rlcOrigRoot)
 	h := sha256.New()
 	h.Write(rowRoot[:])
-	h.Write(rlcRoot[:])
+	h.Write(rlcOrigRoot[:])
 	var commitment Commitment
 	h.Sum(commitment[:0])
 
 	// Create ExtendedData
 	extData := &ExtendedData{
-		config:  config,
-		rows:    extended,
-		rowRoot: rowRoot,
-		rlcRoot: rlcRoot,
-		rlcOrig: rlcOrig,
-		rowTree: rowTree,
-		rlcTree: rlcTree,
+		config:      config,
+		rows:        extended,
+		rowRoot:     rowRoot,
+		rlcOrig:     rlcOrig,
+		rowTree:     rowTree,
+		rlcOrigTree: rlcOrigTree,
+		rlcOrigRoot: rlcOrigRoot,
 	}
 
 	return extData, commitment, rlcOrig, nil
@@ -108,32 +103,26 @@ func EncodeParity(extended [][]byte, config *Config) (*ExtendedData, Commitment,
 	originalRows := extended[:config.K]
 	rlcOrig := computeRLCOrig(originalRows, coeffs, config)
 
-	// 5. Extend RLC results
-	rlcExtended, err := encoding.ExtendRLCResults(rlcOrig, config.N)
-	if err != nil {
-		return nil, Commitment{}, nil, fmt.Errorf("failed to extend RLC results: %w", err)
-	}
+	// 5. Build padded RLC Merkle tree matching row tree structure
+	rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
+	rlcOrigRoot := rlcOrigTree.Root()
 
-	// 6. Build padded RLC Merkle tree matching row tree structure
-	rlcTree := buildPaddedRLCTree(rlcExtended, config)
-	rlcRoot := rlcTree.Root()
-
-	// 7. Create commitment: SHA256(rowRoot || rlcRoot)
+	// 6. Create commitment: SHA256(rowRoot || rlcOrigRoot)
 	h := sha256.New()
 	h.Write(rowRoot[:])
-	h.Write(rlcRoot[:])
+	h.Write(rlcOrigRoot[:])
 	var commitment Commitment
 	h.Sum(commitment[:0])
 
 	// Create ExtendedData
 	extData := &ExtendedData{
-		config:  config,
-		rows:    extended,
-		rowRoot: rowRoot,
-		rlcRoot: rlcRoot,
-		rlcOrig: rlcOrig,
-		rowTree: rowTree,
-		rlcTree: rlcTree,
+		config:      config,
+		rows:        extended,
+		rowRoot:     rowRoot,
+		rlcOrig:     rlcOrig,
+		rowTree:     rowTree,
+		rlcOrigTree: rlcOrigTree,
+		rlcOrigRoot: rlcOrigRoot,
 	}
 
 	return extData, commitment, rlcOrig, nil
@@ -152,7 +141,7 @@ func computeRLCOrig(rows [][]byte, coeffs []field.GF128, config *Config) []field
 		go func(idx int, r []byte) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			results[idx] = computeRLC(r, coeffs, config)
+			results[idx] = computeRLC(r, coeffs)
 		}(i, row)
 	}
 	wg.Wait()
@@ -193,7 +182,7 @@ func (ed *ExtendedData) GenerateStandaloneProof(index int) (*StandaloneProof, er
 		return nil, err
 	}
 
-	rlcProof, err := ed.rlcTree.GenerateProof(index)
+	rlcProof, err := ed.rlcOrigTree.GenerateProof(index)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate RLC proof: %w", err)
 	}
@@ -219,7 +208,7 @@ func (ed *ExtendedData) GenerateRowInclusionProof(index int) (*RowInclusionProof
 
 	return &RowInclusionProof{
 		RowProof: *rowProof,
-		RLCRoot:  ed.rlcRoot,
+		RLCRoot:  ed.rlcOrigRoot,
 	}, nil
 }
 

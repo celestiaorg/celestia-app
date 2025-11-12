@@ -24,7 +24,7 @@ func deriveCoefficients(rowRoot [32]byte, config *Config) []field.GF128 {
 }
 
 // computeRLC computes random linear combination for a row (internal)
-func computeRLC(row []byte, coeffs []field.GF128, config *Config) field.GF128 {
+func computeRLC(row []byte, coeffs []field.GF128) field.GF128 {
 	result := field.Zero()
 	numChunks := len(row) / chunkSize
 

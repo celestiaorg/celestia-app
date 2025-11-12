@@ -101,8 +101,8 @@ func TestComputeRLC(t *testing.T) {
 			coeffs := deriveCoefficients(rowRoot, config)
 
 			// Compute RLC
-			rlc1 := computeRLC(row, coeffs, config)
-			rlc2 := computeRLC(row, coeffs, config)
+			rlc1 := computeRLC(row, coeffs)
+			rlc2 := computeRLC(row, coeffs)
 
 			// Test determinism
 			if !field.Equal128(rlc1, rlc2) {
@@ -111,7 +111,7 @@ func TestComputeRLC(t *testing.T) {
 
 			// Test that zero row produces zero RLC
 			zeroRow := make([]byte, tt.rowSize)
-			zeroRLC := computeRLC(zeroRow, coeffs, config)
+			zeroRLC := computeRLC(zeroRow, coeffs)
 			if !field.Equal128(zeroRLC, field.Zero()) {
 				t.Error("Zero row should produce zero RLC")
 			}
@@ -120,7 +120,7 @@ func TestComputeRLC(t *testing.T) {
 			row2 := make([]byte, tt.rowSize)
 			copy(row2, row)
 			row2[0] ^= 1
-			rlc3 := computeRLC(row2, coeffs, config)
+			rlc3 := computeRLC(row2, coeffs)
 			if field.Equal128(rlc1, rlc3) {
 				t.Error("Different rows produced same RLC")
 			}
@@ -193,9 +193,9 @@ func TestRLCLinearity(t *testing.T) {
 	coeffs := deriveCoefficients(rowRoot, config)
 
 	// Compute RLCs
-	rlcA := computeRLC(rowA, coeffs, config)
-	rlcB := computeRLC(rowB, coeffs, config)
-	rlcSum := computeRLC(rowSum, coeffs, config)
+	rlcA := computeRLC(rowA, coeffs)
+	rlcB := computeRLC(rowB, coeffs)
+	rlcSum := computeRLC(rowSum, coeffs)
 
 	// Check linearity: RLC(A + B) = RLC(A) + RLC(B)
 	expectedSum := field.Add128(rlcA, rlcB)
