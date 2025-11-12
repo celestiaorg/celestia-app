@@ -20,7 +20,7 @@ ARG CELESTIA_APP_REPOSITORY=ghcr.io/celestiaorg/celestia-app-standalone
 # Makefile.
 ARG CELESTIA_VERSION_V3="v3.10.6"
 ARG CELESTIA_VERSION_V4="v4.1.0"
-ARG CELESTIA_VERSION_V5="v5.0.11"
+ARG CELESTIA_VERSION_V5="v5.0.12"
 
 # Stage 1: this base image contains already released v3 binaries which can be embedded in the multiplexer.
 FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V3} AS base-v3
