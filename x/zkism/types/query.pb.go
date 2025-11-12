@@ -75,6 +75,51 @@ func (m *QueryIsmRequest) GetId() string {
 	return ""
 }
 
+// QueryVerifierRequest is the request type for the Verifier rpc method.
+type QueryVerifierRequest struct {
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+}
+
+func (m *QueryVerifierRequest) Reset()         { *m = QueryVerifierRequest{} }
+func (m *QueryVerifierRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryVerifierRequest) ProtoMessage()    {}
+func (*QueryVerifierRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f8d70e04d17b4c4f, []int{1}
+}
+func (m *QueryVerifierRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryVerifierRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryVerifierRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryVerifierRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryVerifierRequest.Merge(m, src)
+}
+func (m *QueryVerifierRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryVerifierRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryVerifierRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryVerifierRequest proto.InternalMessageInfo
+
+func (m *QueryVerifierRequest) GetId() string {
+	if m != nil {
+		return m.Id
+	}
+	return ""
+}
+
 // QueryIsmResponse is the response type for the Ism rpc method.
 type QueryIsmResponse struct {
 	Ism ZKExecutionISM `protobuf:"bytes,1,opt,name=ism,proto3" json:"ism"`
@@ -84,7 +129,7 @@ func (m *QueryIsmResponse) Reset()         { *m = QueryIsmResponse{} }
 func (m *QueryIsmResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryIsmResponse) ProtoMessage()    {}
 func (*QueryIsmResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f8d70e04d17b4c4f, []int{1}
+	return fileDescriptor_f8d70e04d17b4c4f, []int{2}
 }
 func (m *QueryIsmResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -120,6 +165,51 @@ func (m *QueryIsmResponse) GetIsm() ZKExecutionISM {
 	return ZKExecutionISM{}
 }
 
+// QueryVerifierResponse is the response type for the Verifier rpc method.
+type QueryVerifierResponse struct {
+	Verifier StateTransitionVerifier `protobuf:"bytes,1,opt,name=verifier,proto3" json:"verifier"`
+}
+
+func (m *QueryVerifierResponse) Reset()         { *m = QueryVerifierResponse{} }
+func (m *QueryVerifierResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryVerifierResponse) ProtoMessage()    {}
+func (*QueryVerifierResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f8d70e04d17b4c4f, []int{3}
+}
+func (m *QueryVerifierResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryVerifierResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryVerifierResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryVerifierResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryVerifierResponse.Merge(m, src)
+}
+func (m *QueryVerifierResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryVerifierResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryVerifierResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryVerifierResponse proto.InternalMessageInfo
+
+func (m *QueryVerifierResponse) GetVerifier() StateTransitionVerifier {
+	if m != nil {
+		return m.Verifier
+	}
+	return StateTransitionVerifier{}
+}
+
 // QueryIsmsRequest is the request type for the Isms rpc method.
 type QueryIsmsRequest struct {
 	// pagination defines an optional pagination for the request.
@@ -130,7 +220,7 @@ func (m *QueryIsmsRequest) Reset()         { *m = QueryIsmsRequest{} }
 func (m *QueryIsmsRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryIsmsRequest) ProtoMessage()    {}
 func (*QueryIsmsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f8d70e04d17b4c4f, []int{2}
+	return fileDescriptor_f8d70e04d17b4c4f, []int{4}
 }
 func (m *QueryIsmsRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -166,6 +256,52 @@ func (m *QueryIsmsRequest) GetPagination() *query.PageRequest {
 	return nil
 }
 
+// QueryIsmsRequest is the request type for the Isms rpc method.
+type QueryVerifiersRequest struct {
+	// pagination defines an optional pagination for the request.
+	Pagination *query.PageRequest `protobuf:"bytes,1,opt,name=pagination,proto3" json:"pagination,omitempty"`
+}
+
+func (m *QueryVerifiersRequest) Reset()         { *m = QueryVerifiersRequest{} }
+func (m *QueryVerifiersRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryVerifiersRequest) ProtoMessage()    {}
+func (*QueryVerifiersRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f8d70e04d17b4c4f, []int{5}
+}
+func (m *QueryVerifiersRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryVerifiersRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryVerifiersRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryVerifiersRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryVerifiersRequest.Merge(m, src)
+}
+func (m *QueryVerifiersRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryVerifiersRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryVerifiersRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryVerifiersRequest proto.InternalMessageInfo
+
+func (m *QueryVerifiersRequest) GetPagination() *query.PageRequest {
+	if m != nil {
+		return m.Pagination
+	}
+	return nil
+}
+
 // QueryIsmsResponse is the response type for the Isms rpc method.
 type QueryIsmsResponse struct {
 	// isms is a list of zk execution isms.
@@ -178,7 +314,7 @@ func (m *QueryIsmsResponse) Reset()         { *m = QueryIsmsResponse{} }
 func (m *QueryIsmsResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryIsmsResponse) ProtoMessage()    {}
 func (*QueryIsmsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f8d70e04d17b4c4f, []int{3}
+	return fileDescriptor_f8d70e04d17b4c4f, []int{6}
 }
 func (m *QueryIsmsResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -221,6 +357,60 @@ func (m *QueryIsmsResponse) GetPagination() *query.PageResponse {
 	return nil
 }
 
+// QueryVerifiersResponse is the response type for the Verifiers rpc method.
+type QueryVerifiersResponse struct {
+	Verifiers []StateTransitionVerifier `protobuf:"bytes,1,rep,name=verifiers,proto3" json:"verifiers"`
+	// pagination defines the pagination in the response.
+	Pagination *query.PageResponse `protobuf:"bytes,2,opt,name=pagination,proto3" json:"pagination,omitempty"`
+}
+
+func (m *QueryVerifiersResponse) Reset()         { *m = QueryVerifiersResponse{} }
+func (m *QueryVerifiersResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryVerifiersResponse) ProtoMessage()    {}
+func (*QueryVerifiersResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f8d70e04d17b4c4f, []int{7}
+}
+func (m *QueryVerifiersResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryVerifiersResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryVerifiersResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryVerifiersResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryVerifiersResponse.Merge(m, src)
+}
+func (m *QueryVerifiersResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryVerifiersResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryVerifiersResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryVerifiersResponse proto.InternalMessageInfo
+
+func (m *QueryVerifiersResponse) GetVerifiers() []StateTransitionVerifier {
+	if m != nil {
+		return m.Verifiers
+	}
+	return nil
+}
+
+func (m *QueryVerifiersResponse) GetPagination() *query.PageResponse {
+	if m != nil {
+		return m.Pagination
+	}
+	return nil
+}
+
 // QueryParamsRequest is the request type for the Params rpc method.
 type QueryParamsRequest struct {
 }
@@ -229,7 +419,7 @@ func (m *QueryParamsRequest) Reset()         { *m = QueryParamsRequest{} }
 func (m *QueryParamsRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryParamsRequest) ProtoMessage()    {}
 func (*QueryParamsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f8d70e04d17b4c4f, []int{4}
+	return fileDescriptor_f8d70e04d17b4c4f, []int{8}
 }
 func (m *QueryParamsRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -268,7 +458,7 @@ func (m *QueryParamsResponse) Reset()         { *m = QueryParamsResponse{} }
 func (m *QueryParamsResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryParamsResponse) ProtoMessage()    {}
 func (*QueryParamsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f8d70e04d17b4c4f, []int{5}
+	return fileDescriptor_f8d70e04d17b4c4f, []int{9}
 }
 func (m *QueryParamsResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -306,9 +496,13 @@ func (m *QueryParamsResponse) GetParams() Params {
 
 func init() {
 	proto.RegisterType((*QueryIsmRequest)(nil), "celestia.zkism.v1.QueryIsmRequest")
+	proto.RegisterType((*QueryVerifierRequest)(nil), "celestia.zkism.v1.QueryVerifierRequest")
 	proto.RegisterType((*QueryIsmResponse)(nil), "celestia.zkism.v1.QueryIsmResponse")
+	proto.RegisterType((*QueryVerifierResponse)(nil), "celestia.zkism.v1.QueryVerifierResponse")
 	proto.RegisterType((*QueryIsmsRequest)(nil), "celestia.zkism.v1.QueryIsmsRequest")
+	proto.RegisterType((*QueryVerifiersRequest)(nil), "celestia.zkism.v1.QueryVerifiersRequest")
 	proto.RegisterType((*QueryIsmsResponse)(nil), "celestia.zkism.v1.QueryIsmsResponse")
+	proto.RegisterType((*QueryVerifiersResponse)(nil), "celestia.zkism.v1.QueryVerifiersResponse")
 	proto.RegisterType((*QueryParamsRequest)(nil), "celestia.zkism.v1.QueryParamsRequest")
 	proto.RegisterType((*QueryParamsResponse)(nil), "celestia.zkism.v1.QueryParamsResponse")
 }
@@ -316,38 +510,47 @@ func init() {
 func init() { proto.RegisterFile("celestia/zkism/v1/query.proto", fileDescriptor_f8d70e04d17b4c4f) }
 
 var fileDescriptor_f8d70e04d17b4c4f = []byte{
-	// 493 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x53, 0xcd, 0x6a, 0x13, 0x41,
-	0x1c, 0xcf, 0x6e, 0x62, 0xc0, 0xbf, 0xa0, 0x76, 0x2c, 0xd8, 0xac, 0x75, 0xdb, 0xac, 0xb5, 0x8a,
-	0xe0, 0x0c, 0x5b, 0x0f, 0x22, 0xde, 0x0a, 0x2a, 0xa1, 0x54, 0x6a, 0xbc, 0xe5, 0x36, 0x49, 0x86,
-	0x75, 0xb0, 0xbb, 0x33, 0xdd, 0x99, 0x84, 0xb6, 0xe2, 0xc5, 0x27, 0x10, 0x3c, 0xf9, 0x46, 0x3d,
-	0x16, 0xbc, 0x78, 0x12, 0x49, 0xbc, 0xfa, 0x0e, 0xb2, 0x33, 0x93, 0xa4, 0xb1, 0xdb, 0x94, 0xde,
-	0x86, 0x99, 0xdf, 0x77, 0xb2, 0x70, 0xbf, 0xc7, 0xf6, 0x99, 0xd2, 0x9c, 0x92, 0xe3, 0x8f, 0x5c,
-	0xa5, 0x64, 0x18, 0x93, 0x83, 0x01, 0xcb, 0x8f, 0xb0, 0xcc, 0x85, 0x16, 0x68, 0x69, 0xf2, 0x8c,
-	0xcd, 0x33, 0x1e, 0xc6, 0x41, 0x09, 0x43, 0x1f, 0x49, 0xa6, 0x2c, 0x23, 0x78, 0xd2, 0x13, 0x2a,
-	0x15, 0x8a, 0x74, 0xa9, 0x62, 0x56, 0x8a, 0x0c, 0xe3, 0x2e, 0xd3, 0x34, 0x26, 0x92, 0x26, 0x3c,
-	0xa3, 0x9a, 0x8b, 0xcc, 0x61, 0x57, 0x13, 0x21, 0x92, 0x7d, 0x46, 0xa8, 0xe4, 0x84, 0x66, 0x99,
-	0xd0, 0xe6, 0x71, 0xa2, 0xb4, 0x9c, 0x88, 0x44, 0x98, 0x23, 0x29, 0x4e, 0xf6, 0x36, 0x6a, 0xc2,
-	0xad, 0x77, 0x85, 0x6a, 0x4b, 0xa5, 0x6d, 0x76, 0x30, 0x60, 0x4a, 0xa3, 0x9b, 0xe0, 0xf3, 0xfe,
-	0x8a, 0xb7, 0xee, 0x3d, 0xbe, 0xde, 0xf6, 0x79, 0x3f, 0xda, 0x85, 0xdb, 0x33, 0x88, 0x92, 0x22,
-	0x53, 0x0c, 0xbd, 0x80, 0x2a, 0x57, 0xa9, 0x01, 0xdd, 0xd8, 0x6a, 0xe2, 0x73, 0xb5, 0x70, 0x67,
-	0xe7, 0xd5, 0x21, 0xeb, 0x0d, 0x8a, 0x00, 0xad, 0xf7, 0xbb, 0xdb, 0xb5, 0x93, 0x5f, 0x6b, 0x95,
-	0x76, 0xc1, 0x89, 0x3a, 0x33, 0x39, 0x35, 0xb1, 0x7c, 0x0d, 0x30, 0x6b, 0xe3, 0x54, 0x37, 0xb1,
-	0xad, 0x8e, 0x8b, 0xea, 0xd8, 0xae, 0xe8, 0xaa, 0xe3, 0x3d, 0x9a, 0x30, 0xc7, 0x6d, 0x9f, 0x61,
-	0x46, 0xdf, 0x3d, 0x58, 0x3a, 0x23, 0xee, 0xc2, 0xbe, 0x84, 0x1a, 0x57, 0xa9, 0x5a, 0xf1, 0xd6,
-	0xab, 0x57, 0x49, 0x6b, 0x48, 0xe8, 0xcd, 0x5c, 0x34, 0xdf, 0x44, 0x7b, 0x74, 0x69, 0x34, 0xeb,
-	0x3c, 0x97, 0x6d, 0x19, 0x90, 0x89, 0xb6, 0x47, 0x73, 0x3a, 0x6d, 0x1e, 0xbd, 0x85, 0x3b, 0x73,
-	0xb7, 0x2e, 0xf2, 0x73, 0xa8, 0x4b, 0x73, 0xe3, 0xc6, 0x68, 0x94, 0x84, 0xb6, 0x14, 0x17, 0xd6,
-	0xc1, 0xb7, 0xfe, 0xfa, 0x70, 0xcd, 0x08, 0x22, 0x0d, 0xd5, 0x96, 0x4a, 0x51, 0x54, 0xc2, 0xfc,
-	0xef, 0x17, 0x0f, 0x1e, 0x2c, 0xc4, 0xd8, 0x48, 0xd1, 0xc6, 0x97, 0x1f, 0x7f, 0xbe, 0xf9, 0x21,
-	0x5a, 0x25, 0xe7, 0xff, 0xb1, 0xc5, 0x52, 0xe4, 0x13, 0xef, 0x7f, 0x46, 0x39, 0xd4, 0x8a, 0xed,
-	0xd1, 0x22, 0xc9, 0x49, 0xf9, 0x60, 0x63, 0x31, 0xc8, 0x19, 0xaf, 0x19, 0xe3, 0x06, 0xba, 0x7b,
-	0x81, 0x31, 0x3a, 0x86, 0xba, 0xdd, 0x02, 0x3d, 0xbc, 0x48, 0x70, 0x6e, 0xf4, 0x60, 0xf3, 0x32,
-	0x98, 0x73, 0x6e, 0x1a, 0xe7, 0x7b, 0xa8, 0x51, 0xe2, 0x6c, 0xf7, 0xde, 0xde, 0x39, 0x19, 0x85,
-	0xde, 0xe9, 0x28, 0xf4, 0x7e, 0x8f, 0x42, 0xef, 0xeb, 0x38, 0xac, 0x9c, 0x8e, 0xc3, 0xca, 0xcf,
-	0x71, 0x58, 0xe9, 0xc4, 0x09, 0xd7, 0x1f, 0x06, 0x5d, 0xdc, 0x13, 0xe9, 0x94, 0x2e, 0xf2, 0x64,
-	0x7a, 0x7e, 0x4a, 0xa5, 0x24, 0x87, 0x4e, 0xd0, 0x7c, 0xf2, 0xdd, 0xba, 0xf9, 0x26, 0x9f, 0xfd,
-	0x0b, 0x00, 0x00, 0xff, 0xff, 0x9a, 0xdd, 0x28, 0xd4, 0x46, 0x04, 0x00, 0x00,
+	// 632 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x55, 0xcd, 0x6e, 0xd3, 0x4c,
+	0x14, 0x8d, 0xd3, 0x1f, 0x35, 0xf7, 0x93, 0x3e, 0xe8, 0x10, 0xa0, 0x31, 0xc5, 0x6d, 0xdc, 0x92,
+	0xfe, 0x48, 0x78, 0x94, 0xb2, 0x40, 0x88, 0x5d, 0x25, 0x40, 0x51, 0x69, 0x55, 0x52, 0xc4, 0x22,
+	0x1b, 0x34, 0x49, 0x06, 0x33, 0xa2, 0xf6, 0xb8, 0x1e, 0x27, 0x6a, 0x8b, 0x58, 0xc0, 0x02, 0xb1,
+	0x44, 0x62, 0xc5, 0x63, 0xf0, 0x16, 0x5d, 0x56, 0x62, 0xc3, 0x0a, 0xa1, 0x84, 0x07, 0x41, 0x1e,
+	0x8f, 0x9d, 0x26, 0x75, 0x92, 0x56, 0xea, 0x6e, 0x34, 0x73, 0xee, 0x39, 0xe7, 0xde, 0x73, 0x13,
+	0xc3, 0xdd, 0x06, 0xdd, 0xa7, 0x22, 0x60, 0x04, 0x1f, 0xbf, 0x63, 0xc2, 0xc1, 0xed, 0x32, 0x3e,
+	0x68, 0x51, 0xff, 0xc8, 0xf2, 0x7c, 0x1e, 0x70, 0x34, 0x1b, 0x3f, 0x5b, 0xf2, 0xd9, 0x6a, 0x97,
+	0xf5, 0x94, 0x8a, 0xe0, 0xc8, 0xa3, 0x22, 0xaa, 0xd0, 0xd7, 0x1b, 0x5c, 0x38, 0x5c, 0xe0, 0x3a,
+	0x11, 0x34, 0xa2, 0xc2, 0xed, 0x72, 0x9d, 0x06, 0xa4, 0x8c, 0x3d, 0x62, 0x33, 0x97, 0x04, 0x8c,
+	0xbb, 0x0a, 0x3b, 0x6f, 0x73, 0x6e, 0xef, 0x53, 0x4c, 0x3c, 0x86, 0x89, 0xeb, 0xf2, 0x40, 0x3e,
+	0xc6, 0x4c, 0x79, 0x9b, 0xdb, 0x5c, 0x1e, 0x71, 0x78, 0x8a, 0x6e, 0xcd, 0x22, 0x5c, 0x7b, 0x11,
+	0xb2, 0x56, 0x84, 0x53, 0xa5, 0x07, 0x2d, 0x2a, 0x02, 0xf4, 0x3f, 0x64, 0x59, 0x73, 0x4e, 0x5b,
+	0xd4, 0x56, 0x73, 0xd5, 0x2c, 0x6b, 0x9a, 0x25, 0xc8, 0x4b, 0xc8, 0x2b, 0xea, 0xb3, 0x37, 0x8c,
+	0xfa, 0xc3, 0x70, 0xdb, 0x70, 0xbd, 0x47, 0x25, 0x3c, 0xee, 0x0a, 0x8a, 0x1e, 0xc1, 0x04, 0x13,
+	0x8e, 0x04, 0xfd, 0xb7, 0x51, 0xb4, 0xce, 0xb5, 0x6f, 0xd5, 0xb6, 0x9e, 0x1c, 0xd2, 0x46, 0x2b,
+	0x34, 0x5a, 0xd9, 0xdb, 0xde, 0x9c, 0x3c, 0xf9, 0xbd, 0x90, 0xa9, 0x86, 0x35, 0x26, 0x85, 0x9b,
+	0x03, 0xb2, 0x8a, 0xf3, 0x39, 0xcc, 0xb4, 0xd5, 0x9d, 0x22, 0x5e, 0x4f, 0x21, 0xde, 0x0b, 0x48,
+	0x40, 0x5f, 0xfa, 0xc4, 0x15, 0x2c, 0x24, 0x8f, 0x59, 0x94, 0x42, 0xc2, 0x60, 0xd6, 0x7a, 0xae,
+	0x45, 0xdc, 0xd9, 0x53, 0x80, 0xde, 0x70, 0x95, 0x46, 0xc9, 0x8a, 0x92, 0xb0, 0xc2, 0x24, 0xac,
+	0x28, 0x54, 0x95, 0x84, 0xb5, 0x4b, 0x6c, 0xaa, 0x6a, 0xab, 0x67, 0x2a, 0xcd, 0xd7, 0x03, 0x2d,
+	0x5c, 0xb9, 0xc0, 0x77, 0x0d, 0x66, 0xcf, 0xb8, 0x57, 0x03, 0x7a, 0x0c, 0x93, 0x4c, 0x38, 0x62,
+	0x4e, 0x5b, 0x9c, 0xb8, 0xcc, 0xd4, 0x65, 0x11, 0x7a, 0xd6, 0x67, 0x2d, 0x2b, 0xad, 0xad, 0x8c,
+	0xb5, 0x16, 0x29, 0xf7, 0x79, 0xfb, 0xa1, 0xc1, 0xad, 0xc1, 0xee, 0x95, 0xc1, 0x1d, 0xc8, 0xc5,
+	0xf3, 0x8f, 0x5d, 0x5e, 0x3e, 0xc2, 0x1e, 0xc5, 0xd5, 0x79, 0xce, 0x03, 0x92, 0x96, 0x77, 0x89,
+	0x4f, 0x92, 0x75, 0x30, 0x77, 0xe0, 0x46, 0xdf, 0xad, 0xea, 0xe2, 0x21, 0x4c, 0x7b, 0xf2, 0x46,
+	0x05, 0x58, 0x48, 0x69, 0x21, 0x2a, 0x51, 0x8e, 0x15, 0x7c, 0xe3, 0xe3, 0x14, 0x4c, 0x49, 0x42,
+	0x14, 0xc0, 0x44, 0x45, 0x38, 0xc8, 0x4c, 0xa9, 0x1c, 0xf8, 0x55, 0xea, 0x4b, 0x23, 0x31, 0x91,
+	0x25, 0x73, 0xf9, 0xd3, 0xcf, 0xbf, 0xdf, 0xb2, 0x06, 0x9a, 0xc7, 0xe7, 0xff, 0x55, 0xc2, 0x74,
+	0xf1, 0x7b, 0xd6, 0xfc, 0x80, 0x7c, 0x98, 0x0c, 0xf7, 0x05, 0x8d, 0xa2, 0x8c, 0x9b, 0xd7, 0x97,
+	0x47, 0x83, 0x94, 0xf0, 0x82, 0x14, 0x2e, 0xa0, 0xdb, 0x43, 0x84, 0xd1, 0x17, 0x0d, 0x66, 0xe2,
+	0x00, 0xd1, 0xca, 0x30, 0xce, 0x81, 0xbf, 0x18, 0x7d, 0x75, 0x3c, 0x50, 0x19, 0x58, 0x93, 0x06,
+	0x96, 0x50, 0x31, 0xc5, 0x40, 0xb2, 0x28, 0x51, 0xfb, 0x9f, 0x35, 0xc8, 0x25, 0x3b, 0x89, 0xc6,
+	0x4a, 0x24, 0x93, 0x58, 0xbb, 0x00, 0xf2, 0x02, 0x39, 0xf4, 0xd6, 0xf6, 0x18, 0xa6, 0xa3, 0xfd,
+	0x40, 0xf7, 0x86, 0x51, 0xf7, 0x2d, 0xa2, 0x5e, 0x1a, 0x07, 0x53, 0xf2, 0x45, 0x29, 0x7f, 0x07,
+	0x15, 0x52, 0xe4, 0xa3, 0x1d, 0xdc, 0xdc, 0x3a, 0xe9, 0x18, 0xda, 0x69, 0xc7, 0xd0, 0xfe, 0x74,
+	0x0c, 0xed, 0x6b, 0xd7, 0xc8, 0x9c, 0x76, 0x8d, 0xcc, 0xaf, 0xae, 0x91, 0xa9, 0x95, 0x6d, 0x16,
+	0xbc, 0x6d, 0xd5, 0xad, 0x06, 0x77, 0x92, 0x72, 0xee, 0xdb, 0xc9, 0xf9, 0x3e, 0xf1, 0x3c, 0x7c,
+	0xa8, 0x08, 0xe5, 0xa7, 0xaa, 0x3e, 0x2d, 0xbf, 0x25, 0x0f, 0xfe, 0x05, 0x00, 0x00, 0xff, 0xff,
+	0xde, 0x78, 0x6b, 0xa0, 0xfe, 0x06, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -366,6 +569,10 @@ type QueryClient interface {
 	Ism(ctx context.Context, in *QueryIsmRequest, opts ...grpc.CallOption) (*QueryIsmResponse, error)
 	// Isms defines an rpc method for querying all ISMs.
 	Isms(ctx context.Context, in *QueryIsmsRequest, opts ...grpc.CallOption) (*QueryIsmsResponse, error)
+	// Verifier defines an rpc method for querying a Verifier by ID.
+	Verifier(ctx context.Context, in *QueryVerifierRequest, opts ...grpc.CallOption) (*QueryVerifierResponse, error)
+	// Verifiers defines an rpc method for querying all Verifiers.
+	Verifiers(ctx context.Context, in *QueryVerifiersRequest, opts ...grpc.CallOption) (*QueryVerifiersResponse, error)
 	// Params defines an rpc method for querying the module parameters.
 	Params(ctx context.Context, in *QueryParamsRequest, opts ...grpc.CallOption) (*QueryParamsResponse, error)
 }
@@ -396,6 +603,24 @@ func (c *queryClient) Isms(ctx context.Context, in *QueryIsmsRequest, opts ...gr
 	return out, nil
 }
 
+func (c *queryClient) Verifier(ctx context.Context, in *QueryVerifierRequest, opts ...grpc.CallOption) (*QueryVerifierResponse, error) {
+	out := new(QueryVerifierResponse)
+	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Query/Verifier", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *queryClient) Verifiers(ctx context.Context, in *QueryVerifiersRequest, opts ...grpc.CallOption) (*QueryVerifiersResponse, error) {
+	out := new(QueryVerifiersResponse)
+	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Query/Verifiers", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *queryClient) Params(ctx context.Context, in *QueryParamsRequest, opts ...grpc.CallOption) (*QueryParamsResponse, error) {
 	out := new(QueryParamsResponse)
 	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Query/Params", in, out, opts...)
@@ -411,6 +636,10 @@ type QueryServer interface {
 	Ism(context.Context, *QueryIsmRequest) (*QueryIsmResponse, error)
 	// Isms defines an rpc method for querying all ISMs.
 	Isms(context.Context, *QueryIsmsRequest) (*QueryIsmsResponse, error)
+	// Verifier defines an rpc method for querying a Verifier by ID.
+	Verifier(context.Context, *QueryVerifierRequest) (*QueryVerifierResponse, error)
+	// Verifiers defines an rpc method for querying all Verifiers.
+	Verifiers(context.Context, *QueryVerifiersRequest) (*QueryVerifiersResponse, error)
 	// Params defines an rpc method for querying the module parameters.
 	Params(context.Context, *QueryParamsRequest) (*QueryParamsResponse, error)
 }
@@ -424,6 +653,12 @@ func (*UnimplementedQueryServer) Ism(ctx context.Context, req *QueryIsmRequest) 
 }
 func (*UnimplementedQueryServer) Isms(ctx context.Context, req *QueryIsmsRequest) (*QueryIsmsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Isms not implemented")
+}
+func (*UnimplementedQueryServer) Verifier(ctx context.Context, req *QueryVerifierRequest) (*QueryVerifierResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Verifier not implemented")
+}
+func (*UnimplementedQueryServer) Verifiers(ctx context.Context, req *QueryVerifiersRequest) (*QueryVerifiersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Verifiers not implemented")
 }
 func (*UnimplementedQueryServer) Params(ctx context.Context, req *QueryParamsRequest) (*QueryParamsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Params not implemented")
@@ -469,6 +704,42 @@ func _Query_Isms_Handler(srv interface{}, ctx context.Context, dec func(interfac
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Query_Verifier_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryVerifierRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).Verifier(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/celestia.zkism.v1.Query/Verifier",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).Verifier(ctx, req.(*QueryVerifierRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Query_Verifiers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryVerifiersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).Verifiers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/celestia.zkism.v1.Query/Verifiers",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).Verifiers(ctx, req.(*QueryVerifiersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Query_Params_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(QueryParamsRequest)
 	if err := dec(in); err != nil {
@@ -501,6 +772,14 @@ var _Query_serviceDesc = grpc.ServiceDesc{
 			Handler:    _Query_Isms_Handler,
 		},
 		{
+			MethodName: "Verifier",
+			Handler:    _Query_Verifier_Handler,
+		},
+		{
+			MethodName: "Verifiers",
+			Handler:    _Query_Verifiers_Handler,
+		},
+		{
 			MethodName: "Params",
 			Handler:    _Query_Params_Handler,
 		},
@@ -525,6 +804,36 @@ func (m *QueryIsmRequest) MarshalTo(dAtA []byte) (int, error) {
 }
 
 func (m *QueryIsmRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Id) > 0 {
+		i -= len(m.Id)
+		copy(dAtA[i:], m.Id)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Id)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryVerifierRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryVerifierRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryVerifierRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -572,6 +881,39 @@ func (m *QueryIsmResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *QueryVerifierResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryVerifierResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryVerifierResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	{
+		size, err := m.Verifier.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintQuery(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
 func (m *QueryIsmsRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -588,6 +930,41 @@ func (m *QueryIsmsRequest) MarshalTo(dAtA []byte) (int, error) {
 }
 
 func (m *QueryIsmsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Pagination != nil {
+		{
+			size, err := m.Pagination.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintQuery(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryVerifiersRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryVerifiersRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryVerifiersRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -643,6 +1020,55 @@ func (m *QueryIsmsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		for iNdEx := len(m.Isms) - 1; iNdEx >= 0; iNdEx-- {
 			{
 				size, err := m.Isms[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintQuery(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryVerifiersResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryVerifiersResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryVerifiersResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Pagination != nil {
+		{
+			size, err := m.Pagination.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintQuery(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Verifiers) > 0 {
+		for iNdEx := len(m.Verifiers) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Verifiers[iNdEx].MarshalToSizedBuffer(dAtA[:i])
 				if err != nil {
 					return 0, err
 				}
@@ -736,6 +1162,19 @@ func (m *QueryIsmRequest) Size() (n int) {
 	return n
 }
 
+func (m *QueryVerifierRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Id)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
 func (m *QueryIsmResponse) Size() (n int) {
 	if m == nil {
 		return 0
@@ -747,7 +1186,31 @@ func (m *QueryIsmResponse) Size() (n int) {
 	return n
 }
 
+func (m *QueryVerifierResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = m.Verifier.Size()
+	n += 1 + l + sovQuery(uint64(l))
+	return n
+}
+
 func (m *QueryIsmsRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Pagination != nil {
+		l = m.Pagination.Size()
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryVerifiersRequest) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -768,6 +1231,25 @@ func (m *QueryIsmsResponse) Size() (n int) {
 	_ = l
 	if len(m.Isms) > 0 {
 		for _, e := range m.Isms {
+			l = e.Size()
+			n += 1 + l + sovQuery(uint64(l))
+		}
+	}
+	if m.Pagination != nil {
+		l = m.Pagination.Size()
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryVerifiersResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Verifiers) > 0 {
+		for _, e := range m.Verifiers {
 			l = e.Size()
 			n += 1 + l + sovQuery(uint64(l))
 		}
@@ -832,6 +1314,88 @@ func (m *QueryIsmRequest) Unmarshal(dAtA []byte) error {
 		}
 		if fieldNum <= 0 {
 			return fmt.Errorf("proto: QueryIsmRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Id", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Id = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryVerifierRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryVerifierRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryVerifierRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -970,6 +1534,89 @@ func (m *QueryIsmResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+func (m *QueryVerifierResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryVerifierResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryVerifierResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Verifier", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.Verifier.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
 func (m *QueryIsmsRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -997,6 +1644,92 @@ func (m *QueryIsmsRequest) Unmarshal(dAtA []byte) error {
 		}
 		if fieldNum <= 0 {
 			return fmt.Errorf("proto: QueryIsmsRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Pagination", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Pagination == nil {
+				m.Pagination = &query.PageRequest{}
+			}
+			if err := m.Pagination.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryVerifiersRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryVerifiersRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryVerifiersRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -1116,6 +1849,126 @@ func (m *QueryIsmsResponse) Unmarshal(dAtA []byte) error {
 			}
 			m.Isms = append(m.Isms, ZKExecutionISM{})
 			if err := m.Isms[len(m.Isms)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Pagination", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Pagination == nil {
+				m.Pagination = &query.PageResponse{}
+			}
+			if err := m.Pagination.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryVerifiersResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryVerifiersResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryVerifiersResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Verifiers", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Verifiers = append(m.Verifiers, StateTransitionVerifier{})
+			if err := m.Verifiers[len(m.Verifiers)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

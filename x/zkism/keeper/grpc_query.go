@@ -42,6 +42,46 @@ func (q queryServer) Ism(ctx context.Context, req *types.QueryIsmRequest) (*type
 	}, nil
 }
 
+func (q queryServer) Verifiers(ctx context.Context, req *types.QueryVerifiersRequest) (*types.QueryVerifiersResponse, error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "request cannot be empty")
+	}
+
+	transformFunc := func(_ uint64, value types.StateTransitionVerifier) (types.StateTransitionVerifier, error) {
+		return value, nil
+	}
+
+	verifiers, pageRes, err := query.CollectionPaginate(ctx, q.k.verifiers, req.Pagination, transformFunc)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &types.QueryVerifiersResponse{
+		Verifiers:  verifiers,
+		Pagination: pageRes,
+	}, nil
+}
+
+func (q queryServer) Verifier(ctx context.Context, req *types.QueryVerifierRequest) (*types.QueryVerifierResponse, error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "request cannot be empty")
+	}
+
+	verifierId, err := util.DecodeHexAddress(req.Id)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid hex address %s, %s", req.Id, err.Error())
+	}
+
+	verifier, err := q.k.verifiers.Get(ctx, verifierId.GetInternalId())
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "verifier not found: %s", req.Id)
+	}
+
+	return &types.QueryVerifierResponse{
+		Verifier: verifier,
+	}, nil
+}
+
 // Isms implements types.QueryServer.
 func (q queryServer) Isms(ctx context.Context, req *types.QueryIsmsRequest) (*types.QueryIsmsResponse, error) {
 	if req == nil {
