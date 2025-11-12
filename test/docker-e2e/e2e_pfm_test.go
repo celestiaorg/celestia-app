@@ -97,19 +97,19 @@ func (s *PFMTestSuite) TestPFMMultiHop() {
 	// Create PFM memo: chain-a sends to chain-b, which forwards to chain-c
 	memoJSON := makePFMMemo(addrC.String(), s.chBToC.PortID, s.chBToC.ChannelID, nil)
 
-	initialA := s.getBalance(ctx, s.chainA, walletA.GetFormattedAddress(), baseDenom)
+	initialChainABalance := s.getBalance(ctx, s.chainA, walletA.GetFormattedAddress(), baseDenom)
 	denomOnB := calculateIBCDenomTrace(
 		baseDenom,
 		hop{port: s.chAToB.CounterpartyPort, channelID: s.chAToB.CounterpartyID},
 	)
-	initialBonB := s.getBalance(ctx, s.chainB, walletB.GetFormattedAddress(), denomOnB)
+	initialChainBRelayBalance := s.getBalance(ctx, s.chainB, walletB.GetFormattedAddress(), denomOnB)
 
 	denomOnC := calculateIBCDenomTrace(
 		baseDenom,
 		hop{port: s.chAToB.CounterpartyPort, channelID: s.chAToB.CounterpartyID},
 		hop{port: s.chBToC.CounterpartyPort, channelID: s.chBToC.CounterpartyID},
 	)
-	initialConC := s.getBalance(ctx, s.chainC, walletC.GetFormattedAddress(), denomOnC)
+	initialChainCRecipientBalance := s.getBalance(ctx, s.chainC, walletC.GetFormattedAddress(), denomOnC)
 
 	amt := sdkmath.NewInt(sendAmount)
 	msg := ibctransfertypes.NewMsgTransfer(
@@ -129,12 +129,12 @@ func (s *PFMTestSuite) TestPFMMultiHop() {
 	s.Require().Equal(uint32(0), resp.Code, "transfer failed, code=%d", resp.Code)
 	s.T().Logf("Transfer submitted successfully, tx hash: %s, height: %d", resp.TxHash, resp.Height)
 
-	expectedAAfter := initialA.Sub(amt).SubRaw(feePaid)
+	expectedChainABalance := initialChainABalance.Sub(amt).SubRaw(feePaid)
 	s.T().Logf("Waiting for PFM multi-hop transfer to complete...")
 
 	err = wait.ForCondition(ctx, 3*time.Minute, 10*time.Second, func() (bool, error) {
-		finalConC := s.getBalance(ctx, s.chainC, walletC.GetFormattedAddress(), denomOnC)
-		delta := finalConC.Sub(initialConC)
+		finalChainCRecipientBalance := s.getBalance(ctx, s.chainC, walletC.GetFormattedAddress(), denomOnC)
+		delta := finalChainCRecipientBalance.Sub(initialChainCRecipientBalance)
 		if !delta.Equal(amt) {
 			s.T().Logf("Chain C has not received tokens yet (got %s, expected %s)", delta.String(), amt.String())
 			return false, nil
@@ -145,11 +145,11 @@ func (s *PFMTestSuite) TestPFMMultiHop() {
 
 	s.Require().NoError(err, "PFM multi-hop transfer failed")
 
-	finalBonB := s.getBalance(ctx, s.chainB, walletB.GetFormattedAddress(), denomOnB)
-	s.Require().True(finalBonB.Equal(initialBonB), "chain-b retained funds: before=%s after=%s", initialBonB.String(), finalBonB.String())
+	finalChainBRelayBalance := s.getBalance(ctx, s.chainB, walletB.GetFormattedAddress(), denomOnB)
+	s.Require().True(finalChainBRelayBalance.Equal(initialChainBRelayBalance), "chain-b retained funds: before=%s after=%s", initialChainBRelayBalance.String(), finalChainBRelayBalance.String())
 
-	finalA := s.getBalance(ctx, s.chainA, walletA.GetFormattedAddress(), baseDenom)
-	s.Require().True(expectedAAfter.Equal(finalA), "chain-a balance mismatch: expected %s got %s", expectedAAfter.String(), finalA.String())
+	finalChainABalance := s.getBalance(ctx, s.chainA, walletA.GetFormattedAddress(), baseDenom)
+	s.Require().True(expectedChainABalance.Equal(finalChainABalance), "chain-a balance mismatch: expected %s got %s", expectedChainABalance.String(), finalChainABalance.String())
 
 	s.T().Logf("Verifying PFM used two-hop path (not direct A->C)")
 
@@ -158,15 +158,15 @@ func (s *PFMTestSuite) TestPFMMultiHop() {
 		hop{port: s.chAToB.CounterpartyPort, channelID: s.chAToB.CounterpartyID},
 		hop{port: s.chBToC.CounterpartyPort, channelID: s.chBToC.CounterpartyID},
 	)
-	twoHopBalance := s.getBalance(ctx, s.chainC, walletC.GetFormattedAddress(), twoHopDenom)
-	s.T().Logf("Two-hop path (A->B->C) balance: %s %s", twoHopBalance.String(), twoHopDenom)
+	finalTwoHopRecipientBalance := s.getBalance(ctx, s.chainC, walletC.GetFormattedAddress(), twoHopDenom)
+	s.T().Logf("Two-hop path (A->B->C) balance: %s %s", finalTwoHopRecipientBalance.String(), twoHopDenom)
 
 	s.assertOnlyTwoHopDenom(ctx, s.chainC, walletC.GetFormattedAddress(), twoHopDenom)
 
-	if twoHopBalance.Equal(sdkmath.NewInt(sendAmount)) {
+	if finalTwoHopRecipientBalance.Equal(sdkmath.NewInt(sendAmount)) {
 		s.T().Logf("PFM used two-hop path (A->B->C)")
 	} else {
-		s.T().Fatalf("expected %d via two-hop path, got %s", sendAmount, twoHopBalance.String())
+		s.T().Fatalf("expected %d via two-hop path, got %s", sendAmount, finalTwoHopRecipientBalance.String())
 	}
 }
 
