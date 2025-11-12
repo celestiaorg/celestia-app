@@ -1,0 +1,348 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Types v6 - Celestia App Specifications</title>
+        <!-- Custom HTML head -->
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="data_structures.html"><strong aria-hidden="true">1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="namespace.html"><strong aria-hidden="true">2.</strong> Namespace</a></li><li class="chapter-item expanded "><a href="shares.html"><strong aria-hidden="true">3.</strong> Shares</a></li><li class="chapter-item expanded "><a href="consensus.html"><strong aria-hidden="true">4.</strong> Consensus</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="cat_pool.html"><strong aria-hidden="true">4.1.</strong> CAT Pool</a></li></ol></li><li class="chapter-item expanded "><a href="block_proposer.html"><strong aria-hidden="true">5.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="block_validity_rules.html"><strong aria-hidden="true">6.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="ante_handler.html"><strong aria-hidden="true">7.</strong> AnteHandler</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="ante_handler_v1.html"><strong aria-hidden="true">7.1.</strong> AnteHandler v1</a></li><li class="chapter-item expanded "><a href="ante_handler_v2.html"><strong aria-hidden="true">7.2.</strong> AnteHandler v2</a></li><li class="chapter-item expanded "><a href="ante_handler_v3.html"><strong aria-hidden="true">7.3.</strong> AnteHandler v3</a></li><li class="chapter-item expanded "><a href="ante_handler_v4.html"><strong aria-hidden="true">7.4.</strong> AnteHandler v4</a></li><li class="chapter-item expanded "><a href="ante_handler_v5.html"><strong aria-hidden="true">7.5.</strong> AnteHandler v5</a></li><li class="chapter-item expanded "><a href="ante_handler_v6.html"><strong aria-hidden="true">7.6.</strong> AnteHandler v6</a></li></ol></li><li class="chapter-item expanded "><a href="fraud_proofs.html"><strong aria-hidden="true">8.</strong> Fraud Proofs</a></li><li class="chapter-item expanded "><a href="networking.html"><strong aria-hidden="true">9.</strong> Networking</a></li><li class="chapter-item expanded "><a href="public_key_cryptography.html"><strong aria-hidden="true">10.</strong> Public-Key Cryptography</a></li><li class="chapter-item expanded "><a href="data_square_layout.html"><strong aria-hidden="true">11.</strong> Data Square Layout</a></li><li class="chapter-item expanded "><a href="resource_pricing.html"><strong aria-hidden="true">12.</strong> Resource Pricing</a></li><li class="chapter-item expanded "><a href="multisig.html"><strong aria-hidden="true">13.</strong> Multisig</a></li><li class="chapter-item expanded "><a href="state_machine_modules.html"><strong aria-hidden="true">14.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="state_machine_modules_v1.html"><strong aria-hidden="true">14.1.</strong> State Machine Modules v1</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v2.html"><strong aria-hidden="true">14.2.</strong> State Machine Modules v2</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v3.html"><strong aria-hidden="true">14.3.</strong> State Machine Modules v3</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v4.html"><strong aria-hidden="true">14.4.</strong> State Machine Modules v4</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v5.html"><strong aria-hidden="true">14.5.</strong> State Machine Modules v5</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v6.html"><strong aria-hidden="true">14.6.</strong> State Machine Modules v6</a></li></ol></li><li class="chapter-item expanded "><a href="parameters.html"><strong aria-hidden="true">15.</strong> Parameters</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="parameters_v1.html"><strong aria-hidden="true">15.1.</strong> Parameters v1</a></li><li class="chapter-item expanded "><a href="parameters_v2.html"><strong aria-hidden="true">15.2.</strong> Parameters v2</a></li><li class="chapter-item expanded "><a href="parameters_v3.html"><strong aria-hidden="true">15.3.</strong> Parameters v3</a></li><li class="chapter-item expanded "><a href="parameters_v4.html"><strong aria-hidden="true">15.4.</strong> Parameters v4</a></li><li class="chapter-item expanded "><a href="parameters_v5.html"><strong aria-hidden="true">15.5.</strong> Parameters v5</a></li><li class="chapter-item expanded "><a href="parameters_v6.html"><strong aria-hidden="true">15.6.</strong> Parameters v6</a></li></ol></li><li class="chapter-item expanded "><a href="types.html"><strong aria-hidden="true">16.</strong> Types</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="types_v5.html"><strong aria-hidden="true">16.1.</strong> Types v5</a></li><li class="chapter-item expanded "><a href="types_v6.html" class="active"><strong aria-hidden="true">16.2.</strong> Types v6</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Celestia App Specifications</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/celestiaorg/celestia-app" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="types-v6"><a class="header" href="#types-v6">Types v6</a></h1>
+<h2 id="msgs"><a class="header" href="#msgs">Msgs</a></h2>
+<p>The following is an exhaustive list of supported Cosmos SDK Msgs for app version 6.</p>
+<pre><code class="language-ascii">/celestia.blob.v1.MsgPayForBlobs
+/celestia.blob.v1.MsgUpdateBlobParams
+/celestia.minfee.v1.MsgUpdateMinfeeParams
+/celestia.signal.v1.MsgSignalVersion
+/celestia.signal.v1.MsgTryUpgrade
+/cosmos.auth.v1beta1.MsgUpdateParams
+/cosmos.authz.v1beta1.MsgExec
+/cosmos.authz.v1beta1.MsgGrant
+/cosmos.authz.v1beta1.MsgPruneExpiredGrants
+/cosmos.authz.v1beta1.MsgRevoke
+/cosmos.bank.v1beta1.MsgMultiSend
+/cosmos.bank.v1beta1.MsgSend
+/cosmos.bank.v1beta1.MsgSetSendEnabled
+/cosmos.bank.v1beta1.MsgUpdateParams
+/cosmos.circuit.v1.MsgAuthorizeCircuitBreaker
+/cosmos.circuit.v1.MsgResetCircuitBreaker
+/cosmos.circuit.v1.MsgTripCircuitBreaker
+/cosmos.consensus.v1.MsgUpdateParams
+/cosmos.distribution.v1beta1.MsgCommunityPoolSpend
+/cosmos.distribution.v1beta1.MsgDepositValidatorRewardsPool
+/cosmos.distribution.v1beta1.MsgFundCommunityPool
+/cosmos.distribution.v1beta1.MsgSetWithdrawAddress
+/cosmos.distribution.v1beta1.MsgUpdateParams
+/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward
+/cosmos.distribution.v1beta1.MsgWithdrawValidatorCommission
+/cosmos.evidence.v1beta1.MsgSubmitEvidence
+/cosmos.feegrant.v1beta1.MsgGrantAllowance
+/cosmos.feegrant.v1beta1.MsgPruneAllowances
+/cosmos.feegrant.v1beta1.MsgRevokeAllowance
+/cosmos.gov.v1.MsgCancelProposal
+/cosmos.gov.v1.MsgDeposit
+/cosmos.gov.v1.MsgExecLegacyContent
+/cosmos.gov.v1.MsgSubmitProposal
+/cosmos.gov.v1.MsgUpdateParams
+/cosmos.gov.v1.MsgVote
+/cosmos.gov.v1.MsgVoteWeighted
+/cosmos.gov.v1beta1.MsgDeposit
+/cosmos.gov.v1beta1.MsgSubmitProposal
+/cosmos.gov.v1beta1.MsgVote
+/cosmos.gov.v1beta1.MsgVoteWeighted
+/cosmos.slashing.v1beta1.MsgUnjail
+/cosmos.slashing.v1beta1.MsgUpdateParams
+/cosmos.staking.v1beta1.MsgBeginRedelegate
+/cosmos.staking.v1beta1.MsgCancelUnbondingDelegation
+/cosmos.staking.v1beta1.MsgCreateValidator
+/cosmos.staking.v1beta1.MsgDelegate
+/cosmos.staking.v1beta1.MsgEditValidator
+/cosmos.staking.v1beta1.MsgUndelegate
+/cosmos.staking.v1beta1.MsgUpdateParams
+/cosmos.upgrade.v1beta1.MsgCancelUpgrade
+/cosmos.upgrade.v1beta1.MsgSoftwareUpgrade
+/cosmos.vesting.v1beta1.MsgCreatePeriodicVestingAccount
+/cosmos.vesting.v1beta1.MsgCreatePermanentLockedAccount
+/cosmos.vesting.v1beta1.MsgCreateVestingAccount
+/hyperlane.core.interchain_security.v1.MsgAnnounceValidator
+/hyperlane.core.interchain_security.v1.MsgCreateMerkleRootMultisigIsm
+/hyperlane.core.interchain_security.v1.MsgCreateMessageIdMultisigIsm
+/hyperlane.core.interchain_security.v1.MsgCreateNoopIsm
+/hyperlane.core.interchain_security.v1.MsgCreateRoutingIsm
+/hyperlane.core.interchain_security.v1.MsgRemoveRoutingIsmDomain
+/hyperlane.core.interchain_security.v1.MsgSetRoutingIsmDomain
+/hyperlane.core.interchain_security.v1.MsgUpdateRoutingIsmOwner
+/hyperlane.core.post_dispatch.v1.MsgClaim
+/hyperlane.core.post_dispatch.v1.MsgCreateIgp
+/hyperlane.core.post_dispatch.v1.MsgCreateMerkleTreeHook
+/hyperlane.core.post_dispatch.v1.MsgCreateNoopHook
+/hyperlane.core.post_dispatch.v1.MsgPayForGas
+/hyperlane.core.post_dispatch.v1.MsgSetDestinationGasConfig
+/hyperlane.core.post_dispatch.v1.MsgSetIgpOwner
+/hyperlane.core.v1.MsgCreateMailbox
+/hyperlane.core.v1.MsgProcessMessage
+/hyperlane.core.v1.MsgSetMailbox
+/hyperlane.warp.v1.MsgCreateCollateralToken
+/hyperlane.warp.v1.MsgCreateSyntheticToken
+/hyperlane.warp.v1.MsgEnrollRemoteRouter
+/hyperlane.warp.v1.MsgRemoteTransfer
+/hyperlane.warp.v1.MsgSetToken
+/hyperlane.warp.v1.MsgSetTokenResponse
+/hyperlane.warp.v1.MsgUnrollRemoteRouter
+/ibc.applications.interchain_accounts.controller.v1.MsgRegisterInterchainAccount
+/ibc.applications.interchain_accounts.controller.v1.MsgSendTx
+/ibc.applications.interchain_accounts.controller.v1.MsgUpdateParams
+/ibc.applications.interchain_accounts.host.v1.MsgModuleQuerySafe
+/ibc.applications.interchain_accounts.host.v1.MsgUpdateParams
+/ibc.applications.transfer.v1.MsgTransfer
+/ibc.applications.transfer.v1.MsgUpdateParams
+/ibc.core.channel.v1.MsgAcknowledgement
+/ibc.core.channel.v1.MsgChannelCloseConfirm
+/ibc.core.channel.v1.MsgChannelCloseInit
+/ibc.core.channel.v1.MsgChannelOpenAck
+/ibc.core.channel.v1.MsgChannelOpenConfirm
+/ibc.core.channel.v1.MsgChannelOpenInit
+/ibc.core.channel.v1.MsgChannelOpenTry
+/ibc.core.channel.v1.MsgChannelUpgradeAck
+/ibc.core.channel.v1.MsgChannelUpgradeCancel
+/ibc.core.channel.v1.MsgChannelUpgradeConfirm
+/ibc.core.channel.v1.MsgChannelUpgradeInit
+/ibc.core.channel.v1.MsgChannelUpgradeOpen
+/ibc.core.channel.v1.MsgChannelUpgradeTimeout
+/ibc.core.channel.v1.MsgChannelUpgradeTry
+/ibc.core.channel.v1.MsgPruneAcknowledgements
+/ibc.core.channel.v1.MsgRecvPacket
+/ibc.core.channel.v1.MsgTimeout
+/ibc.core.channel.v1.MsgTimeoutOnClose
+/ibc.core.channel.v1.MsgUpdateParams
+/ibc.core.client.v1.MsgCreateClient
+/ibc.core.client.v1.MsgIBCSoftwareUpgrade
+/ibc.core.client.v1.MsgRecoverClient
+/ibc.core.client.v1.MsgSubmitMisbehaviour
+/ibc.core.client.v1.MsgUpdateClient
+/ibc.core.client.v1.MsgUpdateParams
+/ibc.core.client.v1.MsgUpgradeClient
+/ibc.core.connection.v1.MsgConnectionOpenAck
+/ibc.core.connection.v1.MsgConnectionOpenConfirm
+/ibc.core.connection.v1.MsgConnectionOpenInit
+/ibc.core.connection.v1.MsgConnectionOpenTry
+/ibc.core.connection.v1.MsgUpdateParams
+</code></pre>
+<h2 id="events"><a class="header" href="#events">Events</a></h2>
+<p>The following is an exhaustive list of supported events for app version 6.</p>
+<pre><code class="language-ascii">celestia.blob.v1.EventPayForBlobs
+celestia.blob.v1.EventUpdateBlobParams
+celestia.minfee.v1.EventUpdateMinfeeParams
+cosmos.authz.v1beta1.EventGrant
+cosmos.authz.v1beta1.EventPruneExpiredGrants
+cosmos.authz.v1beta1.EventRevoke
+cosmos.base.abci.v1beta1.StringEvent
+cosmos.distribution.v1beta1.ValidatorSlashEvent
+cosmos.distribution.v1beta1.ValidatorSlashEventRecord
+cosmos.distribution.v1beta1.ValidatorSlashEvents
+cosmos.group.v1.EventCreateGroup
+cosmos.group.v1.EventCreateGroupPolicy
+cosmos.group.v1.EventExec
+cosmos.group.v1.EventLeaveGroup
+cosmos.group.v1.EventProposalPruned
+cosmos.group.v1.EventSubmitProposal
+cosmos.group.v1.EventTallyError
+cosmos.group.v1.EventUpdateGroup
+cosmos.group.v1.EventUpdateGroupPolicy
+cosmos.group.v1.EventVote
+cosmos.group.v1.EventWithdrawProposal
+cosmos.tx.v1beta1.GetTxsEventRequest
+cosmos.tx.v1beta1.GetTxsEventResponse
+envoy.config.core.v3.EventServiceConfig
+hyperlane.core.interchain_security.v1.EventAnnounceStorageLocation
+hyperlane.core.interchain_security.v1.EventCreateMerkleRootMultisigIsm
+hyperlane.core.interchain_security.v1.EventCreateMessageIdMultisigIsm
+hyperlane.core.interchain_security.v1.EventCreateNoopIsm
+hyperlane.core.interchain_security.v1.EventCreateRoutingIsm
+hyperlane.core.interchain_security.v1.EventRemoveRoutingIsmDomain
+hyperlane.core.interchain_security.v1.EventSetRoutingIsm
+hyperlane.core.interchain_security.v1.EventSetRoutingIsmDomain
+hyperlane.core.post_dispatch.v1.EventClaimIgp
+hyperlane.core.post_dispatch.v1.EventCreateIgp
+hyperlane.core.post_dispatch.v1.EventCreateMerkleTreeHook
+hyperlane.core.post_dispatch.v1.EventCreateNoopHook
+hyperlane.core.post_dispatch.v1.EventGasPayment
+hyperlane.core.post_dispatch.v1.EventInsertedIntoTree
+hyperlane.core.post_dispatch.v1.EventSetDestinationGasConfig
+hyperlane.core.post_dispatch.v1.EventSetIgp
+hyperlane.core.v1.EventCreateMailbox
+hyperlane.core.v1.EventDispatch
+hyperlane.core.v1.EventProcess
+hyperlane.core.v1.EventSetMailbox
+hyperlane.warp.v1.EventCreateCollateralToken
+hyperlane.warp.v1.EventCreateSyntheticToken
+hyperlane.warp.v1.EventEnrollRemoteRouter
+hyperlane.warp.v1.EventReceiveRemoteTransfer
+hyperlane.warp.v1.EventSendRemoteTransfer
+hyperlane.warp.v1.EventSetToken
+hyperlane.warp.v1.EventUnrollRemoteRouter
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="types_v5.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="types_v5.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>
