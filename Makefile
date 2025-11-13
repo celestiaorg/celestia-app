@@ -296,6 +296,12 @@ test-docker-e2e:
 	cd test/docker-e2e && go test -v -run ^$$ENTRYPOINT/$(test)$$ ./... -timeout 30m
 .PHONY: test-docker-e2e
 
+## test-docker-v2: Run the TestBlockSyncV2Upgrade test with a custom Docker image.
+test-docker-v2:
+	@echo "--> Running: TestBlockSyncV2Upgrade"
+	cd test/docker-e2e && CELESTIA_IMAGE=ghcr.io/celestiaorg/celestia-app CELESTIA_TAG=test-fix go test -v -run ^TestCelestiaTestSuite/TestBlockSyncV2Upgrade$$ ./... -timeout 30m
+.PHONY: test-docker-v2
+
 ## test-docker-e2e-upgrade-all: Build image from current branch and run the upgrade test for all app versions starting from v2.
 test-docker-e2e-upgrade-all:
 	@echo "--> Building celestia-appd docker image (tag $(CELESTIA_TAG))"

@@ -131,7 +131,7 @@ func (s *CelestiaTestSuite) TestBlockSyncV2Upgrade() {
 	// Use the latest multiplexer binary for block syncing
 	// Use explicit version tag v5.0.12 instead of GetCelestiaTag() which may return a commit hash
 	multiplexerImage := dockerchain.GetCelestiaImage()
-	multiplexerTag := "v5.0.12"
+	multiplexerTag := dockerchain.GetCelestiaTag()
 	t.Logf("Adding block sync node with multiplexer image %s:%s", multiplexerImage, multiplexerTag)
 	err = chain.AddNode(ctx,
 		celestiadockertypes.NewChainNodeConfigBuilder().
