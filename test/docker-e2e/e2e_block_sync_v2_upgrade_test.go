@@ -41,8 +41,9 @@ func (s *CelestiaTestSuite) TestBlockSyncV2Upgrade() {
 
 	// Build chain with validators configured with --v2-upgrade-height flag
 	// The flag is set at the chain level, which applies to all validators
+	// Use --timeout-commit=1s to speed up block production for faster testing
 	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).
-		WithAdditionalStartArgs("--v2-upgrade-height", strconv.FormatInt(v2UpgradeTestHeight, 10)).
+		WithAdditionalStartArgs("--force-no-bbr", "--timeout-commit=1s", "--v2-upgrade-height", strconv.FormatInt(v2UpgradeTestHeight, 10)).
 		Build(ctx)
 	s.Require().NoError(err, "failed to create chain")
 
@@ -127,7 +128,7 @@ func (s *CelestiaTestSuite) TestBlockSyncV2Upgrade() {
 	err = chain.AddNode(ctx,
 		celestiadockertypes.NewChainNodeConfigBuilder().
 			WithNodeType(tastoratypes.NodeTypeConsensusFull).
-			WithAdditionalStartArgs("--v2-upgrade-height", strconv.FormatInt(v2UpgradeTestHeight, 10)).
+			WithAdditionalStartArgs("--force-no-bbr", "--timeout-commit=1s", "--v2-upgrade-height", strconv.FormatInt(v2UpgradeTestHeight, 10)).
 			WithPostInit(func(ctx context.Context, node *celestiadockertypes.ChainNode) error {
 				return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
 					// disable state sync to ensure we're testing block sync
@@ -170,18 +171,21 @@ func (s *CelestiaTestSuite) TestBlockSyncV2Upgrade() {
 	blockBeforeUpgrade, err := blockSyncClient.Block(ctx, &heightBeforeUpgrade)
 	s.Require().NoError(err, "failed to get block before upgrade")
 	s.Require().NotNil(blockBeforeUpgrade, "block before upgrade should not be nil")
+	s.Require().Equal(uint64(1), blockBeforeUpgrade.Block.Version.App, "block before upgrade should have app version 1")
 	t.Logf("Successfully queried block %d (before upgrade)", heightBeforeUpgrade)
 
 	heightAtUpgrade := int64(v2UpgradeTestHeight)
 	blockAtUpgrade, err := blockSyncClient.Block(ctx, &heightAtUpgrade)
 	s.Require().NoError(err, "failed to get block at upgrade height")
 	s.Require().NotNil(blockAtUpgrade, "block at upgrade height should not be nil")
+	s.Require().Equal(uint64(2), blockAtUpgrade.Block.Version.App, "block at upgrade should have app version 2")
 	t.Logf("Successfully queried block %d (at upgrade)", heightAtUpgrade)
 
 	heightAfterUpgrade := int64(v2UpgradeTestHeight + 1)
 	blockAfterUpgrade, err := blockSyncClient.Block(ctx, &heightAfterUpgrade)
 	s.Require().NoError(err, "failed to get block after upgrade")
 	s.Require().NotNil(blockAfterUpgrade, "block after upgrade should not be nil")
+	s.Require().Equal(uint64(2), blockAfterUpgrade.Block.Version.App, "block after upgrade should have app version 2")
 	t.Logf("Successfully queried block %d (after upgrade)", heightAfterUpgrade)
 
 	// Verify no version mismatch errors occurred by checking the node status
