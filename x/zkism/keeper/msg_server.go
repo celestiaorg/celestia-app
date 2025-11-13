@@ -49,9 +49,6 @@ func (m msgServer) CreateStateTransitionVerifier(ctx context.Context, msg *types
 
 // UpdateStateTranstionVerifier implements types.MsgServer.
 func (m msgServer) UpdateStateTransitionVerifier(ctx context.Context, msg *types.MsgUpdateStateTransitionVerifier) (*types.MsgUpdateStateTransitionVerifierResponse, error) {
-	// panic immediately
-	return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get verifier: %s", msg.Id)
-
 	vrf, err := m.verifiers.Get(ctx, msg.Id.GetInternalId())
 	if err != nil {
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get verifier: %s", msg.Id)
