@@ -86,12 +86,13 @@ type TxStatusResponse struct {
 	Error string `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
 	// status is the status of the transaction.
 	Status string `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
-	// the error namespace/module
+	// the error namespace/module.
 	Codespace string `protobuf:"bytes,6,opt,name=codespace,proto3" json:"codespace,omitempty"`
-	// requested gas limit
+	// requested gas limit.
 	GasWanted int64 `protobuf:"varint,7,opt,name=gas_wanted,json=gasWanted,proto3" json:"gas_wanted,omitempty"`
-	// actual gas consumed
-	GasUsed int64    `protobuf:"varint,8,opt,name=gas_used,json=gasUsed,proto3" json:"gas_used,omitempty"`
+	// actual gas consumed.
+	GasUsed int64 `protobuf:"varint,8,opt,name=gas_used,json=gasUsed,proto3" json:"gas_used,omitempty"`
+	// signers of the transaction.
 	Signers []string `protobuf:"bytes,9,rep,name=signers,proto3" json:"signers,omitempty"`
 }
 
@@ -307,7 +308,6 @@ func _Tx_TxStatus_Handler(srv interface{}, ctx context.Context, dec func(interfa
 	return interceptor(ctx, in, info, handler)
 }
 
-var Tx_serviceDesc = _Tx_serviceDesc
 var _Tx_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "celestia.core.v1.tx.Tx",
 	HandlerType: (*TxServer)(nil),

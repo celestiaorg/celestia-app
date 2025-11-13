@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/x/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	"github.com/celestiaorg/celestia-app/v6/x/minfee"
+	celestiawarp "github.com/celestiaorg/celestia-app/v6/x/warp"
 	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
 	minttypes "github.com/celestiaorg/celestia-app/v6/x/mint/types"
 	"github.com/celestiaorg/celestia-app/v6/x/signal"
@@ -84,6 +85,7 @@ var ModuleEncodingRegisters = []module.AppModuleBasic{
 	warp.AppModule{},
 	// celestia
 	blob.AppModule{},
+	celestiawarp.PermissionlessAppModule{},
 	minfee.AppModule{},
 	mintModule{},
 	signal.AppModule{},

@@ -1,0 +1,33 @@
+syntax = "proto3";
+package celestia.warp.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/v6/x/warp/types";
+
+// EventSetupPermissionlessInfrastructure is emitted when permissionless infrastructure is set up
+message EventSetupPermissionlessInfrastructure {
+  // creator who initiated the setup
+  string creator = 1;
+
+  // mode: "create" or "transfer"
+  string mode = 2;
+
+  // mailbox_id of the module-owned mailbox
+  string mailbox_id = 3;
+
+  // routing_ism_id of the module-owned routing ISM
+  string routing_ism_id = 4;
+
+  // token_id of the module-owned token
+  string token_id = 5;
+
+  // local_domain (only for create mode)
+  uint32 local_domain = 6;
+
+  // origin_denom (only for create mode)
+  string origin_denom = 7;
+
+  // current_owner (only for transfer mode)
+  string current_owner = 8;
+}

@@ -27,9 +27,9 @@ import (
 	hyperlanecore "github.com/bcp-innovations/hyperlane-cosmos/x/core"
 	hyperlanekeeper "github.com/bcp-innovations/hyperlane-cosmos/x/core/keeper"
 	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
-	"github.com/bcp-innovations/hyperlane-cosmos/x/warp"
 	warpkeeper "github.com/bcp-innovations/hyperlane-cosmos/x/warp/keeper"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
+	celestiawarp "github.com/celestiaorg/celestia-app/v6/x/warp"
 	"github.com/celestiaorg/celestia-app/v6/app/ante"
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
@@ -437,7 +437,7 @@ func New(
 		solomachine.NewAppModule(),
 		circuitModule{circuit.NewAppModule(encodingConfig.Codec, app.CircuitKeeper)},
 		hyperlanecore.NewAppModule(encodingConfig.Codec, &app.HyperlaneKeeper),
-		warp.NewAppModule(encodingConfig.Codec, app.WarpKeeper),
+		celestiawarp.NewPermissionlessAppModule(encodingConfig.Codec, app.WarpKeeper, &app.HyperlaneKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager is in charge of setting up basic,

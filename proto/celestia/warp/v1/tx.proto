@@ -1,0 +1,86 @@
+syntax = "proto3";
+package celestia.warp.v1;
+
+import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
+import "amino/amino.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/warp/types";
+
+// Msg defines the celestia warp Msg service for permissionless operations.
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  // SetupPermissionlessInfrastructure creates or transfers Hyperlane infrastructure
+  // to module ownership for permissionless enrollment
+  rpc SetupPermissionlessInfrastructure(MsgSetupPermissionlessInfrastructure)
+      returns (MsgSetupPermissionlessInfrastructureResponse);
+}
+
+// MsgSetupPermissionlessInfrastructure sets up module-owned infrastructure
+// for permissionless warp route enrollment. It can either:
+// 1. Create new mailbox, routing ISM, and collateral token as module-owned
+// 2. Transfer existing resources to module ownership
+message MsgSetupPermissionlessInfrastructure {
+  option (cosmos.msg.v1.signer) = "creator";
+  option (amino.name) = "celestia/warp/MsgSetupPermissionlessInfrastructure";
+
+  // creator is the message sender (only pays gas, doesn't need special permissions)
+  string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+
+  // Mode: either "create" or "transfer"
+  string mode = 2;
+
+  // ===== Fields for "create" mode =====
+
+  // local_domain is the Hyperlane domain ID for this chain (e.g., 69420 for Celestia)
+  uint32 local_domain = 3;
+
+  // origin_denom is the native denom to create a collateral token for (e.g., "utia")
+  string origin_denom = 4;
+
+  // ===== Fields for "transfer" mode =====
+
+  // existing_mailbox_id to transfer ownership (if already exists)
+  string existing_mailbox_id = 5 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable) = true
+  ];
+
+  // existing_routing_ism_id to transfer ownership (if already exists)
+  string existing_routing_ism_id = 6 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable) = true
+  ];
+
+  // existing_token_id to transfer ownership (if already exists)
+  string existing_token_id = 7 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable) = true
+  ];
+
+  // current_owner is required for "transfer" mode to verify ownership before transfer
+  string current_owner = 8 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+}
+
+// MsgSetupPermissionlessInfrastructureResponse returns the IDs of created/transferred resources
+message MsgSetupPermissionlessInfrastructureResponse {
+  // mailbox_id of the module-owned mailbox
+  string mailbox_id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable) = false
+  ];
+
+  // routing_ism_id of the module-owned routing ISM
+  string routing_ism_id = 2 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable) = false
+  ];
+
+  // token_id of the module-owned collateral token
+  string token_id = 3 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable) = false
+  ];
+}
