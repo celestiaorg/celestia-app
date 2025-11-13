@@ -13,6 +13,7 @@ import (
 	cometcfg "github.com/cometbft/cometbft/config"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 
+	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 )
@@ -34,7 +35,10 @@ func (s *CelestiaTestSuite) TestBlockSyncV2Upgrade() {
 	}
 
 	ctx := context.TODO()
-	cfg := dockerchain.DefaultConfig(s.client, s.network)
+	// Use v3.x standalone image for initial chain build
+	cfg := dockerchain.DefaultConfig(s.client, s.network).
+		WithImage("ghcr.io/celestiaorg/celestia-app-standalone").
+		WithTag("v3.10.6")
 
 	// Set genesis to start at app version 1
 	cfg.Genesis = cfg.Genesis.WithAppVersion(1)
@@ -124,10 +128,15 @@ func (s *CelestiaTestSuite) TestBlockSyncV2Upgrade() {
 	t.Logf("Peers: %s", peerList)
 
 	// Add block sync node with --v2-upgrade-height flag configured
-	t.Log("Adding block sync node with --v2-upgrade-height flag")
+	// Use the latest multiplexer binary for block syncing
+	// Use explicit version tag v5.0.12 instead of GetCelestiaTag() which may return a commit hash
+	multiplexerImage := dockerchain.GetCelestiaImage()
+	multiplexerTag := "v5.0.12"
+	t.Logf("Adding block sync node with multiplexer image %s:%s", multiplexerImage, multiplexerTag)
 	err = chain.AddNode(ctx,
 		celestiadockertypes.NewChainNodeConfigBuilder().
 			WithNodeType(tastoratypes.NodeTypeConsensusFull).
+			WithImage(tastoracontainertypes.NewImage(multiplexerImage, multiplexerTag, "10001:10001")).
 			WithAdditionalStartArgs("--force-no-bbr", "--timeout-commit=1s", "--v2-upgrade-height", strconv.FormatInt(v2UpgradeTestHeight, 10)).
 			WithPostInit(func(ctx context.Context, node *celestiadockertypes.ChainNode) error {
 				return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
