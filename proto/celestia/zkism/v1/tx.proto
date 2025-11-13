@@ -52,6 +52,8 @@ message MsgCreateStateTransitionVerifierResponse{
 
 // MsgUpdateStateTransitionVerifier is the request type for UpdateZKExecutionISM.
 message MsgUpdateStateTransitionVerifier {
+  option (cosmos.msg.v1.signer) = "signer";
+
   // ism identifier
   string id = 1 [
     (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
