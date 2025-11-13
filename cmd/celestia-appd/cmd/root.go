@@ -113,6 +113,7 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 		AppGenesisToCometGenesisConverterCmd(),
 		server.ModuleHashByHeightQuery(NewAppServer),
 		listTypesCmd(),
+		CheckVersionCmd(),
 	)
 
 	rootCommand.AddCommand(
