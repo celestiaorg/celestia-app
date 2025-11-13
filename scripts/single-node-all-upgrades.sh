@@ -2,10 +2,6 @@
 
 # This script starts a local single node testnet on app version 1 and then
 # upgrades to app version 2, 3, 4, 5, and 6.
-#
-# Prerequisites:
-# - Modify the `Makefile` and set V2_UPGRADE_HEIGHT = 2
-# - Run `make install`
 
 set -o errexit # Stop script execution if an error is encountered
 set -o nounset # Stop script execution if an undefined variable is used
@@ -87,11 +83,22 @@ createGenesis() {
 
     echo "Overriding the genesis.json app version to 1..."
     sed -i'.bak' 's/"app_version": *"[^"]*"/"app_version": "1"/' "${APP_HOME}"/config/genesis.json
+
+    # Set minimum gas price to avoid parsing errors
+    sed -i'.bak' 's/^minimum-gas-prices = ".*"/minimum-gas-prices = "0utia"/' "${APP_HOME}"/config/app.toml
 }
 
 deleteCelestiaAppHome() {
+    echo "Killing any running celestia-appd processes..."
+    pkill -f "celestia-appd.*start" 2>/dev/null || true
+    sleep 2
+
     echo "Deleting $APP_HOME..."
-    rm -r "$APP_HOME"
+    if [ -d "$APP_HOME" ]; then
+        rm -rf "$APP_HOME"
+    fi
+    # Wait a moment to ensure deletion is complete
+    sleep 1
 }
 
 startCelestiaApp() {
@@ -101,7 +108,9 @@ startCelestiaApp() {
     --api.enable \
     --grpc.enable \
     --grpc-web.enable \
-    --delayed-precommit-timeout 1s
+    --force-no-bbr \
+    --v2-upgrade-height=3 \
+    --timeout-commit=1s
 }
 
 # Function to perform upgrade to a specific version
@@ -118,9 +127,10 @@ performUpgrade() {
         --broadcast-mode ${BROADCAST_MODE} \
         --yes
 
-    sleep 1
+    sleep 2
     echo "Querying the tally for v${target_version}..."
-    celestia-appd query signal tally ${target_version}
+    celestia-appd query signal tally ${target_version} --home ${APP_HOME}
+    sleep 2
 
     echo "Submitting msg try upgrade..."
     celestia-appd tx signal try-upgrade \
@@ -131,10 +141,11 @@ performUpgrade() {
         --chain-id ${CHAIN_ID} \
         --broadcast-mode ${BROADCAST_MODE} \
         --yes
+    sleep 2
 
     echo "Waiting for upgrade to complete..."
     while true; do
-        current_version=$(celestia-appd status | jq -r '.node_info.protocol_version.app')
+        current_version=$(celestia-appd status --home ${APP_HOME} | jq -r '.node_info.protocol_version.app')
         if [ "$current_version" = "${target_version}" ]; then
             echo "Upgrade to version ${target_version} complete!"
             break
@@ -148,13 +159,13 @@ startUpgrades() {
     sleep 30
     echo "Waiting for app version 2 before proceeding..."
     while true; do
-        current_version=$(celestia-appd status | jq -r '.node_info.protocol_version.app')
+        current_version=$(celestia-appd status --home ${APP_HOME} | jq -r '.node_info.protocol_version.app')
         if [ "$current_version" = "2" ]; then
             echo "App version 2 detected, proceeding with v3 upgrade..."
             break
         fi
         echo "Current version: $current_version, waiting for version 2..."
-        sleep 1
+        sleep 2
     done
 
     # Perform upgrades to versions 3, 4, 5, and 6

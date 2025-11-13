@@ -144,9 +144,6 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 // addStartFlags adds flags to the start command.
 func addStartFlags(startCmd *cobra.Command) {
 	startCmd.Flags().Int64(UpgradeHeightFlag, 0, "Upgrade height to switch from v1 to v2. Must be coordinated amongst all validators")
-	if err := startCmd.Flags().MarkDeprecated(UpgradeHeightFlag, "This flag is deprecated and was only useful prior to v4."); err != nil {
-		panic(err)
-	}
 
 	startCmd.Flags().Duration(TimeoutCommitFlag, 0, "Override the application configured timeout_commit. Note: only for testing purposes.")
 	if err := startCmd.Flags().MarkDeprecated(TimeoutCommitFlag, "Use --delayed-precommit-timeout instead."); err != nil {
