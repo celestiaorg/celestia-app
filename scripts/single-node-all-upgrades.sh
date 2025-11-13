@@ -22,7 +22,13 @@ KEY_NAME="validator"
 KEYRING_BACKEND="test"
 FEES="200000utia"
 BROADCAST_MODE="sync"
-APP_HOME="${HOME}/.celestia-app"
+
+# Use argument as home directory if provided, else default to ~/.celestia-app
+if [ $# -ge 1 ]; then
+  APP_HOME="$1"
+else
+  APP_HOME="${HOME}/.celestia-app"
+fi
 
 VERSION=$(celestia-appd version 2>&1)
 GENESIS_FILE="${APP_HOME}/config/genesis.json"
@@ -95,9 +101,7 @@ startCelestiaApp() {
     --api.enable \
     --grpc.enable \
     --grpc-web.enable \
-    --v2-upgrade-height 15 \
-    --force-no-bbr
-    # --delayed-precommit-timeout 1s \
+    --delayed-precommit-timeout 1s
 }
 
 # Function to perform upgrade to a specific version
@@ -162,5 +166,5 @@ startUpgrades() {
 
 deleteCelestiaAppHome
 createGenesis
-# startUpgrades & # Upgrade to app version 3, 4, 5, and 6 in the background.
+startUpgrades & # Upgrade to app version 3, 4, 5, and 6 in the background.
 startCelestiaApp # Start celestia-app in the foreground.
