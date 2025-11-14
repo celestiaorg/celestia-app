@@ -20,6 +20,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmdb "github.com/tendermint/tm-db"
 )
 
@@ -159,6 +160,62 @@ func TestOfferSnapshot(t *testing.T) {
 	})
 }
 
+func TestEndBlock(t *testing.T) {
+	t.Run("should return app version 1 for height 1", func(t *testing.T) {
+		upgradeHeight := int64(3)
+		testApp := createTestAppWithInitChain(t, upgradeHeight)
+
+		height := int64(1)
+		_ = testApp.BeginBlock(abci.RequestBeginBlock{
+			Header: tmproto.Header{
+				Height: height,
+				Version: tmversion.Consensus{
+					App: 1,
+				},
+			},
+		})
+
+		got := testApp.EndBlock(abci.RequestEndBlock{Height: height})
+		require.Equal(t, uint64(1), got.ConsensusParamUpdates.Version.AppVersion)
+	})
+
+	t.Run("should return app version 2 at the block before the v2 upgrade height", func(t *testing.T) {
+		upgradeHeight := int64(3)
+		testApp := createTestAppWithInitChain(t, upgradeHeight)
+
+		// Process block 1 first
+		testApp.BeginBlock(abci.RequestBeginBlock{
+			Header: tmproto.Header{
+				Height: 1,
+				Version: tmversion.Consensus{
+					App: 1,
+				},
+			},
+		})
+		testApp.EndBlock(abci.RequestEndBlock{Height: 1})
+		testApp.Commit()
+
+		// Now process block 2 (one block before upgrade height)
+		// This is where EndBlock should trigger the v2 upgrade
+		_ = testApp.BeginBlock(abci.RequestBeginBlock{
+			Header: tmproto.Header{
+				Height: 2,
+				Version: tmversion.Consensus{
+					App: 1, // v1 before upgrade
+				},
+			},
+		})
+
+		// Call EndBlock at height 2 (one block before upgrade height)
+		got := testApp.EndBlock(abci.RequestEndBlock{Height: 2})
+
+		// Verify that ConsensusParamUpdates is not nil and contains version 2
+		require.NotNil(t, got.ConsensusParamUpdates, "ConsensusParamUpdates should not be nil at v2 upgrade height")
+		require.NotNil(t, got.ConsensusParamUpdates.Version, "ConsensusParamUpdates.Version should not be nil")
+		assert.Equal(t, uint64(2), got.ConsensusParamUpdates.Version.AppVersion, "App version should be 2 after upgrade")
+	})
+}
+
 func createTestApp(t *testing.T) *app.App {
 	db := tmdb.NewMemDB()
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -182,6 +239,51 @@ func createTestApp(t *testing.T) *app.App {
 	require.NoError(t, err)
 	response := testApp.Info(abci.RequestInfo{})
 	require.Equal(t, uint64(0), response.AppVersion)
+	return testApp
+}
+
+func createTestAppWithInitChain(t *testing.T, upgradeHeight int64) *app.App {
+	db := tmdb.NewMemDB()
+	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	timeoutCommit := time.Second
+	snapshotDir := filepath.Join(t.TempDir(), "data", "snapshots")
+	t.Cleanup(func() {
+		err := os.RemoveAll(snapshotDir)
+		require.NoError(t, err)
+	})
+	snapshotDB, err := tmdb.NewDB("metadata", tmdb.GoLevelDBBackend, snapshotDir)
+	t.Cleanup(func() {
+		err := snapshotDB.Close()
+		require.NoError(t, err)
+	})
+	require.NoError(t, err)
+	snapshotStore, err := snapshots.NewStore(snapshotDB, snapshotDir)
+	require.NoError(t, err)
+	baseAppOption := baseapp.SetSnapshot(snapshotStore, snapshottypes.NewSnapshotOptions(10, 10))
+	testApp := app.New(log.NewNopLogger(), db, nil, 0, config, upgradeHeight, timeoutCommit, util.EmptyAppOptions{}, baseAppOption)
+
+	// Initialize the app with InitChain
+	genesisState, _, _ := util.GenesisStateWithSingleValidator(testApp, "account")
+	appStateBytes, err := json.MarshalIndent(genesisState, "", " ")
+	require.NoError(t, err)
+	genesis := testnode.DefaultConfig().Genesis
+
+	initChainReq := abci.RequestInitChain{
+		Time:    genesis.GenesisTime,
+		ChainId: genesis.ChainID,
+		ConsensusParams: &abci.ConsensusParams{
+			Block:     &abci.BlockParams{},
+			Evidence:  &genesis.ConsensusParams.Evidence,
+			Validator: &genesis.ConsensusParams.Validator,
+			Version: &tmproto.VersionParams{
+				AppVersion: 1, // Start with v1
+			},
+		},
+		AppStateBytes: appStateBytes,
+		InitialHeight: 0,
+	}
+	_ = testApp.InitChain(initChainReq)
+
 	return testApp
 }
 
