@@ -57,7 +57,7 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 	}
 
 	v3Args := defaultArgs
-	if v2UpgradeHeight != "" && v2UpgradeHeight != "0" {
+	if v2UpgradeHeight != "" {
 		v3Args = append(v3Args, "--v2-upgrade-height="+v2UpgradeHeight)
 	}
 
