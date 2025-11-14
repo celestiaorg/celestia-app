@@ -44,22 +44,22 @@ func (fsb *FilteredSquareBuilder) Builder() *square.Builder {
 	return fsb.builder
 }
 
-func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
+func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes int64) [][]byte {
 	logger := ctx.Logger().With("app/filtered-square-builder")
 
 	// note that there is an additional filter step for tx size of raw txs here
 	normalTxs, blobTxs := separateTxs(fsb.txConfig, txs)
 
-	var (
-		nonPFBMessageCount = 0
-		pfbMessageCount    = 0
-		dec                = fsb.txConfig.TxDecoder()
-		n                  = 0
-		m                  = 0
-	)
+	nonPFBMessageCount := 0
+	pfbMessageCount := 0
+	normalTxCount := 0
+	blobTxCount := 0
+	currentTxBytes := int64(0)
+
+	decoder := fsb.txConfig.TxDecoder()
 
 	for _, tx := range normalTxs {
-		sdkTx, err := dec(tx)
+		sdkTx, err := decoder(tx)
 		if err != nil {
 			logger.Error("decoding already checked transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
 			continue
@@ -76,6 +76,11 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
 
 		if !fsb.builder.AppendTx(tx) {
 			logger.Debug("skipping tx because it was too large to fit in the square", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
+			continue
+		}
+
+		if currentTxBytes+int64(len(tx)) > maxTxBytes {
+			logger.Debug("skipping tx because it was too large to fit in the block", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
 			continue
 		}
 
@@ -99,12 +104,13 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
 		}
 
 		nonPFBMessageCount += len(sdkTx.GetMsgs())
-		normalTxs[n] = tx
-		n++
+		normalTxs[normalTxCount] = tx
+		normalTxCount++
+		currentTxBytes += int64(len(tx))
 	}
 
 	for _, tx := range blobTxs {
-		sdkTx, err := dec(tx.Tx)
+		sdkTx, err := decoder(tx.Tx)
 		if err != nil {
 			logger.Error("decoding already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
 			continue
@@ -120,6 +126,10 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
 
 		if !fsb.builder.AppendBlobTx(tx) {
 			logger.Debug("skipping tx because it was too large to fit in the square", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()))
+			continue
+		}
+		if currentTxBytes+int64(len(tx.Tx)) > maxTxBytes {
+			logger.Debug("skipping tx because it was too large to fit in the block", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()))
 			continue
 		}
 
@@ -140,13 +150,14 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
 		}
 
 		pfbMessageCount += len(sdkTx.GetMsgs())
-		blobTxs[m] = tx
-		m++
+		blobTxs[blobTxCount] = tx
+		blobTxCount++
+		currentTxBytes += int64(len(tx.Tx))
 	}
 
-	kept := make([][]byte, 0, m+n)
-	kept = append(kept, normalTxs[:n]...)
-	kept = append(kept, encodeBlobTxs(blobTxs[:m])...)
+	kept := make([][]byte, 0, blobTxCount+normalTxCount)
+	kept = append(kept, normalTxs[:normalTxCount]...)
+	kept = append(kept, encodeBlobTxs(blobTxs[:blobTxCount])...)
 	return kept
 }
 
