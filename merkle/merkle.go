@@ -16,7 +16,7 @@ var (
 
 // Tree represents a binary Merkle tree
 type Tree struct {
-	nodes [][]byte // All nodes: [root, internal nodes..., leaves]
+	nodes [][32]byte // using array instead of slice enables single contiguous memory allocation for the entire tree
 }
 
 // NewTree builds a binary Merkle tree from the given leaves
@@ -37,11 +37,11 @@ func NewTreeWithWorkers(leaves [][]byte, workerCount int) *Tree {
 	}
 
 	// Build tree bottom-up
-	nodes := make([][]byte, 2*n-1)
+	nodes := make([][32]byte, 2*n-1)
 
 	// Parallel hash leaves and copy to the end of the nodes array
 	parallelizeHashing(n, workerCount, func(i int) {
-		nodes[n-1+i] = hashLeaf(leaves[i])
+		hashLeaf(leaves[i], &nodes[n-1+i])
 	})
 
 	// Build internal nodes level by level, bottom-up
@@ -49,9 +49,9 @@ func NewTreeWithWorkers(leaves [][]byte, workerCount int) *Tree {
 		levelStart := levelSize - 1
 		parallelizeHashing(levelSize, workerCount, func(i int) {
 			pos := levelStart + i
-			left := nodes[2*pos+1]
-			right := nodes[2*pos+2]
-			nodes[pos] = hashPair(left, right)
+			left := &nodes[2*pos+1]
+			right := &nodes[2*pos+2]
+			hashPair(left, right, &nodes[pos])
 		})
 	}
 
@@ -63,7 +63,7 @@ func NewTreeWithWorkers(leaves [][]byte, workerCount int) *Tree {
 // parallelizeHashing runs the hash function in parallel for count items
 func parallelizeHashing(count int, workerCount int, hashFunc func(i int)) {
 	if count <= 64 || workerCount <= 1 { // Small trees or single worker: sequential is faster
-		for i := 0; i < count; i++ {
+		for i := range count {
 			hashFunc(i)
 		}
 		return
@@ -80,7 +80,7 @@ func parallelizeHashing(count int, workerCount int, hashFunc func(i int)) {
 
 	// Start workers
 	wg.Add(workers)
-	for w := 0; w < workers; w++ {
+	for range workers {
 		go func() {
 			defer wg.Done()
 			for i := range ch {
@@ -90,7 +90,7 @@ func parallelizeHashing(count int, workerCount int, hashFunc func(i int)) {
 	}
 
 	// Send work
-	for i := 0; i < count; i++ {
+	for i := range count {
 		ch <- i
 	}
 	close(ch)
@@ -115,24 +115,22 @@ func (t *Tree) depth() int {
 
 // Root returns the Merkle root
 func (t *Tree) Root() [32]byte {
-	var root [32]byte
-	copy(root[:], t.nodes[0])
-	return root
+	return t.nodes[0]
 }
 
-// hashLeaf hashes a leaf node with the leaf prefix
-func hashLeaf(data []byte) []byte {
+// hashLeaf hashes a leaf node with the leaf prefix, writing result directly to dst
+func hashLeaf(data []byte, dst *[32]byte) {
 	h := sha256.New()
 	h.Write(leafPrefix)
 	h.Write(data)
-	return h.Sum(nil)
+	h.Sum(dst[:0])
 }
 
-// hashPair hashes two nodes with the inner prefix
-func hashPair(left, right []byte) []byte {
+// hashPair hashes two nodes with the inner prefix, writing result directly to dst
+func hashPair(left, right *[32]byte, dst *[32]byte) {
 	h := sha256.New()
 	h.Write(innerPrefix)
-	h.Write(left)
-	h.Write(right)
-	return h.Sum(nil)
+	h.Write(left[:])
+	h.Write(right[:])
+	h.Sum(dst[:0])
 }

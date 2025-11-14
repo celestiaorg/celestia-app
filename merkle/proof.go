@@ -25,7 +25,7 @@ func (t *Tree) GenerateProof(index int) ([][]byte, error) {
 		}
 
 		if sibling < len(t.nodes) {
-			proof = append(proof, t.nodes[sibling])
+			proof = append(proof, t.nodes[sibling][:])
 		}
 
 		// Move to parent
@@ -56,7 +56,7 @@ func (t *Tree) GenerateLeftSubtreeProof(k int) ([][]byte, error) {
 		// The root of sibling subtree [currentSize, currentSize*2) is at position:
 		// (n + currentSize - 2) / currentSize
 		siblingPos := (n + currentSize - 2) / currentSize
-		proof = append(proof, t.nodes[siblingPos])
+		proof = append(proof, t.nodes[siblingPos][:])
 		currentSize *= 2
 	}
 
@@ -66,39 +66,46 @@ func (t *Tree) GenerateLeftSubtreeProof(k int) ([][]byte, error) {
 // ComputeRootFromProof computes the Merkle root given a leaf and its proof
 func ComputeRootFromProof(leaf []byte, index int, proof [][]byte) ([32]byte, error) {
 	// Start with the hashed leaf (apply leaf prefix like in tree construction)
-	current := hashLeaf(leaf)
+	var current [32]byte
+	hashLeaf(leaf, &current)
 	pos := index
 
 	// Traverse up the tree using the proof
-	for _, sibling := range proof {
+	for _, siblingBytes := range proof {
+		var sibling [32]byte
+		copy(sibling[:], siblingBytes)
+
+		var next [32]byte
 		if pos%2 == 0 {
 			// Current is left child
-			current = hashPair(current, sibling)
+			hashPair(&current, &sibling, &next)
 		} else {
 			// Current is right child
-			current = hashPair(sibling, current)
+			hashPair(&sibling, &current, &next)
 		}
+		current = next
 		pos /= 2
 	}
 
-	var root [32]byte
-	copy(root[:], current)
-	return root, nil
+	return current, nil
 }
 
 // ComputeRootFromLeftSubtreeProof computes the full tree root given a left subtree root and sibling roots
 // The subtree is assumed to be the leftmost k leaves where k is a power of 2
 func ComputeRootFromLeftSubtreeProof(leftSubtreeRoot [32]byte, siblingRoots [][]byte) [32]byte {
-	current := leftSubtreeRoot[:]
+	current := leftSubtreeRoot
 
 	// Process each sibling in the proof
-	for _, sibling := range siblingRoots {
+	for _, siblingBytes := range siblingRoots {
+		var sibling [32]byte
+		copy(sibling[:], siblingBytes)
+
+		var next [32]byte
 		// At each level, our current subtree is on the left,
 		// and the sibling is on the right
-		current = hashPair(current, sibling)
+		hashPair(&current, &sibling, &next)
+		current = next
 	}
 
-	var fullRoot [32]byte
-	copy(fullRoot[:], current)
-	return fullRoot
+	return current
 }

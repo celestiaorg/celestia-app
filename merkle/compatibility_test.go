@@ -68,7 +68,7 @@ func TestCometBFTProofCrossVerification(t *testing.T) {
 			}
 
 			// Test each leaf
-			for i := 0; i < numLeaves; i++ {
+			for i := range numLeaves {
 				// Get CometBFT proof for this index
 				var cometProof *cmtmerkle.Proof
 				for _, p := range cometProofs {
@@ -104,7 +104,7 @@ func TestCometBFTProofCrossVerification(t *testing.T) {
 
 				// Cross-verify: Create a CometBFT proof from our proof
 				// We need to provide the leaf hash with proper prefix
-				leafHash := hashLeaf(leaves[i])
+				leafHash := hashLeafTest(leaves[i])
 				crossCheckProof := &cmtmerkle.Proof{
 					Total:    int64(numLeaves),
 					Index:    int64(i),
@@ -180,7 +180,7 @@ func TestCometBFTProofSimple(t *testing.T) {
 
 	// Cross-verify our proof with CometBFT verifier
 	// CometBFT expects the leaf hash to be computed with the leaf prefix
-	leafHash := hashLeaf(leaves[0])
+	leafHash := hashLeafTest(leaves[0])
 	crossProof := &cmtmerkle.Proof{
 		Total:    4,
 		Index:    0,
@@ -215,9 +215,9 @@ func TestCometBFTEdgeCases(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create leaves of specified size
 			leaves := make([][]byte, tt.numLeaves)
-			for i := 0; i < tt.numLeaves; i++ {
+			for i := range tt.numLeaves {
 				leaf := make([]byte, tt.leafSize)
-				for j := 0; j < tt.leafSize; j++ {
+				for j := range tt.leafSize {
 					leaf[j] = byte((i*tt.leafSize + j) % 256)
 				}
 				leaves[i] = leaf

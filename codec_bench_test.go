@@ -392,7 +392,11 @@ func BenchmarkGenerateStandaloneProof(b *testing.B) {
 	}
 }
 
-// BenchmarkCreateVerificationContext benchmarks context creation
+// Benchmark results (AMD Ryzen 9 7940HS) - selected representative cases:
+//
+// BenchmarkCreateVerificationContext/size=1MB/k=1024/n=1024-16       388,162 ns/op    606,718 B/op     4,121 allocs/op
+// BenchmarkCreateVerificationContext/size=1MB/k=4096/n=4096-16     1,742,770 ns/op  2,370,918 B/op    16,411 allocs/op
+// BenchmarkCreateVerificationContext/size=1MB/k=16384/n=16384-16   7,763,339 ns/op  9,448,992 B/op    65,565 allocs/op
 func BenchmarkCreateVerificationContext(b *testing.B) {
 	configs := generateBenchmarkConfigs(false) // Context creation doesn't use workers
 

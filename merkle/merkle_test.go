@@ -93,7 +93,7 @@ func TestGenerateProof(t *testing.T) {
 	leaves := makeTestLeaves(numLeaves)
 	tree := NewTree(leaves)
 
-	for i := 0; i < numLeaves; i++ {
+	for i := range numLeaves {
 		t.Run(fmt.Sprintf("leaf_%d", i), func(t *testing.T) {
 			proof, err := tree.GenerateProof(i)
 			if err != nil {
@@ -150,7 +150,7 @@ func TestComputeRootFromProof(t *testing.T) {
 	tree := NewTree(leaves)
 	expectedRoot := tree.Root()
 
-	for i := 0; i < numLeaves; i++ {
+	for i := range numLeaves {
 		proof, err := tree.GenerateProof(i)
 		if err != nil {
 			t.Fatalf("GenerateProof(%d) error: %v", i, err)
@@ -270,19 +270,19 @@ func TestTreeDepth(t *testing.T) {
 }
 
 func TestHashPair(t *testing.T) {
-	left := []byte("left data")
-	right := []byte("right data")
+	left := hashLeafTest([]byte("left data"))
+	right := hashLeafTest([]byte("right data"))
 
 	// Test that hashPair is deterministic
-	hash1 := hashPair(left, right)
-	hash2 := hashPair(left, right)
+	hash1 := hashPairTest(left, right)
+	hash2 := hashPairTest(left, right)
 
 	if !bytes.Equal(hash1, hash2) {
 		t.Error("hashPair is not deterministic")
 	}
 
 	// Test that order matters
-	hash3 := hashPair(right, left)
+	hash3 := hashPairTest(right, left)
 	if bytes.Equal(hash1, hash3) {
 		t.Error("hashPair(left, right) should differ from hashPair(right, left)")
 	}
@@ -308,8 +308,8 @@ func TestHashLeaf(t *testing.T) {
 	data := []byte("leaf data")
 
 	// Test that hashLeaf is deterministic
-	hash1 := hashLeaf(data)
-	hash2 := hashLeaf(data)
+	hash1 := hashLeafTest(data)
+	hash2 := hashLeafTest(data)
 
 	if !bytes.Equal(hash1, hash2) {
 		t.Error("hashLeaf is not deterministic")
@@ -342,12 +342,26 @@ func TestHashLeaf(t *testing.T) {
 
 // Helper functions
 
+func hashLeafTest(data []byte) []byte {
+	var result [32]byte
+	hashLeaf(data, &result)
+	return result[:]
+}
+
+func hashPairTest(left, right []byte) []byte {
+	var l, r, result [32]byte
+	copy(l[:], left)
+	copy(r[:], right)
+	hashPair(&l, &r, &result)
+	return result[:]
+}
+
 func makeTestLeaves(n int) [][]byte {
 	leaves := make([][]byte, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		leaf := make([]byte, 32)
 		// Fill with pattern based on index
-		for j := 0; j < 32; j++ {
+		for j := range 32 {
 			leaf[j] = byte((i + j) % 256)
 		}
 		leaves[i] = leaf
