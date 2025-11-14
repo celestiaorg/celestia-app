@@ -2,6 +2,55 @@
 
 This guide provides notes for major version releases. These notes may be helpful for users when upgrading from previous major versions.
 
+## v6 - 128mb/6s
+
+This section is specific to bumping from 32mb/6s in the v6 release to 128mb/6s. If you're upgrading from v5, please check the [v6.0.0](#v600) first. And only then check this one.
+
+### Hardware requirements
+
+After upgrading to 128mb/6s, specific validator hardware specifications are required to participate in consensus and propose blocks. Based on our validator survey, the following lists the CPUs that passed the benchmark and those that did not. If your CPU is not listed, please run the benchmark available [`tools/cpu_requirements`](../../tools/cpu_requirements/README.md).
+
+<details>
+  <summary>Supported CPUs:</summary>
+- AMD Ryzen 9 5950X
+- AMD Ryzen 9 7950X
+- AMD Ryzen 9 7950X3D
+- AMD Ryzen 9 9900X
+- AMD Ryzen 7 PRO 8700GE
+- AMD Ryzen 7 3700X
+- AMD Ryzen 3900X
+- AMD 7600
+- AMD 7700X
+- AMD 7900X
+- AMD Ryzen 7900
+- AMD EPYC 4344P
+- AMD EPYC 4464P
+- AMD EPYC 4545P
+- AMD EPYC 4584PX
+- AMD EPYC 7313P
+- AMD EPYC 7443P
+- AMD EPYC 7452
+- AMD EPYC 7543P 32C/64T
+- AMD EPYC 9124
+- AMD EPYC 9454P
+- AMD EPYC 9555P
+- 13th Gen Intel Core i5-13500
+- Core i7-1270P
+- Intel Xeon-E 2386G
+
+</details>
+
+<details>
+  <summary>NOT supported CPUs:</summary>
+  - AMD Ryzen 9 5950X
+  - AMD EPYC 7443P 24-Core
+  - Intel Xeon Platinum 8474C
+  - Intel Xeon Gold 6254
+  - Intel(R) Xeon(R) Silver 4210
+  - Intel Xeon E5-1620
+  - Intel Dual Xeon Silver 4116
+</details>
+
 ## v6.0.0
 
 This release contains all the changes from [CIP-042](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-042.md). Notably:
