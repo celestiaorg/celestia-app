@@ -237,5 +237,3 @@ The source of truth for dependencies is the `go.mod` file but the table below de
 | 2024/7/1   | [Informal Systems](https://informal.systems/) | [v2.0.0-rc1](https://github.com/celestiaorg/celestia-app/releases/tag/v2.0.0-rc1)                        | [informal-systems-v2.pdf](docs/audit/informal-systems-v2.pdf)                         |
 | 2024/9/20  | [Informal Systems](https://informal.systems/) | [306c587](https://github.com/celestiaorg/celestia-app/commit/306c58745d135d31c3777a1af2f58d50adbd32c8)   | [informal-systems-authored-blobs.pdf](docs/audit/informal-systems-authored-blobs.pdf) |
 | 2025/6/24  | [Informal Systems](https://informal.systems/) | [139bad2](https://github.com/celestiaorg/celestia-core/commit/139bad235a379599670f30d5e28c637dde4bb17a)  | [informal-systems-recovery.pdf](docs/audit/informal-systems-recovery.pdf)             |
-
-test
