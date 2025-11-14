@@ -165,7 +165,6 @@ func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*a
 		},
 		grpc.WaitForReady(true),
 	)
-	fmt.Printf("EndBlock response: %+v\n", endBlockResp)
 	if err != nil {
 		return nil, err
 	}
@@ -202,9 +201,6 @@ func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*a
 	a.commitRetainLastHeight = commitResp.RetainHeight
 	// get the app version from the end block response
 	a.endBlockConsensusAppVersion = endBlockResp.GetConsensusParamUpdates().Version.AppVersion
-	fmt.Printf("endBlockConsensusAppVersion: %d\n", a.endBlockConsensusAppVersion)
-	fmt.Printf("endBlockResp.ConsensusParamUpdates: %+v\n", endBlockResp.ConsensusParamUpdates)
-	fmt.Printf("converted: %+v\n", consensusParamsV1ToV2(endBlockResp.ConsensusParamUpdates))
 
 	return &abciv2.ResponseFinalizeBlock{
 		Events:                events,
