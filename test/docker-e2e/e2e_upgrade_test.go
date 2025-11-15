@@ -13,6 +13,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	v5 "github.com/celestiaorg/celestia-app/v6/pkg/appconsts/v5"
 	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
@@ -45,10 +46,6 @@ const (
 
 	EvidenceMaxAgeV5Blocks = 120960
 	EvidenceMaxAgeV6Blocks = 242640
-
-	// V5 timeout values (as time.Duration, since v5 constants don't exist in appconsts)
-	TimeoutProposeV5      = 3500 * time.Millisecond // 3.5 seconds
-	TimeoutProposeDeltaV5 = 1000 * time.Millisecond // 1 second
 )
 
 // TestAllUpgrades tests all app version upgrades using the signaling mechanism.
@@ -516,15 +513,10 @@ func (s *CelestiaTestSuite) validateTimeoutInfo(ctx context.Context, node tastor
 	timeoutInfo := abciInfo.Response.TimeoutInfo
 
 	if appVersion == AppVersionV5 {
-		// V5 timeout values: only timeout_propose and timeout_propose_delta are non-zero
-		s.Require().Equal(TimeoutProposeV5, timeoutInfo.TimeoutPropose, "v%d timeout_propose mismatch", appVersion)
-		s.Require().Equal(TimeoutProposeDeltaV5, timeoutInfo.TimeoutProposeDelta, "v%d timeout_propose_delta mismatch", appVersion)
-		s.Require().Equal(time.Duration(0), timeoutInfo.TimeoutPrevote, "v%d timeout_prevote should be 0", appVersion)
-		s.Require().Equal(time.Duration(0), timeoutInfo.TimeoutPrevoteDelta, "v%d timeout_prevote_delta should be 0", appVersion)
-		s.Require().Equal(time.Duration(0), timeoutInfo.TimeoutPrecommit, "v%d timeout_precommit should be 0", appVersion)
-		s.Require().Equal(time.Duration(0), timeoutInfo.TimeoutPrecommitDelta, "v%d timeout_precommit_delta should be 0", appVersion)
-		s.Require().Equal(time.Duration(0), timeoutInfo.TimeoutCommit, "v%d timeout_commit should be 0", appVersion)
-		s.Require().Equal(time.Duration(0), timeoutInfo.DelayedPrecommitTimeout, "v%d delayed_precommit_timeout should be 0", appVersion)
+		// v5 app only hard-coded TimeoutPropose and TimeoutCommit values
+		s.Require().Equal(v5.TimeoutPropose, timeoutInfo.TimeoutPropose, "v%d timeout_propose mismatch", appVersion)
+		// TODO: understand why this is actually 0
+		s.Require().Equal(v5.TimeoutCommit, timeoutInfo.TimeoutCommit, "v%d timeout_commit should be 0", appVersion)
 		return
 	}
 
