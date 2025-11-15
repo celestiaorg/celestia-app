@@ -1,5 +1,7 @@
 package v5
 
+import "time"
+
 const (
 	Version uint64 = 5
 	// SquareSizeUpperBound imposes an upper bound on the max effective square size.
@@ -13,4 +15,6 @@ const (
 	//
 	// The rationale for this value is described in more detail in ADR-013.
 	SubtreeRootThreshold int = 64
+	TimeoutPropose           = time.Millisecond * 3500
+	TimeoutCommit            = time.Millisecond * 4200
 )
