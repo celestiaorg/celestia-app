@@ -12,6 +12,7 @@ import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
 	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
@@ -44,6 +45,10 @@ const (
 
 	EvidenceMaxAgeV5Blocks = 120960
 	EvidenceMaxAgeV6Blocks = 242640
+
+	// V5 timeout values (as time.Duration, since v5 constants don't exist in appconsts)
+	TimeoutProposeV5      = 3500 * time.Millisecond // 3.5 seconds
+	TimeoutProposeDeltaV5 = 1000 * time.Millisecond // 1 second
 )
 
 // TestAllUpgrades tests all app version upgrades using the signaling mechanism.
@@ -330,6 +335,7 @@ func (s *CelestiaTestSuite) validateParameters(ctx context.Context, node tastora
 		s.validateUnbondingTime(ctx, node, UnbondingTimeV5Hours, AppVersionV5)
 		s.validateMinCommissionRate(ctx, node, MinCommissionRateV5, AppVersionV5)
 		s.validateEvidenceParams(ctx, node, EvidenceMaxAgeV5Hours, EvidenceMaxAgeV5Blocks, AppVersionV5)
+		s.validateTimeoutInfo(ctx, node, AppVersionV5)
 		return
 	}
 
@@ -341,6 +347,7 @@ func (s *CelestiaTestSuite) validateParameters(ctx context.Context, node tastora
 		// Check ICA host params only on v6: v5 doesn't expose the icahost gRPC query service;
 		// the v6 upgrade applies these params per CIP-14.
 		s.validateICAHostParams(ctx, node, true, app.IcaAllowMessages(), AppVersionV6)
+		s.validateTimeoutInfo(ctx, node, AppVersionV6)
 		return
 	}
 
@@ -496,4 +503,43 @@ func (s *CelestiaTestSuite) validateICAHostParams(ctx context.Context, node tast
 
 	s.Require().Equal(expectedHostEnabled, resp.Params.HostEnabled, "v%d icahost host_enabled mismatch: expected %v, got %v", appVersion, expectedHostEnabled, resp.Params.HostEnabled)
 	s.Require().Equal(expectedAllowMessages, resp.Params.AllowMessages, "v%d icahost allow_messages mismatch", appVersion)
+}
+
+// validateTimeoutInfo queries and validates timeout_info values in ABCI ResponseInfo
+func (s *CelestiaTestSuite) validateTimeoutInfo(ctx context.Context, node tastoratypes.ChainNode, appVersion uint64) {
+	rpcClient, err := node.GetRPCClient()
+	s.Require().NoError(err, "failed to get RPC client")
+
+	abciInfo, err := rpcClient.ABCIInfo(ctx)
+	s.Require().NoError(err, "failed to fetch ABCI info")
+
+	timeoutInfo := abciInfo.Response.TimeoutInfo
+
+	if appVersion == AppVersionV5 {
+		// V5 timeout values: only timeout_propose and timeout_propose_delta are non-zero
+		s.Require().Equal(TimeoutProposeV5, timeoutInfo.TimeoutPropose, "v%d timeout_propose mismatch", appVersion)
+		s.Require().Equal(TimeoutProposeDeltaV5, timeoutInfo.TimeoutProposeDelta, "v%d timeout_propose_delta mismatch", appVersion)
+		s.Require().Equal(time.Duration(0), timeoutInfo.TimeoutPrevote, "v%d timeout_prevote should be 0", appVersion)
+		s.Require().Equal(time.Duration(0), timeoutInfo.TimeoutPrevoteDelta, "v%d timeout_prevote_delta should be 0", appVersion)
+		s.Require().Equal(time.Duration(0), timeoutInfo.TimeoutPrecommit, "v%d timeout_precommit should be 0", appVersion)
+		s.Require().Equal(time.Duration(0), timeoutInfo.TimeoutPrecommitDelta, "v%d timeout_precommit_delta should be 0", appVersion)
+		s.Require().Equal(time.Duration(0), timeoutInfo.TimeoutCommit, "v%d timeout_commit should be 0", appVersion)
+		s.Require().Equal(time.Duration(0), timeoutInfo.DelayedPrecommitTimeout, "v%d delayed_precommit_timeout should be 0", appVersion)
+		return
+	}
+
+	if appVersion == AppVersionV6 {
+		// V6 timeout values: use constants from appconsts package
+		s.Require().Equal(appconsts.TimeoutPropose, timeoutInfo.TimeoutPropose, "v%d timeout_propose mismatch", appVersion)
+		s.Require().Equal(appconsts.TimeoutProposeDelta, timeoutInfo.TimeoutProposeDelta, "v%d timeout_propose_delta mismatch", appVersion)
+		s.Require().Equal(appconsts.TimeoutPrevote, timeoutInfo.TimeoutPrevote, "v%d timeout_prevote mismatch", appVersion)
+		s.Require().Equal(appconsts.TimeoutPrevoteDelta, timeoutInfo.TimeoutPrevoteDelta, "v%d timeout_prevote_delta mismatch", appVersion)
+		s.Require().Equal(appconsts.TimeoutPrecommit, timeoutInfo.TimeoutPrecommit, "v%d timeout_precommit mismatch", appVersion)
+		s.Require().Equal(appconsts.TimeoutPrecommitDelta, timeoutInfo.TimeoutPrecommitDelta, "v%d timeout_precommit_delta mismatch", appVersion)
+		s.Require().Equal(appconsts.TimeoutCommit, timeoutInfo.TimeoutCommit, "v%d timeout_commit mismatch", appVersion)
+		s.Require().Equal(appconsts.DelayedPrecommitTimeout, timeoutInfo.DelayedPrecommitTimeout, "v%d delayed_precommit_timeout mismatch", appVersion)
+		return
+	}
+
+	s.T().Fatalf("invalid app version for timeout validation: %d", appVersion)
 }
