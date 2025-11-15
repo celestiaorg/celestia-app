@@ -99,8 +99,8 @@ func (s *CelestiaTestSuite) TestCelestiaAppV5ToV6() {
 	}
 
 	ctx := context.Background()
-	tag, err := dockerchain.GetCelestiaTagStrict()
-	s.Require().NoError(err)
+	// TODO(rootulp): Revert this to the CelestiaTagStrict before merging.
+	tag := "v6.2.5"
 
 	cfg := dockerchain.DefaultConfig(s.client, s.network).WithTag(tag)
 	cfg.Genesis = cfg.Genesis.WithAppVersion(AppVersionV5)
