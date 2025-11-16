@@ -51,14 +51,14 @@ func TestGetTimeoutCommit(t *testing.T) {
 		appVersion uint64
 		want       time.Duration
 	}{
-		// {
-		// 	appVersion: 1,
-		// 	want:       panic("v1 did not have timeout commit hard-coded"),
-		// },
-		// {
-		// 	appVersion: 2,
-		// 	want:       panic("v2 did not have timeout commit hard-coded"),
-		// },
+		{
+			appVersion: 1,
+			want:       0,
+		},
+		{
+			appVersion: 2,
+			want:       0,
+		},
 		{
 			appVersion: 3,
 			want:       v5.TimeoutCommit,
@@ -93,14 +93,14 @@ func TestGetTimeoutPropose(t *testing.T) {
 		appVersion uint64
 		want       time.Duration
 	}{
-		// {
-		// 	appVersion: 1,
-		// 	want:       panic("v1 did not have timeout propose hard-coded"),
-		// },
-		// {
-		// 	appVersion: 2,
-		// 	want:       panic("v2 did not have timeout propose hard-coded"),
-		// },
+		{
+			appVersion: 1,
+			want:       0,
+		},
+		{
+			appVersion: 2,
+			want:       0,
+		},
 		{
 			appVersion: 3,
 			want:       v5.TimeoutPropose,
