@@ -96,10 +96,11 @@ func (s *CelestiaTestSuite) TestCelestiaAppV5ToV6() {
 	}
 
 	ctx := context.Background()
-	tag, err := dockerchain.GetCelestiaTagStrict()
-	s.Require().NoError(err)
+	// tag, err := dockerchain.GetCelestiaTagStrict()
+	// s.Require().NoError(err)
 
-	cfg := dockerchain.DefaultConfig(s.client, s.network).WithTag(tag)
+	// TODO(@rootulp): revert after we merge the celestia-core fix, cut a release, bump in app.
+	cfg := dockerchain.DefaultConfig(s.client, s.network).WithImage("celestiaorg/celestia-app").WithTag("dbf8e6e99")
 	cfg.Genesis = cfg.Genesis.WithAppVersion(AppVersionV5)
 
 	// For v5 genesis, set legacy (pre–CIP-037) values so the v6 upgrade can update them.
