@@ -214,6 +214,7 @@ func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*a
 
 // Info implements abciv2.ABCI
 func (a *RemoteABCIClientV1) Info(req *abciv2.RequestInfo) (*abciv2.ResponseInfo, error) {
+	fmt.Printf("multiplexer/abci/remote_v1.go Info invoked\n")
 	resp, err := a.ABCIApplicationClient.Info(context.Background(), &abciv1.RequestInfo{
 		Version:      req.Version,
 		BlockVersion: req.BlockVersion,
@@ -223,6 +224,7 @@ func (a *RemoteABCIClientV1) Info(req *abciv2.RequestInfo) (*abciv2.ResponseInfo
 		return nil, err
 	}
 
+	fmt.Printf("multiplexer/abci/remote_v1.go Info result: %v\n", resp)
 	return &abciv2.ResponseInfo{
 		Data:             resp.Data,
 		Version:          resp.Version,
