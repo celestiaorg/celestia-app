@@ -527,8 +527,7 @@ func (app *App) Info(req *abci.RequestInfo) (*abci.ResponseInfo, error) {
 		return nil, err
 	}
 
-	res.TimeoutInfo = app.TimeoutInfo(res.AppVersion)
-
+	res.TimeoutInfo = app.TimeoutInfo()
 	return res, nil
 }
 
@@ -598,7 +597,7 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 		}
 	}
 
-	res.TimeoutInfo = app.TimeoutInfo(currentVersion)
+	res.TimeoutInfo = app.TimeoutInfo()
 
 	return res, nil
 }
@@ -620,7 +619,7 @@ func (app *App) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abci.
 		return nil, err
 	}
 
-	res.TimeoutInfo = app.TimeoutInfo(req.ConsensusParams.Version.App)
+	res.TimeoutInfo = app.TimeoutInfo()
 	return res, nil
 }
 
@@ -848,15 +847,7 @@ func (app *App) NewProposalContext(header tmproto.Header) sdk.Context {
 	return ctx
 }
 
-func (app *App) TimeoutInfo(appVersion uint64) abci.TimeoutInfo {
-	if appVersion < 6 {
-		return abci.TimeoutInfo{
-			TimeoutPropose: appconsts.GetTimeoutPropose(appVersion),
-			TimeoutCommit:  appconsts.GetTimeoutCommit(appVersion),
-		}
-	}
-
-	// v6 and higher use the full timeout configuration
+func (app *App) TimeoutInfo() abci.TimeoutInfo {
 	return abci.TimeoutInfo{
 		TimeoutPropose:          appconsts.TimeoutPropose,
 		TimeoutProposeDelta:     appconsts.TimeoutProposeDelta,
