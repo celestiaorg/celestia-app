@@ -514,8 +514,8 @@ func (s *CelestiaTestSuite) validateTimeoutInfo(ctx context.Context, node tastor
 
 	if appVersion == AppVersionV5 {
 		// v5 app only hard-coded TimeoutPropose and TimeoutCommit values
-		s.Require().Equal(v5.TimeoutPropose, timeoutInfo.TimeoutPropose, "v%d timeout_propose mismatch", appVersion)
-		s.Require().Equal(v5.TimeoutCommit, timeoutInfo.TimeoutCommit, "v%d timeout_commit should be 0", appVersion)
+		s.Require().Equal(v5.TimeoutPropose, timeoutInfo.TimeoutPropose)
+		s.Require().Equal(v5.TimeoutCommit, timeoutInfo.TimeoutCommit)
 		return
 	}
 
