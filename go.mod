@@ -278,8 +278,7 @@ require (
 replace (
 	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.6
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
-	// github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.15
-	github.com/cometbft/cometbft => ../celestia-core
+	github.com/cometbft/cometbft => github.com/rootulp/celestia-core v0.0.0-20251116165214-280ac80c83df
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.51.7
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
 	// Use ledger-cosmos-go v0.16.0 because v0.15.0 causes "hidapi: unknown failure"
