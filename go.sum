@@ -779,12 +779,8 @@ github.com/celestiaorg/celestia-core v0.39.14 h1:kZkZZyfDH67a8DkJxgfJFup4O+Y6cVF
 github.com/celestiaorg/celestia-core v0.39.14/go.mod h1:98r/9+ol56uhrtLQPmTpgGto2DJ4n8ga45T0xdSg4C0=
 github.com/celestiaorg/celestia-core v1.55.0-tm-v0.34.35 h1:FREwqZwPvYsodr1AqqEIyW+VsBnwTzJNtC6NFdZX8rs=
 github.com/celestiaorg/celestia-core v1.55.0-tm-v0.34.35/go.mod h1:SI38xqZZ4ccoAxszUJqsJ/a5rOkzQRijzHQQlLKkyUc=
-github.com/celestiaorg/cosmos-sdk v0.51.7 h1:OSHrWinwqPXU78rpP+hJ8QJP4nx/8pa1JZgTt4bw+ZU=
-github.com/celestiaorg/cosmos-sdk v0.51.7/go.mod h1:z5sV0ONMM7Qww3FuLZ2xmqjFblbivkb/jmwQfnHAxrE=
 github.com/celestiaorg/cosmos-sdk/api v0.7.6 h1:81in9Zk+noz0ko+hZFSSK8L1aawFN8/CmdcQAUhbiUU=
 github.com/celestiaorg/cosmos-sdk/api v0.7.6/go.mod h1:1BgQSufu6ZQkst3YBIHDCo/TPUrhfU4fV7tOI0ftql8=
-github.com/celestiaorg/cosmos-sdk/log v1.1.1-0.20251113161846-8226e31e9f6a h1:SpPEig54DftRwjQ8znimqHP+j+846hN8iZfY2aWNjRE=
-github.com/celestiaorg/cosmos-sdk/log v1.1.1-0.20251113161846-8226e31e9f6a/go.mod h1:lQTBplaW3HQLKQdPaQq+ElW6zASAoo9r3bJ7pOr8SWo=
 github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0 h1:GyDYfK8dLETlUI7F+w+3QYQgAszUegMXgB6cTbDm7CA=
 github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0/go.mod h1:T4K9O18zQNKNpt4YvTL3lcUt4aKOEU05ZIFWVdQi3Ak=
 github.com/celestiaorg/go-square/v2 v2.3.3 h1:vhu6Lt39km19Q/Jk4nS3r2cuWJq6jFg+/1+iG8YGftY=
@@ -1530,6 +1526,10 @@ github.com/prometheus/procfs v0.3.0/go.mod h1:lV6e/gmhEcM9IjHGsFOCxxuZ+z1YqCvr4O
 github.com/prometheus/procfs v0.6.0/go.mod h1:cz+aTbrPOrUb4q7XlbU9ygM+/jj0fzG6c1xBZuNvfVA=
 github.com/prometheus/procfs v0.16.1 h1:hZ15bTNuirocR6u0JZ6BAHHmwS1p8B4P6MRqxtzMyRg=
 github.com/prometheus/procfs v0.16.1/go.mod h1:teAbpZRB1iIAJYREa1LsoWUXykVXA1KlTmWl8x/U+Is=
+github.com/rach-id/cosmos-sdk v0.43.0-beta1.0.20251105112603-9df59f1b4c7d h1:JYWOkbbQYdy0KQyxl8T6Mcp4Tv8a61Hht4OM6iHXFi8=
+github.com/rach-id/cosmos-sdk v0.43.0-beta1.0.20251105112603-9df59f1b4c7d/go.mod h1:z5sV0ONMM7Qww3FuLZ2xmqjFblbivkb/jmwQfnHAxrE=
+github.com/rach-id/cosmos-sdk/log v0.0.0-20251105112603-9df59f1b4c7d h1:jQ/tHYWBP7H5tZJ7J+tX29rFBTuXKtPCVFsoyaAGjZA=
+github.com/rach-id/cosmos-sdk/log v0.0.0-20251105112603-9df59f1b4c7d/go.mod h1:lQTBplaW3HQLKQdPaQq+ElW6zASAoo9r3bJ7pOr8SWo=
 github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
 github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 h1:N/ElC8H3+5XpJzTSTfLsJV/mx9Q9g7kxmchpfZyxgzM=
 github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
