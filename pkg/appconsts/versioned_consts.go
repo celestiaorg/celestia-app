@@ -3,7 +3,7 @@ package appconsts
 import (
 	"time"
 
-	v5 "github.com/celestiaorg/celestia-app/v6/pkg/appconsts/v5"
+	v5appconsts "github.com/celestiaorg/celestia-app/v6/pkg/appconsts/v5"
 )
 
 // GetSquareSizeUpperBound return the upper bound (consensus critical) square
@@ -36,11 +36,11 @@ func GetTimeoutCommit(appVersion uint64) time.Duration {
 	case 2:
 		return 0 // v2 did not have timeout commit hard-coded
 	case 3:
-		return v5.TimeoutCommit
+		return v5appconsts.TimeoutCommit
 	case 4:
-		return v5.TimeoutCommit
+		return v5appconsts.TimeoutCommit
 	case 5:
-		return v5.TimeoutCommit
+		return v5appconsts.TimeoutCommit
 	case 6:
 		return TimeoutCommit
 	default:
@@ -55,11 +55,11 @@ func GetTimeoutPropose(appVersion uint64) time.Duration {
 	case 2:
 		return 0 // v2 did not have timeout propose hard-coded
 	case 3:
-		return v5.TimeoutPropose
+		return v5appconsts.TimeoutPropose
 	case 4:
-		return v5.TimeoutPropose
+		return v5appconsts.TimeoutPropose
 	case 5:
-		return v5.TimeoutPropose
+		return v5appconsts.TimeoutPropose
 	case 6:
 		return TimeoutPropose
 	default:
