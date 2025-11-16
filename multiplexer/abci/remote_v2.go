@@ -2,7 +2,6 @@ package abci
 
 import (
 	"context"
-	"fmt"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	"google.golang.org/grpc"
@@ -47,18 +46,7 @@ func (a *RemoteABCIClientV2) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abc
 
 // Info implements abci.ABCI.
 func (a *RemoteABCIClientV2) Info(req *abci.RequestInfo) (*abci.ResponseInfo, error) {
-	fmt.Printf("[DEBUG] multiplexer/abci/remote_v2.go Info invoked\n")
-	fmt.Printf("[DEBUG] Request: Version=%s, BlockVersion=%d, P2PVersion=%d\n", req.Version, req.BlockVersion, req.P2PVersion)
-	fmt.Printf("[DEBUG] ABCIClient type: %T\n", a.ABCIClient)
-	fmt.Printf("[DEBUG] Calling a.ABCIClient.Info() with gRPC WaitForReady option\n")
-	resp, err := a.ABCIClient.Info(context.Background(), req, grpc.WaitForReady(true))
-	if err != nil {
-		fmt.Printf("[DEBUG] multiplexer/abci/remote_v2.go Info error: %v\n", err)
-	} else {
-		fmt.Printf("[DEBUG] multiplexer/abci/remote_v2.go Info result: Data=%s, Version=%s, AppVersion=%d, LastBlockHeight=%d\n",
-			resp.Data, resp.Version, resp.AppVersion, resp.LastBlockHeight)
-	}
-	return resp, err
+	return a.ABCIClient.Info(context.Background(), req, grpc.WaitForReady(true))
 }
 
 // InitChain implements abci.ABCI.

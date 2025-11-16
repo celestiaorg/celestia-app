@@ -522,14 +522,13 @@ func (app *App) Name() string { return app.BaseApp.Name() }
 // Info implements the abci interface. It overrides baseapp's Info method, essentially becoming a decorator
 // in order to assign TimeoutInfo values in the response.
 func (app *App) Info(req *abci.RequestInfo) (*abci.ResponseInfo, error) {
-	fmt.Printf("v6.x app/app.go Info invoked\n")
 	res, err := app.BaseApp.Info(req)
 	if err != nil {
 		return nil, err
 	}
 
 	res.TimeoutInfo = app.TimeoutInfo()
-	fmt.Printf("v6.x app/app.go Info result: %v\n", res)
+
 	return res, nil
 }
 

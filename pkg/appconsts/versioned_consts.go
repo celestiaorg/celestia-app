@@ -2,9 +2,11 @@ package appconsts
 
 import (
 	"time"
-
-	v5appconsts "github.com/celestiaorg/celestia-app/v6/pkg/appconsts/v5"
 )
+
+func GetTimeoutCommit(_ uint64) time.Duration {
+	return TimeoutCommit
+}
 
 // GetSquareSizeUpperBound return the upper bound (consensus critical) square
 // size given the chain-id. As of app version 5, all networks including
@@ -27,42 +29,4 @@ func GetUpgradeHeightDelay(chainID string) int64 {
 		return MochaUpgradeHeightDelay
 	}
 	return MainnetUpgradeHeightDelay
-}
-
-func GetTimeoutCommit(appVersion uint64) time.Duration {
-	switch appVersion {
-	case 1:
-		return 0 // v1 did not have timeout commit hard-coded
-	case 2:
-		return 0 // v2 did not have timeout commit hard-coded
-	case 3:
-		return v5appconsts.TimeoutCommit
-	case 4:
-		return v5appconsts.TimeoutCommit
-	case 5:
-		return v5appconsts.TimeoutCommit
-	case 6:
-		return TimeoutCommit
-	default:
-		return TimeoutCommit
-	}
-}
-
-func GetTimeoutPropose(appVersion uint64) time.Duration {
-	switch appVersion {
-	case 1:
-		return 0 // v1 did not have timeout propose hard-coded
-	case 2:
-		return 0 // v2 did not have timeout propose hard-coded
-	case 3:
-		return v5appconsts.TimeoutPropose
-	case 4:
-		return v5appconsts.TimeoutPropose
-	case 5:
-		return v5appconsts.TimeoutPropose
-	case 6:
-		return TimeoutPropose
-	default:
-		return TimeoutPropose
-	}
 }

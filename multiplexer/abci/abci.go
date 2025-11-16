@@ -105,15 +105,12 @@ func (m *Multiplexer) FinalizeBlock(_ context.Context, req *abci.RequestFinalize
 }
 
 func (m *Multiplexer) Info(_ context.Context, req *abci.RequestInfo) (*abci.ResponseInfo, error) {
-	fmt.Printf("multiplexer/abci/abci.go Info invoked\n")
 	app, err := m.getApp()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
 	}
 
-	result, err := app.Info(req)
-	fmt.Printf("multiplexer/abci/abci.go Info result: %v\n", result)
-	return result, err
+	return app.Info(req)
 }
 
 func (m *Multiplexer) InitChain(_ context.Context, req *abci.RequestInitChain) (*abci.ResponseInitChain, error) {
