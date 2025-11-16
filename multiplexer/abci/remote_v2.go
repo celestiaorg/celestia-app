@@ -46,7 +46,8 @@ func (a *RemoteABCIClientV2) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abc
 
 // Info implements abci.ABCI.
 func (a *RemoteABCIClientV2) Info(req *abci.RequestInfo) (*abci.ResponseInfo, error) {
-	return a.ABCIClient.Info(context.Background(), req, grpc.WaitForReady(true))
+	resp, err := a.ABCIClient.Info(context.Background(), req, grpc.WaitForReady(true))
+	return resp, err
 }
 
 // InitChain implements abci.ABCI.

@@ -95,8 +95,8 @@ startCelestiaApp() {
     --api.enable \
     --grpc.enable \
     --grpc-web.enable \
-    --timeout-commit 1s \
     --force-no-bbr
+    # --timeout-commit 1s \
     # --delayed-precommit-timeout 1s
 }
 
@@ -143,5 +143,5 @@ else
   createGenesis
 fi
 
-upgrade & # Start the upgrade process to the next version in the background.
+# upgrade & # Start the upgrade process to the next version in the background.
 startCelestiaApp # Start celestia-app in the foreground.
