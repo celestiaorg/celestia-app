@@ -96,8 +96,8 @@ func (s *CelestiaTestSuite) TestCelestiaAppV5ToV6() {
 	}
 
 	ctx := context.Background()
-	// TODO(rootulp): Revert this to the CelestiaTagStrict before merging.
-	tag := "v6.2.5"
+	tag, err := dockerchain.GetCelestiaTagStrict()
+	s.Require().NoError(err)
 
 	cfg := dockerchain.DefaultConfig(s.client, s.network).WithTag(tag)
 	cfg.Genesis = cfg.Genesis.WithAppVersion(AppVersionV5)
@@ -515,7 +515,6 @@ func (s *CelestiaTestSuite) validateTimeoutInfo(ctx context.Context, node tastor
 	if appVersion == AppVersionV5 {
 		// v5 app only hard-coded TimeoutPropose and TimeoutCommit values
 		s.Require().Equal(v5.TimeoutPropose, timeoutInfo.TimeoutPropose, "v%d timeout_propose mismatch", appVersion)
-		// TODO: understand why this is actually 0
 		s.Require().Equal(v5.TimeoutCommit, timeoutInfo.TimeoutCommit, "v%d timeout_commit should be 0", appVersion)
 		return
 	}
