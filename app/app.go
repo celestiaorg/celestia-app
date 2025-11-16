@@ -35,7 +35,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
 	celestiatx "github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	v5 "github.com/celestiaorg/celestia-app/v6/pkg/appconsts/v5"
 	"github.com/celestiaorg/celestia-app/v6/pkg/proof"
 	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
 	"github.com/celestiaorg/celestia-app/v6/x/blob"
@@ -850,15 +849,13 @@ func (app *App) NewProposalContext(header tmproto.Header) sdk.Context {
 }
 
 func (app *App) TimeoutInfo(appVersion uint64) abci.TimeoutInfo {
-	// TODO: multiplexer needs to handle all versions
-	if appVersion == 5 {
-		// v5 only had TimeoutPropose and TimeoutCommit
+	if appVersion < 6 {
 		return abci.TimeoutInfo{
-			TimeoutPropose: v5.TimeoutPropose,
-			TimeoutCommit:  v5.TimeoutCommit,
-			// All other fields are zero values
+			TimeoutPropose: appconsts.GetTimeoutPropose(appVersion),
+			TimeoutCommit:  appconsts.GetTimeoutCommit(appVersion),
 		}
 	}
+
 	// v6 and higher use the full timeout configuration
 	return abci.TimeoutInfo{
 		TimeoutPropose:          appconsts.TimeoutPropose,
