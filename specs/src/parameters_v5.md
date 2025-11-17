@@ -75,6 +75,7 @@ Parameters that are governance modifiables can be modified via a
 | staking.MaxEntries                            | 7                                           | Maximum number of entries in the redelegation queue.                                                                                | True                      |
 | staking.MaxValidators                         | 100                                         | Maximum number of validators.                                                                                                       | True                      |
 | staking.MinCommissionRate                     | 0.05 (5%)                                   | Minimum commission rate used by all validators.                                                                                     | True                      |
+| staking.MaxCommissionRate                     | 0.25 (25%)                                  | Maximum commission rate that validators can set when creating or updating their commission.                                         | False                     |
 | staking.UnbondingTime                         | 1814400 (21 days)                           | Duration of time for unbonding in seconds.                                                                                          | False                     |
 
 Note: none of the mint module parameters are governance modifiable because they have been converted into hardcoded constants. See the x/mint README.md for more details.
