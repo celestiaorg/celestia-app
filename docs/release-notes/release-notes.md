@@ -12,7 +12,6 @@ After upgrading to 128mb/6s, specific validator hardware specifications are requ
 
 <details>
   <summary>Supported CPUs:</summary>
-- AMD Ryzen 9 5950X
 - AMD Ryzen 9 7950X
 - AMD Ryzen 9 7950X3D
 - AMD Ryzen 9 9900X
@@ -28,7 +27,6 @@ After upgrading to 128mb/6s, specific validator hardware specifications are requ
 - AMD EPYC 4545P
 - AMD EPYC 4584PX
 - AMD EPYC 7313P
-- AMD EPYC 7443P
 - AMD EPYC 7452
 - AMD EPYC 7543P 32C/64T
 - AMD EPYC 9124
