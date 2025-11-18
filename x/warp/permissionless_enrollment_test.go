@@ -30,6 +30,7 @@ type PermissionlessEnrollmentTestSuite struct {
 }
 
 func TestPermissionlessEnrollmentSuite(t *testing.T) {
+	t.Skip("Incomplete unit tests - use test/interop/hyperlane_permissionless_simple_test.go instead")
 	suite.Run(t, new(PermissionlessEnrollmentTestSuite))
 }
 

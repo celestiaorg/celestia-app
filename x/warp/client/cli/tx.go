@@ -41,8 +41,8 @@ The infrastructure is created with ownership assigned to the warp module address
 allowing anyone to permissionlessly enroll routes and create synthetic tokens.
 
 Modes:
-- create: Create new infrastructure if it doesn't exist
-- use:    Use existing infrastructure (validates it exists)
+- create:   Create new infrastructure from scratch
+- transfer: Transfer existing infrastructure to module ownership
 
 Example:
   celestia-appd tx warp setup-permissionless-infrastructure \
@@ -63,8 +63,8 @@ Example:
 				return fmt.Errorf("failed to get mode flag: %w", err)
 			}
 
-			if mode != "create" && mode != "use" {
-				return fmt.Errorf("invalid mode: %s (must be 'create' or 'use')", mode)
+			if mode != "create" && mode != "transfer" {
+				return fmt.Errorf("invalid mode: %s (must be 'create' or 'transfer')", mode)
 			}
 
 			localDomain, err := cmd.Flags().GetUint32("local-domain")
