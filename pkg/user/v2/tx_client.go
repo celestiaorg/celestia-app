@@ -2,6 +2,9 @@ package v2
 
 import (
 	"context"
+	"fmt"
+	"sync"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
@@ -18,7 +21,10 @@ import (
 type TxClient struct {
 	// Embed the underlying client to automatically delegate all methods
 	*user.TxClient
-	TxQueue map[string]user.TxInfo
+
+	// Sequential queues per account
+	sequentialQueues map[string]*sequentialQueue
+	queueMu          sync.RWMutex
 }
 
 // NewTxClient creates a new v2 TxClient by wrapping the original NewTxClient function.
@@ -33,8 +39,14 @@ func NewTxClient(
 	if err != nil {
 		return nil, err
 	}
-
-	return &TxClient{TxClient: v1Client}, nil
+	v2Client := &TxClient{
+		TxClient:         v1Client,
+		sequentialQueues: make(map[string]*sequentialQueue),
+	}
+	if err := v2Client.StartSequentialQueue(context.Background(), v1Client.DefaultAccountName()); err != nil {
+		return nil, err
+	}
+	return v2Client, nil
 }
 
 // SetupTxClient creates and initializes a new v2 TxClient by wrapping the original setupTxClient method.
@@ -49,13 +61,22 @@ func SetupTxClient(
 	if err != nil {
 		return nil, err
 	}
-
-	return &TxClient{TxClient: v1Client}, nil
+	v2Client := &TxClient{
+		TxClient:         v1Client,
+		sequentialQueues: make(map[string]*sequentialQueue),
+	}
+	if err := v2Client.StartSequentialQueue(ctx, v1Client.DefaultAccountName()); err != nil {
+		return nil, err
+	}
+	return v2Client, nil
 }
 
 // Wrapv1TxClient wraps a v1 TxClient and returns a v2 TxClient.
 func Wrapv1TxClient(v1Client *user.TxClient) *TxClient {
-	return &TxClient{TxClient: v1Client}
+	return &TxClient{
+		TxClient:         v1Client,
+		sequentialQueues: make(map[string]*sequentialQueue),
+	}
 }
 
 func (c *TxClient) buildSDKTxResponse(legacyResp *user.TxResponse) *sdktypes.TxResponse {
@@ -120,4 +141,149 @@ func (c *TxClient) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxRe
 	}
 
 	return c.buildSDKTxResponse(legacyResp), nil
+}
+
+// StartSequentialQueue starts a sequential submission queue for the given account.
+func (c *TxClient) StartSequentialQueue(ctx context.Context, accountName string) error {
+	return c.StartSequentialQueueWithPollTime(ctx, accountName, user.DefaultPollTime)
+}
+
+// StartSequentialQueueWithPollTime starts a sequential queue with a custom poll time.
+func (c *TxClient) StartSequentialQueueWithPollTime(ctx context.Context, accountName string, pollTime time.Duration) error {
+	c.queueMu.Lock()
+	defer c.queueMu.Unlock()
+
+	if _, exists := c.sequentialQueues[accountName]; exists {
+		return fmt.Errorf("sequential queue already running for account %s", accountName)
+	}
+
+	queue := newSequentialQueue(c, accountName, pollTime)
+	if err := queue.start(ctx); err != nil {
+		return fmt.Errorf("failed to start sequential queue: %w", err)
+	}
+
+	c.sequentialQueues[accountName] = queue
+	return nil
+}
+
+// StopSequentialQueue stops the sequential queue for the given account.
+func (c *TxClient) StopSequentialQueue(accountName string) {
+	c.queueMu.Lock()
+	defer c.queueMu.Unlock()
+
+	if queue, exists := c.sequentialQueues[accountName]; exists {
+		queue.stop()
+		delete(c.sequentialQueues, accountName)
+	}
+}
+
+// StopAllSequentialQueues stops all running sequential queues.
+func (c *TxClient) StopAllSequentialQueues() {
+	c.queueMu.Lock()
+	defer c.queueMu.Unlock()
+
+	for accountName, queue := range c.sequentialQueues {
+		queue.stop()
+		delete(c.sequentialQueues, accountName)
+	}
+}
+
+// SubmitPFBToSequentialQueue submits blobs using the sequential queue for the default account.
+func (c *TxClient) SubmitPFBToSequentialQueue(ctx context.Context, blobs []*share.Blob, opts ...user.TxOption) (*sdktypes.TxResponse, error) {
+	return c.SubmitPFBToSequentialQueueWithAccount(ctx, c.DefaultAccountName(), blobs, opts...)
+}
+
+// SubmitPFBToSequentialQueueWithAccount submits blobs using the sequential queue for the specified account.
+func (c *TxClient) SubmitPFBToSequentialQueueWithAccount(ctx context.Context, accountName string, blobs []*share.Blob, opts ...user.TxOption) (*sdktypes.TxResponse, error) {
+	c.queueMu.RLock()
+	queue, exists := c.sequentialQueues[accountName]
+	c.queueMu.RUnlock()
+
+	if !exists {
+		return nil, fmt.Errorf("sequential queue not started for account %s", accountName)
+	}
+
+	resultsC := make(chan SequentialSubmissionResult, 1)
+	defer close(resultsC)
+
+	job := &SequentialSubmissionJob{
+		Blobs:    blobs,
+		Options:  opts,
+		Ctx:      ctx,
+		ResultsC: resultsC,
+	}
+
+	queue.submitJob(job)
+
+	// Wait for result
+	select {
+	case result := <-resultsC:
+		if result.Error != nil {
+			return nil, result.Error
+		}
+		return result.TxResponse, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+// GetSequentialQueueSize returns the number of pending transactions in the queue for the given account.
+func (c *TxClient) GetSequentialQueueSize(accountName string) (int, error) {
+	c.queueMu.RLock()
+	queue, exists := c.sequentialQueues[accountName]
+	c.queueMu.RUnlock()
+
+	if !exists {
+		return 0, fmt.Errorf("sequential queue not started for account %s", accountName)
+	}
+
+	return queue.GetQueueSize(), nil
+}
+
+// BroadcastPayForBlobWithoutRetry broadcasts a PayForBlob transaction without automatic retry logic.
+// TTODO: this will do for now, but i should refactor tx client functions without breaking the API to make it more usable
+func (c *TxClient) BroadcastPayForBlobWithoutRetry(ctx context.Context, accountName string, blobs []*share.Blob, opts ...user.TxOption) (*sdktypes.TxResponse, error) {
+	// Lock the client for the duration of build+sign+send
+	c.TxClient.mtx.Lock()
+	defer c.TxClient.mtx.Unlock()
+
+	// Check account is loaded
+	if err := c.TxClient.CheckAccountLoadedExported(ctx, accountName); err != nil {
+		return nil, err
+	}
+
+	acc := c.Signer().Account(accountName)
+	if acc == nil {
+		return nil, fmt.Errorf("account %s not found", accountName)
+	}
+
+	// Build the transaction bytes
+	txBytes, _, err := c.Signer().CreatePayForBlobs(accountName, blobs, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the sequence before sending
+	sequence := c.Signer().Account(accountName).Sequence()
+
+	// Send directly without retry logic
+	conn := c.GetConn()
+	if conn == nil {
+		return nil, fmt.Errorf("no connection available")
+	}
+
+	resp, err := c.TxClient.SendTxToConnectionExported(ctx, conn, txBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	// Track the transaction
+	c.TxClient.GetTxTrackerExported().TrackTransaction(accountName, sequence, resp.TxHash, txBytes)
+
+	// Increment sequence after successful broadcast
+	if err := c.Signer().IncrementSequence(accountName); err != nil {
+		return nil, fmt.Errorf("error incrementing sequence: %w", err)
+	}
+
+	return resp, nil
 }

@@ -155,9 +155,9 @@ func WithDefaultAccount(name string) Option {
 		c.defaultAddress = addr
 
 		// Update worker 0's account if tx queue already exists
-		if c.txQueue != nil && len(c.txQueue.workers) > 0 {
-			c.txQueue.workers[0].accountName = name
-			c.txQueue.workers[0].address = addr.String()
+		if c.parallelTxQueue != nil && len(c.parallelTxQueue.workers) > 0 {
+			c.parallelTxQueue.workers[0].accountName = name
+			c.parallelTxQueue.workers[0].address = addr.String()
 		}
 	}
 }
@@ -190,7 +190,7 @@ func WithTxWorkers(numWorkers int) Option {
 	}
 
 	return func(c *TxClient) {
-		c.txQueue = newTxQueue(c, numWorkers)
+		c.parallelTxQueue = newTxQueue(c, numWorkers)
 	}
 }
 
@@ -198,8 +198,8 @@ func WithTxWorkers(numWorkers int) Option {
 // Default is 100 if not specified.
 func WithParallelQueueSize(size int) Option {
 	return func(c *TxClient) {
-		if c.txQueue != nil {
-			c.txQueue.jobQueue = make(chan *SubmissionJob, size)
+		if c.parallelTxQueue != nil {
+			c.parallelTxQueue.jobQueue = make(chan *SubmissionJob, size)
 		}
 	}
 }
@@ -221,10 +221,10 @@ type TxClient struct {
 	defaultAddress sdktypes.AccAddress
 	// txTracker maps the tx hash to the Sequence and signer of the transaction
 	// that was submitted to the chain
-	TxTracker           *txTracker
+	TxTracker           *TxTracker
 	gasEstimationClient gasestimation.GasEstimatorClient
-	// txQueue manages parallel transaction submission when enabled
-	txQueue *txQueue
+	// parallelTxQueue manages parallel transaction submission when enabled
+	parallelTxQueue *txQueue
 }
 
 // NewTxClient returns a new TxClient
@@ -267,8 +267,8 @@ func NewTxClient(
 
 	// Always create a tx queue with at least 1 worker (the default account)
 	// unless already configured by WithTxWorkers option
-	if txClient.txQueue == nil {
-		txClient.txQueue = newTxQueue(txClient, 1)
+	if txClient.parallelTxQueue == nil {
+		txClient.parallelTxQueue = newTxQueue(txClient, 1)
 	}
 
 	return txClient, nil
@@ -326,7 +326,7 @@ func SetupTxClient(
 		return nil, err
 	}
 
-	if err := txClient.txQueue.start(ctx); err != nil {
+	if err := txClient.parallelTxQueue.start(ctx); err != nil {
 		return nil, fmt.Errorf("failed to start tx queue: %w", err)
 	}
 
@@ -362,12 +362,12 @@ func (client *TxClient) SubmitPayForBlobToQueue(ctx context.Context, blobs []*sh
 // to the provided channel when the transaction is confirmed. The caller is responsible for creating and
 // closing the result channel.
 func (client *TxClient) QueueBlob(ctx context.Context, resultC chan SubmissionResult, blobs []*share.Blob, opts ...TxOption) {
-	if client.txQueue == nil {
+	if client.parallelTxQueue == nil {
 		resultC <- SubmissionResult{Error: errTxQueueNotConfigured}
 		return
 	}
 
-	if !client.txQueue.isStarted() {
+	if !client.parallelTxQueue.isStarted() {
 		resultC <- SubmissionResult{Error: errTxQueueNotStarted}
 		return
 	}
@@ -379,7 +379,7 @@ func (client *TxClient) QueueBlob(ctx context.Context, resultC chan SubmissionRe
 		ResultsC: resultC,
 	}
 
-	client.txQueue.submitJob(job)
+	client.parallelTxQueue.submitJob(job)
 }
 
 // SubmitPayForBlobWithAccount forms a transaction from the provided blobs, signs it with the provided account, and submits it to the chain.
@@ -1030,51 +1030,51 @@ func (client *TxClient) Signer() *Signer {
 // StartTxQueueForTest starts the tx queue for testing purposes.
 // This function is only intended for use in tests.
 func (client *TxClient) StartTxQueueForTest(ctx context.Context) error {
-	if client.txQueue == nil {
+	if client.parallelTxQueue == nil {
 		return nil
 	}
-	return client.txQueue.start(ctx)
+	return client.parallelTxQueue.start(ctx)
 }
 
 // StopTxQueueForTest stops the tx queue for testing purposes.
 // This function is only intended for use in tests.
 func (client *TxClient) StopTxQueueForTest() {
-	if client.txQueue != nil {
-		client.txQueue.stop()
+	if client.parallelTxQueue != nil {
+		client.parallelTxQueue.stop()
 	}
 }
 
 // IsTxQueueStartedForTest returns whether the tx queue is started, for testing purposes.
 // This function is only intended for use in tests.
 func (client *TxClient) IsTxQueueStartedForTest() bool {
-	if client.txQueue == nil {
+	if client.parallelTxQueue == nil {
 		return false
 	}
-	return client.txQueue.isStarted()
+	return client.parallelTxQueue.isStarted()
 }
 
 // TxQueueWorkerCount returns the number of workers in the tx queue
 func (client *TxClient) TxQueueWorkerCount() int {
-	if client.txQueue == nil {
+	if client.parallelTxQueue == nil {
 		return 0
 	}
-	return len(client.txQueue.workers)
+	return len(client.parallelTxQueue.workers)
 }
 
 // TxQueueWorkerAddress returns the address for the worker at the given index
 func (client *TxClient) TxQueueWorkerAddress(index int) string {
-	if client.txQueue == nil || index < 0 || index >= len(client.txQueue.workers) {
+	if client.parallelTxQueue == nil || index < 0 || index >= len(client.parallelTxQueue.workers) {
 		return ""
 	}
-	return client.txQueue.workers[index].address
+	return client.parallelTxQueue.workers[index].address
 }
 
 // TxQueueWorkerAccountName returns the account name for the worker at the given index
 func (client *TxClient) TxQueueWorkerAccountName(index int) string {
-	if client.txQueue == nil || index < 0 || index >= len(client.txQueue.workers) {
+	if client.parallelTxQueue == nil || index < 0 || index >= len(client.parallelTxQueue.workers) {
 		return ""
 	}
-	return client.txQueue.workers[index].accountName
+	return client.parallelTxQueue.workers[index].accountName
 }
 
 // QueryMinimumGasPrice queries both the nodes local and network wide
