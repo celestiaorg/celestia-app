@@ -2,17 +2,17 @@ package dockerchain
 
 import (
 	"fmt"
+	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	"os"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
-	"github.com/moby/moby/client"
 )
 
 const (
 	multiplexerImage    = "ghcr.io/celestiaorg/celestia-app"
-	defaultCelestiaTag  = "v5.0.11"
+	defaultCelestiaTag  = "v5.0.12"
 	celestiaTagEnvVar   = "CELESTIA_TAG"
 	celestiaImageEnvVar = "CELESTIA_IMAGE"
 )
@@ -22,12 +22,12 @@ type Config struct {
 	*testnode.Config
 	Image           string
 	Tag             string
-	DockerClient    *client.Client
+	DockerClient    tastoratypes.TastoraDockerClient
 	DockerNetworkID string
 }
 
 // DefaultConfig returns a configured instance of Config with a custom genesis and validators.
-func DefaultConfig(client *client.Client, network string) *Config {
+func DefaultConfig(client tastoratypes.TastoraDockerClient, network string) *Config {
 	tnCfg := testnode.DefaultConfig()
 	// default + 2 extra validators.
 	tnCfg.Genesis = tnCfg.Genesis.
@@ -68,7 +68,7 @@ func (c *Config) WithTag(tag string) *Config {
 }
 
 // WithDockerClient sets the docker client and returns the Config.
-func (c *Config) WithDockerClient(client *client.Client) *Config {
+func (c *Config) WithDockerClient(client tastoratypes.TastoraDockerClient) *Config {
 	c.DockerClient = client
 	return c
 }

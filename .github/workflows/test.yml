@@ -137,6 +137,8 @@ jobs:
           - testcase: TestStateSyncWithAppUpgrade
           - testcase: TestMinorVersionCompatibility
           - testcase: TestCelestiaAppV5ToV6
+          - testcase: TestPFMMultiHop
+            entrypoint: TestPFMTestSuite
 
     steps:
       - name: Checkout code
