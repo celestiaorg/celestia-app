@@ -358,7 +358,7 @@ func TestOverrideP2PConfig_ConfigPersistence(t *testing.T) {
 
 	// Verify in-memory config was modified
 	modifiedCfg := server.GetServerContextFromCmd(cmd).Config
-	require.Equal(t, int64(24*mebibyte), modifiedCfg.P2P.SendRate)
+	require.Equal(t, int64(100*mebibyte), modifiedCfg.P2P.SendRate)
 	require.Equal(t, int64(36), modifiedCfg.Mempool.TTLNumBlocks)
 
 	// Read the config file again to verify it wasn't changed on disk
