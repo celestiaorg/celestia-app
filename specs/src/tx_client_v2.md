@@ -96,8 +96,7 @@ Sequence mismatches come in two flavours, depending on whether the chain expects
 
 This usually means:
 
-- we thought a previous tx was confirmed when it wasn’t(was probs evicted), or
-- something was submitted outside the client.
+- we thought a previous tx was confirmed when it wasn’t(was probs evicted)
 
 In this case we:
 
