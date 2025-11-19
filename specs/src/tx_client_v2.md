@@ -113,7 +113,6 @@ This usually means we rolled back too far due to multiple rejections. **(this sh
 
 If this happens:
 
-- Don’t roll back again
 - Pause signing
 - Check if we're in recovery mode (the confirmation loop gets in recovery mode when transactions get a sequence mismatch in ReCheck)
 - Wait for recovery mode to complete
