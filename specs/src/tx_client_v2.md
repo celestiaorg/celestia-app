@@ -45,9 +45,7 @@ No API breakage: TxClient V2 still wraps the v1 client maintaining full backward
 
 ## Protocol/Component Description
 
-### High-Level Design (Early Draft)
-
-#### Per account sequential queue
+### Per account sequential queue
 
 The basic idea is that every account gets its own **transaction lane**.
 
@@ -58,13 +56,13 @@ Inside this lane we keep two kinds of transactions:
 - **Queued** - submitted but not broadcast yet
 - **Pending** - already broadcast and waiting for a result
 
-We're not committed to exact data structures yet. Maps, lists whatever ends up being cleanest as long as ordering by sequence is preserved.
+We're not committed to exact data structures yet. Maps, lists whatever ends up being cleanest way for this FIFO.
 
 Along the way, it's becoming pretty clear that we'll also need **a separate map from signer + sequence → tx status** (likely its hash and last known status). Even if we poll statuses in batches we still need to know which hash belongs to which sequence.
 
 ---
 
-#### Internal loops (still flexible)
+### Internal loops (still flexible)
 
 Each lane will probably run two background loops:
 
@@ -76,7 +74,7 @@ These don't need to be perfect yet; timing and exact behavior can evolve. We jus
 
 ---
 
-#### Submission flow
+### Submission flow
 
 When a new transaction is submitted we will:
 
@@ -88,13 +86,13 @@ When a new transaction is submitted we will:
 
 Most of the time that's all that happens. But if we hit a **sequence mismatch** during broadcast, we need to slow down and figure out what's going on before we directly resign.
 
-##### Handling sequence mismatches in CheckTx
+#### Handling sequence mismatches in CheckTx
 
 Sequence mismatches come in two flavours, depending on whether the chain expects a *lower* or *higher* sequence than the one we tried to use.
 
 ---
 
-### **1. The chain expects a lower sequence**
+#### **1. The chain expects a lower sequence**
 
 This usually means:
 
@@ -110,7 +108,7 @@ In this case we:
 
 ---
 
-### **2. The chain expects a higher sequence**
+#### **2. The chain expects a higher sequence**
 
 This usually means we rolled back too far due to multiple rejections. **(this should no longer happen with new confirmation flow)**
 
@@ -128,7 +126,7 @@ If things get stuck, the escape hatch is to resign the stalled tx with the chain
 
 ---
 
-#### What the queue monitor does
+### What the pending monitor(confirmation loop) does
 
 The monitoring loop periodically checks on pending txs and sees how the chain responded.
 
