@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 
 	"github.com/celestiaorg/celestia-app/v6/app"
+	cmtdb "github.com/cometbft/cometbft-db"
 	tmcfg "github.com/cometbft/cometbft/config"
 	sm "github.com/cometbft/cometbft/state"
 	"github.com/cometbft/cometbft/store"
-	cmtdb "github.com/cometbft/cometbft-db"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
@@ -123,34 +123,34 @@ WARNING: This is a destructive operation. Make sure you have backups before proc
 				"blockstore_height", blockStore.Height())
 
 			// Rollback CometBFT state using RollbackToHeight
-			rolledBackHeight, appHash, err := sm.RollbackToHeight(blockStore, stateStore, targetHeight, removeBlocks)
-			if err != nil {
-				return fmt.Errorf("failed to rollback CometBFT state: %w", err)
-			}
-
-			ctx.Logger.Info("CometBFT state rolled back successfully",
-				"height", rolledBackHeight,
-				"app_hash", fmt.Sprintf("%X", appHash))
-
-			// Verify all components are synchronized
-			newBlockStoreHeight := blockStore.Height()
-			if removeBlocks {
-				if newBlockStoreHeight != targetHeight {
-					ctx.Logger.Warn("Blockstore height mismatch after rollback",
-						"blockstore_height", newBlockStoreHeight,
-						"target_height", targetHeight)
-				} else {
-					ctx.Logger.Info("Blockstore synchronized", "height", newBlockStoreHeight)
-				}
-			}
-
-			ctx.Logger.Info("Rollback completed successfully",
-				"target_height", targetHeight,
-				"app_state", "rolled back",
-				"cometbft_state", "rolled back",
-				"blocks_removed", removeBlocks)
-
-			ctx.Logger.Info("You can now restart the node. It will replay blocks from the network.")
+			//rolledBackHeight, appHash, err := sm.RollbackToHeight(blockStore, stateStore, targetHeight, removeBlocks)
+			//if err != nil {
+			//	return fmt.Errorf("failed to rollback CometBFT state: %w", err)
+			//}
+			//
+			//ctx.Logger.Info("CometBFT state rolled back successfully",
+			//	"height", rolledBackHeight,
+			//	"app_hash", fmt.Sprintf("%X", appHash))
+			//
+			//// Verify all components are synchronized
+			//newBlockStoreHeight := blockStore.Height()
+			//if removeBlocks {
+			//	if newBlockStoreHeight != targetHeight {
+			//		ctx.Logger.Warn("Blockstore height mismatch after rollback",
+			//			"blockstore_height", newBlockStoreHeight,
+			//			"target_height", targetHeight)
+			//	} else {
+			//		ctx.Logger.Info("Blockstore synchronized", "height", newBlockStoreHeight)
+			//	}
+			//}
+			//
+			//ctx.Logger.Info("Rollback completed successfully",
+			//	"target_height", targetHeight,
+			//	"app_state", "rolled back",
+			//	"cometbft_state", "rolled back",
+			//	"blocks_removed", removeBlocks)
+			//
+			//ctx.Logger.Info("You can now restart the node. It will replay blocks from the network.")
 
 			return nil
 		},
