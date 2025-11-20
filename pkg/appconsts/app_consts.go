@@ -30,7 +30,7 @@ const (
 	TimeoutPrecommit               = time.Millisecond * 3000
 	TimeoutPrecommitDelta          = time.Millisecond * 500
 	TimeoutCommit                  = time.Millisecond
-	DelayedPrecommitTimeout        = time.Millisecond * 5850
+	DelayedPrecommitTimeout        = time.Millisecond
 
 	// TestUpgradeHeightDelay is the number of blocks that chain-id "test" waits
 	// after a MsgTryUpgrade to activate the next version.

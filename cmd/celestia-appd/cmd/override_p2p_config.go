@@ -54,7 +54,7 @@ func overrideP2PConfig(cmd *cobra.Command, logger log.Logger) error {
 	overrideMempoolConfig(cfg, defaultCfg, logger)
 
 	// enable the legacy block prop
-	cfg.Consensus.EnableLegacyBlockProp = true
+	cfg.Consensus.EnableLegacyBlockProp = false
 
 	return nil
 }

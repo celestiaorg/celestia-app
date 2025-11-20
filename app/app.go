@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	"io"
 	"math"
 	"os"
@@ -123,6 +124,7 @@ import (
 	ibctm "github.com/cosmos/ibc-go/v8/modules/light-clients/07-tendermint"
 	ibctesting "github.com/cosmos/ibc-go/v8/testing"
 	ibctestingtypes "github.com/cosmos/ibc-go/v8/testing/types"
+	memiavlstore "github.com/crypto-org-chain/cronos/store"
 	"github.com/spf13/cast"
 )
 
@@ -201,6 +203,15 @@ type App struct {
 	// This prevents data races between Commit updating checkState and QuerySequence
 	// reading it via CheckState().
 	checkStateMu *sync.RWMutex
+
+	qms RootMultiStore
+}
+
+type RootMultiStore interface {
+	storetypes.MultiStore
+
+	// LatestVersion returns the latest version in the store
+	LatestVersion() int64
 }
 
 // New returns a reference to an uninitialized app. Callers must subsequently
@@ -216,6 +227,17 @@ func New(
 ) *App {
 	encodingConfig := encoding.MakeConfig(ModuleEncodingRegisters...)
 
+	// Conditionally enable MemIAVL
+	cacheSize := cast.ToInt(appOpts.Get(memiavlstore.FlagCacheSize))
+	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
+	if cast.ToBool(appOpts.Get(memiavlstore.FlagMemIAVL)) {
+		logger.Info("********************MemIAVL enabled *************************", "cacheSize", cacheSize)
+		baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, cacheSize, baseAppOptions)
+	} else {
+		logger.Info("****************** MemIAVL disabled; using standard IAVL")
+	}
+
+	baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
 	baseApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
 	baseApp.SetCommitMultiStoreTracer(traceStore)
 	baseApp.SetVersion(version.Version)
@@ -470,6 +492,19 @@ func New(
 	app.MountMemoryStores(app.memKeys)
 	app.MountTransientStores(app.tkeys)
 
+	// wire up the versiondb's `StreamingService` and `MultiStore`.
+	// we don't support other streaming service, versiondb will override the streaming manager.
+	if cast.ToBool(appOpts.Get("versiondb.enable")) {
+		logger.Info("******************** VersionDB enabled *************************")
+		qms, err := app.setupVersionDB(homePath, keys, tkeys, memKeys)
+		if err != nil {
+			panic(err)
+		}
+		app.qms = qms.(RootMultiStore)
+	} else {
+		logger.Info("****************** VersionDB disabled; using standard store")
+	}
+
 	app.SetInitChainer(app.InitChainer)
 	app.SetPreBlocker(app.PreBlocker)
 	app.SetBeginBlocker(app.BeginBlocker)
@@ -511,6 +546,14 @@ func New(
 	app.encodingConfig = encodingConfig
 	if err := app.LoadLatestVersion(); err != nil {
 		panic(err)
+	}
+
+	if app.qms != nil {
+		v1 := app.qms.LatestVersion()
+		v2 := app.LastBlockHeight()
+		if v1 > 0 && v1 != v2 {
+			panic(fmt.Sprintf("versiondb latest version %d don't match iavl latest version %d", v1, v2))
+		}
 	}
 
 	return app

@@ -20,8 +20,8 @@ GOLANG_CROSS_VERSION  ?= v1.24.6
 # Set this to override v2 upgrade height for the v3 embedded binaries
 V2_UPGRADE_HEIGHT ?= 0
 
-BUILD_TAGS_STANDALONE := ledger
-BUILD_TAGS_MULTIPLEXER := ledger,multiplexer
+BUILD_TAGS_STANDALONE := ledger,rocksdb
+BUILD_TAGS_MULTIPLEXER := ledger,multiplexer,rocksdb
 
 LDFLAGS_COMMON := -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) -X github.com/celestiaorg/celestia-app/v6/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT)
 LDFLAGS_STANDALONE := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_STANDALONE)

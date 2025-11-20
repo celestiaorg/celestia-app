@@ -134,6 +134,11 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 		updateConfigCmd(),
 	)
 
+	changeSetCmd := ChangeSetCmd()
+	if changeSetCmd != nil {
+		rootCommand.AddCommand(changeSetCmd)
+	}
+
 	modifyRootCommand(rootCommand)
 
 	// Add hooks run prior to the start command

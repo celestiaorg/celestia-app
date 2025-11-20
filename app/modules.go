@@ -1,6 +1,7 @@
 package app
 
 import (
+	storetypes "cosmossdk.io/store/types"
 	circuittypes "cosmossdk.io/x/circuit/types"
 	"cosmossdk.io/x/evidence"
 	evidencetypes "cosmossdk.io/x/evidence/types"
@@ -205,4 +206,34 @@ func allStoreKeys() []string {
 		hyperlanetypes.ModuleName, // added in v4
 		warptypes.ModuleName,      // added in v4
 	}
+}
+
+func AllStoreKeys2() map[string]*storetypes.KVStoreKey {
+	keys := storetypes.NewKVStoreKeys(
+		authtypes.StoreKey,
+		authzkeeper.StoreKey,
+		banktypes.StoreKey,
+		stakingtypes.StoreKey,
+		minttypes.StoreKey,
+		distrtypes.StoreKey,
+		slashingtypes.StoreKey,
+		govtypes.StoreKey,
+		paramstypes.StoreKey,
+		upgradetypes.StoreKey,
+		feegrant.StoreKey,
+		evidencetypes.StoreKey,
+		capabilitytypes.StoreKey,
+		ibctransfertypes.StoreKey,
+		ibcexported.StoreKey,
+		packetforwardtypes.StoreKey,
+		icahosttypes.StoreKey,
+		signaltypes.StoreKey,
+		blobtypes.StoreKey,
+		minfeetypes.StoreKey,      // added in v4
+		consensustypes.StoreKey,   // added in v4
+		circuittypes.StoreKey,     // added in v4
+		hyperlanetypes.ModuleName, // added in v4
+		warptypes.ModuleName,      // added in v4
+	)
+	return keys
 }
