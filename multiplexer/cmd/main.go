@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/celestiaorg/celestia-app/v6/multiplexer/abci"
+	"github.com/cometbft/cometbft/blocksync"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/server/types"
@@ -23,7 +24,7 @@ func New(versions abci.Versions) StartCommandHandler {
 			svrCtx.Logger.Info("App cannot be started without CometBFT when using the multiplexer.")
 			return nil
 		}
-
+		blocksync.RequesterLimitHardCap = 10
 		return start(versions, svrCtx, clientCtx, appCreator)
 	}
 }
