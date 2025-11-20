@@ -17,10 +17,10 @@ before:
     - ./scripts/download_binary.sh celestia-app-standalone_Linux_arm64.tar.gz celestia-app_linux_v4_arm64.tar.gz v4.1.0
     - ./scripts/download_binary.sh celestia-app-standalone_Darwin_x86_64.tar.gz celestia-app_darwin_v4_amd64.tar.gz v4.1.0
     - ./scripts/download_binary.sh celestia-app-standalone_Linux_x86_64.tar.gz celestia-app_linux_v4_amd64.tar.gz v4.1.0
-    - ./scripts/download_binary.sh celestia-app-standalone_Darwin_arm64.tar.gz celestia-app_darwin_v5_arm64.tar.gz v5.0.11
-    - ./scripts/download_binary.sh celestia-app-standalone_Linux_arm64.tar.gz celestia-app_linux_v5_arm64.tar.gz v5.0.11
-    - ./scripts/download_binary.sh celestia-app-standalone_Darwin_x86_64.tar.gz celestia-app_darwin_v5_amd64.tar.gz v5.0.11
-    - ./scripts/download_binary.sh celestia-app-standalone_Linux_x86_64.tar.gz celestia-app_linux_v5_amd64.tar.gz v5.0.11
+    - ./scripts/download_binary.sh celestia-app-standalone_Darwin_arm64.tar.gz celestia-app_darwin_v5_arm64.tar.gz v5.0.12
+    - ./scripts/download_binary.sh celestia-app-standalone_Linux_arm64.tar.gz celestia-app_linux_v5_arm64.tar.gz v5.0.12
+    - ./scripts/download_binary.sh celestia-app-standalone_Darwin_x86_64.tar.gz celestia-app_darwin_v5_amd64.tar.gz v5.0.12
+    - ./scripts/download_binary.sh celestia-app-standalone_Linux_x86_64.tar.gz celestia-app_linux_v5_amd64.tar.gz v5.0.12
 
 builds:
   - id: darwin-amd64-multiplexer
