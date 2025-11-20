@@ -775,8 +775,8 @@ github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1/go.mod h1:7SFka0XMvUgj3hfZtyd
 github.com/bufbuild/protocompile v0.14.1 h1:iA73zAf/fyljNjQKwYzUHD6AD4R8KMasmwa/FBatYVw=
 github.com/bufbuild/protocompile v0.14.1/go.mod h1:ppVdAIhbr2H8asPk6k4pY7t9zB1OU5DoEw9xY/FUi1c=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
-github.com/celestiaorg/celestia-core v1.54.0-tm-v0.38.17.0.20251120144725-9c8ca2a40cb0 h1:Chv1YXssneqb9d4/M4Qm2AI+FouMCJeNn+wX1Dep2j4=
-github.com/celestiaorg/celestia-core v1.54.0-tm-v0.38.17.0.20251120144725-9c8ca2a40cb0/go.mod h1:IIl6/tY+gsurN3ub2Vy/yZm9opWq/QggKk5y5X8V2ys=
+github.com/celestiaorg/celestia-core v1.54.0-tm-v0.38.17.0.20251120223731-0ea933c5f878 h1:38EeipcHmtAScCIXV3HtPUqNQuXtsLa4z8EnJY9RNdE=
+github.com/celestiaorg/celestia-core v1.54.0-tm-v0.38.17.0.20251120223731-0ea933c5f878/go.mod h1:IIl6/tY+gsurN3ub2Vy/yZm9opWq/QggKk5y5X8V2ys=
 github.com/celestiaorg/celestia-core v1.55.0-tm-v0.34.35 h1:FREwqZwPvYsodr1AqqEIyW+VsBnwTzJNtC6NFdZX8rs=
 github.com/celestiaorg/celestia-core v1.55.0-tm-v0.34.35/go.mod h1:SI38xqZZ4ccoAxszUJqsJ/a5rOkzQRijzHQQlLKkyUc=
 github.com/celestiaorg/cosmos-sdk v0.51.8 h1:kU86k7Vf/WynGIpoGbPn42X5ww/4A75K4ldKXn4TlJY=
