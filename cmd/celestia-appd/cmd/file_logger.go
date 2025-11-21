@@ -30,7 +30,7 @@ func DefaultFileLogConfig(homeDir string) FileLogConfig {
 }
 
 func createLogFile(logDir, prefix string) (*os.File, error) {
-	if err := os.MkdirAll(logDir, 0755); err != nil {
+	if err := os.MkdirAll(logDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create log directory: %w", err)
 	}
 
