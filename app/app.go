@@ -554,6 +554,10 @@ func (app *App) Info(req *abci.RequestInfo) (*abci.ResponseInfo, error) {
 // FinalizeBlock implements the abci interface. It overrides baseapp's FinalizeBlock method, essentially becoming a decorator
 // in order to add transaction pruning logic after normal finalize block processing.
 func (app *App) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
+	s := time.Now()
+	defer func() {
+		fmt.Println("FinalizeBlock took", time.Since(s))
+	}()
 	// Call the normal BaseApp FinalizeBlock first
 	res, err := app.BaseApp.FinalizeBlock(req)
 	if err != nil {
