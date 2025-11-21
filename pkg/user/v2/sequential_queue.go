@@ -3,6 +3,7 @@ package v2
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,7 +29,7 @@ type SequentialSubmissionResult struct {
 	Error      error
 }
 
-// sequentialQueue manages single-threaded transaction submission
+// sequentialQueue manages single-threaded transaction submission with a unified queue
 type sequentialQueue struct {
 	wg     sync.WaitGroup
 	ctx    context.Context
@@ -38,37 +39,33 @@ type sequentialQueue struct {
 	accountName string
 	pollTime    time.Duration
 
-	// Transaction processing
-	mu         sync.RWMutex
-	queuedTxs  map[uint64]*queuedTx  // Transactions waiting to be broadcast
-	pendingTxs map[uint64]*pendingTx // Transactions broadcast, waiting confirmation
+	// Single unified queue - transactions stay here until confirmed
+	mu           sync.RWMutex
+	queue        []*queuedTx    // All transactions from submission to confirmation
+	ResignChan   chan *queuedTx // Channel for all rejected transactions that need to be resigned
+	ResubmitChan chan *queuedTx // Channel for all evicted transactions that need to be resubmitted
+
+	// Track last confirmed sequence for rollback logic
+	lastConfirmedSeq uint64
 }
 
-// queuedTx represents a transaction waiting to be broadcast
+// queuedTx represents a transaction in the queue (from submission to confirmation)
 type queuedTx struct {
-	sequence    uint64
-	blobs       []*share.Blob
-	options     []user.TxOption
-	resultsC    chan SequentialSubmissionResult
-	needsResign bool // True if needs resigning (e.g., after prior rejection)
-}
+	// Original submission data
+	blobs    []*share.Blob
+	options  []user.TxOption
+	resultsC chan SequentialSubmissionResult
 
-// pendingTx tracks a transaction that has been broadcast
-type pendingTx struct {
-	sequence    uint64
-	status      string
-	txHash      string
-	txBytes     []byte // Stored for resubmission without resigning
-	blobs       []*share.Blob
-	options     []user.TxOption
-	resultsC    chan SequentialSubmissionResult
-	submittedAt time.Time
-	attempts    int
+	// Set after broadcast
+	txHash       string    // Empty until broadcast
+	txBytes      []byte    // Set after broadcast, used for eviction resubmission
+	sequence     uint64    // Set after broadcast
+	submittedAt  time.Time // Set after broadcast
+	shouldResign bool      // Set after broadcast
 }
 
 const (
 	defaultSequentialQueueSize = 100
-	maxResubmitAttempts        = 5
 )
 
 func newSequentialQueue(client *TxClient, accountName string, pollTime time.Duration) *sequentialQueue {
@@ -76,275 +73,392 @@ func newSequentialQueue(client *TxClient, accountName string, pollTime time.Dura
 		pollTime = user.DefaultPollTime
 	}
 
-	return &sequentialQueue{
-		client:      client,
-		accountName: accountName,
-		pollTime:    pollTime,
-		queuedTxs:   make(map[uint64]*queuedTx),
-		pendingTxs:  make(map[uint64]*pendingTx),
+	ctx, cancel := context.WithCancel(context.Background())
+	q := &sequentialQueue{
+		client:       client,
+		accountName:  accountName,
+		pollTime:     pollTime,
+		ctx:          ctx,
+		cancel:       cancel,
+		queue:        make([]*queuedTx, 0, defaultSequentialQueueSize),
+		ResignChan:   make(chan *queuedTx, 10), // Buffered channel for resign requests
+		ResubmitChan: make(chan *queuedTx, 10), // Buffered channel for resubmit requests
 	}
+	return q
 }
 
-// start initiates the sequential queue processor
-func (q *sequentialQueue) start(ctx context.Context) error {
-	q.ctx, q.cancel = context.WithCancel(ctx)
-
-	// Start the processing loop (broadcasts queued txs in order)
-	q.wg.Add(1)
+// start begins the sequential queue processing
+func (q *sequentialQueue) start() {
+	q.wg.Add(2)
 	go func() {
 		defer q.wg.Done()
-		q.processLoop()
+		q.coordinate()
 	}()
-
-	// Start the monitoring loop (confirms pending txs)
-	q.wg.Add(1)
 	go func() {
 		defer q.wg.Done()
 		q.monitorLoop()
 	}()
-
-	return nil
 }
 
-// stop shuts down the sequential queue
-func (q *sequentialQueue) stop() {
-	if q.ctx == nil {
-		return
-	}
-
-	q.cancel()
-	q.wg.Wait()
-	q.ctx, q.cancel = nil, nil
-}
-
-// isStarted returns whether the queue is started
-func (q *sequentialQueue) isStarted() bool {
-	return q.ctx != nil && q.cancel != nil
-}
-
-// submitJob submits a job to the sequential queue (directly, no channel)
+// submitJob adds a new transaction to the queue
 func (q *sequentialQueue) submitJob(job *SequentialSubmissionJob) {
-	if !q.isStarted() {
-		job.ResultsC <- SequentialSubmissionResult{Error: fmt.Errorf("sequential queue not started")}
-		return
-	}
-
-	// Check if job context is cancelled
-	if job.Ctx.Err() != nil {
-		job.ResultsC <- SequentialSubmissionResult{Error: job.Ctx.Err()}
-		return
-	}
-
-	// Get current sequence
-	acc := q.client.Account(q.accountName)
-	if acc == nil {
-		job.ResultsC <- SequentialSubmissionResult{Error: fmt.Errorf("account %s not found", q.accountName)}
-		return
-	}
-	sequence := acc.Sequence()
-
-	// Add to queued transactions
-	q.mu.Lock()
-	q.queuedTxs[sequence] = &queuedTx{
-		sequence:    sequence,
-		blobs:       job.Blobs,
-		options:     job.Options,
-		resultsC:    job.ResultsC,
-		needsResign: false,
-	}
-	q.mu.Unlock()
-
-	// Increment sequence for next job
-	if err := q.client.Signer().IncrementSequence(q.accountName); err != nil {
-		job.ResultsC <- SequentialSubmissionResult{Error: fmt.Errorf("error incrementing sequence: %w", err)}
-	}
-}
-
-// processLoop is a process continuely submitting txs from Q
-func (q *sequentialQueue) processLoop() {
-	// TODO: Maybe this should be like 1 second? so tx client can actually be the one to control submission cadence rather than user?
-	ticker := time.NewTicker(q.pollTime / 2) // ARBITRARY DELAY
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			q.submitTxsInQueue()
-		case <-q.ctx.Done():
-			return
-		}
-	}
-}
-
-// submitTxsInQueue broadcasts the next transaction in sequence order
-// this needs to change to only lock per transaction submission rather than the whole queue
-func (q *sequentialQueue) submitTxsInQueue() {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	// Get the first transaction from the queue
-	// keep one second delay between submissions
-	for _, queued := range q.queuedTxs {
-
-		// Broadcast the transaction
-		var resp *sdktypes.TxResponse
-		// TODO: figure out how to set tx bytes
-		var txBytes []byte
-		var err error
-
-		resp, err = q.client.BroadcastPayForBlobWithoutRetry(q.ctx, q.accountName, queued.blobs, queued.options...)
-		if err != nil {
-			// check if the error is sequence mismatch and if tx should be resigned. (never resign evicted txs)
-			queued.resultsC <- SequentialSubmissionResult{Error: fmt.Errorf("broadcast failed: %w", err)}
-			delete(q.queuedTxs, queued.sequence)
-			return
-		}
-
-		// Move from queued to pending
-		q.pendingTxs[queued.sequence] = &pendingTx{
-			sequence:    queued.sequence,
-			txHash:      resp.TxHash,
-			txBytes:     txBytes,
-			blobs:       queued.blobs,
-			options:     queued.options,
-			resultsC:    queued.resultsC,
-			submittedAt: time.Now(),
-			attempts:    1,
-		}
-		delete(q.queuedTxs, queued.sequence)
-
-		time.Sleep(time.Second) // this is submission delay but could be done differently
-	}
-}
-
-// monitorLoop periodically checks pending transactions
-func (q *sequentialQueue) monitorLoop() {
-	ticker := time.NewTicker(q.pollTime)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			q.checkPendingTransactions()
-		case <-q.ctx.Done():
-			return
-		}
-	}
-}
-
-// checkPendingTransactions checks status of all pending transactions
-func (q *sequentialQueue) checkPendingTransactions() {
-	// todo; possibly error prone
-	txClient := tx.NewTxClient(q.client.GetConn())
-
-	// Check all pending transactions
-	for _, pending := range q.pendingTxs {
-		seq := pending.sequence
-
-		// Check transaction status
-		statusResp, err := txClient.TxStatus(q.ctx, &tx.TxStatusRequest{TxId: pending.txHash})
-		if err != nil {
-			// Network error, skip this check
-			continue
-		}
-
-		switch statusResp.Status {
-		case core.TxStatusPending:
-			// Still pending, continue monitoring
-			continue
-
-		case core.TxStatusCommitted:
-			// Check execution code
-			if statusResp.ExecutionCode != abci.CodeTypeOK {
-				// Execution failed - treat like rejection, roll back signer sequence
-				// should prolly use execution error type same as in tx client
-				pending.resultsC <- SequentialSubmissionResult{
-					Error: fmt.Errorf("tx execution failed with code %d: %s", statusResp.ExecutionCode, statusResp.Error),
-				}
-				continue
-			}
-			// use populate tx response from tx client TODO: reuse the function that populates
-			pending.resultsC <- SequentialSubmissionResult{
-				TxResponse: &sdktypes.TxResponse{
-					Height:    statusResp.Height,
-					TxHash:    pending.txHash,
-					Code:      statusResp.ExecutionCode,
-					Codespace: statusResp.Codespace,
-					GasWanted: statusResp.GasWanted,
-					GasUsed:   statusResp.GasUsed,
-					Signers:   statusResp.Signers,
-				},
-				Error: nil,
-			}
-
-		case core.TxStatusEvicted:
-			// Transaction evicted - put back in queue for resubmission WITHOUT resigning
-			// Add back to queuedTxs with same sequence
-			q.mu.Lock()
-			q.queuedTxs[seq] = &queuedTx{
-				sequence:    seq,
-				blobs:       pending.blobs,
-				options:     pending.options,
-				resultsC:    pending.resultsC,
-				needsResign: false, // Keep existing tx bytes, no resigning
-			}
-			delete(q.pendingTxs, seq)
-			q.mu.Unlock()
-		case core.TxStatusRejected:
-			// tx rejected - roll back the signer sequence
-			// check if the tx before was also rejected, if so, no need to roll back the signer sequence
-			// because it would have been rolled back already
-			prevTx, exists := q.pendingTxs[seq-1] // TODO: we need accessors with mutexes for this
-			if !exists || prevTx.status != core.TxStatusRejected {
-				// no previous tx, so we can roll back the signer sequence
-				q.client.TxClient.Signer().SetSequence(q.accountName, seq)
-				continue
-			}
-			pending.status = core.TxStatusRejected
-			// TODO: how do i do this? maybe i should keep track of tx hashes and just tx status them
-			pending.resultsC <- SequentialSubmissionResult{
-				Error: fmt.Errorf("tx rejected: %s", statusResp.Error),
-			}
-			// TODO: remove the bytes from the tx tracker and just keep the sequence, hash and status
-			// this is to save storage space
-
-			// Mark subsequent transactions for resigning
-			q.markForResign(seq)
-		}
+	qTx := &queuedTx{
+		blobs:    job.Blobs,
+		options:  job.Options,
+		resultsC: job.ResultsC,
 	}
 
+	q.queue = append(q.queue, qTx)
 }
 
-// markForResign marks all subsequent queued transactions for resigning
-// idk if this is the best way, we shall see
-func (q *sequentialQueue) markForResign(fromSeq uint64) {
-	for seq, queued := range q.queuedTxs {
-		if seq > fromSeq {
-			queued.needsResign = true
-		}
-	}
-}
-
-// purgeOldTxs removes rejected/confirmed transactions that are older than 10 minutes (possible refactor this to height since time is the worst in blockchain env
-// but here it feels not too bad since its only for cleanup)
-// TODO: find out how much storage is required for this to work.
-// we could possibly remove everything but sequence, status and hash for confirmed/rejected txs for lightweight storage.
-func (q *sequentialQueue) purgeOldTxs() {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-
-	// remove all transactions that are older than 10 minutes
-	for seq, pending := range q.pendingTxs {
-		if time.Since(pending.submittedAt) > 10*time.Minute {
-			delete(q.pendingTxs, seq)
-			delete(q.queuedTxs, seq)
-		}
-	}
-}
-
-// GetQueueSize returns the number of pending transactions
+// GetQueueSize returns the number of transactions in the queue
 func (q *sequentialQueue) GetQueueSize() int {
 	q.mu.RLock()
 	defer q.mu.RUnlock()
-	return len(q.queuedTxs) + len(q.pendingTxs)
+	return len(q.queue)
+}
+
+// processNextTx signs and broadcasts the next unbroadcast transaction in queue
+func (q *sequentialQueue) processNextTx() {
+	// Find first unbroadcast transaction (txHash is empty)
+	fmt.Println("Processing next tx")
+	var qTx *queuedTx
+	q.mu.RLock()
+	for _, tx := range q.queue {
+		if tx.txHash == "" {
+			qTx = tx
+			break
+		}
+	}
+	q.mu.RUnlock()
+
+	if qTx == nil {
+		return
+	}
+
+	resp, err := q.client.BroadcastPayForBlobWithoutRetry(
+		q.ctx,
+		q.accountName,
+		qTx.blobs,
+		qTx.options...,
+	)
+
+	if err != nil || resp.Code != 0 {
+		// Check if this is a sequence mismatch AND we're blocked
+		// This means the sequence was rolled back while we were broadcasting
+		// TODO: ma\ybe we can check if q is blocked and if so, return
+		// otherwise it could mean client is stalled
+		if IsSequenceMismatchError(err) {
+			fmt.Println("Sequence mismatch error")
+			// return we probably need to resign earlier transactions
+			// come back to this later
+			return
+		}
+
+		// Other broadcast errors - send error and remove from queue
+		select {
+		case qTx.resultsC <- SequentialSubmissionResult{
+			Error: fmt.Errorf("broadcast failed: %w", err),
+		}:
+		case <-q.ctx.Done():
+		}
+		q.removeFromQueue(qTx)
+		return
+	}
+
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	// Broadcast successful - mark as broadcast in queue
+	sequence := q.client.Signer().Account(q.accountName).Sequence()
+	txBytes := q.client.TxClient.TxTracker.GetTxBytes(q.accountName, sequence)
+
+	qTx.txHash = resp.TxHash
+	qTx.txBytes = txBytes
+	qTx.sequence = sequence
+	qTx.submittedAt = time.Now()
+	fmt.Println("Broadcast successful - marking as broadcast in queue")
+}
+
+// monitorLoop periodically checks the status of broadcast transactions
+func (q *sequentialQueue) monitorLoop() {
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-q.ctx.Done():
+			return
+		case <-ticker.C:
+			q.checkBroadcastTransactions()
+		}
+	}
+}
+
+// coordinate coordinates transaction submission with confirmation
+func (q *sequentialQueue) coordinate() {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-q.ctx.Done():
+			return
+		case <-q.ResignChan:
+			fmt.Println("Resigning rejected tx")
+			q.ResignRejected()
+		case qTx := <-q.ResubmitChan:
+			fmt.Println("Resubmitting evicted tx")
+			q.ResubmitEvicted(qTx)
+		case <-ticker.C:
+			q.processNextTx()
+		}
+	}
+}
+
+// ResignRejected resigns a rejected transaction
+func (q *sequentialQueue) ResignRejected() {
+	fmt.Println("Resigning rejected tx")
+	q.mu.RLock()
+	var txsToResign []*queuedTx
+	for _, qTx := range q.queue {
+		if qTx.shouldResign {
+			txsToResign = append(txsToResign, qTx)
+		}
+	}
+	q.mu.RUnlock()
+
+	for _, qTx := range txsToResign {
+		if qTx.shouldResign {
+			// resign the tx
+			resp, err := q.client.BroadcastPayForBlobWithoutRetry(
+				q.ctx,
+				q.accountName,
+				qTx.blobs,
+				qTx.options...,
+			)
+			if err != nil {
+				// send error and remove from queue
+				select {
+				case qTx.resultsC <- SequentialSubmissionResult{
+					Error: fmt.Errorf("rejected and failed to resign: %w", err),
+				}:
+				case <-q.ctx.Done():
+				}
+				q.removeFromQueue(qTx)
+				return
+			}
+			sequence := q.client.Signer().Account(q.accountName).Sequence()
+			txBytes := q.client.TxClient.TxTracker.GetTxBytes(q.accountName, sequence)
+
+			qTx.txHash = resp.TxHash
+			qTx.txBytes = txBytes
+			qTx.sequence = sequence
+			qTx.shouldResign = false
+			fmt.Printf("Resigned and submitted tx successfully: %s\n", resp.TxHash)
+		}
+	}
+}
+
+// TODO: come back to this and see if it makes sense
+// func (q *sequentialQueue) setTxInfo(qTx *queuedTx, resp *sdktypes.TxResponse, txBytes []byte, sequence uint64) {
+// 	q.mu.Lock()
+// 	defer q.mu.Unlock()
+
+// 	qTx.txHash = resp.TxHash
+// 	qTx.txBytes = txBytes
+// 	qTx.sequence = sequence
+// 	qTx.shouldResign = false
+// }
+
+func (q *sequentialQueue) ResubmitEvicted(qTx *queuedTx) {
+	fmt.Println("Resubmitting evicted tx")
+	q.mu.RLock()
+	txBytes := qTx.txBytes
+	q.mu.RUnlock()
+
+	// check if the tx needs to be resubmitted
+	resubmitResp, err := q.client.ResubmitTxBytes(q.ctx, txBytes)
+	if err != nil || resubmitResp.Code != 0 {
+		// send error and remove from queue
+		select {
+		case qTx.resultsC <- SequentialSubmissionResult{
+			Error: fmt.Errorf("evicted and failed to resubmit: %w", err),
+		}:
+		case <-q.ctx.Done():
+		}
+		q.removeFromQueue(qTx)
+		return
+	}
+}
+
+// checkBroadcastTransactions checks status of all broadcast transactions
+func (q *sequentialQueue) checkBroadcastTransactions() {
+	fmt.Println("Checking broadcast transactions")
+	q.mu.RLock()
+	// Collect all broadcast transactions (those with non-empty txHash)
+	var broadcastTxs []*queuedTx // TODO: cap the size
+	for _, tx := range q.queue {
+		if tx.txHash != "" {
+			broadcastTxs = append(broadcastTxs, tx)
+		}
+	}
+	q.mu.RUnlock()
+
+	if len(broadcastTxs) == 0 {
+		return
+	}
+
+	// Create tx client for status queries
+	txClient := tx.NewTxClient(q.client.GetGRPCConnection())
+
+	for _, qTx := range broadcastTxs {
+		statusResp, err := txClient.TxStatus(q.ctx, &tx.TxStatusRequest{TxId: qTx.txHash})
+		if err != nil {
+			continue // Network error, try again later
+		}
+
+		switch statusResp.Status {
+		case core.TxStatusCommitted:
+			q.handleCommitted(qTx, statusResp)
+		case core.TxStatusEvicted:
+			fmt.Println("Handling evicted tx")
+			q.ResubmitChan <- qTx
+		case core.TxStatusRejected:
+			q.handleRejected(qTx, statusResp, txClient)
+		}
+	}
+}
+
+// handleCommitted processes a confirmed transaction
+func (q *sequentialQueue) handleCommitted(qTx *queuedTx, statusResp *tx.TxStatusResponse) {
+	fmt.Println("Handling confirmed tx")
+	// Check execution code
+	if statusResp.ExecutionCode != abci.CodeTypeOK {
+		// Execution failed
+		select {
+		case <-q.ctx.Done():
+		case qTx.resultsC <- SequentialSubmissionResult{
+			Error: fmt.Errorf("tx execution failed with code %d: %s", statusResp.ExecutionCode, statusResp.Error),
+		}:
+		}
+		q.removeFromQueue(qTx)
+		return
+	}
+
+	// Success - send result
+	select {
+	case <-q.ctx.Done():
+		return
+	case qTx.resultsC <- SequentialSubmissionResult{
+		TxResponse: &sdktypes.TxResponse{
+			Height:    statusResp.Height,
+			TxHash:    qTx.txHash,
+			Code:      statusResp.ExecutionCode,
+			Codespace: statusResp.Codespace,
+			GasWanted: statusResp.GasWanted,
+			GasUsed:   statusResp.GasUsed,
+			Signers:   statusResp.Signers,
+		},
+		Error: nil,
+	}:
+	}
+
+	// Update last confirmed sequence
+	q.setLastConfirmedSeq(qTx.sequence)
+	q.removeFromQueue(qTx)
+}
+
+func (q *sequentialQueue) setLastConfirmedSeq(seq uint64) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.lastConfirmedSeq = seq
+}
+
+// handleRejected processes a rejected transaction
+func (q *sequentialQueue) handleRejected(qTx *queuedTx, statusResp *tx.TxStatusResponse, txClient tx.TxClient) {
+	fmt.Println("Handling rejected tx")
+	// Step 1: Roll back sequence if previous tx was confirmed
+	if q.isPreviousTxConfirmed(qTx.sequence) {
+		q.mu.Lock()
+		q.client.Signer().SetSequence(q.accountName, qTx.sequence)
+		q.mu.Unlock()
+	}
+
+	isNonceMismatch := isSequenceMismatchRejection(statusResp.Error)
+	if isNonceMismatch {
+		q.mu.Lock()
+		qTx.shouldResign = true
+		q.mu.Unlock()
+	}
+
+	// Step 2: Collect subsequent transactions to check
+	q.mu.RLock()
+	var subsequentTxs []*queuedTx
+	for _, subTx := range q.queue {
+		if subTx.sequence > qTx.sequence && subTx.txHash != "" {
+			subsequentTxs = append(subsequentTxs, subTx)
+		}
+	}
+	q.mu.RUnlock()
+
+	// Step 3: Batch query subsequent transactions to see if they were also rejected // TODO: in future this should be handled by batch txstatus request
+	for _, subTx := range subsequentTxs {
+		if subTx.sequence > qTx.sequence && subTx.txHash != "" {
+			// TODO: this should also be rejected for sequence mismatch
+			resp, err := txClient.TxStatus(q.ctx, &tx.TxStatusRequest{TxId: subTx.txHash})
+			if err == nil && resp.Status == core.TxStatusRejected && resp.ExecutionCode == 32 {
+				fmt.Println("Sequence mismatch error: ReCheck()")
+				q.mu.Lock()
+				subTx.shouldResign = true
+				q.mu.Unlock()
+			}
+		}
+	}
+	// Q: should we wait till all txs are marked for resign before sending to resign channel?
+	q.ResignChan <- qTx
+
+	if !isNonceMismatch {
+		// Non-nonce error remove from queue and return error back to user
+		select {
+		case <-q.ctx.Done():
+		case qTx.resultsC <- SequentialSubmissionResult{
+			Error: fmt.Errorf("tx rejected: %s", statusResp.Error),
+		}:
+		}
+		q.removeFromQueue(qTx)
+		return
+	}
+
+}
+
+// removeFromQueue removes a transaction from the queue
+func (q *sequentialQueue) removeFromQueue(qTx *queuedTx) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	for i, tx := range q.queue {
+		if tx == qTx {
+			q.queue = append(q.queue[:i], q.queue[i+1:]...)
+			return
+		}
+	}
+}
+
+// isPreviousTxConfirmed checks if the previous transaction was confirmed
+func (q *sequentialQueue) isPreviousTxConfirmed(seq uint64) bool {
+	q.mu.RLock()
+	defer q.mu.RUnlock()
+	if seq == 0 {
+		return true
+	}
+	return q.lastConfirmedSeq >= seq-1
+}
+
+// isSequenceMismatchRejection checks if an error message indicates sequence mismatch
+func isSequenceMismatchRejection(errMsg string) bool {
+	return strings.Contains(errMsg, "account sequence mismatch") ||
+		strings.Contains(errMsg, "incorrect account sequence")
 }
