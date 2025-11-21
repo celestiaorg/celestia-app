@@ -10,7 +10,7 @@ const (
 
 	// DefaultMaxBytes is the default value for the governance modifiable
 	// maximum number of bytes allowed in a valid block.
-	DefaultMaxBytes = 180 * mebibyte
+	DefaultMaxBytes = 128 * mebibyte
 
 	// DefaultMinGasPrice is the default min gas price that gets set in the app.toml file.
 	// The min gas price acts as a filter. Transactions below that limit will not pass
@@ -23,5 +23,5 @@ const (
 	// Only applies to app version >= 2
 	DefaultNetworkMinGasPrice = 0.000001 // utia
 
-	DefaultUpperBoundMaxBytes = 180 * mebibyte
+	DefaultUpperBoundMaxBytes = 128 * mebibyte
 )
