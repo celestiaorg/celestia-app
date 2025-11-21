@@ -230,12 +230,8 @@ func New(
 	// Conditionally enable MemIAVL
 	cacheSize := cast.ToInt(appOpts.Get(memiavlstore.FlagCacheSize))
 	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
-	if cast.ToBool(appOpts.Get(memiavlstore.FlagMemIAVL)) {
-		logger.Info("********************MemIAVL enabled *************************", "cacheSize", cacheSize)
-		baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, cacheSize, baseAppOptions)
-	} else {
-		logger.Info("****************** MemIAVL disabled; using standard IAVL")
-	}
+	logger.Info("********************MemIAVL enabled *************************", "cacheSize", cacheSize)
+	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, cacheSize, baseAppOptions)
 
 	baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
 	baseApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
