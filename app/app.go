@@ -2,7 +2,6 @@ package app
 
 import (
 	"fmt"
-	"github.com/cosmos/cosmos-sdk/client/flags"
 	"io"
 	"math"
 	"os"
@@ -124,7 +123,6 @@ import (
 	ibctm "github.com/cosmos/ibc-go/v8/modules/light-clients/07-tendermint"
 	ibctesting "github.com/cosmos/ibc-go/v8/testing"
 	ibctestingtypes "github.com/cosmos/ibc-go/v8/testing/types"
-	memiavlstore "github.com/crypto-org-chain/cronos/store"
 	"github.com/spf13/cast"
 )
 
@@ -228,11 +226,11 @@ func New(
 	encodingConfig := encoding.MakeConfig(ModuleEncodingRegisters...)
 
 	// Conditionally enable MemIAVL
-	cacheSize := cast.ToInt(appOpts.Get(memiavlstore.FlagCacheSize))
-	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
-	logger.Info("********************MemIAVL enabled *************************", "cacheSize", cacheSize)
-	fmt.Println("fucking running memIAVL store")
-	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, cacheSize, baseAppOptions)
+	//cacheSize := cast.ToInt(appOpts.Get(memiavlstore.FlagCacheSize))
+	//homePath := cast.ToString(appOpts.Get(flags.FlagHome))
+	//logger.Info("********************MemIAVL enabled *************************", "cacheSize", cacheSize)
+	//fmt.Println("fucking running memIAVL store")
+	//baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, cacheSize, baseAppOptions)
 
 	baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
 	baseApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
@@ -488,19 +486,6 @@ func New(
 	app.MountKVStores(app.keys)
 	app.MountMemoryStores(app.memKeys)
 	app.MountTransientStores(app.tkeys)
-
-	// wire up the versiondb's `StreamingService` and `MultiStore`.
-	// we don't support other streaming service, versiondb will override the streaming manager.
-	if cast.ToBool(appOpts.Get("versiondb.enable")) {
-		logger.Info("******************** VersionDB enabled *************************")
-		qms, err := app.setupVersionDB(homePath, keys, tkeys, memKeys)
-		if err != nil {
-			panic(err)
-		}
-		app.qms = qms.(RootMultiStore)
-	} else {
-		logger.Info("****************** VersionDB disabled; using standard store")
-	}
 
 	app.SetInitChainer(app.InitChainer)
 	app.SetPreBlocker(app.PreBlocker)
