@@ -231,6 +231,7 @@ func New(
 	cacheSize := cast.ToInt(appOpts.Get(memiavlstore.FlagCacheSize))
 	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
 	logger.Info("********************MemIAVL enabled *************************", "cacheSize", cacheSize)
+	fmt.Println("fucking running memIAVL store")
 	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, cacheSize, baseAppOptions)
 
 	baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
