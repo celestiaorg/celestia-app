@@ -234,7 +234,7 @@ func New(
 	fmt.Println("fucking running memIAVL store")
 	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, cacheSize, baseAppOptions)
 
-	baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
+	//baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
 	baseApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
 	baseApp.SetCommitMultiStoreTracer(traceStore)
 	baseApp.SetVersion(version.Version)
