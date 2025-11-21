@@ -18,6 +18,10 @@ import (
 // the proposal block and passes it back to tendermint via the BlockData. Errors
 // are returned instead of panicking to improve error handling and reduce attack surface.
 func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+	s := time.Now()
+	defer func() {
+		fmt.Println("PrepareProposalHandler took ", time.Since(s))
+	}()
 	defer telemetry.MeasureSince(time.Now(), "prepare_proposal")
 	// Create a context using a branch of the state.
 	handler := ante.NewAnteHandler(

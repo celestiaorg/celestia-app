@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"time"
 
 	"cosmossdk.io/errors"
 	apperr "github.com/celestiaorg/celestia-app/v6/app/errors"
@@ -17,6 +18,10 @@ import (
 // method wraps the default Baseapp's method so that it can parse and check
 // transactions that contain blobs.
 func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
+	s := time.Now()
+	defer func() {
+		fmt.Println("CheckTx took ", time.Since(s))
+	}()
 	app.checkStateMu.Lock()
 	defer app.checkStateMu.Unlock()
 
