@@ -52,7 +52,7 @@ createGenesis() {
       --home "${APP_HOME}"
 
     echo "Creating a genesis tx..."
-    celestia-appd genesis gentx ${KEY_NAME} 5000000000utia \
+    celestia-appd genesis gentx ${KEY_NAME} 5000000000000000000000utia \
       --fees ${FEES} \
       --keyring-backend=${KEYRING_BACKEND} \
       --chain-id ${CHAIN_ID} \
