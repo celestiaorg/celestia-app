@@ -204,8 +204,11 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 	stateSyncClient, err := fullNode.GetRPCClient()
 	s.Require().NoError(err, "failed to get state sync client")
 
+	// Wait for state sync to complete (node reaches trust height).
+	// After state sync, the node transitions to block sync to catch up to latest height,
+	// but we verify state sync was used via metrics.
 	err = s.WaitForSync(ctx, stateSyncClient, stateSyncTimeout, func(info rpctypes.SyncInfo) bool {
-		return !info.CatchingUp && info.LatestBlockHeight >= trustHeight
+		return info.LatestBlockHeight >= trustHeight
 	})
 
 	s.Require().NoError(err, "failed to wait for state sync to complete")
