@@ -73,7 +73,7 @@ createGenesis() {
     # Enable transaction indexing
     sed -i.bak 's#"null"#"kv"#g' "${APP_HOME}"/config/config.toml
 
-    sed -i.bak 's#"goleveldb"#"rocksdb"#g' "${APP_HOME}"/config/config.toml
+#    sed -i.bak 's#"goleveldb"#"rocksdb"#g' "${APP_HOME}"/config/config.toml
 
     # Persist ABCI responses
     sed -i.bak 's#discard_abci_responses = true#discard_abci_responses = false#g' "${APP_HOME}"/config/config.toml
