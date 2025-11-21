@@ -88,12 +88,17 @@ func NewRootCmd() *cobra.Command {
 				return err
 			}
 
-			return replaceLogger(command)
+			return replaceLoggerWithFileSupport(command, app.NodeHome)
 		},
 		SilenceUsage: true,
 	}
 
 	rootCommand.PersistentFlags().String(FlagLogToFile, "", "Write logs directly to a file. If empty, logs are written to stderr")
+
+	defaultConfig := DefaultFileLogConfig(app.NodeHome)
+	rootCommand.PersistentFlags().Bool(FlagEnableDebugLog, defaultConfig.EnableDebugLog, "Enable automatic debug log file with daily rotation")
+	rootCommand.PersistentFlags().String(FlagLogDir, defaultConfig.LogDir, "Directory for log files")
+
 	initRootCommand(rootCommand, tempApp)
 
 	autoCliOpts := tempApp.AutoCliOpts()
@@ -159,8 +164,6 @@ func addStartFlags(startCmd *cobra.Command) {
 	startCmd.Flags().Bool(bypassOverridesFlagKey, false, "bypass all config overrides (P2P rates, mempool config, etc.). WARNING: Only use if strictly required. Using this flag may prevent your node from staying at the tip of the chain.")
 }
 
-// replaceLogger optionally replaces the logger with a file logger if the flag
-// is set to something other than the default.
 func replaceLogger(cmd *cobra.Command) error {
 	logFilePath, err := cmd.Flags().GetString(FlagLogToFile)
 	if err != nil {
