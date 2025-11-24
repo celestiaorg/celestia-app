@@ -20,8 +20,6 @@ func GetQueryCmd() *cobra.Command {
 
 	cmd.AddCommand(NewQueryIsmCmd())
 	cmd.AddCommand(NewQueryIsmsCmd())
-	cmd.AddCommand(NewQueryVerifierCmd())
-	cmd.AddCommand(NewQueryVerifiersCmd())
 
 	return cmd
 }
@@ -36,7 +34,7 @@ func GetTxCmd() *cobra.Command {
 		RunE:                       client.ValidateCmd,
 	}
 
-	cmd.AddCommand(NewCreateZKExecutionIsmCmd())
+	cmd.AddCommand(NewCreateEvolveEvmIsmCmd())
 
 	return cmd
 }

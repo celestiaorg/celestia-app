@@ -6,10 +6,10 @@ import (
 )
 
 func (suite *KeeperTestSuite) TestInitGenesis() {
-	isms := make([]types.ZKExecutionISM, 0, 100)
+	isms := make([]types.EvolveEvmISM, 0, 100)
 	for i := range 100 {
 		ismId := util.GenerateHexAddress([20]byte{0x01}, types.InterchainSecurityModuleTypeZKExecution, uint64(i))
-		ism := types.ZKExecutionISM{Id: ismId, Owner: "test"}
+		ism := types.EvolveEvmISM{Id: ismId, Owner: "test"}
 
 		isms = append(isms, ism)
 	}
@@ -34,10 +34,10 @@ func (suite *KeeperTestSuite) TestInitGenesis() {
 }
 
 func (suite *KeeperTestSuite) TestExportGenesis() {
-	isms := make([]types.ZKExecutionISM, 0, 100)
+	isms := make([]types.EvolveEvmISM, 0, 100)
 	for i := range 100 {
 		ismId := util.GenerateHexAddress([20]byte{0x01}, types.InterchainSecurityModuleTypeZKExecution, uint64(i))
-		ism := types.ZKExecutionISM{Id: ismId, Owner: "test"}
+		ism := types.EvolveEvmISM{Id: ismId, Owner: "test"}
 
 		err := suite.zkISMKeeper.SetIsm(suite.ctx, ismId, ism)
 		suite.Require().NoError(err)

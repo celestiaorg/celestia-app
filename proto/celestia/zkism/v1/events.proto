@@ -7,8 +7,8 @@ option go_package = "github.com/celestiaorg/celestia-app/x/zkism/types";
 import "cosmos_proto/cosmos.proto";
 import "gogoproto/gogo.proto";
 
-// EventCreateStateTransitionVerifier defines the event type emitted when creating a generic State Transition Verifier.
-message EventCreateStateTransitionVerifier{
+// EventCreateConsensusISM defines the event type emitted when creating a generic Consensus ISM.
+message EventCreateConsensusISM{
   option (gogoproto.goproto_getters) = false;
 
   // the owner or creator 
@@ -20,13 +20,13 @@ message EventCreateStateTransitionVerifier{
   string state_transition_vkey = 4;
 }
 
-// EventUpdateStateTransitionVerifier defines the event type emitted when updating a generic State Transition Verifier.
-message EventUpdateStateTransitionVerifier{
+// EventUpdateConsensusISM defines the event type emitted when updating a generic Consensus ISM.
+message EventUpdateConsensusISM{
   bytes trusted_state = 1;
 }
 
-// EventCreateZKExecutionISM defines the event type emitted when creating a new ZKExecutionISM.
-message EventCreateZKExecutionISM {
+// EventCreateEvolveEvmISM defines the event type emitted when creating a new EvolveEvmISM.
+message EventCreateEvolveEvmISM {
   option (gogoproto.goproto_getters) = false;
 
   // unique hyperlane identifier
@@ -56,8 +56,8 @@ message EventCreateZKExecutionISM {
   string state_membership_vkey = 11;
 }
 
-// EventUpdateZKExecutionISM defines the event type emitted when updating a ZKExecutionISM.
-message EventUpdateZKExecutionISM {
+// EventUpdateEvolveEvmISM defines the event type emitted when updating a EvolveEvmISM.
+message EventUpdateEvolveEvmISM {
   option (gogoproto.goproto_getters) = false;
 
   // unique hyperlane identifier

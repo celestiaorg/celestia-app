@@ -11,13 +11,13 @@ import (
 )
 
 // EmitCreateISMEvent emits a typed event to signal creation of a new ism.
-func EmitCreateISMEvent(ctx sdk.Context, ism types.ZKExecutionISM) error {
+func EmitCreateISMEvent(ctx sdk.Context, ism types.EvolveEvmISM) error {
 	namespace, err := share.NewNamespaceFromBytes(ism.Namespace)
 	if err != nil {
 		return errorsmod.Wrapf(types.ErrInvalidNamespace, "failed to parse namespace from bytes: %x", ism.Namespace)
 	}
 
-	return ctx.EventManager().EmitTypedEvent(&types.EventCreateZKExecutionISM{
+	return ctx.EventManager().EmitTypedEvent(&types.EventCreateEvolveEvmISM{
 		Id:                  ism.Id,
 		Owner:               ism.Owner,
 		CelestiaHeaderHash:  encodeHex(ism.CelestiaHeaderHash),
@@ -33,8 +33,8 @@ func EmitCreateISMEvent(ctx sdk.Context, ism types.ZKExecutionISM) error {
 }
 
 // EmitUpdateISMEvent emits a typed event to signal updating of an ism.
-func EmitUpdateISMEvent(ctx sdk.Context, ism types.ZKExecutionISM) error {
-	return ctx.EventManager().EmitTypedEvent(&types.EventUpdateZKExecutionISM{
+func EmitUpdateISMEvent(ctx sdk.Context, ism types.EvolveEvmISM) error {
+	return ctx.EventManager().EmitTypedEvent(&types.EventUpdateEvolveEvmISM{
 		Id:                 ism.Id,
 		StateRoot:          encodeHex(ism.StateRoot),
 		Height:             ism.Height,
@@ -43,8 +43,8 @@ func EmitUpdateISMEvent(ctx sdk.Context, ism types.ZKExecutionISM) error {
 	})
 }
 
-func EmitUpdateStateTransitionVerifierEvent(ctx sdk.Context, vrf types.StateTransitionVerifier) error {
-	return ctx.EventManager().EmitTypedEvent(&types.EventUpdateStateTransitionVerifier{
+func EmitUpdateConsensusISMEvent(ctx sdk.Context, vrf types.ConsensusISM) error {
+	return ctx.EventManager().EmitTypedEvent(&types.EventUpdateConsensusISM{
 		TrustedState: vrf.TrustedState,
 	})
 }

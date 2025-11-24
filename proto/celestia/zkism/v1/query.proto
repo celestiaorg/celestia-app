@@ -21,16 +21,6 @@ service Query {
     option (google.api.http).get = "/celestia/zkism/v1/isms";
   }
 
-  // Verifier defines an rpc method for querying a Verifier by ID.
-  rpc Verifier(QueryVerifierRequest) returns (QueryVerifierResponse) {
-    option (google.api.http).get = "/celestia/zkism/v1/verifiers/{id}";
-  }
-
-  // Verifiers defines an rpc method for querying all Verifiers.
-  rpc Verifiers(QueryVerifiersRequest) returns (QueryVerifiersResponse) {
-    option (google.api.http).get = "/celestia/zkism/v1/verifiers";
-  }
-
   // Params defines an rpc method for querying the module parameters.
   rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
     option (google.api.http).get = "/celestia/zkism/v1/params";
@@ -42,19 +32,12 @@ message QueryIsmRequest {
   string id = 1;
 }
 
-// QueryVerifierRequest is the request type for the Verifier rpc method.
-message QueryVerifierRequest{
-  string id = 1;
-}
-
 // QueryIsmResponse is the response type for the Ism rpc method.
 message QueryIsmResponse {
-  ZKExecutionISM ism = 1 [(gogoproto.nullable) = false];
-}
-
-// QueryVerifierResponse is the response type for the Verifier rpc method.
-message QueryVerifierResponse{
-  StateTransitionVerifier verifier = 1 [(gogoproto.nullable) = false];
+  oneof ism {
+    ConsensusISM consensus_ism = 1;
+    EvolveEvmISM evolve_evm_ism = 2;
+  }
 }
 
 // QueryIsmsRequest is the request type for the Isms rpc method.
@@ -63,25 +46,10 @@ message QueryIsmsRequest {
   cosmos.base.query.v1beta1.PageRequest pagination = 1;
 }
 
-
-// QueryIsmsRequest is the request type for the Isms rpc method.
-message QueryVerifiersRequest {
-  // pagination defines an optional pagination for the request.
-  cosmos.base.query.v1beta1.PageRequest pagination = 1;
-}
-
-
 // QueryIsmsResponse is the response type for the Isms rpc method.
 message QueryIsmsResponse {
-  // isms is a list of zk execution isms.
-  repeated ZKExecutionISM isms = 1 [(gogoproto.nullable) = false];
-  // pagination defines the pagination in the response.
-  cosmos.base.query.v1beta1.PageResponse pagination = 2;
-}
-
-// QueryVerifiersResponse is the response type for the Verifiers rpc method.
-message QueryVerifiersResponse{
-  repeated StateTransitionVerifier verifiers = 1 [(gogoproto.nullable) = false];
+  // ism_ids is a list of all registered ISM IDs (from both EvolveEvmISM and ConsensusISM).
+  repeated string ism_ids = 1;
   // pagination defines the pagination in the response.
   cosmos.base.query.v1beta1.PageResponse pagination = 2;
 }

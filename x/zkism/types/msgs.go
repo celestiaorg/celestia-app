@@ -9,13 +9,13 @@ import (
 )
 
 var (
-	_ sdk.HasValidateBasic = (*MsgCreateZKExecutionISM)(nil)
-	_ sdk.HasValidateBasic = (*MsgUpdateZKExecutionISM)(nil)
+	_ sdk.HasValidateBasic = (*MsgCreateEvolveEvmISM)(nil)
+	_ sdk.HasValidateBasic = (*MsgUpdateEvolveEvmISM)(nil)
 	_ sdk.HasValidateBasic = (*MsgSubmitMessages)(nil)
 )
 
 // ValidateBasic implements stateless validation for the HasValidateBasic interface.
-func (msg *MsgCreateZKExecutionISM) ValidateBasic() error {
+func (msg *MsgCreateEvolveEvmISM) ValidateBasic() error {
 	if _, err := share.NewNamespaceFromBytes(msg.Namespace); err != nil {
 		return errorsmod.Wrapf(ErrInvalidNamespace, "failed to parse namespace from bytes: %x", msg.Namespace)
 	}
@@ -44,7 +44,7 @@ func (msg *MsgCreateZKExecutionISM) ValidateBasic() error {
 }
 
 // ValidateBasic implements stateless validation for the HasValidateBasic interface.
-func (msg *MsgUpdateZKExecutionISM) ValidateBasic() error {
+func (msg *MsgUpdateEvolveEvmISM) ValidateBasic() error {
 	if msg.Id.IsZeroAddress() {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "ism identifier must be non-zero")
 	}

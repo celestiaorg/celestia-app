@@ -22,36 +22,40 @@ func NewMsgServerImpl(keeper *Keeper) types.MsgServer {
 	return &msgServer{keeper}
 }
 
-// CreateStateTransitionVerifier implements types.MsgServer.
-func (m msgServer) CreateStateTransitionVerifier(ctx context.Context, msg *types.MsgCreateStateTransitionVerifier) (*types.MsgCreateStateTransitionVerifierResponse, error) {
-	// TODO: Implement CreateStateTransitionVerifier
-	verifierId, err := m.coreKeeper.IsmRouter().GetNextSequence(ctx, types.InterchainSecurityModuleTypeZKExecution)
+// CreateConsensusISM implements types.MsgServer.
+func (m msgServer) CreateConsensusISM(ctx context.Context, msg *types.MsgCreateConsensusISM) (*types.MsgCreateConsensusISMResponse, error) {
+	ismId, err := m.coreKeeper.IsmRouter().GetNextSequence(ctx, types.InterchainSecurityModuleTypeStateTransition)
 	if err != nil {
 		return nil, errorsmod.Wrap(err, err.Error())
 	}
 
-	newVerifier := types.StateTransitionVerifier{
-		Id:                  verifierId,
+	newIsm := types.ConsensusISM{
+		Id:                  ismId,
 		Owner:               msg.Creator,
 		TrustedState:        msg.TrustedState,
 		Groth16Vkey:         msg.Groth16Vkey,
 		StateTransitionVkey: msg.StateTransitionVkey,
 	}
 
-	if err := m.verifiers.Set(ctx, verifierId.GetInternalId(), newVerifier); err != nil {
+	if err := m.isms.Set(ctx, ismId.GetInternalId(), &newIsm); err != nil {
 		return nil, errorsmod.Wrap(err, err.Error())
 	}
 
-	return &types.MsgCreateStateTransitionVerifierResponse{
+	return &types.MsgCreateConsensusISMResponse{
 		TrustedState: msg.TrustedState,
 	}, nil
 }
 
-// UpdateStateTranstionVerifier implements types.MsgServer.
-func (m msgServer) UpdateStateTransitionVerifier(ctx context.Context, msg *types.MsgUpdateStateTransitionVerifier) (*types.MsgUpdateStateTransitionVerifierResponse, error) {
-	vrf, err := m.verifiers.Get(ctx, msg.Id.GetInternalId())
+// UpdateConsensusISM implements types.MsgServer.
+func (m msgServer) UpdateConsensusISM(ctx context.Context, msg *types.MsgUpdateConsensusISM) (*types.MsgUpdateConsensusISMResponse, error) {
+	ismInterface, err := m.isms.Get(ctx, msg.Id.GetInternalId())
 	if err != nil {
-		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get verifier: %s", msg.Id)
+		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id)
+	}
+
+	vrf, ok := ismInterface.(*types.ConsensusISM)
+	if !ok {
+		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "ISM is not a ConsensusISM: %s", msg.Id)
 	}
 
 	var publicValues types.StateTransitionPublicValues
@@ -59,7 +63,7 @@ func (m msgServer) UpdateStateTransitionVerifier(ctx context.Context, msg *types
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
 	}
 
-	if err := m.validateGenericPublicValues(ctx, vrf, publicValues); err != nil {
+	if err := m.validateConsensusPublicValues(ctx, *vrf, publicValues); err != nil {
 		return nil, err
 	}
 
@@ -74,27 +78,27 @@ func (m msgServer) UpdateStateTransitionVerifier(ctx context.Context, msg *types
 
 	// extract the new trusted state from trusted state
 	vrf.TrustedState = publicValues.NewTrustedState[:]
-	if err := m.verifiers.Set(ctx, vrf.Id.GetInternalId(), vrf); err != nil {
+	if err := m.isms.Set(ctx, vrf.Id.GetInternalId(), vrf); err != nil {
 		return nil, err
 	}
 
-	if err := EmitUpdateStateTransitionVerifierEvent(sdk.UnwrapSDKContext(ctx), vrf); err != nil {
+	if err := EmitUpdateConsensusISMEvent(sdk.UnwrapSDKContext(ctx), *vrf); err != nil {
 		return nil, err
 	}
 
-	return &types.MsgUpdateStateTransitionVerifierResponse{
+	return &types.MsgUpdateConsensusISMResponse{
 		TrustedState: vrf.TrustedState,
 	}, nil
 }
 
-// CreateZKExecutionISM implements types.MsgServer.
-func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreateZKExecutionISM) (*types.MsgCreateZKExecutionISMResponse, error) {
+// CreateEvolveEvmISM implements types.MsgServer.
+func (m msgServer) CreateEvolveEvmISM(ctx context.Context, msg *types.MsgCreateEvolveEvmISM) (*types.MsgCreateEvolveEvmISMResponse, error) {
 	ismId, err := m.coreKeeper.IsmRouter().GetNextSequence(ctx, types.InterchainSecurityModuleTypeZKExecution)
 	if err != nil {
 		return nil, errorsmod.Wrap(err, err.Error())
 	}
 
-	newIsm := types.ZKExecutionISM{
+	newIsm := types.EvolveEvmISM{
 		Id:                  ismId,
 		Owner:               msg.Creator,
 		StateRoot:           msg.StateRoot,
@@ -108,7 +112,7 @@ func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreat
 		StateMembershipVkey: msg.StateMembershipVkey,
 	}
 
-	if err := m.isms.Set(ctx, ismId.GetInternalId(), newIsm); err != nil {
+	if err := m.isms.Set(ctx, ismId.GetInternalId(), &newIsm); err != nil {
 		return nil, errorsmod.Wrap(err, err.Error())
 	}
 
@@ -116,16 +120,21 @@ func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreat
 		return nil, err
 	}
 
-	return &types.MsgCreateZKExecutionISMResponse{
+	return &types.MsgCreateEvolveEvmISMResponse{
 		Id: ismId,
 	}, nil
 }
 
-// UpdateZKExecutionISM implements types.MsgServer.
-func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdateZKExecutionISM) (*types.MsgUpdateZKExecutionISMResponse, error) {
-	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
+// UpdateEvolveEvmISM implements types.MsgServer.
+func (m msgServer) UpdateEvolveEvmISM(ctx context.Context, msg *types.MsgUpdateEvolveEvmISM) (*types.MsgUpdateEvolveEvmISMResponse, error) {
+	ismInterface, err := m.isms.Get(ctx, msg.Id.GetInternalId())
 	if err != nil {
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
+	}
+
+	ism, ok := ismInterface.(*types.EvolveEvmISM)
+	if !ok {
+		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "ISM is not a EvolveEvmISM: %s", msg.Id.String())
 	}
 
 	var publicValues types.EvExecutionPublicValues
@@ -133,7 +142,7 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
 	}
 
-	if err := m.validatePublicValues(ctx, ism, publicValues); err != nil {
+	if err := m.validateEvolveEvmPublicValues(ctx, *ism, publicValues); err != nil {
 		return nil, err
 	}
 
@@ -154,11 +163,11 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 		return nil, err
 	}
 
-	if err := EmitUpdateISMEvent(sdk.UnwrapSDKContext(ctx), ism); err != nil {
+	if err := EmitUpdateISMEvent(sdk.UnwrapSDKContext(ctx), *ism); err != nil {
 		return nil, err
 	}
 
-	return &types.MsgUpdateZKExecutionISMResponse{
+	return &types.MsgUpdateEvolveEvmISMResponse{
 		Height:             ism.Height,
 		StateRoot:          hex.EncodeToString(ism.StateRoot),
 		CelestiaHeaderHash: hex.EncodeToString(ism.CelestiaHeaderHash),
@@ -168,9 +177,15 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 
 // SubmitMessages implements types.MsgServer.
 func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessages) (*types.MsgSubmitMessagesResponse, error) {
-	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
+	ismInterface, err := m.isms.Get(ctx, msg.Id.GetInternalId())
 	if err != nil {
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
+	}
+
+	// todo: add an implementation for the ConsensusISM, where the state_root is derived from the trusted_state
+	ism, ok := ismInterface.(*types.EvolveEvmISM)
+	if !ok {
+		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "ISM is not a EvolveEvmISM: %s", msg.Id.String())
 	}
 
 	var publicValues types.EvHyperlanePublicValues

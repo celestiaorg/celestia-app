@@ -7,8 +7,8 @@ option go_package = "github.com/celestiaorg/celestia-app/x/zkism/types";
 import "cosmos_proto/cosmos.proto";
 import "gogoproto/gogo.proto";
 
-// StateTransitionVerifier defines the generic Consensus verification module.
-message StateTransitionVerifier{
+// ConsensusISM defines the generic Consensus verification module.
+message ConsensusISM{
   option (gogoproto.goproto_getters) = false;
 
   // unique hyperlane identifier
@@ -26,8 +26,8 @@ message StateTransitionVerifier{
   bytes state_transition_vkey = 5;
 }
 
-// ZKExecutionISM defines the Hyperlane interchain security module (ISM).
-message ZKExecutionISM {
+// EvolveEvmISM defines the Hyperlane interchain security module (ISM).
+message EvolveEvmISM {
   option (gogoproto.goproto_getters) = false;
 
   // unique hyperlane identifier

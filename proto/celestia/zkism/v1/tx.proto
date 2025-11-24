@@ -13,17 +13,17 @@ option go_package = "github.com/celestiaorg/celestia-app/x/zkism/types";
 service Msg {
   option (cosmos.msg.v1.service) = true;
 
-  // Create a generic State Transition Verifier
-  rpc CreateStateTransitionVerifier(MsgCreateStateTransitionVerifier) returns (MsgCreateStateTransitionVerifierResponse);
+  // Create a generic Comsensus ISM
+  rpc CreateConsensusISM(MsgCreateConsensusISM) returns (MsgCreateConsensusISMResponse);
 
-  // Update a generic State Transition Verifier
-  rpc UpdateStateTransitionVerifier(MsgUpdateStateTransitionVerifier) returns (MsgUpdateStateTransitionVerifierResponse);
+  // Update a generic Consensus ISM
+  rpc UpdateConsensusISM(MsgUpdateConsensusISM) returns (MsgUpdateConsensusISMResponse);
 
-  // CreateZKExecutionISM defines the rpc method for creating a new ZK execution ISM.
-  rpc CreateZKExecutionISM(MsgCreateZKExecutionISM) returns (MsgCreateZKExecutionISMResponse);
+  // CreateEvolveEvmISM defines the rpc method for creating a new ZK execution ISM.
+  rpc CreateEvolveEvmISM(MsgCreateEvolveEvmISM) returns (MsgCreateEvolveEvmISMResponse);
 
-  // UpdateZKExecutionISM defines the rpc method for updating an existing ZK execution ISM.
-  rpc UpdateZKExecutionISM(MsgUpdateZKExecutionISM) returns (MsgUpdateZKExecutionISMResponse);
+  // UpdateEvolveEvmISM defines the rpc method for updating an existing ZK execution ISM.
+  rpc UpdateEvolveEvmISM(MsgUpdateEvolveEvmISM) returns (MsgUpdateEvolveEvmISMResponse);
 
   // SubmitMessages defines the rpc method for verifying state membership of messages.
   rpc SubmitMessages(MsgSubmitMessages) returns (MsgSubmitMessagesResponse);
@@ -32,8 +32,8 @@ service Msg {
   rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
 }
 
-// MsgCreateStateTransitionVerifier is the request type for CreateStateTransitionVerifier
-message MsgCreateStateTransitionVerifier{
+// MsgCreateConsensusISM is the request type for CreateConsensusISM
+message MsgCreateConsensusISM{
   option (cosmos.msg.v1.signer) = "creator";
   // creator is the message sender.
   string creator = 1;
@@ -45,13 +45,13 @@ message MsgCreateStateTransitionVerifier{
   bytes state_transition_vkey = 4;
 }
 
-// MsgCreateStateTransitionVerifierResponse is the response type for CreateStateTransitionVerifier
-message MsgCreateStateTransitionVerifierResponse{
+// MsgCreateConsensusISMResponse is the response type for CreateConsensusISM
+message MsgCreateConsensusISMResponse{
   bytes trusted_state = 1;
 }
 
-// MsgUpdateStateTransitionVerifier is the request type for UpdateZKExecutionISM.
-message MsgUpdateStateTransitionVerifier {
+// MsgUpdateConsensusISM is the request type for UpdateEvolveEvmISM.
+message MsgUpdateConsensusISM {
   option (cosmos.msg.v1.signer) = "signer";
 
   // ism identifier
@@ -67,13 +67,13 @@ message MsgUpdateStateTransitionVerifier {
   string signer = 4;
 }
 
-// MsgUpdateStateTransitionVerifierResponse is the response type for State Transition Verifier.
-message MsgUpdateStateTransitionVerifierResponse {
+// MsgUpdateConsensusISMResponse is the response type for Consensus ISM.
+message MsgUpdateConsensusISMResponse {
   bytes trusted_state = 1;
 }
 
-// MsgCreateZKExecutionISM is the request type for CreateZKExecutionISM.
-message MsgCreateZKExecutionISM {
+// MsgCreateEvolveEvmISM is the request type for CreateEvolveEvmISM.
+message MsgCreateEvolveEvmISM {
   option (cosmos.msg.v1.signer) = "creator";
   // creator is the message sender.
   string creator = 1;
@@ -97,16 +97,16 @@ message MsgCreateZKExecutionISM {
   bytes state_membership_vkey = 10;
 }
 
-// MsgCreateZKExecutionISMResponse is the response type for CreateZKExecutionISM.
-message MsgCreateZKExecutionISMResponse {
+// MsgCreateEvolveEvmISMResponse is the response type for CreateEvolveEvmISM.
+message MsgCreateEvolveEvmISMResponse {
   string id = 1 [
     (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
     (gogoproto.nullable)   = false
   ];
 }
 
-// MsgUpdateZKExecutionISM is the request type for UpdateZKExecutionISM.
-message MsgUpdateZKExecutionISM {
+// MsgUpdateEvolveEvmISM is the request type for UpdateEvolveEvmISM.
+message MsgUpdateEvolveEvmISM {
   option (cosmos.msg.v1.signer) = "signer";
 
   // ism identifier
@@ -122,8 +122,8 @@ message MsgUpdateZKExecutionISM {
   string signer = 4;
 }
 
-// MsgUpdateZKExecutionISMResponse is the response type for UpdateZKExecutionISM.
-message MsgUpdateZKExecutionISMResponse {
+// MsgUpdateEvolveEvmISMResponse is the response type for UpdateEvolveEvmISM.
+message MsgUpdateEvolveEvmISMResponse {
   // state commitment root of the remote chain
   string state_root = 1;
   // latest tracked height of the remote chain

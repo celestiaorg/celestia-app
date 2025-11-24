@@ -10,7 +10,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/zkism/types";
 // GenesisState defines the zkism module's genesis state.
 message GenesisState {
   // list of zk execution isms.
-  repeated ZKExecutionISM isms = 1 [(gogoproto.nullable) = false];
+  repeated EvolveEvmISM isms = 1 [(gogoproto.nullable) = false];
   // TODO: add messages to genesis state
   // params is the module parameters.
   Params params = 2 [(gogoproto.nullable) = false];

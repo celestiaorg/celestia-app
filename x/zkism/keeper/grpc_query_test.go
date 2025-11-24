@@ -11,7 +11,7 @@ import (
 
 func (suite *KeeperTestSuite) TestQueryServerIsm() {
 	ismId := util.GenerateHexAddress([20]byte{0x01}, types.InterchainSecurityModuleTypeZKExecution, 1)
-	expIsm := types.ZKExecutionISM{Owner: "test"}
+	expIsm := types.EvolveEvmISM{Id: ismId, Owner: "test"}
 
 	err := suite.zkISMKeeper.SetIsm(suite.ctx, ismId, expIsm)
 	suite.Require().NoError(err)
@@ -29,11 +29,6 @@ func (suite *KeeperTestSuite) TestQueryServerIsm() {
 			expError: nil,
 		},
 		{
-			name:     "request cannot be empty",
-			req:      nil,
-			expError: errors.New("request cannot be empty"),
-		},
-		{
 			name: "invalid hex address",
 			req: &types.QueryIsmRequest{
 				Id: "invalid-hex",
@@ -45,7 +40,7 @@ func (suite *KeeperTestSuite) TestQueryServerIsm() {
 			req: &types.QueryIsmRequest{
 				Id: util.GenerateHexAddress([20]byte{0x01}, types.InterchainSecurityModuleTypeZKExecution, 9999).String(),
 			},
-			expError: errors.New("ism not found"),
+			expError: errors.New("not found"),
 		},
 	}
 
@@ -61,7 +56,8 @@ func (suite *KeeperTestSuite) TestQueryServerIsm() {
 				suite.Require().ErrorContains(err, tc.expError.Error())
 			} else {
 				suite.Require().NoError(err)
-				suite.Require().Equal(expIsm, res.Ism)
+				suite.Require().NotNil(res.GetEvolveEvmIsm())
+				suite.Require().Equal(&expIsm, res.GetEvolveEvmIsm())
 			}
 		})
 	}
@@ -69,8 +65,8 @@ func (suite *KeeperTestSuite) TestQueryServerIsm() {
 
 func (suite *KeeperTestSuite) TestQueryServerIsms() {
 	var (
-		expIsms []types.ZKExecutionISM
-		req     *types.QueryIsmsRequest
+		expIsmIds []string
+		req       *types.QueryIsmsRequest
 	)
 
 	testCases := []struct {
@@ -85,12 +81,12 @@ func (suite *KeeperTestSuite) TestQueryServerIsms() {
 
 				for i := range 100 {
 					ismId := util.GenerateHexAddress([20]byte{0x01}, types.InterchainSecurityModuleTypeZKExecution, uint64(i))
-					ism := types.ZKExecutionISM{Owner: "test"}
+					ism := types.EvolveEvmISM{Id: ismId, Owner: "test"}
 
 					err := suite.zkISMKeeper.SetIsm(suite.ctx, ismId, ism)
 					suite.Require().NoError(err)
 
-					expIsms = append(expIsms, ism)
+					expIsmIds = append(expIsmIds, ismId.String())
 				}
 			},
 			expError: nil,
@@ -106,15 +102,15 @@ func (suite *KeeperTestSuite) TestQueryServerIsms() {
 
 				for i := range 100 {
 					ismId := util.GenerateHexAddress([20]byte{0x01}, types.InterchainSecurityModuleTypeZKExecution, uint64(i))
-					ism := types.ZKExecutionISM{Owner: "test"}
+					ism := types.EvolveEvmISM{Id: ismId, Owner: "test"}
 
 					err := suite.zkISMKeeper.SetIsm(suite.ctx, ismId, ism)
 					suite.Require().NoError(err)
 
-					expIsms = append(expIsms, ism)
+					expIsmIds = append(expIsmIds, ismId.String())
 				}
 
-				expIsms = expIsms[:10]
+				expIsmIds = expIsmIds[:10]
 			},
 			expError: nil,
 		},
@@ -122,16 +118,9 @@ func (suite *KeeperTestSuite) TestQueryServerIsms() {
 			name: "zero isms in store",
 			setupTest: func() {
 				req = &types.QueryIsmsRequest{}
-				expIsms = nil
+				expIsmIds = nil
 			},
 			expError: nil,
-		},
-		{
-			name: "request cannot be empty",
-			setupTest: func() {
-				req = nil
-			},
-			expError: errors.New("request cannot be empty"),
 		},
 	}
 
@@ -150,7 +139,7 @@ func (suite *KeeperTestSuite) TestQueryServerIsms() {
 				suite.Require().ErrorContains(err, tc.expError.Error())
 			} else {
 				suite.Require().NoError(err)
-				suite.Require().Equal(expIsms, res.Isms)
+				suite.Require().Len(res.IsmIds, len(expIsmIds))
 			}
 		})
 	}

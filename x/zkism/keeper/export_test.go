@@ -18,13 +18,23 @@ func (k *Keeper) SetMessageId(ctx context.Context, messageId []byte) error {
 }
 
 // GetIsm is a test func used for getting an ISM in the isms store collection.
-func (k *Keeper) GetIsm(ctx context.Context, ismId util.HexAddress) (types.ZKExecutionISM, error) {
-	return k.isms.Get(ctx, ismId.GetInternalId())
+func (k *Keeper) GetIsm(ctx context.Context, ismId util.HexAddress) (*types.EvolveEvmISM, error) {
+	ismInterface, err := k.isms.Get(ctx, ismId.GetInternalId())
+	if err != nil {
+		return nil, err
+	}
+
+	ism, ok := ismInterface.(*types.EvolveEvmISM)
+	if !ok {
+		return nil, types.ErrIsmNotFound
+	}
+
+	return ism, nil
 }
 
 // SetIsm is a test func used for setting an ISM in the isms store collection.
-func (k *Keeper) SetIsm(ctx context.Context, ismId util.HexAddress, ism types.ZKExecutionISM) error {
-	return k.isms.Set(ctx, ismId.GetInternalId(), ism)
+func (k *Keeper) SetIsm(ctx context.Context, ismId util.HexAddress, ism types.EvolveEvmISM) error {
+	return k.isms.Set(ctx, ismId.GetInternalId(), &ism)
 }
 
 // SetHeaderHash is a test func used for setting a header hash in the headers store collection.

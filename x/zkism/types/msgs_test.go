@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMsgCreateZKExecutionISMValidateBasic(t *testing.T) {
-	var msg *types.MsgCreateZKExecutionISM
+func TestMsgCreateEvolveEvmISMValidateBasic(t *testing.T) {
+	var msg *types.MsgCreateEvolveEvmISM
 
 	groth16Vk := readGroth16Vkey(t)
 
@@ -72,7 +72,7 @@ func TestMsgCreateZKExecutionISMValidateBasic(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			msg = &types.MsgCreateZKExecutionISM{
+			msg = &types.MsgCreateEvolveEvmISM{
 				StateRoot:           bytes.Repeat([]byte{0x01}, 32),
 				Namespace:           share.MustNewV0Namespace([]byte("namespace")).Bytes(),
 				SequencerPublicKey:  bytes.Repeat([]byte{0x01}, 32),
@@ -94,8 +94,8 @@ func TestMsgCreateZKExecutionISMValidateBasic(t *testing.T) {
 	}
 }
 
-func TestMsgUpdateZKExecutionISMValidateBasic(t *testing.T) {
-	var msg *types.MsgUpdateZKExecutionISM
+func TestMsgUpdateEvolveEvmISMValidateBasic(t *testing.T) {
+	var msg *types.MsgUpdateEvolveEvmISM
 
 	tests := []struct {
 		name     string
@@ -125,7 +125,7 @@ func TestMsgUpdateZKExecutionISMValidateBasic(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			msg = &types.MsgUpdateZKExecutionISM{
+			msg = &types.MsgUpdateEvolveEvmISM{
 				Id:           util.CreateMockHexAddress("module", 1),
 				Proof:        bytes.Repeat([]byte{0x01}, types.PrefixLen+types.ProofSize),
 				PublicValues: []byte{0x01, 0x02},

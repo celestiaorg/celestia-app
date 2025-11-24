@@ -45,10 +45,10 @@ func TestKeeperTestSuite(t *testing.T) {
 func (suite *KeeperTestSuite) SetupTest() {
 	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	suite.ctx = testApp.NewUncachedContext(false, cmtproto.Header{Version: version.Consensus{App: appconsts.Version}})
-	suite.zkISMKeeper = testApp.ZKExecutionISMKeeper
+	suite.zkISMKeeper = testApp.EvolveEvmISMKeeper
 }
 
-func (suite *KeeperTestSuite) CreateTestIsm(trustedRoot []byte, trustedCelestiaHash []byte, trustedCelestiaHeight uint64) types.ZKExecutionISM {
+func (suite *KeeperTestSuite) CreateTestIsm(trustedRoot []byte, trustedCelestiaHash []byte, trustedCelestiaHeight uint64) types.EvolveEvmISM {
 	headerHash, err := hex.DecodeString(celestiaHeaderHash)
 	suite.Require().NoError(err)
 
@@ -71,7 +71,7 @@ func (suite *KeeperTestSuite) CreateTestIsm(trustedRoot []byte, trustedCelestiaH
 	pubKey, err := hex.DecodeString(publicKeyHex)
 	suite.Require().NoError(err)
 
-	ism := types.ZKExecutionISM{
+	ism := types.EvolveEvmISM{
 		Id:                  util.CreateMockHexAddress("ism", 1),
 		Groth16Vkey:         groth16Vkey,
 		StateTransitionVkey: stateVkey,

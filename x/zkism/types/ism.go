@@ -10,13 +10,15 @@ import (
 )
 
 const (
-	InterchainSecurityModuleTypeZKExecution = 42
+	InterchainSecurityModuleTypeZKExecution     = 42
+	InterchainSecurityModuleTypeStateTransition = 43
 )
 
-var _ ismtypes.HyperlaneInterchainSecurityModule = (*ZKExecutionISM)(nil)
+var _ ismtypes.HyperlaneInterchainSecurityModule = (*EvolveEvmISM)(nil)
+var _ ismtypes.HyperlaneInterchainSecurityModule = (*ConsensusISM)(nil)
 
 // GetId implements types.HyperlaneInterchainSecurityModule.
-func (ism *ZKExecutionISM) GetId() (util.HexAddress, error) {
+func (ism *EvolveEvmISM) GetId() (util.HexAddress, error) {
 	if ism.Id.IsZeroAddress() {
 		return util.HexAddress{}, errors.New("address is empty")
 	}
@@ -25,13 +27,30 @@ func (ism *ZKExecutionISM) GetId() (util.HexAddress, error) {
 }
 
 // ModuleType implements types.HyperlaneInterchainSecurityModule.
-func (ism *ZKExecutionISM) ModuleType() uint8 {
+func (ism *EvolveEvmISM) ModuleType() uint8 {
 	return InterchainSecurityModuleTypeZKExecution
 }
 
 // Verify implements types.HyperlaneInterchainSecurityModule.
-// NOTE: The following method returns an ErrNotSupported error as this method is implemented primarily to satisfy the ISM interface.
-// ISM verification is performed exclusively through the x/zkism keeper entrypoint. This method should never be called by integration points.
-func (ism *ZKExecutionISM) Verify(ctx context.Context, metadata []byte, message util.HyperlaneMessage) (bool, error) {
+func (ism *EvolveEvmISM) Verify(ctx context.Context, metadata []byte, message util.HyperlaneMessage) (bool, error) {
+	return false, sdkerrors.ErrNotSupported
+}
+
+// GetId implements types.HyperlaneInterchainSecurityModule.
+func (v *ConsensusISM) GetId() (util.HexAddress, error) {
+	if v.Id.IsZeroAddress() {
+		return util.HexAddress{}, errors.New("address is empty")
+	}
+
+	return v.Id, nil
+}
+
+// ModuleType implements types.HyperlaneInterchainSecurityModule.
+func (v *ConsensusISM) ModuleType() uint8 {
+	return InterchainSecurityModuleTypeStateTransition
+}
+
+// Verify implements types.HyperlaneInterchainSecurityModule.
+func (v *ConsensusISM) Verify(ctx context.Context, metadata []byte, message util.HyperlaneMessage) (bool, error) {
 	return false, sdkerrors.ErrNotSupported
 }

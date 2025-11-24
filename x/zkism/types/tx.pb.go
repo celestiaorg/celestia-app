@@ -31,8 +31,8 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// MsgCreateStateTransitionVerifier is the request type for CreateStateTransitionVerifier
-type MsgCreateStateTransitionVerifier struct {
+// MsgCreateConsensusISM is the request type for CreateConsensusISM
+type MsgCreateConsensusISM struct {
 	// creator is the message sender.
 	Creator string `protobuf:"bytes,1,opt,name=creator,proto3" json:"creator,omitempty"`
 	// the initial trusted state that must be used to generate the first proof
@@ -43,18 +43,18 @@ type MsgCreateStateTransitionVerifier struct {
 	StateTransitionVkey []byte `protobuf:"bytes,4,opt,name=state_transition_vkey,json=stateTransitionVkey,proto3" json:"state_transition_vkey,omitempty"`
 }
 
-func (m *MsgCreateStateTransitionVerifier) Reset()         { *m = MsgCreateStateTransitionVerifier{} }
-func (m *MsgCreateStateTransitionVerifier) String() string { return proto.CompactTextString(m) }
-func (*MsgCreateStateTransitionVerifier) ProtoMessage()    {}
-func (*MsgCreateStateTransitionVerifier) Descriptor() ([]byte, []int) {
+func (m *MsgCreateConsensusISM) Reset()         { *m = MsgCreateConsensusISM{} }
+func (m *MsgCreateConsensusISM) String() string { return proto.CompactTextString(m) }
+func (*MsgCreateConsensusISM) ProtoMessage()    {}
+func (*MsgCreateConsensusISM) Descriptor() ([]byte, []int) {
 	return fileDescriptor_9627100907186bb5, []int{0}
 }
-func (m *MsgCreateStateTransitionVerifier) XXX_Unmarshal(b []byte) error {
+func (m *MsgCreateConsensusISM) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgCreateStateTransitionVerifier) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgCreateConsensusISM) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgCreateStateTransitionVerifier.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgCreateConsensusISM.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -64,65 +64,63 @@ func (m *MsgCreateStateTransitionVerifier) XXX_Marshal(b []byte, deterministic b
 		return b[:n], nil
 	}
 }
-func (m *MsgCreateStateTransitionVerifier) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgCreateStateTransitionVerifier.Merge(m, src)
+func (m *MsgCreateConsensusISM) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgCreateConsensusISM.Merge(m, src)
 }
-func (m *MsgCreateStateTransitionVerifier) XXX_Size() int {
+func (m *MsgCreateConsensusISM) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgCreateStateTransitionVerifier) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgCreateStateTransitionVerifier.DiscardUnknown(m)
+func (m *MsgCreateConsensusISM) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgCreateConsensusISM.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgCreateStateTransitionVerifier proto.InternalMessageInfo
+var xxx_messageInfo_MsgCreateConsensusISM proto.InternalMessageInfo
 
-func (m *MsgCreateStateTransitionVerifier) GetCreator() string {
+func (m *MsgCreateConsensusISM) GetCreator() string {
 	if m != nil {
 		return m.Creator
 	}
 	return ""
 }
 
-func (m *MsgCreateStateTransitionVerifier) GetTrustedState() []byte {
+func (m *MsgCreateConsensusISM) GetTrustedState() []byte {
 	if m != nil {
 		return m.TrustedState
 	}
 	return nil
 }
 
-func (m *MsgCreateStateTransitionVerifier) GetGroth16Vkey() []byte {
+func (m *MsgCreateConsensusISM) GetGroth16Vkey() []byte {
 	if m != nil {
 		return m.Groth16Vkey
 	}
 	return nil
 }
 
-func (m *MsgCreateStateTransitionVerifier) GetStateTransitionVkey() []byte {
+func (m *MsgCreateConsensusISM) GetStateTransitionVkey() []byte {
 	if m != nil {
 		return m.StateTransitionVkey
 	}
 	return nil
 }
 
-// MsgCreateStateTransitionVerifierResponse is the response type for CreateStateTransitionVerifier
-type MsgCreateStateTransitionVerifierResponse struct {
+// MsgCreateConsensusISMResponse is the response type for CreateConsensusISM
+type MsgCreateConsensusISMResponse struct {
 	TrustedState []byte `protobuf:"bytes,1,opt,name=trusted_state,json=trustedState,proto3" json:"trusted_state,omitempty"`
 }
 
-func (m *MsgCreateStateTransitionVerifierResponse) Reset() {
-	*m = MsgCreateStateTransitionVerifierResponse{}
-}
-func (m *MsgCreateStateTransitionVerifierResponse) String() string { return proto.CompactTextString(m) }
-func (*MsgCreateStateTransitionVerifierResponse) ProtoMessage()    {}
-func (*MsgCreateStateTransitionVerifierResponse) Descriptor() ([]byte, []int) {
+func (m *MsgCreateConsensusISMResponse) Reset()         { *m = MsgCreateConsensusISMResponse{} }
+func (m *MsgCreateConsensusISMResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgCreateConsensusISMResponse) ProtoMessage()    {}
+func (*MsgCreateConsensusISMResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_9627100907186bb5, []int{1}
 }
-func (m *MsgCreateStateTransitionVerifierResponse) XXX_Unmarshal(b []byte) error {
+func (m *MsgCreateConsensusISMResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgCreateStateTransitionVerifierResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgCreateConsensusISMResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgCreateStateTransitionVerifierResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgCreateConsensusISMResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -132,27 +130,27 @@ func (m *MsgCreateStateTransitionVerifierResponse) XXX_Marshal(b []byte, determi
 		return b[:n], nil
 	}
 }
-func (m *MsgCreateStateTransitionVerifierResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgCreateStateTransitionVerifierResponse.Merge(m, src)
+func (m *MsgCreateConsensusISMResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgCreateConsensusISMResponse.Merge(m, src)
 }
-func (m *MsgCreateStateTransitionVerifierResponse) XXX_Size() int {
+func (m *MsgCreateConsensusISMResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgCreateStateTransitionVerifierResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgCreateStateTransitionVerifierResponse.DiscardUnknown(m)
+func (m *MsgCreateConsensusISMResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgCreateConsensusISMResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgCreateStateTransitionVerifierResponse proto.InternalMessageInfo
+var xxx_messageInfo_MsgCreateConsensusISMResponse proto.InternalMessageInfo
 
-func (m *MsgCreateStateTransitionVerifierResponse) GetTrustedState() []byte {
+func (m *MsgCreateConsensusISMResponse) GetTrustedState() []byte {
 	if m != nil {
 		return m.TrustedState
 	}
 	return nil
 }
 
-// MsgUpdateStateTransitionVerifier is the request type for UpdateZKExecutionISM.
-type MsgUpdateStateTransitionVerifier struct {
+// MsgUpdateConsensusISM is the request type for UpdateEvolveEvmISM.
+type MsgUpdateConsensusISM struct {
 	// ism identifier
 	Id github_com_bcp_innovations_hyperlane_cosmos_util.HexAddress `protobuf:"bytes,1,opt,name=id,proto3,customtype=github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress" json:"id"`
 	// proof is the ZK proof bytes (groth16).
@@ -163,18 +161,18 @@ type MsgUpdateStateTransitionVerifier struct {
 	Signer string `protobuf:"bytes,4,opt,name=signer,proto3" json:"signer,omitempty"`
 }
 
-func (m *MsgUpdateStateTransitionVerifier) Reset()         { *m = MsgUpdateStateTransitionVerifier{} }
-func (m *MsgUpdateStateTransitionVerifier) String() string { return proto.CompactTextString(m) }
-func (*MsgUpdateStateTransitionVerifier) ProtoMessage()    {}
-func (*MsgUpdateStateTransitionVerifier) Descriptor() ([]byte, []int) {
+func (m *MsgUpdateConsensusISM) Reset()         { *m = MsgUpdateConsensusISM{} }
+func (m *MsgUpdateConsensusISM) String() string { return proto.CompactTextString(m) }
+func (*MsgUpdateConsensusISM) ProtoMessage()    {}
+func (*MsgUpdateConsensusISM) Descriptor() ([]byte, []int) {
 	return fileDescriptor_9627100907186bb5, []int{2}
 }
-func (m *MsgUpdateStateTransitionVerifier) XXX_Unmarshal(b []byte) error {
+func (m *MsgUpdateConsensusISM) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgUpdateStateTransitionVerifier) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgUpdateConsensusISM) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgUpdateStateTransitionVerifier.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgUpdateConsensusISM.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -184,58 +182,56 @@ func (m *MsgUpdateStateTransitionVerifier) XXX_Marshal(b []byte, deterministic b
 		return b[:n], nil
 	}
 }
-func (m *MsgUpdateStateTransitionVerifier) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgUpdateStateTransitionVerifier.Merge(m, src)
+func (m *MsgUpdateConsensusISM) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgUpdateConsensusISM.Merge(m, src)
 }
-func (m *MsgUpdateStateTransitionVerifier) XXX_Size() int {
+func (m *MsgUpdateConsensusISM) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgUpdateStateTransitionVerifier) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgUpdateStateTransitionVerifier.DiscardUnknown(m)
+func (m *MsgUpdateConsensusISM) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgUpdateConsensusISM.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgUpdateStateTransitionVerifier proto.InternalMessageInfo
+var xxx_messageInfo_MsgUpdateConsensusISM proto.InternalMessageInfo
 
-func (m *MsgUpdateStateTransitionVerifier) GetProof() []byte {
+func (m *MsgUpdateConsensusISM) GetProof() []byte {
 	if m != nil {
 		return m.Proof
 	}
 	return nil
 }
 
-func (m *MsgUpdateStateTransitionVerifier) GetPublicValues() []byte {
+func (m *MsgUpdateConsensusISM) GetPublicValues() []byte {
 	if m != nil {
 		return m.PublicValues
 	}
 	return nil
 }
 
-func (m *MsgUpdateStateTransitionVerifier) GetSigner() string {
+func (m *MsgUpdateConsensusISM) GetSigner() string {
 	if m != nil {
 		return m.Signer
 	}
 	return ""
 }
 
-// MsgUpdateStateTransitionVerifierResponse is the response type for State Transition Verifier.
-type MsgUpdateStateTransitionVerifierResponse struct {
+// MsgUpdateConsensusISMResponse is the response type for State Transition Verifier.
+type MsgUpdateConsensusISMResponse struct {
 	TrustedState []byte `protobuf:"bytes,1,opt,name=trusted_state,json=trustedState,proto3" json:"trusted_state,omitempty"`
 }
 
-func (m *MsgUpdateStateTransitionVerifierResponse) Reset() {
-	*m = MsgUpdateStateTransitionVerifierResponse{}
-}
-func (m *MsgUpdateStateTransitionVerifierResponse) String() string { return proto.CompactTextString(m) }
-func (*MsgUpdateStateTransitionVerifierResponse) ProtoMessage()    {}
-func (*MsgUpdateStateTransitionVerifierResponse) Descriptor() ([]byte, []int) {
+func (m *MsgUpdateConsensusISMResponse) Reset()         { *m = MsgUpdateConsensusISMResponse{} }
+func (m *MsgUpdateConsensusISMResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgUpdateConsensusISMResponse) ProtoMessage()    {}
+func (*MsgUpdateConsensusISMResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_9627100907186bb5, []int{3}
 }
-func (m *MsgUpdateStateTransitionVerifierResponse) XXX_Unmarshal(b []byte) error {
+func (m *MsgUpdateConsensusISMResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgUpdateStateTransitionVerifierResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgUpdateConsensusISMResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgUpdateStateTransitionVerifierResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgUpdateConsensusISMResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -245,27 +241,27 @@ func (m *MsgUpdateStateTransitionVerifierResponse) XXX_Marshal(b []byte, determi
 		return b[:n], nil
 	}
 }
-func (m *MsgUpdateStateTransitionVerifierResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgUpdateStateTransitionVerifierResponse.Merge(m, src)
+func (m *MsgUpdateConsensusISMResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgUpdateConsensusISMResponse.Merge(m, src)
 }
-func (m *MsgUpdateStateTransitionVerifierResponse) XXX_Size() int {
+func (m *MsgUpdateConsensusISMResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgUpdateStateTransitionVerifierResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgUpdateStateTransitionVerifierResponse.DiscardUnknown(m)
+func (m *MsgUpdateConsensusISMResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgUpdateConsensusISMResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgUpdateStateTransitionVerifierResponse proto.InternalMessageInfo
+var xxx_messageInfo_MsgUpdateConsensusISMResponse proto.InternalMessageInfo
 
-func (m *MsgUpdateStateTransitionVerifierResponse) GetTrustedState() []byte {
+func (m *MsgUpdateConsensusISMResponse) GetTrustedState() []byte {
 	if m != nil {
 		return m.TrustedState
 	}
 	return nil
 }
 
-// MsgCreateZKExecutionISM is the request type for CreateZKExecutionISM.
-type MsgCreateZKExecutionISM struct {
+// MsgCreateEvolveEvmISM is the request type for CreateEvolveEvmISM.
+type MsgCreateEvolveEvmISM struct {
 	// creator is the message sender.
 	Creator string `protobuf:"bytes,1,opt,name=creator,proto3" json:"creator,omitempty"`
 	// state commitment root of the remote chain
@@ -288,18 +284,18 @@ type MsgCreateZKExecutionISM struct {
 	StateMembershipVkey []byte `protobuf:"bytes,10,opt,name=state_membership_vkey,json=stateMembershipVkey,proto3" json:"state_membership_vkey,omitempty"`
 }
 
-func (m *MsgCreateZKExecutionISM) Reset()         { *m = MsgCreateZKExecutionISM{} }
-func (m *MsgCreateZKExecutionISM) String() string { return proto.CompactTextString(m) }
-func (*MsgCreateZKExecutionISM) ProtoMessage()    {}
-func (*MsgCreateZKExecutionISM) Descriptor() ([]byte, []int) {
+func (m *MsgCreateEvolveEvmISM) Reset()         { *m = MsgCreateEvolveEvmISM{} }
+func (m *MsgCreateEvolveEvmISM) String() string { return proto.CompactTextString(m) }
+func (*MsgCreateEvolveEvmISM) ProtoMessage()    {}
+func (*MsgCreateEvolveEvmISM) Descriptor() ([]byte, []int) {
 	return fileDescriptor_9627100907186bb5, []int{4}
 }
-func (m *MsgCreateZKExecutionISM) XXX_Unmarshal(b []byte) error {
+func (m *MsgCreateEvolveEvmISM) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgCreateZKExecutionISM) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgCreateEvolveEvmISM) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgCreateZKExecutionISM.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgCreateEvolveEvmISM.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -309,105 +305,105 @@ func (m *MsgCreateZKExecutionISM) XXX_Marshal(b []byte, deterministic bool) ([]b
 		return b[:n], nil
 	}
 }
-func (m *MsgCreateZKExecutionISM) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgCreateZKExecutionISM.Merge(m, src)
+func (m *MsgCreateEvolveEvmISM) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgCreateEvolveEvmISM.Merge(m, src)
 }
-func (m *MsgCreateZKExecutionISM) XXX_Size() int {
+func (m *MsgCreateEvolveEvmISM) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgCreateZKExecutionISM) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgCreateZKExecutionISM.DiscardUnknown(m)
+func (m *MsgCreateEvolveEvmISM) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgCreateEvolveEvmISM.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgCreateZKExecutionISM proto.InternalMessageInfo
+var xxx_messageInfo_MsgCreateEvolveEvmISM proto.InternalMessageInfo
 
-func (m *MsgCreateZKExecutionISM) GetCreator() string {
+func (m *MsgCreateEvolveEvmISM) GetCreator() string {
 	if m != nil {
 		return m.Creator
 	}
 	return ""
 }
 
-func (m *MsgCreateZKExecutionISM) GetStateRoot() []byte {
+func (m *MsgCreateEvolveEvmISM) GetStateRoot() []byte {
 	if m != nil {
 		return m.StateRoot
 	}
 	return nil
 }
 
-func (m *MsgCreateZKExecutionISM) GetHeight() uint64 {
+func (m *MsgCreateEvolveEvmISM) GetHeight() uint64 {
 	if m != nil {
 		return m.Height
 	}
 	return 0
 }
 
-func (m *MsgCreateZKExecutionISM) GetCelestiaHeaderHash() []byte {
+func (m *MsgCreateEvolveEvmISM) GetCelestiaHeaderHash() []byte {
 	if m != nil {
 		return m.CelestiaHeaderHash
 	}
 	return nil
 }
 
-func (m *MsgCreateZKExecutionISM) GetCelestiaHeight() uint64 {
+func (m *MsgCreateEvolveEvmISM) GetCelestiaHeight() uint64 {
 	if m != nil {
 		return m.CelestiaHeight
 	}
 	return 0
 }
 
-func (m *MsgCreateZKExecutionISM) GetNamespace() []byte {
+func (m *MsgCreateEvolveEvmISM) GetNamespace() []byte {
 	if m != nil {
 		return m.Namespace
 	}
 	return nil
 }
 
-func (m *MsgCreateZKExecutionISM) GetSequencerPublicKey() []byte {
+func (m *MsgCreateEvolveEvmISM) GetSequencerPublicKey() []byte {
 	if m != nil {
 		return m.SequencerPublicKey
 	}
 	return nil
 }
 
-func (m *MsgCreateZKExecutionISM) GetGroth16Vkey() []byte {
+func (m *MsgCreateEvolveEvmISM) GetGroth16Vkey() []byte {
 	if m != nil {
 		return m.Groth16Vkey
 	}
 	return nil
 }
 
-func (m *MsgCreateZKExecutionISM) GetStateTransitionVkey() []byte {
+func (m *MsgCreateEvolveEvmISM) GetStateTransitionVkey() []byte {
 	if m != nil {
 		return m.StateTransitionVkey
 	}
 	return nil
 }
 
-func (m *MsgCreateZKExecutionISM) GetStateMembershipVkey() []byte {
+func (m *MsgCreateEvolveEvmISM) GetStateMembershipVkey() []byte {
 	if m != nil {
 		return m.StateMembershipVkey
 	}
 	return nil
 }
 
-// MsgCreateZKExecutionISMResponse is the response type for CreateZKExecutionISM.
-type MsgCreateZKExecutionISMResponse struct {
+// MsgCreateEvolveEvmISMResponse is the response type for CreateEvolveEvmISM.
+type MsgCreateEvolveEvmISMResponse struct {
 	Id github_com_bcp_innovations_hyperlane_cosmos_util.HexAddress `protobuf:"bytes,1,opt,name=id,proto3,customtype=github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress" json:"id"`
 }
 
-func (m *MsgCreateZKExecutionISMResponse) Reset()         { *m = MsgCreateZKExecutionISMResponse{} }
-func (m *MsgCreateZKExecutionISMResponse) String() string { return proto.CompactTextString(m) }
-func (*MsgCreateZKExecutionISMResponse) ProtoMessage()    {}
-func (*MsgCreateZKExecutionISMResponse) Descriptor() ([]byte, []int) {
+func (m *MsgCreateEvolveEvmISMResponse) Reset()         { *m = MsgCreateEvolveEvmISMResponse{} }
+func (m *MsgCreateEvolveEvmISMResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgCreateEvolveEvmISMResponse) ProtoMessage()    {}
+func (*MsgCreateEvolveEvmISMResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_9627100907186bb5, []int{5}
 }
-func (m *MsgCreateZKExecutionISMResponse) XXX_Unmarshal(b []byte) error {
+func (m *MsgCreateEvolveEvmISMResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgCreateZKExecutionISMResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgCreateEvolveEvmISMResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgCreateZKExecutionISMResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgCreateEvolveEvmISMResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -417,20 +413,20 @@ func (m *MsgCreateZKExecutionISMResponse) XXX_Marshal(b []byte, deterministic bo
 		return b[:n], nil
 	}
 }
-func (m *MsgCreateZKExecutionISMResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgCreateZKExecutionISMResponse.Merge(m, src)
+func (m *MsgCreateEvolveEvmISMResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgCreateEvolveEvmISMResponse.Merge(m, src)
 }
-func (m *MsgCreateZKExecutionISMResponse) XXX_Size() int {
+func (m *MsgCreateEvolveEvmISMResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgCreateZKExecutionISMResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgCreateZKExecutionISMResponse.DiscardUnknown(m)
+func (m *MsgCreateEvolveEvmISMResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgCreateEvolveEvmISMResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgCreateZKExecutionISMResponse proto.InternalMessageInfo
+var xxx_messageInfo_MsgCreateEvolveEvmISMResponse proto.InternalMessageInfo
 
-// MsgUpdateZKExecutionISM is the request type for UpdateZKExecutionISM.
-type MsgUpdateZKExecutionISM struct {
+// MsgUpdateEvolveEvmISM is the request type for UpdateEvolveEvmISM.
+type MsgUpdateEvolveEvmISM struct {
 	// ism identifier
 	Id github_com_bcp_innovations_hyperlane_cosmos_util.HexAddress `protobuf:"bytes,1,opt,name=id,proto3,customtype=github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress" json:"id"`
 	// proof is the ZK proof bytes (groth16).
@@ -441,18 +437,18 @@ type MsgUpdateZKExecutionISM struct {
 	Signer string `protobuf:"bytes,4,opt,name=signer,proto3" json:"signer,omitempty"`
 }
 
-func (m *MsgUpdateZKExecutionISM) Reset()         { *m = MsgUpdateZKExecutionISM{} }
-func (m *MsgUpdateZKExecutionISM) String() string { return proto.CompactTextString(m) }
-func (*MsgUpdateZKExecutionISM) ProtoMessage()    {}
-func (*MsgUpdateZKExecutionISM) Descriptor() ([]byte, []int) {
+func (m *MsgUpdateEvolveEvmISM) Reset()         { *m = MsgUpdateEvolveEvmISM{} }
+func (m *MsgUpdateEvolveEvmISM) String() string { return proto.CompactTextString(m) }
+func (*MsgUpdateEvolveEvmISM) ProtoMessage()    {}
+func (*MsgUpdateEvolveEvmISM) Descriptor() ([]byte, []int) {
 	return fileDescriptor_9627100907186bb5, []int{6}
 }
-func (m *MsgUpdateZKExecutionISM) XXX_Unmarshal(b []byte) error {
+func (m *MsgUpdateEvolveEvmISM) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgUpdateZKExecutionISM) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgUpdateEvolveEvmISM) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgUpdateZKExecutionISM.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgUpdateEvolveEvmISM.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -462,41 +458,41 @@ func (m *MsgUpdateZKExecutionISM) XXX_Marshal(b []byte, deterministic bool) ([]b
 		return b[:n], nil
 	}
 }
-func (m *MsgUpdateZKExecutionISM) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgUpdateZKExecutionISM.Merge(m, src)
+func (m *MsgUpdateEvolveEvmISM) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgUpdateEvolveEvmISM.Merge(m, src)
 }
-func (m *MsgUpdateZKExecutionISM) XXX_Size() int {
+func (m *MsgUpdateEvolveEvmISM) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgUpdateZKExecutionISM) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgUpdateZKExecutionISM.DiscardUnknown(m)
+func (m *MsgUpdateEvolveEvmISM) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgUpdateEvolveEvmISM.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgUpdateZKExecutionISM proto.InternalMessageInfo
+var xxx_messageInfo_MsgUpdateEvolveEvmISM proto.InternalMessageInfo
 
-func (m *MsgUpdateZKExecutionISM) GetProof() []byte {
+func (m *MsgUpdateEvolveEvmISM) GetProof() []byte {
 	if m != nil {
 		return m.Proof
 	}
 	return nil
 }
 
-func (m *MsgUpdateZKExecutionISM) GetPublicValues() []byte {
+func (m *MsgUpdateEvolveEvmISM) GetPublicValues() []byte {
 	if m != nil {
 		return m.PublicValues
 	}
 	return nil
 }
 
-func (m *MsgUpdateZKExecutionISM) GetSigner() string {
+func (m *MsgUpdateEvolveEvmISM) GetSigner() string {
 	if m != nil {
 		return m.Signer
 	}
 	return ""
 }
 
-// MsgUpdateZKExecutionISMResponse is the response type for UpdateZKExecutionISM.
-type MsgUpdateZKExecutionISMResponse struct {
+// MsgUpdateEvolveEvmISMResponse is the response type for UpdateEvolveEvmISM.
+type MsgUpdateEvolveEvmISMResponse struct {
 	// state commitment root of the remote chain
 	StateRoot string `protobuf:"bytes,1,opt,name=state_root,json=stateRoot,proto3" json:"state_root,omitempty"`
 	// latest tracked height of the remote chain
@@ -507,18 +503,18 @@ type MsgUpdateZKExecutionISMResponse struct {
 	CelestiaHeight uint64 `protobuf:"varint,4,opt,name=celestia_height,json=celestiaHeight,proto3" json:"celestia_height,omitempty"`
 }
 
-func (m *MsgUpdateZKExecutionISMResponse) Reset()         { *m = MsgUpdateZKExecutionISMResponse{} }
-func (m *MsgUpdateZKExecutionISMResponse) String() string { return proto.CompactTextString(m) }
-func (*MsgUpdateZKExecutionISMResponse) ProtoMessage()    {}
-func (*MsgUpdateZKExecutionISMResponse) Descriptor() ([]byte, []int) {
+func (m *MsgUpdateEvolveEvmISMResponse) Reset()         { *m = MsgUpdateEvolveEvmISMResponse{} }
+func (m *MsgUpdateEvolveEvmISMResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgUpdateEvolveEvmISMResponse) ProtoMessage()    {}
+func (*MsgUpdateEvolveEvmISMResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_9627100907186bb5, []int{7}
 }
-func (m *MsgUpdateZKExecutionISMResponse) XXX_Unmarshal(b []byte) error {
+func (m *MsgUpdateEvolveEvmISMResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgUpdateZKExecutionISMResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgUpdateEvolveEvmISMResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgUpdateZKExecutionISMResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgUpdateEvolveEvmISMResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -528,40 +524,40 @@ func (m *MsgUpdateZKExecutionISMResponse) XXX_Marshal(b []byte, deterministic bo
 		return b[:n], nil
 	}
 }
-func (m *MsgUpdateZKExecutionISMResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgUpdateZKExecutionISMResponse.Merge(m, src)
+func (m *MsgUpdateEvolveEvmISMResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgUpdateEvolveEvmISMResponse.Merge(m, src)
 }
-func (m *MsgUpdateZKExecutionISMResponse) XXX_Size() int {
+func (m *MsgUpdateEvolveEvmISMResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgUpdateZKExecutionISMResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgUpdateZKExecutionISMResponse.DiscardUnknown(m)
+func (m *MsgUpdateEvolveEvmISMResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgUpdateEvolveEvmISMResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgUpdateZKExecutionISMResponse proto.InternalMessageInfo
+var xxx_messageInfo_MsgUpdateEvolveEvmISMResponse proto.InternalMessageInfo
 
-func (m *MsgUpdateZKExecutionISMResponse) GetStateRoot() string {
+func (m *MsgUpdateEvolveEvmISMResponse) GetStateRoot() string {
 	if m != nil {
 		return m.StateRoot
 	}
 	return ""
 }
 
-func (m *MsgUpdateZKExecutionISMResponse) GetHeight() uint64 {
+func (m *MsgUpdateEvolveEvmISMResponse) GetHeight() uint64 {
 	if m != nil {
 		return m.Height
 	}
 	return 0
 }
 
-func (m *MsgUpdateZKExecutionISMResponse) GetCelestiaHeaderHash() string {
+func (m *MsgUpdateEvolveEvmISMResponse) GetCelestiaHeaderHash() string {
 	if m != nil {
 		return m.CelestiaHeaderHash
 	}
 	return ""
 }
 
-func (m *MsgUpdateZKExecutionISMResponse) GetCelestiaHeight() uint64 {
+func (m *MsgUpdateEvolveEvmISMResponse) GetCelestiaHeight() uint64 {
 	if m != nil {
 		return m.CelestiaHeight
 	}
@@ -775,14 +771,14 @@ func (m *MsgUpdateParamsResponse) XXX_DiscardUnknown() {
 var xxx_messageInfo_MsgUpdateParamsResponse proto.InternalMessageInfo
 
 func init() {
-	proto.RegisterType((*MsgCreateStateTransitionVerifier)(nil), "celestia.zkism.v1.MsgCreateStateTransitionVerifier")
-	proto.RegisterType((*MsgCreateStateTransitionVerifierResponse)(nil), "celestia.zkism.v1.MsgCreateStateTransitionVerifierResponse")
-	proto.RegisterType((*MsgUpdateStateTransitionVerifier)(nil), "celestia.zkism.v1.MsgUpdateStateTransitionVerifier")
-	proto.RegisterType((*MsgUpdateStateTransitionVerifierResponse)(nil), "celestia.zkism.v1.MsgUpdateStateTransitionVerifierResponse")
-	proto.RegisterType((*MsgCreateZKExecutionISM)(nil), "celestia.zkism.v1.MsgCreateZKExecutionISM")
-	proto.RegisterType((*MsgCreateZKExecutionISMResponse)(nil), "celestia.zkism.v1.MsgCreateZKExecutionISMResponse")
-	proto.RegisterType((*MsgUpdateZKExecutionISM)(nil), "celestia.zkism.v1.MsgUpdateZKExecutionISM")
-	proto.RegisterType((*MsgUpdateZKExecutionISMResponse)(nil), "celestia.zkism.v1.MsgUpdateZKExecutionISMResponse")
+	proto.RegisterType((*MsgCreateConsensusISM)(nil), "celestia.zkism.v1.MsgCreateConsensusISM")
+	proto.RegisterType((*MsgCreateConsensusISMResponse)(nil), "celestia.zkism.v1.MsgCreateConsensusISMResponse")
+	proto.RegisterType((*MsgUpdateConsensusISM)(nil), "celestia.zkism.v1.MsgUpdateConsensusISM")
+	proto.RegisterType((*MsgUpdateConsensusISMResponse)(nil), "celestia.zkism.v1.MsgUpdateConsensusISMResponse")
+	proto.RegisterType((*MsgCreateEvolveEvmISM)(nil), "celestia.zkism.v1.MsgCreateEvolveEvmISM")
+	proto.RegisterType((*MsgCreateEvolveEvmISMResponse)(nil), "celestia.zkism.v1.MsgCreateEvolveEvmISMResponse")
+	proto.RegisterType((*MsgUpdateEvolveEvmISM)(nil), "celestia.zkism.v1.MsgUpdateEvolveEvmISM")
+	proto.RegisterType((*MsgUpdateEvolveEvmISMResponse)(nil), "celestia.zkism.v1.MsgUpdateEvolveEvmISMResponse")
 	proto.RegisterType((*MsgSubmitMessages)(nil), "celestia.zkism.v1.MsgSubmitMessages")
 	proto.RegisterType((*MsgSubmitMessagesResponse)(nil), "celestia.zkism.v1.MsgSubmitMessagesResponse")
 	proto.RegisterType((*MsgUpdateParams)(nil), "celestia.zkism.v1.MsgUpdateParams")
@@ -792,65 +788,63 @@ func init() {
 func init() { proto.RegisterFile("celestia/zkism/v1/tx.proto", fileDescriptor_9627100907186bb5) }
 
 var fileDescriptor_9627100907186bb5 = []byte{
-	// 914 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xd4, 0x56, 0x4f, 0x6f, 0x1b, 0x45,
-	0x14, 0xcf, 0xc6, 0x76, 0x8a, 0x27, 0x26, 0x55, 0x17, 0x43, 0x1d, 0x43, 0x9c, 0x60, 0x90, 0x88,
-	0x2c, 0x62, 0x93, 0x54, 0x2a, 0x52, 0x7a, 0x22, 0x15, 0x52, 0x50, 0x64, 0x51, 0xad, 0x21, 0x87,
-	0x1e, 0x58, 0x8d, 0x77, 0x5f, 0x77, 0x47, 0xf1, 0xee, 0x2c, 0x33, 0xb3, 0x56, 0xcc, 0x09, 0xf1,
-	0x09, 0x80, 0x0f, 0x82, 0x2a, 0xc1, 0x67, 0x40, 0x3d, 0xa1, 0x8a, 0x0b, 0x88, 0x43, 0x55, 0x25,
-	0x87, 0x4a, 0x7c, 0x0a, 0xb4, 0x33, 0xb3, 0x1b, 0x27, 0x5e, 0x6f, 0x5c, 0xa4, 0x1e, 0x7a, 0xdb,
-	0x79, 0xff, 0xdf, 0xef, 0xfd, 0x66, 0xdf, 0xa0, 0xa6, 0x03, 0x23, 0xe0, 0x82, 0xe0, 0xde, 0x77,
-	0x27, 0x84, 0x07, 0xbd, 0xf1, 0x6e, 0x4f, 0x9c, 0x76, 0x23, 0x46, 0x05, 0x35, 0x6f, 0xa5, 0xba,
-	0xae, 0xd4, 0x75, 0xc7, 0xbb, 0xcd, 0x8d, 0x1c, 0xf3, 0x49, 0x04, 0x5c, 0x79, 0x34, 0x6f, 0x3b,
-	0x94, 0x07, 0x94, 0xf7, 0x02, 0xee, 0x25, 0xaa, 0x80, 0x7b, 0x5a, 0xb1, 0xae, 0x14, 0xb6, 0x3c,
-	0xf5, 0xd4, 0x41, 0xab, 0xea, 0x1e, 0xf5, 0xa8, 0x92, 0x27, 0x5f, 0x4a, 0xda, 0xfe, 0xdd, 0x40,
-	0x5b, 0x7d, 0xee, 0xdd, 0x67, 0x80, 0x05, 0x0c, 0x04, 0x16, 0xf0, 0x15, 0xc3, 0x21, 0x27, 0x82,
-	0xd0, 0xf0, 0x18, 0x18, 0x79, 0x44, 0x80, 0x99, 0x0d, 0x74, 0xc3, 0x49, 0x0c, 0x28, 0x6b, 0x18,
-	0x5b, 0xc6, 0x76, 0xd5, 0x4a, 0x8f, 0xe6, 0x07, 0xe8, 0x4d, 0xc1, 0x62, 0x2e, 0xc0, 0xb5, 0x79,
-	0xe2, 0xdc, 0x58, 0xde, 0x32, 0xb6, 0x6b, 0x56, 0x4d, 0x0b, 0x65, 0x40, 0xf3, 0x7d, 0x54, 0xf3,
-	0x18, 0x15, 0xfe, 0xee, 0x5d, 0x7b, 0x7c, 0x02, 0x93, 0x46, 0x49, 0xda, 0xac, 0x6a, 0xd9, 0xf1,
-	0x09, 0x4c, 0xcc, 0x3d, 0xf4, 0xb6, 0xf4, 0xb7, 0x45, 0x96, 0x5d, 0xd9, 0x96, 0xa5, 0xed, 0x5b,
-	0xfc, 0x4a, 0x65, 0x27, 0x30, 0xd9, 0xaf, 0xfd, 0xf0, 0xe2, 0x71, 0x27, 0xad, 0xa4, 0xfd, 0x25,
-	0xda, 0xbe, 0xae, 0x0f, 0x0b, 0x78, 0x44, 0x43, 0x0e, 0xb3, 0x55, 0x1b, 0xb3, 0x55, 0xb7, 0xff,
-	0x52, 0xc8, 0x7c, 0x1d, 0xb9, 0x05, 0xc8, 0x0c, 0xd0, 0x32, 0x71, 0x15, 0x28, 0x07, 0xf7, 0x9f,
-	0x3c, 0xdb, 0x5c, 0xfa, 0xe7, 0xd9, 0xe6, 0x3d, 0x8f, 0x08, 0x3f, 0x1e, 0x76, 0x1d, 0x1a, 0xf4,
-	0x86, 0x4e, 0xb4, 0x43, 0xc2, 0x90, 0x8e, 0x71, 0xe2, 0xc6, 0x7b, 0xfe, 0x24, 0x02, 0x36, 0xc2,
-	0x21, 0xec, 0xe8, 0x09, 0xc6, 0x82, 0x8c, 0xba, 0x87, 0x70, 0xfa, 0x99, 0xeb, 0x32, 0xe0, 0xdc,
-	0x5a, 0x26, 0xae, 0x59, 0x47, 0x95, 0x88, 0x51, 0xfa, 0x48, 0x83, 0xa9, 0x0e, 0x49, 0xd1, 0x51,
-	0x3c, 0x1c, 0x11, 0xc7, 0x1e, 0xe3, 0x51, 0x0c, 0x5c, 0xc3, 0x58, 0x53, 0xc2, 0x63, 0x29, 0x33,
-	0xdf, 0x41, 0x2b, 0x9c, 0x78, 0x21, 0x30, 0x09, 0x5c, 0xd5, 0xd2, 0xa7, 0xfd, 0xd5, 0x04, 0x2b,
-	0x7d, 0xd0, 0x50, 0x15, 0x36, 0xf6, 0x72, 0x50, 0xfd, 0x52, 0x42, 0xb7, 0x33, 0xf0, 0x1f, 0x1e,
-	0x7d, 0x7e, 0x0a, 0x4e, 0x9c, 0x44, 0xfb, 0x62, 0xd0, 0x2f, 0xe0, 0xce, 0x06, 0x42, 0x6a, 0xe6,
-	0x8c, 0x52, 0xa1, 0x7b, 0xad, 0x4a, 0x89, 0x45, 0xa9, 0x48, 0x5a, 0xf1, 0x81, 0x78, 0xbe, 0x90,
-	0x8d, 0x96, 0x2d, 0x7d, 0x32, 0x3f, 0x41, 0xf5, 0xf4, 0x72, 0xd8, 0x3e, 0x60, 0x17, 0x98, 0xed,
-	0x63, 0xee, 0x6b, 0xa6, 0x98, 0xa9, 0xee, 0x50, 0xaa, 0x0e, 0x31, 0xf7, 0xcd, 0x8f, 0xd0, 0xcd,
-	0x29, 0x0f, 0x19, 0xb2, 0x22, 0x43, 0xae, 0x5d, 0x18, 0xcb, 0xd0, 0xef, 0xa1, 0x6a, 0x88, 0x03,
-	0xe0, 0x11, 0x76, 0xa0, 0xb1, 0xa2, 0x0a, 0xca, 0x04, 0x49, 0x62, 0x0e, 0xdf, 0xc6, 0x10, 0x3a,
-	0xc0, 0x6c, 0x3d, 0x8a, 0x84, 0xa2, 0x37, 0x54, 0xe2, 0x4c, 0xf7, 0x40, 0xaa, 0x8e, 0x60, 0x32,
-	0x43, 0xfc, 0x37, 0x5e, 0x82, 0xf8, 0xd5, 0xb9, 0xc4, 0xbf, 0xf0, 0x09, 0x20, 0x18, 0x02, 0xe3,
-	0x3e, 0x89, 0x94, 0x0f, 0x9a, 0xf2, 0xe9, 0x67, 0xba, 0x9c, 0xcb, 0x32, 0x46, 0x9b, 0x73, 0xe6,
-	0x95, 0x0d, 0xfe, 0x55, 0x30, 0xbb, 0xfd, 0x87, 0x21, 0x89, 0xa2, 0xa8, 0x77, 0x85, 0x28, 0xaf,
-	0xe5, 0x55, 0xfa, 0xd5, 0x90, 0x48, 0xe6, 0x35, 0x94, 0x21, 0x79, 0x99, 0xe7, 0xea, 0x12, 0xe4,
-	0xf2, 0x7c, 0x79, 0x21, 0x9e, 0x97, 0x64, 0x80, 0x05, 0x79, 0x5e, 0xce, 0xe3, 0x79, 0xfb, 0xb9,
-	0x81, 0x6e, 0xf5, 0xb9, 0x37, 0x88, 0x87, 0x01, 0x11, 0x7d, 0xe0, 0x1c, 0x7b, 0xc0, 0x5f, 0xcd,
-	0x00, 0xe6, 0x75, 0x97, 0x0d, 0xa6, 0x54, 0x38, 0x98, 0x72, 0xe1, 0x60, 0x2a, 0xf3, 0x07, 0xf3,
-	0x2e, 0x5a, 0x9f, 0xe9, 0x30, 0x9d, 0x48, 0xfb, 0x67, 0x03, 0xdd, 0xcc, 0xa6, 0xf6, 0x00, 0x33,
-	0x1c, 0x70, 0xf3, 0x2e, 0xaa, 0xe2, 0x58, 0xf8, 0x94, 0x11, 0x31, 0xd1, 0x20, 0x34, 0xfe, 0xfc,
-	0x6d, 0xa7, 0xae, 0x77, 0xa8, 0xee, 0x69, 0x20, 0x18, 0x09, 0x3d, 0xeb, 0xc2, 0xd4, 0xfc, 0x14,
-	0xad, 0x44, 0x32, 0x82, 0x6c, 0x70, 0x75, 0x6f, 0xbd, 0x3b, 0xb3, 0xcd, 0xbb, 0x2a, 0xc5, 0x41,
-	0x39, 0x01, 0xd5, 0xd2, 0xe6, 0xfb, 0x6b, 0x49, 0xb9, 0x17, 0x81, 0xda, 0xeb, 0x53, 0x57, 0x43,
-	0x39, 0xa4, 0xf5, 0xee, 0xfd, 0x5b, 0x41, 0xa5, 0x3e, 0xf7, 0xcc, 0x9f, 0x0c, 0xb4, 0x51, 0xbc,
-	0xa9, 0xef, 0xe4, 0x64, 0xbf, 0x6e, 0x2d, 0x36, 0xef, 0xfd, 0x0f, 0xa7, 0x8c, 0xdd, 0x49, 0x4d,
-	0xc5, 0x3b, 0x72, 0x4e, 0x4d, 0x85, 0x4e, 0xf3, 0x6a, 0x5a, 0x6c, 0x69, 0x8d, 0x51, 0x3d, 0x77,
-	0x17, 0x75, 0x8a, 0x1a, 0xbd, 0x6c, 0xdb, 0xdc, 0x5b, 0xdc, 0x76, 0x3a, 0x6f, 0xee, 0xaf, 0xad,
-	0x53, 0xd4, 0xcc, 0x62, 0x79, 0x0b, 0xff, 0x30, 0x2e, 0x5a, 0xbb, 0x72, 0x97, 0x3f, 0xcc, 0x8f,
-	0x72, 0xd9, 0xaa, 0xf9, 0xf1, 0x22, 0x56, 0x59, 0x96, 0x6f, 0x50, 0xed, 0xd2, 0x8d, 0x69, 0x17,
-	0x55, 0xaa, 0x6c, 0x9a, 0x9d, 0xeb, 0x6d, 0xd2, 0xf8, 0xcd, 0xca, 0xf7, 0x2f, 0x1e, 0x77, 0x8c,
-	0x83, 0xa3, 0x27, 0x67, 0x2d, 0xe3, 0xe9, 0x59, 0xcb, 0x78, 0x7e, 0xd6, 0x32, 0x7e, 0x3c, 0x6f,
-	0x2d, 0x3d, 0x3d, 0x6f, 0x2d, 0xfd, 0x7d, 0xde, 0x5a, 0x7a, 0xb8, 0x3b, 0xf5, 0x33, 0x4a, 0xc3,
-	0x52, 0xe6, 0x65, 0xdf, 0x3b, 0x38, 0x8a, 0x7a, 0xa7, 0xfa, 0xc5, 0x2c, 0x9f, 0xcb, 0xc3, 0x15,
-	0xf9, 0xca, 0xbd, 0xf3, 0x5f, 0x00, 0x00, 0x00, 0xff, 0xff, 0xe2, 0xcb, 0x8c, 0x42, 0x7f, 0x0b,
-	0x00, 0x00,
+	// 895 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xd4, 0x56, 0x4f, 0x8f, 0xdb, 0x44,
+	0x14, 0x5f, 0x6f, 0x92, 0x2d, 0x99, 0x0d, 0x5b, 0xd5, 0x6c, 0x69, 0x12, 0xd8, 0xb4, 0x04, 0x24,
+	0x56, 0x2b, 0x12, 0x37, 0x8b, 0x54, 0xa4, 0xe5, 0xc4, 0x2e, 0x95, 0x16, 0x55, 0x91, 0x2a, 0x07,
+	0x7a, 0xe0, 0x80, 0x35, 0xb1, 0x07, 0x7b, 0xb4, 0xb1, 0xc7, 0xcc, 0x8c, 0xad, 0x0d, 0x27, 0xc4,
+	0x27, 0x40, 0x1c, 0xf9, 0x0c, 0x1c, 0x8a, 0xc4, 0x8d, 0x2f, 0xd0, 0x03, 0x87, 0x8a, 0x13, 0xe2,
+	0x50, 0x55, 0xbb, 0x87, 0x7e, 0x0d, 0xe4, 0x99, 0xb1, 0xe3, 0xac, 0x1d, 0x93, 0x1e, 0xf6, 0xc0,
+	0x2d, 0xef, 0xbd, 0xdf, 0xfb, 0xff, 0x7b, 0x19, 0x83, 0xae, 0x8d, 0x66, 0x88, 0x71, 0x0c, 0x8d,
+	0xef, 0xcf, 0x30, 0xf3, 0x8d, 0x78, 0x64, 0xf0, 0xf3, 0x61, 0x48, 0x09, 0x27, 0xfa, 0xad, 0xd4,
+	0x36, 0x14, 0xb6, 0x61, 0x3c, 0xea, 0xee, 0x95, 0xc0, 0xe7, 0x21, 0x62, 0xd2, 0xa3, 0x7b, 0xc7,
+	0x26, 0xcc, 0x27, 0xcc, 0xf0, 0x99, 0x9b, 0x98, 0x7c, 0xe6, 0x2a, 0x43, 0x47, 0x1a, 0x2c, 0x21,
+	0x19, 0x52, 0x50, 0xa6, 0x5d, 0x97, 0xb8, 0x44, 0xea, 0x93, 0x5f, 0x52, 0xdb, 0xff, 0x43, 0x03,
+	0xb7, 0xc7, 0xcc, 0x3d, 0xa1, 0x08, 0x72, 0x74, 0x42, 0x02, 0x86, 0x02, 0x16, 0xb1, 0x2f, 0x26,
+	0x63, 0xbd, 0x0d, 0x6e, 0xd8, 0x89, 0x96, 0xd0, 0xb6, 0x76, 0x4f, 0xdb, 0x6f, 0x9a, 0xa9, 0xa8,
+	0xbf, 0x0f, 0xde, 0xe4, 0x34, 0x62, 0x1c, 0x39, 0x16, 0xe3, 0x90, 0xa3, 0xf6, 0xe6, 0x3d, 0x6d,
+	0xbf, 0x65, 0xb6, 0x94, 0x72, 0x92, 0xe8, 0xf4, 0xf7, 0x40, 0xcb, 0xa5, 0x84, 0x7b, 0xa3, 0x07,
+	0x56, 0x7c, 0x86, 0xe6, 0xed, 0x9a, 0xc0, 0x6c, 0x2b, 0xdd, 0x93, 0x33, 0x34, 0xd7, 0x0f, 0xc1,
+	0x6d, 0xe1, 0x6f, 0x71, 0x0a, 0x03, 0x86, 0x39, 0x26, 0x81, 0xc4, 0xd6, 0x05, 0xf6, 0x2d, 0x61,
+	0xfc, 0x32, 0xb3, 0x25, 0x3e, 0x47, 0xad, 0x1f, 0x5f, 0x3d, 0x3d, 0x48, 0x2b, 0xe9, 0x7f, 0x0e,
+	0xf6, 0x4a, 0x8b, 0x37, 0x11, 0x0b, 0x13, 0xb1, 0x58, 0xaa, 0x56, 0x2c, 0xb5, 0xff, 0xa7, 0x9c,
+	0xc1, 0x57, 0xa1, 0x73, 0x75, 0x06, 0x13, 0xb0, 0x89, 0x1d, 0xd9, 0xfe, 0xf1, 0xc9, 0xb3, 0x17,
+	0x77, 0x37, 0xfe, 0x79, 0x71, 0xf7, 0x53, 0x17, 0x73, 0x2f, 0x9a, 0x0e, 0x6d, 0xe2, 0x1b, 0x53,
+	0x3b, 0x1c, 0xe0, 0x20, 0x20, 0x31, 0x4c, 0x0a, 0x64, 0x86, 0x37, 0x0f, 0x11, 0x9d, 0xc1, 0x00,
+	0x0d, 0xd4, 0x82, 0x22, 0x8e, 0x67, 0xc3, 0x53, 0x74, 0xfe, 0x99, 0xe3, 0x50, 0xc4, 0x98, 0xb9,
+	0x89, 0x1d, 0x7d, 0x17, 0x34, 0x42, 0x4a, 0xc8, 0xb7, 0x6a, 0x6c, 0x52, 0x48, 0x2a, 0x0d, 0xa3,
+	0xe9, 0x0c, 0xdb, 0x56, 0x0c, 0x67, 0x11, 0x62, 0x6a, 0x60, 0x2d, 0xa9, 0x7c, 0x22, 0x74, 0xfa,
+	0xdb, 0x60, 0x8b, 0x61, 0x37, 0x40, 0x54, 0x8c, 0xa8, 0x69, 0x2a, 0xe9, 0x68, 0x3b, 0x99, 0x8a,
+	0x12, 0xd4, 0x50, 0x8a, 0xdd, 0xbc, 0xde, 0x50, 0x7e, 0xad, 0xe5, 0x88, 0xf1, 0x30, 0x26, 0xb3,
+	0x18, 0x3d, 0x8c, 0xfd, 0x6a, 0x62, 0xec, 0x01, 0x20, 0x17, 0x4a, 0x09, 0xe1, 0xaa, 0xbd, 0xa6,
+	0xd0, 0x98, 0x84, 0xf0, 0xa4, 0x7a, 0x0f, 0x61, 0xd7, 0xe3, 0xa2, 0xb7, 0xba, 0xa9, 0x24, 0xfd,
+	0x3e, 0xd8, 0x4d, 0xe9, 0x6e, 0x79, 0x08, 0x3a, 0x88, 0x5a, 0x1e, 0x64, 0x9e, 0xa2, 0x81, 0x9e,
+	0xda, 0x4e, 0x85, 0xe9, 0x14, 0x32, 0x4f, 0xff, 0x10, 0xdc, 0xcc, 0x79, 0x88, 0x90, 0x0d, 0x11,
+	0x72, 0x67, 0x01, 0x16, 0xa1, 0xdf, 0x05, 0xcd, 0x00, 0xfa, 0x88, 0x85, 0xd0, 0x46, 0xed, 0x2d,
+	0x59, 0x50, 0xa6, 0x48, 0x12, 0x33, 0xf4, 0x5d, 0x84, 0x02, 0x1b, 0x51, 0x4b, 0x4d, 0x3f, 0xe1,
+	0xdf, 0x0d, 0x99, 0x38, 0xb3, 0x3d, 0x16, 0xa6, 0x47, 0x68, 0x5e, 0x60, 0xf5, 0x1b, 0xaf, 0xc1,
+	0xea, 0xe6, 0x4a, 0x56, 0x2f, 0x7c, 0x7c, 0xe4, 0x4f, 0x11, 0x65, 0x1e, 0x0e, 0xa5, 0x0f, 0xc8,
+	0xf9, 0x8c, 0x33, 0x5b, 0xc9, 0x25, 0xf0, 0xdc, 0x25, 0xe4, 0xb7, 0x95, 0x2d, 0xfd, 0x3a, 0xa8,
+	0xbc, 0x7c, 0x39, 0x4b, 0x24, 0xf9, 0x5f, 0x5e, 0xce, 0x6f, 0x5a, 0xee, 0x74, 0x4a, 0xa7, 0xb8,
+	0xcc, 0x70, 0x49, 0xff, 0x52, 0x86, 0x6f, 0xae, 0xc5, 0xf0, 0x9a, 0x08, 0xb0, 0x26, 0xc3, 0xeb,
+	0x65, 0x0c, 0xef, 0xbf, 0xd4, 0xc0, 0xad, 0x31, 0x73, 0x27, 0xd1, 0xd4, 0xc7, 0x7c, 0x8c, 0x18,
+	0x83, 0x2e, 0x62, 0xd7, 0x33, 0xfe, 0x55, 0xdd, 0x65, 0x6b, 0xa9, 0x55, 0xae, 0xa5, 0x5e, 0xb9,
+	0x96, 0xc6, 0xea, 0xb5, 0xbc, 0x03, 0x3a, 0x85, 0x0e, 0xd3, 0x8d, 0xf4, 0x7f, 0xd6, 0xc0, 0xcd,
+	0x6c, 0x67, 0x8f, 0x21, 0x85, 0x3e, 0xd3, 0x1f, 0x80, 0x26, 0x8c, 0xb8, 0x47, 0x28, 0xe6, 0x73,
+	0x35, 0x84, 0xf6, 0x5f, 0xbf, 0x0f, 0x76, 0xd5, 0x7b, 0xa8, 0x7a, 0x9a, 0x70, 0x8a, 0x03, 0xd7,
+	0x5c, 0x40, 0xf5, 0x4f, 0xc0, 0x56, 0x28, 0x22, 0x88, 0x06, 0xb7, 0x0f, 0x3b, 0xc3, 0xc2, 0xcb,
+	0x3c, 0x94, 0x29, 0x8e, 0xeb, 0xc9, 0x50, 0x4d, 0x05, 0x3f, 0xda, 0x49, 0xca, 0x5d, 0x04, 0xea,
+	0x77, 0xc0, 0x9d, 0x2b, 0x35, 0xa5, 0xf5, 0x1e, 0xfe, 0xd2, 0x00, 0xb5, 0x31, 0x73, 0xf5, 0x10,
+	0xe8, 0x25, 0x8f, 0xee, 0x7e, 0x49, 0xc6, 0xd2, 0x17, 0xae, 0x7b, 0x7f, 0x5d, 0x64, 0xc6, 0xdd,
+	0x10, 0xe8, 0x25, 0x4f, 0xdc, 0x8a, 0x8c, 0x45, 0xe4, 0xaa, 0x8c, 0x15, 0x0f, 0x4d, 0xd6, 0xe3,
+	0xd2, 0x5f, 0x43, 0x65, 0x8f, 0x79, 0x64, 0x75, 0x8f, 0xa5, 0xf7, 0x99, 0xf5, 0xb8, 0x4e, 0xc6,
+	0x22, 0xb2, 0xba, 0xc7, 0xd2, 0x8c, 0x0e, 0xd8, 0xb9, 0x72, 0x7b, 0x1f, 0x94, 0xc7, 0x58, 0x46,
+	0x75, 0x3f, 0x5a, 0x07, 0x95, 0x65, 0xf9, 0x06, 0xb4, 0x96, 0x18, 0xde, 0xaf, 0xaa, 0x53, 0x62,
+	0xba, 0x07, 0xff, 0x8d, 0x49, 0xe3, 0x77, 0x1b, 0x3f, 0xbc, 0x7a, 0x7a, 0xa0, 0x1d, 0x3f, 0x7a,
+	0x76, 0xd1, 0xd3, 0x9e, 0x5f, 0xf4, 0xb4, 0x97, 0x17, 0x3d, 0xed, 0xa7, 0xcb, 0xde, 0xc6, 0xf3,
+	0xcb, 0xde, 0xc6, 0xdf, 0x97, 0xbd, 0x8d, 0xaf, 0x47, 0xb9, 0x3f, 0x8f, 0x34, 0x2c, 0xa1, 0x6e,
+	0xf6, 0x7b, 0x00, 0xc3, 0xd0, 0x38, 0x57, 0x5f, 0xab, 0xe2, 0x53, 0x75, 0xba, 0x25, 0xbe, 0x30,
+	0x3f, 0xfe, 0x37, 0x00, 0x00, 0xff, 0xff, 0x45, 0x99, 0x94, 0xe4, 0xfb, 0x0a, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -866,13 +860,13 @@ const _ = grpc.SupportPackageIsVersion4
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MsgClient interface {
 	// Create a generic State Transition Verifier
-	CreateStateTransitionVerifier(ctx context.Context, in *MsgCreateStateTransitionVerifier, opts ...grpc.CallOption) (*MsgCreateStateTransitionVerifierResponse, error)
+	CreateConsensusISM(ctx context.Context, in *MsgCreateConsensusISM, opts ...grpc.CallOption) (*MsgCreateConsensusISMResponse, error)
 	// Update a generic State Transition Verifier
-	UpdateStateTransitionVerifier(ctx context.Context, in *MsgUpdateStateTransitionVerifier, opts ...grpc.CallOption) (*MsgUpdateStateTransitionVerifierResponse, error)
-	// CreateZKExecutionISM defines the rpc method for creating a new ZK execution ISM.
-	CreateZKExecutionISM(ctx context.Context, in *MsgCreateZKExecutionISM, opts ...grpc.CallOption) (*MsgCreateZKExecutionISMResponse, error)
-	// UpdateZKExecutionISM defines the rpc method for updating an existing ZK execution ISM.
-	UpdateZKExecutionISM(ctx context.Context, in *MsgUpdateZKExecutionISM, opts ...grpc.CallOption) (*MsgUpdateZKExecutionISMResponse, error)
+	UpdateConsensusISM(ctx context.Context, in *MsgUpdateConsensusISM, opts ...grpc.CallOption) (*MsgUpdateConsensusISMResponse, error)
+	// CreateEvolveEvmISM defines the rpc method for creating a new ZK execution ISM.
+	CreateEvolveEvmISM(ctx context.Context, in *MsgCreateEvolveEvmISM, opts ...grpc.CallOption) (*MsgCreateEvolveEvmISMResponse, error)
+	// UpdateEvolveEvmISM defines the rpc method for updating an existing ZK execution ISM.
+	UpdateEvolveEvmISM(ctx context.Context, in *MsgUpdateEvolveEvmISM, opts ...grpc.CallOption) (*MsgUpdateEvolveEvmISMResponse, error)
 	// SubmitMessages defines the rpc method for verifying state membership of messages.
 	SubmitMessages(ctx context.Context, in *MsgSubmitMessages, opts ...grpc.CallOption) (*MsgSubmitMessagesResponse, error)
 	// UpdateParams defines the rpc method for updating the module parameters.
@@ -887,36 +881,36 @@ func NewMsgClient(cc grpc1.ClientConn) MsgClient {
 	return &msgClient{cc}
 }
 
-func (c *msgClient) CreateStateTransitionVerifier(ctx context.Context, in *MsgCreateStateTransitionVerifier, opts ...grpc.CallOption) (*MsgCreateStateTransitionVerifierResponse, error) {
-	out := new(MsgCreateStateTransitionVerifierResponse)
-	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Msg/CreateStateTransitionVerifier", in, out, opts...)
+func (c *msgClient) CreateConsensusISM(ctx context.Context, in *MsgCreateConsensusISM, opts ...grpc.CallOption) (*MsgCreateConsensusISMResponse, error) {
+	out := new(MsgCreateConsensusISMResponse)
+	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Msg/CreateConsensusISM", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *msgClient) UpdateStateTransitionVerifier(ctx context.Context, in *MsgUpdateStateTransitionVerifier, opts ...grpc.CallOption) (*MsgUpdateStateTransitionVerifierResponse, error) {
-	out := new(MsgUpdateStateTransitionVerifierResponse)
-	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Msg/UpdateStateTransitionVerifier", in, out, opts...)
+func (c *msgClient) UpdateConsensusISM(ctx context.Context, in *MsgUpdateConsensusISM, opts ...grpc.CallOption) (*MsgUpdateConsensusISMResponse, error) {
+	out := new(MsgUpdateConsensusISMResponse)
+	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Msg/UpdateConsensusISM", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *msgClient) CreateZKExecutionISM(ctx context.Context, in *MsgCreateZKExecutionISM, opts ...grpc.CallOption) (*MsgCreateZKExecutionISMResponse, error) {
-	out := new(MsgCreateZKExecutionISMResponse)
-	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Msg/CreateZKExecutionISM", in, out, opts...)
+func (c *msgClient) CreateEvolveEvmISM(ctx context.Context, in *MsgCreateEvolveEvmISM, opts ...grpc.CallOption) (*MsgCreateEvolveEvmISMResponse, error) {
+	out := new(MsgCreateEvolveEvmISMResponse)
+	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Msg/CreateEvolveEvmISM", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *msgClient) UpdateZKExecutionISM(ctx context.Context, in *MsgUpdateZKExecutionISM, opts ...grpc.CallOption) (*MsgUpdateZKExecutionISMResponse, error) {
-	out := new(MsgUpdateZKExecutionISMResponse)
-	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Msg/UpdateZKExecutionISM", in, out, opts...)
+func (c *msgClient) UpdateEvolveEvmISM(ctx context.Context, in *MsgUpdateEvolveEvmISM, opts ...grpc.CallOption) (*MsgUpdateEvolveEvmISMResponse, error) {
+	out := new(MsgUpdateEvolveEvmISMResponse)
+	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Msg/UpdateEvolveEvmISM", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -944,13 +938,13 @@ func (c *msgClient) UpdateParams(ctx context.Context, in *MsgUpdateParams, opts 
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
 	// Create a generic State Transition Verifier
-	CreateStateTransitionVerifier(context.Context, *MsgCreateStateTransitionVerifier) (*MsgCreateStateTransitionVerifierResponse, error)
+	CreateConsensusISM(context.Context, *MsgCreateConsensusISM) (*MsgCreateConsensusISMResponse, error)
 	// Update a generic State Transition Verifier
-	UpdateStateTransitionVerifier(context.Context, *MsgUpdateStateTransitionVerifier) (*MsgUpdateStateTransitionVerifierResponse, error)
-	// CreateZKExecutionISM defines the rpc method for creating a new ZK execution ISM.
-	CreateZKExecutionISM(context.Context, *MsgCreateZKExecutionISM) (*MsgCreateZKExecutionISMResponse, error)
-	// UpdateZKExecutionISM defines the rpc method for updating an existing ZK execution ISM.
-	UpdateZKExecutionISM(context.Context, *MsgUpdateZKExecutionISM) (*MsgUpdateZKExecutionISMResponse, error)
+	UpdateConsensusISM(context.Context, *MsgUpdateConsensusISM) (*MsgUpdateConsensusISMResponse, error)
+	// CreateEvolveEvmISM defines the rpc method for creating a new ZK execution ISM.
+	CreateEvolveEvmISM(context.Context, *MsgCreateEvolveEvmISM) (*MsgCreateEvolveEvmISMResponse, error)
+	// UpdateEvolveEvmISM defines the rpc method for updating an existing ZK execution ISM.
+	UpdateEvolveEvmISM(context.Context, *MsgUpdateEvolveEvmISM) (*MsgUpdateEvolveEvmISMResponse, error)
 	// SubmitMessages defines the rpc method for verifying state membership of messages.
 	SubmitMessages(context.Context, *MsgSubmitMessages) (*MsgSubmitMessagesResponse, error)
 	// UpdateParams defines the rpc method for updating the module parameters.
@@ -961,17 +955,17 @@ type MsgServer interface {
 type UnimplementedMsgServer struct {
 }
 
-func (*UnimplementedMsgServer) CreateStateTransitionVerifier(ctx context.Context, req *MsgCreateStateTransitionVerifier) (*MsgCreateStateTransitionVerifierResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateStateTransitionVerifier not implemented")
+func (*UnimplementedMsgServer) CreateConsensusISM(ctx context.Context, req *MsgCreateConsensusISM) (*MsgCreateConsensusISMResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateConsensusISM not implemented")
 }
-func (*UnimplementedMsgServer) UpdateStateTransitionVerifier(ctx context.Context, req *MsgUpdateStateTransitionVerifier) (*MsgUpdateStateTransitionVerifierResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateStateTransitionVerifier not implemented")
+func (*UnimplementedMsgServer) UpdateConsensusISM(ctx context.Context, req *MsgUpdateConsensusISM) (*MsgUpdateConsensusISMResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateConsensusISM not implemented")
 }
-func (*UnimplementedMsgServer) CreateZKExecutionISM(ctx context.Context, req *MsgCreateZKExecutionISM) (*MsgCreateZKExecutionISMResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateZKExecutionISM not implemented")
+func (*UnimplementedMsgServer) CreateEvolveEvmISM(ctx context.Context, req *MsgCreateEvolveEvmISM) (*MsgCreateEvolveEvmISMResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateEvolveEvmISM not implemented")
 }
-func (*UnimplementedMsgServer) UpdateZKExecutionISM(ctx context.Context, req *MsgUpdateZKExecutionISM) (*MsgUpdateZKExecutionISMResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateZKExecutionISM not implemented")
+func (*UnimplementedMsgServer) UpdateEvolveEvmISM(ctx context.Context, req *MsgUpdateEvolveEvmISM) (*MsgUpdateEvolveEvmISMResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateEvolveEvmISM not implemented")
 }
 func (*UnimplementedMsgServer) SubmitMessages(ctx context.Context, req *MsgSubmitMessages) (*MsgSubmitMessagesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SubmitMessages not implemented")
@@ -984,74 +978,74 @@ func RegisterMsgServer(s grpc1.Server, srv MsgServer) {
 	s.RegisterService(&_Msg_serviceDesc, srv)
 }
 
-func _Msg_CreateStateTransitionVerifier_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MsgCreateStateTransitionVerifier)
+func _Msg_CreateConsensusISM_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgCreateConsensusISM)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MsgServer).CreateStateTransitionVerifier(ctx, in)
+		return srv.(MsgServer).CreateConsensusISM(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/celestia.zkism.v1.Msg/CreateStateTransitionVerifier",
+		FullMethod: "/celestia.zkism.v1.Msg/CreateConsensusISM",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MsgServer).CreateStateTransitionVerifier(ctx, req.(*MsgCreateStateTransitionVerifier))
+		return srv.(MsgServer).CreateConsensusISM(ctx, req.(*MsgCreateConsensusISM))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Msg_UpdateStateTransitionVerifier_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MsgUpdateStateTransitionVerifier)
+func _Msg_UpdateConsensusISM_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgUpdateConsensusISM)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MsgServer).UpdateStateTransitionVerifier(ctx, in)
+		return srv.(MsgServer).UpdateConsensusISM(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/celestia.zkism.v1.Msg/UpdateStateTransitionVerifier",
+		FullMethod: "/celestia.zkism.v1.Msg/UpdateConsensusISM",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MsgServer).UpdateStateTransitionVerifier(ctx, req.(*MsgUpdateStateTransitionVerifier))
+		return srv.(MsgServer).UpdateConsensusISM(ctx, req.(*MsgUpdateConsensusISM))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Msg_CreateZKExecutionISM_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MsgCreateZKExecutionISM)
+func _Msg_CreateEvolveEvmISM_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgCreateEvolveEvmISM)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MsgServer).CreateZKExecutionISM(ctx, in)
+		return srv.(MsgServer).CreateEvolveEvmISM(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/celestia.zkism.v1.Msg/CreateZKExecutionISM",
+		FullMethod: "/celestia.zkism.v1.Msg/CreateEvolveEvmISM",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MsgServer).CreateZKExecutionISM(ctx, req.(*MsgCreateZKExecutionISM))
+		return srv.(MsgServer).CreateEvolveEvmISM(ctx, req.(*MsgCreateEvolveEvmISM))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Msg_UpdateZKExecutionISM_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MsgUpdateZKExecutionISM)
+func _Msg_UpdateEvolveEvmISM_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgUpdateEvolveEvmISM)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MsgServer).UpdateZKExecutionISM(ctx, in)
+		return srv.(MsgServer).UpdateEvolveEvmISM(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/celestia.zkism.v1.Msg/UpdateZKExecutionISM",
+		FullMethod: "/celestia.zkism.v1.Msg/UpdateEvolveEvmISM",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MsgServer).UpdateZKExecutionISM(ctx, req.(*MsgUpdateZKExecutionISM))
+		return srv.(MsgServer).UpdateEvolveEvmISM(ctx, req.(*MsgUpdateEvolveEvmISM))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1098,20 +1092,20 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*MsgServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "CreateStateTransitionVerifier",
-			Handler:    _Msg_CreateStateTransitionVerifier_Handler,
+			MethodName: "CreateConsensusISM",
+			Handler:    _Msg_CreateConsensusISM_Handler,
 		},
 		{
-			MethodName: "UpdateStateTransitionVerifier",
-			Handler:    _Msg_UpdateStateTransitionVerifier_Handler,
+			MethodName: "UpdateConsensusISM",
+			Handler:    _Msg_UpdateConsensusISM_Handler,
 		},
 		{
-			MethodName: "CreateZKExecutionISM",
-			Handler:    _Msg_CreateZKExecutionISM_Handler,
+			MethodName: "CreateEvolveEvmISM",
+			Handler:    _Msg_CreateEvolveEvmISM_Handler,
 		},
 		{
-			MethodName: "UpdateZKExecutionISM",
-			Handler:    _Msg_UpdateZKExecutionISM_Handler,
+			MethodName: "UpdateEvolveEvmISM",
+			Handler:    _Msg_UpdateEvolveEvmISM_Handler,
 		},
 		{
 			MethodName: "SubmitMessages",
@@ -1126,7 +1120,7 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 	Metadata: "celestia/zkism/v1/tx.proto",
 }
 
-func (m *MsgCreateStateTransitionVerifier) Marshal() (dAtA []byte, err error) {
+func (m *MsgCreateConsensusISM) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -1136,12 +1130,12 @@ func (m *MsgCreateStateTransitionVerifier) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgCreateStateTransitionVerifier) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgCreateConsensusISM) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgCreateStateTransitionVerifier) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgCreateConsensusISM) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -1177,7 +1171,7 @@ func (m *MsgCreateStateTransitionVerifier) MarshalToSizedBuffer(dAtA []byte) (in
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgCreateStateTransitionVerifierResponse) Marshal() (dAtA []byte, err error) {
+func (m *MsgCreateConsensusISMResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -1187,12 +1181,12 @@ func (m *MsgCreateStateTransitionVerifierResponse) Marshal() (dAtA []byte, err e
 	return dAtA[:n], nil
 }
 
-func (m *MsgCreateStateTransitionVerifierResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgCreateConsensusISMResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgCreateStateTransitionVerifierResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgCreateConsensusISMResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -1207,7 +1201,7 @@ func (m *MsgCreateStateTransitionVerifierResponse) MarshalToSizedBuffer(dAtA []b
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgUpdateStateTransitionVerifier) Marshal() (dAtA []byte, err error) {
+func (m *MsgUpdateConsensusISM) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -1217,12 +1211,12 @@ func (m *MsgUpdateStateTransitionVerifier) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgUpdateStateTransitionVerifier) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgUpdateConsensusISM) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgUpdateStateTransitionVerifier) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgUpdateConsensusISM) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -1261,7 +1255,7 @@ func (m *MsgUpdateStateTransitionVerifier) MarshalToSizedBuffer(dAtA []byte) (in
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgUpdateStateTransitionVerifierResponse) Marshal() (dAtA []byte, err error) {
+func (m *MsgUpdateConsensusISMResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -1271,12 +1265,12 @@ func (m *MsgUpdateStateTransitionVerifierResponse) Marshal() (dAtA []byte, err e
 	return dAtA[:n], nil
 }
 
-func (m *MsgUpdateStateTransitionVerifierResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgUpdateConsensusISMResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgUpdateStateTransitionVerifierResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgUpdateConsensusISMResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -1291,7 +1285,7 @@ func (m *MsgUpdateStateTransitionVerifierResponse) MarshalToSizedBuffer(dAtA []b
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgCreateZKExecutionISM) Marshal() (dAtA []byte, err error) {
+func (m *MsgCreateEvolveEvmISM) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -1301,12 +1295,12 @@ func (m *MsgCreateZKExecutionISM) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgCreateZKExecutionISM) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgCreateEvolveEvmISM) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgCreateZKExecutionISM) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgCreateEvolveEvmISM) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -1380,7 +1374,7 @@ func (m *MsgCreateZKExecutionISM) MarshalToSizedBuffer(dAtA []byte) (int, error)
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgCreateZKExecutionISMResponse) Marshal() (dAtA []byte, err error) {
+func (m *MsgCreateEvolveEvmISMResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -1390,12 +1384,12 @@ func (m *MsgCreateZKExecutionISMResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgCreateZKExecutionISMResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgCreateEvolveEvmISMResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgCreateZKExecutionISMResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgCreateEvolveEvmISMResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -1413,7 +1407,7 @@ func (m *MsgCreateZKExecutionISMResponse) MarshalToSizedBuffer(dAtA []byte) (int
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgUpdateZKExecutionISM) Marshal() (dAtA []byte, err error) {
+func (m *MsgUpdateEvolveEvmISM) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -1423,12 +1417,12 @@ func (m *MsgUpdateZKExecutionISM) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgUpdateZKExecutionISM) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgUpdateEvolveEvmISM) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgUpdateZKExecutionISM) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgUpdateEvolveEvmISM) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -1467,7 +1461,7 @@ func (m *MsgUpdateZKExecutionISM) MarshalToSizedBuffer(dAtA []byte) (int, error)
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgUpdateZKExecutionISMResponse) Marshal() (dAtA []byte, err error) {
+func (m *MsgUpdateEvolveEvmISMResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -1477,12 +1471,12 @@ func (m *MsgUpdateZKExecutionISMResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgUpdateZKExecutionISMResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgUpdateEvolveEvmISMResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgUpdateZKExecutionISMResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgUpdateEvolveEvmISMResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -1670,7 +1664,7 @@ func encodeVarintTx(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *MsgCreateStateTransitionVerifier) Size() (n int) {
+func (m *MsgCreateConsensusISM) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1695,7 +1689,7 @@ func (m *MsgCreateStateTransitionVerifier) Size() (n int) {
 	return n
 }
 
-func (m *MsgCreateStateTransitionVerifierResponse) Size() (n int) {
+func (m *MsgCreateConsensusISMResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1708,7 +1702,7 @@ func (m *MsgCreateStateTransitionVerifierResponse) Size() (n int) {
 	return n
 }
 
-func (m *MsgUpdateStateTransitionVerifier) Size() (n int) {
+func (m *MsgUpdateConsensusISM) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1731,7 +1725,7 @@ func (m *MsgUpdateStateTransitionVerifier) Size() (n int) {
 	return n
 }
 
-func (m *MsgUpdateStateTransitionVerifierResponse) Size() (n int) {
+func (m *MsgUpdateConsensusISMResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1744,7 +1738,7 @@ func (m *MsgUpdateStateTransitionVerifierResponse) Size() (n int) {
 	return n
 }
 
-func (m *MsgCreateZKExecutionISM) Size() (n int) {
+func (m *MsgCreateEvolveEvmISM) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1791,7 +1785,7 @@ func (m *MsgCreateZKExecutionISM) Size() (n int) {
 	return n
 }
 
-func (m *MsgCreateZKExecutionISMResponse) Size() (n int) {
+func (m *MsgCreateEvolveEvmISMResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1802,7 +1796,7 @@ func (m *MsgCreateZKExecutionISMResponse) Size() (n int) {
 	return n
 }
 
-func (m *MsgUpdateZKExecutionISM) Size() (n int) {
+func (m *MsgUpdateEvolveEvmISM) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1825,7 +1819,7 @@ func (m *MsgUpdateZKExecutionISM) Size() (n int) {
 	return n
 }
 
-func (m *MsgUpdateZKExecutionISMResponse) Size() (n int) {
+func (m *MsgUpdateEvolveEvmISMResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1913,7 +1907,7 @@ func sovTx(x uint64) (n int) {
 func sozTx(x uint64) (n int) {
 	return sovTx(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *MsgCreateStateTransitionVerifier) Unmarshal(dAtA []byte) error {
+func (m *MsgCreateConsensusISM) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1936,10 +1930,10 @@ func (m *MsgCreateStateTransitionVerifier) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgCreateStateTransitionVerifier: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgCreateConsensusISM: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgCreateStateTransitionVerifier: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgCreateConsensusISM: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -2097,7 +2091,7 @@ func (m *MsgCreateStateTransitionVerifier) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MsgCreateStateTransitionVerifierResponse) Unmarshal(dAtA []byte) error {
+func (m *MsgCreateConsensusISMResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -2120,10 +2114,10 @@ func (m *MsgCreateStateTransitionVerifierResponse) Unmarshal(dAtA []byte) error 
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgCreateStateTransitionVerifierResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgCreateConsensusISMResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgCreateStateTransitionVerifierResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgCreateConsensusISMResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -2181,7 +2175,7 @@ func (m *MsgCreateStateTransitionVerifierResponse) Unmarshal(dAtA []byte) error 
 	}
 	return nil
 }
-func (m *MsgUpdateStateTransitionVerifier) Unmarshal(dAtA []byte) error {
+func (m *MsgUpdateConsensusISM) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -2204,10 +2198,10 @@ func (m *MsgUpdateStateTransitionVerifier) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgUpdateStateTransitionVerifier: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgUpdateConsensusISM: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgUpdateStateTransitionVerifier: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgUpdateConsensusISM: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -2365,7 +2359,7 @@ func (m *MsgUpdateStateTransitionVerifier) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MsgUpdateStateTransitionVerifierResponse) Unmarshal(dAtA []byte) error {
+func (m *MsgUpdateConsensusISMResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -2388,10 +2382,10 @@ func (m *MsgUpdateStateTransitionVerifierResponse) Unmarshal(dAtA []byte) error 
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgUpdateStateTransitionVerifierResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgUpdateConsensusISMResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgUpdateStateTransitionVerifierResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgUpdateConsensusISMResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -2449,7 +2443,7 @@ func (m *MsgUpdateStateTransitionVerifierResponse) Unmarshal(dAtA []byte) error 
 	}
 	return nil
 }
-func (m *MsgCreateZKExecutionISM) Unmarshal(dAtA []byte) error {
+func (m *MsgCreateEvolveEvmISM) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -2472,10 +2466,10 @@ func (m *MsgCreateZKExecutionISM) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgCreateZKExecutionISM: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgCreateEvolveEvmISM: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgCreateZKExecutionISM: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgCreateEvolveEvmISM: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -2807,7 +2801,7 @@ func (m *MsgCreateZKExecutionISM) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MsgCreateZKExecutionISMResponse) Unmarshal(dAtA []byte) error {
+func (m *MsgCreateEvolveEvmISMResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -2830,10 +2824,10 @@ func (m *MsgCreateZKExecutionISMResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgCreateZKExecutionISMResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgCreateEvolveEvmISMResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgCreateZKExecutionISMResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgCreateEvolveEvmISMResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -2891,7 +2885,7 @@ func (m *MsgCreateZKExecutionISMResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MsgUpdateZKExecutionISM) Unmarshal(dAtA []byte) error {
+func (m *MsgUpdateEvolveEvmISM) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -2914,10 +2908,10 @@ func (m *MsgUpdateZKExecutionISM) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgUpdateZKExecutionISM: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgUpdateEvolveEvmISM: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgUpdateZKExecutionISM: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgUpdateEvolveEvmISM: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -3075,7 +3069,7 @@ func (m *MsgUpdateZKExecutionISM) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MsgUpdateZKExecutionISMResponse) Unmarshal(dAtA []byte) error {
+func (m *MsgUpdateEvolveEvmISMResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -3098,10 +3092,10 @@ func (m *MsgUpdateZKExecutionISMResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgUpdateZKExecutionISMResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgUpdateEvolveEvmISMResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgUpdateZKExecutionISMResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgUpdateEvolveEvmISMResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:

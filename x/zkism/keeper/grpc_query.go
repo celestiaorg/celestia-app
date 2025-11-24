@@ -5,7 +5,6 @@ import (
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
-	"github.com/cosmos/cosmos-sdk/types/query"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -21,12 +20,8 @@ func NewQueryServerImpl(k *Keeper) types.QueryServer {
 	return queryServer{k}
 }
 
-// Ism implements types.QueryServer.
+// Ism returns a single ISM given by its id
 func (q queryServer) Ism(ctx context.Context, req *types.QueryIsmRequest) (*types.QueryIsmResponse, error) {
-	if req == nil {
-		return nil, status.Error(codes.InvalidArgument, "request cannot be empty")
-	}
-
 	ismId, err := util.DecodeHexAddress(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid hex address %s, %s", req.Id, err.Error())
@@ -34,72 +29,49 @@ func (q queryServer) Ism(ctx context.Context, req *types.QueryIsmRequest) (*type
 
 	ism, err := q.k.isms.Get(ctx, ismId.GetInternalId())
 	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "ism not found: %s", req.Id)
+		return nil, status.Errorf(codes.NotFound, "ism %s not found", req.Id)
 	}
 
-	return &types.QueryIsmResponse{
-		Ism: ism,
-	}, nil
+	resp := &types.QueryIsmResponse{}
+	switch v := ism.(type) {
+	case *types.ConsensusISM:
+		resp.Ism = &types.QueryIsmResponse_ConsensusIsm{ConsensusIsm: v}
+	case *types.EvolveEvmISM:
+		resp.Ism = &types.QueryIsmResponse_EvolveEvmIsm{EvolveEvmIsm: v}
+	default:
+		return nil, status.Errorf(codes.Internal, "unknown ISM type: %T", ism)
+	}
+
+	return resp, nil
 }
 
-func (q queryServer) Verifiers(ctx context.Context, req *types.QueryVerifiersRequest) (*types.QueryVerifiersResponse, error) {
-	if req == nil {
-		return nil, status.Error(codes.InvalidArgument, "request cannot be empty")
-	}
-
-	transformFunc := func(_ uint64, value types.StateTransitionVerifier) (types.StateTransitionVerifier, error) {
-		return value, nil
-	}
-
-	verifiers, pageRes, err := query.CollectionPaginate(ctx, q.k.verifiers, req.Pagination, transformFunc)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
-	return &types.QueryVerifiersResponse{
-		Verifiers:  verifiers,
-		Pagination: pageRes,
-	}, nil
-}
-
-func (q queryServer) Verifier(ctx context.Context, req *types.QueryVerifierRequest) (*types.QueryVerifierResponse, error) {
-	if req == nil {
-		return nil, status.Error(codes.InvalidArgument, "request cannot be empty")
-	}
-
-	verifierId, err := util.DecodeHexAddress(req.Id)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid hex address %s, %s", req.Id, err.Error())
-	}
-
-	verifier, err := q.k.verifiers.Get(ctx, verifierId.GetInternalId())
-	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "verifier not found: %s", req.Id)
-	}
-
-	return &types.QueryVerifierResponse{
-		Verifier: verifier,
-	}, nil
-}
-
-// Isms implements types.QueryServer.
+// Isms returns all ism IDs which are registered in this module.
 func (q queryServer) Isms(ctx context.Context, req *types.QueryIsmsRequest) (*types.QueryIsmsResponse, error) {
-	if req == nil {
-		return nil, status.Error(codes.InvalidArgument, "request cannot be empty")
-	}
-
-	transformFunc := func(_ uint64, value types.ZKExecutionISM) (types.ZKExecutionISM, error) {
-		return value, nil
-	}
-
-	isms, pageRes, err := query.CollectionPaginate(ctx, q.k.isms, req.Pagination, transformFunc)
+	values, pagination, err := util.GetPaginatedFromMap(ctx, q.k.isms, req.Pagination)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	ismIds := make([]string, len(values))
+	for i, value := range values {
+		var id util.HexAddress
+		switch v := value.(type) {
+		case *types.ConsensusISM:
+			id, err = v.GetId()
+		case *types.EvolveEvmISM:
+			id, err = v.GetId()
+		default:
+			return nil, status.Errorf(codes.Internal, "unexpected ISM type: %T", value)
+		}
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to get ISM ID: %s", err.Error())
+		}
+		ismIds[i] = id.String()
 	}
 
 	return &types.QueryIsmsResponse{
-		Isms:       isms,
-		Pagination: pageRes,
+		IsmIds:     ismIds,
+		Pagination: pagination,
 	}, nil
 }
 
