@@ -2,6 +2,10 @@ package cmd
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"testing"
+
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
@@ -10,9 +14,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"os"
-	"path/filepath"
-	"testing"
 )
 
 func TestOverrideConsensusConfig_Integration(t *testing.T) {
