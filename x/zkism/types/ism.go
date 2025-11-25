@@ -16,8 +16,10 @@ const (
 	InterchainSecurityModuleTypeStateTransition = 43
 )
 
-var _ ismtypes.HyperlaneInterchainSecurityModule = (*EvolveEvmISM)(nil)
-var _ ismtypes.HyperlaneInterchainSecurityModule = (*ConsensusISM)(nil)
+var (
+	_ ismtypes.HyperlaneInterchainSecurityModule = (*EvolveEvmISM)(nil)
+	_ ismtypes.HyperlaneInterchainSecurityModule = (*ConsensusISM)(nil)
+)
 
 // GetId implements types.HyperlaneInterchainSecurityModule.
 func (ism *EvolveEvmISM) GetId() (util.HexAddress, error) {

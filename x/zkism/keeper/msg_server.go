@@ -77,7 +77,7 @@ func (m msgServer) UpdateConsensusISM(ctx context.Context, msg *types.MsgUpdateC
 	}
 
 	// extract the new trusted state from trusted state
-	ism.TrustedState = publicValues.NewTrustedState[:]
+	ism.TrustedState = publicValues.NewTrustedState
 	if err := m.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
 		return nil, err
 	}

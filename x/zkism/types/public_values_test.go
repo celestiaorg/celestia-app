@@ -23,7 +23,6 @@ func TestGenericPublicValuesEncoding(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, expected.TrustedState, decoded.TrustedState)
-
 }
 
 func TestStateTransitionPublicValuesEncoding(t *testing.T) {

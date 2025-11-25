@@ -22,8 +22,8 @@ func (p *StateTransitionPublicValues) String() string {
 	TrustedState: %s,
 	NewTrustedState:     %s,
 }`,
-		hex.EncodeToString(p.TrustedState[:]),
-		hex.EncodeToString(p.TrustedState[:]),
+		hex.EncodeToString(p.TrustedState),
+		hex.EncodeToString(p.NewTrustedState),
 	)
 }
 
