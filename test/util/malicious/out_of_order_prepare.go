@@ -69,7 +69,7 @@ func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci
 	eds, err := ExtendShares(share.ToBytes(dataSquare))
 	if err != nil {
 		a.Logger().Error(
-			"failure to erasure the data square while creating a proposal block",
+			"failure to erase the data square while creating a proposal block",
 			"error",
 			err.Error(),
 		)

@@ -212,7 +212,7 @@ func getCommandArgs(appOpts servertypes.AppOptions) (valArgs, error) {
 	}
 	args.upgradeToTrigger = upgradeToTrigger
 
-	// parsing  and set accounts to fund
+	// parsing and set accounts to fund
 	accountsString := cast.ToString(appOpts.Get(flagAccountsToFund))
 	args.accountsToFund = append(args.accountsToFund, strings.Split(accountsString, ",")...)
 
