@@ -93,7 +93,7 @@ func TestServerUploadShard(t *testing.T) {
 			},
 			check: func(t *testing.T, resp *types.UploadShardResponse, err error) {
 				require.Error(t, err)
-				require.Contains(t, err.Error(), "row assignment verification failed")
+				require.Contains(t, err.Error(), "shard assignment verification failed")
 			},
 		},
 		{
@@ -310,7 +310,11 @@ func (m *testPrivValidator) GetPubKey() (crypto.PubKey, error) {
 }
 
 func (m *testPrivValidator) SignRawBytes(chainID, uniqueID string, rawBytes []byte) ([]byte, error) {
-	return m.privKey.Sign(rawBytes)
+	signBytes, err := core.RawBytesMessageSignBytes(chainID, uniqueID, rawBytes)
+	if err != nil {
+		return nil, err
+	}
+	return m.privKey.Sign(signBytes)
 }
 
 func (m *testPrivValidator) SignVote(chainID string, vote *cmtproto.Vote) error {

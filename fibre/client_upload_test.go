@@ -353,13 +353,19 @@ func (v *validatorMockClient) UploadShard(ctx context.Context, req *types.Upload
 		return nil, err
 	}
 
+	// Wrap sign bytes with domain separation (matching client_upload.go)
+	validatorSignBytes, err := core.RawBytesMessageSignBytes(pp.ChainID, fibre.SignBytesPrefix, signBytes)
+	if err != nil {
+		return nil, err
+	}
+
 	privKeyBytes := v.privKey.Bytes()
 	if len(privKeyBytes) != ed25519.PrivateKeySize {
 		return nil, fmt.Errorf("invalid private key size: got %d, want %d", len(privKeyBytes), ed25519.PrivateKeySize)
 	}
 
 	return &types.UploadShardResponse{
-		ValidatorSignature: ed25519.Sign(ed25519.PrivateKey(privKeyBytes), signBytes),
+		ValidatorSignature: ed25519.Sign(ed25519.PrivateKey(privKeyBytes), validatorSignBytes),
 	}, nil
 }
 
