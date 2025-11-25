@@ -174,9 +174,9 @@ const (
 	// (excluding encoding overhead, like protobuf)
 	MaxPaymentPromiseSize = signBytesFixedSize + signatureSize + maxChainIDSize
 
-	// signBytesPrefix is prepended to the sign bytes to ensure the resulting signed message
+	// SignBytesPrefix is prepended to the sign bytes to ensure the resulting signed message
 	// can't be confused with a consensus message (domain separation).
-	signBytesPrefix = "fibre/pp:v0"
+	SignBytesPrefix = "fibre/pp:v0"
 	// signBytesFixedSize is the size of all the constant fixed size fields.
 	// Format: signerPubKey(33) + namespace(29) + blobSize(4) + commitment(32) + blobVersion(4) + height(8) + timestamp(15)
 	signBytesFixedSize = secp256k1.PubKeySize + share.NamespaceSize + 4 + 32 + 4 + 8 + 15
@@ -208,11 +208,11 @@ func (p *PaymentPromise) SignBytes() ([]byte, error) {
 		}
 
 		// calculate total size including the prefix
-		totalSize := len(signBytesPrefix) + len(p.ChainID) + signBytesFixedSize
+		totalSize := len(SignBytesPrefix) + len(p.ChainID) + signBytesFixedSize
 		buf := make([]byte, 0, totalSize)
 
 		// prepend domain separation prefix
-		buf = append(buf, []byte(signBytesPrefix)...)
+		buf = append(buf, []byte(SignBytesPrefix)...)
 		// append chainID
 		buf = append(buf, []byte(p.ChainID)...)
 		// append signer_bytes (33 bytes - compressed public key)
