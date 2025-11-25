@@ -31,7 +31,8 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+
+	// sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	"go.opentelemetry.io/otel/attribute"
@@ -385,7 +386,7 @@ func (client *TxClient) QueueBlob(ctx context.Context, resultC chan SubmissionRe
 // SubmitPayForBlobWithAccount forms a transaction from the provided blobs, signs it with the provided account, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
 func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, accountName string, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
-	resp, err := client.BroadcastPayForBlobWithAccount(ctx, accountName, blobs, opts...)
+	resp, _, err := client.BroadcastPayForBlobWithAccount(ctx, accountName, blobs, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -404,23 +405,24 @@ func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account
 // If no gas or gas price is set, it will estimate the gas and use
 // the max effective gas price: max(localMinGasPrice, networkMinGasPrice).
 func (client *TxClient) BroadcastPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
-	return client.BroadcastPayForBlobWithAccount(ctx, client.defaultAccount, blobs, opts...)
+	resp, _, err := client.BroadcastPayForBlobWithAccount(ctx, client.defaultAccount, blobs, opts...)
+	return resp, err
 }
 
-func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, accountName string, blobs []*share.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, accountName string, blobs []*share.Blob, opts ...TxOption) (*sdktypes.TxResponse, []byte, error) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 	if err := client.checkAccountLoaded(ctx, accountName); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	acc, exists := client.signer.accounts[accountName]
 	if !exists {
-		return nil, fmt.Errorf("account %s not found", accountName)
+		return nil, nil, fmt.Errorf("account %s not found", accountName)
 	}
 	signer := acc.Address().String()
 	msg, err := blobtypes.NewMsgPayForBlobs(signer, 0, blobs...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	gasLimit := blobtypes.DefaultEstimateGas(msg)
 	fee := uint64(math.Ceil(appconsts.DefaultMinGasPrice * float64(gasLimit)))
@@ -429,10 +431,15 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 
 	txBytes, _, err := client.signer.CreatePayForBlobs(accountName, blobs, opts...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return client.routeTx(ctx, txBytes, accountName)
+	resp, err := client.routeTx(ctx, txBytes, accountName)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return resp, txBytes, nil
 }
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
@@ -485,31 +492,33 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 		}
 		gasLimit, err = client.estimateGas(ctx, txBuilder)
 		if err != nil {
-			// If not a sequence mismatch, return the error.
-			if !strings.Contains(err.Error(), sdkerrors.ErrWrongSequence.Error()) {
-				return nil, err
-			}
-
-			// Handle the sequence mismatch path by setting the sequence to the expected sequence
-			// and retrying gas estimation.
-			parsedErr := extractSequenceError(err.Error())
-
-			expectedSequence, err := apperrors.ParseExpectedSequence(parsedErr)
-			if err != nil {
-				return nil, fmt.Errorf("parsing sequence mismatch: %w. RawLog: %s", err, err)
-			}
-
-			if err = client.signer.SetSequence(account, expectedSequence); err != nil {
-				return nil, fmt.Errorf("setting sequence: %w", err)
-			}
-
-			// Retry gas estimation with the corrected sequence.
-			gasLimit, err = client.estimateGas(ctx, txBuilder)
-			if err != nil {
-				return nil, fmt.Errorf("retrying gas estimation: %w", err)
-			}
+			return nil, err
 		}
-		txBuilder.SetGasLimit(gasLimit)
+		// 	// If not a sequence mismatch, return the error.
+		// 	if !strings.Contains(err.Error(), sdkerrors.ErrWrongSequence.Error()) {
+		// 		return nil, err
+		// 	}
+
+		// 	// Handle the sequence mismatch path by setting the sequence to the expected sequence
+		// 	// and retrying gas estimation.
+		// 	parsedErr := extractSequenceError(err.Error())
+
+		// 	expectedSequence, err := apperrors.ParseExpectedSequence(parsedErr)
+		// 	if err != nil {
+		// 		return nil, fmt.Errorf("parsing sequence mismatch: %w. RawLog: %s", err, err)
+		// 	}
+
+		// 	if err = client.signer.SetSequence(account, expectedSequence); err != nil {
+		// 		return nil, fmt.Errorf("setting sequence: %w", err)
+		// 	}
+
+		// 	// Retry gas estimation with the corrected sequence.
+		// 	gasLimit, err = client.estimateGas(ctx, txBuilder)
+		// 	if err != nil {
+		// 		return nil, fmt.Errorf("retrying gas estimation: %w", err)
+		// 	}
+		// }
+		// txBuilder.SetGasLimit(gasLimit)
 	}
 
 	if !hasUserSetFee {
@@ -541,14 +550,14 @@ func (client *TxClient) routeTx(ctx context.Context, txBytes []byte, signer stri
 		return client.submitToMultipleConnections(ctx, txBytes, signer)
 	}
 	span.AddEvent("txclient: broadcasting PFB to single endpoint")
-	return client.submitToSingleConnection(ctx, txBytes, signer)
+	return client.SubmitToSingleConnectionWithoutRetry(ctx, txBytes, signer)
 }
 
 // submitToSingleConnection handles submission to a single connection with retry logic at sequence mismatches and sequence management
 func (client *TxClient) submitToSingleConnection(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
 	span := trace.SpanFromContext(ctx)
 
-	resp, err := client.sendTxToConnection(ctx, client.conns[0], txBytes)
+	resp, err := client.SendTxToConnection(ctx, client.conns[0], txBytes)
 	if err != nil {
 		broadcastTxErr, ok := err.(*BroadcastTxError)
 		if !ok || !apperrors.IsNonceMismatchCode(broadcastTxErr.Code) {
@@ -570,7 +579,7 @@ func (client *TxClient) submitToSingleConnection(ctx context.Context, txBytes []
 		}
 
 		span.AddEvent("txclient/submitToSingleConnection: successfully rebroadcasted tx after sequence mismatch")
-		return client.submitToSingleConnection(ctx, retryTxBytes, signer)
+		return client.SubmitToSingleConnectionWithoutRetry(ctx, retryTxBytes, signer)
 	}
 	// Save the sequence, signer and txBytes of the in the local txTracker
 	// before the sequence is incremented
@@ -585,8 +594,29 @@ func (client *TxClient) submitToSingleConnection(ctx context.Context, txBytes []
 	return resp, nil
 }
 
+func (client *TxClient) SubmitToSingleConnectionWithoutRetry(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+	// span := trace.SpanFromContext(ctx)
+
+	resp, err := client.SendTxToConnection(ctx, client.conns[0], txBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	// Save the sequence, signer and txBytes of the in the local txTracker
+	// before the sequence is incremented
+	sequence := client.signer.Account(signer).Sequence()
+	client.TxTracker.trackTransaction(signer, sequence, resp.TxHash, txBytes)
+
+	// Increment sequence after successful submission
+	if err := client.signer.IncrementSequence(signer); err != nil {
+		return nil, fmt.Errorf("error incrementing sequence: %w", err)
+	}
+
+	return resp, nil
+}
+
 // sendTxToConnection broadcasts a transaction to the chain and returns the response.
-func (client *TxClient) sendTxToConnection(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
+func (client *TxClient) SendTxToConnection(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
 	span := trace.SpanFromContext(ctx)
 
 	resp, err := sdktx.NewServiceClient(conn).BroadcastTx(
@@ -687,7 +717,7 @@ func (client *TxClient) submitToMultipleConnections(ctx context.Context, txBytes
 		go func(conn *grpc.ClientConn) {
 			defer wg.Done()
 
-			resp, err := client.sendTxToConnection(ctx, conn, txBytes)
+			resp, err := client.SendTxToConnection(ctx, conn, txBytes)
 			if err != nil {
 				errCh <- err
 				return
@@ -788,7 +818,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			))
 
 			// If we're not already tracking eviction timeout, try to resubmit
-			_, err := client.sendTxToConnection(ctx, client.conns[0], txBytes)
+			_, err := client.SendTxToConnection(ctx, client.conns[0], txBytes)
 			if err != nil {
 				// Check if the error is a broadcast tx error
 				_, ok := err.(*BroadcastTxError)

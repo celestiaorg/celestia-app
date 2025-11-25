@@ -167,7 +167,7 @@ func (c *TxClient) StartSequentialQueueWithPollTime(ctx context.Context, account
 	}
 
 	queue := newSequentialQueue(c, accountName, pollTime)
-	queue.start();
+	queue.start()
 
 	c.sequentialQueues[accountName] = queue
 	return nil
@@ -220,7 +220,6 @@ func (c *TxClient) SubmitPFBToSequentialQueueWithAccount(ctx context.Context, ac
 		Ctx:      ctx,
 		ResultsC: resultsC,
 	}
-	fmt.Println("Submitting job to sequential queue")
 	queue.submitJob(job)
 
 	// Wait for result
@@ -249,22 +248,15 @@ func (c *TxClient) GetSequentialQueueSize(accountName string) (int, error) {
 }
 
 // BroadcastPayForBlobWithoutRetry broadcasts a PayForBlob transaction without automatic retry logic.
-func (c *TxClient) BroadcastPayForBlobWithoutRetry(ctx context.Context, accountName string, blobs []*share.Blob, opts ...user.TxOption) (*sdktypes.TxResponse, error) {
+// Returns the transaction response and the raw transaction bytes.
+func (c *TxClient) BroadcastPayForBlobWithoutRetry(ctx context.Context, accountName string, blobs []*share.Blob, opts ...user.TxOption) (*sdktypes.TxResponse, []byte, error) {
 	// Use BroadcastPayForBlobWithAccount but without confirmation
-	resp, err := c.TxClient.BroadcastPayForBlobWithAccount(ctx, accountName, blobs, opts...)
+	resp, txBytes, err := c.TxClient.BroadcastPayForBlobWithAccount(ctx, accountName, blobs, opts...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &sdktypes.TxResponse{
-		Height:    resp.Height,
-		TxHash:    resp.TxHash,
-		Code:      resp.Code,
-		Codespace: resp.Codespace,
-		GasWanted: resp.GasWanted,
-		GasUsed:   resp.GasUsed,
-		Signers:   resp.Signers,
-	}, nil
+	return resp, txBytes, nil
 }
 
 // ResubmitTxBytes resubmits a transaction using pre-signed bytes without retry logic
