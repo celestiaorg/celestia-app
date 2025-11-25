@@ -1,7 +1,6 @@
 package keeper
 
 import (
-	"bytes"
 	"context"
 
 	"cosmossdk.io/collections"
@@ -107,48 +106,4 @@ func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, metadata []b
 	}
 
 	return authorized, nil
-}
-
-func (k *Keeper) validateEvolveEvmPublicValues(ctx context.Context, ism types.EvolveEvmISM, publicValues types.EvExecutionPublicValues) error {
-	headerHash, err := k.GetHeaderHash(ctx, publicValues.CelestiaHeight)
-	if err != nil {
-		return errorsmod.Wrapf(types.ErrHeaderHashNotFound, "failed to get header for height %d", publicValues.CelestiaHeight)
-	}
-
-	if !bytes.Equal(headerHash, publicValues.CelestiaHeaderHash[:]) {
-		return errorsmod.Wrapf(types.ErrInvalidHeaderHash, "expected %x, got %x", headerHash, publicValues.CelestiaHeaderHash[:])
-	}
-
-	if !bytes.Equal(publicValues.TrustedStateRoot[:], ism.StateRoot) {
-		return errorsmod.Wrapf(types.ErrInvalidStateRoot, "expected %x, got %x", ism.StateRoot, publicValues.TrustedStateRoot)
-	}
-
-	if publicValues.PrevCelestiaHeight != ism.CelestiaHeight {
-		return errorsmod.Wrapf(types.ErrInvalidHeight, "expected %d, got %d", ism.CelestiaHeight, publicValues.PrevCelestiaHeight)
-	}
-
-	if !bytes.Equal(publicValues.PrevCelestiaHeaderHash[:], ism.CelestiaHeaderHash) {
-		return errorsmod.Wrapf(types.ErrInvalidHeaderHash, "expected %x, got %x", ism.CelestiaHeaderHash, publicValues.PrevCelestiaHeaderHash)
-	}
-
-	if publicValues.TrustedHeight != ism.Height {
-		return errorsmod.Wrapf(types.ErrInvalidHeight, "expected %d, got %d", ism.Height, publicValues.TrustedHeight)
-	}
-
-	if !bytes.Equal(publicValues.Namespace[:], ism.Namespace) {
-		return errorsmod.Wrapf(types.ErrInvalidNamespace, "expected %x, got %x", ism.Namespace, publicValues.Namespace)
-	}
-
-	if !bytes.Equal(publicValues.PublicKey[:], ism.SequencerPublicKey) {
-		return errorsmod.Wrapf(types.ErrInvalidSequencerKey, "expected %x, got %x", ism.SequencerPublicKey, publicValues.PublicKey)
-	}
-
-	return nil
-}
-
-func (k *Keeper) validateConsensusPublicValues(ctx context.Context, ism types.ConsensusISM, publicValues types.StateTransitionPublicValues) error {
-	if !bytes.Equal(publicValues.TrustedState, ism.TrustedState) {
-		return errorsmod.Wrapf(types.ErrInvalidStateRoot, "expected %x, got %x", ism.TrustedState, publicValues.TrustedState)
-	}
-	return nil
 }

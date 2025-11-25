@@ -53,7 +53,7 @@ func (m msgServer) UpdateConsensusISM(ctx context.Context, msg *types.MsgUpdateC
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id)
 	}
 
-	vrf, ok := ismInterface.(*types.ConsensusISM)
+	ism, ok := ismInterface.(*types.ConsensusISM)
 	if !ok {
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "ISM is not a ConsensusISM: %s", msg.Id)
 	}
@@ -63,31 +63,31 @@ func (m msgServer) UpdateConsensusISM(ctx context.Context, msg *types.MsgUpdateC
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
 	}
 
-	if err := m.validateConsensusPublicValues(ctx, *vrf, publicValues); err != nil {
+	if err := ism.ValidatePublicValues(ctx, publicValues); err != nil {
 		return nil, err
 	}
 
-	verifier, err := types.NewSP1Groth16Verifier(vrf.Groth16Vkey)
+	verifier, err := types.NewSP1Groth16Verifier(ism.Groth16Vkey)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := verifier.VerifyProof(msg.Proof, vrf.StateTransitionVkey, msg.PublicValues); err != nil {
+	if err := verifier.VerifyProof(msg.Proof, ism.StateTransitionVkey, msg.PublicValues); err != nil {
 		return nil, err
 	}
 
 	// extract the new trusted state from trusted state
-	vrf.TrustedState = publicValues.NewTrustedState[:]
-	if err := m.isms.Set(ctx, vrf.Id.GetInternalId(), vrf); err != nil {
+	ism.TrustedState = publicValues.NewTrustedState[:]
+	if err := m.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
 		return nil, err
 	}
 
-	if err := EmitUpdateConsensusISMEvent(sdk.UnwrapSDKContext(ctx), *vrf); err != nil {
+	if err := EmitUpdateConsensusISMEvent(sdk.UnwrapSDKContext(ctx), *ism); err != nil {
 		return nil, err
 	}
 
 	return &types.MsgUpdateConsensusISMResponse{
-		TrustedState: vrf.TrustedState,
+		TrustedState: ism.TrustedState,
 	}, nil
 }
 
@@ -142,7 +142,7 @@ func (m msgServer) UpdateEvolveEvmISM(ctx context.Context, msg *types.MsgUpdateE
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
 	}
 
-	if err := m.validateEvolveEvmPublicValues(ctx, *ism, publicValues); err != nil {
+	if err := ism.ValidatePublicValues(ctx, publicValues, m.Keeper); err != nil {
 		return nil, err
 	}
 
@@ -193,6 +193,8 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
 	}
 
+	// this must be handled differently for the ConsensusISM, where the state_root should be the first 32 bytes of trusted_state
+	// todo: add an implementation for that case with the only difference being the state_root comparison, all other logic is shared
 	if !bytes.Equal(publicValues.StateRoot[:], ism.StateRoot) {
 		return nil, errorsmod.Wrapf(types.ErrInvalidStateRoot, "expected %x, got %x", ism.StateRoot, publicValues.StateRoot)
 	}
