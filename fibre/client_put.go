@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v6/x/fibre/types"
-	"github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/go-square/v4/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
