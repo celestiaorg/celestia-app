@@ -34,6 +34,7 @@ message QueryIsmRequest {
 
 // QueryIsmResponse is the response type for the Ism rpc method.
 message QueryIsmResponse {
+  // ism contains the requested ISM, which can be either a ConsensusISM or an EvolveEvmISM.
   oneof ism {
     ConsensusISM consensus_ism = 1;
     EvolveEvmISM evolve_evm_ism = 2;
