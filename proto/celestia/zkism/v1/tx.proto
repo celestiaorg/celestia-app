@@ -13,11 +13,11 @@ option go_package = "github.com/celestiaorg/celestia-app/x/zkism/types";
 service Msg {
   option (cosmos.msg.v1.service) = true;
 
-  // CreateZKExecutionISM defines the rpc method for creating a new ZK execution ISM.
-  rpc CreateZKExecutionISM(MsgCreateZKExecutionISM) returns (MsgCreateZKExecutionISMResponse);
+  // CreateInterchainSecurityModule defines the rpc method for creating a new ZK execution ISM.
+  rpc CreateInterchainSecurityModule(MsgCreateInterchainSecurityModule) returns (MsgCreateInterchainSecurityModuleResponse);
 
-  // UpdateZKExecutionISM defines the rpc method for updating an existing ZK execution ISM.
-  rpc UpdateZKExecutionISM(MsgUpdateZKExecutionISM) returns (MsgUpdateZKExecutionISMResponse);
+  // UpdateInterchainSecurityModule defines the rpc method for updating an existing ZK execution ISM.
+  rpc UpdateInterchainSecurityModule(MsgUpdateInterchainSecurityModule) returns (MsgUpdateInterchainSecurityModuleResponse);
 
   // SubmitMessages defines the rpc method for verifying state membership of messages.
   rpc SubmitMessages(MsgSubmitMessages) returns (MsgSubmitMessagesResponse);
@@ -26,8 +26,8 @@ service Msg {
   rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
 }
 
-// MsgCreateZKExecutionISM is the request type for CreateZKExecutionISM.
-message MsgCreateZKExecutionISM {
+// MsgCreateInterchainSecurityModule is the request type for CreateInterchainSecurityModule.
+message MsgCreateInterchainSecurityModule {
   option (cosmos.msg.v1.signer) = "creator";
   // creator is the message sender.
   string creator = 1;
@@ -41,16 +41,16 @@ message MsgCreateZKExecutionISM {
   bytes state_membership_vkey = 5;
 }
 
-// MsgCreateZKExecutionISMResponse is the response type for CreateZKExecutionISM.
-message MsgCreateZKExecutionISMResponse {
+// MsgCreateInterchainSecurityModuleResponse is the response type for CreateInterchainSecurityModule.
+message MsgCreateInterchainSecurityModuleResponse {
   string id = 1 [
     (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
     (gogoproto.nullable)   = false
   ];
 }
 
-// MsgUpdateZKExecutionISM is the request type for UpdateZKExecutionISM.
-message MsgUpdateZKExecutionISM {
+// MsgUpdateInterchainSecurityModule is the request type for UpdateInterchainSecurityModule.
+message MsgUpdateInterchainSecurityModule {
   option (cosmos.msg.v1.signer) = "signer";
 
   // ism identifier
@@ -66,8 +66,8 @@ message MsgUpdateZKExecutionISM {
   string signer = 4;
 }
 
-// MsgUpdateZKExecutionISMResponse is the response type for UpdateZKExecutionISM.
-message MsgUpdateZKExecutionISMResponse {
+// MsgUpdateInterchainSecurityModuleResponse is the response type for UpdateInterchainSecurityModule.
+message MsgUpdateInterchainSecurityModuleResponse {
   // current ism state
   bytes state = 1;
 }

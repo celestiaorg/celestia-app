@@ -19,7 +19,7 @@ var _ util.InterchainSecurityModule = (*Keeper)(nil)
 // Keeper implements the InterchainSecurityModule interface required by the Hyperlane ISM Router.
 type Keeper struct {
 	headers  collections.Map[uint64, []byte]
-	isms     collections.Map[uint64, types.ZKExecutionISM]
+	isms     collections.Map[uint64, types.InterchainSecurityModule]
 	messages collections.KeySet[[]byte]
 	params   collections.Item[types.Params]
 	schema   collections.Schema
@@ -33,7 +33,7 @@ func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlane
 	sb := collections.NewSchemaBuilder(storeService)
 
 	headers := collections.NewMap(sb, types.HeadersKeyPrefix, "headers", collections.Uint64Key, collections.BytesValue)
-	isms := collections.NewMap(sb, types.IsmsKeyPrefix, "isms", collections.Uint64Key, codec.CollValue[types.ZKExecutionISM](cdc))
+	isms := collections.NewMap(sb, types.IsmsKeyPrefix, "isms", collections.Uint64Key, codec.CollValue[types.InterchainSecurityModule](cdc))
 	messages := collections.NewKeySet(sb, types.MessageKeyPrefix, "messages", collections.BytesKey)
 	params := collections.NewItem(sb, types.ParamsKeyPrefix, "params", codec.CollValue[types.Params](cdc))
 
@@ -102,7 +102,7 @@ func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, _ []byte, me
 	return authorized, nil
 }
 
-func (k *Keeper) validatePublicValues(ctx context.Context, ism types.ZKExecutionISM, publicValues types.EvExecutionPublicValues) error {
+func (k *Keeper) validatePublicValues(ctx context.Context, ism types.InterchainSecurityModule, publicValues types.EvExecutionPublicValues) error {
 	if !bytes.Equal(ism.State, publicValues.State) {
 		return errorsmod.Wrapf(types.ErrInvalidState, "expected %x, got %x", ism.State, publicValues.State)
 	}

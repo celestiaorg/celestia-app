@@ -48,7 +48,7 @@ func (q queryServer) Isms(ctx context.Context, req *types.QueryIsmsRequest) (*ty
 		return nil, status.Error(codes.InvalidArgument, "request cannot be empty")
 	}
 
-	transformFunc := func(_ uint64, value types.ZKExecutionISM) (types.ZKExecutionISM, error) {
+	transformFunc := func(_ uint64, value types.InterchainSecurityModule) (types.InterchainSecurityModule, error) {
 		return value, nil
 	}
 

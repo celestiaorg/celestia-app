@@ -7,8 +7,8 @@ option go_package = "github.com/celestiaorg/celestia-app/x/zkism/types";
 import "cosmos_proto/cosmos.proto";
 import "gogoproto/gogo.proto";
 
-// ZKExecutionISM defines the Hyperlane interchain security module (ISM).
-message ZKExecutionISM {
+// InterchainSecurityModule defines the Hyperlane interchain security module (ISM).
+message InterchainSecurityModule {
   option (gogoproto.goproto_getters) = false;
 
   // unique hyperlane identifier

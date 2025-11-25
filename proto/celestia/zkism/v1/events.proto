@@ -7,8 +7,8 @@ option go_package = "github.com/celestiaorg/celestia-app/x/zkism/types";
 import "cosmos_proto/cosmos.proto";
 import "gogoproto/gogo.proto";
 
-// EventCreateZKExecutionISM defines the event type emitted when creating a new ZKExecutionISM.
-message EventCreateZKExecutionISM {
+// EventCreateInterchainSecurityModule defines the event type emitted when creating a new InterchainSecurityModule.
+message EventCreateInterchainSecurityModule {
   option (gogoproto.goproto_getters) = false;
 
   // unique hyperlane identifier
@@ -30,8 +30,8 @@ message EventCreateZKExecutionISM {
   string state_membership_vkey = 7;
 }
 
-// EventUpdateZKExecutionISM defines the event type emitted when updating a ZKExecutionISM.
-message EventUpdateZKExecutionISM {
+// EventUpdateInterchainSecurityModule defines the event type emitted when updating a InterchainSecurityModule.
+message EventUpdateInterchainSecurityModule {
   option (gogoproto.goproto_getters) = false;
 
   // unique hyperlane identifier

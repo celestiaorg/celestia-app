@@ -31,8 +31,8 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// MsgCreateZKExecutionISM is the request type for CreateZKExecutionISM.
-type MsgCreateZKExecutionISM struct {
+// MsgCreateInterchainSecurityModule is the request type for CreateInterchainSecurityModule.
+type MsgCreateInterchainSecurityModule struct {
 	// creator is the message sender.
 	Creator string `protobuf:"bytes,1,opt,name=creator,proto3" json:"creator,omitempty"`
 	// initial state
@@ -45,18 +45,18 @@ type MsgCreateZKExecutionISM struct {
 	StateMembershipVkey []byte `protobuf:"bytes,5,opt,name=state_membership_vkey,json=stateMembershipVkey,proto3" json:"state_membership_vkey,omitempty"`
 }
 
-func (m *MsgCreateZKExecutionISM) Reset()         { *m = MsgCreateZKExecutionISM{} }
-func (m *MsgCreateZKExecutionISM) String() string { return proto.CompactTextString(m) }
-func (*MsgCreateZKExecutionISM) ProtoMessage()    {}
-func (*MsgCreateZKExecutionISM) Descriptor() ([]byte, []int) {
+func (m *MsgCreateInterchainSecurityModule) Reset()         { *m = MsgCreateInterchainSecurityModule{} }
+func (m *MsgCreateInterchainSecurityModule) String() string { return proto.CompactTextString(m) }
+func (*MsgCreateInterchainSecurityModule) ProtoMessage()    {}
+func (*MsgCreateInterchainSecurityModule) Descriptor() ([]byte, []int) {
 	return fileDescriptor_9627100907186bb5, []int{0}
 }
-func (m *MsgCreateZKExecutionISM) XXX_Unmarshal(b []byte) error {
+func (m *MsgCreateInterchainSecurityModule) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgCreateZKExecutionISM) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgCreateInterchainSecurityModule) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgCreateZKExecutionISM.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgCreateInterchainSecurityModule.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -66,70 +66,74 @@ func (m *MsgCreateZKExecutionISM) XXX_Marshal(b []byte, deterministic bool) ([]b
 		return b[:n], nil
 	}
 }
-func (m *MsgCreateZKExecutionISM) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgCreateZKExecutionISM.Merge(m, src)
+func (m *MsgCreateInterchainSecurityModule) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgCreateInterchainSecurityModule.Merge(m, src)
 }
-func (m *MsgCreateZKExecutionISM) XXX_Size() int {
+func (m *MsgCreateInterchainSecurityModule) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgCreateZKExecutionISM) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgCreateZKExecutionISM.DiscardUnknown(m)
+func (m *MsgCreateInterchainSecurityModule) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgCreateInterchainSecurityModule.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgCreateZKExecutionISM proto.InternalMessageInfo
+var xxx_messageInfo_MsgCreateInterchainSecurityModule proto.InternalMessageInfo
 
-func (m *MsgCreateZKExecutionISM) GetCreator() string {
+func (m *MsgCreateInterchainSecurityModule) GetCreator() string {
 	if m != nil {
 		return m.Creator
 	}
 	return ""
 }
 
-func (m *MsgCreateZKExecutionISM) GetState() []byte {
+func (m *MsgCreateInterchainSecurityModule) GetState() []byte {
 	if m != nil {
 		return m.State
 	}
 	return nil
 }
 
-func (m *MsgCreateZKExecutionISM) GetGroth16Vkey() []byte {
+func (m *MsgCreateInterchainSecurityModule) GetGroth16Vkey() []byte {
 	if m != nil {
 		return m.Groth16Vkey
 	}
 	return nil
 }
 
-func (m *MsgCreateZKExecutionISM) GetStateTransitionVkey() []byte {
+func (m *MsgCreateInterchainSecurityModule) GetStateTransitionVkey() []byte {
 	if m != nil {
 		return m.StateTransitionVkey
 	}
 	return nil
 }
 
-func (m *MsgCreateZKExecutionISM) GetStateMembershipVkey() []byte {
+func (m *MsgCreateInterchainSecurityModule) GetStateMembershipVkey() []byte {
 	if m != nil {
 		return m.StateMembershipVkey
 	}
 	return nil
 }
 
-// MsgCreateZKExecutionISMResponse is the response type for CreateZKExecutionISM.
-type MsgCreateZKExecutionISMResponse struct {
+// MsgCreateInterchainSecurityModuleResponse is the response type for CreateInterchainSecurityModule.
+type MsgCreateInterchainSecurityModuleResponse struct {
 	Id github_com_bcp_innovations_hyperlane_cosmos_util.HexAddress `protobuf:"bytes,1,opt,name=id,proto3,customtype=github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress" json:"id"`
 }
 
-func (m *MsgCreateZKExecutionISMResponse) Reset()         { *m = MsgCreateZKExecutionISMResponse{} }
-func (m *MsgCreateZKExecutionISMResponse) String() string { return proto.CompactTextString(m) }
-func (*MsgCreateZKExecutionISMResponse) ProtoMessage()    {}
-func (*MsgCreateZKExecutionISMResponse) Descriptor() ([]byte, []int) {
+func (m *MsgCreateInterchainSecurityModuleResponse) Reset() {
+	*m = MsgCreateInterchainSecurityModuleResponse{}
+}
+func (m *MsgCreateInterchainSecurityModuleResponse) String() string {
+	return proto.CompactTextString(m)
+}
+func (*MsgCreateInterchainSecurityModuleResponse) ProtoMessage() {}
+func (*MsgCreateInterchainSecurityModuleResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_9627100907186bb5, []int{1}
 }
-func (m *MsgCreateZKExecutionISMResponse) XXX_Unmarshal(b []byte) error {
+func (m *MsgCreateInterchainSecurityModuleResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgCreateZKExecutionISMResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgCreateInterchainSecurityModuleResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgCreateZKExecutionISMResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgCreateInterchainSecurityModuleResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -139,20 +143,20 @@ func (m *MsgCreateZKExecutionISMResponse) XXX_Marshal(b []byte, deterministic bo
 		return b[:n], nil
 	}
 }
-func (m *MsgCreateZKExecutionISMResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgCreateZKExecutionISMResponse.Merge(m, src)
+func (m *MsgCreateInterchainSecurityModuleResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgCreateInterchainSecurityModuleResponse.Merge(m, src)
 }
-func (m *MsgCreateZKExecutionISMResponse) XXX_Size() int {
+func (m *MsgCreateInterchainSecurityModuleResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgCreateZKExecutionISMResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgCreateZKExecutionISMResponse.DiscardUnknown(m)
+func (m *MsgCreateInterchainSecurityModuleResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgCreateInterchainSecurityModuleResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgCreateZKExecutionISMResponse proto.InternalMessageInfo
+var xxx_messageInfo_MsgCreateInterchainSecurityModuleResponse proto.InternalMessageInfo
 
-// MsgUpdateZKExecutionISM is the request type for UpdateZKExecutionISM.
-type MsgUpdateZKExecutionISM struct {
+// MsgUpdateInterchainSecurityModule is the request type for UpdateInterchainSecurityModule.
+type MsgUpdateInterchainSecurityModule struct {
 	// ism identifier
 	Id github_com_bcp_innovations_hyperlane_cosmos_util.HexAddress `protobuf:"bytes,1,opt,name=id,proto3,customtype=github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress" json:"id"`
 	// proof is the ZK proof bytes (groth16).
@@ -163,18 +167,18 @@ type MsgUpdateZKExecutionISM struct {
 	Signer string `protobuf:"bytes,4,opt,name=signer,proto3" json:"signer,omitempty"`
 }
 
-func (m *MsgUpdateZKExecutionISM) Reset()         { *m = MsgUpdateZKExecutionISM{} }
-func (m *MsgUpdateZKExecutionISM) String() string { return proto.CompactTextString(m) }
-func (*MsgUpdateZKExecutionISM) ProtoMessage()    {}
-func (*MsgUpdateZKExecutionISM) Descriptor() ([]byte, []int) {
+func (m *MsgUpdateInterchainSecurityModule) Reset()         { *m = MsgUpdateInterchainSecurityModule{} }
+func (m *MsgUpdateInterchainSecurityModule) String() string { return proto.CompactTextString(m) }
+func (*MsgUpdateInterchainSecurityModule) ProtoMessage()    {}
+func (*MsgUpdateInterchainSecurityModule) Descriptor() ([]byte, []int) {
 	return fileDescriptor_9627100907186bb5, []int{2}
 }
-func (m *MsgUpdateZKExecutionISM) XXX_Unmarshal(b []byte) error {
+func (m *MsgUpdateInterchainSecurityModule) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgUpdateZKExecutionISM) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgUpdateInterchainSecurityModule) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgUpdateZKExecutionISM.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgUpdateInterchainSecurityModule.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -184,57 +188,61 @@ func (m *MsgUpdateZKExecutionISM) XXX_Marshal(b []byte, deterministic bool) ([]b
 		return b[:n], nil
 	}
 }
-func (m *MsgUpdateZKExecutionISM) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgUpdateZKExecutionISM.Merge(m, src)
+func (m *MsgUpdateInterchainSecurityModule) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgUpdateInterchainSecurityModule.Merge(m, src)
 }
-func (m *MsgUpdateZKExecutionISM) XXX_Size() int {
+func (m *MsgUpdateInterchainSecurityModule) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgUpdateZKExecutionISM) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgUpdateZKExecutionISM.DiscardUnknown(m)
+func (m *MsgUpdateInterchainSecurityModule) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgUpdateInterchainSecurityModule.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgUpdateZKExecutionISM proto.InternalMessageInfo
+var xxx_messageInfo_MsgUpdateInterchainSecurityModule proto.InternalMessageInfo
 
-func (m *MsgUpdateZKExecutionISM) GetProof() []byte {
+func (m *MsgUpdateInterchainSecurityModule) GetProof() []byte {
 	if m != nil {
 		return m.Proof
 	}
 	return nil
 }
 
-func (m *MsgUpdateZKExecutionISM) GetPublicValues() []byte {
+func (m *MsgUpdateInterchainSecurityModule) GetPublicValues() []byte {
 	if m != nil {
 		return m.PublicValues
 	}
 	return nil
 }
 
-func (m *MsgUpdateZKExecutionISM) GetSigner() string {
+func (m *MsgUpdateInterchainSecurityModule) GetSigner() string {
 	if m != nil {
 		return m.Signer
 	}
 	return ""
 }
 
-// MsgUpdateZKExecutionISMResponse is the response type for UpdateZKExecutionISM.
-type MsgUpdateZKExecutionISMResponse struct {
+// MsgUpdateInterchainSecurityModuleResponse is the response type for UpdateInterchainSecurityModule.
+type MsgUpdateInterchainSecurityModuleResponse struct {
 	// current ism state
 	State []byte `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`
 }
 
-func (m *MsgUpdateZKExecutionISMResponse) Reset()         { *m = MsgUpdateZKExecutionISMResponse{} }
-func (m *MsgUpdateZKExecutionISMResponse) String() string { return proto.CompactTextString(m) }
-func (*MsgUpdateZKExecutionISMResponse) ProtoMessage()    {}
-func (*MsgUpdateZKExecutionISMResponse) Descriptor() ([]byte, []int) {
+func (m *MsgUpdateInterchainSecurityModuleResponse) Reset() {
+	*m = MsgUpdateInterchainSecurityModuleResponse{}
+}
+func (m *MsgUpdateInterchainSecurityModuleResponse) String() string {
+	return proto.CompactTextString(m)
+}
+func (*MsgUpdateInterchainSecurityModuleResponse) ProtoMessage() {}
+func (*MsgUpdateInterchainSecurityModuleResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_9627100907186bb5, []int{3}
 }
-func (m *MsgUpdateZKExecutionISMResponse) XXX_Unmarshal(b []byte) error {
+func (m *MsgUpdateInterchainSecurityModuleResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgUpdateZKExecutionISMResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgUpdateInterchainSecurityModuleResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgUpdateZKExecutionISMResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgUpdateInterchainSecurityModuleResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -244,19 +252,19 @@ func (m *MsgUpdateZKExecutionISMResponse) XXX_Marshal(b []byte, deterministic bo
 		return b[:n], nil
 	}
 }
-func (m *MsgUpdateZKExecutionISMResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgUpdateZKExecutionISMResponse.Merge(m, src)
+func (m *MsgUpdateInterchainSecurityModuleResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgUpdateInterchainSecurityModuleResponse.Merge(m, src)
 }
-func (m *MsgUpdateZKExecutionISMResponse) XXX_Size() int {
+func (m *MsgUpdateInterchainSecurityModuleResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgUpdateZKExecutionISMResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgUpdateZKExecutionISMResponse.DiscardUnknown(m)
+func (m *MsgUpdateInterchainSecurityModuleResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgUpdateInterchainSecurityModuleResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgUpdateZKExecutionISMResponse proto.InternalMessageInfo
+var xxx_messageInfo_MsgUpdateInterchainSecurityModuleResponse proto.InternalMessageInfo
 
-func (m *MsgUpdateZKExecutionISMResponse) GetState() []byte {
+func (m *MsgUpdateInterchainSecurityModuleResponse) GetState() []byte {
 	if m != nil {
 		return m.State
 	}
@@ -470,10 +478,10 @@ func (m *MsgUpdateParamsResponse) XXX_DiscardUnknown() {
 var xxx_messageInfo_MsgUpdateParamsResponse proto.InternalMessageInfo
 
 func init() {
-	proto.RegisterType((*MsgCreateZKExecutionISM)(nil), "celestia.zkism.v1.MsgCreateZKExecutionISM")
-	proto.RegisterType((*MsgCreateZKExecutionISMResponse)(nil), "celestia.zkism.v1.MsgCreateZKExecutionISMResponse")
-	proto.RegisterType((*MsgUpdateZKExecutionISM)(nil), "celestia.zkism.v1.MsgUpdateZKExecutionISM")
-	proto.RegisterType((*MsgUpdateZKExecutionISMResponse)(nil), "celestia.zkism.v1.MsgUpdateZKExecutionISMResponse")
+	proto.RegisterType((*MsgCreateInterchainSecurityModule)(nil), "celestia.zkism.v1.MsgCreateInterchainSecurityModule")
+	proto.RegisterType((*MsgCreateInterchainSecurityModuleResponse)(nil), "celestia.zkism.v1.MsgCreateInterchainSecurityModuleResponse")
+	proto.RegisterType((*MsgUpdateInterchainSecurityModule)(nil), "celestia.zkism.v1.MsgUpdateInterchainSecurityModule")
+	proto.RegisterType((*MsgUpdateInterchainSecurityModuleResponse)(nil), "celestia.zkism.v1.MsgUpdateInterchainSecurityModuleResponse")
 	proto.RegisterType((*MsgSubmitMessages)(nil), "celestia.zkism.v1.MsgSubmitMessages")
 	proto.RegisterType((*MsgSubmitMessagesResponse)(nil), "celestia.zkism.v1.MsgSubmitMessagesResponse")
 	proto.RegisterType((*MsgUpdateParams)(nil), "celestia.zkism.v1.MsgUpdateParams")
@@ -483,51 +491,51 @@ func init() {
 func init() { proto.RegisterFile("celestia/zkism/v1/tx.proto", fileDescriptor_9627100907186bb5) }
 
 var fileDescriptor_9627100907186bb5 = []byte{
-	// 695 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x55, 0xcf, 0x6e, 0xd3, 0x4c,
-	0x10, 0x8f, 0x9b, 0x3f, 0x9f, 0xba, 0xcd, 0xd7, 0x4f, 0xf5, 0x17, 0xda, 0x24, 0x88, 0xb4, 0x18,
-	0x0e, 0x55, 0x44, 0x62, 0x25, 0x48, 0xad, 0x54, 0x4e, 0xb4, 0x42, 0x02, 0x55, 0x91, 0x90, 0x03,
-	0x3d, 0xf4, 0x40, 0xe4, 0x38, 0xcb, 0x7a, 0xd5, 0xd8, 0x6b, 0xed, 0xae, 0xad, 0x84, 0x13, 0xe2,
-	0x09, 0x10, 0x4f, 0xd2, 0x03, 0x4f, 0xc0, 0xa9, 0x27, 0x54, 0x71, 0x42, 0x1c, 0xaa, 0x2a, 0x3d,
-	0xf4, 0x35, 0x90, 0x77, 0x6d, 0x37, 0xa5, 0x4e, 0xe8, 0xa5, 0x37, 0xcf, 0xfc, 0x7e, 0x33, 0xb3,
-	0xf3, 0x9b, 0x59, 0x2f, 0xa8, 0x5a, 0x70, 0x08, 0x19, 0xc7, 0xa6, 0xfe, 0xe1, 0x08, 0x33, 0x47,
-	0x0f, 0x5a, 0x3a, 0x1f, 0x35, 0x3d, 0x4a, 0x38, 0x51, 0x57, 0x62, 0xac, 0x29, 0xb0, 0x66, 0xd0,
-	0xaa, 0x3e, 0x48, 0xa1, 0x8f, 0x3d, 0xc8, 0x64, 0x44, 0x75, 0xcd, 0x22, 0xcc, 0x21, 0x4c, 0x77,
-	0x18, 0x0a, 0x21, 0x87, 0xa1, 0x08, 0xa8, 0x48, 0xa0, 0x27, 0x2c, 0x5d, 0x1a, 0x11, 0x54, 0x42,
-	0x04, 0x11, 0xe9, 0x0f, 0xbf, 0xa4, 0x57, 0x9b, 0x28, 0x60, 0xad, 0xc3, 0xd0, 0x1e, 0x85, 0x26,
-	0x87, 0x87, 0xfb, 0x2f, 0x46, 0xd0, 0xf2, 0x39, 0x26, 0xee, 0xab, 0x6e, 0x47, 0x2d, 0x83, 0x7f,
-	0xac, 0xd0, 0x4f, 0x68, 0x59, 0xd9, 0x50, 0x36, 0x17, 0x8d, 0xd8, 0x54, 0x4b, 0x20, 0xcf, 0xb8,
-	0xc9, 0x61, 0x79, 0x61, 0x43, 0xd9, 0x2c, 0x1a, 0xd2, 0x50, 0x1f, 0x82, 0x22, 0xa2, 0x84, 0xdb,
-	0xad, 0xad, 0x5e, 0x70, 0x04, 0xc7, 0xe5, 0xac, 0x00, 0x97, 0x22, 0xdf, 0xc1, 0x11, 0x1c, 0xab,
-	0x6d, 0x70, 0x4f, 0x70, 0x7b, 0x9c, 0x9a, 0x2e, 0xc3, 0x61, 0x25, 0xc9, 0xcd, 0x09, 0xee, 0xff,
-	0x02, 0x7c, 0x93, 0x60, 0xd7, 0x63, 0x1c, 0xe8, 0xf4, 0x21, 0x65, 0x36, 0xf6, 0x64, 0x4c, 0x7e,
-	0x2a, 0xa6, 0x93, 0x60, 0x61, 0xcc, 0x4e, 0xf1, 0xd3, 0xe5, 0x71, 0x3d, 0x3e, 0xae, 0x16, 0x80,
-	0xf5, 0x19, 0x3d, 0x1a, 0x90, 0x79, 0xc4, 0x65, 0x50, 0xed, 0x82, 0x05, 0x3c, 0x90, 0x6d, 0xee,
-	0xee, 0x9d, 0x9c, 0xad, 0x67, 0x7e, 0x9d, 0xad, 0x3f, 0x43, 0x98, 0xdb, 0x7e, 0xbf, 0x69, 0x11,
-	0x47, 0xef, 0x5b, 0x5e, 0x03, 0xbb, 0x2e, 0x09, 0xcc, 0x30, 0x92, 0xe9, 0xf6, 0xd8, 0x83, 0x74,
-	0x68, 0xba, 0xb0, 0x11, 0x8d, 0xc2, 0xe7, 0x78, 0xd8, 0x7c, 0x09, 0x47, 0xcf, 0x07, 0x03, 0x0a,
-	0x19, 0x33, 0x16, 0xf0, 0x40, 0xfb, 0x2e, 0xc5, 0x7d, 0xeb, 0x0d, 0x6e, 0x8a, 0x7b, 0x17, 0x05,
-	0xc3, 0xb9, 0x78, 0x94, 0x90, 0xf7, 0xf1, 0x5c, 0x84, 0xa1, 0x3e, 0x02, 0xff, 0x7a, 0x7e, 0x7f,
-	0x88, 0xad, 0x5e, 0x60, 0x0e, 0x7d, 0xc8, 0xa2, 0xc1, 0x14, 0xa5, 0xf3, 0x40, 0xf8, 0xd4, 0x55,
-	0x50, 0x60, 0x18, 0xb9, 0x90, 0x8a, 0x51, 0x2c, 0x1a, 0x91, 0xb5, 0xb3, 0x14, 0x2a, 0x19, 0x19,
-	0xda, 0xb6, 0x10, 0x32, 0xad, 0x9f, 0x44, 0xc8, 0x64, 0x35, 0x94, 0xa9, 0xd5, 0xd0, 0xce, 0x15,
-	0xb0, 0xd2, 0x61, 0xa8, 0xeb, 0xf7, 0x1d, 0xcc, 0x3b, 0x90, 0x31, 0x13, 0x41, 0x76, 0x37, 0x1a,
-	0xac, 0x82, 0x82, 0x0d, 0x31, 0xb2, 0xb9, 0x10, 0x21, 0x67, 0x44, 0xd6, 0x95, 0x36, 0xd9, 0xb9,
-	0xda, 0xe4, 0xe6, 0x6a, 0x93, 0x9f, 0xad, 0xcd, 0x7d, 0x50, 0xb9, 0xd1, 0x61, 0xac, 0x8a, 0xf6,
-	0x45, 0x01, 0xff, 0x25, 0xca, 0xbd, 0x36, 0xa9, 0xe9, 0x30, 0x75, 0x0b, 0x2c, 0x9a, 0x3e, 0xb7,
-	0x09, 0xc5, 0x7c, 0x1c, 0x89, 0x50, 0xfe, 0xf1, 0xb5, 0x51, 0x8a, 0x6e, 0x6d, 0xd4, 0x53, 0x97,
-	0x53, 0xec, 0x22, 0xe3, 0x8a, 0xaa, 0x6e, 0x83, 0x82, 0x27, 0x32, 0x88, 0x06, 0x97, 0xda, 0x95,
-	0xe6, 0x8d, 0xff, 0x47, 0x53, 0x96, 0xd8, 0xcd, 0x85, 0xa2, 0x1a, 0x11, 0x7d, 0x67, 0x39, 0x3c,
-	0xee, 0x55, 0x22, 0xad, 0x32, 0xb5, 0x9d, 0x32, 0x20, 0x3e, 0x6f, 0xfb, 0x5b, 0x16, 0x64, 0x3b,
-	0x0c, 0xa9, 0x01, 0x28, 0xa5, 0xfe, 0x1a, 0xea, 0x29, 0x35, 0x67, 0x5c, 0xb1, 0x6a, 0xfb, 0xf6,
-	0xdc, 0x64, 0x8b, 0x02, 0x50, 0x4a, 0xbd, 0x35, 0x33, 0xea, 0xa6, 0x71, 0x67, 0xd5, 0x9d, 0xbb,
-	0xbd, 0x03, 0xb0, 0xfc, 0xc7, 0x8e, 0x3e, 0x4e, 0xcf, 0x72, 0x9d, 0x55, 0x7d, 0x72, 0x1b, 0x56,
-	0x52, 0xe5, 0x1d, 0x28, 0x5e, 0xdb, 0x04, 0x6d, 0xde, 0x49, 0x25, 0xa7, 0x5a, 0xff, 0x3b, 0x27,
-	0xce, 0x5f, 0xcd, 0x7f, 0xbc, 0x3c, 0xae, 0x2b, 0xbb, 0xfb, 0x27, 0x93, 0x9a, 0x72, 0x3a, 0xa9,
-	0x29, 0xe7, 0x93, 0x9a, 0xf2, 0xf9, 0xa2, 0x96, 0x39, 0xbd, 0xa8, 0x65, 0x7e, 0x5e, 0xd4, 0x32,
-	0x87, 0xad, 0xa9, 0x4b, 0x16, 0xa7, 0x25, 0x14, 0x25, 0xdf, 0x0d, 0xd3, 0xf3, 0xf4, 0x51, 0xf4,
-	0xf6, 0x88, 0x87, 0xa7, 0x5f, 0x10, 0xef, 0xc5, 0xd3, 0xdf, 0x01, 0x00, 0x00, 0xff, 0xff, 0x68,
-	0x21, 0x66, 0xcc, 0xc9, 0x06, 0x00, 0x00,
+	// 701 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x55, 0x4f, 0x4f, 0xd4, 0x40,
+	0x14, 0xdf, 0xc2, 0xee, 0x1a, 0x86, 0x15, 0x43, 0x45, 0xd8, 0xad, 0xb1, 0x40, 0xf5, 0x80, 0xc4,
+	0x6d, 0xb3, 0x68, 0x30, 0x41, 0x2f, 0xc0, 0x45, 0x63, 0x36, 0x31, 0x5d, 0xe5, 0xe0, 0xc1, 0x4d,
+	0xb7, 0x1d, 0xa7, 0x13, 0xb6, 0x9d, 0x66, 0x66, 0xba, 0x61, 0x3d, 0x11, 0x3f, 0x81, 0x31, 0x7e,
+	0x10, 0x0e, 0x7e, 0x08, 0x8e, 0xc4, 0x13, 0xf1, 0x40, 0x08, 0x1c, 0xb8, 0xf8, 0x21, 0x4c, 0xa7,
+	0xd3, 0xf2, 0x7f, 0x97, 0x98, 0x70, 0xeb, 0x7b, 0xbf, 0xdf, 0x7b, 0xf3, 0xde, 0xef, 0xbd, 0xe9,
+	0x00, 0xcd, 0x85, 0x5d, 0xc8, 0x38, 0x76, 0xac, 0xaf, 0x9b, 0x98, 0x05, 0x56, 0xaf, 0x61, 0xf1,
+	0x2d, 0x33, 0xa2, 0x84, 0x13, 0x75, 0x32, 0xc3, 0x4c, 0x81, 0x99, 0xbd, 0x86, 0xf6, 0xe8, 0x0a,
+	0x7a, 0x3f, 0x82, 0x2c, 0x8d, 0xd0, 0x66, 0x5c, 0xc2, 0x02, 0xc2, 0xac, 0x80, 0xa1, 0x04, 0x0a,
+	0x18, 0x92, 0x40, 0x2d, 0x05, 0xda, 0xc2, 0xb2, 0x52, 0x43, 0x42, 0x53, 0x88, 0x20, 0x92, 0xfa,
+	0x93, 0xaf, 0xd4, 0x6b, 0xfc, 0x55, 0xc0, 0x7c, 0x93, 0xa1, 0x75, 0x0a, 0x1d, 0x0e, 0xdf, 0x86,
+	0x1c, 0x52, 0xd7, 0x77, 0x70, 0xd8, 0x82, 0x6e, 0x4c, 0x31, 0xef, 0x37, 0x89, 0x17, 0x77, 0xa1,
+	0x5a, 0x05, 0x77, 0xdc, 0x84, 0x41, 0x68, 0x55, 0x99, 0x53, 0x16, 0xc6, 0xec, 0xcc, 0x54, 0xa7,
+	0x40, 0x89, 0x71, 0x87, 0xc3, 0xea, 0xc8, 0x9c, 0xb2, 0x50, 0xb1, 0x53, 0x43, 0x9d, 0x07, 0x15,
+	0x44, 0x09, 0xf7, 0x1b, 0xcb, 0xed, 0xde, 0x26, 0xec, 0x57, 0x47, 0x05, 0x38, 0x2e, 0x7d, 0x1b,
+	0x9b, 0xb0, 0xaf, 0x2e, 0x81, 0x07, 0x82, 0xdb, 0xe6, 0xd4, 0x09, 0x19, 0xe6, 0x98, 0x84, 0x29,
+	0xb7, 0x28, 0xb8, 0xf7, 0x05, 0xf8, 0x21, 0xc7, 0xce, 0xc7, 0x04, 0x30, 0xe8, 0x40, 0xca, 0x7c,
+	0x1c, 0xa5, 0x31, 0xa5, 0x33, 0x31, 0xcd, 0x1c, 0x4b, 0x62, 0x56, 0x2a, 0xdf, 0x4e, 0x76, 0x16,
+	0xb3, 0x72, 0x8d, 0x6d, 0x05, 0x3c, 0x1d, 0xda, 0xae, 0x0d, 0x59, 0x44, 0x42, 0x06, 0xd5, 0x16,
+	0x18, 0xc1, 0x5e, 0xda, 0xf1, 0xda, 0xfa, 0xee, 0xc1, 0x6c, 0xe1, 0xcf, 0xc1, 0xec, 0x2b, 0x84,
+	0xb9, 0x1f, 0x77, 0x4c, 0x97, 0x04, 0x56, 0xc7, 0x8d, 0xea, 0x38, 0x0c, 0x49, 0xcf, 0x49, 0x4a,
+	0x64, 0x96, 0xdf, 0x8f, 0x20, 0xed, 0x3a, 0x21, 0xac, 0xcb, 0xf9, 0xc4, 0x1c, 0x77, 0xcd, 0x37,
+	0x70, 0x6b, 0xd5, 0xf3, 0x28, 0x64, 0xcc, 0x1e, 0xc1, 0x9e, 0xb1, 0x9f, 0x2a, 0xfe, 0x31, 0xf2,
+	0x06, 0x29, 0x7e, 0x1b, 0x47, 0x27, 0xc3, 0x8a, 0x28, 0x21, 0x5f, 0xb2, 0x61, 0x09, 0x43, 0x7d,
+	0x0c, 0xee, 0x46, 0x71, 0xa7, 0x8b, 0xdd, 0x76, 0xcf, 0xe9, 0xc6, 0x90, 0xc9, 0x69, 0x55, 0x52,
+	0xe7, 0x86, 0xf0, 0xa9, 0xd3, 0xa0, 0xcc, 0x30, 0x0a, 0x21, 0x15, 0xf3, 0x19, 0xb3, 0xa5, 0xb5,
+	0x32, 0x9e, 0xc8, 0x2b, 0x0d, 0x63, 0x55, 0x88, 0x3b, 0xb8, 0xb3, 0x5c, 0xdc, 0x7c, 0x73, 0x94,
+	0x33, 0x9b, 0x63, 0x1c, 0x2a, 0x60, 0xb2, 0xc9, 0x50, 0x2b, 0xee, 0x04, 0x98, 0x37, 0x21, 0x63,
+	0x0e, 0x82, 0xec, 0x76, 0xd4, 0x98, 0x06, 0x65, 0x1f, 0x62, 0xe4, 0x73, 0x21, 0x47, 0xd1, 0x96,
+	0xd6, 0xa9, 0x4a, 0xa3, 0x03, 0x55, 0x2a, 0x0e, 0x54, 0xa9, 0x74, 0xbd, 0x4a, 0x0f, 0x41, 0xed,
+	0x52, 0x87, 0x99, 0x2a, 0xc6, 0x0f, 0x05, 0xdc, 0xcb, 0x35, 0x7c, 0xef, 0x50, 0x27, 0x60, 0xea,
+	0x32, 0x18, 0x73, 0x62, 0xee, 0x93, 0x44, 0x44, 0x29, 0x42, 0xf5, 0xf7, 0xaf, 0xfa, 0x94, 0xbc,
+	0xde, 0xb2, 0xa7, 0x16, 0xa7, 0x38, 0x44, 0xf6, 0x29, 0x55, 0x7d, 0x09, 0xca, 0x91, 0xc8, 0x20,
+	0x1a, 0x1c, 0x5f, 0xaa, 0x99, 0x97, 0x7e, 0x34, 0x66, 0x7a, 0xc4, 0x5a, 0x31, 0x11, 0xd5, 0x96,
+	0xf4, 0x95, 0x89, 0xa4, 0xdc, 0xd3, 0x44, 0x46, 0x0d, 0xcc, 0x5c, 0xa8, 0x29, 0xab, 0x77, 0x69,
+	0xbb, 0x08, 0x46, 0x9b, 0x0c, 0xa9, 0x3f, 0x15, 0xa0, 0x0f, 0xf9, 0x89, 0xbc, 0xb8, 0xe2, 0xf8,
+	0xa1, 0x77, 0x51, 0x7b, 0xfd, 0x3f, 0x51, 0xf9, 0x92, 0x25, 0x65, 0x0d, 0xb9, 0x69, 0xd7, 0x94,
+	0x35, 0x38, 0xea, 0xba, 0xb2, 0x6e, 0xb8, 0xfb, 0x1e, 0x98, 0xb8, 0xb0, 0xe1, 0x4f, 0xae, 0xce,
+	0x77, 0x9e, 0xa5, 0x3d, 0xbb, 0x09, 0x2b, 0x3f, 0xe5, 0x33, 0xa8, 0x9c, 0xdb, 0x23, 0x63, 0x50,
+	0xcd, 0x29, 0x47, 0x5b, 0x1c, 0xce, 0xc9, 0xf2, 0x6b, 0xa5, 0xed, 0x93, 0x9d, 0x45, 0x65, 0xed,
+	0xdd, 0xee, 0x91, 0xae, 0xec, 0x1d, 0xe9, 0xca, 0xe1, 0x91, 0xae, 0x7c, 0x3f, 0xd6, 0x0b, 0x7b,
+	0xc7, 0x7a, 0x61, 0xff, 0x58, 0x2f, 0x7c, 0x6a, 0x9c, 0xb9, 0xa2, 0x59, 0x5a, 0x42, 0x51, 0xfe,
+	0x5d, 0x77, 0xa2, 0xc8, 0xda, 0x92, 0x4f, 0x9c, 0x78, 0xdf, 0x3a, 0x65, 0xf1, 0x2c, 0x3d, 0xff,
+	0x17, 0x00, 0x00, 0xff, 0xff, 0xf1, 0x55, 0x18, 0xa1, 0x30, 0x07, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -542,10 +550,10 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MsgClient interface {
-	// CreateZKExecutionISM defines the rpc method for creating a new ZK execution ISM.
-	CreateZKExecutionISM(ctx context.Context, in *MsgCreateZKExecutionISM, opts ...grpc.CallOption) (*MsgCreateZKExecutionISMResponse, error)
-	// UpdateZKExecutionISM defines the rpc method for updating an existing ZK execution ISM.
-	UpdateZKExecutionISM(ctx context.Context, in *MsgUpdateZKExecutionISM, opts ...grpc.CallOption) (*MsgUpdateZKExecutionISMResponse, error)
+	// CreateInterchainSecurityModule defines the rpc method for creating a new ZK execution ISM.
+	CreateInterchainSecurityModule(ctx context.Context, in *MsgCreateInterchainSecurityModule, opts ...grpc.CallOption) (*MsgCreateInterchainSecurityModuleResponse, error)
+	// UpdateInterchainSecurityModule defines the rpc method for updating an existing ZK execution ISM.
+	UpdateInterchainSecurityModule(ctx context.Context, in *MsgUpdateInterchainSecurityModule, opts ...grpc.CallOption) (*MsgUpdateInterchainSecurityModuleResponse, error)
 	// SubmitMessages defines the rpc method for verifying state membership of messages.
 	SubmitMessages(ctx context.Context, in *MsgSubmitMessages, opts ...grpc.CallOption) (*MsgSubmitMessagesResponse, error)
 	// UpdateParams defines the rpc method for updating the module parameters.
@@ -560,18 +568,18 @@ func NewMsgClient(cc grpc1.ClientConn) MsgClient {
 	return &msgClient{cc}
 }
 
-func (c *msgClient) CreateZKExecutionISM(ctx context.Context, in *MsgCreateZKExecutionISM, opts ...grpc.CallOption) (*MsgCreateZKExecutionISMResponse, error) {
-	out := new(MsgCreateZKExecutionISMResponse)
-	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Msg/CreateZKExecutionISM", in, out, opts...)
+func (c *msgClient) CreateInterchainSecurityModule(ctx context.Context, in *MsgCreateInterchainSecurityModule, opts ...grpc.CallOption) (*MsgCreateInterchainSecurityModuleResponse, error) {
+	out := new(MsgCreateInterchainSecurityModuleResponse)
+	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Msg/CreateInterchainSecurityModule", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *msgClient) UpdateZKExecutionISM(ctx context.Context, in *MsgUpdateZKExecutionISM, opts ...grpc.CallOption) (*MsgUpdateZKExecutionISMResponse, error) {
-	out := new(MsgUpdateZKExecutionISMResponse)
-	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Msg/UpdateZKExecutionISM", in, out, opts...)
+func (c *msgClient) UpdateInterchainSecurityModule(ctx context.Context, in *MsgUpdateInterchainSecurityModule, opts ...grpc.CallOption) (*MsgUpdateInterchainSecurityModuleResponse, error) {
+	out := new(MsgUpdateInterchainSecurityModuleResponse)
+	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Msg/UpdateInterchainSecurityModule", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -598,10 +606,10 @@ func (c *msgClient) UpdateParams(ctx context.Context, in *MsgUpdateParams, opts 
 
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
-	// CreateZKExecutionISM defines the rpc method for creating a new ZK execution ISM.
-	CreateZKExecutionISM(context.Context, *MsgCreateZKExecutionISM) (*MsgCreateZKExecutionISMResponse, error)
-	// UpdateZKExecutionISM defines the rpc method for updating an existing ZK execution ISM.
-	UpdateZKExecutionISM(context.Context, *MsgUpdateZKExecutionISM) (*MsgUpdateZKExecutionISMResponse, error)
+	// CreateInterchainSecurityModule defines the rpc method for creating a new ZK execution ISM.
+	CreateInterchainSecurityModule(context.Context, *MsgCreateInterchainSecurityModule) (*MsgCreateInterchainSecurityModuleResponse, error)
+	// UpdateInterchainSecurityModule defines the rpc method for updating an existing ZK execution ISM.
+	UpdateInterchainSecurityModule(context.Context, *MsgUpdateInterchainSecurityModule) (*MsgUpdateInterchainSecurityModuleResponse, error)
 	// SubmitMessages defines the rpc method for verifying state membership of messages.
 	SubmitMessages(context.Context, *MsgSubmitMessages) (*MsgSubmitMessagesResponse, error)
 	// UpdateParams defines the rpc method for updating the module parameters.
@@ -612,11 +620,11 @@ type MsgServer interface {
 type UnimplementedMsgServer struct {
 }
 
-func (*UnimplementedMsgServer) CreateZKExecutionISM(ctx context.Context, req *MsgCreateZKExecutionISM) (*MsgCreateZKExecutionISMResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateZKExecutionISM not implemented")
+func (*UnimplementedMsgServer) CreateInterchainSecurityModule(ctx context.Context, req *MsgCreateInterchainSecurityModule) (*MsgCreateInterchainSecurityModuleResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateInterchainSecurityModule not implemented")
 }
-func (*UnimplementedMsgServer) UpdateZKExecutionISM(ctx context.Context, req *MsgUpdateZKExecutionISM) (*MsgUpdateZKExecutionISMResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateZKExecutionISM not implemented")
+func (*UnimplementedMsgServer) UpdateInterchainSecurityModule(ctx context.Context, req *MsgUpdateInterchainSecurityModule) (*MsgUpdateInterchainSecurityModuleResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateInterchainSecurityModule not implemented")
 }
 func (*UnimplementedMsgServer) SubmitMessages(ctx context.Context, req *MsgSubmitMessages) (*MsgSubmitMessagesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SubmitMessages not implemented")
@@ -629,38 +637,38 @@ func RegisterMsgServer(s grpc1.Server, srv MsgServer) {
 	s.RegisterService(&_Msg_serviceDesc, srv)
 }
 
-func _Msg_CreateZKExecutionISM_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MsgCreateZKExecutionISM)
+func _Msg_CreateInterchainSecurityModule_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgCreateInterchainSecurityModule)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MsgServer).CreateZKExecutionISM(ctx, in)
+		return srv.(MsgServer).CreateInterchainSecurityModule(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/celestia.zkism.v1.Msg/CreateZKExecutionISM",
+		FullMethod: "/celestia.zkism.v1.Msg/CreateInterchainSecurityModule",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MsgServer).CreateZKExecutionISM(ctx, req.(*MsgCreateZKExecutionISM))
+		return srv.(MsgServer).CreateInterchainSecurityModule(ctx, req.(*MsgCreateInterchainSecurityModule))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Msg_UpdateZKExecutionISM_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MsgUpdateZKExecutionISM)
+func _Msg_UpdateInterchainSecurityModule_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgUpdateInterchainSecurityModule)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MsgServer).UpdateZKExecutionISM(ctx, in)
+		return srv.(MsgServer).UpdateInterchainSecurityModule(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/celestia.zkism.v1.Msg/UpdateZKExecutionISM",
+		FullMethod: "/celestia.zkism.v1.Msg/UpdateInterchainSecurityModule",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MsgServer).UpdateZKExecutionISM(ctx, req.(*MsgUpdateZKExecutionISM))
+		return srv.(MsgServer).UpdateInterchainSecurityModule(ctx, req.(*MsgUpdateInterchainSecurityModule))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -707,12 +715,12 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*MsgServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "CreateZKExecutionISM",
-			Handler:    _Msg_CreateZKExecutionISM_Handler,
+			MethodName: "CreateInterchainSecurityModule",
+			Handler:    _Msg_CreateInterchainSecurityModule_Handler,
 		},
 		{
-			MethodName: "UpdateZKExecutionISM",
-			Handler:    _Msg_UpdateZKExecutionISM_Handler,
+			MethodName: "UpdateInterchainSecurityModule",
+			Handler:    _Msg_UpdateInterchainSecurityModule_Handler,
 		},
 		{
 			MethodName: "SubmitMessages",
@@ -727,7 +735,7 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 	Metadata: "celestia/zkism/v1/tx.proto",
 }
 
-func (m *MsgCreateZKExecutionISM) Marshal() (dAtA []byte, err error) {
+func (m *MsgCreateInterchainSecurityModule) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -737,12 +745,12 @@ func (m *MsgCreateZKExecutionISM) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgCreateZKExecutionISM) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgCreateInterchainSecurityModule) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgCreateZKExecutionISM) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgCreateInterchainSecurityModule) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -785,7 +793,7 @@ func (m *MsgCreateZKExecutionISM) MarshalToSizedBuffer(dAtA []byte) (int, error)
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgCreateZKExecutionISMResponse) Marshal() (dAtA []byte, err error) {
+func (m *MsgCreateInterchainSecurityModuleResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -795,12 +803,12 @@ func (m *MsgCreateZKExecutionISMResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgCreateZKExecutionISMResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgCreateInterchainSecurityModuleResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgCreateZKExecutionISMResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgCreateInterchainSecurityModuleResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -818,7 +826,7 @@ func (m *MsgCreateZKExecutionISMResponse) MarshalToSizedBuffer(dAtA []byte) (int
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgUpdateZKExecutionISM) Marshal() (dAtA []byte, err error) {
+func (m *MsgUpdateInterchainSecurityModule) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -828,12 +836,12 @@ func (m *MsgUpdateZKExecutionISM) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgUpdateZKExecutionISM) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgUpdateInterchainSecurityModule) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgUpdateZKExecutionISM) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgUpdateInterchainSecurityModule) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -872,7 +880,7 @@ func (m *MsgUpdateZKExecutionISM) MarshalToSizedBuffer(dAtA []byte) (int, error)
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgUpdateZKExecutionISMResponse) Marshal() (dAtA []byte, err error) {
+func (m *MsgUpdateInterchainSecurityModuleResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -882,12 +890,12 @@ func (m *MsgUpdateZKExecutionISMResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgUpdateZKExecutionISMResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgUpdateInterchainSecurityModuleResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgUpdateZKExecutionISMResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgUpdateInterchainSecurityModuleResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -1058,7 +1066,7 @@ func encodeVarintTx(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *MsgCreateZKExecutionISM) Size() (n int) {
+func (m *MsgCreateInterchainSecurityModule) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1087,7 +1095,7 @@ func (m *MsgCreateZKExecutionISM) Size() (n int) {
 	return n
 }
 
-func (m *MsgCreateZKExecutionISMResponse) Size() (n int) {
+func (m *MsgCreateInterchainSecurityModuleResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1098,7 +1106,7 @@ func (m *MsgCreateZKExecutionISMResponse) Size() (n int) {
 	return n
 }
 
-func (m *MsgUpdateZKExecutionISM) Size() (n int) {
+func (m *MsgUpdateInterchainSecurityModule) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1121,7 +1129,7 @@ func (m *MsgUpdateZKExecutionISM) Size() (n int) {
 	return n
 }
 
-func (m *MsgUpdateZKExecutionISMResponse) Size() (n int) {
+func (m *MsgUpdateInterchainSecurityModuleResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1199,7 +1207,7 @@ func sovTx(x uint64) (n int) {
 func sozTx(x uint64) (n int) {
 	return sovTx(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *MsgCreateZKExecutionISM) Unmarshal(dAtA []byte) error {
+func (m *MsgCreateInterchainSecurityModule) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1222,10 +1230,10 @@ func (m *MsgCreateZKExecutionISM) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgCreateZKExecutionISM: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgCreateInterchainSecurityModule: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgCreateZKExecutionISM: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgCreateInterchainSecurityModule: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -1417,7 +1425,7 @@ func (m *MsgCreateZKExecutionISM) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MsgCreateZKExecutionISMResponse) Unmarshal(dAtA []byte) error {
+func (m *MsgCreateInterchainSecurityModuleResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1440,10 +1448,10 @@ func (m *MsgCreateZKExecutionISMResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgCreateZKExecutionISMResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgCreateInterchainSecurityModuleResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgCreateZKExecutionISMResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgCreateInterchainSecurityModuleResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -1501,7 +1509,7 @@ func (m *MsgCreateZKExecutionISMResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MsgUpdateZKExecutionISM) Unmarshal(dAtA []byte) error {
+func (m *MsgUpdateInterchainSecurityModule) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1524,10 +1532,10 @@ func (m *MsgUpdateZKExecutionISM) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgUpdateZKExecutionISM: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgUpdateInterchainSecurityModule: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgUpdateZKExecutionISM: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgUpdateInterchainSecurityModule: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -1685,7 +1693,7 @@ func (m *MsgUpdateZKExecutionISM) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MsgUpdateZKExecutionISMResponse) Unmarshal(dAtA []byte) error {
+func (m *MsgUpdateInterchainSecurityModuleResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1708,10 +1716,10 @@ func (m *MsgUpdateZKExecutionISMResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgUpdateZKExecutionISMResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgUpdateInterchainSecurityModuleResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgUpdateZKExecutionISMResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgUpdateInterchainSecurityModuleResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:

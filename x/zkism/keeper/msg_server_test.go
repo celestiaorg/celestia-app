@@ -11,8 +11,8 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
-func (suite *KeeperTestSuite) TestCreateZKExecutionISM() {
-	var msg *types.MsgCreateZKExecutionISM
+func (suite *KeeperTestSuite) TestCreateInterchainSecurityModule() {
+	var msg *types.MsgCreateInterchainSecurityModule
 
 	testCases := []struct {
 		name      string
@@ -22,7 +22,7 @@ func (suite *KeeperTestSuite) TestCreateZKExecutionISM() {
 		{
 			name: "success",
 			setupTest: func() {
-				msg = &types.MsgCreateZKExecutionISM{
+				msg = &types.MsgCreateInterchainSecurityModule{
 					Creator:             testfactory.TestAccAddr,
 					State:               randBytes(128),
 					Groth16Vkey:         randBytes(32),
@@ -41,7 +41,7 @@ func (suite *KeeperTestSuite) TestCreateZKExecutionISM() {
 			tc.setupTest()
 
 			msgServer := keeper.NewMsgServerImpl(suite.zkISMKeeper)
-			res, err := msgServer.CreateZKExecutionISM(suite.ctx, msg)
+			res, err := msgServer.CreateInterchainSecurityModule(suite.ctx, msg)
 
 			if tc.expError != nil {
 				suite.Require().Error(err)
@@ -54,7 +54,7 @@ func (suite *KeeperTestSuite) TestCreateZKExecutionISM() {
 	}
 }
 
-func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
+func (suite *KeeperTestSuite) TestUpdateInterchainSecurityModule() {
 	trustedRoot, err := hex.DecodeString("340623e91b5a72c72a9214357cbc99a6b59ef23e5069ac5354a3a1619af0d568")
 	suite.Require().NoError(err)
 
@@ -65,7 +65,7 @@ func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
 	ism := suite.CreateTestIsm(trustedRoot, trustedCelestiaHash, trustedCelestiaHeight)
 	proofBz, pubValues := readStateTransitionProofData(suite.T())
 
-	var msg *types.MsgUpdateZKExecutionISM
+	var msg *types.MsgUpdateInterchainSecurityModule
 
 	testCases := []struct {
 		name      string
@@ -75,7 +75,7 @@ func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
 		{
 			name: "success",
 			setupTest: func() {
-				msg = &types.MsgUpdateZKExecutionISM{
+				msg = &types.MsgUpdateInterchainSecurityModule{
 					Id:           ism.Id,
 					Proof:        proofBz,
 					PublicValues: pubValues,
@@ -86,7 +86,7 @@ func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
 		{
 			name: "ism not found",
 			setupTest: func() {
-				msg = &types.MsgUpdateZKExecutionISM{
+				msg = &types.MsgUpdateInterchainSecurityModule{
 					Id: util.HexAddress{},
 				}
 			},
@@ -95,7 +95,7 @@ func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
 		{
 			name: "failed to unmarshal public values",
 			setupTest: func() {
-				msg = &types.MsgUpdateZKExecutionISM{
+				msg = &types.MsgUpdateInterchainSecurityModule{
 					Id:           ism.Id,
 					Proof:        proofBz,
 					PublicValues: []byte("invalid"),
@@ -110,7 +110,7 @@ func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
 			tc.setupTest()
 
 			msgServer := keeper.NewMsgServerImpl(suite.zkISMKeeper)
-			res, err := msgServer.UpdateZKExecutionISM(suite.ctx, msg)
+			res, err := msgServer.UpdateInterchainSecurityModule(suite.ctx, msg)
 
 			if tc.expError != nil {
 				suite.Require().Error(err)

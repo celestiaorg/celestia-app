@@ -7,18 +7,18 @@ import (
 )
 
 var (
-	_ sdk.HasValidateBasic = (*MsgCreateZKExecutionISM)(nil)
-	_ sdk.HasValidateBasic = (*MsgUpdateZKExecutionISM)(nil)
+	_ sdk.HasValidateBasic = (*MsgCreateInterchainSecurityModule)(nil)
+	_ sdk.HasValidateBasic = (*MsgUpdateInterchainSecurityModule)(nil)
 	_ sdk.HasValidateBasic = (*MsgSubmitMessages)(nil)
 )
 
 // ValidateBasic implements stateless validation for the HasValidateBasic interface.
-func (msg *MsgCreateZKExecutionISM) ValidateBasic() error {
+func (msg *MsgCreateInterchainSecurityModule) ValidateBasic() error {
 	return nil
 }
 
 // ValidateBasic implements stateless validation for the HasValidateBasic interface.
-func (msg *MsgUpdateZKExecutionISM) ValidateBasic() error {
+func (msg *MsgUpdateInterchainSecurityModule) ValidateBasic() error {
 	if msg.Id.IsZeroAddress() {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "ism identifier must be non-zero")
 	}

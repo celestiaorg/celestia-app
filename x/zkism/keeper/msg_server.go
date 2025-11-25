@@ -21,14 +21,14 @@ func NewMsgServerImpl(keeper *Keeper) types.MsgServer {
 	return &msgServer{keeper}
 }
 
-// CreateZKExecutionISM implements types.MsgServer.
-func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreateZKExecutionISM) (*types.MsgCreateZKExecutionISMResponse, error) {
+// CreateInterchainSecurityModule implements types.MsgServer.
+func (m msgServer) CreateInterchainSecurityModule(ctx context.Context, msg *types.MsgCreateInterchainSecurityModule) (*types.MsgCreateInterchainSecurityModuleResponse, error) {
 	ismId, err := m.coreKeeper.IsmRouter().GetNextSequence(ctx, types.InterchainSecurityModuleTypeZKExecution)
 	if err != nil {
 		return nil, errorsmod.Wrap(err, err.Error())
 	}
 
-	newIsm := types.ZKExecutionISM{
+	newIsm := types.InterchainSecurityModule{
 		Id:                  ismId,
 		Owner:               msg.Creator,
 		State:               msg.State,
@@ -45,13 +45,13 @@ func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreat
 		return nil, err
 	}
 
-	return &types.MsgCreateZKExecutionISMResponse{
+	return &types.MsgCreateInterchainSecurityModuleResponse{
 		Id: ismId,
 	}, nil
 }
 
-// UpdateZKExecutionISM implements types.MsgServer.
-func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdateZKExecutionISM) (*types.MsgUpdateZKExecutionISMResponse, error) {
+// UpdateInterchainSecurityModule implements types.MsgServer.
+func (m msgServer) UpdateInterchainSecurityModule(ctx context.Context, msg *types.MsgUpdateInterchainSecurityModule) (*types.MsgUpdateInterchainSecurityModuleResponse, error) {
 	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
 	if err != nil {
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
@@ -85,7 +85,7 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 		return nil, err
 	}
 
-	return &types.MsgUpdateZKExecutionISMResponse{
+	return &types.MsgUpdateInterchainSecurityModuleResponse{
 		State: ism.State,
 	}, nil
 }

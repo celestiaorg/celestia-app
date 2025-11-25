@@ -19,8 +19,8 @@ func (k *Keeper) InitGenesis(ctx context.Context, gs *types.GenesisState) error 
 
 // ExportGenesis outputs the modules state for genesis exports.
 func (k *Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) {
-	var isms []types.ZKExecutionISM
-	if err := k.isms.Walk(ctx, nil, func(_ uint64, value types.ZKExecutionISM) (bool, error) {
+	var isms []types.InterchainSecurityModule
+	if err := k.isms.Walk(ctx, nil, func(_ uint64, value types.InterchainSecurityModule) (bool, error) {
 		isms = append(isms, value)
 		return false, nil
 	}); err != nil {

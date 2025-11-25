@@ -11,7 +11,7 @@ import (
 
 func (suite *KeeperTestSuite) TestQueryServerIsm() {
 	ismId := util.GenerateHexAddress([20]byte{0x01}, types.InterchainSecurityModuleTypeZKExecution, 1)
-	expIsm := types.ZKExecutionISM{Owner: "test"}
+	expIsm := types.InterchainSecurityModule{Owner: "test"}
 
 	err := suite.zkISMKeeper.SetIsm(suite.ctx, ismId, expIsm)
 	suite.Require().NoError(err)
@@ -69,7 +69,7 @@ func (suite *KeeperTestSuite) TestQueryServerIsm() {
 
 func (suite *KeeperTestSuite) TestQueryServerIsms() {
 	var (
-		expIsms []types.ZKExecutionISM
+		expIsms []types.InterchainSecurityModule
 		req     *types.QueryIsmsRequest
 	)
 
@@ -85,7 +85,7 @@ func (suite *KeeperTestSuite) TestQueryServerIsms() {
 
 				for i := range 100 {
 					ismId := util.GenerateHexAddress([20]byte{0x01}, types.InterchainSecurityModuleTypeZKExecution, uint64(i))
-					ism := types.ZKExecutionISM{Owner: "test"}
+					ism := types.InterchainSecurityModule{Owner: "test"}
 
 					err := suite.zkISMKeeper.SetIsm(suite.ctx, ismId, ism)
 					suite.Require().NoError(err)
@@ -106,7 +106,7 @@ func (suite *KeeperTestSuite) TestQueryServerIsms() {
 
 				for i := range 100 {
 					ismId := util.GenerateHexAddress([20]byte{0x01}, types.InterchainSecurityModuleTypeZKExecution, uint64(i))
-					ism := types.ZKExecutionISM{Owner: "test"}
+					ism := types.InterchainSecurityModule{Owner: "test"}
 
 					err := suite.zkISMKeeper.SetIsm(suite.ctx, ismId, ism)
 					suite.Require().NoError(err)

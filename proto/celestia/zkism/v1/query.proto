@@ -34,7 +34,7 @@ message QueryIsmRequest {
 
 // QueryIsmResponse is the response type for the Ism rpc method.
 message QueryIsmResponse {
-  ZKExecutionISM ism = 1 [(gogoproto.nullable) = false];
+  InterchainSecurityModule ism = 1 [(gogoproto.nullable) = false];
 }
 
 // QueryIsmsRequest is the request type for the Isms rpc method.
@@ -46,7 +46,7 @@ message QueryIsmsRequest {
 // QueryIsmsResponse is the response type for the Isms rpc method.
 message QueryIsmsResponse {
   // isms is a list of zk execution isms.
-  repeated ZKExecutionISM isms = 1 [(gogoproto.nullable) = false];
+  repeated InterchainSecurityModule isms = 1 [(gogoproto.nullable) = false];
   // pagination defines the pagination in the response.
   cosmos.base.query.v1beta1.PageResponse pagination = 2;
 }

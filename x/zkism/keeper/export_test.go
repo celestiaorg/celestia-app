@@ -18,12 +18,12 @@ func (k *Keeper) SetMessageId(ctx context.Context, messageId []byte) error {
 }
 
 // GetIsm is a test func used for getting an ISM in the isms store collection.
-func (k *Keeper) GetIsm(ctx context.Context, ismId util.HexAddress) (types.ZKExecutionISM, error) {
+func (k *Keeper) GetIsm(ctx context.Context, ismId util.HexAddress) (types.InterchainSecurityModule, error) {
 	return k.isms.Get(ctx, ismId.GetInternalId())
 }
 
 // SetIsm is a test func used for setting an ISM in the isms store collection.
-func (k *Keeper) SetIsm(ctx context.Context, ismId util.HexAddress, ism types.ZKExecutionISM) error {
+func (k *Keeper) SetIsm(ctx context.Context, ismId util.HexAddress, ism types.InterchainSecurityModule) error {
 	return k.isms.Set(ctx, ismId.GetInternalId(), ism)
 }
 

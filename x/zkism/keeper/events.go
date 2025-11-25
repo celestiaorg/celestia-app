@@ -9,8 +9,8 @@ import (
 )
 
 // EmitCreateISMEvent emits a typed event to signal creation of a new ism.
-func EmitCreateISMEvent(ctx sdk.Context, ism types.ZKExecutionISM) error {
-	return ctx.EventManager().EmitTypedEvent(&types.EventCreateZKExecutionISM{
+func EmitCreateISMEvent(ctx sdk.Context, ism types.InterchainSecurityModule) error {
+	return ctx.EventManager().EmitTypedEvent(&types.EventCreateInterchainSecurityModule{
 		Id:                  ism.Id,
 		Owner:               ism.Owner,
 		State:               ism.State,
@@ -21,8 +21,8 @@ func EmitCreateISMEvent(ctx sdk.Context, ism types.ZKExecutionISM) error {
 }
 
 // EmitUpdateISMEvent emits a typed event to signal updating of an ism.
-func EmitUpdateISMEvent(ctx sdk.Context, ism types.ZKExecutionISM) error {
-	return ctx.EventManager().EmitTypedEvent(&types.EventUpdateZKExecutionISM{
+func EmitUpdateISMEvent(ctx sdk.Context, ism types.InterchainSecurityModule) error {
+	return ctx.EventManager().EmitTypedEvent(&types.EventUpdateInterchainSecurityModule{
 		Id:    ism.Id,
 		State: ism.State,
 	})

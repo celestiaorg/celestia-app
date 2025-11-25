@@ -161,31 +161,31 @@ type App struct {
 	memKeys map[string]*storetypes.MemoryStoreKey
 
 	// keepers
-	AccountKeeper        authkeeper.AccountKeeper
-	BankKeeper           bankkeeper.Keeper
-	AuthzKeeper          authzkeeper.Keeper
-	ConsensusKeeper      consensuskeeper.Keeper
-	CapabilityKeeper     *capabilitykeeper.Keeper
-	StakingKeeper        *stakingkeeper.Keeper
-	SlashingKeeper       slashingkeeper.Keeper
-	MintKeeper           mintkeeper.Keeper
-	DistrKeeper          distrkeeper.Keeper
-	GovKeeper            *govkeeper.Keeper
-	UpgradeKeeper        *upgradekeeper.Keeper // Upgrades are set in endblock when signaled
-	SignalKeeper         signal.Keeper
-	MinFeeKeeper         *minfeekeeper.Keeper
-	ParamsKeeper         paramskeeper.Keeper
-	IBCKeeper            *ibckeeper.Keeper // IBCKeeper must be a pointer in the app, so we can SetRouter on it correctly
-	EvidenceKeeper       evidencekeeper.Keeper
-	TransferKeeper       ibctransferkeeper.Keeper
-	FeeGrantKeeper       feegrantkeeper.Keeper
-	ICAHostKeeper        icahostkeeper.Keeper
-	PacketForwardKeeper  *packetforwardkeeper.Keeper
-	BlobKeeper           blobkeeper.Keeper
-	CircuitKeeper        circuitkeeper.Keeper
-	HyperlaneKeeper      hyperlanekeeper.Keeper
-	WarpKeeper           warpkeeper.Keeper
-	ZKExecutionISMKeeper *zkismkeeper.Keeper
+	AccountKeeper                  authkeeper.AccountKeeper
+	BankKeeper                     bankkeeper.Keeper
+	AuthzKeeper                    authzkeeper.Keeper
+	ConsensusKeeper                consensuskeeper.Keeper
+	CapabilityKeeper               *capabilitykeeper.Keeper
+	StakingKeeper                  *stakingkeeper.Keeper
+	SlashingKeeper                 slashingkeeper.Keeper
+	MintKeeper                     mintkeeper.Keeper
+	DistrKeeper                    distrkeeper.Keeper
+	GovKeeper                      *govkeeper.Keeper
+	UpgradeKeeper                  *upgradekeeper.Keeper // Upgrades are set in endblock when signaled
+	SignalKeeper                   signal.Keeper
+	MinFeeKeeper                   *minfeekeeper.Keeper
+	ParamsKeeper                   paramskeeper.Keeper
+	IBCKeeper                      *ibckeeper.Keeper // IBCKeeper must be a pointer in the app, so we can SetRouter on it correctly
+	EvidenceKeeper                 evidencekeeper.Keeper
+	TransferKeeper                 ibctransferkeeper.Keeper
+	FeeGrantKeeper                 feegrantkeeper.Keeper
+	ICAHostKeeper                  icahostkeeper.Keeper
+	PacketForwardKeeper            *packetforwardkeeper.Keeper
+	BlobKeeper                     blobkeeper.Keeper
+	CircuitKeeper                  circuitkeeper.Keeper
+	HyperlaneKeeper                hyperlanekeeper.Keeper
+	WarpKeeper                     warpkeeper.Keeper
+	InterchainSecurityModuleKeeper *zkismkeeper.Keeper
 
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
@@ -395,7 +395,7 @@ func New(
 		[]int32{int32(warptypes.HYP_TOKEN_TYPE_COLLATERAL), int32(warptypes.HYP_TOKEN_TYPE_SYNTHETIC)},
 	)
 
-	app.ZKExecutionISMKeeper = zkismkeeper.NewKeeper(
+	app.InterchainSecurityModuleKeeper = zkismkeeper.NewKeeper(
 		encodingConfig.Codec,
 		runtime.NewKVStoreService(keys[zkismtypes.StoreKey]),
 		&app.HyperlaneKeeper,
@@ -435,7 +435,7 @@ func New(
 		circuitModule{circuit.NewAppModule(encodingConfig.Codec, app.CircuitKeeper)},
 		hyperlanecore.NewAppModule(encodingConfig.Codec, &app.HyperlaneKeeper),
 		warp.NewAppModule(encodingConfig.Codec, app.WarpKeeper),
-		zkism.NewAppModule(encodingConfig.Codec, app.ZKExecutionISMKeeper),
+		zkism.NewAppModule(encodingConfig.Codec, app.InterchainSecurityModuleKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager is in charge of setting up basic,
