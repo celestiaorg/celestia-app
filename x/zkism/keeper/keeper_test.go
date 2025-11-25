@@ -65,23 +65,12 @@ func (suite *KeeperTestSuite) CreateTestIsm(trustedRoot []byte, trustedCelestiaH
 	messageVkey, err := hex.DecodeString(messageVkeyHex)
 	suite.Require().NoError(err)
 
-	namespace, err := hex.DecodeString(namespaceHex)
-	suite.Require().NoError(err)
-
-	pubKey, err := hex.DecodeString(publicKeyHex)
-	suite.Require().NoError(err)
-
 	ism := types.ZKExecutionISM{
 		Id:                  util.CreateMockHexAddress("ism", 1),
 		Groth16Vkey:         groth16Vkey,
 		StateTransitionVkey: stateVkey,
 		StateMembershipVkey: messageVkey,
-		StateRoot:           trustedRoot,
-		CelestiaHeaderHash:  trustedCelestiaHash,
-		CelestiaHeight:      trustedCelestiaHeight,
-		Height:              97,
-		Namespace:           namespace,
-		SequencerPublicKey:  pubKey,
+		State:               trustedRoot,
 	}
 
 	err = suite.zkISMKeeper.SetIsm(suite.ctx, ism.Id, ism)

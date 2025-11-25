@@ -33,22 +33,14 @@ type EventCreateZKExecutionISM struct {
 	Owner string `protobuf:"bytes,2,opt,name=owner,proto3" json:"owner,omitempty"`
 	// state commitment root of the remote chain
 	StateRoot string `protobuf:"bytes,3,opt,name=state_root,json=stateRoot,proto3" json:"state_root,omitempty"`
-	// latest tracked height of the remote chain
-	Height uint64 `protobuf:"varint,4,opt,name=height,proto3" json:"height,omitempty"`
-	// trusted celestia header hash
-	CelestiaHeaderHash string `protobuf:"bytes,5,opt,name=celestia_header_hash,json=celestiaHeaderHash,proto3" json:"celestia_header_hash,omitempty"`
-	// trusted celestia height
-	CelestiaHeight uint64 `protobuf:"varint,6,opt,name=celestia_height,json=celestiaHeight,proto3" json:"celestia_height,omitempty"`
-	// the celestia namespace identifier used by the application (hex-encoded)
-	Namespace string `protobuf:"bytes,7,opt,name=namespace,proto3" json:"namespace,omitempty"`
-	// the public key of the sequencer (hex-encoded)
-	SequencerPublicKey string `protobuf:"bytes,8,opt,name=sequencer_public_key,json=sequencerPublicKey,proto3" json:"sequencer_public_key,omitempty"`
+	// latest state
+	State []byte `protobuf:"bytes,4,opt,name=state,proto3" json:"state,omitempty"`
 	// the sp1 groth16 verifier key (hex-encoded)
-	Groth16Vkey string `protobuf:"bytes,9,opt,name=groth16_vkey,json=groth16Vkey,proto3" json:"groth16_vkey,omitempty"`
+	Groth16Vkey string `protobuf:"bytes,5,opt,name=groth16_vkey,json=groth16Vkey,proto3" json:"groth16_vkey,omitempty"`
 	// hash-based commitment to the verifier key used for state transition (hex-encoded)
-	StateTransitionVkey string `protobuf:"bytes,10,opt,name=state_transition_vkey,json=stateTransitionVkey,proto3" json:"state_transition_vkey,omitempty"`
+	StateTransitionVkey string `protobuf:"bytes,6,opt,name=state_transition_vkey,json=stateTransitionVkey,proto3" json:"state_transition_vkey,omitempty"`
 	// hash-based commitment to the verifier key used for state membership (hex-encoded)
-	StateMembershipVkey string `protobuf:"bytes,11,opt,name=state_membership_vkey,json=stateMembershipVkey,proto3" json:"state_membership_vkey,omitempty"`
+	StateMembershipVkey string `protobuf:"bytes,7,opt,name=state_membership_vkey,json=stateMembershipVkey,proto3" json:"state_membership_vkey,omitempty"`
 }
 
 func (m *EventCreateZKExecutionISM) Reset()         { *m = EventCreateZKExecutionISM{} }
@@ -88,14 +80,8 @@ var xxx_messageInfo_EventCreateZKExecutionISM proto.InternalMessageInfo
 type EventUpdateZKExecutionISM struct {
 	// unique hyperlane identifier
 	Id github_com_bcp_innovations_hyperlane_cosmos_util.HexAddress `protobuf:"bytes,1,opt,name=id,proto3,customtype=github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress" json:"id"`
-	// state commitment root of the remote chain
-	StateRoot string `protobuf:"bytes,2,opt,name=state_root,json=stateRoot,proto3" json:"state_root,omitempty"`
-	// latest tracked height of the remote chain
-	Height uint64 `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
-	// trusted celestia header hash
-	CelestiaHeaderHash string `protobuf:"bytes,4,opt,name=celestia_header_hash,json=celestiaHeaderHash,proto3" json:"celestia_header_hash,omitempty"`
-	// trusted celestia height
-	CelestiaHeight uint64 `protobuf:"varint,5,opt,name=celestia_height,json=celestiaHeight,proto3" json:"celestia_height,omitempty"`
+	// new state
+	State []byte `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
 }
 
 func (m *EventUpdateZKExecutionISM) Reset()         { *m = EventUpdateZKExecutionISM{} }
@@ -183,42 +169,36 @@ func init() {
 func init() { proto.RegisterFile("celestia/zkism/v1/events.proto", fileDescriptor_aae7066334f1a175) }
 
 var fileDescriptor_aae7066334f1a175 = []byte{
-	// 554 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xc4, 0x54, 0x4f, 0x8b, 0xd3, 0x4c,
-	0x18, 0x6f, 0xda, 0x6e, 0xdf, 0xed, 0xec, 0x8b, 0x62, 0xb6, 0x4a, 0xb6, 0x68, 0x5a, 0xf7, 0x62,
-	0x2f, 0x4d, 0xac, 0x82, 0x07, 0x3d, 0xb9, 0xcb, 0x42, 0xa5, 0x14, 0x24, 0x55, 0x0f, 0x7b, 0x09,
-	0x93, 0xe4, 0x21, 0x19, 0xda, 0x64, 0xe2, 0xcc, 0xa4, 0xb6, 0x7e, 0x82, 0x3d, 0x0a, 0x7e, 0x01,
-	0xef, 0x5e, 0xfd, 0x10, 0x7b, 0x5c, 0x3c, 0x89, 0x87, 0x45, 0xda, 0x2f, 0x22, 0x99, 0x49, 0x63,
-	0x17, 0x14, 0xf4, 0xa2, 0xb7, 0xcc, 0xf3, 0xfb, 0xf3, 0x3c, 0xf9, 0x3d, 0xc3, 0x20, 0xd3, 0x87,
-	0x19, 0x70, 0x41, 0xb0, 0xfd, 0x76, 0x4a, 0x78, 0x6c, 0xcf, 0x07, 0x36, 0xcc, 0x21, 0x11, 0xdc,
-	0x4a, 0x19, 0x15, 0x54, 0xbf, 0xb1, 0xc1, 0x2d, 0x89, 0x5b, 0xf3, 0x41, 0xfb, 0xc0, 0xa7, 0x3c,
-	0xa6, 0xdc, 0x95, 0x04, 0x5b, 0x1d, 0x14, 0xbb, 0xdd, 0x0a, 0x69, 0x48, 0x55, 0x3d, 0xff, 0x52,
-	0xd5, 0xc3, 0xf7, 0x75, 0x74, 0x70, 0x92, 0x9b, 0x1e, 0x33, 0xc0, 0x02, 0x4e, 0x47, 0x27, 0x0b,
-	0xf0, 0x33, 0x41, 0x68, 0xf2, 0x6c, 0x32, 0xd6, 0x27, 0xa8, 0x4a, 0x02, 0x43, 0xeb, 0x6a, 0xbd,
-	0xe6, 0xd1, 0xf1, 0xf9, 0x65, 0xa7, 0xf2, 0xf5, 0xb2, 0xf3, 0x24, 0x24, 0x22, 0xca, 0x3c, 0xcb,
-	0xa7, 0xb1, 0xed, 0xf9, 0x69, 0x9f, 0x24, 0x09, 0x9d, 0xe3, 0x5c, 0xc1, 0xed, 0x68, 0x99, 0x02,
-	0x9b, 0xe1, 0x04, 0xfa, 0xaa, 0xb5, 0x9d, 0x09, 0x32, 0xb3, 0x86, 0xb0, 0x78, 0x1a, 0x04, 0x0c,
-	0x38, 0x77, 0xaa, 0x24, 0xd0, 0x2d, 0xb4, 0x43, 0xdf, 0x24, 0xc0, 0x8c, 0xaa, 0xf4, 0x35, 0x3e,
-	0x7f, 0xea, 0xb7, 0x8a, 0x49, 0x0b, 0xda, 0x44, 0x30, 0x92, 0x84, 0x8e, 0xa2, 0xe9, 0x77, 0x10,
-	0xe2, 0x02, 0x0b, 0x70, 0x19, 0xa5, 0xc2, 0xa8, 0xe5, 0x22, 0xa7, 0x29, 0x2b, 0x0e, 0xa5, 0x42,
-	0xbf, 0x85, 0x1a, 0x11, 0x90, 0x30, 0x12, 0x46, 0xbd, 0xab, 0xf5, 0xea, 0x4e, 0x71, 0xd2, 0xef,
-	0xa3, 0xd6, 0x26, 0x1f, 0x37, 0x02, 0x1c, 0x00, 0x73, 0x23, 0xcc, 0x23, 0x63, 0x47, 0x1a, 0xe8,
-	0x1b, 0x6c, 0x28, 0xa1, 0x21, 0xe6, 0x91, 0x7e, 0x0f, 0x5d, 0xdf, 0x52, 0x48, 0xcb, 0x86, 0xb4,
-	0xbc, 0xf6, 0x83, 0x2c, 0xad, 0x6f, 0xa3, 0x66, 0x82, 0x63, 0xe0, 0x29, 0xf6, 0xc1, 0xf8, 0x4f,
-	0x0d, 0x54, 0x16, 0xf2, 0xc6, 0x1c, 0x5e, 0x67, 0x90, 0xf8, 0xc0, 0xdc, 0x34, 0xf3, 0x66, 0xc4,
-	0x77, 0xa7, 0xb0, 0x34, 0x76, 0x55, 0xe3, 0x12, 0x7b, 0x2e, 0xa1, 0x11, 0x2c, 0xf5, 0xbb, 0xe8,
-	0xff, 0x90, 0x51, 0x11, 0x0d, 0x1e, 0xb9, 0xf3, 0x9c, 0xd9, 0x94, 0xcc, 0xbd, 0xa2, 0xf6, 0x6a,
-	0x0a, 0x4b, 0xfd, 0x01, 0xba, 0xa9, 0x42, 0x10, 0x0c, 0x27, 0x9c, 0xe4, 0x71, 0x2b, 0x2e, 0x92,
-	0xdc, 0x7d, 0x09, 0xbe, 0x28, 0xb1, 0xab, 0x9a, 0x18, 0x62, 0x0f, 0x18, 0x8f, 0x48, 0xaa, 0x34,
-	0x7b, 0x5b, 0x9a, 0x71, 0x89, 0xe5, 0x9a, 0xc7, 0xf5, 0xb3, 0x0f, 0x9d, 0xca, 0xe1, 0x59, 0xb5,
-	0xb8, 0x15, 0x2f, 0xd3, 0xe0, 0x2f, 0xdd, 0x8a, 0xab, 0x5b, 0xae, 0xfe, 0x7a, 0xcb, 0xb5, 0xdf,
-	0xda, 0x72, 0xfd, 0x4f, 0xb6, 0xbc, 0xf3, 0xb3, 0x2d, 0x17, 0x51, 0x7c, 0xd4, 0xd0, 0xbe, 0x8c,
-	0x62, 0x92, 0x79, 0x31, 0x11, 0x63, 0xe0, 0x1c, 0x87, 0xc0, 0xff, 0x49, 0x08, 0x6d, 0xb4, 0x1b,
-	0x17, 0xfd, 0x8d, 0x5a, 0xb7, 0xd6, 0x6b, 0x3a, 0xe5, 0x59, 0x4d, 0x7b, 0x34, 0x3a, 0x5f, 0x99,
-	0xda, 0xc5, 0xca, 0xd4, 0xbe, 0xad, 0x4c, 0xed, 0xdd, 0xda, 0xac, 0x5c, 0xac, 0xcd, 0xca, 0x97,
-	0xb5, 0x59, 0x39, 0x1d, 0x6c, 0xcd, 0xb6, 0xf9, 0x51, 0xca, 0xc2, 0xf2, 0xbb, 0x8f, 0xd3, 0xd4,
-	0x5e, 0x14, 0x2f, 0x8d, 0x58, 0xa6, 0xc0, 0xbd, 0x86, 0x7c, 0x22, 0x1e, 0x7e, 0x0f, 0x00, 0x00,
-	0xff, 0xff, 0x01, 0x93, 0x2b, 0x9b, 0x88, 0x04, 0x00, 0x00,
+	// 462 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x53, 0xbf, 0x6f, 0xd3, 0x40,
+	0x14, 0xb6, 0x9d, 0xa6, 0x90, 0xa3, 0x0b, 0x6e, 0x90, 0xdc, 0x48, 0x38, 0xa1, 0x53, 0x96, 0xd8,
+	0x0a, 0x48, 0x0c, 0x30, 0xd1, 0xaa, 0x12, 0xa8, 0xca, 0xe2, 0x00, 0x43, 0x97, 0xc8, 0x3f, 0x9e,
+	0x9c, 0x53, 0x62, 0xdf, 0xe9, 0xee, 0xc5, 0xc4, 0xfc, 0x05, 0x0c, 0x0c, 0xfc, 0x09, 0xec, 0xac,
+	0xfc, 0x11, 0x1d, 0x2b, 0x26, 0xc4, 0x50, 0xa1, 0x44, 0xe2, 0xef, 0x40, 0xbe, 0x73, 0xad, 0x94,
+	0x9d, 0x6e, 0xf7, 0xde, 0xf7, 0x7d, 0xef, 0x3e, 0x7f, 0xe7, 0x47, 0xdc, 0x18, 0x96, 0x20, 0x91,
+	0x86, 0xfe, 0xc7, 0x05, 0x95, 0x99, 0x5f, 0x8c, 0x7d, 0x28, 0x20, 0x47, 0xe9, 0x71, 0xc1, 0x90,
+	0xd9, 0x0f, 0x6f, 0x70, 0x4f, 0xe1, 0x5e, 0x31, 0xee, 0x1d, 0xc5, 0x4c, 0x66, 0x4c, 0xce, 0x14,
+	0xc1, 0xd7, 0x85, 0x66, 0xf7, 0xba, 0x29, 0x4b, 0x99, 0xee, 0x57, 0x27, 0xdd, 0x3d, 0xfe, 0x63,
+	0x91, 0xa3, 0xb3, 0x6a, 0xe8, 0xa9, 0x80, 0x10, 0xe1, 0xe2, 0xfc, 0x6c, 0x0d, 0xf1, 0x0a, 0x29,
+	0xcb, 0xdf, 0x4c, 0x27, 0xf6, 0x94, 0x58, 0x34, 0x71, 0xcc, 0x81, 0x39, 0xec, 0x9c, 0x9c, 0x5e,
+	0x5e, 0xf7, 0x8d, 0x5f, 0xd7, 0xfd, 0x97, 0x29, 0xc5, 0xf9, 0x2a, 0xf2, 0x62, 0x96, 0xf9, 0x51,
+	0xcc, 0x47, 0x34, 0xcf, 0x59, 0x11, 0x56, 0x0a, 0xe9, 0xcf, 0x4b, 0x0e, 0x62, 0x19, 0xe6, 0x30,
+	0xd2, 0x57, 0xfb, 0x2b, 0xa4, 0x4b, 0xef, 0x35, 0xac, 0x5f, 0x25, 0x89, 0x00, 0x29, 0x03, 0x8b,
+	0x26, 0xb6, 0x47, 0xda, 0xec, 0x43, 0x0e, 0xc2, 0xb1, 0xd4, 0x5c, 0xe7, 0xc7, 0xf7, 0x51, 0xb7,
+	0x76, 0x5a, 0xd3, 0xa6, 0x28, 0x68, 0x9e, 0x06, 0x9a, 0x66, 0x3f, 0x26, 0x44, 0x62, 0x88, 0x30,
+	0x13, 0x8c, 0xa1, 0xd3, 0xaa, 0x44, 0x41, 0x47, 0x75, 0x02, 0xc6, 0xd0, 0xee, 0x92, 0xb6, 0x2a,
+	0x9c, 0xbd, 0x81, 0x39, 0x3c, 0x08, 0x74, 0x61, 0x3f, 0x21, 0x07, 0xa9, 0x60, 0x38, 0x1f, 0x3f,
+	0x9f, 0x15, 0x0b, 0x28, 0x9d, 0xb6, 0x92, 0x3d, 0xa8, 0x7b, 0xef, 0x17, 0x50, 0xda, 0x4f, 0xc9,
+	0x23, 0x3d, 0x17, 0x45, 0x98, 0x4b, 0x5a, 0x7d, 0x81, 0xe6, 0xee, 0x2b, 0xee, 0xa1, 0x02, 0xdf,
+	0x36, 0xd8, 0x6d, 0x4d, 0x06, 0x59, 0x04, 0x42, 0xce, 0x29, 0xd7, 0x9a, 0x7b, 0x3b, 0x9a, 0x49,
+	0x83, 0x55, 0x9a, 0x17, 0x7b, 0x9f, 0xbe, 0xf6, 0x8d, 0xe3, 0xcf, 0x66, 0x1d, 0xf4, 0x3b, 0x9e,
+	0xdc, 0x51, 0xd0, 0x4d, 0x32, 0xd6, 0x4e, 0x32, 0xb5, 0x9d, 0x6f, 0x26, 0x39, 0x54, 0x76, 0xa6,
+	0xab, 0x28, 0xa3, 0x38, 0x01, 0x29, 0xc3, 0x14, 0xe4, 0xff, 0x31, 0x72, 0xfb, 0x05, 0xad, 0x7f,
+	0x5f, 0xb0, 0x47, 0xee, 0x67, 0xf5, 0xfd, 0x4e, 0x6b, 0xd0, 0x1a, 0x76, 0x82, 0xa6, 0xd6, 0x6e,
+	0x4f, 0xce, 0x2f, 0x37, 0xae, 0x79, 0xb5, 0x71, 0xcd, 0xdf, 0x1b, 0xd7, 0xfc, 0xb2, 0x75, 0x8d,
+	0xab, 0xad, 0x6b, 0xfc, 0xdc, 0xba, 0xc6, 0xc5, 0x78, 0xc7, 0xdb, 0xcd, 0x3a, 0x30, 0x91, 0x36,
+	0xe7, 0x51, 0xc8, 0xb9, 0xbf, 0xae, 0x17, 0x08, 0x4b, 0x0e, 0x32, 0xda, 0x57, 0x7f, 0xfe, 0xb3,
+	0xbf, 0x01, 0x00, 0x00, 0xff, 0xff, 0xdc, 0x85, 0x05, 0x75, 0x5f, 0x03, 0x00, 0x00,
 }
 
 func (m *EventCreateZKExecutionISM) Marshal() (dAtA []byte, err error) {
@@ -246,52 +226,28 @@ func (m *EventCreateZKExecutionISM) MarshalToSizedBuffer(dAtA []byte) (int, erro
 		copy(dAtA[i:], m.StateMembershipVkey)
 		i = encodeVarintEvents(dAtA, i, uint64(len(m.StateMembershipVkey)))
 		i--
-		dAtA[i] = 0x5a
+		dAtA[i] = 0x3a
 	}
 	if len(m.StateTransitionVkey) > 0 {
 		i -= len(m.StateTransitionVkey)
 		copy(dAtA[i:], m.StateTransitionVkey)
 		i = encodeVarintEvents(dAtA, i, uint64(len(m.StateTransitionVkey)))
 		i--
-		dAtA[i] = 0x52
+		dAtA[i] = 0x32
 	}
 	if len(m.Groth16Vkey) > 0 {
 		i -= len(m.Groth16Vkey)
 		copy(dAtA[i:], m.Groth16Vkey)
 		i = encodeVarintEvents(dAtA, i, uint64(len(m.Groth16Vkey)))
 		i--
-		dAtA[i] = 0x4a
-	}
-	if len(m.SequencerPublicKey) > 0 {
-		i -= len(m.SequencerPublicKey)
-		copy(dAtA[i:], m.SequencerPublicKey)
-		i = encodeVarintEvents(dAtA, i, uint64(len(m.SequencerPublicKey)))
-		i--
-		dAtA[i] = 0x42
-	}
-	if len(m.Namespace) > 0 {
-		i -= len(m.Namespace)
-		copy(dAtA[i:], m.Namespace)
-		i = encodeVarintEvents(dAtA, i, uint64(len(m.Namespace)))
-		i--
-		dAtA[i] = 0x3a
-	}
-	if m.CelestiaHeight != 0 {
-		i = encodeVarintEvents(dAtA, i, uint64(m.CelestiaHeight))
-		i--
-		dAtA[i] = 0x30
-	}
-	if len(m.CelestiaHeaderHash) > 0 {
-		i -= len(m.CelestiaHeaderHash)
-		copy(dAtA[i:], m.CelestiaHeaderHash)
-		i = encodeVarintEvents(dAtA, i, uint64(len(m.CelestiaHeaderHash)))
-		i--
 		dAtA[i] = 0x2a
 	}
-	if m.Height != 0 {
-		i = encodeVarintEvents(dAtA, i, uint64(m.Height))
+	if len(m.State) > 0 {
+		i -= len(m.State)
+		copy(dAtA[i:], m.State)
+		i = encodeVarintEvents(dAtA, i, uint64(len(m.State)))
 		i--
-		dAtA[i] = 0x20
+		dAtA[i] = 0x22
 	}
 	if len(m.StateRoot) > 0 {
 		i -= len(m.StateRoot)
@@ -340,27 +296,10 @@ func (m *EventUpdateZKExecutionISM) MarshalToSizedBuffer(dAtA []byte) (int, erro
 	_ = i
 	var l int
 	_ = l
-	if m.CelestiaHeight != 0 {
-		i = encodeVarintEvents(dAtA, i, uint64(m.CelestiaHeight))
-		i--
-		dAtA[i] = 0x28
-	}
-	if len(m.CelestiaHeaderHash) > 0 {
-		i -= len(m.CelestiaHeaderHash)
-		copy(dAtA[i:], m.CelestiaHeaderHash)
-		i = encodeVarintEvents(dAtA, i, uint64(len(m.CelestiaHeaderHash)))
-		i--
-		dAtA[i] = 0x22
-	}
-	if m.Height != 0 {
-		i = encodeVarintEvents(dAtA, i, uint64(m.Height))
-		i--
-		dAtA[i] = 0x18
-	}
-	if len(m.StateRoot) > 0 {
-		i -= len(m.StateRoot)
-		copy(dAtA[i:], m.StateRoot)
-		i = encodeVarintEvents(dAtA, i, uint64(len(m.StateRoot)))
+	if len(m.State) > 0 {
+		i -= len(m.State)
+		copy(dAtA[i:], m.State)
+		i = encodeVarintEvents(dAtA, i, uint64(len(m.State)))
 		i--
 		dAtA[i] = 0x12
 	}
@@ -453,21 +392,7 @@ func (m *EventCreateZKExecutionISM) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovEvents(uint64(l))
 	}
-	if m.Height != 0 {
-		n += 1 + sovEvents(uint64(m.Height))
-	}
-	l = len(m.CelestiaHeaderHash)
-	if l > 0 {
-		n += 1 + l + sovEvents(uint64(l))
-	}
-	if m.CelestiaHeight != 0 {
-		n += 1 + sovEvents(uint64(m.CelestiaHeight))
-	}
-	l = len(m.Namespace)
-	if l > 0 {
-		n += 1 + l + sovEvents(uint64(l))
-	}
-	l = len(m.SequencerPublicKey)
+	l = len(m.State)
 	if l > 0 {
 		n += 1 + l + sovEvents(uint64(l))
 	}
@@ -494,19 +419,9 @@ func (m *EventUpdateZKExecutionISM) Size() (n int) {
 	_ = l
 	l = m.Id.Size()
 	n += 1 + l + sovEvents(uint64(l))
-	l = len(m.StateRoot)
+	l = len(m.State)
 	if l > 0 {
 		n += 1 + l + sovEvents(uint64(l))
-	}
-	if m.Height != 0 {
-		n += 1 + sovEvents(uint64(m.Height))
-	}
-	l = len(m.CelestiaHeaderHash)
-	if l > 0 {
-		n += 1 + l + sovEvents(uint64(l))
-	}
-	if m.CelestiaHeight != 0 {
-		n += 1 + sovEvents(uint64(m.CelestiaHeight))
 	}
 	return n
 }
@@ -666,10 +581,10 @@ func (m *EventCreateZKExecutionISM) Unmarshal(dAtA []byte) error {
 			m.StateRoot = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 4:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Height", wireType)
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field State", wireType)
 			}
-			m.Height = 0
+			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowEvents
@@ -679,127 +594,27 @@ func (m *EventCreateZKExecutionISM) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Height |= uint64(b&0x7F) << shift
+				byteLen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
+			if byteLen < 0 {
+				return ErrInvalidLengthEvents
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvents
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.State = append(m.State[:0], dAtA[iNdEx:postIndex]...)
+			if m.State == nil {
+				m.State = []byte{}
+			}
+			iNdEx = postIndex
 		case 5:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field CelestiaHeaderHash", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvents
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthEvents
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvents
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.CelestiaHeaderHash = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 6:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field CelestiaHeight", wireType)
-			}
-			m.CelestiaHeight = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvents
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.CelestiaHeight |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 7:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Namespace", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvents
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthEvents
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvents
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Namespace = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 8:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field SequencerPublicKey", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvents
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthEvents
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvents
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.SequencerPublicKey = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 9:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Groth16Vkey", wireType)
 			}
@@ -831,7 +646,7 @@ func (m *EventCreateZKExecutionISM) Unmarshal(dAtA []byte) error {
 			}
 			m.Groth16Vkey = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 10:
+		case 6:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field StateTransitionVkey", wireType)
 			}
@@ -863,7 +678,7 @@ func (m *EventCreateZKExecutionISM) Unmarshal(dAtA []byte) error {
 			}
 			m.StateTransitionVkey = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 11:
+		case 7:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field StateMembershipVkey", wireType)
 			}
@@ -981,9 +796,9 @@ func (m *EventUpdateZKExecutionISM) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field StateRoot", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field State", wireType)
 			}
-			var stringLen uint64
+			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowEvents
@@ -993,94 +808,26 @@ func (m *EventUpdateZKExecutionISM) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
+				byteLen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
+			if byteLen < 0 {
 				return ErrInvalidLengthEvents
 			}
-			postIndex := iNdEx + intStringLen
+			postIndex := iNdEx + byteLen
 			if postIndex < 0 {
 				return ErrInvalidLengthEvents
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.StateRoot = string(dAtA[iNdEx:postIndex])
+			m.State = append(m.State[:0], dAtA[iNdEx:postIndex]...)
+			if m.State == nil {
+				m.State = []byte{}
+			}
 			iNdEx = postIndex
-		case 3:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Height", wireType)
-			}
-			m.Height = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvents
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.Height |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 4:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field CelestiaHeaderHash", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvents
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthEvents
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvents
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.CelestiaHeaderHash = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 5:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field CelestiaHeight", wireType)
-			}
-			m.CelestiaHeight = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvents
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.CelestiaHeight |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipEvents(dAtA[iNdEx:])

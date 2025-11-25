@@ -10,13 +10,8 @@ import (
 
 func TestStateTransitionPublicValuesEncoding(t *testing.T) {
 	expected := types.EvExecutionPublicValues{
-		CelestiaHeaderHash: [32]byte{0x01},
-		TrustedHeight:      123,
-		TrustedStateRoot:   [32]byte{0xAA},
-		NewHeight:          456,
-		NewStateRoot:       [32]byte{0xBB},
-		Namespace:          [29]byte{0xCC},
-		PublicKey:          [32]byte{0xDD},
+		State:    []byte{0x01, 0x02, 0x03, 0x04, 0x05},
+		NewState: []byte{0x06, 0x07, 0x08, 0x09, 0x0A},
 	}
 
 	bz, err := expected.Marshal()
@@ -27,38 +22,7 @@ func TestStateTransitionPublicValuesEncoding(t *testing.T) {
 	err = decoded.Unmarshal(bz)
 	require.NoError(t, err)
 
-	require.Equal(t, expected.CelestiaHeaderHash, decoded.CelestiaHeaderHash)
-	require.Equal(t, expected.TrustedHeight, decoded.TrustedHeight)
-	require.Equal(t, expected.TrustedStateRoot, decoded.TrustedStateRoot)
-	require.Equal(t, expected.NewHeight, decoded.NewHeight)
-	require.Equal(t, expected.NewStateRoot, decoded.NewStateRoot)
-	require.Equal(t, expected.Namespace, decoded.Namespace)
-	require.Equal(t, expected.PublicKey, decoded.PublicKey)
-}
-
-func TestStateTransitionPublicValuesTrailingData(t *testing.T) {
-	pubInputs := types.EvExecutionPublicValues{
-		PrevCelestiaHeaderHash: [32]byte{0x00},
-		PrevCelestiaHeight:     0,
-		CelestiaHeaderHash:     [32]byte{0x01},
-		CelestiaHeight:         0,
-		TrustedHeight:          1,
-		TrustedStateRoot:       [32]byte{0x02},
-		NewHeight:              2,
-		NewStateRoot:           [32]byte{0x03},
-		Namespace:              [29]byte{0x04},
-		PublicKey:              [32]byte{0x04},
-	}
-
-	bz, err := pubInputs.Marshal()
-	require.NoError(t, err)
-
-	bz = append(bz, 0xFF) // append trailing data to force error
-
-	var decoded types.EvExecutionPublicValues
-	err = decoded.Unmarshal(bz)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "trailing data")
+	require.Equal(t, expected.State, decoded.NewState)
 }
 
 func TestStateMembershipPublicValuesEncoding(t *testing.T) {

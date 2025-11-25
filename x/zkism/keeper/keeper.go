@@ -103,37 +103,8 @@ func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, _ []byte, me
 }
 
 func (k *Keeper) validatePublicValues(ctx context.Context, ism types.ZKExecutionISM, publicValues types.EvExecutionPublicValues) error {
-	headerHash, err := k.GetHeaderHash(ctx, publicValues.CelestiaHeight)
-	if err != nil {
-		return errorsmod.Wrapf(types.ErrHeaderHashNotFound, "failed to get header for height %d", publicValues.CelestiaHeight)
-	}
-
-	if !bytes.Equal(headerHash, publicValues.CelestiaHeaderHash[:]) {
-		return errorsmod.Wrapf(types.ErrInvalidHeaderHash, "expected %x, got %x", headerHash, publicValues.CelestiaHeaderHash[:])
-	}
-
-	if !bytes.Equal(publicValues.TrustedStateRoot[:], ism.StateRoot) {
-		return errorsmod.Wrapf(types.ErrInvalidStateRoot, "expected %x, got %x", ism.StateRoot, publicValues.TrustedStateRoot)
-	}
-
-	if publicValues.PrevCelestiaHeight != ism.CelestiaHeight {
-		return errorsmod.Wrapf(types.ErrInvalidHeight, "expected %d, got %d", ism.CelestiaHeight, publicValues.PrevCelestiaHeight)
-	}
-
-	if !bytes.Equal(publicValues.PrevCelestiaHeaderHash[:], ism.CelestiaHeaderHash) {
-		return errorsmod.Wrapf(types.ErrInvalidHeaderHash, "expected %x, got %x", ism.CelestiaHeaderHash, publicValues.PrevCelestiaHeaderHash)
-	}
-
-	if publicValues.TrustedHeight != ism.Height {
-		return errorsmod.Wrapf(types.ErrInvalidHeight, "expected %d, got %d", ism.Height, publicValues.TrustedHeight)
-	}
-
-	if !bytes.Equal(publicValues.Namespace[:], ism.Namespace) {
-		return errorsmod.Wrapf(types.ErrInvalidNamespace, "expected %x, got %x", ism.Namespace, publicValues.Namespace)
-	}
-
-	if !bytes.Equal(publicValues.PublicKey[:], ism.SequencerPublicKey) {
-		return errorsmod.Wrapf(types.ErrInvalidSequencerKey, "expected %x, got %x", ism.SequencerPublicKey, publicValues.PublicKey)
+	if !bytes.Equal(ism.State, publicValues.State) {
+		return errorsmod.Wrapf(types.ErrInvalidState, "expected %x, got %x", ism.State, publicValues.State)
 	}
 
 	return nil

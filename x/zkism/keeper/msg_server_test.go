@@ -14,9 +14,6 @@ import (
 func (suite *KeeperTestSuite) TestCreateZKExecutionISM() {
 	var msg *types.MsgCreateZKExecutionISM
 
-	namespace, err := hex.DecodeString(namespaceHex)
-	suite.Require().NoError(err)
-
 	testCases := []struct {
 		name      string
 		setupTest func()
@@ -27,12 +24,7 @@ func (suite *KeeperTestSuite) TestCreateZKExecutionISM() {
 			setupTest: func() {
 				msg = &types.MsgCreateZKExecutionISM{
 					Creator:             testfactory.TestAccAddr,
-					StateRoot:           randBytes(32),
-					Height:              97,
-					CelestiaHeaderHash:  randBytes(32),
-					CelestiaHeight:      0,
-					Namespace:           namespace,
-					SequencerPublicKey:  randBytes(32),
+					State:               randBytes(128),
 					Groth16Vkey:         randBytes(32),
 					StateTransitionVkey: randBytes(32),
 					StateMembershipVkey: randBytes(32),
@@ -130,8 +122,7 @@ func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
 				publicValues := new(types.EvExecutionPublicValues)
 				suite.Require().NoError(publicValues.Unmarshal(pubValues))
 
-				suite.Require().Equal(publicValues.NewHeight, res.Height)
-				suite.Require().Equal(hex.EncodeToString(publicValues.NewStateRoot[:]), res.StateRoot)
+				suite.Require().Equal(publicValues.State, res.State)
 			}
 		})
 	}
