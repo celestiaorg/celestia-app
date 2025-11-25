@@ -136,9 +136,12 @@ func (q *sequentialQueue) GetQueueSize() int {
 
 // processNextTx signs and broadcasts the next unbroadcast transaction in queue
 func (q *sequentialQueue) processNextTx() {
+	startTime := time.Now()
 
 	// Find first unbroadcast transaction (txHash is empty)
 	fmt.Println("Processing next tx")
+
+	scanStart := time.Now()
 	var qTx *queuedTx
 	q.mu.RLock()
 	for _, tx := range q.queue {
@@ -147,18 +150,25 @@ func (q *sequentialQueue) processNextTx() {
 			break
 		}
 	}
+	queueSize := len(q.queue)
 	q.mu.RUnlock()
+	scanDuration := time.Since(scanStart)
 
 	if qTx == nil {
 		return
 	}
 
+	fmt.Printf("[TIMING] Queue scan took %v (queue size: %d)\n", scanDuration, queueSize)
+
+	broadcastStart := time.Now()
 	resp, txBytes, err := q.client.BroadcastPayForBlobWithoutRetry(
 		q.ctx,
 		q.accountName,
 		qTx.blobs,
 		qTx.options...,
 	)
+	broadcastDuration := time.Since(broadcastStart)
+	fmt.Printf("[TIMING] Broadcast call took %v\n", broadcastDuration)
 
 	if err != nil || resp.Code != 0 {
 		// Check if this is a sequence mismatch AND we're blocked
@@ -193,11 +203,8 @@ func (q *sequentialQueue) processNextTx() {
 	qTx.sequence = sequence
 	qTx.submittedAt = time.Now()
 
-	// Track submission metrics
-	q.newBroadcastCount++
-	q.logSubmissionMetrics()
-
-	fmt.Println("Broadcast successful - marking as broadcast in queue")
+	fmt.Printf("Broadcast successful for tx %s - marking as broadcast in queue\n", qTx.txHash[:16])
+	fmt.Printf("[TIMING] Total processNextTx took %v\n", time.Since(startTime))
 }
 
 // monitorLoop periodically checks the status of broadcast transactions
@@ -237,6 +244,7 @@ func (q *sequentialQueue) coordinate() {
 
 // ResignRejected resigns a rejected transaction
 func (q *sequentialQueue) ResignRejected() {
+	startTime := time.Now()
 	fmt.Println("Resigning rejected tx")
 	q.mu.RLock()
 	var txsToResign []*queuedTx
@@ -250,6 +258,7 @@ func (q *sequentialQueue) ResignRejected() {
 	for _, qTx := range txsToResign {
 		if qTx.shouldResign {
 			// resign the tx
+			resignStart := time.Now()
 			resp, txBytes, err := q.client.BroadcastPayForBlobWithoutRetry(
 				q.ctx,
 				q.accountName,
@@ -274,11 +283,12 @@ func (q *sequentialQueue) ResignRejected() {
 			qTx.sequence = sequence
 			qTx.shouldResign = false
 			q.resignCount++
-			q.logSubmissionMetrics()
 			q.mu.Unlock()
-			fmt.Printf("Resigned and submitted tx successfully: %s\n", resp.TxHash)
+			resignDuration := time.Since(resignStart)
+			fmt.Printf("Resigned and submitted tx successfully: %s (took %v)\n", resp.TxHash, resignDuration)
 		}
 	}
+	fmt.Printf("[TIMING] Total ResignRejected took %v\n", time.Since(startTime))
 }
 
 // TODO: come back to this and see if it makes sense
@@ -293,13 +303,17 @@ func (q *sequentialQueue) ResignRejected() {
 // }
 
 func (q *sequentialQueue) ResubmitEvicted(qTx *queuedTx) {
+	startTime := time.Now()
 	fmt.Printf("Resubmitting evicted tx with hash %s and sequence %d\n", qTx.txHash[:16], qTx.sequence)
 	q.mu.RLock()
 	txBytes := qTx.txBytes
 	q.mu.RUnlock()
 
 	// check if the tx needs to be resubmitted
+	resubmitStart := time.Now()
 	resubmitResp, err := q.client.SendTxToConnection(q.ctx, q.client.GetGRPCConnection(), txBytes)
+	resubmitDuration := time.Since(resubmitStart)
+	fmt.Printf("[TIMING] Resubmit network call took %v\n", resubmitDuration)
 	if err != nil || resubmitResp.Code != 0 {
 		// Check if this is a sequence mismatch
 		// if IsSequenceMismatchError(err) {
@@ -359,14 +373,17 @@ func (q *sequentialQueue) ResubmitEvicted(qTx *queuedTx) {
 	q.mu.Lock()
 	qTx.isResubmitting = false
 	q.resubmitCount++
-	q.logSubmissionMetrics()
 	q.mu.Unlock()
 	fmt.Printf("Successfully resubmitted tx %s\n", qTx.txHash[:16])
+	fmt.Printf("[TIMING] Total ResubmitEvicted took %v\n", time.Since(startTime))
 }
 
 // checkBroadcastTransactions checks status of all broadcast transactions
 func (q *sequentialQueue) checkBroadcastTransactions() {
+	startTime := time.Now()
 	fmt.Println("Checking broadcast transactions")
+
+	scanStart := time.Now()
 	q.mu.RLock()
 	// Collect all broadcast transactions (those with non-empty txHash)
 	var broadcastTxs []*queuedTx // TODO: cap the size
@@ -375,10 +392,13 @@ func (q *sequentialQueue) checkBroadcastTransactions() {
 			broadcastTxs = append(broadcastTxs, tx)
 		}
 	}
+	fmt.Printf("Broadcast txs: %d\n", len(broadcastTxs))
 	totalQueueSize := len(q.queue)
 	q.mu.RUnlock()
+	scanDuration := time.Since(scanStart)
 
 	fmt.Printf("Total queue size: %d, Broadcast txs: %d\n", totalQueueSize, len(broadcastTxs))
+	fmt.Printf("[TIMING] Collecting broadcast txs scan took %v\n", scanDuration)
 
 	if len(broadcastTxs) == 0 {
 		return
@@ -387,7 +407,10 @@ func (q *sequentialQueue) checkBroadcastTransactions() {
 	// Create tx client for status queries
 	txClient := tx.NewTxClient(q.client.GetGRPCConnection())
 
+	statusCheckStart := time.Now()
+	statusCheckCount := 0
 	for _, qTx := range broadcastTxs {
+		statusCheckCount++
 		statusResp, err := txClient.TxStatus(q.ctx, &tx.TxStatusRequest{TxId: qTx.txHash})
 		if err != nil {
 			qTx.resultsC <- SequentialSubmissionResult{
@@ -452,6 +475,11 @@ func (q *sequentialQueue) checkBroadcastTransactions() {
 			q.handleRejected(qTx, statusResp, txClient)
 		}
 	}
+
+	statusCheckDuration := time.Since(statusCheckStart)
+	fmt.Printf("[TIMING] Status checks took %v for %d txs (avg: %v per tx)\n",
+		statusCheckDuration, statusCheckCount, statusCheckDuration/time.Duration(statusCheckCount))
+	fmt.Printf("[TIMING] Total checkBroadcastTransactions took %v\n", time.Since(startTime))
 }
 
 func (q *sequentialQueue) handleEvicted(qTx *queuedTx, statusResp *tx.TxStatusResponse, txClient tx.TxClient) {
@@ -601,27 +629,4 @@ func parseExpectedSequence(errMsg string) uint64 {
 		}
 	}
 	return 0
-}
-
-// logSubmissionMetrics logs submission statistics every 30 seconds
-// Note: Caller must hold q.mu lock
-func (q *sequentialQueue) logSubmissionMetrics() {
-	now := time.Now()
-	if now.Sub(q.lastMetricsLog) < 30*time.Second {
-		return
-	}
-
-	elapsed := now.Sub(q.metricsStartTime).Seconds()
-	if elapsed < 1 {
-		return
-	}
-
-	totalSubmissions := q.newBroadcastCount + q.resubmitCount + q.resignCount
-	submissionsPerSec := float64(totalSubmissions) / elapsed
-
-	fmt.Printf("[METRICS] Total submissions: %d (new: %d, resubmit: %d, resign: %d) | Rate: %.2f tx/sec | Queue size: %d\n",
-		totalSubmissions, q.newBroadcastCount, q.resubmitCount, q.resignCount,
-		submissionsPerSec, len(q.queue))
-
-	q.lastMetricsLog = now
 }
