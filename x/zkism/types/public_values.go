@@ -19,8 +19,8 @@ type EvExecutionPublicValues struct {
 // String implements the fmt.Stringer interface.
 func (p *EvExecutionPublicValues) String() string {
 	return fmt.Sprintf(`PublicInputs{
-		TrustedState: %s,
-		NewTrustedState:     %s,
+		State: %s,
+		NewState:     %s,
 	}`,
 		hex.EncodeToString(p.State),
 		hex.EncodeToString(p.NewState),
@@ -32,18 +32,18 @@ func (p *EvExecutionPublicValues) String() string {
 func (pi *EvExecutionPublicValues) Marshal() ([]byte, error) {
 	var buf bytes.Buffer
 
-	// write length of TrustedState
+	// write length of State
 	l := uint64(len(pi.State))
 	if err := binary.Write(&buf, binary.LittleEndian, l); err != nil {
 		return nil, err
 	}
 
-	// write TrustedState
+	// write State
 	if _, err := buf.Write(pi.State); err != nil {
 		return nil, err
 	}
 
-	// write NewTrustedState
+	// write NewState
 	if _, err := buf.Write(pi.NewState); err != nil {
 		return nil, err
 	}
@@ -57,19 +57,19 @@ func (pi *EvExecutionPublicValues) Marshal() ([]byte, error) {
 func (pi *EvExecutionPublicValues) Unmarshal(data []byte) error {
 	buf := bytes.NewReader(data)
 
-	// read length of TrustedState
+	// read length of State
 	var l uint64
 	if err := binary.Read(buf, binary.LittleEndian, &l); err != nil {
 		return err
 	}
 
-	// read TrustedState
+	// read State
 	pi.State = make([]byte, l)
 	if _, err := io.ReadFull(buf, pi.State); err != nil {
 		return err
 	}
 
-	// everything else becomes NewTrustedState
+	// everything else becomes NewState
 	remaining, err := io.ReadAll(buf)
 	if err != nil {
 		return err
