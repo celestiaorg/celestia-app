@@ -77,6 +77,10 @@ func main() {
 }
 
 func calculateStats(values []float64) Stats {
+	if len(values) == 0 {
+		return Stats{}
+	}
+
 	sort.Float64s(values)
 
 	sum := 0.0
