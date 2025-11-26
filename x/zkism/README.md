@@ -20,6 +20,11 @@ The `Verify` method consumes the stored message IDs and authorizes the message f
 - Authorization Set: A transient set of message IDs. Membership proofs add message IDs; the Hyperlane router consumes them during message verification.
 
 ## State
+Users can define any State and write circuits that encapsulate a transition from State => New State. 
+The only constraint is that the circuit outputs must be the raw bytes of `state_length_u64_as_little_endian_bytes` || `state` || `new_state` and that
+the `state_root`, which is used to verify Hyperlane messages, is the first field in `state`, e.g. the first 32 bytes of `state` should be the state root, 
+regardless of the use-case (Evolve Block Prover, ZK Consensus Client, ...). If this rule is violated, the ISM will not be able to verify Hyperlane messages
+against the incremental Tree and will only store the most recent `state`.
 
 - `isms` (collections.Map[uint64, InterchainSecurityModule], `types.IsmsKeyPrefix`): Stores per‑ISM records containing trusted state and verifier configuration used during proof verification.
 - `headers` (collections.Map[uint64, []byte], `types.HeadersKeyPrefix`): Celestia block `height -> header_hash`. Populated in `BeginBlocker`; pruned to `params.max_header_hashes`.
