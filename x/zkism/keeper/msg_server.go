@@ -62,6 +62,7 @@ func (m msgServer) UpdateInterchainSecurityModule(ctx context.Context, msg *type
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
 	}
 
+	// verify that the State used in the public values is the same as the ISM state
 	if err := m.validatePublicValues(ctx, ism, publicValues); err != nil {
 		return nil, err
 	}
@@ -75,7 +76,7 @@ func (m msgServer) UpdateInterchainSecurityModule(ctx context.Context, msg *type
 		return nil, err
 	}
 
-	// update the ism state
+	// Store the new State from outputs as the ISM state
 	ism.State = publicValues.NewState
 	if err := m.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
 		return nil, err
