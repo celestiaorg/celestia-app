@@ -22,7 +22,7 @@ func TestStateTransitionPublicValuesEncoding(t *testing.T) {
 	err = decoded.Unmarshal(bz)
 	require.NoError(t, err)
 
-	require.Equal(t, expected.State, decoded.NewState)
+	require.Equal(t, expected.State, decoded.State)
 }
 
 func TestStateMembershipPublicValuesEncoding(t *testing.T) {
