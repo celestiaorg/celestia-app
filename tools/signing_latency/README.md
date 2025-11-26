@@ -24,6 +24,10 @@ If you have existing tracing tables, add the `signing_latency` table at the end.
 
 Then restart the validator.
 
+The traces should be in `$CELESTIA_APP_HOME/data/traces`.
+
+Note: make sure to revert the `trace_type` to `noop` after you're done with the tracing, and restart the validator, to avoid the traces data folder growing indefinitely.
+
 ### Measure the results
 
 The binary can then be used as follows:
@@ -31,6 +35,8 @@ The binary can then be used as follows:
 ```bash
 go run ./tools/signing_latency <traces_file_path>
 ```
+
+The trace file path is in `$CELESTIA_APP_HOME/data/traces/signing_latency.jsonl`. If you enabled tracing, this file should be there.
 
 Make sure to run the tool on a copy of the `traces_file` to avoid any file corruption.
 
