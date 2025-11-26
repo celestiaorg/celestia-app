@@ -2,7 +2,7 @@
 
 A tool to analyze signing latency metrics from Celestia validator logs. It parses a trace file containing signing latency data and calculates statistics (min, max, average, median) grouped by message type.
 
-Note: the tracing latency only for remote KMS. For local signing, the validator will not generate the trace file.
+Note: the tracing latency file is only for remote KMS. For local signing, the validator will not generate the trace file.
 
 ## Usage
 
