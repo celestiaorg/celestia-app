@@ -36,11 +36,11 @@ func main() {
 	}
 
 	file, err := os.Open(os.Args[1])
+	defer file.Close()
 	if err != nil {
 		fmt.Printf("error opening file: %v\n", err)
 		os.Exit(1)
 	}
-	defer file.Close()
 
 	latencies := make(map[string][]float64)
 	scanner := bufio.NewScanner(file)
