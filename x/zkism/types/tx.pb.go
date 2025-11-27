@@ -550,7 +550,7 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MsgClient interface {
-	// CreateInterchainSecurityModule defines the rpc method for creating a new ZK execution ISM.
+	// CreateInterchainSecurityModule defines the rpc method for creating a new zk ISM.
 	CreateInterchainSecurityModule(ctx context.Context, in *MsgCreateInterchainSecurityModule, opts ...grpc.CallOption) (*MsgCreateInterchainSecurityModuleResponse, error)
 	// UpdateInterchainSecurityModule defines the rpc method for updating an existing ZK execution ISM.
 	UpdateInterchainSecurityModule(ctx context.Context, in *MsgUpdateInterchainSecurityModule, opts ...grpc.CallOption) (*MsgUpdateInterchainSecurityModuleResponse, error)
@@ -606,7 +606,7 @@ func (c *msgClient) UpdateParams(ctx context.Context, in *MsgUpdateParams, opts 
 
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
-	// CreateInterchainSecurityModule defines the rpc method for creating a new ZK execution ISM.
+	// CreateInterchainSecurityModule defines the rpc method for creating a new zk ISM.
 	CreateInterchainSecurityModule(context.Context, *MsgCreateInterchainSecurityModule) (*MsgCreateInterchainSecurityModuleResponse, error)
 	// UpdateInterchainSecurityModule defines the rpc method for updating an existing ZK execution ISM.
 	UpdateInterchainSecurityModule(context.Context, *MsgUpdateInterchainSecurityModule) (*MsgUpdateInterchainSecurityModuleResponse, error)
