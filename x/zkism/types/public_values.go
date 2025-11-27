@@ -43,6 +43,12 @@ func (pi *PublicValues) Marshal() ([]byte, error) {
 		return nil, err
 	}
 
+	// write length of NewState
+	newL := uint64(len(pi.NewState))
+	if err := binary.Write(&buf, binary.LittleEndian, newL); err != nil {
+		return nil, err
+	}
+
 	// write NewState
 	if _, err := buf.Write(pi.NewState); err != nil {
 		return nil, err
@@ -69,12 +75,17 @@ func (pi *PublicValues) Unmarshal(data []byte) error {
 		return err
 	}
 
-	// everything else becomes NewState
-	remaining, err := io.ReadAll(buf)
-	if err != nil {
+	// read length of NewState
+	var newL uint64
+	if err := binary.Read(buf, binary.LittleEndian, &newL); err != nil {
 		return err
 	}
-	pi.NewState = remaining
+
+	// read NewState
+	pi.NewState = make([]byte, newL)
+	if _, err := io.ReadFull(buf, pi.NewState); err != nil {
+		return err
+	}
 
 	return nil
 }

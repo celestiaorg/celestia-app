@@ -55,11 +55,11 @@ func (suite *KeeperTestSuite) TestCreateInterchainSecurityModule() {
 }
 
 func (suite *KeeperTestSuite) TestUpdateInterchainSecurityModule() {
-	trustedState, err := hex.DecodeString("8d29024fff03736c34ed9d8fd28e4c3efccd327a67808f68a868cc4691dd9435287fbab01019e1e327b8020ba833c2a8661cc4d1654340ad1b2b17d3af692b802400000000000000770000000000000000000000000000000000000000000000000000a8045f161bf468bf4d44825a3f4ccd1d0a13a418683c03108460623b760888c34c81fc75d6af376839bd")
+	trustedState, err := hex.DecodeString("10b541ff5b74c1867fa1798f5667601f1ddde1746c3e450d20facac11dfaa8d9458bc070f182d623b4022d10a97cfb9ce42515763186bebc2d2f8ccdd57775232300000000000000770000000000000000000000000000000000000000000000000000a8045f161bf468bf4d44859c2bab77c7471fa3bab73d0308db118f6158895ad73d07a879495a573faec0")
 	suite.Require().NoError(err)
 
 	trustedCelestiaHeight := uint64(36)
-	trustedCelestiaHash, err := hex.DecodeString("287fbab01019e1e327b8020ba833c2a8661cc4d1654340ad1b2b17d3af692b80")
+	trustedCelestiaHash, err := hex.DecodeString("573641f63ac8c7cb36a71918bdaaee5d6051704c05b4545241b46d77ba147d58")
 	suite.Require().NoError(err)
 
 	ism := suite.CreateTestIsm(trustedState, trustedCelestiaHash, trustedCelestiaHeight)
@@ -129,11 +129,14 @@ func (suite *KeeperTestSuite) TestUpdateInterchainSecurityModule() {
 }
 
 func (suite *KeeperTestSuite) TestSubmitMessages() {
-	trustedRoot, err := hex.DecodeString("acd4fcbcd3bbf25bd2055b2125f7d361f9f58d97ad167fe35a5b7f1806f5f8ea")
+	trustedState, err := hex.DecodeString("fac92413c55a229e0b67ca195c32f19cfab4ba670a150215302564cf68531d9fd2b39cf65fbbea4bdbf30aea8fc46e050b8fa020234ee8223acc25da3b26f4fb4200000000000000ef0000000000000000000000000000000000000000000000000000a8045f161bf468bf4d443324b79a9a978e3de925c8069ad2316ee2324b3ca961d5941b5a68b2901c6ec9")
 	suite.Require().NoError(err)
-	trustedCelestiaHash, err := hex.DecodeString("0a02e7b488766f5ba73f8b44d96e97e27ca61580050e4a798bb664216876aa44")
+	// trusted root is first 32 bytes of trusted state
+	trustedRoot := trustedState[:32]
 	suite.Require().NoError(err)
-	trustedCelestiaHeight := uint64(29)
+	trustedCelestiaHash, err := hex.DecodeString("777c8f454c421f9f6402f2512a273c55078eadde2ac784288791d79f510ad56e")
+	suite.Require().NoError(err)
+	trustedCelestiaHeight := uint64(35)
 
 	ism := suite.CreateTestIsm(trustedRoot, trustedCelestiaHash, trustedCelestiaHeight)
 	proofBz, pubValues := readStateMembershipProofData(suite.T())
