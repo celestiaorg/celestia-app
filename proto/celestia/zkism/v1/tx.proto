@@ -31,7 +31,7 @@ message MsgCreateInterchainSecurityModule {
   option (cosmos.msg.v1.signer) = "creator";
   // creator is the message sender.
   string creator = 1;
-  // initial state
+  // initial trusted state
   bytes state = 2;
   // the sp1 groth16 verifier key
   bytes groth16_vkey = 3;
