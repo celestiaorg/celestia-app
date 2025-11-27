@@ -102,7 +102,7 @@ func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, _ []byte, me
 	return authorized, nil
 }
 
-func (k *Keeper) validatePublicValues(ctx context.Context, ism types.InterchainSecurityModule, publicValues types.EvExecutionPublicValues) error {
+func (k *Keeper) validatePublicValues(ctx context.Context, ism types.InterchainSecurityModule, publicValues types.PublicValues) error {
 	if !bytes.Equal(ism.State, publicValues.State) {
 		return errorsmod.Wrapf(types.ErrInvalidState, "expected %x, got %x", ism.State, publicValues.State)
 	}

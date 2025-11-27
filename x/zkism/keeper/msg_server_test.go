@@ -119,7 +119,7 @@ func (suite *KeeperTestSuite) TestUpdateInterchainSecurityModule() {
 				suite.Require().NoError(err)
 				suite.Require().NotNil(res)
 
-				publicValues := new(types.EvExecutionPublicValues)
+				publicValues := new(types.PublicValues)
 				suite.Require().NoError(publicValues.Unmarshal(pubValues))
 
 				suite.Require().Equal(publicValues.NewState, res.State)

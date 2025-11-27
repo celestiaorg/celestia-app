@@ -45,7 +45,7 @@ func TestKeeperTestSuite(t *testing.T) {
 func (suite *KeeperTestSuite) SetupTest() {
 	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	suite.ctx = testApp.NewUncachedContext(false, cmtproto.Header{Version: version.Consensus{App: appconsts.Version}})
-	suite.zkISMKeeper = testApp.InterchainSecurityModuleKeeper
+	suite.zkISMKeeper = testApp.IsmKeeper
 }
 
 func (suite *KeeperTestSuite) CreateTestIsm(trustedState []byte, trustedCelestiaHash []byte, trustedCelestiaHeight uint64) types.InterchainSecurityModule {

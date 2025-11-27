@@ -9,7 +9,7 @@ import (
 )
 
 func TestStateTransitionPublicValuesEncoding(t *testing.T) {
-	expected := types.EvExecutionPublicValues{
+	expected := types.PublicValues{
 		State:    []byte{0x01, 0x02, 0x03, 0x04, 0x05},
 		NewState: []byte{0x06, 0x07, 0x08, 0x09, 0x0A},
 	}
@@ -18,7 +18,7 @@ func TestStateTransitionPublicValuesEncoding(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, bz)
 
-	var decoded types.EvExecutionPublicValues
+	var decoded types.PublicValues
 	err = decoded.Unmarshal(bz)
 	require.NoError(t, err)
 
