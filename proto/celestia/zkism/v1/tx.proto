@@ -68,7 +68,7 @@ message MsgUpdateInterchainSecurityModule {
 
 // MsgUpdateInterchainSecurityModuleResponse is the response type for UpdateInterchainSecurityModule.
 message MsgUpdateInterchainSecurityModuleResponse {
-  // current ism state
+  // new ism state
   bytes state = 1;
 }
 
