@@ -13,7 +13,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/zkism/types";
 service Msg {
   option (cosmos.msg.v1.service) = true;
 
-  // CreateInterchainSecurityModule defines the rpc method for creating a new ZK execution ISM.
+  // CreateInterchainSecurityModule defines the rpc method for creating a new zk ISM.
   rpc CreateInterchainSecurityModule(MsgCreateInterchainSecurityModule) returns (MsgCreateInterchainSecurityModuleResponse);
 
   // UpdateInterchainSecurityModule defines the rpc method for updating an existing ZK execution ISM.
