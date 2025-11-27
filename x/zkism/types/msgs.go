@@ -2,6 +2,7 @@ package types
 
 import (
 	errorsmod "cosmossdk.io/errors"
+	"github.com/celestiaorg/celestia-app/v6/x/zkism/internal/groth16"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
@@ -14,6 +15,18 @@ var (
 
 // ValidateBasic implements stateless validation for the HasValidateBasic interface.
 func (msg *MsgCreateInterchainSecurityModule) ValidateBasic() error {
+	if _, err := groth16.NewVerifyingKey(msg.Groth16Vkey); err != nil {
+		return errorsmod.Wrapf(ErrInvalidVerifyingKey, "invalid groth16 verifying key")
+	}
+
+	if len(msg.StateTransitionVkey) != 32 {
+		return errorsmod.Wrap(ErrInvalidVerifyingKey, "program verifying key commitment must be exactly 32 bytes")
+	}
+
+	if len(msg.StateMembershipVkey) != 32 {
+		return errorsmod.Wrap(ErrInvalidVerifyingKey, "program verifying key commitment must be exactly 32 bytes")
+	}
+
 	return nil
 }
 
