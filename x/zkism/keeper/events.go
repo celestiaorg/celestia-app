@@ -13,7 +13,7 @@ func EmitCreateISMEvent(ctx sdk.Context, ism types.InterchainSecurityModule) err
 	return ctx.EventManager().EmitTypedEvent(&types.EventCreateInterchainSecurityModule{
 		Id:                  ism.Id,
 		Owner:               ism.Owner,
-		State:               ism.State,
+		State:               encodeHex(ism.State),
 		Groth16Vkey:         encodeHex(ism.Groth16Vkey),
 		StateTransitionVkey: encodeHex(ism.StateTransitionVkey),
 		StateMembershipVkey: encodeHex(ism.StateMembershipVkey),
@@ -24,7 +24,7 @@ func EmitCreateISMEvent(ctx sdk.Context, ism types.InterchainSecurityModule) err
 func EmitUpdateISMEvent(ctx sdk.Context, ism types.InterchainSecurityModule) error {
 	return ctx.EventManager().EmitTypedEvent(&types.EventUpdateInterchainSecurityModule{
 		Id:    ism.Id,
-		State: ism.State,
+		State: encodeHex(ism.State),
 	})
 }
 
