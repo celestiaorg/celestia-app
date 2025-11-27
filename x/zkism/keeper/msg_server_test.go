@@ -55,14 +55,14 @@ func (suite *KeeperTestSuite) TestCreateInterchainSecurityModule() {
 }
 
 func (suite *KeeperTestSuite) TestUpdateInterchainSecurityModule() {
-	trustedRoot, err := hex.DecodeString("340623e91b5a72c72a9214357cbc99a6b59ef23e5069ac5354a3a1619af0d568")
+	trustedState, err := hex.DecodeString("8d29024fff03736c34ed9d8fd28e4c3efccd327a67808f68a868cc4691dd9435287fbab01019e1e327b8020ba833c2a8661cc4d1654340ad1b2b17d3af692b802400000000000000770000000000000000000000000000000000000000000000000000a8045f161bf468bf4d44825a3f4ccd1d0a13a418683c03108460623b760888c34c81fc75d6af376839bd")
 	suite.Require().NoError(err)
 
-	trustedCelestiaHeight := uint64(29)
-	trustedCelestiaHash, err := hex.DecodeString("0a02e7b488766f5ba73f8b44d96e97e27ca61580050e4a798bb664216876aa44")
+	trustedCelestiaHeight := uint64(36)
+	trustedCelestiaHash, err := hex.DecodeString("287fbab01019e1e327b8020ba833c2a8661cc4d1654340ad1b2b17d3af692b80")
 	suite.Require().NoError(err)
 
-	ism := suite.CreateTestIsm(trustedRoot, trustedCelestiaHash, trustedCelestiaHeight)
+	ism := suite.CreateTestIsm(trustedState, trustedCelestiaHash, trustedCelestiaHeight)
 	proofBz, pubValues := readStateTransitionProofData(suite.T())
 
 	var msg *types.MsgUpdateInterchainSecurityModule
@@ -122,7 +122,7 @@ func (suite *KeeperTestSuite) TestUpdateInterchainSecurityModule() {
 				publicValues := new(types.EvExecutionPublicValues)
 				suite.Require().NoError(publicValues.Unmarshal(pubValues))
 
-				suite.Require().Equal(publicValues.State, res.State)
+				suite.Require().Equal(publicValues.NewState, res.State)
 			}
 		})
 	}

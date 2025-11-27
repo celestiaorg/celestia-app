@@ -25,7 +25,7 @@ import (
 var (
 	newCelestiaHeight  = 31
 	celestiaHeaderHash = "70566104cdb660b297eccbe088fd90b5fd30fd325a3f044b8b098544e152ffbd"
-	stateVkeyHash      = "0x003317b21c6a8b0731e07e26e90366fb295f00e572e5b6211cad51d699747ea2"
+	stateVkeyHash      = "0x00c8a77084ad537d8234064d9062e609e8f8402f505b5064178ce6936cb42bd3"
 	messageVkeyHash    = "0x00c88cdad907c05533b8755953d58af6a3b753a4e05acc6617d41ca206c25d2a"
 	namespaceHex       = "00000000000000000000000000000000000000a8045f161bf468bf4d44"
 	publicKeyHex       = "cb01eb93b686fd25866a9f9f13e6a8903a13126e2735e1daf89a35019765d0cc"
@@ -48,7 +48,7 @@ func (suite *KeeperTestSuite) SetupTest() {
 	suite.zkISMKeeper = testApp.InterchainSecurityModuleKeeper
 }
 
-func (suite *KeeperTestSuite) CreateTestIsm(trustedRoot []byte, trustedCelestiaHash []byte, trustedCelestiaHeight uint64) types.InterchainSecurityModule {
+func (suite *KeeperTestSuite) CreateTestIsm(trustedState []byte, trustedCelestiaHash []byte, trustedCelestiaHeight uint64) types.InterchainSecurityModule {
 	headerHash, err := hex.DecodeString(celestiaHeaderHash)
 	suite.Require().NoError(err)
 
@@ -70,7 +70,7 @@ func (suite *KeeperTestSuite) CreateTestIsm(trustedRoot []byte, trustedCelestiaH
 		Groth16Vkey:         groth16Vkey,
 		StateTransitionVkey: stateVkey,
 		StateMembershipVkey: messageVkey,
-		State:               trustedRoot,
+		State:               trustedState,
 	}
 
 	err = suite.zkISMKeeper.SetIsm(suite.ctx, ism.Id, ism)
