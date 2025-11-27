@@ -16,7 +16,7 @@ service Msg {
   // CreateInterchainSecurityModule defines the rpc method for creating a new zk ISM.
   rpc CreateInterchainSecurityModule(MsgCreateInterchainSecurityModule) returns (MsgCreateInterchainSecurityModuleResponse);
 
-  // UpdateInterchainSecurityModule defines the rpc method for updating an existing ZK execution ISM.
+  // UpdateInterchainSecurityModule defines the rpc method for updating an existing zk ISM.
   rpc UpdateInterchainSecurityModule(MsgUpdateInterchainSecurityModule) returns (MsgUpdateInterchainSecurityModuleResponse);
 
   // SubmitMessages defines the rpc method for verifying state membership of messages.
