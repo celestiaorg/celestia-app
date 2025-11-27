@@ -62,7 +62,7 @@ func (m msgServer) UpdateInterchainSecurityModule(ctx context.Context, msg *type
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
 	}
 
-	// verify that the State used in the public values is the same as the ISM state
+	// verify the public values against the trusted ism state
 	if err := m.validatePublicValues(ctx, ism, publicValues); err != nil {
 		return nil, err
 	}
