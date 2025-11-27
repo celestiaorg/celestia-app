@@ -1,86 +1,97 @@
-# This Dockerfile performs a multi-stage build. BUILDER_IMAGE is the image used
-# to compile the celestia-appd binary. RUNTIME_IMAGE is the image that will be
-# returned with the final celestia-appd binary.
-#
-# Separating the builder and runtime image allows the runtime image to be
-# considerably smaller because it doesn't need to have Golang installed.
+# This Dockerfile performs a multi-stage build. 
+# It compiles the celestia-appd binary in a large builder image and 
+# copies the resulting binary into a minimal runtime image.
+
+# --- Build Arguments (Variables accessible during the build process) ---
 ARG BUILDER_IMAGE=docker.io/golang:1.24.6-alpine
 ARG RUNTIME_IMAGE=docker.io/alpine:3.22
 ARG TARGETOS
 ARG TARGETARCH
-# Use build args to override the maximum square size of the docker image e.g.
-# docker build --build-arg MAX_SQUARE_SIZE=64 -t celestia-app:latest .
+# Configuration arguments to override defaults within the application (passed to 'make' or entrypoint).
 ARG MAX_SQUARE_SIZE
-# Use build args to override the upgrade height delay of the docker image e.g.
-# docker build --build-arg UPGRADE_HEIGHT_DELAY=1000 -t celestia-app:latest .
 ARG UPGRADE_HEIGHT_DELAY
 
-# Stage 1: Build the celestia-appd binary inside a builder image that will be discarded later.
-# Ignore hadolint rule because hadolint can't parse the variable.
-# See https://github.com/hadolint/hadolint/issues/339
+# ==============================================================================
+# Stage 1: builder (Compiles the Go Binary)
+# ==============================================================================
+# Use a specific platform architecture and base image for compilation.
 # hadolint ignore=DL3006
 FROM --platform=$BUILDPLATFORM ${BUILDER_IMAGE} AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
+# Set environment variables for static compilation.
 ENV CGO_ENABLED=0
 ENV GO111MODULE=on
+
+# Install necessary build tools and headers (linux-headers for Ledger support).
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
-    gcc \
-    git \
-    # linux-headers are needed for Ledger support
-    linux-headers \
-    make \
-    musl-dev
+	gcc \
+	git \
+	linux-headers \
+	make \
+	musl-dev
 WORKDIR /celestia-app
 
-# cache go module dependencies
+# Optimize layer caching: Download module dependencies first.
 COPY go.mod go.sum ./
 RUN go mod download
 
-# copy source code after downloading modules (to leverage caching)
+# Copy source code and build the static binary.
 COPY . .
 
-RUN uname -a &&\
-    CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    make build-standalone
+# Build the binary using cross-compilation variables.
+RUN uname -a && \
+	CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+	make build-standalone
 
-# Stage 2: Create a minimal image to run the celestia-appd binary
-# Ignore hadolint rule because hadolint can't parse the variable.
-# See https://github.com/hadolint/hadolint/issues/339
+# ==============================================================================
+# Stage 2: runtime (Minimal Image for Execution)
+# ==============================================================================
+# Use a minimal base image.
 # hadolint ignore=DL3006
 FROM ${RUNTIME_IMAGE} AS runtime
-# Use UID 10,001 because UIDs below 10,000 are a security risk.
-# Ref: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
+
+# --- Security Configuration ---
+# Use a high UID (10001) for security best practices (non-root user).
 ARG UID=10001
 ARG USER_NAME=celestia
 ENV CELESTIA_APP_HOME=/home/${USER_NAME}/.celestia-app
+
+# Install runtime utilities (bash, curl, jq) and create a dedicated, non-root user.
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
-    bash \
-    curl \
-    jq \
-    && adduser ${USER_NAME} \
-    -D \
-    -g ${USER_NAME} \
-    -h ${CELESTIA_APP_HOME} \
-    -s /sbin/nologin \
-    -u ${UID}
-# Copy the celestia-appd binary from the builder into the final image.
+	bash \
+	curl \
+	jq \
+	&& adduser ${USER_NAME} \
+	-D \
+	-g ${USER_NAME} \
+	-h ${CELESTIA_APP_HOME} \
+	-s /sbin/nologin \
+	-u ${UID}
+
+# --- Copy Artifacts ---
+# Copy the compiled binary from the 'builder' stage.
 COPY --from=builder /celestia-app/build/celestia-appd /bin/celestia-appd
-# Copy the entrypoint script into the final image.
+# Copy the entrypoint script, setting ownership to the non-root user.
 COPY --chown=${USER_NAME}:${USER_NAME} docker/entrypoint.sh /opt/entrypoint.sh
-# Set the user to celestia.
+
+# Switch to the dedicated, non-root user for execution.
 USER ${USER_NAME}
-# Set the working directory to the home directory.
+# Set the working directory to the application's home directory.
 WORKDIR ${CELESTIA_APP_HOME}
-# Expose ports:
-# 1317 is the default API server port.
-# 9090 is the default GRPC server port.
-# 26656 is the default node p2p port.
-# 26657 is the default RPC port.
-# 26660 is the port used for Prometheus.
-# 26661 is the port used for tracing.
+
+# --- Networking and Execution ---
+# Expose standard ports for Cosmos/Celestia services.
+# 1317: API server
+# 9090: GRPC server
+# 26656: P2P port
+# 26657: RPC port
+# 26660: Prometheus metrics
+# 26661: Tracing
 EXPOSE 1317 9090 26656 26657 26660 26661
+
+# Define the command to run when the container starts.
 ENTRYPOINT [ "/bin/bash", "/opt/entrypoint.sh" ]
