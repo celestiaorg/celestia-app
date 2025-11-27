@@ -26,8 +26,8 @@ require (
 	github.com/celestiaorg/go-square/v2 v2.3.3
 	github.com/celestiaorg/go-square/v3 v3.0.2
 	github.com/celestiaorg/nmt v0.24.2
-	github.com/celestiaorg/rsmt2d v0.15.1
-	github.com/cometbft/cometbft v0.38.17
+	github.com/celestiaorg/rsmt2d v0.15.2-0.20251127081317-62c992ffa08c
+	github.com/cometbft/cometbft v1.0.1
 	github.com/cometbft/cometbft-db v1.0.4
 	github.com/cosmos/cosmos-db v1.1.1
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
