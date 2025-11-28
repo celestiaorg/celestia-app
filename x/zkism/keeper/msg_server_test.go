@@ -131,14 +131,11 @@ func (suite *KeeperTestSuite) TestUpdateInterchainSecurityModule() {
 func (suite *KeeperTestSuite) TestSubmitMessages() {
 	trustedState, err := hex.DecodeString("fac92413c55a229e0b67ca195c32f19cfab4ba670a150215302564cf68531d9fd2b39cf65fbbea4bdbf30aea8fc46e050b8fa020234ee8223acc25da3b26f4fb4200000000000000ef0000000000000000000000000000000000000000000000000000a8045f161bf468bf4d443324b79a9a978e3de925c8069ad2316ee2324b3ca961d5941b5a68b2901c6ec9")
 	suite.Require().NoError(err)
-	// trusted root is first 32 bytes of trusted state
-	trustedRoot := trustedState[:32]
-	suite.Require().NoError(err)
 	trustedCelestiaHash, err := hex.DecodeString("777c8f454c421f9f6402f2512a273c55078eadde2ac784288791d79f510ad56e")
 	suite.Require().NoError(err)
 	trustedCelestiaHeight := uint64(35)
 
-	ism := suite.CreateTestIsm(trustedRoot, trustedCelestiaHash, trustedCelestiaHeight)
+	ism := suite.CreateTestIsm(trustedState, trustedCelestiaHash, trustedCelestiaHeight)
 	proofBz, pubValues := readStateMembershipProofData(suite.T())
 
 	var msg *types.MsgSubmitMessages
