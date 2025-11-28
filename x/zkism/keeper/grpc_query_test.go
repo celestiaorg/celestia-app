@@ -10,7 +10,7 @@ import (
 )
 
 func (suite *KeeperTestSuite) TestQueryServerIsm() {
-	ismId := util.GenerateHexAddress([20]byte{0x01}, types.InterchainSecurityModuleTypeZKExecution, 1)
+	ismId := util.GenerateHexAddress([20]byte{0x01}, types.ModuleTypeZkISM, 1)
 	expIsm := types.InterchainSecurityModule{Owner: "test"}
 
 	err := suite.zkISMKeeper.SetIsm(suite.ctx, ismId, expIsm)
@@ -43,7 +43,7 @@ func (suite *KeeperTestSuite) TestQueryServerIsm() {
 		{
 			name: "ism not found",
 			req: &types.QueryIsmRequest{
-				Id: util.GenerateHexAddress([20]byte{0x01}, types.InterchainSecurityModuleTypeZKExecution, 9999).String(),
+				Id: util.GenerateHexAddress([20]byte{0x01}, types.ModuleTypeZkISM, 9999).String(),
 			},
 			expError: errors.New("ism not found"),
 		},
@@ -84,7 +84,7 @@ func (suite *KeeperTestSuite) TestQueryServerIsms() {
 				req = &types.QueryIsmsRequest{}
 
 				for i := range 100 {
-					ismId := util.GenerateHexAddress([20]byte{0x01}, types.InterchainSecurityModuleTypeZKExecution, uint64(i))
+					ismId := util.GenerateHexAddress([20]byte{0x01}, types.ModuleTypeZkISM, uint64(i))
 					ism := types.InterchainSecurityModule{Owner: "test"}
 
 					err := suite.zkISMKeeper.SetIsm(suite.ctx, ismId, ism)
@@ -105,7 +105,7 @@ func (suite *KeeperTestSuite) TestQueryServerIsms() {
 				}
 
 				for i := range 100 {
-					ismId := util.GenerateHexAddress([20]byte{0x01}, types.InterchainSecurityModuleTypeZKExecution, uint64(i))
+					ismId := util.GenerateHexAddress([20]byte{0x01}, types.ModuleTypeZkISM, uint64(i))
 					ism := types.InterchainSecurityModule{Owner: "test"}
 
 					err := suite.zkISMKeeper.SetIsm(suite.ctx, ismId, ism)
@@ -151,56 +151,6 @@ func (suite *KeeperTestSuite) TestQueryServerIsms() {
 			} else {
 				suite.Require().NoError(err)
 				suite.Require().Equal(expIsms, res.Isms)
-			}
-		})
-	}
-}
-
-func (suite *KeeperTestSuite) TestQueryServerParams() {
-	var (
-		expParams types.Params
-		req       *types.QueryParamsRequest
-	)
-
-	testCases := []struct {
-		name      string
-		setupTest func()
-		expError  error
-	}{
-		{
-			name: "success",
-			setupTest: func() {
-				req = &types.QueryParamsRequest{}
-
-				expParams = types.DefaultParams()
-			},
-			expError: nil,
-		},
-		{
-			name: "request cannot be empty",
-			setupTest: func() {
-				req = nil
-			},
-			expError: errors.New("request cannot be empty"),
-		},
-	}
-
-	for _, tc := range testCases {
-		suite.Run(tc.name, func() {
-			suite.SetupTest() // reset
-
-			tc.setupTest()
-
-			queryServer := keeper.NewQueryServerImpl(suite.zkISMKeeper)
-			res, err := queryServer.Params(suite.ctx, req)
-
-			if tc.expError != nil {
-				suite.Require().Nil(res)
-				suite.Require().Error(err)
-				suite.Require().ErrorContains(err, tc.expError.Error())
-			} else {
-				suite.Require().NoError(err)
-				suite.Require().Equal(expParams, res.Params)
 			}
 		})
 	}

@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	InterchainSecurityModuleTypeZKExecution = 42
+	ModuleTypeZkISM = 42
 )
 
 var _ ismtypes.HyperlaneInterchainSecurityModule = (*InterchainSecurityModule)(nil)
@@ -26,7 +26,7 @@ func (ism *InterchainSecurityModule) GetId() (util.HexAddress, error) {
 
 // ModuleType implements types.HyperlaneInterchainSecurityModule.
 func (ism *InterchainSecurityModule) ModuleType() uint8 {
-	return InterchainSecurityModuleTypeZKExecution
+	return ModuleTypeZkISM
 }
 
 // Verify implements types.HyperlaneInterchainSecurityModule.

@@ -26,8 +26,3 @@ func (k *Keeper) GetIsm(ctx context.Context, ismId util.HexAddress) (types.Inter
 func (k *Keeper) SetIsm(ctx context.Context, ismId util.HexAddress, ism types.InterchainSecurityModule) error {
 	return k.isms.Set(ctx, ismId.GetInternalId(), ism)
 }
-
-// SetHeaderHash is a test func used for setting a header hash in the headers store collection.
-func (k *Keeper) SetHeaderHash(ctx context.Context, height uint64, hash []byte) error {
-	return k.headers.Set(ctx, height, hash)
-}

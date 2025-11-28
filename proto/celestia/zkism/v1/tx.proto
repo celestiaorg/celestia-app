@@ -2,9 +2,7 @@ syntax = "proto3";
 
 package celestia.zkism.v1;
 
-import "celestia/zkism/v1/types.proto";
 import "cosmos/msg/v1/msg.proto";
-import "cosmos_proto/cosmos.proto";
 import "gogoproto/gogo.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/zkism/types";
@@ -14,16 +12,15 @@ service Msg {
   option (cosmos.msg.v1.service) = true;
 
   // CreateInterchainSecurityModule defines the rpc method for creating a new zk ISM.
-  rpc CreateInterchainSecurityModule(MsgCreateInterchainSecurityModule) returns (MsgCreateInterchainSecurityModuleResponse);
+  rpc CreateInterchainSecurityModule(MsgCreateInterchainSecurityModule)
+      returns (MsgCreateInterchainSecurityModuleResponse);
 
   // UpdateInterchainSecurityModule defines the rpc method for updating an existing zk ISM.
-  rpc UpdateInterchainSecurityModule(MsgUpdateInterchainSecurityModule) returns (MsgUpdateInterchainSecurityModuleResponse);
+  rpc UpdateInterchainSecurityModule(MsgUpdateInterchainSecurityModule)
+      returns (MsgUpdateInterchainSecurityModuleResponse);
 
   // SubmitMessages defines the rpc method for verifying state membership of messages.
   rpc SubmitMessages(MsgSubmitMessages) returns (MsgSubmitMessagesResponse);
-
-  // UpdateParams defines the rpc method for updating the module parameters.
-  rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
 }
 
 // MsgCreateInterchainSecurityModule is the request type for CreateInterchainSecurityModule.
@@ -93,18 +90,3 @@ message MsgSubmitMessages {
 
 // MsgSubmitMessagesResponse is the response type for SubmitMessages.
 message MsgSubmitMessagesResponse {}
-
-// MsgUpdateParams is the request type for UpdateParams.
-message MsgUpdateParams {
-  option (cosmos.msg.v1.signer) = "authority";
-
-  // authority is the address that controls the module (defaults to x/gov unless overwritten).
-  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
-  // params defines the x/zkism parameters to update.
-  //
-  // NOTE: All parameters must be supplied.
-  Params params = 2 [(gogoproto.nullable) = false];
-};
-
-// MsgUpdateParamsResponse defines the response type for UpdateParams.
-message MsgUpdateParamsResponse {};

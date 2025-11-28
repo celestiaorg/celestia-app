@@ -8,7 +8,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/keeper"
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
 func (suite *KeeperTestSuite) TestCreateInterchainSecurityModule() {
@@ -58,11 +57,7 @@ func (suite *KeeperTestSuite) TestUpdateInterchainSecurityModule() {
 	trustedState, err := hex.DecodeString("75e7e4f02bf0ac0fedcaa2a99acbf948bed8643c5a7f28e6bfc37b9da099e970777c8f454c421f9f6402f2512a273c55078eadde2ac784288791d79f510ad56e2300000000000000770000000000000000000000000000000000000000000000000000a8045f161bf468bf4d443324b79a9a978e3de925c8069ad2316ee2324b3ca961d5941b5a68b2901c6ec9")
 	suite.Require().NoError(err)
 
-	trustedCelestiaHeight := uint64(36)
-	trustedCelestiaHash, err := hex.DecodeString("573641f63ac8c7cb36a71918bdaaee5d6051704c05b4545241b46d77ba147d58")
-	suite.Require().NoError(err)
-
-	ism := suite.CreateTestIsm(trustedState, trustedCelestiaHash, trustedCelestiaHeight)
+	ism := suite.CreateTestIsm(trustedState)
 	proofBz, pubValues := readStateTransitionProofData(suite.T())
 
 	var msg *types.MsgUpdateInterchainSecurityModule
@@ -131,11 +126,8 @@ func (suite *KeeperTestSuite) TestUpdateInterchainSecurityModule() {
 func (suite *KeeperTestSuite) TestSubmitMessages() {
 	trustedState, err := hex.DecodeString("fac92413c55a229e0b67ca195c32f19cfab4ba670a150215302564cf68531d9fd2b39cf65fbbea4bdbf30aea8fc46e050b8fa020234ee8223acc25da3b26f4fb4200000000000000ef0000000000000000000000000000000000000000000000000000a8045f161bf468bf4d443324b79a9a978e3de925c8069ad2316ee2324b3ca961d5941b5a68b2901c6ec9")
 	suite.Require().NoError(err)
-	trustedCelestiaHash, err := hex.DecodeString("777c8f454c421f9f6402f2512a273c55078eadde2ac784288791d79f510ad56e")
-	suite.Require().NoError(err)
-	trustedCelestiaHeight := uint64(35)
 
-	ism := suite.CreateTestIsm(trustedState, trustedCelestiaHash, trustedCelestiaHeight)
+	ism := suite.CreateTestIsm(trustedState)
 	proofBz, pubValues := readStateMembershipProofData(suite.T())
 
 	var msg *types.MsgSubmitMessages
@@ -202,63 +194,6 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 					suite.Require().NoError(err)
 					suite.Require().True(has)
 				}
-			}
-		})
-	}
-}
-
-func (suite *KeeperTestSuite) TestUpdateParams() {
-	var (
-		expMaxHeaderHashes uint32 = 100
-		msg                *types.MsgUpdateParams
-	)
-
-	testCases := []struct {
-		name      string
-		setupTest func()
-		expError  error
-	}{
-		{
-			name: "success",
-			setupTest: func() {
-				msg = &types.MsgUpdateParams{
-					Authority: authtypes.NewModuleAddress("gov").String(),
-					Params:    types.NewParams(expMaxHeaderHashes),
-				}
-			},
-			expError: nil,
-		},
-		{
-			name: "unauthorized authority",
-			setupTest: func() {
-				msg = &types.MsgUpdateParams{
-					Authority: "unauthorized",
-					Params:    types.DefaultParams(),
-				}
-			},
-			expError: sdkerrors.ErrUnauthorized,
-		},
-	}
-
-	for _, tc := range testCases {
-		suite.Run(tc.name, func() {
-			suite.SetupTest() // reset state
-
-			tc.setupTest()
-
-			msgServer := keeper.NewMsgServerImpl(suite.zkISMKeeper)
-			res, err := msgServer.UpdateParams(suite.ctx, msg)
-
-			if tc.expError != nil {
-				suite.Require().Nil(res)
-				suite.Require().ErrorIs(err, tc.expError)
-			} else {
-				suite.Require().NoError(err)
-				suite.Require().NotNil(res)
-
-				maxHeaderHashesParam, err := suite.zkISMKeeper.GetMaxHeaderHashes(suite.ctx)
-				suite.Require().NoError(err)
-				suite.Require().Equal(expMaxHeaderHashes, maxHeaderHashesParam)
 			}
 		})
 	}

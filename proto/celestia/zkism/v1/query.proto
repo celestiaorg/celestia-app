@@ -20,11 +20,6 @@ service Query {
   rpc Isms(QueryIsmsRequest) returns (QueryIsmsResponse) {
     option (google.api.http).get = "/celestia/zkism/v1/isms";
   }
-
-  // Params defines an rpc method for querying the module parameters.
-  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
-    option (google.api.http).get = "/celestia/zkism/v1/params";
-  }
 }
 
 // QueryIsmRequest is the request type for the Ism rpc method.
@@ -49,13 +44,4 @@ message QueryIsmsResponse {
   repeated InterchainSecurityModule isms = 1 [(gogoproto.nullable) = false];
   // pagination defines the pagination in the response.
   cosmos.base.query.v1beta1.PageResponse pagination = 2;
-}
-
-// QueryParamsRequest is the request type for the Params rpc method.
-message QueryParamsRequest {}
-
-// QueryParamsResponse is the response type for the Params rpc method.
-message QueryParamsResponse {
-  // params contains the module parameters
-  Params params = 1 [(gogoproto.nullable) = false];
 }

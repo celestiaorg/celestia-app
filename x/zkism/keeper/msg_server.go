@@ -23,7 +23,7 @@ func NewMsgServerImpl(keeper *Keeper) types.MsgServer {
 
 // CreateInterchainSecurityModule implements types.MsgServer.
 func (m msgServer) CreateInterchainSecurityModule(ctx context.Context, msg *types.MsgCreateInterchainSecurityModule) (*types.MsgCreateInterchainSecurityModuleResponse, error) {
-	ismId, err := m.coreKeeper.IsmRouter().GetNextSequence(ctx, types.InterchainSecurityModuleTypeZKExecution)
+	ismId, err := m.coreKeeper.IsmRouter().GetNextSequence(ctx, types.ModuleTypeZkISM)
 	if err != nil {
 		return nil, errorsmod.Wrap(err, err.Error())
 	}
@@ -127,17 +127,4 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 	}
 
 	return &types.MsgSubmitMessagesResponse{}, nil
-}
-
-// UpdateParams implements types.MsgServer.
-func (m msgServer) UpdateParams(ctx context.Context, msg *types.MsgUpdateParams) (*types.MsgUpdateParamsResponse, error) {
-	if msg.Authority != m.authority {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrUnauthorized, "invalid authority; expected %s, got %s", m.authority, msg.Authority)
-	}
-
-	if err := m.params.Set(ctx, msg.Params); err != nil {
-		return nil, err
-	}
-
-	return &types.MsgUpdateParamsResponse{}, nil
 }
