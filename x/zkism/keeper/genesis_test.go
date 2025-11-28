@@ -8,15 +8,14 @@ import (
 func (suite *KeeperTestSuite) TestInitGenesis() {
 	isms := make([]types.InterchainSecurityModule, 0, 100)
 	for i := range 100 {
-		ismId := util.GenerateHexAddress([20]byte{0x01}, types.InterchainSecurityModuleTypeZKExecution, uint64(i))
+		ismId := util.GenerateHexAddress([20]byte{0x01}, types.ModuleTypeZkISM, uint64(i))
 		ism := types.InterchainSecurityModule{Id: ismId, Owner: "test"}
 
 		isms = append(isms, ism)
 	}
 
 	genesisState := types.GenesisState{
-		Isms:   isms,
-		Params: types.DefaultParams(),
+		Isms: isms,
 	}
 
 	err := suite.zkISMKeeper.InitGenesis(suite.ctx, &genesisState)
@@ -27,16 +26,12 @@ func (suite *KeeperTestSuite) TestInitGenesis() {
 		suite.Require().NoError(err)
 		suite.Require().True(has)
 	}
-
-	maxHeaderHashes, err := suite.zkISMKeeper.GetMaxHeaderHashes(suite.ctx)
-	suite.Require().NoError(err)
-	suite.Require().Equal(types.DefaultMaxHeaderHashes, maxHeaderHashes)
 }
 
 func (suite *KeeperTestSuite) TestExportGenesis() {
 	isms := make([]types.InterchainSecurityModule, 0, 100)
 	for i := range 100 {
-		ismId := util.GenerateHexAddress([20]byte{0x01}, types.InterchainSecurityModuleTypeZKExecution, uint64(i))
+		ismId := util.GenerateHexAddress([20]byte{0x01}, types.ModuleTypeZkISM, uint64(i))
 		ism := types.InterchainSecurityModule{Id: ismId, Owner: "test"}
 
 		err := suite.zkISMKeeper.SetIsm(suite.ctx, ismId, ism)
@@ -48,5 +43,4 @@ func (suite *KeeperTestSuite) TestExportGenesis() {
 	genesisState, err := suite.zkISMKeeper.ExportGenesis(suite.ctx)
 	suite.Require().NoError(err)
 	suite.Require().Equal(isms, genesisState.Isms)
-	suite.Require().Equal(types.DefaultParams(), genesisState.Params)
 }

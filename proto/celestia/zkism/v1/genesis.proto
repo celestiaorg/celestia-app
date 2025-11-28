@@ -12,6 +12,4 @@ message GenesisState {
   // list of zk execution isms.
   repeated InterchainSecurityModule isms = 1 [(gogoproto.nullable) = false];
   // TODO: add messages to genesis state
-  // params is the module parameters.
-  Params params = 2 [(gogoproto.nullable) = false];
 }

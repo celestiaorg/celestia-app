@@ -44,7 +44,7 @@ func (suite *KeeperTestSuite) SetupTest() {
 	suite.zkISMKeeper = testApp.IsmKeeper
 }
 
-func (suite *KeeperTestSuite) CreateTestIsm(trustedState []byte, trustedCelestiaHash []byte, trustedCelestiaHeight uint64) types.InterchainSecurityModule {
+func (suite *KeeperTestSuite) CreateTestIsm(trustedState []byte) types.InterchainSecurityModule {
 	groth16Vkey := readGroth16Vkey(suite.T())
 
 	stateVkeyHex := strings.TrimPrefix(stateVkeyHash, "0x")
@@ -112,7 +112,7 @@ func readStateMembershipProofData(t *testing.T) ([]byte, []byte) {
 }
 
 func (suite *KeeperTestSuite) TestVerify() {
-	ism := suite.CreateTestIsm([]byte("trusted_root"), []byte("trusted_celestia_hash"), 29)
+	ism := suite.CreateTestIsm([]byte("trusted_root"))
 
 	message := util.HyperlaneMessage{
 		Nonce: uint32(1234),
