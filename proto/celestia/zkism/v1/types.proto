@@ -7,8 +7,8 @@ option go_package = "github.com/celestiaorg/celestia-app/x/zkism/types";
 import "cosmos_proto/cosmos.proto";
 import "gogoproto/gogo.proto";
 
-// ZKExecutionISM defines the Hyperlane interchain security module (ISM).
-message ZKExecutionISM {
+// InterchainSecurityModule defines the Hyperlane interchain security module (ISM).
+message InterchainSecurityModule {
   option (gogoproto.goproto_getters) = false;
 
   // unique hyperlane identifier
@@ -18,24 +18,14 @@ message ZKExecutionISM {
   ];
   // the owner or creator of the ism
   string owner = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
-  // state commitment root of the remote chain
-  bytes state_root = 3;
-  // latest tracked height of the remote chain
-  uint64 height = 4;
-  // trusted celestia header hash
-  bytes celestia_header_hash = 5;
-  // trusted celestia height
-  uint64 celestia_height = 6;
-  // the celestia namespace identifier used by the application
-  bytes namespace = 7;
-  // the public key of the sequencer
-  bytes sequencer_public_key = 8;
+  // current state 
+  bytes state = 3;
   // the sp1 groth16 verifier key
-  bytes groth16_vkey = 9;
+  bytes groth16_vkey = 4;
   // hash-based commitment to the verifier key used for state transition
-  bytes state_transition_vkey = 10;
+  bytes state_transition_vkey = 5;
   // hash-based commitment to the verifier key used for state membership
-  bytes state_membership_vkey = 11;
+  bytes state_membership_vkey = 6;
 }
 
 // Params defines the zk ism module parameters.

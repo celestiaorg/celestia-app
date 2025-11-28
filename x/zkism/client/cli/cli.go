@@ -34,7 +34,7 @@ func GetTxCmd() *cobra.Command {
 		RunE:                       client.ValidateCmd,
 	}
 
-	cmd.AddCommand(NewCreateZKExecutionIsmCmd())
+	cmd.AddCommand(NewCreateInterchainSecurityModuleCmd())
 
 	return cmd
 }

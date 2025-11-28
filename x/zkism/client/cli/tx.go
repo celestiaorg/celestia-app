@@ -13,8 +13,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewCreateZKExecutionIsmCmd creates and returns the zk ism creation cmd.
-func NewCreateZKExecutionIsmCmd() *cobra.Command {
+// NewCreateInterchainSecurityModuleCmd creates and returns the zk ism creation cmd.
+func NewCreateInterchainSecurityModuleCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create [state-transition-key-hex] [state-membership-key-hex]",
 		Short: "Create a new ZK Execution ISM for use with the Hyperlane messaging protocol.",
@@ -40,7 +40,7 @@ This CLI command requires both the StateTransitionVkey and the StateMembershipVk
 			}
 
 			// TODO: fill in the remaining fields for the CLI cmd
-			msg := types.MsgCreateZKExecutionISM{
+			msg := types.MsgCreateInterchainSecurityModule{
 				Creator:             creator,
 				StateTransitionVkey: stateTransitionVerKey,
 				StateMembershipVkey: stateMembershipVerKey,

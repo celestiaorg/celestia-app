@@ -25,44 +25,34 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// ZKExecutionISM defines the Hyperlane interchain security module (ISM).
-type ZKExecutionISM struct {
+// InterchainSecurityModule defines the Hyperlane interchain security module (ISM).
+type InterchainSecurityModule struct {
 	// unique hyperlane identifier
 	Id github_com_bcp_innovations_hyperlane_cosmos_util.HexAddress `protobuf:"bytes,1,opt,name=id,proto3,customtype=github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress" json:"id"`
 	// the owner or creator of the ism
 	Owner string `protobuf:"bytes,2,opt,name=owner,proto3" json:"owner,omitempty"`
-	// state commitment root of the remote chain
-	StateRoot []byte `protobuf:"bytes,3,opt,name=state_root,json=stateRoot,proto3" json:"state_root,omitempty"`
-	// latest tracked height of the remote chain
-	Height uint64 `protobuf:"varint,4,opt,name=height,proto3" json:"height,omitempty"`
-	// trusted celestia header hash
-	CelestiaHeaderHash []byte `protobuf:"bytes,5,opt,name=celestia_header_hash,json=celestiaHeaderHash,proto3" json:"celestia_header_hash,omitempty"`
-	// trusted celestia height
-	CelestiaHeight uint64 `protobuf:"varint,6,opt,name=celestia_height,json=celestiaHeight,proto3" json:"celestia_height,omitempty"`
-	// the celestia namespace identifier used by the application
-	Namespace []byte `protobuf:"bytes,7,opt,name=namespace,proto3" json:"namespace,omitempty"`
-	// the public key of the sequencer
-	SequencerPublicKey []byte `protobuf:"bytes,8,opt,name=sequencer_public_key,json=sequencerPublicKey,proto3" json:"sequencer_public_key,omitempty"`
+	// current state
+	State []byte `protobuf:"bytes,3,opt,name=state,proto3" json:"state,omitempty"`
 	// the sp1 groth16 verifier key
-	Groth16Vkey []byte `protobuf:"bytes,9,opt,name=groth16_vkey,json=groth16Vkey,proto3" json:"groth16_vkey,omitempty"`
+	Groth16Vkey []byte `protobuf:"bytes,4,opt,name=groth16_vkey,json=groth16Vkey,proto3" json:"groth16_vkey,omitempty"`
 	// hash-based commitment to the verifier key used for state transition
-	StateTransitionVkey []byte `protobuf:"bytes,10,opt,name=state_transition_vkey,json=stateTransitionVkey,proto3" json:"state_transition_vkey,omitempty"`
+	StateTransitionVkey []byte `protobuf:"bytes,5,opt,name=state_transition_vkey,json=stateTransitionVkey,proto3" json:"state_transition_vkey,omitempty"`
 	// hash-based commitment to the verifier key used for state membership
-	StateMembershipVkey []byte `protobuf:"bytes,11,opt,name=state_membership_vkey,json=stateMembershipVkey,proto3" json:"state_membership_vkey,omitempty"`
+	StateMembershipVkey []byte `protobuf:"bytes,6,opt,name=state_membership_vkey,json=stateMembershipVkey,proto3" json:"state_membership_vkey,omitempty"`
 }
 
-func (m *ZKExecutionISM) Reset()         { *m = ZKExecutionISM{} }
-func (m *ZKExecutionISM) String() string { return proto.CompactTextString(m) }
-func (*ZKExecutionISM) ProtoMessage()    {}
-func (*ZKExecutionISM) Descriptor() ([]byte, []int) {
+func (m *InterchainSecurityModule) Reset()         { *m = InterchainSecurityModule{} }
+func (m *InterchainSecurityModule) String() string { return proto.CompactTextString(m) }
+func (*InterchainSecurityModule) ProtoMessage()    {}
+func (*InterchainSecurityModule) Descriptor() ([]byte, []int) {
 	return fileDescriptor_6a9c62eeaf7a9e81, []int{0}
 }
-func (m *ZKExecutionISM) XXX_Unmarshal(b []byte) error {
+func (m *InterchainSecurityModule) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *ZKExecutionISM) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *InterchainSecurityModule) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_ZKExecutionISM.Marshal(b, m, deterministic)
+		return xxx_messageInfo_InterchainSecurityModule.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -72,17 +62,17 @@ func (m *ZKExecutionISM) XXX_Marshal(b []byte, deterministic bool) ([]byte, erro
 		return b[:n], nil
 	}
 }
-func (m *ZKExecutionISM) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ZKExecutionISM.Merge(m, src)
+func (m *InterchainSecurityModule) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_InterchainSecurityModule.Merge(m, src)
 }
-func (m *ZKExecutionISM) XXX_Size() int {
+func (m *InterchainSecurityModule) XXX_Size() int {
 	return m.Size()
 }
-func (m *ZKExecutionISM) XXX_DiscardUnknown() {
-	xxx_messageInfo_ZKExecutionISM.DiscardUnknown(m)
+func (m *InterchainSecurityModule) XXX_DiscardUnknown() {
+	xxx_messageInfo_InterchainSecurityModule.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_ZKExecutionISM proto.InternalMessageInfo
+var xxx_messageInfo_InterchainSecurityModule proto.InternalMessageInfo
 
 // Params defines the zk ism module parameters.
 type Params struct {
@@ -123,49 +113,44 @@ func (m *Params) XXX_DiscardUnknown() {
 var xxx_messageInfo_Params proto.InternalMessageInfo
 
 func init() {
-	proto.RegisterType((*ZKExecutionISM)(nil), "celestia.zkism.v1.ZKExecutionISM")
+	proto.RegisterType((*InterchainSecurityModule)(nil), "celestia.zkism.v1.InterchainSecurityModule")
 	proto.RegisterType((*Params)(nil), "celestia.zkism.v1.Params")
 }
 
 func init() { proto.RegisterFile("celestia/zkism/v1/types.proto", fileDescriptor_6a9c62eeaf7a9e81) }
 
 var fileDescriptor_6a9c62eeaf7a9e81 = []byte{
-	// 504 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x54, 0x52, 0xcf, 0x6e, 0xd3, 0x3e,
-	0x1c, 0x6f, 0xfa, 0xeb, 0xfa, 0xa3, 0xde, 0xd8, 0x34, 0x53, 0x50, 0x98, 0x58, 0x5a, 0x76, 0xa1,
-	0x42, 0x6a, 0x42, 0x41, 0xe2, 0x30, 0x4e, 0x0c, 0x21, 0x15, 0x55, 0x93, 0xa6, 0x14, 0x71, 0xd8,
-	0x25, 0x72, 0xd3, 0xaf, 0x62, 0xab, 0x4d, 0x1c, 0x6c, 0xb7, 0x24, 0x3c, 0xc1, 0x8e, 0x3c, 0x02,
-	0x0f, 0xc1, 0x43, 0xec, 0x38, 0x71, 0x42, 0x1c, 0x26, 0xd4, 0xbe, 0x08, 0x8a, 0x9d, 0x66, 0xe5,
-	0x66, 0x7f, 0xfe, 0xd9, 0xfa, 0xe8, 0x83, 0x8e, 0x43, 0x98, 0x83, 0x54, 0x8c, 0x78, 0x5f, 0x67,
-	0x4c, 0xc6, 0xde, 0x72, 0xe0, 0xa9, 0x3c, 0x05, 0xe9, 0xa6, 0x82, 0x2b, 0x8e, 0x0f, 0x37, 0xb4,
-	0xab, 0x69, 0x77, 0x39, 0x38, 0x7a, 0x1c, 0x72, 0x19, 0x73, 0x19, 0x68, 0x81, 0x67, 0x2e, 0x46,
-	0x7d, 0xd4, 0x8e, 0x78, 0xc4, 0x0d, 0x5e, 0x9c, 0x0c, 0x7a, 0x72, 0xd5, 0x40, 0xfb, 0x97, 0xa3,
-	0xf7, 0x19, 0x84, 0x0b, 0xc5, 0x78, 0xf2, 0x61, 0x7c, 0x8e, 0xc7, 0xa8, 0xce, 0xa6, 0xb6, 0xd5,
-	0xb5, 0x7a, 0xad, 0xb3, 0x77, 0xd7, 0xb7, 0x9d, 0xda, 0xef, 0xdb, 0xce, 0x9b, 0x88, 0x29, 0xba,
-	0x98, 0xb8, 0x21, 0x8f, 0xbd, 0x49, 0x98, 0xf6, 0x59, 0x92, 0xf0, 0x25, 0x29, 0x1c, 0xd2, 0xa3,
-	0x79, 0x0a, 0x62, 0x4e, 0x12, 0xe8, 0x9b, 0xf7, 0xbc, 0x85, 0x62, 0x73, 0x77, 0x08, 0xd9, 0xdb,
-	0xe9, 0x54, 0x80, 0x94, 0x7e, 0x9d, 0x4d, 0xb1, 0x8b, 0x76, 0xf8, 0x97, 0x04, 0x84, 0x5d, 0xd7,
-	0xb9, 0xf6, 0xcf, 0x1f, 0xfd, 0x76, 0xf9, 0xbd, 0x52, 0x36, 0x56, 0x82, 0x25, 0x91, 0x6f, 0x64,
-	0xf8, 0x18, 0x21, 0xa9, 0x88, 0x82, 0x40, 0x70, 0xae, 0xec, 0xff, 0xba, 0x56, 0x6f, 0xcf, 0x6f,
-	0x69, 0xc4, 0xe7, 0x5c, 0xe1, 0x47, 0xa8, 0x49, 0x81, 0x45, 0x54, 0xd9, 0x8d, 0xae, 0xd5, 0x6b,
-	0xf8, 0xe5, 0x0d, 0xbf, 0x40, 0xed, 0x4d, 0x29, 0x01, 0x05, 0x32, 0x05, 0x11, 0x50, 0x22, 0xa9,
-	0xbd, 0xa3, 0x03, 0xf0, 0x86, 0x1b, 0x6a, 0x6a, 0x48, 0x24, 0xc5, 0xcf, 0xd0, 0xc1, 0x96, 0x43,
-	0x47, 0x36, 0x75, 0xe4, 0xfe, 0x9d, 0x58, 0x47, 0x3f, 0x41, 0xad, 0x84, 0xc4, 0x20, 0x53, 0x12,
-	0x82, 0xfd, 0xbf, 0xf9, 0x50, 0x05, 0x14, 0x0f, 0x4b, 0xf8, 0xbc, 0x80, 0x24, 0x04, 0x11, 0xa4,
-	0x8b, 0xc9, 0x9c, 0x85, 0xc1, 0x0c, 0x72, 0xfb, 0x9e, 0x79, 0xb8, 0xe2, 0x2e, 0x34, 0x35, 0x82,
-	0x1c, 0x3f, 0x45, 0x7b, 0x91, 0xe0, 0x8a, 0x0e, 0x5e, 0x07, 0xcb, 0x42, 0xd9, 0xd2, 0xca, 0xdd,
-	0x12, 0xfb, 0x34, 0x83, 0x1c, 0xbf, 0x44, 0x0f, 0x4d, 0x09, 0x4a, 0x90, 0x44, 0xb2, 0xa2, 0x6e,
-	0xa3, 0x45, 0x5a, 0xfb, 0x40, 0x93, 0x1f, 0x2b, 0xee, 0x5f, 0x4f, 0x0c, 0xf1, 0x04, 0x84, 0xa4,
-	0x2c, 0x35, 0x9e, 0xdd, 0x2d, 0xcf, 0x79, 0xc5, 0x15, 0x9e, 0xd3, 0xc6, 0xd5, 0xf7, 0x4e, 0xed,
-	0xe4, 0x14, 0x35, 0x2f, 0x88, 0x20, 0xb1, 0xc4, 0xcf, 0xd1, 0x61, 0x4c, 0xb2, 0xed, 0x02, 0x41,
-	0xea, 0x41, 0xdc, 0xf7, 0x0f, 0x62, 0x92, 0xdd, 0xb5, 0x07, 0xd2, 0x78, 0xcf, 0x46, 0xd7, 0x2b,
-	0xc7, 0xba, 0x59, 0x39, 0xd6, 0x9f, 0x95, 0x63, 0x7d, 0x5b, 0x3b, 0xb5, 0x9b, 0xb5, 0x53, 0xfb,
-	0xb5, 0x76, 0x6a, 0x97, 0x83, 0xad, 0xe5, 0x6c, 0x1a, 0xe5, 0x22, 0xaa, 0xce, 0x7d, 0x92, 0xa6,
-	0x5e, 0x56, 0x0e, 0x5c, 0xaf, 0x7b, 0xd2, 0xd4, 0xd3, 0x7c, 0xf5, 0x37, 0x00, 0x00, 0xff, 0xff,
-	0x85, 0x3f, 0x5c, 0x79, 0xff, 0x02, 0x00, 0x00,
+	// 419 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x54, 0x92, 0x41, 0x8b, 0xd3, 0x40,
+	0x14, 0xc7, 0x93, 0xba, 0x2d, 0x38, 0xae, 0xc8, 0xc6, 0x0a, 0x71, 0xc1, 0x74, 0xdd, 0xd3, 0x22,
+	0x34, 0x43, 0x15, 0x3c, 0xac, 0x27, 0xd7, 0x4b, 0x45, 0x16, 0xa4, 0x15, 0x0f, 0x5e, 0xc2, 0x24,
+	0x79, 0x64, 0x86, 0x66, 0x66, 0xc2, 0xcc, 0x24, 0x26, 0x7e, 0x02, 0x8f, 0x7e, 0x04, 0x3f, 0x84,
+	0x9f, 0x41, 0xf6, 0xb8, 0x78, 0x12, 0x0f, 0x8b, 0xb4, 0x5f, 0x44, 0x3a, 0x93, 0x2d, 0xf5, 0x36,
+	0xef, 0xff, 0xff, 0xfd, 0x93, 0xc7, 0x7b, 0x0f, 0x3d, 0xc9, 0xa0, 0x04, 0x6d, 0x18, 0xc1, 0x5f,
+	0x56, 0x4c, 0x73, 0xdc, 0xcc, 0xb0, 0xe9, 0x2a, 0xd0, 0x71, 0xa5, 0xa4, 0x91, 0xc1, 0xd1, 0xad,
+	0x1d, 0x5b, 0x3b, 0x6e, 0x66, 0xc7, 0x8f, 0x33, 0xa9, 0xb9, 0xd4, 0x89, 0x05, 0xb0, 0x2b, 0x1c,
+	0x7d, 0x3c, 0x2e, 0x64, 0x21, 0x9d, 0xbe, 0x7d, 0x39, 0xf5, 0xf4, 0xe7, 0x00, 0x85, 0x6f, 0x85,
+	0x01, 0x95, 0x51, 0xc2, 0xc4, 0x12, 0xb2, 0x5a, 0x31, 0xd3, 0x5d, 0xca, 0xbc, 0x2e, 0x21, 0x58,
+	0xa2, 0x01, 0xcb, 0x43, 0xff, 0xc4, 0x3f, 0xbb, 0x7b, 0xf1, 0xe6, 0xea, 0x66, 0xe2, 0xfd, 0xb9,
+	0x99, 0xbc, 0x2a, 0x98, 0xa1, 0x75, 0x1a, 0x67, 0x92, 0xe3, 0x34, 0xab, 0xa6, 0x4c, 0x08, 0xd9,
+	0x10, 0xc3, 0xa4, 0xd0, 0x98, 0x76, 0x15, 0xa8, 0x92, 0x08, 0x98, 0xba, 0x3f, 0xe3, 0xda, 0xb0,
+	0x32, 0x9e, 0x43, 0xfb, 0x3a, 0xcf, 0x15, 0x68, 0xbd, 0x18, 0xb0, 0x3c, 0x88, 0xd1, 0x50, 0x7e,
+	0x16, 0xa0, 0xc2, 0x81, 0xfd, 0x6e, 0xf8, 0xeb, 0xc7, 0x74, 0xdc, 0x37, 0xda, 0x63, 0x4b, 0xa3,
+	0x98, 0x28, 0x16, 0x0e, 0x0b, 0xc6, 0x68, 0xa8, 0x0d, 0x31, 0x10, 0xde, 0x39, 0xf1, 0xcf, 0x0e,
+	0x17, 0xae, 0x08, 0x9e, 0xa2, 0xc3, 0x42, 0x49, 0x43, 0x67, 0x2f, 0x93, 0x66, 0x05, 0x5d, 0x78,
+	0x60, 0xcd, 0x7b, 0xbd, 0xf6, 0x71, 0x05, 0x5d, 0xf0, 0x1c, 0x3d, 0xb2, 0x6c, 0x62, 0x14, 0x11,
+	0x9a, 0x6d, 0x5b, 0x74, 0xec, 0xd0, 0xb2, 0x0f, 0xad, 0xf9, 0x61, 0xe7, 0xfd, 0x9f, 0xe1, 0xc0,
+	0x53, 0x50, 0x9a, 0xb2, 0xca, 0x65, 0x46, 0x7b, 0x99, 0xcb, 0x9d, 0xb7, 0xcd, 0x9c, 0x1f, 0x7c,
+	0xfd, 0x3e, 0xf1, 0x4e, 0xcf, 0xd1, 0xe8, 0x3d, 0x51, 0x84, 0xeb, 0xe0, 0x19, 0x3a, 0xe2, 0xa4,
+	0x4d, 0x28, 0x90, 0x1c, 0x54, 0x42, 0x89, 0xa6, 0xa0, 0xed, 0x10, 0xef, 0x2f, 0x1e, 0x70, 0xd2,
+	0xce, 0xad, 0x3e, 0xb7, 0xb2, 0xcb, 0x5e, 0xbc, 0xbb, 0x5a, 0x47, 0xfe, 0xf5, 0x3a, 0xf2, 0xff,
+	0xae, 0x23, 0xff, 0xdb, 0x26, 0xf2, 0xae, 0x37, 0x91, 0xf7, 0x7b, 0x13, 0x79, 0x9f, 0x66, 0x7b,
+	0xd3, 0xbe, 0xdd, 0xb6, 0x54, 0xc5, 0xee, 0x3d, 0x25, 0x55, 0x85, 0xdb, 0xfe, 0x3c, 0xec, 0x6d,
+	0xa4, 0x23, 0xbb, 0xd8, 0x17, 0xff, 0x02, 0x00, 0x00, 0xff, 0xff, 0x52, 0xd3, 0x3b, 0x5f, 0x3d,
+	0x02, 0x00, 0x00,
 }
 
-func (m *ZKExecutionISM) Marshal() (dAtA []byte, err error) {
+func (m *InterchainSecurityModule) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -175,12 +160,12 @@ func (m *ZKExecutionISM) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *ZKExecutionISM) MarshalTo(dAtA []byte) (int, error) {
+func (m *InterchainSecurityModule) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *ZKExecutionISM) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *InterchainSecurityModule) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -190,57 +175,26 @@ func (m *ZKExecutionISM) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		copy(dAtA[i:], m.StateMembershipVkey)
 		i = encodeVarintTypes(dAtA, i, uint64(len(m.StateMembershipVkey)))
 		i--
-		dAtA[i] = 0x5a
+		dAtA[i] = 0x32
 	}
 	if len(m.StateTransitionVkey) > 0 {
 		i -= len(m.StateTransitionVkey)
 		copy(dAtA[i:], m.StateTransitionVkey)
 		i = encodeVarintTypes(dAtA, i, uint64(len(m.StateTransitionVkey)))
 		i--
-		dAtA[i] = 0x52
+		dAtA[i] = 0x2a
 	}
 	if len(m.Groth16Vkey) > 0 {
 		i -= len(m.Groth16Vkey)
 		copy(dAtA[i:], m.Groth16Vkey)
 		i = encodeVarintTypes(dAtA, i, uint64(len(m.Groth16Vkey)))
 		i--
-		dAtA[i] = 0x4a
+		dAtA[i] = 0x22
 	}
-	if len(m.SequencerPublicKey) > 0 {
-		i -= len(m.SequencerPublicKey)
-		copy(dAtA[i:], m.SequencerPublicKey)
-		i = encodeVarintTypes(dAtA, i, uint64(len(m.SequencerPublicKey)))
-		i--
-		dAtA[i] = 0x42
-	}
-	if len(m.Namespace) > 0 {
-		i -= len(m.Namespace)
-		copy(dAtA[i:], m.Namespace)
-		i = encodeVarintTypes(dAtA, i, uint64(len(m.Namespace)))
-		i--
-		dAtA[i] = 0x3a
-	}
-	if m.CelestiaHeight != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.CelestiaHeight))
-		i--
-		dAtA[i] = 0x30
-	}
-	if len(m.CelestiaHeaderHash) > 0 {
-		i -= len(m.CelestiaHeaderHash)
-		copy(dAtA[i:], m.CelestiaHeaderHash)
-		i = encodeVarintTypes(dAtA, i, uint64(len(m.CelestiaHeaderHash)))
-		i--
-		dAtA[i] = 0x2a
-	}
-	if m.Height != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.Height))
-		i--
-		dAtA[i] = 0x20
-	}
-	if len(m.StateRoot) > 0 {
-		i -= len(m.StateRoot)
-		copy(dAtA[i:], m.StateRoot)
-		i = encodeVarintTypes(dAtA, i, uint64(len(m.StateRoot)))
+	if len(m.State) > 0 {
+		i -= len(m.State)
+		copy(dAtA[i:], m.State)
+		i = encodeVarintTypes(dAtA, i, uint64(len(m.State)))
 		i--
 		dAtA[i] = 0x1a
 	}
@@ -303,7 +257,7 @@ func encodeVarintTypes(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *ZKExecutionISM) Size() (n int) {
+func (m *InterchainSecurityModule) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -315,25 +269,7 @@ func (m *ZKExecutionISM) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovTypes(uint64(l))
 	}
-	l = len(m.StateRoot)
-	if l > 0 {
-		n += 1 + l + sovTypes(uint64(l))
-	}
-	if m.Height != 0 {
-		n += 1 + sovTypes(uint64(m.Height))
-	}
-	l = len(m.CelestiaHeaderHash)
-	if l > 0 {
-		n += 1 + l + sovTypes(uint64(l))
-	}
-	if m.CelestiaHeight != 0 {
-		n += 1 + sovTypes(uint64(m.CelestiaHeight))
-	}
-	l = len(m.Namespace)
-	if l > 0 {
-		n += 1 + l + sovTypes(uint64(l))
-	}
-	l = len(m.SequencerPublicKey)
+	l = len(m.State)
 	if l > 0 {
 		n += 1 + l + sovTypes(uint64(l))
 	}
@@ -370,7 +306,7 @@ func sovTypes(x uint64) (n int) {
 func sozTypes(x uint64) (n int) {
 	return sovTypes(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *ZKExecutionISM) Unmarshal(dAtA []byte) error {
+func (m *InterchainSecurityModule) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -393,10 +329,10 @@ func (m *ZKExecutionISM) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: ZKExecutionISM: wiretype end group for non-group")
+			return fmt.Errorf("proto: InterchainSecurityModule: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ZKExecutionISM: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: InterchainSecurityModule: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -467,7 +403,7 @@ func (m *ZKExecutionISM) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field StateRoot", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field State", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -494,152 +430,12 @@ func (m *ZKExecutionISM) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.StateRoot = append(m.StateRoot[:0], dAtA[iNdEx:postIndex]...)
-			if m.StateRoot == nil {
-				m.StateRoot = []byte{}
+			m.State = append(m.State[:0], dAtA[iNdEx:postIndex]...)
+			if m.State == nil {
+				m.State = []byte{}
 			}
 			iNdEx = postIndex
 		case 4:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Height", wireType)
-			}
-			m.Height = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.Height |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 5:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field CelestiaHeaderHash", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthTypes
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthTypes
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.CelestiaHeaderHash = append(m.CelestiaHeaderHash[:0], dAtA[iNdEx:postIndex]...)
-			if m.CelestiaHeaderHash == nil {
-				m.CelestiaHeaderHash = []byte{}
-			}
-			iNdEx = postIndex
-		case 6:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field CelestiaHeight", wireType)
-			}
-			m.CelestiaHeight = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.CelestiaHeight |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 7:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Namespace", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthTypes
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthTypes
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Namespace = append(m.Namespace[:0], dAtA[iNdEx:postIndex]...)
-			if m.Namespace == nil {
-				m.Namespace = []byte{}
-			}
-			iNdEx = postIndex
-		case 8:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field SequencerPublicKey", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthTypes
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthTypes
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.SequencerPublicKey = append(m.SequencerPublicKey[:0], dAtA[iNdEx:postIndex]...)
-			if m.SequencerPublicKey == nil {
-				m.SequencerPublicKey = []byte{}
-			}
-			iNdEx = postIndex
-		case 9:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Groth16Vkey", wireType)
 			}
@@ -673,7 +469,7 @@ func (m *ZKExecutionISM) Unmarshal(dAtA []byte) error {
 				m.Groth16Vkey = []byte{}
 			}
 			iNdEx = postIndex
-		case 10:
+		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field StateTransitionVkey", wireType)
 			}
@@ -707,7 +503,7 @@ func (m *ZKExecutionISM) Unmarshal(dAtA []byte) error {
 				m.StateTransitionVkey = []byte{}
 			}
 			iNdEx = postIndex
-		case 11:
+		case 6:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field StateMembershipVkey", wireType)
 			}

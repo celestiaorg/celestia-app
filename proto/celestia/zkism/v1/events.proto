@@ -7,8 +7,8 @@ option go_package = "github.com/celestiaorg/celestia-app/x/zkism/types";
 import "cosmos_proto/cosmos.proto";
 import "gogoproto/gogo.proto";
 
-// EventCreateZKExecutionISM defines the event type emitted when creating a new ZKExecutionISM.
-message EventCreateZKExecutionISM {
+// EventCreateInterchainSecurityModule defines the event type emitted when creating a new InterchainSecurityModule.
+message EventCreateInterchainSecurityModule {
   option (gogoproto.goproto_getters) = false;
 
   // unique hyperlane identifier
@@ -18,28 +18,18 @@ message EventCreateZKExecutionISM {
   ];
   // the owner or creator of the ism
   string owner = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
-  // state commitment root of the remote chain
-  string state_root = 3;
-  // latest tracked height of the remote chain
-  uint64 height = 4;
-  // trusted celestia header hash
-  string celestia_header_hash = 5;
-  // trusted celestia height
-  uint64 celestia_height = 6;
-  // the celestia namespace identifier used by the application (hex-encoded)
-  string namespace = 7;
-  // the public key of the sequencer (hex-encoded)
-  string sequencer_public_key = 8;
+  // latest state
+  string state = 3;
   // the sp1 groth16 verifier key (hex-encoded)
-  string groth16_vkey = 9;
+  string groth16_vkey = 4;
   // hash-based commitment to the verifier key used for state transition (hex-encoded)
-  string state_transition_vkey = 10;
+  string state_transition_vkey = 5;
   // hash-based commitment to the verifier key used for state membership (hex-encoded)
-  string state_membership_vkey = 11;
+  string state_membership_vkey = 6;
 }
 
-// EventUpdateZKExecutionISM defines the event type emitted when updating a ZKExecutionISM.
-message EventUpdateZKExecutionISM {
+// EventUpdateInterchainSecurityModule defines the event type emitted when updating a InterchainSecurityModule.
+message EventUpdateInterchainSecurityModule {
   option (gogoproto.goproto_getters) = false;
 
   // unique hyperlane identifier
@@ -47,14 +37,8 @@ message EventUpdateZKExecutionISM {
     (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
     (gogoproto.nullable)   = false
   ];
-  // state commitment root of the remote chain
-  string state_root = 2;
-  // latest tracked height of the remote chain
-  uint64 height = 3;
-  // trusted celestia header hash
-  string celestia_header_hash = 4;
-  // trusted celestia height
-  uint64 celestia_height = 5;
+  // new state
+  string state = 2;
 }
 
 // EventSubmitMessages defines the event type emitted after successful message submission.

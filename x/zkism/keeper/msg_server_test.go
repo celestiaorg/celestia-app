@@ -11,11 +11,8 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
-func (suite *KeeperTestSuite) TestCreateZKExecutionISM() {
-	var msg *types.MsgCreateZKExecutionISM
-
-	namespace, err := hex.DecodeString(namespaceHex)
-	suite.Require().NoError(err)
+func (suite *KeeperTestSuite) TestCreateInterchainSecurityModule() {
+	var msg *types.MsgCreateInterchainSecurityModule
 
 	testCases := []struct {
 		name      string
@@ -25,14 +22,9 @@ func (suite *KeeperTestSuite) TestCreateZKExecutionISM() {
 		{
 			name: "success",
 			setupTest: func() {
-				msg = &types.MsgCreateZKExecutionISM{
+				msg = &types.MsgCreateInterchainSecurityModule{
 					Creator:             testfactory.TestAccAddr,
-					StateRoot:           randBytes(32),
-					Height:              97,
-					CelestiaHeaderHash:  randBytes(32),
-					CelestiaHeight:      0,
-					Namespace:           namespace,
-					SequencerPublicKey:  randBytes(32),
+					State:               randBytes(128),
 					Groth16Vkey:         randBytes(32),
 					StateTransitionVkey: randBytes(32),
 					StateMembershipVkey: randBytes(32),
@@ -49,7 +41,7 @@ func (suite *KeeperTestSuite) TestCreateZKExecutionISM() {
 			tc.setupTest()
 
 			msgServer := keeper.NewMsgServerImpl(suite.zkISMKeeper)
-			res, err := msgServer.CreateZKExecutionISM(suite.ctx, msg)
+			res, err := msgServer.CreateInterchainSecurityModule(suite.ctx, msg)
 
 			if tc.expError != nil {
 				suite.Require().Error(err)
@@ -62,18 +54,18 @@ func (suite *KeeperTestSuite) TestCreateZKExecutionISM() {
 	}
 }
 
-func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
-	trustedRoot, err := hex.DecodeString("340623e91b5a72c72a9214357cbc99a6b59ef23e5069ac5354a3a1619af0d568")
+func (suite *KeeperTestSuite) TestUpdateInterchainSecurityModule() {
+	trustedState, err := hex.DecodeString("75e7e4f02bf0ac0fedcaa2a99acbf948bed8643c5a7f28e6bfc37b9da099e970777c8f454c421f9f6402f2512a273c55078eadde2ac784288791d79f510ad56e2300000000000000770000000000000000000000000000000000000000000000000000a8045f161bf468bf4d443324b79a9a978e3de925c8069ad2316ee2324b3ca961d5941b5a68b2901c6ec9")
 	suite.Require().NoError(err)
 
-	trustedCelestiaHeight := uint64(29)
-	trustedCelestiaHash, err := hex.DecodeString("0a02e7b488766f5ba73f8b44d96e97e27ca61580050e4a798bb664216876aa44")
+	trustedCelestiaHeight := uint64(36)
+	trustedCelestiaHash, err := hex.DecodeString("573641f63ac8c7cb36a71918bdaaee5d6051704c05b4545241b46d77ba147d58")
 	suite.Require().NoError(err)
 
-	ism := suite.CreateTestIsm(trustedRoot, trustedCelestiaHash, trustedCelestiaHeight)
+	ism := suite.CreateTestIsm(trustedState, trustedCelestiaHash, trustedCelestiaHeight)
 	proofBz, pubValues := readStateTransitionProofData(suite.T())
 
-	var msg *types.MsgUpdateZKExecutionISM
+	var msg *types.MsgUpdateInterchainSecurityModule
 
 	testCases := []struct {
 		name      string
@@ -83,7 +75,7 @@ func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
 		{
 			name: "success",
 			setupTest: func() {
-				msg = &types.MsgUpdateZKExecutionISM{
+				msg = &types.MsgUpdateInterchainSecurityModule{
 					Id:           ism.Id,
 					Proof:        proofBz,
 					PublicValues: pubValues,
@@ -94,7 +86,7 @@ func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
 		{
 			name: "ism not found",
 			setupTest: func() {
-				msg = &types.MsgUpdateZKExecutionISM{
+				msg = &types.MsgUpdateInterchainSecurityModule{
 					Id: util.HexAddress{},
 				}
 			},
@@ -103,7 +95,7 @@ func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
 		{
 			name: "failed to unmarshal public values",
 			setupTest: func() {
-				msg = &types.MsgUpdateZKExecutionISM{
+				msg = &types.MsgUpdateInterchainSecurityModule{
 					Id:           ism.Id,
 					Proof:        proofBz,
 					PublicValues: []byte("invalid"),
@@ -118,7 +110,7 @@ func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
 			tc.setupTest()
 
 			msgServer := keeper.NewMsgServerImpl(suite.zkISMKeeper)
-			res, err := msgServer.UpdateZKExecutionISM(suite.ctx, msg)
+			res, err := msgServer.UpdateInterchainSecurityModule(suite.ctx, msg)
 
 			if tc.expError != nil {
 				suite.Require().Error(err)
@@ -127,24 +119,23 @@ func (suite *KeeperTestSuite) TestUpdateZKExecutionISM() {
 				suite.Require().NoError(err)
 				suite.Require().NotNil(res)
 
-				publicValues := new(types.EvExecutionPublicValues)
+				publicValues := new(types.PublicValues)
 				suite.Require().NoError(publicValues.Unmarshal(pubValues))
 
-				suite.Require().Equal(publicValues.NewHeight, res.Height)
-				suite.Require().Equal(hex.EncodeToString(publicValues.NewStateRoot[:]), res.StateRoot)
+				suite.Require().Equal(publicValues.NewState, res.State)
 			}
 		})
 	}
 }
 
 func (suite *KeeperTestSuite) TestSubmitMessages() {
-	trustedRoot, err := hex.DecodeString("acd4fcbcd3bbf25bd2055b2125f7d361f9f58d97ad167fe35a5b7f1806f5f8ea")
+	trustedState, err := hex.DecodeString("fac92413c55a229e0b67ca195c32f19cfab4ba670a150215302564cf68531d9fd2b39cf65fbbea4bdbf30aea8fc46e050b8fa020234ee8223acc25da3b26f4fb4200000000000000ef0000000000000000000000000000000000000000000000000000a8045f161bf468bf4d443324b79a9a978e3de925c8069ad2316ee2324b3ca961d5941b5a68b2901c6ec9")
 	suite.Require().NoError(err)
-	trustedCelestiaHash, err := hex.DecodeString("0a02e7b488766f5ba73f8b44d96e97e27ca61580050e4a798bb664216876aa44")
+	trustedCelestiaHash, err := hex.DecodeString("777c8f454c421f9f6402f2512a273c55078eadde2ac784288791d79f510ad56e")
 	suite.Require().NoError(err)
-	trustedCelestiaHeight := uint64(29)
+	trustedCelestiaHeight := uint64(35)
 
-	ism := suite.CreateTestIsm(trustedRoot, trustedCelestiaHash, trustedCelestiaHeight)
+	ism := suite.CreateTestIsm(trustedState, trustedCelestiaHash, trustedCelestiaHeight)
 	proofBz, pubValues := readStateMembershipProofData(suite.T())
 
 	var msg *types.MsgSubmitMessages

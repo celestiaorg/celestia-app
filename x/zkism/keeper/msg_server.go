@@ -3,7 +3,6 @@ package keeper
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 
 	errorsmod "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
@@ -22,22 +21,17 @@ func NewMsgServerImpl(keeper *Keeper) types.MsgServer {
 	return &msgServer{keeper}
 }
 
-// CreateZKExecutionISM implements types.MsgServer.
-func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreateZKExecutionISM) (*types.MsgCreateZKExecutionISMResponse, error) {
+// CreateInterchainSecurityModule implements types.MsgServer.
+func (m msgServer) CreateInterchainSecurityModule(ctx context.Context, msg *types.MsgCreateInterchainSecurityModule) (*types.MsgCreateInterchainSecurityModuleResponse, error) {
 	ismId, err := m.coreKeeper.IsmRouter().GetNextSequence(ctx, types.InterchainSecurityModuleTypeZKExecution)
 	if err != nil {
 		return nil, errorsmod.Wrap(err, err.Error())
 	}
 
-	newIsm := types.ZKExecutionISM{
+	newIsm := types.InterchainSecurityModule{
 		Id:                  ismId,
 		Owner:               msg.Creator,
-		StateRoot:           msg.StateRoot,
-		Height:              msg.Height,
-		CelestiaHeaderHash:  msg.CelestiaHeaderHash,
-		CelestiaHeight:      msg.CelestiaHeight,
-		Namespace:           msg.Namespace,
-		SequencerPublicKey:  msg.SequencerPublicKey,
+		State:               msg.State,
 		Groth16Vkey:         msg.Groth16Vkey,
 		StateTransitionVkey: msg.StateTransitionVkey,
 		StateMembershipVkey: msg.StateMembershipVkey,
@@ -51,23 +45,24 @@ func (m msgServer) CreateZKExecutionISM(ctx context.Context, msg *types.MsgCreat
 		return nil, err
 	}
 
-	return &types.MsgCreateZKExecutionISMResponse{
+	return &types.MsgCreateInterchainSecurityModuleResponse{
 		Id: ismId,
 	}, nil
 }
 
-// UpdateZKExecutionISM implements types.MsgServer.
-func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdateZKExecutionISM) (*types.MsgUpdateZKExecutionISMResponse, error) {
+// UpdateInterchainSecurityModule implements types.MsgServer.
+func (m msgServer) UpdateInterchainSecurityModule(ctx context.Context, msg *types.MsgUpdateInterchainSecurityModule) (*types.MsgUpdateInterchainSecurityModuleResponse, error) {
 	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
 	if err != nil {
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
 	}
 
-	var publicValues types.EvExecutionPublicValues
+	var publicValues types.PublicValues
 	if err := publicValues.Unmarshal(msg.PublicValues); err != nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
 	}
 
+	// verify the public values against the trusted ism state
 	if err := m.validatePublicValues(ctx, ism, publicValues); err != nil {
 		return nil, err
 	}
@@ -81,10 +76,8 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 		return nil, err
 	}
 
-	ism.Height = publicValues.NewHeight
-	ism.StateRoot = publicValues.NewStateRoot[:]
-	ism.CelestiaHeight = publicValues.CelestiaHeight
-	ism.CelestiaHeaderHash = publicValues.CelestiaHeaderHash[:]
+	// Store the new State from outputs as the ISM state
+	ism.State = publicValues.NewState
 	if err := m.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
 		return nil, err
 	}
@@ -93,11 +86,8 @@ func (m msgServer) UpdateZKExecutionISM(ctx context.Context, msg *types.MsgUpdat
 		return nil, err
 	}
 
-	return &types.MsgUpdateZKExecutionISMResponse{
-		Height:             ism.Height,
-		StateRoot:          hex.EncodeToString(ism.StateRoot),
-		CelestiaHeaderHash: hex.EncodeToString(ism.CelestiaHeaderHash),
-		CelestiaHeight:     ism.CelestiaHeight,
+	return &types.MsgUpdateInterchainSecurityModuleResponse{
+		State: ism.State,
 	}, nil
 }
 
@@ -113,8 +103,8 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
 	}
 
-	if !bytes.Equal(publicValues.StateRoot[:], ism.StateRoot) {
-		return nil, errorsmod.Wrapf(types.ErrInvalidStateRoot, "expected %x, got %x", ism.StateRoot, publicValues.StateRoot)
+	if !bytes.Equal(publicValues.StateRoot[:], ism.State[:32]) {
+		return nil, errorsmod.Wrapf(types.ErrInvalidStateRoot, "expected %x, got %x", ism.State[:32], publicValues.StateRoot)
 	}
 
 	verifier, err := types.NewSP1Groth16Verifier(ism.Groth16Vkey)
@@ -132,7 +122,7 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 		}
 	}
 
-	if err := EmitSubmitMessagesEvent(sdk.UnwrapSDKContext(ctx), ism.StateRoot, publicValues.MessageIds); err != nil {
+	if err := EmitSubmitMessagesEvent(sdk.UnwrapSDKContext(ctx), ism.State[:32], publicValues.MessageIds); err != nil {
 		return nil, err
 	}
 

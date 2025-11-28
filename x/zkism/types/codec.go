@@ -10,8 +10,8 @@ import (
 func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 	registry.RegisterImplementations(
 		(*sdk.Msg)(nil),
-		&MsgCreateZKExecutionISM{},
-		&MsgUpdateZKExecutionISM{},
+		&MsgCreateInterchainSecurityModule{},
+		&MsgUpdateInterchainSecurityModule{},
 		&MsgSubmitMessages{},
 		&MsgUpdateParams{},
 	)

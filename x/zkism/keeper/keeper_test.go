@@ -23,12 +23,8 @@ import (
 )
 
 var (
-	newCelestiaHeight  = 31
-	celestiaHeaderHash = "70566104cdb660b297eccbe088fd90b5fd30fd325a3f044b8b098544e152ffbd"
-	stateVkeyHash      = "0x003317b21c6a8b0731e07e26e90366fb295f00e572e5b6211cad51d699747ea2"
-	messageVkeyHash    = "0x00c88cdad907c05533b8755953d58af6a3b753a4e05acc6617d41ca206c25d2a"
-	namespaceHex       = "00000000000000000000000000000000000000a8045f161bf468bf4d44"
-	publicKeyHex       = "cb01eb93b686fd25866a9f9f13e6a8903a13126e2735e1daf89a35019765d0cc"
+	stateVkeyHash   = "0x0076ccc229b3bc42a232fbb8b0415bf43d2079eee4b28352c36172ad5a24c2d5"
+	messageVkeyHash = "0x0016238ba2cb5b3b2a0203503f02bbed1ee11ccd8bd6087dd737d38d424a086b"
 )
 
 type KeeperTestSuite struct {
@@ -45,16 +41,10 @@ func TestKeeperTestSuite(t *testing.T) {
 func (suite *KeeperTestSuite) SetupTest() {
 	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	suite.ctx = testApp.NewUncachedContext(false, cmtproto.Header{Version: version.Consensus{App: appconsts.Version}})
-	suite.zkISMKeeper = testApp.ZKExecutionISMKeeper
+	suite.zkISMKeeper = testApp.IsmKeeper
 }
 
-func (suite *KeeperTestSuite) CreateTestIsm(trustedRoot []byte, trustedCelestiaHash []byte, trustedCelestiaHeight uint64) types.ZKExecutionISM {
-	headerHash, err := hex.DecodeString(celestiaHeaderHash)
-	suite.Require().NoError(err)
-
-	err = suite.zkISMKeeper.SetHeaderHash(suite.ctx, uint64(newCelestiaHeight), headerHash)
-	suite.Require().NoError(err)
-
+func (suite *KeeperTestSuite) CreateTestIsm(trustedState []byte, trustedCelestiaHash []byte, trustedCelestiaHeight uint64) types.InterchainSecurityModule {
 	groth16Vkey := readGroth16Vkey(suite.T())
 
 	stateVkeyHex := strings.TrimPrefix(stateVkeyHash, "0x")
@@ -65,23 +55,12 @@ func (suite *KeeperTestSuite) CreateTestIsm(trustedRoot []byte, trustedCelestiaH
 	messageVkey, err := hex.DecodeString(messageVkeyHex)
 	suite.Require().NoError(err)
 
-	namespace, err := hex.DecodeString(namespaceHex)
-	suite.Require().NoError(err)
-
-	pubKey, err := hex.DecodeString(publicKeyHex)
-	suite.Require().NoError(err)
-
-	ism := types.ZKExecutionISM{
+	ism := types.InterchainSecurityModule{
 		Id:                  util.CreateMockHexAddress("ism", 1),
 		Groth16Vkey:         groth16Vkey,
 		StateTransitionVkey: stateVkey,
 		StateMembershipVkey: messageVkey,
-		StateRoot:           trustedRoot,
-		CelestiaHeaderHash:  trustedCelestiaHash,
-		CelestiaHeight:      trustedCelestiaHeight,
-		Height:              97,
-		Namespace:           namespace,
-		SequencerPublicKey:  pubKey,
+		State:               trustedState,
 	}
 
 	err = suite.zkISMKeeper.SetIsm(suite.ctx, ism.Id, ism)

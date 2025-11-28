@@ -21,7 +21,13 @@ The `Verify` method consumes the stored message IDs and authorizes the message f
 
 ## State
 
-- `isms` (collections.Map[uint64, ZKExecutionISM], `types.IsmsKeyPrefix`): Stores per‑ISM records containing trusted state and verifier configuration used during proof verification.
+Users can define any State and write circuits that encapsulate a transition from State => New State.
+The only constraint is that the circuit outputs must be the raw bytes of `state_length_u64_as_little_endian_bytes` || `state` || `new_state` and that
+the `state_root`, which is used to verify Hyperlane messages, is the first field in `state`, e.g. the first 32 bytes of `state` should be the state root,
+regardless of the use-case (Evolve Block Prover, ZK Consensus Client, ...). If this rule is violated, the ISM will not be able to verify Hyperlane messages
+against the incremental Tree and will only store the most recent `state`.
+
+- `isms` (collections.Map[uint64, InterchainSecurityModule], `types.IsmsKeyPrefix`): Stores per‑ISM records containing trusted state and verifier configuration used during proof verification.
 - `headers` (collections.Map[uint64, []byte], `types.HeadersKeyPrefix`): Celestia block `height -> header_hash`. Populated in `BeginBlocker`; pruned to `params.max_header_hashes`.
 - `messages` (collections.KeySet[[]byte], `types.MessageKeyPrefix`): Authorized Hyperlane message IDs for one‑time consumption by `keeper.Verify`.
 - `params` (collections.Item[Params], `types.ParamsKeyPrefix`): Module parameters (e.g., `MaxHeaderHashes`, default 50,000).
@@ -30,8 +36,8 @@ The `Verify` method consumes the stored message IDs and authorizes the message f
 
 Protobuf definitions: [`proto/celestia/zkism/v1/tx.proto`](../../proto/celestia/zkism/v1/tx.proto)
 
-- CreateZKExecutionISM: Creates an ISM with initial trusted state and verifier configuration.
-- UpdateZKExecutionISM: Verifies a state transition proof, then updates the ISM’s trusted `state_root` and `height`.
+- CreateInterchainSecurityModule: Creates an ISM with initial trusted state and verifier configuration.
+- UpdateInterchainSecurityModule: Verifies a state transition proof, then updates the ISM’s trusted `state_root` and `height`.
 - SubmitMessages: Verifies a state membership proof and authorizes the listed message IDs for one‑time processing.
 - UpdateParams: Authority‑gated parameter update.
 
@@ -101,7 +107,7 @@ Reusability across SP1 programs:
 
 Thus, the expected flow is:
 
-1) Off‑chain prover generates a state transition proof; submit via `UpdateZKExecutionISM`.
+1) Off‑chain prover generates a state transition proof; submit via `UpdateInterchainSecurityModule`.
 2) Off‑chain prover generates a membership proof for specific messages; submit via `SubmitMessages`.
 3) Hyperlane core invokes `Verify` per message; the module authorizes exactly those pre‑submitted message IDs.
 
@@ -109,13 +115,13 @@ Thus, the expected flow is:
 
 Protobuf definitions: [`proto/celestia/zkism/v1/query.proto`](../../proto/celestia/zkism/v1/query.proto)
 
-- `Ism(id) -> ZKExecutionISM` — `GET /celestia/zkism/v1/isms/{id}`
-- `Isms(pagination) -> [ZKExecutionISM]` — `GET /celestia/zkism/v1/isms`
+- `Ism(id) -> InterchainSecurityModule` — `GET /celestia/zkism/v1/isms/{id}`
+- `Isms(pagination) -> [InterchainSecurityModule]` — `GET /celestia/zkism/v1/isms`
 - `Params() -> Params` — `GET /celestia/zkism/v1/params`
 
 ## Events
 
-- `EventCreateZKExecutionISM` emitted on creation with all ISM fields.
+- `EventCreateInterchainSecurityModule` emitted on creation with all ISM fields.
 - TODO: add event emission for proof submission rpcs.
 
 ## ABCI and Retention
