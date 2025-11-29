@@ -5,56 +5,49 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"time"
 
 	"cosmossdk.io/log"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 const (
-	FlagEnableDebugLog = "enable-debug-log"
-	FlagLogDir         = "log-dir"
+	FlagDisableDebugLog = "disable-debug-log"
+	FlagLogDir          = "log-dir"
 )
 
 type FileLogConfig struct {
-	EnableDebugLog bool
-	LogDir         string
+	DisableDebugLog bool
+	LogDir          string
+	MaxSize         int
+	MaxBackups      int
 }
 
 func DefaultFileLogConfig(homeDir string) FileLogConfig {
 	return FileLogConfig{
-		EnableDebugLog: false,
-		LogDir:         filepath.Join(homeDir, "logs"),
+		DisableDebugLog: false,
+		LogDir:          filepath.Join(homeDir, "logs"),
+		MaxSize:         20,
+		MaxBackups:      5,
 	}
-}
-
-func createLogFile(logDir, prefix string) (*os.File, error) {
-	if err := os.MkdirAll(logDir, 0o755); err != nil {
-		return nil, fmt.Errorf("failed to create log directory: %w", err)
-	}
-
-	timestamp := time.Now().Format("2006-01-02")
-	logFileName := fmt.Sprintf("%s-%s.log", prefix, timestamp)
-	logFilePath := filepath.Join(logDir, logFileName)
-
-	file, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create log file: %w", err)
-	}
-
-	return file, nil
 }
 
 func setupFileLogger(cmd *cobra.Command, config FileLogConfig) error {
 	sctx := server.GetServerContextFromCmd(cmd)
 
-	debugLogFile, err := createLogFile(config.LogDir, "debug")
-	if err != nil {
-		return err
+	if err := os.MkdirAll(config.LogDir, 0o755); err != nil {
+		return fmt.Errorf("failed to create log directory: %w", err)
 	}
 
-	multiWriter := io.MultiWriter(os.Stderr, debugLogFile)
+	logFile := &lumberjack.Logger{
+		Filename:   filepath.Join(config.LogDir, "debug.log"),
+		MaxSize:    config.MaxSize,
+		MaxBackups: config.MaxBackups,
+		Compress:   true,
+	}
+
+	multiWriter := io.MultiWriter(os.Stderr, logFile)
 	logger := log.NewLogger(multiWriter)
 
 	sctx.Logger = logger
@@ -65,7 +58,7 @@ func getFileLogConfigFromFlags(cmd *cobra.Command, homeDir string) (FileLogConfi
 	config := DefaultFileLogConfig(homeDir)
 
 	var err error
-	if config.EnableDebugLog, err = cmd.Flags().GetBool(FlagEnableDebugLog); err != nil {
+	if config.DisableDebugLog, err = cmd.Flags().GetBool(FlagDisableDebugLog); err != nil {
 		return config, err
 	}
 	if config.LogDir, err = cmd.Flags().GetString(FlagLogDir); err != nil {
@@ -90,7 +83,7 @@ func replaceLoggerWithFileSupport(cmd *cobra.Command, homeDir string) error {
 		return err
 	}
 
-	if !config.EnableDebugLog {
+	if config.DisableDebugLog {
 		return nil
 	}
 

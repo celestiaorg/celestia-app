@@ -96,7 +96,7 @@ func NewRootCmd() *cobra.Command {
 	rootCommand.PersistentFlags().String(FlagLogToFile, "", "Write logs directly to a file. If empty, logs are written to stderr")
 
 	defaultConfig := DefaultFileLogConfig(app.NodeHome)
-	rootCommand.PersistentFlags().Bool(FlagEnableDebugLog, defaultConfig.EnableDebugLog, "Enable automatic debug log file with daily rotation")
+	rootCommand.PersistentFlags().Bool(FlagDisableDebugLog, defaultConfig.DisableDebugLog, "Disable automatic debug log file")
 	rootCommand.PersistentFlags().String(FlagLogDir, defaultConfig.LogDir, "Directory for log files")
 
 	initRootCommand(rootCommand, tempApp)
