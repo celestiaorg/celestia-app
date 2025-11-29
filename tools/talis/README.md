@@ -53,7 +53,7 @@ You have two options when it comes to running talis. You can run it on your loca
 go install ./tools/talis/
 ```
 
-All binaries used by nodes in the network are compiled on the user's local machine. Either change the target when compiling celestia-app, or use the docker image to ensure complete compatibility.
+All binaries used by nodes in the network are compiled on the user's local machine. Use the following command to build the binaries:
 
 ```sh
 make build-talis-bins
@@ -311,11 +311,6 @@ Install Deps:
 ```sh
 # Install Go
 snap install go --channel=1.24/stable --classic
-
-# Install Docker
-apt install docker.io -y
-systemctl start docker
-usermod -aG docker $USER
 
 # Install misc tools
 apt install git curl jq -y
