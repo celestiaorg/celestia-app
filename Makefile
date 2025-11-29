@@ -355,21 +355,12 @@ txsim-build-docker:
 	docker build -t ghcr.io/celestiaorg/txsim -f docker/txsim/Dockerfile  .
 .PHONY: txsim-build-docker
 
-## build-talis-bins: Build celestia-appd and txsim binaries for talis VMs (ubuntu 22.04 LTS)
+## build-talis-bins: Build celestia-appd and txsim binaries for talis VMs (ubuntu 22.04 LTS). Uses existing git auth (SSH keys, tokens, etc).
 build-talis-bins:
-	docker build \
-	  --file tools/talis/docker/Dockerfile \
-	  --target builder \
-	  --platform linux/amd64 \
-	  --build-arg LDFLAGS="$(LDFLAGS_STANDALONE)" \
-	  --build-arg GOOS=linux \
-	  --build-arg GOARCH=amd64 \
-	  --tag talis-builder:latest \
-	  .
-	mkdir -p build
-	docker create --platform linux/amd64 --name tmp talis-builder:latest
-	docker cp tmp:/out/. build/
-	docker rm tmp
+	@mkdir -p build
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/celestia-appd ./cmd/celestia-appd
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
 .PHONY: build-talis-bins
 
 
