@@ -17,28 +17,28 @@ type StateTransitionValues struct {
 
 // Marshal encodes the PublicValues struct into a bincode-compatible byte slice.
 // The output format uses Rust bincode's default configuration: (little-endian, fixed-width integers, length-prefixed slices).
-func (pi *StateTransitionValues) Marshal() ([]byte, error) {
+func (v *StateTransitionValues) Marshal() ([]byte, error) {
 	var buf bytes.Buffer
 
 	// write length of State
-	l := uint64(len(pi.State))
+	l := uint64(len(v.State))
 	if err := binary.Write(&buf, binary.LittleEndian, l); err != nil {
 		return nil, err
 	}
 
 	// write State
-	if _, err := buf.Write(pi.State); err != nil {
+	if _, err := buf.Write(v.State); err != nil {
 		return nil, err
 	}
 
 	// write length of NewState
-	newL := uint64(len(pi.NewState))
+	newL := uint64(len(v.NewState))
 	if err := binary.Write(&buf, binary.LittleEndian, newL); err != nil {
 		return nil, err
 	}
 
 	// write NewState
-	if _, err := buf.Write(pi.NewState); err != nil {
+	if _, err := buf.Write(v.NewState); err != nil {
 		return nil, err
 	}
 
@@ -48,7 +48,7 @@ func (pi *StateTransitionValues) Marshal() ([]byte, error) {
 // Unmarshal decodes a bincode-serialized PublicValues struct.
 // This function expects the input byte slice to be encoded using Rust bincode's
 // default configuration: (little-endian, fixed-width integers, length-prefixed slices).
-func (pi *StateTransitionValues) Unmarshal(data []byte) error {
+func (v *StateTransitionValues) Unmarshal(data []byte) error {
 	buf := bytes.NewReader(data)
 
 	// read length of State
@@ -58,8 +58,8 @@ func (pi *StateTransitionValues) Unmarshal(data []byte) error {
 	}
 
 	// read State
-	pi.State = make([]byte, l)
-	if _, err := io.ReadFull(buf, pi.State); err != nil {
+	v.State = make([]byte, l)
+	if _, err := io.ReadFull(buf, v.State); err != nil {
 		return err
 	}
 
@@ -70,8 +70,8 @@ func (pi *StateTransitionValues) Unmarshal(data []byte) error {
 	}
 
 	// read NewState
-	pi.NewState = make([]byte, newL)
-	if _, err := io.ReadFull(buf, pi.NewState); err != nil {
+	v.NewState = make([]byte, newL)
+	if _, err := io.ReadFull(buf, v.NewState); err != nil {
 		return err
 	}
 
@@ -87,19 +87,19 @@ type StateMembershipValues struct {
 
 // Marshal encodes the EvHyperlanePublicValues struct into a bincode-compatible byte slice.
 // The output format uses Rust bincode's default configuration: (little-endian, fixed-width integers, length-prefixed slices).
-func (m *StateMembershipValues) Marshal() ([]byte, error) {
+func (v *StateMembershipValues) Marshal() ([]byte, error) {
 	var buf bytes.Buffer
 
-	if err := writeBytes(&buf, m.StateRoot[:]); err != nil {
+	if err := writeBytes(&buf, v.StateRoot[:]); err != nil {
 		return nil, fmt.Errorf("write StateRoot: %w", err)
 	}
 
-	count := uint64(len(m.MessageIds))
+	count := uint64(len(v.MessageIds))
 	if err := binary.Write(&buf, binary.LittleEndian, count); err != nil {
 		return nil, fmt.Errorf("write MessageIds length: %w", err)
 	}
 
-	for i, id := range m.MessageIds {
+	for i, id := range v.MessageIds {
 		if err := writeBytes(&buf, id[:]); err != nil {
 			return nil, fmt.Errorf("write MessageIds[%d]: %w", i, err)
 		}
@@ -111,10 +111,10 @@ func (m *StateMembershipValues) Marshal() ([]byte, error) {
 // Unmarshal decodes a bincode-serialized EvHyperlanePublicValues struct.
 // This function expects the input byte slice to be encoded using Rust bincode's
 // default configuration: (little-endian, fixed-width integers, length-prefixed slices).
-func (m *StateMembershipValues) Unmarshal(data []byte) error {
+func (v *StateMembershipValues) Unmarshal(data []byte) error {
 	buf := bytes.NewReader(data)
 
-	if _, err := buf.Read(m.StateRoot[:]); err != nil {
+	if _, err := buf.Read(v.StateRoot[:]); err != nil {
 		return fmt.Errorf("read StateRoot: %w", err)
 	}
 
@@ -128,9 +128,9 @@ func (m *StateMembershipValues) Unmarshal(data []byte) error {
 		return fmt.Errorf("buffer too short: need %d, have %d", count*32, remaining)
 	}
 
-	m.MessageIds = make([][32]byte, count)
+	v.MessageIds = make([][32]byte, count)
 	for i := 0; i < int(count); i++ {
-		if _, err := buf.Read(m.MessageIds[i][:]); err != nil {
+		if _, err := buf.Read(v.MessageIds[i][:]); err != nil {
 			return fmt.Errorf("read message_id %d: %w", i, err)
 		}
 	}
