@@ -9,7 +9,7 @@ import (
 )
 
 func TestStateTransitionPublicValuesEncoding(t *testing.T) {
-	expected := types.PublicValues{
+	expected := types.StateTransitionValues{
 		State:    []byte{0x01, 0x02, 0x03, 0x04, 0x05},
 		NewState: []byte{0x06, 0x07, 0x08, 0x09, 0x0A},
 	}
@@ -18,7 +18,7 @@ func TestStateTransitionPublicValuesEncoding(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, bz)
 
-	var decoded types.PublicValues
+	var decoded types.StateTransitionValues
 	err = decoded.Unmarshal(bz)
 	require.NoError(t, err)
 
@@ -35,7 +35,7 @@ func TestStateMembershipPublicValuesEncoding(t *testing.T) {
 		messageIds = append(messageIds, msg.Id())
 	}
 
-	expected := types.EvHyperlanePublicValues{
+	expected := types.StateMembershipValues{
 		StateRoot:  [32]byte{0x01},
 		MessageIds: messageIds,
 	}
@@ -44,7 +44,7 @@ func TestStateMembershipPublicValuesEncoding(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, bz)
 
-	var decoded types.EvHyperlanePublicValues
+	var decoded types.StateMembershipValues
 	err = decoded.Unmarshal(bz)
 	require.NoError(t, err)
 
