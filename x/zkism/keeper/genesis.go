@@ -14,7 +14,7 @@ func (k *Keeper) InitGenesis(ctx context.Context, gs *types.GenesisState) error 
 		}
 	}
 
-	return k.params.Set(ctx, gs.Params)
+	return nil
 }
 
 // ExportGenesis outputs the modules state for genesis exports.
@@ -27,13 +27,7 @@ func (k *Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error)
 		return nil, err
 	}
 
-	params, err := k.params.Get(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	return &types.GenesisState{
-		Isms:   isms,
-		Params: params,
+		Isms: isms,
 	}, nil
 }

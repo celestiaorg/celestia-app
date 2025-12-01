@@ -20,7 +20,6 @@ import (
 
 var (
 	_ appmodule.AppModule        = AppModule{}
-	_ appmodule.HasBeginBlocker  = AppModule{}
 	_ module.AppModuleBasic      = AppModule{}
 	_ module.HasConsensusVersion = AppModule{}
 	_ module.HasGenesis          = AppModule{}
@@ -106,11 +105,6 @@ func (am AppModule) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec) json.Raw
 	}
 
 	return cdc.MustMarshalJSON(genesisState)
-}
-
-// BeginBlock implements appmodule.HasBeginBlocker.
-func (am AppModule) BeginBlock(ctx context.Context) error {
-	return am.keeper.BeginBlocker(ctx)
 }
 
 // GetTxCmd implements AppModuleBasic interface.

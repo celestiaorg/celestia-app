@@ -62,19 +62,3 @@ func (q queryServer) Isms(ctx context.Context, req *types.QueryIsmsRequest) (*ty
 		Pagination: pageRes,
 	}, nil
 }
-
-// Params implements types.QueryServer.
-func (q queryServer) Params(ctx context.Context, req *types.QueryParamsRequest) (*types.QueryParamsResponse, error) {
-	if req == nil {
-		return nil, status.Errorf(codes.InvalidArgument, "request cannot be empty")
-	}
-
-	params, err := q.k.params.Get(ctx)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to retrieve module params: %s", err.Error())
-	}
-
-	return &types.QueryParamsResponse{
-		Params: params,
-	}, nil
-}

@@ -18,7 +18,7 @@ message InterchainSecurityModule {
   ];
   // the owner or creator of the ism
   string owner = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
-  // current state 
+  // current state
   bytes state = 3;
   // the sp1 groth16 verifier key
   bytes groth16_vkey = 4;
@@ -26,11 +26,4 @@ message InterchainSecurityModule {
   bytes state_transition_vkey = 5;
   // hash-based commitment to the verifier key used for state membership
   bytes state_membership_vkey = 6;
-}
-
-// Params defines the zk ism module parameters.
-message Params {
-  option (gogoproto.goproto_getters) = false;
-
-  uint32 max_header_hashes = 1;
 }
