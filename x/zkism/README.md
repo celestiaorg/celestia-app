@@ -6,8 +6,8 @@ The `x/zkism` module implements a Hyperlane Interchain Security Module (ISM) tha
 
 The module currently supports the following proof value types:
 
-- `PublicValues`: State transition (`state -> new_state`), stored as opaque bytes.
-- `EvHyperlanePublicValues`: State membership of Hyperlane message IDs (authorizes specific messages for later processing).
+- `StateTransitionValues`: State transition (`state -> new_state`), stored as opaque bytes.
+- `StateMembershipValues`: State membership of Hyperlane message IDs (authorizes specific messages for later processing).
 
 The module integrates with Hyperlane core via the keeper’s `Verify` method. This is the integration point used by the Hyperlane ISM routing mechanism. 
 The `Verify` method consumes the stored message IDs and authorizes the message for processing.
