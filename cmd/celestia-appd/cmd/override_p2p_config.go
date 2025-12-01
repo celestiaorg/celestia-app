@@ -50,6 +50,9 @@ func overrideP2PConfig(cmd *cobra.Command, logger log.Logger) error {
 		cfg.P2P.RecvRate = minRecvRate
 	}
 
+	cfg.Consensus.EnableLegacyBlockProp = false
+	cfg.Consensus.DisablePropagationReactor = false
+
 	// Override mempool configs
 	overrideMempoolConfig(cfg, defaultCfg, logger)
 
