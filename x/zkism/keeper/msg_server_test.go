@@ -119,7 +119,7 @@ func (suite *KeeperTestSuite) TestUpdateInterchainSecurityModule() {
 				suite.Require().NoError(err)
 				suite.Require().NotNil(res)
 
-				publicValues := new(types.StateTransitionInputs)
+				publicValues := new(types.StateTransitionValues)
 				suite.Require().NoError(publicValues.Unmarshal(pubValues))
 
 				suite.Require().Equal(publicValues.NewState, res.State)
@@ -194,7 +194,7 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 				suite.Require().NoError(err)
 				suite.Require().NotNil(res)
 
-				publicValues := new(types.StateMembershipInputs)
+				publicValues := new(types.StateMembershipValues)
 				suite.Require().NoError(publicValues.Unmarshal(pubValues))
 
 				for _, id := range publicValues.MessageIds {

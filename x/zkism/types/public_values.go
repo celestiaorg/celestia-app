@@ -7,8 +7,8 @@ import (
 	"io"
 )
 
-// StateTransitionInputs are the set of proof public values used when verifying state transition proofs.
-type StateTransitionInputs struct {
+// StateTransitionValues are the set of proof public values used when verifying state transition proofs.
+type StateTransitionValues struct {
 	// The (trusted) state stored in the ISM
 	State []byte
 	// The new (trusted) state after the state transition
@@ -17,7 +17,7 @@ type StateTransitionInputs struct {
 
 // Marshal encodes the PublicValues struct into a bincode-compatible byte slice.
 // The output format uses Rust bincode's default configuration: (little-endian, fixed-width integers, length-prefixed slices).
-func (pi *StateTransitionInputs) Marshal() ([]byte, error) {
+func (pi *StateTransitionValues) Marshal() ([]byte, error) {
 	var buf bytes.Buffer
 
 	// write length of State
@@ -48,7 +48,7 @@ func (pi *StateTransitionInputs) Marshal() ([]byte, error) {
 // Unmarshal decodes a bincode-serialized PublicValues struct.
 // This function expects the input byte slice to be encoded using Rust bincode's
 // default configuration: (little-endian, fixed-width integers, length-prefixed slices).
-func (pi *StateTransitionInputs) Unmarshal(data []byte) error {
+func (pi *StateTransitionValues) Unmarshal(data []byte) error {
 	buf := bytes.NewReader(data)
 
 	// read length of State
@@ -78,16 +78,16 @@ func (pi *StateTransitionInputs) Unmarshal(data []byte) error {
 	return nil
 }
 
-// StateMembershipInputs are the set of proof public values used when verifying state membership inclusion of
+// StateMembershipValues are the set of proof public values used when verifying state membership inclusion of
 // Hyperlane messages.
-type StateMembershipInputs struct {
+type StateMembershipValues struct {
 	StateRoot  [32]byte
 	MessageIds [][32]byte
 }
 
 // Marshal encodes the EvHyperlanePublicValues struct into a bincode-compatible byte slice.
 // The output format uses Rust bincode's default configuration: (little-endian, fixed-width integers, length-prefixed slices).
-func (m *StateMembershipInputs) Marshal() ([]byte, error) {
+func (m *StateMembershipValues) Marshal() ([]byte, error) {
 	var buf bytes.Buffer
 
 	if err := writeBytes(&buf, m.StateRoot[:]); err != nil {
@@ -111,7 +111,7 @@ func (m *StateMembershipInputs) Marshal() ([]byte, error) {
 // Unmarshal decodes a bincode-serialized EvHyperlanePublicValues struct.
 // This function expects the input byte slice to be encoded using Rust bincode's
 // default configuration: (little-endian, fixed-width integers, length-prefixed slices).
-func (m *StateMembershipInputs) Unmarshal(data []byte) error {
+func (m *StateMembershipValues) Unmarshal(data []byte) error {
 	buf := bytes.NewReader(data)
 
 	if _, err := buf.Read(m.StateRoot[:]); err != nil {
