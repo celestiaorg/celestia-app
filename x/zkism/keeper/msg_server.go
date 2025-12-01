@@ -57,7 +57,7 @@ func (m msgServer) UpdateInterchainSecurityModule(ctx context.Context, msg *type
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
 	}
 
-	var publicValues types.PublicValues
+	var publicValues types.StateTransitionInputs
 	if err := publicValues.Unmarshal(msg.PublicValues); err != nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
 	}
@@ -98,7 +98,7 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
 	}
 
-	var publicValues types.EvHyperlanePublicValues
+	var publicValues types.StateMembershipInputs
 	if err := publicValues.Unmarshal(msg.PublicValues); err != nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
 	}
