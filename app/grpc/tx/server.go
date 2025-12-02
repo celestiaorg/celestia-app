@@ -133,7 +133,6 @@ func (s *txServer) TxStatusBatch(ctx context.Context, req *TxStatusBatchRequest)
 		responses[i] = &TxStatusResult{
 			TxHash: req.TxIds[i],
 			Status: &TxStatusResponse{
-
 				Height:        status.Result.Height,
 				Index:         status.Result.Index,
 				ExecutionCode: status.Result.ExecutionCode,
