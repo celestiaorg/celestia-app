@@ -70,7 +70,6 @@ type queuedTx struct {
 	txBytes        []byte    // Set after broadcast, used for eviction resubmission
 	sequence       uint64    // Set after broadcast
 	submittedAt    time.Time // Set after broadcast
-	shouldResign   bool      // Set after broadcast
 	isResubmitting bool      // True if transaction is currently being resubmitted (prevents duplicates)
 }
 
@@ -92,8 +91,7 @@ func newSequentialQueue(client *TxClient, accountName string, pollTime time.Dura
 		ctx:              ctx,
 		cancel:           cancel,
 		queue:            make([]*queuedTx, 0, defaultSequentialQueueSize),
-		ResignChan:       make(chan *queuedTx, 50),  // Buffered channel for resign requests
-		ResubmitChan:     make(chan *queuedTx, 200), // Buffered channel for resubmit requests (large to prevent blocking)
+		ResubmitChan:     make(chan *queuedTx, 10), // Buffered channel for resubmit requests (large to prevent blocking)
 		lastMetricsLog:   now,
 		metricsStartTime: now,
 	}
@@ -212,7 +210,6 @@ func (q *sequentialQueue) processNextTx() {
 					}
 					fmt.Println("status for this expected hash: ", statusResp.Status)
 					fmt.Println("status log: ", statusResp.Error)
-					fmt.Println("shouldResign: ", txx.shouldResign)
 					return
 				}
 
@@ -271,64 +268,13 @@ func (q *sequentialQueue) coordinate() {
 		case <-q.ctx.Done():
 			return
 		case <-q.ResignChan:
-			fmt.Println("Resigning rejected tx")
-			q.ResignRejected()
+			// TODO: decide if we want to do anything during rejections
 		case qTx := <-q.ResubmitChan:
 			q.ResubmitEvicted(qTx)
 		case <-ticker.C:
 			q.processNextTx()
 		}
 	}
-}
-
-// ResignRejected resigns a rejected transaction
-func (q *sequentialQueue) ResignRejected() {
-	startTime := time.Now()
-	q.mu.RLock()
-	var txsToResign []*queuedTx
-	for _, qTx := range q.queue {
-		if qTx.shouldResign {
-			fmt.Printf("Adding rejected tx to resign list with hash %s and sequence %d\n", qTx.txHash[:16], qTx.sequence)
-			txsToResign = append(txsToResign, qTx)
-		}
-	}
-	q.mu.RUnlock()
-
-	for _, qTx := range txsToResign {
-		if qTx.shouldResign {
-			// resign the tx
-			resignStart := time.Now()
-			resp, txBytes, err := q.client.BroadcastPayForBlobWithoutRetry(
-				q.ctx,
-				q.accountName,
-				qTx.blobs,
-				qTx.options...,
-			)
-			if err != nil {
-				fmt.Printf("rejected and failed to resign with hash %s", qTx.txHash[:16])
-				// send error and remove from queue
-				select {
-				case qTx.resultsC <- SequentialSubmissionResult{
-					Error: fmt.Errorf("rejected and failed to resign: %w", err),
-				}:
-				case <-q.ctx.Done():
-				}
-				q.removeFromQueue(qTx)
-				return
-			}
-			q.mu.Lock()
-			sequence := q.client.Signer().Account(q.accountName).Sequence()
-			qTx.txHash = resp.TxHash
-			qTx.txBytes = txBytes
-			qTx.sequence = sequence - 1 // sequence is incremented after successful submission
-			qTx.shouldResign = false
-			q.resignCount++
-			q.mu.Unlock()
-			resignDuration := time.Since(resignStart)
-			fmt.Printf("Resigned and submitted tx successfully with sequence %d: %s (took %v)\n", sequence, resp.TxHash, resignDuration)
-		}
-	}
-	fmt.Printf("[TIMING] Total ResignRejected took %v\n", time.Since(startTime))
 }
 
 // TODO: come back to this and see if it makes sense
@@ -355,49 +301,6 @@ func (q *sequentialQueue) ResubmitEvicted(qTx *queuedTx) {
 	resubmitDuration := time.Since(resubmitStart)
 	fmt.Printf("[TIMING] Resubmit network call took %v\n", resubmitDuration)
 	if err != nil || resubmitResp.Code != 0 {
-		// Check if this is a sequence mismatch
-		// if IsSequenceMismatchError(err) {
-		//  // Sequence mismatch means blockchain is at earlier sequence than this tx
-		//  // All txs from blockchain sequence onwards are stale - remove them all at once
-		//  expectedSeq := parseExpectedSequence(err.Error())
-		//  fmt.Printf("Sequence mismatch: blockchain at %d but tx at %d. Removing all stale txs >= %d\n",
-		//      expectedSeq, qTx.sequence, expectedSeq)
-
-		//  // Collect all transactions with sequence >= expectedSeq
-		//  q.mu.RLock()
-		//  var staleTxs []*queuedTx
-		//  for _, tx := range q.queue {
-		//      if tx.sequence >= expectedSeq {
-		//          staleTxs = append(staleTxs, tx)
-		//      }
-		//  }
-		//  q.mu.RUnlock()
-
-		//  // check the first tx to see if it was evicted then we can be sure that all txs are evicted
-		//  TxClient := tx.NewTxClient(q.client.GetGRPCConnection())
-		//  statusResp, err := TxClient.TxStatus(q.ctx, &tx.TxStatusRequest{TxId: qTx.txHash})
-		//  if err != nil {
-		//      fmt.Printf("Failed to check status of expected sequence tx: %v\n", err)
-		//      // Reset flag and return - let next poll cycle handle it
-		//      q.mu.Lock()
-		//      qTx.isResubmitting = false
-		//      q.mu.Unlock()
-		//      return
-		//  }
-		//  // lets just log for now
-		//  fmt.Printf("TX STATUS OF EXPECTED SEQUENCE %d: %s\n", expectedSeq, statusResp.Status)
-
-		//  if statusResp.Status == core.TxStatusEvicted {
-		//      // All stale txs are evicted. Reset current tx flag and return.
-		//      // Next poll cycle will scan from beginning and handle all evicted txs properly.
-		//      fmt.Printf("Confirmed: all txs from seq %d onwards are evicted. Resetting flag for next poll cycle.\n", expectedSeq)
-		//      q.mu.Lock()
-		//      qTx.isResubmitting = false
-		//      q.mu.Unlock()
-		//      return
-		//  }
-		// }
-
 		select {
 		case qTx.resultsC <- SequentialSubmissionResult{
 			Error: fmt.Errorf("evicted and failed to resubmit with hash %s: %w", qTx.txHash[:16], err),
@@ -426,7 +329,7 @@ func (q *sequentialQueue) checkBroadcastTransactions() {
 	scanStart := time.Now()
 	q.mu.RLock()
 	// Collect all broadcast transactions (those with non-empty txHash)
-	var broadcastTxs []*queuedTx // TODO: cap the size
+	var broadcastTxs []*queuedTx
 	for _, tx := range q.queue {
 		if tx.txHash != "" {
 			broadcastTxs = append(broadcastTxs, tx)
@@ -523,7 +426,7 @@ func (q *sequentialQueue) checkBroadcastTransactions() {
 }
 
 func (q *sequentialQueue) handleEvicted(qTx *queuedTx, statusResp *tx.TxStatusResponse, txClient tx.TxClient) {
-	// TODO: move evicted logic here
+
 }
 
 // handleCommitted processes a confirmed transaction
@@ -577,50 +480,8 @@ func (q *sequentialQueue) setLastConfirmedSeq(seq uint64) {
 
 // handleRejected processes a rejected transaction
 func (q *sequentialQueue) handleRejected(qTx *queuedTx, statusResp *tx.TxStatusResponse, txClient tx.TxClient) {
-	fmt.Printf("Handling rejected tx:%s with code %d", qTx.txHash[:16], statusResp.ExecutionCode)
-
-	q.mu.RLock()
-	shouldResign := qTx.shouldResign
-	q.mu.RUnlock()
-	if shouldResign {
-		fmt.Printf("Tx %s is already being resigned - skipping\n", qTx.txHash[:16])
-		return
-	}
-
-	isNonceMismatch := isSequenceMismatchRejection(statusResp.Error)
-
-	if !isNonceMismatch {
-		// Non-nonce error - remove from queue and return error to user
-		// check if previous tx was confirmed or pending. If so, roll back sequence to the previous tx sequence
-		if q.isPreviousTxCommittedOrPending(qTx.sequence, txClient) {
-			q.mu.Lock()
-			fmt.Println("LAST CONFIRMED SEQUENCE: ", q.lastConfirmedSeq)
-			fmt.Println("SEQUENCE TO ROLL BACK TO: ", qTx.sequence)
-			q.client.Signer().SetSequence(q.accountName, qTx.sequence)
-			q.mu.Unlock()
-			fmt.Printf("Rolled back signer sequence to %d (previous tx)\n", qTx.sequence)
-		}
-		select {
-		case <-q.ctx.Done():
-		case qTx.resultsC <- SequentialSubmissionResult{
-			Error: fmt.Errorf("tx rejected: %s", statusResp.Error),
-		}:
-		}
-		q.removeFromQueue(qTx)
-		return
-	}
-
 	// Nonce/sequence mismatch - scan entire queue from beginning to find all rejected txs
 	fmt.Printf("Detected rejected tx with sequence %d - scanning queue for all rejections\n", qTx.sequence)
-
-	// Check if already being resigned
-	q.mu.RLock()
-	alreadyResigning := qTx.shouldResign
-	q.mu.RUnlock()
-	if alreadyResigning {
-		fmt.Printf("Tx %s is already being resigned - skipping\n", qTx.txHash[:16])
-		return
-	}
 
 	// Step 2: Collect all broadcast transactions to check (including those already marked for resignation)
 	q.mu.RLock()
@@ -647,12 +508,7 @@ func (q *sequentialQueue) handleRejected(qTx *queuedTx, statusResp *tx.TxStatusR
 	// Step 3a: Find the earliest rejected tx and roll back sequence if needed
 	if len(rejectedTxs) > 0 {
 		// Find the earliest rejected tx (lowest sequence)
-		var earliestRejected *queuedTx
-		for _, rejectedTx := range rejectedTxs {
-			if earliestRejected == nil || rejectedTx.sequence < earliestRejected.sequence {
-				earliestRejected = rejectedTx
-			}
-		}
+		earliestRejected := rejectedTxs[0]
 
 		// Check if the transaction before the earliest rejected one was confirmed or pending
 		fmt.Println("EARLIEST REJECTED TX SEQUENCE: ", earliestRejected.sequence)
@@ -664,19 +520,6 @@ func (q *sequentialQueue) handleRejected(qTx *queuedTx, statusResp *tx.TxStatusR
 			q.client.Signer().SetSequence(q.accountName, q.lastConfirmedSeq+1)
 			q.mu.Unlock()
 			fmt.Printf("Rolled back signer sequence to %d (earliest rejected tx)\n", earliestRejected.sequence)
-		}
-	}
-
-	for _, rejectedTx := range rejectedTxs {
-		q.mu.Lock()
-		if !rejectedTx.shouldResign {
-			rejectedTx.shouldResign = true
-			q.mu.Unlock()
-			fmt.Printf("Sending rejected tx (seq %d) to resign channel\n", rejectedTx.sequence)
-			q.ResignChan <- rejectedTx
-		} else {
-			q.mu.Unlock()
-			fmt.Printf("Skipping rejected tx (seq %d) - already marked for resign\n", rejectedTx.sequence)
 		}
 	}
 }
@@ -740,7 +583,6 @@ func (q *sequentialQueue) isPreviousTxCommittedOrPending(seq uint64, txClient tx
 		return true
 	}
 	fmt.Println("PREVIOUS TX STATUS Seq: ", prevSeq, " RESPONSE: ", statusResp.Status, "LOG: ", statusResp.Error)
-	fmt.Println("PREVIOUS TX SHOULD RESIGN: ", prevTx.shouldResign)
 
 	// Return true if COMMITTED or PENDING
 	return statusResp.Status == core.TxStatusCommitted || statusResp.Status == core.TxStatusPending
