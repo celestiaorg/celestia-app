@@ -90,3 +90,63 @@ func (s *txServer) TxStatus(ctx context.Context, req *TxStatusRequest) (*TxStatu
 		Signers:       resTx.Signers,
 	}, nil
 }
+
+func (s *txServer) TxStatusBatch(ctx context.Context, req *TxStatusBatchRequest) (*TxStatusBatchResponse, error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "request cannot be nil")
+	}
+
+	if len(req.TxIds) > 20 {
+		return nil, status.Error(codes.InvalidArgument, "maximum of 20 tx ids allowed")
+	}
+
+	if len(req.TxIds) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "tx ids cannot be empty")
+	}
+
+	node, err := s.clientCtx.GetNode()
+	if err != nil {
+		return nil, err
+	}
+
+	nodeTxStatus, ok := node.(rpcclient.SignClient)
+	if !ok {
+		return nil, status.Error(codes.Unimplemented, "node does not support tx status batch")
+	}
+
+	txIDs := make([][]byte, len(req.TxIds))
+	for i, txId := range req.TxIds {
+		txID, err := hex.DecodeString(txId)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid tx id: %s", err)
+		}
+		txIDs[i] = txID
+	}
+
+	txStatusBatchResponses, err := nodeTxStatus.TxStatusBatch(ctx, txIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	responses := make([]*TxStatusResult, len(txStatusBatchResponses.Statuses))
+	for i, status := range txStatusBatchResponses.Statuses {
+		responses[i] = &TxStatusResult{
+			TxHash: req.TxIds[i],
+			Status: &TxStatusResponse{
+				Height:        status.Result.Height,
+				Index:         status.Result.Index,
+				ExecutionCode: status.Result.ExecutionCode,
+				Error:         status.Result.Error,
+				Status:        status.Result.Status,
+				GasWanted:     status.Result.GasWanted,
+				GasUsed:       status.Result.GasUsed,
+				Codespace:     status.Result.Codespace,
+				Signers:       status.Result.Signers,
+			},
+		}
+	}
+
+	return &TxStatusBatchResponse{
+		Statuses: responses,
+	}, nil
+}
