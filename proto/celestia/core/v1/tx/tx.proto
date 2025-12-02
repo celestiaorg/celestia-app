@@ -70,5 +70,5 @@ message TxStatusResult {
 
 // TxStatusBatchResponse is a response type for batched TxStatus query. It contains an array of transaction status results.
 message TxStatusBatchResponse {
-  repeated TxStatusResult results = 1;
+  repeated TxStatusResult statuses = 1;
 }

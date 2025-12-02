@@ -128,9 +128,9 @@ func (s *txServer) TxStatusBatch(ctx context.Context, req *TxStatusBatchRequest)
 		return nil, err
 	}
 
-	responses := make([]*TxStatusResponseWithHash, len(txStatusBatchResponses.Statuses))
+	responses := make([]*TxStatusResult, len(txStatusBatchResponses.Statuses))
 	for i, status := range txStatusBatchResponses.Statuses {
-		responses[i] = &TxStatusResponseWithHash{
+		responses[i] = &TxStatusResult{
 			TxHash: req.TxIds[i],
 			Status: &TxStatusResponse{
 
@@ -148,6 +148,6 @@ func (s *txServer) TxStatusBatch(ctx context.Context, req *TxStatusBatchRequest)
 	}
 
 	return &TxStatusBatchResponse{
-		Responses: responses,
+		Statuses: responses,
 	}, nil
 }
