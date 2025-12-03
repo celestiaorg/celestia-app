@@ -141,15 +141,12 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 	mochaClient, err := networks.NewClient(mochaConfig.RPCs[0])
 	s.Require().NoError(err, "failed to create mocha RPC client")
 
-	// get latest height from mocha
 	latestHeight, err := s.GetLatestBlockHeight(ctx, mochaClient)
 	s.Require().NoError(err, "failed to get latest height from mocha")
-	s.Require().Greater(latestHeight, int64(0), "latest height is zero")
 
 	trustHeight := latestHeight - 2000
 	s.Require().Greater(trustHeight, int64(0), "calculated trust height %d is too low", trustHeight)
 
-	// get trust hash from mocha
 	trustBlock, err := mochaClient.Block(ctx, &trustHeight)
 	s.Require().NoError(err, "failed to get block at trust height %d from mocha", trustHeight)
 
@@ -163,20 +160,24 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 	dockerCfg, err := networks.NewConfig(mochaConfig, s.client, s.network)
 	s.Require().NoError(err, "failed to create mocha config")
 
-	// create a mocha chain builder (no validators, just for state sync nodes)
-	mochaChain, err := networks.NewChainBuilder(s.T(), mochaConfig, dockerCfg).
+	// Pass seeds and peers via CLI flags (CometBFT reads CLI args correctly, config file had issues)
+	startArgs := []string{"--force-no-bbr"}
+	if mochaConfig.Seeds != "" {
+		startArgs = append(startArgs, fmt.Sprintf("--p2p.seeds=%s", mochaConfig.Seeds))
+		t.Logf("Adding seeds via CLI: %s", mochaConfig.Seeds)
+	}
+	if mochaConfig.Peers != "" {
+		startArgs = append(startArgs, fmt.Sprintf("--p2p.persistent_peers=%s", mochaConfig.Peers))
+		t.Logf("Adding persistent peers via CLI: %d peers", len(strings.Split(mochaConfig.Peers, ",")))
+	}
+
+	builder := networks.NewChainBuilder(s.T(), mochaConfig, dockerCfg)
+	builder = builder.WithAdditionalStartArgs(startArgs...)
+	mochaChain, err := builder.
 		WithNodes(cosmos.NewChainNodeConfigBuilder().
 			WithNodeType(tastoratypes.NodeTypeConsensusFull).
 			WithPostInit(func(ctx context.Context, node *cosmos.ChainNode) error {
-				err := configureStateSyncClient(ctx, node, mochaConfig.RPCs, trustHeight, trustHash)
-				if err != nil {
-					return err
-				}
-				// Configure P2P seeds and peers specific to mocha network
-				return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
-					cfg.P2P.Seeds = mochaConfig.Seeds
-					cfg.P2P.PersistentPeers = mochaConfig.Peers
-				})
+				return configureStateSyncClient(ctx, node, mochaConfig.RPCs, trustHeight, trustHash)
 			}).
 			Build(),
 		).
@@ -203,8 +204,11 @@ func (s *CelestiaTestSuite) TestStateSyncMocha() {
 	stateSyncClient, err := fullNode.GetRPCClient()
 	s.Require().NoError(err, "failed to get state sync client")
 
+	// Wait for state sync to complete (node reaches trust height).
+	// After state sync, the node transitions to block sync to catch up to latest height,
+	// but we verify state sync was used via metrics.
 	err = s.WaitForSync(ctx, stateSyncClient, stateSyncTimeout, func(info rpctypes.SyncInfo) bool {
-		return !info.CatchingUp && info.LatestBlockHeight >= trustHeight
+		return info.LatestBlockHeight >= trustHeight
 	})
 
 	s.Require().NoError(err, "failed to wait for state sync to complete")

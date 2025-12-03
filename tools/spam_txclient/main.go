@@ -33,7 +33,7 @@ type Config struct {
 
 func main() {
 	cfg := Config{
-		MochaEndpoint:   "rpc-mocha.pops.one:9090",
+		MochaEndpoint:   "localhost:9090",
 		BlobSizeKB:      300,  // 300 KiB blobs
 		IntervalMs:      1000, // Submit every 1 second
 		TestDurationSec: 0,    // Run forever (0 = no timeout)

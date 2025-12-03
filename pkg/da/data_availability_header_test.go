@@ -436,13 +436,13 @@ func sortByteArrays(arr [][]byte) {
 	})
 }
 
-// maxDataAvailabilityHeader returns a DataAvailabilityHeader the maximum square
+// maxDataAvailabilityHeader returns a DataAvailabilityHeader with the maximum square
 // size. This should only be used for testing.
 func maxDataAvailabilityHeader(t *testing.T) (dah DataAvailabilityHeader) {
 	return maxDataAvailabilityHeaderWithExtendShares(t, ExtendShares)
 }
 
-// maxDataAvailabilityHeaderWithExtendShares returns a DataAvailabilityHeader the maximum square
+// maxDataAvailabilityHeaderWithExtendShares returns a DataAvailabilityHeader with the maximum square
 // size using the provided extendShares function. This should only be used for testing.
 func maxDataAvailabilityHeaderWithExtendShares(t *testing.T, extendShares func([][]byte) (*rsmt2d.ExtendedDataSquare, error)) (dah DataAvailabilityHeader) {
 	shares := generateShares(appconsts.SquareSizeUpperBound * appconsts.SquareSizeUpperBound)
