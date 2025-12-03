@@ -31,7 +31,8 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+
+	// sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	"go.opentelemetry.io/otel/attribute"
@@ -57,15 +58,6 @@ var (
 )
 
 type Option func(client *TxClient)
-
-// txInfo is a struct that holds the sequence and the signer of a transaction
-// in the local tx pool.
-type txInfo struct {
-	sequence  uint64
-	signer    string
-	timestamp time.Time
-	txBytes   []byte
-}
 
 // TxResponse is a response from the chain after
 // a transaction has been submitted.
@@ -164,9 +156,9 @@ func WithDefaultAccount(name string) Option {
 		c.defaultAddress = addr
 
 		// Update worker 0's account if tx queue already exists
-		if c.txQueue != nil && len(c.txQueue.workers) > 0 {
-			c.txQueue.workers[0].accountName = name
-			c.txQueue.workers[0].address = addr.String()
+		if c.parallelTxQueue != nil && len(c.parallelTxQueue.workers) > 0 {
+			c.parallelTxQueue.workers[0].accountName = name
+			c.parallelTxQueue.workers[0].address = addr.String()
 		}
 	}
 }
@@ -199,7 +191,7 @@ func WithTxWorkers(numWorkers int) Option {
 	}
 
 	return func(c *TxClient) {
-		c.txQueue = newTxQueue(c, numWorkers)
+		c.parallelTxQueue = newTxQueue(c, numWorkers)
 	}
 }
 
@@ -207,8 +199,8 @@ func WithTxWorkers(numWorkers int) Option {
 // Default is 100 if not specified.
 func WithParallelQueueSize(size int) Option {
 	return func(c *TxClient) {
-		if c.txQueue != nil {
-			c.txQueue.jobQueue = make(chan *SubmissionJob, size)
+		if c.parallelTxQueue != nil {
+			c.parallelTxQueue.jobQueue = make(chan *SubmissionJob, size)
 		}
 	}
 }
@@ -230,10 +222,10 @@ type TxClient struct {
 	defaultAddress sdktypes.AccAddress
 	// txTracker maps the tx hash to the Sequence and signer of the transaction
 	// that was submitted to the chain
-	txTracker           map[string]txInfo
+	TxTracker           *TxTracker
 	gasEstimationClient gasestimation.GasEstimatorClient
-	// txQueue manages parallel transaction submission when enabled
-	txQueue *txQueue
+	// parallelTxQueue manages parallel transaction submission when enabled
+	parallelTxQueue *txQueue
 }
 
 // NewTxClient returns a new TxClient
@@ -265,7 +257,7 @@ func NewTxClient(
 		pollTime:            DefaultPollTime,
 		defaultAccount:      records[0].Name,
 		defaultAddress:      addr,
-		txTracker:           make(map[string]txInfo),
+		TxTracker:           NewTxTracker(),
 		cdc:                 cdc,
 		gasEstimationClient: gasestimation.NewGasEstimatorClient(conn),
 	}
@@ -276,8 +268,8 @@ func NewTxClient(
 
 	// Always create a tx queue with at least 1 worker (the default account)
 	// unless already configured by WithTxWorkers option
-	if txClient.txQueue == nil {
-		txClient.txQueue = newTxQueue(txClient, 1)
+	if txClient.parallelTxQueue == nil {
+		txClient.parallelTxQueue = newTxQueue(txClient, 1)
 	}
 
 	return txClient, nil
@@ -335,7 +327,7 @@ func SetupTxClient(
 		return nil, err
 	}
 
-	if err := txClient.txQueue.start(ctx); err != nil {
+	if err := txClient.parallelTxQueue.start(ctx); err != nil {
 		return nil, fmt.Errorf("failed to start tx queue: %w", err)
 	}
 
@@ -371,12 +363,12 @@ func (client *TxClient) SubmitPayForBlobToQueue(ctx context.Context, blobs []*sh
 // to the provided channel when the transaction is confirmed. The caller is responsible for creating and
 // closing the result channel.
 func (client *TxClient) QueueBlob(ctx context.Context, resultC chan SubmissionResult, blobs []*share.Blob, opts ...TxOption) {
-	if client.txQueue == nil {
+	if client.parallelTxQueue == nil {
 		resultC <- SubmissionResult{Error: errTxQueueNotConfigured}
 		return
 	}
 
-	if !client.txQueue.isStarted() {
+	if !client.parallelTxQueue.isStarted() {
 		resultC <- SubmissionResult{Error: errTxQueueNotStarted}
 		return
 	}
@@ -388,13 +380,13 @@ func (client *TxClient) QueueBlob(ctx context.Context, resultC chan SubmissionRe
 		ResultsC: resultC,
 	}
 
-	client.txQueue.submitJob(job)
+	client.parallelTxQueue.submitJob(job)
 }
 
 // SubmitPayForBlobWithAccount forms a transaction from the provided blobs, signs it with the provided account, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
 func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, accountName string, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
-	resp, err := client.BroadcastPayForBlobWithAccount(ctx, accountName, blobs, opts...)
+	resp, _, err := client.BroadcastPayForBlobWithAccount(ctx, accountName, blobs, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -413,23 +405,24 @@ func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account
 // If no gas or gas price is set, it will estimate the gas and use
 // the max effective gas price: max(localMinGasPrice, networkMinGasPrice).
 func (client *TxClient) BroadcastPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
-	return client.BroadcastPayForBlobWithAccount(ctx, client.defaultAccount, blobs, opts...)
+	resp, _, err := client.BroadcastPayForBlobWithAccount(ctx, client.defaultAccount, blobs, opts...)
+	return resp, err
 }
 
-func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, accountName string, blobs []*share.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, accountName string, blobs []*share.Blob, opts ...TxOption) (*sdktypes.TxResponse, []byte, error) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 	if err := client.checkAccountLoaded(ctx, accountName); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	acc, exists := client.signer.accounts[accountName]
 	if !exists {
-		return nil, fmt.Errorf("account %s not found", accountName)
+		return nil, nil, fmt.Errorf("account %s not found", accountName)
 	}
 	signer := acc.Address().String()
 	msg, err := blobtypes.NewMsgPayForBlobs(signer, 0, blobs...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	gasLimit := blobtypes.DefaultEstimateGas(msg)
 	fee := uint64(math.Ceil(appconsts.DefaultMinGasPrice * float64(gasLimit)))
@@ -438,10 +431,15 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 
 	txBytes, _, err := client.signer.CreatePayForBlobs(accountName, blobs, opts...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return client.routeTx(ctx, txBytes, accountName)
+	resp, err := client.routeTx(ctx, txBytes, accountName)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return resp, txBytes, nil
 }
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
@@ -462,7 +460,7 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 	// prune transactions that are older than 10 minutes
 	// pruning has to be done in broadcast, since users
 	// might not always call ConfirmTx().
-	client.pruneTxTracker()
+	client.TxTracker.pruneTxTracker()
 
 	account, err := client.getAccountNameFromMsgs(msgs)
 	if err != nil {
@@ -494,31 +492,33 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 		}
 		gasLimit, err = client.estimateGas(ctx, txBuilder)
 		if err != nil {
-			// If not a sequence mismatch, return the error.
-			if !strings.Contains(err.Error(), sdkerrors.ErrWrongSequence.Error()) {
-				return nil, err
-			}
-
-			// Handle the sequence mismatch path by setting the sequence to the expected sequence
-			// and retrying gas estimation.
-			parsedErr := extractSequenceError(err.Error())
-
-			expectedSequence, err := apperrors.ParseExpectedSequence(parsedErr)
-			if err != nil {
-				return nil, fmt.Errorf("parsing sequence mismatch: %w. RawLog: %s", err, err)
-			}
-
-			if err = client.signer.SetSequence(account, expectedSequence); err != nil {
-				return nil, fmt.Errorf("setting sequence: %w", err)
-			}
-
-			// Retry gas estimation with the corrected sequence.
-			gasLimit, err = client.estimateGas(ctx, txBuilder)
-			if err != nil {
-				return nil, fmt.Errorf("retrying gas estimation: %w", err)
-			}
+			return nil, err
 		}
-		txBuilder.SetGasLimit(gasLimit)
+		// 	// If not a sequence mismatch, return the error.
+		// 	if !strings.Contains(err.Error(), sdkerrors.ErrWrongSequence.Error()) {
+		// 		return nil, err
+		// 	}
+
+		// 	// Handle the sequence mismatch path by setting the sequence to the expected sequence
+		// 	// and retrying gas estimation.
+		// 	parsedErr := extractSequenceError(err.Error())
+
+		// 	expectedSequence, err := apperrors.ParseExpectedSequence(parsedErr)
+		// 	if err != nil {
+		// 		return nil, fmt.Errorf("parsing sequence mismatch: %w. RawLog: %s", err, err)
+		// 	}
+
+		// 	if err = client.signer.SetSequence(account, expectedSequence); err != nil {
+		// 		return nil, fmt.Errorf("setting sequence: %w", err)
+		// 	}
+
+		// 	// Retry gas estimation with the corrected sequence.
+		// 	gasLimit, err = client.estimateGas(ctx, txBuilder)
+		// 	if err != nil {
+		// 		return nil, fmt.Errorf("retrying gas estimation: %w", err)
+		// 	}
+		// }
+		// txBuilder.SetGasLimit(gasLimit)
 	}
 
 	if !hasUserSetFee {
@@ -550,14 +550,14 @@ func (client *TxClient) routeTx(ctx context.Context, txBytes []byte, signer stri
 		return client.submitToMultipleConnections(ctx, txBytes, signer)
 	}
 	span.AddEvent("txclient: broadcasting PFB to single endpoint")
-	return client.submitToSingleConnection(ctx, txBytes, signer)
+	return client.SubmitToSingleConnectionWithoutRetry(ctx, txBytes, signer)
 }
 
 // submitToSingleConnection handles submission to a single connection with retry logic at sequence mismatches and sequence management
 func (client *TxClient) submitToSingleConnection(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
 	span := trace.SpanFromContext(ctx)
 
-	resp, err := client.sendTxToConnection(ctx, client.conns[0], txBytes)
+	resp, err := client.SendTxToConnection(ctx, client.conns[0], txBytes)
 	if err != nil {
 		broadcastTxErr, ok := err.(*BroadcastTxError)
 		if !ok || !apperrors.IsNonceMismatchCode(broadcastTxErr.Code) {
@@ -579,11 +579,33 @@ func (client *TxClient) submitToSingleConnection(ctx context.Context, txBytes []
 		}
 
 		span.AddEvent("txclient/submitToSingleConnection: successfully rebroadcasted tx after sequence mismatch")
-		return client.submitToSingleConnection(ctx, retryTxBytes, signer)
+		return client.SubmitToSingleConnectionWithoutRetry(ctx, retryTxBytes, signer)
 	}
 	// Save the sequence, signer and txBytes of the in the local txTracker
 	// before the sequence is incremented
-	client.trackTransaction(signer, resp.TxHash, txBytes)
+	sequence := client.signer.Account(signer).Sequence()
+	client.TxTracker.trackTransaction(signer, sequence, resp.TxHash, txBytes)
+
+	// Increment sequence after successful submission
+	if err := client.signer.IncrementSequence(signer); err != nil {
+		return nil, fmt.Errorf("error incrementing sequence: %w", err)
+	}
+
+	return resp, nil
+}
+
+func (client *TxClient) SubmitToSingleConnectionWithoutRetry(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+	// span := trace.SpanFromContext(ctx)
+
+	resp, err := client.SendTxToConnection(ctx, client.conns[0], txBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	// Save the sequence, signer and txBytes of the in the local txTracker
+	// before the sequence is incremented
+	sequence := client.signer.Account(signer).Sequence()
+	client.TxTracker.trackTransaction(signer, sequence, resp.TxHash, txBytes)
 
 	// Increment sequence after successful submission
 	if err := client.signer.IncrementSequence(signer); err != nil {
@@ -594,7 +616,7 @@ func (client *TxClient) submitToSingleConnection(ctx context.Context, txBytes []
 }
 
 // sendTxToConnection broadcasts a transaction to the chain and returns the response.
-func (client *TxClient) sendTxToConnection(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
+func (client *TxClient) SendTxToConnection(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
 	span := trace.SpanFromContext(ctx)
 
 	resp, err := sdktx.NewServiceClient(conn).BroadcastTx(
@@ -695,7 +717,7 @@ func (client *TxClient) submitToMultipleConnections(ctx context.Context, txBytes
 		go func(conn *grpc.ClientConn) {
 			defer wg.Done()
 
-			resp, err := client.sendTxToConnection(ctx, conn, txBytes)
+			resp, err := client.SendTxToConnection(ctx, conn, txBytes)
 			if err != nil {
 				errCh <- err
 				return
@@ -720,7 +742,8 @@ func (client *TxClient) submitToMultipleConnections(ctx context.Context, txBytes
 
 	// Return first successful response, if any
 	if resp, ok := <-respCh; ok && resp != nil {
-		client.trackTransaction(signer, resp.TxHash, txBytes)
+		sequence := client.signer.Account(signer).Sequence()
+		client.TxTracker.trackTransaction(signer, sequence, resp.TxHash, txBytes)
 
 		if err := client.signer.IncrementSequence(signer); err != nil {
 			return nil, fmt.Errorf("increment sequencing: %w", err)
@@ -734,15 +757,6 @@ func (client *TxClient) submitToMultipleConnections(ctx context.Context, txBytes
 		errs = append(errs, err)
 	}
 	return nil, errors.Join(errs...)
-}
-
-// pruneTxTracker removes transactions from the local tx tracker that are older than 10 minutes
-func (client *TxClient) pruneTxTracker() {
-	for hash, txInfo := range client.txTracker {
-		if time.Since(txInfo.timestamp) >= txTrackerPruningInterval {
-			delete(client.txTracker, hash)
-		}
-	}
 }
 
 // ConfirmTx periodically pings the provided node for the commitment of a transaction by its
@@ -780,15 +794,15 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			))
 			if resp.ExecutionCode != abci.CodeTypeOK {
 				span.RecordError(fmt.Errorf("txclient/ConfirmTx: execution error: %s", resp.Error))
-				client.deleteFromTxTracker(txHash)
+				client.TxTracker.deleteFromTxTracker(txHash)
 				return nil, client.buildExecutionError(txHash, resp)
 			}
 
 			span.AddEvent("txclient/ConfirmTx: transaction confirmed successfully")
-			client.deleteFromTxTracker(txHash)
+			client.TxTracker.deleteFromTxTracker(txHash)
 			return client.buildTxResponse(txHash, resp), nil
 		case core.TxStatusEvicted:
-			_, _, txBytes, exists := client.GetTxFromTxTracker(txHash)
+			_, _, txBytes, exists := client.TxTracker.GetTxFromTxTracker(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in txTracker; likely failed during broadcast", txHash)
 			}
@@ -804,7 +818,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			))
 
 			// If we're not already tracking eviction timeout, try to resubmit
-			_, err := client.sendTxToConnection(ctx, client.conns[0], txBytes)
+			_, err := client.SendTxToConnection(ctx, client.conns[0], txBytes)
 			if err != nil {
 				// Check if the error is a broadcast tx error
 				_, ok := err.(*BroadcastTxError)
@@ -819,7 +833,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			span.AddEvent("txclient/ConfirmTx: transaction resubmitted successfully after eviction")
 		case core.TxStatusRejected:
 			span.RecordError(fmt.Errorf("txclient/ConfirmTx: transaction rejected: %s", resp.Error))
-			sequence, signer, _, exists := client.GetTxFromTxTracker(txHash)
+			sequence, signer, _, exists := client.TxTracker.GetTxFromTxTracker(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
 			}
@@ -828,11 +842,11 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			if err := client.signer.SetSequence(signer, sequence); err != nil {
 				return nil, fmt.Errorf("setting sequence: %w", err)
 			}
-			client.deleteFromTxTracker(txHash)
+			client.TxTracker.deleteFromTxTracker(txHash)
 			return nil, fmt.Errorf("tx with hash %s was rejected by the node with execution code: %d and log: %s", txHash, resp.ExecutionCode, resp.Error)
 		default:
 			span.RecordError(fmt.Errorf("txclient/ConfirmTx: unknown tx status for tx: %s", txHash))
-			client.deleteFromTxTracker(txHash)
+			client.TxTracker.deleteFromTxTracker(txHash)
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
 			}
@@ -859,13 +873,6 @@ func extractSequenceError(fullError string) string {
 		return cut
 	}
 	return s
-}
-
-// deleteFromTxTracker safely deletes a transaction from the local tx tracker.
-func (client *TxClient) deleteFromTxTracker(txHash string) {
-	client.mtx.Lock()
-	defer client.mtx.Unlock()
-	delete(client.txTracker, txHash)
 }
 
 // EstimateGasPriceAndUsage returns the estimated gas price based on the provided priority,
@@ -1045,26 +1052,6 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 	return record.Name, nil
 }
 
-// trackTransaction tracks a transaction without acquiring the mutex.
-// This should only be called when the caller already holds the mutex.
-func (client *TxClient) trackTransaction(signer, txHash string, txBytes []byte) {
-	sequence := client.signer.Account(signer).Sequence()
-	client.txTracker[txHash] = txInfo{
-		sequence:  sequence,
-		signer:    signer,
-		timestamp: time.Now(),
-		txBytes:   txBytes,
-	}
-}
-
-// GetTxFromTxTracker gets transaction info from the tx client's local tx tracker by its hash
-func (client *TxClient) GetTxFromTxTracker(hash string) (sequence uint64, signer string, txBytes []byte, exists bool) {
-	client.mtx.Lock()
-	defer client.mtx.Unlock()
-	txInfo, exists := client.txTracker[hash]
-	return txInfo.sequence, txInfo.signer, txInfo.txBytes, exists
-}
-
 // Signer exposes the tx clients underlying signer
 func (client *TxClient) Signer() *Signer {
 	return client.signer
@@ -1073,51 +1060,51 @@ func (client *TxClient) Signer() *Signer {
 // StartTxQueueForTest starts the tx queue for testing purposes.
 // This function is only intended for use in tests.
 func (client *TxClient) StartTxQueueForTest(ctx context.Context) error {
-	if client.txQueue == nil {
+	if client.parallelTxQueue == nil {
 		return nil
 	}
-	return client.txQueue.start(ctx)
+	return client.parallelTxQueue.start(ctx)
 }
 
 // StopTxQueueForTest stops the tx queue for testing purposes.
 // This function is only intended for use in tests.
 func (client *TxClient) StopTxQueueForTest() {
-	if client.txQueue != nil {
-		client.txQueue.stop()
+	if client.parallelTxQueue != nil {
+		client.parallelTxQueue.stop()
 	}
 }
 
 // IsTxQueueStartedForTest returns whether the tx queue is started, for testing purposes.
 // This function is only intended for use in tests.
 func (client *TxClient) IsTxQueueStartedForTest() bool {
-	if client.txQueue == nil {
+	if client.parallelTxQueue == nil {
 		return false
 	}
-	return client.txQueue.isStarted()
+	return client.parallelTxQueue.isStarted()
 }
 
 // TxQueueWorkerCount returns the number of workers in the tx queue
 func (client *TxClient) TxQueueWorkerCount() int {
-	if client.txQueue == nil {
+	if client.parallelTxQueue == nil {
 		return 0
 	}
-	return len(client.txQueue.workers)
+	return len(client.parallelTxQueue.workers)
 }
 
 // TxQueueWorkerAddress returns the address for the worker at the given index
 func (client *TxClient) TxQueueWorkerAddress(index int) string {
-	if client.txQueue == nil || index < 0 || index >= len(client.txQueue.workers) {
+	if client.parallelTxQueue == nil || index < 0 || index >= len(client.parallelTxQueue.workers) {
 		return ""
 	}
-	return client.txQueue.workers[index].address
+	return client.parallelTxQueue.workers[index].address
 }
 
 // TxQueueWorkerAccountName returns the account name for the worker at the given index
 func (client *TxClient) TxQueueWorkerAccountName(index int) string {
-	if client.txQueue == nil || index < 0 || index >= len(client.txQueue.workers) {
+	if client.parallelTxQueue == nil || index < 0 || index >= len(client.parallelTxQueue.workers) {
 		return ""
 	}
-	return client.txQueue.workers[index].accountName
+	return client.parallelTxQueue.workers[index].accountName
 }
 
 // QueryMinimumGasPrice queries both the nodes local and network wide

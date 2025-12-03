@@ -16,6 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	v2 "github.com/celestiaorg/celestia-app/v6/pkg/user/v2"
 	"github.com/celestiaorg/go-square/v3/share"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/spf13/cobra"
@@ -157,12 +158,19 @@ func monitorLatency(
 	if accountName != "" {
 		opts = append(opts, user.WithDefaultAccount(accountName))
 	}
-	txClient, err := user.SetupTxClient(ctx, kr, grpcConn, encCfg, opts...)
+	txClient, err := v2.SetupTxClient(ctx, kr, grpcConn, encCfg, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create tx client: %w", err)
 	}
 
 	fmt.Printf("Using account: %s\n", txClient.DefaultAccountName())
+	fmt.Println("Sequential queue started for transaction submission")
+
+	// Ensure sequential queue is stopped on exit
+	defer func() {
+		fmt.Println("Stopping sequential queue...")
+		txClient.StopAllSequentialQueues()
+	}()
 
 	fmt.Println("Submitting transactions...")
 
@@ -207,63 +215,58 @@ func monitorLatency(
 
 			submitTime := time.Now()
 
-			// Broadcast transaction without waiting for confirmation
-			resp, err := txClient.BroadcastPayForBlob(ctx, []*share.Blob{blob})
-			if err != nil {
-				fmt.Printf("Failed to broadcast tx: %v\n", err)
-				continue
-			}
-
-			fmt.Printf("[SUBMIT] tx=%s size=%d bytes time=%s\n",
-				resp.TxHash[:16], randomSize, submitTime.Format("15:04:05.000"))
-
-			if disableMetrics {
-				continue
-			}
-
-			// Launch background goroutine to confirm the transaction
-			go func(txHash string, submitTime time.Time) {
-				confirmed, err := txClient.ConfirmTx(ctx, txHash)
+			// Submit to sequential queue (handles both broadcast and confirmation)
+			go func(submitTime time.Time, blobData []*share.Blob, size int) {
+				resp, err := txClient.SubmitPFBToSequentialQueue(ctx, blobData)
 				if err != nil {
 					if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-						fmt.Printf("[CANCELLED] tx=%s context closed before confirmation\n", txHash[:16])
+						fmt.Printf("[CANCELLED] context closed before submission\n")
 						return
 					}
-					resultsMux.Lock()
-					// Track failed confirmation
-					fmt.Printf("[FAILED] tx=%s error=%v\n", txHash[:16], err)
-					results = append(results, txResult{
-						submitTime: submitTime,
-						commitTime: time.Now(),
-						latency:    0,
-						txHash:     txHash,
-						code:       0,
-						height:     0,
-						failed:     true,
-						errorMsg:   err.Error(),
-					})
-					resultsMux.Unlock()
+					if !disableMetrics {
+						resultsMux.Lock()
+						// Track failed submission/confirmation
+						fmt.Printf("[FAILED] error=%v\n", err)
+						results = append(results, txResult{
+							submitTime: submitTime,
+							commitTime: time.Now(),
+							latency:    0,
+							txHash:     "",
+							code:       0,
+							height:     0,
+							failed:     true,
+							errorMsg:   err.Error(),
+						})
+						resultsMux.Unlock()
+					}
 					return
 				}
 
-				resultsMux.Lock()
+				fmt.Printf("[SUBMIT] tx=%s size=%d bytes time=%s\n",
+					resp.TxHash[:16], size, submitTime.Format("15:04:05.000"))
+
+				if disableMetrics {
+					return
+				}
+
 				// Track successful confirmation
 				commitTime := time.Now()
 				latency := commitTime.Sub(submitTime)
+				resultsMux.Lock()
 				fmt.Printf("[CONFIRM] tx=%s height=%d latency=%dms code=%d time=%s\n",
-					confirmed.TxHash[:16], confirmed.Height, latency.Milliseconds(), confirmed.Code, commitTime.Format("15:04:05.000"))
+					resp.TxHash[:16], resp.Height, latency.Milliseconds(), resp.Code, commitTime.Format("15:04:05.000"))
 				results = append(results, txResult{
 					submitTime: submitTime,
 					commitTime: commitTime,
 					latency:    latency,
-					txHash:     confirmed.TxHash,
-					code:       confirmed.Code,
-					height:     confirmed.Height,
+					txHash:     resp.TxHash,
+					code:       resp.Code,
+					height:     resp.Height,
 					failed:     false,
 					errorMsg:   "",
 				})
 				resultsMux.Unlock()
-			}(resp.TxHash, submitTime)
+			}(submitTime, []*share.Blob{blob}, randomSize)
 		}
 	}
 }
