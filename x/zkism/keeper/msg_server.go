@@ -33,6 +33,7 @@ func (m msgServer) CreateInterchainSecurityModule(ctx context.Context, msg *type
 		Owner:               msg.Creator,
 		State:               msg.State,
 		Groth16Vkey:         msg.Groth16Vkey,
+		MerkleTreeAddress:   msg.MerkleTreeAddress,
 		StateTransitionVkey: msg.StateTransitionVkey,
 		StateMembershipVkey: msg.StateMembershipVkey,
 	}
