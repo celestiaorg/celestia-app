@@ -103,6 +103,9 @@ func deployCmd() *cobra.Command {
 			tarPath := filepath.Join(rootDir, "payload.tar.gz")
 			log.Printf("Compressing payload to %s\n", tarPath)
 			tarCmd := exec.Command("tar", "-czf", tarPath, "-C", rootDir, "payload")
+			// Prevent macOS from including resource forks and extended attributes
+			// which can cause parsing issues on Linux systems
+			tarCmd.Env = append(os.Environ(), "COPYFILE_DISABLE=1")
 			if output, err := tarCmd.CombinedOutput(); err != nil {
 				return fmt.Errorf("failed to compress payload: %w, output: %s", err, string(output))
 			}
@@ -144,12 +147,12 @@ func deployCmd() *cobra.Command {
 // It runs all operations in parallel and returns an error if any host fails.
 func deployPayloadDirect(
 	ips []Instance,
-	archivePath string, // e.g. "./payload.tar.gz"
-	sshKeyPath string, // e.g. "~/.ssh/id_ed25519"
-	remoteDir string, // e.g. "/root"
-	remoteScript string, // e.g. "start.sh"
+	archivePath string,    // e.g. "./payload.tar.gz"
+	sshKeyPath string,     // e.g. "~/.ssh/id_ed25519"
+	remoteDir string,      // e.g. "/root"
+	remoteScript string,   // e.g. "start.sh"
 	timeout time.Duration, // per‐host timeout
-	workers int, // number of concurrent workers
+	workers int,           // number of concurrent workers
 ) error {
 	var wg sync.WaitGroup
 	errCh := make(chan error, len(ips))
