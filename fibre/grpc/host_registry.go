@@ -29,6 +29,12 @@ func NewHostRegistry(queryClient types.QueryClient) *HostRegistry {
 	}
 }
 
+// Start the host registry by pulling all active fibre providers.
+func (g *HostRegistry) Start(ctx context.Context) error {
+	return g.PullAll(ctx)
+}
+
+// GetHost implements the HostRegistry interface.
 func (g *HostRegistry) GetHost(ctx context.Context, val *core.Validator) (validator.Host, error) {
 	host, err := g.getHost(ctx, val)
 	if err != nil {
@@ -50,18 +56,6 @@ func (g *HostRegistry) getHost(ctx context.Context, val *core.Validator) (valida
 	// check the cache first
 	if host, ok := g.readHost(valConAddr); ok {
 		return host, nil
-	}
-
-	// if the cache is empty, fetch all active fibre providers
-	if g.cacheLen() == 0 {
-		if err := g.PullAll(ctx); err != nil {
-			return "", err
-		}
-		if host, ok := g.readHost(valConAddr); ok {
-			return host, nil
-		} else {
-			return "", fmt.Errorf("host not found for validator %s", valConAddr)
-		}
 	}
 
 	// look up the specific validator's host if it's missing from the cache. It might have
@@ -116,11 +110,4 @@ func (g *HostRegistry) writeHost(key string, host validator.Host) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.cachedHosts[key] = host
-}
-
-// cacheLen returns the length of the cache with a read lock.
-func (g *HostRegistry) cacheLen() int {
-	g.mu.RLock()
-	defer g.mu.RUnlock()
-	return len(g.cachedHosts)
 }

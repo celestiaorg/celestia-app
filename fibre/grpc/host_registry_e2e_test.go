@@ -44,9 +44,11 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	s.hostRegistry = grpc.NewHostRegistry(types.NewQueryClient(s.cctx.GRPCClient))
+	err := s.hostRegistry.Start(t.Context())
+	require.NoError(t, err)
 
 	// Wait for at least one block to be produced before querying
-	_, err := s.cctx.WaitForHeight(1)
+	_, err = s.cctx.WaitForHeight(1)
 	require.NoError(t, err, "failed to wait for first block")
 
 	// Use the GRPCClient to setup a cmtservice query client and query the validator set
