@@ -188,6 +188,9 @@ func (c *Client) uploadTo(
 	blob *Blob,
 	sigSet *validator.SignatureSet,
 ) bool {
+	ctx, cancel := context.WithCancel(ctx) // GRPC calls require context cancelling upon completion
+	defer cancel()
+
 	log := c.log.With(
 		"validator", val.Address.String(),
 		"blob_commitment", blob.Commitment(),
