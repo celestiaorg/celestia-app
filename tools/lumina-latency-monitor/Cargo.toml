@@ -17,5 +17,16 @@ humantime = "2.1"
 parse_duration = "2"
 thiserror = "2.0"
 
+# Keyring support
+josekit = "0.8"
+prost = "0.13"
+dirs = "5.0"
+bech32 = "0.11"
+sha2 = "0.10"
+ripemd = "0.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+base64 = "0.22"
+
 [dev-dependencies]
 tokio = { version = "1.42", features = ["rt", "rt-multi-thread", "macros"] }

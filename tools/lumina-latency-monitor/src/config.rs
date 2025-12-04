@@ -5,6 +5,11 @@ use celestia_types::nmt::Namespace;
 use clap::Parser;
 use thiserror::Error;
 
+use crate::keyring::{Backend, FileKeyring, KeyringError};
+
+/// Default keyring directory (matches Go latency-monitor)
+const DEFAULT_KEYRING_DIR: &str = "~/.celestia-app";
+
 #[derive(Parser, Debug)]
 #[command(name = "lumina-latency-monitor")]
 #[command(about = "Monitor and measure transaction latency in Celestia networks")]
@@ -13,12 +18,15 @@ pub struct Args {
     #[arg(short = 'e', long, default_value = "localhost:9090")]
     pub grpc_endpoint: String,
 
+    /// Directory containing the keyring (default: ~/.celestia-app)
     #[arg(short = 'k', long)]
     pub keyring_dir: Option<PathBuf>,
 
+    /// Account name to use from keyring (defaults to first account)
     #[arg(short = 'a', long)]
     pub account: Option<String>,
 
+    /// Private key hex (alternative to keyring)
     #[arg(short = 'p', long, env = "CELESTIA_PRIVATE_KEY")]
     pub private_key: Option<String>,
 
@@ -52,7 +60,7 @@ pub enum LatencyMonitorError {
     #[error("maximum blob size must be greater than or equal to minimum blob size")]
     InvalidBlobSizeRange,
 
-    #[error("private key is required (use --private-key or CELESTIA_PRIVATE_KEY)")]
+    #[error("private key is required (use --private-key, CELESTIA_PRIVATE_KEY, or keyring)")]
     MissingPrivateKey,
 
     #[error("private key must be a valid hex string")]
@@ -70,6 +78,9 @@ pub enum LatencyMonitorError {
     #[error("failed to create blob: {0}")]
     BlobError(String),
 
+    #[error("keyring error: {0}")]
+    KeyringError(#[from] KeyringError),
+
     #[error("CSV write error: {0}")]
     CsvError(#[from] csv::Error),
 
@@ -82,6 +93,8 @@ pub type Result<T> = std::result::Result<T, LatencyMonitorError>;
 pub struct ValidatedConfig {
     pub grpc_url: String,
     pub private_key: String,
+    pub account_name: String,
+    pub account_address: String,
     pub blob_size_min: usize,
     pub blob_size_max: usize,
     pub namespace: Namespace,
@@ -95,7 +108,7 @@ pub fn validate_args(args: &Args) -> Result<ValidatedConfig> {
 
     validate_blob_sizes(args.blob_size_min, args.blob_size)?;
 
-    let private_key = extract_private_key(args)?;
+    let (private_key, account_name, account_address) = extract_private_key(args)?;
     validate_private_key_hex(&private_key)?;
 
     let grpc_url = build_grpc_url(&args.grpc_endpoint, args.tls, args.no_tls);
@@ -104,6 +117,8 @@ pub fn validate_args(args: &Args) -> Result<ValidatedConfig> {
     Ok(ValidatedConfig {
         grpc_url,
         private_key,
+        account_name,
+        account_address,
         blob_size_min: args.blob_size_min,
         blob_size_max: args.blob_size,
         namespace,
@@ -122,19 +137,36 @@ fn validate_blob_sizes(min: usize, max: usize) -> Result<()> {
     Ok(())
 }
 
-fn extract_private_key(args: &Args) -> Result<String> {
+/// Extract private key from either --private-key flag or keyring
+/// Returns (private_key_hex, account_name, account_address)
+fn extract_private_key(args: &Args) -> Result<(String, String, String)> {
+    // Option 1: Explicit private key via flag or env var
     if let Some(ref key) = args.private_key {
-        return Ok(key.clone());
+        return Ok((key.clone(), "direct".to_string(), "unknown".to_string()));
     }
 
-    if args.keyring_dir.is_some() {
-        eprintln!(
-            "Warning: --keyring-dir is not supported in this Rust implementation. \
-            Please use --private-key or CELESTIA_PRIVATE_KEY env var."
-        );
-    }
+    // Option 2: From keyring
+    let keyring_dir = args
+        .keyring_dir
+        .as_ref()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|| DEFAULT_KEYRING_DIR.to_string());
 
-    Err(LatencyMonitorError::MissingPrivateKey)
+    let keyring = FileKeyring::open(&keyring_dir, Backend::Test)?;
+
+    // Get account name (specified or first available)
+    let account_name = match &args.account {
+        Some(name) => name.clone(),
+        None => keyring.first_key()?,
+    };
+
+    let local_key = keyring.local_key(&account_name)?;
+
+    Ok((
+        local_key.private_key_hex(),
+        local_key.record.name,
+        local_key.record.address,
+    ))
 }
 
 fn validate_private_key_hex(key: &str) -> Result<()> {

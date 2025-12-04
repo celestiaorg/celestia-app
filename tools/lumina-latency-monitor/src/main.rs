@@ -1,4 +1,5 @@
 mod config;
+mod keyring;
 mod metrics;
 mod output;
 mod tx;
@@ -61,18 +62,19 @@ fn create_grpc_client(config: &ValidatedConfig) -> config::Result<GrpcClient> {
         .build()
         .map_err(|e| LatencyMonitorError::GrpcClientError(e.to_string()))?;
 
-    if let Some(addr) = client.get_account_address() {
-        println!("Using account: {}", addr);
-    }
-
     Ok(client)
 }
 
 fn print_startup_info(config: &ValidatedConfig) {
     println!(
         "Monitoring latency with min blob size: {} bytes, max blob size: {} bytes, \
-        submission delay: {:?}, endpoint: {}",
-        config.blob_size_min, config.blob_size_max, config.submission_delay, config.grpc_url,
+        submission delay: {:?}",
+        config.blob_size_min, config.blob_size_max, config.submission_delay,
+    );
+    println!("Endpoint: {}", config.grpc_url);
+    println!(
+        "Using account: {} ({})",
+        config.account_name, config.account_address
     );
     println!("Press Ctrl+C to stop\n");
 }
