@@ -14,6 +14,7 @@ func EmitCreateISMEvent(ctx sdk.Context, ism types.InterchainSecurityModule) err
 		Id:                  ism.Id,
 		Owner:               ism.Owner,
 		State:               encodeHex(ism.State),
+		MerkleTreeAddress:   encodeHex(ism.MerkleTreeAddress),
 		Groth16Vkey:         encodeHex(ism.Groth16Vkey),
 		StateTransitionVkey: encodeHex(ism.StateTransitionVkey),
 		StateMembershipVkey: encodeHex(ism.StateMembershipVkey),

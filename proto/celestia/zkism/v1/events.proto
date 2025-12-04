@@ -20,12 +20,14 @@ message EventCreateInterchainSecurityModule {
   string owner = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   // latest state
   string state = 3;
+  // merkle tree address in bytes32 format
+  string merkle_tree_address = 4;
   // the sp1 groth16 verifier key (hex-encoded)
-  string groth16_vkey = 4;
+  string groth16_vkey = 5;
   // hash-based commitment to the verifier key used for state transition (hex-encoded)
-  string state_transition_vkey = 5;
+  string state_transition_vkey = 6;
   // hash-based commitment to the verifier key used for state membership (hex-encoded)
-  string state_membership_vkey = 6;
+  string state_membership_vkey = 7;
 }
 
 // EventUpdateInterchainSecurityModule defines the event type emitted when updating a InterchainSecurityModule.
