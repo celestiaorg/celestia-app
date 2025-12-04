@@ -23,8 +23,9 @@ import (
 )
 
 var (
-	stateVkeyHash   = "0x0076ccc229b3bc42a232fbb8b0415bf43d2079eee4b28352c36172ad5a24c2d5"
-	messageVkeyHash = "0x0016238ba2cb5b3b2a0203503f02bbed1ee11ccd8bd6087dd737d38d424a086b"
+	stateVkeyHash     = "0x0017bc91d53b93c46eb842d7f9020a94ea13d8877a21608b34b71fcc4da64f29"
+	messageVkeyHash   = "0x004959d5fb2c3d5bc1f98e032188dd94fbb5c6b6152df356c7c20be23be824a2"
+	merkleTreeAddress = "fcb1d485ef46344029d9e8a7925925e146b3430e000000000000000000000000"
 )
 
 type KeeperTestSuite struct {
@@ -55,12 +56,16 @@ func (suite *KeeperTestSuite) CreateTestIsm(trustedState []byte) types.Interchai
 	messageVkey, err := hex.DecodeString(messageVkeyHex)
 	suite.Require().NoError(err)
 
+	merkleTreeAddr, err := hex.DecodeString(merkleTreeAddress)
+	suite.Require().NoError(err)
+
 	ism := types.InterchainSecurityModule{
 		Id:                  util.CreateMockHexAddress("ism", 1),
 		Groth16Vkey:         groth16Vkey,
 		StateTransitionVkey: stateVkey,
 		StateMembershipVkey: messageVkey,
 		State:               trustedState,
+		MerkleTreeAddress:   merkleTreeAddr,
 	}
 
 	err = suite.zkISMKeeper.SetIsm(suite.ctx, ism.Id, ism)
