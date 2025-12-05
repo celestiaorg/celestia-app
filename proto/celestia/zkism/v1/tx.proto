@@ -30,12 +30,14 @@ message MsgCreateInterchainSecurityModule {
   string creator = 1;
   // initial trusted state
   bytes state = 2;
+  // merkle tree address in byte32 format
+  bytes merkle_tree_address = 3;
   // the sp1 groth16 verifier key
-  bytes groth16_vkey = 3;
+  bytes groth16_vkey = 4;
   // hash-based commitment to the verifier key used for state transition
-  bytes state_transition_vkey = 4;
+  bytes state_transition_vkey = 5;
   // hash-based commitment to the verifier key used for state membership
-  bytes state_membership_vkey = 5;
+  bytes state_membership_vkey = 6;
 }
 
 // MsgCreateInterchainSecurityModuleResponse is the response type for CreateInterchainSecurityModule.

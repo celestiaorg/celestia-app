@@ -61,7 +61,7 @@ func TestVerifyProof(t *testing.T) {
 	groth16Vk := readGroth16Vkey(t)
 	proofBz, valuesBz := readProofAndValues(t)
 
-	programVkHex := "0x0076ccc229b3bc42a232fbb8b0415bf43d2079eee4b28352c36172ad5a24c2d5"
+	programVkHex := "0x0017bc91d53b93c46eb842d7f9020a94ea13d8877a21608b34b71fcc4da64f29"
 	programVk, err := hex.DecodeString(strings.TrimPrefix(programVkHex, "0x"))
 	require.NoError(t, err)
 

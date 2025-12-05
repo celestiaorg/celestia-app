@@ -81,8 +81,9 @@ func (v *StateTransitionValues) Unmarshal(data []byte) error {
 // StateMembershipValues are the set of proof public values used when verifying state membership inclusion of
 // Hyperlane messages.
 type StateMembershipValues struct {
-	StateRoot  [32]byte
-	MessageIds [][32]byte
+	StateRoot         [32]byte
+	MerkleTreeAddress [32]byte
+	MessageIds        [][32]byte
 }
 
 // Marshal encodes the EvHyperlanePublicValues struct into a bincode-compatible byte slice.
@@ -92,6 +93,10 @@ func (v *StateMembershipValues) Marshal() ([]byte, error) {
 
 	if err := writeBytes(&buf, v.StateRoot[:]); err != nil {
 		return nil, fmt.Errorf("write StateRoot: %w", err)
+	}
+
+	if err := writeBytes(&buf, v.MerkleTreeAddress[:]); err != nil {
+		return nil, fmt.Errorf("write MerkleTreeAddress: %w", err)
 	}
 
 	count := uint64(len(v.MessageIds))
@@ -116,6 +121,10 @@ func (v *StateMembershipValues) Unmarshal(data []byte) error {
 
 	if _, err := buf.Read(v.StateRoot[:]); err != nil {
 		return fmt.Errorf("read StateRoot: %w", err)
+	}
+
+	if _, err := buf.Read(v.MerkleTreeAddress[:]); err != nil {
+		return fmt.Errorf("read MerkleTreeAddress: %w", err)
 	}
 
 	var count uint64 // read uint64 (little-endian) length prefix
