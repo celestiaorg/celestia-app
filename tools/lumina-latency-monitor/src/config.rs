@@ -55,6 +55,10 @@ pub struct Args {
     #[arg(long, alias = "insecure", conflicts_with = "tls")]
     pub no_tls: bool,
 
+    /// gRPC auth token (e.g., for QuickNode x-token header)
+    #[arg(long, env = "CELESTIA_GRPC_TOKEN")]
+    pub grpc_token: Option<String>,
+
     /// Use Sovereign SDK's celestia adapter instead of celestia-grpc directly
     #[cfg(feature = "sovereign")]
     #[arg(long)]
@@ -102,6 +106,7 @@ pub type Result<T> = std::result::Result<T, LatencyMonitorError>;
 pub struct ValidatedConfig {
     pub grpc_url: String,
     pub rpc_url: String,
+    pub grpc_token: Option<String>,
     pub private_key: String,
     pub account_name: String,
     pub account_address: String,
@@ -130,6 +135,7 @@ pub fn validate_args(args: &Args) -> Result<ValidatedConfig> {
     Ok(ValidatedConfig {
         grpc_url,
         rpc_url,
+        grpc_token: args.grpc_token.clone(),
         private_key,
         account_name,
         account_address,

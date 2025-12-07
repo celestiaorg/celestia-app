@@ -21,9 +21,17 @@ pub async fn create_sovereign_client(config: &ValidatedConfig) -> anyhow::Result
     println!("Creating Sovereign SDK CelestiaService...");
     println!("  RPC endpoint: {}", config.rpc_url);
     println!("  gRPC endpoint: {}", config.grpc_url);
+    if config.grpc_token.is_some() {
+        println!("  gRPC token: (set)");
+    }
 
-    let celestia_config = CelestiaConfig::minimal(config.rpc_url.clone())
+    let mut celestia_config = CelestiaConfig::minimal(config.rpc_url.clone())
         .with_submission(config.grpc_url.clone(), config.private_key.clone());
+
+    // Set gRPC auth token if provided (for QuickNode)
+    if let Some(ref token) = config.grpc_token {
+        celestia_config.grpc_auth_token = Some(token.clone());
+    }
 
     let rollup_params = RollupParams {
         rollup_batch_namespace: config.namespace,
