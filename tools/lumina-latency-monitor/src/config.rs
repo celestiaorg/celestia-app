@@ -18,6 +18,10 @@ pub struct Args {
     #[arg(short = 'e', long, default_value = "localhost:9090")]
     pub grpc_endpoint: String,
 
+    /// RPC endpoint URL (WebSocket, required for sovereign backend)
+    #[arg(long, default_value = "ws://localhost:26658")]
+    pub rpc_endpoint: String,
+
     /// Directory containing the keyring (default: ~/.celestia-app)
     #[arg(short = 'k', long)]
     pub keyring_dir: Option<PathBuf>,
@@ -50,6 +54,11 @@ pub struct Args {
 
     #[arg(long, alias = "insecure", conflicts_with = "tls")]
     pub no_tls: bool,
+
+    /// Use Sovereign SDK's celestia adapter instead of celestia-grpc directly
+    #[cfg(feature = "sovereign")]
+    #[arg(long)]
+    pub use_sovereign: bool,
 }
 
 #[derive(Error, Debug)]
@@ -92,6 +101,7 @@ pub type Result<T> = std::result::Result<T, LatencyMonitorError>;
 
 pub struct ValidatedConfig {
     pub grpc_url: String,
+    pub rpc_url: String,
     pub private_key: String,
     pub account_name: String,
     pub account_address: String,
@@ -100,6 +110,8 @@ pub struct ValidatedConfig {
     pub namespace: Namespace,
     pub submission_delay: Duration,
     pub disable_metrics: bool,
+    #[cfg(feature = "sovereign")]
+    pub use_sovereign: bool,
 }
 
 pub fn validate_args(args: &Args) -> Result<ValidatedConfig> {
@@ -112,10 +124,12 @@ pub fn validate_args(args: &Args) -> Result<ValidatedConfig> {
     validate_private_key_hex(&private_key)?;
 
     let grpc_url = build_grpc_url(&args.grpc_endpoint, args.tls, args.no_tls);
+    let rpc_url = args.rpc_endpoint.clone();
     let namespace = create_namespace(&args.namespace)?;
 
     Ok(ValidatedConfig {
         grpc_url,
+        rpc_url,
         private_key,
         account_name,
         account_address,
@@ -124,6 +138,8 @@ pub fn validate_args(args: &Args) -> Result<ValidatedConfig> {
         namespace,
         submission_delay,
         disable_metrics: args.disable_metrics,
+        #[cfg(feature = "sovereign")]
+        use_sovereign: args.use_sovereign,
     })
 }
 

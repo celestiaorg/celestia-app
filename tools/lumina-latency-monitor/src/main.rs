@@ -2,6 +2,8 @@ mod config;
 mod keyring;
 mod metrics;
 mod output;
+#[cfg(feature = "sovereign")]
+mod sovereign;
 mod tx;
 
 use std::sync::Arc;
@@ -23,21 +25,45 @@ async fn main() -> anyhow::Result<()> {
 
     print_startup_info(&config);
 
-    let client = create_grpc_client(&config)?;
-    let client = Arc::new(client);
-    let config = Arc::new(config);
-
     let results: Arc<Mutex<Vec<TxResult>>> = Arc::new(Mutex::new(Vec::new()));
     let shutdown = Arc::new(Notify::new());
+    let config = Arc::new(config);
 
     println!("Submitting transactions...");
 
-    let loop_handle = tokio::spawn(run_submission_loop(
-        client.clone(),
-        config.clone(),
-        results.clone(),
-        shutdown.clone(),
-    ));
+    #[cfg(feature = "sovereign")]
+    let loop_handle = if config.use_sovereign {
+        println!("Using Sovereign SDK backend (parallel submissions enabled)");
+        let service = sovereign::create_sovereign_client(&config).await?;
+        let service = Arc::new(service);
+        tokio::spawn(sovereign::run_sovereign_submission_loop(
+            service,
+            config.clone(),
+            results.clone(),
+            shutdown.clone(),
+        ))
+    } else {
+        let client = create_grpc_client(&config)?;
+        let client = Arc::new(client);
+        tokio::spawn(run_submission_loop(
+            client,
+            config.clone(),
+            results.clone(),
+            shutdown.clone(),
+        ))
+    };
+
+    #[cfg(not(feature = "sovereign"))]
+    let loop_handle = {
+        let client = create_grpc_client(&config)?;
+        let client = Arc::new(client);
+        tokio::spawn(run_submission_loop(
+            client,
+            config.clone(),
+            results.clone(),
+            shutdown.clone(),
+        ))
+    };
 
     wait_for_shutdown().await?;
     shutdown.notify_one();
@@ -71,11 +97,20 @@ fn print_startup_info(config: &ValidatedConfig) {
         submission delay: {:?}",
         config.blob_size_min, config.blob_size_max, config.submission_delay,
     );
-    println!("Endpoint: {}", config.grpc_url);
+    println!("gRPC Endpoint: {}", config.grpc_url);
+    println!("RPC Endpoint: {}", config.rpc_url);
     println!(
         "Using account: {} ({})",
         config.account_name, config.account_address
     );
+    #[cfg(feature = "sovereign")]
+    if config.use_sovereign {
+        println!("Backend: Sovereign SDK (parallel submissions)");
+    } else {
+        println!("Backend: celestia-grpc (parallel submissions)");
+    }
+    #[cfg(not(feature = "sovereign"))]
+    println!("Backend: celestia-grpc (parallel submissions)");
     println!("Press Ctrl+C to stop\n");
 }
 
