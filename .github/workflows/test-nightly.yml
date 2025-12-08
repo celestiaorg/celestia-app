@@ -1,5 +1,9 @@
 name: Nightly Tests
 
+concurrency:
+  group: nightly-tests
+  cancel-in-progress: true
+
 on:
   schedule:
     # run nightly at 2 AM UTC
@@ -19,7 +23,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout code
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
 
       - name: Set up Go
         uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
@@ -36,22 +40,22 @@ jobs:
           fi
 
       - name: Build Docker image locally
-        if: ${{ !inputs.tag }} # only build an image if no tag is specified
+        if: ${{ inputs.tag == '' }} # only build an image if no tag is specified
         run: docker build -t "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.value }}" . -f docker/multiplexer.Dockerfile
 
       - name: Run TestStateSyncMocha
+        run: make test-docker-e2e test=TestStateSyncMocha
         env:
-          # Use the locally built image
           CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
           CELESTIA_TAG: ${{ steps.tag.outputs.value }}
-        run: make test-docker-e2e test=TestStateSyncMocha
 
   test-all-upgrades:
+    needs: test-state-sync-mocha
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - name: Checkout code
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
 
       - name: Set up Go
         uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
@@ -68,15 +72,14 @@ jobs:
           fi
 
       - name: Build Docker image locally
-        if: ${{ !inputs.tag }} # only build an image if no tag is specified
+        if: ${{ inputs.tag == '' }} # only build an image if no tag is specified
         run: docker build -t "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.value }}" . -f docker/multiplexer.Dockerfile
 
       - name: Run TestAllUpgrades
+        run: make test-docker-e2e test=TestAllUpgrades
         env:
-          # Use the locally built image
           CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
           CELESTIA_TAG: ${{ steps.tag.outputs.value }}
-        run: make test-docker-e2e test=TestAllUpgrades
 
   notify-slack-on-failure:
     name: Notify Slack on failure
@@ -85,12 +88,11 @@ jobs:
     if: ${{ always() && (needs.test-state-sync-mocha.result == 'failure' || needs.test-all-upgrades.result == 'failure') }}
     steps:
       - name: Slack Notification
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: slackapi/slack-github-action@v2.1.1
         with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
           payload: |
             {
               "text": "test-nightly tests failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

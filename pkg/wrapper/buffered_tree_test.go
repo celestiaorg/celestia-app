@@ -26,7 +26,7 @@ func TestTreePool_AcquireRelease(t *testing.T) {
 
 	trees := make([]*resizeableBufferTree, 0, poolSize)
 
-	for i := 0; i < poolSize; i++ {
+	for i := range poolSize {
 		constructor := pool.NewConstructor(squareSize)
 		tree := constructor(rsmt2d.Row, uint(i))
 		nmt, ok := tree.(*resizeableBufferTree)
@@ -39,7 +39,7 @@ func TestTreePool_AcquireRelease(t *testing.T) {
 		_, _ = tree.Root()
 	}
 
-	for i := 0; i < poolSize; i++ {
+	for i := range poolSize {
 		constructor := pool.NewConstructor(squareSize)
 		tree := constructor(rsmt2d.Row, uint(i))
 		require.NotNil(t, tree)
@@ -184,13 +184,13 @@ func TestTreePool_ConcurrentAccess(t *testing.T) {
 	// generate test data for multiple trees
 	numTrees := 20
 	treeData := make([][][]byte, numTrees)
-	for i := 0; i < numTrees; i++ {
+	for i := range numTrees {
 		treeData[i] = testfactory.GenerateRandNamespacedRawData(int(squareSize * 2))
 	}
 
 	// first, compute roots sequentially using standard trees (without pool/buffer)
 	sequentialRoots := make([][]byte, numTrees)
-	for i := 0; i < numTrees; i++ {
+	for i := range numTrees {
 		// Use the standard constructor without pool
 		tree := NewErasuredNamespacedMerkleTree(uint64(squareSize), uint(i))
 
@@ -209,7 +209,7 @@ func TestTreePool_ConcurrentAccess(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(numTrees)
 
-	for i := 0; i < numTrees; i++ {
+	for i := range numTrees {
 		go func(index int) {
 			defer wg.Done()
 
@@ -229,7 +229,7 @@ func TestTreePool_ConcurrentAccess(t *testing.T) {
 	wg.Wait()
 
 	// verify that all concurrent roots (with pool) match sequential roots (without pool)
-	for i := 0; i < numTrees; i++ {
+	for i := range numTrees {
 		assert.True(t, bytes.Equal(sequentialRoots[i], concurrentRoots[i]),
 			"Tree %d: concurrent root (with pool) should match sequential root (without pool)", i)
 	}
@@ -244,7 +244,7 @@ func BenchmarkExtendedDataSquare_WithPool(b *testing.B) {
 
 			b.ReportAllocs()
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				square, err := rsmt2d.ComputeExtendedDataSquareWithBuffer(
 					data,
 					appconsts.DefaultCodec(),
@@ -265,7 +265,7 @@ func BenchmarkExtendedDataSquare_WithoutPool(b *testing.B) {
 
 			b.ReportAllocs()
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				square, err := rsmt2d.ComputeExtendedDataSquare(
 					data,
 					appconsts.DefaultCodec(),

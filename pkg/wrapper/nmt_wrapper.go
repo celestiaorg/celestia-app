@@ -25,7 +25,6 @@ var (
 // library sufficiently general
 type ErasuredNamespacedMerkleTree struct {
 	squareSize uint64 // note: this refers to the width of the original square before erasure-coded
-	options    []nmt.Option
 	tree       Tree
 	// axisIndex is the index of the axis (row or column) that this tree is on. This is passed
 	// by rsmt2d and used to help determine which quadrant each leaf belongs to.
@@ -59,7 +58,7 @@ func NewErasuredNamespacedMerkleTree(squareSize uint64, axisIndex uint, options 
 	options = append(options, nmt.NamespaceIDSize(share.NamespaceSize))
 	options = append(options, nmt.IgnoreMaxNamespace(true))
 	tree := nmt.New(appconsts.NewBaseHashFunc(), options...)
-	return ErasuredNamespacedMerkleTree{squareSize: squareSize, options: options, tree: tree, axisIndex: uint64(axisIndex), shareIndex: 0}
+	return ErasuredNamespacedMerkleTree{squareSize: squareSize, tree: tree, axisIndex: uint64(axisIndex), shareIndex: 0}
 }
 
 type constructor struct {

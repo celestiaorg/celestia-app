@@ -117,17 +117,11 @@ func GetFreePort() (int, error) {
 
 // MustGetFreePort returns a free port and panics in case of an error.
 func MustGetFreePort() int {
-	a, err := net.ResolveUDPAddr("udp", "localhost:0")
+	port, err := GetFreePort()
 	if err != nil {
 		panic(err)
 	}
-
-	l, err := net.ListenUDP("udp", a)
-	if err != nil {
-		panic(err)
-	}
-	defer l.Close()
-	return l.LocalAddr().(*net.UDPAddr).Port
+	return port
 }
 
 // isPortAvailable checks if a port is available by attempting to listen on it.

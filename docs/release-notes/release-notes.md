@@ -2,6 +2,53 @@
 
 This guide provides notes for major version releases. These notes may be helpful for users when upgrading from previous major versions.
 
+## v6 - 128mb/6s
+
+This section is specific to bumping from 32mb/6s in the v6 release to 128mb/6s. If you're upgrading from v5, please check the [v6.0.0](#v600) first. And only then check this one.
+
+### Hardware requirements
+
+After upgrading to 128mb/6s, specific validator hardware specifications are required to participate in consensus and propose blocks. Based on our validator survey, the following lists the CPUs that passed the benchmark and those that did not. If your CPU is not listed, please run the benchmark available [`tools/cpu_requirements`](../../tools/cpu_requirements/README.md).
+
+<details>
+  <summary>Supported CPUs:</summary>
+- AMD Ryzen 9 7950X
+- AMD Ryzen 9 7950X3D
+- AMD Ryzen 9 9900X
+- AMD Ryzen 7 PRO 8700GE
+- AMD Ryzen 7 3700X
+- AMD Ryzen 3900X
+- AMD 7600
+- AMD 7700X
+- AMD 7900X
+- AMD Ryzen 7900
+- AMD EPYC 4344P
+- AMD EPYC 4464P
+- AMD EPYC 4545P
+- AMD EPYC 4584PX
+- AMD EPYC 7313P
+- AMD EPYC 7452
+- AMD EPYC 7543P 32C/64T
+- AMD EPYC 9124
+- AMD EPYC 9454P
+- AMD EPYC 9555P
+- 13th Gen Intel Core i5-13500
+- Core i7-1270P
+- Intel Xeon-E 2386G
+
+</details>
+
+<details>
+  <summary>NOT supported CPUs:</summary>
+  - AMD Ryzen 9 5950X
+  - AMD EPYC 7443P 24-Core
+  - Intel Xeon Platinum 8474C
+  - Intel Xeon Gold 6254
+  - Intel(R) Xeon(R) Silver 4210
+  - Intel Xeon E5-1620
+  - Intel Dual Xeon Silver 4116
+</details>
+
 ## v6.0.0
 
 This release contains all the changes from [CIP-042](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-042.md). Notably:
@@ -16,9 +63,20 @@ This release contains all the changes from [CIP-042](https://github.com/celestia
 
 v6 changes the [hardware requirements](https://docs.celestia.org/how-to-guides/nodes-overview#consensus-nodes) for consensus nodes. Please ensure your consensus node meets these requirements.
 
+### Binary Building
+
+Validators should build binaries in freshly created environments or download pre-built binaries from official releases. Many validators have experienced issues due to building binaries in environments with outdated dependencies, conflicting libraries, or stale build artifacts.
+
 ### Key Management Service (KMS) changes
 
-This release introduces a new message type that needs to be signed by KMS. **If you use Horcrux or TmKMS, you must use these versions in order to participate in consensus. If you use an alternative KMS, please reach out.**
+This release introduces a new message type that needs to be signed by KMS. **If you use Horcrux or TmKMS, you must use these versions to participate in consensus. If you use an alternative KMS, please reach out.**
+
+**Disclaimer:** (KMS) are third-party software. Validators are responsible for ensuring their own KMS setup is correctly configured.
+An incorrect setup may result in double signing, which can lead to slashing. So, any error log should be thoroughly investigated, even if the KMS appears to be signing normally.
+
+Validators must also ensure they maintain a fast and reliable setup. Future network upgrades will require low signing latency, so server colocation can be explored to achieve faster signatures.
+
+**Validators choosing to run KMS do so at their own risk.**
 
 #### Horcrux
 
@@ -26,7 +84,7 @@ For horcrux, use [v3.3.3-celestia](https://github.com/celestiaorg/horcrux/releas
 
 #### TmKMS
 
-For TmKMS, use [v0.14.0-celestia](https://github.com/celestiaorg/tmkms/releases/tag/v0.14.0-celestia). All the setups and configs remain the same.
+For TmKMS, use [v0.15.0](https://github.com/iqlusioninc/tmkms/releases/tag/v0.15.0). All the setups and configs remain the same. Using a prior version will not allow you to propose blocks.
 
 ### Config changes
 
@@ -60,6 +118,9 @@ max_tx_bytes = 8388608
 ttl-duration = "0s"
 ttl-num-blocks = 12
 max-gossip-delay = "1m0s"
+
+[consensus]
+enable_legacy_block_prop = false
 ```
 
 ## v5.0.0

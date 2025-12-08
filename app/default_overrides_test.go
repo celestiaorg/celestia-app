@@ -85,17 +85,17 @@ func TestDefaultConsensusConfig(t *testing.T) {
 			MaxTxBytes:     appconsts.MaxTxSize,
 			MaxTxsBytes:    appconsts.MempoolSize,
 			TTLDuration:    0 * time.Second,
-			TTLNumBlocks:   12,
+			TTLNumBlocks:   36,
 			Type:           tmcfg.MempoolTypeCAT,
-			MaxGossipDelay: time.Second * 60,
+			MaxGossipDelay: time.Second * 20,
 		}
 		assert.Equal(t, want, *got.Mempool)
 	})
 
 	t.Run("p2p overrides", func(t *testing.T) {
 		const mebibyte = 1048576
-		assert.Equal(t, int64(24*mebibyte), got.P2P.SendRate)
-		assert.Equal(t, int64(24*mebibyte), got.P2P.RecvRate)
+		assert.Equal(t, int64(100*mebibyte), got.P2P.SendRate)
+		assert.Equal(t, int64(100*mebibyte), got.P2P.RecvRate)
 	})
 }
 

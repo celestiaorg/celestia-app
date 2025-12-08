@@ -1,4 +1,10 @@
-VERSION := $(shell echo $(shell git describe --tags --always --match "v*") | sed 's/^v//')
+VERSION := $(shell \
+	if [ $$(git tag --points-at HEAD | wc -l) -gt 1 ]; then \
+		git describe --tags --always --match "v*" | cut -d'-' -f1 | sed 's/^v//'; \
+	else \
+		git describe --tags --always --match "v*" | sed 's/^v//'; \
+	fi \
+)
 COMMIT := $(shell git rev-parse --short HEAD)
 CELESTIA_TAG := $(shell git rev-parse --short=8 HEAD)
 export CELESTIA_TAG
@@ -31,7 +37,7 @@ BUILD_FLAGS_MULTIPLEXER := -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_M
 # dockerchain/config.go
 CELESTIA_V3_VERSION := v3.10.6
 CELESTIA_V4_VERSION := v4.1.0
-CELESTIA_V5_VERSION := v5.0.10
+CELESTIA_V5_VERSION := v5.0.12
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -180,7 +186,7 @@ proto-update-deps:
 build-docker-standalone:
 	@echo "--> Building Docker image"
 	$(DOCKER) build -t celestiaorg/celestia-app -f docker/standalone.Dockerfile .
-.PHONY: build-docker
+.PHONY: build-docker-standalone
 
 ## docker-build: Build the celestia-appd docker image from the current branch. Requires docker.
 docker-build: build-docker-multiplexer
@@ -199,7 +205,7 @@ build-docker-multiplexer:
 ## build-ghcr-docker: Build the celestia-appd Docker image tagged with the current commit hash for GitHub Container Registry.
 build-ghcr-docker:
 	@echo "--> Building Docker image"
-	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app-standalone:$(COMMIT) -f docker/Dockerfile .
+	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app-standalone:$(COMMIT) -f docker/standalone.Dockerfile .
 .PHONY: build-ghcr-docker
 
 ## docker-build-ghcr: Build the celestia-appd docker image from the last commit. Requires docker.
@@ -251,6 +257,18 @@ fmt:
 lint-fix: fmt
 .PHONY: lint-fix
 
+## modernize-fix: Apply modernize suggestions automatically.
+modernize-fix:
+	@echo "--> Applying modernize fixes"
+	@bash scripts/modernize.sh
+.PHONY: modernize-fix
+
+## modernize-check: Check for modernize issues without applying fixes.
+modernize-check:
+	@echo "--> Checking for modernize issues"
+	@bash scripts/modernize-check.sh
+.PHONY: modernize-check
+
 ## test: Run tests.
 test:
 	@echo "--> Running tests"
@@ -278,13 +296,13 @@ test-docker-e2e:
 	cd test/docker-e2e && go test -v -run ^$$ENTRYPOINT/$(test)$$ ./... -timeout 30m
 .PHONY: test-docker-e2e
 
-## test-docker-e2e-upgrade: Build image from current branch and run the upgrade test.
-test-docker-e2e-upgrade:
+## test-docker-e2e-upgrade-all: Build image from current branch and run the upgrade test for all app versions starting from v2.
+test-docker-e2e-upgrade-all:
 	@echo "--> Building celestia-appd docker image (tag $(CELESTIA_TAG))"
 	@DOCKER_BUILDKIT=0 docker build --build-arg BUILDPLATFORM=linux/amd64 --build-arg TARGETOS=linux --build-arg TARGETARCH=amd64 -t "ghcr.io/celestiaorg/celestia-app:$(CELESTIA_TAG)" . -f docker/multiplexer.Dockerfile
-	@echo "--> Running upgrade test"
-	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/TestCelestiaAppUpgrade$$ -count=1 ./... -timeout 15m
-.PHONY: test-docker-e2e-upgrade
+	@echo "--> Running upgrade test for all app versions starting from v2"
+	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/TestAllUpgrades$$ -count=1 ./... -timeout 15m
+.PHONY: test-docker-e2e-upgrade-all
 
 ## test-multiplexer: Run unit tests for the multiplexer package.
 test-multiplexer: download-v3-binaries download-v4-binaries download-v5-binaries
@@ -297,7 +315,7 @@ test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService|TestTxsOverMaxTxSizeGetRejected|TestStart_Success|TestReadBlockchainHeaders|TestPrepareProposalCappingNumberOfMessages|TestGasEstimatorE2E|TestGasEstimatorE2EWithNetworkMinGasPrice|TestRejections|TestClaimRewardsAfterFullUndelegation"
+	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService|TestTxsOverMaxTxSizeGetRejected|TestStart_Success|TestReadBlockchainHeaders|TestPrepareProposalCappingNumberOfMessages|TestGasEstimatorE2E|TestGasEstimatorE2EWithNetworkMinGasPrice|TestRejections|TestClaimRewardsAfterFullUndelegation|TestParallelTxSubmission|TestV2SubmitMethods"
 .PHONY: test-race
 
 ## test-bench: Run benchmark unit tests.
@@ -440,7 +458,7 @@ enable-bbr:
 	@if [ "$$(uname -s)" != "Linux" ]; then \
 		echo "BBR is not available on non-Linux systems."; \
 		exit 0; \
-	elif [ "$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')" != "bbr" ]; then \
+	elif [ "$$(sysctl net.ipv4.tcp_congestion_control | awk '{print $$3}')" != "bbr" ]; then \
 	    echo "BBR is not enabled. Configuring BBR..."; \
 	    sudo modprobe tcp_bbr && \
             echo tcp_bbr | sudo tee -a /etc/modules && \
