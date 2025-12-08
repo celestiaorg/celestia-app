@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
@@ -41,16 +42,20 @@ type sequentialQueue struct {
 	pollTime    time.Duration
 
 	// Single unified queue - transactions stay here until confirmed
-	mu           sync.RWMutex
-	queue        []*queuedTx    // All transactions from submission to confirmation
-	ResignChan   chan *queuedTx // Channel for all rejected transactions that need to be resigned
-	ResubmitChan chan *queuedTx // Channel for all evicted transactions that need to be resubmitted
+	mu               sync.RWMutex
+	queue            []*queuedTx    // All transactions from submission to confirmation
+	queueMemoryBytes uint64         // Total memory used by blobs in queue (in bytes)
+	maxMemoryBytes   uint64         // Maximum memory allowed for queue (in bytes)
+	ResignChan       chan *queuedTx // Channel for all rejected transactions that need to be resigned
+	ResubmitChan     chan *queuedTx // Channel for all evicted transactions that need to be resubmitted
 
 	// Track last confirmed sequence for rollback logic
 	lastConfirmedSeq uint64
 
 	// Track last rejected sequence for rollback logic
 	lastRejectedSeq uint64
+
+	isRecovering atomic.Bool
 
 	// Submission tracking metrics
 	newBroadcastCount uint64    // Count of new transaction broadcasts
@@ -76,8 +81,9 @@ type queuedTx struct {
 }
 
 const (
-	// defaultSequentialQueueSize is the maximum number of pending transactions allowed in the queue at once
-	defaultSequentialQueueSize = 20
+	// defaultMaxQueueMemoryMB is the maximum memory (in MB) allowed for the queue to prevent OOM
+	// This limits the total size of blob data held in memory at once
+	defaultMaxQueueMemoryMB = 200 // 100MB default
 )
 
 func newSequentialQueue(client *TxClient, accountName string, pollTime time.Duration) *sequentialQueue {
@@ -93,8 +99,10 @@ func newSequentialQueue(client *TxClient, accountName string, pollTime time.Dura
 		pollTime:         pollTime,
 		ctx:              ctx,
 		cancel:           cancel,
-		queue:            make([]*queuedTx, 0, defaultSequentialQueueSize),
-		ResubmitChan:     make(chan *queuedTx, 10), // Buffered channel for resubmit requests (large to prevent blocking)
+		queue:            make([]*queuedTx, 0),
+		queueMemoryBytes: 0,
+		maxMemoryBytes:   defaultMaxQueueMemoryMB * 1024 * 1024, // Convert MB to bytes
+		ResubmitChan:     make(chan *queuedTx, 10),
 		lastMetricsLog:   now,
 		metricsStartTime: now,
 	}
@@ -114,26 +122,56 @@ func (q *sequentialQueue) start() {
 	}()
 }
 
+func (q *sequentialQueue) setRecovering(v bool) {
+	// q.mu.Lock()
+	q.isRecovering.Store(v)
+	// q.mu.Unlock()
+}
+
+func (q *sequentialQueue) getRecovering() bool {
+	// q.mu.RLock()
+	return q.isRecovering.Load()
+	// q.mu.RUnlock()
+}
+
 // submitJob adds a new transaction to the queue
-// It enforces a maximum of defaultSequentialQueueSize (20) pending transactions at a time
+// It enforces memory limits to prevent OOM by blocking until sufficient memory is available
 func (q *sequentialQueue) submitJob(job *SequentialSubmissionJob) {
-	// Wait for space in queue (backpressure) - ensures we never have more than 20 pending txs
+	// Calculate memory size of this transaction's blobs
+	blobsMemory := calculateBlobsMemory(job.Blobs)
+
+	// Wait for memory space in queue (backpressure) - prevents memory exhaustion
 	for {
 		q.mu.Lock()
-		if len(q.queue) < defaultSequentialQueueSize {
-			// Space available - add transaction
+		if q.queueMemoryBytes+blobsMemory <= q.maxMemoryBytes {
+			// Sufficient memory available - add transaction
 			qTx := &queuedTx{
 				blobs:    job.Blobs,
 				options:  job.Options,
 				resultsC: job.ResultsC,
 			}
 			q.queue = append(q.queue, qTx)
+			q.queueMemoryBytes += blobsMemory
+
+			currentMemMB := float64(q.queueMemoryBytes) / (1024 * 1024)
+			maxMemMB := float64(q.maxMemoryBytes) / (1024 * 1024)
 			q.mu.Unlock()
+
+			// Log when approaching capacity (>80%)
+			if q.queueMemoryBytes > (q.maxMemoryBytes * 80 / 100) {
+				fmt.Printf("[MEMORY] Queue approaching capacity: %.2f/%.2f MB (%.1f%%)\n",
+					currentMemMB, maxMemMB, (currentMemMB/maxMemMB)*100)
+			}
 			return
 		}
 
-		// Queue full (20 pending txs) - unlock and wait for space
+		// Queue memory full - unlock and wait for space
+		// currentMemMB := float64(q.queueMemoryBytes) / (1024 * 1024)
+		// maxMemMB := float64(q.maxMemoryBytes) / (1024 * 1024)
 		q.mu.Unlock()
+
+		// fmt.Printf("[BACKPRESSURE] Queue memory full (%.2f/%.2f MB), waiting to prevent OOM\n",
+		// currentMemMB, maxMemMB)
 
 		select {
 		case <-time.After(100 * time.Millisecond):
@@ -143,6 +181,17 @@ func (q *sequentialQueue) submitJob(job *SequentialSubmissionJob) {
 			return
 		}
 	}
+}
+
+// calculateBlobsMemory returns the total memory size of blobs in bytes
+func calculateBlobsMemory(blobs []*share.Blob) uint64 {
+	var total uint64
+	for _, blob := range blobs {
+		if blob != nil {
+			total += uint64(len(blob.Data()))
+		}
+	}
+	return total
 }
 
 // GetQueueSize returns the number of transactions in the queue
@@ -155,6 +204,12 @@ func (q *sequentialQueue) GetQueueSize() int {
 // processNextTx signs and broadcasts the next unbroadcast transaction in queue
 func (q *sequentialQueue) processNextTx() {
 	startTime := time.Now()
+
+	fmt.Println("Recovering?", q.getRecovering())
+	if q.getRecovering() {
+		fmt.Println("Recovering from previous rejection/eviction - skipping current tx")
+		return
+	}
 
 	scanStart := time.Now()
 	var qTx *queuedTx
@@ -174,6 +229,10 @@ func (q *sequentialQueue) processNextTx() {
 	}
 
 	fmt.Printf("[TIMING] Queue scan took %v (queue size: %d)\n", scanDuration, queueSize)
+
+	// Log current signer sequence before broadcast
+	currentSeq := q.client.Signer().Account(q.accountName).Sequence()
+	fmt.Printf("[DEBUG] Attempting broadcast with signer sequence: %d\n", currentSeq)
 
 	broadcastStart := time.Now()
 	resp, txBytes, err := q.client.BroadcastPayForBlobWithoutRetry(
@@ -216,7 +275,7 @@ func (q *sequentialQueue) processNextTx() {
 			// 		}
 
 			// 	}
-			// 	// No transaction found with expected sequence - return
+			// return because we are probably blocked, we will try again
 			return
 		}
 
@@ -247,7 +306,7 @@ func (q *sequentialQueue) processNextTx() {
 
 // monitorLoop periodically checks the status of broadcast transactions
 func (q *sequentialQueue) monitorLoop() {
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -273,7 +332,7 @@ func (q *sequentialQueue) coordinate() {
 			// TODO: decide if we want to do anything during rejections
 		case qTx := <-q.ResubmitChan:
 			q.ResubmitEvicted(qTx)
-		case <-ticker.C:
+		default:
 			q.processNextTx()
 		}
 	}
@@ -319,6 +378,10 @@ func (q *sequentialQueue) ResubmitEvicted(qTx *queuedTx) {
 	qTx.isResubmitting = false
 	q.resubmitCount++
 	q.mu.Unlock()
+
+	// Exit recovery mode after successful resubmission to allow new txs to be broadcast
+	// q.setRecovering(false)
+
 	fmt.Printf("Successfully resubmitted tx %s\n", qTx.txHash[:16])
 	fmt.Printf("[TIMING] Total ResubmitEvicted took %v\n", time.Since(startTime))
 }
@@ -330,13 +393,18 @@ func (q *sequentialQueue) checkBroadcastTransactions() {
 
 	scanStart := time.Now()
 	q.mu.RLock()
-	// Collect all broadcast transaction hashes and transaction bytes
+	// Collect broadcast transaction hashes (cap at 20 per batch for efficiency)
+	const maxBatchSize = 20
 	var broadcastTxHashes []string
 	var broadcastTxs []*queuedTx
 	for _, tx := range q.queue {
 		if tx.txHash != "" {
 			broadcastTxHashes = append(broadcastTxHashes, tx.txHash)
 			broadcastTxs = append(broadcastTxs, tx)
+			// Cap at 20 transactions per status check batch
+			if len(broadcastTxHashes) >= maxBatchSize {
+				break
+			}
 		}
 	}
 	fmt.Printf("Broadcast txs: %d\n", len(broadcastTxHashes))
@@ -355,8 +423,11 @@ func (q *sequentialQueue) checkBroadcastTransactions() {
 	txClient := tx.NewTxClient(q.client.GetGRPCConnection())
 
 	statusCheckStart := time.Now()
-	// do a batch status check
+
+	// Try batch status check first
 	statusResp, err := txClient.TxStatusBatch(q.ctx, &tx.TxStatusBatchRequest{TxIds: broadcastTxHashes})
+
+	// If batch is not supported, fall back to individual status checks
 	if err != nil {
 		return
 	}
@@ -370,6 +441,7 @@ func (q *sequentialQueue) checkBroadcastTransactions() {
 		case core.TxStatusCommitted:
 			q.handleCommitted(broadcastTxs[i], statusRespp.Status)
 		case core.TxStatusEvicted:
+			q.setRecovering(true)
 			// Found an evicted tx - check if already being resubmitted to avoid duplicates
 			q.mu.Lock()
 			if qTx.isResubmitting {
@@ -384,6 +456,7 @@ func (q *sequentialQueue) checkBroadcastTransactions() {
 
 			q.ResubmitChan <- qTx
 		case core.TxStatusRejected:
+			q.setRecovering(true)
 			prevStatus := ""
 			if i > 0 {
 				prevStatus = statusResp.Statuses[i-1].Status.Status
@@ -400,6 +473,7 @@ func (q *sequentialQueue) checkBroadcastTransactions() {
 			}
 		}
 	}
+	q.recomputeRecoveryState(statusResp.Statuses)
 
 	statusCheckDuration := time.Since(statusCheckStart)
 	if statusCheckCount > 0 {
@@ -409,8 +483,31 @@ func (q *sequentialQueue) checkBroadcastTransactions() {
 	fmt.Printf("[TIMING] Total checkBroadcastTransactions took %v\n", time.Since(startTime))
 }
 
-func (q *sequentialQueue) handleEvicted(qTx *queuedTx, statusResp *tx.TxStatusResponse, txClient tx.TxClient) {
+func (q *sequentialQueue) recomputeRecoveryState(statuses []*tx.TxStatusResult) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
 
+	inRecovery := false
+
+	for _, st := range statuses {
+		switch st.Status.Status {
+		case core.TxStatusRejected, core.TxStatusEvicted:
+			// still bad
+			inRecovery = true
+		}
+	}
+
+	if inRecovery {
+		if !q.isRecovering.Load() {
+			fmt.Println("Entering recovery mode")
+		}
+		q.isRecovering.Store(true)
+	} else {
+		if q.isRecovering.Load() {
+			fmt.Println("Exiting recovery mode")
+		}
+		q.isRecovering.Store(false)
+	}
 }
 
 // handleCommitted processes a confirmed transaction
@@ -498,13 +595,25 @@ func (q *sequentialQueue) handleRejected(qTx *queuedTx, statusResp *tx.TxStatusR
 	q.lastRejectedSeq = rejectedSeq
 }
 
-// removeFromQueue removes a transaction from the queue
+// removeFromQueue removes a transaction from the queue and frees its memory
 func (q *sequentialQueue) removeFromQueue(qTx *queuedTx) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
 	for i, tx := range q.queue {
 		if tx == qTx {
+			// Decrement memory counter
+			blobsMemory := calculateBlobsMemory(qTx.blobs)
+			if q.queueMemoryBytes >= blobsMemory {
+				q.queueMemoryBytes -= blobsMemory
+			} else {
+				// Safety check - should never happen
+				fmt.Printf("[WARNING] Memory accounting error: queueMemory=%d < blobsMemory=%d\n",
+					q.queueMemoryBytes, blobsMemory)
+				q.queueMemoryBytes = 0
+			}
+
+			// Remove from queue
 			q.queue = append(q.queue[:i], q.queue[i+1:]...)
 			return
 		}
