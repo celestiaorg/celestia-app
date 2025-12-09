@@ -24,8 +24,8 @@ in a block via a blob inclusion proof. A blob inclusion proof uses the
 block's data square to prove to the user that the shares that compose their
 original data do in fact exist in a particular block.
 
-See [CreateCommitment implementation](./types/payforblob.go#L169-L236)
-for the implementation that generates the share commitment used in inclusion proofs.
+See [`CreateCommitment`](https://pkg.go.dev/github.com/celestiaorg/go-square/v3/inclusion#CreateCommitment)
+in the [go-square](https://github.com/celestiaorg/go-square) package for the implementation that generates the share commitment used in inclusion proofs.
 
 For details on fraud proofs, refer to the [fraud_proofs.md](../../specs/src/fraud_proofs.md)
 specification.
@@ -122,8 +122,8 @@ rationale can be found in the [data square layout](../../specs/src/data_square_l
    step.
 
 See
-[`CreateCommitment`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/x/blob/types/payforblob.go#L169-L236)
-for an implementation. See [data square layout](../../specs/src/data_square_layout.md) and
+[`CreateCommitment`](https://pkg.go.dev/github.com/celestiaorg/go-square/v3/inclusion#CreateCommitment)
+in the [go-square](https://github.com/celestiaorg/go-square) package for an implementation. See [data square layout](../../specs/src/data_square_layout.md) and
 [ADR013](../../docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md)
 for details on the rationale of the square layout.
 
@@ -200,9 +200,8 @@ celestia-appd tx blob PayForBlobs <hex encoded namespace> <hex encoded data> [fl
 For submitting PFB transaction via a light client's rpc, see [celestia-node's
 documentation](https://docs.celestia.org/tutorials/node-tutorial#submitting-data).
 
-The steps in the
-[`SubmitPayForBlobs`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/x/blob/payforblob.go#L15-L54)
-function can be reverse engineered to submit blobs programmatically.
+To submit blobs programmatically, see the [`TxClient.SubmitPayForBlob`](../../pkg/user/tx_client.go)
+method in the `pkg/user` package, or the CLI implementation in [`client/cli/payforblob.go`](./client/cli/payforblob.go).
 
 <!-- markdownlint-enable MD010 -->
 

@@ -25,9 +25,26 @@ See [types/msgs.go](./types/msgs.go) for the message types.
 
 ### CLI
 
+#### Query Commands
+
 ```shell
-celestia-appd query signal tally
-celestia-appd tx signal signal
+# Query the tally of voting power that has signalled for a particular version
+celestia-appd query signal tally <version>
+
+# Query for the upgrade information if an upgrade is pending
+celestia-appd query signal upgrade
+
+# Query for the list of validators who haven't signalled for a particular version
+celestia-appd query signal missing-validators <version>
+```
+
+#### Transaction Commands
+
+```shell
+# Signal a software upgrade for the specified version
+celestia-appd tx signal signal <version>
+
+# Try to perform a software upgrade (submits TryUpgrade message to tally all signal votes)
 celestia-appd tx signal try-upgrade
 ```
 
