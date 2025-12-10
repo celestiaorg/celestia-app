@@ -15,6 +15,8 @@ import (
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmdb "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -100,6 +102,57 @@ func TestInitChain(t *testing.T) {
 	}
 }
 
+func TestModuleAccountAddrs(t *testing.T) {
+	testApp := getTestApp()
+	got := testApp.ModuleAccountAddrs()
+
+	moduleNames := []string{
+		"fee_collector",
+		"distribution",
+		"gov",
+		"mint",
+		"bonded_tokens_pool",
+		"not_bonded_tokens_pool",
+		"transfer",
+		"interchainaccounts",
+		"hyperlane",
+		"warp",
+	}
+	for _, moduleName := range moduleNames {
+		address := authtypes.NewModuleAddress(moduleName).String()
+		assert.Contains(t, got, address)
+	}
+	assert.Equal(t, len(moduleNames), len(got))
+}
+
+func TestBlockedAddresses(t *testing.T) {
+	testApp := getTestApp()
+	got := testApp.BlockedAddresses()
+
+	t.Run("blocked addresses should not contain the gov module address", func(t *testing.T) {
+		govAddress := authtypes.NewModuleAddress(govtypes.ModuleName).String()
+		assert.NotContains(t, got, govAddress)
+	})
+	t.Run("blocked addresses should contain all the other module addresses", func(t *testing.T) {
+		moduleNames := []string{
+			"fee_collector",
+			"distribution",
+			"mint",
+			"bonded_tokens_pool",
+			"not_bonded_tokens_pool",
+			"transfer",
+			"interchainaccounts",
+			"hyperlane",
+			"warp",
+		}
+		for _, moduleName := range moduleNames {
+			address := authtypes.NewModuleAddress(moduleName).String()
+			assert.Contains(t, got, address)
+		}
+		assert.Equal(t, len(moduleNames), len(got))
+	})
+}
+
 func TestNodeHome(t *testing.T) {
 	// Test that NodeHome is accessible and non-empty
 	assert.NotEmpty(t, app.NodeHome, "NodeHome should be set and non-empty")
@@ -120,4 +173,13 @@ type NoopAppOptions struct{}
 
 func (nao NoopAppOptions) Get(string) any {
 	return nil
+}
+
+func getTestApp() *app.App {
+	logger := log.NewNopLogger()
+	db := tmdb.NewMemDB()
+	traceStore := &NoopWriter{}
+	timeoutCommit := time.Second
+	appOptions := NoopAppOptions{}
+	return app.New(logger, db, traceStore, timeoutCommit, appOptions)
 }
