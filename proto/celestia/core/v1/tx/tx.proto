@@ -56,19 +56,19 @@ message TxStatusResponse {
   repeated string signers = 9;
 }
 
-// TxStatusRequestBatch
+// TxStatusBatchRequest is the request type for the batch TxStatus gRPC method.
 message TxStatusBatchRequest {
   // array of hex encoded tx hashes (each hash should be 64 characters long representing 32 bytes)
   repeated string tx_ids = 1;
 }
 
-// TxStatusResponseWithHash is the tx hash with respective tx info
-message TxStatusResponseWithHash {
+// TxStatusResult represents a single transaction status result in a batch response.
+message TxStatusResult {
   string tx_hash = 1;
   TxStatusResponse status = 2;
 }
 
-// TxStatusBatchResponse
+// TxStatusBatchResponse is a response type for batched TxStatus query. It contains an array of transaction status results.
 message TxStatusBatchResponse {
-  repeated TxStatusResponseWithHash responses = 1;
+  repeated TxStatusResult statuses = 1;
 }
