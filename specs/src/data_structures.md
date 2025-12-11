@@ -365,7 +365,7 @@ In the example below, two blobs (of lengths 2 and 1, respectively) are placed us
 
 ![fig: original data blob](./figures/rs2d_originaldata_blob.svg)
 
-The blob share commitment rules may introduce empty shares that do not belong to any blob (in the example above, the top-right share is empty). These are zeroes with namespace ID equal to the either [`TAIL_TRANSACTION_PADDING_NAMESPACE_ID`](./consensus.md#constants) if between a request with a reserved namespace ID and a blob, or the namespace ID of the previous blob if succeeded by a blob. See the [data square layout](./data_square_layout.md) for more info.
+The blob share commitment rules may introduce empty shares that do not belong to any blob (in the example above, the top-right share is empty). These are zeroes with namespace ID equal to either [`TAIL_TRANSACTION_PADDING_NAMESPACE_ID`](./consensus.md#constants) if between a request with a reserved namespace ID and a blob, or the namespace ID of the previous blob if succeeded by a blob. See the [data square layout](./data_square_layout.md) for more info.
 
 ## Available Data
 
@@ -377,7 +377,7 @@ Celestia transactions are Cosmos SDK [transactions](https://github.com/cosmos/co
 
 ### IndexWrapper
 
-IndexWrapper are wrappers around PayForBlob transactions. They include additional metadata by the block proposer that is committed to in the [available data matrix](#arranging-available-data-into-shares).
+IndexWrappers are wrappers around PayForBlob transactions. They include additional metadata by the block proposer that is committed to in the [available data matrix](#arranging-available-data-into-shares).
 
 | name            | type       | description                                                                                                                                            |
 |-----------------|------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
