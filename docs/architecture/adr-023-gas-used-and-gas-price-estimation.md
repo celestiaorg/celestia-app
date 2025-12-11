@@ -42,9 +42,9 @@ Clients using this endpoint are responsible for accounting for any necessary mul
 There are multiple ways to have a gas price estimation for a priority level. This implementation will use the following:
 
 - High Priority: The gas price is the median price of the top 10% of transactions’ gas prices in the mempool.
-- Medium Priority: The gas price is the median price of the all gas prices in the mempool.
+- Medium Priority: The gas price is the median price of all gas prices in the mempool.
 - Low Priority: The gas price is the median price of the bottom 10% of gas prices in the mempool.
-- None Priority: This is equivalent to the Medium priority, using is the median price of all gas prices in the mempool.
+- None Priority: This is equivalent to the Medium priority, using the median price of all gas prices in the mempool.
 
 If the mempool has more transactions than it can fit in the next block, the estimation will be based on the top gas prices that can fit in a full block. Otherwise, if the mempool transactions can't fill more than 70% of the max block size, the minimum gas price will be returned.
 
