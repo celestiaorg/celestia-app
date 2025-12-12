@@ -67,6 +67,9 @@ func TestSet_Assign(t *testing.T) {
 		expectedPerValidator := totalRows / len(valSet.Validators)
 		totalAssigned := 0
 
+		// Track all assigned rows globally to detect cross-validator duplicates
+		globalSeen := make(map[int]bool)
+
 		lowest, highest := totalRows, 0
 		for val, rows := range shardMap {
 			count := len(rows)
@@ -82,17 +85,17 @@ func TestSet_Assign(t *testing.T) {
 			require.GreaterOrEqual(t, count, expectedPerValidator, "validator %s has too few rows", val.Address)
 			require.LessOrEqual(t, count, expectedPerValidator+1, "validator %s has too many rows", val.Address)
 
-			// Verify row indices are unique and in range
-			seen := make(map[int]bool)
+			// Verify row indices are unique (within validator and across all validators) and in range
 			for _, rowIdx := range rows {
-				require.False(t, seen[rowIdx], "duplicate row index %d", rowIdx)
+				require.False(t, globalSeen[rowIdx], "duplicate row index %d across validators", rowIdx)
 				require.GreaterOrEqual(t, rowIdx, 0)
 				require.Less(t, rowIdx, totalRows)
-				seen[rowIdx] = true
+				globalSeen[rowIdx] = true
 			}
 		}
 
 		require.Equal(t, totalRows, totalAssigned, "All rows should be assigned")
+		require.Len(t, globalSeen, totalRows, "All row indices should be assigned exactly once")
 		t.Logf("Lowest assignments: %d, Highest assignments: %d", lowest, highest)
 	})
 
