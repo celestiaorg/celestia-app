@@ -57,8 +57,8 @@ func (s Set) Assign(commitment rsema1d.Commitment, totalRows int) ShardMap {
 
 	// assign rows to validators in a ShardMap
 	shardMap := make(ShardMap)
+	offset := 0
 	for i, validator := range s.Validators {
-
 		// TODO(@Wondertan): As per Nashqueue, we no longer want to send every row to validators and some might be not assigned.
 		// So the number of rows to assign should be given as parameter to Assign and which probably would be taken from BlobConfig.
 		rowsToAssign := totalRows / len(s.Validators)
@@ -66,7 +66,8 @@ func (s Set) Assign(commitment rsema1d.Commitment, totalRows int) ShardMap {
 			rowsToAssign++
 		}
 
-		shardMap[validator] = rowsIndicies[i*rowsToAssign : (i+1)*rowsToAssign]
+		shardMap[validator] = rowsIndicies[offset : offset+rowsToAssign]
+		offset += rowsToAssign
 	}
 
 	return shardMap
