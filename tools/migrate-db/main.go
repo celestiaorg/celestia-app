@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cosmos/cosmos-db"
+	db "github.com/cosmos/cosmos-db"
 )
 
 func main() {

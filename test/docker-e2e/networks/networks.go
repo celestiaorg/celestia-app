@@ -3,10 +3,11 @@ package networks
 import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"fmt"
-	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	"io"
 	"net/http"
 	"testing"
+
+	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 
 	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"

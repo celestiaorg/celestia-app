@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts/v5"
+	v5 "github.com/celestiaorg/celestia-app/v6/pkg/appconsts/v5"
 	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
 	daproto "github.com/celestiaorg/celestia-app/v6/proto/celestia/core/v1/da"
 	squarev2 "github.com/celestiaorg/go-square/v2"
