@@ -1713,7 +1713,7 @@ With the above constraint, we can compute subtree roots deterministically. For e
 <p>Given these rules whereby blobs in their share format can't be directly appended one after the other, we use padding shares to fill the gaps. These are shares with a particular format (see <a href="./shares.html#padding">padding</a>). Padding always comes after all the blobs in the namespace. The padding at the end of the reserved namespace and at the end of the square are special in that they belong to unique namespaces. All other padding shares use the namespace of the blob before it in the data square.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="resource-pricing"><a class="header" href="#resource-pricing">Resource Pricing</a></h1>
 <p>For all standard cosmos-sdk transactions (staking, IBC, etc), Celestia utilizes
-the <a href="https://docs.cosmos.network/v0.50/learn/beginner/gas-fees">default cosmos-sdk mechanisms</a> for pricing resources. This involves
+the <a href="https://docs.cosmos.network/sdk/v0.53/learn/beginner/gas-fees#gas-and-fees">default cosmos-sdk mechanisms</a> for pricing resources. This involves
 incrementing a gas counter during transaction execution each time the state is
 read from/written to, or when specific costly operations occur such as signature
 verification or inclusion of data.</p>
