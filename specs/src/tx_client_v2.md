@@ -1,207 +1,148 @@
 # Tx Client v2 – Sequential Submission Queue
 
-## Abstract
-
-The biggest pain point and bottleneck preventing 100% successful submissions is a race condition caused by eviction handling in tandem with our recovery mechanism in broadcast:
-
-1. A transaction **Tx(3)** is **evicted** from the mempool.
-2. The **Tx client does not poll** quickly enough to detect the eviction.
-3. A new transaction **Tx(4)** is submitted while the node still expects **sequence=3**.
-4. Recovery logic **re-signs Tx(3)** and submits it.
-5. Other nodes may still have the *original* Tx(3).
-
-    This results in a **race**:
-
-- Either the **evicted original Tx(3)** is included first,
-- Or the **new re-signed Tx(3)** is included first.
-
-**Both outcomes caused failures.** This recurring issue with transaction handling has sparked discussions around a fundamental redesign of our approach.
-
 ### Context & Motivation
 
-To understand why we need a new design, let's first look at how TxClient v1 currently works. In v1, transactions are:
-
-1. Submitted via explicit `Submit*` methods.
-2. Confirmed in parallel by separate confirmation logic.
-
-This is not ideal for various reasons:
-
-- **Users had to coordinate everything themselves:** when to submit, at which cadence, when to confirm, how often to poll. The TxClient should handle that automatically.
-- **Handling failures requires knowing what happened before.** For example, you shouldn't resign a tx if the previous one was evicted. Currently there's no previous state tracking.
-- **Evictions, rejections, resubmissions weren't handled consistently or deterministically** because no single component owned the account's entire transaction flow causing races.
-
-This prompted us to re-design **Tx Client v2** around a **sequential per account submission queue**, where one component owns:
-
-- nonce/sequence management
-- submission cadence
-- TxStatus polling(confirmations)
-- engine algorithm: when to resubmit, when to resign, etc.
-
-Additionally I propose that we:
-
-Drop mempool enforced TTLs and move TTL responsibility entirely to the client/user. The node no longer expires transactions; instead, callers control TTL via setting it as tx option.
-
-No API breakage: TxClient V2 still wraps the v1 client maintaining full backwards compatibility as well as the parallel submission flow introduced in v1. It solely focuses on introducing new API which should be a sequential tx queue.
+Tx Client v2 enforces a per-account sequential submission queue that serializes signing, submission, and recovery, avoiding sequence races and minimizing transaction failures.
 
 ## Protocol/Component Description
 
 ### Per account sequential queue
 
-The basic idea is that every account gets its own **transaction lane**.
+Every account gets its own **transaction queue**.
 
-This lane is in charge of everything for that account: taking new transactions, broadcasting them in the right order, and keeping track of what happens to them afterwards.
+This queue is in charge of everything for that account: taking new transactions(jobs), broadcasting them in submission order, reporting outcomes.
 
-Inside this lane we keep two kinds of transactions:
+Inside the queue we keep two kinds of transactions:
 
 - **Queued** - submitted but not broadcast yet
-- **Pending** - already broadcast and waiting for a result
-
-We're not committed to exact data structures yet. Maps, lists whatever ends up being cleanest way for this FIFO.
-
-Along the way, it's becoming pretty clear that we'll also need **a separate map from signer + sequence → tx status** (likely its hash and last known status). Even if we poll statuses in batches we still need to know which hash belongs to which sequence.
+- **Pending** - already broadcast and waiting for confirmation
 
 ---
 
-### Internal loops (still flexible)
+### Broadcast and Confirmation loops
 
-Each lane will probably run two background loops:
+Each lane runs two background loops:
 
-1. **A submitter** - picks the next queued tx, signs it, broadcasts it to the node, and moves it into pending.
-    1. can also be triggered by channels receiving jobs (ig this defeats the purpose of the queue though)
-2. **A monitor** - checks the status of everything pending and knows how to manage evictions/rejections.
-
-These don't need to be perfect yet; timing and exact behavior can evolve. We just need something simple that continuously submits and knows how to handle different scenarios without stalling the client.
+1. **A submitter**
+    - Picks the next queued tx, signs it, broadcasts it to the node.
+    - Listens for evicted transactions and resubmits them.
+2. **A monitor**
+    Checks the statuses of pending txs and knows how to manage evictions/rejections/confirmations.
 
 ---
 
 ### Submission flow
 
-When a new transaction is submitted we will:
+1. Accepting a transaction(job)
 
-- Add blob with signer to the submission queue.
-- Once the transaction is in the queue the submitter loop automatically picks it up, builds, signs and broadcasts it, and moves it into the pending set.
-- The caller waits until the transaction reaches some final outcome:
+When a user submits a transaction (e.g. via `SubmitPayForBlobToQueue`):
 
-    **confirmed**/**rejected**.
+- Tx is wrapped in a job containing:
+  - transaction data
+  - user options
+  - context
+  - a result channel
+- The queue enforces memory based backpressure:
+  - If sufficient memory is available, the job is appended to the queue
+  - If queue exceeds its memory limit, submission blocks until memory is freed up
+ User should be able to set desired queue size during client initialization.
+- Nothing gets signed yet.
+- No network operations are performed.
+- User will receive tx result asynchronously via the result channel.
 
-Most of the time that's all that happens. But if we hit a **sequence mismatch** during broadcast, we need to slow down and figure out what's going on before we directly resign.
+2. Selecting the next transaction to broadcast
 
-#### Handling sequence mismatches in CheckTx
+The submitter processes transactions strictly in submission order:
 
-Sequence mismatches come in two flavours, depending on whether the chain expects a *lower* or *higher* sequence than the one we tried to use.
+- Submission proceeds only if the queue is not in recovery mode.
+- The next unbroadcast transaction is selected.
+- The transaction is built and signed using the next sequence number.
+- The transaction is broadcast to the node.
 
----
+If broadcast succeeds:
 
-#### **1. The chain expects a lower sequence**
+- Tx hash, sequence, and signed bytes are recorded directly on the queued tx.
+- Tx is now considered pending.
 
-This usually means:
+If broadcast fails due to a sequence mismatch:
 
-- we thought a previous tx was confirmed when it wasn’t(was probs evicted)
+- Submitter pauses further submissions.
+- Job remains in the queue.
+- Waits for confirmation/recovery logic to unblock submissions.
 
-In this case we:
+Sequence mismatches during broadcast are treated as coordination signals not terminal errors. If client remains blocked for longer than a minute, then it's possible to parse expected sequence from the error message and resign as recovery mech.
 
-1. Pause signing/broadcasting
-2. Let the confirmation loop figure out whether that previous tx was evicted(this should be the only case).
-3. Wait for evicted tx to be pending again
-4. Try resume signing
+If broadcast fails for any other reason:
 
----
+- Tx is removed from the queue.
+- An error is returned to the user via the result channel.
 
-#### **2. The chain expects a higher sequence**
+### Phase 2: Confirmation
 
-This usually means we rolled back too far due to multiple rejections. **(this should no longer happen with new confirmation flow)**
+Confirmation runs asynchronously at a configurable polling interval.
 
-If this happens:
+The monitor periodically queries the chain for the status of broadcast transactions, performing status checks in bounded batches starting from the first pending transaction.
 
-- Pause signing
-- Check if we're in recovery mode (the confirmation loop gets in recovery mode when transactions get a sequence mismatch in ReCheck)
-- Wait for recovery mode to complete
-- Try continue signing taking txs from the start of the submission queue
+There are four distinct statuses:
 
-If things get stuck, the escape hatch is to resign the stalled tx with the chain’s expected sequence as last resort.
+1. Pending
 
-**Question:** Is it safe to re-use the nonce of the transaction that was rejected but can be valid again at some point
+- No action needed
+- Move to the next
 
----
+1. Committed
 
-### What the pending monitor(confirmation loop) does
+- The tx was included in a block.
+- The user receives a `TxResponse` populated with execution and metadata returned by the chain (e.g. height, hash, execution code, gas usage, and signers).
+- The tx is removed from the queue.
 
-The monitoring loop periodically checks on pending txs and sees how the chain responded.
+If execution failed:
 
-Depending on the status:
+- The tx is removed from the queue.
+- The user receives a execution error containing the error code and log.
 
-- **Still pending** → keep waiting
-- **Committed** → great, return success
-- **Committed with execution error** → return error
-- **Evicted** → put it back in the queue to try again/directly resubmit since it's already signed
-- **Rejected:**
-  - If previous tx was confirmed, roll back the sequence
-  - What this means for subsequent pending txs:
+1. Evicted
 
-    **Handling rejections (including when later txs are already pending)**
+- Queue enters recovery mode, preventing new transactions from being broadcast.
+- Evicted tx is marked as being resubmitted to avoid duplicate attempts.
+- Tx is sent to an internal resubmission channel, which is handled by the queue's coordinator that also handles submissions.
 
-    If a transaction in the middle of the sequence gets rejected (say tx 3), we can't just keep going. Everything after it (4, 5, 6…) is now basically rejected as well. They will all be rejected with sequence mismatch as part of the same set.
+Resubmission behavior:
 
-    So when a rejection happens, the lane goes into "recovery mode":
+- Tx is re-broadcast using the same signed tx bytes.
+- Tx is **never** resigned.
+- Resubmitted tx remains as pending in queue.
+- Recovery mode is exited.
+- Broadcasting unblocks.
 
-    1. **Freeze signing and broadcasting**
+1. Rejected
 
-        Stop signing and sending anything new until the client recovers.
+Sequence recovery:
+A rejected transaction means the node will be expecting a lower sequence for this account. To unblock submissions the client must update its local sequence to match the node.
 
-        Still accept new submissions, but leave them unsigned for now.
+- Queue enters recovery mode to prevent further submissions.
+- The sequence number is rolled back to the sequence used by the rejected transaction **only if the tx before was not also rejected.**
+- If multiple transactions are rejected consecutively, the sequence is rolled back exactly once, to the sequence of the first rejected transaction.
+- Tx is removed from the queue.
+- User receives a rejection error containing the execution code and error log.
 
-    2. **Query all the subsequent txs with a multi tx status check**
+After recovery:
 
-        Make sure the whole tail (4, 5, 6…) actually got rejected.
+- Queue exits recovery mode.
+- Broadcasting may resume.
 
-        Remove them from the pending set so the confirmation loop doesn't keep re-triggering rejection logic.
+1. Unknown/Not Found
 
-        A `recoveryMode` flag can be used to stop us from processing the same rejection over and over again while we wait.
+Tx is neither evicted nor rejected or confirmed. Return error to the user that tx is unknown.
 
-    3. **Flag all later txs as `needsResign`**
+### Backward compatibility
 
-        Since the sequence rolled back, everything after the rejected tx needs to be resigned with the right sequence.
-
-    4. **Only retry txs that were rejected due to sequence mismatch**
-
-        Anything that failed for any other error won't be retried.
-
-        Only the tail that failed *because of it* get resigned and resubmitted.
-
-    Once the whole tail is cleared out, we unfreeze the lane, resign everything in order, and keep going like normal.
+Tx Client v2 wrapps Tx Client v1 maintaining full API compatibility.
 
 ## Message Structure/Communication Format
 
 TBD
 
-## Assumptions and Considerations
-
-### TTL & expiration (client/user-driven)
-
-One of the bigger shifts is that we'd be moving away from mempool TTLs.
-
-Instead:
-
-- We will no longer have TTL related evictions but rejections that are final. Expired txs will never be valid again.
-- The user gets to decide how long they care about the tx.
-
-### Cleanup
-
-We'll need some kind of cleanup process so we don't store states forever.
-
-This could be based on:
-
-- time,
-- block height,
-- how many old txs we keep around,
-- or something else entirely.
-
-Haven't settled on a strategy yet.
-
 ## Implementation
 
 Not yet implemented.
-
-## References
-
-None.
