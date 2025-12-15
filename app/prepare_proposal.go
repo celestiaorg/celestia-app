@@ -43,7 +43,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		return nil, fmt.Errorf("failed to create FilteredSquareBuilder: %w", err)
 	}
 
-	txs := fsb.Fill(ctx, req.Txs)
+	txs := fsb.Fill(ctx, req.Txs, req.MaxTxBytes)
 
 	// Build the square from the set of valid and prioritised transactions.
 	dataSquare, err := fsb.Build()
