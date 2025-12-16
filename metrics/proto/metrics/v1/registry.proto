@@ -1,0 +1,51 @@
+syntax = "proto3";
+package metrics.v1;
+
+option go_package = "github.com/celestiaorg/celestia-app/v6/metrics/server;server";
+
+// Registry service manages Prometheus scrape targets for Celestia nodes.
+service Registry {
+  // Register adds a node to the scrape targets.
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+
+  // Deregister removes a node from scrape targets.
+  rpc Deregister(DeregisterRequest) returns (DeregisterResponse);
+
+  // ListTargets returns all registered nodes.
+  rpc ListTargets(ListTargetsRequest) returns (ListTargetsResponse);
+}
+
+message RegisterRequest {
+  // Unique node identifier.
+  string node_id = 1;
+  // Host:port for Prometheus to scrape (e.g., "10.0.0.1:26660").
+  string address = 2;
+  // Additional labels for the target (e.g., chain_id, role, region).
+  map<string, string> labels = 3;
+}
+
+message RegisterResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message DeregisterRequest {
+  string node_id = 1;
+}
+
+message DeregisterResponse {
+  bool success = 1;
+}
+
+message ListTargetsRequest {}
+
+message ListTargetsResponse {
+  repeated Target targets = 1;
+}
+
+message Target {
+  string node_id = 1;
+  string address = 2;
+  map<string, string> labels = 3;
+  int64 registered_at = 4;
+}

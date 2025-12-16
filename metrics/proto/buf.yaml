@@ -1,0 +1,10 @@
+version: v1
+name: buf.build/celestiaorg/celestia-app-metrics
+deps:
+  - buf.build/googleapis/googleapis
+breaking:
+  use:
+    - FILE
+lint:
+  use:
+    - DEFAULT
