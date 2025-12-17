@@ -23,7 +23,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	ctx, span := s.tracer.Start(ctx, "fibre.Server.UploadShard")
 	defer span.End()
 
-	promise, promiseHash, err := s.verifyPromise(ctx, req.Promise)
+	promise, promiseHash, pruneAt, err := s.verifyPromise(ctx, req.Promise)
 	if err != nil {
 		s.log.WarnContext(ctx, "payment promise verification failed", "error", err)
 		span.RecordError(err)
@@ -33,7 +33,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 
 	log := s.log.With("blob_commitment", promise.Commitment.String(), "promise_height", promise.Height)
 
-	span.AddEvent("promise_validated", trace.WithAttributes(
+	span.AddEvent("promise_verified", trace.WithAttributes(
 		attribute.String("promise_hash", hex.EncodeToString(promiseHash)),
 		attribute.String("blob_commitment", promise.Commitment.String()),
 		attribute.Int64("promise_height", int64(promise.Height)),
@@ -63,7 +63,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	))
 
 	// store payment promise and shard with RLC roots
-	if err := s.store.Put(ctx, promise, req.Shard); err != nil {
+	if err := s.store.Put(ctx, promise, req.Shard, pruneAt); err != nil {
 		log.ErrorContext(ctx, "failed to store upload data", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to store upload data")
@@ -95,41 +95,46 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 
 // verifyPromise verifies given proto of [PaymentPromise] and returns unmarshaled form with its hash.
 // It does both stateless and stateful verification.
-func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentPromise) (*PaymentPromise, []byte, error) {
+// Returns the pruneAt time for the shard based on the data retention duration.
+func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentPromise) (*PaymentPromise, []byte, time.Time, error) {
 	promise := &PaymentPromise{}
 	if err := promise.FromProto(promisePb); err != nil {
-		return nil, nil, fmt.Errorf("invalid payment promise proto: %w", err)
+		return nil, nil, time.Time{}, fmt.Errorf("invalid payment promise proto: %w", err)
 	}
 
 	// validate PP fields matches the config
 	if promise.ChainID != s.cfg.ChainID {
-		return nil, nil, fmt.Errorf("payment promise chain ID mismatch: expected %s, got %s", s.cfg.ChainID, promise.ChainID)
+		return nil, nil, time.Time{}, fmt.Errorf("payment promise chain ID mismatch: expected %s, got %s", s.cfg.ChainID, promise.ChainID)
 	}
 	if promise.BlobVersion != uint32(s.cfg.BlobVersion) {
-		return nil, nil, fmt.Errorf("blob version mismatch: expected %d, got %d", s.cfg.BlobVersion, promise.BlobVersion)
+		return nil, nil, time.Time{}, fmt.Errorf("blob version mismatch: expected %d, got %d", s.cfg.BlobVersion, promise.BlobVersion)
 	}
-	oldestAllowed := time.Now().UTC().Add(-s.cfg.PaymentPromiseTimeout)
-	if promise.CreationTimestamp.Before(oldestAllowed) {
-		return nil, nil, fmt.Errorf("payment promise expired: %s is before %s (timeout: %s)",
-			promise.CreationTimestamp.Format(time.RFC3339),
-			oldestAllowed.Format(time.RFC3339),
-			s.cfg.PaymentPromiseTimeout)
+
+	{ //TODO(@Wondertan): to be moved to stateful verification
+		oldestAllowed := time.Now().UTC().Add(-s.cfg.PaymentPromiseTimeout)
+		if promise.CreationTimestamp.Before(oldestAllowed) {
+			return nil, nil, time.Time{}, fmt.Errorf("payment promise expired: %s is before %s (timeout: %s)",
+				promise.CreationTimestamp.Format(time.RFC3339),
+				oldestAllowed.Format(time.RFC3339),
+				s.cfg.PaymentPromiseTimeout)
+		}
+		// use height of the latest valset to verify height in the promise
+		currentValSet, err := s.valGet.Head(ctx)
+		if err != nil {
+			return nil, nil, time.Time{}, fmt.Errorf("getting current validator set: %w", err)
+		}
+		// calculate max height drift based on promise timeout and block time
+		maxHeightDrift := uint64(s.cfg.PaymentPromiseTimeout / s.cfg.BlockTime)
+		if currentValSet.Height > maxHeightDrift && promise.Height < currentValSet.Height-maxHeightDrift {
+			return nil, nil, time.Time{}, fmt.Errorf("payment promise height too far in past: %d is before min allowed %d (current: %d, timeout: %s, block time: %s)",
+				promise.Height, currentValSet.Height-maxHeightDrift, currentValSet.Height, s.cfg.PaymentPromiseTimeout, s.cfg.BlockTime)
+		}
 	}
-	// use height of the latest valset to verify height in the promise
-	currentValSet, err := s.valGet.Head(ctx)
-	if err != nil {
-		return nil, nil, fmt.Errorf("getting current validator set: %w", err)
-	}
-	// calculate max height drift based on promise timeout and block time
-	maxHeightDrift := uint64(s.cfg.PaymentPromiseTimeout / s.cfg.BlockTime)
-	if currentValSet.Height > maxHeightDrift && promise.Height < currentValSet.Height-maxHeightDrift {
-		return nil, nil, fmt.Errorf("payment promise height too far in past: %d is before min allowed %d (current: %d, timeout: %s, block time: %s)",
-			promise.Height, currentValSet.Height-maxHeightDrift, currentValSet.Height, s.cfg.PaymentPromiseTimeout, s.cfg.BlockTime)
-	}
+	pruneAt := time.Now().Add(s.cfg.DataRetentionDuration)
 
 	// stateless validation
 	if err := promise.Validate(); err != nil {
-		return nil, nil, fmt.Errorf("payment promise validation failed: %w", err)
+		return nil, nil, time.Time{}, fmt.Errorf("payment promise validation failed: %w", err)
 	}
 
 	// validate stateful constraints
@@ -137,17 +142,18 @@ func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentProm
 		Promise: *promisePb,
 	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("stateful validation request: %w", err)
+		return nil, nil, time.Time{}, fmt.Errorf("stateful validation request: %w", err)
 	}
 	if !resp.IsValid {
-		return nil, nil, fmt.Errorf("payment promise is invalid with no reason")
+		return nil, nil, time.Time{}, fmt.Errorf("payment promise is invalid with no reason")
 	}
 
 	promiseHash, err := promise.Hash()
 	if err != nil {
-		return nil, nil, fmt.Errorf("computing payment promise hash: %w", err)
+		return nil, nil, time.Time{}, fmt.Errorf("computing payment promise hash: %w", err)
 	}
-	return promise, promiseHash, nil
+
+	return promise, promiseHash, pruneAt, nil
 }
 
 // verifyAssignment verifies that the [types.BlobShard] in the request is assigned to this validator.
