@@ -190,7 +190,7 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 				suite.Require().Equal(types.EncodeHex(publicValues.StateRoot[:]), res.StateRoot)
 
 				for idx, id := range publicValues.MessageIds {
-					has, err := suite.zkISMKeeper.HasMessageId(suite.ctx, id[:])
+					has, err := suite.zkISMKeeper.HasMessageId(suite.ctx, ism.Id, id[:])
 					suite.Require().NoError(err)
 					suite.Require().True(has)
 
