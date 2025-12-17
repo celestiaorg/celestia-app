@@ -2,7 +2,6 @@ package keeper_test
 
 import (
 	"bytes"
-	"encoding/hex"
 	"errors"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
@@ -89,7 +88,7 @@ func (suite *KeeperTestSuite) TestQueryServerMessages() {
 					id := bytes.Repeat([]byte{byte(i)}, 32)
 					err := suite.zkISMKeeper.SetMessageId(suite.ctx, id)
 					suite.Require().NoError(err)
-					expResults = append(expResults, "0x"+hex.EncodeToString(id))
+					expResults = append(expResults, types.EncodeHex(id))
 				}
 			},
 			expErr: nil,
@@ -106,7 +105,7 @@ func (suite *KeeperTestSuite) TestQueryServerMessages() {
 					err := suite.zkISMKeeper.SetMessageId(suite.ctx, id)
 					suite.Require().NoError(err)
 					if i < 2 {
-						expResults = append(expResults, "0x"+hex.EncodeToString(id))
+						expResults = append(expResults, types.EncodeHex(id))
 					}
 				}
 			},

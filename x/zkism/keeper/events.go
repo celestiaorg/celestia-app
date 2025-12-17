@@ -10,11 +10,11 @@ func EmitCreateISMEvent(ctx sdk.Context, ism types.InterchainSecurityModule) err
 	return ctx.EventManager().EmitTypedEvent(&types.EventCreateInterchainSecurityModule{
 		Id:                  ism.Id,
 		Owner:               ism.Owner,
-		State:               encodeHex(ism.State),
-		MerkleTreeAddress:   encodeHex(ism.MerkleTreeAddress),
-		Groth16Vkey:         encodeHex(ism.Groth16Vkey),
-		StateTransitionVkey: encodeHex(ism.StateTransitionVkey),
-		StateMembershipVkey: encodeHex(ism.StateMembershipVkey),
+		State:               types.EncodeHex(ism.State),
+		MerkleTreeAddress:   types.EncodeHex(ism.MerkleTreeAddress),
+		Groth16Vkey:         types.EncodeHex(ism.Groth16Vkey),
+		StateTransitionVkey: types.EncodeHex(ism.StateTransitionVkey),
+		StateMembershipVkey: types.EncodeHex(ism.StateMembershipVkey),
 	})
 }
 
@@ -22,7 +22,7 @@ func EmitCreateISMEvent(ctx sdk.Context, ism types.InterchainSecurityModule) err
 func EmitUpdateISMEvent(ctx sdk.Context, ism types.InterchainSecurityModule) error {
 	return ctx.EventManager().EmitTypedEvent(&types.EventUpdateInterchainSecurityModule{
 		Id:    ism.Id,
-		State: encodeHex(ism.State),
+		State: types.EncodeHex(ism.State),
 	})
 }
 
@@ -30,11 +30,11 @@ func EmitUpdateISMEvent(ctx sdk.Context, ism types.InterchainSecurityModule) err
 func EmitSubmitMessagesEvent(ctx sdk.Context, root []byte, messageIds [][32]byte) error {
 	messages := make([]string, 0, len(messageIds))
 	for _, msg := range messageIds {
-		messages = append(messages, encodeHex(msg[:]))
+		messages = append(messages, types.EncodeHex(msg[:]))
 	}
 
 	return ctx.EventManager().EmitTypedEvent(&types.EventSubmitMessages{
-		StateRoot: encodeHex(root),
+		StateRoot: types.EncodeHex(root),
 		Messages:  messages,
 	})
 }

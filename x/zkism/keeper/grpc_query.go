@@ -71,7 +71,7 @@ func (q queryServer) Messages(ctx context.Context, req *types.QueryMessagesReque
 	}
 
 	transformFunc := func(key []byte, _ collections.NoValue) (string, error) {
-		return encodeHex(key), nil
+		return types.EncodeHex(key), nil
 	}
 
 	msgs, pageRes, err := query.CollectionPaginate(ctx, q.k.messages, req.Pagination, transformFunc)

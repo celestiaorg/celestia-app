@@ -127,7 +127,7 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 			return nil, err
 		}
 
-		messages = append(messages, encodeHex(messageId[:]))
+		messages = append(messages, types.EncodeHex(messageId[:]))
 	}
 
 	if err := EmitSubmitMessagesEvent(sdk.UnwrapSDKContext(ctx), ism.State[:32], publicValues.MessageIds); err != nil {
@@ -135,7 +135,7 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 	}
 
 	return &types.MsgSubmitMessagesResponse{
-		StateRoot: encodeHex(publicValues.StateRoot[:]),
+		StateRoot: types.EncodeHex(publicValues.StateRoot[:]),
 		Messages:  messages,
 	}, nil
 }
