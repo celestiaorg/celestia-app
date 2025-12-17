@@ -36,8 +36,9 @@ func TestStateMembershipPublicValuesEncoding(t *testing.T) {
 	}
 
 	expected := types.StateMembershipValues{
-		StateRoot:  [32]byte{0x01},
-		MessageIds: messageIds,
+		StateRoot:         [32]byte{0x01},
+		MerkleTreeAddress: [32]byte{0x02},
+		MessageIds:        messageIds,
 	}
 
 	bz, err := expected.Marshal()
@@ -49,6 +50,7 @@ func TestStateMembershipPublicValuesEncoding(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, expected.StateRoot, decoded.StateRoot)
+	require.Equal(t, expected.MerkleTreeAddress, decoded.MerkleTreeAddress)
 	require.Len(t, decoded.MessageIds, len(expected.MessageIds))
 	require.Equal(t, expected.MessageIds, decoded.MessageIds)
 }
