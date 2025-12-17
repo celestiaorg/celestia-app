@@ -1,9 +1,6 @@
 package keeper
 
 import (
-	"encoding/hex"
-	"fmt"
-
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -40,8 +37,4 @@ func EmitSubmitMessagesEvent(ctx sdk.Context, root []byte, messageIds [][32]byte
 		StateRoot: encodeHex(root),
 		Messages:  messages,
 	})
-}
-
-func encodeHex(bz []byte) string {
-	return fmt.Sprintf("0x%s", hex.EncodeToString(bz))
 }

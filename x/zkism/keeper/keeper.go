@@ -3,6 +3,8 @@ package keeper
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
+	"fmt"
 
 	"cosmossdk.io/collections"
 	corestore "cosmossdk.io/core/store"
@@ -95,4 +97,8 @@ func (k *Keeper) validatePublicValues(ctx context.Context, ism types.InterchainS
 	}
 
 	return nil
+}
+
+func encodeHex(bz []byte) string {
+	return fmt.Sprintf("0x%s", hex.EncodeToString(bz))
 }

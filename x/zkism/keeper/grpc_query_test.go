@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"bytes"
 	"encoding/hex"
 	"errors"
 
@@ -85,7 +86,7 @@ func (suite *KeeperTestSuite) TestQueryServerMessages() {
 				req = &types.QueryMessagesRequest{}
 
 				for i := 0; i < 5; i++ {
-					id := makeMessageID(byte(i))
+					id := bytes.Repeat([]byte{byte(i)}, 32)
 					err := suite.zkISMKeeper.SetMessageId(suite.ctx, id)
 					suite.Require().NoError(err)
 					expResults = append(expResults, "0x"+hex.EncodeToString(id))
@@ -101,7 +102,7 @@ func (suite *KeeperTestSuite) TestQueryServerMessages() {
 				}
 
 				for i := 0; i < 5; i++ {
-					id := makeMessageID(byte(i))
+					id := bytes.Repeat([]byte{byte(i)}, 32)
 					err := suite.zkISMKeeper.SetMessageId(suite.ctx, id)
 					suite.Require().NoError(err)
 					if i < 2 {
@@ -148,12 +149,6 @@ func (suite *KeeperTestSuite) TestQueryServerMessages() {
 			}
 		})
 	}
-}
-
-func makeMessageID(i byte) []byte {
-	var id [32]byte
-	id[0] = i
-	return id[:]
 }
 
 func (suite *KeeperTestSuite) TestQueryServerIsms() {
