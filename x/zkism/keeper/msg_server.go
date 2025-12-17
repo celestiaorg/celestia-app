@@ -121,15 +121,21 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 		return nil, err
 	}
 
+	messages := make([]string, 0, len(publicValues.MessageIds))
 	for _, messageId := range publicValues.MessageIds {
 		if err := m.messages.Set(ctx, messageId[:]); err != nil {
 			return nil, err
 		}
+
+		messages = append(messages, encodeHex(messageId[:]))
 	}
 
 	if err := EmitSubmitMessagesEvent(sdk.UnwrapSDKContext(ctx), ism.State[:32], publicValues.MessageIds); err != nil {
 		return nil, err
 	}
 
-	return &types.MsgSubmitMessagesResponse{}, nil
+	return &types.MsgSubmitMessagesResponse{
+		StateRoot: encodeHex(publicValues.StateRoot[:]),
+		Messages:  messages,
+	}, nil
 }
