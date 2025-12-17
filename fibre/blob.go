@@ -33,6 +33,19 @@ func (c Commitment) String() string {
 	return hex.EncodeToString(c[:])
 }
 
+// CommitmentFromString decodes a [Commitment] from a hex-encoded string.
+func CommitmentFromString(s string) (Commitment, error) {
+	data, err := hex.DecodeString(s)
+	if err != nil {
+		return Commitment{}, fmt.Errorf("decoding hex: %w", err)
+	}
+	var c Commitment
+	if err := c.UnmarshalBinary(data); err != nil {
+		return Commitment{}, err
+	}
+	return c, nil
+}
+
 // Equals returns true if the two commitments are equal.
 func (c Commitment) Equals(other Commitment) bool {
 	return c == other
