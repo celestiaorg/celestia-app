@@ -1,6 +1,7 @@
 package fibre
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"time"
@@ -60,6 +61,8 @@ type Server struct {
 
 	log    *slog.Logger
 	tracer trace.Tracer
+
+	cancel context.CancelFunc
 }
 
 // NewServer creates a new Fibre [Server] with default Badger store backend.
@@ -164,8 +167,19 @@ func (s *Server) Store() *Store {
 	return s.store
 }
 
-// Stop stops the server.
+// Start starts background routines for the server.
+// It should be called after the server is created. Use [Stop] to stop the background routines.
+func (s *Server) Start() {
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cancel = cancel
+	go s.startPruneLoop(ctx)
+}
+
+// Stop stops the server and its background routines.
 // NOTE: It is not a graceful shutdown as it doesn't await for pending requests to complete.
 func (s *Server) Stop() error {
+	if s.cancel != nil {
+		s.cancel()
+	}
 	return s.store.Close()
 }

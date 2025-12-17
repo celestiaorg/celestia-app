@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v6/x/fibre/types"
@@ -74,12 +75,13 @@ func NewBadgerStore(cfg StoreConfig) (*Store, error) {
 
 // Put stores given [PaymentPromise] and [types.BlobShard].
 //
-// Shards are stored as a single blob under /rows/<commitment>/<promise-hash>.
+// Shards are stored as a single blob under /shard/<commitment>/<promise-hash>.
 // The payment promise is stored under /pp/<promise-hash>.
-// An empty value is indexed under /tp/<timestamp-YYYYMMDDHHmm>/<commitment>/<promise-hash> for time-based queries.
+// The pruneAt sets the timestamp used for the /prune/<YYYYMMDDHHmm>/<commitment>/<promise-hash>,
+// determining when the entry will be removed by [PruneBefore].
 //
 // Puts for the same commitments but different promises are allowed and are stored independently without deduplication.
-func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.BlobShard) error {
+func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.BlobShard, pruneAt time.Time) error {
 	batch, err := s.ds.Batch(ctx)
 	if err != nil {
 		return fmt.Errorf("creating batch: %w", err)
@@ -103,13 +105,13 @@ func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.B
 	if err != nil {
 		return fmt.Errorf("marshaling shard: %w", err)
 	}
-	if err := batch.Put(ctx, rowsKey(promise.Commitment, promiseHash), shardData); err != nil {
+	if err := batch.Put(ctx, shardKey(promise.Commitment, promiseHash), shardData); err != nil {
 		return fmt.Errorf("putting shard: %w", err)
 	}
 
-	// write timestamp index
-	if err := batch.Put(ctx, timestampKey(promise.CreationTimestamp, promise.Commitment, promiseHash), []byte{}); err != nil {
-		return fmt.Errorf("putting timestamp index: %w", err)
+	// write prune index
+	if err := batch.Put(ctx, pruneKey(pruneAt, promise.Commitment, promiseHash), []byte{}); err != nil {
+		return fmt.Errorf("putting prune index: %w", err)
 	}
 
 	return batch.Commit(ctx)
@@ -124,7 +126,7 @@ func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.B
 // Returns an error only if all entries fail to unmarshal or if no shards are found.
 func (s *Store) Get(ctx context.Context, commitment Commitment) (*types.BlobShard, error) {
 	results, err := s.ds.Query(ctx, query.Query{
-		Prefix: fmt.Sprintf("/rows/%s", commitment.String()),
+		Prefix: fmt.Sprintf("/shard/%s", commitment.String()),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("querying shards: %w", err)
@@ -187,6 +189,67 @@ func (s *Store) GetPaymentPromise(ctx context.Context, promiseHash []byte) (*Pay
 	return &promise, nil
 }
 
+// PruneBefore deletes all shards and payment promises with pruneAt before the given time
+// and returns the number of pruned entries.
+//
+// It works by iterating over the ordered prune index and deleting each entry until the given time,
+// so it iterates exactly over the entries that need to be pruned. The order is guaranteed by the
+// underlying database and enforced with query.OrderByKey{}.
+func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, error) {
+	results, err := s.ds.Query(ctx, query.Query{
+		Prefix:   "/prune/",
+		KeysOnly: true,
+		Orders:   []query.Order{query.OrderByKey{}},
+	})
+	if err != nil {
+		return 0, fmt.Errorf("querying prune index: %w", err)
+	}
+	defer results.Close()
+
+	batch, err := s.ds.Batch(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("creating batch: %w", err)
+	}
+
+	pruned := 0
+	beforeStr := formatTimestamp(before)
+	for result := range results.Next() {
+		if result.Error != nil {
+			return pruned, fmt.Errorf("iterating results: %w", result.Error)
+		}
+
+		// extract timestamp from key: /prune/YYYYMMDDHHmm/...
+		// early termination: keys are sorted, so if timestamp >= cutoff, we're done
+		timestampStr := result.Key[7:19] // skip "/prune/" and take 12 chars
+		if timestampStr >= beforeStr {
+			break
+		}
+
+		// parse key: /prune/<timestamp>/<commitment>/<promise-hash>
+		commitment, promiseHash, ok := parsePruneKey(result.Key)
+		if !ok {
+			continue
+		}
+
+		// delete all related entries
+		if err := batch.Delete(ctx, ds.NewKey(result.Key)); err != nil {
+			return pruned, fmt.Errorf("deleting prune index: %w", err)
+		}
+		if err := batch.Delete(ctx, shardKey(commitment, promiseHash)); err != nil {
+			return pruned, fmt.Errorf("deleting shard: %w", err)
+		}
+		if err := batch.Delete(ctx, promiseKey(promiseHash)); err != nil {
+			return pruned, fmt.Errorf("deleting payment promise: %w", err)
+		}
+		pruned++
+	}
+
+	if err := batch.Commit(ctx); err != nil {
+		return pruned, fmt.Errorf("committing batch: %w", err)
+	}
+	return pruned, nil
+}
+
 // Close closes the underlying datastore.
 func (s *Store) Close() error {
 	return s.ds.Close()
@@ -202,10 +265,32 @@ func promiseKey(promiseHash []byte) ds.Key {
 	return ds.NewKey(fmt.Sprintf("/pp/%s", hex.EncodeToString(promiseHash)))
 }
 
-func rowsKey(commitment Commitment, promiseHash []byte) ds.Key {
-	return ds.NewKey(fmt.Sprintf("/rows/%s/%s", commitment.String(), hex.EncodeToString(promiseHash)))
+func shardKey(commitment Commitment, promiseHash []byte) ds.Key {
+	return ds.NewKey(fmt.Sprintf("/shard/%s/%s", commitment.String(), hex.EncodeToString(promiseHash)))
 }
 
-func timestampKey(timestamp time.Time, commitment Commitment, promiseHash []byte) ds.Key {
-	return ds.NewKey(fmt.Sprintf("/tp/%s/%s/%s", formatTimestamp(timestamp), commitment.String(), hex.EncodeToString(promiseHash)))
+func pruneKey(pruneAt time.Time, commitment Commitment, promiseHash []byte) ds.Key {
+	return ds.NewKey(fmt.Sprintf("/prune/%s/%s/%s", formatTimestamp(pruneAt), commitment.String(), hex.EncodeToString(promiseHash)))
+}
+
+// parsePruneKey extracts commitment and promise hash from a prune index key.
+// Key format: /prune/<timestamp>/<commitment>/<promise-hash>
+func parsePruneKey(key string) (Commitment, []byte, bool) {
+	// split: ["", "prune", "<timestamp>", "<commitment>", "<promise-hash>"]
+	parts := strings.Split(key, "/")
+	if len(parts) != 5 {
+		return Commitment{}, nil, false
+	}
+
+	commitment, err := CommitmentFromString(parts[3])
+	if err != nil {
+		return Commitment{}, nil, false
+	}
+
+	promiseHash, err := hex.DecodeString(parts[4])
+	if err != nil {
+		return Commitment{}, nil, false
+	}
+
+	return commitment, promiseHash, true
 }
