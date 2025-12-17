@@ -153,7 +153,6 @@ func TestMsgSubmitMessagesValidateBasic(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			msg = &types.MsgSubmitMessages{
 				Id:           util.CreateMockHexAddress("module", 1),
-				Height:       1,
 				Proof:        bytes.Repeat([]byte{0x01}, types.PrefixLen+types.ProofSize),
 				PublicValues: []byte{0x01, 0x02},
 			}

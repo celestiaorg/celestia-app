@@ -142,7 +142,6 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 			setupTest: func() {
 				msg = &types.MsgSubmitMessages{
 					Id:           ism.Id,
-					Height:       0,
 					Proof:        proofBz,
 					PublicValues: pubValues,
 				}
@@ -163,7 +162,6 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 			setupTest: func() {
 				msg = &types.MsgSubmitMessages{
 					Id:           ism.Id,
-					Height:       0,
 					Proof:        proofBz,
 					PublicValues: []byte("invalid"),
 				}
