@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"encoding/hex"
 	"errors"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
@@ -65,6 +66,94 @@ func (suite *KeeperTestSuite) TestQueryServerIsm() {
 			}
 		})
 	}
+}
+
+func (suite *KeeperTestSuite) TestQueryServerMessages() {
+	var (
+		req        *types.QueryMessagesRequest
+		expResults []string
+	)
+
+	testCases := []struct {
+		name      string
+		setupTest func()
+		expErr    error
+	}{
+		{
+			name: "success",
+			setupTest: func() {
+				req = &types.QueryMessagesRequest{}
+
+				for i := 0; i < 5; i++ {
+					id := makeMessageID(byte(i))
+					err := suite.zkISMKeeper.SetMessageId(suite.ctx, id)
+					suite.Require().NoError(err)
+					expResults = append(expResults, "0x"+hex.EncodeToString(id))
+				}
+			},
+			expErr: nil,
+		},
+		{
+			name: "success: paginated",
+			setupTest: func() {
+				req = &types.QueryMessagesRequest{
+					Pagination: &query.PageRequest{Limit: 2},
+				}
+
+				for i := 0; i < 5; i++ {
+					id := makeMessageID(byte(i))
+					err := suite.zkISMKeeper.SetMessageId(suite.ctx, id)
+					suite.Require().NoError(err)
+					if i < 2 {
+						expResults = append(expResults, "0x"+hex.EncodeToString(id))
+					}
+				}
+			},
+			expErr: nil,
+		},
+		{
+			name: "no messages in store",
+			setupTest: func() {
+				req = &types.QueryMessagesRequest{}
+				expResults = nil
+			},
+			expErr: nil,
+		},
+		{
+			name: "request cannot be empty",
+			setupTest: func() {
+				req = nil
+			},
+			expErr: errors.New("request cannot be empty"),
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			suite.SetupTest()
+			expResults = nil
+
+			tc.setupTest()
+
+			queryServer := keeper.NewQueryServerImpl(suite.zkISMKeeper)
+			res, err := queryServer.Messages(suite.ctx, req)
+
+			if tc.expErr != nil {
+				suite.Require().Error(err)
+				suite.Require().ErrorContains(err, tc.expErr.Error())
+				suite.Require().Nil(res)
+			} else {
+				suite.Require().NoError(err)
+				suite.Require().Equal(expResults, res.Messages)
+			}
+		})
+	}
+}
+
+func makeMessageID(i byte) []byte {
+	var id [32]byte
+	id[0] = i
+	return id[:]
 }
 
 func (suite *KeeperTestSuite) TestQueryServerIsms() {
