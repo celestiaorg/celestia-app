@@ -70,11 +70,22 @@ func (q queryServer) Messages(ctx context.Context, req *types.QueryMessagesReque
 		return nil, status.Error(codes.InvalidArgument, "request cannot be empty")
 	}
 
-	transformFunc := func(key []byte, _ collections.NoValue) (string, error) {
-		return types.EncodeHex(key), nil
+	ismId, err := util.DecodeHexAddress(req.Id)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid hex address %s, %s", req.Id, err.Error())
 	}
 
-	msgs, pageRes, err := query.CollectionPaginate(ctx, q.k.messages, req.Pagination, transformFunc)
+	transformFunc := func(key collections.Pair[uint64, []byte], _ collections.NoValue) (string, error) {
+		return types.EncodeHex(key.K2()), nil
+	}
+
+	msgs, pageRes, err := query.CollectionPaginate(
+		ctx,
+		q.k.messages,
+		req.Pagination,
+		transformFunc,
+		query.WithCollectionPaginationPairPrefix[uint64, []byte](ismId.GetInternalId()),
+	)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

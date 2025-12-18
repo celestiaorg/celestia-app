@@ -90,11 +90,11 @@ func NewQueryIsmsCmd() *cobra.Command {
 // NewQueryMessagesCmd creates and returns the query command for authorized messages.
 func NewQueryMessagesCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "messages",
+		Use:     "messages [ism-id]",
 		Short:   "Query authorized Hyperlane message IDs",
-		Long:    "Query authorized Hyperlane message IDs stored by the zkism module.",
-		Example: fmt.Sprintf("%s query %s messages", version.AppName, types.ModuleName),
-		Args:    cobra.NoArgs,
+		Long:    "Query authorized Hyperlane message IDs stored by the zkism module for a given ISM.",
+		Example: fmt.Sprintf("%s query %s messages 0x726f757465725f69736d000000000000000000000000002a0000000000000000", version.AppName, types.ModuleName),
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
@@ -109,6 +109,7 @@ func NewQueryMessagesCmd() *cobra.Command {
 			}
 
 			req := &types.QueryMessagesRequest{
+				Id:         args[0],
 				Pagination: pageReq,
 			}
 

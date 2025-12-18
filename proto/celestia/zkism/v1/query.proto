@@ -23,17 +23,19 @@ service Query {
 
   // Messages defines an rpc method for querying authorized Hyperlane message IDs.
   rpc Messages(QueryMessagesRequest) returns (QueryMessagesResponse) {
-    option (google.api.http).get = "/celestia/zkism/v1/messages";
+    option (google.api.http).get = "/celestia/zkism/v1/messages/{id}";
   }
 }
 
 // QueryIsmRequest is the request type for the Ism rpc method.
 message QueryIsmRequest {
+  // id is the hex-encoded ISM identifier.
   string id = 1;
 }
 
 // QueryIsmResponse is the response type for the Ism rpc method.
 message QueryIsmResponse {
+  // the ism associated with the provided identifier.
   InterchainSecurityModule ism = 1 [(gogoproto.nullable) = false];
 }
 
@@ -53,8 +55,10 @@ message QueryIsmsResponse {
 
 // QueryMessagesRequest is the request type for the Messages rpc method.
 message QueryMessagesRequest {
+  // id is the hex-encoded ISM identifier.
+  string id = 1;
   // pagination defines an optional pagination for the request.
-  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
 }
 
 // QueryMessagesResponse is the response type for the Messages rpc method.

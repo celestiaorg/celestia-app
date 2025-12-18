@@ -82,11 +82,12 @@ func (suite *KeeperTestSuite) TestQueryServerMessages() {
 		{
 			name: "success",
 			setupTest: func() {
-				req = &types.QueryMessagesRequest{}
+				ismID := util.CreateMockHexAddress("ism", 1)
+				req = &types.QueryMessagesRequest{Id: ismID.String()}
 
 				for i := 0; i < 5; i++ {
 					id := bytes.Repeat([]byte{byte(i)}, 32)
-					err := suite.zkISMKeeper.SetMessageId(suite.ctx, id)
+					err := suite.zkISMKeeper.SetMessageId(suite.ctx, ismID, id)
 					suite.Require().NoError(err)
 					expResults = append(expResults, types.EncodeHex(id))
 				}
@@ -96,13 +97,15 @@ func (suite *KeeperTestSuite) TestQueryServerMessages() {
 		{
 			name: "success: paginated",
 			setupTest: func() {
+				ismID := util.CreateMockHexAddress("ism", 2)
 				req = &types.QueryMessagesRequest{
+					Id:         ismID.String(),
 					Pagination: &query.PageRequest{Limit: 2},
 				}
 
 				for i := 0; i < 5; i++ {
 					id := bytes.Repeat([]byte{byte(i)}, 32)
-					err := suite.zkISMKeeper.SetMessageId(suite.ctx, id)
+					err := suite.zkISMKeeper.SetMessageId(suite.ctx, ismID, id)
 					suite.Require().NoError(err)
 					if i < 2 {
 						expResults = append(expResults, types.EncodeHex(id))
@@ -114,7 +117,7 @@ func (suite *KeeperTestSuite) TestQueryServerMessages() {
 		{
 			name: "no messages in store",
 			setupTest: func() {
-				req = &types.QueryMessagesRequest{}
+				req = &types.QueryMessagesRequest{Id: util.CreateMockHexAddress("ism", 3).String()}
 				expResults = nil
 			},
 			expErr: nil,
@@ -125,6 +128,13 @@ func (suite *KeeperTestSuite) TestQueryServerMessages() {
 				req = nil
 			},
 			expErr: errors.New("request cannot be empty"),
+		},
+		{
+			name: "invalid ism id",
+			setupTest: func() {
+				req = &types.QueryMessagesRequest{Id: "invalid"}
+			},
+			expErr: errors.New("invalid hex address"),
 		},
 	}
 
