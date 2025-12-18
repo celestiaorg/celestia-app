@@ -24,16 +24,16 @@ Users can define any state and write circuits that encapsulate a transition from
 
 The `x/zkism` module defines the following collections used for storage of on-chain state.
 
-- `isms` (collections.Map[uint64, InterchainSecurityModule], `types.IsmsKeyPrefix`): Stores per-ISM records. Each record contains `id`, `owner`, `state` (opaque bytes, first 32 bytes used as the trusted root), the Groth16 verifying key, and program commitments for state transition and state membership circuits.
-- `messages` (collections.KeySet[[]byte], `types.MessageKeyPrefix`): Authorized Hyperlane message IDs for one-time consumption by `keeper.Verify`.
+- `isms`: Stores per-ISM records. Each record contains `id`, `owner`, `state` (opaque bytes, first 32 bytes used as the trusted root), `merkle_tree_address` and the SP1 Groth16 verifying key configurations. `(collections.Map[uint64, InterchainSecurityModule], types.IsmsKeyPrefix)`. 
+- `messages`: Authorized Hyperlane message IDs for one-time consumption by `keeper.Verify`. `(collections.KeySet[collections.Pair[uint64,[]byte]], types.MessageKeyPrefix)`.
 
 ## Messages (Tx RPCs)
 
 Protobuf definitions: [`proto/celestia/zkism/v1/tx.proto`](../../proto/celestia/zkism/v1/tx.proto)
 
-- CreateInterchainSecurityModule: Creates an ISM with initial trusted state bytes and verifier configuration.
-- UpdateInterchainSecurityModule: Verifies a state transition proof against the stored state and replaces `state` with the provided `new_state` (opaque bytes). Both states must be at least 32 bytes; no height is stored.
-- SubmitMessages: Verifies a state membership proof and authorizes the listed message IDs for one-time processing. The proof must bind to the stored state root (`state[:32]`). The `height` field in the message is currently accepted but not used for verification or persistence.
+- `CreateInterchainSecurityModule`: Creates an ISM with initial trusted state bytes and verifier configuration.
+- `UpdateInterchainSecurityModule`: Verifies a state transition proof against the stored state and replaces `state` with the provided `new_state` (opaque bytes). Both states must be at least 32 bytes; no height is stored.
+- `SubmitMessages`: Verifies a state membership proof and authorizes the listed message IDs for one-time processing. The proof must bind to the stored state root (`state[:32]`).
 
 ## SP1 Groth16 Verifier
 
@@ -109,6 +109,7 @@ Protobuf definitions: [`proto/celestia/zkism/v1/query.proto`](../../proto/celest
 
 - `Ism(id) -> InterchainSecurityModule` — `GET /celestia/zkism/v1/isms/{id}`
 - `Isms(pagination) -> [InterchainSecurityModule]` — `GET /celestia/zkism/v1/isms`
+- `Messages(id) -> [MessageIds]` - `GET /celestia/zkism/v1/messages/{id}`
 
 ## Events
 
