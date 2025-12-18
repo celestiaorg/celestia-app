@@ -552,7 +552,11 @@ func (m *Multiplexer) Stop() error {
 	if err := m.stopNativeApp(); err != nil {
 		fmt.Println(err)
 	}
-	if err := m.stopEmbeddedApp(); err != nil {
+	// Protect stopEmbeddedApp with mutex to prevent race conditions with ABCI methods
+	m.mu.Lock()
+	err := m.stopEmbeddedApp()
+	m.mu.Unlock()
+	if err != nil {
 		fmt.Println(err)
 	}
 	if err := m.stopGRPCConnection(); err != nil {
