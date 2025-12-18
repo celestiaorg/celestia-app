@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 
+	"cosmossdk.io/collections"
 	errorsmod "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -123,11 +124,11 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 
 	messages := make([]string, 0, len(publicValues.MessageIds))
 	for _, messageId := range publicValues.MessageIds {
-		if err := m.messages.Set(ctx, messageId[:]); err != nil {
+		if err := m.messages.Set(ctx, collections.Join(ism.Id.GetInternalId(), messageId[:])); err != nil {
 			return nil, err
 		}
 
-		messages = append(messages, encodeHex(messageId[:]))
+		messages = append(messages, types.EncodeHex(messageId[:]))
 	}
 
 	if err := EmitSubmitMessagesEvent(sdk.UnwrapSDKContext(ctx), ism.State[:32], publicValues.MessageIds); err != nil {
@@ -135,7 +136,7 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 	}
 
 	return &types.MsgSubmitMessagesResponse{
-		StateRoot: encodeHex(publicValues.StateRoot[:]),
+		StateRoot: types.EncodeHex(publicValues.StateRoot[:]),
 		Messages:  messages,
 	}, nil
 }

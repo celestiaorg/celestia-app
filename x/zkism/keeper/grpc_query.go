@@ -3,6 +3,7 @@ package keeper
 import (
 	"context"
 
+	"cosmossdk.io/collections"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
@@ -59,6 +60,38 @@ func (q queryServer) Isms(ctx context.Context, req *types.QueryIsmsRequest) (*ty
 
 	return &types.QueryIsmsResponse{
 		Isms:       isms,
+		Pagination: pageRes,
+	}, nil
+}
+
+// Messages implements types.QueryServer.
+func (q queryServer) Messages(ctx context.Context, req *types.QueryMessagesRequest) (*types.QueryMessagesResponse, error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "request cannot be empty")
+	}
+
+	ismId, err := util.DecodeHexAddress(req.Id)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid hex address %s, %s", req.Id, err.Error())
+	}
+
+	transformFunc := func(key collections.Pair[uint64, []byte], _ collections.NoValue) (string, error) {
+		return types.EncodeHex(key.K2()), nil
+	}
+
+	msgs, pageRes, err := query.CollectionPaginate(
+		ctx,
+		q.k.messages,
+		req.Pagination,
+		transformFunc,
+		query.WithCollectionPaginationPairPrefix[uint64, []byte](ismId.GetInternalId()),
+	)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &types.QueryMessagesResponse{
+		Messages:   msgs,
 		Pagination: pageRes,
 	}, nil
 }

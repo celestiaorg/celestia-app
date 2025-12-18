@@ -19,7 +19,7 @@ var _ util.InterchainSecurityModule = (*Keeper)(nil)
 // Keeper implements the InterchainSecurityModule interface required by the Hyperlane ISM Router.
 type Keeper struct {
 	isms     collections.Map[uint64, types.InterchainSecurityModule]
-	messages collections.KeySet[[]byte]
+	messages collections.KeySet[collections.Pair[uint64, []byte]]
 	schema   collections.Schema
 
 	coreKeeper types.HyperlaneKeeper
@@ -31,7 +31,7 @@ func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlane
 	sb := collections.NewSchemaBuilder(storeService)
 
 	isms := collections.NewMap(sb, types.IsmsKeyPrefix, "isms", collections.Uint64Key, codec.CollValue[types.InterchainSecurityModule](cdc))
-	messages := collections.NewKeySet(sb, types.MessageKeyPrefix, "messages", collections.BytesKey)
+	messages := collections.NewKeySet(sb, types.MessageKeyPrefix, "messages", collections.PairKeyCodec(collections.Uint64Key, collections.BytesKey))
 
 	schema, err := sb.Build()
 	if err != nil {
@@ -71,13 +71,13 @@ func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, _ []byte, me
 
 	k.Logger(ctx).Info("processing message", "id", message.Id().String(), "ism", ism.Id.String())
 
-	authorized, err := k.messages.Has(ctx, message.Id().Bytes())
+	authorized, err := k.messages.Has(ctx, collections.Join(ism.Id.GetInternalId(), message.Id().Bytes()))
 	if err != nil {
 		return false, err
 	}
 
 	if authorized {
-		if err := k.messages.Remove(ctx, message.Id().Bytes()); err != nil {
+		if err := k.messages.Remove(ctx, collections.Join(ism.Id.GetInternalId(), message.Id().Bytes())); err != nil {
 			return false, err
 		}
 	}

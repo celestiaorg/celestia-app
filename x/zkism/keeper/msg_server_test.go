@@ -2,7 +2,6 @@ package keeper_test
 
 import (
 	"encoding/hex"
-	"fmt"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
@@ -188,20 +187,16 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 				publicValues := new(types.StateMembershipValues)
 				suite.Require().NoError(publicValues.Unmarshal(pubValues))
 
-				suite.Require().Equal(encodeHex(publicValues.StateRoot[:]), res.StateRoot)
+				suite.Require().Equal(types.EncodeHex(publicValues.StateRoot[:]), res.StateRoot)
 
 				for idx, id := range publicValues.MessageIds {
-					has, err := suite.zkISMKeeper.HasMessageId(suite.ctx, id[:])
+					has, err := suite.zkISMKeeper.HasMessageId(suite.ctx, ism.Id, id[:])
 					suite.Require().NoError(err)
 					suite.Require().True(has)
 
-					suite.Require().Equal(encodeHex(id[:]), res.Messages[idx])
+					suite.Require().Equal(types.EncodeHex(id[:]), res.Messages[idx])
 				}
 			}
 		})
 	}
-}
-
-func encodeHex(bz []byte) string {
-	return fmt.Sprintf("0x%s", hex.EncodeToString(bz))
 }
