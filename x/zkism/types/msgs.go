@@ -49,12 +49,6 @@ func (msg *MsgSubmitMessages) ValidateBasic() error {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "ism identifier must be non-zero")
 	}
 
-	// TODO: Uncommented the height validation when the following is implemented:
-	// https://github.com/celestiaorg/celestia-app/issues/5809
-	// if msg.Height == 0 {
-	// 	return errorsmod.Wrap(ErrInvalidHeight, "height must be greater than zero")
-	// }
-
 	if len(msg.Proof) != (PrefixLen + ProofSize) {
 		return errorsmod.Wrapf(ErrInvalidProofLength, "expected %d, got %d", (PrefixLen + ProofSize), len(msg.Proof))
 	}

@@ -20,6 +20,7 @@ func GetQueryCmd() *cobra.Command {
 
 	cmd.AddCommand(NewQueryIsmCmd())
 	cmd.AddCommand(NewQueryIsmsCmd())
+	cmd.AddCommand(NewQueryMessagesCmd())
 
 	return cmd
 }
@@ -35,6 +36,8 @@ func GetTxCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(NewCreateInterchainSecurityModuleCmd())
+	cmd.AddCommand(NewUpdateInterchainSecurityModuleCmd())
+	cmd.AddCommand(NewSubmitMessagesCmd())
 
 	return cmd
 }

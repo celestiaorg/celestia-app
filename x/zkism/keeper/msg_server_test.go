@@ -142,7 +142,6 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 			setupTest: func() {
 				msg = &types.MsgSubmitMessages{
 					Id:           ism.Id,
-					Height:       0,
 					Proof:        proofBz,
 					PublicValues: pubValues,
 				}
@@ -163,7 +162,6 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 			setupTest: func() {
 				msg = &types.MsgSubmitMessages{
 					Id:           ism.Id,
-					Height:       0,
 					Proof:        proofBz,
 					PublicValues: []byte("invalid"),
 				}
@@ -189,10 +187,14 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 				publicValues := new(types.StateMembershipValues)
 				suite.Require().NoError(publicValues.Unmarshal(pubValues))
 
-				for _, id := range publicValues.MessageIds {
-					has, err := suite.zkISMKeeper.HasMessageId(suite.ctx, id[:])
+				suite.Require().Equal(types.EncodeHex(publicValues.StateRoot[:]), res.StateRoot)
+
+				for idx, id := range publicValues.MessageIds {
+					has, err := suite.zkISMKeeper.HasMessageId(suite.ctx, ism.Id, id[:])
 					suite.Require().NoError(err)
 					suite.Require().True(has)
+
+					suite.Require().Equal(types.EncodeHex(id[:]), res.Messages[idx])
 				}
 			}
 		})
