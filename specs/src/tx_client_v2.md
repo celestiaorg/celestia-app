@@ -21,7 +21,7 @@ Inside the queue we keep two kinds of transactions:
 
 ### Broadcast and Confirmation loops
 
-Each lane runs two background loops:
+Each queue runs two background loops:
 
 1. **A submitter**
     - Picks the next queued tx, signs it, broadcasts it to the node.
