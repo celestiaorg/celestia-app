@@ -64,9 +64,12 @@ func (m msgServer) UpdateInterchainSecurityModule(ctx context.Context, msg *type
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
 	}
 
-	// verify the public values against the trusted ism state
-	if err := m.validatePublicValues(ctx, ism, publicValues); err != nil {
-		return nil, err
+	if len(publicValues.State) < 32 || len(publicValues.NewState) < 32 {
+		return nil, errorsmod.Wrapf(types.ErrInvalidTrustedState, "state must be at least 32 bytes")
+	}
+
+	if !bytes.Equal(ism.State, publicValues.State) {
+		return nil, errorsmod.Wrapf(types.ErrInvalidTrustedState, "expected %x, got %x", ism.State, publicValues.State)
 	}
 
 	verifier, err := types.NewSP1Groth16Verifier(ism.Groth16Vkey)
