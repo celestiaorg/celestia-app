@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 
+	"cosmossdk.io/collections"
 	errorsmod "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -63,9 +64,12 @@ func (m msgServer) UpdateInterchainSecurityModule(ctx context.Context, msg *type
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
 	}
 
-	// verify the public values against the trusted ism state
-	if err := m.validatePublicValues(ctx, ism, publicValues); err != nil {
-		return nil, err
+	if len(publicValues.State) < 32 || len(publicValues.NewState) < 32 {
+		return nil, errorsmod.Wrapf(types.ErrInvalidTrustedState, "state must be at least 32 bytes")
+	}
+
+	if !bytes.Equal(ism.State, publicValues.State) {
+		return nil, errorsmod.Wrapf(types.ErrInvalidTrustedState, "expected %x, got %x", ism.State, publicValues.State)
 	}
 
 	verifier, err := types.NewSP1Groth16Verifier(ism.Groth16Vkey)
@@ -121,15 +125,21 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 		return nil, err
 	}
 
+	messages := make([]string, 0, len(publicValues.MessageIds))
 	for _, messageId := range publicValues.MessageIds {
-		if err := m.messages.Set(ctx, messageId[:]); err != nil {
+		if err := m.messages.Set(ctx, collections.Join(ism.Id.GetInternalId(), messageId[:])); err != nil {
 			return nil, err
 		}
+
+		messages = append(messages, types.EncodeHex(messageId[:]))
 	}
 
 	if err := EmitSubmitMessagesEvent(sdk.UnwrapSDKContext(ctx), ism.State[:32], publicValues.MessageIds); err != nil {
 		return nil, err
 	}
 
-	return &types.MsgSubmitMessagesResponse{}, nil
+	return &types.MsgSubmitMessagesResponse{
+		StateRoot: types.EncodeHex(publicValues.StateRoot[:]),
+		Messages:  messages,
+	}, nil
 }

@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"bytes"
 	"errors"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
@@ -62,6 +63,98 @@ func (suite *KeeperTestSuite) TestQueryServerIsm() {
 			} else {
 				suite.Require().NoError(err)
 				suite.Require().Equal(expIsm, res.Ism)
+			}
+		})
+	}
+}
+
+func (suite *KeeperTestSuite) TestQueryServerMessages() {
+	var (
+		req        *types.QueryMessagesRequest
+		expResults []string
+	)
+
+	testCases := []struct {
+		name      string
+		setupTest func()
+		expErr    error
+	}{
+		{
+			name: "success",
+			setupTest: func() {
+				ismID := util.CreateMockHexAddress("ism", 1)
+				req = &types.QueryMessagesRequest{Id: ismID.String()}
+
+				for i := 0; i < 5; i++ {
+					id := bytes.Repeat([]byte{byte(i)}, 32)
+					err := suite.zkISMKeeper.SetMessageId(suite.ctx, ismID, id)
+					suite.Require().NoError(err)
+					expResults = append(expResults, types.EncodeHex(id))
+				}
+			},
+			expErr: nil,
+		},
+		{
+			name: "success: paginated",
+			setupTest: func() {
+				ismID := util.CreateMockHexAddress("ism", 2)
+				req = &types.QueryMessagesRequest{
+					Id:         ismID.String(),
+					Pagination: &query.PageRequest{Limit: 2},
+				}
+
+				for i := 0; i < 5; i++ {
+					id := bytes.Repeat([]byte{byte(i)}, 32)
+					err := suite.zkISMKeeper.SetMessageId(suite.ctx, ismID, id)
+					suite.Require().NoError(err)
+					if i < 2 {
+						expResults = append(expResults, types.EncodeHex(id))
+					}
+				}
+			},
+			expErr: nil,
+		},
+		{
+			name: "no messages in store",
+			setupTest: func() {
+				req = &types.QueryMessagesRequest{Id: util.CreateMockHexAddress("ism", 3).String()}
+				expResults = nil
+			},
+			expErr: nil,
+		},
+		{
+			name: "request cannot be empty",
+			setupTest: func() {
+				req = nil
+			},
+			expErr: errors.New("request cannot be empty"),
+		},
+		{
+			name: "invalid ism id",
+			setupTest: func() {
+				req = &types.QueryMessagesRequest{Id: "invalid"}
+			},
+			expErr: errors.New("invalid hex address"),
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			suite.SetupTest()
+			expResults = nil
+
+			tc.setupTest()
+
+			queryServer := keeper.NewQueryServerImpl(suite.zkISMKeeper)
+			res, err := queryServer.Messages(suite.ctx, req)
+
+			if tc.expErr != nil {
+				suite.Require().Error(err)
+				suite.Require().ErrorContains(err, tc.expErr.Error())
+				suite.Require().Nil(res)
+			} else {
+				suite.Require().NoError(err)
+				suite.Require().Equal(expResults, res.Messages)
 			}
 		})
 	}

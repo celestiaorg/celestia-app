@@ -13,7 +13,7 @@ var (
 	ErrInvalidProof             = errorsmod.Register(ModuleName, 4, "invalid proof")
 	ErrInvalidProofLength       = errorsmod.Register(ModuleName, 5, "invalid proof length")
 	ErrInvalidProofPrefix       = errorsmod.Register(ModuleName, 6, "invalid proof prefix")
-	ErrInvalidState             = errorsmod.Register(ModuleName, 7, "invalid previous state")
+	ErrInvalidTrustedState      = errorsmod.Register(ModuleName, 7, "invalid trusted state")
 	ErrInvalidStateRoot         = errorsmod.Register(ModuleName, 8, "invalid state root")
 	ErrInvalidMerkleTreeAddress = errorsmod.Register(ModuleName, 9, "invalid merkle tree address")
 )

@@ -162,7 +162,7 @@ func (suite *KeeperTestSuite) TestVerify() {
 
 	for _, tc := range testCases {
 		suite.Run(tc.name, func() {
-			err := suite.zkISMKeeper.SetMessageId(suite.ctx, message.Id().Bytes())
+			err := suite.zkISMKeeper.SetMessageId(suite.ctx, ism.Id, message.Id().Bytes())
 			suite.Require().NoError(err)
 
 			authorized, err := suite.zkISMKeeper.Verify(suite.ctx, tc.ismId, nil, tc.message)
@@ -176,7 +176,7 @@ func (suite *KeeperTestSuite) TestVerify() {
 
 				if authorized {
 					// assert that the message id has been pruned from the store
-					has, err := suite.zkISMKeeper.HasMessageId(suite.ctx, message.Id().Bytes())
+					has, err := suite.zkISMKeeper.HasMessageId(suite.ctx, ism.Id, message.Id().Bytes())
 					suite.Require().NoError(err)
 					suite.Require().False(has, "unexpected message id in store")
 				}

@@ -80,15 +80,18 @@ message MsgSubmitMessages {
     (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
     (gogoproto.nullable)   = false
   ];
-  // height is the EVM application height associated with the state transition update.
-  uint64 height = 2;
   // proof is the ZK proof bytes (groth16).
-  bytes proof = 3;
+  bytes proof = 2;
   // the public values used for proof verification.
-  bytes public_values = 4;
+  bytes public_values = 3;
   // the tx signer address
-  string signer = 5;
+  string signer = 4;
 }
 
 // MsgSubmitMessagesResponse is the response type for SubmitMessages.
-message MsgSubmitMessagesResponse {}
+message MsgSubmitMessagesResponse {
+  // state commitment root used to verify messages (hex-encoded)
+  string state_root = 1;
+  // list of authorized messages ids
+  repeated string messages = 2;
+}
