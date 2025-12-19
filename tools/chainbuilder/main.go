@@ -18,8 +18,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/random"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3"
+	"github.com/celestiaorg/go-square/v3/share"
 	dbm "github.com/cometbft/cometbft-db"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/crypto"
@@ -144,7 +144,6 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		appCfg.Pruning = "everything" // we just want the last two states
 		appCfg.StateSync.SnapshotInterval = 0
 		cp := app.DefaultConsensusParams()
-
 		cp.Version.App = cfg.AppVersion // set the app version
 		gen = genesis.NewDefaultGenesis().
 			WithConsensusParams(cp).
@@ -470,8 +469,12 @@ func generateSquareRoutine(
 		if err != nil {
 			return err
 		}
+		msg, err := blobtypes.NewMsgPayForBlobs(account.Address().String(), 0, blob)
+		if err != nil {
+			return err
+		}
 
-		blobGas := blobtypes.DefaultEstimateGas([]uint32{uint32(cfg.BlockSize)})
+		blobGas := blobtypes.DefaultEstimateGas(msg)
 		fee := float64(blobGas) * appconsts.DefaultMinGasPrice * 2
 		tx, _, err := signer.CreatePayForBlobs(account.Name(), []*share.Blob{blob}, user.SetGasLimit(blobGas), user.SetFee(uint64(fee)))
 		if err != nil {

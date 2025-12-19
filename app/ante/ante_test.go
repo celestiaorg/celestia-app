@@ -9,7 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	testutil "github.com/celestiaorg/celestia-app/v6/test/util"
 	"github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"

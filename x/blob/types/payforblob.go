@@ -7,8 +7,8 @@ import (
 
 	"cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/go-square/v2/inclusion"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/inclusion"
+	"github.com/celestiaorg/go-square/v3/share"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -37,13 +37,15 @@ const (
 	BytesPerBlobInfo = 70
 )
 
-func NewMsgPayForBlobs(signer string, _ uint64, blobs ...*share.Blob) (*MsgPayForBlobs, error) {
+// NewMsgPayForBlobs creates a new MsgPayForBlobs with the given signer and blobs.
+// The signerAddress must be a valid bech32 address.
+func NewMsgPayForBlobs(signerAddress string, _ uint64, blobs ...*share.Blob) (*MsgPayForBlobs, error) {
 	err := ValidateBlobs(blobs...)
 	if err != nil {
 		return nil, err
 	}
 
-	signerBytes, err := sdk.AccAddressFromBech32(signer)
+	signerBytes, err := sdk.AccAddressFromBech32(signerAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +63,7 @@ func NewMsgPayForBlobs(signer string, _ uint64, blobs ...*share.Blob) (*MsgPayFo
 	namespaces, sizes, shareVersions := ExtractBlobComponents(blobs)
 
 	msg := &MsgPayForBlobs{
-		Signer:           signer,
+		Signer:           signerAddress,
 		Namespaces:       namespacesToBytes(namespaces),
 		ShareCommitments: commitments,
 		BlobSizes:        sizes,
@@ -136,16 +138,18 @@ func (msg *MsgPayForBlobs) ValidateBasic() error {
 }
 
 func (msg *MsgPayForBlobs) Gas(gasPerByte uint32) uint64 {
-	return GasToConsume(msg.BlobSizes, gasPerByte)
+	return GasToConsume(msg, gasPerByte)
 }
 
 // GasToConsume works out the extra gas charged to pay for a set of blobs in a PFB.
 // Note that transactions will incur other gas costs, such as the signature verification
 // and reads to the user's account.
-func GasToConsume(blobSizes []uint32, gasPerByte uint32) uint64 {
+func GasToConsume(msg *MsgPayForBlobs, gasPerByte uint32) uint64 {
 	var totalSharesUsed uint64
-	for _, size := range blobSizes {
-		totalSharesUsed += uint64(share.SparseSharesNeeded(size))
+	for i, size := range msg.BlobSizes {
+		shareVersion := msg.ShareVersions[i]
+		containsSigner := shareVersion == uint32(share.ShareVersionOne)
+		totalSharesUsed += uint64(share.SparseSharesNeeded(size, containsSigner))
 	}
 
 	return totalSharesUsed * share.ShareSize * uint64(gasPerByte)
@@ -155,13 +159,13 @@ func GasToConsume(blobSizes []uint32, gasPerByte uint32) uint64 {
 // It is based on a linear model that is dependent on the governance parameters:
 // gasPerByte and txSizeCost. It assumes other variables are constant. This includes
 // assuming the PFB is the only message in the transaction.
-func EstimateGas(blobSizes []uint32, gasPerByte uint32, txSizeCost uint64) uint64 {
-	return GasToConsume(blobSizes, gasPerByte) + (txSizeCost * BytesPerBlobInfo * uint64(len(blobSizes))) + PFBGasFixedCost
+func EstimateGas(msg *MsgPayForBlobs, gasPerByte uint32, txSizeCost uint64) uint64 {
+	return GasToConsume(msg, gasPerByte) + (txSizeCost * BytesPerBlobInfo * uint64(len(msg.BlobSizes))) + PFBGasFixedCost
 }
 
 // DefaultEstimateGas runs EstimateGas with the system defaults.
-func DefaultEstimateGas(blobSizes []uint32) uint64 {
-	return EstimateGas(blobSizes, appconsts.GasPerBlobByte, appconsts.TxSizeCostPerByte)
+func DefaultEstimateGas(msg *MsgPayForBlobs) uint64 {
+	return EstimateGas(msg, appconsts.GasPerBlobByte, appconsts.TxSizeCostPerByte)
 }
 
 // ValidateBlobNamespace returns an error if the provided namespace is an
@@ -203,8 +207,14 @@ func ValidateBlobs(blobs ...*share.Blob) error {
 // ValidateBlobShareVersion validates any share version specific rules
 func ValidateBlobShareVersion(signer sdk.AccAddress, blobs ...*share.Blob) error {
 	for _, blob := range blobs {
-		if blob.ShareVersion() == share.ShareVersionOne && !bytes.Equal(blob.Signer(), []byte(signer)) {
-			return ErrInvalidBlobSigner.Wrapf("blob signer %X does not match msgPFB signer %X", blob.Signer(), signer)
+		if blob.ShareVersion() == share.ShareVersionOne {
+			if signer == nil {
+				return ErrInvalidBlobSigner.Wrapf("MsgPayForBlobs signer is nil")
+			}
+			if !bytes.Equal(blob.Signer(), signer) {
+				return ErrInvalidBlobSigner.Wrapf("blob signer %X does not match MsgPayForBlobs signer "+
+					"%X", blob.Signer(), signer)
+			}
 		}
 	}
 	return nil

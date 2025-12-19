@@ -11,15 +11,16 @@ import (
 	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
-	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
+	"github.com/celestiaorg/go-square/v3/share"
+	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 )
 
 func (s *CelestiaTestSuite) TestE2ESimple() {
@@ -39,7 +40,7 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 
 	// Cleanup resources when the test is done
 	t.Cleanup(func() {
-		if err := celestia.Stop(ctx); err != nil {
+		if err := celestia.Remove(ctx); err != nil {
 			t.Logf("Error stopping chain: %v", err)
 		}
 	})
@@ -74,6 +75,11 @@ func assertTransactionsIncluded(ctx context.Context, t *testing.T, celestia *tas
 	const requiredTxs = 10
 	const pollInterval = 5 * time.Second
 
+	networkInfo, err := celestia.GetNetworkInfo(ctx)
+	if err != nil {
+		t.Fatalf("Error getting network info: %v", err)
+	}
+	rpcAddress := "http://" + networkInfo.External.RPCAddress()
 	// periodically check for transactions until timeout or required transactions are found
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
@@ -82,7 +88,7 @@ func assertTransactionsIncluded(ctx context.Context, t *testing.T, celestia *tas
 		select {
 		case <-ticker.C:
 			// Check for transactions
-			headers, err := testnode.ReadBlockchainHeaders(ctx, celestia.GetHostRPCAddress())
+			headers, err := testnode.ReadBlockchainHeaders(ctx, rpcAddress)
 			if err != nil {
 				t.Logf("Error reading blockchain headers: %v", err)
 				continue

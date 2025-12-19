@@ -142,7 +142,7 @@ func (app App) SetUnbondingTime(ctx context.Context) error {
 		return err
 	}
 
-	sdkCtx.Logger().Info("Setting unbonding time to %v.", appconsts.UnbondingTime)
+	sdkCtx.Logger().Info(fmt.Sprintf("Setting unbonding time to %v.", appconsts.UnbondingTime))
 	params.UnbondingTime = appconsts.UnbondingTime
 
 	err = app.StakingKeeper.SetParams(ctx, params)
@@ -162,10 +162,10 @@ func (app App) SetEvidenceParams(ctx context.Context) error {
 		return err
 	}
 
-	sdkCtx.Logger().Info("Setting evidence MaxAgeDuration to %v.", appconsts.MaxAgeDuration)
+	sdkCtx.Logger().Info(fmt.Sprintf("Setting evidence MaxAgeDuration to %v.", appconsts.MaxAgeDuration))
 	params.Evidence.MaxAgeDuration = appconsts.MaxAgeDuration
 
-	sdkCtx.Logger().Info("Setting evidence MaxAgeNumBlocks to %v.", appconsts.MaxAgeNumBlocks)
+	sdkCtx.Logger().Info(fmt.Sprintf("Setting evidence MaxAgeNumBlocks to %v.", appconsts.MaxAgeNumBlocks))
 	params.Evidence.MaxAgeNumBlocks = appconsts.MaxAgeNumBlocks
 
 	err = app.ConsensusKeeper.ParamsStore.Set(ctx, params)
@@ -204,7 +204,7 @@ func (a App) SetMinCommissionRate(ctx context.Context) error {
 
 	params.MinCommissionRate = appconsts.MinCommissionRate
 
-	sdkCtx.Logger().Info("Setting the staking params min commission rate to %v.\n", appconsts.MinCommissionRate)
+	sdkCtx.Logger().Info(fmt.Sprintf("Setting the staking params min commission rate to %v.\n", appconsts.MinCommissionRate))
 	err = a.StakingKeeper.SetParams(ctx, params)
 	if err != nil {
 		sdkCtx.Logger().Error("failed to set staking params", "error", err)

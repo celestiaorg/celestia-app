@@ -180,7 +180,7 @@ func (n *NmtHasher) ValidateLeaf(data []byte) (err error) {
 // HashLeaf computes namespace hash of the namespaced data item `ndata` as
 // ns(ndata) || ns(ndata) || hash(leafPrefix || ndata), where ns(ndata) is the
 // namespaceID inside the data item namely leaf[:n.NamespaceLen]). Note that for
-// leaves minNs = maxNs = ns(leaf) = leaf[:NamespaceLen]. HashLeaf can return the ErrInvalidNodeLen error if the input is not namespaced.
+// leaves minNs = maxNs = ns(leaf) = leaf[:NamespaceLen]. HashLeaf can return the ErrInvalidLeafLen error if the input is not namespaced.
 //
 //nolint:errcheck
 func (n *NmtHasher) HashLeaf(ndata []byte) ([]byte, error) {

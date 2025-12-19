@@ -7,7 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/test/util/random"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 )
 
 func GenerateRandomlySizedBlobs(count, maxBlobSize int) []*share.Blob {
@@ -31,7 +31,7 @@ func GenerateRandomlySizedBlobs(count, maxBlobSize int) []*share.Blob {
 // GenerateBlobsWithNamespace generates blobs with namespace share.
 func GenerateBlobsWithNamespace(count, blobSize int, ns share.Namespace) []*share.Blob {
 	blobs := make([]*share.Blob, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		blob, err := share.NewBlob(ns, random.Bytes(blobSize), appconsts.DefaultShareVersion, nil)
 		if err != nil {
 			panic(err)

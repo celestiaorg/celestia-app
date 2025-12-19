@@ -15,7 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	"github.com/stretchr/testify/require"
 )
 
@@ -39,7 +39,7 @@ func TestGasEstimatorE2E(t *testing.T) {
 	// Create test node configuration
 	cfg := testnode.DefaultConfig().
 		WithFundedAccounts(accounts...).
-		WithTimeoutCommit(100 * time.Millisecond).
+		WithDelayedPrecommitTimeout(100 * time.Millisecond).
 		WithGenesis(
 			genesis.NewDefaultGenesis().
 				WithValidators(genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)).
@@ -50,6 +50,10 @@ func TestGasEstimatorE2E(t *testing.T) {
 
 	// Start the test network
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
+
+	// Wait for the first block to ensure the node is ready
+	_, err := cctx.WaitForHeight(1)
+	require.NoError(t, err)
 
 	estimatorClient := gasestimation.NewGasEstimatorClient(cctx.GRPCClient)
 	gasPriceResp, err := estimatorClient.EstimateGasPrice(ctx, &gasestimation.EstimateGasPriceRequest{})
@@ -65,8 +69,10 @@ func TestGasEstimatorE2E(t *testing.T) {
 	blobSize := 1200
 	data := random.Bytes(blobSize)
 	blob, err := share.NewV0Blob(share.RandomBlobNamespace(), data)
-	gasLimit := blobtypes.DefaultEstimateGas([]uint32{uint32(blobSize)})
 	require.NoError(t, err)
+	msg, err := blobtypes.NewMsgPayForBlobs(accounts[0], 0, blob)
+	require.NoError(t, err)
+	gasLimit := blobtypes.DefaultEstimateGas(msg)
 
 	// Broadcast the transaction with the high fee
 	resp, err := txClient.BroadcastPayForBlob(
@@ -110,7 +116,7 @@ func TestGasEstimatorE2EWithNetworkMinGasPrice(t *testing.T) {
 	// Create test node configuration
 	cfg := testnode.DefaultConfig().
 		WithFundedAccounts(accounts...).
-		WithTimeoutCommit(100 * time.Millisecond).
+		WithDelayedPrecommitTimeout(100 * time.Millisecond).
 		WithGenesis(
 			genesis.NewDefaultGenesis().
 				WithValidators(genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)).
@@ -123,6 +129,10 @@ func TestGasEstimatorE2EWithNetworkMinGasPrice(t *testing.T) {
 
 	// Start the test network
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
+
+	// Wait for the first block to ensure the node is ready
+	_, err := cctx.WaitForHeight(1)
+	require.NoError(t, err)
 
 	estimatorClient := gasestimation.NewGasEstimatorClient(cctx.GRPCClient)
 	gasPriceResp, err := estimatorClient.EstimateGasPrice(ctx, &gasestimation.EstimateGasPriceRequest{})

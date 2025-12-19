@@ -12,8 +12,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/random"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
-	square "github.com/celestiaorg/go-square/v2"
-	"github.com/celestiaorg/go-square/v2/share"
+	square "github.com/celestiaorg/go-square/v3"
+	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/stretchr/testify/require"
 )
@@ -72,10 +72,10 @@ func TestMaliciousTestNode(t *testing.T) {
 	accounts := testfactory.RandomAccountNames(5)
 	cfg := OutOfOrderNamespaceConfig(5).
 		WithFundedAccounts(accounts...).
-		WithTimeoutCommit(100 * time.Millisecond)
+		WithDelayedPrecommitTimeout(300 * time.Millisecond)
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
-	_, err := cctx.WaitForHeight(6)
+	_, err := cctx.WaitForHeight(5)
 	require.NoError(t, err)
 
 	// submit a multiblob tx where each blob is using a random namespace. This
@@ -88,7 +88,7 @@ func TestMaliciousTestNode(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, txres.Code)
 
-	// fetch the block that included in the tx
+	// fetch the block that included the tx
 	inclusionHeight := txres.Height
 	block, err := cctx.Client.Block(cctx.GoContext(), &inclusionHeight)
 	require.NoError(t, err)

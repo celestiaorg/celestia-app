@@ -2,46 +2,49 @@ package docker_e2e
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 	"testing"
+	"time"
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
-	signaltypes "github.com/celestiaorg/celestia-app/v6/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
 
+	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
-	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
+	signaltypes "github.com/celestiaorg/celestia-app/v6/x/signal/types"
+	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// TestCelestiaAppUpgrade tests app version upgrade using the signaling mechanism.
-func (s *CelestiaTestSuite) TestCelestiaAppUpgrade() {
-	if testing.Short() {
-		s.T().Skip("skipping celestia-app major upgrade test in short mode")
-	}
+const (
+	AppVersionV5 uint64 = 5
+	AppVersionV6 uint64 = 6
 
-	tag, err := dockerchain.GetCelestiaTagStrict()
-	s.Require().NoError(err)
+	InflationRateV5 = "0.0536" // 5.36%
+	InflationRateV6 = "0.0267" // 2.67%
 
-	tt := []struct {
-		baseAppVersion   uint64
-		targetAppVersion uint64
-	}{
-		{
-			baseAppVersion:   5,
-			targetAppVersion: 6,
-		},
-	}
+	UnbondingTimeV5Hours = 504
+	UnbondingTimeV6Hours = 337
 
-	for _, tc := range tt {
-		s.Run(fmt.Sprintf("upgrade from v%d to v%d", tc.baseAppVersion, tc.targetAppVersion), func() {
-			s.runUpgradeTest(tag, tc.baseAppVersion, tc.targetAppVersion)
-		})
-	}
-}
+	MinCommissionRateV5 = "0.05" // 5%
+	MinCommissionRateV6 = "0.10" // 10%
+
+	EvidenceMaxAgeV5Hours = 504
+	EvidenceMaxAgeV6Hours = 337
+
+	EvidenceMaxAgeV5Blocks = 120960
+	EvidenceMaxAgeV6Blocks = 242640
+)
 
 // TestAllUpgrades tests all app version upgrades using the signaling mechanism.
 // This test runs all upgrade paths.
@@ -83,6 +86,53 @@ func (s *CelestiaTestSuite) TestAllUpgrades() {
 	}
 }
 
+// TestCelestiaAppV5ToV6 validates that parameters are correctly applied across the v5 to v6 upgrade,
+// including changes introduced by CIP-042.
+func (s *CelestiaTestSuite) TestCelestiaAppV5ToV6() {
+	if testing.Short() {
+		s.T().Skip("skipping v5 to v6 test in short mode")
+	}
+
+	ctx := context.Background()
+	tag, err := dockerchain.GetCelestiaTagStrict()
+	s.Require().NoError(err)
+
+	cfg := dockerchain.DefaultConfig(s.client, s.network).WithTag(tag)
+	cfg.Genesis = cfg.Genesis.WithAppVersion(AppVersionV5)
+
+	// For v5 genesis, set legacy (pre–CIP-037) values so the v6 upgrade can update them.
+	enc := cfg.Genesis.EncodingConfig()
+	cfg.Config = cfg.Config.WithModifiers(genesis.Modifier(func(state map[string]json.RawMessage) map[string]json.RawMessage {
+		var gs stakingtypes.GenesisState
+		enc.Codec.MustUnmarshalJSON(state[stakingtypes.ModuleName], &gs)
+		gs.Params.UnbondingTime = UnbondingTimeV5Hours * time.Hour
+		state[stakingtypes.ModuleName] = enc.Codec.MustMarshalJSON(&gs)
+		return state
+	}))
+	cparams := cfg.Genesis.ConsensusParams
+	cparams.Evidence.MaxAgeDuration = EvidenceMaxAgeV5Hours * time.Hour
+	cparams.Evidence.MaxAgeNumBlocks = EvidenceMaxAgeV5Blocks
+	cfg.Config = cfg.Config.WithConsensusParams(cparams)
+
+	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
+	s.Require().NoError(err)
+
+	s.T().Cleanup(func() {
+		if err := chain.Remove(ctx); err != nil {
+			s.T().Logf("Error removing chain: %v", err)
+		}
+	})
+
+	err = chain.Start(ctx)
+	s.Require().NoError(err)
+
+	validatorNode := chain.GetNodes()[0] // to query parameters
+
+	s.validateParameters(ctx, validatorNode, AppVersionV5)
+	s.performUpgrade(ctx, chain, cfg, AppVersionV6)
+	s.validateParameters(ctx, validatorNode, AppVersionV6)
+}
+
 // runUpgradeTest starts a chain at the specified baseAppVersion, signals all validators to upgrade,
 // waits for the upgrade to occur, then verifies the node is running the targetAppVersion and that
 // bank send transactions succeed before and after the upgrade.
@@ -101,7 +151,7 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 	s.Require().NoError(err)
 
 	s.T().Cleanup(func() {
-		if err := chain.Stop(ctx); err != nil {
+		if err := chain.Remove(ctx); err != nil {
 			s.T().Logf("Error stopping chain: %v", err)
 		}
 	})
@@ -159,10 +209,7 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 	testPFBSubmission(s.T(), chain, cfg)
 
 	s.T().Logf("Checking validator liveness from height %d with minimum %d blocks per validator", startHeight, defaultBlocksPerValidator)
-	s.Require().NoError(
-		s.CheckLiveness(ctx, chain),
-		"validator liveness check failed",
-	)
+	s.Require().NoError(s.CheckLiveness(ctx, chain), "validator liveness check failed")
 }
 
 // signalAndGetUpgradeHeight signals for an upgrade to the specified app
@@ -256,4 +303,197 @@ func getSignalQueryClient(node tastoratypes.ChainNode) (signaltypes.QueryClient,
 		return signaltypes.NewQueryClient(dcNode.GrpcConn), func() {}, nil
 	}
 	return nil, nil, fmt.Errorf("GRPC connection is nil")
+}
+
+// getICAHostQueryClient returns an icahosttypes.QueryClient for the provided node.
+// If the node is a docker ChainNode with a live *grpc.ClientConn, it is reused.
+// Returns an error if no gRPC connection is available.
+func getICAHostQueryClient(node tastoratypes.ChainNode) (icahosttypes.QueryClient, error) {
+	if dcNode, ok := node.(*tastoradockertypes.ChainNode); ok && dcNode.GrpcConn != nil {
+		return icahosttypes.NewQueryClient(dcNode.GrpcConn), nil
+	}
+	return nil, fmt.Errorf("GRPC connection is nil")
+}
+
+// validateParameters validates that all parameters match expected values for the given app version
+func (s *CelestiaTestSuite) validateParameters(ctx context.Context, node tastoratypes.ChainNode, appVersion uint64) {
+	// Verify we're running the correct app version
+	rpcClient, err := node.GetRPCClient()
+	s.Require().NoError(err, "failed to get RPC client")
+
+	abciInfo, err := rpcClient.ABCIInfo(ctx)
+	s.Require().NoError(err, "failed to fetch ABCI info")
+	s.Require().Equal(appVersion, abciInfo.Response.GetAppVersion(), "should be running v%d", appVersion)
+
+	if appVersion == AppVersionV5 {
+		s.validateInflationRate(ctx, node, InflationRateV5, AppVersionV5)
+		s.validateUnbondingTime(ctx, node, UnbondingTimeV5Hours, AppVersionV5)
+		s.validateMinCommissionRate(ctx, node, MinCommissionRateV5, AppVersionV5)
+		s.validateEvidenceParams(ctx, node, EvidenceMaxAgeV5Hours, EvidenceMaxAgeV5Blocks, AppVersionV5)
+		return
+	}
+
+	if appVersion == AppVersionV6 {
+		s.validateInflationRate(ctx, node, InflationRateV6, AppVersionV6)
+		s.validateUnbondingTime(ctx, node, UnbondingTimeV6Hours, AppVersionV6)
+		s.validateMinCommissionRate(ctx, node, MinCommissionRateV6, AppVersionV6)
+		s.validateEvidenceParams(ctx, node, EvidenceMaxAgeV6Hours, EvidenceMaxAgeV6Blocks, AppVersionV6)
+		// Check ICA host params only on v6: v5 doesn't expose the icahost gRPC query service;
+		// the v6 upgrade applies these params per CIP-14.
+		s.validateICAHostParams(ctx, node, true, app.IcaAllowMessages(), AppVersionV6)
+		return
+	}
+
+	s.T().Fatalf("invalid app version: %d", appVersion)
+}
+
+// validateInflationRate queries and validates the current inflation rate using CLI
+func (s *CelestiaTestSuite) validateInflationRate(ctx context.Context, node tastoratypes.ChainNode, expectedRate string, appVersion uint64) {
+	dcNode, ok := node.(*tastoradockertypes.ChainNode)
+	s.Require().True(ok, "node should be a docker chain node")
+
+	networkInfo, err := node.GetNetworkInfo(ctx)
+	s.Require().NoError(err, "failed to get network info from chain node")
+
+	rpcEndpoint := fmt.Sprintf("tcp://%s:26657", networkInfo.Internal.Hostname)
+	cmd := []string{"celestia-appd", "query", "mint", "inflation", "--node", rpcEndpoint}
+
+	stdout, stderr, err := dcNode.Exec(ctx, cmd, nil)
+	s.Require().NoError(err, "failed to query inflation rate via CLI: stderr=%s", string(stderr))
+
+	inflationRateStr := strings.TrimSpace(string(stdout))
+	actualDec, err := math.LegacyNewDecFromStr(inflationRateStr)
+	s.Require().NoError(err, "failed to parse actual inflation rate")
+
+	expectedDec, err := math.LegacyNewDecFromStr(expectedRate)
+	s.Require().NoError(err, "failed to parse expected inflation rate")
+
+	// Use tolerance-based comparison for floating-point precision
+	tolerance := math.LegacyNewDecWithPrec(1, 10)
+	diff := actualDec.Sub(expectedDec).Abs()
+	s.Require().True(diff.LTE(tolerance), "%d inflation rate mismatch: expected %s, got %s, diff=%s", appVersion, expectedRate, inflationRateStr, diff.String())
+}
+
+// validateUnbondingTime queries and validates the current unbonding time using CLI
+func (s *CelestiaTestSuite) validateUnbondingTime(ctx context.Context, node tastoratypes.ChainNode, expectedHours int, appVersion uint64) {
+	dcNode, ok := node.(*tastoradockertypes.ChainNode)
+	s.Require().True(ok, "node should be a docker chain node")
+
+	networkInfo, err := node.GetNetworkInfo(ctx)
+	s.Require().NoError(err, "failed to get network info from chain node")
+
+	rpcEndpoint := fmt.Sprintf("tcp://%s:26657", networkInfo.Internal.Hostname)
+	cmd := []string{"celestia-appd", "query", "staking", "params", "--output", "json", "--node", rpcEndpoint}
+
+	stdout, stderr, err := dcNode.Exec(ctx, cmd, nil)
+	s.Require().NoError(err, "failed to query staking params via CLI: stderr=%s", string(stderr))
+
+	var stakingParams struct {
+		Params struct {
+			UnbondingTime string `json:"unbonding_time"`
+		} `json:"params"`
+	}
+	err = json.Unmarshal(stdout, &stakingParams)
+	s.Require().NoError(err, "failed to parse staking params JSON response")
+
+	unbondingTimeStr := stakingParams.Params.UnbondingTime
+	s.Require().NotEmpty(unbondingTimeStr, "unbonding_time not found in response")
+
+	actualDuration, err := time.ParseDuration(unbondingTimeStr)
+	s.Require().NoError(err, "failed to parse unbonding time duration: %s", unbondingTimeStr)
+
+	expectedDuration := time.Duration(expectedHours) * time.Hour
+	s.Require().Equal(expectedDuration, actualDuration, "v%d unbonding time mismatch: expected %v (%d hours), got %v", appVersion, expectedDuration, expectedHours, actualDuration)
+}
+
+// validateMinCommissionRate queries and validates the current minimum commission rate using CLI
+func (s *CelestiaTestSuite) validateMinCommissionRate(ctx context.Context, node tastoratypes.ChainNode, expectedRate string, appVersion uint64) {
+	dcNode, ok := node.(*tastoradockertypes.ChainNode)
+	s.Require().True(ok, "node should be a docker chain node")
+
+	networkInfo, err := node.GetNetworkInfo(ctx)
+	s.Require().NoError(err, "failed to get network info from chain node")
+
+	rpcEndpoint := fmt.Sprintf("tcp://%s:26657", networkInfo.Internal.Hostname)
+	cmd := []string{"celestia-appd", "query", "staking", "params", "--output", "json", "--node", rpcEndpoint}
+
+	stdout, stderr, err := dcNode.Exec(ctx, cmd, nil)
+	s.Require().NoError(err, "failed to query staking params via CLI: stderr=%s", string(stderr))
+
+	var stakingParams struct {
+		Params struct {
+			MinCommissionRate string `json:"min_commission_rate"`
+		} `json:"params"`
+	}
+	err = json.Unmarshal(stdout, &stakingParams)
+	s.Require().NoError(err, "failed to parse staking params JSON response")
+
+	minCommissionRateStr := stakingParams.Params.MinCommissionRate
+	s.Require().NotEmpty(minCommissionRateStr, "min_commission_rate not found in response")
+
+	actualDec, err := math.LegacyNewDecFromStr(minCommissionRateStr)
+	s.Require().NoError(err, "failed to parse actual min commission rate: %s", minCommissionRateStr)
+
+	expectedDec, err := math.LegacyNewDecFromStr(expectedRate)
+	s.Require().NoError(err, "failed to parse expected min commission rate")
+
+	// Use tolerance-based comparison for floating-point precision
+	tolerance := math.LegacyNewDecWithPrec(1, 10)
+	diff := actualDec.Sub(expectedDec).Abs()
+	s.Require().True(diff.LTE(tolerance), "v%d min commission rate mismatch: expected %s, got %s, diff=%s", appVersion, expectedRate, minCommissionRateStr, diff.String())
+}
+
+// validateEvidenceParams queries and validates both evidence max age duration and blocks using CLI
+func (s *CelestiaTestSuite) validateEvidenceParams(ctx context.Context, node tastoratypes.ChainNode, expectedHours int, expectedBlocks int, appVersion uint64) {
+	dcNode, ok := node.(*tastoradockertypes.ChainNode)
+	s.Require().True(ok, "node should be a docker chain node")
+
+	networkInfo, err := node.GetNetworkInfo(ctx)
+	s.Require().NoError(err, "failed to get network info from chain node")
+
+	rpcEndpoint := fmt.Sprintf("tcp://%s:26657", networkInfo.Internal.Hostname)
+	cmd := []string{"celestia-appd", "query", "consensus", "params", "--output", "json", "--node", rpcEndpoint}
+
+	stdout, stderr, err := dcNode.Exec(ctx, cmd, nil)
+	s.Require().NoError(err, "failed to query consensus params via CLI: stderr=%s", string(stderr))
+
+	var consensusParams struct {
+		Params struct {
+			Evidence struct {
+				MaxAgeDuration  string `json:"max_age_duration"`
+				MaxAgeNumBlocks string `json:"max_age_num_blocks"`
+			} `json:"evidence"`
+		} `json:"params"`
+	}
+	err = json.Unmarshal(stdout, &consensusParams)
+	s.Require().NoError(err, "failed to parse consensus params JSON response")
+
+	maxAgeDurationStr := consensusParams.Params.Evidence.MaxAgeDuration
+	s.Require().NotEmpty(maxAgeDurationStr, "max_age_duration not found in response")
+
+	actualDuration, err := time.ParseDuration(maxAgeDurationStr)
+	s.Require().NoError(err, "failed to parse evidence max age duration: %s", maxAgeDurationStr)
+
+	expectedDuration := time.Duration(expectedHours) * time.Hour
+	s.Require().Equal(expectedDuration, actualDuration, "v%d evidence max age duration mismatch: expected %v (%d hours), got %v", appVersion, expectedDuration, expectedHours, actualDuration)
+
+	maxAgeNumBlocksStr := consensusParams.Params.Evidence.MaxAgeNumBlocks
+	s.Require().NotEmpty(maxAgeNumBlocksStr, "max_age_num_blocks not found in response")
+
+	actualBlocks, err := strconv.Atoi(maxAgeNumBlocksStr)
+	s.Require().NoError(err, "failed to parse evidence max age num blocks: %s", maxAgeNumBlocksStr)
+
+	s.Require().Equal(expectedBlocks, actualBlocks, "v%d evidence max age num blocks mismatch: expected %d, got %d", appVersion, expectedBlocks, actualBlocks)
+}
+
+// validateICAHostParams queries and validates ICA host params (host_enabled and allow_messages) via gRPC
+func (s *CelestiaTestSuite) validateICAHostParams(ctx context.Context, node tastoratypes.ChainNode, expectedHostEnabled bool, expectedAllowMessages []string, appVersion uint64) {
+	client, err := getICAHostQueryClient(node)
+	s.Require().NoError(err)
+
+	resp, err := client.Params(ctx, &icahosttypes.QueryParamsRequest{})
+	s.Require().NoError(err, "failed to query ICA host params")
+
+	s.Require().Equal(expectedHostEnabled, resp.Params.HostEnabled, "v%d icahost host_enabled mismatch: expected %v, got %v", appVersion, expectedHostEnabled, resp.Params.HostEnabled)
+	s.Require().Equal(expectedAllowMessages, resp.Params.AllowMessages, "v%d icahost allow_messages mismatch", appVersion)
 }

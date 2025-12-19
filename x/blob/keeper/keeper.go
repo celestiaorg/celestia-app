@@ -51,7 +51,7 @@ func (k Keeper) GetAuthority() string {
 // PayForBlobs consumes gas based on the blob sizes in the MsgPayForBlobs.
 func (k Keeper) PayForBlobs(goCtx context.Context, msg *types.MsgPayForBlobs) (*types.MsgPayForBlobsResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
-	gasToConsume := types.GasToConsume(msg.BlobSizes, appconsts.GasPerBlobByte)
+	gasToConsume := types.GasToConsume(msg, appconsts.GasPerBlobByte)
 
 	ctx.GasMeter().ConsumeGas(gasToConsume, payForBlobGasDescriptor)
 

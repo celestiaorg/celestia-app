@@ -5,10 +5,11 @@ import (
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/v6/test/util/random"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -22,7 +23,7 @@ const (
 
 func Repeat[T any](s T, count int) []T {
 	ss := make([]T, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		ss[i] = s
 	}
 	return ss
@@ -32,7 +33,7 @@ func Repeat[T any](s T, count int) []T {
 // of random data is of size shareSize and is prefixed with a random blob
 // namespace.
 func GenerateRandNamespacedRawData(count int) (result [][]byte) {
-	for i := 0; i < count; i++ {
+	for range count {
 		rawData := random.Bytes(share.ShareSize)
 		namespace := share.RandomBlobNamespace().Bytes()
 		copy(rawData, namespace)
@@ -49,18 +50,24 @@ func sortByteArrays(src [][]byte) {
 
 func RandomAccountNames(count int) []string {
 	accounts := make([]string, 0, count)
-	for i := 0; i < count; i++ {
+	for range count {
 		accounts = append(accounts, random.Str(10))
 	}
 	return accounts
 }
 
 func GenerateAccounts(count int) []string {
-	accs := make([]string, count)
-	for i := 0; i < count; i++ {
-		accs[i] = random.Str(20)
+	accounts := make([]string, count)
+	for i := range count {
+		// Generate a random private key
+		privKey := secp256k1.GenPrivKey()
+		// Get the public key and derive the address
+		pubKey := privKey.PubKey()
+		address := sdk.AccAddress(pubKey.Address())
+		// Convert to bech32 string format
+		accounts[i] = address.String()
 	}
-	return accs
+	return accounts
 }
 
 func GetAddresses(keys keyring.Keyring) []sdk.AccAddress {

@@ -12,9 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/da"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2"
-	"github.com/celestiaorg/go-square/v2/share"
-	blobtx "github.com/celestiaorg/go-square/v2/tx"
+	blobtx "github.com/celestiaorg/go-square/v3/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
@@ -116,35 +114,30 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		// - that the sizes match
 		// - that the namespaces match between blob and PFB
 		// - that the share commitment is correct
-		if err := blobtypes.ValidateBlobTx(app.encodingConfig.TxConfig, blobTx, appconsts.SubtreeRootThreshold, appconsts.Version); err != nil {
-			logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("invalid blob tx %d", idx), err)
+		// If this tx was cached from CheckTx, we can skip the expensive
+		// commitment verification since it was already validated. Otherwise, fall back to full validation.
+		if _, err := app.ValidateBlobTxWithCache(blobTx); err != nil {
+			logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("blob tx validation failed %d", idx), err)
 			return reject(), nil
 		}
 
-		// validated the PFB signature
 		ctx, err = handler(ctx, sdkTx, false)
 		if err != nil {
-			logInvalidPropBlockError(app.Logger(), blockHeader, "invalid PFB signature", err)
+			logInvalidPropBlockError(app.Logger(), blockHeader, "ante handler validation failed", err)
 			return reject(), nil
 		}
 
 	}
 
-	dataSquare, err := square.Construct(req.Txs, app.MaxEffectiveSquareSize(ctx), appconsts.SubtreeRootThreshold)
+	eds, err := da.ConstructEDSWithTreePool(req.Txs, appconsts.Version, app.MaxEffectiveSquareSize(ctx), app.TreePool())
 	if err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to compute data square from transactions:", err)
+		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to compute extended data square from transactions:", err)
 		return reject(), nil
 	}
 
 	// Assert that the square size stated by the proposer is correct
-	if uint64(dataSquare.Size()) != req.SquareSize {
+	if uint64(eds.Width()) != req.SquareSize*2 {
 		logInvalidPropBlock(app.Logger(), blockHeader, "proposed square size differs from calculated square size")
-		return reject(), nil
-	}
-
-	eds, err := da.ExtendShares(share.ToBytes(dataSquare))
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to erasure the data square", err)
 		return reject(), nil
 	}
 
@@ -206,4 +199,20 @@ func accept() *abci.ResponseProcessProposal {
 	return &abci.ResponseProcessProposal{
 		Status: abci.ResponseProcessProposal_ACCEPT,
 	}
+}
+
+// ValidateBlobTxWithCache validates a blob transaction, using cached validation results when possible.
+// It returns (fromCache, error) where fromCache indicates if the validation was skipped using cache.
+func (app *App) ValidateBlobTxWithCache(blobTx *blobtx.BlobTx) (bool, error) {
+	if app.txCache.Exists(blobTx.Tx) {
+		if _, err := blobtypes.ValidateBlobTxSkipCommitment(app.encodingConfig.TxConfig, blobTx); err != nil {
+			return true, err
+		}
+		return true, nil
+	}
+
+	if err := blobtypes.ValidateBlobTx(app.encodingConfig.TxConfig, blobTx, appconsts.SubtreeRootThreshold, appconsts.Version); err != nil {
+		return false, err
+	}
+	return false, nil
 }

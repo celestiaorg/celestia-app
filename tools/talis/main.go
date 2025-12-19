@@ -21,6 +21,7 @@ func main() {
 		generateCmd(),
 		initCmd(),
 		statusCmd(),
+		listCmd(),
 		upCmd(),
 		downCmd(),
 		deployCmd(),

@@ -15,8 +15,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	square "github.com/celestiaorg/go-square/v2"
-	"github.com/celestiaorg/go-square/v2/share"
+	square "github.com/celestiaorg/go-square/v3"
+	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	coretypes "github.com/cometbft/cometbft/types"
@@ -43,9 +43,9 @@ type IntegrationTestSuite struct {
 
 func (s *IntegrationTestSuite) SetupSuite() {
 	t := s.T()
-	s.accounts = testnode.RandomAccounts(142)
+	s.accounts = testfactory.GenerateAccounts(142)
 
-	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...).WithTimeoutCommit(time.Millisecond * 500)
+	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...).WithDelayedPrecommitTimeout(time.Millisecond * 500)
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 
 	s.cctx = cctx

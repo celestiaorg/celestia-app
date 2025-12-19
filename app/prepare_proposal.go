@@ -7,7 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/app/ante"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/da"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -54,7 +54,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	// Erasure encode the data square to create the extended data square (eds).
 	// Note: uses the nmt wrapper to construct the tree. See
 	// pkg/wrapper/nmt_wrapper.go for more information.
-	eds, err := da.ExtendShares(share.ToBytes(dataSquare))
+	eds, err := da.ExtendSharesWithTreePool(share.ToBytes(dataSquare), app.TreePool())
 	if err != nil {
 		app.Logger().Error("failure to erasure the data square while creating a proposal block", "error", err.Error())
 		return nil, fmt.Errorf("failure to erasure the data square while creating a proposal block: %w", err)

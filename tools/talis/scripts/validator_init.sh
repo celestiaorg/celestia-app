@@ -4,10 +4,6 @@ MONIKER="validator"
 ARCHIVE_NAME="payload.tar.gz"
 
 export DEBIAN_FRONTEND=noninteractive
-
-apt update -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
-
-export DEBIAN_FRONTEND=noninteractive
 apt-get update -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
 apt-get install git build-essential ufw curl jq chrony snapd btop nethogs --yes -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
 

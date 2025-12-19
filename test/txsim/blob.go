@@ -8,7 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
 	blob "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/gogoproto/grpc"
 )
@@ -63,7 +63,7 @@ func (s *BlobSequence) WithGasPrice(gasPrice float64) *BlobSequence {
 
 func (s *BlobSequence) Clone(n int) []Sequence {
 	sequenceGroup := make([]Sequence, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		sequenceGroup[i] = &BlobSequence{
 			namespaces:    s.namespaces,
 			sizes:         s.sizes,
@@ -123,7 +123,7 @@ func (s *BlobSequence) Next(_ context.Context, _ grpc.ClientConn, rand *rand.Ran
 	op := Operation{
 		Msgs:     []types.Msg{msg},
 		Blobs:    blobs,
-		GasLimit: estimateGas(sizes, s.useFeegrant),
+		GasLimit: estimateGas(msg, s.useFeegrant),
 	}
 
 	if s.gasPrice != 0 {
@@ -151,17 +151,12 @@ func (r Range) Rand(rand *rand.Rand) int {
 }
 
 // estimateGas estimates the gas required to pay for a set of blobs in a PFB.
-func estimateGas(blobSizes []int, useFeegrant bool) uint64 {
-	size := make([]uint32, len(blobSizes))
-	for i, s := range blobSizes {
-		size[i] = uint32(s)
-	}
-
+func estimateGas(msg *blob.MsgPayForBlobs, useFeegrant bool) uint64 {
 	// account for the extra gas required to pay for the fee granter
 	extra := uint64(0)
 	if useFeegrant {
 		extra = 12000
 	}
 
-	return blob.DefaultEstimateGas(size) + extra
+	return blob.DefaultEstimateGas(msg) + extra
 }

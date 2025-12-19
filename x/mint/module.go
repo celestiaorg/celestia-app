@@ -35,8 +35,7 @@ type AppModule struct {
 	authKeeper types.AccountKeeper
 }
 
-// NewAppModule creates a new AppModule object. If the InflationCalculationFn
-// argument is nil, then the SDK's default inflation function will be used.
+// NewAppModule creates a new AppModule object.
 func NewAppModule(cdc codec.Codec, keeper keeper.Keeper, ak types.AccountKeeper) AppModule {
 	return AppModule{
 		cdc:        cdc,

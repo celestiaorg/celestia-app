@@ -148,7 +148,7 @@ enum CommitFlag : uint8_t {
 
 ## Serialization
 
-Objects that are committed to or signed over require a canonical serialization. This is done using a deterministic (and thus, bijective) variant of protobuf defined [here](https://github.com/cosmos/cosmos-sdk/blob/master/docs/architecture/adr-027-deterministic-protobuf-serialization.md).
+Objects that are committed to or signed over require a canonical serialization. This is done using a deterministic (and thus, bijective) variant of protobuf defined [here](https://github.com/cosmos/cosmos-sdk/blob/d48854eeb750b3441f866b610b873bba54d00a85/docs/architecture/adr-027-deterministic-protobuf-serialization.md).
 
 Note: there are two requirements for a serialization scheme, should this need to be changed:
 
@@ -159,10 +159,10 @@ Note: there are two requirements for a serialization scheme, should this need to
 
 <!-- disable markdown link check for doi.org because it frequently fails -->
 <!-- markdown-link-check-disable -->
-All protocol-level hashing is done using SHA-2-256 as defined in [FIPS 180-4](https://doi.org/10.6028/NIST.FIPS.180-4). SHA-2-256 outputs a digest that is 256 bits (i.e. 32 bytes) long.
+All protocol-level hashing is done using SHA-2-256 as defined in [FIPS 180-4](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf). SHA-2-256 outputs a digest that is 256 bits (i.e. 32 bytes) long.
 <!-- markdown-link-check-enable -->
 
-Libraries implementing SHA-2-256 are available in Go (<https://pkg.go.dev/crypto/sha256>) and Rust (<https://docs.rs/sha2>).
+Libraries implementing SHA-2-256 are available in Go (<https://pkg.go.dev/crypto/sha256>) and Rust (<https://docs.rs/sha2/latest/sha2/>).
 
 Unless otherwise indicated explicitly, objects are first [serialized](#serialization) before being hashed.
 
@@ -172,7 +172,7 @@ Merkle trees are used to authenticate various pieces of data across the Celestia
 
 ### Binary Merkle Tree
 
-Binary Merkle trees are constructed in the same fashion as described in [Certificate Transparency (RFC-6962)](https://tools.ietf.org/html/rfc6962), except for using [a different hashing function](#hashing). Leaves are hashed once to get leaf node values and internal node values are the hash of the concatenation of their children (either leaf nodes or other internal nodes).
+Binary Merkle trees are constructed in the same fashion as described in [Certificate Transparency (RFC-6962)](https://datatracker.ietf.org/doc/html/rfc6962), except for using [a different hashing function](#hashing). Leaves are hashed once to get leaf node values and internal node values are the hash of the concatenation of their children (either leaf nodes or other internal nodes).
 
 Nodes contain a single field:
 
@@ -198,7 +198,7 @@ For internal node `node` with children `l` and `r`:
 node.v = h(0x01, l.v, r.v)
 ```
 
-Note that rather than duplicating the last node if there are an odd number of nodes (the [Bitcoin design](https://github.com/bitcoin/bitcoin/blob/5961b23898ee7c0af2626c46d5d70e80136578d3/src/consensus/merkle.cpp#L9-L43)), trees are allowed to be imbalanced. In other words, the height of each leaf may be different. For an example, see Section 2.1.3 of [Certificate Transparency (RFC-6962)](https://tools.ietf.org/html/rfc6962#section-2.1.3).
+Note that rather than duplicating the last node if there are an odd number of nodes (the [Bitcoin design](https://github.com/bitcoin/bitcoin/blob/5961b23898ee7c0af2626c46d5d70e80136578d3/src/consensus/merkle.cpp#L9-L43)), trees are allowed to be imbalanced. In other words, the height of each leaf may be different. For an example, see Section 2.1.3 of [Certificate Transparency (RFC-6962)](https://datatracker.ietf.org/doc/html/rfc6962#section-2.1.3).
 
 Leaves and internal nodes are hashed differently: the one-byte `0x00` is prepended for leaf nodes while `0x01` is prepended for internal nodes. This avoids a second-preimage attack [where internal nodes are presented as leaves](https://en.wikipedia.org/wiki/Merkle_tree#Second_preimage_attack) trees with leaves at different heights.
 
@@ -208,7 +208,7 @@ Leaves and internal nodes are hashed differently: the one-byte `0x00` is prepend
 |------------|-------------------------------|-----------------------------------------------------------------|
 | `siblings` | [HashDigest](#hashdigest)`[]` | Sibling hash values, ordered starting from the leaf's neighbor. |
 
-A proof for a leaf in a [binary Merkle tree](#binary-merkle-tree), as per Section 2.1.1 of [Certificate Transparency (RFC-6962)](https://tools.ietf.org/html/rfc6962#section-2.1.1).
+A proof for a leaf in a [binary Merkle tree](#binary-merkle-tree), as per Section 2.1.1 of [Certificate Transparency (RFC-6962)](https://datatracker.ietf.org/doc/html/rfc6962#section-2.1.1).
 
 ### Namespace Merkle Tree
 
