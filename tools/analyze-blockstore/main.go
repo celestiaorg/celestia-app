@@ -194,10 +194,10 @@ func checkBlockParts(bs *store.BlockStore, height int64, verbose bool) {
 func countBlockParts(db dbm.DB, base, height int64, verbose bool) {
 	// Iterate through database to count block part keys
 	// Block part keys have format: P:{height}:{partIndex}
-	
+
 	partCounts := make(map[int64]int)
 	totalParts := 0
-	
+
 	iter, err := db.Iterator(nil, nil)
 	if err != nil {
 		fmt.Printf("⚠️  Could not iterate database: %v\n", err)
@@ -208,7 +208,7 @@ func countBlockParts(db dbm.DB, base, height int64, verbose bool) {
 	for iter.Valid() {
 		key := iter.Key()
 		keyStr := string(key)
-		
+
 		// Check if this is a block part key (format: P:{height}:{index})
 		if strings.HasPrefix(keyStr, "P:") {
 			// Parse height from key
@@ -222,7 +222,7 @@ func countBlockParts(db dbm.DB, base, height int64, verbose bool) {
 				}
 			}
 		}
-		
+
 		iter.Next()
 	}
 
@@ -232,15 +232,15 @@ func countBlockParts(db dbm.DB, base, height int64, verbose bool) {
 	}
 
 	fmt.Printf("Total block parts found in database: %d\n", totalParts)
-	
+
 	if base > 0 {
 		expectedMinHeight := base
 		expectedMaxHeight := height
-		
+
 		// Count parts by height range
 		partsInRange := 0
 		partsBelowBase := 0
-		
+
 		for h, count := range partCounts {
 			if h >= expectedMinHeight && h <= expectedMaxHeight {
 				partsInRange += count
@@ -248,7 +248,7 @@ func countBlockParts(db dbm.DB, base, height int64, verbose bool) {
 				partsBelowBase += count
 			}
 		}
-		
+
 		fmt.Printf("\nParts in expected range [%d, %d]: %d\n", expectedMinHeight, expectedMaxHeight, partsInRange)
 		if partsBelowBase > 0 {
 			fmt.Printf("⚠️  Parts below base height (%d): %d (should be 0 if pruning worked)\n", base, partsBelowBase)
@@ -271,4 +271,3 @@ func countBlockParts(db dbm.DB, base, height int64, verbose bool) {
 		}
 	}
 }
-

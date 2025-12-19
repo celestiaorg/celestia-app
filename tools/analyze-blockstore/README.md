@@ -177,4 +177,3 @@ fi
 
 - [BLOCKSTORE_INVESTIGATION.md](../../BLOCKSTORE_INVESTIGATION.md) - Detailed investigation of blockstore contents
 - [min-retain-blocks configuration](../../docs/configuration.md) - How to configure pruning
-
