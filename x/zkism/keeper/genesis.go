@@ -8,6 +8,7 @@ import (
 	"cosmossdk.io/collections"
 	errorsmod "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
+	"github.com/cosmos/cosmos-sdk/types/query"
 )
 
 // InitGenesis initialises the module genesis state.
@@ -18,23 +19,24 @@ func (k *Keeper) InitGenesis(ctx context.Context, gs *types.GenesisState) error 
 		}
 	}
 
-	for _, genesisMessages := range gs.Messages {
-		exists, err := k.isms.Has(ctx, genesisMessages.Id.GetInternalId())
+	for _, messages := range gs.Messages {
+		ismId := messages.Id
+		exists, err := k.isms.Has(ctx, ismId.GetInternalId())
 		if err != nil {
 			return err
 		}
 
 		if !exists {
-			return errorsmod.Wrapf(types.ErrIsmNotFound, "messages defined for unknown ism %s", genesisMessages.Id.String())
+			return errorsmod.Wrapf(types.ErrIsmNotFound, "messages defined for unknown ism %s", ismId.String())
 		}
 
-		for _, message := range genesisMessages.Messages {
-			messageId, err := types.DecodeHex(message)
+		for _, msg := range messages.Messages {
+			messageId, err := types.DecodeHex(msg)
 			if err != nil {
-				return fmt.Errorf("invalid message id %q: %w", message, err)
+				return fmt.Errorf("invalid message id %q: %w", msg, err)
 			}
 
-			if err := k.messages.Set(ctx, collections.Join(genesisMessages.Id.GetInternalId(), messageId)); err != nil {
+			if err := k.messages.Set(ctx, collections.Join(ismId.GetInternalId(), messageId)); err != nil {
 				return err
 			}
 		}
@@ -53,32 +55,32 @@ func (k *Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error)
 		return nil, err
 	}
 
-	messageIndex := make(map[uint64]*types.GenesisMessages, len(isms))
-	for _, ism := range isms {
-		ismCopy := ism
-		messageIndex[ism.Id.GetInternalId()] = &types.GenesisMessages{Id: ismCopy.Id}
+	genesisMessages := make([]types.GenesisMessages, 0, len(isms))
+	transform := func(key collections.Pair[uint64, []byte], _ collections.NoValue) (string, error) {
+		return types.EncodeHex(key.K2()), nil
 	}
 
-	if err := k.messages.Walk(ctx, nil, func(key collections.Pair[uint64, []byte]) (bool, error) {
-		genesisMessages, ok := messageIndex[key.K1()]
-		if !ok {
-			return false, errorsmod.Wrapf(types.ErrIsmNotFound, "messages found for unknown ism internal id %d", key.K1())
+	for _, ism := range isms {
+		msgs, _, err := query.CollectionPaginate(
+			ctx,
+			k.messages,
+			nil,
+			transform,
+			query.WithCollectionPaginationPairPrefix[uint64, []byte](ism.Id.GetInternalId()),
+		)
+		if err != nil {
+			return nil, errorsmod.Wrapf(err, "collecting messages for ism %s", ism.Id.String())
 		}
 
-		genesisMessages.Messages = append(genesisMessages.Messages, types.EncodeHex(key.K2()))
-		return false, nil
-	}); err != nil {
-		return nil, err
-	}
-
-	genesisMessages := make([]types.GenesisMessages, 0, len(messageIndex))
-	for _, messages := range messageIndex {
-		sort.Strings(messages.Messages)
-		if len(messages.Messages) == 0 {
+		if len(msgs) == 0 {
 			continue
 		}
 
-		genesisMessages = append(genesisMessages, *messages)
+		sort.Strings(msgs)
+		genesisMessages = append(genesisMessages, types.GenesisMessages{
+			Id:       ism.Id,
+			Messages: msgs,
+		})
 	}
 
 	sort.Slice(genesisMessages, func(i, j int) bool {
