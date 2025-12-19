@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"cosmossdk.io/log"
+	appmetrics "github.com/celestiaorg/celestia-app/v6/app/metrics"
 	"github.com/celestiaorg/celestia-app/v6/multiplexer/internal"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
@@ -124,6 +125,12 @@ func (m *Multiplexer) Start() error {
 	m.g, m.ctx = getCtx(m.svrCtx, true)
 
 	emitServerInfoMetrics()
+
+	// Initialize disk space metrics
+	if err := appmetrics.InitDiskSpaceMetrics(m.svrCtx.Config.RootDir, m.logger); err != nil {
+		m.logger.Error("Failed to initialize disk space metrics", "error", err)
+		// Don't fail startup if metrics initialization fails
+	}
 
 	// startApp starts the underlying application, either native or embedded.
 	if err := m.startApp(); err != nil {

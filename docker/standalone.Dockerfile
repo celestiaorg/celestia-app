@@ -71,6 +71,8 @@ RUN apk update && apk add --no-cache \
 COPY --from=builder /celestia-app/build/celestia-appd /bin/celestia-appd
 # Copy the entrypoint script into the final image.
 COPY --chown=${USER_NAME}:${USER_NAME} docker/entrypoint.sh /opt/entrypoint.sh
+# Copy the initialization script into the final image.
+COPY --chown=${USER_NAME}:${USER_NAME} docker/init-mainnet.sh /opt/init-mainnet.sh
 # Set the user to celestia.
 USER ${USER_NAME}
 # Set the working directory to the home directory.

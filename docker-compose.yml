@@ -1,0 +1,63 @@
+services:
+  celestia-app:
+    # build:
+    #   context: .
+    #   dockerfile: docker/standalone.Dockerfile
+    image: celestiaorg/celestia-app:latest
+    container_name: celestia-app
+    restart: unless-stopped
+    ports:
+      - "26657:26657"  # RPC
+      - "26660:26660"  # Prometheus metrics
+    volumes:
+      - celestia-app-data:/home/celestia/.celestia-app
+    networks:
+      - monitoring
+    environment:
+      - CELESTIA_APP_HOME=/home/celestia/.celestia-app
+    command: ["start"]
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - monitoring
+    depends_on:
+      - prometheus
+
+volumes:
+  celestia-app-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  monitoring:
+    driver: bridge
