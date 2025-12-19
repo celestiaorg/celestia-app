@@ -11,5 +11,17 @@ option go_package = "github.com/celestiaorg/celestia-app/x/zkism/types";
 message GenesisState {
   // list of zk execution isms.
   repeated InterchainSecurityModule isms = 1 [(gogoproto.nullable) = false];
-  // TODO: add messages to genesis state
+  // messages authorized for each zk execution ism.
+  repeated GenesisMessages messages = 2 [(gogoproto.nullable) = false];
+}
+
+// GenesisMessages contains the authorized Hyperlane message IDs for a zk execution ism.
+message GenesisMessages {
+  // ism identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // list of authorized message ids
+  repeated string messages = 2;
 }
