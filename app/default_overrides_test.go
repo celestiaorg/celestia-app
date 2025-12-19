@@ -55,6 +55,7 @@ func TestDefaultAppConfig(t *testing.T) {
 	assert.Equal(t, "", cfg.MinGasPrices)
 
 	assert.Equal(t, appconsts.DefaultUpperBoundMaxBytes*2, cfg.GRPC.MaxRecvMsgSize)
+	assert.Equal(t, uint64(3000), cfg.MinRetainBlocks)
 }
 
 func TestDefaultConsensusConfig(t *testing.T) {
@@ -94,8 +95,8 @@ func TestDefaultConsensusConfig(t *testing.T) {
 
 	t.Run("p2p overrides", func(t *testing.T) {
 		const mebibyte = 1048576
-		assert.Equal(t, int64(24*mebibyte), got.P2P.SendRate)
-		assert.Equal(t, int64(24*mebibyte), got.P2P.RecvRate)
+		assert.Equal(t, int64(100*mebibyte), got.P2P.SendRate)
+		assert.Equal(t, int64(100*mebibyte), got.P2P.RecvRate)
 	})
 }
 
