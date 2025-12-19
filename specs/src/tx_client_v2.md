@@ -10,7 +10,7 @@ Tx Client v2 enforces a per-account sequential submission queue that serializes 
 
 Every account gets its own **transaction queue**.
 
-This queue is in charge of everything for that account: taking new transactions(jobs), broadcasting them in submission order, reporting outcomes.
+This queue is in charge of everything for that account: taking new transactions, broadcasting them in submission order, reporting outcomes.
 
 Inside the queue we keep two kinds of transactions:
 
@@ -19,15 +19,12 @@ Inside the queue we keep two kinds of transactions:
 
 ---
 
-### Broadcast and Confirmation loops
+### Broadcast and Confirmation
 
-Each queue runs two background loops:
+Each queue handles two concurrent operations:
 
-1. **A submitter**
-    - Picks the next queued tx, signs it, broadcasts it to the node.
-    - Listens for evicted transactions reported by the monitor and resubmits them.
-2. **A monitor**
-    Checks the statuses of pending txs and knows how to manage evictions/rejections/confirmations.
+1. **Submission**: Transactions are signed and broadcast in order. Evicted transactions are resubmitted.
+2. **Monitoring**: Transaction statuses are polled and processed (evictions, rejections, confirmations).
 
 **note** The number of submission and monitor workers should be bounded to a fixed number since the number or signers can potentially scale.
 
@@ -35,105 +32,79 @@ Each queue runs two background loops:
 
 ### Submission flow
 
-1. Accepting a transaction(job)
+**Accepting transactions**
 
-When a user submits a transaction (e.g. via `SubmitPayForBlobToQueue`):
+When a user submits a transaction:
 
-- Tx is wrapped in a job containing:
-  - transaction data
-  - user options
-  - context
-  - a result channel
-- The queue enforces memory based backpressure:
-  - If sufficient memory is available, the job is appended to the queue
-  - If queue exceeds its memory limit, submission blocks until memory is freed or a timeout is reached. If the timeout expires, an error is returned to the user.
-  - The client allows users to configure the queue size limit during initialization.
-- Nothing gets signed yet.
-- No network operations are performed.
-- User will receive tx result asynchronously via the result channel.
+- The transaction is queued with its options and context
+- Memory based backpressure is enforced:
+  - If memory is available, transaction is accepted
+  - If memory limit is exceeded, the submission will block until memory is freed or a timeout expires
+  - On timeout an error will be returned
+- Transactions are not signed or broadcast at submission time
+- Results are delivered asynchronously
 
-1. Selecting the next transaction to broadcast
+**Broadcasting transactions**
 
-The submitter processes transactions strictly in submission order:
+Transactions have to be broadcast strictly in submission order:
 
-- Submission proceeds only if the queue is not in recovery mode.
-- The next unbroadcast transaction is selected.
-- The transaction is built and signed using the next sequence number.
-- The transaction is broadcast to the node.
+- Broadcasting is blocked when the queue is in recovery mode
+- Each transaction is signed with the next sequence number before broadcast
+- On successful broadcast, the transaction becomes pending
 
-If broadcast succeeds:
+**Handling broadcast failures**
 
-- Tx hash, sequence, and signed bytes are recorded directly on the queued tx.
-- Tx is now considered pending.
+Sequence mismatch:
 
-If broadcast fails due to a sequence mismatch:
+Sequence mismatches during broadcast are treated as coordination signals not terminal errors. We should wait for the confirmation loop to recover.
 
-- Submitter pauses further submissions.
-- Job remains in the queue.
-- Waits for confirmation/recovery logic to unblock submissions.
+- Further submissions must be paused
+- The transaction remains queued
+- Broadcasting resumes after recovery completes
+- Sequence mismatches are treated as temporary coordination signals, not terminal errors **UNLESS**
+  - Expected sequence is higher than expected which suggests that a user submitted a tx for the signer outside of tx client.
+  - Parse the expected sequence and bubble it up as an error to the user indicating that node needs to be restarted.
 
-Sequence mismatches during broadcast are treated as coordination signals not terminal errors. If client remains blocked for longer than a minute, then it's possible to parse expected sequence from the error message and resign as recovery mech.
+Other failures:
 
-If broadcast fails for any other reason:
+- The transaction must be removed from the queue
+- An error must be returned to the user
 
-- Tx is removed from the queue.
-- An error is returned to the user via the result channel.
+**Transaction statuses**
 
-### Phase 2: Confirmation
+In order to confirm transactions, it is required to submit **batch queries** for the status of a bounded number of pending transactions using the `tx_status_batch` RPC method. This returns all transaction statuses in a single call, allowing the client to easily determine which transactions need to be resubmitted and in what order, without dealing with partial or stale data.
 
-Confirmation runs asynchronously at a configurable polling interval.
+**Pending**: No action required.
 
-The monitor periodically **batch queries** the status of a bounded number of pending transactions using the `tx_status_batch` RPC method. This returns all transaction statuses in one call, so the client can easily determine which transactions need to be resubmitted and in what order, without dealing with partial or stale data.
+**Committed**:
 
-There are four distinct statuses:
+- The transaction was included in a block
+- User receives a `TxResponse` with height, hash, code, gas usage, and signers
+- Transaction is removed from the queue
 
-1. Pending
+**Committed with execution error**:
 
-- No action needed
-- Move to the next
+- Transaction is removed from the queue
+- User receives an error with the execution code and log
 
-1. Committed
+**Evicted**:
 
-- The tx was included in a block.
-- The user receives a `TxResponse` populated with execution and metadata returned by the chain (e.g. height, hash, execution code, gas usage, and signers).
-- The tx is removed from the queue.
+- Queue enters recovery mode to block new broadcasts
+- Transaction must be resubmitted using the original signed bytes (never resigned)
+- Transaction remains pending after resubmission
+- Recovery mode must be exited after resubmission
+- Broadcasting resumes
 
-If execution failed:
+**Rejected**:
 
-- The tx is removed from the queue.
-- The user receives a execution error containing the error code and log.
+- Queue must enter recovery mode
+- Sequence number must be rolled back to the rejected transaction's sequence
+- If multiple consecutive rejections occur, rollback must occur only once to the first rejected sequence
+- Transaction is removed from the queue
+- User receives a rejection error with code and log
+- After sequence rollback, recovery mode exits and broadcasting resumes
 
-1. Evicted
-
-- Queue enters recovery mode, preventing new transactions from being broadcast.
-- Evicted tx is marked as being resubmitted to avoid duplicate attempts.
-- Tx is sent to an internal resubmission channel, which is handled by the queue's coordinator that also handles submissions.
-
-Resubmission behavior:
-
-- Tx is re-broadcast using the same signed tx bytes.
-- Tx is **never** resigned.
-- Resubmitted tx remains as pending in queue.
-- Recovery mode is exited.
-- Broadcasting unblocks.
-
-1. Rejected
-
-Sequence recovery:
-A rejected transaction means the node will be expecting a lower sequence for this account. To unblock submissions the client must update its local sequence to match the node.
-
-- Queue enters recovery mode to prevent further submissions.
-- The sequence number is rolled back to the sequence used by the rejected transaction **only if the tx before was not also rejected.**
-- If multiple transactions are rejected consecutively, the sequence is rolled back exactly once, to the sequence of the first rejected transaction.
-- Tx is removed from the queue.
-- User receives a rejection error containing the execution code and error log.
-
-After recovery:
-
-- Queue exits recovery mode.
-- Broadcasting may resume.
-
-1. Unknown/Not Found
+**Unknown**
 
 Tx is neither evicted nor rejected or confirmed. Return error to the user that tx is unknown.
 
