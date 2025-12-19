@@ -21,12 +21,10 @@ Inside the queue we keep two kinds of transactions:
 
 ### Broadcast and Confirmation
 
-Each queue handles two concurrent operations:
+Each queue handles two main responsibilities:
 
 1. **Submission**: Transactions are signed and broadcast in order. Evicted transactions are resubmitted.
-2. **Monitoring**: Transaction statuses are polled and processed (evictions, rejections, confirmations).
-
-**note** The number of submission and monitor workers should be bounded to a fixed number since the number or signers can potentially scale.
+2. **Monitoring**: Transaction statuses are polled and processed, evictions are reported for resubmission.
 
 ---
 
