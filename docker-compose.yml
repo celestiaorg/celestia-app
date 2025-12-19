@@ -1,9 +1,9 @@
 services:
   celestia-app:
-    # build:
-    #   context: .
-    #   dockerfile: docker/standalone.Dockerfile
-    image: celestiaorg/celestia-app:latest
+    build:
+      context: .
+      dockerfile: docker/standalone.Dockerfile
+    # image: celestiaorg/celestia-app:latest
     container_name: celestia-app
     restart: unless-stopped
     ports:
@@ -15,7 +15,7 @@ services:
       - monitoring
     environment:
       - CELESTIA_APP_HOME=/home/celestia/.celestia-app
-    command: ["start"]
+    command: ["start", "--force-no-bbr"]
 
   prometheus:
     image: prom/prometheus:latest

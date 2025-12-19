@@ -21,7 +21,10 @@ echo ""
 # Initialize config files if they don't exist
 if [ ! -f "${CELESTIA_APP_HOME}/config/config.toml" ]; then
     echo "Initializing config files..."
-    celestia-appd init ${NODE_NAME} --chain-id ${CHAIN_ID} --home ${CELESTIA_APP_HOME} > /dev/null 2>&1
+    if ! celestia-appd init ${NODE_NAME} --chain-id ${CHAIN_ID} --home ${CELESTIA_APP_HOME} > /dev/null 2>&1; then
+        echo "ERROR: Failed to initialize config files!"
+        exit 1
+    fi
 fi
 
 echo "Setting seeds in config.toml..."
@@ -29,8 +32,16 @@ sed -i.bak -e "s/^seeds *=.*/seeds = \"$SEEDS\"/" ${CELESTIA_APP_HOME}/config/co
 
 echo "Fetching state sync parameters..."
 LATEST_HEIGHT=$(curl -s $RPC/block | jq -r .result.block.header.height)
+if [ -z "$LATEST_HEIGHT" ] || [ "$LATEST_HEIGHT" = "null" ]; then
+    echo "ERROR: Failed to fetch latest block height from RPC!"
+    exit 1
+fi
 BLOCK_HEIGHT=$((LATEST_HEIGHT - 2000))
 TRUST_HASH=$(curl -s "$RPC/block?height=$BLOCK_HEIGHT" | jq -r .result.block_id.hash)
+if [ -z "$TRUST_HASH" ] || [ "$TRUST_HASH" = "null" ]; then
+    echo "ERROR: Failed to fetch trust hash from RPC!"
+    exit 1
+fi
 
 echo "Block height: $BLOCK_HEIGHT"
 echo "Trust hash: $TRUST_HASH"
@@ -58,7 +69,16 @@ else
 fi
 
 echo "Downloading genesis file..."
-celestia-appd download-genesis ${CHAIN_ID} --home ${CELESTIA_APP_HOME} > /dev/null 2>&1
+if ! celestia-appd download-genesis ${CHAIN_ID} --home ${CELESTIA_APP_HOME}; then
+    echo "ERROR: Failed to download genesis file!"
+    exit 1
+fi
+
+# Verify genesis file exists
+if [ ! -f "${CELESTIA_APP_HOME}/config/genesis.json" ]; then
+    echo "ERROR: Genesis file was not downloaded successfully!"
+    exit 1
+fi
 
 echo "Initialization complete!"
 echo ""
