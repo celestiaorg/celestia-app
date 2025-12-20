@@ -6,6 +6,9 @@ build
 coverage.txt
 .idea
 .vscode
+.exp
+exp
+tools/lumina-latency-monitor/target
 tools-stamp
 __debug_bin*
 profile.out

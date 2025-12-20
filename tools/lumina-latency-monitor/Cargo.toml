@@ -4,9 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-celestia-grpc = { version = "0.9.0", features = ["tls-ring"] }
-celestia-types = "0.17.0"
+celestia-grpc = { git = "https://github.com/fl0rek/celestia-node-rs", branch = "lumina-grpc-split", features = ["tls-ring"] }
+celestia-types = { git = "https://github.com/fl0rek/celestia-node-rs", branch = "lumina-grpc-split" }
 tokio = { version = "1.42", features = ["macros", "rt", "rt-multi-thread", "signal"] }
+futures = "0.3"
 rand = "0.8.5"
 hex = "0.4.3"
 anyhow = "1.0"

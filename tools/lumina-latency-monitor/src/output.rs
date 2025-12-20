@@ -33,6 +33,7 @@ fn write_csv_header<W: std::io::Write>(writer: &mut csv::Writer<W>) -> Result<()
         "Latency (ms)",
         "Tx Hash",
         "Height",
+        "Code",
         "Failed",
         "Error",
     ])?;
@@ -52,6 +53,7 @@ fn write_csv_row<W: std::io::Write>(writer: &mut csv::Writer<W>, result: &TxResu
         latency_str,
         result.tx_hash.clone(),
         result.height.to_string(),
+        result.code.to_string(),
         result.failed.to_string(),
         result.error_msg.clone(),
     ])?;

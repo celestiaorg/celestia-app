@@ -32,18 +32,22 @@ async fn main() -> anyhow::Result<()> {
 
     println!("Submitting transactions...");
 
-    let loop_handle = tokio::spawn(run_submission_loop(
+    let shutdown_for_signal = shutdown.clone();
+    tokio::spawn(async move {
+        if wait_for_shutdown().await.is_ok() {
+            shutdown_for_signal.notify_one();
+        }
+    });
+
+    run_submission_loop(
         client.clone(),
         config.clone(),
         results.clone(),
         shutdown.clone(),
-    ));
-
-    wait_for_shutdown().await?;
-    shutdown.notify_one();
+    )
+    .await;
 
     println!("\nStopping...");
-    let _ = loop_handle.await;
 
     if !config.disable_metrics {
         let results = results.lock().await;
