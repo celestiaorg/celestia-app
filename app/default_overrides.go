@@ -300,6 +300,8 @@ func DefaultAppConfig() *serverconfig.Config {
 	// snapshots to nodes that state sync
 	cfg.StateSync.SnapshotInterval = 1500
 	cfg.StateSync.SnapshotKeepRecent = 2
+	// Set the MinRetainBlocks to 3000 blocks so that all blocks in the snapshot window are retained.
+	cfg.MinRetainBlocks = 3000
 	// this is set to an empty string. As an empty string, the binary will use
 	// the hardcoded default gas price. To override this, the user must set the
 	// minimum gas prices in the app.toml file.
