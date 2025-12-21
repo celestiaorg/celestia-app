@@ -4,7 +4,7 @@ This package provides a simple metrics stack for Celestia nodes using Prometheus
 
 ## Architecture
 
-```
+```text
 ┌─────────────────┐   scrape (26660)   ┌─────────────────┐
 │  Celestia Node  │ ─────────────────► │   Prometheus    │
 │  (port 26660)   │                    │  (port 9090)    │
@@ -28,6 +28,7 @@ talis init --chainID my-chain --experiment test --with-metrics
 ```
 
 This:
+
 - Adds a metrics node to the configuration
 - Enables Prometheus metrics endpoint (port 26660) on all validator nodes
 
@@ -45,6 +46,7 @@ talis genesis --metrics-dir /path/to/celestia-app/metrics -b build
 ```
 
 The `--metrics-dir` flag points to this directory. During genesis, Talis:
+
 - Copies the docker-compose stack and scripts to the payload
 - Generates `targets.json` from the configured validator IPs
 
@@ -56,7 +58,7 @@ talis deploy
 
 After deployment completes, Talis prints the Grafana URL and credentials:
 
-```
+```text
 Grafana available at:
   http://<metrics-node-ip>:3000  (credentials: admin/<random-password>)
 ```

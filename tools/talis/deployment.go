@@ -193,9 +193,9 @@ func readGrafanaPassword(rootDir string) string {
 		return "admin" // fallback to default
 	}
 	// Parse GRAFANA_PASSWORD=<password> from .env
-	for _, line := range strings.Split(string(data), "\n") {
-		if strings.HasPrefix(line, "GRAFANA_PASSWORD=") {
-			return strings.TrimPrefix(line, "GRAFANA_PASSWORD=")
+	for line := range strings.SplitSeq(string(data), "\n") {
+		if password, found := strings.CutPrefix(line, "GRAFANA_PASSWORD="); found {
+			return password
 		}
 	}
 	return "admin" // fallback to default

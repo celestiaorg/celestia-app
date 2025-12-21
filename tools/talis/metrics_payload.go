@@ -9,8 +9,10 @@ import (
 	"path/filepath"
 )
 
-const defaultMetricsPort = 26660
-const grafanaPasswordLength = 16
+const (
+	defaultMetricsPort    = 26660
+	grafanaPasswordLength = 16
+)
 
 // generateGrafanaPassword generates a random alphanumeric password.
 func generateGrafanaPassword() (string, error) {
