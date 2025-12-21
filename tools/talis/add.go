@@ -41,6 +41,17 @@ func addCmd() *cobra.Command {
 						return fmt.Errorf("unknown provider %q (supported: digitalocean, googlecloud)", provider)
 					}
 				}
+			case "metrics":
+				for i := 0; i < count; i++ {
+					switch provider {
+					case "digitalocean":
+						cfg = cfg.WithDigitalOceanMetrics(region)
+					case "googlecloud":
+						cfg = cfg.WithGoogleCloudMetrics(region)
+					default:
+						return fmt.Errorf("unknown provider %q (supported: digitalocean, googlecloud)", provider)
+					}
+				}
 			case "bridge":
 				log.Println("bridges are not yet supported")
 				return nil
@@ -58,7 +69,7 @@ func addCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory in which to initialize")
 	cmd.Flags().IntVarP(&count, "count", "c", 0, "Number of nodes to deploy")
 	_ = cmd.MarkFlagRequired("count")
-	cmd.Flags().StringVarP(&nodeType, "type", "t", "", "Type of the node (validator, bridge, light)")
+	cmd.Flags().StringVarP(&nodeType, "type", "t", "", "Type of the node (validator, bridge, light, metrics)")
 	_ = cmd.MarkFlagRequired("type")
 	cmd.Flags().StringVarP(&provider, "provider", "p", "digitalocean", "Provider for the node (digitalocean, googlecloud)")
 	cmd.Flags().StringVarP(&region, "region", "r", "random", "the region to deploy the instance in (random if blank)")

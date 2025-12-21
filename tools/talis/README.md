@@ -126,6 +126,8 @@ If we call:
 talis add -t validator -c 1
 ```
 
+`node-type` options: `validator`, `metrics` (bridges/lights are still not supported).
+
 we will see the config updated to:
 
 ```json

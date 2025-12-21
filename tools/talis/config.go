@@ -19,12 +19,15 @@ const (
 	Bridge NodeType = "bridge"
 	// Light represents a light node in the network.
 	Light NodeType = "light"
+	// Metrics represents a metrics node for Prometheus/Grafana.
+	Metrics NodeType = "metrics"
 )
 
 var (
-	valCount   = atomic.Uint32{}
-	nodeCount  = atomic.Uint32{}
-	lightCount = atomic.Uint32{}
+	valCount    = atomic.Uint32{}
+	nodeCount   = atomic.Uint32{}
+	lightCount  = atomic.Uint32{}
+	metricCount = atomic.Uint32{}
 )
 
 // NodeName returns the name of the node based on its type and index. The
@@ -39,6 +42,8 @@ func NodeName(nodeType NodeType) string {
 		index = int(nodeCount.Add(1)) - 1
 	case Light:
 		index = int(lightCount.Add(1)) - 1
+	case Metrics:
+		index = int(metricCount.Add(1)) - 1
 	default:
 		panic(fmt.Sprintf("unknown node type: %s", nodeType))
 	}
@@ -115,7 +120,7 @@ func ExperimentTag(nodeType NodeType, index int, experimentID, chainID string) s
 
 func GetExperimentTag(tags []string) string {
 	for _, tag := range tags {
-		if strings.HasPrefix(tag, "validator-") || strings.HasPrefix(tag, "bridge-") || strings.HasPrefix(tag, "light-") {
+		if strings.HasPrefix(tag, "validator-") || strings.HasPrefix(tag, "bridge-") || strings.HasPrefix(tag, "light-") || strings.HasPrefix(tag, "metrics-") {
 			return tag
 		}
 	}
@@ -127,6 +132,7 @@ type Config struct {
 	Validators []Instance `json:"validators"`
 	Bridges    []Instance `json:"bridges,omitempty"`
 	Lights     []Instance `json:"lights,omitempty"`
+	Metrics    []Instance `json:"metrics,omitempty"`
 
 	// ChainID is the chain ID of the network. This is used to identify the
 	// network and is also used as the chain ID of the network. It is
@@ -157,6 +163,7 @@ func NewConfig(experiment, chainID string) Config {
 		Validators: []Instance{},
 		Bridges:    []Instance{},
 		Lights:     []Instance{},
+		Metrics:    []Instance{},
 		Experiment: experiment,
 		ChainID:    TalisChainID(chainID),
 		S3Config: S3Config{
@@ -205,9 +212,21 @@ func (cfg Config) WithDigitalOceanValidator(region string) Config {
 	return cfg
 }
 
+func (cfg Config) WithDigitalOceanMetrics(region string) Config {
+	i := NewDigitalOceanMetrics(region).WithExperiment(cfg.Experiment, cfg.ChainID)
+	cfg.Metrics = append(cfg.Metrics, i)
+	return cfg
+}
+
 func (cfg Config) WithGoogleCloudValidator(region string) Config {
 	i := NewGoogleCloudValidator(region).WithExperiment(cfg.Experiment, cfg.ChainID)
 	cfg.Validators = append(cfg.Validators, i)
+	return cfg
+}
+
+func (cfg Config) WithGoogleCloudMetrics(region string) Config {
+	i := NewGoogleCloudMetrics(region).WithExperiment(cfg.Experiment, cfg.ChainID)
+	cfg.Metrics = append(cfg.Metrics, i)
 	return cfg
 }
 
@@ -277,6 +296,13 @@ func (c Config) UpdateInstance(name, publicIP, privateIP string) (Config, error)
 		if c.Lights[i].Name == name {
 			c.Lights[i].PublicIP = publicIP
 			c.Lights[i].PrivateIP = privateIP
+			return c, nil
+		}
+	}
+	for i := range c.Metrics {
+		if c.Metrics[i].Name == name {
+			c.Metrics[i].PublicIP = publicIP
+			c.Metrics[i].PrivateIP = privateIP
 			return c, nil
 		}
 	}

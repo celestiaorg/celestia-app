@@ -101,6 +101,10 @@ func generateCmd() *cobra.Command {
 				return fmt.Errorf("failed to write aws env: %w", err)
 			}
 
+			if err := stageMetricsPayload(cfg, rootDir, payloadDir); err != nil {
+				return fmt.Errorf("failed to stage metrics payload: %w", err)
+			}
+
 			return cfg.Save(rootDir)
 		},
 	}
