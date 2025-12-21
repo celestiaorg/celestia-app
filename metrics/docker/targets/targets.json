@@ -1,0 +1,13 @@
+[
+  {
+    "targets": ["validator-0:26660"],
+    "labels": {
+      "chain_id": "my-chain",
+      "experiment": "experiment-1",
+      "role": "validator",
+      "region": "local",
+      "provider": "manual",
+      "node_id": "validator-0"
+    }
+  }
+]

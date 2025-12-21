@@ -1,48 +1,27 @@
 # Metrics Package
 
-This package provides a metrics collection infrastructure for Celestia nodes, consisting of:
-
-1. **metrics-server** - A gRPC service that manages Prometheus scrape targets
-2. **Prometheus** - Time-series database for metrics storage
-3. **Grafana** - Dashboard visualization
+This package provides a simple metrics stack for Celestia nodes using Prometheus and Grafana with file-based target discovery.
 
 ## Architecture
 
 ```
-┌─────────────────┐     gRPC (register)      ┌─────────────────┐
-│  Celestia Node  │ ──────────────────────►  │  Metrics Server │
-│  (port 26660)   │                          │  (port 9900)    │
-└─────────────────┘                          └────────┬────────┘
-                                                      │
-                                                      │ writes
-                                                      ▼
-┌─────────────────┐     file_sd_configs      ┌─────────────────┐
-│   Prometheus    │ ◄─────────────────────── │  targets.json   │
-│  (internal)     │                          └─────────────────┘
-└────────┬────────┘
-         │ data source
-         ▼
-┌─────────────────┐
-│    Grafana      │ ◄──── Admin access (port 3000)
-│  (exposed)      │
-└─────────────────┘
+┌─────────────────┐   scrape (26660)   ┌─────────────────┐
+│  Celestia Node  │ ─────────────────► │   Prometheus    │
+│  (port 26660)   │                    │  (port 9090)    │
+└─────────────────┘                    └────────┬────────┘
+                                                │ data source
+                                                ▼
+                                          ┌─────────────┐
+                                          │   Grafana   │
+                                          │ (port 3000) │
+                                          └─────────────┘
 ```
+
+Prometheus discovers targets via a local `targets.json` file mounted into the container (`file_sd_configs`).
 
 ## Quick Start
 
-### 1. Start the metrics stack
-
-```bash
-cd metrics/docker
-docker-compose up -d
-```
-
-This starts:
-- **metrics-server** on port `9900` (gRPC for node registration)
-- **Prometheus** (internal, not exposed)
-- **Grafana** on port `3000` (dashboards)
-
-### 2. Enable Prometheus on Celestia nodes
+### 1. Enable Prometheus on Celestia nodes
 
 When initializing a Talis network, use the `--prometheus` flag:
 
@@ -52,23 +31,55 @@ talis init --chainID my-chain --experiment test --prometheus
 
 This enables the Prometheus metrics endpoint on port `26660` for all nodes.
 
-### 3. Register nodes with the metrics server
+### 2. Generate targets.json
 
-#### Register all nodes from a Talis deployment
+#### Option A: From Talis (recommended)
 
 ```bash
-talis metrics register-all --server localhost:9900 --directory /path/to/talis
+talis metrics export-targets \
+  --directory /path/to/talis \
+  --output metrics/docker/targets/targets.json
 ```
 
-#### Register a single node
+#### Option B: Manual (standalone)
+
+Edit `metrics/docker/targets/targets.json` to include your nodes:
+
+```json
+[
+  {
+    "targets": ["10.0.0.1:26660"],
+    "labels": {
+      "chain_id": "my-chain",
+      "experiment": "experiment-1",
+      "role": "validator",
+      "region": "us-east-1",
+      "provider": "manual",
+      "node_id": "validator-0"
+    }
+  }
+]
+```
+
+### 3. Start the metrics stack
 
 ```bash
-talis metrics register \
-  --server localhost:9900 \
-  --node-id validator-0 \
-  --address 10.0.0.1:26660 \
-  --label chain_id=my-chain \
-  --label role=validator
+cd metrics/docker
+docker compose up -d
+```
+
+This starts:
+- **Prometheus** on port `9090`
+- **Grafana** on port `3000`
+
+### Optional: use helper scripts
+
+```bash
+# Install Docker + Compose on a fresh Ubuntu host
+./metrics/install_prereqs.sh
+
+# Start Prometheus + Grafana from the bundled docker compose config
+./metrics/start_metrics.sh
 ```
 
 ### 4. View dashboards
@@ -78,45 +89,24 @@ Open Grafana at http://localhost:3000
 - Default credentials: `admin` / `admin` (or set via `GRAFANA_PASSWORD` env var)
 - Pre-configured dashboard: **Celestia Network**
 
-## Commands
-
-### Talis Metrics Commands
+## Talis Command
 
 ```bash
-# Register all nodes from deployment
-talis metrics register-all -s localhost:9900 -d /path/to/talis
-
-# Register a single node
-talis metrics register -s localhost:9900 -n validator-0 -a 10.0.0.1:26660
-
-# Deregister a node
-talis metrics deregister -s localhost:9900 -n validator-0
-
-# List all registered nodes
-talis metrics list -s localhost:9900
+# Export targets from a Talis deployment
+# (use --address-source private for internal networks)
+talis metrics export-targets -d /path/to/talis -o ./targets.json
 ```
 
-### Direct gRPC (using grpcurl)
+Flags:
+- `--address-source` (default: public) selects public or private IPs
+- `--port` (default: 26660) selects the metrics port
+- `--pretty` pretty-prints JSON output
 
-```bash
-# Register a node
-grpcurl -plaintext -d '{
-  "node_id": "validator-0",
-  "address": "10.0.0.1:26660",
-  "labels": {"chain_id": "my-chain", "role": "validator"}
-}' localhost:9900 metrics.v1.Registry/Register
+## Talis Metrics Node
 
-# List all targets
-grpcurl -plaintext localhost:9900 metrics.v1.Registry/ListTargets
-```
+If you add a metrics node with `talis add -t metrics`, `talis genesis` will stage the metrics payload (docker config, scripts, and generated targets) and `talis deploy` will install and start the stack on that node automatically.
 
 ## Configuration
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `GRAFANA_PASSWORD` | `admin` | Grafana admin password |
 
 ### Prometheus Scrape Interval
 
@@ -124,94 +114,21 @@ Edit `metrics/docker/prometheus/prometheus.yml` to adjust scrape settings:
 
 ```yaml
 global:
-  scrape_interval: 15s  # How often to scrape targets
+  scrape_interval: 15s
 
 scrape_configs:
   - job_name: 'celestia-nodes'
     file_sd_configs:
       - files:
           - /targets/targets.json
-        refresh_interval: 10s  # How often to check for new targets
-```
-
-## Go Client Library
-
-The `metrics/client` package provides a Go client for programmatic registration:
-
-```go
-import "github.com/celestiaorg/celestia-app/v6/metrics/client"
-
-// Connect to metrics server
-c, err := client.New("localhost:9900")
-if err != nil {
-    log.Fatal(err)
-}
-defer c.Close()
-
-// Register a node
-err = c.Register(ctx, "validator-0", "10.0.0.1:26660", map[string]string{
-    "chain_id": "my-chain",
-    "role": "validator",
-})
-
-// List all targets
-targets, err := c.ListTargets(ctx)
+        refresh_interval: 30s
 ```
 
 ## Security
 
-- **Prometheus** is internal only (no exposed ports)
+- **Prometheus** is exposed on port `9090` by default; remove the port mapping in `metrics/docker/docker-compose.yml` if you want it internal only.
 - **Grafana** requires authentication (port 3000)
-- **metrics-server** gRPC is exposed (port 9900) - consider mTLS for production
 
-## Development
+## Updating Targets
 
-### Build metrics-server binary
-
-```bash
-go build ./metrics/cmd/metrics-server
-```
-
-### Generate proto code
-
-```bash
-cd metrics/proto
-buf generate
-```
-
-### Run locally without Docker
-
-```bash
-# Start metrics-server
-./metrics-server --port 9900 --targets-file ./targets.json
-
-# Start Prometheus (pointing to targets.json)
-prometheus --config.file=metrics/docker/prometheus/prometheus.yml
-
-# Start Grafana
-# (requires provisioning setup)
-```
-
-## Dashboard Panels
-
-The pre-configured Celestia dashboard includes:
-
-### Overview
-- Block Height
-- Validators
-- Connected Peers
-- Mempool Size
-
-### Consensus
-- Block Rate (blocks/min)
-- Consensus Rounds
-- Block Interval
-- Block Size
-
-### Mempool
-- Mempool Size
-- Mempool Size (bytes)
-
-### P2P Network
-- Connected Peers
-- P2P Bandwidth (send/recv)
+Edit `metrics/docker/targets/targets.json` and Prometheus will pick up changes within `refresh_interval` (default: 30s).

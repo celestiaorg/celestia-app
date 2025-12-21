@@ -8,12 +8,12 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
-  # Scrape Celestia nodes registered via metrics-server
+  # Scrape Celestia nodes from file-based discovery
   - job_name: 'celestia-nodes'
     file_sd_configs:
       - files:
           - /targets/targets.json
-        refresh_interval: 10s
+        refresh_interval: 30s
     relabel_configs:
       # Use node_id as the instance label for better identification
       - source_labels: [node_id]
