@@ -122,12 +122,12 @@ func deployCmd() *cobra.Command {
 				if err := deployPayloadDirect(cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute, workers); err != nil {
 					return err
 				}
-				return deployMetricsIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, workers)
+				return deployMetricsIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload)
 			}
 			if err := deployPayloadViaS3(cmd.Context(), rootDir, cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute, cfg.S3Config, workers); err != nil {
 				return err
 			}
-			return deployMetricsIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, workers)
+			return deployMetricsIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload)
 		},
 	}
 
@@ -145,10 +145,12 @@ func deployCmd() *cobra.Command {
 	return cmd
 }
 
-func deployMetricsIfConfigured(ctx context.Context, cfg Config, rootDir, sshKeyPath string, directUpload bool, workers int) error {
+func deployMetricsIfConfigured(ctx context.Context, cfg Config, rootDir, sshKeyPath string, directUpload bool) error {
 	if len(cfg.Metrics) == 0 {
 		return nil
 	}
+
+	metricsNode := cfg.Metrics[0]
 
 	metricsTarPath := filepath.Join(rootDir, "metrics-payload.tar.gz")
 	log.Printf("Compressing metrics payload to %s\n", metricsTarPath)
@@ -158,30 +160,28 @@ func deployMetricsIfConfigured(ctx context.Context, cfg Config, rootDir, sshKeyP
 	}
 	log.Printf("✅ Metrics payload compressed to %s\n", metricsTarPath)
 
-	log.Printf("Sending metrics payload to metrics nodes...")
+	log.Printf("Sending metrics payload to metrics node...")
 	var err error
 	if directUpload {
-		err = deployMetricsPayloadDirect(cfg.Metrics, metricsTarPath, sshKeyPath, "/root", 15*time.Minute, workers)
+		err = deployMetricsPayloadDirect(metricsNode, metricsTarPath, sshKeyPath, "/root", 15*time.Minute)
 	} else {
-		err = deployMetricsPayloadViaS3(ctx, rootDir, cfg.Metrics, metricsTarPath, sshKeyPath, "/root", 15*time.Minute, cfg.S3Config, workers)
+		err = deployMetricsPayloadViaS3(ctx, rootDir, metricsNode, metricsTarPath, sshKeyPath, "/root", 15*time.Minute, cfg.S3Config)
 	}
 	if err != nil {
 		return err
 	}
 
-	printGrafanaInfo(cfg.Metrics, rootDir)
+	printGrafanaInfo(metricsNode, rootDir)
 	return nil
 }
 
 // printGrafanaInfo prints the Grafana URL and credentials after successful metrics deployment.
-func printGrafanaInfo(metricsNodes []Instance, rootDir string) {
+func printGrafanaInfo(node Instance, rootDir string) {
 	password := readGrafanaPassword(rootDir)
 
 	fmt.Println()
 	fmt.Println("Grafana available at:")
-	for _, node := range metricsNodes {
-		fmt.Printf("  http://%s:3000  (credentials: admin/%s)\n", node.PublicIP, password)
-	}
+	fmt.Printf("  http://%s:3000  (credentials: admin/%s)\n", node.PublicIP, password)
 	fmt.Println()
 }
 
@@ -377,105 +377,70 @@ func deployPayloadViaS3(
 	return nil
 }
 
-// deployMetricsPayloadDirect copies a metrics archive to each metrics host, unpacks it,
+// deployMetricsPayloadDirect copies a metrics archive to the metrics host, unpacks it,
 // installs prerequisites, and launches the metrics stack in a detached tmux session.
 func deployMetricsPayloadDirect(
-	ips []Instance,
+	inst Instance,
 	archivePath string,
 	sshKeyPath string,
 	remoteDir string,
 	timeout time.Duration,
-	workers int,
 ) error {
-	var wg sync.WaitGroup
-	errCh := make(chan error, len(ips))
 	archiveFile := path.Base(archivePath)
 
-	counter := atomic.Uint32{}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
 
-	workerChan := make(chan struct{}, workers)
-	for _, inst := range ips {
-		workerChan <- struct{}{}
-		wg.Add(1)
-		go func(inst Instance) {
-			defer func() {
-				<-workerChan
-				wg.Done()
-			}()
-			ctx, cancel := context.WithTimeout(context.Background(), timeout)
-			defer cancel()
-
-			scp := exec.CommandContext(ctx,
-				"scp",
-				"-i", sshKeyPath,
-				"-o", "StrictHostKeyChecking=no",
-				"-o", "UserKnownHostsFile=/dev/null",
-				archivePath,
-				fmt.Sprintf("root@%s:%s/", inst.PublicIP, remoteDir),
-			)
-			if out, err := scp.CombinedOutput(); err != nil {
-				errCh <- fmt.Errorf("[%s:%s] scp error in region %s: %v\n%s", inst.Name, inst.PublicIP, inst.Region, err, out)
-				return
-			}
-
-			log.Printf("sent metrics payload to instance 📦 %s: %s\n", inst.Name, inst.PublicIP)
-
-			remoteCmd := strings.Join([]string{
-				fmt.Sprintf("tar -xzf %s -C %s", filepath.Join(remoteDir, archiveFile), remoteDir),
-				fmt.Sprintf("chmod +x %s %s",
-					filepath.Join(remoteDir, "metrics/install_metrics.sh"),
-					filepath.Join(remoteDir, "metrics/start_metrics.sh"),
-				),
-				filepath.Join(remoteDir, "metrics/install_metrics.sh"),
-				"tmux has-session -t metrics && tmux kill-session -t metrics || true",
-				fmt.Sprintf("tmux new-session -d -s metrics '%s'", filepath.Join(remoteDir, "metrics/start_metrics.sh")),
-			}, " && ")
-
-			ssh := exec.CommandContext(ctx,
-				"ssh",
-				"-i", sshKeyPath,
-				"-o", "StrictHostKeyChecking=no",
-				"-o", "UserKnownHostsFile=/dev/null",
-				fmt.Sprintf("root@%s", inst.PublicIP),
-				remoteCmd,
-			)
-			if out, err := ssh.CombinedOutput(); err != nil {
-				errCh <- fmt.Errorf("[%s:%s] ssh error in region %s: %v\n%s", inst.Name, inst.PublicIP, inst.Region, err, out)
-				return
-			}
-			log.Printf("started metrics instance ✅ %s: %s (total %d/%d)\n", inst.Name, inst.PublicIP, counter.Add(1), len(ips))
-		}(inst)
+	scp := exec.CommandContext(ctx,
+		"scp",
+		"-i", sshKeyPath,
+		"-o", "StrictHostKeyChecking=no",
+		"-o", "UserKnownHostsFile=/dev/null",
+		archivePath,
+		fmt.Sprintf("root@%s:%s/", inst.PublicIP, remoteDir),
+	)
+	if out, err := scp.CombinedOutput(); err != nil {
+		return fmt.Errorf("[%s:%s] scp error in region %s: %v\n%s", inst.Name, inst.PublicIP, inst.Region, err, out)
 	}
 
-	wg.Wait()
-	close(errCh)
+	log.Printf("sent metrics payload to instance 📦 %s: %s\n", inst.Name, inst.PublicIP)
 
-	var errs []error //nolint:prealloc
-	for e := range errCh {
-		errs = append(errs, e)
+	remoteCmd := strings.Join([]string{
+		fmt.Sprintf("tar -xzf %s -C %s", filepath.Join(remoteDir, archiveFile), remoteDir),
+		fmt.Sprintf("chmod +x %s %s",
+			filepath.Join(remoteDir, "metrics/install_metrics.sh"),
+			filepath.Join(remoteDir, "metrics/start_metrics.sh"),
+		),
+		filepath.Join(remoteDir, "metrics/install_metrics.sh"),
+		filepath.Join(remoteDir, "metrics/start_metrics.sh"),
+	}, " && ")
+
+	ssh := exec.CommandContext(ctx,
+		"ssh",
+		"-i", sshKeyPath,
+		"-o", "StrictHostKeyChecking=no",
+		"-o", "UserKnownHostsFile=/dev/null",
+		fmt.Sprintf("root@%s", inst.PublicIP),
+		remoteCmd,
+	)
+	if out, err := ssh.CombinedOutput(); err != nil {
+		return fmt.Errorf("[%s:%s] ssh error in region %s: %v\n%s", inst.Name, inst.PublicIP, inst.Region, err, out)
 	}
-	if len(errs) > 0 {
-		var sb strings.Builder
-		sb.WriteString("metrics deployment errors:\n")
-		for _, e := range errs {
-			sb.WriteString("- " + e.Error() + "\n")
-		}
-		return errors.New(sb.String())
-	}
+	log.Printf("started metrics instance ✅ %s: %s\n", inst.Name, inst.PublicIP)
+
 	return nil
 }
 
-// deployMetricsPayloadViaS3 uploads the metrics payload to S3 first, then has each node download it.
+// deployMetricsPayloadViaS3 uploads the metrics payload to S3 first, then has the node download it.
 func deployMetricsPayloadViaS3(
 	ctx context.Context,
 	rootDir string,
-	ips []Instance,
+	inst Instance,
 	archivePath string,
 	sshKeyPath string,
 	remoteDir string,
 	timeout time.Duration,
 	s3cfg S3Config,
-	workers int,
 ) error {
 	cfg, err := LoadConfig(rootDir)
 	if err != nil {
@@ -494,66 +459,34 @@ func deployMetricsPayloadViaS3(
 
 	log.Printf("✅ Metrics payload uploaded to S3: %s\n", s3URL)
 
-	var wg sync.WaitGroup
-	errCh := make(chan error, len(ips))
-	counter := atomic.Uint32{}
-	workersChan := make(chan struct{}, workers)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 
-	for _, inst := range ips {
-		wg.Add(1)
-		go func(inst Instance) {
-			workersChan <- struct{}{}
-			defer func() {
-				wg.Done()
-				<-workersChan
-			}()
-			ctx, cancel := context.WithTimeout(ctx, timeout)
-			defer cancel()
+	archiveFile := filepath.Base(archivePath)
+	remoteCmd := strings.Join([]string{
+		fmt.Sprintf("curl -L '%s' -o %s", s3URL, filepath.Join(remoteDir, archiveFile)),
+		fmt.Sprintf("tar -xzf %s -C %s", filepath.Join(remoteDir, archiveFile), remoteDir),
+		fmt.Sprintf("chmod +x %s %s",
+			filepath.Join(remoteDir, "metrics/install_metrics.sh"),
+			filepath.Join(remoteDir, "metrics/start_metrics.sh"),
+		),
+		filepath.Join(remoteDir, "metrics/install_metrics.sh"),
+		filepath.Join(remoteDir, "metrics/start_metrics.sh"),
+	}, " && ")
 
-			archiveFile := filepath.Base(archivePath)
-			remoteCmd := strings.Join([]string{
-				fmt.Sprintf("curl -L '%s' -o %s", s3URL, filepath.Join(remoteDir, archiveFile)),
-				fmt.Sprintf("tar -xzf %s -C %s", filepath.Join(remoteDir, archiveFile), remoteDir),
-				fmt.Sprintf("chmod +x %s %s",
-					filepath.Join(remoteDir, "metrics/install_metrics.sh"),
-					filepath.Join(remoteDir, "metrics/start_metrics.sh"),
-				),
-				filepath.Join(remoteDir, "metrics/install_metrics.sh"),
-				"tmux has-session -t metrics && tmux kill-session -t metrics || true",
-				fmt.Sprintf("tmux new-session -d -s metrics '%s'", filepath.Join(remoteDir, "metrics/start_metrics.sh")),
-			}, " && ")
-
-			ssh := exec.CommandContext(ctx,
-				"ssh",
-				"-i", sshKeyPath,
-				"-o", "StrictHostKeyChecking=no",
-				"-o", "UserKnownHostsFile=/dev/null",
-				fmt.Sprintf("root@%s", inst.PublicIP),
-				remoteCmd,
-			)
-			if out, err := ssh.CombinedOutput(); err != nil {
-				errCh <- fmt.Errorf("[%s:%s] ssh error in region %s: %v\n%s", inst.Name, inst.PublicIP, inst.Region, err, out)
-				return
-			}
-			log.Printf("started metrics instance ✅ %s: %s (total %d/%d)\n", inst.Name, inst.PublicIP, counter.Add(1), len(ips))
-		}(inst)
+	ssh := exec.CommandContext(ctx,
+		"ssh",
+		"-i", sshKeyPath,
+		"-o", "StrictHostKeyChecking=no",
+		"-o", "UserKnownHostsFile=/dev/null",
+		fmt.Sprintf("root@%s", inst.PublicIP),
+		remoteCmd,
+	)
+	if out, err := ssh.CombinedOutput(); err != nil {
+		return fmt.Errorf("[%s:%s] ssh error in region %s: %v\n%s", inst.Name, inst.PublicIP, inst.Region, err, out)
 	}
+	log.Printf("started metrics instance ✅ %s: %s\n", inst.Name, inst.PublicIP)
 
-	wg.Wait()
-	close(errCh)
-
-	errs := make([]error, 0)
-	for e := range errCh {
-		errs = append(errs, e)
-	}
-	if len(errs) > 0 {
-		var sb strings.Builder
-		sb.WriteString("metrics deployment errors:\n")
-		for _, e := range errs {
-			sb.WriteString("- " + e.Error() + "\n")
-		}
-		return errors.New(sb.String())
-	}
 	return nil
 }
 

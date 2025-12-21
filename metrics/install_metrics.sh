@@ -8,6 +8,12 @@ fi
 
 export DEBIAN_FRONTEND=noninteractive
 
+# Wait for any existing apt processes to finish
+while fuser /var/lib/apt/lists/lock /var/lib/dpkg/lock /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+  echo "Waiting for apt lock..."
+  sleep 5
+done
+
 apt-get update -y
 apt-get install -y --no-install-recommends \
   ca-certificates \
