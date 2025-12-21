@@ -9,102 +9,67 @@ This package provides a simple metrics stack for Celestia nodes using Prometheus
 │  Celestia Node  │ ─────────────────► │   Prometheus    │
 │  (port 26660)   │                    │  (port 9090)    │
 └─────────────────┘                    └────────┬────────┘
-                                                │ data source
-                                                ▼
-                                          ┌─────────────┐
-                                          │   Grafana   │
-                                          │ (port 3000) │
-                                          └─────────────┘
+                                               │ data source
+                                               ▼
+                                         ┌─────────────┐
+                                         │   Grafana   │
+                                         │ (port 3000) │
+                                         └─────────────┘
 ```
 
 Prometheus discovers targets via a local `targets.json` file mounted into the container (`file_sd_configs`).
 
-## Quick Start
+## Quick Start with Talis
 
-### 1. Enable Prometheus on Celestia nodes
-
-When initializing a Talis network, use the `--prometheus` flag:
+### 1. Initialize with metrics enabled
 
 ```bash
-talis init --chainID my-chain --experiment test --prometheus
+talis init --chainID my-chain --experiment test --with-metrics
 ```
 
-This enables the Prometheus metrics endpoint on port `26660` for all nodes.
+This:
+- Adds a metrics node to the configuration
+- Enables Prometheus metrics endpoint (port 26660) on all validator nodes
 
-### 2. Generate targets.json
-
-#### Option A: From Talis (recommended)
+### 2. Add validators and provision
 
 ```bash
-talis metrics export-targets \
-  --directory /path/to/talis \
-  --output metrics/docker/targets/targets.json
+talis add -t validator -c 10
+talis up
 ```
 
-#### Option B: Manual (standalone)
-
-Edit `metrics/docker/targets/targets.json` to include your nodes:
-
-```json
-[
-  {
-    "targets": ["10.0.0.1:26660"],
-    "labels": {
-      "chain_id": "my-chain",
-      "experiment": "experiment-1",
-      "role": "validator",
-      "region": "us-east-1",
-      "provider": "manual",
-      "node_id": "validator-0"
-    }
-  }
-]
-```
-
-### 3. Start the metrics stack
+### 3. Generate payload with metrics
 
 ```bash
-cd metrics/docker
-docker compose up -d
+talis genesis --metrics-dir /path/to/celestia-app/metrics -b build
 ```
 
-This starts:
-- **Prometheus** on port `9090`
-- **Grafana** on port `3000`
+The `--metrics-dir` flag points to this directory. During genesis, Talis:
+- Copies the docker-compose stack and scripts to the payload
+- Generates `targets.json` from the configured validator IPs
 
-### Optional: use helper scripts
+### 4. Deploy
+
+```bash
+talis deploy
+```
+
+After deployment completes, Talis prints the Grafana URL and credentials:
+
+```
+Grafana available at:
+  http://<metrics-node-ip>:3000  (credentials: admin/<random-password>)
+```
+
+## Helper Scripts
 
 ```bash
 # Install Docker + Compose on a fresh Ubuntu host
-./metrics/install_prereqs.sh
+./metrics/install_metrics.sh
 
 # Start Prometheus + Grafana from the bundled docker compose config
 ./metrics/start_metrics.sh
 ```
-
-### 4. View dashboards
-
-Open Grafana at http://localhost:3000
-
-- Default credentials: `admin` / `admin` (or set via `GRAFANA_PASSWORD` env var)
-- Pre-configured dashboard: **Celestia Network**
-
-## Talis Command
-
-```bash
-# Export targets from a Talis deployment
-# (use --address-source private for internal networks)
-talis metrics export-targets -d /path/to/talis -o ./targets.json
-```
-
-Flags:
-- `--address-source` (default: public) selects public or private IPs
-- `--port` (default: 26660) selects the metrics port
-- `--pretty` pretty-prints JSON output
-
-## Talis Metrics Node
-
-If you add a metrics node with `talis add -t metrics`, `talis genesis` will stage the metrics payload (docker config, scripts, and generated targets) and `talis deploy` will install and start the stack on that node automatically.
 
 ## Configuration
 
@@ -124,9 +89,19 @@ scrape_configs:
         refresh_interval: 30s
 ```
 
+### Grafana Password
+
+Set via environment variable before starting:
+
+```bash
+GRAFANA_PASSWORD=mysecretpassword docker compose up -d
+```
+
+When using Talis, a random password is generated automatically during `talis genesis`.
+
 ## Security
 
-- **Prometheus** is exposed on port `9090` by default; remove the port mapping in `metrics/docker/docker-compose.yml` if you want it internal only.
+- **Prometheus** is internal only (not exposed to the network); Grafana accesses it via Docker's internal network
 - **Grafana** requires authentication (port 3000)
 
 ## Updating Targets
