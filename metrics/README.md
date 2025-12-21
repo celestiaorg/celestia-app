@@ -104,6 +104,24 @@ When using Talis, a random password is generated automatically during `talis gen
 - **Prometheus** is internal only (not exposed to the network); Grafana accesses it via Docker's internal network
 - **Grafana** requires authentication (port 3000)
 
+## Checking Status
+
+From the `metrics/docker` directory:
+
+```bash
+# Check container state
+docker ps
+
+# View logs
+docker compose logs -f
+
+# Restart the stack
+docker compose restart
+
+# Stop the stack
+docker compose down
+```
+
 ## Updating Targets
 
 Edit `metrics/docker/targets/targets.json` and Prometheus will pick up changes within `refresh_interval` (default: 30s).

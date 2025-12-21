@@ -64,7 +64,7 @@ func stageMetricsPayload(cfg Config, metricsSrcDir, payloadDir string) error {
 		}
 	}
 
-	groups, skipped, err := buildMetricsTargets(cfg, defaultMetricsPort, "private")
+	groups, skipped, err := buildMetricsTargets(cfg, defaultMetricsPort, "public")
 	if err != nil {
 		return err
 	}
