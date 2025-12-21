@@ -34,14 +34,14 @@ const (
 
 func initCmd() *cobra.Command {
 	var (
-		rootDir          string
-		srcRoot          string
-		chainID          string
-		experiment       string
-		SSHPubKeyPath    string
-		SSHKeyName       string
-		tables           []string
-		enablePrometheus bool
+		rootDir       string
+		srcRoot       string
+		chainID       string
+		experiment    string
+		SSHPubKeyPath string
+		SSHKeyName    string
+		tables        []string
+		withMetrics   bool
 	)
 
 	cmd := &cobra.Command{
@@ -57,14 +57,17 @@ func initCmd() *cobra.Command {
 				return fmt.Errorf("failed to copy scripts: %w", err)
 			}
 
-			if err := CopyMetricsAssets(rootDir, srcRoot); err != nil {
-				return fmt.Errorf("failed to copy metrics assets: %w", err)
-			}
-
 			// todo: use the number of validators, bridges, and lights to create the config
 			cfg := NewConfig(experiment, chainID).
 				WithSSHPubKeyPath(SSHPubKeyPath).
 				WithSSHKeyName(SSHKeyName)
+
+			// If --with-metrics is set, add a metrics node and enable prometheus
+			enablePrometheus := false
+			if withMetrics {
+				cfg = cfg.WithDigitalOceanMetrics("random")
+				enablePrometheus = true
+			}
 
 			if err := cfg.Save(rootDir); err != nil {
 				return fmt.Errorf("failed to save init config: %w", err)
@@ -100,7 +103,7 @@ func initCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&experiment, "experiment", "e", "test", "the name of the experiment (required)")
 	_ = cmd.MarkFlagRequired("experiment")
 	cmd.Flags().StringArrayVarP(&tables, "tables", "t", []string{"consensus_round_state", "consensus_block", "mempool_tx"}, "the traces that will be collected")
-	cmd.Flags().BoolVar(&enablePrometheus, "prometheus", false, "enable Prometheus metrics endpoint on nodes (port 26660)")
+	cmd.Flags().BoolVar(&withMetrics, "with-metrics", false, "add a metrics node and enable Prometheus on validators")
 
 	defaultKeyPath := filepath.Join(homeDir, ".ssh", "id_ed25519.pub")
 	cmd.Flags().StringVarP(&SSHPubKeyPath, "ssh-pub-key-path", "s", defaultKeyPath, "path to the user's SSH public key")
@@ -168,34 +171,6 @@ func CopyTalisScripts(destDir string, srcRoot string) error {
 
 	// copy directory tree including subdirectories
 	return copyDir(src, filepath.Join(destDir, "scripts"))
-}
-
-// CopyMetricsAssets copies the celestia-app metrics directory (containing docker-compose,
-// Prometheus config, Grafana dashboards, and setup scripts) into destDir/metrics.
-func CopyMetricsAssets(destDir string, srcRoot string) error {
-	const importPath = "celestia-app/metrics"
-
-	src := filepath.Join(srcRoot, "src", importPath)
-
-	if fi, err := os.Stat(src); err != nil || !fi.IsDir() {
-		tmp, err := os.MkdirTemp("", "celestia-metrics-*")
-		if err != nil {
-			return fmt.Errorf("mktemp: %w", err)
-		}
-		defer os.RemoveAll(tmp)
-
-		repo := "https://github.com/celestiaorg/celestia-app.git"
-		cmd := exec.Command("git", "clone", "--depth=1", repo, tmp)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("git clone failed: %w", err)
-		}
-
-		src = filepath.Join(tmp, "metrics")
-	}
-
-	return copyDir(src, filepath.Join(destDir, "metrics"))
 }
 
 // copyDir recursively copies a directory tree, attempting to preserve permissions.

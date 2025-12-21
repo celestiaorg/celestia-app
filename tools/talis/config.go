@@ -235,7 +235,7 @@ func (cfg Config) WithChainID(chainID string) Config {
 	return cfg
 }
 
-func (c Config) Save(root string) error {
+func (cfg Config) Save(root string) error {
 	// Create the directory if it doesn't exist
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return err
@@ -253,7 +253,7 @@ func (c Config) Save(root string) error {
 	// Write the config to the file
 	encoder := json.NewEncoder(cfgFile)
 	encoder.SetIndent("", "  ")
-	return encoder.Encode(c)
+	return encoder.Encode(cfg)
 }
 
 // LoadConfig loads the config from the specified path.
@@ -277,34 +277,34 @@ func TalisChainID(chainID string) string {
 	return "talis-" + chainID
 }
 
-func (c Config) UpdateInstance(name, publicIP, privateIP string) (Config, error) {
-	for i := range c.Validators {
-		if c.Validators[i].Name == name {
-			c.Validators[i].PublicIP = publicIP
-			c.Validators[i].PrivateIP = privateIP
-			return c, nil
+func (cfg Config) UpdateInstance(name, publicIP, privateIP string) (Config, error) {
+	for i := range cfg.Validators {
+		if cfg.Validators[i].Name == name {
+			cfg.Validators[i].PublicIP = publicIP
+			cfg.Validators[i].PrivateIP = privateIP
+			return cfg, nil
 		}
 	}
-	for i := range c.Bridges {
-		if c.Bridges[i].Name == name {
-			c.Bridges[i].PublicIP = publicIP
-			c.Bridges[i].PrivateIP = privateIP
-			return c, nil
+	for i := range cfg.Bridges {
+		if cfg.Bridges[i].Name == name {
+			cfg.Bridges[i].PublicIP = publicIP
+			cfg.Bridges[i].PrivateIP = privateIP
+			return cfg, nil
 		}
 	}
-	for i := range c.Lights {
-		if c.Lights[i].Name == name {
-			c.Lights[i].PublicIP = publicIP
-			c.Lights[i].PrivateIP = privateIP
-			return c, nil
+	for i := range cfg.Lights {
+		if cfg.Lights[i].Name == name {
+			cfg.Lights[i].PublicIP = publicIP
+			cfg.Lights[i].PrivateIP = privateIP
+			return cfg, nil
 		}
 	}
-	for i := range c.Metrics {
-		if c.Metrics[i].Name == name {
-			c.Metrics[i].PublicIP = publicIP
-			c.Metrics[i].PrivateIP = privateIP
-			return c, nil
+	for i := range cfg.Metrics {
+		if cfg.Metrics[i].Name == name {
+			cfg.Metrics[i].PublicIP = publicIP
+			cfg.Metrics[i].PrivateIP = privateIP
+			return cfg, nil
 		}
 	}
-	return c, fmt.Errorf("instance %s not found", name)
+	return cfg, fmt.Errorf("instance %s not found", name)
 }

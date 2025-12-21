@@ -159,10 +159,46 @@ func deployMetricsIfConfigured(ctx context.Context, cfg Config, rootDir, sshKeyP
 	log.Printf("✅ Metrics payload compressed to %s\n", metricsTarPath)
 
 	log.Printf("Sending metrics payload to metrics nodes...")
+	var err error
 	if directUpload {
-		return deployMetricsPayloadDirect(cfg.Metrics, metricsTarPath, sshKeyPath, "/root", 15*time.Minute, workers)
+		err = deployMetricsPayloadDirect(cfg.Metrics, metricsTarPath, sshKeyPath, "/root", 15*time.Minute, workers)
+	} else {
+		err = deployMetricsPayloadViaS3(ctx, rootDir, cfg.Metrics, metricsTarPath, sshKeyPath, "/root", 15*time.Minute, cfg.S3Config, workers)
 	}
-	return deployMetricsPayloadViaS3(ctx, rootDir, cfg.Metrics, metricsTarPath, sshKeyPath, "/root", 15*time.Minute, cfg.S3Config, workers)
+	if err != nil {
+		return err
+	}
+
+	printGrafanaInfo(cfg.Metrics, rootDir)
+	return nil
+}
+
+// printGrafanaInfo prints the Grafana URL and credentials after successful metrics deployment.
+func printGrafanaInfo(metricsNodes []Instance, rootDir string) {
+	password := readGrafanaPassword(rootDir)
+
+	fmt.Println()
+	fmt.Println("Grafana available at:")
+	for _, node := range metricsNodes {
+		fmt.Printf("  http://%s:3000  (credentials: admin/%s)\n", node.PublicIP, password)
+	}
+	fmt.Println()
+}
+
+// readGrafanaPassword reads the Grafana password from the .env file in the payload directory.
+func readGrafanaPassword(rootDir string) string {
+	envPath := filepath.Join(rootDir, "payload", "metrics", "docker", ".env")
+	data, err := os.ReadFile(envPath)
+	if err != nil {
+		return "admin" // fallback to default
+	}
+	// Parse GRAFANA_PASSWORD=<password> from .env
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.HasPrefix(line, "GRAFANA_PASSWORD=") {
+			return strings.TrimPrefix(line, "GRAFANA_PASSWORD=")
+		}
+	}
+	return "admin" // fallback to default
 }
 
 // deployPayloadDirect copies a local archive to each remote host, unpacks it,
