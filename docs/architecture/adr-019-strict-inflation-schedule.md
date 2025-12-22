@@ -63,7 +63,7 @@ In order to implement the inflation rate specified above, we want to make one si
 
 An inflation schedule based on block height needs to make an assumption on the number of blocks created per year so a large discrepancy between the expected and actual block interval will result in a discrepancy between target and actual inflation rate.
 
-A time-based inflation schedule depends on block timestamps and "the timestamp is equal to the weighted median of validators present in the last commit." [cometbft/specs](https://github.com/cometbft/cometbft/blob/c58597d656d5c816334aff9ea8e600bdbc534817/spec/core/data_structures.md?plain=1#L127). In other the weighted median timestamp has the same 1/3+ security model as the rest of Tendermint and it takes 1/3+ to arbitrarily modify the time (monotonically increasing).
+A time-based inflation schedule depends on block timestamps and "the timestamp is equal to the weighted median of validators present in the last commit." [cometbft/specs](https://github.com/cometbft/cometbft/blob/c58597d656d5c816334aff9ea8e600bdbc534817/spec/core/data_structures.md?plain=1#L127). In other words, the weighted median timestamp has the same 1/3+ security model as the rest of Tendermint and it takes 1/3+ to arbitrarily modify the time (monotonically increasing).
 
 Note: a time-based inflation schedule implemented isn't as battle-tested as the Cosmos SDK `x/mint` module and may expose additional attack vectors.
 
