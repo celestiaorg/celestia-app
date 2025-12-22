@@ -33,7 +33,7 @@ The multiplexer has two remote clients, those remote clients interact with the A
 - `RemoteABCIClientV2`: This client is used for CometBFT v0.38 and above. It uses the `ABCIClientVersion` 2.
 
 A chain defines a list of versions per `AppVersion` up until the last one.
-The `Appd` field a slice of `[]byte` which holds a compressed archive of the binary (`tar.gz`). This archive is uncompressed and extracted to a temporary directory, which is then used to start the embedded binary.
+The `Appd` field is a slice of `[]byte` which holds a compressed archive of the binary (`tar.gz`). This archive is uncompressed and extracted to a temporary directory, which is then used to start the embedded binary.
 
 ```go
  v3, err := appd.New("v3", v3AppBinary)
