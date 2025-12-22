@@ -8,8 +8,8 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
-  # Scrape Celestia nodes from file-based discovery
-  - job_name: 'celestia-nodes'
+  # Scrape consensus nodes from file-based discovery
+  - job_name: 'consensus-nodes'
     file_sd_configs:
       - files:
           - /targets/targets.json

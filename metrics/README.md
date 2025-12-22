@@ -1,13 +1,13 @@
 # Metrics Package
 
-This package provides a simple metrics stack for Celestia nodes using Prometheus and Grafana with file-based target discovery.
+This package provides a simple metrics stack for Consensus nodes using Prometheus and Grafana with file-based target discovery.
 
 ## Architecture
 
 ```text
 ┌─────────────────┐   scrape (26660)   ┌─────────────────┐
-│  Celestia Node  │ ─────────────────► │   Prometheus    │
-│  (port 26660)   │                    │  (port 9090)    │
+│ Consensus Node  │ ─────────────────► │   Prometheus    │
+│  (port 26660)   │                    │  (internal)     │
 └─────────────────┘                    └────────┬────────┘
                                                │ data source
                                                ▼
@@ -84,7 +84,7 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
-  - job_name: 'celestia-nodes'
+  - job_name: 'consensus-nodes'
     file_sd_configs:
       - files:
           - /targets/targets.json
