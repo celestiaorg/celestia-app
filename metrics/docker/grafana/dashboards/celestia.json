@@ -30,7 +30,14 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
           },
           "mappings": [],
           "thresholds": {
@@ -41,202 +48,103 @@
                 "value": null
               }
             ]
-          },
-          "unit": "short"
+          }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Node"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
-        "h": 4,
-        "w": 6,
+        "h": 10,
+        "w": 24,
         "x": 0,
         "y": 1
       },
       "id": 2,
       "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
           "fields": "",
-          "values": false
+          "reducer": [
+            "sum"
+          ],
+          "show": false
         },
-        "textMode": "auto"
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": false,
+            "displayName": "Node"
+          }
+        ]
       },
       "pluginVersion": "10.1.0",
       "targets": [
         {
-          "expr": "cometbft_consensus_height{job=\"celestia-nodes\"}",
-          "legendFormat": "{{instance}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Block Height",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "short"
+          "expr": "cometbft_consensus_height{job=\"celestia-nodes\", node_id=~\"$node\"}",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "refId": "height"
         },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 6,
-        "y": 1
-      },
-      "id": 3,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.1.0",
-      "targets": [
         {
-          "expr": "cometbft_consensus_validators{job=\"celestia-nodes\"}",
-          "legendFormat": "{{instance}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Validators",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "short"
+          "expr": "cometbft_p2p_peers{job=\"celestia-nodes\", node_id=~\"$node\"}",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "refId": "peers"
         },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 12,
-        "y": 1
-      },
-      "id": 4,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.1.0",
-      "targets": [
         {
-          "expr": "cometbft_p2p_peers{job=\"celestia-nodes\"}",
-          "legendFormat": "{{instance}}",
-          "refId": "A"
+          "expr": "cometbft_mempool_size{job=\"celestia-nodes\", node_id=~\"$node\"}",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "refId": "mempool"
         }
       ],
-      "title": "Connected Peers",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 18,
-        "y": 1
-      },
-      "id": 5,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.1.0",
-      "targets": [
+      "title": "Node Status",
+      "transformations": [
         {
-          "expr": "cometbft_mempool_size{job=\"celestia-nodes\"}",
-          "legendFormat": "{{instance}}",
-          "refId": "A"
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "node_id"
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "pattern": "^(node_id|Value #.*)$"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "Value #height": "Height",
+              "Value #mempool": "Mempool",
+              "Value #peers": "Peers",
+              "node_id": "Node"
+            }
+          }
         }
       ],
-      "title": "Mempool Size",
-      "type": "stat"
+      "type": "table"
     },
     {
       "collapsed": false,
@@ -244,7 +152,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 5
+        "y": 11
       },
       "id": 6,
       "panels": [],
@@ -328,8 +236,8 @@
       "pluginVersion": "10.1.0",
       "targets": [
         {
-          "expr": "rate(cometbft_consensus_height{job=\"celestia-nodes\"}[1m])",
-          "legendFormat": "{{instance}}",
+          "expr": "rate(cometbft_consensus_height{job=\"celestia-nodes\", node_id=~\"$node\"}[1m])",
+          "legendFormat": "{{node_id}}",
           "refId": "A"
         }
       ],
@@ -413,8 +321,8 @@
       "pluginVersion": "10.1.0",
       "targets": [
         {
-          "expr": "cometbft_consensus_rounds{job=\"celestia-nodes\"}",
-          "legendFormat": "{{instance}}",
+          "expr": "cometbft_consensus_rounds{job=\"celestia-nodes\", node_id=~\"$node\"}",
+          "legendFormat": "{{node_id}}",
           "refId": "A"
         }
       ],
@@ -498,8 +406,8 @@
       "pluginVersion": "10.1.0",
       "targets": [
         {
-          "expr": "cometbft_consensus_block_interval_seconds{job=\"celestia-nodes\"}",
-          "legendFormat": "{{instance}}",
+          "expr": "cometbft_consensus_block_interval_seconds{job=\"celestia-nodes\", node_id=~\"$node\"}",
+          "legendFormat": "{{node_id}}",
           "refId": "A"
         }
       ],
@@ -583,8 +491,8 @@
       "pluginVersion": "10.1.0",
       "targets": [
         {
-          "expr": "cometbft_consensus_block_size_bytes{job=\"celestia-nodes\"}",
-          "legendFormat": "{{instance}}",
+          "expr": "cometbft_consensus_block_size_bytes{job=\"celestia-nodes\", node_id=~\"$node\"}",
+          "legendFormat": "{{node_id}}",
           "refId": "A"
         }
       ],
@@ -681,8 +589,8 @@
       "pluginVersion": "10.1.0",
       "targets": [
         {
-          "expr": "cometbft_mempool_size{job=\"celestia-nodes\"}",
-          "legendFormat": "{{instance}}",
+          "expr": "cometbft_mempool_size{job=\"celestia-nodes\", node_id=~\"$node\"}",
+          "legendFormat": "{{node_id}}",
           "refId": "A"
         }
       ],
@@ -766,8 +674,8 @@
       "pluginVersion": "10.1.0",
       "targets": [
         {
-          "expr": "cometbft_mempool_size_bytes{job=\"celestia-nodes\"}",
-          "legendFormat": "{{instance}}",
+          "expr": "cometbft_mempool_size_bytes{job=\"celestia-nodes\", node_id=~\"$node\"}",
+          "legendFormat": "{{node_id}}",
           "refId": "A"
         }
       ],
@@ -851,8 +759,8 @@
       "pluginVersion": "10.1.0",
       "targets": [
         {
-          "expr": "rate(cometbft_mempool_successful_txs{job=\"celestia-nodes\"}[1m])",
-          "legendFormat": "{{instance}}",
+          "expr": "rate(cometbft_mempool_successful_txs{job=\"celestia-nodes\", node_id=~\"$node\"}[1m])",
+          "legendFormat": "{{node_id}}",
           "refId": "A"
         }
       ],
@@ -940,18 +848,18 @@
       "pluginVersion": "10.1.0",
       "targets": [
         {
-          "expr": "rate(cometbft_mempool_failed_txs{job=\"celestia-nodes\"}[1m])",
-          "legendFormat": "{{instance}} failed",
+          "expr": "rate(cometbft_mempool_failed_txs{job=\"celestia-nodes\", node_id=~\"$node\"}[1m])",
+          "legendFormat": "{{node_id}} failed",
           "refId": "A"
         },
         {
-          "expr": "rate(cometbft_mempool_evicted_txs{job=\"celestia-nodes\"}[1m])",
-          "legendFormat": "{{instance}} evicted",
+          "expr": "rate(cometbft_mempool_evicted_txs{job=\"celestia-nodes\", node_id=~\"$node\"}[1m])",
+          "legendFormat": "{{node_id}} evicted",
           "refId": "B"
         },
         {
-          "expr": "rate(cometbft_mempool_expired_txs{job=\"celestia-nodes\"}[1m])",
-          "legendFormat": "{{instance}} expired",
+          "expr": "rate(cometbft_mempool_expired_txs{job=\"celestia-nodes\", node_id=~\"$node\"}[1m])",
+          "legendFormat": "{{node_id}} expired",
           "refId": "C"
         }
       ],
@@ -1035,8 +943,8 @@
       "pluginVersion": "10.1.0",
       "targets": [
         {
-          "expr": "rate(cometbft_mempool_already_seen_txs{job=\"celestia-nodes\"}[1m])",
-          "legendFormat": "{{instance}}",
+          "expr": "rate(cometbft_mempool_already_seen_txs{job=\"celestia-nodes\", node_id=~\"$node\"}[1m])",
+          "legendFormat": "{{node_id}}",
           "refId": "A"
         }
       ],
@@ -1120,13 +1028,13 @@
       "pluginVersion": "10.1.0",
       "targets": [
         {
-          "expr": "rate(cometbft_mempool_requested_txs{job=\"celestia-nodes\"}[1m])",
-          "legendFormat": "{{instance}} requested",
+          "expr": "rate(cometbft_mempool_requested_txs{job=\"celestia-nodes\", node_id=~\"$node\"}[1m])",
+          "legendFormat": "{{node_id}} requested",
           "refId": "A"
         },
         {
-          "expr": "rate(cometbft_mempool_rerequested_txs{job=\"celestia-nodes\"}[1m])",
-          "legendFormat": "{{instance}} re-requested",
+          "expr": "rate(cometbft_mempool_rerequested_txs{job=\"celestia-nodes\", node_id=~\"$node\"}[1m])",
+          "legendFormat": "{{node_id}} re-requested",
           "refId": "B"
         }
       ],
@@ -1210,8 +1118,8 @@
       "pluginVersion": "10.1.0",
       "targets": [
         {
-          "expr": "rate(cometbft_mempool_recheck_times{job=\"celestia-nodes\"}[1m])",
-          "legendFormat": "{{instance}}",
+          "expr": "rate(cometbft_mempool_recheck_times{job=\"celestia-nodes\", node_id=~\"$node\"}[1m])",
+          "legendFormat": "{{node_id}}",
           "refId": "A"
         }
       ],
@@ -1295,13 +1203,13 @@
       "pluginVersion": "10.1.0",
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, rate(cometbft_mempool_tx_size_bytes_bucket{job=\"celestia-nodes\"}[5m]))",
-          "legendFormat": "{{instance}} p50",
+          "expr": "histogram_quantile(0.50, rate(cometbft_mempool_tx_size_bytes_bucket{job=\"celestia-nodes\", node_id=~\"$node\"}[5m]))",
+          "legendFormat": "{{node_id}} p50",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.99, rate(cometbft_mempool_tx_size_bytes_bucket{job=\"celestia-nodes\"}[5m]))",
-          "legendFormat": "{{instance}} p99",
+          "expr": "histogram_quantile(0.99, rate(cometbft_mempool_tx_size_bytes_bucket{job=\"celestia-nodes\", node_id=~\"$node\"}[5m]))",
+          "legendFormat": "{{node_id}} p99",
           "refId": "B"
         }
       ],
@@ -1398,8 +1306,8 @@
       "pluginVersion": "10.1.0",
       "targets": [
         {
-          "expr": "cometbft_p2p_peers{job=\"celestia-nodes\"}",
-          "legendFormat": "{{instance}}",
+          "expr": "cometbft_p2p_peers{job=\"celestia-nodes\", node_id=~\"$node\"}",
+          "legendFormat": "{{node_id}}",
           "refId": "A"
         }
       ],
@@ -1483,13 +1391,13 @@
       "pluginVersion": "10.1.0",
       "targets": [
         {
-          "expr": "rate(cometbft_p2p_peer_receive_bytes_total{job=\"celestia-nodes\"}[1m])",
-          "legendFormat": "{{instance}} recv",
+          "expr": "rate(cometbft_p2p_peer_receive_bytes_total{job=\"celestia-nodes\", node_id=~\"$node\"}[1m])",
+          "legendFormat": "{{node_id}} recv",
           "refId": "A"
         },
         {
-          "expr": "rate(cometbft_p2p_peer_send_bytes_total{job=\"celestia-nodes\"}[1m])",
-          "legendFormat": "{{instance}} send",
+          "expr": "rate(cometbft_p2p_peer_send_bytes_total{job=\"celestia-nodes\", node_id=~\"$node\"}[1m])",
+          "legendFormat": "{{node_id}} send",
           "refId": "B"
         }
       ],
@@ -1500,9 +1408,40 @@
   "refresh": "10s",
   "schemaVersion": 38,
   "style": "dark",
-  "tags": ["celestia"],
+  "tags": [
+    "celestia"
+  ],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(cometbft_consensus_height{job=\"celestia-nodes\", node_id=~\"$node\"}, node_id)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Node",
+        "multi": true,
+        "name": "node",
+        "options": [],
+        "query": {
+          "query": "label_values(cometbft_consensus_height{job=\"celestia-nodes\", node_id=~\"$node\"}, node_id)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 5,
+        "type": "query"
+      }
+    ]
   },
   "time": {
     "from": "now-1h",
