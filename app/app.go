@@ -441,7 +441,7 @@ func New(
 	)
 
 	// BasicModuleManager defines the module BasicManager is in charge of setting up basic,
-	// non-dependant module elements, such as genesis verification.
+	// non-dependent module elements, such as genesis verification.
 	// By default it is composed of all the module from the module manager.
 	// Additionally, app module basics can be overwritten by passing them as argument.
 	// NOTE: Codec registration is performed by celestia-app's encoding.MakeConfig() function at the top of file.
