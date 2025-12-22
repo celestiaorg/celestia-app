@@ -82,16 +82,14 @@ createGenesis() {
     # Override the VotingPeriod from 1 week to 30 seconds
     sed -i.bak 's#"604800s"#"30s"#g' "${APP_HOME}"/config/genesis.json
 
-    trace_type="local"
-    sed -i.bak -e "s/^trace_type *=.*/trace_type = \"$trace_type\"/" ${APP_HOME}/config/config.toml
+    # Override the pruning height to 10
+    sed -i.bak 's#min-retain-blocks = 3000#min-retain-blocks = 5#g' "${APP_HOME}"/config/app.toml
 
-    trace_pull_address=":26661"
-    sed -i.bak -e "s/^trace_pull_address *=.*/trace_pull_address = \"$trace_pull_address\"/" ${APP_HOME}/config/config.toml
+    # Override state sync snapshots to 0
+    sed -i.bak 's#snapshot-interval = 1500#snapshot-interval = 0#g' "${APP_HOME}"/config/app.toml
 
-    trace_push_batch_size=1000
-    sed -i.bak -e "s/^trace_push_batch_size *=.*/trace_push_batch_size = \"$trace_push_batch_size\"/" ${APP_HOME}/config/config.toml
-
-    echo "Tracing is set up with the ability to pull traced data from the node on the address http://127.0.0.1${trace_pull_address}"
+    # Override state sync snapshots keep recent to 0
+    sed -i.bak 's#snapshot-keep-recent = 2#snapshot-keep-recent = 0#g' "${APP_HOME}"/config/app.toml
 }
 
 deleteCelestiaAppHome() {
