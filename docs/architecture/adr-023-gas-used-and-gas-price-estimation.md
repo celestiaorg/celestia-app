@@ -42,7 +42,7 @@ Clients using this endpoint are responsible for accounting for any necessary mul
 There are multiple ways to have a gas price estimation for a priority level. This implementation will use the following:
 
 - High Priority: The gas price is the median price of the top 10% of transactions’ gas prices in the mempool.
-- Medium Priority: The gas price is the median price of the all gas prices in the mempool.
+- Medium Priority: The gas price is the median price of all gas prices in the mempool.
 - Low Priority: The gas price is the median price of the bottom 10% of gas prices in the mempool.
 - None Priority: This is equivalent to the Medium priority, using is the median price of all gas prices in the mempool.
 
