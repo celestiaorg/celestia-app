@@ -181,6 +181,20 @@ func (m *Multiplexer) VerifyVoteExtension(_ context.Context, req *abci.RequestVe
 	return app.VerifyVoteExtension(req)
 }
 
+func (m *Multiplexer) QuerySequence(ctx context.Context, req *abci.RequestQuerySequence) (*abci.ResponseQuerySequence, error) {
+	// Return noop (sequence 0) for app version <= 4
+	if m.appVersion <= 4 {
+		return &abci.ResponseQuerySequence{Sequence: 0}, nil
+	}
+
+	app, err := m.getApp()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
+	}
+
+	return app.QuerySequence(ctx, req)
+}
+
 // checkHaltConditions returns an error if the node should halt based on a halt-height or
 // halt-time configured in app.toml.
 func (m *Multiplexer) checkHaltConditions(req *abci.RequestFinalizeBlock) error {

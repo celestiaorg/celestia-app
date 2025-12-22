@@ -1,6 +1,7 @@
 package app
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -20,7 +21,7 @@ import (
 // TestGovParamFilters tests the functionality of retrieving governance parameter filters from the app.
 // It ensures that the filters list is properly populated and contains the expected message types.
 func TestGovParamFilters(t *testing.T) {
-	app := &App{}
+	app := &App{checkStateMu: &sync.RWMutex{}}
 	filters := app.GovParamFilters()
 
 	require.NotEmpty(t, filters)

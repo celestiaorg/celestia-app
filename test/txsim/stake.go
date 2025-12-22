@@ -32,7 +32,7 @@ func NewStakeSequence(initialStake int) *StakeSequence {
 
 func (s *StakeSequence) Clone(n int) []Sequence {
 	sequenceGroup := make([]Sequence, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		sequenceGroup[i] = NewStakeSequence(s.initialStake)
 	}
 	return sequenceGroup

@@ -1,7 +1,7 @@
 package encoding
 
 import (
-	"github.com/celestiaorg/go-square/v2/tx"
+	"github.com/celestiaorg/go-square/v3/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 

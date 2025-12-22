@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	"github.com/cometbft/cometbft/rpc/client/http"
@@ -157,9 +158,9 @@ func PrintTx(tx authsigning.Tx) {
 }
 
 func printMessages(msgs []sdk.Msg) string {
-	output := ""
+	var output strings.Builder
 	for _, msg := range msgs {
-		output += fmt.Sprintf("  - %s\n", sdk.MsgTypeURL(msg))
+		output.WriteString(fmt.Sprintf("  - %s\n", sdk.MsgTypeURL(msg)))
 	}
-	return output
+	return output.String()
 }

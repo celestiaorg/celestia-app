@@ -6,26 +6,25 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
 	sdkmath "cosmossdk.io/math"
-	"cosmossdk.io/math/unsafe"
-	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
 	"github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v6/app/params"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user/utils"
 	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v6/test/util/grpctest"
 	"github.com/celestiaorg/celestia-app/v6/test/util/random"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
-	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -53,7 +52,7 @@ type TxClientTestSuite struct {
 }
 
 func (suite *TxClientTestSuite) SetupSuite() {
-	suite.encCfg, suite.txClient, suite.ctx = setupTxClientWithDefaultParams(suite.T())
+	suite.encCfg, suite.txClient, suite.ctx = utils.SetupTxClientWithDefaultParams(suite.T())
 	suite.serviceClient = sdktx.NewServiceClient(suite.ctx.GRPCClient)
 }
 
@@ -85,7 +84,20 @@ func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 	})
 
 	t.Run("submit blob with different account", func(t *testing.T) {
-		resp, err := suite.txClient.SubmitPayForBlobWithAccount(subCtx, "c", blobs, user.SetFee(1e6), user.SetGasLimit(1e6))
+		// Get a different account name from the available accounts
+		accounts := suite.txClient.Signer().Accounts()
+		require.GreaterOrEqual(t, len(accounts), 2, "need at least 2 accounts for this test")
+
+		// Find an account that's not the default account
+		var accountName string
+		for _, acc := range accounts {
+			if acc.Name() != suite.txClient.DefaultAccountName() {
+				accountName = acc.Name()
+				break
+			}
+		}
+		require.NotEmpty(t, accountName, "could not find a non-default account")
+		resp, err := suite.txClient.SubmitPayForBlobWithAccount(subCtx, accountName, blobs, user.SetFee(1e6), user.SetGasLimit(1e6))
 		require.NoError(t, err)
 		getTxResp, err := suite.serviceClient.GetTx(subCtx, &sdktx.GetTxRequest{Hash: resp.TxHash})
 		require.NoError(t, err)
@@ -98,6 +110,20 @@ func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "key not found")
 	})
+
+	t.Run("submit blob with nonce error", func(t *testing.T) {
+		seqBeforeBroadcast := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
+		err := suite.txClient.Signer().SetSequence(suite.txClient.DefaultAccountName(), seqBeforeBroadcast-5)
+		require.NoError(t, err)
+		resp, err := suite.txClient.SubmitPayForBlob(subCtx, blobs)
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, resp.Code)
+
+		// does not block further submissions
+		resp, err = suite.txClient.SubmitPayForBlob(subCtx, blobs)
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, resp.Code)
+	})
 }
 
 func (suite *TxClientTestSuite) TestSubmitTx() {
@@ -109,6 +135,10 @@ func (suite *TxClientTestSuite) TestSubmitTx() {
 	msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
 
 	t.Run("submit tx without provided fee and gas limit", func(t *testing.T) {
+		// This should fail in gas estimation and recover
+		seqBeforeBroadcast := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
+		err := suite.txClient.Signer().SetSequence(suite.txClient.DefaultAccountName(), seqBeforeBroadcast+1)
+		require.NoError(t, err)
 		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg})
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
@@ -118,6 +148,10 @@ func (suite *TxClientTestSuite) TestSubmitTx() {
 	})
 
 	t.Run("submit tx with provided gas limit", func(t *testing.T) {
+		// This should fail in gas estimation and recover
+		seqBeforeBroadcast := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
+		err := suite.txClient.Signer().SetSequence(suite.txClient.DefaultAccountName(), seqBeforeBroadcast+1)
+		require.NoError(t, err)
 		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg}, gasLimitOption)
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
@@ -142,9 +176,36 @@ func (suite *TxClientTestSuite) TestSubmitTx() {
 	})
 
 	t.Run("submit tx with a different account", func(t *testing.T) {
-		addr := suite.txClient.Account("b").Address()
+		// Get a different account name from the available accounts
+		accounts := suite.txClient.Signer().Accounts()
+		require.GreaterOrEqual(t, len(accounts), 2, "need at least 2 accounts for this test")
+
+		// Find an account that's not the default account
+		var accountName string
+		for _, acc := range accounts {
+			if acc.Name() != suite.txClient.DefaultAccountName() {
+				accountName = acc.Name()
+				break
+			}
+		}
+		require.NotEmpty(t, accountName, "could not find a non-default account")
+		addr := suite.txClient.Account(accountName).Address()
 		msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
 		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg})
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, resp.Code)
+	})
+
+	t.Run("submit tx with nonce error", func(t *testing.T) {
+		seqBeforeBroadcast := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
+		err := suite.txClient.Signer().SetSequence(suite.txClient.DefaultAccountName(), seqBeforeBroadcast+5)
+		require.NoError(t, err)
+		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, feeOption, gasLimitOption)
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, resp.Code)
+
+		// does not block further submissions
+		resp, err = suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, feeOption, gasLimitOption)
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
 	})
@@ -208,6 +269,12 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		confirmTxResp, err := suite.txClient.ConfirmTx(ctx, resp.TxHash)
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, confirmTxResp.Code)
+
+		// Verify the response against the getTx response
+		utils.VerifyTxResponse(t, suite.ctx.GoContext(), suite.serviceClient, confirmTxResp)
+		require.Equal(t, len(confirmTxResp.Signers), 1)
+		require.Equal(t, confirmTxResp.Signers[0], suite.txClient.DefaultAddress().String())
+
 		require.True(t, wasRemovedFromTxTracker(resp.TxHash, suite.txClient))
 	})
 
@@ -224,22 +291,35 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 
 		confirmTxResp, err := suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
 		require.Error(t, err)
+		// During errors response does not get populated
 		require.Nil(t, confirmTxResp)
 		code := err.(*user.ExecutionError).Code
 		require.NotEqual(t, abci.CodeTypeOK, code)
+		require.Equal(t, resp.TxHash, err.(*user.ExecutionError).TxHash)
+
+		// Compare it to the getTx response
+		getTxResp, getTxErr := suite.serviceClient.GetTx(suite.ctx.GoContext(), &sdktx.GetTxRequest{Hash: resp.TxHash})
+		require.NoError(t, getTxErr)
+		// This is a workaround because they are different types
+		require.Contains(t, err.(*user.ExecutionError).ErrorLog, getTxResp.TxResponse.RawLog)
+		require.Equal(t, getTxResp.TxResponse.Codespace, err.(*user.ExecutionError).Codespace)
+		require.Equal(t, getTxResp.TxResponse.GasWanted, err.(*user.ExecutionError).GasWanted)
+		require.Equal(t, getTxResp.TxResponse.GasUsed, err.(*user.ExecutionError).GasUsed)
 		require.True(t, wasRemovedFromTxTracker(resp.TxHash, suite.txClient))
 	})
 }
 
 func TestRejections(t *testing.T) {
 	ttlNumBlocks := int64(5)
-	_, txClient, ctx := setupTxClient(t, ttlNumBlocks, appconsts.DefaultMaxBytes)
+	_, txClient, ctx := utils.SetupTxClient(t, ttlNumBlocks, appconsts.DefaultGovMaxSquareSize, appconsts.DefaultMaxBytes)
 
 	fee := user.SetFee(1e6)
 	gas := user.SetGasLimit(1e6)
 
 	// Submit a blob tx with user set ttl. After the ttl expires, the tx will be rejected.
-	timeoutHeight := uint64(1)
+	currentHeight, err := ctx.LatestHeight()
+	require.NoError(t, err)
+	timeoutHeight := uint64(currentHeight) // Set timeout to current height (should expire immediately)
 	sender := txClient.Signer().Account(txClient.DefaultAccountName())
 	seqBeforeSubmission := sender.Sequence()
 	blobs := blobfactory.ManyRandBlobs(random.New(), 2, 2)
@@ -250,7 +330,7 @@ func TestRejections(t *testing.T) {
 
 	_, err = txClient.ConfirmTx(ctx.GoContext(), resp.TxHash)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "was rejected by the node")
+	require.Contains(t, err.Error(), "was rejected by the node with execution code: 30 and log:")
 	seqAfterRejection := sender.Sequence()
 	require.Equal(t, seqBeforeSubmission, seqAfterRejection)
 
@@ -262,7 +342,7 @@ func TestRejections(t *testing.T) {
 	seqAfterConfirmation := sender.Sequence()
 	require.Equal(t, seqBeforeSubmission+1, seqAfterConfirmation)
 	// Was removed from the tx tracker
-	_, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
+	_, _, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
 	require.False(t, exists)
 }
 
@@ -271,9 +351,8 @@ func TestEvictions(t *testing.T) {
 		t.Skip("skipping evictions test in short mode")
 	}
 
-	ttlNumBlocks := int64(1)
-	blocksize := int64(1048576) // 1 MiB
-	_, txClient, ctx := setupTxClient(t, ttlNumBlocks, blocksize)
+	blocksize := int64(1024 * 1024 * 2) // 2 MiB
+	_, txClient, ctx := utils.SetupTxClient(t, 1, 64, blocksize)
 	grpcTxClient := tx.NewTxClient(ctx.GRPCClient)
 
 	fee := user.SetFee(1e6)
@@ -283,8 +362,8 @@ func TestEvictions(t *testing.T) {
 
 	// Submit more transactions than a single block can fit with a 1-block TTL.
 	// Txs will be evicted from the mempool and automatically resubmitted by the txClient during confirm().
-	for i := 0; i < len(responses); i++ {
-		blobs := blobfactory.ManyRandBlobs(random.New(), 500000, 500000, 5000) // ~1MiB per transaction
+	for i := range responses {
+		blobs := blobfactory.ManyRandBlobs(random.New(), 500000, 500000) // ~1.5MiB per transaction
 		resp, err := txClient.BroadcastPayForBlob(ctx.GoContext(), blobs, fee, gas)
 		require.NoError(t, err)
 		require.Equal(t, resp.Code, abci.CodeTypeOK)
@@ -302,15 +381,24 @@ func TestEvictions(t *testing.T) {
 
 		// Confirm should see they were evicted and automatically resubmit
 		res, err := txClient.ConfirmTx(ctx.GoContext(), resp.TxHash)
+		// the txs can get rejected if one is evicted with execution code 32 (sequence mismatch). Therefore,
+		// we need to skip those.
+		if err != nil {
+			if strings.Contains(err.Error(), "rejected") {
+				continue
+			}
+			// purposefully fail as this is an unexpected error
+			require.NoError(t, err)
+		}
 		require.NoError(t, err)
 		require.Equal(t, res.Code, abci.CodeTypeOK)
 		// They should be removed from the tx tracker after confirmation
-		_, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
+		_, _, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
 		require.False(t, exists)
 	}
 
-	// At least 8 txs should have been evicted and resubmitted
-	require.GreaterOrEqual(t, len(evictedTxHashes), 8)
+	// At least 4 txs should have been evicted and resubmitted
+	require.GreaterOrEqual(t, len(evictedTxHashes), 4)
 
 	// Re-query evicted tx hashes and assert that they are now committed
 	for _, txHash := range evictedTxHashes {
@@ -318,6 +406,68 @@ func TestEvictions(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, txInfo.Status, core.TxStatusCommitted)
 	}
+
+	t.Run("gets nonce mismatch during eviction and gets confirmed in the meantime", func(t *testing.T) {
+		expectedTxHash := "test-tx-hash-123" // This matches what our mock server returns
+
+		// Happy path: PENDING -> EVICTED -> COMMITTED
+		responseSequences := map[string][]*tx.TxStatusResponse{
+			expectedTxHash: {
+				{Status: core.TxStatusPending},
+				{Status: core.TxStatusEvicted},
+				{Status: core.TxStatusEvicted},
+				{Status: core.TxStatusEvicted},
+				{Status: core.TxStatusCommitted, Height: 102, ExecutionCode: 0},
+			},
+		}
+
+		mockTxClient, conns := setupTxClientWithMockServers(t, []BroadcastHandler{nil}, responseSequences, user.WithPollTime(100*time.Millisecond))
+		defer conns[0].Close()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		blobs := blobfactory.ManyRandBlobs(random.New(), 1, 1)
+		resp, err := mockTxClient.BroadcastPayForBlob(ctx, blobs, user.SetFee(1), user.SetGasLimit(1))
+		require.NoError(t, err)
+		require.Equal(t, resp.Code, abci.CodeTypeOK)
+		require.Equal(t, resp.TxHash, expectedTxHash)
+
+		response, err := mockTxClient.ConfirmTx(ctx, resp.TxHash)
+		require.NoError(t, err)
+		require.Equal(t, response.TxHash, resp.TxHash)
+		require.Equal(t, response.Code, abci.CodeTypeOK)
+	})
+
+	t.Run("gets nonce mismatch during eviction and hits eviction poll timeout", func(t *testing.T) {
+		expectedTxHash := "test-tx-hash-123"
+
+		// Transaction will get evicted and then resubmitted with nonce mismatch error
+		// Define response sequence: PENDING -> EVICTED -> Sequence mismatch -> EVICTED -> Eviction Poll Timeout
+		// Responses will return evicted until the eviction poll timeout is reached
+		responseSequences := map[string][]*tx.TxStatusResponse{
+			expectedTxHash: {
+				{Status: core.TxStatusPending},
+				{Status: core.TxStatusEvicted},
+				{Status: core.TxStatusEvicted},
+			},
+		}
+
+		mockTxClient, conns := setupTxClientWithMockServers(t, []BroadcastHandler{nil}, responseSequences, user.WithPollTime(5*time.Second))
+		defer conns[0].Close()
+
+		ctx := context.Background()
+
+		blobs := blobfactory.ManyRandBlobs(random.New(), 1, 1)
+		resp, err := mockTxClient.BroadcastPayForBlob(ctx, blobs, user.SetFee(1), user.SetGasLimit(1))
+		require.NoError(t, err)
+		require.Equal(t, resp.Code, abci.CodeTypeOK)
+		require.Equal(t, resp.TxHash, expectedTxHash)
+
+		_, err = mockTxClient.ConfirmTx(ctx, resp.TxHash)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "eviction poll timeout")
+	})
 }
 
 // TestWithEstimatorService ensures that if the WithEstimatorService
@@ -325,7 +475,7 @@ func TestEvictions(t *testing.T) {
 // used to estimate gas price and usage instead of the default connection.
 func TestWithEstimatorService(t *testing.T) {
 	mockEstimator := setupEstimatorService(t)
-	_, txClient, ctx := setupTxClientWithDefaultParams(t, user.WithEstimatorService(mockEstimator.conn))
+	_, txClient, ctx := utils.SetupTxClientWithDefaultParams(t, user.WithEstimatorService(mockEstimator.conn))
 
 	msg := bank.NewMsgSend(txClient.DefaultAddress(), testnode.RandomAddress().(sdk.AccAddress),
 		sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
@@ -391,14 +541,19 @@ func (suite *TxClientTestSuite) TestGasConsumption() {
 }
 
 func (suite *TxClientTestSuite) TestTxClientWithDifferentDefaultAccount() {
-	txClient, err := user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithDefaultAccount("b"))
-	suite.NoError(err)
-	suite.Equal(txClient.DefaultAccountName(), "b")
+	accounts := suite.txClient.Signer().Accounts()
+	require.GreaterOrEqual(suite.T(), len(accounts), 3, "need at least 3 accounts for this test")
 
-	addrC := txClient.Account("c").Address()
-	txClient, err = user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithDefaultAddress(addrC))
+	accountName1 := accounts[1].Name()
+	txClient, err := user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithDefaultAccount(accountName1))
 	suite.NoError(err)
-	suite.Equal(txClient.DefaultAddress(), addrC)
+	suite.Equal(txClient.DefaultAccountName(), accountName1)
+
+	accountName2 := accounts[2].Name()
+	addr2 := txClient.Account(accountName2).Address()
+	txClient, err = user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithDefaultAddress(addr2))
+	suite.NoError(err)
+	suite.Equal(txClient.DefaultAddress(), addr2)
 }
 
 func (suite *TxClientTestSuite) queryCurrentBalance(t *testing.T) int64 {
@@ -410,13 +565,13 @@ func (suite *TxClientTestSuite) queryCurrentBalance(t *testing.T) int64 {
 }
 
 func wasRemovedFromTxTracker(txHash string, txClient *user.TxClient) bool {
-	seq, signer, exists := txClient.GetTxFromTxTracker(txHash)
-	return !exists && seq == 0 && signer == ""
+	seq, signer, txBytes, exists := txClient.GetTxFromTxTracker(txHash)
+	return !exists && seq == 0 && signer == "" && len(txBytes) == 0
 }
 
-// asserts that a tx was indexed in the tx tracker and that the sequence does not increase
+// assertTxInTxTracker verifies that a tx was indexed in the tx tracker and that the sequence increases by one after broadcast.
 func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash, expectedSigner string, seqBeforeBroadcast uint64) {
-	seqFromTxTracker, signer, exists := txClient.GetTxFromTxTracker(txHash)
+	seqFromTxTracker, signer, txBytes, exists := txClient.GetTxFromTxTracker(txHash)
 	require.True(t, exists)
 	require.Equal(t, expectedSigner, signer)
 	seqAfterBroadcast := txClient.Signer().Account(expectedSigner).Sequence()
@@ -424,39 +579,7 @@ func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash, expected
 	require.Equal(t, seqBeforeBroadcast, seqFromTxTracker)
 	// Successfully broadcast transaction increases the sequence
 	require.Equal(t, seqAfterBroadcast, seqBeforeBroadcast+1)
-}
-
-func setupTxClient(
-	t *testing.T,
-	ttlNumBlocks int64,
-	blocksize int64,
-	opts ...user.Option,
-) (encoding.Config, *user.TxClient, testnode.Context) {
-	defaultTmConfig := testnode.DefaultTendermintConfig()
-	defaultTmConfig.Mempool.TTLNumBlocks = ttlNumBlocks
-
-	chainID := unsafe.Str(6)
-	testnodeConfig := testnode.DefaultConfig().
-		WithTendermintConfig(defaultTmConfig).
-		WithFundedAccounts("a", "b", "c").
-		WithChainID(chainID).
-		WithTimeoutCommit(100 * time.Millisecond).
-		WithAppCreator(testnode.CustomAppCreator(baseapp.SetMinGasPrices(fmt.Sprintf("%v%v", appconsts.DefaultMinGasPrice, appconsts.BondDenom)), baseapp.SetChainID(chainID)))
-	testnodeConfig.Genesis.ConsensusParams.Block.MaxBytes = blocksize
-
-	ctx, _, _ := testnode.NewNetwork(t, testnodeConfig)
-	_, err := ctx.WaitForHeight(1)
-	require.NoError(t, err)
-	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
-	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, enc, opts...)
-	require.NoError(t, err)
-
-	return enc, txClient, ctx
-}
-
-func setupTxClientWithDefaultParams(t *testing.T, opts ...user.Option) (encoding.Config, *user.TxClient, testnode.Context) {
-	return setupTxClient(t, 0, 8388608, opts...) // no ttl and 8MiB block size
+	require.NotEmpty(t, txBytes)
 }
 
 type mockEstimatorServer struct {
@@ -519,102 +642,74 @@ func setupEstimatorService(t *testing.T) *mockEstimatorServer {
 	return mes
 }
 
-var (
-	errMock1             = errors.New("mock1 failed")
-	errMock2             = errors.New("mock2 failed")
-	errMock3             = errors.New("mock3 failed")
-	errInsufficientFunds = errors.New("insufficient funds") // Replicates SDK error text
-)
-
-type broadcastTestCase struct {
-	setupMocks  func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn)
-	expectError bool // Changed from error to bool
-}
-
 func (suite *TxClientTestSuite) TestMultiConnBroadcast() {
 	t := suite.T()
 
 	// Default options for most tests - used only to create a valid tx.
 	defaultOpts := []user.TxOption{user.SetGasLimit(100000), user.SetFee(1000)}
-	// Basic MsgSend for testing - use the main suite's default address.
-	defaultMsg := bank.NewMsgSend(suite.txClient.DefaultAddress(), suite.txClient.DefaultAddress(), sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(10))))
 
-	testCases := []broadcastTestCase{
-		{ // Primary Success (Single Conn)
-			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn) {
-				mockSvc1 := &grpctest.MockTxService{
-					BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+	testCases := []struct {
+		name        string
+		setupMocks  func(t *testing.T) (*user.TxClient, []*grpc.ClientConn)
+		expectError bool
+	}{
+		{
+			name: "Primary Success (Single Conn)",
+			setupMocks: func(t *testing.T) (*user.TxClient, []*grpc.ClientConn) {
+				handlers := []BroadcastHandler{
+					func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
 						return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "HASH1"}}, nil
 					},
 				}
-				conn1 := grpctest.StartMockServer(t, mockSvc1)
-				return []*grpctest.MockTxService{mockSvc1}, []*grpc.ClientConn{conn1}
+				return setupTxClientWithMockServers(t, handlers, nil)
 			},
 			expectError: false,
 		},
-		{ // Secondary Success
-			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn) {
-				mockSvc1 := &grpctest.MockTxService{ // Primary fails after delay
-					BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+		{
+			name: "Secondary Success",
+			setupMocks: func(t *testing.T) (*user.TxClient, []*grpc.ClientConn) {
+				handlers := []BroadcastHandler{
+					func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) { // Primary fails after delay
 						time.Sleep(1 * time.Second)
-						return nil, errMock1
-					}}
-				mockSvc2 := &grpctest.MockTxService{ // Secondary succeeds quickly
-					BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+						return nil, errors.New("mock1 failed")
+					},
+					func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) { // Secondary succeeds quickly
 						return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "HASH2"}}, nil
-					}}
-				mockSvc3 := &grpctest.MockTxService{ // Tertiary should be cancelled
-					BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+					},
+					func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) { // Tertiary should be cancelled
 						select {
 						case <-time.After(1 * time.Second):
 							return nil, errors.New("mock3 should have been cancelled")
 						case <-ctx.Done():
 							return nil, ctx.Err()
 						}
-					}}
-				conn1 := grpctest.StartMockServer(t, mockSvc1)
-				conn2 := grpctest.StartMockServer(t, mockSvc2)
-				conn3 := grpctest.StartMockServer(t, mockSvc3)
-				return []*grpctest.MockTxService{
-						mockSvc1,
-						mockSvc2,
-						mockSvc3,
-					}, []*grpc.ClientConn{
-						conn1,
-						conn2,
-						conn3,
-					}
+					},
+				}
+				return setupTxClientWithMockServers(t, handlers, nil)
 			},
 			expectError: false,
 		},
-		{ // All Fail
-			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn) {
-				mockSvc1 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
-					return nil, errMock1
-				}}
-				mockSvc2 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
-					return nil, errMock2
-				}}
-				mockSvc3 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
-					return nil, errMock3
-				}}
-				conn1 := grpctest.StartMockServer(t, mockSvc1)
-				conn2 := grpctest.StartMockServer(t, mockSvc2)
-				conn3 := grpctest.StartMockServer(t, mockSvc3)
-				return []*grpctest.MockTxService{
-						mockSvc1,
-						mockSvc2,
-						mockSvc3,
-					}, []*grpc.ClientConn{
-						conn1,
-						conn2,
-						conn3,
-					}
+		{
+			name: "All Fail",
+			setupMocks: func(t *testing.T) (*user.TxClient, []*grpc.ClientConn) {
+				handlers := []BroadcastHandler{
+					func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+						return nil, errors.New("mock1 failed")
+					},
+					func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+						return nil, errors.New("mock2 failed")
+					},
+					func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+						return nil, errors.New("mock3 failed")
+					},
+				}
+				return setupTxClientWithMockServers(t, handlers, nil)
 			},
 			expectError: true,
 		},
-		{ // Context Deadline
-			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn) {
+		{
+			name: "Context Deadline",
+			setupMocks: func(t *testing.T) (*user.TxClient, []*grpc.ClientConn) {
 				mockHandler := func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
 					select {
 					case <-time.After(1 * time.Second):
@@ -623,86 +718,55 @@ func (suite *TxClientTestSuite) TestMultiConnBroadcast() {
 						return nil, ctx.Err()
 					}
 				}
-				mockSvc1 := &grpctest.MockTxService{BroadcastHandler: mockHandler}
-				mockSvc2 := &grpctest.MockTxService{BroadcastHandler: mockHandler}
-				mockSvc3 := &grpctest.MockTxService{BroadcastHandler: mockHandler}
-				conn1 := grpctest.StartMockServer(t, mockSvc1)
-				conn2 := grpctest.StartMockServer(t, mockSvc2)
-				conn3 := grpctest.StartMockServer(t, mockSvc3)
-				return []*grpctest.MockTxService{
-						mockSvc1,
-						mockSvc2,
-						mockSvc3,
-					}, []*grpc.ClientConn{
-						conn1,
-						conn2,
-						conn3,
-					}
+				handlers := []BroadcastHandler{mockHandler, mockHandler, mockHandler}
+				return setupTxClientWithMockServers(t, handlers, nil)
 			},
 			expectError: true,
 		},
-		{ // Less Than Three Conns (Success)
-			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn) {
-				mockSvc1 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
-					return nil, errMock1
-				}}
-				mockSvc2 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
-					return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "HASH_LT3"}}, nil
-				}}
-				conn1 := grpctest.StartMockServer(t, mockSvc1)
-				conn2 := grpctest.StartMockServer(t, mockSvc2)
-				return []*grpctest.MockTxService{
-						mockSvc1,
-						mockSvc2,
-					}, []*grpc.ClientConn{
-						conn1,
-						conn2,
-					}
+		{
+			name: "Less Than Three Conns (Success)",
+			setupMocks: func(t *testing.T) (*user.TxClient, []*grpc.ClientConn) {
+				handlers := []BroadcastHandler{
+					func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+						return nil, errors.New("mock1 failed")
+					},
+					func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+						return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "HASH_LT3"}}, nil
+					},
+				}
+				return setupTxClientWithMockServers(t, handlers, nil)
 			},
 			expectError: false,
 		},
-		{ // Non-Zero Code Failure
-			setupMocks: func(t *testing.T) ([]*grpctest.MockTxService, []*grpc.ClientConn) {
-				mockSvc1 := &grpctest.MockTxService{BroadcastHandler: func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
-					resp := &sdk.TxResponse{Code: 5, TxHash: "HASH_FAIL", RawLog: errInsufficientFunds.Error()}
-					return &sdktx.BroadcastTxResponse{TxResponse: resp}, nil
-				}}
-				conn1 := grpctest.StartMockServer(t, mockSvc1)
-				return []*grpctest.MockTxService{mockSvc1}, []*grpc.ClientConn{conn1}
+		{
+			name: "Non-Zero Code Failure",
+			setupMocks: func(t *testing.T) (*user.TxClient, []*grpc.ClientConn) {
+				handlers := []BroadcastHandler{
+					func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+						resp := &sdk.TxResponse{Code: 5, TxHash: "HASH_FAIL", RawLog: sdkerrors.ErrInsufficientFunds.Error()}
+						return &sdktx.BroadcastTxResponse{TxResponse: resp}, nil
+					},
+				}
+				return setupTxClientWithMockServers(t, handlers, nil)
 			},
 			expectError: true,
 		},
 	}
 
-	for i, tc := range testCases {
-		name := fmt.Sprintf("BroadcastTestCase%d", i) // Simple naming
-		t.Run(name, func(t *testing.T) {
-			_, conns := tc.setupMocks(t)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tempTxClient, conns := tc.setupMocks(t)
 			require.NotEmpty(t, conns, "Need at least one connection for broadcast test client")
 
-			primaryConn := conns[0]
-			otherConns := conns[1:]
-
-			// Seed a new signer with the suite's default account to avoid querying auth service on mock servers
-			origSigner := suite.txClient.Signer()
-			origAcc := origSigner.Account(suite.txClient.DefaultAccountName()).Copy()
-			signer, err := user.NewSigner(suite.ctx.Keyring, suite.encCfg.TxConfig, origSigner.ChainID(), origAcc)
-			require.NoError(t, err)
-			tempTxClient, err := user.NewTxClient(
-				suite.encCfg.Codec,
-				signer,
-				primaryConn,
-				suite.encCfg.InterfaceRegistry,
-				user.WithAdditionalCoreEndpoints(otherConns),
-			)
-			require.NoError(t, err, "Failed to create temporary TxClient for test case %d", i)
+			// Create message using the mock TxClient's address
+			defaultMsg := bank.NewMsgSend(tempTxClient.DefaultAddress(), tempTxClient.DefaultAddress(), sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(10))))
 
 			var ctx context.Context
 			var cancel context.CancelFunc
-			if name == "BroadcastTestCase3" { // Specifically target the "Context Deadline" case
-				ctx, cancel = context.WithTimeout(context.Background(), 50*time.Millisecond) // Short timeout for deadline test
+			if tc.name == "Context Deadline" {
+				ctx, cancel = context.WithTimeout(context.Background(), 50*time.Millisecond)
 			} else {
-				ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second) // General timeout
+				ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
 			}
 			defer cancel()
 
@@ -717,4 +781,54 @@ func (suite *TxClientTestSuite) TestMultiConnBroadcast() {
 			}
 		})
 	}
+}
+
+// TestSequenceIncrementOnlyOnceInMultiConnBroadcast specifically tests that the sequence
+// is incremented exactly once even when multiple connections succeed simultaneously.
+// This test would fail if we naively called broadcastTxAndIncrementSequence in each goroutine.
+func (suite *TxClientTestSuite) TestSequenceIncrementOnlyOnceInMultiConnBroadcast() {
+	t := suite.T()
+
+	// Create mock services that all succeed immediately
+	handlers := []BroadcastHandler{
+		func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+			return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "SUCCESS1"}}, nil
+		},
+		func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+			return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "SUCCESS2"}}, nil
+		},
+		func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+			return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{Code: abci.CodeTypeOK, TxHash: "SUCCESS3"}}, nil
+		},
+	}
+	multiConnClient, _ := setupTxClientWithMockServers(t, handlers, nil)
+
+	// Capture sequence before broadcast
+	seqBefore := multiConnClient.Signer().Account(multiConnClient.DefaultAccountName()).Sequence()
+
+	// Create a simple message
+	msg := bank.NewMsgSend(
+		multiConnClient.DefaultAddress(),
+		multiConnClient.DefaultAddress(),
+		sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))),
+	)
+
+	// Broadcast the transaction
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resp, err := multiConnClient.BroadcastTx(ctx, []sdk.Msg{msg}, user.SetGasLimit(100000), user.SetFee(1000))
+	require.NoError(t, err, "BroadcastTx should succeed")
+	require.NotNil(t, resp, "Response should not be nil")
+	require.Equal(t, abci.CodeTypeOK, resp.Code, "Response code should be OK")
+
+	// Verify sequence was incremented by exactly 1
+	seqAfter := multiConnClient.Signer().Account(multiConnClient.DefaultAccountName()).Sequence()
+	require.Equal(t, seqBefore+1, seqAfter, "Sequence should be incremented by exactly 1, not by number of connections")
+
+	// Verify the transaction is tracked
+	trackedSeq, trackedSigner, _, exists := multiConnClient.GetTxFromTxTracker(resp.TxHash)
+	require.True(t, exists, "Transaction should be in tracker")
+	require.Equal(t, seqBefore, trackedSeq, "Tracked sequence should be the sequence before increment")
+	require.Equal(t, multiConnClient.DefaultAccountName(), trackedSigner, "Tracked signer should match")
 }

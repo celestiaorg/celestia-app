@@ -5,7 +5,7 @@ import (
 	"errors"
 	"math/rand"
 
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/gogoproto/grpc"
 )
@@ -23,7 +23,7 @@ type Sequence interface {
 	// For any randomness, use the rand source provided.
 	Init(ctx context.Context, querier grpc.ClientConn, accountAllocator AccountAllocator, rand *rand.Rand, useFeegrant bool)
 
-	// Next returns the next operation in the sequence. It returns EndOfSequence
+	// Next returns the next operation in the sequence. It returns ErrEndOfSequence
 	// when the sequence has been exhausted. The sequence may make use of the
 	// grpc connection to query the state of the network as well as the deterministic
 	// random number generator. Any error will abort the rest of the sequence.

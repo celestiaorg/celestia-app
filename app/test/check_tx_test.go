@@ -17,14 +17,15 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
-	"github.com/celestiaorg/go-square/v2/tx"
+	"github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/go-square/v3/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
+	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -268,11 +269,41 @@ func TestCheckTx(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err = testApp.CheckTx(&abci.RequestCheckTx{Type: tt.checkType, Tx: tt.getTx()})
+			txBz := tt.getTx()
+			resp, err = testApp.CheckTx(&abci.RequestCheckTx{Type: tt.checkType, Tx: txBz})
 			if resp.Code == 0 {
 				require.NoError(t, err)
 			}
 			assert.Equal(t, tt.expectedABCICode, resp.Code, resp.Log)
+
+			if resp.Code != abci.CodeTypeOK {
+				return
+			}
+
+			var baseTxBz []byte
+			decodedBlobTx, isBlob, err := tx.UnmarshalBlobTx(txBz)
+			if isBlob {
+				require.NoError(t, err)
+				require.NotNil(t, decodedBlobTx)
+				baseTxBz = decodedBlobTx.Tx
+			} else {
+				// Non-blob transactions can surface decoding errors (e.g. invalid UTF-8 inside signatures)
+				// which we can safely ignore since we only need the raw tx bytes for non-blob txs.
+				baseTxBz = txBz
+			}
+
+			sdkTx, err := encodingConfig.TxConfig.TxDecoder()(baseTxBz)
+			require.NoError(t, err)
+
+			sigTx, ok := sdkTx.(authsigning.SigVerifiableTx)
+			require.True(t, ok, "tx must implement SigVerifiableTx")
+
+			sigs, err := sigTx.GetSignaturesV2()
+			require.NoError(t, err)
+			require.NotEmpty(t, sigs)
+
+			require.Equal(t, sigs[0].PubKey.Address().Bytes(), resp.Address)
+			require.Equal(t, sigs[0].Sequence, resp.Sequence)
 		})
 	}
 }

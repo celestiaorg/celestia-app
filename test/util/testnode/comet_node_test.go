@@ -10,8 +10,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v6/test/util/random"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/stretchr/testify/require"
@@ -34,7 +35,7 @@ type IntegrationTestSuite struct {
 
 func (s *IntegrationTestSuite) SetupSuite() {
 	t := s.T()
-	s.accounts = RandomAccounts(10)
+	s.accounts = testfactory.GenerateAccounts(10)
 
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	blobGenState := blobtypes.DefaultGenesis()
@@ -43,7 +44,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	cfg := DefaultConfig().
 		WithFundedAccounts(s.accounts...).
 		WithModifiers(genesis.SetBlobParams(enc.Codec, blobGenState.Params)).
-		WithTimeoutCommit(time.Millisecond * 100)
+		WithDelayedPrecommitTimeout(time.Millisecond * 100)
 
 	cctx, _, _ := NewNetwork(t, cfg)
 	s.cctx = cctx

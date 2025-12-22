@@ -18,6 +18,14 @@ service Tx {
       get: "/celestia/core/v1/tx/{tx_id}"
     };
   }
+
+  // TxStatusBatch for batch queries
+  rpc TxStatusBatch(TxStatusBatchRequest) returns (TxStatusBatchResponse) {
+    option (google.api.http) = {
+      post: "/celestia/core/v1/tx/batch"
+      body: "*"
+    };
+  }
 }
 
 // TxStatusRequest is the request type for the TxStatus gRPC method.
@@ -38,4 +46,29 @@ message TxStatusResponse {
   string error = 4;
   // status is the status of the transaction.
   string status = 5;
+  // the error namespace/module.
+  string codespace  = 6;
+  // requested gas limit.
+  int64 gas_wanted = 7;
+  // actual gas consumed.
+  int64 gas_used   = 8;
+  // signers of the transaction.
+  repeated string signers = 9;
+}
+
+// TxStatusBatchRequest is the request type for the batch TxStatus gRPC method.
+message TxStatusBatchRequest {
+  // array of hex encoded tx hashes (each hash should be 64 characters long representing 32 bytes)
+  repeated string tx_ids = 1;
+}
+
+// TxStatusResult represents a single transaction status result in a batch response.
+message TxStatusResult {
+  string tx_hash = 1;
+  TxStatusResponse status = 2;
+}
+
+// TxStatusBatchResponse is a response type for batched TxStatus query. It contains an array of transaction status results.
+message TxStatusBatchResponse {
+  repeated TxStatusResult statuses = 1;
 }

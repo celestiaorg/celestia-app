@@ -9,8 +9,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/app"
 	"github.com/celestiaorg/celestia-app/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
-	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
+	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
+	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
 	"github.com/celestiaorg/tastora/framework/testutil/maps"
 	cometcfg "github.com/cometbft/cometbft/config"
@@ -56,11 +57,12 @@ func NewCelestiaChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.Chai
 	addr, err := records[0].GetAddress()
 	require.NoError(t, err, "failed to get address from keyring record")
 	// Create the wallet with all required fields
-	faucetWallet := tastoradockertypes.NewWallet(addr, addr.String(), "celestia", records[0].Name)
+	faucetWallet := tastoratypes.NewWallet(addr, addr.String(), "celestia", records[0].Name)
 
 	return tastoradockertypes.NewChainBuilder(t).
 		WithName("celestia"). // just influences home directory on the host.
 		WithChainID(cfg.Genesis.ChainID).
+		WithBinaryName("celestia-appd").
 		WithDockerClient(cfg.DockerClient).
 		WithDockerNetworkID(cfg.DockerNetworkID).
 		WithImage(tastoracontainertypes.NewImage(cfg.Image, cfg.Tag, "10001:10001")).
@@ -127,7 +129,7 @@ func SetupTxClient(ctx context.Context, cn *tastoradockertypes.ChainNode, cfg *C
 //
 //	for i, nodeBuilder := range nodeBuilders {
 //	    version := getVersionForIndex(i)
-//		nodeBuilder.WithImage(tastoradockertypes.NewDockerImage(cfg.Image, version, "10001:10001")
+//		nodeBuilder.WithImage(tastoracontainertypes.NewImage(cfg.Image, version, "10001:10001"))
 //	}
 func NodeConfigBuilders(cfg *Config) ([]*tastoradockertypes.ChainNodeConfigBuilder, error) {
 	kr := cfg.Genesis.Keyring()

@@ -78,7 +78,7 @@ type Multiplexer struct {
 	conn *grpc.ClientConn
 	// ctx is the context which is passed to the comet, grpc and api server starting functions.
 	ctx context.Context
-	// g is the waitgroup to which the comet, grpc and api server init functions are added to.
+	// g is the errgroup to which the gRPC server, API server, block event listener, and signal handler are added to.
 	g *errgroup.Group
 	// traceWriter is the trace writer for the multiplexer.
 	traceWriter io.WriteCloser

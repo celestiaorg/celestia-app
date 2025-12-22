@@ -31,7 +31,7 @@ func TestGenerateManyRandomRawSendTxsSameSigner_Deterministic(t *testing.T) {
 	encodedTxs2 := blobfactory.GenerateManyRandomRawSendTxsSameSigner(rand.New(rand.NewSource(seed)), signer, normalTxCount)
 
 	// additional check for the sake of future debugging
-	for i := 0; i < normalTxCount; i++ {
+	for i := range normalTxCount {
 		tx1, err := TxDecoder(encodedTxs1[i])
 		assert.NoError(t, err)
 		assert.NotNil(t, tx1)

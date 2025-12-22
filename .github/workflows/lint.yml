@@ -8,8 +8,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
-      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 #v5.5.0
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
         with:
           go-version-file: "go.mod"
       - uses: technote-space/get-diff-action@f27caffdd0fb9b13f4fc191c016bb4e0632844af #v6.1.2
@@ -20,7 +20,7 @@ jobs:
             **/**.go
             go.mod
             go.sum
-      - uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 #v8.0.0
+      - uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 #v9.2.0
         with:
           version: v2.1.2
           args: --timeout 10m
@@ -30,19 +30,40 @@ jobs:
   hadolint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
-      - uses: hadolint/hadolint-action@v3.1.0
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+      - uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: docker/standalone.Dockerfile
-      - uses: hadolint/hadolint-action@v3.1.0
+      - uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: docker/multiplexer.Dockerfile
-      - uses: hadolint/hadolint-action@v3.1.0
+      - uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: docker/txsim/Dockerfile
 
   yamllint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
-      - uses: celestiaorg/.github/.github/actions/yamllint@98f519843a1bade938e5604202df600aa0717aa8 #v0.6.3
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+      - uses: celestiaorg/.github/.github/actions/yamllint@9ee03305d3cc6cf520b7895436429aa853b58e70 #v0.6.4
+
+  modernize-check:
+    name: modernize-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
+        with:
+          go-version-file: "go.mod"
+      - uses: technote-space/get-diff-action@f27caffdd0fb9b13f4fc191c016bb4e0632844af #v6.1.2
+        with:
+          # This job will pass without running if go.mod, go.sum, and *.go
+          # wasn't modified.
+          PATTERNS: |
+            **/**.go
+            go.mod
+            go.sum
+      - name: Run modernize check
+        run: make modernize-check
+        if: env.GIT_DIFF

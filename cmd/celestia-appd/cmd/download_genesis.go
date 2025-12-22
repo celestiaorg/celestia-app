@@ -97,6 +97,10 @@ func downloadFile(filepath, url string) error {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected HTTP status: %s", resp.Status)
+	}
+
 	out, err := os.Create(filepath)
 	if err != nil {
 		return err

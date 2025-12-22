@@ -4,12 +4,13 @@ A tool for monitoring and measuring transaction latency in Celestia networks. Th
 
 ## Features
 
-- Configurable transaction submission rate (in KB/s)
-- Adjustable blob size
+- Configurable submission delay between transactions
+- Random blob sizes between configurable minimum and maximum bounds
 - Custom namespace support
 - Real-time transaction monitoring
+- Tracks both successful and failed confirmations
 - Detailed latency statistics including mean and standard deviation
-- CSV export of all transaction results
+- CSV export of all transaction results with failure tracking
 
 ## Prerequisites
 
@@ -25,11 +26,16 @@ A tool for monitoring and measuring transaction latency in Celestia networks. Th
 
 ### Available Flags
 
-- `-grpc-endpoint`: gRPC endpoint to connect to (default: "localhost:9090")
-- `-keyring-dir`: Directory containing the keyring (default: "~/.celestia-app")
-- `-submit-rate`: Data submission rate in KB/sec (default: 1.0)
-- `-blob-size`: Size of blob data in bytes (default: 1024)
-- `-namespace`: Namespace for blob submission (default: "test")
+| Flag | Shorthand | Default | Description |
+|------|-----------|---------|-------------|
+| `--grpc-endpoint` | `-e` | `localhost:9090` | gRPC endpoint to connect to |
+| `--keyring-dir` | `-k` | `~/.celestia-app` | Directory containing the keyring |
+| `--account` | `-a` | _(first account)_ | Account name to use from keyring |
+| `--blob-size` | `-b` | `1024` | Maximum blob size in bytes (blobs will be random size between this value and the minimum) |
+| `--blob-size-min` | `-z` | `1` | Minimum blob size in bytes (blobs will be random size between this value and the maximum) |
+| `--submission-delay` | `-d` | `4000ms` | Delay between transaction submissions |
+| `--namespace` | `-n` | `test` | Namespace for blob submission |
+| `--disable-metrics` | `-m` | `false` | Disable metrics collection |
 
 ### Example
 
@@ -37,25 +43,42 @@ A tool for monitoring and measuring transaction latency in Celestia networks. Th
 # Run with default settings (from the root directory)
 go run ./tools/latency-monitor
 
-# Run with custom settings
-go run ./tools/latency-monitor -grpc-endpoint=localhost:9090 -submit-rate=2.0 -blob-size=2048 -namespace=custom
+# Run with custom settings (long flags)
+go run ./tools/latency-monitor --grpc-endpoint localhost:9090 --submission-delay 200ms --blob-size 4096 --blob-size-min 1024 --namespace custom
+
+# Run with custom settings (short flags)
+go run ./tools/latency-monitor -e localhost:9090 -d 200ms -b 4096 -z 1024 -n custom
+
+# Use a specific account from keyring
+go run ./tools/latency-monitor -a validator
+
+# View help
+go run ./tools/latency-monitor --help
 ```
 
 ## Output
 
 The tool provides:
 
-1. Real-time updates every 10 seconds showing the number of transactions submitted
+1. Real-time logging for each transaction:
+   - `[SUBMIT]` when a blob is broadcast (with tx hash, size, and timestamp)
+   - `[CONFIRM]` when a transaction is confirmed (with tx hash, height, latency, code, and timestamp)
+   - `[FAILED]` when confirmation fails (with tx hash and error)
+   - Status updates every 10 seconds showing the number of transactions submitted
 2. A CSV file (`latency_results.csv`) containing:
    - Submit time
    - Commit time
    - Latency (in milliseconds)
    - Transaction hash
+   - Block height
    - Transaction code
+   - Failed status (true/false)
+   - Error message (if failed)
 3. Final statistics including:
    - Total number of transactions
-   - Average latency
-   - Standard deviation
+   - Success/failure counts and percentages
+   - Average latency (for successful transactions)
+   - Standard deviation (for successful transactions)
 
 ## Stopping the Tool
 

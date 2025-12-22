@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync/atomic"
-
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 )
 
 type NodeType string
@@ -49,10 +49,8 @@ func NodeName(nodeType NodeType) string {
 type Provider string
 
 const (
-	// DO represents DigitalOcean as a provider.
 	DigitalOcean Provider = "digitalocean"
-	// Linode represents Linode as a provider.
-	Linode Provider = "linode"
+	GoogleCloud  Provider = "googlecloud"
 )
 
 // Instance represents a single instance in the network. It contains
@@ -91,8 +89,37 @@ func NewBaseInstance(nodeType NodeType) Instance {
 		PublicIP:  "TBD",
 		PrivateIP: "TBD",
 		Name:      name,
-		Tags:      []string{appconsts.TalisChainID, string(nodeType), name},
+		Tags:      []string{"talis"},
 	}
+}
+
+func (i Instance) WithExperiment(experimentID, chainID string) Instance {
+	index := extractIndexFromName(i.Name)
+	experimentTag := ExperimentTag(i.NodeType, index, experimentID, chainID)
+	i.Tags = append(i.Tags, experimentTag)
+	return i
+}
+
+func extractIndexFromName(name string) int {
+	parts := strings.Split(name, "-")
+	if len(parts) < 2 {
+		return 0
+	}
+	index, _ := strconv.Atoi(parts[len(parts)-1])
+	return index
+}
+
+func ExperimentTag(nodeType NodeType, index int, experimentID, chainID string) string {
+	return fmt.Sprintf("%s-%d-%s-%s", nodeType, index, experimentID, chainID)
+}
+
+func GetExperimentTag(tags []string) string {
+	for _, tag := range tags {
+		if strings.HasPrefix(tag, "validator-") || strings.HasPrefix(tag, "bridge-") || strings.HasPrefix(tag, "light-") {
+			return tag
+		}
+	}
+	return ""
 }
 
 // Config describes the desired state of the network.
@@ -119,13 +146,10 @@ type Config struct {
 	SSHKeyName string `json:"ssh_key_name"`
 	// DigitalOceanToken is used to authenticate with DigitalOcean. It can be
 	// provided via an env var or flag.
-	DigitalOceanToken string `json:"digitalocean_token,omitempty"`
-	// LinodeToken is used to authenticate with Linode. It can be provided via
-	// an env var or flag.
-	LinodeToken string `json:"linode_token,omitempty"`
-	// S3Config is used to configure the S3 bucket that will be used to store
-	// traces, logs, and other data.
-	S3Config S3Config `json:"s3_config,omitempty"`
+	DigitalOceanToken      string   `json:"digitalocean_token"`
+	GoogleCloudProject     string   `json:"google_cloud_project"`
+	GoogleCloudKeyJSONPath string   `json:"google_cloud_key_json_path"`
+	S3Config               S3Config `json:"s3_config"`
 }
 
 func NewConfig(experiment, chainID string) Config {
@@ -160,8 +184,13 @@ func (cfg Config) WithDigitalOceanToken(token string) Config {
 	return cfg
 }
 
-func (cfg Config) WithLinodeToken(token string) Config {
-	cfg.LinodeToken = token
+func (cfg Config) WithGoogleCloudProject(project string) Config {
+	cfg.GoogleCloudProject = project
+	return cfg
+}
+
+func (cfg Config) WithGoogleCloudKeyJSONPath(keyJSONPath string) Config {
+	cfg.GoogleCloudKeyJSONPath = keyJSONPath
 	return cfg
 }
 
@@ -171,7 +200,13 @@ func (cfg Config) WithS3Config(s3 S3Config) Config {
 }
 
 func (cfg Config) WithDigitalOceanValidator(region string) Config {
-	i := NewDigitalOceanValidator(region)
+	i := NewDigitalOceanValidator(region).WithExperiment(cfg.Experiment, cfg.ChainID)
+	cfg.Validators = append(cfg.Validators, i)
+	return cfg
+}
+
+func (cfg Config) WithGoogleCloudValidator(region string) Config {
+	i := NewGoogleCloudValidator(region).WithExperiment(cfg.Experiment, cfg.ChainID)
 	cfg.Validators = append(cfg.Validators, i)
 	return cfg
 }

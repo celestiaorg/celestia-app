@@ -2,6 +2,7 @@ package ante
 
 import (
 	"fmt"
+	"strings"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -24,9 +25,10 @@ func (d HandlePanicDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 }
 
 func FormatTx(tx sdk.Tx) string {
-	output := "\ncaused by transaction:\n"
+	var output strings.Builder
+	output.WriteString("\ncaused by transaction:\n")
 	for _, msg := range tx.GetMsgs() {
-		output += fmt.Sprintf("%T{%s}\n", msg, msg)
+		output.WriteString(fmt.Sprintf("%T{%s}\n", msg, msg))
 	}
-	return output
+	return output.String()
 }

@@ -11,8 +11,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
-	"github.com/celestiaorg/go-square/v2/tx"
+	"github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/go-square/v3/tx"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/input"
@@ -178,7 +178,8 @@ func getBlobFromArguments(namespaceIDArg, blobArg string, namespaceVersion, shar
 	case share.ShareVersionOne:
 		return types.NewV1Blob(namespace, rawBlob, signer)
 	default:
-		return nil, fmt.Errorf("share version %d is not supported", shareVersion)
+		return nil, fmt.Errorf("share version %d is not supported; supported versions are: %d, %d",
+			shareVersion, share.ShareVersionZero, share.ShareVersionOne)
 	}
 }
 
@@ -193,7 +194,8 @@ func getNamespace(namespaceID []byte, namespaceVersion uint8) (share.Namespace, 
 		id = append(id, namespaceID...)
 		return share.NewNamespace(namespaceVersion, id)
 	default:
-		return share.Namespace{}, fmt.Errorf("namespace version %d is not supported", namespaceVersion)
+		return share.Namespace{}, fmt.Errorf("namespace version %d is not supported; supported versions are: %d",
+			namespaceVersion, share.NamespaceVersionZero)
 	}
 }
 

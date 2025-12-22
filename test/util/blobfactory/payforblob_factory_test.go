@@ -32,7 +32,7 @@ func TestRandMultiBlobTxsSameSigner_Deterministic(t *testing.T) {
 	marshalledBlobTxs2 := blobfactory.RandMultiBlobTxsSameSigner(t, rand2, signer, pfbCount)
 
 	// additional checks for the sake of future debugging
-	for index := 0; index < pfbCount; index++ {
+	for index := range pfbCount {
 		blobTx1, isBlob := types.UnmarshalBlobTx(marshalledBlobTxs1[index])
 		assert.True(t, isBlob)
 		pfbMsgs1, err := decoder(blobTx1.Tx)

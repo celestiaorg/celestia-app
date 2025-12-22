@@ -144,7 +144,7 @@ This can be done with minimal changes in Cosmos SDK mainline, but wasn't require
 
 ## Alternatives
 
-The current alternative to the `multiplexer` is [`cosmovisor`](https://docs.cosmos.network/main/build/tooling/cosmovisor).
+The current alternative to the `multiplexer` is [`cosmovisor`](https://docs.cosmos.network/v0.53/build/tooling/cosmovisor).
 
 `Cosmovisor` simplifies the upgrade process by automatically switching the whole binary at the upgrade height. However, node operators need to download the new binary and add it to `cosmovisor`. Additionally, `cosmovisor` restarts the whole binary, including the consensus layer, which can lead to P2P disruption and a longer downtime for the node operators.
 `Cosmovisor` is a great tool, but it is not the best solution for all chains. `Multiplexer` is designed to be a more flexible and powerful solution for upgrading Cosmos SDK-based chains.

@@ -45,9 +45,9 @@ Inefficient space usage. Unlike compact share sequences which are bounded (i.e. 
   - 4 bytes is capable of storing a uint32. A uint32 can contain a max sequence length of 4,294,967,296 bytes. In other words, a uint32 works up until 4GiB blocks. To put this into context, this max sequence length is hit with 1024 byte share size and max square size of 2048.
   - 8 bytes is capable of storing a uint64. A uint64 can contain a max sequence length of 18,446,744,073,709,551,615 bytes so pebibyte scale.
 - If we choose this option, we should decide on big endian vs. little endian? Proposal: big endian because it seems more user friendly and more common on the network
-  - Integers in Fuel are big endian. See <https://fuellabs.github.io/fuel-specs/master/vm/index.html?highlight=endian#semantics>.
+  - Integers in Fuel are big endian. See <https://docs.fuel.network/docs/specs/#semantics>.
   <!-- markdown-link-check-disable -->
-  - Bitcoin is little endian. Ref: <https://learnmeabitcoin.com/technical/little-endian>.
+  - Bitcoin is little endian. Ref: <https://learnmeabitcoin.com/technical/general/little-endian/>.
   <!-- markdown-link-check-enable -->
   - Ethereum uints are little endian. Ref: <https://jeancvllr.medium.com/solidity-tutorial-all-about-bytes-9d88fdb22676>
 
@@ -102,4 +102,4 @@ Option D
 
 ## References
 
-- <https://developers.google.com/protocol-buffers/docs/encoding#non-varint-nums>
+- <https://protobuf.dev/programming-guides/encoding/#non-varints>

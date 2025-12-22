@@ -13,7 +13,7 @@ func TestSetField(t *testing.T) {
 		name    string
 		input   string
 		path    string
-		value   interface{}
+		value   any
 		want    string
 		wantErr error
 	}{
@@ -135,7 +135,7 @@ func TestDeleteField(t *testing.T) {
 
 func mustUnmarshal(t *testing.T, s string) string {
 	t.Helper()
-	var m map[string]interface{}
+	var m map[string]any
 	err := json.Unmarshal([]byte(s), &m)
 	require.NoError(t, err, "failed to unmarshal JSON")
 

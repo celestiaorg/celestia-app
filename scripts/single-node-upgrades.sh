@@ -2,10 +2,8 @@
 
 # This script starts a local single node testnet on app version 5 and then upgrades to app version 6.
 
-# Stop script execution if an error is encountered
-set -o errexit
-# Stop script execution if an undefined variable is used
-set -o nounset
+set -o errexit # Stop script execution if an error is encountered
+set -o nounset # Stop script execution if an undefined variable is used
 
 if ! [ -x "$(command -v celestia-appd)" ]
 then
@@ -97,7 +95,7 @@ startCelestiaApp() {
     --api.enable \
     --grpc.enable \
     --grpc-web.enable \
-    --timeout-commit 1s
+    --delayed-precommit-timeout 1s
 }
 
 upgrade() {

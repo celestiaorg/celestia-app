@@ -8,8 +8,8 @@ import (
 
 // SetField modifies a JSON-encoded byte slice by updating or inserting a value at the given dot-delimited path.
 // Returns the updated JSON-encoded byte slice or an error if unmarshalling, marshaling, or setting the field fails.
-func SetField(bz []byte, path string, value interface{}) ([]byte, error) {
-	var doc map[string]interface{}
+func SetField(bz []byte, path string, value any) ([]byte, error) {
+	var doc map[string]any
 	if err := json.Unmarshal(bz, &doc); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal genesis: %w", err)
 	}
@@ -28,7 +28,7 @@ func RemoveField(bz []byte, path string) ([]byte, error) {
 
 // setOrDeleteNestedField modifies a nested field in a map based on a dot-delimited path or deletes it if value is nil.
 // Returns an error if the path is invalid or intermediate nodes are not maps.
-func setOrDeleteNestedField(doc map[string]interface{}, path string, value interface{}) error {
+func setOrDeleteNestedField(doc map[string]any, path string, value any) error {
 	keys := strings.Split(path, ".")
 
 	current := doc
@@ -43,7 +43,7 @@ func setOrDeleteNestedField(doc map[string]interface{}, path string, value inter
 			return nil
 		}
 
-		next, ok := current[key].(map[string]interface{})
+		next, ok := current[key].(map[string]any)
 		if !ok {
 			return fmt.Errorf("invalid path: %s is not a map", strings.Join(keys[:i+1], "."))
 		}

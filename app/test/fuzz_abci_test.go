@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v6/test/util"
 	"github.com/celestiaorg/celestia-app/v6/test/util/random"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"

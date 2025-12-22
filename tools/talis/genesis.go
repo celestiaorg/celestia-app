@@ -22,6 +22,7 @@ func generateCmd() *cobra.Command {
 		rootDir                       string
 		chainID                       string // will overwrite that in the config
 		squareSize                    int
+		buildDirPath                  string
 		appBinaryPath                 string
 		nodeBinaryPath                string
 		txsimBinaryPath               string
@@ -70,16 +71,30 @@ func generateCmd() *cobra.Command {
 				return fmt.Errorf("failed to copy scripts: %w", err)
 			}
 
-			if err := copyFile(appBinaryPath, filepath.Join(payloadDir, "build", "celestia-appd"), 0o755); err != nil {
-				return fmt.Errorf("failed to copy app binary: %w", err)
-			}
+			buildDest := filepath.Join(payloadDir, "build")
+			if buildDirPath != "" {
+				info, err := os.Stat(buildDirPath)
+				if err != nil {
+					return fmt.Errorf("failed to stat build directory %q: %w", buildDirPath, err)
+				}
+				if !info.IsDir() {
+					return fmt.Errorf("build path %q is not a directory", buildDirPath)
+				}
+				if err := copyDir(buildDirPath, buildDest); err != nil {
+					return fmt.Errorf("failed to copy build directory: %w", err)
+				}
+			} else {
+				if err := copyFile(appBinaryPath, filepath.Join(buildDest, "celestia-appd"), 0o755); err != nil {
+					return fmt.Errorf("failed to copy app binary: %w", err)
+				}
 
-			if err := copyFile(nodeBinaryPath, filepath.Join(payloadDir, "build", "celestia"), 0o755); err != nil {
-				log.Println("failed to copy celestia binary, bridge and light nodes will not be able to start")
-			}
+				if err := copyFile(nodeBinaryPath, filepath.Join(buildDest, "celestia"), 0o755); err != nil {
+					log.Println("failed to copy celestia binary, bridge and light nodes will not be able to start")
+				}
 
-			if err := copyFile(txsimBinaryPath, filepath.Join(payloadDir, "build", "txsim"), 0o755); err != nil {
-				return fmt.Errorf("failed to copy txsim binary: %w", err)
+				if err := copyFile(txsimBinaryPath, filepath.Join(buildDest, "txsim"), 0o755); err != nil {
+					return fmt.Errorf("failed to copy txsim binary: %w", err)
+				}
 			}
 
 			if err := writeAWSEnv(filepath.Join(payloadDir, "vars.sh"), cfg); err != nil {
@@ -103,6 +118,7 @@ func generateCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&chainID, chainIDFlag, "c", "", "Override the chainID in the config")
 	cmd.Flags().StringVarP(&rootDir, rootDirFlag, "d", ".", "root directory in which to initialize (default is the current directory)")
 	cmd.Flags().IntVarP(&squareSize, "ods-size", "s", appconsts.SquareSizeUpperBound, "The size of the ODS for the network (make sure to also build a celestia-app binary with a greater SquareSizeUpperBound)")
+	cmd.Flags().StringVarP(&buildDirPath, "build-dir", "b", "", "directory containing binaries to include in the payload")
 	cmd.Flags().StringVarP(&appBinaryPath, "app-binary", "a", filepath.Join(gopath, "celestia-appd"), "app binary to include in the payload (assumes the binary is installed")
 	cmd.Flags().StringVarP(&nodeBinaryPath, "node-binary", "n", filepath.Join(gopath, "celestia"), "node binary to include in the payload (assumes the binary is installed")
 	cmd.Flags().StringVarP(&txsimBinaryPath, "txsim-binary", "t", filepath.Join(gopath, "txsim"), "txsim binary to include in the payload (assumes the binary is installed)")

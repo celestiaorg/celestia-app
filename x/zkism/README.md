@@ -9,7 +9,7 @@ The module currently supports the following proof value types:
 - `StateTransitionValues`: State transition (`state -> new_state`), stored as opaque bytes.
 - `StateMembershipValues`: State membership of Hyperlane message IDs (authorizes specific messages for later processing).
 
-The module integrates with Hyperlane core via the keeper’s `Verify` method. This is the integration point used by the Hyperlane ISM routing mechanism. 
+The module integrates with Hyperlane core via the keeper’s `Verify` method. This is the integration point used by the Hyperlane ISM routing mechanism.
 The `Verify` method consumes the stored message IDs and authorizes the message for processing.
 
 ## Concepts
@@ -24,7 +24,7 @@ Users can define any state and write circuits that encapsulate a transition from
 
 The `x/zkism` module defines the following collections used for storage of on-chain state.
 
-- `isms`: Stores per-ISM records. Each record contains `id`, `owner`, `state` (opaque bytes, first 32 bytes used as the trusted root), `merkle_tree_address` and the SP1 Groth16 verifying key configurations. `(collections.Map[uint64, InterchainSecurityModule], types.IsmsKeyPrefix)`. 
+- `isms`: Stores per-ISM records. Each record contains `id`, `owner`, `state` (opaque bytes, first 32 bytes used as the trusted root), `merkle_tree_address` and the SP1 Groth16 verifying key configurations. `(collections.Map[uint64, InterchainSecurityModule], types.IsmsKeyPrefix)`.
 - `messages`: Authorized Hyperlane message IDs for one-time consumption by `keeper.Verify`. `(collections.KeySet[collections.Pair[uint64,[]byte]], types.MessageKeyPrefix)`.
 
 ## Messages (Tx RPCs)
@@ -57,7 +57,7 @@ type SP1Groth16Verifier struct {
 
 ### Public Witness Construction
 
-In zk-SNARK systems, 𝔽ᵣ denotes the scalar field of the curve in use, i.e. the finite field of order equal to the curve's group order, for example in BN254 `r` (≈2²⁵⁴). 
+In zk-SNARK systems, 𝔽ᵣ denotes the scalar field of the curve in use, i.e. the finite field of order equal to the curve's group order, for example in BN254 `r` (≈2²⁵⁴).
 The function `Fr()` reduces a byte string into an element of this field.
 
 - `vk_element = Fr(program_vk_commitment)` where `program_vk_commitment` is a 32-byte commitment for the specific SP1 program.

@@ -12,7 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	paycli "github.com/celestiaorg/celestia-app/v6/x/blob/client/cli"
 	"github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
