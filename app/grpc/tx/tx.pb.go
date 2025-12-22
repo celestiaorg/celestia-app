@@ -291,7 +291,8 @@ func (m *TxStatusResult) GetStatus() *TxStatusResponse {
 	return nil
 }
 
-// TxStatusBatchResponse is a response type for batched TxStatus query. It contains an array of transaction status results.
+// TxStatusBatchResponse is a response type for batched TxStatus query. It contains an array of transaction status
+// results.
 type TxStatusBatchResponse struct {
 	Statuses []*TxStatusResult `protobuf:"bytes,1,rep,name=statuses,proto3" json:"statuses,omitempty"`
 }

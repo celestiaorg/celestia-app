@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package celestia.forwarding.v1;
+
+option go_package = "github.com/celestiaorg/celestia-app/x/forwarding/types";
+
+// GenesisState defines the forwarding module's genesis state.
+message GenesisState {}

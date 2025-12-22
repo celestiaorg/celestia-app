@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package celestia.forwarding.v1;
+
+import "cosmos/base/v1beta1/coin.proto";
+import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/forwarding/types";
+
+// Msg defines the signal Msg service.
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  // WarpForward performs a forward transfer using the Hyperlane x/warp module.
+  rpc WarpForward(MsgWarpForward) returns (MsgWarpForwardResponse) {}
+}
+
+// MsgWarpForward is the request type for the WarpForward method.
+message MsgWarpForward {
+  option (cosmos.msg.v1.signer) = "signer";
+
+  // token to be transferred (denomination + amount).
+  cosmos.base.v1beta1.Coin token = 1 [(gogoproto.nullable) = false];
+  // recipient on the destination chain.
+  string recipient = 2 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // the destination domain identifier.
+  uint32 destination_domain = 3;
+  // the signer of the message.
+  string signer = 4 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+}
+
+// MsgWarpForwardResponse is the response type for the WarpForward method.
+message MsgWarpForwardResponse {}
