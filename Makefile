@@ -363,6 +363,15 @@ build-talis-bins:
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
 .PHONY: build-talis-bins
 
+## setup-lumina-cross-compile: Install zig and cargo-zigbuild for cross-compilation
+setup-lumina-cross-compile:
+	cd tools/lumina-latency-monitor && cargo xtask setup
+.PHONY: setup-lumina-cross-compile
+
+## build-lumina-latency-monitor: Build lumina-latency-monitor for Linux x86_64
+build-lumina-latency-monitor:
+	cd tools/lumina-latency-monitor && cargo xtask build-linux
+.PHONY: build-lumina-latency-monitor
 
 ## adr-gen: Download the ADR template from the celestiaorg/.github repo.
 adr-gen:

@@ -1,11 +1,14 @@
+[workspace]
+members = ["xtask"]
+
 [package]
 name = "lumina-latency-monitor"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-celestia-grpc = { git = "https://github.com/fl0rek/celestia-node-rs", branch = "lumina-grpc-split", features = ["tls-ring"] }
-celestia-types = { git = "https://github.com/fl0rek/celestia-node-rs", branch = "lumina-grpc-split" }
+celestia-grpc = { git = "https://github.com/eigerco/lumina", branch = "main", features = ["tls-ring"] }
+celestia-types = { git = "https://github.com/eigerco/lumina", branch = "main" }
 tokio = { version = "1.42", features = ["macros", "rt", "rt-multi-thread", "signal"] }
 rand = "0.8.5"
 hex = "0.4.3"
@@ -18,7 +21,6 @@ parse_duration = "2"
 thiserror = "2.0"
 
 # Keyring support
-josekit = "0.8"
 prost = "0.13"
 dirs = "5.0"
 bech32 = "0.11"
@@ -27,6 +29,12 @@ ripemd = "0.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 base64 = "0.22"
+
+# JWE decryption (pure Rust, no OpenSSL)
+pbkdf2 = { version = "0.12", features = ["hmac"] }
+aes-gcm = "0.10"
+aes-kw = "0.2"
+hmac = "0.12"
 
 [dev-dependencies]
 tokio = { version = "1.42", features = ["rt", "rt-multi-thread", "macros"] }
