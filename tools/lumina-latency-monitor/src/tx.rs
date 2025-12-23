@@ -1,14 +1,12 @@
-use std::pin::Pin;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use celestia_grpc::{GrpcClient, TxConfig};
 use celestia_types::nmt::Namespace;
 use celestia_types::{AppVersion, Blob};
-use futures::stream::FuturesUnordered;
-use futures::StreamExt;
 use rand::Rng;
-use tokio::sync::{Mutex, Notify};
+use tokio::sync::{Mutex, Notify, Semaphore};
+use tokio::task::JoinSet;
 use tokio::time;
 
 use crate::config::{LatencyMonitorError, Result, ValidatedConfig};
@@ -60,7 +58,7 @@ impl TxResult {
     }
 }
 
-type ConfirmFuture = Pin<Box<dyn std::future::Future<Output = Option<TxResult>>>>;
+const MAX_IN_FLIGHT: usize = 100;
 
 pub async fn run_submission_loop(
     client: Arc<GrpcClient>,
@@ -71,7 +69,8 @@ pub async fn run_submission_loop(
     let mut submission_ticker = time::interval(config.submission_delay);
     let mut status_ticker = time::interval(Duration::from_secs(10));
     let mut counter = 0u64;
-    let mut confirm_futures: FuturesUnordered<ConfirmFuture> = FuturesUnordered::new();
+    let mut confirm_tasks: JoinSet<Option<TxResult>> = JoinSet::new();
+    let sem = Arc::new(Semaphore::new(MAX_IN_FLIGHT));
 
     loop {
         tokio::select! {
@@ -99,7 +98,7 @@ pub async fn run_submission_loop(
                         continue;
                     }
                 };
-                
+
                 let tx_hash = submitted.tx_ref().hash.to_string();
                 println!(
                     "[SUBMIT] tx={} size={} bytes time={}",
@@ -111,16 +110,20 @@ pub async fn run_submission_loop(
                 if disable_metrics {
                     continue;
                 }
+                let sema_start = std::time::Instant::now();
+                let permit = sem.clone().acquire_owned().await.unwrap();
+                let sema_wait = sema_start.elapsed();
 
-                let fut = Box::pin(async move {
+                confirm_tasks.spawn(async move {
+                    let _permit = permit;
                     let tx_hash_short = tx_hash.clone();
                     match submitted.confirm().await {
                         Ok(tx_info) => {
                             let commit_time = SystemTime::now();
-                            let latency = commit_time
+                            let total_latency = commit_time
                                 .duration_since(submit_time)
                                 .unwrap_or(Duration::ZERO);
-
+                            let latency = total_latency.saturating_sub(sema_wait);
                             println!(
                                 "[CONFIRM] tx={} height={} latency={}ms code={} time={}",
                                 &tx_info.hash.to_string()[..16],
@@ -154,10 +157,9 @@ pub async fn run_submission_loop(
                         }
                     }
                 });
-                confirm_futures.push(fut);
             }
-            Some(result) = confirm_futures.next() => {
-                if let Some(tx_result) = result {
+            Some(result) = confirm_tasks.join_next() => {
+                if let Ok(Some(tx_result)) = result {
                     results.lock().await.push(tx_result);
                 }
             }
@@ -172,16 +174,20 @@ pub async fn run_submission_loop(
 
     println!(
         "Waiting for {} in-flight confirmations to complete...",
-        confirm_futures.len()
+        confirm_tasks.len()
     );
-    while let Some(result) = confirm_futures.next().await {
-        if let Some(tx_result) = result {
+    while let Some(result) = confirm_tasks.join_next().await {
+        if let Ok(Some(tx_result)) = result {
             results.lock().await.push(tx_result);
         }
     }
 }
 
-fn generate_random_blob(namespace: Namespace, size_min: usize, size_max: usize) -> Result<(usize, Blob)> {
+fn generate_random_blob(
+    namespace: Namespace,
+    size_min: usize,
+    size_max: usize,
+) -> Result<(usize, Blob)> {
     let (size, data) = generate_random_data(size_min, size_max);
 
     let blob = Blob::new(namespace, data, None, AppVersion::latest())
