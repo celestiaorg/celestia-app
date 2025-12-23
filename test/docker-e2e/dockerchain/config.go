@@ -2,8 +2,9 @@ package dockerchain
 
 import (
 	"fmt"
-	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	"os"
+
+	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
@@ -12,7 +13,7 @@ import (
 
 const (
 	multiplexerImage    = "ghcr.io/celestiaorg/celestia-app"
-	defaultCelestiaTag  = "v5.0.12"
+	defaultCelestiaTag  = "v6.2.5"
 	celestiaTagEnvVar   = "CELESTIA_TAG"
 	celestiaImageEnvVar = "CELESTIA_IMAGE"
 )
