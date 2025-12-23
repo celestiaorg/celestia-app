@@ -1,123 +1,130 @@
 # Tx Client v2 – Sequential Submission Queue
 
-### Context & Motivation
+## Overview
 
-Tx Client v2 enforces a per-account sequential submission queue that serializes signing, submission, and recovery, avoiding sequence races and minimizing transaction failures.
+Tx Client v2 enforces **per-account sequential transaction submission** to prevent sequence races and minimize transaction failures.
 
-## Protocol/Component Description
+**Key properties**
 
-### Per account sequential queue
+- Transactions are **signed and broadcast strictly in sequence order**
+- A transaction is **never re-signed**, only **resubmitted** (which means resubmitted using the original signed bytes).
 
-Every account gets its own **transaction queue**.
+## Assumptions
 
-This queue is in charge of everything for that account: taking new transactions, broadcasting them in submission order, reporting outcomes.
+- The transactions conform to minimum fee requirements, so a transaction will **eventually** be included in a block after a bounded number of retries, given that the signer has enough funds in its account.
 
-Inside the queue we keep two kinds of transactions:
+## Error Handling
 
-- **Queued** - submitted but not broadcast yet
-- **Pending** - already broadcast and waiting for confirmation
+Errors are classified based on whether progress can be made without user intervention.
 
----
+- **Retryable**: the client can resubmit the transaction.
+- **Terminal**: the error is returned to the user and further progress requires user action.
 
-### Broadcast and Confirmation
+### Non-sequence errors
 
-Each queue handles two main responsibilities:
+Errors that are **not related to account sequence numbers**.
 
-1. **Submission**: Transactions are signed and broadcast in order. Evicted transactions are resubmitted.
-2. **Monitoring**: Transaction statuses are polled and processed, evictions are reported for resubmission.
+**Retryable**
 
----
+- Network errors
+- Application errors like `ErrMempoolIsFull`
 
-### Submission flow
+**Behavior**
 
-**Accepting transactions**
+- Retry submission until accepted or a terminal error occurs.
 
-When a user submits a transaction:
+**Terminal**
 
-- The transaction is queued with its options and context
-- Memory based backpressure is enforced:
-  - If memory is available, transaction is accepted
-  - If memory limit is exceeded, the submission will block until memory is freed or a timeout expires
-  - On timeout an error will be returned
-- Transactions are not signed or broadcast at submission time
-- Results are delivered asynchronously
+- Application errors like `ErrTxTooLarge`
 
-**Broadcasting transactions**
+**Behavior**
 
-Transactions have to be broadcast strictly in submission order:
+- Return the error to the user immediately.
 
-- Broadcasting is blocked when the queue is in recovery mode
-- Each transaction is signed with the next sequence number before broadcast
-- On successful broadcast, the transaction becomes pending
+### Sequence mismatch errors
 
-**Handling broadcast failures**
+Sequence mismatch errors occur when the node's expected account sequence differs from the client's sequence during submission.
 
-Sequence mismatch:
+#### Case 1: Expected sequence < client sequence
 
-Sequence mismatches during broadcast are treated as coordination signals not terminal errors. We should wait for the confirmation loop to recover.
+Indicates eviction or rejection of one or more previously submitted transactions that is not yet known to the client (e.g. eviction or rejection during `ReCheckTx`).
 
-- Further submissions must be paused
-- The transaction remains queued
-- Broadcasting resumes after recovery completes
-- Sequence mismatches are treated as temporary coordination signals, not terminal errors **UNLESS**
-  - Expected sequence is higher than expected which suggests that a user submitted a tx for the signer outside of tx client.
-  - Parse the expected sequence and bubble it up as an error to the user indicating that node needs to be restarted.
+**Behavior**
 
-Other failures:
+- Pause broadcasting.
+- Query the status of transactions in the range
+  `[expected_sequence, last_submitted_sequence]`.
 
-- The transaction must be removed from the queue
-- An error must be returned to the user
+For each transaction in order:
 
-**Transaction statuses**
+- **Evicted** (Retryable)
+  - Resubmit the transaction using the original signed bytes.
+- **Rejected** (Terminal)
+  - Roll back the client sequence to the rejected transaction's sequence.
+  - Return the rejection error to the user.
 
-In order to confirm transactions, it is required to submit **batch queries** for the status of a bounded number of pending transactions using the `tx_status_batch` RPC method. This returns all transaction statuses in a single call, allowing the client to easily determine which transactions need to be resubmitted and in what order, without dealing with partial or stale data.
+#### Case 2: Expected sequence > client sequence
 
-**Pending**: No action required.
+Indicates that the node's CheckTx state has advanced beyond the client's state.
 
-**Committed**:
+This can happen for one of the following reasons:
 
-- The transaction was included in a block
-- User receives a `TxResponse` with height, hash, code, gas usage, and signers
-- Transaction is removed from the queue
+- The transaction was evicted on the current node (thus not in the mempool), but was included in a block on another node.
+- A different transaction with the same sequence was included in a block, implying that a transaction for the signer was submitted outside of the tx client.
 
-**Committed with execution error**:
+**Behavior**
 
-- Transaction is removed from the queue
-- User receives an error with the execution code and log
+1. Pause broadcasting.
+2. Query the status of the transaction with the conflicting sequence.
+3. If the transaction is **Committed**:
+   - Treat the mismatch as **Retryable**.
+   - Advance client state accordingly.
+   - Resume broadcasting.
+4. If the transaction is **not committed**:
+   - Treat the mismatch as **Terminal**.
+   - Return an error indicating that the client state has conflicting transaction with same sequence number.
 
-**Evicted**:
+## Confirmation and Monitoring
 
-- Queue enters recovery mode to block new broadcasts
-- Transaction must be resubmitted using the original signed bytes (never resigned)
-- Transaction remains pending after resubmission
-- Recovery mode must be exited after resubmission
-- Broadcasting resumes
+Transaction statuses are obtained via **batched status queries** using the `tx_status_batch` RPC method over a bounded set of pending transactions.
 
-**Rejected**:
+### Transaction States
 
-- Queue must enter recovery mode
-- Sequence number must be rolled back to the rejected transaction's sequence
-- If multiple consecutive rejections occur, rollback must occur only once to the first rejected sequence
-- Transaction is removed from the queue
-- User receives a rejection error with code and log
-- After sequence rollback, recovery mode exits and broadcasting resumes
+**Pending**
+
+- No action required.
+
+**Committed**
+
+- The transaction was included in a block.
+- Remove from the queue.
+- Return success with execution metadata.
+
+**Committed with execution error**
+
+- The transaction was included in a block but failed during execution.
+- Remove from the queue.
+- Return execution error with metadata.
+
+**Evicted**
+
+- Broadcasting is paused.
+- Resubmit the transaction.
+- Resume broadcasting.
+
+**Rejected**
+
+- Broadcasting is paused.
+- Roll back the sequence to the first rejected transaction.
+- Return rejection error to the user.
 
 **Unknown**
 
-Tx is neither evicted nor rejected or confirmed. Return error to the user that tx is unknown.
+- The transaction is neither evicted, rejected, nor committed.
+- Return an error indicating that the transaction status is unknown.
 
-### Backward compatibility
+## Implementation Notes
 
-Tx Client v2 wrapps Tx Client v1 maintaining full API compatibility.
-
-## Assumptions and Considerations
-
-The client assumes the network isn’t heavily congested and that nodes don’t often bump their local minimum fees. That said, there’s an edge case where a transaction can pass CheckTx, get evicted from the mempool, and then fail on resubmission if the node has since increased its local fee.
-
-## Message Structure/Communication Format
-
-TBD
-
-## Implementation
-
-Not yet implemented.
+- Each account has a **submission queue** that owns transaction sequencing, signing, and submission.
+- Confirmations are processed by a separate **confirmation queue/worker** that polls transaction statuses.
+- Confirmation results are fed back to the submission queue, which remains the single point of coordination per account.
