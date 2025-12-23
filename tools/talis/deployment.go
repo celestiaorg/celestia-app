@@ -144,12 +144,12 @@ func deployCmd() *cobra.Command {
 // It runs all operations in parallel and returns an error if any host fails.
 func deployPayloadDirect(
 	ips []Instance,
-	archivePath string,    // e.g. "./payload.tar.gz"
-	sshKeyPath string,     // e.g. "~/.ssh/id_ed25519"
-	remoteDir string,      // e.g. "/root"
-	remoteScript string,   // e.g. "start.sh"
+	archivePath string, // e.g. "./payload.tar.gz"
+	sshKeyPath string, // e.g. "~/.ssh/id_ed25519"
+	remoteDir string, // e.g. "/root"
+	remoteScript string, // e.g. "start.sh"
 	timeout time.Duration, // per‐host timeout
-	workers int,           // number of concurrent workers
+	workers int, // number of concurrent workers
 ) error {
 	var wg sync.WaitGroup
 	errCh := make(chan error, len(ips))
