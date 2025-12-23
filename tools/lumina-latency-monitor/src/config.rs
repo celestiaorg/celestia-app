@@ -30,26 +30,25 @@ pub struct Args {
     #[arg(short = 'p', long, env = "CELESTIA_PRIVATE_KEY")]
     pub private_key: Option<String>,
 
+    /// Maximum blob size in bytes
     #[arg(short = 'b', long, default_value_t = 1024)]
     pub blob_size: usize,
 
+    /// Minimum blob size in bytes
     #[arg(short = 'z', long, default_value_t = 1)]
     pub blob_size_min: usize,
 
+    /// Namespace for blob submission
     #[arg(short = 'n', long, default_value = "test")]
     pub namespace: String,
 
+    /// Disable metrics collection
     #[arg(short = 'm', long)]
     pub disable_metrics: bool,
 
+    /// Delay between transaction submissions
     #[arg(short = 'd', long, default_value = "4000ms")]
     pub submission_delay: String,
-
-    #[arg(long, conflicts_with = "no_tls")]
-    pub tls: bool,
-
-    #[arg(long, alias = "insecure", conflicts_with = "tls")]
-    pub no_tls: bool,
 }
 
 #[derive(Error, Debug)]
@@ -111,7 +110,7 @@ pub fn validate_args(args: &Args) -> Result<ValidatedConfig> {
     let (private_key, account_name, account_address) = extract_private_key(args)?;
     validate_private_key_hex(&private_key)?;
 
-    let grpc_url = build_grpc_url(&args.grpc_endpoint, args.tls, args.no_tls);
+    let grpc_url = build_grpc_url(&args.grpc_endpoint);
     let namespace = create_namespace(&args.namespace)?;
 
     Ok(ValidatedConfig {
@@ -174,18 +173,9 @@ fn validate_private_key_hex(key: &str) -> Result<()> {
     Ok(())
 }
 
-fn build_grpc_url(endpoint: &str, use_tls: bool, use_no_tls: bool) -> String {
+fn build_grpc_url(endpoint: &str) -> String {
     let stripped = strip_scheme(endpoint);
-
-    if use_tls {
-        format!("https://{}", stripped)
-    } else if use_no_tls {
-        format!("http://{}", stripped)
-    } else if endpoint.contains("://") {
-        endpoint.to_string()
-    } else {
-        format!("http://{}", endpoint)
-    }
+    format!("http://{}", stripped)
 }
 
 fn strip_scheme(endpoint: &str) -> &str {
