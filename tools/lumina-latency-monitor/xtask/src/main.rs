@@ -40,7 +40,7 @@ fn print_usage() {
     println!("Usage: cargo xtask <command> [options]");
     println!();
     println!("Commands:");
-    println!("  setup                  Install zig and cargo-zigbuild; add Rust target");
+    println!("  setup                  Set up cross-compilation (zig/zigbuild on non-Linux)");
     println!("  build-linux            Build {BIN_NAME} for Linux (default gnu)");
     println!("  build-linux-gnu        Build for {DEFAULT_LINUX_TARGET}");
     println!("  build-linux-musl       Build for {DEFAULT_LINUX_MUSL_TARGET}");
@@ -56,9 +56,31 @@ fn print_usage() {
     println!("  cargo xtask build-linux --target {DEFAULT_LINUX_MUSL_TARGET}");
 }
 
+/// Check if the target matches the current host platform (no cross-compilation needed).
+fn is_native_target(target: &str) -> bool {
+    let os = env::consts::OS;
+    let arch = env::consts::ARCH;
+
+    // On Linux x86_64, we can build for x86_64-unknown-linux-gnu natively
+    if os == "linux" && arch == "x86_64" && target == DEFAULT_LINUX_TARGET {
+        return true;
+    }
+
+    false
+}
+
 fn cmd_setup(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     let target =
         parse_flag_value(args, "--target").unwrap_or_else(|| DEFAULT_LINUX_TARGET.to_string());
+
+    // If we're on native Linux x64, no setup needed for gnu target
+    if is_native_target(&target) {
+        println!("==> Running on native Linux x86_64, no cross-compilation setup needed");
+        println!();
+        println!("==> You can now run:");
+        println!("    cargo xtask build-linux");
+        return Ok(());
+    }
 
     println!("==> Setting up cross-compilation environment...");
 
@@ -94,34 +116,49 @@ fn cmd_build_linux(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn cmd_build_with_target(target: &str, _args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
-    if !command_exists("cargo-zigbuild") {
-        return Err("cargo-zigbuild not found. Run 'cargo xtask setup' first.".into());
-    }
-
     let workspace_root = workspace_root_via_metadata()?;
 
     println!("==> Building {BIN_NAME} for {target}...");
 
-    run_checked(
-        "cargo",
-        &[
-            "zigbuild",
-            "-p",
-            PACKAGE_NAME,
-            "--release",
-            "--target",
-            target,
-        ],
-        Some(&workspace_root),
-    )?;
+    // If we're on native Linux x64 building for gnu target, use plain cargo build
+    if is_native_target(target) {
+        run_checked(
+            "cargo",
+            &["build", "-p", PACKAGE_NAME, "--release"],
+            Some(&workspace_root),
+        )?;
 
-    let binary_path = workspace_root
-        .join("target")
-        .join(target)
-        .join("release")
-        .join(BIN_NAME);
+        let binary_path = workspace_root.join("target").join("release").join(BIN_NAME);
 
-    println!("==> Built: {}", binary_path.display());
+        println!("==> Built: {}", binary_path.display());
+    } else {
+        // Cross-compilation: use zigbuild
+        if !command_exists("cargo-zigbuild") {
+            return Err("cargo-zigbuild not found. Run 'cargo xtask setup' first.".into());
+        }
+
+        run_checked(
+            "cargo",
+            &[
+                "zigbuild",
+                "-p",
+                PACKAGE_NAME,
+                "--release",
+                "--target",
+                target,
+            ],
+            Some(&workspace_root),
+        )?;
+
+        let binary_path = workspace_root
+            .join("target")
+            .join(target)
+            .join("release")
+            .join(BIN_NAME);
+
+        println!("==> Built: {}", binary_path.display());
+    }
+
     Ok(())
 }
 
@@ -134,26 +171,30 @@ fn install_zig() -> Result<(), Box<dyn std::error::Error>> {
                 println!("==> Installing zig via Homebrew...");
                 run_checked("brew", &["install", "zig"], None)
             } else {
-                Err("Homebrew not found. Install zig manually (or via zigup): https://ziglang.org/download/".into())
+                Err(
+                    "Homebrew not found. Install zig manually: https://ziglang.org/download/"
+                        .into(),
+                )
             }
         }
         "linux" => {
+            // On Linux, we only need zig for cross-compilation (e.g., to musl)
             if command_exists("apt-get") {
-                println!("==> Installing zig via apt (best-effort)...");
+                println!("==> Installing zig via apt...");
                 run_checked("sudo", &["apt-get", "update"], None)?;
                 run_checked("sudo", &["apt-get", "install", "-y", "zig"], None)
             } else if command_exists("dnf") {
-                println!("==> Installing zig via dnf (best-effort)...");
+                println!("==> Installing zig via dnf...");
                 run_checked("sudo", &["dnf", "install", "-y", "zig"], None)
             } else if command_exists("pacman") {
-                println!("==> Installing zig via pacman (best-effort)...");
+                println!("==> Installing zig via pacman...");
                 run_checked("sudo", &["pacman", "-S", "--noconfirm", "zig"], None)
             } else {
-                Err("No supported package manager found. Install zig manually (or via zigup): https://ziglang.org/download/".into())
+                Err("No supported package manager found. Install zig manually: https://ziglang.org/download/".into())
             }
         }
         _ => Err(format!(
-            "Unsupported OS: {os}. Install zig manually (or via zigup): https://ziglang.org/download/"
+            "Unsupported OS: {os}. Install zig manually: https://ziglang.org/download/"
         )
         .into()),
     }
@@ -206,17 +247,7 @@ fn command_exists(cmd: &str) -> bool {
         .unwrap_or(false)
 }
 
-/// Clean workspace-root detection via the `cargo_metadata` crate.
-///
-/// Add this to xtask/Cargo.toml:
-/// ```toml
-/// [dependencies]
-/// cargo_metadata = "0.19"
-/// ```
-///
-/// Optionally add `anyhow = "1"` if you prefer.
 fn workspace_root_via_metadata() -> Result<PathBuf, Box<dyn std::error::Error>> {
-    // Ensure we run metadata from the xtask crate dir; Cargo will still find the workspace.
     let manifest_dir =
         PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".to_string()));
 
