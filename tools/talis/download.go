@@ -49,6 +49,9 @@ func downloadCmd() *cobra.Command {
 			switch table {
 			case "logs":
 				remotePaths = append(remotePaths, "/root/logs")
+			case "latency":
+				remotePaths = append(remotePaths, "/root/latency_results.csv")
+				remotePaths = append(remotePaths, "/root/latency-monitor.log")
 			case "*", "":
 				path := filepath.Join(baseTracesRemotePath, "*")
 				remotePaths = append(remotePaths, path)

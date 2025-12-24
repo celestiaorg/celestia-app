@@ -42,6 +42,7 @@ func initCmd() *cobra.Command {
 		SSHKeyName         string
 		tables             []string
 		latencyMonitorType string
+		withMetrics        bool
 	)
 
 	cmd := &cobra.Command{
@@ -63,6 +64,13 @@ func initCmd() *cobra.Command {
 				WithSSHKeyName(SSHKeyName).
 				WithLatencyMonitorType(LatencyMonitorType(latencyMonitorType))
 
+			// If --with-metrics is set, add a metrics node and enable prometheus
+			enablePrometheus := false
+			if withMetrics {
+				cfg = cfg.WithDigitalOceanMetrics("random")
+				enablePrometheus = true
+			}
+
 			if err := cfg.Save(rootDir); err != nil {
 				return fmt.Errorf("failed to save init config: %w", err)
 			}
@@ -70,7 +78,7 @@ func initCmd() *cobra.Command {
 			// write the default config files that will be copied to the payload
 			// for each validator unless otherwise overridden
 			consensusConfig := app.DefaultConsensusConfig()
-			consConfig := DefaultConfigProfile(consensusConfig, tables)
+			consConfig := DefaultConfigProfile(consensusConfig, tables, enablePrometheus)
 			cmtconfig.WriteConfigFile(filepath.Join(rootDir, "config.toml"), consConfig)
 
 			// the sdk requires a global template be set just to save a toml file without panicking
@@ -97,6 +105,7 @@ func initCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&experiment, "experiment", "e", "test", "the name of the experiment (required)")
 	_ = cmd.MarkFlagRequired("experiment")
 	cmd.Flags().StringArrayVarP(&tables, "tables", "t", []string{"consensus_round_state", "consensus_block", "mempool_tx"}, "the traces that will be collected")
+	cmd.Flags().BoolVar(&withMetrics, "with-metrics", false, "add a metrics node and enable Prometheus on validators")
 
 	defaultKeyPath := filepath.Join(homeDir, ".ssh", "id_ed25519.pub")
 	cmd.Flags().StringVarP(&SSHPubKeyPath, "ssh-pub-key-path", "s", defaultKeyPath, "path to the user's SSH public key")
@@ -112,9 +121,11 @@ func initCmd() *cobra.Command {
 	return cmd
 }
 
-func DefaultConfigProfile(cfg *cmtconfig.Config, tables []string) *cmtconfig.Config {
+func DefaultConfigProfile(cfg *cmtconfig.Config, tables []string, enablePrometheus bool) *cmtconfig.Config {
 	cfg.Instrumentation.TracingTables = strings.Join(tables, ",")
 	cfg.Instrumentation.TraceType = "local"
+	cfg.Instrumentation.Prometheus = enablePrometheus
+	cfg.Instrumentation.PrometheusListenAddr = ":26660"
 	cfg.P2P.SendRate = 100 * mebibyte
 	cfg.P2P.RecvRate = 110 * mebibyte
 	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"

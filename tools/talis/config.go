@@ -19,6 +19,8 @@ const (
 	Bridge NodeType = "bridge"
 	// Light represents a light node in the network.
 	Light NodeType = "light"
+	// Metrics represents a metrics node for Prometheus/Grafana.
+	Metrics NodeType = "metrics"
 )
 
 // LatencyMonitorType represents which latency monitor implementation to use.
@@ -32,9 +34,10 @@ const (
 )
 
 var (
-	valCount   = atomic.Uint32{}
-	nodeCount  = atomic.Uint32{}
-	lightCount = atomic.Uint32{}
+	valCount    = atomic.Uint32{}
+	nodeCount   = atomic.Uint32{}
+	lightCount  = atomic.Uint32{}
+	metricCount = atomic.Uint32{}
 )
 
 // NodeName returns the name of the node based on its type and index. The
@@ -49,6 +52,8 @@ func NodeName(nodeType NodeType) string {
 		index = int(nodeCount.Add(1)) - 1
 	case Light:
 		index = int(lightCount.Add(1)) - 1
+	case Metrics:
+		index = int(metricCount.Add(1)) - 1
 	default:
 		panic(fmt.Sprintf("unknown node type: %s", nodeType))
 	}
@@ -125,7 +130,7 @@ func ExperimentTag(nodeType NodeType, index int, experimentID, chainID string) s
 
 func GetExperimentTag(tags []string) string {
 	for _, tag := range tags {
-		if strings.HasPrefix(tag, "validator-") || strings.HasPrefix(tag, "bridge-") || strings.HasPrefix(tag, "light-") {
+		if strings.HasPrefix(tag, "validator-") || strings.HasPrefix(tag, "bridge-") || strings.HasPrefix(tag, "light-") || strings.HasPrefix(tag, "metrics-") {
 			return tag
 		}
 	}
@@ -137,6 +142,7 @@ type Config struct {
 	Validators []Instance `json:"validators"`
 	Bridges    []Instance `json:"bridges,omitempty"`
 	Lights     []Instance `json:"lights,omitempty"`
+	Metrics    []Instance `json:"metrics,omitempty"`
 
 	// ChainID is the chain ID of the network. This is used to identify the
 	// network and is also used as the chain ID of the network. It is
@@ -168,6 +174,7 @@ func NewConfig(experiment, chainID string) Config {
 		Validators:         []Instance{},
 		Bridges:            []Instance{},
 		Lights:             []Instance{},
+		Metrics:            []Instance{},
 		Experiment:         experiment,
 		ChainID:            TalisChainID(chainID),
 		LatencyMonitorType: LatencyMonitorRust, // default to Rust implementation
@@ -217,9 +224,21 @@ func (cfg Config) WithDigitalOceanValidator(region string) Config {
 	return cfg
 }
 
+func (cfg Config) WithDigitalOceanMetrics(region string) Config {
+	i := NewDigitalOceanMetrics(region).WithExperiment(cfg.Experiment, cfg.ChainID)
+	cfg.Metrics = append(cfg.Metrics, i)
+	return cfg
+}
+
 func (cfg Config) WithGoogleCloudValidator(region string) Config {
 	i := NewGoogleCloudValidator(region).WithExperiment(cfg.Experiment, cfg.ChainID)
 	cfg.Validators = append(cfg.Validators, i)
+	return cfg
+}
+
+func (cfg Config) WithGoogleCloudMetrics(region string) Config {
+	i := NewGoogleCloudMetrics(region).WithExperiment(cfg.Experiment, cfg.ChainID)
+	cfg.Metrics = append(cfg.Metrics, i)
 	return cfg
 }
 
@@ -241,7 +260,7 @@ func (cfg Config) LatencyMonitorBinary() string {
 	return "lumina-latency-monitor"
 }
 
-func (c Config) Save(root string) error {
+func (cfg Config) Save(root string) error {
 	// Create the directory if it doesn't exist
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return err
@@ -259,7 +278,7 @@ func (c Config) Save(root string) error {
 	// Write the config to the file
 	encoder := json.NewEncoder(cfgFile)
 	encoder.SetIndent("", "  ")
-	return encoder.Encode(c)
+	return encoder.Encode(cfg)
 }
 
 // LoadConfig loads the config from the specified path.
@@ -283,27 +302,34 @@ func TalisChainID(chainID string) string {
 	return "talis-" + chainID
 }
 
-func (c Config) UpdateInstance(name, publicIP, privateIP string) (Config, error) {
-	for i := range c.Validators {
-		if c.Validators[i].Name == name {
-			c.Validators[i].PublicIP = publicIP
-			c.Validators[i].PrivateIP = privateIP
-			return c, nil
+func (cfg Config) UpdateInstance(name, publicIP, privateIP string) (Config, error) {
+	for i := range cfg.Validators {
+		if cfg.Validators[i].Name == name {
+			cfg.Validators[i].PublicIP = publicIP
+			cfg.Validators[i].PrivateIP = privateIP
+			return cfg, nil
 		}
 	}
-	for i := range c.Bridges {
-		if c.Bridges[i].Name == name {
-			c.Bridges[i].PublicIP = publicIP
-			c.Bridges[i].PrivateIP = privateIP
-			return c, nil
+	for i := range cfg.Bridges {
+		if cfg.Bridges[i].Name == name {
+			cfg.Bridges[i].PublicIP = publicIP
+			cfg.Bridges[i].PrivateIP = privateIP
+			return cfg, nil
 		}
 	}
-	for i := range c.Lights {
-		if c.Lights[i].Name == name {
-			c.Lights[i].PublicIP = publicIP
-			c.Lights[i].PrivateIP = privateIP
-			return c, nil
+	for i := range cfg.Lights {
+		if cfg.Lights[i].Name == name {
+			cfg.Lights[i].PublicIP = publicIP
+			cfg.Lights[i].PrivateIP = privateIP
+			return cfg, nil
 		}
 	}
-	return c, fmt.Errorf("instance %s not found", name)
+	for i := range cfg.Metrics {
+		if cfg.Metrics[i].Name == name {
+			cfg.Metrics[i].PublicIP = publicIP
+			cfg.Metrics[i].PrivateIP = privateIP
+			return cfg, nil
+		}
+	}
+	return cfg, fmt.Errorf("instance %s not found", name)
 }

@@ -26,6 +26,7 @@ func generateCmd() *cobra.Command {
 		appBinaryPath                 string
 		nodeBinaryPath                string
 		txsimBinaryPath               string
+		metricsDirPath                string
 		useMainnetStakingDistribution bool
 	)
 	cmd := &cobra.Command{
@@ -108,6 +109,10 @@ func generateCmd() *cobra.Command {
 				return fmt.Errorf("failed to write aws env: %w", err)
 			}
 
+			if err := stageMetricsPayload(cfg, metricsDirPath, payloadDir); err != nil {
+				return fmt.Errorf("failed to stage metrics payload: %w", err)
+			}
+
 			return cfg.Save(rootDir)
 		},
 	}
@@ -129,6 +134,7 @@ func generateCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&appBinaryPath, "app-binary", "a", filepath.Join(gopath, "celestia-appd"), "app binary to include in the payload (assumes the binary is installed")
 	cmd.Flags().StringVarP(&nodeBinaryPath, "node-binary", "n", filepath.Join(gopath, "celestia"), "node binary to include in the payload (assumes the binary is installed")
 	cmd.Flags().StringVarP(&txsimBinaryPath, "txsim-binary", "t", filepath.Join(gopath, "txsim"), "txsim binary to include in the payload (assumes the binary is installed)")
+	cmd.Flags().StringVar(&metricsDirPath, "metrics-dir", "", "path to metrics directory containing docker-compose, Prometheus config, and scripts (required if metrics nodes are configured)")
 	cmd.Flags().BoolVarP(&useMainnetStakingDistribution, "mainnet-staking-distribution", "m", false, "replace the default uniform staking distribution with the actual mainnet distribution")
 
 	return cmd
