@@ -22,9 +22,43 @@ A Rust-based tool for monitoring and measuring transaction latency in Celestia n
 
 ## Building
 
+### Native Build
+
 ```bash
+cd tools/lumina-latency-monitor
 cargo build --release
 ```
+
+### Cross-Compile for Linux (using xtask)
+
+From the `tools/lumina-latency-monitor` directory:
+
+```bash
+# One-time setup: install zig, cargo-zigbuild, and add Rust target
+cargo xtask setup
+
+# Build for Linux x86_64 (gnu libc)
+cargo xtask build-linux
+
+# Build for Linux x86_64 (musl, static)
+cargo xtask build-linux-musl
+```
+
+The binary will be in `target/<target>/release/lumina-latency-monitor`.
+
+### Cross-Compile for Linux (using Makefile)
+
+From the repository root (`celestia-app`):
+
+```bash
+# One-time setup
+make setup-lumina-cross-compile
+
+# Build for Linux x86_64
+make build-lumina-latency-monitor
+```
+
+The binary will be placed in `build/lumina-latency-monitor`.
 
 ## Usage
 

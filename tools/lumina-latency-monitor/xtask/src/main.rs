@@ -1,5 +1,4 @@
 use std::env;
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, Stdio};
 
@@ -41,7 +40,7 @@ fn print_usage() {
     println!("Usage: cargo xtask <command> [options]");
     println!();
     println!("Commands:");
-    println!("  setup                 Install zig and cargo-zigbuild; add Rust target");
+    println!("  setup                  Install zig and cargo-zigbuild; add Rust target");
     println!("  build-linux            Build {BIN_NAME} for Linux (default gnu)");
     println!("  build-linux-gnu        Build for {DEFAULT_LINUX_TARGET}");
     println!("  build-linux-musl       Build for {DEFAULT_LINUX_MUSL_TARGET}");
@@ -49,16 +48,12 @@ fn print_usage() {
     println!();
     println!("Options:");
     println!("  --target <triple>      Override the target for build-linux / setup");
-    println!(
-        "  --build-dir <path>     Override output directory (default: <workspace_root>/build)"
-    );
     println!();
     println!("Examples:");
     println!("  cargo xtask setup");
     println!("  cargo xtask setup --target {DEFAULT_LINUX_MUSL_TARGET}");
     println!("  cargo xtask build-linux");
     println!("  cargo xtask build-linux --target {DEFAULT_LINUX_MUSL_TARGET}");
-    println!("  cargo xtask build-linux --build-dir ./build");
 }
 
 fn cmd_setup(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
@@ -98,23 +93,14 @@ fn cmd_build_linux(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     cmd_build_with_target(&target, args)
 }
 
-fn cmd_build_with_target(target: &str, args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
-    if !command_exists("cargo") {
-        return Err("cargo not found in PATH".into());
-    }
+fn cmd_build_with_target(target: &str, _args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     if !command_exists("cargo-zigbuild") {
         return Err("cargo-zigbuild not found. Run 'cargo xtask setup' first.".into());
     }
 
     let workspace_root = workspace_root_via_metadata()?;
 
-    let build_dir = parse_flag_value(args, "--build-dir")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| workspace_root.join("build"));
-
     println!("==> Building {BIN_NAME} for {target}...");
-    println!("==> Workspace root: {}", workspace_root.display());
-    println!("==> Output dir:     {}", build_dir.display());
 
     run_checked(
         "cargo",
@@ -129,34 +115,13 @@ fn cmd_build_with_target(target: &str, args: &[String]) -> Result<(), Box<dyn st
         Some(&workspace_root),
     )?;
 
-    fs::create_dir_all(&build_dir)?;
-
-    let binary_src = workspace_root
+    let binary_path = workspace_root
         .join("target")
         .join(target)
         .join("release")
         .join(BIN_NAME);
 
-    if !binary_src.exists() {
-        return Err(format!(
-            "Built binary not found at expected path: {}",
-            binary_src.display()
-        )
-        .into());
-    }
-
-    let binary_dst = build_dir.join(BIN_NAME);
-    fs::copy(&binary_src, &binary_dst)?;
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = fs::metadata(&binary_dst)?.permissions();
-        perms.set_mode(perms.mode() | 0o111);
-        fs::set_permissions(&binary_dst, perms)?;
-    }
-
-    println!("==> Built: {}", binary_dst.display());
+    println!("==> Built: {}", binary_path.display());
     Ok(())
 }
 

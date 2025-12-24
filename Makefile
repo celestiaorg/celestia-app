@@ -371,6 +371,8 @@ setup-lumina-cross-compile:
 ## build-lumina-latency-monitor: Build lumina-latency-monitor for Linux x86_64
 build-lumina-latency-monitor:
 	cd tools/lumina-latency-monitor && cargo xtask build-linux
+	@mkdir -p build
+	cp tools/lumina-latency-monitor/target/x86_64-unknown-linux-gnu/release/lumina-latency-monitor build/
 .PHONY: build-lumina-latency-monitor
 
 ## adr-gen: Download the ADR template from the celestiaorg/.github repo.
