@@ -33,7 +33,6 @@ config.json
 memory-bank/*
 .clinerules
 tools/talis/talis
-tools/lumina-latency-monitor/target
 .gocache
 .cache
 .gomodcache
