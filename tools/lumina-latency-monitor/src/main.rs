@@ -2,6 +2,7 @@ mod config;
 mod keyring;
 mod metrics;
 mod output;
+mod prometheus;
 mod tx;
 
 use std::sync::Arc;
@@ -29,6 +30,16 @@ async fn main() -> anyhow::Result<()> {
 
     let results: Arc<Mutex<Vec<TxResult>>> = Arc::new(Mutex::new(Vec::new()));
     let shutdown = Arc::new(Notify::new());
+
+    // Start Prometheus metrics server if port is non-zero
+    if config.metrics_port > 0 {
+        let metrics_port = config.metrics_port;
+        tokio::spawn(async move {
+            if let Err(e) = prometheus::start_metrics_server(metrics_port).await {
+                eprintln!("Prometheus metrics server error: {}", e);
+            }
+        });
+    }
 
     println!("Submitting transactions...");
 
@@ -80,6 +91,12 @@ fn print_startup_info(config: &ValidatedConfig) {
         "Using account: {} ({})",
         config.account_name, config.account_address
     );
+    if config.metrics_port > 0 {
+        println!(
+            "Prometheus metrics: http://0.0.0.0:{}/metrics",
+            config.metrics_port
+        );
+    }
     println!("Press Ctrl+C to stop\n");
 }
 

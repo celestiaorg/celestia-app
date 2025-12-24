@@ -10,6 +10,7 @@ use tokio::task::JoinSet;
 use tokio::time;
 
 use crate::config::{LatencyMonitorError, Result, ValidatedConfig};
+use crate::prometheus as prom;
 
 #[derive(Debug, Clone)]
 pub struct TxResult {
@@ -107,6 +108,8 @@ pub async fn run_submission_loop(
                     format_time_only(submit_time)
                 );
 
+                prom::record_submit();
+
                 if disable_metrics {
                     continue;
                 }
@@ -133,6 +136,8 @@ pub async fn run_submission_loop(
                                 format_time_only(commit_time)
                             );
 
+                            prom::record_confirm(latency);
+
                             Some(TxResult::success(
                                 submit_time,
                                 commit_time,
@@ -153,6 +158,7 @@ pub async fn run_submission_loop(
                             }
 
                             println!("[FAILED] tx={} error={}", &tx_hash_short[..16], e);
+                            prom::record_failure();
                             Some(TxResult::failure(submit_time, error_str))
                         }
                     }
