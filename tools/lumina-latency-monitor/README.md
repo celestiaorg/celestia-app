@@ -29,25 +29,27 @@ cd tools/lumina-latency-monitor
 cargo build --release
 ```
 
-### Cross-Compile for Linux (using xtask)
+### Cross-Compile for Linux (macOS)
 
 From the `tools/lumina-latency-monitor` directory:
 
 ```bash
-# One-time setup (installs zig/zigbuild for cross-compilation; skipped on native Linux x64)
+# One-time setup: installs cross-compiler via brew and adds Rust target
 cargo xtask setup
 
-# Build for Linux x86_64 (gnu libc)
+# Build for Linux x86_64
 cargo xtask build-linux
-
-# Build for Linux x86_64 (musl, static)
-cargo xtask build-linux-musl
 ```
 
-On native Linux x86_64, `cargo xtask build-linux` uses plain `cargo build` (no zig needed).
-On macOS, it uses `cargo zigbuild` for cross-compilation.
+The binary will be in `target/x86_64-unknown-linux-gnu/release/lumina-latency-monitor`.
 
-The binary will be in `target/<target>/release/lumina-latency-monitor`.
+### Build for Linux (on Linux x86_64)
+
+On native Linux x86_64, no cross-compilation setup is needed:
+
+```bash
+cargo xtask build-linux
+```
 
 ### Cross-Compile for Linux (using Makefile)
 
