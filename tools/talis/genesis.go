@@ -97,6 +97,13 @@ func generateCmd() *cobra.Command {
 				}
 			}
 
+			// Copy the configured latency monitor binary as "latency-monitor"
+			latencyMonitorSrc := filepath.Join(buildDest, cfg.LatencyMonitorBinary())
+			latencyMonitorDest := filepath.Join(buildDest, "latency-monitor")
+			if err := copyFile(latencyMonitorSrc, latencyMonitorDest, 0o755); err != nil {
+				log.Printf("failed to copy latency monitor binary (%s): %v", cfg.LatencyMonitorBinary(), err)
+			}
+
 			if err := writeAWSEnv(filepath.Join(payloadDir, "vars.sh"), cfg); err != nil {
 				return fmt.Errorf("failed to write aws env: %w", err)
 			}

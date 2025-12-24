@@ -34,13 +34,14 @@ const (
 
 func initCmd() *cobra.Command {
 	var (
-		rootDir       string
-		srcRoot       string
-		chainID       string
-		experiment    string
-		SSHPubKeyPath string
-		SSHKeyName    string
-		tables        []string
+		rootDir            string
+		srcRoot            string
+		chainID            string
+		experiment         string
+		SSHPubKeyPath      string
+		SSHKeyName         string
+		tables             []string
+		latencyMonitorType string
 	)
 
 	cmd := &cobra.Command{
@@ -59,7 +60,8 @@ func initCmd() *cobra.Command {
 			// todo: use the number of validators, bridges, and lights to create the config
 			cfg := NewConfig(experiment, chainID).
 				WithSSHPubKeyPath(SSHPubKeyPath).
-				WithSSHKeyName(SSHKeyName)
+				WithSSHKeyName(SSHKeyName).
+				WithLatencyMonitorType(LatencyMonitorType(latencyMonitorType))
 
 			if err := cfg.Save(rootDir); err != nil {
 				return fmt.Errorf("failed to save init config: %w", err)
@@ -105,6 +107,7 @@ func initCmd() *cobra.Command {
 	}
 	defaultKeyName := user.Username
 	cmd.Flags().StringVarP(&SSHKeyName, "ssh-key-name", "n", defaultKeyName, "name for the SSH key")
+	cmd.Flags().StringVarP(&latencyMonitorType, "latency-monitor", "l", string(LatencyMonitorRust), "latency monitor type: 'rust' (default) or 'go'")
 
 	return cmd
 }
