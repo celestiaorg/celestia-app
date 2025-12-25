@@ -311,7 +311,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 8,
         "x": 0,
         "y": 6
       },
@@ -331,22 +331,12 @@
       "pluginVersion": "10.1.0",
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, sum(rate(latency_monitor_latency_seconds_bucket{job=\"latency-monitor\"}[5m])) by (le, node_id))",
-          "legendFormat": "{{node_id}} p50",
+          "expr": "sum(rate(latency_monitor_latency_seconds_sum{job=\"latency-monitor\"}[5m])) by (node_id) / sum(rate(latency_monitor_latency_seconds_count{job=\"latency-monitor\"}[5m])) by (node_id)",
+          "legendFormat": "{{node_id}}",
           "refId": "A"
-        },
-        {
-          "expr": "histogram_quantile(0.95, sum(rate(latency_monitor_latency_seconds_bucket{job=\"latency-monitor\"}[5m])) by (le, node_id))",
-          "legendFormat": "{{node_id}} p95",
-          "refId": "B"
-        },
-        {
-          "expr": "histogram_quantile(0.99, sum(rate(latency_monitor_latency_seconds_bucket{job=\"latency-monitor\"}[5m])) by (le, node_id))",
-          "legendFormat": "{{node_id}} p99",
-          "refId": "C"
         }
       ],
-      "title": "Latency Percentiles by Node",
+      "title": "Mean Latency by Node",
       "type": "timeseries"
     },
     {
@@ -405,11 +395,11 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
+        "w": 8,
+        "x": 8,
         "y": 6
       },
-      "id": 8,
+      "id": 12,
       "options": {
         "legend": {
           "calcs": ["mean", "max"],
@@ -425,22 +415,96 @@
       "pluginVersion": "10.1.0",
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, sum(rate(latency_monitor_latency_seconds_bucket{job=\"latency-monitor\"}[5m])) by (le))",
-          "legendFormat": "p50",
+          "expr": "histogram_quantile(0.95, sum(rate(latency_monitor_latency_seconds_bucket{job=\"latency-monitor\"}[5m])) by (le, node_id))",
+          "legendFormat": "{{node_id}}",
           "refId": "A"
-        },
-        {
-          "expr": "histogram_quantile(0.95, sum(rate(latency_monitor_latency_seconds_bucket{job=\"latency-monitor\"}[5m])) by (le))",
-          "legendFormat": "p95",
-          "refId": "B"
-        },
-        {
-          "expr": "histogram_quantile(0.99, sum(rate(latency_monitor_latency_seconds_bucket{job=\"latency-monitor\"}[5m])) by (le))",
-          "legendFormat": "p99",
-          "refId": "C"
         }
       ],
-      "title": "Overall Latency Percentiles",
+      "title": "P95 Latency by Node",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 6
+      },
+      "id": 13,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max"],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "10.1.0",
+      "targets": [
+        {
+          "expr": "histogram_quantile(1.0, sum(rate(latency_monitor_latency_seconds_bucket{job=\"latency-monitor\"}[5m])) by (le, node_id))",
+          "legendFormat": "{{node_id}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Max Latency by Node",
       "type": "timeseries"
     },
     {
@@ -512,7 +576,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 8,
         "x": 0,
         "y": 15
       },
@@ -533,16 +597,95 @@
       "targets": [
         {
           "expr": "sum(rate(latency_monitor_tx_submitted_total{job=\"latency-monitor\"}[1m])) by (node_id)",
-          "legendFormat": "{{node_id}} submitted",
+          "legendFormat": "{{node_id}}",
           "refId": "A"
-        },
-        {
-          "expr": "sum(rate(latency_monitor_tx_confirmed_total{job=\"latency-monitor\"}[1m])) by (node_id)",
-          "legendFormat": "{{node_id}} confirmed",
-          "refId": "B"
         }
       ],
-      "title": "Transaction Rate by Node",
+      "title": "Submitted Rate by Node",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 15
+      },
+      "id": 15,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max"],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "10.1.0",
+      "targets": [
+        {
+          "expr": "sum(rate(latency_monitor_tx_confirmed_total{job=\"latency-monitor\"}[1m])) by (node_id)",
+          "legendFormat": "{{node_id}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Confirmed Rate by Node",
       "type": "timeseries"
     },
     {
@@ -601,8 +744,8 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
+        "w": 8,
+        "x": 16,
         "y": 15
       },
       "id": 11,

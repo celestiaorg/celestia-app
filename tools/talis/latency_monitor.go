@@ -1,8 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"log"
+	"os/exec"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -23,12 +28,13 @@ func startLatencyMonitorCmd() *cobra.Command {
 		metricsPort     int
 		rootDir         string
 		SSHKeyPath      string
+		stop            bool
 	)
 
 	cmd := &cobra.Command{
 		Use:   "latency-monitor",
-		Short: "Starts the latency monitor on remote validators",
-		Long:  "Connects to remote validators and starts the latency monitor in a detached tmux session.",
+		Short: "Starts or stops the latency monitor on remote validators",
+		Long:  "Connects to remote validators and starts/stops the latency monitor in a detached tmux session.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := LoadConfig(rootDir)
 			if err != nil {
@@ -41,17 +47,7 @@ func startLatencyMonitorCmd() *cobra.Command {
 
 			resolvedSSHKeyPath := resolveValue(SSHKeyPath, EnvVarSSHKeyPath, strings.ReplaceAll(cfg.SSHPubKeyPath, ".pub", ""))
 
-			// Build the latency-monitor command
-			latencyMonitorScript := fmt.Sprintf(
-				"latency-monitor -k .celestia-app -e localhost:9091 -b %d -z %d -d %s -n %s --metrics-port %d > latency-monitor.log 2>&1",
-				blobSize,
-				blobSizeMin,
-				submissionDelay,
-				namespace,
-				metricsPort,
-			)
-
-			// Only spin up latency monitor on the number of instances that were specified
+			// Only operate on the number of instances that were specified
 			insts := []Instance{}
 			for i, val := range cfg.Validators {
 				if i >= instances || i >= len(cfg.Validators) {
@@ -59,6 +55,21 @@ func startLatencyMonitorCmd() *cobra.Command {
 				}
 				insts = append(insts, val)
 			}
+
+			if stop {
+				fmt.Printf("Stopping latency monitor on %d instance(s)...\n", len(insts))
+				return stopTmuxSession(insts, resolvedSSHKeyPath, LatencyMonitorSessionName, time.Minute*5)
+			}
+
+			// Build the latency-monitor command
+			latencyMonitorScript := fmt.Sprintf(
+				"latency-monitor -k .celestia-app -e localhost:9091 -b %d -z %d -d %s -n %s --metrics-port %d",
+				blobSize,
+				blobSizeMin,
+				submissionDelay,
+				namespace,
+				metricsPort,
+			)
 
 			fmt.Println(insts, "\n", latencyMonitorScript)
 
@@ -75,7 +86,69 @@ func startLatencyMonitorCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&submissionDelay, "submission-delay", "s", "4000ms", "delay between transaction submissions")
 	cmd.Flags().StringVarP(&namespace, "namespace", "n", "test", "namespace for blob submission")
 	cmd.Flags().IntVarP(&metricsPort, "metrics-port", "m", 9464, "port for Prometheus metrics HTTP server (0 to disable)")
+	cmd.Flags().BoolVar(&stop, "stop", false, "stop the latency monitor instead of starting it")
 	_ = cmd.MarkFlagRequired("instances")
 
 	return cmd
+}
+
+// stopTmuxSession SSHes into each remote host in parallel and kills the tmux session.
+func stopTmuxSession(
+	instances []Instance,
+	sshKeyPath string,
+	sessionName string,
+	timeout time.Duration,
+) error {
+	var wg sync.WaitGroup
+	errCh := make(chan error, len(instances))
+	counter := atomic.Uint32{}
+
+	for _, inst := range instances {
+		wg.Add(1)
+		go func(inst Instance) {
+			defer wg.Done()
+
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			defer cancel()
+
+			// Kill tmux session
+			tmuxCmd := fmt.Sprintf("tmux kill-session -t %s 2>/dev/null || true", sessionName)
+
+			ssh := exec.CommandContext(ctx,
+				"ssh",
+				"-i", sshKeyPath,
+				"-o", "StrictHostKeyChecking=no",
+				"-o", "UserKnownHostsFile=/dev/null",
+				fmt.Sprintf("root@%s", inst.PublicIP),
+				tmuxCmd,
+			)
+			if out, err := ssh.CombinedOutput(); err != nil {
+				errCh <- fmt.Errorf("[%s:%s] ssh error in %s: %v\n%s",
+					inst.Name, inst.PublicIP, inst.Region, err, out)
+				return
+			}
+
+			log.Printf("stopped %s session on %s (%s) 🛑 – %d/%d\n",
+				sessionName, inst.Name, inst.PublicIP, counter.Add(1), len(instances))
+		}(inst)
+	}
+
+	wg.Wait()
+	close(errCh)
+
+	var errs []error
+	for e := range errCh {
+		errs = append(errs, e)
+	}
+	if len(errs) > 0 {
+		sb := strings.Builder{}
+		sb.WriteString("❌ errors stopping tmux session:\n")
+		for _, e := range errs {
+			sb.WriteString("- ")
+			sb.WriteString(e.Error())
+			sb.WriteByte('\n')
+		}
+		return fmt.Errorf(sb.String())
+	}
+	return nil
 }
