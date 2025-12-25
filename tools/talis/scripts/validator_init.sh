@@ -85,7 +85,7 @@ parsed_hostname=$(echo $hostname | awk -F'-' '{print $1 "-" $2}')
 
 cp payload/build/celestia-appd /bin/celestia-appd
 cp payload/build/txsim /bin/txsim
-cp payload/build/latency-monitor /bin/latency-monitor 2>/dev/null || true
+cp payload/build/latency-monitor /bin/latency-monitor
 
 cd $HOME
 

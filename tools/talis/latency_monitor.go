@@ -42,27 +42,14 @@ func startLatencyMonitorCmd() *cobra.Command {
 			resolvedSSHKeyPath := resolveValue(SSHKeyPath, EnvVarSSHKeyPath, strings.ReplaceAll(cfg.SSHPubKeyPath, ".pub", ""))
 
 			// Build the latency-monitor command
-			// The binary is always named "latency-monitor" (copied from either rust or go version during genesis)
-			// Note: --metrics-port is only supported by the Rust version (lumina-latency-monitor)
-			var latencyMonitorScript string
-			if cfg.LatencyMonitorType == LatencyMonitorRust || cfg.LatencyMonitorType == "" {
-				latencyMonitorScript = fmt.Sprintf(
-					"latency-monitor -k .celestia-app -e localhost:9090 -b %d -z %d -d %s -n %s --metrics-port %d > latency-monitor.log 2>&1",
-					blobSize,
-					blobSizeMin,
-					submissionDelay,
-					namespace,
-					metricsPort,
-				)
-			} else {
-				latencyMonitorScript = fmt.Sprintf(
-					"latency-monitor -k .celestia-app -e localhost:9090 -b %d -z %d -d %s -n %s > latency-monitor.log 2>&1",
-					blobSize,
-					blobSizeMin,
-					submissionDelay,
-					namespace,
-				)
-			}
+			latencyMonitorScript := fmt.Sprintf(
+				"latency-monitor -k .celestia-app -e localhost:9091 -b %d -z %d -d %s -n %s --metrics-port %d > latency-monitor.log 2>&1",
+				blobSize,
+				blobSizeMin,
+				submissionDelay,
+				namespace,
+				metricsPort,
+			)
 
 			// Only spin up latency monitor on the number of instances that were specified
 			insts := []Instance{}

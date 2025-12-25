@@ -23,16 +23,6 @@ const (
 	Metrics NodeType = "metrics"
 )
 
-// LatencyMonitorType represents which latency monitor implementation to use.
-type LatencyMonitorType string
-
-const (
-	// LatencyMonitorRust uses the Rust (lumina) implementation.
-	LatencyMonitorRust LatencyMonitorType = "rust"
-	// LatencyMonitorGo uses the Go implementation.
-	LatencyMonitorGo LatencyMonitorType = "go"
-)
-
 var (
 	valCount    = atomic.Uint32{}
 	nodeCount   = atomic.Uint32{}
@@ -162,22 +152,20 @@ type Config struct {
 	SSHKeyName string `json:"ssh_key_name"`
 	// DigitalOceanToken is used to authenticate with DigitalOcean. It can be
 	// provided via an env var or flag.
-	DigitalOceanToken      string             `json:"digitalocean_token"`
-	GoogleCloudProject     string             `json:"google_cloud_project"`
-	GoogleCloudKeyJSONPath string             `json:"google_cloud_key_json_path"`
-	S3Config               S3Config           `json:"s3_config"`
-	LatencyMonitorType     LatencyMonitorType `json:"latency_monitor_type,omitempty"`
+	DigitalOceanToken      string   `json:"digitalocean_token"`
+	GoogleCloudProject     string   `json:"google_cloud_project"`
+	GoogleCloudKeyJSONPath string   `json:"google_cloud_key_json_path"`
+	S3Config               S3Config `json:"s3_config"`
 }
 
 func NewConfig(experiment, chainID string) Config {
 	return Config{
-		Validators:         []Instance{},
-		Bridges:            []Instance{},
-		Lights:             []Instance{},
-		Metrics:            []Instance{},
-		Experiment:         experiment,
-		ChainID:            TalisChainID(chainID),
-		LatencyMonitorType: LatencyMonitorRust, // default to Rust implementation
+		Validators: []Instance{},
+		Bridges:    []Instance{},
+		Lights:     []Instance{},
+		Metrics:    []Instance{},
+		Experiment: experiment,
+		ChainID:    TalisChainID(chainID),
 		S3Config: S3Config{
 			AccessKeyID:     os.Getenv(EnvVarAWSAccessKeyID),
 			SecretAccessKey: os.Getenv(EnvVarAWSSecretAccessKey),
@@ -245,19 +233,6 @@ func (cfg Config) WithGoogleCloudMetrics(region string) Config {
 func (cfg Config) WithChainID(chainID string) Config {
 	cfg.ChainID = TalisChainID(chainID)
 	return cfg
-}
-
-func (cfg Config) WithLatencyMonitorType(lmType LatencyMonitorType) Config {
-	cfg.LatencyMonitorType = lmType
-	return cfg
-}
-
-// LatencyMonitorBinary returns the binary name based on the configured latency monitor type.
-func (cfg Config) LatencyMonitorBinary() string {
-	if cfg.LatencyMonitorType == LatencyMonitorGo {
-		return "latency-monitor"
-	}
-	return "lumina-latency-monitor"
 }
 
 func (cfg Config) Save(root string) error {
