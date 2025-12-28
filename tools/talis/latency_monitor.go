@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os/exec"
@@ -177,19 +178,14 @@ func stopTmuxSession(
 	wg.Wait()
 	close(errCh)
 
-	var errs []error
-	for e := range errCh {
-		errs = append(errs, e)
+	errs := make([]error, 0, len(instances))
+	for err := range errCh {
+		errs = append(errs, err)
 	}
-	if len(errs) > 0 {
-		sb := strings.Builder{}
-		sb.WriteString("errors stopping tmux session:\n")
-		for _, e := range errs {
-			sb.WriteString("- ")
-			sb.WriteString(e.Error())
-			sb.WriteByte('\n')
-		}
-		return fmt.Errorf(sb.String())
+
+	if len(errs) == 0 {
+		return nil
 	}
-	return nil
+
+	return fmt.Errorf("errors stopping tmux session:\n%w", errors.Join(errs...))
 }
