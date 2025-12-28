@@ -92,10 +92,6 @@ func startMetricsServer(port int) error {
 	addr := fmt.Sprintf(":%d", port)
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html")
-		fmt.Fprint(w, `<html><body><h1>Latency Monitor</h1><p><a href="/metrics">Metrics</a></p></body></html>`)
-	})
 
 	server := &http.Server{
 		Addr:    addr,

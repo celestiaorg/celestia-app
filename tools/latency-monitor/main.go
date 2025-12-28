@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/signal"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v6/app"
@@ -77,9 +76,9 @@ between submission and commitment, providing detailed latency statistics.`,
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			// Handle shutdown signals (SIGINT, SIGTERM)
+			// Handle interrupt signal
 			sigChan := make(chan os.Signal, 1)
-			signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+			signal.Notify(sigChan, os.Interrupt)
 			go func() {
 				sig := <-sigChan
 				fmt.Printf("\nReceived %s, shutting down gracefully...\n", sig)
