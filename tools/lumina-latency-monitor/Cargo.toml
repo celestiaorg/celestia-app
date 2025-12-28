@@ -36,5 +36,12 @@ aes-gcm = "0.10"
 aes-kw = "0.2"
 hmac = "0.12"
 
+# Prometheus metrics
+prometheus = "0.13"
+lazy_static = "1.4"
+hyper = { version = "1.5", features = ["server", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+http-body-util = "0.1"
+
 [dev-dependencies]
 tokio = { version = "1.42", features = ["rt", "rt-multi-thread", "macros"] }

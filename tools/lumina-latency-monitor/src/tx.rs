@@ -10,6 +10,7 @@ use tokio::task::JoinSet;
 use tokio::time;
 
 use crate::config::{LatencyMonitorError, Result, ValidatedConfig};
+use crate::prometheus as prom;
 
 #[derive(Debug, Clone)]
 pub struct TxResult {
@@ -94,7 +95,8 @@ pub async fn run_submission_loop(
                 let submitted = match client.broadcast_blobs(&[blob], TxConfig::default()).await {
                     Ok(s) => s,
                     Err(e) => {
-                        eprintln!("Failed to broadcast tx: {}", e);
+                        eprintln!("[BROADCAST_FAILED] error={}", e);
+                        prom::record_broadcast_failure();
                         continue;
                     }
                 };
@@ -107,6 +109,8 @@ pub async fn run_submission_loop(
                     format_time_only(submit_time)
                 );
 
+                prom::record_submit();
+
                 if disable_metrics {
                     continue;
                 }
@@ -114,6 +118,7 @@ pub async fn run_submission_loop(
                 let permit = sem.clone().acquire_owned().await.unwrap();
                 let sema_wait = sema_start.elapsed();
 
+                let blob_size = size;
                 confirm_tasks.spawn(async move {
                     let _permit = permit;
                     let tx_hash_short = tx_hash.clone();
@@ -133,6 +138,8 @@ pub async fn run_submission_loop(
                                 format_time_only(commit_time)
                             );
 
+                            prom::record_confirm(latency, blob_size);
+
                             Some(TxResult::success(
                                 submit_time,
                                 commit_time,
@@ -145,6 +152,7 @@ pub async fn run_submission_loop(
                         Err(e) => {
                             let error_str = e.to_string();
                             if error_str.contains("cancel") {
+                                prom::dec_in_flight();
                                 println!(
                                     "[CANCELLED] tx={} context closed before confirmation",
                                     &tx_hash_short[..16]
@@ -152,6 +160,7 @@ pub async fn run_submission_loop(
                                 return None;
                             }
 
+                            prom::record_confirm_failure();
                             println!("[FAILED] tx={} error={}", &tx_hash_short[..16], e);
                             Some(TxResult::failure(submit_time, error_str))
                         }

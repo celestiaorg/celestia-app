@@ -49,6 +49,10 @@ pub struct Args {
     /// Delay between transaction submissions
     #[arg(short = 'd', long, default_value = "4000ms")]
     pub submission_delay: String,
+
+    /// Port for Prometheus metrics HTTP server (0 to disable)
+    #[arg(long, default_value_t = 9464)]
+    pub metrics_port: u16,
 }
 
 #[derive(Error, Debug)]
@@ -99,6 +103,7 @@ pub struct ValidatedConfig {
     pub namespace: Namespace,
     pub submission_delay: Duration,
     pub disable_metrics: bool,
+    pub metrics_port: u16,
 }
 
 pub fn validate_args(args: &Args) -> Result<ValidatedConfig> {
@@ -123,6 +128,7 @@ pub fn validate_args(args: &Args) -> Result<ValidatedConfig> {
         namespace,
         submission_delay,
         disable_metrics: args.disable_metrics,
+        metrics_port: args.metrics_port,
     })
 }
 
