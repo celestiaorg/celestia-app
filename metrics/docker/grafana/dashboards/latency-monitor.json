@@ -6,7 +6,20 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
-  "links": [],
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Celestia Network",
+      "tooltip": "View main network metrics",
+      "type": "link",
+      "url": "/d/celestia-network/celestia"
+    }
+  ],
   "liveNow": false,
   "panels": [
     {

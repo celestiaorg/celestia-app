@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"math"
 	mathrand "math/rand"
@@ -76,9 +77,9 @@ between submission and commitment, providing detailed latency statistics.`,
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			// Handle shutdown signals (SIGINT, SIGTERM, SIGHUP)
+			// Handle shutdown signals (SIGINT, SIGTERM)
 			sigChan := make(chan os.Signal, 1)
-			signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+			signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 			go func() {
 				sig := <-sigChan
 				fmt.Printf("\nReceived %s, shutting down gracefully...\n", sig)
@@ -240,8 +241,15 @@ func monitorLatency(
 			go func(txHash string, submitTime time.Time, blobSize int) {
 				confirmed, err := txClient.ConfirmTx(ctx, txHash)
 				if err != nil {
+					if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+						txInFlight.Dec()
+						fmt.Printf("[CANCELLED] tx=%s context closed before confirmation\n", txHash[:16])
+						return
+					}
+
 					recordConfirmFailure()
 					resultsMux.Lock()
+					// Track failed confirmation
 					fmt.Printf("[FAILED] tx=%s error=%v\n", txHash[:16], err)
 					results = append(results, txResult{
 						submitTime: submitTime,
@@ -257,30 +265,8 @@ func monitorLatency(
 					return
 				}
 
-				// Check if tx was included but failed (non-zero code)
-				if confirmed.Code != 0 {
-					recordConfirmFailure()
-					resultsMux.Lock()
-					commitTime := time.Now()
-					latency := commitTime.Sub(submitTime)
-					fmt.Printf("[FAILED] tx=%s height=%d latency=%dms code=%d time=%s\n",
-						confirmed.TxHash[:16], confirmed.Height, latency.Milliseconds(), confirmed.Code, commitTime.Format("15:04:05.000"))
-					results = append(results, txResult{
-						submitTime: submitTime,
-						commitTime: commitTime,
-						latency:    latency,
-						txHash:     confirmed.TxHash,
-						code:       confirmed.Code,
-						height:     confirmed.Height,
-						failed:     true,
-						errorMsg:   fmt.Sprintf("tx failed with code %d", confirmed.Code),
-					})
-					resultsMux.Unlock()
-					return
-				}
-
-				resultsMux.Lock()
 				// Track successful confirmation
+				resultsMux.Lock()
 				commitTime := time.Now()
 				latency := commitTime.Sub(submitTime)
 				fmt.Printf("[CONFIRM] tx=%s height=%d latency=%dms code=%d time=%s\n",

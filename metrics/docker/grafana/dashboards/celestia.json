@@ -6,7 +6,20 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": null,
-  "links": [],
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Latency Monitor",
+      "tooltip": "View transaction latency metrics",
+      "type": "link",
+      "url": "/d/latency-monitor/latency-monitor"
+    }
+  ],
   "liveNow": false,
   "panels": [
     {
