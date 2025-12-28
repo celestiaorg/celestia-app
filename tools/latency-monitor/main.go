@@ -4,13 +4,13 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/csv"
-	"errors"
 	"fmt"
 	"math"
 	mathrand "math/rand"
 	"os"
 	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v6/app"
@@ -30,6 +30,7 @@ const (
 	defaultMinBlobSize     = 1                       // bytes
 	defaultNamespaceStr    = "test"                  // default namespace for blobs
 	defaultSubmissionDelay = 4000 * time.Millisecond // delay between submissions
+	defaultMetricsPort     = 9464                    // default Prometheus metrics port
 )
 
 var (
@@ -41,6 +42,7 @@ var (
 	namespaceStr    string
 	disableMetrics  bool
 	submissionDelay time.Duration
+	metricsPort     int
 )
 
 type txResult struct {
@@ -74,15 +76,16 @@ between submission and commitment, providing detailed latency statistics.`,
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			// Handle interrupt signal
+			// Handle shutdown signals (SIGINT, SIGTERM, SIGHUP)
 			sigChan := make(chan os.Signal, 1)
-			signal.Notify(sigChan, os.Interrupt)
+			signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 			go func() {
-				<-sigChan
+				sig := <-sigChan
+				fmt.Printf("\nReceived %s, shutting down gracefully...\n", sig)
 				cancel()
 			}()
 
-			return monitorLatency(ctx, endpoint, keyringDir, accountName, blobSize, minBlobSize, namespaceStr, disableMetrics, submissionDelay)
+			return monitorLatency(ctx, endpoint, keyringDir, accountName, blobSize, minBlobSize, namespaceStr, disableMetrics, submissionDelay, metricsPort)
 		},
 	}
 
@@ -94,6 +97,7 @@ between submission and commitment, providing detailed latency statistics.`,
 	cmd.Flags().StringVarP(&namespaceStr, "namespace", "n", defaultNamespaceStr, "Namespace for blob submission")
 	cmd.Flags().BoolVarP(&disableMetrics, "disable-metrics", "m", false, "Disable metrics collection")
 	cmd.Flags().DurationVarP(&submissionDelay, "submission-delay", "d", defaultSubmissionDelay, "Delay between transaction submissions")
+	cmd.Flags().IntVar(&metricsPort, "metrics-port", defaultMetricsPort, "Port for Prometheus metrics HTTP server (0 to disable)")
 
 	return cmd
 }
@@ -108,6 +112,7 @@ func monitorLatency(
 	namespaceStr string,
 	disableMetrics bool,
 	submissionDelay time.Duration,
+	metricsPort int,
 ) error {
 	if blobMinSize < 1 {
 		return fmt.Errorf("minimum blob size must be at least 1 byte (got %d)", blobMinSize)
@@ -118,6 +123,14 @@ func monitorLatency(
 
 	fmt.Printf("Monitoring latency with min blob size: %d bytes, max blob size: %d bytes, submission delay: %s, namespace: %s\n",
 		blobMinSize, blobSize, submissionDelay, namespaceStr)
+
+	// Start Prometheus metrics server if port is non-zero
+	if metricsPort > 0 {
+		if err := startMetricsServer(metricsPort); err != nil {
+			return fmt.Errorf("failed to start metrics server: %w", err)
+		}
+	}
+
 	fmt.Printf("Press Ctrl+C to stop\n\n")
 
 	fmt.Println("Setting up tx client...")
@@ -210,27 +223,25 @@ func monitorLatency(
 			// Broadcast transaction without waiting for confirmation
 			resp, err := txClient.BroadcastPayForBlob(ctx, []*share.Blob{blob})
 			if err != nil {
-				fmt.Printf("Failed to broadcast tx: %v\n", err)
+				fmt.Printf("[BROADCAST_FAILED] error=%v\n", err)
+				recordBroadcastFailure()
 				continue
 			}
 
 			fmt.Printf("[SUBMIT] tx=%s size=%d bytes time=%s\n",
 				resp.TxHash[:16], randomSize, submitTime.Format("15:04:05.000"))
+			recordSubmit()
 
 			if disableMetrics {
 				continue
 			}
 
 			// Launch background goroutine to confirm the transaction
-			go func(txHash string, submitTime time.Time) {
+			go func(txHash string, submitTime time.Time, blobSize int) {
 				confirmed, err := txClient.ConfirmTx(ctx, txHash)
 				if err != nil {
-					if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-						fmt.Printf("[CANCELLED] tx=%s context closed before confirmation\n", txHash[:16])
-						return
-					}
+					recordConfirmFailure()
 					resultsMux.Lock()
-					// Track failed confirmation
 					fmt.Printf("[FAILED] tx=%s error=%v\n", txHash[:16], err)
 					results = append(results, txResult{
 						submitTime: submitTime,
@@ -246,12 +257,35 @@ func monitorLatency(
 					return
 				}
 
+				// Check if tx was included but failed (non-zero code)
+				if confirmed.Code != 0 {
+					recordConfirmFailure()
+					resultsMux.Lock()
+					commitTime := time.Now()
+					latency := commitTime.Sub(submitTime)
+					fmt.Printf("[FAILED] tx=%s height=%d latency=%dms code=%d time=%s\n",
+						confirmed.TxHash[:16], confirmed.Height, latency.Milliseconds(), confirmed.Code, commitTime.Format("15:04:05.000"))
+					results = append(results, txResult{
+						submitTime: submitTime,
+						commitTime: commitTime,
+						latency:    latency,
+						txHash:     confirmed.TxHash,
+						code:       confirmed.Code,
+						height:     confirmed.Height,
+						failed:     true,
+						errorMsg:   fmt.Sprintf("tx failed with code %d", confirmed.Code),
+					})
+					resultsMux.Unlock()
+					return
+				}
+
 				resultsMux.Lock()
 				// Track successful confirmation
 				commitTime := time.Now()
 				latency := commitTime.Sub(submitTime)
 				fmt.Printf("[CONFIRM] tx=%s height=%d latency=%dms code=%d time=%s\n",
 					confirmed.TxHash[:16], confirmed.Height, latency.Milliseconds(), confirmed.Code, commitTime.Format("15:04:05.000"))
+				recordConfirm(latency, blobSize)
 				results = append(results, txResult{
 					submitTime: submitTime,
 					commitTime: commitTime,
@@ -263,7 +297,7 @@ func monitorLatency(
 					errorMsg:   "",
 				})
 				resultsMux.Unlock()
-			}(resp.TxHash, submitTime)
+			}(resp.TxHash, submitTime, randomSize)
 		}
 	}
 }

@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	defaultMetricsPort    = 26660
-	grafanaPasswordLength = 16
+	defaultMetricsPort        = 26660
+	latencyMonitorMetricsPort = 9464
+	grafanaPasswordLength     = 16
 )
 
 // generateGrafanaPassword generates a random alphanumeric password.
@@ -66,6 +67,7 @@ func stageMetricsPayload(cfg Config, metricsSrcDir, payloadDir string) error {
 		}
 	}
 
+	// Generate validator metrics targets (CometBFT on port 26660)
 	groups, skipped, err := buildMetricsTargets(cfg, defaultMetricsPort, "public")
 	if err != nil {
 		return err
@@ -76,12 +78,30 @@ func stageMetricsPayload(cfg Config, metricsSrcDir, payloadDir string) error {
 		return err
 	}
 
-	targetsPath := filepath.Join(dockerDest, "targets", "targets.json")
-	if err := os.MkdirAll(filepath.Dir(targetsPath), 0o755); err != nil {
+	targetsDir := filepath.Join(dockerDest, "targets")
+	if err := os.MkdirAll(targetsDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create targets directory: %w", err)
 	}
+
+	targetsPath := filepath.Join(targetsDir, "targets.json")
 	if err := os.WriteFile(targetsPath, payload, 0o644); err != nil {
 		return fmt.Errorf("failed to write targets file: %w", err)
+	}
+
+	// Generate latency monitor targets (same validators, port 9464)
+	latencyGroups, _, err := buildMetricsTargets(cfg, latencyMonitorMetricsPort, "public")
+	if err != nil {
+		return err
+	}
+
+	latencyPayload, err := marshalTargets(latencyGroups, true)
+	if err != nil {
+		return err
+	}
+
+	latencyTargetsPath := filepath.Join(targetsDir, "latency_targets.json")
+	if err := os.WriteFile(latencyTargetsPath, latencyPayload, 0o644); err != nil {
+		return fmt.Errorf("failed to write latency targets file: %w", err)
 	}
 
 	// Generate random Grafana password and write .env file
