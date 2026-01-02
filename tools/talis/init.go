@@ -97,7 +97,7 @@ func initCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory in which to initialize")
-	cmd.Flags().StringVarP(&srcRoot, "src-root", "r", homeDir, "directory from which to copy scripts") // todo: fix the default directory here
+	cmd.Flags().StringVarP(&srcRoot, "src-root", "r", homeDir, "directory from which to copy scripts")
 	cmd.Flags().StringVarP(&chainID, "chainID", "c", "", "Chain ID (required)")
 	_ = cmd.MarkFlagRequired("chainID")
 	cmd.Flags().StringVarP(&experiment, "experiment", "e", "test", "the name of the experiment (required)")
@@ -142,16 +142,26 @@ func initDirs(rootDir string) error {
 	return nil
 }
 
-// CopyTalisScripts ensures that the celestia-app tools/talis/scripts directory
-// is copied into destDir. It first checks GOPATH/src/github.com/.../scripts,
-// and if missing, does a shallow git clone, copies the folder (including subdirectories), then cleans up.
+// CopyTalisScripts copies the talis scripts directory into destDir.
+// It checks multiple possible locations for the scripts.
 func CopyTalisScripts(destDir string, srcRoot string) error {
-	// todo: fix import path
-	const importPath = "celestia-app/tools/talis/scripts"
+	const scriptsSubpath = "celestia-app/tools/talis/scripts"
 
-	src := filepath.Join(srcRoot, "src", importPath)
+	candidates := []string{
+		filepath.Join(srcRoot, scriptsSubpath),
+		filepath.Join(srcRoot, "src", scriptsSubpath),
+	}
 
-	if fi, err := os.Stat(src); err != nil || !fi.IsDir() {
+	var src string
+	for _, candidate := range candidates {
+		if fi, err := os.Stat(candidate); err == nil && fi.IsDir() {
+			src = candidate
+			break
+		}
+	}
+
+	// Fallback to git clone if not found locally
+	if src == "" {
 		tmp, err := os.MkdirTemp("", "celestia-scripts-*")
 		if err != nil {
 			return fmt.Errorf("mktemp: %w", err)
