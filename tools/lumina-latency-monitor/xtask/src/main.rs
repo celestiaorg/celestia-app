@@ -72,6 +72,15 @@ fn cross_compiler_for_target(target: &str) -> &'static str {
     }
 }
 
+/// Get the environment variable name for setting the linker for a target.
+/// Cargo uses CARGO_TARGET_<triple>_LINKER where the triple is uppercased and dashes become underscores.
+fn linker_env_var_for_target(target: &str) -> String {
+    format!(
+        "CARGO_TARGET_{}_LINKER",
+        target.to_uppercase().replace('-', "_")
+    )
+}
+
 fn cmd_setup(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     let target =
         parse_flag_value(args, "--target").unwrap_or_else(|| DEFAULT_LINUX_TARGET.to_string());
@@ -97,8 +106,13 @@ fn cmd_setup(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
 
         if !command_exists(cross_compiler) {
             println!("==> Installing cross-compiler toolchain...");
-            run_checked("brew", &["tap", "messense/macos-cross-toolchains"], None)?;
-            run_checked("brew", &["install", &target], None)?;
+            run_checked(
+                "brew",
+                &["tap", "messense/macos-cross-toolchains"],
+                None,
+                None,
+            )?;
+            run_checked("brew", &["install", &target], None, None)?;
         } else {
             println!("==> {cross_compiler} already installed");
         }
@@ -107,7 +121,7 @@ fn cmd_setup(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("==> Adding Rust target {target}...");
-    run_checked("rustup", &["target", "add", &target], None)?;
+    run_checked("rustup", &["target", "add", &target], None, None)?;
 
     println!();
     println!("==> Setup complete! You can now run:");
@@ -133,6 +147,7 @@ fn cmd_build_with_target(target: &str) -> Result<(), Box<dyn std::error::Error>>
             "cargo",
             &["build", "-p", PACKAGE_NAME, "--release"],
             Some(&workspace_root),
+            None,
         )?;
 
         let binary_path = workspace_root.join("target").join("release").join(BIN_NAME);
@@ -142,6 +157,7 @@ fn cmd_build_with_target(target: &str) -> Result<(), Box<dyn std::error::Error>>
         let os = env::consts::OS;
         let cross_compiler = cross_compiler_for_target(target);
 
+        // Only check for cross-compiler on macOS
         if os == "macos" {
             if !command_exists(cross_compiler) {
                 eprintln!();
@@ -152,10 +168,19 @@ fn cmd_build_with_target(target: &str) -> Result<(), Box<dyn std::error::Error>>
             }
         }
 
+        // Set linker via environment variable only when cross-compiling
+        let linker_env = linker_env_var_for_target(target);
+        let env_vars = if os == "macos" {
+            Some(vec![(linker_env.as_str(), cross_compiler)])
+        } else {
+            None
+        };
+
         run_checked(
             "cargo",
             &["build", "-p", PACKAGE_NAME, "--release", "--target", target],
             Some(&workspace_root),
+            env_vars,
         )?;
 
         let binary_path = workspace_root
@@ -174,6 +199,7 @@ fn run_checked(
     cmd: &str,
     args: &[&str],
     cwd: Option<&Path>,
+    env_vars: Option<Vec<(&str, &str)>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("+ {} {}", cmd, args.join(" "));
     let mut c = Command::new(cmd);
@@ -183,6 +209,11 @@ fn run_checked(
         .stderr(Stdio::inherit());
     if let Some(cwd) = cwd {
         c.current_dir(cwd);
+    }
+    if let Some(vars) = env_vars {
+        for (key, value) in vars {
+            c.env(key, value);
+        }
     }
     let status = c.status()?;
     if status.success() {
