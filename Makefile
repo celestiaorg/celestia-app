@@ -363,16 +363,16 @@ build-talis-bins: build-lumina-latency-monitor
 .PHONY: build-talis-bins
 
 ## build-lumina-latency-monitor: Build lumina-latency-monitor for Linux x86_64 (installs Rust and cross-compiler if needed)
+build-lumina-latency-monitor: export PATH := $(HOME)/.cargo/bin:$(PATH)
+build-lumina-latency-monitor: CARGO := $(HOME)/.cargo/bin/cargo
 build-lumina-latency-monitor:
-	@if ! command -v cargo >/dev/null 2>&1; then \
+	@if ! command -v $(CARGO) >/dev/null 2>&1; then \
 		echo "Rust is not installed. Installing..."; \
 		curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y; \
 		echo ""; \
-		echo "Rust installed. Loading cargo env for this build..."; \
-		. $$HOME/.cargo/env; \
+		echo "Rust installed. Continuing with cargo from $$HOME/.cargo/bin..."; \
 	fi
-	@. $$HOME/.cargo/env
-	cd tools/lumina-latency-monitor && cargo xtask build-linux
+	cd tools/lumina-latency-monitor && $(CARGO) xtask build-linux
 	@mkdir -p build
 	@if [ -f tools/lumina-latency-monitor/target/x86_64-unknown-linux-gnu/release/lumina-latency-monitor ]; then \
 		cp tools/lumina-latency-monitor/target/x86_64-unknown-linux-gnu/release/lumina-latency-monitor build/latency-monitor; \
