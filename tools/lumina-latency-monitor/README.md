@@ -34,10 +34,7 @@ cargo build --release
 From the `tools/lumina-latency-monitor` directory:
 
 ```bash
-# One-time setup: installs cross-compiler via brew and adds Rust target
-cargo xtask setup
-
-# Build for Linux x86_64
+# Build for Linux x86_64 (installs cross-compilation deps if needed)
 cargo xtask build-linux
 ```
 
@@ -56,10 +53,7 @@ cargo xtask build-linux
 From the repository root (`celestia-app`):
 
 ```bash
-# One-time setup
-make setup-lumina-cross-compile
-
-# Build for Linux x86_64
+# Build for Linux x86_64 (installs cross-compilation deps if needed)
 make build-lumina-latency-monitor
 ```
 

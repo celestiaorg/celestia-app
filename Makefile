@@ -362,13 +362,16 @@ build-talis-bins: build-lumina-latency-monitor
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/celestia-appd ./cmd/celestia-appd
 .PHONY: build-talis-bins
 
-## setup-lumina-cross-compile: Install zig and cargo-zigbuild for cross-compilation
-setup-lumina-cross-compile:
-	cd tools/lumina-latency-monitor && cargo xtask setup
-.PHONY: setup-lumina-cross-compile
-
-## build-lumina-latency-monitor: Build lumina-latency-monitor for Linux x86_64
+## build-lumina-latency-monitor: Build lumina-latency-monitor for Linux x86_64 (installs Rust and cross-compiler if needed)
 build-lumina-latency-monitor:
+	@if ! command -v cargo >/dev/null 2>&1; then \
+		echo "Rust is not installed. Installing..."; \
+		curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y; \
+		echo ""; \
+		echo "Rust installed. Please restart your shell or run: source $$HOME/.cargo/env"; \
+		echo "Then run 'make build-lumina-latency-monitor' again."; \
+		exit 0; \
+	fi
 	cd tools/lumina-latency-monitor && cargo xtask build-linux
 	@mkdir -p build
 	cp tools/lumina-latency-monitor/target/x86_64-unknown-linux-gnu/release/lumina-latency-monitor build/latency-monitor

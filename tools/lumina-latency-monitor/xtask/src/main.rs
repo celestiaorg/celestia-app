@@ -16,7 +16,6 @@ fn main() -> ExitCode {
     }
 
     let result = match args[0].as_str() {
-        "setup" => cmd_setup(&args[1..]),
         "build-linux" => cmd_build_linux(&args[1..]),
         "build-linux-gnu" => cmd_build_with_target(DEFAULT_LINUX_TARGET),
         "build-linux-musl" => cmd_build_with_target(DEFAULT_LINUX_MUSL_TARGET),
@@ -40,17 +39,15 @@ fn print_usage() {
     println!("Usage: cargo xtask <command> [options]");
     println!();
     println!("Commands:");
-    println!("  setup                  Check cross-compilation prerequisites");
     println!("  build-linux            Build {BIN_NAME} for Linux (default gnu)");
     println!("  build-linux-gnu        Build for {DEFAULT_LINUX_TARGET}");
     println!("  build-linux-musl       Build for {DEFAULT_LINUX_MUSL_TARGET}");
     println!("  help                   Show this help message");
     println!();
     println!("Options:");
-    println!("  --target <triple>      Override the target for build-linux / setup");
+    println!("  --target <triple>      Override the target for build-linux");
     println!();
     println!("Examples:");
-    println!("  cargo xtask setup");
     println!("  cargo xtask build-linux");
 }
 
@@ -81,21 +78,15 @@ fn linker_env_var_for_target(target: &str) -> String {
     )
 }
 
-fn cmd_setup(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
-    let target =
-        parse_flag_value(args, "--target").unwrap_or_else(|| DEFAULT_LINUX_TARGET.to_string());
-
+fn cmd_setup_for_target(target: &str) -> Result<(), Box<dyn std::error::Error>> {
     // If we're on native Linux x64, no setup needed for gnu target
-    if is_native_target(&target) {
+    if is_native_target(target) {
         println!("==> Running on native Linux x86_64, no cross-compilation setup needed");
-        println!();
-        println!("==> You can now run:");
-        println!("    cargo xtask build-linux");
         return Ok(());
     }
 
     let os = env::consts::OS;
-    let cross_compiler = cross_compiler_for_target(&target);
+    let cross_compiler = cross_compiler_for_target(target);
 
     println!("==> Setting up cross-compilation environment...");
 
@@ -112,7 +103,7 @@ fn cmd_setup(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
                 None,
                 None,
             )?;
-            run_checked("brew", &["install", &target], None, None)?;
+            run_checked("brew", &["install", target], None, None)?;
         } else {
             println!("==> {cross_compiler} already installed");
         }
@@ -121,11 +112,7 @@ fn cmd_setup(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("==> Adding Rust target {target}...");
-    run_checked("rustup", &["target", "add", &target], None, None)?;
-
-    println!();
-    println!("==> Setup complete! You can now run:");
-    println!("    cargo xtask build-linux");
+    run_checked("rustup", &["target", "add", target], None, None)?;
 
     Ok(())
 }
@@ -138,6 +125,8 @@ fn cmd_build_linux(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
 
 fn cmd_build_with_target(target: &str) -> Result<(), Box<dyn std::error::Error>> {
     let workspace_root = workspace_root_via_metadata()?;
+
+    cmd_setup_for_target(target)?;
 
     println!("==> Building {BIN_NAME} for {target}...");
 
@@ -162,7 +151,7 @@ fn cmd_build_with_target(target: &str) -> Result<(), Box<dyn std::error::Error>>
             if !command_exists(cross_compiler) {
                 eprintln!();
                 eprintln!("{cross_compiler} not found.");
-                eprintln!("Run 'cargo xtask setup' for install instructions.");
+                eprintln!("Install the cross-compiler and re-run this command.");
                 eprintln!();
                 return Err("missing cross-compiler".into());
             }
