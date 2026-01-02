@@ -368,13 +368,17 @@ build-lumina-latency-monitor:
 		echo "Rust is not installed. Installing..."; \
 		curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y; \
 		echo ""; \
-		echo "Rust installed. Please restart your shell or run: source $$HOME/.cargo/env"; \
-		echo "Then run 'make build-lumina-latency-monitor' again."; \
-		exit 0; \
+		echo "Rust installed. Loading cargo env for this build..."; \
+		. $$HOME/.cargo/env; \
 	fi
+	@. $$HOME/.cargo/env
 	cd tools/lumina-latency-monitor && cargo xtask build-linux
 	@mkdir -p build
-	cp tools/lumina-latency-monitor/target/x86_64-unknown-linux-gnu/release/lumina-latency-monitor build/latency-monitor
+	@if [ -f tools/lumina-latency-monitor/target/x86_64-unknown-linux-gnu/release/lumina-latency-monitor ]; then \
+		cp tools/lumina-latency-monitor/target/x86_64-unknown-linux-gnu/release/lumina-latency-monitor build/latency-monitor; \
+	else \
+		cp tools/lumina-latency-monitor/target/release/lumina-latency-monitor build/latency-monitor; \
+	fi
 .PHONY: build-lumina-latency-monitor
 
 ## adr-gen: Download the ADR template from the celestiaorg/.github repo.
