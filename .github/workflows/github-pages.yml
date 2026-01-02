@@ -44,6 +44,6 @@ jobs:
         # because this job will fail for branches from forks.
         # https://github.com/celestiaorg/celestia-app/issues/1506
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        uses: rossjrw/pr-preview-action@8ff09e486b4c23709012eedd3b42e9f0b95dd0c5 #v1.6.3
+        uses: rossjrw/pr-preview-action@3e4ed158ecbf7f58513abc0dc15a4ad3b0e18ee5 #v1.7.2
         with:
           source-dir: ./specs/book
