@@ -97,7 +97,7 @@ between submission and commitment, providing detailed latency statistics.`,
 	cmd.Flags().StringVarP(&namespaceStr, "namespace", "n", defaultNamespaceStr, "Namespace for blob submission")
 	cmd.Flags().BoolVarP(&disableMetrics, "disable-metrics", "m", false, "Disable metrics collection")
 	cmd.Flags().DurationVarP(&submissionDelay, "submission-delay", "d", defaultSubmissionDelay, "Delay between transaction submissions")
-	cmd.Flags().IntVar(&metricsPort, "metrics-port", defaultMetricsPort, "Port for Prometheus metrics HTTP server (0 to disable)")
+	cmd.Flags().IntVar(&metricsPort, "metrics-port", defaultMetricsPort, "Port for Prometheus metrics HTTP server")
 
 	return cmd
 }
@@ -124,11 +124,9 @@ func monitorLatency(
 	fmt.Printf("Monitoring latency with min blob size: %d bytes, max blob size: %d bytes, submission delay: %s, namespace: %s\n",
 		blobMinSize, blobSize, submissionDelay, namespaceStr)
 
-	// Start Prometheus metrics server if port is non-zero
-	if metricsPort > 0 {
-		if err := startMetricsServer(metricsPort); err != nil {
-			return fmt.Errorf("failed to start metrics server: %w", err)
-		}
+	// Start Prometheus metrics server if metrics are enabled
+	if !disableMetrics {
+		startMetricsServer(metricsPort)
 	}
 
 	fmt.Printf("Press Ctrl+C to stop\n\n")

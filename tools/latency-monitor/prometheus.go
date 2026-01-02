@@ -83,12 +83,7 @@ func recordConfirmFailure() {
 }
 
 // startMetricsServer starts the Prometheus metrics HTTP server on the given port.
-// Returns nil if port is 0 (metrics disabled).
-func startMetricsServer(port int) error {
-	if port == 0 {
-		return nil
-	}
-
+func startMetricsServer(port int) {
 	addr := fmt.Sprintf(":%d", port)
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
@@ -105,6 +100,4 @@ func startMetricsServer(port int) error {
 			fmt.Printf("Metrics server error: %v\n", err)
 		}
 	}()
-
-	return nil
 }
