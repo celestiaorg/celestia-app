@@ -133,7 +133,7 @@ celestia-appd query tx <txhash from previous command>
 ### Join a public Celestia network
 
 For instructions on running a node on Celestia's public networks, refer to the
-[consensus node](https://docs.celestia.org/how-to-guides/consensus-node)
+[consensus node](https://docs.celestia.org/operate/consensus-validators/consensus-node/)
 guide in the docs.
 
 > [!NOTE]
