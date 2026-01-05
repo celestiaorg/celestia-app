@@ -1,6 +1,6 @@
 services:
   prometheus:
-    image: prom/prometheus:v2.47.0
+    image: prom/prometheus:v3.8.1
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./targets:/targets:ro
@@ -13,7 +13,7 @@ services:
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:10.1.0
+    image: grafana/grafana:12.3.1
     ports:
       - "3000:3000"
     volumes:
@@ -24,6 +24,7 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/celestia.json
     restart: unless-stopped
     depends_on:
       - prometheus

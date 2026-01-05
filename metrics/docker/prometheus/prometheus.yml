@@ -19,3 +19,14 @@ scrape_configs:
       - source_labels: [node_id]
         target_label: instance
         action: replace
+
+  # Scrape latency monitors from file-based discovery
+  - job_name: 'latency-monitor'
+    file_sd_configs:
+      - files:
+          - /targets/latency_targets.json
+        refresh_interval: 30s
+    relabel_configs:
+      - source_labels: [node_id]
+        target_label: instance
+        action: replace
