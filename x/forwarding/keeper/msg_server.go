@@ -38,7 +38,7 @@ func (m *msgServer) WarpForward(ctx context.Context, msg *types.MsgWarpForward) 
 		// TODO: remaining fields (post dispatch info, custom hook ids, gas..etc)
 	}
 
-	handler := m.router.Handler(msgRemoteTransfer)
+	handler := m.msgRouter.Handler(msgRemoteTransfer)
 	if handler == nil {
 		return nil, types.ErrInvalidRoute
 	}
@@ -54,4 +54,9 @@ func (m *msgServer) WarpForward(ctx context.Context, msg *types.MsgWarpForward) 
 
 	// TODO: handle response info propagation if applicable
 	return &types.MsgWarpForwardResponse{}, nil
+}
+
+func (m *msgServer) EnrollRemoteRouter(ctx context.Context) error {
+
+	return nil
 }
