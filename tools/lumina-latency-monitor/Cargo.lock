@@ -1572,7 +1572,6 @@ dependencies = [
  "hyper",
  "hyper-util",
  "lazy_static",
- "parse_duration",
  "pbkdf2",
  "prometheus",
  "prost",
@@ -1842,17 +1841,6 @@ dependencies = [
  "redox_syscall",
  "smallvec",
  "windows-link",
-]
-
-[[package]]
-name = "parse_duration"
-version = "2.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7037e5e93e0172a5a96874380bf73bc6ecef022e26fa25f2be26864d6b3ba95d"
-dependencies = [
- "lazy_static",
- "num",
- "regex",
 ]
 
 [[package]]

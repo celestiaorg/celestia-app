@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use celestia_types::nmt::Namespace;
 use clap::Parser;
+use humantime::parse_duration;
 use thiserror::Error;
 
 use crate::keyring::{Backend, FileKeyring, KeyringError};
@@ -107,7 +108,7 @@ pub struct ValidatedConfig {
 }
 
 pub fn validate_args(args: &Args) -> Result<ValidatedConfig> {
-    let submission_delay = parse_duration::parse(&args.submission_delay)
+    let submission_delay = parse_duration(&args.submission_delay)
         .map_err(|e| LatencyMonitorError::InvalidSubmissionDelay(e.to_string()))?;
 
     validate_blob_sizes(args.blob_size_min, args.blob_size)?;
