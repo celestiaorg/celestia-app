@@ -1,0 +1,301 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>TxClient v2 - Celestia App Specifications</title>
+        <!-- Custom HTML head -->
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="data_structures.html"><strong aria-hidden="true">1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="namespace.html"><strong aria-hidden="true">2.</strong> Namespace</a></li><li class="chapter-item expanded "><a href="shares.html"><strong aria-hidden="true">3.</strong> Shares</a></li><li class="chapter-item expanded "><a href="consensus.html"><strong aria-hidden="true">4.</strong> Consensus</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="cat_pool.html"><strong aria-hidden="true">4.1.</strong> CAT Pool</a></li></ol></li><li class="chapter-item expanded "><a href="block_proposer.html"><strong aria-hidden="true">5.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="block_validity_rules.html"><strong aria-hidden="true">6.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="ante_handler.html"><strong aria-hidden="true">7.</strong> AnteHandler</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="ante_handler_v1.html"><strong aria-hidden="true">7.1.</strong> AnteHandler v1</a></li><li class="chapter-item expanded "><a href="ante_handler_v2.html"><strong aria-hidden="true">7.2.</strong> AnteHandler v2</a></li><li class="chapter-item expanded "><a href="ante_handler_v3.html"><strong aria-hidden="true">7.3.</strong> AnteHandler v3</a></li><li class="chapter-item expanded "><a href="ante_handler_v4.html"><strong aria-hidden="true">7.4.</strong> AnteHandler v4</a></li><li class="chapter-item expanded "><a href="ante_handler_v5.html"><strong aria-hidden="true">7.5.</strong> AnteHandler v5</a></li><li class="chapter-item expanded "><a href="ante_handler_v6.html"><strong aria-hidden="true">7.6.</strong> AnteHandler v6</a></li></ol></li><li class="chapter-item expanded "><a href="fraud_proofs.html"><strong aria-hidden="true">8.</strong> Fraud Proofs</a></li><li class="chapter-item expanded "><a href="networking.html"><strong aria-hidden="true">9.</strong> Networking</a></li><li class="chapter-item expanded "><a href="public_key_cryptography.html"><strong aria-hidden="true">10.</strong> Public-Key Cryptography</a></li><li class="chapter-item expanded "><a href="data_square_layout.html"><strong aria-hidden="true">11.</strong> Data Square Layout</a></li><li class="chapter-item expanded "><a href="resource_pricing.html"><strong aria-hidden="true">12.</strong> Resource Pricing</a></li><li class="chapter-item expanded "><a href="multisig.html"><strong aria-hidden="true">13.</strong> Multisig</a></li><li class="chapter-item expanded "><a href="state_machine_modules.html"><strong aria-hidden="true">14.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="state_machine_modules_v1.html"><strong aria-hidden="true">14.1.</strong> State Machine Modules v1</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v2.html"><strong aria-hidden="true">14.2.</strong> State Machine Modules v2</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v3.html"><strong aria-hidden="true">14.3.</strong> State Machine Modules v3</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v4.html"><strong aria-hidden="true">14.4.</strong> State Machine Modules v4</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v5.html"><strong aria-hidden="true">14.5.</strong> State Machine Modules v5</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v6.html"><strong aria-hidden="true">14.6.</strong> State Machine Modules v6</a></li></ol></li><li class="chapter-item expanded "><a href="parameters.html"><strong aria-hidden="true">15.</strong> Parameters</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="parameters_v1.html"><strong aria-hidden="true">15.1.</strong> Parameters v1</a></li><li class="chapter-item expanded "><a href="parameters_v2.html"><strong aria-hidden="true">15.2.</strong> Parameters v2</a></li><li class="chapter-item expanded "><a href="parameters_v3.html"><strong aria-hidden="true">15.3.</strong> Parameters v3</a></li><li class="chapter-item expanded "><a href="parameters_v4.html"><strong aria-hidden="true">15.4.</strong> Parameters v4</a></li><li class="chapter-item expanded "><a href="parameters_v5.html"><strong aria-hidden="true">15.5.</strong> Parameters v5</a></li><li class="chapter-item expanded "><a href="parameters_v6.html"><strong aria-hidden="true">15.6.</strong> Parameters v6</a></li></ol></li><li class="chapter-item expanded "><a href="types.html"><strong aria-hidden="true">16.</strong> Types</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="types_v5.html"><strong aria-hidden="true">16.1.</strong> Types v5</a></li><li class="chapter-item expanded "><a href="types_v6.html"><strong aria-hidden="true">16.2.</strong> Types v6</a></li></ol></li><li class="chapter-item expanded "><a href="tx_client.html"><strong aria-hidden="true">17.</strong> TxClient v1</a></li><li class="chapter-item expanded "><a href="tx_client_v2.html" class="active"><strong aria-hidden="true">18.</strong> TxClient v2</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Celestia App Specifications</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/celestiaorg/celestia-app" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="tx-client-v2--sequential-submission-queue"><a class="header" href="#tx-client-v2--sequential-submission-queue">Tx Client v2 – Sequential Submission Queue</a></h1>
+<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
+<p>Tx Client v2 enforces <strong>per-account sequential transaction submission</strong> to prevent sequence races and minimize transaction failures.</p>
+<p><strong>Key properties</strong></p>
+<ul>
+<li>Transactions are <strong>signed and broadcast strictly in sequence order</strong></li>
+<li>A transaction is <strong>never re-signed</strong>, only <strong>resubmitted</strong> (which means resubmitted using the original signed bytes).</li>
+</ul>
+<h2 id="assumptions"><a class="header" href="#assumptions">Assumptions</a></h2>
+<ul>
+<li>The transactions conform to minimum fee requirements, so a transaction will <strong>eventually</strong> be included in a block after a bounded number of retries, given that the signer has enough funds in its account.</li>
+</ul>
+<h2 id="error-handling"><a class="header" href="#error-handling">Error Handling</a></h2>
+<p>Errors are classified based on whether progress can be made without user intervention.</p>
+<ul>
+<li><strong>Retryable</strong>: the client can resubmit the transaction.</li>
+<li><strong>Terminal</strong>: the error is returned to the user and further progress requires user action.</li>
+</ul>
+<h3 id="non-sequence-errors"><a class="header" href="#non-sequence-errors">Non-sequence errors</a></h3>
+<p>Errors that are <strong>not related to account sequence numbers</strong>.</p>
+<p><strong>Retryable</strong></p>
+<ul>
+<li>Network errors</li>
+<li>Application errors like <code>ErrMempoolIsFull</code></li>
+</ul>
+<p><strong>Behavior</strong></p>
+<ul>
+<li>Retry submission until accepted or a terminal error occurs.</li>
+</ul>
+<p><strong>Terminal</strong></p>
+<ul>
+<li>Application errors like <code>ErrTxTooLarge</code></li>
+</ul>
+<p><strong>Behavior</strong></p>
+<ul>
+<li>Return the error to the user immediately.</li>
+</ul>
+<h3 id="sequence-mismatch-errors"><a class="header" href="#sequence-mismatch-errors">Sequence mismatch errors</a></h3>
+<p>Sequence mismatch errors occur when the node's expected account sequence differs from the client's sequence during submission.</p>
+<h4 id="case-1-expected-sequence--client-sequence"><a class="header" href="#case-1-expected-sequence--client-sequence">Case 1: Expected sequence &lt; client sequence</a></h4>
+<p>Indicates eviction or rejection of one or more previously submitted transactions that is not yet known to the client (e.g. eviction or rejection during <code>ReCheckTx</code>).</p>
+<p><strong>Behavior</strong></p>
+<ul>
+<li>Pause broadcasting.</li>
+<li>Query the status of transactions in the range
+<code>[expected_sequence, last_submitted_sequence]</code>.</li>
+</ul>
+<p>For each transaction in order:</p>
+<ul>
+<li><strong>Evicted</strong> (Retryable)
+<ul>
+<li>Resubmit the transaction using the original signed bytes.</li>
+</ul>
+</li>
+<li><strong>Rejected</strong> (Terminal)
+<ul>
+<li>Roll back the client sequence to the rejected transaction's sequence.</li>
+<li>Return the rejection error to the user.</li>
+</ul>
+</li>
+</ul>
+<h4 id="case-2-expected-sequence--client-sequence"><a class="header" href="#case-2-expected-sequence--client-sequence">Case 2: Expected sequence &gt; client sequence</a></h4>
+<p>Indicates that the node's CheckTx state has advanced beyond the client's state.</p>
+<p>This can happen for one of the following reasons:</p>
+<ul>
+<li>The transaction was evicted on the current node (thus not in the mempool), but was included in a block on another node.</li>
+<li>A different transaction with the same sequence was included in a block, implying that a transaction for the signer was submitted outside of the tx client.</li>
+</ul>
+<p><strong>Behavior</strong></p>
+<ol>
+<li>Pause broadcasting.</li>
+<li>Query the status of the transaction with the conflicting sequence.</li>
+<li>If the transaction is <strong>Committed</strong>:
+<ul>
+<li>Treat the mismatch as <strong>Retryable</strong>.</li>
+<li>Advance client state accordingly.</li>
+<li>Resume broadcasting.</li>
+</ul>
+</li>
+<li>If the transaction is <strong>not committed</strong>:
+<ul>
+<li>Treat the mismatch as <strong>Terminal</strong>.</li>
+<li>Return an error indicating that the client state has conflicting transaction with same sequence number.</li>
+</ul>
+</li>
+</ol>
+<h2 id="confirmation-and-monitoring"><a class="header" href="#confirmation-and-monitoring">Confirmation and Monitoring</a></h2>
+<p>Transaction statuses are obtained via <strong>batched status queries</strong> using the <code>tx_status_batch</code> RPC method over a bounded set of pending transactions.</p>
+<h3 id="transaction-states"><a class="header" href="#transaction-states">Transaction States</a></h3>
+<p><strong>Pending</strong></p>
+<ul>
+<li>No action required.</li>
+</ul>
+<p><strong>Committed</strong></p>
+<ul>
+<li>The transaction was included in a block.</li>
+<li>Remove from the queue.</li>
+<li>Return success with execution metadata.</li>
+</ul>
+<p><strong>Committed with execution error</strong></p>
+<ul>
+<li>The transaction was included in a block but failed during execution.</li>
+<li>Remove from the queue.</li>
+<li>Return execution error with metadata.</li>
+</ul>
+<p><strong>Evicted</strong></p>
+<ul>
+<li>Broadcasting is paused.</li>
+<li>Resubmit the transaction.</li>
+<li>Resume broadcasting.</li>
+</ul>
+<p><strong>Rejected</strong></p>
+<ul>
+<li>Broadcasting is paused.</li>
+<li>Roll back the sequence to the first rejected transaction.</li>
+<li>Return rejection error to the user.</li>
+</ul>
+<p><strong>Unknown</strong></p>
+<ul>
+<li>The transaction is neither evicted, rejected, nor committed.</li>
+<li>Return an error indicating that the transaction status is unknown.</li>
+</ul>
+<h2 id="implementation-notes"><a class="header" href="#implementation-notes">Implementation Notes</a></h2>
+<ul>
+<li>Each account has a <strong>submission queue</strong> that owns transaction sequencing, signing, and submission.</li>
+<li>Confirmations are processed by a separate <strong>confirmation queue/worker</strong> that polls transaction statuses.</li>
+<li>Confirmation results are fed back to the submission queue, which remains the single point of coordination per account.</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="tx_client.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="tx_client.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>
