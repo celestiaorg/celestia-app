@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"cosmossdk.io/core/appmodule"
+	"github.com/celestiaorg/celestia-app/v6/x/forwarding/keeper"
 	"github.com/celestiaorg/celestia-app/v6/x/forwarding/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -26,10 +27,11 @@ var (
 // AppModule implements the AppModule interface for the forwarding module.
 type AppModule struct {
 	cdc codec.Codec
+	k   keeper.Keeper
 }
 
 // NewAppModule creates a new AppModule object.
-func NewAppModule(cdc codec.Codec) AppModule {
+func NewAppModule(cdc codec.Codec, k keeper.Keeper) AppModule {
 	return AppModule{cdc: cdc}
 }
 

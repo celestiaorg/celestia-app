@@ -14,6 +14,8 @@ import (
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/celestiaorg/celestia-app/v6/x/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v6/x/forwarding"
+	forwardingtypes "github.com/celestiaorg/celestia-app/v6/x/forwarding/types"
 	"github.com/celestiaorg/celestia-app/v6/x/minfee"
 	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
 	minttypes "github.com/celestiaorg/celestia-app/v6/x/mint/types"
@@ -82,6 +84,7 @@ var ModuleEncodingRegisters = []module.AppModuleBasic{
 	// hyperlane
 	hyperlanecore.AppModule{},
 	warp.AppModule{},
+	forwarding.AppModule{},
 	// celestia
 	blob.AppModule{},
 	minfee.AppModule{},
@@ -175,6 +178,7 @@ func (app *App) setModuleOrder() {
 		circuittypes.ModuleName,
 		hyperlanetypes.ModuleName,
 		warptypes.ModuleName,
+		forwardingtypes.ModuleName,
 	)
 }
 
@@ -204,5 +208,6 @@ func allStoreKeys() []string {
 		circuittypes.StoreKey,     // added in v4
 		hyperlanetypes.ModuleName, // added in v4
 		warptypes.ModuleName,      // added in v4
+		forwardingtypes.StoreKey,  // added in ???
 	}
 }

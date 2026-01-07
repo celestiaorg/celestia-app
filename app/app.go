@@ -40,6 +40,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/x/blob"
 	blobkeeper "github.com/celestiaorg/celestia-app/v6/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v6/x/forwarding"
+	forwardingkeeper "github.com/celestiaorg/celestia-app/v6/x/forwarding/keeper"
+	forwardingtypes "github.com/celestiaorg/celestia-app/v6/x/forwarding/types"
 	"github.com/celestiaorg/celestia-app/v6/x/minfee"
 	minfeekeeper "github.com/celestiaorg/celestia-app/v6/x/minfee/keeper"
 	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
@@ -139,6 +142,7 @@ var maccPerms = map[string][]string{
 	icatypes.ModuleName:            nil,
 	hyperlanetypes.ModuleName:      nil,
 	warptypes.ModuleName:           {authtypes.Minter, authtypes.Burner},
+	forwardingtypes.ModuleName:     nil,
 }
 
 var (
@@ -184,7 +188,7 @@ type App struct {
 	CircuitKeeper       circuitkeeper.Keeper
 	HyperlaneKeeper     hyperlanekeeper.Keeper
 	WarpKeeper          warpkeeper.Keeper
-	// ForwardingKeeper forwarding.Keeper
+	ForwardingKeeper    forwardingkeeper.Keeper
 
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
@@ -406,6 +410,13 @@ func New(
 		[]int32{int32(warptypes.HYP_TOKEN_TYPE_COLLATERAL), int32(warptypes.HYP_TOKEN_TYPE_SYNTHETIC)},
 	)
 
+	app.ForwardingKeeper = forwardingkeeper.NewKeeper(
+		encodingConfig.Codec,
+		runtime.NewKVStoreService(keys[forwardingtypes.StoreKey]),
+		&app.HyperlaneKeeper,
+		app.MsgServiceRouter(),
+	)
+
 	/****  Module Options ****/
 
 	// NOTE: Modules can't be modified or else must be passed by reference to the module manager
@@ -439,6 +450,7 @@ func New(
 		circuitModule{circuit.NewAppModule(encodingConfig.Codec, app.CircuitKeeper)},
 		hyperlanecore.NewAppModule(encodingConfig.Codec, &app.HyperlaneKeeper),
 		warp.NewAppModule(encodingConfig.Codec, app.WarpKeeper),
+		forwarding.NewAppModule(encodingConfig.Codec, app.ForwardingKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager is in charge of setting up basic,

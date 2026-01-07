@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"cosmossdk.io/collections"
+	storetypes "cosmossdk.io/core/store"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/celestiaorg/celestia-app/v6/x/forwarding/types"
@@ -27,15 +28,15 @@ type Keeper struct {
 }
 
 // NewKeeper creates a new forwarding Keeper instance.
-func NewKeeper(cdc codec.Codec, hyperlaneKeeper types.HyperlaneKeeper, msgRouter types.MessageRouter) *Keeper {
-	keeper := &Keeper{
+func NewKeeper(cdc codec.Codec, storeService storetypes.KVStoreService, hyperlaneKeeper types.HyperlaneKeeper, msgRouter types.MessageRouter) Keeper {
+	keeper := Keeper{
 		cdc:             cdc,
 		hyperlaneKeeper: hyperlaneKeeper,
 		msgRouter:       msgRouter,
 	}
 
 	appRouter := hyperlaneKeeper.AppRouter()
-	appRouter.RegisterModule(255, keeper)
+	appRouter.RegisterModule(255, &keeper)
 
 	return keeper
 }
