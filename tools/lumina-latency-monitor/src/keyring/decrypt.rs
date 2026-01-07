@@ -6,8 +6,9 @@
 //!
 //! This implementation uses pure-Rust crates (no OpenSSL).
 
+use aes_gcm::aead::generic_array::typenum::Unsigned;
 use aes_gcm::{
-    aead::{Aead, KeyInit},
+    aead::{Aead, AeadCore, KeyInit},
     Aes256Gcm, Nonce,
 };
 use aes_kw::KekAes128;
@@ -110,7 +111,15 @@ pub fn decrypt_jwe(jwe_compact: &str, password: &str) -> Result<Vec<u8>> {
         .map_err(|e| KeyringError::DecryptionFailed(format!("cipher init: {}", e)))?;
 
     // GCM nonce is the IV
-    let nonce = Nonce::from_slice(&iv);
+    let expected_nonce_len = <Aes256Gcm as AeadCore>::NonceSize::USIZE;
+    if iv.len() != expected_nonce_len {
+        return Err(KeyringError::DecryptionFailed(format!(
+            "invalid iv length: expected {}, got {}",
+            expected_nonce_len,
+            iv.len()
+        )));
+    }
+    let nonce: Nonce<<Aes256Gcm as AeadCore>::NonceSize> = iv.iter().copied().collect();
 
     // Combine ciphertext and tag for decryption
     let mut ciphertext_with_tag = ciphertext;
@@ -119,7 +128,7 @@ pub fn decrypt_jwe(jwe_compact: &str, password: &str) -> Result<Vec<u8>> {
     // AAD is the protected header (base64url encoded)
     let plaintext = cipher
         .decrypt(
-            nonce,
+            &nonce,
             aes_gcm::aead::Payload {
                 msg: &ciphertext_with_tag,
                 aad: header_b64.as_bytes(),

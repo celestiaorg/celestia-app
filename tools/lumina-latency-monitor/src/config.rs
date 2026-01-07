@@ -63,9 +63,6 @@ pub enum LatencyMonitorError {
     #[error("maximum blob size must be greater than or equal to minimum blob size")]
     InvalidBlobSizeRange,
 
-    #[error("private key is required (use --private-key, CELESTIA_PRIVATE_KEY, or keyring)")]
-    MissingPrivateKey,
-
     #[error("private key must be a valid hex string")]
     InvalidPrivateKeyHex,
 
@@ -107,7 +104,7 @@ pub struct ValidatedConfig {
 }
 
 pub fn validate_args(args: &Args) -> Result<ValidatedConfig> {
-    let submission_delay = humantime::parse_duration(&args.submission_delay)
+    let submission_delay = parse_duration::parse(&args.submission_delay)
         .map_err(|e| LatencyMonitorError::InvalidSubmissionDelay(e.to_string()))?;
 
     validate_blob_sizes(args.blob_size_min, args.blob_size)?;
