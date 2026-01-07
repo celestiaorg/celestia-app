@@ -70,6 +70,10 @@ func (k *Keeper) Handle(ctx context.Context, mailboxId util.HexAddress, message 
 		return fmt.Errorf("invalid receiver contract")
 	}
 
+	// TODO: If the ICA message contains the user salt as the warp message id, then we can assert that the warp message
+	// id exists (must exist) in the core hyperlane messages keyset prior to processing this message.
+	// ref: https://github.com/bcp-innovations/hyperlane-cosmos/blob/main/x/core/keeper/logic_message.go#L50-L61
+
 	return k.handlePayload(icaRouter, payload)
 }
 

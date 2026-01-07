@@ -56,6 +56,11 @@ func (m *msgServer) WarpForward(ctx context.Context, msg *types.MsgWarpForward) 
 	return &types.MsgWarpForwardResponse{}, nil
 }
 
+func (m *msgServer) CreateInterchainAccountsRouter(ctx context.Context) error {
+
+	return nil
+}
+
 func (m *msgServer) EnrollRemoteRouter(ctx context.Context) error {
 
 	return nil

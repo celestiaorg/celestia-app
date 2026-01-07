@@ -1,8 +1,18 @@
+// Prerequisites:
+// Deploy docker-compose stack with celestia + evolve reth + hyperlane
+//
+// Enroll a remote router for the EVM interchain accounts router.
+// Note, the destination domain identifier and receiver hex address inputs:
+//
+//	cast send 0x9F098AE0AC3B7F75F0B3126f471E5F592b47F300 \
+//	  "enrollRemoteRouter(uint32,bytes32)" \
+//	  69420 0x726f757465725f61707000000000000000000000000000010000000000000000 \
+//	  --private-key $HYP_KEY
+//	  --rpc-url http://localhost:8545
 package main
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -21,7 +31,7 @@ import (
 const icaRouterABI = `[
   {
     "inputs": [
-      { "internalType": "uint32", "name": "destinationDomain", "type": "uint32" },
+      { "internalType": "uint32", "name": "destination", "type": "uint32" },
       {
         "components": [
           { "internalType": "bytes32", "name": "to", "type": "bytes32" },
@@ -65,13 +75,14 @@ func mustDecodeHex0x(s string) []byte {
 
 func main() {
 	// ---- config you provide ----
-	rpcURL := "https://localhost:8545"
+	rpcURL := "http://localhost:8545"
 	chainID := big.NewInt(1234) // set your chain id
 
-	privateKeyHex := "YOUR_PRIVATE_KEY_HEX_NO_0x"
+	// TODO: Read from environment variable as HYP_KEY here and trim 0x prefix
+	privateKeyHex := "82bfcfadbf1712f6550d8d2c00a39f05b33ec78939d0167be2a737d691f33a6a"
 
-	routerAddr := common.HexToAddress("0xRouterAddressHere")
-	destinationDomain := uint32(1234) // set your destination domain
+	routerAddr := common.HexToAddress("0x9F098AE0AC3B7F75F0B3126f471E5F592b47F300")
+	destinationDomain := uint32(69420) // set your destination domain
 
 	// Target contract on destination chain (EVM):
 	targetAddr := common.HexToAddress("0xTargetContractHere")
@@ -109,16 +120,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	pubKey, ok := privKey.Public().(ecdsa.PublicKey)
-	if !ok {
-		log.Fatal("failed to convert ecdsa public key")
-	}
-
-	fromAddr := crypto.PubkeyToAddress(pubKey)
+	fromAddr := crypto.PubkeyToAddress(privKey.PublicKey)
 
 	nonce, err := client.PendingNonceAt(context.Background(), fromAddr)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("failed to get nonce", err)
 	}
 
 	// Estimate gas
@@ -129,7 +135,7 @@ func main() {
 	}
 	gasLimit, err := client.EstimateGas(context.Background(), msg)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("failed to estimate gas: ", err)
 	}
 
 	// Fees (EIP-1559). You can also use SuggestGasPrice for legacy txs.
@@ -164,7 +170,7 @@ func main() {
 
 	// Send it
 	if err := client.SendTransaction(context.Background(), signedTx); err != nil {
-		log.Fatal(err)
+		log.Fatal("failed to send tx", err)
 	}
 
 	fmt.Println("tx hash:", signedTx.Hash().Hex())

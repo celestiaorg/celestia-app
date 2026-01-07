@@ -184,6 +184,7 @@ type App struct {
 	CircuitKeeper       circuitkeeper.Keeper
 	HyperlaneKeeper     hyperlanekeeper.Keeper
 	WarpKeeper          warpkeeper.Keeper
+	// ForwardingKeeper forwarding.Keeper
 
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
