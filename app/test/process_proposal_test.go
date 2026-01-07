@@ -319,7 +319,7 @@ func calculateNewDataHash(t *testing.T, txs [][]byte) []byte {
 	return dah.Hash()
 }
 
-func TestProcessProposal_TamperedBlobProposalFails(t *testing.T) {
+func TestProcessProposal_ProposalWithInconsistentBlobTxFails(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(2)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)

@@ -50,15 +50,15 @@ func (c *TxCache) Set(tx []byte, blobs []*share.Blob) {
 }
 
 func (c *TxCache) getBlobsHash(blobs []*share.Blob) string {
-	var flatBlobs []byte //nolint:prealloc
+	h := sha256.New()
 	for _, blob := range blobs {
-		flatBlobs = append(flatBlobs, blob.Namespace().Bytes()...)
-		flatBlobs = append(flatBlobs, blob.Data()...)
-		flatBlobs = append(flatBlobs, blob.ShareVersion())
-		flatBlobs = append(flatBlobs, blob.Signer()...)
+		h.Write(blob.Namespace().Bytes())
+		h.Write(blob.Data())
+		h.Write([]byte{blob.ShareVersion()})
+		h.Write(blob.Signer())
 	}
-	hash := sha256.Sum256(flatBlobs)
-	return string(hash[:])
+	sum := h.Sum(nil)
+	return string(sum)
 }
 
 // RemoveTransaction removes specific transactions from the cache
