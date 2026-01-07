@@ -1,0 +1,27 @@
+name: rust-lumina-latency-monitor
+on:
+  workflow_call:
+
+jobs:
+  rust-lumina-latency-monitor:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tools/lumina-latency-monitor
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            tools/lumina-latency-monitor -> tools/lumina-latency-monitor/target
+      - name: Format check
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Tests
+        run: cargo test --workspace
+      - name: Build
+        run: cargo build --release
