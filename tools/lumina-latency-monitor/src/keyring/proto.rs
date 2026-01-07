@@ -51,7 +51,9 @@ pub struct Secp256k1PrivKey {
 }
 
 /// Type URL for secp256k1 public key
+#[allow(dead_code)]
 pub const SECP256K1_PUBKEY_TYPE_URL: &str = "/cosmos.crypto.secp256k1.PubKey";
 
 /// Type URL for secp256k1 private key
+#[allow(dead_code)]
 pub const SECP256K1_PRIVKEY_TYPE_URL: &str = "/cosmos.crypto.secp256k1.PrivKey";

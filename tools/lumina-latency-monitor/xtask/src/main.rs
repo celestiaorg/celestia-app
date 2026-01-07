@@ -147,14 +147,12 @@ fn cmd_build_with_target(target: &str) -> Result<(), Box<dyn std::error::Error>>
         let cross_compiler = cross_compiler_for_target(target);
 
         // Only check for cross-compiler on macOS
-        if os == "macos" {
-            if !command_exists(cross_compiler) {
-                eprintln!();
-                eprintln!("{cross_compiler} not found.");
-                eprintln!("Install the cross-compiler and re-run this command.");
-                eprintln!();
-                return Err("missing cross-compiler".into());
-            }
+        if os == "macos" && !command_exists(cross_compiler) {
+            eprintln!();
+            eprintln!("{cross_compiler} not found.");
+            eprintln!("Install the cross-compiler and re-run this command.");
+            eprintln!();
+            return Err("missing cross-compiler".into());
         }
 
         // Set linker via environment variable only when cross-compiling

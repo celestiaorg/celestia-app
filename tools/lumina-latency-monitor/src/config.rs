@@ -63,9 +63,6 @@ pub enum LatencyMonitorError {
     #[error("maximum blob size must be greater than or equal to minimum blob size")]
     InvalidBlobSizeRange,
 
-    #[error("private key is required (use --private-key, CELESTIA_PRIVATE_KEY, or keyring)")]
-    MissingPrivateKey,
-
     #[error("private key must be a valid hex string")]
     InvalidPrivateKeyHex,
 

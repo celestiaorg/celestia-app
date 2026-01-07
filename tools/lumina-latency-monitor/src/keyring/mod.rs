@@ -37,6 +37,7 @@ pub enum Backend {
 pub struct KeyRecord {
     pub name: String,
     pub address: String,
+    #[allow(dead_code)]
     pub public_key: Vec<u8>,
 }
 
@@ -57,6 +58,7 @@ impl LocalKey {
 /// JSON wrapper used by 99designs/keyring library
 #[derive(Deserialize)]
 struct KeyringItem {
+    #[allow(dead_code)]
     #[serde(rename = "Key")]
     key: String,
     #[serde(rename = "Data")]
@@ -66,6 +68,7 @@ struct KeyringItem {
 /// File-based keyring reader
 pub struct FileKeyring {
     dir: PathBuf,
+    #[allow(dead_code)]
     backend: Backend,
     password: String,
 }
@@ -95,11 +98,13 @@ impl FileKeyring {
     }
 
     /// Open keyring at default location (~/.celestia-app)
+    #[allow(dead_code)]
     pub fn open_default(backend: Backend) -> Result<Self> {
         Self::open("~/.celestia-app", backend)
     }
 
     /// Returns the backend type
+    #[allow(dead_code)]
     pub fn backend(&self) -> Backend {
         self.backend
     }
@@ -128,6 +133,7 @@ impl FileKeyring {
     }
 
     /// Get key record by name (public info only)
+    #[allow(dead_code)]
     pub fn key(&self, name: &str) -> Result<KeyRecord> {
         let local = self.local_key(name)?;
         Ok(local.record)
