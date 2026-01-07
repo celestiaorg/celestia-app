@@ -320,7 +320,7 @@ func TestValidateBlobTxWithCache(t *testing.T) {
 		assert.False(t, fromCache, "expected validation without cache")
 	})
 
-	t.Run("cached blob tx with invalid commitment fails", func(t *testing.T) {
+	t.Run("cached blob tx with invalid commitment uses full validation", func(t *testing.T) {
 		validBlobTxBytes := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 			signers[2],
 			[]share.Namespace{namespace1},
@@ -342,11 +342,12 @@ func TestValidateBlobTxWithCache(t *testing.T) {
 		blobTx.Blobs[0] = newBlob
 
 		fromCache, err := testApp.ValidateBlobTxWithCache(blobTx)
-		assert.True(t, fromCache, "should have attempted cache validation")
+		// With modified blobs, Exists returns false so full validation runs (fromCache=false)
+		assert.False(t, fromCache, "blobs changed so cache miss, full validation used")
 		assert.Error(t, err, "expected error for invalid blob tx")
 	})
 
-	t.Run("cached blob tx with modified blobs fails", func(t *testing.T) {
+	t.Run("cached blob tx with modified blobs uses full validation", func(t *testing.T) {
 		blobTxBytes := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 			signers[4],
 			[]share.Namespace{namespace1},
@@ -370,8 +371,10 @@ func TestValidateBlobTxWithCache(t *testing.T) {
 		blobTx.Blobs[0] = blob
 
 		fromCache, err := testApp.ValidateBlobTxWithCache(blobTx)
-		require.Error(t, err, "proposed blob hash does not match cached blob hash")
-		assert.True(t, fromCache, "expected validation from cache")
+		// With modified blobs, Exists returns false so full validation runs (fromCache=false)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "namespace of blob and its respective MsgPayForBlobs differ")
+		assert.False(t, fromCache, "blobs changed so cache miss, full validation used")
 	})
 
 	t.Run("cache is cleaned after FinalizeBlock", func(t *testing.T) {

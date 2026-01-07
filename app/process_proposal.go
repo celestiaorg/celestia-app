@@ -204,12 +204,8 @@ func accept() *abci.ResponseProcessProposal {
 // ValidateBlobTxWithCache validates a blob transaction, using cached validation results when possible.
 // It returns (fromCache, error) where fromCache indicates if the validation was skipped using cache.
 func (app *App) ValidateBlobTxWithCache(blobTx *blobtx.BlobTx) (bool, error) {
-	exists, cachedBlobHash := app.txCache.Exists(blobTx.Tx)
+	exists := app.txCache.Exists(blobTx.Tx, blobTx.Blobs)
 	if exists {
-		blobHash := app.txCache.getBlobsHash(blobTx.Blobs)
-		if cachedBlobHash != blobHash {
-			return false, fmt.Errorf("proposed blob hash does not match cached blob hash: %s != %s", blobHash, cachedBlobHash)
-		}
 		if _, err := blobtypes.ValidateBlobTxSkipCommitment(app.encodingConfig.TxConfig, blobTx); err != nil {
 			return true, err
 		}

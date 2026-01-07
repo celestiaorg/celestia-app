@@ -25,19 +25,25 @@ func (c *TxCache) getTxKey(tx []byte) string {
 	return string(hash[:])
 }
 
-// Exists checks whether the Tx exists in the cache
-func (c *TxCache) Exists(tx []byte) (exists bool, blobHash string) {
+// Exists checks whether the Tx exists in the cache and the blobs match the cached blobs
+func (c *TxCache) Exists(tx []byte, blobs []*share.Blob) bool {
 	key := c.getTxKey(tx)
 	value, exists := c.cache.Load(key)
 	if !exists {
-		return false, ""
+		return false
 	}
-	// cast the value to a string
-	blobsHash, ok := value.(string)
+
+	cachedBlobHash, ok := value.(string)
 	if !ok {
-		return false, ""
+		return false
 	}
-	return exists, blobsHash
+
+	blobHash := c.getBlobsHash(blobs)
+	if cachedBlobHash != blobHash {
+		return false
+	}
+
+	return true
 }
 
 // Set stores the Tx in the cache
@@ -48,12 +54,15 @@ func (c *TxCache) Set(tx []byte, blobs []*share.Blob) {
 }
 
 func (c *TxCache) getBlobsHash(blobs []*share.Blob) string {
-	blobsData := make([]byte, 0, len(blobs))
+	var flatBlobs []byte
 	for _, blob := range blobs {
-		blobsData = append(blobsData, blob.Data()...)
+		flatBlobs = append(flatBlobs, blob.Namespace().Bytes()...)
+		flatBlobs = append(flatBlobs, blob.Data()...)
+		flatBlobs = append(flatBlobs, blob.ShareVersion())
+		flatBlobs = append(flatBlobs, blob.Signer()...)
 	}
-	blobsHash := sha256.Sum256(blobsData)
-	return string(blobsHash[:])
+	hash := sha256.Sum256(flatBlobs)
+	return string(hash[:])
 }
 
 // RemoveTransaction removes specific transactions from the cache

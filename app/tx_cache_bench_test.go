@@ -84,8 +84,8 @@ func BenchmarkTxCache_Operations(b *testing.B) {
 				b.ResetTimer()
 
 				for b.Loop() {
-					for _, tx := range txs {
-						cache.Exists(tx)
+					for i, tx := range txs {
+						cache.Exists(tx, blobs[i])
 					}
 				}
 			})
@@ -100,15 +100,13 @@ func BenchmarkTxCache_Operations(b *testing.B) {
 				for b.Loop() {
 					cache := NewTxCache()
 					txs := generateRandomTxs(tc.numBlobTxs, txSize)
-
-					for _, tx := range txs {
-						blobSize := mathrand.Intn(appconsts.MaxTxSize) + 1
-						blobs := blobfactory.ManyRandBlobs(random.New(), blobSize)
-						cache.Set(tx, blobs)
+					blobs := generateRandomSizedBlobs(tc.numBlobTxs)
+					for i, tx := range txs {
+						cache.Set(tx, blobs[i])
 					}
 
-					for _, tx := range txs {
-						cache.Exists(tx)
+					for i, tx := range txs {
+						cache.Exists(tx, blobs[i])
 					}
 
 					for _, tx := range txs {
