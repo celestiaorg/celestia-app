@@ -757,18 +757,6 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 	defer pollTicker.Stop()
 	var evictionPollTimeStart *time.Time
 
-	txStatusBatchRequest := &tx.TxStatusBatchRequest{
-		TxIds: []string{txHash, txHash, txHash, txHash},
-	}
-	txStatusBatchResponse, err := txClient.TxStatusBatch(ctx, txStatusBatchRequest)
-	if err != nil {
-		return nil, err
-	}
-	
-	for _, resp := range txStatusBatchResponse.Responses {
-		fmt.Println("resp from batch: ", resp.TxHash, resp.Status.Status)
-	}
-
 	for {
 		span.AddEvent("txclient/ConfirmTx: polling for TxStatus")
 		resp, err := txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
