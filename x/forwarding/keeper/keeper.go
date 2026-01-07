@@ -18,8 +18,8 @@ import (
 type Keeper struct {
 	cdc codec.BinaryCodec
 
-	hyperlaneKeeper types.HyperlaneKeeper
-	msgRouter       types.MessageRouter
+	hypKeeper types.HyperlaneKeeper
+	msgRouter types.MessageRouter
 
 	// Routers: <id> -> InterchainAccountsRouter
 	Routers collections.Map[uint64, types.InterchainAccountsRouter]
@@ -28,19 +28,19 @@ type Keeper struct {
 }
 
 // NewKeeper creates a new forwarding Keeper instance.
-func NewKeeper(cdc codec.Codec, storeService storetypes.KVStoreService, hyperlaneKeeper types.HyperlaneKeeper, msgRouter types.MessageRouter) Keeper {
+func NewKeeper(cdc codec.Codec, storeService storetypes.KVStoreService, hypKeeper types.HyperlaneKeeper, msgRouter types.MessageRouter) Keeper {
 	sb := collections.NewSchemaBuilder(storeService)
 
 	keeper := Keeper{
-		cdc:             cdc,
-		hyperlaneKeeper: hyperlaneKeeper,
-		msgRouter:       msgRouter,
-		Routers:         collections.NewMap(sb, types.RoutersKeyPrefix, "routers", collections.Uint64Key, codec.CollValue[types.InterchainAccountsRouter](cdc)),
-		RemoteRouters:   collections.NewMap(sb, types.RemoteRoutersKeyPrefix, "remote_routers", collections.PairKeyCodec(collections.Uint64Key, collections.Uint32Key), codec.CollValue[types.RemoteRouter](cdc)),
+		cdc:           cdc,
+		hypKeeper:     hypKeeper,
+		msgRouter:     msgRouter,
+		Routers:       collections.NewMap(sb, types.RoutersKeyPrefix, "routers", collections.Uint64Key, codec.CollValue[types.InterchainAccountsRouter](cdc)),
+		RemoteRouters: collections.NewMap(sb, types.RemoteRoutersKeyPrefix, "remote_routers", collections.PairKeyCodec(collections.Uint64Key, collections.Uint32Key), codec.CollValue[types.RemoteRouter](cdc)),
 	}
 
-	appRouter := hyperlaneKeeper.AppRouter()
-	appRouter.RegisterModule(255, &keeper)
+	appRouter := hypKeeper.AppRouter()
+	appRouter.RegisterModule(types.HyperlaneModuleID, &keeper)
 
 	return keeper
 }
@@ -104,7 +104,7 @@ func (k *Keeper) ReceiverIsmId(ctx context.Context, recipient util.HexAddress) (
 	}
 
 	if token.IsmId == nil {
-		mailbox, err := k.hyperlaneKeeper.GetMailbox(ctx, token.OriginMailbox)
+		mailbox, err := k.hypKeeper.GetMailbox(ctx, token.OriginMailbox)
 		if err != nil {
 			return nil, err
 		}

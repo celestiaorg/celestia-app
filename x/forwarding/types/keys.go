@@ -27,6 +27,10 @@ const (
 	QuerierRoute = ModuleName
 )
 
+const (
+	HyperlaneModuleID = 255
+)
+
 var (
 	RoutersKeyPrefix       = collections.NewPrefix(0)
 	RemoteRoutersKeyPrefix = collections.NewPrefix(1)

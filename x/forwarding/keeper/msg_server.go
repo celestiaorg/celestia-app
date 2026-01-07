@@ -22,6 +22,28 @@ func NewMsgServerImpl(keeper *Keeper) types.MsgServer {
 
 // CreateInterchainAccountsRouter implements types.MsgServer.
 func (m *msgServer) CreateInterchainAccountsRouter(ctx context.Context, msg *types.MsgCreateInterchainAccountsRouter) (*types.MsgCreateInterchainAccountsRouterResponse, error) {
+	// has, err := m.hyperlaneKeeper.GetMailbox()
+	// if err != nil {
+	// 	return util.HexAddress{}, err
+	// }
+	// if !has {
+	// 	return util.HexAddress{}, fmt.Errorf("failed to find mailbox with id: %s", msg.OriginMailbox.String())
+	// }
+
+	id, err := m.hypKeeper.AppRouter().GetNextSequence(ctx, uint8(types.HyperlaneModuleID))
+	if err != nil {
+		return nil, err
+	}
+
+	router := types.InterchainAccountsRouter{
+		Id: id,
+		// Owner:         msg.Owner,
+		// OriginMailbox: msg.OriginMailbox,
+	}
+
+	if err = m.Routers.Set(ctx, id.GetInternalId(), router); err != nil {
+		return nil, err
+	}
 
 	return &types.MsgCreateInterchainAccountsRouterResponse{}, nil
 }
