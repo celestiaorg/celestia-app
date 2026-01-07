@@ -23,9 +23,6 @@ var ErrStoreNotFound = errors.New("no shard found in store")
 type StoreConfig struct {
 	// Path is the path to the store directory.
 	Path string
-	// DataRetentionDuration defines how long uploaded blob data is retained.
-	// Data older than this duration will be automatically deleted by TTL expiration.
-	DataRetentionDuration time.Duration
 	// PaymentPromiseTimeout defines how long payment promises are retained.
 	// Promises older than this duration will be automatically deleted by TTL expiration.
 	PaymentPromiseTimeout time.Duration
@@ -34,7 +31,6 @@ type StoreConfig struct {
 // DefaultStoreConfig returns a [StoreConfig] with default values.
 func DefaultStoreConfig() StoreConfig {
 	return StoreConfig{
-		DataRetentionDuration: 24 * time.Hour,
 		PaymentPromiseTimeout: 1 * time.Hour,
 	}
 }

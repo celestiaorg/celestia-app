@@ -3,6 +3,7 @@ package fibre_test
 import (
 	"context"
 	"crypto/ed25519"
+	"fmt"
 	"testing"
 	"time"
 
@@ -292,8 +293,19 @@ func (m *mockQueryClient) IsPaymentProcessed(ctx context.Context, in *types.Quer
 }
 
 func (m *mockQueryClient) ValidatePaymentPromise(ctx context.Context, in *types.QueryValidatePaymentPromiseRequest, opts ...grpc.CallOption) (*types.QueryValidatePaymentPromiseResponse, error) {
-	// Always return valid for testing
-	return &types.QueryValidatePaymentPromiseResponse{IsValid: true}, nil
+	// Calculate expiration time: creation_timestamp + 1 hour (default timeout)
+	expirationTime := in.Promise.CreationTimestamp.Add(1 * time.Hour)
+	currentTime := time.Now()
+
+	// Check if payment promise has expired
+	if currentTime.After(expirationTime) || currentTime.Equal(expirationTime) {
+		return nil, fmt.Errorf("payment promise expired: creation_timestamp %v + timeout %v = %v, current_time: %v", in.Promise.CreationTimestamp, 1*time.Hour, expirationTime, currentTime)
+	}
+
+	return &types.QueryValidatePaymentPromiseResponse{
+		IsValid:        true,
+		ExpirationTime: &expirationTime,
+	}, nil
 }
 
 // testPrivValidator is a simple mock PrivValidator for testing.
