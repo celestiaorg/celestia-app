@@ -95,7 +95,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 
 // verifyPromise verifies given proto of [PaymentPromise] and returns unmarshaled form with its hash.
 // It does both stateless and stateful verification.
-// Returns the pruneAt time for the shard based on the data retention duration.
+// Returns the pruneAt time for the shard based on the expiration time from chain state.
 func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentPromise) (*PaymentPromise, []byte, time.Time, error) {
 	promise := &PaymentPromise{}
 	if err := promise.FromProto(promisePb); err != nil {
@@ -109,28 +109,6 @@ func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentProm
 	if promise.BlobVersion != uint32(s.cfg.BlobVersion) {
 		return nil, nil, time.Time{}, fmt.Errorf("blob version mismatch: expected %d, got %d", s.cfg.BlobVersion, promise.BlobVersion)
 	}
-
-	{ //TODO(@Wondertan): to be moved to stateful verification
-		oldestAllowed := time.Now().UTC().Add(-s.cfg.PaymentPromiseTimeout)
-		if promise.CreationTimestamp.Before(oldestAllowed) {
-			return nil, nil, time.Time{}, fmt.Errorf("payment promise expired: %s is before %s (timeout: %s)",
-				promise.CreationTimestamp.Format(time.RFC3339),
-				oldestAllowed.Format(time.RFC3339),
-				s.cfg.PaymentPromiseTimeout)
-		}
-		// use height of the latest valset to verify height in the promise
-		currentValSet, err := s.valGet.Head(ctx)
-		if err != nil {
-			return nil, nil, time.Time{}, fmt.Errorf("getting current validator set: %w", err)
-		}
-		// calculate max height drift based on promise timeout and block time
-		maxHeightDrift := uint64(s.cfg.PaymentPromiseTimeout / s.cfg.BlockTime)
-		if currentValSet.Height > maxHeightDrift && promise.Height < currentValSet.Height-maxHeightDrift {
-			return nil, nil, time.Time{}, fmt.Errorf("payment promise height too far in past: %d is before min allowed %d (current: %d, timeout: %s, block time: %s)",
-				promise.Height, currentValSet.Height-maxHeightDrift, currentValSet.Height, s.cfg.PaymentPromiseTimeout, s.cfg.BlockTime)
-		}
-	}
-	pruneAt := time.Now().Add(s.cfg.DataRetentionDuration)
 
 	// stateless validation
 	if err := promise.Validate(); err != nil {
@@ -147,6 +125,10 @@ func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentProm
 	if !resp.IsValid {
 		return nil, nil, time.Time{}, fmt.Errorf("payment promise is invalid with no reason")
 	}
+	if resp.ExpirationTime == nil {
+		return nil, nil, time.Time{}, fmt.Errorf("expiration time not provided in validation response")
+	}
+	pruneAt := *resp.ExpirationTime
 
 	promiseHash, err := promise.Hash()
 	if err != nil {

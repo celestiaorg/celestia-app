@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"time"
 
 	fibregrpc "github.com/celestiaorg/celestia-app/v6/fibre/grpc"
 	"github.com/celestiaorg/celestia-app/v6/fibre/validator"
@@ -21,8 +20,6 @@ import (
 type ServerConfig struct {
 	// ChainID is the chain identifier for domain separation in [PaymentPromise] validation.
 	ChainID string
-	// BlockTime is the expected block time for calculating height-based timeouts.
-	BlockTime time.Duration
 
 	BlobConfig
 	StoreConfig
@@ -39,7 +36,6 @@ type ServerConfig struct {
 func DefaultServerConfig() ServerConfig {
 	return ServerConfig{
 		ChainID:     "celestia",
-		BlockTime:   time.Second * 6,
 		BlobConfig:  DefaultBlobConfigV0(),
 		StoreConfig: DefaultStoreConfig(),
 	}
