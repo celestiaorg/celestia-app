@@ -9,6 +9,7 @@ pub enum KeyringError {
     #[error("key not found: {0}")]
     KeyNotFound(String),
 
+    #[allow(dead_code)]
     #[error("address not found: {0}")]
     AddressNotFound(String),
 
