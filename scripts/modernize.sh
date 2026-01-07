@@ -8,6 +8,6 @@ set -e
 cd "$(dirname "$0")/.."
 
 echo "Running Go modernize tool..."
-go run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest -fix -test ./...
+go run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@v0.20.0 -fix -test ./...
 
 echo "Modernize fixes applied successfully!"

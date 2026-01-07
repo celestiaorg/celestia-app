@@ -355,23 +355,31 @@ txsim-build-docker:
 	docker build -t ghcr.io/celestiaorg/txsim -f docker/txsim/Dockerfile  .
 .PHONY: txsim-build-docker
 
-## build-talis-bins: Build celestia-appd and txsim binaries for talis VMs (ubuntu 22.04 LTS)
-build-talis-bins:
-	docker build \
-	  --file tools/talis/docker/Dockerfile \
-	  --target builder \
-	  --platform linux/amd64 \
-	  --build-arg LDFLAGS="$(LDFLAGS_STANDALONE)" \
-	  --build-arg GOOS=linux \
-	  --build-arg GOARCH=amd64 \
-	  --tag talis-builder:latest \
-	  .
+## build-talis-bins: Build celestia-appd, txsim, and latency-monitor binaries for talis VMs (ubuntu 22.04 LTS)
+build-talis-bins: build-lumina-latency-monitor
 	mkdir -p build
-	docker create --platform linux/amd64 --name tmp talis-builder:latest
-	docker cp tmp:/out/. build/
-	docker rm tmp
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/celestia-appd ./cmd/celestia-appd
 .PHONY: build-talis-bins
 
+## build-lumina-latency-monitor: Build lumina-latency-monitor for Linux x86_64 (installs Rust and cross-compiler if needed)
+build-lumina-latency-monitor: export PATH := $(HOME)/.cargo/bin:$(PATH)
+build-lumina-latency-monitor: CARGO := $(HOME)/.cargo/bin/cargo
+build-lumina-latency-monitor:
+	@if ! command -v $(CARGO) >/dev/null 2>&1; then \
+		echo "Rust is not installed. Installing..."; \
+		curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y; \
+		echo ""; \
+		echo "Rust installed. Continuing with cargo from $$HOME/.cargo/bin..."; \
+	fi
+	cd tools/lumina-latency-monitor && $(CARGO) xtask build-linux
+	@mkdir -p build
+	@if [ -f tools/lumina-latency-monitor/target/x86_64-unknown-linux-gnu/release/lumina-latency-monitor ]; then \
+		cp tools/lumina-latency-monitor/target/x86_64-unknown-linux-gnu/release/lumina-latency-monitor build/latency-monitor; \
+	else \
+		cp tools/lumina-latency-monitor/target/release/lumina-latency-monitor build/latency-monitor; \
+	fi
+.PHONY: build-lumina-latency-monitor
 
 ## adr-gen: Download the ADR template from the celestiaorg/.github repo.
 adr-gen:

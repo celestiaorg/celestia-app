@@ -39,3 +39,5 @@ Celestia App Specifications
 - [Types](./types.md)
   - [Types v5](./types_v5.md)
   - [Types v6](./types_v6.md)
+- [TxClient v1](./tx_client.md)
+- [TxClient v2](./tx_client_v2.md)
