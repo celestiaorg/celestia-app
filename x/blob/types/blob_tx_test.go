@@ -346,7 +346,7 @@ func TestValidateBlobTxWithCache(t *testing.T) {
 		assert.Error(t, err, "expected error for invalid blob tx")
 	})
 
-	t.Run("cached blob tx with different blobs fails", func(t *testing.T) {
+	t.Run("cached blob tx with modified blobs fails", func(t *testing.T) {
 		blobTxBytes := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 			signers[4],
 			[]share.Namespace{namespace1},
