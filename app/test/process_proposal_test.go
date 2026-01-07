@@ -339,22 +339,22 @@ func TestProcessProposal_ProposalWithInconsistentBlobTxFails(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, uint32(0), checkTxResp.Code, "CheckTx should pass: %s", checkTxResp.Log)
 
-	t.Run("Tampered blob proposal fails", func(t *testing.T) {
+	t.Run("Proposal with inconsistent blob tx fails", func(t *testing.T) {
 		// replace the blob with a different one (same namespace, different data)
-		tamperedBlob, err := share.NewBlob(ns, bytes.Repeat([]byte{0xDE, 0xAD}, 50), share.ShareVersionZero, nil)
+		inconsistentBlob, err := share.NewBlob(ns, bytes.Repeat([]byte{0xDE, 0xAD}, 50), share.ShareVersionZero, nil)
 		require.NoError(t, err)
-		tamperedBlobTxBytes, err := tx.MarshalBlobTx(blobTx.Tx, tamperedBlob)
+		inconsistentBlobTxBytes, err := tx.MarshalBlobTx(blobTx.Tx, inconsistentBlob)
 		require.NoError(t, err)
 
 		res, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
 			Time:         time.Now(),
 			Height:       testApp.LastBlockHeight() + 1,
-			Txs:          [][]byte{tamperedBlobTxBytes},
-			DataRootHash: calculateNewDataHash(t, [][]byte{tamperedBlobTxBytes}),
+			Txs:          [][]byte{inconsistentBlobTxBytes},
+			DataRootHash: calculateNewDataHash(t, [][]byte{inconsistentBlobTxBytes}),
 			SquareSize:   2,
 		})
 		require.NoError(t, err)
-		require.Equal(t, abci.ResponseProcessProposal_REJECT, res.Status, "ProcessProposal should reject tampered blob")
+		require.Equal(t, abci.ResponseProcessProposal_REJECT, res.Status, "ProcessProposal should reject inconsistent blob tx")
 	})
 
 	t.Run("Original blob proposal succeeds", func(t *testing.T) {
