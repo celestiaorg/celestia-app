@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 
 	forwardingtypes "github.com/celestiaorg/celestia-app/v6/x/forwarding/types"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 )
 
 // ABI for only the function we need.
@@ -75,9 +76,20 @@ func mustDecodeHex0x(s string) []byte {
 	return b
 }
 
-func createInterchainAccountsRouter() {
-	msg := forwardingtypes.MsgCreateInterchainAccountsRouter{}
-	_ = msg
+func msgBytes() []byte {
+	msg := forwardingtypes.MsgWarpForward{DestinationDomain: 142}
+
+	pbAny, err := codectypes.NewAnyWithValue(&msg)
+	if err != nil {
+		panic(err)
+	}
+
+	bz, err := pbAny.Marshal()
+	if err != nil {
+		panic(err)
+	}
+
+	return bz
 }
 
 func main() {
@@ -94,7 +106,7 @@ func main() {
 	// Target contract on destination chain (EVM):
 	targetAddr := common.HexToAddress("0xTargetContractHere")
 	// Example: arbitrary bytes you want to deliver (protobuf blob, etc.)
-	protoBytes := mustDecodeHex0x("0xdeadbeef")
+	protoBytes := msgBytes()
 
 	calls := []Call{
 		{
