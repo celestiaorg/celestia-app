@@ -7,32 +7,36 @@ import (
 
 	"cosmossdk.io/collections"
 	storetypes "cosmossdk.io/core/store"
+	"cosmossdk.io/log"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
-	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/celestiaorg/celestia-app/v6/x/forwarding/types"
 	"github.com/cosmos/cosmos-sdk/codec"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // Keeper maintains state for the forwarding module.
-// The module currently has no state; this exists to satisfy future wiring.
 type Keeper struct {
 	cdc codec.BinaryCodec
 
 	hyperlaneKeeper types.HyperlaneKeeper
 	msgRouter       types.MessageRouter
 
-	// Routers: <id> -> HypInterchainAccount
-	ICARouters collections.Map[uint64, types.InterchainAccountsRouter]
-	// RemoteRouters: <id> <domain> -> Router
-	EnrolledRouters collections.Map[collections.Pair[uint64, uint32], warptypes.RemoteRouter]
+	// Routers: <id> -> InterchainAccountsRouter
+	Routers collections.Map[uint64, types.InterchainAccountsRouter]
+	// RemoteRouters: <id> <domain> -> RemoteRouter
+	RemoteRouters collections.Map[collections.Pair[uint64, uint32], types.RemoteRouter]
 }
 
 // NewKeeper creates a new forwarding Keeper instance.
 func NewKeeper(cdc codec.Codec, storeService storetypes.KVStoreService, hyperlaneKeeper types.HyperlaneKeeper, msgRouter types.MessageRouter) Keeper {
+	sb := collections.NewSchemaBuilder(storeService)
+
 	keeper := Keeper{
 		cdc:             cdc,
 		hyperlaneKeeper: hyperlaneKeeper,
 		msgRouter:       msgRouter,
+		Routers:         collections.NewMap(sb, types.RoutersKeyPrefix, "routers", collections.Uint64Key, codec.CollValue[types.InterchainAccountsRouter](cdc)),
+		RemoteRouters:   collections.NewMap(sb, types.RemoteRoutersKeyPrefix, "remote_routers", collections.PairKeyCodec(collections.Uint64Key, collections.Uint32Key), codec.CollValue[types.RemoteRouter](cdc)),
 	}
 
 	appRouter := hyperlaneKeeper.AppRouter()
@@ -41,14 +45,21 @@ func NewKeeper(cdc codec.Codec, storeService storetypes.KVStoreService, hyperlan
 	return keeper
 }
 
+// Logger returns the module logger extracted using the sdk context.
+func (k *Keeper) Logger(ctx context.Context) log.Logger {
+	return sdk.UnwrapSDKContext(ctx).Logger().With("module", "x/"+types.ModuleName)
+}
+
 // Exists implements [util.HyperlaneApp].
 func (k *Keeper) Exists(ctx context.Context, recipient util.HexAddress) (bool, error) {
-	return k.ICARouters.Has(ctx, recipient.GetInternalId())
+	return k.Routers.Has(ctx, recipient.GetInternalId())
 }
 
 // Handle implements [util.HyperlaneApp].
 func (k *Keeper) Handle(ctx context.Context, mailboxId util.HexAddress, message util.HyperlaneMessage) error {
-	icaRouter, err := k.ICARouters.Get(ctx, message.Recipient.GetInternalId())
+	k.Logger(ctx).Info("Processing interchain accounts msg from Hyperlane core")
+
+	router, err := k.Routers.Get(ctx, message.Recipient.GetInternalId())
 	if err != nil {
 		return err
 	}
@@ -58,11 +69,13 @@ func (k *Keeper) Handle(ctx context.Context, mailboxId util.HexAddress, message 
 		return err
 	}
 
-	if icaRouter.OriginMailbox != mailboxId {
+	k.Logger(ctx).Info("ICA Payload info", payload)
+
+	if router.OriginMailbox != mailboxId {
 		return fmt.Errorf("invalid origin mailbox address")
 	}
 
-	remoteRouter, err := k.EnrolledRouters.Get(ctx, collections.Join(message.Recipient.GetInternalId(), message.Origin))
+	remoteRouter, err := k.RemoteRouters.Get(ctx, collections.Join(message.Recipient.GetInternalId(), message.Origin))
 	if err != nil {
 		return fmt.Errorf("no enrolled router found for origin %d", message.Origin)
 	}
@@ -75,16 +88,17 @@ func (k *Keeper) Handle(ctx context.Context, mailboxId util.HexAddress, message 
 	// id exists (must exist) in the core hyperlane messages keyset prior to processing this message.
 	// ref: https://github.com/bcp-innovations/hyperlane-cosmos/blob/main/x/core/keeper/logic_message.go#L50-L61
 
-	return k.handlePayload(icaRouter, payload)
+	return k.handlePayload(ctx, router, payload)
 }
 
-func (k *Keeper) handlePayload(icaRouter types.InterchainAccountsRouter, payload types.InterchainAccountsPayload) error {
-	panic("unimplemented")
+func (k *Keeper) handlePayload(ctx context.Context, icaRouter types.InterchainAccountsRouter, payload types.InterchainAccountsPayload) error {
+	k.Logger(ctx).Info("Successfully processed interchain accounts msg from Hyperlane core")
+	return nil
 }
 
 // ReceiverIsmId implements [util.HyperlaneApp].
 func (k *Keeper) ReceiverIsmId(ctx context.Context, recipient util.HexAddress) (*util.HexAddress, error) {
-	token, err := k.ICARouters.Get(ctx, recipient.GetInternalId())
+	token, err := k.Routers.Get(ctx, recipient.GetInternalId())
 	if err != nil {
 		return nil, fmt.Errorf("TODO: use typed error")
 	}

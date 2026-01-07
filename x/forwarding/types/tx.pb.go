@@ -32,6 +32,196 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+// MsgCreateInterchainAccountsRouter ...
+type MsgCreateInterchainAccountsRouter struct {
+	// owner is the message sender.
+	Owner string `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
+	// the remote router to register.
+	RemoteRouter *RemoteRouter `protobuf:"bytes,2,opt,name=remote_router,json=remoteRouter,proto3" json:"remote_router,omitempty"`
+}
+
+func (m *MsgCreateInterchainAccountsRouter) Reset()         { *m = MsgCreateInterchainAccountsRouter{} }
+func (m *MsgCreateInterchainAccountsRouter) String() string { return proto.CompactTextString(m) }
+func (*MsgCreateInterchainAccountsRouter) ProtoMessage()    {}
+func (*MsgCreateInterchainAccountsRouter) Descriptor() ([]byte, []int) {
+	return fileDescriptor_3cfda3a3251c777e, []int{0}
+}
+func (m *MsgCreateInterchainAccountsRouter) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgCreateInterchainAccountsRouter) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgCreateInterchainAccountsRouter.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgCreateInterchainAccountsRouter) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgCreateInterchainAccountsRouter.Merge(m, src)
+}
+func (m *MsgCreateInterchainAccountsRouter) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgCreateInterchainAccountsRouter) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgCreateInterchainAccountsRouter.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgCreateInterchainAccountsRouter proto.InternalMessageInfo
+
+func (m *MsgCreateInterchainAccountsRouter) GetOwner() string {
+	if m != nil {
+		return m.Owner
+	}
+	return ""
+}
+
+func (m *MsgCreateInterchainAccountsRouter) GetRemoteRouter() *RemoteRouter {
+	if m != nil {
+		return m.RemoteRouter
+	}
+	return nil
+}
+
+// MsgCreateInterchainAccountsRouterResponse ...
+type MsgCreateInterchainAccountsRouterResponse struct {
+}
+
+func (m *MsgCreateInterchainAccountsRouterResponse) Reset() {
+	*m = MsgCreateInterchainAccountsRouterResponse{}
+}
+func (m *MsgCreateInterchainAccountsRouterResponse) String() string {
+	return proto.CompactTextString(m)
+}
+func (*MsgCreateInterchainAccountsRouterResponse) ProtoMessage() {}
+func (*MsgCreateInterchainAccountsRouterResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_3cfda3a3251c777e, []int{1}
+}
+func (m *MsgCreateInterchainAccountsRouterResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgCreateInterchainAccountsRouterResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgCreateInterchainAccountsRouterResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgCreateInterchainAccountsRouterResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgCreateInterchainAccountsRouterResponse.Merge(m, src)
+}
+func (m *MsgCreateInterchainAccountsRouterResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgCreateInterchainAccountsRouterResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgCreateInterchainAccountsRouterResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgCreateInterchainAccountsRouterResponse proto.InternalMessageInfo
+
+// MsgEnrollRemoteRouter ...
+type MsgEnrollRemoteRouter struct {
+	// owner is the message sender.
+	Owner string `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
+	// the router id for binding the remote router.
+	RouterId github_com_bcp_innovations_hyperlane_cosmos_util.HexAddress `protobuf:"bytes,2,opt,name=router_id,json=routerId,proto3,customtype=github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress" json:"router_id"`
+	// the remote router to register.
+	RemoteRouter *RemoteRouter `protobuf:"bytes,3,opt,name=remote_router,json=remoteRouter,proto3" json:"remote_router,omitempty"`
+}
+
+func (m *MsgEnrollRemoteRouter) Reset()         { *m = MsgEnrollRemoteRouter{} }
+func (m *MsgEnrollRemoteRouter) String() string { return proto.CompactTextString(m) }
+func (*MsgEnrollRemoteRouter) ProtoMessage()    {}
+func (*MsgEnrollRemoteRouter) Descriptor() ([]byte, []int) {
+	return fileDescriptor_3cfda3a3251c777e, []int{2}
+}
+func (m *MsgEnrollRemoteRouter) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgEnrollRemoteRouter) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgEnrollRemoteRouter.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgEnrollRemoteRouter) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgEnrollRemoteRouter.Merge(m, src)
+}
+func (m *MsgEnrollRemoteRouter) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgEnrollRemoteRouter) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgEnrollRemoteRouter.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgEnrollRemoteRouter proto.InternalMessageInfo
+
+func (m *MsgEnrollRemoteRouter) GetOwner() string {
+	if m != nil {
+		return m.Owner
+	}
+	return ""
+}
+
+func (m *MsgEnrollRemoteRouter) GetRemoteRouter() *RemoteRouter {
+	if m != nil {
+		return m.RemoteRouter
+	}
+	return nil
+}
+
+// MsgEnrollRemoteRouterResponse ...
+type MsgEnrollRemoteRouterResponse struct {
+}
+
+func (m *MsgEnrollRemoteRouterResponse) Reset()         { *m = MsgEnrollRemoteRouterResponse{} }
+func (m *MsgEnrollRemoteRouterResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgEnrollRemoteRouterResponse) ProtoMessage()    {}
+func (*MsgEnrollRemoteRouterResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_3cfda3a3251c777e, []int{3}
+}
+func (m *MsgEnrollRemoteRouterResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgEnrollRemoteRouterResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgEnrollRemoteRouterResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgEnrollRemoteRouterResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgEnrollRemoteRouterResponse.Merge(m, src)
+}
+func (m *MsgEnrollRemoteRouterResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgEnrollRemoteRouterResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgEnrollRemoteRouterResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgEnrollRemoteRouterResponse proto.InternalMessageInfo
+
 // MsgWarpForward is the request type for the WarpForward method.
 type MsgWarpForward struct {
 	// token to be transferred (denomination + amount).
@@ -48,7 +238,7 @@ func (m *MsgWarpForward) Reset()         { *m = MsgWarpForward{} }
 func (m *MsgWarpForward) String() string { return proto.CompactTextString(m) }
 func (*MsgWarpForward) ProtoMessage()    {}
 func (*MsgWarpForward) Descriptor() ([]byte, []int) {
-	return fileDescriptor_3cfda3a3251c777e, []int{0}
+	return fileDescriptor_3cfda3a3251c777e, []int{4}
 }
 func (m *MsgWarpForward) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -106,7 +296,7 @@ func (m *MsgWarpForwardResponse) Reset()         { *m = MsgWarpForwardResponse{}
 func (m *MsgWarpForwardResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgWarpForwardResponse) ProtoMessage()    {}
 func (*MsgWarpForwardResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_3cfda3a3251c777e, []int{1}
+	return fileDescriptor_3cfda3a3251c777e, []int{5}
 }
 func (m *MsgWarpForwardResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -136,6 +326,10 @@ func (m *MsgWarpForwardResponse) XXX_DiscardUnknown() {
 var xxx_messageInfo_MsgWarpForwardResponse proto.InternalMessageInfo
 
 func init() {
+	proto.RegisterType((*MsgCreateInterchainAccountsRouter)(nil), "celestia.forwarding.v1.MsgCreateInterchainAccountsRouter")
+	proto.RegisterType((*MsgCreateInterchainAccountsRouterResponse)(nil), "celestia.forwarding.v1.MsgCreateInterchainAccountsRouterResponse")
+	proto.RegisterType((*MsgEnrollRemoteRouter)(nil), "celestia.forwarding.v1.MsgEnrollRemoteRouter")
+	proto.RegisterType((*MsgEnrollRemoteRouterResponse)(nil), "celestia.forwarding.v1.MsgEnrollRemoteRouterResponse")
 	proto.RegisterType((*MsgWarpForward)(nil), "celestia.forwarding.v1.MsgWarpForward")
 	proto.RegisterType((*MsgWarpForwardResponse)(nil), "celestia.forwarding.v1.MsgWarpForwardResponse")
 }
@@ -143,35 +337,46 @@ func init() {
 func init() { proto.RegisterFile("celestia/forwarding/v1/tx.proto", fileDescriptor_3cfda3a3251c777e) }
 
 var fileDescriptor_3cfda3a3251c777e = []byte{
-	// 438 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x52, 0xbf, 0x6f, 0xd3, 0x40,
-	0x14, 0xf6, 0xf5, 0x97, 0xd4, 0x8b, 0x40, 0xc2, 0xaa, 0x8a, 0x9b, 0xc1, 0x89, 0x32, 0xa0, 0xa8,
-	0x92, 0xef, 0x48, 0x11, 0x0c, 0x30, 0x91, 0x22, 0xc4, 0x52, 0x09, 0x99, 0x01, 0x89, 0xa5, 0x3a,
-	0xdb, 0xc7, 0xf5, 0x44, 0x7c, 0xef, 0x74, 0x77, 0x09, 0xe9, 0x86, 0xf8, 0x0b, 0x18, 0xf9, 0x33,
-	0x3a, 0xf0, 0x47, 0x74, 0xac, 0x98, 0x10, 0x43, 0x85, 0x92, 0xa1, 0xff, 0x06, 0xb2, 0x7d, 0xa1,
-	0x8e, 0xc4, 0xd0, 0xed, 0xde, 0xfb, 0xbe, 0xf7, 0xf9, 0x7b, 0x9f, 0x1f, 0xee, 0xe5, 0x7c, 0xc2,
-	0xad, 0x93, 0x8c, 0x7e, 0x04, 0xf3, 0x99, 0x99, 0x42, 0x2a, 0x41, 0x67, 0x23, 0xea, 0xe6, 0x44,
-	0x1b, 0x70, 0x10, 0xee, 0xaf, 0x08, 0xe4, 0x96, 0x40, 0x66, 0xa3, 0x6e, 0x9c, 0x83, 0x2d, 0xc1,
-	0xd2, 0x8c, 0x59, 0x4e, 0x67, 0xa3, 0x8c, 0x3b, 0x36, 0xa2, 0x39, 0x48, 0xd5, 0xcc, 0x75, 0x1f,
-	0x7a, 0xbc, 0xb4, 0xb5, 0x5e, 0x69, 0x85, 0x07, 0x0e, 0x1a, 0xe0, 0xb4, 0xae, 0x68, 0x53, 0x78,
-	0x68, 0x4f, 0x80, 0x80, 0xa6, 0x5f, 0xbd, 0x9a, 0xee, 0xe0, 0xfb, 0x06, 0xbe, 0x7f, 0x62, 0xc5,
-	0x7b, 0x66, 0xf4, 0xeb, 0xc6, 0x42, 0xf8, 0x14, 0x6f, 0x3b, 0xf8, 0xc4, 0x55, 0x84, 0xfa, 0x68,
-	0xd8, 0x39, 0x3a, 0x20, 0x5e, 0xa6, 0x32, 0x43, 0xbc, 0x19, 0x72, 0x0c, 0x52, 0x8d, 0xb7, 0x2e,
-	0xaf, 0x7b, 0x41, 0xda, 0xb0, 0x43, 0x86, 0x77, 0x0d, 0xcf, 0xa5, 0x96, 0x5c, 0xb9, 0x68, 0xa3,
-	0x8f, 0x86, 0xbb, 0xe3, 0xe3, 0x0a, 0xff, 0x7d, 0xdd, 0x7b, 0x21, 0xa4, 0x3b, 0x9b, 0x66, 0x24,
-	0x87, 0x92, 0x66, 0xb9, 0x4e, 0xa4, 0x52, 0x30, 0x63, 0x4e, 0x82, 0xb2, 0xf4, 0xec, 0x5c, 0x73,
-	0x33, 0x61, 0x8a, 0x27, 0x7e, 0xa7, 0xa9, 0x93, 0x13, 0xf2, 0x86, 0xcf, 0x5f, 0x16, 0x85, 0xe1,
-	0xd6, 0xa6, 0xb7, 0xaa, 0x61, 0x82, 0xc3, 0xa2, 0x8a, 0x4b, 0xd5, 0xb3, 0xa7, 0x05, 0x94, 0x4c,
-	0xaa, 0x68, 0xb3, 0x8f, 0x86, 0xf7, 0xd2, 0x07, 0x2d, 0xe4, 0x55, 0x0d, 0x84, 0x8f, 0xf1, 0x8e,
-	0x95, 0x42, 0x71, 0x13, 0x6d, 0xd5, 0x76, 0xa2, 0x9f, 0x3f, 0x92, 0x3d, 0xbf, 0x8c, 0x57, 0x7f,
-	0xe7, 0x8c, 0x54, 0x22, 0xf5, 0xbc, 0xe7, 0x9d, 0xaf, 0x37, 0x17, 0x87, 0xbe, 0x18, 0x44, 0x78,
-	0x7f, 0x3d, 0x99, 0x94, 0x5b, 0x0d, 0xca, 0xf2, 0xa3, 0x29, 0xde, 0x3c, 0xb1, 0x22, 0x14, 0xb8,
-	0xd3, 0xce, 0xed, 0x11, 0xf9, 0xff, 0xdf, 0x24, 0xeb, 0x2a, 0x5d, 0x72, 0x37, 0xde, 0xea, 0x6b,
-	0x83, 0xa0, 0xbb, 0xfd, 0xe5, 0xe6, 0xe2, 0x10, 0x8d, 0xdf, 0x5e, 0x2e, 0x62, 0x74, 0xb5, 0x88,
-	0xd1, 0x9f, 0x45, 0x8c, 0xbe, 0x2d, 0xe3, 0xe0, 0x6a, 0x19, 0x07, 0xbf, 0x96, 0x71, 0xf0, 0xe1,
-	0x59, 0x2b, 0xe0, 0x95, 0x38, 0x18, 0xf1, 0xef, 0x9d, 0x30, 0xad, 0xe9, 0xbc, 0x7d, 0x85, 0xee,
-	0x5c, 0x73, 0x9b, 0xed, 0xd4, 0x47, 0xf0, 0xe4, 0x6f, 0x00, 0x00, 0x00, 0xff, 0xff, 0xb2, 0x14,
-	0x91, 0xfd, 0xa9, 0x02, 0x00, 0x00,
+	// 613 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x94, 0xcf, 0x6e, 0xd3, 0x40,
+	0x10, 0xc6, 0xe3, 0xfe, 0x13, 0xd9, 0x50, 0x24, 0xac, 0x52, 0x52, 0x4b, 0x38, 0x25, 0x42, 0xa8,
+	0x14, 0x79, 0x4d, 0x8a, 0x8a, 0x44, 0x39, 0x35, 0x01, 0x44, 0x0e, 0x91, 0x90, 0x39, 0x20, 0x71,
+	0x09, 0x1b, 0x7b, 0xd9, 0xac, 0x88, 0x77, 0xad, 0xdd, 0x4d, 0x9a, 0x72, 0xaa, 0x78, 0x02, 0xc4,
+	0x89, 0x13, 0x0f, 0xc0, 0xa9, 0x07, 0x1e, 0xa2, 0xc7, 0x8a, 0x13, 0xe2, 0x50, 0xa1, 0xe4, 0xd0,
+	0xd7, 0x40, 0xf6, 0x3a, 0xa9, 0x51, 0xd3, 0x86, 0xa2, 0xde, 0x3c, 0x9e, 0x6f, 0xbe, 0xf1, 0xfe,
+	0x66, 0xbc, 0xa0, 0xe4, 0xe3, 0x0e, 0x96, 0x8a, 0x22, 0xf7, 0x1d, 0x17, 0x3b, 0x48, 0x04, 0x94,
+	0x11, 0xb7, 0x57, 0x71, 0x55, 0x1f, 0x46, 0x82, 0x2b, 0x6e, 0x2e, 0x8f, 0x04, 0xf0, 0x44, 0x00,
+	0x7b, 0x15, 0xab, 0x7c, 0x56, 0xe1, 0x6e, 0x84, 0xa5, 0xae, 0xb5, 0x6c, 0x9f, 0xcb, 0x90, 0x4b,
+	0xb7, 0x85, 0x24, 0x76, 0x7b, 0x95, 0x16, 0x56, 0xa8, 0xe2, 0xfa, 0x9c, 0xb2, 0x34, 0x7f, 0x33,
+	0xcd, 0x87, 0x32, 0x29, 0x0d, 0x25, 0x49, 0x13, 0x2b, 0x3a, 0xd1, 0x4c, 0x22, 0x57, 0x07, 0x69,
+	0x6a, 0x89, 0x70, 0xc2, 0xf5, 0xfb, 0xf8, 0x49, 0xbf, 0x2d, 0x7f, 0x33, 0xc0, 0xed, 0x86, 0x24,
+	0x35, 0x81, 0x91, 0xc2, 0x75, 0xa6, 0xb0, 0xf0, 0xdb, 0x88, 0xb2, 0x6d, 0xdf, 0xe7, 0x5d, 0xa6,
+	0xa4, 0xc7, 0xbb, 0x0a, 0x0b, 0x13, 0x82, 0x79, 0xbe, 0xc3, 0xb0, 0x28, 0x1a, 0xab, 0xc6, 0x5a,
+	0xbe, 0x5a, 0xfc, 0xf1, 0xdd, 0x59, 0x4a, 0xcd, 0xb7, 0x83, 0x40, 0x60, 0x29, 0x5f, 0x29, 0x41,
+	0x19, 0xf1, 0xb4, 0xcc, 0xac, 0x83, 0x45, 0x81, 0x43, 0xae, 0x70, 0x53, 0x24, 0x06, 0xc5, 0x99,
+	0x55, 0x63, 0xad, 0xb0, 0x71, 0x07, 0x4e, 0x66, 0x02, 0xbd, 0x44, 0xac, 0x9b, 0x79, 0x57, 0x45,
+	0x26, 0xda, 0x02, 0x1f, 0x8f, 0xf7, 0xd7, 0xb5, 0x6d, 0xf9, 0x3e, 0xb8, 0x37, 0xf5, 0x5b, 0x3d,
+	0x2c, 0x23, 0xce, 0x24, 0x2e, 0xef, 0xcd, 0x80, 0x1b, 0x0d, 0x49, 0x9e, 0x31, 0xc1, 0x3b, 0x9d,
+	0x6c, 0x83, 0x0b, 0x9f, 0xe6, 0x2d, 0xc8, 0xeb, 0x63, 0x34, 0x69, 0x90, 0x9c, 0x24, 0x5f, 0xad,
+	0x1d, 0x1c, 0x95, 0x72, 0xbf, 0x8e, 0x4a, 0x4f, 0x08, 0x55, 0xed, 0x6e, 0x0b, 0xfa, 0x3c, 0x74,
+	0x5b, 0x7e, 0xe4, 0x50, 0xc6, 0x78, 0x0f, 0x29, 0xca, 0x99, 0x74, 0xdb, 0xbb, 0x11, 0x16, 0x1d,
+	0xc4, 0xb0, 0x93, 0x4e, 0xab, 0xab, 0x68, 0x07, 0xbe, 0xc0, 0xfd, 0xb4, 0x89, 0x77, 0x45, 0xbb,
+	0xd6, 0x83, 0xd3, 0xbc, 0x66, 0x2f, 0x85, 0x57, 0x09, 0xdc, 0x9a, 0x48, 0x60, 0xcc, 0xe8, 0xcb,
+	0x0c, 0xb8, 0xd6, 0x90, 0xe4, 0x35, 0x12, 0xd1, 0x73, 0xdd, 0xc0, 0xdc, 0x04, 0xf3, 0x8a, 0xbf,
+	0xc7, 0x2c, 0x81, 0x53, 0xd8, 0x58, 0x81, 0x29, 0x99, 0x78, 0x15, 0x61, 0xba, 0x8a, 0xb0, 0xc6,
+	0x29, 0xab, 0xce, 0xc5, 0x0c, 0x3c, 0xad, 0x36, 0x11, 0xc8, 0x0b, 0xec, 0xd3, 0x88, 0x62, 0xa6,
+	0x2e, 0x93, 0xd1, 0x89, 0xab, 0xe9, 0x00, 0x33, 0x88, 0x61, 0xb0, 0xa4, 0xb6, 0x19, 0xf0, 0x10,
+	0x51, 0x96, 0x90, 0x5a, 0xf4, 0xae, 0x67, 0x32, 0x4f, 0x93, 0x84, 0xf9, 0x00, 0x2c, 0x48, 0x4a,
+	0xe2, 0x31, 0xcf, 0x4d, 0x19, 0x73, 0xaa, 0xdb, 0x2a, 0xc4, 0xe8, 0xd2, 0xa0, 0x5c, 0x04, 0xcb,
+	0x7f, 0x93, 0x19, 0x41, 0xdb, 0xf8, 0x3c, 0x0b, 0x66, 0x1b, 0x92, 0x98, 0x5f, 0x0d, 0x60, 0x4f,
+	0xf9, 0x6f, 0x1e, 0x9f, 0x35, 0xc0, 0xa9, 0x6b, 0x6c, 0x6d, 0xff, 0x77, 0xe9, 0xe8, 0x43, 0xcd,
+	0x0f, 0xc0, 0x9c, 0xb0, 0xfd, 0xce, 0x39, 0xc6, 0xa7, 0xe5, 0xd6, 0xe6, 0x85, 0xe4, 0xe3, 0xde,
+	0x04, 0x14, 0xb2, 0x5b, 0x75, 0xf7, 0x1c, 0x97, 0x8c, 0xce, 0x82, 0xff, 0xa6, 0x1b, 0x2f, 0x70,
+	0xce, 0x9a, 0xdf, 0x3b, 0xde, 0x5f, 0x37, 0xaa, 0x2f, 0x0f, 0x06, 0xb6, 0x71, 0x38, 0xb0, 0x8d,
+	0xdf, 0x03, 0xdb, 0xf8, 0x34, 0xb4, 0x73, 0x87, 0x43, 0x3b, 0xf7, 0x73, 0x68, 0xe7, 0xde, 0x3c,
+	0xca, 0xac, 0xdf, 0xc8, 0x9c, 0x0b, 0x32, 0x7e, 0x76, 0x50, 0x14, 0xb9, 0xfd, 0xec, 0x65, 0x9c,
+	0xdc, 0xc4, 0xad, 0x85, 0xe4, 0x82, 0x7c, 0xf8, 0x27, 0x00, 0x00, 0xff, 0xff, 0xa3, 0x78, 0x31,
+	0xa4, 0xe9, 0x05, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -186,6 +391,10 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MsgClient interface {
+	// CreateInterchainAccountsRouter creates a new router instance for receiving messages.
+	CreateInterchainAccountsRouter(ctx context.Context, in *MsgCreateInterchainAccountsRouter, opts ...grpc.CallOption) (*MsgCreateInterchainAccountsRouterResponse, error)
+	// EnrollRemoteRouter registers a binding for a remote contract on a counterparty chain.
+	EnrollRemoteRouter(ctx context.Context, in *MsgEnrollRemoteRouter, opts ...grpc.CallOption) (*MsgEnrollRemoteRouterResponse, error)
 	// WarpForward performs a forward transfer using the Hyperlane x/warp module.
 	WarpForward(ctx context.Context, in *MsgWarpForward, opts ...grpc.CallOption) (*MsgWarpForwardResponse, error)
 }
@@ -196,6 +405,24 @@ type msgClient struct {
 
 func NewMsgClient(cc grpc1.ClientConn) MsgClient {
 	return &msgClient{cc}
+}
+
+func (c *msgClient) CreateInterchainAccountsRouter(ctx context.Context, in *MsgCreateInterchainAccountsRouter, opts ...grpc.CallOption) (*MsgCreateInterchainAccountsRouterResponse, error) {
+	out := new(MsgCreateInterchainAccountsRouterResponse)
+	err := c.cc.Invoke(ctx, "/celestia.forwarding.v1.Msg/CreateInterchainAccountsRouter", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *msgClient) EnrollRemoteRouter(ctx context.Context, in *MsgEnrollRemoteRouter, opts ...grpc.CallOption) (*MsgEnrollRemoteRouterResponse, error) {
+	out := new(MsgEnrollRemoteRouterResponse)
+	err := c.cc.Invoke(ctx, "/celestia.forwarding.v1.Msg/EnrollRemoteRouter", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *msgClient) WarpForward(ctx context.Context, in *MsgWarpForward, opts ...grpc.CallOption) (*MsgWarpForwardResponse, error) {
@@ -209,6 +436,10 @@ func (c *msgClient) WarpForward(ctx context.Context, in *MsgWarpForward, opts ..
 
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
+	// CreateInterchainAccountsRouter creates a new router instance for receiving messages.
+	CreateInterchainAccountsRouter(context.Context, *MsgCreateInterchainAccountsRouter) (*MsgCreateInterchainAccountsRouterResponse, error)
+	// EnrollRemoteRouter registers a binding for a remote contract on a counterparty chain.
+	EnrollRemoteRouter(context.Context, *MsgEnrollRemoteRouter) (*MsgEnrollRemoteRouterResponse, error)
 	// WarpForward performs a forward transfer using the Hyperlane x/warp module.
 	WarpForward(context.Context, *MsgWarpForward) (*MsgWarpForwardResponse, error)
 }
@@ -217,12 +448,54 @@ type MsgServer interface {
 type UnimplementedMsgServer struct {
 }
 
+func (*UnimplementedMsgServer) CreateInterchainAccountsRouter(ctx context.Context, req *MsgCreateInterchainAccountsRouter) (*MsgCreateInterchainAccountsRouterResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateInterchainAccountsRouter not implemented")
+}
+func (*UnimplementedMsgServer) EnrollRemoteRouter(ctx context.Context, req *MsgEnrollRemoteRouter) (*MsgEnrollRemoteRouterResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method EnrollRemoteRouter not implemented")
+}
 func (*UnimplementedMsgServer) WarpForward(ctx context.Context, req *MsgWarpForward) (*MsgWarpForwardResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method WarpForward not implemented")
 }
 
 func RegisterMsgServer(s grpc1.Server, srv MsgServer) {
 	s.RegisterService(&_Msg_serviceDesc, srv)
+}
+
+func _Msg_CreateInterchainAccountsRouter_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgCreateInterchainAccountsRouter)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).CreateInterchainAccountsRouter(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/celestia.forwarding.v1.Msg/CreateInterchainAccountsRouter",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).CreateInterchainAccountsRouter(ctx, req.(*MsgCreateInterchainAccountsRouter))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Msg_EnrollRemoteRouter_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgEnrollRemoteRouter)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).EnrollRemoteRouter(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/celestia.forwarding.v1.Msg/EnrollRemoteRouter",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).EnrollRemoteRouter(ctx, req.(*MsgEnrollRemoteRouter))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _Msg_WarpForward_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -249,12 +522,160 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*MsgServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
+			MethodName: "CreateInterchainAccountsRouter",
+			Handler:    _Msg_CreateInterchainAccountsRouter_Handler,
+		},
+		{
+			MethodName: "EnrollRemoteRouter",
+			Handler:    _Msg_EnrollRemoteRouter_Handler,
+		},
+		{
 			MethodName: "WarpForward",
 			Handler:    _Msg_WarpForward_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "celestia/forwarding/v1/tx.proto",
+}
+
+func (m *MsgCreateInterchainAccountsRouter) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgCreateInterchainAccountsRouter) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgCreateInterchainAccountsRouter) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.RemoteRouter != nil {
+		{
+			size, err := m.RemoteRouter.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintTx(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Owner) > 0 {
+		i -= len(m.Owner)
+		copy(dAtA[i:], m.Owner)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.Owner)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgCreateInterchainAccountsRouterResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgCreateInterchainAccountsRouterResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgCreateInterchainAccountsRouterResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgEnrollRemoteRouter) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgEnrollRemoteRouter) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgEnrollRemoteRouter) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.RemoteRouter != nil {
+		{
+			size, err := m.RemoteRouter.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintTx(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x1a
+	}
+	{
+		size := m.RouterId.Size()
+		i -= size
+		if _, err := m.RouterId.MarshalTo(dAtA[i:]); err != nil {
+			return 0, err
+		}
+		i = encodeVarintTx(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x12
+	if len(m.Owner) > 0 {
+		i -= len(m.Owner)
+		copy(dAtA[i:], m.Owner)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.Owner)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgEnrollRemoteRouterResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgEnrollRemoteRouterResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgEnrollRemoteRouterResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
 }
 
 func (m *MsgWarpForward) Marshal() (dAtA []byte, err error) {
@@ -346,6 +767,60 @@ func encodeVarintTx(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
+func (m *MsgCreateInterchainAccountsRouter) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Owner)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	if m.RemoteRouter != nil {
+		l = m.RemoteRouter.Size()
+		n += 1 + l + sovTx(uint64(l))
+	}
+	return n
+}
+
+func (m *MsgCreateInterchainAccountsRouterResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *MsgEnrollRemoteRouter) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Owner)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	l = m.RouterId.Size()
+	n += 1 + l + sovTx(uint64(l))
+	if m.RemoteRouter != nil {
+		l = m.RemoteRouter.Size()
+		n += 1 + l + sovTx(uint64(l))
+	}
+	return n
+}
+
+func (m *MsgEnrollRemoteRouterResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
 func (m *MsgWarpForward) Size() (n int) {
 	if m == nil {
 		return 0
@@ -380,6 +855,376 @@ func sovTx(x uint64) (n int) {
 }
 func sozTx(x uint64) (n int) {
 	return sovTx(uint64((x << 1) ^ uint64((int64(x) >> 63))))
+}
+func (m *MsgCreateInterchainAccountsRouter) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgCreateInterchainAccountsRouter: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgCreateInterchainAccountsRouter: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Owner", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Owner = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RemoteRouter", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.RemoteRouter == nil {
+				m.RemoteRouter = &RemoteRouter{}
+			}
+			if err := m.RemoteRouter.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgCreateInterchainAccountsRouterResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgCreateInterchainAccountsRouterResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgCreateInterchainAccountsRouterResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgEnrollRemoteRouter) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgEnrollRemoteRouter: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgEnrollRemoteRouter: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Owner", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Owner = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RouterId", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.RouterId.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RemoteRouter", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.RemoteRouter == nil {
+				m.RemoteRouter = &RemoteRouter{}
+			}
+			if err := m.RemoteRouter.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgEnrollRemoteRouterResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgEnrollRemoteRouterResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgEnrollRemoteRouterResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
 }
 func (m *MsgWarpForward) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)

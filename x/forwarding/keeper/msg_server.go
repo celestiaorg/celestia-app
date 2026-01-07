@@ -20,6 +20,17 @@ func NewMsgServerImpl(keeper *Keeper) types.MsgServer {
 	return &msgServer{Keeper: keeper}
 }
 
+// CreateInterchainAccountsRouter implements types.MsgServer.
+func (m *msgServer) CreateInterchainAccountsRouter(ctx context.Context, msg *types.MsgCreateInterchainAccountsRouter) (*types.MsgCreateInterchainAccountsRouterResponse, error) {
+
+	return &types.MsgCreateInterchainAccountsRouterResponse{}, nil
+}
+
+// EnrollRemoteRouter implements types.MsgServer.
+func (m *msgServer) EnrollRemoteRouter(ctx context.Context, msg *types.MsgEnrollRemoteRouter) (*types.MsgEnrollRemoteRouterResponse, error) {
+	return &types.MsgEnrollRemoteRouterResponse{}, nil
+}
+
 // WarpForward implements types.MsgServer.
 func (m *msgServer) WarpForward(ctx context.Context, msg *types.MsgWarpForward) (*types.MsgWarpForwardResponse, error) {
 	forwardAddr := types.DeriveForwardAddress(msg.DerivationKeys()...)
@@ -54,14 +65,4 @@ func (m *msgServer) WarpForward(ctx context.Context, msg *types.MsgWarpForward) 
 
 	// TODO: handle response info propagation if applicable
 	return &types.MsgWarpForwardResponse{}, nil
-}
-
-func (m *msgServer) CreateInterchainAccountsRouter(ctx context.Context) error {
-
-	return nil
-}
-
-func (m *msgServer) EnrollRemoteRouter(ctx context.Context) error {
-
-	return nil
 }

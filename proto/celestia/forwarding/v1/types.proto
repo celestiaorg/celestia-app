@@ -24,3 +24,10 @@ message InterchainAccountsRouter {
     (gogoproto.nullable)   = true
   ];
 }
+
+// RemoteRouter ...
+message RemoteRouter {
+  uint32 receiver_domain   = 1;
+  string receiver_contract = 2;
+  string gas               = 3 [(gogoproto.customtype) = "cosmossdk.io/math.Int", (gogoproto.nullable) = false];
+}

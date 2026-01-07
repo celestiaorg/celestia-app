@@ -4,6 +4,7 @@ import (
 	fmt "fmt"
 	"math/big"
 
+	"cosmossdk.io/collections"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -24,6 +25,11 @@ const (
 
 	// QuerierRoute defines the module's query routing key.
 	QuerierRoute = ModuleName
+)
+
+var (
+	RoutersKeyPrefix       = collections.NewPrefix(0)
+	RemoteRoutersKeyPrefix = collections.NewPrefix(1)
 )
 
 func DeriveForwardAddress(derivationKeys ...[]byte) sdk.AccAddress {
