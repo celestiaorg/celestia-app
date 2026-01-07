@@ -39,11 +39,7 @@ func (c *TxCache) Exists(tx []byte, blobs []*share.Blob) bool {
 	}
 
 	blobHash := c.getBlobsHash(blobs)
-	if cachedBlobHash != blobHash {
-		return false
-	}
-
-	return true
+	return cachedBlobHash == blobHash
 }
 
 // Set stores the Tx in the cache
@@ -54,7 +50,7 @@ func (c *TxCache) Set(tx []byte, blobs []*share.Blob) {
 }
 
 func (c *TxCache) getBlobsHash(blobs []*share.Blob) string {
-	var flatBlobs []byte
+	var flatBlobs []byte //nolint:prealloc
 	for _, blob := range blobs {
 		flatBlobs = append(flatBlobs, blob.Namespace().Bytes()...)
 		flatBlobs = append(flatBlobs, blob.Data()...)
