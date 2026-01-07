@@ -24,7 +24,7 @@ func generateRandomTxs(count int, size int) [][]byte {
 func generateRandomSizedBlobs(count int) [][]*share.Blob {
 	blobs := make([][]*share.Blob, count)
 	for i := range count {
-		blobSize := mathrand.Intn(appconsts.MaxTxSize)
+		blobSize := mathrand.Intn(appconsts.MaxTxSize) + 1
 		blobs[i] = blobfactory.ManyRandBlobs(random.New(), blobSize)
 	}
 	return blobs
@@ -65,7 +65,7 @@ func BenchmarkTxCache_Operations(b *testing.B) {
 					b.StartTimer()
 
 					for _, tx := range txs {
-						blobSize := mathrand.Intn(appconsts.MaxTxSize)
+						blobSize := mathrand.Intn(appconsts.MaxTxSize) + 1
 						blobs := blobfactory.ManyRandBlobs(random.New(), blobSize)
 						cache.Set(tx, blobs)
 					}
@@ -92,29 +92,6 @@ func BenchmarkTxCache_Operations(b *testing.B) {
 		}
 	})
 
-	b.Run("RemoveTransactions", func(b *testing.B) {
-		for _, tc := range testCases {
-			b.Run(tc.name, func(b *testing.B) {
-				txs := generateRandomTxs(tc.numBlobTxs, txSize)
-				blobs := generateRandomSizedBlobs(tc.numBlobTxs)
-				b.ResetTimer()
-
-				for b.Loop() {
-					b.StopTimer()
-					cache := NewTxCache()
-					for i, tx := range txs {
-						cache.Set(tx, blobs[i])
-					}
-					b.StartTimer()
-
-					for _, tx := range txs {
-						cache.RemoveTransaction(tx)
-					}
-				}
-			})
-		}
-	})
-
 	b.Run("All operations (set, exists, remove)", func(b *testing.B) {
 		for _, tc := range testCases {
 			b.Run(tc.name, func(b *testing.B) {
@@ -125,7 +102,7 @@ func BenchmarkTxCache_Operations(b *testing.B) {
 					txs := generateRandomTxs(tc.numBlobTxs, txSize)
 
 					for _, tx := range txs {
-						blobSize := mathrand.Intn(appconsts.MaxTxSize)
+						blobSize := mathrand.Intn(appconsts.MaxTxSize) + 1
 						blobs := blobfactory.ManyRandBlobs(random.New(), blobSize)
 						cache.Set(tx, blobs)
 					}

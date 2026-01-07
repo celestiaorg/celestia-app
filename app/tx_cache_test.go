@@ -64,7 +64,8 @@ func TestTxCache_SetDuplicate(t *testing.T) {
 	exists, blobHash := cache.Exists(tx)
 	assert.True(t, exists)
 	expectedBlobHash := cache.getBlobsHash(blobs)
-	assert.Equal(t, expectedBlobHash, blobHash)}
+	assert.Equal(t, expectedBlobHash, blobHash)
+}
 
 func TestTxCache_Exists(t *testing.T) {
 	cache := NewTxCache()
@@ -90,6 +91,85 @@ func TestTxCache_ExistsEmpty(t *testing.T) {
 	exists, blobHash := cache.Exists(tx)
 	assert.False(t, exists)
 	assert.Empty(t, blobHash)
+}
+
+func TestTxCache_RemoveTransaction(t *testing.T) {
+	cache := NewTxCache()
+	tx1 := []byte("tx1")
+	tx2 := []byte("tx2")
+	tx3 := []byte("tx3")
+	blobs1 := blobfactory.ManyRandBlobs(random.New(), 1000)
+	blobs2 := blobfactory.ManyRandBlobs(random.New(), 1000)
+	blobs3 := blobfactory.ManyRandBlobs(random.New(), 1000)
+
+	cache.Set(tx1, blobs1)
+	cache.Set(tx2, blobs2)
+	cache.Set(tx3, blobs3)
+	assert.Equal(t, 3, cache.Size())
+
+	cache.RemoveTransaction(tx2)
+
+	assert.Equal(t, 2, cache.Size())
+	exists, blobHash := cache.Exists(tx1)
+	assert.True(t, exists)
+	expectedBlobHash := cache.getBlobsHash(blobs1)
+	assert.Equal(t, expectedBlobHash, blobHash)
+
+	exists, blobHash = cache.Exists(tx2)
+	assert.False(t, exists)
+	assert.Empty(t, blobHash)
+
+	exists, blobHash = cache.Exists(tx3)
+	assert.True(t, exists)
+	expectedBlobHash = cache.getBlobsHash(blobs3)
+	assert.Equal(t, expectedBlobHash, blobHash)
+}
+
+func TestTxCache_RemoveTransactionNonExistent(t *testing.T) {
+	cache := NewTxCache()
+	tx := []byte("tx1")
+	blobs := blobfactory.ManyRandBlobs(random.New(), 1000)
+	nonExistentTx := []byte("non existent")
+
+	cache.Set(tx, blobs)
+	assert.Equal(t, 1, cache.Size())
+
+	cache.RemoveTransaction(nonExistentTx)
+	assert.Equal(t, 1, cache.Size())
+	exists, blobHash := cache.Exists(tx)
+	assert.True(t, exists)
+	expectedBlobHash := cache.getBlobsHash(blobs)
+	assert.Equal(t, expectedBlobHash, blobHash)
+}
+
+func TestTxCache_GetTxKey(t *testing.T) {
+	cache := NewTxCache()
+	tx := []byte("test transaction")
+
+	// same transaction should produce same key
+	key1 := cache.getTxKey(tx)
+	key2 := cache.getTxKey(tx)
+	assert.Equal(t, key1, key2)
+
+	// different transactions should produce different keys
+	tx2 := []byte("different transaction")
+	key3 := cache.getTxKey(tx2)
+	assert.NotEqual(t, key1, key3)
+}
+
+func TestTxCache_GetBlobsHash(t *testing.T) {
+	cache := NewTxCache()
+	blobs := blobfactory.ManyRandBlobs(random.New(), 1000)
+
+	// same blobs should produce same hash
+	blobsHash1 := cache.getBlobsHash(blobs)
+	blobsHash2 := cache.getBlobsHash(blobs)
+	assert.Equal(t, blobsHash1, blobsHash2)
+
+	// different blobs should produce different hashes
+	blobs2 := blobfactory.ManyRandBlobs(random.New(), 1000)
+	blobsHash3 := cache.getBlobsHash(blobs2)
+	assert.NotEqual(t, blobsHash1, blobsHash3)
 }
 
 func TestTxCache_GetTxKeyEmptyTx(t *testing.T) {

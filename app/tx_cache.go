@@ -32,7 +32,7 @@ func (c *TxCache) Exists(tx []byte) (exists bool, blobHash string) {
 	if !exists {
 		return false, ""
 	}
-	// assert that the value is a string
+	// cast the value to a string
 	blobsHash, ok := value.(string)
 	if !ok {
 		return false, ""
