@@ -25,6 +25,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+
+	forwardingtypes "github.com/celestiaorg/celestia-app/v6/x/forwarding/types"
 )
 
 // ABI for only the function we need.
@@ -71,6 +73,11 @@ func mustDecodeHex0x(s string) []byte {
 		panic(err)
 	}
 	return b
+}
+
+func createInterchainAccountsRouter() {
+	msg := forwardingtypes.MsgCreateInterchainAccountsRouter{}
+	_ = msg
 }
 
 func main() {

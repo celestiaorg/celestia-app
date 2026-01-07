@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package celestia.forwarding.v1;
+
+import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/forwarding/types";
+
+// EventCreateInterchainAccountsRouter ...
+message EventCreateInterchainAccountsRouter {
+  option (gogoproto.goproto_getters) = false;
+
+  // unique hyperlane identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // the owner or creator of the ism
+  string owner = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+}

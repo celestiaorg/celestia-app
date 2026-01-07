@@ -44,7 +44,7 @@ func (m *msgServer) CreateInterchainAccountsRouter(ctx context.Context, msg *typ
 		Owner:         msg.Owner,
 	}
 
-	if err = m.Routers.Set(ctx, id.GetInternalId(), router); err != nil {
+	if err = m.InterchainAccountsRouters.Set(ctx, id.GetInternalId(), router); err != nil {
 		return nil, err
 	}
 
@@ -52,7 +52,13 @@ func (m *msgServer) CreateInterchainAccountsRouter(ctx context.Context, msg *typ
 		return nil, err
 	}
 
-	return &types.MsgCreateInterchainAccountsRouterResponse{}, nil
+	if err := EmitCreateInterchainAccountsRouterEvent(sdk.UnwrapSDKContext(ctx), router); err != nil {
+		return nil, err
+	}
+
+	return &types.MsgCreateInterchainAccountsRouterResponse{
+		Id: id,
+	}, nil
 }
 
 // EnrollRemoteRouter implements types.MsgServer.

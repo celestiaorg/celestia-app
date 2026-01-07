@@ -21,8 +21,8 @@ type Keeper struct {
 	hypKeeper types.HyperlaneKeeper
 	msgRouter types.MessageRouter
 
-	// Routers: <id> -> InterchainAccountsRouter
-	Routers collections.Map[uint64, types.InterchainAccountsRouter]
+	// InterchainAccountsRouters: <id> -> InterchainAccountsRouter
+	InterchainAccountsRouters collections.Map[uint64, types.InterchainAccountsRouter]
 	// RemoteRouters: <id> <domain> -> RemoteRouter
 	RemoteRouters collections.Map[collections.Pair[uint64, uint32], types.RemoteRouter]
 }
@@ -32,11 +32,11 @@ func NewKeeper(cdc codec.Codec, storeService storetypes.KVStoreService, hypKeepe
 	sb := collections.NewSchemaBuilder(storeService)
 
 	keeper := Keeper{
-		cdc:           cdc,
-		hypKeeper:     hypKeeper,
-		msgRouter:     msgRouter,
-		Routers:       collections.NewMap(sb, types.RoutersKeyPrefix, "routers", collections.Uint64Key, codec.CollValue[types.InterchainAccountsRouter](cdc)),
-		RemoteRouters: collections.NewMap(sb, types.RemoteRoutersKeyPrefix, "remote_routers", collections.PairKeyCodec(collections.Uint64Key, collections.Uint32Key), codec.CollValue[types.RemoteRouter](cdc)),
+		cdc:                       cdc,
+		hypKeeper:                 hypKeeper,
+		msgRouter:                 msgRouter,
+		InterchainAccountsRouters: collections.NewMap(sb, types.RoutersKeyPrefix, "routers", collections.Uint64Key, codec.CollValue[types.InterchainAccountsRouter](cdc)),
+		RemoteRouters:             collections.NewMap(sb, types.RemoteRoutersKeyPrefix, "remote_routers", collections.PairKeyCodec(collections.Uint64Key, collections.Uint32Key), codec.CollValue[types.RemoteRouter](cdc)),
 	}
 
 	appRouter := hypKeeper.AppRouter()
@@ -52,14 +52,14 @@ func (k *Keeper) Logger(ctx context.Context) log.Logger {
 
 // Exists implements [util.HyperlaneApp].
 func (k *Keeper) Exists(ctx context.Context, recipient util.HexAddress) (bool, error) {
-	return k.Routers.Has(ctx, recipient.GetInternalId())
+	return k.InterchainAccountsRouters.Has(ctx, recipient.GetInternalId())
 }
 
 // Handle implements [util.HyperlaneApp].
 func (k *Keeper) Handle(ctx context.Context, mailboxId util.HexAddress, message util.HyperlaneMessage) error {
 	k.Logger(ctx).Info("Processing interchain accounts msg from Hyperlane core")
 
-	router, err := k.Routers.Get(ctx, message.Recipient.GetInternalId())
+	router, err := k.InterchainAccountsRouters.Get(ctx, message.Recipient.GetInternalId())
 	if err != nil {
 		return err
 	}
@@ -98,7 +98,7 @@ func (k *Keeper) handlePayload(ctx context.Context, icaRouter types.InterchainAc
 
 // ReceiverIsmId implements [util.HyperlaneApp].
 func (k *Keeper) ReceiverIsmId(ctx context.Context, recipient util.HexAddress) (*util.HexAddress, error) {
-	router, err := k.Routers.Get(ctx, recipient.GetInternalId())
+	router, err := k.InterchainAccountsRouters.Get(ctx, recipient.GetInternalId())
 	if err != nil {
 		return nil, fmt.Errorf("TODO: use typed error")
 	}

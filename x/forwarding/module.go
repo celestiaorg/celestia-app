@@ -1,10 +1,12 @@
 package forwarding
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
 	"cosmossdk.io/core/appmodule"
+	"github.com/celestiaorg/celestia-app/v6/x/forwarding/client/cli"
 	"github.com/celestiaorg/celestia-app/v6/x/forwarding/keeper"
 	"github.com/celestiaorg/celestia-app/v6/x/forwarding/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -13,6 +15,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -26,13 +29,13 @@ var (
 
 // AppModule implements the AppModule interface for the forwarding module.
 type AppModule struct {
-	cdc codec.Codec
-	k   keeper.Keeper
+	cdc           codec.Codec
+	forwardKeeper keeper.Keeper
 }
 
 // NewAppModule creates a new AppModule object.
 func NewAppModule(cdc codec.Codec, k keeper.Keeper) AppModule {
-	return AppModule{cdc: cdc}
+	return AppModule{cdc: cdc, forwardKeeper: k}
 }
 
 func (AppModule) IsAppModule() {}
@@ -55,10 +58,22 @@ func (AppModule) RegisterInterfaces(registry cdctypes.InterfaceRegistry) {
 }
 
 // RegisterGRPCGatewayRoutes registers the gRPC Gateway routes for the module.
-func (AppModule) RegisterGRPCGatewayRoutes(_ client.Context, _ *runtime.ServeMux) {}
+func (AppModule) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *runtime.ServeMux) {
+	if err := types.RegisterQueryHandlerClient(context.Background(), mux, types.NewQueryClient(clientCtx)); err != nil {
+		panic(err)
+	}
+}
 
 // RegisterServices registers module services.
-func (AppModule) RegisterServices(_ module.Configurator) {}
+func (am AppModule) RegisterServices(cfg module.Configurator) {
+	types.RegisterMsgServer(cfg.MsgServer(), keeper.NewMsgServerImpl(&am.forwardKeeper))
+	types.RegisterQueryServer(cfg.QueryServer(), &am.forwardKeeper)
+}
+
+// GetTxCmd returns the forwarding module's root tx command.
+func (AppModule) GetTxCmd() *cobra.Command {
+	return cli.GetTxCmd()
+}
 
 // DefaultGenesis returns default genesis state as raw bytes for the forwarding module.
 func (am AppModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {

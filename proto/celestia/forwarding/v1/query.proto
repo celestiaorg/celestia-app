@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package celestia.forwarding.v1;
+
+import "celestia/forwarding/v1/types.proto";
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/forwarding/types";
+
+// Query defines the gRPC query service.
+service Query {
+  // Routers returns all registered routers.
+  rpc Routers(QueryRoutersRequest) returns (QueryRoutersResponse) {
+    option (google.api.http).get = "/celestia/forwarding/v1/routers";
+  }
+  // Router returns a router by id.
+  rpc Router(QueryRouterRequest) returns (QueryRouterResponse) {
+    option (google.api.http).get = "/celestia/forwarding/v1/routers/{id}";
+  }
+}
+
+// QueryRoutersRequest is the request type for the Query/Routers RPC method.
+message QueryRoutersRequest {
+  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+
+// QueryRoutersResponse is the response type for the Query/Routers RPC method.
+message QueryRoutersResponse {
+  repeated InterchainAccountsRouter      routers    = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+// QueryRouterRequest is the request type for the Query/Router RPC method.
+message QueryRouterRequest {
+  string id = 1;
+}
+
+// QueryRouterResponse is the response type for the Query/Router RPC method.
+message QueryRouterResponse {
+  InterchainAccountsRouter router = 1 [(gogoproto.nullable) = false];
+}
