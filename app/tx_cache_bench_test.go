@@ -31,12 +31,9 @@ func generateRandomSizedBlobs(count int) [][]*share.Blob {
 }
 
 // populateCache fills the cache with the given transactions
-func populateCache(cache *TxCache, txs [][]byte) {
-	for _, tx := range txs {
-		// create a random blob of random size up to maxtxsize
-		blobSize := mathrand.Intn(appconsts.MaxTxSize)
-		blobs := blobfactory.ManyRandBlobs(random.New(), blobSize)
-		cache.Set(tx, blobs)
+func populateCache(cache *TxCache, txs [][]byte, blobs [][]*share.Blob) {
+	for i, tx := range txs {
+		cache.Set(tx, blobs[i])
 	}
 }
 
@@ -82,7 +79,8 @@ func BenchmarkTxCache_Operations(b *testing.B) {
 			b.Run(tc.name, func(b *testing.B) {
 				cache := NewTxCache()
 				txs := generateRandomTxs(tc.numBlobTxs, txSize)
-				populateCache(cache, txs)
+				blobs := generateRandomSizedBlobs(tc.numBlobTxs)
+				populateCache(cache, txs, blobs)
 				b.ResetTimer()
 
 				for b.Loop() {
@@ -99,19 +97,18 @@ func BenchmarkTxCache_Operations(b *testing.B) {
 			b.Run(tc.name, func(b *testing.B) {
 				txs := generateRandomTxs(tc.numBlobTxs, txSize)
 				blobs := generateRandomSizedBlobs(tc.numBlobTxs)
-				cache := NewTxCache()
-				for i, tx := range txs {
-					cache.Set(tx, blobs[i])
-				}
 				b.ResetTimer()
 
 				for b.Loop() {
-					for _, tx := range txs {
-						cache.RemoveTransaction(tx)
-					}
-					// Re-populate for next iteration otherwise we will be removing from an empty cache
+					b.StopTimer()
+					cache := NewTxCache()
 					for i, tx := range txs {
 						cache.Set(tx, blobs[i])
+					}
+					b.StartTimer()
+
+					for _, tx := range txs {
+						cache.RemoveTransaction(tx)
 					}
 				}
 			})

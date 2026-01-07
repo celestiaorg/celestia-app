@@ -272,7 +272,7 @@ func TestValidateBlobTxWithCache(t *testing.T) {
 	namespace1, err := share.NewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
 	require.NoError(t, err)
 
-	accounts := []string{"a", "b", "c", "d"}
+	accounts := []string{"a", "b", "c", "d", "e"}
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 
 	signers := make([]*user.Signer, len(accounts))
@@ -344,6 +344,34 @@ func TestValidateBlobTxWithCache(t *testing.T) {
 		fromCache, err := testApp.ValidateBlobTxWithCache(blobTx)
 		assert.True(t, fromCache, "should have attempted cache validation")
 		assert.Error(t, err, "expected error for invalid blob tx")
+	})
+
+	t.Run("cached blob tx with different blobs fails", func(t *testing.T) {
+		blobTxBytes := blobfactory.RandBlobTxsWithNamespacesAndSigner(
+			signers[4],
+			[]share.Namespace{namespace1},
+			[]int{100},
+		)[0]
+
+		blobTx, isBlobTx, err := tx.UnmarshalBlobTx(blobTxBytes)
+		require.NoError(t, err)
+		require.True(t, isBlobTx)
+
+		resp, err := testApp.CheckTx(&abci.RequestCheckTx{
+			Type: abci.CheckTxType_New,
+			Tx:   blobTxBytes,
+		})
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, resp.Code)
+
+		// replace the blob with a different one
+		blob, err := share.NewBlob(share.RandomBlobNamespace(), blobTx.Blobs[0].Data(), appconsts.DefaultShareVersion, nil)
+		require.NoError(t, err)
+		blobTx.Blobs[0] = blob
+
+		fromCache, err := testApp.ValidateBlobTxWithCache(blobTx)
+		require.Error(t, err, "proposed blob hash does not match cached blob hash")
+		assert.True(t, fromCache, "expected validation from cache")
 	})
 
 	t.Run("cache is cleaned after FinalizeBlock", func(t *testing.T) {
