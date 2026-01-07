@@ -98,18 +98,18 @@ func (k *Keeper) handlePayload(ctx context.Context, icaRouter types.InterchainAc
 
 // ReceiverIsmId implements [util.HyperlaneApp].
 func (k *Keeper) ReceiverIsmId(ctx context.Context, recipient util.HexAddress) (*util.HexAddress, error) {
-	token, err := k.Routers.Get(ctx, recipient.GetInternalId())
+	router, err := k.Routers.Get(ctx, recipient.GetInternalId())
 	if err != nil {
 		return nil, fmt.Errorf("TODO: use typed error")
 	}
 
-	if token.IsmId == nil {
-		mailbox, err := k.hypKeeper.GetMailbox(ctx, token.OriginMailbox)
+	if router.IsmId == nil {
+		mailbox, err := k.hypKeeper.GetMailbox(ctx, router.OriginMailbox)
 		if err != nil {
 			return nil, err
 		}
 		return &mailbox.DefaultIsm, nil
 	}
 
-	return token.IsmId, nil
+	return router.IsmId, nil
 }

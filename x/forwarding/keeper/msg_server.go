@@ -2,7 +2,9 @@ package keeper
 
 import (
 	"context"
+	"fmt"
 
+	"cosmossdk.io/collections"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/celestiaorg/celestia-app/v6/x/forwarding/types"
@@ -22,13 +24,13 @@ func NewMsgServerImpl(keeper *Keeper) types.MsgServer {
 
 // CreateInterchainAccountsRouter implements types.MsgServer.
 func (m *msgServer) CreateInterchainAccountsRouter(ctx context.Context, msg *types.MsgCreateInterchainAccountsRouter) (*types.MsgCreateInterchainAccountsRouterResponse, error) {
-	// has, err := m.hyperlaneKeeper.GetMailbox()
-	// if err != nil {
-	// 	return util.HexAddress{}, err
-	// }
-	// if !has {
-	// 	return util.HexAddress{}, fmt.Errorf("failed to find mailbox with id: %s", msg.OriginMailbox.String())
-	// }
+	has, err := m.hypKeeper.MailboxIdExists(ctx, msg.OriginMailbox)
+	if err != nil {
+		return nil, err
+	}
+	if !has {
+		return nil, fmt.Errorf("failed to find mailbox with id: %s", msg.OriginMailbox.String())
+	}
 
 	id, err := m.hypKeeper.AppRouter().GetNextSequence(ctx, uint8(types.HyperlaneModuleID))
 	if err != nil {
@@ -37,11 +39,16 @@ func (m *msgServer) CreateInterchainAccountsRouter(ctx context.Context, msg *typ
 
 	router := types.InterchainAccountsRouter{
 		Id: id,
-		// Owner:         msg.Owner,
-		// OriginMailbox: msg.OriginMailbox,
+		// IsmId: ,
+		OriginMailbox: msg.OriginMailbox,
+		Owner:         msg.Owner,
 	}
 
 	if err = m.Routers.Set(ctx, id.GetInternalId(), router); err != nil {
+		return nil, err
+	}
+
+	if err := m.RemoteRouters.Set(ctx, collections.Join(id.GetInternalId(), msg.RemoteRouter.ReceiverDomain), *msg.RemoteRouter); err != nil {
 		return nil, err
 	}
 

@@ -29,12 +29,27 @@ message MsgCreateInterchainAccountsRouter {
 
   // owner is the message sender.
   string owner = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // origin mailbox identifier.
+  string origin_mailbox = 2 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // optional ism identifier (overrides mailbox default).
+  string ism_id = 4 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = true
+  ];
   // the remote router to register.
-  RemoteRouter remote_router = 2;
+  RemoteRouter remote_router = 3;
 }
 
 // MsgCreateInterchainAccountsRouterResponse ...
-message MsgCreateInterchainAccountsRouterResponse {}
+message MsgCreateInterchainAccountsRouterResponse {
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+}
 
 // MsgEnrollRemoteRouter ...
 message MsgEnrollRemoteRouter {

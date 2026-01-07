@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package celestia.forwarding.v1;
 
+import "cosmos_proto/cosmos.proto";
 import "gogoproto/gogo.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/forwarding/types";
@@ -23,6 +24,8 @@ message InterchainAccountsRouter {
     (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
     (gogoproto.nullable)   = true
   ];
+  // owner
+  string owner = 4 [(cosmos_proto.scalar) = "cosmos.AddressString"];
 }
 
 // RemoteRouter ...
