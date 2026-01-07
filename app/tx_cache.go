@@ -3,6 +3,8 @@ package app
 import (
 	"crypto/sha256"
 	"sync"
+
+	"github.com/celestiaorg/go-square/v3/share"
 )
 
 // TxCache caches the transactions
@@ -24,16 +26,34 @@ func (c *TxCache) getTxKey(tx []byte) string {
 }
 
 // Exists checks whether the Tx exists in the cache
-func (c *TxCache) Exists(tx []byte) (exists bool) {
+func (c *TxCache) Exists(tx []byte) (exists bool, blobHash string) {
 	key := c.getTxKey(tx)
-	_, exists = c.cache.Load(key)
-	return exists
+	value, exists := c.cache.Load(key)
+	if !exists {
+		return false, ""
+	}
+	// assert that the value is a string
+	blobsHash, ok := value.(string)
+	if !ok {
+		return false, ""
+	}
+	return exists, blobsHash
 }
 
 // Set stores the Tx in the cache
-func (c *TxCache) Set(tx []byte) {
+func (c *TxCache) Set(tx []byte, blobs []*share.Blob) {
 	key := c.getTxKey(tx)
-	c.cache.Store(key, struct{}{})
+	blobsHash := c.getBlobsHash(blobs)
+	c.cache.Store(key, blobsHash)
+}
+
+func (c *TxCache) getBlobsHash(blobs []*share.Blob) string {
+	blobsData := make([]byte, 0, len(blobs))
+	for _, blob := range blobs {
+		blobsData = append(blobsData, blob.Data()...)
+	}
+	blobsHash := sha256.Sum256(blobsData)
+	return string(blobsHash[:])
 }
 
 // RemoveTransaction removes specific transactions from the cache

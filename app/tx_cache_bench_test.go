@@ -2,7 +2,13 @@ package app
 
 import (
 	"crypto/rand"
+	mathrand "math/rand"
 	"testing"
+
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/random"
+	"github.com/celestiaorg/go-square/v3/share"
 )
 
 func generateRandomTxs(count int, size int) [][]byte {
@@ -15,10 +21,22 @@ func generateRandomTxs(count int, size int) [][]byte {
 	return txs
 }
 
+func generateRandomSizedBlobs(count int) [][]*share.Blob {
+	blobs := make([][]*share.Blob, count)
+	for i := range count {
+		blobSize := mathrand.Intn(appconsts.MaxTxSize)
+		blobs[i] = blobfactory.ManyRandBlobs(random.New(), blobSize)
+	}
+	return blobs
+}
+
 // populateCache fills the cache with the given transactions
 func populateCache(cache *TxCache, txs [][]byte) {
 	for _, tx := range txs {
-		cache.Set(tx)
+		// create a random blob of random size up to maxtxsize
+		blobSize := mathrand.Intn(appconsts.MaxTxSize)
+		blobs := blobfactory.ManyRandBlobs(random.New(), blobSize)
+		cache.Set(tx, blobs)
 	}
 }
 
@@ -50,7 +68,9 @@ func BenchmarkTxCache_Operations(b *testing.B) {
 					b.StartTimer()
 
 					for _, tx := range txs {
-						cache.Set(tx)
+						blobSize := mathrand.Intn(appconsts.MaxTxSize)
+						blobs := blobfactory.ManyRandBlobs(random.New(), blobSize)
+						cache.Set(tx, blobs)
 					}
 				}
 			})
@@ -78,16 +98,20 @@ func BenchmarkTxCache_Operations(b *testing.B) {
 		for _, tc := range testCases {
 			b.Run(tc.name, func(b *testing.B) {
 				txs := generateRandomTxs(tc.numBlobTxs, txSize)
+				blobs := generateRandomSizedBlobs(tc.numBlobTxs)
+				cache := NewTxCache()
+				for i, tx := range txs {
+					cache.Set(tx, blobs[i])
+				}
 				b.ResetTimer()
 
 				for b.Loop() {
-					b.StopTimer()
-					cache := NewTxCache()
-					populateCache(cache, txs)
-					b.StartTimer()
-
 					for _, tx := range txs {
 						cache.RemoveTransaction(tx)
+					}
+					// Re-populate for next iteration otherwise we will be removing from an empty cache
+					for i, tx := range txs {
+						cache.Set(tx, blobs[i])
 					}
 				}
 			})
@@ -104,7 +128,9 @@ func BenchmarkTxCache_Operations(b *testing.B) {
 					txs := generateRandomTxs(tc.numBlobTxs, txSize)
 
 					for _, tx := range txs {
-						cache.Set(tx)
+						blobSize := mathrand.Intn(appconsts.MaxTxSize)
+						blobs := blobfactory.ManyRandBlobs(random.New(), blobSize)
+						cache.Set(tx, blobs)
 					}
 
 					for _, tx := range txs {

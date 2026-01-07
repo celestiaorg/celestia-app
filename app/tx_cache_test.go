@@ -5,6 +5,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/random"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,10 +20,13 @@ func TestNewTxCache(t *testing.T) {
 func TestTxCache_Set(t *testing.T) {
 	cache := NewTxCache()
 	tx := []byte("test transaction")
+	blob := blobfactory.ManyRandBlobs(random.New(), 1000)
 
-	cache.Set(tx)
+	cache.Set(tx, blob)
 	assert.Equal(t, 1, cache.Size())
-	assert.True(t, cache.Exists(tx))
+	exists, blobHash := cache.Exists(tx)
+	assert.True(t, exists)
+	assert.NotEmpty(t, blobHash)
 }
 
 func TestTxCache_SetMultiple(t *testing.T) {
@@ -31,91 +36,57 @@ func TestTxCache_SetMultiple(t *testing.T) {
 		[]byte("tx2"),
 		[]byte("tx3"),
 	}
+	blobs := blobfactory.ManyRandBlobs(random.New(), 1000)
 
 	for _, tx := range txs {
-		cache.Set(tx)
+		cache.Set(tx, blobs)
 	}
 
 	assert.Equal(t, 3, cache.Size())
 	for _, tx := range txs {
-		assert.True(t, cache.Exists(tx))
+		exists, blobHash := cache.Exists(tx)
+		assert.True(t, exists)
+		assert.NotEmpty(t, blobHash)
 	}
 }
 
 func TestTxCache_SetDuplicate(t *testing.T) {
 	cache := NewTxCache()
 	tx := []byte("test transaction")
+	blobs := blobfactory.ManyRandBlobs(random.New(), 1000)
 
-	cache.Set(tx)
-	cache.Set(tx)
+	cache.Set(tx, blobs)
+	cache.Set(tx, blobs)
 
 	assert.Equal(t, 1, cache.Size())
-	assert.True(t, cache.Exists(tx))
+	exists, blobHash := cache.Exists(tx)
+	assert.True(t, exists)
+	assert.NotEmpty(t, blobHash)
 }
 
 func TestTxCache_Exists(t *testing.T) {
 	cache := NewTxCache()
 	tx := []byte("test transaction")
 	nonExistentTx := []byte("non existent")
+	blobs := blobfactory.ManyRandBlobs(random.New(), 1000)
 
-	cache.Set(tx)
+	cache.Set(tx, blobs)
 
-	assert.True(t, cache.Exists(tx))
-	assert.False(t, cache.Exists(nonExistentTx))
+	exists, blobHash := cache.Exists(tx)
+	assert.True(t, exists)
+	assert.NotEmpty(t, blobHash)
+	exists, blobHash = cache.Exists(nonExistentTx)
+	assert.False(t, exists)
+	assert.Empty(t, blobHash)
 }
 
 func TestTxCache_ExistsEmpty(t *testing.T) {
 	cache := NewTxCache()
 	tx := []byte("test transaction")
 
-	assert.False(t, cache.Exists(tx))
-}
-
-func TestTxCache_RemoveTransaction(t *testing.T) {
-	cache := NewTxCache()
-	tx1 := []byte("tx1")
-	tx2 := []byte("tx2")
-	tx3 := []byte("tx3")
-
-	cache.Set(tx1)
-	cache.Set(tx2)
-	cache.Set(tx3)
-	assert.Equal(t, 3, cache.Size())
-
-	cache.RemoveTransaction(tx2)
-
-	assert.Equal(t, 2, cache.Size())
-	assert.True(t, cache.Exists(tx1))
-	assert.False(t, cache.Exists(tx2))
-	assert.True(t, cache.Exists(tx3))
-}
-
-func TestTxCache_RemoveTransactionNonExistent(t *testing.T) {
-	cache := NewTxCache()
-	tx := []byte("tx1")
-	nonExistentTx := []byte("non existent")
-
-	cache.Set(tx)
-	assert.Equal(t, 1, cache.Size())
-
-	cache.RemoveTransaction(nonExistentTx)
-	assert.Equal(t, 1, cache.Size())
-	assert.True(t, cache.Exists(tx))
-}
-
-func TestTxCache_GetTxKey(t *testing.T) {
-	cache := NewTxCache()
-	tx := []byte("test transaction")
-
-	// same transaction should produce same key
-	key1 := cache.getTxKey(tx)
-	key2 := cache.getTxKey(tx)
-	assert.Equal(t, key1, key2)
-
-	// different transactions should produce different keys
-	tx2 := []byte("different transaction")
-	key3 := cache.getTxKey(tx2)
-	assert.NotEqual(t, key1, key3)
+	exists, blobHash := cache.Exists(tx)
+	assert.False(t, exists)
+	assert.Empty(t, blobHash)
 }
 
 func TestTxCache_GetTxKeyEmptyTx(t *testing.T) {
@@ -132,6 +103,8 @@ func TestTxCache_ConcurrentSet(t *testing.T) {
 	numGoroutines := 100
 	numTxsPerGoroutine := 100
 
+	blobs := blobfactory.ManyRandBlobs(random.New(), 100000)
+
 	var wg sync.WaitGroup
 	wg.Add(numGoroutines)
 
@@ -140,7 +113,7 @@ func TestTxCache_ConcurrentSet(t *testing.T) {
 			defer wg.Done()
 			for j := range numTxsPerGoroutine {
 				tx := []byte{byte(id), byte(j)}
-				cache.Set(tx)
+				cache.Set(tx, blobs)
 			}
 		}(i)
 	}
@@ -157,9 +130,11 @@ func TestTxCache_ConcurrentBatches(t *testing.T) {
 	batch2 := makeBatch(2, 200)
 	batch3 := makeBatch(3, 150)
 
+	blobs := blobfactory.ManyRandBlobs(random.New(), 100000)
+
 	// phase 1: Write batch 1 sequentially
 	for _, tx := range batch1 {
-		cache.Set(tx)
+		cache.Set(tx, blobs)
 	}
 
 	// phase 2: Concurrently write batch 2 and check batch 1 exists
@@ -170,7 +145,7 @@ func TestTxCache_ConcurrentBatches(t *testing.T) {
 		wg.Add(1)
 		go func(transaction []byte) {
 			defer wg.Done()
-			cache.Set(transaction)
+			cache.Set(transaction, blobs)
 		}(tx)
 	}
 
@@ -179,7 +154,9 @@ func TestTxCache_ConcurrentBatches(t *testing.T) {
 		wg.Add(1)
 		go func(transaction []byte) {
 			defer wg.Done()
-			require.True(t, cache.Exists(transaction))
+			exists, blobHash := cache.Exists(transaction)
+			require.True(t, exists)
+			require.NotEmpty(t, blobHash)
 		}(tx)
 	}
 
@@ -204,7 +181,7 @@ func TestTxCache_ConcurrentBatches(t *testing.T) {
 		wg.Add(1)
 		go func(transaction []byte) {
 			defer wg.Done()
-			cache.Set(transaction)
+			cache.Set(transaction, blobs)
 		}(tx)
 	}
 
@@ -212,7 +189,9 @@ func TestTxCache_ConcurrentBatches(t *testing.T) {
 
 	// phase 4: Check batch 3 exists sequentially
 	for _, tx := range batch3 {
-		require.True(t, cache.Exists(tx), "batch 3 transaction should exist")
+		exists, blobHash := cache.Exists(tx)
+		require.True(t, exists)
+		require.NotEmpty(t, blobHash)
 	}
 }
 

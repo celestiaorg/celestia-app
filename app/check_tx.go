@@ -60,7 +60,7 @@ func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) 
 			return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 		}
 		// Cache the tx, so ProcessProposal will skip the validation step
-		app.txCache.Set(btx.Tx)
+		app.txCache.Set(btx.Tx, btx.Blobs)
 	case abci.CheckTxType_Recheck:
 		// no need to re-validate a blob
 	default:
