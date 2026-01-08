@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -69,7 +70,13 @@ func (k *Keeper) Handle(ctx context.Context, mailboxId util.HexAddress, message 
 		return err
 	}
 
-	k.Logger(ctx).Info("ICA Payload info", payload)
+	k.Logger(ctx).Info(
+		"ICA Payload info...",
+		"payload owner", hex.EncodeToString(payload.Owner[:]),
+		"payload ism", hex.EncodeToString(payload.Ism[:]),
+		"payload message type", payload.MessageType,
+		"payload calls", len(payload.Calls),
+	)
 
 	if router.OriginMailbox != mailboxId {
 		return fmt.Errorf("invalid origin mailbox address")
@@ -92,7 +99,29 @@ func (k *Keeper) Handle(ctx context.Context, mailboxId util.HexAddress, message 
 }
 
 func (k *Keeper) handlePayload(ctx context.Context, icaRouter types.InterchainAccountsRouter, payload types.InterchainAccountsPayload) error {
+	msgs := make([]sdk.Msg, len(payload.Calls))
+	for i, protoAny := range payload.Calls {
+		var msg sdk.Msg
+		err := k.cdc.UnpackAny(&protoAny, &msg)
+		if err != nil {
+			return err
+		}
+
+		msgs[i] = msg
+	}
+
+	for _, msg := range msgs {
+		handler := k.msgRouter.Handler(msg)
+		if handler == nil {
+			return fmt.Errorf("no handler for msg: %s", sdk.MsgTypeURL(msg))
+		}
+
+		res, err := handler(sdk.UnwrapSDKContext(ctx), msg)
+		_, _ = res, err
+	}
+
 	k.Logger(ctx).Info("Successfully processed interchain accounts msg from Hyperlane core")
+
 	return nil
 }
 

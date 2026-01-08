@@ -68,6 +68,7 @@ func (m *msgServer) EnrollRemoteRouter(ctx context.Context, msg *types.MsgEnroll
 
 // WarpForward implements types.MsgServer.
 func (m *msgServer) WarpForward(ctx context.Context, msg *types.MsgWarpForward) (*types.MsgWarpForwardResponse, error) {
+	m.Logger(ctx).Info("MsgWarpForward: handler", "msg", msg)
 	forwardAddr := types.DeriveForwardAddress(msg.DerivationKeys()...)
 
 	tokenId, err := util.DecodeHexAddress(msg.Token.Denom)

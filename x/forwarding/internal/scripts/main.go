@@ -17,17 +17,20 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"os"
 	"strings"
 
+	sdkmath "cosmossdk.io/math"
+	"github.com/bcp-innovations/hyperlane-cosmos/util"
+	forwardingtypes "github.com/celestiaorg/celestia-app/v6/x/forwarding/types"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-
-	forwardingtypes "github.com/celestiaorg/celestia-app/v6/x/forwarding/types"
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 )
 
 // ABI for only the function we need.
@@ -67,17 +70,17 @@ func addressToBytes32(addr common.Address) [32]byte {
 	return out
 }
 
-func mustDecodeHex0x(s string) []byte {
-	s = strings.TrimPrefix(s, "0x")
-	b, err := hex.DecodeString(s)
+func msgBytes() []byte {
+	recipient, err := util.DecodeHexAddress("0x000000000000000000000000AF9053BB6C4346381C77C2FED279B17ABAFCDF4D")
 	if err != nil {
 		panic(err)
 	}
-	return b
-}
 
-func msgBytes() []byte {
-	msg := forwardingtypes.MsgWarpForward{DestinationDomain: 142}
+	msg := forwardingtypes.MsgWarpForward{
+		DestinationDomain: 5678,
+		Recipient:         recipient,
+		Token:             sdk.NewCoin("utia", sdkmath.NewInt(1000000)),
+	}
 
 	pbAny, err := codectypes.NewAnyWithValue(&msg)
 	if err != nil {
@@ -97,15 +100,13 @@ func main() {
 	rpcURL := "http://localhost:8545"
 	chainID := big.NewInt(1234) // set your chain id
 
-	// TODO: Read from environment variable as HYP_KEY here and trim 0x prefix
-	privateKeyHex := "82bfcfadbf1712f6550d8d2c00a39f05b33ec78939d0167be2a737d691f33a6a"
+	privateKeyHex := strings.TrimPrefix(os.Getenv("PRIVATE_KEY"), "0x")
 
 	routerAddr := common.HexToAddress("0x9F098AE0AC3B7F75F0B3126f471E5F592b47F300")
 	destinationDomain := uint32(69420) // set your destination domain
 
-	// Target contract on destination chain (EVM):
+	// Target contract on destination chain:
 	targetAddr := common.HexToAddress("0xTargetContractHere")
-	// Example: arbitrary bytes you want to deliver (protobuf blob, etc.)
 	protoBytes := msgBytes()
 
 	calls := []Call{
@@ -162,12 +163,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	head, err := client.HeaderByNumber(context.Background(), nil)
+
+	header, err := client.HeaderByNumber(context.Background(), nil)
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	// maxFeePerGas = baseFee*2 + tip (simple heuristic)
-	feeCap := new(big.Int).Add(new(big.Int).Mul(head.BaseFee, big.NewInt(2)), tipCap)
+	feeCap := new(big.Int).Add(new(big.Int).Mul(header.BaseFee, big.NewInt(2)), tipCap)
 
 	// 0 ETH value to router (router pays nothing by default; IGP is separate)
 	tx := types.NewTx(&types.DynamicFeeTx{
@@ -187,7 +190,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Send it
 	if err := client.SendTransaction(context.Background(), signedTx); err != nil {
 		log.Fatal("failed to send tx", err)
 	}

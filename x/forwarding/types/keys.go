@@ -118,6 +118,8 @@ func ParseInterchainAccountsPayload(data []byte) (InterchainAccountsPayload, err
 			return InterchainAccountsPayload{}, err
 		}
 		decodedCalls[i] = any
+
+		fmt.Printf("Forwarding... pb any type url: %s\n", any.TypeUrl)
 	}
 
 	return InterchainAccountsPayload{
