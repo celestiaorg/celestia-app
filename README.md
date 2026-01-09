@@ -74,7 +74,7 @@ If you'd rather not install from source, you can download a prebuilt binary from
     celestia-app_Linux_x86_64.tar.gz: OK
     ```
 
-See <https://docs.celestia.org/how-to-guides/celestia-app> for more information.
+See <https://docs.celestia.org/operate/consensus-validators/install-celestia-app/> for more information.
 
 ## Usage
 
