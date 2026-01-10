@@ -8,7 +8,7 @@ func GetTimeoutCommit(_ uint64) time.Duration {
 	return TimeoutCommit
 }
 
-// GetSquareSizeUpperBound return the upper bound (consensus critical) square
+// GetSquareSizeUpperBound returns the upper bound (consensus critical) square
 // size given the chain-id. As of app version 5, all networks including
 // testnetworks will have the same size, however in the past (and presumably
 // in the future) this has not been the case hence this function existing.

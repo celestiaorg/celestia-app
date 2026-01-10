@@ -68,7 +68,7 @@ func (d BlobShareDecorator) validateMsgs(msgs []sdk.Msg, txSize uint32, maxBlobS
 	return nil
 }
 
-// getMaxBlobShares returns the max the number of shares available for blob data.
+// getMaxBlobShares returns the max number of shares in the square.
 func (d BlobShareDecorator) getMaxBlobShares(ctx sdk.Context) int {
 	squareSize := d.getMaxSquareSize(ctx)
 	totalShares := squareSize * squareSize
