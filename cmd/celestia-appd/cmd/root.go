@@ -88,12 +88,19 @@ func NewRootCmd() *cobra.Command {
 				return err
 			}
 
-			return replaceLogger(command)
+			return replaceLoggerWithFileSupport(command, app.NodeHome)
 		},
 		SilenceUsage: true,
 	}
 
 	rootCommand.PersistentFlags().String(FlagLogToFile, "", "Write logs directly to a file. If empty, logs are written to stderr")
+
+	defaultConfig := DefaultFileLogConfig(app.NodeHome)
+	rootCommand.PersistentFlags().Bool(FlagDisableDebugLog, defaultConfig.DisableDebugLog, "Disable automatic debug log file")
+	rootCommand.PersistentFlags().String(FlagLogDir, defaultConfig.LogDir, "Directory for log files")
+	rootCommand.PersistentFlags().Int(FlagLogMaxSize, defaultConfig.MaxSize, "Maximum size in MB of a single log file before rotation")
+	rootCommand.PersistentFlags().Int(FlagLogMaxBackups, defaultConfig.MaxBackups, "Maximum number of old log files to retain")
+
 	initRootCommand(rootCommand, tempApp)
 
 	autoCliOpts := tempApp.AutoCliOpts()
@@ -160,7 +167,7 @@ func addStartFlags(startCmd *cobra.Command) {
 }
 
 // replaceLogger optionally replaces the logger with a file logger if the flag
-// is set to something other than the default.
+// is set. Backward compatibility for the simple --log-to-file flag.
 func replaceLogger(cmd *cobra.Command) error {
 	logFilePath, err := cmd.Flags().GetString(FlagLogToFile)
 	if err != nil {
