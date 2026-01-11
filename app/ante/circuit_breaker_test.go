@@ -44,7 +44,7 @@ func TestCircuitBreaker(t *testing.T) {
 			errors.New("tx type not allowed"),
 		},
 		{
-			"failure ibc software upgrade is blocked",
+			"failure: ibc software upgrade is blocked",
 			&ibcclienttypes.MsgIBCSoftwareUpgrade{},
 			errors.New("tx type not allowed"),
 		},
