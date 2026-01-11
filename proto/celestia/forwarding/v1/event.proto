@@ -1,0 +1,50 @@
+syntax = "proto3";
+package celestia.forwarding.v1;
+
+import "gogoproto/gogo.proto";
+import "cosmos_proto/cosmos.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/forwarding/types";
+
+// EventTokenForwarded is emitted when a token is forwarded.
+message EventTokenForwarded {
+  // forward_addr is the forwarding address.
+  string forward_addr = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+
+  // denom is the token denomination.
+  string denom = 2;
+
+  // amount is the amount forwarded.
+  string amount = 3 [
+    (cosmos_proto.scalar)  = "cosmos.Int",
+    (gogoproto.customtype) = "cosmossdk.io/math.Int",
+    (gogoproto.nullable)   = false
+  ];
+
+  // message_id is the Hyperlane message ID.
+  string message_id = 4;
+
+  // success indicates whether the forward succeeded.
+  bool success = 5;
+
+  // error contains the error message if failed.
+  string error = 6;
+}
+
+// EventForwardingComplete is emitted when all tokens at an address are processed.
+message EventForwardingComplete {
+  // forward_addr is the forwarding address.
+  string forward_addr = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+
+  // dest_domain is the destination chain domain ID.
+  uint32 dest_domain = 2;
+
+  // dest_recipient is the recipient on destination chain.
+  string dest_recipient = 3;
+
+  // tokens_forwarded is the count of successfully forwarded tokens.
+  uint32 tokens_forwarded = 4;
+
+  // tokens_failed is the count of tokens that failed to forward.
+  uint32 tokens_failed = 5;
+}
