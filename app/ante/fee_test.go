@@ -120,7 +120,7 @@ func TestValidateTxFee(t *testing.T) {
 			minGasPrice: validatorMinGasPriceCoin,
 		},
 		{
-			name:        "min gas price is empty",
+			name:        "good tx; min gas price is empty",
 			fee:         sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
 			gasLimit:    uint64(float64(feeAmount) / appconsts.DefaultMinGasPrice),
 			isCheckTx:   true,
@@ -128,7 +128,7 @@ func TestValidateTxFee(t *testing.T) {
 			minGasPrice: "", // should use the default min gas price
 		},
 		{
-			name:        "min gas price is empty",
+			name:        "bad tx; min gas price is empty",
 			fee:         sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount-1)),
 			gasLimit:    uint64(float64(feeAmount) / appconsts.DefaultMinGasPrice),
 			isCheckTx:   true,
