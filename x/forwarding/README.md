@@ -152,6 +152,43 @@ Shows all component interactions from user intent to final delivery:
 6. Relayer submits `MsgExecuteForwarding`
 7. Module triggers outbound warp transfer to destination
 
+### Multi-Token Batch Processing
+
+Shows how multiple tokens at a forwarding address are processed independently. Key design: one failing token doesn't block others.
+
+```
+        MsgExecuteForwarding
+                 │
+                 ▼
+    ┌────────────────────────┐
+    │   GetAllBalances()     │
+    │   [USDC, WETH, TIA]    │
+    └───────────┬────────────┘
+                │
+      ┌─────────┼─────────┐
+      ▼         ▼         ▼
+  ┌───────┐ ┌───────┐ ┌───────┐
+  │ USDC  │ │ WETH  │ │  TIA  │
+  │process│ │process│ │process│
+  └───┬───┘ └───┬───┘ └───┬───┘
+      │         │         │
+      ▼         ▼         ▼
+   SUCCESS   FAILED    SUCCESS
+  (forward) (no route) (forward)
+      │         │         │
+      └─────────┴─────────┘
+                │
+                ▼
+    ┌────────────────────────┐
+    │ Response:              │
+    │  USDC: ✓ msgId=0x...   │
+    │  WETH: ✗ "no route"    │
+    │  TIA:  ✓ msgId=0x...   │
+    └────────────────────────┘
+```
+
+WETH stays at `forwardAddr` for retry when a route is added.
+
 ## State
 
 The forwarding module maintains minimal state:
@@ -170,7 +207,41 @@ message Params {
 
 ## Address Derivation
 
-Forwarding addresses are deterministically derived from the destination parameters:
+Forwarding addresses are deterministically derived from the destination parameters.
+
+### Derivation Pipeline
+
+For SDK implementers ensuring cross-platform consistency:
+
+```
+        (destDomain, destRecipient)
+                    │
+                    ▼
+   ┌─────────────────────────────────────┐
+   │ destDomain → 32-byte big-endian     │
+   │ (value at bytes 28-31)              │
+   └─────────────────────────────────────┘
+                    │
+                    ▼
+   ┌─────────────────────────────────────┐
+   │ keccak256(domainBytes || recipient) │
+   │              = callDigest           │
+   └─────────────────────────────────────┘
+                    │
+                    ▼
+   ┌─────────────────────────────────────┐
+   │ keccak256("CELESTIA_FORWARD_V1"     │
+   │            || callDigest) = salt    │
+   └─────────────────────────────────────┘
+                    │
+                    ▼
+   ┌─────────────────────────────────────┐
+   │ sha256("forwarding" || salt)[:20]   │
+   │           = forwardAddr             │
+   └─────────────────────────────────────┘
+```
+
+### Implementation
 
 ```go
 func DeriveForwardingAddress(destDomain uint32, destRecipient []byte) sdk.AccAddress {
