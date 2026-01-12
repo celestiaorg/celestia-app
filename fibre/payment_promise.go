@@ -10,6 +10,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v6/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
+	"github.com/cometbft/cometbft/crypto/ed25519"
+	core "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	gogoproto "github.com/cosmos/gogoproto/proto"
 )
@@ -174,9 +176,9 @@ const (
 	// (excluding encoding overhead, like protobuf)
 	MaxPaymentPromiseSize = signBytesFixedSize + signatureSize + maxChainIDSize
 
-	// SignBytesPrefix is prepended to the sign bytes to ensure the resulting signed message
+	// signBytesPrefix is prepended to the sign bytes to ensure the resulting signed message
 	// can't be confused with a consensus message (domain separation).
-	SignBytesPrefix = "fibre/pp:v0"
+	signBytesPrefix = "fibre/pp:v0"
 	// signBytesFixedSize is the size of all the constant fixed size fields.
 	// Format: signerPubKey(33) + namespace(29) + blobSize(4) + commitment(32) + blobVersion(4) + height(8) + timestamp(15)
 	signBytesFixedSize = secp256k1.PubKeySize + share.NamespaceSize + 4 + 32 + 4 + 8 + 15
@@ -208,11 +210,11 @@ func (p *PaymentPromise) SignBytes() ([]byte, error) {
 		}
 
 		// calculate total size including the prefix
-		totalSize := len(SignBytesPrefix) + len(p.ChainID) + signBytesFixedSize
+		totalSize := len(signBytesPrefix) + len(p.ChainID) + signBytesFixedSize
 		buf := make([]byte, 0, totalSize)
 
 		// prepend domain separation prefix
-		buf = append(buf, []byte(SignBytesPrefix)...)
+		buf = append(buf, []byte(signBytesPrefix)...)
 		// append chainID
 		buf = append(buf, []byte(p.ChainID)...)
 		// append signer_bytes (33 bytes - compressed public key)
@@ -266,4 +268,36 @@ func (p *PaymentPromise) Hash() ([]byte, error) {
 		return nil, p.hashErr
 	}
 	return p.hash[:], nil
+}
+
+// SignBytesValidator returns the [PaymentPromise] bytes for validators to sign.
+// This wraps the [PaymentPromise.SignBytes] with domain separation using the chain ID and signBytesPrefix.
+//
+// NOTE: This method encapsulates Comet's quirk which enforces a particular signing domain separation format.
+// This goes on top of native [PaymentPromise] domain separation.
+func (p *PaymentPromise) SignBytesValidator() ([]byte, error) {
+	signBytes, err := p.SignBytes()
+	if err != nil {
+		return nil, fmt.Errorf("getting sign bytes: %w", err)
+	}
+	return core.RawBytesMessageSignBytes(p.ChainID, signBytesPrefix, signBytes)
+}
+
+// SignPaymentPromiseValidator signs the [PaymentPromise] using validator's private key behind [core.PrivValidator].
+func SignPaymentPromiseValidator(promise *PaymentPromise, privVal core.PrivValidator) ([]byte, error) {
+	signBytes, err := promise.SignBytes()
+	if err != nil {
+		return nil, fmt.Errorf("getting sign bytes: %w", err)
+	}
+
+	signature, err := privVal.SignRawBytes(promise.ChainID, signBytesPrefix, signBytes)
+	if err != nil {
+		return nil, fmt.Errorf("signing payment promise: %w", err)
+	}
+
+	if len(signature) != ed25519.SignatureSize {
+		return nil, fmt.Errorf("invalid signature length: expected %d, got %d", ed25519.SignatureSize, len(signature))
+	}
+
+	return signature, nil
 }

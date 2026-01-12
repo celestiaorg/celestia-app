@@ -348,13 +348,7 @@ func (v *validatorMockClient) UploadShard(ctx context.Context, req *types.Upload
 		return nil, err
 	}
 
-	signBytes, err := pp.SignBytes()
-	if err != nil {
-		return nil, err
-	}
-
-	// Wrap sign bytes with domain separation (matching client_upload.go)
-	validatorSignBytes, err := core.RawBytesMessageSignBytes(pp.ChainID, fibre.SignBytesPrefix, signBytes)
+	validatorSignBytes, err := pp.SignBytesValidator()
 	if err != nil {
 		return nil, err
 	}
