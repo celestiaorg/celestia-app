@@ -33,9 +33,6 @@ type IntegrationTestSuite struct {
 }
 
 func TestBurnIntegrationTestSuite(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping burn integration test in short mode.")
-	}
 	suite.Run(t, new(IntegrationTestSuite))
 }
 
