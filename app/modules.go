@@ -17,6 +17,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/x/minfee"
 	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
 	minttypes "github.com/celestiaorg/celestia-app/v6/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v6/x/burn"
+	burntypes "github.com/celestiaorg/celestia-app/v6/x/burn/types"
 	"github.com/celestiaorg/celestia-app/v6/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v6/x/signal/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -84,6 +86,7 @@ var ModuleEncodingRegisters = []module.AppModuleBasic{
 	warp.AppModule{},
 	// celestia
 	blob.AppModule{},
+	burn.AppModule{},
 	minfee.AppModule{},
 	mintModule{},
 	signal.AppModule{},
@@ -169,6 +172,7 @@ func (app *App) setModuleOrder() {
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		signaltypes.ModuleName,
+		burntypes.ModuleName,
 		packetforwardtypes.ModuleName,
 		icatypes.ModuleName,
 		upgradetypes.ModuleName,
