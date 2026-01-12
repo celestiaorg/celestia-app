@@ -198,13 +198,13 @@ Celestia-app v4.0.0 includes significant state machine changes due to major depe
 
 #### New Messages (Added Modules)
 
-**`x/circuit` Circuit Breaker Module** ([cosmos-sdk docs](https://docs.cosmos.network/v0.50/build/modules/circuit)):
+**`x/circuit` Circuit Breaker Module** ([cosmos-sdk docs](https://docs.cosmos.network/sdk/v0.50/build/modules/circuit/README)):
 
 - `MsgAuthorizeCircuitBreaker` - Grant circuit breaker permissions
 - `MsgTripCircuitBreaker` - Disable message execution
 - `MsgResetCircuitBreaker` - Re-enable message execution
 
-**`x/consensus` Consensus Parameters Module** ([cosmos-sdk docs](https://docs.cosmos.network/v0.50/build/modules/consensus)):
+**`x/consensus` Consensus Parameters Module** ([cosmos-sdk docs](https://docs.cosmos.network/sdk/v0.50/build/modules/consensus/README)):
 
 - `MsgUpdateParams` - Update consensus parameters via governance (replaces CometBFT consensus param updates)
 
@@ -243,7 +243,7 @@ Celestia-app v4.0.0 includes significant state machine changes due to major depe
 - Remove: `x/capability`, `x/crisis`, `x/paramfilter`
 - Update: `github.com/cosmos/ibc-go/v8` (from v6)
 
-**API Breaking Changes** ([cosmos-sdk migration guide](https://docs.cosmos.network/v0.50/build/migrations/upgrading)):
+**API Breaking Changes** ([cosmos-sdk migration guide](https://cosmos-docs.mintlify.app/sdk/v0.50/build/migrations/upgrade-reference)):
 
 - Module keepers now accept `context.Context` instead of `sdk.Context`
 - `BeginBlock`/`EndBlock` signatures changed
