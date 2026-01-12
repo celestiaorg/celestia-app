@@ -3,7 +3,7 @@ module github.com/celestiaorg/celestia-app/v6
 go 1.24.6
 
 require (
-	cloud.google.com/go/compute v1.50.0
+	cloud.google.com/go/compute v1.53.0
 	cosmossdk.io/api v0.7.6
 	cosmossdk.io/client/v2 v2.0.0-beta.8
 	cosmossdk.io/core v0.11.1
