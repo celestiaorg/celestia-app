@@ -8,7 +8,7 @@ import (
 
 const (
 	// Version is the current application version.
-	Version uint64 = 6
+	Version uint64 = 7
 	// SquareSizeUpperBound imposes an upper bound on the max effective square size.
 	SquareSizeUpperBound int = 512
 	// SubtreeRootThreshold works as a target upper bound for the number of subtree
