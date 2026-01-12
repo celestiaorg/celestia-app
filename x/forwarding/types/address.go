@@ -14,7 +14,7 @@ const (
 )
 
 // DeriveForwardingAddress computes a deterministic forwarding address from destination parameters.
-// IMPORTANT: Token is NOT included in derivation - the same forwardAddr receives all tokens.
+// One address handles all tokens for a given (destDomain, destRecipient) pair.
 //
 // Algorithm:
 // 1. callDigest = keccak256(abi.encode(destDomain, destRecipient))

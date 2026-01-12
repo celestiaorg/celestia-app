@@ -59,7 +59,7 @@ func DeriveForwardingAddress(destDomain uint32, destRecipient []byte) sdk.AccAdd
 }
 ```
 
-**Important**: The token is NOT included in the derivation. One address handles all tokens for a given `(destDomain, destRecipient)` pair.
+One address handles all tokens for a given `(destDomain, destRecipient)` pair.
 
 ## Messages
 
