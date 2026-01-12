@@ -6,6 +6,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v6/fibre"
 	"github.com/celestiaorg/go-square/v4/share"
+	"github.com/cometbft/cometbft/crypto/ed25519"
+	core "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/stretchr/testify/require"
 )
@@ -130,4 +132,24 @@ func TestPaymentPromise(t *testing.T) {
 			require.NoError(t, wrongKeyPP.Validate())
 		})
 	})
+}
+
+func TestValidatorSignPaymentPromise(t *testing.T) {
+	signerPrivKey := secp256k1.GenPrivKey()
+	pp := makePaymentPromise(t, signerPrivKey)
+
+	signBytes, err := pp.SignBytes()
+	require.NoError(t, err)
+	signature, err := signerPrivKey.Sign(signBytes)
+	require.NoError(t, err)
+	pp.Signature = signature
+
+	privVal := core.NewMockPV()
+	valSignature, err := fibre.SignPaymentPromiseValidator(pp, privVal)
+	require.NoError(t, err)
+	require.Len(t, valSignature, ed25519.SignatureSize)
+
+	validatorSignBytes, err := pp.SignBytesValidator()
+	require.NoError(t, err)
+	require.True(t, privVal.PrivKey.PubKey().VerifySignature(validatorSignBytes, valSignature))
 }

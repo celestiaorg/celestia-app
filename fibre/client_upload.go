@@ -71,15 +71,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 	shardMap := valSet.Assign(rsema1d.Commitment(blob.Commitment()), blobCfg.OriginalRows+blobCfg.ParityRows)
 	span.AddEvent("shards_assigned")
 
-	signBytes, err := promise.SignBytes()
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to prepare bytes to sign")
-		return result, fmt.Errorf("preparing bytes to sign: %w", err)
-	}
-
-	// Prepare sign bytes with domain separation and chainID for validator signatures
-	validatorSignBytes, err := core.RawBytesMessageSignBytes(c.cfg.ChainID, SignBytesPrefix, signBytes)
+	validatorSignBytes, err := promise.SignBytesValidator()
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to prepare validator sign bytes")
