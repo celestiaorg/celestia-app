@@ -68,7 +68,7 @@ func BenchmarkClient_Upload(b *testing.B) {
 			require.NoError(b, err)
 
 			for b.Loop() {
-				blob, err := fibre.NewBlob(data, client.Config().BlobConfig)
+				blob, err := fibre.NewBlob(data, fibre.DefaultBlobConfigV0())
 				require.NoError(b, err)
 
 				result, err := client.Upload(ctx, namespace, blob)
@@ -142,7 +142,7 @@ func BenchmarkClient_Upload_Concurrent(b *testing.B) {
 				errChan := make(chan error, bm.concurrency)
 				for range bm.concurrency {
 					go func() {
-						blob, err := fibre.NewBlob(data, client.Config().BlobConfig)
+						blob, err := fibre.NewBlob(data, fibre.DefaultBlobConfigV0())
 						require.NoError(b, err)
 
 						_, err = client.Upload(ctx, namespace, blob)

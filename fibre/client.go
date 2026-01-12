@@ -35,13 +35,14 @@ type ClientConfig struct {
 	// ChainID is the chain identifier for domain separation in [PaymentPromise] signatures.
 	ChainID string
 
-	// BlobConfig contains erasure coding and data handling configuration.
-	BlobConfig
+	// MaxMessageSize is the maximum gRPC message size for upload requests.
+	MaxMessageSize int
 
 	// UploadTargetVotingPower is the fraction (e.g., 2/3) of total voting power required for Upload operations.
 	UploadTargetVotingPower cmtmath.Fraction
 	// UploadTargetSignaturesCount is the fraction (e.g., 2/3) of total signature count required for Upload operations.
 	UploadTargetSignaturesCount cmtmath.Fraction
+
 	// UploadConcurrency is the maximum number of concurrent uploads to validators.
 	UploadConcurrency int
 	// DownloadConcurrency is the maximum number of concurrent read requests to validators.
@@ -62,15 +63,22 @@ type ClientConfig struct {
 }
 
 // DefaultClientConfig returns a [ClientConfig] with the default values.
+// Values are derived from DefaultProtocolParams.
 func DefaultClientConfig() ClientConfig {
+	return NewClientConfigFromParams(DefaultProtocolParams)
+}
+
+// NewClientConfigFromParams creates a ClientConfig with values derived from the given ProtocolParams.
+// Use this when you need a config with non-default protocol parameters (e.g., for testing).
+func NewClientConfigFromParams(p ProtocolParams) ClientConfig {
 	return ClientConfig{
 		DefaultKeyName:              DefaultKeyName,
 		ChainID:                     "celestia",
-		BlobConfig:                  DefaultBlobConfigV0(),
-		UploadTargetVotingPower:     cmtmath.Fraction{Numerator: 2, Denominator: 3},
-		UploadTargetSignaturesCount: cmtmath.Fraction{Numerator: 2, Denominator: 3},
-		UploadConcurrency:           100, // matches expected number of validators to maximize throughput by default
-		DownloadConcurrency:         25,  // 1/4 of validators to match 1/3 erasure coding overhead and request the minimum number of samples to get the data
+		MaxMessageSize:              p.MaxMessageSize(p.MaxValidatorCount),
+		UploadTargetVotingPower:     p.SafetyThreshold,
+		UploadTargetSignaturesCount: p.SafetyThreshold,
+		UploadConcurrency:           p.MaxValidatorCount,
+		DownloadConcurrency:         p.ShardsForReconstruction(p.MaxValidatorCount),
 	}
 }
 
@@ -109,7 +117,7 @@ func NewClient(txClient *user.TxClient, kr keyring.Keyring, valGet validator.Set
 	}
 
 	if cfg.NewClientFn == nil {
-		cfg.NewClientFn = grpc.DefaultNewClientFn(hostReg, MaxMessageSize(cfg.BlobConfig))
+		cfg.NewClientFn = grpc.DefaultNewClientFn(hostReg, cfg.MaxMessageSize)
 	}
 	if cfg.Tracer == nil {
 		cfg.Tracer = otel.Tracer("fibre-client")
@@ -152,10 +160,4 @@ func (c *Client) Close() error {
 
 	c.closeWg.Wait()
 	return c.clientCache.Close()
-}
-
-// MaxMessageSize returns the maximum message size that can be sent over the network.
-func MaxMessageSize(cfg BlobConfig) int {
-	msgSize := cfg.MaxShardSize() + MaxPaymentPromiseSize
-	return msgSize + (msgSize / 50) // add 2% protobuf overhead
 }

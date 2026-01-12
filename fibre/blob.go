@@ -1,7 +1,6 @@
 package fibre
 
 import (
-	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -12,7 +11,7 @@ import (
 	"github.com/celestiaorg/rsema1d/field"
 )
 
-// ErrBlobTooLarge is returned when the blob size exceeds MaxBlobSize.
+// ErrBlobTooLarge is returned when the blob size exceeds BlobConfig.MaxDataSize.
 var ErrBlobTooLarge = errors.New("blob size exceeds maximum allowed size")
 
 // Commitment is a commitment to a blob.
@@ -51,96 +50,51 @@ func (c Commitment) Equals(other Commitment) bool {
 	return c == other
 }
 
-// BlobConfig contains constant configuration parameters for blob encoding and decoding.
+// BlobConfig contains configuration parameters for blob encoding and decoding.
 type BlobConfig struct {
+	// BlobVersion is the version of the row format.
+	BlobVersion uint8
 	// OriginalRows is the number of original rows before erasure coding (K in rsema1d).
 	OriginalRows int
 	// ParityRows is the number of parity rows added by erasure coding (N in rsema1d).
 	// Total rows = OriginalRows + ParityRows.
 	ParityRows int
-	// RowSizeMin is the minimum row size in bytes.
-	RowSizeMin int
-	// MaxBlobSize is the maximum allowed blob size.
-	MaxBlobSize int
-	// BlobVersion is the version of the row format.
-	BlobVersion uint8
+	// RowSize computes row size given the data length.
+	RowSize func(dataLen int) int
+	// MaxDataSize is the maximum data size that can be passed to NewBlob.
+	MaxDataSize int
 	// CodingWorkers is the number of workers to use for encoding and decoding rsema1d.
 	CodingWorkers int
-	// ShardingFactor is the expected number of validators in the network.
-	// This is used to calculate the maximum gRPC message size per validator.
-	// Should be set to match the expected validator set size.
-	ShardingFactor int
 }
 
 // DefaultBlobConfigV0 returns a [BlobConfig] with default values for version 0.
 func DefaultBlobConfigV0() BlobConfig {
+	return NewBlobConfigFromParams(0, DefaultProtocolParams)
+}
+
+// NewBlobConfigFromParams creates a [BlobConfig] with values derived from the given [ProtocolParams].
+// Use this when you need a config with non-default protocol parameters (e.g., for testing).
+func NewBlobConfigFromParams(blobVersion uint8, p ProtocolParams) BlobConfig {
+	if blobVersion != 0 {
+		panic(fmt.Sprintf("unsupported blob version: %d", blobVersion))
+	}
+
 	return BlobConfig{
-		OriginalRows:   4096,
-		ParityRows:     12288, // (3 * OriginalRows, TotalRows = 16384)
-		RowSizeMin:     64,
-		MaxBlobSize:    128 * 1024 * 1024,
-		BlobVersion:    0,
-		CodingWorkers:  runtime.GOMAXPROCS(0),
-		ShardingFactor: 100, // Expected number of validators
+		BlobVersion:  blobVersion,
+		OriginalRows: p.Rows,
+		ParityRows:   p.ParityRows(),
+		RowSize: func(dataLen int) int {
+			return p.RowSize(blobVersion, dataLen+blobHeaderLen)
+		},
+		MaxDataSize:   p.MaxBlobSize - blobHeaderLen, // subtract the header overhead
+		CodingWorkers: runtime.GOMAXPROCS(0),
 	}
-}
-
-// RowSize computes the row size for the given data length and config.
-// Row size is calculated as ceil((dataLen + headerSize) / OriginalRows),
-// rounded up to the nearest multiple of RowSizeMin.
-func (c BlobConfig) RowSize(dataLen int) int {
-	if dataLen == 0 {
-		return 0
-	}
-
-	totalLen := dataLen + blobHeaderLen
-	rowSize := (totalLen + c.OriginalRows - 1) / c.OriginalRows // ceil(totalLen / OriginalRows)
-
-	// round up to nearest multiple of RowSizeMin
-	if rowSize%c.RowSizeMin != 0 {
-		rowSize = ((rowSize / c.RowSizeMin) + 1) * c.RowSizeMin
-	}
-
-	return rowSize
-}
-
-// MaxRowSize calculates the maximum allowed row size based on MaxBlobSize and OriginalRows.
-// This is the row size that would result from encoding a blob of MaxBlobSize.
-func (c BlobConfig) MaxRowSize() int {
-	return c.RowSize(c.MaxBlobSize)
 }
 
 // UploadSize calculates size of blob data with padding and w/o parity.
 // This is the size included in the [PaymentPromise] and the one actually paid for.
 func (c BlobConfig) UploadSize(dataLen int) int {
 	return c.RowSize(dataLen) * c.OriginalRows
-}
-
-// MaxShardSize calculates the maximum size of a shard (subset of blob rows assigned to a validator with RLC and Merkle proofs)
-// This does not include protocol overhead like PaymentPromise or protobuf encoding overhead.
-func (c BlobConfig) MaxShardSize() int {
-	const (
-		rowIndexSize = 4  // uint32 index per row
-		rlcCoeffSize = 16 // uint128 coefficient per row
-	)
-
-	totalRows := c.OriginalRows + c.ParityRows
-	maxRowSize := c.MaxRowSize()
-	rlcCoeffsSize := c.OriginalRows * rlcCoeffSize
-
-	// get proof size per row by finding merkle tree depth
-	treeDepth := 0
-	for n := totalRows; n > 1; n = (n + 1) / 2 {
-		treeDepth++
-	}
-	proofSizePerRow := treeDepth * sha256.Size
-
-	// calculate rows per validator based on sharding factor
-	// add 1 to account for potential uneven distribution
-	// TODO(@Wondertan): This is not completely accurate, but it's a good approximation for now.
-	rowsPerValidator := (totalRows / c.ShardingFactor) + 1
-
-	return rlcCoeffsSize + (rowsPerValidator * (rowIndexSize + maxRowSize + proofSizePerRow))
 }
 
 // Blob represents encoded data with Reed-Solomon erasure coding.
@@ -163,13 +117,13 @@ type Blob struct {
 // NewBlob creates a new [Blob] instance by encoding the data.
 // It takes the data and a [BlobConfig].
 // The data is prefixed with a header containing the blob version and data size.
-// Returns [ErrBlobTooLarge] if the data size exceeds the maximum allowed size.
+// Returns [ErrBlobTooLarge] if the data size exceeds BlobConfig.MaxDataSize.
 func NewBlob(data []byte, cfg BlobConfig) (d *Blob, err error) {
 	if len(data) == 0 {
 		return nil, fmt.Errorf("data cannot be empty")
 	}
-	if len(data) > cfg.MaxBlobSize {
-		return nil, fmt.Errorf("%w: data size %d exceeds maximum %d", ErrBlobTooLarge, len(data), cfg.MaxBlobSize)
+	if len(data) > cfg.MaxDataSize {
+		return nil, fmt.Errorf("%w: data size %d exceeds maximum %d", ErrBlobTooLarge, len(data), cfg.MaxDataSize)
 	}
 
 	d = &Blob{
@@ -195,6 +149,11 @@ func NewBlob(data []byte, cfg BlobConfig) (d *Blob, err error) {
 // Commitment returns the commitment to the blob.
 func (d *Blob) Commitment() Commitment {
 	return d.commitment
+}
+
+// Config returns the blob's configuration.
+func (d *Blob) Config() BlobConfig {
+	return d.cfg
 }
 
 // RLCCoeffs returns RLC coefficients of the original data.
@@ -321,8 +280,8 @@ func (h *blobHeaderV0) decodeFromRows(rows [][]byte, cfg BlobConfig) ([]byte, er
 	if h.dataSize == 0 {
 		return nil, fmt.Errorf("invalid blob size in header: must be greater than 0")
 	}
-	if int(h.dataSize) > cfg.MaxBlobSize {
-		return nil, fmt.Errorf("blob size in header (%d bytes) exceeds maximum allowed size (%d bytes)", h.dataSize, cfg.MaxBlobSize)
+	if int(h.dataSize) > cfg.MaxDataSize {
+		return nil, fmt.Errorf("blob size in header (%d bytes) exceeds maximum allowed size (%d bytes)", h.dataSize, cfg.MaxDataSize)
 	}
 
 	dataSize := int(h.dataSize)
