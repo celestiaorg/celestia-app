@@ -11,14 +11,14 @@ import (
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
-	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v7/app"
+	"github.com/celestiaorg/celestia-app/v7/test/util/genesis"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v6/pkg/user"
-	signaltypes "github.com/celestiaorg/celestia-app/v6/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v7/pkg/user"
+	signaltypes "github.com/celestiaorg/celestia-app/v7/x/signal/types"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"

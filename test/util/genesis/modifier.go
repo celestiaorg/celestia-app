@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v6/app/params"
-	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v7/app/params"
+	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v7/x/minfee/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"

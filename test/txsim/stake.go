@@ -4,7 +4,7 @@ import (
 	"context"
 	"math/rand"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/types"
 	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"

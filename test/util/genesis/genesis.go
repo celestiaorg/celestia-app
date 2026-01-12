@@ -8,9 +8,9 @@ import (
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math/unsafe"
-	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/app"
+	"github.com/celestiaorg/celestia-app/v7/app/encoding"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
