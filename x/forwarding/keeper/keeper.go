@@ -83,6 +83,10 @@ func (k Keeper) DeriveForwardingAddress(destDomain uint32, destRecipient []byte)
 // For utia, returns the TIA collateral token (read from params)
 // For hyperlane/{id}, parses the token ID from the denom
 func (k Keeper) FindHypTokenByDenom(ctx context.Context, denom string) (warptypes.HypToken, error) {
+	if k.warpKeeper == nil {
+		return warptypes.HypToken{}, types.ErrUnsupportedToken
+	}
+
 	// TIA is the only collateral token on Celestia
 	if denom == "utia" {
 		// Get TIA token ID from params
@@ -115,6 +119,9 @@ func (k Keeper) FindHypTokenByDenom(ctx context.Context, denom string) (warptype
 
 // HasEnrolledRouter checks if a warp route exists for a token to a destination domain
 func (k Keeper) HasEnrolledRouter(ctx context.Context, tokenId util.HexAddress, destDomain uint32) (bool, error) {
+	if k.warpKeeper == nil {
+		return false, types.ErrUnsupportedToken
+	}
 	// Access the EnrolledRouters collection field directly from the concrete warp keeper
 	return k.warpKeeper.EnrolledRouters.Has(ctx, collections.Join(tokenId.GetInternalId(), destDomain))
 }
@@ -128,6 +135,10 @@ func (k Keeper) ExecuteWarpTransfer(
 	destRecipient util.HexAddress,
 	amount math.Int,
 ) (util.HexAddress, error) {
+	if k.warpKeeper == nil {
+		return util.HexAddress{}, types.ErrUnsupportedToken
+	}
+
 	// Use gasLimit=0 to use router's configured default
 	gasLimit := math.ZeroInt()
 	// Max fee for relaying - using zero for now (TODO: make configurable)

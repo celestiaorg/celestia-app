@@ -2,8 +2,11 @@ package keeper
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strconv"
 
+	"cosmossdk.io/collections"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
@@ -37,23 +40,23 @@ func (m msgServer) ExecuteForwarding(goCtx context.Context, msg *types.MsgExecut
 	// 1. Parse and validate inputs
 	forwardAddr, err := sdk.AccAddressFromBech32(msg.ForwardAddr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid forward_addr %q: %w", msg.ForwardAddr, err)
 	}
 
 	destRecipient, err := util.DecodeHexAddress(msg.DestRecipient)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid dest_recipient hex: %w", err)
 	}
 
 	// destRecipient must be exactly 32 bytes
 	if len(destRecipient.Bytes()) != 32 {
-		return nil, types.ErrAddressMismatch
+		return nil, fmt.Errorf("%w: dest_recipient must be 32 bytes, got %d", types.ErrAddressMismatch, len(destRecipient.Bytes()))
 	}
 
 	// 2. CRITICAL: Verify derived address matches
 	expectedAddr := types.DeriveForwardingAddress(msg.DestDomain, destRecipient.Bytes())
 	if !forwardAddr.Equals(expectedAddr) {
-		return nil, types.ErrAddressMismatch
+		return nil, fmt.Errorf("%w: provided=%s derived=%s", types.ErrAddressMismatch, forwardAddr.String(), expectedAddr.String())
 	}
 
 	// 3. Get ALL balances at forwardAddr
@@ -73,9 +76,14 @@ func (m msgServer) ExecuteForwarding(goCtx context.Context, msg *types.MsgExecut
 	// 6. Get params for minimum threshold check
 	params, err := m.k.GetParams(ctx)
 	if err != nil {
-		// Use default params if not set - this is normal for fresh chains
-		ctx.Logger().Debug("forwarding params not set, using defaults", "error", err.Error())
-		params = types.DefaultParams()
+		// Distinguish between "not found" (acceptable) vs actual read errors
+		if errors.Is(err, collections.ErrNotFound) {
+			ctx.Logger().Info("forwarding params not configured, using defaults")
+			params = types.DefaultParams()
+		} else {
+			// Actual storage error - do not silently continue
+			return nil, fmt.Errorf("failed to read module params: %w", err)
+		}
 	}
 
 	// 7. Process each token
@@ -88,13 +96,13 @@ func (m msgServer) ExecuteForwarding(goCtx context.Context, msg *types.MsgExecut
 		// Emit per-token event
 		ctx.EventManager().EmitEvent(
 			sdk.NewEvent(
-				"token_forwarded",
-				sdk.NewAttribute("forward_addr", msg.ForwardAddr),
-				sdk.NewAttribute("denom", result.Denom),
-				sdk.NewAttribute("amount", result.Amount.String()),
-				sdk.NewAttribute("message_id", result.MessageId),
-				sdk.NewAttribute("success", boolToString(result.Success)),
-				sdk.NewAttribute("error", result.Error),
+				types.EventTypeTokenForwarded,
+				sdk.NewAttribute(types.AttributeKeyForwardAddr, msg.ForwardAddr),
+				sdk.NewAttribute(types.AttributeKeyDenom, result.Denom),
+				sdk.NewAttribute(types.AttributeKeyAmount, result.Amount.String()),
+				sdk.NewAttribute(types.AttributeKeyMessageId, result.MessageId),
+				sdk.NewAttribute(types.AttributeKeySuccess, strconv.FormatBool(result.Success)),
+				sdk.NewAttribute(types.AttributeKeyError, result.Error),
 			),
 		)
 	}
@@ -112,12 +120,12 @@ func (m msgServer) ExecuteForwarding(goCtx context.Context, msg *types.MsgExecut
 
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(
-			"forwarding_complete",
-			sdk.NewAttribute("forward_addr", msg.ForwardAddr),
-			sdk.NewAttribute("dest_domain", uintToString(msg.DestDomain)),
-			sdk.NewAttribute("dest_recipient", msg.DestRecipient),
-			sdk.NewAttribute("tokens_forwarded", intToString(successCount)),
-			sdk.NewAttribute("tokens_failed", intToString(failCount)),
+			types.EventTypeForwardingComplete,
+			sdk.NewAttribute(types.AttributeKeyForwardAddr, msg.ForwardAddr),
+			sdk.NewAttribute(types.AttributeKeyDestDomain, strconv.FormatUint(uint64(msg.DestDomain), 10)),
+			sdk.NewAttribute(types.AttributeKeyDestRecipient, msg.DestRecipient),
+			sdk.NewAttribute(types.AttributeKeyTokensForwarded, strconv.Itoa(successCount)),
+			sdk.NewAttribute(types.AttributeKeyTokensFailed, strconv.Itoa(failCount)),
 		),
 	)
 
@@ -135,36 +143,30 @@ func (m msgServer) forwardSingleToken(
 	destRecipient util.HexAddress,
 	params types.Params,
 ) types.ForwardingResult {
-	result := types.ForwardingResult{
-		Denom:  balance.Denom,
-		Amount: balance.Amount,
-	}
-
 	// PRE-CHECK 1: Find HypToken (before any transfer)
 	hypToken, err := m.k.FindHypTokenByDenom(ctx, balance.Denom)
 	if err != nil {
-		result.Error = "unsupported token: " + balance.Denom
-		return result // Token stays at forwardAddr ✓
+		return types.NewFailureResult(balance.Denom, balance.Amount, "unsupported token: "+balance.Denom)
 	}
 
 	// PRE-CHECK 2: Verify warp route exists (before any transfer)
 	hasRoute, err := m.k.HasEnrolledRouter(ctx, hypToken.Id, destDomain)
-	if err != nil || !hasRoute {
-		result.Error = "no warp route to destination domain"
-		return result // Token stays at forwardAddr ✓
+	if err != nil {
+		return types.NewFailureResult(balance.Denom, balance.Amount, fmt.Sprintf("error checking warp route: %s", err.Error()))
+	}
+	if !hasRoute {
+		return types.NewFailureResult(balance.Denom, balance.Amount, "no warp route to destination domain")
 	}
 
 	// PRE-CHECK 3: Check minimum threshold
 	if params.MinForwardAmount.IsPositive() && balance.Amount.LT(params.MinForwardAmount) {
-		result.Error = "below minimum forward amount"
-		return result // Token stays at forwardAddr ✓
+		return types.NewFailureResult(balance.Denom, balance.Amount, "below minimum forward amount")
 	}
 
 	// NOW safe to transfer - all pre-checks passed
 	// Move tokens from forwardAddr to module account for warp transfer
 	if err := m.k.bankKeeper.SendCoins(ctx, forwardAddr, moduleAddr, sdk.NewCoins(balance)); err != nil {
-		result.Error = "failed to move tokens: " + err.Error()
-		return result
+		return types.NewFailureResult(balance.Denom, balance.Amount, "failed to move tokens: "+err.Error())
 	}
 
 	// Execute warp transfer
@@ -181,30 +183,11 @@ func (m msgServer) forwardSingleToken(
 		// Recovery: return tokens to forwardAddr so user can retry.
 		if recoveryErr := m.k.bankKeeper.SendCoins(ctx, moduleAddr, forwardAddr, sdk.NewCoins(balance)); recoveryErr != nil {
 			// If recovery also fails, log both errors
-			result.Error = fmt.Sprintf("warp transfer failed: %s; recovery failed: %s", err.Error(), recoveryErr.Error())
-			return result
+			return types.NewFailureResult(balance.Denom, balance.Amount, fmt.Sprintf("warp transfer failed: %s; recovery failed: %s", err.Error(), recoveryErr.Error()))
 		}
-		result.Error = "warp transfer failed (tokens returned to forward address): " + err.Error()
-		return result
+		return types.NewFailureResult(balance.Denom, balance.Amount, "warp transfer failed (tokens returned to forward address): "+err.Error())
 	}
 
-	result.Success = true
-	result.MessageId = messageId.String()
-	return result
+	return types.NewSuccessResult(balance.Denom, balance.Amount, messageId.String())
 }
 
-// Helper functions
-func boolToString(b bool) string {
-	if b {
-		return "true"
-	}
-	return "false"
-}
-
-func uintToString(u uint32) string {
-	return fmt.Sprintf("%d", u)
-}
-
-func intToString(i int) string {
-	return fmt.Sprintf("%d", i)
-}
