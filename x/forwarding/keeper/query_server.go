@@ -2,9 +2,14 @@ package keeper
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
+	"cosmossdk.io/collections"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v6/x/forwarding/types"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var _ types.QueryServer = queryServer{}
@@ -21,18 +26,16 @@ func NewQueryServerImpl(keeper Keeper) types.QueryServer {
 // DeriveForwardingAddress derives the forwarding address for given parameters
 func (q queryServer) DeriveForwardingAddress(ctx context.Context, req *types.QueryDeriveForwardingAddressRequest) (*types.QueryDeriveForwardingAddressResponse, error) {
 	if req == nil {
-		return nil, types.ErrAddressMismatch
+		return nil, status.Error(codes.InvalidArgument, "request cannot be nil")
 	}
 
-	// Parse destination recipient
 	destRecipient, err := util.DecodeHexAddress(req.DestRecipient)
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.InvalidArgument, "invalid dest_recipient hex %q: %v", req.DestRecipient, err)
 	}
 
-	// Verify it's 32 bytes
-	if len(destRecipient.Bytes()) != 32 {
-		return nil, types.ErrAddressMismatch
+	if len(destRecipient.Bytes()) != types.RecipientLength {
+		return nil, status.Errorf(codes.InvalidArgument, "dest_recipient must be %d bytes, got %d", types.RecipientLength, len(destRecipient.Bytes()))
 	}
 
 	// Derive the forwarding address
@@ -47,8 +50,11 @@ func (q queryServer) DeriveForwardingAddress(ctx context.Context, req *types.Que
 func (q queryServer) Params(ctx context.Context, req *types.QueryParamsRequest) (*types.QueryParamsResponse, error) {
 	params, err := q.k.GetParams(ctx)
 	if err != nil {
-		// Return default params if not set
-		params = types.DefaultParams()
+		if errors.Is(err, collections.ErrNotFound) {
+			params = types.DefaultParams()
+		} else {
+			return nil, fmt.Errorf("failed to query params: %w", err)
+		}
 	}
 
 	return &types.QueryParamsResponse{

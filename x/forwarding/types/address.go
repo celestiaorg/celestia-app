@@ -20,7 +20,13 @@ const (
 //  1. callDigest = keccak256(abi.encode(destDomain, destRecipient))
 //  2. salt = keccak256("CELESTIA_FORWARD_V1" || callDigest)
 //  3. address = sha256(moduleName || salt)[:20]
+//
+// Panics if destRecipient is not exactly RecipientLength (32) bytes.
 func DeriveForwardingAddress(destDomain uint32, destRecipient []byte) sdk.AccAddress {
+	if len(destRecipient) != RecipientLength {
+		panic("destRecipient must be exactly 32 bytes")
+	}
+
 	destDomainBytes := make([]byte, 32)
 	binary.BigEndian.PutUint32(destDomainBytes[28:], destDomain)
 

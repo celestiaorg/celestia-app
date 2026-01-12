@@ -135,7 +135,7 @@ func (m msgServer) forwardSingleToken(
 ) types.ForwardingResult {
 	hypToken, err := m.k.FindHypTokenByDenom(ctx, balance.Denom)
 	if err != nil {
-		return types.NewFailureResult(balance.Denom, balance.Amount, "unsupported token: "+balance.Denom)
+		return types.NewFailureResult(balance.Denom, balance.Amount, fmt.Sprintf("token lookup failed: %s", err.Error()))
 	}
 
 	hasRoute, err := m.k.HasEnrolledRouter(ctx, hypToken.Id, destDomain)
@@ -157,7 +157,25 @@ func (m msgServer) forwardSingleToken(
 	messageId, err := m.k.ExecuteWarpTransfer(ctx, hypToken, moduleAddr.String(), destDomain, destRecipient, balance.Amount)
 	if err != nil {
 		if recoveryErr := m.k.bankKeeper.SendCoins(ctx, moduleAddr, forwardAddr, sdk.NewCoins(balance)); recoveryErr != nil {
-			return types.NewFailureResult(balance.Denom, balance.Amount, fmt.Sprintf("warp transfer failed: %s; recovery failed: %s", err.Error(), recoveryErr.Error()))
+			ctx.Logger().Error("CRITICAL: tokens stuck in module account after failed recovery",
+				"denom", balance.Denom,
+				"amount", balance.Amount.String(),
+				"module_addr", moduleAddr.String(),
+				"forward_addr", forwardAddr.String(),
+				"warp_error", err.Error(),
+				"recovery_error", recoveryErr.Error(),
+			)
+			ctx.EventManager().EmitEvent(
+				sdk.NewEvent(
+					types.EventTypeTokensStuck,
+					sdk.NewAttribute(types.AttributeKeyDenom, balance.Denom),
+					sdk.NewAttribute(types.AttributeKeyAmount, balance.Amount.String()),
+					sdk.NewAttribute(types.AttributeKeyModuleAddr, moduleAddr.String()),
+					sdk.NewAttribute(types.AttributeKeyForwardAddr, forwardAddr.String()),
+					sdk.NewAttribute(types.AttributeKeyError, fmt.Sprintf("warp: %s; recovery: %s", err.Error(), recoveryErr.Error())),
+				),
+			)
+			return types.NewFailureResult(balance.Denom, balance.Amount, fmt.Sprintf("CRITICAL: warp failed and recovery failed - tokens stuck in module account: warp=%s recovery=%s", err.Error(), recoveryErr.Error()))
 		}
 		return types.NewFailureResult(balance.Denom, balance.Amount, "warp transfer failed (tokens returned): "+err.Error())
 	}

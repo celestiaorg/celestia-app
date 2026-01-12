@@ -158,6 +158,27 @@ func TestDeriveForwardingAddressTestVectors(t *testing.T) {
 	}
 }
 
+// TestDeriveForwardingAddressPanicsOnInvalidLength verifies panic on invalid recipient length
+func TestDeriveForwardingAddressPanicsOnInvalidLength(t *testing.T) {
+	testCases := []struct {
+		name          string
+		destRecipient []byte
+	}{
+		{"empty", []byte{}},
+		{"too_short_31_bytes", make([]byte, 31)},
+		{"too_long_33_bytes", make([]byte, 33)},
+		{"way_too_short", []byte{0x01, 0x02}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Panics(t, func() {
+				types.DeriveForwardingAddress(1, tc.destRecipient)
+			}, "should panic for recipient length %d", len(tc.destRecipient))
+		})
+	}
+}
+
 func hexToBytes(t *testing.T, s string) []byte {
 	b, err := hex.DecodeString(s)
 	require.NoError(t, err)

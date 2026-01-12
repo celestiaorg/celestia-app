@@ -104,23 +104,9 @@ func TestDeriveForwardingAddress(t *testing.T) {
 	require.Equal(t, expectedAddr, addr)
 }
 
-// TestGetSetParams verifies params storage
-// NOTE: This test is skipped because the Params type requires proper proto generation
-// for collections serialization. The current hand-crafted proto tags are incomplete.
-// Full proto generation should be added in a future iteration.
-func TestGetSetParams(t *testing.T) {
-	t.Skip("Requires proto-generated Params type for proper collections serialization")
-}
-
-// TestFindHypTokenByDenom tests denom-to-token lookup
-func TestFindHypTokenByDenom(t *testing.T) {
-	t.Skip("Requires warp keeper mock with HypTokens collection - integration test")
-}
-
-// TestHasEnrolledRouter tests router pre-check
-func TestHasEnrolledRouter(t *testing.T) {
-	t.Skip("Requires warp keeper mock with EnrolledRouters collection - integration test")
-}
+// NOTE: Tests for GetSetParams, FindHypTokenByDenom, and HasEnrolledRouter
+// require proper proto generation or warp keeper mocks. These are covered
+// by the integration test suite in test/interop/forwarding_integration_test.go
 
 // setupKeeper creates a keeper with mocked dependencies for unit testing
 func setupKeeper(t *testing.T) (keeper.Keeper, sdk.Context, *mockBankKeeper) {

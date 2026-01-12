@@ -10,6 +10,7 @@ const (
 
 	EventTypeTokenForwarded     = "forwarding.token_forwarded"
 	EventTypeForwardingComplete = "forwarding.forwarding_complete"
+	EventTypeTokensStuck        = "forwarding.tokens_stuck"
 
 	AttributeKeyForwardAddr     = "forward_addr"
 	AttributeKeyDenom           = "denom"
@@ -21,6 +22,7 @@ const (
 	AttributeKeyDestRecipient   = "dest_recipient"
 	AttributeKeyTokensForwarded = "tokens_forwarded"
 	AttributeKeyTokensFailed    = "tokens_failed"
+	AttributeKeyModuleAddr      = "module_addr"
 )
 
 var ParamsPrefix = []byte{0x01}
