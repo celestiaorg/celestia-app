@@ -19,14 +19,8 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-// ForwardingIntegrationTestSuite tests the forwarding module with real dependencies.
-// It embeds HyperlaneTestSuite to reuse hyperlane setup helpers.
-// For 3-chain E2E tests, it also stores chainB (destination chain).
 type ForwardingIntegrationTestSuite struct {
 	HyperlaneTestSuite
-
-	// chainB is the destination chain for 3-chain E2E tests
-	// (chainA = s.simapp is the source chain, celestia is the forwarding hub)
 	chainB *ibctesting.TestChain
 }
 
@@ -35,24 +29,22 @@ func TestForwardingIntegrationTestSuite(t *testing.T) {
 }
 
 func (s *ForwardingIntegrationTestSuite) SetupTest() {
-	// Setup all 3 chains directly (don't call parent which discards chainB)
 	_, celestia, chainA, chainB := SetupTest(s.T())
 
 	s.celestia = celestia
-	s.simapp = chainA // chainA is used as "simapp" in base suite
-	s.chainB = chainB // chainB is the destination chain for 3-chain tests
+	s.simapp = chainA
+	s.chainB = chainB
 
-	// Mint utia on celestia (test infra funds with "stake" by default)
 	app := s.GetCelestiaApp(celestia)
-	err := app.BankKeeper.MintCoins(celestia.GetContext(), minttypes.ModuleName, sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(10_000_000))))
+	coins := sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(10_000_000)))
+
+	err := app.BankKeeper.MintCoins(celestia.GetContext(), minttypes.ModuleName, coins)
 	s.Require().NoError(err)
 
-	err = app.BankKeeper.SendCoinsFromModuleToAccount(celestia.GetContext(), minttypes.ModuleName, celestia.SenderAccount.GetAddress(), sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(10_000_000))))
+	err = app.BankKeeper.SendCoinsFromModuleToAccount(celestia.GetContext(), minttypes.ModuleName, celestia.SenderAccount.GetAddress(), coins)
 	s.Require().NoError(err)
 }
 
-// extractDispatchMessage extracts the Hyperlane dispatch message from tx events.
-// Returns empty string if no dispatch event is found.
 func (s *ForwardingIntegrationTestSuite) extractDispatchMessage(events []abci.Event) string {
 	for _, evt := range events {
 		if evt.Type == proto.MessageName(&coretypes.EventDispatch{}) {
@@ -68,7 +60,6 @@ func (s *ForwardingIntegrationTestSuite) extractDispatchMessage(events []abci.Ev
 	return ""
 }
 
-// countDispatchEvents counts the number of Hyperlane dispatch events in tx events.
 func (s *ForwardingIntegrationTestSuite) countDispatchEvents(events []abci.Event) int {
 	count := 0
 	for _, evt := range events {
@@ -79,20 +70,17 @@ func (s *ForwardingIntegrationTestSuite) countDispatchEvents(events []abci.Event
 	return count
 }
 
-// makeRecipient32 creates a 32-byte recipient address from a Cosmos SDK address.
 func makeRecipient32(addr sdk.AccAddress) []byte {
 	recipient := make([]byte, 32)
 	copy(recipient[12:], addr.Bytes())
 	return recipient
 }
 
-// recipientToHex converts a 32-byte recipient to a util.HexAddress.
 func recipientToHex(recipient []byte) util.HexAddress {
 	hexAddr, _ := util.DecodeHexAddress("0x" + hex.EncodeToString(recipient))
 	return hexAddr
 }
 
-// fundAddress mints coins and sends them to the specified address.
 func (s *ForwardingIntegrationTestSuite) fundAddress(chain *ibctesting.TestChain, addr sdk.AccAddress, coin sdk.Coin) {
 	ctx := chain.GetContext()
 	app := s.GetCelestiaApp(chain)
@@ -104,7 +92,6 @@ func (s *ForwardingIntegrationTestSuite) fundAddress(chain *ibctesting.TestChain
 	s.Require().NoError(err)
 }
 
-// processWarpMessage sends a warp transfer and processes the message on the destination chain.
 func (s *ForwardingIntegrationTestSuite) processWarpMessage(
 	srcChain *ibctesting.TestChain,
 	dstChain *ibctesting.TestChain,
@@ -124,10 +111,6 @@ func (s *ForwardingIntegrationTestSuite) processWarpMessage(
 	})
 	s.Require().NoError(err)
 }
-
-// ============================================================================
-// Test 1: Params Storage with Proto-Generated Types
-// ============================================================================
 
 func (s *ForwardingIntegrationTestSuite) TestParamsStorageWithProtoTypes() {
 	celestiaApp := s.GetCelestiaApp(s.celestia)
@@ -151,10 +134,6 @@ func (s *ForwardingIntegrationTestSuite) TestParamsStorageWithProtoTypes() {
 	s.T().Logf("MinForwardAmount: %s", retrievedParams.MinForwardAmount.String())
 	s.T().Logf("TiaCollateralTokenId: %s", retrievedParams.TiaCollateralTokenId)
 }
-
-// ============================================================================
-// Test 2: FindHypTokenByDenom for TIA (Collateral)
-// ============================================================================
 
 func (s *ForwardingIntegrationTestSuite) TestFindHypTokenByDenom_TIA() {
 	const (
@@ -187,10 +166,6 @@ func (s *ForwardingIntegrationTestSuite) TestFindHypTokenByDenom_TIA() {
 	s.T().Logf("Token type: %v", hypToken.TokenType)
 	s.T().Logf("Origin denom: %s", hypToken.OriginDenom)
 }
-
-// ============================================================================
-// Test 3: FindHypTokenByDenom for Synthetic Token
-// ============================================================================
 
 func (s *ForwardingIntegrationTestSuite) TestFindHypTokenByDenom_Synthetic() {
 	const (
@@ -229,10 +204,6 @@ func (s *ForwardingIntegrationTestSuite) TestFindHypTokenByDenom_Synthetic() {
 	s.T().Logf("Test 3 PASSED: FindHypTokenByDenom works for synthetic tokens")
 	s.T().Logf("Token type: %v", foundToken.TokenType)
 }
-
-// ============================================================================
-// Test 4: HasEnrolledRouter Pre-Check
-// ============================================================================
 
 func (s *ForwardingIntegrationTestSuite) TestHasEnrolledRouter() {
 	const (
@@ -274,10 +245,6 @@ func (s *ForwardingIntegrationTestSuite) TestHasEnrolledRouter() {
 	s.T().Logf("After enrollment: %v", hasRouteAfter)
 	s.T().Logf("Non-existent domain: %v", hasNonExistent)
 }
-
-// ============================================================================
-// Test 5: Full MsgExecuteForwarding Flow
-// ============================================================================
 
 func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullFlow() {
 	const (
@@ -357,10 +324,6 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullFlow() {
 	}
 }
 
-// ============================================================================
-// Test 6: Address Mismatch Rejection
-// ============================================================================
-
 func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_AddressMismatch() {
 	celestiaApp := s.GetCelestiaApp(s.celestia)
 
@@ -382,10 +345,6 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_AddressMismatc
 	s.Contains(err.Error(), "derived address does not match")
 }
 
-// ============================================================================
-// Test 7: Zero Balance Rejection
-// ============================================================================
-
 func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_NoBalance() {
 	celestiaApp := s.GetCelestiaApp(s.celestia)
 
@@ -406,10 +365,6 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_NoBalance() {
 	s.Require().Error(err)
 	s.Contains(err.Error(), "no balance")
 }
-
-// ============================================================================
-// Test 8: Multi-Token Forwarding (both succeed)
-// ============================================================================
 
 func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_MultiToken() {
 	const (
@@ -494,10 +449,6 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_MultiToken() {
 	s.Equal(2, s.countDispatchEvents(res.Events), "should have 2 dispatch events for 2 tokens")
 }
 
-// ============================================================================
-// Test 9: Partial Failure - Unsupported Token
-// ============================================================================
-
 func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_PartialFailure_UnsupportedToken() {
 	const (
 		CelestiaDomainID uint32 = 69420
@@ -555,10 +506,6 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_PartialFailure
 	s.True(newTiaBalance.Amount.IsZero(), "TIA should be forwarded")
 	s.Equal(unsupportedAmount.Int64(), newUnsupportedBalance.Amount.Int64(), "unsupported token should remain at forwardAddr")
 }
-
-// ============================================================================
-// Test 10: Partial Failure - No Route to Destination
-// ============================================================================
 
 func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_PartialFailure_NoRoute() {
 	const (
@@ -624,10 +571,6 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_PartialFailure
 	s.Equal(testAmount.Int64(), newTestBalance.Amount.Int64(), "test token should remain (no route to simapp)")
 }
 
-// ============================================================================
-// Test 11: Minimum Threshold Enforcement
-// ============================================================================
-
 func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_MinThreshold() {
 	const (
 		CelestiaDomainID uint32 = 69420
@@ -692,12 +635,6 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_MinThreshold()
 	finalBalance := celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), forwardAddr, params.BondDenom)
 	s.True(finalBalance.Amount.IsZero(), "balance should be zero after forwarding (above threshold)")
 }
-
-// ============================================================================
-// Test 12: Full E2E - Source Collateral Token (3-Chain)
-// Flow: Source collateral → Celestia synthetic → Destination synthetic
-// Example: USDC on Arbitrum → hyperlane/USDC on Celestia → synthetic USDC on Optimism
-// ============================================================================
 
 func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullE2E_SourceCollateralToken() {
 	const (
@@ -784,12 +721,6 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullE2E_Source
 	finalBalance := chainBApp.BankKeeper.GetBalance(s.chainB.GetContext(), s.chainB.SenderAccount.GetAddress(), chainBSynToken.OriginDenom)
 	s.Equal(int64(1000), finalBalance.Amount.Int64(), "tokens should arrive at final destination on chainB")
 }
-
-// ============================================================================
-// Test 13: Full E2E - TIA Synthetic on Source (3-Chain)
-// Flow: TIA synthetic on source → Celestia collateral (utia) → Destination synthetic
-// Example: synthetic TIA on Arbitrum → native utia on Celestia → synthetic TIA on Optimism
-// ============================================================================
 
 func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullE2E_TIASyntheticOnSource() {
 	const (
@@ -892,12 +823,6 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullE2E_TIASyn
 	s.Equal(int64(1000), finalBalance.Amount.Int64(), "synthetic TIA should arrive at final destination")
 }
 
-// ============================================================================
-// Test 14: Full E2E - CEX Withdrawal (Native TIA Direct)
-// Flow: Native utia deposited directly → Destination synthetic
-// Simulates: CEX withdraws TIA directly to forwardAddr on Celestia
-// ============================================================================
-
 func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullE2E_CEXWithdrawal() {
 	const (
 		CelestiaDomainID uint32 = 69420
@@ -970,11 +895,6 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullE2E_CEXWit
 	finalBalance := chainBApp.BankKeeper.GetBalance(s.chainB.GetContext(), s.chainB.SenderAccount.GetAddress(), chainBTIAToken.OriginDenom)
 	s.Equal(cexWithdrawalAmount.Int64(), finalBalance.Amount.Int64(), "synthetic TIA should arrive at final destination")
 }
-
-// ============================================================================
-// Test 15: MaxTokensPerForward Limit
-// Verifies that forwarding fails with ErrTooManyTokens when more than 20 tokens
-// ============================================================================
 
 func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_TooManyTokens() {
 	const (

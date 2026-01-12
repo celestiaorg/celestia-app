@@ -16,28 +16,15 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 )
 
-// Keeper is the forwarding module keeper
 type Keeper struct {
-	cdc codec.BinaryCodec
-
-	// Schema for collections
-	Schema collections.Schema
-
-	// Params storage
-	Params collections.Item[types.Params]
-
-	// Dependencies
+	cdc           codec.BinaryCodec
+	Schema        collections.Schema
+	Params        collections.Item[types.Params]
 	accountKeeper types.AccountKeeper
 	bankKeeper    types.BankKeeper
-	// warpKeeper is the concrete warp keeper type (not an interface) because:
-	// - hyperlane-cosmos exposes state via public collections.Map fields (HypTokens, EnrolledRouters)
-	// - Go interfaces cannot expose struct fields, only methods
-	// - We wrap field access in helper methods: FindHypTokenByDenom, HasEnrolledRouter
-	// See types/expected_keepers.go for documentation of the warp keeper interface.
-	warpKeeper *warpkeeper.Keeper
+	warpKeeper    *warpkeeper.Keeper
 }
 
-// NewKeeper creates a new forwarding Keeper
 func NewKeeper(
 	cdc codec.BinaryCodec,
 	storeService store.KVStoreService,
@@ -64,69 +51,63 @@ func NewKeeper(
 	return k
 }
 
-// GetParams returns the current module params
 func (k Keeper) GetParams(ctx context.Context) (types.Params, error) {
 	return k.Params.Get(ctx)
 }
 
-// SetParams sets the module params
 func (k Keeper) SetParams(ctx context.Context, params types.Params) error {
 	return k.Params.Set(ctx, params)
 }
 
-// DeriveForwardingAddress derives the forwarding address for given parameters
 func (k Keeper) DeriveForwardingAddress(destDomain uint32, destRecipient []byte) sdk.AccAddress {
 	return types.DeriveForwardingAddress(destDomain, destRecipient)
 }
 
-// FindHypTokenByDenom finds the HypToken for a given denom
-// For utia, returns the TIA collateral token (read from params)
-// For hyperlane/{id}, parses the token ID from the denom
 func (k Keeper) FindHypTokenByDenom(ctx context.Context, denom string) (warptypes.HypToken, error) {
 	if k.warpKeeper == nil {
 		return warptypes.HypToken{}, types.ErrUnsupportedToken
 	}
 
-	// TIA is the only collateral token on Celestia
-	if denom == "utia" {
-		// Get TIA token ID from params
-		params, err := k.GetParams(ctx)
-		if err != nil {
-			return warptypes.HypToken{}, err
-		}
-		if params.TiaCollateralTokenId == "" {
-			return warptypes.HypToken{}, types.ErrUnsupportedToken
-		}
-		tiaTokenId, err := util.DecodeHexAddress(params.TiaCollateralTokenId)
-		if err != nil {
-			return warptypes.HypToken{}, types.ErrUnsupportedToken
-		}
-		return k.warpKeeper.HypTokens.Get(ctx, tiaTokenId.GetInternalId())
+	switch {
+	case denom == "utia":
+		return k.findTIACollateralToken(ctx)
+	case strings.HasPrefix(denom, "hyperlane/"):
+		return k.findSyntheticToken(ctx, strings.TrimPrefix(denom, "hyperlane/"))
+	default:
+		return warptypes.HypToken{}, types.ErrUnsupportedToken
 	}
-
-	// Synthetic tokens have denom format: hyperlane/{hex-token-id}
-	if strings.HasPrefix(denom, "hyperlane/") {
-		tokenIdHex := strings.TrimPrefix(denom, "hyperlane/")
-		tokenId, err := util.DecodeHexAddress(tokenIdHex)
-		if err != nil {
-			return warptypes.HypToken{}, types.ErrUnsupportedToken
-		}
-		return k.warpKeeper.HypTokens.Get(ctx, tokenId.GetInternalId())
-	}
-
-	return warptypes.HypToken{}, types.ErrUnsupportedToken
 }
 
-// HasEnrolledRouter checks if a warp route exists for a token to a destination domain
+func (k Keeper) findTIACollateralToken(ctx context.Context) (warptypes.HypToken, error) {
+	params, err := k.GetParams(ctx)
+	if err != nil {
+		return warptypes.HypToken{}, err
+	}
+	if params.TiaCollateralTokenId == "" {
+		return warptypes.HypToken{}, types.ErrUnsupportedToken
+	}
+	tiaTokenId, err := util.DecodeHexAddress(params.TiaCollateralTokenId)
+	if err != nil {
+		return warptypes.HypToken{}, types.ErrUnsupportedToken
+	}
+	return k.warpKeeper.HypTokens.Get(ctx, tiaTokenId.GetInternalId())
+}
+
+func (k Keeper) findSyntheticToken(ctx context.Context, tokenIdHex string) (warptypes.HypToken, error) {
+	tokenId, err := util.DecodeHexAddress(tokenIdHex)
+	if err != nil {
+		return warptypes.HypToken{}, types.ErrUnsupportedToken
+	}
+	return k.warpKeeper.HypTokens.Get(ctx, tokenId.GetInternalId())
+}
+
 func (k Keeper) HasEnrolledRouter(ctx context.Context, tokenId util.HexAddress, destDomain uint32) (bool, error) {
 	if k.warpKeeper == nil {
 		return false, types.ErrUnsupportedToken
 	}
-	// Access the EnrolledRouters collection field directly from the concrete warp keeper
 	return k.warpKeeper.EnrolledRouters.Has(ctx, collections.Join(tokenId.GetInternalId(), destDomain))
 }
 
-// ExecuteWarpTransfer executes a warp transfer for the given token
 func (k Keeper) ExecuteWarpTransfer(
 	ctx sdk.Context,
 	token warptypes.HypToken,
@@ -139,38 +120,14 @@ func (k Keeper) ExecuteWarpTransfer(
 		return util.HexAddress{}, types.ErrUnsupportedToken
 	}
 
-	// Use gasLimit=0 to use router's configured default
 	gasLimit := math.ZeroInt()
-	// Max fee for relaying - using zero for now (TODO: make configurable)
 	maxFee := sdk.NewCoin("utia", math.ZeroInt())
 
 	switch token.TokenType {
 	case warptypes.HYP_TOKEN_TYPE_SYNTHETIC:
-		return k.warpKeeper.RemoteTransferSynthetic(
-			ctx,
-			token,
-			sender,
-			destDomain,
-			destRecipient,
-			amount,
-			nil, // customHookId
-			gasLimit,
-			maxFee,
-			nil, // customHookMetadata
-		)
+		return k.warpKeeper.RemoteTransferSynthetic(ctx, token, sender, destDomain, destRecipient, amount, nil, gasLimit, maxFee, nil)
 	case warptypes.HYP_TOKEN_TYPE_COLLATERAL:
-		return k.warpKeeper.RemoteTransferCollateral(
-			ctx,
-			token,
-			sender,
-			destDomain,
-			destRecipient,
-			amount,
-			nil, // customHookId
-			gasLimit,
-			maxFee,
-			nil, // customHookMetadata
-		)
+		return k.warpKeeper.RemoteTransferCollateral(ctx, token, sender, destDomain, destRecipient, amount, nil, gasLimit, maxFee, nil)
 	default:
 		return util.HexAddress{}, types.ErrUnsupportedToken
 	}
