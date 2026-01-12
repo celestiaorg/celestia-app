@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 )
 
@@ -52,8 +51,8 @@ func TestSDKTestVectors(t *testing.T) {
 	t.Log("=== SDK Test Vectors for Forwarding Address Derivation ===")
 	t.Log("Algorithm:")
 	t.Log("1. destDomainBytes = 32-byte big-endian encoding of destDomain (value at bytes[28:32])")
-	t.Log("2. callDigest = keccak256(destDomainBytes || destRecipient)")
-	t.Log("3. salt = keccak256(\"CELESTIA_FORWARD_V1\" || callDigest)")
+	t.Log("2. callDigest = sha256(destDomainBytes || destRecipient)")
+	t.Log("3. salt = sha256(\"CELESTIA_FORWARD_V1\" || callDigest)")
 	t.Log("4. address = sha256(\"forwarding\" || salt)[:20]")
 
 	for _, v := range sdkTestVectors {
@@ -66,15 +65,17 @@ func TestSDKTestVectors(t *testing.T) {
 			destDomainBytes := make([]byte, 32)
 			binary.BigEndian.PutUint32(destDomainBytes[28:], v.DestDomain)
 
-			// Step 2: Compute call digest
+			// Step 2: Compute call digest (sha256)
 			callDigestPreimage := append(destDomainBytes, recipient...)
-			callDigest := crypto.Keccak256(callDigestPreimage)
+			callDigestArr := sha256.Sum256(callDigestPreimage)
+			callDigest := callDigestArr[:]
 
-			// Step 3: Compute salt with version prefix
+			// Step 3: Compute salt with version prefix (sha256)
 			saltPreimage := append([]byte(ForwardVersionPrefix), callDigest...)
-			salt := crypto.Keccak256(saltPreimage)
+			saltArr := sha256.Sum256(saltPreimage)
+			salt := saltArr[:]
 
-			// Step 4: Derive address
+			// Step 4: Derive address (sha256)
 			addressPreimage := append([]byte(ModuleName), salt...)
 			hash := sha256.Sum256(addressPreimage)
 			derivedAddr := hash[:20]

@@ -14,14 +14,14 @@ func DeriveForwardingAddress(destDomain uint32, destRecipient []byte) sdk.AccAdd
     destDomainBytes := make([]byte, 32)
     binary.BigEndian.PutUint32(destDomainBytes[28:], destDomain)
 
-    // Step 2: callDigest = keccak256(abi.encode(destDomain, destRecipient))
-    callDigest := crypto.Keccak256(append(destDomainBytes, destRecipient...))
+    // Step 2: callDigest = sha256(destDomain || destRecipient)
+    callDigest := sha256.Sum256(append(destDomainBytes, destRecipient...))
 
-    // Step 3: salt = keccak256("CELESTIA_FORWARD_V1" || callDigest)
-    salt := crypto.Keccak256(append([]byte("CELESTIA_FORWARD_V1"), callDigest...))
+    // Step 3: salt = sha256("CELESTIA_FORWARD_V1" || callDigest)
+    salt := sha256.Sum256(append([]byte("CELESTIA_FORWARD_V1"), callDigest[:]...))
 
     // Step 4: address = sha256("forwarding" || salt)[:20]
-    hash := sha256.Sum256(append([]byte("forwarding"), salt...))
+    hash := sha256.Sum256(append([]byte("forwarding"), salt[:]...))
     return sdk.AccAddress(hash[:20])
 }
 ```
@@ -131,7 +131,7 @@ k.warpKeeper.RemoteTransferSynthetic(
 
 ## Review Checklist
 
-- [ ] Address derivation matches exactly (keccak256, sha256, byte ordering)
+- [ ] Address derivation matches exactly (sha256 throughout, byte ordering)
 - [ ] destRecipient validated as exactly 32 bytes before use
 - [ ] Pre-checks happen BEFORE any `SendCoins`
 - [ ] Failed warp transfers return tokens to `forwardAddr`

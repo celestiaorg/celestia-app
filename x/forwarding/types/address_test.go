@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v6/x/forwarding/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 )
 
@@ -90,23 +89,25 @@ func TestDeriveForwardingAddressIntermediates(t *testing.T) {
 	t.Logf("destDomainBytes (32 bytes): %s", hex.EncodeToString(destDomainBytes))
 	t.Logf("callDigestPreimage (64 bytes): %s", hex.EncodeToString(callDigestPreimage))
 
-	// Step 2: Compute call digest
-	callDigest := crypto.Keccak256(callDigestPreimage)
-	t.Logf("callDigest (keccak256): %s", hex.EncodeToString(callDigest))
+	// Step 2: Compute call digest (sha256)
+	callDigestArr := sha256.Sum256(callDigestPreimage)
+	callDigest := callDigestArr[:]
+	t.Logf("callDigest (sha256): %s", hex.EncodeToString(callDigest))
 
 	// Step 3: Compute salt preimage
 	saltPreimage := append([]byte(types.ForwardVersionPrefix), callDigest...)
 	t.Logf("saltPreimage: %s", hex.EncodeToString(saltPreimage))
 
-	// Step 4: Compute salt
-	salt := crypto.Keccak256(saltPreimage)
-	t.Logf("salt (keccak256): %s", hex.EncodeToString(salt))
+	// Step 4: Compute salt (sha256)
+	saltArr := sha256.Sum256(saltPreimage)
+	salt := saltArr[:]
+	t.Logf("salt (sha256): %s", hex.EncodeToString(salt))
 
 	// Step 5: Compute address preimage
 	addressPreimage := append([]byte(types.ModuleName), salt...)
 	t.Logf("addressPreimage: %s", hex.EncodeToString(addressPreimage))
 
-	// Step 6: Compute final address
+	// Step 6: Compute final address (sha256)
 	hash := sha256.Sum256(addressPreimage)
 	derivedAddr := hash[:20]
 	t.Logf("sha256 hash: %s", hex.EncodeToString(hash[:]))
