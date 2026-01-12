@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"cosmossdk.io/collections"
@@ -81,24 +82,32 @@ func (k Keeper) FindHypTokenByDenom(ctx context.Context, denom string) (warptype
 func (k Keeper) findTIACollateralToken(ctx context.Context) (warptypes.HypToken, error) {
 	params, err := k.GetParams(ctx)
 	if err != nil {
-		return warptypes.HypToken{}, err
+		return warptypes.HypToken{}, fmt.Errorf("failed to get params for TIA lookup: %w", err)
 	}
 	if params.TiaCollateralTokenId == "" {
-		return warptypes.HypToken{}, types.ErrUnsupportedToken
+		return warptypes.HypToken{}, fmt.Errorf("%w: TiaCollateralTokenId not configured in params", types.ErrUnsupportedToken)
 	}
 	tiaTokenId, err := util.DecodeHexAddress(params.TiaCollateralTokenId)
 	if err != nil {
-		return warptypes.HypToken{}, types.ErrUnsupportedToken
+		return warptypes.HypToken{}, fmt.Errorf("%w: invalid TiaCollateralTokenId %q: %v", types.ErrUnsupportedToken, params.TiaCollateralTokenId, err)
 	}
-	return k.warpKeeper.HypTokens.Get(ctx, tiaTokenId.GetInternalId())
+	token, err := k.warpKeeper.HypTokens.Get(ctx, tiaTokenId.GetInternalId())
+	if err != nil {
+		return warptypes.HypToken{}, fmt.Errorf("TIA token %s not found in warp keeper: %w", params.TiaCollateralTokenId, err)
+	}
+	return token, nil
 }
 
 func (k Keeper) findSyntheticToken(ctx context.Context, tokenIdHex string) (warptypes.HypToken, error) {
 	tokenId, err := util.DecodeHexAddress(tokenIdHex)
 	if err != nil {
-		return warptypes.HypToken{}, types.ErrUnsupportedToken
+		return warptypes.HypToken{}, fmt.Errorf("%w: invalid synthetic token ID %q: %v", types.ErrUnsupportedToken, tokenIdHex, err)
 	}
-	return k.warpKeeper.HypTokens.Get(ctx, tokenId.GetInternalId())
+	token, err := k.warpKeeper.HypTokens.Get(ctx, tokenId.GetInternalId())
+	if err != nil {
+		return warptypes.HypToken{}, fmt.Errorf("synthetic token %s not found in warp keeper: %w", tokenIdHex, err)
+	}
+	return token, nil
 }
 
 func (k Keeper) HasEnrolledRouter(ctx context.Context, tokenId util.HexAddress, destDomain uint32) (bool, error) {

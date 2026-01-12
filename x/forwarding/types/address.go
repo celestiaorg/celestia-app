@@ -3,6 +3,7 @@ package types
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"fmt"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -11,7 +12,29 @@ import (
 const (
 	// ForwardVersionPrefix is the version prefix used in salt derivation
 	ForwardVersionPrefix = "CELESTIA_FORWARD_V1"
+
+	// RecipientLength is the required length for cross-chain recipient addresses
+	RecipientLength = 32
 )
+
+// Recipient32 is a validated 32-byte recipient address for cross-chain transfers.
+// Using this type instead of []byte provides compile-time guarantees about length.
+type Recipient32 [RecipientLength]byte
+
+// NewRecipient32 creates a Recipient32 from a byte slice, validating the length.
+func NewRecipient32(b []byte) (Recipient32, error) {
+	if len(b) != RecipientLength {
+		return Recipient32{}, fmt.Errorf("recipient must be %d bytes, got %d", RecipientLength, len(b))
+	}
+	var r Recipient32
+	copy(r[:], b)
+	return r, nil
+}
+
+// Bytes returns the underlying byte slice.
+func (r Recipient32) Bytes() []byte {
+	return r[:]
+}
 
 // DeriveForwardingAddress computes a deterministic forwarding address from destination parameters.
 // One address handles all tokens for a given (destDomain, destRecipient) pair.

@@ -61,6 +61,7 @@ func (m msgServer) ExecuteForwarding(goCtx context.Context, msg *types.MsgExecut
 	params, err := m.k.GetParams(ctx)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
+			ctx.Logger().Warn("forwarding module params not configured, using defaults - TIA forwarding will fail until params are set")
 			params = types.DefaultParams()
 		} else {
 			return nil, fmt.Errorf("failed to read module params: %w", err)
