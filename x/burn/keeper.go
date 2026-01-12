@@ -4,10 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/x/burn/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // BankKeeper defines the expected bank keeper interface

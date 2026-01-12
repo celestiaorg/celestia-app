@@ -4,10 +4,9 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 )
 
 func TestMsgBurn_ValidateBasic(t *testing.T) {

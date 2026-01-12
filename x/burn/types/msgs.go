@@ -3,9 +3,8 @@ package types
 import (
 	"fmt"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // ValidateBasic performs stateless validation of MsgBurn

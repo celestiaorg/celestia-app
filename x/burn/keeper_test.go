@@ -10,13 +10,12 @@ import (
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/x/burn/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/x/burn/types"
 )
 
 type mockBankKeeper struct {
@@ -68,7 +67,7 @@ func TestBurn_Success(t *testing.T) {
 	}
 
 	ctx := createTestContext(t)
-	resp, err := keeper.Burn(sdk.WrapSDKContext(ctx), msg)
+	resp, err := keeper.Burn(ctx, msg)
 
 	require.NoError(t, err)
 	require.Equal(t, amount, resp.Burned)
@@ -88,7 +87,7 @@ func TestBurn_WrongDenom(t *testing.T) {
 	}
 
 	ctx := createTestContext(t)
-	_, err := keeper.Burn(sdk.WrapSDKContext(ctx), msg)
+	_, err := keeper.Burn(ctx, msg)
 
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "only")
@@ -108,7 +107,7 @@ func TestBurn_InsufficientBalance(t *testing.T) {
 	}
 
 	ctx := createTestContext(t)
-	_, err := keeper.Burn(sdk.WrapSDKContext(ctx), msg)
+	_, err := keeper.Burn(ctx, msg)
 
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "insufficient")
@@ -126,7 +125,7 @@ func TestBurn_ZeroAmount(t *testing.T) {
 	}
 
 	ctx := createTestContext(t)
-	_, err := keeper.Burn(sdk.WrapSDKContext(ctx), msg)
+	_, err := keeper.Burn(ctx, msg)
 
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "positive")
