@@ -31,6 +31,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+
+	// FORCE sdk config to use celestia bech32 encoding (globals...)
+	_ "github.com/celestiaorg/celestia-app/v6/app/params"
 )
 
 // ABI for only the function we need.
@@ -82,6 +85,10 @@ func msgBytes() []byte {
 		Token:             sdk.NewCoin("utia", sdkmath.NewInt(1000000)),
 	}
 
+	forwardAddr := forwardingtypes.DeriveForwardAddress(msg.DerivationKeys()...)
+	fmt.Printf("forwarding address: %s\n", forwardAddr.String())
+	fmt.Printf("forwarding address hex: %s\n", hex.EncodeToString(forwardAddr.Bytes()))
+
 	pbAny, err := codectypes.NewAnyWithValue(&msg)
 	if err != nil {
 		panic(err)
@@ -96,6 +103,7 @@ func msgBytes() []byte {
 }
 
 func main() {
+
 	// ---- config you provide ----
 	rpcURL := "http://localhost:8545"
 	chainID := big.NewInt(1234) // set your chain id

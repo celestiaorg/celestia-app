@@ -6,7 +6,11 @@ require github.com/ethereum/go-ethereum v1.16.7
 
 require github.com/celestiaorg/celestia-app/v6 v6.4.0
 
-require github.com/cosmos/cosmos-sdk v0.50.13
+require (
+	cosmossdk.io/math v1.5.3
+	github.com/bcp-innovations/hyperlane-cosmos v1.0.1
+	github.com/cosmos/cosmos-sdk v0.50.13
+)
 
 replace github.com/celestiaorg/celestia-app/v6 => ../../../../
 
@@ -27,7 +31,6 @@ require (
 	cosmossdk.io/depinject v1.1.0 // indirect
 	cosmossdk.io/errors v1.0.2 // indirect
 	cosmossdk.io/log v1.6.0 // indirect
-	cosmossdk.io/math v1.5.3 // indirect
 	cosmossdk.io/store v1.1.2 // indirect
 	cosmossdk.io/x/tx v0.13.8 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
@@ -56,12 +59,13 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.10 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.41.2 // indirect
 	github.com/aws/smithy-go v1.24.0 // indirect
-	github.com/bcp-innovations/hyperlane-cosmos v1.0.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/speakeasy v0.2.0 // indirect
 	github.com/bits-and-blooms/bitset v1.20.0 // indirect
 	github.com/celestiaorg/go-square/v3 v3.0.2 // indirect
+	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
 	github.com/celestiaorg/nmt v0.24.2 // indirect
+	github.com/celestiaorg/rsmt2d v0.15.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cockroachdb/errors v1.11.3 // indirect
