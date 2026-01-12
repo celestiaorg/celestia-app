@@ -45,9 +45,9 @@ func (k Keeper) Burn(goCtx context.Context, msg *types.MsgBurn) (*types.MsgBurnR
 
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(
-			"burn",
-			sdk.NewAttribute("burner", msg.Signer),
-			sdk.NewAttribute("amount", msg.Amount.String()),
+			types.EventTypeBurn,
+			sdk.NewAttribute(types.AttributeKeyBurner, msg.Signer),
+			sdk.NewAttribute(types.AttributeKeyAmount, msg.Amount.String()),
 		),
 	)
 
