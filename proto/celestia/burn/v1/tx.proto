@@ -12,7 +12,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/burn/types";
 service Msg {
   option (cosmos.msg.v1.service) = true;
 
-  // Burn permanently removes tokens from the signer's account.
+  // Burn permanently removes tokens from the signer's account and circulating supply.
   rpc Burn(MsgBurn) returns (MsgBurnResponse);
 }
 

@@ -8,9 +8,9 @@ import (
 var EventTypeBurnName = proto.MessageName(&EventBurn{})
 
 // NewBurnEvent returns a new EventBurn.
-func NewBurnEvent(burner string, amount string) *EventBurn {
+func NewBurnEvent(signer string, amount string) *EventBurn {
 	return &EventBurn{
-		Burner: burner,
+		Signer: signer,
 		Amount: amount,
 	}
 }

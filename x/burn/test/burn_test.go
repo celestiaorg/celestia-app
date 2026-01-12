@@ -24,6 +24,11 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+const (
+	utiaPerTIA = 1_000_000     // 1 TIA = 1,000,000 utia
+	billion    = 1_000_000_000 // for readability in large amounts
+)
+
 // IntegrationTestSuite runs end-to-end tests against a real test network.
 // It verifies the burn module works correctly when integrated with the full app.
 type IntegrationTestSuite struct {
@@ -38,7 +43,7 @@ func TestBurnIntegrationTestSuite(t *testing.T) {
 }
 
 // SetupSuite spins up a single-node test network with 5 funded accounts.
-// Each account starts with 1,000,000 TIA (1,000,000,000,000 utia).
+// Each account starts with 1 billion TIA (1e15 utia).
 func (s *IntegrationTestSuite) SetupSuite() {
 	s.accounts = testfactory.GenerateAccounts(5)
 	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...)
@@ -80,12 +85,12 @@ func (s *IntegrationTestSuite) TestBurnDecreasesTotalSupply() {
 	supplyAtBurnHeight := s.getTotalSupplyAtHeight(res.Height)
 	supplyBeforeBurn := s.getTotalSupplyAtHeight(res.Height - 1)
 
-	// Verify supply decreased. The difference should be negative (burn > inflation)
-	// or at minimum, supply should be less than (previous + burnAmount).
-	supplyDiff := supplyAtBurnHeight.AmountOf(params.BondDenom).Sub(supplyBeforeBurn.AmountOf(params.BondDenom))
-	require.True(supplyDiff.LT(math.ZeroInt()) || supplyAtBurnHeight.AmountOf(params.BondDenom).LT(supplyBeforeBurn.AmountOf(params.BondDenom).Add(burnAmount.Amount)),
-		"total supply should reflect burn: before=%s, after=%s, diff=%s",
-		supplyBeforeBurn.AmountOf(params.BondDenom), supplyAtBurnHeight.AmountOf(params.BondDenom), supplyDiff)
+	// Verify supply reflects burn: after burning, supply should be less than
+	// (previous + burnAmount) since that's what supply would be without burning
+	// (assuming inflation is less than burnAmount).
+	require.True(supplyAtBurnHeight.AmountOf(params.BondDenom).LT(supplyBeforeBurn.AmountOf(params.BondDenom).Add(burnAmount.Amount)),
+		"total supply should reflect burn: before=%s, after=%s, burnAmount=%s",
+		supplyBeforeBurn.AmountOf(params.BondDenom), supplyAtBurnHeight.AmountOf(params.BondDenom), burnAmount.Amount)
 
 	// Verify account balance decreased by at least burn amount (gas fees cause additional decrease)
 	finalBalance := s.getAccountBalance(accountAddr)
@@ -95,7 +100,7 @@ func (s *IntegrationTestSuite) TestBurnDecreasesTotalSupply() {
 }
 
 // TestBurnEmitsEvent verifies that a successful burn emits an event with:
-// - burner: the address that burned tokens
+// - signer: the address that burned tokens
 // - amount: the amount burned (e.g., "500000utia")
 func (s *IntegrationTestSuite) TestBurnEmitsEvent() {
 	require := s.Require()
@@ -126,10 +131,10 @@ func (s *IntegrationTestSuite) TestBurnEmitsEvent() {
 	require.NoError(err)
 	require.NotNil(getTxResp.TxResponse)
 
-	// Find our burn event (filter by expected burner to avoid bank module's internal events)
+	// Find our burn event (filter by expected signer to avoid bank module's internal events)
 	burnEvent, err := getBurnEvent(getTxResp.TxResponse.Events, accountAddr.String())
 	require.NoError(err, "burn event should be emitted")
-	require.Equal(accountAddr.String(), burnEvent.Burner)
+	require.Equal(accountAddr.String(), burnEvent.Signer)
 	require.Equal(burnAmount.String(), burnEvent.Amount)
 }
 
@@ -141,8 +146,8 @@ func (s *IntegrationTestSuite) TestBurnInsufficientBalance() {
 
 	account := s.accounts[2]
 	accountAddr := testfactory.GetAddress(s.cctx.Keyring, account)
-	// Try to burn 10,000,000 TIA - way more than the 1,000,000 TIA funded
-	hugeAmount := sdk.NewCoin(params.BondDenom, math.NewInt(10000000000000000))
+	// Try to burn 10 billion TIA - way more than the 1 billion TIA funded
+	hugeAmount := sdk.NewCoin(params.BondDenom, math.NewInt(10*billion*utiaPerTIA))
 
 	msgBurn := &burntypes.MsgBurn{
 		Signer: accountAddr.String(),
@@ -205,14 +210,14 @@ func (s *IntegrationTestSuite) getAccountBalance(addr sdk.AccAddress) math.Int {
 
 // BurnEvent represents the parsed attributes from a burn event.
 type BurnEvent struct {
-	Burner string // bech32 address of the account that burned tokens
+	Signer string // bech32 address of the account that burned tokens
 	Amount string // amount burned, e.g., "1000000utia"
 }
 
 // getBurnEvent searches transaction events for our burn module's typed EventBurn.
-// It filters by expectedBurner because the bank module also emits burn-related events
+// It filters by expectedSigner because the bank module also emits burn-related events
 // with different addresses (e.g., the module account).
-func getBurnEvent(events []abci.Event, expectedBurner string) (BurnEvent, error) {
+func getBurnEvent(events []abci.Event, expectedSigner string) (BurnEvent, error) {
 	// Typed events use the proto message name as the event type.
 	// We use the literal string here because proto.MessageName() returns empty
 	// when called at package init time (before proto types are registered).
@@ -221,22 +226,22 @@ func getBurnEvent(events []abci.Event, expectedBurner string) (BurnEvent, error)
 		if event.Type != eventType {
 			continue
 		}
-		var burner, amount string
+		var signer, amount string
 		for _, attr := range event.Attributes {
 			// Typed event values are JSON-encoded, so strings are quoted.
 			// We trim the surrounding quotes to get the raw value.
 			value := strings.Trim(attr.Value, "\"")
 			switch attr.Key {
-			case "burner":
-				burner = value
+			case "signer":
+				signer = value
 			case "amount":
 				amount = value
 			}
 		}
-		// Only return if this matches our expected burner (filters out bank module events)
-		if burner == expectedBurner {
-			return BurnEvent{Burner: burner, Amount: amount}, nil
+		// Only return if this matches our expected signer (filters out bank module events)
+		if signer == expectedSigner {
+			return BurnEvent{Signer: signer, Amount: amount}, nil
 		}
 	}
-	return BurnEvent{}, fmt.Errorf("burn event with burner %s not found", expectedBurner)
+	return BurnEvent{}, fmt.Errorf("burn event with signer %s not found", expectedSigner)
 }

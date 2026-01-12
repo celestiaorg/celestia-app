@@ -43,7 +43,7 @@ func TestMsgBurn_ValidateBasic(t *testing.T) {
 				Amount: sdk.NewCoin("wrongdenom", math.NewInt(1000)),
 			},
 			wantErr: true,
-			errMsg:  "only",
+			errMsg:  "only utia can be burned",
 		},
 		{
 			name: "zero amount",

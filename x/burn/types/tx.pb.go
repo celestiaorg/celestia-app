@@ -178,7 +178,7 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MsgClient interface {
-	// Burn permanently removes tokens from the signer's account.
+	// Burn permanently removes tokens from the signer's account and circulating supply.
 	Burn(ctx context.Context, in *MsgBurn, opts ...grpc.CallOption) (*MsgBurnResponse, error)
 }
 
@@ -201,7 +201,7 @@ func (c *msgClient) Burn(ctx context.Context, in *MsgBurn, opts ...grpc.CallOpti
 
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
-	// Burn permanently removes tokens from the signer's account.
+	// Burn permanently removes tokens from the signer's account and circulating supply.
 	Burn(context.Context, *MsgBurn) (*MsgBurnResponse, error)
 }
 
