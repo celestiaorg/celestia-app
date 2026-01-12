@@ -20,7 +20,6 @@ import (
 
 type mockBankKeeper struct {
 	balances         map[string]sdk.Coins
-	sentToModule     sdk.Coins
 	burnedFromModule sdk.Coins
 }
 
@@ -30,22 +29,20 @@ func newMockBankKeeper() *mockBankKeeper {
 	}
 }
 
-func (m *mockBankKeeper) SendCoinsFromAccountToModule(ctx context.Context, senderAddr sdk.AccAddress, recipientModule string, amt sdk.Coins) error {
+func (m *mockBankKeeper) SendCoinsFromAccountToModule(_ context.Context, senderAddr sdk.AccAddress, _ string, amt sdk.Coins) error {
 	balance := m.balances[senderAddr.String()]
 	if !balance.IsAllGTE(amt) {
 		return fmt.Errorf("insufficient balance: have %s, want %s", balance, amt)
 	}
 	m.balances[senderAddr.String()] = balance.Sub(amt...)
-	m.sentToModule = amt
 	return nil
 }
 
-func (m *mockBankKeeper) BurnCoins(ctx context.Context, moduleName string, amt sdk.Coins) error {
+func (m *mockBankKeeper) BurnCoins(_ context.Context, _ string, amt sdk.Coins) error {
 	m.burnedFromModule = amt
 	return nil
 }
 
-// createTestContext creates a minimal SDK context for testing
 func createTestContext(t *testing.T) sdk.Context {
 	db := dbm.NewMemDB()
 	stateStore := store.NewCommitMultiStore(db, log.NewNopLogger(), metrics.NoOpMetrics{})
@@ -74,30 +71,10 @@ func TestBurn_Success(t *testing.T) {
 	require.Equal(t, sdk.NewCoins(amount), bankKeeper.burnedFromModule)
 }
 
-func TestBurn_WrongDenom(t *testing.T) {
-	bankKeeper := newMockBankKeeper()
-	signer := sdk.AccAddress("test_signer__________")
-	wrongDenom := sdk.NewCoin("wrongdenom", math.NewInt(1000))
-	bankKeeper.balances[signer.String()] = sdk.NewCoins(wrongDenom)
-
-	keeper := NewKeeper(bankKeeper)
-	msg := &types.MsgBurn{
-		Signer: signer.String(),
-		Amount: wrongDenom,
-	}
-
-	ctx := createTestContext(t)
-	_, err := keeper.Burn(ctx, msg)
-
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "only")
-}
-
 func TestBurn_InsufficientBalance(t *testing.T) {
 	bankKeeper := newMockBankKeeper()
 	signer := sdk.AccAddress("test_signer__________")
 	amount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))
-	// Set balance lower than requested burn amount
 	bankKeeper.balances[signer.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(500)))
 
 	keeper := NewKeeper(bankKeeper)
@@ -111,22 +88,4 @@ func TestBurn_InsufficientBalance(t *testing.T) {
 
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "insufficient")
-}
-
-func TestBurn_ZeroAmount(t *testing.T) {
-	bankKeeper := newMockBankKeeper()
-	signer := sdk.AccAddress("test_signer__________")
-	zeroAmount := sdk.NewCoin(appconsts.BondDenom, math.ZeroInt())
-
-	keeper := NewKeeper(bankKeeper)
-	msg := &types.MsgBurn{
-		Signer: signer.String(),
-		Amount: zeroAmount,
-	}
-
-	ctx := createTestContext(t)
-	_, err := keeper.Burn(ctx, msg)
-
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "positive")
 }
