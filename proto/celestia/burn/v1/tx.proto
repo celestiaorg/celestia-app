@@ -6,7 +6,7 @@ import "cosmos/base/v1beta1/coin.proto";
 import "cosmos_proto/cosmos.proto";
 import "gogoproto/gogo.proto";
 
-option go_package = "github.com/celestiaorg/celestia-app/v6/x/burn/types";
+option go_package = "github.com/celestiaorg/celestia-app/x/burn/types";
 
 // Msg defines the burn Msg service.
 service Msg {

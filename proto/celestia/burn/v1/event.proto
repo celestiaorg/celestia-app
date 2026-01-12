@@ -1,0 +1,12 @@
+syntax = "proto3";
+package celestia.burn.v1;
+
+option go_package = "github.com/celestiaorg/celestia-app/x/burn/types";
+
+// EventBurn is emitted when tokens are permanently burned.
+message EventBurn {
+  // burner is the address that burned the tokens
+  string burner = 1;
+  // amount is the amount of tokens burned (e.g., "1000000utia")
+  string amount = 2;
+}

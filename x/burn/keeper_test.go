@@ -51,7 +51,7 @@ func createTestContext(t *testing.T) sdk.Context {
 	return sdk.NewContext(stateStore, tmproto.Header{}, false, log.NewNopLogger())
 }
 
-func TestBurn_Success(t *testing.T) {
+func TestBurnSuccess(t *testing.T) {
 	bankKeeper := newMockBankKeeper()
 	signer := sdk.AccAddress("test_signer__________")
 	amount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))
@@ -71,7 +71,7 @@ func TestBurn_Success(t *testing.T) {
 	require.Equal(t, sdk.NewCoins(amount), bankKeeper.burnedFromModule)
 }
 
-func TestBurn_InsufficientBalance(t *testing.T) {
+func TestBurnInsufficientBalance(t *testing.T) {
 	bankKeeper := newMockBankKeeper()
 	signer := sdk.AccAddress("test_signer__________")
 	amount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))

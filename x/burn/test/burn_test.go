@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"cosmossdk.io/math"
@@ -208,21 +209,28 @@ type BurnEvent struct {
 	Amount string // amount burned, e.g., "1000000utia"
 }
 
-// getBurnEvent searches transaction events for our burn module's event.
+// getBurnEvent searches transaction events for our burn module's typed EventBurn.
 // It filters by expectedBurner because the bank module also emits burn-related events
 // with different addresses (e.g., the module account).
 func getBurnEvent(events []abci.Event, expectedBurner string) (BurnEvent, error) {
+	// Typed events use the proto message name as the event type.
+	// We use the literal string here because proto.MessageName() returns empty
+	// when called at package init time (before proto types are registered).
+	const eventType = "celestia.burn.v1.EventBurn"
 	for _, event := range events {
-		if event.Type != burntypes.EventTypeBurn {
+		if event.Type != eventType {
 			continue
 		}
 		var burner, amount string
 		for _, attr := range event.Attributes {
+			// Typed event values are JSON-encoded, so strings are quoted.
+			// We trim the surrounding quotes to get the raw value.
+			value := strings.Trim(attr.Value, "\"")
 			switch attr.Key {
-			case burntypes.AttributeKeyBurner:
-				burner = attr.Value
-			case burntypes.AttributeKeyAmount:
-				amount = attr.Value
+			case "burner":
+				burner = value
+			case "amount":
+				amount = value
 			}
 		}
 		// Only return if this matches our expected burner (filters out bank module events)

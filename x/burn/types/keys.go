@@ -1,9 +1,4 @@
 package types
 
-const (
-	ModuleName = "burn"
-
-	EventTypeBurn      = "burn"
-	AttributeKeyBurner = "burner"
-	AttributeKeyAmount = "amount"
-)
+// ModuleName is the name of the burn module.
+const ModuleName = "burn"

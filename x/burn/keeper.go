@@ -1,3 +1,6 @@
+// Package burn provides functionality for permanently destroying TIA tokens.
+// It implements MsgBurn which allows users to burn utia from their accounts,
+// reducing the total token supply.
 package burn
 
 import (
@@ -8,19 +11,19 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-type BankKeeper interface {
-	SendCoinsFromAccountToModule(ctx context.Context, senderAddr sdk.AccAddress, recipientModule string, amt sdk.Coins) error
-	BurnCoins(ctx context.Context, moduleName string, amt sdk.Coins) error
-}
-
+// Keeper handles burn operations for the burn module.
 type Keeper struct {
-	bankKeeper BankKeeper
+	bankKeeper types.BankKeeper
 }
 
-func NewKeeper(bankKeeper BankKeeper) Keeper {
+// NewKeeper creates a new Keeper instance with the provided BankKeeper.
+func NewKeeper(bankKeeper types.BankKeeper) Keeper {
 	return Keeper{bankKeeper: bankKeeper}
 }
 
+// Burn processes a MsgBurn request by transferring tokens from the signer's
+// account to the burn module account and then permanently destroying them.
+// It emits a typed EventBurn upon success.
 func (k Keeper) Burn(goCtx context.Context, msg *types.MsgBurn) (*types.MsgBurnResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
@@ -39,13 +42,9 @@ func (k Keeper) Burn(goCtx context.Context, msg *types.MsgBurn) (*types.MsgBurnR
 		return nil, fmt.Errorf("failed to burn coins: %w", err)
 	}
 
-	ctx.EventManager().EmitEvent(
-		sdk.NewEvent(
-			types.EventTypeBurn,
-			sdk.NewAttribute(types.AttributeKeyBurner, msg.Signer),
-			sdk.NewAttribute(types.AttributeKeyAmount, msg.Amount.String()),
-		),
-	)
+	if err := ctx.EventManager().EmitTypedEvent(types.NewBurnEvent(msg.Signer, msg.Amount.String())); err != nil {
+		return nil, fmt.Errorf("failed to emit burn event: %w", err)
+	}
 
 	return &types.MsgBurnResponse{Burned: msg.Amount}, nil
 }
