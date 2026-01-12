@@ -2,6 +2,7 @@ package types
 
 import (
 	"cosmossdk.io/errors"
+	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
@@ -67,4 +68,28 @@ func (msg *MsgExecuteForwarding) GetSigners() []sdk.AccAddress {
 		panic(err)
 	}
 	return []sdk.AccAddress{signer}
+}
+
+// NewSuccessResult creates a ForwardingResult for a successful forward.
+// This factory function ensures Success=true, MessageId is set, and Error is empty.
+func NewSuccessResult(denom string, amount math.Int, messageId string) ForwardingResult {
+	return ForwardingResult{
+		Denom:     denom,
+		Amount:    amount,
+		MessageId: messageId,
+		Success:   true,
+		Error:     "",
+	}
+}
+
+// NewFailureResult creates a ForwardingResult for a failed forward.
+// This factory function ensures Success=false, Error is set, and MessageId is empty.
+func NewFailureResult(denom string, amount math.Int, errMsg string) ForwardingResult {
+	return ForwardingResult{
+		Denom:     denom,
+		Amount:    amount,
+		MessageId: "",
+		Success:   false,
+		Error:     errMsg,
+	}
 }

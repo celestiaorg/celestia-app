@@ -2,6 +2,7 @@ package interop
 
 import (
 	"encoding/hex"
+	"fmt"
 	"testing"
 
 	"cosmossdk.io/math"
@@ -969,4 +970,72 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullE2E_CEXWit
 	finalBalance := chainBApp.BankKeeper.GetBalance(s.chainB.GetContext(), s.chainB.SenderAccount.GetAddress(), chainBTIAToken.OriginDenom)
 	s.Equal(cexWithdrawalAmount.Int64(), finalBalance.Amount.Int64(), "synthetic TIA should arrive at final destination")
 }
+
+// ============================================================================
+// Test 15: MaxTokensPerForward Limit
+// Verifies that forwarding fails with ErrTooManyTokens when more than 20 tokens
+// ============================================================================
+
+func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_TooManyTokens() {
+	const (
+		CelestiaDomainID uint32 = 69420
+		SimappDomainID   uint32 = 1337
+	)
+
+	celestiaApp := s.GetCelestiaApp(s.celestia)
+	ctx := s.celestia.GetContext()
+
+	// Setup hyperlane infrastructure
+	ismIDCelestia := s.SetupNoopISM(s.celestia)
+	mailboxIDCelestia := s.SetupMailBox(s.celestia, ismIDCelestia, CelestiaDomainID)
+	tiaCollatTokenID := s.CreateCollateralToken(s.celestia, ismIDCelestia, mailboxIDCelestia, params.BondDenom)
+
+	ismIDSimapp := s.SetupNoopISM(s.simapp)
+	_ = s.SetupMailBox(s.simapp, ismIDSimapp, SimappDomainID)
+	tiaSynTokenID := s.CreateSyntheticToken(s.simapp, ismIDSimapp, mailboxIDCelestia)
+
+	// Enroll routers
+	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, SimappDomainID, tiaSynTokenID.String())
+	s.EnrollRemoteRouter(s.simapp, tiaSynTokenID, CelestiaDomainID, tiaCollatTokenID.String())
+
+	// Configure params
+	err := celestiaApp.ForwardingKeeper.SetParams(ctx, forwardingtypes.NewParams(math.ZeroInt(), tiaCollatTokenID.String()))
+	s.Require().NoError(err)
+
+	// Derive forwarding address
+	destRecipient := makeRecipient32(s.simapp.SenderAccount.GetAddress())
+	forwardAddr := forwardingtypes.DeriveForwardingAddress(SimappDomainID, destRecipient)
+
+	// Fund with MaxTokensPerForward + 1 different tokens (21 tokens)
+	// Create 21 different denoms and mint them to forwardAddr
+	for i := 0; i <= forwardingtypes.MaxTokensPerForward; i++ {
+		denom := fmt.Sprintf("testtoken%02d", i)
+		coin := sdk.NewCoin(denom, math.NewInt(100))
+		err := celestiaApp.BankKeeper.MintCoins(ctx, minttypes.ModuleName, sdk.NewCoins(coin))
+		s.Require().NoError(err)
+		err = celestiaApp.BankKeeper.SendCoinsFromModuleToAccount(ctx, minttypes.ModuleName, forwardAddr, sdk.NewCoins(coin))
+		s.Require().NoError(err)
+	}
+
+	// Verify we have 21 different tokens
+	balances := celestiaApp.BankKeeper.GetAllBalances(ctx, forwardAddr)
+	s.Equal(forwardingtypes.MaxTokensPerForward+1, len(balances), "should have 21 different tokens")
+
+	// Attempt to forward - should fail with ErrTooManyTokens
+	forwardMsg := forwardingtypes.NewMsgExecuteForwarding(
+		s.celestia.SenderAccount.GetAddress().String(),
+		forwardAddr.String(),
+		SimappDomainID,
+		recipientToHex(destRecipient).String(),
+	)
+
+	_, err = s.celestia.SendMsgs(forwardMsg)
+	s.Require().Error(err, "should fail with too many tokens")
+	s.Contains(err.Error(), "too many tokens", "error should mention too many tokens")
+
+	// Verify all tokens still remain at forwardAddr
+	balancesAfter := celestiaApp.BankKeeper.GetAllBalances(ctx, forwardAddr)
+	s.Equal(len(balances), len(balancesAfter), "all tokens should remain at forwardAddr")
+}
+
 
