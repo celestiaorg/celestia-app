@@ -38,8 +38,8 @@ func (m msgServer) ExecuteForwarding(goCtx context.Context, msg *types.MsgExecut
 		return nil, fmt.Errorf("invalid dest_recipient hex: %w", err)
 	}
 
-	if len(destRecipient.Bytes()) != 32 {
-		return nil, fmt.Errorf("%w: dest_recipient must be 32 bytes, got %d", types.ErrAddressMismatch, len(destRecipient.Bytes()))
+	if len(destRecipient.Bytes()) != types.RecipientLength {
+		return nil, fmt.Errorf("%w: dest_recipient must be %d bytes, got %d", types.ErrAddressMismatch, types.RecipientLength, len(destRecipient.Bytes()))
 	}
 
 	expectedAddr := types.DeriveForwardingAddress(msg.DestDomain, destRecipient.Bytes())
@@ -105,14 +105,13 @@ func (m msgServer) processTokens(
 }
 
 func (m msgServer) emitSummaryEvent(ctx sdk.Context, msg *types.MsgExecuteForwarding, results []types.ForwardingResult) {
-	successCount, failCount := 0, 0
+	var successCount int
 	for _, r := range results {
 		if r.Success {
 			successCount++
-		} else {
-			failCount++
 		}
 	}
+	failCount := len(results) - successCount
 
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(

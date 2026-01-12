@@ -35,7 +35,7 @@ func (msg *MsgExecuteForwarding) ValidateBasic() error {
 		return errors.Wrap(err, "invalid dest_recipient hex format")
 	}
 
-	if len(destRecipient.Bytes()) != 32 {
+	if len(destRecipient.Bytes()) != RecipientLength {
 		return errors.Wrap(ErrAddressMismatch, "dest_recipient must be 32 bytes")
 	}
 

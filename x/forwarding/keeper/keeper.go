@@ -82,30 +82,26 @@ func (k Keeper) FindHypTokenByDenom(ctx context.Context, denom string) (warptype
 func (k Keeper) findTIACollateralToken(ctx context.Context) (warptypes.HypToken, error) {
 	params, err := k.GetParams(ctx)
 	if err != nil {
-		return warptypes.HypToken{}, fmt.Errorf("failed to get params for TIA lookup: %w", err)
+		return warptypes.HypToken{}, fmt.Errorf("failed to get params: %w", err)
 	}
 	if params.TiaCollateralTokenId == "" {
-		return warptypes.HypToken{}, fmt.Errorf("%w: TiaCollateralTokenId not configured in params", types.ErrUnsupportedToken)
+		return warptypes.HypToken{}, fmt.Errorf("%w: TiaCollateralTokenId not configured", types.ErrUnsupportedToken)
 	}
-	tiaTokenId, err := util.DecodeHexAddress(params.TiaCollateralTokenId)
-	if err != nil {
-		return warptypes.HypToken{}, fmt.Errorf("%w: invalid TiaCollateralTokenId %q: %v", types.ErrUnsupportedToken, params.TiaCollateralTokenId, err)
-	}
-	token, err := k.warpKeeper.HypTokens.Get(ctx, tiaTokenId.GetInternalId())
-	if err != nil {
-		return warptypes.HypToken{}, fmt.Errorf("TIA token %s not found in warp keeper: %w", params.TiaCollateralTokenId, err)
-	}
-	return token, nil
+	return k.getTokenByHex(ctx, params.TiaCollateralTokenId)
 }
 
 func (k Keeper) findSyntheticToken(ctx context.Context, tokenIdHex string) (warptypes.HypToken, error) {
+	return k.getTokenByHex(ctx, tokenIdHex)
+}
+
+func (k Keeper) getTokenByHex(ctx context.Context, tokenIdHex string) (warptypes.HypToken, error) {
 	tokenId, err := util.DecodeHexAddress(tokenIdHex)
 	if err != nil {
-		return warptypes.HypToken{}, fmt.Errorf("%w: invalid synthetic token ID %q: %v", types.ErrUnsupportedToken, tokenIdHex, err)
+		return warptypes.HypToken{}, fmt.Errorf("%w: invalid token ID %q", types.ErrUnsupportedToken, tokenIdHex)
 	}
 	token, err := k.warpKeeper.HypTokens.Get(ctx, tokenId.GetInternalId())
 	if err != nil {
-		return warptypes.HypToken{}, fmt.Errorf("synthetic token %s not found in warp keeper: %w", tokenIdHex, err)
+		return warptypes.HypToken{}, fmt.Errorf("token %s not found: %w", tokenIdHex, err)
 	}
 	return token, nil
 }
