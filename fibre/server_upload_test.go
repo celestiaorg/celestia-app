@@ -188,7 +188,6 @@ func makeTestRequest(
 	t.Helper()
 
 	blob := makeTestBlobV0(t, 256*1024)
-	blobCfg := fibre.DefaultBlobConfigV0()
 	namespace := share.MustNewV0Namespace([]byte("testns"))
 
 	// create and sign payment promise
@@ -228,7 +227,7 @@ func makeTestRequest(
 	signPromise(promisePb)
 
 	// get row assignment for server validator
-	totalRows := blobCfg.OriginalRows + blobCfg.ParityRows
+	totalRows := blob.Config().OriginalRows + blob.Config().ParityRows
 	shardMap := valSet.Assign(rsema1d.Commitment(blob.Commitment()), totalRows)
 	rowIndices := shardMap[serverValidator]
 	require.NotEmpty(t, rowIndices, "server validator has no rows assigned")

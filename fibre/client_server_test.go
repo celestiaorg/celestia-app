@@ -83,12 +83,13 @@ func makeTestEnv(
 		ValidatorSet: core.NewValidatorSet(validators),
 		Height:       100,
 	}
+	testParams := fibre.DefaultProtocolParams
+	testParams.MaxValidatorCount = numValidators
 
-	grpcServers, stores, addresses := makeTestServers(t, validators, privKeys, valSet, modifyServerConfig)
+	grpcServers, stores, addresses := makeTestServers(t, validators, privKeys, valSet, testParams, modifyServerConfig)
 	clients := make([]*fibre.Client, numClients)
 	for i := range numClients {
-		clientCfg := fibre.DefaultClientConfig()
-		clientCfg.ShardingFactor = numValidators
+		clientCfg := fibre.NewClientConfigFromParams(testParams)
 
 		// create logger with unique client identifier
 		clientCfg.Log = slog.Default().With("client_idx", i)
@@ -97,7 +98,7 @@ func makeTestEnv(
 		if modifyClientConfig != nil {
 			modifyClientConfig(&clientCfg)
 		}
-		clientCfg.NewClientFn = grpcfibre.DefaultNewClientFn(&testHostRegistry{addresses: addresses}, fibre.MaxMessageSize(clientCfg.BlobConfig))
+		clientCfg.NewClientFn = grpcfibre.DefaultNewClientFn(&testHostRegistry{addresses: addresses}, clientCfg.MaxMessageSize)
 
 		client, err := fibre.NewClient(nil, makeTestKeyring(t), &mockValidatorSetGetter{set: valSet}, &mockHostRegistry{}, clientCfg)
 		require.NoError(t, err)
@@ -118,6 +119,7 @@ func makeTestServers(
 	validators []*core.Validator,
 	privKeys []cmted25519.PrivKey,
 	valSet validator.Set,
+	params fibre.ProtocolParams,
 	modifyServerConfig func(*fibre.ServerConfig),
 ) ([]*grpc.Server, []*fibre.Store, map[string]string) {
 	t.Helper()
@@ -130,8 +132,7 @@ func makeTestServers(
 		listener, err := net.Listen("tcp", "127.0.0.1:0")
 		require.NoError(t, err)
 
-		serverCfg := fibre.DefaultServerConfig()
-		serverCfg.ShardingFactor = len(validators)
+		serverCfg := fibre.NewServerConfigFromParams(params)
 
 		// create logger with unique server identifier
 		serverCfg.Log = slog.Default().With(
@@ -153,7 +154,7 @@ func makeTestServers(
 		)
 		require.NoError(t, err)
 
-		maxMsgSize := fibre.MaxMessageSize(fibreServer.Config().BlobConfig)
+		maxMsgSize := serverCfg.MaxMessageSize
 		grpcServer := grpc.NewServer(
 			grpc.MaxRecvMsgSize(maxMsgSize),
 			grpc.MaxSendMsgSize(maxMsgSize),

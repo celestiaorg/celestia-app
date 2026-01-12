@@ -24,6 +24,9 @@ type ServerConfig struct {
 	BlobConfig
 	StoreConfig
 
+	// MaxMessageSize is the maximum gRPC message size for upload requests.
+	MaxMessageSize int
+
 	// Log is the logger for the server.
 	// If nil, slog.Default() will be used.
 	Log *slog.Logger
@@ -34,10 +37,17 @@ type ServerConfig struct {
 
 // DefaultServerConfig returns a [ServerConfig] with default values.
 func DefaultServerConfig() ServerConfig {
+	return NewServerConfigFromParams(DefaultProtocolParams)
+}
+
+// NewServerConfigFromParams creates a ServerConfig with values derived from the given ProtocolParams.
+// Use this when you need a config with non-default protocol parameters (e.g., for testing).
+func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 	return ServerConfig{
-		ChainID:     "celestia",
-		BlobConfig:  DefaultBlobConfigV0(),
-		StoreConfig: DefaultStoreConfig(),
+		ChainID:        "celestia",
+		BlobConfig:     DefaultBlobConfigV0(), // currently hardcode support for version zero only
+		StoreConfig:    DefaultStoreConfig(),
+		MaxMessageSize: p.MaxMessageSize(p.MaxValidatorCount),
 	}
 }
 
