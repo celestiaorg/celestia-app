@@ -22,10 +22,10 @@ func TestClientServerUpload(t *testing.T) {
 	}{
 		{
 			name:           "MaxBlobSize",
-			numValidators:  1,
+			numValidators:  100,
 			numClients:     2,
 			blobsPerClient: 1,
-			blobSize:       fibre.DefaultBlobConfigV0().MaxBlobSize,
+			blobSize:       fibre.DefaultBlobConfigV0().MaxDataSize,
 		},
 		{
 			name:           "MinBlobSize",
@@ -64,7 +64,7 @@ func TestClientServerUpload(t *testing.T) {
 						return fmt.Errorf("generating random data for blob %d: %w", blobIdx, err)
 					}
 
-					blob, err := fibre.NewBlob(data, client.Config().BlobConfig)
+					blob, err := fibre.NewBlob(data, fibre.DefaultBlobConfigV0())
 					if err != nil {
 						return fmt.Errorf("creating blob %d: %w", blobIdx, err)
 					}

@@ -67,7 +67,8 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 	))
 
 	// 2) assign shards to validators
-	shardMap := valSet.Assign(rsema1d.Commitment(blob.Commitment()), c.cfg.OriginalRows+c.cfg.ParityRows)
+	blobCfg := blob.Config()
+	shardMap := valSet.Assign(rsema1d.Commitment(blob.Commitment()), blobCfg.OriginalRows+blobCfg.ParityRows)
 	span.AddEvent("shards_assigned")
 
 	signBytes, err := promise.SignBytes()
@@ -158,7 +159,7 @@ func (c *Client) signedPromise(ns share.Namespace, blob *Blob, height uint64) (*
 		Height:            height,
 		Namespace:         ns,
 		UploadSize:        uint32(blob.UploadSize()),
-		BlobVersion:       uint32(c.cfg.BlobVersion),
+		BlobVersion:       uint32(blob.Config().BlobVersion),
 		Commitment:        blob.Commitment(),
 		CreationTimestamp: c.clock.Now().UTC(),
 		SignerKey:         signerKey,

@@ -197,9 +197,8 @@ func (s *Server) verifyShard(_ context.Context, promise *PaymentPromise, shard *
 		return fmt.Errorf("creating verification context: %w", err)
 	}
 
-	totalRows := s.cfg.OriginalRows + s.cfg.ParityRows
 	for _, rowPb := range shard.Rows {
-		row, err := parseRow(rowPb, totalRows)
+		row, err := parseRow(rowPb)
 		if err != nil {
 			return err
 		}
@@ -272,10 +271,7 @@ func parseRowSize(rows []*types.BlobRow) (int, error) {
 }
 
 // parseRow validates and converts a single proto row to rsema1d.RowProof format.
-func parseRow(row *types.BlobRow, totalRows int) (*rsema1d.RowProof, error) {
-	if int(row.Index) >= totalRows {
-		return nil, fmt.Errorf("row index %d out of bounds (total rows: %d)", row.Index, totalRows)
-	}
+func parseRow(row *types.BlobRow) (*rsema1d.RowProof, error) {
 	if len(row.Proof) == 0 {
 		return nil, fmt.Errorf("row %d missing proof", row.Index)
 	}
