@@ -21,6 +21,137 @@ The `x/forwarding` module enables single-signature cross-chain transfers through
 5. Tokens arrive at destRecipient on destination chain
 ```
 
+## State Machine Diagrams
+
+### Token Lifecycle at ForwardAddr
+
+Shows what happens to tokens deposited at a forwarding address. Key insight: tokens only leave `forwardAddr` on success - all failures keep tokens safe for retry.
+
+```
+                         ┌───────────┐
+                         │   Empty   │
+                         └─────┬─────┘
+                               │ deposit (EVM warp / CEX)
+                               ▼
+                         ┌───────────┐
+              ┌─────────▶│  Pending  │◀────────────┐
+              │          └─────┬─────┘             │
+              │                │ MsgExecuteForwarding
+              │                ▼                   │
+              │          ┌───────────┐             │
+              │          │ Pre-Check │             │
+              │          └─────┬─────┘             │
+              │          pass  │   fail            │
+              │       ┌────────┴────────┐          │
+              │       ▼                 │          │
+              │  ┌─────────┐            │          │
+              │  │  Warp   │            │          │
+              │  └────┬────┘            │          │
+              │  pass │  fail           │          │
+              │  ┌────┴────┐            │          │
+              │  ▼         ▼            ▼          │
+              │ ┌──────┐ ┌─────────────────┐       │
+              │ │ Done │ │ Stays at Addr   │───────┘
+              │ └──────┘ │ (retry later)   │  new deposit or
+              │          └─────────────────┘  retry execution
+              │
+              │ new deposit to same addr
+              └──────────────────────────────
+```
+
+### Per-Token Processing Flow
+
+Details the pre-check pattern that ensures tokens never get stuck in the module account:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  forwardSingleToken()                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────┐   below    ┌─────────────────────────────────┐ │
+│  │ Check   │───min─────▶│ SKIP: stays at forwardAddr      │ │
+│  │ minimum │            └─────────────────────────────────┘ │
+│  └────┬────┘                                                │
+│       │ ok                                                  │
+│       ▼                                                     │
+│  ┌─────────┐  not found ┌─────────────────────────────────┐ │
+│  │ Lookup  │───────────▶│ SKIP: stays at forwardAddr      │ │
+│  │HypToken │            └─────────────────────────────────┘ │
+│  └────┬────┘                                                │
+│       │ found                                               │
+│       ▼                                                     │
+│  ┌─────────┐  no route  ┌─────────────────────────────────┐ │
+│  │ Check   │───────────▶│ SKIP: stays at forwardAddr      │ │
+│  │ route   │            └─────────────────────────────────┘ │
+│  └────┬────┘                                                │
+│       │ has route                                           │
+│       ▼                                                     │
+│  ┌─────────────────────┐                                    │
+│  │ SendCoins to module │                                    │
+│  └──────────┬──────────┘                                    │
+│             ▼                                               │
+│  ┌─────────────────────┐  fail  ┌───────────────────────┐   │
+│  │ Warp Transfer       │───────▶│ Return to forwardAddr │   │
+│  └──────────┬──────────┘        └───────────────────────┘   │
+│             │ success                                       │
+│             ▼                                               │
+│  ┌─────────────────────┐                                    │
+│  │ SUCCESS: forwarded  │                                    │
+│  └─────────────────────┘                                    │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### End-to-End System Flow
+
+Shows all component interactions from user intent to final delivery:
+
+```
+┌────────┐  ┌────────┐  ┌─────────┐  ┌─────────┐  ┌──────────┐  ┌───────────┐
+│  User  │  │ Source │  │ Backend │  │ Relayer │  │ Celestia │  │   Dest    │
+│        │  │ Chain  │  │         │  │         │  │          │  │   Chain   │
+└───┬────┘  └───┬────┘  └────┬────┘  └────┬────┘  └────┬─────┘  └─────┬─────┘
+    │           │            │            │            │              │
+    │ 1. Request forward     │            │            │              │
+    │──────────────────────▶ │            │            │              │
+    │                        │            │            │              │
+    │ ◀── forwardAddr ───────│            │            │              │
+    │                        │            │            │              │
+    │ 2. Deposit             │            │            │              │
+    │──────▶│                │            │            │              │
+    │       │                │            │            │              │
+    │       │ 3. Warp transfer (EVM)      │            │              │
+    │       │ ─ ─ ─ OR ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│─ ─ ─ ─ ─ ▶│              │
+    │       │ 3. CEX withdrawal           │            │              │
+    │       │─────────────────────────────┼───────────▶│              │
+    │       │                │            │            │              │
+    │       │                │  4. Poll   │            │              │
+    │       │                │◀───────────│            │              │
+    │       │                │            │            │              │
+    │       │                │            │ 5. Watch   │              │
+    │       │                │            │───────────▶│              │
+    │       │                │            │            │              │
+    │       │                │            │ 6. MsgExecuteForwarding   │
+    │       │                │            │───────────▶│              │
+    │       │                │            │            │              │
+    │       │                │            │            │ 7. Warp msg  │
+    │       │                │            │            │─────────────▶│
+    │       │                │            │            │              │
+    │       │                │            │◀─ result ──│              │
+    │       │                │            │            │              │
+    │◀────────────────────── status ──────┤            │              │
+    │                        │            │            │              │
+```
+
+**Flow summary:**
+1. User requests forwarding address from frontend
+2. User initiates deposit on source chain (EVM or CEX)
+3. Tokens arrive at Celestia via Hyperlane warp OR CEX withdrawal
+4. Relayer polls backend for registered intents
+5. Relayer watches Celestia for deposits to known addresses
+6. Relayer submits `MsgExecuteForwarding`
+7. Module triggers outbound warp transfer to destination
+
 ## State
 
 The forwarding module maintains minimal state:
