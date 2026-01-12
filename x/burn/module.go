@@ -20,18 +20,25 @@ var (
 	_ appmodule.HasServices   = AppModule{}
 )
 
-// AppModule implements the AppModule interface for the burn module.
 type AppModule struct {
 	keeper Keeper
 }
 
-func NewAppModule(k Keeper) AppModule                                             { return AppModule{keeper: k} }
-func (AppModule) Name() string                                                    { return types.ModuleName }
-func (AppModule) IsAppModule()                                                    {}
-func (AppModule) IsOnePerModuleType()                                             {}
-func (AppModule) ConsensusVersion() uint64                                        { return 1 }
+func NewAppModule(k Keeper) AppModule {
+	return AppModule{keeper: k}
+}
+
+func (AppModule) Name() string             { return types.ModuleName }
+func (AppModule) IsAppModule()             {}
+func (AppModule) IsOnePerModuleType()      {}
+func (AppModule) ConsensusVersion() uint64 { return 1 }
+
 func (AppModule) RegisterGRPCGatewayRoutes(_ client.Context, _ *runtime.ServeMux) {}
-func (AppModule) DefaultGenesis(_ codec.JSONCodec) json.RawMessage                { return []byte("{}") }
+
+func (AppModule) DefaultGenesis(_ codec.JSONCodec) json.RawMessage {
+	return []byte("{}")
+}
+
 func (AppModule) ValidateGenesis(_ codec.JSONCodec, _ client.TxEncodingConfig, _ json.RawMessage) error {
 	return nil
 }

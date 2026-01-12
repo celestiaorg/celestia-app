@@ -8,23 +8,19 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// BankKeeper defines the expected bank keeper interface.
 type BankKeeper interface {
 	SendCoinsFromAccountToModule(ctx context.Context, senderAddr sdk.AccAddress, recipientModule string, amt sdk.Coins) error
 	BurnCoins(ctx context.Context, moduleName string, amt sdk.Coins) error
 }
 
-// Keeper handles burn operations.
 type Keeper struct {
 	bankKeeper BankKeeper
 }
 
-// NewKeeper creates a new burn Keeper.
 func NewKeeper(bankKeeper BankKeeper) Keeper {
 	return Keeper{bankKeeper: bankKeeper}
 }
 
-// Burn implements types.MsgServer. Validation is performed in ValidateBasic.
 func (k Keeper) Burn(goCtx context.Context, msg *types.MsgBurn) (*types.MsgBurnResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
