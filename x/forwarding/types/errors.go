@@ -10,4 +10,5 @@ var (
 	ErrNoBalance        = errors.Register(ModuleName, 2, "no balance at forwarding address")
 	ErrBelowMinimum     = errors.Register(ModuleName, 3, "balance below minimum threshold")
 	ErrUnsupportedToken = errors.Register(ModuleName, 4, "unsupported token denom")
+	ErrTooManyTokens    = errors.Register(ModuleName, 5, "too many tokens at forwarding address")
 )

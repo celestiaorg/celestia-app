@@ -64,8 +64,7 @@ func (am AppModule) RegisterGRPCGatewayRoutes(_ client.Context, _ *runtime.Serve
 // RegisterServices registers module services.
 func (am AppModule) RegisterServices(cfg module.Configurator) {
 	types.RegisterMsgServer(cfg.MsgServer(), keeper.NewMsgServerImpl(am.forwardingKeeper))
-	// Query server is not gRPC-based in our implementation, so we don't register it here
-	// It can be accessed via the keeper directly
+	types.RegisterQueryServer(cfg.QueryServer(), keeper.NewQueryServerImpl(am.forwardingKeeper))
 }
 
 // DefaultGenesis returns default genesis state as raw bytes for the forwarding module.

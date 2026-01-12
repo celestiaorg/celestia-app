@@ -25,6 +25,12 @@ func NewMsgExecuteForwarding(signer, forwardAddr string, destDomain uint32, dest
 }
 
 // ValidateBasic performs basic validation
+//
+// Note on DestDomain validation: We intentionally do NOT validate that DestDomain corresponds
+// to an actual enrolled warp route here. This validation happens at execution time in the keeper,
+// which has access to the warp module state. ValidateBasic only checks static message validity.
+// If DestDomain has no enrolled router, the forwarding will fail gracefully at execution time
+// with tokens remaining at forwardAddr for retry.
 func (msg *MsgExecuteForwarding) ValidateBasic() error {
 	// Validate signer address
 	_, err := sdk.AccAddressFromBech32(msg.Signer)
@@ -48,6 +54,8 @@ func (msg *MsgExecuteForwarding) ValidateBasic() error {
 	if len(destRecipient.Bytes()) != 32 {
 		return errors.Wrap(ErrAddressMismatch, "dest_recipient must be 32 bytes")
 	}
+
+	// Note: DestDomain is not validated here - validated at execution time in keeper
 
 	return nil
 }

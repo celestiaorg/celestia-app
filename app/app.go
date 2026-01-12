@@ -142,6 +142,7 @@ var maccPerms = map[string][]string{
 	icatypes.ModuleName:            nil,
 	hyperlanetypes.ModuleName:      nil,
 	warptypes.ModuleName:           {authtypes.Minter, authtypes.Burner},
+	forwardingtypes.ModuleName:     nil, // No special permissions needed - only holds tokens temporarily
 }
 
 var (

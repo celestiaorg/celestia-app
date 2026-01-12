@@ -29,7 +29,11 @@ type Keeper struct {
 	// Dependencies
 	accountKeeper types.AccountKeeper
 	bankKeeper    types.BankKeeper
-	// warpKeeper is the concrete warp keeper to access EnrolledRouters field
+	// warpKeeper is the concrete warp keeper type (not an interface) because:
+	// - hyperlane-cosmos exposes state via public collections.Map fields (HypTokens, EnrolledRouters)
+	// - Go interfaces cannot expose struct fields, only methods
+	// - We wrap field access in helper methods: FindHypTokenByDenom, HasEnrolledRouter
+	// See types/expected_keepers.go for documentation of the warp keeper interface.
 	warpKeeper *warpkeeper.Keeper
 }
 

@@ -22,7 +22,15 @@ func NewMsgServerImpl(keeper Keeper) types.MsgServer {
 }
 
 // ExecuteForwarding handles MsgExecuteForwarding
-// This is the core forwarding logic - forwards ALL tokens at forwardAddr to the committed destination
+// This is the core forwarding logic - forwards ALL tokens at forwardAddr to the committed destination.
+//
+// PARTIAL FAILURE BEHAVIOR (by design):
+// Multi-token forwarding processes each token independently. If some tokens fail to forward
+// (e.g., no warp route, below minimum threshold), the transaction still succeeds with mixed results.
+// Failed tokens remain at forwardAddr and can be retried later. This design enables:
+// - Permissionless retry: anyone can call ExecuteForwarding again for remaining tokens
+// - Progressive forwarding: new warp routes can forward previously unsupported tokens
+// - No stuck transactions: one bad token doesn't block others from forwarding
 func (m msgServer) ExecuteForwarding(goCtx context.Context, msg *types.MsgExecuteForwarding) (*types.MsgExecuteForwardingResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
@@ -54,17 +62,23 @@ func (m msgServer) ExecuteForwarding(goCtx context.Context, msg *types.MsgExecut
 		return nil, types.ErrNoBalance
 	}
 
-	// 4. Get module address for token custody during warp transfer
+	// 4. Check token count limit to prevent gas exhaustion
+	if len(balances) > types.MaxTokensPerForward {
+		return nil, types.ErrTooManyTokens
+	}
+
+	// 5. Get module address for token custody during warp transfer
 	moduleAddr := m.k.accountKeeper.GetModuleAddress(types.ModuleName)
 
-	// 5. Get params for minimum threshold check
+	// 6. Get params for minimum threshold check
 	params, err := m.k.GetParams(ctx)
 	if err != nil {
-		// Use default params if not set
+		// Use default params if not set - this is normal for fresh chains
+		ctx.Logger().Debug("forwarding params not set, using defaults", "error", err.Error())
 		params = types.DefaultParams()
 	}
 
-	// 6. Process each token
+	// 7. Process each token
 	var results []types.ForwardingResult
 
 	for _, balance := range balances {
@@ -85,7 +99,7 @@ func (m msgServer) ExecuteForwarding(goCtx context.Context, msg *types.MsgExecut
 		)
 	}
 
-	// 7. Emit summary event
+	// 8. Emit summary event
 	successCount := 0
 	failCount := 0
 	for _, r := range results {
@@ -163,9 +177,14 @@ func (m msgServer) forwardSingleToken(
 		balance.Amount,
 	)
 	if err != nil {
-		// Rare edge case: token is now in module account
-		// In production, add recovery mechanism
-		result.Error = "warp transfer failed: " + err.Error()
+		// Rare edge case: warp transfer failed after pre-checks passed.
+		// Recovery: return tokens to forwardAddr so user can retry.
+		if recoveryErr := m.k.bankKeeper.SendCoins(ctx, moduleAddr, forwardAddr, sdk.NewCoins(balance)); recoveryErr != nil {
+			// If recovery also fails, log both errors
+			result.Error = fmt.Sprintf("warp transfer failed: %s; recovery failed: %s", err.Error(), recoveryErr.Error())
+			return result
+		}
+		result.Error = "warp transfer failed (tokens returned to forward address): " + err.Error()
 		return result
 	}
 

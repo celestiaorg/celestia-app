@@ -23,17 +23,19 @@ type BankKeeper interface {
 	SendCoinsFromAccountToModule(ctx context.Context, senderAddr sdk.AccAddress, recipientModule string, amt sdk.Coins) error
 }
 
-// WarpKeeper defines the expected warp keeper interface
-// Note: For enrolled router access, use the concrete keeper's EnrolledRouters field directly
+// WarpKeeper defines the expected warp keeper interface for documentation purposes.
+//
+// IMPORTANT: The forwarding keeper uses the concrete *warpkeeper.Keeper type, NOT this interface.
+// This is intentional because the hyperlane-cosmos warp keeper exposes its state via public
+// collections.Map fields (HypTokens, EnrolledRouters) rather than through methods.
+// Go interfaces cannot expose struct fields, so we must use the concrete type.
+//
+// The forwarding keeper wraps these field accesses in helper methods:
+//   - FindHypTokenByDenom: wraps warpKeeper.HypTokens.Get
+//   - HasEnrolledRouter: wraps warpKeeper.EnrolledRouters.Has
+//
+// This interface documents the warp keeper capabilities we depend on for future reference.
 type WarpKeeper interface {
-	// GetHypToken retrieves a HypToken by its ID
-	GetHypToken(ctx context.Context, tokenId util.HexAddress) (warptypes.HypToken, error)
-
-	// HasEnrolledRouter checks if a route exists for a token to a destination domain
-	// Implementation note: The concrete keeper exposes EnrolledRouters as a public collections.Map field.
-	// Access it directly via: keeper.EnrolledRouters.Has(ctx, collections.Join(tokenId.GetInternalId(), destDomain))
-	// This method is provided by a wrapper for interface compatibility.
-
 	// RemoteTransferSynthetic initiates a cross-chain transfer for synthetic tokens
 	RemoteTransferSynthetic(
 		ctx sdk.Context,

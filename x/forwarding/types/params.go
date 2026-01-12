@@ -2,6 +2,8 @@ package types
 
 import (
 	"cosmossdk.io/math"
+
+	"github.com/bcp-innovations/hyperlane-cosmos/util"
 )
 
 // DefaultMinForwardAmount is the default minimum forward amount (0 = disabled)
@@ -31,7 +33,14 @@ func (p Params) Validate() error {
 	if p.MinForwardAmount.IsNegative() {
 		return ErrBelowMinimum
 	}
+
 	// TiaCollateralTokenId can be empty (disabled) or must be a valid hex address
-	// Validation of the actual format happens when used
+	if p.TiaCollateralTokenId != "" {
+		_, err := util.DecodeHexAddress(p.TiaCollateralTokenId)
+		if err != nil {
+			return ErrUnsupportedToken
+		}
+	}
+
 	return nil
 }
