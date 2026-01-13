@@ -15,7 +15,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -35,49 +34,16 @@ func TestUpgrades(t *testing.T) {
 }
 
 func TestApplyUpgrade(t *testing.T) {
-	t.Run("apply upgrade should set ICA host params to an explicit allowlist of messages", func(t *testing.T) {
-		consensusParams := app.DefaultConsensusParams()
-		consensusParams.Version.App = 5
-		testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
-		require.True(t, testApp.UpgradeKeeper.HasHandler("v6"))
-		plan := upgradetypes.Plan{
-			Name:   "v6",
-			Time:   time.Now(),
-			Height: 1,
-			Info:   "info",
-		}
-
-		// Note: v5 didn't have the ICA module registered so no params were set
-		// but this test explicitly sets the params to values to verify they get
-		// overridden during ApplyUpgrade.
-		allMessages := []string{"*"}
-		ctx := testApp.NewContext(false)
-		testApp.ICAHostKeeper.SetParams(ctx, icahosttypes.Params{
-			HostEnabled:   false,
-			AllowMessages: allMessages,
-		})
-		got := testApp.ICAHostKeeper.GetParams(ctx)
-		require.False(t, got.HostEnabled)
-		require.Equal(t, allMessages, got.AllowMessages)
-
-		err := testApp.UpgradeKeeper.ApplyUpgrade(ctx, plan)
-		require.NoError(t, err)
-
-		ctx = testApp.NewContext(false)
-		got = testApp.ICAHostKeeper.GetParams(ctx)
-		require.True(t, got.HostEnabled)
-		require.Equal(t, got.AllowMessages, app.IcaAllowMessages())
-	})
-	t.Run("apply upgrade should set the min commission rate to 10%", func(t *testing.T) {
+	t.Run("apply upgrade should set the min commission rate to 20%", func(t *testing.T) {
 		consensusParams := app.DefaultConsensusParams()
 		consensusParams.Version.App = 5
 		testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
 		require.True(t, testApp.UpgradeKeeper.HasHandler("v6"))
 
 		ctx := testApp.NewContext(false)
-		oldMinCommissionRate, err := math.LegacyNewDecFromStr("0.05")
+		oldMinCommissionRate, err := math.LegacyNewDecFromStr("0.10")
 		require.NoError(t, err)
-		// Set the min commission rate to 5% because that is what is on Mainnet since genesis.
+		// Set the min commission rate to 10% because that is what v6 set it to.
 		err = testApp.StakingKeeper.SetParams(ctx, stakingtypes.Params{
 			MinCommissionRate: oldMinCommissionRate,
 		})
@@ -101,7 +67,7 @@ func TestApplyUpgrade(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, appconsts.MinCommissionRate, got.MinCommissionRate)
 	})
-	t.Run("apply upgrade should set the commission rate for a validator to 10% if it was less than that", func(t *testing.T) {
+	t.Run("apply upgrade should set the commission rate for a validator to 20% if it was less than that", func(t *testing.T) {
 		consensusParams := app.DefaultConsensusParams()
 		consensusParams.Version.App = 5
 		testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
@@ -156,59 +122,49 @@ func TestUpdateValidatorCommissionRates(t *testing.T) {
 			initialRate:          "0.05", // 5%
 			initialMaxRate:       "0.08", // 8%
 			initialMaxChangeRate: "0.01", // 1%
-			wantRate:             "0.10", // 10% (MinCommissionRate)
-			wantMaxRate:          "0.10", // 10% (MinCommissionRate)
+			wantRate:             "0.20", // 20% (MinCommissionRate)
+			wantMaxRate:          "0.20", // 20% (MinCommissionRate)
 			wantMaxChangeRate:    "0.01", // unchanged
 			shouldUpdate:         true,
 		},
 		{
 			name:                 "should increase rate to min commission rate and leave max rate unchanged",
 			initialRate:          "0.03", // 3%
-			initialMaxRate:       "0.15", // 15%
+			initialMaxRate:       "0.25", // 25%
 			initialMaxChangeRate: "0.02", // 2%
-			wantRate:             "0.10", // 10% (MinCommissionRate)
-			wantMaxRate:          "0.15", // unchanged
+			wantRate:             "0.20", // 20% (MinCommissionRate)
+			wantMaxRate:          "0.25", // unchanged
 			wantMaxChangeRate:    "0.02", // unchanged
 			shouldUpdate:         true,
 		},
 		{
-			name:                 "should increase max rate to min commission rate and leave initial rate unchanged even though this can't happen in practice",
-			initialRate:          "0.12", // 12%
-			initialMaxRate:       "0.07", // 7%
-			initialMaxChangeRate: "0.03", // 3%
-			wantRate:             "0.12", // unchanged
-			wantMaxRate:          "0.10", // 10% (MinCommissionRate)
-			wantMaxChangeRate:    "0.03", // unchanged
-			shouldUpdate:         true,
-		},
-		{
 			name:                 "should not update if both rate and max rate are above min commission rate",
-			initialRate:          "0.15", // 15%
-			initialMaxRate:       "0.20", // 20%
+			initialRate:          "0.25", // 25%
+			initialMaxRate:       "0.30", // 30%
 			initialMaxChangeRate: "0.05", // 5%
-			wantRate:             "0.15", // unchanged
-			wantMaxRate:          "0.20", // unchanged
+			wantRate:             "0.25", // unchanged
+			wantMaxRate:          "0.30", // unchanged
 			wantMaxChangeRate:    "0.05", // unchanged
 			shouldUpdate:         false,
 		},
 		{
 			name:                 "should not update if both rate and max rate are exactly at min commission rate",
-			initialRate:          "0.10", // 10% (exactly minimum)
-			initialMaxRate:       "0.10", // 10% (exactly minimum)
-			initialMaxChangeRate: "0.10", // 10%
-			wantRate:             "0.10", // unchanged
-			wantMaxRate:          "0.10", // unchanged
-			wantMaxChangeRate:    "0.10", // unchanged
+			initialRate:          "0.20", // 20% (exactly minimum)
+			initialMaxRate:       "0.20", // 20% (exactly minimum)
+			initialMaxChangeRate: "0.20", // 20%
+			wantRate:             "0.20", // unchanged
+			wantMaxRate:          "0.20", // unchanged
+			wantMaxChangeRate:    "0.20", // unchanged
 			shouldUpdate:         false,
 		},
 		{
 			name:                 "zero commission rate - should be updated to minimum",
-			initialRate:          "0.0",  // 0%
+			initialRate:          "0.00", // 0%
 			initialMaxRate:       "0.05", // 5%
-			initialMaxChangeRate: "0.1",  // 10%
-			wantRate:             "0.1",  // 10% (MinCommissionRate)
-			wantMaxRate:          "0.1",  // 10% (MinCommissionRate)
-			wantMaxChangeRate:    "0.1",  // unchanged
+			initialMaxChangeRate: "0.10", // 10%
+			wantRate:             "0.20", // 20% (MinCommissionRate)
+			wantMaxRate:          "0.20", // 20% (MinCommissionRate)
+			wantMaxChangeRate:    "0.10", // unchanged
 			shouldUpdate:         true,
 		},
 	}

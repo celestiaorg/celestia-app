@@ -60,6 +60,6 @@ const (
 
 )
 
-// MinCommissionRate is 10%. It is the minimum commission rate for a validator
-// as defined in CIP-41.
-var MinCommissionRate = math.LegacyNewDecWithPrec(1, 1)
+// MinCommissionRate is 20%.
+// TODO(@rootulp): link to CIP.
+var MinCommissionRate = math.LegacyNewDecWithPrec(2, 1)
