@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v6/x/burn/types"
+	"github.com/celestiaorg/celestia-app/v7/x/burn/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 

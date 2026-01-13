@@ -3,7 +3,7 @@ package types
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 

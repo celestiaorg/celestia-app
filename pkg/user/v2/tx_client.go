@@ -3,8 +3,8 @@ package v2
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v7/app/encoding"
+	"github.com/celestiaorg/celestia-app/v7/pkg/user"
 	"github.com/celestiaorg/go-square/v3/share"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
