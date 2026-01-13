@@ -13,7 +13,7 @@ import (
 	"sync"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v6/multiplexer/internal"
+	"github.com/celestiaorg/celestia-app/v7/multiplexer/internal"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/p2p"

@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/celestiaorg/celestia-app/v6/multiplexer/abci"
+	"github.com/celestiaorg/celestia-app/v7/multiplexer/abci"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/server/types"

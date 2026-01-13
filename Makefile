@@ -13,7 +13,7 @@ PROJECTNAME=$(shell basename "$(PWD)")
 DOCKER_GOOS ?= linux
 DOCKER_GOARCH ?= amd64
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
-PACKAGE_NAME := github.com/celestiaorg/celestia-app/v6
+PACKAGE_NAME := github.com/celestiaorg/celestia-app/v7
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
 GOLANG_CROSS_VERSION  ?= v1.24.6
@@ -23,7 +23,7 @@ V2_UPGRADE_HEIGHT ?= 0
 BUILD_TAGS_STANDALONE := ledger
 BUILD_TAGS_MULTIPLEXER := ledger,multiplexer
 
-LDFLAGS_COMMON := -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) -X github.com/celestiaorg/celestia-app/v6/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT)
+LDFLAGS_COMMON := -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) -X github.com/celestiaorg/celestia-app/v7/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT)
 LDFLAGS_STANDALONE := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_STANDALONE)
 LDFLAGS_MULTIPLEXER := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_MULTIPLEXER)
 
@@ -38,6 +38,7 @@ BUILD_FLAGS_MULTIPLEXER := -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_M
 CELESTIA_V3_VERSION := v3.10.6
 CELESTIA_V4_VERSION := v4.1.0
 CELESTIA_V5_VERSION := v5.0.12
+CELESTIA_V6_VERSION := v6.4.4
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -60,6 +61,7 @@ ifeq ($(DOWNLOAD),true)
 	@$(MAKE) download-v3-binaries
 	@$(MAKE) download-v4-binaries
 	@$(MAKE) download-v5-binaries
+	@$(MAKE) download-v6-binaries
 endif
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd with multiplexer enabled"
@@ -74,7 +76,7 @@ install-standalone:
 
 ## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
 # TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
-install: download-v3-binaries download-v4-binaries download-v5-binaries
+install: download-v3-binaries download-v4-binaries download-v5-binaries download-v6-binaries
 	@echo "--> Installing celestia-appd with multiplexer support"
 	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
 .PHONY: install
@@ -123,6 +125,21 @@ download-v5-binaries:
 	esac; \
 	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V5_VERSION)"
 .PHONY: download-v5-binaries
+
+## download-v6-binaries: Download the celestia-app v6 binary for the current platform.
+download-v6-binaries:
+	@echo "--> Downloading celestia-app $(CELESTIA_V6_VERSION) binary"
+	@mkdir -p internal/embedding
+	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
+	case "$$os-$$arch" in \
+		darwin-arm64) url=celestia-app-standalone_Darwin_arm64.tar.gz; out=celestia-app_darwin_v6_arm64.tar.gz ;; \
+		linux-arm64) url=celestia-app-standalone_Linux_arm64.tar.gz; out=celestia-app_linux_v6_arm64.tar.gz ;; \
+		darwin-amd64) url=celestia-app-standalone_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v6_amd64.tar.gz ;; \
+		linux-amd64) url=celestia-app-standalone_Linux_x86_64.tar.gz; out=celestia-app_linux_v6_amd64.tar.gz ;; \
+		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
+	esac; \
+	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V6_VERSION)"
+.PHONY: download-v6-binaries
 
 ## mod: Update all go.mod files.
 mod:
@@ -305,7 +322,7 @@ test-docker-e2e-upgrade-all:
 .PHONY: test-docker-e2e-upgrade-all
 
 ## test-multiplexer: Run unit tests for the multiplexer package.
-test-multiplexer: download-v3-binaries download-v4-binaries download-v5-binaries
+test-multiplexer: download-v3-binaries download-v4-binaries download-v5-binaries download-v6-binaries
 	@echo "--> Running multiplexer tests"
 	@go test -tags multiplexer ./multiplexer/...
 .PHONY: test-multiplexer

@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v7/app"
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/p2p/pex"
 	"github.com/spf13/cobra"

@@ -3,8 +3,8 @@ package ante
 import (
 	"cosmossdk.io/errors"
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	minfeekeeper "github.com/celestiaorg/celestia-app/v6/x/minfee/keeper"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	minfeekeeper "github.com/celestiaorg/celestia-app/v7/x/minfee/keeper"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerror "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
