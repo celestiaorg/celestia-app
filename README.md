@@ -230,16 +230,6 @@ go test -bench=. ./...
 - [celestiaorg/reedsolomon](https://github.com/celestiaorg/reedsolomon): Leopard Reed-Solomon codec
 - Go standard library (crypto/sha256, encoding/binary)
 
-## Specification
-
-See [SPEC.md](SPEC.md) for the complete technical specification including:
-
-- Mathematical foundations
-- Detailed algorithms
-- Security analysis
-- Test vectors
-- Serialization formats
-
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
