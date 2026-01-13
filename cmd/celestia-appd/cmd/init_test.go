@@ -13,7 +13,7 @@ func Test_getConsensusParams(t *testing.T) {
 		Block:     types.BlockParams{MaxBytes: appconsts.DefaultMaxBytes, MaxGas: -1},
 		Evidence:  types.EvidenceParams{MaxAgeNumBlocks: 100000, MaxAgeDuration: 172800000000000, MaxBytes: 1048576},
 		Validator: types.ValidatorParams{PubKeyTypes: []string{"ed25519"}},
-		Version:   types.VersionParams{App: 0x6},
+		Version:   types.VersionParams{App: 0x7},
 		ABCI:      types.ABCIParams{VoteExtensionsEnableHeight: 0},
 	}
 	got := *getConsensusParams()

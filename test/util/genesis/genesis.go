@@ -275,7 +275,7 @@ func (g *Genesis) ExportBytes() ([]byte, error) {
 			g.accounts,
 			g.GenesisTime,
 		)
-	case 4, 5, 6:
+	case 4, 5, 6, 7:
 		tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, simtestutil.EmptyAppOptions{})
 		return DocumentBytes(
 			tempApp.DefaultGenesis(),
