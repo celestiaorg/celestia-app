@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v7/app"
+	"github.com/celestiaorg/celestia-app/v7/app/encoding"
+	"github.com/celestiaorg/celestia-app/v7/pkg/user"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"

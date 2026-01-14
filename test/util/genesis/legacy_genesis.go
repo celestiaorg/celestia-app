@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	maps "github.com/celestiaorg/celestia-app/v6/internal/utils"
+	"github.com/celestiaorg/celestia-app/v7/app/encoding"
+	maps "github.com/celestiaorg/celestia-app/v7/internal/utils"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
