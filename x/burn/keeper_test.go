@@ -122,3 +122,14 @@ func TestTotalBurnedQuery(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, amount, resp.TotalBurned)
 }
+
+func TestBurnAddressQuery(t *testing.T) {
+	storeKey := storetypes.NewKVStoreKey(types.StoreKey)
+	bankKeeper := newMockBankKeeper()
+	keeper := NewKeeper(storeKey, bankKeeper)
+	ctx := createTestContext(t, storeKey)
+
+	resp, err := keeper.BurnAddress(ctx, &types.QueryBurnAddressRequest{})
+	require.NoError(t, err)
+	require.Equal(t, types.BurnAddressBech32, resp.BurnAddress)
+}

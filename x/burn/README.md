@@ -29,7 +29,7 @@ At the end of each block (EndBlocker):
 2. If zero, return early
 3. Transfer tokens from burn address to burn module account
 4. Burn tokens from module account (emits SDK `coin_burn` event)
-5. Emit `EventBurn` with signer and amount
+5. Emit `EventBurn` with burner and amount
 6. Update `TotalBurned` state
 
 ## Ante Decorator
@@ -38,6 +38,7 @@ The `BurnAddressRestrictionDecorator` validates transactions containing:
 - `MsgSend` - checks `ToAddress`
 - `MsgMultiSend` - checks all `Outputs[].Address`
 - `MsgTransfer` (IBC) - checks `Receiver`
+- `MsgExec` (authz) - recursively validates all nested messages
 
 If recipient is the burn address, only `utia` denomination is allowed.
 
@@ -49,7 +50,7 @@ Emitted when tokens are burned in EndBlocker.
 
 | Attribute | Type   | Description                          |
 |-----------|--------|--------------------------------------|
-| signer    | string | Burn address                         |
+| burner    | string | Burn address                         |
 | amount    | string | Amount burned (e.g., "1000000utia")  |
 
 ### SDK Events
@@ -64,6 +65,14 @@ Returns cumulative tokens burned.
 
 ```shell
 grpcurl -plaintext localhost:9090 celestia.burn.v1.Query/TotalBurned
+```
+
+### BurnAddress
+
+Returns the burn address for programmatic discovery.
+
+```shell
+grpcurl -plaintext localhost:9090 celestia.burn.v1.Query/BurnAddress
 ```
 
 ## Client
@@ -89,6 +98,16 @@ celestia-appd tx ibc-transfer transfer <channel> celestia1qqqqqqqqqqqqqqqqqqqqqq
 
 ## Hyperlane
 
-No special handling needed:
-- **Outbound**: Recipient is on another chain, not Celestia
-- **Inbound**: Tokens landing at burn address get burned (intended behavior)
+**Outbound** (`MsgRemoteTransfer`): Recipient is on another chain, not Celestia. The burn address
+restriction does not apply since the recipient is specified as a hex address on the destination chain.
+
+**Inbound** (via `MsgProcessMessage`): If tokens are bridged TO Celestia with the burn address as
+recipient, they will land at the burn address. Native utia will be burned in EndBlocker. However,
+synthetic Hyperlane tokens (non-utia) would be permanently stuck since EndBlocker only burns utia.
+This is documented behavior - avoid sending non-utia to the burn address via Hyperlane.
+
+## ICA (Interchain Accounts)
+
+ICA host messages bypass the ante handler chain. If an ICA controller on another chain executes
+`MsgSend` with the burn address as recipient, the burn address restriction is not enforced.
+Non-utia tokens sent this way would be permanently stuck (not burned, not stolen).

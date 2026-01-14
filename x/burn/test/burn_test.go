@@ -1,9 +1,6 @@
 package test
 
 import (
-	"context"
-	"fmt"
-	"strings"
 	"testing"
 
 	"cosmossdk.io/math"
@@ -17,11 +14,9 @@ import (
 	burntypes "github.com/celestiaorg/celestia-app/v7/x/burn/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/suite"
-	"google.golang.org/grpc/metadata"
 )
 
 // IntegrationTestSuite runs end-to-end tests against a real test network.
@@ -100,7 +95,7 @@ func (s *IntegrationTestSuite) TestBurnAddressSendAndBurn() {
 }
 
 // TestBurnEmitsEvent verifies that when tokens are burned by EndBlocker, an event is emitted with:
-// - signer: the burn address
+// - burner: the burn address
 // - amount: the amount burned (e.g., "500000utia")
 func (s *IntegrationTestSuite) TestBurnEmitsEvent() {
 	require := s.Require()
@@ -215,17 +210,6 @@ func (s *IntegrationTestSuite) TestTotalBurnedQuery() {
 		initialBurned, finalResp.TotalBurned.Amount, burnAmount.Amount)
 }
 
-// getTotalSupplyAtHeight queries the bank module for total token supply at a specific block height.
-// This allows comparing supply before and after a burn to isolate its effect from inflation.
-func (s *IntegrationTestSuite) getTotalSupplyAtHeight(height int64) sdk.Coins {
-	bqc := banktypes.NewQueryClient(s.cctx.GRPCClient)
-	// Set gRPC metadata to query at a specific historical height
-	ctx := metadata.AppendToOutgoingContext(context.Background(), grpctypes.GRPCBlockHeightHeader, fmt.Sprintf("%d", height))
-	resp, err := bqc.TotalSupply(ctx, &banktypes.QueryTotalSupplyRequest{})
-	s.Require().NoError(err)
-	return resp.Supply
-}
-
 // getAccountBalance queries the bank module for an account's utia balance.
 func (s *IntegrationTestSuite) getAccountBalance(addr sdk.AccAddress) math.Int {
 	bqc := banktypes.NewQueryClient(s.cctx.GRPCClient)
@@ -235,42 +219,4 @@ func (s *IntegrationTestSuite) getAccountBalance(addr sdk.AccAddress) math.Int {
 	})
 	s.Require().NoError(err)
 	return resp.Balance.Amount
-}
-
-// BurnEvent represents the parsed attributes from a burn event.
-type BurnEvent struct {
-	Signer string // bech32 address of the account that burned tokens
-	Amount string // amount burned, e.g., "1000000utia"
-}
-
-// getBurnEvent searches transaction events for our burn module's typed EventBurn.
-// It filters by expectedSigner because the bank module also emits burn-related events
-// with different addresses (e.g., the module account).
-func getBurnEvent(events []abci.Event, expectedSigner string) (BurnEvent, error) {
-	// Typed events use the proto message name as the event type.
-	// We use the literal string here because proto.MessageName() returns empty
-	// when called at package init time (before proto types are registered).
-	const eventType = "celestia.burn.v1.EventBurn"
-	for _, event := range events {
-		if event.Type != eventType {
-			continue
-		}
-		var signer, amount string
-		for _, attr := range event.Attributes {
-			// Typed event values are JSON-encoded, so strings are quoted.
-			// We trim the surrounding quotes to get the raw value.
-			value := strings.Trim(attr.Value, "\"")
-			switch attr.Key {
-			case "signer":
-				signer = value
-			case "amount":
-				amount = value
-			}
-		}
-		// Only return if this matches our expected signer (filters out bank module events)
-		if signer == expectedSigner {
-			return BurnEvent{Signer: signer, Amount: amount}, nil
-		}
-	}
-	return BurnEvent{}, fmt.Errorf("burn event with signer %s not found", expectedSigner)
 }
