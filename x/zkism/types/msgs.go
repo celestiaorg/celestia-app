@@ -15,6 +15,14 @@ var (
 
 // ValidateBasic implements stateless validation for the HasValidateBasic interface.
 func (msg *MsgCreateInterchainSecurityModule) ValidateBasic() error {
+	if len(msg.State) < 32 {
+		return errorsmod.Wrap(ErrInvalidTrustedState, "initial trusted state must be at least 32 bytes")
+	}
+
+	if len(msg.MerkleTreeAddress) != 32 {
+		return errorsmod.Wrap(ErrInvalidMerkleTreeAddress, "merkle tree address must be 32 bytes")
+	}
+
 	if _, err := groth16.NewVerifyingKey(msg.Groth16Vkey); err != nil {
 		return errorsmod.Wrapf(ErrInvalidVerifyingKey, "invalid groth16 verifying key")
 	}

@@ -26,6 +26,20 @@ func TestMsgCreateInterchainSecurityModuleValidateBasic(t *testing.T) {
 			expErr:  nil,
 		},
 		{
+			name: "invalid trusted state length",
+			mallate: func() {
+				msg.State = []byte{0x01}
+			},
+			expErr: types.ErrInvalidTrustedState,
+		},
+		{
+			name: "invalid merkle tree address length",
+			mallate: func() {
+				msg.MerkleTreeAddress = []byte{0x01}
+			},
+			expErr: types.ErrInvalidMerkleTreeAddress,
+		},
+		{
 			name: "invalid groth16 verifying key",
 			mallate: func() {
 				msg.Groth16Vkey = []byte{0x01}
@@ -52,6 +66,7 @@ func TestMsgCreateInterchainSecurityModuleValidateBasic(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			msg = &types.MsgCreateInterchainSecurityModule{
 				State:               bytes.Repeat([]byte{0x01}, 32),
+				MerkleTreeAddress:   bytes.Repeat([]byte{0x01}, 32),
 				Groth16Vkey:         groth16Vk,
 				StateTransitionVkey: bytes.Repeat([]byte{0x01}, 32),
 				StateMembershipVkey: bytes.Repeat([]byte{0x01}, 32),
