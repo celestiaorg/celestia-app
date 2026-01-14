@@ -364,9 +364,11 @@ func New(
 	)
 	// Transfer stack contains (from top to bottom):
 	// - Packet Forwarding Middleware
+	// - Burn Address Validation Middleware
 	// - Transfer
 	var transferStack ibcporttypes.IBCModule
 	transferStack = transfer.NewIBCModule(app.TransferKeeper)
+	transferStack = NewBurnAddressIBCMiddleware(transferStack)
 	transferStack = packetforward.NewIBCMiddleware(transferStack, app.PacketForwardKeeper,
 		0, // retries on timeout
 		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
