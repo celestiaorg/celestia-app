@@ -50,12 +50,15 @@ func (k Keeper) EndBlocker(ctx context.Context) error {
 		return fmt.Errorf("failed to emit burn event: %w", err)
 	}
 
-	k.addToTotalBurned(sdkCtx, balance)
+	if err := k.addToTotalBurned(sdkCtx, balance); err != nil {
+		return fmt.Errorf("failed to update total burned: %w", err)
+	}
 
 	return nil
 }
 
 // GetTotalBurned returns the cumulative amount of tokens burned.
+// Panics if stored data is corrupted (indicates critical state corruption).
 func (k Keeper) GetTotalBurned(ctx context.Context) sdk.Coin {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	store := sdkCtx.KVStore(k.storeKey)
@@ -67,13 +70,14 @@ func (k Keeper) GetTotalBurned(ctx context.Context) sdk.Coin {
 
 	var coin sdk.Coin
 	if err := coin.Unmarshal(bz); err != nil {
-		return sdk.NewCoin(appconsts.BondDenom, math.ZeroInt())
+		panic(fmt.Errorf("failed to unmarshal TotalBurned: %w (state corruption)", err))
 	}
 	return coin
 }
 
 // addToTotalBurned adds the burned amount to the cumulative total.
-func (k Keeper) addToTotalBurned(ctx sdk.Context, burned sdk.Coin) {
+// Returns error if marshaling fails (should never happen for valid sdk.Coin).
+func (k Keeper) addToTotalBurned(ctx sdk.Context, burned sdk.Coin) error {
 	store := ctx.KVStore(k.storeKey)
 
 	current := k.GetTotalBurned(ctx)
@@ -81,14 +85,23 @@ func (k Keeper) addToTotalBurned(ctx sdk.Context, burned sdk.Coin) {
 
 	bz, err := updated.Marshal()
 	if err != nil {
-		return
+		return fmt.Errorf("failed to marshal TotalBurned: %w", err)
 	}
 	store.Set(types.TotalBurnedKey, bz)
+	return nil
 }
 
 // TotalBurned implements the Query/TotalBurned gRPC method.
 func (k Keeper) TotalBurned(ctx context.Context, _ *types.QueryTotalBurnedRequest) (*types.QueryTotalBurnedResponse, error) {
 	return &types.QueryTotalBurnedResponse{
 		TotalBurned: k.GetTotalBurned(ctx),
+	}, nil
+}
+
+// BurnAddress implements the Query/BurnAddress gRPC method.
+// Returns the address where tokens should be sent to be burned.
+func (k Keeper) BurnAddress(_ context.Context, _ *types.QueryBurnAddressRequest) (*types.QueryBurnAddressResponse, error) {
+	return &types.QueryBurnAddressResponse{
+		BurnAddress: types.BurnAddressBech32,
 	}, nil
 }
