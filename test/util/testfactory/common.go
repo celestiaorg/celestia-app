@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"sort"
 
-	"github.com/celestiaorg/celestia-app/v6/test/util/random"
+	"github.com/celestiaorg/celestia-app/v7/test/util/random"
 	"github.com/celestiaorg/go-square/v3/share"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
