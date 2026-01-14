@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	square "github.com/celestiaorg/go-square/v3"
 	"github.com/celestiaorg/go-square/v3/tx"
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"

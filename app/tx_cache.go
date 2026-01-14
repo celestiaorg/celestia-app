@@ -3,6 +3,8 @@ package app
 import (
 	"crypto/sha256"
 	"sync"
+
+	"github.com/celestiaorg/go-square/v3/share"
 )
 
 // TxCache caches the transactions
@@ -23,17 +25,40 @@ func (c *TxCache) getTxKey(tx []byte) string {
 	return string(hash[:])
 }
 
-// Exists checks whether the Tx exists in the cache
-func (c *TxCache) Exists(tx []byte) (exists bool) {
+// Exists checks whether the Tx exists in the cache and the blobs match the cached blobs
+func (c *TxCache) Exists(tx []byte, blobs []*share.Blob) bool {
 	key := c.getTxKey(tx)
-	_, exists = c.cache.Load(key)
-	return exists
+	value, exists := c.cache.Load(key)
+	if !exists {
+		return false
+	}
+
+	cachedBlobHash, ok := value.(string)
+	if !ok {
+		return false
+	}
+
+	blobHash := c.getBlobsHash(blobs)
+	return cachedBlobHash == blobHash
 }
 
 // Set stores the Tx in the cache
-func (c *TxCache) Set(tx []byte) {
+func (c *TxCache) Set(tx []byte, blobs []*share.Blob) {
 	key := c.getTxKey(tx)
-	c.cache.Store(key, struct{}{})
+	blobsHash := c.getBlobsHash(blobs)
+	c.cache.Store(key, blobsHash)
+}
+
+func (c *TxCache) getBlobsHash(blobs []*share.Blob) string {
+	h := sha256.New()
+	for _, blob := range blobs {
+		h.Write(blob.Namespace().Bytes())
+		h.Write(blob.Data())
+		h.Write([]byte{blob.ShareVersion()})
+		h.Write(blob.Signer())
+	}
+	sum := h.Sum(nil)
+	return string(sum)
 }
 
 // RemoveTransaction removes specific transactions from the cache

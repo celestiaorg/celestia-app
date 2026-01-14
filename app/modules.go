@@ -12,13 +12,15 @@ import (
 	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	"github.com/bcp-innovations/hyperlane-cosmos/x/warp"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
-	"github.com/celestiaorg/celestia-app/v6/x/blob"
-	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/celestia-app/v6/x/minfee"
-	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
-	minttypes "github.com/celestiaorg/celestia-app/v6/x/mint/types"
-	"github.com/celestiaorg/celestia-app/v6/x/signal"
-	signaltypes "github.com/celestiaorg/celestia-app/v6/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v7/x/blob"
+	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v7/x/burn"
+	burntypes "github.com/celestiaorg/celestia-app/v7/x/burn/types"
+	"github.com/celestiaorg/celestia-app/v7/x/minfee"
+	minfeetypes "github.com/celestiaorg/celestia-app/v7/x/minfee/types"
+	minttypes "github.com/celestiaorg/celestia-app/v7/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v7/x/signal"
+	signaltypes "github.com/celestiaorg/celestia-app/v7/x/signal/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -84,6 +86,7 @@ var ModuleEncodingRegisters = []module.AppModuleBasic{
 	warp.AppModule{},
 	// celestia
 	blob.AppModule{},
+	burn.AppModule{},
 	minfee.AppModule{},
 	mintModule{},
 	signal.AppModule{},
@@ -169,6 +172,7 @@ func (app *App) setModuleOrder() {
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		signaltypes.ModuleName,
+		burntypes.ModuleName,
 		packetforwardtypes.ModuleName,
 		icatypes.ModuleName,
 		upgradetypes.ModuleName,

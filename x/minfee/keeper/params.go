@@ -1,7 +1,7 @@
 package keeper
 
 import (
-	"github.com/celestiaorg/celestia-app/v6/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v7/x/minfee/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
