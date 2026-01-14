@@ -7,10 +7,10 @@ import (
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/test/util"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v7/app"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/test/util"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testfactory"
 	tmdb "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -19,7 +19,7 @@ import (
 )
 
 func TestUpgrades(t *testing.T) {
-	t.Run("app.New() should register a v6 upgrade handler", func(t *testing.T) {
+	t.Run("app.New() should register a v7 upgrade handler", func(t *testing.T) {
 		logger := log.NewNopLogger()
 		db := tmdb.NewMemDB()
 		traceStore := &NoopWriter{}
@@ -28,8 +28,8 @@ func TestUpgrades(t *testing.T) {
 
 		testApp := app.New(logger, db, traceStore, timeoutCommit, appOptions, baseapp.SetChainID(testfactory.ChainID))
 
-		require.False(t, testApp.UpgradeKeeper.HasHandler("v5"))
-		require.True(t, testApp.UpgradeKeeper.HasHandler("v6"))
+		require.False(t, testApp.UpgradeKeeper.HasHandler("v6"))
+		require.True(t, testApp.UpgradeKeeper.HasHandler("v7"))
 	})
 }
 
@@ -38,7 +38,7 @@ func TestApplyUpgrade(t *testing.T) {
 		consensusParams := app.DefaultConsensusParams()
 		consensusParams.Version.App = 5
 		testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
-		require.True(t, testApp.UpgradeKeeper.HasHandler("v6"))
+		require.True(t, testApp.UpgradeKeeper.HasHandler("v7"))
 
 		ctx := testApp.NewContext(false)
 		oldMinCommissionRate, err := math.LegacyNewDecFromStr("0.10")
@@ -54,7 +54,7 @@ func TestApplyUpgrade(t *testing.T) {
 
 		// Apply the upgrade.
 		plan := upgradetypes.Plan{
-			Name:   "v6",
+			Name:   "v7",
 			Time:   time.Now(),
 			Height: 1,
 			Info:   "info",
@@ -71,7 +71,7 @@ func TestApplyUpgrade(t *testing.T) {
 		consensusParams := app.DefaultConsensusParams()
 		consensusParams.Version.App = 5
 		testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
-		require.True(t, testApp.UpgradeKeeper.HasHandler("v6"))
+		require.True(t, testApp.UpgradeKeeper.HasHandler("v7"))
 
 		ctx := testApp.NewContext(false)
 		validators, err := testApp.StakingKeeper.GetAllValidators(ctx)
@@ -84,7 +84,7 @@ func TestApplyUpgrade(t *testing.T) {
 
 		// Apply the upgrade.
 		plan := upgradetypes.Plan{
-			Name:   "v6",
+			Name:   "v7",
 			Time:   time.Now(),
 			Height: 1,
 			Info:   "info",

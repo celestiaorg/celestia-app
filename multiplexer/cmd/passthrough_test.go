@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v6/multiplexer/abci"
-	"github.com/celestiaorg/celestia-app/v6/multiplexer/appd"
+	"github.com/celestiaorg/celestia-app/v7/multiplexer/abci"
+	"github.com/celestiaorg/celestia-app/v7/multiplexer/appd"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 )

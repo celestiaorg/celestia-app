@@ -6,9 +6,9 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testfactory"
 	"github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	nmtnamespace "github.com/celestiaorg/nmt/namespace"
