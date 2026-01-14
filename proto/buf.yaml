@@ -25,3 +25,6 @@ lint:
 breaking:
   use:
     - FILE
+  ignore:
+    # burn module is new in v7 and has not been released yet
+    - celestia/burn
