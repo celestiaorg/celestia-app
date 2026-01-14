@@ -142,6 +142,7 @@ func (app *App) setModuleOrder() {
 		minfeetypes.ModuleName,
 		packetforwardtypes.ModuleName,
 		icatypes.ModuleName,
+		burntypes.ModuleName, // burns tokens sent to burn address
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -208,5 +209,6 @@ func allStoreKeys() []string {
 		circuittypes.StoreKey,     // added in v4
 		hyperlanetypes.ModuleName, // added in v4
 		warptypes.ModuleName,      // added in v4
+		burntypes.StoreKey,        // added in v7
 	}
 }

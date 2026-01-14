@@ -2,7 +2,6 @@ package burn
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"cosmossdk.io/log"
@@ -29,11 +28,13 @@ func newMockBankKeeper() *mockBankKeeper {
 	}
 }
 
+func (m *mockBankKeeper) GetBalance(_ context.Context, addr sdk.AccAddress, denom string) sdk.Coin {
+	balance := m.balances[addr.String()]
+	return sdk.NewCoin(denom, balance.AmountOf(denom))
+}
+
 func (m *mockBankKeeper) SendCoinsFromAccountToModule(_ context.Context, senderAddr sdk.AccAddress, _ string, amt sdk.Coins) error {
 	balance := m.balances[senderAddr.String()]
-	if !balance.IsAllGTE(amt) {
-		return fmt.Errorf("insufficient balance: have %s, want %s", balance, amt)
-	}
 	m.balances[senderAddr.String()] = balance.Sub(amt...)
 	return nil
 }
@@ -43,49 +44,81 @@ func (m *mockBankKeeper) BurnCoins(_ context.Context, _ string, amt sdk.Coins) e
 	return nil
 }
 
-func createTestContext(t *testing.T) sdk.Context {
+func createTestContext(t *testing.T, storeKey storetypes.StoreKey) sdk.Context {
 	db := dbm.NewMemDB()
 	stateStore := store.NewCommitMultiStore(db, log.NewNopLogger(), metrics.NoOpMetrics{})
-	stateStore.MountStoreWithDB(storetypes.NewKVStoreKey("test"), storetypes.StoreTypeIAVL, nil)
+	stateStore.MountStoreWithDB(storeKey, storetypes.StoreTypeIAVL, nil)
 	require.NoError(t, stateStore.LoadLatestVersion())
 	return sdk.NewContext(stateStore, tmproto.Header{}, false, log.NewNopLogger())
 }
 
-func TestBurnSuccess(t *testing.T) {
+func TestEndBlockerBurnsTokens(t *testing.T) {
+	storeKey := storetypes.NewKVStoreKey(types.StoreKey)
 	bankKeeper := newMockBankKeeper()
-	signer := sdk.AccAddress("test_signer__________")
 	amount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))
-	bankKeeper.balances[signer.String()] = sdk.NewCoins(amount)
+	bankKeeper.balances[types.BurnAddress.String()] = sdk.NewCoins(amount)
 
-	keeper := NewKeeper(bankKeeper)
-	msg := &types.MsgBurn{
-		Signer: signer.String(),
-		Amount: amount,
-	}
+	keeper := NewKeeper(storeKey, bankKeeper)
+	ctx := createTestContext(t, storeKey)
 
-	ctx := createTestContext(t)
-	resp, err := keeper.Burn(ctx, msg)
+	err := keeper.EndBlocker(ctx)
 
 	require.NoError(t, err)
-	require.Equal(t, amount, resp.Burned)
 	require.Equal(t, sdk.NewCoins(amount), bankKeeper.burnedFromModule)
+	require.Equal(t, amount, keeper.GetTotalBurned(ctx))
 }
 
-func TestBurnInsufficientBalance(t *testing.T) {
+func TestEndBlockerNoBalance(t *testing.T) {
+	storeKey := storetypes.NewKVStoreKey(types.StoreKey)
 	bankKeeper := newMockBankKeeper()
-	signer := sdk.AccAddress("test_signer__________")
+
+	keeper := NewKeeper(storeKey, bankKeeper)
+	ctx := createTestContext(t, storeKey)
+
+	err := keeper.EndBlocker(ctx)
+
+	require.NoError(t, err)
+	require.Nil(t, bankKeeper.burnedFromModule)
+}
+
+func TestTotalBurnedAccumulates(t *testing.T) {
+	storeKey := storetypes.NewKVStoreKey(types.StoreKey)
+	bankKeeper := newMockBankKeeper()
+	keeper := NewKeeper(storeKey, bankKeeper)
+	ctx := createTestContext(t, storeKey)
+
+	// First burn
+	amount1 := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))
+	bankKeeper.balances[types.BurnAddress.String()] = sdk.NewCoins(amount1)
+	require.NoError(t, keeper.EndBlocker(ctx))
+
+	// Second burn
+	amount2 := sdk.NewCoin(appconsts.BondDenom, math.NewInt(500))
+	bankKeeper.balances[types.BurnAddress.String()] = sdk.NewCoins(amount2)
+	require.NoError(t, keeper.EndBlocker(ctx))
+
+	// Verify total
+	expected := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1500))
+	require.Equal(t, expected, keeper.GetTotalBurned(ctx))
+}
+
+func TestTotalBurnedQuery(t *testing.T) {
+	storeKey := storetypes.NewKVStoreKey(types.StoreKey)
+	bankKeeper := newMockBankKeeper()
+	keeper := NewKeeper(storeKey, bankKeeper)
+	ctx := createTestContext(t, storeKey)
+
+	// Initial query returns zero
+	resp, err := keeper.TotalBurned(ctx, &types.QueryTotalBurnedRequest{})
+	require.NoError(t, err)
+	require.Equal(t, sdk.NewCoin(appconsts.BondDenom, math.ZeroInt()), resp.TotalBurned)
+
+	// After burn
 	amount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))
-	bankKeeper.balances[signer.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(500)))
+	bankKeeper.balances[types.BurnAddress.String()] = sdk.NewCoins(amount)
+	require.NoError(t, keeper.EndBlocker(ctx))
 
-	keeper := NewKeeper(bankKeeper)
-	msg := &types.MsgBurn{
-		Signer: signer.String(),
-		Amount: amount,
-	}
-
-	ctx := createTestContext(t)
-	_, err := keeper.Burn(ctx, msg)
-
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "insufficient")
+	resp, err = keeper.TotalBurned(ctx, &types.QueryTotalBurnedRequest{})
+	require.NoError(t, err)
+	require.Equal(t, amount, resp.TotalBurned)
 }
