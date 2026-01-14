@@ -35,7 +35,6 @@ func startLatencyMonitorCmd() *cobra.Command {
 		rootDir         string
 		SSHKeyPath      string
 		stop            bool
-		debug           bool
 	)
 
 	cmd := &cobra.Command{
@@ -96,11 +95,7 @@ func startLatencyMonitorCmd() *cobra.Command {
 				latencyMonitorScript = script
 			}
 
-			if debug {
-				fmt.Println(insts, "\n", latencyMonitorScript)
-			} else {
-				fmt.Printf("Starting latency monitor on %d instance(s)...\n", len(insts))
-			}
+			fmt.Printf("Starting latency monitor on %d instance(s)...\n", len(insts))
 
 			if err := runScriptInTMux(insts, resolvedSSHKeyPath, latencyMonitorScript, LatencyMonitorSessionName, time.Minute*5); err != nil {
 				return err
@@ -121,7 +116,6 @@ func startLatencyMonitorCmd() *cobra.Command {
 	cmd.Flags().StringVar(&lokiURL, "loki-url", "", "Loki base URL to push latency-monitor logs (enables promtail)")
 	cmd.Flags().StringVar(&promtailConfig, "promtail-config", "", "path to promtail config template (defaults to ./metrics/promtail/promtail-config.yml)")
 	cmd.Flags().BoolVar(&stop, "stop", false, "stop the latency monitor instead of starting it")
-	cmd.Flags().BoolVar(&debug, "debug", false, "print the remote script before running")
 	_ = cmd.MarkFlagRequired("instances")
 
 	return cmd
@@ -135,11 +129,7 @@ func promtailScript(promtailConfigPath, lokiURL, latencyMonitorCmd string) (stri
 
 	normalizedLokiURL := normalizeLokiURL(strings.TrimRight(lokiURL, "/"))
 	configIncludesPushPath := strings.Contains(string(configBytes), "__LOKI_URL__/loki/api/v1/push")
-	if configIncludesPushPath {
-		normalizedLokiURL = strings.TrimSuffix(normalizedLokiURL, "/loki/api/v1/push")
-	} else if !strings.HasSuffix(normalizedLokiURL, "/loki/api/v1/push") {
-		normalizedLokiURL += "/loki/api/v1/push"
-	}
+	normalizedLokiURL = ensureLokiPushURL(normalizedLokiURL, configIncludesPushPath)
 	renderedConfig := strings.ReplaceAll(string(configBytes), "__LOKI_URL__", normalizedLokiURL)
 	configB64 := base64.StdEncoding.EncodeToString([]byte(renderedConfig))
 
@@ -177,6 +167,16 @@ func normalizeLokiURL(raw string) string {
 		return "https://" + strings.TrimPrefix(raw, "https:/")
 	}
 	return raw
+}
+
+func ensureLokiPushURL(lokiURL string, configIncludesPushPath bool) string {
+	if configIncludesPushPath {
+		return strings.TrimSuffix(lokiURL, "/loki/api/v1/push")
+	}
+	if strings.HasSuffix(lokiURL, "/loki/api/v1/push") {
+		return lokiURL
+	}
+	return lokiURL + "/loki/api/v1/push"
 }
 
 func updateLatencyTargets(cfg Config, metricsNode Instance, sshKeyPath string, instances []Instance) error {
