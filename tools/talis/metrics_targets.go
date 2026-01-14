@@ -15,7 +15,7 @@ func buildMetricsTargets(cfg Config, port int, addressSource string) ([]targetGr
 		return nil, 0, fmt.Errorf("invalid address source %q (use public or private)", addressSource)
 	}
 
-	var groups []targetGroup
+	var groups []targetGroup //nolint:prealloc
 	var skipped int
 
 	appendTargets := func(nodes []Instance, role string) {
@@ -52,7 +52,7 @@ func buildMetricsTargetsForInstances(instances []Instance, cfg Config, port int,
 		return nil, 0, fmt.Errorf("invalid address source %q (use public or private)", addressSource)
 	}
 
-	var groups []targetGroup
+	var groups []targetGroup //nolint:prealloc
 	var skipped int
 
 	for _, node := range instances {
