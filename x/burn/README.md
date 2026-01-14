@@ -106,6 +106,18 @@ recipient, they will land at the burn address. Native utia will be burned in End
 synthetic Hyperlane tokens (non-utia) would be permanently stuck since EndBlocker only burns utia.
 This is documented behavior - avoid sending non-utia to the burn address via Hyperlane.
 
+## IBC Inbound Transfers
+
+Inbound IBC transfers are validated by the `BurnAddressIBCMiddleware`. If a remote chain attempts
+to send non-utia tokens to the burn address, the transfer is rejected with an error acknowledgement
+and the sender receives a refund on the source chain.
+
+**Allowed:** Native utia returning to Celestia can be sent to the burn address (e.g., utia sent
+to another chain via IBC and then sent back to the burn address).
+
+**Rejected:** Foreign tokens (e.g., `uosmo`, `uatom`, or any `ibc/HASH...` denom) sent to the
+burn address are rejected with an error acknowledgement.
+
 ## ICA (Interchain Accounts)
 
 ICA host messages bypass the ante handler chain. If an ICA controller on another chain executes

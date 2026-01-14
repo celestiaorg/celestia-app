@@ -35,7 +35,11 @@ func (AppModule) IsAppModule()             {}
 func (AppModule) IsOnePerModuleType()      {}
 func (AppModule) ConsensusVersion() uint64 { return 1 }
 
-func (AppModule) RegisterGRPCGatewayRoutes(_ client.Context, _ *runtime.ServeMux) {}
+func (AppModule) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *runtime.ServeMux) {
+	if err := types.RegisterQueryHandlerClient(context.Background(), mux, types.NewQueryClient(clientCtx)); err != nil {
+		panic(err)
+	}
+}
 
 func (AppModule) DefaultGenesis(_ codec.JSONCodec) json.RawMessage {
 	return []byte("{}")
