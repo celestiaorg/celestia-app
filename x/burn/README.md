@@ -25,6 +25,7 @@ This is a vanity address derived from 20 zero bytes, making it easy to recognize
 ## State Transitions
 
 At the end of each block (EndBlocker):
+
 1. Check burn address utia balance
 2. If zero, return early
 3. Transfer tokens from burn address to burn module account
@@ -35,6 +36,7 @@ At the end of each block (EndBlocker):
 ## Ante Decorator
 
 The `BurnAddressRestrictionDecorator` validates transactions containing:
+
 - `MsgSend` - checks `ToAddress`
 - `MsgMultiSend` - checks all `Outputs[].Address`
 - `MsgTransfer` (IBC) - checks `Receiver`
@@ -80,11 +82,13 @@ grpcurl -plaintext localhost:9090 celestia.burn.v1.Query/BurnAddress
 ### CLI
 
 Send tokens to the burn address:
+
 ```shell
 celestia-appd tx bank send <from-key> celestia1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqzf30as <amount>
 ```
 
 Example:
+
 ```shell
 celestia-appd tx bank send mykey celestia1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqzf30as 1000000utia
 ```
@@ -92,6 +96,7 @@ celestia-appd tx bank send mykey celestia1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqzf30as
 ### IBC Transfer
 
 Tokens can also be burned via IBC transfer:
+
 ```shell
 celestia-appd tx ibc-transfer transfer <channel> celestia1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqzf30as <amount> --from <key>
 ```
@@ -123,3 +128,9 @@ burn address are rejected with an error acknowledgement.
 ICA host messages bypass the ante handler chain. If an ICA controller on another chain executes
 `MsgSend` with the burn address as recipient, the burn address restriction is not enforced.
 Non-utia tokens sent this way would be permanently stuck (not burned, not stolen).
+
+**Accepted Risk:** This bypass is documented and accepted because:
+
+1. Stuck tokens do not benefit any party (they are not stolen, just inaccessible)
+2. ICA usage is uncommon and requires explicit controller setup on another chain
+3. The operational complexity of mitigating this edge case outweighs the risk

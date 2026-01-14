@@ -18,11 +18,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	// testBurnAmount is a standard test amount in utia for unit tests.
+	testBurnAmount = 1000
+	// testBurnAmountSmall is a smaller test amount in utia for accumulation tests.
+	testBurnAmountSmall = 500
+)
+
 type mockBankKeeper struct {
-	balances               map[string]sdk.Coins
-	burnedFromModule       sdk.Coins
-	sendToModuleErr        error
-	burnCoinsErr           error
+	balances         map[string]sdk.Coins
+	burnedFromModule sdk.Coins
+	sendToModuleErr  error
+	burnCoinsErr     error
 }
 
 func newMockBankKeeper() *mockBankKeeper {
@@ -66,7 +73,7 @@ func createTestContext(t *testing.T, storeKey storetypes.StoreKey) sdk.Context {
 func TestEndBlockerBurnsTokens(t *testing.T) {
 	storeKey := storetypes.NewKVStoreKey(types.StoreKey)
 	bankKeeper := newMockBankKeeper()
-	amount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))
+	amount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(testBurnAmount))
 	bankKeeper.balances[types.BurnAddress.String()] = sdk.NewCoins(amount)
 
 	keeper := NewKeeper(storeKey, bankKeeper)
@@ -103,17 +110,17 @@ func TestTotalBurnedAccumulates(t *testing.T) {
 	ctx := createTestContext(t, storeKey)
 
 	// First burn
-	amount1 := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))
+	amount1 := sdk.NewCoin(appconsts.BondDenom, math.NewInt(testBurnAmount))
 	bankKeeper.balances[types.BurnAddress.String()] = sdk.NewCoins(amount1)
 	require.NoError(t, keeper.EndBlocker(ctx))
 
 	// Second burn
-	amount2 := sdk.NewCoin(appconsts.BondDenom, math.NewInt(500))
+	amount2 := sdk.NewCoin(appconsts.BondDenom, math.NewInt(testBurnAmountSmall))
 	bankKeeper.balances[types.BurnAddress.String()] = sdk.NewCoins(amount2)
 	require.NoError(t, keeper.EndBlocker(ctx))
 
-	// Verify total
-	expected := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1500))
+	// Verify total (testBurnAmount + testBurnAmountSmall = 1500)
+	expected := sdk.NewCoin(appconsts.BondDenom, math.NewInt(testBurnAmount+testBurnAmountSmall))
 	require.Equal(t, expected, keeper.GetTotalBurned(ctx))
 }
 
@@ -131,7 +138,7 @@ func TestTotalBurnedQuery(t *testing.T) {
 	require.Equal(t, sdk.NewCoin(appconsts.BondDenom, math.ZeroInt()), resp.TotalBurned)
 
 	// After burn
-	amount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))
+	amount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(testBurnAmount))
 	bankKeeper.balances[types.BurnAddress.String()] = sdk.NewCoins(amount)
 	require.NoError(t, keeper.EndBlocker(ctx))
 
@@ -158,7 +165,7 @@ func TestBurnAddressQuery(t *testing.T) {
 func TestEndBlockerSendToModuleFails(t *testing.T) {
 	storeKey := storetypes.NewKVStoreKey(types.StoreKey)
 	bankKeeper := newMockBankKeeper()
-	amount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))
+	amount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(testBurnAmount))
 	bankKeeper.balances[types.BurnAddress.String()] = sdk.NewCoins(amount)
 	bankKeeper.sendToModuleErr = fmt.Errorf("module account not found")
 
@@ -178,7 +185,7 @@ func TestEndBlockerSendToModuleFails(t *testing.T) {
 func TestEndBlockerBurnCoinsFails(t *testing.T) {
 	storeKey := storetypes.NewKVStoreKey(types.StoreKey)
 	bankKeeper := newMockBankKeeper()
-	amount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))
+	amount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(testBurnAmount))
 	bankKeeper.balances[types.BurnAddress.String()] = sdk.NewCoins(amount)
 	bankKeeper.burnCoinsErr = fmt.Errorf("insufficient funds")
 
@@ -198,7 +205,7 @@ func TestEndBlockerBurnCoinsFails(t *testing.T) {
 func TestEndBlockerEmitsEvent(t *testing.T) {
 	storeKey := storetypes.NewKVStoreKey(types.StoreKey)
 	bankKeeper := newMockBankKeeper()
-	amount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))
+	amount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(testBurnAmount))
 	bankKeeper.balances[types.BurnAddress.String()] = sdk.NewCoins(amount)
 
 	keeper := NewKeeper(storeKey, bankKeeper)
@@ -221,7 +228,8 @@ func TestEndBlockerEmitsEvent(t *testing.T) {
 			foundBurner = true
 		}
 		if attr.Key == "amount" {
-			require.Equal(t, "\"1000utia\"", attr.Value)
+			expectedAmount := fmt.Sprintf("\"%d%s\"", testBurnAmount, appconsts.BondDenom)
+			require.Equal(t, expectedAmount, attr.Value)
 			foundAmount = true
 		}
 	}
