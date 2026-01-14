@@ -142,7 +142,8 @@ func (app *App) setModuleOrder() {
 		minfeetypes.ModuleName,
 		packetforwardtypes.ModuleName,
 		icatypes.ModuleName,
-		burntypes.ModuleName, // burns tokens sent to burn address
+		// burn must be last to ensure all transfers (including IBC) complete before burning
+		burntypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
