@@ -47,6 +47,37 @@ func buildMetricsTargets(cfg Config, port int, addressSource string) ([]targetGr
 	return groups, skipped, nil
 }
 
+func buildMetricsTargetsForInstances(instances []Instance, cfg Config, port int, addressSource, role string) ([]targetGroup, int, error) {
+	if addressSource != "public" && addressSource != "private" {
+		return nil, 0, fmt.Errorf("invalid address source %q (use public or private)", addressSource)
+	}
+
+	var groups []targetGroup
+	var skipped int
+
+	for _, node := range instances {
+		address, ok := nodeAddress(node, port, addressSource)
+		if !ok {
+			skipped++
+			continue
+		}
+
+		groups = append(groups, targetGroup{
+			Targets: []string{address},
+			Labels: map[string]string{
+				"chain_id":   cfg.ChainID,
+				"experiment": cfg.Experiment,
+				"role":       role,
+				"region":     node.Region,
+				"provider":   string(node.Provider),
+				"node_id":    node.Name,
+			},
+		})
+	}
+
+	return groups, skipped, nil
+}
+
 func marshalTargets(groups []targetGroup, pretty bool) ([]byte, error) {
 	if pretty {
 		return json.MarshalIndent(groups, "", "  ")

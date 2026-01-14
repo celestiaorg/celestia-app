@@ -1,6 +1,6 @@
 # Metrics Package
 
-This package provides a simple metrics stack for Consensus nodes using Prometheus and Grafana with file-based target discovery.
+This package provides a metrics stack for Consensus nodes using Prometheus and Grafana with file-based target discovery, plus a Loki endpoint for log ingestion.
 
 ## Architecture
 
@@ -14,6 +14,11 @@ This package provides a simple metrics stack for Consensus nodes using Prometheu
                                          ┌─────────────┐
                                          │   Grafana   │
                                          │ (port 3000) │
+                                         └─────────────┘
+
+┌──────────────────────┐    push logs    ┌─────────────┐
+│ latency-monitor logs │ ──────────────► │    Loki     │
+└──────────────────────┘                 │ (port 3100) │
                                          └─────────────┘
 ```
 
@@ -101,10 +106,21 @@ GRAFANA_PASSWORD=mysecretpassword docker compose up -d
 
 When using Talis, a random password is generated automatically during `talis genesis`.
 
+### Loki + Promtail (latency-monitor logs)
+
+The Loki container is included in the stack and a Grafana Loki datasource is pre-provisioned.
+
+Start latency-monitor with Loki enabled:
+
+```bash
+talis latency-monitor --instances 1 --loki-url http://<metrics-node-ip>:3100
+```
+
 ## Security
 
 - **Prometheus** is internal only (not exposed to the network); Grafana accesses it via Docker's internal network
 - **Grafana** requires authentication (port 3000)
+- **Loki** is exposed on port 3100 for log ingestion
 
 ## Checking Status
 

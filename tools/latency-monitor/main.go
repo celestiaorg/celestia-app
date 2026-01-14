@@ -219,13 +219,16 @@ func monitorLatency(
 			submitTime := time.Now()
 
 			// Broadcast transaction without waiting for confirmation
+			checkTxStart := time.Now()
 			resp, err := txClient.BroadcastPayForBlob(ctx, []*share.Blob{blob})
+			checkTxLatency := time.Since(checkTxStart)
 			if err != nil {
 				fmt.Printf("[BROADCAST_FAILED] error=%v\n", err)
 				recordBroadcastFailure()
 				continue
 			}
 
+			recordCheckTxLatency(checkTxLatency)
 			fmt.Printf("[SUBMIT] tx=%s size=%d bytes time=%s\n",
 				resp.TxHash[:16], randomSize, submitTime.Format("15:04:05.000"))
 			recordSubmit()

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"log"
@@ -34,8 +35,15 @@ func runScriptInTMux(
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
 
-			// Launch in tmux
-			tmuxCmd := fmt.Sprintf("tmux new-session -d -s %s '%s'", sessionName, remoteScript)
+			// Launch in tmux and capture output to a per-session log.
+			logPath := fmt.Sprintf("/root/talis-%s.log", sessionName)
+			scriptPath := fmt.Sprintf("/root/talis-%s.sh", sessionName)
+			scriptPayload := "#!/usr/bin/env bash\n" + remoteScript + "\n"
+			encodedScript := base64.StdEncoding.EncodeToString([]byte(scriptPayload))
+			prepareCmd := fmt.Sprintf("printf '%%s' %q | base64 -d > %s && chmod +x %s", encodedScript, scriptPath, scriptPath)
+			runCmd := fmt.Sprintf("bash %s > %s 2>&1", scriptPath, logPath)
+			tmuxCmd := fmt.Sprintf("tmux new-session -d -s %s %q", sessionName, runCmd)
+			fullCmd := fmt.Sprintf("%s && %s", prepareCmd, tmuxCmd)
 
 			ssh := exec.CommandContext(ctx,
 				"ssh",
@@ -43,7 +51,7 @@ func runScriptInTMux(
 				"-o", "StrictHostKeyChecking=no",
 				"-o", "UserKnownHostsFile=/dev/null",
 				fmt.Sprintf("root@%s", inst.PublicIP),
-				tmuxCmd,
+				fullCmd,
 			)
 			if out, err := ssh.CombinedOutput(); err != nil {
 				errCh <- fmt.Errorf("[%s:%s] ssh error in %s: %v\n%s",
