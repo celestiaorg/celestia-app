@@ -6,7 +6,7 @@ import (
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v7/app"
 	"github.com/celestiaorg/celestia-app/v7/app/encoding"
-	"github.com/celestiaorg/celestia-app/v7/app/params"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/pkg/user"
 	"github.com/celestiaorg/celestia-app/v7/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v7/test/util/testfactory"
@@ -17,6 +17,15 @@ import (
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/suite"
+)
+
+const (
+	// utiaPerTIA is the number of utia in one TIA (1 TIA = 1,000,000 utia).
+	utiaPerTIA = 1_000_000
+	// halfTIA is half a TIA in utia, used for smaller test amounts.
+	halfTIA = 500_000
+	// tenthTIA is 0.1 TIA in utia, used for smaller test amounts.
+	tenthTIA = 100_000
 )
 
 // IntegrationTestSuite runs end-to-end tests against a real test network.
@@ -32,10 +41,10 @@ func TestBurnIntegrationTestSuite(t *testing.T) {
 	suite.Run(t, new(IntegrationTestSuite))
 }
 
-// SetupSuite spins up a single-node test network with 5 funded accounts.
+// SetupSuite spins up a single-node test network with 6 funded accounts.
 // Each account starts with 1 billion TIA (1e15 utia).
 func (s *IntegrationTestSuite) SetupSuite() {
-	s.accounts = testfactory.GenerateAccounts(5)
+	s.accounts = testfactory.GenerateAccounts(6)
 	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...)
 	cctx, _, _ := testnode.NewNetwork(s.T(), cfg)
 	s.cctx = cctx
@@ -53,7 +62,7 @@ func (s *IntegrationTestSuite) TestBurnAddressSendAndBurn() {
 	// Setup: get test account and record initial balance
 	account := s.accounts[0]
 	accountAddr := testfactory.GetAddress(s.cctx.Keyring, account)
-	burnAmount := sdk.NewCoin(params.BondDenom, math.NewInt(1000000)) // 1 TIA
+	burnAmount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(utiaPerTIA))
 	initialBalance := s.getAccountBalance(accountAddr)
 
 	// Query initial total burned
@@ -104,7 +113,7 @@ func (s *IntegrationTestSuite) TestBurnEmitsEvent() {
 	// Setup: use a different account than other tests to avoid nonce conflicts
 	account := s.accounts[1]
 	accountAddr := testfactory.GetAddress(s.cctx.Keyring, account)
-	burnAmount := sdk.NewCoin(params.BondDenom, math.NewInt(500000))
+	burnAmount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(halfTIA))
 
 	// Submit send to burn address
 	msgSend := &banktypes.MsgSend{
@@ -175,7 +184,7 @@ func (s *IntegrationTestSuite) TestTotalBurnedQuery() {
 
 	account := s.accounts[3]
 	accountAddr := testfactory.GetAddress(s.cctx.Keyring, account)
-	burnAmount := sdk.NewCoin(params.BondDenom, math.NewInt(100000))
+	burnAmount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(tenthTIA))
 
 	// Query initial total burned
 	queryClient := burntypes.NewQueryClient(s.cctx.GRPCClient)
@@ -210,12 +219,57 @@ func (s *IntegrationTestSuite) TestTotalBurnedQuery() {
 		initialBurned, finalResp.TotalBurned.Amount, burnAmount.Amount)
 }
 
+// TestMsgMultiSendToBurnAddress verifies that MsgMultiSend to the burn address
+// correctly burns tokens and updates the TotalBurned counter.
+func (s *IntegrationTestSuite) TestMsgMultiSendToBurnAddress() {
+	require := s.Require()
+	require.NoError(s.cctx.WaitForNextBlock())
+
+	account := s.accounts[4]
+	accountAddr := testfactory.GetAddress(s.cctx.Keyring, account)
+	burnAmount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(halfTIA))
+
+	// Query initial total burned
+	queryClient := burntypes.NewQueryClient(s.cctx.GRPCClient)
+	initialResp, err := queryClient.TotalBurned(s.cctx.GoContext(), &burntypes.QueryTotalBurnedRequest{})
+	require.NoError(err)
+	initialBurned := initialResp.TotalBurned.Amount
+
+	// Build and submit MsgMultiSend to burn address
+	msgMultiSend := &banktypes.MsgMultiSend{
+		Inputs: []banktypes.Input{
+			{Address: accountAddr.String(), Coins: sdk.NewCoins(burnAmount)},
+		},
+		Outputs: []banktypes.Output{
+			{Address: burntypes.BurnAddressBech32, Coins: sdk.NewCoins(burnAmount)},
+		},
+	}
+
+	txClient, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg, user.WithDefaultAccount(account))
+	require.NoError(err)
+
+	res, err := txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msgMultiSend}, blobfactory.DefaultTxOpts()...)
+	require.NoError(err)
+	require.NotNil(res)
+	require.Equal(abci.CodeTypeOK, res.Code, "MsgMultiSend to burn address tx failed with code: %d", res.Code)
+
+	// Wait for EndBlocker to burn the tokens
+	require.NoError(s.cctx.WaitForNextBlock())
+
+	// Verify TotalBurned increased
+	finalResp, err := queryClient.TotalBurned(s.cctx.GoContext(), &burntypes.QueryTotalBurnedRequest{})
+	require.NoError(err)
+	require.True(finalResp.TotalBurned.Amount.GTE(initialBurned.Add(burnAmount.Amount)),
+		"total burned should increase after MsgMultiSend: initial=%s, final=%s, burned=%s",
+		initialBurned, finalResp.TotalBurned.Amount, burnAmount.Amount)
+}
+
 // getAccountBalance queries the bank module for an account's utia balance.
 func (s *IntegrationTestSuite) getAccountBalance(addr sdk.AccAddress) math.Int {
 	bqc := banktypes.NewQueryClient(s.cctx.GRPCClient)
 	resp, err := bqc.Balance(s.cctx.GoContext(), &banktypes.QueryBalanceRequest{
 		Address: addr.String(),
-		Denom:   params.BondDenom,
+		Denom:   appconsts.BondDenom,
 	})
 	s.Require().NoError(err)
 	return resp.Balance.Amount

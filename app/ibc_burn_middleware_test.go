@@ -15,6 +15,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// testIBCAmount is the standard test amount for IBC middleware tests.
+const testIBCAmount = "1000000"
+
 // mockIBCModule is a mock implementation of porttypes.IBCModule for testing.
 type mockIBCModule struct {
 	onRecvPacketCalled bool
@@ -63,7 +66,7 @@ var _ porttypes.IBCModule = (*mockIBCModule)(nil)
 func createTransferPacket(denom, receiver string) channeltypes.Packet {
 	data := transfertypes.FungibleTokenPacketData{
 		Denom:    denom,
-		Amount:   "1000000",
+		Amount:   testIBCAmount,
 		Sender:   "cosmos1sender",
 		Receiver: receiver,
 	}
@@ -210,4 +213,44 @@ func TestOnRecvPacketPassesThroughNonTransferPackets(t *testing.T) {
 
 	require.True(t, mockApp.onRecvPacketCalled, "wrapped module should be called for non-transfer packets")
 	require.True(t, ack.Success(), "acknowledgement should be successful")
+}
+
+// TestOnRecvPacketAllowsMultiHopUtiaReturnToBurnAddress verifies that utia
+// returning from multiple hops (e.g., Celestia -> Chain A -> Chain B -> Celestia)
+// can be sent to the burn address. The denom will have multiple IBC prefixes.
+func TestOnRecvPacketAllowsMultiHopUtiaReturnToBurnAddress(t *testing.T) {
+	mockApp := &mockIBCModule{
+		returnAck: channeltypes.NewResultAcknowledgement([]byte("success")),
+	}
+	middleware := NewBurnAddressIBCMiddleware(mockApp)
+
+	// Multi-hop returning utia has nested prefixes like "transfer/channel-0/transfer/channel-1/utia"
+	multiHopUtia := "transfer/channel-0/transfer/channel-1/" + appconsts.BondDenom
+	packet := createTransferPacket(multiHopUtia, burntypes.BurnAddressBech32)
+
+	ctx := sdk.Context{}
+	ack := middleware.OnRecvPacket(ctx, packet, nil)
+
+	require.True(t, mockApp.onRecvPacketCalled, "wrapped module should be called for multi-hop returning utia to burn address")
+	require.True(t, ack.Success(), "acknowledgement should be successful")
+}
+
+// TestOnRecvPacketRejectsMultiHopNonUtiaToBurnAddress verifies that foreign tokens
+// with multi-hop IBC prefixes (e.g., uatom that traveled through multiple chains)
+// are still rejected when sent to the burn address.
+func TestOnRecvPacketRejectsMultiHopNonUtiaToBurnAddress(t *testing.T) {
+	mockApp := &mockIBCModule{
+		returnAck: channeltypes.NewResultAcknowledgement([]byte("success")),
+	}
+	middleware := NewBurnAddressIBCMiddleware(mockApp)
+
+	// Multi-hop foreign token like "transfer/channel-0/transfer/channel-1/uatom"
+	multiHopForeign := "transfer/channel-0/transfer/channel-1/uatom"
+	packet := createTransferPacket(multiHopForeign, burntypes.BurnAddressBech32)
+
+	ctx := sdk.Context{}
+	ack := middleware.OnRecvPacket(ctx, packet, nil)
+
+	require.False(t, mockApp.onRecvPacketCalled, "wrapped module should NOT be called for multi-hop foreign token to burn address")
+	require.False(t, ack.Success(), "acknowledgement should be an error")
 }
