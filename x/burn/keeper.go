@@ -1,50 +1,94 @@
 // Package burn provides functionality for permanently destroying TIA tokens.
-// It implements MsgBurn which allows users to burn utia from their accounts,
-// reducing the total token supply.
+// Tokens sent to the burn address are automatically burned at the end of each block.
 package burn
 
 import (
 	"context"
 	"fmt"
 
+	"cosmossdk.io/math"
+	storetypes "cosmossdk.io/store/types"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/x/burn/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // Keeper handles burn operations for the burn module.
 type Keeper struct {
+	storeKey   storetypes.StoreKey
 	bankKeeper types.BankKeeper
 }
 
-// NewKeeper creates a new Keeper instance with the provided BankKeeper.
-func NewKeeper(bankKeeper types.BankKeeper) Keeper {
-	return Keeper{bankKeeper: bankKeeper}
+// NewKeeper creates a new Keeper instance.
+func NewKeeper(storeKey storetypes.StoreKey, bankKeeper types.BankKeeper) Keeper {
+	return Keeper{
+		storeKey:   storeKey,
+		bankKeeper: bankKeeper,
+	}
 }
 
-// Burn processes a MsgBurn request by transferring tokens from the signer's
-// account to the burn module account and then permanently destroying them.
-// It emits a typed EventBurn upon success.
-func (k Keeper) Burn(goCtx context.Context, msg *types.MsgBurn) (*types.MsgBurnResponse, error) {
-	ctx := sdk.UnwrapSDKContext(goCtx)
+// EndBlocker burns any utia tokens that have been sent to the burn address.
+func (k Keeper) EndBlocker(ctx context.Context) error {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
-	signer, err := sdk.AccAddressFromBech32(msg.Signer)
+	balance := k.bankKeeper.GetBalance(sdkCtx, types.BurnAddress, appconsts.BondDenom)
+	if balance.IsZero() {
+		return nil
+	}
+
+	coins := sdk.NewCoins(balance)
+
+	if err := k.bankKeeper.SendCoinsFromAccountToModule(sdkCtx, types.BurnAddress, types.ModuleName, coins); err != nil {
+		return fmt.Errorf("failed to transfer to burn module: %w", err)
+	}
+
+	if err := k.bankKeeper.BurnCoins(sdkCtx, types.ModuleName, coins); err != nil {
+		return fmt.Errorf("failed to burn coins: %w", err)
+	}
+
+	if err := sdkCtx.EventManager().EmitTypedEvent(types.NewBurnEvent(types.BurnAddressBech32, balance.String())); err != nil {
+		return fmt.Errorf("failed to emit burn event: %w", err)
+	}
+
+	k.addToTotalBurned(sdkCtx, balance)
+
+	return nil
+}
+
+// GetTotalBurned returns the cumulative amount of tokens burned.
+func (k Keeper) GetTotalBurned(ctx context.Context) sdk.Coin {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	store := sdkCtx.KVStore(k.storeKey)
+
+	bz := store.Get(types.TotalBurnedKey)
+	if bz == nil {
+		return sdk.NewCoin(appconsts.BondDenom, math.ZeroInt())
+	}
+
+	var coin sdk.Coin
+	if err := coin.Unmarshal(bz); err != nil {
+		return sdk.NewCoin(appconsts.BondDenom, math.ZeroInt())
+	}
+	return coin
+}
+
+// addToTotalBurned adds the burned amount to the cumulative total.
+func (k Keeper) addToTotalBurned(ctx sdk.Context, burned sdk.Coin) {
+	store := ctx.KVStore(k.storeKey)
+
+	current := k.GetTotalBurned(ctx)
+	updated := current.Add(burned)
+
+	bz, err := updated.Marshal()
 	if err != nil {
-		return nil, fmt.Errorf("invalid signer address: %w", err)
+		return
 	}
+	store.Set(types.TotalBurnedKey, bz)
+}
 
-	coins := sdk.NewCoins(msg.Amount)
-
-	if err := k.bankKeeper.SendCoinsFromAccountToModule(ctx, signer, types.ModuleName, coins); err != nil {
-		return nil, fmt.Errorf("failed to transfer to burn module: %w", err)
-	}
-
-	if err := k.bankKeeper.BurnCoins(ctx, types.ModuleName, coins); err != nil {
-		return nil, fmt.Errorf("failed to burn coins: %w", err)
-	}
-
-	if err := ctx.EventManager().EmitTypedEvent(types.NewBurnEvent(msg.Signer, msg.Amount.String())); err != nil {
-		return nil, fmt.Errorf("failed to emit burn event: %w", err)
-	}
-
-	return &types.MsgBurnResponse{Burned: msg.Amount}, nil
+// TotalBurned implements the Query/TotalBurned gRPC method.
+func (k Keeper) TotalBurned(ctx context.Context, _ *types.QueryTotalBurnedRequest) (*types.QueryTotalBurnedResponse, error) {
+	return &types.QueryTotalBurnedResponse{
+		TotalBurned: k.GetTotalBurned(ctx),
+	}, nil
 }

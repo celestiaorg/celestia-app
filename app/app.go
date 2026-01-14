@@ -313,7 +313,7 @@ func New(
 		app.StakingKeeper,
 	)
 
-	app.BurnKeeper = burn.NewKeeper(app.BankKeeper)
+	app.BurnKeeper = burn.NewKeeper(keys[burntypes.StoreKey], app.BankKeeper)
 
 	app.IBCKeeper = ibckeeper.NewKeeper(
 		encodingConfig.Codec,
