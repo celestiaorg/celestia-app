@@ -4,8 +4,8 @@ import (
 	"math"
 
 	"cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
 	"github.com/celestiaorg/go-square/v3/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"

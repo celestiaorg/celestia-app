@@ -29,6 +29,7 @@ Celestia App Specifications
   - [State Machine Modules v4](./state_machine_modules_v4.md)
   - [State Machine Modules v5](./state_machine_modules_v5.md)
   - [State Machine Modules v6](./state_machine_modules_v6.md)
+  - [State Machine Modules v7](./state_machine_modules_v7.md)
 - [Parameters](./parameters.md)
   - [Parameters v1](./parameters_v1.md)
   - [Parameters v2](./parameters_v2.md)
@@ -39,3 +40,5 @@ Celestia App Specifications
 - [Types](./types.md)
   - [Types v5](./types_v5.md)
   - [Types v6](./types_v6.md)
+- [TxClient v1](./tx_client.md)
+- [TxClient v2](./tx_client_v2.md)

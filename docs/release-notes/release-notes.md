@@ -12,7 +12,6 @@ After upgrading to 128mb/6s, specific validator hardware specifications are requ
 
 <details>
   <summary>Supported CPUs:</summary>
-- AMD Ryzen 9 5950X
 - AMD Ryzen 9 7950X
 - AMD Ryzen 9 7950X3D
 - AMD Ryzen 9 9900X
@@ -28,7 +27,6 @@ After upgrading to 128mb/6s, specific validator hardware specifications are requ
 - AMD EPYC 4545P
 - AMD EPYC 4584PX
 - AMD EPYC 7313P
-- AMD EPYC 7443P
 - AMD EPYC 7452
 - AMD EPYC 7543P 32C/64T
 - AMD EPYC 9124
@@ -200,13 +198,13 @@ Celestia-app v4.0.0 includes significant state machine changes due to major depe
 
 #### New Messages (Added Modules)
 
-**`x/circuit` Circuit Breaker Module** ([cosmos-sdk docs](https://docs.cosmos.network/v0.50/build/modules/circuit)):
+**`x/circuit` Circuit Breaker Module** ([cosmos-sdk docs](https://docs.cosmos.network/sdk/v0.50/build/modules/circuit/README)):
 
 - `MsgAuthorizeCircuitBreaker` - Grant circuit breaker permissions
 - `MsgTripCircuitBreaker` - Disable message execution
 - `MsgResetCircuitBreaker` - Re-enable message execution
 
-**`x/consensus` Consensus Parameters Module** ([cosmos-sdk docs](https://docs.cosmos.network/v0.50/build/modules/consensus)):
+**`x/consensus` Consensus Parameters Module** ([cosmos-sdk docs](https://docs.cosmos.network/sdk/v0.50/build/modules/consensus/README)):
 
 - `MsgUpdateParams` - Update consensus parameters via governance (replaces CometBFT consensus param updates)
 
@@ -245,7 +243,7 @@ Celestia-app v4.0.0 includes significant state machine changes due to major depe
 - Remove: `x/capability`, `x/crisis`, `x/paramfilter`
 - Update: `github.com/cosmos/ibc-go/v8` (from v6)
 
-**API Breaking Changes** ([cosmos-sdk migration guide](https://docs.cosmos.network/v0.50/build/migrations/upgrading)):
+**API Breaking Changes** ([cosmos-sdk migration guide](https://cosmos-docs.mintlify.app/sdk/v0.50/build/migrations/upgrade-reference)):
 
 - Module keepers now accept `context.Context` instead of `sdk.Context`
 - `BeginBlock`/`EndBlock` signatures changed
@@ -324,9 +322,9 @@ For more information refer to the module [docs](../../x/signal/README.md)
 
 ### Node Operators (v2.0.0)
 
-If you are a consensus node operator, please follow the communication channels listed under [network upgrades](https://docs.celestia.org/how-to-guides/participate#network-upgrades) to learn when this release is recommended for each network (e.g. Mocha, Mainnet Beta).
+If you are a consensus node operator, please follow the communication channels listed under [network upgrades](https://docs.celestia.org/operate/maintenance/network-upgrades/#announcement-channels) to learn when this release is recommended for each network (e.g. Mocha, Mainnet Beta).
 
-Consensus node operators are expected to upgrade to this release _prior_ to the Lemongrass hardfork if they intend to continue participating in the network. The command used to start the [consensus node](https://docs.celestia.org/how-to-guides/consensus-node#start-the-consensus-node) or [validator node](https://docs.celestia.org/how-to-guides/validator-node#run-the-validator-node) will accept an additional `--v2-upgrade-height` flag. See [this table](https://docs.celestia.org/how-to-guides/network-upgrade-process#lemongrass-network-upgrade) for upgrade heights for each network. Node operators SHOULD NOT use cosmovisor to upgrade their binary.
+Consensus node operators are expected to upgrade to this release _prior_ to the Lemongrass hardfork if they intend to continue participating in the network. The command used to start the [consensus node](https://docs.celestia.org/operate/consensus-validators/consensus-node/) or [validator node](https://docs.celestia.org/operate/consensus-validators/validator-node/) will accept an additional `--v2-upgrade-height` flag. See [this table](https://docs.celestia.org/operate/maintenance/network-upgrades/#lemongrass-network-upgrade) for upgrade heights for each network. Node operators SHOULD NOT use cosmovisor to upgrade their binary.
 
 Consensus node operators should enable the BBR (Bottleneck Bandwidth and Round-trip propagation time) congestion control algorithm. See [#3812](https://github.com/celestiaorg/celestia-app/pull/3812).
 

@@ -8,8 +8,8 @@ import (
 	"net"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v7/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"

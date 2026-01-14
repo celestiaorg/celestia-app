@@ -6,7 +6,7 @@ import (
 
 	"cosmossdk.io/log"
 	confixcmd "cosmossdk.io/tools/confix/cmd"
-	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v7/app"
 	"github.com/cometbft/cometbft/cmd/cometbft/commands"
 	tmcli "github.com/cometbft/cometbft/libs/cli"
 	dbm "github.com/cosmos/cosmos-db"
@@ -113,6 +113,7 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 		AppGenesisToCometGenesisConverterCmd(),
 		server.ModuleHashByHeightQuery(NewAppServer),
 		listTypesCmd(),
+		CheckVersionCmd(),
 	)
 
 	rootCommand.AddCommand(

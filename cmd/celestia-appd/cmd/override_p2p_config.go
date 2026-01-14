@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v7/app"
 	tmcfg "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
@@ -50,11 +50,11 @@ func overrideP2PConfig(cmd *cobra.Command, logger log.Logger) error {
 		cfg.P2P.RecvRate = minRecvRate
 	}
 
+	cfg.Consensus.EnableLegacyBlockProp = false
+	cfg.Consensus.DisablePropagationReactor = false
+
 	// Override mempool configs
 	overrideMempoolConfig(cfg, defaultCfg, logger)
-
-	// enable the legacy block prop
-	cfg.Consensus.EnableLegacyBlockProp = true
 
 	return nil
 }

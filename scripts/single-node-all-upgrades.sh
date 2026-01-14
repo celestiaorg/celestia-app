@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # This script starts a local single node testnet on app version 1 and then
-# upgrades to app version 2, 3, 4, 5, and 6.
+# upgrades to app version 2, 3, 4, 5, 6, and 7.
 #
 # Prerequisites:
 # - Modify the `Makefile` and set V2_UPGRADE_HEIGHT = 2
@@ -101,6 +101,7 @@ startCelestiaApp() {
     --api.enable \
     --grpc.enable \
     --grpc-web.enable \
+    --force-no-bbr \
     --delayed-precommit-timeout 1s
 }
 
@@ -157,14 +158,14 @@ startUpgrades() {
         sleep 1
     done
 
-    # Perform upgrades to versions 3, 4, 5, and 6
     performUpgrade 3
     performUpgrade 4
     performUpgrade 5
     performUpgrade 6
+    performUpgrade 7
 }
 
 deleteCelestiaAppHome
 createGenesis
-startUpgrades & # Upgrade to app version 3, 4, 5, and 6 in the background.
+startUpgrades & # Upgrade to app version 3, 4, 5, 6, and 7 in the background.
 startCelestiaApp # Start celestia-app in the foreground.

@@ -7,7 +7,7 @@
 [![GitPOAP Badge](https://public-api.gitpoap.io/v1/repo/celestiaorg/celestia-app/badge)](https://www.gitpoap.io/gh/celestiaorg/celestia-app)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/celestiaorg/celestia-app)
 
-celestia-app is the software used by [validators](https://docs.celestia.org/how-to-guides/validator-node) and [consensus nodes](https://docs.celestia.org/how-to-guides/consensus-node) on the Celestia consensus network. celestia-app is a blockchain application built using parts of the Cosmos stack:
+celestia-app is the software used by [validators](https://docs.celestia.org/operate/consensus-validators/validator-node/) and [consensus nodes](https://docs.celestia.org/operate/consensus-validators/consensus-node/) on the Celestia consensus network. celestia-app is a blockchain application built using parts of the Cosmos stack:
 
 - [celestiaorg/cosmos-sdk](https://github.com/celestiaorg/cosmos-sdk) a fork of [cosmos/cosmos-sdk](https://github.com/cosmos/cosmos-sdk)
 - [celestiaorg/celestia-core](https://github.com/celestiaorg/celestia-core) a fork of [cometbft/cometbft](https://github.com/cometbft/cometbft)
@@ -74,7 +74,7 @@ If you'd rather not install from source, you can download a prebuilt binary from
     celestia-app_Linux_x86_64.tar.gz: OK
     ```
 
-See <https://docs.celestia.org/how-to-guides/celestia-app> for more information.
+See <https://docs.celestia.org/operate/consensus-validators/install-celestia-app/> for more information.
 
 ## Usage
 
@@ -133,7 +133,7 @@ celestia-appd query tx <txhash from previous command>
 ### Join a public Celestia network
 
 For instructions on running a node on Celestia's public networks, refer to the
-[consensus node](https://docs.celestia.org/how-to-guides/consensus-node)
+[consensus node](https://docs.celestia.org/operate/consensus-validators/consensus-node/)
 guide in the docs.
 
 > [!NOTE]

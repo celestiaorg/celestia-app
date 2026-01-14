@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/test/util/genesis"
 	"github.com/spf13/cobra"
 )
 
@@ -26,6 +26,8 @@ func generateCmd() *cobra.Command {
 		appBinaryPath                 string
 		nodeBinaryPath                string
 		txsimBinaryPath               string
+		latencyMonitorBinaryPath      string
+		metricsDirPath                string
 		useMainnetStakingDistribution bool
 	)
 	cmd := &cobra.Command{
@@ -95,10 +97,19 @@ func generateCmd() *cobra.Command {
 				if err := copyFile(txsimBinaryPath, filepath.Join(buildDest, "txsim"), 0o755); err != nil {
 					return fmt.Errorf("failed to copy txsim binary: %w", err)
 				}
+
+				// Copy latency monitor binary
+				if err := copyFile(latencyMonitorBinaryPath, filepath.Join(buildDest, "latency-monitor"), 0o755); err != nil {
+					log.Printf("failed to copy latency monitor binary: %v", err)
+				}
 			}
 
 			if err := writeAWSEnv(filepath.Join(payloadDir, "vars.sh"), cfg); err != nil {
 				return fmt.Errorf("failed to write aws env: %w", err)
+			}
+
+			if err := stageMetricsPayload(cfg, metricsDirPath, payloadDir); err != nil {
+				return fmt.Errorf("failed to stage metrics payload: %w", err)
 			}
 
 			return cfg.Save(rootDir)
@@ -122,6 +133,8 @@ func generateCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&appBinaryPath, "app-binary", "a", filepath.Join(gopath, "celestia-appd"), "app binary to include in the payload (assumes the binary is installed")
 	cmd.Flags().StringVarP(&nodeBinaryPath, "node-binary", "n", filepath.Join(gopath, "celestia"), "node binary to include in the payload (assumes the binary is installed")
 	cmd.Flags().StringVarP(&txsimBinaryPath, "txsim-binary", "t", filepath.Join(gopath, "txsim"), "txsim binary to include in the payload (assumes the binary is installed)")
+	cmd.Flags().StringVar(&latencyMonitorBinaryPath, "latency-monitor-binary", filepath.Join(gopath, "latency-monitor"), "latency monitor binary to include in the payload")
+	cmd.Flags().StringVar(&metricsDirPath, "metrics-dir", "", "path to metrics directory containing docker-compose, Prometheus config, and scripts (required if metrics nodes are configured)")
 	cmd.Flags().BoolVarP(&useMainnetStakingDistribution, "mainnet-staking-distribution", "m", false, "replace the default uniform staking distribution with the actual mainnet distribution")
 
 	return cmd

@@ -6,6 +6,7 @@ build
 coverage.txt
 .idea
 .vscode
+tools/lumina-latency-monitor/target
 tools-stamp
 __debug_bin*
 profile.out
@@ -35,3 +36,5 @@ tools/talis/talis
 .gocache
 .cache
 .gomodcache
+# Claude Code local settings
+.claude/*.local.json

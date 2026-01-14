@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	appconstsv5 "github.com/celestiaorg/celestia-app/v6/pkg/appconsts/v5"
-	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	appconstsv5 "github.com/celestiaorg/celestia-app/v7/pkg/appconsts/v5"
+	"github.com/celestiaorg/celestia-app/v7/pkg/wrapper"
 	sharev2 "github.com/celestiaorg/go-square/v2/share"
 	sh "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
@@ -436,13 +436,13 @@ func sortByteArrays(arr [][]byte) {
 	})
 }
 
-// maxDataAvailabilityHeader returns a DataAvailabilityHeader the maximum square
+// maxDataAvailabilityHeader returns a DataAvailabilityHeader with the maximum square
 // size. This should only be used for testing.
 func maxDataAvailabilityHeader(t *testing.T) (dah DataAvailabilityHeader) {
 	return maxDataAvailabilityHeaderWithExtendShares(t, ExtendShares)
 }
 
-// maxDataAvailabilityHeaderWithExtendShares returns a DataAvailabilityHeader the maximum square
+// maxDataAvailabilityHeaderWithExtendShares returns a DataAvailabilityHeader with the maximum square
 // size using the provided extendShares function. This should only be used for testing.
 func maxDataAvailabilityHeaderWithExtendShares(t *testing.T, extendShares func([][]byte) (*rsmt2d.ExtendedDataSquare, error)) (dah DataAvailabilityHeader) {
 	shares := generateShares(appconsts.SquareSizeUpperBound * appconsts.SquareSizeUpperBound)

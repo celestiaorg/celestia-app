@@ -30,24 +30,26 @@ import (
 	"github.com/bcp-innovations/hyperlane-cosmos/x/warp"
 	warpkeeper "github.com/bcp-innovations/hyperlane-cosmos/x/warp/keeper"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
-	"github.com/celestiaorg/celestia-app/v6/app/ante"
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
-	celestiatx "github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/proof"
-	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
-	"github.com/celestiaorg/celestia-app/v6/x/blob"
-	blobkeeper "github.com/celestiaorg/celestia-app/v6/x/blob/keeper"
-	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/celestia-app/v6/x/minfee"
-	minfeekeeper "github.com/celestiaorg/celestia-app/v6/x/minfee/keeper"
-	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
-	"github.com/celestiaorg/celestia-app/v6/x/mint"
-	mintkeeper "github.com/celestiaorg/celestia-app/v6/x/mint/keeper"
-	minttypes "github.com/celestiaorg/celestia-app/v6/x/mint/types"
-	"github.com/celestiaorg/celestia-app/v6/x/signal"
-	signaltypes "github.com/celestiaorg/celestia-app/v6/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v7/app/ante"
+	"github.com/celestiaorg/celestia-app/v7/app/encoding"
+	"github.com/celestiaorg/celestia-app/v7/app/grpc/gasestimation"
+	celestiatx "github.com/celestiaorg/celestia-app/v7/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v7/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v7/x/blob"
+	blobkeeper "github.com/celestiaorg/celestia-app/v7/x/blob/keeper"
+	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v7/x/burn"
+	burntypes "github.com/celestiaorg/celestia-app/v7/x/burn/types"
+	"github.com/celestiaorg/celestia-app/v7/x/minfee"
+	minfeekeeper "github.com/celestiaorg/celestia-app/v7/x/minfee/keeper"
+	minfeetypes "github.com/celestiaorg/celestia-app/v7/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v7/x/mint"
+	mintkeeper "github.com/celestiaorg/celestia-app/v7/x/mint/keeper"
+	minttypes "github.com/celestiaorg/celestia-app/v7/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v7/x/signal"
+	signaltypes "github.com/celestiaorg/celestia-app/v7/x/signal/types"
 	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmjson "github.com/cometbft/cometbft/libs/json"
@@ -139,6 +141,7 @@ var maccPerms = map[string][]string{
 	icatypes.ModuleName:            nil,
 	hyperlanetypes.ModuleName:      nil,
 	warptypes.ModuleName:           {authtypes.Minter, authtypes.Burner},
+	burntypes.ModuleName:           {authtypes.Burner},
 }
 
 var (
@@ -172,6 +175,7 @@ type App struct {
 	GovKeeper           *govkeeper.Keeper
 	UpgradeKeeper       *upgradekeeper.Keeper // Upgrades are set in endblock when signaled
 	SignalKeeper        signal.Keeper
+	BurnKeeper          burn.Keeper
 	MinFeeKeeper        *minfeekeeper.Keeper
 	ParamsKeeper        paramskeeper.Keeper
 	IBCKeeper           *ibckeeper.Keeper // IBCKeeper must be a pointer in the app, so we can SetRouter on it correctly
@@ -309,6 +313,8 @@ func New(
 		app.StakingKeeper,
 	)
 
+	app.BurnKeeper = burn.NewKeeper(app.BankKeeper)
+
 	app.IBCKeeper = ibckeeper.NewKeeper(
 		encodingConfig.Codec,
 		keys[ibcexported.StoreKey],
@@ -429,6 +435,7 @@ func New(
 		transfer.NewAppModule(app.TransferKeeper),
 		blob.NewAppModule(encodingConfig.Codec, app.BlobKeeper),
 		signal.NewAppModule(app.SignalKeeper),
+		burn.NewAppModule(app.BurnKeeper),
 		minfee.NewAppModule(encodingConfig.Codec, app.MinFeeKeeper),
 		pfm{packetforward.NewAppModule(app.PacketForwardKeeper, app.GetSubspace(packetforwardtypes.ModuleName))},
 		icaModule{ica.NewAppModule(nil, &app.ICAHostKeeper)}, // The first argument is nil because the ICA controller is not enabled on celestia-app.

@@ -5,6 +5,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v7/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v7/test/util/random"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,10 +20,12 @@ func TestNewTxCache(t *testing.T) {
 func TestTxCache_Set(t *testing.T) {
 	cache := NewTxCache()
 	tx := []byte("test transaction")
+	blob := blobfactory.ManyRandBlobs(random.New(), 1000)
 
-	cache.Set(tx)
+	cache.Set(tx, blob)
 	assert.Equal(t, 1, cache.Size())
-	assert.True(t, cache.Exists(tx))
+	exists := cache.Exists(tx, blob)
+	assert.True(t, exists)
 }
 
 func TestTxCache_SetMultiple(t *testing.T) {
@@ -31,44 +35,53 @@ func TestTxCache_SetMultiple(t *testing.T) {
 		[]byte("tx2"),
 		[]byte("tx3"),
 	}
+	blobs := blobfactory.ManyRandBlobs(random.New(), 1000)
 
 	for _, tx := range txs {
-		cache.Set(tx)
+		cache.Set(tx, blobs)
 	}
 
 	assert.Equal(t, 3, cache.Size())
 	for _, tx := range txs {
-		assert.True(t, cache.Exists(tx))
+		exists := cache.Exists(tx, blobs)
+		assert.True(t, exists)
 	}
 }
 
 func TestTxCache_SetDuplicate(t *testing.T) {
 	cache := NewTxCache()
 	tx := []byte("test transaction")
+	blobs := blobfactory.ManyRandBlobs(random.New(), 1000)
 
-	cache.Set(tx)
-	cache.Set(tx)
+	cache.Set(tx, blobs)
+	cache.Set(tx, blobs)
 
 	assert.Equal(t, 1, cache.Size())
-	assert.True(t, cache.Exists(tx))
+	exists := cache.Exists(tx, blobs)
+	assert.True(t, exists)
 }
 
 func TestTxCache_Exists(t *testing.T) {
 	cache := NewTxCache()
 	tx := []byte("test transaction")
 	nonExistentTx := []byte("non existent")
+	blobs := blobfactory.ManyRandBlobs(random.New(), 1000)
 
-	cache.Set(tx)
+	cache.Set(tx, blobs)
 
-	assert.True(t, cache.Exists(tx))
-	assert.False(t, cache.Exists(nonExistentTx))
+	exists := cache.Exists(tx, blobs)
+	assert.True(t, exists)
+	exists = cache.Exists(nonExistentTx, blobs)
+	assert.False(t, exists)
 }
 
 func TestTxCache_ExistsEmpty(t *testing.T) {
 	cache := NewTxCache()
 	tx := []byte("test transaction")
+	blobs := blobfactory.ManyRandBlobs(random.New(), 1000)
 
-	assert.False(t, cache.Exists(tx))
+	exists := cache.Exists(tx, blobs)
+	assert.False(t, exists)
 }
 
 func TestTxCache_RemoveTransaction(t *testing.T) {
@@ -76,31 +89,41 @@ func TestTxCache_RemoveTransaction(t *testing.T) {
 	tx1 := []byte("tx1")
 	tx2 := []byte("tx2")
 	tx3 := []byte("tx3")
+	blobs1 := blobfactory.ManyRandBlobs(random.New(), 1000)
+	blobs2 := blobfactory.ManyRandBlobs(random.New(), 1000)
+	blobs3 := blobfactory.ManyRandBlobs(random.New(), 1000)
 
-	cache.Set(tx1)
-	cache.Set(tx2)
-	cache.Set(tx3)
+	cache.Set(tx1, blobs1)
+	cache.Set(tx2, blobs2)
+	cache.Set(tx3, blobs3)
 	assert.Equal(t, 3, cache.Size())
 
 	cache.RemoveTransaction(tx2)
 
 	assert.Equal(t, 2, cache.Size())
-	assert.True(t, cache.Exists(tx1))
-	assert.False(t, cache.Exists(tx2))
-	assert.True(t, cache.Exists(tx3))
+	exists := cache.Exists(tx1, blobs1)
+	assert.True(t, exists)
+
+	exists = cache.Exists(tx2, blobs2)
+	assert.False(t, exists)
+
+	exists = cache.Exists(tx3, blobs3)
+	assert.True(t, exists)
 }
 
 func TestTxCache_RemoveTransactionNonExistent(t *testing.T) {
 	cache := NewTxCache()
 	tx := []byte("tx1")
+	blobs := blobfactory.ManyRandBlobs(random.New(), 1000)
 	nonExistentTx := []byte("non existent")
 
-	cache.Set(tx)
+	cache.Set(tx, blobs)
 	assert.Equal(t, 1, cache.Size())
 
 	cache.RemoveTransaction(nonExistentTx)
 	assert.Equal(t, 1, cache.Size())
-	assert.True(t, cache.Exists(tx))
+	exists := cache.Exists(tx, blobs)
+	assert.True(t, exists)
 }
 
 func TestTxCache_GetTxKey(t *testing.T) {
@@ -118,6 +141,21 @@ func TestTxCache_GetTxKey(t *testing.T) {
 	assert.NotEqual(t, key1, key3)
 }
 
+func TestTxCache_GetBlobsHash(t *testing.T) {
+	cache := NewTxCache()
+	blobs := blobfactory.ManyRandBlobs(random.New(), 1000)
+
+	// same blobs should produce same hash
+	blobsHash1 := cache.getBlobsHash(blobs)
+	blobsHash2 := cache.getBlobsHash(blobs)
+	assert.Equal(t, blobsHash1, blobsHash2)
+
+	// different blobs should produce different hashes
+	blobs2 := blobfactory.ManyRandBlobs(random.New(), 1000)
+	blobsHash3 := cache.getBlobsHash(blobs2)
+	assert.NotEqual(t, blobsHash1, blobsHash3)
+}
+
 func TestTxCache_GetTxKeyEmptyTx(t *testing.T) {
 	cache := NewTxCache()
 	emptyTx := []byte{}
@@ -132,6 +170,8 @@ func TestTxCache_ConcurrentSet(t *testing.T) {
 	numGoroutines := 100
 	numTxsPerGoroutine := 100
 
+	blobs := blobfactory.ManyRandBlobs(random.New(), 100000)
+
 	var wg sync.WaitGroup
 	wg.Add(numGoroutines)
 
@@ -140,7 +180,7 @@ func TestTxCache_ConcurrentSet(t *testing.T) {
 			defer wg.Done()
 			for j := range numTxsPerGoroutine {
 				tx := []byte{byte(id), byte(j)}
-				cache.Set(tx)
+				cache.Set(tx, blobs)
 			}
 		}(i)
 	}
@@ -157,9 +197,11 @@ func TestTxCache_ConcurrentBatches(t *testing.T) {
 	batch2 := makeBatch(2, 200)
 	batch3 := makeBatch(3, 150)
 
+	blobs := blobfactory.ManyRandBlobs(random.New(), 100000)
+
 	// phase 1: Write batch 1 sequentially
 	for _, tx := range batch1 {
-		cache.Set(tx)
+		cache.Set(tx, blobs)
 	}
 
 	// phase 2: Concurrently write batch 2 and check batch 1 exists
@@ -170,7 +212,7 @@ func TestTxCache_ConcurrentBatches(t *testing.T) {
 		wg.Add(1)
 		go func(transaction []byte) {
 			defer wg.Done()
-			cache.Set(transaction)
+			cache.Set(transaction, blobs)
 		}(tx)
 	}
 
@@ -179,7 +221,8 @@ func TestTxCache_ConcurrentBatches(t *testing.T) {
 		wg.Add(1)
 		go func(transaction []byte) {
 			defer wg.Done()
-			require.True(t, cache.Exists(transaction))
+			exists := cache.Exists(transaction, blobs)
+			require.True(t, exists)
 		}(tx)
 	}
 
@@ -204,7 +247,7 @@ func TestTxCache_ConcurrentBatches(t *testing.T) {
 		wg.Add(1)
 		go func(transaction []byte) {
 			defer wg.Done()
-			cache.Set(transaction)
+			cache.Set(transaction, blobs)
 		}(tx)
 	}
 
@@ -212,7 +255,8 @@ func TestTxCache_ConcurrentBatches(t *testing.T) {
 
 	// phase 4: Check batch 3 exists sequentially
 	for _, tx := range batch3 {
-		require.True(t, cache.Exists(tx), "batch 3 transaction should exist")
+		exists := cache.Exists(tx, blobs)
+		require.True(t, exists)
 	}
 }
 

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v7/app"
 	tmcfg "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
@@ -34,8 +34,8 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 				cfg.P2P.SendRate = 10 * mebibyte
 				cfg.P2P.RecvRate = 10 * mebibyte
 			},
-			expectedSendRate:    24 * mebibyte,
-			expectedRecvRate:    24 * mebibyte,
+			expectedSendRate:    100 * mebibyte,
+			expectedRecvRate:    100 * mebibyte,
 			expectedTTLBlocks:   36,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
@@ -46,11 +46,11 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 		{
 			name: "Preserve P2P rates above minimum",
 			setupConfig: func(cfg *tmcfg.Config) {
-				cfg.P2P.SendRate = 50 * mebibyte
-				cfg.P2P.RecvRate = 50 * mebibyte
+				cfg.P2P.SendRate = 150 * mebibyte
+				cfg.P2P.RecvRate = 150 * mebibyte
 			},
-			expectedSendRate:    50 * mebibyte,
-			expectedRecvRate:    50 * mebibyte,
+			expectedSendRate:    150 * mebibyte,
+			expectedRecvRate:    150 * mebibyte,
 			expectedTTLBlocks:   36,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
@@ -63,8 +63,8 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			setupConfig: func(cfg *tmcfg.Config) {
 				cfg.Mempool.TTLNumBlocks = 12
 			},
-			expectedSendRate:    24 * mebibyte,
-			expectedRecvRate:    24 * mebibyte,
+			expectedSendRate:    100 * mebibyte,
+			expectedRecvRate:    100 * mebibyte,
 			expectedTTLBlocks:   36,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
@@ -77,8 +77,8 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			setupConfig: func(cfg *tmcfg.Config) {
 				cfg.Mempool.TTLNumBlocks = 0
 			},
-			expectedSendRate:    24 * mebibyte,
-			expectedRecvRate:    24 * mebibyte,
+			expectedSendRate:    100 * mebibyte,
+			expectedRecvRate:    100 * mebibyte,
 			expectedTTLBlocks:   0,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
@@ -91,8 +91,8 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			setupConfig: func(cfg *tmcfg.Config) {
 				cfg.Mempool.TTLNumBlocks = 100
 			},
-			expectedSendRate:    24 * mebibyte,
-			expectedRecvRate:    24 * mebibyte,
+			expectedSendRate:    100 * mebibyte,
+			expectedRecvRate:    100 * mebibyte,
 			expectedTTLBlocks:   100,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
@@ -105,8 +105,8 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			setupConfig: func(cfg *tmcfg.Config) {
 				cfg.Mempool.TTLDuration = 10 * time.Minute
 			},
-			expectedSendRate:    24 * mebibyte,
-			expectedRecvRate:    24 * mebibyte,
+			expectedSendRate:    100 * mebibyte,
+			expectedRecvRate:    100 * mebibyte,
 			expectedTTLBlocks:   36,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
@@ -119,8 +119,8 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			setupConfig: func(cfg *tmcfg.Config) {
 				cfg.Mempool.MaxGossipDelay = 60 * time.Second
 			},
-			expectedSendRate:    24 * mebibyte,
-			expectedRecvRate:    24 * mebibyte,
+			expectedSendRate:    100 * mebibyte,
+			expectedRecvRate:    100 * mebibyte,
 			expectedTTLBlocks:   36,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
@@ -133,8 +133,8 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			setupConfig: func(cfg *tmcfg.Config) {
 				cfg.Mempool.MaxGossipDelay = 30 * time.Second
 			},
-			expectedSendRate:    24 * mebibyte,
-			expectedRecvRate:    24 * mebibyte,
+			expectedSendRate:    100 * mebibyte,
+			expectedRecvRate:    100 * mebibyte,
 			expectedTTLBlocks:   36,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 30 * time.Second,
@@ -147,8 +147,8 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			setupConfig: func(cfg *tmcfg.Config) {
 				cfg.Mempool.MaxTxsBytes = 200 * mebibyte
 			},
-			expectedSendRate:    24 * mebibyte,
-			expectedRecvRate:    24 * mebibyte,
+			expectedSendRate:    100 * mebibyte,
+			expectedRecvRate:    100 * mebibyte,
 			expectedTTLBlocks:   36,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
@@ -161,8 +161,8 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			setupConfig: func(cfg *tmcfg.Config) {
 				cfg.Mempool.MaxTxsBytes = 500 * mebibyte
 			},
-			expectedSendRate:    24 * mebibyte,
-			expectedRecvRate:    24 * mebibyte,
+			expectedSendRate:    100 * mebibyte,
+			expectedRecvRate:    100 * mebibyte,
 			expectedTTLBlocks:   36,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
@@ -180,8 +180,8 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 				cfg.Mempool.MaxGossipDelay = 60 * time.Second
 				cfg.Mempool.MaxTxsBytes = 100 * mebibyte
 			},
-			expectedSendRate:    24 * mebibyte,
-			expectedRecvRate:    24 * mebibyte,
+			expectedSendRate:    100 * mebibyte,
+			expectedRecvRate:    100 * mebibyte,
 			expectedTTLBlocks:   36,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
@@ -194,8 +194,8 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			setupConfig: func(cfg *tmcfg.Config) {
 				cfg.Mempool.Type = tmcfg.MempoolTypeFlood
 			},
-			expectedSendRate:    24 * mebibyte,
-			expectedRecvRate:    24 * mebibyte,
+			expectedSendRate:    100 * mebibyte,
+			expectedRecvRate:    100 * mebibyte,
 			expectedTTLBlocks:   36,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
@@ -208,8 +208,8 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			setupConfig: func(cfg *tmcfg.Config) {
 				cfg.Mempool.Type = tmcfg.MempoolTypeCAT
 			},
-			expectedSendRate:    24 * mebibyte,
-			expectedRecvRate:    24 * mebibyte,
+			expectedSendRate:    100 * mebibyte,
+			expectedRecvRate:    100 * mebibyte,
 			expectedTTLBlocks:   36,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
@@ -222,8 +222,8 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			setupConfig: func(cfg *tmcfg.Config) {
 				cfg.Mempool.MaxTxBytes = 1 * mebibyte
 			},
-			expectedSendRate:    24 * mebibyte,
-			expectedRecvRate:    24 * mebibyte,
+			expectedSendRate:    100 * mebibyte,
+			expectedRecvRate:    100 * mebibyte,
 			expectedTTLBlocks:   36,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
@@ -236,8 +236,8 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			setupConfig: func(cfg *tmcfg.Config) {
 				cfg.Mempool.MaxTxBytes = 10 * mebibyte
 			},
-			expectedSendRate:    24 * mebibyte,
-			expectedRecvRate:    24 * mebibyte,
+			expectedSendRate:    100 * mebibyte,
+			expectedRecvRate:    100 * mebibyte,
 			expectedTTLBlocks:   36,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
@@ -358,7 +358,7 @@ func TestOverrideP2PConfig_ConfigPersistence(t *testing.T) {
 
 	// Verify in-memory config was modified
 	modifiedCfg := server.GetServerContextFromCmd(cmd).Config
-	require.Equal(t, int64(24*mebibyte), modifiedCfg.P2P.SendRate)
+	require.Equal(t, int64(100*mebibyte), modifiedCfg.P2P.SendRate)
 	require.Equal(t, int64(36), modifiedCfg.Mempool.TTLNumBlocks)
 
 	// Read the config file again to verify it wasn't changed on disk
