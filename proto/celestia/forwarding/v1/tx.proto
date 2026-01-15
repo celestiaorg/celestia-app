@@ -4,6 +4,7 @@ package celestia.forwarding.v1;
 import "gogoproto/gogo.proto";
 import "cosmos/msg/v1/msg.proto";
 import "cosmos_proto/cosmos.proto";
+import "celestia/forwarding/v1/params.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/forwarding/types";
 
@@ -14,6 +15,9 @@ service Msg {
   // ExecuteForwarding forwards all tokens at a derived forwarding address
   // to their committed destination via Hyperlane warp transfer.
   rpc ExecuteForwarding(MsgExecuteForwarding) returns (MsgExecuteForwardingResponse);
+
+  // UpdateForwardingParams updates the forwarding module parameters.
+  rpc UpdateForwardingParams(MsgUpdateForwardingParams) returns (MsgUpdateForwardingParamsResponse);
 }
 
 // MsgExecuteForwarding is a permissionless message to trigger token forwarding.
@@ -61,3 +65,18 @@ message ForwardingResult {
   // error contains the error message if failed (empty if success).
   string error = 5;
 }
+
+// MsgUpdateForwardingParams defines a message for updating the forwarding module parameters.
+message MsgUpdateForwardingParams {
+  option (cosmos.msg.v1.signer) = "authority";
+
+  // authority is the address of the governance account.
+  string authority = 1;
+
+  // params defines the forwarding parameters to update.
+  // NOTE: All parameters must be supplied.
+  Params params = 2 [(gogoproto.nullable) = false];
+}
+
+// MsgUpdateForwardingParamsResponse is the response for MsgUpdateForwardingParams.
+message MsgUpdateForwardingParamsResponse {}

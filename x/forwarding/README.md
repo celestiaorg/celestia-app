@@ -138,10 +138,13 @@ celestia-appd tx forwarding execute \
 
 | Code | Name | Description |
 |------|------|-------------|
-| 1 | ErrAddressMismatch | Derived address doesn't match provided address |
-| 2 | ErrNoBalance | No balance at forwarding address |
-| 3 | ErrBelowMinimum | Balance below minimum threshold |
-| 4 | ErrUnsupportedToken | Token denom not supported for forwarding |
+| 2 | ErrAddressMismatch | Derived address doesn't match provided address |
+| 3 | ErrNoBalance | No balance at forwarding address |
+| 4 | ErrBelowMinimum | Balance below minimum threshold |
+| 5 | ErrUnsupportedToken | Token denom not supported for forwarding |
+| 6 | ErrTooManyTokens | Too many tokens at forwarding address |
+| 7 | ErrInvalidRecipient | Invalid recipient length |
+| 8 | ErrNoWarpRoute | No warp route to destination domain |
 
 ## Security
 
