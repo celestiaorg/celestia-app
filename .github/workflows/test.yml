@@ -4,7 +4,7 @@ on:
 
 jobs:
   test-short:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
 
@@ -17,7 +17,7 @@ jobs:
         timeout-minutes: 10
 
   go-test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     strategy:
       fail-fast: false
       matrix:
@@ -54,7 +54,7 @@ jobs:
           fi
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: go-test
     if: always()
     steps:
@@ -67,7 +67,7 @@ jobs:
           echo "All tests passed"
 
   test-coverage:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
 
@@ -84,7 +84,7 @@ jobs:
           files: ./coverage.txt
 
   test-race:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
 
@@ -96,7 +96,7 @@ jobs:
         run: make test-race
 
   test-fuzz:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
 
@@ -108,7 +108,7 @@ jobs:
         run: make test-fuzz
 
   test-multiplexer:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
 
@@ -120,7 +120,7 @@ jobs:
         run: make test-multiplexer
 
   test-docker-e2e:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     # if one test fails, continue running the rest.
     continue-on-error: true
     strategy:
