@@ -137,6 +137,28 @@ func TestMsgExecuteForwarding_ValidateBasic(t *testing.T) {
 			errorMsg:    "invalid dest_recipient hex format",
 		},
 		{
+			name: "dest recipient 31 bytes (boundary)",
+			msg: &types.MsgExecuteForwarding{
+				Signer:        validSigner,
+				ForwardAddr:   validForwardAddr,
+				DestDomain:    1,
+				DestRecipient: "0x" + strings.Repeat("aa", 31),
+			},
+			expectError: true,
+			errorMsg:    "invalid dest_recipient hex format",
+		},
+		{
+			name: "dest recipient 33 bytes (boundary)",
+			msg: &types.MsgExecuteForwarding{
+				Signer:        validSigner,
+				ForwardAddr:   validForwardAddr,
+				DestDomain:    1,
+				DestRecipient: "0x" + strings.Repeat("aa", 33),
+			},
+			expectError: true,
+			errorMsg:    "invalid dest_recipient hex format",
+		},
+		{
 			name: "dest recipient invalid hex",
 			msg: &types.MsgExecuteForwarding{
 				Signer:        validSigner,

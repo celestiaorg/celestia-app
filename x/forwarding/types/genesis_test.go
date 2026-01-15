@@ -17,6 +17,8 @@ func TestDefaultGenesis(t *testing.T) {
 }
 
 func TestValidateGenesis(t *testing.T) {
+	validTiaCollateralTokenId := "0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+
 	testCases := []struct {
 		name        string
 		genesis     *types.GenesisState
@@ -55,6 +57,46 @@ func TestValidateGenesis(t *testing.T) {
 			genesis: &types.GenesisState{
 				Params: types.Params{
 					MinForwardAmount: math.NewInt(-100),
+				},
+			},
+			expectError: true,
+		},
+		{
+			name: "genesis with valid TiaCollateralTokenId is valid",
+			genesis: &types.GenesisState{
+				Params: types.Params{
+					MinForwardAmount:     math.ZeroInt(),
+					TiaCollateralTokenId: validTiaCollateralTokenId,
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "genesis with empty TiaCollateralTokenId is valid (disabled)",
+			genesis: &types.GenesisState{
+				Params: types.Params{
+					MinForwardAmount:     math.ZeroInt(),
+					TiaCollateralTokenId: "",
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "genesis with invalid TiaCollateralTokenId (not hex) is invalid",
+			genesis: &types.GenesisState{
+				Params: types.Params{
+					MinForwardAmount:     math.ZeroInt(),
+					TiaCollateralTokenId: "not-a-hex-address",
+				},
+			},
+			expectError: true,
+		},
+		{
+			name: "genesis with invalid TiaCollateralTokenId (too short) is invalid",
+			genesis: &types.GenesisState{
+				Params: types.Params{
+					MinForwardAmount:     math.ZeroInt(),
+					TiaCollateralTokenId: "0xdeadbeef",
 				},
 			},
 			expectError: true,
