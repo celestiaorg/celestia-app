@@ -215,7 +215,7 @@ dot over the execution lifecycle of a given transaction. The y-axis is units of
 gas and the x-axis is cumulative gas consumption. The legend shows which color
 indicates what the cause of the gas consumption was.
 
-This code used to trace gas consumption can be found in the `tools/gasmonitor` of the branch for [#2131](https://github.com/celestiaorg/celestia-app/pull/2131), and the script to generate the plots below can be found [here](https://gist.github.com/evan-forbes/948c8cf574f2f50b101c89a95ee1d43c) (warning: this script will not be maintained).
+This code used to trace gas consumption can be found in the `tools/gasmonitor` of the branch for [#2131](https://github.com/celestiaorg/celestia-app/pull/2131), and the script to generate the plots below can be found [in this gist](https://gist.github.com/evan-forbes/948c8cf574f2f50b101c89a95ee1d43c) (warning: this script will not be maintained).
 
 ### MsgSend
 
