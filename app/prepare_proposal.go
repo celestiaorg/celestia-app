@@ -1,15 +1,12 @@
 package app
 
 import (
-	"encoding/hex"
 	"fmt"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v7/app/ante"
-	"github.com/celestiaorg/celestia-app/v7/app/params"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/pkg/da"
-	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
@@ -46,22 +43,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		return nil, fmt.Errorf("failed to create FilteredSquareBuilder: %w", err)
 	}
 
-	// Check fee address balance and inject fee forward tx if non-zero.
-	// This converts fee address funds into real transaction fees for dashboard tracking.
-	txsToProcess := req.Txs
-	feeBalance := app.BankKeeper.GetBalance(ctx, feeaddresstypes.FeeAddress, params.BondDenom)
-	if !feeBalance.IsZero() {
-		feeForwardTx, err := app.createFeeForwardTx(ctx, feeBalance)
-		if err != nil {
-			app.Logger().Error("failed to create fee forward tx", "error", err.Error())
-			// Continue without the fee forward tx - don't fail block production
-		} else {
-			// Prepend fee forward tx to the transactions list
-			txsToProcess = append([][]byte{feeForwardTx}, req.Txs...)
-		}
-	}
-
-	txs := fsb.Fill(ctx, txsToProcess)
+	txs := fsb.Fill(ctx, req.Txs)
 
 	// Build the square from the set of valid and prioritised transactions.
 	dataSquare, err := fsb.Build()
@@ -92,31 +74,4 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		SquareSize:   uint64(dataSquare.Size()),
 		DataRootHash: dah.Hash(), // also known as the data root
 	}, nil
-}
-
-// createFeeForwardTx creates an unsigned MsgForwardFees transaction with the
-// specified fee amount. The transaction has no signers - it's validated by
-// checking that the proposer matches the block proposer.
-func (app *App) createFeeForwardTx(ctx sdk.Context, feeAmount sdk.Coin) ([]byte, error) {
-	// Create the message with the block proposer's address (hex-encoded)
-	proposerAddr := hex.EncodeToString(ctx.BlockHeader().ProposerAddress)
-	msg := feeaddresstypes.NewMsgForwardFees(proposerAddr)
-
-	// Build the transaction
-	txBuilder := app.encodingConfig.TxConfig.NewTxBuilder()
-	if err := txBuilder.SetMsgs(msg); err != nil {
-		return nil, fmt.Errorf("failed to set message: %w", err)
-	}
-
-	// Set the fee to the fee address balance (this is the key part - makes it a real tx fee)
-	txBuilder.SetFeeAmount(sdk.NewCoins(feeAmount))
-	txBuilder.SetGasLimit(50000) // Minimal gas - the message handler does no computation
-
-	// Encode the transaction (no signature needed)
-	txBytes, err := app.encodingConfig.TxConfig.TxEncoder()(txBuilder.GetTx())
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode tx: %w", err)
-	}
-
-	return txBytes, nil
 }

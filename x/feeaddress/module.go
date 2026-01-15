@@ -19,6 +19,7 @@ var (
 	_ module.HasGenesisBasics = AppModule{}
 	_ appmodule.AppModule     = AppModule{}
 	_ appmodule.HasServices   = AppModule{}
+	_ appmodule.HasEndBlocker = AppModule{}
 )
 
 type AppModule struct {
@@ -58,6 +59,9 @@ func (AppModule) RegisterInterfaces(reg cdctypes.InterfaceRegistry) {
 
 func (am AppModule) RegisterServices(registrar grpc.ServiceRegistrar) error {
 	types.RegisterQueryServer(registrar, &am.keeper)
-	types.RegisterMsgServer(registrar, &am.keeper)
 	return nil
+}
+
+func (am AppModule) EndBlock(ctx context.Context) error {
+	return am.keeper.EndBlocker(ctx)
 }
