@@ -38,10 +38,10 @@ Only the native token (utia) can be sent to the fee address:
 This message is protocol-injected by block proposers and should not be submitted by users directly.
 
 ```protobuf
-message MsgForwardFees {
-  string proposer = 1;  // Hex-encoded block proposer address
-}
+message MsgForwardFees {}
 ```
+
+The message has no fields. Validation happens via ProcessProposal checking that the transaction fee equals the fee address balance.
 
 ## Queries
 

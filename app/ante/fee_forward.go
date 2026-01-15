@@ -1,9 +1,7 @@
 package ante
 
 import (
-	"bytes"
 	"context"
-	"encoding/hex"
 
 	"cosmossdk.io/errors"
 	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
@@ -59,16 +57,6 @@ func (d FeeForwardDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate boo
 		return ctx, errors.Wrap(sdkerrors.ErrInvalidRequest, "fee forward tx must have exactly one message")
 	}
 
-	// Validate proposer matches block proposer
-	blockProposer := ctx.BlockHeader().ProposerAddress
-	msgProposer, err := hex.DecodeString(msg.Proposer)
-	if err != nil {
-		return ctx, errors.Wrap(sdkerrors.ErrInvalidRequest, "invalid proposer address encoding")
-	}
-	if !bytes.Equal(blockProposer, msgProposer) {
-		return ctx, errors.Wrap(sdkerrors.ErrUnauthorized, "proposer does not match block proposer")
-	}
-
 	// Get the fee from the transaction
 	feeTx, ok := tx.(sdk.FeeTx)
 	if !ok {
@@ -81,7 +69,7 @@ func (d FeeForwardDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate boo
 	}
 
 	// Deduct fee from fee address and send to fee collector
-	err = d.bankKeeper.SendCoinsFromAccountToModule(ctx, feeaddresstypes.FeeAddress, authtypes.FeeCollectorName, fee)
+	err := d.bankKeeper.SendCoinsFromAccountToModule(ctx, feeaddresstypes.FeeAddress, authtypes.FeeCollectorName, fee)
 	if err != nil {
 		return ctx, errors.Wrap(err, "failed to deduct fee from fee address")
 	}

@@ -18,16 +18,12 @@ service Msg {
 
 // MsgForwardFees is a protocol-injected message that forwards accumulated
 // tokens from the fee address to the fee collector. This message is special:
-// - It has no signer (unsigned transaction)
+// - It has no signer and no fields (unsigned transaction)
 // - It is injected by PrepareProposal when fee address has balance
 // - The transaction fee equals the fee address balance
 // - ProcessProposal enforces that this tx must be present if fee address has balance
-message MsgForwardFees {
-  // proposer is the bech32-encoded address of the block proposer.
-  // This is used for validation in ProcessProposal to ensure only the
-  // actual block proposer can include this transaction.
-  string proposer = 1;
-}
+// - Validation happens via ProcessProposal checking tx fee == fee address balance
+message MsgForwardFees {}
 
 // MsgForwardFeesResponse is the response type for the ForwardFees RPC.
 message MsgForwardFeesResponse {}

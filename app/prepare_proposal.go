@@ -1,7 +1,6 @@
 package app
 
 import (
-	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -96,11 +95,9 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 
 // createFeeForwardTx creates an unsigned MsgForwardFees transaction with the
 // specified fee amount. The transaction has no signers - it's validated by
-// checking that the proposer matches the block proposer.
-func (app *App) createFeeForwardTx(ctx sdk.Context, feeAmount sdk.Coin) ([]byte, error) {
-	// Create the message with the block proposer's address (hex-encoded)
-	proposerAddr := hex.EncodeToString(ctx.BlockHeader().ProposerAddress)
-	msg := feeaddresstypes.NewMsgForwardFees(proposerAddr)
+// ProcessProposal checking that tx fee == fee address balance.
+func (app *App) createFeeForwardTx(_ sdk.Context, feeAmount sdk.Coin) ([]byte, error) {
+	msg := feeaddresstypes.NewMsgForwardFees()
 
 	// Build the transaction
 	txBuilder := app.encodingConfig.TxConfig.NewTxBuilder()

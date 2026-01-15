@@ -69,7 +69,7 @@ func TestForwardFeesEmitsEvent(t *testing.T) {
 	fee := sdk.NewCoins(amount)
 	ctx := createContextWithFeeAmount(fee)
 
-	msg := types.NewMsgForwardFees("abcd1234")
+	msg := types.NewMsgForwardFees()
 	resp, err := keeper.ForwardFees(ctx, msg)
 
 	require.NoError(t, err)
@@ -104,7 +104,7 @@ func TestForwardFeesNoFeeAmountInContext(t *testing.T) {
 	keeper := NewKeeper(bankKeeper)
 
 	ctx := createTestContext() // No fee amount set
-	msg := types.NewMsgForwardFees("abcd1234")
+	msg := types.NewMsgForwardFees()
 
 	_, err := keeper.ForwardFees(ctx, msg)
 
@@ -126,38 +126,14 @@ func TestFeeAddressQuery(t *testing.T) {
 
 // TestNewMsgForwardFees verifies the constructor for MsgForwardFees.
 func TestNewMsgForwardFees(t *testing.T) {
-	proposer := "abcd1234"
-	msg := types.NewMsgForwardFees(proposer)
-	require.Equal(t, proposer, msg.Proposer)
+	msg := types.NewMsgForwardFees()
+	require.NotNil(t, msg)
 }
 
 // TestMsgForwardFeesValidateBasic verifies the ValidateBasic method of MsgForwardFees.
+// Since the message has no fields, ValidateBasic always returns nil.
 func TestMsgForwardFeesValidateBasic(t *testing.T) {
-	testCases := []struct {
-		name    string
-		msg     *types.MsgForwardFees
-		wantErr bool
-	}{
-		{
-			name:    "valid message",
-			msg:     types.NewMsgForwardFees("abcd1234"),
-			wantErr: false,
-		},
-		{
-			name:    "empty proposer",
-			msg:     types.NewMsgForwardFees(""),
-			wantErr: true,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			err := tc.msg.ValidateBasic()
-			if tc.wantErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-			}
-		})
-	}
+	msg := types.NewMsgForwardFees()
+	err := msg.ValidateBasic()
+	require.NoError(t, err)
 }

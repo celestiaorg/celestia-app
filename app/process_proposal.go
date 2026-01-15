@@ -2,7 +2,6 @@ package app
 
 import (
 	"bytes"
-	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -273,8 +272,7 @@ func (app *App) isFeeForwardTx(txBytes []byte) (bool, error) {
 
 // validateFeeForwardTx validates a fee forward transaction:
 // - The fee must equal the expected fee balance
-// - The proposer must match the block proposer
-func (app *App) validateFeeForwardTx(ctx sdk.Context, txBytes []byte, expectedFee sdk.Coin) error {
+func (app *App) validateFeeForwardTx(_ sdk.Context, txBytes []byte, expectedFee sdk.Coin) error {
 	sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(txBytes)
 	if err != nil {
 		return fmt.Errorf("failed to decode tx: %w", err)
@@ -285,19 +283,8 @@ func (app *App) validateFeeForwardTx(ctx sdk.Context, txBytes []byte, expectedFe
 	if len(msgs) != 1 {
 		return fmt.Errorf("fee forward tx must have exactly one message, got %d", len(msgs))
 	}
-	msg, ok := msgs[0].(*feeaddresstypes.MsgForwardFees)
-	if !ok {
+	if _, ok := msgs[0].(*feeaddresstypes.MsgForwardFees); !ok {
 		return fmt.Errorf("message is not MsgForwardFees")
-	}
-
-	// Verify the proposer matches the block proposer
-	blockProposer := ctx.BlockHeader().ProposerAddress
-	msgProposer, err := hex.DecodeString(msg.Proposer)
-	if err != nil {
-		return fmt.Errorf("invalid proposer address encoding: %w", err)
-	}
-	if !bytes.Equal(blockProposer, msgProposer) {
-		return fmt.Errorf("proposer %X does not match block proposer %X", msgProposer, blockProposer)
 	}
 
 	// Verify the fee equals the expected fee balance
