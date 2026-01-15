@@ -39,7 +39,7 @@ func TestSortAndExtractGasPrice(t *testing.T) {
 	)
 
 	txGas := uint64(100000)
-	txs := make([]coretypes.Tx, 0)
+	txs := make([]coretypes.Tx, 0, len(accounts)*2)
 	txGasToSizeMap := make(map[float64]int)
 	for i, acc := range accounts {
 		signer, err := user.NewSigner(kr, enc, testutil.ChainID, user.NewAccount(acc, infos[i].AccountNum, infos[i].Sequence))

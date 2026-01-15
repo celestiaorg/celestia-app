@@ -30,7 +30,7 @@ type Versions []Version
 // Sorted returns a sorted slice of Versions, sorted by AppVersion (ascending).
 func (v Versions) Sorted() Versions {
 	// convert map to slice
-	versionList := make([]Version, 0)
+	versionList := make([]Version, 0, len(v))
 	for _, ver := range v {
 		versionList = append(versionList, ver)
 	}
