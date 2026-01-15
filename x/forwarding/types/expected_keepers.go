@@ -1,0 +1,66 @@
+package types
+
+import (
+	"context"
+
+	"cosmossdk.io/math"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/bcp-innovations/hyperlane-cosmos/util"
+	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
+)
+
+// AccountKeeper defines the expected account keeper interface
+type AccountKeeper interface {
+	GetModuleAddress(moduleName string) sdk.AccAddress
+}
+
+// BankKeeper defines the expected bank keeper interface
+type BankKeeper interface {
+	GetBalance(ctx context.Context, addr sdk.AccAddress, denom string) sdk.Coin
+	GetAllBalances(ctx context.Context, addr sdk.AccAddress) sdk.Coins
+	SendCoins(ctx context.Context, fromAddr, toAddr sdk.AccAddress, amt sdk.Coins) error
+	SendCoinsFromAccountToModule(ctx context.Context, senderAddr sdk.AccAddress, recipientModule string, amt sdk.Coins) error
+}
+
+// WarpKeeper defines the expected warp keeper interface for documentation purposes.
+//
+// IMPORTANT: The forwarding keeper uses the concrete *warpkeeper.Keeper type, NOT this interface.
+// This is intentional because the hyperlane-cosmos warp keeper exposes its state via public
+// collections.Map fields (HypTokens, EnrolledRouters) rather than through methods.
+// Go interfaces cannot expose struct fields, so we must use the concrete type.
+//
+// The forwarding keeper wraps these field accesses in helper methods:
+//   - FindHypTokenByDenom: wraps warpKeeper.HypTokens.Get
+//   - HasEnrolledRouter: wraps warpKeeper.EnrolledRouters.Has
+//
+// This interface documents the warp keeper capabilities we depend on for future reference.
+type WarpKeeper interface {
+	// RemoteTransferSynthetic initiates a cross-chain transfer for synthetic tokens
+	RemoteTransferSynthetic(
+		ctx sdk.Context,
+		token warptypes.HypToken,
+		cosmosSender string,
+		destinationDomain uint32,
+		recipient util.HexAddress,
+		amount math.Int,
+		customHookId *util.HexAddress,
+		gasLimit math.Int,
+		maxFee sdk.Coin,
+		customHookMetadata []byte,
+	) (util.HexAddress, error)
+
+	// RemoteTransferCollateral initiates a cross-chain transfer for collateral tokens
+	RemoteTransferCollateral(
+		ctx sdk.Context,
+		token warptypes.HypToken,
+		cosmosSender string,
+		destinationDomain uint32,
+		recipient util.HexAddress,
+		amount math.Int,
+		customHookId *util.HexAddress,
+		gasLimit math.Int,
+		maxFee sdk.Coin,
+		customHookMetadata []byte,
+	) (util.HexAddress, error)
+}
