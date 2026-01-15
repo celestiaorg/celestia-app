@@ -21,6 +21,11 @@ var _ porttypes.IBCModule = (*FeeAddressIBCMiddleware)(nil)
 //
 // When a transfer is rejected, an error acknowledgement is returned, causing
 // the source chain to refund the sender.
+//
+// Note: This middleware only validates standard IBC transfers. Bypass vectors exist:
+// - ICA host messages bypass ante handlers and this middleware
+// - Hyperlane MsgProcessMessage bypasses this middleware
+// Non-utia tokens sent via these paths would be permanently stuck (not forwarded, not stolen).
 type FeeAddressIBCMiddleware struct {
 	app porttypes.IBCModule
 }
