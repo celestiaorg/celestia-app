@@ -38,9 +38,10 @@ One address handles all tokens for a given `(destDomain, destRecipient)` pair.
 ```protobuf
 message Params {
   string min_forward_amount = 1;    // Minimum amount to forward (0 = disabled)
-  string tia_collateral_token_id = 2; // Token ID for native TIA forwarding
 }
 ```
+
+Note: TIA collateral token is discovered at runtime by iterating warp tokens with `OriginDenom="utia"` and checking for routes to the destination domain.
 
 ## Messages
 
