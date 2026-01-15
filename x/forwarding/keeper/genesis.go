@@ -3,7 +3,7 @@ package keeper
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-app/v6/x/forwarding/types"
+	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 )
 
 // InitGenesis initializes the module's state from a genesis state

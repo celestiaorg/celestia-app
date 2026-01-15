@@ -9,8 +9,8 @@ import (
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v6/x/forwarding/keeper"
-	"github.com/celestiaorg/celestia-app/v6/x/forwarding/types"
+	"github.com/celestiaorg/celestia-app/v7/x/forwarding/keeper"
+	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	tmdb "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -139,7 +139,8 @@ func setupKeeper(t *testing.T) (keeper.Keeper, sdk.Context, *mockBankKeeper) {
 		storeService,
 		accountKeeper,
 		bankKeeper,
-		nil, // warpKeeper - nil for unit tests, use integration tests for warp functionality
+		nil,                            // warpKeeper - nil for unit tests, use integration tests for warp functionality
+		"celestia1govauthority12345", // authority for params updates
 	)
 
 	// Note: We don't set default params here because the Params type requires
