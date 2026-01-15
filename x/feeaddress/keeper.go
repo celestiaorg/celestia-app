@@ -1,15 +1,15 @@
 // Package feeaddress provides functionality for forwarding TIA tokens to the fee collector.
-// Tokens sent to the fee address are automatically forwarded to validators via protocol-injected
-// transactions in PrepareProposal.
+// Tokens sent to the fee address are automatically forwarded to validators at the end of each block.
 package feeaddress
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v7/app/ante"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
 // Keeper handles fee forwarding operations for the feeaddress module.
@@ -27,25 +27,27 @@ func NewKeeper(bankKeeper types.BankKeeper) Keeper {
 	}
 }
 
-// ForwardFees handles MsgForwardFees by emitting the fee forwarded event.
-// Note: The actual fee deduction is done by the FeeForwardDecorator in the ante handler.
-// This message handler just emits the event for tracking purposes.
-func (k Keeper) ForwardFees(ctx context.Context, _ *types.MsgForwardFees) (*types.MsgForwardFeesResponse, error) {
+// EndBlocker forwards any utia tokens at the fee address to the fee collector.
+func (k Keeper) EndBlocker(ctx context.Context) error {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
-	// Get the fee amount from context (set by FeeForwardDecorator)
-	fee, ok := ante.GetFeeForwardAmount(sdkCtx)
-	if !ok {
-		// This shouldn't happen in normal operation as the ante decorator always sets the fee
-		return nil, fmt.Errorf("fee forward amount not found in context")
+	balance := k.bankKeeper.GetBalance(sdkCtx, types.FeeAddress, appconsts.BondDenom)
+	if balance.IsZero() {
+		return nil
 	}
 
-	// Emit the event for tracking
-	if err := sdkCtx.EventManager().EmitTypedEvent(types.NewFeeForwardedEvent(types.FeeAddressBech32, fee.String())); err != nil {
-		return nil, fmt.Errorf("failed to emit fee forwarded event: %w", err)
+	coins := sdk.NewCoins(balance)
+
+	// Forward to fee collector for distribution to validators
+	if err := k.bankKeeper.SendCoinsFromAccountToModule(sdkCtx, types.FeeAddress, authtypes.FeeCollectorName, coins); err != nil {
+		return fmt.Errorf("failed to forward to fee collector: %w", err)
 	}
 
-	return &types.MsgForwardFeesResponse{}, nil
+	if err := sdkCtx.EventManager().EmitTypedEvent(types.NewFeeForwardedEvent(types.FeeAddressBech32, balance.String())); err != nil {
+		return fmt.Errorf("failed to emit fee forwarded event: %w", err)
+	}
+
+	return nil
 }
 
 // FeeAddress implements the Query/FeeAddress gRPC method.
