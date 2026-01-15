@@ -13,7 +13,7 @@ import (
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	warpkeeper "github.com/bcp-innovations/hyperlane-cosmos/x/warp/keeper"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
-	"github.com/celestiaorg/celestia-app/v6/x/forwarding/types"
+	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 )
 
@@ -24,6 +24,7 @@ type Keeper struct {
 	accountKeeper types.AccountKeeper
 	bankKeeper    types.BankKeeper
 	warpKeeper    *warpkeeper.Keeper
+	authority     string
 }
 
 func NewKeeper(
@@ -32,6 +33,7 @@ func NewKeeper(
 	accountKeeper types.AccountKeeper,
 	bankKeeper types.BankKeeper,
 	warpKeeper *warpkeeper.Keeper,
+	authority string,
 ) Keeper {
 	if warpKeeper == nil {
 		panic("warpKeeper cannot be nil")
@@ -45,6 +47,7 @@ func NewKeeper(
 		accountKeeper: accountKeeper,
 		bankKeeper:    bankKeeper,
 		warpKeeper:    warpKeeper,
+		authority:     authority,
 	}
 
 	schema, err := sb.Build()
