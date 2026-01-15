@@ -16,6 +16,8 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
 	"github.com/celestiaorg/celestia-app/v7/x/burn"
 	burntypes "github.com/celestiaorg/celestia-app/v7/x/burn/types"
+	"github.com/celestiaorg/celestia-app/v7/x/forwarding"
+	forwardingtypes "github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	"github.com/celestiaorg/celestia-app/v7/x/minfee"
 	minfeetypes "github.com/celestiaorg/celestia-app/v7/x/minfee/types"
 	minttypes "github.com/celestiaorg/celestia-app/v7/x/mint/types"
@@ -87,6 +89,7 @@ var ModuleEncodingRegisters = []module.AppModuleBasic{
 	// celestia
 	blob.AppModule{},
 	burn.AppModule{},
+	forwarding.AppModule{},
 	minfee.AppModule{},
 	mintModule{},
 	signal.AppModule{},
@@ -179,6 +182,7 @@ func (app *App) setModuleOrder() {
 		circuittypes.ModuleName,
 		hyperlanetypes.ModuleName,
 		warptypes.ModuleName,
+		forwardingtypes.ModuleName,
 	)
 }
 
@@ -206,7 +210,8 @@ func allStoreKeys() []string {
 		minfeetypes.StoreKey,      // added in v4
 		consensustypes.StoreKey,   // added in v4
 		circuittypes.StoreKey,     // added in v4
-		hyperlanetypes.ModuleName, // added in v4
-		warptypes.ModuleName,      // added in v4
+		hyperlanetypes.ModuleName,   // added in v4
+		warptypes.ModuleName,        // added in v4
+		forwardingtypes.StoreKey,    // added in v7 (forwarding module)
 	}
 }
