@@ -78,25 +78,7 @@ func (app App) RegisterUpgradeHandlers() {
 			start := time.Now()
 			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", upgradeName, "start", start)
 
-			err := app.SetUnbondingTime(ctx)
-			if err != nil {
-				sdkCtx.Logger().Error("failed to set unbonding time", "error", err)
-				return nil, err
-			}
-
-			err = app.SetEvidenceParams(ctx)
-			if err != nil {
-				sdkCtx.Logger().Error("failed to set evidence params", "error", err)
-				return nil, err
-			}
-
-			err = app.setICAHostParams(sdkCtx)
-			if err != nil {
-				sdkCtx.Logger().Error("failed to set ica/host submodule params", "error", err)
-				return nil, err
-			}
-
-			err = app.SetMinCommissionRate(sdkCtx)
+			err := app.SetMinCommissionRate(sdkCtx)
 			if err != nil {
 				sdkCtx.Logger().Error("failed to set min commission rate", "error", err)
 				return nil, err
@@ -122,66 +104,6 @@ func (app App) RegisterUpgradeHandlers() {
 	if upgradeInfo.Name == upgradeName && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) { //nolint:staticcheck
 		// TODO: Apply any store upgrades here.
 	}
-}
-
-func (app App) SetUnbondingTime(ctx context.Context) error {
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-
-	params, err := app.StakingKeeper.GetParams(ctx)
-	if err != nil {
-		sdkCtx.Logger().Error("failed to get staking params", "error", err)
-		return err
-	}
-
-	sdkCtx.Logger().Info(fmt.Sprintf("Setting unbonding time to %v.", appconsts.UnbondingTime))
-	params.UnbondingTime = appconsts.UnbondingTime
-
-	err = app.StakingKeeper.SetParams(ctx, params)
-	if err != nil {
-		sdkCtx.Logger().Error("failed to set staking params", "error", err)
-		return err
-	}
-	return nil
-}
-
-func (app App) SetEvidenceParams(ctx context.Context) error {
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-
-	params, err := app.ConsensusKeeper.ParamsStore.Get(ctx)
-	if err != nil {
-		sdkCtx.Logger().Error("failed to get consensus params", "error", err)
-		return err
-	}
-
-	sdkCtx.Logger().Info(fmt.Sprintf("Setting evidence MaxAgeDuration to %v.", appconsts.MaxAgeDuration))
-	params.Evidence.MaxAgeDuration = appconsts.MaxAgeDuration
-
-	sdkCtx.Logger().Info(fmt.Sprintf("Setting evidence MaxAgeNumBlocks to %v.", appconsts.MaxAgeNumBlocks))
-	params.Evidence.MaxAgeNumBlocks = appconsts.MaxAgeNumBlocks
-
-	err = app.ConsensusKeeper.ParamsStore.Set(ctx, params)
-	if err != nil {
-		sdkCtx.Logger().Error("failed to set consensus params", "error", err)
-		return err
-	}
-	return nil
-}
-
-// setICAHostParams sets the ICA host params to the values defined in CIP-14.
-// This is needed because the ICA host params were previously stored in x/params
-// and in ibc-go v8 they were migrated to use a self-managed store.
-//
-// NOTE: the param migrator included in ibc-go v8 does not work as expected
-// because it sets the params to the default values which do not match the
-// values defined in CIP-14.
-func (a App) setICAHostParams(ctx context.Context) error {
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	params := icahosttypes.Params{
-		HostEnabled:   true,
-		AllowMessages: IcaAllowMessages(),
-	}
-	a.ICAHostKeeper.SetParams(sdkCtx, params)
-	return nil
 }
 
 func (a App) SetMinCommissionRate(ctx context.Context) error {
