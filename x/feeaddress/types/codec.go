@@ -3,12 +3,17 @@ package types
 import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/msgservice"
 )
 
-func RegisterInterfaces(_ codectypes.InterfaceRegistry) {
-	// No messages to register - feeaddress module uses fee address approach
+func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
+	registry.RegisterImplementations((*sdk.Msg)(nil),
+		&MsgForwardFees{},
+	)
+	msgservice.RegisterMsgServiceDesc(registry, &_Msg_serviceDesc)
 }
 
-func RegisterLegacyAminoCodec(_ *codec.LegacyAmino) {
-	// No messages to register - feeaddress module uses fee address approach
+func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
+	cdc.RegisterConcrete(&MsgForwardFees{}, "feeaddress/MsgForwardFees", nil)
 }

@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -9,9 +10,11 @@ import (
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v7/app/ante"
 	apperr "github.com/celestiaorg/celestia-app/v7/app/errors"
+	"github.com/celestiaorg/celestia-app/v7/app/params"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/pkg/da"
 	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	blobtx "github.com/celestiaorg/go-square/v3/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -51,6 +54,42 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		app.GovParamFilters(),
 	)
 	blockHeader := ctx.BlockHeader()
+
+	// Strict validation for fee forward transactions:
+	// If the fee address has a balance, the block MUST contain a valid fee forward tx as the first tx.
+	// If no balance but fee forward tx present, reject the block.
+	feeBalance := app.BankKeeper.GetBalance(ctx, feeaddresstypes.FeeAddress, params.BondDenom)
+	hasBalance := !feeBalance.IsZero()
+
+	if len(req.Txs) > 0 {
+		firstTxIsFeeForward, feeForwardErr := app.isFeeForwardTx(req.Txs[0])
+		if feeForwardErr != nil && hasBalance {
+			// If we have balance and can't decode the first tx, that's invalid
+			logInvalidPropBlockError(app.Logger(), blockHeader, "failed to decode first tx for fee forward check", feeForwardErr)
+			return reject(), nil
+		}
+
+		if hasBalance {
+			// Fee address has balance - MUST have valid fee forward tx as first tx
+			if !firstTxIsFeeForward {
+				logInvalidPropBlock(app.Logger(), blockHeader, "fee address has balance but first tx is not a fee forward tx")
+				return reject(), nil
+			}
+			// Validate the fee forward tx
+			if err := app.validateFeeForwardTx(ctx, req.Txs[0], feeBalance); err != nil {
+				logInvalidPropBlockError(app.Logger(), blockHeader, "invalid fee forward tx", err)
+				return reject(), nil
+			}
+		} else if firstTxIsFeeForward {
+			// No balance but fee forward tx present - reject
+			logInvalidPropBlock(app.Logger(), blockHeader, "fee forward tx present but fee address has no balance")
+			return reject(), nil
+		}
+	} else if hasBalance {
+		// No transactions but fee address has balance - reject
+		logInvalidPropBlock(app.Logger(), blockHeader, "fee address has balance but block has no transactions")
+		return reject(), nil
+	}
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
 	// blobTxs have no PFBs present and all txs are less than or equal to the max tx size limit
@@ -216,4 +255,63 @@ func (app *App) ValidateBlobTxWithCache(blobTx *blobtx.BlobTx) (bool, error) {
 		return false, err
 	}
 	return false, nil
+}
+
+// isFeeForwardTx checks if the given raw transaction bytes contain a MsgForwardFees message.
+func (app *App) isFeeForwardTx(txBytes []byte) (bool, error) {
+	sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(txBytes)
+	if err != nil {
+		return false, err
+	}
+	msgs := sdkTx.GetMsgs()
+	if len(msgs) != 1 {
+		return false, nil
+	}
+	_, ok := msgs[0].(*feeaddresstypes.MsgForwardFees)
+	return ok, nil
+}
+
+// validateFeeForwardTx validates a fee forward transaction:
+// - The fee must equal the expected fee balance
+// - The proposer must match the block proposer
+func (app *App) validateFeeForwardTx(ctx sdk.Context, txBytes []byte, expectedFee sdk.Coin) error {
+	sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(txBytes)
+	if err != nil {
+		return fmt.Errorf("failed to decode tx: %w", err)
+	}
+
+	// Verify there's exactly one message and it's MsgForwardFees
+	msgs := sdkTx.GetMsgs()
+	if len(msgs) != 1 {
+		return fmt.Errorf("fee forward tx must have exactly one message, got %d", len(msgs))
+	}
+	msg, ok := msgs[0].(*feeaddresstypes.MsgForwardFees)
+	if !ok {
+		return fmt.Errorf("message is not MsgForwardFees")
+	}
+
+	// Verify the proposer matches the block proposer
+	blockProposer := ctx.BlockHeader().ProposerAddress
+	msgProposer, err := hex.DecodeString(msg.Proposer)
+	if err != nil {
+		return fmt.Errorf("invalid proposer address encoding: %w", err)
+	}
+	if !bytes.Equal(blockProposer, msgProposer) {
+		return fmt.Errorf("proposer %X does not match block proposer %X", msgProposer, blockProposer)
+	}
+
+	// Verify the fee equals the expected fee balance
+	feeTx, ok := sdkTx.(sdk.FeeTx)
+	if !ok {
+		return fmt.Errorf("tx does not implement FeeTx")
+	}
+	fee := feeTx.GetFee()
+	if len(fee) != 1 {
+		return fmt.Errorf("fee forward tx must have exactly one fee coin, got %d", len(fee))
+	}
+	if !fee[0].Equal(expectedFee) {
+		return fmt.Errorf("fee %s does not equal expected fee %s", fee[0], expectedFee)
+	}
+
+	return nil
 }
