@@ -17,11 +17,17 @@ const (
 var TotalBurnedKey = []byte("TotalBurned")
 
 // BurnAddress is the address where tokens are sent to be burned.
-// This is a vanity address derived from 20 zero bytes (32 'q' characters in bech32).
-var BurnAddress = sdk.AccAddress(make([]byte, AddressLength))
+// This is a vanity address that encodes to "nullnullnullnullnullnullnullnull" in bech32,
+// making it recognizable as a null/void destination.
+var BurnAddress = sdk.AccAddress([]byte{
+	0x9F, 0x3F, 0xF9, 0xF3, 0xFF,
+	0x9F, 0x3F, 0xF9, 0xF3, 0xFF,
+	0x9F, 0x3F, 0xF9, 0xF3, 0xFF,
+	0x9F, 0x3F, 0xF9, 0xF3, 0xFF,
+})
 
 // BurnAddressBech32 is the bech32-encoded burn address.
-const BurnAddressBech32 = "celestia1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqzf30as"
+const BurnAddressBech32 = "celestia1nullnullnullnullnullnullnullnull8qanmn"
 
 func init() {
 	// Verify BurnAddressBech32 matches the derived BurnAddress.
