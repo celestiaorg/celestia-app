@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 
 	"cosmossdk.io/collections"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -42,9 +41,12 @@ func (m msgServer) ExecuteForwarding(goCtx context.Context, msg *types.MsgExecut
 		return nil, fmt.Errorf("%w: dest_recipient must be %d bytes, got %d", types.ErrAddressMismatch, types.RecipientLength, len(destRecipient.Bytes()))
 	}
 
-	expectedAddr := types.DeriveForwardingAddress(msg.DestDomain, destRecipient.Bytes())
-	if !forwardAddr.Equals(expectedAddr) {
-		return nil, fmt.Errorf("%w: provided=%s derived=%s", types.ErrAddressMismatch, forwardAddr.String(), expectedAddr.String())
+	expectedAddr, err := types.DeriveForwardingAddress(msg.DestDomain, destRecipient.Bytes())
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive forwarding address: %w", err)
+	}
+	if !forwardAddr.Equals(sdk.AccAddress(expectedAddr)) {
+		return nil, fmt.Errorf("%w: provided=%s derived=%s", types.ErrAddressMismatch, forwardAddr.String(), sdk.AccAddress(expectedAddr).String())
 	}
 
 	balances := m.k.bankKeeper.GetAllBalances(ctx, forwardAddr)
@@ -88,41 +90,39 @@ func (m msgServer) processTokens(
 		result := m.forwardSingleToken(ctx, forwardAddr, moduleAddr, balance, msg.DestDomain, destRecipient, params)
 		results = append(results, result)
 
-		ctx.EventManager().EmitEvent(
-			sdk.NewEvent(
-				types.EventTypeTokenForwarded,
-				sdk.NewAttribute(types.AttributeKeyForwardAddr, msg.ForwardAddr),
-				sdk.NewAttribute(types.AttributeKeyDenom, result.Denom),
-				sdk.NewAttribute(types.AttributeKeyAmount, result.Amount.String()),
-				sdk.NewAttribute(types.AttributeKeyMessageId, result.MessageId),
-				sdk.NewAttribute(types.AttributeKeySuccess, strconv.FormatBool(result.Success)),
-				sdk.NewAttribute(types.AttributeKeyError, result.Error),
-			),
-		)
+		if err := ctx.EventManager().EmitTypedEvent(&types.EventTokenForwarded{
+			ForwardAddr: msg.ForwardAddr,
+			Denom:       result.Denom,
+			Amount:      result.Amount,
+			MessageId:   result.MessageId,
+			Success:     result.Success,
+			Error:       result.Error,
+		}); err != nil {
+			ctx.Logger().Error("failed to emit EventTokenForwarded", "error", err)
+		}
 	}
 
 	return results
 }
 
 func (m msgServer) emitSummaryEvent(ctx sdk.Context, msg *types.MsgExecuteForwarding, results []types.ForwardingResult) {
-	var successCount int
+	var successCount uint32
 	for _, r := range results {
 		if r.Success {
 			successCount++
 		}
 	}
-	failCount := len(results) - successCount
+	failCount := uint32(len(results)) - successCount
 
-	ctx.EventManager().EmitEvent(
-		sdk.NewEvent(
-			types.EventTypeForwardingComplete,
-			sdk.NewAttribute(types.AttributeKeyForwardAddr, msg.ForwardAddr),
-			sdk.NewAttribute(types.AttributeKeyDestDomain, strconv.FormatUint(uint64(msg.DestDomain), 10)),
-			sdk.NewAttribute(types.AttributeKeyDestRecipient, msg.DestRecipient),
-			sdk.NewAttribute(types.AttributeKeyTokensForwarded, strconv.Itoa(successCount)),
-			sdk.NewAttribute(types.AttributeKeyTokensFailed, strconv.Itoa(failCount)),
-		),
-	)
+	if err := ctx.EventManager().EmitTypedEvent(&types.EventForwardingComplete{
+		ForwardAddr:     msg.ForwardAddr,
+		DestDomain:      msg.DestDomain,
+		DestRecipient:   msg.DestRecipient,
+		TokensForwarded: successCount,
+		TokensFailed:    failCount,
+	}); err != nil {
+		ctx.Logger().Error("failed to emit EventForwardingComplete", "error", err)
+	}
 }
 
 func (m msgServer) forwardSingleToken(
@@ -165,16 +165,15 @@ func (m msgServer) forwardSingleToken(
 				"warp_error", err.Error(),
 				"recovery_error", recoveryErr.Error(),
 			)
-			ctx.EventManager().EmitEvent(
-				sdk.NewEvent(
-					types.EventTypeTokensStuck,
-					sdk.NewAttribute(types.AttributeKeyDenom, balance.Denom),
-					sdk.NewAttribute(types.AttributeKeyAmount, balance.Amount.String()),
-					sdk.NewAttribute(types.AttributeKeyModuleAddr, moduleAddr.String()),
-					sdk.NewAttribute(types.AttributeKeyForwardAddr, forwardAddr.String()),
-					sdk.NewAttribute(types.AttributeKeyError, fmt.Sprintf("warp: %s; recovery: %s", err.Error(), recoveryErr.Error())),
-				),
-			)
+			if emitErr := ctx.EventManager().EmitTypedEvent(&types.EventTokensStuck{
+				Denom:       balance.Denom,
+				Amount:      balance.Amount,
+				ModuleAddr:  moduleAddr.String(),
+				ForwardAddr: forwardAddr.String(),
+				Error:       fmt.Sprintf("warp: %s; recovery: %s", err.Error(), recoveryErr.Error()),
+			}); emitErr != nil {
+				ctx.Logger().Error("failed to emit EventTokensStuck", "error", emitErr)
+			}
 			return types.NewFailureResult(balance.Denom, balance.Amount, fmt.Sprintf("CRITICAL: warp failed and recovery failed - tokens stuck in module account: warp=%s recovery=%s", err.Error(), recoveryErr.Error()))
 		}
 		return types.NewFailureResult(balance.Denom, balance.Amount, "warp transfer failed (tokens returned): "+err.Error())

@@ -162,26 +162,6 @@ func TestMsgExecuteForwarding_ValidateBasic(t *testing.T) {
 	}
 }
 
-func TestMsgExecuteForwarding_GetSigners(t *testing.T) {
-	signerBytes := []byte("testsigner__________") // 20 bytes
-	signer := sdk.AccAddress(signerBytes).String()
-	forwardAddrBytes := []byte("forwardaddr_________") // 20 bytes
-	forwardAddr := sdk.AccAddress(forwardAddrBytes).String()
-
-	msg := &types.MsgExecuteForwarding{
-		Signer:        signer,
-		ForwardAddr:   forwardAddr,
-		DestDomain:    1,
-		DestRecipient: "0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-	}
-
-	signers := msg.GetSigners()
-	require.Len(t, signers, 1)
-
-	expectedAddr, err := sdk.AccAddressFromBech32(signer)
-	require.NoError(t, err)
-	require.Equal(t, expectedAddr, signers[0])
-}
-
-// Note: Route() and Type() methods are deprecated in newer Cosmos SDK versions
+// Note: GetSigners() is inferred from proto annotation (cosmos.msg.v1.signer)
+// Route() and Type() methods are deprecated in newer Cosmos SDK versions
 // These methods are no longer required for sdk.Msg interface

@@ -3,13 +3,14 @@ package types
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"fmt"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/address"
 )
 
 const (
-	ForwardVersionPrefix = "CELESTIA_FORWARD_V1"
-	RecipientLength      = 32
+	ForwardVersion  uint8 = 1
+	RecipientLength       = 32
 )
 
 // DeriveForwardingAddress computes a deterministic forwarding address from destination parameters.
@@ -17,13 +18,13 @@ const (
 //
 // Algorithm:
 //  1. callDigest = sha256(destDomain_32bytes || destRecipient)
-//  2. salt = sha256("CELESTIA_FORWARD_V1" || callDigest)
-//  3. address = sha256(moduleName || salt)[:20]
+//  2. salt = sha256(ForwardVersion || callDigest)
+//  3. address = address.Module("forwarding", salt)[:20]
 //
-// Panics if destRecipient is not exactly RecipientLength (32) bytes.
-func DeriveForwardingAddress(destDomain uint32, destRecipient []byte) sdk.AccAddress {
+// Returns an error if destRecipient is not exactly RecipientLength (32) bytes.
+func DeriveForwardingAddress(destDomain uint32, destRecipient []byte) ([]byte, error) {
 	if len(destRecipient) != RecipientLength {
-		panic("destRecipient must be exactly 32 bytes")
+		return nil, fmt.Errorf("%w: expected %d bytes, got %d", ErrInvalidRecipient, RecipientLength, len(destRecipient))
 	}
 
 	// Step 1: Encode destDomain as 32-byte big-endian (right-aligned)
@@ -34,13 +35,12 @@ func DeriveForwardingAddress(destDomain uint32, destRecipient []byte) sdk.AccAdd
 	callDigestPreimage := append(destDomainBytes, destRecipient...)
 	callDigest := sha256.Sum256(callDigestPreimage)
 
-	// Step 3: salt = sha256("CELESTIA_FORWARD_V1" || callDigest)
-	saltPreimage := append([]byte(ForwardVersionPrefix), callDigest[:]...)
+	// Step 3: salt = sha256(ForwardVersion || callDigest)
+	saltPreimage := append([]byte{ForwardVersion}, callDigest[:]...)
 	salt := sha256.Sum256(saltPreimage)
 
-	// Step 4: address = sha256(moduleName || salt)[:20]
-	addressPreimage := append([]byte(ModuleName), salt[:]...)
-	hash := sha256.Sum256(addressPreimage)
+	// Step 4: Use SDK's address.Module for deterministic derivation
+	addr := address.Module(ModuleName, salt[:])
 
-	return sdk.AccAddress(hash[:20])
+	return addr[:20], nil
 }

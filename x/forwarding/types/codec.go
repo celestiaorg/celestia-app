@@ -7,9 +7,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/msgservice"
 )
 
-// ModuleCdc is the codec for the forwarding module
-var ModuleCdc = codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
-
 // RegisterLegacyAminoCodec registers the necessary types for legacy amino codec
 func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(&MsgExecuteForwarding{}, URLMsgExecuteForwarding, nil)

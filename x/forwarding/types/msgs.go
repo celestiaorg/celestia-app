@@ -42,14 +42,6 @@ func (msg *MsgExecuteForwarding) ValidateBasic() error {
 	return nil
 }
 
-func (msg *MsgExecuteForwarding) GetSigners() []sdk.AccAddress {
-	signer, err := sdk.AccAddressFromBech32(msg.Signer)
-	if err != nil {
-		panic(err)
-	}
-	return []sdk.AccAddress{signer}
-}
-
 func NewSuccessResult(denom string, amount math.Int, messageId string) ForwardingResult {
 	return ForwardingResult{
 		Denom:     denom,

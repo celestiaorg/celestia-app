@@ -1,5 +1,7 @@
 package types
 
+import "cosmossdk.io/collections"
+
 const (
 	ModuleName = "forwarding"
 	StoreKey   = ModuleName
@@ -25,4 +27,4 @@ const (
 	AttributeKeyModuleAddr      = "module_addr"
 )
 
-var ParamsPrefix = []byte{0x01}
+var ParamsPrefix = collections.NewPrefix(1)

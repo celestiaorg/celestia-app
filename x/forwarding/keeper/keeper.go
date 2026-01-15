@@ -33,6 +33,10 @@ func NewKeeper(
 	bankKeeper types.BankKeeper,
 	warpKeeper *warpkeeper.Keeper,
 ) Keeper {
+	if warpKeeper == nil {
+		panic("warpKeeper cannot be nil")
+	}
+
 	sb := collections.NewSchemaBuilder(storeService)
 
 	k := Keeper{
@@ -60,15 +64,7 @@ func (k Keeper) SetParams(ctx context.Context, params types.Params) error {
 	return k.Params.Set(ctx, params)
 }
 
-func (k Keeper) DeriveForwardingAddress(destDomain uint32, destRecipient []byte) sdk.AccAddress {
-	return types.DeriveForwardingAddress(destDomain, destRecipient)
-}
-
 func (k Keeper) FindHypTokenByDenom(ctx context.Context, denom string) (warptypes.HypToken, error) {
-	if k.warpKeeper == nil {
-		return warptypes.HypToken{}, types.ErrUnsupportedToken
-	}
-
 	switch {
 	case denom == "utia":
 		return k.findTIACollateralToken(ctx)
@@ -107,9 +103,6 @@ func (k Keeper) getTokenByHex(ctx context.Context, tokenIdHex string) (warptypes
 }
 
 func (k Keeper) HasEnrolledRouter(ctx context.Context, tokenId util.HexAddress, destDomain uint32) (bool, error) {
-	if k.warpKeeper == nil {
-		return false, types.ErrUnsupportedToken
-	}
 	return k.warpKeeper.EnrolledRouters.Has(ctx, collections.Join(tokenId.GetInternalId(), destDomain))
 }
 
@@ -121,10 +114,6 @@ func (k Keeper) ExecuteWarpTransfer(
 	destRecipient util.HexAddress,
 	amount math.Int,
 ) (util.HexAddress, error) {
-	if k.warpKeeper == nil {
-		return util.HexAddress{}, types.ErrUnsupportedToken
-	}
-
 	gasLimit := math.ZeroInt()
 	maxFee := sdk.NewCoin("utia", math.ZeroInt())
 
