@@ -2,7 +2,7 @@ package ante
 
 import (
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
-	burntypes "github.com/celestiaorg/celestia-app/v7/x/burn/types"
+	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/authz"
@@ -10,43 +10,43 @@ import (
 	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 )
 
-var _ sdk.AnteDecorator = BurnAddressDecorator{}
+var _ sdk.AnteDecorator = FeeAddressDecorator{}
 
-// BurnAddressDecorator rejects transactions that send non-utia tokens to the burn address.
+// FeeAddressDecorator rejects transactions that send non-utia tokens to the fee address.
 // This includes messages nested inside authz.MsgExec.
 //
 // Note: ICA host executed messages bypass ante handlers. If ICA sends non-utia to the
-// burn address, the tokens would be permanently stuck (not burned, not stolen).
-type BurnAddressDecorator struct{}
+// fee address, the tokens would be permanently stuck (not forwarded, not stolen).
+type FeeAddressDecorator struct{}
 
-func NewBurnAddressDecorator() *BurnAddressDecorator {
-	return &BurnAddressDecorator{}
+func NewFeeAddressDecorator() *FeeAddressDecorator {
+	return &FeeAddressDecorator{}
 }
 
-func (bad BurnAddressDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (newCtx sdk.Context, err error) {
+func (fad FeeAddressDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (newCtx sdk.Context, err error) {
 	for _, msg := range tx.GetMsgs() {
-		if err := bad.validateMessage(msg); err != nil {
+		if err := fad.validateMessage(msg); err != nil {
 			return ctx, err
 		}
 	}
 	return next(ctx, tx, simulate)
 }
 
-// validateMessage checks a message and any nested messages for burn address violations.
-func (bad BurnAddressDecorator) validateMessage(msg sdk.Msg) error {
+// validateMessage checks a message and any nested messages for fee address violations.
+func (fad FeeAddressDecorator) validateMessage(msg sdk.Msg) error {
 	switch m := msg.(type) {
 	case *banktypes.MsgSend:
-		if err := validateBurnAddressSend(m.ToAddress, m.Amount); err != nil {
+		if err := validateFeeAddressSend(m.ToAddress, m.Amount); err != nil {
 			return err
 		}
 	case *banktypes.MsgMultiSend:
 		for _, output := range m.Outputs {
-			if err := validateBurnAddressSend(output.Address, output.Coins); err != nil {
+			if err := validateFeeAddressSend(output.Address, output.Coins); err != nil {
 				return err
 			}
 		}
 	case *ibctransfertypes.MsgTransfer:
-		if err := validateBurnAddressSend(m.Receiver, sdk.NewCoins(m.Token)); err != nil {
+		if err := validateFeeAddressSend(m.Receiver, sdk.NewCoins(m.Token)); err != nil {
 			return err
 		}
 	case *authz.MsgExec:
@@ -55,7 +55,7 @@ func (bad BurnAddressDecorator) validateMessage(msg sdk.Msg) error {
 			return err
 		}
 		for _, nestedMsg := range nestedMsgs {
-			if err := bad.validateMessage(nestedMsg); err != nil {
+			if err := fad.validateMessage(nestedMsg); err != nil {
 				return err
 			}
 		}
@@ -63,23 +63,23 @@ func (bad BurnAddressDecorator) validateMessage(msg sdk.Msg) error {
 	return nil
 }
 
-// validateBurnAddressSend checks if the recipient is the burn address and
+// validateFeeAddressSend checks if the recipient is the fee address and
 // ensures only utia is being sent. Uses bytes comparison for safety.
-func validateBurnAddressSend(recipient string, coins sdk.Coins) error {
+func validateFeeAddressSend(recipient string, coins sdk.Coins) error {
 	addr, err := sdk.AccAddressFromBech32(recipient)
 	if err != nil {
 		// Invalid address - let other validators handle this
 		return nil
 	}
 
-	if !addr.Equals(burntypes.BurnAddress) {
+	if !addr.Equals(feeaddresstypes.FeeAddress) {
 		return nil
 	}
 
 	for _, coin := range coins {
 		if coin.Denom != appconsts.BondDenom {
 			return sdkerrors.ErrInvalidRequest.Wrapf(
-				"only %s can be sent to burn address, got %s",
+				"only %s can be sent to fee address, got %s",
 				appconsts.BondDenom,
 				coin.Denom,
 			)

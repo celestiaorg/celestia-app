@@ -5,7 +5,7 @@ import (
 
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v7/app"
-	burntypes "github.com/celestiaorg/celestia-app/v7/x/burn/types"
+	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
@@ -156,9 +156,9 @@ func (suite *TokenFilterTestSuite) TestHandleInboundTransfer() {
 	suite.Require().Equal(sdk.NewInt64Coin(voucherDenomTrace.IBCDenom(), 0), finalCelestiaBalance)
 }
 
-// TestInboundTransferToBurnAddressRejected verifies that non-utia tokens
-// sent to the burn address via IBC are rejected and the sender is refunded.
-func (suite *TokenFilterTestSuite) TestInboundTransferToBurnAddressRejected() {
+// TestInboundTransferToFeeAddressRejected verifies that non-utia tokens
+// sent to the fee address via IBC are rejected and the sender is refunded.
+func (suite *TokenFilterTestSuite) TestInboundTransferToFeeAddressRejected() {
 	// setup between celestiaChain and otherChain
 	path := ibctesting.NewTransferPath(suite.celestia, suite.simapp)
 	suite.coordinator.Setup(path)
@@ -187,14 +187,14 @@ func (suite *TokenFilterTestSuite) TestInboundTransferToBurnAddressRejected() {
 	timeoutHeight := clienttypes.NewHeight(1, 110)
 	coinToSend := sdk.NewCoin(foreignDenom, amount)
 
-	// Send foreign token from simapp to celestia burn address
-	// This should be rejected by the BurnAddressIBCMiddleware
+	// Send foreign token from simapp to celestia fee address
+	// This should be rejected by the FeeAddressIBCMiddleware
 	msg := types.NewMsgTransfer(
 		path.EndpointB.ChannelConfig.PortID,
 		path.EndpointB.ChannelID,
 		coinToSend,
 		suite.simapp.SenderAccount.GetAddress().String(),
-		burntypes.BurnAddressBech32, // Sending to burn address
+		feeaddresstypes.FeeAddressBech32, // Sending to fee address
 		timeoutHeight,
 		0,
 		"",
@@ -209,19 +209,19 @@ func (suite *TokenFilterTestSuite) TestInboundTransferToBurnAddressRejected() {
 	err = path.RelayPacket(packet)
 	suite.Require().NoError(err) // relay committed (error ack is still "successful" relay)
 
-	// Verify the burn address on celestia has zero balance of the IBC token
+	// Verify the fee address on celestia has zero balance of the IBC token
 	voucherDenomTrace := types.ParseDenomTrace(types.GetPrefixedDenom(packet.GetDestPort(), packet.GetDestChannel(), foreignDenom))
-	burnAddressBalance := celestiaApp.BankKeeper.GetBalance(suite.celestia.GetContext(), burntypes.BurnAddress, voucherDenomTrace.IBCDenom())
-	suite.Require().Equal(sdk.NewInt64Coin(voucherDenomTrace.IBCDenom(), 0), burnAddressBalance, "burn address should have zero balance")
+	feeAddressBalance := celestiaApp.BankKeeper.GetBalance(suite.celestia.GetContext(), feeaddresstypes.FeeAddress, voucherDenomTrace.IBCDenom())
+	suite.Require().Equal(sdk.NewInt64Coin(voucherDenomTrace.IBCDenom(), 0), feeAddressBalance, "fee address should have zero balance")
 
 	// Verify the sender on simapp was refunded (balance restored)
 	newBalance := simApp.BankKeeper.GetBalance(suite.simapp.GetContext(), suite.simapp.SenderAccount.GetAddress(), foreignDenom)
 	suite.Require().Equal(originalBalance, newBalance, "sender should be refunded after rejection")
 }
 
-// TestInboundUtiaReturnToBurnAddressAllowed verifies that native utia returning
-// to Celestia can be sent to the burn address and will be burned.
-func (suite *TokenFilterTestSuite) TestInboundUtiaReturnToBurnAddressAllowed() {
+// TestInboundUtiaReturnToFeeAddressAllowed verifies that native utia returning
+// to Celestia can be sent to the fee address and will be forwarded to fee collector.
+func (suite *TokenFilterTestSuite) TestInboundUtiaReturnToFeeAddressAllowed() {
 	// setup between celestiaChain and otherChain
 	path := ibctesting.NewTransferPath(suite.celestia, suite.simapp)
 	suite.coordinator.Setup(path)
@@ -253,20 +253,17 @@ func (suite *TokenFilterTestSuite) TestInboundUtiaReturnToBurnAddressAllowed() {
 	err = path.RelayPacket(packet)
 	suite.Require().NoError(err)
 
-	// Now send the utia back from simapp to celestia burn address
+	// Now send the utia back from simapp to celestia fee address
 	// This should be ALLOWED because it's native utia returning
 	voucherDenomTrace := types.ParseDenomTrace(types.GetPrefixedDenom(packet.GetDestPort(), packet.GetDestChannel(), sdk.DefaultBondDenom))
 	ibcCoin := sdk.NewInt64Coin(voucherDenomTrace.IBCDenom(), 1000)
-
-	// Check TotalBurned BEFORE the second relay
-	totalBurnedBeforeRelay := celestiaApp.BurnKeeper.GetTotalBurned(suite.celestia.GetContext())
 
 	msg = types.NewMsgTransfer(
 		path.EndpointB.ChannelConfig.PortID,
 		path.EndpointB.ChannelID,
 		ibcCoin,
 		suite.simapp.SenderAccount.GetAddress().String(),
-		burntypes.BurnAddressBech32, // Sending to burn address
+		feeaddresstypes.FeeAddressBech32, // Sending to fee address
 		timeoutHeight,
 		0,
 		"",
@@ -277,20 +274,14 @@ func (suite *TokenFilterTestSuite) TestInboundUtiaReturnToBurnAddressAllowed() {
 	packet, err = ibctesting.ParsePacketFromEvents(res.GetEvents())
 	suite.Require().NoError(err)
 
-	// Relay - this should succeed because utia is allowed to burn address
+	// Relay - this should succeed because utia is allowed to fee address
 	err = path.RelayPacket(packet)
 	suite.Require().NoError(err)
 
 	// Note: RelayPacket commits blocks internally, which runs the EndBlocker.
-	// So the tokens are burned during the relay. We verify that TotalBurned
-	// increased by 1000 compared to BEFORE the relay.
-	totalBurnedAfterRelay := celestiaApp.BurnKeeper.GetTotalBurned(suite.celestia.GetContext())
-
-	// The burn address should be empty (EndBlocker already burned the tokens)
-	burnAddressBalance := celestiaApp.BankKeeper.GetBalance(suite.celestia.GetContext(), burntypes.BurnAddress, sdk.DefaultBondDenom)
-	suite.Require().Equal(int64(0), burnAddressBalance.Amount.Int64(), "burn address should be empty after EndBlocker")
-
-	// Verify that TotalBurned increased by 1000
-	burnedAmount := totalBurnedAfterRelay.Amount.Int64() - totalBurnedBeforeRelay.Amount.Int64()
-	suite.Require().Equal(int64(1000), burnedAmount, "1000 utia should have been burned")
+	// The EndBlocker forwards tokens to fee collector, and then the distribution
+	// module's BeginBlocker distributes them to validators in the next block.
+	// So we verify the fee address is empty (proving tokens were forwarded).
+	feeAddressBalance := celestiaApp.BankKeeper.GetBalance(suite.celestia.GetContext(), feeaddresstypes.FeeAddress, sdk.DefaultBondDenom)
+	suite.Require().Equal(int64(0), feeAddressBalance.Amount.Int64(), "fee address should be empty after EndBlocker")
 }

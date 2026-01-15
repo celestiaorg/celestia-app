@@ -6,9 +6,9 @@ import (
 )
 
 func RegisterInterfaces(_ codectypes.InterfaceRegistry) {
-	// No messages to register - burn module uses burn address approach
+	// No messages to register - feeaddress module uses fee address approach
 }
 
 func RegisterLegacyAminoCodec(_ *codec.LegacyAmino) {
-	// No messages to register - burn module uses burn address approach
+	// No messages to register - feeaddress module uses fee address approach
 }

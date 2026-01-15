@@ -1,11 +1,11 @@
-package burn
+package feeaddress
 
 import (
 	"context"
 	"encoding/json"
 
 	"cosmossdk.io/core/appmodule"
-	"github.com/celestiaorg/celestia-app/v7/x/burn/types"
+	"github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
