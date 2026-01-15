@@ -174,6 +174,27 @@ func (s *IntegrationTestSuite) TestFeeAddressQuery() {
 	require.Equal(feeaddresstypes.FeeAddressBech32, resp.FeeAddress)
 }
 
+// TestUserSubmittedMsgForwardFeesRejected verifies that users cannot submit
+// MsgForwardFees directly - it must be protocol-injected only.
+// This enforces CIP-43: "This message is protocol-injected and MUST NOT be submitted by users directly."
+func (s *IntegrationTestSuite) TestUserSubmittedMsgForwardFeesRejected() {
+	require := s.Require()
+	require.NoError(s.cctx.WaitForNextBlock())
+
+	account := s.accounts[3]
+
+	// Try to submit MsgForwardFees directly
+	msgForwardFees := feeaddresstypes.NewMsgForwardFees()
+
+	txClient, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg, user.WithDefaultAccount(account))
+	require.NoError(err)
+
+	// This should fail in CheckTx because MsgForwardFees cannot be submitted by users
+	_, err = txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msgForwardFees}, blobfactory.DefaultTxOpts()...)
+	require.Error(err, "user-submitted MsgForwardFees should be rejected")
+	require.Contains(err.Error(), "MsgForwardFees cannot be submitted by users")
+}
+
 // getAccountBalance queries the bank module for an account's utia balance.
 func (s *IntegrationTestSuite) getAccountBalance(addr sdk.AccAddress) math.Int {
 	bqc := banktypes.NewQueryClient(s.cctx.GRPCClient)

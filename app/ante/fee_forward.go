@@ -2,20 +2,29 @@ package ante
 
 import (
 	"context"
+	"fmt"
 
 	"cosmossdk.io/errors"
+	"github.com/celestiaorg/celestia-app/v7/app/params"
 	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
-// FeeForwardContextKey is the context key used to indicate that a transaction
-// is a fee forward transaction and should skip certain ante decorators.
+// FeeForwardContextKey is a context key that indicates a transaction is a
+// protocol-injected fee forward transaction. When this key is set to true,
+// downstream ante decorators (DeductFeeDecorator, signature verification, etc.)
+// should skip their processing since the fee has already been handled and
+// the transaction is unsigned by design.
 type FeeForwardContextKey struct{}
 
-// FeeForwardAmountContextKey is the context key used to store the fee amount
-// deducted from the fee address, so the message handler can emit the event.
+// FeeForwardAmountContextKey is a context key that stores the fee amount
+// deducted from the fee address by the FeeForwardDecorator. The keeper's
+// ForwardFees message handler reads this value to emit the EventFeeForwarded
+// event with the correct amount. This coupling is intentional - the ante
+// handler handles the actual fee transfer, while the message handler emits
+// the event for tracking purposes.
 type FeeForwardAmountContextKey struct{}
 
 // FeeForwardBankKeeper defines the bank keeper interface needed by FeeForwardDecorator.
@@ -24,15 +33,16 @@ type FeeForwardBankKeeper interface {
 }
 
 // FeeForwardDecorator handles MsgForwardFees transactions by:
-// 1. Validating the proposer matches the block proposer
-// 2. Deducting the fee from the fee address (not from signer)
-// 3. Setting a context flag to skip signature verification
+// 1. Rejecting user-submitted MsgForwardFees in CheckTx (protocol-injected only)
+// 2. Deducting the fee from the fee address (not from a signer)
+// 3. Sending the fee to the fee collector module
+// 4. Setting context flags to skip signature verification (tx is unsigned)
 //
 // This decorator MUST be placed early in the ante chain, before:
-// - DeductFeeDecorator
-// - SetPubKeyDecorator
-// - SigVerificationDecorator
-// - IncrementSequenceDecorator
+// - DeductFeeDecorator (fee already deducted by this decorator)
+// - SetPubKeyDecorator (no signers)
+// - SigVerificationDecorator (no signatures)
+// - IncrementSequenceDecorator (no signers)
 type FeeForwardDecorator struct {
 	bankKeeper FeeForwardBankKeeper
 }
@@ -51,6 +61,12 @@ func (d FeeForwardDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate boo
 		return next(ctx, tx, simulate)
 	}
 
+	// MsgForwardFees MUST NOT be submitted by users directly (CIP-43).
+	// It is only valid when injected by the block proposer in PrepareProposal.
+	if ctx.IsCheckTx() || ctx.IsReCheckTx() {
+		return ctx, errors.Wrap(sdkerrors.ErrInvalidRequest, "MsgForwardFees cannot be submitted by users; it is protocol-injected only")
+	}
+
 	// Validate that there's exactly one message and it's MsgForwardFees
 	msgs := tx.GetMsgs()
 	if len(msgs) != 1 {
@@ -66,6 +82,14 @@ func (d FeeForwardDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate boo
 
 	if !fee.IsValid() || fee.IsZero() {
 		return ctx, errors.Wrap(sdkerrors.ErrInvalidRequest, "fee forward tx must have non-zero fee")
+	}
+
+	// Fee must be exactly one coin in the native denom (defense-in-depth, also checked in ProcessProposal)
+	if len(fee) != 1 {
+		return ctx, errors.Wrap(sdkerrors.ErrInvalidRequest, fmt.Sprintf("fee forward tx must have exactly one fee coin, got %d", len(fee)))
+	}
+	if fee[0].Denom != params.BondDenom {
+		return ctx, errors.Wrap(sdkerrors.ErrInvalidRequest, fmt.Sprintf("fee forward tx must use %s, got %s", params.BondDenom, fee[0].Denom))
 	}
 
 	// Deduct fee from fee address and send to fee collector

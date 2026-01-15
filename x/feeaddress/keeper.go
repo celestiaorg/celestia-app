@@ -13,18 +13,13 @@ import (
 )
 
 // Keeper handles fee forwarding operations for the feeaddress module.
-type Keeper struct {
-	bankKeeper types.BankKeeper
-}
+// Note: The actual fee transfer is done by FeeForwardDecorator in the ante handler.
+// This keeper is responsible for the message handler (emitting events) and queries.
+type Keeper struct{}
 
 // NewKeeper creates a new Keeper instance.
-func NewKeeper(bankKeeper types.BankKeeper) Keeper {
-	if bankKeeper == nil {
-		panic("bankKeeper cannot be nil")
-	}
-	return Keeper{
-		bankKeeper: bankKeeper,
-	}
+func NewKeeper() Keeper {
+	return Keeper{}
 }
 
 // ForwardFees handles MsgForwardFees by emitting the fee forwarded event.

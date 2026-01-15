@@ -52,8 +52,12 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	if !feeBalance.IsZero() {
 		feeForwardTx, err := app.createFeeForwardTx(ctx, feeBalance)
 		if err != nil {
-			app.Logger().Error("failed to create fee forward tx", "error", err.Error())
-			// Continue without the fee forward tx - don't fail block production
+			// Log error but continue - don't fail block production.
+			// Note: This block will be rejected by ProcessProposal since fee address has balance
+			// but no fee forward tx. Funds remain in fee address until a successful forward.
+			app.Logger().Error("failed to create fee forward tx, block will likely be rejected",
+				"error", err.Error(),
+				"fee_balance", feeBalance.String())
 		} else {
 			// Prepend fee forward tx to the transactions list
 			txsToProcess = append([][]byte{feeForwardTx}, req.Txs...)
@@ -107,7 +111,7 @@ func (app *App) createFeeForwardTx(_ sdk.Context, feeAmount sdk.Coin) ([]byte, e
 
 	// Set the fee to the fee address balance (this is the key part - makes it a real tx fee)
 	txBuilder.SetFeeAmount(sdk.NewCoins(feeAmount))
-	txBuilder.SetGasLimit(50000) // Minimal gas - the message handler does no computation
+	txBuilder.SetGasLimit(feeaddresstypes.FeeForwardGasLimit)
 
 	// Encode the transaction (no signature needed)
 	txBytes, err := app.encodingConfig.TxConfig.TxEncoder()(txBuilder.GetTx())

@@ -1,7 +1,6 @@
 package feeaddress
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -20,34 +19,6 @@ const (
 	testAmount = 1000
 )
 
-type mockBankKeeper struct {
-	balances        map[string]sdk.Coins
-	sentToModule    map[string]sdk.Coins
-	sendToModuleErr error
-}
-
-func newMockBankKeeper() *mockBankKeeper {
-	return &mockBankKeeper{
-		balances:     make(map[string]sdk.Coins),
-		sentToModule: make(map[string]sdk.Coins),
-	}
-}
-
-func (m *mockBankKeeper) GetBalance(_ context.Context, addr sdk.AccAddress, denom string) sdk.Coin {
-	balance := m.balances[addr.String()]
-	return sdk.NewCoin(denom, balance.AmountOf(denom))
-}
-
-func (m *mockBankKeeper) SendCoinsFromAccountToModule(_ context.Context, senderAddr sdk.AccAddress, recipientModule string, amt sdk.Coins) error {
-	if m.sendToModuleErr != nil {
-		return m.sendToModuleErr
-	}
-	balance := m.balances[senderAddr.String()]
-	m.balances[senderAddr.String()] = balance.Sub(amt...)
-	m.sentToModule[recipientModule] = amt
-	return nil
-}
-
 func createTestContext() sdk.Context {
 	return sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
 }
@@ -62,8 +33,7 @@ func createContextWithFeeAmount(fee sdk.Coins) sdk.Context {
 // TestForwardFeesEmitsEvent verifies that the ForwardFees message handler
 // emits a typed EventFeeForwarded event with correct from address and amount.
 func TestForwardFeesEmitsEvent(t *testing.T) {
-	bankKeeper := newMockBankKeeper()
-	keeper := NewKeeper(bankKeeper)
+	keeper := NewKeeper()
 
 	amount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(testAmount))
 	fee := sdk.NewCoins(amount)
@@ -100,8 +70,7 @@ func TestForwardFeesEmitsEvent(t *testing.T) {
 // TestForwardFeesNoFeeAmountInContext verifies that ForwardFees returns an error
 // when the fee amount is not set in the context (should not happen in normal operation).
 func TestForwardFeesNoFeeAmountInContext(t *testing.T) {
-	bankKeeper := newMockBankKeeper()
-	keeper := NewKeeper(bankKeeper)
+	keeper := NewKeeper()
 
 	ctx := createTestContext() // No fee amount set
 	msg := types.NewMsgForwardFees()
@@ -115,8 +84,7 @@ func TestForwardFeesNoFeeAmountInContext(t *testing.T) {
 // TestFeeAddressQuery verifies the Query/FeeAddress gRPC endpoint returns
 // the correct bech32-encoded fee address for programmatic discovery.
 func TestFeeAddressQuery(t *testing.T) {
-	bankKeeper := newMockBankKeeper()
-	keeper := NewKeeper(bankKeeper)
+	keeper := NewKeeper()
 	ctx := createTestContext()
 
 	resp, err := keeper.FeeAddress(ctx, &types.QueryFeeAddressRequest{})

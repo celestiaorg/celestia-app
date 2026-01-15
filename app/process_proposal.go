@@ -61,7 +61,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	hasBalance := !feeBalance.IsZero()
 
 	if len(req.Txs) > 0 {
-		firstTxIsFeeForward, feeForwardErr := app.isFeeForwardTx(req.Txs[0])
+		firstTx, firstTxIsFeeForward, feeForwardErr := app.parseFeeForwardTx(req.Txs[0])
 		if feeForwardErr != nil && hasBalance {
 			// If we have balance and can't decode the first tx, that's invalid
 			logInvalidPropBlockError(app.Logger(), blockHeader, "failed to decode first tx for fee forward check", feeForwardErr)
@@ -74,8 +74,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				logInvalidPropBlock(app.Logger(), blockHeader, "fee address has balance but first tx is not a fee forward tx")
 				return reject(), nil
 			}
-			// Validate the fee forward tx
-			if err := app.validateFeeForwardTx(ctx, req.Txs[0], feeBalance); err != nil {
+			// Validate the fee forward tx (tx already decoded by parseFeeForwardTx)
+			if err := app.validateFeeForwardTx(firstTx, feeBalance); err != nil {
 				logInvalidPropBlockError(app.Logger(), blockHeader, "invalid fee forward tx", err)
 				return reject(), nil
 			}
@@ -256,28 +256,25 @@ func (app *App) ValidateBlobTxWithCache(blobTx *blobtx.BlobTx) (bool, error) {
 	return false, nil
 }
 
-// isFeeForwardTx checks if the given raw transaction bytes contain a MsgForwardFees message.
-func (app *App) isFeeForwardTx(txBytes []byte) (bool, error) {
+// parseFeeForwardTx decodes a transaction and checks if it's a MsgForwardFees.
+// Returns the decoded tx, whether it's a fee forward tx, and any decode error.
+func (app *App) parseFeeForwardTx(txBytes []byte) (sdk.Tx, bool, error) {
 	sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(txBytes)
 	if err != nil {
-		return false, err
+		return nil, false, err
 	}
 	msgs := sdkTx.GetMsgs()
 	if len(msgs) != 1 {
-		return false, nil
+		return sdkTx, false, nil
 	}
 	_, ok := msgs[0].(*feeaddresstypes.MsgForwardFees)
-	return ok, nil
+	return sdkTx, ok, nil
 }
 
-// validateFeeForwardTx validates a fee forward transaction:
-// - The fee must equal the expected fee balance
-func (app *App) validateFeeForwardTx(_ sdk.Context, txBytes []byte, expectedFee sdk.Coin) error {
-	sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(txBytes)
-	if err != nil {
-		return fmt.Errorf("failed to decode tx: %w", err)
-	}
-
+// validateFeeForwardTx validates a decoded fee forward transaction:
+// - Must have exactly one MsgForwardFees message
+// - Fee must equal the expected fee balance
+func (app *App) validateFeeForwardTx(sdkTx sdk.Tx, expectedFee sdk.Coin) error {
 	// Verify there's exactly one message and it's MsgForwardFees
 	msgs := sdkTx.GetMsgs()
 	if len(msgs) != 1 {
