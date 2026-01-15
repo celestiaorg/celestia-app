@@ -4,12 +4,12 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	"github.com/celestiaorg/celestia-app/v6/pkg/user"
-	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v7/app"
+	"github.com/celestiaorg/celestia-app/v7/app/encoding"
+	"github.com/celestiaorg/celestia-app/v7/pkg/user"
+	"github.com/celestiaorg/celestia-app/v7/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

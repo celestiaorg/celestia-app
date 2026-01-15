@@ -7,11 +7,11 @@ import (
 
 	"cosmossdk.io/errors"
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v6/app/ante"
-	apperr "github.com/celestiaorg/celestia-app/v6/app/errors"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/da"
-	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v7/app/ante"
+	apperr "github.com/celestiaorg/celestia-app/v7/app/errors"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/da"
+	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
 	blobtx "github.com/celestiaorg/go-square/v3/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -204,7 +204,8 @@ func accept() *abci.ResponseProcessProposal {
 // ValidateBlobTxWithCache validates a blob transaction, using cached validation results when possible.
 // It returns (fromCache, error) where fromCache indicates if the validation was skipped using cache.
 func (app *App) ValidateBlobTxWithCache(blobTx *blobtx.BlobTx) (bool, error) {
-	if app.txCache.Exists(blobTx.Tx) {
+	exists := app.txCache.Exists(blobTx.Tx, blobTx.Blobs)
+	if exists {
 		if _, err := blobtypes.ValidateBlobTxSkipCommitment(app.encodingConfig.TxConfig, blobTx); err != nil {
 			return true, err
 		}

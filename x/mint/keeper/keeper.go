@@ -3,7 +3,7 @@ package keeper
 import (
 	"cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v6/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v7/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
