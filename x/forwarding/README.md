@@ -24,9 +24,9 @@ The `x/forwarding` module enables single-signature cross-chain transfers through
 Forwarding addresses are deterministically derived:
 
 ```
-callDigest   = keccak256(destDomain_32bytes || destRecipient)
-salt         = keccak256("CELESTIA_FORWARD_V1" || callDigest)
-forwardAddr  = sha256("forwarding" || salt)[:20]
+callDigest   = sha256(destDomain_32bytes || destRecipient)
+salt         = sha256(version_byte || callDigest)       // version_byte = 0x01
+forwardAddr  = address.Module("forwarding", salt)[:20]
 ```
 
 One address handles all tokens for a given `(destDomain, destRecipient)` pair.
