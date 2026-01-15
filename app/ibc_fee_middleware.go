@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
-	burntypes "github.com/celestiaorg/celestia-app/v7/x/burn/types"
+	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
 	transfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
@@ -13,25 +13,25 @@ import (
 	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
 )
 
-var _ porttypes.IBCModule = (*BurnAddressIBCMiddleware)(nil)
+var _ porttypes.IBCModule = (*FeeAddressIBCMiddleware)(nil)
 
-// BurnAddressIBCMiddleware rejects inbound IBC transfers of non-utia tokens
-// to the burn address. This prevents foreign tokens from getting permanently
-// stuck at the burn address since the EndBlocker only burns utia.
+// FeeAddressIBCMiddleware rejects inbound IBC transfers of non-utia tokens
+// to the fee address. This prevents foreign tokens from getting permanently
+// stuck at the fee address since the EndBlocker only forwards utia.
 //
 // When a transfer is rejected, an error acknowledgement is returned, causing
 // the source chain to refund the sender.
-type BurnAddressIBCMiddleware struct {
+type FeeAddressIBCMiddleware struct {
 	app porttypes.IBCModule
 }
 
-// NewBurnAddressIBCMiddleware creates a new BurnAddressIBCMiddleware.
-func NewBurnAddressIBCMiddleware(app porttypes.IBCModule) BurnAddressIBCMiddleware {
-	return BurnAddressIBCMiddleware{app: app}
+// NewFeeAddressIBCMiddleware creates a new FeeAddressIBCMiddleware.
+func NewFeeAddressIBCMiddleware(app porttypes.IBCModule) FeeAddressIBCMiddleware {
+	return FeeAddressIBCMiddleware{app: app}
 }
 
 // OnChanOpenInit implements the IBCModule interface.
-func (m BurnAddressIBCMiddleware) OnChanOpenInit(
+func (m FeeAddressIBCMiddleware) OnChanOpenInit(
 	ctx sdk.Context,
 	order channeltypes.Order,
 	connectionHops []string,
@@ -45,7 +45,7 @@ func (m BurnAddressIBCMiddleware) OnChanOpenInit(
 }
 
 // OnChanOpenTry implements the IBCModule interface.
-func (m BurnAddressIBCMiddleware) OnChanOpenTry(
+func (m FeeAddressIBCMiddleware) OnChanOpenTry(
 	ctx sdk.Context,
 	order channeltypes.Order,
 	connectionHops []string,
@@ -59,7 +59,7 @@ func (m BurnAddressIBCMiddleware) OnChanOpenTry(
 }
 
 // OnChanOpenAck implements the IBCModule interface.
-func (m BurnAddressIBCMiddleware) OnChanOpenAck(
+func (m FeeAddressIBCMiddleware) OnChanOpenAck(
 	ctx sdk.Context,
 	portID,
 	channelID string,
@@ -70,7 +70,7 @@ func (m BurnAddressIBCMiddleware) OnChanOpenAck(
 }
 
 // OnChanOpenConfirm implements the IBCModule interface.
-func (m BurnAddressIBCMiddleware) OnChanOpenConfirm(
+func (m FeeAddressIBCMiddleware) OnChanOpenConfirm(
 	ctx sdk.Context,
 	portID,
 	channelID string,
@@ -79,7 +79,7 @@ func (m BurnAddressIBCMiddleware) OnChanOpenConfirm(
 }
 
 // OnChanCloseInit implements the IBCModule interface.
-func (m BurnAddressIBCMiddleware) OnChanCloseInit(
+func (m FeeAddressIBCMiddleware) OnChanCloseInit(
 	ctx sdk.Context,
 	portID,
 	channelID string,
@@ -88,7 +88,7 @@ func (m BurnAddressIBCMiddleware) OnChanCloseInit(
 }
 
 // OnChanCloseConfirm implements the IBCModule interface.
-func (m BurnAddressIBCMiddleware) OnChanCloseConfirm(
+func (m FeeAddressIBCMiddleware) OnChanCloseConfirm(
 	ctx sdk.Context,
 	portID,
 	channelID string,
@@ -97,10 +97,10 @@ func (m BurnAddressIBCMiddleware) OnChanCloseConfirm(
 }
 
 // OnRecvPacket implements the IBCModule interface.
-// It validates that only utia can be sent to the burn address via IBC.
-// Non-utia transfers to the burn address are rejected with an error acknowledgement,
+// It validates that only utia can be sent to the fee address via IBC.
+// Non-utia transfers to the fee address are rejected with an error acknowledgement,
 // causing the source chain to refund the sender.
-func (m BurnAddressIBCMiddleware) OnRecvPacket(
+func (m FeeAddressIBCMiddleware) OnRecvPacket(
 	ctx sdk.Context,
 	packet channeltypes.Packet,
 	relayer sdk.AccAddress,
@@ -111,18 +111,18 @@ func (m BurnAddressIBCMiddleware) OnRecvPacket(
 		return m.app.OnRecvPacket(ctx, packet, relayer)
 	}
 
-	// Check if receiver is the burn address
-	if data.Receiver == burntypes.BurnAddressBech32 {
+	// Check if receiver is the fee address
+	if data.Receiver == feeaddresstypes.FeeAddressBech32 {
 		// Parse the denom to get the base denom.
 		// For returning utia, the denom is "transfer/channel-X/utia" (prefixed).
 		// For foreign tokens, the base denom is not utia.
 		denomTrace := transfertypes.ParseDenomTrace(data.Denom)
 		baseDenom := denomTrace.GetBaseDenom()
 
-		// Only allow utia (native or returning) to be sent to burn address.
+		// Only allow utia (native or returning) to be sent to fee address.
 		if baseDenom != appconsts.BondDenom {
 			return channeltypes.NewErrorAcknowledgement(
-				fmt.Errorf("only %s can be sent to burn address via IBC, got %s (base denom: %s)",
+				fmt.Errorf("only %s can be sent to fee address via IBC, got %s (base denom: %s)",
 					appconsts.BondDenom, data.Denom, baseDenom),
 			)
 		}
@@ -132,7 +132,7 @@ func (m BurnAddressIBCMiddleware) OnRecvPacket(
 }
 
 // OnAcknowledgementPacket implements the IBCModule interface.
-func (m BurnAddressIBCMiddleware) OnAcknowledgementPacket(
+func (m FeeAddressIBCMiddleware) OnAcknowledgementPacket(
 	ctx sdk.Context,
 	packet channeltypes.Packet,
 	acknowledgement []byte,
@@ -142,7 +142,7 @@ func (m BurnAddressIBCMiddleware) OnAcknowledgementPacket(
 }
 
 // OnTimeoutPacket implements the IBCModule interface.
-func (m BurnAddressIBCMiddleware) OnTimeoutPacket(
+func (m FeeAddressIBCMiddleware) OnTimeoutPacket(
 	ctx sdk.Context,
 	packet channeltypes.Packet,
 	relayer sdk.AccAddress,
