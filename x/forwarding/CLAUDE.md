@@ -28,12 +28,212 @@ func DeriveForwardingAddress(destDomain uint32, destRecipient []byte) sdk.AccAdd
 
 **Key invariant**: `derive(destDomain, destRecipient) == forwardAddr` - this IS the authorization check.
 
+### Derivation Pipeline
+
+For SDK implementers ensuring cross-platform consistency:
+
+```
+        (destDomain, destRecipient)
+                    │
+                    ▼
+   ┌─────────────────────────────────────┐
+   │ destDomain → 32-byte big-endian     │
+   │ (value at bytes 28-31)              │
+   └─────────────────────────────────────┘
+                    │
+                    ▼
+   ┌─────────────────────────────────────┐
+   │ keccak256(domainBytes || recipient) │
+   │              = callDigest           │
+   └─────────────────────────────────────┘
+                    │
+                    ▼
+   ┌─────────────────────────────────────┐
+   │ keccak256("CELESTIA_FORWARD_V1"     │
+   │            || callDigest) = salt    │
+   └─────────────────────────────────────┘
+                    │
+                    ▼
+   ┌─────────────────────────────────────┐
+   │ sha256("forwarding" || salt)[:20]   │
+   │           = forwardAddr             │
+   └─────────────────────────────────────┘
+```
+
 ## Security Properties
 
 - **Permissionless execution**: Anyone with correct params can trigger forwarding
 - **Cryptographic binding**: Funds can ONLY go to destination encoded in address
 - **No theft possible**: Relayer/caller cannot redirect funds
 - **destRecipient MUST be exactly 32 bytes** (validation critical)
+
+## State Machine Diagrams
+
+### Token Lifecycle at ForwardAddr
+
+Shows what happens to tokens deposited at a forwarding address. Key insight: tokens only leave `forwardAddr` on success - all failures keep tokens safe for retry.
+
+```
+                         ┌───────────┐
+                         │   Empty   │
+                         └─────┬─────┘
+                               │ deposit (EVM warp / CEX)
+                               ▼
+                         ┌───────────┐
+              ┌─────────▶│  Pending  │◀────────────┐
+              │          └─────┬─────┘             │
+              │                │ MsgExecuteForwarding
+              │                ▼                   │
+              │          ┌───────────┐             │
+              │          │ Pre-Check │             │
+              │          └─────┬─────┘             │
+              │          pass  │   fail            │
+              │       ┌────────┴────────┐          │
+              │       ▼                 │          │
+              │  ┌─────────┐            │          │
+              │  │  Warp   │            │          │
+              │  └────┬────┘            │          │
+              │  pass │  fail           │          │
+              │  ┌────┴────┐            │          │
+              │  ▼         ▼            ▼          │
+              │ ┌──────┐ ┌─────────────────┐       │
+              │ │ Done │ │ Stays at Addr   │───────┘
+              │ └──────┘ │ (retry later)   │  new deposit or
+              │          └─────────────────┘  retry execution
+              │
+              │ new deposit to same addr
+              └──────────────────────────────
+```
+
+### Per-Token Processing Flow
+
+Details the pre-check pattern that ensures tokens never get stuck in the module account:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  forwardSingleToken()                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────┐   below    ┌─────────────────────────────────┐ │
+│  │ Check   │───min─────▶│ SKIP: stays at forwardAddr      │ │
+│  │ minimum │            └─────────────────────────────────┘ │
+│  └────┬────┘                                                │
+│       │ ok                                                  │
+│       ▼                                                     │
+│  ┌─────────┐  not found ┌─────────────────────────────────┐ │
+│  │ Lookup  │───────────▶│ SKIP: stays at forwardAddr      │ │
+│  │HypToken │            └─────────────────────────────────┘ │
+│  └────┬────┘                                                │
+│       │ found                                               │
+│       ▼                                                     │
+│  ┌─────────┐  no route  ┌─────────────────────────────────┐ │
+│  │ Check   │───────────▶│ SKIP: stays at forwardAddr      │ │
+│  │ route   │            └─────────────────────────────────┘ │
+│  └────┬────┘                                                │
+│       │ has route                                           │
+│       ▼                                                     │
+│  ┌─────────────────────┐                                    │
+│  │ SendCoins to module │                                    │
+│  └──────────┬──────────┘                                    │
+│             ▼                                               │
+│  ┌─────────────────────┐  fail  ┌───────────────────────┐   │
+│  │ Warp Transfer       │───────▶│ Return to forwardAddr │   │
+│  └──────────┬──────────┘        └───────────────────────┘   │
+│             │ success                                       │
+│             ▼                                               │
+│  ┌─────────────────────┐                                    │
+│  │ SUCCESS: forwarded  │                                    │
+│  └─────────────────────┘                                    │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### End-to-End System Flow
+
+Shows all component interactions from user intent to final delivery:
+
+```
+┌────────┐  ┌────────┐  ┌─────────┐  ┌─────────┐  ┌──────────┐  ┌───────────┐
+│  User  │  │ Source │  │ Backend │  │ Relayer │  │ Celestia │  │   Dest    │
+│        │  │ Chain  │  │         │  │         │  │          │  │   Chain   │
+└───┬────┘  └───┬────┘  └────┬────┘  └────┬────┘  └────┬─────┘  └─────┬─────┘
+    │           │            │            │            │              │
+    │ 1. Request forward     │            │            │              │
+    │──────────────────────▶ │            │            │              │
+    │                        │            │            │              │
+    │ ◀── forwardAddr ───────│            │            │              │
+    │                        │            │            │              │
+    │ 2. Deposit             │            │            │              │
+    │──────▶│                │            │            │              │
+    │       │                │            │            │              │
+    │       │ 3. Warp transfer (EVM)      │            │              │
+    │       │ ─ ─ ─ OR ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│─ ─ ─ ─ ─ ▶│              │
+    │       │ 3. CEX withdrawal           │            │              │
+    │       │─────────────────────────────┼───────────▶│              │
+    │       │                │            │            │              │
+    │       │                │  4. Poll   │            │              │
+    │       │                │◀───────────│            │              │
+    │       │                │            │            │              │
+    │       │                │            │ 5. Watch   │              │
+    │       │                │            │───────────▶│              │
+    │       │                │            │            │              │
+    │       │                │            │ 6. MsgExecuteForwarding   │
+    │       │                │            │───────────▶│              │
+    │       │                │            │            │              │
+    │       │                │            │            │ 7. Warp msg  │
+    │       │                │            │            │─────────────▶│
+    │       │                │            │            │              │
+    │       │                │            │◀─ result ──│              │
+    │       │                │            │            │              │
+    │◀────────────────────── status ──────┤            │              │
+    │                        │            │            │              │
+```
+
+**Flow summary:**
+1. User requests forwarding address from frontend
+2. User initiates deposit on source chain (EVM or CEX)
+3. Tokens arrive at Celestia via Hyperlane warp OR CEX withdrawal
+4. Relayer polls backend for registered intents
+5. Relayer watches Celestia for deposits to known addresses
+6. Relayer submits `MsgExecuteForwarding`
+7. Module triggers outbound warp transfer to destination
+
+### Multi-Token Batch Processing
+
+Shows how multiple tokens at a forwarding address are processed independently. Key design: one failing token doesn't block others.
+
+```
+        MsgExecuteForwarding
+                 │
+                 ▼
+    ┌────────────────────────┐
+    │   GetAllBalances()     │
+    │   [USDC, WETH, TIA]    │
+    └───────────┬────────────┘
+                │
+      ┌─────────┼─────────┐
+      ▼         ▼         ▼
+  ┌───────┐ ┌───────┐ ┌───────┐
+  │ USDC  │ │ WETH  │ │  TIA  │
+  │process│ │process│ │process│
+  └───┬───┘ └───┬───┘ └───┬───┘
+      │         │         │
+      ▼         ▼         ▼
+   SUCCESS   FAILED    SUCCESS
+  (forward) (no route) (forward)
+      │         │         │
+      └─────────┴─────────┘
+                │
+                ▼
+    ┌────────────────────────┐
+    │ Response:              │
+    │  USDC: ✓ msgId=0x...   │
+    │  WETH: ✗ "no route"    │
+    │  TIA:  ✓ msgId=0x...   │
+    └────────────────────────┘
+```
+
+WETH stays at `forwardAddr` for retry when a route is added.
 
 ## Module Structure
 
@@ -69,6 +269,11 @@ if !hasRoute { return result }  // Token stays at forwardAddr
 ```
 
 ### 2. Partial Failure (Intentional Design)
+
+Multi-token forwarding intentionally allows partial failures:
+- **Permissionless retry**: Failed tokens stay at `forwardAddr` for later retry
+- **Progressive forwarding**: New warp routes can forward previously unsupported tokens
+- **No stuck transactions**: One bad token doesn't block others
 
 Multi-token forwarding processes each token independently:
 - If USDC succeeds but WETH fails → tx succeeds, WETH stays at `forwardAddr`
