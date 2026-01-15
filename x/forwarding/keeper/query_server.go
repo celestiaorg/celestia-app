@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
-	"github.com/celestiaorg/celestia-app/v6/x/forwarding/types"
+	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 )
 
 var _ types.QueryServer = queryServer{}

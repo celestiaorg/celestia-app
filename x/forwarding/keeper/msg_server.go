@@ -9,7 +9,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
-	"github.com/celestiaorg/celestia-app/v6/x/forwarding/types"
+	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 )
 
 var _ types.MsgServer = msgServer{}
@@ -182,3 +182,16 @@ func (m msgServer) forwardSingleToken(
 	return types.NewSuccessResult(balance.Denom, balance.Amount, messageId.String())
 }
 
+// UpdateForwardingParams updates the module parameters.
+func (m msgServer) UpdateForwardingParams(goCtx context.Context, msg *types.MsgUpdateForwardingParams) (*types.MsgUpdateForwardingParamsResponse, error) {
+	if m.k.authority != msg.Authority {
+		return nil, fmt.Errorf("invalid authority: expected %s, got %s", m.k.authority, msg.Authority)
+	}
+
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	if err := m.k.SetParams(ctx, msg.Params); err != nil {
+		return nil, err
+	}
+
+	return &types.MsgUpdateForwardingParamsResponse{}, nil
+}
