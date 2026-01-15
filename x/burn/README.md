@@ -4,11 +4,11 @@ The burn module permanently destroys TIA tokens sent to the burn address, reduci
 
 ## Burn Address
 
-```
-celestia1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqzf30as
+```text
+celestia1nullnullnullnullnullnullnullnull8qanmn
 ```
 
-This is a vanity address derived from 20 zero bytes, making it easy to recognize (32 `q` characters).
+This is a vanity address that encodes to "null" repeated 8 times, making it recognizable as a null/void destination where tokens are permanently destroyed.
 
 ## Concepts
 
@@ -84,13 +84,13 @@ grpcurl -plaintext localhost:9090 celestia.burn.v1.Query/BurnAddress
 Send tokens to the burn address:
 
 ```shell
-celestia-appd tx bank send <from-key> celestia1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqzf30as <amount>
+celestia-appd tx bank send <from-key> celestia1nullnullnullnullnullnullnullnull8qanmn <amount>
 ```
 
 Example:
 
 ```shell
-celestia-appd tx bank send mykey celestia1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqzf30as 1000000utia
+celestia-appd tx bank send mykey celestia1nullnullnullnullnullnullnullnull8qanmn 1000000utia
 ```
 
 ### IBC Transfer
@@ -98,7 +98,7 @@ celestia-appd tx bank send mykey celestia1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqzf30as
 Tokens can also be burned via IBC transfer:
 
 ```shell
-celestia-appd tx ibc-transfer transfer <channel> celestia1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqzf30as <amount> --from <key>
+celestia-appd tx ibc-transfer transfer <channel> celestia1nullnullnullnullnullnullnullnull8qanmn <amount> --from <key>
 ```
 
 ## Hyperlane
