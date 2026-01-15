@@ -88,7 +88,7 @@ func startLatencyMonitorCmd() *cobra.Command {
 
 			latencyMonitorScript := latencyMonitorCmd
 			if lokiURL != "" {
-				script, err := promtailScript(promtailConfig, lokiURL, latencyMonitorCmd)
+				script, err := promtailScript(rootDir, promtailConfig, lokiURL, latencyMonitorCmd)
 				if err != nil {
 					return err
 				}
@@ -121,7 +121,7 @@ func startLatencyMonitorCmd() *cobra.Command {
 	return cmd
 }
 
-func promtailScript(promtailConfigPath, lokiURL, latencyMonitorCmd string) (string, error) {
+func promtailScript(rootDir, promtailConfigPath, lokiURL, latencyMonitorCmd string) (string, error) {
 	configBytes, err := os.ReadFile(promtailConfigPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read promtail config %q: %w", promtailConfigPath, err)
@@ -133,30 +133,18 @@ func promtailScript(promtailConfigPath, lokiURL, latencyMonitorCmd string) (stri
 	renderedConfig := strings.ReplaceAll(string(configBytes), "__LOKI_URL__", normalizedLokiURL)
 	configB64 := base64.StdEncoding.EncodeToString([]byte(renderedConfig))
 
-	installAndRun := []string{
-		"set -euo pipefail",
-		"export HOSTNAME=$(hostname)",
-		"PROMTAIL_CONFIG=/root/promtail-config.yml",
-		fmt.Sprintf("printf \"%%s\" \"%s\" | base64 -d > \"$PROMTAIL_CONFIG\"", configB64),
-		"if ! command -v promtail >/dev/null 2>&1; then",
-		"  arch=$(uname -m)",
-		"  if [ \"$arch\" = \"x86_64\" ] || [ \"$arch\" = \"amd64\" ]; then arch=amd64; ",
-		"  elif [ \"$arch\" = \"aarch64\" ] || [ \"$arch\" = \"arm64\" ]; then arch=arm64; ",
-		"  else echo \"unsupported arch: $arch\" >&2; exit 1; fi",
-		"  apt-get update -y >/dev/null",
-		"  apt-get install -y curl unzip >/dev/null",
-		"  tmpdir=$(mktemp -d)",
-		"  curl -fsSL -o \"$tmpdir/promtail.zip\" \"https://github.com/grafana/loki/releases/download/v2.9.3/promtail-linux-$arch.zip\"",
-		"  unzip -o \"$tmpdir/promtail.zip\" -d \"$tmpdir\" >/dev/null",
-		"  install -m 0755 \"$tmpdir/promtail-linux-$arch\" /usr/local/bin/promtail",
-		"fi",
-		"promtail -config.file=\"$PROMTAIL_CONFIG\" -config.expand-env -server.http-listen-port=9080 > /root/promtail.log 2>&1 &",
-		"sleep 1",
-		"pgrep -a promtail >/dev/null 2>&1 || (echo \"promtail failed to start:\" >&2; tail -200 /root/promtail.log >&2; exit 1)",
-		latencyMonitorCmd,
+	scriptPath := filepath.Join(rootDir, "tools", "talis", "scripts", "promtail.sh")
+	scriptBytes, err := os.ReadFile(scriptPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read promtail script template %q: %w", scriptPath, err)
 	}
 
-	return strings.Join(installAndRun, "\n"), nil
+	renderedScript := strings.NewReplacer(
+		"__PROMTAIL_CONFIG_B64__", configB64,
+		"__LATENCY_MONITOR_CMD__", latencyMonitorCmd,
+	).Replace(string(scriptBytes))
+
+	return renderedScript, nil
 }
 
 func normalizeLokiURL(raw string) string {
@@ -179,6 +167,7 @@ func ensureLokiPushURL(lokiURL string, configIncludesPushPath bool) string {
 	return lokiURL + "/loki/api/v1/push"
 }
 
+// updateLatencyTargets updates the latency monitor targets on the metrics node. It shows the nodes that are currently running the latency monitor.
 func updateLatencyTargets(cfg Config, metricsNode Instance, sshKeyPath string, instances []Instance) error {
 	groups, skipped, err := buildMetricsTargetsForInstances(instances, cfg, latencyMonitorMetricsPort, "public", "validator")
 	if err != nil {

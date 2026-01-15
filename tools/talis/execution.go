@@ -38,12 +38,15 @@ func runScriptInTMux(
 			// Launch in tmux and capture output to a per-session log.
 			logPath := fmt.Sprintf("/root/talis-%s.log", sessionName)
 			scriptPath := fmt.Sprintf("/root/talis-%s.sh", sessionName)
-			scriptPayload := "#!/usr/bin/env bash\n" + remoteScript + "\n"
-			encodedScript := base64.StdEncoding.EncodeToString([]byte(scriptPayload))
-			prepareCmd := fmt.Sprintf("printf '%%s' %q | base64 -d > %s && chmod +x %s", encodedScript, scriptPath, scriptPath)
-			runCmd := fmt.Sprintf("bash %s > %s 2>&1", scriptPath, logPath)
-			tmuxCmd := fmt.Sprintf("tmux new-session -d -s %s %q", sessionName, runCmd)
-			fullCmd := fmt.Sprintf("%s && %s", prepareCmd, tmuxCmd)
+			encodedScript := base64.StdEncoding.EncodeToString([]byte("#!/usr/bin/env bash\n" + remoteScript + "\n"))
+			fullCmd := fmt.Sprintf(
+				"printf '%%s' %q | base64 -d > %s && chmod +x %s && tmux new-session -d -s %s %q",
+				encodedScript,
+				scriptPath,
+				scriptPath,
+				sessionName,
+				fmt.Sprintf("bash %s > %s 2>&1", scriptPath, logPath),
+			)
 
 			ssh := exec.CommandContext(ctx,
 				"ssh",
