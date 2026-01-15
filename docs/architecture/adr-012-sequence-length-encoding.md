@@ -10,7 +10,7 @@ Implemented
 
 ## Context
 
-The sequence length is written as a varint in both sparse shares and compact shares. In compact shares, the varint is padded to occupy 4 bytes because 4 bytes can contain the maximum possible sequence length (assuming a 512 byte share and a max square size of 128). The fixed 4 byte length enables the compact share writer to write the contents of sparse shares (i.e. transaction data) before it writes the sequence length. See [here](https://github.com/celestiaorg/celestia-app/blob/76153bf7f3263734f31e7afd84f1e48a2f573599/pkg/shares/split_compact_shares.go#L132-L145) and [here](https://github.com/celestiaorg/celestia-app/blob/76153bf7f3263734f31e7afd84f1e48a2f573599/pkg/shares/split_compact_shares.go#L113).
+The sequence length is written as a varint in both sparse shares and compact shares. In compact shares, the varint is padded to occupy 4 bytes because 4 bytes can contain the maximum possible sequence length (assuming a 512 byte share and a max square size of 128). The fixed 4 byte length enables the compact share writer to write the contents of sparse shares (i.e. transaction data) before it writes the sequence length. See [the compact share writer implementation](https://github.com/celestiaorg/celestia-app/blob/76153bf7f3263734f31e7afd84f1e48a2f573599/pkg/shares/split_compact_shares.go#L132-L145) and [the sequence length implementation](https://github.com/celestiaorg/celestia-app/blob/76153bf7f3263734f31e7afd84f1e48a2f573599/pkg/shares/split_compact_shares.go#L113).
 
 However, sparse shares do not pad the sequence length to 4 bytes. This inconsistency means there is a different code path for parsing sequence lengths from compact shares vs. sparse shares.
 

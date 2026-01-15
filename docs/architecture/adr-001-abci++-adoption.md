@@ -180,7 +180,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 }
 ```
 
-We estimate the square size by assuming that all the malleable transactions in the block have a valid commitment for whatever square size that we end up picking, and then quickly iterating through the block data to add up the expected lengths of each message/transaction. Please see [here](https://github.com/celestiaorg/celestia-app/blob/e18d8d2301a96702e1bf684735a3620eb059b12f/app/prepare_proposal.go#L47-L130) for more details.
+We estimate the square size by assuming that all the malleable transactions in the block have a valid commitment for whatever square size that we end up picking, and then quickly iterating through the block data to add up the expected lengths of each message/transaction. Please see [the implementation in prepare_proposal.go](https://github.com/celestiaorg/celestia-app/blob/e18d8d2301a96702e1bf684735a3620eb059b12f/app/prepare_proposal.go#L47-L130) for more details.
 
 In order to efficiently fill the data square and ensure that each message included in the block is paid for, we progressively generate the data square using a few new types. More details can be found in [#637](https://github.com/celestiaorg/celestia-core/pull/637)
 

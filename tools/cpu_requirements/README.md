@@ -33,6 +33,7 @@ docker run ghcr.io/celestiaorg/128mb-6s-benchmark:v0.0.1
 ## Output
 
 The tool displays:
+
 - Progress for each iteration
 - Median execution time for each operation in milliseconds
 - Comparison to reference times (faster/slower with multiplier)
@@ -41,6 +42,7 @@ The tool displays:
 ## Hardware Requirements for 128MB/6s
 
 If your system is slower than reference times, you need to upgrade to:
+
 - **32 CPU cores** (or more)
 - CPUs with **GFNI** (Galois Field New Instructions) support
 - CPUs with **SHA-NI** (SHA New Instructions) support
@@ -50,5 +52,6 @@ These are the minimum requirements to handle the 128MB/6s block throughput.
 ## Configuration
 
 Adjust these constants in `main.go`:
+
 - `benchmarkIterations`: Number of test runs (default: 20)
 - `referencePrepareProposalMs`, etc.: Reference times in milliseconds

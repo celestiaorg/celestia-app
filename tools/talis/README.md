@@ -6,7 +6,7 @@ Talis supports DigitalOcean and Google Cloud. **Use only one provider per experi
 
 ### DigitalOcean Setup
 
-#### Account
+#### DigitalOcean Account
 
 - If you're part of the Celestia engineering team, ask for access to Celestia's DigitalOcean account or alternatively use a personal account.
 - **Generate the API token:** Go to Settings → API → Generate New Token.
@@ -14,7 +14,7 @@ Talis supports DigitalOcean and Google Cloud. **Use only one provider per experi
 
 ### Google Cloud Setup
 
-#### Account
+#### Google Cloud Account
 
 - If you're part of the Celestia engineering team, ask for access to Celestia's Google Cloud account. **Make sure to use Google Cloud on when the experiment requires beefy hardware and high bandwidth. Otherwise, use DO**
 - Create a service account with Compute Engine Admin permissions.
