@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
@@ -165,3 +166,114 @@ func TestMsgExecuteForwarding_ValidateBasic(t *testing.T) {
 // Note: GetSigners() is inferred from proto annotation (cosmos.msg.v1.signer)
 // Route() and Type() methods are deprecated in newer Cosmos SDK versions
 // These methods are no longer required for sdk.Msg interface
+
+func TestMsgUpdateForwardingParamsValidateBasic(t *testing.T) {
+	validAuthorityBytes := []byte("authority___________") // 20 bytes
+	validAuthority := sdk.AccAddress(validAuthorityBytes).String()
+	validTiaCollateralTokenId := "0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+
+	testCases := []struct {
+		name        string
+		msg         *types.MsgUpdateForwardingParams
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "valid message with default params",
+			msg: &types.MsgUpdateForwardingParams{
+				Authority: validAuthority,
+				Params:    types.DefaultParams(),
+			},
+			expectError: false,
+		},
+		{
+			name: "valid message with custom params",
+			msg: &types.MsgUpdateForwardingParams{
+				Authority: validAuthority,
+				Params: types.Params{
+					MinForwardAmount:     math.NewInt(1000),
+					TiaCollateralTokenId: validTiaCollateralTokenId,
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid message with empty TiaCollateralTokenId (disabled)",
+			msg: &types.MsgUpdateForwardingParams{
+				Authority: validAuthority,
+				Params: types.Params{
+					MinForwardAmount:     math.NewInt(100),
+					TiaCollateralTokenId: "",
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "empty authority",
+			msg: &types.MsgUpdateForwardingParams{
+				Authority: "",
+				Params:    types.DefaultParams(),
+			},
+			expectError: true,
+			errorMsg:    "invalid authority",
+		},
+		{
+			name: "invalid authority address",
+			msg: &types.MsgUpdateForwardingParams{
+				Authority: "invalid-address",
+				Params:    types.DefaultParams(),
+			},
+			expectError: true,
+			errorMsg:    "invalid authority",
+		},
+		{
+			name: "negative MinForwardAmount",
+			msg: &types.MsgUpdateForwardingParams{
+				Authority: validAuthority,
+				Params: types.Params{
+					MinForwardAmount:     math.NewInt(-1),
+					TiaCollateralTokenId: "",
+				},
+			},
+			expectError: true,
+			errorMsg:    "below minimum",
+		},
+		{
+			name: "invalid TiaCollateralTokenId (too short)",
+			msg: &types.MsgUpdateForwardingParams{
+				Authority: validAuthority,
+				Params: types.Params{
+					MinForwardAmount:     math.ZeroInt(),
+					TiaCollateralTokenId: "0xdeadbeef",
+				},
+			},
+			expectError: true,
+			errorMsg:    "unsupported token",
+		},
+		{
+			name: "invalid TiaCollateralTokenId (invalid hex)",
+			msg: &types.MsgUpdateForwardingParams{
+				Authority: validAuthority,
+				Params: types.Params{
+					MinForwardAmount:     math.ZeroInt(),
+					TiaCollateralTokenId: "0x" + strings.Repeat("zz", 32),
+				},
+			},
+			expectError: true,
+			errorMsg:    "unsupported token",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.msg.ValidateBasic()
+
+			if tc.expectError {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.errorMsg)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}

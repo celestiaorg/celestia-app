@@ -39,7 +39,7 @@ func (msg *MsgExecuteForwarding) ValidateBasic() error {
 	}
 
 	if len(destRecipient.Bytes()) != RecipientLength {
-		return errors.Wrap(ErrAddressMismatch, "dest_recipient must be 32 bytes")
+		return errors.Wrapf(ErrInvalidRecipient, "dest_recipient must be %d bytes, got %d", RecipientLength, len(destRecipient.Bytes()))
 	}
 
 	return nil
