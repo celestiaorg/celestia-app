@@ -170,7 +170,6 @@ func TestMsgExecuteForwarding_ValidateBasic(t *testing.T) {
 func TestMsgUpdateForwardingParamsValidateBasic(t *testing.T) {
 	validAuthorityBytes := []byte("authority___________") // 20 bytes
 	validAuthority := sdk.AccAddress(validAuthorityBytes).String()
-	validTiaCollateralTokenId := "0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 
 	testCases := []struct {
 		name        string
@@ -187,23 +186,11 @@ func TestMsgUpdateForwardingParamsValidateBasic(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "valid message with custom params",
+			name: "valid message with custom MinForwardAmount",
 			msg: &types.MsgUpdateForwardingParams{
 				Authority: validAuthority,
 				Params: types.Params{
-					MinForwardAmount:     math.NewInt(1000),
-					TiaCollateralTokenId: validTiaCollateralTokenId,
-				},
-			},
-			expectError: false,
-		},
-		{
-			name: "valid message with empty TiaCollateralTokenId (disabled)",
-			msg: &types.MsgUpdateForwardingParams{
-				Authority: validAuthority,
-				Params: types.Params{
-					MinForwardAmount:     math.NewInt(100),
-					TiaCollateralTokenId: "",
+					MinForwardAmount: math.NewInt(1000),
 				},
 			},
 			expectError: false,
@@ -231,36 +218,11 @@ func TestMsgUpdateForwardingParamsValidateBasic(t *testing.T) {
 			msg: &types.MsgUpdateForwardingParams{
 				Authority: validAuthority,
 				Params: types.Params{
-					MinForwardAmount:     math.NewInt(-1),
-					TiaCollateralTokenId: "",
+					MinForwardAmount: math.NewInt(-1),
 				},
 			},
 			expectError: true,
 			errorMsg:    "below minimum",
-		},
-		{
-			name: "invalid TiaCollateralTokenId (too short)",
-			msg: &types.MsgUpdateForwardingParams{
-				Authority: validAuthority,
-				Params: types.Params{
-					MinForwardAmount:     math.ZeroInt(),
-					TiaCollateralTokenId: "0xdeadbeef",
-				},
-			},
-			expectError: true,
-			errorMsg:    "unsupported token",
-		},
-		{
-			name: "invalid TiaCollateralTokenId (invalid hex)",
-			msg: &types.MsgUpdateForwardingParams{
-				Authority: validAuthority,
-				Params: types.Params{
-					MinForwardAmount:     math.ZeroInt(),
-					TiaCollateralTokenId: "0x" + strings.Repeat("zz", 32),
-				},
-			},
-			expectError: true,
-			errorMsg:    "unsupported token",
 		},
 	}
 

@@ -23,6 +23,11 @@ func TestValidateGenesis(t *testing.T) {
 		expectError bool
 	}{
 		{
+			name:        "nil genesis is invalid",
+			genesis:     nil,
+			expectError: true,
+		},
+		{
 			name:        "default genesis is valid",
 			genesis:     types.DefaultGenesis(),
 			expectError: false,
