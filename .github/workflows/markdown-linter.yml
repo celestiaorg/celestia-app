@@ -20,7 +20,7 @@ jobs:
         shell: bash
 
       - name: Run markdownlint
-        run: markdownlint --config .markdownlint.yaml **/*.md
+        run: markdownlint --config .markdownlint.yaml '**/*.md'
         shell: bash
 
   markdown-link-check:
