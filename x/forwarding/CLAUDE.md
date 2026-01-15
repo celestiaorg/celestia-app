@@ -9,7 +9,7 @@ Single-signature cross-chain transfers through Celestia. Users send tokens to a 
 ## Address Derivation (Critical)
 
 ```go
-func DeriveForwardingAddress(destDomain uint32, destRecipient []byte) sdk.AccAddress {
+func DeriveForwardingAddress(destDomain uint32, destRecipient []byte) ([]byte, error) {
     // Step 1: Encode destDomain as 32-byte big-endian (right-aligned)
     destDomainBytes := make([]byte, 32)
     binary.BigEndian.PutUint32(destDomainBytes[28:], destDomain)
@@ -17,12 +17,12 @@ func DeriveForwardingAddress(destDomain uint32, destRecipient []byte) sdk.AccAdd
     // Step 2: callDigest = sha256(destDomain || destRecipient)
     callDigest := sha256.Sum256(append(destDomainBytes, destRecipient...))
 
-    // Step 3: salt = sha256("CELESTIA_FORWARD_V1" || callDigest)
-    salt := sha256.Sum256(append([]byte("CELESTIA_FORWARD_V1"), callDigest[:]...))
+    // Step 3: salt = sha256(version_byte || callDigest)  // version_byte = 0x01
+    salt := sha256.Sum256(append([]byte{ForwardVersion}, callDigest[:]...))
 
-    // Step 4: address = sha256("forwarding" || salt)[:20]
-    hash := sha256.Sum256(append([]byte("forwarding"), salt[:]...))
-    return sdk.AccAddress(hash[:20])
+    // Step 4: address = address.Module("forwarding", salt)[:20]
+    addr := address.Module(ModuleName, salt[:])
+    return addr[:20], nil
 }
 ```
 
@@ -43,20 +43,19 @@ For SDK implementers ensuring cross-platform consistency:
                     │
                     ▼
    ┌─────────────────────────────────────┐
-   │ keccak256(domainBytes || recipient) │
+   │ sha256(domainBytes || recipient)    │
    │              = callDigest           │
    └─────────────────────────────────────┘
                     │
                     ▼
    ┌─────────────────────────────────────┐
-   │ keccak256("CELESTIA_FORWARD_V1"     │
-   │            || callDigest) = salt    │
+   │ sha256(0x01 || callDigest) = salt   │
    └─────────────────────────────────────┘
                     │
                     ▼
    ┌─────────────────────────────────────┐
-   │ sha256("forwarding" || salt)[:20]   │
-   │           = forwardAddr             │
+   │ address.Module("forwarding", salt)  │
+   │              [:20] = forwardAddr    │
    └─────────────────────────────────────┘
 ```
 
