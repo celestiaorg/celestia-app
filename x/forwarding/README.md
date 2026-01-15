@@ -148,6 +148,7 @@ celestia-appd tx forwarding execute \
 - **Cryptographic binding**: The `forwardAddr` cryptographically commits to `(destDomain, destRecipient)`. Funds can only be forwarded to the committed destination.
 - **Permissionless execution**: Anyone can trigger forwarding, but only to the pre-committed destination.
 - **No fund loss**: Failed tokens stay at `forwardAddr` or are automatically returned there.
+- **Collision resistance**: Same as standard Cosmos addresses (160-bit truncation). Draining requires 2^160 operations (second preimage), not 2^80 (birthday attack).
 
 ## Test Vectors
 

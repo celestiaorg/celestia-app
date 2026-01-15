@@ -66,6 +66,16 @@ For SDK implementers ensuring cross-platform consistency:
 - **No theft possible**: Relayer/caller cannot redirect funds
 - **destRecipient MUST be exactly 32 bytes** (validation critical)
 
+### Collision Resistance (20-byte truncation)
+
+| Attack | Security | Notes |
+|--------|----------|-------|
+| Birthday collision | 2^80 | Find any two inputs with same address |
+| Second preimage | 2^160 | Find alternate input for existing address |
+
+**Same as standard Cosmos addresses** - both truncate to 160 bits.
+Draining requires second preimage (2^160), not birthday attack (2^80).
+
 ## State Machine Diagrams
 
 ### Token Lifecycle at ForwardAddr
