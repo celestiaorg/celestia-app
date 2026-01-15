@@ -18,6 +18,9 @@ import (
 // testIBCAmount is the standard test amount for IBC middleware tests.
 const testIBCAmount = "1000000"
 
+// testNormalAddress is a valid bech32 address for testing transfers to non-fee addresses.
+var testNormalAddress = sdk.AccAddress("test_normal_addr____").String()
+
 // mockIBCModule is a mock implementation of porttypes.IBCModule for testing.
 type mockIBCModule struct {
 	onRecvPacketCalled bool
@@ -89,8 +92,7 @@ func TestFeeAddressOnRecvPacketAllowsUtiaToNormalAddress(t *testing.T) {
 	}
 	middleware := NewFeeAddressIBCMiddleware(mockApp)
 
-	normalAddr := "celestia1abcdefghijklmnopqrstuvwxyz123456"
-	packet := createFeeAddressTransferPacket(appconsts.BondDenom, normalAddr)
+	packet := createFeeAddressTransferPacket(appconsts.BondDenom, testNormalAddress)
 
 	ctx := sdk.Context{}
 	ack := middleware.OnRecvPacket(ctx, packet, nil)
@@ -107,8 +109,7 @@ func TestFeeAddressOnRecvPacketAllowsNonUtiaToNormalAddress(t *testing.T) {
 	}
 	middleware := NewFeeAddressIBCMiddleware(mockApp)
 
-	normalAddr := "celestia1abcdefghijklmnopqrstuvwxyz123456"
-	packet := createFeeAddressTransferPacket("uosmo", normalAddr)
+	packet := createFeeAddressTransferPacket("uosmo", testNormalAddress)
 
 	ctx := sdk.Context{}
 	ack := middleware.OnRecvPacket(ctx, packet, nil)

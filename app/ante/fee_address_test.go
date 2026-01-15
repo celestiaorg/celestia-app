@@ -34,10 +34,24 @@ func TestFeeAddressDecorator(t *testing.T) {
 	anyMsgNonUtia, _ := codectypes.NewAnyWithValue(msgSendNonUtia)
 	anyMsgUtia, _ := codectypes.NewAnyWithValue(msgSendUtia)
 
+	// Create MsgExec with nested MsgTransfer for authz tests
+	msgTransferNonUtia := &ibctransfertypes.MsgTransfer{
+		SourcePort:    "transfer",
+		SourceChannel: "channel-0",
+		Token:         sdk.NewCoin("wrongdenom", math.NewInt(1000)),
+		Sender:        signer.String(),
+		Receiver:      feeaddresstypes.FeeAddressBech32,
+	}
+	anyMsgTransferNonUtia, _ := codectypes.NewAnyWithValue(msgTransferNonUtia)
+
+	// Another address for multi-output tests
+	otherAddr := sdk.AccAddress("other_address________")
+
 	testCases := []struct {
-		name      string
-		msg       sdk.Msg
-		expectErr bool
+		name           string
+		msg            sdk.Msg
+		expectErr      bool
+		expectErrMatch string // If non-empty, error must contain this substring
 	}{
 		{
 			name: "allow utia to fee address",
@@ -55,7 +69,8 @@ func TestFeeAddressDecorator(t *testing.T) {
 				ToAddress:   feeaddresstypes.FeeAddressBech32,
 				Amount:      sdk.NewCoins(sdk.NewCoin("wrongdenom", math.NewInt(1000))),
 			},
-			expectErr: true,
+			expectErr:      true,
+			expectErrMatch: "only utia can be sent to fee address, got wrongdenom",
 		},
 		{
 			name: "allow any denom to non-fee address",
@@ -130,6 +145,47 @@ func TestFeeAddressDecorator(t *testing.T) {
 			},
 			expectErr: false,
 		},
+		{
+			name: "reject authz MsgExec with nested MsgTransfer non-utia to fee address",
+			msg: &authz.MsgExec{
+				Grantee: signer.String(),
+				Msgs:    []*codectypes.Any{anyMsgTransferNonUtia},
+			},
+			expectErr: true,
+		},
+		// MsgMultiSend with multiple outputs
+		{
+			name: "reject multi-send with multiple outputs where one is non-utia to fee address",
+			msg: &banktypes.MsgMultiSend{
+				Inputs: []banktypes.Input{
+					{Address: signer.String(), Coins: sdk.NewCoins(
+						sdk.NewCoin("wrongdenom", math.NewInt(500)),
+						sdk.NewCoin(appconsts.BondDenom, math.NewInt(500)),
+					)},
+				},
+				Outputs: []banktypes.Output{
+					{Address: feeaddresstypes.FeeAddressBech32, Coins: sdk.NewCoins(sdk.NewCoin("wrongdenom", math.NewInt(500)))},
+					{Address: otherAddr.String(), Coins: sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(500)))},
+				},
+			},
+			expectErr: true,
+		},
+		{
+			name: "allow multi-send with multiple outputs all valid",
+			msg: &banktypes.MsgMultiSend{
+				Inputs: []banktypes.Input{
+					{Address: signer.String(), Coins: sdk.NewCoins(
+						sdk.NewCoin(appconsts.BondDenom, math.NewInt(500)),
+						sdk.NewCoin("otherdenom", math.NewInt(500)),
+					)},
+				},
+				Outputs: []banktypes.Output{
+					{Address: feeaddresstypes.FeeAddressBech32, Coins: sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(500)))},
+					{Address: otherAddr.String(), Coins: sdk.NewCoins(sdk.NewCoin("otherdenom", math.NewInt(500)))},
+				},
+			},
+			expectErr: false,
+		},
 		// Multi-denom test
 		{
 			name: "reject mixed denoms to fee address",
@@ -154,6 +210,9 @@ func TestFeeAddressDecorator(t *testing.T) {
 
 			if tc.expectErr {
 				require.Error(t, err)
+				if tc.expectErrMatch != "" {
+					require.ErrorContains(t, err, tc.expectErrMatch)
+				}
 			} else {
 				require.NoError(t, err)
 			}

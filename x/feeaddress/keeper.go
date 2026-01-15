@@ -19,6 +19,9 @@ type Keeper struct {
 
 // NewKeeper creates a new Keeper instance.
 func NewKeeper(bankKeeper types.BankKeeper) Keeper {
+	if bankKeeper == nil {
+		panic("bankKeeper cannot be nil")
+	}
 	return Keeper{
 		bankKeeper: bankKeeper,
 	}

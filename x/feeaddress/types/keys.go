@@ -2,13 +2,8 @@ package types
 
 import sdk "github.com/cosmos/cosmos-sdk/types"
 
-const (
-	// ModuleName is the name of the feeaddress module.
-	ModuleName = "feeaddress"
-
-	// AddressLength is the standard Cosmos SDK address length in bytes.
-	AddressLength = 20
-)
+// ModuleName is the name of the feeaddress module.
+const ModuleName = "feeaddress"
 
 // FeeAddress is the address where tokens are sent to be forwarded to the fee collector.
 // This is a vanity address that encodes to "feefeefeefeefeefeefeefeefeefeefeefe" in bech32,
