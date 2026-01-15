@@ -133,17 +133,20 @@ func (m msgServer) forwardSingleToken(
 	destRecipient util.HexAddress,
 	params types.Params,
 ) types.ForwardingResult {
-	hypToken, err := m.k.FindHypTokenByDenom(ctx, balance.Denom)
+	hypToken, err := m.k.FindHypTokenByDenom(ctx, balance.Denom, destDomain)
 	if err != nil {
 		return types.NewFailureResult(balance.Denom, balance.Amount, fmt.Sprintf("token lookup failed: %s", err.Error()))
 	}
 
-	hasRoute, err := m.k.HasEnrolledRouter(ctx, hypToken.Id, destDomain)
-	if err != nil {
-		return types.NewFailureResult(balance.Denom, balance.Amount, "error checking warp route: "+err.Error())
-	}
-	if !hasRoute {
-		return types.NewFailureResult(balance.Denom, balance.Amount, "no warp route to destination domain")
+	// For synthetic tokens, verify route exists (TIA route check is done in FindHypTokenByDenom)
+	if balance.Denom != "utia" {
+		hasRoute, err := m.k.HasEnrolledRouter(ctx, hypToken.Id, destDomain)
+		if err != nil {
+			return types.NewFailureResult(balance.Denom, balance.Amount, "error checking warp route: "+err.Error())
+		}
+		if !hasRoute {
+			return types.NewFailureResult(balance.Denom, balance.Amount, "no warp route to destination domain")
+		}
 	}
 
 	if params.MinForwardAmount.IsPositive() && balance.Amount.LT(params.MinForwardAmount) {

@@ -67,10 +67,13 @@ func (k Keeper) SetParams(ctx context.Context, params types.Params) error {
 	return k.Params.Set(ctx, params)
 }
 
-func (k Keeper) FindHypTokenByDenom(ctx context.Context, denom string) (warptypes.HypToken, error) {
+// FindHypTokenByDenom finds the HypToken for a given bank denom and destination domain.
+// For TIA (utia), it searches warp tokens with OriginDenom="utia" that have a route to destDomain.
+// For synthetic tokens (hyperlane/...), it looks up the token by ID.
+func (k Keeper) FindHypTokenByDenom(ctx context.Context, denom string, destDomain uint32) (warptypes.HypToken, error) {
 	switch {
 	case denom == "utia":
-		return k.findTIACollateralToken(ctx)
+		return k.findTIACollateralTokenForDomain(ctx, destDomain)
 	case strings.HasPrefix(denom, "hyperlane/"):
 		return k.findSyntheticToken(ctx, strings.TrimPrefix(denom, "hyperlane/"))
 	default:
@@ -78,15 +81,30 @@ func (k Keeper) FindHypTokenByDenom(ctx context.Context, denom string) (warptype
 	}
 }
 
-func (k Keeper) findTIACollateralToken(ctx context.Context) (warptypes.HypToken, error) {
-	params, err := k.GetParams(ctx)
+// findTIACollateralTokenForDomain finds the TIA collateral token with a route to the destination domain.
+// It iterates all warp tokens to find one with OriginDenom="utia", TokenType=COLLATERAL,
+// and an enrolled router for the destination domain.
+func (k Keeper) findTIACollateralTokenForDomain(ctx context.Context, destDomain uint32) (warptypes.HypToken, error) {
+	iter, err := k.warpKeeper.HypTokens.Iterate(ctx, nil)
 	if err != nil {
-		return warptypes.HypToken{}, fmt.Errorf("failed to get params: %w", err)
+		return warptypes.HypToken{}, fmt.Errorf("failed to iterate warp tokens: %w", err)
 	}
-	if params.TiaCollateralTokenId == "" {
-		return warptypes.HypToken{}, fmt.Errorf("%w: TiaCollateralTokenId not configured", types.ErrUnsupportedToken)
+	defer iter.Close()
+
+	for ; iter.Valid(); iter.Next() {
+		token, err := iter.Value()
+		if err != nil {
+			continue
+		}
+		// Find TIA collateral token with route to destination
+		if token.OriginDenom == "utia" && token.TokenType == warptypes.HYP_TOKEN_TYPE_COLLATERAL {
+			hasRoute, _ := k.HasEnrolledRouter(ctx, token.Id, destDomain)
+			if hasRoute {
+				return token, nil
+			}
+		}
 	}
-	return k.getTokenByHex(ctx, params.TiaCollateralTokenId)
+	return warptypes.HypToken{}, fmt.Errorf("%w: no TIA collateral route to domain %d", types.ErrNoWarpRoute, destDomain)
 }
 
 func (k Keeper) findSyntheticToken(ctx context.Context, tokenIdHex string) (warptypes.HypToken, error) {
