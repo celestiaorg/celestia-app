@@ -1,5 +1,7 @@
 package types
 
+import "errors"
+
 // DefaultGenesis returns the default genesis state for the forwarding module
 func DefaultGenesis() *GenesisState {
 	return &GenesisState{
@@ -19,10 +21,11 @@ func (gs GenesisState) Validate() error {
 	return gs.Params.Validate()
 }
 
-// ValidateGenesis validates genesis state
+// ValidateGenesis validates genesis state.
+// Returns error if genesis is nil or invalid.
 func ValidateGenesis(gs *GenesisState) error {
 	if gs == nil {
-		return nil
+		return errors.New("genesis state cannot be nil")
 	}
 	return gs.Validate()
 }
