@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v6/x/forwarding/types"
+	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 )

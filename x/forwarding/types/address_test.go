@@ -7,7 +7,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v6/x/forwarding/types"
+	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	"github.com/cosmos/cosmos-sdk/types/address"
 	"github.com/stretchr/testify/require"
 )
