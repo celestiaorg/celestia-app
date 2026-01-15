@@ -45,6 +45,15 @@ func (msg *MsgForward) ValidateBasic() error {
 	return nil
 }
 
+var _ sdk.Msg = &MsgUpdateParams{}
+
+func (msg *MsgUpdateParams) ValidateBasic() error {
+	if _, err := sdk.AccAddressFromBech32(msg.Authority); err != nil {
+		return errors.Wrap(err, "invalid authority address")
+	}
+	return msg.Params.Validate()
+}
+
 func NewSuccessResult(denom string, amount math.Int, messageId string) ForwardingResult {
 	return ForwardingResult{
 		Denom:     denom,
