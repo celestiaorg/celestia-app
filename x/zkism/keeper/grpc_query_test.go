@@ -248,3 +248,44 @@ func (suite *KeeperTestSuite) TestQueryServerIsms() {
 		})
 	}
 }
+
+func (suite *KeeperTestSuite) TestQueryServerMessagesPaginationLimit() {
+	ismID := util.CreateMockHexAddress("ism", 1)
+	var allExpected []string
+
+	for i := 0; i < 150; i++ {
+		id := bytes.Repeat([]byte{byte(i)}, 32)
+		err := suite.zkISMKeeper.SetMessageId(suite.ctx, ismID, id)
+		suite.Require().NoError(err)
+		allExpected = append(allExpected, types.EncodeHex(id))
+	}
+
+	queryServer := keeper.NewQueryServerImpl(suite.zkISMKeeper)
+
+	// First request: ask for 200, should get 100 (capped)
+	req := &types.QueryMessagesRequest{
+		Id:         ismID.String(),
+		Pagination: &query.PageRequest{Limit: 200},
+	}
+
+	res, err := queryServer.Messages(suite.ctx, req)
+	suite.Require().NoError(err)
+	suite.Require().Len(res.Messages, int(types.MaxPaginationLimit))
+	suite.Require().Equal(allExpected[:100], res.Messages)
+	suite.Require().NotNil(res.Pagination.NextKey)
+
+	// Second request: use NextKey to get remaining 50
+	req = &types.QueryMessagesRequest{
+		Id: ismID.String(),
+		Pagination: &query.PageRequest{
+			Key:   res.Pagination.NextKey,
+			Limit: 200,
+		},
+	}
+
+	res, err = queryServer.Messages(suite.ctx, req)
+	suite.Require().NoError(err)
+	suite.Require().Len(res.Messages, 50)
+	suite.Require().Equal(allExpected[100:], res.Messages)
+	suite.Require().Nil(res.Pagination.NextKey)
+}
