@@ -1,0 +1,23 @@
+syntax = "proto3";
+package celestia.forwarding.v1;
+
+import "gogoproto/gogo.proto";
+import "cosmos_proto/cosmos.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/forwarding/types";
+
+// Params defines the parameters for the forwarding module.
+message Params {
+  // min_forward_amount is the minimum amount required for forwarding.
+  // Set to 0 to disable minimum threshold.
+  string min_forward_amount = 1 [
+    (cosmos_proto.scalar)  = "cosmos.Int",
+    (gogoproto.customtype) = "cosmossdk.io/math.Int",
+    (gogoproto.nullable)   = false
+  ];
+
+  // tia_collateral_token_id is the Hyperlane token ID for the TIA collateral token.
+  // This is used to identify TIA when forwarding utia tokens.
+  // Format: 32-byte hex string with 0x prefix.
+  string tia_collateral_token_id = 2;
+}

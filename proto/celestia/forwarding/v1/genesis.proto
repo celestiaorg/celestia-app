@@ -1,0 +1,13 @@
+syntax = "proto3";
+package celestia.forwarding.v1;
+
+import "celestia/forwarding/v1/params.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/forwarding/types";
+
+// GenesisState defines the forwarding module's genesis state.
+message GenesisState {
+  // params defines all module parameters.
+  Params params = 1 [(gogoproto.nullable) = false];
+}
