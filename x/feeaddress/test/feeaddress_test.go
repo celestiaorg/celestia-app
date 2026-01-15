@@ -14,7 +14,6 @@ import (
 	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/suite"
 )
@@ -180,18 +179,6 @@ func (s *IntegrationTestSuite) getAccountBalance(addr sdk.AccAddress) math.Int {
 	bqc := banktypes.NewQueryClient(s.cctx.GRPCClient)
 	resp, err := bqc.Balance(s.cctx.GoContext(), &banktypes.QueryBalanceRequest{
 		Address: addr.String(),
-		Denom:   appconsts.BondDenom,
-	})
-	s.Require().NoError(err)
-	return resp.Balance.Amount
-}
-
-// getFeeCollectorBalance queries the bank module for the fee collector's utia balance.
-func (s *IntegrationTestSuite) getFeeCollectorBalance() math.Int {
-	bqc := banktypes.NewQueryClient(s.cctx.GRPCClient)
-	feeCollectorAddr := authtypes.NewModuleAddress(authtypes.FeeCollectorName)
-	resp, err := bqc.Balance(s.cctx.GoContext(), &banktypes.QueryBalanceRequest{
-		Address: feeCollectorAddr.String(),
 		Denom:   appconsts.BondDenom,
 	})
 	s.Require().NoError(err)
