@@ -205,16 +205,28 @@ func TestMsgForwardValidateBasic(t *testing.T) {
 			errorMsg:    "invalid dest_recipient hex format",
 		},
 		{
-			name: "dest recipient too long (33 bytes)",
+			name: "dest recipient 31 bytes (boundary)",
 			msg: &types.MsgForward{
 				Signer:        validSigner,
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
-				DestRecipient: "0x" + strings.Repeat("ab", 33), // 33 bytes, should be 32
+				DestRecipient: "0x" + strings.Repeat("aa", 31),
 				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: true,
-			errorMsg:    "invalid hex address length",
+			errorMsg:    "must be 32 bytes",
+		},
+		{
+			name: "dest recipient 33 bytes (boundary)",
+			msg: &types.MsgForward{
+				Signer:        validSigner,
+				ForwardAddr:   validForwardAddr,
+				DestDomain:    1,
+				DestRecipient: "0x" + strings.Repeat("aa", 33),
+				MaxIgpFee:     validMaxIgpFee,
+			},
+			expectError: true,
+			errorMsg:    "must be 32 bytes",
 		},
 		{
 			name: "whitespace-only signer",
