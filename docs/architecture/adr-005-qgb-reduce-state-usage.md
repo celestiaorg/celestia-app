@@ -42,8 +42,8 @@ However, slashing will be very difficult, especially for liveness, i.e. an orche
 
 ### Dump the QGB state in a namespace
 
-Remove the `MsgValsetConfirm` defined in [here](https://github.com/celestiaorg/celestia-app/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/proto/qgb/msgs.proto#L24-L49)
-And also, the `MsgDataCommitmentConfirm` defined in [here](
+Remove the `MsgValsetConfirm` defined in [proto/qgb/msgs.proto](https://github.com/celestiaorg/celestia-app/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/proto/qgb/msgs.proto#L24-L49)
+And also, the `MsgDataCommitmentConfirm` defined in [proto/qgb/msgs.proto](
 <https://github.com/celestiaorg/celestia-app/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/proto/qgb/msgs.proto#L55-L76>).
 Which were the way orchestrators were able to post confirms to the QGB module.
 Then, keep only the state that is created in [EndBlocker](https://github.com/celestiaorg/celestia-app/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/x/qgb/abci.go#L12-L16).
@@ -66,7 +66,7 @@ We will need to decide on two things:
 
 ## Detailed Design
 
-The proposed design consists of keeping the same transaction types we currently have : the `MsgValsetConfirm` defined in [here](https://github.com/celestiaorg/celestia-app/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/proto/qgb/msgs.proto#L24-L49), and the `MsgDataCommitmentConfirm` defined in [here](
+The proposed design consists of keeping the same transaction types we currently have : the `MsgValsetConfirm` defined in [proto/qgb/msgs.proto](https://github.com/celestiaorg/celestia-app/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/proto/qgb/msgs.proto#L24-L49), and the `MsgDataCommitmentConfirm` defined in [proto/qgb/msgs.proto](
 <https://github.com/celestiaorg/celestia-app/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/proto/qgb/msgs.proto#L55-L76>). However, remove  all the message server checks defined in the [msg_server.go](https://github.com/celestiaorg/celestia-app/blob/9867b653b2a253ba01cb7889e2dbfa6c9ff67909/x/qgb/keeper/msg_server.go) :
 
 ```go

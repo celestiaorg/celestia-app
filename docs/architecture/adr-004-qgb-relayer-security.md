@@ -403,4 +403,4 @@ significantPowerDiff = intCurrMembers.PowerDiff(*intLatestMembers) > 0.05
 
 ## References
 
-- Tracker issue for the tasks [here](https://github.com/celestiaorg/celestia-app/issues/467).
+- [Tracker issue for the tasks](https://github.com/celestiaorg/celestia-app/issues/467).
