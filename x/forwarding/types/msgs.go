@@ -8,7 +8,10 @@ import (
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 )
 
-const URLMsgExecuteForwarding = "/celestia.forwarding.v1.MsgExecuteForwarding"
+const (
+	URLMsgExecuteForwarding      = "/celestia.forwarding.v1.MsgExecuteForwarding"
+	URLMsgUpdateForwardingParams = "/celestia.forwarding.v1.MsgUpdateForwardingParams"
+)
 
 var _ sdk.Msg = &MsgExecuteForwarding{}
 
@@ -40,6 +43,15 @@ func (msg *MsgExecuteForwarding) ValidateBasic() error {
 	}
 
 	return nil
+}
+
+var _ sdk.Msg = &MsgUpdateForwardingParams{}
+
+func (msg *MsgUpdateForwardingParams) ValidateBasic() error {
+	if _, err := sdk.AccAddressFromBech32(msg.Authority); err != nil {
+		return errors.Wrap(err, "invalid authority address")
+	}
+	return msg.Params.Validate()
 }
 
 func NewSuccessResult(denom string, amount math.Int, messageId string) ForwardingResult {
