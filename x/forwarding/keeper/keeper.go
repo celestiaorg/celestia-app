@@ -34,6 +34,12 @@ func NewKeeper(
 	warpKeeper *warpkeeper.Keeper,
 	authority string,
 ) Keeper {
+	if accountKeeper == nil {
+		panic("accountKeeper cannot be nil")
+	}
+	if bankKeeper == nil {
+		panic("bankKeeper cannot be nil")
+	}
 	if warpKeeper == nil {
 		panic("warpKeeper cannot be nil")
 	}

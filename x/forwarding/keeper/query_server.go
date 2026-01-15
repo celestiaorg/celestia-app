@@ -59,6 +59,10 @@ func (q queryServer) DeriveForwardingAddress(ctx context.Context, req *types.Que
 
 // Params returns the module parameters
 func (q queryServer) Params(ctx context.Context, req *types.QueryParamsRequest) (*types.QueryParamsResponse, error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "request cannot be nil")
+	}
+
 	params, err := q.k.GetParams(ctx)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
