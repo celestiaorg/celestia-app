@@ -7,11 +7,11 @@ import (
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v7/app/ante"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -52,78 +52,28 @@ func createTestContext() sdk.Context {
 	return sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
 }
 
-// TestEndBlockerForwardsTokens verifies that the EndBlocker forwards utia tokens
-// present at the fee address to the fee collector module.
-func TestEndBlockerForwardsTokens(t *testing.T) {
+// createContextWithFeeAmount creates a test context with the fee amount set,
+// simulating what the FeeForwardDecorator does.
+func createContextWithFeeAmount(fee sdk.Coins) sdk.Context {
+	ctx := createTestContext()
+	return ctx.WithValue(ante.FeeForwardAmountContextKey{}, fee)
+}
+
+// TestForwardFeesEmitsEvent verifies that the ForwardFees message handler
+// emits a typed EventFeeForwarded event with correct from address and amount.
+func TestForwardFeesEmitsEvent(t *testing.T) {
 	bankKeeper := newMockBankKeeper()
+	keeper := NewKeeper(bankKeeper)
+
 	amount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(testAmount))
-	bankKeeper.balances[types.FeeAddress.String()] = sdk.NewCoins(amount)
+	fee := sdk.NewCoins(amount)
+	ctx := createContextWithFeeAmount(fee)
 
-	keeper := NewKeeper(bankKeeper)
-	ctx := createTestContext()
-
-	err := keeper.EndBlocker(ctx)
-
-	require.NoError(t, err)
-	require.Equal(t, sdk.NewCoins(amount), bankKeeper.sentToModule[authtypes.FeeCollectorName])
-}
-
-// TestEndBlockerNoBalance verifies that the EndBlocker is a no-op when
-// the fee address has zero balance, and no forwarding operations are performed.
-func TestEndBlockerNoBalance(t *testing.T) {
-	bankKeeper := newMockBankKeeper()
-
-	keeper := NewKeeper(bankKeeper)
-	ctx := createTestContext()
-
-	err := keeper.EndBlocker(ctx)
+	msg := types.NewMsgForwardFees("abcd1234")
+	resp, err := keeper.ForwardFees(ctx, msg)
 
 	require.NoError(t, err)
-	require.Empty(t, bankKeeper.sentToModule)
-}
-
-// TestFeeAddressQuery verifies the Query/FeeAddress gRPC endpoint returns
-// the correct bech32-encoded fee address for programmatic discovery.
-func TestFeeAddressQuery(t *testing.T) {
-	bankKeeper := newMockBankKeeper()
-	keeper := NewKeeper(bankKeeper)
-	ctx := createTestContext()
-
-	resp, err := keeper.FeeAddress(ctx, &types.QueryFeeAddressRequest{})
-	require.NoError(t, err)
-	require.Equal(t, types.FeeAddressBech32, resp.FeeAddress)
-}
-
-// TestEndBlockerSendToModuleFails verifies that when SendCoinsFromAccountToModule
-// fails, the EndBlocker returns an error.
-func TestEndBlockerSendToModuleFails(t *testing.T) {
-	bankKeeper := newMockBankKeeper()
-	amount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(testAmount))
-	bankKeeper.balances[types.FeeAddress.String()] = sdk.NewCoins(amount)
-	bankKeeper.sendToModuleErr = fmt.Errorf("module account not found")
-
-	keeper := NewKeeper(bankKeeper)
-	ctx := createTestContext()
-
-	err := keeper.EndBlocker(ctx)
-
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "failed to forward to fee collector")
-}
-
-// TestEndBlockerEmitsEvent verifies that the EndBlocker emits a typed
-// EventFeeForwarded event with correct from address and amount attributes.
-func TestEndBlockerEmitsEvent(t *testing.T) {
-	bankKeeper := newMockBankKeeper()
-	amount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(testAmount))
-	bankKeeper.balances[types.FeeAddress.String()] = sdk.NewCoins(amount)
-
-	keeper := NewKeeper(bankKeeper)
-	ctx := createTestContext()
-
-	err := keeper.EndBlocker(ctx)
-
-	require.NoError(t, err)
+	require.NotNil(t, resp)
 
 	// Verify event was emitted
 	events := ctx.EventManager().Events()
@@ -145,4 +95,69 @@ func TestEndBlockerEmitsEvent(t *testing.T) {
 	}
 	require.True(t, foundFrom, "from attribute not found in event")
 	require.True(t, foundAmount, "amount attribute not found in event")
+}
+
+// TestForwardFeesNoFeeAmountInContext verifies that ForwardFees returns an error
+// when the fee amount is not set in the context (should not happen in normal operation).
+func TestForwardFeesNoFeeAmountInContext(t *testing.T) {
+	bankKeeper := newMockBankKeeper()
+	keeper := NewKeeper(bankKeeper)
+
+	ctx := createTestContext() // No fee amount set
+	msg := types.NewMsgForwardFees("abcd1234")
+
+	_, err := keeper.ForwardFees(ctx, msg)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "fee forward amount not found in context")
+}
+
+// TestFeeAddressQuery verifies the Query/FeeAddress gRPC endpoint returns
+// the correct bech32-encoded fee address for programmatic discovery.
+func TestFeeAddressQuery(t *testing.T) {
+	bankKeeper := newMockBankKeeper()
+	keeper := NewKeeper(bankKeeper)
+	ctx := createTestContext()
+
+	resp, err := keeper.FeeAddress(ctx, &types.QueryFeeAddressRequest{})
+	require.NoError(t, err)
+	require.Equal(t, types.FeeAddressBech32, resp.FeeAddress)
+}
+
+// TestNewMsgForwardFees verifies the constructor for MsgForwardFees.
+func TestNewMsgForwardFees(t *testing.T) {
+	proposer := "abcd1234"
+	msg := types.NewMsgForwardFees(proposer)
+	require.Equal(t, proposer, msg.Proposer)
+}
+
+// TestMsgForwardFeesValidateBasic verifies the ValidateBasic method of MsgForwardFees.
+func TestMsgForwardFeesValidateBasic(t *testing.T) {
+	testCases := []struct {
+		name    string
+		msg     *types.MsgForwardFees
+		wantErr bool
+	}{
+		{
+			name:    "valid message",
+			msg:     types.NewMsgForwardFees("abcd1234"),
+			wantErr: false,
+		},
+		{
+			name:    "empty proposer",
+			msg:     types.NewMsgForwardFees(""),
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.msg.ValidateBasic()
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
