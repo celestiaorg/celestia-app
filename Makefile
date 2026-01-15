@@ -16,7 +16,9 @@ HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME := github.com/celestiaorg/celestia-app/v7
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
-GOLANG_CROSS_VERSION  ?= v1.24.11
+# GOLANG_CROSS_VERSION 1.27.0 actually uses Go 1.25.5
+# See https://github.com/goreleaser/goreleaser-cross/blob/8ae601dcc6a876c10344fff95c4d796b1ed3295c/.env#L1
+GOLANG_CROSS_VERSION  ?= v1.27.0
 # Set this to override v2 upgrade height for the v3 embedded binaries
 V2_UPGRADE_HEIGHT ?= 0
 
