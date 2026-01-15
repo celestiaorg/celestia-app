@@ -123,9 +123,7 @@ func TestEstimateGasPrice(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	gasPricesChan := make(chan float64, len(accountNames))
 	for _, accName := range accountNames {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			// ensure that it is greater than the min gas price
 			gasPrice := float64(rand.Intn(1000)+1) * appconsts.DefaultMinGasPrice
 			blobs := blobfactory.ManyBlobs(random.New(), []share.Namespace{share.RandomBlobNamespace()}, []int{blobSize})
@@ -138,7 +136,7 @@ func TestEstimateGasPrice(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, abci.CodeTypeOK, resp.Code, resp.RawLog)
 			gasPricesChan <- gasPrice
-		}()
+		})
 	}
 	wg.Wait()
 
