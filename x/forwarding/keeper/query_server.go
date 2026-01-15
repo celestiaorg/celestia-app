@@ -41,28 +41,10 @@ func (q queryServer) DeriveForwardingAddress(ctx context.Context, req *types.Que
 		return nil, status.Errorf(codes.InvalidArgument, "dest_recipient must be %d bytes, got %d", types.RecipientLength, len(destRecipient.Bytes()))
 	}
 
-	// Check if there's a warp route to the destination domain
-	// We check using the TIA collateral token since that's the primary use case
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	params, err := q.k.GetParams(ctx)
-	if err != nil && !errors.Is(err, collections.ErrNotFound) {
-		return nil, status.Errorf(codes.Internal, "failed to get params: %v", err)
-	}
-
-	// Only validate route if TiaCollateralTokenId is configured
-	if params.TiaCollateralTokenId != "" {
-		tokenId, err := util.DecodeHexAddress(params.TiaCollateralTokenId)
-		if err != nil {
-			sdkCtx.Logger().Warn("invalid TiaCollateralTokenId in params", "error", err)
-		} else {
-			hasRoute, err := q.k.HasEnrolledRouter(ctx, tokenId, req.DestDomain)
-			if err != nil {
-				return nil, status.Errorf(codes.Internal, "failed to check warp route: %v", err)
-			}
-			if !hasRoute {
-				return nil, status.Errorf(codes.FailedPrecondition, "%s: domain %d has no configured warp route", types.ErrNoWarpRoute.Error(), req.DestDomain)
-			}
-		}
+	// Check if there's a TIA warp route to the destination domain
+	_, err = q.k.findTIACollateralTokenForDomain(ctx, req.DestDomain)
+	if err != nil {
+		return nil, status.Errorf(codes.FailedPrecondition, "no warp route to domain %d: %v", req.DestDomain, err)
 	}
 
 	// Derive the forwarding address
