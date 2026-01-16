@@ -423,6 +423,7 @@ func New(
 		app.AccountKeeper,
 		app.BankKeeper,
 		&app.WarpKeeper,
+		govModuleAddr,
 	)
 
 	/****  Module Options ****/
