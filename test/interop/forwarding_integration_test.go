@@ -116,9 +116,8 @@ func (s *ForwardingIntegrationTestSuite) TestParamsStorageWithProtoTypes() {
 	celestiaApp := s.GetCelestiaApp(s.celestia)
 	ctx := s.celestia.GetContext()
 
-	// Set params with TIA token ID
-	testTokenId := "0x726f757465725f6170700000000000000000000000000000000000000000001"
-	newParams := forwardingtypes.NewParams(math.NewInt(100), testTokenId)
+	// Set params with min forward amount
+	newParams := forwardingtypes.NewParams(math.NewInt(100))
 
 	err := celestiaApp.ForwardingKeeper.SetParams(ctx, newParams)
 	s.Require().NoError(err)
@@ -128,16 +127,15 @@ func (s *ForwardingIntegrationTestSuite) TestParamsStorageWithProtoTypes() {
 	s.Require().NoError(err)
 
 	s.Equal(math.NewInt(100), retrievedParams.MinForwardAmount)
-	s.Equal(testTokenId, retrievedParams.TiaCollateralTokenId)
 
 	s.T().Logf("Test 1 PASSED: Params storage works with proto-generated types")
 	s.T().Logf("MinForwardAmount: %s", retrievedParams.MinForwardAmount.String())
-	s.T().Logf("TiaCollateralTokenId: %s", retrievedParams.TiaCollateralTokenId)
 }
 
 func (s *ForwardingIntegrationTestSuite) TestFindHypTokenByDenom_TIA() {
 	const (
 		CelestiaDomainID = 69420
+		SimappDomainID   = 1337
 	)
 
 	celestiaApp := s.GetCelestiaApp(s.celestia)
@@ -150,13 +148,14 @@ func (s *ForwardingIntegrationTestSuite) TestFindHypTokenByDenom_TIA() {
 	// Create a collateral token for utia (TIA)
 	collatTokenID := s.CreateCollateralToken(s.celestia, ismID, mailboxID, params.BondDenom)
 
-	// Configure TIA token ID in params
-	newParams := forwardingtypes.NewParams(math.ZeroInt(), collatTokenID.String())
-	err := celestiaApp.ForwardingKeeper.SetParams(ctx, newParams)
-	s.Require().NoError(err)
+	// Set up simapp counterparty and enroll router so TIA has a route
+	ismIDSimapp := s.SetupNoopISM(s.simapp)
+	s.SetupMailBox(s.simapp, ismIDSimapp, SimappDomainID)
+	tiaSynTokenID := s.CreateSyntheticToken(s.simapp, ismIDSimapp, mailboxID)
+	s.EnrollRemoteRouter(s.celestia, collatTokenID, SimappDomainID, tiaSynTokenID.String())
 
-	// Test FindHypTokenByDenom for "utia"
-	hypToken, err := celestiaApp.ForwardingKeeper.FindHypTokenByDenom(ctx, "utia")
+	// Test FindHypTokenByDenom for "utia" with destDomain
+	hypToken, err := celestiaApp.ForwardingKeeper.FindHypTokenByDenom(ctx, "utia", SimappDomainID)
 	s.Require().NoError(err)
 
 	s.Equal(warptypes.HYP_TOKEN_TYPE_COLLATERAL, hypToken.TokenType)
@@ -194,8 +193,11 @@ func (s *ForwardingIntegrationTestSuite) TestFindHypTokenByDenom_Synthetic() {
 	syntheticDenom := hypToken.OriginDenom
 	s.T().Logf("Synthetic denom: %s", syntheticDenom)
 
+	// Enroll router so the synthetic has a route to SimappDomainID
+	s.EnrollRemoteRouter(s.celestia, synTokenID, SimappDomainID, "0x0000000000000000000000000000000000000000000000000000000000000001")
+
 	// Test FindHypTokenByDenom for synthetic denom
-	foundToken, err := celestiaApp.ForwardingKeeper.FindHypTokenByDenom(ctx, syntheticDenom)
+	foundToken, err := celestiaApp.ForwardingKeeper.FindHypTokenByDenom(ctx, syntheticDenom, SimappDomainID)
 	s.Require().NoError(err)
 
 	s.Equal(warptypes.HYP_TOKEN_TYPE_SYNTHETIC, foundToken.TokenType)
@@ -269,14 +271,10 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullFlow() {
 	s.EnrollRemoteRouter(s.celestia, collatTokenID, SimappDomainID, synTokenID.String())
 	s.EnrollRemoteRouter(s.simapp, synTokenID, CelestiaDomainID, collatTokenID.String())
 
-	// Configure TIA token ID in forwarding params
-	newParams := forwardingtypes.NewParams(math.ZeroInt(), collatTokenID.String())
-	err := celestiaApp.ForwardingKeeper.SetParams(ctx, newParams)
-	s.Require().NoError(err)
-
 	// Create destination recipient and derive forwarding address
 	destRecipient := makeRecipient32(s.simapp.SenderAccount.GetAddress())
-	forwardAddr := forwardingtypes.DeriveForwardingAddress(SimappDomainID, destRecipient)
+	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(SimappDomainID, destRecipient)
+	s.Require().NoError(err)
 
 	// Fund the forwarding address
 	fundAmount := math.NewInt(1000)
@@ -325,11 +323,6 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullFlow() {
 }
 
 func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_AddressMismatch() {
-	celestiaApp := s.GetCelestiaApp(s.celestia)
-
-	err := celestiaApp.ForwardingKeeper.SetParams(s.celestia.GetContext(), forwardingtypes.DefaultParams())
-	s.Require().NoError(err)
-
 	randomAddr := sdk.AccAddress([]byte("random_address______"))
 	destRecipient := makeRecipient32(s.simapp.SenderAccount.GetAddress())
 
@@ -346,13 +339,9 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_AddressMismatc
 }
 
 func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_NoBalance() {
-	celestiaApp := s.GetCelestiaApp(s.celestia)
-
-	err := celestiaApp.ForwardingKeeper.SetParams(s.celestia.GetContext(), forwardingtypes.DefaultParams())
-	s.Require().NoError(err)
-
 	destRecipient := makeRecipient32(s.simapp.SenderAccount.GetAddress())
-	forwardAddr := forwardingtypes.DeriveForwardingAddress(1337, destRecipient)
+	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(1337, destRecipient)
+	s.Require().NoError(err)
 
 	msg := forwardingtypes.NewMsgExecuteForwarding(
 		s.celestia.SenderAccount.GetAddress().String(),
@@ -394,13 +383,10 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_MultiToken() {
 	s.EnrollRemoteRouter(s.simapp, simappCollatTokenID, CelestiaDomainID, celestiaSynTokenID.String())
 	s.EnrollRemoteRouter(s.celestia, celestiaSynTokenID, SimappDomainID, simappCollatTokenID.String())
 
-	// Configure forwarding params
-	err := celestiaApp.ForwardingKeeper.SetParams(s.celestia.GetContext(), forwardingtypes.NewParams(math.ZeroInt(), tiaCollatTokenID.String()))
-	s.Require().NoError(err)
-
 	// Create destination recipient and derive forwarding address
 	destRecipient := makeRecipient32(s.simapp.SenderAccount.GetAddress())
-	forwardAddr := forwardingtypes.DeriveForwardingAddress(SimappDomainID, destRecipient)
+	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(SimappDomainID, destRecipient)
+	s.Require().NoError(err)
 
 	// Fund forward address with TIA
 	tiaAmount := math.NewInt(1000)
@@ -471,13 +457,10 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_PartialFailure
 	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, SimappDomainID, tiaSynTokenID.String())
 	s.EnrollRemoteRouter(s.simapp, tiaSynTokenID, CelestiaDomainID, tiaCollatTokenID.String())
 
-	// Configure forwarding params
-	err := celestiaApp.ForwardingKeeper.SetParams(s.celestia.GetContext(), forwardingtypes.NewParams(math.ZeroInt(), tiaCollatTokenID.String()))
-	s.Require().NoError(err)
-
 	// Create destination and derive forwarding address
 	destRecipient := makeRecipient32(s.simapp.SenderAccount.GetAddress())
-	forwardAddr := forwardingtypes.DeriveForwardingAddress(SimappDomainID, destRecipient)
+	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(SimappDomainID, destRecipient)
+	s.Require().NoError(err)
 
 	// Fund with TIA (supported) and an unsupported IBC denom
 	tiaAmount := math.NewInt(1000)
@@ -537,13 +520,10 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_PartialFailure
 	// Enroll test token route to OTHER domain only (NOT simapp)
 	s.EnrollRemoteRouter(s.celestia, testCollatTokenID, OtherDomainID, "0x0000000000000000000000000000000000000000000000000000000000000001")
 
-	// Configure forwarding params
-	err := celestiaApp.ForwardingKeeper.SetParams(s.celestia.GetContext(), forwardingtypes.NewParams(math.ZeroInt(), tiaCollatTokenID.String()))
-	s.Require().NoError(err)
-
 	// Derive forwarding address FOR SimappDomainID
 	destRecipient := makeRecipient32(s.simapp.SenderAccount.GetAddress())
-	forwardAddr := forwardingtypes.DeriveForwardingAddress(SimappDomainID, destRecipient)
+	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(SimappDomainID, destRecipient)
+	s.Require().NoError(err)
 
 	// Fund with both tokens
 	tiaAmount := math.NewInt(1000)
@@ -595,12 +575,13 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_MinThreshold()
 
 	// Configure params with MINIMUM THRESHOLD of 500
 	minThreshold := math.NewInt(500)
-	err := celestiaApp.ForwardingKeeper.SetParams(s.celestia.GetContext(), forwardingtypes.NewParams(minThreshold, tiaCollatTokenID.String()))
+	err := celestiaApp.ForwardingKeeper.SetParams(s.celestia.GetContext(), forwardingtypes.NewParams(minThreshold))
 	s.Require().NoError(err)
 
 	// Create destination recipient and derive forwarding address
 	destRecipient := makeRecipient32(s.simapp.SenderAccount.GetAddress())
-	forwardAddr := forwardingtypes.DeriveForwardingAddress(SimappDomainID, destRecipient)
+	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(SimappDomainID, destRecipient)
+	s.Require().NoError(err)
 
 	// Fund with amount BELOW threshold
 	belowThresholdAmount := math.NewInt(100)
@@ -666,7 +647,8 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullE2E_Source
 
 	// Compute forward address on Celestia
 	destRecipient := makeRecipient32(s.chainB.SenderAccount.GetAddress())
-	forwardAddr := forwardingtypes.DeriveForwardingAddress(ChainBDomainID, destRecipient)
+	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(ChainBDomainID, destRecipient)
+	s.Require().NoError(err)
 
 	// Warp transfer from ChainA to forwardAddr on Celestia
 	forwardAddrBytes := makeRecipient32(forwardAddr)
@@ -750,10 +732,6 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullE2E_TIASyn
 	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, ChainBDomainID, chainBTIASynTokenID.String())
 	s.EnrollRemoteRouter(s.chainB, chainBTIASynTokenID, CelestiaDomainID, tiaCollatTokenID.String())
 
-	// Configure forwarding params
-	err := celestiaApp.ForwardingKeeper.SetParams(s.celestia.GetContext(), forwardingtypes.NewParams(math.ZeroInt(), tiaCollatTokenID.String()))
-	s.Require().NoError(err)
-
 	// Bridge TIA from Celestia to ChainA to create synthetic TIA
 	chainARecipient := makeRecipient32(s.simapp.SenderAccount.GetAddress())
 	s.processWarpMessage(s.celestia, s.simapp, mailboxIDChainA, &warptypes.MsgRemoteTransfer{
@@ -773,7 +751,8 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullE2E_TIASyn
 
 	// Compute forward address on Celestia for ChainB
 	destRecipient := makeRecipient32(s.chainB.SenderAccount.GetAddress())
-	forwardAddr := forwardingtypes.DeriveForwardingAddress(ChainBDomainID, destRecipient)
+	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(ChainBDomainID, destRecipient)
+	s.Require().NoError(err)
 
 	// Warp TIA synthetic back to forwardAddr on Celestia (releases collateral)
 	forwardAddrBytes := makeRecipient32(forwardAddr)
@@ -844,13 +823,10 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullE2E_CEXWit
 	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, ChainBDomainID, chainBTIASynTokenID.String())
 	s.EnrollRemoteRouter(s.chainB, chainBTIASynTokenID, CelestiaDomainID, tiaCollatTokenID.String())
 
-	// Configure forwarding params
-	err := celestiaApp.ForwardingKeeper.SetParams(s.celestia.GetContext(), forwardingtypes.NewParams(math.ZeroInt(), tiaCollatTokenID.String()))
-	s.Require().NoError(err)
-
 	// Compute forward address on Celestia
 	destRecipient := makeRecipient32(s.chainB.SenderAccount.GetAddress())
-	forwardAddr := forwardingtypes.DeriveForwardingAddress(ChainBDomainID, destRecipient)
+	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(ChainBDomainID, destRecipient)
+	s.Require().NoError(err)
 
 	// Simulate CEX withdrawal by directly funding the forward address
 	cexWithdrawalAmount := math.NewInt(5000)
@@ -918,13 +894,10 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_TooManyTokens(
 	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, SimappDomainID, tiaSynTokenID.String())
 	s.EnrollRemoteRouter(s.simapp, tiaSynTokenID, CelestiaDomainID, tiaCollatTokenID.String())
 
-	// Configure params
-	err := celestiaApp.ForwardingKeeper.SetParams(ctx, forwardingtypes.NewParams(math.ZeroInt(), tiaCollatTokenID.String()))
-	s.Require().NoError(err)
-
 	// Derive forwarding address
 	destRecipient := makeRecipient32(s.simapp.SenderAccount.GetAddress())
-	forwardAddr := forwardingtypes.DeriveForwardingAddress(SimappDomainID, destRecipient)
+	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(SimappDomainID, destRecipient)
+	s.Require().NoError(err)
 
 	// Fund with MaxTokensPerForward + 1 different tokens (21 tokens)
 	// Create 21 different denoms and mint them to forwardAddr
