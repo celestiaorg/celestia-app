@@ -6,13 +6,13 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
-	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	coretypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/celestiaorg/celestia-app/v7/app/params"
 	forwardingtypes "github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	minttypes "github.com/celestiaorg/celestia-app/v7/x/mint/types"
+	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/gogoproto/proto"
 	ibctesting "github.com/cosmos/ibc-go/v8/testing"
@@ -930,5 +930,3 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_TooManyTokens(
 	balancesAfter := celestiaApp.BankKeeper.GetAllBalances(ctx, forwardAddr)
 	s.Equal(len(balances), len(balancesAfter), "all tokens should remain at forwardAddr")
 }
-
-
