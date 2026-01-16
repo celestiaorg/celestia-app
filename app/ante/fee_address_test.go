@@ -1,18 +1,23 @@
 package ante_test
 
 import (
+	"context"
 	"testing"
 
+	"cosmossdk.io/log"
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v7/app/ante"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	"github.com/stretchr/testify/require"
+	protov2 "google.golang.org/protobuf/proto"
 )
 
 func TestFeeAddressDecorator(t *testing.T) {
@@ -218,4 +223,125 @@ func TestFeeAddressDecorator(t *testing.T) {
 			}
 		})
 	}
+}
+
+// mockFeeTx implements sdk.Tx and sdk.FeeTx for testing FeeForwardDecorator.
+type mockFeeTx struct {
+	msgs []sdk.Msg
+	fee  sdk.Coins
+	gas  uint64
+}
+
+func (m *mockFeeTx) GetMsgs() []sdk.Msg                              { return m.msgs }
+func (m *mockFeeTx) GetMsgsV2() ([]protov2.Message, error)           { return nil, nil }
+func (m *mockFeeTx) ValidateBasic() error                            { return nil }
+func (m *mockFeeTx) GetFee() sdk.Coins                               { return m.fee }
+func (m *mockFeeTx) GetGas() uint64                                  { return m.gas }
+func (m *mockFeeTx) FeePayer() []byte                                { return nil }
+func (m *mockFeeTx) FeeGranter() []byte                              { return nil }
+
+// mockBankKeeper implements ante.FeeForwardBankKeeper for testing.
+type mockBankKeeper struct {
+	sentToModule map[string]sdk.Coins
+}
+
+func (m *mockBankKeeper) SendCoinsFromAccountToModule(_ context.Context, _ sdk.AccAddress, recipientModule string, amt sdk.Coins) error {
+	if m.sentToModule == nil {
+		m.sentToModule = make(map[string]sdk.Coins)
+	}
+	m.sentToModule[recipientModule] = amt
+	return nil
+}
+
+func TestFeeForwardDecoratorRejectsUserSubmittedTx(t *testing.T) {
+	bankKeeper := &mockBankKeeper{}
+	decorator := ante.NewFeeForwardDecorator(bankKeeper)
+
+	msg := feeaddresstypes.NewMsgForwardFees()
+	fee := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
+	tx := &mockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: 50000}
+
+	// Create CheckTx context - this simulates a user submitting the tx
+	ctx := sdk.NewContext(nil, tmproto.Header{}, true, log.NewNopLogger()) // isCheckTx = true
+
+	_, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
+
+	require.Error(t, err)
+	require.ErrorContains(t, err, "MsgForwardFees cannot be submitted by users")
+}
+
+func TestFeeForwardDecoratorRejectsReCheckTx(t *testing.T) {
+	bankKeeper := &mockBankKeeper{}
+	decorator := ante.NewFeeForwardDecorator(bankKeeper)
+
+	msg := feeaddresstypes.NewMsgForwardFees()
+	fee := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
+	tx := &mockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: 50000}
+
+	// Create ReCheckTx context
+	ctx := sdk.NewContext(nil, tmproto.Header{}, true, log.NewNopLogger()).WithIsReCheckTx(true)
+
+	_, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
+
+	require.Error(t, err)
+	require.ErrorContains(t, err, "MsgForwardFees cannot be submitted by users")
+}
+
+func TestFeeForwardDecoratorValidatesSingleDenom(t *testing.T) {
+	bankKeeper := &mockBankKeeper{}
+	decorator := ante.NewFeeForwardDecorator(bankKeeper)
+
+	msg := feeaddresstypes.NewMsgForwardFees()
+	// Multiple denoms in fee - should be rejected
+	fee := sdk.NewCoins(
+		sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)),
+		sdk.NewCoin("otherdenom", math.NewInt(500)),
+	)
+	tx := &mockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: 50000}
+
+	// Create DeliverTx context (not CheckTx)
+	ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
+
+	_, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
+
+	require.Error(t, err)
+	require.ErrorContains(t, err, "must have exactly one fee coin")
+}
+
+func TestFeeForwardDecoratorRejectsWrongDenom(t *testing.T) {
+	bankKeeper := &mockBankKeeper{}
+	decorator := ante.NewFeeForwardDecorator(bankKeeper)
+
+	msg := feeaddresstypes.NewMsgForwardFees()
+	// Wrong denom - should be rejected
+	fee := sdk.NewCoins(sdk.NewCoin("wrongdenom", math.NewInt(1000)))
+	tx := &mockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: 50000}
+
+	// Create DeliverTx context (not CheckTx)
+	ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
+
+	_, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
+
+	require.Error(t, err)
+	require.ErrorContains(t, err, "must use utia")
+}
+
+func TestFeeForwardDecoratorSuccess(t *testing.T) {
+	bankKeeper := &mockBankKeeper{}
+	decorator := ante.NewFeeForwardDecorator(bankKeeper)
+
+	msg := feeaddresstypes.NewMsgForwardFees()
+	fee := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
+	tx := &mockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: 50000}
+
+	// Create DeliverTx context (not CheckTx)
+	ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
+
+	newCtx, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
+
+	require.NoError(t, err)
+	// Verify fee was sent to fee collector
+	require.Equal(t, fee, bankKeeper.sentToModule[authtypes.FeeCollectorName])
+	// Verify context flag was set
+	require.True(t, ante.IsFeeForwardTx(newCtx))
 }

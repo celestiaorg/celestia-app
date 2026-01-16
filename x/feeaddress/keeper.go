@@ -1,53 +1,46 @@
 // Package feeaddress provides functionality for forwarding TIA tokens to the fee collector.
-// Tokens sent to the fee address are automatically forwarded to validators at the end of each block.
+// Tokens sent to the fee address are automatically forwarded to validators via protocol-injected
+// transactions in PrepareProposal.
 package feeaddress
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/app/ante"
 	"github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
 // Keeper handles fee forwarding operations for the feeaddress module.
-type Keeper struct {
-	bankKeeper types.BankKeeper
-}
+// Note: The actual fee transfer is done by FeeForwardDecorator in the ante handler.
+// This keeper is responsible for the message handler (emitting events) and queries.
+type Keeper struct{}
 
 // NewKeeper creates a new Keeper instance.
-func NewKeeper(bankKeeper types.BankKeeper) Keeper {
-	if bankKeeper == nil {
-		panic("bankKeeper cannot be nil")
-	}
-	return Keeper{
-		bankKeeper: bankKeeper,
-	}
+func NewKeeper() Keeper {
+	return Keeper{}
 }
 
-// EndBlocker forwards any utia tokens at the fee address to the fee collector.
-func (k Keeper) EndBlocker(ctx context.Context) error {
+// ForwardFees handles MsgForwardFees by emitting the fee forwarded event.
+// Note: The actual fee deduction is done by the FeeForwardDecorator in the ante handler.
+// This message handler just emits the event for tracking purposes.
+func (k Keeper) ForwardFees(ctx context.Context, _ *types.MsgForwardFees) (*types.MsgForwardFeesResponse, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
-	balance := k.bankKeeper.GetBalance(sdkCtx, types.FeeAddress, appconsts.BondDenom)
-	if balance.IsZero() {
-		return nil
+	// Get the fee amount from context (set by FeeForwardDecorator)
+	fee, ok := ante.GetFeeForwardAmount(sdkCtx)
+	if !ok {
+		// This shouldn't happen in normal operation as the ante decorator always sets the fee
+		return nil, fmt.Errorf("fee forward amount not found in context")
 	}
 
-	coins := sdk.NewCoins(balance)
-
-	// Forward to fee collector for distribution to validators
-	if err := k.bankKeeper.SendCoinsFromAccountToModule(sdkCtx, types.FeeAddress, authtypes.FeeCollectorName, coins); err != nil {
-		return fmt.Errorf("failed to forward to fee collector: %w", err)
+	// Emit the event for tracking
+	if err := sdkCtx.EventManager().EmitTypedEvent(types.NewFeeForwardedEvent(types.FeeAddressBech32, fee.String())); err != nil {
+		return nil, fmt.Errorf("failed to emit fee forwarded event: %w", err)
 	}
 
-	if err := sdkCtx.EventManager().EmitTypedEvent(types.NewFeeForwardedEvent(types.FeeAddressBech32, balance.String())); err != nil {
-		return fmt.Errorf("failed to emit fee forwarded event: %w", err)
-	}
-
-	return nil
+	return &types.MsgForwardFeesResponse{}, nil
 }
 
 // FeeAddress implements the Query/FeeAddress gRPC method.

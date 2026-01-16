@@ -5,6 +5,10 @@ import sdk "github.com/cosmos/cosmos-sdk/types"
 // ModuleName is the name of the feeaddress module.
 const ModuleName = "feeaddress"
 
+// FeeForwardGasLimit is the gas limit for the protocol-injected fee forward
+// transaction. This is minimal since the message handler only emits an event.
+const FeeForwardGasLimit = 50000
+
 // FeeAddress is the address where tokens are sent to be forwarded to the fee collector.
 // This is a vanity address that encodes to "feefeefeefeefeefeefeefeefeefeefeefe" in bech32,
 // making it recognizable as a fee destination.

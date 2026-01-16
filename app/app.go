@@ -311,7 +311,7 @@ func New(
 		app.StakingKeeper,
 	)
 
-	app.FeeAddressKeeper = feeaddress.NewKeeper(app.BankKeeper)
+	app.FeeAddressKeeper = feeaddress.NewKeeper()
 
 	app.IBCKeeper = ibckeeper.NewKeeper(
 		encodingConfig.Codec,
