@@ -188,7 +188,7 @@
 <tr><td><code>colRoots</code></td><td><a href="#hashdigest">HashDigest</a><code>[]</code></td><td>Commitments to all erasure-coded data.</td></tr>
 </tbody></table>
 </div>
-<p>The number of row/column roots of the original data <a href="data_structures.html#share">shares</a> in <a href="#arranging-available-data-into-shares">square layout</a> for this block. The <code>availableDataRoot</code> of the <a href="#header">header</a> is computed using the compact row and column roots as described <a href="#2d-reed-solomon-encoding-scheme">here</a>.</p>
+<p>The number of row/column roots of the original data <a href="data_structures.html#share">shares</a> in <a href="#arranging-available-data-into-shares">square layout</a> for this block. The <code>availableDataRoot</code> of the <a href="#header">header</a> is computed using the compact row and column roots as described <a href="#2d-reed-solomon-encoding-scheme">in the 2D Reed-Solomon encoding scheme</a>.</p>
 <p>The number of row and column roots is each <code>availableDataOriginalSquareSize * 2</code>, and must be a power of 2. Note that the minimum <code>availableDataOriginalSquareSize</code> is 1 (not 0), therefore the number of row and column roots are each at least 2.</p>
 <p>Implementations can prune rows containing only <a href="./consensus.html#reserved-namespace-ids">tail padding</a> as they are implicitly available.</p>
 <h3 id="availabledata"><a class="header" href="#availabledata">AvailableData</a></h3>
@@ -252,7 +252,7 @@
 </tbody></table>
 </div>
 <h2 id="serialization"><a class="header" href="#serialization">Serialization</a></h2>
-<p>Objects that are committed to or signed over require a canonical serialization. This is done using a deterministic (and thus, bijective) variant of protobuf defined <a href="https://github.com/cosmos/cosmos-sdk/blob/d48854eeb750b3441f866b610b873bba54d00a85/docs/architecture/adr-027-deterministic-protobuf-serialization.md">here</a>.</p>
+<p>Objects that are committed to or signed over require a canonical serialization. This is done using a deterministic (and thus, bijective) variant of protobuf defined <a href="https://github.com/cosmos/cosmos-sdk/blob/d48854eeb750b3441f866b610b873bba54d00a85/docs/architecture/adr-027-deterministic-protobuf-serialization.md">in ADR-027</a>.</p>
 <p>Note: there are two requirements for a serialization scheme, should this need to be changed:</p>
 <ol>
 <li>Must be bijective.</li>

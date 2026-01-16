@@ -202,13 +202,13 @@
 <p>If the above fields are parsed successfully, the available data <code>block.availableData</code> is acquired in erasure-coded form as <a href="./networking.html#availabledata">a list of share rows</a>, then parsed. If it cannot be parsed, the block is ignored but not explicitly invalid, as above.</p>
 <h3 id="blockheader"><a class="header" href="#blockheader"><code>block.header</code></a></h3>
 <p>The <a href="./data_structures.html#header">block header</a> <code>block.header</code> (<code>header</code> for short) is the first thing that is downloaded from the new block, and commits to everything inside the block in some way. For previous block <code>prev</code> (if <code>prev</code> is not known, then the block is ignored), and previous block header <code>prev.header</code>, the following checks must be <code>true</code>:</p>
-<p><code>availableDataOriginalSquareSize</code> is computed as described <a href="./data_structures.html#header">here</a>.</p>
+<p><code>availableDataOriginalSquareSize</code> is computed as described <a href="./data_structures.html#header">in the header section</a>.</p>
 <ol>
 <li><code>header.height</code> == <code>prev.header.height + 1</code>.</li>
 <li><code>header.timestamp</code> &gt; <code>prev.header.timestamp</code>.</li>
 <li><code>header.lastHeaderHash</code> == the <a href="./data_structures.html#header">header hash</a> of <code>prev</code>.</li>
 <li><code>header.lastCommitHash</code> == the <a href="./data_structures.html#hashing">hash</a> of <code>lastCommit</code>.</li>
-<li><code>header.consensusHash</code> == the value computed <a href="./data_structures.html#consensus-parameters">here</a>.</li>
+<li><code>header.consensusHash</code> == the value computed <a href="./data_structures.html#consensus-parameters">using consensus parameters</a>.</li>
 <li><code>header.stateCommitment</code> == the root of the state, computed <a href="#state-transitions">with the application of all state transitions in this block</a>.</li>
 <li><code>availableDataOriginalSquareSize</code> &lt;= <a href="#constants"><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code></a>.</li>
 <li><code>header.availableDataRoot</code> == the <a href="./data_structures.html#binary-merkle-tree">Merkle root</a> of the tree with the row and column roots of <code>block.availableDataHeader</code> as leaves.</li>
@@ -367,7 +367,7 @@ parentStartFinish = state.blobsPaid[parentFromBlobPaidList(findFromBlobPaidList(
 <li>Have namespace <code>tx.blobNamespace</code>.</li>
 </ol>
 </li>
-<li><code>tx.blobShareCommitment</code> == computed as described <a href="./data_structures.html#signedtransactiondatamsgpayfordata">here</a>.</li>
+<li><code>tx.blobShareCommitment</code> == computed as described <a href="./data_structures.html#signedtransactiondatamsgpayfordata">in the MsgPayForData section</a>.</li>
 <li><code>parentStartFinish.finish</code> &lt; <code>tx.blobStartIndex</code>.</li>
 <li><code>currentStartFinish.start</code> == <code>0</code> or <code>currentStartFinish.start</code> &gt; <code>tx.blobStartIndex + ceil(tx.blobSize / SHARE_SIZE)</code>.</li>
 </ol>
@@ -746,7 +746,7 @@ else if account.status == AccountStatus.ValidatorBonded
     state.activeValidatorSet[block.header.proposerAddress] = proposer
 </code></pre>
 <p>At the end of a block, the top <code>MAX_VALIDATORS</code> validators by voting power with voting power <em>greater than</em> zero are or become active (bonded). For newly-bonded validators, the entire validator object is moved to the active validators subtree and their status is changed to bonded. For previously-bonded validators that are no longer in the top <code>MAX_VALIDATORS</code> validators begin unbonding.</p>
-<p>Bonding validators is simply setting their status to <code>AccountStatus.ValidatorBonded</code>. The logic for validator unbonding is found <a href="#signedtransactiondatabeginunbondingvalidator">here</a>, minus transaction sender updates (nonce, balance, and fee).</p>
+<p>Bonding validators is simply setting their status to <code>AccountStatus.ValidatorBonded</code>. The logic for validator unbonding is found <a href="#signedtransactiondatabeginunbondingvalidator">in the BeginUnbondingValidator section</a>, minus transaction sender updates (nonce, balance, and fee).</p>
 <p>This end block implicit state transition is a single state transition, and <a href="#blockavailabledata">only has a single intermediate state root</a> associated with it.</p>
 
                     </main>
