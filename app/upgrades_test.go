@@ -203,12 +203,14 @@ func TestUpdateValidatorCommissionRates(t *testing.T) {
 
 // createValidatorWithCommission creates a validator with specific commission
 // rates for testing
-func createValidatorWithCommission(t *testing.T, testApp *app.App, ctx sdk.Context, rate, maxRate, maxChangeRate string) stakingtypes.Validator {
-	commissionRate, err := math.LegacyNewDecFromStr(rate)
+func createValidatorWithCommission(t *testing.T, testApp *app.App, ctx sdk.Context, rate string, maxRate string, maxChangeRate string) stakingtypes.Validator {
+	rateDec, err := math.LegacyNewDecFromStr(rate)
 	require.NoError(t, err)
-	commissionMaxRate, err := math.LegacyNewDecFromStr(maxRate)
+
+	maxRateDec, err := math.LegacyNewDecFromStr(maxRate)
 	require.NoError(t, err)
-	commissionMaxChangeRate, err := math.LegacyNewDecFromStr(maxChangeRate)
+
+	maxChangeRateDec, err := math.LegacyNewDecFromStr(maxChangeRate)
 	require.NoError(t, err)
 
 	validators, err := testApp.StakingKeeper.GetAllValidators(ctx)
@@ -216,7 +218,7 @@ func createValidatorWithCommission(t *testing.T, testApp *app.App, ctx sdk.Conte
 	require.Greater(t, len(validators), 0, "Should have at least one validator")
 
 	validator := validators[0]
-	validator.Commission = stakingtypes.NewCommission(commissionRate, commissionMaxRate, commissionMaxChangeRate)
+	validator.Commission = stakingtypes.NewCommission(rateDec, maxRateDec, maxChangeRateDec)
 
 	err = testApp.StakingKeeper.SetValidator(ctx, validator)
 	require.NoError(t, err)
