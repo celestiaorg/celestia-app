@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v7/app/params"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -67,11 +67,7 @@ func (d FeeForwardDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate boo
 		return ctx, errors.Wrap(sdkerrors.ErrInvalidRequest, "MsgForwardFees cannot be submitted by users; it is protocol-injected only")
 	}
 
-	// Validate that there's exactly one message and it's MsgForwardFees
-	msgs := tx.GetMsgs()
-	if len(msgs) != 1 {
-		return ctx, errors.Wrap(sdkerrors.ErrInvalidRequest, "fee forward tx must have exactly one message")
-	}
+	// Note: getMsgForwardFees already validates exactly one message exists.
 
 	// Get the fee from the transaction
 	feeTx, ok := tx.(sdk.FeeTx)
@@ -88,8 +84,8 @@ func (d FeeForwardDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate boo
 	if len(fee) != 1 {
 		return ctx, errors.Wrap(sdkerrors.ErrInvalidRequest, fmt.Sprintf("fee forward tx must have exactly one fee coin, got %d", len(fee)))
 	}
-	if fee[0].Denom != params.BondDenom {
-		return ctx, errors.Wrap(sdkerrors.ErrInvalidRequest, fmt.Sprintf("fee forward tx must use %s, got %s", params.BondDenom, fee[0].Denom))
+	if fee[0].Denom != appconsts.BondDenom {
+		return ctx, errors.Wrap(sdkerrors.ErrInvalidRequest, fmt.Sprintf("fee forward tx must use %s, got %s", appconsts.BondDenom, fee[0].Denom))
 	}
 
 	// Deduct fee from fee address and send to fee collector
@@ -128,11 +124,6 @@ func IsFeeForwardTx(ctx sdk.Context) bool {
 	}
 	isFeeForward, ok := val.(bool)
 	return ok && isFeeForward
-}
-
-// ContainsMsgForwardFees checks if a transaction contains a MsgForwardFees message.
-func ContainsMsgForwardFees(tx sdk.Tx) bool {
-	return getMsgForwardFees(tx) != nil
 }
 
 // GetFeeForwardAmount returns the fee amount that was forwarded, if available in context.

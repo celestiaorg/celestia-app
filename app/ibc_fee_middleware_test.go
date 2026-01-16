@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -90,7 +91,7 @@ func TestFeeAddressOnRecvPacketAllowsUtiaToNormalAddress(t *testing.T) {
 	mockApp := &mockIBCModule{
 		returnAck: channeltypes.NewResultAcknowledgement([]byte("success")),
 	}
-	middleware := NewFeeAddressIBCMiddleware(mockApp)
+	middleware := NewFeeAddressIBCMiddleware(mockApp, log.NewNopLogger())
 
 	packet := createFeeAddressTransferPacket(appconsts.BondDenom, testNormalAddress)
 
@@ -107,7 +108,7 @@ func TestFeeAddressOnRecvPacketAllowsNonUtiaToNormalAddress(t *testing.T) {
 	mockApp := &mockIBCModule{
 		returnAck: channeltypes.NewResultAcknowledgement([]byte("success")),
 	}
-	middleware := NewFeeAddressIBCMiddleware(mockApp)
+	middleware := NewFeeAddressIBCMiddleware(mockApp, log.NewNopLogger())
 
 	packet := createFeeAddressTransferPacket("uosmo", testNormalAddress)
 
@@ -124,7 +125,7 @@ func TestFeeAddressOnRecvPacketAllowsUtiaDirectToFeeAddress(t *testing.T) {
 	mockApp := &mockIBCModule{
 		returnAck: channeltypes.NewResultAcknowledgement([]byte("success")),
 	}
-	middleware := NewFeeAddressIBCMiddleware(mockApp)
+	middleware := NewFeeAddressIBCMiddleware(mockApp, log.NewNopLogger())
 
 	// Direct utia (not prefixed)
 	packet := createFeeAddressTransferPacket(appconsts.BondDenom, feeaddresstypes.FeeAddressBech32)
@@ -142,7 +143,7 @@ func TestFeeAddressOnRecvPacketAllowsUtiaReturnToFeeAddress(t *testing.T) {
 	mockApp := &mockIBCModule{
 		returnAck: channeltypes.NewResultAcknowledgement([]byte("success")),
 	}
-	middleware := NewFeeAddressIBCMiddleware(mockApp)
+	middleware := NewFeeAddressIBCMiddleware(mockApp, log.NewNopLogger())
 
 	// Returning utia has a prefixed denom like "transfer/channel-0/utia"
 	prefixedUtia := "transfer/channel-0/" + appconsts.BondDenom
@@ -161,7 +162,7 @@ func TestFeeAddressOnRecvPacketRejectsNonUtiaToFeeAddress(t *testing.T) {
 	mockApp := &mockIBCModule{
 		returnAck: channeltypes.NewResultAcknowledgement([]byte("success")),
 	}
-	middleware := NewFeeAddressIBCMiddleware(mockApp)
+	middleware := NewFeeAddressIBCMiddleware(mockApp, log.NewNopLogger())
 
 	packet := createFeeAddressTransferPacket("uosmo", feeaddresstypes.FeeAddressBech32)
 
@@ -178,7 +179,7 @@ func TestFeeAddressOnRecvPacketRejectsIBCDenomToFeeAddress(t *testing.T) {
 	mockApp := &mockIBCModule{
 		returnAck: channeltypes.NewResultAcknowledgement([]byte("success")),
 	}
-	middleware := NewFeeAddressIBCMiddleware(mockApp)
+	middleware := NewFeeAddressIBCMiddleware(mockApp, log.NewNopLogger())
 
 	// IBC denom format for foreign tokens
 	ibcDenom := "transfer/channel-0/uatom"
@@ -197,7 +198,7 @@ func TestFeeAddressOnRecvPacketPassesThroughNonTransferPackets(t *testing.T) {
 	mockApp := &mockIBCModule{
 		returnAck: channeltypes.NewResultAcknowledgement([]byte("success")),
 	}
-	middleware := NewFeeAddressIBCMiddleware(mockApp)
+	middleware := NewFeeAddressIBCMiddleware(mockApp, log.NewNopLogger())
 
 	// Create a packet with non-transfer data
 	packet := channeltypes.Packet{
@@ -223,7 +224,7 @@ func TestFeeAddressOnRecvPacketAllowsMultiHopUtiaReturnToFeeAddress(t *testing.T
 	mockApp := &mockIBCModule{
 		returnAck: channeltypes.NewResultAcknowledgement([]byte("success")),
 	}
-	middleware := NewFeeAddressIBCMiddleware(mockApp)
+	middleware := NewFeeAddressIBCMiddleware(mockApp, log.NewNopLogger())
 
 	// Multi-hop returning utia has nested prefixes like "transfer/channel-0/transfer/channel-1/utia"
 	multiHopUtia := "transfer/channel-0/transfer/channel-1/" + appconsts.BondDenom
@@ -243,7 +244,7 @@ func TestFeeAddressOnRecvPacketRejectsMultiHopNonUtiaToFeeAddress(t *testing.T) 
 	mockApp := &mockIBCModule{
 		returnAck: channeltypes.NewResultAcknowledgement([]byte("success")),
 	}
-	middleware := NewFeeAddressIBCMiddleware(mockApp)
+	middleware := NewFeeAddressIBCMiddleware(mockApp, log.NewNopLogger())
 
 	// Multi-hop foreign token like "transfer/channel-0/transfer/channel-1/uatom"
 	multiHopForeign := "transfer/channel-0/transfer/channel-1/uatom"

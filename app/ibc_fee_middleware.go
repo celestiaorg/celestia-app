@@ -2,7 +2,9 @@ package app
 
 import (
 	"fmt"
+	"strings"
 
+	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -27,12 +29,13 @@ var _ porttypes.IBCModule = (*FeeAddressIBCMiddleware)(nil)
 // - Hyperlane MsgProcessMessage bypasses this middleware
 // Non-utia tokens sent via these paths would be permanently stuck (not forwarded, not stolen).
 type FeeAddressIBCMiddleware struct {
-	app porttypes.IBCModule
+	app    porttypes.IBCModule
+	logger log.Logger
 }
 
 // NewFeeAddressIBCMiddleware creates a new FeeAddressIBCMiddleware.
-func NewFeeAddressIBCMiddleware(app porttypes.IBCModule) FeeAddressIBCMiddleware {
-	return FeeAddressIBCMiddleware{app: app}
+func NewFeeAddressIBCMiddleware(app porttypes.IBCModule, logger log.Logger) FeeAddressIBCMiddleware {
+	return FeeAddressIBCMiddleware{app: app, logger: logger}
 }
 
 // OnChanOpenInit implements the IBCModule interface.
@@ -112,12 +115,14 @@ func (m FeeAddressIBCMiddleware) OnRecvPacket(
 ) ibcexported.Acknowledgement {
 	var data transfertypes.FungibleTokenPacketData
 	if err := transfertypes.ModuleCdc.UnmarshalJSON(packet.GetData(), &data); err != nil {
-		// Not a fungible token packet, pass through to wrapped module
+		// Not a fungible token packet, pass through to wrapped module.
+		// Log at debug level since this is expected for non-transfer packets.
+		m.logger.Debug("failed to unmarshal fungible token packet, passing through", "error", err)
 		return m.app.OnRecvPacket(ctx, packet, relayer)
 	}
 
-	// Check if receiver is the fee address
-	if data.Receiver == feeaddresstypes.FeeAddressBech32 {
+	// Check if receiver is the fee address (case-insensitive per bech32 spec)
+	if strings.EqualFold(data.Receiver, feeaddresstypes.FeeAddressBech32) {
 		// Parse the denom to get the base denom.
 		// For returning utia, the denom is "transfer/channel-X/utia" (prefixed).
 		// For foreign tokens, the base denom is not utia.

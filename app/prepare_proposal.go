@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v7/app/ante"
-	"github.com/celestiaorg/celestia-app/v7/app/params"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/pkg/da"
 	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
@@ -47,8 +46,13 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 
 	// Check fee address balance and inject fee forward tx if non-zero.
 	// This converts fee address funds into real transaction fees for dashboard tracking.
+	//
+	// Race condition mitigation: The fee forward tx is PREPENDED to the transaction list,
+	// ensuring it executes FIRST in DeliverTx before any other transactions that might
+	// modify the fee address balance. This guarantees the fee amount matches the balance
+	// snapshot taken here, and ProcessProposal validation passes.
 	txsToProcess := req.Txs
-	feeBalance := app.BankKeeper.GetBalance(ctx, feeaddresstypes.FeeAddress, params.BondDenom)
+	feeBalance := app.BankKeeper.GetBalance(ctx, feeaddresstypes.FeeAddress, appconsts.BondDenom)
 	if !feeBalance.IsZero() {
 		feeForwardTx, err := app.createFeeForwardTx(ctx, feeBalance)
 		if err != nil {
@@ -59,7 +63,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 				"error", err.Error(),
 				"fee_balance", feeBalance.String())
 		} else {
-			// Prepend fee forward tx to the transactions list
+			// IMPORTANT: Prepend fee forward tx so it executes first (see race condition comment above)
 			txsToProcess = append([][]byte{feeForwardTx}, req.Txs...)
 		}
 	}

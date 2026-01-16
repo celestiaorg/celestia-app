@@ -12,6 +12,9 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+var _ types.MsgServer = Keeper{}
+var _ types.QueryServer = Keeper{}
+
 // Keeper handles fee forwarding operations for the feeaddress module.
 // Note: The actual fee transfer is done by FeeForwardDecorator in the ante handler.
 // This keeper is responsible for the message handler (emitting events) and queries.
@@ -32,7 +35,7 @@ func (k Keeper) ForwardFees(ctx context.Context, _ *types.MsgForwardFees) (*type
 	fee, ok := ante.GetFeeForwardAmount(sdkCtx)
 	if !ok {
 		// This shouldn't happen in normal operation as the ante decorator always sets the fee
-		return nil, fmt.Errorf("fee forward amount not found in context")
+		return nil, types.ErrFeeForwardAmountNotFound
 	}
 
 	// Emit the event for tracking

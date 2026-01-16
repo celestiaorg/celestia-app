@@ -366,7 +366,7 @@ func New(
 	// - Transfer
 	var transferStack ibcporttypes.IBCModule
 	transferStack = transfer.NewIBCModule(app.TransferKeeper)
-	transferStack = NewFeeAddressIBCMiddleware(transferStack)
+	transferStack = NewFeeAddressIBCMiddleware(transferStack, app.Logger())
 	transferStack = packetforward.NewIBCMiddleware(transferStack, app.PacketForwardKeeper,
 		0, // retries on timeout
 		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout

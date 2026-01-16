@@ -1,0 +1,9 @@
+package types
+
+import "cosmossdk.io/errors"
+
+var (
+	// ErrFeeForwardAmountNotFound is returned when the fee forward amount is not found in context.
+	// This indicates the MsgForwardFees was processed without the FeeForwardDecorator running first.
+	ErrFeeForwardAmountNotFound = errors.Register(ModuleName, 1, "fee forward amount not found in context")
+)
