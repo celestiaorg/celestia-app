@@ -6,10 +6,9 @@ import (
 	"fmt"
 
 	"cosmossdk.io/collections"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 var _ types.MsgServer = msgServer{}
