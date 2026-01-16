@@ -8,7 +8,7 @@ The `x/feeaddress` module provides a mechanism to forward utia tokens to the fee
 
 The fee address is a vanity address for easy recognition:
 
-```
+```text
 celestia1feefeefeefeefeefeefeefeefeefeefe8pxlcf
 ```
 
