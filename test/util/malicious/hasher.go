@@ -283,7 +283,7 @@ func (n *NmtHasher) HashNode(left, right []byte) ([]byte, error) {
 	// compute the namespace range of the parent node
 	minNs, maxNs := computeNsRange(leftMinNs, leftMaxNs, rightMinNs, rightMaxNs, n.ignoreMaxNs, n.precomputedMaxNs)
 
-	res := make([]byte, 0)
+	res := make([]byte, 0, len(minNs)+len(maxNs))
 	res = append(res, minNs...)
 	res = append(res, maxNs...)
 
