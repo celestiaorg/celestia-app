@@ -16,7 +16,7 @@ HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME := github.com/celestiaorg/celestia-app/v7
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
-GOLANG_CROSS_VERSION  ?= v1.24.6
+GOLANG_CROSS_VERSION  ?= v1.25.5
 # Set this to override v2 upgrade height for the v3 embedded binaries
 V2_UPGRADE_HEIGHT ?= 0
 
@@ -273,18 +273,6 @@ fmt:
 ## lint-fix: Format files per linters golangci-lint and markdownlint.
 lint-fix: fmt
 .PHONY: lint-fix
-
-## modernize-fix: Apply modernize suggestions automatically.
-modernize-fix:
-	@echo "--> Applying modernize fixes"
-	@bash scripts/modernize.sh
-.PHONY: modernize-fix
-
-## modernize-check: Check for modernize issues without applying fixes.
-modernize-check:
-	@echo "--> Checking for modernize issues"
-	@bash scripts/modernize-check.sh
-.PHONY: modernize-check
 
 ## test: Run tests.
 test:

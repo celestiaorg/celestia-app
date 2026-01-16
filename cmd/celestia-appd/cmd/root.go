@@ -34,6 +34,7 @@ const (
 	UpgradeHeightFlag = "v2-upgrade-height"
 
 	// TimeoutCommit is a flag that can be used to override the timeout_commit.
+	//
 	// Deprecated: Use DelayedPrecommitTimeoutFlag instead.
 	TimeoutCommitFlag = "timeout-commit"
 
