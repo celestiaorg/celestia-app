@@ -416,7 +416,6 @@ func New(
 		[]int32{int32(warptypes.HYP_TOKEN_TYPE_COLLATERAL), int32(warptypes.HYP_TOKEN_TYPE_SYNTHETIC)},
 	)
 
-	// TIA collateral token ID is configured via module params (genesis or governance)
 	app.ForwardingKeeper = forwardingkeeper.NewKeeper(
 		encodingConfig.Codec,
 		runtime.NewKVStoreService(keys[forwardingtypes.StoreKey]),
