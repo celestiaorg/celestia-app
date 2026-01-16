@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	ForwardVersion  uint8 = 1
-	RecipientLength       = 32
+	ForwardVersion  = uint8(1)
+	RecipientLength = 32
 )
 
 // DeriveForwardingAddress computes a deterministic forwarding address from destination parameters.
@@ -32,11 +32,15 @@ func DeriveForwardingAddress(destDomain uint32, destRecipient []byte) ([]byte, e
 	binary.BigEndian.PutUint32(destDomainBytes[28:], destDomain)
 
 	// Step 2: callDigest = sha256(destDomain || destRecipient)
-	callDigestPreimage := append(destDomainBytes, destRecipient...)
+	callDigestPreimage := make([]byte, 32+RecipientLength)
+	copy(callDigestPreimage, destDomainBytes)
+	copy(callDigestPreimage[32:], destRecipient)
 	callDigest := sha256.Sum256(callDigestPreimage)
 
 	// Step 3: salt = sha256(ForwardVersion || callDigest)
-	saltPreimage := append([]byte{ForwardVersion}, callDigest[:]...)
+	saltPreimage := make([]byte, 1+32)
+	saltPreimage[0] = ForwardVersion
+	copy(saltPreimage[1:], callDigest[:])
 	salt := sha256.Sum256(saltPreimage)
 
 	// Step 4: Use SDK's address.Module for deterministic derivation
