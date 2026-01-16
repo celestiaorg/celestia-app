@@ -20,8 +20,9 @@ const (
 )
 
 var (
-	IsmsKeyPrefix    = collections.NewPrefix(0)
-	MessageKeyPrefix = collections.NewPrefix(1)
+	IsmsKeyPrefix            = collections.NewPrefix(0)
+	MessageKeyPrefix         = collections.NewPrefix(1)
+	MessageProofSubmittedPrefix = collections.NewPrefix(2)
 )
 
 // EncodeHex is a convenience function to encode byte slices as 0x prefixed hexadecimal strings.
