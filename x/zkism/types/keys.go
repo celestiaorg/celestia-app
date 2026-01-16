@@ -14,6 +14,9 @@ const (
 
 	// StoreKey defines the primary module store key
 	StoreKey = ModuleName
+
+	// MaxPaginationLimit is the maximum number of items returned in a paginated query.
+	MaxPaginationLimit = 100
 )
 
 var (

@@ -79,10 +79,23 @@ func (q queryServer) Messages(ctx context.Context, req *types.QueryMessagesReque
 		return types.EncodeHex(key.K2()), nil
 	}
 
+	pagination := req.Pagination
+	if pagination == nil {
+		pagination = &query.PageRequest{Limit: types.MaxPaginationLimit}
+	} else if pagination.Limit == 0 || pagination.Limit > types.MaxPaginationLimit {
+		pagination = &query.PageRequest{
+			Key:        pagination.Key,
+			Offset:     pagination.Offset,
+			Limit:      types.MaxPaginationLimit,
+			CountTotal: pagination.CountTotal,
+			Reverse:    pagination.Reverse,
+		}
+	}
+
 	msgs, pageRes, err := query.CollectionPaginate(
 		ctx,
 		q.k.messages,
-		req.Pagination,
+		pagination,
 		transformFunc,
 		query.WithCollectionPaginationPairPrefix[uint64, []byte](ismId.GetInternalId()),
 	)
