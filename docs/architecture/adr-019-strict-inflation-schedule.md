@@ -95,7 +95,7 @@ The `x/mint` BeginBlock:
 The `x/distribution` BeginBlock
 
 1. Moves the fees from the `x/auth` fee_collector module account to the `x/distribution` distribution module account
-1. The block proposer receives a fraction of the fees from the block based on the params `BaseProposerReward` and `BonusProposerReward`. Celestia has set `BaseProposerReward=0` and `BonusProposerReward=0` [here](https://github.com/celestiaorg/cosmos-sdk/commit/d931c27bdf9a6958618c541458ca2272a79de787) so this step does not apply.
+1. The block proposer receives a fraction of the fees from the block based on the params `BaseProposerReward` and `BonusProposerReward`. Celestia has set `BaseProposerReward=0` and `BonusProposerReward=0` [in the Cosmos SDK fork](https://github.com/celestiaorg/cosmos-sdk/commit/d931c27bdf9a6958618c541458ca2272a79de787) so this step does not apply.
 1. A community pool receives a fraction of the fees based on the params `CommunityTax`. Celestia has set `CommunityTax=.02`
 1. Validators receive the remainder of the fees from the block based on their voting power. Tokens don't actually leave the distribution module account at this step. At some point in the future when a validator or delegator trigger a withdrawal, tokens are withdrawn from the distribution module account.
 
@@ -117,7 +117,7 @@ Note: we should use DecCoin to avoid rounding errors. See <https://github.com/os
 
 Q: What is the skew between `BlocksPerYear` on popular Cosmos SDK chains and the actual number of blocks per year?
 
-Cosmos Hub (a.k.a Gaia) sets `BlocksPerYear` to 4,360,000 [here](https://github.com/cosmos/gaia/blob/8a522e98a2863205cf02fb97f8ad27d091670b9d/docs/governance/current-parameters.json#L86). Cosmos Hub has a block time 6.353 s. Numia data doesn't have complete data for 2021 so we'll examine 2022:
+Cosmos Hub (a.k.a Gaia) sets `BlocksPerYear` to 4,360,000 [in current-parameters.json](https://github.com/cosmos/gaia/blob/8a522e98a2863205cf02fb97f8ad27d091670b9d/docs/governance/current-parameters.json#L86). Cosmos Hub has a block time 6.353 s. Numia data doesn't have complete data for 2021 so we'll examine 2022:
 
 | Year | BlocksPerYear | Actual # of Blocks | Skew  |
 |------|---------------|--------------------|-------|

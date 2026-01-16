@@ -22,6 +22,7 @@ go build -o migrate-db
 ```
 
 This will:
+
 1. Create a backup of the entire `data` directory to `data_backup`
 2. Create a `data_pebble` directory in `~/.celestia-app/`
 3. Migrate all databases to PebbleDB format
@@ -37,11 +38,13 @@ This will:
 ### Examples
 
 **Dry-run (test without changes):**
+
 ```bash
 ./migrate-db --dry-run
 ```
 
 **Custom home directory:**
+
 ```bash
 ./migrate-db --home /custom/path/.celestia-app
 ```
@@ -57,6 +60,7 @@ The tool migrates the following databases:
 - `evidence.db` - Evidence storage
 
 Files NOT migrated (will remain unchanged):
+
 - `cs.wal` - Consensus write-ahead log (recreated automatically)
 - `priv_validator_state.json` - Validator state file (JSON)
 - `snapshots/` - State sync snapshots directory
@@ -146,16 +150,19 @@ If migration fails partway through, simply run it again. The tool will create a 
 ### Node Won't Start After Migration
 
 1. Check logs:
+
    ```bash
    journalctl -u celestia-appd -n 100
    ```
 
 2. Verify config.toml has the correct backend:
+
    ```bash
    cat ~/.celestia-app/config/config.toml | grep backend
    ```
 
 3. Restore from backup if needed:
+
    ```bash
    cd ~/.celestia-app
    rm -rf data

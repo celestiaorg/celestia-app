@@ -87,7 +87,7 @@ With the universal share prefix: if a client is provided share 11, they know fro
     - Without the continuation share indicator, the client would have to request the first share of the message to parse the data length. If they don't request the first share, they can request contiguous shares until they reach the first share after their message ends to learn that they completed requesting the previous message.
 
 1. What happens if a block producer publishes a message with a version that isn't in the list of supported versions?
-    - This can be considered invalid via a `ProcessProposal` validity check. Validators already compute the shares in `ProcessProposal` [here](https://github.com/rootulp/celestia-app/blob/ad050e28678119adae02536db3ef5ce083ea1436/app/process_proposal.go#L104-L110) so we can add a check to verify that every share has a known valid version.
+    - This can be considered invalid via a `ProcessProposal` validity check. Validators already compute the shares in `ProcessProposal` [in process_proposal.go](https://github.com/rootulp/celestia-app/blob/ad050e28678119adae02536db3ef5ce083ea1436/app/process_proposal.go#L104-L110) so we can add a check to verify that every share has a known valid version.
 1. What happens if a block producer publishes a message where the sequence start indicator isn't set correctly?
     - Add a check similar to the one above.
 
