@@ -24,6 +24,7 @@ const (
 	DefaultValidatorAccountName = "validator"
 	DefaultInitialBalance       = genesis.DefaultInitialBalance
 	// TimeoutCommit is a flag that can be used to override the timeout_commit.
+	//
 	// Deprecated: Use DelayedPrecommitTimeout instead.
 	TimeoutCommitFlag = "timeout-commit"
 	// DelayedPrecommitTimeout is a flag that can be used to override the DelayedPrecommitTimeout.
@@ -87,6 +88,7 @@ func (c *Config) WithSuppressLogs(sl bool) *Config {
 
 // WithTimeoutCommit sets the timeout commit in the cometBFT config and returns
 // the Config. For backward compatibility, it also sets the app's block time.
+//
 // Deprecated: Use WithDelayedPrecommitTimeout instead.
 func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
 	c.TmConfig.Consensus.TimeoutCommit = d

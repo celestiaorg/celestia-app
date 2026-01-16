@@ -361,8 +361,8 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 	multiPFBsPerTxs := make([][]byte, 0, numberOfPFBs)
 	numberOfMsgsPerTx := 10
 	for range numberOfPFBs {
-		msgs := make([]sdk.Msg, 0)
-		blobs := make([]*share.Blob, 0)
+		msgs := make([]sdk.Msg, 0, numberOfMsgsPerTx)
+		blobs := make([]*share.Blob, 0, numberOfMsgsPerTx)
 		for range numberOfMsgsPerTx {
 			blob, err := share.NewBlob(share.RandomNamespace(), randomBytes, 1, accs[accountIndex].GetAddress().Bytes())
 			require.NoError(t, err)
