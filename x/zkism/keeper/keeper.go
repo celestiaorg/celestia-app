@@ -17,10 +17,10 @@ var _ util.InterchainSecurityModule = (*Keeper)(nil)
 
 // Keeper implements the InterchainSecurityModule interface required by the Hyperlane ISM Router.
 type Keeper struct {
-	isms                 collections.Map[uint64, types.InterchainSecurityModule]
-	messages             collections.KeySet[collections.Pair[uint64, []byte]]
+	isms                  collections.Map[uint64, types.InterchainSecurityModule]
+	messages              collections.KeySet[collections.Pair[uint64, []byte]]
 	messageProofSubmitted collections.Map[uint64, bool]
-	schema               collections.Schema
+	schema                collections.Schema
 
 	coreKeeper types.HyperlaneKeeper
 	authority  string

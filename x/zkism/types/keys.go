@@ -20,8 +20,8 @@ const (
 )
 
 var (
-	IsmsKeyPrefix            = collections.NewPrefix(0)
-	MessageKeyPrefix         = collections.NewPrefix(1)
+	IsmsKeyPrefix               = collections.NewPrefix(0)
+	MessageKeyPrefix            = collections.NewPrefix(1)
 	MessageProofSubmittedPrefix = collections.NewPrefix(2)
 )
 
