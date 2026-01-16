@@ -31,14 +31,19 @@ func (s Set) GetByAddress(address crypto.Address) (*core.Validator, bool) {
 type ShardMap map[*core.Validator][]int
 
 // Assign returns a ShardMap containing all validators and their assigned row indices
-// for the given commitment and total number of rows.
+// for the given commitment.
+//
+// The rowsPerValidator parameter specifies how many rows each validator receives.
+// Total rows distributed = rowsPerValidator * len(validators).
 //
 // It uses a chacha8 RNG with the commitment as the seed to shuffle the row indices
 // using the Fisher-Yates algorithm.
-func (s Set) Assign(commitment rsema1d.Commitment, totalRows int) ShardMap {
-	if len(s.Validators) == 0 || totalRows == 0 {
+func (s Set) Assign(commitment rsema1d.Commitment, rowsPerValidator int) ShardMap {
+	if len(s.Validators) == 0 || rowsPerValidator == 0 {
 		return make(ShardMap)
 	}
+
+	totalRows := rowsPerValidator * len(s.Validators)
 
 	var seed [32]byte
 	copy(seed[:], commitment[:])
@@ -47,6 +52,7 @@ func (s Set) Assign(commitment rsema1d.Commitment, totalRows int) ShardMap {
 	rng := rand.New(rand.NewChaCha8(seed))
 
 	// shuffle row indices with Fisher-Yates algorithm
+	// NOTE: std library Shuffle implements Fisher-Yates algorithm
 	rowsIndicies := make([]int, totalRows)
 	for i := range totalRows {
 		rowsIndicies[i] = i
@@ -57,17 +63,9 @@ func (s Set) Assign(commitment rsema1d.Commitment, totalRows int) ShardMap {
 
 	// assign rows to validators in a ShardMap
 	shardMap := make(ShardMap)
-	offset := 0
 	for i, validator := range s.Validators {
-		// TODO(@Wondertan): As per Nashqueue, we no longer want to send every row to validators and some might be not assigned.
-		// So the number of rows to assign should be given as parameter to Assign and which probably would be taken from BlobConfig.
-		rowsToAssign := totalRows / len(s.Validators)
-		if i < totalRows%len(s.Validators) {
-			rowsToAssign++
-		}
-
-		shardMap[validator] = rowsIndicies[offset : offset+rowsToAssign]
-		offset += rowsToAssign
+		offset := i * rowsPerValidator
+		shardMap[validator] = rowsIndicies[offset : offset+rowsPerValidator]
 	}
 
 	return shardMap
