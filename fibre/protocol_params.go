@@ -165,8 +165,7 @@ func (p ProtocolParams) MaxShardSize(totalShards int) int {
 	treeDepth := bits.Len(uint(totalRows - 1))
 	proofSizePerRow := treeDepth * sha256.Size
 
-	// rows per shard based on how Assign distributes total rows among shards
-	rowsPerShard := ceilDiv(totalRows, totalShards)
+	rowsPerShard := p.RowsPerShard(totalShards)
 	return rlcCoeffsSize + (rowsPerShard * (rowIndexSize + maxRowSize + proofSizePerRow))
 }
 
