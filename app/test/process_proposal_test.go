@@ -318,3 +318,54 @@ func calculateNewDataHash(t *testing.T, txs [][]byte) []byte {
 	require.NoError(t, err)
 	return dah.Hash()
 }
+
+func TestProcessProposal_ProposalWithInconsistentBlobTxFails(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(2)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, user.NewAccount(accounts[0], infos[0].AccountNum, infos[0].Sequence))
+	require.NoError(t, err)
+
+	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
+	blobTxBytes := blobfactory.RandBlobTxsWithNamespacesAndSigner(signer, []share.Namespace{ns}, []int{100})[0]
+
+	blobTx, isBlobTx, err := tx.UnmarshalBlobTx(blobTxBytes)
+	require.NoError(t, err)
+	require.True(t, isBlobTx)
+
+	// run CheckTx to populate the cache with the original blob hash
+	checkTxResp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: blobTxBytes, Type: abci.CheckTxType_New})
+	require.NoError(t, err)
+	require.Equal(t, uint32(0), checkTxResp.Code, "CheckTx should pass: %s", checkTxResp.Log)
+
+	t.Run("Proposal with inconsistent blob tx fails", func(t *testing.T) {
+		// replace the blob with a different one (same namespace, different data)
+		inconsistentBlob, err := share.NewBlob(ns, bytes.Repeat([]byte{0xDE, 0xAD}, 50), share.ShareVersionZero, nil)
+		require.NoError(t, err)
+		inconsistentBlobTxBytes, err := tx.MarshalBlobTx(blobTx.Tx, inconsistentBlob)
+		require.NoError(t, err)
+
+		res, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+			Time:         time.Now(),
+			Height:       testApp.LastBlockHeight() + 1,
+			Txs:          [][]byte{inconsistentBlobTxBytes},
+			DataRootHash: calculateNewDataHash(t, [][]byte{inconsistentBlobTxBytes}),
+			SquareSize:   2,
+		})
+		require.NoError(t, err)
+		require.Equal(t, abci.ResponseProcessProposal_REJECT, res.Status, "ProcessProposal should reject inconsistent blob tx")
+	})
+
+	t.Run("Original blob proposal succeeds", func(t *testing.T) {
+		res, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+			Time:         time.Now(),
+			Height:       testApp.LastBlockHeight() + 1,
+			Txs:          [][]byte{blobTxBytes},
+			DataRootHash: calculateNewDataHash(t, [][]byte{blobTxBytes}), // original data hash
+			SquareSize:   2,
+		})
+		require.NoError(t, err)
+		require.Equal(t, abci.ResponseProcessProposal_ACCEPT, res.Status, "ProcessProposal should accept original blob")
+	})
+}

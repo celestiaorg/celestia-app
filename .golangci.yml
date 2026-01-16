@@ -6,6 +6,7 @@ linters:
     - copyloopvar
     - gocritic
     - misspell
+    - modernize
     - nakedret
     - prealloc
     - revive

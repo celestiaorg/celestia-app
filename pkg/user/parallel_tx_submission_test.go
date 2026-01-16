@@ -188,9 +188,7 @@ func TestParallelSubmitPayForBlobSuccess(t *testing.T) {
 
 	// Submit all jobs in parallel
 	for range jobCount {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			resp, err := client.SubmitPayForBlobToQueue(context.Background(), []*share.Blob{blob})
 			resultsMu.Lock()
 			defer resultsMu.Unlock()
@@ -199,7 +197,7 @@ func TestParallelSubmitPayForBlobSuccess(t *testing.T) {
 			} else {
 				results = append(results, user.SubmissionResult{TxResponse: resp})
 			}
-		}()
+		})
 	}
 
 	// Wait for all to complete
@@ -307,9 +305,7 @@ func TestParallelSubmissionSignerAddress(t *testing.T) {
 
 	// Submit all jobs in parallel
 	for range jobCount {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			resp, err := client.SubmitPayForBlobToQueue(context.Background(), []*share.Blob{blob})
 
 			resultsMu.Lock()
@@ -321,7 +317,7 @@ func TestParallelSubmissionSignerAddress(t *testing.T) {
 				// Since we can't easily get this from the response, we'll just verify the responses are valid
 				results = append(results, user.SubmissionResult{TxResponse: resp})
 			}
-		}()
+		})
 	}
 
 	// Wait for all to complete

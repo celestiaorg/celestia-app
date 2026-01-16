@@ -14,7 +14,7 @@ A highly-optimized library is available in C (<https://github.com/bitcoin-core/s
 
 ### Public-keys
 
-Secp256k1 public keys can be compressed to 257-bits (or 33 bytes) per the format described [here](https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/basics/accounts.md#public-keys).
+Secp256k1 public keys can be compressed to 257-bits (or 33 bytes) per the format described [in the Cosmos SDK accounts documentation](https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/basics/accounts.md#public-keys).
 
 ### Addresses
 
@@ -26,7 +26,7 @@ Cosmos [addresses](https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/basic
 Deterministic signatures ([RFC-6979](https://tools.ietf.org/rfc/rfc6979.txt)) should be used when signing, but this is not enforced at the protocol level as it cannot be for Secp256k1 signatures.
 <!-- markdown-link-check-enable -->
 
-Signatures are represented as the `r` and `s` (each 32 bytes) values of the signature. `r` and `s` take on their usual meaning (see: [SEC 1, 4.1.3 Signing Operation](https://www.secg.org/sec1-v2.pdf)). Signatures are encoded with protobuf as described [here](https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/core/encoding.md).
+Signatures are represented as the `r` and `s` (each 32 bytes) values of the signature. `r` and `s` take on their usual meaning (see: [SEC 1, 4.1.3 Signing Operation](https://www.secg.org/sec1-v2.pdf)). Signatures are encoded with protobuf as described [in the encoding documentation](https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/core/encoding.md).
 
 ### Human Readable Encoding
 

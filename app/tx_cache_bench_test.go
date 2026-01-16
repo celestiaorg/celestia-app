@@ -2,7 +2,13 @@ package app
 
 import (
 	"crypto/rand"
+	mathrand "math/rand"
 	"testing"
+
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/random"
+	"github.com/celestiaorg/go-square/v3/share"
 )
 
 func generateRandomTxs(count int, size int) [][]byte {
@@ -15,10 +21,19 @@ func generateRandomTxs(count int, size int) [][]byte {
 	return txs
 }
 
+func generateRandomSizedBlobs(count int) [][]*share.Blob {
+	blobs := make([][]*share.Blob, count)
+	for i := range count {
+		blobSize := mathrand.Intn(appconsts.MaxTxSize) + 1
+		blobs[i] = blobfactory.ManyRandBlobs(random.New(), blobSize)
+	}
+	return blobs
+}
+
 // populateCache fills the cache with the given transactions
-func populateCache(cache *TxCache, txs [][]byte) {
-	for _, tx := range txs {
-		cache.Set(tx)
+func populateCache(cache *TxCache, txs [][]byte, blobs [][]*share.Blob) {
+	for i, tx := range txs {
+		cache.Set(tx, blobs[i])
 	}
 }
 
@@ -50,7 +65,9 @@ func BenchmarkTxCache_Operations(b *testing.B) {
 					b.StartTimer()
 
 					for _, tx := range txs {
-						cache.Set(tx)
+						blobSize := mathrand.Intn(appconsts.MaxTxSize) + 1
+						blobs := blobfactory.ManyRandBlobs(random.New(), blobSize)
+						cache.Set(tx, blobs)
 					}
 				}
 			})
@@ -62,32 +79,13 @@ func BenchmarkTxCache_Operations(b *testing.B) {
 			b.Run(tc.name, func(b *testing.B) {
 				cache := NewTxCache()
 				txs := generateRandomTxs(tc.numBlobTxs, txSize)
-				populateCache(cache, txs)
+				blobs := generateRandomSizedBlobs(tc.numBlobTxs)
+				populateCache(cache, txs, blobs)
 				b.ResetTimer()
 
 				for b.Loop() {
-					for _, tx := range txs {
-						cache.Exists(tx)
-					}
-				}
-			})
-		}
-	})
-
-	b.Run("RemoveTransactions", func(b *testing.B) {
-		for _, tc := range testCases {
-			b.Run(tc.name, func(b *testing.B) {
-				txs := generateRandomTxs(tc.numBlobTxs, txSize)
-				b.ResetTimer()
-
-				for b.Loop() {
-					b.StopTimer()
-					cache := NewTxCache()
-					populateCache(cache, txs)
-					b.StartTimer()
-
-					for _, tx := range txs {
-						cache.RemoveTransaction(tx)
+					for i, tx := range txs {
+						cache.Exists(tx, blobs[i])
 					}
 				}
 			})
@@ -102,13 +100,13 @@ func BenchmarkTxCache_Operations(b *testing.B) {
 				for b.Loop() {
 					cache := NewTxCache()
 					txs := generateRandomTxs(tc.numBlobTxs, txSize)
-
-					for _, tx := range txs {
-						cache.Set(tx)
+					blobs := generateRandomSizedBlobs(tc.numBlobTxs)
+					for i, tx := range txs {
+						cache.Set(tx, blobs[i])
 					}
 
-					for _, tx := range txs {
-						cache.Exists(tx)
+					for i, tx := range txs {
+						cache.Exists(tx, blobs[i])
 					}
 
 					for _, tx := range txs {

@@ -113,7 +113,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 
 			require.Greater(t, len(heights), 0)
 
-			sizes := []uint64{}
+			sizes := make([]uint64, 0, len(heights))
 			// check the square size
 			for height := range heights {
 				node, err := s.cctx.GetNode()

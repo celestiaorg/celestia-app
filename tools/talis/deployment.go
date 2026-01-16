@@ -674,22 +674,18 @@ func destroyAllInstances(ctx context.Context, cfg Config, workers int) error {
 	errCh := make(chan error, 2)
 
 	if cfg.DigitalOceanToken != "" {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			log.Println("Destroying all DigitalOcean instances...")
 			tokenSource := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: cfg.DigitalOceanToken})
 			doClient := godo.NewClient(oauth2.NewClient(ctx, tokenSource))
 			if _, err := destroyAllTalisDroplets(ctx, doClient, workers); err != nil {
 				errCh <- fmt.Errorf("DigitalOcean: %w", err)
 			}
-		}()
+		})
 	}
 
 	if cfg.GoogleCloudProject != "" {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			log.Println("Destroying all Google Cloud instances...")
 			opts, err := gcClientOptions(cfg)
 			if err != nil {
@@ -699,7 +695,7 @@ func destroyAllInstances(ctx context.Context, cfg Config, workers int) error {
 			if _, err := destroyAllTalisGCInstances(ctx, cfg.GoogleCloudProject, opts, workers); err != nil {
 				errCh <- fmt.Errorf("google Cloud: %w", err)
 			}
-		}()
+		})
 	}
 
 	wg.Wait()

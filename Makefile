@@ -16,7 +16,7 @@ HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME := github.com/celestiaorg/celestia-app/v6
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
-GOLANG_CROSS_VERSION  ?= v1.24.6
+GOLANG_CROSS_VERSION  ?= v1.25.5
 # Set this to override v2 upgrade height for the v3 embedded binaries
 V2_UPGRADE_HEIGHT ?= 0
 
@@ -257,18 +257,6 @@ fmt:
 lint-fix: fmt
 .PHONY: lint-fix
 
-## modernize-fix: Apply modernize suggestions automatically.
-modernize-fix:
-	@echo "--> Applying modernize fixes"
-	@bash scripts/modernize.sh
-.PHONY: modernize-fix
-
-## modernize-check: Check for modernize issues without applying fixes.
-modernize-check:
-	@echo "--> Checking for modernize issues"
-	@bash scripts/modernize-check.sh
-.PHONY: modernize-check
-
 ## test: Run tests.
 test:
 	@echo "--> Running tests"
@@ -355,14 +343,31 @@ txsim-build-docker:
 	docker build -t ghcr.io/celestiaorg/txsim -f docker/txsim/Dockerfile  .
 .PHONY: txsim-build-docker
 
-## build-talis-bins: Build celestia-appd and txsim binaries for talis VMs (ubuntu 22.04 LTS)
-build-talis-bins:
+## build-talis-bins: Build celestia-appd, txsim, and latency-monitor binaries for talis VMs (ubuntu 22.04 LTS)
+build-talis-bins: build-lumina-latency-monitor
 	mkdir -p build
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/celestia-appd ./cmd/celestia-appd
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
 .PHONY: build-talis-bins
 
+## build-lumina-latency-monitor: Build lumina-latency-monitor for Linux x86_64 (installs Rust and cross-compiler if needed)
+build-lumina-latency-monitor: export PATH := $(HOME)/.cargo/bin:$(PATH)
+build-lumina-latency-monitor: CARGO := $(HOME)/.cargo/bin/cargo
+build-lumina-latency-monitor:
+	@if ! command -v $(CARGO) >/dev/null 2>&1; then \
+		echo "Rust is not installed. Installing..."; \
+		curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y; \
+		echo ""; \
+		echo "Rust installed. Continuing with cargo from $$HOME/.cargo/bin..."; \
+	fi
+	cd tools/lumina-latency-monitor && $(CARGO) xtask build-linux
+	@mkdir -p build
+	@if [ -f tools/lumina-latency-monitor/target/x86_64-unknown-linux-gnu/release/lumina-latency-monitor ]; then \
+		cp tools/lumina-latency-monitor/target/x86_64-unknown-linux-gnu/release/lumina-latency-monitor build/latency-monitor; \
+	else \
+		cp tools/lumina-latency-monitor/target/release/lumina-latency-monitor build/latency-monitor; \
+	fi
+.PHONY: build-lumina-latency-monitor
 
 ## adr-gen: Download the ADR template from the celestiaorg/.github repo.
 adr-gen:

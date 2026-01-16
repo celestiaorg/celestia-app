@@ -36,7 +36,7 @@ node            |  |                               |  |
 
 ### From source
 
-1. [Install Go](https://go.dev/doc/install) 1.24.6
+1. [Install Go](https://go.dev/doc/install) 1.25.5
 1. Clone this repo
 1. Install the celestia-appd binary. This installs a "multiplexer" binary that will also download embedded binaries for the latest celestia-app v3.x.x and v4.x.x release.
 
@@ -74,7 +74,7 @@ If you'd rather not install from source, you can download a prebuilt binary from
     celestia-app_Linux_x86_64.tar.gz: OK
     ```
 
-See <https://docs.celestia.org/how-to-guides/celestia-app> for more information.
+See <https://docs.celestia.org/operate/consensus-validators/install-celestia-app/> for more information.
 
 ## Usage
 
@@ -133,7 +133,7 @@ celestia-appd query tx <txhash from previous command>
 ### Join a public Celestia network
 
 For instructions on running a node on Celestia's public networks, refer to the
-[consensus node](https://docs.celestia.org/how-to-guides/consensus-node)
+[consensus node](https://docs.celestia.org/operate/consensus-validators/consensus-node/)
 guide in the docs.
 
 > [!NOTE]
@@ -183,7 +183,7 @@ This repo contains multiple go modules. When using it, rename `go.work.example` 
 
 ### Tools
 
-1. Install [golangci-lint](https://golangci-lint.run/docs/welcome/install/) 2.1.2
+1. Install [golangci-lint](https://golangci-lint.run/docs/welcome/install/) 2.8.0
 1. Install [markdownlint](https://github.com/DavidAnson/markdownlint) 0.39.0
 1. Install [hadolint](https://github.com/hadolint/hadolint)
 1. Install [yamllint](https://yamllint.readthedocs.io/en/stable/quickstart.html)
