@@ -27,7 +27,7 @@ message EventTokenForwarded {
   // success indicates whether the forward succeeded.
   bool success = 5;
 
-  // error contains the error message if failed.
+  // error contains the error message when success=false.
   string error = 6;
 }
 

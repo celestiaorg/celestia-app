@@ -31,9 +31,9 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// MsgExecuteForwarding is a permissionless message to trigger token forwarding.
+// MsgForward is a permissionless message to trigger token forwarding.
 // Anyone can submit this message to forward tokens at the derived address.
-type MsgExecuteForwarding struct {
+type MsgForward struct {
 	// signer is the address paying for gas (typically a relayer).
 	Signer string `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
 	// forward_addr is the derived forwarding address (bech32).
@@ -44,18 +44,18 @@ type MsgExecuteForwarding struct {
 	DestRecipient string `protobuf:"bytes,4,opt,name=dest_recipient,json=destRecipient,proto3" json:"dest_recipient,omitempty"`
 }
 
-func (m *MsgExecuteForwarding) Reset()         { *m = MsgExecuteForwarding{} }
-func (m *MsgExecuteForwarding) String() string { return proto.CompactTextString(m) }
-func (*MsgExecuteForwarding) ProtoMessage()    {}
-func (*MsgExecuteForwarding) Descriptor() ([]byte, []int) {
+func (m *MsgForward) Reset()         { *m = MsgForward{} }
+func (m *MsgForward) String() string { return proto.CompactTextString(m) }
+func (*MsgForward) ProtoMessage()    {}
+func (*MsgForward) Descriptor() ([]byte, []int) {
 	return fileDescriptor_3cfda3a3251c777e, []int{0}
 }
-func (m *MsgExecuteForwarding) XXX_Unmarshal(b []byte) error {
+func (m *MsgForward) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgExecuteForwarding) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgForward) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgExecuteForwarding.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgForward.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -65,64 +65,64 @@ func (m *MsgExecuteForwarding) XXX_Marshal(b []byte, deterministic bool) ([]byte
 		return b[:n], nil
 	}
 }
-func (m *MsgExecuteForwarding) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgExecuteForwarding.Merge(m, src)
+func (m *MsgForward) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgForward.Merge(m, src)
 }
-func (m *MsgExecuteForwarding) XXX_Size() int {
+func (m *MsgForward) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgExecuteForwarding) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgExecuteForwarding.DiscardUnknown(m)
+func (m *MsgForward) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgForward.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgExecuteForwarding proto.InternalMessageInfo
+var xxx_messageInfo_MsgForward proto.InternalMessageInfo
 
-func (m *MsgExecuteForwarding) GetSigner() string {
+func (m *MsgForward) GetSigner() string {
 	if m != nil {
 		return m.Signer
 	}
 	return ""
 }
 
-func (m *MsgExecuteForwarding) GetForwardAddr() string {
+func (m *MsgForward) GetForwardAddr() string {
 	if m != nil {
 		return m.ForwardAddr
 	}
 	return ""
 }
 
-func (m *MsgExecuteForwarding) GetDestDomain() uint32 {
+func (m *MsgForward) GetDestDomain() uint32 {
 	if m != nil {
 		return m.DestDomain
 	}
 	return 0
 }
 
-func (m *MsgExecuteForwarding) GetDestRecipient() string {
+func (m *MsgForward) GetDestRecipient() string {
 	if m != nil {
 		return m.DestRecipient
 	}
 	return ""
 }
 
-// MsgExecuteForwardingResponse is the response for MsgExecuteForwarding.
-type MsgExecuteForwardingResponse struct {
+// MsgForwardResponse is the response for MsgForward.
+type MsgForwardResponse struct {
 	// results contains the per-token forwarding results.
 	Results []ForwardingResult `protobuf:"bytes,1,rep,name=results,proto3" json:"results"`
 }
 
-func (m *MsgExecuteForwardingResponse) Reset()         { *m = MsgExecuteForwardingResponse{} }
-func (m *MsgExecuteForwardingResponse) String() string { return proto.CompactTextString(m) }
-func (*MsgExecuteForwardingResponse) ProtoMessage()    {}
-func (*MsgExecuteForwardingResponse) Descriptor() ([]byte, []int) {
+func (m *MsgForwardResponse) Reset()         { *m = MsgForwardResponse{} }
+func (m *MsgForwardResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgForwardResponse) ProtoMessage()    {}
+func (*MsgForwardResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_3cfda3a3251c777e, []int{1}
 }
-func (m *MsgExecuteForwardingResponse) XXX_Unmarshal(b []byte) error {
+func (m *MsgForwardResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgExecuteForwardingResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgForwardResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgExecuteForwardingResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgForwardResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -132,19 +132,19 @@ func (m *MsgExecuteForwardingResponse) XXX_Marshal(b []byte, deterministic bool)
 		return b[:n], nil
 	}
 }
-func (m *MsgExecuteForwardingResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgExecuteForwardingResponse.Merge(m, src)
+func (m *MsgForwardResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgForwardResponse.Merge(m, src)
 }
-func (m *MsgExecuteForwardingResponse) XXX_Size() int {
+func (m *MsgForwardResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgExecuteForwardingResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgExecuteForwardingResponse.DiscardUnknown(m)
+func (m *MsgForwardResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgForwardResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgExecuteForwardingResponse proto.InternalMessageInfo
+var xxx_messageInfo_MsgForwardResponse proto.InternalMessageInfo
 
-func (m *MsgExecuteForwardingResponse) GetResults() []ForwardingResult {
+func (m *MsgForwardResponse) GetResults() []ForwardingResult {
 	if m != nil {
 		return m.Results
 	}
@@ -226,8 +226,8 @@ func (m *ForwardingResult) GetError() string {
 	return ""
 }
 
-// MsgUpdateForwardingParams defines a message for updating the forwarding module parameters.
-type MsgUpdateForwardingParams struct {
+// MsgUpdateParams defines a message for updating the forwarding module parameters.
+type MsgUpdateParams struct {
 	// authority is the address of the governance account.
 	Authority string `protobuf:"bytes,1,opt,name=authority,proto3" json:"authority,omitempty"`
 	// params defines the forwarding parameters to update.
@@ -235,18 +235,18 @@ type MsgUpdateForwardingParams struct {
 	Params Params `protobuf:"bytes,2,opt,name=params,proto3" json:"params"`
 }
 
-func (m *MsgUpdateForwardingParams) Reset()         { *m = MsgUpdateForwardingParams{} }
-func (m *MsgUpdateForwardingParams) String() string { return proto.CompactTextString(m) }
-func (*MsgUpdateForwardingParams) ProtoMessage()    {}
-func (*MsgUpdateForwardingParams) Descriptor() ([]byte, []int) {
+func (m *MsgUpdateParams) Reset()         { *m = MsgUpdateParams{} }
+func (m *MsgUpdateParams) String() string { return proto.CompactTextString(m) }
+func (*MsgUpdateParams) ProtoMessage()    {}
+func (*MsgUpdateParams) Descriptor() ([]byte, []int) {
 	return fileDescriptor_3cfda3a3251c777e, []int{3}
 }
-func (m *MsgUpdateForwardingParams) XXX_Unmarshal(b []byte) error {
+func (m *MsgUpdateParams) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgUpdateForwardingParams) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgUpdateParams) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgUpdateForwardingParams.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgUpdateParams.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -256,48 +256,48 @@ func (m *MsgUpdateForwardingParams) XXX_Marshal(b []byte, deterministic bool) ([
 		return b[:n], nil
 	}
 }
-func (m *MsgUpdateForwardingParams) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgUpdateForwardingParams.Merge(m, src)
+func (m *MsgUpdateParams) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgUpdateParams.Merge(m, src)
 }
-func (m *MsgUpdateForwardingParams) XXX_Size() int {
+func (m *MsgUpdateParams) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgUpdateForwardingParams) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgUpdateForwardingParams.DiscardUnknown(m)
+func (m *MsgUpdateParams) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgUpdateParams.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgUpdateForwardingParams proto.InternalMessageInfo
+var xxx_messageInfo_MsgUpdateParams proto.InternalMessageInfo
 
-func (m *MsgUpdateForwardingParams) GetAuthority() string {
+func (m *MsgUpdateParams) GetAuthority() string {
 	if m != nil {
 		return m.Authority
 	}
 	return ""
 }
 
-func (m *MsgUpdateForwardingParams) GetParams() Params {
+func (m *MsgUpdateParams) GetParams() Params {
 	if m != nil {
 		return m.Params
 	}
 	return Params{}
 }
 
-// MsgUpdateForwardingParamsResponse is the response for MsgUpdateForwardingParams.
-type MsgUpdateForwardingParamsResponse struct {
+// MsgUpdateParamsResponse is the response for MsgUpdateParams.
+type MsgUpdateParamsResponse struct {
 }
 
-func (m *MsgUpdateForwardingParamsResponse) Reset()         { *m = MsgUpdateForwardingParamsResponse{} }
-func (m *MsgUpdateForwardingParamsResponse) String() string { return proto.CompactTextString(m) }
-func (*MsgUpdateForwardingParamsResponse) ProtoMessage()    {}
-func (*MsgUpdateForwardingParamsResponse) Descriptor() ([]byte, []int) {
+func (m *MsgUpdateParamsResponse) Reset()         { *m = MsgUpdateParamsResponse{} }
+func (m *MsgUpdateParamsResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgUpdateParamsResponse) ProtoMessage()    {}
+func (*MsgUpdateParamsResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_3cfda3a3251c777e, []int{4}
 }
-func (m *MsgUpdateForwardingParamsResponse) XXX_Unmarshal(b []byte) error {
+func (m *MsgUpdateParamsResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgUpdateForwardingParamsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgUpdateParamsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgUpdateForwardingParamsResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgUpdateParamsResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -307,68 +307,67 @@ func (m *MsgUpdateForwardingParamsResponse) XXX_Marshal(b []byte, deterministic 
 		return b[:n], nil
 	}
 }
-func (m *MsgUpdateForwardingParamsResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgUpdateForwardingParamsResponse.Merge(m, src)
+func (m *MsgUpdateParamsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgUpdateParamsResponse.Merge(m, src)
 }
-func (m *MsgUpdateForwardingParamsResponse) XXX_Size() int {
+func (m *MsgUpdateParamsResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgUpdateForwardingParamsResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgUpdateForwardingParamsResponse.DiscardUnknown(m)
+func (m *MsgUpdateParamsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgUpdateParamsResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgUpdateForwardingParamsResponse proto.InternalMessageInfo
+var xxx_messageInfo_MsgUpdateParamsResponse proto.InternalMessageInfo
 
 func init() {
-	proto.RegisterType((*MsgExecuteForwarding)(nil), "celestia.forwarding.v1.MsgExecuteForwarding")
-	proto.RegisterType((*MsgExecuteForwardingResponse)(nil), "celestia.forwarding.v1.MsgExecuteForwardingResponse")
+	proto.RegisterType((*MsgForward)(nil), "celestia.forwarding.v1.MsgForward")
+	proto.RegisterType((*MsgForwardResponse)(nil), "celestia.forwarding.v1.MsgForwardResponse")
 	proto.RegisterType((*ForwardingResult)(nil), "celestia.forwarding.v1.ForwardingResult")
-	proto.RegisterType((*MsgUpdateForwardingParams)(nil), "celestia.forwarding.v1.MsgUpdateForwardingParams")
-	proto.RegisterType((*MsgUpdateForwardingParamsResponse)(nil), "celestia.forwarding.v1.MsgUpdateForwardingParamsResponse")
+	proto.RegisterType((*MsgUpdateParams)(nil), "celestia.forwarding.v1.MsgUpdateParams")
+	proto.RegisterType((*MsgUpdateParamsResponse)(nil), "celestia.forwarding.v1.MsgUpdateParamsResponse")
 }
 
 func init() { proto.RegisterFile("celestia/forwarding/v1/tx.proto", fileDescriptor_3cfda3a3251c777e) }
 
 var fileDescriptor_3cfda3a3251c777e = []byte{
-	// 597 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x54, 0x4f, 0x6f, 0xd3, 0x30,
-	0x1c, 0xad, 0xf7, 0xa7, 0xa3, 0x2e, 0x9b, 0xc0, 0x2a, 0x23, 0xab, 0x46, 0x3a, 0x3a, 0x21, 0x55,
-	0x83, 0x25, 0xb4, 0x20, 0x24, 0x06, 0x17, 0xca, 0x1f, 0xd1, 0x43, 0xa5, 0x29, 0x88, 0x0b, 0x97,
-	0xca, 0x8b, 0x8d, 0x1b, 0xd1, 0xc4, 0x91, 0xed, 0x6c, 0xdd, 0x0d, 0x71, 0x80, 0x1b, 0xe2, 0xa3,
-	0xec, 0xb0, 0x23, 0x1f, 0x60, 0xc7, 0x69, 0x27, 0xb4, 0xc3, 0x84, 0xda, 0xc3, 0xbe, 0x06, 0x4a,
-	0xe2, 0xb4, 0x03, 0x5a, 0xd0, 0x6e, 0xfe, 0x3d, 0xbf, 0xf7, 0xfc, 0xf3, 0xf3, 0x4f, 0x86, 0x15,
-	0x97, 0xf6, 0xa8, 0x54, 0x1e, 0xb6, 0xdf, 0x73, 0xb1, 0x87, 0x05, 0xf1, 0x02, 0x66, 0xef, 0xd6,
-	0x6d, 0xd5, 0xb7, 0x42, 0xc1, 0x15, 0x47, 0xcb, 0x19, 0xc1, 0x1a, 0x13, 0xac, 0xdd, 0x7a, 0xb9,
-	0xc4, 0x38, 0xe3, 0x09, 0xc5, 0x8e, 0x57, 0x29, 0xbb, 0x7c, 0xd3, 0xe5, 0xd2, 0xe7, 0xd2, 0xf6,
-	0x65, 0xe2, 0xe2, 0x4b, 0xa6, 0x37, 0x56, 0xd2, 0x8d, 0x4e, 0xaa, 0x48, 0x0b, 0xbd, 0xb5, 0x3e,
-	0xa5, 0x85, 0x10, 0x0b, 0xec, 0x6b, 0x52, 0xf5, 0x14, 0xc0, 0x52, 0x5b, 0xb2, 0x97, 0x7d, 0xea,
-	0x46, 0x8a, 0xbe, 0x1a, 0x11, 0xd1, 0x7d, 0x98, 0x97, 0x1e, 0x0b, 0xa8, 0x30, 0xc0, 0x1a, 0xa8,
-	0x15, 0x9a, 0xc6, 0xc9, 0xe1, 0x66, 0x49, 0xfb, 0x3f, 0x23, 0x44, 0x50, 0x29, 0xdf, 0x28, 0xe1,
-	0x05, 0xcc, 0xd1, 0x3c, 0xf4, 0x04, 0x5e, 0xd5, 0x07, 0x75, 0x30, 0x21, 0xc2, 0x98, 0xf9, 0x8f,
-	0xae, 0xa8, 0xd9, 0x31, 0x8a, 0x2a, 0xb0, 0x48, 0xa8, 0x54, 0x1d, 0xc2, 0x7d, 0xec, 0x05, 0xc6,
-	0xec, 0x1a, 0xa8, 0x2d, 0x3a, 0x30, 0x86, 0x5e, 0x24, 0x08, 0xba, 0x03, 0x97, 0x12, 0x82, 0xa0,
-	0xae, 0x17, 0x7a, 0x34, 0x50, 0xc6, 0x5c, 0xec, 0xef, 0x2c, 0xc6, 0xa8, 0x93, 0x81, 0x5b, 0xc5,
-	0x4f, 0xe7, 0x07, 0x1b, 0xba, 0xa3, 0x6a, 0x17, 0xae, 0x4e, 0xba, 0x9b, 0x43, 0x65, 0xc8, 0x03,
-	0x49, 0xd1, 0x6b, 0xb8, 0x20, 0xa8, 0x8c, 0x7a, 0x4a, 0x1a, 0x60, 0x6d, 0xb6, 0x56, 0x6c, 0xd4,
-	0xac, 0xc9, 0xaf, 0x62, 0xfd, 0x26, 0x8e, 0x7a, 0xaa, 0x39, 0x77, 0x74, 0x56, 0xc9, 0x39, 0x99,
-	0xbc, 0xfa, 0x1d, 0xc0, 0x6b, 0x7f, 0x72, 0x50, 0x09, 0xce, 0x13, 0x1a, 0x70, 0x3f, 0x4d, 0xd0,
-	0x49, 0x0b, 0xf4, 0x1c, 0xe6, 0xb1, 0xcf, 0xa3, 0x40, 0xe9, 0x80, 0xee, 0xc6, 0x4e, 0xa7, 0x67,
-	0x95, 0x1b, 0x69, 0x48, 0x92, 0x7c, 0xb0, 0x3c, 0x6e, 0xfb, 0x58, 0x75, 0xad, 0x56, 0xa0, 0x4e,
-	0x0e, 0x37, 0xa1, 0x4e, 0xaf, 0x15, 0x28, 0x47, 0x4b, 0xd1, 0x2d, 0x08, 0x7d, 0x2a, 0x25, 0x66,
-	0xb4, 0xe3, 0x91, 0x24, 0xad, 0x82, 0x53, 0xd0, 0x48, 0x8b, 0x20, 0x03, 0x2e, 0xc8, 0xc8, 0x75,
-	0xa9, 0x94, 0x49, 0x4a, 0x57, 0x9c, 0xac, 0x8c, 0x7b, 0xa2, 0x42, 0x70, 0x61, 0xcc, 0xa7, 0x3d,
-	0x25, 0x45, 0xf5, 0x0b, 0x80, 0x2b, 0x6d, 0xc9, 0xde, 0x86, 0x04, 0x5f, 0x0c, 0x6a, 0x3b, 0x99,
-	0x14, 0xb4, 0x0a, 0x0b, 0x38, 0x52, 0x5d, 0x2e, 0x3c, 0xb5, 0xaf, 0xef, 0x32, 0x06, 0xd0, 0x53,
-	0x98, 0x4f, 0x27, 0x2a, 0xb9, 0x4f, 0xb1, 0x61, 0x4e, 0xcb, 0x30, 0x75, 0xd3, 0xc9, 0x69, 0xcd,
-	0xd6, 0x52, 0xfc, 0x5e, 0x63, 0xb7, 0xea, 0x3a, 0xbc, 0x3d, 0xb5, 0x91, 0xec, 0xdd, 0x1a, 0x5f,
-	0x67, 0xe0, 0x6c, 0x5b, 0x32, 0xb4, 0x07, 0xaf, 0xff, 0x3d, 0xb8, 0xf7, 0xa6, 0x9d, 0x3f, 0x69,
-	0x14, 0xca, 0x0f, 0x2f, 0xc3, 0x1e, 0x0d, 0xce, 0x67, 0x00, 0x97, 0xa7, 0x84, 0x55, 0xff, 0x87,
-	0xe1, 0x64, 0x49, 0xf9, 0xf1, 0xa5, 0x25, 0x59, 0x23, 0xe5, 0xf9, 0x8f, 0xe7, 0x07, 0x1b, 0xa0,
-	0xb9, 0x7d, 0x34, 0x30, 0xc1, 0xf1, 0xc0, 0x04, 0x3f, 0x07, 0x26, 0xf8, 0x36, 0x34, 0x73, 0xc7,
-	0x43, 0x33, 0xf7, 0x63, 0x68, 0xe6, 0xde, 0x3d, 0x62, 0x9e, 0xea, 0x46, 0x3b, 0x96, 0xcb, 0x7d,
-	0x3b, 0x3b, 0x85, 0x0b, 0x36, 0x5a, 0x6f, 0xe2, 0x30, 0xb4, 0xfb, 0x17, 0x7f, 0x08, 0xb5, 0x1f,
-	0x52, 0xb9, 0x93, 0x4f, 0xbe, 0x87, 0x07, 0xbf, 0x02, 0x00, 0x00, 0xff, 0xff, 0xf5, 0x13, 0x53,
-	0x77, 0xc8, 0x04, 0x00, 0x00,
+	// 585 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x53, 0xc1, 0x6e, 0xd3, 0x4c,
+	0x10, 0x8e, 0xff, 0xb6, 0xe9, 0x9f, 0x49, 0x5b, 0xd0, 0x2a, 0x50, 0x37, 0x02, 0x27, 0x32, 0x42,
+	0x44, 0x41, 0xb1, 0x69, 0x90, 0x38, 0x14, 0x2e, 0x04, 0x54, 0x91, 0x43, 0xa4, 0xca, 0x88, 0x03,
+	0x1c, 0x88, 0xb6, 0xde, 0x65, 0x63, 0x51, 0x7b, 0xad, 0xdd, 0x4d, 0x69, 0x0f, 0x48, 0x88, 0x27,
+	0xe0, 0x51, 0x7a, 0xe8, 0x91, 0x07, 0xe8, 0x31, 0xf4, 0x84, 0x38, 0x54, 0x28, 0x39, 0xf4, 0x35,
+	0x90, 0xed, 0x75, 0x52, 0x2a, 0x42, 0xb9, 0xed, 0xcc, 0x7e, 0xdf, 0xb7, 0x33, 0xdf, 0xcc, 0x42,
+	0xcd, 0xa7, 0x7b, 0x54, 0xaa, 0x00, 0xbb, 0xef, 0xb8, 0xf8, 0x80, 0x05, 0x09, 0x22, 0xe6, 0xee,
+	0x6f, 0xba, 0xea, 0xc0, 0x89, 0x05, 0x57, 0x1c, 0xdd, 0xcc, 0x01, 0xce, 0x0c, 0xe0, 0xec, 0x6f,
+	0x56, 0x2b, 0x8c, 0x33, 0x9e, 0x42, 0xdc, 0xe4, 0x94, 0xa1, 0xab, 0xeb, 0x3e, 0x97, 0x21, 0x97,
+	0x6e, 0x28, 0x53, 0x95, 0x50, 0x32, 0x7d, 0xb1, 0x91, 0x5d, 0xf4, 0x33, 0x46, 0x16, 0xe8, 0xab,
+	0x3b, 0x73, 0x4a, 0x88, 0xb1, 0xc0, 0xa1, 0x06, 0xd9, 0x23, 0x03, 0xa0, 0x27, 0xd9, 0x76, 0x86,
+	0x40, 0x0f, 0xa0, 0x28, 0x03, 0x16, 0x51, 0x61, 0x1a, 0x75, 0xa3, 0x51, 0xea, 0x98, 0xa7, 0xc7,
+	0xad, 0x8a, 0x56, 0x7d, 0x4a, 0x88, 0xa0, 0x52, 0xbe, 0x54, 0x22, 0x88, 0x98, 0xa7, 0x71, 0xe8,
+	0x31, 0xac, 0x68, 0xf9, 0x3e, 0x26, 0x44, 0x98, 0xff, 0x5d, 0xc1, 0x2b, 0x6b, 0x74, 0x92, 0x45,
+	0x35, 0x28, 0x13, 0x2a, 0x55, 0x9f, 0xf0, 0x10, 0x07, 0x91, 0xb9, 0x50, 0x37, 0x1a, 0xab, 0x1e,
+	0x24, 0xa9, 0xe7, 0x69, 0x06, 0xdd, 0x85, 0xb5, 0x14, 0x20, 0xa8, 0x1f, 0xc4, 0x01, 0x8d, 0x94,
+	0xb9, 0x98, 0xe8, 0x7b, 0xab, 0x49, 0xd6, 0xcb, 0x93, 0x5b, 0xe5, 0xcf, 0xe7, 0x47, 0x4d, 0x5d,
+	0x91, 0xfd, 0x16, 0xd0, 0xac, 0x23, 0x8f, 0xca, 0x98, 0x47, 0x92, 0xa2, 0x17, 0xb0, 0x2c, 0xa8,
+	0x1c, 0xee, 0x29, 0x69, 0x1a, 0xf5, 0x85, 0x46, 0xb9, 0xdd, 0x70, 0xfe, 0x3c, 0x01, 0x67, 0x7b,
+	0x1a, 0x79, 0x29, 0xa1, 0xb3, 0x78, 0x72, 0x56, 0x2b, 0x78, 0x39, 0xdd, 0xfe, 0x6a, 0xc0, 0xf5,
+	0xcb, 0x18, 0x54, 0x81, 0x25, 0x42, 0x23, 0x1e, 0x66, 0xbe, 0x79, 0x59, 0x80, 0x9e, 0x41, 0x11,
+	0x87, 0x7c, 0x18, 0x29, 0x6d, 0xcb, 0xfd, 0x44, 0xe9, 0xc7, 0x59, 0xed, 0x46, 0x66, 0x8d, 0x24,
+	0xef, 0x9d, 0x80, 0xbb, 0x21, 0x56, 0x03, 0xa7, 0x1b, 0xa9, 0xd3, 0xe3, 0x16, 0x68, 0xcf, 0xba,
+	0x91, 0xf2, 0x34, 0x15, 0xdd, 0x06, 0x08, 0xa9, 0x94, 0x98, 0xd1, 0x7e, 0x40, 0x52, 0x8f, 0x4a,
+	0x5e, 0x49, 0x67, 0xba, 0x04, 0x99, 0xb0, 0x2c, 0x87, 0xbe, 0x4f, 0xa5, 0x4c, 0xbd, 0xf9, 0xdf,
+	0xcb, 0xc3, 0xa4, 0x26, 0x2a, 0x04, 0x17, 0xe6, 0x52, 0x56, 0x53, 0x1a, 0xd8, 0x1f, 0xe1, 0x5a,
+	0x4f, 0xb2, 0x57, 0x31, 0xc1, 0x8a, 0xee, 0xa4, 0xab, 0x80, 0x6e, 0x41, 0x09, 0x0f, 0xd5, 0x80,
+	0x8b, 0x40, 0x1d, 0xea, 0x06, 0x66, 0x09, 0xf4, 0x04, 0x8a, 0xd9, 0xca, 0xa4, 0x4d, 0x94, 0xdb,
+	0xd6, 0x3c, 0xe3, 0x32, 0x35, 0x6d, 0x97, 0xe6, 0x6c, 0xad, 0x25, 0xa3, 0x99, 0xa9, 0xd9, 0x1b,
+	0xb0, 0x7e, 0xe9, 0xf9, 0x7c, 0x44, 0xed, 0x6f, 0x06, 0x2c, 0xf4, 0x24, 0x43, 0xaf, 0x61, 0x39,
+	0xdf, 0x47, 0x7b, 0xde, 0x5b, 0xb3, 0x09, 0x57, 0x9b, 0x57, 0x63, 0xa6, 0x5b, 0x30, 0x80, 0x95,
+	0xdf, 0x3a, 0xbf, 0xf7, 0x17, 0xee, 0x45, 0x60, 0xd5, 0xfd, 0x47, 0x60, 0xfe, 0x52, 0x75, 0xe9,
+	0xd3, 0xf9, 0x51, 0xd3, 0xe8, 0xec, 0x9c, 0x8c, 0x2d, 0x63, 0x34, 0xb6, 0x8c, 0x9f, 0x63, 0xcb,
+	0xf8, 0x32, 0xb1, 0x0a, 0xa3, 0x89, 0x55, 0xf8, 0x3e, 0xb1, 0x0a, 0x6f, 0x1e, 0xb1, 0x40, 0x0d,
+	0x86, 0xbb, 0x8e, 0xcf, 0x43, 0x37, 0xd7, 0xe6, 0x82, 0x4d, 0xcf, 0x2d, 0x1c, 0xc7, 0xee, 0xc1,
+	0xc5, 0xbf, 0xab, 0x0e, 0x63, 0x2a, 0x77, 0x8b, 0xe9, 0xc7, 0x7d, 0xf8, 0x2b, 0x00, 0x00, 0xff,
+	0xff, 0xe3, 0xc6, 0x48, 0x9a, 0x62, 0x04, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -383,11 +382,11 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MsgClient interface {
-	// ExecuteForwarding forwards all tokens at a derived forwarding address
+	// Forward forwards all tokens at a derived forwarding address
 	// to their committed destination via Hyperlane warp transfer.
-	ExecuteForwarding(ctx context.Context, in *MsgExecuteForwarding, opts ...grpc.CallOption) (*MsgExecuteForwardingResponse, error)
-	// UpdateForwardingParams updates the forwarding module parameters.
-	UpdateForwardingParams(ctx context.Context, in *MsgUpdateForwardingParams, opts ...grpc.CallOption) (*MsgUpdateForwardingParamsResponse, error)
+	Forward(ctx context.Context, in *MsgForward, opts ...grpc.CallOption) (*MsgForwardResponse, error)
+	// UpdateParams updates the forwarding module parameters.
+	UpdateParams(ctx context.Context, in *MsgUpdateParams, opts ...grpc.CallOption) (*MsgUpdateParamsResponse, error)
 }
 
 type msgClient struct {
@@ -398,18 +397,18 @@ func NewMsgClient(cc grpc1.ClientConn) MsgClient {
 	return &msgClient{cc}
 }
 
-func (c *msgClient) ExecuteForwarding(ctx context.Context, in *MsgExecuteForwarding, opts ...grpc.CallOption) (*MsgExecuteForwardingResponse, error) {
-	out := new(MsgExecuteForwardingResponse)
-	err := c.cc.Invoke(ctx, "/celestia.forwarding.v1.Msg/ExecuteForwarding", in, out, opts...)
+func (c *msgClient) Forward(ctx context.Context, in *MsgForward, opts ...grpc.CallOption) (*MsgForwardResponse, error) {
+	out := new(MsgForwardResponse)
+	err := c.cc.Invoke(ctx, "/celestia.forwarding.v1.Msg/Forward", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *msgClient) UpdateForwardingParams(ctx context.Context, in *MsgUpdateForwardingParams, opts ...grpc.CallOption) (*MsgUpdateForwardingParamsResponse, error) {
-	out := new(MsgUpdateForwardingParamsResponse)
-	err := c.cc.Invoke(ctx, "/celestia.forwarding.v1.Msg/UpdateForwardingParams", in, out, opts...)
+func (c *msgClient) UpdateParams(ctx context.Context, in *MsgUpdateParams, opts ...grpc.CallOption) (*MsgUpdateParamsResponse, error) {
+	out := new(MsgUpdateParamsResponse)
+	err := c.cc.Invoke(ctx, "/celestia.forwarding.v1.Msg/UpdateParams", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -418,60 +417,60 @@ func (c *msgClient) UpdateForwardingParams(ctx context.Context, in *MsgUpdateFor
 
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
-	// ExecuteForwarding forwards all tokens at a derived forwarding address
+	// Forward forwards all tokens at a derived forwarding address
 	// to their committed destination via Hyperlane warp transfer.
-	ExecuteForwarding(context.Context, *MsgExecuteForwarding) (*MsgExecuteForwardingResponse, error)
-	// UpdateForwardingParams updates the forwarding module parameters.
-	UpdateForwardingParams(context.Context, *MsgUpdateForwardingParams) (*MsgUpdateForwardingParamsResponse, error)
+	Forward(context.Context, *MsgForward) (*MsgForwardResponse, error)
+	// UpdateParams updates the forwarding module parameters.
+	UpdateParams(context.Context, *MsgUpdateParams) (*MsgUpdateParamsResponse, error)
 }
 
 // UnimplementedMsgServer can be embedded to have forward compatible implementations.
 type UnimplementedMsgServer struct {
 }
 
-func (*UnimplementedMsgServer) ExecuteForwarding(ctx context.Context, req *MsgExecuteForwarding) (*MsgExecuteForwardingResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ExecuteForwarding not implemented")
+func (*UnimplementedMsgServer) Forward(ctx context.Context, req *MsgForward) (*MsgForwardResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Forward not implemented")
 }
-func (*UnimplementedMsgServer) UpdateForwardingParams(ctx context.Context, req *MsgUpdateForwardingParams) (*MsgUpdateForwardingParamsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateForwardingParams not implemented")
+func (*UnimplementedMsgServer) UpdateParams(ctx context.Context, req *MsgUpdateParams) (*MsgUpdateParamsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateParams not implemented")
 }
 
 func RegisterMsgServer(s grpc1.Server, srv MsgServer) {
 	s.RegisterService(&_Msg_serviceDesc, srv)
 }
 
-func _Msg_ExecuteForwarding_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MsgExecuteForwarding)
+func _Msg_Forward_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgForward)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MsgServer).ExecuteForwarding(ctx, in)
+		return srv.(MsgServer).Forward(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/celestia.forwarding.v1.Msg/ExecuteForwarding",
+		FullMethod: "/celestia.forwarding.v1.Msg/Forward",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MsgServer).ExecuteForwarding(ctx, req.(*MsgExecuteForwarding))
+		return srv.(MsgServer).Forward(ctx, req.(*MsgForward))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Msg_UpdateForwardingParams_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MsgUpdateForwardingParams)
+func _Msg_UpdateParams_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgUpdateParams)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MsgServer).UpdateForwardingParams(ctx, in)
+		return srv.(MsgServer).UpdateParams(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/celestia.forwarding.v1.Msg/UpdateForwardingParams",
+		FullMethod: "/celestia.forwarding.v1.Msg/UpdateParams",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MsgServer).UpdateForwardingParams(ctx, req.(*MsgUpdateForwardingParams))
+		return srv.(MsgServer).UpdateParams(ctx, req.(*MsgUpdateParams))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -481,19 +480,19 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*MsgServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "ExecuteForwarding",
-			Handler:    _Msg_ExecuteForwarding_Handler,
+			MethodName: "Forward",
+			Handler:    _Msg_Forward_Handler,
 		},
 		{
-			MethodName: "UpdateForwardingParams",
-			Handler:    _Msg_UpdateForwardingParams_Handler,
+			MethodName: "UpdateParams",
+			Handler:    _Msg_UpdateParams_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "celestia/forwarding/v1/tx.proto",
 }
 
-func (m *MsgExecuteForwarding) Marshal() (dAtA []byte, err error) {
+func (m *MsgForward) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -503,12 +502,12 @@ func (m *MsgExecuteForwarding) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgExecuteForwarding) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgForward) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgExecuteForwarding) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgForward) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -542,7 +541,7 @@ func (m *MsgExecuteForwarding) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgExecuteForwardingResponse) Marshal() (dAtA []byte, err error) {
+func (m *MsgForwardResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -552,12 +551,12 @@ func (m *MsgExecuteForwardingResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgExecuteForwardingResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgForwardResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgExecuteForwardingResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgForwardResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -643,7 +642,7 @@ func (m *ForwardingResult) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgUpdateForwardingParams) Marshal() (dAtA []byte, err error) {
+func (m *MsgUpdateParams) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -653,12 +652,12 @@ func (m *MsgUpdateForwardingParams) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgUpdateForwardingParams) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgUpdateParams) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgUpdateForwardingParams) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgUpdateParams) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -683,7 +682,7 @@ func (m *MsgUpdateForwardingParams) MarshalToSizedBuffer(dAtA []byte) (int, erro
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgUpdateForwardingParamsResponse) Marshal() (dAtA []byte, err error) {
+func (m *MsgUpdateParamsResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -693,12 +692,12 @@ func (m *MsgUpdateForwardingParamsResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgUpdateForwardingParamsResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgUpdateParamsResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgUpdateForwardingParamsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgUpdateParamsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -717,7 +716,7 @@ func encodeVarintTx(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *MsgExecuteForwarding) Size() (n int) {
+func (m *MsgForward) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -741,7 +740,7 @@ func (m *MsgExecuteForwarding) Size() (n int) {
 	return n
 }
 
-func (m *MsgExecuteForwardingResponse) Size() (n int) {
+func (m *MsgForwardResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -782,7 +781,7 @@ func (m *ForwardingResult) Size() (n int) {
 	return n
 }
 
-func (m *MsgUpdateForwardingParams) Size() (n int) {
+func (m *MsgUpdateParams) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -797,7 +796,7 @@ func (m *MsgUpdateForwardingParams) Size() (n int) {
 	return n
 }
 
-func (m *MsgUpdateForwardingParamsResponse) Size() (n int) {
+func (m *MsgUpdateParamsResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -812,7 +811,7 @@ func sovTx(x uint64) (n int) {
 func sozTx(x uint64) (n int) {
 	return sovTx(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *MsgExecuteForwarding) Unmarshal(dAtA []byte) error {
+func (m *MsgForward) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -835,10 +834,10 @@ func (m *MsgExecuteForwarding) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgExecuteForwarding: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgForward: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgExecuteForwarding: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgForward: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -977,7 +976,7 @@ func (m *MsgExecuteForwarding) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MsgExecuteForwardingResponse) Unmarshal(dAtA []byte) error {
+func (m *MsgForwardResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1000,10 +999,10 @@ func (m *MsgExecuteForwardingResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgExecuteForwardingResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgForwardResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgExecuteForwardingResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgForwardResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -1261,7 +1260,7 @@ func (m *ForwardingResult) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MsgUpdateForwardingParams) Unmarshal(dAtA []byte) error {
+func (m *MsgUpdateParams) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1284,10 +1283,10 @@ func (m *MsgUpdateForwardingParams) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgUpdateForwardingParams: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgUpdateParams: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgUpdateForwardingParams: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgUpdateParams: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -1376,7 +1375,7 @@ func (m *MsgUpdateForwardingParams) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MsgUpdateForwardingParamsResponse) Unmarshal(dAtA []byte) error {
+func (m *MsgUpdateParamsResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1399,10 +1398,10 @@ func (m *MsgUpdateForwardingParamsResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgUpdateForwardingParamsResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgUpdateParamsResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgUpdateForwardingParamsResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgUpdateParamsResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		default:
