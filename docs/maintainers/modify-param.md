@@ -73,7 +73,7 @@ params:
 }
 ```
 
-2. Submit the proposal and vote on it:
+1. Submit the proposal and vote on it:
 
     ```shell
     # Export a variable for the key that will be used to submit the proposal

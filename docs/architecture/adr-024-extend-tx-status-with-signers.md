@@ -51,4 +51,3 @@ The solution involved changes across three repositories:
 
 - **Storage Overhead**: Each transaction result now stores signer information (typically 1-5 addresses per transaction)
 - **Upstream Divergence**: Increases the diff between upstream and our forked repos (cosmos-sdk and celestia-core), especially since the changes include updates to protobuf definitions.
-

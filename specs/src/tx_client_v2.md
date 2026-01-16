@@ -4,7 +4,7 @@
 
 Tx Client v2 enforces **per-account sequential transaction submission** to prevent sequence races and minimize transaction failures.
 
-**Key properties**
+### Key properties
 
 - Transactions are **signed and broadcast strictly in sequence order**
 - A transaction is **never re-signed**, only **resubmitted** (which means resubmitted using the original signed bytes).
@@ -24,20 +24,20 @@ Errors are classified based on whether progress can be made without user interve
 
 Errors that are **not related to account sequence numbers**.
 
-**Retryable**
+#### Retryable
 
 - Network errors
 - Application errors like `ErrMempoolIsFull`
 
-**Behavior**
+##### Retryable Behavior
 
 - Retry submission until accepted or a terminal error occurs.
 
-**Terminal**
+#### Terminal
 
 - Application errors like `ErrTxTooLarge`
 
-**Behavior**
+##### Terminal Behavior
 
 - Return the error to the user immediately.
 
@@ -49,7 +49,7 @@ Sequence mismatch errors occur when the node's expected account sequence differs
 
 Indicates eviction or rejection of one or more previously submitted transactions that is not yet known to the client (e.g. eviction or rejection during `ReCheckTx`).
 
-**Behavior**
+##### Case 1 Behavior
 
 - Pause broadcasting.
 - Query the status of transactions in the range
@@ -72,7 +72,7 @@ This can happen for one of the following reasons:
 - The transaction was evicted on the current node (thus not in the mempool), but was included in a block on another node.
 - A different transaction with the same sequence was included in a block, implying that a transaction for the signer was submitted outside of the tx client.
 
-**Behavior**
+##### Case 2 Behavior
 
 1. Pause broadcasting.
 2. Query the status of the transaction with the conflicting sequence.
@@ -90,35 +90,35 @@ Transaction statuses are obtained via **batched status queries** using the `tx_s
 
 ### Transaction States
 
-**Pending**
+#### Pending
 
 - No action required.
 
-**Committed**
+#### Committed
 
 - The transaction was included in a block.
 - Remove from the queue.
 - Return success with execution metadata.
 
-**Committed with execution error**
+#### Committed with execution error
 
 - The transaction was included in a block but failed during execution.
 - Remove from the queue.
 - Return execution error with metadata.
 
-**Evicted**
+#### Evicted
 
 - Broadcasting is paused.
 - Resubmit the transaction.
 - Resume broadcasting.
 
-**Rejected**
+#### Rejected
 
 - Broadcasting is paused.
 - Roll back the sequence to the first rejected transaction.
 - Return rejection error to the user.
 
-**Unknown**
+#### Unknown
 
 - The transaction is neither evicted, rejected, nor committed.
 - Return an error indicating that the transaction status is unknown.

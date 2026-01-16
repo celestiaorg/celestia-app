@@ -14,6 +14,7 @@ This module is stateless. It does not persist any data and relies entirely on th
 ## State Transitions
 
 When a burn is executed:
+
 1. Tokens are transferred from the signer's account to the burn module account
 2. Tokens are burned from the module account, reducing total supply
 
@@ -31,6 +32,7 @@ message MsgBurn {
 ```
 
 Validation:
+
 - `signer` must be a valid bech32 address
 - `amount.denom` must be `utia`
 - `amount.amount` must be positive
@@ -55,6 +57,7 @@ celestia-appd tx burn burn <amount> --from <key>
 ```
 
 Example:
+
 ```shell
 celestia-appd tx burn burn 1000000utia --from mykey
 ```
