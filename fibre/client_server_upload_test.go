@@ -13,6 +13,10 @@ import (
 
 // TestClientServerUpload validates end-to-end over GRPC the upload flow with various blob sizes and configurations.
 func TestClientServerUpload(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping TestClientServerUpload in short mode")
+	}
+
 	tests := []struct {
 		name           string
 		numValidators  int
