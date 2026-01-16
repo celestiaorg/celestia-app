@@ -248,7 +248,7 @@ func (s *ForwardingIntegrationTestSuite) TestHasEnrolledRouter() {
 	s.T().Logf("Non-existent domain: %v", hasNonExistent)
 }
 
-func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullFlow() {
+func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullFlow() {
 	const (
 		CelestiaDomainID uint32 = 69420
 		SimappDomainID   uint32 = 1337
@@ -284,8 +284,8 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullFlow() {
 	forwardBalance := celestiaApp.BankKeeper.GetBalance(ctx, forwardAddr, params.BondDenom)
 	s.Equal(fundAmount.Int64(), forwardBalance.Amount.Int64())
 
-	// Create and execute MsgExecuteForwarding
-	msg := forwardingtypes.NewMsgExecuteForwarding(
+	// Create and execute MsgForward
+	msg := forwardingtypes.NewMsgForward(
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
 		SimappDomainID,
@@ -322,11 +322,11 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullFlow() {
 	}
 }
 
-func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_AddressMismatch() {
+func (s *ForwardingIntegrationTestSuite) TestMsgForward_AddressMismatch() {
 	randomAddr := sdk.AccAddress([]byte("random_address______"))
 	destRecipient := makeRecipient32(s.simapp.SenderAccount.GetAddress())
 
-	msg := forwardingtypes.NewMsgExecuteForwarding(
+	msg := forwardingtypes.NewMsgForward(
 		s.celestia.SenderAccount.GetAddress().String(),
 		randomAddr.String(),
 		1337,
@@ -338,12 +338,12 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_AddressMismatc
 	s.Contains(err.Error(), "derived address does not match")
 }
 
-func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_NoBalance() {
+func (s *ForwardingIntegrationTestSuite) TestMsgForward_NoBalance() {
 	destRecipient := makeRecipient32(s.simapp.SenderAccount.GetAddress())
 	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(1337, destRecipient)
 	s.Require().NoError(err)
 
-	msg := forwardingtypes.NewMsgExecuteForwarding(
+	msg := forwardingtypes.NewMsgForward(
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
 		1337,
@@ -355,7 +355,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_NoBalance() {
 	s.Contains(err.Error(), "no balance")
 }
 
-func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_MultiToken() {
+func (s *ForwardingIntegrationTestSuite) TestMsgForward_MultiToken() {
 	const (
 		CelestiaDomainID uint32 = 69420
 		SimappDomainID   uint32 = 1337
@@ -414,7 +414,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_MultiToken() {
 	s.Equal(int64(500), synBalance.Amount.Int64())
 
 	// Execute forwarding
-	msg := forwardingtypes.NewMsgExecuteForwarding(
+	msg := forwardingtypes.NewMsgForward(
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
 		SimappDomainID,
@@ -435,7 +435,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_MultiToken() {
 	s.Equal(2, s.countDispatchEvents(res.Events), "should have 2 dispatch events for 2 tokens")
 }
 
-func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_PartialFailure_UnsupportedToken() {
+func (s *ForwardingIntegrationTestSuite) TestMsgForward_PartialFailure_UnsupportedToken() {
 	const (
 		CelestiaDomainID uint32 = 69420
 		SimappDomainID   uint32 = 1337
@@ -471,7 +471,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_PartialFailure
 	s.fundAddress(s.celestia, forwardAddr, sdk.NewCoin(unsupportedDenom, unsupportedAmount))
 
 	// Execute forwarding - tx should SUCCEED (partial failure, not full failure)
-	msg := forwardingtypes.NewMsgExecuteForwarding(
+	msg := forwardingtypes.NewMsgForward(
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
 		SimappDomainID,
@@ -490,7 +490,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_PartialFailure
 	s.Equal(unsupportedAmount.Int64(), newUnsupportedBalance.Amount.Int64(), "unsupported token should remain at forwardAddr")
 }
 
-func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_PartialFailure_NoRoute() {
+func (s *ForwardingIntegrationTestSuite) TestMsgForward_PartialFailure_NoRoute() {
 	const (
 		CelestiaDomainID uint32 = 69420
 		SimappDomainID   uint32 = 1337
@@ -532,7 +532,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_PartialFailure
 	s.fundAddress(s.celestia, forwardAddr, sdk.NewCoin(testDenom, testAmount))
 
 	// Execute forwarding
-	msg := forwardingtypes.NewMsgExecuteForwarding(
+	msg := forwardingtypes.NewMsgForward(
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
 		SimappDomainID,
@@ -551,7 +551,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_PartialFailure
 	s.Equal(testAmount.Int64(), newTestBalance.Amount.Int64(), "test token should remain (no route to simapp)")
 }
 
-func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_MinThreshold() {
+func (s *ForwardingIntegrationTestSuite) TestMsgForward_MinThreshold() {
 	const (
 		CelestiaDomainID uint32 = 69420
 		SimappDomainID   uint32 = 1337
@@ -588,7 +588,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_MinThreshold()
 	s.fundAddress(s.celestia, forwardAddr, sdk.NewCoin(params.BondDenom, belowThresholdAmount))
 
 	// Execute forwarding - tx succeeds but token stays (below threshold)
-	msg := forwardingtypes.NewMsgExecuteForwarding(
+	msg := forwardingtypes.NewMsgForward(
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
 		SimappDomainID,
@@ -617,7 +617,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_MinThreshold()
 	s.True(finalBalance.Amount.IsZero(), "balance should be zero after forwarding (above threshold)")
 }
 
-func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullE2E_SourceCollateralToken() {
+func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullE2E_SourceCollateralToken() {
 	const (
 		ChainADomainID   uint32 = 1111
 		CelestiaDomainID uint32 = 69420
@@ -669,7 +669,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullE2E_Source
 	s.Equal(int64(1000), forwardBalance.Amount.Int64(), "synthetic tokens should arrive at forwardAddr")
 
 	// Execute forwarding on Celestia
-	forwardMsg := forwardingtypes.NewMsgExecuteForwarding(
+	forwardMsg := forwardingtypes.NewMsgForward(
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
 		ChainBDomainID,
@@ -704,7 +704,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullE2E_Source
 	s.Equal(int64(1000), finalBalance.Amount.Int64(), "tokens should arrive at final destination on chainB")
 }
 
-func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullE2E_TIASyntheticOnSource() {
+func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullE2E_TIASyntheticOnSource() {
 	const (
 		ChainADomainID   uint32 = 1111
 		CelestiaDomainID uint32 = 69420
@@ -769,7 +769,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullE2E_TIASyn
 	s.Equal(int64(1000), forwardBalance.Amount.Int64(), "native utia should arrive at forwardAddr")
 
 	// Execute forwarding on Celestia
-	forwardMsg := forwardingtypes.NewMsgExecuteForwarding(
+	forwardMsg := forwardingtypes.NewMsgForward(
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
 		ChainBDomainID,
@@ -802,7 +802,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullE2E_TIASyn
 	s.Equal(int64(1000), finalBalance.Amount.Int64(), "synthetic TIA should arrive at final destination")
 }
 
-func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullE2E_CEXWithdrawal() {
+func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullE2E_CEXWithdrawal() {
 	const (
 		CelestiaDomainID uint32 = 69420
 		ChainBDomainID   uint32 = 2222
@@ -837,7 +837,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullE2E_CEXWit
 	s.Equal(cexWithdrawalAmount.Int64(), forwardBalance.Amount.Int64())
 
 	// Execute forwarding on Celestia
-	forwardMsg := forwardingtypes.NewMsgExecuteForwarding(
+	forwardMsg := forwardingtypes.NewMsgForward(
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
 		ChainBDomainID,
@@ -872,7 +872,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullE2E_CEXWit
 	s.Equal(cexWithdrawalAmount.Int64(), finalBalance.Amount.Int64(), "synthetic TIA should arrive at final destination")
 }
 
-func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_TooManyTokens() {
+func (s *ForwardingIntegrationTestSuite) TestMsgForward_TooManyTokens() {
 	const (
 		CelestiaDomainID uint32 = 69420
 		SimappDomainID   uint32 = 1337
@@ -915,7 +915,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_TooManyTokens(
 	s.Equal(forwardingtypes.MaxTokensPerForward+1, len(balances), "should have 21 different tokens")
 
 	// Attempt to forward - should fail with ErrTooManyTokens
-	forwardMsg := forwardingtypes.NewMsgExecuteForwarding(
+	forwardMsg := forwardingtypes.NewMsgForward(
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
 		SimappDomainID,
