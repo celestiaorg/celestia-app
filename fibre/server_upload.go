@@ -157,7 +157,7 @@ func (s *Server) verifyAssignment(ctx context.Context, promise *PaymentPromise, 
 	for i, row := range shard.GetRows() {
 		rowIndices[i] = row.Index
 	}
-	shardMap := valSet.Assign(rsema1d.Commitment(promise.Commitment), s.cfg.OriginalRows+s.cfg.ParityRows)
+	shardMap := valSet.Assign(rsema1d.Commitment(promise.Commitment), s.cfg.RowsPerShard(len(valSet.Validators)))
 	if err := shardMap.Verify(ourValidator, rowIndices); err != nil {
 		return err
 	}

@@ -20,12 +20,12 @@ func TestSet_Assign(t *testing.T) {
 	t.Run("EmptySet", func(t *testing.T) {
 		valSet := makeValidatorSet(0)
 
-		shardMap := valSet.Assign(commitment, 10)
+		shardMap := valSet.Assign(commitment, 5)
 		require.NotNil(t, shardMap)
 		require.Empty(t, shardMap)
 	})
 
-	t.Run("ZeroRows", func(t *testing.T) {
+	t.Run("ZeroRowsPerValidator", func(t *testing.T) {
 		valSet := makeValidatorSet(3)
 
 		shardMap := valSet.Assign(commitment, 0)
@@ -36,16 +36,16 @@ func TestSet_Assign(t *testing.T) {
 	t.Run("SingleValidator", func(t *testing.T) {
 		valSet := makeValidatorSet(1)
 
-		numRows := 10
-		shardMap := valSet.Assign(commitment, numRows)
+		rowsPerValidator := 10
+		shardMap := valSet.Assign(commitment, rowsPerValidator)
 		require.NotNil(t, shardMap)
 		require.Len(t, shardMap, 1)
 
 		// All rows should be assigned to the single validator
 		for _, rows := range shardMap {
-			require.Len(t, rows, numRows)
+			require.Len(t, rows, rowsPerValidator)
 			// Verify all row indices are present
-			for i := range numRows {
+			for i := range rowsPerValidator {
 				require.Contains(t, rows, i)
 			}
 		}
@@ -59,31 +59,23 @@ func TestSet_Assign(t *testing.T) {
 		var distCommitment rsema1d.Commitment
 		copy(distCommitment[:], hasher.Sum(nil))
 
-		totalRows := 16384
-		shardMap := valSet.Assign(distCommitment, totalRows)
+		rowsPerValidator := 163
+		shardMap := valSet.Assign(distCommitment, rowsPerValidator)
 
-		require.Len(t, shardMap, len(valSet.Validators), "All validators should be assigned rows")
+		require.Len(t, shardMap, len(valSet.Validators), "All validators should be in shard map")
 
-		expectedPerValidator := totalRows / len(valSet.Validators)
 		totalAssigned := 0
+		totalRows := rowsPerValidator * len(valSet.Validators)
 
 		// Track all assigned rows globally to detect cross-validator duplicates
 		globalSeen := make(map[int]bool)
 
-		lowest, highest := totalRows, 0
 		for val, rows := range shardMap {
 			count := len(rows)
 			totalAssigned += count
 
-			if count < lowest {
-				lowest = count
-			}
-			if count > highest {
-				highest = count
-			}
-
-			require.GreaterOrEqual(t, count, expectedPerValidator, "validator %s has too few rows", val.Address)
-			require.LessOrEqual(t, count, expectedPerValidator+1, "validator %s has too many rows", val.Address)
+			// Each validator gets exactly rowsPerValidator rows
+			require.Equal(t, rowsPerValidator, count, "validator %s should have exactly %d rows", val.Address, rowsPerValidator)
 
 			// Verify row indices are unique (within validator and across all validators) and in range
 			for _, rowIdx := range rows {
@@ -95,16 +87,15 @@ func TestSet_Assign(t *testing.T) {
 		}
 
 		require.Equal(t, totalRows, totalAssigned, "All rows should be assigned")
-		require.Len(t, globalSeen, totalRows, "All row indices should be assigned exactly once")
-		t.Logf("Lowest assignments: %d, Highest assignments: %d", lowest, highest)
+		t.Logf("Total assigned: %d (rowsPerValidator=%d, validators=%d)", totalAssigned, rowsPerValidator, len(valSet.Validators))
 	})
 
 	t.Run("Determinism", func(t *testing.T) {
 		valSet := makeValidatorSet(3)
 
-		numRows := 50
-		firstRun := valSet.Assign(commitment, numRows)
-		secondRun := valSet.Assign(commitment, numRows)
+		rowsPerValidator := 17
+		firstRun := valSet.Assign(commitment, rowsPerValidator)
+		secondRun := valSet.Assign(commitment, rowsPerValidator)
 
 		require.Len(t, firstRun, len(secondRun))
 
@@ -131,8 +122,7 @@ func BenchmarkSet_Assign(b *testing.B) {
 		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
 	}
 
-	// Typical total rows for different blob sizes (K=4096, N=12288, total=16384)
-	totalRows := 16384
+	rowsPerValidator := 164 // typical value for 100 validators
 
 	benchmarks := []struct {
 		name          string
@@ -147,7 +137,7 @@ func BenchmarkSet_Assign(b *testing.B) {
 		b.Run(bm.name, func(b *testing.B) {
 			valSet := makeValidatorSet(bm.numValidators)
 			for b.Loop() {
-				_ = valSet.Assign(commitment, totalRows)
+				_ = valSet.Assign(commitment, rowsPerValidator)
 			}
 		})
 	}
@@ -159,7 +149,7 @@ func TestShardMap_Verify(t *testing.T) {
 		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
 	}
 	valSet := makeValidatorSet(3)
-	shardMap := valSet.Assign(commitment, 10)
+	shardMap := valSet.Assign(commitment, 4) // 4 rows per validator
 
 	// test valid assignments
 	for val, rows := range shardMap {

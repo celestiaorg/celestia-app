@@ -24,6 +24,8 @@ type ServerConfig struct {
 	BlobConfig
 	StoreConfig
 
+	// RowsPerShard computes the number of rows per shard given the total number of shards.
+	RowsPerShard func(totalShards int) int
 	// MaxMessageSize is the maximum gRPC message size for upload requests.
 	MaxMessageSize int
 
@@ -47,6 +49,7 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 		ChainID:        "celestia",
 		BlobConfig:     DefaultBlobConfigV0(), // currently hardcode support for version zero only
 		StoreConfig:    DefaultStoreConfig(),
+		RowsPerShard:   p.RowsPerShard,
 		MaxMessageSize: p.MaxMessageSize(p.MaxValidatorCount),
 	}
 }
