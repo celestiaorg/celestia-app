@@ -84,16 +84,19 @@ func TestDeriveForwardingAddressUniqueness(t *testing.T) {
 
 // TestDeriveForwardingAddressIntermediates verifies the intermediate values in derivation.
 // This test is crucial for TypeScript SDK cross-verification.
+// NOTE: This test intentionally re-implements the algorithm to verify the main function
+// against an independent implementation. This is NOT code duplication - it ensures the
+// function matches the documented algorithm.
 func TestDeriveForwardingAddressIntermediates(t *testing.T) {
 	destDomain := uint32(1)
 	destRecipient := hexToBytes(t, "000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
 
 	// Step 1: Compute call digest preimage
-	destDomainBytes := make([]byte, 32)
-	binary.BigEndian.PutUint32(destDomainBytes[28:], destDomain)
-	callDigestPreimage := make([]byte, 32+types.RecipientLength)
+	destDomainBytes := make([]byte, types.DomainEncodingSize)
+	binary.BigEndian.PutUint32(destDomainBytes[types.DomainOffset:], destDomain)
+	callDigestPreimage := make([]byte, types.DomainEncodingSize+types.RecipientLength)
 	copy(callDigestPreimage, destDomainBytes)
-	copy(callDigestPreimage[32:], destRecipient)
+	copy(callDigestPreimage[types.DomainEncodingSize:], destRecipient)
 
 	t.Logf("destDomainBytes (32 bytes): %s", hex.EncodeToString(destDomainBytes))
 	t.Logf("callDigestPreimage (64 bytes): %s", hex.EncodeToString(callDigestPreimage))
@@ -128,38 +131,41 @@ func TestDeriveForwardingAddressIntermediates(t *testing.T) {
 // These vectors should be used to verify TypeScript SDK implementation.
 func TestDeriveForwardingAddressTestVectors(t *testing.T) {
 	testVectors := []struct {
-		name          string
-		destDomain    uint32
-		destRecipient string // hex encoded, 32 bytes
+		name            string
+		destDomain      uint32
+		destRecipient   string // hex encoded, 32 bytes
+		expectedAddress string // hex encoded, 20 bytes
 	}{
 		{
-			name:          "vector_1_ethereum_mainnet",
-			destDomain:    1,
-			destRecipient: "000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+			name:            "vector_1_ethereum_mainnet",
+			destDomain:      1,
+			destRecipient:   "000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+			expectedAddress: "a5552e3961868e720b55166437869f581ec058c8",
 		},
 		{
-			name:          "vector_2_arbitrum",
-			destDomain:    42161,
-			destRecipient: "0000000000000000000000001234567890abcdef1234567890abcdef12345678",
+			name:            "vector_2_arbitrum",
+			destDomain:      42161,
+			destRecipient:   "0000000000000000000000001234567890abcdef1234567890abcdef12345678",
+			expectedAddress: "d1643f5d081f9e2a389dca3bc2dfdccfc0dace1b",
 		},
 		{
-			name:          "vector_3_zero_values",
-			destDomain:    0,
-			destRecipient: "0000000000000000000000000000000000000000000000000000000000000000",
+			name:            "vector_3_zero_values",
+			destDomain:      0,
+			destRecipient:   "0000000000000000000000000000000000000000000000000000000000000000",
+			expectedAddress: "bf71c5b5b1ba95ab45af03088442b46bdc48e029",
 		},
 	}
 
-	t.Log("=== TEST VECTORS FOR TYPESCRIPT SDK ===")
 	for _, tc := range testVectors {
 		t.Run(tc.name, func(t *testing.T) {
 			recipient := hexToBytes(t, tc.destRecipient)
 			addr, err := types.DeriveForwardingAddress(tc.destDomain, recipient)
 			require.NoError(t, err)
 
-			t.Logf("Test Vector: %s", tc.name)
-			t.Logf("  destDomain: %d", tc.destDomain)
-			t.Logf("  destRecipient: 0x%s", tc.destRecipient)
-			t.Logf("  derivedAddressHex: %s", hex.EncodeToString(addr))
+			actualHex := hex.EncodeToString(addr)
+			require.Equal(t, tc.expectedAddress, actualHex,
+				"address mismatch for %s: expected %s, got %s",
+				tc.name, tc.expectedAddress, actualHex)
 		})
 	}
 }
