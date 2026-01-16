@@ -278,10 +278,11 @@ func (suite *TokenFilterTestSuite) TestInboundUtiaReturnToFeeAddressAllowed() {
 	err = path.RelayPacket(packet)
 	suite.Require().NoError(err)
 
-	// Note: RelayPacket commits blocks internally, which runs the EndBlocker.
-	// The EndBlocker forwards tokens to fee collector, and then the distribution
-	// module's BeginBlocker distributes them to validators in the next block.
-	// So we verify the fee address is empty (proving tokens were forwarded).
+	// Verify tokens arrived at fee address (proving IBC transfer was accepted).
+	// Note: In production, PrepareProposal would inject a MsgForwardFees tx in the
+	// next block to forward these tokens to fee collector. The IBC testing framework
+	// doesn't invoke PrepareProposal, so we verify token arrival instead.
+	// Full E2E forwarding is tested in x/feeaddress/test/feeaddress_test.go.
 	feeAddressBalance := celestiaApp.BankKeeper.GetBalance(suite.celestia.GetContext(), feeaddresstypes.FeeAddress, sdk.DefaultBondDenom)
-	suite.Require().Equal(int64(0), feeAddressBalance.Amount.Int64(), "fee address should be empty after EndBlocker")
+	suite.Require().Equal(int64(1000), feeAddressBalance.Amount.Int64(), "fee address should have received the utia")
 }

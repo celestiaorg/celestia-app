@@ -28,3 +28,5 @@ breaking:
   ignore:
     # feeaddress module is new in v7 and has not been released yet
     - celestia/feeaddress
+    # burn module was removed in v7 (replaced by feeaddress)
+    - celestia/burn

@@ -11,7 +11,9 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkmodule "github.com/cosmos/cosmos-sdk/types/module"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
-	"github.com/cosmos/gogoproto/proto"
+	gogoproto "github.com/cosmos/gogoproto/proto"
+	protov2 "google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 // Config specifies the concrete encoding types to use for a given app.
@@ -35,10 +37,18 @@ func MakeConfig(moduleBasics ...sdkmodule.AppModuleBasic) Config {
 	consensusAddressCodec := address.NewBech32Codec(sdk.GetConfig().GetBech32ConsensusAddrPrefix())
 
 	interfaceRegistry, _ := codectypes.NewInterfaceRegistryWithOptions(codectypes.InterfaceRegistryOptions{
-		ProtoFiles: proto.HybridResolver,
+		ProtoFiles: gogoproto.HybridResolver,
 		SigningOptions: signing.Options{
 			AddressCodec:          addressCodec,
 			ValidatorAddressCodec: validatorAddressCodec,
+			// CustomGetSigners defines custom signer extraction for messages that don't have
+			// the cosmos.msg.v1.signer proto annotation. MsgForwardFees is a protocol-injected
+			// message with no signers - it's validated by ProcessProposal instead of signatures.
+			CustomGetSigners: map[protoreflect.FullName]signing.GetSignersFunc{
+				"celestia.feeaddress.v1.MsgForwardFees": func(msg protov2.Message) ([][]byte, error) {
+					return [][]byte{}, nil // No signers - protocol-injected transaction
+				},
+			},
 		},
 	})
 	amino := codec.NewLegacyAmino()

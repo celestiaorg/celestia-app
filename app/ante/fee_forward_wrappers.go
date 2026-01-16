@@ -1,8 +1,31 @@
 package ante
 
 import (
+	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
+
+// EarlyFeeForwardDetector detects MsgForwardFees transactions early in the ante chain
+// and sets the context flag so that subsequent decorators (like ValidateBasic) can be skipped.
+// This MUST be placed before ValidateBasicDecorator in the ante chain.
+type EarlyFeeForwardDetector struct{}
+
+// NewEarlyFeeForwardDetector creates a new EarlyFeeForwardDetector.
+func NewEarlyFeeForwardDetector() EarlyFeeForwardDetector {
+	return EarlyFeeForwardDetector{}
+}
+
+// AnteHandle implements sdk.AnteDecorator.
+func (d EarlyFeeForwardDetector) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
+	msgs := tx.GetMsgs()
+	if len(msgs) == 1 {
+		if _, ok := msgs[0].(*feeaddresstypes.MsgForwardFees); ok {
+			// Set the context flag early so ValidateBasic and other decorators can be skipped
+			ctx = ctx.WithValue(FeeForwardContextKey{}, true)
+		}
+	}
+	return next(ctx, tx, simulate)
+}
 
 // SkipForFeeForwardDecorator wraps an ante decorator and skips it for fee forward transactions.
 type SkipForFeeForwardDecorator struct {

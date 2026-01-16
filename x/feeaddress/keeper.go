@@ -12,8 +12,10 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-var _ types.MsgServer = Keeper{}
-var _ types.QueryServer = Keeper{}
+var (
+	_ types.MsgServer   = Keeper{}
+	_ types.QueryServer = Keeper{}
+)
 
 // Keeper handles fee forwarding operations for the feeaddress module.
 // Note: The actual fee transfer is done by FeeForwardDecorator in the ante handler.
