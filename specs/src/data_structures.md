@@ -47,7 +47,7 @@ Block header, which is fully downloaded by both full clients and light clients.
 | `lastCommitHash`                  | [HashDigest](#hashdigest)             | Previous block's Tendermint commit hash.                                                                                                                           |
 | `consensusHash`                   | [HashDigest](#hashdigest)             | Hash of [consensus parameters](#consensus-parameters) for this block.                                                                                              |
 | `AppHash`                         | [HashDigest](#hashdigest)             | The [state root](#state) after the previous block's transactions are applied.                                                                                      |
-| `availableDataOriginalSharesUsed` | `uint64`                              | The number of shares used in the [original data square](#arranging-available-data-into-shares) that are not [tail padding](./consensus.md#reserved-namespace-ids). |
+| `availableDataOriginalSharesUsed` | `uint64`                              | The number of shares used in the [original data square](#arranging-available-data-into-shares) that are not [tail padding](./shares.md#tail-padding-share). |
 | `availableDataRoot`               | [HashDigest](#hashdigest)             | Root of [commitments to erasure-coded data](#availabledataheader).                                                                                                 |
 | `proposerAddress`                 | [Address](#address)                   | Address of this block's proposer.                                                                                                                                  |
 
@@ -66,7 +66,7 @@ The number of row/column roots of the original data [shares](data_structures.md#
 
 The number of row and column roots is each `availableDataOriginalSquareSize * 2`, and must be a power of 2. Note that the minimum `availableDataOriginalSquareSize` is 1 (not 0), therefore the number of row and column roots are each at least 2.
 
-Implementations can prune rows containing only [tail padding](./consensus.md#reserved-namespace-ids) as they are implicitly available.
+Implementations can prune rows containing only [tail padding](./shares.md#tail-padding-share) as they are implicitly available.
 
 ### AvailableData
 
