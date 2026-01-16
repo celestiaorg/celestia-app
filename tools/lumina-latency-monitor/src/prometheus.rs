@@ -67,6 +67,14 @@ lazy_static! {
         vec![0.5, 1.0, 2.0, 5.0, 10.0, 15.0, 20.0, 30.0, 45.0, 60.0, 90.0, 120.0]
     )
     .unwrap();
+
+    /// Histogram of CheckTx (BroadcastTx) latencies in seconds.
+    pub static ref CHECKTX_HISTOGRAM: Histogram = register_histogram!(
+        "latency_monitor_checktx_seconds",
+        "Time for BroadcastTx to return (mempool CheckTx acceptance) in seconds",
+        vec![0.01, 0.025, 0.05, 0.1, 0.2, 0.35, 0.5, 0.75, 1.0, 2.0, 5.0]
+    )
+    .unwrap();
 }
 
 /// Record a transaction submission.
@@ -81,6 +89,11 @@ pub fn record_confirm(latency: Duration, blob_size: usize) {
     TX_IN_FLIGHT.dec();
     BYTES_CONFIRMED.inc_by(blob_size as f64);
     LATENCY_HISTOGRAM.observe(latency.as_secs_f64());
+}
+
+/// Record how long BroadcastTx took to return.
+pub fn record_checktx_latency(latency: Duration) {
+    CHECKTX_HISTOGRAM.observe(latency.as_secs_f64());
 }
 
 /// Record a broadcast failure.

@@ -1,0 +1,19 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /root/promtail-positions.yml
+
+clients:
+  - url: __LOKI_URL__/loki/api/v1/push
+
+scrape_configs:
+  - job_name: latency-monitor
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: latency-monitor
+          host: ${HOSTNAME}
+          __path__: /root/latency-monitor-logs

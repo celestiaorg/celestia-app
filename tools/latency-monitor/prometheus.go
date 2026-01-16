@@ -53,6 +53,13 @@ var (
 		Help:    "Transaction latency in seconds",
 		Buckets: []float64{0.5, 1.0, 2.0, 5.0, 10.0, 15.0, 20.0, 30.0, 45.0, 60.0, 90.0, 120.0},
 	})
+
+	// checkTxLatencyHistogram measures broadcast->CheckTx time in seconds.
+	checkTxLatencyHistogram = promauto.NewHistogram(prometheus.HistogramOpts{
+		Name:    "latency_monitor_checktx_seconds",
+		Help:    "Time for BroadcastTx to return (mempool CheckTx acceptance) in seconds",
+		Buckets: []float64{0.01, 0.025, 0.05, 0.1, 0.2, 0.35, 0.5, 0.75, 1.0, 2.0, 5.0},
+	})
 )
 
 // recordSubmit records a transaction submission.
@@ -67,6 +74,11 @@ func recordConfirm(latency time.Duration, blobSize int) {
 	txInFlight.Dec()
 	bytesConfirmed.Add(float64(blobSize))
 	latencyHistogram.Observe(latency.Seconds())
+}
+
+// recordCheckTxLatency records how long BroadcastTx took to return.
+func recordCheckTxLatency(latency time.Duration) {
+	checkTxLatencyHistogram.Observe(latency.Seconds())
 }
 
 // recordBroadcastFailure records a broadcast failure.
