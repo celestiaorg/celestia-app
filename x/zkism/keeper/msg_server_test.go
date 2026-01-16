@@ -168,10 +168,28 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 			},
 			expError: sdkerrors.ErrInvalidType,
 		},
+		{
+			name: "duplicate submission rejected",
+			setupTest: func() {
+				msg = &types.MsgSubmitMessages{
+					Id:           ism.Id,
+					Proof:        proofBz,
+					PublicValues: pubValues,
+				}
+				// First submission should succeed
+				msgServer := keeper.NewMsgServerImpl(suite.zkISMKeeper)
+				_, err := msgServer.SubmitMessages(suite.ctx, msg)
+				suite.Require().NoError(err)
+			},
+			expError: types.ErrMessageProofAlreadySubmitted,
+		},
 	}
 
 	for _, tc := range testCases {
 		suite.Run(tc.name, func() {
+			suite.SetupTest() // reset state
+			ism = suite.CreateTestIsm(trustedState)
+
 			tc.setupTest()
 
 			msgServer := keeper.NewMsgServerImpl(suite.zkISMKeeper)
@@ -199,4 +217,41 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 			}
 		})
 	}
+}
+
+func (suite *KeeperTestSuite) TestSubmitMessagesAfterUpdate() {
+	// Test that after UpdateInterchainSecurityModule, a new SubmitMessages is allowed
+	trustedState1, err := hex.DecodeString("fb5c60a71772493fc32293c8047a099aa0548aee4b15e1ee0455f26fb1d76b027500000000000000f3a7136c5a71726713acae63bdcee751f388d911021f3acf33d44322e63f18c3220000000000000000000000000000000000000000000000000000a8045f161bf468bf4d4411cc010a975cdd8e50850a6142fc4459071c8132cef8d3c9b547277ef793af2c")
+	suite.Require().NoError(err)
+
+	ism := suite.CreateTestIsm(trustedState1)
+	msgServer := keeper.NewMsgServerImpl(suite.zkISMKeeper)
+
+	// Update to new state
+	updateProof, updatePubValues := readStateTransitionProofData(suite.T())
+	updateMsg := &types.MsgUpdateInterchainSecurityModule{
+		Id:           ism.Id,
+		Proof:        updateProof,
+		PublicValues: updatePubValues,
+	}
+	updateRes, err := msgServer.UpdateInterchainSecurityModule(suite.ctx, updateMsg)
+	suite.Require().NoError(err)
+	suite.Require().NotNil(updateRes)
+
+	// Now SubmitMessages should work with the new state
+	submitProof, submitPubValues := readStateMembershipProofData(suite.T())
+	submitMsg := &types.MsgSubmitMessages{
+		Id:           ism.Id,
+		Proof:        submitProof,
+		PublicValues: submitPubValues,
+	}
+	submitRes, err := msgServer.SubmitMessages(suite.ctx, submitMsg)
+	suite.Require().NoError(err)
+	suite.Require().NotNil(submitRes)
+
+	// Second SubmitMessages should fail
+	submitRes2, err := msgServer.SubmitMessages(suite.ctx, submitMsg)
+	suite.Require().Error(err)
+	suite.Require().ErrorIs(err, types.ErrMessageProofAlreadySubmitted)
+	suite.Require().Nil(submitRes2)
 }
