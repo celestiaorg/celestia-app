@@ -21,9 +21,9 @@ func NewMsgServerImpl(keeper Keeper) types.MsgServer {
 	return &msgServer{k: keeper}
 }
 
-// ExecuteForwarding forwards ALL tokens at forwardAddr to the committed destination.
+// Forward forwards ALL tokens at forwardAddr to the committed destination.
 // Partial failures are by design: failed tokens remain for retry while others proceed.
-func (m msgServer) ExecuteForwarding(goCtx context.Context, msg *types.MsgExecuteForwarding) (*types.MsgExecuteForwardingResponse, error) {
+func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types.MsgForwardResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
 	forwardAddr, err := sdk.AccAddressFromBech32(msg.ForwardAddr)
@@ -72,14 +72,14 @@ func (m msgServer) ExecuteForwarding(goCtx context.Context, msg *types.MsgExecut
 	results := m.processTokens(ctx, forwardAddr, moduleAddr, balances, msg, destRecipient, params)
 	m.emitSummaryEvent(ctx, msg, results)
 
-	return &types.MsgExecuteForwardingResponse{Results: results}, nil
+	return &types.MsgForwardResponse{Results: results}, nil
 }
 
 func (m msgServer) processTokens(
 	ctx sdk.Context,
 	forwardAddr, moduleAddr sdk.AccAddress,
 	balances sdk.Coins,
-	msg *types.MsgExecuteForwarding,
+	msg *types.MsgForward,
 	destRecipient util.HexAddress,
 	params types.Params,
 ) []types.ForwardingResult {
@@ -104,7 +104,7 @@ func (m msgServer) processTokens(
 	return results
 }
 
-func (m msgServer) emitSummaryEvent(ctx sdk.Context, msg *types.MsgExecuteForwarding, results []types.ForwardingResult) {
+func (m msgServer) emitSummaryEvent(ctx sdk.Context, msg *types.MsgForward, results []types.ForwardingResult) {
 	var successCount uint32
 	for _, r := range results {
 		if r.Success {
@@ -184,8 +184,8 @@ func (m msgServer) forwardSingleToken(
 	return types.NewSuccessResult(balance.Denom, balance.Amount, messageId.String())
 }
 
-// UpdateForwardingParams updates the module parameters.
-func (m msgServer) UpdateForwardingParams(goCtx context.Context, msg *types.MsgUpdateForwardingParams) (*types.MsgUpdateForwardingParamsResponse, error) {
+// UpdateParams updates the module parameters.
+func (m msgServer) UpdateParams(goCtx context.Context, msg *types.MsgUpdateParams) (*types.MsgUpdateParamsResponse, error) {
 	if m.k.authority != msg.Authority {
 		return nil, fmt.Errorf("invalid authority: expected %s, got %s", m.k.authority, msg.Authority)
 	}
@@ -195,5 +195,5 @@ func (m msgServer) UpdateForwardingParams(goCtx context.Context, msg *types.MsgU
 		return nil, err
 	}
 
-	return &types.MsgUpdateForwardingParamsResponse{}, nil
+	return &types.MsgUpdateParamsResponse{}, nil
 }
