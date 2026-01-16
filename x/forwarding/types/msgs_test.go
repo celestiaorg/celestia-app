@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMsgExecuteForwarding_ValidateBasic(t *testing.T) {
+func TestMsgForward_ValidateBasic(t *testing.T) {
 	// Generate valid addresses using SDK defaults (cosmos1 prefix)
 	validSignerBytes := []byte("testsigner__________")      // 20 bytes
 	validForwardAddrBytes := []byte("forwardaddr_________") // 20 bytes
@@ -26,13 +26,13 @@ func TestMsgExecuteForwarding_ValidateBasic(t *testing.T) {
 
 	testCases := []struct {
 		name        string
-		msg         *types.MsgExecuteForwarding
+		msg         *types.MsgForward
 		expectError bool
 		errorMsg    string
 	}{
 		{
 			name: "valid message",
-			msg: &types.MsgExecuteForwarding{
+			msg: &types.MsgForward{
 				Signer:        validSigner,
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
@@ -42,7 +42,7 @@ func TestMsgExecuteForwarding_ValidateBasic(t *testing.T) {
 		},
 		{
 			name: "valid message with zero domain",
-			msg: &types.MsgExecuteForwarding{
+			msg: &types.MsgForward{
 				Signer:        validSigner,
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    0,
@@ -52,7 +52,7 @@ func TestMsgExecuteForwarding_ValidateBasic(t *testing.T) {
 		},
 		{
 			name: "valid message with max domain",
-			msg: &types.MsgExecuteForwarding{
+			msg: &types.MsgForward{
 				Signer:        validSigner,
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    ^uint32(0),
@@ -62,7 +62,7 @@ func TestMsgExecuteForwarding_ValidateBasic(t *testing.T) {
 		},
 		{
 			name: "valid message dest_recipient without 0x prefix",
-			msg: &types.MsgExecuteForwarding{
+			msg: &types.MsgForward{
 				Signer:        validSigner,
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
@@ -72,7 +72,7 @@ func TestMsgExecuteForwarding_ValidateBasic(t *testing.T) {
 		},
 		{
 			name: "empty signer",
-			msg: &types.MsgExecuteForwarding{
+			msg: &types.MsgForward{
 				Signer:        "",
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
@@ -83,7 +83,7 @@ func TestMsgExecuteForwarding_ValidateBasic(t *testing.T) {
 		},
 		{
 			name: "invalid signer address",
-			msg: &types.MsgExecuteForwarding{
+			msg: &types.MsgForward{
 				Signer:        "invalid-address",
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
@@ -94,7 +94,7 @@ func TestMsgExecuteForwarding_ValidateBasic(t *testing.T) {
 		},
 		{
 			name: "empty forward address",
-			msg: &types.MsgExecuteForwarding{
+			msg: &types.MsgForward{
 				Signer:        validSigner,
 				ForwardAddr:   "",
 				DestDomain:    1,
@@ -105,7 +105,7 @@ func TestMsgExecuteForwarding_ValidateBasic(t *testing.T) {
 		},
 		{
 			name: "invalid forward address",
-			msg: &types.MsgExecuteForwarding{
+			msg: &types.MsgForward{
 				Signer:        validSigner,
 				ForwardAddr:   "not-a-valid-address",
 				DestDomain:    1,
@@ -116,7 +116,7 @@ func TestMsgExecuteForwarding_ValidateBasic(t *testing.T) {
 		},
 		{
 			name: "empty dest recipient",
-			msg: &types.MsgExecuteForwarding{
+			msg: &types.MsgForward{
 				Signer:        validSigner,
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
@@ -127,7 +127,7 @@ func TestMsgExecuteForwarding_ValidateBasic(t *testing.T) {
 		},
 		{
 			name: "dest recipient too short",
-			msg: &types.MsgExecuteForwarding{
+			msg: &types.MsgForward{
 				Signer:        validSigner,
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
@@ -138,7 +138,7 @@ func TestMsgExecuteForwarding_ValidateBasic(t *testing.T) {
 		},
 		{
 			name: "dest recipient invalid hex",
-			msg: &types.MsgExecuteForwarding{
+			msg: &types.MsgForward{
 				Signer:        validSigner,
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
@@ -167,19 +167,19 @@ func TestMsgExecuteForwarding_ValidateBasic(t *testing.T) {
 // Route() and Type() methods are deprecated in newer Cosmos SDK versions
 // These methods are no longer required for sdk.Msg interface
 
-func TestMsgUpdateForwardingParamsValidateBasic(t *testing.T) {
+func TestMsgUpdateParamsValidateBasic(t *testing.T) {
 	validAuthorityBytes := []byte("authority___________") // 20 bytes
 	validAuthority := sdk.AccAddress(validAuthorityBytes).String()
 
 	testCases := []struct {
 		name        string
-		msg         *types.MsgUpdateForwardingParams
+		msg         *types.MsgUpdateParams
 		expectError bool
 		errorMsg    string
 	}{
 		{
 			name: "valid message with default params",
-			msg: &types.MsgUpdateForwardingParams{
+			msg: &types.MsgUpdateParams{
 				Authority: validAuthority,
 				Params:    types.DefaultParams(),
 			},
@@ -187,7 +187,7 @@ func TestMsgUpdateForwardingParamsValidateBasic(t *testing.T) {
 		},
 		{
 			name: "valid message with custom MinForwardAmount",
-			msg: &types.MsgUpdateForwardingParams{
+			msg: &types.MsgUpdateParams{
 				Authority: validAuthority,
 				Params: types.Params{
 					MinForwardAmount: math.NewInt(1000),
@@ -197,7 +197,7 @@ func TestMsgUpdateForwardingParamsValidateBasic(t *testing.T) {
 		},
 		{
 			name: "empty authority",
-			msg: &types.MsgUpdateForwardingParams{
+			msg: &types.MsgUpdateParams{
 				Authority: "",
 				Params:    types.DefaultParams(),
 			},
@@ -206,7 +206,7 @@ func TestMsgUpdateForwardingParamsValidateBasic(t *testing.T) {
 		},
 		{
 			name: "invalid authority address",
-			msg: &types.MsgUpdateForwardingParams{
+			msg: &types.MsgUpdateParams{
 				Authority: "invalid-address",
 				Params:    types.DefaultParams(),
 			},
@@ -215,7 +215,7 @@ func TestMsgUpdateForwardingParamsValidateBasic(t *testing.T) {
 		},
 		{
 			name: "negative MinForwardAmount",
-			msg: &types.MsgUpdateForwardingParams{
+			msg: &types.MsgUpdateParams{
 				Authority: validAuthority,
 				Params: types.Params{
 					MinForwardAmount: math.NewInt(-1),
