@@ -12,7 +12,7 @@ import (
 
 func TestMsgExecuteForwarding_ValidateBasic(t *testing.T) {
 	// Generate valid addresses using SDK defaults (cosmos1 prefix)
-	validSignerBytes := []byte("testsigner__________") // 20 bytes
+	validSignerBytes := []byte("testsigner__________")      // 20 bytes
 	validForwardAddrBytes := []byte("forwardaddr_________") // 20 bytes
 
 	validSigner := sdk.AccAddress(validSignerBytes).String()

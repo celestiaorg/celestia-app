@@ -91,7 +91,9 @@ func TestDeriveForwardingAddressIntermediates(t *testing.T) {
 	// Step 1: Compute call digest preimage
 	destDomainBytes := make([]byte, 32)
 	binary.BigEndian.PutUint32(destDomainBytes[28:], destDomain)
-	callDigestPreimage := append(destDomainBytes, destRecipient...)
+	callDigestPreimage := make([]byte, 32+types.RecipientLength)
+	copy(callDigestPreimage, destDomainBytes)
+	copy(callDigestPreimage[32:], destRecipient)
 
 	t.Logf("destDomainBytes (32 bytes): %s", hex.EncodeToString(destDomainBytes))
 	t.Logf("callDigestPreimage (64 bytes): %s", hex.EncodeToString(callDigestPreimage))
@@ -102,7 +104,9 @@ func TestDeriveForwardingAddressIntermediates(t *testing.T) {
 	t.Logf("callDigest (sha256): %s", hex.EncodeToString(callDigest))
 
 	// Step 3: Compute salt preimage with version byte
-	saltPreimage := append([]byte{types.ForwardVersion}, callDigest...)
+	saltPreimage := make([]byte, 1+32)
+	saltPreimage[0] = types.ForwardVersion
+	copy(saltPreimage[1:], callDigest)
 	t.Logf("saltPreimage: %s", hex.EncodeToString(saltPreimage))
 
 	// Step 4: Compute salt (sha256)
