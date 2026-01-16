@@ -37,7 +37,7 @@ type EventTokenForwarded struct {
 	MessageId string `protobuf:"bytes,4,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
 	// success indicates whether the forward succeeded.
 	Success bool `protobuf:"varint,5,opt,name=success,proto3" json:"success,omitempty"`
-	// error contains the error message if failed.
+	// error contains the error message when success=false.
 	Error string `protobuf:"bytes,6,opt,name=error,proto3" json:"error,omitempty"`
 }
 

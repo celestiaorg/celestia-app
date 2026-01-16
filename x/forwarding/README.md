@@ -135,6 +135,10 @@ celestia-appd tx forwarding execute \
   --from relayer
 ```
 
+**Parameter Formats:**
+- `dest-domain`: uint32 domain ID (e.g., `1` for Ethereum mainnet, `42161` for Arbitrum)
+- `dest-recipient`: 32-byte hex-encoded address with `0x` prefix. For EVM chains, use the 20-byte address left-padded with 12 zero bytes (e.g., `0x000000000000000000000000<20-byte-eth-address>`)
+
 ## Error Codes
 
 | Code | Name | Description |

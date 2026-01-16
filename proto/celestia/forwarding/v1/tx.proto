@@ -12,17 +12,17 @@ option go_package = "github.com/celestiaorg/celestia-app/x/forwarding/types";
 service Msg {
   option (cosmos.msg.v1.service) = true;
 
-  // ExecuteForwarding forwards all tokens at a derived forwarding address
+  // Forward forwards all tokens at a derived forwarding address
   // to their committed destination via Hyperlane warp transfer.
-  rpc ExecuteForwarding(MsgExecuteForwarding) returns (MsgExecuteForwardingResponse);
+  rpc Forward(MsgForward) returns (MsgForwardResponse);
 
-  // UpdateForwardingParams updates the forwarding module parameters.
-  rpc UpdateForwardingParams(MsgUpdateForwardingParams) returns (MsgUpdateForwardingParamsResponse);
+  // UpdateParams updates the forwarding module parameters.
+  rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
 }
 
-// MsgExecuteForwarding is a permissionless message to trigger token forwarding.
+// MsgForward is a permissionless message to trigger token forwarding.
 // Anyone can submit this message to forward tokens at the derived address.
-message MsgExecuteForwarding {
+message MsgForward {
   option (cosmos.msg.v1.signer) = "signer";
 
   // signer is the address paying for gas (typically a relayer).
@@ -38,8 +38,8 @@ message MsgExecuteForwarding {
   string dest_recipient = 4;
 }
 
-// MsgExecuteForwardingResponse is the response for MsgExecuteForwarding.
-message MsgExecuteForwardingResponse {
+// MsgForwardResponse is the response for MsgForward.
+message MsgForwardResponse {
   // results contains the per-token forwarding results.
   repeated ForwardingResult results = 1 [(gogoproto.nullable) = false];
 }
@@ -66,8 +66,8 @@ message ForwardingResult {
   string error = 5;
 }
 
-// MsgUpdateForwardingParams defines a message for updating the forwarding module parameters.
-message MsgUpdateForwardingParams {
+// MsgUpdateParams defines a message for updating the forwarding module parameters.
+message MsgUpdateParams {
   option (cosmos.msg.v1.signer) = "authority";
 
   // authority is the address of the governance account.
@@ -78,5 +78,5 @@ message MsgUpdateForwardingParams {
   Params params = 2 [(gogoproto.nullable) = false];
 }
 
-// MsgUpdateForwardingParamsResponse is the response for MsgUpdateForwardingParams.
-message MsgUpdateForwardingParamsResponse {}
+// MsgUpdateParamsResponse is the response for MsgUpdateParams.
+message MsgUpdateParamsResponse {}
