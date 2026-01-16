@@ -287,7 +287,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullFlow() {
 	// Create and execute MsgExecuteForwarding
 	msg := forwardingtypes.NewMsgExecuteForwarding(
 		s.celestia.SenderAccount.GetAddress().String(),
-		forwardAddr.String(),
+		sdk.AccAddress(forwardAddr).String(),
 		SimappDomainID,
 		recipientToHex(destRecipient).String(),
 	)
@@ -333,7 +333,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_AddressMismatc
 		recipientToHex(destRecipient).String(),
 	)
 
-	_, err = s.celestia.SendMsgs(msg)
+	_, err := s.celestia.SendMsgs(msg)
 	s.Require().Error(err)
 	s.Contains(err.Error(), "derived address does not match")
 }
@@ -345,7 +345,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_NoBalance() {
 
 	msg := forwardingtypes.NewMsgExecuteForwarding(
 		s.celestia.SenderAccount.GetAddress().String(),
-		forwardAddr.String(),
+		sdk.AccAddress(forwardAddr).String(),
 		1337,
 		recipientToHex(destRecipient).String(),
 	)
@@ -416,7 +416,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_MultiToken() {
 	// Execute forwarding
 	msg := forwardingtypes.NewMsgExecuteForwarding(
 		s.celestia.SenderAccount.GetAddress().String(),
-		forwardAddr.String(),
+		sdk.AccAddress(forwardAddr).String(),
 		SimappDomainID,
 		recipientToHex(destRecipient).String(),
 	)
@@ -473,7 +473,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_PartialFailure
 	// Execute forwarding - tx should SUCCEED (partial failure, not full failure)
 	msg := forwardingtypes.NewMsgExecuteForwarding(
 		s.celestia.SenderAccount.GetAddress().String(),
-		forwardAddr.String(),
+		sdk.AccAddress(forwardAddr).String(),
 		SimappDomainID,
 		recipientToHex(destRecipient).String(),
 	)
@@ -534,7 +534,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_PartialFailure
 	// Execute forwarding
 	msg := forwardingtypes.NewMsgExecuteForwarding(
 		s.celestia.SenderAccount.GetAddress().String(),
-		forwardAddr.String(),
+		sdk.AccAddress(forwardAddr).String(),
 		SimappDomainID,
 		recipientToHex(destRecipient).String(),
 	)
@@ -590,7 +590,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_MinThreshold()
 	// Execute forwarding - tx succeeds but token stays (below threshold)
 	msg := forwardingtypes.NewMsgExecuteForwarding(
 		s.celestia.SenderAccount.GetAddress().String(),
-		forwardAddr.String(),
+		sdk.AccAddress(forwardAddr).String(),
 		SimappDomainID,
 		recipientToHex(destRecipient).String(),
 	)
@@ -671,7 +671,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullE2E_Source
 	// Execute forwarding on Celestia
 	forwardMsg := forwardingtypes.NewMsgExecuteForwarding(
 		s.celestia.SenderAccount.GetAddress().String(),
-		forwardAddr.String(),
+		sdk.AccAddress(forwardAddr).String(),
 		ChainBDomainID,
 		recipientToHex(destRecipient).String(),
 	)
@@ -771,7 +771,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullE2E_TIASyn
 	// Execute forwarding on Celestia
 	forwardMsg := forwardingtypes.NewMsgExecuteForwarding(
 		s.celestia.SenderAccount.GetAddress().String(),
-		forwardAddr.String(),
+		sdk.AccAddress(forwardAddr).String(),
 		ChainBDomainID,
 		recipientToHex(destRecipient).String(),
 	)
@@ -839,7 +839,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_FullE2E_CEXWit
 	// Execute forwarding on Celestia
 	forwardMsg := forwardingtypes.NewMsgExecuteForwarding(
 		s.celestia.SenderAccount.GetAddress().String(),
-		forwardAddr.String(),
+		sdk.AccAddress(forwardAddr).String(),
 		ChainBDomainID,
 		recipientToHex(destRecipient).String(),
 	)
@@ -917,7 +917,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgExecuteForwarding_TooManyTokens(
 	// Attempt to forward - should fail with ErrTooManyTokens
 	forwardMsg := forwardingtypes.NewMsgExecuteForwarding(
 		s.celestia.SenderAccount.GetAddress().String(),
-		forwardAddr.String(),
+		sdk.AccAddress(forwardAddr).String(),
 		SimappDomainID,
 		recipientToHex(destRecipient).String(),
 	)
