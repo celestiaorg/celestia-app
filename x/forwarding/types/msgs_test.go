@@ -7,6 +7,7 @@ import (
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,7 +16,51 @@ func init() {
 	config.SetBech32PrefixForAccount("celestia", "celestiapub")
 }
 
-func TestMsgForward_ValidateBasic(t *testing.T) {
+func TestNewMsgForward(t *testing.T) {
+	signer := "celestia1qperwt9wrnkg5k9e5gzfgjppzpqhyav5j24d66"
+	forwardAddr := "celestia1fl48vsnmsdzcv85q5d2q4z5ajdha8yu3h6cprl"
+	destDomain := uint32(42161)
+	destRecipient := "0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+	maxIgpFee := sdk.NewCoin("utia", math.NewInt(1000))
+
+	msg := types.NewMsgForward(signer, forwardAddr, destDomain, destRecipient, maxIgpFee)
+
+	assert.Equal(t, signer, msg.Signer)
+	assert.Equal(t, forwardAddr, msg.ForwardAddr)
+	assert.Equal(t, destDomain, msg.DestDomain)
+	assert.Equal(t, destRecipient, msg.DestRecipient)
+	assert.Equal(t, maxIgpFee, msg.MaxIgpFee)
+}
+
+func TestNewSuccessResult(t *testing.T) {
+	denom := "utia"
+	amount := math.NewInt(1000000)
+	messageId := "0xabcdef1234567890"
+
+	result := types.NewSuccessResult(denom, amount, messageId)
+
+	assert.Equal(t, denom, result.Denom)
+	assert.Equal(t, amount, result.Amount)
+	assert.Equal(t, messageId, result.MessageId)
+	assert.True(t, result.Success)
+	assert.Empty(t, result.Error)
+}
+
+func TestNewFailureResult(t *testing.T) {
+	denom := "utia"
+	amount := math.NewInt(500000)
+	errMsg := "no warp route to destination domain"
+
+	result := types.NewFailureResult(denom, amount, errMsg)
+
+	assert.Equal(t, denom, result.Denom)
+	assert.Equal(t, amount, result.Amount)
+	assert.Empty(t, result.MessageId)
+	assert.False(t, result.Success)
+	assert.Equal(t, errMsg, result.Error)
+}
+
+func TestMsgForwardValidateBasic(t *testing.T) {
 	validSignerBytes := []byte("testsigner__________")      // 20 bytes
 	validForwardAddrBytes := []byte("forwardaddr_________") // 20 bytes
 
@@ -25,9 +70,6 @@ func TestMsgForward_ValidateBasic(t *testing.T) {
 	// util.DecodeHexAddress accepts addresses with or without 0x prefix
 	validDestRecipientNoPrefix := "000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 	validMaxIgpFee := sdk.NewCoin("utia", math.NewInt(1000))
-
-	t.Logf("Using signer: %s", validSigner)
-	t.Logf("Using forward addr: %s", validForwardAddr)
 
 	testCases := []struct {
 		name        string
@@ -163,6 +205,42 @@ func TestMsgForward_ValidateBasic(t *testing.T) {
 			errorMsg:    "invalid dest_recipient hex format",
 		},
 		{
+			name: "dest recipient too long (33 bytes)",
+			msg: &types.MsgForward{
+				Signer:        validSigner,
+				ForwardAddr:   validForwardAddr,
+				DestDomain:    1,
+				DestRecipient: "0x" + strings.Repeat("ab", 33), // 33 bytes, should be 32
+				MaxIgpFee:     validMaxIgpFee,
+			},
+			expectError: true,
+			errorMsg:    "invalid hex address length",
+		},
+		{
+			name: "whitespace-only signer",
+			msg: &types.MsgForward{
+				Signer:        "   ",
+				ForwardAddr:   validForwardAddr,
+				DestDomain:    1,
+				DestRecipient: validDestRecipient,
+				MaxIgpFee:     validMaxIgpFee,
+			},
+			expectError: true,
+			errorMsg:    "invalid signer",
+		},
+		{
+			name: "whitespace-only forward address",
+			msg: &types.MsgForward{
+				Signer:        validSigner,
+				ForwardAddr:   "   ",
+				DestDomain:    1,
+				DestRecipient: validDestRecipient,
+				MaxIgpFee:     validMaxIgpFee,
+			},
+			expectError: true,
+			errorMsg:    "invalid forward address",
+		},
+		{
 			name: "dest recipient invalid hex",
 			msg: &types.MsgForward{
 				Signer:        validSigner,
@@ -241,6 +319,16 @@ func TestMsgUpdateParamsValidateBasic(t *testing.T) {
 				},
 			},
 			expectError: false,
+		},
+		{
+			name: "valid message with explicit zero MinForwardAmount",
+			msg: &types.MsgUpdateParams{
+				Authority: validAuthority,
+				Params: types.Params{
+					MinForwardAmount: math.ZeroInt(),
+				},
+			},
+			expectError: false, // Zero means disabled, should be valid
 		},
 		{
 			name: "empty authority",
