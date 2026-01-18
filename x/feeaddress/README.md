@@ -31,6 +31,19 @@ Only the native token (utia) can be sent to the fee address:
 - **Ante Decorator**: Rejects transactions (MsgSend, MsgMultiSend, MsgTransfer) that attempt to send non-utia to the fee address
 - **IBC Middleware**: Rejects inbound IBC transfers of non-utia tokens to the fee address
 
+## Security Considerations
+
+### Known Bypass Vectors
+
+The following paths can bypass the non-utia restriction:
+
+1. **ICA Host Messages**: Interchain Accounts can execute MsgSend to the fee address, bypassing ante handlers
+2. **Hyperlane MsgProcessMessage**: Cross-chain messages via Hyperlane bypass the IBC middleware
+
+**Impact**: Non-utia tokens sent via these paths will be **permanently stuck** at the fee address. They cannot be forwarded (only utia is forwarded) and cannot be recovered (no governance mechanism exists). The tokens are not stolen or at risk of theft.
+
+**Recommendation**: Do not send non-utia tokens to the fee address via ICA or Hyperlane integrations
+
 ## Message Types
 
 ### MsgForwardFees
