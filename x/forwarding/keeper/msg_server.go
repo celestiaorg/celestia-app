@@ -70,7 +70,12 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 		}
 	}
 
-	results := m.processTokens(ctx, forwardAddr, moduleAddr, balances, msg, destRecipient, params)
+	signerAddr, err := sdk.AccAddressFromBech32(msg.Signer)
+	if err != nil {
+		return nil, fmt.Errorf("invalid signer address: %w", err)
+	}
+
+	results := m.processTokens(ctx, forwardAddr, moduleAddr, signerAddr, balances, msg, destRecipient, params)
 	m.emitSummaryEvent(ctx, msg, results)
 
 	return &types.MsgForwardResponse{Results: results}, nil
@@ -78,7 +83,7 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 
 func (m msgServer) processTokens(
 	ctx sdk.Context,
-	forwardAddr, moduleAddr sdk.AccAddress,
+	forwardAddr, moduleAddr, signerAddr sdk.AccAddress,
 	balances sdk.Coins,
 	msg *types.MsgForward,
 	destRecipient util.HexAddress,
@@ -87,7 +92,7 @@ func (m msgServer) processTokens(
 	results := make([]types.ForwardingResult, 0, len(balances))
 
 	for _, balance := range balances {
-		result := m.forwardSingleToken(ctx, forwardAddr, moduleAddr, balance, msg.DestDomain, destRecipient, params)
+		result := m.forwardSingleToken(ctx, forwardAddr, moduleAddr, signerAddr, balance, msg.DestDomain, destRecipient, msg.MaxIgpFee, params)
 		results = append(results, result)
 
 		if err := ctx.EventManager().EmitTypedEvent(&types.EventTokenForwarded{
@@ -127,10 +132,11 @@ func (m msgServer) emitSummaryEvent(ctx sdk.Context, msg *types.MsgForward, resu
 
 func (m msgServer) forwardSingleToken(
 	ctx sdk.Context,
-	forwardAddr, moduleAddr sdk.AccAddress,
+	forwardAddr, moduleAddr, signerAddr sdk.AccAddress,
 	balance sdk.Coin,
 	destDomain uint32,
 	destRecipient util.HexAddress,
+	maxIgpFee sdk.Coin,
 	params types.Params,
 ) types.ForwardingResult {
 	hypToken, err := m.k.FindHypTokenByDenom(ctx, balance.Denom, destDomain)
@@ -154,15 +160,51 @@ func (m msgServer) forwardSingleToken(
 		return types.NewFailureResult(balance.Denom, balance.Amount, "below minimum forward amount")
 	}
 
-	// Move tokens to module account first, then execute warp from there.
-	// Warp's IGP charges fees from the sender, so using moduleAddr lets the
-	// module pay fees from its pre-funded balance rather than forwarded tokens.
+	// Quote IGP fee for this token transfer
+	quotedFee, err := m.k.QuoteIgpFeeForToken(ctx, hypToken, destDomain)
+	if err != nil {
+		return types.NewFailureResult(balance.Denom, balance.Amount, fmt.Sprintf("failed to quote IGP fee: %s", err.Error()))
+	}
+
+	// Verify relayer provided sufficient max_igp_fee
+	// Only compare if quoted fee is positive and same denom
+	if quotedFee.IsPositive() {
+		if maxIgpFee.Denom != quotedFee.Denom {
+			return types.NewFailureResult(balance.Denom, balance.Amount,
+				fmt.Sprintf("max_igp_fee denom mismatch: provided %s, required %s", maxIgpFee.Denom, quotedFee.Denom))
+		}
+		if maxIgpFee.Amount.LT(quotedFee.Amount) {
+			return types.NewFailureResult(balance.Denom, balance.Amount,
+				fmt.Sprintf("insufficient IGP fee: provided %s, required %s", maxIgpFee, quotedFee))
+		}
+	}
+
+	// Collect IGP fee from relayer (signer) to module account
+	// Only collect if there's a positive fee to pay
+	if quotedFee.IsPositive() {
+		if err := m.k.bankKeeper.SendCoins(ctx, signerAddr, moduleAddr, sdk.NewCoins(quotedFee)); err != nil {
+			return types.NewFailureResult(balance.Denom, balance.Amount,
+				fmt.Sprintf("failed to collect IGP fee from relayer: %s", err.Error()))
+		}
+	}
+
+	// Move tokens to module account, then execute warp from there.
+	// Warp's IGP charges fees from the sender (moduleAddr), which now has the
+	// IGP fee collected from the relayer.
 	if err := m.k.bankKeeper.SendCoins(ctx, forwardAddr, moduleAddr, sdk.NewCoins(balance)); err != nil {
+		// Try to return IGP fee to relayer if token move failed
+		if quotedFee.IsPositive() {
+			if recoveryErr := m.k.bankKeeper.SendCoins(ctx, moduleAddr, signerAddr, sdk.NewCoins(quotedFee)); recoveryErr != nil {
+				ctx.Logger().Error("failed to return IGP fee to relayer after token move failure",
+					"error", recoveryErr, "fee", quotedFee)
+			}
+		}
 		return types.NewFailureResult(balance.Denom, balance.Amount, "failed to move tokens: "+err.Error())
 	}
 
 	messageId, err := m.k.ExecuteWarpTransfer(ctx, hypToken, moduleAddr.String(), destDomain, destRecipient, balance.Amount)
 	if err != nil {
+		// Warp failed - return tokens to forward address
 		if recoveryErr := m.k.bankKeeper.SendCoins(ctx, moduleAddr, forwardAddr, sdk.NewCoins(balance)); recoveryErr != nil {
 			ctx.Logger().Error("CRITICAL: tokens stuck in module account after failed recovery",
 				"denom", balance.Denom,
@@ -183,7 +225,9 @@ func (m msgServer) forwardSingleToken(
 			}
 			return types.NewFailureResult(balance.Denom, balance.Amount, fmt.Sprintf("CRITICAL: warp failed and recovery failed - tokens stuck in module account: warp=%s recovery=%s", err.Error(), recoveryErr.Error()))
 		}
-		return types.NewFailureResult(balance.Denom, balance.Amount, "warp transfer failed (tokens returned): "+err.Error())
+		// Note: IGP fee is NOT returned on warp failure - it was consumed by the failed attempt.
+		// This incentivizes relayers to check route availability before submitting.
+		return types.NewFailureResult(balance.Denom, balance.Amount, "warp transfer failed (tokens returned, IGP fee consumed): "+err.Error())
 	}
 
 	return types.NewSuccessResult(balance.Denom, balance.Amount, messageId.String())

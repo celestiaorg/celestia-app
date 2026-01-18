@@ -17,7 +17,7 @@ The `x/forwarding` module enables single-signature cross-chain transfers through
 
 1. Frontend computes `forwardAddr = derive(destDomain, destRecipient)`
 2. User sends tokens to forwardAddr via EVM warp transfer or CEX withdrawal
-3. Relayer detects deposit and submits `MsgExecuteForwarding`
+3. Relayer detects deposit and submits `MsgForward`
 4. Module verifies derivation and executes warp transfer to destination
 5. Tokens arrive at destRecipient on destination chain
 
@@ -47,19 +47,21 @@ Note: TIA collateral token is discovered at runtime by iterating warp tokens wit
 
 ## Messages
 
-### MsgExecuteForwarding
+### MsgForward
 
 Forwards ALL tokens at a forwarding address to the committed destination.
+The relayer (signer) pays both Celestia gas and Hyperlane IGP fees.
 
 ```protobuf
-message MsgExecuteForwarding {
-  string signer = 1;        // Relayer/anyone (pays gas)
+message MsgForward {
+  string signer = 1;        // Relayer (pays gas + IGP fees)
   string forward_addr = 2;  // The derived forwarding address
   uint32 dest_domain = 3;   // Destination chain domain ID
   string dest_recipient = 4; // Recipient on destination (32 bytes, hex)
+  Coin max_igp_fee = 5;     // Max IGP fee relayer will pay per token
 }
 
-message MsgExecuteForwardingResponse {
+message MsgForwardResponse {
   repeated ForwardingResult results = 1;  // Per-token results
 }
 
@@ -114,38 +116,65 @@ message ForwardingResult {
 | tokens_forwarded | Count of successful forwards |
 | tokens_failed | Count of failed forwards |
 
+## Fee Handling
+
+### Hyperlane IGP Fees
+
+Cross-chain message delivery requires paying Hyperlane's IGP (Interchain Gas Paymaster).
+The relayer (signer) pays these fees as part of `MsgForward`.
+
+**Fee Flow:**
+1. Relayer queries `QuoteForwardingFee` to estimate the required IGP fee
+2. Relayer submits `MsgForward` with `max_igp_fee >= quoted fee`
+3. Module quotes actual fee via Hyperlane's `QuoteDispatch`
+4. Module collects **actual quoted fee** (not max) from relayer to module account
+5. Module executes warp transfer (module account pays IGP)
+6. Excess stays with relayer (only actual fee is charged)
+
+**Per-token fees:** Each token forwarded requires a separate IGP fee. The `max_igp_fee` is the maximum fee the relayer will pay *per token*. If forwarding 3 tokens, the relayer may pay up to 3x the max fee (but only the actual quoted fee for each).
+
+**Fee on failure:** If warp transfer fails after IGP fee is collected, the fee is NOT returned. This incentivizes relayers to verify route availability before submitting. Failed tokens are returned to the forwarding address.
+
 ## Queries
 
 ### DeriveForwardingAddress
 
 ```bash
-celestia-appd query forwarding derive-address \
-  --dest-domain 42161 \
-  --dest-recipient 0x000000000000000000000000<recipient-address>
+celestia-appd query forwarding derive-address 42161 \
+  0x000000000000000000000000<recipient-address>
+```
+
+### QuoteForwardingFee
+
+Returns the estimated IGP fee for forwarding TIA to a destination domain.
+
+```bash
+celestia-appd query forwarding quote-fee 42161
 ```
 
 ## CLI Usage
 
 ```bash
 # Query derived address
-celestia-appd query forwarding derive-address \
-  --dest-domain 1 \
-  --dest-recipient 0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef
+celestia-appd query forwarding derive-address 42161 \
+  0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef
+
+# Query IGP fee estimate
+celestia-appd query forwarding quote-fee 42161
 
 # Check balance at forward address
 celestia-appd query bank balances <forward-addr>
 
 # Execute forwarding (forwards ALL tokens at address)
-celestia-appd tx forwarding execute \
-  --forward-addr <forward-addr> \
-  --dest-domain 1 \
-  --dest-recipient 0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef \
-  --from relayer
+celestia-appd tx forwarding forward <forward-addr> 42161 \
+  0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef \
+  --max-igp-fee 1000utia --from relayer
 ```
 
 **Parameter Formats:**
 - `dest-domain`: uint32 domain ID (e.g., `1` for Ethereum mainnet, `42161` for Arbitrum)
 - `dest-recipient`: 32-byte hex-encoded address with `0x` prefix. For EVM chains, use the 20-byte address left-padded with 12 zero bytes (e.g., `0x000000000000000000000000<20-byte-eth-address>`)
+- `max-igp-fee`: Maximum IGP fee to pay per token (e.g., `1000utia`)
 
 ## Error Codes
 
@@ -158,6 +187,7 @@ celestia-appd tx forwarding execute \
 | 6 | ErrTooManyTokens | Too many tokens at forwarding address |
 | 7 | ErrInvalidRecipient | Invalid recipient length |
 | 8 | ErrNoWarpRoute | No warp route to destination domain |
+| 9 | ErrInsufficientIgpFee | IGP fee provided is less than required |
 
 ## Security
 
@@ -178,7 +208,7 @@ If tokens become stuck in the module account due to a missing warp route:
 
 It's not feasible to add an ante handler that rejects transactions to forwarding addresses with invalid domains. At arrival time, a forwarding address is indistinguishable from any standard Celestia address - it's just a deterministically derived account. The source chain would need to include metadata indicating "this is a forwarding tx" which adds engineering overhead across all sending chains.
 
-The current design fails gracefully: if someone sends to a forwarding address with a non-existent domain, the tokens remain at that address and the `MsgExecuteForwarding` will fail with a clear `ErrNoWarpRoute` error. The funds are never lost.
+The current design fails gracefully: if someone sends to a forwarding address with a non-existent domain, the tokens remain at that address and the `MsgForward` will fail with a clear `ErrNoWarpRoute` error. The funds are never lost.
 
 ## Test Vectors
 

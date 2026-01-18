@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"cosmossdk.io/core/appmodule"
+	"github.com/celestiaorg/celestia-app/v7/x/forwarding/client/cli"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/keeper"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -13,6 +14,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -60,6 +62,16 @@ func (AppModule) RegisterInterfaces(registry cdctypes.InterfaceRegistry) {
 
 // RegisterGRPCGatewayRoutes registers the gRPC Gateway routes for the module.
 func (am AppModule) RegisterGRPCGatewayRoutes(_ client.Context, _ *runtime.ServeMux) {}
+
+// GetTxCmd returns the forwarding module's root tx command.
+func (AppModule) GetTxCmd() *cobra.Command {
+	return cli.GetTxCmd()
+}
+
+// GetQueryCmd returns the forwarding module's root query command.
+func (AppModule) GetQueryCmd() *cobra.Command {
+	return cli.GetQueryCmd()
+}
 
 // RegisterServices registers module services.
 func (am AppModule) RegisterServices(cfg module.Configurator) {
