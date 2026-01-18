@@ -4,6 +4,8 @@
 
 The `x/forwarding` module enables single-signature cross-chain transfers through Celestia via Hyperlane warp routes. Users send tokens to a deterministically derived forwarding address (`forwardAddr`), and anyone can permissionlessly trigger forwarding to the committed destination.
 
+> **Note**: This module is for Hyperlane cross-chain transfers only. It does NOT replace IBC Packet Forward Middleware (PFM).
+
 ## Key Properties
 
 - **Single signature UX**: User signs once on source chain
@@ -75,6 +77,12 @@ message ForwardingResult {
 - Gets ALL balances at `forwardAddr` and processes each independently
 - Partial failures allowed: one token failing doesn't block others
 - Failed tokens stay at `forwardAddr` for retry
+
+### Token Limits
+
+- `MaxTokensPerForward = 20` - Maximum token denominations processed per call
+- If an address has >20 denoms, first call forwards the first 20 (ordered by denom), subsequent calls handle the rest
+- This limit prevents unbounded gas consumption in a single transaction
 
 ## Supported Token Types
 
@@ -158,12 +166,18 @@ celestia-appd tx forwarding execute \
 - **No fund loss**: Failed tokens stay at `forwardAddr` or are automatically returned there.
 - **Collision resistance**: Same as standard Cosmos addresses (160-bit truncation). Draining requires 2^160 operations (second preimage), not 2^80 (birthday attack).
 
+### Why No Ante Handler Validation for Invalid Domains
+
+It's not feasible to add an ante handler that rejects transactions to forwarding addresses with invalid domains. At arrival time, a forwarding address is indistinguishable from any standard Celestia address - it's just a deterministically derived account. The source chain would need to include metadata indicating "this is a forwarding tx" which adds engineering overhead across all sending chains.
+
+The current design fails gracefully: if someone sends to a forwarding address with a non-existent domain, the tokens remain at that address and the `MsgExecuteForwarding` will fail with a clear `ErrNoWarpRoute` error. The funds are never lost.
+
 ## Test Vectors
 
 For cross-platform compatibility (Go, TypeScript, Rust):
 
 | destDomain | destRecipient | Expected Address |
 |------------|---------------|------------------|
-| 1 | `0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef` | `cosmos1gev9segv9333lpy27thrtwdjwhu9lgcjpkpz2x` |
-| 42161 | `0x0000000000000000000000001234567890abcdef1234567890abcdef12345678` | `cosmos1uvqe9n0eclkd55dj9g9m30nf77px6jq2nfqmyw` |
-| 0 | `0x0000000000000000000000000000000000000000000000000000000000000000` | `cosmos1w0c30l5s7q46nhnz7k7j82j6kdsgz4w4m25jjg` |
+| 1 | `0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef` | `celestia1gev9segv9333lpy27thrtwdjwhu9lgcjpkpz2x` |
+| 42161 | `0x0000000000000000000000001234567890abcdef1234567890abcdef12345678` | `celestia1uvqe9n0eclkd55dj9g9m30nf77px6jq2nfqmyw` |
+| 0 | `0x0000000000000000000000000000000000000000000000000000000000000000` | `celestia1w0c30l5s7q46nhnz7k7j82j6kdsgz4w4m25jjg` |
