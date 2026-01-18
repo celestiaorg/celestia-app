@@ -1,7 +1,6 @@
 package ante
 
 import (
-	"context"
 	"fmt"
 
 	"cosmossdk.io/errors"
@@ -27,11 +26,6 @@ type FeeForwardContextKey struct{}
 // the event for tracking purposes.
 type FeeForwardAmountContextKey struct{}
 
-// FeeForwardBankKeeper defines the bank keeper interface needed by FeeForwardDecorator.
-type FeeForwardBankKeeper interface {
-	SendCoinsFromAccountToModule(ctx context.Context, senderAddr sdk.AccAddress, recipientModule string, amt sdk.Coins) error
-}
-
 // FeeForwardDecorator handles MsgForwardFees transactions by:
 // 1. Rejecting user-submitted MsgForwardFees in CheckTx (protocol-injected only)
 // 2. Deducting the fee from the fee address (not from a signer)
@@ -44,11 +38,11 @@ type FeeForwardBankKeeper interface {
 // - SigVerificationDecorator (no signatures)
 // - IncrementSequenceDecorator (no signers)
 type FeeForwardDecorator struct {
-	bankKeeper FeeForwardBankKeeper
+	bankKeeper feeaddresstypes.BankKeeper
 }
 
 // NewFeeForwardDecorator creates a new FeeForwardDecorator.
-func NewFeeForwardDecorator(bankKeeper FeeForwardBankKeeper) *FeeForwardDecorator {
+func NewFeeForwardDecorator(bankKeeper feeaddresstypes.BankKeeper) *FeeForwardDecorator {
 	return &FeeForwardDecorator{
 		bankKeeper: bankKeeper,
 	}

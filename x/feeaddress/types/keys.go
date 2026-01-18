@@ -6,7 +6,12 @@ import sdk "github.com/cosmos/cosmos-sdk/types"
 const ModuleName = "feeaddress"
 
 // FeeForwardGasLimit is the gas limit for the protocol-injected fee forward
-// transaction. This is minimal since the message handler only emits an event.
+// transaction. Set to 50000 which provides sufficient gas for:
+// - Message decoding and routing (~1000 gas)
+// - Bank transfer via SendCoinsFromAccountToModule (~20000 gas)
+// - Event emission via EmitTypedEvent (~5000 gas)
+// - Safety margin for SDK overhead and future changes
+// This value is validated in ProcessProposal to prevent malicious manipulation.
 const FeeForwardGasLimit = 50000
 
 // FeeAddress is the address where tokens are sent to be forwarded to the fee collector.

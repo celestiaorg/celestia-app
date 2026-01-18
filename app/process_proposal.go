@@ -9,7 +9,6 @@ import (
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v7/app/ante"
 	apperr "github.com/celestiaorg/celestia-app/v7/app/errors"
-	"github.com/celestiaorg/celestia-app/v7/app/params"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/pkg/da"
 	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
@@ -57,7 +56,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// Strict validation for fee forward transactions:
 	// If the fee address has a balance, the block MUST contain a valid fee forward tx as the first tx.
 	// If no balance but fee forward tx present, reject the block.
-	feeBalance := app.BankKeeper.GetBalance(ctx, feeaddresstypes.FeeAddress, params.BondDenom)
+	feeBalance := app.BankKeeper.GetBalance(ctx, feeaddresstypes.FeeAddress, appconsts.BondDenom)
 	hasBalance := !feeBalance.IsZero()
 
 	if len(req.Txs) > 0 {
@@ -274,6 +273,7 @@ func (app *App) parseFeeForwardTx(txBytes []byte) (sdk.Tx, bool, error) {
 // validateFeeForwardTx validates a decoded fee forward transaction:
 // - Must have exactly one MsgForwardFees message
 // - Fee must equal the expected fee balance
+// - Gas limit must match FeeForwardGasLimit
 func (app *App) validateFeeForwardTx(sdkTx sdk.Tx, expectedFee sdk.Coin) error {
 	// Verify there's exactly one message and it's MsgForwardFees
 	msgs := sdkTx.GetMsgs()
@@ -295,6 +295,11 @@ func (app *App) validateFeeForwardTx(sdkTx sdk.Tx, expectedFee sdk.Coin) error {
 	}
 	if !fee[0].Equal(expectedFee) {
 		return fmt.Errorf("fee %s does not equal expected fee %s", fee[0], expectedFee)
+	}
+
+	// Verify gas limit matches expected value (prevents malicious proposer manipulation)
+	if feeTx.GetGas() != feeaddresstypes.FeeForwardGasLimit {
+		return fmt.Errorf("gas limit %d does not match expected %d", feeTx.GetGas(), feeaddresstypes.FeeForwardGasLimit)
 	}
 
 	return nil
