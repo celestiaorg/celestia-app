@@ -166,6 +166,14 @@ celestia-appd tx forwarding execute \
 - **No fund loss**: Failed tokens stay at `forwardAddr` or are automatically returned there.
 - **Collision resistance**: Same as standard Cosmos addresses (160-bit truncation). Draining requires 2^160 operations (second preimage), not 2^80 (birthday attack).
 
+## Recovery from Stuck Tokens
+
+If tokens become stuck in the module account due to a missing warp route:
+
+1. Create the warp route to the destination domain
+2. Call `MsgForward` again with the same parameters
+3. Tokens will be forwarded normally
+
 ### Why No Ante Handler Validation for Invalid Domains
 
 It's not feasible to add an ante handler that rejects transactions to forwarding addresses with invalid domains. At arrival time, a forwarding address is indistinguishable from any standard Celestia address - it's just a deterministically derived account. The source chain would need to include metadata indicating "this is a forwarding tx" which adds engineering overhead across all sending chains.

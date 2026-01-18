@@ -422,6 +422,7 @@ func New(
 		app.AccountKeeper,
 		app.BankKeeper,
 		&app.WarpKeeper,
+		&app.HyperlaneKeeper,
 		govModuleAddr,
 	)
 

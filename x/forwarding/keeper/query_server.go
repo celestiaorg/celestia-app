@@ -40,7 +40,9 @@ func (q queryServer) DeriveForwardingAddress(ctx context.Context, req *types.Que
 		return nil, status.Errorf(codes.InvalidArgument, "dest_recipient must be %d bytes, got %d", types.RecipientLength, len(destRecipient.Bytes()))
 	}
 
-	// Check if there's a TIA warp route to the destination domain
+	// Check if there's a TIA warp route to the destination domain.
+	// This prevents users from getting addresses for non-existent routes,
+	// which would lead to stuck funds until a route is created.
 	_, err = q.k.findTIACollateralTokenForDomain(ctx, req.DestDomain)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "no warp route to domain %d: %v", req.DestDomain, err)
