@@ -2,6 +2,7 @@ syntax = "proto3";
 package celestia.forwarding.v1;
 
 import "celestia/forwarding/v1/params.proto";
+import "cosmos/base/v1beta1/coin.proto";
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "cosmos_proto/cosmos.proto";
@@ -13,6 +14,12 @@ service Query {
   // DeriveForwardingAddress derives the forwarding address for given parameters.
   rpc DeriveForwardingAddress(QueryDeriveForwardingAddressRequest) returns (QueryDeriveForwardingAddressResponse) {
     option (google.api.http).get = "/celestia/forwarding/v1/derive_address/{dest_domain}/{dest_recipient}";
+  }
+
+  // QuoteForwardingFee returns the estimated Hyperlane IGP fee for forwarding to a destination.
+  // Relayers should query this before submitting MsgForward to determine the required max_igp_fee.
+  rpc QuoteForwardingFee(QueryQuoteForwardingFeeRequest) returns (QueryQuoteForwardingFeeResponse) {
+    option (google.api.http).get = "/celestia/forwarding/v1/quote_fee/{dest_domain}";
   }
 
   // Params queries the module parameters.
@@ -43,4 +50,17 @@ message QueryParamsRequest {}
 message QueryParamsResponse {
   // params contains the module parameters.
   Params params = 1 [(gogoproto.nullable) = false];
+}
+
+// QueryQuoteForwardingFeeRequest is the request for QuoteForwardingFee.
+message QueryQuoteForwardingFeeRequest {
+  // dest_domain is the destination chain domain ID.
+  uint32 dest_domain = 1;
+}
+
+// QueryQuoteForwardingFeeResponse is the response for QuoteForwardingFee.
+message QueryQuoteForwardingFeeResponse {
+  // fee is the estimated Hyperlane IGP fee required for forwarding.
+  // Relayers should set max_igp_fee >= this value (with some buffer for price changes).
+  cosmos.base.v1beta1.Coin fee = 1 [(gogoproto.nullable) = false];
 }

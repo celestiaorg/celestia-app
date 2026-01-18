@@ -24,6 +24,7 @@ func TestMsgForward_ValidateBasic(t *testing.T) {
 	validDestRecipient := "0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 	// util.DecodeHexAddress accepts addresses with or without 0x prefix
 	validDestRecipientNoPrefix := "000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+	validMaxIgpFee := sdk.NewCoin("utia", math.NewInt(1000))
 
 	t.Logf("Using signer: %s", validSigner)
 	t.Logf("Using forward addr: %s", validForwardAddr)
@@ -41,6 +42,7 @@ func TestMsgForward_ValidateBasic(t *testing.T) {
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
 				DestRecipient: validDestRecipient,
+				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: false,
 		},
@@ -51,6 +53,7 @@ func TestMsgForward_ValidateBasic(t *testing.T) {
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    0,
 				DestRecipient: validDestRecipient,
+				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: false,
 		},
@@ -61,6 +64,7 @@ func TestMsgForward_ValidateBasic(t *testing.T) {
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    ^uint32(0),
 				DestRecipient: validDestRecipient,
+				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: false,
 		},
@@ -71,8 +75,20 @@ func TestMsgForward_ValidateBasic(t *testing.T) {
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
 				DestRecipient: validDestRecipientNoPrefix,
+				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: false, // util.DecodeHexAddress accepts without 0x prefix
+		},
+		{
+			name: "valid message with zero max_igp_fee",
+			msg: &types.MsgForward{
+				Signer:        validSigner,
+				ForwardAddr:   validForwardAddr,
+				DestDomain:    1,
+				DestRecipient: validDestRecipient,
+				MaxIgpFee:     sdk.NewCoin("utia", math.ZeroInt()),
+			},
+			expectError: false,
 		},
 		{
 			name: "empty signer",
@@ -81,6 +97,7 @@ func TestMsgForward_ValidateBasic(t *testing.T) {
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
 				DestRecipient: validDestRecipient,
+				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: true,
 			errorMsg:    "invalid signer",
@@ -92,6 +109,7 @@ func TestMsgForward_ValidateBasic(t *testing.T) {
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
 				DestRecipient: validDestRecipient,
+				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: true,
 			errorMsg:    "invalid signer",
@@ -103,6 +121,7 @@ func TestMsgForward_ValidateBasic(t *testing.T) {
 				ForwardAddr:   "",
 				DestDomain:    1,
 				DestRecipient: validDestRecipient,
+				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: true,
 			errorMsg:    "invalid forward address",
@@ -114,6 +133,7 @@ func TestMsgForward_ValidateBasic(t *testing.T) {
 				ForwardAddr:   "not-a-valid-address",
 				DestDomain:    1,
 				DestRecipient: validDestRecipient,
+				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: true,
 			errorMsg:    "invalid forward address",
@@ -125,6 +145,7 @@ func TestMsgForward_ValidateBasic(t *testing.T) {
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
 				DestRecipient: "",
+				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: true,
 			errorMsg:    "invalid dest_recipient hex format",
@@ -136,6 +157,7 @@ func TestMsgForward_ValidateBasic(t *testing.T) {
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
 				DestRecipient: "0xdeadbeef",
+				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: true,
 			errorMsg:    "invalid dest_recipient hex format",
@@ -147,9 +169,34 @@ func TestMsgForward_ValidateBasic(t *testing.T) {
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
 				DestRecipient: "0x" + strings.Repeat("zz", 32),
+				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: true,
 			errorMsg:    "invalid dest_recipient hex format",
+		},
+		{
+			name: "invalid max_igp_fee negative amount",
+			msg: &types.MsgForward{
+				Signer:        validSigner,
+				ForwardAddr:   validForwardAddr,
+				DestDomain:    1,
+				DestRecipient: validDestRecipient,
+				MaxIgpFee:     sdk.Coin{Denom: "utia", Amount: math.NewInt(-1)},
+			},
+			expectError: true,
+			errorMsg:    "invalid max_igp_fee",
+		},
+		{
+			name: "invalid max_igp_fee empty denom",
+			msg: &types.MsgForward{
+				Signer:        validSigner,
+				ForwardAddr:   validForwardAddr,
+				DestDomain:    1,
+				DestRecipient: validDestRecipient,
+				MaxIgpFee:     sdk.Coin{Denom: "", Amount: math.NewInt(1000)},
+			},
+			expectError: true,
+			errorMsg:    "invalid max_igp_fee",
 		},
 	}
 

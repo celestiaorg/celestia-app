@@ -142,28 +142,47 @@ func (k Keeper) ExecuteWarpTransfer(
 ) (util.HexAddress, error) {
 	gasLimit := math.ZeroInt()
 
-	// Quote the required fee for this transfer. Module account pays from pre-funded balance.
-	metadata := util.StandardHookMetadata{GasLimit: gasLimit}
-	message := util.HyperlaneMessage{Destination: destDomain}
-	quotedFee, err := k.hyperlaneKeeper.QuoteDispatch(ctx, token.OriginMailbox, util.NewZeroAddress(), metadata, message)
+	// Quote the required fee for this transfer.
+	quotedFee, err := k.QuoteIgpFeeForToken(ctx, token, destDomain)
 	if err != nil {
 		return util.HexAddress{}, fmt.Errorf("failed to quote fee: %w", err)
 	}
 
-	// Use the first coin from quoted fee, or zero if no fee required
-	var maxFee sdk.Coin
-	if len(quotedFee) > 0 {
-		maxFee = quotedFee[0]
-	} else {
-		maxFee = sdk.NewCoin("utia", math.ZeroInt())
-	}
-
 	switch token.TokenType {
 	case warptypes.HYP_TOKEN_TYPE_SYNTHETIC:
-		return k.warpKeeper.RemoteTransferSynthetic(ctx, token, sender, destDomain, destRecipient, amount, nil, gasLimit, maxFee, nil)
+		return k.warpKeeper.RemoteTransferSynthetic(ctx, token, sender, destDomain, destRecipient, amount, nil, gasLimit, quotedFee, nil)
 	case warptypes.HYP_TOKEN_TYPE_COLLATERAL:
-		return k.warpKeeper.RemoteTransferCollateral(ctx, token, sender, destDomain, destRecipient, amount, nil, gasLimit, maxFee, nil)
+		return k.warpKeeper.RemoteTransferCollateral(ctx, token, sender, destDomain, destRecipient, amount, nil, gasLimit, quotedFee, nil)
 	default:
 		return util.HexAddress{}, types.ErrUnsupportedToken
 	}
+}
+
+// QuoteIgpFee returns the IGP fee required for forwarding TIA to a destination domain.
+// This is a convenience method for relayers to estimate fees before submitting MsgForward.
+func (k Keeper) QuoteIgpFee(ctx context.Context, destDomain uint32) (sdk.Coin, error) {
+	// Quote for TIA (utia) which is the primary use case
+	token, err := k.findTIACollateralTokenForDomain(ctx, destDomain)
+	if err != nil {
+		return sdk.Coin{}, err
+	}
+	return k.QuoteIgpFeeForToken(sdk.UnwrapSDKContext(ctx), token, destDomain)
+}
+
+// QuoteIgpFeeForToken returns the IGP fee required for a warp transfer of a specific token.
+func (k Keeper) QuoteIgpFeeForToken(ctx sdk.Context, token warptypes.HypToken, destDomain uint32) (sdk.Coin, error) {
+	gasLimit := math.ZeroInt()
+	metadata := util.StandardHookMetadata{GasLimit: gasLimit}
+	message := util.HyperlaneMessage{Destination: destDomain}
+
+	quotedFee, err := k.hyperlaneKeeper.QuoteDispatch(ctx, token.OriginMailbox, util.NewZeroAddress(), metadata, message)
+	if err != nil {
+		return sdk.Coin{}, fmt.Errorf("failed to quote dispatch: %w", err)
+	}
+
+	// Use the first coin from quoted fee, or zero if no fee required
+	if len(quotedFee) > 0 {
+		return quotedFee[0], nil
+	}
+	return sdk.NewCoin("utia", math.ZeroInt()), nil
 }

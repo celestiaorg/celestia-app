@@ -14,12 +14,13 @@ const (
 
 var _ sdk.Msg = &MsgForward{}
 
-func NewMsgForward(signer, forwardAddr string, destDomain uint32, destRecipient string) *MsgForward {
+func NewMsgForward(signer, forwardAddr string, destDomain uint32, destRecipient string, maxIgpFee sdk.Coin) *MsgForward {
 	return &MsgForward{
 		Signer:        signer,
 		ForwardAddr:   forwardAddr,
 		DestDomain:    destDomain,
 		DestRecipient: destRecipient,
+		MaxIgpFee:     maxIgpFee,
 	}
 }
 
@@ -39,6 +40,11 @@ func (msg *MsgForward) ValidateBasic() error {
 
 	if len(destRecipient.Bytes()) != RecipientLength {
 		return errors.Wrapf(ErrInvalidRecipient, "dest_recipient must be %d bytes, got %d", RecipientLength, len(destRecipient.Bytes()))
+	}
+
+	// Validate max_igp_fee: must be valid and non-negative
+	if err := msg.MaxIgpFee.Validate(); err != nil {
+		return errors.Wrap(err, "invalid max_igp_fee")
 	}
 
 	return nil

@@ -74,3 +74,20 @@ func (q queryServer) Params(ctx context.Context, req *types.QueryParamsRequest) 
 		Params: params,
 	}, nil
 }
+
+// QuoteForwardingFee returns the estimated IGP fee for forwarding TIA to a destination domain.
+// Relayers should query this before submitting MsgForward to determine the required max_igp_fee.
+func (q queryServer) QuoteForwardingFee(ctx context.Context, req *types.QueryQuoteForwardingFeeRequest) (*types.QueryQuoteForwardingFeeResponse, error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "request cannot be nil")
+	}
+
+	fee, err := q.k.QuoteIgpFee(ctx, req.DestDomain)
+	if err != nil {
+		return nil, status.Errorf(codes.FailedPrecondition, "failed to quote IGP fee: %v", err)
+	}
+
+	return &types.QueryQuoteForwardingFeeResponse{
+		Fee: fee,
+	}, nil
+}
