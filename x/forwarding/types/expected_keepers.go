@@ -9,6 +9,12 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+// HyperlaneKeeper defines the expected hyperlane core keeper interface for fee quoting.
+type HyperlaneKeeper interface {
+	// QuoteDispatch returns the required fee for dispatching a message
+	QuoteDispatch(ctx context.Context, mailboxId util.HexAddress, overwriteHookId util.HexAddress, metadata util.StandardHookMetadata, message util.HyperlaneMessage) (sdk.Coins, error)
+}
+
 // AccountKeeper defines the expected account keeper interface
 type AccountKeeper interface {
 	GetModuleAddress(moduleName string) sdk.AccAddress

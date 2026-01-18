@@ -17,13 +17,14 @@ import (
 )
 
 type Keeper struct {
-	cdc           codec.BinaryCodec
-	Schema        collections.Schema
-	Params        collections.Item[types.Params]
-	accountKeeper types.AccountKeeper
-	bankKeeper    types.BankKeeper
-	warpKeeper    *warpkeeper.Keeper
-	authority     string
+	cdc             codec.BinaryCodec
+	Schema          collections.Schema
+	Params          collections.Item[types.Params]
+	accountKeeper   types.AccountKeeper
+	bankKeeper      types.BankKeeper
+	warpKeeper      *warpkeeper.Keeper
+	hyperlaneKeeper types.HyperlaneKeeper
+	authority       string
 }
 
 func NewKeeper(
@@ -32,21 +33,26 @@ func NewKeeper(
 	accountKeeper types.AccountKeeper,
 	bankKeeper types.BankKeeper,
 	warpKeeper *warpkeeper.Keeper,
+	hyperlaneKeeper types.HyperlaneKeeper,
 	authority string,
 ) Keeper {
 	if warpKeeper == nil {
 		panic("warpKeeper cannot be nil")
 	}
+	if hyperlaneKeeper == nil {
+		panic("hyperlaneKeeper cannot be nil")
+	}
 
 	sb := collections.NewSchemaBuilder(storeService)
 
 	k := Keeper{
-		cdc:           cdc,
-		Params:        collections.NewItem(sb, types.ParamsPrefix, "params", codec.CollValue[types.Params](cdc)),
-		accountKeeper: accountKeeper,
-		bankKeeper:    bankKeeper,
-		warpKeeper:    warpKeeper,
-		authority:     authority,
+		cdc:             cdc,
+		Params:          collections.NewItem(sb, types.ParamsPrefix, "params", codec.CollValue[types.Params](cdc)),
+		accountKeeper:   accountKeeper,
+		bankKeeper:      bankKeeper,
+		warpKeeper:      warpKeeper,
+		hyperlaneKeeper: hyperlaneKeeper,
+		authority:       authority,
 	}
 
 	schema, err := sb.Build()
@@ -107,10 +113,10 @@ func (k Keeper) findTIACollateralTokenForDomain(ctx context.Context, destDomain 
 }
 
 func (k Keeper) findSyntheticToken(ctx context.Context, tokenIdHex string) (warptypes.HypToken, error) {
-	return k.getTokenByHex(ctx, tokenIdHex)
+	return k.getTokenById(ctx, tokenIdHex)
 }
 
-func (k Keeper) getTokenByHex(ctx context.Context, tokenIdHex string) (warptypes.HypToken, error) {
+func (k Keeper) getTokenById(ctx context.Context, tokenIdHex string) (warptypes.HypToken, error) {
 	tokenId, err := util.DecodeHexAddress(tokenIdHex)
 	if err != nil {
 		return warptypes.HypToken{}, fmt.Errorf("%w: invalid token ID %q", types.ErrUnsupportedToken, tokenIdHex)
@@ -135,7 +141,22 @@ func (k Keeper) ExecuteWarpTransfer(
 	amount math.Int,
 ) (util.HexAddress, error) {
 	gasLimit := math.ZeroInt()
-	maxFee := sdk.NewCoin("utia", math.ZeroInt())
+
+	// Quote the required fee for this transfer. Module account pays from pre-funded balance.
+	metadata := util.StandardHookMetadata{GasLimit: gasLimit}
+	message := util.HyperlaneMessage{Destination: destDomain}
+	quotedFee, err := k.hyperlaneKeeper.QuoteDispatch(ctx, token.OriginMailbox, util.NewZeroAddress(), metadata, message)
+	if err != nil {
+		return util.HexAddress{}, fmt.Errorf("failed to quote fee: %w", err)
+	}
+
+	// Use the first coin from quoted fee, or zero if no fee required
+	var maxFee sdk.Coin
+	if len(quotedFee) > 0 {
+		maxFee = quotedFee[0]
+	} else {
+		maxFee = sdk.NewCoin("utia", math.ZeroInt())
+	}
 
 	switch token.TokenType {
 	case warptypes.HYP_TOKEN_TYPE_SYNTHETIC:

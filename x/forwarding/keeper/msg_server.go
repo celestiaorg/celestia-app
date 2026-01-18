@@ -53,8 +53,9 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 		return nil, types.ErrNoBalance
 	}
 
+	// Process up to MaxTokensPerForward tokens. User can call Forward again for remaining.
 	if len(balances) > types.MaxTokensPerForward {
-		return nil, types.ErrTooManyTokens
+		balances = balances[:types.MaxTokensPerForward]
 	}
 
 	moduleAddr := m.k.accountKeeper.GetModuleAddress(types.ModuleName)
@@ -148,10 +149,14 @@ func (m msgServer) forwardSingleToken(
 		}
 	}
 
+	// MinForwardAmount of 0 means disabled (IsPositive returns false, skipping this check)
 	if params.MinForwardAmount.IsPositive() && balance.Amount.LT(params.MinForwardAmount) {
 		return types.NewFailureResult(balance.Denom, balance.Amount, "below minimum forward amount")
 	}
 
+	// Move tokens to module account first, then execute warp from there.
+	// Warp's IGP charges fees from the sender, so using moduleAddr lets the
+	// module pay fees from its pre-funded balance rather than forwarded tokens.
 	if err := m.k.bankKeeper.SendCoins(ctx, forwardAddr, moduleAddr, sdk.NewCoins(balance)); err != nil {
 		return types.NewFailureResult(balance.Denom, balance.Amount, "failed to move tokens: "+err.Error())
 	}
