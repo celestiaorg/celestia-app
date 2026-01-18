@@ -8,10 +8,12 @@ import (
 )
 
 func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
-	registry.RegisterImplementations((*sdk.Msg)(nil), &MsgBurn{})
+	registry.RegisterImplementations((*sdk.Msg)(nil),
+		&MsgForwardFees{},
+	)
 	msgservice.RegisterMsgServiceDesc(registry, &_Msg_serviceDesc)
 }
 
 func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
-	cdc.RegisterConcrete(&MsgBurn{}, "/celestia.burn.v1.MsgBurn", nil)
+	cdc.RegisterConcrete(&MsgForwardFees{}, "feeaddress/MsgForwardFees", nil)
 }

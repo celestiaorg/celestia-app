@@ -1,10 +1,11 @@
-package burn
+package feeaddress
 
 import (
+	"context"
 	"encoding/json"
 
 	"cosmossdk.io/core/appmodule"
-	"github.com/celestiaorg/celestia-app/v7/x/burn/types"
+	"github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -33,7 +34,11 @@ func (AppModule) IsAppModule()             {}
 func (AppModule) IsOnePerModuleType()      {}
 func (AppModule) ConsensusVersion() uint64 { return 1 }
 
-func (AppModule) RegisterGRPCGatewayRoutes(_ client.Context, _ *runtime.ServeMux) {}
+func (AppModule) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *runtime.ServeMux) {
+	if err := types.RegisterQueryHandlerClient(context.Background(), mux, types.NewQueryClient(clientCtx)); err != nil {
+		panic(err)
+	}
+}
 
 func (AppModule) DefaultGenesis(_ codec.JSONCodec) json.RawMessage {
 	return []byte("{}")
@@ -52,6 +57,7 @@ func (AppModule) RegisterInterfaces(reg cdctypes.InterfaceRegistry) {
 }
 
 func (am AppModule) RegisterServices(registrar grpc.ServiceRegistrar) error {
+	types.RegisterQueryServer(registrar, &am.keeper)
 	types.RegisterMsgServer(registrar, &am.keeper)
 	return nil
 }
