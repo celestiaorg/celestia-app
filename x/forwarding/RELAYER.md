@@ -11,27 +11,15 @@ The relayer is an off-chain service that watches for deposits to forwarding addr
 | **Fault-tolerant** | If relayer is down, funds remain safe at `forwardAddr` until forwarded |
 | **Stateless-capable** | Can re-sync all state from Backend API |
 
+### Backend and Frontend
+
+The "Backend" (Intent Backend) is a server coupled with a bridge frontend page. It stores forwarding intents so relayers know which addresses to monitor.
+
+- **Anyone can run** their own frontend, backend, and relayer
+- **A relayer monitors** the backend corresponding to the frontend it serves
+- **No single point of failure**: If one operator goes down, users can use another frontend or trigger forwarding manually
+
 ## Architecture
-
-### System Flow
-
-```
-┌──────────┐    ┌─────────┐    ┌─────────┐    ┌──────────┐    ┌─────────────┐
-│ Frontend │───>│ Backend │<───│ Relayer │───>│ Celestia │───>│ Destination │
-└──────────┘    └─────────┘    └─────────┘    └──────────┘    └─────────────┘
-     │                              │              │
-     │ 1. Compute forwardAddr       │              │
-     │ 2. POST intent               │              │
-     │ 3. Show address to user      │              │
-     │                              │              │
-     │         User sends tokens ──────────────────>│
-     │                              │              │
-     │              4. Poll intents │              │
-     │              5. Check balance│──────────────>│
-     │              6. Submit tx    │──────────────>│
-     │                              │              │ 7. Warp transfer
-     │                              │              │──────────────────>
-```
 
 ### Sequence Diagram
 
@@ -105,23 +93,12 @@ message ForwardingResult {
 
 ### Address Derivation
 
-The relayer must compute `forwardAddr` identically to the on-chain module:
+See the canonical derivation algorithm in [SPEC.md](./SPEC.md#address-derivation).
 
-```
-INPUT:
-  destDomain: uint32 (e.g., 42161 for Arbitrum)
-  destRecipient: 32 bytes (left-pad with zeros for 20-byte EVM addresses)
-
-ALGORITHM:
-  1. destDomainBytes = destDomain as 32-byte big-endian (right-aligned)
-  2. callDigest = sha256(destDomainBytes || destRecipient)
-  3. salt = sha256("CELESTIA_FORWARD_V1" || callDigest)
-  4. hash = sha256("forwarding" || salt)
-  5. forwardAddr = hash[:20]  // First 20 bytes
-
-OUTPUT:
-  forwardAddr as bech32 with "celestia" prefix
-```
+**Key points for relayers:**
+- `destDomain`: uint32 encoded as 32-byte big-endian (right-aligned)
+- `destRecipient`: exactly 32 bytes
+- Output: bech32 address with `celestia` prefix
 
 ### Recipient Address Formatting
 
@@ -129,6 +106,9 @@ OUTPUT:
 |------------|-------------|--------------------------|
 | EVM (Arbitrum, Optimism, Base) | 20 bytes | Left-pad with 12 zero bytes |
 | Solana | 32 bytes | Use directly |
+| Cosmos (via Hyperlane) | 20 bytes | Use directly (no padding needed) |
+
+**Cosmos Chain Recipients**: For Cosmos chains connected via Hyperlane, use the native 20-byte address directly. The left-padding is only required for EVM chains because EVM addresses are 20 bytes but Hyperlane uses 32-byte recipients. Cosmos addresses are already 20 bytes and don't need padding.
 
 Example EVM address `0x742d35Cc6634C0532925a3b844Bc9e7595f00000`:
 ```
@@ -178,6 +158,12 @@ MAIN LOOP (every ~6 seconds):
 | Below minimum threshold | Stays at `forwardAddr` | Skip, wait for more deposits |
 
 **Key insight**: Since forwarding is permissionless, funds are never at risk. Anyone with the correct `(destDomain, destRecipient)` can trigger forwarding.
+
+### Relayer Incentives
+
+Currently, relaying is **unincentivized** - relayers pay gas out of pocket, similar to IBC relayers. The `MsgExecuteForwarding` is permissionless so anyone can trigger it.
+
+**Future enhancement**: A `tip` field could be added to incentivize relayers. For v1, keeping it simple like IBC relaying is sufficient.
 
 ## Backend API Specification
 
