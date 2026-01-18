@@ -290,6 +290,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullFlow() {
 		sdk.AccAddress(forwardAddr).String(),
 		SimappDomainID,
 		recipientToHex(destRecipient).String(),
+		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
 
 	res, err := s.celestia.SendMsgs(msg)
@@ -331,6 +332,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_AddressMismatch() {
 		randomAddr.String(),
 		1337,
 		recipientToHex(destRecipient).String(),
+		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
 
 	_, err := s.celestia.SendMsgs(msg)
@@ -348,6 +350,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_NoBalance() {
 		sdk.AccAddress(forwardAddr).String(),
 		1337,
 		recipientToHex(destRecipient).String(),
+		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
 
 	_, err = s.celestia.SendMsgs(msg)
@@ -419,6 +422,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_MultiToken() {
 		sdk.AccAddress(forwardAddr).String(),
 		SimappDomainID,
 		recipientToHex(destRecipient).String(),
+		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
 
 	res, err := s.celestia.SendMsgs(msg)
@@ -476,6 +480,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_PartialFailure_Unsupport
 		sdk.AccAddress(forwardAddr).String(),
 		SimappDomainID,
 		recipientToHex(destRecipient).String(),
+		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
 
 	res, err := s.celestia.SendMsgs(msg)
@@ -537,6 +542,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_PartialFailure_NoRoute()
 		sdk.AccAddress(forwardAddr).String(),
 		SimappDomainID,
 		recipientToHex(destRecipient).String(),
+		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
 
 	res, err := s.celestia.SendMsgs(msg)
@@ -593,6 +599,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_MinThreshold() {
 		sdk.AccAddress(forwardAddr).String(),
 		SimappDomainID,
 		recipientToHex(destRecipient).String(),
+		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
 
 	res, err := s.celestia.SendMsgs(msg)
@@ -674,6 +681,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullE2E_SourceCollateral
 		sdk.AccAddress(forwardAddr).String(),
 		ChainBDomainID,
 		recipientToHex(destRecipient).String(),
+		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
 
 	res, err := s.celestia.SendMsgs(forwardMsg)
@@ -774,6 +782,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullE2E_TIASyntheticOnSo
 		sdk.AccAddress(forwardAddr).String(),
 		ChainBDomainID,
 		recipientToHex(destRecipient).String(),
+		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
 
 	res, err := s.celestia.SendMsgs(forwardMsg)
@@ -842,6 +851,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullE2E_CEXWithdrawal() 
 		sdk.AccAddress(forwardAddr).String(),
 		ChainBDomainID,
 		recipientToHex(destRecipient).String(),
+		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
 
 	res, err := s.celestia.SendMsgs(forwardMsg)
@@ -914,19 +924,21 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_TooManyTokens() {
 	balances := celestiaApp.BankKeeper.GetAllBalances(ctx, forwardAddr)
 	s.Equal(forwardingtypes.MaxTokensPerForward+1, len(balances), "should have 21 different tokens")
 
-	// Attempt to forward - should fail with ErrTooManyTokens
+	// Attempt to forward - now truncates to MaxTokensPerForward and succeeds
+	// (tokens without warp routes fail individually but tx succeeds)
 	forwardMsg := forwardingtypes.NewMsgForward(
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
 		SimappDomainID,
 		recipientToHex(destRecipient).String(),
+		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
 
-	_, err = s.celestia.SendMsgs(forwardMsg)
-	s.Require().Error(err, "should fail with too many tokens")
-	s.Contains(err.Error(), "too many tokens", "error should mention too many tokens")
+	res, err := s.celestia.SendMsgs(forwardMsg)
+	s.Require().NoError(err, "transaction should succeed (processes up to MaxTokensPerForward)")
+	s.Require().NotNil(res)
 
-	// Verify all tokens still remain at forwardAddr
-	balancesAfter := celestiaApp.BankKeeper.GetAllBalances(ctx, forwardAddr)
-	s.Equal(len(balances), len(balancesAfter), "all tokens should remain at forwardAddr")
+	// Verify all tokens still remain at forwardAddr (none have warp routes configured)
+	balancesAfter := celestiaApp.BankKeeper.GetAllBalances(s.celestia.GetContext(), forwardAddr)
+	s.Equal(len(balances), len(balancesAfter), "all tokens should remain at forwardAddr (no warp routes)")
 }
