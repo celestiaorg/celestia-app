@@ -1,0 +1,246 @@
+package keeper
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"cosmossdk.io/collections"
+	"github.com/bcp-innovations/hyperlane-cosmos/util"
+	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+)
+
+var _ types.MsgServer = msgServer{}
+
+type msgServer struct {
+	k Keeper
+}
+
+func NewMsgServerImpl(keeper Keeper) types.MsgServer {
+	return &msgServer{k: keeper}
+}
+
+// Forward forwards ALL tokens at forwardAddr to the committed destination.
+// Partial failures are by design: failed tokens remain for retry while others proceed.
+func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types.MsgForwardResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	forwardAddr, err := sdk.AccAddressFromBech32(msg.ForwardAddr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid forward_addr %q: %w", msg.ForwardAddr, err)
+	}
+
+	destRecipient, err := util.DecodeHexAddress(msg.DestRecipient)
+	if err != nil {
+		return nil, fmt.Errorf("invalid dest_recipient hex: %w", err)
+	}
+	// Length validation is done in ValidateBasic
+
+	expectedAddr, err := types.DeriveForwardingAddress(msg.DestDomain, destRecipient.Bytes())
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive forwarding address: %w", err)
+	}
+	if !forwardAddr.Equals(sdk.AccAddress(expectedAddr)) {
+		return nil, fmt.Errorf("%w: provided=%s derived=%s", types.ErrAddressMismatch, forwardAddr.String(), sdk.AccAddress(expectedAddr).String())
+	}
+
+	balances := m.k.bankKeeper.GetAllBalances(ctx, forwardAddr)
+	if balances.IsZero() {
+		return nil, types.ErrNoBalance
+	}
+
+	// Process up to MaxTokensPerForward tokens. User can call Forward again for remaining.
+	if len(balances) > types.MaxTokensPerForward {
+		balances = balances[:types.MaxTokensPerForward]
+	}
+
+	moduleAddr := m.k.accountKeeper.GetModuleAddress(types.ModuleName)
+
+	params, err := m.k.GetParams(ctx)
+	if err != nil {
+		if errors.Is(err, collections.ErrNotFound) {
+			ctx.Logger().Warn("forwarding module params not configured, using defaults - TIA forwarding will fail until params are set")
+			params = types.DefaultParams()
+		} else {
+			return nil, fmt.Errorf("failed to read module params: %w", err)
+		}
+	}
+
+	signerAddr, err := sdk.AccAddressFromBech32(msg.Signer)
+	if err != nil {
+		return nil, fmt.Errorf("invalid signer address: %w", err)
+	}
+
+	results := m.processTokens(ctx, forwardAddr, moduleAddr, signerAddr, balances, msg, destRecipient, params)
+	m.emitSummaryEvent(ctx, msg, results)
+
+	return &types.MsgForwardResponse{Results: results}, nil
+}
+
+func (m msgServer) processTokens(
+	ctx sdk.Context,
+	forwardAddr, moduleAddr, signerAddr sdk.AccAddress,
+	balances sdk.Coins,
+	msg *types.MsgForward,
+	destRecipient util.HexAddress,
+	params types.Params,
+) []types.ForwardingResult {
+	results := make([]types.ForwardingResult, 0, len(balances))
+
+	for _, balance := range balances {
+		result := m.forwardSingleToken(ctx, forwardAddr, moduleAddr, signerAddr, balance, msg.DestDomain, destRecipient, msg.MaxIgpFee, params)
+		results = append(results, result)
+
+		if err := ctx.EventManager().EmitTypedEvent(&types.EventTokenForwarded{
+			ForwardAddr: msg.ForwardAddr,
+			Denom:       result.Denom,
+			Amount:      result.Amount,
+			MessageId:   result.MessageId,
+			Success:     result.Success,
+			Error:       result.Error,
+		}); err != nil {
+			ctx.Logger().Error("failed to emit EventTokenForwarded", "error", err)
+		}
+	}
+
+	return results
+}
+
+func (m msgServer) emitSummaryEvent(ctx sdk.Context, msg *types.MsgForward, results []types.ForwardingResult) {
+	var successCount uint32
+	for _, r := range results {
+		if r.Success {
+			successCount++
+		}
+	}
+	failCount := uint32(len(results)) - successCount
+
+	if err := ctx.EventManager().EmitTypedEvent(&types.EventForwardingComplete{
+		ForwardAddr:     msg.ForwardAddr,
+		DestDomain:      msg.DestDomain,
+		DestRecipient:   msg.DestRecipient,
+		TokensForwarded: successCount,
+		TokensFailed:    failCount,
+	}); err != nil {
+		ctx.Logger().Error("failed to emit EventForwardingComplete", "error", err)
+	}
+}
+
+func (m msgServer) forwardSingleToken(
+	ctx sdk.Context,
+	forwardAddr, moduleAddr, signerAddr sdk.AccAddress,
+	balance sdk.Coin,
+	destDomain uint32,
+	destRecipient util.HexAddress,
+	maxIgpFee sdk.Coin,
+	params types.Params,
+) types.ForwardingResult {
+	hypToken, err := m.k.FindHypTokenByDenom(ctx, balance.Denom, destDomain)
+	if err != nil {
+		return types.NewFailureResult(balance.Denom, balance.Amount, fmt.Sprintf("token lookup failed: %s", err.Error()))
+	}
+
+	// For synthetic tokens, verify route exists (TIA route check is done in FindHypTokenByDenom)
+	if balance.Denom != "utia" {
+		hasRoute, err := m.k.HasEnrolledRouter(ctx, hypToken.Id, destDomain)
+		if err != nil {
+			return types.NewFailureResult(balance.Denom, balance.Amount, "error checking warp route: "+err.Error())
+		}
+		if !hasRoute {
+			return types.NewFailureResult(balance.Denom, balance.Amount, types.ErrNoWarpRoute.Error())
+		}
+	}
+
+	// MinForwardAmount of 0 means disabled (IsPositive returns false, skipping this check)
+	if params.MinForwardAmount.IsPositive() && balance.Amount.LT(params.MinForwardAmount) {
+		return types.NewFailureResult(balance.Denom, balance.Amount, types.ErrBelowMinimum.Error())
+	}
+
+	// Quote IGP fee for this token transfer
+	quotedFee, err := m.k.QuoteIgpFeeForToken(ctx, hypToken, destDomain)
+	if err != nil {
+		return types.NewFailureResult(balance.Denom, balance.Amount, fmt.Sprintf("failed to quote IGP fee: %s", err.Error()))
+	}
+
+	// Verify relayer provided sufficient max_igp_fee
+	// Only compare if quoted fee is positive and same denom
+	if quotedFee.IsPositive() {
+		if maxIgpFee.Denom != quotedFee.Denom {
+			return types.NewFailureResult(balance.Denom, balance.Amount,
+				fmt.Sprintf("max_igp_fee denom mismatch: provided %s, required %s", maxIgpFee.Denom, quotedFee.Denom))
+		}
+		if maxIgpFee.Amount.LT(quotedFee.Amount) {
+			return types.NewFailureResult(balance.Denom, balance.Amount,
+				fmt.Sprintf("%s: provided %s, required %s", types.ErrInsufficientIgpFee.Error(), maxIgpFee, quotedFee))
+		}
+	}
+
+	// Collect IGP fee from relayer (signer) to module account
+	// Only collect if there's a positive fee to pay
+	if quotedFee.IsPositive() {
+		if err := m.k.bankKeeper.SendCoins(ctx, signerAddr, moduleAddr, sdk.NewCoins(quotedFee)); err != nil {
+			return types.NewFailureResult(balance.Denom, balance.Amount,
+				fmt.Sprintf("failed to collect IGP fee from relayer: %s", err.Error()))
+		}
+	}
+
+	// Move tokens to module account, then execute warp from there.
+	// Warp's IGP charges fees from the sender (moduleAddr), which now has the
+	// IGP fee collected from the relayer.
+	if err := m.k.bankKeeper.SendCoins(ctx, forwardAddr, moduleAddr, sdk.NewCoins(balance)); err != nil {
+		// Try to return IGP fee to relayer if token move failed
+		if quotedFee.IsPositive() {
+			if recoveryErr := m.k.bankKeeper.SendCoins(ctx, moduleAddr, signerAddr, sdk.NewCoins(quotedFee)); recoveryErr != nil {
+				// TODO(v2): Consider emitting EventIgpFeeStuck for better observability
+				ctx.Logger().Error("failed to return IGP fee to relayer after token move failure",
+					"error", recoveryErr, "fee", quotedFee)
+			}
+		}
+		return types.NewFailureResult(balance.Denom, balance.Amount, "failed to move tokens: "+err.Error())
+	}
+
+	messageId, err := m.k.ExecuteWarpTransfer(ctx, hypToken, moduleAddr.String(), destDomain, destRecipient, balance.Amount, quotedFee)
+	if err != nil {
+		// Warp failed - return tokens to forward address
+		if recoveryErr := m.k.bankKeeper.SendCoins(ctx, moduleAddr, forwardAddr, sdk.NewCoins(balance)); recoveryErr != nil {
+			ctx.Logger().Error("CRITICAL: tokens stuck in module account after failed recovery",
+				"denom", balance.Denom,
+				"amount", balance.Amount.String(),
+				"module_addr", moduleAddr.String(),
+				"forward_addr", forwardAddr.String(),
+				"warp_error", err.Error(),
+				"recovery_error", recoveryErr.Error(),
+			)
+			if emitErr := ctx.EventManager().EmitTypedEvent(&types.EventTokensStuck{
+				Denom:       balance.Denom,
+				Amount:      balance.Amount,
+				ModuleAddr:  moduleAddr.String(),
+				ForwardAddr: forwardAddr.String(),
+				Error:       fmt.Sprintf("warp: %s; recovery: %s", err.Error(), recoveryErr.Error()),
+			}); emitErr != nil {
+				ctx.Logger().Error("failed to emit EventTokensStuck", "error", emitErr)
+			}
+			return types.NewFailureResult(balance.Denom, balance.Amount, fmt.Sprintf("CRITICAL: warp failed and recovery failed - tokens stuck in module account: warp=%s recovery=%s", err.Error(), recoveryErr.Error()))
+		}
+		// Note: IGP fee is NOT returned on warp failure - it was consumed by the failed attempt.
+		// This incentivizes relayers to check route availability before submitting.
+		return types.NewFailureResult(balance.Denom, balance.Amount, "warp transfer failed (tokens returned, IGP fee consumed): "+err.Error())
+	}
+
+	return types.NewSuccessResult(balance.Denom, balance.Amount, messageId.String())
+}
+
+// UpdateParams updates the module parameters.
+func (m msgServer) UpdateParams(goCtx context.Context, msg *types.MsgUpdateParams) (*types.MsgUpdateParamsResponse, error) {
+	if m.k.authority != msg.Authority {
+		return nil, fmt.Errorf("invalid authority: expected %s, got %s", m.k.authority, msg.Authority)
+	}
+
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	if err := m.k.SetParams(ctx, msg.Params); err != nil {
+		return nil, err
+	}
+
+	return &types.MsgUpdateParamsResponse{}, nil
+}

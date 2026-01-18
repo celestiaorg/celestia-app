@@ -4,6 +4,7 @@ package celestia.forwarding.v1;
 import "gogoproto/gogo.proto";
 import "cosmos/msg/v1/msg.proto";
 import "cosmos_proto/cosmos.proto";
+import "cosmos/base/v1beta1/coin.proto";
 import "celestia/forwarding/v1/params.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/forwarding/types";
@@ -22,10 +23,11 @@ service Msg {
 
 // MsgForward is a permissionless message to trigger token forwarding.
 // Anyone can submit this message to forward tokens at the derived address.
+// The signer (relayer) pays both Celestia gas and Hyperlane IGP fees.
 message MsgForward {
   option (cosmos.msg.v1.signer) = "signer";
 
-  // signer is the address paying for gas (typically a relayer).
+  // signer is the address paying for gas and IGP fees (typically a relayer).
   string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
 
   // forward_addr is the derived forwarding address (bech32).
@@ -36,6 +38,11 @@ message MsgForward {
 
   // dest_recipient is the recipient on destination chain (32 bytes, hex-encoded with 0x prefix).
   string dest_recipient = 4;
+
+  // max_igp_fee is the maximum Hyperlane IGP fee the relayer will pay for this forwarding.
+  // The actual fee charged is the lesser of max_igp_fee and the quoted fee.
+  // Required: relayer must provide sufficient fee for the transfer.
+  cosmos.base.v1beta1.Coin max_igp_fee = 5 [(gogoproto.nullable) = false];
 }
 
 // MsgForwardResponse is the response for MsgForward.
