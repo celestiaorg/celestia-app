@@ -88,7 +88,7 @@ message ForwardingResult {
 
 | Source | Denom Format | Transfer Method |
 |--------|--------------|-----------------|
-| EVM warp transfer | `hyperlane/{tokenId}` | Synthetic warp transfer |
+| Warp transfer | `hyperlane/{tokenId}` | Synthetic warp transfer |
 | CEX withdrawal (TIA) | `utia` | Collateral warp transfer |
 
 ## Events
