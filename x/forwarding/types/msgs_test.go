@@ -10,8 +10,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func init() {
+	config := sdk.GetConfig()
+	config.SetBech32PrefixForAccount("celestia", "celestiapub")
+}
+
 func TestMsgForward_ValidateBasic(t *testing.T) {
-	// Generate valid addresses using SDK defaults (cosmos1 prefix)
 	validSignerBytes := []byte("testsigner__________")      // 20 bytes
 	validForwardAddrBytes := []byte("forwardaddr_________") // 20 bytes
 
@@ -162,7 +166,6 @@ func TestMsgForward_ValidateBasic(t *testing.T) {
 		})
 	}
 }
-
 
 func TestMsgUpdateParamsValidateBasic(t *testing.T) {
 	validAuthorityBytes := []byte("authority___________") // 20 bytes
