@@ -1,0 +1,20 @@
+syntax = "proto3";
+package celestia.forwarding.v1;
+
+import "gogoproto/gogo.proto";
+import "cosmos_proto/cosmos.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/forwarding/types";
+
+// Params defines the parameters for the forwarding module.
+message Params {
+  // min_forward_amount is the minimum amount required for forwarding.
+  // Set to 0 to disable minimum threshold.
+  string min_forward_amount = 1 [
+    (cosmos_proto.scalar)  = "cosmos.Int",
+    (gogoproto.customtype) = "cosmossdk.io/math.Int",
+    (gogoproto.nullable)   = false
+  ];
+  // Note: TIA collateral token is derived from warp module at runtime
+  // by iterating tokens with OriginDenom="utia" and checking enrolled routers.
+}
