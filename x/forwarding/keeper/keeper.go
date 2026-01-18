@@ -1,3 +1,5 @@
+// Package keeper implements the forwarding module keeper, which manages
+// automatic cross-chain token forwarding via Hyperlane warp routes.
 package keeper
 
 import (
@@ -16,6 +18,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+// Keeper manages forwarding module state and coordinates with Hyperlane warp for cross-chain transfers.
 type Keeper struct {
 	cdc             codec.BinaryCodec
 	Schema          collections.Schema
@@ -36,6 +39,12 @@ func NewKeeper(
 	hyperlaneKeeper types.HyperlaneKeeper,
 	authority string,
 ) Keeper {
+	if accountKeeper == nil {
+		panic("accountKeeper cannot be nil")
+	}
+	if bankKeeper == nil {
+		panic("bankKeeper cannot be nil")
+	}
 	if warpKeeper == nil {
 		panic("warpKeeper cannot be nil")
 	}
@@ -69,6 +78,9 @@ func (k Keeper) GetParams(ctx context.Context) (types.Params, error) {
 }
 
 func (k Keeper) SetParams(ctx context.Context, params types.Params) error {
+	if err := params.Validate(); err != nil {
+		return err
+	}
 	return k.Params.Set(ctx, params)
 }
 
@@ -80,7 +92,7 @@ func (k Keeper) FindHypTokenByDenom(ctx context.Context, denom string, destDomai
 	case denom == "utia":
 		return k.findTIACollateralTokenForDomain(ctx, destDomain)
 	case strings.HasPrefix(denom, "hyperlane/"):
-		return k.findSyntheticToken(ctx, strings.TrimPrefix(denom, "hyperlane/"))
+		return k.getTokenById(ctx, strings.TrimPrefix(denom, "hyperlane/"))
 	default:
 		return warptypes.HypToken{}, types.ErrUnsupportedToken
 	}
@@ -89,6 +101,9 @@ func (k Keeper) FindHypTokenByDenom(ctx context.Context, denom string, destDomai
 // findTIACollateralTokenForDomain finds the TIA collateral token with a route to the destination domain.
 // It iterates all warp tokens to find one with OriginDenom="utia", TokenType=COLLATERAL,
 // and an enrolled router for the destination domain.
+//
+// Note: This is O(n) where n = number of warp tokens. Optimization would require an index
+// in the warp keeper mapping (denom, destDomain) -> tokenId, which is outside this module's scope.
 func (k Keeper) findTIACollateralTokenForDomain(ctx context.Context, destDomain uint32) (warptypes.HypToken, error) {
 	iter, err := k.warpKeeper.HypTokens.Iterate(ctx, nil)
 	if err != nil {
@@ -112,10 +127,6 @@ func (k Keeper) findTIACollateralTokenForDomain(ctx context.Context, destDomain 
 	return warptypes.HypToken{}, fmt.Errorf("%w: no TIA collateral route to domain %d", types.ErrNoWarpRoute, destDomain)
 }
 
-func (k Keeper) findSyntheticToken(ctx context.Context, tokenIdHex string) (warptypes.HypToken, error) {
-	return k.getTokenById(ctx, tokenIdHex)
-}
-
 func (k Keeper) getTokenById(ctx context.Context, tokenIdHex string) (warptypes.HypToken, error) {
 	tokenId, err := util.DecodeHexAddress(tokenIdHex)
 	if err != nil {
@@ -132,6 +143,9 @@ func (k Keeper) HasEnrolledRouter(ctx context.Context, tokenId util.HexAddress, 
 	return k.warpKeeper.EnrolledRouters.Has(ctx, collections.Join(tokenId.GetInternalId(), destDomain))
 }
 
+// ExecuteWarpTransfer executes a Hyperlane warp transfer using the pre-computed IGP fee.
+// The quotedFee must be provided by the caller (collected from the relayer in msg_server).
+// This ensures only relayer-provided funds are used for IGP fees (no module-paid fallback).
 func (k Keeper) ExecuteWarpTransfer(
 	ctx sdk.Context,
 	token warptypes.HypToken,
@@ -139,14 +153,10 @@ func (k Keeper) ExecuteWarpTransfer(
 	destDomain uint32,
 	destRecipient util.HexAddress,
 	amount math.Int,
+	quotedFee sdk.Coin,
 ) (util.HexAddress, error) {
+	// TODO(v2): Consider adding optional gas_limit param for complex recipients
 	gasLimit := math.ZeroInt()
-
-	// Quote the required fee for this transfer.
-	quotedFee, err := k.QuoteIgpFeeForToken(ctx, token, destDomain)
-	if err != nil {
-		return util.HexAddress{}, fmt.Errorf("failed to quote fee: %w", err)
-	}
 
 	switch token.TokenType {
 	case warptypes.HYP_TOKEN_TYPE_SYNTHETIC:
@@ -178,6 +188,11 @@ func (k Keeper) QuoteIgpFeeForToken(ctx sdk.Context, token warptypes.HypToken, d
 	quotedFee, err := k.hyperlaneKeeper.QuoteDispatch(ctx, token.OriginMailbox, util.NewZeroAddress(), metadata, message)
 	if err != nil {
 		return sdk.Coin{}, fmt.Errorf("failed to quote dispatch: %w", err)
+	}
+
+	// Multi-denom IGP fees not supported
+	if len(quotedFee) > 1 {
+		return sdk.Coin{}, fmt.Errorf("multi-denom IGP fees not supported")
 	}
 
 	// Use the first coin from quoted fee, or zero if no fee required

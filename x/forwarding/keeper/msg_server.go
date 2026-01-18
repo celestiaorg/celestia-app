@@ -35,10 +35,7 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 	if err != nil {
 		return nil, fmt.Errorf("invalid dest_recipient hex: %w", err)
 	}
-
-	if len(destRecipient.Bytes()) != types.RecipientLength {
-		return nil, fmt.Errorf("%w: dest_recipient must be %d bytes, got %d", types.ErrAddressMismatch, types.RecipientLength, len(destRecipient.Bytes()))
-	}
+	// Length validation is done in ValidateBasic
 
 	expectedAddr, err := types.DeriveForwardingAddress(msg.DestDomain, destRecipient.Bytes())
 	if err != nil {
@@ -151,13 +148,13 @@ func (m msgServer) forwardSingleToken(
 			return types.NewFailureResult(balance.Denom, balance.Amount, "error checking warp route: "+err.Error())
 		}
 		if !hasRoute {
-			return types.NewFailureResult(balance.Denom, balance.Amount, "no warp route to destination domain")
+			return types.NewFailureResult(balance.Denom, balance.Amount, types.ErrNoWarpRoute.Error())
 		}
 	}
 
 	// MinForwardAmount of 0 means disabled (IsPositive returns false, skipping this check)
 	if params.MinForwardAmount.IsPositive() && balance.Amount.LT(params.MinForwardAmount) {
-		return types.NewFailureResult(balance.Denom, balance.Amount, "below minimum forward amount")
+		return types.NewFailureResult(balance.Denom, balance.Amount, types.ErrBelowMinimum.Error())
 	}
 
 	// Quote IGP fee for this token transfer
@@ -175,7 +172,7 @@ func (m msgServer) forwardSingleToken(
 		}
 		if maxIgpFee.Amount.LT(quotedFee.Amount) {
 			return types.NewFailureResult(balance.Denom, balance.Amount,
-				fmt.Sprintf("insufficient IGP fee: provided %s, required %s", maxIgpFee, quotedFee))
+				fmt.Sprintf("%s: provided %s, required %s", types.ErrInsufficientIgpFee.Error(), maxIgpFee, quotedFee))
 		}
 	}
 
@@ -195,6 +192,7 @@ func (m msgServer) forwardSingleToken(
 		// Try to return IGP fee to relayer if token move failed
 		if quotedFee.IsPositive() {
 			if recoveryErr := m.k.bankKeeper.SendCoins(ctx, moduleAddr, signerAddr, sdk.NewCoins(quotedFee)); recoveryErr != nil {
+				// TODO(v2): Consider emitting EventIgpFeeStuck for better observability
 				ctx.Logger().Error("failed to return IGP fee to relayer after token move failure",
 					"error", recoveryErr, "fee", quotedFee)
 			}
@@ -202,7 +200,7 @@ func (m msgServer) forwardSingleToken(
 		return types.NewFailureResult(balance.Denom, balance.Amount, "failed to move tokens: "+err.Error())
 	}
 
-	messageId, err := m.k.ExecuteWarpTransfer(ctx, hypToken, moduleAddr.String(), destDomain, destRecipient, balance.Amount)
+	messageId, err := m.k.ExecuteWarpTransfer(ctx, hypToken, moduleAddr.String(), destDomain, destRecipient, balance.Amount, quotedFee)
 	if err != nil {
 		// Warp failed - return tokens to forward address
 		if recoveryErr := m.k.bankKeeper.SendCoins(ctx, moduleAddr, forwardAddr, sdk.NewCoins(balance)); recoveryErr != nil {

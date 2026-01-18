@@ -35,10 +35,7 @@ func (q queryServer) DeriveForwardingAddress(ctx context.Context, req *types.Que
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid dest_recipient hex %q: %v", req.DestRecipient, err)
 	}
-
-	if len(destRecipient.Bytes()) != types.RecipientLength {
-		return nil, status.Errorf(codes.InvalidArgument, "dest_recipient must be %d bytes, got %d", types.RecipientLength, len(destRecipient.Bytes()))
-	}
+	// Length validation is done in DeriveForwardingAddress
 
 	// Check if there's a TIA warp route to the destination domain.
 	// This prevents users from getting addresses for non-existent routes,
