@@ -163,9 +163,6 @@ func TestMsgForward_ValidateBasic(t *testing.T) {
 	}
 }
 
-// Note: GetSigners() is inferred from proto annotation (cosmos.msg.v1.signer)
-// Route() and Type() methods are deprecated in newer Cosmos SDK versions
-// These methods are no longer required for sdk.Msg interface
 
 func TestMsgUpdateParamsValidateBasic(t *testing.T) {
 	validAuthorityBytes := []byte("authority___________") // 20 bytes
