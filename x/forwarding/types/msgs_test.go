@@ -214,7 +214,7 @@ func TestMsgForwardValidateBasic(t *testing.T) {
 				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: true,
-			errorMsg:    "must be 32 bytes",
+			errorMsg:    "invalid hex address length",
 		},
 		{
 			name: "dest recipient 33 bytes (boundary)",
@@ -226,7 +226,7 @@ func TestMsgForwardValidateBasic(t *testing.T) {
 				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: true,
-			errorMsg:    "must be 32 bytes",
+			errorMsg:    "invalid hex address length",
 		},
 		{
 			name: "whitespace-only signer",
