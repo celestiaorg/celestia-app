@@ -232,13 +232,13 @@ type mockFeeTx struct {
 	gas  uint64
 }
 
-func (m *mockFeeTx) GetMsgs() []sdk.Msg                              { return m.msgs }
-func (m *mockFeeTx) GetMsgsV2() ([]protov2.Message, error)           { return nil, nil }
-func (m *mockFeeTx) ValidateBasic() error                            { return nil }
-func (m *mockFeeTx) GetFee() sdk.Coins                               { return m.fee }
-func (m *mockFeeTx) GetGas() uint64                                  { return m.gas }
-func (m *mockFeeTx) FeePayer() []byte                                { return nil }
-func (m *mockFeeTx) FeeGranter() []byte                              { return nil }
+func (m *mockFeeTx) GetMsgs() []sdk.Msg                    { return m.msgs }
+func (m *mockFeeTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
+func (m *mockFeeTx) ValidateBasic() error                  { return nil }
+func (m *mockFeeTx) GetFee() sdk.Coins                     { return m.fee }
+func (m *mockFeeTx) GetGas() uint64                        { return m.gas }
+func (m *mockFeeTx) FeePayer() []byte                      { return nil }
+func (m *mockFeeTx) FeeGranter() []byte                    { return nil }
 
 // mockBankKeeper implements ante.FeeForwardBankKeeper for testing.
 type mockBankKeeper struct {
