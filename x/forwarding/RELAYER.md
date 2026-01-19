@@ -44,7 +44,7 @@ sequenceDiagram
     end
 
     Note over Relayer: Deposit detected
-    Relayer->>Celestia: MsgExecuteForwarding
+    Relayer->>Celestia: MsgForward
     Celestia->>Celestia: Verify derivation
     Celestia->>Dest: Hyperlane warp transfer
     Relayer->>Backend: PATCH /intents/{addr}/status
@@ -62,23 +62,34 @@ sequenceDiagram
 
 ### Message Format
 
-The relayer submits `MsgExecuteForwarding` to trigger transfers:
+The relayer submits `MsgForward` to trigger transfers:
 
 ```protobuf
-message MsgExecuteForwarding {
-  string signer = 1;           // Relayer address (pays gas)
+message MsgForward {
+  string signer = 1;           // Relayer address (pays gas + IGP fees)
   string forward_addr = 2;     // bech32 forwarding address
   uint32 dest_domain = 3;      // Hyperlane destination domain ID
   string dest_recipient = 4;   // 32-byte recipient (hex-encoded, 0x-prefixed)
+  Coin max_igp_fee = 5;        // Max IGP fee relayer will pay per token
 }
 ```
 
 **Important**: This message forwards ALL tokens at `forward_addr`. There is no token-specific parameter.
 
+### IGP Fee Handling
+
+The relayer pays Hyperlane IGP fees for cross-chain message delivery:
+
+1. **Query fee estimate** before submitting: `QuoteForwardingFee` returns the current IGP fee
+2. **Set max_igp_fee** with a buffer (e.g., +10%) to handle price fluctuations
+3. **Per-token charging**: Each token forwarded charges its own IGP fee (up to max_igp_fee)
+4. **Only actual fee charged**: If quoted fee < max_igp_fee, only the quoted amount is taken
+5. **Fee on failure**: IGP fee is NOT returned if warp transfer fails (incentivizes checking routes)
+
 ### Response Format
 
 ```protobuf
-message MsgExecuteForwardingResponse {
+message MsgForwardResponse {
   repeated ForwardingResult results = 1;
 }
 
@@ -130,10 +141,15 @@ MAIN LOOP (every ~6 seconds):
     balance = query Celestia balance at intent.forward_addr
 
     if balance > 0 AND balance != balanceCache[intent.forward_addr]:
-      result = submit MsgExecuteForwarding(
+      # Query current IGP fee and add buffer
+      quoted_fee = query QuoteForwardingFee(intent.dest_domain)
+      max_fee = quoted_fee * 1.1  # 10% buffer for price changes
+
+      result = submit MsgForward(
         forward_addr = intent.forward_addr,
         dest_domain = intent.dest_domain,
-        dest_recipient = intent.dest_recipient
+        dest_recipient = intent.dest_recipient,
+        max_igp_fee = max_fee
       )
 
       if all tokens forwarded:
@@ -156,12 +172,16 @@ MAIN LOOP (every ~6 seconds):
 | Partial forwarding | Remaining at `forwardAddr` | Auto-retry on next cycle |
 | No warp route for token | Stays at `forwardAddr` | Skip token, retry when route added |
 | Below minimum threshold | Stays at `forwardAddr` | Skip, wait for more deposits |
+| Insufficient IGP fee | Unchanged | Re-query `QuoteForwardingFee`, retry with higher fee |
+| IGP fee denom mismatch | Unchanged | Ensure max_igp_fee uses correct denom (usually utia) |
 
 **Key insight**: Since forwarding is permissionless, funds are never at risk. Anyone with the correct `(destDomain, destRecipient)` can trigger forwarding.
 
+**IGP fee note**: If warp transfer fails after IGP fee collection, the fee is consumed (not returned). This incentivizes relayers to verify routes exist before submitting.
+
 ### Relayer Incentives
 
-Currently, relaying is **unincentivized** - relayers pay gas out of pocket, similar to IBC relayers. The `MsgExecuteForwarding` is permissionless so anyone can trigger it.
+Currently, relaying is **unincentivized** - relayers pay gas out of pocket, similar to IBC relayers. The `MsgForward` is permissionless so anyone can trigger it.
 
 **Future enhancement**: A `tip` field could be added to incentivize relayers. For v1, keeping it simple like IBC relaying is sufficient.
 
@@ -253,14 +273,19 @@ Response 200:
 celestia-appd query forwarding derive-address 42161 \
   0x000000000000000000000000742d35cc6634c0532925a3b844bc9e7595f00000
 
+# Query IGP fee estimate for destination
+celestia-appd query forwarding quote-fee 42161
+
 # Check balance at forwarding address
 celestia-appd query bank balances celestia1<forward_addr>
 
 # Execute forwarding manually (anyone can do this)
-celestia-appd tx forwarding execute \
+# Note: --max-igp-fee is required, query quote-fee first
+celestia-appd tx forwarding forward \
   celestia1<forward_addr> \
   42161 \
   0x000000000000000000000000742d35cc6634c0532925a3b844bc9e7595f00000 \
+  --max-igp-fee 1000utia \
   --from mykey --chain-id celestia -y
 
 # Check transaction result
@@ -274,6 +299,8 @@ celestia-appd query tx <txhash> --output json | jq '.events'
 - [ ] Celestia gRPC/RPC client (balance queries, tx submission)
 - [ ] Transaction signing and broadcasting
 - [ ] Balance change detection (avoid duplicate submissions)
+- [ ] IGP fee quoting via `QuoteForwardingFee` query
+- [ ] Fee buffer calculation (e.g., quoted_fee * 1.1)
 - [ ] Retry logic with exponential backoff
 - [ ] Partial failure handling
 - [ ] Graceful shutdown with in-flight tx completion
