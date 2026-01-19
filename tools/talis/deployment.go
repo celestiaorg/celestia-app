@@ -92,6 +92,7 @@ func deployCmd() *cobra.Command {
 		cfgPath      string
 		SSHKeyPath   string
 		directUpload bool
+		ignoreFailed bool
 		workers      int
 	)
 
@@ -120,12 +121,18 @@ func deployCmd() *cobra.Command {
 			log.Printf("Sending payload to validators...")
 			if directUpload {
 				if err := deployPayloadDirect(cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute, workers); err != nil {
-					return err
+					if !ignoreFailed {
+						return err
+					}
+					log.Printf("continuing despite validator deployment errors: %v", err)
 				}
 				return deployMetricsIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload)
 			}
 			if err := deployPayloadViaS3(cmd.Context(), rootDir, cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute, cfg.S3Config, workers); err != nil {
-				return err
+				if !ignoreFailed {
+					return err
+				}
+				log.Printf("continuing despite validator deployment errors: %v", err)
 			}
 			return deployMetricsIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload)
 		},
@@ -140,6 +147,7 @@ func deployCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory in which to initialize")
 	cmd.Flags().StringVarP(&cfgPath, "config", "c", "config.json", "name of the config")
 	cmd.Flags().BoolVar(&directUpload, "direct-payload-upload", false, "Upload payload directly to nodes instead of using S3")
+	cmd.Flags().BoolVar(&ignoreFailed, "ignore-failed-validators", false, "Continue deploying metrics even if some validators fail")
 	cmd.Flags().IntVarP(&workers, "workers", "w", 10, "number of concurrent workers for parallel operations (should be > 0)")
 
 	return cmd
