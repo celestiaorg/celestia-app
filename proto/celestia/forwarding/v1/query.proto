@@ -1,0 +1,46 @@
+syntax = "proto3";
+package celestia.forwarding.v1;
+
+import "celestia/forwarding/v1/params.proto";
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+import "cosmos_proto/cosmos.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/forwarding/types";
+
+// Query defines the gRPC querier service for the forwarding module.
+service Query {
+  // DeriveForwardingAddress derives the forwarding address for given parameters.
+  rpc DeriveForwardingAddress(QueryDeriveForwardingAddressRequest) returns (QueryDeriveForwardingAddressResponse) {
+    option (google.api.http).get = "/celestia/forwarding/v1/derive_address/{dest_domain}/{dest_recipient}";
+  }
+
+  // Params queries the module parameters.
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/celestia/forwarding/v1/params";
+  }
+}
+
+// QueryDeriveForwardingAddressRequest is the request for DeriveForwardingAddress.
+message QueryDeriveForwardingAddressRequest {
+  // dest_domain is the destination chain domain ID.
+  uint32 dest_domain = 1;
+
+  // dest_recipient is the recipient on destination chain (32 bytes, hex-encoded).
+  string dest_recipient = 2;
+}
+
+// QueryDeriveForwardingAddressResponse is the response for DeriveForwardingAddress.
+message QueryDeriveForwardingAddressResponse {
+  // address is the derived forwarding address (bech32).
+  string address = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+}
+
+// QueryParamsRequest is the request for Params.
+message QueryParamsRequest {}
+
+// QueryParamsResponse is the response for Params.
+message QueryParamsResponse {
+  // params contains the module parameters.
+  Params params = 1 [(gogoproto.nullable) = false];
+}
