@@ -140,7 +140,7 @@
                         <h1 id="tx-client-v2--sequential-submission-queue"><a class="header" href="#tx-client-v2--sequential-submission-queue">Tx Client v2 – Sequential Submission Queue</a></h1>
 <h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
 <p>Tx Client v2 enforces <strong>per-account sequential transaction submission</strong> to prevent sequence races and minimize transaction failures.</p>
-<p><strong>Key properties</strong></p>
+<h3 id="key-properties"><a class="header" href="#key-properties">Key properties</a></h3>
 <ul>
 <li>Transactions are <strong>signed and broadcast strictly in sequence order</strong></li>
 <li>A transaction is <strong>never re-signed</strong>, only <strong>resubmitted</strong> (which means resubmitted using the original signed bytes).</li>
@@ -157,20 +157,20 @@
 </ul>
 <h3 id="non-sequence-errors"><a class="header" href="#non-sequence-errors">Non-sequence errors</a></h3>
 <p>Errors that are <strong>not related to account sequence numbers</strong>.</p>
-<p><strong>Retryable</strong></p>
+<h4 id="retryable"><a class="header" href="#retryable">Retryable</a></h4>
 <ul>
 <li>Network errors</li>
 <li>Application errors like <code>ErrMempoolIsFull</code></li>
 </ul>
-<p><strong>Behavior</strong></p>
+<h5 id="retryable-behavior"><a class="header" href="#retryable-behavior">Retryable Behavior</a></h5>
 <ul>
 <li>Retry submission until accepted or a terminal error occurs.</li>
 </ul>
-<p><strong>Terminal</strong></p>
+<h4 id="terminal"><a class="header" href="#terminal">Terminal</a></h4>
 <ul>
 <li>Application errors like <code>ErrTxTooLarge</code></li>
 </ul>
-<p><strong>Behavior</strong></p>
+<h5 id="terminal-behavior"><a class="header" href="#terminal-behavior">Terminal Behavior</a></h5>
 <ul>
 <li>Return the error to the user immediately.</li>
 </ul>
@@ -178,7 +178,7 @@
 <p>Sequence mismatch errors occur when the node's expected account sequence differs from the client's sequence during submission.</p>
 <h4 id="case-1-expected-sequence--client-sequence"><a class="header" href="#case-1-expected-sequence--client-sequence">Case 1: Expected sequence &lt; client sequence</a></h4>
 <p>Indicates eviction or rejection of one or more previously submitted transactions that is not yet known to the client (e.g. eviction or rejection during <code>ReCheckTx</code>).</p>
-<p><strong>Behavior</strong></p>
+<h5 id="case-1-behavior"><a class="header" href="#case-1-behavior">Case 1 Behavior</a></h5>
 <ul>
 <li>Pause broadcasting.</li>
 <li>Query the status of transactions in the range
@@ -205,7 +205,7 @@
 <li>The transaction was evicted on the current node (thus not in the mempool), but was included in a block on another node.</li>
 <li>A different transaction with the same sequence was included in a block, implying that a transaction for the signer was submitted outside of the tx client.</li>
 </ul>
-<p><strong>Behavior</strong></p>
+<h5 id="case-2-behavior"><a class="header" href="#case-2-behavior">Case 2 Behavior</a></h5>
 <ol>
 <li>Pause broadcasting.</li>
 <li>Query the status of the transaction with the conflicting sequence.</li>
@@ -226,35 +226,35 @@
 <h2 id="confirmation-and-monitoring"><a class="header" href="#confirmation-and-monitoring">Confirmation and Monitoring</a></h2>
 <p>Transaction statuses are obtained via <strong>batched status queries</strong> using the <code>tx_status_batch</code> RPC method over a bounded set of pending transactions.</p>
 <h3 id="transaction-states"><a class="header" href="#transaction-states">Transaction States</a></h3>
-<p><strong>Pending</strong></p>
+<h4 id="pending"><a class="header" href="#pending">Pending</a></h4>
 <ul>
 <li>No action required.</li>
 </ul>
-<p><strong>Committed</strong></p>
+<h4 id="committed"><a class="header" href="#committed">Committed</a></h4>
 <ul>
 <li>The transaction was included in a block.</li>
 <li>Remove from the queue.</li>
 <li>Return success with execution metadata.</li>
 </ul>
-<p><strong>Committed with execution error</strong></p>
+<h4 id="committed-with-execution-error"><a class="header" href="#committed-with-execution-error">Committed with execution error</a></h4>
 <ul>
 <li>The transaction was included in a block but failed during execution.</li>
 <li>Remove from the queue.</li>
 <li>Return execution error with metadata.</li>
 </ul>
-<p><strong>Evicted</strong></p>
+<h4 id="evicted"><a class="header" href="#evicted">Evicted</a></h4>
 <ul>
 <li>Broadcasting is paused.</li>
 <li>Resubmit the transaction.</li>
 <li>Resume broadcasting.</li>
 </ul>
-<p><strong>Rejected</strong></p>
+<h4 id="rejected"><a class="header" href="#rejected">Rejected</a></h4>
 <ul>
 <li>Broadcasting is paused.</li>
 <li>Roll back the sequence to the first rejected transaction.</li>
 <li>Return rejection error to the user.</li>
 </ul>
-<p><strong>Unknown</strong></p>
+<h4 id="unknown"><a class="header" href="#unknown">Unknown</a></h4>
 <ul>
 <li>The transaction is neither evicted, rejected, nor committed.</li>
 <li>Return an error indicating that the transaction status is unknown.</li>
