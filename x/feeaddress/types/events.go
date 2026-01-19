@@ -1,16 +1,15 @@
 package types
 
 import (
-	"github.com/cosmos/gogoproto/proto"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
-// EventTypeFeeForwardedName is the typed event name for EventFeeForwarded.
-var EventTypeFeeForwardedName = proto.MessageName(&EventFeeForwarded{})
-
 // NewFeeForwardedEvent returns a new EventFeeForwarded.
+// The 'to' field is always the fee collector module account.
 func NewFeeForwardedEvent(from string, amount string) *EventFeeForwarded {
 	return &EventFeeForwarded{
 		From:   from,
+		To:     authtypes.FeeCollectorName,
 		Amount: amount,
 	}
 }

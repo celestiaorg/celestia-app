@@ -47,12 +47,14 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	// Check fee address balance and inject fee forward tx if non-zero.
 	// This converts fee address funds into real transaction fees for dashboard tracking.
 	//
-	// Race condition mitigation: The fee forward tx is PREPENDED to the transaction list,
-	// ensuring it executes FIRST in DeliverTx before any other transactions that might
-	// modify the fee address balance. This guarantees the fee amount matches the balance
-	// snapshot taken here, and ProcessProposal validation passes.
+	// Consensus safety: ProcessProposal validates that the fee forward tx fee amount equals
+	// the fee address balance at the start of the block. Both PrepareProposal and ProcessProposal
+	// read from the same state snapshot, ensuring all validators agree on validity. The fee
+	// forward tx is prepended so it executes first in DeliverTx, draining the fee address
+	// before any subsequent transactions can add to it.
 	txsToProcess := req.Txs
 	feeBalance := app.BankKeeper.GetBalance(ctx, feeaddresstypes.FeeAddress, appconsts.BondDenom)
+	hasFeeForwardTx := false
 	if !feeBalance.IsZero() {
 		feeForwardTx, err := app.createFeeForwardTx(ctx, feeBalance)
 		if err != nil {
@@ -63,12 +65,25 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 				"error", err.Error(),
 				"fee_balance", feeBalance.String())
 		} else {
-			// IMPORTANT: Prepend fee forward tx so it executes first (see race condition comment above)
+			// Prepend fee forward tx so it executes first
 			txsToProcess = append([][]byte{feeForwardTx}, req.Txs...)
+			hasFeeForwardTx = true
 		}
 	}
 
 	txs := fsb.Fill(ctx, txsToProcess)
+
+	// Defense-in-depth: Verify the fee forward tx survived filtering.
+	// If the fee address has a balance and we created a fee forward tx, it MUST be in the output.
+	// The fee forward tx should never be filtered since it has no signature requirements and
+	// uses minimal gas, but we verify anyway to catch unexpected ante handler changes.
+	if hasFeeForwardTx && len(txs) > 0 {
+		firstTxIsFeeForward := app.isFeeForwardTx(txs[0])
+		if !firstTxIsFeeForward {
+			app.Logger().Error("fee forward tx was filtered out unexpectedly, block will likely be rejected",
+				"fee_balance", feeBalance.String())
+		}
+	}
 
 	// Build the square from the set of valid and prioritised transactions.
 	dataSquare, err := fsb.Build()

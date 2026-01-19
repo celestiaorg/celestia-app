@@ -4,10 +4,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-const (
-	URLMsgForwardFees = "/celestia.feeaddress.v1.Msg/ForwardFees"
-)
-
 var _ sdk.Msg = &MsgForwardFees{}
 
 // NewMsgForwardFees creates a new MsgForwardFees.

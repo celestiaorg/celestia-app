@@ -35,6 +35,10 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 // - The transaction fee equals the fee address balance
 // - ProcessProposal enforces that this tx must be present if fee address has balance
 // - Validation happens via ProcessProposal checking tx fee == fee address balance
+//
+// Note: This message intentionally has no signer annotation because it is a
+// protocol-injected unsigned transaction. The GetSigners() method returns an
+// empty slice, and signature verification is skipped via ante handler flags.
 type MsgForwardFees struct {
 }
 

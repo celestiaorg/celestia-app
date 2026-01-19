@@ -255,6 +255,21 @@ func (app *App) ValidateBlobTxWithCache(blobTx *blobtx.BlobTx) (bool, error) {
 	return false, nil
 }
 
+// isFeeForwardTx checks if a transaction is a MsgForwardFees tx without full validation.
+// Returns false if the tx cannot be decoded or is not a single MsgForwardFees.
+func (app *App) isFeeForwardTx(txBytes []byte) bool {
+	sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(txBytes)
+	if err != nil {
+		return false
+	}
+	msgs := sdkTx.GetMsgs()
+	if len(msgs) != 1 {
+		return false
+	}
+	_, ok := msgs[0].(*feeaddresstypes.MsgForwardFees)
+	return ok
+}
+
 // parseFeeForwardTx decodes a transaction and checks if it's a MsgForwardFees.
 // Returns the decoded tx, whether it's a fee forward tx, and any decode error.
 func (app *App) parseFeeForwardTx(txBytes []byte) (sdk.Tx, bool, error) {

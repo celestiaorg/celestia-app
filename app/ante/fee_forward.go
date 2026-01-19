@@ -88,7 +88,10 @@ func (d FeeForwardDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate boo
 		return ctx, errors.Wrap(err, "failed to deduct fee from fee address")
 	}
 
-	// Set context flag to skip remaining fee/sig decorators
+	// Set context flag to skip remaining fee/sig decorators.
+	// Note: EarlyFeeForwardDetector also sets this flag earlier in the ante chain
+	// (for skipping ValidateBasic). Setting it here ensures the flag is set even
+	// if the ante chain configuration changes.
 	ctx = ctx.WithValue(FeeForwardContextKey{}, true)
 
 	// Store the fee amount in context for the message handler to emit the event
