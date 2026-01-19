@@ -81,10 +81,22 @@ func (m msgServer) UpdateInterchainSecurityModule(ctx context.Context, msg *type
 		return nil, err
 	}
 
+	// Check if the state root has changed (first 32 bytes of state)
+	oldStateRoot := ism.State[:32]
+	newStateRoot := publicValues.NewState[:32]
+	stateRootChanged := !bytes.Equal(oldStateRoot, newStateRoot)
+
 	// Store the new State from outputs as the ISM state
 	ism.State = publicValues.NewState
 	if err := m.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
 		return nil, err
+	}
+
+	// Reset the message proof submitted flag only if the state root has changed
+	if stateRootChanged {
+		if err := m.messageProofSubmitted.Set(ctx, ism.Id.GetInternalId(), false); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := EmitUpdateISMEvent(sdk.UnwrapSDKContext(ctx), ism); err != nil {
@@ -112,6 +124,12 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 		return nil, errorsmod.Wrapf(types.ErrInvalidStateRoot, "expected %x, got %x", ism.State[:32], publicValues.StateRoot)
 	}
 
+	// Check if a message proof has already been submitted for the current state root
+	submitted, err := m.messageProofSubmitted.Get(ctx, ism.Id.GetInternalId())
+	if err == nil && submitted {
+		return nil, types.ErrMessageProofAlreadySubmitted
+	}
+
 	if !bytes.Equal(publicValues.MerkleTreeAddress[:], ism.MerkleTreeAddress) {
 		return nil, errorsmod.Wrapf(types.ErrInvalidMerkleTreeAddress, "expected %x, got %x", ism.MerkleTreeAddress, publicValues.MerkleTreeAddress)
 	}
@@ -132,6 +150,11 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 		}
 
 		messages = append(messages, types.EncodeHex(messageId[:]))
+	}
+
+	// Mark that a message proof has been submitted for the current state root
+	if err := m.messageProofSubmitted.Set(ctx, ism.Id.GetInternalId(), true); err != nil {
+		return nil, err
 	}
 
 	if err := EmitSubmitMessagesEvent(sdk.UnwrapSDKContext(ctx), ism.State[:32], publicValues.MessageIds); err != nil {
