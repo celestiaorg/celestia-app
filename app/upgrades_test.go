@@ -14,6 +14,7 @@ import (
 	tmdb "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
 )
@@ -202,12 +203,14 @@ func TestUpdateValidatorCommissionRates(t *testing.T) {
 
 // createValidatorWithCommission creates a validator with specific commission
 // rates for testing
-func createValidatorWithCommission(t *testing.T, testApp *app.App, ctx sdk.Context, rate, maxRate, maxChangeRate string) stakingtypes.Validator {
-	commissionRate, err := math.LegacyNewDecFromStr(rate)
+func createValidatorWithCommission(t *testing.T, testApp *app.App, ctx sdk.Context, rate string, maxRate string, maxChangeRate string) stakingtypes.Validator {
+	rateDec, err := math.LegacyNewDecFromStr(rate)
 	require.NoError(t, err)
-	commissionMaxRate, err := math.LegacyNewDecFromStr(maxRate)
+
+	maxRateDec, err := math.LegacyNewDecFromStr(maxRate)
 	require.NoError(t, err)
-	commissionMaxChangeRate, err := math.LegacyNewDecFromStr(maxChangeRate)
+
+	maxChangeRateDec, err := math.LegacyNewDecFromStr(maxChangeRate)
 	require.NoError(t, err)
 
 	validators, err := testApp.StakingKeeper.GetAllValidators(ctx)
@@ -215,7 +218,7 @@ func createValidatorWithCommission(t *testing.T, testApp *app.App, ctx sdk.Conte
 	require.Greater(t, len(validators), 0, "Should have at least one validator")
 
 	validator := validators[0]
-	validator.Commission = stakingtypes.NewCommission(commissionRate, commissionMaxRate, commissionMaxChangeRate)
+	validator.Commission = stakingtypes.NewCommission(rateDec, maxRateDec, maxChangeRateDec)
 
 	err = testApp.StakingKeeper.SetValidator(ctx, validator)
 	require.NoError(t, err)
@@ -235,4 +238,66 @@ func assertCommissionRates(t *testing.T, validator stakingtypes.Validator, expec
 	require.Equal(t, wantRate, validator.Commission.Rate)
 	require.Equal(t, wantMaxRate, validator.Commission.MaxRate)
 	require.Equal(t, wantMaxChangeRate, validator.Commission.MaxChangeRate)
+}
+
+func TestMaxCommissionRate(t *testing.T) {
+	t.Run("editing validator commission to 55% should succeed", func(t *testing.T) {
+		consensusParams := app.DefaultConsensusParams()
+		testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
+
+		// Set the block time to 25 hours ahead of the genesis block to ensure
+		// the commission rate can be updated.
+		ctx := testApp.NewContext(false).WithBlockTime(util.GenesisTime.Add(time.Hour * 25))
+
+		// Set up validator with a high max change rate to allow commission changes
+		validator := createValidatorWithCommission(t, testApp, ctx, "0.20", "1.00", "1.00")
+		valAddr, err := sdk.ValAddressFromBech32(validator.GetOperator())
+		require.NoError(t, err)
+
+		msgServer := stakingkeeper.NewMsgServerImpl(testApp.StakingKeeper)
+		newRate := math.LegacyNewDecWithPrec(55, 2) // 55%
+		description := stakingtypes.NewDescription("moniker", "identity", "website", "securityContact", "details")
+		msg := stakingtypes.NewMsgEditValidator(
+			valAddr.String(),
+			description,
+			&newRate,
+			nil,
+		)
+
+		_, err = msgServer.EditValidator(ctx, msg)
+		require.NoError(t, err)
+
+		// Verify the commission rate was updated
+		updatedValidator, err := testApp.StakingKeeper.GetValidator(ctx, valAddr)
+		require.NoError(t, err)
+		require.Equal(t, newRate, updatedValidator.Commission.Rate)
+	})
+
+	t.Run("editing validator commission to 65% should fail", func(t *testing.T) {
+		consensusParams := app.DefaultConsensusParams()
+		testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
+
+		// Set the block time to 25 hours ahead of the genesis block to ensure
+		// the commission rate can be updated.
+		ctx := testApp.NewContext(false).WithBlockTime(util.GenesisTime.Add(time.Hour * 25))
+
+		// Set up validator with a high max change rate to allow commission changes
+		validator := createValidatorWithCommission(t, testApp, ctx, "0.20", "1.00", "1.00")
+		valAddr, err := sdk.ValAddressFromBech32(validator.GetOperator())
+		require.NoError(t, err)
+
+		msgServer := stakingkeeper.NewMsgServerImpl(testApp.StakingKeeper)
+		newRate := math.LegacyNewDecWithPrec(65, 2) // 65%
+		description := stakingtypes.NewDescription("moniker", "identity", "website", "securityContact", "details")
+		msg := stakingtypes.NewMsgEditValidator(
+			valAddr.String(),
+			description,
+			&newRate,
+			nil,
+		)
+
+		_, err = msgServer.EditValidator(ctx, msg)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "commission rate cannot be greater than the max commission rate")
+	})
 }
