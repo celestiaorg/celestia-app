@@ -107,6 +107,7 @@ message ForwardingResult {
 See the canonical derivation algorithm in [SPEC.md](./SPEC.md#address-derivation).
 
 **Key points for relayers:**
+
 - `destDomain`: uint32 encoded as 32-byte big-endian (right-aligned)
 - `destRecipient`: exactly 32 bytes
 - Output: bech32 address with `celestia` prefix
@@ -122,13 +123,14 @@ See the canonical derivation algorithm in [SPEC.md](./SPEC.md#address-derivation
 **All 20-byte addresses** (EVM and Cosmos) must be left-padded to 32 bytes. Hyperlane uses `bytes32` as the canonical recipient format across all chains.
 
 Example EVM address `0x742d35Cc6634C0532925a3b844Bc9e7595f00000`:
-```
+
+```text
 destRecipient = 0x000000000000000000000000742d35Cc6634C0532925a3b844Bc9e7595f00000
 ```
 
 ## Operational Flow
 
-```
+```text
 STARTUP:
   intents = GET /intents from Backend
   balanceCache = {}
@@ -192,7 +194,8 @@ The Intent Backend stores the mapping from `forwardAddr` to forwarding parameter
 ### Endpoints
 
 #### List Intents
-```
+
+```text
 GET /intents
 GET /intents?status=pending
 
@@ -209,7 +212,8 @@ Response 200:
 ```
 
 #### Get Single Intent
-```
+
+```text
 GET /intents/{forward_addr}
 
 Response 200:
@@ -226,7 +230,8 @@ Response 404:
 ```
 
 #### Create Intent (called by Frontend)
-```
+
+```text
 POST /intents
 Content-Type: application/json
 
@@ -247,7 +252,8 @@ Response 400:
 ```
 
 #### Update Intent Status (called by Relayer)
-```
+
+```text
 PATCH /intents/{forward_addr}/status
 Content-Type: application/json
 

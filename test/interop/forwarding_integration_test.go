@@ -916,7 +916,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_TooManyTokens() {
 	// Create 20 ztoken denoms (sort after utia) = 21 total tokens
 	// Using "ztoken" because it sorts AFTER "utia" alphabetically,
 	// ensuring utia is included in the first 20 processed tokens
-	for i := 0; i < forwardingtypes.MaxTokensPerForward; i++ {
+	for i := range forwardingtypes.MaxTokensPerForward {
 		denom := fmt.Sprintf("ztoken%02d", i)
 		coin := sdk.NewCoin(denom, math.NewInt(100))
 		err := celestiaApp.BankKeeper.MintCoins(ctx, minttypes.ModuleName, sdk.NewCoins(coin))
