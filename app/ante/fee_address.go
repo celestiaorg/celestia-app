@@ -16,7 +16,7 @@ var _ sdk.AnteDecorator = FeeAddressDecorator{}
 // This includes messages nested inside authz.MsgExec.
 //
 // Note: ICA host executed messages bypass ante handlers. If ICA sends non-utia to the
-// fee address, the tokens would be permanently stuck (not forwarded, not stolen).
+// fee address, the tokens would be permanently stuck.
 type FeeAddressDecorator struct{}
 
 func NewFeeAddressDecorator() *FeeAddressDecorator {
