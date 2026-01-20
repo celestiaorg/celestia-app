@@ -154,12 +154,12 @@ Arguments:
 				return fmt.Errorf("invalid ism identifier: %w", err)
 			}
 
-			proof, err := decodeHexString(args[2])
+			proof, err := decodeHexString(args[1])
 			if err != nil {
 				return fmt.Errorf("invalid proof: %w", err)
 			}
 
-			publicValues, err := decodeHexString(args[3])
+			publicValues, err := decodeHexString(args[2])
 			if err != nil {
 				return fmt.Errorf("invalid public values: %w", err)
 			}
