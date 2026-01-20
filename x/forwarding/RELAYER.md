@@ -86,6 +86,30 @@ The relayer pays Hyperlane IGP fees for cross-chain message delivery:
 4. **Only actual fee charged**: If quoted fee < max_igp_fee, only the quoted amount is taken
 5. **Fee on failure**: IGP fee is NOT returned if warp transfer fails (incentivizes checking routes)
 
+### IGP Fee Edge Cases
+
+| Scenario | Fee Status | Tokens Status | Relayer Action |
+|----------|------------|---------------|----------------|
+| Warp succeeds | Consumed | Forwarded | None |
+| Warp fails (e.g., route removed mid-tx) | **Consumed** | Returned to `forwardAddr` | Retry after fixing route |
+| IGP fee denom mismatch | Not collected | Unchanged | Fix `max_igp_fee` denom |
+| Insufficient max_igp_fee | Not collected | Unchanged | Increase `max_igp_fee` |
+| Relayer has insufficient balance | Not collected | Unchanged | Fund relayer account |
+| Recovery fails (CRITICAL) | Consumed | **Stuck in module** | Contact governance |
+
+**Important**: When warp transfer fails AFTER IGP fee collection:
+
+- Tokens are returned to `forwardAddr` (safe for retry)
+- IGP fee is NOT returned to relayer
+- This is intentional: incentivizes relayers to verify routes before submitting
+
+**Mitigation strategies:**
+
+1. Always call `QuoteForwardingFee` before submitting
+2. Use `DeriveForwardingAddress` query to verify route exists (returns error if no route)
+3. Monitor `EventTokenForwarded` events for `success=false` cases
+4. Track IGP fee expenses separately from gas costs
+
 ### Response Format
 
 ```protobuf
