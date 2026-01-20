@@ -19,7 +19,6 @@ func (msg *MsgCreateInterchainSecurityModule) ValidateBasic() error {
 		return errorsmod.Wrapf(ErrInvalidTrustedState, "initial trusted state must be at least %d bytes", MinStateBytes)
 	}
 
-	// TODO: add a testcase for this new check
 	if len(msg.State) > MaxStateBytes {
 		return errorsmod.Wrapf(ErrInvalidTrustedState, "initial trusted state must be no greater than %d bytes", MaxStateBytes)
 	}
