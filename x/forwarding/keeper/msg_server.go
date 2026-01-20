@@ -21,7 +21,7 @@ func NewMsgServerImpl(keeper Keeper) types.MsgServer {
 	return &msgServer{k: keeper}
 }
 
-// Forward forwards ALL tokens at forwardAddr to the committed destination.
+// Forward forwards up to 20 tokens at forwardAddr to the committed destination.
 // Partial failures are by design: failed tokens remain for retry while others proceed.
 func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types.MsgForwardResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
