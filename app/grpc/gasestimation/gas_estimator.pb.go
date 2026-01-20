@@ -440,6 +440,7 @@ func _GasEstimator_EstimateGasPriceAndUsage_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+var GasEstimator_serviceDesc = _GasEstimator_serviceDesc
 var _GasEstimator_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "celestia.core.v1.gas_estimation.GasEstimator",
 	HandlerType: (*GasEstimatorServer)(nil),
