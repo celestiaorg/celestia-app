@@ -146,9 +146,6 @@ func (k Keeper) HasEnrolledRouter(ctx context.Context, tokenId util.HexAddress, 
 // HasAnyRouteToDestination returns true if any warp token has an enrolled router
 // for the destination domain. This validates that forwarding is possible before
 // deriving an address, regardless of which token type will be forwarded.
-//
-// Note: This is O(n) where n = number of warp tokens. Accepted tradeoff for
-// correctness - the query validates ALL token types, not just TIA.
 func (k Keeper) HasAnyRouteToDestination(ctx context.Context, destDomain uint32) (bool, error) {
 	iter, err := k.warpKeeper.HypTokens.Iterate(ctx, nil)
 	if err != nil {
