@@ -36,9 +36,7 @@ func (fad FeeAddressDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate b
 func (fad FeeAddressDecorator) validateMessage(msg sdk.Msg) error {
 	switch m := msg.(type) {
 	case *banktypes.MsgSend:
-		if err := validateFeeAddressSend(m.ToAddress, m.Amount); err != nil {
-			return err
-		}
+		return validateFeeAddressSend(m.ToAddress, m.Amount)
 	case *banktypes.MsgMultiSend:
 		for _, output := range m.Outputs {
 			if err := validateFeeAddressSend(output.Address, output.Coins); err != nil {
@@ -46,9 +44,7 @@ func (fad FeeAddressDecorator) validateMessage(msg sdk.Msg) error {
 			}
 		}
 	case *ibctransfertypes.MsgTransfer:
-		if err := validateFeeAddressSend(m.Receiver, sdk.NewCoins(m.Token)); err != nil {
-			return err
-		}
+		return validateFeeAddressSend(m.Receiver, sdk.NewCoins(m.Token))
 	case *authz.MsgExec:
 		nestedMsgs, err := m.GetMessages()
 		if err != nil {
@@ -63,8 +59,7 @@ func (fad FeeAddressDecorator) validateMessage(msg sdk.Msg) error {
 	return nil
 }
 
-// validateFeeAddressSend checks if the recipient is the fee address and
-// ensures only utia is being sent. Uses bytes comparison for safety.
+// validateFeeAddressSend checks if the recipient is the fee address and ensures only utia is being sent.
 func validateFeeAddressSend(recipient string, coins sdk.Coins) error {
 	addr, err := sdk.AccAddressFromBech32(recipient)
 	if err != nil {

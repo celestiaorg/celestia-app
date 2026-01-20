@@ -142,8 +142,6 @@ func (app *App) setModuleOrder() {
 		minfeetypes.ModuleName,
 		packetforwardtypes.ModuleName,
 		icatypes.ModuleName,
-		// feeaddress has no EndBlocker - forwarding happens via protocol-injected tx in PrepareProposal.
-		// Listed here for completeness as it may acquire EndBlocker logic in the future.
 		feeaddresstypes.ModuleName,
 	)
 
@@ -211,6 +209,5 @@ func allStoreKeys() []string {
 		circuittypes.StoreKey,     // added in v4
 		hyperlanetypes.ModuleName, // added in v4
 		warptypes.ModuleName,      // added in v4
-		// Note: feeaddress module has no state, so no store key needed
 	}
 }

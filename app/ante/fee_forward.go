@@ -18,15 +18,9 @@ type FeeForwardBankKeeper interface {
 	SendCoinsFromAccountToModule(ctx context.Context, senderAddr sdk.AccAddress, recipientModule string, amt sdk.Coins) error
 }
 
-// FeeForwardContextKey is a context key that indicates a transaction is a
-// protocol-injected fee forward transaction. Set by EarlyFeeForwardDetector
-// BEFORE ValidateBasic runs, so that SkipForFeeForwardDecorator can skip
-// signature-related decorators for this unsigned transaction.
-//
-// Note: We need two separate context keys because:
-// - FeeForwardContextKey must be set EARLY (before ValidateBasic) to skip decorators
-// - FeeForwardAmountContextKey is set LATER (after bank transfer) with the actual amount
-// Consolidating them would require the amount to be known before the transfer completes.
+// FeeForwardContextKey indicates a transaction is a protocol-injected fee forward transaction.
+// Set by EarlyFeeForwardDetector BEFORE ValidateBasic runs, enabling SkipForFeeForwardDecorator
+// to skip signature-related decorators for this unsigned transaction.
 type FeeForwardContextKey struct{}
 
 // FeeForwardAmountContextKey stores the fee amount deducted from the fee address.
@@ -34,17 +28,10 @@ type FeeForwardContextKey struct{}
 // ForwardFees message handler reads this to emit EventFeeForwarded.
 type FeeForwardAmountContextKey struct{}
 
-// FeeForwardDecorator handles MsgForwardFees transactions by:
-// 1. Rejecting user-submitted MsgForwardFees in CheckTx (protocol-injected only)
-// 2. Deducting the fee from the fee address (not from a signer)
-// 3. Sending the fee to the fee collector module
-// 4. Setting context flags to skip signature verification (tx is unsigned)
-//
-// This decorator MUST be placed early in the ante chain, before:
-// - DeductFeeDecorator (fee already deducted by this decorator)
-// - SetPubKeyDecorator (no signers)
-// - SigVerificationDecorator (no signatures)
-// - IncrementSequenceDecorator (no signers)
+// FeeForwardDecorator handles MsgForwardFees transactions by rejecting user submissions
+// in CheckTx, deducting the fee from the fee address, and sending it to the fee collector.
+// Must be placed before DeductFeeDecorator, SetPubKeyDecorator, SigVerificationDecorator,
+// and IncrementSequenceDecorator since fee forward txs have no signers.
 type FeeForwardDecorator struct {
 	bankKeeper FeeForwardBankKeeper
 }
@@ -68,8 +55,6 @@ func (d FeeForwardDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate boo
 	if ctx.IsCheckTx() || ctx.IsReCheckTx() {
 		return ctx, errors.Wrap(sdkerrors.ErrInvalidRequest, "MsgForwardFees cannot be submitted by users; it is protocol-injected only")
 	}
-
-	// Note: getMsgForwardFees already validates exactly one message exists.
 
 	// Get the fee from the transaction
 	feeTx, ok := tx.(sdk.FeeTx)

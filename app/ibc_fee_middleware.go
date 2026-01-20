@@ -27,7 +27,7 @@ var _ porttypes.IBCModule = (*FeeAddressIBCMiddleware)(nil)
 // Note: This middleware only validates standard IBC transfers. Bypass vectors exist:
 // - ICA host messages bypass ante handlers and this middleware
 // - Hyperlane MsgProcessMessage bypasses this middleware
-// Non-utia tokens sent via these paths would be permanently stuck (not forwarded, not stolen).
+// Non-utia tokens sent via these paths would be permanently stuck.
 type FeeAddressIBCMiddleware struct {
 	app    porttypes.IBCModule
 	logger log.Logger

@@ -18,22 +18,9 @@ var (
 )
 
 // Keeper handles fee forwarding operations for the feeaddress module.
-//
-// Design note: The keeper is intentionally stateless and has no dependencies.
-// The fee transfer happens in the ante handler (FeeForwardDecorator), not here.
-// This separation exists because:
-//  1. The ante handler runs BEFORE message execution - it deducts the fee from
-//     the fee address and sends it to the fee collector as a real tx fee.
-//  2. The message handler (ForwardFees) runs AFTER the ante handler completes.
-//     It reads the fee amount from context (set by ante handler) to emit an event.
-//
-// This context-based coupling between ante handler and message handler is intentional:
-// - Events should be emitted during message execution (standard SDK pattern)
-// - But the fee transfer must happen during ante handling (before execution)
-// - So we pass the fee amount via context from ante to message handler
-//
-// Alternative considered: Emit event in ante handler directly. Rejected because
-// events in ante handlers are less discoverable and don't follow SDK conventions.
+// The keeper is intentionally stateless - the fee transfer happens in the ante handler
+// (FeeForwardDecorator), while ForwardFees only emits the event using the fee amount
+// passed via context from the ante handler.
 type Keeper struct{}
 
 // NewKeeper creates a new Keeper instance.
