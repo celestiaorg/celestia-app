@@ -1,10 +1,11 @@
-package burn
+package feeaddress
 
 import (
+	"context"
 	"encoding/json"
 
 	"cosmossdk.io/core/appmodule"
-	"github.com/celestiaorg/celestia-app/v7/x/burn/types"
+	"github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -33,13 +34,22 @@ func (AppModule) IsAppModule()             {}
 func (AppModule) IsOnePerModuleType()      {}
 func (AppModule) ConsensusVersion() uint64 { return 1 }
 
-func (AppModule) RegisterGRPCGatewayRoutes(_ client.Context, _ *runtime.ServeMux) {}
-
-func (AppModule) DefaultGenesis(_ codec.JSONCodec) json.RawMessage {
-	return []byte("{}")
+func (AppModule) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *runtime.ServeMux) {
+	if err := types.RegisterQueryHandlerClient(context.Background(), mux, types.NewQueryClient(clientCtx)); err != nil {
+		panic(err)
+	}
 }
 
-func (AppModule) ValidateGenesis(_ codec.JSONCodec, _ client.TxEncodingConfig, _ json.RawMessage) error {
+func (AppModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
+	return cdc.MustMarshalJSON(&types.GenesisState{})
+}
+
+func (AppModule) ValidateGenesis(cdc codec.JSONCodec, _ client.TxEncodingConfig, bz json.RawMessage) error {
+	var gs types.GenesisState
+	if err := cdc.UnmarshalJSON(bz, &gs); err != nil {
+		return err
+	}
+	// GenesisState is empty, no further validation needed
 	return nil
 }
 
@@ -52,6 +62,7 @@ func (AppModule) RegisterInterfaces(reg cdctypes.InterfaceRegistry) {
 }
 
 func (am AppModule) RegisterServices(registrar grpc.ServiceRegistrar) error {
+	types.RegisterQueryServer(registrar, &am.keeper)
 	types.RegisterMsgServer(registrar, &am.keeper)
 	return nil
 }

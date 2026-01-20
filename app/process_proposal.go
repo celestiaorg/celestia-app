@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/pkg/da"
 	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	blobtx "github.com/celestiaorg/go-square/v3/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -51,6 +52,42 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		app.GovParamFilters(),
 	)
 	blockHeader := ctx.BlockHeader()
+
+	// Strict validation for fee forward transactions:
+	// If the fee address has a balance, the block MUST contain a valid fee forward tx as the first tx.
+	// If no balance but fee forward tx present, reject the block.
+	feeBalance := app.BankKeeper.GetBalance(ctx, feeaddresstypes.FeeAddress, appconsts.BondDenom)
+	hasBalance := !feeBalance.IsZero()
+
+	if len(req.Txs) > 0 {
+		firstTx, firstTxIsFeeForward, feeForwardErr := app.parseFeeForwardTx(req.Txs[0])
+		if feeForwardErr != nil && hasBalance {
+			// If we have balance and can't decode the first tx, that's invalid
+			logInvalidPropBlockError(app.Logger(), blockHeader, "failed to decode first tx for fee forward check", feeForwardErr)
+			return reject(), nil
+		}
+
+		if hasBalance {
+			// Fee address has balance - MUST have valid fee forward tx as first tx
+			if !firstTxIsFeeForward {
+				logInvalidPropBlock(app.Logger(), blockHeader, "fee address has balance but first tx is not a fee forward tx")
+				return reject(), nil
+			}
+			// Validate the fee forward tx (tx already decoded by parseFeeForwardTx)
+			if err := app.validateFeeForwardTx(firstTx, feeBalance); err != nil {
+				logInvalidPropBlockError(app.Logger(), blockHeader, "invalid fee forward tx", err)
+				return reject(), nil
+			}
+		} else if firstTxIsFeeForward {
+			// No balance but fee forward tx present - reject
+			logInvalidPropBlock(app.Logger(), blockHeader, "fee forward tx present but fee address has no balance")
+			return reject(), nil
+		}
+	} else if hasBalance {
+		// No transactions but fee address has balance - reject
+		logInvalidPropBlock(app.Logger(), blockHeader, "fee address has balance but block has no transactions")
+		return reject(), nil
+	}
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
 	// blobTxs have no PFBs present and all txs are less than or equal to the max tx size limit
@@ -216,4 +253,46 @@ func (app *App) ValidateBlobTxWithCache(blobTx *blobtx.BlobTx) (bool, error) {
 		return false, err
 	}
 	return false, nil
+}
+
+// parseFeeForwardTx decodes a transaction and checks if it's a MsgForwardFees.
+// Returns the decoded tx, whether it's a fee forward tx, and any decode error.
+func (app *App) parseFeeForwardTx(txBytes []byte) (sdk.Tx, bool, error) {
+	sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(txBytes)
+	if err != nil {
+		return nil, false, err
+	}
+	return sdkTx, feeaddresstypes.IsFeeForwardMsg(sdkTx) != nil, nil
+}
+
+// validateFeeForwardTx validates a decoded fee forward transaction:
+// - Must have exactly one MsgForwardFees message
+// - Fee must equal the expected fee balance
+// - Gas limit must match FeeForwardGasLimit
+func (app *App) validateFeeForwardTx(sdkTx sdk.Tx, expectedFee sdk.Coin) error {
+	// Verify there's exactly one message and it's MsgForwardFees
+	// (defense-in-depth: parseFeeForwardTx already checks this)
+	if feeaddresstypes.IsFeeForwardMsg(sdkTx) == nil {
+		return fmt.Errorf("transaction is not a valid fee forward tx")
+	}
+
+	// Verify the fee equals the expected fee balance
+	feeTx, ok := sdkTx.(sdk.FeeTx)
+	if !ok {
+		return fmt.Errorf("tx does not implement FeeTx")
+	}
+	fee := feeTx.GetFee()
+	if len(fee) != 1 {
+		return fmt.Errorf("fee forward tx must have exactly one fee coin, got %d", len(fee))
+	}
+	if !fee[0].Equal(expectedFee) {
+		return fmt.Errorf("fee %s does not equal expected fee %s", fee[0], expectedFee)
+	}
+
+	// Verify gas limit matches expected value (prevents malicious proposer manipulation)
+	if feeTx.GetGas() != feeaddresstypes.FeeForwardGasLimit {
+		return fmt.Errorf("gas limit %d does not match expected %d", feeTx.GetGas(), feeaddresstypes.FeeForwardGasLimit)
+	}
+
+	return nil
 }

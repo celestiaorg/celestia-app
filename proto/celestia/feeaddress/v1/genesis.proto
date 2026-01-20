@@ -1,0 +1,10 @@
+syntax = "proto3";
+package celestia.feeaddress.v1;
+
+option go_package = "github.com/celestiaorg/celestia-app/x/feeaddress/types";
+
+// GenesisState defines the feeaddress module's genesis state.
+// The feeaddress module has no configurable state - the fee address is a
+// protocol constant. This empty genesis state exists for SDK compatibility
+// with InitGenesis/ExportGenesis patterns.
+message GenesisState {}

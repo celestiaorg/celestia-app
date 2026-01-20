@@ -14,8 +14,8 @@ import (
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/celestiaorg/celestia-app/v7/x/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
-	"github.com/celestiaorg/celestia-app/v7/x/burn"
-	burntypes "github.com/celestiaorg/celestia-app/v7/x/burn/types"
+	"github.com/celestiaorg/celestia-app/v7/x/feeaddress"
+	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	"github.com/celestiaorg/celestia-app/v7/x/minfee"
 	minfeetypes "github.com/celestiaorg/celestia-app/v7/x/minfee/types"
 	minttypes "github.com/celestiaorg/celestia-app/v7/x/mint/types"
@@ -86,7 +86,7 @@ var ModuleEncodingRegisters = []module.AppModuleBasic{
 	warp.AppModule{},
 	// celestia
 	blob.AppModule{},
-	burn.AppModule{},
+	feeaddress.AppModule{},
 	minfee.AppModule{},
 	mintModule{},
 	signal.AppModule{},
@@ -142,6 +142,9 @@ func (app *App) setModuleOrder() {
 		minfeetypes.ModuleName,
 		packetforwardtypes.ModuleName,
 		icatypes.ModuleName,
+		// feeaddress has no EndBlocker - forwarding happens via protocol-injected tx in PrepareProposal.
+		// Listed here for completeness as it may acquire EndBlocker logic in the future.
+		feeaddresstypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -172,7 +175,7 @@ func (app *App) setModuleOrder() {
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		signaltypes.ModuleName,
-		burntypes.ModuleName,
+		feeaddresstypes.ModuleName,
 		packetforwardtypes.ModuleName,
 		icatypes.ModuleName,
 		upgradetypes.ModuleName,
@@ -208,5 +211,6 @@ func allStoreKeys() []string {
 		circuittypes.StoreKey,     // added in v4
 		hyperlanetypes.ModuleName, // added in v4
 		warptypes.ModuleName,      // added in v4
+		// Note: feeaddress module has no state, so no store key needed
 	}
 }

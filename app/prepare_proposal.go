@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/app/ante"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/pkg/da"
+	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
@@ -43,7 +44,48 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		return nil, fmt.Errorf("failed to create FilteredSquareBuilder: %w", err)
 	}
 
-	txs := fsb.Fill(ctx, req.Txs)
+	// Check fee address balance and inject fee forward tx if non-zero.
+	// This converts fee address funds into real transaction fees for dashboard tracking.
+	//
+	// Consensus safety: ProcessProposal validates that the fee forward tx fee amount equals
+	// the fee address balance at the start of the block. Both PrepareProposal and ProcessProposal
+	// read from the same state snapshot, ensuring all validators agree on validity. The fee
+	// forward tx is prepended so it executes first in DeliverTx, draining the fee address
+	// before any subsequent transactions can add to it.
+	txsToProcess := req.Txs
+	feeBalance := app.BankKeeper.GetBalance(ctx, feeaddresstypes.FeeAddress, appconsts.BondDenom)
+	hasFeeForwardTx := false
+	if !feeBalance.IsZero() {
+		feeForwardTx, err := app.createFeeForwardTx(ctx, feeBalance)
+		if err != nil {
+			// Log error but continue - don't fail block production.
+			// Note: This block will be rejected by ProcessProposal since fee address has balance
+			// but no fee forward tx. Funds remain in fee address until a successful forward.
+			app.Logger().Error("failed to create fee forward tx, block will likely be rejected",
+				"error", err.Error(),
+				"fee_balance", feeBalance.String())
+		} else {
+			// Prepend fee forward tx so it executes first
+			txsToProcess = append([][]byte{feeForwardTx}, req.Txs...)
+			hasFeeForwardTx = true
+		}
+	}
+
+	txs := fsb.Fill(ctx, txsToProcess)
+
+	// Defense-in-depth: Verify the fee forward tx survived filtering.
+	// If the fee address has a balance and we created a fee forward tx, it MUST be in the output.
+	// The fee forward tx should never be filtered since it has no signature requirements and
+	// uses minimal gas. If it's filtered, there's a bug in the ante handler chain.
+	if hasFeeForwardTx {
+		if len(txs) == 0 {
+			return nil, fmt.Errorf("fee forward tx was filtered out (no txs remain); fee_balance=%s", feeBalance.String())
+		}
+		_, firstTxIsFeeForward, _ := app.parseFeeForwardTx(txs[0])
+		if !firstTxIsFeeForward {
+			return nil, fmt.Errorf("fee forward tx was filtered out unexpectedly; fee_balance=%s", feeBalance.String())
+		}
+	}
 
 	// Build the square from the set of valid and prioritised transactions.
 	dataSquare, err := fsb.Build()
@@ -74,4 +116,29 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		SquareSize:   uint64(dataSquare.Size()),
 		DataRootHash: dah.Hash(), // also known as the data root
 	}, nil
+}
+
+// createFeeForwardTx creates an unsigned MsgForwardFees transaction with the
+// specified fee amount. The transaction has no signers - it's validated by
+// ProcessProposal checking that tx fee == fee address balance.
+func (app *App) createFeeForwardTx(_ sdk.Context, feeAmount sdk.Coin) ([]byte, error) {
+	msg := feeaddresstypes.NewMsgForwardFees()
+
+	// Build the transaction
+	txBuilder := app.encodingConfig.TxConfig.NewTxBuilder()
+	if err := txBuilder.SetMsgs(msg); err != nil {
+		return nil, fmt.Errorf("failed to set message: %w", err)
+	}
+
+	// Set the fee to the fee address balance (this is the key part - makes it a real tx fee)
+	txBuilder.SetFeeAmount(sdk.NewCoins(feeAmount))
+	txBuilder.SetGasLimit(feeaddresstypes.FeeForwardGasLimit)
+
+	// Encode the transaction (no signature needed)
+	txBytes, err := app.encodingConfig.TxConfig.TxEncoder()(txBuilder.GetTx())
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode tx: %w", err)
+	}
+
+	return txBytes, nil
 }

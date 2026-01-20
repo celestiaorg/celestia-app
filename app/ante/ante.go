@@ -36,8 +36,13 @@ func NewAnteHandler(
 		circuitante.NewCircuitBreakerDecorator(circuitkeeper),
 		// Ensure the tx does not contain any extension options.
 		ante.NewExtensionOptionsDecorator(nil),
+		// Early detection of MsgForwardFees to set context flag before ValidateBasic.
+		// MsgForwardFees is an unsigned protocol-injected tx that would fail ValidateBasic's
+		// signature check, so we detect it early and skip ValidateBasic for it.
+		NewEarlyFeeForwardDetector(),
 		// Ensure the tx passes ValidateBasic.
-		ante.NewValidateBasicDecorator(),
+		// Skipped for fee forward transactions (no signatures).
+		NewSkipForFeeForwardDecorator(ante.NewValidateBasicDecorator()),
 		// Ensure the tx has not reached a height timeout.
 		ante.NewTxTimeoutHeightDecorator(),
 		// Ensure the tx memo <= max memo characters.
@@ -45,26 +50,37 @@ func NewAnteHandler(
 		// Ensure the tx's gas limit is > the gas consumed based on the tx size.
 		// Side effect: consumes gas from the gas meter.
 		NewConsumeGasForTxSizeDecorator(accountKeeper),
+		// Handle MsgForwardFees transactions: validate proposer, deduct fee from fee address,
+		// and set context flag to skip signature-related decorators.
+		// Must be called before DeductFeeDecorator.
+		NewFeeForwardDecorator(bankKeeper),
 		// Ensure the feepayer (fee granter or first signer) has enough funds to pay for the tx.
 		// Ensure that the tx's gas price is >= the network minimum gas price.
 		// Side effect: deducts fees from the fee payer. Sets the tx priority in context.
-		ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, ValidateTxFeeWrapper(minfeeKeeper)),
+		// Skipped for fee forward transactions (fee already deducted by FeeForwardDecorator).
+		NewSkipForFeeForwardDecorator(ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, ValidateTxFeeWrapper(minfeeKeeper))),
 		// Set public keys in the context for fee-payer and all signers.
 		// Contract: must be called before all signature verification decorators.
-		ante.NewSetPubKeyDecorator(accountKeeper),
+		// Skipped for fee forward transactions (no signers).
+		NewSkipForFeeForwardDecorator(ante.NewSetPubKeyDecorator(accountKeeper)),
 		// Ensure that the tx's count of signatures is <= the tx signature limit.
-		ante.NewValidateSigCountDecorator(accountKeeper),
+		// Skipped for fee forward transactions (no signatures).
+		NewSkipForFeeForwardDecorator(ante.NewValidateSigCountDecorator(accountKeeper)),
 		// Ensure that the tx's gas limit is > the gas consumed based on signature verification.
 		// Side effect: consumes gas from the gas meter.
-		ante.NewSigGasConsumeDecorator(accountKeeper, sigGasConsumer),
+		// Skipped for fee forward transactions (no signatures).
+		NewSkipForFeeForwardDecorator(ante.NewSigGasConsumeDecorator(accountKeeper, sigGasConsumer)),
 		// Ensure that the tx's signatures are valid. For each signature, ensure
 		// that the signature's sequence number (a.k.a nonce) matches the
 		// account sequence number of the signer.
 		// Note: does not consume gas from the gas meter.
-		ante.NewSigVerificationDecorator(accountKeeper, signModeHandler),
+		// Skipped for fee forward transactions (no signatures).
+		NewSkipForFeeForwardDecorator(ante.NewSigVerificationDecorator(accountKeeper, signModeHandler)),
 		// Ensure that the tx does not contain a MsgExec with a nested MsgExec
 		// or MsgPayForBlobs.
 		NewMsgExecDecorator(),
+		// Ensure that only utia can be sent to the fee address.
+		NewFeeAddressDecorator(),
 		// Ensure that the tx's gas limit is > the gas consumed based on the blob size(s).
 		// Contract: must be called after all decorators that consume gas.
 		// Note: does not consume gas from the gas meter.
@@ -75,7 +91,8 @@ func NewAnteHandler(
 		// Ensure that txs with MsgSubmitProposal/MsgExec have at least one message and param filters are applied.
 		NewParamFilterDecorator(paramFilters),
 		// Side effect: increment the nonce for all tx signers.
-		ante.NewIncrementSequenceDecorator(accountKeeper),
+		// Skipped for fee forward transactions (no signers).
+		NewSkipForFeeForwardDecorator(ante.NewIncrementSequenceDecorator(accountKeeper)),
 		// Ensure that the tx is not an IBC packet or update message that has already been processed.
 		ibcante.NewRedundantRelayDecorator(channelKeeper),
 	)
