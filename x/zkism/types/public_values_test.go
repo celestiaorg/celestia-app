@@ -1,6 +1,7 @@
 package types_test
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
@@ -10,8 +11,8 @@ import (
 
 func TestStateTransitionPublicValuesEncoding(t *testing.T) {
 	expected := types.StateTransitionValues{
-		State:    []byte{0x01, 0x02, 0x03, 0x04, 0x05},
-		NewState: []byte{0x06, 0x07, 0x08, 0x09, 0x0A},
+		State:    bytes.Repeat([]byte{0x01}, types.MinStateBytes),
+		NewState: bytes.Repeat([]byte{0xFF}, types.MaxStateBytes),
 	}
 
 	bz, err := expected.Marshal()
@@ -23,6 +24,33 @@ func TestStateTransitionPublicValuesEncoding(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, expected.State, decoded.State)
+}
+
+func TestStateTransitionPublicValuesUnmarshalFailure(t *testing.T) {
+	expected := types.StateTransitionValues{
+		State:    bytes.Repeat([]byte{0x01}, 2050),
+		NewState: bytes.Repeat([]byte{0x01}, types.MinStateBytes),
+	}
+
+	bz, err := expected.Marshal()
+	require.NoError(t, err)
+	require.NotEmpty(t, bz)
+
+	var decoded types.StateTransitionValues
+	err = decoded.Unmarshal(bz)
+	require.Error(t, err)
+
+	expected = types.StateTransitionValues{
+		State:    bytes.Repeat([]byte{0x01}, types.MaxStateBytes),
+		NewState: bytes.Repeat([]byte{0x01}, 2050),
+	}
+
+	bz, err = expected.Marshal()
+	require.NoError(t, err)
+	require.NotEmpty(t, bz)
+
+	err = decoded.Unmarshal(bz)
+	require.Error(t, err)
 }
 
 func TestStateMembershipPublicValuesEncoding(t *testing.T) {
