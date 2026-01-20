@@ -497,6 +497,7 @@ func _Tx_TxStatusBatch_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+var Tx_serviceDesc = _Tx_serviceDesc
 var _Tx_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "celestia.core.v1.tx.Tx",
 	HandlerType: (*TxServer)(nil),
