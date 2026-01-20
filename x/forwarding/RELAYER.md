@@ -117,9 +117,9 @@ See the canonical derivation algorithm in [SPEC.md](./SPEC.md#address-derivation
 |------------|-------------|--------------------------|
 | EVM (Arbitrum, Optimism, Base) | 20 bytes | Left-pad with 12 zero bytes |
 | Solana | 32 bytes | Use directly |
-| Cosmos (via Hyperlane) | 20 bytes | Use directly (no padding needed) |
+| Cosmos (via Hyperlane) | 20 bytes | Left-pad with 12 zero bytes |
 
-**Cosmos Chain Recipients**: For Cosmos chains connected via Hyperlane, use the native 20-byte address directly. The left-padding is only required for EVM chains because EVM addresses are 20 bytes but Hyperlane uses 32-byte recipients. Cosmos addresses are already 20 bytes and don't need padding.
+**All 20-byte addresses** (EVM and Cosmos) must be left-padded to 32 bytes. Hyperlane uses `bytes32` as the canonical recipient format across all chains.
 
 Example EVM address `0x742d35Cc6634C0532925a3b844Bc9e7595f00000`:
 ```
