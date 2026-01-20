@@ -27,14 +27,15 @@ func EmitUpdateISMEvent(ctx sdk.Context, ism types.InterchainSecurityModule) err
 }
 
 // EmitSubmitMessagesEvent emits a typed event to signal authorization of new messages.
-func EmitSubmitMessagesEvent(ctx sdk.Context, root []byte, messageIds [][32]byte) error {
+func EmitSubmitMessagesEvent(ctx sdk.Context, ism types.InterchainSecurityModule, messageIds [][32]byte) error {
 	messages := make([]string, 0, len(messageIds))
 	for _, msg := range messageIds {
 		messages = append(messages, types.EncodeHex(msg[:]))
 	}
 
 	return ctx.EventManager().EmitTypedEvent(&types.EventSubmitMessages{
-		StateRoot: types.EncodeHex(root),
+		Id:        ism.Id,
+		StateRoot: types.EncodeHex(ism.State[:32]),
 		Messages:  messages,
 	})
 }
