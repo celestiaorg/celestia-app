@@ -6,17 +6,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/user"
-	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v6/test/util/random"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	square "github.com/celestiaorg/go-square/v2"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v7/app"
+	"github.com/celestiaorg/celestia-app/v7/app/encoding"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/user"
+	"github.com/celestiaorg/celestia-app/v7/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v7/test/util/random"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	square "github.com/celestiaorg/go-square/v3"
+	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	coretypes "github.com/cometbft/cometbft/types"
@@ -43,9 +43,9 @@ type IntegrationTestSuite struct {
 
 func (s *IntegrationTestSuite) SetupSuite() {
 	t := s.T()
-	s.accounts = testnode.RandomAccounts(142)
+	s.accounts = testfactory.GenerateAccounts(142)
 
-	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...).WithTimeoutCommit(time.Millisecond * 500)
+	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...).WithDelayedPrecommitTimeout(time.Millisecond * 500)
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 
 	s.cctx = cctx
@@ -113,7 +113,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 
 			require.Greater(t, len(heights), 0)
 
-			sizes := []uint64{}
+			sizes := make([]uint64, 0, len(heights))
 			// check the square size
 			for height := range heights {
 				node, err := s.cctx.GetNode()

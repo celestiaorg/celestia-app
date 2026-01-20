@@ -6,9 +6,9 @@ import (
 	"fmt"
 
 	"cosmossdk.io/core/appmodule"
-	"github.com/celestiaorg/celestia-app/v6/x/mint/client/cli"
-	"github.com/celestiaorg/celestia-app/v6/x/mint/keeper"
-	"github.com/celestiaorg/celestia-app/v6/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v7/x/mint/client/cli"
+	"github.com/celestiaorg/celestia-app/v7/x/mint/keeper"
+	"github.com/celestiaorg/celestia-app/v7/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -35,8 +35,7 @@ type AppModule struct {
 	authKeeper types.AccountKeeper
 }
 
-// NewAppModule creates a new AppModule object. If the InflationCalculationFn
-// argument is nil, then the SDK's default inflation function will be used.
+// NewAppModule creates a new AppModule object.
 func NewAppModule(cdc codec.Codec, keeper keeper.Keeper, ak types.AccountKeeper) AppModule {
 	return AppModule{
 		cdc:        cdc,

@@ -11,10 +11,11 @@ import (
 
 	addressutil "github.com/celestiaorg/tastora/framework/testutil/address"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
+	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	cometcfg "github.com/cometbft/cometbft/config"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 
-	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
+	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 )
 
@@ -35,7 +36,7 @@ func (s *CelestiaTestSuite) TestBlockSync() {
 	s.Require().NoError(err, "failed to create chain")
 
 	t.Cleanup(func() {
-		if err := celestia.Stop(ctx); err != nil {
+		if err := celestia.Remove(ctx); err != nil {
 			t.Logf("Error stopping chain: %v", err)
 		}
 	})
@@ -72,7 +73,7 @@ func (s *CelestiaTestSuite) TestBlockSync() {
 	s.Require().Greater(latestHeight, int64(0), "latest height is zero")
 
 	// build peer list for the new node to connect to existing validators
-	peerList, err := addressutil.BuildInternalPeerAddressList(ctx, celestia.GetNodes())
+	peerList, err := addressutil.BuildInternalPeerAddressList(ctx, celestia.Nodes())
 	s.Require().NoError(err, "failed to build peer address list")
 
 	t.Logf("Latest height: %d", latestHeight)

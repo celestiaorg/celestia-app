@@ -27,15 +27,13 @@ func TestGetDeterministicPortConcurrent(t *testing.T) {
 	portChannel := make(chan int, numGoroutines*portsPerGoroutine)
 
 	// Start multiple goroutines
-	for i := 0; i < numGoroutines; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < portsPerGoroutine; j++ {
+	for range numGoroutines {
+		wg.Go(func() {
+			for range portsPerGoroutine {
 				port := GetDeterministicPort()
 				portChannel <- port
 			}
-		}()
+		})
 	}
 
 	wg.Wait()

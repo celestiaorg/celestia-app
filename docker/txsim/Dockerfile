@@ -1,5 +1,5 @@
 # Stage 1: generate txsim binary
-FROM --platform=$BUILDPLATFORM docker.io/golang:1.24.6-alpine AS builder
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.25.5-alpine AS builder
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -22,7 +22,7 @@ RUN uname -a &&\
     make txsim-build
 
 # Stage 2: create a minimal image with the binary
-FROM docker.io/alpine:3.20
+FROM docker.io/alpine:3.22
 
 # Use UID 10,001 because UIDs below 10,000 are a security risk.
 # Ref: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000

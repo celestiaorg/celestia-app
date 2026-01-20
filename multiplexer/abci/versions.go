@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/celestiaorg/celestia-app/v6/multiplexer/appd"
+	"github.com/celestiaorg/celestia-app/v7/multiplexer/appd"
 )
 
 // NewVersions returns a list of versions sorted by app version.
@@ -30,7 +30,7 @@ type Versions []Version
 // Sorted returns a sorted slice of Versions, sorted by AppVersion (ascending).
 func (v Versions) Sorted() Versions {
 	// convert map to slice
-	versionList := make([]Version, 0)
+	versionList := make([]Version, 0, len(v))
 	for _, ver := range v {
 		versionList = append(versionList, ver)
 	}

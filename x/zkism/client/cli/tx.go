@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
-	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v7/x/zkism/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/tx"

@@ -9,8 +9,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v7/app/encoding"
+	"github.com/celestiaorg/celestia-app/v7/pkg/user"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -30,7 +30,7 @@ const (
 var defaultTLSConfig = &tls.Config{InsecureSkipVerify: true}
 
 // Run is the entrypoint function for starting the txsim client. The lifecycle of the client is managed
-// through the context. At least one grpc and rpc endpoint must be provided. The client relies on a
+// through the context. A grpc endpoint must be provided. The client relies on a
 // single funded master account present in the keyring. The client allocates subaccounts for sequences
 // at runtime. A seed can be provided for deterministic randomness. The pollTime dictates the frequency
 // that the client should check for updates from state and that transactions have been committed.
@@ -113,7 +113,7 @@ func Run(
 	}
 
 	var finalErr error
-	for i := 0; i < len(sequences); i++ {
+	for range sequences {
 		err := <-errCh
 		if err == nil { // should never happen
 			continue

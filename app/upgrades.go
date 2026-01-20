@@ -8,10 +8,10 @@ import (
 	sdkmath "cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
-	zkismtypes "github.com/celestiaorg/celestia-app/v6/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v7/x/minfee/types"
+	zkismtypes "github.com/celestiaorg/celestia-app/v7/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -80,25 +80,7 @@ func (app App) RegisterUpgradeHandlers() {
 			start := time.Now()
 			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", upgradeName, "start", start)
 
-			err := app.SetUnbondingTime(ctx)
-			if err != nil {
-				sdkCtx.Logger().Error("failed to set unbonding time", "error", err)
-				return nil, err
-			}
-
-			err = app.SetEvidenceParams(ctx)
-			if err != nil {
-				sdkCtx.Logger().Error("failed to set evidence params", "error", err)
-				return nil, err
-			}
-
-			err = app.setICAHostParams(sdkCtx)
-			if err != nil {
-				sdkCtx.Logger().Error("failed to set ica/host submodule params", "error", err)
-				return nil, err
-			}
-
-			err = app.SetMinCommissionRate(sdkCtx)
+			err := app.SetMinCommissionRate(sdkCtx)
 			if err != nil {
 				sdkCtx.Logger().Error("failed to set min commission rate", "error", err)
 				return nil, err
@@ -133,66 +115,6 @@ func (app App) RegisterUpgradeHandlers() {
 	}
 }
 
-func (app App) SetUnbondingTime(ctx context.Context) error {
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-
-	params, err := app.StakingKeeper.GetParams(ctx)
-	if err != nil {
-		sdkCtx.Logger().Error("failed to get staking params", "error", err)
-		return err
-	}
-
-	sdkCtx.Logger().Info("Setting unbonding time to %v.", appconsts.UnbondingTime)
-	params.UnbondingTime = appconsts.UnbondingTime
-
-	err = app.StakingKeeper.SetParams(ctx, params)
-	if err != nil {
-		sdkCtx.Logger().Error("failed to set staking params", "error", err)
-		return err
-	}
-	return nil
-}
-
-func (app App) SetEvidenceParams(ctx context.Context) error {
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-
-	params, err := app.ConsensusKeeper.ParamsStore.Get(ctx)
-	if err != nil {
-		sdkCtx.Logger().Error("failed to get consensus params", "error", err)
-		return err
-	}
-
-	sdkCtx.Logger().Info("Setting evidence MaxAgeDuration to %v.", appconsts.MaxAgeDuration)
-	params.Evidence.MaxAgeDuration = appconsts.MaxAgeDuration
-
-	sdkCtx.Logger().Info("Setting evidence MaxAgeNumBlocks to %v.", appconsts.MaxAgeNumBlocks)
-	params.Evidence.MaxAgeNumBlocks = appconsts.MaxAgeNumBlocks
-
-	err = app.ConsensusKeeper.ParamsStore.Set(ctx, params)
-	if err != nil {
-		sdkCtx.Logger().Error("failed to set consensus params", "error", err)
-		return err
-	}
-	return nil
-}
-
-// setICAHostParams sets the ICA host params to the values defined in CIP-14.
-// This is needed because the ICA host params were previously stored in x/params
-// and in ibc-go v8 they were migrated to use a self-managed store.
-//
-// NOTE: the param migrator included in ibc-go v8 does not work as expected
-// because it sets the params to the default values which do not match the
-// values defined in CIP-14.
-func (a App) setICAHostParams(ctx context.Context) error {
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	params := icahosttypes.Params{
-		HostEnabled:   true,
-		AllowMessages: IcaAllowMessages(),
-	}
-	a.ICAHostKeeper.SetParams(sdkCtx, params)
-	return nil
-}
-
 func (a App) SetMinCommissionRate(ctx context.Context) error {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
@@ -204,7 +126,7 @@ func (a App) SetMinCommissionRate(ctx context.Context) error {
 
 	params.MinCommissionRate = appconsts.MinCommissionRate
 
-	sdkCtx.Logger().Info("Setting the staking params min commission rate to %v.\n", appconsts.MinCommissionRate)
+	sdkCtx.Logger().Info(fmt.Sprintf("Setting the staking params min commission rate to %v.\n", appconsts.MinCommissionRate))
 	err = a.StakingKeeper.SetParams(ctx, params)
 	if err != nil {
 		sdkCtx.Logger().Error("failed to set staking params", "error", err)

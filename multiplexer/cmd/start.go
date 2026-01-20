@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/celestiaorg/celestia-app/v6/multiplexer/abci"
-	"github.com/celestiaorg/celestia-app/v6/multiplexer/internal"
+	"github.com/celestiaorg/celestia-app/v7/multiplexer/abci"
+	"github.com/celestiaorg/celestia-app/v7/multiplexer/internal"
 	dbm "github.com/cometbft/cometbft-db"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"

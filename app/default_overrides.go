@@ -8,10 +8,10 @@ import (
 	"cosmossdk.io/x/circuit"
 	circuittypes "cosmossdk.io/x/circuit/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	"github.com/celestiaorg/celestia-app/v6/app/params"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/x/mint"
-	minttypes "github.com/celestiaorg/celestia-app/v6/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v7/app/params"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/x/mint"
+	minttypes "github.com/celestiaorg/celestia-app/v7/x/mint/types"
 	tmcfg "github.com/cometbft/cometbft/config"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
@@ -109,7 +109,7 @@ type slashingModule struct {
 	slashing.AppModule
 }
 
-// DefaultGenesis returns custom x/staking module genesis state.
+// DefaultGenesis returns custom x/slashing module genesis state.
 func (slashingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genesis := slashingtypes.DefaultGenesisState()
 	genesis.Params.MinSignedPerWindow = math.LegacyNewDecWithPrec(75, 2) // 75%
@@ -268,12 +268,12 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg.RPC.MaxBodyBytes = appconsts.MempoolSize + (mebibyte * 32)
 	cfg.RPC.GRPCListenAddress = "tcp://127.0.0.1:9098"
 
-	cfg.Mempool.TTLNumBlocks = 12
+	cfg.Mempool.TTLNumBlocks = 36
 	cfg.Mempool.TTLDuration = 0 * time.Second
 	cfg.Mempool.MaxTxBytes = appconsts.MaxTxSize
 	cfg.Mempool.MaxTxsBytes = appconsts.MempoolSize
 	cfg.Mempool.Type = tmcfg.MempoolTypeCAT
-	cfg.Mempool.MaxGossipDelay = time.Second * 60
+	cfg.Mempool.MaxGossipDelay = time.Second * 20
 
 	cfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
 	cfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
@@ -282,8 +282,8 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg.TxIndex.Indexer = "null"
 	cfg.Storage.DiscardABCIResponses = true
 
-	cfg.P2P.SendRate = 24 * mebibyte
-	cfg.P2P.RecvRate = 24 * mebibyte
+	cfg.P2P.SendRate = 100 * mebibyte
+	cfg.P2P.RecvRate = 100 * mebibyte
 
 	return cfg
 }
@@ -300,6 +300,8 @@ func DefaultAppConfig() *serverconfig.Config {
 	// snapshots to nodes that state sync
 	cfg.StateSync.SnapshotInterval = 1500
 	cfg.StateSync.SnapshotKeepRecent = 2
+	// Set the MinRetainBlocks to 3000 blocks so that all blocks in the snapshot window are retained.
+	cfg.MinRetainBlocks = 3000
 	// this is set to an empty string. As an empty string, the binary will use
 	// the hardcoded default gas price. To override this, the user must set the
 	// minimum gas prices in the app.toml file.

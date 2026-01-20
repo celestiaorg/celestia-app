@@ -11,10 +11,11 @@ import (
 	"time"
 
 	"cosmossdk.io/x/feegrant"
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/user"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v7/app/encoding"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/user"
+	txclientv2 "github.com/celestiaorg/celestia-app/v7/pkg/user/v2"
+	"github.com/celestiaorg/go-square/v3/share"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -36,7 +37,7 @@ type AccountManager struct {
 
 	// to protect from concurrent writes to the map
 	mtx          sync.Mutex
-	txClient     *user.TxClient
+	txClient     *txclientv2.TxClient
 	balance      uint64
 	latestHeight uint64
 	lastUpdated  time.Time
@@ -147,7 +148,7 @@ func (am *AccountManager) setupMasterAccount(ctx context.Context, masterAccName 
 		return fmt.Errorf("error getting master account %s balance: %w", masterAccName, err)
 	}
 
-	am.txClient, err = user.SetupTxClient(ctx, am.keys, am.conn, am.encCfg, user.WithDefaultAccount(masterAccName), user.WithPollTime(am.pollTime))
+	am.txClient, err = txclientv2.SetupTxClient(ctx, am.keys, am.conn, am.encCfg, user.WithDefaultAccount(masterAccName), user.WithPollTime(am.pollTime))
 	if err != nil {
 		return err
 	}
@@ -172,7 +173,7 @@ func (am *AccountManager) AllocateAccounts(n, balance int) []types.AccAddress {
 
 	path := hd.CreateHDPath(types.CoinType, 0, 0).String()
 	addresses := make([]types.AccAddress, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		name := am.nextAccountName()
 		record, _, err := am.keys.NewMnemonic(name, keyring.English, path, keyring.DefaultBIP39Passphrase, hd.Secp256k1)
 		if err != nil {
@@ -275,7 +276,7 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	}
 
 	var (
-		res *user.TxResponse
+		res *types.TxResponse
 		err error
 	)
 	if len(op.Blobs) > 0 {

@@ -6,14 +6,15 @@ import (
 	"testing"
 
 	sdkerrors "cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/test/util/random"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
-	"github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/inclusion"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/test/util/random"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	"github.com/celestiaorg/go-square/v3/inclusion"
+	"github.com/celestiaorg/go-square/v3/share"
 	"github.com/cometbft/cometbft/crypto/merkle"
+	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,6 +22,46 @@ import (
 
 func TestMsgTypeURLParity(t *testing.T) {
 	require.Equal(t, sdk.MsgTypeURL(&types.MsgPayForBlobs{}), types.URLMsgPayForBlobs)
+}
+
+func TestLegacyAminoCodec(t *testing.T) {
+	// Create a legacy amino codec
+	cdc := codec.NewLegacyAmino()
+	types.RegisterLegacyAminoCodec(cdc)
+	sdk.RegisterLegacyAminoCodec(cdc)
+
+	// Create a valid MsgPayForBlobs
+	validMsg := validMsgPayForBlobs(t)
+
+	// Test amino encoding/decoding
+	bz, err := cdc.Marshal(validMsg)
+	require.NoError(t, err)
+
+	var decoded types.MsgPayForBlobs
+	err = cdc.Unmarshal(bz, &decoded)
+	require.NoError(t, err)
+
+	// Verify the decoded message matches the original
+	require.Equal(t, validMsg.Signer, decoded.Signer)
+	require.Equal(t, validMsg.Namespaces, decoded.Namespaces)
+	require.Equal(t, validMsg.BlobSizes, decoded.BlobSizes)
+	require.Equal(t, validMsg.ShareCommitments, decoded.ShareCommitments)
+	require.Equal(t, validMsg.ShareVersions, decoded.ShareVersions)
+
+	// Test amino JSON encoding/decoding (needed for ledger signing)
+	jsonBz, err := cdc.MarshalJSON(validMsg)
+	require.NoError(t, err)
+
+	var decodedFromJSON types.MsgPayForBlobs
+	err = cdc.UnmarshalJSON(jsonBz, &decodedFromJSON)
+	require.NoError(t, err)
+
+	// Verify the JSON decoded message matches the original
+	require.Equal(t, validMsg.Signer, decodedFromJSON.Signer)
+	require.Equal(t, validMsg.Namespaces, decodedFromJSON.Namespaces)
+	require.Equal(t, validMsg.BlobSizes, decodedFromJSON.BlobSizes)
+	require.Equal(t, validMsg.ShareCommitments, decodedFromJSON.ShareCommitments)
+	require.Equal(t, validMsg.ShareVersions, decodedFromJSON.ShareVersions)
 }
 
 func TestValidateBasic(t *testing.T) {

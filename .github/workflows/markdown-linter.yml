@@ -1,16 +1,17 @@
 name: markdown-linter
 on:
   workflow_call:
+  workflow_dispatch:
 
 jobs:
   markdown-lint:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
 
       - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 #v4.4.0
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 #v6.2.0
         with:
           node-version: 24
 
@@ -19,14 +20,14 @@ jobs:
         shell: bash
 
       - name: Run markdownlint
-        run: markdownlint --config .markdownlint.yaml **/*.md
+        run: markdownlint --config .markdownlint.yaml '**/*.md'
         shell: bash
 
   markdown-link-check:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
 
       - name: Run markdown link check
         uses: gaurav-nelson/github-action-markdown-link-check@1.0.17

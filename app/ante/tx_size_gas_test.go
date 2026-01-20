@@ -6,11 +6,11 @@ import (
 	"testing"
 
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/celestiaorg/celestia-app/v6/app/ante"
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	testutil "github.com/celestiaorg/celestia-app/v6/test/util"
+	"github.com/celestiaorg/celestia-app/v7/app"
+	"github.com/celestiaorg/celestia-app/v7/app/ante"
+	"github.com/celestiaorg/celestia-app/v7/app/encoding"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	testutil "github.com/celestiaorg/celestia-app/v7/test/util"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
@@ -93,7 +93,6 @@ func TestConsumeGasForTxSize(t *testing.T) {
 			txSizeCostPerByte := appconsts.TxSizeCostPerByte
 			expectedGas := storetypes.Gas(len(txBytes)) * txSizeCostPerByte
 
-			// set suite.ctx with TxBytes manually
 			ctx = ctx.WithTxBytes(txBytes)
 
 			// track how much gas is necessary to retrieve parameters
@@ -121,7 +120,7 @@ func TestConsumeGasForTxSize(t *testing.T) {
 			// require that simulated tx is smaller than tx with signatures
 			require.True(t, len(simTxBytes) < len(txBytes), "simulated tx still has signatures")
 
-			// Set suite.ctx with smaller simulated TxBytes manually
+			// Set ctx with smaller simulated TxBytes manually
 			ctx = ctx.WithTxBytes(simTxBytes).WithExecMode(sdk.ExecModeSimulate)
 
 			beforeSimGas := ctx.GasMeter().GasConsumed()

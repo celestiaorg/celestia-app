@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v6/internal/embedding"
+	"github.com/celestiaorg/celestia-app/v7/internal/embedding"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,7 +27,7 @@ func TestCreateExecCommand(t *testing.T) {
 	}
 
 	for idx, binaryGenerator := range binaryGenerators {
-		t.Run(fmt.Sprintf("%d", idx), func(t *testing.T) {
+		t.Run(fmt.Sprintf("v%d", idx+3), func(t *testing.T) {
 			version, compressedBinary, err := binaryGenerator()
 			require.NoError(t, err)
 

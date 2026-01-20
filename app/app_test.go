@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/celestiaorg/celestia-app/v6/test/util"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
-	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v7/app"
+	"github.com/celestiaorg/celestia-app/v7/test/util"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
+	minfeetypes "github.com/celestiaorg/celestia-app/v7/x/minfee/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmdb "github.com/cosmos/cosmos-db"
@@ -118,6 +118,6 @@ func (nw *NoopWriter) Write(p []byte) (n int, err error) {
 // NoopAppOptions is a no-op implementation of servertypes.AppOptions.
 type NoopAppOptions struct{}
 
-func (nao NoopAppOptions) Get(string) interface{} {
+func (nao NoopAppOptions) Get(string) any {
 	return nil
 }

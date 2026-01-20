@@ -5,6 +5,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"sync"
 	"time"
 
 	"cosmossdk.io/client/v2/autocli"
@@ -29,27 +30,30 @@ import (
 	"github.com/bcp-innovations/hyperlane-cosmos/x/warp"
 	warpkeeper "github.com/bcp-innovations/hyperlane-cosmos/x/warp/keeper"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
-	"github.com/celestiaorg/celestia-app/v6/app/ante"
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
-	celestiatx "github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/proof"
-	"github.com/celestiaorg/celestia-app/v6/x/blob"
-	blobkeeper "github.com/celestiaorg/celestia-app/v6/x/blob/keeper"
-	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/celestia-app/v6/x/minfee"
-	minfeekeeper "github.com/celestiaorg/celestia-app/v6/x/minfee/keeper"
-	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
-	"github.com/celestiaorg/celestia-app/v6/x/mint"
-	mintkeeper "github.com/celestiaorg/celestia-app/v6/x/mint/keeper"
-	minttypes "github.com/celestiaorg/celestia-app/v6/x/mint/types"
-	"github.com/celestiaorg/celestia-app/v6/x/signal"
-	signaltypes "github.com/celestiaorg/celestia-app/v6/x/signal/types"
-	"github.com/celestiaorg/celestia-app/v6/x/zkism"
-	zkismkeeper "github.com/celestiaorg/celestia-app/v6/x/zkism/keeper"
-	zkismtypes "github.com/celestiaorg/celestia-app/v6/x/zkism/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v7/app/ante"
+	"github.com/celestiaorg/celestia-app/v7/app/encoding"
+	"github.com/celestiaorg/celestia-app/v7/app/grpc/gasestimation"
+	celestiatx "github.com/celestiaorg/celestia-app/v7/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v7/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v7/x/blob"
+	blobkeeper "github.com/celestiaorg/celestia-app/v7/x/blob/keeper"
+	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v7/x/burn"
+	burntypes "github.com/celestiaorg/celestia-app/v7/x/burn/types"
+	"github.com/celestiaorg/celestia-app/v7/x/minfee"
+	minfeekeeper "github.com/celestiaorg/celestia-app/v7/x/minfee/keeper"
+	minfeetypes "github.com/celestiaorg/celestia-app/v7/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v7/x/mint"
+	mintkeeper "github.com/celestiaorg/celestia-app/v7/x/mint/keeper"
+	minttypes "github.com/celestiaorg/celestia-app/v7/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v7/x/signal"
+	signaltypes "github.com/celestiaorg/celestia-app/v7/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v7/x/zkism"
+	zkismkeeper "github.com/celestiaorg/celestia-app/v7/x/zkism/keeper"
+	zkismtypes "github.com/celestiaorg/celestia-app/v7/x/zkism/types"
+	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmjson "github.com/cometbft/cometbft/libs/json"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -140,6 +144,7 @@ var maccPerms = map[string][]string{
 	icatypes.ModuleName:            nil,
 	hyperlanetypes.ModuleName:      nil,
 	warptypes.ModuleName:           {authtypes.Minter, authtypes.Burner},
+	burntypes.ModuleName:           {authtypes.Burner},
 }
 
 var (
@@ -173,6 +178,7 @@ type App struct {
 	GovKeeper           *govkeeper.Keeper
 	UpgradeKeeper       *upgradekeeper.Keeper // Upgrades are set in endblock when signaled
 	SignalKeeper        signal.Keeper
+	BurnKeeper          burn.Keeper
 	MinFeeKeeper        *minfeekeeper.Keeper
 	ParamsKeeper        paramskeeper.Keeper
 	IBCKeeper           *ibckeeper.Keeper // IBCKeeper must be a pointer in the app, so we can SetRouter on it correctly
@@ -194,19 +200,25 @@ type App struct {
 	BasicManager  module.BasicManager
 	ModuleManager *module.Manager
 	configurator  module.Configurator
-	// timeoutCommit is used to override the default timeoutCommit. This is
-	// useful for testing purposes and should not be used on public networks
-	// (Arabica, Mocha, or Mainnet Beta).
-	timeoutCommit time.Duration
+	// txCache caches blob transaction from CheckTx to be reused in ProcessProposal
+	txCache *TxCache
+	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
+	treePool                *wrapper.TreePool
+	delayedPrecommitTimeout time.Duration
+	// checkStateMu protects concurrent access to BaseApp's checkState (mempool state).
+	// This prevents data races between Commit updating checkState and QuerySequence
+	// reading it via CheckState().
+	checkStateMu *sync.RWMutex
 }
 
 // New returns a reference to an uninitialized app. Callers must subsequently
-// call app.Info or app.InitChain to initialize the baseapp.
+// call app.Info or app.InitChain to initialize the baseapp. Setting
+// delayedPrecommitTimeout to 0 will result in using the default value.
 func New(
 	logger log.Logger,
 	db dbm.DB,
 	traceStore io.Writer,
-	timeoutCommit time.Duration,
+	delayedPrecommitTimeout time.Duration,
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
@@ -223,12 +235,18 @@ func New(
 
 	govModuleAddr := authtypes.NewModuleAddress(govtypes.ModuleName).String()
 
+	if delayedPrecommitTimeout == 0 {
+		delayedPrecommitTimeout = appconsts.DelayedPrecommitTimeout
+	}
+
 	app := &App{
-		BaseApp:       baseApp,
-		keys:          keys,
-		tkeys:         tkeys,
-		memKeys:       memKeys,
-		timeoutCommit: timeoutCommit,
+		BaseApp:                 baseApp,
+		keys:                    keys,
+		tkeys:                   tkeys,
+		memKeys:                 memKeys,
+		txCache:                 NewTxCache(),
+		delayedPrecommitTimeout: delayedPrecommitTimeout,
+		checkStateMu:            &sync.RWMutex{},
 	}
 
 	// needed for migration from x/params -> module's ownership of own params
@@ -298,6 +316,8 @@ func New(
 		keys[signaltypes.StoreKey],
 		app.StakingKeeper,
 	)
+
+	app.BurnKeeper = burn.NewKeeper(app.BankKeeper)
 
 	app.IBCKeeper = ibckeeper.NewKeeper(
 		encodingConfig.Codec,
@@ -426,6 +446,7 @@ func New(
 		transfer.NewAppModule(app.TransferKeeper),
 		blob.NewAppModule(encodingConfig.Codec, app.BlobKeeper),
 		signal.NewAppModule(app.SignalKeeper),
+		burn.NewAppModule(app.BurnKeeper),
 		minfee.NewAppModule(encodingConfig.Codec, app.MinFeeKeeper),
 		pfm{packetforward.NewAppModule(app.PacketForwardKeeper, app.GetSubspace(packetforwardtypes.ModuleName))},
 		icaModule{ica.NewAppModule(nil, &app.ICAHostKeeper)}, // The first argument is nil because the ICA controller is not enabled on celestia-app.
@@ -492,6 +513,10 @@ func New(
 	if err != nil {
 		panic(err)
 	}
+	app.treePool, err = wrapper.DefaultPreallocatedTreePool(uint(appconsts.SquareSizeUpperBound))
+	if err != nil {
+		panic(err)
+	}
 	err = msgservice.ValidateProtoAnnotations(protoFiles)
 	if err != nil {
 		// Once we switch to using protoreflect-based antehandlers, we might
@@ -521,8 +546,24 @@ func (app *App) Info(req *abci.RequestInfo) (*abci.ResponseInfo, error) {
 		return nil, err
 	}
 
-	res.TimeoutInfo.TimeoutCommit = app.TimeoutCommit()
-	res.TimeoutInfo.TimeoutPropose = app.TimeoutPropose()
+	res.TimeoutInfo = app.TimeoutInfo()
+
+	return res, nil
+}
+
+// FinalizeBlock implements the abci interface. It overrides baseapp's FinalizeBlock method, essentially becoming a decorator
+// in order to add transaction pruning logic after normal finalize block processing.
+func (app *App) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
+	// Call the normal BaseApp FinalizeBlock first
+	res, err := app.BaseApp.FinalizeBlock(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Go through all the transactions that are getting executed and prune the tx tracker
+	for _, tx := range req.Txs {
+		app.txCache.RemoveTransaction(tx)
+	}
 
 	return res, nil
 }
@@ -549,34 +590,34 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 		return sdk.EndBlock{}, err
 	}
 
-	shouldUpgrade, upgrade := app.SignalKeeper.ShouldUpgrade(ctx)
+	shouldUpgrade, signalUpgrade := app.SignalKeeper.ShouldUpgrade(ctx)
 	if shouldUpgrade {
 		// Version changes must be increasing. Downgrades are not permitted
-		if upgrade.AppVersion > currentVersion {
-			app.BaseApp.Logger().Info("upgrading app version", "current version", currentVersion, "new version", upgrade.AppVersion)
+		if signalUpgrade.AppVersion > currentVersion {
+			app.BaseApp.Logger().Info("upgrading app version", "current version", currentVersion, "new version", signalUpgrade.AppVersion)
 
+			upgradeHeight := signalUpgrade.UpgradeHeight + 1 // next block is performing the upgrade.
 			plan := upgradetypes.Plan{
-				Name:   fmt.Sprintf("v%d", upgrade.AppVersion),
-				Height: upgrade.UpgradeHeight + 1, // next block is performing the upgrade.
+				Name:   fmt.Sprintf("v%d", signalUpgrade.AppVersion),
+				Height: upgradeHeight,
 			}
 
 			if err := app.UpgradeKeeper.ScheduleUpgrade(ctx, plan); err != nil {
 				return sdk.EndBlock{}, fmt.Errorf("failed to schedule upgrade: %v", err)
 			}
 
-			if err := app.UpgradeKeeper.DumpUpgradeInfoToDisk(plan.Height, plan); err != nil {
+			if err := app.UpgradeKeeper.DumpUpgradeInfoToDisk(upgradeHeight, plan); err != nil {
 				return sdk.EndBlock{}, fmt.Errorf("failed to dump upgrade info to disk: %v", err)
 			}
 
-			if err := app.SetAppVersion(ctx, upgrade.AppVersion); err != nil {
+			if err := app.SetAppVersion(ctx, signalUpgrade.AppVersion); err != nil {
 				return sdk.EndBlock{}, err
 			}
 			app.SignalKeeper.ResetTally(ctx)
 		}
 	}
 
-	res.TimeoutInfo.TimeoutCommit = app.TimeoutCommit()
-	res.TimeoutInfo.TimeoutPropose = app.TimeoutPropose()
+	res.TimeoutInfo = app.TimeoutInfo()
 
 	return res, nil
 }
@@ -598,9 +639,7 @@ func (app *App) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abci.
 		return nil, err
 	}
 
-	res.TimeoutInfo.TimeoutCommit = app.TimeoutCommit()
-	res.TimeoutInfo.TimeoutPropose = app.TimeoutPropose()
-
+	res.TimeoutInfo = app.TimeoutInfo()
 	return res, nil
 }
 
@@ -701,6 +740,11 @@ func (app *App) GetSubspace(moduleName string) paramstypes.Subspace {
 	return subspace
 }
 
+// TreePool returns the instance used for managing a pool of Merkle trees.
+func (app *App) TreePool() *wrapper.TreePool {
+	return app.treePool
+}
+
 // RegisterAPIRoutes registers all application module routes with the provided
 // API server.
 func (app *App) RegisterAPIRoutes(apiSvr *api.Server, _ config.APIConfig) {
@@ -781,7 +825,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 
 // AutoCliOpts returns the autocli options for the app.
 func (app *App) AutoCliOpts() autocli.AppOptions {
-	modules := make(map[string]appmodule.AppModule, 0)
+	modules := make(map[string]appmodule.AppModule)
 	for _, m := range app.ModuleManager.Modules {
 		if moduleWithName, ok := m.(module.HasName); ok {
 			moduleName := moduleWithName.Name()
@@ -823,19 +867,24 @@ func (app *App) NewProposalContext(header tmproto.Header) sdk.Context {
 	return ctx
 }
 
-// TimeoutCommit returns the timeout commit duration to be used on the next block.
-// It returns the user specified value as overridden by the --timeout-commit flag, otherwise
-// the default timeout commit value for the current app version.
-func (app *App) TimeoutCommit() time.Duration {
-	if app.timeoutCommit != 0 {
-		return app.timeoutCommit
+func (app *App) TimeoutInfo() abci.TimeoutInfo {
+	return abci.TimeoutInfo{
+		TimeoutPropose:          appconsts.TimeoutPropose,
+		TimeoutProposeDelta:     appconsts.TimeoutProposeDelta,
+		TimeoutCommit:           appconsts.TimeoutCommit,
+		TimeoutPrevote:          appconsts.TimeoutPrevote,
+		TimeoutPrevoteDelta:     appconsts.TimeoutPrevoteDelta,
+		TimeoutPrecommit:        appconsts.TimeoutPrecommit,
+		TimeoutPrecommitDelta:   appconsts.TimeoutPrecommitDelta,
+		DelayedPrecommitTimeout: app.delayedPrecommitTimeout,
 	}
-
-	return appconsts.TimeoutCommit
 }
 
-// TimeoutPropose returns the timeout propose duration to be used on the next block.
-// It returns the default timeout propose value for the current app version.
-func (app *App) TimeoutPropose() time.Duration {
-	return appconsts.TimeoutPropose
+// Commit overrides BaseApp's Commit to add synchronization with QuerySequence.
+// This prevents data races between commit updating checkState (mempool state) and
+// QuerySequence reading it via CheckState().
+func (app *App) Commit() (*abci.ResponseCommit, error) {
+	app.checkStateMu.Lock()
+	defer app.checkStateMu.Unlock()
+	return app.BaseApp.Commit()
 }

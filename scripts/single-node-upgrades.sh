@@ -1,11 +1,9 @@
 #!/bin/sh
 
-# This script starts a local single node testnet on app version 5 and then upgrades to app version 6.
+# This script starts a local single node testnet on app version 6 and then upgrades to app version 7.
 
-# Stop script execution if an error is encountered
-set -o errexit
-# Stop script execution if an undefined variable is used
-set -o nounset
+set -o errexit # Stop script execution if an error is encountered
+set -o nounset # Stop script execution if an undefined variable is used
 
 if ! [ -x "$(command -v celestia-appd)" ]
 then
@@ -19,8 +17,8 @@ KEY_NAME="validator"
 KEYRING_BACKEND="test"
 FEES="1000utia"
 BROADCAST_MODE="sync"
-FROM_VERSION="5"
-TO_VERSION="6"
+FROM_VERSION="6"
+TO_VERSION="7"
 
 # Use argument as home directory if provided, else default to ~/.celestia-app
 if [ $# -ge 1 ]; then
@@ -81,8 +79,8 @@ createGenesis() {
     # Override the VotingPeriod from 1 week to 1 minute
     sed -i'.bak' 's#"604800s"#"60s"#g' "${APP_HOME}"/config/genesis.json
 
-    # Override the log level to debug
-    # sed -i'.bak' 's#log_level = "info"#log_level = "debug"#g' "${APP_HOME}"/config/config.toml
+    # Override the log level to reduce noisy logs
+    sed -i.bak 's#log_level = "info"#log_level = "*:error,p2p:info,state:info"#g' "${APP_HOME}"/config/config.toml
 }
 
 deleteCelestiaAppHome() {
@@ -97,11 +95,11 @@ startCelestiaApp() {
     --api.enable \
     --grpc.enable \
     --grpc-web.enable \
-    --timeout-commit 1s
+    --delayed-precommit-timeout 1s
 }
 
 upgrade() {
-    sleep 20
+    sleep 10
     echo "Submitting signal for v${TO_VERSION}..."
     celestia-appd tx signal signal ${TO_VERSION} \
         --keyring-backend=${KEYRING_BACKEND} \

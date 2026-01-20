@@ -10,24 +10,26 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v7/app"
 	cmtconfig "github.com/cometbft/cometbft/config"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/spf13/cobra"
 )
 
 const (
-	EnvVarSSHKeyName         = "TALIS_SSH_KEY_NAME"
-	EnvVarPubSSHKeyPath      = "TALIS_SSH_PUB_KEY_PATH"
-	EnvVarSSHKeyPath         = "TALIS_SSH_KEY_PATH"
-	EnvVarDigitalOceanToken  = "DIGITALOCEAN_TOKEN"
-	EnvVarAWSAccessKeyID     = "AWS_ACCESS_KEY_ID"
-	EnvVarAWSSecretAccessKey = "AWS_SECRET_ACCESS_KEY"
-	EnvVarAWSRegion          = "AWS_DEFAULT_REGION"
-	EnvVarS3Bucket           = "AWS_S3_BUCKET"
-	EnvVarS3Endpoint         = "AWS_S3_ENDPOINT"
-	EnvVarChainID            = "CHAIN_ID"
-	mebibyte                 = 1_048_576
+	EnvVarSSHKeyName             = "TALIS_SSH_KEY_NAME"
+	EnvVarPubSSHKeyPath          = "TALIS_SSH_PUB_KEY_PATH"
+	EnvVarSSHKeyPath             = "TALIS_SSH_KEY_PATH"
+	EnvVarDigitalOceanToken      = "DIGITALOCEAN_TOKEN"
+	EnvVarGoogleCloudProject     = "GOOGLE_CLOUD_PROJECT"
+	EnvVarGoogleCloudKeyJSONPath = "GOOGLE_CLOUD_KEY_JSON_PATH"
+	EnvVarAWSAccessKeyID         = "AWS_ACCESS_KEY_ID"
+	EnvVarAWSSecretAccessKey     = "AWS_SECRET_ACCESS_KEY"
+	EnvVarAWSRegion              = "AWS_DEFAULT_REGION"
+	EnvVarS3Bucket               = "AWS_S3_BUCKET"
+	EnvVarS3Endpoint             = "AWS_S3_ENDPOINT"
+	EnvVarChainID                = "CHAIN_ID"
+	mebibyte                     = 1_048_576
 )
 
 func initCmd() *cobra.Command {
@@ -39,6 +41,7 @@ func initCmd() *cobra.Command {
 		SSHPubKeyPath string
 		SSHKeyName    string
 		tables        []string
+		withMetrics   bool
 	)
 
 	cmd := &cobra.Command{
@@ -59,6 +62,13 @@ func initCmd() *cobra.Command {
 				WithSSHPubKeyPath(SSHPubKeyPath).
 				WithSSHKeyName(SSHKeyName)
 
+			// If --with-metrics is set, add a metrics node and enable prometheus
+			enablePrometheus := false
+			if withMetrics {
+				cfg = cfg.WithDigitalOceanMetrics("random")
+				enablePrometheus = true
+			}
+
 			if err := cfg.Save(rootDir); err != nil {
 				return fmt.Errorf("failed to save init config: %w", err)
 			}
@@ -66,7 +76,7 @@ func initCmd() *cobra.Command {
 			// write the default config files that will be copied to the payload
 			// for each validator unless otherwise overridden
 			consensusConfig := app.DefaultConsensusConfig()
-			consConfig := DefaultConfigProfile(consensusConfig, tables)
+			consConfig := DefaultConfigProfile(consensusConfig, tables, enablePrometheus)
 			cmtconfig.WriteConfigFile(filepath.Join(rootDir, "config.toml"), consConfig)
 
 			// the sdk requires a global template be set just to save a toml file without panicking
@@ -87,12 +97,13 @@ func initCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory in which to initialize")
-	cmd.Flags().StringVarP(&srcRoot, "src-root", "r", homeDir, "directory from which to copy scripts") // todo: fix the default directory here
+	cmd.Flags().StringVarP(&srcRoot, "src-root", "r", homeDir, "directory from which to copy scripts")
 	cmd.Flags().StringVarP(&chainID, "chainID", "c", "", "Chain ID (required)")
 	_ = cmd.MarkFlagRequired("chainID")
 	cmd.Flags().StringVarP(&experiment, "experiment", "e", "test", "the name of the experiment (required)")
 	_ = cmd.MarkFlagRequired("experiment")
 	cmd.Flags().StringArrayVarP(&tables, "tables", "t", []string{"consensus_round_state", "consensus_block", "mempool_tx"}, "the traces that will be collected")
+	cmd.Flags().BoolVar(&withMetrics, "with-metrics", false, "add a metrics node and enable Prometheus on validators")
 
 	defaultKeyPath := filepath.Join(homeDir, ".ssh", "id_ed25519.pub")
 	cmd.Flags().StringVarP(&SSHPubKeyPath, "ssh-pub-key-path", "s", defaultKeyPath, "path to the user's SSH public key")
@@ -107,9 +118,11 @@ func initCmd() *cobra.Command {
 	return cmd
 }
 
-func DefaultConfigProfile(cfg *cmtconfig.Config, tables []string) *cmtconfig.Config {
+func DefaultConfigProfile(cfg *cmtconfig.Config, tables []string, enablePrometheus bool) *cmtconfig.Config {
 	cfg.Instrumentation.TracingTables = strings.Join(tables, ",")
 	cfg.Instrumentation.TraceType = "local"
+	cfg.Instrumentation.Prometheus = enablePrometheus
+	cfg.Instrumentation.PrometheusListenAddr = ":26660"
 	cfg.P2P.SendRate = 100 * mebibyte
 	cfg.P2P.RecvRate = 110 * mebibyte
 	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
@@ -129,16 +142,26 @@ func initDirs(rootDir string) error {
 	return nil
 }
 
-// CopyTalisScripts ensures that the celestia-app tools/talis/scripts directory
-// is copied into destDir. It first checks GOPATH/src/github.com/.../scripts,
-// and if missing, does a shallow git clone, copies the folder (including subdirectories), then cleans up.
+// CopyTalisScripts copies the talis scripts directory into destDir.
+// It checks multiple possible locations for the scripts.
 func CopyTalisScripts(destDir string, srcRoot string) error {
-	// todo: fix import path
-	const importPath = "celestia-app/tools/talis/scripts"
+	const scriptsSubpath = "celestia-app/tools/talis/scripts"
 
-	src := filepath.Join(srcRoot, "src", importPath)
+	candidates := []string{
+		filepath.Join(srcRoot, scriptsSubpath),
+		filepath.Join(srcRoot, "src", scriptsSubpath),
+	}
 
-	if fi, err := os.Stat(src); err != nil || !fi.IsDir() {
+	var src string
+	for _, candidate := range candidates {
+		if fi, err := os.Stat(candidate); err == nil && fi.IsDir() {
+			src = candidate
+			break
+		}
+	}
+
+	// Fallback to git clone if not found locally
+	if src == "" {
 		tmp, err := os.MkdirTemp("", "celestia-scripts-*")
 		if err != nil {
 			return fmt.Errorf("mktemp: %w", err)

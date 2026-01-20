@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package celestia.zkism.v1;
 
-option go_package = "github.com/celestiaorg/celestia-app/x/zkism/types";
-
 import "cosmos_proto/cosmos.proto";
 import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/zkism/types";
 
 // EventCreateInterchainSecurityModule defines the event type emitted when creating a new InterchainSecurityModule.
 message EventCreateInterchainSecurityModule {

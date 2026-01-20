@@ -86,6 +86,14 @@ type TxStatusResponse struct {
 	Error string `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
 	// status is the status of the transaction.
 	Status string `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	// the error namespace/module.
+	Codespace string `protobuf:"bytes,6,opt,name=codespace,proto3" json:"codespace,omitempty"`
+	// requested gas limit.
+	GasWanted int64 `protobuf:"varint,7,opt,name=gas_wanted,json=gasWanted,proto3" json:"gas_wanted,omitempty"`
+	// actual gas consumed.
+	GasUsed int64 `protobuf:"varint,8,opt,name=gas_used,json=gasUsed,proto3" json:"gas_used,omitempty"`
+	// signers of the transaction.
+	Signers []string `protobuf:"bytes,9,rep,name=signers,proto3" json:"signers,omitempty"`
 }
 
 func (m *TxStatusResponse) Reset()         { *m = TxStatusResponse{} }
@@ -156,37 +164,225 @@ func (m *TxStatusResponse) GetStatus() string {
 	return ""
 }
 
+func (m *TxStatusResponse) GetCodespace() string {
+	if m != nil {
+		return m.Codespace
+	}
+	return ""
+}
+
+func (m *TxStatusResponse) GetGasWanted() int64 {
+	if m != nil {
+		return m.GasWanted
+	}
+	return 0
+}
+
+func (m *TxStatusResponse) GetGasUsed() int64 {
+	if m != nil {
+		return m.GasUsed
+	}
+	return 0
+}
+
+func (m *TxStatusResponse) GetSigners() []string {
+	if m != nil {
+		return m.Signers
+	}
+	return nil
+}
+
+// TxStatusBatchRequest is the request type for the batch TxStatus gRPC method.
+type TxStatusBatchRequest struct {
+	// array of hex encoded tx hashes (each hash should be 64 characters long representing 32 bytes)
+	TxIds []string `protobuf:"bytes,1,rep,name=tx_ids,json=txIds,proto3" json:"tx_ids,omitempty"`
+}
+
+func (m *TxStatusBatchRequest) Reset()         { *m = TxStatusBatchRequest{} }
+func (m *TxStatusBatchRequest) String() string { return proto.CompactTextString(m) }
+func (*TxStatusBatchRequest) ProtoMessage()    {}
+func (*TxStatusBatchRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_7d8b070565b0dcb6, []int{2}
+}
+func (m *TxStatusBatchRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *TxStatusBatchRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_TxStatusBatchRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *TxStatusBatchRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TxStatusBatchRequest.Merge(m, src)
+}
+func (m *TxStatusBatchRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *TxStatusBatchRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_TxStatusBatchRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TxStatusBatchRequest proto.InternalMessageInfo
+
+func (m *TxStatusBatchRequest) GetTxIds() []string {
+	if m != nil {
+		return m.TxIds
+	}
+	return nil
+}
+
+// TxStatusResult represents a single transaction status result in a batch response.
+type TxStatusResult struct {
+	TxHash string            `protobuf:"bytes,1,opt,name=tx_hash,json=txHash,proto3" json:"tx_hash,omitempty"`
+	Status *TxStatusResponse `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+}
+
+func (m *TxStatusResult) Reset()         { *m = TxStatusResult{} }
+func (m *TxStatusResult) String() string { return proto.CompactTextString(m) }
+func (*TxStatusResult) ProtoMessage()    {}
+func (*TxStatusResult) Descriptor() ([]byte, []int) {
+	return fileDescriptor_7d8b070565b0dcb6, []int{3}
+}
+func (m *TxStatusResult) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *TxStatusResult) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_TxStatusResult.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *TxStatusResult) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TxStatusResult.Merge(m, src)
+}
+func (m *TxStatusResult) XXX_Size() int {
+	return m.Size()
+}
+func (m *TxStatusResult) XXX_DiscardUnknown() {
+	xxx_messageInfo_TxStatusResult.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TxStatusResult proto.InternalMessageInfo
+
+func (m *TxStatusResult) GetTxHash() string {
+	if m != nil {
+		return m.TxHash
+	}
+	return ""
+}
+
+func (m *TxStatusResult) GetStatus() *TxStatusResponse {
+	if m != nil {
+		return m.Status
+	}
+	return nil
+}
+
+// TxStatusBatchResponse is a response type for batched TxStatus query. It contains an array of transaction status
+// results.
+type TxStatusBatchResponse struct {
+	Statuses []*TxStatusResult `protobuf:"bytes,1,rep,name=statuses,proto3" json:"statuses,omitempty"`
+}
+
+func (m *TxStatusBatchResponse) Reset()         { *m = TxStatusBatchResponse{} }
+func (m *TxStatusBatchResponse) String() string { return proto.CompactTextString(m) }
+func (*TxStatusBatchResponse) ProtoMessage()    {}
+func (*TxStatusBatchResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_7d8b070565b0dcb6, []int{4}
+}
+func (m *TxStatusBatchResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *TxStatusBatchResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_TxStatusBatchResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *TxStatusBatchResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TxStatusBatchResponse.Merge(m, src)
+}
+func (m *TxStatusBatchResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *TxStatusBatchResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_TxStatusBatchResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TxStatusBatchResponse proto.InternalMessageInfo
+
+func (m *TxStatusBatchResponse) GetStatuses() []*TxStatusResult {
+	if m != nil {
+		return m.Statuses
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*TxStatusRequest)(nil), "celestia.core.v1.tx.TxStatusRequest")
 	proto.RegisterType((*TxStatusResponse)(nil), "celestia.core.v1.tx.TxStatusResponse")
+	proto.RegisterType((*TxStatusBatchRequest)(nil), "celestia.core.v1.tx.TxStatusBatchRequest")
+	proto.RegisterType((*TxStatusResult)(nil), "celestia.core.v1.tx.TxStatusResult")
+	proto.RegisterType((*TxStatusBatchResponse)(nil), "celestia.core.v1.tx.TxStatusBatchResponse")
 }
 
 func init() { proto.RegisterFile("celestia/core/v1/tx/tx.proto", fileDescriptor_7d8b070565b0dcb6) }
 
 var fileDescriptor_7d8b070565b0dcb6 = []byte{
-	// 337 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x51, 0xcd, 0x4a, 0x33, 0x31,
-	0x14, 0x6d, 0xfa, 0xc7, 0xf7, 0x05, 0xfa, 0x7d, 0x92, 0x8a, 0x0c, 0xa5, 0x0c, 0xa5, 0xb4, 0xd2,
-	0x8d, 0x13, 0xaa, 0x6f, 0xa0, 0xab, 0x6e, 0xc7, 0xae, 0xdc, 0x94, 0xe9, 0xcc, 0x65, 0x1a, 0xa8,
-	0x93, 0x31, 0xb9, 0x53, 0x02, 0xd2, 0x8d, 0xbe, 0x80, 0x20, 0xbe, 0x93, 0xcb, 0x82, 0x1b, 0x97,
-	0xd2, 0xfa, 0x20, 0x32, 0x99, 0xb6, 0x82, 0x14, 0x5c, 0x04, 0x72, 0xee, 0x39, 0x37, 0x27, 0xf7,
-	0x5c, 0xda, 0x0e, 0x61, 0x0e, 0x1a, 0x45, 0xc0, 0x43, 0xa9, 0x80, 0x2f, 0x86, 0x1c, 0x0d, 0x47,
-	0xe3, 0xa5, 0x4a, 0xa2, 0x64, 0xcd, 0x1d, 0xeb, 0xe5, 0xac, 0xb7, 0x18, 0x7a, 0x68, 0x5a, 0xed,
-	0x58, 0xca, 0x78, 0x0e, 0x3c, 0x48, 0x05, 0x0f, 0x92, 0x44, 0x62, 0x80, 0x42, 0x26, 0xba, 0x68,
-	0xe9, 0x9e, 0xd2, 0xff, 0x63, 0x73, 0x8d, 0x01, 0x66, 0xda, 0x87, 0xbb, 0x0c, 0x34, 0xb2, 0x26,
-	0xad, 0xa1, 0x99, 0x88, 0xc8, 0x21, 0x1d, 0x32, 0xf8, 0xeb, 0x57, 0xd1, 0x8c, 0xa2, 0xee, 0x0b,
-	0xa1, 0x47, 0xdf, 0x42, 0x9d, 0xca, 0x44, 0x03, 0x3b, 0xa1, 0xf5, 0x19, 0x88, 0x78, 0x86, 0x56,
-	0x5a, 0xf1, 0xb7, 0x88, 0x1d, 0xd3, 0x9a, 0x48, 0x22, 0x30, 0x4e, 0xb9, 0x43, 0x06, 0x0d, 0xbf,
-	0x00, 0xac, 0x4f, 0xff, 0x81, 0x81, 0x30, 0xcb, 0xed, 0x27, 0xa1, 0x8c, 0xc0, 0xa9, 0x58, 0xba,
-	0xb1, 0xaf, 0x5e, 0xc9, 0x08, 0xf2, 0x66, 0x50, 0x4a, 0x2a, 0xa7, 0x6a, 0xed, 0x0b, 0x90, 0x5b,
-	0x69, 0x6b, 0xee, 0xd4, 0x6c, 0x79, 0x8b, 0xce, 0x1f, 0x09, 0x2d, 0x8f, 0x0d, 0x5b, 0xd2, 0x3f,
-	0xbb, 0xdf, 0xb1, 0x9e, 0x77, 0x20, 0x06, 0xef, 0xc7, 0x94, 0xad, 0xfe, 0x2f, 0xaa, 0x62, 0xc4,
-	0x6e, 0xef, 0xe1, 0xed, 0xf3, 0xb9, 0xec, 0xb2, 0x36, 0x3f, 0x94, 0xfc, 0xbd, 0x0d, 0x6a, 0x79,
-	0x39, 0x7a, 0x5d, 0xbb, 0x64, 0xb5, 0x76, 0xc9, 0xc7, 0xda, 0x25, 0x4f, 0x1b, 0xb7, 0xb4, 0xda,
-	0xb8, 0xa5, 0xf7, 0x8d, 0x5b, 0xba, 0xe1, 0xb1, 0xc0, 0x59, 0x36, 0xf5, 0x42, 0x79, 0xbb, 0x7f,
-	0x41, 0xaa, 0x78, 0x7f, 0x3f, 0x0b, 0xd2, 0x94, 0xe7, 0x27, 0x56, 0x69, 0xc8, 0xd1, 0x4c, 0xeb,
-	0x76, 0x2f, 0x17, 0x5f, 0x01, 0x00, 0x00, 0xff, 0xff, 0x5a, 0x2f, 0x1b, 0xd1, 0xea, 0x01, 0x00,
-	0x00,
+	// 530 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x53, 0x4f, 0x6f, 0xd3, 0x4e,
+	0x10, 0x8d, 0x93, 0xe6, 0xdf, 0x54, 0xe9, 0xef, 0xa7, 0x6d, 0x0b, 0x4b, 0x14, 0x4c, 0x64, 0x1a,
+	0x14, 0x2a, 0xd5, 0x56, 0xc3, 0x0d, 0x09, 0x21, 0x95, 0x0b, 0xbd, 0x9a, 0x22, 0x10, 0x97, 0x68,
+	0x63, 0xaf, 0x6c, 0x4b, 0xc1, 0x6b, 0xbc, 0xe3, 0xb2, 0x12, 0xea, 0x85, 0x0b, 0x27, 0x24, 0xa4,
+	0x7e, 0x29, 0x8e, 0x95, 0xb8, 0x70, 0x44, 0x09, 0x1f, 0x04, 0xed, 0x26, 0x4e, 0x4b, 0x15, 0xd1,
+	0x1e, 0x2c, 0x79, 0xe6, 0xbd, 0x99, 0x79, 0xf3, 0xc6, 0x86, 0x5e, 0xc0, 0xa7, 0x5c, 0x62, 0xc2,
+	0xbc, 0x40, 0xe4, 0xdc, 0x3b, 0x3d, 0xf4, 0x50, 0x79, 0xa8, 0xdc, 0x2c, 0x17, 0x28, 0xc8, 0x76,
+	0x89, 0xba, 0x1a, 0x75, 0x4f, 0x0f, 0x5d, 0x54, 0xdd, 0x5e, 0x24, 0x44, 0x34, 0xe5, 0x1e, 0xcb,
+	0x12, 0x8f, 0xa5, 0xa9, 0x40, 0x86, 0x89, 0x48, 0xe5, 0xa2, 0xc4, 0x79, 0x04, 0xff, 0x9d, 0xa8,
+	0x57, 0xc8, 0xb0, 0x90, 0x3e, 0xff, 0x50, 0x70, 0x89, 0x64, 0x1b, 0xea, 0xa8, 0xc6, 0x49, 0x48,
+	0xad, 0xbe, 0x35, 0x6c, 0xfb, 0x1b, 0xa8, 0x8e, 0x43, 0xe7, 0x4b, 0x15, 0xfe, 0xbf, 0x24, 0xca,
+	0x4c, 0xa4, 0x92, 0x93, 0x3b, 0xd0, 0x88, 0x79, 0x12, 0xc5, 0x68, 0xa8, 0x35, 0x7f, 0x19, 0x91,
+	0x1d, 0xa8, 0x27, 0x69, 0xc8, 0x15, 0xad, 0xf6, 0xad, 0x61, 0xc7, 0x5f, 0x04, 0x64, 0x00, 0x5b,
+	0x5c, 0xf1, 0xa0, 0xd0, 0xe3, 0xc7, 0x81, 0x08, 0x39, 0xad, 0x19, 0xb8, 0xb3, 0xca, 0xbe, 0x10,
+	0x21, 0xd7, 0xc5, 0x3c, 0xcf, 0x45, 0x4e, 0x37, 0xcc, 0xf8, 0x45, 0xa0, 0x47, 0x49, 0x33, 0x9c,
+	0xd6, 0x4d, 0x7a, 0x19, 0x91, 0x1e, 0xb4, 0x75, 0x2b, 0x99, 0xb1, 0x80, 0xd3, 0x86, 0x81, 0x2e,
+	0x13, 0xe4, 0x3e, 0x40, 0xc4, 0xe4, 0xf8, 0x23, 0x4b, 0x91, 0x87, 0xb4, 0x69, 0x44, 0xb6, 0x23,
+	0x26, 0xdf, 0x98, 0x04, 0xb9, 0x07, 0x2d, 0x0d, 0x17, 0x92, 0x87, 0xb4, 0x65, 0xc0, 0x66, 0xc4,
+	0xe4, 0x6b, 0xc9, 0x43, 0x42, 0xa1, 0x29, 0x93, 0x28, 0xe5, 0xb9, 0xa4, 0xed, 0x7e, 0x6d, 0xd8,
+	0xf6, 0xcb, 0xd0, 0x39, 0x80, 0x9d, 0xd2, 0x88, 0x23, 0x86, 0x41, 0x5c, 0xda, 0xb6, 0x0b, 0x0d,
+	0x63, 0x9b, 0xa4, 0x96, 0x29, 0xa8, 0x6b, 0xdf, 0xa4, 0x13, 0xc3, 0xd6, 0x15, 0xdf, 0x8a, 0x29,
+	0x92, 0xbb, 0xd0, 0x44, 0x35, 0x8e, 0x99, 0x8c, 0x97, 0x0e, 0x37, 0x50, 0xbd, 0x64, 0x32, 0x26,
+	0xcf, 0x56, 0x3b, 0x6a, 0xdf, 0x36, 0x47, 0x03, 0x77, 0xcd, 0x3d, 0xdd, 0xeb, 0x57, 0x28, 0xad,
+	0x70, 0xde, 0xc2, 0xee, 0x35, 0x61, 0xcb, 0x33, 0x3d, 0x87, 0xd6, 0x82, 0xc2, 0x17, 0xda, 0x36,
+	0x47, 0x0f, 0x6f, 0xea, 0x5c, 0x4c, 0xd1, 0x5f, 0x15, 0x8d, 0xce, 0xab, 0x50, 0x3d, 0x51, 0xe4,
+	0x0c, 0x5a, 0x25, 0x85, 0xec, 0xdd, 0xd0, 0xc1, 0x78, 0xd2, 0xbd, 0xdd, 0x06, 0xce, 0xde, 0xe7,
+	0x1f, 0xbf, 0xcf, 0xab, 0x36, 0xe9, 0x79, 0xeb, 0x3e, 0xef, 0x4f, 0xc6, 0xd6, 0x33, 0xf2, 0xd5,
+	0x82, 0xce, 0x5f, 0x0b, 0x92, 0xc7, 0xff, 0x6c, 0x7f, 0xf5, 0x3a, 0xdd, 0xfd, 0xdb, 0x50, 0x97,
+	0x72, 0x06, 0x46, 0xce, 0x83, 0xa7, 0xd6, 0xbe, 0xd3, 0x5d, 0xab, 0x68, 0xa2, 0xe9, 0x47, 0xc7,
+	0xdf, 0x67, 0xb6, 0x75, 0x31, 0xb3, 0xad, 0x5f, 0x33, 0xdb, 0xfa, 0x36, 0xb7, 0x2b, 0x17, 0x73,
+	0xbb, 0xf2, 0x73, 0x6e, 0x57, 0xde, 0x79, 0x51, 0x82, 0x71, 0x31, 0x71, 0x03, 0xf1, 0x7e, 0x55,
+	0x2f, 0xf2, 0x68, 0xf5, 0x7e, 0xc0, 0xb2, 0xcc, 0xd3, 0x4f, 0x94, 0x67, 0x81, 0x87, 0x6a, 0xd2,
+	0x30, 0x3f, 0xe3, 0x93, 0x3f, 0x01, 0x00, 0x00, 0xff, 0xff, 0xf9, 0xc7, 0x7f, 0xa8, 0xdf, 0x03,
+	0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -208,6 +404,8 @@ type TxClient interface {
 	// - Evicted
 	// - Unknown
 	TxStatus(ctx context.Context, in *TxStatusRequest, opts ...grpc.CallOption) (*TxStatusResponse, error)
+	// TxStatusBatch for batch queries
+	TxStatusBatch(ctx context.Context, in *TxStatusBatchRequest, opts ...grpc.CallOption) (*TxStatusBatchResponse, error)
 }
 
 type txClient struct {
@@ -227,6 +425,15 @@ func (c *txClient) TxStatus(ctx context.Context, in *TxStatusRequest, opts ...gr
 	return out, nil
 }
 
+func (c *txClient) TxStatusBatch(ctx context.Context, in *TxStatusBatchRequest, opts ...grpc.CallOption) (*TxStatusBatchResponse, error) {
+	out := new(TxStatusBatchResponse)
+	err := c.cc.Invoke(ctx, "/celestia.core.v1.tx.Tx/TxStatusBatch", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TxServer is the server API for Tx service.
 type TxServer interface {
 	// TxStatus returns the status of a transaction. There are four possible
@@ -236,6 +443,8 @@ type TxServer interface {
 	// - Evicted
 	// - Unknown
 	TxStatus(context.Context, *TxStatusRequest) (*TxStatusResponse, error)
+	// TxStatusBatch for batch queries
+	TxStatusBatch(context.Context, *TxStatusBatchRequest) (*TxStatusBatchResponse, error)
 }
 
 // UnimplementedTxServer can be embedded to have forward compatible implementations.
@@ -244,6 +453,9 @@ type UnimplementedTxServer struct {
 
 func (*UnimplementedTxServer) TxStatus(ctx context.Context, req *TxStatusRequest) (*TxStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TxStatus not implemented")
+}
+func (*UnimplementedTxServer) TxStatusBatch(ctx context.Context, req *TxStatusBatchRequest) (*TxStatusBatchResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TxStatusBatch not implemented")
 }
 
 func RegisterTxServer(s grpc1.Server, srv TxServer) {
@@ -268,6 +480,24 @@ func _Tx_TxStatus_Handler(srv interface{}, ctx context.Context, dec func(interfa
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Tx_TxStatusBatch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TxStatusBatchRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TxServer).TxStatusBatch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/celestia.core.v1.tx.Tx/TxStatusBatch",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TxServer).TxStatusBatch(ctx, req.(*TxStatusBatchRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var Tx_serviceDesc = _Tx_serviceDesc
 var _Tx_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "celestia.core.v1.tx.Tx",
@@ -276,6 +506,10 @@ var _Tx_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "TxStatus",
 			Handler:    _Tx_TxStatus_Handler,
+		},
+		{
+			MethodName: "TxStatusBatch",
+			Handler:    _Tx_TxStatusBatch_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -332,6 +566,32 @@ func (m *TxStatusResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.Signers) > 0 {
+		for iNdEx := len(m.Signers) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Signers[iNdEx])
+			copy(dAtA[i:], m.Signers[iNdEx])
+			i = encodeVarintTx(dAtA, i, uint64(len(m.Signers[iNdEx])))
+			i--
+			dAtA[i] = 0x4a
+		}
+	}
+	if m.GasUsed != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.GasUsed))
+		i--
+		dAtA[i] = 0x40
+	}
+	if m.GasWanted != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.GasWanted))
+		i--
+		dAtA[i] = 0x38
+	}
+	if len(m.Codespace) > 0 {
+		i -= len(m.Codespace)
+		copy(dAtA[i:], m.Codespace)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.Codespace)))
+		i--
+		dAtA[i] = 0x32
+	}
 	if len(m.Status) > 0 {
 		i -= len(m.Status)
 		copy(dAtA[i:], m.Status)
@@ -360,6 +620,117 @@ func (m *TxStatusResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i = encodeVarintTx(dAtA, i, uint64(m.Height))
 		i--
 		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *TxStatusBatchRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TxStatusBatchRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TxStatusBatchRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.TxIds) > 0 {
+		for iNdEx := len(m.TxIds) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.TxIds[iNdEx])
+			copy(dAtA[i:], m.TxIds[iNdEx])
+			i = encodeVarintTx(dAtA, i, uint64(len(m.TxIds[iNdEx])))
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *TxStatusResult) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TxStatusResult) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TxStatusResult) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Status != nil {
+		{
+			size, err := m.Status.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintTx(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.TxHash) > 0 {
+		i -= len(m.TxHash)
+		copy(dAtA[i:], m.TxHash)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.TxHash)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *TxStatusBatchResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TxStatusBatchResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TxStatusBatchResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Statuses) > 0 {
+		for iNdEx := len(m.Statuses) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Statuses[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintTx(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
 	}
 	return len(dAtA) - i, nil
 }
@@ -410,6 +781,69 @@ func (m *TxStatusResponse) Size() (n int) {
 	l = len(m.Status)
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
+	}
+	l = len(m.Codespace)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	if m.GasWanted != 0 {
+		n += 1 + sovTx(uint64(m.GasWanted))
+	}
+	if m.GasUsed != 0 {
+		n += 1 + sovTx(uint64(m.GasUsed))
+	}
+	if len(m.Signers) > 0 {
+		for _, s := range m.Signers {
+			l = len(s)
+			n += 1 + l + sovTx(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *TxStatusBatchRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.TxIds) > 0 {
+		for _, s := range m.TxIds {
+			l = len(s)
+			n += 1 + l + sovTx(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *TxStatusResult) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.TxHash)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	if m.Status != nil {
+		l = m.Status.Size()
+		n += 1 + l + sovTx(uint64(l))
+	}
+	return n
+}
+
+func (m *TxStatusBatchResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Statuses) > 0 {
+		for _, e := range m.Statuses {
+			l = e.Size()
+			n += 1 + l + sovTx(uint64(l))
+		}
 	}
 	return n
 }
@@ -651,6 +1085,392 @@ func (m *TxStatusResponse) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Status = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Codespace", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Codespace = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 7:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field GasWanted", wireType)
+			}
+			m.GasWanted = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.GasWanted |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 8:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field GasUsed", wireType)
+			}
+			m.GasUsed = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.GasUsed |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 9:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Signers", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Signers = append(m.Signers, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *TxStatusBatchRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: TxStatusBatchRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: TxStatusBatchRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TxIds", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TxIds = append(m.TxIds, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *TxStatusResult) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: TxStatusResult: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: TxStatusResult: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TxHash", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TxHash = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Status", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Status == nil {
+				m.Status = &TxStatusResponse{}
+			}
+			if err := m.Status.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *TxStatusBatchResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: TxStatusBatchResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: TxStatusBatchResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Statuses", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Statuses = append(m.Statuses, &TxStatusResult{})
+			if err := m.Statuses[len(m.Statuses)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

@@ -4,7 +4,7 @@ import (
 	"context"
 	"math/rand"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/gogoproto/grpc"
@@ -40,7 +40,7 @@ func NewSendSequence(numAccounts, sendAmount, numIterations int) *SendSequence {
 
 func (s *SendSequence) Clone(n int) []Sequence {
 	sequenceGroup := make([]Sequence, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		sequenceGroup[i] = NewSendSequence(s.numAccounts, s.sendAmount, s.numIterations)
 	}
 	return sequenceGroup

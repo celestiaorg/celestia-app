@@ -5,13 +5,13 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/celestiaorg/celestia-app/v6/app/params"
-	"github.com/celestiaorg/celestia-app/v6/pkg/user"
-	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v6/test/util/random"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
-	"github.com/celestiaorg/go-square/v2/tx"
+	"github.com/celestiaorg/celestia-app/v7/app"
+	"github.com/celestiaorg/celestia-app/v7/app/params"
+	"github.com/celestiaorg/celestia-app/v7/pkg/user"
+	"github.com/celestiaorg/celestia-app/v7/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v7/test/util/random"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testfactory"
+	"github.com/celestiaorg/go-square/v3/tx"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -43,7 +43,7 @@ func RandBlobTxsWithAccounts(
 
 	txs := make([]coretypes.Tx, len(accounts))
 
-	for i := 0; i < len(accounts); i++ {
+	for i := range accounts {
 		addr := testfactory.GetAddress(kr, accounts[i])
 		acc := DirectQueryAccount(capp, addr)
 		account := user.NewAccount(accounts[i], acc.GetAccountNumber(), acc.GetSequence())
@@ -100,7 +100,7 @@ func RandBlobTxsWithManualSequence(
 
 	opts := blobfactory.DefaultTxOpts()
 	txs := make([]coretypes.Tx, len(accounts))
-	for i := 0; i < len(accounts); i++ {
+	for i := range accounts {
 		addr := testfactory.GetAddress(kr, accounts[i])
 		acc := user.NewAccount(accounts[i], accountNum, sequence)
 		signer, err := user.NewSigner(kr, cfg, chainid, acc)
@@ -172,7 +172,7 @@ func SendTxsWithAccounts(
 	opts := append(blobfactory.DefaultTxOpts(), extraOpts...)
 
 	txs := make([]coretypes.Tx, len(accounts))
-	for i := 0; i < len(accounts); i++ {
+	for i := range accounts {
 		signingAddr := getAddress(accounts[i], kr)
 
 		// update the account info in the signer so the signature is valid

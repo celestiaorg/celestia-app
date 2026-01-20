@@ -4,8 +4,8 @@ import (
 	"math/rand"
 	"slices"
 
-	"github.com/celestiaorg/celestia-app/v6/test/util/random"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v7/test/util/random"
+	"github.com/celestiaorg/go-square/v3/share"
 )
 
 // RandomBlobNamespaceIDWithPRG returns a random blob namespace ID using the supplied Pseudo-Random number Generator (PRG).
@@ -29,7 +29,7 @@ func RandomBlobNamespaceWithPRG(rand *rand.Rand) share.Namespace {
 }
 
 func RandomBlobNamespaces(rand *rand.Rand, count int) (namespaces []share.Namespace) {
-	for i := 0; i < count; i++ {
+	for range count {
 		namespaces = append(namespaces, RandomBlobNamespaceWithPRG(rand))
 	}
 	return namespaces

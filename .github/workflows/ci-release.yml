@@ -12,6 +12,7 @@ on:
   release:
     types: [published]
   pull_request:
+  merge_group:
 
 jobs:
   lint:
@@ -25,6 +26,9 @@ jobs:
 
   test:
     uses: ./.github/workflows/test.yml
+
+  rust-lumina-latency-monitor:
+    uses: ./.github/workflows/rust-lumina-latency-monitor.yml
 
   goreleaser:
     if: github.event_name == 'release'

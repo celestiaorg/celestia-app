@@ -4,9 +4,9 @@ import (
 	"math/rand"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/user"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/user"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testfactory"
 	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -26,7 +26,7 @@ func FeeTxOpts(gas uint64) []user.TxOption {
 
 func GenerateManyRawSendTxs(signer *user.Signer, count int) []coretypes.Tx {
 	txs := make([]coretypes.Tx, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		txs[i] = GenerateRawSendTx(signer, 100)
 	}
 	return txs
@@ -73,7 +73,7 @@ func GenerateRandomRawSendTx(rand *rand.Rand, signer *user.Signer) (rawTx []byte
 // GenerateManyRandomRawSendTxsSameSigner  generates count many random raw send txs.
 func GenerateManyRandomRawSendTxsSameSigner(rand *rand.Rand, signer *user.Signer, count int) []coretypes.Tx {
 	txs := make([]coretypes.Tx, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		txs[i] = GenerateRandomRawSendTx(rand, signer)
 	}
 	return txs

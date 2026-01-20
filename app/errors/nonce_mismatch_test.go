@@ -4,22 +4,22 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	apperr "github.com/celestiaorg/celestia-app/v6/app/errors"
-	"github.com/celestiaorg/celestia-app/v6/app/params"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v6/test/util"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
-	blob "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v7/app"
+	"github.com/celestiaorg/celestia-app/v7/app/encoding"
+	apperr "github.com/celestiaorg/celestia-app/v7/app/errors"
+	"github.com/celestiaorg/celestia-app/v7/app/params"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v7/test/util"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testfactory"
+	blob "github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	"github.com/celestiaorg/go-square/v3/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/stretchr/testify/require"
 )
 
-// This will detect any changes to the DeductFeeDecorator which may cause a
+// This will detect any changes to the SigVerificationDecorator which may cause a
 // different error message that does not match the regexp.
 func TestNonceMismatchIntegration(t *testing.T) {
 	account := "test"

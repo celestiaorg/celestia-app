@@ -6,11 +6,11 @@ import (
 	"fmt"
 
 	"cosmossdk.io/core/address"
-	"github.com/celestiaorg/celestia-app/v6/app/params"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
-	blobtx "github.com/celestiaorg/go-square/v2/tx"
+	"github.com/celestiaorg/celestia-app/v7/app/params"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	"github.com/celestiaorg/go-square/v3/share"
+	blobtx "github.com/celestiaorg/go-square/v3/tx"
 	"github.com/cosmos/cosmos-sdk/client"
 	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -30,7 +30,7 @@ type Signer struct {
 	enc          client.TxConfig
 	addressCodec address.Codec
 	chainID      string
-	// set of accounts that the signer can manage. Should match the keys on the keyring
+	// accounts is a map from accountName to account. The signer can manage these accounts. They should match the keys on the keyring.
 	accounts            map[string]*Account
 	addressToAccountMap map[string]string
 	signMode            signing.SignMode
@@ -197,11 +197,9 @@ func (s *Signer) accountNameByAddress(address sdktypes.AccAddress) string {
 }
 
 func (s *Signer) Accounts() []*Account {
-	accounts := make([]*Account, len(s.accounts))
-	i := 0
+	accounts := make([]*Account, 0, len(s.accounts))
 	for _, acc := range s.accounts {
-		accounts[i] = acc
-		i++
+		accounts = append(accounts, acc)
 	}
 	return accounts
 }

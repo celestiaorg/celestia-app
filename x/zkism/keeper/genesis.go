@@ -7,7 +7,7 @@ import (
 
 	"cosmossdk.io/collections"
 	errorsmod "cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v7/x/zkism/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 )
 

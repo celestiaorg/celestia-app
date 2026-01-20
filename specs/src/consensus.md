@@ -48,13 +48,13 @@
 
 ## Leader Selection
 
-Refer to the CometBFT specifications for [proposer selection procedure](https://docs.cometbft.com/v0.34/spec/consensus/proposer-selection).
+Refer to the CometBFT specifications for [proposer selection procedure](https://docs.cometbft.com/v0.38/spec/consensus/proposer-selection).
 
 ## Fork Choice
 
 The Tendermint consensus protocol is fork-free by construction under an honest majority of stake assumption.
 
-If a block has a [valid commit](#blocklastcommit), it is part of the canonical chain. If equivocation evidence is detected for more than 1/3 of voting power, the node must halt. See [proof of fork accountability](https://docs.cometbft.com/v0.34/spec/consensus/consensus#proof-of-fork-accountability).
+If a block has a [valid commit](#blocklastcommit), it is part of the canonical chain. If equivocation evidence is detected for more than 1/3 of voting power, the node must halt. See [proof of fork accountability](https://docs.cometbft.com/v0.38/spec/consensus/consensus#proof-of-fork-accountability).
 
 ## Block Validity
 
@@ -81,13 +81,13 @@ If the above fields are parsed successfully, the available data `block.available
 
 The [block header](./data_structures.md#header) `block.header` (`header` for short) is the first thing that is downloaded from the new block, and commits to everything inside the block in some way. For previous block `prev` (if `prev` is not known, then the block is ignored), and previous block header `prev.header`, the following checks must be `true`:
 
-`availableDataOriginalSquareSize` is computed as described [here](./data_structures.md#header).
+`availableDataOriginalSquareSize` is computed as described [in the header section](./data_structures.md#header).
 
 1. `header.height` == `prev.header.height + 1`.
 1. `header.timestamp` > `prev.header.timestamp`.
 1. `header.lastHeaderHash` == the [header hash](./data_structures.md#header) of `prev`.
 1. `header.lastCommitHash` == the [hash](./data_structures.md#hashing) of `lastCommit`.
-1. `header.consensusHash` == the value computed [here](./data_structures.md#consensus-parameters).
+1. `header.consensusHash` == the value computed [using consensus parameters](./data_structures.md#consensus-parameters).
 1. `header.stateCommitment` == the root of the state, computed [with the application of all state transitions in this block](#state-transitions).
 1. `availableDataOriginalSquareSize` <= [`AVAILABLE_DATA_ORIGINAL_SQUARE_MAX`](#constants).
 1. `header.availableDataRoot` == the [Merkle root](./data_structures.md#binary-merkle-tree) of the tree with the row and column roots of `block.availableDataHeader` as leaves.
@@ -267,7 +267,7 @@ The following checks must be `true`:
 1. `tx.nonce` == `state.accounts[sender].nonce + 1`.
 1. The `ceil(tx.blobSize / SHARE_SIZE)` shares starting at index `tx.blobStartIndex` must:
     1. Have namespace `tx.blobNamespace`.
-1. `tx.blobShareCommitment` == computed as described [here](./data_structures.md#signedtransactiondatamsgpayfordata).
+1. `tx.blobShareCommitment` == computed as described [in the MsgPayForData section](./data_structures.md#signedtransactiondatamsgpayfordata).
 1. `parentStartFinish.finish` < `tx.blobStartIndex`.
 1. `currentStartFinish.start` == `0` or `currentStartFinish.start` > `tx.blobStartIndex + ceil(tx.blobSize / SHARE_SIZE)`.
 
@@ -713,6 +713,6 @@ else if account.status == AccountStatus.ValidatorBonded
 
 At the end of a block, the top `MAX_VALIDATORS` validators by voting power with voting power _greater than_ zero are or become active (bonded). For newly-bonded validators, the entire validator object is moved to the active validators subtree and their status is changed to bonded. For previously-bonded validators that are no longer in the top `MAX_VALIDATORS` validators begin unbonding.
 
-Bonding validators is simply setting their status to `AccountStatus.ValidatorBonded`. The logic for validator unbonding is found [here](#signedtransactiondatabeginunbondingvalidator), minus transaction sender updates (nonce, balance, and fee).
+Bonding validators is simply setting their status to `AccountStatus.ValidatorBonded`. The logic for validator unbonding is found [in the BeginUnbondingValidator section](#signedtransactiondatabeginunbondingvalidator), minus transaction sender updates (nonce, balance, and fee).
 
 This end block implicit state transition is a single state transition, and [only has a single intermediate state root](#blockavailabledata) associated with it.

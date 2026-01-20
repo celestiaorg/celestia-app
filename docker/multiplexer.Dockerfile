@@ -4,8 +4,8 @@
 #
 # Separating the builder and runtime image allows the runtime image to be
 # considerably smaller because it doesn't need to have Golang installed.
-ARG BUILDER_IMAGE=docker.io/golang:1.24.6-alpine
-ARG RUNTIME_IMAGE=docker.io/alpine:3.19
+ARG BUILDER_IMAGE=docker.io/golang:1.25.5-alpine
+ARG RUNTIME_IMAGE=docker.io/alpine:3.22
 ARG TARGETOS
 ARG TARGETARCH
 # Use build args to override the maximum square size of the docker image e.g.
@@ -20,7 +20,8 @@ ARG CELESTIA_APP_REPOSITORY=ghcr.io/celestiaorg/celestia-app-standalone
 # Makefile.
 ARG CELESTIA_VERSION_V3="v3.10.6"
 ARG CELESTIA_VERSION_V4="v4.1.0"
-ARG CELESTIA_VERSION_V5="v5.0.4-rc0"
+ARG CELESTIA_VERSION_V5="v5.0.12"
+ARG CELESTIA_VERSION_V6="v6.4.4"
 
 # Stage 1: this base image contains already released v3 binaries which can be embedded in the multiplexer.
 FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V3} AS base-v3
@@ -30,6 +31,9 @@ FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V4} AS base-v4
 
 # Stage 1c: this base image contains already released v5 binaries which can be embedded in the multiplexer.
 FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V5} AS base-v5
+
+# Stage 1d: this base image contains already released v6 binaries which can be embedded in the multiplexer.
+FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V6} AS base-v6
 
 # Stage 2: Build the celestia-appd binary inside a builder image that will be discarded later.
 # Ignore hadolint rule because hadolint can't parse the variable.
@@ -80,6 +84,11 @@ RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v4_${TARGETARCH}.tar.g
 COPY --from=base-v5 /bin/celestia-appd /tmp/celestia-appd-v5
 RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v5_${TARGETARCH}.tar.gz /tmp/celestia-appd-v5 \
     && rm /tmp/celestia-appd-v5
+
+# Copy v6 binary from base-v6 and compress it
+COPY --from=base-v5 /bin/celestia-appd /tmp/celestia-appd-v6
+RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v6_${TARGETARCH}.tar.gz /tmp/celestia-appd-v6 \
+    && rm /tmp/celestia-appd-v6
 
 RUN uname -a &&\
     CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \

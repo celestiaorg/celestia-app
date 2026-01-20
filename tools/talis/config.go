@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync/atomic"
-
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 )
 
 type NodeType string
@@ -19,12 +19,15 @@ const (
 	Bridge NodeType = "bridge"
 	// Light represents a light node in the network.
 	Light NodeType = "light"
+	// Metrics represents a metrics node for Prometheus/Grafana.
+	Metrics NodeType = "metrics"
 )
 
 var (
-	valCount   = atomic.Uint32{}
-	nodeCount  = atomic.Uint32{}
-	lightCount = atomic.Uint32{}
+	valCount    = atomic.Uint32{}
+	nodeCount   = atomic.Uint32{}
+	lightCount  = atomic.Uint32{}
+	metricCount = atomic.Uint32{}
 )
 
 // NodeName returns the name of the node based on its type and index. The
@@ -39,6 +42,8 @@ func NodeName(nodeType NodeType) string {
 		index = int(nodeCount.Add(1)) - 1
 	case Light:
 		index = int(lightCount.Add(1)) - 1
+	case Metrics:
+		index = int(metricCount.Add(1)) - 1
 	default:
 		panic(fmt.Sprintf("unknown node type: %s", nodeType))
 	}
@@ -49,10 +54,8 @@ func NodeName(nodeType NodeType) string {
 type Provider string
 
 const (
-	// DO represents DigitalOcean as a provider.
 	DigitalOcean Provider = "digitalocean"
-	// Linode represents Linode as a provider.
-	Linode Provider = "linode"
+	GoogleCloud  Provider = "googlecloud"
 )
 
 // Instance represents a single instance in the network. It contains
@@ -91,8 +94,37 @@ func NewBaseInstance(nodeType NodeType) Instance {
 		PublicIP:  "TBD",
 		PrivateIP: "TBD",
 		Name:      name,
-		Tags:      []string{appconsts.TalisChainID, string(nodeType), name},
+		Tags:      []string{"talis"},
 	}
+}
+
+func (i Instance) WithExperiment(experimentID, chainID string) Instance {
+	index := extractIndexFromName(i.Name)
+	experimentTag := ExperimentTag(i.NodeType, index, experimentID, chainID)
+	i.Tags = append(i.Tags, experimentTag)
+	return i
+}
+
+func extractIndexFromName(name string) int {
+	parts := strings.Split(name, "-")
+	if len(parts) < 2 {
+		return 0
+	}
+	index, _ := strconv.Atoi(parts[len(parts)-1])
+	return index
+}
+
+func ExperimentTag(nodeType NodeType, index int, experimentID, chainID string) string {
+	return fmt.Sprintf("%s-%d-%s-%s", nodeType, index, experimentID, chainID)
+}
+
+func GetExperimentTag(tags []string) string {
+	for _, tag := range tags {
+		if strings.HasPrefix(tag, "validator-") || strings.HasPrefix(tag, "bridge-") || strings.HasPrefix(tag, "light-") || strings.HasPrefix(tag, "metrics-") {
+			return tag
+		}
+	}
+	return ""
 }
 
 // Config describes the desired state of the network.
@@ -100,6 +132,7 @@ type Config struct {
 	Validators []Instance `json:"validators"`
 	Bridges    []Instance `json:"bridges,omitempty"`
 	Lights     []Instance `json:"lights,omitempty"`
+	Metrics    []Instance `json:"metrics,omitempty"`
 
 	// ChainID is the chain ID of the network. This is used to identify the
 	// network and is also used as the chain ID of the network. It is
@@ -119,13 +152,10 @@ type Config struct {
 	SSHKeyName string `json:"ssh_key_name"`
 	// DigitalOceanToken is used to authenticate with DigitalOcean. It can be
 	// provided via an env var or flag.
-	DigitalOceanToken string `json:"digitalocean_token,omitempty"`
-	// LinodeToken is used to authenticate with Linode. It can be provided via
-	// an env var or flag.
-	LinodeToken string `json:"linode_token,omitempty"`
-	// S3Config is used to configure the S3 bucket that will be used to store
-	// traces, logs, and other data.
-	S3Config S3Config `json:"s3_config,omitempty"`
+	DigitalOceanToken      string   `json:"digitalocean_token"`
+	GoogleCloudProject     string   `json:"google_cloud_project"`
+	GoogleCloudKeyJSONPath string   `json:"google_cloud_key_json_path"`
+	S3Config               S3Config `json:"s3_config"`
 }
 
 func NewConfig(experiment, chainID string) Config {
@@ -133,6 +163,7 @@ func NewConfig(experiment, chainID string) Config {
 		Validators: []Instance{},
 		Bridges:    []Instance{},
 		Lights:     []Instance{},
+		Metrics:    []Instance{},
 		Experiment: experiment,
 		ChainID:    TalisChainID(chainID),
 		S3Config: S3Config{
@@ -160,8 +191,13 @@ func (cfg Config) WithDigitalOceanToken(token string) Config {
 	return cfg
 }
 
-func (cfg Config) WithLinodeToken(token string) Config {
-	cfg.LinodeToken = token
+func (cfg Config) WithGoogleCloudProject(project string) Config {
+	cfg.GoogleCloudProject = project
+	return cfg
+}
+
+func (cfg Config) WithGoogleCloudKeyJSONPath(keyJSONPath string) Config {
+	cfg.GoogleCloudKeyJSONPath = keyJSONPath
 	return cfg
 }
 
@@ -171,8 +207,26 @@ func (cfg Config) WithS3Config(s3 S3Config) Config {
 }
 
 func (cfg Config) WithDigitalOceanValidator(region string) Config {
-	i := NewDigitalOceanValidator(region)
+	i := NewDigitalOceanValidator(region).WithExperiment(cfg.Experiment, cfg.ChainID)
 	cfg.Validators = append(cfg.Validators, i)
+	return cfg
+}
+
+func (cfg Config) WithDigitalOceanMetrics(region string) Config {
+	i := NewDigitalOceanMetrics(region).WithExperiment(cfg.Experiment, cfg.ChainID)
+	cfg.Metrics = append(cfg.Metrics, i)
+	return cfg
+}
+
+func (cfg Config) WithGoogleCloudValidator(region string) Config {
+	i := NewGoogleCloudValidator(region).WithExperiment(cfg.Experiment, cfg.ChainID)
+	cfg.Validators = append(cfg.Validators, i)
+	return cfg
+}
+
+func (cfg Config) WithGoogleCloudMetrics(region string) Config {
+	i := NewGoogleCloudMetrics(region).WithExperiment(cfg.Experiment, cfg.ChainID)
+	cfg.Metrics = append(cfg.Metrics, i)
 	return cfg
 }
 
@@ -181,7 +235,7 @@ func (cfg Config) WithChainID(chainID string) Config {
 	return cfg
 }
 
-func (c Config) Save(root string) error {
+func (cfg Config) Save(root string) error {
 	// Create the directory if it doesn't exist
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return err
@@ -199,7 +253,7 @@ func (c Config) Save(root string) error {
 	// Write the config to the file
 	encoder := json.NewEncoder(cfgFile)
 	encoder.SetIndent("", "  ")
-	return encoder.Encode(c)
+	return encoder.Encode(cfg)
 }
 
 // LoadConfig loads the config from the specified path.
@@ -223,27 +277,34 @@ func TalisChainID(chainID string) string {
 	return "talis-" + chainID
 }
 
-func (c Config) UpdateInstance(name, publicIP, privateIP string) (Config, error) {
-	for i := range c.Validators {
-		if c.Validators[i].Name == name {
-			c.Validators[i].PublicIP = publicIP
-			c.Validators[i].PrivateIP = privateIP
-			return c, nil
+func (cfg Config) UpdateInstance(name, publicIP, privateIP string) (Config, error) {
+	for i := range cfg.Validators {
+		if cfg.Validators[i].Name == name {
+			cfg.Validators[i].PublicIP = publicIP
+			cfg.Validators[i].PrivateIP = privateIP
+			return cfg, nil
 		}
 	}
-	for i := range c.Bridges {
-		if c.Bridges[i].Name == name {
-			c.Bridges[i].PublicIP = publicIP
-			c.Bridges[i].PrivateIP = privateIP
-			return c, nil
+	for i := range cfg.Bridges {
+		if cfg.Bridges[i].Name == name {
+			cfg.Bridges[i].PublicIP = publicIP
+			cfg.Bridges[i].PrivateIP = privateIP
+			return cfg, nil
 		}
 	}
-	for i := range c.Lights {
-		if c.Lights[i].Name == name {
-			c.Lights[i].PublicIP = publicIP
-			c.Lights[i].PrivateIP = privateIP
-			return c, nil
+	for i := range cfg.Lights {
+		if cfg.Lights[i].Name == name {
+			cfg.Lights[i].PublicIP = publicIP
+			cfg.Lights[i].PrivateIP = privateIP
+			return cfg, nil
 		}
 	}
-	return c, fmt.Errorf("instance %s not found", name)
+	for i := range cfg.Metrics {
+		if cfg.Metrics[i].Name == name {
+			cfg.Metrics[i].PublicIP = publicIP
+			cfg.Metrics[i].PrivateIP = privateIP
+			return cfg, nil
+		}
+	}
+	return cfg, fmt.Errorf("instance %s not found", name)
 }

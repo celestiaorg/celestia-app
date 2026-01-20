@@ -3,8 +3,8 @@ package wrapper
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
@@ -25,7 +25,6 @@ var (
 // library sufficiently general
 type ErasuredNamespacedMerkleTree struct {
 	squareSize uint64 // note: this refers to the width of the original square before erasure-coded
-	options    []nmt.Option
 	tree       Tree
 	// axisIndex is the index of the axis (row or column) that this tree is on. This is passed
 	// by rsmt2d and used to help determine which quadrant each leaf belongs to.
@@ -49,7 +48,7 @@ type Tree interface {
 }
 
 // NewErasuredNamespacedMerkleTree creates a new ErasuredNamespacedMerkleTree
-// with an underlying NMT of namespace size `appconsts.NamespaceSize` and with
+// with an underlying NMT of namespace size `share.NamespaceSize` and with
 // `ignoreMaxNamespace=true`. axisIndex is the index of the row or column that
 // this tree is committing to. squareSize must be greater than zero.
 func NewErasuredNamespacedMerkleTree(squareSize uint64, axisIndex uint, options ...nmt.Option) ErasuredNamespacedMerkleTree {
@@ -59,7 +58,7 @@ func NewErasuredNamespacedMerkleTree(squareSize uint64, axisIndex uint, options 
 	options = append(options, nmt.NamespaceIDSize(share.NamespaceSize))
 	options = append(options, nmt.IgnoreMaxNamespace(true))
 	tree := nmt.New(appconsts.NewBaseHashFunc(), options...)
-	return ErasuredNamespacedMerkleTree{squareSize: squareSize, options: options, tree: tree, axisIndex: uint64(axisIndex), shareIndex: 0}
+	return ErasuredNamespacedMerkleTree{squareSize: squareSize, tree: tree, axisIndex: uint64(axisIndex), shareIndex: 0}
 }
 
 type constructor struct {
@@ -86,9 +85,9 @@ func (c constructor) NewTree(_ rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
 }
 
 // Push adds the provided data to the underlying NamespaceMerkleTree, and
-// automatically uses the first DefaultNamespaceIDLen number of bytes as the
-// namespace unless the data pushed to the second half of the tree. Fulfills the
-// rsmt.Tree interface. NOTE: panics if an error is encountered while pushing or
+// automatically uses the first share.NamespaceSize number of bytes as the
+// namespace unless the data is pushed to the second half of the tree. Fulfills the
+// rsmt2d.Tree interface. NOTE: returns an error if encountered while pushing or
 // if the tree size is exceeded.
 func (w *ErasuredNamespacedMerkleTree) Push(data []byte) error {
 	if w.axisIndex+1 > 2*w.squareSize || w.shareIndex+1 > 2*w.squareSize {
@@ -113,7 +112,7 @@ func (w *ErasuredNamespacedMerkleTree) Push(data []byte) error {
 	return nil
 }
 
-// Root fulfills the rsmt.Tree interface by generating and returning the
+// Root fulfills the rsmt2d.Tree interface by generating and returning the
 // underlying NamespaceMerkleTree Root.
 func (w *ErasuredNamespacedMerkleTree) Root() ([]byte, error) {
 	root, err := w.tree.Root()

@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v7/app"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/test/util/genesis"
 	tmconfig "github.com/cometbft/cometbft/config"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
@@ -20,12 +20,15 @@ import (
 )
 
 const (
-	kibibyte                    = 1024      // bytes
-	mebibyte                    = 1_048_576 // bytes
+	kibibyte                    = 1024 // bytes
 	DefaultValidatorAccountName = "validator"
 	DefaultInitialBalance       = genesis.DefaultInitialBalance
 	// TimeoutCommit is a flag that can be used to override the timeout_commit.
+	//
+	// Deprecated: Use DelayedPrecommitTimeout instead.
 	TimeoutCommitFlag = "timeout-commit"
+	// DelayedPrecommitTimeout is a flag that can be used to override the DelayedPrecommitTimeout.
+	DelayedPrecommitTimeout = "delayed-precommit-timeout"
 )
 
 type UniversalTestingConfig struct {
@@ -84,9 +87,21 @@ func (c *Config) WithSuppressLogs(sl bool) *Config {
 }
 
 // WithTimeoutCommit sets the timeout commit in the cometBFT config and returns
-// the Config.
+// the Config. For backward compatibility, it also sets the app's block time.
+//
+// Deprecated: Use WithDelayedPrecommitTimeout instead.
 func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
 	c.TmConfig.Consensus.TimeoutCommit = d
+	// For backward compatibility, also set the app option so existing tests continue to work
+	c.AppOptions.Set(TimeoutCommitFlag, d)
+	return c
+}
+
+// WithDelayedPrecommitTimeout sets the target block time using DelayedPrecommitTimeout in the app
+// options and returns the Config. This affects the DelayedPrecommitTimeout used for consistent
+// block timing.
+func (c *Config) WithDelayedPrecommitTimeout(d time.Duration) *Config {
+	c.AppOptions.Set(DelayedPrecommitTimeout, d)
 	return c
 }
 
@@ -122,6 +137,11 @@ func (c *Config) WithConsensusParams(params *tmproto.ConsensusParams) *Config {
 	return c
 }
 
+func (c *Config) WithMaxBytes(maxBytes int64) *Config {
+	c.Genesis.ConsensusParams.Block.MaxBytes = maxBytes
+	return c
+}
+
 // DefaultConfig returns the default configuration of a test node.
 func DefaultConfig() *Config {
 	cfg := &Config{}
@@ -136,7 +156,7 @@ func DefaultConfig() *Config {
 		WithAppConfig(DefaultAppConfig()).
 		WithAppOptions(DefaultAppOptions()).
 		WithSuppressLogs(true).
-		WithTimeoutCommit(200 * time.Millisecond) // have a block time that is fast, but not overly fast
+		WithDelayedPrecommitTimeout(200 * time.Millisecond)
 }
 
 func DefaultConsensusParams() *tmproto.ConsensusParams {
@@ -149,9 +169,9 @@ func DefaultTendermintConfig() *tmconfig.Config {
 	tmCfg := app.DefaultConsensusConfig()
 
 	// Set all the ports to random open ones.
-	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
-	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
-	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
+	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
+	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
+	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
 
 	tmCfg.TxIndex.Indexer = "kv"
 
@@ -165,11 +185,19 @@ func DefaultAppCreator(opts ...AppCreationOptions) srvtypes.AppCreator {
 		baseAppOptions := server.DefaultBaseappOptions(appOptions)
 		baseAppOptions = append(baseAppOptions, baseapp.SetMinGasPrices(fmt.Sprintf("%v%v", appconsts.DefaultMinGasPrice, appconsts.BondDenom)))
 
+		// Check for the new --block-time flag first, then fall back to deprecated --timeout-commit
+		var blockTime time.Duration
+		if blockTimeFromFlag := appOptions.Get(DelayedPrecommitTimeout); blockTimeFromFlag != nil {
+			blockTime = blockTimeFromFlag.(time.Duration)
+		} else if timeoutCommitFromFlag := appOptions.Get(TimeoutCommitFlag); timeoutCommitFromFlag != nil {
+			blockTime = timeoutCommitFromFlag.(time.Duration)
+		}
+
 		app := app.New(
 			log.NewNopLogger(),
 			dbm.NewMemDB(),
 			nil, // trace store
-			appOptions.Get(TimeoutCommitFlag).(time.Duration), // timeout commit
+			blockTime,
 			simtestutil.EmptyAppOptions{},
 			baseAppOptions...,
 		)
@@ -201,8 +229,8 @@ func CustomAppCreator(appOptions ...func(*baseapp.BaseApp)) srvtypes.AppCreator 
 func DefaultAppConfig() *srvconfig.Config {
 	appCfg := app.DefaultAppConfig()
 	appCfg.GRPC.Enable = true
-	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", GetDeterministicPort())
+	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", MustGetFreePort())
 	appCfg.API.Enable = true
-	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
+	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
 	return appCfg
 }

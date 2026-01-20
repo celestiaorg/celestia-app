@@ -5,8 +5,8 @@ import (
 	"errors"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
-	"github.com/celestiaorg/celestia-app/v6/x/zkism/keeper"
-	"github.com/celestiaorg/celestia-app/v6/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v7/x/zkism/keeper"
+	"github.com/celestiaorg/celestia-app/v7/x/zkism/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 )
 
@@ -85,7 +85,7 @@ func (suite *KeeperTestSuite) TestQueryServerMessages() {
 				ismID := util.CreateMockHexAddress("ism", 1)
 				req = &types.QueryMessagesRequest{Id: ismID.String()}
 
-				for i := 0; i < 5; i++ {
+				for i := range 5 {
 					id := bytes.Repeat([]byte{byte(i)}, 32)
 					err := suite.zkISMKeeper.SetMessageId(suite.ctx, ismID, id)
 					suite.Require().NoError(err)
@@ -103,7 +103,7 @@ func (suite *KeeperTestSuite) TestQueryServerMessages() {
 					Pagination: &query.PageRequest{Limit: 2},
 				}
 
-				for i := 0; i < 5; i++ {
+				for i := range 5 {
 					id := bytes.Repeat([]byte{byte(i)}, 32)
 					err := suite.zkISMKeeper.SetMessageId(suite.ctx, ismID, id)
 					suite.Require().NoError(err)
@@ -253,7 +253,7 @@ func (suite *KeeperTestSuite) TestQueryServerMessagesPaginationLimit() {
 	ismID := util.CreateMockHexAddress("ism", 1)
 	var allExpected []string
 
-	for i := 0; i < 150; i++ {
+	for i := range 150 {
 		id := bytes.Repeat([]byte{byte(i)}, 32)
 		err := suite.zkISMKeeper.SetMessageId(suite.ctx, ismID, id)
 		suite.Require().NoError(err)

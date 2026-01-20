@@ -6,10 +6,10 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testfactory"
+	"github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	nmtnamespace "github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
@@ -161,7 +161,7 @@ func TestErasuredNamespacedMerkleTree_ProveRange(t *testing.T) {
 		root, err := tree.Root()
 		assert.NoError(t, err)
 		// iterate over all the shares and check that the proof is non-empty and can be verified
-		for i := 0; i < len(data); i++ {
+		for i := range data {
 			proof, err := tree.ProveRange(i, i+1)
 			assert.NoError(t, err)
 			assert.NotEmpty(t, proof.Nodes())

@@ -11,13 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/test/txsim"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
-	blob "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	signaltypes "github.com/celestiaorg/celestia-app/v6/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v7/app"
+	"github.com/celestiaorg/celestia-app/v7/app/encoding"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/test/txsim"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
+	blob "github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	signaltypes "github.com/celestiaorg/celestia-app/v7/x/signal/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -150,7 +150,7 @@ func TestTxSimulator(t *testing.T) {
 func Setup(t testing.TB) (keyring.Keyring, string, string) {
 	t.Helper()
 
-	cfg := testnode.DefaultConfig().WithTimeoutCommit(300 * time.Millisecond).WithFundedAccounts("txsim-master")
+	cfg := testnode.DefaultConfig().WithDelayedPrecommitTimeout(300 * time.Millisecond).WithFundedAccounts("txsim-master")
 	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, cfg)
 
 	return cctx.Keyring, rpcAddr, grpcAddr
@@ -166,7 +166,7 @@ func TestTxSimUpgrade(t *testing.T) {
 	cp := app.DefaultConsensusParams()
 	cp.Version.App = versionBefore
 	cfg := testnode.DefaultConfig().
-		WithTimeoutCommit(300 * time.Millisecond).
+		WithDelayedPrecommitTimeout(300 * time.Millisecond).
 		WithConsensusParams(cp).
 		WithFundedAccounts("txsim-master")
 	cctx, _, grpcAddr := testnode.NewNetwork(t, cfg)

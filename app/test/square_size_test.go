@@ -7,15 +7,15 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/user"
-	"github.com/celestiaorg/celestia-app/v6/test/txsim"
-	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v7/app"
+	"github.com/celestiaorg/celestia-app/v7/app/encoding"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/user"
+	"github.com/celestiaorg/celestia-app/v7/test/txsim"
+	"github.com/celestiaorg/celestia-app/v7/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
@@ -48,8 +48,8 @@ func (s *SquareSizeIntegrationTest) SetupSuite() {
 	s.enc = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	cfg := testnode.DefaultConfig().
 		WithModifiers(genesis.ImmediateProposals(s.enc.Codec)).
-		WithTimeoutCommit(time.Millisecond * 500). // long timeout commit to provide time for submitting txs
-		WithFundedAccounts("txsim")                // add a specific txsim account
+		WithDelayedPrecommitTimeout(time.Millisecond * 500). // long time to provide time for submitting txs
+		WithFundedAccounts("txsim")                          // add a specific txsim account
 
 	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, cfg)
 	s.cctx = cctx
@@ -179,9 +179,6 @@ func (s *SquareSizeIntegrationTest) SetupBlockSizeParams(t *testing.T, squareSiz
 
 	res, err := txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msgSubmitProp}, opt)
 	require.NoError(t, err)
-
-	res, err = txClient.ConfirmTx(s.cctx.GoContext(), res.TxHash)
-	require.NoError(t, err)
 	require.Equal(t, uint32(0), res.Code)
 
 	txService := sdktx.NewServiceClient(s.cctx.GRPCClient)
@@ -195,7 +192,7 @@ func (s *SquareSizeIntegrationTest) SetupBlockSizeParams(t *testing.T, squareSiz
 
 	// try to query and vote on the proposal within the voting period
 	govQueryClient := govv1.NewQueryClient(s.cctx.GRPCClient)
-	for i := 0; i < 30; i++ {
+	for range 30 {
 		// query the proposal to get the id
 		propResp, err := govQueryClient.Proposals(s.cctx.GoContext(), &govv1.QueryProposalsRequest{ProposalStatus: govv1.StatusVotingPeriod})
 		require.NoError(t, err)
@@ -226,7 +223,7 @@ func (s *SquareSizeIntegrationTest) SetupBlockSizeParams(t *testing.T, squareSiz
 	require.Equal(t, uint32(0), res.Code)
 
 	// try to query a few times until the voting period has passed
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		// check that the parameters were updated as expected
 		blobQueryClient := blobtypes.NewQueryClient(s.cctx.GRPCClient)
 		blobParamsResp, err := blobQueryClient.Params(s.cctx.GoContext(), &blobtypes.QueryParamsRequest{})

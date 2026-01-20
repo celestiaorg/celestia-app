@@ -5,8 +5,9 @@
 [![GitHub Release](https://img.shields.io/github/v/release/celestiaorg/celestia-app)](https://github.com/celestiaorg/celestia-app/releases/latest)
 [![Go Report Card](https://goreportcard.com/badge/github.com/celestiaorg/celestia-app)](https://goreportcard.com/report/github.com/celestiaorg/celestia-app)
 [![GitPOAP Badge](https://public-api.gitpoap.io/v1/repo/celestiaorg/celestia-app/badge)](https://www.gitpoap.io/gh/celestiaorg/celestia-app)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/celestiaorg/celestia-app)
 
-celestia-app is the software used by [validators](https://docs.celestia.org/how-to-guides/validator-node) and [consensus nodes](https://docs.celestia.org/how-to-guides/consensus-node) on the Celestia consensus network. celestia-app is a blockchain application built using parts of the Cosmos stack:
+celestia-app is the software used by [validators](https://docs.celestia.org/operate/consensus-validators/validator-node/) and [consensus nodes](https://docs.celestia.org/operate/consensus-validators/consensus-node/) on the Celestia consensus network. celestia-app is a blockchain application built using parts of the Cosmos stack:
 
 - [celestiaorg/cosmos-sdk](https://github.com/celestiaorg/cosmos-sdk) a fork of [cosmos/cosmos-sdk](https://github.com/cosmos/cosmos-sdk)
 - [celestiaorg/celestia-core](https://github.com/celestiaorg/celestia-core) a fork of [cometbft/cometbft](https://github.com/cometbft/cometbft)
@@ -35,7 +36,7 @@ node            |  |                               |  |
 
 ### From source
 
-1. [Install Go](https://go.dev/doc/install) 1.24.6
+1. [Install Go](https://go.dev/doc/install) 1.25.5
 1. Clone this repo
 1. Install the celestia-appd binary. This installs a "multiplexer" binary that will also download embedded binaries for the latest celestia-app v3.x.x and v4.x.x release.
 
@@ -73,7 +74,7 @@ If you'd rather not install from source, you can download a prebuilt binary from
     celestia-app_Linux_x86_64.tar.gz: OK
     ```
 
-See <https://docs.celestia.org/how-to-guides/celestia-app> for more information.
+See <https://docs.celestia.org/operate/consensus-validators/install-celestia-app/> for more information.
 
 ## Usage
 
@@ -132,7 +133,7 @@ celestia-appd query tx <txhash from previous command>
 ### Join a public Celestia network
 
 For instructions on running a node on Celestia's public networks, refer to the
-[consensus node](https://docs.celestia.org/how-to-guides/consensus-node)
+[consensus node](https://docs.celestia.org/operate/consensus-validators/consensus-node/)
 guide in the docs.
 
 > [!NOTE]
@@ -145,11 +146,11 @@ If you import celestia-app as a Go module, you may need to add some Go module `r
 
 ### Usage in tests
 
-If you are running celestia-app in tests, you may want to override the `timeout_commit` to produce blocks faster. By default, a celestia-app chain with app version >= 3 will produce blocks every ~6 seconds. To produce blocks faster, you can override the `timeout_commit` with the `--timeout-commit` flag.
+If you are running celestia-app in tests, you may want to override the `delayed_precommit_timeout` to produce blocks faster. By default, a celestia-app chain with app version >= 3 will produce blocks every ~6 seconds. To produce blocks faster, you can override the `delayed_precommit_timeout` with the `--delayed-precommit-timeout` flag.
 
 ```shell
-# Start celestia-appd with a one-second timeout commit.
-celestia-appd start --timeout-commit 1s
+# Start celestia-appd with a one-second block time.
+celestia-appd start --delayed-precommit-timeout 1s
 ```
 
 ## Server Architecture
@@ -182,7 +183,7 @@ This repo contains multiple go modules. When using it, rename `go.work.example` 
 
 ### Tools
 
-1. Install [golangci-lint](https://golangci-lint.run/welcome/install) 2.1.2
+1. Install [golangci-lint](https://golangci-lint.run/docs/welcome/install/) 2.8.0
 1. Install [markdownlint](https://github.com/DavidAnson/markdownlint) 0.39.0
 1. Install [hadolint](https://github.com/hadolint/hadolint)
 1. Install [yamllint](https://yamllint.readthedocs.io/en/stable/quickstart.html)

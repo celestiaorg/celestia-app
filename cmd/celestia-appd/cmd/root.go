@@ -6,7 +6,7 @@ import (
 
 	"cosmossdk.io/log"
 	confixcmd "cosmossdk.io/tools/confix/cmd"
-	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v7/app"
 	"github.com/cometbft/cometbft/cmd/cometbft/commands"
 	tmcli "github.com/cometbft/cometbft/libs/cli"
 	dbm "github.com/cosmos/cosmos-db"
@@ -34,7 +34,12 @@ const (
 	UpgradeHeightFlag = "v2-upgrade-height"
 
 	// TimeoutCommit is a flag that can be used to override the timeout_commit.
+	//
+	// Deprecated: Use DelayedPrecommitTimeoutFlag instead.
 	TimeoutCommitFlag = "timeout-commit"
+
+	// DelayedPrecommitTimeoutFlag is a flag that can be used to override the DelayedPrecommitTimeout.
+	DelayedPrecommitTimeoutFlag = "delayed-precommit-timeout"
 )
 
 // NewRootCmd creates a new root command for celestia-appd.
@@ -108,6 +113,8 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 		NewInPlaceTestnetCmd(),
 		AppGenesisToCometGenesisConverterCmd(),
 		server.ModuleHashByHeightQuery(NewAppServer),
+		listTypesCmd(),
+		CheckVersionCmd(),
 	)
 
 	rootCommand.AddCommand(
@@ -131,7 +138,7 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 	modifyRootCommand(rootCommand)
 
 	// Add hooks run prior to the start command
-	if err := addPreStartHooks(rootCommand, checkBBR); err != nil {
+	if err := addPreStartHooks(rootCommand, overrideConsensusTimeouts, overrideP2PConfig, checkBBR); err != nil {
 		panic(fmt.Errorf("failed to add pre-start hooks: %w", err))
 	}
 }
@@ -144,7 +151,13 @@ func addStartFlags(startCmd *cobra.Command) {
 	}
 
 	startCmd.Flags().Duration(TimeoutCommitFlag, 0, "Override the application configured timeout_commit. Note: only for testing purposes.")
+	if err := startCmd.Flags().MarkDeprecated(TimeoutCommitFlag, "Use --delayed-precommit-timeout instead."); err != nil {
+		panic(err)
+	}
+
+	startCmd.Flags().Duration(DelayedPrecommitTimeoutFlag, 0, "Override the DelayedPrecommitTimeout to control block time. Note: only for testing purposes.")
 	startCmd.Flags().Bool(FlagForceNoBBR, false, "bypass the requirement to use bbr locally")
+	startCmd.Flags().Bool(bypassOverridesFlagKey, false, "bypass all config overrides (P2P rates, mempool config, etc.). WARNING: Only use if strictly required. Using this flag may prevent your node from staying at the tip of the chain.")
 }
 
 // replaceLogger optionally replaces the logger with a file logger if the flag

@@ -6,7 +6,7 @@ Implemented
 
 ## Context
 
-To accommodate the requirements of the [Quantum Gravity Bridge](https://github.com/celestiaorg/quantum-gravity-bridge/blob/76efeca0be1a17d32ef633c0fdbd3c8f5e4cc53f/src/QuantumGravityBridge.sol), We will need to add support for `ValSet`s, i.e. Validator Sets, which reflect the current state of the bridge validators.
+To accommodate the requirements of the [Quantum Gravity Bridge](https://github.com/celestiaorg/blobstream-contracts/blob/76efeca0be1a17d32ef633c0fdbd3c8f5e4cc53f/src/QuantumGravityBridge.sol), We will need to add support for `ValSet`s, i.e. Validator Sets, which reflect the current state of the bridge validators.
 
 ## Decision
 
@@ -144,7 +144,7 @@ The significance of the power difference is calculated using a pre-defined const
 const SignificantPowerDifferenceThreshold = 0.05
 ```
 
-For more information on the normalization of power, check [here](https://github.com/celestiaorg/celestia-app/blob/df46d122da5f1fab1bd99bfb2bfcf9002f5bc154/x/qgb/types/validator.go#L101
+For more information on the normalization of power, check [the validator normalization implementation](https://github.com/celestiaorg/celestia-app/blob/df46d122da5f1fab1bd99bfb2bfcf9002f5bc154/x/qgb/types/validator.go#L101
 ).
 
 #### Create a ValSet

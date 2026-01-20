@@ -6,9 +6,9 @@ import (
 	"math"
 	"strconv"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/go-square/v2"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/go-square/v3"
+	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/types"
@@ -17,8 +17,8 @@ import (
 
 const TxInclusionQueryPath = "txInclusionProof"
 
-// Querier defines the logic performed when the ABCI client using the Query
-// method with the custom prove.QueryPath. The index of the transaction being
+// QueryTxInclusionProof defines the logic performed when the ABCI client uses the Query
+// method with the custom query path. The index of the transaction being
 // proved must be appended to the path. The marshalled bytes of the transaction
 // proof (tmproto.ShareProof) are returned.
 //

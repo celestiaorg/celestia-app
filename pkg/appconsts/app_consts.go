@@ -8,7 +8,7 @@ import (
 
 const (
 	// Version is the current application version.
-	Version uint64 = 6
+	Version uint64 = 7
 	// SquareSizeUpperBound imposes an upper bound on the max effective square size.
 	SquareSizeUpperBound int = 512
 	// SubtreeRootThreshold works as a target upper bound for the number of subtree
@@ -19,12 +19,18 @@ const (
 	// SubtreeRootThreshold.
 	//
 	// The rationale for this value is described in more detail in ADR-013.
-	SubtreeRootThreshold int    = 64
-	TxSizeCostPerByte    uint64 = 10
-	GasPerBlobByte       uint32 = 8
-	MaxTxSize            int    = 8_388_608 // 8 MiB in bytes
-	TimeoutPropose              = time.Millisecond * 3500
-	TimeoutCommit               = time.Millisecond * 4200
+	SubtreeRootThreshold    int    = 64
+	TxSizeCostPerByte       uint64 = 10
+	GasPerBlobByte          uint32 = 8
+	MaxTxSize               int    = 8_388_608 // 8 MiB in bytes
+	TimeoutPropose                 = time.Millisecond * 8500
+	TimeoutProposeDelta            = time.Millisecond * 500
+	TimeoutPrevote                 = time.Millisecond * 3000
+	TimeoutPrevoteDelta            = time.Millisecond * 500
+	TimeoutPrecommit               = time.Millisecond * 3000
+	TimeoutPrecommitDelta          = time.Millisecond * 500
+	TimeoutCommit                  = time.Millisecond
+	DelayedPrecommitTimeout        = time.Millisecond * 5850
 
 	// TestUpgradeHeightDelay is the number of blocks that chain-id "test" waits
 	// after a MsgTryUpgrade to activate the next version.
@@ -43,9 +49,8 @@ const (
 	MainnetUpgradeHeightDelay = int64(100_800)
 	// Deprecated: Use MainnetUpgradeHeightDelay instead.
 	UpgradeHeightDelay = MainnetUpgradeHeightDelay
-	// MempoolSize determines the default max mempool size. This is determined
-	// using a multiple of the max possible bytes in a block.
-	MempoolSize = int64(DefaultUpperBoundMaxBytes) * 3
+	// MempoolSize determines the default max mempool size.
+	MempoolSize = 400 * mebibyte // 400 MiB
 	// UnbondingTime is the time a validator must wait to unbond in a proof of
 	// stake system. Any validator within this time can be subject to slashing
 	// under conditions of misbehavior.
@@ -55,6 +60,6 @@ const (
 
 )
 
-// MinCommissionRate is 10%. It is the minimum commission rate for a validator
-// as defined in CIP-41.
-var MinCommissionRate = math.LegacyNewDecWithPrec(1, 1)
+// MinCommissionRate is 20%.
+// TODO(@rootulp): link to CIP.
+var MinCommissionRate = math.LegacyNewDecWithPrec(2, 1)

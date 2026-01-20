@@ -8,17 +8,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	"github.com/celestiaorg/celestia-app/v6/app/params"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/user"
-	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v6/test/util/random"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v7/app"
+	"github.com/celestiaorg/celestia-app/v7/app/encoding"
+	"github.com/celestiaorg/celestia-app/v7/app/params"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/user"
+	"github.com/celestiaorg/celestia-app/v7/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v7/test/util/random"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -51,7 +51,7 @@ func (s *PriorityTestSuite) SetupSuite() {
 	cfg := testnode.DefaultConfig().
 		WithFundedAccounts(s.accountNames...).
 		// use a long block time to guarantee that some transactions are included in the same block
-		WithTimeoutCommit(time.Second)
+		WithDelayedPrecommitTimeout(time.Second)
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	s.cctx = cctx
@@ -73,14 +73,14 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 
 	// quickly submit blobs with a random fee
 	hashes := make(chan string, len(s.accountNames))
-	blobSize := uint32(100)
-	gasLimit := blobtypes.DefaultEstimateGas([]uint32{blobSize})
+	blobSize := 100
+	msg, err := blobtypes.NewMsgPayForBlobs(s.accountNames[0], 0, blobfactory.ManyBlobs(random.New(), []share.Namespace{share.RandomBlobNamespace()}, []int{blobSize})...)
+	require.NoError(t, err)
+	gasLimit := blobtypes.DefaultEstimateGas(msg)
 	wg := &sync.WaitGroup{}
 	r := random.New()
 	for _, accName := range s.accountNames {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			// ensure that it is greater than the min gas price
 			gasPrice := float64(rand.Intn(1000)+1) * appconsts.DefaultMinGasPrice
 			blobs := blobfactory.ManyBlobs(r, []share.Namespace{share.RandomBlobNamespace()}, []int{100})
@@ -93,13 +93,13 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 			require.NoError(t, err)
 			require.Equal(t, abci.CodeTypeOK, resp.Code, resp.RawLog)
 			hashes <- resp.TxHash
-		}()
+		})
 	}
 
 	wg.Wait()
 	close(hashes)
 
-	err := s.cctx.WaitForNextBlock()
+	err = s.cctx.WaitForNextBlock()
 	require.NoError(t, err)
 
 	// get the responses for each tx for analysis and sort by height

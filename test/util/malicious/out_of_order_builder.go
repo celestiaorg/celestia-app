@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/go-square/v2"
-	"github.com/celestiaorg/go-square/v2/inclusion"
-	"github.com/celestiaorg/go-square/v2/share"
-	blobtx "github.com/celestiaorg/go-square/v2/tx"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/go-square/v3"
+	"github.com/celestiaorg/go-square/v3/inclusion"
+	"github.com/celestiaorg/go-square/v3/share"
+	blobtx "github.com/celestiaorg/go-square/v3/tx"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -104,7 +104,7 @@ func OutOfOrderExport(b *square.Builder) (square.Square, error) {
 	for i, element := range b.Blobs {
 		// NextShareIndex returned where the next blob should start so as to comply with the share commitment rules
 		// We fill out the remaining
-		cursor = inclusion.NextShareIndex(cursor, element.NumShares, b.SubtreeRootThreshold())
+		cursor, _ = inclusion.NextShareIndex(cursor, element.NumShares, b.SubtreeRootThreshold())
 		if i == 0 {
 			nonReservedStart = cursor
 		}
@@ -146,9 +146,9 @@ func OutOfOrderExport(b *square.Builder) (square.Square, error) {
 		}
 	}
 
-	// defensively check that the counter is always greater in share count than the pfbTxWriter.
+	// defensively check that the counter is always greater in share count than the pfbWriter.
 	if b.PfbCounter.Size() < pfbWriter.Count() {
-		return nil, fmt.Errorf("pfbCounter.Size() < pfbTxWriter.Count(): %d < %d", b.PfbCounter.Size(), pfbWriter.Count())
+		return nil, fmt.Errorf("pfbCounter.Size() < pfbWriter.Count(): %d < %d", b.PfbCounter.Size(), pfbWriter.Count())
 	}
 
 	// Write out the square

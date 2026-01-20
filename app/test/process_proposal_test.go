@@ -6,20 +6,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/da"
-	"github.com/celestiaorg/celestia-app/v6/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v6/test/util"
-	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v6/test/util/random"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2"
-	"github.com/celestiaorg/go-square/v2/share"
-	"github.com/celestiaorg/go-square/v2/tx"
+	"github.com/celestiaorg/celestia-app/v7/app"
+	"github.com/celestiaorg/celestia-app/v7/app/encoding"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/da"
+	"github.com/celestiaorg/celestia-app/v7/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v7/test/util"
+	"github.com/celestiaorg/celestia-app/v7/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v7/test/util/random"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	"github.com/celestiaorg/go-square/v3"
+	"github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/go-square/v3/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
@@ -317,4 +317,55 @@ func calculateNewDataHash(t *testing.T, txs [][]byte) []byte {
 	dah, err := da.NewDataAvailabilityHeader(eds)
 	require.NoError(t, err)
 	return dah.Hash()
+}
+
+func TestProcessProposal_ProposalWithInconsistentBlobTxFails(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(2)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, user.NewAccount(accounts[0], infos[0].AccountNum, infos[0].Sequence))
+	require.NoError(t, err)
+
+	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
+	blobTxBytes := blobfactory.RandBlobTxsWithNamespacesAndSigner(signer, []share.Namespace{ns}, []int{100})[0]
+
+	blobTx, isBlobTx, err := tx.UnmarshalBlobTx(blobTxBytes)
+	require.NoError(t, err)
+	require.True(t, isBlobTx)
+
+	// run CheckTx to populate the cache with the original blob hash
+	checkTxResp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: blobTxBytes, Type: abci.CheckTxType_New})
+	require.NoError(t, err)
+	require.Equal(t, uint32(0), checkTxResp.Code, "CheckTx should pass: %s", checkTxResp.Log)
+
+	t.Run("Proposal with inconsistent blob tx fails", func(t *testing.T) {
+		// replace the blob with a different one (same namespace, different data)
+		inconsistentBlob, err := share.NewBlob(ns, bytes.Repeat([]byte{0xDE, 0xAD}, 50), share.ShareVersionZero, nil)
+		require.NoError(t, err)
+		inconsistentBlobTxBytes, err := tx.MarshalBlobTx(blobTx.Tx, inconsistentBlob)
+		require.NoError(t, err)
+
+		res, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+			Time:         time.Now(),
+			Height:       testApp.LastBlockHeight() + 1,
+			Txs:          [][]byte{inconsistentBlobTxBytes},
+			DataRootHash: calculateNewDataHash(t, [][]byte{inconsistentBlobTxBytes}),
+			SquareSize:   2,
+		})
+		require.NoError(t, err)
+		require.Equal(t, abci.ResponseProcessProposal_REJECT, res.Status, "ProcessProposal should reject inconsistent blob tx")
+	})
+
+	t.Run("Original blob proposal succeeds", func(t *testing.T) {
+		res, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+			Time:         time.Now(),
+			Height:       testApp.LastBlockHeight() + 1,
+			Txs:          [][]byte{blobTxBytes},
+			DataRootHash: calculateNewDataHash(t, [][]byte{blobTxBytes}), // original data hash
+			SquareSize:   2,
+		})
+		require.NoError(t, err)
+		require.Equal(t, abci.ResponseProcessProposal_ACCEPT, res.Status, "ProcessProposal should accept original blob")
+	})
 }

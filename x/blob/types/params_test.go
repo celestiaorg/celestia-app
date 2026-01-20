@@ -3,14 +3,14 @@ package types
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_validateGovMaxSquareSize(t *testing.T) {
 	type test struct {
 		name      string
-		input     interface{}
+		input     any
 		expectErr bool
 	}
 	tests := []test{

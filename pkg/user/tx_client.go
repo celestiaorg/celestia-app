@@ -12,14 +12,16 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v6/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v6/app/params"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v7/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v7/app/errors"
+	"github.com/celestiaorg/celestia-app/v7/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v7/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v7/app/params"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v7/x/minfee/types"
+	"github.com/celestiaorg/go-square/v3/share"
+	blobtx "github.com/celestiaorg/go-square/v3/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -29,14 +31,29 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 )
 
 const (
-	DefaultPollTime          = 3 * time.Second
+	DefaultPollTime          = 1 * time.Second
 	txTrackerPruningInterval = 10 * time.Minute
+	// Gas limits for initialization transactions
+	SendGasLimit         = 100000
+	FeegrantGasLimit     = 800000
+	DefaultWorkerBalance = 1
+	// evictionPollTimeOut is the timeout for checking if an evicted transaction
+	// gets committed after experiencing a broadcast error during resubmission
+	evictionPollTimeOut = 3 * time.Minute
+)
+
+var (
+	errTxQueueNotStarted    = errors.New("tx queue not started")
+	errTxQueueNotConfigured = errors.New("tx queue not configured")
 )
 
 type Option func(client *TxClient)
@@ -54,9 +71,13 @@ type txInfo struct {
 // a transaction has been submitted.
 type TxResponse struct {
 	// Height is the block height at which the transaction was included on-chain.
-	Height int64
-	TxHash string
-	Code   uint32
+	Height    int64
+	TxHash    string
+	Code      uint32
+	Codespace string
+	GasWanted int64
+	GasUsed   int64
+	Signers   []string
 }
 
 // BroadcastTxError is an error that occurs when broadcasting a transaction.
@@ -76,11 +97,39 @@ type ExecutionError struct {
 	TxHash string
 	Code   uint32
 	// ErrorLog is the error output of the app's logger
-	ErrorLog string
+	ErrorLog  string
+	Codespace string
+	GasWanted int64
+	GasUsed   int64
 }
 
 func (e *ExecutionError) Error() string {
 	return fmt.Sprintf("tx execution failed with code %d: %s", e.Code, e.ErrorLog)
+}
+
+// buildTxResponse populates the TxResponse from the TxStatus response
+func (client *TxClient) buildTxResponse(txHash string, statusResp *tx.TxStatusResponse) *TxResponse {
+	return &TxResponse{
+		Height:    statusResp.Height,
+		TxHash:    txHash,
+		Code:      statusResp.ExecutionCode,
+		Codespace: statusResp.Codespace,
+		GasWanted: statusResp.GasWanted,
+		GasUsed:   statusResp.GasUsed,
+		Signers:   statusResp.Signers,
+	}
+}
+
+// buildExecutionError populates the ExecutionError from the TxStatus response
+func (client *TxClient) buildExecutionError(txHash string, statusResp *tx.TxStatusResponse) *ExecutionError {
+	return &ExecutionError{
+		TxHash:    txHash,
+		ErrorLog:  statusResp.Error,
+		Codespace: statusResp.Codespace,
+		Code:      statusResp.ExecutionCode,
+		GasWanted: statusResp.GasWanted,
+		GasUsed:   statusResp.GasUsed,
+	}
 }
 
 // WithPollTime sets a custom polling interval with which to check if a transaction has been submitted
@@ -113,6 +162,12 @@ func WithDefaultAccount(name string) Option {
 		}
 		c.defaultAccount = name
 		c.defaultAddress = addr
+
+		// Update worker 0's account if tx queue already exists
+		if c.txQueue != nil && len(c.txQueue.workers) > 0 {
+			c.txQueue.workers[0].accountName = name
+			c.txQueue.workers[0].address = addr.String()
+		}
 	}
 }
 
@@ -134,9 +189,32 @@ func WithAdditionalCoreEndpoints(conns []*grpc.ClientConn) Option {
 	}
 }
 
+// WithTxWorkers enables parallel transaction submission with the specified number of worker accounts.
+// Worker accounts are automatically generated with hardcoded names unless numWorkers is 1, in which case
+// the existing default account is used. Workers are initialized automatically when SetupTxClient is
+// called.
+func WithTxWorkers(numWorkers int) Option {
+	if numWorkers <= 0 {
+		return func(*TxClient) {}
+	}
+
+	return func(c *TxClient) {
+		c.txQueue = newTxQueue(c, numWorkers)
+	}
+}
+
+// WithParallelQueueSize sets the buffer size for the parallel submission job queue.
+// Default is 100 if not specified.
+func WithParallelQueueSize(size int) Option {
+	return func(c *TxClient) {
+		if c.txQueue != nil {
+			c.txQueue.jobQueue = make(chan *SubmissionJob, size)
+		}
+	}
+}
+
 // TxClient is an abstraction for building, signing, and broadcasting Celestia transactions
-// It supports multiple accounts. If none is specified, it will
-// try to use the default account.
+// It supports multiple accounts.
 // TxClient is thread-safe.
 type TxClient struct {
 	mtx      sync.Mutex
@@ -154,9 +232,11 @@ type TxClient struct {
 	// that was submitted to the chain
 	txTracker           map[string]txInfo
 	gasEstimationClient gasestimation.GasEstimatorClient
+	// txQueue manages parallel transaction submission when enabled
+	txQueue *txQueue
 }
 
-// NewTxClient returns a new signer using the provided keyring
+// NewTxClient returns a new TxClient
 func NewTxClient(
 	cdc codec.Codec,
 	signer *Signer,
@@ -177,6 +257,7 @@ func NewTxClient(
 	if err != nil {
 		return nil, err
 	}
+
 	txClient := &TxClient{
 		signer:              signer,
 		registry:            registry,
@@ -193,16 +274,18 @@ func NewTxClient(
 		opt(txClient)
 	}
 
-	// Sanity check to ensure we don't have more than 3 connections
-	if len(txClient.conns) > 3 {
-		txClient.conns = txClient.conns[:3]
+	// Always create a tx queue with at least 1 worker (the default account)
+	// unless already configured by WithTxWorkers option
+	if txClient.txQueue == nil {
+		txClient.txQueue = newTxQueue(txClient, 1)
 	}
 
 	return txClient, nil
 }
 
-// SetupTxClient uses the underlying grpc connection to populate the chainID, accountNumber and sequence number of all
-// the accounts in the keyring.
+// SetupTxClient initializes a TxClient by querying the chain ID and account
+// details for all accounts in the keyring, then starts the transaction queue.
+// The queue runs until the provided context is cancelled.
 func SetupTxClient(
 	ctx context.Context,
 	keys keyring.Keyring,
@@ -210,15 +293,17 @@ func SetupTxClient(
 	encCfg encoding.Config,
 	options ...Option,
 ) (*TxClient, error) {
-	resp, err := tmservice.NewServiceClient(conn).GetLatestBlock(
+	// consider wrapping ctx with timeout for short-lived setup operations
+
+	resp, err := tmservice.NewServiceClient(conn).GetNodeInfo(
 		ctx,
-		&tmservice.GetLatestBlockRequest{},
+		&tmservice.GetNodeInfoRequest{},
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	chainID := resp.SdkBlock.Header.ChainID
+	chainID := resp.DefaultNodeInfo.Network
 
 	records, err := keys.List()
 	if err != nil {
@@ -245,27 +330,80 @@ func SetupTxClient(
 		return nil, fmt.Errorf("failed to create signer: %w", err)
 	}
 
-	return NewTxClient(encCfg.Codec, signer, conn, encCfg.InterfaceRegistry, options...)
+	txClient, err := NewTxClient(encCfg.Codec, signer, conn, encCfg.InterfaceRegistry, options...)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := txClient.txQueue.start(ctx); err != nil {
+		return nil, fmt.Errorf("failed to start tx queue: %w", err)
+	}
+
+	return txClient, nil
 }
 
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
+// This method broadcasts the transaction and waits for confirmation using the default account.
 func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
-	resp, err := client.BroadcastPayForBlob(ctx, blobs, opts...)
-	if err != nil {
-		return nil, err
+	return client.SubmitPayForBlobWithAccount(ctx, client.defaultAccount, blobs, opts...)
+}
+
+// SubmitPayForBlobToQueue submits blobs to the parallel transaction queue and blocks until confirmed.
+// TxOptions may be provided to set the fee and gas limit. This method uses the tx queue infrastructure
+// for parallel submission.
+func (client *TxClient) SubmitPayForBlobToQueue(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
+	resultsC := make(chan SubmissionResult, 1)
+	defer close(resultsC)
+
+	client.QueueBlob(ctx, resultsC, blobs, opts...)
+
+	// Block waiting for the result
+	result := <-resultsC
+	if result.Error != nil {
+		return result.TxResponse, result.Error
 	}
 
-	return client.ConfirmTx(ctx, resp.TxHash)
+	return result.TxResponse, nil
+}
+
+// QueueBlob submits blobs to the parallel transaction queue without blocking. The result will be sent
+// to the provided channel when the transaction is confirmed. The caller is responsible for creating and
+// closing the result channel.
+func (client *TxClient) QueueBlob(ctx context.Context, resultC chan SubmissionResult, blobs []*share.Blob, opts ...TxOption) {
+	if client.txQueue == nil {
+		resultC <- SubmissionResult{Error: errTxQueueNotConfigured}
+		return
+	}
+
+	if !client.txQueue.isStarted() {
+		resultC <- SubmissionResult{Error: errTxQueueNotStarted}
+		return
+	}
+
+	job := &SubmissionJob{
+		Blobs:    blobs,
+		Options:  opts,
+		Ctx:      ctx,
+		ResultsC: resultC,
+	}
+
+	client.txQueue.submitJob(job)
 }
 
 // SubmitPayForBlobWithAccount forms a transaction from the provided blobs, signs it with the provided account, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
-func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
-	resp, err := client.BroadcastPayForBlobWithAccount(ctx, account, blobs, opts...)
+func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, accountName string, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
+	resp, err := client.BroadcastPayForBlobWithAccount(ctx, accountName, blobs, opts...)
 	if err != nil {
 		return nil, err
 	}
+
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("txclient: broadcasted PFB with account", trace.WithAttributes(
+		attribute.Int("num_blobs", len(blobs)),
+		attribute.String("account", accountName),
+	))
 
 	return client.ConfirmTx(ctx, resp.TxHash)
 }
@@ -278,32 +416,32 @@ func (client *TxClient) BroadcastPayForBlob(ctx context.Context, blobs []*share.
 	return client.BroadcastPayForBlobWithAccount(ctx, client.defaultAccount, blobs, opts...)
 }
 
-func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, account string, blobs []*share.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, accountName string, blobs []*share.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
-	if err := client.checkAccountLoaded(ctx, account); err != nil {
+	if err := client.checkAccountLoaded(ctx, accountName); err != nil {
 		return nil, err
 	}
-
-	blobSizes := make([]uint32, len(blobs))
-	for i, blob := range blobs {
-		blobSizes[i] = uint32(len(blob.Data()))
+	acc, exists := client.signer.accounts[accountName]
+	if !exists {
+		return nil, fmt.Errorf("account %s not found", accountName)
 	}
-
-	gasLimit := uint64(float64(types.DefaultEstimateGas(blobSizes)))
+	signer := acc.Address().String()
+	msg, err := blobtypes.NewMsgPayForBlobs(signer, 0, blobs...)
+	if err != nil {
+		return nil, err
+	}
+	gasLimit := blobtypes.DefaultEstimateGas(msg)
 	fee := uint64(math.Ceil(appconsts.DefaultMinGasPrice * float64(gasLimit)))
 	// prepend calculated params, so it can be overwritten in case the user has specified it.
 	opts = append([]TxOption{SetGasLimit(gasLimit), SetFee(fee)}, opts...)
 
-	txBytes, _, err := client.signer.CreatePayForBlobs(account, blobs, opts...)
+	txBytes, _, err := client.signer.CreatePayForBlobs(accountName, blobs, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(client.conns) > 1 {
-		return client.broadcastMulti(ctx, txBytes, account)
-	}
-	return client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txBytes, account)
+	return client.routeTx(ctx, txBytes, accountName)
 }
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
@@ -356,7 +494,29 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 		}
 		gasLimit, err = client.estimateGas(ctx, txBuilder)
 		if err != nil {
-			return nil, err
+			// If not a sequence mismatch, return the error.
+			if !strings.Contains(err.Error(), sdkerrors.ErrWrongSequence.Error()) {
+				return nil, err
+			}
+
+			// Handle the sequence mismatch path by setting the sequence to the expected sequence
+			// and retrying gas estimation.
+			parsedErr := extractSequenceError(err.Error())
+
+			expectedSequence, err := apperrors.ParseExpectedSequence(parsedErr)
+			if err != nil {
+				return nil, fmt.Errorf("parsing sequence mismatch: %w. RawLog: %s", err, err)
+			}
+
+			if err = client.signer.SetSequence(account, expectedSequence); err != nil {
+				return nil, fmt.Errorf("setting sequence: %w", err)
+			}
+
+			// Retry gas estimation with the corrected sequence.
+			gasLimit, err = client.estimateGas(ctx, txBuilder)
+			if err != nil {
+				return nil, fmt.Errorf("retrying gas estimation: %w", err)
+			}
 		}
 		txBuilder.SetGasLimit(gasLimit)
 	}
@@ -376,36 +536,68 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 		return nil, err
 	}
 
-	if len(client.conns) > 1 {
-		return client.broadcastMulti(ctx, txBytes, account)
-	}
-	return client.broadcastTxAndIncrementSequence(ctx, client.conns[0], txBytes, account)
+	return client.routeTx(ctx, txBytes, account)
 }
 
-func (client *TxClient) broadcastTxAndIncrementSequence(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
-	resp, err := client.broadcastTx(ctx, conn, txBytes, signer)
-	if err != nil {
-		return nil, err
-	}
+// routeTx routes to single or multi-connection handling
+func (client *TxClient) routeTx(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+	span := trace.SpanFromContext(ctx)
 
-	// save the sequence and signer of the transaction in the local txTracker
+	if len(client.conns) > 1 {
+		span.AddEvent("txclient: broadcasting PFB to multiple endpoints",
+			trace.WithAttributes(attribute.Int("num_endpoints", len(client.conns))),
+		)
+		return client.submitToMultipleConnections(ctx, txBytes, signer)
+	}
+	span.AddEvent("txclient: broadcasting PFB to single endpoint")
+	return client.submitToSingleConnection(ctx, txBytes, signer)
+}
+
+// submitToSingleConnection handles submission to a single connection with retry logic at sequence mismatches and sequence management
+func (client *TxClient) submitToSingleConnection(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+	span := trace.SpanFromContext(ctx)
+
+	resp, err := client.sendTxToConnection(ctx, client.conns[0], txBytes)
+	if err != nil {
+		broadcastTxErr, ok := err.(*BroadcastTxError)
+		if !ok || !apperrors.IsNonceMismatchCode(broadcastTxErr.Code) {
+			return nil, err
+		}
+		// Handle sequence mismatch by updating to expected sequence and retrying
+		expectedSequence, err := apperrors.ParseExpectedSequence(broadcastTxErr.ErrorLog)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing sequence mismatch: %w. ErrorLog: %s", err, broadcastTxErr.ErrorLog)
+		}
+		if err = client.signer.SetSequence(signer, expectedSequence); err != nil {
+			return nil, fmt.Errorf("setting sequence: %w", err)
+		}
+		// Retry with updated sequence
+		retryTxBytes, err := client.resignTransactionWithNewSequence(txBytes)
+		if err != nil {
+			span.RecordError(fmt.Errorf("txclient/submitToSingleConnection: rebroadcast error: %w", err))
+			return nil, err
+		}
+
+		span.AddEvent("txclient/submitToSingleConnection: successfully rebroadcasted tx after sequence mismatch")
+		return client.submitToSingleConnection(ctx, retryTxBytes, signer)
+	}
+	// Save the sequence, signer and txBytes of the in the local txTracker
 	// before the sequence is incremented
 	client.trackTransaction(signer, resp.TxHash, txBytes)
 
-	// after the transaction has been submitted, we can increment the
-	// sequence of the signer
+	// Increment sequence after successful submission
 	if err := client.signer.IncrementSequence(signer); err != nil {
-		return nil, fmt.Errorf("increment sequencing: %w", err)
+		return nil, fmt.Errorf("error incrementing sequence: %w", err)
 	}
 
 	return resp, nil
 }
 
-// broadcastTx resubmits a transaction that was evicted from the mempool.
-// Unlike the initial broadcast, it doesn't increment the signer's sequence number.
-func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
-	txClient := sdktx.NewServiceClient(conn)
-	resp, err := txClient.BroadcastTx(
+// sendTxToConnection broadcasts a transaction to the chain and returns the response.
+func (client *TxClient) sendTxToConnection(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
+	span := trace.SpanFromContext(ctx)
+
+	resp, err := sdktx.NewServiceClient(conn).BroadcastTx(
 		ctx,
 		&sdktx.BroadcastTxRequest{
 			Mode:    sdktx.BroadcastMode_BROADCAST_MODE_SYNC,
@@ -413,6 +605,7 @@ func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, 
 		},
 	)
 	if err != nil {
+		span.RecordError(fmt.Errorf("txclient/broadcastTx: broadcast error: %w", err))
 		return nil, err
 	}
 	if resp.TxResponse.Code != abci.CodeTypeOK {
@@ -427,9 +620,68 @@ func (client *TxClient) broadcastTx(ctx context.Context, conn *grpc.ClientConn, 
 	return resp.TxResponse, nil
 }
 
-// broadcastMulti broadcasts the transaction to multiple connections concurrently
-// and returns the response from the first successful broadcast.
-func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+// resignTransactionWithNewSequence creates a new transaction with updated sequence from existing tx bytes
+func (client *TxClient) resignTransactionWithNewSequence(txBytes []byte) ([]byte, error) {
+	blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(txBytes)
+	if isBlobTx && err != nil {
+		return nil, err
+	}
+	if isBlobTx {
+		txBytes = blobTx.Tx
+	}
+	tx, err := client.signer.DecodeTx(txBytes)
+	if err != nil {
+		return nil, err
+	}
+	txBuilder, err := client.signer.txBuilder(tx.GetMsgs(), []TxOption{}...)
+	if err != nil {
+		return nil, err
+	}
+	if err := txBuilder.SetMsgs(tx.GetMsgs()...); err != nil {
+		return nil, err
+	}
+	if granter := tx.FeeGranter(); granter != nil {
+		txBuilder.SetFeeGranter(granter)
+	}
+	if payer := tx.FeePayer(); payer != nil {
+		txBuilder.SetFeePayer(payer)
+	}
+	if memo := tx.GetMemo(); memo != "" {
+		txBuilder.SetMemo(memo)
+	}
+	if fee := tx.GetFee(); fee != nil {
+		txBuilder.SetFeeAmount(fee)
+	}
+	if gas := tx.GetGas(); gas > 0 {
+		txBuilder.SetGasLimit(gas)
+	}
+
+	_, _, err = client.signer.signTransaction(txBuilder)
+	if err != nil {
+		return nil, fmt.Errorf("resigning transaction: %w", err)
+	}
+
+	newTxBytes, err := client.signer.EncodeTx(txBuilder.GetTx())
+	if err != nil {
+		return nil, err
+	}
+
+	// Rewrap the blob tx if it was originally a blob tx
+	if isBlobTx {
+		newTxBytes, err = blobtx.MarshalBlobTx(newTxBytes, blobTx.Blobs...)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return newTxBytes, nil
+}
+
+// submitToMultipleConnections submits the transaction to multiple connections concurrently
+// and returns the response from the first successful submission.
+func (client *TxClient) submitToMultipleConnections(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+	span := trace.SpanFromContext(ctx)
+
 	respCh := make(chan *sdktypes.TxResponse, 1)
 	errCh := make(chan error, len(client.conns))
 
@@ -443,7 +695,7 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 		go func(conn *grpc.ClientConn) {
 			defer wg.Done()
 
-			resp, err := client.broadcastTxAndIncrementSequence(ctx, conn, txBytes, signer)
+			resp, err := client.sendTxToConnection(ctx, conn, txBytes)
 			if err != nil {
 				errCh <- err
 				return
@@ -452,6 +704,9 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 			// On first successful response, send it and cancel others
 			select {
 			case respCh <- resp:
+				span.AddEvent("txclient/broadcastMulti: successful broadcast",
+					trace.WithAttributes(attribute.String("endpoint", conn.Target())),
+				)
 				cancel()
 			case <-ctx.Done():
 			}
@@ -464,7 +719,12 @@ func (client *TxClient) broadcastMulti(ctx context.Context, txBytes []byte, sign
 	close(errCh)
 
 	// Return first successful response, if any
-	if resp, ok := <-respCh; ok {
+	if resp, ok := <-respCh; ok && resp != nil {
+		client.trackTransaction(signer, resp.TxHash, txBytes)
+
+		if err := client.signer.IncrementSequence(signer); err != nil {
+			return nil, fmt.Errorf("increment sequencing: %w", err)
+		}
 		return resp, nil
 	}
 
@@ -489,55 +749,77 @@ func (client *TxClient) pruneTxTracker() {
 // hash. It will continually loop until the context is cancelled, the tx is found or an error
 // is encountered.
 func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxResponse, error) {
+	span := trace.SpanFromContext(ctx)
+
 	txClient := tx.NewTxClient(client.conns[0])
 
 	pollTicker := time.NewTicker(client.pollTime)
 	defer pollTicker.Stop()
+	var evictionPollTimeStart *time.Time
 
 	for {
+		span.AddEvent("txclient/ConfirmTx: polling for TxStatus")
 		resp, err := txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
 		if err != nil {
 			return nil, err
 		}
 
+		if evictionPollTimeStart != nil {
+			if time.Since(*evictionPollTimeStart) > evictionPollTimeOut {
+				return nil, fmt.Errorf("eviction poll timeout: transaction %s was evicted ", txHash)
+			}
+		}
+
 		switch resp.Status {
 		case core.TxStatusPending:
+			span.AddEvent("txclient/ConfirmTx: transaction pending")
 			// Continue polling if the transaction is still pending
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-pollTicker.C:
-				continue
-			}
 		case core.TxStatusCommitted:
-			txResponse := &TxResponse{
-				Height: resp.Height,
-				TxHash: txHash,
-				Code:   resp.ExecutionCode,
-			}
+			span.AddEvent("txclient/ConfirmTx: transaction committed", trace.WithAttributes(
+				attribute.Int("resp_code", int(resp.ExecutionCode)),
+			))
 			if resp.ExecutionCode != abci.CodeTypeOK {
-				executionErr := &ExecutionError{
-					TxHash:   txHash,
-					Code:     resp.ExecutionCode,
-					ErrorLog: resp.Error,
-				}
+				span.RecordError(fmt.Errorf("txclient/ConfirmTx: execution error: %s", resp.Error))
 				client.deleteFromTxTracker(txHash)
-				return nil, executionErr
+				return nil, client.buildExecutionError(txHash, resp)
 			}
+
+			span.AddEvent("txclient/ConfirmTx: transaction confirmed successfully")
 			client.deleteFromTxTracker(txHash)
-			return txResponse, nil
+			return client.buildTxResponse(txHash, resp), nil
 		case core.TxStatusEvicted:
-			_, signer, exists := client.GetTxFromTxTracker(txHash)
+			_, _, txBytes, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in txTracker; likely failed during broadcast", txHash)
 			}
-			// Resubmit straight away in the event of eviction and keep polling until tx is committed
-			_, err := client.broadcastTx(ctx, client.conns[0], client.txTracker[txHash].txBytes, signer)
-			if err != nil {
-				return nil, fmt.Errorf("resubmission for evicted tx with hash %s failed: %w", txHash, err)
+
+			if evictionPollTimeStart != nil {
+				// Eviction timer is running, no need to resubmit again
+				span.AddEvent("txclient/ConfirmTx: eviction timer already running")
+				break
 			}
+
+			span.AddEvent("txclient/ConfirmTx: transaction evicted, attempting resubmission", trace.WithAttributes(
+				attribute.String("tx_hash", txHash),
+			))
+
+			// If we're not already tracking eviction timeout, try to resubmit
+			_, err := client.sendTxToConnection(ctx, client.conns[0], txBytes)
+			if err != nil {
+				// Check if the error is a broadcast tx error
+				_, ok := err.(*BroadcastTxError)
+				if !ok {
+					return nil, err
+				}
+				// Start eviction timeout timer on any broadcast error during resubmission
+				span.AddEvent("txclient/ConfirmTx: starting eviction timer for broadcast error")
+				now := time.Now()
+				evictionPollTimeStart = &now
+			}
+			span.AddEvent("txclient/ConfirmTx: transaction resubmitted successfully after eviction")
 		case core.TxStatusRejected:
-			sequence, signer, exists := client.GetTxFromTxTracker(txHash)
+			span.RecordError(fmt.Errorf("txclient/ConfirmTx: transaction rejected: %s", resp.Error))
+			sequence, signer, _, exists := client.GetTxFromTxTracker(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
 			}
@@ -547,15 +829,36 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				return nil, fmt.Errorf("setting sequence: %w", err)
 			}
 			client.deleteFromTxTracker(txHash)
-			return nil, fmt.Errorf("tx with hash %s was rejected by the node", txHash)
+			return nil, fmt.Errorf("tx with hash %s was rejected by the node with execution code: %d and log: %s", txHash, resp.ExecutionCode, resp.Error)
 		default:
+			span.RecordError(fmt.Errorf("txclient/ConfirmTx: unknown tx status for tx: %s", txHash))
 			client.deleteFromTxTracker(txHash)
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
 			}
 			return nil, fmt.Errorf("transaction with hash %s not found", txHash)
 		}
+
+		// Single ticker wait point for all continuing cases
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-pollTicker.C:
+			continue
+		}
 	}
+}
+
+func extractSequenceError(fullError string) string {
+	start := strings.Index(fullError, "account sequence mismatch")
+	if start == -1 {
+		return fullError
+	}
+	s := fullError[start:]
+	if cut, _, ok := strings.Cut(s, " error estimating gas"); ok {
+		return cut
+	}
+	return s
 }
 
 // deleteFromTxTracker safely deletes a transaction from the local tx tracker.
@@ -593,15 +896,23 @@ func (client *TxClient) EstimateGasPriceAndUsage(
 	if err != nil {
 		return 0, 0, err
 	}
+
+	span := trace.SpanFromContext(ctx)
+
 	resp, err := client.gasEstimationClient.EstimateGasPriceAndUsage(ctx, &gasestimation.EstimateGasPriceAndUsageRequest{
 		TxPriority: priority,
 		TxBytes:    txBytes,
 	})
 	if err != nil {
+		span.RecordError(fmt.Errorf("txclient/EstimateGasPriceAndUsage: estimation error: %w", err))
 		return 0, 0, fmt.Errorf("failed to estimate gas price and usage: %w", err)
 	}
 
-	gasUsed = uint64(float64(resp.EstimatedGasUsed))
+	gasUsed = resp.EstimatedGasUsed
+	span.AddEvent("txclient/EstimateGasPriceAndUsage: estimation successful", trace.WithAttributes(
+		attribute.Int64("gas_used", int64(gasUsed)),
+		attribute.Int64("gas_price", int64(resp.EstimatedGasPrice)),
+	))
 
 	return resp.EstimatedGasPrice, gasUsed, nil
 }
@@ -614,6 +925,12 @@ func (client *TxClient) EstimateGasPrice(ctx context.Context, priority gasestima
 	if err != nil {
 		return 0, err
 	}
+
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("txclient/EstimateGasPrice: estimation successful",
+		trace.WithAttributes(attribute.Int64("gas_price", int64(resp.EstimatedGasPrice))),
+	)
+
 	return resp.EstimatedGasPrice, nil
 }
 
@@ -632,13 +949,18 @@ func (client *TxClient) estimateGas(ctx context.Context, txBuilder client.TxBuil
 		return 0, err
 	}
 
-	gasLimit := uint64(float64(resp.EstimatedGasUsed))
+	gasLimit := resp.EstimatedGasUsed
+
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("txclient/estimateGas: estimation successful",
+		trace.WithAttributes(attribute.Int64("gas_used", int64(gasLimit))),
+	)
+
 	return gasLimit, nil
 }
 
-// Account returns an account of the signer from the key name. Also returns a bool if the
-// account exists.
-// Thread-safe
+// Account returns an account of the signer from the key name.
+// Thread-safe.
 func (client *TxClient) Account(name string) *Account {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
@@ -655,12 +977,18 @@ func (client *TxClient) AccountByAddress(ctx context.Context, address sdktypes.A
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 
+	span := trace.SpanFromContext(ctx)
+
 	accountName := client.signer.accountNameByAddress(address)
 	if accountName == "" {
+		span.AddEvent(
+			fmt.Sprintf("txclient/AccountByAddress: account not found for address: %s", address.String()),
+		)
 		return nil
 	}
 
 	if err := client.checkAccountLoaded(ctx, accountName); err != nil {
+		span.RecordError(fmt.Errorf("txclient/AccountByAddress: checking account loaded error: %w", err))
 		return nil
 	}
 
@@ -717,7 +1045,8 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 	return record.Name, nil
 }
 
-// trackTransaction tracks a transaction in the tx client's local tx tracker.
+// trackTransaction tracks a transaction without acquiring the mutex.
+// This should only be called when the caller already holds the mutex.
 func (client *TxClient) trackTransaction(signer, txHash string, txBytes []byte) {
 	sequence := client.signer.Account(signer).Sequence()
 	client.txTracker[txHash] = txInfo{
@@ -729,16 +1058,66 @@ func (client *TxClient) trackTransaction(signer, txHash string, txBytes []byte) 
 }
 
 // GetTxFromTxTracker gets transaction info from the tx client's local tx tracker by its hash
-func (client *TxClient) GetTxFromTxTracker(hash string) (sequence uint64, signer string, exists bool) {
+func (client *TxClient) GetTxFromTxTracker(hash string) (sequence uint64, signer string, txBytes []byte, exists bool) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 	txInfo, exists := client.txTracker[hash]
-	return txInfo.sequence, txInfo.signer, exists
+	return txInfo.sequence, txInfo.signer, txInfo.txBytes, exists
 }
 
 // Signer exposes the tx clients underlying signer
 func (client *TxClient) Signer() *Signer {
 	return client.signer
+}
+
+// StartTxQueueForTest starts the tx queue for testing purposes.
+// This function is only intended for use in tests.
+func (client *TxClient) StartTxQueueForTest(ctx context.Context) error {
+	if client.txQueue == nil {
+		return nil
+	}
+	return client.txQueue.start(ctx)
+}
+
+// StopTxQueueForTest stops the tx queue for testing purposes.
+// This function is only intended for use in tests.
+func (client *TxClient) StopTxQueueForTest() {
+	if client.txQueue != nil {
+		client.txQueue.stop()
+	}
+}
+
+// IsTxQueueStartedForTest returns whether the tx queue is started, for testing purposes.
+// This function is only intended for use in tests.
+func (client *TxClient) IsTxQueueStartedForTest() bool {
+	if client.txQueue == nil {
+		return false
+	}
+	return client.txQueue.isStarted()
+}
+
+// TxQueueWorkerCount returns the number of workers in the tx queue
+func (client *TxClient) TxQueueWorkerCount() int {
+	if client.txQueue == nil {
+		return 0
+	}
+	return len(client.txQueue.workers)
+}
+
+// TxQueueWorkerAddress returns the address for the worker at the given index
+func (client *TxClient) TxQueueWorkerAddress(index int) string {
+	if client.txQueue == nil || index < 0 || index >= len(client.txQueue.workers) {
+		return ""
+	}
+	return client.txQueue.workers[index].address
+}
+
+// TxQueueWorkerAccountName returns the account name for the worker at the given index
+func (client *TxClient) TxQueueWorkerAccountName(index int) string {
+	if client.txQueue == nil || index < 0 || index >= len(client.txQueue.workers) {
+		return ""
+	}
+	return client.txQueue.workers[index].accountName
 }
 
 // QueryMinimumGasPrice queries both the nodes local and network wide

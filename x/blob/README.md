@@ -87,6 +87,19 @@ message MsgPayForBlobs {
 }
 ```
 
+### Message Definition Support
+
+`MsgPayForBlobs` supports both modern Cosmos SDK message definition approaches:
+
+1. **Msg Services (gRPC)**: Uses protocol buffers and gRPC service definitions for type-safe message handling. This is the preferred approach for new applications.
+
+2. **Legacy Amino Codec**: Maintains backward compatibility with amino JSON encoding/decoding, which is required for certain use cases such as:
+   - Ledger hardware wallet signing
+   - Legacy client applications
+   - Amino-based transaction serialization
+
+Both encoding methods are fully supported and can be used interchangeably. The module registers `MsgPayForBlobs` with both the protobuf interface registry (via `RegisterInterfaces`) and the legacy amino codec (via `RegisterLegacyAminoCodec`).
+
 > [!NOTE]
 > The internal representation of share versions is always `uint8`. Since protobuf doesn't support the `uint8` type, they are encoded and decoded as `uint32`.
 
@@ -185,7 +198,7 @@ celestia-appd tx blob PayForBlobs <hex encoded namespace> <hex encoded data> [fl
 ```
 
 For submitting PFB transaction via a light client's rpc, see [celestia-node's
-documentation](https://docs.celestia.org/tutorials/node-tutorial#submitting-data).
+documentation](https://docs.celestia.org/learn/TIA/submit-data/#rpc-to-a-celestia-node).
 
 The steps in the
 [`SubmitPayForBlobs`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/x/blob/payforblob.go#L15-L54)

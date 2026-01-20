@@ -7,12 +7,12 @@ import (
 	"path/filepath"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
-	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v6/x/minfee/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v7/app"
+	"github.com/celestiaorg/celestia-app/v7/app/encoding"
+	"github.com/celestiaorg/celestia-app/v7/test/util/genesis"
+	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v7/x/minfee/types"
+	"github.com/celestiaorg/go-square/v3/share"
 	cmtconfig "github.com/cometbft/cometbft/config"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 	cmtos "github.com/cometbft/cometbft/libs/os"
@@ -259,8 +259,6 @@ func (n *Network) SaveAddressBook(payloadRoot string, peers []string) error {
 	return WriteAddressBook(peers, addrBookFile)
 }
 
-type Option func(*cmtconfig.Config)
-
 func WriteAddressBook(peers []string, file string) error {
 	book := pex.NewAddrBook(file, false)
 	for _, peer := range peers {
@@ -275,9 +273,4 @@ func WriteAddressBook(peers []string, file string) error {
 	}
 	book.Save()
 	return nil
-}
-
-type Regions struct {
-	DigitalOcean map[string]int
-	Linode       map[string]int
 }

@@ -7,14 +7,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/user"
-	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v6/test/util/random"
-	"github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v7/app"
+	"github.com/celestiaorg/celestia-app/v7/app/encoding"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/user"
+	"github.com/celestiaorg/celestia-app/v7/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v7/test/util/random"
+	"github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmconfig "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
@@ -145,15 +145,15 @@ func (c *Context) WaitForTimestampWithTimeout(t time.Time, d time.Duration) (tim
 	}
 }
 
-// WaitForHeight performs a blocking check where it waits for a block to be
-// committed after a given block. If that height is not reached within a timeout,
+// WaitForHeight performs a blocking check where it waits for the network to reach
+// the specified height. If that height is not reached within a timeout,
 // an error is returned. Regardless, the latest height queried is returned.
 func (c *Context) WaitForHeight(h int64) (int64, error) {
 	return c.WaitForHeightWithTimeout(h, DefaultTimeout)
 }
 
 // WaitForTimestamp performs a blocking check where it waits for a block to be
-// committed after a given timestamp. If that height is not reached within a timeout,
+// committed after a given timestamp. If that timestamp is not reached within a timeout,
 // an error is returned. Regardless, the latest timestamp queried is returned.
 func (c *Context) WaitForTimestamp(t time.Time) (time.Time, error) {
 	return c.WaitForTimestampWithTimeout(t, 10*time.Second)
@@ -248,8 +248,11 @@ func (c *Context) PostData(account, broadcastMode string, ns share.Namespace, bl
 	if err != nil {
 		return nil, err
 	}
-
-	gas := types.DefaultEstimateGas([]uint32{uint32(len(blobData))})
+	msg, err := types.NewMsgPayForBlobs(addr.String(), 0, b)
+	if err != nil {
+		return nil, err
+	}
+	gas := types.DefaultEstimateGas(msg)
 	opts := blobfactory.FeeTxOpts(gas)
 
 	blobTx, _, err := signer.CreatePayForBlobs(account, []*share.Blob{b}, opts...)

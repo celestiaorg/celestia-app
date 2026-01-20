@@ -4,12 +4,8 @@ MONIKER="validator"
 ARCHIVE_NAME="payload.tar.gz"
 
 export DEBIAN_FRONTEND=noninteractive
-
-apt update -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
-
-export DEBIAN_FRONTEND=noninteractive
 apt-get update -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
-apt-get install git build-essential ufw curl jq chrony snapd btop nethogs --yes -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
+apt-get install git build-essential ufw curl jq chrony snapd btop nethogs unzip --yes -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
 
 ufw allow 26657/tcp
 ufw allow 26656/tcp
@@ -89,6 +85,7 @@ parsed_hostname=$(echo $hostname | awk -F'-' '{print $1 "-" $2}')
 
 cp payload/build/celestia-appd /bin/celestia-appd
 cp payload/build/txsim /bin/txsim
+cp payload/build/latency-monitor /bin/latency-monitor
 
 cd $HOME
 

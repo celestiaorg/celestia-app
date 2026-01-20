@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/app"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
@@ -203,8 +203,13 @@ func applyV6Config(cmtCfg *config.Config, appCfg *serverconfig.Config) (*config.
 	cmtCfg.Mempool.Type = defaultCfg.Mempool.Type
 	cmtCfg.Mempool.MaxGossipDelay = defaultCfg.Mempool.MaxGossipDelay
 
-	cmtCfg.P2P.SendRate = defaultCfg.P2P.SendRate
-	cmtCfg.P2P.RecvRate = defaultCfg.P2P.RecvRate
+	// Only override P2P rates if they're below the minimum
+	if cmtCfg.P2P.SendRate < defaultCfg.P2P.SendRate {
+		cmtCfg.P2P.SendRate = defaultCfg.P2P.SendRate
+	}
+	if cmtCfg.P2P.RecvRate < defaultCfg.P2P.RecvRate {
+		cmtCfg.P2P.RecvRate = defaultCfg.P2P.RecvRate
+	}
 
 	defaultAppCfg := app.DefaultAppConfig()
 
