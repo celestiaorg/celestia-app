@@ -4,7 +4,7 @@ import (
 	"cosmossdk.io/math"
 )
 
-// DefaultMinForwardAmount is the default minimum forward amount (0 = disabled)
+// DefaultMinForwardAmount is the default minimum forward amount (0 = no minimum)
 var DefaultMinForwardAmount = math.ZeroInt()
 
 // DefaultParams returns the default parameters for the forwarding module

@@ -152,7 +152,7 @@ func (m msgServer) forwardSingleToken(
 		}
 	}
 
-	// MinForwardAmount of 0 means disabled (IsPositive returns false, skipping this check)
+	// MinForwardAmount of 0 means no minimum (IsPositive returns false, skipping this check)
 	if params.MinForwardAmount.IsPositive() && balance.Amount.LT(params.MinForwardAmount) {
 		return types.NewFailureResult(balance.Denom, balance.Amount, types.ErrBelowMinimum.Error())
 	}
