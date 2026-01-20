@@ -155,7 +155,6 @@ func (k Keeper) ExecuteWarpTransfer(
 	amount math.Int,
 	quotedFee sdk.Coin,
 ) (util.HexAddress, error) {
-	// TODO(v2): Consider adding optional gas_limit param for complex recipients
 	gasLimit := math.ZeroInt()
 
 	switch token.TokenType {
@@ -171,7 +170,6 @@ func (k Keeper) ExecuteWarpTransfer(
 // QuoteIgpFee returns the IGP fee required for forwarding TIA to a destination domain.
 // This is a convenience method for relayers to estimate fees before submitting MsgForward.
 func (k Keeper) QuoteIgpFee(ctx context.Context, destDomain uint32) (sdk.Coin, error) {
-	// Quote for TIA (utia) which is the primary use case
 	token, err := k.findTIACollateralTokenForDomain(ctx, destDomain)
 	if err != nil {
 		return sdk.Coin{}, err
