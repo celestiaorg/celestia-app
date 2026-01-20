@@ -7,8 +7,6 @@ import (
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
-	tastoratypes "github.com/celestiaorg/tastora/framework/types"
-
 	addressutil "github.com/celestiaorg/tastora/framework/testutil/address"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"

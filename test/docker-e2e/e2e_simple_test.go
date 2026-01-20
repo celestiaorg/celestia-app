@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
-
 	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v7/pkg/user"
 	"github.com/celestiaorg/celestia-app/v7/test/util/testfactory"

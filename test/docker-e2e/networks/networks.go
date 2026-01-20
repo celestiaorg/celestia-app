@@ -15,6 +15,8 @@ import (
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/stretchr/testify/require"
+
+	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 )
 
 // NewConfig returns a configured instance of dockerchain.Config for the specified chain.
