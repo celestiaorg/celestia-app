@@ -16,7 +16,7 @@ The `x/forwarding` module enables single-signature cross-chain transfers through
 ## Flow
 
 1. Frontend computes `forwardAddr = derive(destDomain, destRecipient)`
-2. User sends tokens to forwardAddr via EVM warp transfer or CEX withdrawal
+2. User sends tokens to forwardAddr via warp transfer or CEX withdrawal
 3. Relayer detects deposit and submits `MsgForward`
 4. Module verifies derivation and executes warp transfer to destination
 5. Tokens arrive at destRecipient on destination chain

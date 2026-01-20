@@ -183,7 +183,7 @@ MAIN LOOP (every ~6 seconds):
 
 Currently, relaying is **unincentivized** - relayers pay gas out of pocket, similar to IBC relayers. The `MsgForward` is permissionless so anyone can trigger it.
 
-**Future enhancement**: A `tip` field could be added to incentivize relayers. For v1, keeping it simple like IBC relaying is sufficient.
+**Future enhancement**: A flat fee deducted from the forwarded amount could be added to incentivize relayers. For v1, keeping it simple like IBC relaying is sufficient.
 
 ## Backend API Specification
 
