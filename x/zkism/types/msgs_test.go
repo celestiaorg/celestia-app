@@ -26,9 +26,16 @@ func TestMsgCreateInterchainSecurityModuleValidateBasic(t *testing.T) {
 			expErr:  nil,
 		},
 		{
-			name: "invalid trusted state length",
+			name: "invalid trusted state, length too small",
 			mallate: func() {
 				msg.State = []byte{0x01}
+			},
+			expErr: types.ErrInvalidTrustedState,
+		},
+		{
+			name: "invalid trusted state, length too large",
+			mallate: func() {
+				msg.State = bytes.Repeat([]byte{0x01}, types.MaxStateBytes+1)
 			},
 			expErr: types.ErrInvalidTrustedState,
 		},

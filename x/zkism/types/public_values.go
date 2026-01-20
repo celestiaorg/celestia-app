@@ -57,6 +57,10 @@ func (v *StateTransitionValues) Unmarshal(data []byte) error {
 		return err
 	}
 
+	if l < MinStateBytes || l > MaxStateBytes {
+		return fmt.Errorf("invalid state length, must be between %d and %d", MinStateBytes, MaxStateBytes)
+	}
+
 	// read State
 	v.State = make([]byte, l)
 	if _, err := io.ReadFull(buf, v.State); err != nil {
@@ -67,6 +71,10 @@ func (v *StateTransitionValues) Unmarshal(data []byte) error {
 	var newL uint64
 	if err := binary.Read(buf, binary.LittleEndian, &newL); err != nil {
 		return err
+	}
+
+	if newL < MinStateBytes || newL > MaxStateBytes {
+		return fmt.Errorf("invalid state length, must be between %d and %d", MinStateBytes, MaxStateBytes)
 	}
 
 	// read NewState

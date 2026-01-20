@@ -17,6 +17,12 @@ const (
 
 	// MaxPaginationLimit is the maximum number of items returned in a paginated query.
 	MaxPaginationLimit = 100
+
+	// MinStateBytes is the minimumm size of the trusted ism state (32 bytes).
+	MinStateBytes = 32
+
+	// MaxStateBytes is the maximum size of the trusted ism state (2 KiB = 2048 bytes).
+	MaxStateBytes = 2048
 )
 
 var (
