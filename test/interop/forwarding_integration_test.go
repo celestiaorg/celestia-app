@@ -248,6 +248,50 @@ func (s *ForwardingIntegrationTestSuite) TestHasEnrolledRouter() {
 	s.T().Logf("Non-existent domain: %v", hasNonExistent)
 }
 
+func (s *ForwardingIntegrationTestSuite) TestHasAnyRouteToDestination() {
+	const (
+		CelestiaDomainID uint32 = 69420
+		SimappDomainID   uint32 = 1337
+		UnknownDomainID  uint32 = 99999
+	)
+
+	celestiaApp := s.GetCelestiaApp(s.celestia)
+	ctx := s.celestia.GetContext()
+
+	// Test 1: No routes exist yet
+	hasRoute, err := celestiaApp.ForwardingKeeper.HasAnyRouteToDestination(ctx, SimappDomainID)
+	s.Require().NoError(err)
+	s.False(hasRoute, "should return false when no routes exist")
+
+	// Setup infrastructure
+	ismID := s.SetupNoopISM(s.celestia)
+	mailboxID := s.SetupMailBox(s.celestia, ismID, CelestiaDomainID)
+	collatTokenID := s.CreateCollateralToken(s.celestia, ismID, mailboxID, params.BondDenom)
+
+	// Test 2: Token exists but no route enrolled
+	hasRoute, err = celestiaApp.ForwardingKeeper.HasAnyRouteToDestination(ctx, SimappDomainID)
+	s.Require().NoError(err)
+	s.False(hasRoute, "should return false when token exists but no route enrolled")
+
+	// Enroll route for collateral token
+	ismIDSimapp := s.SetupNoopISM(s.chainA)
+	s.SetupMailBox(s.chainA, ismIDSimapp, SimappDomainID)
+	synTokenID := s.CreateSyntheticToken(s.chainA, ismIDSimapp, mailboxID)
+	s.EnrollRemoteRouter(s.celestia, collatTokenID, SimappDomainID, synTokenID.String())
+
+	// Test 3: Collateral token has route - returns true
+	hasRoute, err = celestiaApp.ForwardingKeeper.HasAnyRouteToDestination(ctx, SimappDomainID)
+	s.Require().NoError(err)
+	s.True(hasRoute, "should return true when collateral token has route")
+
+	// Test 4: Non-existent domain - returns false
+	hasRoute, err = celestiaApp.ForwardingKeeper.HasAnyRouteToDestination(ctx, UnknownDomainID)
+	s.Require().NoError(err)
+	s.False(hasRoute, "should return false for non-existent domain")
+
+	s.T().Logf("Test PASSED: HasAnyRouteToDestination works correctly")
+}
+
 func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullFlow() {
 	const (
 		CelestiaDomainID uint32 = 69420
