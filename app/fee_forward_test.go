@@ -21,6 +21,60 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// createTestAppWithFeeAddressBalance creates a new app with an optional fee address balance,
+// initializes the chain, and finalizes block 1. The app is ready for block 2 operations.
+func createTestAppWithFeeAddressBalance(t *testing.T, feeAddrBalance sdk.Coin) *app.App {
+	logger := log.NewNopLogger()
+	db := tmdb.NewMemDB()
+	traceStore := &NoopWriter{}
+	appOptions := NoopAppOptions{}
+	testApp := app.New(logger, db, traceStore, time.Second, appOptions, baseapp.SetChainID(testfactory.ChainID))
+
+	// Initialize chain
+	genesisState, _, _ := util.GenesisStateWithSingleValidator(testApp, "validator")
+
+	// Modify genesis to fund the fee address if needed
+	if !feeAddrBalance.IsZero() {
+		var bankGenesis banktypes.GenesisState
+		err := json.Unmarshal(genesisState[banktypes.ModuleName], &bankGenesis)
+		require.NoError(t, err)
+
+		bankGenesis.Balances = append(bankGenesis.Balances, banktypes.Balance{
+			Address: feeaddresstypes.FeeAddressBech32,
+			Coins:   sdk.NewCoins(feeAddrBalance),
+		})
+		bankGenesis.Supply = bankGenesis.Supply.Add(feeAddrBalance)
+
+		bankGenesisBytes, err := json.Marshal(bankGenesis)
+		require.NoError(t, err)
+		genesisState[banktypes.ModuleName] = bankGenesisBytes
+	}
+
+	appStateBytes, err := json.MarshalIndent(genesisState, "", " ")
+	require.NoError(t, err)
+
+	_, err = testApp.InitChain(&abci.RequestInitChain{
+		Time:            time.Now(),
+		ChainId:         testfactory.ChainID,
+		AppStateBytes:   appStateBytes,
+		InitialHeight:   1,
+		ConsensusParams: app.DefaultConsensusParams(),
+	})
+	require.NoError(t, err)
+
+	// FinalizeBlock for block 1 to complete initialization
+	_, err = testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
+		Height: 1,
+		Time:   time.Now(),
+		Txs:    [][]byte{},
+	})
+	require.NoError(t, err)
+	_, err = testApp.Commit()
+	require.NoError(t, err)
+
+	return testApp
+}
+
 // TestProcessProposalFeeForwardValidation tests ProcessProposal validation of fee forward transactions.
 // Note: For tests that expect ACCEPT, we use PrepareProposal to get the correct DataRootHash.
 // For tests that expect REJECT, the validation fails before the DataRootHash check.
@@ -126,56 +180,7 @@ func TestProcessProposalFeeForwardValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Create a new app for each test
-			logger := log.NewNopLogger()
-			db := tmdb.NewMemDB()
-			traceStore := &NoopWriter{}
-			appOptions := NoopAppOptions{}
-			testApp := app.New(logger, db, traceStore, time.Second, appOptions, baseapp.SetChainID(testfactory.ChainID))
-
-			// Initialize chain
-			genesisState, _, _ := util.GenesisStateWithSingleValidator(testApp, "validator")
-
-			// Modify genesis to fund the fee address if needed
-			if !tc.feeAddrBalance.IsZero() {
-				var bankGenesis banktypes.GenesisState
-				err := json.Unmarshal(genesisState[banktypes.ModuleName], &bankGenesis)
-				require.NoError(t, err)
-
-				// Add balance to fee address
-				bankGenesis.Balances = append(bankGenesis.Balances, banktypes.Balance{
-					Address: feeaddresstypes.FeeAddressBech32,
-					Coins:   sdk.NewCoins(tc.feeAddrBalance),
-				})
-				bankGenesis.Supply = bankGenesis.Supply.Add(tc.feeAddrBalance)
-
-				bankGenesisBytes, err := json.Marshal(bankGenesis)
-				require.NoError(t, err)
-				genesisState[banktypes.ModuleName] = bankGenesisBytes
-			}
-
-			appStateBytes, err := json.MarshalIndent(genesisState, "", " ")
-			require.NoError(t, err)
-
-			_, err = testApp.InitChain(&abci.RequestInitChain{
-				Time:            time.Now(),
-				ChainId:         testfactory.ChainID,
-				AppStateBytes:   appStateBytes,
-				InitialHeight:   1,
-				ConsensusParams: app.DefaultConsensusParams(),
-			})
-			require.NoError(t, err)
-
-			// FinalizeBlock for block 1 to complete initialization
-			_, err = testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
-				Height: 1,
-				Time:   time.Now(),
-				Txs:    [][]byte{},
-			})
-			require.NoError(t, err)
-			_, err = testApp.Commit()
-			require.NoError(t, err)
-
+			testApp := createTestAppWithFeeAddressBalance(t, tc.feeAddrBalance)
 			blockTime := time.Now()
 
 			if tc.usePrepProposal {
@@ -250,55 +255,7 @@ func TestPrepareProposalFeeForward(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Create a new app for each test
-			logger := log.NewNopLogger()
-			db := tmdb.NewMemDB()
-			traceStore := &NoopWriter{}
-			appOptions := NoopAppOptions{}
-			testApp := app.New(logger, db, traceStore, time.Second, appOptions, baseapp.SetChainID(testfactory.ChainID))
-
-			// Initialize chain
-			genesisState, _, _ := util.GenesisStateWithSingleValidator(testApp, "validator")
-
-			// Modify genesis to fund the fee address if needed
-			if !tc.feeAddrBalance.IsZero() {
-				var bankGenesis banktypes.GenesisState
-				err := json.Unmarshal(genesisState[banktypes.ModuleName], &bankGenesis)
-				require.NoError(t, err)
-
-				// Add balance to fee address
-				bankGenesis.Balances = append(bankGenesis.Balances, banktypes.Balance{
-					Address: feeaddresstypes.FeeAddressBech32,
-					Coins:   sdk.NewCoins(tc.feeAddrBalance),
-				})
-				bankGenesis.Supply = bankGenesis.Supply.Add(tc.feeAddrBalance)
-
-				bankGenesisBytes, err := json.Marshal(bankGenesis)
-				require.NoError(t, err)
-				genesisState[banktypes.ModuleName] = bankGenesisBytes
-			}
-
-			appStateBytes, err := json.MarshalIndent(genesisState, "", " ")
-			require.NoError(t, err)
-
-			_, err = testApp.InitChain(&abci.RequestInitChain{
-				Time:            time.Now(),
-				ChainId:         testfactory.ChainID,
-				AppStateBytes:   appStateBytes,
-				InitialHeight:   1,
-				ConsensusParams: app.DefaultConsensusParams(),
-			})
-			require.NoError(t, err)
-
-			// FinalizeBlock for block 1 to complete initialization
-			_, err = testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
-				Height: 1,
-				Time:   time.Now(),
-				Txs:    [][]byte{},
-			})
-			require.NoError(t, err)
-			_, err = testApp.Commit()
-			require.NoError(t, err)
+			testApp := createTestAppWithFeeAddressBalance(t, tc.feeAddrBalance)
 
 			// PrepareProposal for block 2
 			resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
@@ -345,55 +302,55 @@ func TestPrepareProposalFeeForward(t *testing.T) {
 	}
 }
 
-// TestPrepareProposalProcessProposalRoundTrip verifies that a block created by
-// PrepareProposal is accepted by ProcessProposal.
-func TestPrepareProposalProcessProposalRoundTrip(t *testing.T) {
-	// Create app
-	logger := log.NewNopLogger()
-	db := tmdb.NewMemDB()
-	traceStore := &NoopWriter{}
-	appOptions := NoopAppOptions{}
-	testApp := app.New(logger, db, traceStore, time.Second, appOptions, baseapp.SetChainID(testfactory.ChainID))
+// TestFeeForwardGasConsumption verifies that actual gas consumption for fee forward
+// transactions stays well below the FeeForwardGasLimit constant.
+func TestFeeForwardGasConsumption(t *testing.T) {
+	feeAddrBalance := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000))
+	testApp := createTestAppWithFeeAddressBalance(t, feeAddrBalance)
 
-	// Initialize chain with fee address having a balance
-	genesisState, _, _ := util.GenesisStateWithSingleValidator(testApp, "validator")
-
-	var bankGenesis banktypes.GenesisState
-	err := json.Unmarshal(genesisState[banktypes.ModuleName], &bankGenesis)
-	require.NoError(t, err)
-
-	feeAddrBalance := sdk.NewCoin(appconsts.BondDenom, math.NewInt(5000000))
-	bankGenesis.Balances = append(bankGenesis.Balances, banktypes.Balance{
-		Address: feeaddresstypes.FeeAddressBech32,
-		Coins:   sdk.NewCoins(feeAddrBalance),
-	})
-	bankGenesis.Supply = bankGenesis.Supply.Add(feeAddrBalance)
-
-	bankGenesisBytes, err := json.Marshal(bankGenesis)
-	require.NoError(t, err)
-	genesisState[banktypes.ModuleName] = bankGenesisBytes
-
-	appStateBytes, err := json.MarshalIndent(genesisState, "", " ")
-	require.NoError(t, err)
-
-	_, err = testApp.InitChain(&abci.RequestInitChain{
-		Time:            time.Now(),
-		ChainId:         testfactory.ChainID,
-		AppStateBytes:   appStateBytes,
-		InitialHeight:   1,
-		ConsensusParams: app.DefaultConsensusParams(),
-	})
-	require.NoError(t, err)
-
-	// FinalizeBlock for block 1
-	_, err = testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
-		Height: 1,
-		Time:   time.Now(),
+	// PrepareProposal for block 2 to get the fee forward tx
+	blockTime := time.Now()
+	prepareResp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+		Height: 2,
+		Time:   blockTime,
 		Txs:    [][]byte{},
 	})
 	require.NoError(t, err)
-	_, err = testApp.Commit()
+	require.True(t, len(prepareResp.Txs) > 0, "expected fee forward tx")
+
+	// FinalizeBlock to execute the fee forward tx and get gas consumption
+	finalizeResp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
+		Height: 2,
+		Time:   blockTime,
+		Txs:    prepareResp.Txs,
+	})
 	require.NoError(t, err)
+	require.True(t, len(finalizeResp.TxResults) > 0, "expected at least one tx result")
+
+	// The first tx result should be the fee forward tx
+	feeForwardResult := finalizeResp.TxResults[0]
+	require.Equal(t, uint32(0), feeForwardResult.Code, "fee forward tx should succeed")
+
+	// Verify gas consumption is well below the limit (at least 20% margin)
+	gasUsed := feeForwardResult.GasUsed
+	gasLimit := uint64(feeaddresstypes.FeeForwardGasLimit)
+	maxExpectedGas := gasLimit * 80 / 100 // 80% of limit
+
+	t.Logf("Fee forward gas consumption: used=%d, limit=%d, max_expected=%d",
+		gasUsed, gasLimit, maxExpectedGas)
+
+	require.Less(t, uint64(gasUsed), gasLimit,
+		"gas used (%d) should be less than gas limit (%d)", gasUsed, gasLimit)
+	require.Less(t, uint64(gasUsed), maxExpectedGas,
+		"gas used (%d) should be well below gas limit (<%d) to ensure safety margin",
+		gasUsed, maxExpectedGas)
+}
+
+// TestPrepareProposalProcessProposalRoundTrip verifies that a block created by
+// PrepareProposal is accepted by ProcessProposal.
+func TestPrepareProposalProcessProposalRoundTrip(t *testing.T) {
+	feeAddrBalance := sdk.NewCoin(appconsts.BondDenom, math.NewInt(5000000))
+	testApp := createTestAppWithFeeAddressBalance(t, feeAddrBalance)
 
 	// PrepareProposal for block 2
 	blockTime := time.Now()

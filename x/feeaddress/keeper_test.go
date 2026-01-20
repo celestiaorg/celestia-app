@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	// testAmount is a standard test amount in utia for unit tests.
-	testAmount = 1000
+	// testAmountUtia is a standard test amount in utia (the smallest unit) for unit tests.
+	testAmountUtia = 1000
 )
 
 func createTestContext() sdk.Context {
@@ -36,7 +36,7 @@ func createContextWithFeeAmount(fee sdk.Coins) sdk.Context {
 func TestForwardFeesEmitsEvent(t *testing.T) {
 	keeper := NewKeeper()
 
-	amount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(testAmount))
+	amount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(testAmountUtia))
 	fee := sdk.NewCoins(amount)
 	ctx := createContextWithFeeAmount(fee)
 
@@ -59,7 +59,7 @@ func TestForwardFeesEmitsEvent(t *testing.T) {
 			foundFrom = true
 		}
 		if attr.Key == "amount" {
-			expectedAmount := fmt.Sprintf("\"%d%s\"", testAmount, appconsts.BondDenom)
+			expectedAmount := fmt.Sprintf("\"%d%s\"", testAmountUtia, appconsts.BondDenom)
 			require.Equal(t, expectedAmount, attr.Value)
 			foundAmount = true
 		}
@@ -189,7 +189,7 @@ func TestIsFeeForwardTx(t *testing.T) {
 
 // TestGetFeeForwardAmount verifies the GetFeeForwardAmount context helper.
 func TestGetFeeForwardAmount(t *testing.T) {
-	testFee := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(testAmount)))
+	testFee := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(testAmountUtia)))
 
 	tests := []struct {
 		name        string

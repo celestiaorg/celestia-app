@@ -58,17 +58,12 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	if !feeBalance.IsZero() {
 		feeForwardTx, err := app.createFeeForwardTx(ctx, feeBalance)
 		if err != nil {
-			// Log error but continue - don't fail block production.
-			// Note: This block will be rejected by ProcessProposal since fee address has balance
-			// but no fee forward tx. Funds remain in fee address until a successful forward.
-			app.Logger().Error("failed to create fee forward tx, block will likely be rejected",
-				"error", err.Error(),
-				"fee_balance", feeBalance.String())
-		} else {
-			// Prepend fee forward tx so it executes first
-			txsToProcess = append([][]byte{feeForwardTx}, req.Txs...)
-			hasFeeForwardTx = true
+			// Fail explicitly rather than producing a block that ProcessProposal will reject.
+			return nil, fmt.Errorf("failed to create fee forward tx: %w; fee_balance=%s", err, feeBalance.String())
 		}
+		// Prepend fee forward tx so it executes first
+		txsToProcess = append([][]byte{feeForwardTx}, req.Txs...)
+		hasFeeForwardTx = true
 	}
 
 	txs := fsb.Fill(ctx, txsToProcess)

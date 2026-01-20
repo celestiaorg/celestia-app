@@ -5,11 +5,11 @@ import (
 )
 
 // NewFeeForwardedEvent returns a new EventFeeForwarded.
-// The 'to' field is always the fee collector module account.
+// The 'to_module' field is always the fee collector module account.
 func NewFeeForwardedEvent(from string, amount string) *EventFeeForwarded {
 	return &EventFeeForwarded{
-		From:   from,
-		To:     authtypes.FeeCollectorName,
-		Amount: amount,
+		From:     from,
+		ToModule: authtypes.FeeCollectorName,
+		Amount:   amount,
 	}
 }

@@ -1,7 +1,6 @@
 package app
 
 import (
-	"encoding/json"
 	"testing"
 
 	"cosmossdk.io/log"
@@ -74,7 +73,7 @@ func createFeeAddressTransferPacket(denom, receiver string) channeltypes.Packet 
 		Sender:   "cosmos1sender",
 		Receiver: receiver,
 	}
-	dataBz, _ := json.Marshal(data)
+	dataBz := transfertypes.ModuleCdc.MustMarshalJSON(&data)
 	return channeltypes.Packet{
 		Sequence:           1,
 		SourcePort:         "transfer",
