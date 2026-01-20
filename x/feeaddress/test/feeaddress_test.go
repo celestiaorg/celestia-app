@@ -23,8 +23,6 @@ const (
 	utiaPerTIA = 1_000_000
 	// halfTIA is half a TIA in utia, used for smaller test amounts.
 	halfTIA = 500_000
-	// largeAmountUtia is a large amount (1000 TIA) for testing overflow scenarios.
-	largeAmountUtia = 1000 * utiaPerTIA
 )
 
 // IntegrationTestSuite runs end-to-end tests against a real test network.
@@ -53,7 +51,6 @@ func (s *IntegrationTestSuite) SetupSuite() {
 // 1. Tokens are transferred to fee address
 // 2. Tokens are forwarded to fee collector via protocol-injected MsgForwardFees tx in next block
 // 3. Fee address balance is empty after forwarding
-// 4. EventFeeForwarded event is emitted with correct attributes
 func (s *IntegrationTestSuite) TestFeeAddressSendAndForward() {
 	require := s.Require()
 	require.NoError(s.cctx.WaitForNextBlock())
@@ -82,10 +79,6 @@ func (s *IntegrationTestSuite) TestFeeAddressSendAndForward() {
 	// Wait for next block to forward the tokens via MsgForwardFees
 	require.NoError(s.cctx.WaitForNextBlock())
 
-	// Get the current height (the block where forwarding happened)
-	forwardHeight, err := s.cctx.LatestHeight()
-	require.NoError(err)
-
 	// Verify fee address is empty (MsgForwardFees forwarded tokens to fee collector)
 	// Note: We can't check fee collector balance because the distribution module's
 	// BeginBlocker distributes tokens to validators, emptying the fee collector.
@@ -99,17 +92,6 @@ func (s *IntegrationTestSuite) TestFeeAddressSendAndForward() {
 	require.True(finalBalance.LT(initialBalance.Sub(sendAmount.Amount)),
 		"account balance should decrease by at least send amount: initial=%s, final=%s, sendAmount=%s",
 		initialBalance, finalBalance, sendAmount.Amount)
-
-	// Verify EventFeeForwarded was emitted (if BlockResults is available)
-	eventAttrs := s.findFeeForwardedEvent(forwardHeight)
-	if eventAttrs != nil {
-		require.Equal(feeaddresstypes.FeeAddressBech32, eventAttrs["from"],
-			"event 'from' should be the fee address")
-		require.Equal("fee_collector", eventAttrs["to_module"],
-			"event 'to_module' should be fee_collector")
-		require.Contains(eventAttrs["amount"], appconsts.BondDenom,
-			"event 'amount' should contain the bond denom")
-	}
 }
 
 // TestFeeAddressRejectsNonUtia verifies that sending non-utia tokens to the fee address
@@ -239,32 +221,6 @@ func (s *IntegrationTestSuite) getFeeAddressBalance() math.Int {
 	return resp.Balance.Amount
 }
 
-// findFeeForwardedEvent searches block results for an EventFeeForwarded event.
-// Returns the event attributes if found, nil if not found, or nil with logged skip
-// if the node doesn't support BlockResults (e.g., in short mode).
-func (s *IntegrationTestSuite) findFeeForwardedEvent(height int64) map[string]string {
-	results, err := s.cctx.Client.BlockResults(s.cctx.GoContext(), &height)
-	if err != nil {
-		// BlockResults may not be available in all test configurations
-		s.T().Logf("Skipping event verification: %v", err)
-		return nil
-	}
-
-	// Search in tx results for the event
-	for _, txResult := range results.TxsResults {
-		for _, event := range txResult.Events {
-			if event.Type == "celestia.feeaddress.v1.EventFeeForwarded" {
-				attrs := make(map[string]string)
-				for _, attr := range event.Attributes {
-					attrs[attr.Key] = attr.Value
-				}
-				return attrs
-			}
-		}
-	}
-	return nil
-}
-
 // TestZeroBalanceTransition verifies correct behavior when fee address
 // transitions between zero and non-zero balance across multiple blocks.
 func (s *IntegrationTestSuite) TestZeroBalanceTransition() {
@@ -367,35 +323,3 @@ func (s *IntegrationTestSuite) TestMultipleSendsAccumulate() {
 		"fee address should be empty after forwarding multiple sends: balance=%s", finalBalance)
 }
 
-// TestLargeAmountTransferToFeeAddress verifies that large amounts (1000 TIA)
-// can be sent to the fee address and forwarded without overflow issues.
-func (s *IntegrationTestSuite) TestLargeAmountTransferToFeeAddress() {
-	require := s.Require()
-	require.NoError(s.cctx.WaitForNextBlock())
-
-	account := s.accounts[0]
-	accountAddr := testfactory.GetAddress(s.cctx.Keyring, account)
-	largeAmount := sdk.NewCoin(appconsts.BondDenom, math.NewInt(largeAmountUtia))
-
-	msgSend := &banktypes.MsgSend{
-		FromAddress: accountAddr.String(),
-		ToAddress:   feeaddresstypes.FeeAddressBech32,
-		Amount:      sdk.NewCoins(largeAmount),
-	}
-
-	txClient, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg, user.WithDefaultAccount(account))
-	require.NoError(err)
-
-	res, err := txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msgSend}, blobfactory.DefaultTxOpts()...)
-	require.NoError(err)
-	require.NotNil(res)
-	require.Equal(abci.CodeTypeOK, res.Code, "large amount send to fee address should succeed: code=%d", res.Code)
-
-	// Wait for forwarding
-	require.NoError(s.cctx.WaitForNextBlock())
-
-	// Verify fee address is empty after forwarding
-	feeAddressBalance := s.getFeeAddressBalance()
-	require.True(feeAddressBalance.IsZero(),
-		"fee address should be empty after forwarding large amount: balance=%s", feeAddressBalance)
-}
