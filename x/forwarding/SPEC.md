@@ -49,7 +49,7 @@ Note: TIA collateral token is discovered at runtime by iterating warp tokens wit
 
 ### MsgForward
 
-Forwards ALL tokens at a forwarding address to the committed destination.
+Forwards up to 20 tokens at a forwarding address to the committed destination.
 The relayer (signer) pays both Celestia gas and Hyperlane IGP fees.
 
 ```protobuf
