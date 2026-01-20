@@ -25,7 +25,7 @@ The `x/forwarding` module enables single-signature cross-chain transfers through
 
 Forwarding addresses are deterministically derived:
 
-```
+```text
 callDigest   = sha256(destDomain_32bytes || destRecipient)
 salt         = sha256(version_byte || callDigest)       // version_byte = 0x01
 forwardAddr  = address.Module("forwarding", salt)[:20]
@@ -124,6 +124,7 @@ Cross-chain message delivery requires paying Hyperlane's IGP (Interchain Gas Pay
 The relayer (signer) pays these fees as part of `MsgForward`.
 
 **Fee Flow:**
+
 1. Relayer queries `QuoteForwardingFee` to estimate the required IGP fee
 2. Relayer submits `MsgForward` with `max_igp_fee >= quoted fee`
 3. Module quotes actual fee via Hyperlane's `QuoteDispatch`
@@ -172,6 +173,7 @@ celestia-appd tx forwarding forward <forward-addr> 42161 \
 ```
 
 **Parameter Formats:**
+
 - `dest-domain`: uint32 domain ID (e.g., `1` for Ethereum mainnet, `42161` for Arbitrum)
 - `dest-recipient`: 32-byte hex-encoded address with `0x` prefix. For EVM chains, use the 20-byte address left-padded with 12 zero bytes (e.g., `0x000000000000000000000000<20-byte-eth-address>`)
 - `max-igp-fee`: Maximum IGP fee to pay per token (e.g., `1000utia`)

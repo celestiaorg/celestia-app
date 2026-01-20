@@ -73,8 +73,21 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 	}
 
 	results := m.processTokens(ctx, forwardAddr, moduleAddr, signerAddr, balances, msg, destRecipient, params)
-	m.emitSummaryEvent(ctx, msg, results)
 
+	// If all tokens failed, return error (partial failure is OK, total failure is not)
+	allFailed := true
+	for _, r := range results {
+		if r.Success {
+			allFailed = false
+			break
+		}
+	}
+	if allFailed && len(results) > 0 {
+		m.emitSummaryEvent(ctx, msg, results)
+		return nil, fmt.Errorf("%w: all %d tokens failed to forward", types.ErrAllTokensFailed, len(results))
+	}
+
+	m.emitSummaryEvent(ctx, msg, results)
 	return &types.MsgForwardResponse{Results: results}, nil
 }
 
