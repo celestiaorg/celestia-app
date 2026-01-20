@@ -17,12 +17,9 @@ func NewEarlyFeeForwardDetector() EarlyFeeForwardDetector {
 
 // AnteHandle implements sdk.AnteDecorator.
 func (d EarlyFeeForwardDetector) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	msgs := tx.GetMsgs()
-	if len(msgs) == 1 {
-		if _, ok := msgs[0].(*feeaddresstypes.MsgForwardFees); ok {
-			// Set the context flag early so ValidateBasic and other decorators can be skipped
-			ctx = ctx.WithValue(FeeForwardContextKey{}, true)
-		}
+	if feeaddresstypes.IsFeeForwardMsg(tx) != nil {
+		// Set the context flag early so ValidateBasic and other decorators can be skipped
+		ctx = ctx.WithValue(FeeForwardContextKey{}, true)
 	}
 	return next(ctx, tx, simulate)
 }

@@ -72,7 +72,8 @@ grpcurl -plaintext localhost:9090 celestia.feeaddress.v1.Query/FeeAddress
 
 Emitted when tokens are forwarded from the fee address to the fee collector.
 
-| Attribute | Type   | Description                     |
-|-----------|--------|---------------------------------|
-| from      | string | The fee address (bech32)        |
-| amount    | string | Amount forwarded (e.g., "1000utia") |
+| Attribute | Type   | Description                              |
+|-----------|--------|------------------------------------------|
+| from      | string | The fee address (bech32)                 |
+| to        | string | Destination module (always "fee_collector") |
+| amount    | string | Amount forwarded (e.g., "1000000utia")   |

@@ -142,7 +142,8 @@ func (app *App) setModuleOrder() {
 		minfeetypes.ModuleName,
 		packetforwardtypes.ModuleName,
 		icatypes.ModuleName,
-		// feeaddress must be last to ensure all transfers (including IBC) complete before forwarding to fee collector
+		// feeaddress has no EndBlocker - forwarding happens via protocol-injected tx in PrepareProposal.
+		// Listed here for completeness as it may acquire EndBlocker logic in the future.
 		feeaddresstypes.ModuleName,
 	)
 

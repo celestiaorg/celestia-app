@@ -50,7 +50,7 @@ func NewFeeForwardDecorator(bankKeeper feeaddresstypes.BankKeeper) *FeeForwardDe
 
 // AnteHandle implements sdk.AnteDecorator.
 func (d FeeForwardDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	msg := getMsgForwardFees(tx)
+	msg := feeaddresstypes.IsFeeForwardMsg(tx)
 	if msg == nil {
 		return next(ctx, tx, simulate)
 	}
@@ -89,28 +89,16 @@ func (d FeeForwardDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate boo
 	}
 
 	// Set context flag to skip remaining fee/sig decorators.
-	// Note: EarlyFeeForwardDetector also sets this flag earlier in the ante chain
-	// (for skipping ValidateBasic). Setting it here ensures the flag is set even
-	// if the ante chain configuration changes.
+	// Note: EarlyFeeForwardDetector sets this flag earlier in the ante chain
+	// (before ValidateBasic). This second set is intentionally redundant for
+	// defense-in-depth: if the ante chain is reconfigured and EarlyFeeForwardDetector
+	// is removed or reordered, fee forward txs will still work correctly.
 	ctx = ctx.WithValue(FeeForwardContextKey{}, true)
 
 	// Store the fee amount in context for the message handler to emit the event
 	ctx = ctx.WithValue(FeeForwardAmountContextKey{}, fee)
 
 	return next(ctx, tx, simulate)
-}
-
-// getMsgForwardFees returns the MsgForwardFees if the transaction contains one, nil otherwise.
-func getMsgForwardFees(tx sdk.Tx) *feeaddresstypes.MsgForwardFees {
-	msgs := tx.GetMsgs()
-	if len(msgs) != 1 {
-		return nil
-	}
-	msg, ok := msgs[0].(*feeaddresstypes.MsgForwardFees)
-	if !ok {
-		return nil
-	}
-	return msg
 }
 
 // IsFeeForwardTx returns true if the context indicates this is a fee forward transaction.

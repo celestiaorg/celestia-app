@@ -262,12 +262,7 @@ func (app *App) isFeeForwardTx(txBytes []byte) bool {
 	if err != nil {
 		return false
 	}
-	msgs := sdkTx.GetMsgs()
-	if len(msgs) != 1 {
-		return false
-	}
-	_, ok := msgs[0].(*feeaddresstypes.MsgForwardFees)
-	return ok
+	return feeaddresstypes.IsFeeForwardMsg(sdkTx) != nil
 }
 
 // parseFeeForwardTx decodes a transaction and checks if it's a MsgForwardFees.
@@ -277,12 +272,7 @@ func (app *App) parseFeeForwardTx(txBytes []byte) (sdk.Tx, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	msgs := sdkTx.GetMsgs()
-	if len(msgs) != 1 {
-		return sdkTx, false, nil
-	}
-	_, ok := msgs[0].(*feeaddresstypes.MsgForwardFees)
-	return sdkTx, ok, nil
+	return sdkTx, feeaddresstypes.IsFeeForwardMsg(sdkTx) != nil, nil
 }
 
 // validateFeeForwardTx validates a decoded fee forward transaction:
@@ -291,12 +281,9 @@ func (app *App) parseFeeForwardTx(txBytes []byte) (sdk.Tx, bool, error) {
 // - Gas limit must match FeeForwardGasLimit
 func (app *App) validateFeeForwardTx(sdkTx sdk.Tx, expectedFee sdk.Coin) error {
 	// Verify there's exactly one message and it's MsgForwardFees
-	msgs := sdkTx.GetMsgs()
-	if len(msgs) != 1 {
-		return fmt.Errorf("fee forward tx must have exactly one message, got %d", len(msgs))
-	}
-	if _, ok := msgs[0].(*feeaddresstypes.MsgForwardFees); !ok {
-		return fmt.Errorf("message is not MsgForwardFees")
+	// (defense-in-depth: parseFeeForwardTx already checks this)
+	if feeaddresstypes.IsFeeForwardMsg(sdkTx) == nil {
+		return fmt.Errorf("transaction is not a valid fee forward tx")
 	}
 
 	// Verify the fee equals the expected fee balance
