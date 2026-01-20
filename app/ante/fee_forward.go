@@ -2,7 +2,6 @@ package ante
 
 import (
 	"context"
-	"fmt"
 
 	"cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
@@ -56,6 +55,11 @@ func (d FeeForwardDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate boo
 		return ctx, errors.Wrap(sdkerrors.ErrInvalidRequest, "MsgForwardFees cannot be submitted by users; it is protocol-injected only")
 	}
 
+	// Verify the context flag was set by EarlyFeeForwardDetector (defense-in-depth).
+	if !IsFeeForwardTx(ctx) {
+		return ctx, errors.Wrap(sdkerrors.ErrLogic, "fee forward context flag not set; EarlyFeeForwardDetector missing from ante chain")
+	}
+
 	// Get the fee from the transaction
 	feeTx, ok := tx.(sdk.FeeTx)
 	if !ok {
@@ -63,29 +67,15 @@ func (d FeeForwardDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate boo
 	}
 	fee := feeTx.GetFee()
 
-	if !fee.IsValid() || fee.IsZero() {
-		return ctx, errors.Wrap(sdkerrors.ErrInvalidRequest, "fee forward tx must have non-zero fee")
-	}
-
-	// Fee must be exactly one coin in the native denom (defense-in-depth, also checked in ProcessProposal)
-	if len(fee) != 1 {
-		return ctx, errors.Wrap(sdkerrors.ErrInvalidRequest, fmt.Sprintf("fee forward tx must have exactly one fee coin, got %d", len(fee)))
-	}
-	if fee[0].Denom != appconsts.BondDenom {
-		return ctx, errors.Wrap(sdkerrors.ErrInvalidRequest, fmt.Sprintf("fee forward tx must use %s, got %s", appconsts.BondDenom, fee[0].Denom))
+	// Fee must be exactly one positive coin in the native denom (defense-in-depth, also checked in ProcessProposal)
+	if len(fee) != 1 || fee[0].Denom != appconsts.BondDenom || !fee[0].Amount.IsPositive() {
+		return ctx, errors.Wrapf(sdkerrors.ErrInvalidRequest, "fee forward tx requires exactly one positive %s coin, got %s", appconsts.BondDenom, fee)
 	}
 
 	// Deduct fee from fee address and send to fee collector
 	err := d.bankKeeper.SendCoinsFromAccountToModule(ctx, feeaddresstypes.FeeAddress, authtypes.FeeCollectorName, fee)
 	if err != nil {
 		return ctx, errors.Wrap(err, "failed to deduct fee from fee address")
-	}
-
-	// Verify the context flag was set by EarlyFeeForwardDetector.
-	// This is a defense-in-depth check to catch ante chain misconfiguration.
-	// If this assertion fails, EarlyFeeForwardDetector is missing or misplaced.
-	if !IsFeeForwardTx(ctx) {
-		return ctx, errors.Wrap(sdkerrors.ErrLogic, "fee forward context flag not set; EarlyFeeForwardDetector missing from ante chain")
 	}
 
 	// Store the fee amount in context for the message handler to emit the event

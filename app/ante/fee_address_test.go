@@ -307,7 +307,7 @@ func TestFeeForwardDecoratorValidatesSingleDenom(t *testing.T) {
 	_, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
 
 	require.Error(t, err)
-	require.ErrorContains(t, err, "must have exactly one fee coin")
+	require.ErrorContains(t, err, "fee forward tx requires exactly one positive utia coin")
 }
 
 func TestFeeForwardDecoratorRejectsWrongDenom(t *testing.T) {
@@ -326,7 +326,7 @@ func TestFeeForwardDecoratorRejectsWrongDenom(t *testing.T) {
 	_, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
 
 	require.Error(t, err)
-	require.ErrorContains(t, err, "must use utia")
+	require.ErrorContains(t, err, "fee forward tx requires exactly one positive utia coin")
 }
 
 func TestFeeForwardDecoratorSuccess(t *testing.T) {
@@ -414,7 +414,7 @@ func TestFeeForwardDecoratorZeroFeeRejected(t *testing.T) {
 	_, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
 
 	require.Error(t, err)
-	require.ErrorContains(t, err, "must have non-zero fee")
+	require.ErrorContains(t, err, "fee forward tx requires exactly one positive utia coin")
 }
 
 func TestFeeAddressDecoratorDeeplyNestedAuthz(t *testing.T) {

@@ -56,7 +56,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	feeBalance := app.BankKeeper.GetBalance(ctx, feeaddresstypes.FeeAddress, appconsts.BondDenom)
 	hasFeeForwardTx := false
 	if !feeBalance.IsZero() {
-		feeForwardTx, err := app.createFeeForwardTx(ctx, feeBalance)
+		feeForwardTx, err := app.createFeeForwardTx(feeBalance)
 		if err != nil {
 			// Fail explicitly rather than producing a block that ProcessProposal will reject.
 			return nil, fmt.Errorf("failed to create fee forward tx: %w; fee_balance=%s", err, feeBalance.String())
@@ -116,7 +116,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 // createFeeForwardTx creates an unsigned MsgForwardFees transaction with the
 // specified fee amount. The transaction has no signers - it's validated by
 // ProcessProposal checking that tx fee == fee address balance.
-func (app *App) createFeeForwardTx(_ sdk.Context, feeAmount sdk.Coin) ([]byte, error) {
+func (app *App) createFeeForwardTx(feeAmount sdk.Coin) ([]byte, error) {
 	msg := feeaddresstypes.NewMsgForwardFees()
 
 	// Build the transaction

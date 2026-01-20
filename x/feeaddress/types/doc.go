@@ -10,4 +10,11 @@
 //   - FeeAddress: The deterministic address where tokens are sent
 //   - FeeAddressBech32: Bech32-encoded fee address
 //   - FeeForwardGasLimit: Gas limit for fee forward transactions
+//
+// # No Keeper Dependencies
+//
+// This module intentionally has no keeper dependencies. The feeaddress keeper
+// is stateless (no store keys). Fee deduction and bank transfers are handled
+// by FeeForwardDecorator in app/ante. Communication between ante handler and
+// keeper uses context values (FeeForwardContextKey, FeeForwardAmountContextKey).
 package types

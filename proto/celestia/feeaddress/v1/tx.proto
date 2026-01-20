@@ -28,13 +28,7 @@ service Msg {
 // Note: This message intentionally has no signer annotation because it is a
 // protocol-injected unsigned transaction. The GetSigners() method returns an
 // empty slice, and signature verification is skipped via ante handler flags.
-message MsgForwardFees {
-  // Reserved for future fields (e.g., block height, sequence)
-  reserved 1 to 10;
-}
+message MsgForwardFees {}
 
 // MsgForwardFeesResponse is the response type for the ForwardFees RPC.
-message MsgForwardFeesResponse {
-  // Reserved for future fields
-  reserved 1 to 10;
-}
+message MsgForwardFeesResponse {}
