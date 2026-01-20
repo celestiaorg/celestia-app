@@ -143,6 +143,32 @@ func (k Keeper) HasEnrolledRouter(ctx context.Context, tokenId util.HexAddress, 
 	return k.warpKeeper.EnrolledRouters.Has(ctx, collections.Join(tokenId.GetInternalId(), destDomain))
 }
 
+// HasAnyRouteToDestination returns true if any warp token has an enrolled router
+// for the destination domain. This validates that forwarding is possible before
+// deriving an address, regardless of which token type will be forwarded.
+//
+// Note: This is O(n) where n = number of warp tokens. Accepted tradeoff for
+// correctness - the query validates ALL token types, not just TIA.
+func (k Keeper) HasAnyRouteToDestination(ctx context.Context, destDomain uint32) (bool, error) {
+	iter, err := k.warpKeeper.HypTokens.Iterate(ctx, nil)
+	if err != nil {
+		return false, fmt.Errorf("failed to iterate warp tokens: %w", err)
+	}
+	defer iter.Close()
+
+	for ; iter.Valid(); iter.Next() {
+		token, err := iter.Value()
+		if err != nil {
+			continue
+		}
+		hasRoute, _ := k.HasEnrolledRouter(ctx, token.Id, destDomain)
+		if hasRoute {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // ExecuteWarpTransfer executes a Hyperlane warp transfer using the pre-computed IGP fee.
 // The quotedFee must be provided by the caller (collected from the relayer in msg_server).
 // This ensures only relayer-provided funds are used for IGP fees (no module-paid fallback).

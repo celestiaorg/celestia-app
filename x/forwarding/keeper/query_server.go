@@ -37,12 +37,15 @@ func (q queryServer) DeriveForwardingAddress(ctx context.Context, req *types.Que
 	}
 	// Length validation is done in DeriveForwardingAddress
 
-	// Check if there's a TIA warp route to the destination domain.
+	// Check if any warp route exists to the destination domain.
 	// This prevents users from getting addresses for non-existent routes,
 	// which would lead to stuck funds until a route is created.
-	_, err = q.k.findTIACollateralTokenForDomain(ctx, req.DestDomain)
+	hasRoute, err := q.k.HasAnyRouteToDestination(ctx, req.DestDomain)
 	if err != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "no warp route to domain %d: %v", req.DestDomain, err)
+		return nil, status.Errorf(codes.Internal, "failed to check routes: %v", err)
+	}
+	if !hasRoute {
+		return nil, status.Errorf(codes.FailedPrecondition, "no warp route to domain %d", req.DestDomain)
 	}
 
 	// Derive the forwarding address
