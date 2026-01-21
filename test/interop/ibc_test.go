@@ -156,69 +156,6 @@ func (suite *TokenFilterTestSuite) TestHandleInboundTransfer() {
 	suite.Require().Equal(sdk.NewInt64Coin(voucherDenomTrace.IBCDenom(), 0), finalCelestiaBalance)
 }
 
-// TestInboundTransferToFeeAddressRejected verifies that non-utia tokens
-// sent to the fee address via IBC are rejected and the sender is refunded.
-func (suite *TokenFilterTestSuite) TestInboundTransferToFeeAddressRejected() {
-	// setup between celestiaChain and otherChain
-	path := ibctesting.NewTransferPath(suite.celestia, suite.simapp)
-	suite.coordinator.Setup(path)
-
-	simApp := suite.GetSimapp(suite.simapp)
-	celestiaApp := suite.GetCelestiaApp(suite.celestia)
-
-	// Use a foreign denom that is NOT utia (celestia's bond denom).
-	// Since sdk.DefaultBondDenom is set to "utia" via app/init.go,
-	// we need to use a different denom to test rejection.
-	const foreignDenom = "uforeign"
-
-	// Mint foreign tokens to the sender account on simapp
-	amount, ok := math.NewIntFromString("1000")
-	suite.Require().True(ok)
-	foreignCoins := sdk.NewCoins(sdk.NewCoin(foreignDenom, amount))
-	err := simApp.BankKeeper.MintCoins(suite.simapp.GetContext(), "mint", foreignCoins)
-	suite.Require().NoError(err)
-	err = simApp.BankKeeper.SendCoinsFromModuleToAccount(suite.simapp.GetContext(), "mint", suite.simapp.SenderAccount.GetAddress(), foreignCoins)
-	suite.Require().NoError(err)
-
-	// Get original balance on simapp (the sender chain)
-	originalBalance := simApp.BankKeeper.GetBalance(suite.simapp.GetContext(), suite.simapp.SenderAccount.GetAddress(), foreignDenom)
-	suite.Require().Equal(amount, originalBalance.Amount)
-
-	timeoutHeight := clienttypes.NewHeight(1, 110)
-	coinToSend := sdk.NewCoin(foreignDenom, amount)
-
-	// Send foreign token from simapp to celestia fee address
-	// This should be rejected by the FeeAddressIBCMiddleware
-	msg := types.NewMsgTransfer(
-		path.EndpointB.ChannelConfig.PortID,
-		path.EndpointB.ChannelID,
-		coinToSend,
-		suite.simapp.SenderAccount.GetAddress().String(),
-		feeaddresstypes.FeeAddressBech32, // Sending to fee address
-		timeoutHeight,
-		0,
-		"",
-	)
-	res, err := suite.simapp.SendMsgs(msg)
-	suite.Require().NoError(err) // message committed on simapp
-
-	packet, err := ibctesting.ParsePacketFromEvents(res.GetEvents())
-	suite.Require().NoError(err)
-
-	// Relay the packet - this should result in an error acknowledgement
-	err = path.RelayPacket(packet)
-	suite.Require().NoError(err) // relay committed (error ack is still "successful" relay)
-
-	// Verify the fee address on celestia has zero balance of the IBC token
-	voucherDenomTrace := types.ParseDenomTrace(types.GetPrefixedDenom(packet.GetDestPort(), packet.GetDestChannel(), foreignDenom))
-	feeAddressBalance := celestiaApp.BankKeeper.GetBalance(suite.celestia.GetContext(), feeaddresstypes.FeeAddress, voucherDenomTrace.IBCDenom())
-	suite.Require().Equal(sdk.NewInt64Coin(voucherDenomTrace.IBCDenom(), 0), feeAddressBalance, "fee address should have zero balance")
-
-	// Verify the sender on simapp was refunded (balance restored)
-	newBalance := simApp.BankKeeper.GetBalance(suite.simapp.GetContext(), suite.simapp.SenderAccount.GetAddress(), foreignDenom)
-	suite.Require().Equal(originalBalance, newBalance, "sender should be refunded after rejection")
-}
-
 // TestInboundUtiaReturnToFeeAddressAllowed verifies that native utia returning
 // to Celestia can be sent to the fee address and will be forwarded to fee collector.
 func (suite *TokenFilterTestSuite) TestInboundUtiaReturnToFeeAddressAllowed() {

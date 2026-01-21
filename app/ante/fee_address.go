@@ -7,7 +7,6 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 )
 
 var _ sdk.AnteDecorator = FeeAddressDecorator{}
@@ -43,8 +42,6 @@ func (fad FeeAddressDecorator) validateMessage(msg sdk.Msg) error {
 				return err
 			}
 		}
-	case *ibctransfertypes.MsgTransfer:
-		return validateFeeAddressSend(m.Receiver, sdk.NewCoins(m.Token))
 	case *authz.MsgExec:
 		nestedMsgs, err := m.GetMessages()
 		if err != nil {

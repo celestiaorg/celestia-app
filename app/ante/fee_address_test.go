@@ -16,7 +16,6 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	"github.com/stretchr/testify/require"
 	protov2 "google.golang.org/protobuf/proto"
 )
@@ -39,16 +38,6 @@ func TestFeeAddressDecorator(t *testing.T) {
 
 	anyMsgNonUtia, _ := codectypes.NewAnyWithValue(msgSendNonUtia)
 	anyMsgUtia, _ := codectypes.NewAnyWithValue(msgSendUtia)
-
-	// Create MsgExec with nested MsgTransfer for authz tests
-	msgTransferNonUtia := &ibctransfertypes.MsgTransfer{
-		SourcePort:    "transfer",
-		SourceChannel: "channel-0",
-		Token:         sdk.NewCoin("wrongdenom", math.NewInt(1000)),
-		Sender:        signer.String(),
-		Receiver:      feeaddresstypes.FeeAddressBech32,
-	}
-	anyMsgTransferNonUtia, _ := codectypes.NewAnyWithValue(msgTransferNonUtia)
 
 	// Another address for multi-output tests
 	otherAddr := sdk.AccAddress("other_address________")
@@ -111,29 +100,6 @@ func TestFeeAddressDecorator(t *testing.T) {
 			},
 			expectErr: false,
 		},
-		// IBC MsgTransfer tests
-		{
-			name: "reject IBC transfer of non-utia to fee address",
-			msg: &ibctransfertypes.MsgTransfer{
-				SourcePort:    "transfer",
-				SourceChannel: "channel-0",
-				Token:         sdk.NewCoin("wrongdenom", math.NewInt(1000)),
-				Sender:        signer.String(),
-				Receiver:      feeaddresstypes.FeeAddressBech32,
-			},
-			expectErr: true,
-		},
-		{
-			name: "allow IBC transfer of utia to fee address",
-			msg: &ibctransfertypes.MsgTransfer{
-				SourcePort:    "transfer",
-				SourceChannel: "channel-0",
-				Token:         sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)),
-				Sender:        signer.String(),
-				Receiver:      feeaddresstypes.FeeAddressBech32,
-			},
-			expectErr: false,
-		},
 		// authz MsgExec tests - validates nested messages
 		{
 			name: "reject authz MsgExec with nested non-utia to fee address",
@@ -150,14 +116,6 @@ func TestFeeAddressDecorator(t *testing.T) {
 				Msgs:    []*codectypes.Any{anyMsgUtia},
 			},
 			expectErr: false,
-		},
-		{
-			name: "reject authz MsgExec with nested MsgTransfer non-utia to fee address",
-			msg: &authz.MsgExec{
-				Grantee: signer.String(),
-				Msgs:    []*codectypes.Any{anyMsgTransferNonUtia},
-			},
-			expectErr: true,
 		},
 		// MsgMultiSend with multiple outputs
 		{
