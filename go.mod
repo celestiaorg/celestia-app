@@ -282,7 +282,7 @@ replace (
 	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.6
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	// hyperlane-cosmos: use jonas/aggregation branch
-	github.com/bcp-innovations/hyperlane-cosmos => github.com/jonas089/hyperlane-cosmos v0.0.0-20260120141245-85798bfea9d5
+	github.com/bcp-xinnovations/hyperlane-cosmos => github.com/jonas089/hyperlane-cosmos v1.0.1-0.20260121121833-e0d5781c0fce
 	// TODO: update to a v0.39.x release after that is created from celestia-core main branch.
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.2
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.51.0
