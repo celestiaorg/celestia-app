@@ -22,7 +22,7 @@ jobs:
             go.sum
       - uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 #v9.2.0
         with:
-          version: v2.1.2
+          version: v2.8.0
           args: --timeout 10m
           github-token: ${{ secrets.github_token }}
         if: env.GIT_DIFF
@@ -46,24 +46,3 @@ jobs:
     steps:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
       - uses: celestiaorg/.github/.github/actions/yamllint@9ee03305d3cc6cf520b7895436429aa853b58e70 #v0.6.4
-
-  modernize-check:
-    name: modernize-check
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
-      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
-        with:
-          go-version-file: "go.mod"
-      - uses: technote-space/get-diff-action@f27caffdd0fb9b13f4fc191c016bb4e0632844af #v6.1.2
-        with:
-          # This job will pass without running if go.mod, go.sum, and *.go
-          # wasn't modified.
-          PATTERNS: |
-            **/**.go
-            go.mod
-            go.sum
-      - name: Run modernize check
-        run: make modernize-check
-        if: env.GIT_DIFF

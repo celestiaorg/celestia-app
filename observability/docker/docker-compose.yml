@@ -28,7 +28,20 @@ services:
     restart: unless-stopped
     depends_on:
       - prometheus
+      - loki
+
+  loki:
+    image: grafana/loki:3.1.1
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki-data:/loki
+    command:
+      - '-config.file=/etc/loki/loki-config.yml'
+    restart: unless-stopped
 
 volumes:
   prometheus-data:
   grafana-data:
+  loki-data:

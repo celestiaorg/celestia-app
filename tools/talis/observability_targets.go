@@ -10,12 +10,12 @@ type targetGroup struct {
 	Labels  map[string]string `json:"labels,omitempty"`
 }
 
-func buildMetricsTargets(cfg Config, port int, addressSource string) ([]targetGroup, int, error) {
+func buildObservabilityTargets(cfg Config, port int, addressSource string) ([]targetGroup, int, error) {
 	if addressSource != "public" && addressSource != "private" {
 		return nil, 0, fmt.Errorf("invalid address source %q (use public or private)", addressSource)
 	}
 
-	var groups []targetGroup
+	var groups []targetGroup //nolint:prealloc
 	var skipped int
 
 	appendTargets := func(nodes []Instance, role string) {
@@ -43,6 +43,37 @@ func buildMetricsTargets(cfg Config, port int, addressSource string) ([]targetGr
 	appendTargets(cfg.Validators, "validator")
 	appendTargets(cfg.Bridges, "bridge")
 	appendTargets(cfg.Lights, "light")
+
+	return groups, skipped, nil
+}
+
+func buildObservabilityTargetsForInstances(instances []Instance, cfg Config, port int, addressSource, role string) ([]targetGroup, int, error) {
+	if addressSource != "public" && addressSource != "private" {
+		return nil, 0, fmt.Errorf("invalid address source %q (use public or private)", addressSource)
+	}
+
+	var groups []targetGroup //nolint:prealloc
+	var skipped int
+
+	for _, node := range instances {
+		address, ok := nodeAddress(node, port, addressSource)
+		if !ok {
+			skipped++
+			continue
+		}
+
+		groups = append(groups, targetGroup{
+			Targets: []string{address},
+			Labels: map[string]string{
+				"chain_id":   cfg.ChainID,
+				"experiment": cfg.Experiment,
+				"role":       role,
+				"region":     node.Region,
+				"provider":   string(node.Provider),
+				"node_id":    node.Name,
+			},
+		})
+	}
 
 	return groups, skipped, nil
 }

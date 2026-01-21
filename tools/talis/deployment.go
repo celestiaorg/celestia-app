@@ -92,6 +92,7 @@ func deployCmd() *cobra.Command {
 		cfgPath      string
 		SSHKeyPath   string
 		directUpload bool
+		ignoreFailed bool
 		workers      int
 	)
 
@@ -120,14 +121,20 @@ func deployCmd() *cobra.Command {
 			log.Printf("Sending payload to validators...")
 			if directUpload {
 				if err := deployPayloadDirect(cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute, workers); err != nil {
-					return err
+					if !ignoreFailed {
+						return err
+					}
+					log.Printf("continuing despite validator deployment errors: %v", err)
 				}
-				return deployMetricsIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload)
+				return deployObservabilityIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload)
 			}
 			if err := deployPayloadViaS3(cmd.Context(), rootDir, cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute, cfg.S3Config, workers); err != nil {
-				return err
+				if !ignoreFailed {
+					return err
+				}
+				log.Printf("continuing despite validator deployment errors: %v", err)
 			}
-			return deployMetricsIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload)
+			return deployObservabilityIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload)
 		},
 	}
 
@@ -140,42 +147,43 @@ func deployCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory in which to initialize")
 	cmd.Flags().StringVarP(&cfgPath, "config", "c", "config.json", "name of the config")
 	cmd.Flags().BoolVar(&directUpload, "direct-payload-upload", false, "Upload payload directly to nodes instead of using S3")
+	cmd.Flags().BoolVar(&ignoreFailed, "ignore-failed-validators", false, "Continue deploying observability monitoring even if some validators fail")
 	cmd.Flags().IntVarP(&workers, "workers", "w", 10, "number of concurrent workers for parallel operations (should be > 0)")
 
 	return cmd
 }
 
-func deployMetricsIfConfigured(ctx context.Context, cfg Config, rootDir, sshKeyPath string, directUpload bool) error {
-	if len(cfg.Metrics) == 0 {
+func deployObservabilityIfConfigured(ctx context.Context, cfg Config, rootDir, sshKeyPath string, directUpload bool) error {
+	if len(cfg.Observability) == 0 {
 		return nil
 	}
 
-	metricsNode := cfg.Metrics[0]
+	observabilityNode := cfg.Observability[0]
 
-	metricsTarPath := filepath.Join(rootDir, "metrics-payload.tar.gz")
-	log.Printf("Compressing metrics payload to %s\n", metricsTarPath)
-	tarCmd := exec.Command("tar", "-czf", metricsTarPath, "-C", filepath.Join(rootDir, "payload"), "metrics")
+	observabilityTarPath := filepath.Join(rootDir, "observability-payload.tar.gz")
+	log.Printf("Compressing observability payload to %s\n", observabilityTarPath)
+	tarCmd := exec.Command("tar", "-czf", observabilityTarPath, "-C", filepath.Join(rootDir, "payload"), "observability")
 	if output, err := tarCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to compress metrics payload: %w, output: %s", err, string(output))
+		return fmt.Errorf("failed to compress observability payload: %w, output: %s", err, string(output))
 	}
-	log.Printf("✅ Metrics payload compressed to %s\n", metricsTarPath)
+	log.Printf("✅ Observability payload compressed to %s\n", observabilityTarPath)
 
-	log.Printf("Sending metrics payload to metrics node...")
+	log.Printf("Sending observability payload to observability monitoring node...")
 	var err error
 	if directUpload {
-		err = deployMetricsPayloadDirect(metricsNode, metricsTarPath, sshKeyPath, "/root", 15*time.Minute)
+		err = deployObservabilityPayloadDirect(observabilityNode, observabilityTarPath, sshKeyPath, "/root", 15*time.Minute)
 	} else {
-		err = deployMetricsPayloadViaS3(ctx, rootDir, metricsNode, metricsTarPath, sshKeyPath, "/root", 15*time.Minute, cfg.S3Config)
+		err = deployObservabilityPayloadViaS3(ctx, rootDir, observabilityNode, observabilityTarPath, sshKeyPath, "/root", 15*time.Minute, cfg.S3Config)
 	}
 	if err != nil {
 		return err
 	}
 
-	printGrafanaInfo(metricsNode, rootDir)
+	printGrafanaInfo(observabilityNode, rootDir)
 	return nil
 }
 
-// printGrafanaInfo prints the Grafana URL and credentials after successful metrics deployment.
+// printGrafanaInfo prints the Grafana URL and credentials after successful observability deployment.
 func printGrafanaInfo(node Instance, rootDir string) {
 	password := readGrafanaPassword(rootDir)
 
@@ -187,7 +195,7 @@ func printGrafanaInfo(node Instance, rootDir string) {
 
 // readGrafanaPassword reads the Grafana password from the .env file in the payload directory.
 func readGrafanaPassword(rootDir string) string {
-	envPath := filepath.Join(rootDir, "payload", "metrics", "docker", ".env")
+	envPath := filepath.Join(rootDir, "payload", "observability", "docker", ".env")
 	data, err := os.ReadFile(envPath)
 	if err != nil {
 		return "admin" // fallback to default
@@ -377,9 +385,9 @@ func deployPayloadViaS3(
 	return nil
 }
 
-// deployMetricsPayloadDirect copies a metrics archive to the metrics host, unpacks it,
-// installs prerequisites, and launches the metrics stack in a detached tmux session.
-func deployMetricsPayloadDirect(
+// deployObservabilityPayloadDirect copies an observability archive to the observability monitoring host, unpacks it,
+// installs prerequisites, and launches the observability stack in a detached tmux session.
+func deployObservabilityPayloadDirect(
 	inst Instance,
 	archivePath string,
 	sshKeyPath string,
@@ -403,16 +411,16 @@ func deployMetricsPayloadDirect(
 		return fmt.Errorf("[%s:%s] scp error in region %s: %v\n%s", inst.Name, inst.PublicIP, inst.Region, err, out)
 	}
 
-	log.Printf("sent metrics payload to instance 📦 %s: %s\n", inst.Name, inst.PublicIP)
+	log.Printf("sent observability payload to instance 📦 %s: %s\n", inst.Name, inst.PublicIP)
 
 	remoteCmd := strings.Join([]string{
 		fmt.Sprintf("tar -xzf %s -C %s", filepath.Join(remoteDir, archiveFile), remoteDir),
 		fmt.Sprintf("chmod +x %s %s",
-			filepath.Join(remoteDir, "metrics/install_metrics.sh"),
-			filepath.Join(remoteDir, "metrics/start_metrics.sh"),
+			filepath.Join(remoteDir, "observability/install_metrics.sh"),
+			filepath.Join(remoteDir, "observability/start_metrics.sh"),
 		),
-		filepath.Join(remoteDir, "metrics/install_metrics.sh"),
-		filepath.Join(remoteDir, "metrics/start_metrics.sh"),
+		filepath.Join(remoteDir, "observability/install_metrics.sh"),
+		filepath.Join(remoteDir, "observability/start_metrics.sh"),
 	}, " && ")
 
 	ssh := exec.CommandContext(ctx,
@@ -426,13 +434,13 @@ func deployMetricsPayloadDirect(
 	if out, err := ssh.CombinedOutput(); err != nil {
 		return fmt.Errorf("[%s:%s] ssh error in region %s: %v\n%s", inst.Name, inst.PublicIP, inst.Region, err, out)
 	}
-	log.Printf("started metrics instance ✅ %s: %s\n", inst.Name, inst.PublicIP)
+	log.Printf("started observability instance ✅ %s: %s\n", inst.Name, inst.PublicIP)
 
 	return nil
 }
 
-// deployMetricsPayloadViaS3 uploads the metrics payload to S3 first, then has the node download it.
-func deployMetricsPayloadViaS3(
+// deployObservabilityPayloadViaS3 uploads the observability payload to S3 first, then has the node download it.
+func deployObservabilityPayloadViaS3(
 	ctx context.Context,
 	rootDir string,
 	inst Instance,
@@ -451,13 +459,13 @@ func deployMetricsPayloadViaS3(
 		return fmt.Errorf("failed to create S3 client: %w", err)
 	}
 
-	log.Printf("Uploading metrics payload to S3...\n")
+	log.Printf("Uploading observability payload to S3...\n")
 	s3URL, err := uploadToS3(ctx, s3Client, s3cfg, archivePath)
 	if err != nil {
-		return fmt.Errorf("failed to upload metrics payload to S3: %w", err)
+		return fmt.Errorf("failed to upload observability payload to S3: %w", err)
 	}
 
-	log.Printf("✅ Metrics payload uploaded to S3: %s\n", s3URL)
+	log.Printf("✅ Observability payload uploaded to S3: %s\n", s3URL)
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -467,11 +475,11 @@ func deployMetricsPayloadViaS3(
 		fmt.Sprintf("curl -L '%s' -o %s", s3URL, filepath.Join(remoteDir, archiveFile)),
 		fmt.Sprintf("tar -xzf %s -C %s", filepath.Join(remoteDir, archiveFile), remoteDir),
 		fmt.Sprintf("chmod +x %s %s",
-			filepath.Join(remoteDir, "metrics/install_metrics.sh"),
-			filepath.Join(remoteDir, "metrics/start_metrics.sh"),
+			filepath.Join(remoteDir, "observability/install_metrics.sh"),
+			filepath.Join(remoteDir, "observability/start_metrics.sh"),
 		),
-		filepath.Join(remoteDir, "metrics/install_metrics.sh"),
-		filepath.Join(remoteDir, "metrics/start_metrics.sh"),
+		filepath.Join(remoteDir, "observability/install_metrics.sh"),
+		filepath.Join(remoteDir, "observability/start_metrics.sh"),
 	}, " && ")
 
 	ssh := exec.CommandContext(ctx,
@@ -485,7 +493,7 @@ func deployMetricsPayloadViaS3(
 	if out, err := ssh.CombinedOutput(); err != nil {
 		return fmt.Errorf("[%s:%s] ssh error in region %s: %v\n%s", inst.Name, inst.PublicIP, inst.Region, err, out)
 	}
-	log.Printf("started metrics instance ✅ %s: %s\n", inst.Name, inst.PublicIP)
+	log.Printf("started observability instance ✅ %s: %s\n", inst.Name, inst.PublicIP)
 
 	return nil
 }
@@ -674,22 +682,18 @@ func destroyAllInstances(ctx context.Context, cfg Config, workers int) error {
 	errCh := make(chan error, 2)
 
 	if cfg.DigitalOceanToken != "" {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			log.Println("Destroying all DigitalOcean instances...")
 			tokenSource := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: cfg.DigitalOceanToken})
 			doClient := godo.NewClient(oauth2.NewClient(ctx, tokenSource))
 			if _, err := destroyAllTalisDroplets(ctx, doClient, workers); err != nil {
 				errCh <- fmt.Errorf("DigitalOcean: %w", err)
 			}
-		}()
+		})
 	}
 
 	if cfg.GoogleCloudProject != "" {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			log.Println("Destroying all Google Cloud instances...")
 			opts, err := gcClientOptions(cfg)
 			if err != nil {
@@ -699,7 +703,7 @@ func destroyAllInstances(ctx context.Context, cfg Config, workers int) error {
 			if _, err := destroyAllTalisGCInstances(ctx, cfg.GoogleCloudProject, opts, workers); err != nil {
 				errCh <- fmt.Errorf("google Cloud: %w", err)
 			}
-		}()
+		})
 	}
 
 	wg.Wait()

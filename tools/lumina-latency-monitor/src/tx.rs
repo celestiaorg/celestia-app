@@ -92,6 +92,7 @@ pub async fn run_submission_loop(
 
                 let submit_time = SystemTime::now();
 
+                let checktx_start = std::time::Instant::now();
                 let submitted = match client.broadcast_blobs(&[blob], TxConfig::default()).await {
                     Ok(s) => s,
                     Err(e) => {
@@ -100,6 +101,7 @@ pub async fn run_submission_loop(
                         continue;
                     }
                 };
+                let checktx_latency = checktx_start.elapsed();
 
                 let tx_hash = submitted.tx_ref().hash.to_string();
                 println!(
@@ -109,6 +111,7 @@ pub async fn run_submission_loop(
                     format_time_only(submit_time)
                 );
 
+                prom::record_checktx_latency(checktx_latency);
                 prom::record_submit();
 
                 if disable_metrics {

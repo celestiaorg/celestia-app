@@ -16,7 +16,7 @@ HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME := github.com/celestiaorg/celestia-app/v7
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
-GOLANG_CROSS_VERSION  ?= v1.24.6
+GOLANG_CROSS_VERSION  ?= v1.25.5
 # Set this to override v2 upgrade height for the v3 embedded binaries
 V2_UPGRADE_HEIGHT ?= 0
 
@@ -274,18 +274,6 @@ fmt:
 lint-fix: fmt
 .PHONY: lint-fix
 
-## modernize-fix: Apply modernize suggestions automatically.
-modernize-fix:
-	@echo "--> Applying modernize fixes"
-	@bash scripts/modernize.sh
-.PHONY: modernize-fix
-
-## modernize-check: Check for modernize issues without applying fixes.
-modernize-check:
-	@echo "--> Checking for modernize issues"
-	@bash scripts/modernize-check.sh
-.PHONY: modernize-check
-
 ## test: Run tests.
 test:
 	@echo "--> Running tests"
@@ -332,7 +320,7 @@ test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService|TestTxsOverMaxTxSizeGetRejected|TestStart_Success|TestReadBlockchainHeaders|TestPrepareProposalCappingNumberOfMessages|TestGasEstimatorE2E|TestGasEstimatorE2EWithNetworkMinGasPrice|TestRejections|TestClaimRewardsAfterFullUndelegation|TestParallelTxSubmission|TestV2SubmitMethods|TestBurnIntegrationTestSuite"
+	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService|TestTxsOverMaxTxSizeGetRejected|TestStart_Success|TestReadBlockchainHeaders|TestPrepareProposalCappingNumberOfMessages|TestGasEstimatorE2E|TestGasEstimatorE2EWithNetworkMinGasPrice|TestRejections|TestClaimRewardsAfterFullUndelegation|TestParallelTxSubmission|TestV2SubmitMethods"
 .PHONY: test-race
 
 ## test-bench: Run benchmark unit tests.
@@ -372,10 +360,11 @@ txsim-build-docker:
 	docker build -t ghcr.io/celestiaorg/txsim -f docker/txsim/Dockerfile  .
 .PHONY: txsim-build-docker
 
-## build-talis-bins: Build celestia-appd, txsim, and latency-monitor binaries for talis VMs (ubuntu 22.04 LTS)
-build-talis-bins: build-lumina-latency-monitor
+## build-talis-bins: Build celestia-appd, txsim, and Go latency-monitor binaries for talis VMs (ubuntu 22.04 LTS)
+build-talis-bins:
 	mkdir -p build
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/celestia-appd ./cmd/celestia-appd
 .PHONY: build-talis-bins
 

@@ -15,10 +15,10 @@ import (
 )
 
 const (
-	DODefaultValidatorSlug = "c2-16vcpu-32gb"
-	DODefaultMetricsSlug   = "s-2vcpu-4gb"
-	DODefaultImage         = "ubuntu-22-04-x64"
-	RandomRegion           = "random"
+	DODefaultValidatorSlug     = "c2-16vcpu-32gb"
+	DODefaultObservabilitySlug = "s-2vcpu-4gb"
+	DODefaultImage             = "ubuntu-22-04-x64"
+	RandomRegion               = "random"
 )
 
 var (
@@ -50,13 +50,13 @@ func NewDigitalOceanValidator(region string) Instance {
 	return i
 }
 
-func NewDigitalOceanMetrics(region string) Instance {
+func NewDigitalOceanObservability(region string) Instance {
 	if region == "" || region == RandomRegion {
 		region = RandomDORegion()
 	}
-	i := NewBaseInstance(Metrics)
+	i := NewBaseInstance(Observability)
 	i.Provider = DigitalOcean
-	i.Slug = DODefaultMetricsSlug
+	i.Slug = DODefaultObservabilitySlug
 	i.Region = region
 	return i
 }
