@@ -24,17 +24,17 @@ const (
 // startLatencyMonitorCmd creates a cobra command for starting the latency monitor on remote instances.
 func startLatencyMonitorCmd() *cobra.Command {
 	var (
-		instances       int
-		blobSize        int
-		blobSizeMin     int
-		submissionDelay string
-		namespace       string
-		metricsPort     int
-		lokiURL         string
-		promtailConfig  string
-		rootDir         string
-		SSHKeyPath      string
-		stop            bool
+		instances         int
+		blobSize          int
+		blobSizeMin       int
+		submissionDelay   string
+		namespace         string
+		observabilityPort int
+		lokiURL           string
+		promtailConfig    string
+		rootDir           string
+		SSHKeyPath        string
+		stop              bool
 	)
 
 	cmd := &cobra.Command{
@@ -52,7 +52,7 @@ func startLatencyMonitorCmd() *cobra.Command {
 			}
 
 			if promtailConfig == "" {
-				promtailConfig = filepath.Join(rootDir, "metrics", "promtail", "promtail-config.yml")
+				promtailConfig = filepath.Join(rootDir, "observability", "promtail", "promtail-config.yml")
 			}
 
 			resolvedSSHKeyPath := resolveValue(SSHKeyPath, EnvVarSSHKeyPath, strings.ReplaceAll(cfg.SSHPubKeyPath, ".pub", ""))
@@ -71,19 +71,19 @@ func startLatencyMonitorCmd() *cobra.Command {
 				return stopTmuxSession(insts, resolvedSSHKeyPath, LatencyMonitorSessionName, time.Minute*5)
 			}
 
-			if len(cfg.Metrics) > 0 {
-				if err := updateLatencyTargets(cfg, cfg.Metrics[0], resolvedSSHKeyPath, insts); err != nil {
+			if len(cfg.Observability) > 0 {
+				if err := updateLatencyTargets(cfg, cfg.Observability[0], resolvedSSHKeyPath, insts); err != nil {
 					return err
 				}
 			}
 
 			latencyMonitorCmd := fmt.Sprintf(
-				"latency-monitor -k .celestia-app -a txsim -e localhost:9091 -b %d -z %d -d %s -n %s --metrics-port %d 2>&1 | tee -a /root/latency-monitor-logs",
+				"latency-monitor -k .celestia-app -a txsim -e localhost:9091 -b %d -z %d -d %s -n %s --observability-port %d 2>&1 | tee -a /root/latency-monitor-logs",
 				blobSize,
 				blobSizeMin,
 				submissionDelay,
 				namespace,
-				metricsPort,
+				observabilityPort,
 			)
 
 			latencyMonitorScript := latencyMonitorCmd
@@ -112,9 +112,9 @@ func startLatencyMonitorCmd() *cobra.Command {
 	cmd.Flags().IntVarP(&blobSizeMin, "blob-size-min", "z", 1024, "the min number of bytes in each blob")
 	cmd.Flags().StringVarP(&submissionDelay, "submission-delay", "s", "4000ms", "delay between transaction submissions")
 	cmd.Flags().StringVarP(&namespace, "namespace", "n", "test", "namespace for blob submission")
-	cmd.Flags().IntVarP(&metricsPort, "metrics-port", "m", 9464, "port for Prometheus metrics HTTP server (0 to disable)")
+	cmd.Flags().IntVarP(&observabilityPort, "observability-port", "m", 9464, "port for Prometheus observability HTTP server (0 to disable)")
 	cmd.Flags().StringVar(&lokiURL, "loki-url", "", "Loki base URL to push latency-monitor logs (enables promtail)")
-	cmd.Flags().StringVar(&promtailConfig, "promtail-config", "", "path to promtail config template (defaults to ./metrics/promtail/promtail-config.yml)")
+	cmd.Flags().StringVar(&promtailConfig, "promtail-config", "", "path to promtail config template (defaults to ./observability/promtail/promtail-config.yml)")
 	cmd.Flags().BoolVar(&stop, "stop", false, "stop the latency monitor instead of starting it")
 	_ = cmd.MarkFlagRequired("instances")
 
@@ -167,9 +167,9 @@ func ensureLokiPushURL(lokiURL string, configIncludesPushPath bool) string {
 	return lokiURL + "/loki/api/v1/push"
 }
 
-// updateLatencyTargets updates the latency monitor targets on the metrics node. It shows the nodes that are currently running the latency monitor.
-func updateLatencyTargets(cfg Config, metricsNode Instance, sshKeyPath string, instances []Instance) error {
-	groups, skipped, err := buildMetricsTargetsForInstances(instances, cfg, latencyMonitorMetricsPort, "public", "validator")
+// updateLatencyTargets updates the latency monitor targets on the observability monitoring node. It shows the nodes that are currently running the latency monitor.
+func updateLatencyTargets(cfg Config, observabilityNode Instance, sshKeyPath string, instances []Instance) error {
+	groups, skipped, err := buildObservabilityTargetsForInstances(instances, cfg, latencyMonitorMetricsPort, "public", "validator")
 	if err != nil {
 		return err
 	}
@@ -184,7 +184,7 @@ func updateLatencyTargets(cfg Config, metricsNode Instance, sshKeyPath string, i
 	}
 
 	encoded := base64.StdEncoding.EncodeToString(payload)
-	remotePath := "/root/metrics/docker/targets/latency_targets.json"
+	remotePath := "/root/observability/docker/targets/latency_targets.json"
 	writeCmd := fmt.Sprintf("printf '%%s' %q | base64 -d > %s", encoded, remotePath)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*2)
@@ -195,14 +195,14 @@ func updateLatencyTargets(cfg Config, metricsNode Instance, sshKeyPath string, i
 		"-i", sshKeyPath,
 		"-o", "StrictHostKeyChecking=no",
 		"-o", "UserKnownHostsFile=/dev/null",
-		fmt.Sprintf("root@%s", metricsNode.PublicIP),
+		fmt.Sprintf("root@%s", observabilityNode.PublicIP),
 		writeCmd,
 	)
 	if out, err := ssh.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to update latency targets on %s: %w\n%s", metricsNode.PublicIP, err, out)
+		return fmt.Errorf("failed to update latency targets on %s: %w\n%s", observabilityNode.PublicIP, err, out)
 	}
 
-	log.Printf("updated latency monitor targets on metrics node %s (%d entries)", metricsNode.PublicIP, len(groups))
+	log.Printf("updated latency monitor targets on observability node %s (%d entries)", observabilityNode.PublicIP, len(groups))
 	return nil
 }
 
