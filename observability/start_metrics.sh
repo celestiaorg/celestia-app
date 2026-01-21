@@ -14,4 +14,4 @@ cd "$DOCKER_DIR"
 
 docker compose up -d
 
-echo "✅ metrics stack started"
+echo "✅ observability stack started"

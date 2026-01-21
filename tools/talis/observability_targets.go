@@ -10,7 +10,7 @@ type targetGroup struct {
 	Labels  map[string]string `json:"labels,omitempty"`
 }
 
-func buildMetricsTargets(cfg Config, port int, addressSource string) ([]targetGroup, int, error) {
+func buildObservabilityTargets(cfg Config, port int, addressSource string) ([]targetGroup, int, error) {
 	if addressSource != "public" && addressSource != "private" {
 		return nil, 0, fmt.Errorf("invalid address source %q (use public or private)", addressSource)
 	}
@@ -47,7 +47,7 @@ func buildMetricsTargets(cfg Config, port int, addressSource string) ([]targetGr
 	return groups, skipped, nil
 }
 
-func buildMetricsTargetsForInstances(instances []Instance, cfg Config, port int, addressSource, role string) ([]targetGroup, int, error) {
+func buildObservabilityTargetsForInstances(instances []Instance, cfg Config, port int, addressSource, role string) ([]targetGroup, int, error) {
 	if addressSource != "public" && addressSource != "private" {
 		return nil, 0, fmt.Errorf("invalid address source %q (use public or private)", addressSource)
 	}
