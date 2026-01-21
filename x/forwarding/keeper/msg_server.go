@@ -172,28 +172,23 @@ func (m msgServer) forwardSingleToken(
 		}
 	}
 
+	// Move tokens to module account first - if this fails, we haven't touched relayer's funds yet
+	if err := m.k.bankKeeper.SendCoins(ctx, forwardAddr, moduleAddr, sdk.NewCoins(balance)); err != nil {
+		return types.NewFailureResult(balance.Denom, balance.Amount, "failed to move tokens: "+err.Error())
+	}
+
 	// Collect IGP fee from relayer (signer) to module account
 	// Only collect if there's a positive fee to pay
 	if quotedFee.IsPositive() {
 		if err := m.k.bankKeeper.SendCoins(ctx, signerAddr, moduleAddr, sdk.NewCoins(quotedFee)); err != nil {
+			// Return tokens to forward address since we can't complete the transfer
+			if recoveryErr := m.k.bankKeeper.SendCoins(ctx, moduleAddr, forwardAddr, sdk.NewCoins(balance)); recoveryErr != nil {
+				ctx.Logger().Error("CRITICAL: tokens stuck in module after IGP collection failure",
+					"denom", balance.Denom, "amount", balance.Amount.String(), "error", recoveryErr)
+			}
 			return types.NewFailureResult(balance.Denom, balance.Amount,
 				fmt.Sprintf("failed to collect IGP fee from relayer: %s", err.Error()))
 		}
-	}
-
-	// Move tokens to module account, then execute warp from there.
-	// Warp's IGP charges fees from the sender (moduleAddr), which now has the
-	// IGP fee collected from the relayer.
-	if err := m.k.bankKeeper.SendCoins(ctx, forwardAddr, moduleAddr, sdk.NewCoins(balance)); err != nil {
-		// Try to return IGP fee to relayer if token move failed
-		if quotedFee.IsPositive() {
-			if recoveryErr := m.k.bankKeeper.SendCoins(ctx, moduleAddr, signerAddr, sdk.NewCoins(quotedFee)); recoveryErr != nil {
-				// TODO(v2): Consider emitting EventIgpFeeStuck for better observability
-				ctx.Logger().Error("failed to return IGP fee to relayer after token move failure",
-					"error", recoveryErr, "fee", quotedFee)
-			}
-		}
-		return types.NewFailureResult(balance.Denom, balance.Amount, "failed to move tokens: "+err.Error())
 	}
 
 	messageId, err := m.k.ExecuteWarpTransfer(ctx, hypToken, moduleAddr.String(), destDomain, destRecipient, balance.Amount, quotedFee)
