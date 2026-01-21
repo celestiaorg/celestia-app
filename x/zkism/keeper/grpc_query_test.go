@@ -251,7 +251,7 @@ func (suite *KeeperTestSuite) TestQueryServerIsms() {
 
 func (suite *KeeperTestSuite) TestQueryServerMessagesPaginationLimit() {
 	ismID := util.CreateMockHexAddress("ism", 1)
-	var allExpected []string
+	allExpected := make([]string, 0, 150)
 
 	for i := range 150 {
 		id := bytes.Repeat([]byte{byte(i)}, 32)
