@@ -265,7 +265,7 @@ func TestFeeForwardDecoratorValidatesSingleDenom(t *testing.T) {
 	_, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
 
 	require.Error(t, err)
-	require.ErrorContains(t, err, "fee forward tx requires exactly one positive utia coin")
+	require.ErrorContains(t, err, "fee forward tx requires exactly one fee coin")
 }
 
 func TestFeeForwardDecoratorRejectsWrongDenom(t *testing.T) {
@@ -284,7 +284,7 @@ func TestFeeForwardDecoratorRejectsWrongDenom(t *testing.T) {
 	_, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
 
 	require.Error(t, err)
-	require.ErrorContains(t, err, "fee forward tx requires exactly one positive utia coin")
+	require.ErrorContains(t, err, "fee forward tx requires utia denom")
 }
 
 func TestFeeForwardDecoratorSuccess(t *testing.T) {
@@ -306,12 +306,15 @@ func TestFeeForwardDecoratorSuccess(t *testing.T) {
 	require.Equal(t, fee, bankKeeper.sentToModule[authtypes.FeeCollectorName])
 	// Verify context flag is still set
 	require.True(t, ante.IsFeeForwardTx(newCtx))
+	// Verify GetFeeForwardAmount returns the correct fee
+	feeFromCtx, ok := ante.GetFeeForwardAmount(newCtx)
+	require.True(t, ok, "GetFeeForwardAmount should return fee")
+	require.Equal(t, fee, feeFromCtx, "fee from context should match tx fee")
 }
 
-// TestFeeForwardDecoratorRequiresContextFlag verifies that the FeeForwardDecorator
-// rejects fee forward transactions in DeliverTx mode if the context flag was not
-// set by EarlyFeeForwardDetector. This is a defense-in-depth assertion.
-func TestFeeForwardDecoratorRequiresContextFlag(t *testing.T) {
+// TestFeeForwardDecoratorRejectsSimulation verifies that the FeeForwardDecorator
+// rejects fee forward transactions in simulation mode.
+func TestFeeForwardDecoratorRejectsSimulation(t *testing.T) {
 	bankKeeper := &mockBankKeeper{}
 	decorator := ante.NewFeeForwardDecorator(bankKeeper)
 
@@ -319,14 +322,40 @@ func TestFeeForwardDecoratorRequiresContextFlag(t *testing.T) {
 	fee := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
 	tx := &mockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: 50000}
 
-	// Create DeliverTx context WITHOUT fee forward flag (simulates misconfigured ante chain)
+	// Create DeliverTx context but pass simulate=true
+	ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
+
+	_, err := decorator.AnteHandle(ctx, tx, true, nextAnteHandler) // simulate = true
+
+	require.Error(t, err)
+	require.ErrorContains(t, err, "MsgForwardFees cannot be submitted by users")
+}
+
+// mockNonFeeTx implements sdk.Tx but NOT sdk.FeeTx for testing error path.
+type mockNonFeeTx struct {
+	msgs []sdk.Msg
+}
+
+func (m *mockNonFeeTx) GetMsgs() []sdk.Msg                    { return m.msgs }
+func (m *mockNonFeeTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
+func (m *mockNonFeeTx) ValidateBasic() error                  { return nil }
+
+// TestFeeForwardDecoratorRejectsNonFeeTx verifies that the FeeForwardDecorator
+// rejects transactions that don't implement sdk.FeeTx.
+func TestFeeForwardDecoratorRejectsNonFeeTx(t *testing.T) {
+	bankKeeper := &mockBankKeeper{}
+	decorator := ante.NewFeeForwardDecorator(bankKeeper)
+
+	msg := feeaddresstypes.NewMsgForwardFees()
+	tx := &mockNonFeeTx{msgs: []sdk.Msg{msg}}
+
+	// Create DeliverTx context
 	ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
 
 	_, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
 
 	require.Error(t, err)
-	require.ErrorContains(t, err, "fee forward context flag not set")
-	require.ErrorContains(t, err, "EarlyFeeForwardDetector")
+	require.ErrorContains(t, err, "tx must implement FeeTx")
 }
 
 // mockBankKeeperWithError implements ante.FeeForwardBankKeeper and returns an error.
@@ -372,7 +401,7 @@ func TestFeeForwardDecoratorZeroFeeRejected(t *testing.T) {
 	_, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
 
 	require.Error(t, err)
-	require.ErrorContains(t, err, "fee forward tx requires exactly one positive utia coin")
+	require.ErrorContains(t, err, "fee forward tx requires exactly one fee coin")
 }
 
 func TestFeeAddressDecoratorDeeplyNestedAuthz(t *testing.T) {

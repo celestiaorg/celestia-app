@@ -24,6 +24,7 @@ import (
 // createTestAppWithFeeAddressBalance creates a new app with an optional fee address balance,
 // initializes the chain, and finalizes block 1. The app is ready for block 2 operations.
 func createTestAppWithFeeAddressBalance(t *testing.T, feeAddrBalance sdk.Coin) *app.App {
+	t.Helper()
 	logger := log.NewNopLogger()
 	db := tmdb.NewMemDB()
 	traceStore := &NoopWriter{}
@@ -155,7 +156,8 @@ func TestProcessProposalFeeForwardValidation(t *testing.T) {
 			name:           "reject fee forward tx with wrong gas limit",
 			feeAddrBalance: sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)),
 			txs: func() [][]byte {
-				return [][]byte{createFeeForwardTxWrongGas(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)), 100000)}
+				wrongGasLimit := uint64(feeaddresstypes.FeeForwardGasLimit * 2) // Intentionally wrong
+				return [][]byte{createFeeForwardTxWrongGas(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)), wrongGasLimit)}
 			},
 			expectReject: true,
 		},

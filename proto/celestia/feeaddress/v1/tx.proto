@@ -14,6 +14,10 @@ service Msg {
   // distributed to validators as block rewards via the standard distribution
   // module. This message has no signer - it is injected by the block proposer
   // in PrepareProposal and validated in ProcessProposal.
+  //
+  // Note: This RPC intentionally has no google.api.http annotation because it
+  // is a protocol-injected message that should not be callable via REST API.
+  // User submissions are rejected by the ante handler.
   rpc ForwardFees(MsgForwardFees) returns (MsgForwardFeesResponse);
 }
 

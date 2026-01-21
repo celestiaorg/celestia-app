@@ -76,7 +76,10 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		if len(txs) == 0 {
 			return nil, fmt.Errorf("fee forward tx was filtered out (no txs remain); fee_balance=%s", feeBalance.String())
 		}
-		_, firstTxIsFeeForward, _ := app.parseFeeForwardTx(txs[0])
+		_, firstTxIsFeeForward, err := app.parseFeeForwardTx(txs[0])
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse fee forward tx: %w; fee_balance=%s", err, feeBalance.String())
+		}
 		if !firstTxIsFeeForward {
 			return nil, fmt.Errorf("fee forward tx was filtered out unexpectedly; fee_balance=%s", feeBalance.String())
 		}

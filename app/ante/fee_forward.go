@@ -1,21 +1,12 @@
 package ante
 
 import (
-	"context"
-
 	"cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
-
-// FeeForwardBankKeeper defines the bank keeper interface needed by FeeForwardDecorator.
-// Defined here (not in x/feeaddress/types) since it's only used by this ante decorator.
-type FeeForwardBankKeeper interface {
-	SendCoinsFromAccountToModule(ctx context.Context, senderAddr sdk.AccAddress, recipientModule string, amt sdk.Coins) error
-}
 
 // FeeForwardContextKey indicates a transaction is a protocol-injected fee forward transaction.
 // Set by EarlyFeeForwardDetector BEFORE ValidateBasic runs, enabling SkipForFeeForwardDecorator
@@ -32,11 +23,11 @@ type FeeForwardAmountContextKey struct{}
 // Must be placed before DeductFeeDecorator, SetPubKeyDecorator, SigVerificationDecorator,
 // and IncrementSequenceDecorator since fee forward txs have no signers.
 type FeeForwardDecorator struct {
-	bankKeeper FeeForwardBankKeeper
+	bankKeeper feeaddresstypes.FeeForwardBankKeeper
 }
 
 // NewFeeForwardDecorator creates a new FeeForwardDecorator.
-func NewFeeForwardDecorator(bankKeeper FeeForwardBankKeeper) *FeeForwardDecorator {
+func NewFeeForwardDecorator(bankKeeper feeaddresstypes.FeeForwardBankKeeper) *FeeForwardDecorator {
 	return &FeeForwardDecorator{
 		bankKeeper: bankKeeper,
 	}
@@ -51,13 +42,9 @@ func (d FeeForwardDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate boo
 
 	// MsgForwardFees MUST NOT be submitted by users directly (CIP-43).
 	// It is only valid when injected by the block proposer in PrepareProposal.
-	if ctx.IsCheckTx() || ctx.IsReCheckTx() {
+	// Reject in CheckTx, ReCheckTx, and simulation mode.
+	if ctx.IsCheckTx() || ctx.IsReCheckTx() || simulate {
 		return ctx, errors.Wrap(sdkerrors.ErrInvalidRequest, "MsgForwardFees cannot be submitted by users; it is protocol-injected only")
-	}
-
-	// Verify the context flag was set by EarlyFeeForwardDetector (defense-in-depth).
-	if !IsFeeForwardTx(ctx) {
-		return ctx, errors.Wrap(sdkerrors.ErrLogic, "fee forward context flag not set; EarlyFeeForwardDetector missing from ante chain")
 	}
 
 	// Get the fee from the transaction
@@ -67,9 +54,9 @@ func (d FeeForwardDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate boo
 	}
 	fee := feeTx.GetFee()
 
-	// Fee must be exactly one positive coin in the native denom (defense-in-depth, also checked in ProcessProposal)
-	if len(fee) != 1 || fee[0].Denom != appconsts.BondDenom || !fee[0].Amount.IsPositive() {
-		return ctx, errors.Wrapf(sdkerrors.ErrInvalidRequest, "fee forward tx requires exactly one positive %s coin, got %s", appconsts.BondDenom, fee)
+	// Validate fee format (defense-in-depth, also checked in ProcessProposal)
+	if err := feeaddresstypes.ValidateFeeForwardFee(fee, nil); err != nil {
+		return ctx, errors.Wrap(sdkerrors.ErrInvalidRequest, err.Error())
 	}
 
 	// Deduct fee from fee address and send to fee collector

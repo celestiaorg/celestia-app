@@ -273,12 +273,9 @@ func (app *App) validateFeeForwardTx(sdkTx sdk.Tx, expectedFee sdk.Coin) error {
 		return fmt.Errorf("tx does not implement FeeTx")
 	}
 
-	fee := feeTx.GetFee()
-	if len(fee) != 1 {
-		return fmt.Errorf("fee forward tx must have exactly one fee coin, got %d", len(fee))
-	}
-	if !fee[0].Equal(expectedFee) {
-		return fmt.Errorf("fee %s does not equal expected fee %s", fee[0], expectedFee)
+	// Validate fee format and expected amount
+	if err := feeaddresstypes.ValidateFeeForwardFee(feeTx.GetFee(), &expectedFee); err != nil {
+		return err
 	}
 	if feeTx.GetGas() != feeaddresstypes.FeeForwardGasLimit {
 		return fmt.Errorf("gas limit %d does not match expected %d", feeTx.GetGas(), feeaddresstypes.FeeForwardGasLimit)
