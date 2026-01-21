@@ -50,4 +50,3 @@ func TestValidateGenesis(t *testing.T) {
 		})
 	}
 }
-
