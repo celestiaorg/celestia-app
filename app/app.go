@@ -577,7 +577,7 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 		if signalUpgrade.AppVersion > currentVersion {
 			app.BaseApp.Logger().Info("upgrading app version", "current version", currentVersion, "new version", signalUpgrade.AppVersion)
 
-			upgradeHeight := signalUpgrade.UpgradeHeight + 1 // next block is performing the upgrade.
+			upgradeHeight := signalUpgrade.UpgradeHeight
 			plan := upgradetypes.Plan{
 				Name:   fmt.Sprintf("v%d", signalUpgrade.AppVersion),
 				Height: upgradeHeight,
@@ -591,9 +591,31 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 				return sdk.EndBlock{}, fmt.Errorf("failed to dump upgrade info to disk: %v", err)
 			}
 
-			if err := app.SetAppVersion(ctx, signalUpgrade.AppVersion); err != nil {
-				return sdk.EndBlock{}, err
+			// Set the app version in the consensus params at height N-1 (before the upgrade block).
+			// This ensures that when validators create block N (the upgrade block), the state
+			// already has the new app version, allowing the block header (with the new version)
+			// to pass validation during block sync.
+			//
+			// The sequence is:
+			// 1. Height N-1: EndBlocker sets consensus params app version to signalUpgrade.AppVersion
+			// 2. Height N-1: State is committed with the new app version
+			// 3. Height N: Validators create block header with signalUpgrade.AppVersion
+			// 4. Height N: Block sync validates header against state (both have same version)
+			// 5. Height N: PreBlocker runs the upgrade handler
+			currentParams, err := app.ConsensusKeeper.ParamsStore.Get(ctx)
+			if err != nil {
+				return sdk.EndBlock{}, fmt.Errorf("failed to get consensus params: %v", err)
 			}
+
+			updatedParams := currentParams
+			updatedParams.Version = &tmproto.VersionParams{
+				App: signalUpgrade.AppVersion,
+			}
+
+			if err := app.ConsensusKeeper.ParamsStore.Set(ctx, updatedParams); err != nil {
+				return sdk.EndBlock{}, fmt.Errorf("failed to set consensus params with new app version: %v", err)
+			}
+
 			app.SignalKeeper.ResetTally(ctx)
 		}
 	}
