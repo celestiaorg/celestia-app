@@ -1,6 +1,6 @@
-# Metrics Package
+# Observability Package
 
-This package provides a metrics stack for Consensus nodes using Prometheus and Grafana with file-based target discovery, plus a Loki endpoint for log ingestion.
+This package provides an observability stack for Consensus nodes using Prometheus and Grafana with file-based target discovery, plus a Loki endpoint for log ingestion.
 
 ## Architecture
 
@@ -9,15 +9,17 @@ This package provides a metrics stack for Consensus nodes using Prometheus and G
 │ Consensus Node  │ ─────────────────► │   Prometheus    │
 │  (port 26660)   │                    │  (internal)     │
 └─────────────────┘                    └────────┬────────┘
-                                               │ data source
-                                               ▼
+                                                │
+                                                │ data source
+                                                ▼
                                          ┌─────────────┐
                                          │   Grafana   │
                                          │ (port 3000) │
-                                         └─────────────┘
-
-┌──────────────────────┐    push logs    ┌─────────────┐
-│ latency-monitor logs │ ──────────────► │    Loki     │
+                                         └──────▲──────┘
+                                                │ log queries
+                                                │
+┌──────────────────────┐   push logs     ┌──────┴──────┐
+│ latency-monitor logs │ ─────────────►  │    Loki     │
 └──────────────────────┘                 │ (port 3100) │
                                          └─────────────┘
 ```
@@ -26,16 +28,18 @@ Prometheus discovers targets via a local `targets.json` file mounted into the co
 
 ## Quick Start with Talis
 
-### 1. Initialize with metrics enabled
+### 1. Initialize with observability enabled
 
 ```bash
-talis init --chainID my-chain --experiment test --with-metrics
+talis init --chainID my-chain --experiment test --with-observability
 ```
 
 This:
 
 - Adds a metrics node to the configuration
 - Enables Prometheus metrics endpoint (port 26660) on all validator nodes
+- Enables optional Loki-backed latency monitor logs when you
+start the latency monitor with --loki-url (promtail ships logs)
 
 ### 2. Add validators and provision
 
@@ -44,13 +48,13 @@ talis add -t validator -c 10
 talis up
 ```
 
-### 3. Generate payload with metrics
+### 3. Generate payload with observability
 
 ```bash
-talis genesis --metrics-dir /path/to/celestia-app/metrics -b build
+talis genesis --observability-dir /path/to/celestia-app/observability -b build
 ```
 
-The `--metrics-dir` flag points to this directory. During genesis, Talis:
+The `--observability-dir` flag points to this directory. During genesis, Talis:
 
 - Copies the docker-compose stack and scripts to the payload
 - Generates `targets.json` from the configured validator IPs
@@ -65,24 +69,24 @@ After deployment completes, Talis prints the Grafana URL and credentials:
 
 ```text
 Grafana available at:
-  http://<metrics-node-ip>:3000  (credentials: admin/<random-password>)
+  http://<observability-node-ip>:3000  (credentials: admin/<random-password>)
 ```
 
 ## Helper Scripts
 
 ```bash
 # Install Docker + Compose on a fresh Ubuntu host
-./metrics/install_metrics.sh
+./observability/install_metrics.sh
 
 # Start Prometheus + Grafana from the bundled docker compose config
-./metrics/start_metrics.sh
+./observability/start_metrics.sh
 ```
 
 ## Configuration
 
 ### Prometheus Scrape Interval
 
-Edit `metrics/docker/prometheus/prometheus.yml` to adjust scrape settings:
+Edit `observability/docker/prometheus/prometheus.yml` to adjust scrape settings:
 
 ```yaml
 global:
@@ -113,7 +117,7 @@ The Loki container is included in the stack and a Grafana Loki datasource is pre
 Start latency-monitor with Loki enabled:
 
 ```bash
-talis latency-monitor --instances 1 --loki-url http://<metrics-node-ip>:3100
+talis latency-monitor --instances 1 --loki-url http://<observability-node-ip>:3100
 ```
 
 ## Security
@@ -124,7 +128,7 @@ talis latency-monitor --instances 1 --loki-url http://<metrics-node-ip>:3100
 
 ## Checking Status
 
-From the `metrics/docker` directory:
+From the `observability/docker` directory:
 
 ```bash
 # Check container state
@@ -142,4 +146,4 @@ docker compose down
 
 ## Updating Targets
 
-Edit `metrics/docker/targets/targets.json` and Prometheus will pick up changes within `refresh_interval` (default: 30s).
+Edit `observability/docker/targets/targets.json` and Prometheus will pick up changes within `refresh_interval` (default: 30s).

@@ -17,10 +17,10 @@ import (
 )
 
 const (
-	GCDefaultValidatorMachineType = "c3d-highcpu-16"
-	GCDefaultMetricsMachineType   = "e2-standard-2"
-	GCDefaultImage                = "projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts"
-	GCDefaultDiskSizeGB           = 400
+	GCDefaultValidatorMachineType     = "c3d-highcpu-16"
+	GCDefaultObservabilityMachineType = "e2-standard-2"
+	GCDefaultImage                    = "projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts"
+	GCDefaultDiskSizeGB               = 400
 )
 
 var (
@@ -63,7 +63,7 @@ func NewGCClient(cfg Config) (*GCClient, error) {
 
 func (c *GCClient) Up(ctx context.Context, workers int) error {
 	insts := make([]Instance, 0)
-	for _, v := range append(c.cfg.Validators, c.cfg.Metrics...) {
+	for _, v := range append(c.cfg.Validators, c.cfg.Observability...) {
 		if v.Provider != GoogleCloud {
 			continue
 		}
@@ -102,7 +102,7 @@ func (c *GCClient) Up(ctx context.Context, workers int) error {
 
 func (c *GCClient) Down(ctx context.Context, workers int) error {
 	insts := make([]Instance, 0)
-	for _, v := range append(c.cfg.Validators, c.cfg.Metrics...) {
+	for _, v := range append(c.cfg.Validators, c.cfg.Observability...) {
 		if v.Provider != GoogleCloud {
 			continue
 		}
@@ -212,13 +212,13 @@ func NewGoogleCloudValidator(region string) Instance {
 	return i
 }
 
-func NewGoogleCloudMetrics(region string) Instance {
+func NewGoogleCloudObservability(region string) Instance {
 	if region == "" || region == RandomRegion {
 		region = RandomGCRegion()
 	}
-	i := NewBaseInstance(Metrics)
+	i := NewBaseInstance(Observability)
 	i.Provider = GoogleCloud
-	i.Slug = GCDefaultMetricsMachineType
+	i.Slug = GCDefaultObservabilityMachineType
 	i.Region = region
 	return i
 }
