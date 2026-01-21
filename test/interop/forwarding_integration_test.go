@@ -11,7 +11,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/app/params"
 	forwardingtypes "github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	minttypes "github.com/celestiaorg/celestia-app/v7/x/mint/types"
-	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	ibctesting "github.com/cosmos/ibc-go/v8/testing"
 	"github.com/stretchr/testify/suite"
@@ -43,11 +42,6 @@ func (s *ForwardingIntegrationTestSuite) SetupTest() {
 	s.Require().NoError(err)
 }
 
-// extractDispatchMessage delegates to shared helper
-func (s *ForwardingIntegrationTestSuite) extractDispatchMessage(events []abci.Event) string {
-	return ExtractDispatchMessage(events)
-}
-
 func (s *ForwardingIntegrationTestSuite) fundAddress(chain *ibctesting.TestChain, addr sdk.AccAddress, coin sdk.Coin) {
 	ctx := chain.GetContext()
 	app := s.GetCelestiaApp(chain)
@@ -68,7 +62,7 @@ func (s *ForwardingIntegrationTestSuite) processWarpMessage(
 	res, err := srcChain.SendMsgs(msg)
 	s.Require().NoError(err)
 
-	hypMsg := s.extractDispatchMessage(res.Events)
+	hypMsg := ExtractDispatchMessage(res.Events)
 	s.Require().NotEmpty(hypMsg, "should have hyperlane dispatch message")
 
 	_, err = dstChain.SendMsgs(&coretypes.MsgProcessMessage{
@@ -293,7 +287,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullFlow() {
 	s.True(newForwardBalance.Amount.IsZero(), "forward address should be empty after forwarding")
 
 	// If we found a dispatch event, verify the message can be processed on chainA
-	hypMsg := s.extractDispatchMessage(res.Events)
+	hypMsg := ExtractDispatchMessage(res.Events)
 	if hypMsg != "" {
 		res, err = s.chainA.SendMsgs(&coretypes.MsgProcessMessage{
 			MailboxId: mailboxIDChainA,
@@ -612,7 +606,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullE2E_SourceCollateral
 	s.Require().NoError(err)
 	s.Require().NotNil(res)
 
-	hypMsgToChainB := s.extractDispatchMessage(res.Events)
+	hypMsgToChainB := ExtractDispatchMessage(res.Events)
 	s.Require().NotEmpty(hypMsgToChainB, "should have hyperlane dispatch message to chainB")
 
 	// Verify forward address is now empty
@@ -712,7 +706,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullE2E_TIASyntheticOnSo
 	res, err := s.celestia.SendMsgs(forwardMsg)
 	s.Require().NoError(err)
 
-	hypMsgToChainB := s.extractDispatchMessage(res.Events)
+	hypMsgToChainB := ExtractDispatchMessage(res.Events)
 
 	// Verify forward address is now empty
 	newForwardBalance := celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), forwardAddr, params.BondDenom)
@@ -782,7 +776,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullE2E_CEXWithdrawal() 
 	s.Require().NoError(err)
 	s.Require().NotNil(res)
 
-	hypMsgToChainB := s.extractDispatchMessage(res.Events)
+	hypMsgToChainB := ExtractDispatchMessage(res.Events)
 	s.Require().NotEmpty(hypMsgToChainB)
 
 	// Verify forward address is now empty
