@@ -119,54 +119,84 @@ func TestUpdateValidatorCommissionRates(t *testing.T) {
 		shouldUpdate         bool
 	}{
 		{
-			name:                 "should increase rate and max rate to min commission rate",
+			name:                 "should increase rate to min commission rate and max rate to max commission rate",
 			initialRate:          "0.05", // 5%
 			initialMaxRate:       "0.08", // 8%
 			initialMaxChangeRate: "0.01", // 1%
 			wantRate:             "0.20", // 20% (MinCommissionRate)
-			wantMaxRate:          "0.20", // 20% (MinCommissionRate)
+			wantMaxRate:          "0.60", // 60% (MaxCommissionRate)
 			wantMaxChangeRate:    "0.01", // unchanged
 			shouldUpdate:         true,
 		},
 		{
-			name:                 "should increase rate to min commission rate and leave max rate unchanged",
+			name:                 "should increase rate to min commission rate and max rate to max commission rate when max rate is below 60%",
 			initialRate:          "0.03", // 3%
 			initialMaxRate:       "0.25", // 25%
 			initialMaxChangeRate: "0.02", // 2%
 			wantRate:             "0.20", // 20% (MinCommissionRate)
-			wantMaxRate:          "0.25", // unchanged
+			wantMaxRate:          "0.60", // 60% (MaxCommissionRate)
 			wantMaxChangeRate:    "0.02", // unchanged
 			shouldUpdate:         true,
 		},
 		{
-			name:                 "should not update if both rate and max rate are above min commission rate",
+			name:                 "should increase max rate to max commission rate when rate is compliant but max rate is below 60%",
 			initialRate:          "0.25", // 25%
 			initialMaxRate:       "0.30", // 30%
 			initialMaxChangeRate: "0.05", // 5%
 			wantRate:             "0.25", // unchanged
-			wantMaxRate:          "0.30", // unchanged
+			wantMaxRate:          "0.60", // 60% (MaxCommissionRate)
 			wantMaxChangeRate:    "0.05", // unchanged
-			shouldUpdate:         false,
+			shouldUpdate:         true,
 		},
 		{
-			name:                 "should not update if both rate and max rate are exactly at min commission rate",
+			name:                 "should increase max rate to max commission rate when rate is at minimum but max rate is below 60%",
 			initialRate:          "0.20", // 20% (exactly minimum)
-			initialMaxRate:       "0.20", // 20% (exactly minimum)
+			initialMaxRate:       "0.20", // 20%
 			initialMaxChangeRate: "0.20", // 20%
 			wantRate:             "0.20", // unchanged
-			wantMaxRate:          "0.20", // unchanged
+			wantMaxRate:          "0.60", // 60% (MaxCommissionRate)
 			wantMaxChangeRate:    "0.20", // unchanged
-			shouldUpdate:         false,
+			shouldUpdate:         true,
 		},
 		{
-			name:                 "zero commission rate - should be updated to minimum",
+			name:                 "zero commission rate - should be updated to minimum and max rate to max commission rate",
 			initialRate:          "0.00", // 0%
 			initialMaxRate:       "0.05", // 5%
 			initialMaxChangeRate: "0.10", // 10%
 			wantRate:             "0.20", // 20% (MinCommissionRate)
-			wantMaxRate:          "0.20", // 20% (MinCommissionRate)
+			wantMaxRate:          "0.60", // 60% (MaxCommissionRate)
 			wantMaxChangeRate:    "0.10", // unchanged
 			shouldUpdate:         true,
+		},
+		{
+			name:                 "should increase max rate to max commission rate when max rate is 50%",
+			initialRate:          "0.20", // 20%
+			initialMaxRate:       "0.50", // 50%
+			initialMaxChangeRate: "0.10", // 10%
+			wantRate:             "0.20", // unchanged
+			wantMaxRate:          "0.60", // 60% (MaxCommissionRate)
+			wantMaxChangeRate:    "0.10", // unchanged
+			shouldUpdate:         true,
+		},
+		{
+			name:                 "should not update if max rate is exactly 60%",
+			initialRate:          "0.20", // 20%
+			initialMaxRate:       "0.60", // 60% (exactly MaxCommissionRate)
+			initialMaxChangeRate: "0.10", // 10%
+			wantRate:             "0.20", // unchanged
+			wantMaxRate:          "0.60", // unchanged
+			wantMaxChangeRate:    "0.10", // unchanged
+			shouldUpdate:         false,
+		},
+		{
+			name:                 "should not update if max rate is above 60%",
+			initialRate:          "0.25", // 25%
+			initialMaxRate:       "0.80", // 80%
+			initialMaxChangeRate: "0.10", // 10%
+			wantRate:             "0.25", // unchanged
+			wantMaxRate:          "0.80", // unchanged
+			wantMaxChangeRate:    "0.10", // unchanged
+			shouldUpdate:         false,
 		},
 	}
 
