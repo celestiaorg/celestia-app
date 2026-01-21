@@ -29,46 +29,46 @@ func generateGrafanaPassword() (string, error) {
 	return string(password), nil
 }
 
-// stageMetricsPayload copies the metrics directory (docker-compose, Prometheus config,
+// stageObservabilityPayload copies the observability directory (docker-compose, Prometheus config,
 // Grafana dashboards, and setup scripts) into the payload directory and generates
 // the targets.json file from the config.
 //
-// If no metrics nodes are configured, this function does nothing.
-// If metrics nodes are configured but metricsSrcDir is empty, it returns an error.
-func stageMetricsPayload(cfg Config, metricsSrcDir, payloadDir string) error {
-	// Skip if no metrics nodes configured
-	if len(cfg.Metrics) == 0 {
+// If no observability monitoring nodes are configured, this function does nothing.
+// If observability monitoring nodes are configured but observabilitySrcDir is empty, it returns an error.
+func stageObservabilityPayload(cfg Config, observabilitySrcDir, payloadDir string) error {
+	// Skip if no observability monitoring nodes configured
+	if len(cfg.Observability) == 0 {
 		return nil
 	}
 
-	// Error if metrics nodes configured but no metrics directory provided
-	if metricsSrcDir == "" {
-		return fmt.Errorf("metrics nodes are configured but --metrics-dir flag not provided")
+	// Error if observability monitoring nodes configured but no observability directory provided
+	if observabilitySrcDir == "" {
+		return fmt.Errorf("observability monitoring nodes are configured but --observability-dir flag not provided")
 	}
 
 	// Validate source directory exists
-	if fi, err := os.Stat(metricsSrcDir); err != nil || !fi.IsDir() {
-		return fmt.Errorf("metrics directory %q does not exist or is not a directory", metricsSrcDir)
+	if fi, err := os.Stat(observabilitySrcDir); err != nil || !fi.IsDir() {
+		return fmt.Errorf("observability directory %q does not exist or is not a directory", observabilitySrcDir)
 	}
 
-	dockerSrc := filepath.Join(metricsSrcDir, "docker")
-	metricsDest := filepath.Join(payloadDir, "metrics")
-	dockerDest := filepath.Join(metricsDest, "docker")
+	dockerSrc := filepath.Join(observabilitySrcDir, "docker")
+	observabilityDest := filepath.Join(payloadDir, "observability")
+	dockerDest := filepath.Join(observabilityDest, "docker")
 
 	if err := copyDir(dockerSrc, dockerDest); err != nil {
-		return fmt.Errorf("failed to copy metrics docker assets: %w", err)
+		return fmt.Errorf("failed to copy observability docker assets: %w", err)
 	}
 
 	for _, script := range []string{"install_metrics.sh", "start_metrics.sh"} {
-		src := filepath.Join(metricsSrcDir, script)
-		dest := filepath.Join(metricsDest, script)
+		src := filepath.Join(observabilitySrcDir, script)
+		dest := filepath.Join(observabilityDest, script)
 		if err := copyFile(src, dest, 0o755); err != nil {
-			return fmt.Errorf("failed to copy metrics script %s: %w", script, err)
+			return fmt.Errorf("failed to copy observability script %s: %w", script, err)
 		}
 	}
 
-	// Generate validator metrics targets (CometBFT on port 26660)
-	groups, skipped, err := buildMetricsTargets(cfg, defaultMetricsPort, "public")
+	// Generate validator observability targets (CometBFT on port 26660)
+	groups, skipped, err := buildObservabilityTargets(cfg, defaultMetricsPort, "public")
 	if err != nil {
 		return err
 	}
@@ -89,7 +89,7 @@ func stageMetricsPayload(cfg Config, metricsSrcDir, payloadDir string) error {
 	}
 
 	// Generate latency monitor targets (same validators, port 9464)
-	latencyGroups, _, err := buildMetricsTargets(cfg, latencyMonitorMetricsPort, "public")
+	latencyGroups, _, err := buildObservabilityTargets(cfg, latencyMonitorMetricsPort, "public")
 	if err != nil {
 		return err
 	}
@@ -115,9 +115,9 @@ func stageMetricsPayload(cfg Config, metricsSrcDir, payloadDir string) error {
 		return fmt.Errorf("failed to write .env file: %w", err)
 	}
 
-	log.Printf("staged metrics payload with %d targets", len(groups))
+	log.Printf("staged observability payload with %d targets", len(groups))
 	if skipped > 0 {
-		log.Printf("⚠️  skipped %d nodes for metrics targets (missing private/public IP)", skipped)
+		log.Printf("⚠️  skipped %d nodes for observability targets (missing private/public IP)", skipped)
 	}
 
 	return nil
