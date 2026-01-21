@@ -109,94 +109,76 @@ func TestApplyUpgrade(t *testing.T) {
 
 func TestUpdateValidatorCommissionRates(t *testing.T) {
 	testCases := []struct {
-		name                 string
-		initialRate          string
-		initialMaxRate       string
-		initialMaxChangeRate string
-		wantRate             string
-		wantMaxRate          string
-		wantMaxChangeRate    string
-		shouldUpdate         bool
+		name           string
+		initialRate    string
+		initialMaxRate string
+		wantRate       string
+		wantMaxRate    string
+		shouldUpdate   bool
 	}{
 		{
-			name:                 "should increase rate to min commission rate and max rate to max commission rate",
-			initialRate:          "0.05", // 5%
-			initialMaxRate:       "0.08", // 8%
-			initialMaxChangeRate: "0.01", // 1%
-			wantRate:             "0.20", // 20% (MinCommissionRate)
-			wantMaxRate:          "0.60", // 60% (MaxCommissionRate)
-			wantMaxChangeRate:    "0.01", // unchanged
-			shouldUpdate:         true,
+			name:           "should increase rate to min commission rate and max rate to max commission rate",
+			initialRate:    "0.05", // 5%
+			initialMaxRate: "0.08", // 8%
+			wantRate:       "0.20", // 20% (MinCommissionRate)
+			wantMaxRate:    "0.60", // 60% (MaxCommissionRate)
+			shouldUpdate:   true,
 		},
 		{
-			name:                 "should increase rate to min commission rate and max rate to max commission rate when max rate is below 60%",
-			initialRate:          "0.03", // 3%
-			initialMaxRate:       "0.25", // 25%
-			initialMaxChangeRate: "0.02", // 2%
-			wantRate:             "0.20", // 20% (MinCommissionRate)
-			wantMaxRate:          "0.60", // 60% (MaxCommissionRate)
-			wantMaxChangeRate:    "0.02", // unchanged
-			shouldUpdate:         true,
+			name:           "should increase rate to min commission rate and max rate to max commission rate when max rate is below 60%",
+			initialRate:    "0.03", // 3%
+			initialMaxRate: "0.25", // 25%
+			wantRate:       "0.20", // 20% (MinCommissionRate)
+			wantMaxRate:    "0.60", // 60% (MaxCommissionRate)
+			shouldUpdate:   true,
 		},
 		{
-			name:                 "should increase max rate to max commission rate when rate is compliant but max rate is below 60%",
-			initialRate:          "0.25", // 25%
-			initialMaxRate:       "0.30", // 30%
-			initialMaxChangeRate: "0.05", // 5%
-			wantRate:             "0.25", // unchanged
-			wantMaxRate:          "0.60", // 60% (MaxCommissionRate)
-			wantMaxChangeRate:    "0.05", // unchanged
-			shouldUpdate:         true,
+			name:           "should increase max rate to max commission rate when rate is compliant but max rate is below 60%",
+			initialRate:    "0.25", // 25%
+			initialMaxRate: "0.30", // 30%
+			wantRate:       "0.25", // unchanged
+			wantMaxRate:    "0.60", // 60% (MaxCommissionRate)
+			shouldUpdate:   true,
 		},
 		{
-			name:                 "should increase max rate to max commission rate when rate is at minimum but max rate is below 60%",
-			initialRate:          "0.20", // 20% (exactly minimum)
-			initialMaxRate:       "0.20", // 20%
-			initialMaxChangeRate: "0.20", // 20%
-			wantRate:             "0.20", // unchanged
-			wantMaxRate:          "0.60", // 60% (MaxCommissionRate)
-			wantMaxChangeRate:    "0.20", // unchanged
-			shouldUpdate:         true,
+			name:           "should increase max rate to max commission rate when rate is at minimum but max rate is below 60%",
+			initialRate:    "0.20", // 20% (exactly minimum)
+			initialMaxRate: "0.20", // 20%
+			wantRate:       "0.20", // unchanged
+			wantMaxRate:    "0.60", // 60% (MaxCommissionRate)
+			shouldUpdate:   true,
 		},
 		{
-			name:                 "zero commission rate - should be updated to minimum and max rate to max commission rate",
-			initialRate:          "0.00", // 0%
-			initialMaxRate:       "0.05", // 5%
-			initialMaxChangeRate: "0.10", // 10%
-			wantRate:             "0.20", // 20% (MinCommissionRate)
-			wantMaxRate:          "0.60", // 60% (MaxCommissionRate)
-			wantMaxChangeRate:    "0.10", // unchanged
-			shouldUpdate:         true,
+			name:           "zero commission rate - should be updated to minimum and max rate to max commission rate",
+			initialRate:    "0.00", // 0%
+			initialMaxRate: "0.05", // 5%
+			wantRate:       "0.20", // 20% (MinCommissionRate)
+			wantMaxRate:    "0.60", // 60% (MaxCommissionRate)
+			shouldUpdate:   true,
 		},
 		{
-			name:                 "should increase max rate to max commission rate when max rate is 50%",
-			initialRate:          "0.20", // 20%
-			initialMaxRate:       "0.50", // 50%
-			initialMaxChangeRate: "0.10", // 10%
-			wantRate:             "0.20", // unchanged
-			wantMaxRate:          "0.60", // 60% (MaxCommissionRate)
-			wantMaxChangeRate:    "0.10", // unchanged
-			shouldUpdate:         true,
+			name:           "should increase max rate to max commission rate when max rate is 50%",
+			initialRate:    "0.20", // 20%
+			initialMaxRate: "0.50", // 50%
+			wantRate:       "0.20", // unchanged
+			wantMaxRate:    "0.60", // 60% (MaxCommissionRate)
+			shouldUpdate:   true,
 		},
 		{
-			name:                 "should not update if max rate is exactly 60%",
-			initialRate:          "0.20", // 20%
-			initialMaxRate:       "0.60", // 60% (exactly MaxCommissionRate)
-			initialMaxChangeRate: "0.10", // 10%
-			wantRate:             "0.20", // unchanged
-			wantMaxRate:          "0.60", // unchanged
-			wantMaxChangeRate:    "0.10", // unchanged
-			shouldUpdate:         false,
+			name:           "should not update if max rate is exactly 60%",
+			initialRate:    "0.20", // 20%
+			initialMaxRate: "0.60", // 60% (exactly MaxCommissionRate)
+			wantRate:       "0.20", // unchanged
+			wantMaxRate:    "0.60", // unchanged
+			shouldUpdate:   false,
 		},
 		{
-			name:                 "should not update if max rate is above 60%",
-			initialRate:          "0.25", // 25%
-			initialMaxRate:       "0.80", // 80%
-			initialMaxChangeRate: "0.10", // 10%
-			wantRate:             "0.25", // unchanged
-			wantMaxRate:          "0.80", // unchanged
-			wantMaxChangeRate:    "0.10", // unchanged
-			shouldUpdate:         false,
+			name:           "should not update if max rate is above 60%",
+			initialRate:    "0.25", // 25%
+			initialMaxRate: "0.80", // 80%
+			wantRate:       "0.25", // unchanged
+			wantMaxRate:    "0.80", // unchanged
+			shouldUpdate:   false,
 		},
 	}
 
@@ -207,14 +189,14 @@ func TestUpdateValidatorCommissionRates(t *testing.T) {
 
 			ctx := testApp.NewContext(false).WithBlockTime(util.GenesisTime.Add(time.Hour * 25))
 
-			validator := createValidatorWithCommission(t, testApp, ctx, tc.initialRate, tc.initialMaxRate, tc.initialMaxChangeRate)
+			validator := createValidatorWithCommission(t, testApp, ctx, tc.initialRate, tc.initialMaxRate)
 
 			valAddr, err := sdk.ValAddressFromBech32(validator.GetOperator())
 			require.NoError(t, err)
 			validatorBefore, err := testApp.StakingKeeper.GetValidator(ctx, valAddr)
 			require.NoError(t, err)
 
-			assertCommissionRates(t, validatorBefore, tc.initialRate, tc.initialMaxRate, tc.initialMaxChangeRate)
+			assertCommissionRates(t, validatorBefore, tc.initialRate, tc.initialMaxRate)
 
 			err = testApp.UpdateValidatorCommissionRates(ctx)
 			require.NoError(t, err)
@@ -222,7 +204,7 @@ func TestUpdateValidatorCommissionRates(t *testing.T) {
 			validatorAfter, err := testApp.StakingKeeper.GetValidator(ctx, valAddr)
 			require.NoError(t, err)
 
-			assertCommissionRates(t, validatorAfter, tc.wantRate, tc.wantMaxRate, tc.wantMaxChangeRate)
+			assertCommissionRates(t, validatorAfter, tc.wantRate, tc.wantMaxRate)
 
 			if tc.shouldUpdate {
 				require.Equal(t, ctx.BlockTime(), validatorAfter.Commission.UpdateTime, "UpdateTime should be set to current block time")
@@ -233,14 +215,14 @@ func TestUpdateValidatorCommissionRates(t *testing.T) {
 
 // createValidatorWithCommission creates a validator with specific commission
 // rates for testing
-func createValidatorWithCommission(t *testing.T, testApp *app.App, ctx sdk.Context, rate string, maxRate string, maxChangeRate string) stakingtypes.Validator {
+func createValidatorWithCommission(t *testing.T, testApp *app.App, ctx sdk.Context, rate string, maxRate string) stakingtypes.Validator {
 	rateDec, err := math.LegacyNewDecFromStr(rate)
 	require.NoError(t, err)
 
 	maxRateDec, err := math.LegacyNewDecFromStr(maxRate)
 	require.NoError(t, err)
 
-	maxChangeRateDec, err := math.LegacyNewDecFromStr(maxChangeRate)
+	maxChangeRateDec, err := math.LegacyNewDecFromStr("0.10") // 10%
 	require.NoError(t, err)
 
 	validators, err := testApp.StakingKeeper.GetAllValidators(ctx)
@@ -257,17 +239,14 @@ func createValidatorWithCommission(t *testing.T, testApp *app.App, ctx sdk.Conte
 }
 
 // assertCommissionRates verifies that a validator has the expected commission rates
-func assertCommissionRates(t *testing.T, validator stakingtypes.Validator, expectedRate, expectedMaxRate, expectedMaxChangeRate string) {
+func assertCommissionRates(t *testing.T, validator stakingtypes.Validator, expectedRate string, expectedMaxRate string) {
 	wantRate, err := math.LegacyNewDecFromStr(expectedRate)
 	require.NoError(t, err)
 	wantMaxRate, err := math.LegacyNewDecFromStr(expectedMaxRate)
 	require.NoError(t, err)
-	wantMaxChangeRate, err := math.LegacyNewDecFromStr(expectedMaxChangeRate)
-	require.NoError(t, err)
 
 	require.Equal(t, wantRate, validator.Commission.Rate)
 	require.Equal(t, wantMaxRate, validator.Commission.MaxRate)
-	require.Equal(t, wantMaxChangeRate, validator.Commission.MaxChangeRate)
 }
 
 func TestMaxCommissionRate(t *testing.T) {
@@ -280,7 +259,7 @@ func TestMaxCommissionRate(t *testing.T) {
 		ctx := testApp.NewContext(false).WithBlockTime(util.GenesisTime.Add(time.Hour * 25))
 
 		// Set up validator with a high max change rate to allow commission changes
-		validator := createValidatorWithCommission(t, testApp, ctx, "0.20", "1.00", "1.00")
+		validator := createValidatorWithCommission(t, testApp, ctx, "0.20", "1.00")
 		valAddr, err := sdk.ValAddressFromBech32(validator.GetOperator())
 		require.NoError(t, err)
 
@@ -312,7 +291,7 @@ func TestMaxCommissionRate(t *testing.T) {
 		ctx := testApp.NewContext(false).WithBlockTime(util.GenesisTime.Add(time.Hour * 25))
 
 		// Set up validator with a high max change rate to allow commission changes
-		validator := createValidatorWithCommission(t, testApp, ctx, "0.20", "1.00", "1.00")
+		validator := createValidatorWithCommission(t, testApp, ctx, "0.20", "1.00")
 		valAddr, err := sdk.ValAddressFromBech32(validator.GetOperator())
 		require.NoError(t, err)
 
