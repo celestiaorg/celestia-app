@@ -48,11 +48,6 @@ func (s *ForwardingIntegrationTestSuite) extractDispatchMessage(events []abci.Ev
 	return ExtractDispatchMessage(events)
 }
 
-// countDispatchEvents delegates to shared helper
-func (s *ForwardingIntegrationTestSuite) countDispatchEvents(events []abci.Event) int {
-	return CountDispatchEvents(events)
-}
-
 func (s *ForwardingIntegrationTestSuite) fundAddress(chain *ibctesting.TestChain, addr sdk.AccAddress, coin sdk.Coin) {
 	ctx := chain.GetContext()
 	app := s.GetCelestiaApp(chain)
@@ -100,10 +95,10 @@ func (s *ForwardingIntegrationTestSuite) TestFindHypTokenByDenom_TIA() {
 	// Create a collateral token for utia (TIA)
 	collatTokenID := s.CreateCollateralToken(s.celestia, ismID, mailboxID, params.BondDenom)
 
-	// Set up simapp counterparty and enroll router so TIA has a route
-	ismIDSimapp := s.SetupNoopISM(s.chainA)
-	s.SetupMailBox(s.chainA, ismIDSimapp, ChainADomainID)
-	tiaSynTokenID := s.CreateSyntheticToken(s.chainA, ismIDSimapp, mailboxID)
+	// Set up chainA counterparty and enroll router so TIA has a route
+	ismIDChainA := s.SetupNoopISM(s.chainA)
+	s.SetupMailBox(s.chainA, ismIDChainA, ChainADomainID)
+	tiaSynTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxID)
 	s.EnrollRemoteRouter(s.celestia, collatTokenID, ChainADomainID, tiaSynTokenID.String())
 
 	// Test FindHypTokenByDenom for "utia" with destDomain
@@ -127,16 +122,16 @@ func (s *ForwardingIntegrationTestSuite) TestFindHypTokenByDenom_Synthetic() {
 	celestiaApp := s.GetCelestiaApp(s.celestia)
 	ctx := s.celestia.GetContext()
 
-	// Set up hyperlane infrastructure on simapp (origin chain)
-	ismIDSimapp := s.SetupNoopISM(s.chainA)
-	mailboxIDSimapp := s.SetupMailBox(s.chainA, ismIDSimapp, ChainADomainID)
+	// Set up hyperlane infrastructure on chainA (origin chain)
+	ismIDChainA := s.SetupNoopISM(s.chainA)
+	mailboxIDChainA := s.SetupMailBox(s.chainA, ismIDChainA, ChainADomainID)
 
 	// Set up celestia
 	ismIDCelestia := s.SetupNoopISM(s.celestia)
 	s.SetupMailBox(s.celestia, ismIDCelestia, CelestiaDomainID)
 
-	// Create a synthetic token on celestia (representing a token from simapp)
-	synTokenID := s.CreateSyntheticToken(s.celestia, ismIDCelestia, mailboxIDSimapp)
+	// Create a synthetic token on celestia (representing a token from chainA)
+	synTokenID := s.CreateSyntheticToken(s.celestia, ismIDCelestia, mailboxIDChainA)
 
 	// Get the synthetic token to find its denom
 	hypToken, err := celestiaApp.WarpKeeper.HypTokens.Get(ctx, synTokenID.GetInternalId())
@@ -178,10 +173,10 @@ func (s *ForwardingIntegrationTestSuite) TestHasEnrolledRouter() {
 	s.Require().NoError(err)
 	s.False(hasRouteBefore, "should NOT have enrolled router before enrollment")
 
-	// Set up simapp and enroll router
-	ismIDSimapp := s.SetupNoopISM(s.chainA)
-	s.SetupMailBox(s.chainA, ismIDSimapp, ChainADomainID)
-	synTokenID := s.CreateSyntheticToken(s.chainA, ismIDSimapp, mailboxID)
+	// Set up chainA and enroll router
+	ismIDChainA := s.SetupNoopISM(s.chainA)
+	s.SetupMailBox(s.chainA, ismIDChainA, ChainADomainID)
+	synTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxID)
 	s.EnrollRemoteRouter(s.celestia, collatTokenID, ChainADomainID, synTokenID.String())
 
 	// After enrollment - should return true
@@ -226,9 +221,9 @@ func (s *ForwardingIntegrationTestSuite) TestHasAnyRouteToDestination() {
 	s.False(hasRoute, "should return false when token exists but no route enrolled")
 
 	// Enroll route for collateral token
-	ismIDSimapp := s.SetupNoopISM(s.chainA)
-	s.SetupMailBox(s.chainA, ismIDSimapp, ChainADomainID)
-	synTokenID := s.CreateSyntheticToken(s.chainA, ismIDSimapp, mailboxID)
+	ismIDChainA := s.SetupNoopISM(s.chainA)
+	s.SetupMailBox(s.chainA, ismIDChainA, ChainADomainID)
+	synTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxID)
 	s.EnrollRemoteRouter(s.celestia, collatTokenID, ChainADomainID, synTokenID.String())
 
 	// Test 3: Collateral token has route - returns true
@@ -258,10 +253,10 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullFlow() {
 	mailboxIDCelestia := s.SetupMailBox(s.celestia, ismIDCelestia, CelestiaDomainID)
 	collatTokenID := s.CreateCollateralToken(s.celestia, ismIDCelestia, mailboxIDCelestia, params.BondDenom)
 
-	// Set up simapp counterparty
-	ismIDSimapp := s.SetupNoopISM(s.chainA)
-	mailboxIDSimapp := s.SetupMailBox(s.chainA, ismIDSimapp, ChainADomainID)
-	synTokenID := s.CreateSyntheticToken(s.chainA, ismIDSimapp, mailboxIDCelestia)
+	// Set up chainA counterparty
+	ismIDChainA := s.SetupNoopISM(s.chainA)
+	mailboxIDChainA := s.SetupMailBox(s.chainA, ismIDChainA, ChainADomainID)
+	synTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxIDCelestia)
 
 	// Enroll routers
 	s.EnrollRemoteRouter(s.celestia, collatTokenID, ChainADomainID, synTokenID.String())
@@ -297,11 +292,11 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullFlow() {
 	newForwardBalance := celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), forwardAddr, params.BondDenom)
 	s.True(newForwardBalance.Amount.IsZero(), "forward address should be empty after forwarding")
 
-	// If we found a dispatch event, verify the message can be processed on simapp
+	// If we found a dispatch event, verify the message can be processed on chainA
 	hypMsg := s.extractDispatchMessage(res.Events)
 	if hypMsg != "" {
 		res, err = s.chainA.SendMsgs(&coretypes.MsgProcessMessage{
-			MailboxId: mailboxIDSimapp,
+			MailboxId: mailboxIDChainA,
 			Relayer:   s.chainA.SenderAccount.GetAddress().String(),
 			Message:   hypMsg,
 		})
@@ -309,11 +304,11 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullFlow() {
 			s.Require().NotNil(res)
 
 			// Verify tokens arrived at destination
-			simapp := s.GetSimapp(s.chainA)
-			hypDenom, err := simapp.WarpKeeper.HypTokens.Get(s.chainA.GetContext(), synTokenID.GetInternalId())
+			chainAApp := s.GetSimapp(s.chainA)
+			hypDenom, err := chainAApp.WarpKeeper.HypTokens.Get(s.chainA.GetContext(), synTokenID.GetInternalId())
 			s.Require().NoError(err)
 
-			destBalance := simapp.BankKeeper.GetBalance(s.chainA.GetContext(), s.chainA.SenderAccount.GetAddress(), hypDenom.OriginDenom)
+			destBalance := chainAApp.BankKeeper.GetBalance(s.chainA.GetContext(), s.chainA.SenderAccount.GetAddress(), hypDenom.OriginDenom)
 			s.Equal(fundAmount.Int64(), destBalance.Amount.Int64())
 		}
 	}
@@ -367,20 +362,20 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_MultiToken() {
 	mailboxIDCelestia := s.SetupMailBox(s.celestia, ismIDCelestia, CelestiaDomainID)
 	tiaCollatTokenID := s.CreateCollateralToken(s.celestia, ismIDCelestia, mailboxIDCelestia, params.BondDenom)
 
-	// Set up simapp counterparty
-	ismIDSimapp := s.SetupNoopISM(s.chainA)
-	mailboxIDSimapp := s.SetupMailBox(s.chainA, ismIDSimapp, ChainADomainID)
-	tiaSynTokenID := s.CreateSyntheticToken(s.chainA, ismIDSimapp, mailboxIDCelestia)
+	// Set up chainA counterparty
+	ismIDChainA := s.SetupNoopISM(s.chainA)
+	mailboxIDChainA := s.SetupMailBox(s.chainA, ismIDChainA, ChainADomainID)
+	tiaSynTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxIDCelestia)
 
-	// Create second token pair: simapp collateral -> Celestia synthetic
-	simappCollatTokenID := s.CreateCollateralToken(s.chainA, ismIDSimapp, mailboxIDSimapp, sdk.DefaultBondDenom)
-	celestiaSynTokenID := s.CreateSyntheticToken(s.celestia, ismIDCelestia, mailboxIDSimapp)
+	// Create second token pair: chainA collateral -> Celestia synthetic
+	chainACollatTokenID := s.CreateCollateralToken(s.chainA, ismIDChainA, mailboxIDChainA, sdk.DefaultBondDenom)
+	celestiaSynTokenID := s.CreateSyntheticToken(s.celestia, ismIDCelestia, mailboxIDChainA)
 
 	// Enroll routers for both token pairs
 	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, ChainADomainID, tiaSynTokenID.String())
 	s.EnrollRemoteRouter(s.chainA, tiaSynTokenID, CelestiaDomainID, tiaCollatTokenID.String())
-	s.EnrollRemoteRouter(s.chainA, simappCollatTokenID, CelestiaDomainID, celestiaSynTokenID.String())
-	s.EnrollRemoteRouter(s.celestia, celestiaSynTokenID, ChainADomainID, simappCollatTokenID.String())
+	s.EnrollRemoteRouter(s.chainA, chainACollatTokenID, CelestiaDomainID, celestiaSynTokenID.String())
+	s.EnrollRemoteRouter(s.celestia, celestiaSynTokenID, ChainADomainID, chainACollatTokenID.String())
 
 	// Create destination recipient and derive forwarding address
 	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
@@ -391,11 +386,11 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_MultiToken() {
 	tiaAmount := math.NewInt(1000)
 	s.fundAddress(s.celestia, forwardAddr, sdk.NewCoin(params.BondDenom, tiaAmount))
 
-	// Warp transfer stake from simapp to forwardAddr on Celestia
+	// Warp transfer stake from chainA to forwardAddr on Celestia
 	forwardAddrBytes := MakeRecipient32(forwardAddr)
 	s.processWarpMessage(s.chainA, s.celestia, mailboxIDCelestia, &warptypes.MsgRemoteTransfer{
 		Sender:            s.chainA.SenderAccount.GetAddress().String(),
-		TokenId:           simappCollatTokenID,
+		TokenId:           chainACollatTokenID,
 		DestinationDomain: CelestiaDomainID,
 		Recipient:         util.HexAddress(forwardAddrBytes),
 		Amount:            math.NewInt(500),
@@ -432,7 +427,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_MultiToken() {
 	s.True(newSynBalance.Amount.IsZero(), "SYNTHETIC balance should be zero after forwarding")
 
 	// Verify 2 dispatch events (one per token)
-	s.Equal(2, s.countDispatchEvents(res.Events), "should have 2 dispatch events for 2 tokens")
+	s.Equal(2, CountDispatchEvents(res.Events), "should have 2 dispatch events for 2 tokens")
 }
 
 func (s *ForwardingIntegrationTestSuite) TestMsgForward_PartialFailure_UnsupportedToken() {
@@ -448,10 +443,10 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_PartialFailure_Unsupport
 	mailboxIDCelestia := s.SetupMailBox(s.celestia, ismIDCelestia, CelestiaDomainID)
 	tiaCollatTokenID := s.CreateCollateralToken(s.celestia, ismIDCelestia, mailboxIDCelestia, params.BondDenom)
 
-	// Set up simapp counterparty
-	ismIDSimapp := s.SetupNoopISM(s.chainA)
-	_ = s.SetupMailBox(s.chainA, ismIDSimapp, ChainADomainID)
-	tiaSynTokenID := s.CreateSyntheticToken(s.chainA, ismIDSimapp, mailboxIDCelestia)
+	// Set up chainA counterparty
+	ismIDChainA := s.SetupNoopISM(s.chainA)
+	_ = s.SetupMailBox(s.chainA, ismIDChainA, ChainADomainID)
+	tiaSynTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxIDCelestia)
 
 	// Enroll routers for TIA only
 	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, ChainADomainID, tiaSynTokenID.String())
@@ -509,16 +504,16 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_PartialFailure_NoRoute()
 	testDenom := "uother"
 	testCollatTokenID := s.CreateCollateralToken(s.celestia, ismIDCelestia, mailboxIDCelestia, testDenom)
 
-	// Set up simapp counterparty for TIA
-	ismIDSimapp := s.SetupNoopISM(s.chainA)
-	_ = s.SetupMailBox(s.chainA, ismIDSimapp, ChainADomainID)
-	tiaSynTokenID := s.CreateSyntheticToken(s.chainA, ismIDSimapp, mailboxIDCelestia)
+	// Set up chainA counterparty for TIA
+	ismIDChainA := s.SetupNoopISM(s.chainA)
+	_ = s.SetupMailBox(s.chainA, ismIDChainA, ChainADomainID)
+	tiaSynTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxIDCelestia)
 
-	// Enroll TIA route to simapp
+	// Enroll TIA route to chainA
 	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, ChainADomainID, tiaSynTokenID.String())
 	s.EnrollRemoteRouter(s.chainA, tiaSynTokenID, CelestiaDomainID, tiaCollatTokenID.String())
 
-	// Enroll test token route to OTHER domain only (NOT simapp)
+	// Enroll test token route to OTHER domain only (NOT chainA)
 	s.EnrollRemoteRouter(s.celestia, testCollatTokenID, OtherDomainID, "0x0000000000000000000000000000000000000000000000000000000000000001")
 
 	// Derive forwarding address FOR ChainADomainID
@@ -549,8 +544,8 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_PartialFailure_NoRoute()
 	newTiaBalance := celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), forwardAddr, params.BondDenom)
 	newTestBalance := celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), forwardAddr, testDenom)
 
-	s.True(newTiaBalance.Amount.IsZero(), "TIA should be forwarded (has route to simapp)")
-	s.Equal(testAmount.Int64(), newTestBalance.Amount.Int64(), "test token should remain (no route to simapp)")
+	s.True(newTiaBalance.Amount.IsZero(), "TIA should be forwarded (has route to chainA)")
+	s.Equal(testAmount.Int64(), newTestBalance.Amount.Int64(), "test token should remain (no route to chainA)")
 }
 
 func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullE2E_SourceCollateralToken() {
@@ -825,9 +820,9 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_TooManyTokens() {
 	mailboxIDCelestia := s.SetupMailBox(s.celestia, ismIDCelestia, CelestiaDomainID)
 	tiaCollatTokenID := s.CreateCollateralToken(s.celestia, ismIDCelestia, mailboxIDCelestia, params.BondDenom)
 
-	ismIDSimapp := s.SetupNoopISM(s.chainA)
-	_ = s.SetupMailBox(s.chainA, ismIDSimapp, ChainADomainID)
-	tiaSynTokenID := s.CreateSyntheticToken(s.chainA, ismIDSimapp, mailboxIDCelestia)
+	ismIDChainA := s.SetupNoopISM(s.chainA)
+	_ = s.SetupMailBox(s.chainA, ismIDChainA, ChainADomainID)
+	tiaSynTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxIDCelestia)
 
 	// Enroll routers for TIA
 	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, ChainADomainID, tiaSynTokenID.String())
@@ -873,7 +868,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_TooManyTokens() {
 	s.Require().NotNil(res)
 
 	// Verify dispatch event (utia forwarded)
-	s.Equal(1, s.countDispatchEvents(res.Events), "utia should dispatch")
+	s.Equal(1, CountDispatchEvents(res.Events), "utia should dispatch")
 
 	// Verify utia was forwarded (balance = 0)
 	newTiaBalance := celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), forwardAddr, params.BondDenom)
