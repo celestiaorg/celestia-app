@@ -53,7 +53,7 @@ func TestDeriveForwardingAddress(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, addr, addr2, "derivation should be deterministic")
 
-			// Log for debugging and TypeScript SDK cross-verification
+			// Log for debugging
 			t.Logf("destDomain: %d", tc.destDomain)
 			t.Logf("destRecipient: %s", hex.EncodeToString(tc.destRecipient))
 			t.Logf("derived address: %s", hex.EncodeToString(addr))
@@ -83,7 +83,7 @@ func TestDeriveForwardingAddressUniqueness(t *testing.T) {
 }
 
 // TestDeriveForwardingAddressIntermediates verifies the intermediate values in derivation.
-// This test is crucial for TypeScript SDK cross-verification.
+// This test is crucial for SDK cross-verification.
 // NOTE: This test intentionally re-implements the algorithm to verify the main function
 // against an independent implementation. This is NOT code duplication - it ensures the
 // function matches the documented algorithm.
@@ -128,7 +128,7 @@ func TestDeriveForwardingAddressIntermediates(t *testing.T) {
 }
 
 // TestDeriveForwardingAddressTestVectors provides fixed test vectors for cross-verification.
-// These vectors should be used to verify TypeScript SDK implementation.
+// These vectors should be used to verify SDK implementations.
 func TestDeriveForwardingAddressTestVectors(t *testing.T) {
 	testVectors := []struct {
 		name            string

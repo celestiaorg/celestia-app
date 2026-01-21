@@ -2,10 +2,8 @@ package keeper
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
-	"cosmossdk.io/collections"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -63,11 +61,7 @@ func (q queryServer) DeriveForwardingAddress(ctx context.Context, req *types.Que
 func (q queryServer) Params(ctx context.Context, req *types.QueryParamsRequest) (*types.QueryParamsResponse, error) {
 	params, err := q.k.GetParams(ctx)
 	if err != nil {
-		if errors.Is(err, collections.ErrNotFound) {
-			params = types.DefaultParams()
-		} else {
-			return nil, fmt.Errorf("failed to query params: %w", err)
-		}
+		return nil, fmt.Errorf("failed to query params: %w", err)
 	}
 
 	return &types.QueryParamsResponse{

@@ -2,11 +2,10 @@ package keeper
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
-	"cosmossdk.io/collections"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -59,12 +58,7 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 
 	params, err := m.k.GetParams(ctx)
 	if err != nil {
-		if errors.Is(err, collections.ErrNotFound) {
-			ctx.Logger().Warn("forwarding module params not configured, using defaults - TIA forwarding will fail until params are set")
-			params = types.DefaultParams()
-		} else {
-			return nil, fmt.Errorf("failed to read module params: %w", err)
-		}
+		return nil, fmt.Errorf("failed to read module params: %w", err)
 	}
 
 	signerAddr, err := sdk.AccAddressFromBech32(msg.Signer)
@@ -155,7 +149,7 @@ func (m msgServer) forwardSingleToken(
 	}
 
 	// For synthetic tokens, verify route exists (TIA route check is done in FindHypTokenByDenom)
-	if balance.Denom != "utia" {
+	if balance.Denom != appconsts.BondDenom {
 		hasRoute, err := m.k.HasEnrolledRouter(ctx, hypToken.Id, destDomain)
 		if err != nil {
 			return types.NewFailureResult(balance.Denom, balance.Amount, "error checking warp route: "+err.Error())

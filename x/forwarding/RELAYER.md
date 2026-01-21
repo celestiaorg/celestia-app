@@ -13,7 +13,7 @@ The relayer is an off-chain service that watches for deposits to forwarding addr
 
 ### Backend and Frontend
 
-The "Backend" (Intent Backend) is a server coupled with a bridge frontend page. It stores forwarding intents so relayers know which addresses to monitor.
+The "Backend" (Forwarding Backend) is a server coupled with a bridge frontend page. It stores forwarding requests so relayers know which addresses to monitor.
 
 - **Anyone can run** their own frontend, backend, and relayer
 - **A relayer monitors** the backend corresponding to the frontend it serves
@@ -27,19 +27,19 @@ The "Backend" (Intent Backend) is a server coupled with a bridge frontend page. 
 sequenceDiagram
     participant User
     participant Frontend
-    participant Backend as Intent Backend
+    participant Backend as Forwarding Backend
     participant Relayer
     participant Celestia
     participant Dest as Destination Chain
 
     Frontend->>Frontend: forwardAddr = derive(destDomain, destRecipient)
-    Frontend->>Backend: POST /intents
+    Frontend->>Backend: POST /forwarding-requests
     Frontend->>User: Display deposit address
     User->>Celestia: Send tokens to forwardAddr
 
     loop Every ~6 seconds
-        Relayer->>Backend: GET /intents
-        Backend-->>Relayer: Return pending intents
+        Relayer->>Backend: GET /forwarding-requests
+        Backend-->>Relayer: Return pending requests
         Relayer->>Celestia: Query balances
     end
 
@@ -47,12 +47,12 @@ sequenceDiagram
     Relayer->>Celestia: MsgForward
     Celestia->>Celestia: Verify derivation
     Celestia->>Dest: Hyperlane warp transfer
-    Relayer->>Backend: PATCH /intents/{addr}/status
+    Relayer->>Backend: PATCH /forwarding-requests/{addr}/status
 ```
 
 ## Relayer Responsibilities
 
-1. **Poll Backend** for pending intents (~every 6 seconds / 1 block)
+1. **Poll Backend** for pending forwarding requests (~every 6 seconds / 1 block)
 2. **Monitor balances** at known `forwardAddr`s on Celestia
 3. **Submit transactions** when deposits detected
 4. **Handle results** including partial failures
@@ -95,7 +95,7 @@ The relayer pays Hyperlane IGP fees for cross-chain message delivery:
 | IGP fee denom mismatch | Not collected | Unchanged | Fix `max_igp_fee` denom |
 | Insufficient max_igp_fee | Not collected | Unchanged | Increase `max_igp_fee` |
 | Relayer has insufficient balance | Not collected | Unchanged | Fund relayer account |
-| Recovery fails (CRITICAL) | Consumed | **Stuck in module** | Contact governance |
+| Recovery fails | Consumed | **Stuck in module** | None |
 
 **Important**: When warp transfer fails AFTER IGP fee collection:
 
@@ -128,7 +128,7 @@ message ForwardingResult {
 
 ### Address Derivation
 
-See the canonical derivation algorithm in [SPEC.md](./SPEC.md#address-derivation).
+See the canonical derivation algorithm in [README.md](./README.md#address-derivation).
 
 **Key points for relayers:**
 
@@ -156,34 +156,34 @@ destRecipient = 0x000000000000000000000000742d35Cc6634C0532925a3b844Bc9e7595f000
 
 ```text
 STARTUP:
-  intents = GET /intents from Backend
+  requests = GET /forwarding-requests from Backend
   balanceCache = {}
 
 MAIN LOOP (every ~6 seconds):
-  newIntents = GET /intents from Backend
-  intents = merge(intents, newIntents)
+  newRequests = GET /forwarding-requests from Backend
+  requests = merge(requests, newRequests)
 
-  for each intent in intents:
-    balance = query Celestia balance at intent.forward_addr
+  for each request in requests:
+    balance = query Celestia balance at request.forward_addr
 
-    if balance > 0 AND balance != balanceCache[intent.forward_addr]:
+    if balance > 0 AND balance != balanceCache[request.forward_addr]:
       # Query current IGP fee and add buffer
-      quoted_fee = query QuoteForwardingFee(intent.dest_domain)
+      quoted_fee = query QuoteForwardingFee(request.dest_domain)
       max_fee = quoted_fee * 1.1  # 10% buffer for price changes
 
       result = submit MsgForward(
-        forward_addr = intent.forward_addr,
-        dest_domain = intent.dest_domain,
-        dest_recipient = intent.dest_recipient,
+        forward_addr = request.forward_addr,
+        dest_domain = request.dest_domain,
+        dest_recipient = request.dest_recipient,
         max_igp_fee = max_fee
       )
 
       if all tokens forwarded:
-        PATCH /intents/{forward_addr}/status = "completed"
+        PATCH /forwarding-requests/{forward_addr}/status = "completed"
       else:
         log partial failure, will retry next cycle
 
-      balanceCache[intent.forward_addr] = query new balance
+      balanceCache[request.forward_addr] = query new balance
 
   sleep(6 seconds)
 ```
@@ -193,7 +193,7 @@ MAIN LOOP (every ~6 seconds):
 | Scenario | Funds Status | Relayer Action |
 |----------|--------------|----------------|
 | Relayer crashes | Safe at `forwardAddr` | Restart, re-sync from Backend |
-| Backend unavailable | Safe | Retry with backoff, use cached intents |
+| Backend unavailable | Safe | Retry with backoff, use cached requests |
 | Tx fails (out of gas) | Unchanged | Retry with higher gas |
 | Partial forwarding | Remaining at `forwardAddr` | Auto-retry on next cycle |
 | No warp route for token | Stays at `forwardAddr` | Skip token, retry when route added |
@@ -213,15 +213,15 @@ Currently, relaying is **unincentivized** - relayers pay gas out of pocket, simi
 
 ## Backend API Specification
 
-The Intent Backend stores the mapping from `forwardAddr` to forwarding parameters.
+The Forwarding Backend stores the mapping from `forwardAddr` to forwarding parameters.
 
 ### Endpoints
 
-#### List Intents
+#### List Forwarding Requests
 
 ```text
-GET /intents
-GET /intents?status=pending
+GET /forwarding-requests
+GET /forwarding-requests?status=pending
 
 Response 200:
 [
@@ -235,10 +235,10 @@ Response 200:
 ]
 ```
 
-#### Get Single Intent
+#### Get Single Forwarding Request
 
 ```text
-GET /intents/{forward_addr}
+GET /forwarding-requests/{forward_addr}
 
 Response 200:
 {
@@ -250,13 +250,13 @@ Response 200:
 }
 
 Response 404:
-{ "error": "intent not found" }
+{ "error": "forwarding request not found" }
 ```
 
-#### Create Intent (called by Frontend)
+#### Create Forwarding Request (called by Frontend)
 
 ```text
-POST /intents
+POST /forwarding-requests
 Content-Type: application/json
 
 {
@@ -275,10 +275,10 @@ Response 400:
 { "error": "invalid dest_recipient format" }
 ```
 
-#### Update Intent Status (called by Relayer)
+#### Update Forwarding Request Status (called by Relayer)
 
 ```text
-PATCH /intents/{forward_addr}/status
+PATCH /forwarding-requests/{forward_addr}/status
 Content-Type: application/json
 
 {
@@ -289,7 +289,7 @@ Response 200:
 { "forward_addr": "celestia1abc...", "status": "completed" }
 ```
 
-### Intent Statuses
+### Request Statuses
 
 | Status | Meaning |
 |--------|---------|
@@ -341,4 +341,4 @@ celestia-appd query tx <txhash> --output json | jq '.events'
 1. **No key management for user funds** - Relayer only needs its own signing key for gas
 2. **Derivation verification** - On-chain module verifies `derive(destDomain, destRecipient) == forwardAddr`
 3. **Idempotent execution** - Submitting same forwarding twice is safe (second will have no balance)
-4. **Backend trust** - Relayer trusts Backend for intent data, but on-chain verification prevents misdirection
+4. **Backend trust** - Relayer trusts Backend for forwarding request data, but on-chain verification prevents misdirection

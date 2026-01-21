@@ -1,6 +1,8 @@
 package types
 
 import (
+	"fmt"
+
 	"cosmossdk.io/math"
 )
 
@@ -24,7 +26,7 @@ func NewParams(minForwardAmount math.Int) Params {
 // Validate validates the set of params
 func (p Params) Validate() error {
 	if p.MinForwardAmount.IsNegative() {
-		return ErrBelowMinimum
+		return fmt.Errorf("min_forward_amount cannot be negative: %s", p.MinForwardAmount)
 	}
 	return nil
 }

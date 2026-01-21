@@ -13,6 +13,7 @@ import (
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	warpkeeper "github.com/bcp-innovations/hyperlane-cosmos/x/warp/keeper"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -64,6 +65,7 @@ func NewKeeper(
 		authority:       authority,
 	}
 
+	// Schema must be built after all collection items are registered with sb
 	schema, err := sb.Build()
 	if err != nil {
 		panic(err)
@@ -85,11 +87,11 @@ func (k Keeper) SetParams(ctx context.Context, params types.Params) error {
 }
 
 // FindHypTokenByDenom finds the HypToken for a given bank denom and destination domain.
-// For TIA (utia), it searches warp tokens with OriginDenom="utia" that have a route to destDomain.
+// For TIA, it searches warp tokens with OriginDenom=appconsts.BondDenom that have a route to destDomain.
 // For synthetic tokens (hyperlane/...), it looks up the token by ID.
 func (k Keeper) FindHypTokenByDenom(ctx context.Context, denom string, destDomain uint32) (warptypes.HypToken, error) {
 	switch {
-	case denom == "utia":
+	case denom == appconsts.BondDenom:
 		return k.findTIACollateralTokenForDomain(ctx, destDomain)
 	case strings.HasPrefix(denom, "hyperlane/"):
 		return k.getTokenById(ctx, strings.TrimPrefix(denom, "hyperlane/"))
@@ -99,7 +101,7 @@ func (k Keeper) FindHypTokenByDenom(ctx context.Context, denom string, destDomai
 }
 
 // findTIACollateralTokenForDomain finds the TIA collateral token with a route to the destination domain.
-// It iterates all warp tokens to find one with OriginDenom="utia", TokenType=COLLATERAL,
+// It iterates all warp tokens to find one with OriginDenom=appconsts.BondDenom, TokenType=COLLATERAL,
 // and an enrolled router for the destination domain.
 //
 // Note: This is O(n) where n = number of warp tokens. Optimization would require an index
@@ -117,7 +119,7 @@ func (k Keeper) findTIACollateralTokenForDomain(ctx context.Context, destDomain 
 			continue
 		}
 		// Find TIA collateral token with route to destination
-		if token.OriginDenom == "utia" && token.TokenType == warptypes.HYP_TOKEN_TYPE_COLLATERAL {
+		if token.OriginDenom == appconsts.BondDenom && token.TokenType == warptypes.HYP_TOKEN_TYPE_COLLATERAL {
 			hasRoute, _ := k.HasEnrolledRouter(ctx, token.Id, destDomain)
 			if hasRoute {
 				return token, nil
@@ -220,5 +222,5 @@ func (k Keeper) QuoteIgpFeeForToken(ctx sdk.Context, token warptypes.HypToken, d
 	if len(quotedFee) > 0 {
 		return quotedFee[0], nil
 	}
-	return sdk.NewCoin("utia", math.ZeroInt()), nil
+	return sdk.NewCoin(appconsts.BondDenom, math.ZeroInt()), nil
 }
