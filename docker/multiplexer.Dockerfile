@@ -86,7 +86,7 @@ RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v5_${TARGETARCH}.tar.g
     && rm /tmp/celestia-appd-v5
 
 # Copy v6 binary from base-v6 and compress it
-COPY --from=base-v5 /bin/celestia-appd /tmp/celestia-appd-v6
+COPY --from=base-v6 /bin/celestia-appd /tmp/celestia-appd-v6
 RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v6_${TARGETARCH}.tar.gz /tmp/celestia-appd-v6 \
     && rm /tmp/celestia-appd-v6
 
