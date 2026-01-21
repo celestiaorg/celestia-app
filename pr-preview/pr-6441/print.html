@@ -1591,7 +1591,7 @@ src="./figures/rs2d_quadrants.svg" alt="Figure 2: rsmt2d" width="400"/> <img src
 <li>The tx does not contain any messages that are disabled by the circuit breaker (e.g. <code>MsgSoftwareUpgrade</code>, <code>MsgCancelUpgrade</code>, <code>MsgIBCSoftwareUpgrade</code>).</li>
 <li>The tx does not contain any <a href="https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L119-L122">extension options</a>.</li>
 <li><strong>[New in v7]</strong> If the tx contains a single <code>MsgForwardFees</code>, a context flag is set to identify it as a protocol-injected fee forward transaction.</li>
-<li>The tx passes <code>ValidateBasic()</code>. <strong>[New in v7]</strong> Fee forward transactions are exempt from this check since they have no signatures.</li>
+<li>The tx passes <code>ValidateBasic()</code>. <strong>[New in v7]</strong> Fee forward transactions are exempt from this check since the transaction-level ValidateBasic checks for signers/signatures.</li>
 <li>The tx's <a href="https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L115-L117">timeout_height</a> has not been reached if one is specified.</li>
 <li>The tx's <a href="https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L110-L113">memo</a> is &lt;= the max memo characters where <a href="https://github.com/cosmos/cosmos-sdk/blob/a429238fc267da88a8548bfebe0ba7fb28b82a13/x/auth/README.md?plain=1#L230"><code>MaxMemoCharacters = 256</code></a>.</li>
 <li>The tx's <a href="https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L211-L213">gas_limit</a> is &gt; the gas consumed based on the tx's size where <a href="https://github.com/celestiaorg/celestia-app/blob/6ea21f729fe88e4175c4b3084119392c4acd1957/pkg/appconsts/app_consts.go#L23"><code>TxSizeCostPerByte = 10</code></a>.</li>
@@ -1626,7 +1626,7 @@ src="./figures/rs2d_quadrants.svg" alt="Figure 2: rsmt2d" width="400"/> <img src
 <p>App version 7 introduces the <a href="https://github.com/celestiaorg/celestia-app/blob/main/x/feeaddress/README.md">feeaddress</a> module which enables a mechanism to forward tokens to validators as staking rewards. The ante handler includes several new decorators to support this:</p>
 <ol>
 <li>
-<p><strong>EarlyFeeForwardDetector</strong>: Detects <code>MsgForwardFees</code> transactions before <code>ValidateBasic</code> runs and sets a context flag. This is necessary because fee forward transactions are unsigned and would fail standard signature validation.</p>
+<p><strong>EarlyFeeForwardDetector</strong>: Detects <code>MsgForwardFees</code> transactions and sets a context flag. This flag is used by <code>SkipForFeeForwardDecorator</code> to skip signature-related decorators since fee forward transactions have no signers.</p>
 </li>
 <li>
 <p><strong>FeeForwardDecorator</strong>: Handles <code>MsgForwardFees</code> transactions by:</p>
