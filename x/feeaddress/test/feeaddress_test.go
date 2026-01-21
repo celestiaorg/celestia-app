@@ -322,4 +322,3 @@ func (s *IntegrationTestSuite) TestMultipleSendsAccumulate() {
 	require.True(finalBalance.IsZero(),
 		"fee address should be empty after forwarding multiple sends: balance=%s", finalBalance)
 }
-
