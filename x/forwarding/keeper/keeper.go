@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"cosmossdk.io/collections"
-	"cosmossdk.io/core/store"
 	"cosmossdk.io/math"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	warpkeeper "github.com/bcp-innovations/hyperlane-cosmos/x/warp/keeper"
@@ -22,21 +21,16 @@ import (
 // Keeper manages forwarding module state and coordinates with Hyperlane warp for cross-chain transfers.
 type Keeper struct {
 	cdc             codec.BinaryCodec
-	Schema          collections.Schema
-	Params          collections.Item[types.Params]
 	bankKeeper      types.BankKeeper
 	warpKeeper      *warpkeeper.Keeper
 	hyperlaneKeeper types.HyperlaneKeeper
-	authority       string
 }
 
 func NewKeeper(
 	cdc codec.BinaryCodec,
-	storeService store.KVStoreService,
 	bankKeeper types.BankKeeper,
 	warpKeeper *warpkeeper.Keeper,
 	hyperlaneKeeper types.HyperlaneKeeper,
-	authority string,
 ) Keeper {
 	if bankKeeper == nil {
 		panic("bankKeeper cannot be nil")
@@ -48,36 +42,12 @@ func NewKeeper(
 		panic("hyperlaneKeeper cannot be nil")
 	}
 
-	sb := collections.NewSchemaBuilder(storeService)
-
-	k := Keeper{
+	return Keeper{
 		cdc:             cdc,
-		Params:          collections.NewItem(sb, types.ParamsPrefix, "params", codec.CollValue[types.Params](cdc)),
 		bankKeeper:      bankKeeper,
 		warpKeeper:      warpKeeper,
 		hyperlaneKeeper: hyperlaneKeeper,
-		authority:       authority,
 	}
-
-	// Schema must be built after all collection items are registered with sb
-	schema, err := sb.Build()
-	if err != nil {
-		panic(err)
-	}
-	k.Schema = schema
-
-	return k
-}
-
-func (k Keeper) GetParams(ctx context.Context) (types.Params, error) {
-	return k.Params.Get(ctx)
-}
-
-func (k Keeper) SetParams(ctx context.Context, params types.Params) error {
-	if err := params.Validate(); err != nil {
-		return err
-	}
-	return k.Params.Set(ctx, params)
 }
 
 // FindHypTokenByDenom finds the HypToken for a given bank denom and destination domain.
@@ -107,14 +77,20 @@ func (k Keeper) findTIACollateralTokenForDomain(ctx context.Context, destDomain 
 	}
 	defer iter.Close()
 
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	for ; iter.Valid(); iter.Next() {
 		token, err := iter.Value()
 		if err != nil {
+			sdkCtx.Logger().Warn("failed to read warp token during TIA collateral search", "error", err)
 			continue
 		}
 		// Find TIA collateral token with route to destination
 		if token.OriginDenom == appconsts.BondDenom && token.TokenType == warptypes.HYP_TOKEN_TYPE_COLLATERAL {
-			hasRoute, _ := k.HasEnrolledRouter(ctx, token.Id, destDomain)
+			hasRoute, routeErr := k.HasEnrolledRouter(ctx, token.Id, destDomain)
+			if routeErr != nil {
+				sdkCtx.Logger().Warn("failed to check enrolled router", "tokenId", token.Id.String(), "destDomain", destDomain, "error", routeErr)
+				continue
+			}
 			if hasRoute {
 				return token, nil
 			}
@@ -154,12 +130,18 @@ func (k Keeper) HasAnyRouteToDestination(ctx context.Context, destDomain uint32)
 	}
 	defer iter.Close()
 
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	for ; iter.Valid(); iter.Next() {
 		token, err := iter.Value()
 		if err != nil {
+			sdkCtx.Logger().Warn("failed to read warp token during route check", "error", err)
 			continue
 		}
-		hasRoute, _ := k.HasEnrolledRouter(ctx, token.Id, destDomain)
+		hasRoute, routeErr := k.HasEnrolledRouter(ctx, token.Id, destDomain)
+		if routeErr != nil {
+			sdkCtx.Logger().Warn("failed to check enrolled router", "tokenId", token.Id.String(), "destDomain", destDomain, "error", routeErr)
+			continue
+		}
 		if hasRoute {
 			return true, nil
 		}

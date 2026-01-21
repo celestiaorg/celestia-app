@@ -412,11 +412,9 @@ func New(
 
 	app.ForwardingKeeper = forwardingkeeper.NewKeeper(
 		encodingConfig.Codec,
-		runtime.NewKVStoreService(keys[forwardingtypes.StoreKey]),
 		app.BankKeeper,
 		&app.WarpKeeper,
 		&app.HyperlaneKeeper,
-		govModuleAddr,
 	)
 
 	/****  Module Options ****/

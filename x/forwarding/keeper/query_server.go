@@ -2,7 +2,6 @@ package keeper
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
@@ -54,18 +53,6 @@ func (q queryServer) DeriveForwardingAddress(ctx context.Context, req *types.Que
 
 	return &types.QueryDeriveForwardingAddressResponse{
 		Address: sdk.AccAddress(forwardAddr).String(),
-	}, nil
-}
-
-// Params returns the module parameters
-func (q queryServer) Params(ctx context.Context, req *types.QueryParamsRequest) (*types.QueryParamsResponse, error) {
-	params, err := q.k.GetParams(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query params: %w", err)
-	}
-
-	return &types.QueryParamsResponse{
-		Params: params,
 	}, nil
 }
 

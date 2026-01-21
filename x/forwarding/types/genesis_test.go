@@ -10,9 +10,9 @@ import (
 func TestDefaultGenesis(t *testing.T) {
 	genesis := types.DefaultGenesis()
 
-	// Verify default genesis has default params
+	// Verify default genesis is not nil and valid
 	require.NotNil(t, genesis)
-	require.NoError(t, genesis.Params.Validate())
+	require.NoError(t, genesis.Validate())
 }
 
 func TestValidateGenesis(t *testing.T) {
@@ -32,10 +32,8 @@ func TestValidateGenesis(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "genesis with empty params is valid",
-			genesis: &types.GenesisState{
-				Params: types.Params{},
-			},
+			name:        "empty genesis is valid",
+			genesis:     &types.GenesisState{},
 			expectError: false,
 		},
 	}
@@ -53,11 +51,3 @@ func TestValidateGenesis(t *testing.T) {
 	}
 }
 
-func TestGenesisStateString(t *testing.T) {
-	genesis := &types.GenesisState{
-		Params: types.Params{},
-	}
-
-	str := genesis.String()
-	require.NotEmpty(t, str)
-}

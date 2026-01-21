@@ -226,17 +226,3 @@ func (m msgServer) forwardSingleToken(
 
 	return types.NewSuccessResult(balance.Denom, balance.Amount, messageId.String())
 }
-
-// UpdateParams updates the module parameters.
-func (m msgServer) UpdateParams(goCtx context.Context, msg *types.MsgUpdateParams) (*types.MsgUpdateParamsResponse, error) {
-	if m.k.authority != msg.Authority {
-		return nil, fmt.Errorf("invalid authority: expected %s, got %s", m.k.authority, msg.Authority)
-	}
-
-	ctx := sdk.UnwrapSDKContext(goCtx)
-	if err := m.k.SetParams(ctx, msg.Params); err != nil {
-		return nil, err
-	}
-
-	return &types.MsgUpdateParamsResponse{}, nil
-}

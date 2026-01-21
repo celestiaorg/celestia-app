@@ -7,10 +7,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-const (
-	URLMsgForward      = "/celestia.forwarding.v1.MsgForward"
-	URLMsgUpdateParams = "/celestia.forwarding.v1.MsgUpdateParams"
-)
+const URLMsgForward = "/celestia.forwarding.v1.MsgForward"
 
 var (
 	_ sdk.Msg              = &MsgForward{}
@@ -51,18 +48,6 @@ func (msg *MsgForward) ValidateBasic() error {
 	}
 
 	return nil
-}
-
-var (
-	_ sdk.Msg              = &MsgUpdateParams{}
-	_ sdk.HasValidateBasic = &MsgUpdateParams{}
-)
-
-func (msg *MsgUpdateParams) ValidateBasic() error {
-	if _, err := sdk.AccAddressFromBech32(msg.Authority); err != nil {
-		return errors.Wrap(err, "invalid authority address")
-	}
-	return msg.Params.Validate()
 }
 
 func NewSuccessResult(denom string, amount math.Int, messageId string) ForwardingResult {

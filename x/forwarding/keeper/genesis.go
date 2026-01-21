@@ -6,19 +6,14 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 )
 
-// InitGenesis initializes the module's state from a genesis state
-func (k Keeper) InitGenesis(ctx context.Context, genState *types.GenesisState) error {
-	return k.SetParams(ctx, genState.Params)
+// InitGenesis initializes the module's state from a genesis state.
+// The forwarding module is stateless - this is a no-op.
+func (k Keeper) InitGenesis(_ context.Context, _ *types.GenesisState) error {
+	return nil
 }
 
-// ExportGenesis exports the module's state to a genesis state
-func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) {
-	params, err := k.GetParams(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return &types.GenesisState{
-		Params: params,
-	}, nil
+// ExportGenesis exports the module's state to a genesis state.
+// The forwarding module is stateless - returns empty state.
+func (k Keeper) ExportGenesis(_ context.Context) (*types.GenesisState, error) {
+	return &types.GenesisState{}, nil
 }

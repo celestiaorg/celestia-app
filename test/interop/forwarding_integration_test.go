@@ -84,24 +84,6 @@ func (s *ForwardingIntegrationTestSuite) processWarpMessage(
 	s.Require().NoError(err)
 }
 
-func (s *ForwardingIntegrationTestSuite) TestParamsStorageWithProtoTypes() {
-	celestiaApp := s.GetCelestiaApp(s.celestia)
-	ctx := s.celestia.GetContext()
-
-	// Set params (currently empty, reserved for future use)
-	newParams := forwardingtypes.DefaultParams()
-
-	err := celestiaApp.ForwardingKeeper.SetParams(ctx, newParams)
-	s.Require().NoError(err)
-
-	// Get params back
-	retrievedParams, err := celestiaApp.ForwardingKeeper.GetParams(ctx)
-	s.Require().NoError(err)
-	s.Require().NoError(retrievedParams.Validate())
-
-	s.T().Logf("Test 1 PASSED: Params storage works with proto-generated types")
-}
-
 func (s *ForwardingIntegrationTestSuite) TestFindHypTokenByDenom_TIA() {
 	const (
 		CelestiaDomainID = 69420

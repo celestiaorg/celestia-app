@@ -24,7 +24,6 @@ func GetQueryCmd() *cobra.Command {
 	cmd.AddCommand(
 		CmdDeriveAddress(),
 		CmdQuoteFee(),
-		CmdParams(),
 	)
 
 	return cmd
@@ -104,33 +103,6 @@ Example:
 			res, err := queryClient.QuoteForwardingFee(cmd.Context(), &types.QueryQuoteForwardingFeeRequest{
 				DestDomain: uint32(destDomain),
 			})
-			if err != nil {
-				return err
-			}
-
-			return clientCtx.PrintProto(res)
-		},
-	}
-
-	flags.AddQueryFlagsToCmd(cmd)
-
-	return cmd
-}
-
-// CmdParams returns a CLI command for querying the module parameters.
-func CmdParams() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "params",
-		Short: "Query the forwarding module parameters",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx, err := client.GetClientQueryContext(cmd)
-			if err != nil {
-				return err
-			}
-
-			queryClient := types.NewQueryClient(clientCtx)
-			res, err := queryClient.Params(cmd.Context(), &types.QueryParamsRequest{})
 			if err != nil {
 				return err
 			}
