@@ -144,7 +144,7 @@ The significance of the power difference is calculated using a pre-defined const
 const SignificantPowerDifferenceThreshold = 0.05
 ```
 
-For more information on the normalization of power, check [here](https://github.com/celestiaorg/celestia-app/blob/df46d122da5f1fab1bd99bfb2bfcf9002f5bc154/x/qgb/types/validator.go#L101
+For more information on the normalization of power, check [the validator normalization implementation](https://github.com/celestiaorg/celestia-app/blob/df46d122da5f1fab1bd99bfb2bfcf9002f5bc154/x/qgb/types/validator.go#L101
 ).
 
 #### Create a ValSet

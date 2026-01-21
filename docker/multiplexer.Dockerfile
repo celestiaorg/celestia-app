@@ -4,7 +4,7 @@
 #
 # Separating the builder and runtime image allows the runtime image to be
 # considerably smaller because it doesn't need to have Golang installed.
-ARG BUILDER_IMAGE=docker.io/golang:1.24.6-alpine
+ARG BUILDER_IMAGE=docker.io/golang:1.25.5-alpine
 ARG RUNTIME_IMAGE=docker.io/alpine:3.22
 ARG TARGETOS
 ARG TARGETARCH
@@ -86,7 +86,7 @@ RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v5_${TARGETARCH}.tar.g
     && rm /tmp/celestia-appd-v5
 
 # Copy v6 binary from base-v6 and compress it
-COPY --from=base-v5 /bin/celestia-appd /tmp/celestia-appd-v6
+COPY --from=base-v6 /bin/celestia-appd /tmp/celestia-appd-v6
 RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v6_${TARGETARCH}.tar.gz /tmp/celestia-appd-v6 \
     && rm /tmp/celestia-appd-v6
 

@@ -34,14 +34,14 @@ const (
 
 func initCmd() *cobra.Command {
 	var (
-		rootDir       string
-		srcRoot       string
-		chainID       string
-		experiment    string
-		SSHPubKeyPath string
-		SSHKeyName    string
-		tables        []string
-		withMetrics   bool
+		rootDir           string
+		srcRoot           string
+		chainID           string
+		experiment        string
+		SSHPubKeyPath     string
+		SSHKeyName        string
+		tables            []string
+		withObservability bool
 	)
 
 	cmd := &cobra.Command{
@@ -62,10 +62,10 @@ func initCmd() *cobra.Command {
 				WithSSHPubKeyPath(SSHPubKeyPath).
 				WithSSHKeyName(SSHKeyName)
 
-			// If --with-metrics is set, add a metrics node and enable prometheus
+			// If --with-observability is set, add a observability node and enable prometheus
 			enablePrometheus := false
-			if withMetrics {
-				cfg = cfg.WithDigitalOceanMetrics("random")
+			if withObservability {
+				cfg = cfg.WithDigitalOceanObservability("random")
 				enablePrometheus = true
 			}
 
@@ -103,7 +103,7 @@ func initCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&experiment, "experiment", "e", "test", "the name of the experiment (required)")
 	_ = cmd.MarkFlagRequired("experiment")
 	cmd.Flags().StringArrayVarP(&tables, "tables", "t", []string{"consensus_round_state", "consensus_block", "mempool_tx"}, "the traces that will be collected")
-	cmd.Flags().BoolVar(&withMetrics, "with-metrics", false, "add a metrics node and enable Prometheus on validators")
+	cmd.Flags().BoolVar(&withObservability, "with-observability", false, "add a observability node and enable Prometheus on validators")
 
 	defaultKeyPath := filepath.Join(homeDir, ".ssh", "id_ed25519.pub")
 	cmd.Flags().StringVarP(&SSHPubKeyPath, "ssh-pub-key-path", "s", defaultKeyPath, "path to the user's SSH public key")
