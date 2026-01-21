@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
 var _ types.MsgServer = msgServer{}
@@ -54,19 +55,14 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 		balances = balances[:types.MaxTokensPerForward]
 	}
 
-	moduleAddr := m.k.accountKeeper.GetModuleAddress(types.ModuleName)
-
-	params, err := m.k.GetParams(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read module params: %w", err)
-	}
+	moduleAddr := authtypes.NewModuleAddress(types.ModuleName)
 
 	signerAddr, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
 		return nil, fmt.Errorf("invalid signer address: %w", err)
 	}
 
-	results := m.processTokens(ctx, forwardAddr, moduleAddr, signerAddr, balances, msg, destRecipient, params)
+	results := m.processTokens(ctx, forwardAddr, moduleAddr, signerAddr, balances, msg, destRecipient)
 
 	// If all tokens failed, return error (partial failure is OK, total failure is not)
 	allFailed := true
@@ -91,12 +87,11 @@ func (m msgServer) processTokens(
 	balances sdk.Coins,
 	msg *types.MsgForward,
 	destRecipient util.HexAddress,
-	params types.Params,
 ) []types.ForwardingResult {
 	results := make([]types.ForwardingResult, 0, len(balances))
 
 	for _, balance := range balances {
-		result := m.forwardSingleToken(ctx, forwardAddr, moduleAddr, signerAddr, balance, msg.DestDomain, destRecipient, msg.MaxIgpFee, params)
+		result := m.forwardSingleToken(ctx, forwardAddr, moduleAddr, signerAddr, balance, msg.DestDomain, destRecipient, msg.MaxIgpFee)
 		results = append(results, result)
 
 		if err := ctx.EventManager().EmitTypedEvent(&types.EventTokenForwarded{
@@ -141,7 +136,6 @@ func (m msgServer) forwardSingleToken(
 	destDomain uint32,
 	destRecipient util.HexAddress,
 	maxIgpFee sdk.Coin,
-	params types.Params,
 ) types.ForwardingResult {
 	hypToken, err := m.k.FindHypTokenByDenom(ctx, balance.Denom, destDomain)
 	if err != nil {
@@ -157,11 +151,6 @@ func (m msgServer) forwardSingleToken(
 		if !hasRoute {
 			return types.NewFailureResult(balance.Denom, balance.Amount, types.ErrNoWarpRoute.Error())
 		}
-	}
-
-	// MinForwardAmount of 0 means no minimum (IsPositive returns false, skipping this check)
-	if params.MinForwardAmount.IsPositive() && balance.Amount.LT(params.MinForwardAmount) {
-		return types.NewFailureResult(balance.Denom, balance.Amount, types.ErrBelowMinimum.Error())
 	}
 
 	// Quote IGP fee for this token transfer

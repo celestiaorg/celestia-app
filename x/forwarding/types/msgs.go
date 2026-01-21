@@ -12,7 +12,10 @@ const (
 	URLMsgUpdateParams = "/celestia.forwarding.v1.MsgUpdateParams"
 )
 
-var _ sdk.Msg = &MsgForward{}
+var (
+	_ sdk.Msg              = &MsgForward{}
+	_ sdk.HasValidateBasic = &MsgForward{}
+)
 
 func NewMsgForward(signer, forwardAddr string, destDomain uint32, destRecipient string, maxIgpFee sdk.Coin) *MsgForward {
 	return &MsgForward{
@@ -50,7 +53,10 @@ func (msg *MsgForward) ValidateBasic() error {
 	return nil
 }
 
-var _ sdk.Msg = &MsgUpdateParams{}
+var (
+	_ sdk.Msg              = &MsgUpdateParams{}
+	_ sdk.HasValidateBasic = &MsgUpdateParams{}
+)
 
 func (msg *MsgUpdateParams) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(msg.Authority); err != nil {

@@ -39,7 +39,7 @@ One address handles all tokens for a given `(destDomain, destRecipient)` pair.
 
 ```protobuf
 message Params {
-  string min_forward_amount = 1;    // Minimum amount to forward (0 = disabled)
+  // Currently empty; reserved for future governance-controlled parameters
 }
 ```
 

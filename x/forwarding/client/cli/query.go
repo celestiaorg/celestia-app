@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -47,6 +48,11 @@ Example:
 
 			destDomainStr := args[0]
 			destRecipient := args[1]
+
+			// Sanitize: ensure 0x prefix for consistency
+			if !strings.HasPrefix(strings.ToLower(destRecipient), "0x") {
+				destRecipient = "0x" + destRecipient
+			}
 
 			destDomain, err := strconv.ParseUint(destDomainStr, 10, 32)
 			if err != nil {

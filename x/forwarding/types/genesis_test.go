@@ -3,7 +3,6 @@ package types_test
 import (
 	"testing"
 
-	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	"github.com/stretchr/testify/require"
 )
@@ -13,7 +12,7 @@ func TestDefaultGenesis(t *testing.T) {
 
 	// Verify default genesis has default params
 	require.NotNil(t, genesis)
-	require.True(t, genesis.Params.MinForwardAmount.IsZero())
+	require.NoError(t, genesis.Params.Validate())
 }
 
 func TestValidateGenesis(t *testing.T) {
@@ -33,31 +32,11 @@ func TestValidateGenesis(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "genesis with zero min forward amount is valid",
+			name: "genesis with empty params is valid",
 			genesis: &types.GenesisState{
-				Params: types.Params{
-					MinForwardAmount: math.ZeroInt(),
-				},
+				Params: types.Params{},
 			},
 			expectError: false,
-		},
-		{
-			name: "genesis with positive min forward amount is valid",
-			genesis: &types.GenesisState{
-				Params: types.Params{
-					MinForwardAmount: math.NewInt(5000),
-				},
-			},
-			expectError: false,
-		},
-		{
-			name: "genesis with negative min forward amount is invalid",
-			genesis: &types.GenesisState{
-				Params: types.Params{
-					MinForwardAmount: math.NewInt(-100),
-				},
-			},
-			expectError: true,
 		},
 	}
 
@@ -76,11 +55,9 @@ func TestValidateGenesis(t *testing.T) {
 
 func TestGenesisStateString(t *testing.T) {
 	genesis := &types.GenesisState{
-		Params: types.Params{
-			MinForwardAmount: math.NewInt(1000),
-		},
+		Params: types.Params{},
 	}
 
 	str := genesis.String()
-	require.Contains(t, str, "1000")
+	require.NotEmpty(t, str)
 }

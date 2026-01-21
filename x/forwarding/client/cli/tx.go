@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -51,6 +52,11 @@ Example:
 			destDomainStr := args[1]
 			destRecipient := args[2]
 
+			// Sanitize: ensure 0x prefix for consistency
+			if !strings.HasPrefix(strings.ToLower(destRecipient), "0x") {
+				destRecipient = "0x" + destRecipient
+			}
+
 			destDomain, err := strconv.ParseUint(destDomainStr, 10, 32)
 			if err != nil {
 				return fmt.Errorf("invalid dest_domain: %w", err)
@@ -59,9 +65,6 @@ Example:
 			maxIgpFeeStr, err := cmd.Flags().GetString("max-igp-fee")
 			if err != nil {
 				return err
-			}
-			if maxIgpFeeStr == "" {
-				return fmt.Errorf("--max-igp-fee is required")
 			}
 
 			maxIgpFee, err := sdk.ParseCoinNormalized(maxIgpFeeStr)
@@ -81,7 +84,7 @@ Example:
 		},
 	}
 
-	cmd.Flags().String("max-igp-fee", "", "Maximum IGP fee to pay for forwarding (required, e.g., 1000utia)")
+	cmd.Flags().String("max-igp-fee", "1000000utia", "Maximum IGP fee to pay per token (default: 1000000utia)")
 	flags.AddTxFlagsToCmd(cmd)
 
 	return cmd

@@ -311,24 +311,12 @@ func TestMsgUpdateParamsValidateBasic(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "valid message with custom MinForwardAmount",
+			name: "valid message with empty params",
 			msg: &types.MsgUpdateParams{
 				Authority: validAuthority,
-				Params: types.Params{
-					MinForwardAmount: math.NewInt(1000),
-				},
+				Params:    types.Params{},
 			},
 			expectError: false,
-		},
-		{
-			name: "valid message with explicit zero MinForwardAmount",
-			msg: &types.MsgUpdateParams{
-				Authority: validAuthority,
-				Params: types.Params{
-					MinForwardAmount: math.ZeroInt(),
-				},
-			},
-			expectError: false, // Zero means disabled, should be valid
 		},
 		{
 			name: "empty authority",
@@ -347,17 +335,6 @@ func TestMsgUpdateParamsValidateBasic(t *testing.T) {
 			},
 			expectError: true,
 			errorMsg:    "invalid authority",
-		},
-		{
-			name: "negative MinForwardAmount",
-			msg: &types.MsgUpdateParams{
-				Authority: validAuthority,
-				Params: types.Params{
-					MinForwardAmount: math.NewInt(-1),
-				},
-			},
-			expectError: true,
-			errorMsg:    "cannot be negative",
 		},
 	}
 

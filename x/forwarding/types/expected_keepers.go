@@ -15,11 +15,6 @@ type HyperlaneKeeper interface {
 	QuoteDispatch(ctx context.Context, mailboxId util.HexAddress, overwriteHookId util.HexAddress, metadata util.StandardHookMetadata, message util.HyperlaneMessage) (sdk.Coins, error)
 }
 
-// AccountKeeper defines the expected account keeper interface
-type AccountKeeper interface {
-	GetModuleAddress(moduleName string) sdk.AccAddress
-}
-
 // BankKeeper defines the expected bank keeper interface
 type BankKeeper interface {
 	GetAllBalances(ctx context.Context, addr sdk.AccAddress) sdk.Coins

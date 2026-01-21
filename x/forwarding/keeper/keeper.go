@@ -24,7 +24,6 @@ type Keeper struct {
 	cdc             codec.BinaryCodec
 	Schema          collections.Schema
 	Params          collections.Item[types.Params]
-	accountKeeper   types.AccountKeeper
 	bankKeeper      types.BankKeeper
 	warpKeeper      *warpkeeper.Keeper
 	hyperlaneKeeper types.HyperlaneKeeper
@@ -34,15 +33,11 @@ type Keeper struct {
 func NewKeeper(
 	cdc codec.BinaryCodec,
 	storeService store.KVStoreService,
-	accountKeeper types.AccountKeeper,
 	bankKeeper types.BankKeeper,
 	warpKeeper *warpkeeper.Keeper,
 	hyperlaneKeeper types.HyperlaneKeeper,
 	authority string,
 ) Keeper {
-	if accountKeeper == nil {
-		panic("accountKeeper cannot be nil")
-	}
 	if bankKeeper == nil {
 		panic("bankKeeper cannot be nil")
 	}
@@ -58,7 +53,6 @@ func NewKeeper(
 	k := Keeper{
 		cdc:             cdc,
 		Params:          collections.NewItem(sb, types.ParamsPrefix, "params", codec.CollValue[types.Params](cdc)),
-		accountKeeper:   accountKeeper,
 		bankKeeper:      bankKeeper,
 		warpKeeper:      warpKeeper,
 		hyperlaneKeeper: hyperlaneKeeper,
@@ -145,6 +139,11 @@ func (k Keeper) HasEnrolledRouter(ctx context.Context, tokenId util.HexAddress, 
 	return k.warpKeeper.EnrolledRouters.Has(ctx, collections.Join(tokenId.GetInternalId(), destDomain))
 }
 
+// GetEnrolledRouter returns the RemoteRouter for a token and destination domain.
+func (k Keeper) GetEnrolledRouter(ctx context.Context, tokenId util.HexAddress, destDomain uint32) (warptypes.RemoteRouter, error) {
+	return k.warpKeeper.EnrolledRouters.Get(ctx, collections.Join(tokenId.GetInternalId(), destDomain))
+}
+
 // HasAnyRouteToDestination returns true if any warp token has an enrolled router
 // for the destination domain. This validates that forwarding is possible before
 // deriving an address, regardless of which token type will be forwarded.
@@ -180,7 +179,12 @@ func (k Keeper) ExecuteWarpTransfer(
 	amount math.Int,
 	quotedFee sdk.Coin,
 ) (util.HexAddress, error) {
-	gasLimit := math.ZeroInt()
+	// Get gas limit from the enrolled router for this destination
+	router, err := k.GetEnrolledRouter(ctx, token.Id, destDomain)
+	if err != nil {
+		return util.HexAddress{}, fmt.Errorf("no router for domain %d: %w", destDomain, err)
+	}
+	gasLimit := router.Gas
 
 	switch token.TokenType {
 	case warptypes.HYP_TOKEN_TYPE_SYNTHETIC:
@@ -204,7 +208,13 @@ func (k Keeper) QuoteIgpFee(ctx context.Context, destDomain uint32) (sdk.Coin, e
 
 // QuoteIgpFeeForToken returns the IGP fee required for a warp transfer of a specific token.
 func (k Keeper) QuoteIgpFeeForToken(ctx sdk.Context, token warptypes.HypToken, destDomain uint32) (sdk.Coin, error) {
-	gasLimit := math.ZeroInt()
+	// Get gas limit from the enrolled router for this destination
+	router, err := k.GetEnrolledRouter(ctx, token.Id, destDomain)
+	if err != nil {
+		return sdk.Coin{}, fmt.Errorf("no router for domain %d: %w", destDomain, err)
+	}
+	gasLimit := router.Gas
+
 	metadata := util.StandardHookMetadata{GasLimit: gasLimit}
 	message := util.HyperlaneMessage{Destination: destDomain}
 

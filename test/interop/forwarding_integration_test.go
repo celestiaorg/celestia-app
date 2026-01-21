@@ -1,7 +1,6 @@
 package interop
 
 import (
-	"encoding/hex"
 	"fmt"
 	"testing"
 
@@ -14,7 +13,6 @@ import (
 	minttypes "github.com/celestiaorg/celestia-app/v7/x/mint/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/gogoproto/proto"
 	ibctesting "github.com/cosmos/ibc-go/v8/testing"
 	"github.com/stretchr/testify/suite"
 )
@@ -45,40 +43,14 @@ func (s *ForwardingIntegrationTestSuite) SetupTest() {
 	s.Require().NoError(err)
 }
 
+// extractDispatchMessage delegates to shared helper
 func (s *ForwardingIntegrationTestSuite) extractDispatchMessage(events []abci.Event) string {
-	for _, evt := range events {
-		if evt.Type == proto.MessageName(&coretypes.EventDispatch{}) {
-			protoMsg, err := sdk.ParseTypedEvent(evt)
-			if err != nil {
-				continue
-			}
-			if eventDispatch, ok := protoMsg.(*coretypes.EventDispatch); ok {
-				return eventDispatch.Message
-			}
-		}
-	}
-	return ""
+	return ExtractDispatchMessage(events)
 }
 
+// countDispatchEvents delegates to shared helper
 func (s *ForwardingIntegrationTestSuite) countDispatchEvents(events []abci.Event) int {
-	count := 0
-	for _, evt := range events {
-		if evt.Type == proto.MessageName(&coretypes.EventDispatch{}) {
-			count++
-		}
-	}
-	return count
-}
-
-func makeRecipient32(addr sdk.AccAddress) []byte {
-	recipient := make([]byte, 32)
-	copy(recipient[12:], addr.Bytes())
-	return recipient
-}
-
-func recipientToHex(recipient []byte) util.HexAddress {
-	hexAddr, _ := util.DecodeHexAddress("0x" + hex.EncodeToString(recipient))
-	return hexAddr
+	return CountDispatchEvents(events)
 }
 
 func (s *ForwardingIntegrationTestSuite) fundAddress(chain *ibctesting.TestChain, addr sdk.AccAddress, coin sdk.Coin) {
@@ -116,8 +88,8 @@ func (s *ForwardingIntegrationTestSuite) TestParamsStorageWithProtoTypes() {
 	celestiaApp := s.GetCelestiaApp(s.celestia)
 	ctx := s.celestia.GetContext()
 
-	// Set params with min forward amount
-	newParams := forwardingtypes.NewParams(math.NewInt(100))
+	// Set params (currently empty, reserved for future use)
+	newParams := forwardingtypes.DefaultParams()
 
 	err := celestiaApp.ForwardingKeeper.SetParams(ctx, newParams)
 	s.Require().NoError(err)
@@ -125,11 +97,9 @@ func (s *ForwardingIntegrationTestSuite) TestParamsStorageWithProtoTypes() {
 	// Get params back
 	retrievedParams, err := celestiaApp.ForwardingKeeper.GetParams(ctx)
 	s.Require().NoError(err)
-
-	s.Equal(math.NewInt(100), retrievedParams.MinForwardAmount)
+	s.Require().NoError(retrievedParams.Validate())
 
 	s.T().Logf("Test 1 PASSED: Params storage works with proto-generated types")
-	s.T().Logf("MinForwardAmount: %s", retrievedParams.MinForwardAmount.String())
 }
 
 func (s *ForwardingIntegrationTestSuite) TestFindHypTokenByDenom_TIA() {
@@ -316,7 +286,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullFlow() {
 	s.EnrollRemoteRouter(s.chainA, synTokenID, CelestiaDomainID, collatTokenID.String())
 
 	// Create destination recipient and derive forwarding address
-	destRecipient := makeRecipient32(s.chainA.SenderAccount.GetAddress())
+	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
 	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(ChainADomainID, destRecipient)
 	s.Require().NoError(err)
 
@@ -333,7 +303,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullFlow() {
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
 		ChainADomainID,
-		recipientToHex(destRecipient).String(),
+		RecipientToHex(destRecipient).String(),
 		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
 
@@ -369,13 +339,13 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullFlow() {
 
 func (s *ForwardingIntegrationTestSuite) TestMsgForward_AddressMismatch() {
 	randomAddr := sdk.AccAddress([]byte("random_address______"))
-	destRecipient := makeRecipient32(s.chainA.SenderAccount.GetAddress())
+	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
 
 	msg := forwardingtypes.NewMsgForward(
 		s.celestia.SenderAccount.GetAddress().String(),
 		randomAddr.String(),
 		1337,
-		recipientToHex(destRecipient).String(),
+		RecipientToHex(destRecipient).String(),
 		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
 
@@ -385,7 +355,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_AddressMismatch() {
 }
 
 func (s *ForwardingIntegrationTestSuite) TestMsgForward_NoBalance() {
-	destRecipient := makeRecipient32(s.chainA.SenderAccount.GetAddress())
+	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
 	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(1337, destRecipient)
 	s.Require().NoError(err)
 
@@ -393,7 +363,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_NoBalance() {
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
 		1337,
-		recipientToHex(destRecipient).String(),
+		RecipientToHex(destRecipient).String(),
 		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
 
@@ -431,7 +401,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_MultiToken() {
 	s.EnrollRemoteRouter(s.celestia, celestiaSynTokenID, ChainADomainID, simappCollatTokenID.String())
 
 	// Create destination recipient and derive forwarding address
-	destRecipient := makeRecipient32(s.chainA.SenderAccount.GetAddress())
+	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
 	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(ChainADomainID, destRecipient)
 	s.Require().NoError(err)
 
@@ -440,7 +410,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_MultiToken() {
 	s.fundAddress(s.celestia, forwardAddr, sdk.NewCoin(params.BondDenom, tiaAmount))
 
 	// Warp transfer stake from simapp to forwardAddr on Celestia
-	forwardAddrBytes := makeRecipient32(forwardAddr)
+	forwardAddrBytes := MakeRecipient32(forwardAddr)
 	s.processWarpMessage(s.chainA, s.celestia, mailboxIDCelestia, &warptypes.MsgRemoteTransfer{
 		Sender:            s.chainA.SenderAccount.GetAddress().String(),
 		TokenId:           simappCollatTokenID,
@@ -465,7 +435,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_MultiToken() {
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
 		ChainADomainID,
-		recipientToHex(destRecipient).String(),
+		RecipientToHex(destRecipient).String(),
 		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
 
@@ -506,7 +476,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_PartialFailure_Unsupport
 	s.EnrollRemoteRouter(s.chainA, tiaSynTokenID, CelestiaDomainID, tiaCollatTokenID.String())
 
 	// Create destination and derive forwarding address
-	destRecipient := makeRecipient32(s.chainA.SenderAccount.GetAddress())
+	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
 	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(ChainADomainID, destRecipient)
 	s.Require().NoError(err)
 
@@ -523,7 +493,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_PartialFailure_Unsupport
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
 		ChainADomainID,
-		recipientToHex(destRecipient).String(),
+		RecipientToHex(destRecipient).String(),
 		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
 
@@ -570,7 +540,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_PartialFailure_NoRoute()
 	s.EnrollRemoteRouter(s.celestia, testCollatTokenID, OtherDomainID, "0x0000000000000000000000000000000000000000000000000000000000000001")
 
 	// Derive forwarding address FOR ChainADomainID
-	destRecipient := makeRecipient32(s.chainA.SenderAccount.GetAddress())
+	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
 	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(ChainADomainID, destRecipient)
 	s.Require().NoError(err)
 
@@ -585,7 +555,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_PartialFailure_NoRoute()
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
 		ChainADomainID,
-		recipientToHex(destRecipient).String(),
+		RecipientToHex(destRecipient).String(),
 		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
 
@@ -599,73 +569,6 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_PartialFailure_NoRoute()
 
 	s.True(newTiaBalance.Amount.IsZero(), "TIA should be forwarded (has route to simapp)")
 	s.Equal(testAmount.Int64(), newTestBalance.Amount.Int64(), "test token should remain (no route to simapp)")
-}
-
-func (s *ForwardingIntegrationTestSuite) TestMsgForward_MinThreshold() {
-	const (
-		CelestiaDomainID uint32 = 69420
-		ChainADomainID   uint32 = 1337
-	)
-
-	celestiaApp := s.GetCelestiaApp(s.celestia)
-
-	// Set up hyperlane infrastructure
-	ismIDCelestia := s.SetupNoopISM(s.celestia)
-	mailboxIDCelestia := s.SetupMailBox(s.celestia, ismIDCelestia, CelestiaDomainID)
-	tiaCollatTokenID := s.CreateCollateralToken(s.celestia, ismIDCelestia, mailboxIDCelestia, params.BondDenom)
-
-	// Set up simapp counterparty
-	ismIDSimapp := s.SetupNoopISM(s.chainA)
-	_ = s.SetupMailBox(s.chainA, ismIDSimapp, ChainADomainID)
-	tiaSynTokenID := s.CreateSyntheticToken(s.chainA, ismIDSimapp, mailboxIDCelestia)
-
-	// Enroll routers
-	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, ChainADomainID, tiaSynTokenID.String())
-	s.EnrollRemoteRouter(s.chainA, tiaSynTokenID, CelestiaDomainID, tiaCollatTokenID.String())
-
-	// Configure params with MINIMUM THRESHOLD of 500
-	minThreshold := math.NewInt(500)
-	err := celestiaApp.ForwardingKeeper.SetParams(s.celestia.GetContext(), forwardingtypes.NewParams(minThreshold))
-	s.Require().NoError(err)
-
-	// Create destination recipient and derive forwarding address
-	destRecipient := makeRecipient32(s.chainA.SenderAccount.GetAddress())
-	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(ChainADomainID, destRecipient)
-	s.Require().NoError(err)
-
-	// Fund with amount BELOW threshold
-	belowThresholdAmount := math.NewInt(100)
-	s.fundAddress(s.celestia, forwardAddr, sdk.NewCoin(params.BondDenom, belowThresholdAmount))
-
-	// Execute forwarding - tx FAILS because all tokens fail (below threshold)
-	msg := forwardingtypes.NewMsgForward(
-		s.celestia.SenderAccount.GetAddress().String(),
-		sdk.AccAddress(forwardAddr).String(),
-		ChainADomainID,
-		recipientToHex(destRecipient).String(),
-		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
-	)
-
-	_, err = s.celestia.SendMsgs(msg)
-	s.Require().Error(err, "should fail when all tokens below threshold")
-	s.Contains(err.Error(), "all tokens failed")
-
-	// Verify: Token should REMAIN at forwardAddr (below threshold, tx failed)
-	newBalance := celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), forwardAddr, params.BondDenom)
-	s.Equal(belowThresholdAmount.Int64(), newBalance.Amount.Int64(), "balance should remain unchanged (below threshold)")
-
-	// Add more funds to exceed threshold and verify it forwards
-	additionalFunds := math.NewInt(500) // Total will be 600, above 500 threshold
-	s.fundAddress(s.celestia, forwardAddr, sdk.NewCoin(params.BondDenom, additionalFunds))
-
-	// Execute again - should now forward
-	res, err := s.celestia.SendMsgs(msg)
-	s.Require().NoError(err)
-	s.Require().NotNil(res)
-
-	// Verify tokens forwarded
-	finalBalance := celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), forwardAddr, params.BondDenom)
-	s.True(finalBalance.Amount.IsZero(), "balance should be zero after forwarding (above threshold)")
 }
 
 func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullE2E_SourceCollateralToken() {
@@ -697,12 +600,12 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullE2E_SourceCollateral
 	s.EnrollRemoteRouter(s.chainB, chainBSynTokenID, CelestiaDomainID, celestiaSynTokenID.String())
 
 	// Compute forward address on Celestia
-	destRecipient := makeRecipient32(s.chainB.SenderAccount.GetAddress())
+	destRecipient := MakeRecipient32(s.chainB.SenderAccount.GetAddress())
 	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(ChainBDomainID, destRecipient)
 	s.Require().NoError(err)
 
 	// Warp transfer from ChainA to forwardAddr on Celestia
-	forwardAddrBytes := makeRecipient32(forwardAddr)
+	forwardAddrBytes := MakeRecipient32(forwardAddr)
 	s.processWarpMessage(s.chainA, s.celestia, mailboxIDCelestia, &warptypes.MsgRemoteTransfer{
 		Sender:            s.chainA.SenderAccount.GetAddress().String(),
 		TokenId:           chainACollatTokenID,
@@ -724,7 +627,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullE2E_SourceCollateral
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
 		ChainBDomainID,
-		recipientToHex(destRecipient).String(),
+		RecipientToHex(destRecipient).String(),
 		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
 
@@ -785,7 +688,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullE2E_TIASyntheticOnSo
 	s.EnrollRemoteRouter(s.chainB, chainBTIASynTokenID, CelestiaDomainID, tiaCollatTokenID.String())
 
 	// Bridge TIA from Celestia to ChainA to create synthetic TIA
-	chainARecipient := makeRecipient32(s.chainA.SenderAccount.GetAddress())
+	chainARecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
 	s.processWarpMessage(s.celestia, s.chainA, mailboxIDChainA, &warptypes.MsgRemoteTransfer{
 		Sender:            s.celestia.SenderAccount.GetAddress().String(),
 		TokenId:           tiaCollatTokenID,
@@ -802,12 +705,12 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullE2E_TIASyntheticOnSo
 	s.Equal(int64(2000), chainATIABalance.Amount.Int64())
 
 	// Compute forward address on Celestia for ChainB
-	destRecipient := makeRecipient32(s.chainB.SenderAccount.GetAddress())
+	destRecipient := MakeRecipient32(s.chainB.SenderAccount.GetAddress())
 	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(ChainBDomainID, destRecipient)
 	s.Require().NoError(err)
 
 	// Warp TIA synthetic back to forwardAddr on Celestia (releases collateral)
-	forwardAddrBytes := makeRecipient32(forwardAddr)
+	forwardAddrBytes := MakeRecipient32(forwardAddr)
 	s.processWarpMessage(s.chainA, s.celestia, mailboxIDCelestia, &warptypes.MsgRemoteTransfer{
 		Sender:            s.chainA.SenderAccount.GetAddress().String(),
 		TokenId:           chainATIASynTokenID,
@@ -825,7 +728,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullE2E_TIASyntheticOnSo
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
 		ChainBDomainID,
-		recipientToHex(destRecipient).String(),
+		RecipientToHex(destRecipient).String(),
 		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
 
@@ -877,7 +780,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullE2E_CEXWithdrawal() 
 	s.EnrollRemoteRouter(s.chainB, chainBTIASynTokenID, CelestiaDomainID, tiaCollatTokenID.String())
 
 	// Compute forward address on Celestia
-	destRecipient := makeRecipient32(s.chainB.SenderAccount.GetAddress())
+	destRecipient := MakeRecipient32(s.chainB.SenderAccount.GetAddress())
 	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(ChainBDomainID, destRecipient)
 	s.Require().NoError(err)
 
@@ -894,7 +797,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullE2E_CEXWithdrawal() 
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
 		ChainBDomainID,
-		recipientToHex(destRecipient).String(),
+		RecipientToHex(destRecipient).String(),
 		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
 
@@ -949,7 +852,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_TooManyTokens() {
 	s.EnrollRemoteRouter(s.chainA, tiaSynTokenID, CelestiaDomainID, tiaCollatTokenID.String())
 
 	// Derive forwarding address
-	destRecipient := makeRecipient32(s.chainA.SenderAccount.GetAddress())
+	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
 	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(ChainADomainID, destRecipient)
 	s.Require().NoError(err)
 
@@ -979,7 +882,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_TooManyTokens() {
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
 		ChainADomainID,
-		recipientToHex(destRecipient).String(),
+		RecipientToHex(destRecipient).String(),
 		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
 
