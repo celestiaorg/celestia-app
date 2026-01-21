@@ -36,12 +36,13 @@ func NewAnteHandler(
 		circuitante.NewCircuitBreakerDecorator(circuitkeeper),
 		// Ensure the tx does not contain any extension options.
 		ante.NewExtensionOptionsDecorator(nil),
-		// Early detection of MsgForwardFees to set context flag before ValidateBasic.
-		// MsgForwardFees is an unsigned protocol-injected tx that would fail ValidateBasic's
-		// signature check, so we detect it early and skip ValidateBasic for it.
+		// Early detection of MsgForwardFees to set context flag for skipping
+		// signature-related decorators (fee forward txs have no signers).
 		NewEarlyFeeForwardDetector(),
 		// Ensure the tx passes ValidateBasic.
-		// Skipped for fee forward transactions (no signatures).
+		// Note: Wrapping is required because the transaction-level ValidateBasic (not just
+		// the message) fails for unsigned transactions. While MsgForwardFees.ValidateBasic()
+		// returns nil, the Tx wrapper's ValidateBasic() checks for signers/signatures.
 		NewSkipForFeeForwardDecorator(ante.NewValidateBasicDecorator()),
 		// Ensure the tx has not reached a height timeout.
 		ante.NewTxTimeoutHeightDecorator(),

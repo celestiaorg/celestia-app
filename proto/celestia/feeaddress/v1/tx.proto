@@ -17,7 +17,9 @@ service Msg {
   //
   // Note: This RPC intentionally has no google.api.http annotation because it
   // is a protocol-injected message that should not be callable via REST API.
-  // User submissions are rejected by the ante handler.
+  // If an EOA or any user attempts to submit this message directly, it is
+  // rejected in CheckTx with: "MsgForwardFees cannot be submitted by users;
+  // it is protocol-injected only" (see FeeForwardDecorator in ante handler).
   rpc ForwardFees(MsgForwardFees) returns (MsgForwardFeesResponse);
 }
 

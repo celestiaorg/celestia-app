@@ -82,7 +82,7 @@ func TestEarlyFeeForwardDetector(t *testing.T) {
 			require.NoError(t, err)
 
 			// Check if the flag was set
-			flagSet := ante.IsFeeForwardTx(capturedCtx)
+			flagSet := feeaddresstypes.IsFeeForwardTx(capturedCtx)
 			require.Equal(t, tc.expectFlagSet, flagSet, "IsFeeForwardTx should return %v", tc.expectFlagSet)
 		})
 	}
@@ -113,7 +113,7 @@ func TestSkipForFeeForwardDecorator(t *testing.T) {
 
 			ctx := sdk.NewContext(nil, tmproto.Header{}, false, nil)
 			if tc.isFeeForwardTx {
-				ctx = ctx.WithValue(ante.FeeForwardContextKey{}, true)
+				ctx = ctx.WithValue(feeaddresstypes.FeeForwardContextKey{}, true)
 			}
 
 			tx := wrapperTestTx{msgs: []sdk.Msg{}}
@@ -160,10 +160,10 @@ func TestIsFeeForwardTx(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := sdk.NewContext(nil, tmproto.Header{}, false, nil)
 			if tc.ctxValue != nil {
-				ctx = ctx.WithValue(ante.FeeForwardContextKey{}, tc.ctxValue)
+				ctx = ctx.WithValue(feeaddresstypes.FeeForwardContextKey{}, tc.ctxValue)
 			}
 
-			result := ante.IsFeeForwardTx(ctx)
+			result := feeaddresstypes.IsFeeForwardTx(ctx)
 			require.Equal(t, tc.expected, result)
 		})
 	}

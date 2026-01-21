@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v7/app/ante"
 	"github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -35,7 +34,7 @@ func (k Keeper) ForwardFees(ctx context.Context, _ *types.MsgForwardFees) (*type
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
 	// Get the fee amount from context (set by FeeForwardDecorator)
-	fee, ok := ante.GetFeeForwardAmount(sdkCtx)
+	fee, ok := types.GetFeeForwardAmount(sdkCtx)
 	if !ok {
 		// This shouldn't happen in normal operation as the ante decorator always sets the fee
 		return nil, types.ErrFeeForwardAmountNotFound

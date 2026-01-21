@@ -8,16 +8,6 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
-// FeeForwardContextKey indicates a transaction is a protocol-injected fee forward transaction.
-// Set by EarlyFeeForwardDetector BEFORE ValidateBasic runs, enabling SkipForFeeForwardDecorator
-// to skip signature-related decorators for this unsigned transaction.
-type FeeForwardContextKey struct{}
-
-// FeeForwardAmountContextKey stores the fee amount deducted from the fee address.
-// Set by FeeForwardDecorator AFTER the bank transfer completes. The keeper's
-// ForwardFees message handler reads this to emit EventFeeForwarded.
-type FeeForwardAmountContextKey struct{}
-
 // FeeForwardDecorator handles MsgForwardFees transactions by rejecting user submissions
 // in CheckTx, deducting the fee from the fee address, and sending it to the fee collector.
 // Must be placed before DeductFeeDecorator, SetPubKeyDecorator, SigVerificationDecorator,
@@ -66,27 +56,7 @@ func (d FeeForwardDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate boo
 	}
 
 	// Store the fee amount in context for the message handler to emit the event
-	ctx = ctx.WithValue(FeeForwardAmountContextKey{}, fee)
+	ctx = ctx.WithValue(feeaddresstypes.FeeForwardAmountContextKey{}, fee)
 
 	return next(ctx, tx, simulate)
-}
-
-// IsFeeForwardTx returns true if the context indicates this is a fee forward transaction.
-func IsFeeForwardTx(ctx sdk.Context) bool {
-	val := ctx.Value(FeeForwardContextKey{})
-	if val == nil {
-		return false
-	}
-	isFeeForward, ok := val.(bool)
-	return ok && isFeeForward
-}
-
-// GetFeeForwardAmount returns the fee amount that was forwarded, if available in context.
-func GetFeeForwardAmount(ctx sdk.Context) (sdk.Coins, bool) {
-	val := ctx.Value(FeeForwardAmountContextKey{})
-	if val == nil {
-		return nil, false
-	}
-	fee, ok := val.(sdk.Coins)
-	return fee, ok
 }

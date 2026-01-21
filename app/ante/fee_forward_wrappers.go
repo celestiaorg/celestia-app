@@ -5,9 +5,14 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+var (
+	_ sdk.AnteDecorator = EarlyFeeForwardDetector{}
+	_ sdk.AnteDecorator = SkipForFeeForwardDecorator{}
+)
+
 // EarlyFeeForwardDetector detects MsgForwardFees transactions early in the ante chain
-// and sets the context flag so that subsequent decorators (like ValidateBasic) can be skipped.
-// This MUST be placed before ValidateBasicDecorator in the ante chain.
+// and sets a context flag. This flag is used by SkipForFeeForwardDecorator to skip
+// signature-related decorators since fee forward transactions have no signers.
 type EarlyFeeForwardDetector struct{}
 
 // NewEarlyFeeForwardDetector creates a new EarlyFeeForwardDetector.
@@ -18,8 +23,8 @@ func NewEarlyFeeForwardDetector() EarlyFeeForwardDetector {
 // AnteHandle implements sdk.AnteDecorator.
 func (d EarlyFeeForwardDetector) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
 	if feeaddresstypes.IsFeeForwardMsg(tx) != nil {
-		// Set the context flag early so ValidateBasic and other decorators can be skipped
-		ctx = ctx.WithValue(FeeForwardContextKey{}, true)
+		// Set the context flag so signature-related decorators can be skipped
+		ctx = ctx.WithValue(feeaddresstypes.FeeForwardContextKey{}, true)
 	}
 	return next(ctx, tx, simulate)
 }
@@ -36,8 +41,23 @@ func NewSkipForFeeForwardDecorator(inner sdk.AnteDecorator) SkipForFeeForwardDec
 
 // AnteHandle implements sdk.AnteDecorator.
 func (d SkipForFeeForwardDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	if IsFeeForwardTx(ctx) {
+	if feeaddresstypes.IsFeeForwardTx(ctx) {
 		return next(ctx, tx, simulate)
 	}
 	return d.inner.AnteHandle(ctx, tx, simulate, next)
 }
+
+// Re-export context key types from feeaddresstypes for use in tests and other packages
+// that expect these to be in the ante package.
+type (
+	// FeeForwardContextKey is re-exported from feeaddresstypes for backward compatibility.
+	FeeForwardContextKey = feeaddresstypes.FeeForwardContextKey
+	// FeeForwardAmountContextKey is re-exported from feeaddresstypes for backward compatibility.
+	FeeForwardAmountContextKey = feeaddresstypes.FeeForwardAmountContextKey
+)
+
+// IsFeeForwardTx is re-exported from feeaddresstypes for backward compatibility.
+var IsFeeForwardTx = feeaddresstypes.IsFeeForwardTx
+
+// GetFeeForwardAmount is re-exported from feeaddresstypes for backward compatibility.
+var GetFeeForwardAmount = feeaddresstypes.GetFeeForwardAmount

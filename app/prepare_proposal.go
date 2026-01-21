@@ -44,45 +44,17 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		return nil, fmt.Errorf("failed to create FilteredSquareBuilder: %w", err)
 	}
 
-	// Check fee address balance and inject fee forward tx if non-zero.
-	// This converts fee address funds into real transaction fees for dashboard tracking.
-	//
-	// Consensus safety: ProcessProposal validates that the fee forward tx fee amount equals
-	// the fee address balance at the start of the block. Both PrepareProposal and ProcessProposal
-	// read from the same state snapshot, ensuring all validators agree on validity. The fee
-	// forward tx is prepended so it executes first in DeliverTx, draining the fee address
-	// before any subsequent transactions can add to it.
-	txsToProcess := req.Txs
-	feeBalance := app.BankKeeper.GetBalance(ctx, feeaddresstypes.FeeAddress, appconsts.BondDenom)
-	hasFeeForwardTx := false
-	if !feeBalance.IsZero() {
-		feeForwardTx, err := app.createFeeForwardTx(feeBalance)
-		if err != nil {
-			// Fail explicitly rather than producing a block that ProcessProposal will reject.
-			return nil, fmt.Errorf("failed to create fee forward tx: %w; fee_balance=%s", err, feeBalance.String())
-		}
-		// Prepend fee forward tx so it executes first
-		txsToProcess = append([][]byte{feeForwardTx}, req.Txs...)
-		hasFeeForwardTx = true
+	// Inject fee forward tx if fee address has balance
+	txsToProcess, feeBalance, err := app.injectFeeForwardTx(ctx, req.Txs)
+	if err != nil {
+		return nil, err
 	}
 
 	txs := fsb.Fill(ctx, txsToProcess)
 
-	// Defense-in-depth: Verify the fee forward tx survived filtering.
-	// If the fee address has a balance and we created a fee forward tx, it MUST be in the output.
-	// The fee forward tx should never be filtered since it has no signature requirements and
-	// uses minimal gas. If it's filtered, there's a bug in the ante handler chain.
-	if hasFeeForwardTx {
-		if len(txs) == 0 {
-			return nil, fmt.Errorf("fee forward tx was filtered out (no txs remain); fee_balance=%s", feeBalance.String())
-		}
-		_, firstTxIsFeeForward, err := app.parseFeeForwardTx(txs[0])
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse fee forward tx: %w; fee_balance=%s", err, feeBalance.String())
-		}
-		if !firstTxIsFeeForward {
-			return nil, fmt.Errorf("fee forward tx was filtered out unexpectedly; fee_balance=%s", feeBalance.String())
-		}
+	// Verify fee forward tx survived filtering (if we injected one)
+	if err := app.verifyFeeForwardTxSurvived(feeBalance, txs); err != nil {
+		return nil, err
 	}
 
 	// Build the square from the set of valid and prioritised transactions.
@@ -114,6 +86,61 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		SquareSize:   uint64(dataSquare.Size()),
 		DataRootHash: dah.Hash(), // also known as the data root
 	}, nil
+}
+
+// injectFeeForwardTx checks the fee address balance and prepends a fee forward tx
+// if non-zero. This converts fee address funds into real transaction fees for
+// dashboard tracking.
+//
+// Consensus safety: ProcessProposal validates that the fee forward tx fee amount equals
+// the fee address balance at the start of the block. Both PrepareProposal and ProcessProposal
+// read from the same state snapshot, ensuring all validators agree on validity. The fee
+// forward tx is prepended so it executes first in DeliverTx, draining the fee address
+// before any subsequent transactions can add to it.
+//
+// Returns the txs to process (with fee forward tx prepended if applicable), the fee
+// balance (for verification), and any error.
+func (app *App) injectFeeForwardTx(ctx sdk.Context, txs [][]byte) ([][]byte, sdk.Coin, error) {
+	feeBalance := app.BankKeeper.GetBalance(ctx, feeaddresstypes.FeeAddress, appconsts.BondDenom)
+	if feeBalance.IsZero() {
+		return txs, feeBalance, nil
+	}
+
+	feeForwardTx, err := app.createFeeForwardTx(feeBalance)
+	if err != nil {
+		// Fail explicitly rather than producing a block that ProcessProposal will reject.
+		return nil, feeBalance, fmt.Errorf("failed to create fee forward tx: %w; fee_balance=%s", err, feeBalance.String())
+	}
+
+	// Prepend fee forward tx so it executes first
+	return append([][]byte{feeForwardTx}, txs...), feeBalance, nil
+}
+
+// verifyFeeForwardTxSurvived performs defense-in-depth verification that the fee
+// forward tx was not filtered out. If the fee address had a balance and we created
+// a fee forward tx, it MUST be the first tx in the output. The fee forward tx should
+// never be filtered since it has no signature requirements and uses minimal gas.
+// If it's filtered, there's a bug in the ante handler chain.
+//
+// If feeBalance is zero, this is a no-op (no fee forward tx was injected).
+func (app *App) verifyFeeForwardTxSurvived(feeBalance sdk.Coin, filteredTxs [][]byte) error {
+	if feeBalance.IsZero() {
+		return nil
+	}
+
+	if len(filteredTxs) == 0 {
+		return fmt.Errorf("fee forward tx was filtered out (no txs remain); fee_balance=%s", feeBalance.String())
+	}
+
+	_, firstTxIsFeeForward, err := app.parseFeeForwardTx(filteredTxs[0])
+	if err != nil {
+		return fmt.Errorf("failed to parse fee forward tx: %w; fee_balance=%s", err, feeBalance.String())
+	}
+	if !firstTxIsFeeForward {
+		return fmt.Errorf("fee forward tx was filtered out unexpectedly; fee_balance=%s", feeBalance.String())
+	}
+
+	return nil
 }
 
 // createFeeForwardTx creates an unsigned MsgForwardFees transaction with the

@@ -7,7 +7,7 @@ The AnteHandler chains together several decorators to ensure the following crite
 - The tx does not contain any messages that are disabled by the circuit breaker (e.g. `MsgSoftwareUpgrade`, `MsgCancelUpgrade`, `MsgIBCSoftwareUpgrade`).
 - The tx does not contain any [extension options](https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L119-L122).
 - **[New in v7]** If the tx contains a single `MsgForwardFees`, a context flag is set to identify it as a protocol-injected fee forward transaction.
-- The tx passes `ValidateBasic()`. **[New in v7]** Fee forward transactions are exempt from this check since they have no signatures.
+- The tx passes `ValidateBasic()`. **[New in v7]** Fee forward transactions are exempt from this check since the transaction-level ValidateBasic checks for signers/signatures.
 - The tx's [timeout_height](https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L115-L117) has not been reached if one is specified.
 - The tx's [memo](https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L110-L113) is <= the max memo characters where [`MaxMemoCharacters = 256`](<https://github.com/cosmos/cosmos-sdk/blob/a429238fc267da88a8548bfebe0ba7fb28b82a13/x/auth/README.md?plain=1#L230>).
 - The tx's [gas_limit](https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L211-L213) is > the gas consumed based on the tx's size where [`TxSizeCostPerByte = 10`](https://github.com/celestiaorg/celestia-app/blob/6ea21f729fe88e4175c4b3084119392c4acd1957/pkg/appconsts/app_consts.go#L23).
@@ -39,7 +39,7 @@ In addition to the above criteria, the AnteHandler also has a number of side-eff
 
 App version 7 introduces the [feeaddress](https://github.com/celestiaorg/celestia-app/blob/main/x/feeaddress/README.md) module which enables a mechanism to forward tokens to validators as staking rewards. The ante handler includes several new decorators to support this:
 
-1. **EarlyFeeForwardDetector**: Detects `MsgForwardFees` transactions before `ValidateBasic` runs and sets a context flag. This is necessary because fee forward transactions are unsigned and would fail standard signature validation.
+1. **EarlyFeeForwardDetector**: Detects `MsgForwardFees` transactions and sets a context flag. This flag is used by `SkipForFeeForwardDecorator` to skip signature-related decorators since fee forward transactions have no signers.
 
 2. **FeeForwardDecorator**: Handles `MsgForwardFees` transactions by:
    - Rejecting user-submitted transactions (only protocol-injected transactions from block proposers are allowed)

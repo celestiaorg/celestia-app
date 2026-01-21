@@ -6,7 +6,6 @@ import (
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v7/app/ante"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -28,7 +27,7 @@ func createTestContext() sdk.Context {
 // simulating what the FeeForwardDecorator does.
 func createContextWithFeeAmount(fee sdk.Coins) sdk.Context {
 	ctx := createTestContext()
-	return ctx.WithValue(ante.FeeForwardAmountContextKey{}, fee)
+	return ctx.WithValue(types.FeeForwardAmountContextKey{}, fee)
 }
 
 // TestForwardFeesEmitsEvent verifies that the ForwardFees message handler
@@ -159,12 +158,12 @@ func TestIsFeeForwardTx(t *testing.T) {
 	}{
 		{
 			name:     "context with true flag returns true",
-			ctx:      createTestContext().WithValue(ante.FeeForwardContextKey{}, true),
+			ctx:      createTestContext().WithValue(types.FeeForwardContextKey{}, true),
 			expected: true,
 		},
 		{
 			name:     "context with false flag returns false",
-			ctx:      createTestContext().WithValue(ante.FeeForwardContextKey{}, false),
+			ctx:      createTestContext().WithValue(types.FeeForwardContextKey{}, false),
 			expected: false,
 		},
 		{
@@ -174,14 +173,14 @@ func TestIsFeeForwardTx(t *testing.T) {
 		},
 		{
 			name:     "context with non-bool value returns false",
-			ctx:      createTestContext().WithValue(ante.FeeForwardContextKey{}, "not a bool"),
+			ctx:      createTestContext().WithValue(types.FeeForwardContextKey{}, "not a bool"),
 			expected: false,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := ante.IsFeeForwardTx(tc.ctx)
+			result := types.IsFeeForwardTx(tc.ctx)
 			require.Equal(t, tc.expected, result)
 		})
 	}
@@ -211,7 +210,7 @@ func TestGetFeeForwardAmount(t *testing.T) {
 		},
 		{
 			name:        "context with wrong type returns nil, false",
-			ctx:         createTestContext().WithValue(ante.FeeForwardAmountContextKey{}, "not coins"),
+			ctx:         createTestContext().WithValue(types.FeeForwardAmountContextKey{}, "not coins"),
 			expectedFee: nil,
 			expectedOk:  false,
 		},
@@ -219,7 +218,7 @@ func TestGetFeeForwardAmount(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			fee, ok := ante.GetFeeForwardAmount(tc.ctx)
+			fee, ok := types.GetFeeForwardAmount(tc.ctx)
 			require.Equal(t, tc.expectedOk, ok)
 			if tc.expectedOk {
 				require.True(t, fee.Equal(tc.expectedFee))

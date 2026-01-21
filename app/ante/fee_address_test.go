@@ -260,7 +260,7 @@ func TestFeeForwardDecoratorValidatesSingleDenom(t *testing.T) {
 
 	// Create DeliverTx context with fee forward flag set (simulates EarlyFeeForwardDetector)
 	ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
-	ctx = ctx.WithValue(ante.FeeForwardContextKey{}, true)
+	ctx = ctx.WithValue(feeaddresstypes.FeeForwardContextKey{}, true)
 
 	_, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
 
@@ -279,7 +279,7 @@ func TestFeeForwardDecoratorRejectsWrongDenom(t *testing.T) {
 
 	// Create DeliverTx context with fee forward flag set (simulates EarlyFeeForwardDetector)
 	ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
-	ctx = ctx.WithValue(ante.FeeForwardContextKey{}, true)
+	ctx = ctx.WithValue(feeaddresstypes.FeeForwardContextKey{}, true)
 
 	_, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
 
@@ -297,7 +297,7 @@ func TestFeeForwardDecoratorSuccess(t *testing.T) {
 
 	// Create DeliverTx context with fee forward flag set (simulates EarlyFeeForwardDetector)
 	ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
-	ctx = ctx.WithValue(ante.FeeForwardContextKey{}, true)
+	ctx = ctx.WithValue(feeaddresstypes.FeeForwardContextKey{}, true)
 
 	newCtx, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
 
@@ -305,9 +305,9 @@ func TestFeeForwardDecoratorSuccess(t *testing.T) {
 	// Verify fee was sent to fee collector
 	require.Equal(t, fee, bankKeeper.sentToModule[authtypes.FeeCollectorName])
 	// Verify context flag is still set
-	require.True(t, ante.IsFeeForwardTx(newCtx))
+	require.True(t, feeaddresstypes.IsFeeForwardTx(newCtx))
 	// Verify GetFeeForwardAmount returns the correct fee
-	feeFromCtx, ok := ante.GetFeeForwardAmount(newCtx)
+	feeFromCtx, ok := feeaddresstypes.GetFeeForwardAmount(newCtx)
 	require.True(t, ok, "GetFeeForwardAmount should return fee")
 	require.Equal(t, fee, feeFromCtx, "fee from context should match tx fee")
 }
@@ -378,7 +378,7 @@ func TestFeeForwardDecoratorBankTransferFailure(t *testing.T) {
 
 	// Create DeliverTx context with fee forward flag set (simulates EarlyFeeForwardDetector)
 	ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
-	ctx = ctx.WithValue(ante.FeeForwardContextKey{}, true)
+	ctx = ctx.WithValue(feeaddresstypes.FeeForwardContextKey{}, true)
 
 	_, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
 
@@ -396,7 +396,7 @@ func TestFeeForwardDecoratorZeroFeeRejected(t *testing.T) {
 
 	// Create DeliverTx context with fee forward flag set (simulates EarlyFeeForwardDetector)
 	ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
-	ctx = ctx.WithValue(ante.FeeForwardContextKey{}, true)
+	ctx = ctx.WithValue(feeaddresstypes.FeeForwardContextKey{}, true)
 
 	_, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
 
