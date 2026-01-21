@@ -206,7 +206,7 @@ func createValidatorWithCommission(t *testing.T, testApp *app.App, ctx sdk.Conte
 	maxRateDec, err := math.LegacyNewDecFromStr(maxRate)
 	require.NoError(t, err)
 
-	maxChangeRateDec, err := math.LegacyNewDecFromStr("0.10") // 10%
+	maxChangeRateDec := math.LegacyOneDec()
 	require.NoError(t, err)
 
 	validators, err := testApp.StakingKeeper.GetAllValidators(ctx)
@@ -242,7 +242,6 @@ func TestMaxCommissionRate(t *testing.T) {
 		// the commission rate can be updated.
 		ctx := testApp.NewContext(false).WithBlockTime(util.GenesisTime.Add(time.Hour * 25))
 
-		// Set up validator with a high max change rate to allow commission changes
 		validator := createValidatorWithCommission(t, testApp, ctx, "0.20", "1.00")
 		valAddr, err := sdk.ValAddressFromBech32(validator.GetOperator())
 		require.NoError(t, err)
