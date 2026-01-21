@@ -357,7 +357,7 @@ func TestMsgUpdateParamsValidateBasic(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorMsg:    "below minimum",
+			errorMsg:    "cannot be negative",
 		},
 	}
 
