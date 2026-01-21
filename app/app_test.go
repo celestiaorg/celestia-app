@@ -117,7 +117,6 @@ func TestModuleAccountAddrs(t *testing.T) {
 		"interchainaccounts",
 		"hyperlane",
 		"warp",
-		"burn",
 	}
 	for _, moduleName := range moduleNames {
 		address := authtypes.NewModuleAddress(moduleName).String()
@@ -145,7 +144,6 @@ func TestBlockedAddresses(t *testing.T) {
 			"interchainaccounts",
 			"hyperlane",
 			"warp",
-			"burn",
 		}
 		for _, moduleName := range moduleNames {
 			address := authtypes.NewModuleAddress(moduleName).String()
