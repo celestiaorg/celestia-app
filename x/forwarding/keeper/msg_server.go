@@ -22,7 +22,6 @@ func NewMsgServerImpl(keeper Keeper) types.MsgServer {
 }
 
 // Forward forwards up to 20 tokens at forwardAddr to the committed destination.
-// Partial failures are by design: failed tokens remain for retry while others proceed.
 func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types.MsgForwardResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
@@ -183,7 +182,7 @@ func (m msgServer) forwardSingleToken(
 			// Return tokens to forward address since we can't complete the transfer
 			if recoveryErr := m.k.bankKeeper.SendCoins(ctx, moduleAddr, forwardAddr, sdk.NewCoins(balance)); recoveryErr != nil {
 				ctx.Logger().Error("CRITICAL: tokens stuck in module after IGP collection failure",
-					"denom", balance.Denom, "amount", balance.Amount.String(), "error", recoveryErr)
+					"denom", balance.Denom, "amount", balance.Amount.String(), "igp_error", err, "recovery_error", recoveryErr)
 			}
 			return types.NewFailureResult(balance.Denom, balance.Amount,
 				fmt.Sprintf("failed to collect IGP fee from relayer: %s", err.Error()))

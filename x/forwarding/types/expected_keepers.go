@@ -28,6 +28,16 @@ type BankKeeper interface {
 // collections.Map fields (HypTokens, EnrolledRouters) rather than through methods.
 // Go interfaces cannot expose struct fields, so we must use the concrete type.
 //
+// NOTE: We intentionally do NOT add a static type assertion like:
+//
+//	var _ WarpKeeper = &warpkeeper.Keeper{}
+//
+// This would fail compilation because this interface only documents the METHOD-based
+// capabilities we use. The concrete keeper also exposes critical functionality via
+// public struct fields (HypTokens, EnrolledRouters collections.Map), which cannot
+// be expressed in a Go interface. The forwarding keeper depends on BOTH the methods
+// defined here AND direct field access on the concrete type.
+//
 // The forwarding keeper wraps these field accesses in helper methods:
 //   - FindHypTokenByDenom: wraps warpKeeper.HypTokens.Get
 //   - HasEnrolledRouter: wraps warpKeeper.EnrolledRouters.Has

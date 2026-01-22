@@ -47,6 +47,8 @@ func MakeRecipient32(addr sdk.AccAddress) []byte {
 }
 
 // RecipientToHex converts a 32-byte recipient to a HexAddress.
+// The error from DecodeHexAddress is safe to ignore because hex.EncodeToString
+// always produces a valid hex string, and we prepend "0x" ourselves.
 func RecipientToHex(recipient []byte) util.HexAddress {
 	hexAddr, _ := util.DecodeHexAddress("0x" + hex.EncodeToString(recipient))
 	return hexAddr
