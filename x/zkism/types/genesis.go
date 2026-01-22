@@ -80,5 +80,23 @@ func (gs GenesisState) Validate() error {
 		}
 	}
 
+	proofSubmitted := make(map[uint64]struct{}, len(gs.Submissions))
+	for i := range gs.Submissions {
+		entry := gs.Submissions[i]
+		if entry.Id.IsZeroAddress() {
+			return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "ism identifier must be non-zero")
+		}
+
+		internalID := entry.Id.GetInternalId()
+		if _, exists := isms[internalID]; !exists {
+			return errorsmod.Wrapf(ErrIsmNotFound, "message proof submitted entry for unknown ism %s", entry.Id.String())
+		}
+
+		if _, exists := proofSubmitted[internalID]; exists {
+			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "duplicate message proof submitted entry for ism %s", entry.Id.String())
+		}
+		proofSubmitted[internalID] = struct{}{}
+	}
+
 	return nil
 }

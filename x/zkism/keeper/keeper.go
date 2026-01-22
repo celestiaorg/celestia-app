@@ -17,10 +17,10 @@ var _ util.InterchainSecurityModule = (*Keeper)(nil)
 
 // Keeper implements the InterchainSecurityModule interface required by the Hyperlane ISM Router.
 type Keeper struct {
-	isms                  collections.Map[uint64, types.InterchainSecurityModule]
-	messages              collections.KeySet[collections.Pair[uint64, []byte]]
-	messageProofSubmitted collections.Map[uint64, bool]
-	schema                collections.Schema
+	isms        collections.Map[uint64, types.InterchainSecurityModule]
+	messages    collections.KeySet[collections.Pair[uint64, []byte]]
+	submissions collections.Map[uint64, bool]
+	schema      collections.Schema
 
 	coreKeeper types.HyperlaneKeeper
 	authority  string
@@ -32,7 +32,7 @@ func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlane
 
 	isms := collections.NewMap(sb, types.IsmsKeyPrefix, "isms", collections.Uint64Key, codec.CollValue[types.InterchainSecurityModule](cdc))
 	messages := collections.NewKeySet(sb, types.MessageKeyPrefix, "messages", collections.PairKeyCodec(collections.Uint64Key, collections.BytesKey))
-	messageProofSubmitted := collections.NewMap(sb, types.MessageProofSubmittedPrefix, "message_proof_submitted", collections.Uint64Key, collections.BoolValue)
+	submissions := collections.NewMap(sb, types.MessageProofSubmittedPrefix, "message_proof_submitted", collections.Uint64Key, collections.BoolValue)
 
 	schema, err := sb.Build()
 	if err != nil {
@@ -40,12 +40,12 @@ func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlane
 	}
 
 	keeper := &Keeper{
-		coreKeeper:            hyperlaneKeeper,
-		isms:                  isms,
-		messages:              messages,
-		messageProofSubmitted: messageProofSubmitted,
-		schema:                schema,
-		authority:             authority,
+		coreKeeper:  hyperlaneKeeper,
+		isms:        isms,
+		messages:    messages,
+		submissions: submissions,
+		schema:      schema,
+		authority:   authority,
 	}
 
 	router := hyperlaneKeeper.IsmRouter()

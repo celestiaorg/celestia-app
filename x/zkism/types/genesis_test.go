@@ -114,6 +114,27 @@ func TestGenesisStateValidate(t *testing.T) {
 			},
 			expErr: sdkerrors.ErrAppConfig,
 		},
+		{
+			name: "message proof submitted zero identifier",
+			malleate: func(gs *types.GenesisState) {
+				gs.Submissions[0].Id = util.NewZeroAddress()
+			},
+			expErr: sdkerrors.ErrInvalidRequest,
+		},
+		{
+			name: "message proof submitted for unknown ism",
+			malleate: func(gs *types.GenesisState) {
+				gs.Submissions[0].Id = util.CreateMockHexAddress("module", 2)
+			},
+			expErr: types.ErrIsmNotFound,
+		},
+		{
+			name: "duplicate message proof submitted entry",
+			malleate: func(gs *types.GenesisState) {
+				gs.Submissions = append(gs.Submissions, gs.Submissions[0])
+			},
+			expErr: sdkerrors.ErrAppConfig,
+		},
 	}
 
 	for _, tc := range tests {
@@ -150,6 +171,12 @@ func newValidGenesisState(groth16Vk []byte) types.GenesisState {
 			{
 				Id:       ismID,
 				Messages: []string{types.EncodeHex(bytes.Repeat([]byte{0x05}, 32))},
+			},
+		},
+		Submissions: []types.GenesisProofSubmission{
+			{
+				Id:        ismID,
+				Submitted: true,
 			},
 		},
 	}
