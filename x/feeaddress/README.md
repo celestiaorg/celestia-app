@@ -17,7 +17,7 @@ celestia1feefeefeefeefeefeefeefeefeefeefe8pxlcf
 1. **Sending**: Users or contracts send utia tokens to the fee address via standard bank transfer or IBC transfer
 2. **PrepareProposal**: Block proposers check the fee address balance and inject a `MsgForwardFees` transaction with the fee set to the balance
 3. **ProcessProposal**: Validators strictly enforce that blocks forward any non-zero fee address balance
-4. **Ante Handler**: The `FeeForwardDecorator` deducts the fee from the fee address and sends it to the fee collector
+4. **Ante Handler**: The `FeeForwardTerminatorDecorator` deducts the fee from the fee address and sends it to the fee collector
 5. **Distribution**: The distribution module allocates fee collector funds to validators as staking rewards
 
 ## Dashboard Compatibility
