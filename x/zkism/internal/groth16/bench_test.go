@@ -11,9 +11,9 @@ import (
 )
 
 const (
-	stateTransitionProgramVkHex  = "0017bc91d53b93c46eb842d7f9020a94ea13d8877a21608b34b71fcc4da64f29"
-	stateMembershipProgramVkHex  = "004959d5fb2c3d5bc1f98e032188dd94fbb5c6b6152df356c7c20be23be824a2"
-	proofPrefixLen               = 4
+	stateTransitionProgramVkHex = "0017bc91d53b93c46eb842d7f9020a94ea13d8877a21608b34b71fcc4da64f29"
+	stateMembershipProgramVkHex = "004959d5fb2c3d5bc1f98e032188dd94fbb5c6b6152df356c7c20be23be824a2"
+	proofPrefixLen              = 4
 )
 
 func BenchmarkGroth16VerifyProof(b *testing.B) {
@@ -52,9 +52,8 @@ func BenchmarkGroth16VerifyProof(b *testing.B) {
 	}
 
 	b.ReportAllocs()
-	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := groth16.VerifyProof(proof, vk, pubWitness); err != nil {
 			b.Fatal(err)
 		}
@@ -97,9 +96,8 @@ func BenchmarkGroth16VerifyProofStateMembership(b *testing.B) {
 	}
 
 	b.ReportAllocs()
-	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := groth16.VerifyProof(proof, vk, pubWitness); err != nil {
 			b.Fatal(err)
 		}
@@ -120,9 +118,8 @@ func BenchmarkSecp256k1VerifySignature(b *testing.B) {
 	}
 
 	b.ReportAllocs()
-	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if !pubKey.VerifySignature(msg, sig) {
 			b.Fatal("signature verification failed")
 		}
