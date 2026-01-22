@@ -10,13 +10,13 @@ func (suite *KeeperTestSuite) TestInitGenesis() {
 	genesisMessages := make([]types.GenesisMessages, 0, 50)
 	messageProofSubmitted := make([]types.GenesisProofSubmission, 0, 50)
 	for i := range 100 {
-		ismId := util.GenerateHexAddress([20]byte{0x01}, types.ModuleTypeZkISM, uint64(i))
+		ismId := util.GenerateHexAddress([20]byte{0x01}, uint32(types.ModuleTypeZkISM), uint64(i))
 		ism := types.InterchainSecurityModule{Id: ismId, Owner: "test"}
 
 		isms = append(isms, ism)
 
 		if i%2 == 0 {
-			msgId := util.GenerateHexAddress([20]byte{0x02}, types.ModuleTypeZkISM, uint64(i))
+			msgId := util.GenerateHexAddress([20]byte{0x02}, uint32(types.ModuleTypeZkISM), uint64(i))
 			genesisMessages = append(genesisMessages, types.GenesisMessages{
 				Id:       ismId,
 				Messages: []string{msgId.String()},
@@ -32,8 +32,8 @@ func (suite *KeeperTestSuite) TestInitGenesis() {
 	}
 
 	genesisState := types.GenesisState{
-		Isms:                  isms,
-		Messages:              genesisMessages,
+		Isms:        isms,
+		Messages:    genesisMessages,
 		Submissions: messageProofSubmitted,
 	}
 
@@ -67,7 +67,7 @@ func (suite *KeeperTestSuite) TestInitGenesis() {
 func (suite *KeeperTestSuite) TestExportGenesis() {
 	isms := make([]types.InterchainSecurityModule, 0, 100)
 	for i := range 100 {
-		ismId := util.GenerateHexAddress([20]byte{0x01}, types.ModuleTypeZkISM, uint64(i))
+		ismId := util.GenerateHexAddress([20]byte{0x01}, uint32(types.ModuleTypeZkISM), uint64(i))
 		ism := types.InterchainSecurityModule{Id: ismId, Owner: "test"}
 
 		err := suite.zkISMKeeper.SetIsm(suite.ctx, ismId, ism)
@@ -84,7 +84,7 @@ func (suite *KeeperTestSuite) TestExportGenesis() {
 
 	expectedMessages := make([]types.GenesisMessages, 0, len(isms))
 	for i, ism := range isms {
-		msgId := util.GenerateHexAddress([20]byte{0x02}, types.ModuleTypeZkISM, uint64(i))
+		msgId := util.GenerateHexAddress([20]byte{0x02}, uint32(types.ModuleTypeZkISM), uint64(i))
 		err := suite.zkISMKeeper.SetMessageId(suite.ctx, ism.Id, msgId.Bytes())
 		suite.Require().NoError(err)
 
