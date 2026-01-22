@@ -50,13 +50,21 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
-    run_submission_loop(
+    let res = run_submission_loop(
         client.clone(),
         config.clone(),
         results.clone(),
         shutdown.clone(),
     )
     .await;
+    match res {
+        Ok(_) => {
+            println!("All transactions submitted successfully");
+        },
+        Err(e) => {
+            eprintln!("Error submitting transactions: {}", e);
+        }
+    }
 
     println!("\nStopping...");
 

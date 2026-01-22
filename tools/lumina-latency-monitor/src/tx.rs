@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
-use celestia_grpc::{GrpcClient, TxConfig};
+use celestia_grpc::{GrpcClient, TxConfig, TxRequest};
 use celestia_types::nmt::Namespace;
 use celestia_types::{AppVersion, Blob};
 use rand::Rng;
@@ -66,13 +66,13 @@ pub async fn run_submission_loop(
     config: Arc<ValidatedConfig>,
     results: Arc<Mutex<Vec<TxResult>>>,
     shutdown: Arc<Notify>,
-) {
+) -> anyhow::Result<()> {
     let mut submission_ticker = time::interval(config.submission_delay);
     let mut status_ticker = time::interval(Duration::from_secs(10));
     let mut counter = 0u64;
     let mut confirm_tasks: JoinSet<Option<TxResult>> = JoinSet::new();
     let sem = Arc::new(Semaphore::new(MAX_IN_FLIGHT));
-
+    let service = client.transaction_service().await?;
     loop {
         tokio::select! {
             _ = submission_ticker.tick() => {
@@ -82,36 +82,24 @@ pub async fn run_submission_loop(
                 let size_max = config.blob_size_max;
                 let disable_metrics = config.disable_metrics;
 
-                let (size, blob) = match generate_random_blob(namespace, size_min, size_max) {
-                    Ok(b) => b,
-                    Err(e) => {
-                        eprintln!("Failed to create blob: {}", e);
-                        continue;
-                    }
-                };
-
+                let (size, blob) = generate_random_blob(namespace, size_min, size_max)?;
+                let handle = service
+                    .submit(
+                        TxRequest::Blobs(vec![blob]),
+                        TxConfig::default(),
+                    )
+                    .await?;
+                println!("Before submit");
+                let submit_hash = handle.submitted.await??;
                 let submit_time = SystemTime::now();
 
-                let checktx_start = std::time::Instant::now();
-                let submitted = match client.broadcast_blobs(&[blob], TxConfig::default()).await {
-                    Ok(s) => s,
-                    Err(e) => {
-                        eprintln!("[BROADCAST_FAILED] error={}", e);
-                        prom::record_broadcast_failure();
-                        continue;
-                    }
-                };
-                let checktx_latency = checktx_start.elapsed();
-
-                let tx_hash = submitted.tx_ref().hash.to_string();
+                let tx_hash = submit_hash.to_string();
                 println!(
                     "[SUBMIT] tx={} size={} bytes time={}",
                     &tx_hash[..16],
                     size,
                     format_time_only(submit_time)
                 );
-
-                prom::record_checktx_latency(checktx_latency);
                 prom::record_submit();
 
                 if disable_metrics {
@@ -125,7 +113,7 @@ pub async fn run_submission_loop(
                 confirm_tasks.spawn(async move {
                     let _permit = permit;
                     let tx_hash_short = tx_hash.clone();
-                    match submitted.confirm().await {
+                    match handle.confirmed.await.unwrap() {
                         Ok(tx_info) => {
                             let commit_time = SystemTime::now();
                             let total_latency = commit_time
@@ -134,8 +122,8 @@ pub async fn run_submission_loop(
                             let latency = total_latency.saturating_sub(sema_wait);
                             println!(
                                 "[CONFIRM] tx={} height={} latency={}ms code={} time={}",
-                                &tx_info.hash.to_string()[..16],
-                                tx_info.height,
+                                &tx_info.info.hash.to_string()[..16],
+                                tx_info.info.height,
                                 latency.as_millis(),
                                 0,
                                 format_time_only(commit_time)
@@ -147,9 +135,9 @@ pub async fn run_submission_loop(
                                 submit_time,
                                 commit_time,
                                 latency,
-                                tx_info.hash.to_string(),
+                                tx_info.info.hash.to_string(),
                                 0,
-                                tx_info.height.value() as i64,
+                                tx_info.info.height as i64,
                             ))
                         }
                         Err(e) => {
@@ -164,15 +152,21 @@ pub async fn run_submission_loop(
                             }
 
                             prom::record_confirm_failure();
-                            println!("[FAILED] tx={} error={}", &tx_hash_short[..16], e);
                             Some(TxResult::failure(submit_time, error_str))
                         }
                     }
                 });
             }
             Some(result) = confirm_tasks.join_next() => {
-                if let Ok(Some(tx_result)) = result {
-                    results.lock().await.push(tx_result);
+                match result? {
+                    Some(res) => {
+                        if !res.failed {
+                            results.lock().await.push(res);
+                        } else {
+                            return Err(anyhow::format_err!("transaction failed {:?}", res));
+                        }
+                    },
+                    None => {},
                 }
             }
             _ = status_ticker.tick() => {
@@ -184,15 +178,23 @@ pub async fn run_submission_loop(
         }
     }
 
-    println!(
+    panic!(
         "Waiting for {} in-flight confirmations to complete...",
         confirm_tasks.len()
     );
     while let Some(result) = confirm_tasks.join_next().await {
-        if let Ok(Some(tx_result)) = result {
-            results.lock().await.push(tx_result);
+        match result? {
+            Some(res) => {
+                if !res.failed {
+                    results.lock().await.push(res);
+                } else {
+                    return Err(anyhow::format_err!("transaction failed {:?}", res));
+                }
+            },
+            None => {},
         }
     }
+    Ok(())
 }
 
 fn generate_random_blob(
