@@ -17,6 +17,8 @@ const (
 	DomainOffset = DomainEncodingSize - 4
 	// HashSize is the output size of SHA-256.
 	HashSize = 32
+	// CosmosAddressLen is the standard Cosmos SDK address length (20 bytes).
+	CosmosAddressLen = 20
 )
 
 // DeriveForwardingAddress computes a deterministic forwarding address from destination parameters.
@@ -25,7 +27,7 @@ const (
 // Algorithm:
 //  1. callDigest = sha256(destDomain_32bytes || destRecipient)
 //  2. salt = sha256(ForwardVersion || callDigest)
-//  3. address = address.Module("forwarding", salt)[:20]
+//  3. address = address.Module("forwarding", salt)[:CosmosAddressLen]
 //
 // Returns an error if destRecipient is not exactly RecipientLength (32) bytes.
 func DeriveForwardingAddress(destDomain uint32, destRecipient []byte) ([]byte, error) {
@@ -52,5 +54,5 @@ func DeriveForwardingAddress(destDomain uint32, destRecipient []byte) ([]byte, e
 	// Step 4: Use SDK's address.Module for deterministic derivation
 	addr := address.Module(ModuleName, salt)
 
-	return addr[:20], nil
+	return addr[:CosmosAddressLen], nil
 }

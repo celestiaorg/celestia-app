@@ -45,8 +45,8 @@ func TestDeriveForwardingAddress(t *testing.T) {
 			addr, err := types.DeriveForwardingAddress(tc.destDomain, tc.destRecipient)
 			require.NoError(t, err)
 
-			// Verify address is 20 bytes
-			require.Len(t, addr, 20, "derived address should be 20 bytes")
+			// Verify address is CosmosAddressLen bytes
+			require.Len(t, addr, types.CosmosAddressLen, "derived address should be CosmosAddressLen bytes")
 
 			// Verify determinism - same inputs produce same output
 			addr2, err := types.DeriveForwardingAddress(tc.destDomain, tc.destRecipient)
@@ -118,8 +118,8 @@ func TestDeriveForwardingAddressIntermediates(t *testing.T) {
 	t.Logf("salt (sha256): %s", hex.EncodeToString(salt))
 
 	// Step 5: Use SDK's address.Module for the final derivation
-	derivedAddr := address.Module(types.ModuleName, salt)[:20]
-	t.Logf("derived address (20 bytes): %s", hex.EncodeToString(derivedAddr))
+	derivedAddr := address.Module(types.ModuleName, salt)[:types.CosmosAddressLen]
+	t.Logf("derived address (%d bytes): %s", types.CosmosAddressLen, hex.EncodeToString(derivedAddr))
 
 	// Verify this matches the function output
 	addr, err := types.DeriveForwardingAddress(destDomain, destRecipient)

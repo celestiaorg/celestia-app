@@ -5,9 +5,13 @@ import (
 
 	"cosmossdk.io/math"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
+	warpkeeper "github.com/bcp-innovations/hyperlane-cosmos/x/warp/keeper"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
+
+// Compile-time interface compliance check
+var _ WarpKeeper = &warpkeeper.Keeper{}
 
 // HyperlaneKeeper defines the expected hyperlane core keeper interface for fee quoting.
 type HyperlaneKeeper interface {
@@ -21,28 +25,15 @@ type BankKeeper interface {
 	SendCoins(ctx context.Context, fromAddr, toAddr sdk.AccAddress, amt sdk.Coins) error
 }
 
-// WarpKeeper defines the expected warp keeper interface for documentation purposes.
+// WarpKeeper defines the expected warp keeper interface.
 //
-// IMPORTANT: The forwarding keeper uses the concrete *warpkeeper.Keeper type, NOT this interface.
-// This is intentional because the hyperlane-cosmos warp keeper exposes its state via public
-// collections.Map fields (HypTokens, EnrolledRouters) rather than through methods.
-// Go interfaces cannot expose struct fields, so we must use the concrete type.
-//
-// NOTE: We intentionally do NOT add a static type assertion like:
-//
-//	var _ WarpKeeper = &warpkeeper.Keeper{}
-//
-// This would fail compilation because this interface only documents the METHOD-based
-// capabilities we use. The concrete keeper also exposes critical functionality via
-// public struct fields (HypTokens, EnrolledRouters collections.Map), which cannot
-// be expressed in a Go interface. The forwarding keeper depends on BOTH the methods
-// defined here AND direct field access on the concrete type.
+// NOTE: The forwarding keeper uses the concrete *warpkeeper.Keeper type in addition to this interface
+// because the hyperlane-cosmos warp keeper exposes state via public collections.Map fields
+// (HypTokens, EnrolledRouters) which cannot be expressed in a Go interface.
 //
 // The forwarding keeper wraps these field accesses in helper methods:
 //   - FindHypTokenByDenom: wraps warpKeeper.HypTokens.Get
 //   - HasEnrolledRouter: wraps warpKeeper.EnrolledRouters.Has
-//
-// This interface documents the warp keeper capabilities we depend on for future reference.
 type WarpKeeper interface {
 	// RemoteTransferSynthetic initiates a cross-chain transfer for synthetic tokens
 	RemoteTransferSynthetic(
