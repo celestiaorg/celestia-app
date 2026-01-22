@@ -144,8 +144,8 @@
 <li>A gas meter is set up in the context before any gas consumption occurs.</li>
 <li>The tx does not contain any messages that are disabled by the circuit breaker (e.g. <code>MsgSoftwareUpgrade</code>, <code>MsgCancelUpgrade</code>, <code>MsgIBCSoftwareUpgrade</code>).</li>
 <li>The tx does not contain any <a href="https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L119-L122">extension options</a>.</li>
-<li><strong>[New in v7]</strong> If the tx contains a single <code>MsgForwardFees</code>, a context flag is set to identify it as a protocol-injected fee forward transaction.</li>
-<li>The tx passes <code>ValidateBasic()</code>. <strong>[New in v7]</strong> Fee forward transactions are exempt from this check since the transaction-level ValidateBasic checks for signers/signatures.</li>
+<li><strong>[New in v7]</strong> If the tx contains a single <code>MsgForwardFees</code>, it is handled by the <code>FeeForwardTerminatorDecorator</code> which terminates the ante chain early after validating and deducting fees.</li>
+<li>The tx passes <code>ValidateBasic()</code>.</li>
 <li>The tx's <a href="https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L115-L117">timeout_height</a> has not been reached if one is specified.</li>
 <li>The tx's <a href="https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L110-L113">memo</a> is &lt;= the max memo characters where <a href="https://github.com/cosmos/cosmos-sdk/blob/a429238fc267da88a8548bfebe0ba7fb28b82a13/x/auth/README.md?plain=1#L230"><code>MaxMemoCharacters = 256</code></a>.</li>
 <li>The tx's <a href="https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L211-L213">gas_limit</a> is &gt; the gas consumed based on the tx's size where <a href="https://github.com/celestiaorg/celestia-app/blob/6ea21f729fe88e4175c4b3084119392c4acd1957/pkg/appconsts/app_consts.go#L23"><code>TxSizeCostPerByte = 10</code></a>.</li>
@@ -156,12 +156,12 @@
 <li>The fee is deducted from the fee address and sent to the fee collector.</li>
 </ul>
 </li>
-<li>The tx's feepayer has enough funds to pay fees for the tx. The tx's feepayer is the feegranter (if specified) or the tx's first signer. Note the <a href="https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/x/feegrant/README.md">feegrant</a> module is enabled. <strong>[New in v7]</strong> Fee forward transactions are exempt from this check since fees are deducted from the fee address.</li>
+<li>The tx's feepayer has enough funds to pay fees for the tx. The tx's feepayer is the feegranter (if specified) or the tx's first signer. Note the <a href="https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/x/feegrant/README.md">feegrant</a> module is enabled.</li>
 <li>The tx's gas price is &gt;= the network minimum gas price where <a href="https://github.com/celestiaorg/celestia-app/blob/6ea21f729fe88e4175c4b3084119392c4acd1957/pkg/appconsts/initial_consts.go#L24"><code>NetworkMinGasPrice = 0.000001</code> utia</a>.</li>
-<li>Public keys are set in the context for the fee-payer and all signers. <strong>[New in v7]</strong> Fee forward transactions are exempt from this check since they have no signers.</li>
-<li>The tx's count of signatures &lt;= the max number of signatures. The max number of signatures is <a href="https://github.com/cosmos/cosmos-sdk/blob/a429238fc267da88a8548bfebe0ba7fb28b82a13/x/auth/README.md?plain=1#L231"><code>TxSigLimit = 7</code></a>. <strong>[New in v7]</strong> Fee forward transactions are exempt from this check since they have no signatures.</li>
-<li>The tx's <a href="https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L211-L213">gas_limit</a> is &gt; the gas consumed based on the tx's signatures. <strong>[New in v7]</strong> Fee forward transactions are exempt from this check since they have no signatures.</li>
-<li>The tx's <a href="https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/types/tx/signing/signature.go#L10-L26">signatures</a> are valid. For each signature, ensure that the signature's sequence number (a.k.a nonce) matches the account sequence number of the signer. <strong>[New in v7]</strong> Fee forward transactions are exempt from this check since they have no signatures.</li>
+<li>Public keys are set in the context for the fee-payer and all signers.</li>
+<li>The tx's count of signatures &lt;= the max number of signatures. The max number of signatures is <a href="https://github.com/cosmos/cosmos-sdk/blob/a429238fc267da88a8548bfebe0ba7fb28b82a13/x/auth/README.md?plain=1#L231"><code>TxSigLimit = 7</code></a>.</li>
+<li>The tx's <a href="https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L211-L213">gas_limit</a> is &gt; the gas consumed based on the tx's signatures.</li>
+<li>The tx's <a href="https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/types/tx/signing/signature.go#L10-L26">signatures</a> are valid. For each signature, ensure that the signature's sequence number (a.k.a nonce) matches the account sequence number of the signer.</li>
 <li>The tx does not contain a <code>MsgExec</code> with a nested <code>MsgExec</code> or <code>MsgPayForBlobs</code>.</li>
 <li><strong>[New in v7]</strong> The tx does not send non-utia tokens to the fee address. Only utia can be sent to the fee address via <code>MsgSend</code>, <code>MsgMultiSend</code>, or nested <code>MsgExec</code> messages.</li>
 <li>The tx's <a href="https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L211-L213">gas_limit</a> is &gt; the gas consumed based on the blob size(s). Since blobs are charged based on the number of shares they occupy, the gas consumed is calculated as follows: <code>gasToConsume = sharesNeeded(blob) * bytesPerShare * gasPerBlobByte</code>. Where <code>bytesPerShare</code> is a global constant (an alias for <a href="https://github.com/celestiaorg/go-square/blob/b3db9faa7b36decbebb4db45b1778468022a0019/share/consts.go#L10"><code>ShareSize = 512</code></a>) from the go-square package and <code>gasPerBlobByte</code> is a versioned constant that can be modified through hard forks (the <a href="https://github.com/celestiaorg/celestia-app/blob/6ea21f729fe88e4175c4b3084119392c4acd1957/pkg/appconsts/app_consts.go#L24"><code>GasPerBlobByte = 8</code></a>).</li>
@@ -177,24 +177,20 @@
 <li>The nonce of all tx signers is incremented by 1.</li>
 </ul>
 <h2 id="fee-forwarding-new-in-v7"><a class="header" href="#fee-forwarding-new-in-v7">Fee Forwarding (New in v7)</a></h2>
-<p>App version 7 introduces the <a href="https://github.com/celestiaorg/celestia-app/blob/main/x/feeaddress/README.md">feeaddress</a> module which enables a mechanism to forward tokens to validators as staking rewards. The ante handler includes several new decorators to support this:</p>
+<p>App version 7 introduces the <a href="https://github.com/celestiaorg/celestia-app/blob/main/x/feeaddress/README.md">feeaddress</a> module which enables a mechanism to forward tokens to validators as staking rewards. The ante handler includes two decorators to support this:</p>
 <ol>
 <li>
-<p><strong>EarlyFeeForwardDetector</strong>: Detects <code>MsgForwardFees</code> transactions and sets a context flag. This flag is used by <code>SkipForFeeForwardDecorator</code> to skip signature-related decorators since fee forward transactions have no signers.</p>
-</li>
-<li>
-<p><strong>FeeForwardDecorator</strong>: Handles <code>MsgForwardFees</code> transactions by:</p>
+<p><strong>FeeForwardTerminatorDecorator</strong>: Handles <code>MsgForwardFees</code> transactions completely and terminates the ante chain early. This decorator:</p>
 <ul>
-<li>Rejecting user-submitted transactions (only protocol-injected transactions from block proposers are allowed)</li>
-<li>Validating the fee is exactly one utia coin with positive amount</li>
-<li>Deducting the fee from the fee address and sending it to the fee collector</li>
+<li>Detects <code>MsgForwardFees</code> transactions</li>
+<li>Rejects user-submitted transactions (only protocol-injected transactions from block proposers are allowed)</li>
+<li>Validates the fee is exactly one utia coin with positive amount</li>
+<li>Deducts the fee from the fee address and sends it to the fee collector</li>
+<li>Returns without calling the rest of the ante chain (no signatures to verify, no sequence to increment)</li>
 </ul>
 </li>
 <li>
 <p><strong>FeeAddressDecorator</strong>: Ensures only utia can be sent to the fee address via standard bank transfers. This prevents non-utia tokens from being permanently stuck at the fee address.</p>
-</li>
-<li>
-<p><strong>SkipForFeeForwardDecorator</strong>: Wraps signature-related decorators to skip them for fee forward transactions since these transactions have no signers.</p>
 </li>
 </ol>
 
