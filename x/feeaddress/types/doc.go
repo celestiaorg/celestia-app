@@ -15,6 +15,6 @@
 //
 // This module intentionally has no keeper dependencies. The feeaddress keeper
 // is stateless (no store keys). Fee deduction and bank transfers are handled
-// by FeeForwardDecorator in app/ante. Communication between ante handler and
-// keeper uses context values (FeeForwardContextKey, FeeForwardAmountContextKey).
+// by FeeForwardTerminatorDecorator in app/ante. Communication between ante
+// handler and keeper uses context values (FeeForwardAmountContextKey).
 package types

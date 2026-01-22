@@ -57,14 +57,18 @@ func (fad FeeAddressDecorator) validateMessage(msg sdk.Msg) error {
 }
 
 // validateFeeAddressSend checks if the recipient is the fee address and ensures only utia is being sent.
+// Returns nil for invalid addresses or non-fee-address recipients, letting other decorators
+// (ValidateBasicDecorator, bank module) handle those validation cases.
 func validateFeeAddressSend(recipient string, coins sdk.Coins) error {
 	addr, err := sdk.AccAddressFromBech32(recipient)
 	if err != nil {
-		// Invalid address - let other validators handle this
+		// Invalid address format - not our concern. Other validators (ValidateBasic,
+		// bank module) will reject this. Return nil to avoid duplicate errors.
 		return nil
 	}
 
 	if !addr.Equals(feeaddresstypes.FeeAddress) {
+		// Not sending to fee address - this decorator only cares about fee address sends
 		return nil
 	}
 

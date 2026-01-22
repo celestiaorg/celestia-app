@@ -59,34 +59,41 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	feeBalance := app.BankKeeper.GetBalance(ctx, feeaddresstypes.FeeAddress, appconsts.BondDenom)
 	hasBalance := !feeBalance.IsZero()
 
+	// Case: fee address has balance but no transactions
+	if hasBalance && len(req.Txs) == 0 {
+		logInvalidPropBlock(app.Logger(), blockHeader, "fee address has balance but block has no transactions")
+		return reject(), nil
+	}
+
+	// Validate fee forward tx if there are transactions
 	if len(req.Txs) > 0 {
 		firstTx, firstTxIsFeeForward, feeForwardErr := app.parseFeeForwardTx(req.Txs[0])
-		if feeForwardErr != nil && hasBalance {
-			// If we have balance and can't decode the first tx, that's invalid
+
+		// Case: fee address has balance but can't decode first tx
+		if hasBalance && feeForwardErr != nil {
 			logInvalidPropBlockError(app.Logger(), blockHeader, "failed to decode first tx for fee forward check", feeForwardErr)
 			return reject(), nil
 		}
 
-		if hasBalance {
-			// Fee address has balance - MUST have valid fee forward tx as first tx
-			if !firstTxIsFeeForward {
-				logInvalidPropBlock(app.Logger(), blockHeader, "fee address has balance but first tx is not a fee forward tx")
-				return reject(), nil
-			}
-			// Validate the fee forward tx (tx already decoded by parseFeeForwardTx)
+		// Case: fee address has balance but first tx is not fee forward
+		if hasBalance && !firstTxIsFeeForward {
+			logInvalidPropBlock(app.Logger(), blockHeader, "fee address has balance but first tx is not a fee forward tx")
+			return reject(), nil
+		}
+
+		// Case: fee address has balance - validate the fee forward tx
+		if hasBalance && firstTxIsFeeForward {
 			if err := app.validateFeeForwardTx(firstTx, feeBalance); err != nil {
 				logInvalidPropBlockError(app.Logger(), blockHeader, "invalid fee forward tx", err)
 				return reject(), nil
 			}
-		} else if firstTxIsFeeForward {
-			// No balance but fee forward tx present - reject
+		}
+
+		// Case: no balance but fee forward tx present
+		if !hasBalance && firstTxIsFeeForward {
 			logInvalidPropBlock(app.Logger(), blockHeader, "fee forward tx present but fee address has no balance")
 			return reject(), nil
 		}
-	} else if hasBalance {
-		// No transactions but fee address has balance - reject
-		logInvalidPropBlock(app.Logger(), blockHeader, "fee address has balance but block has no transactions")
-		return reject(), nil
 	}
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non

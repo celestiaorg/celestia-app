@@ -24,7 +24,7 @@ func createTestContext() sdk.Context {
 }
 
 // createContextWithFeeAmount creates a test context with the fee amount set,
-// simulating what the FeeForwardDecorator does.
+// simulating what the FeeForwardTerminatorDecorator does.
 func createContextWithFeeAmount(fee sdk.Coins) sdk.Context {
 	ctx := createTestContext()
 	return ctx.WithValue(types.FeeForwardAmountContextKey{}, fee)
@@ -98,14 +98,6 @@ func TestNewMsgForwardFees(t *testing.T) {
 	require.NotNil(t, msg)
 }
 
-// TestMsgForwardFeesValidateBasic verifies the ValidateBasic method of MsgForwardFees.
-// Since the message has no fields, ValidateBasic always returns nil.
-func TestMsgForwardFeesValidateBasic(t *testing.T) {
-	msg := types.NewMsgForwardFees()
-	err := msg.ValidateBasic()
-	require.NoError(t, err)
-}
-
 // TestIsFeeForwardMsg verifies the IsFeeForwardMsg helper function correctly
 // identifies fee forward transactions.
 func TestIsFeeForwardMsg(t *testing.T) {
@@ -145,43 +137,6 @@ func TestIsFeeForwardMsg(t *testing.T) {
 			} else {
 				require.Nil(t, result)
 			}
-		})
-	}
-}
-
-// TestIsFeeForwardTx verifies the IsFeeForwardTx context helper.
-func TestIsFeeForwardTx(t *testing.T) {
-	tests := []struct {
-		name     string
-		ctx      sdk.Context
-		expected bool
-	}{
-		{
-			name:     "context with true flag returns true",
-			ctx:      createTestContext().WithValue(types.FeeForwardContextKey{}, true),
-			expected: true,
-		},
-		{
-			name:     "context with false flag returns false",
-			ctx:      createTestContext().WithValue(types.FeeForwardContextKey{}, false),
-			expected: false,
-		},
-		{
-			name:     "context without flag returns false",
-			ctx:      createTestContext(),
-			expected: false,
-		},
-		{
-			name:     "context with non-bool value returns false",
-			ctx:      createTestContext().WithValue(types.FeeForwardContextKey{}, "not a bool"),
-			expected: false,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			result := types.IsFeeForwardTx(tc.ctx)
-			require.Equal(t, tc.expected, result)
 		})
 	}
 }

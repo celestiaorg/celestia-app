@@ -8,25 +8,34 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
-// FeeForwardDecorator handles MsgForwardFees transactions by rejecting user submissions
-// in CheckTx, deducting the fee from the fee address, and sending it to the fee collector.
-// Must be placed before DeductFeeDecorator, SetPubKeyDecorator, SigVerificationDecorator,
-// and IncrementSequenceDecorator since fee forward txs have no signers.
-type FeeForwardDecorator struct {
+// FeeForwardTerminatorDecorator handles MsgForwardFees transactions completely and
+// terminates the ante chain early. This decorator must be placed early in the chain
+// (after SetUpContextDecorator) because MsgForwardFees has no signers and would fail
+// signature-related decorators.
+//
+// For MsgForwardFees transactions, this decorator:
+// 1. Rejects user submissions (only valid when protocol-injected)
+// 2. Validates the fee format
+// 3. Transfers the fee from fee address to fee collector
+// 4. Returns without calling next() - skipping the rest of the ante chain
+//
+// For all other transactions, this decorator simply calls next().
+type FeeForwardTerminatorDecorator struct {
 	bankKeeper feeaddresstypes.FeeForwardBankKeeper
 }
 
-// NewFeeForwardDecorator creates a new FeeForwardDecorator.
-func NewFeeForwardDecorator(bankKeeper feeaddresstypes.FeeForwardBankKeeper) *FeeForwardDecorator {
-	return &FeeForwardDecorator{
+// NewFeeForwardTerminatorDecorator creates a new FeeForwardTerminatorDecorator.
+func NewFeeForwardTerminatorDecorator(bankKeeper feeaddresstypes.FeeForwardBankKeeper) *FeeForwardTerminatorDecorator {
+	return &FeeForwardTerminatorDecorator{
 		bankKeeper: bankKeeper,
 	}
 }
 
 // AnteHandle implements sdk.AnteDecorator.
-func (d FeeForwardDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
+func (d FeeForwardTerminatorDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
 	msg := feeaddresstypes.IsFeeForwardMsg(tx)
 	if msg == nil {
+		// Not a fee forward tx - continue with normal ante chain
 		return next(ctx, tx, simulate)
 	}
 
@@ -58,5 +67,10 @@ func (d FeeForwardDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate boo
 	// Store the fee amount in context for the message handler to emit the event
 	ctx = ctx.WithValue(feeaddresstypes.FeeForwardAmountContextKey{}, fee)
 
-	return next(ctx, tx, simulate)
+	// Terminate the ante chain - MsgForwardFees is fully handled.
+	// We don't call next() because:
+	// - No signatures to verify (protocol-injected)
+	// - Fee already deducted above
+	// - No sequence to increment (no signers)
+	return ctx, nil
 }

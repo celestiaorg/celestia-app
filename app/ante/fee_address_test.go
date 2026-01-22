@@ -212,9 +212,9 @@ func (m *mockBankKeeper) SendCoinsFromAccountToModule(_ context.Context, _ sdk.A
 	return nil
 }
 
-func TestFeeForwardDecoratorRejectsUserSubmittedTx(t *testing.T) {
+func TestFeeForwardTerminatorRejectsUserSubmittedTx(t *testing.T) {
 	bankKeeper := &mockBankKeeper{}
-	decorator := ante.NewFeeForwardDecorator(bankKeeper)
+	decorator := ante.NewFeeForwardTerminatorDecorator(bankKeeper)
 
 	msg := feeaddresstypes.NewMsgForwardFees()
 	fee := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
@@ -229,9 +229,9 @@ func TestFeeForwardDecoratorRejectsUserSubmittedTx(t *testing.T) {
 	require.ErrorContains(t, err, "MsgForwardFees cannot be submitted by users")
 }
 
-func TestFeeForwardDecoratorRejectsReCheckTx(t *testing.T) {
+func TestFeeForwardTerminatorRejectsReCheckTx(t *testing.T) {
 	bankKeeper := &mockBankKeeper{}
-	decorator := ante.NewFeeForwardDecorator(bankKeeper)
+	decorator := ante.NewFeeForwardTerminatorDecorator(bankKeeper)
 
 	msg := feeaddresstypes.NewMsgForwardFees()
 	fee := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
@@ -246,9 +246,9 @@ func TestFeeForwardDecoratorRejectsReCheckTx(t *testing.T) {
 	require.ErrorContains(t, err, "MsgForwardFees cannot be submitted by users")
 }
 
-func TestFeeForwardDecoratorValidatesSingleDenom(t *testing.T) {
+func TestFeeForwardTerminatorValidatesSingleDenom(t *testing.T) {
 	bankKeeper := &mockBankKeeper{}
-	decorator := ante.NewFeeForwardDecorator(bankKeeper)
+	decorator := ante.NewFeeForwardTerminatorDecorator(bankKeeper)
 
 	msg := feeaddresstypes.NewMsgForwardFees()
 	// Multiple denoms in fee - should be rejected
@@ -258,9 +258,8 @@ func TestFeeForwardDecoratorValidatesSingleDenom(t *testing.T) {
 	)
 	tx := &mockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: 50000}
 
-	// Create DeliverTx context with fee forward flag set (simulates EarlyFeeForwardDetector)
+	// Create DeliverTx context (not CheckTx)
 	ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
-	ctx = ctx.WithValue(feeaddresstypes.FeeForwardContextKey{}, true)
 
 	_, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
 
@@ -268,18 +267,17 @@ func TestFeeForwardDecoratorValidatesSingleDenom(t *testing.T) {
 	require.ErrorContains(t, err, "fee forward tx requires exactly one fee coin")
 }
 
-func TestFeeForwardDecoratorRejectsWrongDenom(t *testing.T) {
+func TestFeeForwardTerminatorRejectsWrongDenom(t *testing.T) {
 	bankKeeper := &mockBankKeeper{}
-	decorator := ante.NewFeeForwardDecorator(bankKeeper)
+	decorator := ante.NewFeeForwardTerminatorDecorator(bankKeeper)
 
 	msg := feeaddresstypes.NewMsgForwardFees()
 	// Wrong denom - should be rejected
 	fee := sdk.NewCoins(sdk.NewCoin("wrongdenom", math.NewInt(1000)))
 	tx := &mockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: 50000}
 
-	// Create DeliverTx context with fee forward flag set (simulates EarlyFeeForwardDetector)
+	// Create DeliverTx context (not CheckTx)
 	ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
-	ctx = ctx.WithValue(feeaddresstypes.FeeForwardContextKey{}, true)
 
 	_, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
 
@@ -287,36 +285,33 @@ func TestFeeForwardDecoratorRejectsWrongDenom(t *testing.T) {
 	require.ErrorContains(t, err, "fee forward tx requires utia denom")
 }
 
-func TestFeeForwardDecoratorSuccess(t *testing.T) {
+func TestFeeForwardTerminatorSuccess(t *testing.T) {
 	bankKeeper := &mockBankKeeper{}
-	decorator := ante.NewFeeForwardDecorator(bankKeeper)
+	decorator := ante.NewFeeForwardTerminatorDecorator(bankKeeper)
 
 	msg := feeaddresstypes.NewMsgForwardFees()
 	fee := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
 	tx := &mockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: 50000}
 
-	// Create DeliverTx context with fee forward flag set (simulates EarlyFeeForwardDetector)
+	// Create DeliverTx context (not CheckTx)
 	ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
-	ctx = ctx.WithValue(feeaddresstypes.FeeForwardContextKey{}, true)
 
 	newCtx, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
 
 	require.NoError(t, err)
 	// Verify fee was sent to fee collector
 	require.Equal(t, fee, bankKeeper.sentToModule[authtypes.FeeCollectorName])
-	// Verify context flag is still set
-	require.True(t, feeaddresstypes.IsFeeForwardTx(newCtx))
 	// Verify GetFeeForwardAmount returns the correct fee
 	feeFromCtx, ok := feeaddresstypes.GetFeeForwardAmount(newCtx)
 	require.True(t, ok, "GetFeeForwardAmount should return fee")
 	require.Equal(t, fee, feeFromCtx, "fee from context should match tx fee")
 }
 
-// TestFeeForwardDecoratorRejectsSimulation verifies that the FeeForwardDecorator
+// TestFeeForwardTerminatorRejectsSimulation verifies that the FeeForwardTerminatorDecorator
 // rejects fee forward transactions in simulation mode.
-func TestFeeForwardDecoratorRejectsSimulation(t *testing.T) {
+func TestFeeForwardTerminatorRejectsSimulation(t *testing.T) {
 	bankKeeper := &mockBankKeeper{}
-	decorator := ante.NewFeeForwardDecorator(bankKeeper)
+	decorator := ante.NewFeeForwardTerminatorDecorator(bankKeeper)
 
 	msg := feeaddresstypes.NewMsgForwardFees()
 	fee := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
@@ -340,11 +335,11 @@ func (m *mockNonFeeTx) GetMsgs() []sdk.Msg                    { return m.msgs }
 func (m *mockNonFeeTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
 func (m *mockNonFeeTx) ValidateBasic() error                  { return nil }
 
-// TestFeeForwardDecoratorRejectsNonFeeTx verifies that the FeeForwardDecorator
+// TestFeeForwardTerminatorRejectsNonFeeTx verifies that the FeeForwardTerminatorDecorator
 // rejects transactions that don't implement sdk.FeeTx.
-func TestFeeForwardDecoratorRejectsNonFeeTx(t *testing.T) {
+func TestFeeForwardTerminatorRejectsNonFeeTx(t *testing.T) {
 	bankKeeper := &mockBankKeeper{}
-	decorator := ante.NewFeeForwardDecorator(bankKeeper)
+	decorator := ante.NewFeeForwardTerminatorDecorator(bankKeeper)
 
 	msg := feeaddresstypes.NewMsgForwardFees()
 	tx := &mockNonFeeTx{msgs: []sdk.Msg{msg}}
@@ -367,18 +362,17 @@ func (m *mockBankKeeperWithError) SendCoinsFromAccountToModule(_ context.Context
 	return m.err
 }
 
-func TestFeeForwardDecoratorBankTransferFailure(t *testing.T) {
+func TestFeeForwardTerminatorBankTransferFailure(t *testing.T) {
 	// Test that bank transfer failure is properly handled
 	bankKeeper := &mockBankKeeperWithError{err: sdkerrors.ErrInsufficientFunds}
-	decorator := ante.NewFeeForwardDecorator(bankKeeper)
+	decorator := ante.NewFeeForwardTerminatorDecorator(bankKeeper)
 
 	msg := feeaddresstypes.NewMsgForwardFees()
 	fee := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
 	tx := &mockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: 50000}
 
-	// Create DeliverTx context with fee forward flag set (simulates EarlyFeeForwardDetector)
+	// Create DeliverTx context (not CheckTx)
 	ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
-	ctx = ctx.WithValue(feeaddresstypes.FeeForwardContextKey{}, true)
 
 	_, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
 
@@ -386,17 +380,16 @@ func TestFeeForwardDecoratorBankTransferFailure(t *testing.T) {
 	require.ErrorContains(t, err, "failed to deduct fee from fee address")
 }
 
-func TestFeeForwardDecoratorZeroFeeRejected(t *testing.T) {
+func TestFeeForwardTerminatorZeroFeeRejected(t *testing.T) {
 	bankKeeper := &mockBankKeeper{}
-	decorator := ante.NewFeeForwardDecorator(bankKeeper)
+	decorator := ante.NewFeeForwardTerminatorDecorator(bankKeeper)
 
 	msg := feeaddresstypes.NewMsgForwardFees()
 	// Zero fee should be rejected
 	tx := &mockFeeTx{msgs: []sdk.Msg{msg}, fee: sdk.Coins{}, gas: 50000}
 
-	// Create DeliverTx context with fee forward flag set (simulates EarlyFeeForwardDetector)
+	// Create DeliverTx context (not CheckTx)
 	ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
-	ctx = ctx.WithValue(feeaddresstypes.FeeForwardContextKey{}, true)
 
 	_, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
 
