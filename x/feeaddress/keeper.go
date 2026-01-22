@@ -18,7 +18,7 @@ var (
 
 // Keeper handles fee forwarding operations for the feeaddress module.
 // The keeper is intentionally stateless - the fee transfer happens in the ante handler
-// (FeeForwardDecorator), while ForwardFees only emits the event using the fee amount
+// (FeeForwardTerminatorDecorator), while ForwardFees only emits the event using the fee amount
 // passed via context from the ante handler.
 type Keeper struct{}
 
@@ -28,12 +28,12 @@ func NewKeeper() Keeper {
 }
 
 // ForwardFees handles MsgForwardFees by emitting the fee forwarded event.
-// Note: The actual fee deduction is done by the FeeForwardDecorator in the ante handler.
+// Note: The actual fee deduction is done by the FeeForwardTerminatorDecorator in the ante handler.
 // This message handler just emits the event for tracking purposes.
 func (k Keeper) ForwardFees(ctx context.Context, _ *types.MsgForwardFees) (*types.MsgForwardFeesResponse, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
-	// Get the fee amount from context (set by FeeForwardDecorator)
+	// Get the fee amount from context (set by FeeForwardTerminatorDecorator)
 	fee, ok := types.GetFeeForwardAmount(sdkCtx)
 	if !ok {
 		// This shouldn't happen in normal operation as the ante decorator always sets the fee

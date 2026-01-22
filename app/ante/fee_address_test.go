@@ -184,7 +184,7 @@ func TestFeeAddressDecorator(t *testing.T) {
 	}
 }
 
-// mockFeeTx implements sdk.Tx and sdk.FeeTx for testing FeeForwardDecorator.
+// mockFeeTx implements sdk.Tx and sdk.FeeTx for testing FeeForwardTerminatorDecorator.
 type mockFeeTx struct {
 	msgs []sdk.Msg
 	fee  sdk.Coins

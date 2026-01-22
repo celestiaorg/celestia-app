@@ -193,7 +193,7 @@ func (s *IntegrationTestSuite) TestUserSubmittedMsgForwardFeesRejected() {
 	// This should fail - either during tx building (because MsgForwardFees has no signers)
 	// or in CheckTx (if it somehow gets past building). The exact error may vary:
 	// - "only one signer per transaction supported, got 0" - from tx building
-	// - "MsgForwardFees cannot be submitted by users" - from FeeForwardDecorator in CheckTx
+	// - "MsgForwardFees cannot be submitted by users" - from FeeForwardTerminatorDecorator in CheckTx
 	// Either way, the submission must fail.
 	_, err = txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msgForwardFees}, blobfactory.DefaultTxOpts()...)
 	require.Error(err, "user-submitted MsgForwardFees should be rejected")
