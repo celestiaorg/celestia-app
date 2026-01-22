@@ -84,6 +84,7 @@ func NewQueryIsmsCmd() *cobra.Command {
 	}
 
 	flags.AddQueryFlagsToCmd(cmd)
+	flags.AddPaginationFlagsToCmd(cmd, "isms")
 	return cmd
 }
 
@@ -123,5 +124,6 @@ func NewQueryMessagesCmd() *cobra.Command {
 	}
 
 	flags.AddQueryFlagsToCmd(cmd)
+	flags.AddPaginationFlagsToCmd(cmd, "messages")
 	return cmd
 }

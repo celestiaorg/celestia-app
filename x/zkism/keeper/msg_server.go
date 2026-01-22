@@ -26,7 +26,7 @@ func NewMsgServerImpl(keeper *Keeper) types.MsgServer {
 func (m msgServer) CreateInterchainSecurityModule(ctx context.Context, msg *types.MsgCreateInterchainSecurityModule) (*types.MsgCreateInterchainSecurityModuleResponse, error) {
 	ismId, err := m.coreKeeper.IsmRouter().GetNextSequence(ctx, types.ModuleTypeZkISM)
 	if err != nil {
-		return nil, errorsmod.Wrap(err, err.Error())
+		return nil, err
 	}
 
 	newIsm := types.InterchainSecurityModule{
@@ -40,7 +40,7 @@ func (m msgServer) CreateInterchainSecurityModule(ctx context.Context, msg *type
 	}
 
 	if err := m.isms.Set(ctx, ismId.GetInternalId(), newIsm); err != nil {
-		return nil, errorsmod.Wrap(err, err.Error())
+		return nil, err
 	}
 
 	if err := EmitCreateISMEvent(sdk.UnwrapSDKContext(ctx), newIsm); err != nil {
