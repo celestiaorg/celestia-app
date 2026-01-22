@@ -209,6 +209,6 @@ func allStoreKeys() []string {
 		circuittypes.StoreKey,     // added in v4
 		hyperlanetypes.ModuleName, // added in v4
 		warptypes.ModuleName,      // added in v4
-		zkismtypes.StoreKey, // added in v7
+		zkismtypes.StoreKey,       // added in v7
 	}
 }
