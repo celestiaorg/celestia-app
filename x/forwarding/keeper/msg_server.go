@@ -35,7 +35,6 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 	if err != nil {
 		return nil, fmt.Errorf("invalid dest_recipient hex: %w", err)
 	}
-	// Length validation is done in ValidateBasic
 
 	expectedAddr, err := types.DeriveForwardingAddress(msg.DestDomain, destRecipient.Bytes())
 	if err != nil {
