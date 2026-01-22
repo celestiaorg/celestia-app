@@ -8,7 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/x/zkism/types"
 )
 
-// GetIsm is a test func used for checking existence of a message id in the messages store collection.
+// HasMessageId is a test func used for checking existence of a message id in the messages store collection.
 func (k *Keeper) HasMessageId(ctx context.Context, ismId util.HexAddress, messageId []byte) (bool, error) {
 	return k.messages.Has(ctx, collections.Join(ismId.GetInternalId(), messageId))
 }
