@@ -51,11 +51,11 @@ func TestForwardFeesEmitsEvent(t *testing.T) {
 	require.Equal(t, "celestia.feeaddress.v1.EventFeeForwarded", events[0].Type)
 
 	// Verify event attributes
-	var foundFrom, foundAmount bool
+	var foundFromAddress, foundAmount bool
 	for _, attr := range events[0].Attributes {
-		if attr.Key == "from" {
+		if attr.Key == "from_address" {
 			require.Equal(t, "\""+types.FeeAddressBech32+"\"", attr.Value)
-			foundFrom = true
+			foundFromAddress = true
 		}
 		if attr.Key == "amount" {
 			expectedAmount := fmt.Sprintf("\"%d%s\"", testAmountUtia, appconsts.BondDenom)
@@ -63,7 +63,7 @@ func TestForwardFeesEmitsEvent(t *testing.T) {
 			foundAmount = true
 		}
 	}
-	require.True(t, foundFrom, "from attribute not found in event")
+	require.True(t, foundFromAddress, "from_address attribute not found in event")
 	require.True(t, foundAmount, "amount attribute not found in event")
 }
 

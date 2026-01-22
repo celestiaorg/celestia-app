@@ -26,6 +26,9 @@ type FeeForwardTerminatorDecorator struct {
 
 // NewFeeForwardTerminatorDecorator creates a new FeeForwardTerminatorDecorator.
 func NewFeeForwardTerminatorDecorator(bankKeeper feeaddresstypes.FeeForwardBankKeeper) *FeeForwardTerminatorDecorator {
+	if bankKeeper == nil {
+		panic("bankKeeper cannot be nil")
+	}
 	return &FeeForwardTerminatorDecorator{
 		bankKeeper: bankKeeper,
 	}

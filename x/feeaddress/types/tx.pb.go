@@ -154,6 +154,12 @@ type MsgClient interface {
 	// distributed to validators as block rewards via the standard distribution
 	// module. This message has no signer - it is injected by the block proposer
 	// in PrepareProposal and validated in ProcessProposal.
+	//
+	// Note: This RPC intentionally has no google.api.http annotation because it
+	// is a protocol-injected message that should not be callable via REST API.
+	// If an EOA or any user attempts to submit this message directly, it is
+	// rejected in CheckTx with: "MsgForwardFees cannot be submitted by users;
+	// it is protocol-injected only" (see FeeForwardDecorator in ante handler).
 	ForwardFees(ctx context.Context, in *MsgForwardFees, opts ...grpc.CallOption) (*MsgForwardFeesResponse, error)
 }
 
@@ -181,6 +187,12 @@ type MsgServer interface {
 	// distributed to validators as block rewards via the standard distribution
 	// module. This message has no signer - it is injected by the block proposer
 	// in PrepareProposal and validated in ProcessProposal.
+	//
+	// Note: This RPC intentionally has no google.api.http annotation because it
+	// is a protocol-injected message that should not be callable via REST API.
+	// If an EOA or any user attempts to submit this message directly, it is
+	// rejected in CheckTx with: "MsgForwardFees cannot be submitted by users;
+	// it is protocol-injected only" (see FeeForwardDecorator in ante handler).
 	ForwardFees(context.Context, *MsgForwardFees) (*MsgForwardFeesResponse, error)
 }
 
