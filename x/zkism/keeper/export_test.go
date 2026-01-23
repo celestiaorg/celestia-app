@@ -18,6 +18,16 @@ func (k *Keeper) SetMessageId(ctx context.Context, ismId util.HexAddress, messag
 	return k.messages.Set(ctx, collections.Join(ismId.GetInternalId(), messageId))
 }
 
+// GetMessageProofSubmitted is a test func used for getting message proof submission state.
+func (k *Keeper) GetMessageProofSubmitted(ctx context.Context, ismId util.HexAddress) (bool, error) {
+	return k.submissions.Get(ctx, ismId.GetInternalId())
+}
+
+// SetMessageProofSubmitted is a test func used for setting message proof submission state.
+func (k *Keeper) SetMessageProofSubmitted(ctx context.Context, ismId util.HexAddress, submitted bool) error {
+	return k.submissions.Set(ctx, ismId.GetInternalId(), submitted)
+}
+
 // GetIsm is a test func used for getting an ISM in the isms store collection.
 func (k *Keeper) GetIsm(ctx context.Context, ismId util.HexAddress) (types.InterchainSecurityModule, error) {
 	return k.isms.Get(ctx, ismId.GetInternalId())

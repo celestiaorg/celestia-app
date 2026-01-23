@@ -7,6 +7,7 @@ import (
 
 	"cosmossdk.io/collections"
 	errorsmod "cosmossdk.io/errors"
+	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v7/x/zkism/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 )
@@ -39,6 +40,21 @@ func (k *Keeper) InitGenesis(ctx context.Context, gs *types.GenesisState) error 
 			if err := k.messages.Set(ctx, collections.Join(ismId.GetInternalId(), messageId)); err != nil {
 				return err
 			}
+		}
+	}
+
+	for _, entry := range gs.Submissions {
+		ismId := entry.Id
+		exists, err := k.isms.Has(ctx, ismId.GetInternalId())
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return errorsmod.Wrapf(types.ErrIsmNotFound, "message proof submitted entry for unknown ism %s", ismId.String())
+		}
+
+		if err := k.submissions.Set(ctx, ismId.GetInternalId(), entry.Submitted); err != nil {
+			return err
 		}
 	}
 
@@ -87,8 +103,35 @@ func (k *Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error)
 		return genesisMessages[i].Id.Compare(genesisMessages[j].Id) < 0
 	})
 
+	ismByID := make(map[uint64]util.HexAddress, len(isms))
+	for i := range isms {
+		ism := isms[i]
+		ismByID[ism.Id.GetInternalId()] = ism.Id
+	}
+
+	submissions := make([]types.GenesisProofSubmission, 0)
+	if err := k.submissions.Walk(ctx, nil, func(key uint64, value bool) (bool, error) {
+		ismId, ok := ismByID[key]
+		if !ok {
+			return false, errorsmod.Wrapf(types.ErrIsmNotFound, "message proof submitted entry for unknown ism %d", key)
+		}
+
+		submissions = append(submissions, types.GenesisProofSubmission{
+			Id:        ismId,
+			Submitted: value,
+		})
+		return false, nil
+	}); err != nil {
+		return nil, err
+	}
+
+	sort.Slice(submissions, func(i, j int) bool {
+		return submissions[i].Id.Compare(submissions[j].Id) < 0
+	})
+
 	return &types.GenesisState{
-		Isms:     isms,
-		Messages: genesisMessages,
+		Isms:        isms,
+		Messages:    genesisMessages,
+		Submissions: submissions,
 	}, nil
 }

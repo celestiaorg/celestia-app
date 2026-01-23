@@ -13,6 +13,8 @@ message GenesisState {
   repeated InterchainSecurityModule isms = 1 [(gogoproto.nullable) = false];
   // messages authorized for each zk execution ism.
   repeated GenesisMessages messages = 2 [(gogoproto.nullable) = false];
+  // tracks whether a message proof has been submitted for the current state root.
+  repeated GenesisProofSubmission submissions = 3 [(gogoproto.nullable) = false];
 }
 
 // GenesisMessages contains the authorized Hyperlane message IDs for a zk execution ism.
@@ -24,4 +26,15 @@ message GenesisMessages {
   ];
   // list of authorized message ids
   repeated string messages = 2;
+}
+
+// GenesisProofSubmission contains the proof submission state for a zk execution ism.
+message GenesisProofSubmission {
+  // ism identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // whether a message proof has been submitted for the current state root
+  bool submitted = 2;
 }

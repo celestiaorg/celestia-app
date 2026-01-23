@@ -83,8 +83,13 @@ func (AppModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 }
 
 // ValidateGenesis performs genesis state validation for the zkism module.
-func (AppModule) ValidateGenesis(_ codec.JSONCodec, _ client.TxEncodingConfig, _ json.RawMessage) error {
-	return nil
+func (am AppModule) ValidateGenesis(cdc codec.JSONCodec, _ client.TxEncodingConfig, data json.RawMessage) error {
+	var genState types.GenesisState
+	if err := cdc.UnmarshalJSON(data, &genState); err != nil {
+		return fmt.Errorf("failed to unmarshal %s genesis state: %w", types.ModuleName, err)
+	}
+
+	return genState.Validate()
 }
 
 // InitGenesis performs genesis initialization for the zkism module.

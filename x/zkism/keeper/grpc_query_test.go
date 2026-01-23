@@ -11,7 +11,7 @@ import (
 )
 
 func (suite *KeeperTestSuite) TestQueryServerIsm() {
-	ismId := util.GenerateHexAddress([20]byte{0x01}, types.ModuleTypeZkISM, 1)
+	ismId := util.GenerateHexAddress([20]byte{0x01}, uint32(types.ModuleTypeZkISM), 1)
 	expIsm := types.InterchainSecurityModule{Owner: "test"}
 
 	err := suite.zkISMKeeper.SetIsm(suite.ctx, ismId, expIsm)
@@ -44,7 +44,7 @@ func (suite *KeeperTestSuite) TestQueryServerIsm() {
 		{
 			name: "ism not found",
 			req: &types.QueryIsmRequest{
-				Id: util.GenerateHexAddress([20]byte{0x01}, types.ModuleTypeZkISM, 9999).String(),
+				Id: util.GenerateHexAddress([20]byte{0x01}, uint32(types.ModuleTypeZkISM), 9999).String(),
 			},
 			expError: errors.New("ism not found"),
 		},
@@ -177,7 +177,7 @@ func (suite *KeeperTestSuite) TestQueryServerIsms() {
 				req = &types.QueryIsmsRequest{}
 
 				for i := range 100 {
-					ismId := util.GenerateHexAddress([20]byte{0x01}, types.ModuleTypeZkISM, uint64(i))
+					ismId := util.GenerateHexAddress([20]byte{0x01}, uint32(types.ModuleTypeZkISM), uint64(i))
 					ism := types.InterchainSecurityModule{Owner: "test"}
 
 					err := suite.zkISMKeeper.SetIsm(suite.ctx, ismId, ism)
@@ -198,7 +198,7 @@ func (suite *KeeperTestSuite) TestQueryServerIsms() {
 				}
 
 				for i := range 100 {
-					ismId := util.GenerateHexAddress([20]byte{0x01}, types.ModuleTypeZkISM, uint64(i))
+					ismId := util.GenerateHexAddress([20]byte{0x01}, uint32(types.ModuleTypeZkISM), uint64(i))
 					ism := types.InterchainSecurityModule{Owner: "test"}
 
 					err := suite.zkISMKeeper.SetIsm(suite.ctx, ismId, ism)
