@@ -119,6 +119,13 @@ func TestMsgUpdateInterchainSecurityModuleValidateBasic(t *testing.T) {
 			},
 			expErr: types.ErrInvalidProofLength,
 		},
+		{
+			name: "public values too large",
+			malleate: func() {
+				msg.PublicValues = bytes.Repeat([]byte{0x01}, types.MaxPublicValuesBytes+1)
+			},
+			expErr: types.ErrInvalidPublicValuesLength,
+		},
 	}
 
 	for _, tc := range tests {
@@ -168,6 +175,13 @@ func TestMsgSubmitMessagesValidateBasic(t *testing.T) {
 				msg.Proof = []byte{0x01}
 			},
 			expErr: types.ErrInvalidProofLength,
+		},
+		{
+			name: "public values too large",
+			malleate: func() {
+				msg.PublicValues = bytes.Repeat([]byte{0x01}, types.MaxPublicValuesBytes+1)
+			},
+			expErr: types.ErrInvalidPublicValuesLength,
 		},
 	}
 
