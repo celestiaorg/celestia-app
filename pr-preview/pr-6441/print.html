@@ -1623,7 +1623,7 @@ src="./figures/rs2d_quadrants.svg" alt="Figure 2: rsmt2d" width="400"/> <img src
 <li>The nonce of all tx signers is incremented by 1.</li>
 </ul>
 <h2 id="fee-forwarding-new-in-v7"><a class="header" href="#fee-forwarding-new-in-v7">Fee Forwarding (New in v7)</a></h2>
-<p>App version 7 introduces the <a href="https://github.com/celestiaorg/celestia-app/blob/main/x/feeaddress/README.md">feeaddress</a> module which enables a mechanism to forward tokens to delegators as staking rewards. The ante handler includes two decorators to support this:</p>
+<p>App version 7 introduces a fee address mechanism (see <a href="https://github.com/celestiaorg/celestia-app/blob/main/pkg/feeaddress">pkg/feeaddress</a>) which enables forwarding tokens to delegators as staking rewards. The ante handler includes two decorators to support this:</p>
 <ol>
 <li>
 <p><strong>ProtocolFeeTerminatorDecorator</strong>: Handles <code>MsgPayProtocolFee</code> transactions completely and terminates the ante chain early. This decorator:</p>
@@ -2211,7 +2211,6 @@ the cost of the blob.</p>
 <h2 id="celestia-app-modules-6"><a class="header" href="#celestia-app-modules-6"><code>celestia-app</code> modules</a></h2>
 <ul>
 <li><a href="https://github.com/celestiaorg/celestia-app/blob/main/x/blob/README.md">blob</a></li>
-<li><a href="https://github.com/celestiaorg/celestia-app/blob/main/x/feeaddress/README.md">feeaddress</a></li>
 <li><a href="https://github.com/celestiaorg/celestia-app/blob/main/x/minfee/README.md">minfee</a></li>
 <li><a href="https://github.com/celestiaorg/celestia-app/blob/main/x/mint/README.md">mint</a></li>
 <li><a href="https://github.com/celestiaorg/celestia-app/blob/main/x/signal/README.md">signal</a></li>

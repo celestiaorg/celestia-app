@@ -177,7 +177,7 @@
 <li>The nonce of all tx signers is incremented by 1.</li>
 </ul>
 <h2 id="fee-forwarding-new-in-v7"><a class="header" href="#fee-forwarding-new-in-v7">Fee Forwarding (New in v7)</a></h2>
-<p>App version 7 introduces the <a href="https://github.com/celestiaorg/celestia-app/blob/main/x/feeaddress/README.md">feeaddress</a> module which enables a mechanism to forward tokens to delegators as staking rewards. The ante handler includes two decorators to support this:</p>
+<p>App version 7 introduces a fee address mechanism (see <a href="https://github.com/celestiaorg/celestia-app/blob/main/pkg/feeaddress">pkg/feeaddress</a>) which enables forwarding tokens to delegators as staking rewards. The ante handler includes two decorators to support this:</p>
 <ol>
 <li>
 <p><strong>ProtocolFeeTerminatorDecorator</strong>: Handles <code>MsgPayProtocolFee</code> transactions completely and terminates the ante chain early. This decorator:</p>
