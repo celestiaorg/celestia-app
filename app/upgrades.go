@@ -95,6 +95,15 @@ func (app App) RegisterUpgradeHandlers() {
 			return app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
 		},
 	)
+
+	upgradeInfo, err := app.UpgradeKeeper.ReadUpgradeInfoFromDisk()
+	if err != nil {
+		panic(err)
+	}
+
+	if upgradeInfo.Name == upgradeName && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) { //nolint:staticcheck
+		// TODO: Apply any store upgrades here.
+	}
 }
 
 func (a App) SetMinCommissionRate(ctx context.Context) error {
