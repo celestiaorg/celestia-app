@@ -122,7 +122,7 @@ func TestMsgUpdateInterchainSecurityModuleValidateBasic(t *testing.T) {
 		{
 			name: "public values too large",
 			malleate: func() {
-				msg.PublicValues = bytes.Repeat([]byte{0x01}, types.MaxPublicValuesBytes+1)
+				msg.PublicValues = bytes.Repeat([]byte{0x01}, types.MaxStateTransitionValuesBytes+1)
 			},
 			expErr: types.ErrInvalidPublicValuesLength,
 		},
@@ -179,7 +179,7 @@ func TestMsgSubmitMessagesValidateBasic(t *testing.T) {
 		{
 			name: "public values too large",
 			malleate: func() {
-				msg.PublicValues = bytes.Repeat([]byte{0x01}, types.MaxPublicValuesBytes+1)
+				msg.PublicValues = bytes.Repeat([]byte{0x01}, types.MaxStateMembershipValuesBytes+1)
 			},
 			expErr: types.ErrInvalidPublicValuesLength,
 		},

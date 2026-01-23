@@ -18,15 +18,21 @@ const (
 	// MaxPaginationLimit is the maximum number of items returned in a paginated query.
 	MaxPaginationLimit = 100
 
-	// MaxPublicValuesBytes is the maximum size permitted for public values payloads (32 KiB = 32768 bytes).
-	// For message proofs this limits the number of messages in a single proof to 1021.
-	MaxPublicValuesBytes = 32768
-
 	// MinStateBytes is the minimumm size of the trusted ism state (32 bytes).
 	MinStateBytes = 32
 
 	// MaxStateBytes is the maximum size of the trusted ism state (2 KiB = 2048 bytes).
 	MaxStateBytes = 2048
+
+	// MaxStateTransitionValuesBytes is the maximum size permitted for public values payloads associated
+	// with state transition proofs.
+	// 2 * 8 bytes (length prefixes) + 2 * MaxStateBytes = 5012 bytes
+	MaxStateTransitionValuesBytes = (2 * 8) + (2 * MaxStateBytes)
+
+	// MaxStateMembershipValuesBytes is the maximum size permitted for public values payloads associated
+	// with state membership proofs (1 MiB = 1048576 bytes).
+	// This limits the number of message ids in a single proof to 32,765.
+	MaxStateMembershipValuesBytes = 1048576
 
 	// DefaultProofVerifyCostGroth16 is the default gas cost metered for verifying a groth16 proof.
 	// NOTE: This is informed by benchmark comparisons with Secp256k1 signature verification.

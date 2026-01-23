@@ -52,8 +52,8 @@ func (msg *MsgUpdateInterchainSecurityModule) ValidateBasic() error {
 		return errorsmod.Wrapf(ErrInvalidProofLength, "expected %d, got %d", (PrefixLen + ProofSize), len(msg.Proof))
 	}
 
-	if len(msg.PublicValues) > MaxPublicValuesBytes {
-		return errorsmod.Wrapf(ErrInvalidPublicValuesLength, "public values must not exceed %d bytes", MaxPublicValuesBytes)
+	if len(msg.PublicValues) > MaxStateTransitionValuesBytes {
+		return errorsmod.Wrapf(ErrInvalidPublicValuesLength, "public values must not exceed %d bytes", MaxStateMembershipValuesBytes)
 	}
 
 	return nil
@@ -69,8 +69,8 @@ func (msg *MsgSubmitMessages) ValidateBasic() error {
 		return errorsmod.Wrapf(ErrInvalidProofLength, "expected %d, got %d", (PrefixLen + ProofSize), len(msg.Proof))
 	}
 
-	if len(msg.PublicValues) > MaxPublicValuesBytes {
-		return errorsmod.Wrapf(ErrInvalidPublicValuesLength, "public values must not exceed %d bytes", MaxPublicValuesBytes)
+	if len(msg.PublicValues) > MaxStateMembershipValuesBytes {
+		return errorsmod.Wrapf(ErrInvalidPublicValuesLength, "public values must not exceed %d bytes", MaxStateMembershipValuesBytes)
 	}
 
 	return nil
