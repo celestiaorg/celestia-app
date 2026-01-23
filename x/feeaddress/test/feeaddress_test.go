@@ -47,7 +47,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 }
 
 // TestFeeAddressSendAndForward verifies the E2E flow: send utia to fee address,
-// PrepareProposal injects MsgForwardFees, and tokens are forwarded to fee collector.
+// PrepareProposal injects MsgPayProtocolFee, and tokens are forwarded to fee collector.
 func (s *IntegrationTestSuite) TestFeeAddressSendAndForward() {
 	require := s.Require()
 	require.NoError(s.cctx.WaitForNextBlock())
@@ -79,19 +79,19 @@ func (s *IntegrationTestSuite) TestFeeAddressSendAndForward() {
 	require.Equal(abci.CodeTypeOK, res.Code, "send to fee address tx failed with code: %d", res.Code)
 
 	// Step 2: Verify fee address balance at the block where MsgSend was included
-	// Query at the specific height to see the state after MsgSend but before MsgForwardFees
+	// Query at the specific height to see the state after MsgSend but before MsgPayProtocolFee
 	midFeeAddressBalance := s.getFeeAddressBalance(res.Height)
 	require.True(midFeeAddressBalance.GTE(sendAmount.Amount),
 		"fee address should have at least sendAmount at height %d: balance=%s, sendAmount=%s",
 		res.Height, midFeeAddressBalance, sendAmount.Amount)
 
-	// Wait for next block to ensure MsgForwardFees has forwarded the tokens
+	// Wait for next block to ensure MsgPayProtocolFee has forwarded the tokens
 	require.NoError(s.cctx.WaitForNextBlock())
 
-	// Step 3: Verify fee address is empty (MsgForwardFees forwarded tokens to fee collector)
+	// Step 3: Verify fee address is empty (MsgPayProtocolFee forwarded tokens to fee collector)
 	finalFeeAddressBalance := s.getFeeAddressBalance()
 	require.True(finalFeeAddressBalance.IsZero(),
-		"fee address should be empty after MsgForwardFees forwards tokens: balance=%s",
+		"fee address should be empty after MsgPayProtocolFee forwards tokens: balance=%s",
 		finalFeeAddressBalance)
 
 	// Verify account balance decreased by at least send amount (gas fees cause additional decrease)
@@ -111,20 +111,20 @@ func (s *IntegrationTestSuite) TestFeeAddressQuery() {
 	require.Equal(feeaddresstypes.FeeAddressBech32, resp.FeeAddress)
 }
 
-// TestUserSubmittedMsgForwardFeesRejected verifies users cannot submit MsgForwardFees
+// TestUserSubmittedMsgPayProtocolFeeRejected verifies users cannot submit MsgPayProtocolFee
 // directly - it must be protocol-injected only (CIP-43).
-func (s *IntegrationTestSuite) TestUserSubmittedMsgForwardFeesRejected() {
+func (s *IntegrationTestSuite) TestUserSubmittedMsgPayProtocolFeeRejected() {
 	require := s.Require()
 	require.NoError(s.cctx.WaitForNextBlock())
 
 	account := s.accounts[1]
-	msgForwardFees := feeaddresstypes.NewMsgForwardFees()
+	msgPayProtocolFee := feeaddresstypes.NewMsgPayProtocolFee()
 
 	txClient, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg, user.WithDefaultAccount(account))
 	require.NoError(err)
 
-	_, err = txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msgForwardFees}, blobfactory.DefaultTxOpts()...)
-	require.Error(err, "user-submitted MsgForwardFees should be rejected")
+	_, err = txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msgPayProtocolFee}, blobfactory.DefaultTxOpts()...)
+	require.Error(err, "user-submitted MsgPayProtocolFee should be rejected")
 }
 
 // getAccountBalance queries the bank module for an account's utia balance.

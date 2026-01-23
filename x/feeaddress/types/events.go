@@ -1,8 +1,8 @@
 package types
 
-// NewFeeForwardedEvent returns a new EventFeeForwarded.
-func NewFeeForwardedEvent(fromAddress string, amount string) *EventFeeForwarded {
-	return &EventFeeForwarded{
+// NewProtocolFeePaidEvent returns a new EventProtocolFeePaid.
+func NewProtocolFeePaidEvent(fromAddress string, amount string) *EventProtocolFeePaid {
+	return &EventProtocolFeePaid{
 		FromAddress: fromAddress,
 		Amount:      amount,
 	}

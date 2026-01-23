@@ -15,9 +15,9 @@ celestia1feefeefeefeefeefeefeefeefeefeefe8pxlcf
 ## How It Works
 
 1. **Sending**: Users or contracts send utia tokens to the fee address via standard bank transfer, IBC transfer, or Hyperlane transfer
-2. **PrepareProposal**: Block proposers check the fee address balance and inject a `MsgForwardFees` transaction with the tx fee set to the balance from the vanity address
+2. **PrepareProposal**: Block proposers check the fee address balance and inject a `MsgPayProtocolFee` transaction with the tx fee set to the balance from the vanity address
 3. **ProcessProposal**: Validators strictly enforce that blocks forward any non-zero fee address balance
-4. **Ante Handler**: The `FeeForwardTerminatorDecorator` deducts the fee from the fee address and sends it to the fee collector
+4. **Ante Handler**: The `ProtocolFeeTerminatorDecorator` deducts the fee from the fee address and sends it to the fee collector
 5. **Distribution**: The distribution module allocates fee collector funds to delegators as staking rewards
 
 ## Dashboard Compatibility
@@ -46,12 +46,12 @@ The following paths can bypass the non-utia restriction:
 
 ## Message Types
 
-### MsgForwardFees
+### MsgPayProtocolFee
 
 This message is protocol-injected by block proposers and should not be submitted by users directly.
 
 ```protobuf
-message MsgForwardFees {}
+message MsgPayProtocolFee {}
 ```
 
 The message has no fields. Validation happens via ProcessProposal checking that the transaction fee equals the fee address balance.
@@ -68,7 +68,7 @@ grpcurl -plaintext localhost:9090 celestia.feeaddress.v1.Query/FeeAddress
 
 ## Events
 
-### EventFeeForwarded
+### EventProtocolFeePaid
 
 Emitted when tokens are forwarded from the fee address to the fee collector.
 

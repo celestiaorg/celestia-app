@@ -29,34 +29,34 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// MsgForwardFees is a protocol-injected message that forwards accumulated
+// MsgPayProtocolFee is a protocol-injected message that forwards accumulated
 // tokens from the fee address to the fee collector. This message is special:
 // - It is injected by PrepareProposal when fee address has balance
 // - The transaction fee equals the fee address balance
 // - ProcessProposal enforces that this tx must be present if fee address has balance
 // - Validation happens via ProcessProposal checking tx fee == fee address balance
-// - FeeForwardTerminatorDecorator terminates ante chain early, skipping signature verification
-type MsgForwardFees struct {
+// - ProtocolFeeTerminatorDecorator terminates ante chain early, skipping signature verification
+type MsgPayProtocolFee struct {
 	// from_address is the fee address from which tokens are forwarded.
 	// This is always set to the well-known fee address (FeeAddressBech32).
 	// Note: Although this field specifies a signer, signature verification is
-	// skipped because FeeForwardTerminatorDecorator terminates the ante chain
+	// skipped because ProtocolFeeTerminatorDecorator terminates the ante chain
 	// before signature-related decorators run.
 	FromAddress string `protobuf:"bytes,1,opt,name=from_address,json=fromAddress,proto3" json:"from_address,omitempty"`
 }
 
-func (m *MsgForwardFees) Reset()         { *m = MsgForwardFees{} }
-func (m *MsgForwardFees) String() string { return proto.CompactTextString(m) }
-func (*MsgForwardFees) ProtoMessage()    {}
-func (*MsgForwardFees) Descriptor() ([]byte, []int) {
+func (m *MsgPayProtocolFee) Reset()         { *m = MsgPayProtocolFee{} }
+func (m *MsgPayProtocolFee) String() string { return proto.CompactTextString(m) }
+func (*MsgPayProtocolFee) ProtoMessage()    {}
+func (*MsgPayProtocolFee) Descriptor() ([]byte, []int) {
 	return fileDescriptor_7123d30f9b490d42, []int{0}
 }
-func (m *MsgForwardFees) XXX_Unmarshal(b []byte) error {
+func (m *MsgPayProtocolFee) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgForwardFees) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgPayProtocolFee) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgForwardFees.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgPayProtocolFee.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -66,41 +66,41 @@ func (m *MsgForwardFees) XXX_Marshal(b []byte, deterministic bool) ([]byte, erro
 		return b[:n], nil
 	}
 }
-func (m *MsgForwardFees) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgForwardFees.Merge(m, src)
+func (m *MsgPayProtocolFee) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgPayProtocolFee.Merge(m, src)
 }
-func (m *MsgForwardFees) XXX_Size() int {
+func (m *MsgPayProtocolFee) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgForwardFees) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgForwardFees.DiscardUnknown(m)
+func (m *MsgPayProtocolFee) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgPayProtocolFee.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgForwardFees proto.InternalMessageInfo
+var xxx_messageInfo_MsgPayProtocolFee proto.InternalMessageInfo
 
-func (m *MsgForwardFees) GetFromAddress() string {
+func (m *MsgPayProtocolFee) GetFromAddress() string {
 	if m != nil {
 		return m.FromAddress
 	}
 	return ""
 }
 
-// MsgForwardFeesResponse is the response type for the ForwardFees RPC.
-type MsgForwardFeesResponse struct {
+// MsgPayProtocolFeeResponse is the response type for the PayProtocolFee RPC.
+type MsgPayProtocolFeeResponse struct {
 }
 
-func (m *MsgForwardFeesResponse) Reset()         { *m = MsgForwardFeesResponse{} }
-func (m *MsgForwardFeesResponse) String() string { return proto.CompactTextString(m) }
-func (*MsgForwardFeesResponse) ProtoMessage()    {}
-func (*MsgForwardFeesResponse) Descriptor() ([]byte, []int) {
+func (m *MsgPayProtocolFeeResponse) Reset()         { *m = MsgPayProtocolFeeResponse{} }
+func (m *MsgPayProtocolFeeResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgPayProtocolFeeResponse) ProtoMessage()    {}
+func (*MsgPayProtocolFeeResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_7123d30f9b490d42, []int{1}
 }
-func (m *MsgForwardFeesResponse) XXX_Unmarshal(b []byte) error {
+func (m *MsgPayProtocolFeeResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgForwardFeesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgPayProtocolFeeResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgForwardFeesResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgPayProtocolFeeResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -110,45 +110,45 @@ func (m *MsgForwardFeesResponse) XXX_Marshal(b []byte, deterministic bool) ([]by
 		return b[:n], nil
 	}
 }
-func (m *MsgForwardFeesResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgForwardFeesResponse.Merge(m, src)
+func (m *MsgPayProtocolFeeResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgPayProtocolFeeResponse.Merge(m, src)
 }
-func (m *MsgForwardFeesResponse) XXX_Size() int {
+func (m *MsgPayProtocolFeeResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgForwardFeesResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgForwardFeesResponse.DiscardUnknown(m)
+func (m *MsgPayProtocolFeeResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgPayProtocolFeeResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgForwardFeesResponse proto.InternalMessageInfo
+var xxx_messageInfo_MsgPayProtocolFeeResponse proto.InternalMessageInfo
 
 func init() {
-	proto.RegisterType((*MsgForwardFees)(nil), "celestia.feeaddress.v1.MsgForwardFees")
-	proto.RegisterType((*MsgForwardFeesResponse)(nil), "celestia.feeaddress.v1.MsgForwardFeesResponse")
+	proto.RegisterType((*MsgPayProtocolFee)(nil), "celestia.feeaddress.v1.MsgPayProtocolFee")
+	proto.RegisterType((*MsgPayProtocolFeeResponse)(nil), "celestia.feeaddress.v1.MsgPayProtocolFeeResponse")
 }
 
 func init() { proto.RegisterFile("celestia/feeaddress/v1/tx.proto", fileDescriptor_7123d30f9b490d42) }
 
 var fileDescriptor_7123d30f9b490d42 = []byte{
-	// 279 bytes of a gzipped FileDescriptorProto
+	// 280 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x92, 0x4f, 0x4e, 0xcd, 0x49,
 	0x2d, 0x2e, 0xc9, 0x4c, 0xd4, 0x4f, 0x4b, 0x4d, 0x4d, 0x4c, 0x49, 0x29, 0x4a, 0x2d, 0x2e, 0xd6,
 	0x2f, 0x33, 0xd4, 0x2f, 0xa9, 0xd0, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x12, 0x83, 0x29, 0xd0,
 	0x43, 0x28, 0xd0, 0x2b, 0x33, 0x94, 0x12, 0x4f, 0xce, 0x2f, 0xce, 0xcd, 0x2f, 0xd6, 0xcf, 0x2d,
 	0x4e, 0x07, 0xa9, 0xcf, 0x2d, 0x4e, 0x87, 0x68, 0x90, 0x92, 0x84, 0x48, 0xc4, 0x83, 0x79, 0xfa,
-	0x10, 0x0e, 0x44, 0x4a, 0x29, 0x81, 0x8b, 0xcf, 0xb7, 0x38, 0xdd, 0x2d, 0xbf, 0xa8, 0x3c, 0xb1,
-	0x28, 0xc5, 0x2d, 0x35, 0xb5, 0x58, 0xc8, 0x9a, 0x8b, 0x27, 0xad, 0x28, 0x3f, 0x37, 0x1e, 0x6a,
-	0xb0, 0x04, 0xa3, 0x02, 0xa3, 0x06, 0xa7, 0x93, 0xc4, 0xa5, 0x2d, 0xba, 0x22, 0x50, 0x9d, 0x8e,
-	0x10, 0x99, 0xe0, 0x92, 0xa2, 0xcc, 0xbc, 0xf4, 0x20, 0x6e, 0x90, 0x6a, 0xa8, 0x90, 0x95, 0x60,
-	0xd3, 0xf3, 0x0d, 0x5a, 0x28, 0xfa, 0x95, 0x24, 0xb8, 0xc4, 0x50, 0x6d, 0x08, 0x4a, 0x2d, 0x2e,
-	0xc8, 0xcf, 0x2b, 0x4e, 0x35, 0x2a, 0xe6, 0x62, 0xf6, 0x2d, 0x4e, 0x17, 0x4a, 0xe5, 0xe2, 0x46,
-	0xb6, 0x5f, 0x4d, 0x0f, 0xbb, 0xf7, 0xf4, 0x50, 0x4d, 0x91, 0xd2, 0x23, 0x4e, 0x1d, 0xcc, 0x36,
-	0x29, 0xd6, 0x86, 0xe7, 0x1b, 0xb4, 0x18, 0x9d, 0x02, 0x4e, 0x3c, 0x92, 0x63, 0xbc, 0xf0, 0x48,
-	0x8e, 0xf1, 0xc1, 0x23, 0x39, 0xc6, 0x09, 0x8f, 0xe5, 0x18, 0x2e, 0x3c, 0x96, 0x63, 0xb8, 0xf1,
-	0x58, 0x8e, 0x21, 0xca, 0x2c, 0x3d, 0xb3, 0x24, 0xa3, 0x34, 0x49, 0x2f, 0x39, 0x3f, 0x57, 0x1f,
-	0x66, 0x74, 0x7e, 0x51, 0x3a, 0x9c, 0xad, 0x9b, 0x58, 0x50, 0xa0, 0x5f, 0x81, 0x1c, 0x29, 0x25,
-	0x95, 0x05, 0xa9, 0xc5, 0x49, 0x6c, 0xe0, 0x90, 0x34, 0x06, 0x04, 0x00, 0x00, 0xff, 0xff, 0xc7,
-	0x28, 0x80, 0xba, 0xb8, 0x01, 0x00, 0x00,
+	0x10, 0x0e, 0x44, 0x4a, 0x29, 0x99, 0x4b, 0xd0, 0xb7, 0x38, 0x3d, 0x20, 0xb1, 0x32, 0x00, 0xc4,
+	0x4d, 0xce, 0xcf, 0x71, 0x4b, 0x4d, 0x15, 0xb2, 0xe6, 0xe2, 0x49, 0x2b, 0xca, 0xcf, 0x8d, 0x87,
+	0x9a, 0x2d, 0xc1, 0xa8, 0xc0, 0xa8, 0xc1, 0xe9, 0x24, 0x71, 0x69, 0x8b, 0xae, 0x08, 0x54, 0xb3,
+	0x23, 0x44, 0x26, 0xb8, 0xa4, 0x28, 0x33, 0x2f, 0x3d, 0x88, 0x1b, 0xa4, 0x1a, 0x2a, 0x64, 0x25,
+	0xd8, 0xf4, 0x7c, 0x83, 0x16, 0x8a, 0x7e, 0x25, 0x69, 0x2e, 0x49, 0x0c, 0x4b, 0x82, 0x52, 0x8b,
+	0x0b, 0xf2, 0xf3, 0x8a, 0x53, 0x8d, 0x6a, 0xb8, 0x98, 0x7d, 0x8b, 0xd3, 0x85, 0xf2, 0xb8, 0xf8,
+	0xd0, 0x5c, 0xa1, 0xa9, 0x87, 0xdd, 0x9f, 0x7a, 0x18, 0x66, 0x49, 0x19, 0x12, 0xad, 0x14, 0x66,
+	0xad, 0x14, 0x6b, 0xc3, 0xf3, 0x0d, 0x5a, 0x8c, 0x4e, 0x01, 0x27, 0x1e, 0xc9, 0x31, 0x5e, 0x78,
+	0x24, 0xc7, 0xf8, 0xe0, 0x91, 0x1c, 0xe3, 0x84, 0xc7, 0x72, 0x0c, 0x17, 0x1e, 0xcb, 0x31, 0xdc,
+	0x78, 0x2c, 0xc7, 0x10, 0x65, 0x96, 0x9e, 0x59, 0x92, 0x51, 0x9a, 0xa4, 0x97, 0x9c, 0x9f, 0xab,
+	0x0f, 0x33, 0x3d, 0xbf, 0x28, 0x1d, 0xce, 0xd6, 0x4d, 0x2c, 0x28, 0xd0, 0xaf, 0x40, 0x8e, 0xa3,
+	0x92, 0xca, 0x82, 0xd4, 0xe2, 0x24, 0x36, 0x70, 0xc0, 0x1a, 0x03, 0x02, 0x00, 0x00, 0xff, 0xff,
+	0x4d, 0x03, 0x57, 0xa8, 0xc7, 0x01, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -163,7 +163,7 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MsgClient interface {
-	// ForwardFees is a protocol-injected transaction that forwards accumulated
+	// PayProtocolFee is a protocol-injected transaction that forwards accumulated
 	// tokens from the fee address to the fee collector. These fees are then
 	// distributed to validators as block rewards via the standard distribution
 	// module. This message has no signer - it is injected by the block proposer
@@ -172,9 +172,9 @@ type MsgClient interface {
 	// Note: This RPC intentionally has no google.api.http annotation because it
 	// is a protocol-injected message that should not be callable via REST API.
 	// If an EOA or any user attempts to submit this message directly, it is
-	// rejected in CheckTx with: "MsgForwardFees cannot be submitted by users;
-	// it is protocol-injected only" (see FeeForwardDecorator in ante handler).
-	ForwardFees(ctx context.Context, in *MsgForwardFees, opts ...grpc.CallOption) (*MsgForwardFeesResponse, error)
+	// rejected in CheckTx with: "MsgPayProtocolFee cannot be submitted by users;
+	// it is protocol-injected only" (see ProtocolFeeTerminatorDecorator in ante handler).
+	PayProtocolFee(ctx context.Context, in *MsgPayProtocolFee, opts ...grpc.CallOption) (*MsgPayProtocolFeeResponse, error)
 }
 
 type msgClient struct {
@@ -185,9 +185,9 @@ func NewMsgClient(cc grpc1.ClientConn) MsgClient {
 	return &msgClient{cc}
 }
 
-func (c *msgClient) ForwardFees(ctx context.Context, in *MsgForwardFees, opts ...grpc.CallOption) (*MsgForwardFeesResponse, error) {
-	out := new(MsgForwardFeesResponse)
-	err := c.cc.Invoke(ctx, "/celestia.feeaddress.v1.Msg/ForwardFees", in, out, opts...)
+func (c *msgClient) PayProtocolFee(ctx context.Context, in *MsgPayProtocolFee, opts ...grpc.CallOption) (*MsgPayProtocolFeeResponse, error) {
+	out := new(MsgPayProtocolFeeResponse)
+	err := c.cc.Invoke(ctx, "/celestia.feeaddress.v1.Msg/PayProtocolFee", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +196,7 @@ func (c *msgClient) ForwardFees(ctx context.Context, in *MsgForwardFees, opts ..
 
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
-	// ForwardFees is a protocol-injected transaction that forwards accumulated
+	// PayProtocolFee is a protocol-injected transaction that forwards accumulated
 	// tokens from the fee address to the fee collector. These fees are then
 	// distributed to validators as block rewards via the standard distribution
 	// module. This message has no signer - it is injected by the block proposer
@@ -205,37 +205,37 @@ type MsgServer interface {
 	// Note: This RPC intentionally has no google.api.http annotation because it
 	// is a protocol-injected message that should not be callable via REST API.
 	// If an EOA or any user attempts to submit this message directly, it is
-	// rejected in CheckTx with: "MsgForwardFees cannot be submitted by users;
-	// it is protocol-injected only" (see FeeForwardDecorator in ante handler).
-	ForwardFees(context.Context, *MsgForwardFees) (*MsgForwardFeesResponse, error)
+	// rejected in CheckTx with: "MsgPayProtocolFee cannot be submitted by users;
+	// it is protocol-injected only" (see ProtocolFeeTerminatorDecorator in ante handler).
+	PayProtocolFee(context.Context, *MsgPayProtocolFee) (*MsgPayProtocolFeeResponse, error)
 }
 
 // UnimplementedMsgServer can be embedded to have forward compatible implementations.
 type UnimplementedMsgServer struct {
 }
 
-func (*UnimplementedMsgServer) ForwardFees(ctx context.Context, req *MsgForwardFees) (*MsgForwardFeesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ForwardFees not implemented")
+func (*UnimplementedMsgServer) PayProtocolFee(ctx context.Context, req *MsgPayProtocolFee) (*MsgPayProtocolFeeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PayProtocolFee not implemented")
 }
 
 func RegisterMsgServer(s grpc1.Server, srv MsgServer) {
 	s.RegisterService(&_Msg_serviceDesc, srv)
 }
 
-func _Msg_ForwardFees_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MsgForwardFees)
+func _Msg_PayProtocolFee_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgPayProtocolFee)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MsgServer).ForwardFees(ctx, in)
+		return srv.(MsgServer).PayProtocolFee(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/celestia.feeaddress.v1.Msg/ForwardFees",
+		FullMethod: "/celestia.feeaddress.v1.Msg/PayProtocolFee",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MsgServer).ForwardFees(ctx, req.(*MsgForwardFees))
+		return srv.(MsgServer).PayProtocolFee(ctx, req.(*MsgPayProtocolFee))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -245,15 +245,15 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*MsgServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "ForwardFees",
-			Handler:    _Msg_ForwardFees_Handler,
+			MethodName: "PayProtocolFee",
+			Handler:    _Msg_PayProtocolFee_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "celestia/feeaddress/v1/tx.proto",
 }
 
-func (m *MsgForwardFees) Marshal() (dAtA []byte, err error) {
+func (m *MsgPayProtocolFee) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -263,12 +263,12 @@ func (m *MsgForwardFees) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgForwardFees) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgPayProtocolFee) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgForwardFees) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgPayProtocolFee) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -283,7 +283,7 @@ func (m *MsgForwardFees) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgForwardFeesResponse) Marshal() (dAtA []byte, err error) {
+func (m *MsgPayProtocolFeeResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -293,12 +293,12 @@ func (m *MsgForwardFeesResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgForwardFeesResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgPayProtocolFeeResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgForwardFeesResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgPayProtocolFeeResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -317,7 +317,7 @@ func encodeVarintTx(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *MsgForwardFees) Size() (n int) {
+func (m *MsgPayProtocolFee) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -330,7 +330,7 @@ func (m *MsgForwardFees) Size() (n int) {
 	return n
 }
 
-func (m *MsgForwardFeesResponse) Size() (n int) {
+func (m *MsgPayProtocolFeeResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -345,7 +345,7 @@ func sovTx(x uint64) (n int) {
 func sozTx(x uint64) (n int) {
 	return sovTx(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *MsgForwardFees) Unmarshal(dAtA []byte) error {
+func (m *MsgPayProtocolFee) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -368,10 +368,10 @@ func (m *MsgForwardFees) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgForwardFees: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgPayProtocolFee: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgForwardFees: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgPayProtocolFee: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -427,7 +427,7 @@ func (m *MsgForwardFees) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MsgForwardFeesResponse) Unmarshal(dAtA []byte) error {
+func (m *MsgPayProtocolFeeResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -450,10 +450,10 @@ func (m *MsgForwardFeesResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgForwardFeesResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgPayProtocolFeeResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgForwardFeesResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgPayProtocolFeeResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		default:

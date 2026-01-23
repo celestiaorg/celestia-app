@@ -6,7 +6,7 @@ The AnteHandler chains together several decorators to ensure the following crite
 - A gas meter is set up in the context before any gas consumption occurs.
 - The tx does not contain any messages that are disabled by the circuit breaker (e.g. `MsgSoftwareUpgrade`, `MsgCancelUpgrade`, `MsgIBCSoftwareUpgrade`).
 - The tx does not contain any [extension options](https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L119-L122).
-- **[New in v7]** If the tx contains a single `MsgForwardFees`, it is handled by the `FeeForwardTerminatorDecorator` which terminates the ante chain early after validating and deducting fees.
+- **[New in v7]** If the tx contains a single `MsgPayProtocolFee`, it is handled by the `ProtocolFeeTerminatorDecorator` which terminates the ante chain early after validating and deducting fees.
 - The tx passes `ValidateBasic()`.
 - The tx's [timeout_height](https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L115-L117) has not been reached if one is specified.
 - The tx's [memo](https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L110-L113) is <= the max memo characters where [`MaxMemoCharacters = 256`](<https://github.com/cosmos/cosmos-sdk/blob/a429238fc267da88a8548bfebe0ba7fb28b82a13/x/auth/README.md?plain=1#L230>).
@@ -39,8 +39,8 @@ In addition to the above criteria, the AnteHandler also has a number of side-eff
 
 App version 7 introduces the [feeaddress](https://github.com/celestiaorg/celestia-app/blob/main/x/feeaddress/README.md) module which enables a mechanism to forward tokens to delegators as staking rewards. The ante handler includes two decorators to support this:
 
-1. **FeeForwardTerminatorDecorator**: Handles `MsgForwardFees` transactions completely and terminates the ante chain early. This decorator:
-   - Detects `MsgForwardFees` transactions
+1. **ProtocolFeeTerminatorDecorator**: Handles `MsgPayProtocolFee` transactions completely and terminates the ante chain early. This decorator:
+   - Detects `MsgPayProtocolFee` transactions
    - Rejects user-submitted transactions (only protocol-injected transactions from block proposers are allowed)
    - Validates the fee is exactly one utia coin with positive amount
    - Deducts the fee from the fee address and sends it to the fee collector

@@ -8,44 +8,44 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
-// FeeForwardTerminatorDecorator handles MsgForwardFees transactions completely and
+// ProtocolFeeTerminatorDecorator handles MsgPayProtocolFee transactions completely and
 // terminates the ante chain early. This decorator must be placed early in the chain
-// (after SetUpContextDecorator) because MsgForwardFees has no signers and would fail
+// (after SetUpContextDecorator) because MsgPayProtocolFee has no signers and would fail
 // signature-related decorators.
 //
-// For MsgForwardFees transactions, this decorator:
+// For MsgPayProtocolFee transactions, this decorator:
 // 1. Rejects user submissions (only valid when protocol-injected)
 // 2. Validates the fee format
 // 3. Transfers the fee from fee address to fee collector
-// 4. Emits EventFeeForwarded
+// 4. Emits EventProtocolFeePaid
 // 5. Returns without calling next() - skipping the rest of the ante chain
 //
 // For all other transactions, this decorator simply calls next().
-type FeeForwardTerminatorDecorator struct {
-	bankKeeper types.FeeForwardBankKeeper
+type ProtocolFeeTerminatorDecorator struct {
+	bankKeeper types.ProtocolFeeBankKeeper
 }
 
-// NewFeeForwardTerminatorDecorator creates a new FeeForwardTerminatorDecorator.
-func NewFeeForwardTerminatorDecorator(bankKeeper types.FeeForwardBankKeeper) *FeeForwardTerminatorDecorator {
+// NewProtocolFeeTerminatorDecorator creates a new ProtocolFeeTerminatorDecorator.
+func NewProtocolFeeTerminatorDecorator(bankKeeper types.ProtocolFeeBankKeeper) *ProtocolFeeTerminatorDecorator {
 	if bankKeeper == nil {
 		panic("bankKeeper cannot be nil")
 	}
-	return &FeeForwardTerminatorDecorator{
+	return &ProtocolFeeTerminatorDecorator{
 		bankKeeper: bankKeeper,
 	}
 }
 
 // AnteHandle implements sdk.AnteDecorator.
-func (d FeeForwardTerminatorDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	msg := types.IsFeeForwardMsg(tx)
+func (d ProtocolFeeTerminatorDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
+	msg := types.IsProtocolFeeMsg(tx)
 	if msg == nil {
 		return next(ctx, tx, simulate)
 	}
 
-	// MsgForwardFees MUST NOT be submitted by users directly (CIP-43).
+	// MsgPayProtocolFee MUST NOT be submitted by users directly (CIP-43).
 	// It is only valid when injected by the block proposer in PrepareProposal.
 	if ctx.IsCheckTx() || ctx.IsReCheckTx() || simulate {
-		return ctx, errors.Wrap(sdkerrors.ErrInvalidRequest, "MsgForwardFees cannot be submitted by users; it is protocol-injected only")
+		return ctx, errors.Wrap(sdkerrors.ErrInvalidRequest, "MsgPayProtocolFee cannot be submitted by users; it is protocol-injected only")
 	}
 
 	feeTx, ok := tx.(sdk.FeeTx)
@@ -54,7 +54,7 @@ func (d FeeForwardTerminatorDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, si
 	}
 	fee := feeTx.GetFee()
 
-	if err := types.ValidateFeeForwardFee(fee, nil); err != nil {
+	if err := types.ValidateProtocolFee(fee, nil); err != nil {
 		return ctx, errors.Wrap(sdkerrors.ErrInvalidRequest, err.Error())
 	}
 
@@ -63,8 +63,8 @@ func (d FeeForwardTerminatorDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, si
 		return ctx, errors.Wrap(err, "failed to deduct fee from fee address")
 	}
 
-	if err := ctx.EventManager().EmitTypedEvent(types.NewFeeForwardedEvent(types.FeeAddressBech32, fee.String())); err != nil {
-		return ctx, errors.Wrap(err, "failed to emit fee forwarded event")
+	if err := ctx.EventManager().EmitTypedEvent(types.NewProtocolFeePaidEvent(types.FeeAddressBech32, fee.String())); err != nil {
+		return ctx, errors.Wrap(err, "failed to emit protocol feeed event")
 	}
 
 	return ctx, nil

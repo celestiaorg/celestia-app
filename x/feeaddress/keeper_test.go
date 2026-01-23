@@ -15,15 +15,15 @@ func createTestContext() sdk.Context {
 	return sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
 }
 
-// TestForwardFeesReturnsSuccess verifies that the ForwardFees message handler
+// TestPayProtocolFeeReturnsSuccess verifies that the PayProtocolFee message handler
 // returns success. The actual fee transfer and event emission happen in the
-// FeeForwardTerminatorDecorator.
-func TestForwardFeesReturnsSuccess(t *testing.T) {
+// ProtocolFeeTerminatorDecorator.
+func TestPayProtocolFeeReturnsSuccess(t *testing.T) {
 	keeper := NewKeeper()
 	ctx := createTestContext()
 
-	msg := types.NewMsgForwardFees()
-	resp, err := keeper.ForwardFees(ctx, msg)
+	msg := types.NewMsgPayProtocolFee()
+	resp, err := keeper.PayProtocolFee(ctx, msg)
 
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -40,23 +40,23 @@ func TestFeeAddressQuery(t *testing.T) {
 	require.Equal(t, types.FeeAddressBech32, resp.FeeAddress)
 }
 
-// TestNewMsgForwardFees verifies the constructor for MsgForwardFees.
-func TestNewMsgForwardFees(t *testing.T) {
-	msg := types.NewMsgForwardFees()
+// TestNewMsgPayProtocolFee verifies the constructor for MsgPayProtocolFee.
+func TestNewMsgPayProtocolFee(t *testing.T) {
+	msg := types.NewMsgPayProtocolFee()
 	require.NotNil(t, msg)
 }
 
-// TestIsFeeForwardMsg verifies the IsFeeForwardMsg helper function correctly
+// TestIsProtocolFeeMsg verifies the IsProtocolFeeMsg helper function correctly
 // identifies fee forward transactions.
-func TestIsFeeForwardMsg(t *testing.T) {
+func TestIsProtocolFeeMsg(t *testing.T) {
 	tests := []struct {
 		name     string
 		msgs     []sdk.Msg
 		expected bool
 	}{
 		{
-			name:     "single MsgForwardFees returns message",
-			msgs:     []sdk.Msg{types.NewMsgForwardFees()},
+			name:     "single MsgPayProtocolFee returns message",
+			msgs:     []sdk.Msg{types.NewMsgPayProtocolFee()},
 			expected: true,
 		},
 		{
@@ -66,11 +66,11 @@ func TestIsFeeForwardMsg(t *testing.T) {
 		},
 		{
 			name:     "two messages returns nil",
-			msgs:     []sdk.Msg{types.NewMsgForwardFees(), types.NewMsgForwardFees()},
+			msgs:     []sdk.Msg{types.NewMsgPayProtocolFee(), types.NewMsgPayProtocolFee()},
 			expected: false,
 		},
 		{
-			name:     "non-MsgForwardFees returns nil",
+			name:     "non-MsgPayProtocolFee returns nil",
 			msgs:     []sdk.Msg{&types.QueryFeeAddressRequest{}},
 			expected: false,
 		},
@@ -79,7 +79,7 @@ func TestIsFeeForwardMsg(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			tx := &mockTx{msgs: tc.msgs}
-			result := types.IsFeeForwardMsg(tx)
+			result := types.IsProtocolFeeMsg(tx)
 			if tc.expected {
 				require.NotNil(t, result)
 			} else {
@@ -89,7 +89,7 @@ func TestIsFeeForwardMsg(t *testing.T) {
 	}
 }
 
-// mockTx is a minimal mock implementation of sdk.Tx for testing IsFeeForwardMsg.
+// mockTx is a minimal mock implementation of sdk.Tx for testing IsProtocolFeeMsg.
 type mockTx struct {
 	msgs []sdk.Msg
 }

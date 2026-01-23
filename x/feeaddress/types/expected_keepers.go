@@ -6,7 +6,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// FeeForwardBankKeeper defines the bank keeper interface needed by FeeForwardTerminatorDecorator.
-type FeeForwardBankKeeper interface {
+// ProtocolFeeBankKeeper defines the bank keeper interface needed by ProtocolFeeTerminatorDecorator.
+type ProtocolFeeBankKeeper interface {
 	SendCoinsFromAccountToModule(ctx context.Context, senderAddr sdk.AccAddress, recipientModule string, amt sdk.Coins) error
 }

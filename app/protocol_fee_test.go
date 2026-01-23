@@ -76,28 +76,28 @@ func createTestAppWithFeeAddressBalance(t *testing.T, feeAddrBalance sdk.Coin) *
 	return testApp
 }
 
-// TestProcessProposalFeeForwardValidation tests ProcessProposal validation of fee forward transactions.
+// TestProcessProposalProtocolFeeValidation tests ProcessProposal validation of protocol fee transactions.
 // Note: For tests that expect ACCEPT, we use PrepareProposal to get the correct DataRootHash.
 // For tests that expect REJECT, the validation fails before the DataRootHash check.
-func TestProcessProposalFeeForwardValidation(t *testing.T) {
+func TestProcessProposalProtocolFeeValidation(t *testing.T) {
 	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	// Helper to create a fee forward tx with specific fee
-	createFeeForwardTx := func(feeAmount sdk.Coin) []byte {
-		msg := feeaddresstypes.NewMsgForwardFees()
+	// Helper to create a protocol fee tx with specific fee
+	createProtocolFeeTx := func(feeAmount sdk.Coin) []byte {
+		msg := feeaddresstypes.NewMsgPayProtocolFee()
 		txBuilder := ecfg.TxConfig.NewTxBuilder()
 		err := txBuilder.SetMsgs(msg)
 		require.NoError(t, err)
 		txBuilder.SetFeeAmount(sdk.NewCoins(feeAmount))
-		txBuilder.SetGasLimit(feeaddresstypes.FeeForwardGasLimit)
+		txBuilder.SetGasLimit(feeaddresstypes.ProtocolFeeGasLimit)
 		txBytes, err := ecfg.TxConfig.TxEncoder()(txBuilder.GetTx())
 		require.NoError(t, err)
 		return txBytes
 	}
 
-	// Helper to create a fee forward tx with wrong gas limit
-	createFeeForwardTxWrongGas := func(feeAmount sdk.Coin, gas uint64) []byte {
-		msg := feeaddresstypes.NewMsgForwardFees()
+	// Helper to create a protocol fee tx with wrong gas limit
+	createProtocolFeeTxWrongGas := func(feeAmount sdk.Coin, gas uint64) []byte {
+		msg := feeaddresstypes.NewMsgPayProtocolFee()
 		txBuilder := ecfg.TxConfig.NewTxBuilder()
 		err := txBuilder.SetMsgs(msg)
 		require.NoError(t, err)
@@ -116,7 +116,7 @@ func TestProcessProposalFeeForwardValidation(t *testing.T) {
 		expectReject    bool
 	}{
 		{
-			name:            "accept valid fee forward tx when balance exists",
+			name:            "accept valid protocol fee tx when balance exists",
 			feeAddrBalance:  sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)),
 			usePrepProposal: true, // Use PrepareProposal to get correct txs and DataRootHash
 			expectReject:    false,
@@ -128,7 +128,7 @@ func TestProcessProposalFeeForwardValidation(t *testing.T) {
 			expectReject:    false,
 		},
 		{
-			name:           "reject missing fee forward tx when balance exists",
+			name:           "reject missing protocol fee tx when balance exists",
 			feeAddrBalance: sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)),
 			txs: func() [][]byte {
 				return [][]byte{} // empty block, but balance exists
@@ -136,42 +136,42 @@ func TestProcessProposalFeeForwardValidation(t *testing.T) {
 			expectReject: true,
 		},
 		{
-			name:           "reject fee forward tx when no balance exists",
+			name:           "reject protocol fee tx when no balance exists",
 			feeAddrBalance: sdk.NewCoin(appconsts.BondDenom, math.ZeroInt()),
 			txs: func() [][]byte {
-				return [][]byte{createFeeForwardTx(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)))}
+				return [][]byte{createProtocolFeeTx(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)))}
 			},
 			expectReject: true,
 		},
 		{
-			name:           "reject fee forward tx with wrong fee amount",
+			name:           "reject protocol fee tx with wrong fee amount",
 			feeAddrBalance: sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)),
 			txs: func() [][]byte {
 				// Fee amount doesn't match balance
-				return [][]byte{createFeeForwardTx(sdk.NewCoin(appconsts.BondDenom, math.NewInt(500000)))}
+				return [][]byte{createProtocolFeeTx(sdk.NewCoin(appconsts.BondDenom, math.NewInt(500000)))}
 			},
 			expectReject: true,
 		},
 		{
-			name:           "reject fee forward tx with wrong gas limit",
+			name:           "reject protocol fee tx with wrong gas limit",
 			feeAddrBalance: sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)),
 			txs: func() [][]byte {
-				wrongGasLimit := uint64(feeaddresstypes.FeeForwardGasLimit * 2) // Intentionally wrong
-				return [][]byte{createFeeForwardTxWrongGas(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)), wrongGasLimit)}
+				wrongGasLimit := uint64(feeaddresstypes.ProtocolFeeGasLimit * 2) // Intentionally wrong
+				return [][]byte{createProtocolFeeTxWrongGas(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)), wrongGasLimit)}
 			},
 			expectReject: true,
 		},
 		{
-			name:           "reject fee forward tx with wrong denom",
+			name:           "reject protocol fee tx with wrong denom",
 			feeAddrBalance: sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)),
 			txs: func() [][]byte {
 				// Wrong denom in fee
-				msg := feeaddresstypes.NewMsgForwardFees()
+				msg := feeaddresstypes.NewMsgPayProtocolFee()
 				txBuilder := ecfg.TxConfig.NewTxBuilder()
 				err := txBuilder.SetMsgs(msg)
 				require.NoError(t, err)
 				txBuilder.SetFeeAmount(sdk.NewCoins(sdk.NewCoin("wrongdenom", math.NewInt(1000000))))
-				txBuilder.SetGasLimit(feeaddresstypes.FeeForwardGasLimit)
+				txBuilder.SetGasLimit(feeaddresstypes.ProtocolFeeGasLimit)
 				txBytes, err := ecfg.TxConfig.TxEncoder()(txBuilder.GetTx())
 				require.NoError(t, err)
 				return [][]byte{txBytes}
@@ -196,13 +196,13 @@ func TestProcessProposalFeeForwardValidation(t *testing.T) {
 
 				// Verify PrepareProposal generated correct txs
 				if !tc.feeAddrBalance.IsZero() {
-					require.True(t, len(prepResp.Txs) > 0, "expected fee forward tx when balance exists")
+					require.True(t, len(prepResp.Txs) > 0, "expected protocol fee tx when balance exists")
 					firstTx, err := ecfg.TxConfig.TxDecoder()(prepResp.Txs[0])
 					require.NoError(t, err)
 					msgs := firstTx.GetMsgs()
 					require.Len(t, msgs, 1)
-					_, ok := msgs[0].(*feeaddresstypes.MsgForwardFees)
-					require.True(t, ok, "first tx should be MsgForwardFees")
+					_, ok := msgs[0].(*feeaddresstypes.MsgPayProtocolFee)
+					require.True(t, ok, "first tx should be MsgPayProtocolFee")
 				}
 
 				// Process proposal with PrepareProposal output
@@ -234,24 +234,24 @@ func TestProcessProposalFeeForwardValidation(t *testing.T) {
 	}
 }
 
-// TestPrepareProposalFeeForward tests that PrepareProposal correctly injects fee forward transactions.
-func TestPrepareProposalFeeForward(t *testing.T) {
+// TestPrepareProposalProtocolFee tests that PrepareProposal correctly injects protocol fee transactions.
+func TestPrepareProposalProtocolFee(t *testing.T) {
 	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	testCases := []struct {
-		name               string
-		feeAddrBalance     sdk.Coin
-		expectFeeForwardTx bool
+		name                string
+		feeAddrBalance      sdk.Coin
+		expectProtocolFeeTx bool
 	}{
 		{
-			name:               "inject fee forward tx when balance exists",
-			feeAddrBalance:     sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)),
-			expectFeeForwardTx: true,
+			name:                "inject protocol fee tx when balance exists",
+			feeAddrBalance:      sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)),
+			expectProtocolFeeTx: true,
 		},
 		{
-			name:               "no fee forward tx when no balance",
-			feeAddrBalance:     sdk.NewCoin(appconsts.BondDenom, math.ZeroInt()),
-			expectFeeForwardTx: false,
+			name:                "no protocol fee tx when no balance",
+			feeAddrBalance:      sdk.NewCoin(appconsts.BondDenom, math.ZeroInt()),
+			expectProtocolFeeTx: false,
 		},
 	}
 
@@ -268,16 +268,16 @@ func TestPrepareProposalFeeForward(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 
-			if tc.expectFeeForwardTx {
-				require.True(t, len(resp.Txs) > 0, "expected at least one tx (fee forward)")
+			if tc.expectProtocolFeeTx {
+				require.True(t, len(resp.Txs) > 0, "expected at least one tx (protocol fee)")
 
-				// Verify first tx is fee forward
+				// Verify first tx is protocol fee
 				firstTx, err := ecfg.TxConfig.TxDecoder()(resp.Txs[0])
 				require.NoError(t, err)
 				msgs := firstTx.GetMsgs()
 				require.Len(t, msgs, 1)
-				_, ok := msgs[0].(*feeaddresstypes.MsgForwardFees)
-				require.True(t, ok, "first tx should be MsgForwardFees")
+				_, ok := msgs[0].(*feeaddresstypes.MsgPayProtocolFee)
+				require.True(t, ok, "first tx should be MsgPayProtocolFee")
 
 				// Verify fee amount matches balance
 				feeTx, ok := firstTx.(sdk.FeeTx)
@@ -285,9 +285,9 @@ func TestPrepareProposalFeeForward(t *testing.T) {
 				require.Equal(t, tc.feeAddrBalance, feeTx.GetFee()[0])
 
 				// Verify gas limit (cast to uint64 for comparison)
-				require.Equal(t, uint64(feeaddresstypes.FeeForwardGasLimit), feeTx.GetGas())
+				require.Equal(t, uint64(feeaddresstypes.ProtocolFeeGasLimit), feeTx.GetGas())
 			} else {
-				// Verify no fee forward tx (may have empty txs or non-fee-forward txs)
+				// Verify no protocol fee tx (may have empty txs or non-protocol-fee txs)
 				for _, txBytes := range resp.Txs {
 					tx, err := ecfg.TxConfig.TxDecoder()(txBytes)
 					if err != nil {
@@ -295,8 +295,8 @@ func TestPrepareProposalFeeForward(t *testing.T) {
 					}
 					msgs := tx.GetMsgs()
 					if len(msgs) == 1 {
-						_, ok := msgs[0].(*feeaddresstypes.MsgForwardFees)
-						require.False(t, ok, "should not have fee forward tx when no balance")
+						_, ok := msgs[0].(*feeaddresstypes.MsgPayProtocolFee)
+						require.False(t, ok, "should not have protocol fee tx when no balance")
 					}
 				}
 			}
@@ -304,13 +304,13 @@ func TestPrepareProposalFeeForward(t *testing.T) {
 	}
 }
 
-// TestFeeForwardGasConsumption verifies that actual gas consumption for fee forward
-// transactions stays well below the FeeForwardGasLimit constant.
-func TestFeeForwardGasConsumption(t *testing.T) {
+// TestProtocolFeeGasConsumption verifies that actual gas consumption for protocol fee
+// transactions stays well below the ProtocolFeeGasLimit constant.
+func TestProtocolFeeGasConsumption(t *testing.T) {
 	feeAddrBalance := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000))
 	testApp := createTestAppWithFeeAddressBalance(t, feeAddrBalance)
 
-	// PrepareProposal for block 2 to get the fee forward tx
+	// PrepareProposal for block 2 to get the protocol fee tx
 	blockTime := time.Now()
 	prepareResp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
 		Height: 2,
@@ -318,9 +318,9 @@ func TestFeeForwardGasConsumption(t *testing.T) {
 		Txs:    [][]byte{},
 	})
 	require.NoError(t, err)
-	require.True(t, len(prepareResp.Txs) > 0, "expected fee forward tx")
+	require.True(t, len(prepareResp.Txs) > 0, "expected protocol fee tx")
 
-	// FinalizeBlock to execute the fee forward tx and get gas consumption
+	// FinalizeBlock to execute the protocol fee tx and get gas consumption
 	finalizeResp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Height: 2,
 		Time:   blockTime,
@@ -329,16 +329,16 @@ func TestFeeForwardGasConsumption(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, len(finalizeResp.TxResults) > 0, "expected at least one tx result")
 
-	// The first tx result should be the fee forward tx
-	feeForwardResult := finalizeResp.TxResults[0]
-	require.Equal(t, uint32(0), feeForwardResult.Code, "fee forward tx should succeed")
+	// The first tx result should be the protocol fee tx
+	protocolFeeResult := finalizeResp.TxResults[0]
+	require.Equal(t, uint32(0), protocolFeeResult.Code, "protocol fee tx should succeed")
 
 	// Verify gas consumption is well below the limit (at least 20% margin)
-	gasUsed := feeForwardResult.GasUsed
-	gasLimit := uint64(feeaddresstypes.FeeForwardGasLimit)
+	gasUsed := protocolFeeResult.GasUsed
+	gasLimit := uint64(feeaddresstypes.ProtocolFeeGasLimit)
 	maxExpectedGas := gasLimit * 80 / 100 // 80% of limit
 
-	t.Logf("Fee forward gas consumption: used=%d, limit=%d, max_expected=%d",
+	t.Logf("Protocol fee gas consumption: used=%d, limit=%d, max_expected=%d",
 		gasUsed, gasLimit, maxExpectedGas)
 
 	require.Less(t, uint64(gasUsed), gasLimit,
