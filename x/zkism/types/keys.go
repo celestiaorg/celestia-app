@@ -18,8 +18,9 @@ const (
 	// MaxPaginationLimit is the maximum number of items returned in a paginated query.
 	MaxPaginationLimit = 100
 
-	// MaxPublicValuesBytes is the maximum size permitted for public values payloads (4 KiB = 4096 bytes).
-	MaxPublicValuesBytes = 4096
+	// MaxPublicValuesBytes is the maximum size permitted for public values payloads (32 KiB = 32768 bytes).
+	// For message proofs this limits the number of messages in a single proof to 1021.
+	MaxPublicValuesBytes = 32768
 
 	// MinStateBytes is the minimumm size of the trusted ism state (32 bytes).
 	MinStateBytes = 32
