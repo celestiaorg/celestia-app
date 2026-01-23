@@ -195,7 +195,7 @@ func (s *CelestiaTestSuite) TestUpgradeLatest() {
 	s.ValidatePostUpgrade(ctx, chain, cfg)
 }
 
-// UpgradeChain executes the upgrade to the target app version
+// UpgradeChain executes the upgrade to the target app version.
 func (s *CelestiaTestSuite) UpgradeChain(ctx context.Context, chain tastoratypes.Chain, cfg *dockerchain.Config, appVersion uint64) (upgradeHeight int64) {
 	t := s.T()
 
