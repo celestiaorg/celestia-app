@@ -118,8 +118,8 @@ func (a App) SetMinCommissionRate(ctx context.Context) error {
 }
 
 // UpdateValidatorCommissionRates iterates over all validators and increases
-// their commission rate and max commission rate if they are below the new
-// minimum commission rate.
+// their commission rate to MinCommissionRate (20%) if below, and their max
+// commission rate to MaxCommissionRate (60%) if below.
 func (a App) UpdateValidatorCommissionRates(ctx context.Context) error {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
@@ -130,12 +130,12 @@ func (a App) UpdateValidatorCommissionRates(ctx context.Context) error {
 	}
 
 	for _, validator := range validators {
-		if validator.Commission.Rate.GTE(appconsts.MinCommissionRate) && validator.Commission.MaxRate.GTE(appconsts.MinCommissionRate) {
-			sdkCtx.Logger().Debug("validator commission rate and max commission rate are already greater than or equal to the minimum commission rate", "validator", validator.GetOperator())
+		if validator.Commission.Rate.GTE(appconsts.MinCommissionRate) && validator.Commission.MaxRate.GTE(stakingtypes.MaxCommissionRate) {
+			sdkCtx.Logger().Debug("validator commission rate and max commission rate are already compliant", "validator", validator.GetOperator())
 			continue
 		}
 		rate := getMax(validator.Commission.Rate, appconsts.MinCommissionRate)
-		maxRate := getMax(validator.Commission.MaxRate, appconsts.MinCommissionRate)
+		maxRate := getMax(validator.Commission.MaxRate, stakingtypes.MaxCommissionRate)
 
 		valAddr, err := sdk.ValAddressFromBech32(validator.GetOperator())
 		if err != nil {
