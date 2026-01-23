@@ -411,7 +411,6 @@ func New(
 	)
 
 	app.ForwardingKeeper = forwardingkeeper.NewKeeper(
-		encodingConfig.Codec,
 		app.BankKeeper,
 		forwardingkeeper.NewWarpKeeperAdapter(&app.WarpKeeper),
 		&app.HyperlaneKeeper,

@@ -14,6 +14,8 @@ var (
 	_ sdk.HasValidateBasic = &MsgForward{}
 )
 
+// NewMsgForward creates a new MsgForward message for triggering token forwarding
+// from a derived forwarding address to its committed destination via Hyperlane.
 func NewMsgForward(signer, forwardAddr string, destDomain uint32, destRecipient string, maxIgpFee sdk.Coin) *MsgForward {
 	return &MsgForward{
 		Signer:        signer,
@@ -50,6 +52,7 @@ func (msg *MsgForward) ValidateBasic() error {
 	return nil
 }
 
+// NewSuccessResult creates a ForwardingResult indicating successful token forwarding.
 func NewSuccessResult(denom string, amount math.Int, messageId string) ForwardingResult {
 	return ForwardingResult{
 		Denom:     denom,
@@ -60,6 +63,7 @@ func NewSuccessResult(denom string, amount math.Int, messageId string) Forwardin
 	}
 }
 
+// NewFailureResult creates a ForwardingResult indicating failed token forwarding.
 func NewFailureResult(denom string, amount math.Int, errMsg string) ForwardingResult {
 	return ForwardingResult{
 		Denom:     denom,

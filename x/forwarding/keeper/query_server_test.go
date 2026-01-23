@@ -16,7 +16,7 @@ import (
 // These tests cover nil request handling and basic validation.
 // Full integration tests are in test/interop/forwarding_integration_test.go
 
-func TestQueryDeriveForwardingAddress_NilRequest(t *testing.T) {
+func TestQueryDeriveForwardingAddressNilRequest(t *testing.T) {
 	// Create a minimal keeper (will panic on actual queries but nil checks happen first)
 	k := keeper.Keeper{}
 	queryServer := keeper.NewQueryServerImpl(k)
@@ -27,7 +27,7 @@ func TestQueryDeriveForwardingAddress_NilRequest(t *testing.T) {
 	require.Contains(t, err.Error(), "request cannot be nil")
 }
 
-func TestQueryQuoteForwardingFee_NilRequest(t *testing.T) {
+func TestQueryQuoteForwardingFeeNilRequest(t *testing.T) {
 	k := keeper.Keeper{}
 	queryServer := keeper.NewQueryServerImpl(k)
 
@@ -37,7 +37,7 @@ func TestQueryQuoteForwardingFee_NilRequest(t *testing.T) {
 	require.Contains(t, err.Error(), "request cannot be nil")
 }
 
-func TestQueryDeriveForwardingAddress_InvalidHex(t *testing.T) {
+func TestQueryDeriveForwardingAddressInvalidHex(t *testing.T) {
 	testCases := []struct {
 		name          string
 		destRecipient string

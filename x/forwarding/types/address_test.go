@@ -52,11 +52,6 @@ func TestDeriveForwardingAddress(t *testing.T) {
 			addr2, err := types.DeriveForwardingAddress(tc.destDomain, tc.destRecipient)
 			require.NoError(t, err)
 			require.Equal(t, addr, addr2, "derivation should be deterministic")
-
-			// Log for debugging
-			t.Logf("destDomain: %d", tc.destDomain)
-			t.Logf("destRecipient: %s", hex.EncodeToString(tc.destRecipient))
-			t.Logf("derived address: %s", hex.EncodeToString(addr))
 		})
 	}
 }
@@ -98,28 +93,21 @@ func TestDeriveForwardingAddressIntermediates(t *testing.T) {
 	copy(callDigestPreimage, destDomainBytes)
 	copy(callDigestPreimage[types.DomainEncodingSize:], destRecipient)
 
-	t.Logf("destDomainBytes (32 bytes): %s", hex.EncodeToString(destDomainBytes))
-	t.Logf("callDigestPreimage (64 bytes): %s", hex.EncodeToString(callDigestPreimage))
-
 	// Step 2: Compute call digest (sha256)
 	callDigestArr := sha256.Sum256(callDigestPreimage)
 	callDigest := callDigestArr[:]
-	t.Logf("callDigest (sha256): %s", hex.EncodeToString(callDigest))
 
 	// Step 3: Compute salt preimage with version byte
 	saltPreimage := make([]byte, 1+32)
 	saltPreimage[0] = types.ForwardVersion
 	copy(saltPreimage[1:], callDigest)
-	t.Logf("saltPreimage: %s", hex.EncodeToString(saltPreimage))
 
 	// Step 4: Compute salt (sha256)
 	saltArr := sha256.Sum256(saltPreimage)
 	salt := saltArr[:]
-	t.Logf("salt (sha256): %s", hex.EncodeToString(salt))
 
 	// Step 5: Use SDK's address.Module for the final derivation
 	derivedAddr := address.Module(types.ModuleName, salt)[:types.CosmosAddressLen]
-	t.Logf("derived address (%d bytes): %s", types.CosmosAddressLen, hex.EncodeToString(derivedAddr))
 
 	// Verify this matches the function output
 	addr, err := types.DeriveForwardingAddress(destDomain, destRecipient)

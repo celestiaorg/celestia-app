@@ -16,6 +16,14 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+// Test domain IDs used across forwarding integration tests.
+const (
+	TestCelestiaDomainID uint32 = 69420
+	TestChainADomainID   uint32 = 1337
+	TestChainBDomainID   uint32 = 2222
+	TestUnknownDomainID  uint32 = 99999
+)
+
 type ForwardingIntegrationTestSuite struct {
 	HyperlaneTestSuite
 	chainB *ibctesting.TestChain
@@ -73,56 +81,43 @@ func (s *ForwardingIntegrationTestSuite) processWarpMessage(
 	s.Require().NoError(err)
 }
 
-func (s *ForwardingIntegrationTestSuite) TestFindHypTokenByDenom_TIA() {
-	const (
-		CelestiaDomainID = 69420
-		ChainADomainID   = 1337
-	)
-
+func (s *ForwardingIntegrationTestSuite) TestFindHypTokenByDenomTIA() {
 	celestiaApp := s.GetCelestiaApp(s.celestia)
 	ctx := s.celestia.GetContext()
 
 	// Set up hyperlane infrastructure
 	ismID := s.SetupNoopISM(s.celestia)
-	mailboxID := s.SetupMailBox(s.celestia, ismID, CelestiaDomainID)
+	mailboxID := s.SetupMailBox(s.celestia, ismID, TestCelestiaDomainID)
 
 	// Create a collateral token for utia (TIA)
 	collatTokenID := s.CreateCollateralToken(s.celestia, ismID, mailboxID, params.BondDenom)
 
 	// Set up chainA counterparty and enroll router so TIA has a route
 	ismIDChainA := s.SetupNoopISM(s.chainA)
-	s.SetupMailBox(s.chainA, ismIDChainA, ChainADomainID)
+	s.SetupMailBox(s.chainA, ismIDChainA, TestChainADomainID)
 	tiaSynTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxID)
-	s.EnrollRemoteRouter(s.celestia, collatTokenID, ChainADomainID, tiaSynTokenID.String())
+	s.EnrollRemoteRouter(s.celestia, collatTokenID, TestChainADomainID, tiaSynTokenID.String())
 
 	// Test FindHypTokenByDenom for "utia" with destDomain
-	hypToken, err := celestiaApp.ForwardingKeeper.FindHypTokenByDenom(ctx, "utia", ChainADomainID)
+	hypToken, err := celestiaApp.ForwardingKeeper.FindHypTokenByDenom(ctx, "utia", TestChainADomainID)
 	s.Require().NoError(err)
 
 	s.Equal(warptypes.HYP_TOKEN_TYPE_COLLATERAL, hypToken.TokenType)
 	s.Equal(params.BondDenom, hypToken.OriginDenom)
 
-	s.T().Logf("Test 2 PASSED: FindHypTokenByDenom works for TIA collateral")
-	s.T().Logf("Token type: %v", hypToken.TokenType)
-	s.T().Logf("Origin denom: %s", hypToken.OriginDenom)
 }
 
-func (s *ForwardingIntegrationTestSuite) TestFindHypTokenByDenom_Synthetic() {
-	const (
-		CelestiaDomainID = 69420
-		ChainADomainID   = 1337
-	)
-
+func (s *ForwardingIntegrationTestSuite) TestFindHypTokenByDenomSynthetic() {
 	celestiaApp := s.GetCelestiaApp(s.celestia)
 	ctx := s.celestia.GetContext()
 
 	// Set up hyperlane infrastructure on chainA (origin chain)
 	ismIDChainA := s.SetupNoopISM(s.chainA)
-	mailboxIDChainA := s.SetupMailBox(s.chainA, ismIDChainA, ChainADomainID)
+	mailboxIDChainA := s.SetupMailBox(s.chainA, ismIDChainA, TestChainADomainID)
 
 	// Set up celestia
 	ismIDCelestia := s.SetupNoopISM(s.celestia)
-	s.SetupMailBox(s.celestia, ismIDCelestia, CelestiaDomainID)
+	s.SetupMailBox(s.celestia, ismIDCelestia, TestCelestiaDomainID)
 
 	// Create a synthetic token on celestia (representing a token from chainA)
 	synTokenID := s.CreateSyntheticToken(s.celestia, ismIDCelestia, mailboxIDChainA)
@@ -134,47 +129,40 @@ func (s *ForwardingIntegrationTestSuite) TestFindHypTokenByDenom_Synthetic() {
 	syntheticDenom := hypToken.OriginDenom
 	s.T().Logf("Synthetic denom: %s", syntheticDenom)
 
-	// Enroll router so the synthetic has a route to ChainADomainID
-	s.EnrollRemoteRouter(s.celestia, synTokenID, ChainADomainID, "0x0000000000000000000000000000000000000000000000000000000000000001")
+	// Enroll router so the synthetic has a route to TestChainADomainID
+	s.EnrollRemoteRouter(s.celestia, synTokenID, TestChainADomainID, "0x0000000000000000000000000000000000000000000000000000000000000001")
 
 	// Test FindHypTokenByDenom for synthetic denom
-	foundToken, err := celestiaApp.ForwardingKeeper.FindHypTokenByDenom(ctx, syntheticDenom, ChainADomainID)
+	foundToken, err := celestiaApp.ForwardingKeeper.FindHypTokenByDenom(ctx, syntheticDenom, TestChainADomainID)
 	s.Require().NoError(err)
 
 	s.Equal(warptypes.HYP_TOKEN_TYPE_SYNTHETIC, foundToken.TokenType)
 	s.Equal(syntheticDenom, foundToken.OriginDenom)
 
-	s.T().Logf("Test 3 PASSED: FindHypTokenByDenom works for synthetic tokens")
-	s.T().Logf("Token type: %v", foundToken.TokenType)
 }
 
 func (s *ForwardingIntegrationTestSuite) TestHasEnrolledRouter() {
-	const (
-		CelestiaDomainID uint32 = 69420
-		ChainADomainID   uint32 = 1337
-	)
-
 	celestiaApp := s.GetCelestiaApp(s.celestia)
 	ctx := s.celestia.GetContext()
 
 	// Set up hyperlane infrastructure
 	ismID := s.SetupNoopISM(s.celestia)
-	mailboxID := s.SetupMailBox(s.celestia, ismID, CelestiaDomainID)
+	mailboxID := s.SetupMailBox(s.celestia, ismID, TestCelestiaDomainID)
 	collatTokenID := s.CreateCollateralToken(s.celestia, ismID, mailboxID, params.BondDenom)
 
 	// Before enrollment - should return false
-	hasRouteBefore, err := celestiaApp.ForwardingKeeper.HasEnrolledRouter(ctx, collatTokenID, ChainADomainID)
+	hasRouteBefore, err := celestiaApp.ForwardingKeeper.HasEnrolledRouter(ctx, collatTokenID, TestChainADomainID)
 	s.Require().NoError(err)
 	s.False(hasRouteBefore, "should NOT have enrolled router before enrollment")
 
 	// Set up chainA and enroll router
 	ismIDChainA := s.SetupNoopISM(s.chainA)
-	s.SetupMailBox(s.chainA, ismIDChainA, ChainADomainID)
+	s.SetupMailBox(s.chainA, ismIDChainA, TestChainADomainID)
 	synTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxID)
-	s.EnrollRemoteRouter(s.celestia, collatTokenID, ChainADomainID, synTokenID.String())
+	s.EnrollRemoteRouter(s.celestia, collatTokenID, TestChainADomainID, synTokenID.String())
 
 	// After enrollment - should return true
-	hasRouteAfter, err := celestiaApp.ForwardingKeeper.HasEnrolledRouter(ctx, collatTokenID, ChainADomainID)
+	hasRouteAfter, err := celestiaApp.ForwardingKeeper.HasEnrolledRouter(ctx, collatTokenID, TestChainADomainID)
 	s.Require().NoError(err)
 	s.True(hasRouteAfter, "should have enrolled router after enrollment")
 
@@ -183,82 +171,66 @@ func (s *ForwardingIntegrationTestSuite) TestHasEnrolledRouter() {
 	s.Require().NoError(err)
 	s.False(hasNonExistent, "should NOT have router for non-existent domain")
 
-	s.T().Logf("Test 4 PASSED: HasEnrolledRouter pre-check works correctly")
-	s.T().Logf("Before enrollment: %v", hasRouteBefore)
-	s.T().Logf("After enrollment: %v", hasRouteAfter)
-	s.T().Logf("Non-existent domain: %v", hasNonExistent)
 }
 
 func (s *ForwardingIntegrationTestSuite) TestHasAnyRouteToDestination() {
-	const (
-		CelestiaDomainID uint32 = 69420
-		ChainADomainID   uint32 = 1337
-		UnknownDomainID  uint32 = 99999
-	)
-
 	celestiaApp := s.GetCelestiaApp(s.celestia)
 	ctx := s.celestia.GetContext()
 
 	// Test 1: No routes exist yet
-	hasRoute, err := celestiaApp.ForwardingKeeper.HasAnyRouteToDestination(ctx, ChainADomainID)
+	hasRoute, err := celestiaApp.ForwardingKeeper.HasAnyRouteToDestination(ctx, TestChainADomainID)
 	s.Require().NoError(err)
 	s.False(hasRoute, "should return false when no routes exist")
 
 	// Setup infrastructure
 	ismID := s.SetupNoopISM(s.celestia)
-	mailboxID := s.SetupMailBox(s.celestia, ismID, CelestiaDomainID)
+	mailboxID := s.SetupMailBox(s.celestia, ismID, TestCelestiaDomainID)
 	collatTokenID := s.CreateCollateralToken(s.celestia, ismID, mailboxID, params.BondDenom)
 
 	// Test 2: Token exists but no route enrolled
-	hasRoute, err = celestiaApp.ForwardingKeeper.HasAnyRouteToDestination(ctx, ChainADomainID)
+	hasRoute, err = celestiaApp.ForwardingKeeper.HasAnyRouteToDestination(ctx, TestChainADomainID)
 	s.Require().NoError(err)
 	s.False(hasRoute, "should return false when token exists but no route enrolled")
 
 	// Enroll route for collateral token
 	ismIDChainA := s.SetupNoopISM(s.chainA)
-	s.SetupMailBox(s.chainA, ismIDChainA, ChainADomainID)
+	s.SetupMailBox(s.chainA, ismIDChainA, TestChainADomainID)
 	synTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxID)
-	s.EnrollRemoteRouter(s.celestia, collatTokenID, ChainADomainID, synTokenID.String())
+	s.EnrollRemoteRouter(s.celestia, collatTokenID, TestChainADomainID, synTokenID.String())
 
 	// Test 3: Collateral token has route - returns true
-	hasRoute, err = celestiaApp.ForwardingKeeper.HasAnyRouteToDestination(ctx, ChainADomainID)
+	hasRoute, err = celestiaApp.ForwardingKeeper.HasAnyRouteToDestination(ctx, TestChainADomainID)
 	s.Require().NoError(err)
 	s.True(hasRoute, "should return true when collateral token has route")
 
 	// Test 4: Non-existent domain - returns false
-	hasRoute, err = celestiaApp.ForwardingKeeper.HasAnyRouteToDestination(ctx, UnknownDomainID)
+	hasRoute, err = celestiaApp.ForwardingKeeper.HasAnyRouteToDestination(ctx, TestUnknownDomainID)
 	s.Require().NoError(err)
 	s.False(hasRoute, "should return false for non-existent domain")
 
-	s.T().Logf("Test PASSED: HasAnyRouteToDestination works correctly")
 }
 
-func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullFlow() {
-	const (
-		CelestiaDomainID uint32 = 69420
-		ChainADomainID   uint32 = 1337
-	)
-
+func (s *ForwardingIntegrationTestSuite) TestMsgForwardFullFlow() {
 	celestiaApp := s.GetCelestiaApp(s.celestia)
 	ctx := s.celestia.GetContext()
 
 	// Set up hyperlane infrastructure
 	ismIDCelestia := s.SetupNoopISM(s.celestia)
-	mailboxIDCelestia := s.SetupMailBox(s.celestia, ismIDCelestia, CelestiaDomainID)
+	mailboxIDCelestia := s.SetupMailBox(s.celestia, ismIDCelestia, TestCelestiaDomainID)
 	collatTokenID := s.CreateCollateralToken(s.celestia, ismIDCelestia, mailboxIDCelestia, params.BondDenom)
 
 	// Set up chainA counterparty
 	ismIDChainA := s.SetupNoopISM(s.chainA)
-	mailboxIDChainA := s.SetupMailBox(s.chainA, ismIDChainA, ChainADomainID)
+	mailboxIDChainA := s.SetupMailBox(s.chainA, ismIDChainA, TestChainADomainID)
 	synTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxIDCelestia)
 
 	// Enroll routers
-	s.EnrollRemoteRouter(s.celestia, collatTokenID, ChainADomainID, synTokenID.String())
-	s.EnrollRemoteRouter(s.chainA, synTokenID, CelestiaDomainID, collatTokenID.String())
+	s.EnrollRemoteRouter(s.celestia, collatTokenID, TestChainADomainID, synTokenID.String())
+	s.EnrollRemoteRouter(s.chainA, synTokenID, TestCelestiaDomainID, collatTokenID.String())
 
 	// Create destination recipient and derive forwarding address
 	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
-	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(ChainADomainID, destRecipient)
+	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(TestChainADomainID, destRecipient)
 	s.Require().NoError(err)
 
 	// Fund the forwarding address
@@ -273,7 +245,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullFlow() {
 	msg := forwardingtypes.NewMsgForward(
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
-		ChainADomainID,
+		TestChainADomainID,
 		RecipientToHex(destRecipient).String(),
 		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
@@ -308,7 +280,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullFlow() {
 	}
 }
 
-func (s *ForwardingIntegrationTestSuite) TestMsgForward_AddressMismatch() {
+func (s *ForwardingIntegrationTestSuite) TestMsgForwardAddressMismatch() {
 	randomAddr := sdk.AccAddress([]byte("random_address______"))
 	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
 
@@ -325,7 +297,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_AddressMismatch() {
 	s.Contains(err.Error(), "derived address does not match")
 }
 
-func (s *ForwardingIntegrationTestSuite) TestMsgForward_NoBalance() {
+func (s *ForwardingIntegrationTestSuite) TestMsgForwardNoBalance() {
 	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
 	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(1337, destRecipient)
 	s.Require().NoError(err)
@@ -343,22 +315,17 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_NoBalance() {
 	s.Contains(err.Error(), "no balance")
 }
 
-func (s *ForwardingIntegrationTestSuite) TestMsgForward_MultiToken() {
-	const (
-		CelestiaDomainID uint32 = 69420
-		ChainADomainID   uint32 = 1337
-	)
-
+func (s *ForwardingIntegrationTestSuite) TestMsgForwardMultiToken() {
 	celestiaApp := s.GetCelestiaApp(s.celestia)
 
 	// Set up hyperlane infrastructure on Celestia
 	ismIDCelestia := s.SetupNoopISM(s.celestia)
-	mailboxIDCelestia := s.SetupMailBox(s.celestia, ismIDCelestia, CelestiaDomainID)
+	mailboxIDCelestia := s.SetupMailBox(s.celestia, ismIDCelestia, TestCelestiaDomainID)
 	tiaCollatTokenID := s.CreateCollateralToken(s.celestia, ismIDCelestia, mailboxIDCelestia, params.BondDenom)
 
 	// Set up chainA counterparty
 	ismIDChainA := s.SetupNoopISM(s.chainA)
-	mailboxIDChainA := s.SetupMailBox(s.chainA, ismIDChainA, ChainADomainID)
+	mailboxIDChainA := s.SetupMailBox(s.chainA, ismIDChainA, TestChainADomainID)
 	tiaSynTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxIDCelestia)
 
 	// Create second token pair: chainA collateral -> Celestia synthetic
@@ -366,14 +333,14 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_MultiToken() {
 	celestiaSynTokenID := s.CreateSyntheticToken(s.celestia, ismIDCelestia, mailboxIDChainA)
 
 	// Enroll routers for both token pairs
-	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, ChainADomainID, tiaSynTokenID.String())
-	s.EnrollRemoteRouter(s.chainA, tiaSynTokenID, CelestiaDomainID, tiaCollatTokenID.String())
-	s.EnrollRemoteRouter(s.chainA, chainACollatTokenID, CelestiaDomainID, celestiaSynTokenID.String())
-	s.EnrollRemoteRouter(s.celestia, celestiaSynTokenID, ChainADomainID, chainACollatTokenID.String())
+	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, TestChainADomainID, tiaSynTokenID.String())
+	s.EnrollRemoteRouter(s.chainA, tiaSynTokenID, TestCelestiaDomainID, tiaCollatTokenID.String())
+	s.EnrollRemoteRouter(s.chainA, chainACollatTokenID, TestCelestiaDomainID, celestiaSynTokenID.String())
+	s.EnrollRemoteRouter(s.celestia, celestiaSynTokenID, TestChainADomainID, chainACollatTokenID.String())
 
 	// Create destination recipient and derive forwarding address
 	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
-	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(ChainADomainID, destRecipient)
+	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(TestChainADomainID, destRecipient)
 	s.Require().NoError(err)
 
 	// Fund forward address with TIA
@@ -385,7 +352,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_MultiToken() {
 	s.processWarpMessage(s.chainA, s.celestia, mailboxIDCelestia, &warptypes.MsgRemoteTransfer{
 		Sender:            s.chainA.SenderAccount.GetAddress().String(),
 		TokenId:           chainACollatTokenID,
-		DestinationDomain: CelestiaDomainID,
+		DestinationDomain: TestCelestiaDomainID,
 		Recipient:         util.HexAddress(forwardAddrBytes),
 		Amount:            math.NewInt(500),
 	})
@@ -405,7 +372,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_MultiToken() {
 	msg := forwardingtypes.NewMsgForward(
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
-		ChainADomainID,
+		TestChainADomainID,
 		RecipientToHex(destRecipient).String(),
 		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
@@ -424,31 +391,26 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_MultiToken() {
 	s.Equal(2, CountDispatchEvents(res.Events), "should have 2 dispatch events for 2 tokens")
 }
 
-func (s *ForwardingIntegrationTestSuite) TestMsgForward_PartialFailure_UnsupportedToken() {
-	const (
-		CelestiaDomainID uint32 = 69420
-		ChainADomainID   uint32 = 1337
-	)
-
+func (s *ForwardingIntegrationTestSuite) TestMsgForwardPartialFailureUnsupportedToken() {
 	celestiaApp := s.GetCelestiaApp(s.celestia)
 
 	// Set up hyperlane infrastructure
 	ismIDCelestia := s.SetupNoopISM(s.celestia)
-	mailboxIDCelestia := s.SetupMailBox(s.celestia, ismIDCelestia, CelestiaDomainID)
+	mailboxIDCelestia := s.SetupMailBox(s.celestia, ismIDCelestia, TestCelestiaDomainID)
 	tiaCollatTokenID := s.CreateCollateralToken(s.celestia, ismIDCelestia, mailboxIDCelestia, params.BondDenom)
 
 	// Set up chainA counterparty
 	ismIDChainA := s.SetupNoopISM(s.chainA)
-	_ = s.SetupMailBox(s.chainA, ismIDChainA, ChainADomainID)
+	_ = s.SetupMailBox(s.chainA, ismIDChainA, TestChainADomainID)
 	tiaSynTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxIDCelestia)
 
 	// Enroll routers for TIA only
-	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, ChainADomainID, tiaSynTokenID.String())
-	s.EnrollRemoteRouter(s.chainA, tiaSynTokenID, CelestiaDomainID, tiaCollatTokenID.String())
+	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, TestChainADomainID, tiaSynTokenID.String())
+	s.EnrollRemoteRouter(s.chainA, tiaSynTokenID, TestCelestiaDomainID, tiaCollatTokenID.String())
 
 	// Create destination and derive forwarding address
 	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
-	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(ChainADomainID, destRecipient)
+	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(TestChainADomainID, destRecipient)
 	s.Require().NoError(err)
 
 	// Fund with TIA (supported) and an unsupported IBC denom
@@ -463,7 +425,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_PartialFailure_Unsupport
 	msg := forwardingtypes.NewMsgForward(
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
-		ChainADomainID,
+		TestChainADomainID,
 		RecipientToHex(destRecipient).String(),
 		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
@@ -480,39 +442,36 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_PartialFailure_Unsupport
 	s.Equal(unsupportedAmount.Int64(), newUnsupportedBalance.Amount.Int64(), "unsupported token should remain at forwardAddr")
 }
 
-func (s *ForwardingIntegrationTestSuite) TestMsgForward_PartialFailure_NoRoute() {
-	const (
-		CelestiaDomainID uint32 = 69420
-		ChainADomainID   uint32 = 1337
-		OtherDomainID    uint32 = 9999
-	)
+func (s *ForwardingIntegrationTestSuite) TestMsgForwardPartialFailureNoRoute() {
+	// OtherDomainID is distinct from TestChainADomainID and TestChainBDomainID
+	const OtherDomainID uint32 = 9999
 
 	celestiaApp := s.GetCelestiaApp(s.celestia)
 
 	// Set up hyperlane infrastructure on Celestia
 	ismIDCelestia := s.SetupNoopISM(s.celestia)
-	mailboxIDCelestia := s.SetupMailBox(s.celestia, ismIDCelestia, CelestiaDomainID)
+	mailboxIDCelestia := s.SetupMailBox(s.celestia, ismIDCelestia, TestCelestiaDomainID)
 	tiaCollatTokenID := s.CreateCollateralToken(s.celestia, ismIDCelestia, mailboxIDCelestia, params.BondDenom)
 
-	// Create test token with route to OtherDomainID (NOT ChainADomainID)
+	// Create test token with route to OtherDomainID (NOT TestChainADomainID)
 	testDenom := "uother"
 	testCollatTokenID := s.CreateCollateralToken(s.celestia, ismIDCelestia, mailboxIDCelestia, testDenom)
 
 	// Set up chainA counterparty for TIA
 	ismIDChainA := s.SetupNoopISM(s.chainA)
-	_ = s.SetupMailBox(s.chainA, ismIDChainA, ChainADomainID)
+	_ = s.SetupMailBox(s.chainA, ismIDChainA, TestChainADomainID)
 	tiaSynTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxIDCelestia)
 
 	// Enroll TIA route to chainA
-	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, ChainADomainID, tiaSynTokenID.String())
-	s.EnrollRemoteRouter(s.chainA, tiaSynTokenID, CelestiaDomainID, tiaCollatTokenID.String())
+	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, TestChainADomainID, tiaSynTokenID.String())
+	s.EnrollRemoteRouter(s.chainA, tiaSynTokenID, TestCelestiaDomainID, tiaCollatTokenID.String())
 
 	// Enroll test token route to OTHER domain only (NOT chainA)
 	s.EnrollRemoteRouter(s.celestia, testCollatTokenID, OtherDomainID, "0x0000000000000000000000000000000000000000000000000000000000000001")
 
-	// Derive forwarding address FOR ChainADomainID
+	// Derive forwarding address FOR TestChainADomainID
 	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
-	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(ChainADomainID, destRecipient)
+	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(TestChainADomainID, destRecipient)
 	s.Require().NoError(err)
 
 	// Fund with both tokens
@@ -525,7 +484,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_PartialFailure_NoRoute()
 	msg := forwardingtypes.NewMsgForward(
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
-		ChainADomainID,
+		TestChainADomainID,
 		RecipientToHex(destRecipient).String(),
 		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)
@@ -534,7 +493,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_PartialFailure_NoRoute()
 	s.Require().NoError(err, "transaction should succeed with partial failure")
 	s.Require().NotNil(res)
 
-	// Verify: TIA forwarded, test token remains (no route to ChainADomainID)
+	// Verify: TIA forwarded, test token remains (no route to TestChainADomainID)
 	newTiaBalance := celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), forwardAddr, params.BondDenom)
 	newTestBalance := celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), forwardAddr, testDenom)
 
@@ -542,7 +501,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_PartialFailure_NoRoute()
 	s.Equal(testAmount.Int64(), newTestBalance.Amount.Int64(), "test token should remain (no route to chainA)")
 }
 
-func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullE2E_SourceCollateralToken() {
+func (s *ForwardingIntegrationTestSuite) TestMsgForwardFullE2ESourceCollateralToken() {
 	const (
 		ChainADomainID   uint32 = 1111
 		CelestiaDomainID uint32 = 69420
@@ -630,7 +589,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullE2E_SourceCollateral
 	s.Equal(int64(1000), finalBalance.Amount.Int64(), "tokens should arrive at final destination on chainB")
 }
 
-func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullE2E_TIASyntheticOnSource() {
+func (s *ForwardingIntegrationTestSuite) TestMsgForwardFullE2ETIASyntheticOnSource() {
 	const (
 		ChainADomainID   uint32 = 1111
 		CelestiaDomainID uint32 = 69420
@@ -729,7 +688,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullE2E_TIASyntheticOnSo
 	s.Equal(int64(1000), finalBalance.Amount.Int64(), "synthetic TIA should arrive at final destination")
 }
 
-func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullE2E_CEXWithdrawal() {
+func (s *ForwardingIntegrationTestSuite) TestMsgForwardFullE2ECEXWithdrawal() {
 	const (
 		CelestiaDomainID uint32 = 69420
 		ChainBDomainID   uint32 = 2222
@@ -800,31 +759,26 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_FullE2E_CEXWithdrawal() 
 	s.Equal(cexWithdrawalAmount.Int64(), finalBalance.Amount.Int64(), "synthetic TIA should arrive at final destination")
 }
 
-func (s *ForwardingIntegrationTestSuite) TestMsgForward_TooManyTokens() {
-	const (
-		CelestiaDomainID uint32 = 69420
-		ChainADomainID   uint32 = 1337
-	)
-
+func (s *ForwardingIntegrationTestSuite) TestMsgForwardTooManyTokens() {
 	celestiaApp := s.GetCelestiaApp(s.celestia)
 	ctx := s.celestia.GetContext()
 
 	// Setup hyperlane infrastructure
 	ismIDCelestia := s.SetupNoopISM(s.celestia)
-	mailboxIDCelestia := s.SetupMailBox(s.celestia, ismIDCelestia, CelestiaDomainID)
+	mailboxIDCelestia := s.SetupMailBox(s.celestia, ismIDCelestia, TestCelestiaDomainID)
 	tiaCollatTokenID := s.CreateCollateralToken(s.celestia, ismIDCelestia, mailboxIDCelestia, params.BondDenom)
 
 	ismIDChainA := s.SetupNoopISM(s.chainA)
-	_ = s.SetupMailBox(s.chainA, ismIDChainA, ChainADomainID)
+	_ = s.SetupMailBox(s.chainA, ismIDChainA, TestChainADomainID)
 	tiaSynTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxIDCelestia)
 
 	// Enroll routers for TIA
-	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, ChainADomainID, tiaSynTokenID.String())
-	s.EnrollRemoteRouter(s.chainA, tiaSynTokenID, CelestiaDomainID, tiaCollatTokenID.String())
+	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, TestChainADomainID, tiaSynTokenID.String())
+	s.EnrollRemoteRouter(s.chainA, tiaSynTokenID, TestCelestiaDomainID, tiaCollatTokenID.String())
 
 	// Derive forwarding address
 	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
-	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(ChainADomainID, destRecipient)
+	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(TestChainADomainID, destRecipient)
 	s.Require().NoError(err)
 
 	// Fund with utia (has route) - will be first in sort order since "utia" < "ztoken"
@@ -852,7 +806,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForward_TooManyTokens() {
 	forwardMsg := forwardingtypes.NewMsgForward(
 		s.celestia.SenderAccount.GetAddress().String(),
 		sdk.AccAddress(forwardAddr).String(),
-		ChainADomainID,
+		TestChainADomainID,
 		RecipientToHex(destRecipient).String(),
 		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
 	)

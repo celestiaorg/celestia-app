@@ -12,20 +12,17 @@ import (
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
-	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // Keeper manages forwarding module state and coordinates with Hyperlane warp for cross-chain transfers.
 type Keeper struct {
-	cdc             codec.BinaryCodec
 	bankKeeper      types.BankKeeper
 	warpKeeper      types.WarpKeeper
 	hyperlaneKeeper types.HyperlaneKeeper
 }
 
 func NewKeeper(
-	cdc codec.BinaryCodec,
 	bankKeeper types.BankKeeper,
 	warpKeeper types.WarpKeeper,
 	hyperlaneKeeper types.HyperlaneKeeper,
@@ -41,7 +38,6 @@ func NewKeeper(
 	}
 
 	return Keeper{
-		cdc:             cdc,
 		bankKeeper:      bankKeeper,
 		warpKeeper:      warpKeeper,
 		hyperlaneKeeper: hyperlaneKeeper,
@@ -62,33 +58,47 @@ func (k Keeper) FindHypTokenByDenom(ctx context.Context, denom string, destDomai
 	}
 }
 
-// findTIACollateralTokenForDomain finds the TIA collateral token with a route to the destination domain.
-// It iterates all warp tokens to find one with OriginDenom=appconsts.BondDenom, TokenType=COLLATERAL,
-// and an enrolled router for the destination domain.
+// findTokenWithRoute iterates warp tokens and returns the first one matching
+// the filter that has an enrolled router for destDomain.
 //
 // Note: This is O(n) where n = number of warp tokens. Optimization would require an index
 // in the warp keeper mapping (denom, destDomain) -> tokenId, which is outside this module's scope.
-func (k Keeper) findTIACollateralTokenForDomain(ctx context.Context, destDomain uint32) (warptypes.HypToken, error) {
+func (k Keeper) findTokenWithRoute(ctx context.Context, destDomain uint32, filter func(warptypes.HypToken) bool) (warptypes.HypToken, bool, error) {
 	tokens, err := k.warpKeeper.GetAllHypTokens(ctx)
 	if err != nil {
-		return warptypes.HypToken{}, fmt.Errorf("failed to get warp tokens: %w", err)
+		return warptypes.HypToken{}, false, fmt.Errorf("failed to get warp tokens: %w", err)
 	}
 
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	for _, token := range tokens {
-		// Find TIA collateral token with route to destination
-		if token.OriginDenom == appconsts.BondDenom && token.TokenType == warptypes.HYP_TOKEN_TYPE_COLLATERAL {
-			hasRoute, routeErr := k.HasEnrolledRouter(ctx, token.Id, destDomain)
-			if routeErr != nil {
-				sdkCtx.Logger().Warn("failed to check enrolled router", "tokenId", token.Id.String(), "destDomain", destDomain, "error", routeErr)
-				continue
-			}
-			if hasRoute {
-				return token, nil
-			}
+		if filter != nil && !filter(token) {
+			continue
+		}
+		hasRoute, routeErr := k.HasEnrolledRouter(ctx, token.Id, destDomain)
+		if routeErr != nil {
+			sdkCtx.Logger().Warn("failed to check enrolled router", "tokenId", token.Id.String(), "destDomain", destDomain, "error", routeErr)
+			continue
+		}
+		if hasRoute {
+			return token, true, nil
 		}
 	}
-	return warptypes.HypToken{}, fmt.Errorf("%w: no TIA collateral route to domain %d", types.ErrNoWarpRoute, destDomain)
+	return warptypes.HypToken{}, false, nil
+}
+
+// findTIACollateralTokenForDomain finds the TIA collateral token with a route to the destination domain.
+func (k Keeper) findTIACollateralTokenForDomain(ctx context.Context, destDomain uint32) (warptypes.HypToken, error) {
+	filter := func(token warptypes.HypToken) bool {
+		return token.OriginDenom == appconsts.BondDenom && token.TokenType == warptypes.HYP_TOKEN_TYPE_COLLATERAL
+	}
+	token, found, err := k.findTokenWithRoute(ctx, destDomain, filter)
+	if err != nil {
+		return warptypes.HypToken{}, err
+	}
+	if !found {
+		return warptypes.HypToken{}, fmt.Errorf("%w: no TIA collateral route to domain %d", types.ErrNoWarpRoute, destDomain)
+	}
+	return token, nil
 }
 
 func (k Keeper) getTokenById(ctx context.Context, tokenIdHex string) (warptypes.HypToken, error) {
@@ -116,23 +126,8 @@ func (k Keeper) GetEnrolledRouter(ctx context.Context, tokenId util.HexAddress, 
 // for the destination domain. This validates that forwarding is possible before
 // deriving an address, regardless of which token type will be forwarded.
 func (k Keeper) HasAnyRouteToDestination(ctx context.Context, destDomain uint32) (bool, error) {
-	tokens, err := k.warpKeeper.GetAllHypTokens(ctx)
-	if err != nil {
-		return false, fmt.Errorf("failed to get warp tokens: %w", err)
-	}
-
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	for _, token := range tokens {
-		hasRoute, routeErr := k.HasEnrolledRouter(ctx, token.Id, destDomain)
-		if routeErr != nil {
-			sdkCtx.Logger().Warn("failed to check enrolled router", "tokenId", token.Id.String(), "destDomain", destDomain, "error", routeErr)
-			continue
-		}
-		if hasRoute {
-			return true, nil
-		}
-	}
-	return false, nil
+	_, found, err := k.findTokenWithRoute(ctx, destDomain, nil)
+	return found, err
 }
 
 // ExecuteWarpTransfer executes a Hyperlane warp transfer using the pre-computed IGP fee.
