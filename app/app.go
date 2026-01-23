@@ -413,7 +413,7 @@ func New(
 	app.ForwardingKeeper = forwardingkeeper.NewKeeper(
 		encodingConfig.Codec,
 		app.BankKeeper,
-		&app.WarpKeeper,
+		forwardingkeeper.NewWarpKeeperAdapter(&app.WarpKeeper),
 		&app.HyperlaneKeeper,
 	)
 

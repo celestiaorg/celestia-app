@@ -22,10 +22,8 @@ type BankKeeper interface {
 }
 
 // WarpKeeper defines the expected warp keeper interface.
-//
-// NOTE: The forwarding keeper uses the concrete *warpkeeper.Keeper type because
-// the hyperlane-cosmos warp keeper exposes state via public collections.Map fields
-// (HypTokens, EnrolledRouters) which cannot be expressed in a Go interface.
+// This interface wraps the hyperlane-cosmos warp keeper, providing method-based
+// access to state that the underlying keeper exposes via collections.Map fields.
 type WarpKeeper interface {
 	// RemoteTransferSynthetic initiates a cross-chain transfer for synthetic tokens
 	RemoteTransferSynthetic(
@@ -54,4 +52,16 @@ type WarpKeeper interface {
 		maxFee sdk.Coin,
 		customHookMetadata []byte,
 	) (util.HexAddress, error)
+
+	// GetHypToken retrieves a HypToken by its internal ID
+	GetHypToken(ctx context.Context, id uint64) (warptypes.HypToken, error)
+
+	// GetAllHypTokens returns all registered HypTokens
+	GetAllHypTokens(ctx context.Context) ([]warptypes.HypToken, error)
+
+	// HasEnrolledRouter checks if a token has an enrolled router for a destination domain
+	HasEnrolledRouter(ctx context.Context, tokenId uint64, domain uint32) (bool, error)
+
+	// GetEnrolledRouter retrieves the enrolled router for a token and destination domain
+	GetEnrolledRouter(ctx context.Context, tokenId uint64, domain uint32) (warptypes.RemoteRouter, error)
 }

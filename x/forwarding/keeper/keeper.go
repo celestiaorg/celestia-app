@@ -7,10 +7,8 @@ import (
 	"fmt"
 	"strings"
 
-	"cosmossdk.io/collections"
 	"cosmossdk.io/math"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
-	warpkeeper "github.com/bcp-innovations/hyperlane-cosmos/x/warp/keeper"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
@@ -22,14 +20,14 @@ import (
 type Keeper struct {
 	cdc             codec.BinaryCodec
 	bankKeeper      types.BankKeeper
-	warpKeeper      *warpkeeper.Keeper
+	warpKeeper      types.WarpKeeper
 	hyperlaneKeeper types.HyperlaneKeeper
 }
 
 func NewKeeper(
 	cdc codec.BinaryCodec,
 	bankKeeper types.BankKeeper,
-	warpKeeper *warpkeeper.Keeper,
+	warpKeeper types.WarpKeeper,
 	hyperlaneKeeper types.HyperlaneKeeper,
 ) Keeper {
 	if bankKeeper == nil {
@@ -71,19 +69,13 @@ func (k Keeper) FindHypTokenByDenom(ctx context.Context, denom string, destDomai
 // Note: This is O(n) where n = number of warp tokens. Optimization would require an index
 // in the warp keeper mapping (denom, destDomain) -> tokenId, which is outside this module's scope.
 func (k Keeper) findTIACollateralTokenForDomain(ctx context.Context, destDomain uint32) (warptypes.HypToken, error) {
-	iter, err := k.warpKeeper.HypTokens.Iterate(ctx, nil)
+	tokens, err := k.warpKeeper.GetAllHypTokens(ctx)
 	if err != nil {
-		return warptypes.HypToken{}, fmt.Errorf("failed to iterate warp tokens: %w", err)
+		return warptypes.HypToken{}, fmt.Errorf("failed to get warp tokens: %w", err)
 	}
-	defer iter.Close()
 
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	for ; iter.Valid(); iter.Next() {
-		token, err := iter.Value()
-		if err != nil {
-			sdkCtx.Logger().Warn("failed to read warp token during TIA collateral search", "error", err)
-			continue
-		}
+	for _, token := range tokens {
 		// Find TIA collateral token with route to destination
 		if token.OriginDenom == appconsts.BondDenom && token.TokenType == warptypes.HYP_TOKEN_TYPE_COLLATERAL {
 			hasRoute, routeErr := k.HasEnrolledRouter(ctx, token.Id, destDomain)
@@ -104,7 +96,7 @@ func (k Keeper) getTokenById(ctx context.Context, tokenIdHex string) (warptypes.
 	if err != nil {
 		return warptypes.HypToken{}, fmt.Errorf("%w: invalid token ID %q", types.ErrUnsupportedToken, tokenIdHex)
 	}
-	token, err := k.warpKeeper.HypTokens.Get(ctx, tokenId.GetInternalId())
+	token, err := k.warpKeeper.GetHypToken(ctx, tokenId.GetInternalId())
 	if err != nil {
 		return warptypes.HypToken{}, fmt.Errorf("token %s not found: %w", tokenIdHex, err)
 	}
@@ -112,31 +104,25 @@ func (k Keeper) getTokenById(ctx context.Context, tokenIdHex string) (warptypes.
 }
 
 func (k Keeper) HasEnrolledRouter(ctx context.Context, tokenId util.HexAddress, destDomain uint32) (bool, error) {
-	return k.warpKeeper.EnrolledRouters.Has(ctx, collections.Join(tokenId.GetInternalId(), destDomain))
+	return k.warpKeeper.HasEnrolledRouter(ctx, tokenId.GetInternalId(), destDomain)
 }
 
 // GetEnrolledRouter returns the RemoteRouter for a token and destination domain.
 func (k Keeper) GetEnrolledRouter(ctx context.Context, tokenId util.HexAddress, destDomain uint32) (warptypes.RemoteRouter, error) {
-	return k.warpKeeper.EnrolledRouters.Get(ctx, collections.Join(tokenId.GetInternalId(), destDomain))
+	return k.warpKeeper.GetEnrolledRouter(ctx, tokenId.GetInternalId(), destDomain)
 }
 
 // HasAnyRouteToDestination returns true if any warp token has an enrolled router
 // for the destination domain. This validates that forwarding is possible before
 // deriving an address, regardless of which token type will be forwarded.
 func (k Keeper) HasAnyRouteToDestination(ctx context.Context, destDomain uint32) (bool, error) {
-	iter, err := k.warpKeeper.HypTokens.Iterate(ctx, nil)
+	tokens, err := k.warpKeeper.GetAllHypTokens(ctx)
 	if err != nil {
-		return false, fmt.Errorf("failed to iterate warp tokens: %w", err)
+		return false, fmt.Errorf("failed to get warp tokens: %w", err)
 	}
-	defer iter.Close()
 
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	for ; iter.Valid(); iter.Next() {
-		token, err := iter.Value()
-		if err != nil {
-			sdkCtx.Logger().Warn("failed to read warp token during route check", "error", err)
-			continue
-		}
+	for _, token := range tokens {
 		hasRoute, routeErr := k.HasEnrolledRouter(ctx, token.Id, destDomain)
 		if routeErr != nil {
 			sdkCtx.Logger().Warn("failed to check enrolled router", "tokenId", token.Id.String(), "destDomain", destDomain, "error", routeErr)
