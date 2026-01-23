@@ -79,7 +79,7 @@ func (s *CelestiaTestSuite) TestStateSyncWithAppUpgrade() {
 	t.Logf("Snapshot created at height %d (app version %d)", snapshotHeight, baseAppVersion)
 
 	t.Log("Phase 3: Performing upgrade")
-	upgradeHeight := s.performUpgrade(ctx, chain, cfg, targetAppVersion)
+	upgradeHeight := s.UpgradeChain(ctx, chain, cfg, targetAppVersion)
 
 	finalHeight, err := s.GetLatestBlockHeight(ctx, rpcClient)
 	s.Require().NoError(err, "failed to get final height")
@@ -167,40 +167,6 @@ func (s *CelestiaTestSuite) TestStateSyncWithAppUpgrade() {
 	t.Log("Performing final liveness check")
 	s.Require().NoError(s.CheckLiveness(ctx, chain), "liveness check failed")
 	t.Log("Liveness check passed")
-}
-
-// performUpgrade executes the upgrade to the target app version
-func (s *CelestiaTestSuite) performUpgrade(ctx context.Context, chain tastoratypes.Chain, cfg *dockerchain.Config, appVersion uint64) (upgradeHeight int64) {
-	t := s.T()
-
-	validatorNode := chain.GetNodes()[0]
-	kr := cfg.Genesis.Keyring()
-	records, err := kr.List()
-	s.Require().NoError(err, "failed to list keyring records")
-	s.Require().Len(records, len(chain.GetNodes()), "number of accounts should match number of nodes")
-
-	upgradeHeight = s.signalAndGetUpgradeHeight(ctx, chain, validatorNode, cfg, records, appVersion)
-
-	rpcClient, err := validatorNode.GetRPCClient()
-	s.Require().NoError(err, "failed to get RPC client")
-
-	currentHeight, err := s.GetLatestBlockHeight(ctx, rpcClient)
-	s.Require().NoError(err, "failed to get current height")
-
-	blocksToWait := int(upgradeHeight-currentHeight) + 2
-	t.Logf("Waiting for %d blocks to reach upgrade height %d", blocksToWait, upgradeHeight)
-	s.Require().NoError(wait.ForBlocks(ctx, blocksToWait, chain), "failed to wait for upgrade completion")
-
-	// Verify upgrade completed successfully
-	abciInfo, err := rpcClient.ABCIInfo(ctx)
-	s.Require().NoError(err, "failed to fetch ABCI info")
-	s.Require().Equal(appVersion, abciInfo.Response.GetAppVersion(), "should be at app version %v", appVersion)
-
-	// Produce additional blocks at the target app version (TxSim is still running)
-	t.Logf("Producing 20 more blocks at app version %v", appVersion)
-	s.Require().NoError(wait.ForBlocks(ctx, 20, chain), "failed to wait for post-upgrade blocks")
-
-	return upgradeHeight
 }
 
 // waitForSnapshotCreation waits for a snapshot to be created and returns its height
