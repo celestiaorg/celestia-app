@@ -2,7 +2,7 @@
 
 ## Abstract
 
-The `x/feeaddress` module provides a mechanism to forward utia tokens to the fee collector module, which distributes them to validators as staking rewards. Users can send utia to the well-known fee address, and tokens are automatically forwarded as transaction fees via protocol-injected transactions in the next block.
+The `x/feeaddress` module provides a mechanism to forward utia tokens to the fee collector module, which distributes them to delegators as staking rewards. Users can send utia to the well-known fee address, and tokens are automatically forwarded as transaction fees via protocol-injected transactions in the next block.
 
 ## Fee Address
 
@@ -14,11 +14,11 @@ celestia1feefeefeefeefeefeefeefeefeefeefe8pxlcf
 
 ## How It Works
 
-1. **Sending**: Users or contracts send utia tokens to the fee address via standard bank transfer or IBC transfer
-2. **PrepareProposal**: Block proposers check the fee address balance and inject a `MsgForwardFees` transaction with the fee set to the balance
+1. **Sending**: Users or contracts send utia tokens to the fee address via standard bank transfer, IBC transfer, or Hyperlane transfer
+2. **PrepareProposal**: Block proposers check the fee address balance and inject a `MsgForwardFees` transaction with the tx fee set to the balance from the vanity address
 3. **ProcessProposal**: Validators strictly enforce that blocks forward any non-zero fee address balance
 4. **Ante Handler**: The `FeeForwardTerminatorDecorator` deducts the fee from the fee address and sends it to the fee collector
-5. **Distribution**: The distribution module allocates fee collector funds to validators as staking rewards
+5. **Distribution**: The distribution module allocates fee collector funds to delegators as staking rewards
 
 ## Dashboard Compatibility
 
@@ -72,8 +72,7 @@ grpcurl -plaintext localhost:9090 celestia.feeaddress.v1.Query/FeeAddress
 
 Emitted when tokens are forwarded from the fee address to the fee collector.
 
-| Attribute | Type   | Description                              |
-|-----------|--------|------------------------------------------|
-| from      | string | The fee address (bech32)                 |
-| to        | string | Destination module (always "fee_collector") |
-| amount    | string | Amount forwarded (e.g., "1000000utia")   |
+| Attribute    | Type   | Description                              |
+|--------------|--------|------------------------------------------|
+| from_address | string | The fee address (bech32)                 |
+| amount       | string | Amount forwarded (e.g., "1000000utia")   |

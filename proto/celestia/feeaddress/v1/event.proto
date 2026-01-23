@@ -10,8 +10,6 @@ option go_package = "github.com/celestiaorg/celestia-app/x/feeaddress/types";
 message EventFeeForwarded {
   // from_address is the address from which tokens were forwarded (the fee address)
   string from_address = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
-  // to_module is the destination module account name (always "fee_collector")
-  string to_module = 2;
   // amount is the tokens forwarded in Coins string format (e.g., "1000000utia")
-  string amount = 3 [(cosmos_proto.scalar) = "cosmos.Coins"];
+  string amount = 2 [(cosmos_proto.scalar) = "cosmos.Coins"];
 }
