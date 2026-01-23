@@ -6,16 +6,18 @@ The `x/feeaddress` module provides a mechanism to forward utia tokens to the fee
 
 ## Fee Address
 
-The fee address is a vanity address for easy recognition:
+The fee address is a module account address derived from the module name "feeaddress":
 
 ```text
-celestia1feefeefeefeefeefeefeefeefeefeefe8pxlcf
+celestia18sjk23yldd9dg7j33sk24elwz2f06zt7ahx39y
 ```
+
+The address can also be queried via the `Query/FeeAddress` gRPC endpoint.
 
 ## How It Works
 
 1. **Sending**: Users or contracts send utia tokens to the fee address via standard bank transfer, IBC transfer, or Hyperlane transfer
-2. **PrepareProposal**: Block proposers check the fee address balance and inject a `MsgPayProtocolFee` transaction with the tx fee set to the balance from the vanity address
+2. **PrepareProposal**: Block proposers check the fee address balance and inject a `MsgPayProtocolFee` transaction with the tx fee set to the balance from the fee address
 3. **ProcessProposal**: Validators strictly enforce that blocks forward any non-zero fee address balance
 4. **Ante Handler**: The `ProtocolFeeTerminatorDecorator` deducts the fee from the fee address and sends it to the fee collector
 5. **Distribution**: The distribution module allocates fee collector funds to delegators as staking rewards
@@ -65,14 +67,3 @@ Returns the bech32-encoded fee address for programmatic discovery.
 ```bash
 grpcurl -plaintext localhost:9090 celestia.feeaddress.v1.Query/FeeAddress
 ```
-
-## Events
-
-### EventProtocolFeePaid
-
-Emitted when tokens are forwarded from the fee address to the fee collector.
-
-| Attribute    | Type   | Description                              |
-|--------------|--------|------------------------------------------|
-| from_address | string | The fee address (bech32)                 |
-| amount       | string | Amount forwarded (e.g., "1000000utia")   |
