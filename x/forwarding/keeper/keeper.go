@@ -142,7 +142,6 @@ func (k Keeper) ExecuteWarpTransfer(
 	amount math.Int,
 	quotedFee sdk.Coin,
 ) (util.HexAddress, error) {
-	// Get gas limit from the enrolled router for this destination
 	router, err := k.GetEnrolledRouter(ctx, token.Id, destDomain)
 	if err != nil {
 		return util.HexAddress{}, fmt.Errorf("no router for domain %d: %w", destDomain, err)
@@ -171,7 +170,6 @@ func (k Keeper) QuoteIgpFee(ctx context.Context, destDomain uint32) (sdk.Coin, e
 
 // QuoteIgpFeeForToken returns the IGP fee required for a warp transfer of a specific token.
 func (k Keeper) QuoteIgpFeeForToken(ctx sdk.Context, token warptypes.HypToken, destDomain uint32) (sdk.Coin, error) {
-	// Get gas limit from the enrolled router for this destination
 	router, err := k.GetEnrolledRouter(ctx, token.Id, destDomain)
 	if err != nil {
 		return sdk.Coin{}, fmt.Errorf("no router for domain %d: %w", destDomain, err)
