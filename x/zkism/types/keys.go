@@ -23,6 +23,11 @@ const (
 
 	// MaxStateBytes is the maximum size of the trusted ism state (2 KiB = 2048 bytes).
 	MaxStateBytes = 2048
+
+	// DefaultProofVerifyCostGroth16 is the default gas cost metered for verifying a groth16 proof.
+	// NOTE: This is informed by benchmark comparisons with Secp256k1 signature verification.
+	// See internal/groth16/bench_test.go
+	DefaultProofVerifyCostGroth16 = 6000
 )
 
 var (
