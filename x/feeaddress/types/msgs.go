@@ -6,9 +6,14 @@ import (
 
 var _ sdk.Msg = &MsgForwardFees{}
 
-// NewMsgForwardFees creates a new MsgForwardFees.
+// NewMsgForwardFees creates a new MsgForwardFees with FromAddress set to the
+// well-known fee address. The FromAddress field satisfies the signer annotation
+// requirement, but signature verification is skipped because FeeForwardTerminatorDecorator
+// terminates the ante chain before signature-related decorators run.
 func NewMsgForwardFees() *MsgForwardFees {
-	return &MsgForwardFees{}
+	return &MsgForwardFees{
+		FromAddress: FeeAddressBech32,
+	}
 }
 
 // IsFeeForwardMsg checks if a transaction contains exactly one MsgForwardFees message.

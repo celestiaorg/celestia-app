@@ -2,6 +2,7 @@ syntax = "proto3";
 package celestia.feeaddress.v1;
 
 import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/feeaddress/types";
 
@@ -25,16 +26,21 @@ service Msg {
 
 // MsgForwardFees is a protocol-injected message that forwards accumulated
 // tokens from the fee address to the fee collector. This message is special:
-// - It has no signer and no fields (unsigned transaction)
 // - It is injected by PrepareProposal when fee address has balance
 // - The transaction fee equals the fee address balance
 // - ProcessProposal enforces that this tx must be present if fee address has balance
 // - Validation happens via ProcessProposal checking tx fee == fee address balance
-//
-// Note: This message intentionally has no signer annotation because it is a
-// protocol-injected unsigned transaction. The GetSigners() method returns an
-// empty slice, and signature verification is skipped via ante handler flags.
-message MsgForwardFees {}
+// - FeeForwardTerminatorDecorator terminates ante chain early, skipping signature verification
+message MsgForwardFees {
+  option (cosmos.msg.v1.signer) = "from_address";
+
+  // from_address is the fee address from which tokens are forwarded.
+  // This is always set to the well-known fee address (FeeAddressBech32).
+  // Note: Although this field specifies a signer, signature verification is
+  // skipped because FeeForwardTerminatorDecorator terminates the ante chain
+  // before signature-related decorators run.
+  string from_address = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+}
 
 // MsgForwardFeesResponse is the response type for the ForwardFees RPC.
 message MsgForwardFeesResponse {}

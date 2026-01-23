@@ -25,5 +25,3 @@ lint:
 breaking:
   use:
     - FILE
-  ignore:
-    - celestia/feeaddress
