@@ -21,6 +21,10 @@ The `x/forwarding` module enables single-signature cross-chain transfers through
 4. Module verifies derivation and executes warp transfer to destination
 5. Tokens arrive at destRecipient on destination chain
 
+## Relayer
+
+For relayer implementation details and operational guides, see the [forwarding-relayer documentation](https://github.com/celestiaorg/forwarding-relayer/blob/master/RELAYER.md).
+
 ## Address Derivation
 
 Forwarding addresses are deterministically derived:

@@ -5,7 +5,7 @@ Agent context for `celestia-app/x/forwarding/`.
 ## Quick Reference
 
 - **Full specification**: See [SPEC.md](./SPEC.md)
-- **Relayer guide**: See [RELAYER.md](./RELAYER.md)
+- **Relayer guide**: See [forwarding-relayer docs](https://github.com/celestiaorg/forwarding-relayer/blob/master/RELAYER.md)
 
 ## Key Concepts
 
