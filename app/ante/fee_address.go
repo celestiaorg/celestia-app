@@ -11,7 +11,7 @@ import (
 
 var _ sdk.AnteDecorator = FeeAddressDecorator{}
 
-// FeeAddressDecorator rejects transactions that send non-utia tokens to the fee address.
+// FeeAddressDecorator rejects transactions that send non-utia tokens to the fee address module account.
 // This includes messages nested inside authz.MsgExec.
 //
 // Note: ICA host executed messages bypass ante handlers. If ICA sends non-utia to the
