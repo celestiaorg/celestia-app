@@ -190,8 +190,9 @@ func (s *CelestiaTestSuite) TestUpgradeLatest() {
 	err = chain.Start(ctx)
 	s.Require().NoError(err)
 
-	// TODO: Validate app pre and post upgrade
+	s.ValidatePreUpgrade(ctx, chain, cfg)
 	s.UpgradeChain(ctx, chain, cfg, appconsts.Version)
+	s.ValidatePostUpgrade(ctx, chain, cfg)
 }
 
 // UpgradeChain executes the upgrade to the target app version
@@ -308,6 +309,30 @@ func (s *CelestiaTestSuite) validateSignalTally(ctx context.Context, node tastor
 
 	// Verify that voting power meets or exceeds threshold
 	s.Require().True(resp.VotingPower >= resp.ThresholdPower, "voting power (%d) does not meet threshold (%d)", resp.VotingPower, resp.ThresholdPower)
+}
+
+func (s *CelestiaTestSuite) ValidatePreUpgrade(ctx context.Context, chain tastoratypes.Chain, cfg *dockerchain.Config) {
+	appVersion := appconsts.Version - 1
+
+	node := chain.GetNodes()[0]
+	rpcClient, err := node.GetRPCClient()
+	s.Require().NoError(err, "failed to get RPC client")
+
+	abciInfo, err := rpcClient.ABCIInfo(ctx)
+	s.Require().NoError(err, "failed to fetch ABCI info")
+	s.Require().Equal(appVersion, abciInfo.Response.GetAppVersion(), "should be running v%d", appVersion)
+}
+
+func (s *CelestiaTestSuite) ValidatePostUpgrade(ctx context.Context, chain tastoratypes.Chain, cfg *dockerchain.Config) {
+	appVersion := appconsts.Version
+
+	node := chain.GetNodes()[0]
+	rpcClient, err := node.GetRPCClient()
+	s.Require().NoError(err, "failed to get RPC client")
+
+	abciInfo, err := rpcClient.ABCIInfo(ctx)
+	s.Require().NoError(err, "failed to fetch ABCI info")
+	s.Require().Equal(appVersion, abciInfo.Response.GetAppVersion(), "should be running v%d", appVersion)
 }
 
 // getSignalQueryClient returns a signaltypes.QueryClient for the provided node.
