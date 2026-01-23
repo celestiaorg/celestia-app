@@ -7,6 +7,7 @@ import (
 
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v7/app"
+	"github.com/celestiaorg/celestia-app/v7/pkg/feeaddress"
 	"github.com/celestiaorg/celestia-app/v7/test/util"
 	"github.com/celestiaorg/celestia-app/v7/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
@@ -117,6 +118,8 @@ func TestModuleAccountAddrs(t *testing.T) {
 		"interchainaccounts",
 		"hyperlane",
 		"warp",
+		"forwarding",
+		"feeaddress",
 	}
 	for _, moduleName := range moduleNames {
 		address := authtypes.NewModuleAddress(moduleName).String()
@@ -133,6 +136,10 @@ func TestBlockedAddresses(t *testing.T) {
 		govAddress := authtypes.NewModuleAddress(govtypes.ModuleName).String()
 		assert.NotContains(t, got, govAddress)
 	})
+	t.Run("blocked addresses should not contain the feeaddress module account", func(t *testing.T) {
+		feeAddress := authtypes.NewModuleAddress(feeaddress.ModuleName).String()
+		assert.NotContains(t, got, feeAddress)
+	})
 	t.Run("blocked addresses should contain all the other module addresses", func(t *testing.T) {
 		moduleNames := []string{
 			"fee_collector",
@@ -144,6 +151,7 @@ func TestBlockedAddresses(t *testing.T) {
 			"interchainaccounts",
 			"hyperlane",
 			"warp",
+			"forwarding",
 		}
 		for _, moduleName := range moduleNames {
 			address := authtypes.NewModuleAddress(moduleName).String()

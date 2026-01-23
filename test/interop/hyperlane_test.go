@@ -24,7 +24,7 @@ type HyperlaneTestSuite struct {
 	suite.Suite
 
 	celestia *ibctesting.TestChain
-	simapp   *ibctesting.TestChain
+	chainA   *ibctesting.TestChain
 }
 
 func TestHyperlaneTestSuite(t *testing.T) {
@@ -32,13 +32,13 @@ func TestHyperlaneTestSuite(t *testing.T) {
 }
 
 // SetupTest initializes the test environment for hyperlane tests.
-// It sets up celestia and simapp chains, and mints utia tokens on celestia
+// It sets up celestia and chainA chains, and mints utia tokens on celestia
 // since the test infrastructure uses "stake" by default but hyperlane tests require utia.
 func (s *HyperlaneTestSuite) SetupTest() {
 	_, celestia, simapp, _ := SetupTest(s.T())
 
 	s.celestia = celestia
-	s.simapp = simapp
+	s.chainA = simapp
 
 	// NOTE: the test infra funds accounts with token denom "stake" by default, so we mint some utia here
 	app := s.GetCelestiaApp(celestia)
@@ -61,13 +61,13 @@ func (s *HyperlaneTestSuite) GetSimapp(chain *ibctesting.TestChain) *SimApp {
 	return app
 }
 
-// TestHyperlaneOutboundTransfer tests the full hyperlane transfer flow from celestia to simapp and back.
-// It sends utia tokens from celestia to simapp, then sends them back to celestia,
+// TestHyperlaneOutboundTransfer tests the full hyperlane transfer flow from celestia to chainA and back.
+// It sends utia tokens from celestia to chainA, then sends them back to celestia,
 // verifying the round-trip maintains balance integrity.
 func (s *HyperlaneTestSuite) TestHyperlaneOutboundTransfer() {
 	const (
 		CelestiaDomainID = 69420
-		SimappDomainID   = 1337
+		ChainADomainID   = 1337
 	)
 
 	celestiaApp := s.GetCelestiaApp(s.celestia)
@@ -76,28 +76,28 @@ func (s *HyperlaneTestSuite) TestHyperlaneOutboundTransfer() {
 	ismIDCelestia := s.SetupNoopISM(s.celestia)
 	mailboxIDCelestia := s.SetupMailBox(s.celestia, ismIDCelestia, CelestiaDomainID)
 
-	ismIDSimapp := s.SetupNoopISM(s.simapp)
-	mailboxIDSimapp := s.SetupMailBox(s.simapp, ismIDSimapp, SimappDomainID)
+	ismIDChainA := s.SetupNoopISM(s.chainA)
+	mailboxIDChainA := s.SetupMailBox(s.chainA, ismIDChainA, ChainADomainID)
 
 	// create collateral token (celestia - utia)
 	collatTokenID := s.CreateCollateralToken(s.celestia, ismIDCelestia, mailboxIDCelestia, params.BondDenom)
 
-	// create synthetic token (simapp - hyperlane bridged asset)
-	synTokenID := s.CreateSyntheticToken(s.simapp, ismIDSimapp, mailboxIDCelestia)
+	// create synthetic token (chainA - hyperlane bridged asset)
+	synTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxIDCelestia)
 
-	// enroll remote routers (pairs the utia collateral token with the synthetic token on the simapp counterparty)
-	s.EnrollRemoteRouter(s.celestia, collatTokenID, SimappDomainID, synTokenID.String())
-	s.EnrollRemoteRouter(s.simapp, synTokenID, CelestiaDomainID, collatTokenID.String())
+	// enroll remote routers (pairs the utia collateral token with the synthetic token on the chainA counterparty)
+	s.EnrollRemoteRouter(s.celestia, collatTokenID, ChainADomainID, synTokenID.String())
+	s.EnrollRemoteRouter(s.chainA, synTokenID, CelestiaDomainID, collatTokenID.String())
 
 	// NOTE: Hyperlane HexAddress is expected to be 32 bytes,
 	// as cosmos addresses are 20 bytes, we must left-pad the address
 	addrBz := make([]byte, 32)
-	copy(addrBz[12:], s.simapp.SenderAccount.GetAddress().Bytes())
+	copy(addrBz[12:], s.chainA.SenderAccount.GetAddress().Bytes())
 
 	msgRemoteTransfer := warptypes.MsgRemoteTransfer{
 		Sender:            s.celestia.SenderAccount.GetAddress().String(),
 		TokenId:           collatTokenID,
-		DestinationDomain: SimappDomainID,
+		DestinationDomain: ChainADomainID,
 		Recipient:         util.HexAddress(addrBz),
 		Amount:            math.NewInt(1000),
 	}
@@ -120,22 +120,22 @@ func (s *HyperlaneTestSuite) TestHyperlaneOutboundTransfer() {
 		}
 	}
 
-	// process the msg on the simapp counterparty
+	// process the msg on the chainA counterparty
 	msgProcessMessage := coretypes.MsgProcessMessage{
-		MailboxId: mailboxIDSimapp,
-		Relayer:   s.simapp.SenderAccount.GetAddress().String(),
+		MailboxId: mailboxIDChainA,
+		Relayer:   s.chainA.SenderAccount.GetAddress().String(),
 		Message:   hypMsg,
 	}
 
-	res, err = s.simapp.SendMsgs(&msgProcessMessage)
+	res, err = s.chainA.SendMsgs(&msgProcessMessage)
 	s.Require().NoError(err)
 	s.Require().NotNil(res)
 
-	simapp := s.GetSimapp(s.simapp)
-	hypDenom, err := simapp.WarpKeeper.HypTokens.Get(s.simapp.GetContext(), synTokenID.GetInternalId())
+	chainAApp := s.GetSimapp(s.chainA)
+	hypDenom, err := chainAApp.WarpKeeper.HypTokens.Get(s.chainA.GetContext(), synTokenID.GetInternalId())
 	s.Require().NoError(err)
 
-	balance := simapp.BankKeeper.GetBalance(s.simapp.GetContext(), s.simapp.SenderAccount.GetAddress(), hypDenom.OriginDenom)
+	balance := chainAApp.BankKeeper.GetBalance(s.chainA.GetContext(), s.chainA.SenderAccount.GetAddress(), hypDenom.OriginDenom)
 	s.Require().Equal(math.NewInt(1000).Int64(), balance.Amount.Int64())
 
 	// check that the account on celestia has "amount" less tokens than before
@@ -143,19 +143,19 @@ func (s *HyperlaneTestSuite) TestHyperlaneOutboundTransfer() {
 	want := originalBalance.Amount.Sub(math.NewInt(1000))
 	s.Require().Equal(want, intermediateBalance.Amount)
 
-	// Send the tokens back from simapp to celestia
+	// Send the tokens back from chainA to celestia
 	addrBzCelestia := make([]byte, 32)
 	copy(addrBzCelestia[12:], s.celestia.SenderAccount.GetAddress().Bytes())
 
 	msgRemoteTransferBack := warptypes.MsgRemoteTransfer{
-		Sender:            s.simapp.SenderAccount.GetAddress().String(),
+		Sender:            s.chainA.SenderAccount.GetAddress().String(),
 		TokenId:           synTokenID,
 		DestinationDomain: CelestiaDomainID,
 		Recipient:         util.HexAddress(addrBzCelestia),
 		Amount:            math.NewInt(1000),
 	}
 
-	res, err = s.simapp.SendMsgs(&msgRemoteTransferBack)
+	res, err = s.chainA.SendMsgs(&msgRemoteTransferBack)
 	s.Require().NoError(err)
 	s.Require().NotNil(res)
 
@@ -188,38 +188,38 @@ func (s *HyperlaneTestSuite) TestHyperlaneOutboundTransfer() {
 	newBalance := celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), s.celestia.SenderAccount.GetAddress(), params.BondDenom)
 	s.Require().Equal(originalBalance, newBalance)
 
-	// check that the simapp balance is 0 after sending back the token
-	finalSimappBalance := simapp.BankKeeper.GetBalance(s.simapp.GetContext(), s.simapp.SenderAccount.GetAddress(), hypDenom.OriginDenom)
-	s.Require().Equal(math.NewInt(0).Int64(), finalSimappBalance.Amount.Int64())
+	// check that the chainA balance is 0 after sending back the token
+	finalChainABalance := chainAApp.BankKeeper.GetBalance(s.chainA.GetContext(), s.chainA.SenderAccount.GetAddress(), hypDenom.OriginDenom)
+	s.Require().Equal(math.NewInt(0).Int64(), finalChainABalance.Amount.Int64())
 }
 
-// TestHyperlaneInboundTransfer tests the full hyperlane transfer flow from simapp to celestia and back.
-// It sends native tokens from simapp to celestia, then sends them back to simapp,
+// TestHyperlaneInboundTransfer tests the full hyperlane transfer flow from chainA to celestia and back.
+// It sends native tokens from chainA to celestia, then sends them back to chainA,
 // verifying the round-trip maintains balance integrity.
 func (s *HyperlaneTestSuite) TestHyperlaneInboundTransfer() {
 	const (
 		CelestiaDomainID = 69420
-		SimappDomainID   = 1337
+		ChainADomainID   = 1337
 	)
 
-	simapp := s.GetSimapp(s.simapp)
-	originalBalance := simapp.BankKeeper.GetBalance(s.simapp.GetContext(), s.simapp.SenderAccount.GetAddress(), sdk.DefaultBondDenom)
+	chainAApp := s.GetSimapp(s.chainA)
+	originalBalance := chainAApp.BankKeeper.GetBalance(s.chainA.GetContext(), s.chainA.SenderAccount.GetAddress(), sdk.DefaultBondDenom)
 
 	ismIDCelestia := s.SetupNoopISM(s.celestia)
 	mailboxIDCelestia := s.SetupMailBox(s.celestia, ismIDCelestia, CelestiaDomainID)
 
-	ismIDSimapp := s.SetupNoopISM(s.simapp)
-	mailboxIDSimapp := s.SetupMailBox(s.simapp, ismIDSimapp, SimappDomainID)
+	ismIDChainA := s.SetupNoopISM(s.chainA)
+	mailboxIDChainA := s.SetupMailBox(s.chainA, ismIDChainA, ChainADomainID)
 
-	// create collateral token (simapp - stake)
-	collatTokenID := s.CreateCollateralToken(s.simapp, ismIDSimapp, mailboxIDSimapp, sdk.DefaultBondDenom)
+	// create collateral token (chainA - stake)
+	collatTokenID := s.CreateCollateralToken(s.chainA, ismIDChainA, mailboxIDChainA, sdk.DefaultBondDenom)
 
 	// create synthetic token (celestia - hyperlane bridged asset)
-	synTokenID := s.CreateSyntheticToken(s.celestia, ismIDCelestia, mailboxIDSimapp)
+	synTokenID := s.CreateSyntheticToken(s.celestia, ismIDCelestia, mailboxIDChainA)
 
 	// enroll remote routers (pairs the stake collateral token with the synthetic token on the celestia counterparty)
-	s.EnrollRemoteRouter(s.simapp, collatTokenID, CelestiaDomainID, synTokenID.String())
-	s.EnrollRemoteRouter(s.celestia, synTokenID, SimappDomainID, collatTokenID.String())
+	s.EnrollRemoteRouter(s.chainA, collatTokenID, CelestiaDomainID, synTokenID.String())
+	s.EnrollRemoteRouter(s.celestia, synTokenID, ChainADomainID, collatTokenID.String())
 
 	// NOTE: Hyperlane HexAddress is expected to be 32 bytes,
 	// as cosmos addresses are 20 bytes, we must left-pad the address
@@ -227,14 +227,14 @@ func (s *HyperlaneTestSuite) TestHyperlaneInboundTransfer() {
 	copy(addrBz[12:], s.celestia.SenderAccount.GetAddress().Bytes())
 
 	msgRemoteTransfer := warptypes.MsgRemoteTransfer{
-		Sender:            s.simapp.SenderAccount.GetAddress().String(),
+		Sender:            s.chainA.SenderAccount.GetAddress().String(),
 		TokenId:           collatTokenID,
 		DestinationDomain: CelestiaDomainID,
 		Recipient:         util.HexAddress(addrBz),
 		Amount:            math.NewInt(1000),
 	}
 
-	res, err := s.simapp.SendMsgs(&msgRemoteTransfer)
+	res, err := s.chainA.SendMsgs(&msgRemoteTransfer)
 	s.Require().NoError(err)
 	s.Require().NotNil(res)
 
@@ -270,20 +270,20 @@ func (s *HyperlaneTestSuite) TestHyperlaneInboundTransfer() {
 	balance := celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), s.celestia.SenderAccount.GetAddress(), hypDenom.OriginDenom)
 	s.Require().Equal(math.NewInt(1000).Int64(), balance.Amount.Int64())
 
-	// check that the account on simapp has "amount" less tokens than before
-	intermediateBalance := simapp.BankKeeper.GetBalance(s.simapp.GetContext(), s.simapp.SenderAccount.GetAddress(), sdk.DefaultBondDenom)
+	// check that the account on chainA has "amount" less tokens than before
+	intermediateBalance := chainAApp.BankKeeper.GetBalance(s.chainA.GetContext(), s.chainA.SenderAccount.GetAddress(), sdk.DefaultBondDenom)
 	want := originalBalance.Amount.Sub(math.NewInt(1000))
 	s.Require().Equal(want, intermediateBalance.Amount)
 
-	// Send the tokens back from celestia to simapp
-	addrBzSimapp := make([]byte, 32)
-	copy(addrBzSimapp[12:], s.simapp.SenderAccount.GetAddress().Bytes())
+	// Send the tokens back from celestia to chainA
+	addrBzChainA := make([]byte, 32)
+	copy(addrBzChainA[12:], s.chainA.SenderAccount.GetAddress().Bytes())
 
 	msgRemoteTransferBack := warptypes.MsgRemoteTransfer{
 		Sender:            s.celestia.SenderAccount.GetAddress().String(),
 		TokenId:           synTokenID,
-		DestinationDomain: SimappDomainID,
-		Recipient:         util.HexAddress(addrBzSimapp),
+		DestinationDomain: ChainADomainID,
+		Recipient:         util.HexAddress(addrBzChainA),
 		Amount:            math.NewInt(1000),
 	}
 
@@ -305,19 +305,19 @@ func (s *HyperlaneTestSuite) TestHyperlaneInboundTransfer() {
 		}
 	}
 
-	// process the msg on the simapp counterparty
+	// process the msg on the chainA counterparty
 	msgProcessMessageBack := coretypes.MsgProcessMessage{
-		MailboxId: mailboxIDSimapp,
-		Relayer:   s.simapp.SenderAccount.GetAddress().String(),
+		MailboxId: mailboxIDChainA,
+		Relayer:   s.chainA.SenderAccount.GetAddress().String(),
 		Message:   hypMsgBack,
 	}
 
-	res, err = s.simapp.SendMsgs(&msgProcessMessageBack)
+	res, err = s.chainA.SendMsgs(&msgProcessMessageBack)
 	s.Require().NoError(err)
 	s.Require().NotNil(res)
 
 	// check that the token was sent back i.e. the new balance is equal to the original balance
-	newBalance := simapp.BankKeeper.GetBalance(s.simapp.GetContext(), s.simapp.SenderAccount.GetAddress(), sdk.DefaultBondDenom)
+	newBalance := chainAApp.BankKeeper.GetBalance(s.chainA.GetContext(), s.chainA.SenderAccount.GetAddress(), sdk.DefaultBondDenom)
 	s.Require().Equal(originalBalance, newBalance)
 
 	// check that the celestia balance is 0 after sending back the token

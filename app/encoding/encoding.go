@@ -3,6 +3,7 @@ package encoding
 import (
 	addresscodec "cosmossdk.io/core/address"
 	"cosmossdk.io/x/tx/signing"
+	"github.com/celestiaorg/celestia-app/v7/pkg/feeaddress"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/address"
@@ -11,7 +12,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkmodule "github.com/cosmos/cosmos-sdk/types/module"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
-	"github.com/cosmos/gogoproto/proto"
+	gogoproto "github.com/cosmos/gogoproto/proto"
 )
 
 // Config specifies the concrete encoding types to use for a given app.
@@ -35,7 +36,7 @@ func MakeConfig(moduleBasics ...sdkmodule.AppModuleBasic) Config {
 	consensusAddressCodec := address.NewBech32Codec(sdk.GetConfig().GetBech32ConsensusAddrPrefix())
 
 	interfaceRegistry, _ := codectypes.NewInterfaceRegistryWithOptions(codectypes.InterfaceRegistryOptions{
-		ProtoFiles: proto.HybridResolver,
+		ProtoFiles: gogoproto.HybridResolver,
 		SigningOptions: signing.Options{
 			AddressCodec:          addressCodec,
 			ValidatorAddressCodec: validatorAddressCodec,
@@ -46,6 +47,10 @@ func MakeConfig(moduleBasics ...sdkmodule.AppModuleBasic) Config {
 	// Register the standard types from the Cosmos SDK on interfaceRegistry and amino.
 	std.RegisterInterfaces(interfaceRegistry)
 	std.RegisterLegacyAminoCodec(amino)
+
+	// Register feeaddress types (no module, just types for protocol-injected txs).
+	feeaddress.RegisterInterfaces(interfaceRegistry)
+	feeaddress.RegisterLegacyAminoCodec(amino)
 
 	for _, mod := range moduleBasics {
 		mod.RegisterInterfaces(interfaceRegistry)

@@ -35,11 +35,15 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/app/grpc/gasestimation"
 	celestiatx "github.com/celestiaorg/celestia-app/v7/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/feeaddress"
 	"github.com/celestiaorg/celestia-app/v7/pkg/proof"
 	"github.com/celestiaorg/celestia-app/v7/pkg/wrapper"
 	"github.com/celestiaorg/celestia-app/v7/x/blob"
 	blobkeeper "github.com/celestiaorg/celestia-app/v7/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v7/x/forwarding"
+	forwardingkeeper "github.com/celestiaorg/celestia-app/v7/x/forwarding/keeper"
+	forwardingtypes "github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	"github.com/celestiaorg/celestia-app/v7/x/minfee"
 	minfeekeeper "github.com/celestiaorg/celestia-app/v7/x/minfee/keeper"
 	minfeetypes "github.com/celestiaorg/celestia-app/v7/x/minfee/types"
@@ -142,6 +146,8 @@ var maccPerms = map[string][]string{
 	icatypes.ModuleName:            nil,
 	hyperlanetypes.ModuleName:      nil,
 	warptypes.ModuleName:           {authtypes.Minter, authtypes.Burner},
+	forwardingtypes.ModuleName:     nil, // No special permissions needed - only holds tokens temporarily
+	feeaddress.ModuleName:          nil,
 }
 
 var (
@@ -188,6 +194,7 @@ type App struct {
 	HyperlaneKeeper     hyperlanekeeper.Keeper
 	WarpKeeper          warpkeeper.Keeper
 	IsmKeeper           *zkismkeeper.Keeper
+	ForwardingKeeper    forwardingkeeper.Keeper
 
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
@@ -416,6 +423,12 @@ func New(
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 	)
 
+	app.ForwardingKeeper = forwardingkeeper.NewKeeper(
+		app.BankKeeper,
+		forwardingkeeper.NewWarpKeeperAdapter(&app.WarpKeeper),
+		&app.HyperlaneKeeper,
+	)
+
 	/****  Module Options ****/
 
 	// NOTE: Modules can't be modified or else must be passed by reference to the module manager
@@ -450,6 +463,7 @@ func New(
 		hyperlanecore.NewAppModule(encodingConfig.Codec, &app.HyperlaneKeeper),
 		warp.NewAppModule(encodingConfig.Codec, app.WarpKeeper),
 		zkism.NewAppModule(encodingConfig.Codec, app.IsmKeeper),
+		forwarding.NewAppModule(encodingConfig.Codec, app.ForwardingKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager is in charge of setting up basic,
@@ -474,6 +488,10 @@ func New(
 	if err := app.ModuleManager.RegisterServices(app.configurator); err != nil {
 		panic(err)
 	}
+
+	// Register feeaddress MsgServer directly since there's no feeaddress module.
+	// The MsgServer is a no-op handler - actual fee forwarding happens in ProtocolFeeTerminatorDecorator.
+	feeaddress.RegisterMsgServer(app.MsgServiceRouter(), feeaddress.NewMsgServerImpl())
 
 	app.RegisterUpgradeHandlers() // must be called after module manager & configurator are initialized
 
@@ -670,6 +688,7 @@ func (app *App) BlockedAddresses() map[string]bool {
 
 	// allow the following addresses to receive funds
 	delete(modAccAddrs, authtypes.NewModuleAddress(govtypes.ModuleName).String())
+	delete(modAccAddrs, authtypes.NewModuleAddress(feeaddress.ModuleName).String())
 
 	return modAccAddrs
 }
