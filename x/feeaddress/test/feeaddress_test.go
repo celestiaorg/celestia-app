@@ -47,13 +47,19 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 }
 
-// TestFeeAddressSendAndForward verifies that sending utia to the fee address:
-// 1. Tokens are transferred to fee address
-// 2. Tokens are forwarded to fee collector via protocol-injected MsgForwardFees tx in next block
-// 3. Fee address balance is empty after forwarding
+// TestFeeAddressSendAndForward verifies the fee address balance lifecycle:
+// 1. Fee address starts with zero balance
+// 2. After MsgSend and MsgForwardFees, fee address balance returns to zero
+// Note: The intermediate state (fee address has sendAmount after MsgSend but before
+// MsgForwardFees) cannot be reliably verified because testnode auto-advances blocks.
 func (s *IntegrationTestSuite) TestFeeAddressSendAndForward() {
 	require := s.Require()
 	require.NoError(s.cctx.WaitForNextBlock())
+
+	// Step 1: Verify fee address starts with zero balance
+	initialFeeAddressBalance := s.getFeeAddressBalance()
+	require.True(initialFeeAddressBalance.IsZero(),
+		"fee address should start with zero balance: balance=%s", initialFeeAddressBalance)
 
 	// Setup: get test account and record initial balance
 	account := s.accounts[0]
@@ -76,16 +82,14 @@ func (s *IntegrationTestSuite) TestFeeAddressSendAndForward() {
 	require.NotNil(res)
 	require.Equal(abci.CodeTypeOK, res.Code, "send to fee address tx failed with code: %d", res.Code)
 
-	// Wait for next block to forward the tokens via MsgForwardFees
+	// Wait for next block to ensure MsgForwardFees has forwarded the tokens
 	require.NoError(s.cctx.WaitForNextBlock())
 
-	// Verify fee address is empty (MsgForwardFees forwarded tokens to fee collector)
-	// Note: We can't check fee collector balance because the distribution module's
-	// BeginBlocker distributes tokens to validators, emptying the fee collector.
-	feeAddressBalance := s.getFeeAddressBalance()
-	require.True(feeAddressBalance.IsZero(),
+	// Step 2: Verify fee address is empty (MsgForwardFees forwarded tokens to fee collector)
+	finalFeeAddressBalance := s.getFeeAddressBalance()
+	require.True(finalFeeAddressBalance.IsZero(),
 		"fee address should be empty after MsgForwardFees forwards tokens: balance=%s",
-		feeAddressBalance)
+		finalFeeAddressBalance)
 
 	// Verify account balance decreased by at least send amount (gas fees cause additional decrease)
 	finalBalance := s.getAccountBalance(accountAddr)
