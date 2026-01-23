@@ -13,7 +13,7 @@ service Msg {
   // PayProtocolFee is a protocol-injected transaction that forwards accumulated
   // tokens from the fee address to the fee collector. These fees are then
   // distributed to validators as block rewards via the standard distribution
-  // module. This message has no signer - it is injected by the block proposer
+  // module. This message requires no external signature - it is injected by the block proposer
   // in PrepareProposal and validated in ProcessProposal.
   //
   // Note: This RPC intentionally has no google.api.http annotation because it
