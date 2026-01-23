@@ -17,8 +17,7 @@ import (
 // 1. Rejects user submissions (only valid when protocol-injected)
 // 2. Validates the fee format
 // 3. Transfers the fee from fee address to fee collector
-// 4. Emits EventProtocolFeePaid
-// 5. Returns without calling next() - skipping the rest of the ante chain
+// 4. Returns without calling next() - skipping the rest of the ante chain
 //
 // For all other transactions, this decorator simply calls next().
 type ProtocolFeeTerminatorDecorator struct {
@@ -61,10 +60,6 @@ func (d ProtocolFeeTerminatorDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, s
 	err := d.bankKeeper.SendCoinsFromAccountToModule(ctx, types.FeeAddress, authtypes.FeeCollectorName, fee)
 	if err != nil {
 		return ctx, errors.Wrap(err, "failed to deduct fee from fee address")
-	}
-
-	if err := ctx.EventManager().EmitTypedEvent(types.NewProtocolFeePaidEvent(types.FeeAddressBech32, fee.String())); err != nil {
-		return ctx, errors.Wrap(err, "failed to emit protocol feeed event")
 	}
 
 	return ctx, nil

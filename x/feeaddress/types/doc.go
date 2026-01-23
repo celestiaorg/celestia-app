@@ -3,7 +3,6 @@
 //
 // Key types:
 //   - MsgPayProtocolFee: Protocol-injected message for forwarding protocol fees
-//   - EventProtocolFeeed: Event emitted when fees are forwarded
 //   - GenesisState: Empty genesis state for SDK compatibility
 //
 // Key constants:
