@@ -7,7 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/app/ante"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/pkg/da"
-	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
+	"github.com/celestiaorg/celestia-app/v7/pkg/feeaddress"
 	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
@@ -101,7 +101,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 // Returns the txs to process (with protocol fee tx prepended if applicable), the fee
 // balance (for verification), and any error.
 func (app *App) injectProtocolFeeTx(ctx sdk.Context, txs [][]byte) ([][]byte, sdk.Coin, error) {
-	feeBalance := app.BankKeeper.GetBalance(ctx, feeaddresstypes.FeeAddress, appconsts.BondDenom)
+	feeBalance := app.BankKeeper.GetBalance(ctx, feeaddress.FeeAddress, appconsts.BondDenom)
 	if feeBalance.IsZero() {
 		return txs, feeBalance, nil
 	}
@@ -146,7 +146,7 @@ func (app *App) verifyProtocolFeeTxSurvived(feeBalance sdk.Coin, filteredTxs [][
 // specified fee amount. The transaction has no signers - it's validated by
 // ProcessProposal checking that tx fee == fee address balance.
 func (app *App) createProtocolFeeTx(feeAmount sdk.Coin) ([]byte, error) {
-	msg := feeaddresstypes.NewMsgPayProtocolFee()
+	msg := feeaddress.NewMsgPayProtocolFee()
 
 	txBuilder := app.encodingConfig.TxConfig.NewTxBuilder()
 	if err := txBuilder.SetMsgs(msg); err != nil {
@@ -154,7 +154,7 @@ func (app *App) createProtocolFeeTx(feeAmount sdk.Coin) ([]byte, error) {
 	}
 
 	txBuilder.SetFeeAmount(sdk.NewCoins(feeAmount))
-	txBuilder.SetGasLimit(feeaddresstypes.ProtocolFeeGasLimit)
+	txBuilder.SetGasLimit(feeaddress.ProtocolFeeGasLimit)
 
 	txBytes, err := app.encodingConfig.TxConfig.TxEncoder()(txBuilder.GetTx())
 	if err != nil {

@@ -37,7 +37,7 @@ In addition to the above criteria, the AnteHandler also has a number of side-eff
 
 ## Fee Forwarding (New in v7)
 
-App version 7 introduces the [feeaddress](https://github.com/celestiaorg/celestia-app/blob/main/x/feeaddress/README.md) module which enables a mechanism to forward tokens to delegators as staking rewards. The ante handler includes two decorators to support this:
+App version 7 introduces a fee address mechanism (see [pkg/feeaddress](https://github.com/celestiaorg/celestia-app/blob/main/pkg/feeaddress)) which enables forwarding tokens to delegators as staking rewards. The ante handler includes two decorators to support this:
 
 1. **ProtocolFeeTerminatorDecorator**: Handles `MsgPayProtocolFee` transactions completely and terminates the ante chain early. This decorator:
    - Detects `MsgPayProtocolFee` transactions

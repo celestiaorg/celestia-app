@@ -1,4 +1,4 @@
-package types
+package feeaddress
 
 import (
 	"testing"

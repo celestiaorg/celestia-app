@@ -4,10 +4,10 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v7/app/ante"
 	_ "github.com/celestiaorg/celestia-app/v7/app/params" // Sets SDK bech32 prefixes
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v7/x/feeaddress/ante"
-	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
+	"github.com/celestiaorg/celestia-app/v7/pkg/feeaddress"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
@@ -16,14 +16,18 @@ import (
 	protov2 "google.golang.org/protobuf/proto"
 )
 
-// mockTx implements sdk.Tx for testing FeeAddressDecorator.
-type mockTx struct {
+// feeAddrMockTx implements sdk.Tx for testing FeeAddressDecorator.
+type feeAddrMockTx struct {
 	msgs []sdk.Msg
 }
 
-func (m *mockTx) GetMsgs() []sdk.Msg                    { return m.msgs }
-func (m *mockTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
-func (m *mockTx) ValidateBasic() error                  { return nil }
+func (m *feeAddrMockTx) GetMsgs() []sdk.Msg                    { return m.msgs }
+func (m *feeAddrMockTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
+func (m *feeAddrMockTx) ValidateBasic() error                  { return nil }
+
+func feeAddrNextAnteHandler(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
+	return ctx, nil
+}
 
 func TestFeeAddressDecorator(t *testing.T) {
 	decorator := ante.NewFeeAddressDecorator()
@@ -32,12 +36,12 @@ func TestFeeAddressDecorator(t *testing.T) {
 	// Create MsgExec with nested MsgSend for authz tests
 	msgSendNonUtia := &banktypes.MsgSend{
 		FromAddress: signer.String(),
-		ToAddress:   feeaddresstypes.FeeAddressBech32,
+		ToAddress:   feeaddress.FeeAddressBech32,
 		Amount:      sdk.NewCoins(sdk.NewCoin("wrongdenom", math.NewInt(1000))),
 	}
 	msgSendUtia := &banktypes.MsgSend{
 		FromAddress: signer.String(),
-		ToAddress:   feeaddresstypes.FeeAddressBech32,
+		ToAddress:   feeaddress.FeeAddressBech32,
 		Amount:      sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))),
 	}
 
@@ -57,7 +61,7 @@ func TestFeeAddressDecorator(t *testing.T) {
 			name: "allow utia to fee address",
 			msg: &banktypes.MsgSend{
 				FromAddress: signer.String(),
-				ToAddress:   feeaddresstypes.FeeAddressBech32,
+				ToAddress:   feeaddress.FeeAddressBech32,
 				Amount:      sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))),
 			},
 			expectErr: false,
@@ -66,7 +70,7 @@ func TestFeeAddressDecorator(t *testing.T) {
 			name: "reject non-utia to fee address",
 			msg: &banktypes.MsgSend{
 				FromAddress: signer.String(),
-				ToAddress:   feeaddresstypes.FeeAddressBech32,
+				ToAddress:   feeaddress.FeeAddressBech32,
 				Amount:      sdk.NewCoins(sdk.NewCoin("wrongdenom", math.NewInt(1000))),
 			},
 			expectErr:      true,
@@ -88,7 +92,7 @@ func TestFeeAddressDecorator(t *testing.T) {
 					{Address: signer.String(), Coins: sdk.NewCoins(sdk.NewCoin("wrongdenom", math.NewInt(1000)))},
 				},
 				Outputs: []banktypes.Output{
-					{Address: feeaddresstypes.FeeAddressBech32, Coins: sdk.NewCoins(sdk.NewCoin("wrongdenom", math.NewInt(1000)))},
+					{Address: feeaddress.FeeAddressBech32, Coins: sdk.NewCoins(sdk.NewCoin("wrongdenom", math.NewInt(1000)))},
 				},
 			},
 			expectErr: true,
@@ -100,7 +104,7 @@ func TestFeeAddressDecorator(t *testing.T) {
 					{Address: signer.String(), Coins: sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))},
 				},
 				Outputs: []banktypes.Output{
-					{Address: feeaddresstypes.FeeAddressBech32, Coins: sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))},
+					{Address: feeaddress.FeeAddressBech32, Coins: sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))},
 				},
 			},
 			expectErr: false,
@@ -133,7 +137,7 @@ func TestFeeAddressDecorator(t *testing.T) {
 					)},
 				},
 				Outputs: []banktypes.Output{
-					{Address: feeaddresstypes.FeeAddressBech32, Coins: sdk.NewCoins(sdk.NewCoin("wrongdenom", math.NewInt(500)))},
+					{Address: feeaddress.FeeAddressBech32, Coins: sdk.NewCoins(sdk.NewCoin("wrongdenom", math.NewInt(500)))},
 					{Address: otherAddr.String(), Coins: sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(500)))},
 				},
 			},
@@ -149,7 +153,7 @@ func TestFeeAddressDecorator(t *testing.T) {
 					)},
 				},
 				Outputs: []banktypes.Output{
-					{Address: feeaddresstypes.FeeAddressBech32, Coins: sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(500)))},
+					{Address: feeaddress.FeeAddressBech32, Coins: sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(500)))},
 					{Address: otherAddr.String(), Coins: sdk.NewCoins(sdk.NewCoin("otherdenom", math.NewInt(500)))},
 				},
 			},
@@ -160,7 +164,7 @@ func TestFeeAddressDecorator(t *testing.T) {
 			name: "reject mixed denoms to fee address",
 			msg: &banktypes.MsgSend{
 				FromAddress: signer.String(),
-				ToAddress:   feeaddresstypes.FeeAddressBech32,
+				ToAddress:   feeaddress.FeeAddressBech32,
 				Amount: sdk.NewCoins(
 					sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)),
 					sdk.NewCoin("wrongdenom", math.NewInt(500)),
@@ -172,10 +176,10 @@ func TestFeeAddressDecorator(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tx := &mockTx{msgs: []sdk.Msg{tc.msg}}
+			tx := &feeAddrMockTx{msgs: []sdk.Msg{tc.msg}}
 			ctx := sdk.Context{}
 
-			_, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
+			_, err := decorator.AnteHandle(ctx, tx, false, feeAddrNextAnteHandler)
 
 			if tc.expectErr {
 				require.Error(t, err)
@@ -197,7 +201,7 @@ func TestFeeAddressDecoratorDeeplyNestedAuthz(t *testing.T) {
 	// Create inner MsgSend with non-utia to fee address
 	innerMsgSend := &banktypes.MsgSend{
 		FromAddress: signer.String(),
-		ToAddress:   feeaddresstypes.FeeAddressBech32,
+		ToAddress:   feeaddress.FeeAddressBech32,
 		Amount:      sdk.NewCoins(sdk.NewCoin("wrongdenom", math.NewInt(1000))),
 	}
 	anyInnerMsgSend, err := codectypes.NewAnyWithValue(innerMsgSend)
@@ -217,10 +221,10 @@ func TestFeeAddressDecoratorDeeplyNestedAuthz(t *testing.T) {
 		Msgs:    []*codectypes.Any{anyInnerMsgExec},
 	}
 
-	tx := &mockTx{msgs: []sdk.Msg{outerMsgExec}}
+	tx := &feeAddrMockTx{msgs: []sdk.Msg{outerMsgExec}}
 	ctx := sdk.Context{}
 
-	_, err = decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
+	_, err = decorator.AnteHandle(ctx, tx, false, feeAddrNextAnteHandler)
 
 	require.Error(t, err)
 	require.ErrorContains(t, err, "only utia can be sent to fee address")
@@ -234,7 +238,7 @@ func TestFeeAddressDecoratorTripleNestedAuthz(t *testing.T) {
 	// Create innermost MsgSend with non-utia to fee address
 	innermostMsgSend := &banktypes.MsgSend{
 		FromAddress: signer.String(),
-		ToAddress:   feeaddresstypes.FeeAddressBech32,
+		ToAddress:   feeaddress.FeeAddressBech32,
 		Amount:      sdk.NewCoins(sdk.NewCoin("wrongdenom", math.NewInt(1000))),
 	}
 	anyInnermostMsgSend, err := codectypes.NewAnyWithValue(innermostMsgSend)
@@ -262,10 +266,10 @@ func TestFeeAddressDecoratorTripleNestedAuthz(t *testing.T) {
 		Msgs:    []*codectypes.Any{anyLevel2MsgExec},
 	}
 
-	tx := &mockTx{msgs: []sdk.Msg{level3MsgExec}}
+	tx := &feeAddrMockTx{msgs: []sdk.Msg{level3MsgExec}}
 	ctx := sdk.Context{}
 
-	_, err = decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
+	_, err = decorator.AnteHandle(ctx, tx, false, feeAddrNextAnteHandler)
 
 	require.Error(t, err)
 	require.ErrorContains(t, err, "only utia can be sent to fee address")

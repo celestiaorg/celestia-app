@@ -4,7 +4,7 @@ package celestia.feeaddress.v1;
 import "cosmos/msg/v1/msg.proto";
 import "cosmos_proto/cosmos.proto";
 
-option go_package = "github.com/celestiaorg/celestia-app/x/feeaddress/types";
+option go_package = "github.com/celestiaorg/celestia-app/v7/pkg/feeaddress";
 
 // Msg defines the feeaddress Msg service.
 service Msg {

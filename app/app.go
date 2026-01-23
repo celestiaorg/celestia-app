@@ -40,8 +40,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/x/blob"
 	blobkeeper "github.com/celestiaorg/celestia-app/v7/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
-	"github.com/celestiaorg/celestia-app/v7/x/feeaddress"
-	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
+	"github.com/celestiaorg/celestia-app/v7/pkg/feeaddress"
 	"github.com/celestiaorg/celestia-app/v7/x/minfee"
 	minfeekeeper "github.com/celestiaorg/celestia-app/v7/x/minfee/keeper"
 	minfeetypes "github.com/celestiaorg/celestia-app/v7/x/minfee/types"
@@ -141,7 +140,7 @@ var maccPerms = map[string][]string{
 	icatypes.ModuleName:            nil,
 	hyperlanetypes.ModuleName:      nil,
 	warptypes.ModuleName:           {authtypes.Minter, authtypes.Burner},
-	feeaddresstypes.ModuleName:     nil,
+	feeaddress.ModuleName:          nil,
 }
 
 var (
@@ -174,9 +173,8 @@ type App struct {
 	DistrKeeper         distrkeeper.Keeper
 	GovKeeper           *govkeeper.Keeper
 	UpgradeKeeper       *upgradekeeper.Keeper // Upgrades are set in endblock when signaled
-	SignalKeeper        signal.Keeper
-	FeeAddressKeeper    feeaddress.Keeper
-	MinFeeKeeper        *minfeekeeper.Keeper
+	SignalKeeper signal.Keeper
+	MinFeeKeeper *minfeekeeper.Keeper
 	ParamsKeeper        paramskeeper.Keeper
 	IBCKeeper           *ibckeeper.Keeper // IBCKeeper must be a pointer in the app, so we can SetRouter on it correctly
 	EvidenceKeeper      evidencekeeper.Keeper
@@ -313,8 +311,6 @@ func New(
 		app.StakingKeeper,
 	)
 
-	app.FeeAddressKeeper = feeaddress.NewKeeper()
-
 	app.IBCKeeper = ibckeeper.NewKeeper(
 		encodingConfig.Codec,
 		keys[ibcexported.StoreKey],
@@ -435,7 +431,6 @@ func New(
 		transfer.NewAppModule(app.TransferKeeper),
 		blob.NewAppModule(encodingConfig.Codec, app.BlobKeeper),
 		signal.NewAppModule(app.SignalKeeper),
-		feeaddress.NewAppModule(app.FeeAddressKeeper),
 		minfee.NewAppModule(encodingConfig.Codec, app.MinFeeKeeper),
 		pfm{packetforward.NewAppModule(app.PacketForwardKeeper, app.GetSubspace(packetforwardtypes.ModuleName))},
 		icaModule{ica.NewAppModule(nil, &app.ICAHostKeeper)}, // The first argument is nil because the ICA controller is not enabled on celestia-app.
@@ -469,6 +464,10 @@ func New(
 	if err := app.ModuleManager.RegisterServices(app.configurator); err != nil {
 		panic(err)
 	}
+
+	// Register feeaddress MsgServer directly since there's no feeaddress module.
+	// The MsgServer is a no-op handler - actual fee forwarding happens in ProtocolFeeTerminatorDecorator.
+	feeaddress.RegisterMsgServer(app.MsgServiceRouter(), feeaddress.NewMsgServerImpl())
 
 	app.RegisterUpgradeHandlers() // must be called after module manager & configurator are initialized
 
@@ -660,7 +659,7 @@ func (app *App) BlockedAddresses() map[string]bool {
 
 	// allow the following addresses to receive funds
 	delete(modAccAddrs, authtypes.NewModuleAddress(govtypes.ModuleName).String())
-	delete(modAccAddrs, authtypes.NewModuleAddress(feeaddresstypes.ModuleName).String())
+	delete(modAccAddrs, authtypes.NewModuleAddress(feeaddress.ModuleName).String())
 
 	return modAccAddrs
 }

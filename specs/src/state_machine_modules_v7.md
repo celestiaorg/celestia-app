@@ -5,7 +5,6 @@ The modules used in app version 7 are:
 ## `celestia-app` modules
 
 - [blob](https://github.com/celestiaorg/celestia-app/blob/main/x/blob/README.md)
-- [feeaddress](https://github.com/celestiaorg/celestia-app/blob/main/x/feeaddress/README.md)
 - [minfee](https://github.com/celestiaorg/celestia-app/blob/main/x/minfee/README.md)
 - [mint](https://github.com/celestiaorg/celestia-app/blob/main/x/mint/README.md)
 - [signal](https://github.com/celestiaorg/celestia-app/blob/main/x/signal/README.md)

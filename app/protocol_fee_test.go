@@ -10,9 +10,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/app"
 	"github.com/celestiaorg/celestia-app/v7/app/encoding"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/feeaddress"
 	"github.com/celestiaorg/celestia-app/v7/test/util"
 	"github.com/celestiaorg/celestia-app/v7/test/util/testfactory"
-	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmdb "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -41,7 +41,7 @@ func createTestAppWithFeeAddressBalance(t *testing.T, feeAddrBalance sdk.Coin) *
 		require.NoError(t, err)
 
 		bankGenesis.Balances = append(bankGenesis.Balances, banktypes.Balance{
-			Address: feeaddresstypes.FeeAddressBech32,
+			Address: feeaddress.FeeAddressBech32,
 			Coins:   sdk.NewCoins(feeAddrBalance),
 		})
 		bankGenesis.Supply = bankGenesis.Supply.Add(feeAddrBalance)
@@ -84,12 +84,12 @@ func TestProcessProposalProtocolFeeValidation(t *testing.T) {
 
 	// Helper to create a protocol fee tx with specific fee
 	createProtocolFeeTx := func(feeAmount sdk.Coin) []byte {
-		msg := feeaddresstypes.NewMsgPayProtocolFee()
+		msg := feeaddress.NewMsgPayProtocolFee()
 		txBuilder := ecfg.TxConfig.NewTxBuilder()
 		err := txBuilder.SetMsgs(msg)
 		require.NoError(t, err)
 		txBuilder.SetFeeAmount(sdk.NewCoins(feeAmount))
-		txBuilder.SetGasLimit(feeaddresstypes.ProtocolFeeGasLimit)
+		txBuilder.SetGasLimit(feeaddress.ProtocolFeeGasLimit)
 		txBytes, err := ecfg.TxConfig.TxEncoder()(txBuilder.GetTx())
 		require.NoError(t, err)
 		return txBytes
@@ -97,7 +97,7 @@ func TestProcessProposalProtocolFeeValidation(t *testing.T) {
 
 	// Helper to create a protocol fee tx with wrong gas limit
 	createProtocolFeeTxWrongGas := func(feeAmount sdk.Coin, gas uint64) []byte {
-		msg := feeaddresstypes.NewMsgPayProtocolFee()
+		msg := feeaddress.NewMsgPayProtocolFee()
 		txBuilder := ecfg.TxConfig.NewTxBuilder()
 		err := txBuilder.SetMsgs(msg)
 		require.NoError(t, err)
@@ -156,7 +156,7 @@ func TestProcessProposalProtocolFeeValidation(t *testing.T) {
 			name:           "reject protocol fee tx with wrong gas limit",
 			feeAddrBalance: sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)),
 			txs: func() [][]byte {
-				wrongGasLimit := uint64(feeaddresstypes.ProtocolFeeGasLimit * 2) // Intentionally wrong
+				wrongGasLimit := uint64(feeaddress.ProtocolFeeGasLimit * 2) // Intentionally wrong
 				return [][]byte{createProtocolFeeTxWrongGas(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)), wrongGasLimit)}
 			},
 			expectReject: true,
@@ -166,12 +166,12 @@ func TestProcessProposalProtocolFeeValidation(t *testing.T) {
 			feeAddrBalance: sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)),
 			txs: func() [][]byte {
 				// Wrong denom in fee
-				msg := feeaddresstypes.NewMsgPayProtocolFee()
+				msg := feeaddress.NewMsgPayProtocolFee()
 				txBuilder := ecfg.TxConfig.NewTxBuilder()
 				err := txBuilder.SetMsgs(msg)
 				require.NoError(t, err)
 				txBuilder.SetFeeAmount(sdk.NewCoins(sdk.NewCoin("wrongdenom", math.NewInt(1000000))))
-				txBuilder.SetGasLimit(feeaddresstypes.ProtocolFeeGasLimit)
+				txBuilder.SetGasLimit(feeaddress.ProtocolFeeGasLimit)
 				txBytes, err := ecfg.TxConfig.TxEncoder()(txBuilder.GetTx())
 				require.NoError(t, err)
 				return [][]byte{txBytes}
@@ -201,7 +201,7 @@ func TestProcessProposalProtocolFeeValidation(t *testing.T) {
 					require.NoError(t, err)
 					msgs := firstTx.GetMsgs()
 					require.Len(t, msgs, 1)
-					_, ok := msgs[0].(*feeaddresstypes.MsgPayProtocolFee)
+					_, ok := msgs[0].(*feeaddress.MsgPayProtocolFee)
 					require.True(t, ok, "first tx should be MsgPayProtocolFee")
 				}
 
@@ -276,7 +276,7 @@ func TestPrepareProposalProtocolFee(t *testing.T) {
 				require.NoError(t, err)
 				msgs := firstTx.GetMsgs()
 				require.Len(t, msgs, 1)
-				_, ok := msgs[0].(*feeaddresstypes.MsgPayProtocolFee)
+				_, ok := msgs[0].(*feeaddress.MsgPayProtocolFee)
 				require.True(t, ok, "first tx should be MsgPayProtocolFee")
 
 				// Verify fee amount matches balance
@@ -285,7 +285,7 @@ func TestPrepareProposalProtocolFee(t *testing.T) {
 				require.Equal(t, tc.feeAddrBalance, feeTx.GetFee()[0])
 
 				// Verify gas limit (cast to uint64 for comparison)
-				require.Equal(t, uint64(feeaddresstypes.ProtocolFeeGasLimit), feeTx.GetGas())
+				require.Equal(t, uint64(feeaddress.ProtocolFeeGasLimit), feeTx.GetGas())
 			} else {
 				// Verify no protocol fee tx (may have empty txs or non-protocol-fee txs)
 				for _, txBytes := range resp.Txs {
@@ -295,7 +295,7 @@ func TestPrepareProposalProtocolFee(t *testing.T) {
 					}
 					msgs := tx.GetMsgs()
 					if len(msgs) == 1 {
-						_, ok := msgs[0].(*feeaddresstypes.MsgPayProtocolFee)
+						_, ok := msgs[0].(*feeaddress.MsgPayProtocolFee)
 						require.False(t, ok, "should not have protocol fee tx when no balance")
 					}
 				}
@@ -335,7 +335,7 @@ func TestProtocolFeeGasConsumption(t *testing.T) {
 
 	// Verify gas consumption is well below the limit (at least 20% margin)
 	gasUsed := protocolFeeResult.GasUsed
-	gasLimit := uint64(feeaddresstypes.ProtocolFeeGasLimit)
+	gasLimit := uint64(feeaddress.ProtocolFeeGasLimit)
 	maxExpectedGas := gasLimit * 80 / 100 // 80% of limit
 
 	t.Logf("Protocol fee gas consumption: used=%d, limit=%d, max_expected=%d",

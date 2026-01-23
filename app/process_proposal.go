@@ -11,8 +11,8 @@ import (
 	apperr "github.com/celestiaorg/celestia-app/v7/app/errors"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/pkg/da"
+	"github.com/celestiaorg/celestia-app/v7/pkg/feeaddress"
 	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
-	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	blobtx "github.com/celestiaorg/go-square/v3/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -56,7 +56,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// Strict validation for protocol fee transactions:
 	// If the fee address has a balance, the block MUST contain a valid protocol fee tx as the first tx.
 	// If no balance but protocol fee tx present, reject the block.
-	feeBalance := app.BankKeeper.GetBalance(ctx, feeaddresstypes.FeeAddress, appconsts.BondDenom)
+	feeBalance := app.BankKeeper.GetBalance(ctx, feeaddress.FeeAddress, appconsts.BondDenom)
 	hasBalance := !feeBalance.IsZero()
 
 	// Case: fee address has balance but no transactions
@@ -269,7 +269,7 @@ func (app *App) parseProtocolFeeTx(txBytes []byte) (sdk.Tx, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	return sdkTx, feeaddresstypes.IsProtocolFeeMsg(sdkTx) != nil, nil
+	return sdkTx, feeaddress.IsProtocolFeeMsg(sdkTx) != nil, nil
 }
 
 // validateProtocolFeeTx validates a decoded protocol fee transaction.
@@ -281,11 +281,11 @@ func (app *App) validateProtocolFeeTx(sdkTx sdk.Tx, expectedFee sdk.Coin) error 
 	}
 
 	// Validate fee format and expected amount
-	if err := feeaddresstypes.ValidateProtocolFee(feeTx.GetFee(), &expectedFee); err != nil {
+	if err := feeaddress.ValidateProtocolFee(feeTx.GetFee(), &expectedFee); err != nil {
 		return err
 	}
-	if feeTx.GetGas() != feeaddresstypes.ProtocolFeeGasLimit {
-		return fmt.Errorf("gas limit %d does not match expected %d", feeTx.GetGas(), feeaddresstypes.ProtocolFeeGasLimit)
+	if feeTx.GetGas() != feeaddress.ProtocolFeeGasLimit {
+		return fmt.Errorf("gas limit %d does not match expected %d", feeTx.GetGas(), feeaddress.ProtocolFeeGasLimit)
 	}
 
 	return nil

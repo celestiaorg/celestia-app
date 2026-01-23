@@ -2,7 +2,7 @@ package ante
 
 import (
 	"cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
+	"github.com/celestiaorg/celestia-app/v7/pkg/feeaddress"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -21,11 +21,11 @@ import (
 //
 // For all other transactions, this decorator simply calls next().
 type ProtocolFeeTerminatorDecorator struct {
-	bankKeeper types.ProtocolFeeBankKeeper
+	bankKeeper feeaddress.ProtocolFeeBankKeeper
 }
 
 // NewProtocolFeeTerminatorDecorator creates a new ProtocolFeeTerminatorDecorator.
-func NewProtocolFeeTerminatorDecorator(bankKeeper types.ProtocolFeeBankKeeper) *ProtocolFeeTerminatorDecorator {
+func NewProtocolFeeTerminatorDecorator(bankKeeper feeaddress.ProtocolFeeBankKeeper) *ProtocolFeeTerminatorDecorator {
 	if bankKeeper == nil {
 		panic("bankKeeper cannot be nil")
 	}
@@ -36,7 +36,7 @@ func NewProtocolFeeTerminatorDecorator(bankKeeper types.ProtocolFeeBankKeeper) *
 
 // AnteHandle implements sdk.AnteDecorator.
 func (d ProtocolFeeTerminatorDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	msg := types.IsProtocolFeeMsg(tx)
+	msg := feeaddress.IsProtocolFeeMsg(tx)
 	if msg == nil {
 		return next(ctx, tx, simulate)
 	}
@@ -53,11 +53,11 @@ func (d ProtocolFeeTerminatorDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, s
 	}
 	fee := feeTx.GetFee()
 
-	if err := types.ValidateProtocolFee(fee, nil); err != nil {
+	if err := feeaddress.ValidateProtocolFee(fee, nil); err != nil {
 		return ctx, errors.Wrap(sdkerrors.ErrInvalidRequest, err.Error())
 	}
 
-	err := d.bankKeeper.SendCoinsFromAccountToModule(ctx, types.FeeAddress, authtypes.FeeCollectorName, fee)
+	err := d.bankKeeper.SendCoinsFromAccountToModule(ctx, feeaddress.FeeAddress, authtypes.FeeCollectorName, fee)
 	if err != nil {
 		return ctx, errors.Wrap(err, "failed to deduct fee from fee address")
 	}
