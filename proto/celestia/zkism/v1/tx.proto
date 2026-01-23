@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package celestia.zkism.v1;
+
+import "cosmos/msg/v1/msg.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/zkism/types";
+
+// Msg defines the zkism module Msg service.
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  // CreateInterchainSecurityModule defines the rpc method for creating a new zk ISM.
+  rpc CreateInterchainSecurityModule(MsgCreateInterchainSecurityModule)
+      returns (MsgCreateInterchainSecurityModuleResponse);
+
+  // UpdateInterchainSecurityModule defines the rpc method for updating an existing zk ISM.
+  rpc UpdateInterchainSecurityModule(MsgUpdateInterchainSecurityModule)
+      returns (MsgUpdateInterchainSecurityModuleResponse);
+
+  // SubmitMessages defines the rpc method for verifying state membership of messages.
+  rpc SubmitMessages(MsgSubmitMessages) returns (MsgSubmitMessagesResponse);
+}
+
+// MsgCreateInterchainSecurityModule is the request type for CreateInterchainSecurityModule.
+message MsgCreateInterchainSecurityModule {
+  option (cosmos.msg.v1.signer) = "creator";
+  // creator is the message sender.
+  string creator = 1;
+  // initial trusted state
+  bytes state = 2;
+  // merkle tree address in byte32 format
+  bytes merkle_tree_address = 3;
+  // the sp1 groth16 verifier key
+  bytes groth16_vkey = 4;
+  // hash-based commitment to the verifier key used for state transition
+  bytes state_transition_vkey = 5;
+  // hash-based commitment to the verifier key used for state membership
+  bytes state_membership_vkey = 6;
+}
+
+// MsgCreateInterchainSecurityModuleResponse is the response type for CreateInterchainSecurityModule.
+message MsgCreateInterchainSecurityModuleResponse {
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+}
+
+// MsgUpdateInterchainSecurityModule is the request type for UpdateInterchainSecurityModule.
+message MsgUpdateInterchainSecurityModule {
+  option (cosmos.msg.v1.signer) = "signer";
+
+  // ism identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // proof is the ZK proof bytes (groth16).
+  bytes proof = 2;
+  // the public values used for proof verification.
+  bytes public_values = 3;
+  // the tx signer address
+  string signer = 4;
+}
+
+// MsgUpdateInterchainSecurityModuleResponse is the response type for UpdateInterchainSecurityModule.
+message MsgUpdateInterchainSecurityModuleResponse {
+  // new ism state
+  bytes state = 1;
+}
+
+// MsgSubmitMessages is the request type for SubmitMessages.
+message MsgSubmitMessages {
+  option (cosmos.msg.v1.signer) = "signer";
+
+  // ism identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // proof is the ZK proof bytes (groth16).
+  bytes proof = 2;
+  // the public values used for proof verification.
+  bytes public_values = 3;
+  // the tx signer address
+  string signer = 4;
+}
+
+// MsgSubmitMessagesResponse is the response type for SubmitMessages.
+message MsgSubmitMessagesResponse {
+  // state commitment root used to verify messages (hex-encoded)
+  string state_root = 1;
+  // list of authorized messages ids
+  repeated string messages = 2;
+}

@@ -52,6 +52,9 @@ import (
 	minttypes "github.com/celestiaorg/celestia-app/v7/x/mint/types"
 	"github.com/celestiaorg/celestia-app/v7/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v7/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v7/x/zkism"
+	zkismkeeper "github.com/celestiaorg/celestia-app/v7/x/zkism/keeper"
+	zkismtypes "github.com/celestiaorg/celestia-app/v7/x/zkism/types"
 	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmjson "github.com/cometbft/cometbft/libs/json"
@@ -190,6 +193,7 @@ type App struct {
 	CircuitKeeper       circuitkeeper.Keeper
 	HyperlaneKeeper     hyperlanekeeper.Keeper
 	WarpKeeper          warpkeeper.Keeper
+	IsmKeeper           *zkismkeeper.Keeper
 	ForwardingKeeper    forwardingkeeper.Keeper
 
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
@@ -412,6 +416,13 @@ func New(
 		[]int32{int32(warptypes.HYP_TOKEN_TYPE_COLLATERAL), int32(warptypes.HYP_TOKEN_TYPE_SYNTHETIC)},
 	)
 
+	app.IsmKeeper = zkismkeeper.NewKeeper(
+		encodingConfig.Codec,
+		runtime.NewKVStoreService(keys[zkismtypes.StoreKey]),
+		&app.HyperlaneKeeper,
+		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
+	)
+
 	app.ForwardingKeeper = forwardingkeeper.NewKeeper(
 		app.BankKeeper,
 		forwardingkeeper.NewWarpKeeperAdapter(&app.WarpKeeper),
@@ -451,6 +462,7 @@ func New(
 		circuitModule{circuit.NewAppModule(encodingConfig.Codec, app.CircuitKeeper)},
 		hyperlanecore.NewAppModule(encodingConfig.Codec, &app.HyperlaneKeeper),
 		warp.NewAppModule(encodingConfig.Codec, app.WarpKeeper),
+		zkism.NewAppModule(encodingConfig.Codec, app.IsmKeeper),
 		forwarding.NewAppModule(encodingConfig.Codec, app.ForwardingKeeper),
 	)
 

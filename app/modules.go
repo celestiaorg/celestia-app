@@ -21,6 +21,8 @@ import (
 	minttypes "github.com/celestiaorg/celestia-app/v7/x/mint/types"
 	"github.com/celestiaorg/celestia-app/v7/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v7/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v7/x/zkism"
+	zkismtypes "github.com/celestiaorg/celestia-app/v7/x/zkism/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -84,6 +86,7 @@ var ModuleEncodingRegisters = []module.AppModuleBasic{
 	// hyperlane
 	hyperlanecore.AppModule{},
 	warp.AppModule{},
+	zkism.AppModule{},
 	// celestia
 	blob.AppModule{},
 	forwarding.AppModule{},
@@ -114,6 +117,7 @@ func (app *App) setModuleOrder() {
 		minfeetypes.ModuleName,
 		icatypes.ModuleName,
 		packetforwardtypes.ModuleName,
+		zkismtypes.ModuleName,
 	)
 
 	app.ModuleManager.SetOrderPreBlockers(
@@ -178,6 +182,7 @@ func (app *App) setModuleOrder() {
 		circuittypes.ModuleName,
 		hyperlanetypes.ModuleName,
 		warptypes.ModuleName,
+		zkismtypes.ModuleName,
 		forwardingtypes.ModuleName,
 	)
 }
@@ -208,5 +213,6 @@ func allStoreKeys() []string {
 		circuittypes.StoreKey,     // added in v4
 		hyperlanetypes.ModuleName, // added in v4
 		warptypes.ModuleName,      // added in v4
+		zkismtypes.StoreKey,       // added in v7
 	}
 }

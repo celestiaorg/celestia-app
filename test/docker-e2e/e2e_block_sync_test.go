@@ -1,10 +1,11 @@
 package docker_e2e
 
 import (
-	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"context"
 	"testing"
 	"time"
+
+	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
 	addressutil "github.com/celestiaorg/tastora/framework/testutil/address"
 	"github.com/celestiaorg/tastora/framework/testutil/config"

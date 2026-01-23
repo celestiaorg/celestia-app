@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package celestia.zkism.v1;
+
+import "celestia/zkism/v1/types.proto";
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "google/api/annotations.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/zkism/types";
+
+// Query defines the zkism module Query service.
+service Query {
+  // Ism defines an rpc method for querying an ISM by ID.
+  rpc Ism(QueryIsmRequest) returns (QueryIsmResponse) {
+    option (google.api.http).get = "/celestia/zkism/v1/isms/{id}";
+  }
+
+  // Isms defines an rpc method for querying all ISMs.
+  rpc Isms(QueryIsmsRequest) returns (QueryIsmsResponse) {
+    option (google.api.http).get = "/celestia/zkism/v1/isms";
+  }
+
+  // Messages defines an rpc method for querying authorized Hyperlane message IDs.
+  rpc Messages(QueryMessagesRequest) returns (QueryMessagesResponse) {
+    option (google.api.http).get = "/celestia/zkism/v1/messages/{id}";
+  }
+}
+
+// QueryIsmRequest is the request type for the Ism rpc method.
+message QueryIsmRequest {
+  // id is the hex-encoded ISM identifier.
+  string id = 1;
+}
+
+// QueryIsmResponse is the response type for the Ism rpc method.
+message QueryIsmResponse {
+  // the ism associated with the provided identifier.
+  InterchainSecurityModule ism = 1 [(gogoproto.nullable) = false];
+}
+
+// QueryIsmsRequest is the request type for the Isms rpc method.
+message QueryIsmsRequest {
+  // pagination defines an optional pagination for the request.
+  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+
+// QueryIsmsResponse is the response type for the Isms rpc method.
+message QueryIsmsResponse {
+  // isms is a list of zk execution isms.
+  repeated InterchainSecurityModule isms = 1 [(gogoproto.nullable) = false];
+  // pagination defines the pagination in the response.
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+// QueryMessagesRequest is the request type for the Messages rpc method.
+message QueryMessagesRequest {
+  // id is the hex-encoded ISM identifier.
+  string id = 1;
+  // pagination defines an optional pagination for the request.
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+
+// QueryMessagesResponse is the response type for the Messages rpc method.
+message QueryMessagesResponse {
+  // messages is a list of authorized Hyperlane message IDs.
+  repeated string messages = 1;
+  // pagination defines the pagination in the response.
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
