@@ -1,7 +1,6 @@
 package keeper
 
 import (
-	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -41,15 +40,3 @@ func EmitForwardingCompleteEvent(ctx sdk.Context, forwardAddr string, destDomain
 	}
 }
 
-// EmitTokensStuckEvent emits an event when tokens become stuck in the module account.
-func EmitTokensStuckEvent(ctx sdk.Context, denom string, amount math.Int, moduleAddr, forwardAddr, errorMsg string) {
-	if err := ctx.EventManager().EmitTypedEvent(&types.EventTokensStuck{
-		Denom:       denom,
-		Amount:      amount,
-		ModuleAddr:  moduleAddr,
-		ForwardAddr: forwardAddr,
-		Error:       errorMsg,
-	}); err != nil {
-		ctx.Logger().Error("failed to emit EventTokensStuck", "error", err)
-	}
-}
