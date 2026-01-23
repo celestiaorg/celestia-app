@@ -14,8 +14,6 @@ import (
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/celestiaorg/celestia-app/v7/x/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
-	"github.com/celestiaorg/celestia-app/v7/x/feeaddress"
-	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	"github.com/celestiaorg/celestia-app/v7/x/minfee"
 	minfeetypes "github.com/celestiaorg/celestia-app/v7/x/minfee/types"
 	minttypes "github.com/celestiaorg/celestia-app/v7/x/mint/types"
@@ -86,7 +84,6 @@ var ModuleEncodingRegisters = []module.AppModuleBasic{
 	warp.AppModule{},
 	// celestia
 	blob.AppModule{},
-	feeaddress.AppModule{},
 	minfee.AppModule{},
 	mintModule{},
 	signal.AppModule{},
@@ -142,7 +139,6 @@ func (app *App) setModuleOrder() {
 		minfeetypes.ModuleName,
 		packetforwardtypes.ModuleName,
 		icatypes.ModuleName,
-		feeaddresstypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -173,7 +169,6 @@ func (app *App) setModuleOrder() {
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		signaltypes.ModuleName,
-		feeaddresstypes.ModuleName,
 		packetforwardtypes.ModuleName,
 		icatypes.ModuleName,
 		upgradetypes.ModuleName,

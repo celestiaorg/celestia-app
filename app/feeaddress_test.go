@@ -1,4 +1,4 @@
-package test
+package app_test
 
 import (
 	"context"
@@ -9,11 +9,11 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/app"
 	"github.com/celestiaorg/celestia-app/v7/app/encoding"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/feeaddress"
 	"github.com/celestiaorg/celestia-app/v7/pkg/user"
 	"github.com/celestiaorg/celestia-app/v7/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v7/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
-	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
@@ -24,9 +24,9 @@ import (
 
 const utiaPerTIA = 1_000_000 // 1 TIA = 1,000,000 utia
 
-// IntegrationTestSuite runs end-to-end tests against a real test network.
-// It verifies the feeaddress module works correctly when integrated with the full app.
-type IntegrationTestSuite struct {
+// FeeAddressIntegrationTestSuite runs end-to-end tests against a real test network.
+// It verifies the fee address functionality works correctly when integrated with the full app.
+type FeeAddressIntegrationTestSuite struct {
 	suite.Suite
 	accounts []string         // funded test accounts
 	cctx     testnode.Context // test network context with gRPC client
@@ -34,11 +34,11 @@ type IntegrationTestSuite struct {
 }
 
 func TestFeeAddressIntegrationTestSuite(t *testing.T) {
-	suite.Run(t, new(IntegrationTestSuite))
+	suite.Run(t, new(FeeAddressIntegrationTestSuite))
 }
 
 // SetupSuite spins up a single-node test network with funded accounts.
-func (s *IntegrationTestSuite) SetupSuite() {
+func (s *FeeAddressIntegrationTestSuite) SetupSuite() {
 	s.accounts = testfactory.GenerateAccounts(2)
 	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...)
 	cctx, _, _ := testnode.NewNetwork(s.T(), cfg)
@@ -48,7 +48,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 // TestFeeAddressSendAndForward verifies the E2E flow: send utia to fee address,
 // PrepareProposal injects MsgPayProtocolFee, and tokens are forwarded to fee collector.
-func (s *IntegrationTestSuite) TestFeeAddressSendAndForward() {
+func (s *FeeAddressIntegrationTestSuite) TestFeeAddressSendAndForward() {
 	require := s.Require()
 	require.NoError(s.cctx.WaitForNextBlock())
 
@@ -66,7 +66,7 @@ func (s *IntegrationTestSuite) TestFeeAddressSendAndForward() {
 	// Build and submit MsgSend to fee address
 	msgSend := &banktypes.MsgSend{
 		FromAddress: accountAddr.String(),
-		ToAddress:   feeaddresstypes.FeeAddressBech32,
+		ToAddress:   feeaddress.FeeAddressBech32,
 		Amount:      sdk.NewCoins(sendAmount),
 	}
 
@@ -103,12 +103,12 @@ func (s *IntegrationTestSuite) TestFeeAddressSendAndForward() {
 
 // TestUserSubmittedMsgPayProtocolFeeRejected verifies users cannot submit MsgPayProtocolFee
 // directly - it must be protocol-injected only (CIP-43).
-func (s *IntegrationTestSuite) TestUserSubmittedMsgPayProtocolFeeRejected() {
+func (s *FeeAddressIntegrationTestSuite) TestUserSubmittedMsgPayProtocolFeeRejected() {
 	require := s.Require()
 	require.NoError(s.cctx.WaitForNextBlock())
 
 	account := s.accounts[1]
-	msgPayProtocolFee := feeaddresstypes.NewMsgPayProtocolFee()
+	msgPayProtocolFee := feeaddress.NewMsgPayProtocolFee()
 
 	txClient, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg, user.WithDefaultAccount(account))
 	require.NoError(err)
@@ -118,7 +118,7 @@ func (s *IntegrationTestSuite) TestUserSubmittedMsgPayProtocolFeeRejected() {
 }
 
 // getAccountBalance queries the bank module for an account's utia balance.
-func (s *IntegrationTestSuite) getAccountBalance(addr sdk.AccAddress) math.Int {
+func (s *FeeAddressIntegrationTestSuite) getAccountBalance(addr sdk.AccAddress) math.Int {
 	bqc := banktypes.NewQueryClient(s.cctx.GRPCClient)
 	resp, err := bqc.Balance(s.cctx.GoContext(), &banktypes.QueryBalanceRequest{
 		Address: addr.String(),
@@ -129,7 +129,7 @@ func (s *IntegrationTestSuite) getAccountBalance(addr sdk.AccAddress) math.Int {
 }
 
 // getFeeAddressBalance queries the fee address balance, optionally at a specific height.
-func (s *IntegrationTestSuite) getFeeAddressBalance(height ...int64) math.Int {
+func (s *FeeAddressIntegrationTestSuite) getFeeAddressBalance(height ...int64) math.Int {
 	bqc := banktypes.NewQueryClient(s.cctx.GRPCClient)
 	var ctx context.Context
 	if len(height) > 0 {
@@ -138,7 +138,7 @@ func (s *IntegrationTestSuite) getFeeAddressBalance(height ...int64) math.Int {
 		ctx = s.cctx.GoContext()
 	}
 	resp, err := bqc.Balance(ctx, &banktypes.QueryBalanceRequest{
-		Address: feeaddresstypes.FeeAddressBech32,
+		Address: feeaddress.FeeAddressBech32,
 		Denom:   appconsts.BondDenom,
 	})
 	s.Require().NoError(err)
