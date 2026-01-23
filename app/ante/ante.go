@@ -70,7 +70,7 @@ func NewAnteHandler(
 		// Ensure that the tx does not contain a MsgExec with a nested MsgExec
 		// or MsgPayForBlobs.
 		NewMsgExecDecorator(),
-		// Ensure that only utia can be sent to the fee address.
+		// Ensure that only utia can be sent to the feeaddress module account.
 		NewFeeAddressDecorator(),
 		// Ensure that the tx's gas limit is > the gas consumed based on the blob size(s).
 		// Contract: must be called after all decorators that consume gas.
