@@ -67,10 +67,5 @@ func (d FeeForwardTerminatorDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, si
 		return ctx, errors.Wrap(err, "failed to emit fee forwarded event")
 	}
 
-	// Terminate the ante chain - MsgForwardFees is fully handled.
-	// We don't call next() because:
-	// - No signatures to verify (protocol-injected)
-	// - Fee already deducted above
-	// - No sequence to increment (no signers)
 	return ctx, nil
 }

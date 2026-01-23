@@ -112,7 +112,6 @@ func (app *App) injectFeeForwardTx(ctx sdk.Context, txs [][]byte) ([][]byte, sdk
 		return nil, feeBalance, fmt.Errorf("failed to create fee forward tx: %w; fee_balance=%s", err, feeBalance.String())
 	}
 
-	// Prepend fee forward tx so it executes first
 	return append([][]byte{feeForwardTx}, txs...), feeBalance, nil
 }
 

@@ -62,8 +62,6 @@ func (fad FeeAddressDecorator) validateMessage(msg sdk.Msg) error {
 func validateFeeAddressSend(recipient string, coins sdk.Coins) error {
 	addr, err := sdk.AccAddressFromBech32(recipient)
 	if err != nil {
-		// Invalid address format - not our concern. Other validators (ValidateBasic,
-		// bank module) will reject this. Return nil to avoid duplicate errors.
 		return nil
 	}
 
