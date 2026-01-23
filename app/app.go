@@ -35,12 +35,12 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/app/grpc/gasestimation"
 	celestiatx "github.com/celestiaorg/celestia-app/v7/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/feeaddress"
 	"github.com/celestiaorg/celestia-app/v7/pkg/proof"
 	"github.com/celestiaorg/celestia-app/v7/pkg/wrapper"
 	"github.com/celestiaorg/celestia-app/v7/x/blob"
 	blobkeeper "github.com/celestiaorg/celestia-app/v7/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
-	"github.com/celestiaorg/celestia-app/v7/pkg/feeaddress"
 	"github.com/celestiaorg/celestia-app/v7/x/minfee"
 	minfeekeeper "github.com/celestiaorg/celestia-app/v7/x/minfee/keeper"
 	minfeetypes "github.com/celestiaorg/celestia-app/v7/x/minfee/types"
@@ -173,8 +173,8 @@ type App struct {
 	DistrKeeper         distrkeeper.Keeper
 	GovKeeper           *govkeeper.Keeper
 	UpgradeKeeper       *upgradekeeper.Keeper // Upgrades are set in endblock when signaled
-	SignalKeeper signal.Keeper
-	MinFeeKeeper *minfeekeeper.Keeper
+	SignalKeeper        signal.Keeper
+	MinFeeKeeper        *minfeekeeper.Keeper
 	ParamsKeeper        paramskeeper.Keeper
 	IBCKeeper           *ibckeeper.Keeper // IBCKeeper must be a pointer in the app, so we can SetRouter on it correctly
 	EvidenceKeeper      evidencekeeper.Keeper
