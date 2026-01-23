@@ -646,7 +646,7 @@ func (app *App) LoadHeight(height int64) error {
 	return app.LoadVersion(height)
 }
 
-// ModuleAccountAddrs returns all the app's module account addresses.
+// ModuleAccountAddrs returns a map of the app's module account addresses.
 func (app *App) ModuleAccountAddrs() map[string]bool {
 	modAccAddrs := make(map[string]bool)
 	for acc := range maccPerms {
@@ -656,11 +656,16 @@ func (app *App) ModuleAccountAddrs() map[string]bool {
 	return modAccAddrs
 }
 
-// BlockedAddresses returns all the app's blocked account addresses.
+// BlockedAddresses returns a map of the app's blocked account addresses.
+// NOTE: This blocklist defines the set of addresses that are not allowed
+// to receive funds through direct and explicit actions, for example, by using a MsgSend or
+// by using a SendCoinsFromModuleToAccount execution.
+// Thus, a module account such as the Hyperlane module account can still receive escrow funds via the protocol,
+// however sending directly to the module account via x/bank is forbidden.
 func (app *App) BlockedAddresses() map[string]bool {
 	modAccAddrs := make(map[string]bool)
-	for acc := range app.ModuleAccountAddrs() {
-		modAccAddrs[authtypes.NewModuleAddress(acc).String()] = true
+	for address := range app.ModuleAccountAddrs() {
+		modAccAddrs[address] = true
 	}
 
 	// allow the following addresses to receive funds
