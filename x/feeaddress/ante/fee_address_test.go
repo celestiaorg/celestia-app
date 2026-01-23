@@ -4,15 +4,26 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v7/app/ante"
+	_ "github.com/celestiaorg/celestia-app/v7/app/params" // Sets SDK bech32 prefixes
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/x/feeaddress/ante"
 	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
+	protov2 "google.golang.org/protobuf/proto"
 )
+
+// mockTx implements sdk.Tx for testing FeeAddressDecorator.
+type mockTx struct {
+	msgs []sdk.Msg
+}
+
+func (m *mockTx) GetMsgs() []sdk.Msg                    { return m.msgs }
+func (m *mockTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
+func (m *mockTx) ValidateBasic() error                  { return nil }
 
 func TestFeeAddressDecorator(t *testing.T) {
 	decorator := ante.NewFeeAddressDecorator()
@@ -161,7 +172,7 @@ func TestFeeAddressDecorator(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tx := mockTx([]sdk.Msg{tc.msg})
+			tx := &mockTx{msgs: []sdk.Msg{tc.msg}}
 			ctx := sdk.Context{}
 
 			_, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
@@ -206,7 +217,7 @@ func TestFeeAddressDecoratorDeeplyNestedAuthz(t *testing.T) {
 		Msgs:    []*codectypes.Any{anyInnerMsgExec},
 	}
 
-	tx := mockTx([]sdk.Msg{outerMsgExec})
+	tx := &mockTx{msgs: []sdk.Msg{outerMsgExec}}
 	ctx := sdk.Context{}
 
 	_, err = decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
@@ -251,7 +262,7 @@ func TestFeeAddressDecoratorTripleNestedAuthz(t *testing.T) {
 		Msgs:    []*codectypes.Any{anyLevel2MsgExec},
 	}
 
-	tx := mockTx([]sdk.Msg{level3MsgExec})
+	tx := &mockTx{msgs: []sdk.Msg{level3MsgExec}}
 	ctx := sdk.Context{}
 
 	_, err = decorator.AnteHandle(ctx, tx, false, nextAnteHandler)

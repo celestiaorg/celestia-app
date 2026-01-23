@@ -2,7 +2,7 @@ package ante
 
 import (
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
-	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
+	"github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/authz"
@@ -67,8 +67,7 @@ func validateFeeAddressSend(recipient string, coins sdk.Coins) error {
 		return nil
 	}
 
-	if !addr.Equals(feeaddresstypes.FeeAddress) {
-		// Not sending to fee address - this decorator only cares about fee address sends
+	if !addr.Equals(types.FeeAddress) {
 		return nil
 	}
 

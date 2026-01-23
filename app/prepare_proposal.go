@@ -149,17 +149,14 @@ func (app *App) verifyFeeForwardTxSurvived(feeBalance sdk.Coin, filteredTxs [][]
 func (app *App) createFeeForwardTx(feeAmount sdk.Coin) ([]byte, error) {
 	msg := feeaddresstypes.NewMsgForwardFees()
 
-	// Build the transaction
 	txBuilder := app.encodingConfig.TxConfig.NewTxBuilder()
 	if err := txBuilder.SetMsgs(msg); err != nil {
 		return nil, fmt.Errorf("failed to set message: %w", err)
 	}
 
-	// Set the fee to the fee address balance (this is the key part - makes it a real tx fee)
 	txBuilder.SetFeeAmount(sdk.NewCoins(feeAmount))
 	txBuilder.SetGasLimit(feeaddresstypes.FeeForwardGasLimit)
 
-	// Encode the transaction (no signature needed)
 	txBytes, err := app.encodingConfig.TxConfig.TxEncoder()(txBuilder.GetTx())
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode tx: %w", err)

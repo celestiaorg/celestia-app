@@ -5,10 +5,8 @@ package feeaddress
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 var (
@@ -17,9 +15,8 @@ var (
 )
 
 // Keeper handles fee forwarding operations for the feeaddress module.
-// The keeper is intentionally stateless - the fee transfer happens in the ante handler
-// (FeeForwardTerminatorDecorator), while ForwardFees only emits the event using the fee amount
-// passed via context from the ante handler.
+// The keeper is intentionally stateless - the fee transfer and event emission
+// happen in FeeForwardTerminatorDecorator (ante handler).
 type Keeper struct{}
 
 // NewKeeper creates a new Keeper instance.
@@ -27,24 +24,9 @@ func NewKeeper() Keeper {
 	return Keeper{}
 }
 
-// ForwardFees handles MsgForwardFees by emitting the fee forwarded event.
-// Note: The actual fee deduction is done by the FeeForwardTerminatorDecorator in the ante handler.
-// This message handler just emits the event for tracking purposes.
-func (k Keeper) ForwardFees(ctx context.Context, _ *types.MsgForwardFees) (*types.MsgForwardFeesResponse, error) {
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-
-	// Get the fee amount from context (set by FeeForwardTerminatorDecorator)
-	fee, ok := types.GetFeeForwardAmount(sdkCtx)
-	if !ok {
-		// This shouldn't happen in normal operation as the ante decorator always sets the fee
-		return nil, types.ErrFeeForwardAmountNotFound
-	}
-
-	// Emit the event for tracking
-	if err := sdkCtx.EventManager().EmitTypedEvent(types.NewFeeForwardedEvent(types.FeeAddressBech32, fee.String())); err != nil {
-		return nil, fmt.Errorf("failed to emit fee forwarded event: %w", err)
-	}
-
+// ForwardFees handles MsgForwardFees. The actual fee transfer and event emission
+// is handled by FeeForwardTerminatorDecorator in the ante chain.
+func (k Keeper) ForwardFees(_ context.Context, _ *types.MsgForwardFees) (*types.MsgForwardFeesResponse, error) {
 	return &types.MsgForwardFeesResponse{}, nil
 }
 

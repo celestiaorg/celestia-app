@@ -63,9 +63,6 @@ func (AppModule) RegisterInterfaces(reg cdctypes.InterfaceRegistry) {
 
 func (am AppModule) RegisterServices(registrar grpc.ServiceRegistrar) error {
 	types.RegisterQueryServer(registrar, &am.keeper)
-	// MsgServer must be registered for SDK message routing even though
-	// MsgForwardFees is protocol-injected. User submissions are rejected
-	// by FeeForwardTerminatorDecorator in the ante chain (CheckTx, ReCheckTx, simulate).
 	types.RegisterMsgServer(registrar, &am.keeper)
 	return nil
 }

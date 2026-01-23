@@ -6,9 +6,9 @@ import (
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v7/app/ante"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
-	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
+	"github.com/celestiaorg/celestia-app/v7/x/feeaddress/ante"
+	"github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -63,11 +63,15 @@ func (m *mockBankKeeperWithError) SendCoinsFromAccountToModule(_ context.Context
 	return m.err
 }
 
+func nextAnteHandler(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
+	return ctx, nil
+}
+
 func TestFeeForwardTerminatorRejectsUserSubmittedTx(t *testing.T) {
 	bankKeeper := &mockBankKeeper{}
 	decorator := ante.NewFeeForwardTerminatorDecorator(bankKeeper)
 
-	msg := feeaddresstypes.NewMsgForwardFees()
+	msg := types.NewMsgForwardFees()
 	fee := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
 	tx := &mockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: 50000}
 
@@ -84,7 +88,7 @@ func TestFeeForwardTerminatorRejectsReCheckTx(t *testing.T) {
 	bankKeeper := &mockBankKeeper{}
 	decorator := ante.NewFeeForwardTerminatorDecorator(bankKeeper)
 
-	msg := feeaddresstypes.NewMsgForwardFees()
+	msg := types.NewMsgForwardFees()
 	fee := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
 	tx := &mockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: 50000}
 
@@ -101,7 +105,7 @@ func TestFeeForwardTerminatorValidatesSingleDenom(t *testing.T) {
 	bankKeeper := &mockBankKeeper{}
 	decorator := ante.NewFeeForwardTerminatorDecorator(bankKeeper)
 
-	msg := feeaddresstypes.NewMsgForwardFees()
+	msg := types.NewMsgForwardFees()
 	// Multiple denoms in fee - should be rejected
 	fee := sdk.NewCoins(
 		sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)),
@@ -122,7 +126,7 @@ func TestFeeForwardTerminatorRejectsWrongDenom(t *testing.T) {
 	bankKeeper := &mockBankKeeper{}
 	decorator := ante.NewFeeForwardTerminatorDecorator(bankKeeper)
 
-	msg := feeaddresstypes.NewMsgForwardFees()
+	msg := types.NewMsgForwardFees()
 	// Wrong denom - should be rejected
 	fee := sdk.NewCoins(sdk.NewCoin("wrongdenom", math.NewInt(1000)))
 	tx := &mockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: 50000}
@@ -140,31 +144,25 @@ func TestFeeForwardTerminatorSuccess(t *testing.T) {
 	bankKeeper := &mockBankKeeper{}
 	decorator := ante.NewFeeForwardTerminatorDecorator(bankKeeper)
 
-	msg := feeaddresstypes.NewMsgForwardFees()
+	msg := types.NewMsgForwardFees()
 	fee := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
 	tx := &mockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: 50000}
 
 	// Create DeliverTx context (not CheckTx)
 	ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
 
-	newCtx, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
+	_, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
 
 	require.NoError(t, err)
 	// Verify fee was sent to fee collector
 	require.Equal(t, fee, bankKeeper.sentToModule[authtypes.FeeCollectorName])
-	// Verify GetFeeForwardAmount returns the correct fee
-	feeFromCtx, ok := feeaddresstypes.GetFeeForwardAmount(newCtx)
-	require.True(t, ok, "GetFeeForwardAmount should return fee")
-	require.Equal(t, fee, feeFromCtx, "fee from context should match tx fee")
 }
 
-// TestFeeForwardTerminatorRejectsSimulation verifies that the FeeForwardTerminatorDecorator
-// rejects fee forward transactions in simulation mode.
 func TestFeeForwardTerminatorRejectsSimulation(t *testing.T) {
 	bankKeeper := &mockBankKeeper{}
 	decorator := ante.NewFeeForwardTerminatorDecorator(bankKeeper)
 
-	msg := feeaddresstypes.NewMsgForwardFees()
+	msg := types.NewMsgForwardFees()
 	fee := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
 	tx := &mockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: 50000}
 
@@ -177,13 +175,11 @@ func TestFeeForwardTerminatorRejectsSimulation(t *testing.T) {
 	require.ErrorContains(t, err, "MsgForwardFees cannot be submitted by users")
 }
 
-// TestFeeForwardTerminatorRejectsNonFeeTx verifies that the FeeForwardTerminatorDecorator
-// rejects transactions that don't implement sdk.FeeTx.
 func TestFeeForwardTerminatorRejectsNonFeeTx(t *testing.T) {
 	bankKeeper := &mockBankKeeper{}
 	decorator := ante.NewFeeForwardTerminatorDecorator(bankKeeper)
 
-	msg := feeaddresstypes.NewMsgForwardFees()
+	msg := types.NewMsgForwardFees()
 	tx := &mockNonFeeTx{msgs: []sdk.Msg{msg}}
 
 	// Create DeliverTx context
@@ -196,11 +192,10 @@ func TestFeeForwardTerminatorRejectsNonFeeTx(t *testing.T) {
 }
 
 func TestFeeForwardTerminatorBankTransferFailure(t *testing.T) {
-	// Test that bank transfer failure is properly handled
 	bankKeeper := &mockBankKeeperWithError{err: sdkerrors.ErrInsufficientFunds}
 	decorator := ante.NewFeeForwardTerminatorDecorator(bankKeeper)
 
-	msg := feeaddresstypes.NewMsgForwardFees()
+	msg := types.NewMsgForwardFees()
 	fee := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
 	tx := &mockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: 50000}
 
@@ -217,7 +212,7 @@ func TestFeeForwardTerminatorZeroFeeRejected(t *testing.T) {
 	bankKeeper := &mockBankKeeper{}
 	decorator := ante.NewFeeForwardTerminatorDecorator(bankKeeper)
 
-	msg := feeaddresstypes.NewMsgForwardFees()
+	msg := types.NewMsgForwardFees()
 	// Zero fee should be rejected
 	tx := &mockFeeTx{msgs: []sdk.Msg{msg}, fee: sdk.Coins{}, gas: 50000}
 
