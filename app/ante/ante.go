@@ -33,11 +33,11 @@ func NewAnteHandler(
 		// Set up the context with a gas meter.
 		// Must be called before gas consumption occurs in any other decorator.
 		ante.NewSetUpContextDecorator(),
-		// Handle MsgForwardFees transactions completely and terminate early.
-		// MsgForwardFees has no signers so it would fail signature-related decorators.
+		// Handle MsgPayProtocolFee transactions completely and terminate early.
+		// MsgPayProtocolFee has no signers so it would fail signature-related decorators.
 		// This decorator transfers the fee from fee address to fee collector and returns
-		// without calling next() for fee forward txs. For all other txs, it calls next().
-		feeaddressante.NewFeeForwardTerminatorDecorator(bankKeeper),
+		// without calling next() for protocol fee txs. For all other txs, it calls next().
+		feeaddressante.NewProtocolFeeTerminatorDecorator(bankKeeper),
 		// Ensure that the tx does not contain any messages that are disabled by the circuit breaker.
 		circuitante.NewCircuitBreakerDecorator(circuitkeeper),
 		// Ensure the tx does not contain any extension options.

@@ -9,11 +9,11 @@ import (
 
 func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 	registry.RegisterImplementations((*sdk.Msg)(nil),
-		&MsgForwardFees{},
+		&MsgPayProtocolFee{},
 	)
 	msgservice.RegisterMsgServiceDesc(registry, &_Msg_serviceDesc)
 }
 
 func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
-	cdc.RegisterConcrete(&MsgForwardFees{}, "feeaddress/MsgForwardFees", nil)
+	cdc.RegisterConcrete(&MsgPayProtocolFee{}, "feeaddress/MsgPayProtocolFee", nil)
 }

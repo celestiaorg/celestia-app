@@ -44,16 +44,16 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		return nil, fmt.Errorf("failed to create FilteredSquareBuilder: %w", err)
 	}
 
-	// Inject fee forward tx if fee address has balance
-	txsToProcess, feeBalance, err := app.injectFeeForwardTx(ctx, req.Txs)
+	// Inject protocol fee tx if fee address has balance
+	txsToProcess, feeBalance, err := app.injectProtocolFeeTx(ctx, req.Txs)
 	if err != nil {
 		return nil, err
 	}
 
 	txs := fsb.Fill(ctx, txsToProcess)
 
-	// Verify fee forward tx survived filtering (if we injected one)
-	if err := app.verifyFeeForwardTxSurvived(feeBalance, txs); err != nil {
+	// Verify protocol fee tx survived filtering (if we injected one)
+	if err := app.verifyProtocolFeeTxSurvived(feeBalance, txs); err != nil {
 		return nil, err
 	}
 
@@ -88,65 +88,65 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	}, nil
 }
 
-// injectFeeForwardTx checks the fee address balance and prepends a fee forward tx
+// injectProtocolFeeTx checks the fee address balance and prepends a protocol fee tx
 // if non-zero. This converts fee address funds into real transaction fees for
 // dashboard tracking.
 //
-// Consensus safety: ProcessProposal validates that the fee forward tx fee amount equals
+// Consensus safety: ProcessProposal validates that the protocol fee tx fee amount equals
 // the fee address balance at the start of the block. Both PrepareProposal and ProcessProposal
 // read from the same state snapshot, ensuring all validators agree on validity. The fee
 // forward tx is prepended so it executes first in DeliverTx, draining the fee address
 // before any subsequent transactions can add to it.
 //
-// Returns the txs to process (with fee forward tx prepended if applicable), the fee
+// Returns the txs to process (with protocol fee tx prepended if applicable), the fee
 // balance (for verification), and any error.
-func (app *App) injectFeeForwardTx(ctx sdk.Context, txs [][]byte) ([][]byte, sdk.Coin, error) {
+func (app *App) injectProtocolFeeTx(ctx sdk.Context, txs [][]byte) ([][]byte, sdk.Coin, error) {
 	feeBalance := app.BankKeeper.GetBalance(ctx, feeaddresstypes.FeeAddress, appconsts.BondDenom)
 	if feeBalance.IsZero() {
 		return txs, feeBalance, nil
 	}
 
-	feeForwardTx, err := app.createFeeForwardTx(feeBalance)
+	protocolFeeTx, err := app.createProtocolFeeTx(feeBalance)
 	if err != nil {
 		// Fail explicitly rather than producing a block that ProcessProposal will reject.
-		return nil, feeBalance, fmt.Errorf("failed to create fee forward tx: %w; fee_balance=%s", err, feeBalance.String())
+		return nil, feeBalance, fmt.Errorf("failed to create protocol fee tx: %w; fee_balance=%s", err, feeBalance.String())
 	}
 
-	return append([][]byte{feeForwardTx}, txs...), feeBalance, nil
+	return append([][]byte{protocolFeeTx}, txs...), feeBalance, nil
 }
 
-// verifyFeeForwardTxSurvived performs defense-in-depth verification that the fee
+// verifyProtocolFeeTxSurvived performs defense-in-depth verification that the fee
 // forward tx was not filtered out. If the fee address had a balance and we created
-// a fee forward tx, it MUST be the first tx in the output. The fee forward tx should
+// a protocol fee tx, it MUST be the first tx in the output. The protocol fee tx should
 // never be filtered since it has no signature requirements and uses minimal gas.
 // If it's filtered, there's a bug in the ante handler chain.
 //
-// If feeBalance is zero, this is a no-op (no fee forward tx was injected).
-func (app *App) verifyFeeForwardTxSurvived(feeBalance sdk.Coin, filteredTxs [][]byte) error {
+// If feeBalance is zero, this is a no-op (no protocol fee tx was injected).
+func (app *App) verifyProtocolFeeTxSurvived(feeBalance sdk.Coin, filteredTxs [][]byte) error {
 	if feeBalance.IsZero() {
 		return nil
 	}
 
 	if len(filteredTxs) == 0 {
-		return fmt.Errorf("fee forward tx was filtered out (no txs remain); fee_balance=%s", feeBalance.String())
+		return fmt.Errorf("protocol fee tx was filtered out (no txs remain); fee_balance=%s", feeBalance.String())
 	}
 
-	_, firstTxIsFeeForward, err := app.parseFeeForwardTx(filteredTxs[0])
+	_, firstTxIsProtocolFee, err := app.parseProtocolFeeTx(filteredTxs[0])
 	if err != nil {
-		return fmt.Errorf("failed to parse fee forward tx: %w; fee_balance=%s", err, feeBalance.String())
+		return fmt.Errorf("failed to parse protocol fee tx: %w; fee_balance=%s", err, feeBalance.String())
 	}
-	if !firstTxIsFeeForward {
-		return fmt.Errorf("fee forward tx was filtered out unexpectedly; fee_balance=%s", feeBalance.String())
+	if !firstTxIsProtocolFee {
+		return fmt.Errorf("protocol fee tx was filtered out unexpectedly; fee_balance=%s", feeBalance.String())
 	}
 
 	return nil
 }
 
-// createFeeForwardTx creates an unsigned MsgForwardFees transaction with the
+// createProtocolFeeTx creates an unsigned MsgPayProtocolFee transaction with the
 // specified fee amount. The transaction has no signers - it's validated by
 // ProcessProposal checking that tx fee == fee address balance.
-func (app *App) createFeeForwardTx(feeAmount sdk.Coin) ([]byte, error) {
-	msg := feeaddresstypes.NewMsgForwardFees()
+func (app *App) createProtocolFeeTx(feeAmount sdk.Coin) ([]byte, error) {
+	msg := feeaddresstypes.NewMsgPayProtocolFee()
 
 	txBuilder := app.encodingConfig.TxConfig.NewTxBuilder()
 	if err := txBuilder.SetMsgs(msg); err != nil {
@@ -154,7 +154,7 @@ func (app *App) createFeeForwardTx(feeAmount sdk.Coin) ([]byte, error) {
 	}
 
 	txBuilder.SetFeeAmount(sdk.NewCoins(feeAmount))
-	txBuilder.SetGasLimit(feeaddresstypes.FeeForwardGasLimit)
+	txBuilder.SetGasLimit(feeaddresstypes.ProtocolFeeGasLimit)
 
 	txBytes, err := app.encodingConfig.TxConfig.TxEncoder()(txBuilder.GetTx())
 	if err != nil {

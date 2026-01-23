@@ -16,7 +16,7 @@ var (
 
 // Keeper handles fee forwarding operations for the feeaddress module.
 // The keeper is intentionally stateless - the fee transfer and event emission
-// happen in FeeForwardTerminatorDecorator (ante handler).
+// happen in ProtocolFeeTerminatorDecorator (ante handler).
 type Keeper struct{}
 
 // NewKeeper creates a new Keeper instance.
@@ -24,10 +24,10 @@ func NewKeeper() Keeper {
 	return Keeper{}
 }
 
-// ForwardFees handles MsgForwardFees. The actual fee transfer and event emission
-// is handled by FeeForwardTerminatorDecorator in the ante chain.
-func (k Keeper) ForwardFees(_ context.Context, _ *types.MsgForwardFees) (*types.MsgForwardFeesResponse, error) {
-	return &types.MsgForwardFeesResponse{}, nil
+// PayProtocolFee handles MsgPayProtocolFee. The actual fee transfer and event emission
+// is handled by ProtocolFeeTerminatorDecorator in the ante chain.
+func (k Keeper) PayProtocolFee(_ context.Context, _ *types.MsgPayProtocolFee) (*types.MsgPayProtocolFeeResponse, error) {
+	return &types.MsgPayProtocolFeeResponse{}, nil
 }
 
 // FeeAddress implements the Query/FeeAddress gRPC method.

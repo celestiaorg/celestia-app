@@ -10,7 +10,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/feeaddress/types";
 service Msg {
   option (cosmos.msg.v1.service) = true;
 
-  // ForwardFees is a protocol-injected transaction that forwards accumulated
+  // PayProtocolFee is a protocol-injected transaction that forwards accumulated
   // tokens from the fee address to the fee collector. These fees are then
   // distributed to validators as block rewards via the standard distribution
   // module. This message has no signer - it is injected by the block proposer
@@ -19,28 +19,28 @@ service Msg {
   // Note: This RPC intentionally has no google.api.http annotation because it
   // is a protocol-injected message that should not be callable via REST API.
   // If an EOA or any user attempts to submit this message directly, it is
-  // rejected in CheckTx with: "MsgForwardFees cannot be submitted by users;
-  // it is protocol-injected only" (see FeeForwardDecorator in ante handler).
-  rpc ForwardFees(MsgForwardFees) returns (MsgForwardFeesResponse);
+  // rejected in CheckTx with: "MsgPayProtocolFee cannot be submitted by users;
+  // it is protocol-injected only" (see ProtocolFeeTerminatorDecorator in ante handler).
+  rpc PayProtocolFee(MsgPayProtocolFee) returns (MsgPayProtocolFeeResponse);
 }
 
-// MsgForwardFees is a protocol-injected message that forwards accumulated
+// MsgPayProtocolFee is a protocol-injected message that forwards accumulated
 // tokens from the fee address to the fee collector. This message is special:
 // - It is injected by PrepareProposal when fee address has balance
 // - The transaction fee equals the fee address balance
 // - ProcessProposal enforces that this tx must be present if fee address has balance
 // - Validation happens via ProcessProposal checking tx fee == fee address balance
-// - FeeForwardTerminatorDecorator terminates ante chain early, skipping signature verification
-message MsgForwardFees {
+// - ProtocolFeeTerminatorDecorator terminates ante chain early, skipping signature verification
+message MsgPayProtocolFee {
   option (cosmos.msg.v1.signer) = "from_address";
 
   // from_address is the fee address from which tokens are forwarded.
   // This is always set to the well-known fee address (FeeAddressBech32).
   // Note: Although this field specifies a signer, signature verification is
-  // skipped because FeeForwardTerminatorDecorator terminates the ante chain
+  // skipped because ProtocolFeeTerminatorDecorator terminates the ante chain
   // before signature-related decorators run.
   string from_address = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
 }
 
-// MsgForwardFeesResponse is the response type for the ForwardFees RPC.
-message MsgForwardFeesResponse {}
+// MsgPayProtocolFeeResponse is the response type for the PayProtocolFee RPC.
+message MsgPayProtocolFeeResponse {}
