@@ -9,14 +9,11 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 )
 
-var (
-	_ types.MsgServer   = Keeper{}
-	_ types.QueryServer = Keeper{}
-)
+var _ types.MsgServer = Keeper{}
 
 // Keeper handles fee forwarding operations for the feeaddress module.
-// The keeper is intentionally stateless - the fee transfer and event emission
-// happen in ProtocolFeeTerminatorDecorator (ante handler).
+// The keeper is intentionally stateless - the fee transfer happens in
+// ProtocolFeeTerminatorDecorator (ante handler).
 type Keeper struct{}
 
 // NewKeeper creates a new Keeper instance.
@@ -24,16 +21,8 @@ func NewKeeper() Keeper {
 	return Keeper{}
 }
 
-// PayProtocolFee handles MsgPayProtocolFee. The actual fee transfer and event emission
-// is handled by ProtocolFeeTerminatorDecorator in the ante chain.
+// PayProtocolFee handles MsgPayProtocolFee. The actual fee transfer is handled by
+// ProtocolFeeTerminatorDecorator in the ante chain.
 func (k Keeper) PayProtocolFee(_ context.Context, _ *types.MsgPayProtocolFee) (*types.MsgPayProtocolFeeResponse, error) {
 	return &types.MsgPayProtocolFeeResponse{}, nil
-}
-
-// FeeAddress implements the Query/FeeAddress gRPC method.
-// Returns the address where tokens should be sent to be forwarded to validators.
-func (k Keeper) FeeAddress(_ context.Context, _ *types.QueryFeeAddressRequest) (*types.QueryFeeAddressResponse, error) {
-	return &types.QueryFeeAddressResponse{
-		FeeAddress: types.FeeAddressBech32,
-	}, nil
 }

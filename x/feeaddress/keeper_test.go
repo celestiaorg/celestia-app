@@ -29,17 +29,6 @@ func TestPayProtocolFeeReturnsSuccess(t *testing.T) {
 	require.NotNil(t, resp)
 }
 
-// TestFeeAddressQuery verifies the Query/FeeAddress gRPC endpoint returns
-// the correct bech32-encoded fee address for programmatic discovery.
-func TestFeeAddressQuery(t *testing.T) {
-	keeper := NewKeeper()
-	ctx := createTestContext()
-
-	resp, err := keeper.FeeAddress(ctx, &types.QueryFeeAddressRequest{})
-	require.NoError(t, err)
-	require.Equal(t, types.FeeAddressBech32, resp.FeeAddress)
-}
-
 // TestNewMsgPayProtocolFee verifies the constructor for MsgPayProtocolFee.
 func TestNewMsgPayProtocolFee(t *testing.T) {
 	msg := types.NewMsgPayProtocolFee()
@@ -71,7 +60,7 @@ func TestIsProtocolFeeMsg(t *testing.T) {
 		},
 		{
 			name:     "non-MsgPayProtocolFee returns nil",
-			msgs:     []sdk.Msg{&types.QueryFeeAddressRequest{}},
+			msgs:     []sdk.Msg{&mockMsg{}},
 			expected: false,
 		},
 	}
@@ -101,3 +90,10 @@ func (m *mockTx) GetMsgs() []sdk.Msg {
 func (m *mockTx) GetMsgsV2() ([]protov2.Message, error) {
 	return nil, nil
 }
+
+// mockMsg is a minimal mock implementation of sdk.Msg for testing.
+type mockMsg struct{}
+
+func (m *mockMsg) Reset()         {}
+func (m *mockMsg) String() string { return "mockMsg" }
+func (m *mockMsg) ProtoMessage()  {}

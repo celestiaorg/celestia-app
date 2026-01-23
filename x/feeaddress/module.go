@@ -1,7 +1,6 @@
 package feeaddress
 
 import (
-	"context"
 	"encoding/json"
 
 	"cosmossdk.io/core/appmodule"
@@ -34,11 +33,7 @@ func (AppModule) IsAppModule()             {}
 func (AppModule) IsOnePerModuleType()      {}
 func (AppModule) ConsensusVersion() uint64 { return 1 }
 
-func (AppModule) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *runtime.ServeMux) {
-	if err := types.RegisterQueryHandlerClient(context.Background(), mux, types.NewQueryClient(clientCtx)); err != nil {
-		panic(err)
-	}
-}
+func (AppModule) RegisterGRPCGatewayRoutes(_ client.Context, _ *runtime.ServeMux) {}
 
 func (AppModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	return cdc.MustMarshalJSON(&types.GenesisState{})
@@ -57,7 +52,6 @@ func (AppModule) RegisterInterfaces(reg cdctypes.InterfaceRegistry) {
 }
 
 func (am AppModule) RegisterServices(registrar grpc.ServiceRegistrar) error {
-	types.RegisterQueryServer(registrar, &am.keeper)
 	types.RegisterMsgServer(registrar, &am.keeper)
 	return nil
 }

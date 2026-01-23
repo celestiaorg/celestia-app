@@ -101,16 +101,6 @@ func (s *IntegrationTestSuite) TestFeeAddressSendAndForward() {
 		initialBalance, finalBalance, sendAmount.Amount)
 }
 
-// TestFeeAddressQuery verifies the FeeAddress query returns the correct address.
-func (s *IntegrationTestSuite) TestFeeAddressQuery() {
-	require := s.Require()
-
-	queryClient := feeaddresstypes.NewQueryClient(s.cctx.GRPCClient)
-	resp, err := queryClient.FeeAddress(s.cctx.GoContext(), &feeaddresstypes.QueryFeeAddressRequest{})
-	require.NoError(err)
-	require.Equal(feeaddresstypes.FeeAddressBech32, resp.FeeAddress)
-}
-
 // TestUserSubmittedMsgPayProtocolFeeRejected verifies users cannot submit MsgPayProtocolFee
 // directly - it must be protocol-injected only (CIP-43).
 func (s *IntegrationTestSuite) TestUserSubmittedMsgPayProtocolFeeRejected() {
