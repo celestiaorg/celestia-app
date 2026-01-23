@@ -9,6 +9,8 @@ import (
 )
 
 const (
+	// ForwardVersion is the version of the forwarding address derivation algorithm.
+	// Incrementing this allows address scheme upgrades without collision.
 	ForwardVersion  = uint8(1)
 	RecipientLength = 32
 	// DomainEncodingSize is the byte size for ABI-encoding domain IDs (uint256).

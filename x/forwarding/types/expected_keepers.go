@@ -5,13 +5,9 @@ import (
 
 	"cosmossdk.io/math"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
-	warpkeeper "github.com/bcp-innovations/hyperlane-cosmos/x/warp/keeper"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
-
-// Compile-time interface compliance check
-var _ WarpKeeper = &warpkeeper.Keeper{}
 
 // HyperlaneKeeper defines the expected hyperlane core keeper interface for fee quoting.
 type HyperlaneKeeper interface {
@@ -27,13 +23,9 @@ type BankKeeper interface {
 
 // WarpKeeper defines the expected warp keeper interface.
 //
-// NOTE: The forwarding keeper uses the concrete *warpkeeper.Keeper type in addition to this interface
-// because the hyperlane-cosmos warp keeper exposes state via public collections.Map fields
+// NOTE: The forwarding keeper uses the concrete *warpkeeper.Keeper type because
+// the hyperlane-cosmos warp keeper exposes state via public collections.Map fields
 // (HypTokens, EnrolledRouters) which cannot be expressed in a Go interface.
-//
-// The forwarding keeper wraps these field accesses in helper methods:
-//   - FindHypTokenByDenom: wraps warpKeeper.HypTokens.Get
-//   - HasEnrolledRouter: wraps warpKeeper.EnrolledRouters.Has
 type WarpKeeper interface {
 	// RemoteTransferSynthetic initiates a cross-chain transfer for synthetic tokens
 	RemoteTransferSynthetic(

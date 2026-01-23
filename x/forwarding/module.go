@@ -95,24 +95,19 @@ func (am AppModule) ValidateGenesis(_ codec.JSONCodec, _ client.TxEncodingConfig
 }
 
 // InitGenesis performs genesis initialization for the forwarding module.
-func (am AppModule) InitGenesis(ctx sdk.Context, _ codec.JSONCodec, gs json.RawMessage) {
+// The forwarding module is stateless - this is a no-op that validates the genesis data.
+func (am AppModule) InitGenesis(_ sdk.Context, _ codec.JSONCodec, gs json.RawMessage) {
 	var genesisState types.GenesisState
 	if err := am.cdc.UnmarshalJSON(gs, &genesisState); err != nil {
 		panic(fmt.Errorf("failed to unmarshal %s genesis state: %w", types.ModuleName, err))
 	}
-
-	if err := am.forwardingKeeper.InitGenesis(ctx, &genesisState); err != nil {
-		panic(fmt.Errorf("failed to initialize %s genesis state: %w", types.ModuleName, err))
-	}
+	// Stateless module - no state to initialize
 }
 
 // ExportGenesis returns the exported genesis state as raw bytes for the forwarding module.
-func (am AppModule) ExportGenesis(ctx sdk.Context, _ codec.JSONCodec) json.RawMessage {
-	gs, err := am.forwardingKeeper.ExportGenesis(ctx)
-	if err != nil {
-		panic(fmt.Errorf("failed to export %s genesis state: %w", types.ModuleName, err))
-	}
-	return am.cdc.MustMarshalJSON(gs)
+// The forwarding module is stateless - returns empty state.
+func (am AppModule) ExportGenesis(_ sdk.Context, _ codec.JSONCodec) json.RawMessage {
+	return am.cdc.MustMarshalJSON(types.DefaultGenesis())
 }
 
 // ConsensusVersion implements AppModule/ConsensusVersion.

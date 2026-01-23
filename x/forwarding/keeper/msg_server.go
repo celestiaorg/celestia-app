@@ -71,11 +71,11 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 		}
 	}
 	if allFailed && len(results) > 0 {
-		m.emitSummaryEvent(ctx, msg, results)
+		EmitForwardingCompleteEvent(ctx, msg.ForwardAddr, msg.DestDomain, msg.DestRecipient, results)
 		return nil, fmt.Errorf("%w: all %d tokens failed to forward", types.ErrAllTokensFailed, len(results))
 	}
 
-	m.emitSummaryEvent(ctx, msg, results)
+	EmitForwardingCompleteEvent(ctx, msg.ForwardAddr, msg.DestDomain, msg.DestRecipient, results)
 	return &types.MsgForwardResponse{Results: results}, nil
 }
 
@@ -92,39 +92,10 @@ func (m msgServer) processTokens(
 		result := m.forwardSingleToken(ctx, forwardAddr, moduleAddr, signerAddr, balance, msg.DestDomain, destRecipient, msg.MaxIgpFee)
 		results = append(results, result)
 
-		if err := ctx.EventManager().EmitTypedEvent(&types.EventTokenForwarded{
-			ForwardAddr: msg.ForwardAddr,
-			Denom:       result.Denom,
-			Amount:      result.Amount,
-			MessageId:   result.MessageId,
-			Success:     result.Success,
-			Error:       result.Error,
-		}); err != nil {
-			ctx.Logger().Error("failed to emit EventTokenForwarded", "error", err)
-		}
+		EmitTokenForwardedEvent(ctx, msg.ForwardAddr, result)
 	}
 
 	return results
-}
-
-func (m msgServer) emitSummaryEvent(ctx sdk.Context, msg *types.MsgForward, results []types.ForwardingResult) {
-	var successCount uint32
-	for _, r := range results {
-		if r.Success {
-			successCount++
-		}
-	}
-	failCount := uint32(len(results)) - successCount
-
-	if err := ctx.EventManager().EmitTypedEvent(&types.EventForwardingComplete{
-		ForwardAddr:     msg.ForwardAddr,
-		DestDomain:      msg.DestDomain,
-		DestRecipient:   msg.DestRecipient,
-		TokensForwarded: successCount,
-		TokensFailed:    failCount,
-	}); err != nil {
-		ctx.Logger().Error("failed to emit EventForwardingComplete", "error", err)
-	}
 }
 
 func (m msgServer) forwardSingleToken(
@@ -201,15 +172,8 @@ func (m msgServer) forwardSingleToken(
 				"warp_error", err.Error(),
 				"recovery_error", recoveryErr.Error(),
 			)
-			if emitErr := ctx.EventManager().EmitTypedEvent(&types.EventTokensStuck{
-				Denom:       balance.Denom,
-				Amount:      balance.Amount,
-				ModuleAddr:  moduleAddr.String(),
-				ForwardAddr: forwardAddr.String(),
-				Error:       fmt.Sprintf("warp: %s; recovery: %s", err.Error(), recoveryErr.Error()),
-			}); emitErr != nil {
-				ctx.Logger().Error("failed to emit EventTokensStuck", "error", emitErr)
-			}
+			EmitTokensStuckEvent(ctx, balance.Denom, balance.Amount, moduleAddr.String(), forwardAddr.String(),
+				fmt.Sprintf("warp: %s; recovery: %s", err.Error(), recoveryErr.Error()))
 			return types.NewFailureResult(balance.Denom, balance.Amount, fmt.Sprintf("CRITICAL: warp failed and recovery failed - tokens stuck in module account: warp=%s recovery=%s", err.Error(), recoveryErr.Error()))
 		}
 		// Note: IGP fee is NOT returned on warp failure - it was consumed by the failed attempt.

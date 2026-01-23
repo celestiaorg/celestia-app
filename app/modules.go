@@ -208,6 +208,5 @@ func allStoreKeys() []string {
 		circuittypes.StoreKey,     // added in v4
 		hyperlanetypes.ModuleName, // added in v4
 		warptypes.ModuleName,      // added in v4
-		forwardingtypes.StoreKey,  // added in v7 (forwarding module)
 	}
 }
