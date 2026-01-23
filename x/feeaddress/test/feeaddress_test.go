@@ -1,6 +1,8 @@
 package test
 
 import (
+	"context"
+	"fmt"
 	"testing"
 
 	"cosmossdk.io/math"
@@ -14,8 +16,10 @@ import (
 	feeaddresstypes "github.com/celestiaorg/celestia-app/v7/x/feeaddress/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/grpc/metadata"
 )
 
 const utiaPerTIA = 1_000_000 // 1 TIA = 1,000,000 utia
@@ -74,10 +78,17 @@ func (s *IntegrationTestSuite) TestFeeAddressSendAndForward() {
 	require.NotNil(res)
 	require.Equal(abci.CodeTypeOK, res.Code, "send to fee address tx failed with code: %d", res.Code)
 
+	// Step 2: Verify fee address balance at the block where MsgSend was included
+	// Query at the specific height to see the state after MsgSend but before MsgForwardFees
+	midFeeAddressBalance := s.getFeeAddressBalance(res.Height)
+	require.True(midFeeAddressBalance.GTE(sendAmount.Amount),
+		"fee address should have at least sendAmount at height %d: balance=%s, sendAmount=%s",
+		res.Height, midFeeAddressBalance, sendAmount.Amount)
+
 	// Wait for next block to ensure MsgForwardFees has forwarded the tokens
 	require.NoError(s.cctx.WaitForNextBlock())
 
-	// Step 2: Verify fee address is empty (MsgForwardFees forwarded tokens to fee collector)
+	// Step 3: Verify fee address is empty (MsgForwardFees forwarded tokens to fee collector)
 	finalFeeAddressBalance := s.getFeeAddressBalance()
 	require.True(finalFeeAddressBalance.IsZero(),
 		"fee address should be empty after MsgForwardFees forwards tokens: balance=%s",
@@ -127,14 +138,19 @@ func (s *IntegrationTestSuite) getAccountBalance(addr sdk.AccAddress) math.Int {
 	return resp.Balance.Amount
 }
 
-// getFeeAddressBalance queries the bank module for the fee address's utia balance.
-func (s *IntegrationTestSuite) getFeeAddressBalance() math.Int {
+// getFeeAddressBalance queries the fee address balance, optionally at a specific height.
+func (s *IntegrationTestSuite) getFeeAddressBalance(height ...int64) math.Int {
 	bqc := banktypes.NewQueryClient(s.cctx.GRPCClient)
-	resp, err := bqc.Balance(s.cctx.GoContext(), &banktypes.QueryBalanceRequest{
+	var ctx context.Context
+	if len(height) > 0 {
+		ctx = metadata.AppendToOutgoingContext(context.Background(), grpctypes.GRPCBlockHeightHeader, fmt.Sprintf("%d", height[0]))
+	} else {
+		ctx = s.cctx.GoContext()
+	}
+	resp, err := bqc.Balance(ctx, &banktypes.QueryBalanceRequest{
 		Address: feeaddresstypes.FeeAddressBech32,
 		Denom:   appconsts.BondDenom,
 	})
 	s.Require().NoError(err)
 	return resp.Balance.Amount
 }
-
