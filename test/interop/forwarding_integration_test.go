@@ -104,7 +104,6 @@ func (s *ForwardingIntegrationTestSuite) TestFindHypTokenByDenomTIA() {
 
 	s.Equal(warptypes.HYP_TOKEN_TYPE_COLLATERAL, hypToken.TokenType)
 	s.Equal(params.BondDenom, hypToken.OriginDenom)
-
 }
 
 func (s *ForwardingIntegrationTestSuite) TestFindHypTokenByDenomSynthetic() {
@@ -138,7 +137,6 @@ func (s *ForwardingIntegrationTestSuite) TestFindHypTokenByDenomSynthetic() {
 
 	s.Equal(warptypes.HYP_TOKEN_TYPE_SYNTHETIC, foundToken.TokenType)
 	s.Equal(syntheticDenom, foundToken.OriginDenom)
-
 }
 
 func (s *ForwardingIntegrationTestSuite) TestHasEnrolledRouter() {
@@ -170,7 +168,6 @@ func (s *ForwardingIntegrationTestSuite) TestHasEnrolledRouter() {
 	hasNonExistent, err := celestiaApp.ForwardingKeeper.HasEnrolledRouter(ctx, collatTokenID, 99999)
 	s.Require().NoError(err)
 	s.False(hasNonExistent, "should NOT have router for non-existent domain")
-
 }
 
 func (s *ForwardingIntegrationTestSuite) TestHasAnyRouteToDestination() {
@@ -207,7 +204,6 @@ func (s *ForwardingIntegrationTestSuite) TestHasAnyRouteToDestination() {
 	hasRoute, err = celestiaApp.ForwardingKeeper.HasAnyRouteToDestination(ctx, TestUnknownDomainID)
 	s.Require().NoError(err)
 	s.False(hasRoute, "should return false for non-existent domain")
-
 }
 
 func (s *ForwardingIntegrationTestSuite) TestMsgForwardFullFlow() {

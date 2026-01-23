@@ -118,6 +118,7 @@ func TestModuleAccountAddrs(t *testing.T) {
 		"hyperlane",
 		"warp",
 		"forwarding",
+		"feeaddress",
 	}
 	for _, moduleName := range moduleNames {
 		address := authtypes.NewModuleAddress(moduleName).String()
