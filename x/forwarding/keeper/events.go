@@ -39,4 +39,3 @@ func EmitForwardingCompleteEvent(ctx sdk.Context, forwardAddr string, destDomain
 		ctx.Logger().Error("failed to emit EventForwardingComplete", "error", err)
 	}
 }
-
