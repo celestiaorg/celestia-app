@@ -9,24 +9,48 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cosmos/cosmos-db"
+	db "github.com/cosmos/cosmos-db"
 )
+
+//  opts.FormatMajorVersion = pebble2.FormatNewest
+// 	opts.Experimental.ValueSeparationPolicy = func() pebble2.ValueSeparationPolicy {
+//		return pebble2.ValueSeparationPolicy{
+//			Enabled:               true,
+//			MinimumSize:           1024,
+//			MaxBlobReferenceDepth: 10,
+//			RewriteMinimumAge:     5 * time.Minute,
+//          GarbageRatioLowPriority : 0.10
+//          GarbageRatioHighPriority : 0.20
+//		}
+//	}
+
+type options struct {
+	homeDir       string
+	sourceBackend string
+	targetBackend string
+	dryRun        bool
+	backup        bool
+}
 
 func main() {
 	homeDir := flag.String("home", os.ExpandEnv("$HOME/.celestia-app"), "Node home directory")
 	dryRun := flag.Bool("dry-run", false, "Run migration in dry-run mode without making changes")
 	noBackup := flag.Bool("no-backup", false, "Skip creating backup of data directory before migration")
+	sourceBackend := flag.String("source-backend", "leveldb", "Backend used in existing databases")
+	targetBackend := flag.String("target-backend", "pebble2", "Target backend for migration")
 
 	flag.Usage = func() {
 		usage := `Usage: migrate-db [options]
 
-Migrate celestia-app databases from LevelDB to PebbleDB.
+Migrate celestia-app databases from one backend to another (for example from LevelDB to PebbleDB v2).
 
 This tool will:
 1. Create a backup of the entire data directory (unless --no-backup is specified)
-2. Create a new 'data_pebble' directory in your celestia-app home folder
-3. Migrate all databases to PebbleDB format in 'data_pebble'
+2. Create a new 'data_<backend>' directory in your celestia-app home folder
+3. Migrate all databases to new backend format in 'data_<backend>'
 4. After migration, you can move the databases to the 'data' directory using the provided commands
+
+Supported backends: "goleveldb", "rocksdb", "pebbledb", "pebbledb2"
 
 Databases migrated:
 - application.db (Application state)
@@ -58,15 +82,23 @@ Examples:
 
 	flag.Parse()
 
-	if err := migrateDB(*homeDir, *dryRun, !*noBackup); err != nil {
+	opts := options{
+		homeDir:       *homeDir,
+		sourceBackend: *sourceBackend,
+		targetBackend: *targetBackend,
+		dryRun:        *dryRun,
+		backup:        !*noBackup,
+	}
+
+	if err := migrateDB(opts); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func migrateDB(homeDir string, dryRun, backup bool) error {
-	dataDir := filepath.Join(homeDir, "data")
-	pebbleDataDir := filepath.Join(homeDir, "data_pebble")
+func migrateDB(opts options) error {
+	dataDir := filepath.Join(opts.homeDir, "data")
+	targetDataDir := filepath.Join(opts.homeDir, "data_"+opts.targetBackend)
 
 	// Verify data directory exists
 	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
@@ -82,15 +114,15 @@ func migrateDB(homeDir string, dryRun, backup bool) error {
 		"evidence",
 	}
 
-	fmt.Printf("Starting database migration from LevelDB to PebbleDB\n")
-	fmt.Printf("Home directory: %s\n", homeDir)
-	fmt.Printf("Source directory (LevelDB): %s\n", dataDir)
-	fmt.Printf("Destination directory (PebbleDB): %s\n", pebbleDataDir)
-	fmt.Printf("Dry-run mode: %v\n", dryRun)
-	fmt.Printf("Create backups: %v\n\n", backup)
+	fmt.Printf("Starting database migration from %s to %s\n", opts.sourceBackend, opts.targetBackend)
+	fmt.Printf("Home directory: %s\n", opts.homeDir)
+	fmt.Printf("Source directory (%s): %s\n", opts.sourceBackend, dataDir)
+	fmt.Printf("Destination directory (%s): %s\n", opts.targetBackend, targetDataDir)
+	fmt.Printf("Dry-run mode: %v\n", opts.dryRun)
+	fmt.Printf("Create backups: %v\n\n", opts.backup)
 
 	// Ask for confirmation before proceeding (unless in dry-run mode)
-	if !dryRun {
+	if !opts.dryRun {
 		fmt.Print("Do you want to continue with the migration? (y/n): ")
 		reader := bufio.NewReader(os.Stdin)
 		response, err := reader.ReadString('\n')
@@ -106,8 +138,8 @@ func migrateDB(homeDir string, dryRun, backup bool) error {
 	}
 
 	// Create backup of entire data directory if requested
-	if backup && !dryRun {
-		backupDir := filepath.Join(homeDir, "data_backup")
+	if opts.backup && !opts.dryRun {
+		backupDir := filepath.Join(opts.homeDir, "data_backup")
 		if _, err := os.Stat(backupDir); err == nil {
 			return fmt.Errorf("backup directory already exists: %s\nPlease remove it or move it before running migration", backupDir)
 		}
@@ -119,47 +151,47 @@ func migrateDB(homeDir string, dryRun, backup bool) error {
 		fmt.Printf("Backup created successfully\n\n")
 	}
 
-	// Create data_pebble directory
-	if !dryRun {
-		if _, err := os.Stat(pebbleDataDir); err == nil {
-			return fmt.Errorf("destination directory already exists: %s\nPlease remove it or move it before running migration", pebbleDataDir)
+	// Create data_<targetBackend> directory
+	if !opts.dryRun {
+		if _, err := os.Stat(targetDataDir); err == nil {
+			return fmt.Errorf("destination directory already exists: %s\nPlease remove it or move it before running migration", targetDataDir)
 		}
-		if err := os.MkdirAll(pebbleDataDir, 0o755); err != nil {
-			return fmt.Errorf("failed to create pebble data directory: %w", err)
+		if err := os.MkdirAll(targetDataDir, 0o755); err != nil {
+			return fmt.Errorf("failed to create %s data directory: %w", opts.targetBackend, err)
 		}
-		fmt.Printf("Created destination directory: %s\n\n", pebbleDataDir)
+		fmt.Printf("Created destination directory: %s\n\n", targetDataDir)
 	}
 
 	for _, dbName := range databases {
 		fmt.Printf("=== Migrating %s.db ===\n", dbName)
 
-		// Check if LevelDB exists
-		levelDBPath := filepath.Join(dataDir, dbName+".db")
-		if _, err := os.Stat(levelDBPath); os.IsNotExist(err) {
-			fmt.Printf("Warning: LevelDB not found at %s, skipping\n\n", levelDBPath)
+		// Check if source exists
+		sourcePath := filepath.Join(dataDir, dbName+".db")
+		if _, err := os.Stat(sourcePath); os.IsNotExist(err) {
+			fmt.Printf("Warning: %s not found at %s, skipping\n\n", opts.sourceBackend, sourcePath)
 			continue
 		}
 
-		if dryRun {
-			fmt.Printf("Dry-run: Would migrate %s to %s/%s.db\n\n", levelDBPath, pebbleDataDir, dbName)
+		if opts.dryRun {
+			fmt.Printf("Dry-run: Would migrate %s to %s/%s.db\n\n", sourcePath, targetDataDir, dbName)
 			continue
 		}
 
 		// Perform migration
-		migratedCount, err := migrateSingleDB(dbName, dataDir, pebbleDataDir)
+		migratedCount, err := migrateSingleDB(dbName, dataDir, targetDataDir, opts)
 		if err != nil {
 			return fmt.Errorf("failed to migrate %s: %w", dbName, err)
 		}
 
 		// Verify the migrated database
-		if err := verifyDB(dbName, pebbleDataDir, migratedCount); err != nil {
+		if err := verifyDB(dbName, targetDataDir, migratedCount); err != nil {
 			return fmt.Errorf("failed to verify %s: %w", dbName, err)
 		}
 
 		fmt.Printf("Successfully migrated %s.db\n\n", dbName)
 	}
 
-	if dryRun {
+	if opts.dryRun {
 		fmt.Println("Dry-run complete. No changes were made.")
 		return nil
 	}
@@ -173,13 +205,13 @@ func migrateDB(homeDir string, dryRun, backup bool) error {
 	// Build the move commands
 	var mvCommands strings.Builder
 	for _, dbName := range databases {
-		fmt.Fprintf(&mvCommands, "   mv %s/%s.db %s/%s.db\n", pebbleDataDir, dbName, dataDir, dbName)
+		fmt.Fprintf(&mvCommands, "   mv %s/%s.db %s/%s.db\n", targetDataDir, dbName, dataDir, dbName)
 	}
 
 	// Build cleanup commands
-	cleanupCommands := fmt.Sprintf("   rm -rf %s\n", pebbleDataDir)
-	if backup {
-		backupDir := filepath.Join(homeDir, "data_backup")
+	cleanupCommands := fmt.Sprintf("   rm -rf %s\n", targetDataDir)
+	if opts.backup {
+		backupDir := filepath.Join(opts.homeDir, "data_backup")
 		cleanupCommands += fmt.Sprintf("   rm -rf %s\n", backupDir)
 	}
 
@@ -190,14 +222,14 @@ Migration completed successfully!
 Next Steps:
 ============================================================
 
-1. Update config.toml to use PebbleDB:
+1. Update config.toml to use %s:
    [db]
-   backend = "pebbledb"
+   backend = "%s"
 
 2. Move the migrated databases:
    # Remove old databases
 %s
-   # Move PebbleDB files
+   # Move new files
 %s
 3. Start your node and verify that it is running properly
 
@@ -205,19 +237,19 @@ Next Steps:
 %s
 ============================================================
 `
-	fmt.Printf(nextSteps, rmCommands.String(), mvCommands.String(), cleanupCommands)
+	fmt.Printf(nextSteps, opts.targetBackend, opts.targetBackend, rmCommands.String(), mvCommands.String(), cleanupCommands)
 
 	return nil
 }
 
-func migrateSingleDB(dbName, sourceDir, destDir string) (int, error) {
+func migrateSingleDB(dbName, sourceDir, destDir string, opts options) (int, error) {
 	startTime := time.Now()
 
-	// Open source LevelDB
-	fmt.Printf("Opening LevelDB from %s...\n", sourceDir)
-	sourceDB, err := db.NewDB(dbName, db.GoLevelDBBackend, sourceDir)
+	// Open source database
+	fmt.Printf("Opening %s from %s...\n", opts.sourceBackend, sourceDir)
+	sourceDB, err := db.NewDB(dbName, db.BackendType(opts.sourceBackend), sourceDir)
 	if err != nil {
-		return 0, fmt.Errorf("failed to open source LevelDB: %w", err)
+		return 0, fmt.Errorf("failed to open source %s: %w", opts.sourceBackend, err)
 	}
 	defer func(sourceDB db.DB) {
 		err := sourceDB.Close()
@@ -226,12 +258,12 @@ func migrateSingleDB(dbName, sourceDir, destDir string) (int, error) {
 		}
 	}(sourceDB)
 
-	// Open destination PebbleDB
+	// Open destination database
 	// db.NewDB will create: destDir/dbName.db/
-	fmt.Printf("Creating PebbleDB in %s...\n", destDir)
-	destDB, err := db.NewDB(dbName, db.PebbleDBBackend, destDir)
+	fmt.Printf("Creating %s in %s...\n", opts.targetBackend, destDir)
+	destDB, err := db.NewDB(dbName, db.BackendType(opts.targetBackend), destDir)
 	if err != nil {
-		return 0, fmt.Errorf("failed to create destination PebbleDB: %w", err)
+		return 0, fmt.Errorf("failed to create destination %s: %w", opts.targetBackend, err)
 	}
 	defer func(destDB db.DB) {
 		err := destDB.Close()
@@ -314,13 +346,13 @@ func migrateSingleDB(dbName, sourceDir, destDir string) (int, error) {
 	return count, nil
 }
 
-func verifyDB(dbName, destDir string, expectedCount int) error {
-	fmt.Printf("Verifying PebbleDB integrity...\n")
+func verifyDB(dbName, destDir string, expectedCount int, opts options) error {
+	fmt.Printf("Verifying %s integrity...\n", dbName)
 
-	// Open destination PebbleDB
-	destDB, err := db.NewDB(dbName, db.PebbleDBBackend, destDir)
+	// Open destination database
+	destDB, err := db.NewDB(dbName, db.BackendType(opts.targetBackend), destDir)
 	if err != nil {
-		return fmt.Errorf("failed to open PebbleDB for verification: %w", err)
+		return fmt.Errorf("failed to open %s for verification: %w", opts.targetBackend, err)
 	}
 	defer func(destDB db.DB) {
 		err := destDB.Close()
@@ -332,7 +364,7 @@ func verifyDB(dbName, destDir string, expectedCount int) error {
 	// Count keys in destination DB
 	destIter, err := destDB.Iterator(nil, nil)
 	if err != nil {
-		return fmt.Errorf("failed to create iterator on PebbleDB: %w", err)
+		return fmt.Errorf("failed to create iterator on %s: %w", opts.targetBackend, err)
 	}
 	defer func(destIter db.Iterator) {
 		err := destIter.Close()
