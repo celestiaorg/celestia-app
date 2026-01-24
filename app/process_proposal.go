@@ -67,7 +67,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 	// Validate protocol fee tx if there are transactions
 	if len(req.Txs) > 0 {
-		firstTx, firstTxIsProtocolFee, protocolFeeErr := app.parseProtocolFeeTx(req.Txs[0])
+		firstTx, firstTxIsProtocolFee, protocolFeeErr := parseProtocolFeeTx(app.encodingConfig.TxConfig.TxDecoder(), req.Txs[0])
 
 		// Case: fee address has balance but can't decode first tx
 		if hasBalance && protocolFeeErr != nil {
@@ -264,8 +264,8 @@ func (app *App) ValidateBlobTxWithCache(blobTx *blobtx.BlobTx) (bool, error) {
 
 // parseProtocolFeeTx decodes a transaction and checks if it's a MsgPayProtocolFee.
 // Returns the decoded tx, whether it's a protocol fee tx, and any decode error.
-func (app *App) parseProtocolFeeTx(txBytes []byte) (sdk.Tx, bool, error) {
-	sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(txBytes)
+func parseProtocolFeeTx(decoder sdk.TxDecoder, txBytes []byte) (sdk.Tx, bool, error) {
+	sdkTx, err := decoder(txBytes)
 	if err != nil {
 		return nil, false, err
 	}

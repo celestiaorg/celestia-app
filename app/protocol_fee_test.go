@@ -76,231 +76,193 @@ func createTestAppWithFeeAddressBalance(t *testing.T, feeAddrBalance sdk.Coin) *
 	return testApp
 }
 
-// TestProcessProposalProtocolFeeValidation tests ProcessProposal validation of protocol fee transactions.
-// Note: For tests that expect ACCEPT, we use PrepareProposal to get the correct DataRootHash.
-// For tests that expect REJECT, the validation fails before the DataRootHash check.
-func TestProcessProposalProtocolFeeValidation(t *testing.T) {
+// createProtocolFeeTx creates a protocol fee tx with the specified fee amount and gas limit.
+func createProtocolFeeTx(t *testing.T, feeAmount sdk.Coin, gasLimit uint64) []byte {
+	t.Helper()
 	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	msg := feeaddress.NewMsgPayProtocolFee()
+	txBuilder := ecfg.TxConfig.NewTxBuilder()
+	err := txBuilder.SetMsgs(msg)
+	require.NoError(t, err)
+	txBuilder.SetFeeAmount(sdk.NewCoins(feeAmount))
+	txBuilder.SetGasLimit(gasLimit)
+	txBytes, err := ecfg.TxConfig.TxEncoder()(txBuilder.GetTx())
+	require.NoError(t, err)
+	return txBytes
+}
 
-	// Helper to create a protocol fee tx with specific fee
-	createProtocolFeeTx := func(feeAmount sdk.Coin) []byte {
-		msg := feeaddress.NewMsgPayProtocolFee()
-		txBuilder := ecfg.TxConfig.NewTxBuilder()
-		err := txBuilder.SetMsgs(msg)
-		require.NoError(t, err)
-		txBuilder.SetFeeAmount(sdk.NewCoins(feeAmount))
-		txBuilder.SetGasLimit(feeaddress.ProtocolFeeGasLimit)
-		txBytes, err := ecfg.TxConfig.TxEncoder()(txBuilder.GetTx())
-		require.NoError(t, err)
-		return txBytes
-	}
+// TestProcessProposalAcceptsValidProtocolFeeTx verifies ProcessProposal accepts
+// blocks with valid protocol fee tx when fee address has balance.
+func TestProcessProposalAcceptsValidProtocolFeeTx(t *testing.T) {
+	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	feeAddrBalance := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000))
+	testApp := createTestAppWithFeeAddressBalance(t, feeAddrBalance)
+	blockTime := time.Now()
 
-	// Helper to create a protocol fee tx with wrong gas limit
-	createProtocolFeeTxWrongGas := func(feeAmount sdk.Coin, gas uint64) []byte {
-		msg := feeaddress.NewMsgPayProtocolFee()
-		txBuilder := ecfg.TxConfig.NewTxBuilder()
-		err := txBuilder.SetMsgs(msg)
-		require.NoError(t, err)
-		txBuilder.SetFeeAmount(sdk.NewCoins(feeAmount))
-		txBuilder.SetGasLimit(gas)
-		txBytes, err := ecfg.TxConfig.TxEncoder()(txBuilder.GetTx())
-		require.NoError(t, err)
-		return txBytes
-	}
+	prepResp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+		Time:   blockTime,
+		Height: 2,
+		Txs:    [][]byte{},
+	})
+	require.NoError(t, err)
+	require.True(t, len(prepResp.Txs) > 0, "expected protocol fee tx when balance exists")
+
+	// Verify first tx is MsgPayProtocolFee
+	firstTx, err := ecfg.TxConfig.TxDecoder()(prepResp.Txs[0])
+	require.NoError(t, err)
+	msgs := firstTx.GetMsgs()
+	require.Len(t, msgs, 1)
+	_, ok := msgs[0].(*feeaddress.MsgPayProtocolFee)
+	require.True(t, ok, "first tx should be MsgPayProtocolFee")
+
+	resp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+		Time:         blockTime,
+		Height:       2,
+		Txs:          prepResp.Txs,
+		SquareSize:   prepResp.SquareSize,
+		DataRootHash: prepResp.DataRootHash,
+	})
+	require.NoError(t, err)
+	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, resp.Status)
+}
+
+// TestProcessProposalAcceptsEmptyBlockWhenNoBalance verifies ProcessProposal accepts
+// empty blocks when fee address has no balance.
+func TestProcessProposalAcceptsEmptyBlockWhenNoBalance(t *testing.T) {
+	testApp := createTestAppWithFeeAddressBalance(t, sdk.NewCoin(appconsts.BondDenom, math.ZeroInt()))
+	blockTime := time.Now()
+
+	prepResp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+		Time:   blockTime,
+		Height: 2,
+		Txs:    [][]byte{},
+	})
+	require.NoError(t, err)
+
+	resp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+		Time:         blockTime,
+		Height:       2,
+		Txs:          prepResp.Txs,
+		SquareSize:   prepResp.SquareSize,
+		DataRootHash: prepResp.DataRootHash,
+	})
+	require.NoError(t, err)
+	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, resp.Status)
+}
+
+// TestProcessProposalRejectsInvalidProtocolFeeTx tests that ProcessProposal rejects
+// blocks with invalid or missing protocol fee transactions.
+func TestProcessProposalRejectsInvalidProtocolFeeTx(t *testing.T) {
+	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	balance := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000))
 
 	testCases := []struct {
-		name            string
-		feeAddrBalance  sdk.Coin        // balance at fee address before block
-		txs             func() [][]byte // transactions in the block (used for reject tests)
-		usePrepProposal bool            // if true, use PrepareProposal output for accept tests
-		expectReject    bool
+		name           string
+		feeAddrBalance sdk.Coin
+		txs            [][]byte
 	}{
 		{
-			name:            "accept valid protocol fee tx when balance exists",
-			feeAddrBalance:  sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)),
-			usePrepProposal: true, // Use PrepareProposal to get correct txs and DataRootHash
-			expectReject:    false,
+			name:           "missing protocol fee tx when balance exists",
+			feeAddrBalance: balance,
+			txs:            [][]byte{},
 		},
 		{
-			name:            "accept empty block when no balance",
-			feeAddrBalance:  sdk.NewCoin(appconsts.BondDenom, math.ZeroInt()),
-			usePrepProposal: true, // Use PrepareProposal to get correct DataRootHash for empty block
-			expectReject:    false,
-		},
-		{
-			name:           "reject missing protocol fee tx when balance exists",
-			feeAddrBalance: sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)),
-			txs: func() [][]byte {
-				return [][]byte{} // empty block, but balance exists
-			},
-			expectReject: true,
-		},
-		{
-			name:           "reject protocol fee tx when no balance exists",
+			name:           "protocol fee tx when no balance exists",
 			feeAddrBalance: sdk.NewCoin(appconsts.BondDenom, math.ZeroInt()),
-			txs: func() [][]byte {
-				return [][]byte{createProtocolFeeTx(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)))}
-			},
-			expectReject: true,
+			txs:            [][]byte{createProtocolFeeTx(t, balance, feeaddress.ProtocolFeeGasLimit)},
 		},
 		{
-			name:           "reject protocol fee tx with wrong fee amount",
-			feeAddrBalance: sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)),
-			txs: func() [][]byte {
-				// Fee amount doesn't match balance
-				return [][]byte{createProtocolFeeTx(sdk.NewCoin(appconsts.BondDenom, math.NewInt(500000)))}
-			},
-			expectReject: true,
+			name:           "wrong fee amount",
+			feeAddrBalance: balance,
+			txs:            [][]byte{createProtocolFeeTx(t, sdk.NewCoin(appconsts.BondDenom, math.NewInt(500000)), feeaddress.ProtocolFeeGasLimit)},
 		},
 		{
-			name:           "reject protocol fee tx with wrong gas limit",
-			feeAddrBalance: sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)),
-			txs: func() [][]byte {
-				wrongGasLimit := uint64(feeaddress.ProtocolFeeGasLimit * 2) // Intentionally wrong
-				return [][]byte{createProtocolFeeTxWrongGas(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)), wrongGasLimit)}
-			},
-			expectReject: true,
+			name:           "wrong gas limit",
+			feeAddrBalance: balance,
+			txs:            [][]byte{createProtocolFeeTx(t, balance, feeaddress.ProtocolFeeGasLimit*2)},
 		},
 		{
-			name:           "reject protocol fee tx with wrong denom",
-			feeAddrBalance: sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)),
+			name:           "wrong denom",
+			feeAddrBalance: balance,
 			txs: func() [][]byte {
-				// Wrong denom in fee
 				msg := feeaddress.NewMsgPayProtocolFee()
 				txBuilder := ecfg.TxConfig.NewTxBuilder()
-				err := txBuilder.SetMsgs(msg)
-				require.NoError(t, err)
+				_ = txBuilder.SetMsgs(msg)
 				txBuilder.SetFeeAmount(sdk.NewCoins(sdk.NewCoin("wrongdenom", math.NewInt(1000000))))
 				txBuilder.SetGasLimit(feeaddress.ProtocolFeeGasLimit)
-				txBytes, err := ecfg.TxConfig.TxEncoder()(txBuilder.GetTx())
-				require.NoError(t, err)
+				txBytes, _ := ecfg.TxConfig.TxEncoder()(txBuilder.GetTx())
 				return [][]byte{txBytes}
-			},
-			expectReject: true,
+			}(),
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			testApp := createTestAppWithFeeAddressBalance(t, tc.feeAddrBalance)
-			blockTime := time.Now()
 
-			if tc.usePrepProposal {
-				// For accept tests, use PrepareProposal to get correct txs and DataRootHash
-				prepResp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
-					Time:   blockTime,
-					Height: 2,
-					Txs:    [][]byte{},
-				})
-				require.NoError(t, err)
-
-				// Verify PrepareProposal generated correct txs
-				if !tc.feeAddrBalance.IsZero() {
-					require.True(t, len(prepResp.Txs) > 0, "expected protocol fee tx when balance exists")
-					firstTx, err := ecfg.TxConfig.TxDecoder()(prepResp.Txs[0])
-					require.NoError(t, err)
-					msgs := firstTx.GetMsgs()
-					require.Len(t, msgs, 1)
-					_, ok := msgs[0].(*feeaddress.MsgPayProtocolFee)
-					require.True(t, ok, "first tx should be MsgPayProtocolFee")
-				}
-
-				// Process proposal with PrepareProposal output
-				resp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
-					Time:         blockTime,
-					Height:       2,
-					Txs:          prepResp.Txs,
-					SquareSize:   prepResp.SquareSize,
-					DataRootHash: prepResp.DataRootHash,
-				})
-				require.NoError(t, err)
-				require.NotNil(t, resp)
-				require.Equal(t, abci.ResponseProcessProposal_ACCEPT, resp.Status,
-					"expected ACCEPT status for: %s", tc.name)
-			} else {
-				// For reject tests, ProcessProposal fails before DataRootHash verification
-				resp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
-					Time:       blockTime,
-					Height:     2,
-					Txs:        tc.txs(),
-					SquareSize: 1,
-				})
-				require.NoError(t, err)
-				require.NotNil(t, resp)
-				require.Equal(t, abci.ResponseProcessProposal_REJECT, resp.Status,
-					"expected REJECT status for: %s", tc.name)
-			}
+			resp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+				Time:       time.Now(),
+				Height:     2,
+				Txs:        tc.txs,
+				SquareSize: 1,
+			})
+			require.NoError(t, err)
+			require.Equal(t, abci.ResponseProcessProposal_REJECT, resp.Status)
 		})
 	}
 }
 
-// TestPrepareProposalProtocolFee tests that PrepareProposal correctly injects protocol fee transactions.
-func TestPrepareProposalProtocolFee(t *testing.T) {
+// TestPrepareProposalInjectsProtocolFeeTx verifies that PrepareProposal injects
+// a protocol fee tx when the fee address has a balance.
+func TestPrepareProposalInjectsProtocolFeeTx(t *testing.T) {
 	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	feeAddrBalance := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000))
+	testApp := createTestAppWithFeeAddressBalance(t, feeAddrBalance)
 
-	testCases := []struct {
-		name                string
-		feeAddrBalance      sdk.Coin
-		expectProtocolFeeTx bool
-	}{
-		{
-			name:                "inject protocol fee tx when balance exists",
-			feeAddrBalance:      sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000)),
-			expectProtocolFeeTx: true,
-		},
-		{
-			name:                "no protocol fee tx when no balance",
-			feeAddrBalance:      sdk.NewCoin(appconsts.BondDenom, math.ZeroInt()),
-			expectProtocolFeeTx: false,
-		},
-	}
+	resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+		Height: 2,
+		Time:   time.Now(),
+		Txs:    [][]byte{},
+	})
+	require.NoError(t, err)
+	require.True(t, len(resp.Txs) > 0, "expected protocol fee tx")
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			testApp := createTestAppWithFeeAddressBalance(t, tc.feeAddrBalance)
+	// Verify first tx is MsgPayProtocolFee with correct fee and gas
+	firstTx, err := ecfg.TxConfig.TxDecoder()(resp.Txs[0])
+	require.NoError(t, err)
+	msgs := firstTx.GetMsgs()
+	require.Len(t, msgs, 1)
+	_, ok := msgs[0].(*feeaddress.MsgPayProtocolFee)
+	require.True(t, ok, "first tx should be MsgPayProtocolFee")
 
-			// PrepareProposal for block 2
-			resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
-				Height: 2,
-				Time:   time.Now(),
-				Txs:    [][]byte{},
-			})
-			require.NoError(t, err)
-			require.NotNil(t, resp)
+	feeTx, ok := firstTx.(sdk.FeeTx)
+	require.True(t, ok)
+	require.Equal(t, feeAddrBalance, feeTx.GetFee()[0])
+	require.Equal(t, uint64(feeaddress.ProtocolFeeGasLimit), feeTx.GetGas())
+}
 
-			if tc.expectProtocolFeeTx {
-				require.True(t, len(resp.Txs) > 0, "expected at least one tx (protocol fee)")
+// TestPrepareProposalNoProtocolFeeTxWhenNoBalance verifies that PrepareProposal
+// does not inject a protocol fee tx when the fee address has no balance.
+func TestPrepareProposalNoProtocolFeeTxWhenNoBalance(t *testing.T) {
+	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	testApp := createTestAppWithFeeAddressBalance(t, sdk.NewCoin(appconsts.BondDenom, math.ZeroInt()))
 
-				// Verify first tx is protocol fee
-				firstTx, err := ecfg.TxConfig.TxDecoder()(resp.Txs[0])
-				require.NoError(t, err)
-				msgs := firstTx.GetMsgs()
-				require.Len(t, msgs, 1)
-				_, ok := msgs[0].(*feeaddress.MsgPayProtocolFee)
-				require.True(t, ok, "first tx should be MsgPayProtocolFee")
+	resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+		Height: 2,
+		Time:   time.Now(),
+		Txs:    [][]byte{},
+	})
+	require.NoError(t, err)
 
-				// Verify fee amount matches balance
-				feeTx, ok := firstTx.(sdk.FeeTx)
-				require.True(t, ok)
-				require.Equal(t, tc.feeAddrBalance, feeTx.GetFee()[0])
-
-				// Verify gas limit (cast to uint64 for comparison)
-				require.Equal(t, uint64(feeaddress.ProtocolFeeGasLimit), feeTx.GetGas())
-			} else {
-				// Verify no protocol fee tx (may have empty txs or non-protocol-fee txs)
-				for _, txBytes := range resp.Txs {
-					tx, err := ecfg.TxConfig.TxDecoder()(txBytes)
-					if err != nil {
-						continue // skip malformed txs
-					}
-					msgs := tx.GetMsgs()
-					if len(msgs) == 1 {
-						_, ok := msgs[0].(*feeaddress.MsgPayProtocolFee)
-						require.False(t, ok, "should not have protocol fee tx when no balance")
-					}
-				}
-			}
-		})
+	// Verify no protocol fee tx in response
+	for _, txBytes := range resp.Txs {
+		tx, err := ecfg.TxConfig.TxDecoder()(txBytes)
+		require.NoError(t, err)
+		msgs := tx.GetMsgs()
+		for _, msg := range msgs {
+			_, ok := msg.(*feeaddress.MsgPayProtocolFee)
+			require.False(t, ok, "should not have protocol fee tx when no balance")
+		}
 	}
 }
 
