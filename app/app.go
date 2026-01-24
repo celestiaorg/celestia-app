@@ -43,7 +43,6 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding"
 	forwardingkeeper "github.com/celestiaorg/celestia-app/v7/x/forwarding/keeper"
-	forwardingtypes "github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	"github.com/celestiaorg/celestia-app/v7/x/minfee"
 	minfeekeeper "github.com/celestiaorg/celestia-app/v7/x/minfee/keeper"
 	minfeetypes "github.com/celestiaorg/celestia-app/v7/x/minfee/types"
@@ -146,7 +145,6 @@ var maccPerms = map[string][]string{
 	icatypes.ModuleName:            nil,
 	hyperlanetypes.ModuleName:      nil,
 	warptypes.ModuleName:           {authtypes.Minter, authtypes.Burner},
-	forwardingtypes.ModuleName:     nil, // No special permissions needed - only holds tokens temporarily
 	feeaddress.ModuleName:          nil,
 }
 
