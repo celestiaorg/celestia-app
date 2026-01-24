@@ -150,5 +150,4 @@ is skipped (`ProtocolFeeTerminatorDecorator` terminates ante chain early).
 ## Related
 
 - Spec: [`specs/src/ante_handler_v7.md`](../../specs/src/ante_handler_v7.md)
-- CIP: <https://github.com/celestiaorg/CIPs/pull/369>
-- CIP update: <https://github.com/celestiaorg/CIPs/pull/381>
+- CIP: [CIP-43](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-043.md)
