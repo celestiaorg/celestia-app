@@ -157,7 +157,7 @@ func (m msgServer) forwardSingleToken(
 	messageId, err := m.k.ExecuteWarpTransfer(ctx, hypToken, forwardAddr.String(), destDomain, destRecipient, balance.Amount, quotedFee)
 	if err != nil {
 		// Warp failed - tokens remain at forwardAddr (warp is atomic)
-		// Consume the IGP fee by sending it to the fee address module account (validator revenue)
+		// Consume the IGP fee by sending it to the fee address module account
 		// This incentivizes relayers to check route availability before submitting
 		if quotedFee.IsPositive() {
 			if consumeErr := m.k.bankKeeper.SendCoinsFromAccountToModule(ctx, forwardAddr, feeaddress.ModuleName, sdk.NewCoins(quotedFee)); consumeErr != nil {

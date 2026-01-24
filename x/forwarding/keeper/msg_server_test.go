@@ -351,7 +351,7 @@ func TestForwardSingleToken_IGPFeeValidation(t *testing.T) {
 }
 
 // TestForwardSingleToken_IGPFeeConsumedOnWarpFailure tests that IGP fee is consumed when warp fails
-// and sent to the fee address module account (validator revenue)
+// and sent to the fee address module account
 func TestForwardSingleToken_IGPFeeConsumedOnWarpFailure(t *testing.T) {
 	s := newTestIGPSetup(t)
 
@@ -381,7 +381,7 @@ func TestForwardSingleToken_IGPFeeConsumedOnWarpFailure(t *testing.T) {
 	require.Equal(t, math.NewInt(1000), s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, appconsts.BondDenom).Amount)
 	// Verify: IGP fee was deducted from signer (100 consumed)
 	require.Equal(t, math.NewInt(100), s.bankKeeper.GetBalance(s.ctx, s.signer, appconsts.BondDenom).Amount)
-	// Verify: IGP fee was sent to fee address module account (validator revenue)
+	// Verify: IGP fee was sent to fee address module account
 	require.Equal(t, feeaddress.ModuleName, s.bankKeeper.LastSentToModule,
 		"consumed IGP fee should be sent to fee address module account")
 	require.Equal(t, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(100))), s.bankKeeper.LastSentToModuleAmount,
