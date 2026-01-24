@@ -3,6 +3,7 @@ package keeper
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
@@ -61,14 +62,10 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 	results := m.processTokens(ctx, forwardAddr, signerAddr, balances, msg, destRecipient)
 
 	// If all tokens failed, return error (partial failure is OK, total failure is not)
-	allFailed := true
-	for _, r := range results {
-		if r.Success {
-			allFailed = false
-			break
-		}
-	}
-	if allFailed && len(results) > 0 {
+	hasSuccess := slices.ContainsFunc(results, func(r types.ForwardingResult) bool {
+		return r.Success
+	})
+	if !hasSuccess && len(results) > 0 {
 		EmitForwardingCompleteEvent(ctx, msg.ForwardAddr, msg.DestDomain, msg.DestRecipient, results)
 		return nil, fmt.Errorf("%w: all %d tokens failed to forward", types.ErrAllTokensFailed, len(results))
 	}

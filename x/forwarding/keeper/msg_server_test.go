@@ -21,13 +21,13 @@ import (
 
 // MockBankKeeper implements types.BankKeeper for testing IGP fee flows
 type MockBankKeeper struct {
-	Balances                 map[string]sdk.Coins // addr -> coins
-	ModuleBalances           map[string]sdk.Coins // moduleName -> coins (for SendCoinsFromAccountToModule)
-	SendCoinsErr             error                // inject errors on SendCoins
-	SendCoinsFn              func(ctx context.Context, from, to sdk.AccAddress, amt sdk.Coins) error
-	SendCoinsFromAccToModErr error     // inject errors on SendCoinsFromAccountToModule
-	LastSentToModule         string    // tracks last module name sent to
-	LastSentToModuleAmount   sdk.Coins // tracks last amount sent to module
+	Balances               map[string]sdk.Coins // addr -> coins
+	ModuleBalances         map[string]sdk.Coins // moduleName -> coins (for SendCoinsFromAccountToModule)
+	SendCoinsErr           error                // inject errors on SendCoins
+	SendCoinsFn            func(ctx context.Context, from, to sdk.AccAddress, amt sdk.Coins) error
+	SendCoinsToModuleErr   error     // inject errors on SendCoinsFromAccountToModule
+	LastSentToModule       string    // tracks last module name sent to
+	LastSentToModuleAmount sdk.Coins // tracks last amount sent to module
 }
 
 func NewMockBankKeeper() *MockBankKeeper {
@@ -72,8 +72,8 @@ func (m *MockBankKeeper) SendCoins(ctx context.Context, from, to sdk.AccAddress,
 }
 
 func (m *MockBankKeeper) SendCoinsFromAccountToModule(_ context.Context, senderAddr sdk.AccAddress, recipientModule string, amt sdk.Coins) error {
-	if m.SendCoinsFromAccToModErr != nil {
-		return m.SendCoinsFromAccToModErr
+	if m.SendCoinsToModuleErr != nil {
+		return m.SendCoinsToModuleErr
 	}
 	// Track module send for test assertions
 	m.LastSentToModule = recipientModule
