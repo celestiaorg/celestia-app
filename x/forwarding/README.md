@@ -135,10 +135,11 @@ The relayer (signer) pays these fees as part of `MsgForward`.
 4. IGP fee sent directly from relayer to `forwardAddr`
 5. Warp executes from `forwardAddr` (which pays the IGP fee)
 6. Any excess IGP fee is refunded from `forwardAddr` back to relayer
+7. Consumed IGP fees are sent to the fee address module account
 
 **Per-token fees:** Each token forwarded requires a separate IGP fee. The `max_igp_fee` is the maximum fee the relayer will pay *per token*. If forwarding 3 tokens, the relayer may pay up to 3x the max fee (but only the actual quoted fee for each).
 
-**Fee on failure:** If warp transfer fails after IGP fee is collected, the fee is NOT returned. This incentivizes relayers to verify route availability before submitting. Failed tokens are returned to the forwarding address.
+**Fee on failure:** If warp transfer fails after IGP fee is collected, the consumed IGP fee is sent to the fee address module account (not returned to the relayer). This incentivizes relayers to verify route availability before submitting. Failed tokens are returned to the forwarding address.
 
 ## Queries
 
