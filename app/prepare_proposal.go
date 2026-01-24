@@ -141,11 +141,7 @@ func (app *App) verifyProtocolFeeTxSurvived(feeBalance sdk.Coin, filteredTxs [][
 		return fmt.Errorf("protocol fee tx was filtered out (no txs remain); fee_balance=%s", feeBalance.String())
 	}
 
-	_, firstTxIsProtocolFee, err := parseProtocolFeeTx(app.encodingConfig.TxConfig.TxDecoder(), filteredTxs[0])
-	if err != nil {
-		return fmt.Errorf("failed to parse protocol fee tx: %w; fee_balance=%s", err, feeBalance.String())
-	}
-	if !firstTxIsProtocolFee {
+	if !feeaddress.IsProtocolFeeTxBytes(app.encodingConfig.TxConfig.TxDecoder(), filteredTxs[0]) {
 		return fmt.Errorf("protocol fee tx was filtered out unexpectedly; fee_balance=%s", feeBalance.String())
 	}
 
