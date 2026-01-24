@@ -15,19 +15,25 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/stretchr/testify/require"
 )
 
 // MockBankKeeper implements types.BankKeeper for testing IGP fee flows
 type MockBankKeeper struct {
-	Balances     map[string]sdk.Coins // addr -> coins
-	SendCoinsErr error                // inject errors on SendCoins
-	SendCoinsFn  func(ctx context.Context, from, to sdk.AccAddress, amt sdk.Coins) error
+	Balances                 map[string]sdk.Coins // addr -> coins
+	ModuleBalances           map[string]sdk.Coins // moduleName -> coins (for SendCoinsFromAccountToModule)
+	SendCoinsErr             error                // inject errors on SendCoins
+	SendCoinsFn              func(ctx context.Context, from, to sdk.AccAddress, amt sdk.Coins) error
+	SendCoinsFromAccToModErr error     // inject errors on SendCoinsFromAccountToModule
+	LastSentToModule         string    // tracks last module name sent to
+	LastSentToModuleAmount   sdk.Coins // tracks last amount sent to module
 }
 
 func NewMockBankKeeper() *MockBankKeeper {
 	return &MockBankKeeper{
-		Balances: make(map[string]sdk.Coins),
+		Balances:       make(map[string]sdk.Coins),
+		ModuleBalances: make(map[string]sdk.Coins),
 	}
 }
 
@@ -62,6 +68,25 @@ func (m *MockBankKeeper) SendCoins(ctx context.Context, from, to sdk.AccAddress,
 
 	m.Balances[from.String()] = newFromBal
 	m.Balances[to.String()] = toBal.Add(amt...)
+	return nil
+}
+
+func (m *MockBankKeeper) SendCoinsFromAccountToModule(_ context.Context, senderAddr sdk.AccAddress, recipientModule string, amt sdk.Coins) error {
+	if m.SendCoinsFromAccToModErr != nil {
+		return m.SendCoinsFromAccToModErr
+	}
+	// Track module send for test assertions
+	m.LastSentToModule = recipientModule
+	m.LastSentToModuleAmount = amt
+
+	// Update balances
+	fromBal := m.Balances[senderAddr.String()]
+	newFromBal, hasNeg := fromBal.SafeSub(amt...)
+	if hasNeg {
+		return errors.New("insufficient funds")
+	}
+	m.Balances[senderAddr.String()] = newFromBal
+	m.ModuleBalances[recipientModule] = m.ModuleBalances[recipientModule].Add(amt...)
 	return nil
 }
 
@@ -326,6 +351,7 @@ func TestForwardSingleToken_IGPFeeValidation(t *testing.T) {
 }
 
 // TestForwardSingleToken_IGPFeeConsumedOnWarpFailure tests that IGP fee is consumed when warp fails
+// and sent to the fee collector (validator revenue)
 func TestForwardSingleToken_IGPFeeConsumedOnWarpFailure(t *testing.T) {
 	s := newTestIGPSetup(t)
 
@@ -355,6 +381,13 @@ func TestForwardSingleToken_IGPFeeConsumedOnWarpFailure(t *testing.T) {
 	require.Equal(t, math.NewInt(1000), s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, appconsts.BondDenom).Amount)
 	// Verify: IGP fee was deducted from signer (100 consumed)
 	require.Equal(t, math.NewInt(100), s.bankKeeper.GetBalance(s.ctx, s.signer, appconsts.BondDenom).Amount)
+	// Verify: IGP fee was sent to fee collector module account (validator revenue)
+	require.Equal(t, authtypes.FeeCollectorName, s.bankKeeper.LastSentToModule,
+		"consumed IGP fee should be sent to fee collector")
+	require.Equal(t, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(100))), s.bankKeeper.LastSentToModuleAmount,
+		"consumed IGP fee amount should match quoted fee")
+	require.Equal(t, math.NewInt(100), s.bankKeeper.ModuleBalances[authtypes.FeeCollectorName].AmountOf(appconsts.BondDenom),
+		"fee collector should have received the consumed IGP fee")
 }
 
 // TestForwardSingleToken_IGPFeeRefundOnSuccess tests that excess IGP fee is refunded to signer
