@@ -11,11 +11,11 @@ import (
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/feeaddress"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/keeper"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -351,7 +351,7 @@ func TestForwardSingleToken_IGPFeeValidation(t *testing.T) {
 }
 
 // TestForwardSingleToken_IGPFeeConsumedOnWarpFailure tests that IGP fee is consumed when warp fails
-// and sent to the fee collector (validator revenue)
+// and sent to the fee address module account (validator revenue)
 func TestForwardSingleToken_IGPFeeConsumedOnWarpFailure(t *testing.T) {
 	s := newTestIGPSetup(t)
 
@@ -381,13 +381,13 @@ func TestForwardSingleToken_IGPFeeConsumedOnWarpFailure(t *testing.T) {
 	require.Equal(t, math.NewInt(1000), s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, appconsts.BondDenom).Amount)
 	// Verify: IGP fee was deducted from signer (100 consumed)
 	require.Equal(t, math.NewInt(100), s.bankKeeper.GetBalance(s.ctx, s.signer, appconsts.BondDenom).Amount)
-	// Verify: IGP fee was sent to fee collector module account (validator revenue)
-	require.Equal(t, authtypes.FeeCollectorName, s.bankKeeper.LastSentToModule,
-		"consumed IGP fee should be sent to fee collector")
+	// Verify: IGP fee was sent to fee address module account (validator revenue)
+	require.Equal(t, feeaddress.ModuleName, s.bankKeeper.LastSentToModule,
+		"consumed IGP fee should be sent to fee address module account")
 	require.Equal(t, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(100))), s.bankKeeper.LastSentToModuleAmount,
 		"consumed IGP fee amount should match quoted fee")
-	require.Equal(t, math.NewInt(100), s.bankKeeper.ModuleBalances[authtypes.FeeCollectorName].AmountOf(appconsts.BondDenom),
-		"fee collector should have received the consumed IGP fee")
+	require.Equal(t, math.NewInt(100), s.bankKeeper.ModuleBalances[feeaddress.ModuleName].AmountOf(appconsts.BondDenom),
+		"fee address module account should have received the consumed IGP fee")
 }
 
 // TestForwardSingleToken_IGPFeeRefundOnSuccess tests that excess IGP fee is refunded to signer
