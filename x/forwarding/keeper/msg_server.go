@@ -141,44 +141,57 @@ func (m msgServer) forwardSingleToken(
 		}
 	}
 
-	// Move tokens to module account first - if this fails, we haven't touched relayer's funds yet
-	if err := m.k.bankKeeper.SendCoins(ctx, forwardAddr, moduleAddr, sdk.NewCoins(balance)); err != nil {
-		return types.NewFailureResult(balance.Denom, balance.Amount, "failed to move tokens: "+err.Error())
-	}
+	// Capture IGP fee denom balance at forwardAddr before sending IGP fee
+	// This allows us to track how much IGP fee was added and handle refunds
+	igpBalanceBefore := m.k.bankKeeper.GetBalance(ctx, forwardAddr, quotedFee.Denom)
 
-	// Collect IGP fee from relayer (signer) to module account
-	// Only collect if there's a positive fee to pay
+	// Send IGP fee from relayer (signer) directly to forwardAddr
+	// If this fails, no state has changed - safe to return failure
 	if quotedFee.IsPositive() {
-		if err := m.k.bankKeeper.SendCoins(ctx, signerAddr, moduleAddr, sdk.NewCoins(quotedFee)); err != nil {
-			// Return tokens to forward address since we can't complete the transfer
-			if recoveryErr := m.k.bankKeeper.SendCoins(ctx, moduleAddr, forwardAddr, sdk.NewCoins(balance)); recoveryErr != nil {
-				ctx.Logger().Error("CRITICAL: tokens stuck in module after IGP collection failure",
-					"denom", balance.Denom, "amount", balance.Amount.String(), "igp_error", err, "recovery_error", recoveryErr)
-			}
+		if err := m.k.bankKeeper.SendCoins(ctx, signerAddr, forwardAddr, sdk.NewCoins(quotedFee)); err != nil {
 			return types.NewFailureResult(balance.Denom, balance.Amount,
 				fmt.Sprintf("failed to collect IGP fee from relayer: %s", err.Error()))
 		}
 	}
 
-	messageId, err := m.k.ExecuteWarpTransfer(ctx, hypToken, moduleAddr.String(), destDomain, destRecipient, balance.Amount, quotedFee)
+	// Execute warp transfer with forwardAddr as sender
+	// Warp has atomic semantics: on failure, tokens remain at forwardAddr
+	messageId, err := m.k.ExecuteWarpTransfer(ctx, hypToken, forwardAddr.String(), destDomain, destRecipient, balance.Amount, quotedFee)
 	if err != nil {
-		// Warp failed - return tokens to forward address
-		if recoveryErr := m.k.bankKeeper.SendCoins(ctx, moduleAddr, forwardAddr, sdk.NewCoins(balance)); recoveryErr != nil {
-			ctx.Logger().Error("CRITICAL: tokens stuck in module account after failed recovery",
-				"denom", balance.Denom,
-				"amount", balance.Amount.String(),
-				"module_addr", moduleAddr.String(),
-				"forward_addr", forwardAddr.String(),
-				"warp_error", err.Error(),
-				"recovery_error", recoveryErr.Error(),
-			)
-			EmitTokensStuckEvent(ctx, balance.Denom, balance.Amount, moduleAddr.String(), forwardAddr.String(),
-				fmt.Sprintf("warp: %s; recovery: %s", err.Error(), recoveryErr.Error()))
-			return types.NewFailureResult(balance.Denom, balance.Amount, fmt.Sprintf("CRITICAL: warp failed and recovery failed - tokens stuck in module account: warp=%s recovery=%s", err.Error(), recoveryErr.Error()))
+		// Warp failed - tokens remain at forwardAddr (warp is atomic)
+		// Consume the IGP fee by moving it to the module account
+		// This incentivizes relayers to check route availability before submitting
+		if quotedFee.IsPositive() {
+			if consumeErr := m.k.bankKeeper.SendCoins(ctx, forwardAddr, moduleAddr, sdk.NewCoins(quotedFee)); consumeErr != nil {
+				ctx.Logger().Error("failed to consume IGP fee after warp failure",
+					"denom", balance.Denom,
+					"igp_fee", quotedFee.String(),
+					"warp_error", err.Error(),
+					"consume_error", consumeErr.Error(),
+				)
+			}
 		}
-		// Note: IGP fee is NOT returned on warp failure - it was consumed by the failed attempt.
-		// This incentivizes relayers to check route availability before submitting.
 		return types.NewFailureResult(balance.Denom, balance.Amount, "warp transfer failed (tokens returned, IGP fee consumed): "+err.Error())
+	}
+
+	// Warp succeeded - refund any excess IGP fee to the relayer
+	// Excess = (balance before + quoted fee) - balance after warp
+	// The warp transfer consumes the actual IGP cost from forwardAddr
+	if quotedFee.IsPositive() {
+		igpBalanceAfter := m.k.bankKeeper.GetBalance(ctx, forwardAddr, quotedFee.Denom)
+		// Expected: igpBalanceBefore (original) + quotedFee (sent) - actualIgpUsed = igpBalanceAfter
+		// So excess = igpBalanceAfter - igpBalanceBefore (what remains beyond the original)
+		excess := igpBalanceAfter.Amount.Sub(igpBalanceBefore.Amount)
+		if excess.IsPositive() {
+			excessCoin := sdk.NewCoin(quotedFee.Denom, excess)
+			if refundErr := m.k.bankKeeper.SendCoins(ctx, forwardAddr, signerAddr, sdk.NewCoins(excessCoin)); refundErr != nil {
+				ctx.Logger().Error("failed to refund excess IGP fee to relayer",
+					"denom", balance.Denom,
+					"excess", excessCoin.String(),
+					"refund_error", refundErr.Error(),
+				)
+			}
+		}
 	}
 
 	return types.NewSuccessResult(balance.Denom, balance.Amount, messageId.String())

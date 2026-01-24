@@ -132,9 +132,9 @@ The relayer (signer) pays these fees as part of `MsgForward`.
 1. Relayer queries `QuoteForwardingFee` to estimate the required IGP fee
 2. Relayer submits `MsgForward` with `max_igp_fee >= quoted fee`
 3. Module quotes actual fee via Hyperlane's `QuoteDispatch`
-4. Module collects **actual quoted fee** (not max) from relayer to module account
-5. Module executes warp transfer (module account pays IGP)
-6. Excess stays with relayer (only actual fee is charged)
+4. IGP fee sent directly from relayer to `forwardAddr`
+5. Warp executes from `forwardAddr` (which pays the IGP fee)
+6. Any excess IGP fee is refunded from `forwardAddr` back to relayer
 
 **Per-token fees:** Each token forwarded requires a separate IGP fee. The `max_igp_fee` is the maximum fee the relayer will pay *per token*. If forwarding 3 tokens, the relayer may pay up to 3x the max fee (but only the actual quoted fee for each).
 
@@ -202,13 +202,14 @@ celestia-appd tx forwarding forward <forward-addr> 42161 \
 - **No fund loss**: Failed tokens stay at `forwardAddr` or are automatically returned there.
 - **Collision resistance**: Same as standard Cosmos addresses (160-bit truncation). Draining requires 2^160 operations (second preimage), not 2^80 (birthday attack).
 
-## Recovery from Stuck Tokens
+## Recovery from Failed Forwards
 
-If tokens become stuck in the module account due to a missing warp route:
+If a warp transfer fails (e.g., due to a missing warp route), the tokens remain at the `forwardAddr`:
 
-1. Create the warp route to the destination domain
-2. Call `MsgForward` again with the same parameters
-3. Tokens will be forwarded normally
+1. The forwarding attempt fails with a clear error (e.g., `ErrNoWarpRoute`)
+2. Tokens stay at `forwardAddr` - they are never moved to the module account
+3. Once the issue is resolved (e.g., warp route created), call `MsgForward` again
+4. Tokens will be forwarded normally
 
 ### Why No Ante Handler Validation for Invalid Domains
 

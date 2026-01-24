@@ -4,7 +4,7 @@ Agent context for `celestia-app/x/forwarding/`.
 
 ## Quick Reference
 
-- **Full specification**: See [SPEC.md](./SPEC.md)
+- **Full specification**: See [README.md](./README.md)
 - **Relayer guide**: See [forwarding-relayer docs](https://github.com/celestiaorg/forwarding-relayer/blob/master/RELAYER.md)
 
 ## Key Concepts
@@ -30,7 +30,7 @@ flowchart TD
 stateDiagram-v2
     [*] --> Empty
     Empty --> Pending: deposit
-    Pending --> Processing: MsgExecuteForwarding
+    Pending --> Processing: MsgForward
     Processing --> Done: warp success
     Processing --> Pending: warp fails (tokens returned)
     Done --> Pending: new deposit
