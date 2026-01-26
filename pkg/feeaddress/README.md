@@ -82,7 +82,7 @@ chain, not normal operation.
 
 | Fee Address Balance | First Tx                    | Result |
 |---------------------|-----------------------------|--------|
-| Zero                | Anything                    | ACCEPT |
+| Zero                | Anything but MsgPayProtocolFee | ACCEPT |
 | Zero                | MsgPayProtocolFee           | REJECT |
 | Non-zero            | Not MsgPayProtocolFee       | REJECT |
 | Non-zero            | MsgPayProtocolFee (wrong)   | REJECT |
