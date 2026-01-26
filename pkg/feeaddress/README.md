@@ -21,8 +21,6 @@ This is NOT a full Cosmos SDK module. It has:
 It's just types and constants. The logic lives in ante handlers (`app/ante/`)
 and PrepareProposal/ProcessProposal.
 
-There was discussion of potentially merging this with `x/minfee` into a unified
-`x/fee` module in the future (see [#6453](https://github.com/celestiaorg/celestia-app/issues/6453)).
 
 ## Architecture
 
