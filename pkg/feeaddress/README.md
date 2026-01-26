@@ -92,7 +92,7 @@ chain, not normal operation.
 
 ### Why Block-Level Validation (not just Ante Handler)?
 
-Ante handler validates: "Is THIS tx's fee valid?"
+Ante handler validates: "Is this tx's fee valid?"
 ProcessProposal validates: "Does THIS BLOCK correctly handle fee address?"
 
 These are different concerns:
