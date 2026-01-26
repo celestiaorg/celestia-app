@@ -127,7 +127,7 @@ Only utia allowed via direct transactions (MsgSend, MsgMultiSend).
 
 Non-utia tokens sent via these paths will be permanently stuck at the fee
 address. They cannot be forwarded (only utia is forwarded) and cannot be
-recovered (no governance mechanism exists).
+recovered.
 
 ## Message Types
 
