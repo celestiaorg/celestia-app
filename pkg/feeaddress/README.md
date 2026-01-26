@@ -7,7 +7,7 @@ revenue via a dedicated module account. Funds sent to the fee address are
 converted to transaction fees in the next block and distributed to delegators
 as staking rewards.
 
-**Fee Address:** `celestia18sjk23yldd9dg7j33sk24elwz2f06zt7ahx39y`
+Fee Address module account: `celestia18sjk23yldd9dg7j33sk24elwz2f06zt7ahx39y`
 
 ## Why `pkg/` and not `x/`?
 
