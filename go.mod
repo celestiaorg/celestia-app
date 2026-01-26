@@ -3,7 +3,7 @@ module github.com/celestiaorg/celestia-app/v7
 go 1.25.5
 
 require (
-	cloud.google.com/go/compute v1.53.0
+	cloud.google.com/go/compute v1.54.0
 	cosmossdk.io/api v0.7.6
 	cosmossdk.io/client/v2 v2.0.0-beta.8
 	cosmossdk.io/collections v0.4.0
@@ -21,7 +21,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.41.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.7
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.7
-	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.19.11
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.21.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.95.1
 	github.com/bcp-innovations/hyperlane-cosmos v1.0.1
 	github.com/celestiaorg/go-square/v2 v2.3.3
@@ -40,7 +40,7 @@ require (
 	github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8 v8.2.0
 	github.com/cosmos/ibc-go/modules/capability v1.0.1
 	github.com/cosmos/ibc-go/v8 v8.7.0
-	github.com/digitalocean/godo v1.172.0
+	github.com/digitalocean/godo v1.173.0
 	github.com/go-kit/log v0.2.1
 	github.com/golang/protobuf v1.5.4
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
