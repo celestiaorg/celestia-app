@@ -31,3 +31,14 @@ func IsProtocolFeeMsg(tx sdk.Tx) *MsgPayProtocolFee {
 	}
 	return msg
 }
+
+// IsProtocolFeeTxBytes decodes raw transaction bytes and checks if the transaction
+// is a MsgPayProtocolFee. Returns false if decoding fails or if the transaction
+// is not a protocol fee transaction.
+func IsProtocolFeeTxBytes(decoder sdk.TxDecoder, txBytes []byte) bool {
+	sdkTx, err := decoder(txBytes)
+	if err != nil {
+		return false
+	}
+	return IsProtocolFeeMsg(sdkTx) != nil
+}

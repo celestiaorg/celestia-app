@@ -8,5 +8,6 @@ import (
 
 // ProtocolFeeBankKeeper defines the bank keeper interface needed by ProtocolFeeTerminatorDecorator.
 type ProtocolFeeBankKeeper interface {
+	GetBalance(ctx context.Context, addr sdk.AccAddress, denom string) sdk.Coin
 	SendCoinsFromAccountToModule(ctx context.Context, senderAddr sdk.AccAddress, recipientModule string, amt sdk.Coins) error
 }
