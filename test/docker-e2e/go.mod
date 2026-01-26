@@ -27,11 +27,12 @@ require (
 	cloud.google.com/go/storage v1.56.0 // indirect
 	cosmossdk.io/api v0.7.6 // indirect
 	cosmossdk.io/client/v2 v2.0.0-beta.8 // indirect
-	cosmossdk.io/collections v0.4.0 // indirect
+	cosmossdk.io/collections v1.3.1 // indirect
 	cosmossdk.io/core v0.11.1 // indirect
 	cosmossdk.io/depinject v1.1.0 // indirect
 	cosmossdk.io/errors v1.0.2 // indirect
 	cosmossdk.io/log v1.6.0 // indirect
+	cosmossdk.io/schema v1.1.0 // indirect
 	cosmossdk.io/store v1.1.2 // indirect
 	cosmossdk.io/x/circuit v0.1.1 // indirect
 	cosmossdk.io/x/evidence v0.1.1 // indirect
@@ -44,7 +45,7 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/DataDog/datadog-go v4.8.3+incompatible // indirect
-	github.com/DataDog/zstd v1.5.6 // indirect
+	github.com/DataDog/zstd v1.5.7 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.30.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.53.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.53.0 // indirect
@@ -86,11 +87,11 @@ require (
 	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/cncf/xds/go v0.0.0-20251022180443-0feb69152e9f // indirect
 	github.com/cockroachdb/apd/v2 v2.0.2 // indirect
-	github.com/cockroachdb/errors v1.11.3 // indirect
+	github.com/cockroachdb/errors v1.12.0 // indirect
 	github.com/cockroachdb/fifo v0.0.0-20240816210425-c5d0cb0b6fc0 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20241215232642-bb51bb14a506 // indirect
 	github.com/cockroachdb/pebble v1.1.5 // indirect
-	github.com/cockroachdb/redact v1.1.5 // indirect
+	github.com/cockroachdb/redact v1.1.6 // indirect
 	github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06 // indirect
 	github.com/cometbft/cometbft-db v1.0.4 // indirect
 	github.com/consensys/gnark v0.14.0 // indirect
@@ -98,7 +99,7 @@ require (
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/cosmos/btcutil v1.0.5 // indirect
-	github.com/cosmos/cosmos-db v1.1.1 // indirect
+	github.com/cosmos/cosmos-db v1.1.3 // indirect
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5 // indirect
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/cosmos/gogogateway v1.2.0 // indirect
