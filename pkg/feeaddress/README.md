@@ -21,7 +21,6 @@ This is NOT a full Cosmos SDK module. It has:
 It's just types and constants. The logic lives in ante handlers (`app/ante/`)
 and PrepareProposal/ProcessProposal.
 
-
 ## Architecture
 
 ```text
@@ -80,13 +79,13 @@ chain, not normal operation.
 
 ### ProcessProposal Invariants
 
-| Fee Address Balance | First Tx                    | Result |
-|---------------------|-----------------------------|--------|
+| Fee Address Balance | First Tx                       | Result |
+|---------------------|--------------------------------|--------|
 | Zero                | Anything but MsgPayProtocolFee | ACCEPT |
-| Zero                | MsgPayProtocolFee           | REJECT |
-| Non-zero            | Not MsgPayProtocolFee       | REJECT |
-| Non-zero            | MsgPayProtocolFee (wrong)   | REJECT |
-| Non-zero            | MsgPayProtocolFee (correct) | ACCEPT |
+| Zero                | MsgPayProtocolFee              | REJECT |
+| Non-zero            | Not MsgPayProtocolFee          | REJECT |
+| Non-zero            | MsgPayProtocolFee (wrong)      | REJECT |
+| Non-zero            | MsgPayProtocolFee (correct)    | ACCEPT |
 
 "Correct" means: fee amount = balance, gas = ProtocolFeeGasLimit, denom = utia
 
@@ -105,12 +104,12 @@ These are different concerns:
 
 ### What can a malicious proposer do?
 
-| Attack                   | Result                                              |
-|--------------------------|-----------------------------------------------------|
-| Steal fee address funds  | Impossible. No signers, funds → fee_collector only  |
-| Inflate protocol revenue | Impossible. Fee MUST match balance exactly          |
-| Censor protocol fee tx   | Detected. ProcessProposal rejects                   |
-| Inject fake protocol fee | Rejected. No balance = no tx allowed                |
+| Attack                   | Result                                             |
+|--------------------------|----------------------------------------------------|
+| Steal fee address funds  | Impossible. No signers, funds → fee_collector only |
+| Inflate protocol revenue | Impossible. Fee MUST match balance exactly         |
+| Censor protocol fee tx   | Detected. ProcessProposal rejects                  |
+| Inject fake protocol fee | Rejected. No balance = no tx allowed               |
 
 **Worst case**: Malicious validator proposes invalid blocks that get rejected.
 Chain continues with honest proposers.
