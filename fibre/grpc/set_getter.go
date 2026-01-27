@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v6/fibre/validator"
+	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/validator"
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	core "github.com/cometbft/cometbft/types"
 )
