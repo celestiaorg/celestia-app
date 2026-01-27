@@ -91,6 +91,11 @@ func NewBlobConfigFromParams(blobVersion uint8, p ProtocolParams) BlobConfig {
 	}
 }
 
+// TotalRows returns the total number of rows (OriginalRows + ParityRows).
+func (c BlobConfig) TotalRows() int {
+	return c.OriginalRows + c.ParityRows
+}
+
 // UploadSize calculates size of blob data with padding and w/o parity.
 // This is the size included in the [PaymentPromise] and the one actually paid for.
 func (c BlobConfig) UploadSize(dataLen int) int {

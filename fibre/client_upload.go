@@ -67,7 +67,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 	))
 
 	// 2) assign shards to validators
-	shardMap := valSet.Assign(rsema1d.Commitment(blob.Commitment()), c.cfg.RowsPerShard(len(valSet.Validators)))
+	shardMap := valSet.Assign(rsema1d.Commitment(blob.Commitment()), blob.Config().TotalRows(), blob.Config().OriginalRows, c.cfg.MinRowsPerValidator, c.cfg.LivenessThreshold)
 	span.AddEvent("shards_assigned")
 
 	validatorSignBytes, err := promise.SignBytesValidator()
@@ -78,7 +78,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 	}
 
 	requests := makeUploadRequests(shardMap, promise.ToProto(), blob.RLCCoeffs())
-	sigSet := valSet.NewSignatureSet(c.cfg.UploadTargetVotingPower, c.cfg.UploadTargetSignaturesCount, validatorSignBytes)
+	sigSet := valSet.NewSignatureSet(c.cfg.SafetyThreshold, c.cfg.UploadTargetSignaturesCount, validatorSignBytes)
 
 	c.log.DebugContext(ctx, "initiating blob upload",
 		"promise_hash", hex.EncodeToString(promiseHash),
