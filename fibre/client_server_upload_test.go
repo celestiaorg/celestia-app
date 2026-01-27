@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v6/fibre"
+	"github.com/celestiaorg/celestia-app-fibre/v6/fibre"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/stretchr/testify/require"
 )

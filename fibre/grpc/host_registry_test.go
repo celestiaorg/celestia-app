@@ -7,9 +7,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v6/fibre/grpc"
-	"github.com/celestiaorg/celestia-app/v6/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v6/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/grpc"
+	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/validator"
+	"github.com/celestiaorg/celestia-app-fibre/v6/x/valaddr/types"
 	core "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"

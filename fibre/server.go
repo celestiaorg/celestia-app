@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 
-	fibregrpc "github.com/celestiaorg/celestia-app/v6/fibre/grpc"
-	"github.com/celestiaorg/celestia-app/v6/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v6/x/fibre/types"
+	fibregrpc "github.com/celestiaorg/celestia-app-fibre/v6/fibre/grpc"
+	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/validator"
+	"github.com/celestiaorg/celestia-app-fibre/v6/x/fibre/types"
 	"github.com/cometbft/cometbft/crypto"
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	core "github.com/cometbft/cometbft/types"
