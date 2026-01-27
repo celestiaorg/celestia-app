@@ -291,7 +291,8 @@ func (m *TxStatusResult) GetStatus() *TxStatusResponse {
 	return nil
 }
 
-// TxStatusBatchResponse is a response type for batched TxStatus query. It contains an array of transaction status results.
+// TxStatusBatchResponse is a response type for batched TxStatus query. It contains an array of transaction status
+// results.
 type TxStatusBatchResponse struct {
 	Statuses []*TxStatusResult `protobuf:"bytes,1,rep,name=statuses,proto3" json:"statuses,omitempty"`
 }
@@ -497,7 +498,6 @@ func _Tx_TxStatusBatch_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
-var Tx_serviceDesc = _Tx_serviceDesc
 var _Tx_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "celestia.core.v1.tx.Tx",
 	HandlerType: (*TxServer)(nil),

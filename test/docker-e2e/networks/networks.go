@@ -1,12 +1,12 @@
 package networks
 
 import (
-	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"fmt"
-	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	"io"
 	"net/http"
 	"testing"
+
+	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 
 	"github.com/celestiaorg/celestia-app/v7/app"
 	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
@@ -15,6 +15,8 @@ import (
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/stretchr/testify/require"
+
+	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 )
 
 // NewConfig returns a configured instance of dockerchain.Config for the specified chain.

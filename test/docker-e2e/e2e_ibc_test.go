@@ -345,7 +345,7 @@ func (s *IBCTestSuite) upgradeChain(ctx context.Context, chain *cosmos.Chain, ta
 	records, err := kr.List()
 	s.Require().NoError(err, "failed to list keyring records")
 
-	upgradeHeight := s.signalAndGetUpgradeHeight(ctx, chain, validatorNode, cfg, records, targetAppVersion)
+	upgradeHeight := s.SignalUpgrade(ctx, chain, validatorNode, cfg, records, targetAppVersion)
 
 	rpcClient, err := validatorNode.GetRPCClient()
 	s.Require().NoError(err, "failed to get RPC client")

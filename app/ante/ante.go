@@ -9,14 +9,14 @@ import (
 	minfeekeeper "github.com/celestiaorg/celestia-app/v7/x/minfee/keeper"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	ibcante "github.com/cosmos/ibc-go/v8/modules/core/ante"
 	ibckeeper "github.com/cosmos/ibc-go/v8/modules/core/keeper"
 )
 
 func NewAnteHandler(
 	accountKeeper ante.AccountKeeper,
-	bankKeeper authtypes.BankKeeper,
+	bankKeeper bankkeeper.Keeper,
 	blobKeeper blob.Keeper,
 	feegrantKeeper ante.FeegrantKeeper,
 	signModeHandler *txsigning.HandlerMap,
@@ -32,6 +32,11 @@ func NewAnteHandler(
 		// Set up the context with a gas meter.
 		// Must be called before gas consumption occurs in any other decorator.
 		ante.NewSetUpContextDecorator(),
+		// Handle MsgPayProtocolFee transactions completely and terminate early.
+		// MsgPayProtocolFee has no signers so it would fail signature-related decorators.
+		// This decorator transfers the fee from fee address to fee collector and returns
+		// without calling next() for protocol fee txs. For all other txs, it calls next().
+		NewProtocolFeeTerminatorDecorator(bankKeeper),
 		// Ensure that the tx does not contain any messages that are disabled by the circuit breaker.
 		circuitante.NewCircuitBreakerDecorator(circuitkeeper),
 		// Ensure the tx does not contain any extension options.
@@ -65,6 +70,8 @@ func NewAnteHandler(
 		// Ensure that the tx does not contain a MsgExec with a nested MsgExec
 		// or MsgPayForBlobs.
 		NewMsgExecDecorator(),
+		// Ensure that only utia can be sent to the feeaddress module account.
+		NewFeeAddressDecorator(),
 		// Ensure that the tx's gas limit is > the gas consumed based on the blob size(s).
 		// Contract: must be called after all decorators that consume gas.
 		// Note: does not consume gas from the gas meter.
