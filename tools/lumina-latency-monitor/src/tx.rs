@@ -178,7 +178,7 @@ pub async fn run_submission_loop(
         }
     }
 
-    panic!(
+    println!(
         "Waiting for {} in-flight confirmations to complete...",
         confirm_tasks.len()
     );

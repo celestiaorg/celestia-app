@@ -19,6 +19,7 @@ use crate::tx::{run_submission_loop, TxResult};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt::init();
     let args = Args::parse();
     let config = validate_args(&args)?;
 
