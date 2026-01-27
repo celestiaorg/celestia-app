@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/validator"
 	"github.com/celestiaorg/celestia-app-fibre/v6/x/fibre/types"
 	"github.com/cometbft/cometbft/crypto"
+	cmtmath "github.com/cometbft/cometbft/libs/math"
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/gogoproto/grpc"
@@ -24,8 +25,11 @@ type ServerConfig struct {
 	BlobConfig
 	StoreConfig
 
-	// RowsPerShard computes the number of rows per shard given the total number of shards.
-	RowsPerShard func(totalShards int) int
+	// LivenessThreshold is the fraction of stake needed for reconstruction (typically 1/3).
+	LivenessThreshold cmtmath.Fraction
+	// MinRowsPerValidator is the minimum number of rows each validator must receive
+	// for unique decodability security.
+	MinRowsPerValidator int
 	// MaxMessageSize is the maximum gRPC message size for upload requests.
 	MaxMessageSize int
 
@@ -46,11 +50,12 @@ func DefaultServerConfig() ServerConfig {
 // Use this when you need a config with non-default protocol parameters (e.g., for testing).
 func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 	return ServerConfig{
-		ChainID:        "celestia",
-		BlobConfig:     DefaultBlobConfigV0(), // currently hardcode support for version zero only
-		StoreConfig:    DefaultStoreConfig(),
-		RowsPerShard:   p.RowsPerShard,
-		MaxMessageSize: p.MaxMessageSize(p.MaxValidatorCount),
+		ChainID:             "celestia",
+		BlobConfig:          DefaultBlobConfigV0(), // currently hardcode support for version zero only
+		StoreConfig:         DefaultStoreConfig(),
+		LivenessThreshold:   p.LivenessThreshold,
+		MinRowsPerValidator: p.MinRowsPerValidator(),
+		MaxMessageSize:      p.MaxMessageSize(),
 	}
 }
 

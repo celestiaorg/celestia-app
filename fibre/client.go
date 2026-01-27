@@ -35,13 +35,16 @@ type ClientConfig struct {
 	// ChainID is the chain identifier for domain separation in [PaymentPromise] signatures.
 	ChainID string
 
-	// RowsPerShard computes the number of rows per shard given the total number of shards.
-	RowsPerShard func(totalShards int) int
+	// SafetyThreshold is the fraction of stake needed to cause a safety failure (typically 2/3).
+	SafetyThreshold cmtmath.Fraction
+	// LivenessThreshold is the fraction of stake needed to cause a liveness failure (typically 1/3).
+	LivenessThreshold cmtmath.Fraction
+	// MinRowsPerValidator is the minimum number of rows each validator must receive
+	// for unique decodability security.
+	MinRowsPerValidator int
 	// MaxMessageSize is the maximum gRPC message size for upload requests.
 	MaxMessageSize int
 
-	// UploadTargetVotingPower is the fraction (e.g., 2/3) of total voting power required for Upload operations.
-	UploadTargetVotingPower cmtmath.Fraction
 	// UploadTargetSignaturesCount is the fraction (e.g., 2/3) of total signature count required for Upload operations.
 	UploadTargetSignaturesCount cmtmath.Fraction
 
@@ -76,12 +79,13 @@ func NewClientConfigFromParams(p ProtocolParams) ClientConfig {
 	return ClientConfig{
 		DefaultKeyName:              DefaultKeyName,
 		ChainID:                     "celestia",
-		RowsPerShard:                p.RowsPerShard,
-		MaxMessageSize:              p.MaxMessageSize(p.MaxValidatorCount),
-		UploadTargetVotingPower:     p.SafetyThreshold,
+		SafetyThreshold:             p.SafetyThreshold,
+		LivenessThreshold:           p.LivenessThreshold,
+		MinRowsPerValidator:         p.MinRowsPerValidator(),
+		MaxMessageSize:              p.MaxMessageSize(),
 		UploadTargetSignaturesCount: p.SafetyThreshold,
 		UploadConcurrency:           p.MaxValidatorCount,
-		DownloadConcurrency:         p.ShardsForReconstruction(p.MaxValidatorCount),
+		DownloadConcurrency:         p.ValidatorsForReconstruction(),
 	}
 }
 
