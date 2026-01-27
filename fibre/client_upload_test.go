@@ -159,7 +159,7 @@ func testClientUploadInsufficientSignaturesCount(t *testing.T) {
 	// Fail 35 validators to get 65 signatures (< 66 required for 2/3)
 	// Set low voting power threshold (1/3) so power passes, but high signature count threshold (2/3) so count fails
 	client := makeTestClientWithFailures(t, numValidators, 35, func(cfg *fibre.ClientConfig) {
-		cfg.UploadTargetVotingPower = cmtmath.Fraction{Numerator: 1, Denominator: 3}     // Low threshold (34 signatures) - will pass
+		cfg.SafetyThreshold = cmtmath.Fraction{Numerator: 1, Denominator: 3}             // Low threshold (34 signatures) - will pass
 		cfg.UploadTargetSignaturesCount = cmtmath.Fraction{Numerator: 2, Denominator: 3} // High threshold (66 signatures) - will fail
 	})
 	defer client.Close()
@@ -257,7 +257,7 @@ func makeTestClientWithFailures(t *testing.T, numValidators, numFailures int, cu
 	cfg := fibre.DefaultClientConfig()
 	cfg.NewClientFn = mockClientFn
 	cfg.UploadConcurrency = 10 // Set lower than numValidators to ensure semaphore limits concurrency
-	cfg.UploadTargetVotingPower = cmtmath.Fraction{Numerator: 2, Denominator: 3}
+	cfg.SafetyThreshold = cmtmath.Fraction{Numerator: 2, Denominator: 3}
 	cfg.UploadTargetSignaturesCount = cmtmath.Fraction{Numerator: 0, Denominator: 1}
 	if customCfg != nil {
 		customCfg(&cfg)

@@ -86,11 +86,30 @@ func (p ProtocolParams) ParityRows() int {
 	return p.TotalRows() - p.Rows
 }
 
-// RowsPerShard returns the number of rows each shard receives.
+// MaxRowsPerValidator returns the maximum number of rows a single validator could receive.
+// Based on max stake of 1-SafetyThreshold: ceil(Rows * (1-SafetyThreshold) / livenessThreshold).
+// Validators with >1-SafetyThreshold stake are capped at Rows in Assign.
+// Simplifies to 4096 given current default.
+func (p ProtocolParams) MaxRowsPerValidator() int {
+	// maxStake = 1 - SafetyThreshold = (denominator - numerator) / denominator
+	maxStakeNum := int(p.SafetyThreshold.Denominator - p.SafetyThreshold.Numerator)
+	maxStakeDen := int(p.SafetyThreshold.Denominator)
+
+	// rows = ceil(Rows * maxStake / livenessThreshold)
+	//      = ceil(Rows * maxStakeNum * livenessDen / (maxStakeDen * livenessNum))
+	num := p.Rows * maxStakeNum * int(p.LivenessThreshold.Denominator)
+	den := maxStakeDen * int(p.LivenessThreshold.Numerator)
+	return ceilDiv(num, den)
+}
+
+// MinRowsPerValidator returns the minimum number of rows each validator must receive
+// for unique decodability security, regardless of their stake percentage.
 // This is the security-optimal number based on:
 //  1. Unique decode samples needed for cryptographic security
 //  2. Reconstruction samples needed for fault tolerance
-func (p ProtocolParams) RowsPerShard(totalShards int) int {
+//
+// Uses MaxValidatorCount to compute a conservative (safe) minimum.
+func (p ProtocolParams) MinRowsPerValidator() int {
 	// Constraint 1: Unique decoding security
 	//
 	// The minimum number of samples s required for λ bits of security:
@@ -106,20 +125,22 @@ func (p ProtocolParams) RowsPerShard(totalShards int) int {
 	uniqueDecodeSamples := int(math.Ceil(float64(p.UniqueDecodingSecurityBits) / (1 - math.Log2(1+p.EncodingRatio))))
 
 	// Constraint 2: Reconstruction samples for fault tolerance
-	// We need enough rows from LivenessThreshold fraction of shards to reconstruct
-	shardsForReconstruction := p.ShardsForReconstruction(totalShards)
-	reconstructionSamples := ceilDiv(p.Rows, shardsForReconstruction)
+	// We need enough rows from LivenessThreshold fraction of validators to reconstruct
+	num := int(p.LivenessThreshold.Numerator)
+	den := int(p.LivenessThreshold.Denominator)
+	validatorsForReconstruction := max(1, ceilDiv(p.MaxValidatorCount*num, den))
+	reconstructionSamples := ceilDiv(p.Rows, validatorsForReconstruction)
 
 	return max(uniqueDecodeSamples, reconstructionSamples)
 }
 
-// ShardsForReconstruction returns the minimum number of shards
+// ValidatorsForReconstruction returns the minimum number of validators
 // needed to successfully reconstruct the original data.
-// Returns at least 1.
-func (p ProtocolParams) ShardsForReconstruction(totalShards int) int {
+// Uses MaxValidatorCount and returns at least 1.
+func (p ProtocolParams) ValidatorsForReconstruction() int {
 	num := int(p.LivenessThreshold.Numerator)
 	den := int(p.LivenessThreshold.Denominator)
-	return max(1, ceilDiv(totalShards*num, den))
+	return max(1, ceilDiv(p.MaxValidatorCount*num, den))
 }
 
 // RowSize computes the row size for the given blob version and total length.
@@ -150,8 +171,8 @@ func (p ProtocolParams) MaxRowSize(blobVersion uint8) int {
 }
 
 // MaxShardSize calculates the maximum size of a shard in bytes.
-// A shard contains: RLC coefficients + (rows_per_shard * (row_index + row_data + merkle_proof))
-func (p ProtocolParams) MaxShardSize(totalShards int) int {
+// A shard contains: RLC coefficients + (rows_per_validator * (row_index + row_data + merkle_proof))
+func (p ProtocolParams) MaxShardSize() int {
 	const (
 		rowIndexSize = 4  // uint32 index per row
 		rlcCoeffSize = 16 // uint128 coefficient per row
@@ -165,14 +186,13 @@ func (p ProtocolParams) MaxShardSize(totalShards int) int {
 	treeDepth := bits.Len(uint(totalRows - 1))
 	proofSizePerRow := treeDepth * sha256.Size
 
-	rowsPerShard := p.RowsPerShard(totalShards)
-	return rlcCoeffsSize + (rowsPerShard * (rowIndexSize + maxRowSize + proofSizePerRow))
+	return rlcCoeffsSize + (p.MaxRowsPerValidator() * (rowIndexSize + maxRowSize + proofSizePerRow))
 }
 
 // MaxMessageSize returns the maximum gRPC message size for upload requests.
 // Includes MaxShardSize, MaxPaymentPromiseSize, and 2% protobuf overhead.
-func (p ProtocolParams) MaxMessageSize(totalShards int) int {
-	msgSize := p.MaxShardSize(totalShards) + MaxPaymentPromiseSize
+func (p ProtocolParams) MaxMessageSize() int {
+	msgSize := p.MaxShardSize() + MaxPaymentPromiseSize
 	return msgSize + (msgSize / 50) // add 2% protobuf overhead
 }
 

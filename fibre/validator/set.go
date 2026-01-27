@@ -6,6 +6,7 @@ import (
 
 	"github.com/celestiaorg/rsema1d"
 	"github.com/cometbft/cometbft/crypto"
+	cmtmath "github.com/cometbft/cometbft/libs/math"
 	core "github.com/cometbft/cometbft/types"
 )
 
@@ -33,17 +34,35 @@ type ShardMap map[*core.Validator][]int
 // Assign returns a ShardMap containing all validators and their assigned row indices
 // for the given commitment.
 //
-// The rowsPerValidator parameter specifies how many rows each validator receives.
-// Total rows distributed = rowsPerValidator * len(validators).
+// Rows are distributed based on the relation: originalRows / rows = livenessThreshold / stake%
+// This means 33% stake should have originalRows (4096), so each validator gets:
+// rows = ceil(originalRows * stake% / livenessThreshold)
 //
-// It uses a chacha8 RNG with the commitment as the seed to shuffle the row indices
-// using the Fisher-Yates algorithm.
-func (s Set) Assign(commitment rsema1d.Commitment, rowsPerValidator int) ShardMap {
-	if len(s.Validators) == 0 || rowsPerValidator == 0 {
+// The minRows parameter ensures every validator receives at least that many rows
+// for unique decodability security, even if their proportional share would be less.
+//
+// When the sum of assigned rows exceeds totalRows (due to minRows floor guarantees),
+// row indices wrap around using modulo arithmetic. This means the same row may be
+// assigned to multiple validators, ensuring all validators receive their required
+// minimum while maintaining deterministic assignment.
+//
+// It uses a ChaCha8 RNG seeded with the commitment to shuffle the row indices
+// using the Fisher-Yates algorithm, ensuring deterministic and uniform distribution.
+func (s Set) Assign(commitment rsema1d.Commitment, totalRows, originalRows, minRows int, livenessThreshold cmtmath.Fraction) ShardMap {
+	if len(s.Validators) == 0 || totalRows == 0 || minRows == 0 {
 		return make(ShardMap)
 	}
 
-	totalRows := rowsPerValidator * len(s.Validators)
+	// rows = ceil(originalRows * stake% / livenessThreshold)
+	//      = ceil(originalRows * votingPower * denominator / (totalVotingPower * numerator))
+	// Capped at originalRows since that's all needed for reconstruction.
+	rowsPerValidator := make([]int, len(s.Validators))
+	for i, v := range s.Validators {
+		num := int64(originalRows) * v.VotingPower * int64(livenessThreshold.Denominator)
+		den := s.TotalVotingPower() * int64(livenessThreshold.Numerator)
+		rows := int((num + den - 1) / den) // ceil division
+		rowsPerValidator[i] = min(max(rows, minRows), originalRows)
+	}
 
 	var seed [32]byte
 	copy(seed[:], commitment[:])
@@ -51,7 +70,7 @@ func (s Set) Assign(commitment rsema1d.Commitment, rowsPerValidator int) ShardMa
 	// chacha8 RNG with seed being the commitment
 	rng := rand.New(rand.NewChaCha8(seed))
 
-	// shuffle row indices with Fisher-Yates algorithm
+	// shuffle all totalRows indices with Fisher-Yates algorithm
 	// NOTE: std library Shuffle implements Fisher-Yates algorithm
 	rowsIndicies := make([]int, totalRows)
 	for i := range totalRows {
@@ -61,11 +80,17 @@ func (s Set) Assign(commitment rsema1d.Commitment, rowsPerValidator int) ShardMa
 		rowsIndicies[i], rowsIndicies[j] = rowsIndicies[j], rowsIndicies[i]
 	})
 
-	// assign rows to validators in a ShardMap
+	// assign rows to validators, wrapping around with modulo if total assigned exceeds totalRows
 	shardMap := make(ShardMap)
+	offset := 0
 	for i, validator := range s.Validators {
-		offset := i * rowsPerValidator
-		shardMap[validator] = rowsIndicies[offset : offset+rowsPerValidator]
+		rows := make([]int, rowsPerValidator[i])
+		for j := range rows {
+			// modulo ensures wrap-around when minRows causes over-assignment
+			rows[j] = rowsIndicies[(offset+j)%totalRows]
+		}
+		shardMap[validator] = rows
+		offset += rowsPerValidator[i]
 	}
 
 	return shardMap
