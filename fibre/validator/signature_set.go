@@ -14,7 +14,6 @@ import (
 type SignatureSet struct {
 	requiredBytesSigned    []byte
 	minRequiredVotingPower int64
-	minRequiredSignatures  int
 
 	mu          sync.Mutex
 	votingPower int64
@@ -22,14 +21,12 @@ type SignatureSet struct {
 }
 
 // NewSignatureSet creates a new [SignatureSet] for collecting and validating signatures.
-func (s Set) NewSignatureSet(targetVotingPower, targetValidatorsCount cmtmath.Fraction, requiredBytesSigned []byte) *SignatureSet {
+func (s Set) NewSignatureSet(targetVotingPower cmtmath.Fraction, requiredBytesSigned []byte) *SignatureSet {
 	minRequiredVotingPower := s.TotalVotingPower() * int64(targetVotingPower.Numerator) / int64(targetVotingPower.Denominator)
-	minRequiredSignatures := s.Size() * int(targetValidatorsCount.Numerator) / int(targetValidatorsCount.Denominator)
 
 	return &SignatureSet{
 		requiredBytesSigned:    requiredBytesSigned,
 		minRequiredVotingPower: minRequiredVotingPower,
-		minRequiredSignatures:  minRequiredSignatures,
 		signatures:             make([][]byte, 0, s.Size()),
 	}
 }
@@ -52,7 +49,7 @@ func (ss *SignatureSet) Add(val *core.Validator, signature []byte) (bool, error)
 	ss.signatures = append(ss.signatures, signature)
 
 	// check if thresholds are met
-	return len(ss.signatures) >= ss.minRequiredSignatures && ss.votingPower >= ss.minRequiredVotingPower, nil
+	return ss.votingPower >= ss.minRequiredVotingPower, nil
 }
 
 // Signatures returns all collected signatures if thresholds are met.
@@ -62,12 +59,10 @@ func (ss *SignatureSet) Signatures() ([][]byte, error) {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 
-	countNotMet := len(ss.signatures) < ss.minRequiredSignatures
 	powerNotMet := ss.votingPower < ss.minRequiredVotingPower
-	if countNotMet || powerNotMet {
+	if powerNotMet {
 		return nil, &NotEnoughSignaturesError{
 			Collected:      ss.signatures,
-			RequiredCount:  ss.minRequiredSignatures,
 			CollectedPower: ss.votingPower,
 			RequiredPower:  ss.minRequiredVotingPower,
 		}
@@ -80,15 +75,12 @@ func (ss *SignatureSet) Signatures() ([][]byte, error) {
 // It contains the partially collected signatures and threshold information.
 type NotEnoughSignaturesError struct {
 	Collected      [][]byte
-	RequiredCount  int
 	CollectedPower int64
 	RequiredPower  int64
 }
 
 func (e *NotEnoughSignaturesError) Error() string {
 	switch {
-	case len(e.Collected) < e.RequiredCount:
-		return fmt.Sprintf("not enough signatures: collected %d, required %d", len(e.Collected), e.RequiredCount)
 	case e.CollectedPower < e.RequiredPower:
 		return fmt.Sprintf("not enough voting power: collected %d, required %d", e.CollectedPower, e.RequiredPower)
 	default:
