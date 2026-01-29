@@ -30,14 +30,14 @@ type testSetup struct {
 	signBytes  []byte
 }
 
-func setupSignatureSet(numVals int, votingPower int64, votingPowerFrac, countFrac cmtmath.Fraction) *testSetup {
+func setupSignatureSet(numVals int, votingPower int64, votingPowerFrac cmtmath.Fraction) *testSetup {
 	signBytes := []byte("test message to sign")
 	validators, privKeys := makeValidators(numVals, votingPower)
 	valSet := validator.Set{
 		ValidatorSet: core.NewValidatorSet(validators),
 		Height:       100,
 	}
-	sigSet := valSet.NewSignatureSet(votingPowerFrac, countFrac, signBytes)
+	sigSet := valSet.NewSignatureSet(votingPowerFrac, signBytes)
 
 	return &testSetup{
 		validators: validators,
@@ -53,7 +53,7 @@ func TestSignatureSet(t *testing.T) {
 	half := cmtmath.Fraction{Numerator: 1, Denominator: 2}
 
 	t.Run("NotEnoughVotingPower", func(t *testing.T) {
-		s := setupSignatureSet(5, 10, twoThirds, twoThirds)
+		s := setupSignatureSet(5, 10, twoThirds)
 
 		// 5 validators * 10 voting power = 50 total
 		// 2/3 of 50 = 33 requiredVotingPower
@@ -76,12 +76,11 @@ func TestSignatureSet(t *testing.T) {
 		require.Len(t, sigErr.Collected, 3)
 		require.Equal(t, int64(30), sigErr.CollectedPower)
 		require.Equal(t, int64(33), sigErr.RequiredPower)
-		require.Equal(t, 3, sigErr.RequiredCount)
 		require.Contains(t, err.Error(), "not enough voting power")
 	})
 
 	t.Run("NotEnoughSignatures", func(t *testing.T) {
-		s := setupSignatureSet(5, 10, twoThirds, twoThirds)
+		s := setupSignatureSet(5, 10, twoThirds)
 
 		// Add only 2 signatures (requiredCount = 3)
 		for i := range 2 {
@@ -99,14 +98,13 @@ func TestSignatureSet(t *testing.T) {
 		var sigErr *validator.NotEnoughSignaturesError
 		require.ErrorAs(t, err, &sigErr)
 		require.Len(t, sigErr.Collected, 2)
-		require.Equal(t, 3, sigErr.RequiredCount)
 		require.Equal(t, int64(20), sigErr.CollectedPower)
 		require.Equal(t, int64(33), sigErr.RequiredPower)
-		require.Contains(t, err.Error(), "not enough signatures")
+		require.Contains(t, err.Error(), "not enough voting power")
 	})
 
 	t.Run("SuccessSequential", func(t *testing.T) {
-		s := setupSignatureSet(5, 10, twoThirds, twoThirds)
+		s := setupSignatureSet(5, 10, twoThirds)
 
 		// Add 4 signatures (40 voting power, meets both thresholds)
 		for i := range 4 {
@@ -122,7 +120,7 @@ func TestSignatureSet(t *testing.T) {
 	})
 
 	t.Run("SuccessConcurrent", func(t *testing.T) {
-		s := setupSignatureSet(10, 10, twoThirds, twoThirds)
+		s := setupSignatureSet(10, 10, twoThirds)
 
 		var wg sync.WaitGroup
 		for i := range 10 {
@@ -143,7 +141,7 @@ func TestSignatureSet(t *testing.T) {
 	})
 
 	t.Run("InvalidSignature", func(t *testing.T) {
-		s := setupSignatureSet(3, 10, half, half)
+		s := setupSignatureSet(3, 10, half)
 
 		wrongSignBytes := []byte("wrong message")
 		signature, err := s.privKeys[0].Sign(wrongSignBytes)
@@ -156,7 +154,7 @@ func TestSignatureSet(t *testing.T) {
 	})
 
 	t.Run("MixedMissAndValid", func(t *testing.T) {
-		s := setupSignatureSet(5, 10, half, half)
+		s := setupSignatureSet(5, 10, half)
 
 		// Add 3 valid signatures (30 voting power, meets threshold of 25)
 		for i := range 3 {

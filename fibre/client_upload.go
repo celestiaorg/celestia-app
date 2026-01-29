@@ -78,7 +78,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 	}
 
 	requests := makeUploadRequests(shardMap, promise.ToProto(), blob.RLCCoeffs())
-	sigSet := valSet.NewSignatureSet(c.cfg.SafetyThreshold, c.cfg.UploadTargetSignaturesCount, validatorSignBytes)
+	sigSet := valSet.NewSignatureSet(c.cfg.SafetyThreshold, validatorSignBytes)
 
 	c.log.DebugContext(ctx, "initiating blob upload",
 		"promise_hash", hex.EncodeToString(promiseHash),
