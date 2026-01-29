@@ -45,9 +45,6 @@ type ClientConfig struct {
 	// MaxMessageSize is the maximum gRPC message size for upload requests.
 	MaxMessageSize int
 
-	// UploadTargetSignaturesCount is the fraction (e.g., 2/3) of total signature count required for Upload operations.
-	UploadTargetSignaturesCount cmtmath.Fraction
-
 	// UploadConcurrency is the maximum number of concurrent uploads to validators.
 	UploadConcurrency int
 	// DownloadConcurrency is the maximum number of concurrent read requests to validators.
@@ -77,15 +74,14 @@ func DefaultClientConfig() ClientConfig {
 // Use this when you need a config with non-default protocol parameters (e.g., for testing).
 func NewClientConfigFromParams(p ProtocolParams) ClientConfig {
 	return ClientConfig{
-		DefaultKeyName:              DefaultKeyName,
-		ChainID:                     "celestia",
-		SafetyThreshold:             p.SafetyThreshold,
-		LivenessThreshold:           p.LivenessThreshold,
-		MinRowsPerValidator:         p.MinRowsPerValidator(),
-		MaxMessageSize:              p.MaxMessageSize(),
-		UploadTargetSignaturesCount: p.SafetyThreshold,
-		UploadConcurrency:           p.MaxValidatorCount,
-		DownloadConcurrency:         p.ValidatorsForReconstruction(),
+		DefaultKeyName:      DefaultKeyName,
+		ChainID:             "celestia",
+		SafetyThreshold:     p.SafetyThreshold,
+		LivenessThreshold:   p.LivenessThreshold,
+		MinRowsPerValidator: p.MinRowsPerValidator(),
+		MaxMessageSize:      p.MaxMessageSize(),
+		UploadConcurrency:   p.MaxValidatorCount,
+		DownloadConcurrency: p.ValidatorsForReconstruction(),
 	}
 }
 

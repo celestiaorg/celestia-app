@@ -38,7 +38,6 @@ func TestClientUpload(t *testing.T) {
 		{"SucceedsWith1/3Failures", testClientUploadSucceedsWithOneThirdFailures},
 		{"SucceedsWith1/3Failures_HighConcurrency", testClientUploadSucceedsWithOneThirdFailuresHighConcurrency},
 		{"InsufficientVotingPower", testClientUploadInsufficientVotingPower},
-		{"InsufficientSignaturesCount", testClientUploadInsufficientSignaturesCount},
 		{"AllValidatorsReceiveData", testClientUploadAllValidatorsReceiveData},
 		{"ClosedClient", testClientUploadClosedClient},
 	}
@@ -154,28 +153,6 @@ func testClientUploadInsufficientVotingPower(t *testing.T) {
 	require.Less(t, notEnoughSigsErr.CollectedPower, notEnoughSigsErr.RequiredPower, "collected power should be less than required")
 }
 
-func testClientUploadInsufficientSignaturesCount(t *testing.T) {
-	const numValidators = 100
-	// Fail 35 validators to get 65 signatures (< 66 required for 2/3)
-	// Set low voting power threshold (1/3) so power passes, but high signature count threshold (2/3) so count fails
-	client := makeTestClientWithFailures(t, numValidators, 35, func(cfg *fibre.ClientConfig) {
-		cfg.SafetyThreshold = cmtmath.Fraction{Numerator: 1, Denominator: 3}             // Low threshold (34 signatures) - will pass
-		cfg.UploadTargetSignaturesCount = cmtmath.Fraction{Numerator: 2, Denominator: 3} // High threshold (66 signatures) - will fail
-	})
-	defer client.Close()
-
-	ns := share.MustNewV0Namespace([]byte(testNamespace))
-	blob := makeTestBlobV0(t, 512*1024)
-
-	_, err := client.Upload(t.Context(), ns, blob)
-	require.Error(t, err)
-
-	var notEnoughSigsErr *validator.NotEnoughSignaturesError
-	require.ErrorAs(t, err, &notEnoughSigsErr, "expected NotEnoughSignaturesError")
-	require.Less(t, len(notEnoughSigsErr.Collected), notEnoughSigsErr.RequiredCount, "collected signatures should be less than required")
-	require.GreaterOrEqual(t, notEnoughSigsErr.CollectedPower, notEnoughSigsErr.RequiredPower, "collected power should be sufficient")
-}
-
 func testClientUploadAllValidatorsReceiveData(t *testing.T) {
 	const numValidators = 100
 	validators, privKeys := makeTestValidators(t, numValidators)
@@ -258,7 +235,6 @@ func makeTestClientWithFailures(t *testing.T, numValidators, numFailures int, cu
 	cfg.NewClientFn = mockClientFn
 	cfg.UploadConcurrency = 10 // Set lower than numValidators to ensure semaphore limits concurrency
 	cfg.SafetyThreshold = cmtmath.Fraction{Numerator: 2, Denominator: 3}
-	cfg.UploadTargetSignaturesCount = cmtmath.Fraction{Numerator: 0, Denominator: 1}
 	if customCfg != nil {
 		customCfg(&cfg)
 	}
