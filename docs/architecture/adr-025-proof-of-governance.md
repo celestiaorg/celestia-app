@@ -6,6 +6,7 @@ Draft
 
 ## Changelog
 
+- 2025-01-29: Added Delegation Migration section with tradeoffs analysis and unbonding period considerations
 - 2025-01-29: Added Alternative Approaches, Consequences, Migration, Query Endpoints, Events, Genesis State, and Module Changes Summary sections
 - 2025-01-28: Initial draft
 
@@ -468,7 +469,7 @@ The transition from Proof of Stake to Proof of Governance requires a **hard fork
 1. **Coordinate upgrade height**: Announce the upgrade height and ensure all validators are prepared
 2. **Export genesis at upgrade height**: Export the chain state at the designated height
 3. **Transform genesis**:
-   - Remove staking delegation data
+   - Handle existing delegations (see Delegation Migration below)
    - Convert existing active validators to PoG validators
    - Add initial committee members (determined through social consensus)
    - Initialize PoG module parameters
@@ -482,6 +483,112 @@ Existing validators are mapped to the new system as follows:
 - Top N validators (by stake at export) become active validators
 - Next M validators become reserve validators
 - Remaining validators must re-apply through `MsgValidatorApplication`
+
+### Delegation Migration
+
+The migration must handle all existing delegations and their accrued staking rewards. There are several approaches with different tradeoffs:
+
+#### Option A: Automatic Unstake + Automatic Claim
+
+The migration automatically returns all staked tokens to delegators and claims all pending staking rewards.
+
+**Mechanism:**
+
+- Migration iterates through all delegations and unbonds them
+- Migration iterates through all pending rewards and distributes them
+- Delegators receive their principal + rewards in their accounts post-migration
+
+**Pros:**
+
+- Clean post-migration state with no legacy staking data
+- No action required from delegators
+- Simplest user experience
+
+**Cons:**
+
+- Potentially very large state change in a single block
+- High computational cost during migration
+- Delegators have no control over timing (tax implications in some jurisdictions)
+- Must handle edge cases (e.g., validators with pending slashing)
+
+#### Option B: Automatic Unstake + Manual Claim
+
+The migration automatically returns staked tokens but requires delegators to manually claim rewards.
+
+**Mechanism:**
+
+- Migration unbonds all delegations and returns principal to delegators
+- Rewards remain in the distribution module until claimed
+- A legacy claim mechanism is preserved post-migration
+
+**Pros:**
+
+- Reduces migration block complexity compared to Option A
+- Delegators control when they receive rewards (tax timing flexibility)
+- Principal is immediately available
+
+**Cons:**
+
+- Must maintain legacy reward claim infrastructure indefinitely
+- Dust amounts may never be claimed, leaving state bloat
+- More complex post-migration module interactions
+
+#### Option C: Manual Unstake + Manual Claim
+
+Delegators must manually unstake and claim rewards post-migration.
+
+**Mechanism:**
+
+- Migration preserves delegation and reward state
+- Legacy `MsgUndelegate` and reward claim messages remain functional
+- Delegations can be unwound over time
+
+**Pros:**
+
+- Minimal migration complexity
+- Full delegator control over timing
+- Spreads state changes over time, reducing any single block's load
+- Allows delegators to coordinate with tax advisors
+
+**Cons:**
+
+- Requires maintaining full legacy staking infrastructure
+- Funds remain locked until delegators take action
+- Some delegators may never claim (lost keys, dust amounts, inattention)
+- Ongoing maintenance burden for deprecated functionality
+- Complex to reason about system state (mix of PoG and legacy PoS)
+
+#### Recommendation
+
+**Option A (Automatic Unstake + Automatic Claim)** is recommended because:
+
+1. It provides a clean break from PoS with no legacy state to maintain
+2. The migration is a hard fork anyway, so a large state change is expected
+3. Delegators are guaranteed to receive their funds without taking action
+4. No ongoing maintenance of deprecated staking functionality
+5. Simpler to audit and verify correctness
+
+The migration should be thoroughly tested with mainnet state exports to ensure it completes within acceptable time bounds.
+
+### Unbonding Period Considerations
+
+In Proof of Stake, the unbonding period (14-21 days) serves critical security functions:
+
+1. **Slashing window**: Allows time to detect and slash misbehavior that occurred before unbonding
+2. **Long-range attack prevention**: Prevents validators from unbonding and then attacking historical blocks
+3. **Economic security**: Ensures stake remains at risk during the detection period for misbehavior
+
+**Post-migration, these concerns no longer apply:**
+
+- Validators are no longer secured by stake, so there's nothing to slash
+- The security model shifts from economic (stake-at-risk) to reputational (committee selection)
+- Historical misbehavior detection is handled by the committee, not automated slashing
+
+**Therefore, the unbonding period does not need to apply to post-migration unstaking.** If Option A is chosen, tokens are returned immediately. If Option C is chosen, a new `MsgLegacyUndelegate` could return tokens immediately without an unbonding period, since:
+
+1. The security rationale for the unbonding period no longer exists
+2. Delegators should not be penalized with a waiting period for a system change they didn't choose
+3. Immediate liquidity allows delegators to participate in the new economic model sooner
 
 ## Alternative Approaches
 
