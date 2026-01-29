@@ -6,6 +6,7 @@ Draft
 
 ## Changelog
 
+- 2025-01-29: Added Alternative Approaches, Consequences, Migration, Query Endpoints, Events, Genesis State, and Module Changes Summary sections
 - 2025-01-28: Initial draft
 
 ## Context
@@ -64,9 +65,9 @@ The PoG module defines committee members - addresses with permissions to update 
 
 ```go
 type CommitteeMember struct {
-    Address sdk.AccountI `json:"address"`
-    Name    string       `json:"name"`
-    AddedAt time.Time    `json:"added_at"`
+    Address string    `json:"address"` // Bech32 address
+    Name    string    `json:"name"`
+    AddedAt time.Time `json:"added_at"`
 }
 ```
 
@@ -108,7 +109,7 @@ type ValidatorSetProposal struct {
     ValidatorsToAdd    []ValidatorInfo `json:"validators_to_add"`
     ValidatorsToUpdate []ValidatorInfo `json:"validators_to_update"`
     ValidatorsToRemove []ValidatorInfo `json:"validators_to_remove"`
-    Approvals          []sdk.AccountI  `json:"approvals"`
+    Approvals          []string        `json:"approvals"` // Bech32 addresses
     Status             ProposalStatus  `json:"status"`
     SubmittedAt        time.Time       `json:"submitted_at"`
     ApprovedAt         time.Time       `json:"approved_at"`
@@ -274,8 +275,8 @@ type MsgApproveCommitteeChange struct {
 
 ```go
 type MsgApproveProposal struct {
-    Approver   sdk.AccountI `json:"approver"`
-    ProposalID uint64       `json:"proposal_id"`
+    Approver   string `json:"approver"` // Bech32 address
+    ProposalID uint64 `json:"proposal_id"`
 }
 
 type MsgWithdrawProposal struct {
@@ -289,6 +290,7 @@ type MsgWithdrawProposal struct {
 
 ```go
 type MsgVoteVeto struct {
+    Voter      string    `json:"voter"` // Bech32 address
     ProposalID uint64    `json:"proposal_id"`
     Amount     sdk.Coins `json:"amount"`
     Reason     string    `json:"reason"`
@@ -305,6 +307,230 @@ type MsgValidatorApplication struct {
     LiquidAmount math.Int `json:"liquid_amount"`
 }
 ```
+
+## Module Changes Summary
+
+### New PoG Module Functionality
+
+The PoG module introduces the following functionality:
+
+1. **Committee Member Management**: CRUD operations for committee members with threshold-based voting
+2. **Validator Set Proposals**: Create, approve, and execute proposals to modify the validator set
+3. **Veto Mechanism**: Token holder veto with dynamic timeout based on veto percentage
+4. **Governance Freeze Handling**: Detect freeze conditions and track freeze state
+5. **Validator Application Processing**: Accept and track validator applications
+
+### Disabled Staking Module Messages
+
+The following staking module message handlers must be disabled:
+
+- `MsgCreateValidator`: Validators are added through PoG proposals, not self-registration
+- `MsgEditValidator`: Validator metadata changes require PoG approval
+- `MsgDelegate`: No delegation to validators (no stake-weighted selection)
+- `MsgUndelegate`: No undelegation (follows from no delegation)
+- `MsgBeginRedelegate`: No redelegation (follows from no delegation)
+
+### Retained Staking Keeper Methods
+
+The following internal keeper methods are retained for use by the PoG module:
+
+- `SetValidator`: Add/update validator in state
+- `RemoveValidator`: Remove validator from state
+- `GetValidator`: Query validator by operator address
+- `GetAllValidators`: Query all validators
+- `GetValidatorByConsAddr`: Query validator by consensus address
+- `ValidatorsPowerStoreIterator`: Iterate validators by power
+
+### ICA Allowlist Update
+
+The ICA host allowlist in `/app/ica_host.go` must be updated to remove the disabled staking messages.
+
+## Query Endpoints
+
+The PoG module exposes the following gRPC query endpoints:
+
+```protobuf
+service Query {
+    // Params returns the module parameters
+    rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+
+    // CommitteeMembers returns all committee members
+    rpc CommitteeMembers(QueryCommitteeMembersRequest) returns (QueryCommitteeMembersResponse);
+
+    // CommitteeMember returns a specific committee member by address
+    rpc CommitteeMember(QueryCommitteeMemberRequest) returns (QueryCommitteeMemberResponse);
+
+    // ValidatorSetProposal returns a specific proposal by ID
+    rpc ValidatorSetProposal(QueryValidatorSetProposalRequest) returns (QueryValidatorSetProposalResponse);
+
+    // ValidatorSetProposals returns all proposals with optional status filter
+    rpc ValidatorSetProposals(QueryValidatorSetProposalsRequest) returns (QueryValidatorSetProposalsResponse);
+
+    // VetoStatus returns the veto status for a specific proposal
+    rpc VetoStatus(QueryVetoStatusRequest) returns (QueryVetoStatusResponse);
+
+    // GovernanceState returns the current governance state (frozen or active)
+    rpc GovernanceState(QueryGovernanceStateRequest) returns (QueryGovernanceStateResponse);
+
+    // ValidatorApplications returns all validator applications with optional status filter
+    rpc ValidatorApplications(QueryValidatorApplicationsRequest) returns (QueryValidatorApplicationsResponse);
+
+    // ValidatorApplication returns a specific validator application
+    rpc ValidatorApplication(QueryValidatorApplicationRequest) returns (QueryValidatorApplicationResponse);
+}
+```
+
+## Events
+
+The PoG module emits the following events for observability:
+
+```go
+// Committee member events
+const (
+    EventTypeCommitteeMemberAdded   = "committee_member_added"
+    EventTypeCommitteeMemberUpdated = "committee_member_updated"
+    EventTypeCommitteeMemberRemoved = "committee_member_removed"
+)
+
+// Proposal events
+const (
+    EventTypeProposalCreated   = "proposal_created"
+    EventTypeProposalApproved  = "proposal_approved"   // All committee members approved
+    EventTypeProposalExecuted  = "proposal_executed"   // Validator set updated
+    EventTypeProposalWithdrawn = "proposal_withdrawn"
+    EventTypeProposalVetoed    = "proposal_vetoed"     // Freeze threshold reached
+)
+
+// Veto events
+const (
+    EventTypeVetoDeposited = "veto_deposited"
+    EventTypeVetoRefunded  = "veto_refunded"  // After proposal execution
+    EventTypeVetoSlashed   = "veto_slashed"   // After hardfork resolution
+)
+
+// Governance state events
+const (
+    EventTypeGovernanceFrozen   = "governance_frozen"
+    EventTypeGovernanceUnfrozen = "governance_unfrozen"  // After hardfork resolution
+)
+
+// Validator application events
+const (
+    EventTypeValidatorApplicationSubmitted = "validator_application_submitted"
+    EventTypeValidatorApplicationApproved  = "validator_application_approved"
+    EventTypeValidatorApplicationRejected  = "validator_application_rejected"
+)
+```
+
+## Genesis State
+
+The PoG module genesis state structure:
+
+```go
+type GenesisState struct {
+    // Params defines the module parameters
+    Params Params `json:"params"`
+
+    // CommitteeMembers is the initial set of committee members
+    CommitteeMembers []CommitteeMember `json:"committee_members"`
+
+    // Validators is the initial validator set (mapped from existing PoS validators)
+    Validators []ValidatorInfo `json:"validators"`
+
+    // NextProposalID is the ID to assign to the next proposal
+    NextProposalID uint64 `json:"next_proposal_id"`
+
+    // GovernanceFreezeState tracks if governance is frozen
+    GovernanceFreezeState GovernanceFreezeState `json:"governance_freeze_state"`
+}
+
+type ValidatorInfo struct {
+    OperatorAddress string    `json:"operator_address"`
+    ConsensusPubkey string    `json:"consensus_pubkey"`
+    Description     string    `json:"description"`
+    Status          string    `json:"status"` // "active" or "reserve"
+    AddedAt         time.Time `json:"added_at"`
+}
+```
+
+## Migration
+
+### Upgrade Path
+
+The transition from Proof of Stake to Proof of Governance requires a **hard fork**. There is no in-place upgrade path because:
+
+1. The fundamental validator selection mechanism changes
+2. Staking/delegation state becomes obsolete
+3. New committee members must be seeded
+
+### Migration Steps
+
+1. **Coordinate upgrade height**: Announce the upgrade height and ensure all validators are prepared
+2. **Export genesis at upgrade height**: Export the chain state at the designated height
+3. **Transform genesis**:
+   - Remove staking delegation data
+   - Convert existing active validators to PoG validators
+   - Add initial committee members (determined through social consensus)
+   - Initialize PoG module parameters
+4. **Import transformed genesis**: Start the new chain with the transformed genesis
+5. **Verify validator set**: Confirm the validator set matches the exported state
+
+### Validator Mapping
+
+Existing validators are mapped to the new system as follows:
+
+- Top N validators (by stake at export) become active validators
+- Next M validators become reserve validators
+- Remaining validators must re-apply through `MsgValidatorApplication`
+
+## Alternative Approaches
+
+### Use Existing Governance Module
+
+The standard Cosmos SDK `x/gov` module could handle validator proposals through parameter changes or software upgrade proposals.
+
+**Why not chosen**: The gov module lacks committee-specific controls, unanimous consent requirements, and the dynamic veto mechanism. It would require significant modifications that would diverge from upstream.
+
+### Stake-Weighted Committee Selection
+
+Committee members could be selected based on their stake, ensuring those with the most economic interest have governance power.
+
+**Why not chosen**: This reintroduces the capital-weighted authority that PoG aims to eliminate. The goal is to separate governance power from capital concentration.
+
+### Threshold Voting (e.g., 2/3 Majority)
+
+Use a lower consensus threshold for validator set changes instead of requiring unanimous consent.
+
+**Why not chosen**: Unanimous consent provides stronger guarantees for high-stakes decisions like validator set changes. A 2/3 threshold could allow a subset of the committee to force through changes over objections.
+
+### No Veto Mechanism
+
+Implement PoG without the token holder veto, simplifying the system significantly.
+
+**Why not chosen**: The veto mechanism provides a critical check on committee power. Without it, token holders have no recourse if the committee acts against the network's interests. The veto ensures the committee remains accountable to the broader community.
+
+## Consequences
+
+### Positive
+
+- **Reduced Inflation**: Removing staking rewards allows significant reduction in token inflation, benefiting all token holders
+- **Quality-Focused Selection**: Validators are selected based on operational quality, reliability, and contribution to the network rather than capital
+- **Accountable Governance**: Committee members are explicitly responsible for validator set decisions, creating clear accountability
+- **Veto Safety Valve**: Token holders retain ultimate authority through the veto mechanism, preventing committee abuse
+- **Simplified Economics**: Without complex staking dynamics, validator economics become more predictable
+
+### Negative
+
+- **Committee Centralization**: Governance power is concentrated in a small committee (initially 10 members), creating potential for coordination or capture
+- **Reduced Permissionlessness**: Validators cannot self-select into the active set; they must be approved by the committee
+- **Veto Mechanism Complexity**: The dynamic timeout and freeze resolution add complexity and potential edge cases
+- **Hardfork Dependency**: Freeze resolution requires social consensus and a hardfork, which is a heavy coordination burden
+
+### Neutral
+
+- **Migration Effort**: Transitioning from PoS requires a hard fork and careful coordination, but this is a one-time cost
+- **Different Validator Economics**: Validators no longer earn staking rewards proportional to delegations; compensation model changes
+- **Committee Compensation**: The protocol must determine how to compensate committee members for their governance work
 
 ## Open Questions
 
