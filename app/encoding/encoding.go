@@ -3,7 +3,6 @@ package encoding
 import (
 	addresscodec "cosmossdk.io/core/address"
 	"cosmossdk.io/x/tx/signing"
-	"github.com/celestiaorg/celestia-app/v7/pkg/feeaddress"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/address"
@@ -47,10 +46,6 @@ func MakeConfig(moduleBasics ...sdkmodule.AppModuleBasic) Config {
 	// Register the standard types from the Cosmos SDK on interfaceRegistry and amino.
 	std.RegisterInterfaces(interfaceRegistry)
 	std.RegisterLegacyAminoCodec(amino)
-
-	// Register feeaddress types (no module, just types for protocol-injected txs).
-	feeaddress.RegisterInterfaces(interfaceRegistry)
-	feeaddress.RegisterLegacyAminoCodec(amino)
 
 	for _, mod := range moduleBasics {
 		mod.RegisterInterfaces(interfaceRegistry)

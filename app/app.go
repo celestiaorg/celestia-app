@@ -35,7 +35,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/app/grpc/gasestimation"
 	celestiatx "github.com/celestiaorg/celestia-app/v7/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v7/pkg/feeaddress"
 	"github.com/celestiaorg/celestia-app/v7/pkg/proof"
 	"github.com/celestiaorg/celestia-app/v7/pkg/wrapper"
 	"github.com/celestiaorg/celestia-app/v7/x/blob"
@@ -145,7 +144,6 @@ var maccPerms = map[string][]string{
 	icatypes.ModuleName:            nil,
 	hyperlanetypes.ModuleName:      nil,
 	warptypes.ModuleName:           {authtypes.Minter, authtypes.Burner},
-	feeaddress.ModuleName:          nil,
 }
 
 var (
@@ -487,10 +485,6 @@ func New(
 		panic(err)
 	}
 
-	// Register feeaddress MsgServer directly since there's no feeaddress module.
-	// The MsgServer is a no-op handler - actual fee forwarding happens in ProtocolFeeTerminatorDecorator.
-	feeaddress.RegisterMsgServer(app.MsgServiceRouter(), feeaddress.NewMsgServerImpl())
-
 	app.RegisterUpgradeHandlers() // must be called after module manager & configurator are initialized
 
 	// Initialize the KV stores for the base modules (e.g. params). The base modules will be included in every app version.
@@ -686,7 +680,6 @@ func (app *App) BlockedAddresses() map[string]bool {
 
 	// allow the following addresses to receive funds
 	delete(modAccAddrs, authtypes.NewModuleAddress(govtypes.ModuleName).String())
-	delete(modAccAddrs, authtypes.NewModuleAddress(feeaddress.ModuleName).String())
 
 	return modAccAddrs
 }

@@ -6,9 +6,9 @@ import (
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v7/pkg/feeaddress"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
 var _ types.MsgServer = msgServer{}
@@ -157,11 +157,11 @@ func (m msgServer) forwardSingleToken(
 	messageId, err := m.k.ExecuteWarpTransfer(ctx, hypToken, forwardAddr.String(), destDomain, destRecipient, balance.Amount, quotedFee)
 	if err != nil {
 		// Warp failed - tokens remain at forwardAddr (warp is atomic)
-		// Consume the IGP fee by sending it to the fee address module account
+		// Consume the IGP fee by sending it to the fee collector module account
 		// This incentivizes relayers to check route availability before submitting
 		if quotedFee.IsPositive() {
-			if consumeErr := m.k.bankKeeper.SendCoinsFromAccountToModule(ctx, forwardAddr, feeaddress.ModuleName, sdk.NewCoins(quotedFee)); consumeErr != nil {
-				ctx.Logger().Error("failed to send IGP fee to fee address module account after warp failure",
+			if consumeErr := m.k.bankKeeper.SendCoinsFromAccountToModule(ctx, forwardAddr, authtypes.FeeCollectorName, sdk.NewCoins(quotedFee)); consumeErr != nil {
+				ctx.Logger().Error("failed to send IGP fee to fee collector module account after warp failure",
 					"denom", balance.Denom,
 					"igp_fee", quotedFee.String(),
 					"warp_error", err.Error(),
