@@ -34,15 +34,15 @@ const (
 )
 
 var (
-	endpoint        string
-	keyringDir      string
-	accountName     string
-	blobSize        int
-	minBlobSize     int
-	namespaceStr    string
-	disableObservability  bool
-	submissionDelay time.Duration
-	observabilityPort     int
+	endpoint             string
+	keyringDir           string
+	accountName          string
+	blobSize             int
+	minBlobSize          int
+	namespaceStr         string
+	disableObservability bool
+	submissionDelay      time.Duration
+	observabilityPort    int
 )
 
 type txResult struct {
