@@ -6,8 +6,6 @@ Draft
 
 ## Changelog
 
-- 2025-01-29: Added Delegation Migration section with tradeoffs analysis and unbonding period considerations
-- 2025-01-29: Added Alternative Approaches, Consequences, Migration, Query Endpoints, Events, Genesis State, and Module Changes Summary sections
 - 2025-01-28: Initial draft
 
 ## Context
