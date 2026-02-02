@@ -1,12 +1,12 @@
 module celestiaorg/celestia-app/test/docker-e2e
 
-go 1.25.5
+go 1.25.6
 
 require (
 	cosmossdk.io/math v1.5.3
 	github.com/celestiaorg/celestia-app/v7 v7.0.0-rc0
 	github.com/celestiaorg/go-square/v3 v3.0.2
-	github.com/celestiaorg/tastora v0.9.0
+	github.com/celestiaorg/tastora v0.10.0
 	github.com/cometbft/cometbft v0.38.17
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/cosmos/ibc-go/v8 v8.7.0
