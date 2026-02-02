@@ -193,7 +193,7 @@ func (am *AccountManager) AllocateAccounts(n, balance int) []types.AccAddress {
 	return addresses
 }
 
-// Submit executes on an operation. This is thread safe.
+// Submit executes an operation. This is thread safe.
 func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	if len(op.Msgs) == 0 {
 		return errors.New("operation must contain at least one message")
@@ -307,7 +307,7 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 		return err
 	}
 
-	// update the latest latestHeight
+	// Update the tracked latest block height
 	am.setLatestHeight(res.Height)
 
 	if len(op.Blobs) > 0 {
@@ -336,7 +336,7 @@ func getSize(blobs []*share.Blob) int64 {
 	return size
 }
 
-// Generate the pending accounts by sending the adequate funds. This operation
+// Generate the pending accounts by sending the required funds. This operation
 // is not concurrently safe.
 func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 	if len(am.pending) == 0 {
