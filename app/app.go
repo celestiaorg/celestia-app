@@ -40,6 +40,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/x/blob"
 	blobkeeper "github.com/celestiaorg/celestia-app/v7/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v7/x/burn"
+	burntypes "github.com/celestiaorg/celestia-app/v7/x/burn/types"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding"
 	forwardingkeeper "github.com/celestiaorg/celestia-app/v7/x/forwarding/keeper"
 	forwardingtypes "github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
@@ -145,6 +147,7 @@ var maccPerms = map[string][]string{
 	icatypes.ModuleName:            nil,
 	hyperlanetypes.ModuleName:      nil,
 	warptypes.ModuleName:           {authtypes.Minter, authtypes.Burner},
+	burntypes.ModuleName:           {authtypes.Burner},
 	forwardingtypes.ModuleName:     nil, // No special permissions needed - only holds tokens temporarily
 }
 
@@ -179,6 +182,7 @@ type App struct {
 	GovKeeper           *govkeeper.Keeper
 	UpgradeKeeper       *upgradekeeper.Keeper // Upgrades are set in endblock when signaled
 	SignalKeeper        signal.Keeper
+	BurnKeeper          burn.Keeper
 	MinFeeKeeper        *minfeekeeper.Keeper
 	ParamsKeeper        paramskeeper.Keeper
 	IBCKeeper           *ibckeeper.Keeper // IBCKeeper must be a pointer in the app, so we can SetRouter on it correctly
@@ -318,6 +322,8 @@ func New(
 		app.StakingKeeper,
 	)
 
+	app.BurnKeeper = burn.NewKeeper(app.BankKeeper)
+
 	app.IBCKeeper = ibckeeper.NewKeeper(
 		encodingConfig.Codec,
 		keys[ibcexported.StoreKey],
@@ -451,6 +457,7 @@ func New(
 		transfer.NewAppModule(app.TransferKeeper),
 		blob.NewAppModule(encodingConfig.Codec, app.BlobKeeper),
 		signal.NewAppModule(app.SignalKeeper),
+		burn.NewAppModule(app.BurnKeeper),
 		minfee.NewAppModule(encodingConfig.Codec, app.MinFeeKeeper),
 		pfm{packetforward.NewAppModule(app.PacketForwardKeeper, app.GetSubspace(packetforwardtypes.ModuleName))},
 		icaModule{ica.NewAppModule(nil, &app.ICAHostKeeper)}, // The first argument is nil because the ICA controller is not enabled on celestia-app.
