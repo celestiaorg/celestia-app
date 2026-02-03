@@ -201,6 +201,7 @@ celestia-appd tx forwarding forward <forward-addr> 42161 \
 - **Permissionless execution**: Anyone can trigger forwarding, but only to the pre-committed destination.
 - **No fund loss**: Failed tokens stay at `forwardAddr` or are automatically returned there.
 - **Collision resistance**: Same as standard Cosmos addresses (160-bit truncation). Draining requires 2^160 operations (second preimage), not 2^80 (birthday attack).
+- **Blocked module account**: The forwarding module account is blocked and cannot receive funds via direct `bank send` or `MsgSend`. This prevents accidental fund loss from users sending to the module account instead of a forwarding address.
 
 ## Recovery from Failed Forwards
 
