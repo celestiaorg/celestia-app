@@ -109,6 +109,7 @@ func TestModuleAccountAddrs(t *testing.T) {
 
 		want := map[string]bool{
 			"celestia10d07y265gmmuvt4z0w9aw880jnsr700jtgz4v7": true,
+			"celestia13d6j8m8tmeaz0t92a04azv5efmr8gxygtngtm9": true,
 			"celestia17xpfvakm2amg962yls6f84z3kell8c5lpnjs3s": true,
 			"celestia1fl48vsnmsdzcv85q5d2q4z5ajdha8yu3y3clr6": true,
 			"celestia1jv65s3grqf6v6jl3dp4t6c9t9rk99cd8k44vnj": true,
@@ -118,7 +119,6 @@ func TestModuleAccountAddrs(t *testing.T) {
 			"celestia1tygms3xhhs3yv487phx3dw4a95jn7t7ls3yw4w": true,
 			"celestia1vlthgax23ca9syk7xgaz347xmf4nunefkz88ka": true,
 			"celestia1yl6hdjhmkf37639730gffanpzndzdpmhl48edw": true,
-			"celestia1zqq4hq2u88g2lfnpezev3wx9tffqf0w87tkf5m": true,
 		}
 		assert.Equal(t, want, got)
 	})
