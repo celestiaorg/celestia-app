@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -325,13 +326,16 @@ func TestForwardSingleToken_IGPFeeValidation(t *testing.T) {
 	}
 }
 
-// TestForwardSingleToken_IGPFeeConsumedOnWarpFailure tests that IGP fee is consumed when warp fails
-func TestForwardSingleToken_IGPFeeConsumedOnWarpFailure(t *testing.T) {
+// TestForwardSingleToken_IGPFeeSentToFeeCollectorOnWarpFailure tests that IGP fee goes to fee collector when warp fails
+func TestForwardSingleToken_IGPFeeSentToFeeCollectorOnWarpFailure(t *testing.T) {
 	s := newTestIGPSetup(t)
+
+	feeCollectorAddr := authtypes.NewModuleAddress(authtypes.FeeCollectorName)
 
 	// Setup balances
 	s.bankKeeper.Balances[s.forwardAddr.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
 	s.bankKeeper.Balances[s.signer.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(200)))
+	s.bankKeeper.Balances[feeCollectorAddr.String()] = sdk.NewCoins() // Start with zero
 	s.hyperlaneKeeper.QuotedFee = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(100)))
 
 	// Warp transfer will FAIL
@@ -355,6 +359,9 @@ func TestForwardSingleToken_IGPFeeConsumedOnWarpFailure(t *testing.T) {
 	require.Equal(t, math.NewInt(1000), s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, appconsts.BondDenom).Amount)
 	// Verify: IGP fee was deducted from signer (100 consumed)
 	require.Equal(t, math.NewInt(100), s.bankKeeper.GetBalance(s.ctx, s.signer, appconsts.BondDenom).Amount)
+	// Verify: IGP fee was sent to fee collector (becomes protocol revenue)
+	require.Equal(t, math.NewInt(100), s.bankKeeper.GetBalance(s.ctx, feeCollectorAddr, appconsts.BondDenom).Amount,
+		"IGP fee should be sent to fee collector on warp failure")
 }
 
 // TestForwardSingleToken_IGPFeeRefundOnSuccess tests that excess IGP fee is refunded to signer

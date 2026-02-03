@@ -138,7 +138,7 @@ The relayer (signer) pays these fees as part of `MsgForward`.
 
 **Per-token fees:** Each token forwarded requires a separate IGP fee. The `max_igp_fee` is the maximum fee the relayer will pay *per token*. If forwarding 3 tokens, the relayer may pay up to 3x the max fee (but only the actual quoted fee for each).
 
-**Fee on failure:** If warp transfer fails after IGP fee is collected, the fee is NOT returned. This incentivizes relayers to verify route availability before submitting. Failed tokens are returned to the forwarding address.
+**Fee on failure:** If warp transfer fails after IGP fee is collected, the fee is sent to the `fee_collector` module account (protocol revenue distributed to stakers). This incentivizes relayers to verify route availability before submitting. Failed tokens are returned to the forwarding address.
 
 ## Queries
 
