@@ -110,7 +110,6 @@ func TestModuleAccountAddrs(t *testing.T) {
 		want := map[string]bool{
 			"celestia10d07y265gmmuvt4z0w9aw880jnsr700jtgz4v7": true,
 			"celestia17xpfvakm2amg962yls6f84z3kell8c5lpnjs3s": true,
-			"celestia18sjk23yldd9dg7j33sk24elwz2f06zt7ahx39y": true,
 			"celestia1fl48vsnmsdzcv85q5d2q4z5ajdha8yu3y3clr6": true,
 			"celestia1jv65s3grqf6v6jl3dp4t6c9t9rk99cd8k44vnj": true,
 			"celestia1m20fddqpmfuwcz2r9ckj6wd70p5e75t8y22wqj": true,
@@ -139,7 +138,6 @@ func TestModuleAccountAddrs(t *testing.T) {
 			"hyperlane",
 			"warp",
 			"forwarding",
-			"feeaddress",
 		}
 		for _, moduleName := range moduleNames {
 			address := authtypes.NewModuleAddress(moduleName).String()
