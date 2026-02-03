@@ -11,7 +11,7 @@ import (
 	bn254fr "github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/backend/groth16"
-	bn254 "github.com/consensys/gnark/backend/groth16/bn254" //nolint:revive,stylecheck
+	bn254 "github.com/consensys/gnark/backend/groth16/bn254" //nolint:revive
 	"github.com/consensys/gnark/backend/witness"
 )
 
