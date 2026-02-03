@@ -9,14 +9,14 @@ import (
 	minfeekeeper "github.com/celestiaorg/celestia-app/v7/x/minfee/keeper"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
-	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	ibcante "github.com/cosmos/ibc-go/v8/modules/core/ante"
 	ibckeeper "github.com/cosmos/ibc-go/v8/modules/core/keeper"
 )
 
 func NewAnteHandler(
 	accountKeeper ante.AccountKeeper,
-	bankKeeper bankkeeper.Keeper,
+	bankKeeper authtypes.BankKeeper,
 	blobKeeper blob.Keeper,
 	feegrantKeeper ante.FeegrantKeeper,
 	signModeHandler *txsigning.HandlerMap,

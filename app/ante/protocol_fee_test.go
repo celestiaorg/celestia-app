@@ -35,11 +35,6 @@ func (m *protoFeeMockFeeTx) FeeGranter() []byte                    { return nil 
 // protoFeeMockBankKeeper implements feeaddress.ProtocolFeeBankKeeper for testing.
 type protoFeeMockBankKeeper struct {
 	sentToModule map[string]sdk.Coins
-	balance      sdk.Coin // balance to return from GetBalance
-}
-
-func (m *protoFeeMockBankKeeper) GetBalance(_ context.Context, _ sdk.AccAddress, _ string) sdk.Coin {
-	return m.balance
 }
 
 func (m *protoFeeMockBankKeeper) SendCoinsFromAccountToModule(_ context.Context, _ sdk.AccAddress, recipientModule string, amt sdk.Coins) error {
@@ -61,12 +56,7 @@ func (m *protoFeeMockNonFeeTx) ValidateBasic() error                  { return n
 
 // protoFeeMockBankKeeperWithError implements feeaddress.ProtocolFeeBankKeeper and returns an error.
 type protoFeeMockBankKeeperWithError struct {
-	err     error
-	balance sdk.Coin
-}
-
-func (m *protoFeeMockBankKeeperWithError) GetBalance(_ context.Context, _ sdk.AccAddress, _ string) sdk.Coin {
-	return m.balance
+	err error
 }
 
 func (m *protoFeeMockBankKeeperWithError) SendCoinsFromAccountToModule(_ context.Context, _ sdk.AccAddress, _ string, _ sdk.Coins) error {
@@ -78,13 +68,12 @@ func protoFeeNextAnteHandler(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, er
 }
 
 func TestProtocolFeeTerminatorRejectsUserSubmittedTx(t *testing.T) {
-	balance := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))
-	bankKeeper := &protoFeeMockBankKeeper{balance: balance}
+	bankKeeper := &protoFeeMockBankKeeper{}
 	decorator := ante.NewProtocolFeeTerminatorDecorator(bankKeeper)
 
 	msg := feeaddress.NewMsgPayProtocolFee()
-	fee := sdk.NewCoins(balance)
-	tx := &protoFeeMockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: feeaddress.ProtocolFeeGasLimit}
+	fee := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
+	tx := &protoFeeMockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: 50000}
 
 	// Create CheckTx context - this simulates a user submitting the tx
 	ctx := sdk.NewContext(nil, tmproto.Header{}, true, log.NewNopLogger()) // isCheckTx = true
@@ -96,13 +85,12 @@ func TestProtocolFeeTerminatorRejectsUserSubmittedTx(t *testing.T) {
 }
 
 func TestProtocolFeeTerminatorRejectsReCheckTx(t *testing.T) {
-	balance := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))
-	bankKeeper := &protoFeeMockBankKeeper{balance: balance}
+	bankKeeper := &protoFeeMockBankKeeper{}
 	decorator := ante.NewProtocolFeeTerminatorDecorator(bankKeeper)
 
 	msg := feeaddress.NewMsgPayProtocolFee()
-	fee := sdk.NewCoins(balance)
-	tx := &protoFeeMockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: feeaddress.ProtocolFeeGasLimit}
+	fee := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
+	tx := &protoFeeMockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: 50000}
 
 	// Create ReCheckTx context
 	ctx := sdk.NewContext(nil, tmproto.Header{}, true, log.NewNopLogger()).WithIsReCheckTx(true)
@@ -114,8 +102,7 @@ func TestProtocolFeeTerminatorRejectsReCheckTx(t *testing.T) {
 }
 
 func TestProtocolFeeTerminatorValidatesSingleDenom(t *testing.T) {
-	balance := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))
-	bankKeeper := &protoFeeMockBankKeeper{balance: balance}
+	bankKeeper := &protoFeeMockBankKeeper{}
 	decorator := ante.NewProtocolFeeTerminatorDecorator(bankKeeper)
 
 	msg := feeaddress.NewMsgPayProtocolFee()
@@ -124,7 +111,7 @@ func TestProtocolFeeTerminatorValidatesSingleDenom(t *testing.T) {
 		sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)),
 		sdk.NewCoin("otherdenom", math.NewInt(500)),
 	)
-	tx := &protoFeeMockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: feeaddress.ProtocolFeeGasLimit}
+	tx := &protoFeeMockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: 50000}
 
 	// Create DeliverTx context (not CheckTx)
 	ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
@@ -136,14 +123,13 @@ func TestProtocolFeeTerminatorValidatesSingleDenom(t *testing.T) {
 }
 
 func TestProtocolFeeTerminatorRejectsWrongDenom(t *testing.T) {
-	balance := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))
-	bankKeeper := &protoFeeMockBankKeeper{balance: balance}
+	bankKeeper := &protoFeeMockBankKeeper{}
 	decorator := ante.NewProtocolFeeTerminatorDecorator(bankKeeper)
 
 	msg := feeaddress.NewMsgPayProtocolFee()
 	// Wrong denom - should be rejected
 	fee := sdk.NewCoins(sdk.NewCoin("wrongdenom", math.NewInt(1000)))
-	tx := &protoFeeMockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: feeaddress.ProtocolFeeGasLimit}
+	tx := &protoFeeMockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: 50000}
 
 	// Create DeliverTx context (not CheckTx)
 	ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
@@ -155,13 +141,12 @@ func TestProtocolFeeTerminatorRejectsWrongDenom(t *testing.T) {
 }
 
 func TestProtocolFeeTerminatorSuccess(t *testing.T) {
-	balance := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))
-	bankKeeper := &protoFeeMockBankKeeper{balance: balance}
+	bankKeeper := &protoFeeMockBankKeeper{}
 	decorator := ante.NewProtocolFeeTerminatorDecorator(bankKeeper)
 
 	msg := feeaddress.NewMsgPayProtocolFee()
-	fee := sdk.NewCoins(balance)
-	tx := &protoFeeMockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: feeaddress.ProtocolFeeGasLimit}
+	fee := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
+	tx := &protoFeeMockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: 50000}
 
 	// Create DeliverTx context (not CheckTx)
 	ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
@@ -174,13 +159,12 @@ func TestProtocolFeeTerminatorSuccess(t *testing.T) {
 }
 
 func TestProtocolFeeTerminatorRejectsSimulation(t *testing.T) {
-	balance := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))
-	bankKeeper := &protoFeeMockBankKeeper{balance: balance}
+	bankKeeper := &protoFeeMockBankKeeper{}
 	decorator := ante.NewProtocolFeeTerminatorDecorator(bankKeeper)
 
 	msg := feeaddress.NewMsgPayProtocolFee()
-	fee := sdk.NewCoins(balance)
-	tx := &protoFeeMockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: feeaddress.ProtocolFeeGasLimit}
+	fee := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
+	tx := &protoFeeMockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: 50000}
 
 	// Create DeliverTx context but pass simulate=true
 	ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
@@ -192,8 +176,7 @@ func TestProtocolFeeTerminatorRejectsSimulation(t *testing.T) {
 }
 
 func TestProtocolFeeTerminatorRejectsNonFeeTx(t *testing.T) {
-	balance := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))
-	bankKeeper := &protoFeeMockBankKeeper{balance: balance}
+	bankKeeper := &protoFeeMockBankKeeper{}
 	decorator := ante.NewProtocolFeeTerminatorDecorator(bankKeeper)
 
 	msg := feeaddress.NewMsgPayProtocolFee()
@@ -209,13 +192,12 @@ func TestProtocolFeeTerminatorRejectsNonFeeTx(t *testing.T) {
 }
 
 func TestProtocolFeeTerminatorBankTransferFailure(t *testing.T) {
-	balance := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))
-	bankKeeper := &protoFeeMockBankKeeperWithError{err: sdkerrors.ErrInsufficientFunds, balance: balance}
+	bankKeeper := &protoFeeMockBankKeeperWithError{err: sdkerrors.ErrInsufficientFunds}
 	decorator := ante.NewProtocolFeeTerminatorDecorator(bankKeeper)
 
 	msg := feeaddress.NewMsgPayProtocolFee()
-	fee := sdk.NewCoins(balance)
-	tx := &protoFeeMockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: feeaddress.ProtocolFeeGasLimit}
+	fee := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
+	tx := &protoFeeMockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: 50000}
 
 	// Create DeliverTx context (not CheckTx)
 	ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
@@ -227,13 +209,12 @@ func TestProtocolFeeTerminatorBankTransferFailure(t *testing.T) {
 }
 
 func TestProtocolFeeTerminatorZeroFeeRejected(t *testing.T) {
-	balance := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))
-	bankKeeper := &protoFeeMockBankKeeper{balance: balance}
+	bankKeeper := &protoFeeMockBankKeeper{}
 	decorator := ante.NewProtocolFeeTerminatorDecorator(bankKeeper)
 
 	msg := feeaddress.NewMsgPayProtocolFee()
 	// Zero fee should be rejected
-	tx := &protoFeeMockFeeTx{msgs: []sdk.Msg{msg}, fee: sdk.Coins{}, gas: feeaddress.ProtocolFeeGasLimit}
+	tx := &protoFeeMockFeeTx{msgs: []sdk.Msg{msg}, fee: sdk.Coins{}, gas: 50000}
 
 	// Create DeliverTx context (not CheckTx)
 	ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
@@ -242,43 +223,4 @@ func TestProtocolFeeTerminatorZeroFeeRejected(t *testing.T) {
 
 	require.Error(t, err)
 	require.ErrorContains(t, err, "protocol fee tx requires exactly one fee coin")
-}
-
-func TestProtocolFeeTerminatorRejectsFeeNotEqualToBalance(t *testing.T) {
-	balance := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))
-	bankKeeper := &protoFeeMockBankKeeper{balance: balance}
-	decorator := ante.NewProtocolFeeTerminatorDecorator(bankKeeper)
-
-	msg := feeaddress.NewMsgPayProtocolFee()
-	// Fee is less than balance - should be rejected
-	fee := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(500)))
-	tx := &protoFeeMockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: feeaddress.ProtocolFeeGasLimit}
-
-	// Create DeliverTx context (not CheckTx)
-	ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
-
-	_, err := decorator.AnteHandle(ctx, tx, false, protoFeeNextAnteHandler)
-
-	require.Error(t, err)
-	require.ErrorContains(t, err, "does not equal expected fee")
-}
-
-func TestProtocolFeeTerminatorRejectsWrongGasLimit(t *testing.T) {
-	balance := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))
-	bankKeeper := &protoFeeMockBankKeeper{balance: balance}
-	decorator := ante.NewProtocolFeeTerminatorDecorator(bankKeeper)
-
-	msg := feeaddress.NewMsgPayProtocolFee()
-	fee := sdk.NewCoins(balance)
-	// Wrong gas limit - should be rejected
-	tx := &protoFeeMockFeeTx{msgs: []sdk.Msg{msg}, fee: fee, gas: feeaddress.ProtocolFeeGasLimit * 2}
-
-	// Create DeliverTx context (not CheckTx)
-	ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
-
-	_, err := decorator.AnteHandle(ctx, tx, false, protoFeeNextAnteHandler)
-
-	require.Error(t, err)
-	require.ErrorContains(t, err, "gas limit")
-	require.ErrorContains(t, err, "does not match expected")
 }

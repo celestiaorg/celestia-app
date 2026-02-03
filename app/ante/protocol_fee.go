@@ -1,10 +1,7 @@
 package ante
 
 import (
-	"fmt"
-
 	"cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/pkg/feeaddress"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -18,10 +15,9 @@ import (
 //
 // For MsgPayProtocolFee transactions, this decorator:
 // 1. Rejects user submissions (only valid when protocol-injected)
-// 2. Validates fee == fee address balance (ensures ALL funds are forwarded)
-// 3. Validates gas == ProtocolFeeGasLimit
-// 4. Transfers the fee from fee address to fee collector
-// 5. Returns without calling next() - skipping the rest of the ante chain
+// 2. Validates the fee format
+// 3. Transfers the fee from fee address to fee collector
+// 4. Returns without calling next() - skipping the rest of the ante chain
 //
 // For all other transactions, this decorator simply calls next().
 type ProtocolFeeTerminatorDecorator struct {
@@ -57,18 +53,8 @@ func (d ProtocolFeeTerminatorDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, s
 	}
 	fee := feeTx.GetFee()
 
-	// Get current fee address balance - the fee MUST equal this balance exactly.
-	// This ensures ALL accumulated funds are forwarded to validators, preventing
-	// a malicious proposer from only forwarding a partial amount.
-	feeAddressBalance := d.bankKeeper.GetBalance(ctx, feeaddress.FeeAddress, appconsts.BondDenom)
-	if err := feeaddress.ValidateProtocolFee(fee, &feeAddressBalance); err != nil {
+	if err := feeaddress.ValidateProtocolFee(fee, nil); err != nil {
 		return ctx, errors.Wrap(sdkerrors.ErrInvalidRequest, err.Error())
-	}
-
-	// Validate gas limit matches expected constant
-	if feeTx.GetGas() != feeaddress.ProtocolFeeGasLimit {
-		return ctx, errors.Wrap(sdkerrors.ErrInvalidRequest,
-			fmt.Sprintf("gas limit %d does not match expected %d", feeTx.GetGas(), feeaddress.ProtocolFeeGasLimit))
 	}
 
 	err := d.bankKeeper.SendCoinsFromAccountToModule(ctx, feeaddress.FeeAddress, authtypes.FeeCollectorName, fee)

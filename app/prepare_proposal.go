@@ -115,21 +115,11 @@ func (app *App) injectProtocolFeeTx(ctx sdk.Context, txs [][]byte) ([][]byte, sd
 	return append([][]byte{protocolFeeTx}, txs...), feeBalance, nil
 }
 
-// verifyProtocolFeeTxSurvived performs defense-in-depth verification that the protocol
-// fee tx was not filtered out by the ante handler chain.
-//
-// INVARIANT: If fee address had a balance, the protocol fee tx MUST be the first tx in output.
-//
-// The protocol fee tx should NEVER be filtered because:
-//   - No signatures to fail verification
-//   - Minimal gas (40k, well under any limit)
-//   - Positive fees
-//
-// If this check fails, it indicates a BUG in the ante handler chain, not normal operation.
-//
-// IMPACT: Returns error → PrepareProposal fails → this validator cannot propose this block.
-// This is NOT a chain halt. Other validators can still propose valid blocks.
-// Explicit failure is preferred over silently producing blocks that ProcessProposal will reject.
+// verifyProtocolFeeTxSurvived performs defense-in-depth verification that the fee
+// forward tx was not filtered out. If the fee address had a balance and we created
+// a protocol fee tx, it MUST be the first tx in the output. The protocol fee tx should
+// never be filtered since it has no signature requirements and uses minimal gas.
+// If it's filtered, there's a bug in the ante handler chain.
 //
 // If feeBalance is zero, this is a no-op (no protocol fee tx was injected).
 func (app *App) verifyProtocolFeeTxSurvived(feeBalance sdk.Coin, filteredTxs [][]byte) error {
@@ -141,7 +131,11 @@ func (app *App) verifyProtocolFeeTxSurvived(feeBalance sdk.Coin, filteredTxs [][
 		return fmt.Errorf("protocol fee tx was filtered out (no txs remain); fee_balance=%s", feeBalance.String())
 	}
 
-	if !feeaddress.IsProtocolFeeTxBytes(app.encodingConfig.TxConfig.TxDecoder(), filteredTxs[0]) {
+	_, firstTxIsProtocolFee, err := app.parseProtocolFeeTx(filteredTxs[0])
+	if err != nil {
+		return fmt.Errorf("failed to parse protocol fee tx: %w; fee_balance=%s", err, feeBalance.String())
+	}
+	if !firstTxIsProtocolFee {
 		return fmt.Errorf("protocol fee tx was filtered out unexpectedly; fee_balance=%s", feeBalance.String())
 	}
 

@@ -53,23 +53,47 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	)
 	blockHeader := ctx.BlockHeader()
 
-	// Block-level validation for protocol fee tx presence/absence.
-	// Fee amount and gas limit validation is done by ProtocolFeeTerminatorDecorator in the ante handler.
+	// Strict validation for protocol fee transactions:
+	// If the fee address has a balance, the block MUST contain a valid protocol fee tx as the first tx.
+	// If no balance but protocol fee tx present, reject the block.
 	feeBalance := app.BankKeeper.GetBalance(ctx, feeaddress.FeeAddress, appconsts.BondDenom)
 	hasBalance := !feeBalance.IsZero()
 
-	var firstTxIsProtocolFee bool
-	if len(req.Txs) > 0 {
-		firstTxIsProtocolFee = feeaddress.IsProtocolFeeTxBytes(app.encodingConfig.TxConfig.TxDecoder(), req.Txs[0])
+	// Case: fee address has balance but no transactions
+	if hasBalance && len(req.Txs) == 0 {
+		logInvalidPropBlock(app.Logger(), blockHeader, "fee address has balance but block has no transactions")
+		return reject(), nil
 	}
 
-	if hasBalance && (len(req.Txs) == 0 || !firstTxIsProtocolFee) {
-		logInvalidPropBlock(app.Logger(), blockHeader, "fee address has balance but first tx is not a protocol fee tx")
-		return reject(), nil
-	}
-	if !hasBalance && firstTxIsProtocolFee {
-		logInvalidPropBlock(app.Logger(), blockHeader, "protocol fee tx present but fee address has no balance")
-		return reject(), nil
+	// Validate protocol fee tx if there are transactions
+	if len(req.Txs) > 0 {
+		firstTx, firstTxIsProtocolFee, protocolFeeErr := app.parseProtocolFeeTx(req.Txs[0])
+
+		// Case: fee address has balance but can't decode first tx
+		if hasBalance && protocolFeeErr != nil {
+			logInvalidPropBlockError(app.Logger(), blockHeader, "failed to decode first tx for protocol fee check", protocolFeeErr)
+			return reject(), nil
+		}
+
+		// Case: fee address has balance but first tx is not protocol fee
+		if hasBalance && !firstTxIsProtocolFee {
+			logInvalidPropBlock(app.Logger(), blockHeader, "fee address has balance but first tx is not a protocol fee tx")
+			return reject(), nil
+		}
+
+		// Case: fee address has balance - validate the protocol fee tx
+		if hasBalance && firstTxIsProtocolFee {
+			if err := app.validateProtocolFeeTx(firstTx, feeBalance); err != nil {
+				logInvalidPropBlockError(app.Logger(), blockHeader, "invalid protocol fee tx", err)
+				return reject(), nil
+			}
+		}
+
+		// Case: no balance but protocol fee tx present
+		if !hasBalance && firstTxIsProtocolFee {
+			logInvalidPropBlock(app.Logger(), blockHeader, "protocol fee tx present but fee address has no balance")
+			return reject(), nil
+		}
 	}
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
@@ -236,4 +260,33 @@ func (app *App) ValidateBlobTxWithCache(blobTx *blobtx.BlobTx) (bool, error) {
 		return false, err
 	}
 	return false, nil
+}
+
+// parseProtocolFeeTx decodes a transaction and checks if it's a MsgPayProtocolFee.
+// Returns the decoded tx, whether it's a protocol fee tx, and any decode error.
+func (app *App) parseProtocolFeeTx(txBytes []byte) (sdk.Tx, bool, error) {
+	sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(txBytes)
+	if err != nil {
+		return nil, false, err
+	}
+	return sdkTx, feeaddress.IsProtocolFeeMsg(sdkTx) != nil, nil
+}
+
+// validateProtocolFeeTx validates a decoded protocol fee transaction.
+// Caller must ensure sdkTx is a protocol fee tx (via parseProtocolFeeTx).
+func (app *App) validateProtocolFeeTx(sdkTx sdk.Tx, expectedFee sdk.Coin) error {
+	feeTx, ok := sdkTx.(sdk.FeeTx)
+	if !ok {
+		return fmt.Errorf("tx does not implement FeeTx")
+	}
+
+	// Validate fee format and expected amount
+	if err := feeaddress.ValidateProtocolFee(feeTx.GetFee(), &expectedFee); err != nil {
+		return err
+	}
+	if feeTx.GetGas() != feeaddress.ProtocolFeeGasLimit {
+		return fmt.Errorf("gas limit %d does not match expected %d", feeTx.GetGas(), feeaddress.ProtocolFeeGasLimit)
+	}
+
+	return nil
 }
