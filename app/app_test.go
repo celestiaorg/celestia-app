@@ -120,6 +120,7 @@ func TestModuleAccountAddrs(t *testing.T) {
 			"celestia1tygms3xhhs3yv487phx3dw4a95jn7t7ls3yw4w": true,
 			"celestia1vlthgax23ca9syk7xgaz347xmf4nunefkz88ka": true,
 			"celestia1yl6hdjhmkf37639730gffanpzndzdpmhl48edw": true,
+			"celestia1zqq4hq2u88g2lfnpezev3wx9tffqf0w87tkf5m": true,
 		}
 		assert.Equal(t, want, got)
 	})
@@ -138,6 +139,7 @@ func TestModuleAccountAddrs(t *testing.T) {
 			"interchainaccounts",
 			"hyperlane",
 			"warp",
+			"forwarding",
 			"feeaddress",
 		}
 		for _, moduleName := range moduleNames {
@@ -171,6 +173,7 @@ func TestBlockedAddresses(t *testing.T) {
 			"interchainaccounts",
 			"hyperlane",
 			"warp",
+			"forwarding",
 		}
 		for _, moduleName := range moduleNames {
 			address := authtypes.NewModuleAddress(moduleName).String()
