@@ -62,7 +62,7 @@ If you'd rather not install from source, you can download a prebuilt binary from
     ./celestia-appd --help
     ```
 
-1. [Optional] verify the prebuilt binary checksum. Download `checksums.txt` and then verify the checksum:
+1. (Optional) verify the prebuilt binary checksum. Download `checksums.txt` and then verify the checksum:
 
     ```shell
     sha256sum --ignore-missing --check checksums.txt
