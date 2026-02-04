@@ -26,16 +26,16 @@ A tool for monitoring and measuring transaction latency in Celestia networks. Th
 
 ### Available Flags
 
-| Flag | Shorthand | Default | Description |
-|------|-----------|---------|-------------|
-| `--grpc-endpoint` | `-e` | `localhost:9090` | gRPC endpoint to connect to |
-| `--keyring-dir` | `-k` | `~/.celestia-app` | Directory containing the keyring |
-| `--account` | `-a` | _(first account)_ | Account name to use from keyring |
-| `--blob-size` | `-b` | `1024` | Maximum blob size in bytes (blobs will be random size between this value and the minimum) |
-| `--blob-size-min` | `-z` | `1` | Minimum blob size in bytes (blobs will be random size between this value and the maximum) |
-| `--submission-delay` | `-d` | `4000ms` | Delay between transaction submissions |
-| `--namespace` | `-n` | `test` | Namespace for blob submission |
-| `--disable-metrics` | `-m` | `false` | Disable metrics collection |
+| Flag                 | Shorthand | Default           | Description                                                                               |
+|----------------------|-----------|-------------------|-------------------------------------------------------------------------------------------|
+| `--grpc-endpoint`    | `-e`      | `localhost:9090`  | gRPC endpoint to connect to                                                               |
+| `--keyring-dir`      | `-k`      | `~/.celestia-app` | Directory containing the keyring                                                          |
+| `--account`          | `-a`      | _(first account)_ | Account name to use from keyring                                                          |
+| `--blob-size`        | `-b`      | `1024`            | Maximum blob size in bytes (blobs will be random size between this value and the minimum) |
+| `--blob-size-min`    | `-z`      | `1`               | Minimum blob size in bytes (blobs will be random size between this value and the maximum) |
+| `--submission-delay` | `-d`      | `4000ms`          | Delay between transaction submissions                                                     |
+| `--namespace`        | `-n`      | `test`            | Namespace for blob submission                                                             |
+| `--disable-metrics`  | `-m`      | `false`           | Disable metrics collection                                                                |
 
 ### Example
 

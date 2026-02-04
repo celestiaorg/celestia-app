@@ -71,35 +71,35 @@ k * r = n & log(n) = r => k = n/log(n)
 
 By substituting in k we can calculate n. To get r we calculate n/k, rounding up to the next highest integer in the processes.
 
-|   k  |   n   |  r |
+|  k   |   n   | r  |
 |:----:|:-----:|:--:|
-|    2 |     4 |  2 |
-|    4 |    16 |  4 |
-|    8 |    43 |  6 |
-|   16 |   108 |  7 |
-|   32 |   256 |  8 |
-|   64 |   589 | 10 |
-|  128 |  1328 | 11 |
-|  256 |  2951 | 12 |
-|  512 |  6483 | 13 |
+|  2   |   4   | 2  |
+|  4   |  16   | 4  |
+|  8   |  43   | 6  |
+|  16  |  108  | 7  |
+|  32  |  256  | 8  |
+|  64  |  589  | 10 |
+| 128  | 1328  | 11 |
+| 256  | 2951  | 12 |
+| 512  | 6483  | 13 |
 | 1024 | 14116 | 14 |
 | 2048 | 30509 | 15 |
 
 The worst case constructible message in a square to have the biggest impact from switching from O(log(n)) to O(sqrt(n)) with n being the size of the message, has r rows in a square size of k. If r is larger than k/4 we need to take k/4 as the number of rows instead because of the first point in this message. With adopting this rule the messages look as follows:
 
-|   k  |   n   |  r |
-|:----:|:-----:|:--:|
-|    2 |     **2** |  **1** |
-|    4 |     **4** |  **1** |
-|    8 |    **16** |  **2** |
-|   16 |    **64** |  **4** |
-|   32 |   256 |  8 |
-|   64 |   589 | 10 |
-|  128 |  1328 | 11 |
-|  256 |  2951 | 12 |
-|  512 |  6483 | 13 |
-| 1024 | 14116 | 14 |
-| 2048 | 30509 | 15 |
+|  k   |   n    |   r   |
+|:----:|:------:|:-----:|
+|  2   | **2**  | **1** |
+|  4   | **4**  | **1** |
+|  8   | **16** | **2** |
+|  16  | **64** | **4** |
+|  32  |  256   |   8   |
+|  64  |  589   |  10   |
+| 128  |  1328  |  11   |
+| 256  |  2951  |  12   |
+| 512  |  6483  |  13   |
+| 1024 | 14116  |  14   |
+| 2048 | 30509  |  15   |
 
  Reminder: We did this calculation because we need O(log(n)) rows.
 
