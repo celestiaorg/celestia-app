@@ -54,10 +54,10 @@ The namespace ID must provide at least 72 bits of randomness to satisfy criteria
 
 | Namespace ID size (bytes) | Criteria 1 |
 |---------------------------|------------|
-| 8                         | ❌          |
-| 16                        | ✅          |
-| 20                        | ✅          |
-| 32                        | ✅          |
+| 8                         | No         |
+| 16                        | Yes        |
+| 20                        | Yes        |
+| 32                        | Yes        |
 
 Another way to analyze this criteria is to determine the probability of duplicates if there exist N randomly generated namespaces. Columns in the table below represent the approximate probability that a collision would occur if N (e.g. 1 billion) random namespaces are generated.[^3]
 
@@ -83,10 +83,10 @@ We must make some assumptions for the number of rollups that will exist. Ethereu
 
 | Namespace ID size (bytes) | Criteria 2 |
 |---------------------------|------------|
-| 8                         | ✅          |
-| 16                        | ✅          |
-| 20                        | ✅          |
-| 32                        | ✅          |
+| 8                         | Yes        |
+| 16                        | Yes        |
+| 20                        | Yes        |
+| 32                        | Yes        |
 
 ## Notes
 
