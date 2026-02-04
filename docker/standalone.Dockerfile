@@ -4,7 +4,7 @@
 #
 # Separating the builder and runtime image allows the runtime image to be
 # considerably smaller because it doesn't need to have Golang installed.
-ARG BUILDER_IMAGE=docker.io/golang:1.25.5-alpine
+ARG BUILDER_IMAGE=docker.io/golang:1.25.6-alpine
 ARG RUNTIME_IMAGE=docker.io/alpine:3.22
 ARG TARGETOS
 ARG TARGETARCH
