@@ -9,14 +9,18 @@ import (
 	"testing"
 	"time"
 
+	sdkmath "cosmossdk.io/math"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
+	"github.com/celestiaorg/tastora/framework/docker/container"
 	"github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/docker/dataavailability"
 	"github.com/celestiaorg/tastora/framework/docker/evstack/evmsingle"
 	"github.com/celestiaorg/tastora/framework/docker/evstack/reth"
 	"github.com/celestiaorg/tastora/framework/docker/hyperlane"
 	"github.com/celestiaorg/tastora/framework/testutil/evm"
+	"github.com/celestiaorg/tastora/framework/testutil/query"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -145,6 +149,62 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	enrollRemote("reth0", reth0)
 	enrollRemote("reth1", reth1)
 
+	chainGRPC := networkInfo.External.GRPCAddress()
+	cconn, err := grpc.NewClient(chainGRPC, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	defer func() {
+		_ = cconn.Close()
+	}()
+
+	// queries module acc before escrow
+	warpModuleAddr := authtypes.NewModuleAddress(warptypes.ModuleName).String()
+	_, err = query.Balance(ctx, cconn, warpModuleAddr, chain.Config.Denom)
+	require.NoError(t, err)
+
+	sendAmount0 := sdkmath.NewInt(1000)
+	receiver := gethcommon.HexToAddress("0xaF9053bB6c4346381C77C2FeD279B17ABAfCDf4d")
+
+	reth0Entry := schema.Registry.Chains["reth0"]
+	_ = schema.Registry.Chains["reth1"]
+
+	msgRemoteTransfer := &warptypes.MsgRemoteTransfer{
+		Sender:            faucet.GetFormattedAddress(),
+		TokenId:           config.TokenID,
+		DestinationDomain: reth0Entry.Metadata.DomainID,
+		Recipient:         evm.PadAddress(receiver),
+		Amount:            sendAmount0,
+	}
+	resp, err := broadcaster.BroadcastMessages(ctx, faucet, msgRemoteTransfer)
+	require.NoError(t, err)
+	require.Equal(t, resp.Code, uint32(0), "reth0 transfer tx should succeed: code=%d, log=%s", resp.Code, resp.RawLog)
+
+	agentCfg := hyperlane.Config{
+		Logger:          s.logger,
+		DockerClient:    s.client,
+		DockerNetworkID: s.network,
+		HyperlaneImage:  container.NewImage("damiannolan/hyperlane-agent", "test", "1000:1000"),
+	}
+
+	agent, err := hyperlane.NewAgent(ctx, agentCfg, t.Name(), hyperlane.AgentTypeRelayer, d)
+	require.NoError(t, err)
+	require.NoError(t, agent.Start(ctx))
+	t.Cleanup(func() {
+		_ = agent.Stop(ctx)
+		_ = agent.Remove(ctx)
+	})
+
+	ethClient, err := reth0.GetEthClient(ctx)
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		balance, err := evm.GetERC20Balance(ctx, ethClient, tokenRouter, receiver)
+		if err != nil {
+			t.Logf("reth0 balance query failed: %v", err)
+			return false
+		}
+		t.Logf("reth0 recipient warp token balance: %s", balance.String())
+		return balance.Cmp(sendAmount0.BigInt()) == 0
+	}, 2*time.Minute, 5*time.Second, "reth0 recipient should receive minted warp tokens")
 }
 
 func (s *HyperlaneTestSuite) BridgeNodeAddress(da *dataavailability.Network) string {
