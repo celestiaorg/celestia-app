@@ -92,33 +92,33 @@ message ForwardingResult {
 
 ## Supported Token Types
 
-| Source | Denom Format | Transfer Method |
-|--------|--------------|-----------------|
-| Warp transfer | `hyperlane/{tokenId}` | Synthetic warp transfer |
-| CEX withdrawal (TIA) | `utia` | Collateral warp transfer |
+| Source               | Denom Format          | Transfer Method          |
+|----------------------|-----------------------|--------------------------|
+| Warp transfer        | `hyperlane/{tokenId}` | Synthetic warp transfer  |
+| CEX withdrawal (TIA) | `utia`                | Collateral warp transfer |
 
 ## Events
 
 ### EventTokenForwarded
 
-| Attribute | Description |
-|-----------|-------------|
-| forward_addr | The forwarding address |
-| denom | Token denomination |
-| amount | Amount forwarded |
-| message_id | Hyperlane message ID (empty if failed) |
-| success | Whether forwarding succeeded |
-| error | Error message if failed |
+| Attribute    | Description                            |
+|--------------|----------------------------------------|
+| forward_addr | The forwarding address                 |
+| denom        | Token denomination                     |
+| amount       | Amount forwarded                       |
+| message_id   | Hyperlane message ID (empty if failed) |
+| success      | Whether forwarding succeeded           |
+| error        | Error message if failed                |
 
 ### EventForwardingComplete
 
-| Attribute | Description |
-|-----------|-------------|
-| forward_addr | The forwarding address |
-| dest_domain | Destination chain domain |
-| dest_recipient | Recipient on destination |
+| Attribute        | Description                  |
+|------------------|------------------------------|
+| forward_addr     | The forwarding address       |
+| dest_domain      | Destination chain domain     |
+| dest_recipient   | Recipient on destination     |
 | tokens_forwarded | Count of successful forwards |
-| tokens_failed | Count of failed forwards |
+| tokens_failed    | Count of failed forwards     |
 
 ## Fee Handling
 
@@ -185,16 +185,16 @@ celestia-appd tx forwarding forward <forward-addr> 42161 \
 
 ## Error Codes
 
-| Code | Name | Description |
-|------|------|-------------|
-| 2 | ErrAddressMismatch | Derived address doesn't match provided address |
-| 3 | ErrNoBalance | No balance at forwarding address |
-| 4 | ErrBelowMinimum | Balance below minimum threshold |
-| 5 | ErrUnsupportedToken | Token denom not supported for forwarding |
-| 6 | ErrTooManyTokens | Too many tokens at forwarding address |
-| 7 | ErrInvalidRecipient | Invalid recipient length |
-| 8 | ErrNoWarpRoute | No warp route to destination domain |
-| 9 | ErrInsufficientIgpFee | IGP fee provided is less than required |
+| Code | Name                  | Description                                    |
+|------|-----------------------|------------------------------------------------|
+| 2    | ErrAddressMismatch    | Derived address doesn't match provided address |
+| 3    | ErrNoBalance          | No balance at forwarding address               |
+| 4    | ErrBelowMinimum       | Balance below minimum threshold                |
+| 5    | ErrUnsupportedToken   | Token denom not supported for forwarding       |
+| 6    | ErrTooManyTokens      | Too many tokens at forwarding address          |
+| 7    | ErrInvalidRecipient   | Invalid recipient length                       |
+| 8    | ErrNoWarpRoute        | No warp route to destination domain            |
+| 9    | ErrInsufficientIgpFee | IGP fee provided is less than required         |
 
 ## Security
 
@@ -222,8 +222,8 @@ The current design fails gracefully: if someone sends to a forwarding address wi
 
 For cross-platform compatibility (Go, TypeScript, Rust):
 
-| destDomain | destRecipient | Expected Address |
-|------------|---------------|------------------|
-| 1 | `0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef` | `celestia1gev9segv9333lpy27thrtwdjwhu9lgcjpkpz2x` |
-| 42161 | `0x0000000000000000000000001234567890abcdef1234567890abcdef12345678` | `celestia1uvqe9n0eclkd55dj9g9m30nf77px6jq2nfqmyw` |
-| 0 | `0x0000000000000000000000000000000000000000000000000000000000000000` | `celestia1w0c30l5s7q46nhnz7k7j82j6kdsgz4w4m25jjg` |
+| destDomain | destRecipient                                                        | Expected Address                                  |
+|------------|----------------------------------------------------------------------|---------------------------------------------------|
+| 1          | `0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef` | `celestia1gev9segv9333lpy27thrtwdjwhu9lgcjpkpz2x` |
+| 42161      | `0x0000000000000000000000001234567890abcdef1234567890abcdef12345678` | `celestia1uvqe9n0eclkd55dj9g9m30nf77px6jq2nfqmyw` |
+| 0          | `0x0000000000000000000000000000000000000000000000000000000000000000` | `celestia1w0c30l5s7q46nhnz7k7j82j6kdsgz4w4m25jjg` |
