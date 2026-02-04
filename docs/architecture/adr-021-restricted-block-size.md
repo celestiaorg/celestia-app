@@ -14,11 +14,11 @@ Implemented in <https://github.com/celestiaorg/celestia-app/pull/1772>
 Currently, block sizes are controlled by three values, the smallest of which
 will determine what the protocol considers to be a valid block size.
 
-| Parameter        | Size   | Unit   | Description  | Value Control |
-|------------------|--------|--------|--------------|---------------|
-| `MaxBlockSizeBytes` | 100 | MiB | Maximum total size of the protobuf encoded block, a hard coded constant acting as a cap for `MaxBytes`. | Hard coded |
-| `MaxBytes`     |  21 | MiB | Determines the valid size of the entire protobuf encoded block. Is a governance modifiable parameter and is capped by `MaxBlockSizeBytes`. Used to regulate the amount of data gossiped in the consensus portion of the network (using the current block gossiping mechanism). | Modifiable |
-| `MaxSquareSize` | ~7.5 | MiB | Determines the maximum size of the original data square. Used to regulate storage requirements for celestia-node, and the size of the data availability header. Default set to 128. | Modifiable (versioned constant) |
+| Parameter           | Size | Unit | Description                                                                                                                                                                                                                                                                    | Value Control                   |
+|---------------------|------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------|
+| `MaxBlockSizeBytes` | 100  | MiB  | Maximum total size of the protobuf encoded block, a hard coded constant acting as a cap for `MaxBytes`.                                                                                                                                                                        | Hard coded                      |
+| `MaxBytes`          | 21   | MiB  | Determines the valid size of the entire protobuf encoded block. Is a governance modifiable parameter and is capped by `MaxBlockSizeBytes`. Used to regulate the amount of data gossiped in the consensus portion of the network (using the current block gossiping mechanism). | Modifiable                      |
+| `MaxSquareSize`     | ~7.5 | MiB  | Determines the maximum size of the original data square. Used to regulate storage requirements for celestia-node, and the size of the data availability header. Default set to 128.                                                                                            | Modifiable (versioned constant) |
 
 Using the currently set/default values, `MaxSquareSize` is limiting the block
 size because it is the smallest value in terms of bytes. However if the
@@ -75,12 +75,12 @@ parameter.
 
 Option 2: Introduce a new parameter, `GovMaxSquareSize`. After implemented, the above chart will look like:
 
-| Parameter        | Size   | Unit   | Description  | Value Control |
-|------------------|--------|--------|--------------|---------------|
-| `MaxBlockSizeBytes` | 100 | MiB | Maximum total size of the protobuf encoded block, a hard coded constant acting as a cap for `MaxBytes`. | Hard coded |
-| `MaxBytes`     |  ~1.8 | MiB | Determines the valid size of the entire protobuf encoded block. Is a governance modifiable parameter and is capped by `MaxBlockSizeBytes`. Used to regulate the amount of data gossiped in the consensus portion of the network (using the current block gossiping mechanism). | Modifiable |
-| `MaxSquareSize` | ~7.5 | MiB | Determines the maximum size of the original data square. Used to regulate storage requirements for celestia-node, and the size of the data availability header. Default set to 128. | Modifiable (versioned constant) |
-| `GovMaxSquareSize`     |  ~1.8 | MiB | Governance modifiable parameter that determines valid square sizes. Must be smaller than the `MaxSquareSize`. Default set to 64. | Modifiable |
+| Parameter           | Size | Unit | Description                                                                                                                                                                                                                                                                    | Value Control                   |
+|---------------------|------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------|
+| `MaxBlockSizeBytes` | 100  | MiB  | Maximum total size of the protobuf encoded block, a hard coded constant acting as a cap for `MaxBytes`.                                                                                                                                                                        | Hard coded                      |
+| `MaxBytes`          | ~1.8 | MiB  | Determines the valid size of the entire protobuf encoded block. Is a governance modifiable parameter and is capped by `MaxBlockSizeBytes`. Used to regulate the amount of data gossiped in the consensus portion of the network (using the current block gossiping mechanism). | Modifiable                      |
+| `MaxSquareSize`     | ~7.5 | MiB  | Determines the maximum size of the original data square. Used to regulate storage requirements for celestia-node, and the size of the data availability header. Default set to 128.                                                                                            | Modifiable (versioned constant) |
+| `GovMaxSquareSize`  | ~1.8 | MiB  | Governance modifiable parameter that determines valid square sizes. Must be smaller than the `MaxSquareSize`. Default set to 64.                                                                                                                                               | Modifiable                      |
 
 ## Detailed Design
 
