@@ -7,7 +7,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/app/ante"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/pkg/da"
-	"github.com/celestiaorg/celestia-app/v7/pkg/feeaddress"
 	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
@@ -44,18 +43,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		return nil, fmt.Errorf("failed to create FilteredSquareBuilder: %w", err)
 	}
 
-	// Inject protocol fee tx if fee address has balance
-	txsToProcess, feeBalance, err := app.injectProtocolFeeTx(ctx, req.Txs)
-	if err != nil {
-		return nil, err
-	}
-
-	txs := fsb.Fill(ctx, txsToProcess)
-
-	// Verify protocol fee tx survived filtering (if we injected one)
-	if err := app.verifyProtocolFeeTxSurvived(feeBalance, txs); err != nil {
-		return nil, err
-	}
+	txs := fsb.Fill(ctx, req.Txs)
 
 	// Build the square from the set of valid and prioritised transactions.
 	dataSquare, err := fsb.Build()
@@ -86,86 +74,4 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		SquareSize:   uint64(dataSquare.Size()),
 		DataRootHash: dah.Hash(), // also known as the data root
 	}, nil
-}
-
-// injectProtocolFeeTx checks the fee address balance and prepends a protocol fee tx
-// if non-zero. This converts fee address funds into real transaction fees for
-// dashboard tracking.
-//
-// Consensus safety: ProcessProposal validates that the protocol fee tx fee amount equals
-// the fee address balance at the start of the block. Both PrepareProposal and ProcessProposal
-// read from the same state snapshot, ensuring all validators agree on validity. The fee
-// forward tx is prepended so it executes first in DeliverTx, draining the fee address
-// before any subsequent transactions can add to it.
-//
-// Returns the txs to process (with protocol fee tx prepended if applicable), the fee
-// balance (for verification), and any error.
-func (app *App) injectProtocolFeeTx(ctx sdk.Context, txs [][]byte) ([][]byte, sdk.Coin, error) {
-	feeBalance := app.BankKeeper.GetBalance(ctx, feeaddress.FeeAddress, appconsts.BondDenom)
-	if feeBalance.IsZero() {
-		return txs, feeBalance, nil
-	}
-
-	protocolFeeTx, err := app.createProtocolFeeTx(feeBalance)
-	if err != nil {
-		// Fail explicitly rather than producing a block that ProcessProposal will reject.
-		return nil, feeBalance, fmt.Errorf("failed to create protocol fee tx: %w; fee_balance=%s", err, feeBalance.String())
-	}
-
-	return append([][]byte{protocolFeeTx}, txs...), feeBalance, nil
-}
-
-// verifyProtocolFeeTxSurvived performs defense-in-depth verification that the protocol
-// fee tx was not filtered out by the ante handler chain.
-//
-// INVARIANT: If fee address had a balance, the protocol fee tx MUST be the first tx in output.
-//
-// The protocol fee tx should NEVER be filtered because:
-//   - No signatures to fail verification
-//   - Minimal gas (40k, well under any limit)
-//   - Positive fees
-//
-// If this check fails, it indicates a BUG in the ante handler chain, not normal operation.
-//
-// IMPACT: Returns error → PrepareProposal fails → this validator cannot propose this block.
-// This is NOT a chain halt. Other validators can still propose valid blocks.
-// Explicit failure is preferred over silently producing blocks that ProcessProposal will reject.
-//
-// If feeBalance is zero, this is a no-op (no protocol fee tx was injected).
-func (app *App) verifyProtocolFeeTxSurvived(feeBalance sdk.Coin, filteredTxs [][]byte) error {
-	if feeBalance.IsZero() {
-		return nil
-	}
-
-	if len(filteredTxs) == 0 {
-		return fmt.Errorf("protocol fee tx was filtered out (no txs remain); fee_balance=%s", feeBalance.String())
-	}
-
-	if !feeaddress.IsProtocolFeeTxBytes(app.encodingConfig.TxConfig.TxDecoder(), filteredTxs[0]) {
-		return fmt.Errorf("protocol fee tx was filtered out unexpectedly; fee_balance=%s", feeBalance.String())
-	}
-
-	return nil
-}
-
-// createProtocolFeeTx creates an unsigned MsgPayProtocolFee transaction with the
-// specified fee amount. The transaction has no signers - it's validated by
-// ProcessProposal checking that tx fee == fee address balance.
-func (app *App) createProtocolFeeTx(feeAmount sdk.Coin) ([]byte, error) {
-	msg := feeaddress.NewMsgPayProtocolFee()
-
-	txBuilder := app.encodingConfig.TxConfig.NewTxBuilder()
-	if err := txBuilder.SetMsgs(msg); err != nil {
-		return nil, fmt.Errorf("failed to set message: %w", err)
-	}
-
-	txBuilder.SetFeeAmount(sdk.NewCoins(feeAmount))
-	txBuilder.SetGasLimit(feeaddress.ProtocolFeeGasLimit)
-
-	txBytes, err := app.encodingConfig.TxConfig.TxEncoder()(txBuilder.GetTx())
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode tx: %w", err)
-	}
-
-	return txBytes, nil
 }
