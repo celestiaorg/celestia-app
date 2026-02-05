@@ -3,7 +3,6 @@ package docker_e2e
 import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"context"
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -24,7 +23,6 @@ import (
 	"github.com/celestiaorg/tastora/framework/testutil/evm"
 	"github.com/celestiaorg/tastora/framework/testutil/query"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -34,6 +32,19 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
+
+var (
+	// NOTE: This a workaround as using the chain name "celestia" causes configuration overlay issues
+	// with the Hyperlane agents container. This can be reverted when the following issue is addressed.
+	// See https://github.com/hyperlane-xyz/hyperlane-monorepo/issues/7598.
+	HypCelestiaChainName = "celestiadev"
+)
+
+// EvolveEVMChain encapsulates both the evolve evm sequencer node and execution client node.
+type EvolveEVMChain struct {
+	*evmsingle.Chain
+	*reth.Node
+}
 
 func TestHyperlaneTestSuite(t *testing.T) {
 	suite.Run(t, new(HyperlaneTestSuite))
@@ -52,6 +63,28 @@ func (s *HyperlaneTestSuite) SetupSuite() {
 	s.Require().NoError(err)
 
 	s.celestiaCfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(tag)
+}
+
+func (s *HyperlaneTestSuite) StartRelayerAgent(ctx context.Context, deployer *hyperlane.Deployer) {
+	s.T().Helper()
+
+	cfg := hyperlane.Config{
+		Logger:          s.logger,
+		DockerClient:    s.client,
+		DockerNetworkID: s.network,
+		HyperlaneImage:  container.NewImage("gcr.io/abacus-labs-dev/hyperlane-agent", "agents-v1.7.0", "1000:1000"),
+	}
+
+	agent, err := hyperlane.NewAgent(ctx, cfg, s.T().Name(), hyperlane.AgentTypeRelayer, deployer)
+	s.Require().NoError(err)
+
+	err = agent.Start(ctx)
+	s.Require().NoError(err)
+
+	s.T().Cleanup(func() {
+		_ = agent.Stop(ctx)
+		_ = agent.Remove(ctx)
+	})
 }
 
 // make test-docker-e2e test=TestHyperlaneForwarding entrypoint=TestHyperlaneTestSuite
@@ -77,34 +110,23 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	// create a da network, wiring up the provided chain using the CELESTIA_CUSTOM environment variable.
 	da := s.DeployDANetwork(ctx, chain, s.client, s.network)
 
-	reth0, _ := s.BuildEvolveEVMChain(ctx, s.BridgeNodeAddress(da), "reth0", 1234)
-	reth1, _ := s.BuildEvolveEVMChain(ctx, s.BridgeNodeAddress(da), "reth1", 1235)
+	reth0 := s.BuildEvolveEVMChain(ctx, s.BridgeNodeAddress(da), "reth0", 1234)
+	reth1 := s.BuildEvolveEVMChain(ctx, s.BridgeNodeAddress(da), "reth1", 1235)
 
-	d, err := hyperlane.NewDeployer(
-		ctx,
-		hyperlane.Config{
-			Logger:          s.logger,
-			DockerClient:    s.client,
-			DockerNetworkID: s.network,
-			HyperlaneImage:  hyperlane.DefaultDeployerImage(),
-		},
-		t.Name(),
-		[]hyperlane.ChainConfigProvider{reth0, reth1, chain},
-	)
+	hypConfig := hyperlane.Config{
+		Logger:          s.logger,
+		DockerClient:    s.client,
+		DockerNetworkID: s.network,
+		HyperlaneImage:  hyperlane.DefaultDeployerImage(),
+	}
+
+	hypChainProvider := []hyperlane.ChainConfigProvider{reth0, reth1, chain}
+	hyp, err := hyperlane.NewDeployer(ctx, hypConfig, t.Name(), hypChainProvider)
 	require.NoError(t, err)
 
-	relayerBytes, err := d.ReadFile(ctx, "relayer-config.json")
-	require.NoError(t, err)
+	require.NoError(t, hyp.Deploy(ctx))
 
-	var relayerCfg hyperlane.RelayerConfig
-	require.NoError(t, json.Unmarshal(relayerBytes, &relayerCfg))
-	require.NotEmpty(t, relayerCfg.Chains["reth0"])
-	require.NotEmpty(t, relayerCfg.Chains["reth1"])
-	require.NotEmpty(t, relayerCfg.Chains[chain.Config.Name])
-
-	require.NoError(t, d.Deploy(ctx))
-
-	schema, err := d.GetOnDiskSchema(ctx)
+	schema, err := hyp.GetOnDiskSchema(ctx)
 	require.NoError(t, err)
 
 	assertMailbox(t, ctx, schema, reth0, "reth0")
@@ -113,13 +135,14 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	broadcaster := cosmos.NewBroadcaster(chain)
 	faucet := chain.GetFaucetWallet()
 
-	config, err := d.DeployCosmosNoopISM(ctx, broadcaster, faucet)
+	config, err := hyp.DeployCosmosNoopISM(ctx, broadcaster, faucet)
 	require.NoError(t, err)
 	require.NotNil(t, config)
 
-	cosmosEntry, ok := schema.Registry.Chains[chain.Config.Name]
-	require.True(t, ok, "missing registry entry for %s", chain.Config.Name)
-	cosmosDomain := cosmosEntry.Metadata.DomainID
+	celestiaEntry, ok := schema.Registry.Chains[HypCelestiaChainName]
+	require.True(t, ok, "missing registry entry for %s", HypCelestiaChainName)
+
+	celestiaDomain := celestiaEntry.Metadata.DomainID
 
 	networkInfo, err := chain.GetNetworkInfo(ctx)
 	require.NoError(t, err)
@@ -129,10 +152,10 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	require.NotEmpty(t, warpTokens)
 	routerHex := warpTokens[0].Id
 
-	tokenRouter, err := d.GetEVMWarpTokenAddress()
+	tokenRouter, err := hyp.GetEVMWarpTokenAddress()
 	require.NoError(t, err)
 
-	enrollRemote := func(chainName string, node *reth.Node) {
+	enrollRemote := func(chainName string, node *EvolveEVMChain) {
 		t.Helper()
 
 		networkInfo, err := node.GetNetworkInfo(ctx)
@@ -140,7 +163,7 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 
 		rpcURL := fmt.Sprintf("http://%s", networkInfo.External.RPCAddress())
 
-		txHash, err := d.EnrollRemoteRouter(ctx, tokenRouter.Hex(), cosmosDomain, routerHex, chainName, rpcURL)
+		txHash, err := hyp.EnrollRemoteRouter(ctx, tokenRouter.Hex(), celestiaDomain, routerHex, chainName, rpcURL)
 		require.NoError(t, err)
 		t.Logf("Enrolled remote router for %s: %s", chainName, txHash.Hex())
 
@@ -149,11 +172,13 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 		evmDomain := entry.Metadata.DomainID
 
 		remoteTokenRouter := evm.PadAddress(tokenRouter) // leftpad to bytes32
-		require.NoError(t, d.EnrollRemoteRouterOnCosmos(ctx, broadcaster, faucet, config.TokenID, evmDomain, remoteTokenRouter.String()))
+		require.NoError(t, hyp.EnrollRemoteRouterOnCosmos(ctx, broadcaster, faucet, config.TokenID, evmDomain, remoteTokenRouter.String()))
 	}
 
 	enrollRemote("reth0", reth0)
 	enrollRemote("reth1", reth1)
+
+	s.StartRelayerAgent(ctx, hyp)
 
 	chainGRPC := networkInfo.External.GRPCAddress()
 	cconn, err := grpc.NewClient(chainGRPC, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -161,11 +186,6 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	defer func() {
 		_ = cconn.Close()
 	}()
-
-	// queries module acc before escrow
-	warpModuleAddr := authtypes.NewModuleAddress(warptypes.ModuleName).String()
-	_, err = query.Balance(ctx, cconn, warpModuleAddr, chain.Config.Denom)
-	require.NoError(t, err)
 
 	sendAmount0 := sdkmath.NewInt(1000)
 	receiver := gethcommon.HexToAddress("0xaF9053bB6c4346381C77C2FeD279B17ABAfCDf4d")
@@ -183,21 +203,6 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	resp, err := broadcaster.BroadcastMessages(ctx, faucet, msgRemoteTransfer)
 	require.NoError(t, err)
 	require.Equal(t, resp.Code, uint32(0), "reth0 transfer tx should succeed: code=%d, log=%s", resp.Code, resp.RawLog)
-
-	agentCfg := hyperlane.Config{
-		Logger:          s.logger,
-		DockerClient:    s.client,
-		DockerNetworkID: s.network,
-		HyperlaneImage:  container.NewImage("gcr.io/abacus-labs-dev/hyperlane-agent", "agents-v1.7.0", "1000:1000"),
-	}
-
-	agent, err := hyperlane.NewAgent(ctx, agentCfg, t.Name(), hyperlane.AgentTypeRelayer, d)
-	require.NoError(t, err)
-	require.NoError(t, agent.Start(ctx))
-	t.Cleanup(func() {
-		_ = agent.Stop(ctx)
-		_ = agent.Remove(ctx)
-	})
 
 	ethClient, err := reth0.GetEthClient(ctx)
 	require.NoError(t, err)
@@ -224,24 +229,16 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	transferABI, err := parseTransferRemoteABI()
 	require.NoError(t, err)
 
-	queryForwardingAddrReq := forwardingtypes.QueryDeriveForwardingAddressRequest{
-		DestDomain:    1235,
-		DestRecipient: "0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E",
-	}
+	forwardAddr := s.QueryForwardingAddress(ctx, chain, 1235, "0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E")
+	t.Logf("forwarding recipient address: %s", forwardAddr)
 
-	forwardingClient := newForwardingQueryClient(cconn)
-	forwardingResp, err := forwardingClient.DeriveForwardingAddress(ctx, &queryForwardingAddrReq)
-	require.NoError(t, err)
-	recipientAddress := forwardingResp.Address
-	t.Logf("forwarding recipient address: %s", recipientAddress)
-
-	recipientAcc, err := sdk.AccAddressFromBech32(recipientAddress)
+	recipientAcc, err := sdk.AccAddressFromBech32(forwardAddr)
 	require.NoError(t, err)
 	recipientBytes32, err := padBytes32(recipientAcc.Bytes())
 	require.NoError(t, err)
 
 	sendBack := sdkmath.NewInt(400)
-	beforeBalance, err := query.Balance(ctx, cconn, recipientAddress, chain.Config.Denom)
+	beforeBalance, err := query.Balance(ctx, cconn, forwardAddr, chain.Config.Denom)
 	require.NoError(t, err)
 
 	beforeEvmBalance, err := evm.GetERC20Balance(ctx, ethClient, tokenRouter, receiver)
@@ -258,7 +255,7 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 		tokenRouter.Hex(),
 		transferABI,
 		"transferRemote",
-		cosmosDomain,
+		celestiaDomain,
 		recipientBytes32,
 		sendBack.BigInt(),
 	)
@@ -296,7 +293,7 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 
 	fmt.Println("waiting for balance update...")
 	require.Eventually(t, func() bool {
-		afterBalance, err := query.Balance(ctx, cconn, recipientAddress, chain.Config.Denom)
+		afterBalance, err := query.Balance(ctx, cconn, forwardAddr, chain.Config.Denom)
 		if err != nil {
 			t.Logf("celestia balance query failed: %v", err)
 			return false
@@ -304,25 +301,13 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 		return afterBalance.Equal(beforeBalance.Add(sendBack))
 	}, 5*time.Minute, 5*time.Second, "faucet balance should increase after transferRemote")
 
-	quoteResp, err := forwardingClient.QuoteForwardingFee(ctx, &forwardingtypes.QueryQuoteForwardingFeeRequest{
-		DestDomain: queryForwardingAddrReq.DestDomain,
-	})
-	require.NoError(t, err)
+	quoteFee := s.QueryForwardingFee(ctx, chain, 1235)
 
-	msgForward := forwardingtypes.NewMsgForward(
-		faucet.GetFormattedAddress(),
-		recipientAddress,
-		queryForwardingAddrReq.DestDomain,
-		queryForwardingAddrReq.DestRecipient,
-		quoteResp.Fee,
-	)
-	resp, err = broadcaster.BroadcastMessages(ctx, faucet, msgForward)
-	require.NoError(t, err)
-	require.Equal(t, resp.Code, uint32(0), "forwarding tx should succeed: code=%d, log=%s", resp.Code, resp.RawLog)
+	s.SendForwardingTx(ctx, chain, forwardAddr, 1235, "0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E", quoteFee)
 
 	reth1Client, err := reth1.GetEthClient(ctx)
 	require.NoError(t, err)
-	destRecipientAddr := gethcommon.HexToAddress(queryForwardingAddrReq.DestRecipient)
+	destRecipientAddr := gethcommon.HexToAddress("0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E")
 
 	beforeReth1Balance, err := evm.GetERC20Balance(ctx, reth1Client, tokenRouter, destRecipientAddr)
 	require.NoError(t, err)
@@ -347,7 +332,7 @@ func (s *HyperlaneTestSuite) BridgeNodeAddress(da *dataavailability.Network) str
 	return fmt.Sprintf("http://%s:%s", networkInfo.Internal.IP, networkInfo.Internal.Ports.RPC)
 }
 
-func (s *HyperlaneTestSuite) BuildEvolveEVMChain(ctx context.Context, daAddress, chainName string, chainID int) (*reth.Node, *evmsingle.Chain) {
+func (s *HyperlaneTestSuite) BuildEvolveEVMChain(ctx context.Context, daAddress, chainName string, chainID int) *EvolveEVMChain {
 	s.T().Helper()
 	t := s.T()
 
@@ -407,7 +392,65 @@ func (s *HyperlaneTestSuite) BuildEvolveEVMChain(ctx context.Context, daAddress,
 	require.Len(t, evmNodes, 1)
 	assertSeqLiveness(t, ctx, evmNodes[0])
 
-	return rethNode, seqNode
+	return &EvolveEVMChain{seqNode, rethNode}
+}
+
+func (s *HyperlaneTestSuite) QueryForwardingAddress(ctx context.Context, chain *cosmos.Chain, domain uint32, recipient string) string {
+	networkInfo, err := chain.GetNetworkInfo(ctx)
+	s.Require().NoError(err)
+
+	grpcAddress := networkInfo.External.GRPCAddress()
+	grpcConn, err := grpc.NewClient(grpcAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	s.Require().NoError(err)
+
+	defer grpcConn.Close()
+
+	req := forwardingtypes.QueryDeriveForwardingAddressRequest{
+		DestDomain:    domain,
+		DestRecipient: recipient,
+	}
+
+	client := forwardingtypes.NewQueryClient(grpcConn)
+	resp, err := client.DeriveForwardingAddress(ctx, &req)
+	s.Require().NoError(err)
+
+	return resp.Address
+}
+
+func (s *HyperlaneTestSuite) QueryForwardingFee(ctx context.Context, chain *cosmos.Chain, destDomain uint32) sdk.Coin {
+	networkInfo, err := chain.GetNetworkInfo(ctx)
+	s.Require().NoError(err)
+
+	grpcAddress := networkInfo.External.GRPCAddress()
+	grpcConn, err := grpc.NewClient(grpcAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	s.Require().NoError(err)
+
+	defer grpcConn.Close()
+
+	client := forwardingtypes.NewQueryClient(grpcConn)
+	resp, err := client.QuoteForwardingFee(ctx, &forwardingtypes.QueryQuoteForwardingFeeRequest{
+		DestDomain: destDomain,
+	})
+	s.Require().NoError(err)
+
+	return resp.Fee
+}
+
+func (s *HyperlaneTestSuite) SendForwardingTx(ctx context.Context, chain *cosmos.Chain, forwardAddr string, destDomain uint32, destRecipient string, maxIgpFee sdk.Coin) {
+	broadcaster := cosmos.NewBroadcaster(chain)
+	signer := chain.GetFaucetWallet()
+
+	msgForward := forwardingtypes.NewMsgForward(
+		signer.GetFormattedAddress(),
+		forwardAddr,
+		destDomain,
+		destRecipient,
+		maxIgpFee,
+	)
+
+	resp, err := broadcaster.BroadcastMessages(ctx, signer, msgForward)
+	s.Require().NoError(err)
+	s.Require().Equal(resp.Code, uint32(0), "tx failed: code=%d, log=%s", resp.Code, resp.RawLog)
 }
 
 // queryWarpTokens retrieves a list of wrapped hyperlane tokens from the specified gRPC address.
@@ -481,32 +524,7 @@ func hasLogFromAddress(logs []*gethtypes.Log, addr gethcommon.Address) bool {
 	return false
 }
 
-func newForwardingQueryClient(conn *grpc.ClientConn) forwardingtypes.QueryClient {
-	return forwardingtypes.NewQueryClient(conn)
-}
-
-// func ensureFaucetKeyAlias(t *testing.T, ctx context.Context, chain *cosmos.Chain) {
-// 	t.Helper()
-
-// 	node := chain.GetNode()
-// 	kr, err := node.GetKeyring()
-// 	require.NoError(t, err)
-
-// 	if _, err := kr.Key(tastoraconsts.FaucetAccountKeyName); err == nil {
-// 		return
-// 	}
-
-// 	faucet := chain.GetFaucetWallet()
-// 	require.NotNil(t, faucet, "faucet wallet not initialized")
-
-// 	armoredKey, err := kr.ExportPrivKeyArmor(faucet.GetKeyName(), "")
-// 	require.NoError(t, err, "failed to export faucet source key %s", faucet.GetKeyName())
-
-// 	err = kr.ImportPrivKey(tastoraconsts.FaucetAccountKeyName, armoredKey, "")
-// 	require.NoError(t, err, "failed to import faucet key alias")
-// }
-
-func assertMailbox(t *testing.T, ctx context.Context, schema *hyperlane.Schema, node *reth.Node, chainName string) {
+func assertMailbox(t *testing.T, ctx context.Context, schema *hyperlane.Schema, node *EvolveEVMChain, chainName string) {
 	t.Helper()
 
 	entry, ok := schema.Registry.Chains[chainName]

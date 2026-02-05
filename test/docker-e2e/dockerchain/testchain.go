@@ -60,7 +60,7 @@ func NewCelestiaChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.Chai
 	faucetWallet := tastoratypes.NewWallet(addr, addr.String(), "celestia", records[0].Name)
 
 	return tastoradockertypes.NewChainBuilder(t).
-		WithName("celestiadev"). // just influences home directory on the host.
+		WithName("celestia"). // just influences home directory on the host.
 		WithChainID(cfg.Genesis.ChainID).
 		WithBinaryName("celestia-appd").
 		WithDockerClient(cfg.DockerClient).
