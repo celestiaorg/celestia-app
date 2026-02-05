@@ -34,6 +34,9 @@ const (
 	// This limits the number of message ids in a single proof to >~1048000.
 	MaxStateMembershipValuesBytes = 33554432
 
+	// MaxMessageIdsCount is the maximum number of message IDs allowed in a StateMembershipValues.
+	MaxMessageIdsCount = 1_000_000
+
 	// DefaultProofVerifyCostGroth16 is the default gas cost metered for verifying a groth16 proof.
 	// NOTE: This is informed by benchmark comparisons with Secp256k1 signature verification.
 	// See internal/groth16/bench_test.go
