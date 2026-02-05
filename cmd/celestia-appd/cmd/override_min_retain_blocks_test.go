@@ -101,6 +101,20 @@ func TestOverrideMinRetainBlocks(t *testing.T) {
 			expectError:            true,
 			expectedErrorSubstring: "is below minimum 6000",
 		},
+		{
+			name:               "Preserve config file value exactly at minimum",
+			minRetainBlocks:    appconsts.MinRetainBlocks,
+			snapshotInterval:   1500,
+			snapshotKeepRecent: 2,
+			expectedMinRetain:  appconsts.MinRetainBlocks,
+		},
+		{
+			name:               "Use hard minimum when snapshots are disabled",
+			minRetainBlocks:    100,
+			snapshotInterval:   0,
+			snapshotKeepRecent: 0,
+			expectedMinRetain:  appconsts.MinRetainBlocks, // 0 * 0 = 0 < 3000
+		},
 	}
 
 	for _, tc := range testCases {
@@ -153,43 +167,6 @@ func TestOverrideMinRetainBlocks(t *testing.T) {
 				"min-retain-blocks should be %d but got %d", tc.expectedMinRetain, gotMinRetain)
 		})
 	}
-}
-
-// TestOverrideMinRetainBlocks_ViperNotModifiedOnDisk verifies that viper.Set()
-// changes are in-memory only and don't persist to disk
-func TestOverrideMinRetainBlocks_ViperNotModifiedOnDisk(t *testing.T) {
-	// Create a mock cobra command
-	cmd := &cobra.Command{
-		Use: "test",
-	}
-	cmd.Flags().Uint64(server.FlagMinRetainBlocks, 0, "min retain blocks")
-
-	logger := log.NewNopLogger()
-
-	// Create viper and set initial values
-	v := viper.New()
-	v.Set(server.FlagMinRetainBlocks, uint64(100)) // Below minimum
-	v.Set(server.FlagStateSyncSnapshotInterval, uint64(1500))
-	v.Set(server.FlagStateSyncSnapshotKeepRecent, uint32(2))
-
-	// Create and set server context
-	sctx := server.NewDefaultContext()
-	sctx.Viper = v
-	sctx.Logger = logger
-
-	ctx := context.WithValue(context.Background(), server.ServerContextKey, sctx)
-	cmd.SetContext(ctx)
-
-	// Run the override function
-	err := overrideMinRetainBlocks(cmd, logger)
-	require.NoError(t, err)
-
-	// Verify in-memory value was changed
-	require.Equal(t, uint64(appconsts.MinRetainBlocks), v.GetUint64(server.FlagMinRetainBlocks))
-
-	// Note: viper.Set() only changes in-memory values and doesn't write to disk.
-	// This is the expected behavior - we want runtime overrides without modifying
-	// the user's config file.
 }
 
 func uintToStr(n uint64) string {
