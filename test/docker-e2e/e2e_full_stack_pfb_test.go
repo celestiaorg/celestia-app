@@ -27,7 +27,7 @@ const (
 	// NOTE: the intention of this test is that it is just a basic sanity check for the entire stack.
 	// while the app version will vary on a per-pr and per-tag basis, the node version can remain relatively static.
 	// we can bump it as required.
-	celestiaNodeVersion    = "v0.23.3-mocha"
+	celestiaNodeVersion    = "v0.29.0-beta.1"
 	celestiaNodeRepository = "ghcr.io/celestiaorg/celestia-node"
 )
 
@@ -48,8 +48,6 @@ func (s *CelestiaTestSuite) TestE2EFullStackPFB() {
 	ctx := context.TODO()
 
 	cfg := dockerchain.DefaultConfig(s.client, s.network)
-	cfg.Genesis = cfg.Genesis.WithAppVersion(4) // TODO: currently this node version does not support v5
-
 	celestia, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).WithChainID(appconsts.TestChainID).Build(ctx)
 	s.Require().NoError(err, "failed to build celestia chain")
 
