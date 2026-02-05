@@ -2,6 +2,7 @@ package types_test
 
 import (
 	"bytes"
+	"encoding/binary"
 	"testing"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
@@ -92,14 +93,7 @@ func TestStateMembershipPublicValuesUnmarshalCountLimit(t *testing.T) {
 
 	// Set count to MaxMessageIdsCount + 1 (little-endian uint64)
 	overLimitCount := uint64(types.MaxMessageIdsCount + 1)
-	payload[64] = byte(overLimitCount)
-	payload[65] = byte(overLimitCount >> 8)
-	payload[66] = byte(overLimitCount >> 16)
-	payload[67] = byte(overLimitCount >> 24)
-	payload[68] = byte(overLimitCount >> 32)
-	payload[69] = byte(overLimitCount >> 40)
-	payload[70] = byte(overLimitCount >> 48)
-	payload[71] = byte(overLimitCount >> 56)
+	binary.LittleEndian.PutUint64(payload[64:72], overLimitCount)
 
 	var decoded types.StateMembershipValues
 	err := decoded.Unmarshal(payload)
