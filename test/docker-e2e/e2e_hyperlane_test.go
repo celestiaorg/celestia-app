@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,8 +22,11 @@ import (
 	"github.com/celestiaorg/tastora/framework/docker/hyperlane"
 	"github.com/celestiaorg/tastora/framework/testutil/evm"
 	"github.com/celestiaorg/tastora/framework/testutil/query"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	gethcommon "github.com/ethereum/go-ethereum/common"
+	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap/zaptest"
@@ -182,7 +187,7 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 		Logger:          s.logger,
 		DockerClient:    s.client,
 		DockerNetworkID: s.network,
-		HyperlaneImage:  container.NewImage("damiannolan/hyperlane-agent", "test", "1000:1000"),
+		HyperlaneImage:  container.NewImage("gcr.io/abacus-labs-dev/hyperlane-agent", "agents-v1.7.0", "1000:1000"),
 	}
 
 	agent, err := hyperlane.NewAgent(ctx, agentCfg, t.Name(), hyperlane.AgentTypeRelayer, d)
@@ -205,6 +210,82 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 		t.Logf("reth0 recipient warp token balance: %s", balance.String())
 		return balance.Cmp(sendAmount0.BigInt()) == 0
 	}, 2*time.Minute, 5*time.Second, "reth0 recipient should receive minted warp tokens")
+
+	// transfer back to Celestia from EVM warp token router
+	reth0Cfg, err := reth0.GetHyperlaneRelayerChainConfig(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, reth0Cfg.Signer)
+
+	reth0Net, err := reth0.GetNetworkInfo(ctx)
+	require.NoError(t, err)
+	evmRPC := fmt.Sprintf("http://%s", reth0Net.External.RPCAddress())
+
+	transferABI, err := parseTransferRemoteABI()
+	require.NoError(t, err)
+
+	faucetAddr, err := sdk.AccAddressFromBech32(faucet.GetFormattedAddress())
+	require.NoError(t, err)
+	recipientBytes32, err := padBytes32(faucetAddr.Bytes())
+	require.NoError(t, err)
+
+	sendBack := sdkmath.NewInt(400)
+	beforeBalance, err := query.Balance(ctx, cconn, faucet.GetFormattedAddress(), chain.Config.Denom)
+	require.NoError(t, err)
+
+	beforeEvmBalance, err := evm.GetERC20Balance(ctx, ethClient, tokenRouter, receiver)
+	require.NoError(t, err)
+	require.Truef(t, beforeEvmBalance.Cmp(sendBack.BigInt()) >= 0, "insufficient EVM balance for transferRemote: have %s want %s", beforeEvmBalance.String(), sendBack.String())
+
+	sender, err := evm.NewSender(ctx, evmRPC)
+	require.NoError(t, err)
+	defer sender.Close()
+
+	txHash, err := sender.SendFunctionTx(
+		ctx,
+		reth0Cfg.Signer.Key,
+		tokenRouter.Hex(),
+		transferABI,
+		"transferRemote",
+		cosmosDomain,
+		recipientBytes32,
+		sendBack.BigInt(),
+	)
+	require.NoError(t, err)
+	t.Logf("transferRemote tx: %s", txHash.Hex())
+
+	var receipt *gethtypes.Receipt
+	require.Eventually(t, func() bool {
+		r, err := ethClient.TransactionReceipt(ctx, txHash)
+		if err != nil {
+			return false
+		}
+		receipt = r
+		return r.Status == 1
+	}, 2*time.Minute, 5*time.Second, "transferRemote tx should succeed")
+
+	mailboxAddr := gethcommon.HexToAddress(string(reth0Entry.Addresses.Mailbox))
+	require.Truef(t, hasLogFromAddress(receipt.Logs, mailboxAddr), "transferRemote should emit mailbox dispatch log")
+	t.Log("mailbox has successfully outputted a dispatch log")
+
+	expectedEvmBalance := new(big.Int).Sub(beforeEvmBalance, sendBack.BigInt())
+	require.Eventually(t, func() bool {
+		afterEvmBalance, err := evm.GetERC20Balance(ctx, ethClient, tokenRouter, receiver)
+		if err != nil {
+			t.Logf("reth0 balance query failed after transferRemote: %v", err)
+			return false
+		}
+		return afterEvmBalance.Cmp(expectedEvmBalance) == 0
+	}, 2*time.Minute, 5*time.Second, "EVM balance should decrease after transferRemote")
+	t.Log("EVM withdrawal succeeded, waiting for relay...")
+
+	require.Eventually(t, func() bool {
+		afterBalance, err := query.Balance(ctx, cconn, faucet.GetFormattedAddress(), chain.Config.Denom)
+		if err != nil {
+			t.Logf("celestia balance query failed: %v", err)
+			return false
+		}
+		return afterBalance.Equal(beforeBalance.Add(sendBack))
+	}, 5*time.Minute, 5*time.Second, "faucet balance should increase after transferRemote")
 }
 
 func (s *HyperlaneTestSuite) BridgeNodeAddress(da *dataavailability.Network) string {
@@ -312,6 +393,42 @@ func assertSeqLiveness(t *testing.T, ctx context.Context, node *evmsingle.Node) 
 		defer func() { _ = resp.Body.Close() }()
 		return resp.StatusCode == http.StatusOK
 	}, 60*time.Second, 2*time.Second, "evm sequencer %s failed to respond healthy", node.Name())
+}
+
+func parseTransferRemoteABI() (abi.ABI, error) {
+	return abi.JSON(strings.NewReader(`[
+		{
+			"inputs": [
+				{"internalType": "uint32", "name": "_destination", "type": "uint32"},
+				{"internalType": "bytes32", "name": "_recipient", "type": "bytes32"},
+				{"internalType": "uint256", "name": "_amount", "type": "uint256"}
+			],
+			"name": "transferRemote",
+			"outputs": [
+				{"internalType": "bytes32", "name": "messageId", "type": "bytes32"}
+			],
+			"stateMutability": "payable",
+			"type": "function"
+		}
+	]`))
+}
+
+func padBytes32(b []byte) ([32]byte, error) {
+	if len(b) > 32 {
+		return [32]byte{}, fmt.Errorf("recipient too long: %d bytes", len(b))
+	}
+	var out [32]byte
+	copy(out[32-len(b):], b)
+	return out, nil
+}
+
+func hasLogFromAddress(logs []*gethtypes.Log, addr gethcommon.Address) bool {
+	for _, l := range logs {
+		if l.Address == addr {
+			return true
+		}
+	}
+	return false
 }
 
 // func ensureFaucetKeyAlias(t *testing.T, ctx context.Context, chain *cosmos.Chain) {

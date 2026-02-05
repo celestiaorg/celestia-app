@@ -2,6 +2,8 @@ module celestiaorg/celestia-app/test/docker-e2e
 
 go 1.25.6
 
+replace github.com/celestiaorg/tastora => ../../../tastora
+
 require (
 	cosmossdk.io/math v1.5.3
 	github.com/bcp-innovations/hyperlane-cosmos v1.0.1

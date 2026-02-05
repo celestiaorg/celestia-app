@@ -60,7 +60,7 @@ func NewCelestiaChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.Chai
 	faucetWallet := tastoratypes.NewWallet(addr, addr.String(), "celestia", records[0].Name)
 
 	return tastoradockertypes.NewChainBuilder(t).
-		WithName("celestia"). // just influences home directory on the host.
+		WithName("celestiadev"). // just influences home directory on the host.
 		WithChainID(cfg.Genesis.ChainID).
 		WithBinaryName("celestia-appd").
 		WithDockerClient(cfg.DockerClient).
@@ -84,6 +84,7 @@ func getPostInitModifications(gasPrices string) []func(context.Context, *tastora
 			cfg.TxIndex.Indexer = "kv"
 			cfg.P2P.AllowDuplicateIP = true
 			cfg.P2P.AddrBookStrict = false
+			cfg.Storage.DiscardABCIResponses = false
 			blockTime := time.Duration(2) * time.Second
 			cfg.Consensus.TimeoutCommit = blockTime
 			cfg.Consensus.TimeoutPropose = blockTime
