@@ -1,6 +1,6 @@
 module github.com/celestiaorg/celestia-app/v7
 
-go 1.25.5
+go 1.25.6
 
 require (
 	cloud.google.com/go/compute v1.54.0
@@ -21,8 +21,8 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.41.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.7
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.7
-	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.21.0
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.95.1
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.21.1
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.96.0
 	github.com/bcp-innovations/hyperlane-cosmos v1.0.1
 	github.com/celestiaorg/go-square/v2 v2.3.3
 	github.com/celestiaorg/go-square/v3 v3.0.2
@@ -57,7 +57,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.39.0
 	golang.org/x/oauth2 v0.34.0
 	golang.org/x/sync v0.19.0
-	google.golang.org/api v0.262.0
+	google.golang.org/api v0.264.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20251202230838-ff82c1b0f217
 	google.golang.org/grpc v1.78.0
 	google.golang.org/protobuf v1.36.11
@@ -263,7 +263,7 @@ require (
 	golang.org/x/text v0.33.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 	google.golang.org/genproto v0.0.0-20251202230838-ff82c1b0f217 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260120174246-409b4a993575 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260122232226-8e98ce8d340d // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.5.2 // indirect
 	nhooyr.io/websocket v1.8.17 // indirect

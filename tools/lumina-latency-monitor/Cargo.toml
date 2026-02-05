@@ -36,7 +36,7 @@ aes-kw = "0.2"
 hmac = "0.12"
 
 # Prometheus metrics
-prometheus = "0.13"
+prometheus = { version = "0.13", default-features = false }
 lazy_static = "1.4"
 hyper = { version = "1.5", features = ["server", "http1"] }
 hyper-util = { version = "0.1", features = ["tokio"] }

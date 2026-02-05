@@ -16,7 +16,7 @@ HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME := github.com/celestiaorg/celestia-app/v7
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
-GOLANG_CROSS_VERSION  ?= v1.25.5
+GOLANG_CROSS_VERSION  ?= v1.25.6
 # Set this to override v2 upgrade height for the v3 embedded binaries
 V2_UPGRADE_HEIGHT ?= 0
 
@@ -320,7 +320,7 @@ test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService|TestTxsOverMaxTxSizeGetRejected|TestStart_Success|TestReadBlockchainHeaders|TestPrepareProposalCappingNumberOfMessages|TestGasEstimatorE2E|TestGasEstimatorE2EWithNetworkMinGasPrice|TestRejections|TestClaimRewardsAfterFullUndelegation|TestParallelTxSubmission|TestV2SubmitMethods|TestFeeAddressIntegrationTestSuite"
+	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService|TestTxsOverMaxTxSizeGetRejected|TestStart_Success|TestReadBlockchainHeaders|TestPrepareProposalCappingNumberOfMessages|TestGasEstimatorE2E|TestGasEstimatorE2EWithNetworkMinGasPrice|TestRejections|TestClaimRewardsAfterFullUndelegation|TestParallelTxSubmission|TestV2SubmitMethods|TestSendToSelfWithLargeFee"
 .PHONY: test-race
 
 ## test-bench: Run benchmark unit tests.

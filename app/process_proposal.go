@@ -11,7 +11,6 @@ import (
 	apperr "github.com/celestiaorg/celestia-app/v7/app/errors"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/pkg/da"
-	"github.com/celestiaorg/celestia-app/v7/pkg/feeaddress"
 	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
 	blobtx "github.com/celestiaorg/go-square/v3/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -52,25 +51,6 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		app.GovParamFilters(),
 	)
 	blockHeader := ctx.BlockHeader()
-
-	// Block-level validation for protocol fee tx presence/absence.
-	// Fee amount and gas limit validation is done by ProtocolFeeTerminatorDecorator in the ante handler.
-	feeBalance := app.BankKeeper.GetBalance(ctx, feeaddress.FeeAddress, appconsts.BondDenom)
-	hasBalance := !feeBalance.IsZero()
-
-	var firstTxIsProtocolFee bool
-	if len(req.Txs) > 0 {
-		firstTxIsProtocolFee = feeaddress.IsProtocolFeeTxBytes(app.encodingConfig.TxConfig.TxDecoder(), req.Txs[0])
-	}
-
-	if hasBalance && (len(req.Txs) == 0 || !firstTxIsProtocolFee) {
-		logInvalidPropBlock(app.Logger(), blockHeader, "fee address has balance but first tx is not a protocol fee tx")
-		return reject(), nil
-	}
-	if !hasBalance && firstTxIsProtocolFee {
-		logInvalidPropBlock(app.Logger(), blockHeader, "protocol fee tx present but fee address has no balance")
-		return reject(), nil
-	}
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
 	// blobTxs have no PFBs present and all txs are less than or equal to the max tx size limit

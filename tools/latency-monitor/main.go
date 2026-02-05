@@ -24,25 +24,25 @@ import (
 )
 
 const (
-	defaultEndpoint        = "localhost:9090"
-	defaultKeyringDir      = "~/.celestia-app"
-	defaultBlobSize        = 1024                    // bytes
-	defaultMinBlobSize     = 1                       // bytes
-	defaultNamespaceStr    = "test"                  // default namespace for blobs
-	defaultSubmissionDelay = 4000 * time.Millisecond // delay between submissions
-	defaultMetricsPort     = 9464                    // default Prometheus metrics port
+	defaultEndpoint          = "localhost:9090"
+	defaultKeyringDir        = "~/.celestia-app"
+	defaultBlobSize          = 1024                    // bytes
+	defaultMinBlobSize       = 1                       // bytes
+	defaultNamespaceStr      = "test"                  // default namespace for blobs
+	defaultSubmissionDelay   = 4000 * time.Millisecond // delay between submissions
+	defaultObservabilityPort = 9464                    // default Prometheus observability port
 )
 
 var (
-	endpoint        string
-	keyringDir      string
-	accountName     string
-	blobSize        int
-	minBlobSize     int
-	namespaceStr    string
-	disableMetrics  bool
-	submissionDelay time.Duration
-	metricsPort     int
+	endpoint             string
+	keyringDir           string
+	accountName          string
+	blobSize             int
+	minBlobSize          int
+	namespaceStr         string
+	disableObservability bool
+	submissionDelay      time.Duration
+	observabilityPort    int
 )
 
 type txResult struct {
@@ -85,7 +85,7 @@ between submission and commitment, providing detailed latency statistics.`,
 				cancel()
 			}()
 
-			return monitorLatency(ctx, endpoint, keyringDir, accountName, blobSize, minBlobSize, namespaceStr, disableMetrics, submissionDelay, metricsPort)
+			return monitorLatency(ctx, endpoint, keyringDir, accountName, blobSize, minBlobSize, namespaceStr, disableObservability, submissionDelay, observabilityPort)
 		},
 	}
 
@@ -95,9 +95,9 @@ between submission and commitment, providing detailed latency statistics.`,
 	cmd.Flags().IntVarP(&blobSize, "blob-size", "b", defaultBlobSize, "Maximum size of blob data in bytes (actual size will be random between this value and the minimum)")
 	cmd.Flags().IntVarP(&minBlobSize, "blob-size-min", "z", defaultMinBlobSize, "Minimum size of blob data in bytes (actual size will be random between this value and the maximum)")
 	cmd.Flags().StringVarP(&namespaceStr, "namespace", "n", defaultNamespaceStr, "Namespace for blob submission")
-	cmd.Flags().BoolVarP(&disableMetrics, "disable-metrics", "m", false, "Disable metrics collection")
+	cmd.Flags().BoolVarP(&disableObservability, "disable-observability", "m", false, "Disable observability collection")
 	cmd.Flags().DurationVarP(&submissionDelay, "submission-delay", "d", defaultSubmissionDelay, "Delay between transaction submissions")
-	cmd.Flags().IntVar(&metricsPort, "metrics-port", defaultMetricsPort, "Port for Prometheus metrics HTTP server")
+	cmd.Flags().IntVar(&observabilityPort, "observability-port", defaultObservabilityPort, "Port for Prometheus observability HTTP server")
 
 	return cmd
 }
@@ -110,9 +110,9 @@ func monitorLatency(
 	blobSize int,
 	blobMinSize int,
 	namespaceStr string,
-	disableMetrics bool,
+	disableObservability bool,
 	submissionDelay time.Duration,
-	metricsPort int,
+	observabilityPort int,
 ) error {
 	if blobMinSize < 1 {
 		return fmt.Errorf("minimum blob size must be at least 1 byte (got %d)", blobMinSize)
@@ -125,8 +125,8 @@ func monitorLatency(
 		blobMinSize, blobSize, submissionDelay, namespaceStr)
 
 	// Start Prometheus metrics server if metrics are enabled
-	if !disableMetrics {
-		startMetricsServer(metricsPort)
+	if !disableObservability {
+		startObservabilityServer(observabilityPort)
 	}
 
 	fmt.Printf("Press Ctrl+C to stop\n\n")
@@ -192,7 +192,7 @@ func monitorLatency(
 	for {
 		select {
 		case <-ctx.Done():
-			if disableMetrics {
+			if disableObservability {
 				return nil
 			}
 			return writeResults(results)
@@ -233,7 +233,7 @@ func monitorLatency(
 				resp.TxHash[:16], randomSize, submitTime.Format("15:04:05.000"))
 			recordSubmit()
 
-			if disableMetrics {
+			if disableObservability {
 				continue
 			}
 

@@ -7,7 +7,6 @@ import (
 
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v7/app"
-	"github.com/celestiaorg/celestia-app/v7/pkg/feeaddress"
 	"github.com/celestiaorg/celestia-app/v7/test/util"
 	"github.com/celestiaorg/celestia-app/v7/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
@@ -104,27 +103,48 @@ func TestInitChain(t *testing.T) {
 }
 
 func TestModuleAccountAddrs(t *testing.T) {
-	testApp := getTestApp()
-	got := testApp.ModuleAccountAddrs()
+	t.Run("should contain all the module account addresses", func(t *testing.T) {
+		testApp := getTestApp()
+		got := testApp.ModuleAccountAddrs()
 
-	moduleNames := []string{
-		"fee_collector",
-		"distribution",
-		"gov",
-		"mint",
-		"bonded_tokens_pool",
-		"not_bonded_tokens_pool",
-		"transfer",
-		"interchainaccounts",
-		"hyperlane",
-		"warp",
-		"feeaddress",
-	}
-	for _, moduleName := range moduleNames {
-		address := authtypes.NewModuleAddress(moduleName).String()
-		assert.Contains(t, got, address)
-	}
-	assert.Equal(t, len(moduleNames), len(got))
+		want := map[string]bool{
+			"celestia10d07y265gmmuvt4z0w9aw880jnsr700jtgz4v7": true,
+			"celestia13d6j8m8tmeaz0t92a04azv5efmr8gxygtngtm9": true,
+			"celestia17xpfvakm2amg962yls6f84z3kell8c5lpnjs3s": true,
+			"celestia1fl48vsnmsdzcv85q5d2q4z5ajdha8yu3y3clr6": true,
+			"celestia1jv65s3grqf6v6jl3dp4t6c9t9rk99cd8k44vnj": true,
+			"celestia1m20fddqpmfuwcz2r9ckj6wd70p5e75t8y22wqj": true,
+			"celestia1m3h30wlvsf8llruxtpukdvsy0km2kum8emkgad": true,
+			"celestia1mqcszwafr476x3rud8qyufdegn7gvxh99rc2gk": true,
+			"celestia1tygms3xhhs3yv487phx3dw4a95jn7t7ls3yw4w": true,
+			"celestia1vlthgax23ca9syk7xgaz347xmf4nunefkz88ka": true,
+			"celestia1yl6hdjhmkf37639730gffanpzndzdpmhl48edw": true,
+		}
+		assert.Equal(t, want, got)
+	})
+	t.Run("should be able to rederive the module account addresses from the module names", func(t *testing.T) {
+		testApp := getTestApp()
+		got := testApp.ModuleAccountAddrs()
+
+		moduleNames := []string{
+			"fee_collector",
+			"distribution",
+			"gov",
+			"mint",
+			"bonded_tokens_pool",
+			"not_bonded_tokens_pool",
+			"transfer",
+			"interchainaccounts",
+			"hyperlane",
+			"warp",
+			"forwarding",
+		}
+		for _, moduleName := range moduleNames {
+			address := authtypes.NewModuleAddress(moduleName).String()
+			assert.Contains(t, got, address)
+		}
+		assert.Equal(t, len(moduleNames), len(got))
+	})
 }
 
 func TestBlockedAddresses(t *testing.T) {
@@ -134,10 +154,6 @@ func TestBlockedAddresses(t *testing.T) {
 	t.Run("blocked addresses should not contain the gov module address", func(t *testing.T) {
 		govAddress := authtypes.NewModuleAddress(govtypes.ModuleName).String()
 		assert.NotContains(t, got, govAddress)
-	})
-	t.Run("blocked addresses should not contain the feeaddress module account", func(t *testing.T) {
-		feeAddress := authtypes.NewModuleAddress(feeaddress.ModuleName).String()
-		assert.NotContains(t, got, feeAddress)
 	})
 	t.Run("blocked addresses should contain all the other module addresses", func(t *testing.T) {
 		moduleNames := []string{
@@ -150,6 +166,7 @@ func TestBlockedAddresses(t *testing.T) {
 			"interchainaccounts",
 			"hyperlane",
 			"warp",
+			"forwarding",
 		}
 		for _, moduleName := range moduleNames {
 			address := authtypes.NewModuleAddress(moduleName).String()

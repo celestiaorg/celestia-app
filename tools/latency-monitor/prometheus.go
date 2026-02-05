@@ -94,8 +94,8 @@ func recordConfirmFailure() {
 	txInFlight.Dec()
 }
 
-// startMetricsServer starts the Prometheus metrics HTTP server on the given port.
-func startMetricsServer(port int) {
+// startObservabilityServer starts the Prometheus observability HTTP server on the given port.
+func startObservabilityServer(port int) {
 	addr := fmt.Sprintf(":%d", port)
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
@@ -109,7 +109,7 @@ func startMetricsServer(port int) {
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			fmt.Printf("Metrics server error: %v\n", err)
+			fmt.Printf("Observability server error: %v\n", err)
 		}
 	}()
 }
