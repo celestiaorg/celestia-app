@@ -223,13 +223,19 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	transferABI, err := parseTransferRemoteABI()
 	require.NoError(t, err)
 
-	faucetAddr, err := sdk.AccAddressFromBech32(faucet.GetFormattedAddress())
+	recipientWalletName := fmt.Sprintf("warp-recipient-%d", time.Now().UnixNano())
+	recipientWallet, err := chain.CreateWallet(ctx, recipientWalletName)
+	require.NoError(t, err, "failed to create warp recipient wallet")
+	recipientAddress := recipientWallet.GetFormattedAddress()
+	t.Logf("warp recipient address: %s", recipientAddress)
+
+	recipientAcc, err := sdk.AccAddressFromBech32(recipientAddress)
 	require.NoError(t, err)
-	recipientBytes32, err := padBytes32(faucetAddr.Bytes())
+	recipientBytes32, err := padBytes32(recipientAcc.Bytes())
 	require.NoError(t, err)
 
 	sendBack := sdkmath.NewInt(400)
-	beforeBalance, err := query.Balance(ctx, cconn, faucet.GetFormattedAddress(), chain.Config.Denom)
+	beforeBalance, err := query.Balance(ctx, cconn, recipientAddress, chain.Config.Denom)
 	require.NoError(t, err)
 
 	beforeEvmBalance, err := evm.GetERC20Balance(ctx, ethClient, tokenRouter, receiver)
@@ -265,6 +271,10 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 
 	mailboxAddr := gethcommon.HexToAddress(string(reth0Entry.Addresses.Mailbox))
 	require.Truef(t, hasLogFromAddress(receipt.Logs, mailboxAddr), "transferRemote should emit mailbox dispatch log")
+	for i, l := range receipt.Logs {
+		t.Logf("\nlog[%d] addr=%s topics=%v data=0x%x", i, l.Address.Hex(), l.Topics, l.Data)
+	}
+
 	t.Log("mailbox has successfully outputted a dispatch log")
 
 	expectedEvmBalance := new(big.Int).Sub(beforeEvmBalance, sendBack.BigInt())
@@ -278,8 +288,9 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	}, 2*time.Minute, 5*time.Second, "EVM balance should decrease after transferRemote")
 	t.Log("EVM withdrawal succeeded, waiting for relay...")
 
+	fmt.Println("waiting for balance update...")
 	require.Eventually(t, func() bool {
-		afterBalance, err := query.Balance(ctx, cconn, faucet.GetFormattedAddress(), chain.Config.Denom)
+		afterBalance, err := query.Balance(ctx, cconn, recipientAddress, chain.Config.Denom)
 		if err != nil {
 			t.Logf("celestia balance query failed: %v", err)
 			return false
