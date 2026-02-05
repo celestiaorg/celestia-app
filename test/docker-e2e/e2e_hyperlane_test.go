@@ -13,6 +13,7 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
+	forwardingtypes "github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/docker/container"
 	"github.com/celestiaorg/tastora/framework/docker/cosmos"
@@ -223,11 +224,16 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	transferABI, err := parseTransferRemoteABI()
 	require.NoError(t, err)
 
-	recipientWalletName := fmt.Sprintf("warp-recipient-%d", time.Now().UnixNano())
-	recipientWallet, err := chain.CreateWallet(ctx, recipientWalletName)
-	require.NoError(t, err, "failed to create warp recipient wallet")
-	recipientAddress := recipientWallet.GetFormattedAddress()
-	t.Logf("warp recipient address: %s", recipientAddress)
+	queryForwardingAddrReq := forwardingtypes.QueryDeriveForwardingAddressRequest{
+		DestDomain:    1235,
+		DestRecipient: "0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E",
+	}
+
+	forwardingClient := newForwardingQueryClient(cconn)
+	forwardingResp, err := forwardingClient.DeriveForwardingAddress(ctx, &queryForwardingAddrReq)
+	require.NoError(t, err)
+	recipientAddress := forwardingResp.Address
+	t.Logf("forwarding recipient address: %s", recipientAddress)
 
 	recipientAcc, err := sdk.AccAddressFromBech32(recipientAddress)
 	require.NoError(t, err)
@@ -297,6 +303,39 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 		}
 		return afterBalance.Equal(beforeBalance.Add(sendBack))
 	}, 5*time.Minute, 5*time.Second, "faucet balance should increase after transferRemote")
+
+	quoteResp, err := forwardingClient.QuoteForwardingFee(ctx, &forwardingtypes.QueryQuoteForwardingFeeRequest{
+		DestDomain: queryForwardingAddrReq.DestDomain,
+	})
+	require.NoError(t, err)
+
+	msgForward := forwardingtypes.NewMsgForward(
+		faucet.GetFormattedAddress(),
+		recipientAddress,
+		queryForwardingAddrReq.DestDomain,
+		queryForwardingAddrReq.DestRecipient,
+		quoteResp.Fee,
+	)
+	resp, err = broadcaster.BroadcastMessages(ctx, faucet, msgForward)
+	require.NoError(t, err)
+	require.Equal(t, resp.Code, uint32(0), "forwarding tx should succeed: code=%d, log=%s", resp.Code, resp.RawLog)
+
+	reth1Client, err := reth1.GetEthClient(ctx)
+	require.NoError(t, err)
+	destRecipientAddr := gethcommon.HexToAddress(queryForwardingAddrReq.DestRecipient)
+
+	beforeReth1Balance, err := evm.GetERC20Balance(ctx, reth1Client, tokenRouter, destRecipientAddr)
+	require.NoError(t, err)
+
+	expectedReth1Balance := new(big.Int).Add(beforeReth1Balance, sendBack.BigInt())
+	require.Eventually(t, func() bool {
+		afterReth1Balance, err := evm.GetERC20Balance(ctx, reth1Client, tokenRouter, destRecipientAddr)
+		if err != nil {
+			t.Logf("reth1 balance query failed: %v", err)
+			return false
+		}
+		return afterReth1Balance.Cmp(expectedReth1Balance) == 0
+	}, 5*time.Minute, 5*time.Second, "reth1 recipient should receive forwarded warp tokens")
 }
 
 func (s *HyperlaneTestSuite) BridgeNodeAddress(da *dataavailability.Network) string {
@@ -440,6 +479,10 @@ func hasLogFromAddress(logs []*gethtypes.Log, addr gethcommon.Address) bool {
 		}
 	}
 	return false
+}
+
+func newForwardingQueryClient(conn *grpc.ClientConn) forwardingtypes.QueryClient {
+	return forwardingtypes.NewQueryClient(conn)
 }
 
 // func ensureFaucetKeyAlias(t *testing.T, ctx context.Context, chain *cosmos.Chain) {
