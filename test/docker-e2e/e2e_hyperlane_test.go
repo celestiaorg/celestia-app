@@ -90,8 +90,7 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	err = chain.Start(ctx)
 	s.Require().NoError(err)
 
-	// TODO: Deploy a single bridge node here (bridge, full, light is not required)
-	da := s.DeployDANetwork(ctx, chain, s.client, s.network)
+	da := s.WithBridgeNodeNetwork(ctx, chain)
 
 	reth0 := s.BuildEvolveEVMChain(ctx, s.BridgeNodeAddress(da), RethChainName0, RethChainID0)
 	reth1 := s.BuildEvolveEVMChain(ctx, s.BridgeNodeAddress(da), RethChainName1, RethChainID1)
@@ -408,7 +407,7 @@ func (s *HyperlaneTestSuite) SendForwardingTx(ctx context.Context, chain *cosmos
 
 	resp, err := broadcaster.BroadcastMessages(ctx, signer, msgForward)
 	s.Require().NoError(err)
-	s.Require().Equal(resp.Code, uint32(0), "tx failed: code=%d, log=%s", resp.Code, resp.RawLog)
+	s.Require().Equalf(uint32(0), resp.Code, "tx failed: code=%d, log=%s", resp.Code, resp.RawLog)
 }
 
 func (s *HyperlaneTestSuite) SendTransferRemoteTx(ctx context.Context, chain *cosmos.Chain, tokenID hyputil.HexAddress, domain uint32, recipient ethcommon.Address, amount sdkmath.Int) {
@@ -427,7 +426,7 @@ func (s *HyperlaneTestSuite) SendTransferRemoteTx(ctx context.Context, chain *co
 
 	resp, err := broadcaster.BroadcastMessages(ctx, signer, msgRemoteTransfer)
 	s.Require().NoError(err)
-	s.Require().Equal(resp.Code, uint32(0), "tx failed: code=%d, log=%s", resp.Code, resp.RawLog)
+	s.Require().Equalf(uint32(0), resp.Code, "tx failed: code=%d, log=%s", resp.Code, resp.RawLog)
 }
 
 func (s *HyperlaneTestSuite) SendTransferRemoteTxEvm(ctx context.Context, chain *EvolveEVMChain, tokenRouter ethcommon.Address, domain uint32, recipient [32]byte, amount sdkmath.Int) {
