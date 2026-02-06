@@ -166,6 +166,7 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	s.AssertERC20Balance(ctx, reth1, tokenRouter, destRecipientAddress, expectedBalance)
 }
 
+<<<<<<< HEAD
 func (s *HyperlaneTestSuite) TestHyperlaneZKIsmStateTransition() {
 	t := s.T()
 	if testing.Short() {
@@ -567,6 +568,7 @@ func (s *HyperlaneTestSuite) SendTransferRemoteTxEvm(ctx context.Context, chain 
 	s.Require().NotEmpty(txHash, "tx hash should be non-empty")
 }
 
+<<<<<<< HEAD
 func (s *HyperlaneTestSuite) CreateZKIsmWithTrustedState(ctx context.Context, chain *cosmos.Chain, trustedState []byte) hyputil.HexAddress {
 	s.T().Helper()
 
