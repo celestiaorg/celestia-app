@@ -431,8 +431,11 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 	if err != nil {
 		return nil, err
 	}
-	gasLimit := blobtypes.DefaultEstimateGas(msg)
-	fee := uint64(math.Ceil(appconsts.DefaultMinGasPrice * float64(gasLimit)))
+	gasPrice, gasLimit, err := client.EstimateGasPriceAndUsage(ctx, []sdktypes.Msg{msg}, gasestimation.TxPriority_TX_PRIORITY_MEDIUM, opts...)
+	if err != nil {
+		return nil, err
+	}
+	fee := uint64(math.Ceil(gasPrice * float64(gasLimit)))
 	// prepend calculated params, so it can be overwritten in case the user has specified it.
 	opts = append([]TxOption{SetGasLimit(gasLimit), SetFee(fee)}, opts...)
 
@@ -877,8 +880,9 @@ func (client *TxClient) EstimateGasPriceAndUsage(
 	priority gasestimation.TxPriority,
 	opts ...TxOption,
 ) (gasPrice float64, gasUsed uint64, err error) {
-	client.mtx.Lock()
-	defer client.mtx.Unlock()
+	// Note: This function does NOT acquire client.mtx because it's always called
+	// from methods (like BroadcastPayForBlobWithAccount) that already hold the lock.
+	// Acquiring the lock here would cause a deadlock.
 
 	txBuilder, err := client.signer.txBuilder(msgs, opts...)
 	if err != nil {
@@ -899,13 +903,76 @@ func (client *TxClient) EstimateGasPriceAndUsage(
 
 	span := trace.SpanFromContext(ctx)
 
-	resp, err := client.gasEstimationClient.EstimateGasPriceAndUsage(ctx, &gasestimation.EstimateGasPriceAndUsageRequest{
-		TxPriority: priority,
-		TxBytes:    txBytes,
-	})
-	if err != nil {
-		span.RecordError(fmt.Errorf("txclient/EstimateGasPriceAndUsage: estimation error: %w", err))
-		return 0, 0, fmt.Errorf("failed to estimate gas price and usage: %w", err)
+	const maxSequenceRetries = 5
+	var resp *gasestimation.EstimateGasPriceAndUsageResponse
+
+	// Retry loop for sequence mismatch errors
+	for attempt := 0; attempt < maxSequenceRetries; attempt++ {
+		var err error
+		resp, err = client.gasEstimationClient.EstimateGasPriceAndUsage(ctx, &gasestimation.EstimateGasPriceAndUsageRequest{
+			TxPriority: priority,
+			TxBytes:    txBytes,
+		})
+		if err == nil {
+			// Success
+			break
+		}
+
+		// If not a sequence mismatch error, return immediately
+		if !strings.Contains(err.Error(), sdkerrors.ErrWrongSequence.Error()) {
+			span.RecordError(fmt.Errorf("txclient/EstimateGasPriceAndUsage: estimation error: %w", err))
+			return 0, 0, fmt.Errorf("failed to estimate gas price and usage: %w", err)
+		}
+
+		// Handle sequence mismatch by updating sequence and retrying
+		parsedErr := extractSequenceError(err.Error())
+		expectedSequence, err := apperrors.ParseExpectedSequence(parsedErr)
+		if err != nil {
+			return 0, 0, fmt.Errorf("parsing sequence mismatch: %w. RawLog: %s", err, err)
+		}
+
+		signers, err := txBuilder.GetTx().GetSigners()
+		if err != nil {
+			return 0, 0, fmt.Errorf("getting signers: %w", err)
+		}
+
+		signerName := client.signer.accountNameByAddress(signers[0])
+		fmt.Printf("DEBUG: Looking up account for address bytes: %x\n", signers[0])
+		fmt.Printf("DEBUG: Found signerName: %q\n", signerName)
+		fmt.Printf("DEBUG: Default account name: %s\n", client.DefaultAccountName())
+
+		if signerName == "" {
+			// Dump all known address mappings for debugging
+			fmt.Printf("DEBUG: Address-to-account map entries:\n")
+			for addr, name := range client.signer.addressToAccountMap {
+				fmt.Printf("  %s -> %s\n", addr, name)
+			}
+			return 0, 0, fmt.Errorf("could not resolve account name for signer address %x", signers[0])
+		}
+
+		if err = client.signer.SetSequence(signerName, expectedSequence); err != nil {
+			return 0, 0, fmt.Errorf("setting sequence: %w", err)
+		}
+		fmt.Printf("Sequence set to: %d (attempt %d/%d)\n", expectedSequence, attempt+1, maxSequenceRetries)
+
+		// Re-sign the transaction with the corrected sequence
+		_, _, err = client.signer.signTransaction(txBuilder)
+		if err != nil {
+			return 0, 0, fmt.Errorf("re-signing with corrected sequence: %w", err)
+		}
+
+		// Re-encode to get new txBytes with new signature
+		txBytes, err = client.signer.EncodeTx(txBuilder.GetTx())
+		if err != nil {
+			return 0, 0, fmt.Errorf("re-encoding tx: %w", err)
+		}
+
+		// Continue to next iteration to retry
+	}
+
+	// Check if we exhausted retries
+	if resp == nil {
+		return 0, 0, fmt.Errorf("failed to estimate gas after %d sequence correction attempts", maxSequenceRetries)
 	}
 
 	gasUsed = resp.EstimatedGasUsed
