@@ -141,6 +141,10 @@ jobs:
             entrypoint: TestPFMTestSuite
           - testcase: TestHyperlaneForwarding
             entrypoint: TestHyperlaneTestSuite
+          - testcase: TestHyperlaneZKIsmStateTransition
+            entrypoint: TestHyperlaneTestSuite
+          - testcase: TestHyperlaneZKIsmStateMembership
+            entrypoint: TestHyperlaneTestSuite
 
     steps:
       - name: Checkout code

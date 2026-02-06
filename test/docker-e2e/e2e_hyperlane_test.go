@@ -3,10 +3,12 @@ package docker_e2e
 import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 	hyputil "github.com/bcp-innovations/hyperlane-cosmos/util"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	forwardingtypes "github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
+	zkismtypes "github.com/celestiaorg/celestia-app/v7/x/zkism/types"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/docker/container"
 	"github.com/celestiaorg/tastora/framework/docker/cosmos"
@@ -24,6 +27,7 @@ import (
 	"github.com/celestiaorg/tastora/framework/testutil/evm"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/cosmos/gogoproto/proto"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
@@ -160,6 +164,108 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 
 	expectedBalance := new(big.Int).Add(balanceBefore, amount.BigInt())
 	s.AssertERC20Balance(ctx, reth1, tokenRouter, destRecipientAddress, expectedBalance)
+}
+
+func (s *HyperlaneTestSuite) TestHyperlaneZKIsmStateTransition() {
+	t := s.T()
+	if testing.Short() {
+		t.Skip("skipping hyperlane zkism state transition test in short mode")
+	}
+
+	ctx := context.Background()
+	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), s.celestiaCfg).Build(ctx)
+	s.Require().NoError(err)
+
+	s.T().Cleanup(func() {
+		if err := chain.Remove(ctx); err != nil {
+			s.T().Logf("Error removing chain: %v", err)
+		}
+	})
+
+	err = chain.Start(ctx)
+	s.Require().NoError(err)
+
+	trustedState := readTrustedState(t, "state_transition/trusted_state")
+
+	ismID := s.CreateZKIsmWithTrustedState(ctx, chain, trustedState)
+	s.Require().False(ismID.IsZeroAddress())
+
+	broadcaster := cosmos.NewBroadcaster(chain)
+	signer := chain.GetFaucetWallet()
+
+	proofBz, pubValues := readStateTransitionProofData(s.T())
+	txMsg := zkismtypes.MsgUpdateInterchainSecurityModule{
+		Id:           ismID,
+		Proof:        proofBz,
+		PublicValues: pubValues,
+		Signer:       signer.GetFormattedAddress(),
+	}
+
+	var stateTransitionVlaues zkismtypes.StateTransitionValues
+	err = stateTransitionVlaues.Unmarshal(pubValues)
+	s.Require().NoError(err)
+
+	expStateHex := "0x" + hex.EncodeToString(stateTransitionVlaues.NewState)
+
+	txResp, err := broadcaster.BroadcastMessages(ctx, signer, &txMsg)
+	s.Require().NoError(err)
+	s.Require().Equalf(uint32(0), txResp.Code, "tx failed: code=%d, log=%s", txResp.Code, txResp.RawLog)
+
+	ismEvent := s.ParseUpdateISMEvent(txResp)
+	s.Require().NotNil(ismEvent)
+	s.Require().Equal(expStateHex, ismEvent.State)
+}
+
+func (s *HyperlaneTestSuite) TestHyperlaneZKIsmStateMembership() {
+	t := s.T()
+	if testing.Short() {
+		t.Skip("skipping hyperlane zkism state membership test in short mode")
+	}
+
+	ctx := context.Background()
+	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), s.celestiaCfg).Build(ctx)
+	s.Require().NoError(err)
+
+	s.T().Cleanup(func() {
+		if err := chain.Remove(ctx); err != nil {
+			s.T().Logf("Error removing chain: %v", err)
+		}
+	})
+
+	err = chain.Start(ctx)
+	s.Require().NoError(err)
+
+	trustedState := readTrustedState(t, "state_membership/trusted_state")
+
+	ismID := s.CreateZKIsmWithTrustedState(ctx, chain, trustedState)
+	s.Require().False(ismID.IsZeroAddress())
+
+	broadcaster := cosmos.NewBroadcaster(chain)
+	signer := chain.GetFaucetWallet()
+
+	proofBz, pubValues := readStateMembershipProofData(s.T())
+	txMsg := zkismtypes.MsgSubmitMessages{
+		Id:           ismID,
+		Proof:        proofBz,
+		PublicValues: pubValues,
+		Signer:       signer.GetFormattedAddress(),
+	}
+
+	var stateMembershipValues zkismtypes.StateMembershipValues
+	err = stateMembershipValues.Unmarshal(pubValues)
+	s.Require().NoError(err)
+
+	expMsgs := make([]string, 0, len(stateMembershipValues.MessageIds))
+	for _, msg := range stateMembershipValues.MessageIds {
+		expMsgs = append(expMsgs, "0x"+hex.EncodeToString(msg[:]))
+	}
+
+	txResp, err := broadcaster.BroadcastMessages(ctx, signer, &txMsg)
+	s.Require().NoError(err)
+	s.Require().Equalf(uint32(0), txResp.Code, "tx failed: code=%d, log=%s", txResp.Code, txResp.RawLog)
+
+	msgs := s.QueryZKIsmMessages(ctx, chain, ismID.String())
+	s.Require().Equal(expMsgs, msgs)
 }
 
 func (s *HyperlaneTestSuite) StartRelayerAgent(ctx context.Context, deployer *hyperlane.Deployer) {
@@ -461,6 +567,102 @@ func (s *HyperlaneTestSuite) SendTransferRemoteTxEvm(ctx context.Context, chain 
 	s.Require().NotEmpty(txHash, "tx hash should be non-empty")
 }
 
+func (s *HyperlaneTestSuite) CreateZKIsmWithTrustedState(ctx context.Context, chain *cosmos.Chain, trustedState []byte) hyputil.HexAddress {
+	s.T().Helper()
+
+	var (
+		stateVkeyHash     = "0x0017bc91d53b93c46eb842d7f9020a94ea13d8877a21608b34b71fcc4da64f29"
+		messageVkeyHash   = "0x004959d5fb2c3d5bc1f98e032188dd94fbb5c6b6152df356c7c20be23be824a2"
+		merkleTreeAddress = "fcb1d485ef46344029d9e8a7925925e146b3430e000000000000000000000000"
+	)
+
+	groth16Vkey := readGroth16Vkey(s.T())
+
+	stateVkeyHex := strings.TrimPrefix(stateVkeyHash, "0x")
+	stateVkey, err := hex.DecodeString(stateVkeyHex)
+	s.Require().NoError(err)
+
+	messageVkeyHex := strings.TrimPrefix(messageVkeyHash, "0x")
+	messageVkey, err := hex.DecodeString(messageVkeyHex)
+	s.Require().NoError(err)
+
+	merkleTreeAddr, err := hex.DecodeString(merkleTreeAddress)
+	s.Require().NoError(err)
+
+	signer := chain.GetFaucetWallet()
+	txMsg := zkismtypes.MsgCreateInterchainSecurityModule{
+		Creator:             signer.FormattedAddress,
+		State:               trustedState,
+		StateTransitionVkey: stateVkey,
+		StateMembershipVkey: messageVkey,
+		MerkleTreeAddress:   merkleTreeAddr,
+		Groth16Vkey:         groth16Vkey,
+	}
+
+	broadcaster := cosmos.NewBroadcaster(chain)
+	txResp, err := broadcaster.BroadcastMessages(ctx, signer, &txMsg)
+	s.Require().NoError(err)
+	s.Require().Equalf(uint32(0), txResp.Code, "tx failed: code=%d, log=%s", txResp.Code, txResp.RawLog)
+
+	for _, evt := range txResp.Events {
+		if evt.GetType() == proto.MessageName(&zkismtypes.EventCreateInterchainSecurityModule{}) {
+			event, err := sdk.ParseTypedEvent(evt)
+			s.Require().NoError(err)
+
+			ismEvent, ok := event.(*zkismtypes.EventCreateInterchainSecurityModule)
+			s.Require().True(ok)
+
+			return ismEvent.Id
+		}
+	}
+
+	return hyputil.NewZeroAddress()
+}
+
+func (s *HyperlaneTestSuite) QueryZKIsmMessages(ctx context.Context, chain *cosmos.Chain, ismID string) []string {
+	s.T().Helper()
+
+	networkInfo, err := chain.GetNetworkInfo(ctx)
+	s.Require().NoError(err)
+
+	grpcAddress := networkInfo.External.GRPCAddress()
+	grpcConn, err := grpc.NewClient(grpcAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	s.Require().NoError(err)
+
+	defer grpcConn.Close()
+
+	req := &zkismtypes.QueryMessagesRequest{
+		Id: ismID,
+	}
+
+	client := zkismtypes.NewQueryClient(grpcConn)
+	resp, err := client.Messages(ctx, req)
+	s.Require().NoError(err)
+
+	return resp.Messages
+}
+
+func (s *HyperlaneTestSuite) ParseUpdateISMEvent(txResp sdk.TxResponse) *zkismtypes.EventUpdateInterchainSecurityModule {
+	s.T().Helper()
+
+	eventType := proto.MessageName(&zkismtypes.EventUpdateInterchainSecurityModule{})
+	for _, evt := range txResp.Events {
+		if evt.GetType() != eventType {
+			continue
+		}
+
+		event, err := sdk.ParseTypedEvent(evt)
+		s.Require().NoError(err)
+
+		ismEvent, ok := event.(*zkismtypes.EventUpdateInterchainSecurityModule)
+		s.Require().True(ok)
+
+		return ismEvent
+	}
+
+	return nil
+}
+
 func waitForReady(t *testing.T, ctx context.Context, node *evmsingle.Node) {
 	t.Helper()
 	networkInfo, err := node.GetNetworkInfo(ctx)
@@ -500,4 +702,50 @@ func bech32ToBytes(address string) ([32]byte, error) {
 	copy(bytes32[32-len(bz):], bz)
 
 	return bytes32, nil
+}
+
+func readGroth16Vkey(t *testing.T) []byte {
+	t.Helper()
+
+	groth16Vkey, err := os.ReadFile("internal/testdata/zkism/groth16_vk.bin")
+	require.NoError(t, err, "failed to read verifier key file")
+
+	return groth16Vkey
+}
+
+func readStateTransitionProofData(t *testing.T) ([]byte, []byte) {
+	t.Helper()
+
+	proofBz, err := os.ReadFile("internal/testdata/zkism/state_transition/proof.bin")
+	require.NoError(t, err, "failed to read proof file")
+
+	inputsBz, err := os.ReadFile("internal/testdata/zkism/state_transition/public_values.bin")
+	require.NoError(t, err, "failed to read proof file")
+
+	return proofBz, inputsBz
+}
+
+func readTrustedState(t *testing.T, pathSuffix string) []byte {
+	t.Helper()
+
+	path := fmt.Sprintf("internal/testdata/zkism/%s", pathSuffix)
+	trustedStateHex, err := os.ReadFile(path)
+	require.NoError(t, err, "failed to read trusted state file")
+
+	trustedState, err := hex.DecodeString(strings.TrimSpace(string(trustedStateHex)))
+	require.NoError(t, err, "failed to decode trusted state hex")
+
+	return trustedState
+}
+
+func readStateMembershipProofData(t *testing.T) ([]byte, []byte) {
+	t.Helper()
+
+	proofBz, err := os.ReadFile("internal/testdata/zkism/state_membership/proof.bin")
+	require.NoError(t, err, "failed to read proof file")
+
+	inputsBz, err := os.ReadFile("internal/testdata/zkism/state_membership/public_values.bin")
+	require.NoError(t, err, "failed to read proof file")
+
+	return proofBz, inputsBz
 }
