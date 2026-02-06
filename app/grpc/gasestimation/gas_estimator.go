@@ -124,6 +124,7 @@ func (s *gasEstimatorServer) estimateGasPrice(ctx context.Context, priority TxPr
 	if err != nil {
 		return 0, err
 	}
+
 	govMaxSquareBytes, err := s.govMaxSquareBytesFn()
 	if err != nil {
 		return 0, err

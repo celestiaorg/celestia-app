@@ -31,20 +31,28 @@ Prometheus discovers targets via a local `targets.json` file mounted into the co
 ### 1. Initialize with observability enabled
 
 ```bash
+# DigitalOcean (default)
 talis init --chainID my-chain --experiment test --with-observability
+
+# Google Cloud
+talis init --chainID my-chain --experiment test --with-observability --provider googlecloud
 ```
 
 This:
 
-- Adds a metrics node to the configuration
+- Adds an observability node to the configuration (on DigitalOcean or Google Cloud)
 - Enables Prometheus metrics endpoint (port 26660) on all validator nodes
-- Enables optional Loki-backed latency monitor logs when you
-start the latency monitor with --loki-url (promtail ships logs)
+- Enables optional Loki-backed latency monitor logs when you start the latency monitor with --loki-url (promtail ships logs)
 
 ### 2. Add validators and provision
 
 ```bash
-talis add -t validator -c 10
+# Add validators (specify provider if needed)
+talis add -t validator -c 10 --provider digitalocean
+# or
+talis add -t validator -c 10 --provider googlecloud
+
+# Provision instances
 talis up
 ```
 

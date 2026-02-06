@@ -786,7 +786,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 39
+        "y": 96
       },
       "id": 23,
       "panels": [],
@@ -856,7 +856,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 40
+        "y": 97
       },
       "id": 18,
       "options": {
@@ -945,7 +945,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 40
+        "y": 97
       },
       "id": 24,
       "options": {
@@ -1034,7 +1034,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 40
+        "y": 97
       },
       "id": 25,
       "options": {
@@ -1119,7 +1119,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 48
+        "y": 105
       },
       "id": 19,
       "options": {
@@ -1204,7 +1204,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 48
+        "y": 105
       },
       "id": 20,
       "options": {
@@ -1294,7 +1294,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 56
+        "y": 113
       },
       "id": 21,
       "options": {
@@ -1379,7 +1379,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 56
+        "y": 113
       },
       "id": 22,
       "options": {
@@ -1416,7 +1416,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 64
+        "y": 121
       },
       "id": 14,
       "panels": [],
@@ -1482,7 +1482,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 65
+        "y": 122
       },
       "id": 15,
       "options": {
@@ -1567,7 +1567,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 65
+        "y": 122
       },
       "id": 16,
       "options": {
@@ -1596,6 +1596,133 @@
         }
       ],
       "title": "P2P Bandwidth",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 39
+      },
+      "id": 26,
+      "panels": [],
+      "title": "Gas Prices",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Quantiles from gas_price_observed summary (per-tx samples). Each series is averaged across validators.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Gas Price (utia)",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1e-05
+              },
+              {
+                "color": "red",
+                "value": 0.0001
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 40
+      },
+      "id": 27,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "avg by () (gas_price_observed{denom=\"utia\", job=\"app-telemetry\", quantile=\"0.5\"})",
+          "legendFormat": "P50",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "avg by () (gas_price_observed{denom=\"utia\", job=\"app-telemetry\", quantile=\"0.9\"})",
+          "legendFormat": "P90",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "avg by () (gas_price_observed{denom=\"utia\", job=\"app-telemetry\", quantile=\"0.99\"})",
+          "legendFormat": "P99",
+          "refId": "C"
+        }
+      ],
+      "title": "Gas Price Quantiles (P50/P90/P99)",
       "type": "timeseries"
     }
   ],

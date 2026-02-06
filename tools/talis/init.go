@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/app"
 	cmtconfig "github.com/cometbft/cometbft/config"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 )
 
@@ -42,6 +43,7 @@ func initCmd() *cobra.Command {
 		SSHKeyName        string
 		tables            []string
 		withObservability bool
+		provider          string
 	)
 
 	cmd := &cobra.Command{
@@ -49,6 +51,37 @@ func initCmd() *cobra.Command {
 		Short: "Initialize the Talis network",
 		Long:  "Initialize the Talis network with the provided configuration.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Set default provider
+			if provider == "" {
+				provider = "digitalocean"
+			}
+
+			// Load .env if it exists otherwise ignore
+			envPath := filepath.Join(rootDir, ".env")
+			err := godotenv.Load(envPath)
+
+			if err != nil && !os.IsNotExist(err) {
+				return fmt.Errorf("failed to load .env: %w", err)
+			}
+
+			// Validate provider if .env was loaded
+			if err == nil {
+				fmt.Println("✅ Loaded environment variables from .env")
+				envProvider := os.Getenv("PROVIDER")
+				if envProvider != "" && envProvider != provider {
+					return fmt.Errorf("provider mismatch: .env has PROVIDER=%s but --provider=%s\nRegenerate with: talis init-env --provider %s",
+						envProvider, provider, provider)
+				}
+
+				// Override SSH config from env vars if they exist
+				if envSSHKeyPath := os.Getenv(EnvVarSSHKeyPath); envSSHKeyPath != "" {
+					SSHPubKeyPath = envSSHKeyPath
+				}
+				if envSSHKeyName := os.Getenv(EnvVarSSHKeyName); envSSHKeyName != "" {
+					SSHKeyName = envSSHKeyName
+				}
+			}
+
 			if err := initDirs(rootDir); err != nil {
 				return fmt.Errorf("failed to initialize directories: %w", err)
 			}
@@ -65,7 +98,17 @@ func initCmd() *cobra.Command {
 			// If --with-observability is set, add a observability node and enable prometheus
 			enablePrometheus := false
 			if withObservability {
-				cfg = cfg.WithDigitalOceanObservability("random")
+				switch provider {
+				case "digitalocean":
+					cfg = cfg.WithDigitalOceanObservability("random").
+						WithDigitalOceanToken(os.Getenv(EnvVarDigitalOceanToken))
+				case "googlecloud":
+					cfg = cfg.WithGoogleCloudObservability("random").
+						WithGoogleCloudProject(os.Getenv(EnvVarGoogleCloudProject)).
+						WithGoogleCloudKeyJSONPath(os.Getenv(EnvVarGoogleCloudKeyJSONPath))
+				default:
+					return fmt.Errorf("unknown provider %q (supported: digitalocean, googlecloud)", provider)
+				}
 				enablePrometheus = true
 			}
 
@@ -85,6 +128,16 @@ func initCmd() *cobra.Command {
 			appconfig := app.DefaultAppConfig()
 			appconfig.GRPC.Enable = true
 			appconfig.GRPC.Address = "0.0.0.0:9091"
+
+			// Enable app telemetry when observability is enabled
+			if enablePrometheus {
+				appconfig.Telemetry.Enabled = true
+				appconfig.Telemetry.PrometheusRetentionTime = 60
+				// Expose /metrics on the API server for Prometheus scraping.
+				appconfig.API.Enable = true
+				appconfig.API.Address = "tcp://0.0.0.0:1317"
+			}
+
 			serverconfig.WriteConfigFile(filepath.Join(rootDir, "app.toml"), appconfig)
 
 			return nil
@@ -104,6 +157,7 @@ func initCmd() *cobra.Command {
 	_ = cmd.MarkFlagRequired("experiment")
 	cmd.Flags().StringArrayVarP(&tables, "tables", "t", []string{"consensus_round_state", "consensus_block", "mempool_tx"}, "the traces that will be collected")
 	cmd.Flags().BoolVar(&withObservability, "with-observability", false, "add a observability node and enable Prometheus on validators")
+	cmd.Flags().StringVarP(&provider, "provider", "p", "digitalocean", "provider for observability node when --with-observability is set (digitalocean, googlecloud)")
 
 	defaultKeyPath := filepath.Join(homeDir, ".ssh", "id_ed25519.pub")
 	cmd.Flags().StringVarP(&SSHPubKeyPath, "ssh-pub-key-path", "s", defaultKeyPath, "path to the user's SSH public key")
