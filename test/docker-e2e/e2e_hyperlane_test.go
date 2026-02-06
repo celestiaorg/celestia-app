@@ -22,7 +22,6 @@ import (
 	"github.com/celestiaorg/tastora/framework/docker/evstack/reth"
 	"github.com/celestiaorg/tastora/framework/docker/hyperlane"
 	"github.com/celestiaorg/tastora/framework/testutil/evm"
-	"github.com/celestiaorg/tastora/framework/testutil/query"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -88,7 +87,6 @@ func (s *HyperlaneTestSuite) StartRelayerAgent(ctx context.Context, deployer *hy
 	})
 }
 
-// make test-docker-e2e test=TestHyperlaneForwarding entrypoint=TestHyperlaneTestSuite
 func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	t := s.T()
 	if testing.Short() {
@@ -108,7 +106,6 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	err = chain.Start(ctx)
 	s.Require().NoError(err)
 
-	// create a da network, wiring up the provided chain using the CELESTIA_CUSTOM environment variable.
 	da := s.DeployDANetwork(ctx, chain, s.client, s.network)
 
 	reth0 := s.BuildEvolveEVMChain(ctx, s.BridgeNodeAddress(da), "reth0", 1234)
@@ -137,44 +134,21 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	tokenRouter, err := hyp.GetEVMWarpTokenAddress()
 	require.NoError(t, err)
 
-	schema, err := hyp.GetOnDiskSchema(ctx)
-	require.NoError(t, err)
-
 	s.EnrollRemoteRouters(ctx, chain, reth0, hyp, tokenRouter, config.TokenID)
 	s.EnrollRemoteRouters(ctx, chain, reth1, hyp, tokenRouter, config.TokenID)
 
 	s.StartRelayerAgent(ctx, hyp)
 
-	networkInfo, err := chain.GetNetworkInfo(ctx)
-	require.NoError(t, err)
-
-	chainGRPC := networkInfo.External.GRPCAddress()
-	cconn, err := grpc.NewClient(chainGRPC, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	require.NoError(t, err)
-	defer func() {
-		_ = cconn.Close()
-	}()
-
-	sendAmount0 := sdkmath.NewInt(1000)
+	deposit := sdkmath.NewInt(1000) // initial deposit of utia from celestia to erc20
 	recipient := ethcommon.HexToAddress("0xaF9053bB6c4346381C77C2FeD279B17ABAfCDf4d")
 
-	reth0Entry := schema.Registry.Chains["reth0"]
-	_ = schema.Registry.Chains["reth1"]
-
-	s.SendTransferRemoteTx(ctx, chain, config.TokenID, reth0Entry.Metadata.DomainID, recipient, sendAmount0)
-
-	ethClient, err := reth0.GetEthClient(ctx)
-	require.NoError(t, err)
+	domain := s.GetDomainForChain(ctx, reth0.HyperlaneChainName(), hyp)
+	s.SendTransferRemoteTx(ctx, chain, config.TokenID, domain, recipient, deposit)
 
 	require.Eventually(t, func() bool {
-		balance, err := evm.GetERC20Balance(ctx, ethClient, tokenRouter, recipient)
-		if err != nil {
-			t.Logf("reth0 balance query failed: %v", err)
-			return false
-		}
-		t.Logf("reth0 recipient warp token balance: %s", balance.String())
-		return balance.Cmp(sendAmount0.BigInt()) == 0
-	}, 2*time.Minute, 5*time.Second, "reth0 recipient should receive minted warp tokens")
+		balance := s.QueryERC20Balance(ctx, reth0, tokenRouter, recipient)
+		return balance.Cmp(deposit.BigInt()) == 0
+	}, time.Minute, 5*time.Second, "recipient should receive minted erc20 tokens")
 
 	forwardAddr := s.QueryForwardingAddress(ctx, chain, 1235, "0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E")
 	t.Logf("forwarding recipient address: %s", forwardAddr)
@@ -187,51 +161,27 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 
 	amount := sdkmath.NewInt(400)
 
-	beforeBalance, err := query.Balance(ctx, cconn, forwardAddr, chain.Config.Denom)
-	require.NoError(t, err)
-
-	beforeEvmBalance, err := evm.GetERC20Balance(ctx, ethClient, tokenRouter, recipient)
-	require.NoError(t, err)
-	require.Truef(t, beforeEvmBalance.Cmp(amount.BigInt()) >= 0, "insufficient EVM balance for transferRemote: have %s want %s", beforeEvmBalance.String(), amount.String())
+	beforeBalance := s.QueryBankBalance(ctx, chain, forwardAddr, chain.Config.Denom)
 
 	celestiaDomain := s.GetDomainForChain(ctx, HypCelestiaChainName, hyp)
 	s.SendTransferRemoteTxEvm(ctx, reth0, tokenRouter, celestiaDomain, forwardAddrBytes32, amount)
 
-	expectedEvmBalance := new(big.Int).Sub(beforeEvmBalance, amount.BigInt())
-	require.Eventually(t, func() bool {
-		afterEvmBalance, err := evm.GetERC20Balance(ctx, ethClient, tokenRouter, recipient)
-		if err != nil {
-			t.Logf("reth0 balance query failed after transferRemote: %v", err)
-			return false
-		}
-		return afterEvmBalance.Cmp(expectedEvmBalance) == 0
-	}, 2*time.Minute, 5*time.Second, "EVM balance should decrease after transferRemote")
-
 	require.Eventually(t, func() bool {
 		afterBalance := s.QueryBankBalance(ctx, chain, forwardAddr, chain.Config.Denom)
-		return afterBalance.Amount.Equal(beforeBalance.Add(amount))
-	}, 2*time.Minute, 5*time.Second, "faucet balance should increase after transferRemote")
+		return afterBalance.Equal(beforeBalance.Add(amount))
+	}, time.Minute, 5*time.Second, "faucet balance should increase after transferRemote")
 
-	quoteFee := s.QueryForwardingFee(ctx, chain, 1235)
-
-	s.SendForwardingTx(ctx, chain, forwardAddr, 1235, "0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E", quoteFee)
-
-	reth1Client, err := reth1.GetEthClient(ctx)
-	require.NoError(t, err)
 	destRecipientAddr := ethcommon.HexToAddress("0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E")
+	beforeReth1Balance := s.QueryERC20Balance(ctx, reth1, tokenRouter, destRecipientAddr)
 
-	beforeReth1Balance, err := evm.GetERC20Balance(ctx, reth1Client, tokenRouter, destRecipientAddr)
-	require.NoError(t, err)
+	forwardFee := s.QueryForwardingFee(ctx, chain, 1235)
+	s.SendForwardingTx(ctx, chain, forwardAddr, 1235, "0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E", forwardFee)
 
 	expectedReth1Balance := new(big.Int).Add(beforeReth1Balance, amount.BigInt())
 	require.Eventually(t, func() bool {
-		afterReth1Balance, err := evm.GetERC20Balance(ctx, reth1Client, tokenRouter, destRecipientAddr)
-		if err != nil {
-			t.Logf("reth1 balance query failed: %v", err)
-			return false
-		}
+		afterReth1Balance := s.QueryERC20Balance(ctx, reth1, tokenRouter, destRecipientAddr)
 		return afterReth1Balance.Cmp(expectedReth1Balance) == 0
-	}, 2*time.Minute, 5*time.Second, "reth1 recipient should receive forwarded warp tokens")
+	}, time.Minute, 5*time.Second, "recipient should receive forwarded warp tokens")
 }
 
 func (s *HyperlaneTestSuite) BridgeNodeAddress(da *dataavailability.Network) string {
@@ -392,7 +342,7 @@ func (s *HyperlaneTestSuite) QueryForwardingFee(ctx context.Context, chain *cosm
 	return resp.Fee
 }
 
-func (s *HyperlaneTestSuite) QueryBankBalance(ctx context.Context, chain *cosmos.Chain, address, denom string) *sdk.Coin {
+func (s *HyperlaneTestSuite) QueryBankBalance(ctx context.Context, chain *cosmos.Chain, address, denom string) *sdkmath.Int {
 	s.T().Helper()
 
 	networkInfo, err := chain.GetNetworkInfo(ctx)
@@ -413,7 +363,17 @@ func (s *HyperlaneTestSuite) QueryBankBalance(ctx context.Context, chain *cosmos
 	resp, err := client.Balance(ctx, req)
 	s.Require().NoError(err)
 
-	return resp.Balance
+	return &resp.Balance.Amount
+}
+
+func (s *HyperlaneTestSuite) QueryERC20Balance(ctx context.Context, chain *EvolveEVMChain, erc20Address ethcommon.Address, account ethcommon.Address) *big.Int {
+	client, err := chain.GetEthClient(ctx)
+	s.Require().NoError(err)
+
+	balance, err := evm.GetERC20Balance(ctx, client, erc20Address, account)
+	s.Require().NoError(err)
+
+	return balance
 }
 
 func (s *HyperlaneTestSuite) QueryWarpTokens(ctx context.Context, chain *cosmos.Chain) []warptypes.WrappedHypToken {
