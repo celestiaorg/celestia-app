@@ -139,6 +139,8 @@ jobs:
           - testcase: TestUpgradeLatest
           - testcase: TestPFMMultiHop
             entrypoint: TestPFMTestSuite
+          - testcase: TestHyperlaneForwarding
+            entrypoint: TestHyperlaneTestSuite
 
     steps:
       - name: Checkout code
