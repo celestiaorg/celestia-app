@@ -1,0 +1,31 @@
+[
+    {
+        "inputs": [
+            {
+                "internalType": "uint32",
+                "name": "_destination",
+                "type": "uint32"
+            },
+            {
+                "internalType": "bytes32",
+                "name": "_recipient",
+                "type": "bytes32"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_amount",
+                "type": "uint256"
+            }
+        ],
+        "name": "transferRemote",
+        "outputs": [
+            {
+                "internalType": "bytes32",
+                "name": "messageId",
+                "type": "bytes32"
+            }
+        ],
+        "stateMutability": "payable",
+        "type": "function"
+    }
+]

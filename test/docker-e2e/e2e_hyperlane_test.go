@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
-	"strings"
+	"os"
 	"testing"
 	"time"
 
@@ -38,6 +38,12 @@ var (
 	// with the Hyperlane agents container. This can be reverted when the following issue is addressed.
 	// See https://github.com/hyperlane-xyz/hyperlane-monorepo/issues/7598.
 	HypCelestiaChainName = "celestiadev"
+
+	RethChainName0 = "reth0"
+	RethChainName1 = "reth1"
+
+	RethChainID0 = 1234
+	RethChainID1 = 1235
 )
 
 // EvolveEVMChain encapsulates both the evolve evm sequencer node and execution client node.
@@ -65,28 +71,6 @@ func (s *HyperlaneTestSuite) SetupSuite() {
 	s.celestiaCfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(tag)
 }
 
-func (s *HyperlaneTestSuite) StartRelayerAgent(ctx context.Context, deployer *hyperlane.Deployer) {
-	s.T().Helper()
-
-	cfg := hyperlane.Config{
-		Logger:          s.logger,
-		DockerClient:    s.client,
-		DockerNetworkID: s.network,
-		HyperlaneImage:  container.NewImage("gcr.io/abacus-labs-dev/hyperlane-agent", "agents-v1.7.0", "1000:1000"),
-	}
-
-	agent, err := hyperlane.NewAgent(ctx, cfg, s.T().Name(), hyperlane.AgentTypeRelayer, deployer)
-	s.Require().NoError(err)
-
-	err = agent.Start(ctx)
-	s.Require().NoError(err)
-
-	s.T().Cleanup(func() {
-		_ = agent.Stop(ctx)
-		_ = agent.Remove(ctx)
-	})
-}
-
 func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	t := s.T()
 	if testing.Short() {
@@ -106,10 +90,11 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	err = chain.Start(ctx)
 	s.Require().NoError(err)
 
+	// TODO: Deploy a single bridge node here (bridge, full, light is not required)
 	da := s.DeployDANetwork(ctx, chain, s.client, s.network)
 
-	reth0 := s.BuildEvolveEVMChain(ctx, s.BridgeNodeAddress(da), "reth0", 1234)
-	reth1 := s.BuildEvolveEVMChain(ctx, s.BridgeNodeAddress(da), "reth1", 1235)
+	reth0 := s.BuildEvolveEVMChain(ctx, s.BridgeNodeAddress(da), RethChainName0, RethChainID0)
+	reth1 := s.BuildEvolveEVMChain(ctx, s.BridgeNodeAddress(da), RethChainName1, RethChainID1)
 
 	hypConfig := hyperlane.Config{
 		Logger:          s.logger,
@@ -134,54 +119,70 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	tokenRouter, err := hyp.GetEVMWarpTokenAddress()
 	require.NoError(t, err)
 
+	// Register Hyperlane token router connections between celestia and both evm chains
 	s.EnrollRemoteRouters(ctx, chain, reth0, hyp, tokenRouter, config.TokenID)
 	s.EnrollRemoteRouters(ctx, chain, reth1, hyp, tokenRouter, config.TokenID)
 
 	s.StartRelayerAgent(ctx, hyp)
 
-	deposit := sdkmath.NewInt(1000) // initial deposit of utia from celestia to erc20
+	// Make an initial deposit of utia from celestia to reth0 chain
+	initialDeposit := sdkmath.NewInt(1000)
 	recipient := ethcommon.HexToAddress("0xaF9053bB6c4346381C77C2FeD279B17ABAfCDf4d")
 
 	domain := s.GetDomainForChain(ctx, reth0.HyperlaneChainName(), hyp)
-	s.SendTransferRemoteTx(ctx, chain, config.TokenID, domain, recipient, deposit)
+	s.SendTransferRemoteTx(ctx, chain, config.TokenID, domain, recipient, initialDeposit)
 
-	require.Eventually(t, func() bool {
-		balance := s.QueryERC20Balance(ctx, reth0, tokenRouter, recipient)
-		return balance.Cmp(deposit.BigInt()) == 0
-	}, time.Minute, 5*time.Second, "recipient should receive minted erc20 tokens")
+	s.AssertERC20Balance(ctx, reth0, tokenRouter, recipient, initialDeposit.BigInt())
 
-	forwardAddr := s.QueryForwardingAddress(ctx, chain, 1235, "0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E")
-	t.Logf("forwarding recipient address: %s", forwardAddr)
+	// Compute the forwarding address on celestia for recipient on reth1 destintation chain
+	destDomain := s.GetDomainForChain(ctx, reth1.HyperlaneChainName(), hyp)
+	destRecipient := "0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E"
+	forwardAddress := s.QueryForwardingAddress(ctx, chain, destDomain, destRecipient)
 
-	recipientAcc, err := sdk.AccAddressFromBech32(forwardAddr)
-	require.NoError(t, err)
+	forwardAddrBytes32, err := bech32ToBytes(forwardAddress)
+	s.Require().NoError(err)
 
-	forwardAddrBytes32, err := padBytes32(recipientAcc.Bytes())
-	require.NoError(t, err)
+	beforeForwardBalance := s.QueryBankBalance(ctx, chain, forwardAddress, chain.Config.Denom)
 
-	amount := sdkmath.NewInt(400)
-
-	beforeBalance := s.QueryBankBalance(ctx, chain, forwardAddr, chain.Config.Denom)
-
+	// Execute the hyperlane erc20 transfer from reth0 to reth1 via celestia x/forwarding
+	amount := sdkmath.NewInt(500)
 	celestiaDomain := s.GetDomainForChain(ctx, HypCelestiaChainName, hyp)
 	s.SendTransferRemoteTxEvm(ctx, reth0, tokenRouter, celestiaDomain, forwardAddrBytes32, amount)
 
-	require.Eventually(t, func() bool {
-		afterBalance := s.QueryBankBalance(ctx, chain, forwardAddr, chain.Config.Denom)
-		return afterBalance.Equal(beforeBalance.Add(amount))
-	}, time.Minute, 5*time.Second, "faucet balance should increase after transferRemote")
+	expForwardBalance := beforeForwardBalance.Add(amount)
+	s.AssertBankBalance(ctx, chain, forwardAddress, chain.Config.Denom, expForwardBalance)
 
-	destRecipientAddr := ethcommon.HexToAddress("0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E")
-	beforeReth1Balance := s.QueryERC20Balance(ctx, reth1, tokenRouter, destRecipientAddr)
+	destRecipientAddress := ethcommon.HexToAddress(destRecipient)
+	balanceBefore := s.QueryERC20Balance(ctx, reth1, tokenRouter, destRecipientAddress)
 
-	forwardFee := s.QueryForwardingFee(ctx, chain, 1235)
-	s.SendForwardingTx(ctx, chain, forwardAddr, 1235, "0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E", forwardFee)
+	// Permissionless invocation of MsgForward (to be done by external relayer service)
+	forwardFee := s.QueryForwardingFee(ctx, chain, destDomain)
+	s.SendForwardingTx(ctx, chain, forwardAddress, destDomain, destRecipient, forwardFee)
 
-	expectedReth1Balance := new(big.Int).Add(beforeReth1Balance, amount.BigInt())
-	require.Eventually(t, func() bool {
-		afterReth1Balance := s.QueryERC20Balance(ctx, reth1, tokenRouter, destRecipientAddr)
-		return afterReth1Balance.Cmp(expectedReth1Balance) == 0
-	}, time.Minute, 5*time.Second, "recipient should receive forwarded warp tokens")
+	expectedBalance := new(big.Int).Add(balanceBefore, amount.BigInt())
+	s.AssertERC20Balance(ctx, reth1, tokenRouter, destRecipientAddress, expectedBalance)
+}
+
+func (s *HyperlaneTestSuite) StartRelayerAgent(ctx context.Context, deployer *hyperlane.Deployer) {
+	s.T().Helper()
+
+	cfg := hyperlane.Config{
+		Logger:          s.logger,
+		DockerClient:    s.client,
+		DockerNetworkID: s.network,
+		HyperlaneImage:  container.NewImage("gcr.io/abacus-labs-dev/hyperlane-agent", "agents-v1.7.0", "1000:1000"),
+	}
+
+	agent, err := hyperlane.NewAgent(ctx, cfg, s.T().Name(), hyperlane.AgentTypeRelayer, deployer)
+	s.Require().NoError(err)
+
+	err = agent.Start(ctx)
+	s.Require().NoError(err)
+
+	s.T().Cleanup(func() {
+		_ = agent.Stop(ctx)
+		_ = agent.Remove(ctx)
+	})
 }
 
 func (s *HyperlaneTestSuite) BridgeNodeAddress(da *dataavailability.Network) string {
@@ -195,9 +196,8 @@ func (s *HyperlaneTestSuite) BridgeNodeAddress(da *dataavailability.Network) str
 
 func (s *HyperlaneTestSuite) BuildEvolveEVMChain(ctx context.Context, daAddress, chainName string, chainID int) *EvolveEVMChain {
 	s.T().Helper()
-	t := s.T()
 
-	rethNode, err := reth.NewNodeBuilderWithTestName(t, t.Name()).
+	rethNode, err := reth.NewNodeBuilderWithTestName(s.T(), s.T().Name()).
 		WithName(chainName).
 		WithDockerClient(s.client).
 		WithDockerNetworkID(s.network).
@@ -207,11 +207,6 @@ func (s *HyperlaneTestSuite) BuildEvolveEVMChain(ctx context.Context, daAddress,
 		WithHyperlaneDomainID(uint32(chainID)).
 		Build(ctx)
 	s.Require().NoError(err)
-
-	t.Cleanup(func() {
-		_ = rethNode.Stop(ctx)
-		_ = rethNode.Remove(ctx)
-	})
 
 	err = rethNode.Start(ctx)
 	s.Require().NoError(err)
@@ -235,7 +230,7 @@ func (s *HyperlaneTestSuite) BuildEvolveEVMChain(ctx context.Context, daAddress,
 		WithDAAddress(daAddress).
 		Build()
 
-	seqNode, err := evmsingle.NewChainBuilderWithTestName(t, t.Name()).
+	seqNode, err := evmsingle.NewChainBuilderWithTestName(s.T(), s.T().Name()).
 		WithName(chainName).
 		WithDockerClient(s.client).
 		WithDockerNetworkID(s.network).
@@ -243,18 +238,19 @@ func (s *HyperlaneTestSuite) BuildEvolveEVMChain(ctx context.Context, daAddress,
 		Build(ctx)
 	s.Require().NoError(err)
 
-	t.Cleanup(func() {
-		_ = seqNode.Stop(ctx)
-		_ = seqNode.Remove(ctx)
-	})
-
 	err = seqNode.Start(ctx)
 	s.Require().NoError(err)
 
 	evmNodes := seqNode.Nodes()
 	s.Require().Len(evmNodes, 1)
 
-	waitForReady(t, ctx, evmNodes[0])
+	waitForReady(s.T(), ctx, evmNodes[0])
+	s.T().Cleanup(func() {
+		_ = rethNode.Stop(ctx)
+		_ = rethNode.Remove(ctx)
+		_ = seqNode.Stop(ctx)
+		_ = seqNode.Remove(ctx)
+	})
 
 	return &EvolveEVMChain{seqNode, rethNode}
 }
@@ -293,6 +289,24 @@ func (s *HyperlaneTestSuite) GetDomainForChain(ctx context.Context, chainName st
 	s.Require().True(ok)
 
 	return registryEntry.Metadata.DomainID
+}
+
+func (s *HyperlaneTestSuite) AssertBankBalance(ctx context.Context, chain *cosmos.Chain, address string, denom string, expected sdkmath.Int) {
+	s.T().Helper()
+
+	s.Require().Eventually(func() bool {
+		balance := s.QueryBankBalance(ctx, chain, address, denom)
+		return balance.Equal(expected)
+	}, time.Minute, 5*time.Second, "unexpected bank balance, expected: ", expected)
+}
+
+func (s *HyperlaneTestSuite) AssertERC20Balance(ctx context.Context, chain *EvolveEVMChain, erc20Address ethcommon.Address, account ethcommon.Address, expected *big.Int) {
+	s.T().Helper()
+
+	s.Require().Eventually(func() bool {
+		balance := s.QueryERC20Balance(ctx, chain, erc20Address, account)
+		return balance.Cmp(expected) == 0
+	}, time.Minute, 5*time.Second, "unexpected erc20 balance, expected: ", expected)
 }
 
 func (s *HyperlaneTestSuite) QueryForwardingAddress(ctx context.Context, chain *cosmos.Chain, domain uint32, recipient string) string {
@@ -367,6 +381,8 @@ func (s *HyperlaneTestSuite) QueryBankBalance(ctx context.Context, chain *cosmos
 }
 
 func (s *HyperlaneTestSuite) QueryERC20Balance(ctx context.Context, chain *EvolveEVMChain, erc20Address ethcommon.Address, account ethcommon.Address) *big.Int {
+	s.T().Helper()
+
 	client, err := chain.GetEthClient(ctx)
 	s.Require().NoError(err)
 
@@ -374,25 +390,6 @@ func (s *HyperlaneTestSuite) QueryERC20Balance(ctx context.Context, chain *Evolv
 	s.Require().NoError(err)
 
 	return balance
-}
-
-func (s *HyperlaneTestSuite) QueryWarpTokens(ctx context.Context, chain *cosmos.Chain) []warptypes.WrappedHypToken {
-	s.T().Helper()
-
-	networkInfo, err := chain.GetNetworkInfo(ctx)
-	s.Require().NoError(err)
-
-	grpcAddress := networkInfo.External.GRPCAddress()
-	grpcConn, err := grpc.NewClient(grpcAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	s.Require().NoError(err)
-
-	defer grpcConn.Close()
-
-	client := warptypes.NewQueryClient(grpcConn)
-	resp, err := client.Tokens(ctx, &warptypes.QueryTokensRequest{})
-	s.Require().NoError(err)
-
-	return resp.Tokens
 }
 
 func (s *HyperlaneTestSuite) SendForwardingTx(ctx context.Context, chain *cosmos.Chain, forwardAddr string, destDomain uint32, destRecipient string, maxIgpFee sdk.Coin) {
@@ -449,7 +446,7 @@ func (s *HyperlaneTestSuite) SendTransferRemoteTxEvm(ctx context.Context, chain 
 
 	defer sender.Close()
 
-	transferABI, err := parseTransferRemoteABI()
+	transferABI, err := readTransferRemoteABI()
 	s.Require().NoError(err)
 
 	txHash, err := sender.SendFunctionTx(ctx,
@@ -479,32 +476,29 @@ func waitForReady(t *testing.T, ctx context.Context, node *evmsingle.Node) {
 		}
 		defer func() { _ = resp.Body.Close() }()
 		return resp.StatusCode == http.StatusOK
-	}, 60*time.Second, 2*time.Second, "evm sequencer %s failed to respond healthy", node.Name())
+	}, time.Minute, 2*time.Second, "evm sequencer %s failed to respond healthy", node.Name())
 }
 
-func parseTransferRemoteABI() (abi.ABI, error) {
-	return abi.JSON(strings.NewReader(`[
-		{
-			"inputs": [
-				{"internalType": "uint32", "name": "_destination", "type": "uint32"},
-				{"internalType": "bytes32", "name": "_recipient", "type": "bytes32"},
-				{"internalType": "uint256", "name": "_amount", "type": "uint256"}
-			],
-			"name": "transferRemote",
-			"outputs": [
-				{"internalType": "bytes32", "name": "messageId", "type": "bytes32"}
-			],
-			"stateMutability": "payable",
-			"type": "function"
-		}
-	]`))
-}
-
-func padBytes32(b []byte) ([32]byte, error) {
-	if len(b) > 32 {
-		return [32]byte{}, fmt.Errorf("recipient too long: %d bytes", len(b))
+func readTransferRemoteABI() (abi.ABI, error) {
+	f, err := os.Open("internal/testdata/HypTokenRouterABI.json")
+	if err != nil {
+		return abi.ABI{}, err
 	}
-	var out [32]byte
-	copy(out[32-len(b):], b)
-	return out, nil
+
+	defer f.Close()
+
+	return abi.JSON(f)
+}
+
+func bech32ToBytes(address string) ([32]byte, error) {
+	bz := sdk.MustAccAddressFromBech32(address).Bytes()
+
+	if len(bz) > 32 {
+		return [32]byte{}, fmt.Errorf("recipient too long: %d bytes", len(bz))
+	}
+
+	var bytes32 [32]byte
+	copy(bytes32[32-len(bz):], bz)
+
+	return bytes32, nil
 }
