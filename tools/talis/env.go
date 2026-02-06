@@ -36,7 +36,7 @@ func initEnvCmd() *cobra.Command {
 			}
 
 			// Write .env file
-			if err := os.WriteFile(".env", []byte(envContent), 0600); err != nil {
+			if err := os.WriteFile(".env", []byte(envContent), 0o600); err != nil {
 				return fmt.Errorf("failed to write .env file: %w", err)
 			}
 
