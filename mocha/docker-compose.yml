@@ -1,27 +1,4 @@
 # Docker Compose for a Mocha consensus node with Prometheus + Grafana.
-#
-# Usage:
-#
-# Phase 1: Start with no pruning (state sync to tip, accumulate blocks)
-#   cd mocha
-#   docker compose up -d
-#   # Monitor state sync progress:
-#   docker compose logs -f celestia-appd
-#   # Check sync status:
-#   curl -s localhost:26657/status | jq '.result.sync_info'
-#
-# Phase 2: Enable pruning after >3000 blocks
-#   # Check current height:
-#   curl -s localhost:26657/status | jq '.result.sync_info.latest_block_height'
-#   # Edit app.toml in the volume:
-#   docker compose exec celestia-appd sed -i 's/min-retain-blocks = 0/min-retain-blocks = 3000/' /home/celestia/.celestia-app/config/app.toml
-#   # Restart to pick up config change:
-#   docker compose restart celestia-appd
-#
-# Monitoring:
-#   Grafana:    http://localhost:3000 (admin/admin)
-#   Prometheus: http://localhost:9090
-#   Node RPC:   http://localhost:26657
 name: mocha
 
 services:
