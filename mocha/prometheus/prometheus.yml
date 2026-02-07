@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'celestia-appd'
+    static_configs:
+      - targets: ['celestia-appd:26660']

@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker info:*)",
+      "Bash(curl:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker volume rm:*)",
+      "Bash(docker run:*)",
+      "Bash(git -C /Users/rootulp/git/rootulp/celestiaorg/celestia-app diff docker-compose/celestia/Dockerfile)",
+      "Bash(git -C /Users/rootulp/git/rootulp/celestiaorg/celestia-app status)"
+    ]
+  }
+}
