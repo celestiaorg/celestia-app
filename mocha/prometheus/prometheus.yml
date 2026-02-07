@@ -5,3 +5,7 @@ scrape_configs:
   - job_name: 'celestia-appd'
     static_configs:
       - targets: ['celestia-appd:26660']
+  - job_name: 'disk-exporter'
+    scrape_interval: 60s
+    static_configs:
+      - targets: ['disk-exporter:9101']

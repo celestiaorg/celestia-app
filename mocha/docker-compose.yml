@@ -14,6 +14,14 @@ services:
       - "26660:26660"
     restart: unless-stopped
 
+  disk-exporter:
+    container_name: disk-exporter
+    build:
+      context: ./disk-exporter
+    volumes:
+      - celestia-data:/data:ro
+    restart: unless-stopped
+
   prometheus:
     container_name: prometheus
     image: prom/prometheus:v3.8.1
