@@ -73,9 +73,10 @@ func NewMsgPayForBlobs(signerAddress string, _ uint64, blobs ...*share.Blob) (*M
 	return msg, msg.ValidateBasic()
 }
 
-func namespacesToBytes(namespaces []share.Namespace) (result [][]byte) {
-	for _, namespace := range namespaces {
-		result = append(result, namespace.Bytes())
+func namespacesToBytes(namespaces []share.Namespace) [][]byte {
+	result := make([][]byte, len(namespaces))
+	for i, namespace := range namespaces {
+		result[i] = namespace.Bytes()
 	}
 	return result
 }
