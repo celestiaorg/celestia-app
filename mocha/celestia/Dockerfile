@@ -8,17 +8,15 @@ ARG TARGETARCH
 
 ENV CELESTIA_APP_HOME=/home/${USER_NAME}/.celestia-app
 
-# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    bash \
-    curl \
-    jq \
-    sed \
-    ca-certificates \
+    ca-certificates=20250419 \
+    curl=8.14.1-2+deb13u2 \
+    jq=1.7.1-6+deb13u1 \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -g ${UID} ${USER_NAME} \
-    && useradd -m -d ${CELESTIA_APP_HOME} -s /sbin/nologin -u ${UID} -g ${UID} ${USER_NAME}
+    && useradd -l -m -d ${CELESTIA_APP_HOME} -s /sbin/nologin -u ${UID} -g ${UID} ${USER_NAME}
 
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # Map Docker's TARGETARCH (amd64/arm64) to release asset names (x86_64/arm64)
 RUN ARCH="${TARGETARCH}"; \
     if [ "${ARCH}" = "amd64" ]; then ARCH="x86_64"; fi; \
