@@ -113,7 +113,6 @@ func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 
 	t.Run("submit blob with nonce error", func(t *testing.T) {
 		seqBeforeBroadcast := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
-		fmt.Printf("seqBeforeBroadcast: %d\n", seqBeforeBroadcast)
 		err := suite.txClient.Signer().SetSequence(suite.txClient.DefaultAccountName(), seqBeforeBroadcast-1)
 		require.NoError(t, err)
 		resp, err := suite.txClient.SubmitPayForBlob(subCtx, blobs)
