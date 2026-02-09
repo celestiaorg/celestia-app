@@ -1,0 +1,249 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Parameters v3 - Celestia App Specifications</title>
+        <!-- Custom HTML head -->
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="data_structures.html"><strong aria-hidden="true">1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="namespace.html"><strong aria-hidden="true">2.</strong> Namespace</a></li><li class="chapter-item expanded "><a href="shares.html"><strong aria-hidden="true">3.</strong> Shares</a></li><li class="chapter-item expanded "><a href="consensus.html"><strong aria-hidden="true">4.</strong> Consensus</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="cat_pool.html"><strong aria-hidden="true">4.1.</strong> CAT Pool</a></li></ol></li><li class="chapter-item expanded "><a href="block_proposer.html"><strong aria-hidden="true">5.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="block_validity_rules.html"><strong aria-hidden="true">6.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="ante_handler.html"><strong aria-hidden="true">7.</strong> AnteHandler</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="ante_handler_v1.html"><strong aria-hidden="true">7.1.</strong> AnteHandler v1</a></li><li class="chapter-item expanded "><a href="ante_handler_v2.html"><strong aria-hidden="true">7.2.</strong> AnteHandler v2</a></li><li class="chapter-item expanded "><a href="ante_handler_v3.html"><strong aria-hidden="true">7.3.</strong> AnteHandler v3</a></li><li class="chapter-item expanded "><a href="ante_handler_v4.html"><strong aria-hidden="true">7.4.</strong> AnteHandler v4</a></li><li class="chapter-item expanded "><a href="ante_handler_v5.html"><strong aria-hidden="true">7.5.</strong> AnteHandler v5</a></li><li class="chapter-item expanded "><a href="ante_handler_v6.html"><strong aria-hidden="true">7.6.</strong> AnteHandler v6</a></li></ol></li><li class="chapter-item expanded "><a href="fraud_proofs.html"><strong aria-hidden="true">8.</strong> Fraud Proofs</a></li><li class="chapter-item expanded "><a href="networking.html"><strong aria-hidden="true">9.</strong> Networking</a></li><li class="chapter-item expanded "><a href="public_key_cryptography.html"><strong aria-hidden="true">10.</strong> Public-Key Cryptography</a></li><li class="chapter-item expanded "><a href="data_square_layout.html"><strong aria-hidden="true">11.</strong> Data Square Layout</a></li><li class="chapter-item expanded "><a href="resource_pricing.html"><strong aria-hidden="true">12.</strong> Resource Pricing</a></li><li class="chapter-item expanded "><a href="multisig.html"><strong aria-hidden="true">13.</strong> Multisig</a></li><li class="chapter-item expanded "><a href="state_machine_modules.html"><strong aria-hidden="true">14.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="state_machine_modules_v1.html"><strong aria-hidden="true">14.1.</strong> State Machine Modules v1</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v2.html"><strong aria-hidden="true">14.2.</strong> State Machine Modules v2</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v3.html"><strong aria-hidden="true">14.3.</strong> State Machine Modules v3</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v4.html"><strong aria-hidden="true">14.4.</strong> State Machine Modules v4</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v5.html"><strong aria-hidden="true">14.5.</strong> State Machine Modules v5</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v6.html"><strong aria-hidden="true">14.6.</strong> State Machine Modules v6</a></li></ol></li><li class="chapter-item expanded "><a href="parameters.html"><strong aria-hidden="true">15.</strong> Parameters</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="parameters_v1.html"><strong aria-hidden="true">15.1.</strong> Parameters v1</a></li><li class="chapter-item expanded "><a href="parameters_v2.html"><strong aria-hidden="true">15.2.</strong> Parameters v2</a></li><li class="chapter-item expanded "><a href="parameters_v3.html" class="active"><strong aria-hidden="true">15.3.</strong> Parameters v3</a></li><li class="chapter-item expanded "><a href="parameters_v4.html"><strong aria-hidden="true">15.4.</strong> Parameters v4</a></li><li class="chapter-item expanded "><a href="parameters_v5.html"><strong aria-hidden="true">15.5.</strong> Parameters v5</a></li><li class="chapter-item expanded "><a href="parameters_v6.html"><strong aria-hidden="true">15.6.</strong> Parameters v6</a></li></ol></li><li class="chapter-item expanded "><a href="types.html"><strong aria-hidden="true">16.</strong> Types</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="types_v5.html"><strong aria-hidden="true">16.1.</strong> Types v5</a></li><li class="chapter-item expanded "><a href="types_v6.html"><strong aria-hidden="true">16.2.</strong> Types v6</a></li></ol></li><li class="chapter-item expanded "><a href="tx_client.html"><strong aria-hidden="true">17.</strong> TxClient v1</a></li><li class="chapter-item expanded "><a href="tx_client_v2.html"><strong aria-hidden="true">18.</strong> TxClient v2</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Celestia App Specifications</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/celestiaorg/celestia-app" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="parameters-v3"><a class="header" href="#parameters-v3">Parameters v3</a></h1>
+<p>The parameters below represent the parameters for app version 3.</p>
+<p>Note that not all of these parameters are changeable via governance. This list
+also includes parameter that require a hardfork to change due to being manually
+hardcoded in the application or they are blocked by the <code>x/paramfilter</code> module.</p>
+<h2 id="global-parameters"><a class="header" href="#global-parameters">Global parameters</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Value</th><th>Summary</th><th>Changeable via Governance</th></tr></thead><tbody>
+<tr><td>SquareSizeUpperBound</td><td>128</td><td>Hardcoded maximum square size which limits the number of shares per row or column for the original data square (not yet extended).</td><td>False</td></tr>
+<tr><td>SubtreeRootThreshold</td><td>64</td><td>See <a href="https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md">ADR-013</a> for more details.</td><td>False</td></tr>
+<tr><td>MaxTxSize</td><td>2 MiB</td><td>Maximum size of a transaction in bytes.</td><td>False</td></tr>
+<tr><td>TimeoutPropose</td><td>3500 ms</td><td>Specifies the time that validators wait during the proposal phase of the consensus process. See CometBFT <a href="https://github.com/celestiaorg/celestia-core/blob/v0.34.x-celestia/spec/consensus/consensus.md#propose-step-heighthroundr">specs</a> for more details.</td><td>False</td></tr>
+<tr><td>TimeoutCommit</td><td>4200 ms</td><td>Specifies the duration that validators wait during the Commit phase of the consensus process. See CometBFT <a href="https://github.com/celestiaorg/celestia-core/blob/v0.34.x-celestia/spec/consensus/consensus.md#precommit-step-heighthroundr">specs</a> for more details.</td><td>False</td></tr>
+<tr><td>UpgradeHeightDelay</td><td>100800 blocks</td><td>Height based delay after a successful <code>MsgTryUpgrade</code> has been submitted.</td><td>False</td></tr>
+<tr><td>MaxBlockSizeBytes</td><td>100 MiB</td><td>Hardcoded value in CometBFT for the protobuf encoded block.</td><td>False</td></tr>
+</tbody></table>
+</div>
+<h2 id="module-parameters"><a class="header" href="#module-parameters">Module parameters</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Module.Parameter</th><th>Default</th><th>Summary</th><th>Changeable via Governance</th></tr></thead><tbody>
+<tr><td>auth.MaxMemoCharacters</td><td>256</td><td>Largest allowed size for a memo in bytes.</td><td>True</td></tr>
+<tr><td>auth.SigVerifyCostED25519</td><td>590</td><td>Gas used to verify Ed25519 signature.</td><td>True</td></tr>
+<tr><td>auth.SigVerifyCostSecp256k1</td><td>1000</td><td>Gas used to verify secp256k1 signature.</td><td>True</td></tr>
+<tr><td>auth.TxSigLimit</td><td>7</td><td>Max number of signatures allowed in a multisig transaction.</td><td>True</td></tr>
+<tr><td>auth.TxSizeCostPerByte</td><td>10</td><td>Gas used per transaction byte.</td><td>False</td></tr>
+<tr><td>bank.SendEnabled</td><td>true</td><td>Allow transfers.</td><td>False</td></tr>
+<tr><td>blob.GasPerBlobByte</td><td>8</td><td>Gas used per blob byte.</td><td>False</td></tr>
+<tr><td>blob.GovMaxSquareSize</td><td>64</td><td>Governance parameter for the maximum square size of the original data square.</td><td>True</td></tr>
+<tr><td>consensus.block.MaxBytes</td><td>1974272 bytes (~1.88 MiB)</td><td>Governance parameter for the maximum size of the protobuf encoded block.</td><td>True</td></tr>
+<tr><td>consensus.block.MaxGas</td><td>-1</td><td>Maximum gas allowed per block (-1 is infinite).</td><td>True</td></tr>
+<tr><td>consensus.block.TimeIotaMs</td><td>1000</td><td>Minimum time added to the time in the header each block.</td><td>False</td></tr>
+<tr><td>consensus.evidence.MaxAgeDuration</td><td>1814400000000000 (21 days)</td><td>The maximum age of evidence before it is considered invalid in nanoseconds. This value should be identical to the unbonding period.</td><td>True</td></tr>
+<tr><td>consensus.evidence.MaxAgeNumBlocks</td><td>120960</td><td>The maximum number of blocks before evidence is considered invalid. This value will stop CometBFT from pruning block data.</td><td>True</td></tr>
+<tr><td>consensus.evidence.MaxBytes</td><td>1MiB</td><td>Maximum size in bytes used by evidence in a given block.</td><td>True</td></tr>
+<tr><td>consensus.validator.PubKeyTypes</td><td>Ed25519</td><td>The type of public key used by validators.</td><td>False</td></tr>
+<tr><td>consensus.Version.AppVersion</td><td>3</td><td>Determines protocol rules used for a given height. Incremented by the application upon an upgrade.</td><td>True</td></tr>
+<tr><td>distribution.BaseProposerReward</td><td>0</td><td>Reward in the mint denomination for proposing a block.</td><td>True</td></tr>
+<tr><td>distribution.BonusProposerReward</td><td>0</td><td>Extra reward in the mint denomination for proposers based on the voting power included in the commit.</td><td>True</td></tr>
+<tr><td>distribution.CommunityTax</td><td>0.02 (2%)</td><td>Percentage of the inflation sent to the community pool.</td><td>True</td></tr>
+<tr><td>distribution.WithdrawAddrEnabled</td><td>true</td><td>Enables delegators to withdraw funds to a different address.</td><td>True</td></tr>
+<tr><td>gov.DepositParams.MaxDepositPeriod</td><td>604800000000000 (1 week)</td><td>Maximum period for token holders to deposit on a proposal in nanoseconds.</td><td>True</td></tr>
+<tr><td>gov.DepositParams.MinDeposit</td><td>10_000_000_000 utia (10,000 TIA)</td><td>Minimum deposit for a proposal to enter voting period.</td><td>True</td></tr>
+<tr><td>gov.TallyParams.Quorum</td><td>0.334 (33.4%)</td><td>Minimum percentage of total stake needed to vote for a result to be considered valid.</td><td>True</td></tr>
+<tr><td>gov.TallyParams.Threshold</td><td>0.50 (50%)</td><td>Minimum proportion of Yes votes for proposal to pass.</td><td>True</td></tr>
+<tr><td>gov.TallyParams.VetoThreshold</td><td>0.334 (33.4%)</td><td>Minimum value of Veto votes to Total votes ratio for proposal to be vetoed.</td><td>True</td></tr>
+<tr><td>gov.VotingParams.VotingPeriod</td><td>604800000000000 (1 week)</td><td>Duration of the voting period in nanoseconds.</td><td>True</td></tr>
+<tr><td>ibc.ClientGenesis.AllowedClients</td><td>[]string{&quot;06-solomachine&quot;, &quot;07-tendermint&quot;}</td><td>List of allowed IBC light clients.</td><td>True</td></tr>
+<tr><td>ibc.ConnectionGenesis.MaxExpectedTimePerBlock</td><td>7500000000000 (75 seconds)</td><td>Maximum expected time per block in nanoseconds under normal operation.</td><td>True</td></tr>
+<tr><td>ibc.Transfer.ReceiveEnabled</td><td>true</td><td>Enable receiving tokens via IBC.</td><td>True</td></tr>
+<tr><td>ibc.Transfer.SendEnabled</td><td>true</td><td>Enable sending tokens via IBC.</td><td>True</td></tr>
+<tr><td>icahost.HostEnabled</td><td>True</td><td>Enables or disables the Inter-Chain Accounts host module.</td><td>True</td></tr>
+<tr><td>icahost.AllowMessages</td><td><a href="https://github.com/celestiaorg/celestia-app/blob/e5d5ac6732c55150ea3573e17bec162fe836e0c6/app/ica_host.go">icaAllowMessages</a></td><td>Defines a list of sdk message typeURLs allowed to be executed on a host chain.</td><td>True</td></tr>
+<tr><td>minfee.NetworkMinGasPrice</td><td>0.000001 utia</td><td>All transactions must have a gas price greater than or equal to this value.</td><td>True</td></tr>
+<tr><td>mint.BondDenom</td><td>utia</td><td>Denomination that is inflated and sent to the distribution module account.</td><td>False</td></tr>
+<tr><td>mint.DisinflationRate</td><td>0.10 (10%)</td><td>The rate at which the inflation rate decreases each year.</td><td>False</td></tr>
+<tr><td>mint.InitialInflationRate</td><td>0.08 (8%)</td><td>The inflation rate the network starts at.</td><td>False</td></tr>
+<tr><td>mint.TargetInflationRate</td><td>0.015 (1.5%)</td><td>The inflation rate that the network aims to stabilize at.</td><td>False</td></tr>
+<tr><td>packetforwardmiddleware.FeePercentage</td><td>0</td><td>% of the forwarded packet amount which will be subtracted and distributed to the community pool.</td><td>True</td></tr>
+<tr><td>slashing.DowntimeJailDuration</td><td>1 min</td><td>Duration of time a validator must stay jailed.</td><td>True</td></tr>
+<tr><td>slashing.MinSignedPerWindow</td><td>0.75 (75%)</td><td>The percentage of SignedBlocksWindow that must be signed not to get jailed.</td><td>True</td></tr>
+<tr><td>slashing.SignedBlocksWindow</td><td>5000</td><td>The range of blocks used to count for downtime.</td><td>True</td></tr>
+<tr><td>slashing.SlashFractionDoubleSign</td><td>0.02 (2%)</td><td>Percentage slashed after a validator is jailed for double signing.</td><td>True</td></tr>
+<tr><td>slashing.SlashFractionDowntime</td><td>0.00 (0%)</td><td>Percentage slashed after a validator is jailed for downtime.</td><td>True</td></tr>
+<tr><td>staking.BondDenom</td><td>utia</td><td>Bondable coin denomination.</td><td>False</td></tr>
+<tr><td>staking.HistoricalEntries</td><td>10000</td><td>Number of historical entries to persist in store.</td><td>True</td></tr>
+<tr><td>staking.MaxEntries</td><td>7</td><td>Maximum number of entries in the redelegation queue.</td><td>True</td></tr>
+<tr><td>staking.MaxValidators</td><td>100</td><td>Maximum number of validators.</td><td>True</td></tr>
+<tr><td>staking.MinCommissionRate</td><td>0.05 (5%)</td><td>Minimum commission rate used by all validators.</td><td>True</td></tr>
+<tr><td>staking.UnbondingTime</td><td>1814400 (21 days)</td><td>Duration of time for unbonding in seconds.</td><td>False</td></tr>
+</tbody></table>
+</div>
+<p>Note: none of the mint module parameters are governance modifiable because they have been converted into hardcoded constants. See the x/mint README.md for more details.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="parameters_v2.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                            <a rel="next" href="parameters_v4.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="parameters_v2.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                    <a rel="next" href="parameters_v4.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>
