@@ -44,7 +44,6 @@ func initEnvCmd() *cobra.Command {
 			fmt.Println("\nNext steps:")
 			fmt.Println("1. Edit .env and fill in your credentials")
 			fmt.Println("2. Run: talis init -c <chain-id> -e <experiment> --with-observability --provider", provider)
-			fmt.Println("\nNote: .env file has restrictive permissions (0600) for security")
 
 			return nil
 		},
