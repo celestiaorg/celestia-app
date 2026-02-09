@@ -75,7 +75,7 @@ func (s *HyperlaneTestSuite) SetupSuite() {
 	s.celestiaCfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(tag)
 }
 
-func (s *HyperlaneTestSuite) TestHyperlaneTokenTransfers() {
+func (s *HyperlaneTestSuite) TestHyperlaneTokenTransfer() {
 	t := s.T()
 	if testing.Short() {
 		t.Skip("skipping hyperlane forwarding test in short mode")
@@ -107,19 +107,19 @@ func (s *HyperlaneTestSuite) TestHyperlaneTokenTransfers() {
 
 	hypChainProvider := []hyperlane.ChainConfigProvider{reth, chain}
 	hyp, err := hyperlane.NewDeployer(ctx, hypConfig, t.Name(), hypChainProvider)
-	require.NoError(t, err)
+	s.Require().NoError(err)
 
-	require.NoError(t, hyp.Deploy(ctx))
+	s.Require().NoError(hyp.Deploy(ctx))
 
 	broadcaster := cosmos.NewBroadcaster(chain)
 	faucet := chain.GetFaucetWallet()
 
 	config, err := hyp.DeployCosmosNoopISM(ctx, broadcaster, faucet)
-	require.NoError(t, err)
-	require.NotNil(t, config)
+	s.Require().NoError(err)
+	s.Require().NotNil(t, config)
 
 	tokenRouter, err := hyp.GetEVMWarpTokenAddress()
-	require.NoError(t, err)
+	s.Require().NoError(err)
 
 	// Register Hyperlane token router connections between celestia and both evm chains
 	s.EnrollRemoteRouters(ctx, chain, reth, hyp, tokenRouter, config.TokenID)
@@ -193,19 +193,19 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 
 	hypChainProvider := []hyperlane.ChainConfigProvider{reth0, reth1, chain}
 	hyp, err := hyperlane.NewDeployer(ctx, hypConfig, t.Name(), hypChainProvider)
-	require.NoError(t, err)
+	s.Require().NoError(err)
 
-	require.NoError(t, hyp.Deploy(ctx))
+	s.Require().NoError(hyp.Deploy(ctx))
 
 	broadcaster := cosmos.NewBroadcaster(chain)
 	faucet := chain.GetFaucetWallet()
 
 	config, err := hyp.DeployCosmosNoopISM(ctx, broadcaster, faucet)
-	require.NoError(t, err)
-	require.NotNil(t, config)
+	s.Require().NoError(err)
+	s.Require().NotNil(config)
 
 	tokenRouter, err := hyp.GetEVMWarpTokenAddress()
-	require.NoError(t, err)
+	s.Require().NoError(err)
 
 	// Register Hyperlane token router connections between celestia and both evm chains
 	s.EnrollRemoteRouters(ctx, chain, reth0, hyp, tokenRouter, config.TokenID)
