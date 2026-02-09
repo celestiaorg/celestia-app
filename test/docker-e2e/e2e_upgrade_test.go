@@ -28,6 +28,7 @@ import (
 const (
 	AppVersionV5 uint64 = 5
 	AppVersionV6 uint64 = 6
+	AppVersionV7 uint64 = 7
 
 	InflationRateV5 = "0.0536" // 5.36%
 	InflationRateV6 = "0.0267" // 2.67%
@@ -37,6 +38,7 @@ const (
 
 	MinCommissionRateV5 = "0.05" // 5%
 	MinCommissionRateV6 = "0.10" // 10%
+	MinCommissionRateV7 = "0.20" // 20%
 
 	EvidenceMaxAgeV5Hours = 504
 	EvidenceMaxAgeV6Hours = 337
@@ -75,6 +77,10 @@ func (s *CelestiaTestSuite) TestAllUpgrades() {
 		{
 			baseAppVersion:   5,
 			targetAppVersion: 6,
+		},
+		{
+			baseAppVersion:   6,
+			targetAppVersion: 7,
 		},
 	}
 
@@ -383,6 +389,11 @@ func (s *CelestiaTestSuite) validateParameters(ctx context.Context, node tastora
 		// Check ICA host params only on v6: v5 doesn't expose the icahost gRPC query service;
 		// the v6 upgrade applies these params per CIP-14.
 		s.validateICAHostParams(ctx, node, true, app.IcaAllowMessages(), AppVersionV6)
+		return
+	}
+
+	if appVersion == AppVersionV7 {
+		s.validateMinCommissionRate(ctx, node, MinCommissionRateV7, AppVersionV7)
 		return
 	}
 
