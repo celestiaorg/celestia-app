@@ -9,11 +9,11 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/app"
 	"github.com/celestiaorg/celestia-app/v7/app/encoding"
 	"github.com/celestiaorg/celestia-app/v7/pkg/user"
-	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
-	tastoratypes "github.com/celestiaorg/tastora/framework/types"
+	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
 	"github.com/celestiaorg/tastora/framework/testutil/maps"
+	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	cometcfg "github.com/cometbft/cometbft/config"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 	"github.com/cometbft/cometbft/privval"
@@ -84,6 +84,7 @@ func getPostInitModifications(gasPrices string) []func(context.Context, *tastora
 			cfg.TxIndex.Indexer = "kv"
 			cfg.P2P.AllowDuplicateIP = true
 			cfg.P2P.AddrBookStrict = false
+			cfg.Storage.DiscardABCIResponses = false
 			blockTime := time.Duration(2) * time.Second
 			cfg.Consensus.TimeoutCommit = blockTime
 			cfg.Consensus.TimeoutPropose = blockTime
