@@ -498,21 +498,8 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 		gasLimit, err = client.estimateGas(ctx, txBuilder)
 		if err != nil {
 			// If not a sequence mismatch, return the error.
-			if !strings.Contains(err.Error(), sdkerrors.ErrWrongSequence.Error()) {
+			if ok, err := client.handleSequenceMismatch(err, txBuilder); !ok {
 				return nil, err
-			}
-
-			// Handle the sequence mismatch path by setting the sequence to the expected sequence
-			// and retrying gas estimation.
-			parsedErr := extractSequenceError(err.Error())
-
-			expectedSequence, err := apperrors.ParseExpectedSequence(parsedErr)
-			if err != nil {
-				return nil, fmt.Errorf("parsing sequence mismatch: %w. RawLog: %s", err, err)
-			}
-
-			if err = client.signer.SetSequence(account, expectedSequence); err != nil {
-				return nil, fmt.Errorf("setting sequence: %w", err)
 			}
 
 			// Retry gas estimation with the corrected sequence.
@@ -540,6 +527,29 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 	}
 
 	return client.routeTx(ctx, txBytes, account)
+}
+
+// handleSequenceMismatch checks if the error is a sequence mismatch and corrects it by setting the sequence to the expected sequence.
+func (client *TxClient) handleSequenceMismatch(sequenceErr error, txBuilder client.TxBuilder) (bool, error) {
+	account, err := client.signer.findAccount(txBuilder)
+	if err != nil {
+		return false, err
+	}
+	if !strings.Contains(sequenceErr.Error(), sdkerrors.ErrWrongSequence.Error()) {
+		return false, nil
+	}
+
+	parsedErr := extractSequenceError(sequenceErr.Error())
+
+	expectedSequence, err := apperrors.ParseExpectedSequence(parsedErr)
+	if err != nil {
+		return false, fmt.Errorf("parsing sequence mismatch: %w. RawLog: %s", err, err)
+	}
+
+	if err = client.signer.SetSequence(account.Name(), expectedSequence); err != nil {
+		return false, fmt.Errorf("setting sequence: %w", err)
+	}
+	return true, nil
 }
 
 // routeTx routes to single or multi-connection handling
@@ -883,7 +893,6 @@ func (client *TxClient) EstimateGasPriceAndUsage(
 	// Note: This function does NOT acquire client.mtx because it's always called
 	// from methods (like BroadcastPayForBlobWithAccount) that already hold the lock.
 	// Acquiring the lock here would cause a deadlock.
-
 	txBuilder, err := client.signer.txBuilder(msgs, opts...)
 	if err != nil {
 		return 0, 0, err
@@ -903,85 +912,37 @@ func (client *TxClient) EstimateGasPriceAndUsage(
 
 	span := trace.SpanFromContext(ctx)
 
-	const maxSequenceRetries = 5
 	var resp *gasestimation.EstimateGasPriceAndUsageResponse
-
-	// Retry loop for sequence mismatch errors
-	for attempt := 0; attempt < maxSequenceRetries; attempt++ {
-		var err error
+	for {
 		resp, err = client.gasEstimationClient.EstimateGasPriceAndUsage(ctx, &gasestimation.EstimateGasPriceAndUsageRequest{
 			TxPriority: priority,
 			TxBytes:    txBytes,
 		})
 		if err == nil {
-			// Success
 			break
 		}
-
-		// If not a sequence mismatch error, return immediately
-		if !strings.Contains(err.Error(), sdkerrors.ErrWrongSequence.Error()) {
-			span.RecordError(fmt.Errorf("txclient/EstimateGasPriceAndUsage: estimation error: %w", err))
-			return 0, 0, fmt.Errorf("failed to estimate gas price and usage: %w", err)
+		if ok, err := client.handleSequenceMismatch(err, txBuilder); !ok {
+			return 0, 0, err
 		}
 
-		// Handle sequence mismatch by updating sequence and retrying
-		parsedErr := extractSequenceError(err.Error())
-		expectedSequence, err := apperrors.ParseExpectedSequence(parsedErr)
-		if err != nil {
-			return 0, 0, fmt.Errorf("parsing sequence mismatch: %w. RawLog: %s", err, err)
-		}
-
-		signers, err := txBuilder.GetTx().GetSigners()
-		if err != nil {
-			return 0, 0, fmt.Errorf("getting signers: %w", err)
-		}
-
-		signerName := client.signer.accountNameByAddress(signers[0])
-		fmt.Printf("DEBUG: Looking up account for address bytes: %x\n", signers[0])
-		fmt.Printf("DEBUG: Found signerName: %q\n", signerName)
-		fmt.Printf("DEBUG: Default account name: %s\n", client.DefaultAccountName())
-
-		if signerName == "" {
-			// Dump all known address mappings for debugging
-			fmt.Printf("DEBUG: Address-to-account map entries:\n")
-			for addr, name := range client.signer.addressToAccountMap {
-				fmt.Printf("  %s -> %s\n", addr, name)
-			}
-			return 0, 0, fmt.Errorf("could not resolve account name for signer address %x", signers[0])
-		}
-
-		if err = client.signer.SetSequence(signerName, expectedSequence); err != nil {
-			return 0, 0, fmt.Errorf("setting sequence: %w", err)
-		}
-		fmt.Printf("Sequence set to: %d (attempt %d/%d)\n", expectedSequence, attempt+1, maxSequenceRetries)
-
-		// Re-sign the transaction with the corrected sequence
 		_, _, err = client.signer.signTransaction(txBuilder)
 		if err != nil {
-			return 0, 0, fmt.Errorf("re-signing with corrected sequence: %w", err)
+			return 0, 0, fmt.Errorf("re-signing with corrected sequence: %w",
+				err)
 		}
 
-		// Re-encode to get new txBytes with new signature
 		txBytes, err = client.signer.EncodeTx(txBuilder.GetTx())
 		if err != nil {
 			return 0, 0, fmt.Errorf("re-encoding tx: %w", err)
 		}
-
-		// Continue to next iteration to retry
 	}
 
-	// Check if we exhausted retries
-	if resp == nil {
-		return 0, 0, fmt.Errorf("failed to estimate gas after %d sequence correction attempts", maxSequenceRetries)
-	}
-
-	gasUsed = resp.EstimatedGasUsed
 	span.AddEvent("txclient/EstimateGasPriceAndUsage: estimation successful", trace.WithAttributes(
-		attribute.Int64("gas_used", int64(gasUsed)),
+		attribute.Int64("gas_used", int64(resp.EstimatedGasUsed)),
 		attribute.Int64("gas_price", int64(resp.EstimatedGasPrice)),
 	))
 
-	return resp.EstimatedGasPrice, gasUsed, nil
+	return resp.EstimatedGasPrice, resp.EstimatedGasUsed, nil
 }
 
 // EstimateGasPrice calls the gas estimation endpoint to return the estimated gas price based on priority.

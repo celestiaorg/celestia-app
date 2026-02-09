@@ -128,7 +128,42 @@ func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 
 }
 
-// todo: with account write test where we are signing with a diff address and expect gas esimation to get the ocrrect address
+func TestSubmitPayForBlobWithEstimatorService(t *testing.T) {
+	mockEstimator := setupEstimatorService(t)
+	defer mockEstimator.stop()
+	_, txClient, ctx := utils.SetupTxClientWithDefaultParams(t, user.WithEstimatorService(mockEstimator.conn))
+
+	// Mock gas limit is 70000
+	// Mock gas price is 0.02
+	testBlobs := blobfactory.ManyRandBlobs(random.New(), 100, 200)
+
+	balanceQuery := bank.NewQueryClient(ctx.GRPCClient)
+	balanceBefore, err := balanceQuery.Balance(ctx.GoContext(), &bank.QueryBalanceRequest{
+		Address: txClient.DefaultAddress().String(),
+		Denom:   params.BondDenom,
+	})
+	require.NoError(t, err)
+
+	resp, err := txClient.SubmitPayForBlob(ctx.GoContext(), testBlobs)
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, resp.Code)
+
+	serviceClient := sdktx.NewServiceClient(ctx.GRPCClient)
+	getTxResp, err := serviceClient.GetTx(ctx.GoContext(), &sdktx.GetTxRequest{Hash: resp.TxHash})
+	require.NoError(t, err)
+
+	require.Equal(t, int64(70000), getTxResp.TxResponse.GasWanted)
+
+	// Verify the fee matches the mocked gas price: 0.02 * 70000 = 1400 utia
+	balanceAfter, err := balanceQuery.Balance(ctx.GoContext(), &bank.QueryBalanceRequest{
+		Address: txClient.DefaultAddress().String(),
+		Denom:   params.BondDenom,
+	})
+	require.NoError(t, err)
+	expectedFee := int64(0.02 * 70000) // mock gas price * gas used
+	actualFee := balanceBefore.Balance.Amount.Int64() - balanceAfter.Balance.Amount.Int64()
+	require.Equal(t, expectedFee, actualFee)
+}
 
 func (suite *TxClientTestSuite) TestSubmitTx() {
 	t := suite.T()
