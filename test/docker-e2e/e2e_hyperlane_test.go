@@ -75,6 +75,91 @@ func (s *HyperlaneTestSuite) SetupSuite() {
 	s.celestiaCfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(tag)
 }
 
+func (s *HyperlaneTestSuite) TestHyperlaneTokenTransfers() {
+	t := s.T()
+	if testing.Short() {
+		t.Skip("skipping hyperlane forwarding test in short mode")
+	}
+
+	ctx := context.Background()
+	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), s.celestiaCfg).Build(ctx)
+	s.Require().NoError(err)
+
+	s.T().Cleanup(func() {
+		if err := chain.Remove(ctx); err != nil {
+			s.T().Logf("Error removing chain: %v", err)
+		}
+	})
+
+	err = chain.Start(ctx)
+	s.Require().NoError(err)
+
+	da := s.WithBridgeNodeNetwork(ctx, chain)
+
+	reth := s.BuildEvolveEVMChain(ctx, s.BridgeNodeAddress(da), RethChainName0, RethChainID0)
+
+	hypConfig := hyperlane.Config{
+		Logger:          s.logger,
+		DockerClient:    s.client,
+		DockerNetworkID: s.network,
+		HyperlaneImage:  hyperlane.DefaultDeployerImage(),
+	}
+
+	hypChainProvider := []hyperlane.ChainConfigProvider{reth, chain}
+	hyp, err := hyperlane.NewDeployer(ctx, hypConfig, t.Name(), hypChainProvider)
+	require.NoError(t, err)
+
+	require.NoError(t, hyp.Deploy(ctx))
+
+	broadcaster := cosmos.NewBroadcaster(chain)
+	faucet := chain.GetFaucetWallet()
+
+	config, err := hyp.DeployCosmosNoopISM(ctx, broadcaster, faucet)
+	require.NoError(t, err)
+	require.NotNil(t, config)
+
+	tokenRouter, err := hyp.GetEVMWarpTokenAddress()
+	require.NoError(t, err)
+
+	// Register Hyperlane token router connections between celestia and both evm chains
+	s.EnrollRemoteRouters(ctx, chain, reth, hyp, tokenRouter, config.TokenID)
+
+	// Create and fund a new test wallet via the chain faucet
+	wallet, err := chain.CreateWallet(ctx, "test-hyperlane")
+	s.Require().NoError(err)
+
+	coin := sdk.NewCoin(chain.Config.Denom, sdkmath.NewInt(1000))
+	msgBankSend := banktypes.NewMsgSend(faucet.Address, wallet.Address, sdk.NewCoins(coin))
+
+	txResp, err := broadcaster.BroadcastMessages(ctx, faucet, msgBankSend)
+	s.Require().NoError(err)
+	s.Require().Equal(uint32(0), txResp.Code, "tx failed: code=%d, log=%s", txResp.Code, txResp.RawLog)
+
+	s.StartRelayerAgent(ctx, hyp)
+
+	// Initial transfer of utia collateral token to reth evm chain
+	rethDomain := s.GetDomainForChain(ctx, reth.HyperlaneChainName(), hyp)
+	rethRecipient := ethcommon.HexToAddress("0xaF9053bB6c4346381C77C2FeD279B17ABAfCDf4d")
+
+	s.SendTransferRemoteTx(ctx, chain, config.TokenID, rethDomain, rethRecipient, coin.Amount)
+
+	s.AssertERC20Balance(ctx, reth, tokenRouter, rethRecipient, coin.Amount.BigInt())
+
+	balance := s.QueryBankBalance(ctx, chain, wallet.FormattedAddress, chain.Config.Denom)
+
+	// Execute the hyperlane warp transfer from reth to celestia
+	amount := sdkmath.NewInt(500)
+
+	celestiaDomain := s.GetDomainForChain(ctx, HypCelestiaChainName, hyp)
+	celestiaRecipient, err := bech32ToBytes(wallet.FormattedAddress)
+	s.Require().NoError(err)
+
+	s.SendTransferRemoteTxEvm(ctx, reth, tokenRouter, celestiaDomain, celestiaRecipient, amount)
+
+	expBalance := balance.Add(amount)
+	s.AssertBankBalance(ctx, chain, wallet.FormattedAddress, chain.Config.Denom, expBalance)
+}
+
 func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	t := s.T()
 	if testing.Short() {
