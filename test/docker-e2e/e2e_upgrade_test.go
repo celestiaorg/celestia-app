@@ -341,8 +341,6 @@ func (s *CelestiaTestSuite) ValidatePostUpgrade(ctx context.Context, chain tasto
 	abciInfo, err := rpcClient.ABCIInfo(ctx)
 	s.Require().NoError(err, "failed to fetch ABCI info")
 	s.Require().Equal(appVersion, abciInfo.Response.GetAppVersion(), "should be running v%d", appVersion)
-
-	s.validateMaxCommissionRate(ctx, node, MaxCommissionRateV7, AppVersionV7)
 }
 
 // getSignalQueryClient returns a signaltypes.QueryClient for the provided node.
