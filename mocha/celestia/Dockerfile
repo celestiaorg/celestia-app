@@ -1,6 +1,6 @@
-# Build celestia-appd v6.4.10 from source with celestia-core fix for
-# PruneBlocks nil pointer dereference (celestia-core#2772).
-# Uses celestia-core PR #2779 (rootulp/celestia-core@a37b4ac850a5).
+# Build celestia-appd v6.4.10 from source with:
+# - celestia-core PR #2779: fix PruneBlocks nil dereference (celestia-core#2772)
+# - cosmos-sdk v0.51.9: remove evidence MaxAgeNumBlocks block retention constraint
 
 FROM docker.io/golang:1.25.6-alpine AS builder
 
@@ -18,7 +18,10 @@ WORKDIR /src
 RUN git clone --branch ${VERSION} --depth 1 https://github.com/celestiaorg/celestia-app.git .
 
 # Swap in the celestia-core fix for PruneBlocks nil dereference
+# and cosmos-sdk v0.51.9 which removes the evidence MaxAgeNumBlocks
+# constraint from GetBlockRetentionHeight
 RUN go mod edit -replace github.com/cometbft/cometbft=github.com/rootulp/celestia-core@a37b4ac850a5e01920cf33bd0511ab073740048d \
+    && go mod edit -replace github.com/cosmos/cosmos-sdk=github.com/celestiaorg/cosmos-sdk@v0.51.9 \
     && go mod tidy
 
 # Static link so the musl-built binary runs on the Debian runtime stage
