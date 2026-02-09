@@ -21,6 +21,7 @@ RUN git clone --branch ${VERSION} --depth 1 https://github.com/celestiaorg/celes
 # and cosmos-sdk v0.51.9 which removes the evidence MaxAgeNumBlocks
 # constraint from GetBlockRetentionHeight
 RUN go mod edit -replace github.com/cometbft/cometbft=github.com/rootulp/celestia-core@a37b4ac850a5e01920cf33bd0511ab073740048d \
+    && go mod tidy \
     && go mod edit -replace github.com/cosmos/cosmos-sdk=github.com/celestiaorg/cosmos-sdk@v0.51.9 \
     && go mod tidy
 
