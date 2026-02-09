@@ -2,6 +2,7 @@ package types_test
 
 import (
 	"bytes"
+	"encoding/binary"
 	"testing"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
@@ -81,4 +82,21 @@ func TestStateMembershipPublicValuesEncoding(t *testing.T) {
 	require.Equal(t, expected.MerkleTreeAddress, decoded.MerkleTreeAddress)
 	require.Len(t, decoded.MessageIds, len(expected.MessageIds))
 	require.Equal(t, expected.MessageIds, decoded.MessageIds)
+}
+
+func TestStateMembershipPublicValuesUnmarshalCountLimit(t *testing.T) {
+	// Create a crafted payload with count exceeding MaxMessageIdsCount
+	// Format: StateRoot (32 bytes) + MerkleTreeAddress (32 bytes) + count (8 bytes little-endian)
+	payload := make([]byte, 72)
+	copy(payload[0:32], bytes.Repeat([]byte{0x01}, 32))  // StateRoot
+	copy(payload[32:64], bytes.Repeat([]byte{0x02}, 32)) // MerkleTreeAddress
+
+	// Set count to MaxMessageIdsCount + 1 (little-endian uint64)
+	overLimitCount := uint64(types.MaxMessageIdsCount + 1)
+	binary.LittleEndian.PutUint64(payload[64:72], overLimitCount)
+
+	var decoded types.StateMembershipValues
+	err := decoded.Unmarshal(payload)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "exceeds maximum allowed")
 }

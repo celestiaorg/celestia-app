@@ -29,10 +29,13 @@ const (
 	// 2 * 8 bytes (length prefixes) + 2 * MaxStateBytes = 5012 bytes
 	MaxStateTransitionValuesBytes = (2 * 8) + (2 * MaxStateBytes)
 
+	// MaxMessageIdsCount is the maximum number of message IDs allowed in a StateMembershipValues.
+	MaxMessageIdsCount = 1_000_000
+
 	// MaxStateMembershipValuesBytes is the maximum size permitted for public values payloads associated
-	// with state membership proofs (32 MiB = 33554432 bytes).
-	// This limits the number of message ids in a single proof to >~1048000.
-	MaxStateMembershipValuesBytes = 33554432
+	// with state membership proofs.
+	// Calculated as: 32 (StateRoot) + 32 (MerkleTreeAddress) + 8 (count) + MaxMessageIdsCount * 32 (MessageIds)
+	MaxStateMembershipValuesBytes = 32 + 32 + 8 + (MaxMessageIdsCount * 32)
 
 	// DefaultProofVerifyCostGroth16 is the default gas cost metered for verifying a groth16 proof.
 	// NOTE: This is informed by benchmark comparisons with Secp256k1 signature verification.
