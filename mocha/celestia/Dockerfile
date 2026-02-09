@@ -1,10 +1,33 @@
-# Download the v6.4.10 pre-built binary from GitHub releases.
+# Build celestia-appd v6.4.10 from source with celestia-core fix for
+# PruneBlocks nil pointer dereference (celestia-core#2772).
+# Uses celestia-core PR #2779 (rootulp/celestia-core@a37b4ac850a5).
+
+FROM docker.io/golang:1.25.6-alpine AS builder
+
+ARG VERSION=v6.4.10
+
+# hadolint ignore=DL3018
+RUN apk add --no-cache \
+    gcc \
+    git \
+    linux-headers \
+    make \
+    musl-dev
+
+WORKDIR /src
+RUN git clone --branch ${VERSION} --depth 1 https://github.com/celestiaorg/celestia-app.git .
+
+# Swap in the celestia-core fix for PruneBlocks nil dereference
+RUN go mod edit -replace github.com/cometbft/cometbft=github.com/rootulp/celestia-core@a37b4ac850a5e01920cf33bd0511ab073740048d \
+    && go mod tidy
+
+# Static link so the musl-built binary runs on the Debian runtime stage
+RUN CGO_LDFLAGS="-static" make build-standalone
+
 FROM docker.io/debian:trixie-slim
 
 ARG UID=10001
 ARG USER_NAME=celestia
-ARG VERSION=v6.4.10
-ARG TARGETARCH
 
 ENV CELESTIA_APP_HOME=/home/${USER_NAME}/.celestia-app
 
@@ -16,12 +39,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && groupadd -g ${UID} ${USER_NAME} \
     && useradd -l -m -d ${CELESTIA_APP_HOME} -s /sbin/nologin -u ${UID} -g ${UID} ${USER_NAME}
 
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-# Map Docker's TARGETARCH (amd64/arm64) to release asset names (x86_64/arm64)
-RUN ARCH="${TARGETARCH}"; \
-    if [ "${ARCH}" = "amd64" ]; then ARCH="x86_64"; fi; \
-    curl -fsSL "https://github.com/celestiaorg/celestia-app/releases/download/${VERSION}/celestia-app-standalone_Linux_${ARCH}.tar.gz" \
-    | tar -xz -C /bin celestia-appd
+COPY --from=builder /src/build/celestia-appd /bin/celestia-appd
 
 COPY --chown=${USER_NAME}:${USER_NAME} entrypoint.sh /opt/entrypoint.sh
 RUN chmod +x /opt/entrypoint.sh
