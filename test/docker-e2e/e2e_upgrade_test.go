@@ -40,6 +40,8 @@ const (
 	MinCommissionRateV6 = "0.10" // 10%
 	MinCommissionRateV7 = "0.20" // 20%
 
+	MaxCommissionRateV7 = "0.60" // 60%
+
 	EvidenceMaxAgeV5Hours = 504
 	EvidenceMaxAgeV6Hours = 337
 
@@ -339,6 +341,8 @@ func (s *CelestiaTestSuite) ValidatePostUpgrade(ctx context.Context, chain tasto
 	abciInfo, err := rpcClient.ABCIInfo(ctx)
 	s.Require().NoError(err, "failed to fetch ABCI info")
 	s.Require().Equal(appVersion, abciInfo.Response.GetAppVersion(), "should be running v%d", appVersion)
+
+	s.validateMaxCommissionRate(ctx, node, MaxCommissionRateV7, AppVersionV7)
 }
 
 // getSignalQueryClient returns a signaltypes.QueryClient for the provided node.
@@ -394,6 +398,7 @@ func (s *CelestiaTestSuite) validateParameters(ctx context.Context, node tastora
 
 	if appVersion == AppVersionV7 {
 		s.validateMinCommissionRate(ctx, node, MinCommissionRateV7, AppVersionV7)
+		s.validateMaxCommissionRate(ctx, node, MaxCommissionRateV7, AppVersionV7)
 		return
 	}
 
@@ -494,6 +499,48 @@ func (s *CelestiaTestSuite) validateMinCommissionRate(ctx context.Context, node 
 	tolerance := math.LegacyNewDecWithPrec(1, 10)
 	diff := actualDec.Sub(expectedDec).Abs()
 	s.Require().True(diff.LTE(tolerance), "v%d min commission rate mismatch: expected %s, got %s, diff=%s", appVersion, expectedRate, minCommissionRateStr, diff.String())
+}
+
+// validateMaxCommissionRate queries all validators and validates that each
+// validator's max commission rate is at least the expected value.
+func (s *CelestiaTestSuite) validateMaxCommissionRate(ctx context.Context, node tastoratypes.ChainNode, expectedRate string, appVersion uint64) {
+	dcNode, ok := node.(*tastoradockertypes.ChainNode)
+	s.Require().True(ok, "node should be a docker chain node")
+
+	networkInfo, err := node.GetNetworkInfo(ctx)
+	s.Require().NoError(err, "failed to get network info from chain node")
+
+	rpcEndpoint := fmt.Sprintf("tcp://%s:26657", networkInfo.Internal.Hostname)
+	cmd := []string{"celestia-appd", "query", "staking", "validators", "--output", "json", "--node", rpcEndpoint}
+
+	stdout, stderr, err := dcNode.Exec(ctx, cmd, nil)
+	s.Require().NoError(err, "failed to query staking validators via CLI: stderr=%s", string(stderr))
+
+	var validatorsResp struct {
+		Validators []struct {
+			Commission struct {
+				CommissionRates struct {
+					MaxRate string `json:"max_rate"`
+				} `json:"commission_rates"`
+			} `json:"commission"`
+		} `json:"validators"`
+	}
+	err = json.Unmarshal(stdout, &validatorsResp)
+	s.Require().NoError(err, "failed to parse staking validators JSON response")
+	s.Require().NotEmpty(validatorsResp.Validators, "no validators found in response")
+
+	expectedDec, err := math.LegacyNewDecFromStr(expectedRate)
+	s.Require().NoError(err, "failed to parse expected max commission rate")
+
+	for i, val := range validatorsResp.Validators {
+		maxRateStr := val.Commission.CommissionRates.MaxRate
+		s.Require().NotEmpty(maxRateStr, "max_rate not found for validator %d", i)
+
+		actualDec, err := math.LegacyNewDecFromStr(maxRateStr)
+		s.Require().NoError(err, "failed to parse actual max commission rate for validator %d: %s", i, maxRateStr)
+
+		s.Require().True(actualDec.GTE(expectedDec), "v%d validator %d max commission rate too low: expected >= %s, got %s", appVersion, i, expectedRate, maxRateStr)
+	}
 }
 
 // validateEvidenceParams queries and validates both evidence max age duration and blocks using CLI
