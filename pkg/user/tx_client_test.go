@@ -125,7 +125,6 @@ func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
 	})
-
 }
 
 func TestSubmitPayForBlobWithEstimatorService(t *testing.T) {
