@@ -2,6 +2,60 @@
 
 This guide provides notes for major version releases. These notes may be helpful for users when upgrading from previous major versions.
 
+## v7.0.0
+
+### Node Operators (v7.0.0)
+
+Node operators MUST upgrade their binary to this version prior to the v7 activation height.
+
+#### Validator Commission Rate Changes
+
+v7 enforces new commission rate bounds:
+
+- **Minimum commission rate**: 20% (previously variable)
+- **Maximum commission rate**: 60%
+
+Non-compliant validators will have their rates **automatically adjusted** at the upgrade height:
+
+- Validators with a commission rate below 20% will be set to 20%
+- Validators with a max commission rate below 60% will be set to 60%
+
+No manual action is required, but validators should be aware of this change.
+
+#### Config Changes
+
+No configuration changes are required for v7. Existing v6 configurations remain compatible.
+
+### State Machine Changes (v7.0.0)
+
+#### Blocked Module Account Addresses
+
+v7 prevents direct fund transfers to module accounts via `MsgSend` or `bank send`. Module accounts can still receive funds through protocol mechanisms (e.g., escrow). The governance module account is exempt from this restriction.
+
+#### New Modules
+
+**`x/forwarding`** (CIP-45):
+
+Single-signature cross-chain transfers through Celestia via Hyperlane warp routes. Users send tokens to a deterministically derived forwarding address, and anyone can permissionlessly trigger forwarding to the committed destination.
+
+- `MsgForward` - Forwards tokens from a forwarding address to a committed destination via Hyperlane
+
+See the [x/forwarding README](../../x/forwarding/README.md) for details.
+
+**`x/zkism`**:
+
+Hyperlane Interchain Security Module (ISM) that authorizes Hyperlane message processing verified by SP1 Groth16 zero-knowledge proofs.
+
+- `CreateInterchainSecurityModule` - Create an ISM with initial state and verifier configuration
+- `UpdateInterchainSecurityModule` - Verify a state transition proof and update ISM state
+- `SubmitMessages` - Verify a membership proof and authorize Hyperlane message IDs
+
+See the [x/zkism README](../../x/zkism/README.md) for details.
+
+#### Store Migrations
+
+v7 adds a new store key for the `zkism` module. This migration is handled automatically by the upgrade handler.
+
 ## v6 - 128mb/6s
 
 This section is specific to bumping from 32mb/6s in the v6 release to 128mb/6s. If you're upgrading from v5, please check the [v6.0.0](#v600) first. And only then check this one.
