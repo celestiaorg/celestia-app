@@ -1,6 +1,14 @@
 name: rust-lumina-latency-monitor
 on:
-  workflow_call:
+  pull_request:
+    paths:
+      - tools/lumina-latency-monitor/**
+  merge_group:
+  push:
+    branches:
+      - "v*"
+    tags:
+      - "v*"
 
 jobs:
   rust-lumina-latency-monitor:
