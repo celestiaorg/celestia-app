@@ -5,6 +5,7 @@ import (
 
 	"cosmossdk.io/math"
 	ismtypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/01_interchain_security/types"
+	abci "github.com/cometbft/cometbft/abci/types"
 	cosmostx "github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -18,9 +19,9 @@ import (
 
 // TestMultisigSetRoutingIsmDomain is a regression test for
 // https://github.com/celestiaorg/celestia-app/issues/6541.
-// MsgSetRoutingIsmDomain has a malformed amino.name in its proto definition
-// which causes multisig transactions (that use SIGN_MODE_LEGACY_AMINO_JSON)
-// to fail with signature verification or protobuf unmarshal errors.
+// MsgSetRoutingIsmDomain previously had a proto descriptor registration issue
+// that caused multisig transactions (which use SIGN_MODE_LEGACY_AMINO_JSON)
+// to fail with "unknown protobuf field" errors.
 func (s *HyperlaneTestSuite) TestMultisigSetRoutingIsmDomain() {
 	chain := s.celestia
 
@@ -114,54 +115,46 @@ func (s *HyperlaneTestSuite) TestMultisigSetRoutingIsmDomain() {
 		PubKey:        msigPubKey,
 	}
 
-	_, err = cosmostx.SignWithPrivKey(
+	sig1, err := cosmostx.SignWithPrivKey(
 		context.Background(), signMode, signerData, txBuilder, priv1, txCfg, accSeq,
 	)
-	// TODO: remove this assertion once the upstream amino.name fix lands.
-	// The malformed amino.name on MsgSetRoutingIsmDomain causes the amino
-	// JSON sign mode handler to reject the Route field as unknown. See
-	// https://github.com/celestiaorg/celestia-app/issues/6541
-	s.Require().Error(err, "signing MsgSetRoutingIsmDomain with amino JSON should fail due to malformed amino.name")
-	s.Require().ErrorContains(err, "unknown protobuf field")
+	s.Require().NoError(err)
 
-	// Once the bug is fixed, replace the above assertions with the following
-	// to verify the full multisig flow works end-to-end:
-	//
-	// s.Require().NoError(err)
-	//
-	// sig2, err := cosmostx.SignWithPrivKey(
-	// 	context.Background(), signMode, signerData, txBuilder, priv2, txCfg, accSeq,
-	// )
-	// s.Require().NoError(err)
-	//
-	// msigData := multisigtypes.NewMultisig(len(pubKeys))
-	// err = multisigtypes.AddSignatureV2(msigData, sig1, pubKeys)
-	// s.Require().NoError(err)
-	// err = multisigtypes.AddSignatureV2(msigData, sig2, pubKeys)
-	// s.Require().NoError(err)
-	//
-	// finalSig := signing.SignatureV2{
-	// 	PubKey:   msigPubKey,
-	// 	Data:     msigData,
-	// 	Sequence: accSeq,
-	// }
-	// err = txBuilder.SetSignatures(finalSig)
-	// s.Require().NoError(err)
-	//
-	// txBytes, err := txCfg.TxEncoder()(txBuilder.GetTx())
-	// s.Require().NoError(err)
-	//
-	// resp, err := chain.App.GetBaseApp().FinalizeBlock(&abci.RequestFinalizeBlock{
-	// 	Height:             chain.App.GetBaseApp().LastBlockHeight() + 1,
-	// 	Time:               chain.CurrentHeader.GetTime(),
-	// 	NextValidatorsHash: chain.NextVals.Hash(),
-	// 	Txs:                [][]byte{txBytes},
-	// })
-	// s.Require().NoError(err)
-	// s.Require().Len(resp.TxResults, 1)
-	//
-	// txResult := resp.TxResults[0]
-	// s.Require().Equal(uint32(0), txResult.Code,
-	// 	"MsgSetRoutingIsmDomain from multisig should succeed but got code %d: %s",
-	// 	txResult.Code, txResult.Log)
+	sig2, err := cosmostx.SignWithPrivKey(
+		context.Background(), signMode, signerData, txBuilder, priv2, txCfg, accSeq,
+	)
+	s.Require().NoError(err)
+
+	// Round 3: Aggregate individual signatures into the multisig.
+	msigData := multisigtypes.NewMultisig(len(pubKeys))
+	err = multisigtypes.AddSignatureV2(msigData, sig1, pubKeys)
+	s.Require().NoError(err)
+	err = multisigtypes.AddSignatureV2(msigData, sig2, pubKeys)
+	s.Require().NoError(err)
+
+	finalSig := signing.SignatureV2{
+		PubKey:   msigPubKey,
+		Data:     msigData,
+		Sequence: accSeq,
+	}
+	err = txBuilder.SetSignatures(finalSig)
+	s.Require().NoError(err)
+
+	// Encode and submit the transaction via FinalizeBlock.
+	txBytes, err := txCfg.TxEncoder()(txBuilder.GetTx())
+	s.Require().NoError(err)
+
+	resp, err := chain.App.GetBaseApp().FinalizeBlock(&abci.RequestFinalizeBlock{
+		Height:             chain.App.GetBaseApp().LastBlockHeight() + 1,
+		Time:               chain.CurrentHeader.GetTime(),
+		NextValidatorsHash: chain.NextVals.Hash(),
+		Txs:                [][]byte{txBytes},
+	})
+	s.Require().NoError(err)
+	s.Require().Len(resp.TxResults, 1)
+
+	txResult := resp.TxResults[0]
+	s.Require().Equal(uint32(0), txResult.Code,
+		"MsgSetRoutingIsmDomain from multisig should succeed but got code %d: %s",
+		txResult.Code, txResult.Log)
 }
