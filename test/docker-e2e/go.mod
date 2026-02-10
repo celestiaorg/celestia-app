@@ -1,6 +1,6 @@
 module celestiaorg/celestia-app/test/docker-e2e
 
-go 1.25.6
+go 1.25.7
 
 require (
 	cosmossdk.io/math v1.5.3
@@ -194,7 +194,7 @@ require (
 	github.com/klauspost/reedsolomon v1.13.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
-	github.com/lib/pq v1.10.9 // indirect
+	github.com/lib/pq v1.11.1 // indirect
 	github.com/linxGnu/grocksdb v1.9.8 // indirect
 	github.com/manifoldco/promptui v0.9.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
@@ -290,7 +290,7 @@ replace (
 	cosmossdk.io/log => github.com/celestiaorg/cosmos-sdk/log v1.1.1-0.20251116153902-f48fea92e627
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	github.com/celestiaorg/celestia-app/v7 => ../..
-	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.23
+	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.24
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.52.0
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
 	// Use ledger-cosmos-go v0.16.0 because v0.15.0 causes "hidapi: unknown failure"

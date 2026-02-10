@@ -1,11 +1,12 @@
 name: ci-release
 
-# Run this workflow on push events (i.e. PR merge) to main or release branches,
-# push events for new semantic version tags, and all PRs.
+# Run this workflow on push events to release branches, push events for new
+# semantic version tags, and all PRs. The merge_group trigger handles main
+# branch validation via the merge queue, so a separate push trigger for main
+# is not needed and would cause duplicate CI runs.
 on:
   push:
     branches:
-      - main
       - "v*"
     tags:
       - "v*"
@@ -13,6 +14,7 @@ on:
     types: [published]
   pull_request:
   merge_group:
+  workflow_dispatch:
 
 jobs:
   lint:
@@ -26,9 +28,6 @@ jobs:
 
   test:
     uses: ./.github/workflows/test.yml
-
-  rust-lumina-latency-monitor:
-    uses: ./.github/workflows/rust-lumina-latency-monitor.yml
 
   goreleaser:
     if: github.event_name == 'release'

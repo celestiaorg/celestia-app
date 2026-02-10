@@ -119,7 +119,34 @@ jobs:
       - name: Run multiplexer tests
         run: make test-multiplexer
 
+  build-e2e-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+
+      - name: Generate image tag
+        id: tag
+        run: echo "value=$(echo $GITHUB_SHA | cut -c1-8)" >> $GITHUB_OUTPUT
+
+      - name: Build Docker image
+        run: docker build -t "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.value }}" . -f docker/multiplexer.Dockerfile
+
+      - name: Save Docker image as artifact
+        run: docker save "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.value }}" | gzip > /tmp/e2e-image.tar.gz
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 #v4.6.2
+        with:
+          name: e2e-image
+          path: /tmp/e2e-image.tar.gz
+          retention-days: 1
+
+    outputs:
+      tag: ${{ steps.tag.outputs.value }}
+
   test-docker-e2e:
+    needs: build-e2e-image
     runs-on: ubuntu-latest
     # if one test fails, continue running the rest.
     continue-on-error: true
@@ -139,6 +166,8 @@ jobs:
           - testcase: TestUpgradeLatest
           - testcase: TestPFMMultiHop
             entrypoint: TestPFMTestSuite
+          - testcase: TestHyperlaneTokenTransfer
+            entrypoint: TestHyperlaneTestSuite
           - testcase: TestHyperlaneForwarding
             entrypoint: TestHyperlaneTestSuite
           - testcase: TestHyperlaneZKIsmStateTransition
@@ -155,21 +184,19 @@ jobs:
         with:
           go-version-file: "go.mod"
 
-      - name: Generate image tag
-        id: tag
-        run: echo "value=$(echo $GITHUB_SHA | cut -c1-8)" >> $GITHUB_OUTPUT
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 #v4.3.0
+        with:
+          name: e2e-image
+          path: /tmp
 
-      - name: Build Docker image locally
-        # explicitly not pushing to ghcr as other workflows build and push there.
-        # ideally we don't need to build an image on each runner and can use a single
-        # more powerful self hosted runner to speed things up.
-        run: docker build -t "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.value }}" . -f docker/multiplexer.Dockerfile
+      - name: Load Docker image
+        run: docker load < /tmp/e2e-image.tar.gz
 
       - name: Run E2E test
         env:
-          # use the locally built image
           CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
-          CELESTIA_TAG: ${{ steps.tag.outputs.value }}
+          CELESTIA_TAG: ${{ needs.build-e2e-image.outputs.tag }}
         run: |
           if [ -n "${{ matrix.entrypoint }}" ]; then
             make test-docker-e2e test=${{ matrix.testcase }} entrypoint=${{ matrix.entrypoint }}
