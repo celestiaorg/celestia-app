@@ -96,6 +96,77 @@ func (s Set) Assign(commitment rsema1d.Commitment, totalRows, originalRows, minR
 	return shardMap
 }
 
+// Select returns validators to download shards from, shuffled by stake for load balancing.
+// Returns all validators and the minimum count needed for reconstruction (covering livenessThreshold stake).
+func (s Set) Select(originalRows, minRows int, livenessThreshold cmtmath.Fraction) (validators []*core.Validator, minRequired int) {
+	if len(s.Validators) == 0 {
+		return nil, 0
+	}
+
+	validators = make([]*core.Validator, len(s.Validators))
+	copy(validators, s.Validators)
+
+	// find split point where row assignments start overlapping
+	// each validator contributes max(their stake, minStake) where minStake ensures unique decodability
+	totalStake := s.TotalVotingPower()
+	totalDistributedRows := int64(originalRows) * int64(livenessThreshold.Denominator) / int64(livenessThreshold.Numerator)
+	minStake := (int64(minRows)*totalStake + totalDistributedRows - 1) / totalDistributedRows // ceil division
+
+	accumulated := int64(0)
+	splitIdx := len(validators)
+	for i, v := range validators {
+		accumulated += max(v.VotingPower, minStake)
+		if accumulated > totalStake {
+			splitIdx = i
+			break
+		}
+	}
+
+	// shuffle each group by stake for load balancing
+	// NOTE: doesn't require cryptographic randomness
+	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
+	shuffleByStake(validators[:splitIdx], rng)
+	shuffleByStake(validators[splitIdx:], rng)
+
+	// count validators needed to cover livenessThreshold stake
+	livenessStake := s.TotalVotingPower() * int64(livenessThreshold.Numerator) / int64(livenessThreshold.Denominator)
+	coveredStake := int64(0)
+	for _, v := range validators[:splitIdx] {
+		minRequired++
+		coveredStake += v.VotingPower
+		if coveredStake >= livenessStake {
+			break
+		}
+	}
+
+	return validators, minRequired
+}
+
+// shuffleByStake shuffles validators in-place using stake-weighted random selection.
+// Validators with higher voting power are more likely to appear earlier.
+func shuffleByStake(validators []*core.Validator, rng *rand.Rand) {
+	for i := range len(validators) - 1 {
+		// calculate total weight of remaining validators
+		var totalWeight int64
+		for j := i; j < len(validators); j++ {
+			totalWeight += validators[j].VotingPower
+		}
+
+		// pick random point in weight space
+		point := rng.Int64N(totalWeight)
+
+		// find and swap the selected validator
+		var cumul int64
+		for j := i; j < len(validators); j++ {
+			cumul += validators[j].VotingPower
+			if point < cumul {
+				validators[i], validators[j] = validators[j], validators[i]
+				break
+			}
+		}
+	}
+}
+
 // Verify checks if all given row indices are assigned to [core.Validator].
 // Returns error if validator is not in the map, count doesn't match, or any row is not assigned.
 // This method builds a temporary set for O(r + n) complexity instead of O(n × r).
