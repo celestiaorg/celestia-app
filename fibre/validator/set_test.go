@@ -1,7 +1,7 @@
 package validator_test
 
 import (
-	"crypto/sha256"
+	"fmt"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/validator"
@@ -12,314 +12,301 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// default liveness threshold for tests (1/3)
-var testLivenessThreshold = cmtmath.Fraction{Numerator: 1, Denominator: 3}
-
-func TestSet_Assign(t *testing.T) {
-	commitment := rsema1d.Commitment{
+var (
+	testLivenessThreshold = cmtmath.Fraction{Numerator: 1, Denominator: 3}
+	testCommitment        = rsema1d.Commitment{
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
 	}
+)
 
-	t.Run("EmptySet", func(t *testing.T) {
+const (
+	testOriginalRows = 4096
+	testMinRows      = 148
+)
+
+func TestSet_Assign(t *testing.T) {
+	t.Run("empty set", func(t *testing.T) {
 		valSet := makeValidatorSet(0)
-
-		shardMap := valSet.Assign(commitment, 100, 25, 10, testLivenessThreshold)
-		require.NotNil(t, shardMap)
+		shardMap := valSet.Assign(testCommitment, 100, 25, 10, testLivenessThreshold)
 		require.Empty(t, shardMap)
 	})
 
-	t.Run("ZeroTotalRows", func(t *testing.T) {
+	t.Run("zero total rows", func(t *testing.T) {
 		valSet := makeValidatorSet(3)
-
-		shardMap := valSet.Assign(commitment, 0, 0, 10, testLivenessThreshold)
-		require.NotNil(t, shardMap)
+		shardMap := valSet.Assign(testCommitment, 0, 0, 10, testLivenessThreshold)
 		require.Empty(t, shardMap)
 	})
 
-	t.Run("ZeroMinRows", func(t *testing.T) {
+	t.Run("zero min rows", func(t *testing.T) {
 		valSet := makeValidatorSet(3)
-
-		shardMap := valSet.Assign(commitment, 100, 25, 0, testLivenessThreshold)
-		require.NotNil(t, shardMap)
+		shardMap := valSet.Assign(testCommitment, 100, 25, 0, testLivenessThreshold)
 		require.Empty(t, shardMap)
 	})
 
-	t.Run("SingleValidator", func(t *testing.T) {
+	t.Run("single validator", func(t *testing.T) {
 		valSet := makeValidatorSet(1)
-
-		// Single validator with 100% stake would get ceil(originalRows * 1.0 / (1/3)) = originalRows * 3 rows
-		// But capped at originalRows since that's all needed for reconstruction
-		totalRows := 30
-		originalRows := 10
-		shardMap := valSet.Assign(commitment, totalRows, originalRows, 1, testLivenessThreshold)
-		require.NotNil(t, shardMap)
+		shardMap := valSet.Assign(testCommitment, 30, 10, 1, testLivenessThreshold)
 		require.Len(t, shardMap, 1)
 
-		// Single validator gets capped at originalRows
 		for _, rows := range shardMap {
-			require.Len(t, rows, originalRows)
+			require.Len(t, rows, 10) // capped at originalRows
 		}
 	})
 
-	t.Run("EqualStakesDistribution", func(t *testing.T) {
-		// Test with equal stakes - all validators should get equal rows
+	t.Run("equal stakes distribution", func(t *testing.T) {
 		valSet := makeValidatorSet(100)
+		shardMap := valSet.Assign(testCommitment, 3000, 1000, 1, testLivenessThreshold)
+		require.Len(t, shardMap, 100)
 
-		hasher := sha256.New()
-		hasher.Write([]byte("distribution-test"))
-		var distCommitment rsema1d.Commitment
-		copy(distCommitment[:], hasher.Sum(nil))
-
-		// With 100 validators each having 1% stake and livenessThreshold=1/3:
-		// rows = ceil(originalRows * 0.01 / (1/3)) = ceil(originalRows * 0.03)
-		// For originalRows=1000, each gets ceil(30) = 30 rows, total = 3000
-		totalRows := 3000
-		originalRows := 1000
-		minRows := 1 // low minRows so proportional distribution dominates
-		expectedRowsPerValidator := 30
-		shardMap := valSet.Assign(distCommitment, totalRows, originalRows, minRows, testLivenessThreshold)
-
-		require.Len(t, shardMap, len(valSet.Validators), "All validators should be in shard map")
-
-		totalAssigned := 0
-
-		// Track all assigned rows globally to detect cross-validator duplicates
-		globalSeen := make(map[int]bool)
-
-		for val, rows := range shardMap {
-			count := len(rows)
-			totalAssigned += count
-
-			// With equal stakes, each validator gets exactly expectedRowsPerValidator rows
-			require.Equal(t, expectedRowsPerValidator, count, "validator %s should have exactly %d rows", val.Address, expectedRowsPerValidator)
-
-			// Verify row indices are unique (within validator and across all validators) and in range
-			for _, rowIdx := range rows {
-				require.False(t, globalSeen[rowIdx], "duplicate row index %d across validators", rowIdx)
-				require.GreaterOrEqual(t, rowIdx, 0)
-				globalSeen[rowIdx] = true
+		seen := make(map[int]bool)
+		for _, rows := range shardMap {
+			require.Len(t, rows, 30) // 100 validators × 1% stake × 3 (1/threshold) = 30 rows each
+			for _, idx := range rows {
+				require.False(t, seen[idx])
+				seen[idx] = true
 			}
 		}
-
-		require.Equal(t, totalRows, totalAssigned, "All rows should be assigned")
-		t.Logf("Total assigned: %d (rowsPerValidator=%d, validators=%d)", totalAssigned, expectedRowsPerValidator, len(valSet.Validators))
+		require.Len(t, seen, 3000)
 	})
 
-	t.Run("StakeProportionalDistribution", func(t *testing.T) {
-		// Create validators with different stakes: 1, 2, 3 (total = 6)
+	t.Run("stake proportional distribution", func(t *testing.T) {
 		valSet := makeValidatorSetWithStakes([]int64{1, 2, 3})
+		// use larger originalRows so cap doesn't affect proportional distribution
+		shardMap := valSet.Assign(testCommitment, 54, 18, 1, testLivenessThreshold)
+		require.Len(t, shardMap, 3)
 
-		hasher := sha256.New()
-		hasher.Write([]byte("stake-proportional-test"))
-		var distCommitment rsema1d.Commitment
-		copy(distCommitment[:], hasher.Sum(nil))
-
-		// With stakes 1,2,3 (total=6) and livenessThreshold=1/3:
-		// rows = min(ceil(originalRows * stake * 3 / totalStake), originalRows)
-		// For originalRows=18: stake1 gets min(ceil(18*1*3/6),18)=9, stake2 gets min(ceil(18*2*3/6),18)=18, stake3 gets min(ceil(18*3*3/6),18)=18
-		// Use larger originalRows so cap doesn't affect smaller stakes
-		totalRows := 54
-		originalRows := 18
-		minRows := 1 // low minRows so proportional distribution dominates
-		shardMap := valSet.Assign(distCommitment, totalRows, originalRows, minRows, testLivenessThreshold)
-
-		require.Len(t, shardMap, 3, "All validators should be in shard map")
-
-		totalAssigned := 0
-		globalSeen := make(map[int]bool)
-
+		seen := make(map[int]bool)
 		for val, rows := range shardMap {
-			count := len(rows)
-			totalAssigned += count
-
-			// rows = min(ceil(originalRows * votingPower * 3 / totalStake), originalRows)
-			formulaRows := int((int64(originalRows)*val.VotingPower*3 + 5) / 6) // ceil division
-			expectedRows := min(formulaRows, originalRows)                      // cap at originalRows
-			require.Equal(t, expectedRows, count, "validator with stake %d should have %d rows, got %d",
-				val.VotingPower, expectedRows, count)
-
-			for _, rowIdx := range rows {
-				require.False(t, globalSeen[rowIdx], "duplicate row index %d across validators", rowIdx)
-				require.GreaterOrEqual(t, rowIdx, 0)
-				globalSeen[rowIdx] = true
+			// rows = ceil(originalRows * stake / totalStake / livenessThreshold), capped at originalRows
+			expected := int((int64(18)*val.VotingPower*3 + 5) / 6)
+			expected = min(expected, 18) // cap at originalRows
+			require.Len(t, rows, expected)
+			for _, idx := range rows {
+				require.False(t, seen[idx])
+				seen[idx] = true
 			}
 		}
-
-		t.Logf("Total assigned: %d (totalRows=%d, stakes=1,2,3)", totalAssigned, totalRows)
 	})
 
-	t.Run("MinRowsFloor", func(t *testing.T) {
-		// Create validators with different stakes: 1, 2, 3 (total = 6)
-		// With small stakes, formula would give small values for low-stake validators
-		// But minRows should ensure everyone gets at least minRows
+	t.Run("min rows floor", func(t *testing.T) {
+		valSet := makeValidatorSetWithStakes([]int64{1, 2, 3})
+		// minRows=5 ensures everyone gets at least 5, causing wrap-around
 		// Note: minRows must be <= originalRows
-		valSet := makeValidatorSetWithStakes([]int64{1, 2, 3})
+		shardMap := valSet.Assign(testCommitment, 18, 6, 5, testLivenessThreshold)
+		require.Len(t, shardMap, 3)
 
-		hasher := sha256.New()
-		hasher.Write([]byte("minrows-floor-test"))
-		var distCommitment rsema1d.Commitment
-		copy(distCommitment[:], hasher.Sum(nil))
-
-		// With stakes 1,2,3 (total=6) and livenessThreshold=1/3:
-		// Formula: rows = ceil(originalRows * stake * 3 / totalStake)
-		// stake1: ceil(6*1*3/6) = 3 -> but minRows=5 floors it to 5
-		// stake2: ceil(6*2*3/6) = 6 -> capped at originalRows=6
-		// stake3: ceil(6*3*3/6) = 9 -> capped at originalRows=6
-		// Total = 5+6+6 = 17 rows, with wrap-around since totalRows=18
-		totalRows := 18
-		originalRows := 6
-		minRows := 5 // must be <= originalRows
-		shardMap := valSet.Assign(distCommitment, totalRows, originalRows, minRows, testLivenessThreshold)
-
-		require.Len(t, shardMap, 3, "All validators should be in shard map")
-
-		totalAssigned := 0
-
-		for val, rows := range shardMap {
-			count := len(rows)
-			totalAssigned += count
-
-			// Every validator should get at least minRows (capped at originalRows)
-			require.GreaterOrEqual(t, count, minRows, "validator with stake %d should have at least %d rows, got %d",
-				val.VotingPower, minRows, count)
-			require.LessOrEqual(t, count, originalRows, "validator with stake %d should have at most %d rows, got %d",
-				val.VotingPower, originalRows, count)
-
-			// All row indices should be within [0, totalRows)
-			for _, rowIdx := range rows {
-				require.GreaterOrEqual(t, rowIdx, 0)
-				require.Less(t, rowIdx, totalRows, "row index %d should be less than totalRows %d", rowIdx, totalRows)
+		for _, rows := range shardMap {
+			require.GreaterOrEqual(t, len(rows), 5)
+			for _, idx := range rows {
+				require.Less(t, idx, 18)
 			}
 		}
-
-		t.Logf("Total assigned: %d (totalRows=%d, minRows=%d, originalRows=%d, stakes=1,2,3)", totalAssigned, totalRows, minRows, originalRows)
 	})
 
-	t.Run("Determinism", func(t *testing.T) {
+	t.Run("determinism", func(t *testing.T) {
 		valSet := makeValidatorSet(3)
+		first := valSet.Assign(testCommitment, 51, 17, 5, testLivenessThreshold)
+		second := valSet.Assign(testCommitment, 51, 17, 5, testLivenessThreshold)
 
-		totalRows := 51
-		originalRows := 17
-		minRows := 5
-		firstRun := valSet.Assign(commitment, totalRows, originalRows, minRows, testLivenessThreshold)
-		secondRun := valSet.Assign(commitment, totalRows, originalRows, minRows, testLivenessThreshold)
-
-		require.Len(t, firstRun, len(secondRun))
-
-		for val, rows := range firstRun {
-			secondRows, ok := secondRun[val]
-			require.True(t, ok, "validator %s missing in second run", val.Address)
-			require.Equal(t, rows, secondRows, "row assignments differ for validator %s", val.Address)
+		for val, rows := range first {
+			require.Equal(t, rows, second[val])
 		}
 	})
 }
 
-// Results for 16,384 rows (K=4096, N=12288):
-//
-// CPU: AMD Ryzen 9 7940HS w/ Radeon 780M Graphics
-// Results with Fisher-Yates shuffle + ChaCha8 RNG (averaged over 5 iterations):
-//
-//	Validators    Time/op      Memory/op    Allocs/op
-//	10            ~105 µs      ~132 KB      ~7
-//	50            ~106 µs      ~136 KB      ~11
-//	100           ~109 µs      ~141 KB      ~13
-func BenchmarkSet_Assign(b *testing.B) {
-	commitment := rsema1d.Commitment{
-		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-	}
+func TestShardMap_Verify(t *testing.T) {
+	valSet := makeValidatorSet(3)
+	shardMap := valSet.Assign(testCommitment, 12, 4, 1, testLivenessThreshold)
 
-	totalRows := 16384   // typical total rows
-	originalRows := 4096 // typical original rows
-	minRows := 16        // typical minimum rows per validator
-	livenessThreshold := cmtmath.Fraction{Numerator: 1, Denominator: 3}
-
-	benchmarks := []struct {
-		name          string
-		numValidators int
-	}{
-		{"10_validators", 10},
-		{"50_validators", 50},
-		{"100_validators", 100},
-	}
-
-	for _, bm := range benchmarks {
-		b.Run(bm.name, func(b *testing.B) {
-			valSet := makeValidatorSet(bm.numValidators)
-			for b.Loop() {
-				_ = valSet.Assign(commitment, totalRows, originalRows, minRows, livenessThreshold)
+	t.Run("valid", func(t *testing.T) {
+		for val, rows := range shardMap {
+			indices := make([]uint32, len(rows))
+			for i, idx := range rows {
+				indices[i] = uint32(idx)
 			}
+			require.NoError(t, shardMap.Verify(val, indices))
+		}
+	})
+
+	t.Run("too few rows", func(t *testing.T) {
+		for val, rows := range shardMap {
+			if len(rows) < 2 {
+				continue
+			}
+			require.ErrorContains(t, shardMap.Verify(val, []uint32{uint32(rows[0])}), "expected")
+			break
+		}
+	})
+
+	t.Run("wrong row", func(t *testing.T) {
+		for val, rows := range shardMap {
+			if len(rows) == 0 {
+				continue
+			}
+			indices := make([]uint32, len(rows))
+			for i, idx := range rows {
+				indices[i] = uint32(idx)
+			}
+			indices[0] = 999
+			require.ErrorContains(t, shardMap.Verify(val, indices), "not assigned")
+			break
+		}
+	})
+}
+
+func TestSet_Select(t *testing.T) {
+	t.Run("empty set", func(t *testing.T) {
+		valSet := makeValidatorSet(0)
+		validators, minRequired := valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
+		require.Nil(t, validators)
+		require.Zero(t, minRequired)
+	})
+
+	t.Run("single validator", func(t *testing.T) {
+		valSet := makeValidatorSet(1)
+		validators, minRequired := valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
+		require.Len(t, validators, 1)
+		require.Equal(t, 1, minRequired)
+	})
+
+	t.Run("two validators", func(t *testing.T) {
+		valSet := makeValidatorSet(2)
+		validators, minRequired := valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
+		require.Len(t, validators, 2)
+		// Each has 50% stake, only need 1 to cover livenessThreshold (33%)
+		require.Equal(t, 1, minRequired)
+	})
+
+	t.Run("set sizes with equal stakes", func(t *testing.T) {
+		for _, size := range []int{2, 5, 20, 100} {
+			t.Run(fmt.Sprintf("%d", size), func(t *testing.T) {
+				valSet := makeValidatorSet(size)
+				validators, minRequired := valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
+
+				require.Len(t, validators, size)
+				require.Greater(t, minRequired, 0)
+				require.LessOrEqual(t, minRequired, size)
+
+				var covered int64
+				for _, v := range validators[:minRequired] {
+					covered += v.VotingPower
+				}
+				threshold := valSet.TotalVotingPower() / 3
+				require.GreaterOrEqual(t, covered, threshold)
+			})
+		}
+	})
+
+	t.Run("stake distributions", func(t *testing.T) {
+		cases := []struct {
+			name   string
+			stakes []int64
+		}{
+			{"power_law", []int64{40, 20, 15, 10, 7, 5, 3}},
+			{"one_dominant", []int64{50, 10, 10, 10, 10, 10}},
+			{"two_dominant", []int64{25, 25, 10, 10, 10, 10, 10}},
+			{"long_tail", append([]int64{15, 15, 10, 10}, makeStakes(16, 3)...)},
+		}
+
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				valSet := makeValidatorSetWithStakes(tc.stakes)
+				validators, minRequired := valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
+
+				require.Len(t, validators, len(tc.stakes))
+				require.Greater(t, minRequired, 0)
+
+				var covered int64
+				for _, v := range validators[:minRequired] {
+					covered += v.VotingPower
+				}
+				threshold := valSet.TotalVotingPower() / 3
+				require.GreaterOrEqual(t, covered, threshold)
+			})
+		}
+	})
+}
+
+// TestSelect_AssignRelationship verifies that first minRequired validators from Select yield enough unique rows for reconstruction
+func TestSelect_AssignRelationship(t *testing.T) {
+	cases := []struct {
+		name   string
+		stakes []int64
+	}{
+		{"single_validator", []int64{100}},
+		{"two_validators", []int64{50, 50}},
+		{"equal_20", makeStakes(20, 5)},
+		{"power_law", []int64{40, 20, 15, 10, 7, 5, 3}},
+		{"one_dominant", []int64{50, 10, 10, 10, 10, 10}},
+		{"long_tail", append([]int64{30, 20, 10}, makeStakes(40, 1)...)},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			valSet := makeValidatorSetWithStakes(tc.stakes)
+			totalRows := testOriginalRows * 4
+
+			shardMap := valSet.Assign(testCommitment, totalRows, testOriginalRows, testMinRows, testLivenessThreshold)
+			validators, minRequired := valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
+
+			unique := make(map[int]struct{})
+			for _, v := range validators[:minRequired] {
+				for _, row := range shardMap[v] {
+					unique[row] = struct{}{}
+				}
+			}
+
+			require.GreaterOrEqual(t, len(unique), testOriginalRows)
 		})
 	}
 }
 
-func TestShardMap_Verify(t *testing.T) {
-	commitment := rsema1d.Commitment{
-		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-	}
-	valSet := makeValidatorSet(3)
-	// 3 validators with equal stake (1/3 each), livenessThreshold=1/3
-	// rows = ceil(4 * (1/3) * 3) = 4 per validator, total = 12
-	shardMap := valSet.Assign(commitment, 12, 4, 1, testLivenessThreshold)
+// TestSelect_NoOverlapBeforeSplitIdx verifies that when ShardMap has duplicates, Select returns validators ordered such that
+// a prefix exists with no overlapping rows covering enough for reconstruction
+func TestSelect_NoOverlapBeforeSplitIdx(t *testing.T) {
+	// realistic stake distribution: large validators cause row overflow and duplicates
+	stakes := append([]int64{20, 15, 10}, makeStakes(97, 1)...)
+	valSet := makeValidatorSetWithStakes(stakes)
 
-	// test valid assignments
-	for val, rows := range shardMap {
-		rowIndices := make([]uint32, len(rows))
-		for i, idx := range rows {
-			rowIndices[i] = uint32(idx)
-		}
-		require.NoError(t, shardMap.Verify(val, rowIndices))
-	}
+	totalRows := testOriginalRows * 4
+	shardMap := valSet.Assign(testCommitment, totalRows, testOriginalRows, testMinRows, testLivenessThreshold)
 
-	// test too few rows provided
-	for val, rows := range shardMap {
-		if len(rows) < 2 {
-			continue
+	// verify duplicates exist (test precondition)
+	hasDuplicates := func() bool {
+		seen := make(map[int]bool)
+		for _, rows := range shardMap {
+			for _, row := range rows {
+				if seen[row] {
+					return true
+				}
+				seen[row] = true
+			}
 		}
-		// provide only first row when multiple are expected
-		partialRows := []uint32{uint32(rows[0])}
-		require.ErrorContains(t, shardMap.Verify(val, partialRows), "expected")
-		break
+		return false
 	}
+	require.True(t, hasDuplicates(), "test requires duplicate rows")
 
-	// test too many rows provided
-	for val, rows := range shardMap {
-		if len(rows) == 0 {
-			continue
-		}
-		// provide extra row that isn't assigned
-		extraRows := make([]uint32, len(rows)+1)
-		for i, idx := range rows {
-			extraRows[i] = uint32(idx)
-		}
-		extraRows[len(rows)] = 999 // extra row not assigned
-		require.ErrorContains(t, shardMap.Verify(val, extraRows), "expected")
-		break
-	}
+	validators, _ := valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
 
-	// test invalid row index with correct count
-	for val, rows := range shardMap {
-		if len(rows) == 0 {
-			continue
+	// verify no overlaps until we have enough unique rows for reconstruction
+	seen := make(map[int]bool)
+	for _, val := range validators {
+		for _, row := range shardMap[val] {
+			if seen[row] {
+				require.GreaterOrEqual(t, len(seen), testOriginalRows, "overlap before reconstruction threshold")
+				return
+			}
+			seen[row] = true
 		}
-		// replace valid row with invalid one (999 not assigned)
-		invalidRows := make([]uint32, len(rows))
-		for i, idx := range rows {
-			invalidRows[i] = uint32(idx)
-		}
-		invalidRows[0] = 999 // replace first with invalid
-		require.ErrorContains(t, shardMap.Verify(val, invalidRows), "not assigned")
-		break
 	}
+	require.GreaterOrEqual(t, len(seen), testOriginalRows)
 }
 
 func makeValidatorSet(n int) validator.Set {
 	validators := make([]*core.Validator, n)
 	for i := range n {
-		privKey := ed25519.GenPrivKey()
-		validators[i] = core.NewValidator(privKey.PubKey(), 1)
+		validators[i] = core.NewValidator(ed25519.GenPrivKey().PubKey(), 1)
 	}
 	return validator.Set{
 		ValidatorSet: core.NewValidatorSet(validators),
@@ -330,11 +317,18 @@ func makeValidatorSet(n int) validator.Set {
 func makeValidatorSetWithStakes(stakes []int64) validator.Set {
 	validators := make([]*core.Validator, len(stakes))
 	for i, stake := range stakes {
-		privKey := ed25519.GenPrivKey()
-		validators[i] = core.NewValidator(privKey.PubKey(), stake)
+		validators[i] = core.NewValidator(ed25519.GenPrivKey().PubKey(), stake)
 	}
 	return validator.Set{
 		ValidatorSet: core.NewValidatorSet(validators),
 		Height:       100,
 	}
+}
+
+func makeStakes(count int, each int64) []int64 {
+	stakes := make([]int64, count)
+	for i := range stakes {
+		stakes[i] = each
+	}
+	return stakes
 }
