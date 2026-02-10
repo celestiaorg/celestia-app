@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/spf13/cobra"
 )
@@ -114,10 +114,12 @@ func downloadS3Directory(ctx context.Context, client *s3.Client, bucket, prefix,
 			}
 
 			// stream body into file
-			downloader := manager.NewDownloader(client)
-			_, err = downloader.Download(ctx, f,
-				&s3.GetObjectInput{Bucket: aws.String(bucket), Key: obj.Key},
-			)
+			tm := transfermanager.New(client)
+			_, err = tm.DownloadObject(ctx, &transfermanager.DownloadObjectInput{
+				Bucket:   aws.String(bucket),
+				Key:      obj.Key,
+				WriterAt: f,
+			})
 			if err != nil {
 				return fmt.Errorf("download %s: %w", *obj.Key, err)
 			}

@@ -14,7 +14,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
+	tmtypes "github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/digitalocean/godo"
 	"github.com/spf13/cobra"
@@ -506,19 +507,22 @@ func uploadToS3(ctx context.Context, client *s3.Client, cfg S3Config, localPath 
 	defer file.Close()
 
 	filename := filepath.Base(localPath)
-	uploader := manager.NewUploader(client)
+	tm := transfermanager.New(client)
 
-	result, err := uploader.Upload(ctx, &s3.PutObjectInput{
+	result, err := tm.UploadObject(ctx, &transfermanager.UploadObjectInput{
 		Bucket: &cfg.BucketName,
 		Key:    &filename,
-		ACL:    "public-read",
+		ACL:    tmtypes.ObjectCannedACLPublicRead,
 		Body:   file,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to upload file: %w", err)
 	}
 
-	return result.Location, nil
+	if result.Location == nil {
+		return "", fmt.Errorf("upload succeeded but location is nil")
+	}
+	return *result.Location, nil
 }
 
 func downCmd() *cobra.Command {
