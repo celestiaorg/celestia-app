@@ -31,13 +31,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+      - uses: technote-space/get-diff-action@f27caffdd0fb9b13f4fc191c016bb4e0632844af #v6.1.2
+        with:
+          PATTERNS: |
+            docker/**
       - uses: hadolint/hadolint-action@v3.3.0
+        if: env.GIT_DIFF
         with:
           dockerfile: docker/standalone.Dockerfile
       - uses: hadolint/hadolint-action@v3.3.0
+        if: env.GIT_DIFF
         with:
           dockerfile: docker/multiplexer.Dockerfile
       - uses: hadolint/hadolint-action@v3.3.0
+        if: env.GIT_DIFF
         with:
           dockerfile: docker/txsim/Dockerfile
 
@@ -45,4 +52,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+      - uses: technote-space/get-diff-action@f27caffdd0fb9b13f4fc191c016bb4e0632844af #v6.1.2
+        with:
+          PATTERNS: |
+            **/*.yml
+            **/*.yaml
       - uses: celestiaorg/.github/.github/actions/yamllint@9ee03305d3cc6cf520b7895436429aa853b58e70 #v0.6.4
+        if: env.GIT_DIFF
