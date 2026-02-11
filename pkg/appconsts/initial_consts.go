@@ -24,4 +24,9 @@ const (
 	DefaultNetworkMinGasPrice = 0.000001 // utia
 
 	DefaultUpperBoundMaxBytes = 128 * mebibyte
+
+	// MinRetainBlocks is the minimum number of blocks to retain for state sync.
+	// This ensures all blocks in the snapshot window (SnapshotInterval × SnapshotKeepRecent)
+	// are retained so other nodes can sync from snapshots.
+	MinRetainBlocks uint64 = 3000
 )

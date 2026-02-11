@@ -27,7 +27,7 @@ const (
 	// NOTE: the intention of this test is that it is just a basic sanity check for the entire stack.
 	// while the app version will vary on a per-pr and per-tag basis, the node version can remain relatively static.
 	// we can bump it as required.
-	celestiaNodeVersion    = "v0.23.3-mocha"
+	celestiaNodeVersion    = "v0.29.0-beta.1"
 	celestiaNodeRepository = "ghcr.io/celestiaorg/celestia-node"
 )
 
@@ -48,8 +48,6 @@ func (s *CelestiaTestSuite) TestE2EFullStackPFB() {
 	ctx := context.TODO()
 
 	cfg := dockerchain.DefaultConfig(s.client, s.network)
-	cfg.Genesis = cfg.Genesis.WithAppVersion(4) // TODO: currently this node version does not support v5
-
 	celestia, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).WithChainID(appconsts.TestChainID).Build(ctx)
 	s.Require().NoError(err, "failed to build celestia chain")
 
@@ -204,6 +202,60 @@ func (s *CelestiaTestSuite) DeployDANetwork(ctx context.Context, celestia *tasto
 	})
 
 	t.Log("DA network deployed successfully")
+	return daNetwork
+}
+
+// WithBridgeNodeNetwork deploys a DA network with a single bridge node.
+func (s *CelestiaTestSuite) WithBridgeNodeNetwork(ctx context.Context, chain *tastoradockertypes.Chain) *da.Network {
+	t := s.T()
+
+	bridgeNodeConfig := da.NewNodeBuilder().
+		WithNodeType(tastoratypes.BridgeNode).
+		Build()
+
+	daImage := tastoracontainertypes.Image{
+		Repository: celestiaNodeRepository,
+		Version:    celestiaNodeVersion,
+		UIDGID:     "10001:10001",
+	}
+
+	daNetwork, err := da.NewNetworkBuilder(t).
+		WithChainID(chain.GetChainID()).
+		WithDockerClient(s.client).
+		WithDockerNetworkID(s.network).
+		WithImage(daImage).
+		WithNodes(bridgeNodeConfig).
+		Build(ctx)
+	s.Require().NoError(err, "failed to create DA network")
+
+	chainNetworkInfo, err := chain.GetNodes()[0].GetNetworkInfo(ctx)
+	s.Require().NoError(err, "failed to get network info")
+	coreNodeHostname := chainNetworkInfo.Internal.Hostname
+
+	genesisHash, err := s.getGenesisHash(ctx, chain)
+	s.Require().NoError(err, "failed to get genesis hash")
+
+	celestiaCustom := tastoratypes.BuildCelestiaCustomEnvVar(chain.GetChainID(), genesisHash, "")
+
+	for _, node := range daNetwork.GetBridgeNodes() {
+		err := node.Start(ctx,
+			da.WithChainID(chain.GetChainID()),
+			da.WithAdditionalStartArguments("--p2p.network", chain.GetChainID(), "--core.ip", coreNodeHostname, "--rpc.addr", "0.0.0.0"),
+			da.WithEnvironmentVariables(map[string]string{
+				"CELESTIA_CUSTOM": celestiaCustom,
+				"P2P_NETWORK":     chain.GetChainID(),
+			}),
+		)
+		s.Require().NoError(err, "failed to start bridge node")
+	}
+
+	t.Cleanup(func() {
+		if err := removeDANetwork(ctx, daNetwork); err != nil {
+			t.Logf("Error stopping DA network: %v", err)
+		}
+	})
+
+	t.Log("Bridge DA network deployed successfully")
 	return daNetwork
 }
 

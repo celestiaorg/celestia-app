@@ -7,6 +7,8 @@ on:
     paths:
       - specs/**
   pull_request:
+    paths:
+      - specs/**
   merge_group:
     paths:
       - specs/**

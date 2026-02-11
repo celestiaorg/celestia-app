@@ -1,6 +1,10 @@
 name: docker-build-publish
 
-# Trigger on all push events, new semantic version tags, and all PRs
+# Trigger on push events to main/release branches, new semantic version tags,
+# and all PRs. The merge_group trigger is intentionally omitted because the
+# pull_request trigger already validates Dockerfiles build, and the reusable
+# pipeline only publishes images on push to main (not during merge_group where
+# github.ref is gh-readonly-queue/...), making merge_group runs build-only waste.
 on:
   push:
     branches:
@@ -9,7 +13,6 @@ on:
     tags:
       - "v*"
   pull_request:
-  merge_group:
   workflow_dispatch:
     inputs:
       ref:

@@ -140,6 +140,10 @@ func (v *StateMembershipValues) Unmarshal(data []byte) error {
 		return fmt.Errorf("read message ids length: %w", err)
 	}
 
+	if count > MaxMessageIdsCount {
+		return fmt.Errorf("message ids count %d exceeds maximum allowed %d", count, MaxMessageIdsCount)
+	}
+
 	remaining := buf.Len()
 	if remaining < int(count*32) {
 		return fmt.Errorf("buffer too short: need %d, have %d", count*32, remaining)
