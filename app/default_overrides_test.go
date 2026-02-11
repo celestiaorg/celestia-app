@@ -55,7 +55,7 @@ func TestDefaultAppConfig(t *testing.T) {
 	assert.Equal(t, "", cfg.MinGasPrices)
 
 	assert.Equal(t, appconsts.DefaultUpperBoundMaxBytes*2, cfg.GRPC.MaxRecvMsgSize)
-	assert.Equal(t, uint64(3000), cfg.MinRetainBlocks)
+	assert.Equal(t, uint64(0), cfg.MinRetainBlocks)
 }
 
 func TestDefaultConsensusConfig(t *testing.T) {

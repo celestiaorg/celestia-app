@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package celestia.zkism.v1;
+
+option go_package = "github.com/celestiaorg/celestia-app/x/zkism/types";
+
+import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
+
+// InterchainSecurityModule defines the Hyperlane interchain security module (ISM).
+message InterchainSecurityModule {
+  option (gogoproto.goproto_getters) = false;
+
+  // unique hyperlane identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // the owner or creator of the ism
+  string owner = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // current state
+  bytes state = 3;
+  // merkle tree address in bytes32 format
+  bytes merkle_tree_address = 4;
+  // the sp1 groth16 verifier key
+  bytes groth16_vkey = 5;
+  // hash-based commitment to the verifier key used for state transition
+  bytes state_transition_vkey = 6;
+  // hash-based commitment to the verifier key used for state membership
+  bytes state_membership_vkey = 7;
+}

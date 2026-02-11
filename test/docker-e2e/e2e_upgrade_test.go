@@ -12,11 +12,10 @@ import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
 	"github.com/celestiaorg/celestia-app/v7/app"
-	"github.com/celestiaorg/celestia-app/v7/test/util/genesis"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
 
 	"cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/pkg/user"
 	signaltypes "github.com/celestiaorg/celestia-app/v7/x/signal/types"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
@@ -29,6 +28,7 @@ import (
 const (
 	AppVersionV5 uint64 = 5
 	AppVersionV6 uint64 = 6
+	AppVersionV7 uint64 = 7
 
 	InflationRateV5 = "0.0536" // 5.36%
 	InflationRateV6 = "0.0267" // 2.67%
@@ -38,6 +38,9 @@ const (
 
 	MinCommissionRateV5 = "0.05" // 5%
 	MinCommissionRateV6 = "0.10" // 10%
+	MinCommissionRateV7 = "0.20" // 20%
+
+	MaxCommissionRateV7 = "0.60" // 60%
 
 	EvidenceMaxAgeV5Hours = 504
 	EvidenceMaxAgeV6Hours = 337
@@ -77,6 +80,10 @@ func (s *CelestiaTestSuite) TestAllUpgrades() {
 			baseAppVersion:   5,
 			targetAppVersion: 6,
 		},
+		{
+			baseAppVersion:   6,
+			targetAppVersion: 7,
+		},
 	}
 
 	for _, tc := range tt {
@@ -84,53 +91,6 @@ func (s *CelestiaTestSuite) TestAllUpgrades() {
 			s.runUpgradeTest(tag, tc.baseAppVersion, tc.targetAppVersion)
 		})
 	}
-}
-
-// TestCelestiaAppV5ToV6 validates that parameters are correctly applied across the v5 to v6 upgrade,
-// including changes introduced by CIP-042.
-func (s *CelestiaTestSuite) TestCelestiaAppV5ToV6() {
-	if testing.Short() {
-		s.T().Skip("skipping v5 to v6 test in short mode")
-	}
-
-	ctx := context.Background()
-	tag, err := dockerchain.GetCelestiaTagStrict()
-	s.Require().NoError(err)
-
-	cfg := dockerchain.DefaultConfig(s.client, s.network).WithTag(tag)
-	cfg.Genesis = cfg.Genesis.WithAppVersion(AppVersionV5)
-
-	// For v5 genesis, set legacy (pre–CIP-037) values so the v6 upgrade can update them.
-	enc := cfg.Genesis.EncodingConfig()
-	cfg.Config = cfg.Config.WithModifiers(genesis.Modifier(func(state map[string]json.RawMessage) map[string]json.RawMessage {
-		var gs stakingtypes.GenesisState
-		enc.Codec.MustUnmarshalJSON(state[stakingtypes.ModuleName], &gs)
-		gs.Params.UnbondingTime = UnbondingTimeV5Hours * time.Hour
-		state[stakingtypes.ModuleName] = enc.Codec.MustMarshalJSON(&gs)
-		return state
-	}))
-	cparams := cfg.Genesis.ConsensusParams
-	cparams.Evidence.MaxAgeDuration = EvidenceMaxAgeV5Hours * time.Hour
-	cparams.Evidence.MaxAgeNumBlocks = EvidenceMaxAgeV5Blocks
-	cfg.Config = cfg.Config.WithConsensusParams(cparams)
-
-	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
-	s.Require().NoError(err)
-
-	s.T().Cleanup(func() {
-		if err := chain.Remove(ctx); err != nil {
-			s.T().Logf("Error removing chain: %v", err)
-		}
-	})
-
-	err = chain.Start(ctx)
-	s.Require().NoError(err)
-
-	validatorNode := chain.GetNodes()[0] // to query parameters
-
-	s.validateParameters(ctx, validatorNode, AppVersionV5)
-	s.performUpgrade(ctx, chain, cfg, AppVersionV6)
-	s.validateParameters(ctx, validatorNode, AppVersionV6)
 }
 
 // runUpgradeTest starts a chain at the specified baseAppVersion, signals all validators to upgrade,
@@ -180,7 +140,7 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 	s.Require().Len(records, len(chain.GetNodes()), "number of accounts does not match number of nodes")
 
 	// Signal for upgrade and get the upgrade height
-	upgradeHeight := s.signalAndGetUpgradeHeight(ctx, chain, validatorNode, cfg, records, targetAppVersion)
+	upgradeHeight := s.SignalUpgrade(ctx, chain, validatorNode, cfg, records, targetAppVersion)
 
 	// Record start height - we'll use it later for health assertions
 	status, err := rpcClient.Status(ctx)
@@ -212,9 +172,73 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 	s.Require().NoError(s.CheckLiveness(ctx, chain), "validator liveness check failed")
 }
 
-// signalAndGetUpgradeHeight signals for an upgrade to the specified app
-// version and returns the scheduled upgrade height.
-func (s *CelestiaTestSuite) signalAndGetUpgradeHeight(
+// TestUpgradeLatest tests the most current version upgrade.
+// This test should include any assertions relevant to the current version upgrade.
+func (s *CelestiaTestSuite) TestUpgradeLatest() {
+	if testing.Short() {
+		s.T().Skip("skipping latest upgrade test in short mode")
+	}
+
+	tag, err := dockerchain.GetCelestiaTagStrict()
+	s.Require().NoError(err)
+
+	cfg := dockerchain.DefaultConfig(s.client, s.network).WithTag(tag)
+	cfg.Genesis = cfg.Genesis.WithAppVersion(appconsts.Version - 1)
+
+	ctx := context.Background()
+	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
+	s.Require().NoError(err)
+
+	s.T().Cleanup(func() {
+		if err := chain.Remove(ctx); err != nil {
+			s.T().Logf("Error removing chain: %v", err)
+		}
+	})
+
+	err = chain.Start(ctx)
+	s.Require().NoError(err)
+
+	s.ValidatePreUpgrade(ctx, chain, cfg)
+	s.UpgradeChain(ctx, chain, cfg, appconsts.Version)
+	s.ValidatePostUpgrade(ctx, chain, cfg)
+}
+
+// UpgradeChain executes the upgrade to the target app version.
+func (s *CelestiaTestSuite) UpgradeChain(ctx context.Context, chain tastoratypes.Chain, cfg *dockerchain.Config, appVersion uint64) (upgradeHeight int64) {
+	t := s.T()
+
+	validatorNode := chain.GetNodes()[0]
+	kr := cfg.Genesis.Keyring()
+	records, err := kr.List()
+	s.Require().NoError(err, "failed to list keyring records")
+	s.Require().Len(records, len(chain.GetNodes()), "number of accounts should match number of nodes")
+
+	upgradeHeight = s.SignalUpgrade(ctx, chain, validatorNode, cfg, records, appVersion)
+
+	rpcClient, err := validatorNode.GetRPCClient()
+	s.Require().NoError(err, "failed to get RPC client")
+
+	currentHeight, err := s.GetLatestBlockHeight(ctx, rpcClient)
+	s.Require().NoError(err, "failed to get current height")
+
+	blocksToWait := int(upgradeHeight-currentHeight) + 2
+	t.Logf("Waiting for %d blocks to reach upgrade height %d", blocksToWait, upgradeHeight)
+	s.Require().NoError(wait.ForBlocks(ctx, blocksToWait, chain), "failed to wait for upgrade completion")
+
+	// Verify upgrade completed successfully
+	abciInfo, err := rpcClient.ABCIInfo(ctx)
+	s.Require().NoError(err, "failed to fetch ABCI info")
+	s.Require().Equal(appVersion, abciInfo.Response.GetAppVersion(), "should be at app version %v", appVersion)
+
+	// Produce additional blocks at the target app version (TxSim is still running)
+	t.Logf("Producing 20 more blocks at app version %v", appVersion)
+	s.Require().NoError(wait.ForBlocks(ctx, 20, chain), "failed to wait for post-upgrade blocks")
+
+	return upgradeHeight
+}
+
+// SignalUpgrade signals for an upgrade to the specified app version and returns the scheduled upgrade height.
+func (s *CelestiaTestSuite) SignalUpgrade(
 	ctx context.Context,
 	chain tastoratypes.Chain,
 	validatorNode tastoratypes.ChainNode,
@@ -295,6 +319,30 @@ func (s *CelestiaTestSuite) validateSignalTally(ctx context.Context, node tastor
 	s.Require().True(resp.VotingPower >= resp.ThresholdPower, "voting power (%d) does not meet threshold (%d)", resp.VotingPower, resp.ThresholdPower)
 }
 
+func (s *CelestiaTestSuite) ValidatePreUpgrade(ctx context.Context, chain tastoratypes.Chain, cfg *dockerchain.Config) {
+	appVersion := appconsts.Version - 1
+
+	node := chain.GetNodes()[0]
+	rpcClient, err := node.GetRPCClient()
+	s.Require().NoError(err, "failed to get RPC client")
+
+	abciInfo, err := rpcClient.ABCIInfo(ctx)
+	s.Require().NoError(err, "failed to fetch ABCI info")
+	s.Require().Equal(appVersion, abciInfo.Response.GetAppVersion(), "should be running v%d", appVersion)
+}
+
+func (s *CelestiaTestSuite) ValidatePostUpgrade(ctx context.Context, chain tastoratypes.Chain, cfg *dockerchain.Config) {
+	appVersion := appconsts.Version
+
+	node := chain.GetNodes()[0]
+	rpcClient, err := node.GetRPCClient()
+	s.Require().NoError(err, "failed to get RPC client")
+
+	abciInfo, err := rpcClient.ABCIInfo(ctx)
+	s.Require().NoError(err, "failed to fetch ABCI info")
+	s.Require().Equal(appVersion, abciInfo.Response.GetAppVersion(), "should be running v%d", appVersion)
+}
+
 // getSignalQueryClient returns a signaltypes.QueryClient for the provided node.
 // If the node is a docker ChainNode with a live *grpc.ClientConn, it is reused.
 // Returns an error if no gRPC connection is available.
@@ -316,6 +364,8 @@ func getICAHostQueryClient(node tastoratypes.ChainNode) (icahosttypes.QueryClien
 }
 
 // validateParameters validates that all parameters match expected values for the given app version
+// TODO: Refactor or remove entirely. Currently this method deals with app version 5->6, only.
+// This method is currently unused.
 func (s *CelestiaTestSuite) validateParameters(ctx context.Context, node tastoratypes.ChainNode, appVersion uint64) {
 	// Verify we're running the correct app version
 	rpcClient, err := node.GetRPCClient()
@@ -341,6 +391,12 @@ func (s *CelestiaTestSuite) validateParameters(ctx context.Context, node tastora
 		// Check ICA host params only on v6: v5 doesn't expose the icahost gRPC query service;
 		// the v6 upgrade applies these params per CIP-14.
 		s.validateICAHostParams(ctx, node, true, app.IcaAllowMessages(), AppVersionV6)
+		return
+	}
+
+	if appVersion == AppVersionV7 {
+		s.validateMinCommissionRate(ctx, node, MinCommissionRateV7, AppVersionV7)
+		s.validateMaxCommissionRate(ctx, node, MaxCommissionRateV7, AppVersionV7)
 		return
 	}
 
@@ -441,6 +497,48 @@ func (s *CelestiaTestSuite) validateMinCommissionRate(ctx context.Context, node 
 	tolerance := math.LegacyNewDecWithPrec(1, 10)
 	diff := actualDec.Sub(expectedDec).Abs()
 	s.Require().True(diff.LTE(tolerance), "v%d min commission rate mismatch: expected %s, got %s, diff=%s", appVersion, expectedRate, minCommissionRateStr, diff.String())
+}
+
+// validateMaxCommissionRate queries all validators and validates that each
+// validator's max commission rate is at least the expected value.
+func (s *CelestiaTestSuite) validateMaxCommissionRate(ctx context.Context, node tastoratypes.ChainNode, expectedRate string, appVersion uint64) {
+	dcNode, ok := node.(*tastoradockertypes.ChainNode)
+	s.Require().True(ok, "node should be a docker chain node")
+
+	networkInfo, err := node.GetNetworkInfo(ctx)
+	s.Require().NoError(err, "failed to get network info from chain node")
+
+	rpcEndpoint := fmt.Sprintf("tcp://%s:26657", networkInfo.Internal.Hostname)
+	cmd := []string{"celestia-appd", "query", "staking", "validators", "--output", "json", "--node", rpcEndpoint}
+
+	stdout, stderr, err := dcNode.Exec(ctx, cmd, nil)
+	s.Require().NoError(err, "failed to query staking validators via CLI: stderr=%s", string(stderr))
+
+	var validatorsResp struct {
+		Validators []struct {
+			Commission struct {
+				CommissionRates struct {
+					MaxRate string `json:"max_rate"`
+				} `json:"commission_rates"`
+			} `json:"commission"`
+		} `json:"validators"`
+	}
+	err = json.Unmarshal(stdout, &validatorsResp)
+	s.Require().NoError(err, "failed to parse staking validators JSON response")
+	s.Require().NotEmpty(validatorsResp.Validators, "no validators found in response")
+
+	expectedDec, err := math.LegacyNewDecFromStr(expectedRate)
+	s.Require().NoError(err, "failed to parse expected max commission rate")
+
+	for i, val := range validatorsResp.Validators {
+		maxRateStr := val.Commission.CommissionRates.MaxRate
+		s.Require().NotEmpty(maxRateStr, "max_rate not found for validator %d", i)
+
+		actualDec, err := math.LegacyNewDecFromStr(maxRateStr)
+		s.Require().NoError(err, "failed to parse actual max commission rate for validator %d: %s", i, maxRateStr)
+
+		s.Require().True(actualDec.GTE(expectedDec), "v%d validator %d max commission rate too low: expected >= %s, got %s", appVersion, i, expectedRate, maxRateStr)
+	}
 }
 
 // validateEvidenceParams queries and validates both evidence max age duration and blocks using CLI

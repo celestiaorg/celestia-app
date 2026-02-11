@@ -36,7 +36,7 @@ node            |  |                               |  |
 
 ### From source
 
-1. [Install Go](https://go.dev/doc/install) 1.25.5
+1. [Install Go](https://go.dev/doc/install) 1.25.7
 1. Clone this repo
 1. Install the celestia-appd binary. This installs a "multiplexer" binary that will also download embedded binaries for the latest celestia-app v3.x.x and v4.x.x release.
 
@@ -62,7 +62,7 @@ If you'd rather not install from source, you can download a prebuilt binary from
     ./celestia-appd --help
     ```
 
-1. [Optional] verify the prebuilt binary checksum. Download `checksums.txt` and then verify the checksum:
+1. (Optional) verify the prebuilt binary checksum. Download `checksums.txt` and then verify the checksum:
 
     ```shell
     sha256sum --ignore-missing --check checksums.txt

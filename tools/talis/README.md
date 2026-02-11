@@ -184,7 +184,7 @@ Before we can start the network, we need to create a payload that contains every
 
 ```sh
 # creates the payload for the network. This contains all addresses, configs, binaries (from your local GOPATH if not specified), genesis.json, and startup scripts. The `--square-size` flag will change the `GovMaxSquareSize`
-talis genesis -s 128 -b /home/$HOSTNAME/go/src/github.com/celestiaorg/celestia-app/build
+talis genesis -s 256 -b /home/$HOSTNAME/go/src/github.com/celestiaorg/celestia-app/build
 ```
 
 Keep in mind that we can still edit anything in the payload before deploying the network.

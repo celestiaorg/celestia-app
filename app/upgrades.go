@@ -6,10 +6,12 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
+	storetypes "cosmossdk.io/store/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v7/x/minfee/types"
+	zkismtypes "github.com/celestiaorg/celestia-app/v7/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -102,7 +104,14 @@ func (app App) RegisterUpgradeHandlers() {
 	}
 
 	if upgradeInfo.Name == upgradeName && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) { //nolint:staticcheck
-		// TODO: Apply any store upgrades here.
+		storeUpgrades := storetypes.StoreUpgrades{
+			Added: []string{
+				zkismtypes.StoreKey,
+			},
+		}
+
+		// configure store loader that checks if version == upgradeHeight and applies store upgrades
+		app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
 	}
 }
 
@@ -127,8 +136,8 @@ func (a App) SetMinCommissionRate(ctx context.Context) error {
 }
 
 // UpdateValidatorCommissionRates iterates over all validators and increases
-// their commission rate and max commission rate if they are below the new
-// minimum commission rate.
+// their commission rate to MinCommissionRate (20%) if below, and their max
+// commission rate to MaxCommissionRate (60%) if below.
 func (a App) UpdateValidatorCommissionRates(ctx context.Context) error {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
@@ -139,12 +148,12 @@ func (a App) UpdateValidatorCommissionRates(ctx context.Context) error {
 	}
 
 	for _, validator := range validators {
-		if validator.Commission.Rate.GTE(appconsts.MinCommissionRate) && validator.Commission.MaxRate.GTE(appconsts.MinCommissionRate) {
-			sdkCtx.Logger().Debug("validator commission rate and max commission rate are already greater than or equal to the minimum commission rate", "validator", validator.GetOperator())
+		if validator.Commission.Rate.GTE(appconsts.MinCommissionRate) && validator.Commission.MaxRate.GTE(stakingtypes.MaxCommissionRate) {
+			sdkCtx.Logger().Debug("validator commission rate and max commission rate are already compliant", "validator", validator.GetOperator())
 			continue
 		}
 		rate := getMax(validator.Commission.Rate, appconsts.MinCommissionRate)
-		maxRate := getMax(validator.Commission.MaxRate, appconsts.MinCommissionRate)
+		maxRate := getMax(validator.Commission.MaxRate, stakingtypes.MaxCommissionRate)
 
 		valAddr, err := sdk.ValAddressFromBech32(validator.GetOperator())
 		if err != nil {

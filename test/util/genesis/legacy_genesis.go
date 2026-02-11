@@ -126,7 +126,7 @@ func getLegacyBankState(genBals []banktypes.Balance) []byte {
 func loadV3GenesisAppState() map[string]json.RawMessage {
 	// NOTE: when e2e tests are _test.go files again, this can be loaded with just v3_genesis_app_state.json
 	// as it will be in n test file directory.
-	const v3GenesisAppStateFilePath = "test/e2e/test_data/v3genesisAppState.json"
+	const v3GenesisAppStateFilePath = "internal/testdata/v3genesisAppState.json"
 	file, err := os.Open(v3GenesisAppStateFilePath)
 	if err != nil {
 		panic(fmt.Errorf("failed to open file: %w", err))

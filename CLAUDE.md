@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Building and Installation
 
+- When editing Go code, always run `make build` after changes to catch compilation errors immediately before proceeding.
+
 ```bash
 # Build multiplexer version (includes embedded v3-v6 binaries) into ./build/
 make build
@@ -24,6 +26,8 @@ make mod
 ```
 
 ### Testing
+
+- For test-related tasks, always include: 1) The test implementation, 2) Run the test to verify it passes, 3) Check for flaky behavior by running multiple times if relevant.
 
 ```bash
 # Run all tests (30 minute timeout)
@@ -58,6 +62,10 @@ make test-multiplexer
 ```
 
 ### Linting and Formatting
+
+When creating PRs or documentation, use markdownlint to validate markdown files before committing. Run: `markdownlint '**/*.md'`
+
+When creating PRs that modify Go code, run `make lint` to run the Go linter, markdownlint, and hadolint.
 
 ```bash
 # Run all linters (golangci-lint, markdownlint, hadolint, yamllint)

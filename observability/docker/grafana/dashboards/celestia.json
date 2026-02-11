@@ -419,7 +419,7 @@
       "pluginVersion": "10.1.0",
       "targets": [
         {
-          "expr": "cometbft_consensus_block_interval_seconds{job=\"consensus-nodes\", node_id=~\"$node\"}",
+          "expr": "increase(cometbft_consensus_block_interval_seconds_sum{job=\"consensus-nodes\", node_id=~\"$node\"}[1m]) / increase(cometbft_consensus_block_interval_seconds_count{job=\"consensus-nodes\", node_id=~\"$node\"}[1m])",
           "legendFormat": "{{node_id}}",
           "refId": "A"
         }

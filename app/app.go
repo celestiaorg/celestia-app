@@ -40,6 +40,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/x/blob"
 	blobkeeper "github.com/celestiaorg/celestia-app/v7/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v7/x/forwarding"
+	forwardingkeeper "github.com/celestiaorg/celestia-app/v7/x/forwarding/keeper"
+	forwardingtypes "github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	"github.com/celestiaorg/celestia-app/v7/x/minfee"
 	minfeekeeper "github.com/celestiaorg/celestia-app/v7/x/minfee/keeper"
 	minfeetypes "github.com/celestiaorg/celestia-app/v7/x/minfee/types"
@@ -48,6 +51,9 @@ import (
 	minttypes "github.com/celestiaorg/celestia-app/v7/x/mint/types"
 	"github.com/celestiaorg/celestia-app/v7/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v7/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v7/x/zkism"
+	zkismkeeper "github.com/celestiaorg/celestia-app/v7/x/zkism/keeper"
+	zkismtypes "github.com/celestiaorg/celestia-app/v7/x/zkism/types"
 	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmjson "github.com/cometbft/cometbft/libs/json"
@@ -139,6 +145,7 @@ var maccPerms = map[string][]string{
 	icatypes.ModuleName:            nil,
 	hyperlanetypes.ModuleName:      nil,
 	warptypes.ModuleName:           {authtypes.Minter, authtypes.Burner},
+	forwardingtypes.ModuleName:     nil, // No special permissions needed - only holds tokens temporarily
 }
 
 var (
@@ -184,6 +191,8 @@ type App struct {
 	CircuitKeeper       circuitkeeper.Keeper
 	HyperlaneKeeper     hyperlanekeeper.Keeper
 	WarpKeeper          warpkeeper.Keeper
+	IsmKeeper           *zkismkeeper.Keeper
+	ForwardingKeeper    forwardingkeeper.Keeper
 
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
@@ -405,6 +414,19 @@ func New(
 		[]int32{int32(warptypes.HYP_TOKEN_TYPE_COLLATERAL), int32(warptypes.HYP_TOKEN_TYPE_SYNTHETIC)},
 	)
 
+	app.IsmKeeper = zkismkeeper.NewKeeper(
+		encodingConfig.Codec,
+		runtime.NewKVStoreService(keys[zkismtypes.StoreKey]),
+		&app.HyperlaneKeeper,
+		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
+	)
+
+	app.ForwardingKeeper = forwardingkeeper.NewKeeper(
+		app.BankKeeper,
+		forwardingkeeper.NewWarpKeeperAdapter(&app.WarpKeeper),
+		&app.HyperlaneKeeper,
+	)
+
 	/****  Module Options ****/
 
 	// NOTE: Modules can't be modified or else must be passed by reference to the module manager
@@ -438,6 +460,8 @@ func New(
 		circuitModule{circuit.NewAppModule(encodingConfig.Codec, app.CircuitKeeper)},
 		hyperlanecore.NewAppModule(encodingConfig.Codec, &app.HyperlaneKeeper),
 		warp.NewAppModule(encodingConfig.Codec, app.WarpKeeper),
+		zkism.NewAppModule(encodingConfig.Codec, app.IsmKeeper),
+		forwarding.NewAppModule(encodingConfig.Codec, app.ForwardingKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager is in charge of setting up basic,

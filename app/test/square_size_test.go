@@ -114,16 +114,20 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			s.SetupBlockSizeParams(t, tc.govMaxSquareSize, tc.maxBytes)
+
+			// capture the starting height before waiting for blocks
+			startHeight, err := s.cctx.LatestHeight()
+			require.NoError(t, err)
 			require.NoError(t, s.cctx.WaitForBlocks(waitBlocks))
+			endHeight, err := s.cctx.LatestHeight()
+			require.NoError(t, err)
 
 			squareSizes := make([]uint64, 0, waitBlocks+1)
 
 			// check that we're not going above the specified upper bound and that we hit the expected size
-			latestHeight, err := s.cctx.LatestHeight()
-			require.NoError(t, err)
-
-			for i := latestHeight - waitBlocks; i <= latestHeight; i++ {
-				block, err := s.cctx.Client.Block(s.cctx.GoContext(), &latestHeight)
+			// only check blocks created after the parameter change took effect
+			for i := startHeight; i <= endHeight; i++ {
+				block, err := s.cctx.Client.Block(s.cctx.GoContext(), &i)
 				require.NoError(t, err)
 				require.LessOrEqual(t, block.Block.SquareSize, uint64(tc.govMaxSquareSize))
 				squareSizes = append(squareSizes, block.Block.SquareSize)
@@ -239,4 +243,7 @@ func (s *SquareSizeIntegrationTest) SetupBlockSizeParams(t *testing.T, squareSiz
 		require.Equal(t, int64(maxBytes), consParamsResp.Params.Block.MaxBytes)
 		break
 	}
+
+	// Wait for at least one block to be produced with the new parameters
+	require.NoError(t, s.cctx.WaitForNextBlock())
 }

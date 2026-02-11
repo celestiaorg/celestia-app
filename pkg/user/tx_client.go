@@ -431,8 +431,11 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 	if err != nil {
 		return nil, err
 	}
-	gasLimit := blobtypes.DefaultEstimateGas(msg)
-	fee := uint64(math.Ceil(appconsts.DefaultMinGasPrice * float64(gasLimit)))
+	gasPrice, gasLimit, err := client.EstimateGasPriceAndUsage(ctx, []sdktypes.Msg{msg}, gasestimation.TxPriority_TX_PRIORITY_MEDIUM, opts...)
+	if err != nil {
+		return nil, err
+	}
+	fee := uint64(math.Ceil(gasPrice * float64(gasLimit)))
 	// prepend calculated params, so it can be overwritten in case the user has specified it.
 	opts = append([]TxOption{SetGasLimit(gasLimit), SetFee(fee)}, opts...)
 
@@ -495,21 +498,8 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 		gasLimit, err = client.estimateGas(ctx, txBuilder)
 		if err != nil {
 			// If not a sequence mismatch, return the error.
-			if !strings.Contains(err.Error(), sdkerrors.ErrWrongSequence.Error()) {
+			if ok, err := client.handleSequenceMismatch(err, txBuilder); !ok {
 				return nil, err
-			}
-
-			// Handle the sequence mismatch path by setting the sequence to the expected sequence
-			// and retrying gas estimation.
-			parsedErr := extractSequenceError(err.Error())
-
-			expectedSequence, err := apperrors.ParseExpectedSequence(parsedErr)
-			if err != nil {
-				return nil, fmt.Errorf("parsing sequence mismatch: %w. RawLog: %s", err, err)
-			}
-
-			if err = client.signer.SetSequence(account, expectedSequence); err != nil {
-				return nil, fmt.Errorf("setting sequence: %w", err)
 			}
 
 			// Retry gas estimation with the corrected sequence.
@@ -537,6 +527,29 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 	}
 
 	return client.routeTx(ctx, txBytes, account)
+}
+
+// handleSequenceMismatch checks if the error is a sequence mismatch and corrects it by setting the sequence to the expected sequence.
+func (client *TxClient) handleSequenceMismatch(sequenceErr error, txBuilder client.TxBuilder) (bool, error) {
+	account, err := client.signer.findAccount(txBuilder)
+	if err != nil {
+		return false, err
+	}
+	if !strings.Contains(sequenceErr.Error(), sdkerrors.ErrWrongSequence.Error()) {
+		return false, nil
+	}
+
+	parsedErr := extractSequenceError(sequenceErr.Error())
+
+	expectedSequence, err := apperrors.ParseExpectedSequence(parsedErr)
+	if err != nil {
+		return false, fmt.Errorf("parsing sequence mismatch: %w. RawLog: %s", err, err)
+	}
+
+	if err = client.signer.SetSequence(account.Name(), expectedSequence); err != nil {
+		return false, fmt.Errorf("setting sequence: %w", err)
+	}
+	return true, nil
 }
 
 // routeTx routes to single or multi-connection handling
@@ -877,9 +890,9 @@ func (client *TxClient) EstimateGasPriceAndUsage(
 	priority gasestimation.TxPriority,
 	opts ...TxOption,
 ) (gasPrice float64, gasUsed uint64, err error) {
-	client.mtx.Lock()
-	defer client.mtx.Unlock()
-
+	// Note: This function does NOT acquire client.mtx because it's always called
+	// from methods (like BroadcastPayForBlobWithAccount) that already hold the lock.
+	// Acquiring the lock here would cause a deadlock.
 	txBuilder, err := client.signer.txBuilder(msgs, opts...)
 	if err != nil {
 		return 0, 0, err
@@ -899,22 +912,37 @@ func (client *TxClient) EstimateGasPriceAndUsage(
 
 	span := trace.SpanFromContext(ctx)
 
-	resp, err := client.gasEstimationClient.EstimateGasPriceAndUsage(ctx, &gasestimation.EstimateGasPriceAndUsageRequest{
-		TxPriority: priority,
-		TxBytes:    txBytes,
-	})
-	if err != nil {
-		span.RecordError(fmt.Errorf("txclient/EstimateGasPriceAndUsage: estimation error: %w", err))
-		return 0, 0, fmt.Errorf("failed to estimate gas price and usage: %w", err)
+	var resp *gasestimation.EstimateGasPriceAndUsageResponse
+	for {
+		resp, err = client.gasEstimationClient.EstimateGasPriceAndUsage(ctx, &gasestimation.EstimateGasPriceAndUsageRequest{
+			TxPriority: priority,
+			TxBytes:    txBytes,
+		})
+		if err == nil {
+			break
+		}
+		if ok, err := client.handleSequenceMismatch(err, txBuilder); !ok {
+			return 0, 0, err
+		}
+
+		_, _, err = client.signer.signTransaction(txBuilder)
+		if err != nil {
+			return 0, 0, fmt.Errorf("re-signing with corrected sequence: %w",
+				err)
+		}
+
+		txBytes, err = client.signer.EncodeTx(txBuilder.GetTx())
+		if err != nil {
+			return 0, 0, fmt.Errorf("re-encoding tx: %w", err)
+		}
 	}
 
-	gasUsed = resp.EstimatedGasUsed
 	span.AddEvent("txclient/EstimateGasPriceAndUsage: estimation successful", trace.WithAttributes(
-		attribute.Int64("gas_used", int64(gasUsed)),
+		attribute.Int64("gas_used", int64(resp.EstimatedGasUsed)),
 		attribute.Int64("gas_price", int64(resp.EstimatedGasPrice)),
 	))
 
-	return resp.EstimatedGasPrice, gasUsed, nil
+	return resp.EstimatedGasPrice, resp.EstimatedGasUsed, nil
 }
 
 // EstimateGasPrice calls the gas estimation endpoint to return the estimated gas price based on priority.
