@@ -1616,7 +1616,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Quantiles from gas_price_observed summary (per-tx samples). Each series is averaged across validators.",
+      "description": "Quantiles from gas_price_observed summary (per-tx samples). Each series is averaged across consensus nodes.",
       "fieldConfig": {
         "defaults": {
           "color": {
