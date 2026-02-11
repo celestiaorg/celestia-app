@@ -2,8 +2,7 @@
 
 # Entrypoint script for a Mocha consensus node with state sync.
 # This script is idempotent: on restart it skips init/config and goes straight
-# to starting the node. This allows you to change config (e.g. min-retain-blocks
-# in app.toml) and simply restart the container.
+# to starting the node.
 
 set -o errexit
 set -o nounset
@@ -47,9 +46,6 @@ if [ ! -f "${CELESTIA_APP_HOME}/config/config.toml" ]; then
 
     echo "Enabling Prometheus instrumentation..."
     sed -i '/^\[instrumentation\]/,/^\[/{s/^prometheus *=.*/prometheus = true/;}' "${CELESTIA_APP_HOME}/config/config.toml"
-
-    echo "Setting min-retain-blocks = 0 (retain all blocks)..."
-    sed -i 's/^min-retain-blocks *=.*/min-retain-blocks = 0/' "${CELESTIA_APP_HOME}/config/app.toml"
 
     echo "Node initialized and configured."
 else
