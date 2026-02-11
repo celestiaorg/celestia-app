@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
-use celestia_grpc::{GrpcClient, TxConfig, TxRequest};
+use celestia_grpc::{GrpcClient, TransactionService, TxConfig, TxRequest, TxServiceConfig};
 use celestia_types::nmt::Namespace;
 use celestia_types::{AppVersion, Blob};
 use rand::Rng;
@@ -59,10 +59,10 @@ impl TxResult {
     }
 }
 
-const MAX_IN_FLIGHT: usize = 100;
+const MAX_IN_FLIGHT: usize = 1000;
 
 pub async fn run_submission_loop(
-    client: Arc<GrpcClient>,
+    clients: Vec<(Arc<str>, GrpcClient)>,
     config: Arc<ValidatedConfig>,
     results: Arc<Mutex<Vec<TxResult>>>,
     shutdown: Arc<Notify>,
@@ -72,7 +72,10 @@ pub async fn run_submission_loop(
     let mut counter = 0u64;
     let mut confirm_tasks: JoinSet<Option<TxResult>> = JoinSet::new();
     let sem = Arc::new(Semaphore::new(MAX_IN_FLIGHT));
-    let service = client.transaction_service().await?;
+    let tx_service_config = TxServiceConfig::new(clients);
+    let service = TransactionService::new(tx_service_config)
+        .await
+        .map_err(|e| anyhow::Error::new(e))?;
     loop {
         tokio::select! {
             _ = submission_ticker.tick() => {
@@ -83,17 +86,22 @@ pub async fn run_submission_loop(
                 let disable_metrics = config.disable_metrics;
 
                 let (size, blob) = generate_random_blob(namespace, size_min, size_max)?;
+                println!("Generated blob of size {}", size);
                 let handle = service
                     .submit(
-                        TxRequest::Blobs(vec![blob]),
-                        TxConfig::default(),
+                        TxRequest::blobs(vec![blob.clone()],TxConfig::default()),
                     )
-                    .await?;
-                println!("Before submit");
-                let submit_hash = handle.submitted.await??;
+                    .await;
+                let handle = match handle {
+                    Ok(handle) => handle,
+                    Err(e) => {
+                        println!("Failed to submit blob: {}", e);
+                        service.submit_restart(TxRequest::blobs(vec![blob],TxConfig::default())).await?
+                    }
+                };
+                println!("Submitted blob with hash {}", handle.hash);
                 let submit_time = SystemTime::now();
-
-                let tx_hash = submit_hash.to_string();
+                let tx_hash = handle.hash.to_string();
                 println!(
                     "[SUBMIT] tx={} size={} bytes time={}",
                     &tx_hash[..16],
@@ -113,8 +121,9 @@ pub async fn run_submission_loop(
                 confirm_tasks.spawn(async move {
                     let _permit = permit;
                     let tx_hash_short = tx_hash.clone();
-                    match handle.confirmed.await.unwrap() {
+                    match handle.confirm().await {
                         Ok(tx_info) => {
+                            println!("Confirmed blob with hash {}", tx_hash_short);
                             let commit_time = SystemTime::now();
                             let total_latency = commit_time
                                 .duration_since(submit_time)
@@ -122,8 +131,8 @@ pub async fn run_submission_loop(
                             let latency = total_latency.saturating_sub(sema_wait);
                             println!(
                                 "[CONFIRM] tx={} height={} latency={}ms code={} time={}",
-                                &tx_info.info.hash.to_string()[..16],
-                                tx_info.info.height,
+                                &tx_info.hash.to_string()[..16],
+                                tx_info.height,
                                 latency.as_millis(),
                                 0,
                                 format_time_only(commit_time)
@@ -135,12 +144,13 @@ pub async fn run_submission_loop(
                                 submit_time,
                                 commit_time,
                                 latency,
-                                tx_info.info.hash.to_string(),
+                                tx_info.hash.to_string(),
                                 0,
-                                tx_info.info.height as i64,
+                                tx_info.height as i64,
                             ))
                         }
                         Err(e) => {
+                            println!("Failed to confirm blob with hash {}", tx_hash_short);
                             let error_str = e.to_string();
                             if error_str.contains("cancel") {
                                 prom::dec_in_flight();
@@ -190,8 +200,8 @@ pub async fn run_submission_loop(
                 } else {
                     return Err(anyhow::format_err!("transaction failed {:?}", res));
                 }
-            },
-            None => {},
+            }
+            None => {}
         }
     }
     Ok(())

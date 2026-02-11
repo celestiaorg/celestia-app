@@ -334,7 +334,7 @@ dependencies = [
 
 [[package]]
 name = "celestia-grpc"
-version = "0.10.0"
+version = "0.12.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -370,7 +370,7 @@ dependencies = [
 
 [[package]]
 name = "celestia-grpc-macros"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -379,7 +379,7 @@ dependencies = [
 
 [[package]]
 name = "celestia-proto"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "bytes",
  "prost",
@@ -395,7 +395,7 @@ dependencies = [
 
 [[package]]
 name = "celestia-types"
-version = "0.18.0"
+version = "0.20.0"
 dependencies = [
  "base64 0.22.1",
  "bech32",
@@ -1416,7 +1416,7 @@ dependencies = [
 
 [[package]]
 name = "lumina-utils"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "futures",
  "gloo-timers",
@@ -1440,6 +1440,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "matchers"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d1525a2a28c7f4fa0fc98bb91ae755d1e2d1505079e05539e35bc876b5d65ae9"
+dependencies = [
+ "regex-automata",
 ]
 
 [[package]]
@@ -2737,10 +2746,14 @@ version = "0.3.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2f30143827ddab0d256fd843b7a66d164e9f271cfa0dde49142c5ca0ca291f1e"
 dependencies = [
+ "matchers",
  "nu-ansi-term",
+ "once_cell",
+ "regex-automata",
  "sharded-slab",
  "smallvec",
  "thread_local",
+ "tracing",
  "tracing-core",
  "tracing-log",
 ]

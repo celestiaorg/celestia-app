@@ -69,7 +69,7 @@ The binary will be placed in `build/lumina-latency-monitor`.
 
 | Flag                 | Shorthand | Default           | Description                                                                       |
 | -------------------- | --------- | ----------------- | --------------------------------------------------------------------------------- |
-| `--grpc-endpoint`    | `-e`      | `localhost:9090`  | gRPC endpoint to connect to                                                       |
+| `--grpc-endpoint`    | `-e`      | `localhost:9090`  | gRPC endpoint(s) to connect to (repeat flag or comma-separated list)              |
 | `--keyring-dir`      | `-k`      | `~/.celestia-app` | Directory containing the keyring                                                  |
 | `--account`          | `-a`      | _(first account)_ | Account name to use from keyring                                                  |
 | `--private-key`      | `-p`      | _(from keyring)_  | Private key hex (alternative to keyring, also via `CELESTIA_PRIVATE_KEY` env var) |
@@ -87,6 +87,9 @@ cargo run --release -- -e [your-favorite-mocha-rpc]:9090 -a [your-account] -b 10
 
 # Run against talis using validator key
 cargo run --release -- -e "[node-ip]:9090" -k [path-to-talis-dir/payload/validator-1] -b 104800 -z 104800 -d 150ms
+
+# Run against two endpoints (primary is the first one)
+cargo run --release -- -e "node-1:9090,node-2:9090" -a [your-account]
 
 # View help
 cargo run --release -- --help

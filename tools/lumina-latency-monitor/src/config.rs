@@ -14,9 +14,14 @@ const DEFAULT_KEYRING_DIR: &str = "~/.celestia-app";
 #[command(name = "lumina-latency-monitor")]
 #[command(about = "Monitor and measure transaction latency in Celestia networks")]
 pub struct Args {
-    /// gRPC endpoint URL
-    #[arg(short = 'e', long, default_value = "localhost:9090")]
-    pub grpc_endpoint: String,
+    /// gRPC endpoint URL(s). Repeat flag or use comma-separated list.
+    #[arg(
+        short = 'e',
+        long = "grpc-endpoint",
+        value_delimiter = ',',
+        default_value = "localhost:9090"
+    )]
+    pub grpc_endpoints: Vec<String>,
 
     /// Directory containing the keyring (default: ~/.celestia-app)
     #[arg(short = 'k', long)]
@@ -69,6 +74,9 @@ pub enum LatencyMonitorError {
     #[error("failed to parse submission delay: {0}")]
     InvalidSubmissionDelay(String),
 
+    #[error("at least one gRPC endpoint must be provided")]
+    NoGrpcEndpoints,
+
     #[error("failed to create gRPC client: {0}")]
     GrpcClientError(String),
 
@@ -91,7 +99,7 @@ pub enum LatencyMonitorError {
 pub type Result<T> = std::result::Result<T, LatencyMonitorError>;
 
 pub struct ValidatedConfig {
-    pub grpc_url: String,
+    pub grpc_urls: Vec<String>,
     pub private_key: String,
     pub account_name: String,
     pub account_address: String,
@@ -112,11 +120,20 @@ pub fn validate_args(args: &Args) -> Result<ValidatedConfig> {
     let (private_key, account_name, account_address) = extract_private_key(args)?;
     validate_private_key_hex(&private_key)?;
 
-    let grpc_url = build_grpc_url(&args.grpc_endpoint);
+    let grpc_urls = args
+        .grpc_endpoints
+        .iter()
+        .map(|endpoint| endpoint.trim())
+        .filter(|endpoint| !endpoint.is_empty())
+        .map(build_grpc_url)
+        .collect::<Vec<_>>();
+    if grpc_urls.is_empty() {
+        return Err(LatencyMonitorError::NoGrpcEndpoints);
+    }
     let namespace = create_namespace(&args.namespace)?;
 
     Ok(ValidatedConfig {
-        grpc_url,
+        grpc_urls,
         private_key,
         account_name,
         account_address,
