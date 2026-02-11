@@ -1,49 +1,28 @@
-# Build celestia-appd v6.4.10 from source with:
-# - celestia-core PR #2779: fix PruneBlocks nil dereference (celestia-core#2772)
-# - cosmos-sdk v0.51.9: remove evidence MaxAgeNumBlocks block retention constraint
-
-FROM docker.io/golang:1.25.6-alpine AS builder
-
-ARG VERSION=v6.4.10
-
-# hadolint ignore=DL3018
-RUN apk add --no-cache \
-    gcc \
-    git \
-    linux-headers \
-    make \
-    musl-dev
-
-WORKDIR /src
-RUN git clone --branch ${VERSION} --depth 1 https://github.com/celestiaorg/celestia-app.git .
-
-# Swap in the celestia-core fix for PruneBlocks nil dereference
-# and cosmos-sdk v0.51.9 which removes the evidence MaxAgeNumBlocks
-# constraint from GetBlockRetentionHeight
-RUN go mod edit -replace github.com/cometbft/cometbft=github.com/rootulp/celestia-core@a37b4ac850a5e01920cf33bd0511ab073740048d \
-    && go mod tidy \
-    && go mod edit -replace github.com/cosmos/cosmos-sdk=github.com/celestiaorg/cosmos-sdk@v0.51.9 \
-    && go mod tidy
-
-# Static link so the musl-built binary runs on the Debian runtime stage
-RUN CGO_LDFLAGS="-static" make build-standalone
+# Download pre-built celestia-appd from the v6.4.10-mocha release.
+# https://github.com/celestiaorg/celestia-app/releases/tag/v6.4.10-mocha
 
 FROM docker.io/debian:trixie-slim
 
+ARG VERSION=v6.4.10-mocha
 ARG UID=10001
 ARG USER_NAME=celestia
 
 ENV CELESTIA_APP_HOME=/home/${USER_NAME}/.celestia-app
 
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates=20250419 \
-    curl=8.14.1-2+deb13u2 \
-    jq=1.7.1-6+deb13u1 \
+    ca-certificates \
+    curl \
+    jq \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -g ${UID} ${USER_NAME} \
     && useradd -l -m -d ${CELESTIA_APP_HOME} -s /sbin/nologin -u ${UID} -g ${UID} ${USER_NAME}
 
-COPY --from=builder /src/build/celestia-appd /bin/celestia-appd
+# Download the pre-built binary. Map Docker's TARGETARCH to the release naming.
+ARG TARGETARCH
+RUN ARCH=$([ "${TARGETARCH}" = "amd64" ] && echo "x86_64" || echo "arm64") \
+    && curl -sL "https://github.com/celestiaorg/celestia-app/releases/download/${VERSION}/celestia-app-standalone_Linux_${ARCH}.tar.gz" \
+    | tar -xz -C /bin celestia-appd
 
 COPY --chown=${USER_NAME}:${USER_NAME} entrypoint.sh /opt/entrypoint.sh
 RUN chmod +x /opt/entrypoint.sh
