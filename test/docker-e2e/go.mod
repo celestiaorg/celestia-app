@@ -254,12 +254,12 @@ require (
 	go.opentelemetry.io/contrib/detectors/gcp v1.38.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.61.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.62.0 // indirect
-	go.opentelemetry.io/otel v1.39.0 // indirect
+	go.opentelemetry.io/otel v1.40.0 // indirect
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.38.0 // indirect
-	go.opentelemetry.io/otel/metric v1.39.0 // indirect
+	go.opentelemetry.io/otel/metric v1.40.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.39.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.39.0 // indirect
-	go.opentelemetry.io/otel/trace v1.39.0 // indirect
+	go.opentelemetry.io/otel/trace v1.40.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
@@ -271,10 +271,10 @@ require (
 	golang.org/x/term v0.39.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
-	google.golang.org/api v0.264.0 // indirect
+	google.golang.org/api v0.265.0 // indirect
 	google.golang.org/genproto v0.0.0-20251202230838-ff82c1b0f217 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20251202230838-ff82c1b0f217 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260122232226-8e98ce8d340d // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260128011058-8636f8732409 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
