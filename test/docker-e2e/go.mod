@@ -4,7 +4,7 @@ go 1.25.7
 
 require (
 	cosmossdk.io/math v1.5.3
-	github.com/bcp-innovations/hyperlane-cosmos v1.0.1
+	github.com/bcp-innovations/hyperlane-cosmos v1.1.0
 	github.com/celestiaorg/celestia-app/v7 v7.0.0-rc0
 	github.com/celestiaorg/go-square/v3 v3.0.2
 	github.com/celestiaorg/tastora v0.12.0
