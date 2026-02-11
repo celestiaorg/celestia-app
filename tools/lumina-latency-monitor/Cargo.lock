@@ -335,6 +335,7 @@ dependencies = [
 [[package]]
 name = "celestia-grpc"
 version = "0.12.0"
+source = "git+https://github.com/celestiaorg/lumina#817f03d08059d48f0e032c2eca12f4360aa8feab"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -371,6 +372,7 @@ dependencies = [
 [[package]]
 name = "celestia-grpc-macros"
 version = "0.7.0"
+source = "git+https://github.com/celestiaorg/lumina#817f03d08059d48f0e032c2eca12f4360aa8feab"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -380,6 +382,7 @@ dependencies = [
 [[package]]
 name = "celestia-proto"
 version = "0.12.1"
+source = "git+https://github.com/celestiaorg/lumina#817f03d08059d48f0e032c2eca12f4360aa8feab"
 dependencies = [
  "bytes",
  "prost",
@@ -396,6 +399,7 @@ dependencies = [
 [[package]]
 name = "celestia-types"
 version = "0.20.0"
+source = "git+https://github.com/celestiaorg/lumina#817f03d08059d48f0e032c2eca12f4360aa8feab"
 dependencies = [
  "base64 0.22.1",
  "bech32",
@@ -1417,6 +1421,7 @@ dependencies = [
 [[package]]
 name = "lumina-utils"
 version = "0.5.2"
+source = "git+https://github.com/celestiaorg/lumina#817f03d08059d48f0e032c2eca12f4360aa8feab"
 dependencies = [
  "futures",
  "gloo-timers",

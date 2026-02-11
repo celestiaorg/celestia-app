@@ -7,8 +7,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-celestia-grpc = { path = "/Users/mikhailrakhmanov/repos/lumina-clientv2/grpc", features = ["tls-ring"] }
-celestia-types = { path = "/Users/mikhailrakhmanov/repos/lumina-clientv2/types" }
+celestia-grpc = { git = "https://github.com/celestiaorg/lumina", features = ["tls-ring"] }
+celestia-types = { git = "https://github.com/celestiaorg/lumina" }
 tokio = { version = "1.49", features = ["macros", "rt", "rt-multi-thread", "signal"] }
 rand = "0.8.5"
 hex = "0.4.3"
