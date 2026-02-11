@@ -29,8 +29,6 @@ The node uses state sync to quickly catch up to the current chain height rather 
 1. Log in with username `admin` and password `admin` (or the value of `GRAFANA_PASSWORD` if set).
 1. The home dashboard is pre-configured to the Celestia dashboard which displays consensus metrics, mempool stats, p2p info, and more.
 
-Additional dashboards are available in the Celestia folder in the left sidebar.
-
 ## Monitoring Sync Progress
 
 ```bash
@@ -42,21 +40,6 @@ curl -s localhost:26657/status | jq '.result.sync_info'
 ```
 
 The node is fully synced when `catching_up` is `false`.
-
-## Enabling Pruning
-
-By default the node retains all blocks. After accumulating >3000 blocks, you can enable pruning to save disk space:
-
-```bash
-# Check current height
-curl -s localhost:26657/status | jq '.result.sync_info.latest_block_height'
-
-# Enable pruning (retain last 3000 blocks)
-docker compose exec celestia-appd sed -i 's/min-retain-blocks = 0/min-retain-blocks = 3000/' /home/celestia/.celestia-app/config/app.toml
-
-# Restart to apply
-docker compose restart celestia-appd
-```
 
 ## Configuration
 
