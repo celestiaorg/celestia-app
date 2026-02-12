@@ -5,9 +5,11 @@ import (
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	minfeekeeper "github.com/celestiaorg/celestia-app/v7/x/minfee/keeper"
+	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerror "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
+	"github.com/hashicorp/go-metrics"
 )
 
 const (
@@ -61,6 +63,16 @@ func ValidateTxFee(ctx sdk.Context, tx sdk.Tx, minfeeKeeper *minfeekeeper.Keeper
 	}
 
 	priority := getTxPriority(feeTx.GetFee(), int64(gas))
+
+	// Track actual gas price paid by users for congestion monitoring
+	gasPriceFloat := float64(fee.Int64()) / float64(gas)
+	metrics.AddSampleWithLabels(
+		[]string{"gas_price_observed"},
+		float32(gasPriceFloat),
+		[]metrics.Label{
+			telemetry.NewLabel("denom", appconsts.BondDenom),
+		},
+	)
 	return feeTx.GetFee(), priority, nil
 }
 
