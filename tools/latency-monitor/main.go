@@ -223,7 +223,8 @@ func monitorLatency(
 			resp, err := txClient.BroadcastPayForBlob(ctx, []*share.Blob{blob})
 			checkTxLatency := time.Since(checkTxStart)
 			if err != nil {
-				fmt.Printf("[BROADCAST_FAILED] error=%v\n", err)
+				fmt.Printf("[BROADCAST_FAILED] size=%d bytes time=%s error=%v\n",
+					randomSize, submitTime.Format("15:04:05.000"), err)
 				recordBroadcastFailure()
 				continue
 			}

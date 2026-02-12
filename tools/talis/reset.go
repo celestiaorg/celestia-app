@@ -53,7 +53,7 @@ func resetCmd() *cobra.Command {
 			}
 
 			cleanupScript := `
-				tmux kill-session -t app && tmux kill-session -t txsim
+				tmux kill-session -t app && tmux kill-session -t txsim && tmux kill-session -t latency-monitor
 				rm -rf .celestia-app logs payload payload.tar.gz /bin/celestia* /bin/txsim
 			`
 			// Run cleanup on each validator
@@ -72,6 +72,31 @@ func resetCmd() *cobra.Command {
 				}(val)
 			}
 			wg.Wait()
+
+			// Clean up observability stack (Grafana/Prometheus/Loki) if configured.
+			if len(cfg.Observability) > 0 {
+				observabilityCleanup := `
+					if [ -d /root/observability/docker ]; then
+						cd /root/observability/docker && docker compose down -v
+					fi
+					rm -rf /root/observability /root/observability-payload.tar.gz
+				`
+				var obsWG sync.WaitGroup
+				obsWorkerChan := make(chan struct{}, workers)
+				for _, obs := range cfg.Observability {
+					obsWG.Add(1)
+					go func(o Instance) {
+						defer obsWG.Done()
+						obsWorkerChan <- struct{}{}
+						defer func() { <-obsWorkerChan }()
+						fmt.Printf("Resetting observability node %s...\n", o.Name)
+						if err := runScriptInTMux([]Instance{o}, resolvedKey, observabilityCleanup, "obs-cleanup", time.Minute*5); err != nil {
+							fmt.Printf("Warning: error while cleaning up %s: %v\n", o.Name, err)
+						}
+					}(obs)
+				}
+				obsWG.Wait()
+			}
 
 			return nil
 		},
