@@ -1,0 +1,61 @@
+# Docker Compose for a Mocha consensus node with Prometheus + Grafana.
+name: mocha
+
+services:
+  celestia-appd:
+    container_name: celestia-appd
+    build:
+      context: ./celestia
+    volumes:
+      - celestia-data:/home/celestia/.celestia-app
+    ports:
+      - "26656:26656"
+      - "26657:26657"
+      - "26660:26660"
+    restart: unless-stopped
+
+  disk-exporter:
+    container_name: disk-exporter
+    build:
+      context: ./disk-exporter
+    volumes:
+      - celestia-data:/data:ro
+    restart: unless-stopped
+
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:v3.8.1
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:12.3.1
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/celestia.json
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+volumes:
+  celestia-data:
+  prometheus-data:
+  grafana-data:
