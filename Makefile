@@ -361,10 +361,9 @@ txsim-build-docker:
 .PHONY: txsim-build-docker
 
 ## build-talis-bins: Build celestia-appd, txsim, and Go latency-monitor binaries for talis VMs (ubuntu 22.04 LTS)
-build-talis-bins:
+build-talis-bins: build-lumina-latency-monitor
 	mkdir -p build
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/celestia-appd ./cmd/celestia-appd
 .PHONY: build-talis-bins
 
