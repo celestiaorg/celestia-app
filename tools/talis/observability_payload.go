@@ -11,6 +11,7 @@ import (
 
 const (
 	defaultMetricsPort        = 26660
+	appTelemetryPort          = 1317
 	latencyMonitorMetricsPort = 9464
 	grafanaPasswordLength     = 16
 )
@@ -102,6 +103,22 @@ func stageObservabilityPayload(cfg Config, observabilitySrcDir, payloadDir strin
 	latencyTargetsPath := filepath.Join(targetsDir, "latency_targets.json")
 	if err := os.WriteFile(latencyTargetsPath, latencyPayload, 0o644); err != nil {
 		return fmt.Errorf("failed to write latency targets file: %w", err)
+	}
+
+	// Generate app telemetry targets (same validators, port 1317)
+	appGroups, _, err := buildObservabilityTargets(cfg, appTelemetryPort, "public")
+	if err != nil {
+		return err
+	}
+
+	appPayload, err := marshalTargets(appGroups, true)
+	if err != nil {
+		return err
+	}
+
+	appTargetsPath := filepath.Join(targetsDir, "app_targets.json")
+	if err := os.WriteFile(appTargetsPath, appPayload, 0o644); err != nil {
+		return fmt.Errorf("failed to write app targets file: %w", err)
 	}
 
 	// Generate random Grafana password and write .env file

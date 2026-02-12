@@ -20,6 +20,7 @@ func main() {
 		downloadCmd(),
 		generateCmd(),
 		initCmd(),
+		initEnvCmd(),
 		statusCmd(),
 		listCmd(),
 		upCmd(),
