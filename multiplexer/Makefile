@@ -10,6 +10,6 @@ test-short:
 
 # lint code with golangci-lint
 lint-fix:
-	golangci-lint run --fix
+	go tool golangci-lint run --fix
 
 .PHONY: test test-short lint-fix

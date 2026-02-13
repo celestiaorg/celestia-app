@@ -183,7 +183,6 @@ This repo contains multiple go modules. When using it, rename `go.work.example` 
 
 ### Tools
 
-1. Install [golangci-lint](https://golangci-lint.run/docs/welcome/install/) 2.8.0
 1. Install [markdownlint](https://github.com/DavidAnson/markdownlint) 0.39.0
 1. Install [hadolint](https://github.com/hadolint/hadolint)
 1. Install [yamllint](https://yamllint.readthedocs.io/en/stable/quickstart.html)
