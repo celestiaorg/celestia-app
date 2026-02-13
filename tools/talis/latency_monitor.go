@@ -84,7 +84,7 @@ func startLatencyMonitorCmd() *cobra.Command {
 			}
 
 			latencyMonitorCmd := fmt.Sprintf(
-				"stdbuf -oL latency-monitor -k .celestia-app -a txsim -e localhost:9091 -b %d -z %d -d %s -n %s --observability-port %d -w %d 2>&1 | tee -a /root/latency-monitor-logs",
+				"stdbuf -oL latency-monitor -k .celestia-app -a txsim -e localhost:9091 -b %d -z %d -d %s -n %s --observability-port %d 2>&1 | tee -a /root/latency-monitor-logs",
 				blobSize,
 				blobSizeMin,
 				submissionDelay,
