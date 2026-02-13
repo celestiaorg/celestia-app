@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestOverrideMinRetainBlocks(t *testing.T) {
+func TestValidateMinRetainBlocks(t *testing.T) {
 	testCases := []struct {
 		name                   string
 		minRetainBlocks        uint64
@@ -25,11 +25,12 @@ func TestOverrideMinRetainBlocks(t *testing.T) {
 		expectedErrorSubstring string
 	}{
 		{
-			name:               "Override when below minimum",
-			minRetainBlocks:    100,
-			snapshotInterval:   1500,
-			snapshotKeepRecent: 2,
-			expectedMinRetain:  appconsts.MinRetainBlocks,
+			name:                   "Error when config file value is below minimum",
+			minRetainBlocks:        100,
+			snapshotInterval:       1500,
+			snapshotKeepRecent:     2,
+			expectError:            true,
+			expectedErrorSubstring: "is below minimum",
 		},
 		{
 			name:               "Preserve when above minimum",
@@ -46,18 +47,20 @@ func TestOverrideMinRetainBlocks(t *testing.T) {
 			expectedMinRetain:  0,
 		},
 		{
-			name:               "Override based on snapshot window when larger than minimum",
-			minRetainBlocks:    100,
-			snapshotInterval:   2000,
-			snapshotKeepRecent: 3,
-			expectedMinRetain:  6000, // 2000 * 3 = 6000 > 3000
+			name:                   "Error when config file value is below snapshot window requirement",
+			minRetainBlocks:        100,
+			snapshotInterval:       2000,
+			snapshotKeepRecent:     3,
+			expectError:            true,
+			expectedErrorSubstring: "is below minimum 6000", // 2000 * 3 = 6000 > 3000
 		},
 		{
-			name:               "Use hard minimum when snapshot window is smaller",
-			minRetainBlocks:    100,
-			snapshotInterval:   500,
-			snapshotKeepRecent: 2,
-			expectedMinRetain:  appconsts.MinRetainBlocks, // 500 * 2 = 1000 < 3000
+			name:                   "Error when config file value is below hard minimum and snapshot window is smaller",
+			minRetainBlocks:        100,
+			snapshotInterval:       500,
+			snapshotKeepRecent:     2,
+			expectError:            true,
+			expectedErrorSubstring: "is below minimum", // 500 * 2 = 1000 < 3000, so hard minimum 3000 applies
 		},
 		{
 			name:                   "Error on explicit CLI flag below minimum",
@@ -109,11 +112,12 @@ func TestOverrideMinRetainBlocks(t *testing.T) {
 			expectedMinRetain:  appconsts.MinRetainBlocks,
 		},
 		{
-			name:               "Use hard minimum when snapshots are disabled",
-			minRetainBlocks:    100,
-			snapshotInterval:   0,
-			snapshotKeepRecent: 0,
-			expectedMinRetain:  appconsts.MinRetainBlocks, // 0 * 0 = 0 < 3000
+			name:                   "Error when config file value is below hard minimum and snapshots are disabled",
+			minRetainBlocks:        100,
+			snapshotInterval:       0,
+			snapshotKeepRecent:     0,
+			expectError:            true,
+			expectedErrorSubstring: "is below minimum", // 0 * 0 = 0 < 3000, so hard minimum 3000 applies
 		},
 	}
 
@@ -151,7 +155,7 @@ func TestOverrideMinRetainBlocks(t *testing.T) {
 			cmd.SetContext(ctx)
 
 			// Run the override function
-			err := overrideMinRetainBlocks(cmd, logger)
+			err := validateMinRetainBlocks(cmd, logger)
 
 			if tc.expectError {
 				require.Error(t, err)

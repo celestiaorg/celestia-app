@@ -24,7 +24,14 @@ No manual action is required, but validators should be aware of this change.
 
 #### Config Changes
 
-No configuration changes are required for v7. Existing v6 configurations remain compatible.
+##### `min-retain-blocks`
+
+v7 enforces a minimum `min-retain-blocks` value of 3000. This ensures nodes retain enough blocks for other nodes to sync from state sync snapshots. The node will fail to start if `min-retain-blocks` in `app.toml` is set to a value between 1 and 2999. Valid values:
+
+- `0` (default): retain all blocks (no pruning)
+- `>= 3000`: retain at least 3000 blocks
+
+If your `app.toml` has a `min-retain-blocks` value between 1 and 2999, update it to `0` or a value `>= 3000`.
 
 ### State Machine Changes (v7.0.0)
 

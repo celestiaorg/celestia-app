@@ -9,16 +9,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// overrideMinRetainBlocks ensures the min-retain-blocks configuration meets
+// validateMinRetainBlocks ensures the min-retain-blocks configuration meets
 // the minimum required value for state sync. This is NOT bypassable because
 // it's critical for network health that nodes retain enough blocks for other
 // nodes to sync from state sync snapshots.
 //
 // Unlike other hooks that modify sctx.Config (CometBFT config), this hook
-// modifies sctx.Viper because min-retain-blocks is an app-level config
+// reads sctx.Viper because min-retain-blocks is an app-level config
 // (app.toml) that the Cosmos SDK reads from viper via appOpts.Get() when
 // creating the app in server/util.go.
-func overrideMinRetainBlocks(cmd *cobra.Command, logger log.Logger) error {
+func validateMinRetainBlocks(cmd *cobra.Command, _ log.Logger) error {
 	sctx := server.GetServerContextFromCmd(cmd)
 	v := sctx.Viper
 
@@ -51,13 +51,10 @@ func overrideMinRetainBlocks(cmd *cobra.Command, logger log.Logger) error {
 		return nil
 	}
 
-	// Value came from config file - override if too low
+	// Value came from config file - error if too low
 	if minRetainBlocks < requiredMinRetain {
-		logger.Info("Overriding min-retain-blocks to minimum required value",
-			"configured", minRetainBlocks,
-			"required", requiredMinRetain,
-		)
-		v.Set(server.FlagMinRetainBlocks, requiredMinRetain)
+		return fmt.Errorf("min-retain-blocks value %d in app.toml is below minimum %d, please update min-retain-blocks to 0 (retain all blocks) or >= %d",
+			minRetainBlocks, requiredMinRetain, requiredMinRetain)
 	}
 
 	return nil
