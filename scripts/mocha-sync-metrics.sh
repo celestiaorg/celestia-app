@@ -1,19 +1,14 @@
 #!/bin/sh
-# Measures Mocha sync time. Usage: ./mocha-sync-metrics.sh [--no-metrics] [--iterations N] [--cooldown S]
+# Measures Mocha sync time. Usage: ./mocha-sync-metrics.sh [--iterations N] [--cooldown S]
 
 set -o errexit -o nounset
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-WRITE_METRICS=true
 ITERATIONS=1
 COOLDOWN=30
 
 while [ $# -gt 0 ]; do
 	case $1 in
-	--no-metrics)
-		WRITE_METRICS=false
-		shift
-		;;
 	--iterations | -n)
 		ITERATIONS="$2"
 		shift 2
@@ -23,10 +18,9 @@ while [ $# -gt 0 ]; do
 		shift 2
 		;;
 	--help | -h)
-		echo "Usage: $0 [--no-metrics] [--iterations N] [--cooldown S]"
+		echo "Usage: $0 [--iterations N] [--cooldown S]"
 		echo ""
 		echo "Options:"
-		echo "  --no-metrics           Disable writing metrics file"
 		echo "  --iterations N, -n N   Run N sync iterations (default: 1)"
 		echo "  --cooldown S, -c S     Cooldown seconds between runs (default: 30)"
 		echo "  --help, -h             Show this help message"
@@ -44,7 +38,11 @@ done
 POLL_INTERVAL=5
 SYNC_TIMEOUT=7200
 LOCAL_RPC="http://localhost:26657"
-METRICS_FILE="${CELESTIA_APP_HOME}/sync_metrics.prom"
+
+# Global variables to store results from each iteration
+ITER_STATE_SYNC_DURATION=0
+ITER_BLOCK_SYNC_DURATION=0
+ITER_TOTAL_DURATION=0
 
 # Statistics calculation functions
 calculate_min() {
@@ -100,7 +98,36 @@ run_sync_iteration() {
 	cleanup() { pkill -TERM celestia-appd 2>/dev/null || true; }
 	trap cleanup EXIT INT TERM
 
-	setup_mocha_sync
+	# Setup mocha sync
+	echo "Deleting $CELESTIA_APP_HOME..."
+	rm -rf "$CELESTIA_APP_HOME"
+
+	echo "Initializing config files..."
+	celestia-appd init ${NODE_NAME} --chain-id ${CHAIN_ID} >/dev/null 2>&1
+
+	echo "Setting seeds in config.toml..."
+	sed -i.bak -e "s/^seeds *=.*/seeds = \"$SEEDS\"/" $CELESTIA_APP_HOME/config/config.toml
+
+	echo "Setting persistent peers in config.toml..."
+	sed -i -e "/^\[p2p\]/,/^\[/{s/^[[:space:]]*persistent_peers *=.*/persistent_peers = \"$PEERS\"/;}" $CELESTIA_APP_HOME/config/config.toml
+
+	echo "Querying network for latest height..."
+	LATEST_HEIGHT=$(curl -s $RPC/block | jq -r .result.block.header.height)
+	BLOCK_HEIGHT=$((LATEST_HEIGHT - 2000))
+	TRUST_HASH=$(curl -s "$RPC/block?height=$BLOCK_HEIGHT" | jq -r .result.block_id.hash)
+
+	echo "Latest height: $LATEST_HEIGHT"
+	echo "Block height: $BLOCK_HEIGHT"
+	echo "Trust hash: $TRUST_HASH"
+
+	echo "Enabling state sync in config.toml..."
+	sed -i.bak -E "s|^(enable[[:space:]]+=[[:space:]]+).*$|\1true| ; \
+s|^(rpc_servers[[:space:]]+=[[:space:]]+).*$|\1\"$RPC,$RPC\"| ; \
+s|^(trust_height[[:space:]]+=[[:space:]]+).*$|\1$BLOCK_HEIGHT| ; \
+s|^(trust_hash[[:space:]]+=[[:space:]]+).*$|\1\"$TRUST_HASH\"|" $CELESTIA_APP_HOME/config/config.toml
+
+	echo "Downloading genesis file..."
+	celestia-appd download-genesis ${CHAIN_ID} >/dev/null 2>&1
 
 	echo "Starting celestia-appd in background..."
 	START_TIME=$(date +%s)
@@ -181,8 +208,10 @@ run_sync_iteration() {
 			pkill -TERM celestia-appd 2>/dev/null || true
 			trap - EXIT INT TERM
 
-			# Return metrics as space-separated values
-			echo "${STATE_SYNC_DURATION} ${BLOCK_SYNC_DURATION} ${TOTAL_DURATION}"
+			# Set global variables for return
+			ITER_STATE_SYNC_DURATION=$STATE_SYNC_DURATION
+			ITER_BLOCK_SYNC_DURATION=$BLOCK_SYNC_DURATION
+			ITER_TOTAL_DURATION=$TOTAL_DURATION
 			return 0
 		fi
 
@@ -195,10 +224,10 @@ run_sync_iteration() {
 }
 
 # Main execution
-echo "Starting sync metrics collection"
+echo "Starting sync measurements"
 echo "Iterations: $ITERATIONS"
 echo "Cooldown: ${COOLDOWN}s"
-[ "$WRITE_METRICS" = "true" ] && echo "Metrics file: ${METRICS_FILE}" || echo "Metrics file: disabled"
+echo ""
 
 # Arrays to store results
 STATE_SYNC_DURATIONS=""
@@ -207,17 +236,12 @@ TOTAL_DURATIONS=""
 
 # Run iterations
 for i in $(seq 1 $ITERATIONS); do
-	result=$(run_sync_iteration $i)
+	run_sync_iteration $i
 
-	# Parse results
-	state_sync=$(echo "$result" | awk '{print $1}')
-	block_sync=$(echo "$result" | awk '{print $2}')
-	total=$(echo "$result" | awk '{print $3}')
-
-	# Append to result lists
-	STATE_SYNC_DURATIONS="${STATE_SYNC_DURATIONS} ${state_sync}"
-	BLOCK_SYNC_DURATIONS="${BLOCK_SYNC_DURATIONS} ${block_sync}"
-	TOTAL_DURATIONS="${TOTAL_DURATIONS} ${total}"
+	# Get results from global variables
+	STATE_SYNC_DURATIONS="${STATE_SYNC_DURATIONS} ${ITER_STATE_SYNC_DURATION}"
+	BLOCK_SYNC_DURATIONS="${BLOCK_SYNC_DURATIONS} ${ITER_BLOCK_SYNC_DURATION}"
+	TOTAL_DURATIONS="${TOTAL_DURATIONS} ${ITER_TOTAL_DURATION}"
 
 	# Cooldown between iterations (except after last one)
 	if [ $i -lt $ITERATIONS ]; then
@@ -272,44 +296,7 @@ else
 	printf "  Max:       %ss\n" "$total_max"
 	printf "  Average:   %ss\n" "$total_avg"
 	printf "  Variance:  %s\n" "$total_var"
-
-	printf "\nRaw data:\n"
-	printf "  State sync: %s\n" "$STATE_SYNC_DURATIONS"
-	printf "  Block sync: %s\n" "$BLOCK_SYNC_DURATIONS"
-	printf "  Total:      %s\n" "$TOTAL_DURATIONS"
 fi
 printf "=========================================\n"
-
-# Write metrics file
-if [ "$WRITE_METRICS" = "true" ]; then
-	if [ $ITERATIONS -eq 1 ]; then
-		cat >"$METRICS_FILE" <<-EOF
-			mocha_state_sync_duration_seconds{chain_id="$CHAIN_ID",version="$CELESTIA_APP_VERSION"} $(echo $STATE_SYNC_DURATIONS | awk '{print $1}')
-			mocha_block_sync_duration_seconds{chain_id="$CHAIN_ID",version="$CELESTIA_APP_VERSION"} $(echo $BLOCK_SYNC_DURATIONS | awk '{print $1}')
-			mocha_total_sync_duration_seconds{chain_id="$CHAIN_ID",version="$CELESTIA_APP_VERSION"} $(echo $TOTAL_DURATIONS | awk '{print $1}')
-			mocha_sync_success{chain_id="$CHAIN_ID",version="$CELESTIA_APP_VERSION"} 1
-			mocha_sync_timestamp{chain_id="$CHAIN_ID",version="$CELESTIA_APP_VERSION"} $(date +%s)
-		EOF
-	else
-		cat >"$METRICS_FILE" <<-EOF
-			mocha_state_sync_duration_seconds_min{chain_id="$CHAIN_ID",version="$CELESTIA_APP_VERSION"} $state_min
-			mocha_state_sync_duration_seconds_max{chain_id="$CHAIN_ID",version="$CELESTIA_APP_VERSION"} $state_max
-			mocha_state_sync_duration_seconds_avg{chain_id="$CHAIN_ID",version="$CELESTIA_APP_VERSION"} $state_avg
-			mocha_state_sync_duration_seconds_var{chain_id="$CHAIN_ID",version="$CELESTIA_APP_VERSION"} $state_var
-			mocha_block_sync_duration_seconds_min{chain_id="$CHAIN_ID",version="$CELESTIA_APP_VERSION"} $block_min
-			mocha_block_sync_duration_seconds_max{chain_id="$CHAIN_ID",version="$CELESTIA_APP_VERSION"} $block_max
-			mocha_block_sync_duration_seconds_avg{chain_id="$CHAIN_ID",version="$CELESTIA_APP_VERSION"} $block_avg
-			mocha_block_sync_duration_seconds_var{chain_id="$CHAIN_ID",version="$CELESTIA_APP_VERSION"} $block_var
-			mocha_total_sync_duration_seconds_min{chain_id="$CHAIN_ID",version="$CELESTIA_APP_VERSION"} $total_min
-			mocha_total_sync_duration_seconds_max{chain_id="$CHAIN_ID",version="$CELESTIA_APP_VERSION"} $total_max
-			mocha_total_sync_duration_seconds_avg{chain_id="$CHAIN_ID",version="$CELESTIA_APP_VERSION"} $total_avg
-			mocha_total_sync_duration_seconds_var{chain_id="$CHAIN_ID",version="$CELESTIA_APP_VERSION"} $total_var
-			mocha_sync_iterations{chain_id="$CHAIN_ID",version="$CELESTIA_APP_VERSION"} $ITERATIONS
-			mocha_sync_success{chain_id="$CHAIN_ID",version="$CELESTIA_APP_VERSION"} 1
-			mocha_sync_timestamp{chain_id="$CHAIN_ID",version="$CELESTIA_APP_VERSION"} $(date +%s)
-		EOF
-	fi
-	printf "\nMetrics written to: %s\n" "$METRICS_FILE"
-fi
 
 exit 0
