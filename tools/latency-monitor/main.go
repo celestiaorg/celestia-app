@@ -177,8 +177,6 @@ func monitorLatency(
 	if useParallel {
 		opts = append(opts, user.WithTxWorkers(numWorkers))
 		fmt.Printf("Enabling parallel submission with %d workers\n", numWorkers)
-	} else {
-		fmt.Printf("Using sequential submission (single account)\n")
 	}
 
 	txClient, err := user.SetupTxClient(ctx, kr, grpcConn, encCfg, opts...)
@@ -247,6 +245,8 @@ func monitorLatency(
 							return
 						}
 						// All parallel submission failures tracked separately
+						// because currently we can not determine if the failure was
+						// at broadcast or confirmation phase.
 						recordParallelSubmissionFailure()
 
 						fmt.Printf("[PARALLEL_FAILED] size=%d bytes time=%s error=%v\n",
@@ -267,7 +267,7 @@ func monitorLatency(
 						return
 					}
 
-					if result.TxResponse != nil {
+					if result.TxResponse != nil && result.TxResponse.Code == 0 {
 						commitTime := time.Now()
 						latency := commitTime.Sub(submitTime)
 						fmt.Printf("[CONFIRM] tx=%s height=%d latency=%dms code=%d time=%s\n",
