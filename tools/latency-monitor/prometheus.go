@@ -35,6 +35,12 @@ var (
 		Help: "Total number of transactions that failed confirmation",
 	})
 
+	// txParallelSubmissionFailed is the total number of parallel submission failures.
+	txParallelSubmissionFailed = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "latency_monitor_tx_parallel_submission_failed_total",
+		Help: "Total number of parallel submission failures (includes both broadcast and confirmation failures)",
+	})
+
 	// txInFlight is the number of transactions currently in-flight (submitted but not yet confirmed).
 	txInFlight = promauto.NewGauge(prometheus.GaugeOpts{
 		Name: "latency_monitor_tx_in_flight",
@@ -91,6 +97,14 @@ func recordBroadcastFailure() {
 // Decrements in-flight since the tx was previously submitted.
 func recordConfirmFailure() {
 	txConfirmFailed.Inc()
+	txInFlight.Dec()
+}
+
+// recordParallelSubmissionFailure records a parallel submission failure.
+// Used when parallel worker submission fails (broadcast or confirmation).
+// Decrements in-flight since the tx was previously queued.
+func recordParallelSubmissionFailure() {
+	txParallelSubmissionFailed.Inc()
 	txInFlight.Dec()
 }
 
