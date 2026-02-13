@@ -67,9 +67,9 @@ func overrideMempoolConfig(cfg, defaultCfg *tmcfg.Config, logger log.Logger) {
 
 	// Force mempool type to CAT if it's not already set to CAT
 	if cfg.Mempool.Type != tmcfg.MempoolTypeCAT {
-		logger.Info("Overriding Mempool Type to CAT",
+		logger.Warn("DEPRECATED: non-CAT mempool types (v0/flood, v1/priority) are deprecated and will be removed in celestia-app v8. Please update your config.toml to set type = \"cat\" under the [mempool] section. Overriding mempool type to CAT.",
 			"configured", cfg.Mempool.Type,
-			"default", tmcfg.MempoolTypeCAT,
+			"override", tmcfg.MempoolTypeCAT,
 		)
 		cfg.Mempool.Type = tmcfg.MempoolTypeCAT
 	}

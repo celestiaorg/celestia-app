@@ -24,7 +24,9 @@ No manual action is required, but validators should be aware of this change.
 
 #### Config Changes
 
-No configuration changes are required for v7. Existing v6 configurations remain compatible.
+The v0 (`flood`) and v1 (`priority`) mempool types are **deprecated** in v7 and will be **removed** in celestia-app v8. Node operators should ensure their `config.toml` uses `type = "cat"` under the `[mempool]` section. celestia-app v7 will automatically override non-CAT mempool configurations to CAT at startup and log a deprecation warning.
+
+No other configuration changes are required for v7. Existing v6 configurations remain compatible.
 
 ### State Machine Changes (v7.0.0)
 
