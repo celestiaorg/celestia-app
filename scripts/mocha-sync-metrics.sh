@@ -73,7 +73,7 @@ calculate_avg() {
 	echo $((sum / count))
 }
 
-calculate_variance() {
+calculate_stddev() {
 	avg=$1
 	shift
 	sum_sq_diff=0
@@ -83,7 +83,9 @@ calculate_variance() {
 		sum_sq_diff=$((sum_sq_diff + diff * diff))
 		count=$((count + 1))
 	done
-	echo $((sum_sq_diff / count))
+	variance=$((sum_sq_diff / count))
+	# Calculate square root using awk for standard deviation
+	echo "$variance" | awk '{printf "%.2f", sqrt($1)}'
 }
 
 # Run a single sync iteration
@@ -265,37 +267,37 @@ else
 	state_min=$(calculate_min $STATE_SYNC_DURATIONS)
 	state_max=$(calculate_max $STATE_SYNC_DURATIONS)
 	state_avg=$(calculate_avg $STATE_SYNC_DURATIONS)
-	state_var=$(calculate_variance $state_avg $STATE_SYNC_DURATIONS)
+	state_stddev=$(calculate_stddev $state_avg $STATE_SYNC_DURATIONS)
 
 	# Block sync stats
 	block_min=$(calculate_min $BLOCK_SYNC_DURATIONS)
 	block_max=$(calculate_max $BLOCK_SYNC_DURATIONS)
 	block_avg=$(calculate_avg $BLOCK_SYNC_DURATIONS)
-	block_var=$(calculate_variance $block_avg $BLOCK_SYNC_DURATIONS)
+	block_stddev=$(calculate_stddev $block_avg $BLOCK_SYNC_DURATIONS)
 
 	# Total sync stats
 	total_min=$(calculate_min $TOTAL_DURATIONS)
 	total_max=$(calculate_max $TOTAL_DURATIONS)
 	total_avg=$(calculate_avg $TOTAL_DURATIONS)
-	total_var=$(calculate_variance $total_avg $TOTAL_DURATIONS)
+	total_stddev=$(calculate_stddev $total_avg $TOTAL_DURATIONS)
 
 	printf "\nState Sync:\n"
 	printf "  Min:       %ss\n" "$state_min"
 	printf "  Max:       %ss\n" "$state_max"
 	printf "  Average:   %ss\n" "$state_avg"
-	printf "  Variance:  %s\n" "$state_var"
+	printf "  Std Dev:   %s\n" "$state_stddev"
 
 	printf "\nBlock Sync:\n"
 	printf "  Min:       %ss\n" "$block_min"
 	printf "  Max:       %ss\n" "$block_max"
 	printf "  Average:   %ss\n" "$block_avg"
-	printf "  Variance:  %s\n" "$block_var"
+	printf "  Std Dev:   %s\n" "$block_stddev"
 
 	printf "\nTotal Sync:\n"
 	printf "  Min:       %ss\n" "$total_min"
 	printf "  Max:       %ss\n" "$total_max"
 	printf "  Average:   %ss\n" "$total_avg"
-	printf "  Variance:  %s\n" "$total_var"
+	printf "  Std Dev:   %s\n" "$total_stddev"
 fi
 printf "=========================================\n"
 
