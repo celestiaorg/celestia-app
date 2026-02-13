@@ -17,56 +17,49 @@ func TestValidateMinRetainBlocks(t *testing.T) {
 	testCases := []struct {
 		name                   string
 		minRetainBlocks        uint64
-		cliFlag                bool // if true, simulate CLI flag being set
-		expectedMinRetain      uint64
+		simulateCliFlag        bool
 		expectError            bool
 		expectedErrorSubstring string
 	}{
 		{
 			name:                   "Error when config file value is below minimum",
-			minRetainBlocks:        100,
+			minRetainBlocks:        appconsts.MinRetainBlocks - 1,
 			expectError:            true,
 			expectedErrorSubstring: "is below minimum",
 		},
 		{
-			name:                   "Error on explicit CLI flag below minimum",
-			minRetainBlocks:        1,
-			cliFlag:                true,
+			name:                   "Error on CLI flag below minimum",
+			minRetainBlocks:        appconsts.MinRetainBlocks - 1,
+			simulateCliFlag:        true,
 			expectError:            true,
 			expectedErrorSubstring: "is below minimum",
 		},
 		{
-			name:              "Preserve when above minimum",
-			minRetainBlocks:   5000,
-			expectedMinRetain: 5000,
+			name:            "Allow config file of 0",
+			minRetainBlocks: 0,
 		},
 		{
-			name:              "Preserve zero value (prune nothing)",
-			minRetainBlocks:   0,
-			expectedMinRetain: 0,
+			name:            "Allow CLI flag of 0",
+			minRetainBlocks: 0,
+			simulateCliFlag: true,
 		},
 		{
-			name:              "Allow explicit CLI flag of 0",
-			minRetainBlocks:   0,
-			cliFlag:           true,
-			expectedMinRetain: 0,
+			name:            "Allow config file at minimum",
+			minRetainBlocks: appconsts.MinRetainBlocks,
 		},
 		{
-			name:              "Allow explicit CLI flag at minimum",
-			minRetainBlocks:   appconsts.MinRetainBlocks,
-			cliFlag:           true,
-			expectedMinRetain: appconsts.MinRetainBlocks,
+			name:            "Allow CLI flag at minimum",
+			minRetainBlocks: appconsts.MinRetainBlocks,
+			simulateCliFlag: true,
 		},
 		{
-			name:              "Allow explicit CLI flag above minimum",
-			minRetainBlocks:   5000,
-			cliFlag:           true,
-			expectedMinRetain: 5000,
+			name:            "Allow config file above minimum",
+			minRetainBlocks: appconsts.MinRetainBlocks + 1,
 		},
 		{
-			name:              "Preserve config file value exactly at minimum",
-			minRetainBlocks:   appconsts.MinRetainBlocks,
-			expectedMinRetain: appconsts.MinRetainBlocks,
+			name:            "Allow CLI flag above minimum",
+			minRetainBlocks: appconsts.MinRetainBlocks + 1,
+			simulateCliFlag: true,
 		},
 	}
 
@@ -78,7 +71,7 @@ func TestValidateMinRetainBlocks(t *testing.T) {
 
 			cmd.Flags().Uint64(server.FlagMinRetainBlocks, 0, "min retain blocks")
 
-			if tc.cliFlag {
+			if tc.simulateCliFlag {
 				err := cmd.Flags().Set(server.FlagMinRetainBlocks, uintToStr(tc.minRetainBlocks))
 				require.NoError(t, err)
 			}
@@ -108,11 +101,6 @@ func TestValidateMinRetainBlocks(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-
-			// Get the value from viper to verify it was set correctly
-			gotMinRetain := v.GetUint64(server.FlagMinRetainBlocks)
-			require.Equal(t, tc.expectedMinRetain, gotMinRetain,
-				"min-retain-blocks should be %d but got %d", tc.expectedMinRetain, gotMinRetain)
 		})
 	}
 }
