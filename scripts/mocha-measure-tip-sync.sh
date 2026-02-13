@@ -1,5 +1,5 @@
 #!/bin/sh
-# Measures Mocha sync time. Usage: ./mocha-sync-metrics.sh [--iterations N] [--cooldown S]
+# Measures Mocha sync time. Usage: scripts/mocha-measure-tip-sync.sh [--iterations N] [--cooldown S]
 
 set -o errexit -o nounset
 
