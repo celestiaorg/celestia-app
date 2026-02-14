@@ -24,7 +24,12 @@ No manual action is required, but validators should be aware of this change.
 
 #### Config Changes
 
-No configuration changes are required for v7. Existing v6 configurations remain compatible.
+celestia-app now returns a startup error if the mempool type is not `cat`. Previously, non-CAT mempool types (e.g. `flood`) were overridden to `cat` at startup. If your `config.toml` uses a different mempool type, update the `[mempool]` section:
+
+```toml
+[mempool]
+type = "cat"
+```
 
 ### State Machine Changes (v7.0.0)
 
