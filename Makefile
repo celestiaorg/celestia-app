@@ -320,7 +320,7 @@ test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestUpgrade|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|TestEvictions|TestEstimateGasUsed|TestTxsOverMaxTxSizeGetRejected|TestStart_Success|TestPrepareProposalCappingNumberOfMessages|TestRejections|TestClaimRewardsAfterFullUndelegation|TestParallelTxSubmission|TestBigBlobSuite|TestTxsimDefaultKeypath"
+	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestTxClientTestSuite|TestEvictions|TestEstimateGasUsed|TestPrepareProposalCappingNumberOfMessages|TestRejections|TestClaimRewardsAfterFullUndelegation|TestParallelTxSubmission|TestBigBlobSuite|TestTxsimDefaultKeypath"
 .PHONY: test-race
 
 ## test-bench: Run benchmark unit tests.
