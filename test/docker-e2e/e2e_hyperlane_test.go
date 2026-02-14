@@ -222,7 +222,7 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 
 	s.AssertERC20Balance(ctx, reth0, tokenRouter, recipient, initialDeposit.BigInt())
 
-	// Compute the forwarding address on celestia for recipient on reth1 destintation chain
+	// Compute the forwarding address on celestia for recipient on reth1 destination chain
 	destDomain := s.GetDomainForChain(ctx, reth1.HyperlaneChainName(), hyp)
 	destRecipient := "0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E"
 	forwardAddress := s.QueryForwardingAddress(ctx, chain, destDomain, destRecipient)
