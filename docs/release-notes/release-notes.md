@@ -38,7 +38,7 @@ v7 enforces a minimum `min-retain-blocks` value of 3000. This ensures nodes reta
 
 ##### Mempool Type
 
-celestia-app now returns a startup error if the mempool type is not `cat`. Previously, non-CAT mempool types (e.g. `flood`) were silently overridden to `cat` at startup. If your `config.toml` uses a different mempool type, update the `[mempool]` section:
+celestia-app now returns a startup error if the mempool type is not `cat`. Previously, non-CAT mempool types (e.g. `flood`) were overridden to `cat` at startup. If your `config.toml` uses a different mempool type, update the `[mempool]` section:
 
 ```toml
 [mempool]
