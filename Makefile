@@ -243,7 +243,7 @@ docker-publish: publish-ghcr-docker
 ## lint: Run all linters; golangci-lint, markdownlint, hadolint, yamllint.
 lint:
 	@echo "--> Running golangci-lint"
-	@golangci-lint run
+	@go tool golangci-lint run
 	@echo "--> Running markdownlint"
 	@markdownlint --config .markdownlint.yaml '**/*.md'
 	@echo "--> Running hadolint"
@@ -265,7 +265,7 @@ lint-links: markdown-link-check
 ## fmt: Format Go code with golangci-lint and markdown files with markdownlint.
 fmt:
 	@echo "--> Running golangci-lint --fix"
-	@golangci-lint run --fix
+	@go tool golangci-lint run --fix
 	@echo "--> Running markdownlint --fix"
 	@markdownlint --fix --quiet --config .markdownlint.yaml .
 .PHONY: fmt
