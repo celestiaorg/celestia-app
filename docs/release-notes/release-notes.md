@@ -28,7 +28,13 @@ Horcrux is deprecated starting in v7. Future upgrades will require validator key
 
 #### Config Changes
 
-No configuration changes are required for v7. Existing v6 configurations remain compatible.
+##### `min-retain-blocks`
+
+v7 enforces a minimum `min-retain-blocks` value of 3000. This ensures nodes retain enough blocks for other nodes to sync from state sync snapshots. If `min-retain-blocks` in `app.toml` is set to a value between 1 and 2999, the node will log a warning and automatically override the value to 3000 on startup. Valid values:
+
+- `0` (default): retain all blocks (no pruning)
+- `1-2999`: automatically overridden to 3000 with a log warning
+- `>= 3000`: retain at least that many blocks
 
 ### State Machine Changes (v7.0.0)
 
