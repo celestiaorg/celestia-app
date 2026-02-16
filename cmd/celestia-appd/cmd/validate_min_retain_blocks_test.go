@@ -9,31 +9,40 @@ import (
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestValidateMinRetainBlocks(t *testing.T) {
+func TestOverrideMinRetainBlocks(t *testing.T) {
 	testCases := []struct {
 		name            string
 		minRetainBlocks uint64
-		expectError     bool
+		want            uint64
 	}{
 		{
-			name:            "error when below minimum",
-			minRetainBlocks: appconsts.MinRetainBlocks - 1,
-			expectError:     true,
+			name:            "override 1 to minimum",
+			minRetainBlocks: 1,
+			want:            appconsts.MinRetainBlocks,
 		},
 		{
-			name:            "allow zero (retain all blocks)",
+			name:            "override 2999 to minimum",
+			minRetainBlocks: 2999,
+			want:            appconsts.MinRetainBlocks,
+		},
+		{
+			name:            "zero is unchanged (retain all blocks)",
 			minRetainBlocks: 0,
+			want:            0,
 		},
 		{
-			name:            "allow at minimum",
+			name:            "at minimum is unchanged",
 			minRetainBlocks: appconsts.MinRetainBlocks,
+			want:            appconsts.MinRetainBlocks,
 		},
 		{
-			name:            "allow above minimum",
+			name:            "above minimum is unchanged",
 			minRetainBlocks: appconsts.MinRetainBlocks + 1,
+			want:            appconsts.MinRetainBlocks + 1,
 		},
 	}
 
@@ -50,14 +59,9 @@ func TestValidateMinRetainBlocks(t *testing.T) {
 			ctx := context.WithValue(context.Background(), server.ServerContextKey, sctx)
 			cmd.SetContext(ctx)
 
-			err := validateMinRetainBlocks(cmd, log.NewNopLogger())
-
-			if tc.expectError {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), "is below minimum")
-				return
-			}
+			err := overrideMinRetainBlocks(cmd, log.NewNopLogger())
 			require.NoError(t, err)
+			assert.Equal(t, tc.want, v.GetUint64(server.FlagMinRetainBlocks))
 		})
 	}
 }
