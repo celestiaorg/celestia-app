@@ -1,10 +1,13 @@
 package docker_e2e
 
 import (
+	"bytes"
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
 	"math/big"
 	"net/http"
 	"os"
@@ -25,6 +28,7 @@ import (
 	"github.com/celestiaorg/tastora/framework/docker/evstack/reth"
 	"github.com/celestiaorg/tastora/framework/docker/hyperlane"
 	"github.com/celestiaorg/tastora/framework/testutil/evm"
+	"github.com/cosmos/cosmos-sdk/crypto"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/gogoproto/proto"
@@ -36,6 +40,21 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
+
+type createForwardingRequest struct {
+	ForwardAddr   string `json:"forward_addr"`
+	DestDomain    uint32 `json:"dest_domain"`
+	DestRecipient string `json:"dest_recipient"`
+}
+
+type forwardingRequest struct {
+	ID            string  `json:"id"`
+	ForwardAddr   string  `json:"forward_addr"`
+	DestDomain    uint32  `json:"dest_domain"`
+	DestRecipient string  `json:"dest_recipient"`
+	Status        string  `json:"status"`
+	CreatedAt     *string `json:"created_at"`
+}
 
 var (
 	// NOTE: This a workaround as using the chain name "celestia" causes configuration overlay issues
@@ -249,6 +268,191 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 
 	expectedBalance := new(big.Int).Add(balanceBefore, amount.BigInt())
 	s.AssertERC20Balance(ctx, reth1, tokenRouter, destRecipientAddress, expectedBalance)
+}
+
+func (s *HyperlaneTestSuite) TestHyperlaneForwardingWithRelayer() {
+	t := s.T()
+	if testing.Short() {
+		t.Skip("skipping hyperlane forwarding test in short mode")
+	}
+
+	ctx := context.Background()
+	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), s.celestiaCfg).Build(ctx)
+	s.Require().NoError(err)
+
+	s.T().Cleanup(func() {
+		if err := chain.Remove(ctx); err != nil {
+			s.T().Logf("Error removing chain: %v", err)
+		}
+	})
+
+	err = chain.Start(ctx)
+	s.Require().NoError(err)
+
+	da := s.WithBridgeNodeNetwork(ctx, chain)
+
+	reth0 := s.BuildEvolveEVMChain(ctx, s.BridgeNodeAddress(da), RethChainName0, RethChainID0)
+	reth1 := s.BuildEvolveEVMChain(ctx, s.BridgeNodeAddress(da), RethChainName1, RethChainID1)
+
+	hypConfig := hyperlane.Config{
+		Logger:          s.logger,
+		DockerClient:    s.client,
+		DockerNetworkID: s.network,
+		HyperlaneImage:  hyperlane.DefaultDeployerImage(),
+	}
+
+	hypChainProvider := []hyperlane.ChainConfigProvider{reth0, reth1, chain}
+	hyp, err := hyperlane.NewDeployer(ctx, hypConfig, t.Name(), hypChainProvider)
+	s.Require().NoError(err)
+
+	s.Require().NoError(hyp.Deploy(ctx))
+
+	broadcaster := cosmos.NewBroadcaster(chain)
+	faucet := chain.GetFaucetWallet()
+
+	config, err := hyp.DeployCosmosNoopISM(ctx, broadcaster, faucet)
+	s.Require().NoError(err)
+	s.Require().NotNil(config)
+
+	tokenRouter, err := hyp.GetEVMWarpTokenAddress()
+	s.Require().NoError(err)
+
+	// Register Hyperlane token router connections between celestia and both evm chains
+	s.EnrollRemoteRouters(ctx, chain, reth0, hyp, tokenRouter, config.TokenID)
+	s.EnrollRemoteRouters(ctx, chain, reth1, hyp, tokenRouter, config.TokenID)
+
+	s.StartRelayerAgent(ctx, hyp)
+
+	// Make an initial deposit of utia from celestia to reth0 chain
+	initialDeposit := sdkmath.NewInt(1000)
+	recipient := ethcommon.HexToAddress("0xaF9053bB6c4346381C77C2FeD279B17ABAfCDf4d")
+
+	domain := s.GetDomainForChain(ctx, reth0.HyperlaneChainName(), hyp)
+	s.SendTransferRemoteTx(ctx, chain, config.TokenID, domain, recipient, initialDeposit)
+
+	s.AssertERC20Balance(ctx, reth0, tokenRouter, recipient, initialDeposit.BigInt())
+
+	url := s.ConfigureForwardRelayer(ctx, chain)
+
+	// Compute the forwarding address on celestia for recipient on reth1 destintation chain
+	destDomain := s.GetDomainForChain(ctx, reth1.HyperlaneChainName(), hyp)
+	destRecipient := "0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E"
+	forwardAddress := s.QueryForwardingAddress(ctx, chain, destDomain, destRecipient)
+
+	s.SendForwardingRequest(ctx, url, forwardAddress, destDomain, destRecipient)
+
+	forwardAddrBytes32, err := bech32ToBytes(forwardAddress)
+	s.Require().NoError(err)
+
+	beforeForwardBalance := s.QueryBankBalance(ctx, chain, forwardAddress, chain.Config.Denom)
+
+	// Execute the hyperlane erc20 transfer from reth0 to reth1 via celestia x/forwarding
+	amount := sdkmath.NewInt(500)
+	celestiaDomain := s.GetDomainForChain(ctx, HypCelestiaChainName, hyp)
+	s.SendTransferRemoteTxEvm(ctx, reth0, tokenRouter, celestiaDomain, forwardAddrBytes32, amount)
+
+	expForwardBalance := beforeForwardBalance.Add(amount)
+	s.AssertBankBalance(ctx, chain, forwardAddress, chain.Config.Denom, expForwardBalance)
+
+	destRecipientAddress := ethcommon.HexToAddress(destRecipient)
+	balanceBefore := s.QueryERC20Balance(ctx, reth1, tokenRouter, destRecipientAddress)
+
+	expectedBalance := new(big.Int).Add(balanceBefore, amount.BigInt())
+	s.AssertERC20Balance(ctx, reth1, tokenRouter, destRecipientAddress, expectedBalance)
+}
+
+func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain *cosmos.Chain) string {
+	backendCfg := hyperlane.ForwardRelayerConfig{
+		Logger:          s.logger,
+		DockerClient:    s.client,
+		DockerNetworkID: s.network,
+		Image:           hyperlane.DefaultForwardRelayerImage(),
+		Settings: hyperlane.ForwardRelayerSettings{
+			Port: "8080",
+		},
+	}
+
+	backend, err := hyperlane.NewForwardRelayer(ctx, backendCfg, s.T().Name(), hyperlane.BackendMode)
+	s.Require().NoError(err)
+
+	err = backend.Start(ctx)
+	s.Require().NoError(err)
+
+	amount := sdkmath.NewInt(1000000)
+	sendAmount := sdk.NewCoins(sdk.NewCoin(chain.Config.Denom, amount))
+
+	relayerWallet, err := chain.CreateWallet(ctx, "forward-rly")
+	s.Require().NoError(err)
+
+	s.SendBankSendTx(ctx, chain, chain.GetFaucetWallet().Address, relayerWallet.Address, sendAmount)
+
+	chainNode := chain.GetNode()
+	keyring, err := chainNode.GetKeyring()
+	s.Require().NoError(err)
+
+	armor, err := keyring.ExportPrivKeyArmor("forward-rly", "")
+	s.Require().NoError(err)
+
+	privKey, _, err := crypto.UnarmorDecryptPrivKey(armor, "")
+	s.Require().NoError(err)
+
+	networkInfo, err := chain.GetNetworkInfo(ctx)
+	s.Require().NoError(err)
+
+	relayerCfg := hyperlane.ForwardRelayerConfig{
+		Logger:          s.logger,
+		DockerClient:    s.client,
+		DockerNetworkID: s.network,
+		Image:           hyperlane.DefaultForwardRelayerImage(),
+		Settings: hyperlane.ForwardRelayerSettings{
+			CelestiaGRPC:  networkInfo.Internal.GRPCAddress(),
+			BackendURL:    fmt.Sprintf("%s:%s", backend.HostName(), "8080"),
+			PrivateKeyHex: fmt.Sprintf("0x%x", privKey.Bytes()),
+		},
+	}
+
+	relayer, err := hyperlane.NewForwardRelayer(ctx, relayerCfg, s.T().Name(), hyperlane.RelayerMode)
+	s.Require().NoError(err)
+
+	err = relayer.Start(ctx)
+	s.Require().NoError(err)
+
+	networkInfo, err = backend.GetNetworkInfo(ctx)
+	s.Require().NoError(err)
+
+	return networkInfo.External.Ports.HTTP
+}
+
+func (s *HyperlaneTestSuite) SendForwardingRequest(ctx context.Context, backendURL, forwardAddr string, destDomain uint32, destRecipient string) {
+	s.T().Helper()
+
+	createReq := createForwardingRequest{
+		ForwardAddr:   forwardAddr,
+		DestDomain:    destDomain,
+		DestRecipient: destRecipient,
+	}
+
+	reqBz, err := json.Marshal(createReq)
+	s.Require().NoError(err)
+
+	endpoint := fmt.Sprintf("http://localhost:%s/forwarding-requests", strings.TrimRight(backendURL, "/"))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(reqBz))
+	s.Require().NoError(err)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	s.Require().NoError(err)
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(resp.Body)
+	s.Require().NoError(err)
+
+	s.Require().Truef(resp.StatusCode >= 200 && resp.StatusCode < 300,
+		"failed to create forwarding request: status=%d body=%s", resp.StatusCode, string(body))
+
+	var created forwardingRequest
+	err = json.Unmarshal(body, &created)
+	s.Require().NoError(err)
 }
 
 func (s *HyperlaneTestSuite) TestHyperlaneZKIsmStateTransition() {
@@ -597,6 +801,19 @@ func (s *HyperlaneTestSuite) SendForwardingTx(ctx context.Context, chain *cosmos
 	)
 
 	resp, err := broadcaster.BroadcastMessages(ctx, signer, msgForward)
+	s.Require().NoError(err)
+	s.Require().Equalf(uint32(0), resp.Code, "tx failed: code=%d, log=%s", resp.Code, resp.RawLog)
+}
+
+func (s *HyperlaneTestSuite) SendBankSendTx(ctx context.Context, chain *cosmos.Chain, fromAddr, toAddr sdk.AccAddress, amount sdk.Coins) {
+	s.T().Helper()
+
+	broadcaster := cosmos.NewBroadcaster(chain)
+	signer := chain.GetFaucetWallet()
+
+	msgBankSend := banktypes.NewMsgSend(fromAddr, toAddr, amount)
+
+	resp, err := broadcaster.BroadcastMessages(ctx, signer, msgBankSend)
 	s.Require().NoError(err)
 	s.Require().Equalf(uint32(0), resp.Code, "tx failed: code=%d, log=%s", resp.Code, resp.RawLog)
 }
