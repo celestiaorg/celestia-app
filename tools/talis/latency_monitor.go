@@ -30,7 +30,6 @@ func startLatencyMonitorCmd() *cobra.Command {
 		submissionDelay   string
 		namespace         string
 		observabilityPort int
-		lokiURL           string
 		promtailConfig    string
 		rootDir           string
 		SSHKeyPath        string
@@ -72,9 +71,16 @@ func startLatencyMonitorCmd() *cobra.Command {
 				return stopTmuxSession(insts, resolvedSSHKeyPath, LatencyMonitorSessionName, time.Minute*5)
 			}
 
+			// Derive Loki URL from observability public IP
+			var lokiURL string
 			if len(cfg.Observability) > 0 {
 				if err := updateLatencyTargets(cfg, cfg.Observability[0], resolvedSSHKeyPath, insts); err != nil {
 					return err
+				}
+
+				if cfg.Observability[0].PublicIP != "" {
+					lokiURL = fmt.Sprintf("http://%s:3100", cfg.Observability[0].PublicIP)
+					fmt.Printf("Using Loki URL from observability node: %s\n", lokiURL)
 				}
 			}
 
@@ -115,7 +121,6 @@ func startLatencyMonitorCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&submissionDelay, "submission-delay", "s", "4000ms", "delay between transaction submissions")
 	cmd.Flags().StringVarP(&namespace, "namespace", "n", "test", "namespace for blob submission")
 	cmd.Flags().IntVarP(&observabilityPort, "observability-port", "m", 9464, "port for Prometheus observability HTTP server (0 to disable)")
-	cmd.Flags().StringVar(&lokiURL, "loki-url", "", "Loki base URL to push latency-monitor logs (enables promtail)")
 	cmd.Flags().StringVar(&promtailConfig, "promtail-config", "", "path to promtail config template (defaults to ./observability/promtail/promtail-config.yml)")
 	cmd.Flags().BoolVar(&stop, "stop", false, "stop the latency monitor instead of starting it")
 	cmd.Flags().IntVarP(&workers, "workers", "w", 1, "number of parallel worker accounts for submission (1 = sequential, >1 = parallel)")
