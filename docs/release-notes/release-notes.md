@@ -38,12 +38,7 @@ v7 enforces a minimum `min-retain-blocks` value of 3000. This ensures nodes reta
 
 ##### Mempool Type
 
-celestia-app now returns a startup error if the mempool type is not `cat`. Previously, non-CAT mempool types (e.g. `flood`) were overridden to `cat` at startup. If your `config.toml` uses a different mempool type, update the `[mempool]` section:
-
-```toml
-[mempool]
-type = "cat"
-```
+The mempool `type` field has been removed from new `config.toml` files because celestia-app only supports the CAT mempool. If your existing `config.toml` still contains a mempool `type`, it will be ignored and overridden to `cat` at startup with a warning. You can safely remove the `type` line from the `[mempool]` section of your `config.toml`.
 
 ### State Machine Changes (v7.0.0)
 

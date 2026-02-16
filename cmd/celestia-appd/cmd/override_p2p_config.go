@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v7/app"
 	tmcfg "github.com/cometbft/cometbft/config"
@@ -23,11 +21,9 @@ func overrideP2PConfig(cmd *cobra.Command, logger log.Logger) error {
 	sctx := server.GetServerContextFromCmd(cmd)
 	cfg := sctx.Config
 
-	// Validate mempool type before checking bypass flag because non-CAT
-	// mempools are fundamentally unsupported and must not be bypassable.
-	if err := validateMempoolType(cfg); err != nil {
-		return err
-	}
+	// Always override mempool type to CAT before checking bypass flag because
+	// non-CAT mempools are fundamentally unsupported and must not be bypassable.
+	overrideMempoolType(cfg, logger)
 
 	// Check if overrides should be bypassed
 	bypass, err := cmd.Flags().GetBool(bypassOverridesFlagKey)
@@ -120,12 +116,14 @@ func overrideMempoolConfig(cfg, defaultCfg *tmcfg.Config, logger log.Logger) {
 	}
 }
 
-// validateMempoolType returns an error if the mempool type is not CAT.
-func validateMempoolType(cfg *tmcfg.Config) error {
+// overrideMempoolType overrides the mempool type to CAT if it is set to
+// anything else. Non-CAT mempools are fundamentally unsupported.
+func overrideMempoolType(cfg *tmcfg.Config, logger log.Logger) {
 	if cfg.Mempool.Type != tmcfg.MempoolTypeCAT {
-		return fmt.Errorf("unsupported mempool type %q: celestia-app requires mempool type %q; "+
-			"update the type in the [mempool] section of config.toml",
-			cfg.Mempool.Type, tmcfg.MempoolTypeCAT)
+		logger.Warn("Overriding unsupported mempool type to CAT",
+			"configured", cfg.Mempool.Type,
+			"required", tmcfg.MempoolTypeCAT,
+		)
+		cfg.Mempool.Type = tmcfg.MempoolTypeCAT
 	}
-	return nil
 }
