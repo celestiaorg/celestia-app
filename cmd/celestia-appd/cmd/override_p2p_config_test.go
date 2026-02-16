@@ -190,6 +190,20 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			expectedMempoolType: tmcfg.MempoolTypeCAT,
 		},
 		{
+			name: "Override mempool type from flood to CAT",
+			setupConfig: func(cfg *tmcfg.Config) {
+				cfg.Mempool.Type = tmcfg.MempoolTypeFlood
+			},
+			expectedSendRate:    100 * mebibyte,
+			expectedRecvRate:    100 * mebibyte,
+			expectedTTLBlocks:   36,
+			expectedTTLDur:      0,
+			expectedGossipDelay: 20 * time.Second,
+			expectedMaxTxBytes:  8388608,
+			expectedMaxTxsBytes: 400 * mebibyte,
+			expectedMempoolType: tmcfg.MempoolTypeCAT,
+		},
+		{
 			name: "Preserve mempool type when already CAT",
 			setupConfig: func(cfg *tmcfg.Config) {
 				cfg.Mempool.Type = tmcfg.MempoolTypeCAT
