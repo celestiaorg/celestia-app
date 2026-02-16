@@ -81,7 +81,6 @@ func TestVerifyMinFee(t *testing.T) {
 			fee:         math.NewInt(800),
 			gas:         200_000,
 			minGasPrice: math.LegacyNewDecWithPrec(4, 3), // 0.004
-			errMsg:      "insufficient minimum gas price for this node",
 			wantErr:     false,
 		},
 		{
