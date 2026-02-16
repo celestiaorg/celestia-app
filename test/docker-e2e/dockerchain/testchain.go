@@ -12,7 +12,6 @@ import (
 	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
-	"github.com/celestiaorg/tastora/framework/testutil/maps"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	cometcfg "github.com/cometbft/cometbft/config"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
@@ -26,11 +25,6 @@ import (
 func NewCelestiaChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.ChainBuilder {
 	genesisBz, err := cfg.Genesis.ExportBytes()
 	require.NoError(t, err, "failed to export genesis bytes")
-
-	// TODO: why do I need to do this?
-	// fails with 2025-07-03 14:57:42 Error: failed to get current app state: failed to determine genesis version
-	genesisBz, err = maps.SetField(genesisBz, "consensus.params.version.app", "4")
-	require.NoError(t, err)
 
 	encodingConfig := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
 
