@@ -128,7 +128,7 @@ func verifyUpdatedConfigs(t *testing.T, configDir, version string) {
 	cometConfigPath := filepath.Join(configDir, "config.toml")
 	appConfigPath := filepath.Join(configDir, "app.toml")
 
-	if version == "v6" {
+	if version == "6" {
 		cometConfig, err := loadCometBFTConfig(cometConfigPath, filepath.Dir(configDir))
 		require.NoError(t, err)
 

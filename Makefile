@@ -243,7 +243,7 @@ docker-publish: publish-ghcr-docker
 ## lint: Run all linters; golangci-lint, markdownlint, hadolint, yamllint.
 lint:
 	@echo "--> Running golangci-lint"
-	@golangci-lint run
+	@go tool golangci-lint run
 	@echo "--> Running markdownlint"
 	@markdownlint --config .markdownlint.yaml '**/*.md'
 	@echo "--> Running hadolint"
@@ -265,7 +265,7 @@ lint-links: markdown-link-check
 ## fmt: Format Go code with golangci-lint and markdown files with markdownlint.
 fmt:
 	@echo "--> Running golangci-lint --fix"
-	@golangci-lint run --fix
+	@go tool golangci-lint run --fix
 	@echo "--> Running markdownlint --fix"
 	@markdownlint --fix --quiet --config .markdownlint.yaml .
 .PHONY: fmt
@@ -320,7 +320,7 @@ test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath|TestMintIntegrationTestSuite|TestMaliciousTestNode|TestBigBlobSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice|TestWithEstimatorService|TestReadBlockchainHeaders|TestPrepareProposalCappingNumberOfMessages|TestGasEstimatorE2E|TestGasEstimatorE2EWithNetworkMinGasPrice|TestRejections|TestClaimRewardsAfterFullUndelegation|TestParallelTxSubmission|TestV2SubmitMethods|TestSendToSelfWithLargeFee"
+	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestTxClientTestSuite|TestEvictions|TestEstimateGasUsed|TestPrepareProposalCappingNumberOfMessages|TestRejections|TestClaimRewardsAfterFullUndelegation|TestParallelTxSubmission|TestBigBlobSuite|TestTxsimDefaultKeypath|TestGasEstimatorE2E|TestMintIntegrationTestSuite|TestSubmitPayForBlobWithEstimatorService"
 .PHONY: test-race
 
 ## test-bench: Run benchmark unit tests.

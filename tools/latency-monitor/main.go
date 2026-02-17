@@ -43,6 +43,7 @@ var (
 	disableObservability bool
 	submissionDelay      time.Duration
 	observabilityPort    int
+	numWorkers           int
 )
 
 type txResult struct {
@@ -85,7 +86,7 @@ between submission and commitment, providing detailed latency statistics.`,
 				cancel()
 			}()
 
-			return monitorLatency(ctx, endpoint, keyringDir, accountName, blobSize, minBlobSize, namespaceStr, disableObservability, submissionDelay, observabilityPort)
+			return monitorLatency(ctx, endpoint, keyringDir, accountName, blobSize, minBlobSize, namespaceStr, disableObservability, submissionDelay, observabilityPort, numWorkers)
 		},
 	}
 
@@ -98,6 +99,7 @@ between submission and commitment, providing detailed latency statistics.`,
 	cmd.Flags().BoolVarP(&disableObservability, "disable-observability", "m", false, "Disable observability collection")
 	cmd.Flags().DurationVarP(&submissionDelay, "submission-delay", "d", defaultSubmissionDelay, "Delay between transaction submissions")
 	cmd.Flags().IntVar(&observabilityPort, "observability-port", defaultObservabilityPort, "Port for Prometheus observability HTTP server")
+	cmd.Flags().IntVarP(&numWorkers, "workers", "w", 1, "Number of parallel worker accounts for submission (1 = sequential, >1 = parallel)")
 
 	return cmd
 }
@@ -113,6 +115,7 @@ func monitorLatency(
 	disableObservability bool,
 	submissionDelay time.Duration,
 	observabilityPort int,
+	numWorkers int,
 ) error {
 	if blobMinSize < 1 {
 		return fmt.Errorf("minimum blob size must be at least 1 byte (got %d)", blobMinSize)
@@ -168,6 +171,14 @@ func monitorLatency(
 	if accountName != "" {
 		opts = append(opts, user.WithDefaultAccount(accountName))
 	}
+
+	// Enable parallel submission if numWorkers > 1
+	useParallel := numWorkers > 1
+	if useParallel {
+		opts = append(opts, user.WithTxWorkers(numWorkers))
+		fmt.Printf("Enabling parallel submission with %d workers\n", numWorkers)
+	}
+
 	txClient, err := user.SetupTxClient(ctx, kr, grpcConn, encCfg, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create tx client: %w", err)
@@ -218,12 +229,79 @@ func monitorLatency(
 
 			submitTime := time.Now()
 
-			// Broadcast transaction without waiting for confirmation
+			// Handle parallel submission (multi account)
+			if useParallel {
+				resultC := make(chan user.SubmissionResult, 1)
+				txClient.QueueBlob(ctx, resultC, []*share.Blob{blob})
+
+				go func(resultC chan user.SubmissionResult, submitTime time.Time, blobSize int) {
+					result := <-resultC
+					close(resultC)
+
+					if result.Error != nil {
+						if errors.Is(result.Error, context.Canceled) || errors.Is(result.Error, context.DeadlineExceeded) {
+							txInFlight.Dec()
+							fmt.Printf("[CANCELLED] parallel submission: context closed before confirmation\n")
+							return
+						}
+						// All parallel submission failures tracked separately
+						// because currently we can not determine if the failure was
+						// at broadcast or confirmation phase.
+						recordParallelSubmissionFailure()
+
+						fmt.Printf("[PARALLEL_FAILED] size=%d bytes time=%s error=%v\n",
+							blobSize, submitTime.Format("15:04:05.000"), result.Error)
+
+						resultsMux.Lock()
+						results = append(results, txResult{
+							submitTime: submitTime,
+							commitTime: time.Now(),
+							latency:    0,
+							txHash:     "",
+							code:       0,
+							height:     0,
+							failed:     true,
+							errorMsg:   result.Error.Error(),
+						})
+						resultsMux.Unlock()
+						return
+					}
+
+					if result.TxResponse != nil && result.TxResponse.Code == 0 {
+						commitTime := time.Now()
+						latency := commitTime.Sub(submitTime)
+						fmt.Printf("[CONFIRM] tx=%s height=%d latency=%dms code=%d time=%s\n",
+							result.TxResponse.TxHash[:16], result.TxResponse.Height, latency.Milliseconds(),
+							result.TxResponse.Code, commitTime.Format("15:04:05.000"))
+						recordConfirm(latency, blobSize)
+
+						resultsMux.Lock()
+						results = append(results, txResult{
+							submitTime: submitTime,
+							commitTime: commitTime,
+							latency:    latency,
+							txHash:     result.TxResponse.TxHash,
+							code:       result.TxResponse.Code,
+							height:     result.TxResponse.Height,
+							failed:     false,
+							errorMsg:   "",
+						})
+						resultsMux.Unlock()
+					}
+				}(resultC, submitTime, randomSize)
+
+				fmt.Printf("[QUEUED] size=%d bytes time=%s\n", randomSize, submitTime.Format("15:04:05.000"))
+				recordSubmit()
+				continue
+			}
+
+			// Sequential submission
 			checkTxStart := time.Now()
 			resp, err := txClient.BroadcastPayForBlob(ctx, []*share.Blob{blob})
 			checkTxLatency := time.Since(checkTxStart)
 			if err != nil {
-				fmt.Printf("[BROADCAST_FAILED] error=%v\n", err)
+				fmt.Printf("[BROADCAST_FAILED] size=%d bytes time=%s error=%v\n",
+					randomSize, submitTime.Format("15:04:05.000"), err)
 				recordBroadcastFailure()
 				continue
 			}
@@ -249,7 +327,6 @@ func monitorLatency(
 
 					recordConfirmFailure()
 					resultsMux.Lock()
-					// Track failed confirmation
 					fmt.Printf("[FAILED] tx=%s error=%v\n", txHash[:16], err)
 					results = append(results, txResult{
 						submitTime: submitTime,
