@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"math/big"
 	"net/http"
 	"os"
@@ -41,21 +40,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-type createForwardingRequest struct {
-	ForwardAddr   string `json:"forward_addr"`
-	DestDomain    uint32 `json:"dest_domain"`
-	DestRecipient string `json:"dest_recipient"`
-}
-
-type forwardingRequest struct {
-	ID            string  `json:"id"`
-	ForwardAddr   string  `json:"forward_addr"`
-	DestDomain    uint32  `json:"dest_domain"`
-	DestRecipient string  `json:"dest_recipient"`
-	Status        string  `json:"status"`
-	CreatedAt     *string `json:"created_at"`
-}
-
 var (
 	// NOTE: This a workaround as using the chain name "celestia" causes configuration overlay issues
 	// with the Hyperlane agents container. This can be reverted when the following issue is addressed.
@@ -69,18 +53,25 @@ var (
 	RethChainID1 = 1235
 )
 
-// EvolveEVMChain encapsulates both the evolve evm sequencer node and execution client node.
-type EvolveEVMChain struct {
-	*evmsingle.Chain
-	*reth.Node
-}
-
 func TestHyperlaneTestSuite(t *testing.T) {
 	suite.Run(t, new(HyperlaneTestSuite))
 }
 
 type HyperlaneTestSuite struct {
 	CelestiaTestSuite
+}
+
+// EvolveEVMChain encapsulates both the evolve evm sequencer node and execution client node.
+type EvolveEVMChain struct {
+	*evmsingle.Chain
+	*reth.Node
+}
+
+// ForwardingRequest for encoding JSON payloads to the forwarding service.
+type ForwardingRequest struct {
+	ForwardAddr   string `json:"forward_addr"`
+	DestDomain    uint32 `json:"dest_domain"`
+	DestRecipient string `json:"dest_recipient"`
 }
 
 func (s *HyperlaneTestSuite) SetupSuite() {
@@ -332,14 +323,14 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwardingWithRelayer() {
 
 	s.AssertERC20Balance(ctx, reth0, tokenRouter, recipient, initialDeposit.BigInt())
 
-	url := s.ConfigureForwardRelayer(ctx, chain)
+	port := s.ConfigureForwardRelayer(ctx, chain)
 
 	// Compute the forwarding address on celestia for recipient on reth1 destintation chain
 	destDomain := s.GetDomainForChain(ctx, reth1.HyperlaneChainName(), hyp)
 	destRecipient := "0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E"
 	forwardAddress := s.QueryForwardingAddress(ctx, chain, destDomain, destRecipient)
 
-	s.SendForwardingRequest(ctx, url, forwardAddress, destDomain, destRecipient)
+	s.SendForwardingRequest(ctx, port, forwardAddress, destDomain, destRecipient)
 
 	forwardAddrBytes32, err := bech32ToBytes(forwardAddress)
 	s.Require().NoError(err)
@@ -417,26 +408,23 @@ func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain 
 	err = relayer.Start(ctx)
 	s.Require().NoError(err)
 
-	networkInfo, err = backend.GetNetworkInfo(ctx)
-	s.Require().NoError(err)
-
 	return networkInfo.External.Ports.HTTP
 }
 
-func (s *HyperlaneTestSuite) SendForwardingRequest(ctx context.Context, backendURL, forwardAddr string, destDomain uint32, destRecipient string) {
+func (s *HyperlaneTestSuite) SendForwardingRequest(ctx context.Context, port, forwardAddr string, destDomain uint32, destRecipient string) {
 	s.T().Helper()
 
-	createReq := createForwardingRequest{
+	forwardReq := ForwardingRequest{
 		ForwardAddr:   forwardAddr,
 		DestDomain:    destDomain,
 		DestRecipient: destRecipient,
 	}
 
-	reqBz, err := json.Marshal(createReq)
+	reqBz, err := json.Marshal(forwardReq)
 	s.Require().NoError(err)
 
-	endpoint := fmt.Sprintf("http://localhost:%s/forwarding-requests", strings.TrimRight(backendURL, "/"))
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(reqBz))
+	url := fmt.Sprintf("http://localhost:%s/forwarding-requests", strings.TrimRight(port, "/"))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(reqBz))
 	s.Require().NoError(err)
 	req.Header.Set("Content-Type", "application/json")
 
@@ -444,15 +432,7 @@ func (s *HyperlaneTestSuite) SendForwardingRequest(ctx context.Context, backendU
 	s.Require().NoError(err)
 	defer func() { _ = resp.Body.Close() }()
 
-	body, err := io.ReadAll(resp.Body)
-	s.Require().NoError(err)
-
-	s.Require().Truef(resp.StatusCode >= 200 && resp.StatusCode < 300,
-		"failed to create forwarding request: status=%d body=%s", resp.StatusCode, string(body))
-
-	var created forwardingRequest
-	err = json.Unmarshal(body, &created)
-	s.Require().NoError(err)
+	s.Require().Equalf(http.StatusCreated, resp.StatusCode, "expected %s, got %s", http.StatusCreated, resp.StatusCode)
 }
 
 func (s *HyperlaneTestSuite) TestHyperlaneZKIsmStateTransition() {
