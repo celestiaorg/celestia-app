@@ -1,6 +1,8 @@
 package ante
 
 import (
+	"strings"
+
 	"cosmossdk.io/errors"
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
@@ -82,10 +84,23 @@ func verifyMinFee(fee math.Int, gas uint64, minGasPrice math.LegacyDec, errMsg s
 	// price by the gas limit, where fee = minGasPrice * gas.
 	minFee := minGasPrice.MulInt(math.NewIntFromUint64(gas)).Ceil()
 	if fee.LT(minFee.TruncateInt()) {
-		providedGasPrice := math.LegacyNewDecFromInt(fee).QuoInt64(int64(gas))
-		return errors.Wrapf(sdkerror.ErrInsufficientFee, "%s; got fee: %s and gas price of %s but required at least: %s and a minimum gas price of %s", errMsg, fee, providedGasPrice, minFee, minGasPrice)
+		denom := appconsts.BondDenom
+		return errors.Wrapf(sdkerror.ErrInsufficientFee,
+			"%s; got: %s%s, required: %s%s (min gas price: %s %s/gas)",
+			errMsg, fee, denom, minFee.TruncateInt(), denom, trimTrailingZeros(minGasPrice), denom)
 	}
 	return nil
+}
+
+// trimTrailingZeros removes unnecessary trailing zeros from a LegacyDec string
+// representation. For example, "0.004000000000000000" becomes "0.004".
+func trimTrailingZeros(d math.LegacyDec) string {
+	s := d.String()
+	if strings.Contains(s, ".") {
+		s = strings.TrimRight(s, "0")
+		s = strings.TrimRight(s, ".")
+	}
+	return s
 }
 
 // getTxPriority returns a naive tx priority based on the amount of the smallest denomination of the gas price

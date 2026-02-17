@@ -8,3 +8,4 @@ Celestia app is built using the cosmos-sdk, and follows standard cosmos-sdk modu
 - [State Machine Modules v4](state_machine_modules_v4.md)
 - [State Machine Modules v5](state_machine_modules_v5.md)
 - [State Machine Modules v6](state_machine_modules_v6.md)
+- [State Machine Modules v7](state_machine_modules_v7.md)
