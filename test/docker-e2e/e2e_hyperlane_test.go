@@ -408,6 +408,9 @@ func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain 
 	err = relayer.Start(ctx)
 	s.Require().NoError(err)
 
+	networkInfo, err = backend.GetNetworkInfo(ctx)
+	s.Require().NoError(err)
+
 	return networkInfo.External.Ports.HTTP
 }
 
