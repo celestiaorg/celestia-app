@@ -232,105 +232,14 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 
 	s.AssertERC20Balance(ctx, reth0, tokenRouter, recipient, initialDeposit.BigInt())
 
-	// Compute the forwarding address on celestia for recipient on reth1 destintation chain
-	destDomain := s.GetDomainForChain(ctx, reth1.HyperlaneChainName(), hyp)
-	destRecipient := "0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E"
-	forwardAddress := s.QueryForwardingAddress(ctx, chain, destDomain, destRecipient)
-
-	forwardAddrBytes32, err := bech32ToBytes(forwardAddress)
-	s.Require().NoError(err)
-
-	beforeForwardBalance := s.QueryBankBalance(ctx, chain, forwardAddress, chain.Config.Denom)
-
-	// Execute the hyperlane erc20 transfer from reth0 to reth1 via celestia x/forwarding
-	amount := sdkmath.NewInt(500)
-	celestiaDomain := s.GetDomainForChain(ctx, HypCelestiaChainName, hyp)
-	s.SendTransferRemoteTxEvm(ctx, reth0, tokenRouter, celestiaDomain, forwardAddrBytes32, amount)
-
-	expForwardBalance := beforeForwardBalance.Add(amount)
-	s.AssertBankBalance(ctx, chain, forwardAddress, chain.Config.Denom, expForwardBalance)
-
-	destRecipientAddress := ethcommon.HexToAddress(destRecipient)
-	balanceBefore := s.QueryERC20Balance(ctx, reth1, tokenRouter, destRecipientAddress)
-
-	// Permissionless invocation of MsgForward (to be done by external relayer service)
-	forwardFee := s.QueryForwardingFee(ctx, chain, destDomain)
-	s.SendForwardingTx(ctx, chain, forwardAddress, destDomain, destRecipient, forwardFee)
-
-	expectedBalance := new(big.Int).Add(balanceBefore, amount.BigInt())
-	s.AssertERC20Balance(ctx, reth1, tokenRouter, destRecipientAddress, expectedBalance)
-}
-
-func (s *HyperlaneTestSuite) TestHyperlaneForwardingWithRelayer() {
-	t := s.T()
-	if testing.Short() {
-		t.Skip("skipping hyperlane forwarding test in short mode")
-	}
-
-	ctx := context.Background()
-	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), s.celestiaCfg).Build(ctx)
-	s.Require().NoError(err)
-
-	s.T().Cleanup(func() {
-		if err := chain.Remove(ctx); err != nil {
-			s.T().Logf("Error removing chain: %v", err)
-		}
-	})
-
-	err = chain.Start(ctx)
-	s.Require().NoError(err)
-
-	da := s.WithBridgeNodeNetwork(ctx, chain)
-
-	reth0 := s.BuildEvolveEVMChain(ctx, s.BridgeNodeAddress(da), RethChainName0, RethChainID0)
-	reth1 := s.BuildEvolveEVMChain(ctx, s.BridgeNodeAddress(da), RethChainName1, RethChainID1)
-
-	hypConfig := hyperlane.Config{
-		Logger:          s.logger,
-		DockerClient:    s.client,
-		DockerNetworkID: s.network,
-		HyperlaneImage:  hyperlane.DefaultDeployerImage(),
-	}
-
-	hypChainProvider := []hyperlane.ChainConfigProvider{reth0, reth1, chain}
-	hyp, err := hyperlane.NewDeployer(ctx, hypConfig, t.Name(), hypChainProvider)
-	s.Require().NoError(err)
-
-	s.Require().NoError(hyp.Deploy(ctx))
-
-	broadcaster := cosmos.NewBroadcaster(chain)
-	faucet := chain.GetFaucetWallet()
-
-	config, err := hyp.DeployCosmosNoopISM(ctx, broadcaster, faucet)
-	s.Require().NoError(err)
-	s.Require().NotNil(config)
-
-	tokenRouter, err := hyp.GetEVMWarpTokenAddress()
-	s.Require().NoError(err)
-
-	// Register Hyperlane token router connections between celestia and both evm chains
-	s.EnrollRemoteRouters(ctx, chain, reth0, hyp, tokenRouter, config.TokenID)
-	s.EnrollRemoteRouters(ctx, chain, reth1, hyp, tokenRouter, config.TokenID)
-
-	s.StartRelayerAgent(ctx, hyp)
-
-	// Make an initial deposit of utia from celestia to reth0 chain
-	initialDeposit := sdkmath.NewInt(1000)
-	recipient := ethcommon.HexToAddress("0xaF9053bB6c4346381C77C2FeD279B17ABAfCDf4d")
-
-	domain := s.GetDomainForChain(ctx, reth0.HyperlaneChainName(), hyp)
-	s.SendTransferRemoteTx(ctx, chain, config.TokenID, domain, recipient, initialDeposit)
-
-	s.AssertERC20Balance(ctx, reth0, tokenRouter, recipient, initialDeposit.BigInt())
-
-	port := s.ConfigureForwardRelayer(ctx, chain)
+	forwardingService := s.ConfigureForwardRelayer(ctx, chain)
 
 	// Compute the forwarding address on celestia for recipient on reth1 destintation chain
 	destDomain := s.GetDomainForChain(ctx, reth1.HyperlaneChainName(), hyp)
 	destRecipient := "0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E"
 	forwardAddress := s.QueryForwardingAddress(ctx, chain, destDomain, destRecipient)
 
-	s.SendForwardingRequest(ctx, port, forwardAddress, destDomain, destRecipient)
+	s.SendForwardingRequest(ctx, forwardingService, forwardAddress, destDomain, destRecipient)
 
 	forwardAddrBytes32, err := bech32ToBytes(forwardAddress)
 	s.Require().NoError(err)
@@ -352,7 +261,7 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwardingWithRelayer() {
 	s.AssertERC20Balance(ctx, reth1, tokenRouter, destRecipientAddress, expectedBalance)
 }
 
-func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain *cosmos.Chain) string {
+func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain *cosmos.Chain) *hyperlane.ForwardRelayer {
 	backendCfg := hyperlane.ForwardRelayerConfig{
 		Logger:          s.logger,
 		DockerClient:    s.client,
@@ -408,14 +317,16 @@ func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain 
 	err = relayer.Start(ctx)
 	s.Require().NoError(err)
 
-	networkInfo, err = backend.GetNetworkInfo(ctx)
-	s.Require().NoError(err)
-
-	return networkInfo.External.Ports.HTTP
+	return backend
 }
 
-func (s *HyperlaneTestSuite) SendForwardingRequest(ctx context.Context, port, forwardAddr string, destDomain uint32, destRecipient string) {
+func (s *HyperlaneTestSuite) SendForwardingRequest(ctx context.Context, forwardingService *hyperlane.ForwardRelayer, forwardAddr string, destDomain uint32, destRecipient string) {
 	s.T().Helper()
+
+	networkInfo, err := forwardingService.GetNetworkInfo(ctx)
+	s.Require().NoError(err)
+
+	url := fmt.Sprintf("http://localhost:%s/forwarding-requests", strings.TrimRight(networkInfo.External.Ports.HTTP, "/"))
 
 	forwardReq := ForwardingRequest{
 		ForwardAddr:   forwardAddr,
@@ -426,7 +337,6 @@ func (s *HyperlaneTestSuite) SendForwardingRequest(ctx context.Context, port, fo
 	reqBz, err := json.Marshal(forwardReq)
 	s.Require().NoError(err)
 
-	url := fmt.Sprintf("http://localhost:%s/forwarding-requests", strings.TrimRight(port, "/"))
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(reqBz))
 	s.Require().NoError(err)
 	req.Header.Set("Content-Type", "application/json")
