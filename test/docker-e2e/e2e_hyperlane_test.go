@@ -305,8 +305,8 @@ func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain 
 		DockerNetworkID: s.network,
 		Image:           hyperlane.DefaultForwardRelayerImage(),
 		Settings: hyperlane.ForwardRelayerSettings{
-			CelestiaGRPC:  networkInfo.Internal.GRPCAddress(),
-			BackendURL:    fmt.Sprintf("%s:%s", backend.HostName(), "8080"),
+			CelestiaGRPC:  fmt.Sprintf("http://%s", networkInfo.Internal.GRPCAddress()),
+			BackendURL:    fmt.Sprintf("http://%s:%s", backend.HostName(), "8080"),
 			PrivateKeyHex: fmt.Sprintf("0x%x", privKey.Bytes()),
 		},
 	}
