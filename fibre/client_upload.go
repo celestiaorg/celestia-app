@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"sync"
 	"sync/atomic"
 
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/validator"
@@ -81,9 +80,6 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 	requests := makeUploadRequests(shardMap, promise.ToProto(), blob.RLCCoeffs())
 	sigSet := valSet.NewSignatureSet(c.cfg.SafetyThreshold, validatorSignBytes)
 
-	// concurrent-safe map to track validator address → signature for ordering
-	var sigMap sync.Map
-
 	c.log.DebugContext(ctx, "initiating blob upload",
 		"promise_hash", hex.EncodeToString(promiseHash),
 		"promise_height", promise.Height,
@@ -94,39 +90,31 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 	)
 
 	// 3) upload data
-	if err = c.uploadShards(ctx, requests, blob, sigSet, &sigMap); err != nil {
+	if err = c.uploadShards(ctx, requests, blob, sigSet); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to upload")
 		return result, err
 	}
 
 	// 5) collect signatures
-	if _, err := sigSet.Signatures(); err != nil {
+	sigs, err := sigSet.Signatures()
+	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to collect signatures")
 		return result, err
-	}
-
-	// Build ordered signatures matching the validator set order.
-	// Validators that didn't sign get nil entries.
-	orderedSigs := make([][]byte, len(valSet.Validators))
-	for i, val := range valSet.Validators {
-		if sig, ok := sigMap.Load(val.Address.String()); ok {
-			orderedSigs[i] = sig.([]byte)
-		}
 	}
 
 	c.log.DebugContext(ctx, "blob upload completed",
 		"promise_hash", hex.EncodeToString(promiseHash),
 		"blob_commitment", promise.Commitment.String(),
 		"upload_size", promise.UploadSize,
-		"signatures_collected", len(orderedSigs),
+		"signatures_collected", len(sigs),
 	)
 
 	span.SetStatus(codes.Ok, "")
 	return SignedPaymentPromise{
 		PaymentPromise:      promise,
-		ValidatorSignatures: orderedSigs,
+		ValidatorSignatures: sigs,
 	}, nil
 }
 
@@ -191,7 +179,6 @@ func (c *Client) uploadTo(
 	req *types.UploadShardRequest,
 	blob *Blob,
 	sigSet *validator.SignatureSet,
-	sigMap *sync.Map,
 ) bool {
 	ctx, cancel := context.WithCancel(ctx) // GRPC calls require context cancelling upon completion
 	defer cancel()
@@ -262,9 +249,6 @@ func (c *Client) uploadTo(
 		return false
 	}
 
-	// track address → signature for ordering later
-	sigMap.Store(val.Address.String(), signature)
-
 	log.DebugContext(ctx, "successfully uploaded to validator")
 	span.AddEvent("signature_verified")
 	span.SetStatus(codes.Ok, "")
@@ -279,7 +263,6 @@ func (c *Client) uploadShards(
 	requests map[*core.Validator]*types.UploadShardRequest,
 	blob *Blob,
 	sigSet *validator.SignatureSet,
-	sigMap *sync.Map,
 ) error {
 	var (
 		responses            atomic.Uint32         // tracks finished responses
@@ -314,7 +297,7 @@ func (c *Client) uploadShards(
 				c.closeWg.Done()
 			}()
 
-			isDone := c.uploadTo(ctx, val, req, blob, sigSet, sigMap)
+			isDone := c.uploadTo(ctx, val, req, blob, sigSet)
 			if isDone && sigsCollectedOnce.CompareAndSwap(false, true) {
 				close(sigsCollectedCh)
 			}
