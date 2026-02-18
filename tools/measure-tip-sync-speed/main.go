@@ -92,7 +92,6 @@ func run(ctx context.Context, sshKeyPath string, iterations, cooldown int, branc
 	ip := getPublicIP(droplet)
 	fmt.Printf("Droplet created: %s (ID: %d)\n\n", ip, droplet.ID)
 
-	// Cleanup
 	if noCleanup {
 		defer fmt.Printf("\nDroplet kept: ssh root@%s\n", ip)
 	} else {
