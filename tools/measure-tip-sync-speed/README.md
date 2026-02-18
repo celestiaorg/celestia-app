@@ -26,7 +26,7 @@ Measures Celestia Mocha testnet sync-to-tip speed by spinning up a full node on 
 # Required: specify your SSH private key
 go run ./tools/measure-tip-sync-speed -k ~/.ssh/id_ed25519
 
-# Multiple iterations
+# Multiple iterations + cooldown
 go run ./tools/measure-tip-sync-speed -k ~/.ssh/id_ed25519 -n 20 -c 30
 
 # Test specific branch
@@ -52,4 +52,4 @@ go run ./tools/measure-tip-sync-speed -k ~/.ssh/id_ed25519 -b my-branch
 4. Runs `scripts/mocha-measure-tip-sync.sh`
 5. Cleans up droplet
 
-Takes ~5-10 minutes.
+Takes ~5-10 minutes deoending on the number of iterations.

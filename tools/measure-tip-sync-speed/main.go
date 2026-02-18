@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	dropletSize = "s-8vcpu-16gb"
+	dropletSize = "c2-16vcpu-32gb"
 	region      = "nyc3"
 	repoURL     = "https://github.com/celestiaorg/celestia-app.git"
 	goVersion   = "1.23.1"
@@ -49,14 +49,16 @@ func main() {
 	cmd.Flags().BoolVarP(&skipBuild, "skip-build", "s", false, "Skip building celestia-appd")
 	cmd.Flags().BoolVar(&noCleanup, "no-cleanup", false, "Keep droplet alive")
 
-	cmd.MarkFlagRequired("ssh-key-path")
+	if err := cmd.MarkFlagRequired("ssh-key-path"); err != nil {
+		log.Fatal(err)
+	}
 
 	if err := cmd.Execute(); err != nil {
 		log.Fatal(err)
 	}
 }
 
-// run executes the main workflow: creates a DO droplet, runs the sync measurement, and cleans up.
+// run executes the main workflow. creates a DO droplet, runs the sync measurement, and cleans up.
 func run(ctx context.Context, sshKeyPath string, iterations, cooldown int, branch string, noCleanup, skipBuild bool) error {
 	token := os.Getenv("DIGITALOCEAN_TOKEN")
 	if token == "" {
@@ -111,7 +113,7 @@ func run(ctx context.Context, sshKeyPath string, iterations, cooldown int, branc
 		return err
 	}
 	defer sshClient.Close()
-	fmt.Println("SSH connected\n")
+	fmt.Print("SSH connected\n\n")
 
 	// Setup
 	if !skipBuild {
@@ -279,7 +281,7 @@ func execSSH(client *ssh.Client, command string) error {
 			ssh.TTY_OP_ISPEED: 14400,
 			ssh.TTY_OP_OSPEED: 14400,
 		}
-		session.RequestPty("xterm-256color", height, width, modes)
+		_ = session.RequestPty("xterm-256color", height, width, modes)
 	}
 
 	return session.Run(command)
