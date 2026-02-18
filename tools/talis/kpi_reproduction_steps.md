@@ -1,6 +1,6 @@
 # Celestia KPI Reproduction Steps
 
-This document provides instructions for reproducing the core-app KPIs. These KPIs measure transaction submission performance and sync to tip speed.
+This document provides instructions for reproducing the core-app KPIs. These KPIs measure transaction submission performance and sync to tip duration.
 
 ## Prerequisites
 
