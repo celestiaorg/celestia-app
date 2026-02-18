@@ -18,7 +18,7 @@ const (
 	dropletSize = "c2-16vcpu-32gb"
 	region      = "nyc3"
 	repoURL     = "https://github.com/celestiaorg/celestia-app.git"
-	goVersion   = "1.23.1"
+	goVersion   = "1.25.7"
 )
 
 func main() {
@@ -80,8 +80,8 @@ func run(ctx context.Context, sshKeyPath string, iterations, cooldown int, branc
 
 	fmt.Printf("Using SSH key: %s (DO: %s)\n\n", sshKeyPath, doKey.Name)
 
-	// Create droplet
-	dropletName := fmt.Sprintf("celestia-sync-%d", time.Now().Unix())
+	// Create droplet with SSH key name
+	dropletName := fmt.Sprintf("mocha-tip-sync-%s", doKey.Name)
 	fmt.Printf("Creating droplet %s (%s, %s)...\n", dropletName, dropletSize, region)
 
 	droplet, err := createDroplet(ctx, client, dropletName, doKey)
@@ -187,7 +187,7 @@ func createDroplet(ctx context.Context, client *godo.Client, name string, sshKey
 		SSHKeys: []godo.DropletCreateSSHKey{
 			{ID: sshKey.ID, Fingerprint: sshKey.Fingerprint},
 		},
-		Tags: []string{"celestia-sync-speed"},
+		Tags: []string{"celestia-sync-speed", sshKey.Name},
 	}
 
 	droplet, _, err := client.Droplets.Create(ctx, req)
