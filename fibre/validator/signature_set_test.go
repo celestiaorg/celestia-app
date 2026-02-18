@@ -73,7 +73,14 @@ func TestSignatureSet(t *testing.T) {
 
 		var sigErr *validator.NotEnoughSignaturesError
 		require.ErrorAs(t, err, &sigErr)
-		require.Len(t, sigErr.Collected, 3)
+		require.Len(t, sigErr.Collected, 5)
+		nonNil := 0
+		for _, sig := range sigErr.Collected {
+			if sig != nil {
+				nonNil++
+			}
+		}
+		require.Equal(t, 3, nonNil)
 		require.Equal(t, int64(30), sigErr.CollectedPower)
 		require.Equal(t, int64(33), sigErr.RequiredPower)
 		require.Contains(t, err.Error(), "not enough voting power")
@@ -97,7 +104,14 @@ func TestSignatureSet(t *testing.T) {
 
 		var sigErr *validator.NotEnoughSignaturesError
 		require.ErrorAs(t, err, &sigErr)
-		require.Len(t, sigErr.Collected, 2)
+		require.Len(t, sigErr.Collected, 5)
+		nonNil := 0
+		for _, sig := range sigErr.Collected {
+			if sig != nil {
+				nonNil++
+			}
+		}
+		require.Equal(t, 2, nonNil)
 		require.Equal(t, int64(20), sigErr.CollectedPower)
 		require.Equal(t, int64(33), sigErr.RequiredPower)
 		require.Contains(t, err.Error(), "not enough voting power")
@@ -116,7 +130,14 @@ func TestSignatureSet(t *testing.T) {
 
 		sigs, err := s.sigSet.Signatures()
 		require.NoError(t, err)
-		require.Len(t, sigs, 4)
+		require.Len(t, sigs, 5)
+		nonNil := 0
+		for _, sig := range sigs {
+			if sig != nil {
+				nonNil++
+			}
+		}
+		require.Equal(t, 4, nonNil)
 	})
 
 	t.Run("SuccessConcurrent", func(t *testing.T) {
@@ -166,6 +187,13 @@ func TestSignatureSet(t *testing.T) {
 
 		sigs, err := s.sigSet.Signatures()
 		require.NoError(t, err)
-		require.Len(t, sigs, 3)
+		require.Len(t, sigs, 5)
+		nonNil := 0
+		for _, sig := range sigs {
+			if sig != nil {
+				nonNil++
+			}
+		}
+		require.Equal(t, 3, nonNil)
 	})
 }
