@@ -1,6 +1,6 @@
-# measure-tip-sync-speed
+# measure-tip-sync
 
-Measures Celestia Mocha testnet sync-to-tip speed by spinning up a full node on Digital Ocean.
+Measures Celestia Mocha testnet sync-to-tip time by spinning up a full node on Digital Ocean.
 
 ## Prerequisites
 
@@ -17,20 +17,20 @@ Measures Celestia Mocha testnet sync-to-tip speed by spinning up a full node on 
 3. **Install the tool**
 
    ```bash
-   go install ./tools/measure-tip-sync-speed
+   go install ./tools/measure-tip-sync
    ```
 
 ## Usage
 
 ```bash
 # Required: specify your SSH private key
-go run ./tools/measure-tip-sync-speed -k ~/.ssh/id_ed25519
+go run ./tools/measure-tip-sync -k ~/.ssh/id_ed25519
 
 # Multiple iterations + cooldown
-go run ./tools/measure-tip-sync-speed -k ~/.ssh/id_ed25519 -n 20 -c 30
+go run ./tools/measure-tip-sync -k ~/.ssh/id_ed25519 -n 20 -c 30
 
 # Test specific branch
-go run ./tools/measure-tip-sync-speed -k ~/.ssh/id_ed25519 -b my-branch
+go run ./tools/measure-tip-sync -k ~/.ssh/id_ed25519 -b my-branch
 ```
 
 ## Flags

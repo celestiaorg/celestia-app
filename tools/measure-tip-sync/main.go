@@ -32,8 +32,8 @@ func main() {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "measure-tip-sync-speed",
-		Short: "Measure Celestia Mocha testnet sync-to-tip speed",
+		Use:   "measure-tip-sync",
+		Short: "Measure Celestia Mocha testnet sync-to-tip time",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(cmd.Context(), sshKeyPath, iterations, cooldown, branch, noCleanup, skipBuild)
 		},
@@ -181,7 +181,7 @@ func createDroplet(ctx context.Context, client *godo.Client, name string, sshKey
 		SSHKeys: []godo.DropletCreateSSHKey{
 			{ID: sshKey.ID, Fingerprint: sshKey.Fingerprint},
 		},
-		Tags: []string{"celestia-sync-speed", sshKey.Name},
+		Tags: []string{"celestia-tip-sync", sshKey.Name},
 	}
 
 	droplet, _, err := client.Droplets.Create(ctx, req)
