@@ -35,9 +35,6 @@ func main() {
 		Use:   "measure-tip-sync-speed",
 		Short: "Measure Celestia Mocha testnet sync-to-tip speed",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if sshKeyPath == "" {
-				return fmt.Errorf("--ssh-key-path is required")
-			}
 			return run(cmd.Context(), sshKeyPath, iterations, cooldown, branch, noCleanup, skipBuild)
 		},
 	}
