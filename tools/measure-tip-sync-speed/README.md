@@ -52,4 +52,4 @@ go run ./tools/measure-tip-sync-speed -k ~/.ssh/id_ed25519 -b my-branch
 4. Runs `scripts/mocha-measure-tip-sync.sh`
 5. Cleans up droplet
 
-Takes ~5-10 minutes deoending on the number of iterations.
+Takes ~5-10 minutes depending on the number of iterations.
