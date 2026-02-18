@@ -106,7 +106,6 @@ func run(ctx context.Context, sshKeyPath string, iterations, cooldown int, branc
 		
 	}
 
-	// Wait for SSH
 	fmt.Println("Waiting for SSH...")
 	sshClient, err := waitForSSH(ip, sshKeyPath, 5*time.Minute)
 	if err != nil {
