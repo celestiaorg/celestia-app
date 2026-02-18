@@ -1,10 +1,8 @@
 # Celestia KPI Reproduction Steps
 
-This document provides instructions for reproducing the core-app KPIs. These KPIs measure transaction submission performance and sync-to-tip capabilities.
+This document provides instructions for reproducing the core-app KPIs. These KPIs measure transaction submission performance and sync to tip speed.
 
 ## Prerequisites
-
-### Local Machine Setup
 
 1. **Verify block time configuration for 32MB/3sec blocks:**
 
@@ -22,7 +20,7 @@ This document provides instructions for reproducing the core-app KPIs. These KPI
 
 3. **Set up cloud provider credentials:**
 
-Google Cloud is recommended for high-throughput tests. Ask the DevOps team for access to Celestia's Google Cloud fibreda workspace.
+   Google Cloud is recommended for high-throughput tests. Ask the DevOps team for access to Celestia's Google Cloud fibreda workspace.
 
    ```bash
    # Create a .env file
@@ -33,69 +31,50 @@ Google Cloud is recommended for high-throughput tests. Ask the DevOps team for a
    GOOGLE_CLOUD_KEY_JSON_PATH="/path/to/service-account-key.json"
    ```
 
-1. **SSH key is required for running experiments:**
+4. **SSH key is required for running experiments:**
 
-   Create a new SSH key or use existing one.
-
-   For Google Cloud:
-   - The SSH key is automatically added to instance metadata by talis
-   - Ensure your service account has the necessary permissions to create instances
+   Create a new SSH key or use existing one. For Google Cloud the SSH key is automatically added to instance metadata by talis.
 
    Configure these variables in `.env`:
 
+   ```bash
+   TALIS_SSH_KEY_PATH=your-key-path
+   TALIS_SSH_KEY_NAME=your-key-name
    ```
-   # SSH Configuration (optional - will use defaults if not set)
 
-  TALIS_SSH_KEY_PATH=your-key-path
-  TALIS_SSH_KEY_NAME=your-key-name
+## Talis Network Deployment
 
+1. **Initialize Talis Network**
+
+   ```bash
+   # Initialize with observability for metrics collection
+   talis init -c kpi-test-chain -e tx-kpi --with-observability --provider googlecloud
+
+   # Add validator nodes (50-100 validators recommended for realistic network)
+   talis add -t validator -c 50 --provider googlecloud
+   ```
+
+2. **Deploy Network**
+
+   ```bash
+   # Spin up cloud instances (specify SSH key if not using defaults)
+   talis up --provider googlecloud --workers 20
+
+   # Create genesis with appropriate square size
+   # Square size 256 allows for ~32MB blocks
+   talis genesis -s 256 -b ./build
+
+   # Deploy the network (specify SSH key if needed)
+   talis deploy --direct-payload-upload --workers 20
+
+   # After deployment completes, talis will output the Grafana access information:
+   # URL, credentials.
+
+   # Wait for network to start and optionally confirm all validators are online
+   talis status
    ```
 
 ## Transaction Submission KPIs
-
-These KPIs measure the network's ability to handle high-throughput blob submissions with target metrics:
-
-- **Throughput:** 8MB/1sec (32MB/3sec block time)
-- **Success Rate:** 99.9%
-- **Average user Latency:** ≤8 seconds
-
-### 1. Initialize Talis Network
-
-```bash
-# Initialize with observability for metrics collection
-talis init -c kpi-test-chain -e tx-kpi --with-observability --provider googlecloud
-
-# Add validator nodes (50-100 validators recommended for realistic network)
-talis add -t validator -c 50 --provider googlecloud
-
-# Note: talis automatically configures mempool, consensus timeouts, and gRPC
-# The default configs are optimized for high-throughput testing
-```
-
-### 2. Deploy Network
-
-```bash
-# Spin up cloud instances (specify SSH key if not using defaults)
-talis up --provider googlecloud --workers 20
-
-# For DigitalOcean (if you need to specify SSH key):
-# talis up -n <your-ssh-key-name> -s ~/.ssh/id_ed25519_no_passphrase --workers 20
-
-# Create genesis with appropriate square size
-# Square size 256 allows for ~32MB blocks
-talis genesis -s 256 -b ./build
-
-# Deploy the network (specify SSH key if needed)
-talis deploy --direct-payload-upload --workers 20
-
-# After deployment completes, talis will output the Grafana access information:
-      #  URL, credentials.                       
-
-# Wait for network to start and optionally confirm all validators are online
-talis status
-```
-
-### 3. Run Transaction Submission Tests
 
 **NOTE** Reset the network between KPI experiments for fresh state/accurate results.
 
@@ -104,31 +83,26 @@ talis reset
 talis deploy -w 20
 ```
 
-#### Test 1: Baseline 8MB/1sec (Single Submitter)
+### KPI 1: 8MB/1sec (Single Submitter)
 
 **Target:** One latency monitor submitting 8MB blobs every second
 
 ```bash
 talis latency-monitor -i 1 -b 8000000 -z 8000000 -s 1000ms
-
-# Let run for at least 15-30 minutes to collect sufficient data
 ```
 
 **Expected Results:**
 
 - Success rate: >=99.9%
 - Average user latency: 6-8 seconds
-- Zero or minimal failures
 - No Evictions
 
-#### Test 2: Load Shedding (Two Submitters, 8MB/1sec each)
+### KPI 2: Load Shedding (Two Submitters, 8MB/1sec each)
 
 **Target:** Two latency monitors submitting 8MB blobs every second (total 16MB/1sec)
 
 ```bash
-# Terminal 1: SSH to validator-0
 talis latency-monitor -i 1 -b 8000000 -z 8000000 -s 1000ms
-# Run both simultaneously for 15-30 minutes
 ```
 
 **Expected Observations:**
@@ -139,41 +113,35 @@ talis latency-monitor -i 1 -b 8000000 -z 8000000 -s 1000ms
 - Sequence mismatch errors from resubmission race conditions
 - Network attempts load shedding by evicting low fee transactions
 
-#### Test 3: Parallel Submission (Multi-Worker)
+### Test 3: Parallel Submission (Multiple Workers)
 
-**Target:** Single latency monitor with multiple parallel workers submitting 8MB total per second
+**Target:** Single latency monitor with multiple parallel workers trying to fill up the throughput.
 
 ```bash
+# example: 15 workers submitting 2-8MB txs every 100ms
 talis latency-monitor --instances 1 -w 15 -b 8000000 -z 2000000 --submission-delay 100ms                            
-# Run for 15-30 minutes
-# 15 workers submitting 2-8MB txs every 100ms
 ```
 
 **Expected Results:**
 
 - Consistent throughput >9MB/1sec
 - Good mempool distribution
-- Ability to reliably fill blocks to capacity
 
-#### Test 4: No Eviction (Optimal Conditions)
+### Test 4: No Eviction (Optimal Conditions)
 
 This can already be measured in the first experiment but if you have to re-run:
 
 ```bash
 talis latency-monitor -i 1 -b 8000000 -z 8000000 -s 1000ms
-
-# Let run for at least 15-30 minutes to collect sufficient data
 ```
 
 **Expected Results:**
 
 - Transactions included with zero evictions
-- Zero or very little failures
-- Latency in expected range (6-8 seconds)
 
-### 4. Collect Metrics and Results
+## Collect Metrics and Results
 
-#### From Grafana
+### From Grafana
 
 At `http://<observability-instance-ip>:3000` as displayed during `talis deploy`:
 
@@ -181,8 +149,6 @@ At `http://<observability-instance-ip>:3000` as displayed during `talis deploy`:
 - Access Latency monitor dashboards displaying submission statistics and latency monitor logs
 
 ## Cleanup
-
-### Tear Down Talis Network
 
 ```bash
 # Destroy cloud instances
@@ -205,7 +171,7 @@ This script runs multiple iterations and provides statistical analysis:
 # Single iteration
 ./scripts/mocha-measure-tip-sync.sh
 
-# Multiple iterations with statistics (20 iterations recommended)
+# Multiple iterations (20 iterations with 30s cooldown)
 ./scripts/mocha-measure-tip-sync.sh --iterations 20 --cooldown 30
 ```
 
@@ -213,88 +179,8 @@ This script runs multiple iterations and provides statistical analysis:
 
 For production-like testing on cloud infrastructure:
 
-**1. Create a DigitalOcean droplet:**
-
-```bash
-# Recommended: 8GB RAM, 4 vCPUs (c-4 instance)
-# Ubuntu 22.04 LTS
-# Add your SSH key
-```
-
-**2. Set up the instance:**
-
-```bash
-# SSH into the droplet
-ssh root@<droplet-ip>
-
-# Install dependencies
-apt-get update
-apt-get install git build-essential curl jq -y
-
-# Install Go
-snap install go --channel=1.23/stable --classic
-echo 'export GOPATH="$HOME/go"' >> ~/.profile
-echo 'export GOBIN="$GOPATH/bin"' >> ~/.profile
-echo 'export PATH="$GOBIN:$PATH"' >> ~/.profile
-source ~/.profile
-
-# Clone and build celestia-app
-git clone https://github.com/celestiaorg/celestia-app.git
-cd celestia-app
-git checkout main  # or specific version tag
-make install
-```
-
-**3. Run sync test:**
-
-```bash
-# For Mocha testnet
-./scripts/mocha-measure-tip-sync.sh --iterations 20 --cooldown 30
-
-# For Mainnet (use with caution, will take longer)
-./scripts/block-sync.sh --network mainnet
-```
-
-**4. Monitor progress:**
-
-```bash
-# In another terminal, watch the sync progress
-watch -n 5 'celestia-appd status | jq .sync_info'
-
-# Check logs
-tail -f ~/.celestia-app/node.log
-```
+TBD
 
 ### Analyzing Sync Results
 
-The sync script provides output similar to this:
-
-```
-=========================================
-FINAL STATISTICS (20 iterations with 30 second cooldowns)
-=========================================
-
-State Sync:
-  Min:       139s
-  Max:       180s
-  Average:   155s
-  Variance:  151
-
-Block Sync:
-  Min:       41s
-  Max:       124s
-  Average:   73s
-  Variance:  516
-
-Total Sync:
-  Min:       180s
-  Max:       304s
-  Average:   228s
-  Variance:  1204
-=========================================
-```
-
-**KPI Outcome:**
-
-- PASS if Total Sync Average <600s (10 minutes)
-- FAIL if Total Sync Average ≥600s
+The combined sync (state + block sync) must take less than 10 minutes.
