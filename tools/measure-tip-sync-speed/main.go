@@ -115,7 +115,6 @@ func run(ctx context.Context, sshKeyPath string, iterations, cooldown int, branc
 	defer sshClient.Close()
 	fmt.Print("SSH connected\n\n")
 
-	// Setup
 	if !skipBuild {
 		fmt.Println("Setting up environment...")
 		if err := execSSH(sshClient, setupScript(branch)); err != nil {
