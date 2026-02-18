@@ -93,8 +93,10 @@ func run(ctx context.Context, sshKeyPath string, iterations, cooldown int, branc
 	fmt.Printf("Droplet created: %s (ID: %d)\n\n", ip, droplet.ID)
 
 	// Cleanup
-	if !noCleanup {
-		defer func() {
+	if noCleanup {
+		defer fmt.Printf("\nDroplet kept: ssh root@%s\n", ip)
+	} else {
+	defer func() {
 			fmt.Println("\nCleaning up...")
 			if _, err := client.Droplets.Delete(ctx, droplet.ID); err != nil {
 				fmt.Printf("Failed to delete droplet: %v\n", err)
@@ -102,8 +104,7 @@ func run(ctx context.Context, sshKeyPath string, iterations, cooldown int, branc
 				fmt.Println("Droplet deleted")
 			}
 		}()
-	} else {
-		defer fmt.Printf("\nDroplet kept: ssh root@%s\n", ip)
+		
 	}
 
 	// Wait for SSH
