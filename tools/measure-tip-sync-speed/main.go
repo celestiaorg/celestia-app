@@ -100,7 +100,6 @@ func run(ctx context.Context, sshKeyPath string, iterations, cooldown int, branc
 				fmt.Println("Droplet deleted")
 			}
 		}()
-
 	}
 
 	fmt.Println("Waiting for SSH...")
