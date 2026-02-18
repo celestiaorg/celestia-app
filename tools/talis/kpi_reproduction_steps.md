@@ -102,7 +102,7 @@ talis latency-monitor -i 1 -b 8000000 -z 8000000 -s 1000ms
 **Target:** Two latency monitors submitting 8MB blobs every second (total 16MB/1sec)
 
 ```bash
-talis latency-monitor -i 1 -b 8000000 -z 8000000 -s 1000ms
+talis latency-monitor -i 2 -b 8000000 -z 8000000 -s 1000ms
 ```
 
 **Expected Observations:**
