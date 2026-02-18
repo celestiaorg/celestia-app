@@ -35,9 +35,6 @@ func main() {
 		Use:   "measure-tip-sync-speed",
 		Short: "Measure Celestia Mocha testnet sync-to-tip speed",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if sshKeyPath == "" {
-				return fmt.Errorf("--ssh-key-path is required")
-			}
 			return run(cmd.Context(), sshKeyPath, iterations, cooldown, branch, noCleanup, skipBuild)
 		},
 	}
@@ -92,9 +89,10 @@ func run(ctx context.Context, sshKeyPath string, iterations, cooldown int, branc
 	ip := getPublicIP(droplet)
 	fmt.Printf("Droplet created: %s (ID: %d)\n\n", ip, droplet.ID)
 
-	// Cleanup
-	if !noCleanup {
-		defer func() {
+	if noCleanup {
+		defer fmt.Printf("\nDroplet kept: ssh root@%s\n", ip)
+	} else {
+	defer func() {
 			fmt.Println("\nCleaning up...")
 			if _, err := client.Droplets.Delete(ctx, droplet.ID); err != nil {
 				fmt.Printf("Failed to delete droplet: %v\n", err)
@@ -102,11 +100,9 @@ func run(ctx context.Context, sshKeyPath string, iterations, cooldown int, branc
 				fmt.Println("Droplet deleted")
 			}
 		}()
-	} else {
-		defer fmt.Printf("\nDroplet kept: ssh root@%s\n", ip)
+		
 	}
 
-	// Wait for SSH
 	fmt.Println("Waiting for SSH...")
 	sshClient, err := waitForSSH(ip, sshKeyPath, 5*time.Minute)
 	if err != nil {
@@ -115,7 +111,6 @@ func run(ctx context.Context, sshKeyPath string, iterations, cooldown int, branc
 	defer sshClient.Close()
 	fmt.Print("SSH connected\n\n")
 
-	// Setup
 	if !skipBuild {
 		fmt.Println("Setting up environment...")
 		if err := execSSH(sshClient, setupScript(branch)); err != nil {
