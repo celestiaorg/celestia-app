@@ -384,7 +384,7 @@ func TestOverrideP2PConfig_BypassFlag(t *testing.T) {
 	cfg.SetRoot(tempDir)
 	cfg.P2P.SendRate = 5 * mebibyte
 	cfg.P2P.RecvRate = 5 * mebibyte
-	cfg.Mempool.Type = tmcfg.MempoolTypeFlood
+	cfg.Mempool.Type = tmcfg.MempoolTypeCAT
 	cfg.Mempool.TTLNumBlocks = 10
 	cfg.Mempool.TTLDuration = 5 * time.Minute
 	cfg.Mempool.MaxGossipDelay = 60 * time.Second
@@ -428,8 +428,8 @@ func TestOverrideP2PConfig_BypassFlag(t *testing.T) {
 		"P2P SendRate should not be overridden when bypass flag is set")
 	require.Equal(t, int64(5*mebibyte), modifiedCfg.P2P.RecvRate,
 		"P2P RecvRate should not be overridden when bypass flag is set")
-	require.Equal(t, tmcfg.MempoolTypeFlood, modifiedCfg.Mempool.Type,
-		"Mempool Type should not be overridden when bypass flag is set")
+	require.Equal(t, tmcfg.MempoolTypeCAT, modifiedCfg.Mempool.Type,
+		"Mempool Type should be CAT")
 	require.Equal(t, int64(10), modifiedCfg.Mempool.TTLNumBlocks,
 		"Mempool TTLNumBlocks should not be overridden when bypass flag is set")
 	require.Equal(t, 5*time.Minute, modifiedCfg.Mempool.TTLDuration,
@@ -438,4 +438,94 @@ func TestOverrideP2PConfig_BypassFlag(t *testing.T) {
 		"Mempool MaxGossipDelay should not be overridden when bypass flag is set")
 	require.Equal(t, int64(100*mebibyte), modifiedCfg.Mempool.MaxTxsBytes,
 		"Mempool MaxTxsBytes should not be overridden when bypass flag is set")
+}
+
+// TestOverrideP2PConfig_OverridesNonCATMempool tests that overrideP2PConfig
+// overrides a non-CAT mempool type to CAT with a warning instead of erroring.
+func TestOverrideP2PConfig_OverridesNonCATMempool(t *testing.T) {
+	tempDir := t.TempDir()
+	configDir := filepath.Join(tempDir, "config")
+	require.NoError(t, os.MkdirAll(configDir, 0o755))
+
+	cfg := app.DefaultConsensusConfig()
+	cfg.SetRoot(tempDir)
+	cfg.Mempool.Type = tmcfg.MempoolTypeFlood
+
+	configPath := filepath.Join(configDir, "config.toml")
+	tmcfg.WriteConfigFile(configPath, cfg)
+
+	cmd := &cobra.Command{Use: "test"}
+	logger := log.NewNopLogger()
+
+	loadedCfg, err := loadCometBFTConfig(configPath, tempDir)
+	require.NoError(t, err)
+
+	sctx := server.NewDefaultContext()
+	sctx.Config = loadedCfg
+	sctx.Logger = logger
+
+	ctx := context.WithValue(context.Background(), server.ServerContextKey, sctx)
+	cmd.SetContext(ctx)
+
+	err = overrideP2PConfig(cmd, logger)
+	require.NoError(t, err)
+
+	modifiedCfg := server.GetServerContextFromCmd(cmd).Config
+	require.Equal(t, tmcfg.MempoolTypeCAT, modifiedCfg.Mempool.Type,
+		"Non-CAT mempool type should be overridden to CAT")
+}
+
+// TestOverrideP2PConfig_BypassFlagDoesNotBypassMempoolTypeOverride tests that
+// the bypass flag does not bypass the mempool type override.
+func TestOverrideP2PConfig_BypassFlagDoesNotBypassMempoolTypeOverride(t *testing.T) {
+	tempDir := t.TempDir()
+	configDir := filepath.Join(tempDir, "config")
+	require.NoError(t, os.MkdirAll(configDir, 0o755))
+
+	cfg := app.DefaultConsensusConfig()
+	cfg.SetRoot(tempDir)
+	cfg.Mempool.Type = tmcfg.MempoolTypeFlood
+
+	configPath := filepath.Join(configDir, "config.toml")
+	tmcfg.WriteConfigFile(configPath, cfg)
+
+	cmd := &cobra.Command{Use: "test"}
+	cmd.Flags().Bool(bypassOverridesFlagKey, false, "bypass all config overrides")
+	require.NoError(t, cmd.Flags().Set(bypassOverridesFlagKey, "true"))
+
+	logger := log.NewNopLogger()
+
+	loadedCfg, err := loadCometBFTConfig(configPath, tempDir)
+	require.NoError(t, err)
+
+	sctx := server.NewDefaultContext()
+	sctx.Config = loadedCfg
+	sctx.Logger = logger
+
+	ctx := context.WithValue(context.Background(), server.ServerContextKey, sctx)
+	cmd.SetContext(ctx)
+
+	err = overrideP2PConfig(cmd, logger)
+	require.NoError(t, err)
+
+	modifiedCfg := server.GetServerContextFromCmd(cmd).Config
+	require.Equal(t, tmcfg.MempoolTypeCAT, modifiedCfg.Mempool.Type,
+		"Mempool type override should not be bypassable")
+}
+
+// TestOverrideMempoolType tests the overrideMempoolType function directly.
+func TestOverrideMempoolType(t *testing.T) {
+	t.Run("no-op for CAT mempool", func(t *testing.T) {
+		cfg := app.DefaultConsensusConfig()
+		cfg.Mempool.Type = tmcfg.MempoolTypeCAT
+		overrideMempoolType(cfg, log.NewNopLogger())
+		require.Equal(t, tmcfg.MempoolTypeCAT, cfg.Mempool.Type)
+	})
+
+	t.Run("overrides flood mempool to CAT", func(t *testing.T) {
+		cfg := app.DefaultConsensusConfig()
+		cfg.Mempool.Type = tmcfg.MempoolTypeFlood
+		overrideMempoolType(cfg, log.NewNopLogger())
+		require.Equal(t, tmcfg.MempoolTypeCAT, cfg.Mempool.Type)
+	})
 }
