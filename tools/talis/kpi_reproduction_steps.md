@@ -42,6 +42,18 @@ This document provides instructions for reproducing the core-app KPIs. These KPI
    TALIS_SSH_KEY_NAME=your-key-name
    ```
 
+5. **S3 bucket for faster deployment (optional):**
+
+   For faster deployments using S3 upload instead of direct payload upload, configure an S3 bucket:
+
+   ```bash
+   AWS_ACCESS_KEY_ID=your-access-key
+   AWS_SECRET_ACCESS_KEY=your-secret-key
+   AWS_DEFAULT_REGION=fra1
+   AWS_S3_ENDPOINT=https://fra1.digitaloceanspaces.com
+   AWS_S3_BUCKET=your-bucket-name
+   ```
+
 ## Talis Network Deployment
 
 1. **Initialize Talis Network**
@@ -65,7 +77,8 @@ This document provides instructions for reproducing the core-app KPIs. These KPI
    talis genesis -s 256 -b ./build
 
    # Deploy the network (specify SSH key if needed)
-   talis deploy --direct-payload-upload --workers 20
+   # Note: For faster deployment, use S3 upload instead of direct payload upload instead of --direct-payload-upload:
+   talis deploy --workers 20
 
    # After deployment completes, talis will output the Grafana access information:
    # URL, credentials.
@@ -80,7 +93,7 @@ This document provides instructions for reproducing the core-app KPIs. These KPI
 
 ```bash
 talis reset
-talis deploy -w 20
+talis deploy --workers 20
 ```
 
 ### KPI 1: 8MB/1sec (Single Submitter)
@@ -175,11 +188,22 @@ This script runs multiple iterations and provides statistical analysis:
 ./scripts/mocha-measure-tip-sync.sh --iterations 20 --cooldown 30
 ```
 
-#### Option 2: Manual Testing on DigitalOcean
+#### Option 2: Cloud Testing on DigitalOcean
 
-For production-like testing on cloud infrastructure:
+Use the `measure-tip-sync` tool which automates droplet creation, node setup, and sync measurement:
 
-TBD
+1. **Install the tool**
+
+   ```bash
+   go install ./tools/measure-tip-sync
+   ```
+
+1. **Running Tests:**
+
+```bash
+# Multiple iterations (20 iterations with 30s cooldown between each)
+measure-tip-sync -k ~/.ssh/id_ed25519 -n 20 -c 30
+```
 
 ### Analyzing Sync Results
 
