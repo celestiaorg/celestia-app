@@ -6,12 +6,12 @@ This document provides instructions for reproducing the core-app KPIs. These KPI
 
 1. **Verify block time configuration for 32MB/3sec blocks:**
 
-   Make sure app is configured for the target throughput. Verify that `DelayedPrecommitTimeout` is set to 2800ms for 3s block time.
+   Modify `app_consts.go` and set `	DelayedPrecommitTimeout        = time.Millisecond * 2800` for 3s block time.
 
 2. **Install celestia-app and dependencies:**
 
    ```bash
-   # Build all necessary binaries (must be done after verifying DelayedPrecommitTimeout)
+   # Build all necessary binaries (must be done after modifying DelayedPrecommitTimeout)
    make build-talis-bins
 
    # Install talis
