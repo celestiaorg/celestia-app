@@ -1,0 +1,68 @@
+name: tx-submission-nightly
+
+concurrency:
+  group: tx-submission-nightly
+  cancel-in-progress: true
+
+on:
+  schedule:
+    # run nightly at 3 AM UTC (offset from test-nightly at 2 AM)
+    - cron: '0 3 * * *
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Docker image tag to test (leave empty to use commit SHA)'
+        required: false
+        type: string
+
+jobs:
+  tx-submission-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+
+      - name: Set up Go
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
+        with:
+          go-version-file: "test/docker-e2e/go.mod"
+          cache-dependency-path: "test/docker-e2e/go.sum"
+
+      - name: Generate image tag
+        id: tag
+        run: |
+          if [ -n "${{ inputs.tag }}" ]; then
+            echo "value=${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "value=$(echo $GITHUB_SHA | cut -c1-8)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build Docker image locally
+        if: ${{ inputs.tag == '' }}
+        run: docker build -t "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.value }}" . -f docker/multiplexer.Dockerfile
+
+      - name: Build latency-monitor Docker image
+        run: docker build -t "ghcr.io/celestiaorg/latency-monitor:${{ steps.tag.outputs.value }}" -f docker/latency-monitor/Dockerfile .
+
+      - name: Run tx submission test
+        env:
+          CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
+          CELESTIA_TAG: ${{ steps.tag.outputs.value }}
+        run: make test-docker-e2e test=TestTxSubmission
+
+  notify-slack-on-failure:
+    name: Notify Slack on failure
+    runs-on: ubuntu-latest
+    needs: [tx-submission-test]
+    if: ${{ always() && needs.tx-submission-test.result == 'failure' }}
+    steps:
+      - name: Slack Notification
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "tx-submission-nightly failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
