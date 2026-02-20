@@ -7,6 +7,7 @@ on:
 jobs:
   tx-submission-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout code
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
@@ -34,11 +35,8 @@ jobs:
           docker tag "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.pull_tag }}" \
             "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.test_tag }}"
 
-      - name: Pull latency-monitor image from GHCR
-        run: |
-          docker pull "ghcr.io/celestiaorg/latency-monitor:${{ steps.tag.outputs.pull_tag }}"
-          docker tag "ghcr.io/celestiaorg/latency-monitor:${{ steps.tag.outputs.pull_tag }}" \
-            "ghcr.io/celestiaorg/latency-monitor:${{ steps.tag.outputs.test_tag }}"
+      - name: Build latency-monitor Docker image
+        run: docker build -t "ghcr.io/celestiaorg/latency-monitor:${{ steps.tag.outputs.test_tag }}" -f docker/latency-monitor/Dockerfile .
 
       - name: Run tx submission test
         env:
