@@ -18,15 +18,19 @@ const (
 // their config.toml file. If the user has configured higher values, those are
 // preserved.
 func overrideP2PConfig(cmd *cobra.Command, logger log.Logger) error {
+	sctx := server.GetServerContextFromCmd(cmd)
+	cfg := sctx.Config
+
+	// Always override mempool type to CAT before checking bypass flag because
+	// non-CAT mempools are fundamentally unsupported and must not be bypassable.
+	overrideMempoolType(cfg, logger)
+
 	// Check if overrides should be bypassed
 	bypass, err := cmd.Flags().GetBool(bypassOverridesFlagKey)
 	if err == nil && bypass {
 		logger.Info("Bypassing config overrides due to flag")
 		return nil
 	}
-
-	sctx := server.GetServerContextFromCmd(cmd)
-	cfg := sctx.Config
 
 	// Get the default config to extract the minimum required values
 	defaultCfg := app.DefaultConsensusConfig()
@@ -64,15 +68,6 @@ func overrideP2PConfig(cmd *cobra.Command, logger log.Logger) error {
 func overrideMempoolConfig(cfg, defaultCfg *tmcfg.Config, logger log.Logger) {
 	const minTTLNumBlocks = int64(36)
 	const minMaxTxsBytes = int64(400 * mebibyte) // 400 MiB
-
-	// Force mempool type to CAT if it's not already set to CAT
-	if cfg.Mempool.Type != tmcfg.MempoolTypeCAT {
-		logger.Info("Overriding Mempool Type to CAT",
-			"configured", cfg.Mempool.Type,
-			"default", tmcfg.MempoolTypeCAT,
-		)
-		cfg.Mempool.Type = tmcfg.MempoolTypeCAT
-	}
 
 	// Override TTLNumBlocks if it's less than the minimum and not 0
 	// If it's 0, the user has explicitly disabled it, so we leave it alone
@@ -118,5 +113,17 @@ func overrideMempoolConfig(cfg, defaultCfg *tmcfg.Config, logger log.Logger) {
 			"minimum_mib", minMaxTxsBytes/mebibyte,
 		)
 		cfg.Mempool.MaxTxsBytes = minMaxTxsBytes
+	}
+}
+
+// overrideMempoolType overrides the mempool type to CAT if it is set to
+// anything else. Non-CAT mempools are fundamentally unsupported.
+func overrideMempoolType(cfg *tmcfg.Config, logger log.Logger) {
+	if cfg.Mempool.Type != tmcfg.MempoolTypeCAT {
+		logger.Warn("Overriding unsupported mempool type to CAT",
+			"configured", cfg.Mempool.Type,
+			"required", tmcfg.MempoolTypeCAT,
+		)
+		cfg.Mempool.Type = tmcfg.MempoolTypeCAT
 	}
 }

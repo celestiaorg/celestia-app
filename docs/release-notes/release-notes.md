@@ -36,6 +36,10 @@ v7 enforces a minimum `min-retain-blocks` value of 3000. This ensures nodes reta
 - `1-2999`: automatically overridden to 3000 with a log warning
 - `>= 3000`: retain at least that many blocks
 
+##### Mempool Type
+
+The mempool `type` field has been removed from new `config.toml` files because celestia-app only supports the CAT mempool. If your existing `config.toml` still contains a mempool `type`, it will be ignored and overridden to `cat` at startup with a warning. You can safely remove the `type` line from the `[mempool]` section of your `config.toml`.
+
 ### State Machine Changes (v7.0.0)
 
 #### Blocked Module Account Addresses

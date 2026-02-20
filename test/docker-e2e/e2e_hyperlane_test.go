@@ -1,9 +1,11 @@
 package docker_e2e
 
 import (
+	"bytes"
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -25,6 +27,7 @@ import (
 	"github.com/celestiaorg/tastora/framework/docker/evstack/reth"
 	"github.com/celestiaorg/tastora/framework/docker/hyperlane"
 	"github.com/celestiaorg/tastora/framework/testutil/evm"
+	"github.com/cosmos/cosmos-sdk/crypto"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/gogoproto/proto"
@@ -50,18 +53,25 @@ var (
 	RethChainID1 = 1235
 )
 
-// EvolveEVMChain encapsulates both the evolve evm sequencer node and execution client node.
-type EvolveEVMChain struct {
-	*evmsingle.Chain
-	*reth.Node
-}
-
 func TestHyperlaneTestSuite(t *testing.T) {
 	suite.Run(t, new(HyperlaneTestSuite))
 }
 
 type HyperlaneTestSuite struct {
 	CelestiaTestSuite
+}
+
+// EvolveEVMChain encapsulates both the evolve evm sequencer node and execution client node.
+type EvolveEVMChain struct {
+	*evmsingle.Chain
+	*reth.Node
+}
+
+// ForwardingRequest for encoding JSON payloads to the forwarding service.
+type ForwardingRequest struct {
+	ForwardAddr   string `json:"forward_addr"`
+	DestDomain    uint32 `json:"dest_domain"`
+	DestRecipient string `json:"dest_recipient"`
 }
 
 func (s *HyperlaneTestSuite) SetupSuite() {
@@ -222,10 +232,14 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 
 	s.AssertERC20Balance(ctx, reth0, tokenRouter, recipient, initialDeposit.BigInt())
 
+	forwardingService := s.ConfigureForwardRelayer(ctx, chain)
+
 	// Compute the forwarding address on celestia for recipient on reth1 destintation chain
 	destDomain := s.GetDomainForChain(ctx, reth1.HyperlaneChainName(), hyp)
 	destRecipient := "0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E"
 	forwardAddress := s.QueryForwardingAddress(ctx, chain, destDomain, destRecipient)
+
+	s.SendForwardingRequest(ctx, forwardingService, forwardAddress, destDomain, destRecipient)
 
 	forwardAddrBytes32, err := bech32ToBytes(forwardAddress)
 	s.Require().NoError(err)
@@ -243,12 +257,95 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	destRecipientAddress := ethcommon.HexToAddress(destRecipient)
 	balanceBefore := s.QueryERC20Balance(ctx, reth1, tokenRouter, destRecipientAddress)
 
-	// Permissionless invocation of MsgForward (to be done by external relayer service)
-	forwardFee := s.QueryForwardingFee(ctx, chain, destDomain)
-	s.SendForwardingTx(ctx, chain, forwardAddress, destDomain, destRecipient, forwardFee)
-
 	expectedBalance := new(big.Int).Add(balanceBefore, amount.BigInt())
 	s.AssertERC20Balance(ctx, reth1, tokenRouter, destRecipientAddress, expectedBalance)
+}
+
+func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain *cosmos.Chain) *hyperlane.ForwardRelayer {
+	backendCfg := hyperlane.ForwardRelayerConfig{
+		Logger:          s.logger,
+		DockerClient:    s.client,
+		DockerNetworkID: s.network,
+		Image:           hyperlane.DefaultForwardRelayerImage(),
+		Settings: hyperlane.ForwardRelayerSettings{
+			Port: "8080",
+		},
+	}
+
+	backend, err := hyperlane.NewForwardRelayer(ctx, backendCfg, s.T().Name(), hyperlane.BackendMode)
+	s.Require().NoError(err)
+
+	err = backend.Start(ctx)
+	s.Require().NoError(err)
+
+	amount := sdkmath.NewInt(1000000)
+	sendAmount := sdk.NewCoins(sdk.NewCoin(chain.Config.Denom, amount))
+
+	relayerWallet, err := chain.CreateWallet(ctx, "forward-rly")
+	s.Require().NoError(err)
+
+	s.SendBankSendTx(ctx, chain, chain.GetFaucetWallet().Address, relayerWallet.Address, sendAmount)
+
+	chainNode := chain.GetNode()
+	keyring, err := chainNode.GetKeyring()
+	s.Require().NoError(err)
+
+	armor, err := keyring.ExportPrivKeyArmor("forward-rly", "")
+	s.Require().NoError(err)
+
+	privKey, _, err := crypto.UnarmorDecryptPrivKey(armor, "")
+	s.Require().NoError(err)
+
+	networkInfo, err := chain.GetNetworkInfo(ctx)
+	s.Require().NoError(err)
+
+	relayerCfg := hyperlane.ForwardRelayerConfig{
+		Logger:          s.logger,
+		DockerClient:    s.client,
+		DockerNetworkID: s.network,
+		Image:           hyperlane.DefaultForwardRelayerImage(),
+		Settings: hyperlane.ForwardRelayerSettings{
+			CelestiaGRPC:  fmt.Sprintf("http://%s", networkInfo.Internal.GRPCAddress()),
+			BackendURL:    fmt.Sprintf("http://%s:%s", backend.HostName(), "8080"),
+			PrivateKeyHex: fmt.Sprintf("0x%x", privKey.Bytes()),
+		},
+	}
+
+	relayer, err := hyperlane.NewForwardRelayer(ctx, relayerCfg, s.T().Name(), hyperlane.RelayerMode)
+	s.Require().NoError(err)
+
+	err = relayer.Start(ctx)
+	s.Require().NoError(err)
+
+	return backend
+}
+
+func (s *HyperlaneTestSuite) SendForwardingRequest(ctx context.Context, forwardingService *hyperlane.ForwardRelayer, forwardAddr string, destDomain uint32, destRecipient string) {
+	s.T().Helper()
+
+	networkInfo, err := forwardingService.GetNetworkInfo(ctx)
+	s.Require().NoError(err)
+
+	url := fmt.Sprintf("http://localhost:%s/forwarding-requests", strings.TrimRight(networkInfo.External.Ports.HTTP, "/"))
+
+	forwardReq := ForwardingRequest{
+		ForwardAddr:   forwardAddr,
+		DestDomain:    destDomain,
+		DestRecipient: destRecipient,
+	}
+
+	reqBz, err := json.Marshal(forwardReq)
+	s.Require().NoError(err)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(reqBz))
+	s.Require().NoError(err)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	s.Require().NoError(err)
+	defer func() { _ = resp.Body.Close() }()
+
+	s.Require().Equalf(http.StatusCreated, resp.StatusCode, "expected %s, got %s", http.StatusCreated, resp.StatusCode)
 }
 
 func (s *HyperlaneTestSuite) TestHyperlaneZKIsmStateTransition() {
@@ -597,6 +694,19 @@ func (s *HyperlaneTestSuite) SendForwardingTx(ctx context.Context, chain *cosmos
 	)
 
 	resp, err := broadcaster.BroadcastMessages(ctx, signer, msgForward)
+	s.Require().NoError(err)
+	s.Require().Equalf(uint32(0), resp.Code, "tx failed: code=%d, log=%s", resp.Code, resp.RawLog)
+}
+
+func (s *HyperlaneTestSuite) SendBankSendTx(ctx context.Context, chain *cosmos.Chain, fromAddr, toAddr sdk.AccAddress, amount sdk.Coins) {
+	s.T().Helper()
+
+	broadcaster := cosmos.NewBroadcaster(chain)
+	signer := chain.GetFaucetWallet()
+
+	msgBankSend := banktypes.NewMsgSend(fromAddr, toAddr, amount)
+
+	resp, err := broadcaster.BroadcastMessages(ctx, signer, msgBankSend)
 	s.Require().NoError(err)
 	s.Require().Equalf(uint32(0), resp.Code, "tx failed: code=%d, log=%s", resp.Code, resp.RawLog)
 }
