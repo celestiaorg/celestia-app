@@ -132,14 +132,26 @@ jobs:
       - name: Build Docker image
         run: docker build -t "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.value }}" . -f docker/multiplexer.Dockerfile
 
-      - name: Save Docker image as artifact
-        run: docker save "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.value }}" | gzip > /tmp/e2e-image.tar.gz
+      - name: Build latency-monitor Docker image
+        run: docker build -t "ghcr.io/celestiaorg/latency-monitor:${{ steps.tag.outputs.value }}" -f docker/latency-monitor/Dockerfile .
 
-      - name: Upload Docker image artifact
+      - name: Save Docker images as artifacts
+        run: |
+          docker save "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.value }}" | gzip > /tmp/e2e-image.tar.gz
+          docker save "ghcr.io/celestiaorg/latency-monitor:${{ steps.tag.outputs.value }}" | gzip > /tmp/latency-monitor-image.tar.gz
+
+      - name: Upload celestia-app Docker image artifact
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
         with:
           name: e2e-image
           path: /tmp/e2e-image.tar.gz
+          retention-days: 1
+
+      - name: Upload latency-monitor Docker image artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+        with:
+          name: latency-monitor-image
+          path: /tmp/latency-monitor-image.tar.gz
           retention-days: 1
 
     outputs:
@@ -174,6 +186,8 @@ jobs:
             entrypoint: TestHyperlaneTestSuite
           - testcase: TestHyperlaneZKIsmStateMembership
             entrypoint: TestHyperlaneTestSuite
+          - testcase: TestStress8MBBlobs
+            needs_latency_monitor: true
 
     steps:
       - name: Checkout code
@@ -192,6 +206,17 @@ jobs:
 
       - name: Load Docker image
         run: docker load < /tmp/e2e-image.tar.gz
+
+      - name: Download latency-monitor image artifact
+        if: matrix.needs_latency_monitor
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 #v7.0.0
+        with:
+          name: latency-monitor-image
+          path: /tmp
+
+      - name: Load latency-monitor Docker image
+        if: matrix.needs_latency_monitor
+        run: docker load < /tmp/latency-monitor-image.tar.gz
 
       - name: Run E2E test
         env:

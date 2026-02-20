@@ -6,7 +6,7 @@ VERSION := $(shell \
 	fi \
 )
 COMMIT := $(shell git rev-parse --short HEAD)
-CELESTIA_TAG := $(shell git rev-parse --short=8 HEAD)
+CELESTIA_TAG :=72bcd39
 export CELESTIA_TAG
 DOCKER := $(shell which docker)
 PROJECTNAME=$(shell basename "$(PWD)")
@@ -359,6 +359,11 @@ txsim-build:
 txsim-build-docker:
 	docker build -t ghcr.io/celestiaorg/txsim -f docker/txsim/Dockerfile  .
 .PHONY: txsim-build-docker
+
+## latency-monitor-build-docker: Build the latency monitor Docker image. Requires Docker.
+latency-monitor-build-docker:
+	docker build -t ghcr.io/celestiaorg/latency-monitor:$(CELESTIA_TAG) -f docker/latency-monitor/Dockerfile .
+.PHONY: latency-monitor-build-docker
 
 ## build-talis-bins: Build celestia-appd, txsim, and Go latency-monitor binaries for talis VMs (ubuntu 22.04 LTS)
 build-talis-bins:
