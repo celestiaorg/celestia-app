@@ -81,12 +81,19 @@ func StartGRPCServer(logger log.Logger, app srvtypes.Application, appCfg *srvcon
 		grpcLogger = log.NewLogger(os.Stdout)
 	}
 
+	errCh := make(chan error, 1)
 	go func() {
-		// StartGRPCServer is a blocking function, we need to run it in a go routine.
-		if err := srvgrpc.StartGRPCServer(cctx.goContext, grpcLogger, appCfg.GRPC, grpcSrv); err != nil {
-			panic(err)
-		}
+		// StartGRPCServer is a blocking function, we need to run it in a goroutine.
+		errCh <- srvgrpc.StartGRPCServer(cctx.goContext, grpcLogger, appCfg.GRPC, grpcSrv)
 	}()
+
+	// Give the server a moment to fail fast on port conflicts before proceeding.
+	select {
+	case err := <-errCh:
+		return nil, Context{}, emptycleanup, err
+	case <-time.After(500 * time.Millisecond):
+		// assume server started successfully (same pattern as StartAPIServer)
+	}
 
 	nodeGRPCAddr := strings.Replace(appCfg.GRPC.Address, "0.0.0.0", "localhost", 1)
 	conn, err := grpc.NewClient(
