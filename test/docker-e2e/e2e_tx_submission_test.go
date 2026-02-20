@@ -19,10 +19,10 @@ const (
 	minSuccessRate = 0.999 // 99.9%
 )
 
-func (s *CelestiaTestSuite) TestStress8MBBlobs() {
+func (s *CelestiaTestSuite) TestTxSubmission() {
 	t := s.T()
 	if testing.Short() {
-		t.Skip("skipping stress test in short mode")
+		t.Skip("skipping tx submission test in short mode")
 	}
 
 	ctx := context.Background()

@@ -1,11 +1,11 @@
-name: stress-test
+name: tx-submission-test
 
 on:
   workflow_dispatch:
   pull_request:
 
 jobs:
-  stress-test:
+  tx-submission-test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -40,8 +40,8 @@ jobs:
           docker tag "ghcr.io/celestiaorg/latency-monitor:${{ steps.tag.outputs.pull_tag }}" \
             "ghcr.io/celestiaorg/latency-monitor:${{ steps.tag.outputs.test_tag }}"
 
-      - name: Run stress test
+      - name: Run tx submission test
         env:
           CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
           CELESTIA_TAG: ${{ steps.tag.outputs.test_tag }}
-        run: make test-docker-e2e test=TestStress8MBBlobs
+        run: make test-docker-e2e test=TestTxSubmission

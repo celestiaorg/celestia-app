@@ -74,7 +74,7 @@ func (s *CelestiaTestSuite) DeployLatencyMonitor(
 		"--blob-size", strconv.Itoa(cfg.BlobSize),
 		"--blob-size-min", strconv.Itoa(cfg.MinBlobSize),
 		"--submission-delay", cfg.SubmissionDelay.String(),
-		"--namespace", "stresstest",
+		"--namespace", "test",
 		"--disable-observability",
 	}
 
