@@ -82,6 +82,11 @@ type Multiplexer struct {
 	g *errgroup.Group
 	// traceWriter is the trace writer for the multiplexer.
 	traceWriter io.WriteCloser
+	// metrics caches the telemetry.Metrics instance to prevent duplicate
+	// Prometheus collector registration when enableGRPCAndAPIServers is
+	// called more than once (e.g. during a version switch).
+	// See https://github.com/celestiaorg/celestia-app/issues/6601
+	metrics *telemetry.Metrics
 }
 
 // NewMultiplexer creates a new Multiplexer.
@@ -182,12 +187,15 @@ func (m *Multiplexer) enableGRPCAndAPIServers(app servertypes.Application) error
 		// startAPIServer starts the api server for a native app. If using an embedded app
 		// it will use that instead.
 		if m.svrCfg.API.Enable {
-			metrics, err := startTelemetry(m.svrCfg)
-			if err != nil {
-				return err
+			if m.metrics == nil {
+				metrics, err := startTelemetry(m.svrCfg)
+				if err != nil {
+					return err
+				}
+				m.metrics = metrics
 			}
 
-			if err := m.startAPIServer(grpcServer, metrics); err != nil {
+			if err := m.startAPIServer(grpcServer, m.metrics); err != nil {
 				return err
 			}
 		}

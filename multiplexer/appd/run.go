@@ -10,7 +10,9 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -54,9 +56,23 @@ func New(version string, compressedBinary []byte) (*Appd, error) {
 	return appd, nil
 }
 
+// telemetryDisableEnv returns environment variables that disable the
+// Prometheus telemetry sink in the child process. This prevents
+// "duplicate metrics collector registration attempted" errors.
+// See https://github.com/celestiaorg/celestia-app/issues/6601
+func (a *Appd) telemetryDisableEnv() []string {
+	basename := path.Base(a.path)
+	replacer := strings.NewReplacer(".", "_", "-", "_")
+	prefix := strings.ToUpper(replacer.Replace(basename))
+	return []string{
+		prefix + "_TELEMETRY_PROMETHEUS_RETENTION_TIME=0",
+	}
+}
+
 // Start starts the appd binary with the given arguments.
 func (a *Appd) Start(args ...string) error {
 	cmd := exec.Command(a.path, append([]string{"start"}, args...)...)
+	cmd.Env = append(os.Environ(), a.telemetryDisableEnv()...)
 
 	// Set up I/O
 	cmd.Stdin = a.stdin
