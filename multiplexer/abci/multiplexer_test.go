@@ -3,8 +3,43 @@ package abci
 import (
 	"testing"
 
+	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
+	"github.com/cosmos/cosmos-sdk/telemetry"
 	"github.com/stretchr/testify/require"
 )
+
+// TestDuplicateTelemetryRegistration reproduces
+// https://github.com/celestiaorg/celestia-app/issues/6601
+//
+// In multiplexer mode, both the parent process and child process (embedded
+// binary) read the same app.toml. When telemetry.enabled=true with
+// prometheus-retention-time > 0, calling telemetry.New() registers a
+// PrometheusSink on the global prometheus.DefaultRegisterer. If telemetry.New()
+// is called a second time (e.g. during a version switch when
+// enableGRPCAndAPIServers calls startTelemetry again), the second registration
+// fails with "duplicate metrics collector registration attempted" because the
+// PrometheusSink is already registered.
+func TestDuplicateTelemetryRegistration(t *testing.T) {
+	cfg := serverconfig.Config{
+		Telemetry: telemetry.Config{
+			Enabled:                 true,
+			ServiceName:             "test",
+			PrometheusRetentionTime: 60, // positive value enables Prometheus sink
+		},
+	}
+
+	// First call to startTelemetry succeeds and registers a PrometheusSink on
+	// the global prometheus.DefaultRegisterer.
+	metrics, err := startTelemetry(cfg)
+	require.NoError(t, err)
+	require.NotNil(t, metrics)
+
+	// Second call to startTelemetry fails because the PrometheusSink is
+	// already registered on the global prometheus.DefaultRegisterer.
+	_, err = startTelemetry(cfg)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "duplicate metrics collector registration attempted")
+}
 
 func TestOpenTraceWriter(t *testing.T) {
 	t.Run("openTraceWriter with empty file does not error", func(t *testing.T) {
