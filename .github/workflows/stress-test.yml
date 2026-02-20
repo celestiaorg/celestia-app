@@ -10,6 +10,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
@@ -18,16 +20,24 @@ jobs:
 
       - name: Generate image tag
         id: tag
-        run: echo "value=$(echo $GITHUB_SHA | cut -c1-8)" >> $GITHUB_OUTPUT
+        run: |
+          # Use the merge-base with main (latest ancestor with a published image)
+          MAIN_SHA=$(git rev-parse --short=7 origin/main)
+          echo "pull_tag=${MAIN_SHA}" >> $GITHUB_OUTPUT
+          # Tag used by the test (8-char SHA matching Makefile convention)
+          echo "test_tag=$(echo $GITHUB_SHA | cut -c1-8)" >> $GITHUB_OUTPUT
 
-      - name: Build celestia-app Docker image
-        run: docker build -t "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.value }}" . -f docker/multiplexer.Dockerfile
+      - name: Pull celestia-app image from GHCR
+        run: |
+          docker pull "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.pull_tag }}"
+          docker tag "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.pull_tag }}" \
+            "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.test_tag }}"
 
       - name: Build latency-monitor Docker image
-        run: docker build -t "ghcr.io/celestiaorg/latency-monitor:${{ steps.tag.outputs.value }}" -f docker/latency-monitor/Dockerfile .
+        run: docker build -t "ghcr.io/celestiaorg/latency-monitor:${{ steps.tag.outputs.test_tag }}" -f docker/latency-monitor/Dockerfile .
 
       - name: Run stress test
         env:
           CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
-          CELESTIA_TAG: ${{ steps.tag.outputs.value }}
+          CELESTIA_TAG: ${{ steps.tag.outputs.test_tag }}
         run: make test-docker-e2e test=TestStress8MBBlobs
