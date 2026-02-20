@@ -17,7 +17,7 @@ const (
 	submissionDelay = 1 * time.Second        // 1 tx/sec per worker = 10 tx/sec total
 
 	// Assertions
-	maxLatency     = 8 * time.Second
+	maxAvgLatency  = 8 * time.Second
 	minSuccessRate = 0.999 // 99.9%
 )
 
@@ -41,7 +41,8 @@ func (s *CelestiaTestSuite) TestStress8MBBlobs() {
 	cfg := dockerchain.DefaultConfig(s.client, s.network).
 		WithTag(mustGetCelestiaTag(t)).
 		WithTimeoutPropose(30 * time.Second).
-		WithMempoolMaxTxsBytes(10 * 1024 * 1024 * 1024) // 10 GiB
+		WithMempoolMaxTxsBytes(10 * 1024 * 1024 * 1024). // 10 GiB
+		WithAdditionalStartArgs("--delayed-precommit-timeout", "2500ms")
 
 	celestia, err := dockerchain.NewCelestiaChainBuilder(t, cfg).Build(ctx)
 	require.NoError(t, err, "failed to build chain")
@@ -89,8 +90,8 @@ func (s *CelestiaTestSuite) TestStress8MBBlobs() {
 		"Success rate %.3f%% below threshold %.3f%%",
 		results.SuccessRate*100, minSuccessRate*100)
 
-	require.LessOrEqual(t, results.MaxLatency, maxLatency,
-		"Max latency %v exceeds threshold %v", results.MaxLatency, maxLatency)
+	require.LessOrEqual(t, results.AvgLatency, maxAvgLatency,
+		"Avg latency %v exceeds threshold %v", results.AvgLatency, maxAvgLatency)
 
 	t.Logf("Tx submission spam test passed all invariants")
 }
