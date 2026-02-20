@@ -53,7 +53,7 @@ func NewCelestiaChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.Chai
 	// Create the wallet with all required fields
 	faucetWallet := tastoratypes.NewWallet(addr, addr.String(), "celestia", records[0].Name)
 
-	// Prepare start args: always include --force-no-bbr, plus any additional args from config
+	// always include --force-no-bbr plus any additional args from config
 	startArgs := append([]string{"--force-no-bbr"}, cfg.AdditionalStartArgs...)
 
 	return tastoradockertypes.NewChainBuilder(t).
@@ -82,11 +82,7 @@ func getPostInitModifications(gasPrices string, chainCfg *Config) []func(context
 			cfg.P2P.AllowDuplicateIP = true
 			cfg.P2P.AddrBookStrict = false
 			cfg.Storage.DiscardABCIResponses = false
-
 			timeoutCommit := 2 * time.Second
-			if chainCfg.TimeoutCommit > 0 {
-				timeoutCommit = chainCfg.TimeoutCommit
-			}
 			cfg.Consensus.TimeoutCommit = timeoutCommit
 
 			timeoutPropose := 2 * time.Second
@@ -94,10 +90,6 @@ func getPostInitModifications(gasPrices string, chainCfg *Config) []func(context
 				timeoutPropose = chainCfg.TimeoutPropose
 			}
 			cfg.Consensus.TimeoutPropose = timeoutPropose
-
-			if chainCfg.MempoolMaxTxsBytes > 0 {
-				cfg.Mempool.MaxTxsBytes = chainCfg.MempoolMaxTxsBytes
-			}
 
 			cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
 			cfg.RPC.GRPCListenAddress = "tcp://0.0.0.0:9099"

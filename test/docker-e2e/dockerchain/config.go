@@ -27,9 +27,7 @@ type Config struct {
 	DockerClient        tastoratypes.TastoraDockerClient
 	DockerNetworkID     string
 	AdditionalStartArgs []string
-	TimeoutPropose      time.Duration // 0 means use default (2s)
-	TimeoutCommit       time.Duration // 0 means use default (2s)
-	MempoolMaxTxsBytes  int64         // 0 means use app default (400 MiB)
+	TimeoutPropose      time.Duration // If not set the default is used
 }
 
 // DefaultConfig returns a configured instance of Config with a custom genesis and validators.
@@ -94,18 +92,6 @@ func (c *Config) WithAdditionalStartArgs(args ...string) *Config {
 // WithTimeoutPropose sets the consensus proposal timeout.
 func (c *Config) WithTimeoutPropose(d time.Duration) *Config {
 	c.TimeoutPropose = d
-	return c
-}
-
-// WithTimeoutCommit sets the consensus commit timeout (block time).
-func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
-	c.TimeoutCommit = d
-	return c
-}
-
-// WithMempoolMaxTxsBytes sets the maximum total size of transactions in the mempool.
-func (c *Config) WithMempoolMaxTxsBytes(n int64) *Config {
-	c.MempoolMaxTxsBytes = n
 	return c
 }
 

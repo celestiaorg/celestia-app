@@ -2,7 +2,6 @@ package docker_e2e
 
 import (
 	"context"
-	"testing"
 	"time"
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
@@ -21,9 +20,6 @@ const (
 
 func (s *CelestiaTestSuite) TestTxSubmission() {
 	t := s.T()
-	if testing.Short() {
-		t.Skip("skipping tx submission test in short mode")
-	}
 
 	ctx := context.Background()
 
@@ -33,7 +29,6 @@ func (s *CelestiaTestSuite) TestTxSubmission() {
 	cfg := dockerchain.DefaultConfig(s.client, s.network).
 		WithTag(dockerchain.GetCelestiaTag()).
 		WithTimeoutPropose(30*time.Second).
-		WithMempoolMaxTxsBytes(2*1024*1024*1024). // 2 GiB
 		WithAdditionalStartArgs("--delayed-precommit-timeout", "2500ms")
 
 	celestia, err := dockerchain.NewCelestiaChainBuilder(t, cfg).Build(ctx)
@@ -56,8 +51,8 @@ func (s *CelestiaTestSuite) TestTxSubmission() {
 
 	// Deploy latency-monitor container
 	container, err := s.DeployLatencyMonitor(ctx, celestia, LatencyMonitorConfig{
-		BlobSize:    blobSize,
-		MinBlobSize: blobSize,
+		BlobSize:        blobSize,
+		MinBlobSize:     blobSize,
 		SubmissionDelay: submissionDelay,
 	})
 	require.NoError(t, err, "failed to deploy latency-monitor")
@@ -83,6 +78,5 @@ func (s *CelestiaTestSuite) TestTxSubmission() {
 	require.LessOrEqual(t, results.AvgLatency, maxAvgLatency,
 		"Avg latency %v exceeds threshold %v", results.AvgLatency, maxAvgLatency)
 
-	t.Logf("Tx submission spam test passed all invariants")
+	t.Logf("Tx submission test passed all invariants")
 }
-
