@@ -1,8 +1,7 @@
 # Download pre-built celestia-appd from the v6.4.10-mocha release.
 # https://github.com/celestiaorg/celestia-app/releases/tag/v6.4.10-mocha
 #
-# Uses the multiplexer binary (not standalone) to reproduce
-# https://github.com/celestiaorg/celestia-app/issues/6601
+# Uses the multiplexer binary (not standalone).
 
 FROM docker.io/debian:trixie-slim
 

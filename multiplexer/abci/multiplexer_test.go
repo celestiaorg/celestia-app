@@ -8,8 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestInitTelemetryIsIdempotent verifies the fix for
-// https://github.com/celestiaorg/celestia-app/issues/6601
+// TestInitTelemetryIsIdempotent verifies that initTelemetry is idempotent.
 //
 // When telemetry.enabled=true with prometheus-retention-time > 0,
 // telemetry.New() registers a PrometheusSink on the global

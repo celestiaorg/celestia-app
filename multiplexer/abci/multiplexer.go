@@ -85,7 +85,6 @@ type Multiplexer struct {
 	// metrics caches the telemetry.Metrics instance to prevent duplicate
 	// Prometheus collector registration when enableGRPCAndAPIServers is
 	// called more than once (e.g. during a version switch).
-	// See https://github.com/celestiaorg/celestia-app/issues/6601
 	metrics *telemetry.Metrics
 }
 
@@ -632,7 +631,6 @@ func (m *Multiplexer) stopTraceWriter() error {
 // metrics collector registration attempted" errors when
 // enableGRPCAndAPIServers is called more than once (e.g. during a version
 // switch).
-// See https://github.com/celestiaorg/celestia-app/issues/6601
 func (m *Multiplexer) initTelemetry() error {
 	if m.metrics != nil {
 		return nil

@@ -59,7 +59,6 @@ func New(version string, compressedBinary []byte) (*Appd, error) {
 // telemetryDisableEnv returns environment variables that disable the
 // Prometheus telemetry sink in the child process. This prevents
 // "duplicate metrics collector registration attempted" errors.
-// See https://github.com/celestiaorg/celestia-app/issues/6601
 func (a *Appd) telemetryDisableEnv() []string {
 	basename := path.Base(a.path)
 	replacer := strings.NewReplacer(".", "_", "-", "_")
