@@ -1,10 +1,15 @@
 package fibre_test
 
 import (
+	"bytes"
 	"context"
+	cryptorand "crypto/rand"
 	"fmt"
 	"log/slog"
+	"math/rand"
 	"net"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre"
@@ -18,12 +23,205 @@ import (
 	"google.golang.org/grpc"
 )
 
+// TestClientServerUploadDownload validates end-to-end download flow with various blob sizes and configurations.
+func TestClientServerUploadDownload(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping TestClientServerUploadDownload in short mode")
+	}
+
+	tests := []struct {
+		name           string
+		numValidators  int
+		numClients     int
+		blobsPerClient int
+		blobSize       int
+		duplicate      int // upload same blob multiple times at different heights
+	}{
+		{
+			name:           "MaxBlobSize",
+			numValidators:  2,
+			numClients:     1,
+			blobsPerClient: 1,
+			blobSize:       fibre.DefaultBlobConfigV0().MaxDataSize,
+			duplicate:      2,
+		},
+		{
+			name:           "MinBlobSize",
+			numValidators:  3,
+			numClients:     2,
+			blobsPerClient: 1,
+			blobSize:       1,
+			duplicate:      1,
+		},
+		{
+			name:           "ManyClientsSingleServerManyBlobs",
+			numValidators:  1,
+			numClients:     10,
+			blobsPerClient: 5,
+			blobSize:       128 * 1024, // 128 KiB
+			duplicate:      2,
+		},
+		{
+			name:           "ManyClientsManyServersManyBlobs",
+			numValidators:  10,
+			numClients:     10,
+			blobsPerClient: 5,
+			blobSize:       128 * 1024, // 128 KiB
+			duplicate:      2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			env := makeTestEnv(t, tt.numValidators, tt.numClients, nil, nil)
+			defer env.Close()
+
+			totalBlobs := tt.numClients * tt.blobsPerClient
+			allCommitments := make([]fibre.Commitment, totalBlobs)
+			allPromiseHashes := make([][][]byte, totalBlobs)
+			allData := make([][]byte, totalBlobs)
+
+			// upload blobs
+			err := env.ForEachClient(t.Context(), func(ctx context.Context, client *fibre.Client, clientIdx int) error {
+				for blobIdx := range tt.blobsPerClient {
+					data := make([]byte, tt.blobSize)
+					if _, err := cryptorand.Read(data); err != nil {
+						return fmt.Errorf("generating random data for blob %d: %w", blobIdx, err)
+					}
+
+					blob, err := fibre.NewBlob(data, fibre.DefaultBlobConfigV0())
+					if err != nil {
+						return fmt.Errorf("creating blob %d: %w", blobIdx, err)
+					}
+
+					slotIdx := clientIdx*tt.blobsPerClient + blobIdx
+					allPromiseHashes[slotIdx] = make([][]byte, 0, tt.duplicate)
+
+					// upload blob (possibly multiple times at different heights)
+					for uploadIdx := range tt.duplicate {
+						if tt.duplicate > 1 {
+							env.SetHeight(uint64(100 + uploadIdx*100))
+						}
+						signedPromise, err := client.Upload(ctx, testNamespace, blob)
+						if err != nil {
+							return fmt.Errorf("uploading blob %d (upload %d): %w", blobIdx, uploadIdx, err)
+						}
+						// store all promise hashes for this blob
+						promiseHash, err := signedPromise.Hash()
+						if err != nil {
+							return fmt.Errorf("getting promise hash for blob %d: %w", blobIdx, err)
+						}
+						allPromiseHashes[slotIdx] = append(allPromiseHashes[slotIdx], promiseHash)
+					}
+
+					allCommitments[slotIdx] = blob.Commitment()
+					allData[slotIdx] = data
+				}
+
+				client.Await() // wait for all background uploads to complete
+				return nil
+			})
+			require.NoError(t, err)
+
+			// verify storage: all stores should have valid data and payment promises
+			// collect row indices per store for duplicate detection (map[storeIdx]map[commitment][]rowIndex)
+			rowIndicesByStore := make([]map[fibre.Commitment][]uint32, len(env.stores))
+			for i := range rowIndicesByStore {
+				rowIndicesByStore[i] = make(map[fibre.Commitment][]uint32)
+			}
+			var rowIndicesMu sync.Mutex
+
+			err = env.ForEachStore(t.Context(), func(ctx context.Context, store *fibre.Store, storeIdx int) error {
+				for i, commitment := range allCommitments {
+					rows, err := store.Get(ctx, commitment)
+					if err != nil {
+						return fmt.Errorf("store %d missing rows for commitment %s: %w", storeIdx, commitment.String(), err)
+					}
+
+					// verify rows are not empty
+					if len(rows.Rows) == 0 {
+						return fmt.Errorf("store %d has empty rows for commitment %s", storeIdx, commitment.String())
+					}
+
+					// verify RLC root is set
+					if rows.GetRoot() == nil || len(rows.GetRoot()) != 32 {
+						return fmt.Errorf("store %d has invalid RLC root for commitment %s", storeIdx, commitment.String())
+					}
+
+					// collect row indices for duplicate detection
+					indices := make([]uint32, len(rows.Rows))
+					for j, row := range rows.Rows {
+						indices[j] = row.Index
+					}
+					rowIndicesMu.Lock()
+					rowIndicesByStore[storeIdx][commitment] = indices
+					rowIndicesMu.Unlock()
+
+					// verify all payment promises are stored (one per duplicate upload)
+					for j, promiseHash := range allPromiseHashes[i] {
+						promise, err := store.GetPaymentPromise(ctx, promiseHash)
+						if err != nil {
+							return fmt.Errorf("store %d missing payment promise %d for hash %x: %w", storeIdx, j, promiseHash, err)
+						}
+
+						// verify payment promise commitment matches
+						if !promise.Commitment.Equals(commitment) {
+							return fmt.Errorf("store %d payment promise %d commitment mismatch: got %s, expected %s",
+								storeIdx, j, promise.Commitment.String(), commitment.String())
+						}
+					}
+				}
+				return nil
+			})
+			require.NoError(t, err)
+
+			// verify no duplicate rows across stores (sequential check after concurrent collection)
+			for _, commitment := range allCommitments {
+				seen := make(map[uint32]int) // row index -> store index
+				for storeIdx, storeRows := range rowIndicesByStore {
+					for _, rowIdx := range storeRows[commitment] {
+						if existingStore, exists := seen[rowIdx]; exists {
+							t.Fatalf("duplicate row index %d for commitment %s: found in store %d and store %d",
+								rowIdx, commitment.String(), existingStore, storeIdx)
+						}
+						seen[rowIdx] = storeIdx
+					}
+				}
+			}
+
+			// download and validate
+			err = env.ForEachClient(t.Context(), func(ctx context.Context, client *fibre.Client, clientIdx int) error {
+				for blobIdx := range tt.blobsPerClient {
+					slotIdx := clientIdx*tt.blobsPerClient + blobIdx
+					commitment := allCommitments[slotIdx]
+					originalData := allData[slotIdx]
+
+					blob, err := client.Download(ctx, commitment)
+					if err != nil {
+						return fmt.Errorf("downloading blob %s: %w", commitment.String(), err)
+					}
+					if !bytes.Equal(blob.Data(), originalData) {
+						return fmt.Errorf("data mismatch for %s: downloaded %d bytes, expected %d bytes",
+							commitment.String(), len(blob.Data()), len(originalData))
+					}
+					if !blob.Commitment().Equals(commitment) {
+						return fmt.Errorf("commitment mismatch: got %s, expected %s",
+							blob.Commitment().String(), commitment.String())
+					}
+				}
+				return nil
+			})
+			require.NoError(t, err)
+		})
+	}
+}
+
 // testEnv holds the test environment with servers, clients, and validator set
 type testEnv struct {
-	valSet      validator.Set
-	grpcServers []*grpc.Server
-	clients     []*fibre.Client
-	stores      []*fibre.Store
+	valSetGetter *shufflingValidatorSetGetter
+	grpcServers  []*grpc.Server
+	clients      []*fibre.Client
+	stores       []*fibre.Store
 }
 
 func (e *testEnv) Close() {
@@ -38,6 +236,12 @@ func (e *testEnv) Close() {
 			_ = store.Close()
 		}
 	}
+}
+
+// SetHeight changes the current height of the validator set getter.
+// Different heights produce deterministically shuffled validator orderings.
+func (e *testEnv) SetHeight(height uint64) {
+	e.valSetGetter.SetHeight(height)
 }
 
 // ForEachClient runs the given function for each client concurrently and waits for completion.
@@ -68,7 +272,7 @@ func (e *testEnv) ForEachStore(ctx context.Context, fn func(context.Context, *fi
 	return g.Wait()
 }
 
-// makeTestEnv creates a complete test environment with validators, servers, and clients
+// makeTestEnv creates a complete test environment with validators, servers, and clients.
 func makeTestEnv(
 	t *testing.T,
 	numValidators int,
@@ -79,14 +283,12 @@ func makeTestEnv(
 	t.Helper()
 
 	validators, privKeys := makeTestValidators(t, numValidators)
-	valSet := validator.Set{
-		ValidatorSet: core.NewValidatorSet(validators),
-		Height:       100,
-	}
+
+	valSetGetter := newShufflingValidatorSetGetter(validators, 100)
 	testParams := fibre.DefaultProtocolParams
 	testParams.MaxValidatorCount = numValidators
 
-	grpcServers, stores, addresses := makeTestServers(t, validators, privKeys, valSet, testParams, modifyServerConfig)
+	grpcServers, stores, addresses := makeTestServers(t, validators, privKeys, testParams, valSetGetter, modifyServerConfig)
 	clients := make([]*fibre.Client, numClients)
 	for i := range numClients {
 		clientCfg := fibre.NewClientConfigFromParams(testParams)
@@ -100,16 +302,16 @@ func makeTestEnv(
 		}
 		clientCfg.NewClientFn = grpcfibre.DefaultNewClientFn(&testHostRegistry{addresses: addresses}, clientCfg.MaxMessageSize)
 
-		client, err := fibre.NewClient(nil, makeTestKeyring(t), &mockValidatorSetGetter{set: valSet}, &mockHostRegistry{}, clientCfg)
+		client, err := fibre.NewClient(nil, makeTestKeyring(t), valSetGetter, &mockHostRegistry{}, clientCfg)
 		require.NoError(t, err)
 		clients[i] = client
 	}
 
 	return &testEnv{
-		valSet:      valSet,
-		grpcServers: grpcServers,
-		clients:     clients,
-		stores:      stores,
+		valSetGetter: valSetGetter,
+		grpcServers:  grpcServers,
+		clients:      clients,
+		stores:       stores,
 	}
 }
 
@@ -118,8 +320,8 @@ func makeTestServers(
 	t *testing.T,
 	validators []*core.Validator,
 	privKeys []cmted25519.PrivKey,
-	valSet validator.Set,
 	params fibre.ProtocolParams,
+	valSetGetter validator.SetGetter,
 	modifyServerConfig func(*fibre.ServerConfig),
 ) ([]*grpc.Server, []*fibre.Store, map[string]string) {
 	t.Helper()
@@ -133,6 +335,7 @@ func makeTestServers(
 		require.NoError(t, err)
 
 		serverCfg := fibre.NewServerConfigFromParams(params)
+		serverCfg.Path = t.TempDir()
 
 		// create logger with unique server identifier
 		serverCfg.Log = slog.Default().With(
@@ -146,10 +349,10 @@ func makeTestServers(
 			modifyServerConfig(&serverCfg)
 		}
 
-		fibreServer, err := fibre.NewInMemoryServer(
+		fibreServer, err := fibre.NewServer(
 			newTestPrivValidator(privKeys[i]),
 			&mockQueryClient{},
-			&mockValidatorSetGetter{set: valSet},
+			valSetGetter,
 			serverCfg,
 		)
 		require.NoError(t, err)
@@ -182,4 +385,44 @@ func (r *testHostRegistry) GetHost(ctx context.Context, val *core.Validator) (va
 		return "", fmt.Errorf("no address for validator %s", val.Address.String())
 	}
 	return validator.Host(addr), nil
+}
+
+// shufflingValidatorSetGetter returns deterministically shuffled validator sets based on height.
+// Each height produces a different but deterministic ordering using height as the random seed.
+type shufflingValidatorSetGetter struct {
+	validators []*core.Validator
+	height     atomic.Uint64
+}
+
+func newShufflingValidatorSetGetter(validators []*core.Validator, initialHeight uint64) *shufflingValidatorSetGetter {
+	g := &shufflingValidatorSetGetter{validators: validators}
+	g.height.Store(initialHeight)
+	return g
+}
+
+func (g *shufflingValidatorSetGetter) Head(ctx context.Context) (validator.Set, error) {
+	return g.setForHeight(g.height.Load()), nil
+}
+
+func (g *shufflingValidatorSetGetter) GetByHeight(ctx context.Context, height uint64) (validator.Set, error) {
+	return g.setForHeight(height), nil
+}
+
+func (g *shufflingValidatorSetGetter) SetHeight(height uint64) {
+	g.height.Store(height)
+}
+
+func (g *shufflingValidatorSetGetter) setForHeight(height uint64) validator.Set {
+	shuffled := make([]*core.Validator, len(g.validators))
+	copy(shuffled, g.validators)
+
+	r := rand.New(rand.NewSource(int64(height)))
+	r.Shuffle(len(shuffled), func(i, j int) {
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+	})
+
+	return validator.Set{
+		ValidatorSet: core.NewValidatorSet(shuffled),
+		Height:       height,
+	}
 }
