@@ -5,9 +5,12 @@ services:
   celestia-appd:
     container_name: celestia-appd
     build:
-      context: ./celestia
+      context: ../..
+      dockerfile: docker/multiplexer.Dockerfile
+    entrypoint: ["/bin/bash", "/opt/mocha-entrypoint.sh"]
     volumes:
       - celestia-data:/home/celestia/.celestia-app
+      - ./celestia/entrypoint.sh:/opt/mocha-entrypoint.sh:ro
     ports:
       - "26656:26656"
       - "26657:26657"
