@@ -3,11 +3,12 @@ package docker_e2e
 import (
 	"context"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
-	"sort"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -20,29 +21,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const latencyMonitorImage = "ghcr.io/celestiaorg/latency-monitor"
+
+// CSV column names produced by the latency-monitor tool.
 const (
-	latencyMonitorImage = "ghcr.io/celestiaorg/latency-monitor"
+	colLatencyMs = "Latency (ms)"
+	colFailed    = "Failed"
 )
 
-// LatencyMonitorConfig configures the latency monitor process
 type LatencyMonitorConfig struct {
-	BlobSize    int           // Max blob size in bytes
-	MinBlobSize int           // Min blob size in bytes
-	Delay       time.Duration // Submission delay
+	BlobSize        int
+	MinBlobSize     int
+	SubmissionDelay time.Duration
 }
 
-// StressResult contains aggregated stress test metrics
 type LatencyMonitorResult struct {
 	TotalTxs     int
 	SuccessCount int
 	FailureCount int
 	MaxLatency   time.Duration
 	AvgLatency   time.Duration
-	P99Latency   time.Duration
 	SuccessRate  float64
 }
 
-// DeployLatencyMonitor starts a latency-monitor container
+// DeployLatencyMonitor starts a latency monitor container connected to the chain.
 func (s *CelestiaTestSuite) DeployLatencyMonitor(
 	ctx context.Context,
 	chain tastoratypes.Chain,
@@ -55,27 +57,12 @@ func (s *CelestiaTestSuite) DeployLatencyMonitor(
 		return nil, err
 	}
 
-	// Get chain tag to match latency-monitor version
 	tag, err := dockerchain.GetCelestiaTagStrict()
 	if err != nil {
 		return nil, err
 	}
 
-	// Create job container for latency-monitor
-	image := tastoracontainertypes.NewJob(
-		s.logger,
-		s.client,
-		networkName,
-		t.Name(),
-		latencyMonitorImage,
-		tag,
-	)
-
-	opts := tastoracontainertypes.Options{
-		User: "0:0",
-		// Mount chain's home directory for keyring access
-		Binds: []string{chain.GetVolumeName() + ":/celestia-home"},
-	}
+	image := tastoracontainertypes.NewJob(s.logger, s.client, networkName, t.Name(), latencyMonitorImage, tag)
 
 	networkInfo, err := chain.GetNodes()[0].GetNetworkInfo(ctx)
 	require.NoError(t, err, "failed to get network info")
@@ -84,17 +71,19 @@ func (s *CelestiaTestSuite) DeployLatencyMonitor(
 		"/bin/latency-monitor",
 		"--grpc-endpoint", networkInfo.Internal.Hostname + ":9090",
 		"--keyring-dir", "/celestia-home",
-		// Don't specify account - will use first account from keyring alphabetically
 		"--blob-size", strconv.Itoa(cfg.BlobSize),
 		"--blob-size-min", strconv.Itoa(cfg.MinBlobSize),
-		"--submission-delay", cfg.Delay.String(),
+		"--submission-delay", cfg.SubmissionDelay.String(),
 		"--namespace", "stresstest",
-		"--disable-observability", // We'll parse CSV instead
+		"--disable-observability",
 	}
 
 	t.Logf("Starting latency-monitor with args: %v", args)
 
-	container, err := image.Start(ctx, args, opts)
+	container, err := image.Start(ctx, args, tastoracontainertypes.Options{
+		User:  "0:0",
+		Binds: []string{chain.GetVolumeName() + ":/celestia-home"},
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to start latency-monitor: %w", err)
 	}
@@ -108,113 +97,103 @@ func (s *CelestiaTestSuite) DeployLatencyMonitor(
 	return container, nil
 }
 
-// CollectLatencyResults sends SIGTERM to the latency-monitor container to
-// trigger CSV writing, waits for it to exit, then copies and parses results.
-func (s *CelestiaTestSuite) CollectLatencyResults(
-	ctx context.Context,
-	t *testing.T,
-	containerName string,
-) (*LatencyMonitorResult, error) {
-	// Send SIGTERM so the latency-monitor writes the CSV and exits gracefully.
-	// We use docker kill -s SIGTERM instead of container.Stop() because Stop
-	// may remove the container before we can docker cp the results file.
-	t.Log("Sending SIGTERM to latency-monitor...")
+// CollectLatencyResults sends SIGTERM to trigger CSV writing, waits for exit,
+// then copies and parses the results file.
+func (s *CelestiaTestSuite) CollectLatencyResults(ctx context.Context, t *testing.T, containerName string) (*LatencyMonitorResult, error) {
+	// Signal the monitor to write CSV and exit
 	killCmd := exec.CommandContext(ctx, "docker", "kill", "-s", "SIGTERM", containerName)
 	if output, err := killCmd.CombinedOutput(); err != nil {
 		t.Logf("Warning: docker kill failed: %v (output: %s)", err, output)
 	}
 
-	// Wait for the container to exit (up to 30s)
-	t.Log("Waiting for latency-monitor to exit...")
 	waitCmd := exec.CommandContext(ctx, "docker", "wait", containerName)
 	if output, err := waitCmd.CombinedOutput(); err != nil {
 		t.Logf("Warning: docker wait failed: %v (output: %s)", err, output)
 	}
 
-	// Copy latency_results.csv from the stopped container
-	tmpFile := fmt.Sprintf("/tmp/latency_results_%d.csv", time.Now().Unix())
+	// Copy results CSV from the stopped container
+	tmpFile := filepath.Join(t.TempDir(), "latency_results.csv")
 	srcPath := fmt.Sprintf("%s:/home/celestia/.celestia-app/latency_results.csv", containerName)
 
-	t.Logf("Copying results from container %s to %s", containerName, tmpFile)
 	cmd := exec.CommandContext(ctx, "docker", "cp", srcPath, tmpFile)
 	if output, err := cmd.CombinedOutput(); err != nil {
-		// Try to get container logs for debugging
 		logsCmd := exec.CommandContext(ctx, "docker", "logs", "--tail", "50", containerName)
 		if logsOutput, logsErr := logsCmd.CombinedOutput(); logsErr == nil {
 			t.Logf("Latency-monitor logs:\n%s", string(logsOutput))
 		}
 		return nil, fmt.Errorf("failed to copy results file: %w\nOutput: %s", err, output)
 	}
-	defer os.Remove(tmpFile)
 
-	// Open and parse the CSV file
 	file, err := os.Open(tmpFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open results file: %w", err)
 	}
 	defer file.Close()
 
-	result, err := s.parseLatencyCSV(file)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse CSV: %w", err)
-	}
-
-	t.Logf("Collected results from container: %d total txs", result.TotalTxs)
-	return result, nil
+	return parseLatencyCSV(file)
 }
 
-// parseLatencyCSV parses the CSV output from latency-monitor
-func (s *CelestiaTestSuite) parseLatencyCSV(r io.Reader) (*LatencyMonitorResult, error) {
+// parseLatencyCSV parses the CSV output from latency-monitor into a result.
+func parseLatencyCSV(r io.Reader) (*LatencyMonitorResult, error) {
 	csvReader := csv.NewReader(r)
 
-	// Read header
 	header, err := csvReader.Read()
 	if err != nil {
 		return nil, fmt.Errorf("reading CSV header: %w", err)
 	}
 
-	// Expected header: Submit Time, Commit Time, Latency (ms), Tx Hash, Height, Code, Failed, Error
-	if len(header) < 7 {
-		return nil, fmt.Errorf("invalid CSV header: %v", header)
+	colIndex := make(map[string]int, len(header))
+	for i, name := range header {
+		colIndex[name] = i
+	}
+
+	latencyIdx, ok := colIndex[colLatencyMs]
+	if !ok {
+		return nil, fmt.Errorf("missing required column %q in header: %v", colLatencyMs, header)
+	}
+	failedIdx, ok := colIndex[colFailed]
+	if !ok {
+		return nil, fmt.Errorf("missing required column %q in header: %v", colFailed, header)
 	}
 
 	var (
-		latencies    []time.Duration
+		totalLatency time.Duration
+		maxLatency   time.Duration
 		successCount int
 		failureCount int
+		latencyCount int
 	)
 
-	// Read data rows
 	for {
 		record, err := csvReader.Read()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
 			return nil, fmt.Errorf("reading CSV row: %w", err)
 		}
 
-		// Parse "Failed" column (index 6)
-		failed := strings.TrimSpace(record[6]) == "true"
-
-		if failed {
+		if strings.TrimSpace(record[failedIdx]) == "true" {
 			failureCount++
 			continue
 		}
-
 		successCount++
 
-		// Parse "Latency (ms)" column (index 2)
-		if record[2] == "" {
-			continue // Skip if no latency recorded
+		raw := record[latencyIdx]
+		if raw == "" {
+			continue
 		}
-
-		latencyMs, err := strconv.ParseFloat(record[2], 64)
+		latencyMs, err := strconv.ParseFloat(raw, 64)
 		if err != nil {
-			return nil, fmt.Errorf("parsing latency: %w", err)
+			return nil, fmt.Errorf("parsing latency %q: %w", raw, err)
 		}
 
-		latencies = append(latencies, time.Duration(latencyMs)*time.Millisecond)
+		d := time.Duration(latencyMs) * time.Millisecond
+		totalLatency += d
+		latencyCount++
+		if d > maxLatency {
+			maxLatency = d
+		}
 	}
 
 	totalTxs := successCount + failureCount
@@ -222,26 +201,9 @@ func (s *CelestiaTestSuite) parseLatencyCSV(r io.Reader) (*LatencyMonitorResult,
 		return nil, fmt.Errorf("no transactions recorded")
 	}
 
-	// Calculate statistics
-	sort.Slice(latencies, func(i, j int) bool {
-		return latencies[i] < latencies[j]
-	})
-
-	var maxLatency, avgLatency, p99Latency time.Duration
-	if len(latencies) > 0 {
-		maxLatency = latencies[len(latencies)-1]
-
-		var sum time.Duration
-		for _, l := range latencies {
-			sum += l
-		}
-		avgLatency = sum / time.Duration(len(latencies))
-
-		p99Index := int(float64(len(latencies)) * 0.99)
-		if p99Index >= len(latencies) {
-			p99Index = len(latencies) - 1
-		}
-		p99Latency = latencies[p99Index]
+	var avgLatency time.Duration
+	if latencyCount > 0 {
+		avgLatency = totalLatency / time.Duration(latencyCount)
 	}
 
 	return &LatencyMonitorResult{
@@ -250,7 +212,6 @@ func (s *CelestiaTestSuite) parseLatencyCSV(r io.Reader) (*LatencyMonitorResult,
 		FailureCount: failureCount,
 		MaxLatency:   maxLatency,
 		AvgLatency:   avgLatency,
-		P99Latency:   p99Latency,
 		SuccessRate:  float64(successCount) / float64(totalTxs),
 	}, nil
 }

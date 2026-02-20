@@ -6,7 +6,7 @@ VERSION := $(shell \
 	fi \
 )
 COMMIT := $(shell git rev-parse --short HEAD)
-CELESTIA_TAG ?= $(shell git rev-parse --short=8 HEAD)
+CELESTIA_TAG := $(shell git rev-parse --short=8 HEAD)
 export CELESTIA_TAG
 DOCKER := $(shell which docker)
 PROJECTNAME=$(shell basename "$(PWD)")
