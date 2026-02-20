@@ -6,7 +6,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre"
 	"github.com/celestiaorg/celestia-app-fibre/v6/x/fibre/types"
-	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/stretchr/testify/require"
 )
@@ -20,6 +19,7 @@ func TestStore(t *testing.T) {
 		{"Put_SameCommitmentSamePromise", testStorePutSameCommitmentSamePromise},
 		{"Put_SameCommitmentDifferentPromises", testStorePutSameCommitmentDifferentPromises},
 		{"Get_NotFound", testStoreGetNotFound},
+		{"Get_DeterministicOrdering", testStoreGetDeterministicOrdering},
 		{"PruneBefore_RemovesShardAndPromise", testStorePruneBeforeRemovesShardAndPromise},
 		{"PruneBefore_PreservesOtherPromiseShard", testStorePruneBeforePreservesOtherPromiseShard},
 	}
@@ -110,21 +110,11 @@ func testStorePutSameCommitmentDifferentPromises(t *testing.T, store *fibre.Stor
 	err = store.Put(ctx, promise2, shard2, promise2.CreationTimestamp)
 	require.NoError(t, err)
 
-	// get should return combined rows from both promises
+	// get returns only first shard found (to prevent unbounded message sizes)
 	gotShard, err := store.Get(ctx, commitment)
 	require.NoError(t, err)
 	require.NotNil(t, gotShard)
-	require.Len(t, gotShard.Rows, 4, "should have all 4 rows from both promises")
-
-	// verify all rows are present
-	rowIndices := make(map[uint32]bool)
-	for _, row := range gotShard.Rows {
-		rowIndices[row.Index] = true
-	}
-	require.True(t, rowIndices[0], "should have row 0")
-	require.True(t, rowIndices[1], "should have row 1")
-	require.True(t, rowIndices[2], "should have row 2")
-	require.True(t, rowIndices[3], "should have row 3")
+	require.Len(t, gotShard.Rows, 2, "should have 2 rows from first shard")
 
 	// both promises should be retrievable individually
 	hash1, err := promise1.Hash()
@@ -226,6 +216,36 @@ func testStorePruneBeforePreservesOtherPromiseShard(t *testing.T, store *fibre.S
 	require.Equal(t, uint32(2), gotShard.Rows[0].Index)
 }
 
+func testStoreGetDeterministicOrdering(t *testing.T, store *fibre.Store) {
+	ctx := t.Context()
+
+	blob := makeTestBlobV0(t, 256)
+	commitment := blob.Commitment()
+
+	// store multiple shards with different row indices
+	for i := range 5 {
+		shard := makeShardFrom(t, blob, i*2, i*2+1)
+		promise := makeTestPaymentPromise(uint64(100+i), commitment)
+		err := store.Put(ctx, promise, shard, promise.CreationTimestamp)
+		require.NoError(t, err)
+	}
+
+	// get multiple times and verify ordering is deterministic
+	var firstRowIndex uint32
+	for i := range 10 {
+		gotShard, err := store.Get(ctx, commitment)
+		require.NoError(t, err)
+		require.NotEmpty(t, gotShard.Rows)
+
+		if i == 0 {
+			firstRowIndex = gotShard.Rows[0].Index
+		} else {
+			require.Equal(t, firstRowIndex, gotShard.Rows[0].Index,
+				"query ordering should be deterministic - first row index should always be the same")
+		}
+	}
+}
+
 func makeTestStore(t *testing.T) *fibre.Store {
 	t.Helper()
 	cfg := fibre.DefaultStoreConfig()
@@ -264,7 +284,7 @@ func makeTestPaymentPromise(height uint64, commitment fibre.Commitment) *fibre.P
 	return &fibre.PaymentPromise{
 		ChainID:           "test-chain",
 		Height:            height,
-		Namespace:         share.MustNewV0Namespace([]byte("test")),
+		Namespace:         testNamespace,
 		UploadSize:        1024,
 		Commitment:        commitment,
 		CreationTimestamp: time.Date(2025, 10, 21, 15, 30, 0, 0, time.UTC),

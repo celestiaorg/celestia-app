@@ -161,6 +161,12 @@ func (c *Client) Close() error {
 		return nil
 	}
 
-	c.closeWg.Wait()
+	c.Await()
 	return c.clientCache.Close()
+}
+
+// Await waits for all ongoing [Client.Upload]/[Client.Download] operations to complete.
+// Await is idempotent and safe to call multiple times.
+func (c *Client) Await() {
+	c.closeWg.Wait()
 }

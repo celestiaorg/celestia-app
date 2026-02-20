@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre"
-	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -18,7 +17,7 @@ func makePaymentPromise(t *testing.T, privKey *secp256k1.PrivKey) *fibre.Payment
 	return &fibre.PaymentPromise{
 		ChainID:     "test-chain-1",
 		Height:      12345,
-		Namespace:   share.MustNewV0Namespace([]byte("test")),
+		Namespace:   testNamespace,
 		UploadSize:  1024,
 		BlobVersion: 0,
 		Commitment: fibre.Commitment{
