@@ -2,6 +2,9 @@ package fibre
 
 import (
 	"testing"
+
+	"github.com/celestiaorg/rsema1d"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBlobHeaderV0_EncodeToRows_DecodeFromRows(t *testing.T) {
@@ -68,4 +71,54 @@ func TestBlobHeaderV0_EncodeToRows_DecodeFromRows(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBlob_Reconstruct(t *testing.T) {
+	testData := []byte("test erasure coding reconstruction")
+	cfg := DefaultBlobConfigV0()
+
+	blob, err := NewBlob(testData, cfg)
+	require.NoError(t, err)
+
+	totalRows := cfg.OriginalRows + cfg.ParityRows
+	allRows := make([]*rsema1d.RowInclusionProof, totalRows)
+	for i := 0; i < totalRows; i++ {
+		row, err := blob.Row(i)
+		require.NoError(t, err)
+		allRows[i] = row
+	}
+
+	testReconstruct := func(t *testing.T, rows []*rsema1d.RowInclusionProof) {
+		reconstructBlob := NewEmptyBlob(cfg, blob.Commitment())
+
+		for _, row := range rows {
+			err = reconstructBlob.SetRow(row)
+			require.NoError(t, err)
+		}
+
+		err = reconstructBlob.Reconstruct()
+		require.NoError(t, err)
+
+		reconstructedData := reconstructBlob.Data()
+		require.Equal(t, testData, reconstructedData)
+	}
+
+	t.Run("FirstKRows", func(t *testing.T) {
+		testReconstruct(t, allRows[:cfg.OriginalRows])
+	})
+
+	t.Run("LastKRows", func(t *testing.T) {
+		testReconstruct(t, allRows[totalRows-cfg.OriginalRows:])
+	})
+
+	t.Run("MixedRows", func(t *testing.T) {
+		mixedRows := make([]*rsema1d.RowInclusionProof, 0, cfg.OriginalRows)
+		for i := 0; i < cfg.OriginalRows; i++ {
+			idx := i * 2
+			if idx < totalRows {
+				mixedRows = append(mixedRows, allRows[idx])
+			}
+		}
+		testReconstruct(t, mixedRows)
+	})
 }

@@ -62,8 +62,6 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 // Server implements the Fibre gRPC service for validators.
 // It handles upload and download requests from clients.
 type Server struct {
-	types.UnimplementedFibreServer
-
 	cfg ServerConfig
 
 	privVal core.PrivValidator

@@ -115,10 +115,11 @@ func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.B
 
 // Get retrieves [types.BlobShard] for the given [Commitment].
 //
-// When multiple payment promises exist for the same commitment
-// this method combines all their rows into a single [types.BlobShard] result.
+// When multiple payment promises exist for the same commitment, only the first shard is returned.
+// This prevents unbounded message sizes when the same blob is uploaded multiple times.
+// Underlying store's must ensure deterministic key ordering to ensure validators return shards as they were uploaded.
 //
-// If unmarshaling fails for some entries, it continues trying others and collects errors.
+// If unmarshaling fails for some entries, it continues trying others.
 // Returns an error only if all entries fail to unmarshal or if no shards are found.
 func (s *Store) Get(ctx context.Context, commitment Commitment) (*types.BlobShard, error) {
 	results, err := s.ds.Query(ctx, query.Query{
@@ -129,12 +130,7 @@ func (s *Store) Get(ctx context.Context, commitment Commitment) (*types.BlobShar
 	}
 	defer results.Close()
 
-	var (
-		combinedShard *types.BlobShard
-		rerr          error
-	)
-
-	// collect all rows from all promises with this commitment
+	var rerr error
 	for result := range results.Next() {
 		if result.Error != nil {
 			rerr = errors.Join(rerr, result.Error)
@@ -147,18 +143,10 @@ func (s *Store) Get(ctx context.Context, commitment Commitment) (*types.BlobShar
 			continue
 		}
 
-		if combinedShard == nil {
-			combinedShard = shard
-			continue
-		}
+		// return first valid shard found
+		return shard, nil
+	}
 
-		// append all rows from this entry
-		combinedShard.Rows = append(combinedShard.Rows, shard.Rows...)
-	}
-	if combinedShard != nil {
-		return combinedShard, nil
-	}
-	// if we have no shards at all, return error
 	if rerr != nil {
 		return nil, rerr
 	}
