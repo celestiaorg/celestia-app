@@ -3,6 +3,7 @@ package dockerchain
 import (
 	"fmt"
 	"os"
+	"time"
 
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 
@@ -21,10 +22,12 @@ const (
 // Config represents the configuration for a docker Celestia setup.
 type Config struct {
 	*testnode.Config
-	Image           string
-	Tag             string
-	DockerClient    tastoratypes.TastoraDockerClient
-	DockerNetworkID string
+	Image               string
+	Tag                 string
+	DockerClient        tastoratypes.TastoraDockerClient
+	DockerNetworkID     string
+	AdditionalStartArgs []string
+	TimeoutPropose      time.Duration // If not set the default is used
 }
 
 // DefaultConfig returns a configured instance of Config with a custom genesis and validators.
@@ -77,6 +80,18 @@ func (c *Config) WithDockerClient(client tastoratypes.TastoraDockerClient) *Conf
 // WithDockerNetworkID sets the docker network ID and returns the Config.
 func (c *Config) WithDockerNetworkID(networkID string) *Config {
 	c.DockerNetworkID = networkID
+	return c
+}
+
+// WithAdditionalStartArgs appends additional start arguments and returns the Config.
+func (c *Config) WithAdditionalStartArgs(args ...string) *Config {
+	c.AdditionalStartArgs = append(c.AdditionalStartArgs, args...)
+	return c
+}
+
+// WithTimeoutPropose sets the consensus proposal timeout.
+func (c *Config) WithTimeoutPropose(d time.Duration) *Config {
+	c.TimeoutPropose = d
 	return c
 }
 
