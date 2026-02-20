@@ -17,6 +17,7 @@ jobs:
         uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
         with:
           go-version-file: "test/docker-e2e/go.mod"
+          cache-dependency-path: "test/docker-e2e/go.sum"
 
       - name: Generate image tag
         id: tag
@@ -33,8 +34,11 @@ jobs:
           docker tag "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.pull_tag }}" \
             "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.test_tag }}"
 
-      - name: Build latency-monitor Docker image
-        run: docker build -t "ghcr.io/celestiaorg/latency-monitor:${{ steps.tag.outputs.test_tag }}" -f docker/latency-monitor/Dockerfile .
+      - name: Pull latency-monitor image from GHCR
+        run: |
+          docker pull "ghcr.io/celestiaorg/latency-monitor:${{ steps.tag.outputs.pull_tag }}"
+          docker tag "ghcr.io/celestiaorg/latency-monitor:${{ steps.tag.outputs.pull_tag }}" \
+            "ghcr.io/celestiaorg/latency-monitor:${{ steps.tag.outputs.test_tag }}"
 
       - name: Run stress test
         env:
