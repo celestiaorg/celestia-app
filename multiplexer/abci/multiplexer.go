@@ -187,12 +187,8 @@ func (m *Multiplexer) enableGRPCAndAPIServers(app servertypes.Application) error
 		// startAPIServer starts the api server for a native app. If using an embedded app
 		// it will use that instead.
 		if m.svrCfg.API.Enable {
-			if m.metrics == nil {
-				metrics, err := startTelemetry(m.svrCfg)
-				if err != nil {
-					return err
-				}
-				m.metrics = metrics
+			if err := m.initTelemetry(); err != nil {
+				return err
 			}
 
 			if err := m.startAPIServer(grpcServer, m.metrics); err != nil {
@@ -631,8 +627,22 @@ func (m *Multiplexer) stopTraceWriter() error {
 	return m.traceWriter.Close()
 }
 
-func startTelemetry(cfg serverconfig.Config) (*telemetry.Metrics, error) {
-	return telemetry.New(cfg.Telemetry)
+// initTelemetry initializes telemetry if it hasn't been initialized yet.
+// It is idempotent: subsequent calls are no-ops. This prevents "duplicate
+// metrics collector registration attempted" errors when
+// enableGRPCAndAPIServers is called more than once (e.g. during a version
+// switch).
+// See https://github.com/celestiaorg/celestia-app/issues/6601
+func (m *Multiplexer) initTelemetry() error {
+	if m.metrics != nil {
+		return nil
+	}
+	metrics, err := telemetry.New(m.svrCfg.Telemetry)
+	if err != nil {
+		return err
+	}
+	m.metrics = metrics
+	return nil
 }
 
 // emitServerInfoMetrics emits server info related metrics using application telemetry.

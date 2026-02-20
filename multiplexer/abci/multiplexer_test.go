@@ -8,37 +8,37 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestDuplicateTelemetryRegistration reproduces
+// TestInitTelemetryIsIdempotent verifies the fix for
 // https://github.com/celestiaorg/celestia-app/issues/6601
 //
-// In multiplexer mode, both the parent process and child process (embedded
-// binary) read the same app.toml. When telemetry.enabled=true with
-// prometheus-retention-time > 0, calling telemetry.New() registers a
-// PrometheusSink on the global prometheus.DefaultRegisterer. If telemetry.New()
-// is called a second time (e.g. during a version switch when
-// enableGRPCAndAPIServers calls startTelemetry again), the second registration
-// fails with "duplicate metrics collector registration attempted" because the
-// PrometheusSink is already registered.
-func TestDuplicateTelemetryRegistration(t *testing.T) {
-	cfg := serverconfig.Config{
-		Telemetry: telemetry.Config{
-			Enabled:                 true,
-			ServiceName:             "test",
-			PrometheusRetentionTime: 60, // positive value enables Prometheus sink
+// When telemetry.enabled=true with prometheus-retention-time > 0,
+// telemetry.New() registers a PrometheusSink on the global
+// prometheus.DefaultRegisterer. In multiplexer mode,
+// enableGRPCAndAPIServers may be called more than once (e.g. during a
+// version switch). Without caching, the second telemetry.New() call fails
+// with "duplicate metrics collector registration attempted".
+//
+// initTelemetry must be idempotent: the second call should be a no-op.
+// Removing the caching guard causes this test to fail.
+func TestInitTelemetryIsIdempotent(t *testing.T) {
+	m := &Multiplexer{
+		svrCfg: serverconfig.Config{
+			Telemetry: telemetry.Config{
+				Enabled:                 true,
+				ServiceName:             "test",
+				PrometheusRetentionTime: 60, // positive value enables Prometheus sink
+			},
 		},
 	}
 
-	// First call to startTelemetry succeeds and registers a PrometheusSink on
-	// the global prometheus.DefaultRegisterer.
-	metrics, err := startTelemetry(cfg)
-	require.NoError(t, err)
-	require.NotNil(t, metrics)
+	// First call registers a PrometheusSink on the global
+	// prometheus.DefaultRegisterer.
+	require.NoError(t, m.initTelemetry())
+	require.NotNil(t, m.metrics)
 
-	// Second call to startTelemetry fails because the PrometheusSink is
-	// already registered on the global prometheus.DefaultRegisterer.
-	_, err = startTelemetry(cfg)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "duplicate metrics collector registration attempted")
+	// Second call must succeed. Without the caching guard this fails with
+	// "duplicate metrics collector registration attempted".
+	require.NoError(t, m.initTelemetry())
 }
 
 func TestOpenTraceWriter(t *testing.T) {
