@@ -1,8 +1,6 @@
 #!/bin/bash
 
 # Entrypoint script for a Mocha consensus node using the multiplexer binary.
-# Enables telemetry with Prometheus to verify the fix for
-# https://github.com/celestiaorg/celestia-app/issues/6601
 #
 # This script is idempotent: on restart it skips init/config and goes straight
 # to starting the node.
