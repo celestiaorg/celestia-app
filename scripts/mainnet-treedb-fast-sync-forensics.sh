@@ -41,6 +41,7 @@ CHAIN_ID="celestia"
 RPC1="https://celestia.rpc.kjnodes.com"
 RPC2="https://celestia-rpc.polkachu.com:443"
 CURL_OPTS=(--max-time 10 --connect-timeout 5 --retry 3 --retry-delay 2)
+LOCAL_CURL_OPTS=(--max-time 3 --connect-timeout 1)
 LOCAL_RPC="http://127.0.0.1:36657"
 P2P_LADDR="tcp://0.0.0.0:36656"
 RPC_LADDR="tcp://127.0.0.1:36657"
@@ -1004,10 +1005,10 @@ capture_stuck_diagnostics() {
     ps -L -p "${NODE_PID}" -o tid,psr,pcpu,stat,comm --sort=-pcpu 2>/dev/null | head -n 20 || true
     echo
     echo "local_status:"
-    curl -fsSL "${LOCAL_RPC}/status" 2>/dev/null | jq '.result.sync_info + {node_id: .result.node_info.id}' 2>/dev/null || true
+    curl -fsSL "${LOCAL_CURL_OPTS[@]}" "${LOCAL_RPC}/status" 2>/dev/null | jq '.result.sync_info + {node_id: .result.node_info.id}' 2>/dev/null || true
     echo
     echo "local_net_info:"
-    curl -fsSL "${LOCAL_RPC}/net_info" 2>/dev/null | jq '{listening: .result.listening, n_peers: .result.n_peers}' 2>/dev/null || true
+    curl -fsSL "${LOCAL_CURL_OPTS[@]}" "${LOCAL_RPC}/net_info" 2>/dev/null | jq '{listening: .result.listening, n_peers: .result.n_peers}' 2>/dev/null || true
     echo
     echo "storage_bytes:"
     du -sb "${HOME_DIR}/data/application.db" "${HOME_DIR}/data/state.db" "${HOME_DIR}/data/snapshots" "${HOME_DIR}/data/blockstore.db" 2>/dev/null || true
@@ -1076,7 +1077,7 @@ NODE_PID=$!
 log_info "Waiting for local RPC (${LOCAL_RPC})..."
 RPC_WAIT_START="$(date +%s)"
 LAST_WAIT_REPORT=0
-until curl -fsSL "${LOCAL_RPC}/status" >/dev/null 2>&1; do
+until curl -fsSL "${LOCAL_CURL_OPTS[@]}" "${LOCAL_RPC}/status" >/dev/null 2>&1; do
   if ! kill -0 "${NODE_PID}" >/dev/null 2>&1; then
     fail_and_exit "Node exited before local RPC became ready."
   fi
@@ -1118,7 +1119,7 @@ while true; do
     fail_and_exit "Sync aborted by node error."
   fi
 
-  LOCAL_STATUS="$(curl -fsSL "${LOCAL_RPC}/status" 2>/dev/null || true)"
+  LOCAL_STATUS="$(curl -fsSL "${LOCAL_CURL_OPTS[@]}" "${LOCAL_RPC}/status" 2>/dev/null || true)"
   if [ -z "${LOCAL_STATUS}" ]; then
     LOCAL_RPC_FAILURES=$((LOCAL_RPC_FAILURES + 1))
     if [ "${LOCAL_RPC_FAILURES}" -ge "${MAX_LOCAL_RPC_FAILURES}" ]; then
