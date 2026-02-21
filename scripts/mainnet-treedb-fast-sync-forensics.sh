@@ -35,7 +35,7 @@ fi
 CHAIN_ID="celestia"
 RPC1="https://celestia.rpc.kjnodes.com"
 RPC2="https://celestia-rpc.polkachu.com:443"
-CURL_OPTS="--max-time 10 --connect-timeout 5 --retry 3 --retry-delay 2"
+CURL_OPTS=(--max-time 10 --connect-timeout 5 --retry 3 --retry-delay 2)
 LOCAL_RPC="http://127.0.0.1:36657"
 P2P_LADDR="tcp://0.0.0.0:36656"
 RPC_LADDR="tcp://127.0.0.1:36657"
@@ -478,7 +478,7 @@ fetch_or_copy() {
   local url="$1"
   local dest="$2"
   local fallback="$3"
-  if ! curl -fsSL ${CURL_OPTS} "${url}" -o "${dest}"; then
+  if ! curl -fsSL "${CURL_OPTS[@]}" "${url}" -o "${dest}"; then
     if [ -n "${fallback}" ] && [ -f "${fallback}" ]; then
       cp "${fallback}" "${dest}"
       return 0
@@ -557,7 +557,7 @@ PY
 SEEDS="$(normalize_peer_csv "${SEEDS}")"
 PEERS="$(normalize_peer_csv "${PEERS}")"
 
-NET_INFO_JSON="$(curl -fsSL ${CURL_OPTS} "${RPC1}/net_info" 2>/dev/null || curl -fsSL ${CURL_OPTS} "${RPC2}/net_info" 2>/dev/null || true)"
+NET_INFO_JSON="$(curl -fsSL "${CURL_OPTS[@]}" "${RPC1}/net_info" 2>/dev/null || curl -fsSL "${CURL_OPTS[@]}" "${RPC2}/net_info" 2>/dev/null || true)"
 if [ -n "${NET_INFO_JSON}" ]; then
   NET_INFO_PEERS="$(echo "${NET_INFO_JSON}" | jq -r '[(.result.peers // [])[] | .node_info.id + "@" + .remote_ip + ":" + (.node_info.listen_addr | split(":") | last)] | join(",")')"
   NET_INFO_PEERS="$(normalize_peer_csv "${NET_INFO_PEERS}")"
@@ -634,9 +634,9 @@ if count == 0:
 app_path.write_text(data)
 PY
 
-LATEST="$(curl -fsSL ${CURL_OPTS} "${RPC1}/status" 2>/dev/null | jq -r .result.sync_info.latest_block_height || curl -fsSL ${CURL_OPTS} "${RPC2}/status" 2>/dev/null | jq -r .result.sync_info.latest_block_height)"
+LATEST="$(curl -fsSL "${CURL_OPTS[@]}" "${RPC1}/status" 2>/dev/null | jq -r .result.sync_info.latest_block_height || curl -fsSL "${CURL_OPTS[@]}" "${RPC2}/status" 2>/dev/null | jq -r .result.sync_info.latest_block_height)"
 TRUST_HEIGHT=$((LATEST-2000))
-TRUST_HASH="$(curl -fsSL ${CURL_OPTS} "${RPC1}/block?height=${TRUST_HEIGHT}" 2>/dev/null | jq -r .result.block_id.hash || curl -fsSL ${CURL_OPTS} "${RPC2}/block?height=${TRUST_HEIGHT}" 2>/dev/null | jq -r .result.block_id.hash)"
+TRUST_HASH="$(curl -fsSL "${CURL_OPTS[@]}" "${RPC1}/block?height=${TRUST_HEIGHT}" 2>/dev/null | jq -r .result.block_id.hash || curl -fsSL "${CURL_OPTS[@]}" "${RPC2}/block?height=${TRUST_HEIGHT}" 2>/dev/null | jq -r .result.block_id.hash)"
 
 export HOME_DIR RPC1 RPC2 TRUST_HEIGHT TRUST_HASH
 python3 - <<'PY'
@@ -661,15 +661,15 @@ cfg_path.write_text(data)
 PY
 
 
-sed -e 's/max_open_connections = 3$/max_open_connections = 900/g' -i ${HOME_DIR}/config/config.toml 
-sed -i "s/max_num_inbound_peers = .*/max_num_inbound_peers = 100/g" ${HOME_DIR}/config/config.toml
-sed -i "s/max_num_outbound_peers = .*/max_num_outbound_peers = 150/g" ${HOME_DIR}/config/config.toml
-sed -i "s/upnp = .*/upnp = true/g" ${HOME_DIR}/config/config.toml
-sed -i "s/^external_address = .*/external_address = \\\"72.130.67.121:36656\\\"/g" ${HOME_DIR}/config/config.toml
-sed -i "s/handshake_timeout = .*/handshake_timeout = \"20s\"/g" ${HOME_DIR}/config/config.toml
-sed -i "s/dial_timeout = .*/dial_timeout = \"3s\"/g" ${HOME_DIR}/config/config.toml
-sed -i "s/addr_book_strict = .*/addr_book_strict = true/g" ${HOME_DIR}/config/config.toml
-sed -i "s/allow_duplicate_ip = .*/allow_duplicate_ip = false/g" ${HOME_DIR}/config/config.toml
+sed -e 's/max_open_connections = 3$/max_open_connections = 900/g' -i "${HOME_DIR}/config/config.toml"
+sed -i "s/max_num_inbound_peers = .*/max_num_inbound_peers = 100/g" "${HOME_DIR}/config/config.toml"
+sed -i "s/max_num_outbound_peers = .*/max_num_outbound_peers = 150/g" "${HOME_DIR}/config/config.toml"
+sed -i "s/upnp = .*/upnp = true/g" "${HOME_DIR}/config/config.toml"
+sed -i "s/^external_address = .*/external_address = \\\"72.130.67.121:36656\\\"/g" "${HOME_DIR}/config/config.toml"
+sed -i "s/handshake_timeout = .*/handshake_timeout = \"20s\"/g" "${HOME_DIR}/config/config.toml"
+sed -i "s/dial_timeout = .*/dial_timeout = \"3s\"/g" "${HOME_DIR}/config/config.toml"
+sed -i "s/addr_book_strict = .*/addr_book_strict = true/g" "${HOME_DIR}/config/config.toml"
+sed -i "s/allow_duplicate_ip = .*/allow_duplicate_ip = false/g" "${HOME_DIR}/config/config.toml"
 
 START_EPOCH="$(date +%s)"
 START_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -692,8 +692,6 @@ START_DATA_BYTES="$(safe_du_bytes "${HOME_DIR}/data")"
 START_APP_BYTES="$(safe_du_bytes "${HOME_DIR}/data/app")"
 START_BLOCKSTORE_BYTES="$(safe_du_bytes "${HOME_DIR}/data/blockstore")"
 MAX_RSS_KB=0
-MAX_APP_BYTES=0
-MAX_INDEX_BYTES=0
 MAX_HWM_KB=0
 {
   echo "start_utc=${START_TS}"
@@ -1013,7 +1011,7 @@ while true; do
     PROGRESS_EPOCH="$(date +%s)"
   fi
 
-  REMOTE_STATUS="$(curl -fsSL ${CURL_OPTS} "${RPC1}/status" 2>/dev/null || curl -fsSL ${CURL_OPTS} "${RPC2}/status" 2>/dev/null || true)"
+  REMOTE_STATUS="$(curl -fsSL "${CURL_OPTS[@]}" "${RPC1}/status" 2>/dev/null || curl -fsSL "${CURL_OPTS[@]}" "${RPC2}/status" 2>/dev/null || true)"
   if [ -z "${REMOTE_STATUS}" ]; then
     log_warn "Remote RPC unavailable; retrying..."
     sleep "${POLL_INTERVAL_SECONDS}"
