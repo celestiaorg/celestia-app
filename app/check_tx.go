@@ -7,7 +7,7 @@ import (
 	apperr "github.com/celestiaorg/celestia-app/v7/app/errors"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
-	blobtx "github.com/celestiaorg/go-square/v3/tx"
+	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"

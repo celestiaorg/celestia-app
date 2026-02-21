@@ -12,8 +12,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/test/util/random"
 	"github.com/celestiaorg/celestia-app/v7/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
-	square "github.com/celestiaorg/go-square/v3"
-	"github.com/celestiaorg/go-square/v3/share"
+	square "github.com/celestiaorg/go-square/v4"
+	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
@@ -102,7 +102,7 @@ func TestNewShareInclusionProof(t *testing.T) {
 	txs := testfactory.GenerateRandomTxs(50, 500)
 	txs = append(txs, blobTxs...)
 
-	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold, square.NoOpPayForFibreHandler())
 	if err != nil {
 		panic(err)
 	}
@@ -237,7 +237,7 @@ func TestNewShareInclusionProof(t *testing.T) {
 func TestAllSharesInclusionProof(t *testing.T) {
 	txs := testfactory.GenerateRandomTxs(243, 500)
 
-	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold, square.NoOpPayForFibreHandler())
 	require.NoError(t, err)
 	assert.Equal(t, 256, len(dataSquare))
 
