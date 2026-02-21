@@ -5,8 +5,8 @@ import (
 	"encoding/binary"
 	"math/rand"
 
-	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v7/test/util/random"
+	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v8/test/util/random"
 	"github.com/celestiaorg/go-square/v3/share"
 )
 

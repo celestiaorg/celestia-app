@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 
 	"cosmossdk.io/core/appmodule"
-	"github.com/celestiaorg/celestia-app/v7/x/signal/cli"
-	"github.com/celestiaorg/celestia-app/v7/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v8/x/signal/cli"
+	"github.com/celestiaorg/celestia-app/v8/x/signal/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"

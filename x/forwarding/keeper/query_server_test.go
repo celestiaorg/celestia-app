@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v7/x/forwarding/keeper"
-	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
+	"github.com/celestiaorg/celestia-app/v8/x/forwarding/keeper"
+	"github.com/celestiaorg/celestia-app/v8/x/forwarding/types"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

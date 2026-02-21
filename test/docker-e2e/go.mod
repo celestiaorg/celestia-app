@@ -5,7 +5,7 @@ go 1.25.7
 require (
 	cosmossdk.io/math v1.5.3
 	github.com/bcp-innovations/hyperlane-cosmos v1.1.0
-	github.com/celestiaorg/celestia-app/v7 v7.0.0-rc0
+	github.com/celestiaorg/celestia-app/v8 v8.0.0-rc0
 	github.com/celestiaorg/go-square/v3 v3.0.2
 	github.com/celestiaorg/tastora v0.13.0
 	github.com/cometbft/cometbft v0.38.17
@@ -287,7 +287,7 @@ replace (
 	// f48fea92e627 commit coincides with the v0.51.8 cosmos-sdk release
 	cosmossdk.io/log => github.com/celestiaorg/cosmos-sdk/log v1.1.1-0.20251116153902-f48fea92e627
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
-	github.com/celestiaorg/celestia-app/v7 => ../..
+	github.com/celestiaorg/celestia-app/v8 => ../..
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.25
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.52.1
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2

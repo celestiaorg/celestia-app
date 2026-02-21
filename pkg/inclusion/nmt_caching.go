@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/celestiaorg/celestia-app/v7/pkg/da"
-	"github.com/celestiaorg/celestia-app/v7/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v8/pkg/da"
+	"github.com/celestiaorg/celestia-app/v8/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 )
