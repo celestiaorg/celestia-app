@@ -25,6 +25,10 @@ before:
     - ./scripts/download_binary.sh celestia-app-standalone_Linux_arm64.tar.gz celestia-app_linux_v6_arm64.tar.gz v6.4.4
     - ./scripts/download_binary.sh celestia-app-standalone_Darwin_x86_64.tar.gz celestia-app_darwin_v6_amd64.tar.gz v6.4.4
     - ./scripts/download_binary.sh celestia-app-standalone_Linux_x86_64.tar.gz celestia-app_linux_v6_amd64.tar.gz v6.4.4
+    - ./scripts/download_binary.sh celestia-app-standalone_Darwin_arm64.tar.gz celestia-app_darwin_v7_arm64.tar.gz v7.0.2-mocha
+    - ./scripts/download_binary.sh celestia-app-standalone_Linux_arm64.tar.gz celestia-app_linux_v7_arm64.tar.gz v7.0.2-mocha
+    - ./scripts/download_binary.sh celestia-app-standalone_Darwin_x86_64.tar.gz celestia-app_darwin_v7_amd64.tar.gz v7.0.2-mocha
+    - ./scripts/download_binary.sh celestia-app-standalone_Linux_x86_64.tar.gz celestia-app_linux_v7_amd64.tar.gz v7.0.2-mocha
 
 builds:
   - id: darwin-amd64-multiplexer
