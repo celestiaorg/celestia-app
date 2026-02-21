@@ -149,7 +149,7 @@ pub async fn run_submission_loop(
                                 latency,
                                 tx_info.hash.to_string(),
                                 0,
-                                tx_info.height.value() as i64,
+                                tx_info.height as i64,
                             ))
                         }
                         Err(e) => {
