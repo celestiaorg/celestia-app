@@ -6,10 +6,10 @@ import (
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
-	"github.com/celestiaorg/go-square/v3"
-	"github.com/celestiaorg/go-square/v3/inclusion"
-	"github.com/celestiaorg/go-square/v3/share"
-	blobtx "github.com/celestiaorg/go-square/v3/tx"
+	"github.com/celestiaorg/go-square/v4"
+	"github.com/celestiaorg/go-square/v4/inclusion"
+	"github.com/celestiaorg/go-square/v4/share"
+	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -97,7 +97,7 @@ func OutOfOrderExport(b *square.Builder) (square.Square, error) {
 	}
 
 	// begin to iteratively add blobs to the sparse share splitter calculating the actual padding
-	nonReservedStart := b.TxCounter.Size() + b.PfbCounter.Size()
+	nonReservedStart := b.TxCounter.Size() + b.PfbCounter.Size() + b.PayForFibreCounter.Size()
 	cursor := nonReservedStart
 	endOfLastBlob := nonReservedStart
 	blobWriter := share.NewSparseShareSplitter()
@@ -151,8 +151,9 @@ func OutOfOrderExport(b *square.Builder) (square.Square, error) {
 		return nil, fmt.Errorf("pfbCounter.Size() < pfbWriter.Count(): %d < %d", b.PfbCounter.Size(), pfbWriter.Count())
 	}
 
-	// Write out the square
-	square, err := square.WriteSquare(txWriter, pfbWriter, blobWriter, nonReservedStart, ss)
+	// Write out the square (empty payForFibreWriter since we don't use Fibre)
+	payForFibreWriter := share.NewCompactShareSplitter(share.PayForFibreNamespace, share.ShareVersionZero)
+	square, err := square.WriteSquare(txWriter, pfbWriter, payForFibreWriter, blobWriter, nonReservedStart, ss)
 	if err != nil {
 		return nil, fmt.Errorf("writing square: %w", err)
 	}

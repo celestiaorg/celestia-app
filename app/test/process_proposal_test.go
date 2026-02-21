@@ -17,9 +17,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
-	"github.com/celestiaorg/go-square/v3"
-	"github.com/celestiaorg/go-square/v3/share"
-	"github.com/celestiaorg/go-square/v3/tx"
+	"github.com/celestiaorg/go-square/v4"
+	"github.com/celestiaorg/go-square/v4/share"
+	"github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
@@ -201,7 +201,7 @@ func TestProcessProposal(t *testing.T) {
 				Txs: coretypes.Txs(sendTxs).ToSliceOfBytes(),
 			},
 			mutator: func(d *tmproto.Data) {
-				dataSquare, err := square.Construct(d.Txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+				dataSquare, err := square.Construct(d.Txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold, square.NoOpPayForFibreHandler())
 				require.NoError(t, err)
 
 				b := dataSquare[1].ToBytes()
@@ -310,7 +310,7 @@ func TestProcessProposal(t *testing.T) {
 }
 
 func calculateNewDataHash(t *testing.T, txs [][]byte) []byte {
-	dataSquare, err := square.Construct(txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	dataSquare, err := square.Construct(txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold, square.NoOpPayForFibreHandler())
 	require.NoError(t, err)
 	eds, err := da.ExtendShares(share.ToBytes(dataSquare))
 	require.NoError(t, err)

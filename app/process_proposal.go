@@ -12,7 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/pkg/da"
 	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
-	blobtx "github.com/celestiaorg/go-square/v3/tx"
+	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"

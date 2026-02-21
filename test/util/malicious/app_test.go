@@ -12,8 +12,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/test/util/random"
 	"github.com/celestiaorg/celestia-app/v7/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
-	square "github.com/celestiaorg/go-square/v3"
-	"github.com/celestiaorg/go-square/v3/share"
+	square "github.com/celestiaorg/go-square/v4"
+	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/stretchr/testify/require"
 )
@@ -109,6 +109,7 @@ func TestMaliciousTestNode(t *testing.T) {
 	correctSquare, err := square.Construct(block.Block.Txs.ToSliceOfBytes(),
 		appconsts.SquareSizeUpperBound,
 		appconsts.SubtreeRootThreshold,
+		square.NoOpPayForFibreHandler(),
 	)
 	require.NoError(t, err)
 
