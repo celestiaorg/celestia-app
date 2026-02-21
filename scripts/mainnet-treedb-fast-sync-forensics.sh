@@ -42,6 +42,7 @@ RPC_LADDR="tcp://127.0.0.1:36657"
 PPROF_LADDR="localhost:6062"
 DB_BACKEND="${DB_BACKEND:-treedb}"
 APP_DB_BACKEND="${APP_DB_BACKEND:-${DB_BACKEND}}"
+EXTERNAL_ADDRESS="${EXTERNAL_ADDRESS:-}"
 
 # TreeDB trace capture (opt-in via TREEDB_TRACE_PATH).
 TREEDB_TRACE_PATH="${TREEDB_TRACE_PATH:-}"
@@ -74,7 +75,7 @@ CAPTURE_PPROF_ON_STUCK="${CAPTURE_PPROF_ON_STUCK:-1}"
 PPROF_SAMPLE_SECONDS="${PPROF_SAMPLE_SECONDS:-8}"
 PPROF_HTTP_URL="http://${PPROF_LADDR}"
 
-ERROR_PATTERNS='valuelog: corrupt record|state sync failed|state sync aborted|failed to restore snapshot|IAVL node import failed|IAVL commit failed|panic:|fatal'
+ERROR_PATTERNS='valuelog: corrupt record|state sync failed|state sync aborted|failed to restore snapshot|IAVL node import failed|IAVL commit failed|panic:|fatal error'
 
 log_info() {
   echo "[$(date +%H:%M:%S)] INFO  $*"
@@ -665,7 +666,9 @@ sed -e 's/max_open_connections = 3$/max_open_connections = 900/g' -i "${HOME_DIR
 sed -i "s/max_num_inbound_peers = .*/max_num_inbound_peers = 100/g" "${HOME_DIR}/config/config.toml"
 sed -i "s/max_num_outbound_peers = .*/max_num_outbound_peers = 150/g" "${HOME_DIR}/config/config.toml"
 sed -i "s/upnp = .*/upnp = true/g" "${HOME_DIR}/config/config.toml"
-sed -i "s/^external_address = .*/external_address = \\\"72.130.67.121:36656\\\"/g" "${HOME_DIR}/config/config.toml"
+if [ -n "${EXTERNAL_ADDRESS}" ]; then
+  sed -i "s/^external_address = .*/external_address = \\\"${EXTERNAL_ADDRESS}\\\"/g" "${HOME_DIR}/config/config.toml"
+fi
 sed -i "s/handshake_timeout = .*/handshake_timeout = \"20s\"/g" "${HOME_DIR}/config/config.toml"
 sed -i "s/dial_timeout = .*/dial_timeout = \"3s\"/g" "${HOME_DIR}/config/config.toml"
 sed -i "s/addr_book_strict = .*/addr_book_strict = true/g" "${HOME_DIR}/config/config.toml"
@@ -689,8 +692,8 @@ safe_du_bytes() {
 
 START_HOME_BYTES="$(safe_du_bytes "${HOME_DIR}")"
 START_DATA_BYTES="$(safe_du_bytes "${HOME_DIR}/data")"
-START_APP_BYTES="$(safe_du_bytes "${HOME_DIR}/data/app")"
-START_BLOCKSTORE_BYTES="$(safe_du_bytes "${HOME_DIR}/data/blockstore")"
+START_APP_BYTES="$(safe_du_bytes "${HOME_DIR}/data/application.db")"
+START_BLOCKSTORE_BYTES="$(safe_du_bytes "${HOME_DIR}/data/blockstore.db")"
 MAX_RSS_KB=0
 MAX_HWM_KB=0
 {
@@ -745,14 +748,14 @@ has_recent_node_error() {
   if [ ! -f "${NODE_LOG}" ]; then
     return 1
   fi
-  rg -n -i -e "${ERROR_PATTERNS}" "${NODE_LOG}" >/dev/null 2>&1
+  tail -n "${LOG_ERROR_SCAN_LINES}" "${NODE_LOG}" 2>/dev/null | rg -n -i -e "${ERROR_PATTERNS}" >/dev/null 2>&1
 }
 
 print_recent_error_matches() {
   if [ ! -f "${NODE_LOG}" ]; then
     return
   fi
-  rg -n -i -e "${ERROR_PATTERNS}" "${NODE_LOG}" | tail -n 10 || true
+  tail -n "${LOG_ERROR_SCAN_LINES}" "${NODE_LOG}" 2>/dev/null | rg -n -i -e "${ERROR_PATTERNS}" | tail -n 10 || true
 }
 
 extract_sync_marker() {
@@ -1104,9 +1107,6 @@ while true; do
       log_warn "No height progress for ${STALLED_FOR}s but node appears CPU-bound in ${STAGE_SUMMARY}; granting one-time ${ACTIVE_RESTORE_GRACE_SECONDS}s grace."
       capture_stuck_diagnostics "grace-active-restore" "${STALLED_FOR}" "${LOCAL_HEIGHT}" "${REMOTE_HEIGHT}" "${LAG}" "${CATCHING_UP}" "${NODE_CPU:-}" "${RSS_KB:-}" 1
       PROGRESS_EPOCH=$((NOW_EPOCH - NO_PROGRESS_FAIL_SECONDS + ACTIVE_RESTORE_GRACE_SECONDS))
-      if [ "${PROGRESS_EPOCH}" -gt "${NOW_EPOCH}" ]; then
-        PROGRESS_EPOCH="${NOW_EPOCH}"
-      fi
       sleep "${POLL_INTERVAL_SECONDS}"
       continue
     fi
@@ -1136,8 +1136,8 @@ END_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 DURATION=$((END_EPOCH-START_EPOCH))
 END_HOME_BYTES="$(safe_du_bytes "${HOME_DIR}")"
 END_DATA_BYTES="$(safe_du_bytes "${HOME_DIR}/data")"
-END_APP_BYTES="$(safe_du_bytes "${HOME_DIR}/data/app")"
-END_BLOCKSTORE_BYTES="$(safe_du_bytes "${HOME_DIR}/data/blockstore")"
+END_APP_BYTES="$(safe_du_bytes "${HOME_DIR}/data/application.db")"
+END_BLOCKSTORE_BYTES="$(safe_du_bytes "${HOME_DIR}/data/blockstore.db")"
 
 {
   echo "end_utc=${END_TS}"

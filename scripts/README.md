@@ -48,3 +48,4 @@ Optional TreeDB trace knobs (disabled by default):
 - `TREEDB_TRACE_ANALYSIS_SAMPLE_EVERY_N`: sampling stride for diagnostics parsing.
 - `TREEDB_TRACE_ANALYSIS_MAX_EVENTS`: max sampled events parsed per report (`0` = unlimited).
 - `TREEDB_TRACE_ANALYSIS_ON_WARN_STUCK`: include trace report in warn-stuck diagnostics (`1` to enable).
+- `EXTERNAL_ADDRESS`: optional explicit p2p external address override (unset by default).
