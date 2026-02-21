@@ -550,8 +550,8 @@ fetch_or_copy \
   "${HOME_DIR}/config/seeds.txt" \
   "${fallback_home}/config/seeds.txt"
 
-SEEDS="$(grep -Ev '^\s*$' "${HOME_DIR}/config/seeds.txt" | paste -sd, -)"
-PEERS="$(grep -Ev '^\s*$' "${HOME_DIR}/config/peers.txt" | paste -sd, -)"
+SEEDS="$(awk 'NF { print }' "${HOME_DIR}/config/seeds.txt" | paste -sd, -)"
+PEERS="$(awk 'NF { print }' "${HOME_DIR}/config/peers.txt" | paste -sd, -)"
 
 normalize_peer_csv() {
   local raw="${1:-}"
@@ -604,7 +604,7 @@ PEERS="$(normalize_peer_csv "${PEERS}")"
 
 NET_INFO_JSON="$(curl -fsSL "${CURL_OPTS[@]}" "${RPC1}/net_info" 2>/dev/null || curl -fsSL "${CURL_OPTS[@]}" "${RPC2}/net_info" 2>/dev/null || true)"
 if [ -n "${NET_INFO_JSON}" ]; then
-  NET_INFO_PEERS="$(echo "${NET_INFO_JSON}" | jq -r '[(.result.peers // [])[] | .node_info.id + "@" + .remote_ip + ":" + (.node_info.listen_addr | split(":") | last)] | join(",")')"
+  NET_INFO_PEERS="$(echo "${NET_INFO_JSON}" | jq -r '[(.result.peers // [])[] | .node_info.id + "@" + .remote_ip + ":" + (.node_info.listen_addr | split(":") | last)] | join(",")' 2>/dev/null || true)"
   NET_INFO_PEERS="$(normalize_peer_csv "${NET_INFO_PEERS}")"
   if [ -n "${NET_INFO_PEERS}" ]; then
     PEERS="${NET_INFO_PEERS}"
