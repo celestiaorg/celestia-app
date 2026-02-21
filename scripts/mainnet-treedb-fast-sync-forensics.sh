@@ -24,6 +24,11 @@ then
   echo "jq is required for this script."
   exit 1
 fi
+if command -v rg >/dev/null 2>&1; then
+  HAVE_RG=1
+else
+  HAVE_RG=0
+fi
 
 APPD_BIN="${CELESTIA_APPD_BIN:-${REPO_DIR}/build/celestia-appd}"
 if [ ! -x "${APPD_BIN}" ];
@@ -67,6 +72,7 @@ NO_PROGRESS_WARN_SECONDS="${NO_PROGRESS_WARN_SECONDS:-60}"
 NO_PROGRESS_FAIL_SECONDS="${NO_PROGRESS_FAIL_SECONDS:-600}"
 STUCK_REPORT_INTERVAL_SECONDS="${STUCK_REPORT_INTERVAL_SECONDS:-30}"
 MAX_LOCAL_RPC_FAILURES="${MAX_LOCAL_RPC_FAILURES:-6}"
+MAX_REMOTE_RPC_FAILURES="${MAX_REMOTE_RPC_FAILURES:-12}"
 LOG_ERROR_SCAN_LINES="${LOG_ERROR_SCAN_LINES:-300}"
 NO_PROGRESS_HARD_FAIL_SECONDS="${NO_PROGRESS_HARD_FAIL_SECONDS:-3600}"
 ACTIVE_RESTORE_CPU_THRESHOLD="${ACTIVE_RESTORE_CPU_THRESHOLD:-85}"
@@ -98,7 +104,7 @@ print_recent_log_excerpt() {
 }
 
 strip_ansi() {
-  sed -r 's/\x1B\[[0-9;]*[mK]//g'
+  sed -E 's/\x1B\[[0-9;]*[mK]//g'
 }
 
 is_non_negative_int() {
@@ -107,6 +113,39 @@ is_non_negative_int() {
 
 is_positive_int() {
   [[ "${1:-}" =~ ^[1-9][0-9]*$ ]]
+}
+
+fetch_remote_latest_height() {
+  local rpc status height
+  for rpc in "${RPC1}" "${RPC2}"; do
+    status="$(curl -fsSL "${CURL_OPTS[@]}" "${rpc}/status" 2>/dev/null || true)"
+    if [ -z "${status}" ]; then
+      continue
+    fi
+    height="$(echo "${status}" | jq -er '.result.sync_info.latest_block_height | tonumber' 2>/dev/null || true)"
+    if is_non_negative_int "${height}"; then
+      echo "${height}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+fetch_trust_hash() {
+  local trust_height="$1"
+  local rpc block hash
+  for rpc in "${RPC1}" "${RPC2}"; do
+    block="$(curl -fsSL "${CURL_OPTS[@]}" "${rpc}/block?height=${trust_height}" 2>/dev/null || true)"
+    if [ -z "${block}" ]; then
+      continue
+    fi
+    hash="$(echo "${block}" | jq -er '.result.block_id.hash' 2>/dev/null || true)"
+    if [[ "${hash}" =~ ^[A-Fa-f0-9]{64}$ ]]; then
+      echo "${hash}"
+      return 0
+    fi
+  done
+  return 1
 }
 
 write_treedb_trace_report() {
@@ -467,6 +506,11 @@ if [ -n "${TREEDB_TRACE_PATH}" ]; then
   log_info "TreeDB trace enabled (path=${TREEDB_TRACE_PATH}, summary=${TREEDB_TRACE_SUMMARY_PATH}, every_n=${TREEDB_TRACE_EVERY_N})."
 fi
 
+if ! is_positive_int "${MAX_REMOTE_RPC_FAILURES}"; then
+  log_error "MAX_REMOTE_RPC_FAILURES must be a positive integer (got: ${MAX_REMOTE_RPC_FAILURES})."
+  exit 1
+fi
+
 fallback_home=""
 for dir in "${HOME}"/.celestia-app-mainnet-*; do
   if [ -f "${dir}/config/genesis.json" ]; then
@@ -635,9 +679,23 @@ if count == 0:
 app_path.write_text(data)
 PY
 
-LATEST="$(curl -fsSL "${CURL_OPTS[@]}" "${RPC1}/status" 2>/dev/null | jq -r .result.sync_info.latest_block_height || curl -fsSL "${CURL_OPTS[@]}" "${RPC2}/status" 2>/dev/null | jq -r .result.sync_info.latest_block_height)"
-TRUST_HEIGHT=$((LATEST-2000))
-TRUST_HASH="$(curl -fsSL "${CURL_OPTS[@]}" "${RPC1}/block?height=${TRUST_HEIGHT}" 2>/dev/null | jq -r .result.block_id.hash || curl -fsSL "${CURL_OPTS[@]}" "${RPC2}/block?height=${TRUST_HEIGHT}" 2>/dev/null | jq -r .result.block_id.hash)"
+if ! LATEST="$(fetch_remote_latest_height)"; then
+  log_error "Failed to fetch latest block height from both remote RPCs."
+  exit 1
+fi
+if ! is_non_negative_int "${LATEST}"; then
+  log_error "Invalid latest block height from remote RPCs: '${LATEST}'."
+  exit 1
+fi
+if [ "${LATEST}" -le 2000 ]; then
+  log_error "Remote latest block height '${LATEST}' is too low to derive trust_height."
+  exit 1
+fi
+TRUST_HEIGHT=$((LATEST - 2000))
+if ! TRUST_HASH="$(fetch_trust_hash "${TRUST_HEIGHT}")"; then
+  log_error "Failed to fetch trust hash for height ${TRUST_HEIGHT} from both remote RPCs."
+  exit 1
+fi
 
 export HOME_DIR RPC1 RPC2 TRUST_HEIGHT TRUST_HASH
 python3 - <<'PY'
@@ -661,18 +719,42 @@ if count == 0:
 cfg_path.write_text(data)
 PY
 
+export HOME_DIR EXTERNAL_ADDRESS
+python3 - <<'PY'
+import os
+import re
+from pathlib import Path
 
-sed -e 's/max_open_connections = 3$/max_open_connections = 900/g' -i "${HOME_DIR}/config/config.toml"
-sed -i "s/max_num_inbound_peers = .*/max_num_inbound_peers = 100/g" "${HOME_DIR}/config/config.toml"
-sed -i "s/max_num_outbound_peers = .*/max_num_outbound_peers = 150/g" "${HOME_DIR}/config/config.toml"
-sed -i "s/upnp = .*/upnp = true/g" "${HOME_DIR}/config/config.toml"
-if [ -n "${EXTERNAL_ADDRESS}" ]; then
-  sed -i "s/^external_address = .*/external_address = \\\"${EXTERNAL_ADDRESS}\\\"/g" "${HOME_DIR}/config/config.toml"
-fi
-sed -i "s/handshake_timeout = .*/handshake_timeout = \"20s\"/g" "${HOME_DIR}/config/config.toml"
-sed -i "s/dial_timeout = .*/dial_timeout = \"3s\"/g" "${HOME_DIR}/config/config.toml"
-sed -i "s/addr_book_strict = .*/addr_book_strict = true/g" "${HOME_DIR}/config/config.toml"
-sed -i "s/allow_duplicate_ip = .*/allow_duplicate_ip = false/g" "${HOME_DIR}/config/config.toml"
+cfg_path = Path(os.environ["HOME_DIR"]) / "config" / "config.toml"
+data = cfg_path.read_text()
+
+replacements = [
+    (r"(?m)^max_open_connections\s*=.*$", "max_open_connections = 900", "max_open_connections"),
+    (r"(?m)^max_num_inbound_peers\s*=.*$", "max_num_inbound_peers = 100", "max_num_inbound_peers"),
+    (r"(?m)^max_num_outbound_peers\s*=.*$", "max_num_outbound_peers = 150", "max_num_outbound_peers"),
+    (r"(?m)^upnp\s*=.*$", "upnp = true", "upnp"),
+    (r"(?m)^handshake_timeout\s*=.*$", "handshake_timeout = \"20s\"", "handshake_timeout"),
+    (r"(?m)^dial_timeout\s*=.*$", "dial_timeout = \"3s\"", "dial_timeout"),
+    (r"(?m)^addr_book_strict\s*=.*$", "addr_book_strict = true", "addr_book_strict"),
+    (r"(?m)^allow_duplicate_ip\s*=.*$", "allow_duplicate_ip = false", "allow_duplicate_ip"),
+]
+for pattern, value, name in replacements:
+    data, count = re.subn(pattern, value, data)
+    if count == 0:
+        raise SystemExit(f"Failed to update config.toml ({name}).")
+
+external_address = os.environ.get("EXTERNAL_ADDRESS", "")
+if external_address:
+    data, count = re.subn(
+        r"(?m)^external_address\s*=.*$",
+        f"external_address = \"{external_address}\"",
+        data,
+    )
+    if count == 0:
+        raise SystemExit("Failed to update config.toml (external_address).")
+
+cfg_path.write_text(data)
+PY
 
 START_EPOCH="$(date +%s)"
 START_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -748,14 +830,22 @@ has_recent_node_error() {
   if [ ! -f "${NODE_LOG}" ]; then
     return 1
   fi
-  tail -n "${LOG_ERROR_SCAN_LINES}" "${NODE_LOG}" 2>/dev/null | rg -n -i -e "${ERROR_PATTERNS}" >/dev/null 2>&1
+  if [ "${HAVE_RG}" -eq 1 ]; then
+    tail -n "${LOG_ERROR_SCAN_LINES}" "${NODE_LOG}" 2>/dev/null | rg -n -i -e "${ERROR_PATTERNS}" >/dev/null 2>&1
+  else
+    tail -n "${LOG_ERROR_SCAN_LINES}" "${NODE_LOG}" 2>/dev/null | grep -E -i -n "${ERROR_PATTERNS}" >/dev/null 2>&1
+  fi
 }
 
 print_recent_error_matches() {
   if [ ! -f "${NODE_LOG}" ]; then
     return
   fi
-  tail -n "${LOG_ERROR_SCAN_LINES}" "${NODE_LOG}" 2>/dev/null | rg -n -i -e "${ERROR_PATTERNS}" | tail -n 10 || true
+  if [ "${HAVE_RG}" -eq 1 ]; then
+    tail -n "${LOG_ERROR_SCAN_LINES}" "${NODE_LOG}" 2>/dev/null | rg -n -i -e "${ERROR_PATTERNS}" | tail -n 10 || true
+  else
+    tail -n "${LOG_ERROR_SCAN_LINES}" "${NODE_LOG}" 2>/dev/null | grep -E -i -n "${ERROR_PATTERNS}" | tail -n 10 || true
+  fi
 }
 
 extract_sync_marker() {
@@ -976,6 +1066,7 @@ PROGRESS_EPOCH="$(date +%s)"
 LAST_STUCK_REPORT_EPOCH=0
 LAST_SYNC_MARKER=""
 LOCAL_RPC_FAILURES=0
+REMOTE_RPC_FAILURES=0
 SYNC_COMPLETE=0
 ACTIVE_RESTORE_GRACE_USED=0
 
@@ -1016,16 +1107,25 @@ while true; do
 
   REMOTE_STATUS="$(curl -fsSL "${CURL_OPTS[@]}" "${RPC1}/status" 2>/dev/null || curl -fsSL "${CURL_OPTS[@]}" "${RPC2}/status" 2>/dev/null || true)"
   if [ -z "${REMOTE_STATUS}" ]; then
-    log_warn "Remote RPC unavailable; retrying..."
+    REMOTE_RPC_FAILURES=$((REMOTE_RPC_FAILURES + 1))
+    if [ "${REMOTE_RPC_FAILURES}" -ge "${MAX_REMOTE_RPC_FAILURES}" ]; then
+      fail_and_exit "Remote RPC unavailable for ${REMOTE_RPC_FAILURES} consecutive checks."
+    fi
+    log_warn "Remote RPC unavailable (${REMOTE_RPC_FAILURES}/${MAX_REMOTE_RPC_FAILURES}); retrying..."
     sleep "${POLL_INTERVAL_SECONDS}"
     continue
   fi
   REMOTE_HEIGHT="$(echo "${REMOTE_STATUS}" | jq -er '.result.sync_info.latest_block_height | tonumber' 2>/dev/null || true)"
   if [ -z "${REMOTE_HEIGHT}" ]; then
-    log_warn "Failed to parse remote RPC height; retrying..."
+    REMOTE_RPC_FAILURES=$((REMOTE_RPC_FAILURES + 1))
+    if [ "${REMOTE_RPC_FAILURES}" -ge "${MAX_REMOTE_RPC_FAILURES}" ]; then
+      fail_and_exit "Failed to parse remote RPC height for ${REMOTE_RPC_FAILURES} consecutive checks."
+    fi
+    log_warn "Failed to parse remote RPC height (${REMOTE_RPC_FAILURES}/${MAX_REMOTE_RPC_FAILURES}); retrying..."
     sleep "${POLL_INTERVAL_SECONDS}"
     continue
   fi
+  REMOTE_RPC_FAILURES=0
   REMOTE_TARGET=$((REMOTE_HEIGHT - 2))
   if [ "${REMOTE_TARGET}" -lt 0 ]; then
     REMOTE_TARGET=0
