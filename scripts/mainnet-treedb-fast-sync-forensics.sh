@@ -772,6 +772,42 @@ safe_du_bytes() {
   fi
 }
 
+print_top_files_by_size() {
+  local root="$1"
+  local limit="${2:-20}"
+  python3 - "${root}" "${limit}" <<'PY'
+import heapq
+import os
+import sys
+
+root = sys.argv[1]
+try:
+    limit = int(sys.argv[2])
+except Exception:
+    limit = 20
+if limit < 1:
+    limit = 1
+
+heap = []
+for dirpath, _, filenames in os.walk(root):
+    for filename in filenames:
+        path = os.path.join(dirpath, filename)
+        try:
+            size = os.path.getsize(path)
+        except OSError:
+            continue
+        entry = (size, path)
+        if len(heap) < limit:
+            heapq.heappush(heap, entry)
+        else:
+            if size > heap[0][0]:
+                heapq.heapreplace(heap, entry)
+
+for size, path in sorted(heap, reverse=True):
+    print(f"{size} {path}")
+PY
+}
+
 START_HOME_BYTES="$(safe_du_bytes "${HOME_DIR}")"
 START_DATA_BYTES="$(safe_du_bytes "${HOME_DIR}/data")"
 START_APP_BYTES="$(safe_du_bytes "${HOME_DIR}/data/application.db")"
@@ -1278,7 +1314,7 @@ if [ -d "${APP_DB}" ]; then
       du -sk "${APP_DB}" "${APP_DB}"/* 2>/dev/null | awk '{print $1 * 1024 " " $2}'
     fi
     echo "top_files_bytes:"
-    find "${APP_DB}" -type f -printf "%s %p\n" 2>/dev/null | sort -nr | sed -n '1,20p'
+    print_top_files_by_size "${APP_DB}" 20
   } > "${BREAKDOWN_LOG}"
   log_info "Disk breakdown log: ${BREAKDOWN_LOG}"
 fi
