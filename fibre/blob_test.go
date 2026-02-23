@@ -89,7 +89,8 @@ func TestBlob_Reconstruct(t *testing.T) {
 	}
 
 	testReconstruct := func(t *testing.T, rows []*rsema1d.RowInclusionProof) {
-		reconstructBlob := NewEmptyBlob(cfg, blob.Commitment())
+		reconstructBlob, err := NewEmptyBlob(blob.ID())
+		require.NoError(t, err)
 
 		for _, row := range rows {
 			err = reconstructBlob.SetRow(row)

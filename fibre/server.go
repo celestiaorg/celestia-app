@@ -22,7 +22,6 @@ type ServerConfig struct {
 	// ChainID is the chain identifier for domain separation in [PaymentPromise] validation.
 	ChainID string
 
-	BlobConfig
 	StoreConfig
 
 	// LivenessThreshold is the fraction of stake needed for reconstruction (typically 1/3).
@@ -51,7 +50,6 @@ func DefaultServerConfig() ServerConfig {
 func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 	return ServerConfig{
 		ChainID:             "celestia",
-		BlobConfig:          DefaultBlobConfigV0(), // currently hardcode support for version zero only
 		StoreConfig:         DefaultStoreConfig(),
 		LivenessThreshold:   p.LivenessThreshold,
 		MinRowsPerValidator: p.MinRowsPerValidator(),

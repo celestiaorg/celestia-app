@@ -83,9 +83,8 @@ func (p *PaymentPromise) FromProto(pbMsg *types.PaymentPromise) error {
 	}
 
 	// parse commitment
-	var commitment Commitment
-	if err := commitment.UnmarshalBinary(pbMsg.Commitment); err != nil {
-		return fmt.Errorf("unmarshalling commitment: %w", err)
+	if len(pbMsg.Commitment) != CommitmentSize {
+		return fmt.Errorf("commitment must be %d bytes, got %d", CommitmentSize, len(pbMsg.Commitment))
 	}
 
 	*p = PaymentPromise{
@@ -94,7 +93,7 @@ func (p *PaymentPromise) FromProto(pbMsg *types.PaymentPromise) error {
 		Namespace:         ns,
 		UploadSize:        pbMsg.BlobSize,
 		BlobVersion:       pbMsg.BlobVersion,
-		Commitment:        commitment,
+		Commitment:        Commitment(pbMsg.Commitment),
 		CreationTimestamp: pbMsg.CreationTimestamp,
 		SignerKey:         &pbMsg.SignerPublicKey,
 		Signature:         pbMsg.Signature,

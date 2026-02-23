@@ -14,29 +14,37 @@ import (
 )
 
 // DownloadShard handles the [types.FibreServer.DownloadShard] RPC call.
-// It retrieves [types.BlobShard] for the given commitment.
+// It retrieves [types.BlobShard] for the given blob ID.
 func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequest) (*types.DownloadShardResponse, error) {
 	ctx, span := s.tracer.Start(ctx, "fibre.Server.DownloadShard")
 	defer span.End()
 
-	// unmarshal and validate commitment
-	var commitment Commitment
-	if err := commitment.UnmarshalBinary(req.Commitment); err != nil {
-		s.log.ErrorContext(ctx, "invalid commitment", "error", err)
+	// unmarshal and validate blob ID
+	var id BlobID
+	if err := id.UnmarshalBinary(req.BlobId); err != nil {
+		s.log.ErrorContext(ctx, "invalid blob ID", "error", err)
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "invalid commitment")
-		return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("invalid commitment: %v", err))
+		span.SetStatus(codes.Error, "invalid blob ID")
+		return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("invalid blob ID: %v", err))
 	}
 
-	// retrieve blob shard from storage
-	blobShard, err := s.store.Get(ctx, commitment)
+	// validate blob version is supported
+	if _, err := BlobConfigForVersion(id.Version()); err != nil {
+		s.log.ErrorContext(ctx, "unsupported blob version", "version", id.Version(), "error", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "unsupported blob version")
+		return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("unsupported blob version: %v", err))
+	}
+
+	// retrieve blob shard from storage using commitment
+	blobShard, err := s.store.Get(ctx, id.Commitment())
 	if err != nil {
 		if errors.Is(err, ErrStoreNotFound) {
-			s.log.WarnContext(ctx, "no blob shard found for commitment", "blob_commitment", commitment.String())
+			s.log.WarnContext(ctx, "no blob shard found for commitment", "blob_commitment", id.Commitment().String())
 			span.SetStatus(codes.Error, "no blob shard found")
-			return nil, status.Error(grpccodes.NotFound, fmt.Sprintf("no blob shard found for commitment %s", commitment.String()))
+			return nil, status.Error(grpccodes.NotFound, fmt.Sprintf("no blob shard found for commitment %s", id.Commitment().String()))
 		}
-		s.log.ErrorContext(ctx, "failed to retrieve blob shard", "blob_commitment", commitment.String(), "error", err)
+		s.log.ErrorContext(ctx, "failed to retrieve blob shard", "blob_commitment", id.Commitment().String(), "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to retrieve blob shard")
 		return nil, status.Error(grpccodes.Internal, fmt.Sprintf("failed to retrieve blob shard: %v", err))
@@ -52,7 +60,7 @@ func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequ
 	))
 
 	s.log.InfoContext(ctx, "download successful",
-		"blob_commitment", commitment.String(),
+		"blob_commitment", id.Commitment().String(),
 		"rows", len(blobShard.Rows),
 		"row_size", rowSize,
 	)

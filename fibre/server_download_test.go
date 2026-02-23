@@ -15,7 +15,7 @@ func TestServerDownloadShard(t *testing.T) {
 	tests := []struct {
 		name            string
 		storeBlob       bool // whether to store the blob before download
-		requestModifier func(*types.DownloadShardRequest, fibre.Commitment)
+		requestModifier func(*types.DownloadShardRequest, fibre.BlobID)
 		check           func(*testing.T, *types.DownloadShardResponse, error)
 	}{
 		{
@@ -38,14 +38,25 @@ func TestServerDownloadShard(t *testing.T) {
 			},
 		},
 		{
-			name:      "InvalidCommitment_WrongLength",
+			name:      "InvalidBlobID_WrongLength",
 			storeBlob: false,
-			requestModifier: func(req *types.DownloadShardRequest, _ fibre.Commitment) {
-				req.Commitment = []byte{1, 2, 3} // too short
+			requestModifier: func(req *types.DownloadShardRequest, _ fibre.BlobID) {
+				req.BlobId = []byte{1, 2, 3} // too short
 			},
 			check: func(t *testing.T, resp *types.DownloadShardResponse, err error) {
 				require.Error(t, err)
-				require.Contains(t, err.Error(), "invalid commitment")
+				require.Contains(t, err.Error(), "invalid blob ID")
+			},
+		},
+		{
+			name:      "UnsupportedBlobVersion",
+			storeBlob: false,
+			requestModifier: func(req *types.DownloadShardRequest, id fibre.BlobID) {
+				req.BlobId = fibre.NewBlobID(99, id.Commitment()) // unsupported version
+			},
+			check: func(t *testing.T, resp *types.DownloadShardResponse, err error) {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "unsupported blob version")
 			},
 		},
 	}
@@ -54,23 +65,23 @@ func TestServerDownloadShard(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			server, _, _ := makeTestServer(t)
 
-			// create a test blob for commitment
+			// create a test blob
 			blob := makeTestBlobV0(t, 256)
-			commitment := blob.Commitment()
+			id := blob.ID()
 
 			// optionally store the blob
 			if tt.storeBlob {
-				storeTestShard(t, server, blob, commitment)
+				storeTestShard(t, server, blob)
 			}
 
 			// create download request
 			req := &types.DownloadShardRequest{
-				Commitment: commitment[:],
+				BlobId: id,
 			}
 
 			// apply request modifier
 			if tt.requestModifier != nil {
-				tt.requestModifier(req, commitment)
+				tt.requestModifier(req, id)
 			}
 
 			resp, err := server.DownloadShard(t.Context(), req)
@@ -80,7 +91,7 @@ func TestServerDownloadShard(t *testing.T) {
 }
 
 // storeTestShard stores a test blob shard in the server's store for download testing.
-func storeTestShard(t *testing.T, server *fibre.Server, blob *fibre.Blob, commitment fibre.Commitment) {
+func storeTestShard(t *testing.T, server *fibre.Server, blob *fibre.Blob) {
 	t.Helper()
 
 	// create a payment promise
@@ -95,8 +106,8 @@ func storeTestShard(t *testing.T, server *fibre.Server, blob *fibre.Blob, commit
 		Height:            100,
 		Namespace:         testNamespace,
 		UploadSize:        uint32(blob.UploadSize()),
-		BlobVersion:       0,
-		Commitment:        commitment,
+		BlobVersion:       uint32(blob.ID().Version()),
+		Commitment:        blob.ID().Commitment(),
 		CreationTimestamp: time.Now(),
 		SignerKey:         pubKey.(*secp256k1.PubKey),
 		Signature:         []byte("test-signature"),

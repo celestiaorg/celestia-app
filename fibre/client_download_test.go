@@ -40,7 +40,7 @@ func testClientDownloadSuccess(t *testing.T) {
 	client := makeTestDownloadClient(t, 10, nil, blob)
 	defer client.Close()
 
-	downloaded, err := client.Download(t.Context(), blob.Commitment())
+	downloaded, err := client.Download(t.Context(), blob.ID())
 	require.NoError(t, err)
 	require.NotNil(t, downloaded)
 	require.Equal(t, blob.Data(), downloaded.Data())
@@ -63,7 +63,7 @@ func testClientDownloadConcurrent(t *testing.T) {
 		go func(blob *fibre.Blob) {
 			defer wg.Done()
 
-			downloaded, err := client.Download(t.Context(), blob.Commitment())
+			downloaded, err := client.Download(t.Context(), blob.ID())
 			require.NoError(t, err)
 			require.Equal(t, blob.Data(), downloaded.Data())
 		}(blob)
@@ -79,7 +79,7 @@ func testClientDownloadContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	_, err := client.Download(ctx, fibre.Commitment{})
+	_, err := client.Download(ctx, blob.ID())
 	require.ErrorIs(t, err, context.Canceled)
 }
 
@@ -91,7 +91,7 @@ func testClientDownloadClosedClient(t *testing.T) {
 	require.NoError(t, client.Close())
 	require.NoError(t, client.Close()) // idempotent
 
-	_, err := client.Download(t.Context(), fibre.Commitment{})
+	_, err := client.Download(t.Context(), blob.ID())
 	require.ErrorIs(t, err, fibre.ErrClientClosed)
 }
 
@@ -108,7 +108,7 @@ func testClientDownloadExactTargetCount(t *testing.T) {
 	}, blob)
 	defer client.Close()
 
-	downloaded, err := client.Download(t.Context(), blob.Commitment())
+	downloaded, err := client.Download(t.Context(), blob.ID())
 	require.NoError(t, err)
 	require.Equal(t, blob.Data(), downloaded.Data())
 
@@ -141,7 +141,7 @@ func testClientDownloadFaultTolerance(t *testing.T) {
 			}, blob)
 			defer client.Close()
 
-			downloaded, err := client.Download(t.Context(), blob.Commitment())
+			downloaded, err := client.Download(t.Context(), blob.ID())
 			if tc.expectErr != nil {
 				require.ErrorIs(t, err, tc.expectErr)
 			} else {
@@ -216,13 +216,15 @@ func (d *downloadMockClient) UploadShard(ctx context.Context, req *types.UploadS
 }
 
 func (d *downloadMockClient) DownloadShard(ctx context.Context, req *types.DownloadShardRequest, opts ...grpclib.CallOption) (*types.DownloadShardResponse, error) {
-	var commitment fibre.Commitment
-	copy(commitment[:], req.Commitment)
+	var id fibre.BlobID
+	if err := id.UnmarshalBinary(req.BlobId); err != nil {
+		return nil, err
+	}
 
 	// find the blob matching the commitment
 	var blob *fibre.Blob
 	for _, b := range d.blobs {
-		if commitment.Equals(b.Commitment()) {
+		if b.ID().Commitment() == id.Commitment() {
 			blob = b
 			break
 		}
