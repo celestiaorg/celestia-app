@@ -74,7 +74,7 @@ func TestServerUploadShard(t *testing.T) {
 			name: "InvalidRowAssignment",
 			requestModifier: func(req *types.UploadShardRequest) {
 				// replace with another validator's rows
-				serverCfg := server.Config()
+				serverCfg := server.Config
 				blobCfg, _ := fibre.BlobConfigForVersion(uint8(req.Promise.BlobVersion))
 				totalRows := blobCfg.OriginalRows + blobCfg.ParityRows
 				// get commitment from the request (it's already a byte slice)

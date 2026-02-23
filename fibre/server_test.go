@@ -13,7 +13,6 @@ import (
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 )
 
 // makeTestServer creates a server with all necessary test infrastructure.
@@ -40,51 +39,51 @@ func makeTestServer(t *testing.T) (*fibre.Server, validator.Set, *core.Validator
 	require.True(t, found, "server validator not found in validator set")
 	require.NotNil(t, serverValidator, "server validator is nil")
 
-	// create server
-	server, err := fibre.NewInMemoryServer(
-		privVal,
-		&mockQueryClient{},
-		&mockValidatorSetGetter{set: valSet},
-		fibre.DefaultServerConfig(),
-	)
+	valSetGetter := &mockValidatorSetGetter{set: valSet}
+
+	cfg := fibre.DefaultServerConfig()
+	cfg.ServerListenAddress = "127.0.0.1:0"
+	cfg.StateClientFn = func() (fibre.StateClient, error) {
+		return &mockStateClient{
+			chainID:   "celestia",
+			SetGetter: valSetGetter,
+		}, nil
+	}
+	cfg.SignerFn = func(_ string) (core.PrivValidator, error) {
+		return privVal, nil
+	}
+
+	cfg.StoreFn = func(scfg fibre.StoreConfig) (*fibre.Store, error) {
+		return fibre.NewMemoryStore(scfg), nil
+	}
+	server, err := fibre.NewServer(cfg)
 	require.NoError(t, err)
+
+	require.NoError(t, server.Start(t.Context()))
+	t.Cleanup(func() {
+		require.NoError(t, server.Stop(context.Background()))
+	})
 
 	return server, valSet, serverValidator
 }
 
-// mockQueryClient is a mock implementation of types.QueryClient for testing.
-type mockQueryClient struct{}
-
-func (m *mockQueryClient) Params(ctx context.Context, in *types.QueryParamsRequest, opts ...grpc.CallOption) (*types.QueryParamsResponse, error) {
-	return &types.QueryParamsResponse{}, nil
+// mockStateClient implements fibre.StateClient for testing.
+type mockStateClient struct {
+	validator.SetGetter
+	chainID string
 }
 
-func (m *mockQueryClient) EscrowAccount(ctx context.Context, in *types.QueryEscrowAccountRequest, opts ...grpc.CallOption) (*types.QueryEscrowAccountResponse, error) {
-	return &types.QueryEscrowAccountResponse{}, nil
-}
+func (m *mockStateClient) Start(context.Context) error { return nil }
+func (m *mockStateClient) Stop() error                 { return nil }
+func (m *mockStateClient) ChainID() string             { return m.chainID }
 
-func (m *mockQueryClient) Withdrawals(ctx context.Context, in *types.QueryWithdrawalsRequest, opts ...grpc.CallOption) (*types.QueryWithdrawalsResponse, error) {
-	return &types.QueryWithdrawalsResponse{}, nil
-}
-
-func (m *mockQueryClient) IsPaymentProcessed(ctx context.Context, in *types.QueryIsPaymentProcessedRequest, opts ...grpc.CallOption) (*types.QueryIsPaymentProcessedResponse, error) {
-	return &types.QueryIsPaymentProcessedResponse{}, nil
-}
-
-func (m *mockQueryClient) ValidatePaymentPromise(ctx context.Context, in *types.QueryValidatePaymentPromiseRequest, opts ...grpc.CallOption) (*types.QueryValidatePaymentPromiseResponse, error) {
-	// Calculate expiration time: creation_timestamp + 1 hour (default timeout)
-	expirationTime := in.Promise.CreationTimestamp.Add(1 * time.Hour)
-	currentTime := time.Now()
-
-	// Check if payment promise has expired
-	if currentTime.After(expirationTime) || currentTime.Equal(expirationTime) {
-		return nil, fmt.Errorf("payment promise expired: creation_timestamp %v + timeout %v = %v, current_time: %v", in.Promise.CreationTimestamp, 1*time.Hour, expirationTime, currentTime)
+func (m *mockStateClient) Verify(_ context.Context, promise *types.PaymentPromise) (time.Time, error) {
+	expirationTime := promise.CreationTimestamp.Add(1 * time.Hour)
+	if time.Now().After(expirationTime) || time.Now().Equal(expirationTime) {
+		return time.Time{}, fmt.Errorf("payment promise expired: creation_timestamp %v + timeout %v = %v",
+			promise.CreationTimestamp, 1*time.Hour, expirationTime)
 	}
-
-	return &types.QueryValidatePaymentPromiseResponse{
-		IsValid:        true,
-		ExpirationTime: &expirationTime,
-	}, nil
+	return expirationTime, nil
 }
 
 // testPrivValidator is a simple mock PrivValidator for testing.
