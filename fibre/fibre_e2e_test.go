@@ -272,14 +272,14 @@ func (s *FibreE2ETestSuite) Test03Put() {
 	require.NoError(t, err)
 
 	// Verify Put result.
-	require.NotEmpty(t, result.Commitment.String(), "commitment should not be empty")
+	require.NotEmpty(t, result.BlobID.Commitment().String(), "commitment should not be empty")
 	require.NotEmpty(t, result.ValidatorSignatures, "should have validator signatures")
 	require.NotEmpty(t, result.TxHash, "tx hash should not be empty")
 	require.Greater(t, result.Height, uint64(0), "height should be positive")
-	t.Logf("Put result: commitment=%s, txHash=%s, height=%d", result.Commitment.String(), result.TxHash, result.Height)
+	t.Logf("Put result: commitment=%s, txHash=%s, height=%d", result.BlobID.String(), result.TxHash, result.Height)
 
 	// Verify data was stored in server's store.
-	shard, err := s.fibreServer.Store().Get(ctx, result.Commitment)
+	shard, err := s.fibreServer.Store().Get(ctx, result.BlobID.Commitment())
 	require.NoError(t, err)
 	require.NotNil(t, shard)
 	require.NotEmpty(t, shard.Rows, "stored shard should have rows")

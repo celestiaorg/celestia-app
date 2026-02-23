@@ -9,7 +9,6 @@ import (
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/validator"
 	"github.com/celestiaorg/celestia-app-fibre/v6/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
-	"github.com/celestiaorg/rsema1d"
 	"github.com/celestiaorg/rsema1d/field"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -67,7 +66,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 	))
 
 	// 2) assign shards to validators
-	shardMap := valSet.Assign(rsema1d.Commitment(blob.Commitment()), blob.Config().TotalRows(), blob.Config().OriginalRows, c.cfg.MinRowsPerValidator, c.cfg.LivenessThreshold)
+	shardMap := valSet.Assign(blob.ID().Commitment(), blob.Config().TotalRows(), blob.Config().OriginalRows, c.cfg.MinRowsPerValidator, c.cfg.LivenessThreshold)
 	span.AddEvent("shards_assigned")
 
 	validatorSignBytes, err := promise.SignBytesValidator()
@@ -151,7 +150,7 @@ func (c *Client) signedPromise(ns share.Namespace, blob *Blob, height uint64) (*
 		Namespace:         ns,
 		UploadSize:        uint32(blob.UploadSize()),
 		BlobVersion:       uint32(blob.Config().BlobVersion),
-		Commitment:        blob.Commitment(),
+		Commitment:        blob.ID().Commitment(),
 		CreationTimestamp: c.clock.Now().UTC(),
 		SignerKey:         signerKey,
 	}
@@ -185,7 +184,7 @@ func (c *Client) uploadTo(
 
 	log := c.log.With(
 		"validator", val.Address.String(),
-		"blob_commitment", blob.Commitment(),
+		"blob_commitment", blob.ID().Commitment(),
 		"rows_count", len(req.Shard.Rows),
 	)
 

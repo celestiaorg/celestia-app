@@ -74,11 +74,13 @@ func TestServerUploadShard(t *testing.T) {
 			name: "InvalidRowAssignment",
 			requestModifier: func(req *types.UploadShardRequest) {
 				// replace with another validator's rows
-				cfg := server.Config()
+				serverCfg := server.Config()
+				blobCfg, _ := fibre.BlobConfigForVersion(uint8(req.Promise.BlobVersion))
+				totalRows := blobCfg.OriginalRows + blobCfg.ParityRows
 				// get commitment from the request (it's already a byte slice)
 				var commitment rsema1d.Commitment
 				copy(commitment[:], req.Promise.Commitment)
-				shardMap := valSet.Assign(commitment, cfg.TotalRows(), cfg.OriginalRows, cfg.MinRowsPerValidator, cfg.LivenessThreshold)
+				shardMap := valSet.Assign(commitment, totalRows, blobCfg.OriginalRows, serverCfg.MinRowsPerValidator, serverCfg.LivenessThreshold)
 				for val, indices := range shardMap {
 					if val.Address.String() != serverValidator.Address.String() && len(indices) > 0 {
 						req.Shard.Rows[0].Index = uint32(indices[0])
@@ -174,8 +176,8 @@ func makeTestRequest(
 		Height:            100,
 		Namespace:         testNamespace,
 		UploadSize:        uint32(blob.UploadSize()),
-		BlobVersion:       0,
-		Commitment:        blob.Commitment(),
+		BlobVersion:       uint32(blob.ID().Version()),
+		Commitment:        blob.ID().Commitment(),
 		CreationTimestamp: time.Now(),
 		SignerKey:         pubKey.(*secp256k1.PubKey),
 	}
@@ -184,8 +186,10 @@ func makeTestRequest(
 	signPromise(promisePb)
 
 	// get row assignment for server validator
-	cfg := fibre.DefaultServerConfig()
-	shardMap := valSet.Assign(rsema1d.Commitment(blob.Commitment()), cfg.TotalRows(), cfg.OriginalRows, cfg.MinRowsPerValidator, cfg.LivenessThreshold)
+	serverCfg := fibre.DefaultServerConfig()
+	blobCfg := blob.Config()
+	totalRows := blobCfg.OriginalRows + blobCfg.ParityRows
+	shardMap := valSet.Assign(blob.ID().Commitment(), totalRows, blobCfg.OriginalRows, serverCfg.MinRowsPerValidator, serverCfg.LivenessThreshold)
 	rowIndices := shardMap[serverValidator]
 	require.NotEmpty(t, rowIndices, "server validator has no rows assigned")
 

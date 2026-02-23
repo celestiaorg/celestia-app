@@ -36,16 +36,15 @@ func testStorePutGetRoundtrip(t *testing.T, store *fibre.Store) {
 	ctx := t.Context()
 
 	blob := makeTestBlobV0(t, 256)
-	commitment := blob.Commitment()
 	shard := makeShardFrom(t, blob, 0, 1, 2)
-	promise := makeTestPaymentPromise(100, commitment)
+	promise := makeTestPaymentPromise(100, blob.ID())
 
 	// put data
 	err := store.Put(ctx, promise, shard, promise.CreationTimestamp)
 	require.NoError(t, err)
 
 	// get shard by commitment
-	gotShard, err := store.Get(ctx, promise.Commitment)
+	gotShard, err := store.Get(ctx, blob.ID().Commitment())
 	require.NoError(t, err)
 	require.Len(t, gotShard.Rows, 3)
 	require.Equal(t, shard.Rows[0].Index, gotShard.Rows[0].Index)
@@ -66,9 +65,8 @@ func testStorePutSameCommitmentSamePromise(t *testing.T, store *fibre.Store) {
 	ctx := t.Context()
 
 	blob := makeTestBlobV0(t, 256)
-	commitment := blob.Commitment()
 	shard := makeShardFrom(t, blob, 0, 1)
-	promise := makeTestPaymentPromise(100, commitment)
+	promise := makeTestPaymentPromise(100, blob.ID())
 
 	// put data first time
 	err := store.Put(ctx, promise, shard, promise.CreationTimestamp)
@@ -79,7 +77,7 @@ func testStorePutSameCommitmentSamePromise(t *testing.T, store *fibre.Store) {
 	require.NoError(t, err)
 
 	// should be able to retrieve
-	gotShard, err := store.Get(ctx, commitment)
+	gotShard, err := store.Get(ctx, blob.ID().Commitment())
 	require.NoError(t, err)
 	require.NotNil(t, gotShard)
 	require.Len(t, gotShard.Rows, 2)
@@ -90,17 +88,16 @@ func testStorePutSameCommitmentDifferentPromises(t *testing.T, store *fibre.Stor
 
 	// create a single blob to get the same commitment
 	blob := makeTestBlobV0(t, 256)
-	commitment := blob.Commitment()
 
 	// extract different shards from the same blob
 	shard1 := makeShardFrom(t, blob, 0, 1)
 	shard2 := makeShardFrom(t, blob, 2, 3)
 
 	// first promise with rows 0, 1
-	promise1 := makeTestPaymentPromise(100, commitment)
+	promise1 := makeTestPaymentPromise(100, blob.ID())
 
 	// second promise with different height but same commitment, rows 2, 3
-	promise2 := makeTestPaymentPromise(101, commitment)
+	promise2 := makeTestPaymentPromise(101, blob.ID())
 
 	// put first promise
 	err := store.Put(ctx, promise1, shard1, promise1.CreationTimestamp)
@@ -111,7 +108,7 @@ func testStorePutSameCommitmentDifferentPromises(t *testing.T, store *fibre.Stor
 	require.NoError(t, err)
 
 	// get returns only first shard found (to prevent unbounded message sizes)
-	gotShard, err := store.Get(ctx, commitment)
+	gotShard, err := store.Get(ctx, blob.ID().Commitment())
 	require.NoError(t, err)
 	require.NotNil(t, gotShard)
 	require.Len(t, gotShard.Rows, 2, "should have 2 rows from first shard")
@@ -135,10 +132,9 @@ func testStoreGetNotFound(t *testing.T, store *fibre.Store) {
 
 	// create commitment that was never stored
 	blob := makeTestBlobV0(t, 256)
-	commitment := blob.Commitment()
 
 	// try to get commitment that was never stored
-	_, err := store.Get(ctx, commitment)
+	_, err := store.Get(ctx, blob.ID().Commitment())
 	require.ErrorIs(t, err, fibre.ErrStoreNotFound)
 }
 
@@ -146,9 +142,8 @@ func testStorePruneBeforeRemovesShardAndPromise(t *testing.T, store *fibre.Store
 	ctx := t.Context()
 
 	blob := makeTestBlobV0(t, 256)
-	commitment := blob.Commitment()
 	shard := makeShardFrom(t, blob, 0, 1)
-	promise := makeTestPaymentPromise(100, commitment)
+	promise := makeTestPaymentPromise(100, blob.ID())
 
 	pruneAt := time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC)
 	cutoffTime := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
@@ -160,7 +155,7 @@ func testStorePruneBeforeRemovesShardAndPromise(t *testing.T, store *fibre.Store
 	promiseHash, _ := promise.Hash()
 	_, err = store.GetPaymentPromise(ctx, promiseHash)
 	require.NoError(t, err)
-	_, err = store.Get(ctx, commitment)
+	_, err = store.Get(ctx, blob.ID().Commitment())
 	require.NoError(t, err)
 
 	// prune
@@ -171,7 +166,7 @@ func testStorePruneBeforeRemovesShardAndPromise(t *testing.T, store *fibre.Store
 	// both promise and shard should be gone
 	_, err = store.GetPaymentPromise(ctx, promiseHash)
 	require.Error(t, err)
-	_, err = store.Get(ctx, commitment)
+	_, err = store.Get(ctx, blob.ID().Commitment())
 	require.ErrorIs(t, err, fibre.ErrStoreNotFound)
 }
 
@@ -179,15 +174,14 @@ func testStorePruneBeforePreservesOtherPromiseShard(t *testing.T, store *fibre.S
 	ctx := t.Context()
 
 	blob := makeTestBlobV0(t, 256)
-	commitment := blob.Commitment()
 
 	oldPruneAt := time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC)
 	cutoffTime := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
 	newPruneAt := time.Date(2025, 1, 1, 14, 0, 0, 0, time.UTC)
 
 	// two promises with different shards for the same commitment
-	oldPromise := makeTestPaymentPromise(100, commitment)
-	newPromise := makeTestPaymentPromise(101, commitment)
+	oldPromise := makeTestPaymentPromise(100, blob.ID())
+	newPromise := makeTestPaymentPromise(101, blob.ID())
 	oldShard := makeShardFrom(t, blob, 0, 1)
 	newShard := makeShardFrom(t, blob, 2, 3)
 
@@ -211,7 +205,7 @@ func testStorePruneBeforePreservesOtherPromiseShard(t *testing.T, store *fibre.S
 	// new promise and its shard still exist
 	_, err = store.GetPaymentPromise(ctx, newHash)
 	require.NoError(t, err)
-	gotShard, err := store.Get(ctx, commitment)
+	gotShard, err := store.Get(ctx, blob.ID().Commitment())
 	require.NoError(t, err)
 	require.Equal(t, uint32(2), gotShard.Rows[0].Index)
 }
@@ -220,12 +214,12 @@ func testStoreGetDeterministicOrdering(t *testing.T, store *fibre.Store) {
 	ctx := t.Context()
 
 	blob := makeTestBlobV0(t, 256)
-	commitment := blob.Commitment()
+	id := blob.ID()
 
 	// store multiple shards with different row indices
 	for i := range 5 {
 		shard := makeShardFrom(t, blob, i*2, i*2+1)
-		promise := makeTestPaymentPromise(uint64(100+i), commitment)
+		promise := makeTestPaymentPromise(uint64(100+i), id)
 		err := store.Put(ctx, promise, shard, promise.CreationTimestamp)
 		require.NoError(t, err)
 	}
@@ -233,7 +227,7 @@ func testStoreGetDeterministicOrdering(t *testing.T, store *fibre.Store) {
 	// get multiple times and verify ordering is deterministic
 	var firstRowIndex uint32
 	for i := range 10 {
-		gotShard, err := store.Get(ctx, commitment)
+		gotShard, err := store.Get(ctx, id.Commitment())
 		require.NoError(t, err)
 		require.NotEmpty(t, gotShard.Rows)
 
@@ -280,13 +274,14 @@ func makeShardFrom(t *testing.T, blob *fibre.Blob, indices ...int) *types.BlobSh
 var testSignerKey = secp256k1.GenPrivKey().PubKey().(*secp256k1.PubKey)
 
 // makeTestPaymentPromise creates a test payment promise for store tests.
-func makeTestPaymentPromise(height uint64, commitment fibre.Commitment) *fibre.PaymentPromise {
+func makeTestPaymentPromise(height uint64, blobID fibre.BlobID) *fibre.PaymentPromise {
 	return &fibre.PaymentPromise{
 		ChainID:           "test-chain",
 		Height:            height,
 		Namespace:         testNamespace,
 		UploadSize:        1024,
-		Commitment:        commitment,
+		BlobVersion:       uint32(blobID.Version()),
+		Commitment:        blobID.Commitment(),
 		CreationTimestamp: time.Date(2025, 10, 21, 15, 30, 0, 0, time.UTC),
 		SignerKey:         testSignerKey,
 		Signature:         []byte("test-signature-64-bytes-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),
