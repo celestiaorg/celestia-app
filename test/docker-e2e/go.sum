@@ -796,8 +796,8 @@ github.com/celestiaorg/nmt v0.24.2 h1:LlpJSPOd6/Lw1Ig6HUhZuqiINHLka/ZSRTBzlNJpch
 github.com/celestiaorg/nmt v0.24.2/go.mod h1:vgLBpWBi8F5KLxTdXSwb7AU4NhiIQ1AQRGa+PzdcLEA=
 github.com/celestiaorg/rsmt2d v0.15.1 h1:NF4D0LX501oDjw00RoJrTUrMHrO+Kv0LewL0FKQU7hg=
 github.com/celestiaorg/rsmt2d v0.15.1/go.mod h1:WKkpXoD1foHn4qgFx6GNoz36Wm0fbCh29ze4rA7ZwCs=
-github.com/celestiaorg/tastora v0.13.0 h1:fZs3OSsk2GnShk5MG7bHwhk9KD38h0Szd2UTDmeRVoc=
-github.com/celestiaorg/tastora v0.13.0/go.mod h1:ObeKMraNab/xofYZyylnOEiveHvUAPdKP5HiNjnvQoM=
+github.com/celestiaorg/tastora v0.15.0 h1:rpXX/y19BzZ6Qf3pCc2YxJid2uwIJbTFf+BgBruOD34=
+github.com/celestiaorg/tastora v0.15.0/go.mod h1:C867PBm6Ne6e/1JlmsRqcLeJ6RHAuMoMRCvwJzV/q8g=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
 github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
 github.com/cenkalti/backoff/v4 v4.1.1/go.mod h1:scbssz8iZGpm3xbr14ovlUdkxfGXNInqkPWOWmG2CLw=
