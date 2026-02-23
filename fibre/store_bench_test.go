@@ -41,7 +41,7 @@ func benchmarkPruneBefore(b *testing.B, totalEntries, prunePercent int) {
 	for i := range entries {
 		blob := makeBenchBlob(i)
 		entries[i] = entry{
-			promise: makeTestPaymentPromise(uint64(i), blob.Commitment()),
+			promise: makeTestPaymentPromise(uint64(i), blob.ID()),
 			shard:   makeBenchShard(blob),
 			pruneAt: baseTime.Add(time.Duration(i) * time.Minute),
 		}

@@ -56,7 +56,7 @@ func testClientConcurrentUploads(t *testing.T) {
 			result, err := client.Upload(t.Context(), testNamespace, blob)
 			require.NoError(t, err)
 
-			commitments <- rsema1d.Commitment(result.Commitment)
+			commitments <- result.Commitment
 		}()
 	}
 

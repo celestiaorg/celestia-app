@@ -22,7 +22,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	ctx, span := s.tracer.Start(ctx, "fibre.Server.UploadShard")
 	defer span.End()
 
-	promise, promiseHash, pruneAt, err := s.verifyPromise(ctx, req.Promise)
+	promise, blobCfg, promiseHash, pruneAt, err := s.verifyPromise(ctx, req.Promise)
 	if err != nil {
 		s.log.WarnContext(ctx, "payment promise verification failed", "error", err)
 		span.RecordError(err)
@@ -41,7 +41,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	))
 
 	// verify assignment - check that the shard belongs to us
-	if err := s.verifyAssignment(ctx, promise, req.Shard); err != nil {
+	if err := s.verifyAssignment(ctx, promise, blobCfg, req.Shard); err != nil {
 		log.WarnContext(ctx, "shard assignment verification failed", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "shard assignment verification failed")
@@ -50,7 +50,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	span.AddEvent("assignment_verified")
 
 	// verify row proofs using rsema1d and set RLC root
-	if err := s.verifyShard(ctx, promise, req.Shard); err != nil {
+	if err := s.verifyShard(ctx, blobCfg, promise, req.Shard); err != nil {
 		log.WarnContext(ctx, "shard verification failed", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "shard verification failed")
@@ -94,24 +94,26 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 
 // verifyPromise verifies given proto of [PaymentPromise] and returns unmarshaled form with its hash.
 // It does both stateless and stateful verification.
-// Returns the pruneAt time for the shard based on the expiration time from chain state.
-func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentPromise) (*PaymentPromise, []byte, time.Time, error) {
+// Returns the BlobConfig for the blob version and pruneAt time based on the expiration time from chain state.
+func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentPromise) (*PaymentPromise, BlobConfig, []byte, time.Time, error) {
 	promise := &PaymentPromise{}
 	if err := promise.FromProto(promisePb); err != nil {
-		return nil, nil, time.Time{}, fmt.Errorf("invalid payment promise proto: %w", err)
+		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("invalid payment promise proto: %w", err)
 	}
 
 	// validate PP fields matches the config
 	if promise.ChainID != s.cfg.ChainID {
-		return nil, nil, time.Time{}, fmt.Errorf("payment promise chain ID mismatch: expected %s, got %s", s.cfg.ChainID, promise.ChainID)
+		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("payment promise chain ID mismatch: expected %s, got %s", s.cfg.ChainID, promise.ChainID)
 	}
-	if promise.BlobVersion != uint32(s.cfg.BlobVersion) {
-		return nil, nil, time.Time{}, fmt.Errorf("blob version mismatch: expected %d, got %d", s.cfg.BlobVersion, promise.BlobVersion)
+	// validate blob version is supported
+	blobCfg, err := BlobConfigForVersion(uint8(promise.BlobVersion))
+	if err != nil {
+		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("unsupported blob version %d: %w", promise.BlobVersion, err)
 	}
 
 	// stateless validation
 	if err := promise.Validate(); err != nil {
-		return nil, nil, time.Time{}, fmt.Errorf("payment promise validation failed: %w", err)
+		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("payment promise validation failed: %w", err)
 	}
 
 	// validate stateful constraints
@@ -119,28 +121,28 @@ func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentProm
 		Promise: *promisePb,
 	})
 	if err != nil {
-		return nil, nil, time.Time{}, fmt.Errorf("stateful validation request: %w", err)
+		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("stateful validation request: %w", err)
 	}
 	if !resp.IsValid {
-		return nil, nil, time.Time{}, fmt.Errorf("payment promise is invalid with no reason")
+		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("payment promise is invalid with no reason")
 	}
 	if resp.ExpirationTime == nil {
-		return nil, nil, time.Time{}, fmt.Errorf("expiration time not provided in validation response")
+		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("expiration time not provided in validation response")
 	}
 	pruneAt := *resp.ExpirationTime
 
 	promiseHash, err := promise.Hash()
 	if err != nil {
-		return nil, nil, time.Time{}, fmt.Errorf("computing payment promise hash: %w", err)
+		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("computing payment promise hash: %w", err)
 	}
 
-	return promise, promiseHash, pruneAt, nil
+	return promise, blobCfg, promiseHash, pruneAt, nil
 }
 
 // verifyAssignment verifies that the [types.BlobShard] in the request is assigned to this validator.
 // It fetches the validator set at the promise height, identifies this validator,
 // computes the shard map, and checks that every row index belongs to this validator.
-func (s *Server) verifyAssignment(ctx context.Context, promise *PaymentPromise, shard *types.BlobShard) error {
+func (s *Server) verifyAssignment(ctx context.Context, promise *PaymentPromise, blobCfg BlobConfig, shard *types.BlobShard) error {
 	valSet, err := s.valGet.GetByHeight(ctx, promise.Height)
 	if err != nil {
 		return fmt.Errorf("getting validator set at height %d: %w", promise.Height, err)
@@ -157,7 +159,7 @@ func (s *Server) verifyAssignment(ctx context.Context, promise *PaymentPromise, 
 	for i, row := range shard.GetRows() {
 		rowIndices[i] = row.Index
 	}
-	shardMap := valSet.Assign(rsema1d.Commitment(promise.Commitment), s.cfg.TotalRows(), s.cfg.OriginalRows, s.cfg.MinRowsPerValidator, s.cfg.LivenessThreshold)
+	shardMap := valSet.Assign(promise.Commitment, blobCfg.TotalRows(), blobCfg.OriginalRows, s.cfg.MinRowsPerValidator, s.cfg.LivenessThreshold)
 	if err := shardMap.Verify(ourValidator, rowIndices); err != nil {
 		return err
 	}
@@ -168,29 +170,29 @@ func (s *Server) verifyAssignment(ctx context.Context, promise *PaymentPromise, 
 // verifyShard verifies [types.BlobShard]'s rows and proofs using [rsema1d.VerificationContext].
 // Essentially checks correctness of the entire [Blob]'s data by only sampling subset of data rows.
 // Sets the RLC root on the shard and clears the coefficients after verification.
-func (s *Server) verifyShard(_ context.Context, promise *PaymentPromise, shard *types.BlobShard) error {
+func (s *Server) verifyShard(_ context.Context, blobCfg BlobConfig, promise *PaymentPromise, shard *types.BlobShard) error {
 	rowSize, err := parseRowSize(shard.Rows)
 	if err != nil {
 		return err
 	}
 
 	// validate upload size matches the row size
-	expectedUploadSize := rowSize * s.cfg.OriginalRows
+	expectedUploadSize := rowSize * blobCfg.OriginalRows
 	if int(promise.UploadSize) != expectedUploadSize {
 		return fmt.Errorf("upload size mismatch: promise has %d, but row size %d * %d original rows = %d",
-			promise.UploadSize, rowSize, s.cfg.OriginalRows, expectedUploadSize)
+			promise.UploadSize, rowSize, blobCfg.OriginalRows, expectedUploadSize)
 	}
 
-	rlcCoeffs, err := parseRLCCoeffs(shard.GetCoefficients(), s.cfg.OriginalRows)
+	rlcCoeffs, err := parseRLCCoeffs(shard.GetCoefficients(), blobCfg.OriginalRows)
 	if err != nil {
 		return err
 	}
 
 	verificationCtx, rlcRoot, err := rsema1d.CreateVerificationContext(rlcCoeffs, &rsema1d.Config{
-		K:           s.cfg.OriginalRows,
-		N:           s.cfg.ParityRows,
+		K:           blobCfg.OriginalRows,
+		N:           blobCfg.ParityRows,
 		RowSize:     rowSize,
-		WorkerCount: s.cfg.CodingWorkers,
+		WorkerCount: blobCfg.CodingWorkers,
 	})
 	if err != nil {
 		return fmt.Errorf("creating verification context: %w", err)
@@ -202,7 +204,7 @@ func (s *Server) verifyShard(_ context.Context, promise *PaymentPromise, shard *
 			return err
 		}
 
-		if err := rsema1d.VerifyRowWithContext(row, rsema1d.Commitment(promise.Commitment), verificationCtx); err != nil {
+		if err := rsema1d.VerifyRowWithContext(row, promise.Commitment, verificationCtx); err != nil {
 			return fmt.Errorf("verification failed for row %d: %w", row.Index, err)
 		}
 	}

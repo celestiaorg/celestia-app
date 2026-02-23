@@ -2,7 +2,6 @@ package fibre
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"runtime"
@@ -18,42 +17,6 @@ var (
 	// ErrBlobCommitmentMismatch is returned when the reconstructed commitment doesn't match the expected one.
 	ErrBlobCommitmentMismatch = errors.New("commitment mismatch: reconstructed data doesn't match expected commitment")
 )
-
-// Commitment is a commitment to a blob.
-// TODO(@Wondertan): merge with rsema1d.Commitment once it has these methods.
-type Commitment rsema1d.Commitment
-
-// UnmarshalBinary decodes a [Commitment] from bytes.
-func (c *Commitment) UnmarshalBinary(data []byte) error {
-	if len(data) != 32 {
-		return fmt.Errorf("commitment must be 32 bytes, got %d", len(data))
-	}
-	copy(c[:], data)
-	return nil
-}
-
-// String returns the hex-encoded string representation of the commitment.
-func (c Commitment) String() string {
-	return hex.EncodeToString(c[:])
-}
-
-// CommitmentFromString decodes a [Commitment] from a hex-encoded string.
-func CommitmentFromString(s string) (Commitment, error) {
-	data, err := hex.DecodeString(s)
-	if err != nil {
-		return Commitment{}, fmt.Errorf("decoding hex: %w", err)
-	}
-	var c Commitment
-	if err := c.UnmarshalBinary(data); err != nil {
-		return Commitment{}, err
-	}
-	return c, nil
-}
-
-// Equals returns true if the two commitments are equal.
-func (c Commitment) Equals(other Commitment) bool {
-	return c == other
-}
 
 // BlobConfig contains configuration parameters for blob encoding and decoding.
 type BlobConfig struct {
@@ -75,6 +38,17 @@ type BlobConfig struct {
 // DefaultBlobConfigV0 returns a [BlobConfig] with default values for version 0.
 func DefaultBlobConfigV0() BlobConfig {
 	return NewBlobConfigFromParams(0, DefaultProtocolParams)
+}
+
+// BlobConfigForVersion returns the [BlobConfig] for the given blob version.
+// Returns an error if the version is not supported.
+func BlobConfigForVersion(version uint8) (BlobConfig, error) {
+	switch version {
+	case 0:
+		return DefaultBlobConfigV0(), nil
+	default:
+		return BlobConfig{}, fmt.Errorf("unsupported blob version: %d", version)
+	}
 }
 
 // NewBlobConfigFromParams creates a [BlobConfig] with values derived from the given [ProtocolParams].
@@ -115,7 +89,7 @@ type Blob struct {
 	cfg BlobConfig
 
 	extendedData *rsema1d.ExtendedData
-	commitment   Commitment
+	id           BlobID
 	rlcCoeffs    []field.GF128
 
 	// holds meta fields about the blob
@@ -146,7 +120,8 @@ func NewBlob(data []byte, cfg BlobConfig) (d *Blob, err error) {
 	}
 
 	rows := d.header.encodeToRows(data, cfg)
-	d.extendedData, d.commitment, d.rlcCoeffs, err = rsema1d.Encode(rows, &rsema1d.Config{
+	var rsemaCommitment rsema1d.Commitment
+	d.extendedData, rsemaCommitment, d.rlcCoeffs, err = rsema1d.Encode(rows, &rsema1d.Config{
 		K:           cfg.OriginalRows,
 		N:           cfg.ParityRows,
 		RowSize:     len(rows[0]),
@@ -155,23 +130,32 @@ func NewBlob(data []byte, cfg BlobConfig) (d *Blob, err error) {
 	if err != nil {
 		return nil, fmt.Errorf("encoding data: %w", err)
 	}
+	d.id = NewBlobID(cfg.BlobVersion, rsemaCommitment)
 
 	return d, nil
 }
 
 // NewEmptyBlob creates a new [Blob] instance for receiving and reconstructing data.
-func NewEmptyBlob(cfg BlobConfig, commitment Commitment) *Blob {
+// Returns an error if the BlobID is invalid or the blob version is not supported.
+func NewEmptyBlob(id BlobID) (*Blob, error) {
+	if err := id.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid blob ID: %w", err)
+	}
+	cfg, err := BlobConfigForVersion(id.Version())
+	if err != nil {
+		return nil, err
+	}
 	totalRows := cfg.OriginalRows + cfg.ParityRows
 	return &Blob{
-		cfg:        cfg,
-		commitment: commitment,
-		rows:       make([][]byte, totalRows),
-	}
+		cfg:  cfg,
+		id:   id,
+		rows: make([][]byte, totalRows),
+	}, nil
 }
 
-// Commitment returns the commitment to the blob.
-func (d *Blob) Commitment() Commitment {
-	return d.commitment
+// ID returns the BlobID of this blob.
+func (d *Blob) ID() BlobID {
+	return d.id
 }
 
 // Config returns the blob's configuration.
@@ -220,14 +204,13 @@ func (d *Blob) Row(index int) (*rsema1d.RowInclusionProof, error) {
 // SetRow adds and verifies [*rsema1d.RowInclusionProof] to the blob.
 // It is safe to call this method concurrently only for disjoint indices.
 func (d *Blob) SetRow(row *rsema1d.RowInclusionProof) error {
-	// verify the inclusion proof
 	config := &rsema1d.Config{
 		K:           d.cfg.OriginalRows,
 		N:           d.cfg.ParityRows,
 		RowSize:     len(row.Row),
 		WorkerCount: d.cfg.CodingWorkers,
 	}
-	err := rsema1d.VerifyRowInclusionProof(row, rsema1d.Commitment(d.commitment), config)
+	err := rsema1d.VerifyRowInclusionProof(row, d.id.Commitment(), config)
 	if err != nil {
 		return fmt.Errorf("verifying row %d: %w", row.Index, err)
 	}
@@ -271,9 +254,9 @@ func (d *Blob) Reconstruct() error {
 	}
 
 	// verify commitment matches
-	if !d.commitment.Equals(Commitment(reconstructedCommitment)) {
-		return fmt.Errorf("%w: expected %s, got %s",
-			ErrBlobCommitmentMismatch, d.commitment.String(), Commitment(reconstructedCommitment).String())
+	if d.id.Commitment() != reconstructedCommitment {
+		return fmt.Errorf("%w: expected %x, got %x",
+			ErrBlobCommitmentMismatch, d.id.Commitment(), reconstructedCommitment[:])
 	}
 
 	// decode header and extract original data from the first K rows, then cache it

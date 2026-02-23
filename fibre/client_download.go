@@ -32,18 +32,18 @@ var (
 // Errors:
 //   - [ErrNotFound]: no shard was retrieved for the blob
 //   - [ErrNotEnoughShards]: not enough shards were retrieved to reconstruct the original data
-//   - [ErrInvalidCommitment]: the commitment doesn't match the reconstructed blob
-func (c *Client) Download(ctx context.Context, commitment Commitment) (*Blob, error) {
+//   - [ErrBlobCommitmentMismatch]: the commitment doesn't match the reconstructed blob
+func (c *Client) Download(ctx context.Context, id BlobID) (*Blob, error) {
 	if c.closed.Load() {
 		return nil, ErrClientClosed
 	}
 
 	ctx, span := c.tracer.Start(ctx, "fibre.Client.Download",
-		trace.WithAttributes(attribute.String("blob_commitment", commitment.String())),
+		trace.WithAttributes(attribute.String("blob_commitment", id.Commitment().String())),
 	)
 	defer span.End()
 
-	c.log.DebugContext(ctx, "initiating blob download", "blob_commitment", commitment)
+	c.log.DebugContext(ctx, "initiating blob download", "blob_commitment", id.Commitment())
 
 	// get validator set
 	// TODO(@Wondertan): If we don't want to pass height here, we should at least ensure we handle the case
@@ -59,7 +59,7 @@ func (c *Client) Download(ctx context.Context, commitment Commitment) (*Blob, er
 		attribute.Int64("validator_set_height", int64(valSet.Height)),
 	))
 
-	blob, err := c.downloadBlob(ctx, valSet, commitment)
+	blob, err := c.downloadBlob(ctx, valSet, id)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to download")
@@ -74,7 +74,7 @@ func (c *Client) Download(ctx context.Context, commitment Commitment) (*Blob, er
 	}
 
 	c.log.DebugContext(ctx, "blob download completed successfully",
-		"blob_commitment", commitment,
+		"blob_commitment", id.Commitment(),
 		"upload_size", blob.UploadSize(),
 		"data_size", blob.DataSize(),
 		"row_size", blob.RowSize(),
@@ -87,14 +87,13 @@ func (c *Client) Download(ctx context.Context, commitment Commitment) (*Blob, er
 	return blob, nil
 }
 
-// downloadFrom downloads a shard for a commitment from a single validator and applies its rows to the blob.
+// downloadFrom downloads a shard for a blob from a single validator and applies its rows to the blob.
 func (c *Client) downloadFrom(
 	ctx context.Context,
 	val *core.Validator,
 	blob *Blob,
 ) error {
-	commitment := blob.Commitment()
-	log := c.log.With("validator", val.Address.String(), "blob_commitment", commitment)
+	log := c.log.With("validator", val.Address.String(), "blob_commitment", blob.ID().Commitment())
 
 	ctx, span := c.tracer.Start(ctx, "download_from",
 		trace.WithAttributes(attribute.String("validator_address", val.Address.String())),
@@ -114,7 +113,7 @@ func (c *Client) downloadFrom(
 	}
 	span.AddEvent("client_acquired")
 
-	resp, err := client.DownloadShard(ctx, &types.DownloadShardRequest{Commitment: commitment[:]})
+	resp, err := client.DownloadShard(ctx, &types.DownloadShardRequest{BlobId: blob.ID()})
 	if err != nil {
 		if context.Cause(ctx) == errDownloaded {
 			span.SetStatus(codes.Ok, "")
@@ -173,12 +172,15 @@ func (c *Client) downloadFrom(
 func (c *Client) downloadBlob(
 	ctx context.Context,
 	valSet validator.Set,
-	commitment Commitment,
+	id BlobID,
 ) (*Blob, error) {
 	ctx, cancel := context.WithCancelCause(ctx)
 	defer cancel(errDownloaded)
 
-	blob := NewEmptyBlob(DefaultBlobConfigV0(), commitment)
+	blob, err := NewEmptyBlob(id)
+	if err != nil {
+		return nil, fmt.Errorf("creating empty blob: %w", err)
+	}
 
 	var (
 		responses            atomic.Uint32         // tracks finished responses

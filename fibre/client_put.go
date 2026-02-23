@@ -15,8 +15,8 @@ import (
 
 // PutResult contains the result of a [Client.Put] operation.
 type PutResult struct {
-	// Commitment is the commitment to the [Blob].
-	Commitment Commitment
+	// BlobID uniquely identifies the uploaded blob.
+	BlobID BlobID
 	// ValidatorSignatures are ed25519 signatures over the [PaymentPromise] sign bytes.
 	ValidatorSignatures [][]byte
 	// TTL is the time-to-live for the [Blob].
@@ -47,9 +47,9 @@ func (c *Client) Put(ctx context.Context, ns share.Namespace, data []byte) (resu
 		return result, err
 	}
 
-	commitment := blob.Commitment()
+	blobID := blob.ID()
 	span.AddEvent("blob_encoded", trace.WithAttributes(
-		attribute.String("blob_commitment", commitment.String()),
+		attribute.String("blob_id", blobID.String()),
 		attribute.Int("row_size", blob.RowSize()),
 	))
 
@@ -94,7 +94,7 @@ func (c *Client) Put(ctx context.Context, ns share.Namespace, data []byte) (resu
 
 	span.SetStatus(codes.Ok, "")
 	return PutResult{
-		Commitment:          commitment,
+		BlobID:              blobID,
 		ValidatorSignatures: signedPromise.ValidatorSignatures,
 		TxHash:              txResp.TxHash,
 		Height:              uint64(txResp.Height),
