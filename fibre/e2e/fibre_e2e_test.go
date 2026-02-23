@@ -1,9 +1,9 @@
-package fibre_test
+package e2e_test
 
 import (
 	"context"
 	"crypto/rand"
-	"net"
+	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app-fibre/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre"
 	grpcfibre "github.com/celestiaorg/celestia-app-fibre/v6/fibre/grpc"
+	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/validator"
 	"github.com/celestiaorg/celestia-app-fibre/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app-fibre/v6/pkg/user"
 	"github.com/celestiaorg/celestia-app-fibre/v6/test/util/testnode"
@@ -27,8 +28,6 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 func TestFibreE2ETestSuite(t *testing.T) {
@@ -41,78 +40,52 @@ func TestFibreE2ETestSuite(t *testing.T) {
 type FibreE2ETestSuite struct {
 	suite.Suite
 
-	ecfg encoding.Config
 	cctx testnode.Context
 
-	fibreServer *fibre.Server
-	grpcServer  *grpc.Server
-	grpcAddr    string
-
-	valSetGetter *grpcfibre.SetGetter
+	fibreServer  *fibre.Server
 	hostRegistry *grpcfibre.HostRegistry
-
-	fibreClient *fibre.Client
+	fibreClient  *fibre.Client
 }
 
 func (s *FibreE2ETestSuite) SetupSuite() {
 	t := s.T()
 
-	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
 	cfg := testnode.DefaultConfig().
 		WithFundedAccounts(fibre.DefaultKeyName).
 		WithDelayedPrecommitTimeout(500 * time.Millisecond)
 
-	cctx, _, _ := testnode.NewNetwork(t, cfg)
+	cctx, _, grpcAddr := testnode.NewNetwork(t, cfg)
 	s.cctx = cctx
 
 	_, err := s.cctx.WaitForHeight(1)
 	require.NoError(t, err, "failed to wait for first block")
 
-	s.setupFibreServer(t)
-	s.setupFibreClient(t)
-}
-
-func (s *FibreE2ETestSuite) setupFibreServer(t *testing.T) {
-	t.Helper()
-
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	s.grpcAddr = listener.Addr().String()
-
-	// Load the validator's private key from testnode config files.
+	// start fibre server
 	pvKeyFile := filepath.Join(s.cctx.HomeDir, "config", "priv_validator_key.json")
 	pvStateFile := filepath.Join(s.cctx.HomeDir, "data", "priv_validator_state.json")
 	filePV := privval.LoadFilePV(pvKeyFile, pvStateFile)
 
-	fibreQueryClient := fibretypes.NewQueryClient(s.cctx.GRPCClient)
-	s.valSetGetter = grpcfibre.NewSetGetter(coregrpc.NewBlockAPIClient(s.cctx.GRPCClient))
-
 	serverCfg := fibre.DefaultServerConfig()
-	serverCfg.ChainID = s.cctx.ChainID
+	serverCfg.AppGRPCAddress = grpcAddr
+	serverCfg.ServerListenAddress = "127.0.0.1:0"
+	serverCfg.SignerFn = func(_ string) (core.PrivValidator, error) {
+		return filePV, nil
+	}
 
-	s.fibreServer, err = fibre.NewInMemoryServer(filePV, fibreQueryClient, s.valSetGetter, serverCfg)
+	serverCfg.StoreFn = func(scfg fibre.StoreConfig) (*fibre.Store, error) {
+		return fibre.NewMemoryStore(scfg), nil
+	}
+	s.fibreServer, err = fibre.NewServer(serverCfg)
 	require.NoError(t, err)
-	s.fibreServer.Start()
+	require.NoError(t, s.fibreServer.Start(s.cctx.GoContext()))
 
-	maxMsgSize := serverCfg.MaxMessageSize
-	s.grpcServer = grpc.NewServer(
-		grpc.MaxRecvMsgSize(maxMsgSize),
-		grpc.MaxSendMsgSize(maxMsgSize),
-	)
-	fibretypes.RegisterFibreServer(s.grpcServer, s.fibreServer)
-
-	go func() { _ = s.grpcServer.Serve(listener) }()
-}
-
-func (s *FibreE2ETestSuite) setupFibreClient(t *testing.T) {
-	t.Helper()
-
+	// create fibre client
+	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	txClient, err := user.SetupTxClient(
 		s.cctx.GoContext(),
 		s.cctx.Keyring,
 		s.cctx.GRPCClient,
-		s.ecfg,
+		ecfg,
 		user.WithDefaultAccount(fibre.DefaultKeyName),
 	)
 	require.NoError(t, err)
@@ -121,18 +94,21 @@ func (s *FibreE2ETestSuite) setupFibreClient(t *testing.T) {
 
 	clientCfg := fibre.DefaultClientConfig()
 	clientCfg.ChainID = s.cctx.ChainID
-	clientCfg.NewClientFn = newTestClientFn(s.grpcAddr, clientCfg.MaxMessageSize)
+	// connect all validators to the single fibre server address
+	fibreAddr := s.fibreServer.ListenAddress()
+	clientCfg.NewClientFn = grpcfibre.DefaultNewClientFn(
+		&fixedHostRegistry{addr: fibreAddr},
+		clientCfg.MaxMessageSize,
+	)
 
-	s.fibreClient, err = fibre.NewClient(txClient, s.cctx.Keyring, s.valSetGetter, s.hostRegistry, clientCfg)
+	valSetGetter := grpcfibre.NewSetGetter(coregrpc.NewBlockAPIClient(s.cctx.GRPCClient))
+	s.fibreClient, err = fibre.NewClient(txClient, s.cctx.Keyring, valSetGetter, s.hostRegistry, clientCfg)
 	require.NoError(t, err)
 }
 
 func (s *FibreE2ETestSuite) TearDownSuite() {
-	if s.grpcServer != nil {
-		s.grpcServer.Stop()
-	}
 	if s.fibreServer != nil {
-		_ = s.fibreServer.Stop()
+		_ = s.fibreServer.Stop(context.Background())
 	}
 	if s.fibreClient != nil {
 		_ = s.fibreClient.Close()
@@ -143,7 +119,7 @@ func (s *FibreE2ETestSuite) Test01RegisterValidator() {
 	t := s.T()
 	ctx := s.cctx.GoContext()
 
-	// Get the validator's operator address from the staking module.
+	// get the validator's operator address from the staking module.
 	stakingClient := stakingtypes.NewQueryClient(s.cctx.GRPCClient)
 	validatorsResp, err := stakingClient.Validators(ctx, &stakingtypes.QueryValidatorsRequest{})
 	require.NoError(t, err)
@@ -151,13 +127,14 @@ func (s *FibreE2ETestSuite) Test01RegisterValidator() {
 
 	valOperatorAddr := validatorsResp.Validators[0].OperatorAddress
 
-	// Submit MsgSetFibreProviderInfo to register the fibre server's gRPC address.
+	// submit MsgSetFibreProviderInfo to register the fibre server's gRPC address.
 	txClient, err := testnode.NewTxClientFromContext(s.cctx)
 	require.NoError(t, err)
 
+	fibreAddr := s.fibreServer.ListenAddress()
 	msg := &valtypes.MsgSetFibreProviderInfo{
 		Signer: valOperatorAddr,
-		Host:   s.grpcAddr,
+		Host:   fibreAddr,
 	}
 
 	txResp, err := txClient.SubmitTx(ctx, []sdk.Msg{msg}, user.SetGasLimit(200_000), user.SetFee(5_000))
@@ -165,10 +142,10 @@ func (s *FibreE2ETestSuite) Test01RegisterValidator() {
 	require.Equal(t, uint32(0), txResp.Code)
 	t.Logf("RegisterValidator tx included at height %d, hash: %s", txResp.Height, txResp.TxHash)
 
-	// Verify the host is now registered.
+	// verify the host is now registered.
 	valAddrClient := valtypes.NewQueryClient(s.cctx.GRPCClient)
 
-	// Derive the validator consensus address via the cometbft service.
+	// derive the validator consensus address via the cometbft service.
 	tmServiceClient := cmtservice.NewServiceClient(s.cctx.GRPCClient)
 	valSetResp, err := tmServiceClient.GetLatestValidatorSet(ctx, &cmtservice.GetLatestValidatorSetRequest{})
 	require.NoError(t, err)
@@ -181,9 +158,9 @@ func (s *FibreE2ETestSuite) Test01RegisterValidator() {
 	})
 	require.NoError(t, err)
 	require.True(t, resp.Found)
-	require.Equal(t, s.grpcAddr, resp.Info.Host)
+	require.Equal(t, fibreAddr, resp.Info.Host)
 
-	// Refresh the host registry so the client can find the validator.
+	// refresh the host registry so the client can find the validator.
 	err = s.hostRegistry.Start(ctx)
 	require.NoError(t, err)
 }
@@ -192,7 +169,7 @@ func (s *FibreE2ETestSuite) Test02FundEscrowAccount() {
 	t := s.T()
 	ctx := s.cctx.GoContext()
 
-	// Get client address from the keyring.
+	// get client address from the keyring.
 	keyInfo, err := s.cctx.Keyring.Key(fibre.DefaultKeyName)
 	require.NoError(t, err)
 	addr, err := keyInfo.GetAddress()
@@ -200,20 +177,21 @@ func (s *FibreE2ETestSuite) Test02FundEscrowAccount() {
 
 	fibreQueryClient := fibretypes.NewQueryClient(s.cctx.GRPCClient)
 
-	// Verify escrow account doesn't exist yet.
+	// verify escrow account doesn't exist yet.
 	escrowResp, err := fibreQueryClient.EscrowAccount(ctx, &fibretypes.QueryEscrowAccountRequest{
 		Signer: addr.String(),
 	})
 	require.NoError(t, err)
 	require.False(t, escrowResp.Found)
 
+	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	txClient, err := user.SetupTxClient(
-		ctx, s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg,
+		ctx, s.cctx.Keyring, s.cctx.GRPCClient, ecfg,
 		user.WithDefaultAccount(fibre.DefaultKeyName),
 	)
 	require.NoError(t, err)
 
-	// First deposit: 50 TIA (50_000_000 utia).
+	// first deposit: 50 TIA (50_000_000 utia).
 	depositAmount := sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(50_000_000))
 	msg := &fibretypes.MsgDepositToEscrow{
 		Signer: addr.String(),
@@ -224,7 +202,7 @@ func (s *FibreE2ETestSuite) Test02FundEscrowAccount() {
 	require.Equal(t, uint32(0), txResp.Code)
 	t.Logf("First deposit tx at height %d", txResp.Height)
 
-	// Verify escrow balance matches deposit.
+	// verify escrow balance matches deposit.
 	escrowResp, err = fibreQueryClient.EscrowAccount(ctx, &fibretypes.QueryEscrowAccountRequest{
 		Signer: addr.String(),
 	})
@@ -232,7 +210,7 @@ func (s *FibreE2ETestSuite) Test02FundEscrowAccount() {
 	require.True(t, escrowResp.Found)
 	require.Equal(t, depositAmount, escrowResp.EscrowAccount.Balance)
 
-	// Second deposit: 25 TIA (25_000_000 utia).
+	// second deposit: 25 TIA (25_000_000 utia).
 	depositAmount2 := sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(25_000_000))
 	msg2 := &fibretypes.MsgDepositToEscrow{
 		Signer: addr.String(),
@@ -243,7 +221,7 @@ func (s *FibreE2ETestSuite) Test02FundEscrowAccount() {
 	require.Equal(t, uint32(0), txResp.Code)
 	t.Logf("Second deposit tx at height %d", txResp.Height)
 
-	// Verify cumulative balance is 75 TIA.
+	// verify cumulative balance is 75 TIA.
 	escrowResp, err = fibreQueryClient.EscrowAccount(ctx, &fibretypes.QueryEscrowAccountRequest{
 		Signer: addr.String(),
 	})
@@ -257,11 +235,11 @@ func (s *FibreE2ETestSuite) Test03Put() {
 	t := s.T()
 	ctx := s.cctx.GoContext()
 
-	// Wait for a fresh block to avoid clock skew with payment promise.
+	// wait for a fresh block to avoid clock skew with payment promise.
 	err := s.cctx.WaitForNextBlock()
 	require.NoError(t, err)
 
-	// Generate 4 KiB of random test data.
+	// generate 4 KiB of random test data.
 	testData := make([]byte, 4*1024)
 	_, err = rand.Read(testData)
 	require.NoError(t, err)
@@ -271,14 +249,14 @@ func (s *FibreE2ETestSuite) Test03Put() {
 	result, err := s.fibreClient.Put(ctx, ns, testData)
 	require.NoError(t, err)
 
-	// Verify Put result.
+	// verify Put result.
 	require.NotEmpty(t, result.BlobID.Commitment().String(), "commitment should not be empty")
 	require.NotEmpty(t, result.ValidatorSignatures, "should have validator signatures")
 	require.NotEmpty(t, result.TxHash, "tx hash should not be empty")
 	require.Greater(t, result.Height, uint64(0), "height should be positive")
 	t.Logf("Put result: commitment=%s, txHash=%s, height=%d", result.BlobID.String(), result.TxHash, result.Height)
 
-	// Verify data was stored in server's store.
+	// verify data was stored in server's store.
 	shard, err := s.fibreServer.Store().Get(ctx, result.BlobID.Commitment())
 	require.NoError(t, err)
 	require.NotNil(t, shard)
@@ -286,40 +264,17 @@ func (s *FibreE2ETestSuite) Test03Put() {
 	require.NotNil(t, shard.GetRoot(), "stored shard should have an RLC root")
 	require.Len(t, shard.GetRoot(), 32, "RLC root should be 32 bytes")
 
-	// Verify the PayForFibre tx was included on chain by waiting for the block.
+	// verify the PayForFibre tx was included on chain by waiting for the block.
 	_, err = s.cctx.WaitForTx(result.TxHash, 5)
 	require.NoError(t, err)
 }
 
-// newTestClientFn returns a [grpcfibre.NewClientFn] that always connects to a fixed
-// address, bypassing the host registry lookup. This is needed because the
-// fibre server in this test is running on a separate gRPC listener from the
-// testnode's gRPC server.
-func newTestClientFn(addr string, maxMsgSize int) grpcfibre.NewClientFn {
-	return func(_ context.Context, _ *core.Validator) (grpcfibre.Client, error) {
-		conn, err := grpc.NewClient(addr,
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.WithDefaultCallOptions(
-				grpc.MaxCallRecvMsgSize(maxMsgSize),
-				grpc.MaxCallSendMsgSize(maxMsgSize),
-			),
-		)
-		if err != nil {
-			return nil, err
-		}
-		return &fibreClientCloser{
-			FibreClient: fibretypes.NewFibreClient(conn),
-			conn:        conn,
-		}, nil
+// fixedHostRegistry returns the same address for every validator.
+type fixedHostRegistry struct{ addr string }
+
+func (r *fixedHostRegistry) GetHost(_ context.Context, _ *core.Validator) (validator.Host, error) {
+	if r.addr == "" {
+		return "", fmt.Errorf("no address configured")
 	}
-}
-
-// fibreClientCloser wraps a [fibretypes.FibreClient] and [grpc.ClientConn] to implement [grpcfibre.Client].
-type fibreClientCloser struct {
-	fibretypes.FibreClient
-	conn *grpc.ClientConn
-}
-
-func (f *fibreClientCloser) Close() error {
-	return f.conn.Close()
+	return validator.Host(r.addr), nil
 }

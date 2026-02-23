@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"math/rand"
-	"net"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -15,12 +14,10 @@ import (
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre"
 	grpcfibre "github.com/celestiaorg/celestia-app-fibre/v6/fibre/grpc"
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/validator"
-	"github.com/celestiaorg/celestia-app-fibre/v6/x/fibre/types"
 	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
 )
 
 // TestClientServerUploadDownload validates end-to-end download flow with various blob sizes and configurations.
@@ -219,22 +216,17 @@ func TestClientServerUploadDownload(t *testing.T) {
 // testEnv holds the test environment with servers, clients, and validator set
 type testEnv struct {
 	valSetGetter *shufflingValidatorSetGetter
-	grpcServers  []*grpc.Server
+	servers      []*fibre.Server
 	clients      []*fibre.Client
 	stores       []*fibre.Store
 }
 
 func (e *testEnv) Close() {
-	for _, srv := range e.grpcServers {
-		srv.Stop()
+	for _, srv := range e.servers {
+		_ = srv.Stop(context.Background())
 	}
 	for _, client := range e.clients {
 		_ = client.Close()
-	}
-	for _, store := range e.stores {
-		if store != nil {
-			_ = store.Close()
-		}
 	}
 }
 
@@ -288,7 +280,7 @@ func makeTestEnv(
 	testParams := fibre.DefaultProtocolParams
 	testParams.MaxValidatorCount = numValidators
 
-	grpcServers, stores, addresses := makeTestServers(t, validators, privKeys, testParams, valSetGetter, modifyServerConfig)
+	servers, stores, addresses := makeTestServers(t, validators, privKeys, testParams, valSetGetter, modifyServerConfig)
 	clients := make([]*fibre.Client, numClients)
 	for i := range numClients {
 		clientCfg := fibre.NewClientConfigFromParams(testParams)
@@ -309,13 +301,13 @@ func makeTestEnv(
 
 	return &testEnv{
 		valSetGetter: valSetGetter,
-		grpcServers:  grpcServers,
+		servers:      servers,
 		clients:      clients,
 		stores:       stores,
 	}
 }
 
-// makeTestServers creates and starts gRPC servers for each validator
+// makeTestServers creates and starts fibre servers for each validator.
 func makeTestServers(
 	t *testing.T,
 	validators []*core.Validator,
@@ -323,24 +315,31 @@ func makeTestServers(
 	params fibre.ProtocolParams,
 	valSetGetter validator.SetGetter,
 	modifyServerConfig func(*fibre.ServerConfig),
-) ([]*grpc.Server, []*fibre.Store, map[string]string) {
+) ([]*fibre.Server, []*fibre.Store, map[string]string) {
 	t.Helper()
 
-	grpcServers := make([]*grpc.Server, len(validators))
+	servers := make([]*fibre.Server, len(validators))
 	stores := make([]*fibre.Store, len(validators))
 	addresses := make(map[string]string)
 
 	for i, val := range validators {
-		listener, err := net.Listen("tcp", "127.0.0.1:0")
-		require.NoError(t, err)
+		privVal := newTestPrivValidator(privKeys[i])
 
 		serverCfg := fibre.NewServerConfigFromParams(params)
-		serverCfg.Path = t.TempDir()
+		serverCfg.ServerListenAddress = "127.0.0.1:0"
+		serverCfg.StateClientFn = func() (fibre.StateClient, error) {
+			return &mockStateClient{
+				chainID:   "celestia",
+				SetGetter: valSetGetter,
+			}, nil
+		}
+		serverCfg.SignerFn = func(_ string) (core.PrivValidator, error) {
+			return privVal, nil
+		}
 
 		// create logger with unique server identifier
 		serverCfg.Log = slog.Default().With(
 			"server_idx", i,
-			"server_addr", listener.Addr().String(),
 			"validator_addr", val.Address.String(),
 		)
 
@@ -349,29 +348,20 @@ func makeTestServers(
 			modifyServerConfig(&serverCfg)
 		}
 
-		fibreServer, err := fibre.NewServer(
-			newTestPrivValidator(privKeys[i]),
-			&mockQueryClient{},
-			valSetGetter,
-			serverCfg,
-		)
+		serverCfg.StoreFn = func(scfg fibre.StoreConfig) (*fibre.Store, error) {
+			return fibre.NewMemoryStore(scfg), nil
+		}
+		srv, err := fibre.NewServer(serverCfg)
 		require.NoError(t, err)
 
-		maxMsgSize := serverCfg.MaxMessageSize
-		grpcServer := grpc.NewServer(
-			grpc.MaxRecvMsgSize(maxMsgSize),
-			grpc.MaxSendMsgSize(maxMsgSize),
-		)
-		types.RegisterFibreServer(grpcServer, fibreServer)
+		require.NoError(t, srv.Start(t.Context()))
 
-		go func() { _ = grpcServer.Serve(listener) }()
-
-		grpcServers[i] = grpcServer
-		stores[i] = fibreServer.Store()
-		addresses[val.Address.String()] = listener.Addr().String()
+		servers[i] = srv
+		stores[i] = srv.Store()
+		addresses[val.Address.String()] = srv.ListenAddress()
 	}
 
-	return grpcServers, stores, addresses
+	return servers, stores, addresses
 }
 
 // testHostRegistry implements validator.HostRegistry for testing

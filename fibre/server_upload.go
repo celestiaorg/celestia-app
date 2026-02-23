@@ -71,7 +71,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	span.AddEvent("shard_stored")
 
 	// sign the payment promise
-	signature, err := SignPaymentPromiseValidator(promise, s.privVal)
+	signature, err := SignPaymentPromiseValidator(promise, s.signer)
 	if err != nil {
 		log.ErrorContext(ctx, "failed to sign payment promise", "error", err)
 		span.RecordError(err)
@@ -101,9 +101,10 @@ func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentProm
 		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("invalid payment promise proto: %w", err)
 	}
 
-	// validate PP fields matches the config
-	if promise.ChainID != s.cfg.ChainID {
-		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("payment promise chain ID mismatch: expected %s, got %s", s.cfg.ChainID, promise.ChainID)
+	// validate PP chain ID matches the connected app chain ID
+	chainID := s.state.ChainID()
+	if promise.ChainID != chainID {
+		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("payment promise chain ID mismatch: expected %s, got %s", chainID, promise.ChainID)
 	}
 	// validate blob version is supported
 	blobCfg, err := BlobConfigForVersion(uint8(promise.BlobVersion))
@@ -117,19 +118,10 @@ func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentProm
 	}
 
 	// validate stateful constraints
-	resp, err := s.queryClient.ValidatePaymentPromise(ctx, &types.QueryValidatePaymentPromiseRequest{
-		Promise: *promisePb,
-	})
+	pruneAt, err := s.state.Verify(ctx, promisePb)
 	if err != nil {
-		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("stateful validation request: %w", err)
+		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("stateful validation: %w", err)
 	}
-	if !resp.IsValid {
-		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("payment promise is invalid with no reason")
-	}
-	if resp.ExpirationTime == nil {
-		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("expiration time not provided in validation response")
-	}
-	pruneAt := *resp.ExpirationTime
 
 	promiseHash, err := promise.Hash()
 	if err != nil {
@@ -143,15 +135,19 @@ func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentProm
 // It fetches the validator set at the promise height, identifies this validator,
 // computes the shard map, and checks that every row index belongs to this validator.
 func (s *Server) verifyAssignment(ctx context.Context, promise *PaymentPromise, blobCfg BlobConfig, shard *types.BlobShard) error {
-	valSet, err := s.valGet.GetByHeight(ctx, promise.Height)
+	valSet, err := s.state.GetByHeight(ctx, promise.Height)
 	if err != nil {
 		return fmt.Errorf("getting validator set at height %d: %w", promise.Height, err)
 	}
 
-	// get our validator using the cached public key
-	ourValidator, found := valSet.GetByAddress(s.pubKey.Address())
+	pubKey, err := s.signer.GetPubKey()
+	if err != nil {
+		return fmt.Errorf("getting validator public key: %w", err)
+	}
+
+	ourValidator, found := valSet.GetByAddress(pubKey.Address())
 	if !found {
-		return fmt.Errorf("validator %s not in set at height %d", s.pubKey.Address().String(), promise.Height)
+		return fmt.Errorf("validator %s not in set at height %d", pubKey.Address(), promise.Height)
 	}
 
 	// compute and verify assignment of rows in the request are assigned to us
@@ -159,7 +155,7 @@ func (s *Server) verifyAssignment(ctx context.Context, promise *PaymentPromise, 
 	for i, row := range shard.GetRows() {
 		rowIndices[i] = row.Index
 	}
-	shardMap := valSet.Assign(promise.Commitment, blobCfg.TotalRows(), blobCfg.OriginalRows, s.cfg.MinRowsPerValidator, s.cfg.LivenessThreshold)
+	shardMap := valSet.Assign(promise.Commitment, blobCfg.TotalRows(), blobCfg.OriginalRows, s.Config.MinRowsPerValidator, s.Config.LivenessThreshold)
 	if err := shardMap.Verify(ourValidator, rowIndices); err != nil {
 		return err
 	}

@@ -24,22 +24,24 @@ var ErrStoreNotFound = errors.New("no shard found in store")
 // StoreConfig contains configuration options for the [Store].
 type StoreConfig struct {
 	// Path is the path to the store directory.
-	Path string
-	// PaymentPromiseTimeout defines how long payment promises are retained.
-	// Promises older than this duration will be automatically deleted by TTL expiration.
-	PaymentPromiseTimeout time.Duration
+	Path string `toml:"-"`
 }
 
 // DefaultStoreConfig returns a [StoreConfig] with default values.
 func DefaultStoreConfig() StoreConfig {
-	return StoreConfig{
-		PaymentPromiseTimeout: 1 * time.Hour,
+	return StoreConfig{}
+}
+
+// Validate checks that the StoreConfig is valid.
+func (cfg StoreConfig) Validate() error {
+	if cfg.Path == "" {
+		return fmt.Errorf("store path is required")
 	}
+	return nil
 }
 
 // Store manages persistent storage of [PaymentPromise] and row data.
 // It provides indexed access by [Commitment], promise hash, and timestamp.
-// TODO(@Wondertan): GC logic
 type Store struct {
 	cfg StoreConfig
 	ds  ds.Batching
