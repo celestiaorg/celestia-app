@@ -45,7 +45,7 @@ s|^(rpc_servers[[:space:]]+=[[:space:]]+).*$|\1\"$RPC,$RPC\"| ; \
 s|^(trust_height[[:space:]]+=[[:space:]]+).*$|\1$BLOCK_HEIGHT| ; \
 s|^(trust_hash[[:space:]]+=[[:space:]]+).*$|\1\"$TRUST_HASH\"|" $CELESTIA_APP_HOME/config/config.toml
 
-PEER=$(curl -s http://${RPC}/status | jq -r '.result.node_info.id + "@127.0.0.1:26656"')
+PEER=$(curl -s http://${RPC}/status | jq -r '.result.node_info.id + "@127.0.0.1:36656"')
 echo "Setting persistent peer to ${PEER}"
 
 createGenesis() {
