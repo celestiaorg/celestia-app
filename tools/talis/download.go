@@ -165,7 +165,6 @@ func compressAndDownload(table, localPath, user, host, sshKeyPath string) error 
 		return fmt.Errorf("remote compression failed: %v\n%s", err, string(out))
 	}
 
-	// 2. Download compressed archive
 	fmt.Printf("[%s] Downloading compressed archive...\n", host)
 	if err := sftpDownload(remoteArchive, localPath, user, host, sshKeyPath); err != nil {
 		_, _ = sshExec(user, host, sshKeyPath, "rm -f "+remoteArchive)
