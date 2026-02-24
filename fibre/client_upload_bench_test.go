@@ -9,7 +9,8 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre"
-	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/grpc"
+	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/state"
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/validator"
 	"github.com/celestiaorg/celestia-app-fibre/v6/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
@@ -58,7 +59,7 @@ func BenchmarkClient_Upload(b *testing.B) {
 			// create benchmark-optimized client with 100 validators
 			ctx := context.Background()
 			client := makeBenchmarkClient(&testing.T{}, 100)
-			defer func() { _ = client.Close() }()
+			defer func() { _ = client.Stop(ctx) }()
 
 			namespace := share.MustNewV0Namespace([]byte("bench"))
 
@@ -128,7 +129,7 @@ func BenchmarkClient_Upload_Concurrent(b *testing.B) {
 		b.Run(bm.name, func(b *testing.B) {
 			ctx := context.Background()
 			client := makeBenchmarkClient(&testing.T{}, 100)
-			defer func() { _ = client.Close() }()
+			defer func() { _ = client.Stop(ctx) }()
 
 			namespace := share.MustNewV0Namespace([]byte("bench"))
 
@@ -243,7 +244,11 @@ func makeBenchmarkClient(t *testing.T, numValidators int) *fibre.Client {
 	cfg.Clock = mockClock
 
 	valSet := validator.Set{ValidatorSet: core.NewValidatorSet(validators), Height: 100}
-	client, err := fibre.NewClient(nil, makeTestKeyring(t), &mockValidatorSetGetter{set: valSet}, &mockHostRegistry{}, cfg)
+	cfg.StateClientFn = func() (state.Client, error) {
+		return &mockStateClient{SetGetter: &mockValidatorSetGetter{set: valSet}, chainID: "celestia"}, nil
+	}
+	client, err := fibre.NewClient(makeTestKeyring(t), cfg)
 	require.NoError(t, err)
+	require.NoError(t, client.Start(t.Context()))
 	return client
 }

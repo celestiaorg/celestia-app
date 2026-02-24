@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/grpc"
+	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app-fibre/v6/x/fibre/types"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"

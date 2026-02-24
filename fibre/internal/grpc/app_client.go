@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
 
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/state"
 	"github.com/celestiaorg/celestia-app-fibre/v6/x/fibre/types"
+	valtypes "github.com/celestiaorg/celestia-app-fibre/v6/x/valaddr/types"
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	grpclib "google.golang.org/grpc"
@@ -20,6 +22,7 @@ var _ state.Client = (*AppClient)(nil)
 // and provides the query methods needed by the Fibre server.
 type AppClient struct {
 	*SetGetter
+	*HostRegistry
 	conn        *grpclib.ClientConn
 	queryClient types.QueryClient
 	log         *slog.Logger
@@ -40,18 +43,40 @@ func NewAppClient(addr string, log *slog.Logger) (*AppClient, error) {
 	}
 
 	return &AppClient{
-		SetGetter:   NewSetGetter(coregrpc.NewBlockAPIClient(conn)),
-		conn:        conn,
-		queryClient: types.NewQueryClient(conn),
-		log:         log,
+		SetGetter:    NewSetGetter(coregrpc.NewBlockAPIClient(conn)),
+		HostRegistry: NewHostRegistry(valtypes.NewQueryClient(conn), log),
+		conn:         conn,
+		queryClient:  types.NewQueryClient(conn),
+		log:          log,
 	}, nil
 }
 
-// Start connects to the app node and resolves the chain ID.
+// Start connects to the app node, resolves the chain ID and pulls
+// the host registry in parallel.
 func (c *AppClient) Start(ctx context.Context) error {
-	chainID, err := detectChainID(ctx, c.conn)
-	if err != nil {
-		return fmt.Errorf("detect chain ID: %w", err)
+	var (
+		chainID  string
+		chainErr error
+		hostErr  error
+	)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		chainID, chainErr = detectChainID(ctx, c.conn)
+	}()
+	go func() {
+		defer wg.Done()
+		hostErr = c.HostRegistry.Start(ctx)
+	}()
+	wg.Wait()
+
+	if chainErr != nil {
+		return fmt.Errorf("detect chain ID: %w", chainErr)
+	}
+	if hostErr != nil {
+		return fmt.Errorf("start host registry: %w", hostErr)
 	}
 	c.chainID = chainID
 	c.log.Info("connected to app node", "chain_id", chainID)
@@ -59,7 +84,8 @@ func (c *AppClient) Start(ctx context.Context) error {
 }
 
 // Stop closes the underlying gRPC connection.
-func (c *AppClient) Stop() error {
+func (c *AppClient) Stop(_ context.Context) error {
+	c.log.Info("disconnected from app node")
 	return c.conn.Close()
 }
 

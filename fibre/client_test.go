@@ -10,7 +10,8 @@ import (
 	"github.com/celestiaorg/celestia-app-fibre/v6/app"
 	"github.com/celestiaorg/celestia-app-fibre/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre"
-	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/grpc"
+	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/state"
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/validator"
 	"github.com/celestiaorg/celestia-app-fibre/v6/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
@@ -31,9 +32,12 @@ func TestNewClient_KeyNotFound(t *testing.T) {
 	emptyKeyring := keyring.NewInMemory(encCfg.Codec)
 
 	cfg := fibre.DefaultClientConfig()
+	cfg.StateClientFn = func() (state.Client, error) {
+		return &mockStateClient{SetGetter: &mockValidatorSetGetter{set: valSet}}, nil
+	}
 
 	// Attempt to create client with non-existent key
-	_, err := fibre.NewClient(nil, emptyKeyring, &mockValidatorSetGetter{set: valSet}, &mockHostRegistry{}, cfg)
+	_, err := fibre.NewClient(emptyKeyring, cfg)
 	require.Error(t, err)
 	require.ErrorIs(t, err, fibre.ErrKeyNotFound, "expected ErrKeyNotFound when key doesn't exist")
 	require.Contains(t, err.Error(), cfg.DefaultKeyName, "error should mention the key name")
@@ -85,12 +89,6 @@ func (m *mockValidatorSetGetter) Head(ctx context.Context) (validator.Set, error
 
 func (m *mockValidatorSetGetter) GetByHeight(ctx context.Context, height uint64) (validator.Set, error) {
 	return m.set, nil
-}
-
-type mockHostRegistry struct{}
-
-func (m *mockHostRegistry) GetHost(ctx context.Context, val *core.Validator) (validator.Host, error) {
-	return validator.Host("localhost:9090"), nil
 }
 
 // failingClient is a grpc.Client that always fails all operations.

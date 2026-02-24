@@ -34,6 +34,9 @@ var (
 //   - [ErrNotEnoughShards]: not enough shards were retrieved to reconstruct the original data
 //   - [ErrBlobCommitmentMismatch]: the commitment doesn't match the reconstructed blob
 func (c *Client) Download(ctx context.Context, id BlobID) (*Blob, error) {
+	if !c.started.Load() {
+		return nil, errors.New("fibre client is not started")
+	}
 	if c.closed.Load() {
 		return nil, ErrClientClosed
 	}
@@ -48,7 +51,7 @@ func (c *Client) Download(ctx context.Context, id BlobID) (*Blob, error) {
 	// get validator set
 	// TODO(@Wondertan): If we don't want to pass height here, we should at least ensure we handle the case
 	// where the most recent validator set is different from the one the data was posted at somehow.
-	valSet, err := c.valGet.Head(ctx)
+	valSet, err := c.state.Head(ctx)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to get validator set")
@@ -193,7 +196,7 @@ func (c *Client) downloadBlob(
 	)
 
 	// select validators shuffled by stake for load balancing
-	validators, downloadTarget := valSet.Select(blob.Config().OriginalRows, c.cfg.MinRowsPerValidator, c.cfg.LivenessThreshold)
+	validators, downloadTarget := valSet.Select(blob.Config().OriginalRows, c.Config.MinRowsPerValidator, c.Config.LivenessThreshold)
 	downloadLimitCh := make(chan struct{}, downloadTarget)
 
 loop:

@@ -7,7 +7,7 @@ import (
 	"io"
 	"log/slog"
 
-	fibregrpc "github.com/celestiaorg/celestia-app-fibre/v6/fibre/grpc"
+	fibregrpc "github.com/celestiaorg/celestia-app-fibre/v6/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/state"
 	core "github.com/cometbft/cometbft/types"
 	"go.opentelemetry.io/otel/trace"
@@ -138,7 +138,7 @@ func (s *Server) Stop(ctx context.Context) (err error) {
 		}
 	}
 	if s.state != nil {
-		if closeErr := s.state.Stop(); closeErr != nil {
+		if closeErr := s.state.Stop(ctx); closeErr != nil {
 			s.log.Error("closing state client", "error", closeErr)
 			err = errors.Join(err, closeErr)
 		}

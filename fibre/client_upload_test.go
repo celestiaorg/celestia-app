@@ -9,7 +9,8 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre"
-	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/grpc"
+	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/state"
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/validator"
 	"github.com/celestiaorg/celestia-app-fibre/v6/x/fibre/types"
 	"github.com/celestiaorg/rsema1d"
@@ -40,7 +41,7 @@ func TestClientUpload(t *testing.T) {
 
 func testClientConcurrentUploads(t *testing.T) {
 	client := makeTestUploadClient(t, 100, nil)
-	defer client.Close()
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 	const numConcurrent = 5
 
@@ -67,7 +68,7 @@ func testClientConcurrentUploads(t *testing.T) {
 
 func testClientUploadContextCancellation(t *testing.T) {
 	client := makeTestUploadClient(t, 100, nil)
-	defer client.Close()
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
@@ -83,7 +84,7 @@ func testClientUploadSucceedsWithOneThirdFailures(t *testing.T) {
 	client := makeTestUploadClient(t, numValidators, func(cfg *fibre.ClientConfig) {
 		cfg.NewClientFn = failingClientFn(33, cfg.NewClientFn) // Fail 1/3 of validators
 	})
-	defer client.Close()
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 	blob := makeTestBlobV0(t, 256*1024)
 
@@ -100,7 +101,7 @@ func testClientUploadSucceedsWithOneThirdFailuresHighConcurrency(t *testing.T) {
 
 		cfg.UploadConcurrency = numValidators // set concurrency >= validators to test code path where semaphore doesn't limit
 	})
-	defer client.Close()
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 	blob := makeTestBlobV0(t, 256*1024)
 
@@ -115,7 +116,7 @@ func testClientUploadInsufficientVotingPower(t *testing.T) {
 	client := makeTestUploadClient(t, numValidators, func(cfg *fibre.ClientConfig) {
 		cfg.NewClientFn = failingClientFn(34, cfg.NewClientFn) // Fail 1/3+1 validators (34/100)
 	})
-	defer client.Close()
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 	blob := makeTestBlobV0(t, 512*1024)
 
@@ -134,14 +135,14 @@ func testClientUploadAllValidatorsReceiveData(t *testing.T) {
 	client := makeTestUploadClient(t, numValidators, func(cfg *fibre.ClientConfig) {
 		cfg.NewClientFn, counter = countingClientFn(cfg.NewClientFn)
 	})
-	defer client.Close()
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 	blob := makeTestBlobV0(t, 256*1024)
 	_, err := client.Upload(t.Context(), testNamespace, blob)
 	require.NoError(t, err)
 
 	// close waits for all background upload goroutines to complete
-	require.NoError(t, client.Close())
+	require.NoError(t, client.Stop(t.Context()))
 
 	// verify all validators received data
 	require.Equal(t, numValidators, int(counter.Load()), "not all validators received data")
@@ -151,9 +152,9 @@ func testClientUploadClosedClient(t *testing.T) {
 	client := makeTestUploadClient(t, 100, nil)
 
 	// close the client
-	require.NoError(t, client.Close())
+	require.NoError(t, client.Stop(t.Context()))
 	// close again - should be idempotent
-	require.NoError(t, client.Close())
+	require.NoError(t, client.Stop(t.Context()))
 
 	blob := makeTestBlobV0(t, 256*1024)
 
@@ -174,8 +175,12 @@ func makeTestUploadClient(t *testing.T, numValidators int, customCfg func(*fibre
 	}
 
 	valSet := validator.Set{ValidatorSet: core.NewValidatorSet(validators), Height: 100}
-	client, err := fibre.NewClient(nil, makeTestKeyring(t), &mockValidatorSetGetter{set: valSet}, &mockHostRegistry{}, cfg)
+	cfg.StateClientFn = func() (state.Client, error) {
+		return &mockStateClient{SetGetter: &mockValidatorSetGetter{set: valSet}, chainID: "celestia"}, nil
+	}
+	client, err := fibre.NewClient(makeTestKeyring(t), cfg)
 	require.NoError(t, err)
+	require.NoError(t, client.Start(t.Context()))
 	return client
 }
 

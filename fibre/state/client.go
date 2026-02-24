@@ -17,11 +17,13 @@ type VerifiedPromise struct {
 	ExpiresAt time.Time
 }
 
-// Client encapsulates everything the fibre server depends on from app/core node.
+// Client encapsulates everything the fibre server and client depend on from app/core node.
 // The default implementation is the grpc AppClient.
 type Client interface {
 	// SetGetter is embedded to provide validator set lookups.
 	validator.SetGetter
+	// HostRegistry is embedded to provide validator host resolution.
+	validator.HostRegistry
 
 	// ChainID returns the chain ID of the state machine.
 	ChainID() string
@@ -32,5 +34,5 @@ type Client interface {
 	// Start initializes the client (e.g. detects chain ID).
 	Start(context.Context) error
 	// Stop clears up underlying resources.
-	Stop() error
+	Stop(context.Context) error
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/celestiaorg/celestia-app-fibre/v6/pkg/user"
 	"github.com/celestiaorg/celestia-app-fibre/v6/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -29,8 +30,12 @@ type PutResult struct {
 
 // Put uploads given data to the Fibre network.
 // It encodes the data into a [Blob], calls [Client.Upload] to upload it,
-// and submits a MsgPayForFibre transaction.
-func (c *Client) Put(ctx context.Context, ns share.Namespace, data []byte) (result PutResult, err error) {
+// and submits a MsgPayForFibre transaction using the provided [user.TxClient].
+//
+// TODO(@Wondertan): This does not belong here. Fibre protocol in it's core doesn't need to know about transactions.
+// Furthermore, this function cannot be generalized for all the cases with fee grants, multiple key managements, etc.
+// And users are strongly advised to use [fibre.Upload] with custom TX submission logic instead, ideally batching multiple blobs in a single PFF.
+func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Namespace, data []byte) (result PutResult, err error) {
 	ctx, span := c.tracer.Start(ctx, "fibre.Client.Put",
 		trace.WithAttributes(
 			attribute.String("namespace", ns.String()),
@@ -64,14 +69,14 @@ func (c *Client) Put(ctx context.Context, ns share.Namespace, data []byte) (resu
 	))
 
 	// broadcast PayForFibre transaction
-	signerAddr := c.txClient.DefaultAddress()
+	signerAddr := txClient.DefaultAddress()
 	msg := &types.MsgPayForFibre{
 		Signer:              signerAddr.String(),
 		PaymentPromise:      *signedPromise.ToProto(),
 		ValidatorSignatures: signedPromise.ValidatorSignatures,
 	}
 
-	broadcastResp, err := c.txClient.BroadcastTx(ctx, []sdk.Msg{msg})
+	broadcastResp, err := txClient.BroadcastTx(ctx, []sdk.Msg{msg})
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to broadcast PayForFibre transaction")
@@ -82,7 +87,7 @@ func (c *Client) Put(ctx context.Context, ns share.Namespace, data []byte) (resu
 	))
 
 	// confirm transaction inclusion
-	txResp, err := c.txClient.ConfirmTx(ctx, broadcastResp.TxHash)
+	txResp, err := txClient.ConfirmTx(ctx, broadcastResp.TxHash)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to confirm PayForFibre transaction")
