@@ -159,7 +159,6 @@ func compressAndDownload(table, localPath, user, host, sshKeyPath string) error 
 			baseTracesRemotePath, strings.Join(files, " "), remoteArchive)
 	}
 
-	// 1. Compress on remote server
 	fmt.Printf("[%s] Compressing data on remote server...\n", host)
 	out, err := sshExec(user, host, sshKeyPath, compressCmd)
 	if err != nil {
