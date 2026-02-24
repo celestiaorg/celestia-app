@@ -171,7 +171,6 @@ func compressAndDownload(table, localPath, user, host, sshKeyPath string) error 
 		return fmt.Errorf("download failed: %v", err)
 	}
 
-	// 3. Extract locally
 	localArchive := filepath.Join(localPath, filepath.Base(remoteArchive))
 	fmt.Printf("[%s] Extracting archive...\n", host)
 	extractCmd := exec.Command("tar", "-xJf", localArchive, "-C", localPath)
