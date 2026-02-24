@@ -140,8 +140,6 @@ func compressAndDownload(table, localPath, user, host, sshKeyPath string) error 
 	baseTracesRemotePath := "/root/.celestia-app/data/traces"
 	remoteArchive := "/tmp/talis-traces.tar.xz"
 
-	// Build the remote compression command using xz -6 for high compression
-	// on JSONL text data (typically 15-25x ratio vs gzip's 7-10x)
 	var compressCmd string
 	switch {
 	case table == "logs":
@@ -162,7 +160,7 @@ func compressAndDownload(table, localPath, user, host, sshKeyPath string) error 
 	}
 
 	// 1. Compress on remote server
-	fmt.Printf("[%s] Compressing data on remote server (xz -6)...\n", host)
+	fmt.Printf("[%s] Compressing data on remote server...\n", host)
 	out, err := sshExec(user, host, sshKeyPath, compressCmd)
 	if err != nil {
 		return fmt.Errorf("remote compression failed: %v\n%s", err, string(out))
