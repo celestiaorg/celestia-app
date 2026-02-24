@@ -19,41 +19,6 @@ import (
 
 const blockTime = time.Duration(6 * time.Second)
 
-func BenchmarkCheckTx_MsgSend_8MB(b *testing.B) {
-	testApp, rawTxs := generateMsgSendTransactions(b, 106_000)
-
-	finalizeBlockResp, err := testApp.FinalizeBlock(&types.RequestFinalizeBlock{
-		Time:   testutil.GenesisTime.Add(blockTime),
-		Height: testApp.LastBlockHeight() + 1,
-		Hash:   testApp.LastCommitID().Hash,
-	})
-	require.NotNil(b, finalizeBlockResp)
-	require.NoError(b, err)
-
-	commitResp, err := testApp.Commit()
-	require.NotNil(b, commitResp)
-	require.NoError(b, err)
-
-	var totalGas int64
-	b.ResetTimer()
-	for _, tx := range rawTxs {
-		checkTxRequest := types.RequestCheckTx{
-			Tx:   tx,
-			Type: types.CheckTxType_New,
-		}
-		b.StartTimer()
-		resp, err := testApp.CheckTx(&checkTxRequest)
-		require.NoError(b, err)
-		b.StopTimer()
-		require.Equal(b, uint32(0), resp.Code)
-		require.Equal(b, "", resp.Codespace)
-		totalGas += resp.GasUsed
-	}
-
-	b.StopTimer()
-	b.ReportMetric(float64(totalGas), "total_gas_used")
-}
-
 func BenchmarkFinalizeBlock_MsgSend_8MB(b *testing.B) {
 	b.ResetTimer()
 	testApp, rawTxs := generateMsgSendTransactions(b, 106_000)
@@ -78,22 +43,6 @@ func BenchmarkFinalizeBlock_MsgSend_8MB(b *testing.B) {
 	}
 
 	b.ReportMetric(float64(totalGas), "total_gas_used")
-}
-
-func BenchmarkPrepareProposal_MsgSend_1(b *testing.B) {
-	testApp, rawTxs := generateMsgSendTransactions(b, 1)
-
-	prepareProposalReq := types.RequestPrepareProposal{
-		Txs:    rawTxs,
-		Height: testApp.LastBlockHeight() + 1,
-	}
-
-	b.ResetTimer()
-	resp, err := testApp.PrepareProposal(&prepareProposalReq)
-	require.NoError(b, err)
-	b.StopTimer()
-	require.GreaterOrEqual(b, len(resp.Txs), 1)
-	b.ReportMetric(float64(calculateTotalGasUsed(testApp, resp.Txs)), "total_gas_used")
 }
 
 func BenchmarkPrepareProposal_MsgSend_8MB(b *testing.B) {
@@ -138,7 +87,7 @@ func BenchmarkProcessProposal_MsgSend_8MB(b *testing.B) {
 		Txs:          prepareProposalResp.Txs,
 		Height:       testApp.LastBlockHeight() + 1,
 		DataRootHash: prepareProposalResp.DataRootHash,
-		SquareSize:   128,
+		SquareSize:   256,
 	}
 
 	b.ResetTimer()
