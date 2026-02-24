@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"testing"
 	"time"
@@ -12,7 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app-fibre/v6/app"
 	"github.com/celestiaorg/celestia-app-fibre/v6/app/encoding"
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre"
-	grpcfibre "github.com/celestiaorg/celestia-app-fibre/v6/fibre/grpc"
+	grpcfibre "github.com/celestiaorg/celestia-app-fibre/v6/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/validator"
 	"github.com/celestiaorg/celestia-app-fibre/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app-fibre/v6/pkg/user"
@@ -21,7 +22,6 @@ import (
 	valtypes "github.com/celestiaorg/celestia-app-fibre/v6/x/valaddr/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cometbft/cometbft/privval"
-	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -45,6 +45,7 @@ type FibreE2ETestSuite struct {
 	fibreServer  *fibre.Server
 	hostRegistry *grpcfibre.HostRegistry
 	fibreClient  *fibre.Client
+	txClient     *user.TxClient
 }
 
 func (s *FibreE2ETestSuite) SetupSuite() {
@@ -90,10 +91,10 @@ func (s *FibreE2ETestSuite) SetupSuite() {
 	)
 	require.NoError(t, err)
 
-	s.hostRegistry = grpcfibre.NewHostRegistry(valtypes.NewQueryClient(s.cctx.GRPCClient))
+	s.hostRegistry = grpcfibre.NewHostRegistry(valtypes.NewQueryClient(s.cctx.GRPCClient), slog.Default())
 
 	clientCfg := fibre.DefaultClientConfig()
-	clientCfg.ChainID = s.cctx.ChainID
+	clientCfg.StateAddress = grpcAddr
 	// connect all validators to the single fibre server address
 	fibreAddr := s.fibreServer.ListenAddress()
 	clientCfg.NewClientFn = grpcfibre.DefaultNewClientFn(
@@ -101,9 +102,11 @@ func (s *FibreE2ETestSuite) SetupSuite() {
 		clientCfg.MaxMessageSize,
 	)
 
-	valSetGetter := grpcfibre.NewSetGetter(coregrpc.NewBlockAPIClient(s.cctx.GRPCClient))
-	s.fibreClient, err = fibre.NewClient(txClient, s.cctx.Keyring, valSetGetter, s.hostRegistry, clientCfg)
+	s.txClient = txClient
+	s.fibreClient, err = fibre.NewClient(s.cctx.Keyring, clientCfg)
 	require.NoError(t, err)
+
+	require.NoError(t, s.fibreClient.Start(s.cctx.GoContext()))
 }
 
 func (s *FibreE2ETestSuite) TearDownSuite() {
@@ -111,7 +114,7 @@ func (s *FibreE2ETestSuite) TearDownSuite() {
 		_ = s.fibreServer.Stop(context.Background())
 	}
 	if s.fibreClient != nil {
-		_ = s.fibreClient.Close()
+		_ = s.fibreClient.Stop(context.Background())
 	}
 }
 
@@ -246,7 +249,7 @@ func (s *FibreE2ETestSuite) Test03Put() {
 
 	ns := share.MustNewV0Namespace([]byte{0xDE, 0xAD})
 
-	result, err := s.fibreClient.Put(ctx, ns, testData)
+	result, err := fibre.Put(ctx, s.fibreClient, s.txClient, ns, testData)
 	require.NoError(t, err)
 
 	// verify Put result.

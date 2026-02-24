@@ -3,6 +3,7 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"sync"
 
@@ -18,13 +19,15 @@ var _ validator.HostRegistry = &HostRegistry{}
 // It uses the [types.QueryClient] to query the fibre provider information for validators in the active set.
 type HostRegistry struct {
 	queryClient types.QueryClient
+	log         *slog.Logger
 	mu          sync.RWMutex
 	cachedHosts map[string]validator.Host
 }
 
-func NewHostRegistry(queryClient types.QueryClient) *HostRegistry {
+func NewHostRegistry(queryClient types.QueryClient, log *slog.Logger) *HostRegistry {
 	return &HostRegistry{
 		queryClient: queryClient,
+		log:         log,
 		cachedHosts: make(map[string]validator.Host),
 	}
 }
@@ -75,6 +78,7 @@ func (g *HostRegistry) PullAll(ctx context.Context) error {
 	for _, provider := range resp.Providers {
 		g.cachedHosts[provider.ValidatorConsensusAddress] = validator.Host(provider.Info.Host)
 	}
+	g.log.Info("loaded fibre providers", "count", len(resp.Providers))
 	return nil
 }
 
@@ -93,6 +97,7 @@ func (g *HostRegistry) PullHost(ctx context.Context, val *core.Validator) (valid
 
 	host := validator.Host(resp.Info.Host)
 	g.writeHost(consAddr.String(), host)
+	g.log.Debug("pulled fibre provider host", "validator", consAddr.String(), "host", host)
 
 	return host, nil
 }

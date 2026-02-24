@@ -8,7 +8,8 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre"
-	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/grpc"
+	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/state"
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/validator"
 	"github.com/celestiaorg/celestia-app-fibre/v6/x/fibre/types"
 	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
@@ -38,7 +39,7 @@ func TestClientDownload(t *testing.T) {
 func testClientDownloadSuccess(t *testing.T) {
 	blob := makeTestBlobV0(t, 256*1024)
 	client := makeTestDownloadClient(t, 10, nil, blob)
-	defer client.Close()
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 	downloaded, err := client.Download(t.Context(), blob.ID())
 	require.NoError(t, err)
@@ -55,7 +56,7 @@ func testClientDownloadConcurrent(t *testing.T) {
 	}
 
 	client := makeTestDownloadClient(t, 100, nil, blobs...)
-	defer client.Close()
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 	var wg sync.WaitGroup
 	for _, blob := range blobs {
@@ -74,7 +75,7 @@ func testClientDownloadConcurrent(t *testing.T) {
 func testClientDownloadContextCancellation(t *testing.T) {
 	blob := makeTestBlobV0(t, 256*1024)
 	client := makeTestDownloadClient(t, 10, nil, blob)
-	defer client.Close()
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
@@ -86,10 +87,10 @@ func testClientDownloadContextCancellation(t *testing.T) {
 func testClientDownloadClosedClient(t *testing.T) {
 	blob := makeTestBlobV0(t, 256*1024)
 	client := makeTestDownloadClient(t, 10, nil, blob)
-	defer client.Close()
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
-	require.NoError(t, client.Close())
-	require.NoError(t, client.Close()) // idempotent
+	require.NoError(t, client.Stop(t.Context()))
+	require.NoError(t, client.Stop(t.Context())) // idempotent
 
 	_, err := client.Download(t.Context(), blob.ID())
 	require.ErrorIs(t, err, fibre.ErrClientClosed)
@@ -106,7 +107,7 @@ func testClientDownloadExactTargetCount(t *testing.T) {
 	client := makeTestDownloadClient(t, numValidators, func(cfg *fibre.ClientConfig) {
 		cfg.NewClientFn, counter = countingClientFn(cfg.NewClientFn)
 	}, blob)
-	defer client.Close()
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 	downloaded, err := client.Download(t.Context(), blob.ID())
 	require.NoError(t, err)
@@ -139,7 +140,7 @@ func testClientDownloadFaultTolerance(t *testing.T) {
 			client := makeTestDownloadClient(t, numValidators, func(cfg *fibre.ClientConfig) {
 				cfg.NewClientFn = failingClientFn(tc.failures, cfg.NewClientFn)
 			}, blob)
-			defer client.Close()
+			t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 			downloaded, err := client.Download(t.Context(), blob.ID())
 			if tc.expectErr != nil {
@@ -170,8 +171,12 @@ func makeTestDownloadClient(
 	}
 
 	valSet := validator.Set{ValidatorSet: core.NewValidatorSet(validators), Height: 100}
-	client, err := fibre.NewClient(nil, makeTestKeyring(t), &mockValidatorSetGetter{set: valSet}, &mockHostRegistry{}, cfg)
+	cfg.StateClientFn = func() (state.Client, error) {
+		return &mockStateClient{SetGetter: &mockValidatorSetGetter{set: valSet}}, nil
+	}
+	client, err := fibre.NewClient(makeTestKeyring(t), cfg)
 	require.NoError(t, err)
+	require.NoError(t, client.Start(t.Context()))
 	return client
 }
 

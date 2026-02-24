@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/grpc"
+	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/validator"
 	"github.com/celestiaorg/celestia-app-fibre/v6/x/valaddr/types"
 	core "github.com/cometbft/cometbft/types"
@@ -48,7 +49,7 @@ func getConsAddrString(val *core.Validator) string {
 }
 
 func TestNewHostRegistry(t *testing.T) {
-	registry := grpc.NewHostRegistry(&mockQueryClient{})
+	registry := grpc.NewHostRegistry(&mockQueryClient{}, slog.Default())
 	require.NotNil(t, registry)
 	var _ validator.HostRegistry = registry
 }
@@ -138,7 +139,7 @@ func TestGetHost(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			registry := grpc.NewHostRegistry(tt.mock)
+			registry := grpc.NewHostRegistry(tt.mock, slog.Default())
 			if tt.preCache {
 				err := registry.Start(context.Background())
 				require.NoError(t, err)
@@ -188,7 +189,7 @@ func TestPullAll(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			registry := grpc.NewHostRegistry(tt.mock)
+			registry := grpc.NewHostRegistry(tt.mock, slog.Default())
 			err := registry.PullAll(t.Context())
 			if tt.wantErr {
 				require.Error(t, err)
@@ -242,7 +243,7 @@ func TestPullHost(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			host, err := grpc.NewHostRegistry(tt.mock).PullHost(context.Background(), val)
+			host, err := grpc.NewHostRegistry(tt.mock, slog.Default()).PullHost(context.Background(), val)
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
@@ -269,7 +270,7 @@ func TestPullHost_OverwritesCache(t *testing.T) {
 		fibreProviderInfoFn: func(context.Context, *types.QueryFibreProviderInfoRequest, ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
 			return &types.QueryFibreProviderInfoResponse{Info: &types.FibreProviderInfo{Host: secondHost}, Found: true}, nil
 		},
-	})
+	}, slog.Default())
 	err := registry.Start(t.Context())
 	require.NoError(t, err)
 
@@ -299,7 +300,7 @@ func TestHostRegistry_ConcurrentAccess(t *testing.T) {
 				Providers: []types.FibreProvider{{ValidatorConsensusAddress: consAddr, Info: types.FibreProviderInfo{Host: expectedHost}}},
 			}, nil
 		},
-	})
+	}, slog.Default())
 	err := registry.Start(t.Context())
 	require.NoError(t, err)
 
@@ -337,7 +338,7 @@ func TestGetHost_MultipleValidators(t *testing.T) {
 		allFibreProvidersFn: func(context.Context, *types.QueryAllFibreProvidersRequest, ...grpc2.CallOption) (*types.QueryAllFibreProvidersResponse, error) {
 			return &types.QueryAllFibreProvidersResponse{Providers: providers}, nil
 		},
-	})
+	}, slog.Default())
 	err := registry.Start(t.Context())
 	require.NoError(t, err)
 

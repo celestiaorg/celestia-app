@@ -1,12 +1,13 @@
 package grpc_test
 
 import (
+	"log/slog"
 	"testing"
 	"time"
 
 	"github.com/celestiaorg/celestia-app-fibre/v6/app"
 	"github.com/celestiaorg/celestia-app-fibre/v6/app/encoding"
-	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/grpc"
+	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app-fibre/v6/pkg/user"
 	"github.com/celestiaorg/celestia-app-fibre/v6/test/util/testnode"
 	"github.com/celestiaorg/celestia-app-fibre/v6/x/valaddr/types"
@@ -43,7 +44,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.cctx = cctx
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	s.hostRegistry = grpc.NewHostRegistry(types.NewQueryClient(s.cctx.GRPCClient))
+	s.hostRegistry = grpc.NewHostRegistry(types.NewQueryClient(s.cctx.GRPCClient), slog.Default())
 	err := s.hostRegistry.Start(t.Context())
 	require.NoError(t, err)
 

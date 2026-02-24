@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre"
-	grpcfibre "github.com/celestiaorg/celestia-app-fibre/v6/fibre/grpc"
+	grpcfibre "github.com/celestiaorg/celestia-app-fibre/v6/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/state"
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/validator"
 	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
@@ -227,7 +227,7 @@ func (e *testEnv) Close() {
 		_ = srv.Stop(context.Background())
 	}
 	for _, client := range e.clients {
-		_ = client.Close()
+		_ = client.Stop(context.Background())
 	}
 }
 
@@ -294,9 +294,13 @@ func makeTestEnv(
 			modifyClientConfig(&clientCfg)
 		}
 		clientCfg.NewClientFn = grpcfibre.DefaultNewClientFn(&testHostRegistry{addresses: addresses}, clientCfg.MaxMessageSize)
+		clientCfg.StateClientFn = func() (state.Client, error) {
+			return &mockStateClient{SetGetter: valSetGetter, chainID: "celestia"}, nil
+		}
 
-		client, err := fibre.NewClient(nil, makeTestKeyring(t), valSetGetter, &mockHostRegistry{}, clientCfg)
+		client, err := fibre.NewClient(makeTestKeyring(t), clientCfg)
 		require.NoError(t, err)
+		require.NoError(t, client.Start(t.Context()))
 		clients[i] = client
 	}
 

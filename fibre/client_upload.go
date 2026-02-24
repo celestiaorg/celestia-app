@@ -3,6 +3,7 @@ package fibre
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sync/atomic"
 
@@ -24,6 +25,9 @@ import (
 // May keep uploading data in background after returning successfully.
 // Returns [ErrClientClosed] if the client has been closed.
 func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (result SignedPaymentPromise, err error) {
+	if !c.started.Load() {
+		return result, errors.New("fibre client is not started")
+	}
 	if c.closed.Load() {
 		return result, ErrClientClosed
 	}
@@ -37,7 +41,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 	defer span.End()
 
 	// 1) get validator set
-	valSet, err := c.valGet.Head(ctx)
+	valSet, err := c.state.Head(ctx)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to get validator set")
@@ -66,7 +70,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 	))
 
 	// 2) assign shards to validators
-	shardMap := valSet.Assign(blob.ID().Commitment(), blob.Config().TotalRows(), blob.Config().OriginalRows, c.cfg.MinRowsPerValidator, c.cfg.LivenessThreshold)
+	shardMap := valSet.Assign(blob.ID().Commitment(), blob.Config().TotalRows(), blob.Config().OriginalRows, c.Config.MinRowsPerValidator, c.Config.LivenessThreshold)
 	span.AddEvent("shards_assigned")
 
 	validatorSignBytes, err := promise.SignBytesValidator()
@@ -77,7 +81,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 	}
 
 	requests := makeUploadRequests(shardMap, promise.ToProto(), blob.RLCCoeffs())
-	sigSet := valSet.NewSignatureSet(c.cfg.SafetyThreshold, validatorSignBytes)
+	sigSet := valSet.NewSignatureSet(c.Config.SafetyThreshold, validatorSignBytes)
 
 	c.log.DebugContext(ctx, "initiating blob upload",
 		"promise_hash", hex.EncodeToString(promiseHash),
@@ -119,7 +123,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 
 // signerKey retrieves the secp256k1 public key from the keyring.
 func (c *Client) signerKey() (*secp256k1.PubKey, error) {
-	key, err := c.keyring.Key(c.cfg.DefaultKeyName)
+	key, err := c.keyring.Key(c.Config.DefaultKeyName)
 	if err != nil {
 		return nil, fmt.Errorf("getting key from keyring: %w", err)
 	}
@@ -145,7 +149,7 @@ func (c *Client) signedPromise(ns share.Namespace, blob *Blob, height uint64) (*
 	}
 
 	promise := &PaymentPromise{
-		ChainID:           c.cfg.ChainID,
+		ChainID:           c.state.ChainID(),
 		Height:            height,
 		Namespace:         ns,
 		UploadSize:        uint32(blob.UploadSize()),
@@ -161,7 +165,7 @@ func (c *Client) signedPromise(ns share.Namespace, blob *Blob, height uint64) (*
 	}
 
 	// sign using the default key and direct mode
-	signature, _, err := c.keyring.Sign(c.cfg.DefaultKeyName, signBytes, txsigning.SignMode_SIGN_MODE_DIRECT)
+	signature, _, err := c.keyring.Sign(c.Config.DefaultKeyName, signBytes, txsigning.SignMode_SIGN_MODE_DIRECT)
 	if err != nil {
 		return nil, fmt.Errorf("signing payment promise: %w", err)
 	}

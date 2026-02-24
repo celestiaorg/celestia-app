@@ -70,11 +70,12 @@ func makeTestServer(t *testing.T) (*fibre.Server, validator.Set, *core.Validator
 // mockStateClient implements state.Client for testing.
 type mockStateClient struct {
 	validator.SetGetter
+	validator.HostRegistry
 	chainID string
 }
 
 func (m *mockStateClient) Start(context.Context) error { return nil }
-func (m *mockStateClient) Stop() error                 { return nil }
+func (m *mockStateClient) Stop(context.Context) error  { return nil }
 func (m *mockStateClient) ChainID() string             { return m.chainID }
 
 func (m *mockStateClient) VerifyPromise(_ context.Context, promise *state.PaymentPromise) (state.VerifiedPromise, error) {
