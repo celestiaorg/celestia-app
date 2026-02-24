@@ -141,15 +141,15 @@ func compressAndDownload(table, localPath, user, host, sshKeyPath string) error 
 	remoteArchive := "/tmp/talis-traces.tar.xz"
 
 	var compressCmd string
-	switch {
-	case table == "logs":
+	switch table {
+	case "logs":
 		compressCmd = fmt.Sprintf("tar -cf - -C /root logs | xz -6 -T0 > %s", remoteArchive)
-	case table == "*" || table == "":
+	case "*", "":
 		compressCmd = fmt.Sprintf("tar -cf - -C %s . | xz -6 -T0 > %s", baseTracesRemotePath, remoteArchive)
 	default:
 		var files []string
 		if strings.Contains(table, ",") {
-			for _, t := range strings.Split(table, ",") {
+			for t := range strings.SplitSeq(table, ",") {
 				files = append(files, strings.TrimSpace(t)+".jsonl")
 			}
 		} else {
