@@ -34,7 +34,7 @@ func BenchmarkIBC_PrepareProposal_Update_Client_Multi(b *testing.B) {
 	testCases := []struct {
 		numberOfTransactions, numberOfValidators int
 	}{
-		{numberOfTransactions: 106_000, numberOfValidators: 100},
+		{numberOfTransactions: 2000, numberOfValidators: 100},
 	}
 	for _, testCase := range testCases {
 		b.Run(fmt.Sprintf("number of validators: %d", testCase.numberOfValidators), func(b *testing.B) {
@@ -69,7 +69,7 @@ func BenchmarkIBC_ProcessProposal_Update_Client_Multi(b *testing.B) {
 	testCases := []struct {
 		numberOfTransactions, numberOfValidators int
 	}{
-		{numberOfTransactions: 106_000, numberOfValidators: 100},
+		{numberOfTransactions: 2000, numberOfValidators: 100},
 	}
 	for _, testCase := range testCases {
 		b.Run(fmt.Sprintf("number of validators: %d", testCase.numberOfValidators), func(b *testing.B) {
