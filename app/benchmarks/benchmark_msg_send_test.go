@@ -151,28 +151,25 @@ func BenchmarkProcessProposal_MsgSend_8MB(b *testing.B) {
 }
 
 // generateMsgSendTransactions creates a test app then generates a number
-// of valid msg send transactions.
+// of valid msg send transactions in parallel across CPU cores.
 func generateMsgSendTransactions(b *testing.B, count int) (*app.App, [][]byte) {
 	account := "test"
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 256, account)
 	addr := testfactory.GetAddress(kr, account)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	acc := testutil.DirectQueryAccount(testApp, addr)
-	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
-	require.NoError(b, err)
-	rawTxs := make([][]byte, 0, count)
-	for i := 0; i < count; i++ {
-		msg := banktypes.NewMsgSend(
-			addr,
-			testnode.RandomAddress().(sdk.AccAddress),
-			sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)),
-		)
-		rawTx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1000000), user.SetFee(10))
-		require.NoError(b, err)
-		rawTxs = append(rawTxs, rawTx)
-		err = signer.IncrementSequence(account)
-		require.NoError(b, err)
-	}
+
+	rawTxs := generateSignedTxsInParallel(b, kr, enc.TxConfig, testutil.ChainID, account, acc.GetAccountNumber(), acc.GetSequence(), count,
+		func(signer *user.Signer, acctName string, _ int) ([]byte, error) {
+			msg := banktypes.NewMsgSend(
+				addr,
+				testnode.RandomAddress().(sdk.AccAddress),
+				sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)),
+			)
+			rawTx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1000000), user.SetFee(10))
+			return rawTx, err
+		},
+	)
 	return testApp, rawTxs
 }
 

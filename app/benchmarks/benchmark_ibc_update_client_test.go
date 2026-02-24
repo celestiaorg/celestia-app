@@ -137,18 +137,14 @@ func generateIBCUpdateClientTransaction(b *testing.B, numberOfValidators, number
 	)
 
 	accountSequence := testutil.DirectQueryAccount(testApp, addr).GetSequence()
-	err = signer.SetSequence(account, accountSequence+uint64(offsetAccountSequence))
-	require.NoError(b, err)
-	rawTxs := make([][]byte, 0, numberOfMessages)
-	for i := 0; i < numberOfMessages; i++ {
-		rawTx, _, err := signer.CreateTx([]sdk.Msg{msgs[i]}, user.SetGasLimit(25497600000), user.SetFee(100000))
-		require.NoError(b, err)
-		rawTxs = append(rawTxs, rawTx)
-		accountSequence++
-		err = signer.SetSequence(account, accountSequence)
-		require.NoError(b, err)
-	}
+	startSeq := accountSequence + uint64(offsetAccountSequence)
 
+	rawTxs := generateSignedTxsInParallel(b, kr, enc.TxConfig, testutil.ChainID, account, acc.GetAccountNumber(), startSeq, numberOfMessages,
+		func(signer *user.Signer, acctName string, index int) ([]byte, error) {
+			rawTx, _, err := signer.CreateTx([]sdk.Msg{msgs[index]}, user.SetGasLimit(25497600000), user.SetFee(100000))
+			return rawTx, err
+		},
+	)
 	return testApp, rawTxs
 }
 
