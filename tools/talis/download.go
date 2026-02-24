@@ -178,7 +178,6 @@ func compressAndDownload(table, localPath, user, host, sshKeyPath string) error 
 		return fmt.Errorf("local extraction failed: %v\n%s", err, string(extractOut))
 	}
 
-	// 4. Clean up archives (remote and local)
 	os.Remove(localArchive)
 	_, _ = sshExec(user, host, sshKeyPath, "rm -f "+remoteArchive)
 
