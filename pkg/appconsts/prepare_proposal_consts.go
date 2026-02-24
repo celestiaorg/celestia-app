@@ -8,8 +8,8 @@ package appconsts
 // The benchmarks used to find these limits can be found in `app/benchmarks`.
 const (
 	// MaxPFBMessages is the maximum number of PFB messages that a block can contain.
-	MaxPFBMessages = 200
+	MaxPFBMessages = 106_001
 
 	// MaxNonPFBMessages is the maximum number of SDK messages, aside from PFBs, that a block can contain.
-	MaxNonPFBMessages = 600
+	MaxNonPFBMessages = 106_001
 )

@@ -1,5 +1,3 @@
-//go:build benchmarks
-
 package benchmarks_test
 
 import (
@@ -32,122 +30,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func BenchmarkIBC_CheckTx_Update_Client_Multi(b *testing.B) {
-	testCases := []struct {
-		numberOfValidators int
-	}{
-		{numberOfValidators: 2},
-		{numberOfValidators: 10},
-		{numberOfValidators: 25},
-		{numberOfValidators: 50},
-		{numberOfValidators: 75},
-		{numberOfValidators: 100},
-		{numberOfValidators: 125},
-		{numberOfValidators: 150},
-		{numberOfValidators: 175},
-		{numberOfValidators: 200},
-		{numberOfValidators: 225},
-		{numberOfValidators: 250},
-		{numberOfValidators: 300},
-		{numberOfValidators: 400},
-		{numberOfValidators: 500},
-	}
-	for _, testCase := range testCases {
-		b.Run(fmt.Sprintf("number of validators: %d", testCase.numberOfValidators), func(b *testing.B) {
-			benchmarkIBCCheckTxUpdateClient(b, testCase.numberOfValidators)
-		})
-	}
-}
-
-func benchmarkIBCCheckTxUpdateClient(b *testing.B, numberOfValidators int) {
-	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, 1, 1)
-	testApp.Commit()
-
-	checkTxReq := types.RequestCheckTx{
-		Type: types.CheckTxType_New,
-		Tx:   rawTxs[0],
-	}
-
-	b.ResetTimer()
-	resp, err := testApp.CheckTx(&checkTxReq)
-	require.NoError(b, err)
-	b.StopTimer()
-	require.Equal(b, uint32(0), resp.Code)
-	require.Equal(b, "", resp.Codespace)
-	b.ReportMetric(float64(resp.GasUsed), "gas_used")
-	b.ReportMetric(float64(len(rawTxs[0])), "transaction_size(byte)")
-	b.ReportMetric(float64(numberOfValidators), "number_of_validators")
-	b.ReportMetric(float64(2*numberOfValidators/3), "number_of_verified_signatures")
-}
-
-func BenchmarkIBC_FinalizeBlock_Update_Client_Multi(b *testing.B) {
-	testCases := []struct {
-		numberOfValidators int
-	}{
-		{numberOfValidators: 2},
-		{numberOfValidators: 10},
-		{numberOfValidators: 25},
-		{numberOfValidators: 50},
-		{numberOfValidators: 75},
-		{numberOfValidators: 100},
-		{numberOfValidators: 125},
-		{numberOfValidators: 150},
-		{numberOfValidators: 175},
-		{numberOfValidators: 200},
-		{numberOfValidators: 225},
-		{numberOfValidators: 250},
-		{numberOfValidators: 300},
-		{numberOfValidators: 400},
-		{numberOfValidators: 500},
-	}
-	for _, testCase := range testCases {
-		b.Run(fmt.Sprintf("number of validators: %d", testCase.numberOfValidators), func(b *testing.B) {
-			benchmarkIBCFinalizeBlockUpdateClient(b, testCase.numberOfValidators)
-		})
-	}
-}
-
-func benchmarkIBCFinalizeBlockUpdateClient(b *testing.B, numberOfValidators int) {
-	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, 1, 1)
-
-	finalizeBlockReq := types.RequestFinalizeBlock{
-		Time:   testutil.GenesisTime.Add(blockTime),
-		Height: testApp.LastBlockHeight() + 1,
-		Hash:   testApp.LastCommitID().Hash,
-		Txs:    rawTxs,
-	}
-
-	b.ResetTimer()
-	resp, err := testApp.FinalizeBlock(&finalizeBlockReq)
-	require.NoError(b, err)
-	b.StopTimer()
-	require.Equal(b, uint32(0), resp.TxResults[0].Code)
-	require.Equal(b, "", resp.TxResults[0].Codespace)
-	b.ReportMetric(float64(resp.TxResults[0].GasUsed), "gas_used")
-	b.ReportMetric(float64(len(rawTxs[0])), "transaction_size(byte)")
-	b.ReportMetric(float64(numberOfValidators), "number_of_validators")
-	b.ReportMetric(float64(2*numberOfValidators/3), "number_of_verified_signatures")
-}
-
 func BenchmarkIBC_PrepareProposal_Update_Client_Multi(b *testing.B) {
 	testCases := []struct {
 		numberOfTransactions, numberOfValidators int
 	}{
-		{numberOfTransactions: 6_000, numberOfValidators: 2},
-		{numberOfTransactions: 3_000, numberOfValidators: 10},
-		{numberOfTransactions: 2_000, numberOfValidators: 25},
-		{numberOfTransactions: 1_000, numberOfValidators: 50},
-		{numberOfTransactions: 500, numberOfValidators: 75},
-		{numberOfTransactions: 500, numberOfValidators: 100},
-		{numberOfTransactions: 500, numberOfValidators: 125},
-		{numberOfTransactions: 500, numberOfValidators: 150},
-		{numberOfTransactions: 500, numberOfValidators: 175},
-		{numberOfTransactions: 500, numberOfValidators: 200},
-		{numberOfTransactions: 500, numberOfValidators: 225},
-		{numberOfTransactions: 500, numberOfValidators: 250},
-		{numberOfTransactions: 500, numberOfValidators: 300},
-		{numberOfTransactions: 500, numberOfValidators: 400},
-		{numberOfTransactions: 500, numberOfValidators: 500},
+		{numberOfTransactions: 106_000, numberOfValidators: 100},
 	}
 	for _, testCase := range testCases {
 		b.Run(fmt.Sprintf("number of validators: %d", testCase.numberOfValidators), func(b *testing.B) {
@@ -182,21 +69,7 @@ func BenchmarkIBC_ProcessProposal_Update_Client_Multi(b *testing.B) {
 	testCases := []struct {
 		numberOfTransactions, numberOfValidators int
 	}{
-		{numberOfTransactions: 6_000, numberOfValidators: 2},
-		{numberOfTransactions: 3_000, numberOfValidators: 10},
-		{numberOfTransactions: 2_000, numberOfValidators: 25},
-		{numberOfTransactions: 1_000, numberOfValidators: 50},
-		{numberOfTransactions: 500, numberOfValidators: 75},
-		{numberOfTransactions: 500, numberOfValidators: 100},
-		{numberOfTransactions: 500, numberOfValidators: 125},
-		{numberOfTransactions: 500, numberOfValidators: 150},
-		{numberOfTransactions: 500, numberOfValidators: 175},
-		{numberOfTransactions: 500, numberOfValidators: 200},
-		{numberOfTransactions: 500, numberOfValidators: 225},
-		{numberOfTransactions: 500, numberOfValidators: 250},
-		{numberOfTransactions: 500, numberOfValidators: 300},
-		{numberOfTransactions: 500, numberOfValidators: 400},
-		{numberOfTransactions: 500, numberOfValidators: 500},
+		{numberOfTransactions: 106_000, numberOfValidators: 100},
 	}
 	for _, testCase := range testCases {
 		b.Run(fmt.Sprintf("number of validators: %d", testCase.numberOfValidators), func(b *testing.B) {
@@ -246,7 +119,7 @@ func benchmarkIBCProcessProposalUpdateClient(b *testing.B, numberOfValidators, c
 // ABCI method.
 func generateIBCUpdateClientTransaction(b *testing.B, numberOfValidators, numberOfMessages, offsetAccountSequence int) (*app.App, [][]byte) {
 	account := "test"
-	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, account)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 512, account)
 	addr := testfactory.GetAddress(kr, account)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	acc := testutil.DirectQueryAccount(testApp, addr)

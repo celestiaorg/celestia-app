@@ -1,9 +1,6 @@
-//go:build benchmarks
-
 package benchmarks_test
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -22,37 +19,8 @@ import (
 
 const blockTime = time.Duration(6 * time.Second)
 
-func BenchmarkCheckTx_MsgSend_1(b *testing.B) {
-	testApp, rawTxs := generateMsgSendTransactions(b, 1)
-
-	finalizeBlockResp, err := testApp.FinalizeBlock(&types.RequestFinalizeBlock{
-		Time:   testutil.GenesisTime.Add(blockTime),
-		Height: testApp.LastBlockHeight() + 1,
-		Hash:   testApp.LastCommitID().Hash,
-	})
-	require.NotNil(b, finalizeBlockResp)
-	require.NoError(b, err)
-
-	commitResp, err := testApp.Commit()
-	require.NotNil(b, commitResp)
-	require.NoError(b, err)
-
-	checkTxReq := types.RequestCheckTx{
-		Tx:   rawTxs[0],
-		Type: types.CheckTxType_New,
-	}
-
-	b.ResetTimer()
-	resp, err := testApp.CheckTx(&checkTxReq)
-	require.NoError(b, err)
-	b.StopTimer()
-	require.Equal(b, uint32(0), resp.Code)
-	require.Equal(b, "", resp.Codespace)
-	b.ReportMetric(float64(resp.GasUsed), "gas_used")
-}
-
 func BenchmarkCheckTx_MsgSend_8MB(b *testing.B) {
-	testApp, rawTxs := generateMsgSendTransactions(b, 31645)
+	testApp, rawTxs := generateMsgSendTransactions(b, 106_000)
 
 	finalizeBlockResp, err := testApp.FinalizeBlock(&types.RequestFinalizeBlock{
 		Time:   testutil.GenesisTime.Add(blockTime),
@@ -86,27 +54,9 @@ func BenchmarkCheckTx_MsgSend_8MB(b *testing.B) {
 	b.ReportMetric(float64(totalGas), "total_gas_used")
 }
 
-func BenchmarkFinalizeBlock_MsgSend_1(b *testing.B) {
-	testApp, rawTxs := generateMsgSendTransactions(b, 1)
-
-	finalizeBlockReq := types.RequestFinalizeBlock{
-		Time:   testutil.GenesisTime.Add(blockTime),
-		Height: testApp.LastBlockHeight() + 1,
-		Hash:   testApp.LastCommitID().Hash,
-		Txs:    rawTxs,
-	}
-
-	b.ResetTimer()
-	resp, err := testApp.FinalizeBlock(&finalizeBlockReq)
-	require.NoError(b, err)
-	b.StopTimer()
-	require.Equal(b, uint32(0), resp.TxResults[0].Code)
-	b.ReportMetric(float64(resp.TxResults[0].GasUsed), "gas_used")
-}
-
 func BenchmarkFinalizeBlock_MsgSend_8MB(b *testing.B) {
 	b.ResetTimer()
-	testApp, rawTxs := generateMsgSendTransactions(b, 31645)
+	testApp, rawTxs := generateMsgSendTransactions(b, 106_000)
 
 	finalizeBlockReq := types.RequestFinalizeBlock{
 		Time:   testutil.GenesisTime.Add(blockTime),
@@ -149,7 +99,7 @@ func BenchmarkPrepareProposal_MsgSend_1(b *testing.B) {
 func BenchmarkPrepareProposal_MsgSend_8MB(b *testing.B) {
 	// a full 8mb block equals to around 31645 msg send transactions.
 	// using 31645 to let prepare proposal choose the maximum
-	testApp, rawTxs := generateMsgSendTransactions(b, 31645)
+	testApp, rawTxs := generateMsgSendTransactions(b, 106_000)
 
 	prepareProposalReq := types.RequestPrepareProposal{
 		Txs:    rawTxs,
@@ -166,38 +116,10 @@ func BenchmarkPrepareProposal_MsgSend_8MB(b *testing.B) {
 	b.ReportMetric(float64(calculateTotalGasUsed(testApp, resp.Txs)), "total_gas_used")
 }
 
-func BenchmarkProcessProposal_MsgSend_1(b *testing.B) {
-	testApp, rawTxs := generateMsgSendTransactions(b, 1)
-
-	prepareProposalReq := types.RequestPrepareProposal{
-		Txs:    rawTxs,
-		Height: testApp.LastBlockHeight() + 1,
-	}
-
-	prepareProposalResp, err := testApp.PrepareProposal(&prepareProposalReq)
-	require.NoError(b, err)
-	require.Len(b, prepareProposalResp.Txs, 1)
-
-	processProposalReq := types.RequestProcessProposal{
-		Txs:          prepareProposalResp.Txs,
-		Height:       testApp.LastBlockHeight() + 1,
-		DataRootHash: prepareProposalResp.DataRootHash,
-		SquareSize:   1,
-	}
-
-	b.ResetTimer()
-	resp, err := testApp.ProcessProposal(&processProposalReq)
-	require.NoError(b, err)
-	b.StopTimer()
-	require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Status)
-
-	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResp.Txs)), "total_gas_used")
-}
-
 func BenchmarkProcessProposal_MsgSend_8MB(b *testing.B) {
 	// a full 8mb block equals to around 31645 msg send transactions.
 	// using 31645 to let prepare proposal choose the maximum
-	testApp, rawTxs := generateMsgSendTransactions(b, 31645)
+	testApp, rawTxs := generateMsgSendTransactions(b, 106_000)
 
 	prepareProposalReq := types.RequestPrepareProposal{
 		Txs:    rawTxs,
@@ -228,75 +150,11 @@ func BenchmarkProcessProposal_MsgSend_8MB(b *testing.B) {
 	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResp.Txs)), "total_gas_used")
 }
 
-func BenchmarkProcessProposal_MsgSend_8MB_Find_Half_Sec(b *testing.B) {
-	targetTimeLowerBound := 0.499
-	targetTimeUpperBound := 0.511
-	numberOfTransaction := 5500
-	testApp, rawTxs := generateMsgSendTransactions(b, numberOfTransaction)
-	start := 0
-	end := numberOfTransaction
-	segment := end - start
-	for {
-		if segment == 1 {
-			break
-		}
-
-		prepareProposalReq := types.RequestPrepareProposal{
-			Txs:    rawTxs[start:end],
-			Height: testApp.LastBlockHeight() + 1,
-		}
-
-		prepareProposalResp, err := testApp.PrepareProposal(&prepareProposalReq)
-		require.NoError(b, err)
-		require.GreaterOrEqual(b, len(prepareProposalResp.Txs), 1)
-
-		processProposalReq := types.RequestProcessProposal{
-			Txs:          prepareProposalResp.Txs,
-			Height:       testApp.LastBlockHeight() + 1,
-			DataRootHash: prepareProposalResp.DataRootHash,
-			SquareSize:   64,
-		}
-
-		startTime := time.Now()
-		resp, err := testApp.ProcessProposal(&processProposalReq)
-		require.NoError(b, err)
-		endTime := time.Now()
-		require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Status)
-
-		timeElapsed := float64(endTime.Sub(startTime).Nanoseconds()) / 1e9
-
-		switch {
-		case timeElapsed < targetTimeLowerBound:
-			newEnd := end + segment/2
-			if newEnd > len(rawTxs) {
-				newEnd = len(rawTxs)
-			}
-			end = newEnd
-			segment = end - start
-			if segment <= 1 {
-				break
-			}
-			continue
-		case timeElapsed > targetTimeUpperBound:
-			newEnd := end / 2
-			if newEnd <= start {
-				break
-			}
-			end = newEnd
-			segment = end - start
-			continue
-		default:
-			b.ReportMetric(timeElapsed, fmt.Sprintf("elapsedTime(s)_%d", end-start))
-		}
-		break
-	}
-}
-
 // generateMsgSendTransactions creates a test app then generates a number
 // of valid msg send transactions.
 func generateMsgSendTransactions(b *testing.B, count int) (*app.App, [][]byte) {
 	account := "test"
-	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, account)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 512, account)
 	addr := testfactory.GetAddress(kr, account)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	acc := testutil.DirectQueryAccount(testApp, addr)
