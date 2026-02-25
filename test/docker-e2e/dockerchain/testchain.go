@@ -81,7 +81,6 @@ func getPostInitModifications(gasPrices string) []func(context.Context, *tastora
 			cfg.Storage.DiscardABCIResponses = false
 			cfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
 			cfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
-			cfg.Consensus.DelayedPrecommitTimeout = appconsts.DelayedPrecommitTimeout
 			cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
 			cfg.RPC.GRPCListenAddress = "tcp://0.0.0.0:9099"
 			cfg.RPC.CORSAllowedOrigins = []string{"*"}
