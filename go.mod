@@ -1,4 +1,4 @@
-module github.com/celestiaorg/celestia-app/v7
+module github.com/celestiaorg/celestia-app/v8
 
 go 1.25.7
 

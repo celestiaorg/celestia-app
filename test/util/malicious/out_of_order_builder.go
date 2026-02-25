@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	"github.com/celestiaorg/go-square/v3"
 	"github.com/celestiaorg/go-square/v3/inclusion"
 	"github.com/celestiaorg/go-square/v3/share"

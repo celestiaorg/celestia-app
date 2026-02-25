@@ -1,7 +1,7 @@
 package keeper
 
 import (
-	"github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v8/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
