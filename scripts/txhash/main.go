@@ -6,10 +6,12 @@
 //
 //	go run ./scripts/txhash --height 10230356
 //	go run ./scripts/txhash --height 10230356 --rpc http://localhost:26657
+//	go run ./scripts/txhash --height 10230356 --rpc https://example.com --insecure
 package main
 
 import (
 	"crypto/sha256"
+	"crypto/tls"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -44,6 +46,7 @@ func main() {
 	rpc := flag.String("rpc", "http://localhost:26657", "CometBFT RPC endpoint")
 	height := flag.Int64("height", 0, "block height to query")
 	verify := flag.Bool("verify", true, "verify each hash is queryable via /tx")
+	insecure := flag.Bool("insecure", false, "skip TLS certificate verification")
 	flag.Parse()
 
 	if *height <= 0 {
@@ -52,9 +55,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	client := http.DefaultClient
+	if *insecure {
+		client = &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+			},
+		}
+	}
+
 	// Fetch the block.
 	blockURL := fmt.Sprintf("%s/block?height=%d", strings.TrimRight(*rpc, "/"), *height)
-	resp, err := http.Get(blockURL)
+	resp, err := client.Get(blockURL)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error fetching block: %v\n", err)
 		os.Exit(1)
@@ -106,7 +118,7 @@ func main() {
 
 		if *verify {
 			txURL := fmt.Sprintf("%s/tx?hash=0x%s", strings.TrimRight(*rpc, "/"), hashHex)
-			txResp, err := http.Get(txURL)
+			txResp, err := client.Get(txURL)
 			if err != nil {
 				fmt.Printf("  verification FAILED: %v\n", err)
 				continue
