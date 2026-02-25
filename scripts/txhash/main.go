@@ -6,7 +6,7 @@
 //
 //	go run ./scripts/txhash --height 10230356
 //	go run ./scripts/txhash --height 10230356 --rpc http://localhost:26657
-//	go run ./scripts/txhash --height 10230356 --rpc https://example.com --insecure
+//	go run ./scripts/txhash --height 10230356 --rpc https://rpc-mocha.pops.one
 package main
 
 import (
