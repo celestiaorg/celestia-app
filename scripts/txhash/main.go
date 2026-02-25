@@ -79,6 +79,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	if resp.StatusCode != http.StatusOK {
+		fmt.Fprintf(os.Stderr, "error: RPC returned HTTP %d\n", resp.StatusCode)
+		os.Exit(1)
+	}
+
+	if len(body) == 0 {
+		fmt.Fprintf(os.Stderr, "error: RPC returned an empty response. The endpoint %s may not support the /block endpoint.\n", *rpc)
+		os.Exit(1)
+	}
+
 	var block blockResponse
 	if err := json.Unmarshal(body, &block); err != nil {
 		fmt.Fprintf(os.Stderr, "error parsing block response: %v\n", err)
