@@ -3,10 +3,10 @@ package ante_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v7/app"
-	"github.com/celestiaorg/celestia-app/v7/app/ante"
-	"github.com/celestiaorg/celestia-app/v7/app/encoding"
-	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v8/app"
+	"github.com/celestiaorg/celestia-app/v8/app/ante"
+	"github.com/celestiaorg/celestia-app/v8/app/encoding"
+	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
