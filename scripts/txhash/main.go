@@ -55,8 +55,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := run(*rpc, *height, *verify, *insecure); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func run(rpc string, height int64, verify, insecure bool) error {
 	client := http.DefaultClient
-	if *insecure {
+	if insecure {
 		client = &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
@@ -65,43 +72,38 @@ func main() {
 	}
 
 	// Fetch the block.
-	blockURL := fmt.Sprintf("%s/block?height=%d", strings.TrimRight(*rpc, "/"), *height)
+	blockURL := fmt.Sprintf("%s/block?height=%d", strings.TrimRight(rpc, "/"), height)
 	resp, err := client.Get(blockURL)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error fetching block: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("fetching block: %v", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error reading response: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("reading response: %v", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		fmt.Fprintf(os.Stderr, "error: RPC returned HTTP %d\n", resp.StatusCode)
-		os.Exit(1)
+		return fmt.Errorf("RPC returned HTTP %d", resp.StatusCode)
 	}
 
 	if len(body) == 0 {
-		fmt.Fprintf(os.Stderr, "error: RPC returned an empty response. The endpoint %s may not support the /block endpoint.\n", *rpc)
-		os.Exit(1)
+		return fmt.Errorf("RPC returned an empty response. The endpoint %s may not support the /block endpoint", rpc)
 	}
 
 	var block blockResponse
 	if err := json.Unmarshal(body, &block); err != nil {
-		fmt.Fprintf(os.Stderr, "error parsing block response: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("parsing block response: %v", err)
 	}
 
 	txs := block.Result.Block.Data.Txs
 	if len(txs) == 0 {
-		fmt.Printf("block %d has no transactions\n", *height)
-		return
+		fmt.Printf("block %d has no transactions\n", height)
+		return nil
 	}
 
-	fmt.Printf("block %d has %d transaction(s)\n\n", *height, len(txs))
+	fmt.Printf("block %d has %d transaction(s)\n\n", height, len(txs))
 
 	for i, rawTx := range txs {
 		var (
@@ -126,32 +128,37 @@ func main() {
 
 		fmt.Printf("tx[%d] type=%s hash=%s\n", i, txType, hashHex)
 
-		if *verify {
-			txURL := fmt.Sprintf("%s/tx?hash=0x%s", strings.TrimRight(*rpc, "/"), hashHex)
-			txResp, err := client.Get(txURL)
-			if err != nil {
-				fmt.Printf("  verification FAILED: %v\n", err)
-				continue
-			}
-			defer txResp.Body.Close()
-
-			txBody, err := io.ReadAll(txResp.Body)
-			if err != nil {
-				fmt.Printf("  verification FAILED: could not read response: %v\n", err)
-				continue
-			}
-
-			var result txResponse
-			if err := json.Unmarshal(txBody, &result); err != nil {
-				fmt.Printf("  verification FAILED: could not parse response: %v\n", err)
-				continue
-			}
-
-			if result.Error != nil {
-				fmt.Printf("  verification FAILED: %s\n", result.Error.Data)
-			} else {
-				fmt.Printf("  verification OK: tx found in index\n")
-			}
+		if verify {
+			verifyTxHash(client, rpc, hashHex)
 		}
+	}
+	return nil
+}
+
+func verifyTxHash(client *http.Client, rpc, hashHex string) {
+	txURL := fmt.Sprintf("%s/tx?hash=0x%s", strings.TrimRight(rpc, "/"), hashHex)
+	txResp, err := client.Get(txURL)
+	if err != nil {
+		fmt.Printf("  verification FAILED: %v\n", err)
+		return
+	}
+	defer txResp.Body.Close()
+
+	txBody, err := io.ReadAll(txResp.Body)
+	if err != nil {
+		fmt.Printf("  verification FAILED: could not read response: %v\n", err)
+		return
+	}
+
+	var result txResponse
+	if err := json.Unmarshal(txBody, &result); err != nil {
+		fmt.Printf("  verification FAILED: could not parse response: %v\n", err)
+		return
+	}
+
+	if result.Error != nil {
+		fmt.Printf("  verification FAILED: %s\n", result.Error.Data)
+	} else {
+		fmt.Printf("  verification OK: tx found in index\n")
 	}
 }
