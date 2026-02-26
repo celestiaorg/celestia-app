@@ -1,5 +1,7 @@
 # Download pre-built celestia-appd from the v6.4.10-mocha release.
 # https://github.com/celestiaorg/celestia-app/releases/tag/v6.4.10-mocha
+#
+# Uses the multiplexer binary (not standalone).
 
 FROM docker.io/debian:trixie-slim
 
@@ -21,7 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Download the pre-built binary. Map Docker's TARGETARCH to the release naming.
 ARG TARGETARCH
 RUN ARCH=$([ "${TARGETARCH}" = "amd64" ] && echo "x86_64" || echo "arm64") \
-    && curl -sL "https://github.com/celestiaorg/celestia-app/releases/download/${VERSION}/celestia-app-standalone_Linux_${ARCH}.tar.gz" \
+    && curl -sL "https://github.com/celestiaorg/celestia-app/releases/download/${VERSION}/celestia-app_Linux_${ARCH}.tar.gz" \
     | tar -xz -C /bin celestia-appd
 
 COPY --chown=${USER_NAME}:${USER_NAME} entrypoint.sh /opt/entrypoint.sh
