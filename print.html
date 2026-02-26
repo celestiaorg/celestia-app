@@ -1333,8 +1333,8 @@ Inbound transactions submitted via the RPC do not trigger a <code>SeenTx</code> 
 <div style="break-before: page; page-break-before: always;"></div><h1 id="honest-block-proposer"><a class="header" href="#honest-block-proposer">Honest Block Proposer</a></h1>
 <!-- toc -->
 <p>This document describes the tasks of an honest block proposer to assemble a new block. Performing these actions is not enforced by the <a href="./consensus.html">consensus rules</a>, so long as a valid block is produced.</p>
-<h2 id="deciding-on-a-block-size"><a class="header" href="#deciding-on-a-block-size">Deciding on a Block Size</a></h2>
-<p>Before <a href="./data_structures.html#arranging-available-data-into-shares">arranging available data into shares</a>, the size of the original data's square must be determined.</p>
+<h2 id="constructing-a-block"><a class="header" href="#constructing-a-block">Constructing a Block</a></h2>
+<p>Before <a href="./data_structures.html#arranging-available-data-into-shares">arranging available data into shares</a>, the block proposer must select which transactions to include and determine the size of the original data square.</p>
 <p>There are two restrictions on the original data's square size:</p>
 <ol>
 <li>It must be at most <a href="./consensus.html#constants"><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code></a>.</li>
@@ -1342,16 +1342,24 @@ Inbound transactions submitted via the RPC do not trigger a <code>SeenTx</code> 
 </ol>
 <p>With these restrictions in mind, the block proposer performs the following actions:</p>
 <ol>
-<li>Collect as many transactions and blobs from the mempool as possible, such that the total number of shares is at most <a href="./consensus.html#constants"><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code></a>.</li>
-<li>Compute the smallest square size that is a power of 2 that can fit the number of shares.</li>
-<li>Attempt to lay out the collected transactions and blobs in the current square.
+<li>Initialize a square builder with the maximum effective square size (the lesser of the <code>GovMaxSquareSize</code> governance parameter and the <a href="./consensus.html#constants"><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code></a> upper bound).</li>
+<li>Separate the available transactions from the mempool into normal transactions and blob transactions. Filter out any transactions that exceed the maximum transaction size.</li>
+<li>Iterate through normal transactions and attempt to add each one to the square:
 <ol>
-<li>If the square is too small to fit all transactions and blobs (which may happen <a href="./data_square_layout.html">due to needing to insert padding between blobs</a>) and the square size is smaller than <a href="./consensus.html#constants"><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code></a>, double the size of the square and repeat the above step.</li>
-<li>If the square is too small to fit all transactions and blobs (which may happen <a href="./data_square_layout.html">due to needing to insert padding between blobs</a>) and the square size is at <a href="./consensus.html#constants"><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code></a>, drop the transactions and blobs until the data fits within the square.</li>
+<li>If adding the transaction would cause the total share count to exceed the maximum square capacity, skip it.</li>
+<li>Validate the transaction (e.g. signature verification, fee checks). If validation fails, revert the addition and skip it.</li>
 </ol>
 </li>
+<li>Iterate through blob transactions and attempt to add each one to the square:
+<ol>
+<li>If adding the blob transaction (including its blobs and <a href="./data_square_layout.html">padding required by share commitment rules</a>) would cause the total share count to exceed the maximum square capacity, skip it.</li>
+<li>Validate the transaction. If validation fails, revert the addition and skip it.</li>
 </ol>
-<p>Note: the maximum padding shares between blobs should be at most twice the number of blob shares. Doubling the square size (i.e. quadrupling the number of shares in the square) should thus only have to happen at most once.</p>
+</li>
+<li>Compute the smallest square size that is a power of 2 that can fit all the accepted transactions and blobs (including any <a href="./data_square_layout.html">padding between blobs</a>).</li>
+<li>Sort blobs by namespace (preserving the priority order of blobs within the same namespace).</li>
+<li>Write out the final square: normal transaction shares, then pay-for-blob transaction shares, then reserved padding, then blob shares (with inter-blob padding as needed), then tail padding.</li>
+</ol>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="block-validity-rules"><a class="header" href="#block-validity-rules">Block Validity Rules</a></h1>
 <h2 id="introduction"><a class="header" href="#introduction">Introduction</a></h2>
 <p>Unlike most blockchains, Celestia derives most of its functionality from
