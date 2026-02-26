@@ -15,7 +15,7 @@ There are two restrictions on the original data's square size:
 
 With these restrictions in mind, the block proposer performs the following actions:
 
-1. Initialize a square builder with the maximum square size (the lesser of the governance parameter and [`AVAILABLE_DATA_ORIGINAL_SQUARE_MAX`](./consensus.md#constants)).
+1. Initialize a square builder with the maximum effective square size (the lesser of the `GovMaxSquareSize` governance parameter and the [`AVAILABLE_DATA_ORIGINAL_SQUARE_MAX`](./consensus.md#constants) upper bound).
 1. Separate the available transactions from the mempool into normal transactions and blob transactions. Filter out any transactions that exceed the maximum transaction size.
 1. Iterate through normal transactions and attempt to add each one to the square:
     1. If adding the transaction would cause the total share count to exceed the maximum square capacity, skip it.
