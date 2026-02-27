@@ -54,7 +54,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/x/zkism"
 	zkismkeeper "github.com/celestiaorg/celestia-app/v8/x/zkism/keeper"
 	zkismtypes "github.com/celestiaorg/celestia-app/v8/x/zkism/types"
-	"github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmjson "github.com/cometbft/cometbft/libs/json"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -479,8 +479,9 @@ func New(
 	// order begin block, end block and init genesis
 	app.setModuleOrder()
 
-	app.CustomQueryRouter().AddRoute(proof.TxInclusionQueryPath, proof.QueryTxInclusionProof)
-	app.CustomQueryRouter().AddRoute(proof.ShareInclusionQueryPath, proof.QueryShareInclusionProof)
+	pfHandler := NoOpPayForFibreHandler()
+	app.CustomQueryRouter().AddRoute(proof.TxInclusionQueryPath, proof.NewQueryTxInclusionProofHandler(pfHandler))
+	app.CustomQueryRouter().AddRoute(proof.ShareInclusionQueryPath, proof.NewQueryShareInclusionProofHandler(pfHandler))
 
 	app.configurator = module.NewConfigurator(encodingConfig.Codec, app.MsgServiceRouter(), app.GRPCQueryRouter())
 	if err := app.ModuleManager.RegisterServices(app.configurator); err != nil {

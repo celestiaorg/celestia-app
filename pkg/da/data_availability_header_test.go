@@ -11,7 +11,8 @@ import (
 	appconstsv5 "github.com/celestiaorg/celestia-app/v8/pkg/appconsts/v5"
 	"github.com/celestiaorg/celestia-app/v8/pkg/wrapper"
 	sharev2 "github.com/celestiaorg/go-square/v2/share"
-	sh "github.com/celestiaorg/go-square/v3/share"
+	squarev4 "github.com/celestiaorg/go-square/v4"
+	sh "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -56,9 +57,17 @@ func TestMinDataAvailabilityHeader(t *testing.T) {
 	require.NoError(t, dah.ValidateBasic())
 }
 
+// testPayForFibreHandler is a no-op PayForFibreHandler for testing.
+type testPayForFibreHandler struct{}
+
+func (h *testPayForFibreHandler) IsPayForFibreTx(_ []byte) bool              { return false }
+func (h *testPayForFibreHandler) CreateSystemBlob(_ []byte) (*sh.Blob, error) { return nil, nil }
+
+var testHandler squarev4.PayForFibreHandler = &testPayForFibreHandler{}
+
 type (
 	extendFunc    = func([][]byte) (*rsmt2d.ExtendedDataSquare, error)
-	constructFunc = func(txs [][]byte, appVersion uint64, maxSquareSize int) (*rsmt2d.ExtendedDataSquare, error)
+	constructFunc = func(txs [][]byte, appVersion uint64, maxSquareSize int, handler squarev4.PayForFibreHandler) (*rsmt2d.ExtendedDataSquare, error)
 )
 
 // extendSharesWithPool works exactly the same as ExtendShares,
@@ -73,12 +82,12 @@ func extendSharesWithPool(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 
 // constructEDSWithPool works exactly the same as ConstructEDS,
 // but it uses treePool to reuse the allocs.
-func constructEDSWithPool(txs [][]byte, appVersion uint64, maxSquareSize int) (*rsmt2d.ExtendedDataSquare, error) {
+func constructEDSWithPool(txs [][]byte, appVersion uint64, maxSquareSize int, handler squarev4.PayForFibreHandler) (*rsmt2d.ExtendedDataSquare, error) {
 	treePool, err := wrapper.DefaultPreallocatedTreePool(512)
 	if err != nil {
 		return nil, err
 	}
-	return ConstructEDSWithTreePool(txs, appVersion, maxSquareSize, treePool)
+	return ConstructEDSWithTreePool(txs, appVersion, maxSquareSize, treePool, handler)
 }
 
 func TestMinDataAvailabilityHeaderBackwardsCompatibility(t *testing.T) {
@@ -345,7 +354,7 @@ func TestConstructEDS_Versions(t *testing.T) {
 			} {
 				shares := generateShares(4)
 				maxSquareSize := -1
-				eds, err := constructEDS(shares, appVersion, maxSquareSize)
+				eds, err := constructEDS(shares, appVersion, maxSquareSize, testHandler)
 				if appVersion == 0 {
 					require.Error(t, err)
 					require.Nil(t, eds)
@@ -400,7 +409,7 @@ func TestConstructEDS_SquareSize(t *testing.T) {
 			} {
 				txLength := sh.AvailableBytesFromCompactShares((tc.expectedSize * tc.expectedSize) - 1)
 				tx := bytes.Repeat([]byte{0x1}, txLength)
-				eds, err := construct([][]byte{tx}, tc.appVersion, tc.maxSquare)
+				eds, err := construct([][]byte{tx}, tc.appVersion, tc.maxSquare, testHandler)
 				require.NoError(t, err)
 				require.NotNil(t, eds)
 				// The EDS width should be 2*expectedSize

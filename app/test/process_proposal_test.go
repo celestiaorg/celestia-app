@@ -17,9 +17,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	"github.com/celestiaorg/go-square/v3"
-	"github.com/celestiaorg/go-square/v3/share"
-	"github.com/celestiaorg/go-square/v3/tx"
+	square "github.com/celestiaorg/go-square/v4"
+	"github.com/celestiaorg/go-square/v4/share"
+	"github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
@@ -201,7 +201,7 @@ func TestProcessProposal(t *testing.T) {
 				Txs: coretypes.Txs(sendTxs).ToSliceOfBytes(),
 			},
 			mutator: func(d *tmproto.Data) {
-				dataSquare, err := square.Construct(d.Txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+				dataSquare, err := square.Construct(d.Txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold, app.NoOpPayForFibreHandler())
 				require.NoError(t, err)
 
 				b := dataSquare[1].ToBytes()
@@ -209,7 +209,7 @@ func TestProcessProposal(t *testing.T) {
 				b[share.NamespaceSize] ^= 0x01
 				updatedShare, err := share.NewShare(b)
 				require.NoError(t, err)
-				dataSquare[1] = *updatedShare
+				dataSquare[1] = updatedShare
 
 				eds, err := da.ExtendShares(share.ToBytes(dataSquare))
 				require.NoError(t, err)
@@ -310,7 +310,7 @@ func TestProcessProposal(t *testing.T) {
 }
 
 func calculateNewDataHash(t *testing.T, txs [][]byte) []byte {
-	dataSquare, err := square.Construct(txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	dataSquare, err := square.Construct(txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold, app.NoOpPayForFibreHandler())
 	require.NoError(t, err)
 	eds, err := da.ExtendShares(share.ToBytes(dataSquare))
 	require.NoError(t, err)

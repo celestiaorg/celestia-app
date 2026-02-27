@@ -18,8 +18,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/test/util/random"
 	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	"github.com/celestiaorg/go-square/v3"
-	"github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/go-square/v4"
+	"github.com/celestiaorg/go-square/v4/share"
 	dbm "github.com/cometbft/cometbft-db"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/crypto"
@@ -484,10 +484,12 @@ func generateSquareRoutine(
 			return err
 		}
 
-		dataSquare, txs, err := square.Build(
+		handler := app.NoOpPayForFibreHandler()
+		dataSquare, err := square.Construct(
 			[][]byte{tx},
 			maxSquareSize,
 			appconsts.SubtreeRootThreshold,
+			handler,
 		)
 		if err != nil {
 			return err
@@ -505,7 +507,7 @@ func generateSquareRoutine(
 
 		select {
 		case dataCh <- &tmproto.Data{
-			Txs:        txs,
+			Txs:        [][]byte{tx},
 			Hash:       dah.Hash(),
 			SquareSize: uint64(dataSquare.Size()),
 		}:

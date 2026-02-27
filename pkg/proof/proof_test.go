@@ -12,13 +12,21 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/test/util/random"
 	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
-	square "github.com/celestiaorg/go-square/v3"
-	"github.com/celestiaorg/go-square/v3/share"
+	square "github.com/celestiaorg/go-square/v4"
+	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// testPayForFibreHandler is a no-op PayForFibreHandler for testing.
+type testPayForFibreHandler struct{}
+
+func (h *testPayForFibreHandler) IsPayForFibreTx(_ []byte) bool              { return false }
+func (h *testPayForFibreHandler) CreateSystemBlob(_ []byte) (*share.Blob, error) { return nil, nil }
+
+var testHandler square.PayForFibreHandler = &testPayForFibreHandler{}
 
 func TestNewTxInclusionProof(t *testing.T) {
 	blockTxs := testfactory.GenerateRandomTxs(50, 500).ToSliceOfBytes()
@@ -79,7 +87,7 @@ func TestNewTxInclusionProof(t *testing.T) {
 			proof, err := proof.NewTxInclusionProof(
 				tt.txs,
 				tt.txIndex,
-				appconsts.Version,
+				testHandler,
 			)
 			if tt.expectErr {
 				assert.Error(t, err)
@@ -102,7 +110,7 @@ func TestNewShareInclusionProof(t *testing.T) {
 	txs := testfactory.GenerateRandomTxs(50, 500)
 	txs = append(txs, blobTxs...)
 
-	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold, testHandler)
 	if err != nil {
 		panic(err)
 	}
@@ -237,7 +245,7 @@ func TestNewShareInclusionProof(t *testing.T) {
 func TestAllSharesInclusionProof(t *testing.T) {
 	txs := testfactory.GenerateRandomTxs(243, 500)
 
-	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold, testHandler)
 	require.NoError(t, err)
 	assert.Equal(t, 256, len(dataSquare))
 
@@ -268,7 +276,8 @@ func TestAllSharesInclusionProof(t *testing.T) {
 func TestQueryTxInclusionProofRejectsNegativeValues(t *testing.T) {
 	path := []string{"-2"}
 	ctx := sdk.Context{}
-	rawProof, err := proof.QueryTxInclusionProof(ctx, path, &abci.RequestQuery{Data: []byte{}})
+	handler := proof.NewQueryTxInclusionProofHandler(testHandler)
+	rawProof, err := handler(ctx, path, &abci.RequestQuery{Data: []byte{}})
 	if err == nil {
 		t.Fatal("expected a non-nil error")
 	}

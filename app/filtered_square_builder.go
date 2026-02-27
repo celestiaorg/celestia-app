@@ -2,8 +2,9 @@ package app
 
 import (
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	square "github.com/celestiaorg/go-square/v3"
-	"github.com/celestiaorg/go-square/v3/tx"
+	square "github.com/celestiaorg/go-square/v4"
+	"github.com/celestiaorg/go-square/v4/share"
+	"github.com/celestiaorg/go-square/v4/tx"
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -118,7 +119,12 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
 			continue
 		}
 
-		if !fsb.builder.AppendBlobTx(tx) {
+		added, err := fsb.builder.AppendBlobTx(tx)
+		if err != nil {
+			logger.Error("appending blob tx to square builder", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
+			continue
+		}
+		if !added {
 			logger.Debug("skipping tx because it was too large to fit in the square", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()))
 			continue
 		}
@@ -176,9 +182,6 @@ func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []*tx.BlobTx) {
 	normalTxs := make([][]byte, 0, len(rawTxs))
 	blobTxs := make([]*tx.BlobTx, 0, len(rawTxs))
 	for _, rawTx := range rawTxs {
-		// this check in theory shouldn't get hit, as txs should be filtered
-		// in CheckTx. However in tests we're inserting too large of txs
-		// therefore also filter here.
 		if len(rawTx) > appconsts.MaxTxSize {
 			continue
 		}
@@ -194,4 +197,17 @@ func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []*tx.BlobTx) {
 		}
 	}
 	return normalTxs, blobTxs
+}
+
+// noOpPayForFibreHandler is a PayForFibreHandler that always returns false for
+// IsPayForFibreTx. It is used when Fibre support is not enabled.
+type noOpPayForFibreHandler struct{}
+
+func (h *noOpPayForFibreHandler) IsPayForFibreTx(_ []byte) bool              { return false }
+func (h *noOpPayForFibreHandler) CreateSystemBlob(_ []byte) (*share.Blob, error) { return nil, nil }
+
+// NoOpPayForFibreHandler returns a PayForFibreHandler that treats no transactions
+// as PayForFibre transactions.
+func NoOpPayForFibreHandler() square.PayForFibreHandler {
+	return &noOpPayForFibreHandler{}
 }

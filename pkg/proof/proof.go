@@ -9,26 +9,21 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v8/pkg/da"
 	"github.com/celestiaorg/celestia-app/v8/pkg/wrapper"
-	"github.com/celestiaorg/go-square/v3"
-	"github.com/celestiaorg/go-square/v3/share"
-	blobtx "github.com/celestiaorg/go-square/v3/tx"
+	"github.com/celestiaorg/go-square/v4"
+	"github.com/celestiaorg/go-square/v4/share"
+	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/cometbft/cometbft/crypto/merkle"
 )
 
 // NewTxInclusionProof returns a new share inclusion proof for the given
 // transaction index.
-func NewTxInclusionProof(txs [][]byte, txIndex, _ uint64) (ShareProof, error) {
+func NewTxInclusionProof(txs [][]byte, txIndex uint64, handler square.PayForFibreHandler) (ShareProof, error) {
 	if txIndex >= uint64(len(txs)) {
 		return ShareProof{}, fmt.Errorf("txIndex %d out of bounds", txIndex)
 	}
 
-	builder, err := square.NewBuilder(appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold, txs...)
-	if err != nil {
-		return ShareProof{}, err
-	}
-
-	dataSquare, err := builder.Export()
+	dataSquare, err := square.Construct(txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold, handler)
 	if err != nil {
 		return ShareProof{}, err
 	}
@@ -37,7 +32,7 @@ func NewTxInclusionProof(txs [][]byte, txIndex, _ uint64) (ShareProof, error) {
 	if err != nil {
 		return ShareProof{}, err
 	}
-	shareRange, err := builder.FindTxShareRange(txIndexInt)
+	shareRange, err := square.TxShareRange(txs, txIndexInt, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold, handler)
 	if err != nil {
 		return ShareProof{}, err
 	}

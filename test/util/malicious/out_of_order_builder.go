@@ -6,10 +6,10 @@ import (
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	"github.com/celestiaorg/go-square/v3"
-	"github.com/celestiaorg/go-square/v3/inclusion"
-	"github.com/celestiaorg/go-square/v3/share"
-	blobtx "github.com/celestiaorg/go-square/v3/tx"
+	"github.com/celestiaorg/go-square/v4"
+	"github.com/celestiaorg/go-square/v4/inclusion"
+	"github.com/celestiaorg/go-square/v4/share"
+	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -33,7 +33,11 @@ func Build(txs [][]byte, _ uint64, maxSquareSize int, efn ExportFn) (square.Squa
 			if err != nil {
 				return nil, nil, fmt.Errorf("unmarshalling blob tx %d: %w", idx, err)
 			}
-			if builder.AppendBlobTx(blobTx) {
+			added, appendErr := builder.AppendBlobTx(blobTx)
+			if appendErr != nil {
+				return nil, nil, fmt.Errorf("appending blob tx %d: %w", idx, appendErr)
+			}
+			if added {
 				blobTxs = append(blobTxs, tx)
 			}
 		} else if builder.AppendTx(tx) {
@@ -49,9 +53,22 @@ func Build(txs [][]byte, _ uint64, maxSquareSize int, efn ExportFn) (square.Squa
 // square. This mimics the functionality of the normal Construct function, but
 // acts maliciously by not following some of the block validity rules.
 func Construct(txs [][]byte, _ uint64, maxSquareSize int, efn ExportFn) (square.Square, error) {
-	builder, err := square.NewBuilder(maxSquareSize, appconsts.SubtreeRootThreshold, txs...)
+	builder, err := square.NewBuilder(maxSquareSize, appconsts.SubtreeRootThreshold)
 	if err != nil {
 		return nil, err
+	}
+	for _, rawTx := range txs {
+		blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(rawTx)
+		if isBlobTx {
+			if err != nil {
+				return nil, err
+			}
+			if _, err := builder.AppendBlobTx(blobTx); err != nil {
+				return nil, err
+			}
+		} else {
+			builder.AppendTx(rawTx)
+		}
 	}
 	return efn(builder)
 }
@@ -97,7 +114,7 @@ func OutOfOrderExport(b *square.Builder) (square.Square, error) {
 	}
 
 	// begin to iteratively add blobs to the sparse share splitter calculating the actual padding
-	nonReservedStart := b.TxCounter.Size() + b.PfbCounter.Size()
+	nonReservedStart := b.TxCounter.Size() + b.PfbCounter.Size() + b.PayForFibreCounter.Size()
 	cursor := nonReservedStart
 	endOfLastBlob := nonReservedStart
 	blobWriter := share.NewSparseShareSplitter()
@@ -151,8 +168,16 @@ func OutOfOrderExport(b *square.Builder) (square.Square, error) {
 		return nil, fmt.Errorf("pfbCounter.Size() < pfbWriter.Count(): %d < %d", b.PfbCounter.Size(), pfbWriter.Count())
 	}
 
+	// write all the pay for fibre transactions into compact shares (none expected in malicious test)
+	payForFibreWriter := share.NewCompactShareSplitter(share.PayForFibreNamespace, share.ShareVersionZero)
+	for _, tx := range b.PayForFibreTxs {
+		if err := payForFibreWriter.WriteTx(tx); err != nil {
+			return nil, fmt.Errorf("writing pay for fibre tx into compact shares: %w", err)
+		}
+	}
+
 	// Write out the square
-	square, err := square.WriteSquare(txWriter, pfbWriter, blobWriter, nonReservedStart, ss)
+	square, err := square.WriteSquare(txWriter, pfbWriter, payForFibreWriter, blobWriter, nonReservedStart, ss)
 	if err != nil {
 		return nil, fmt.Errorf("writing square: %w", err)
 	}

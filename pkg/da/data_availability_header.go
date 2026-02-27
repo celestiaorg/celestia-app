@@ -13,6 +13,8 @@ import (
 	sharev2 "github.com/celestiaorg/go-square/v2/share"
 	squarev3 "github.com/celestiaorg/go-square/v3"
 	sharev3 "github.com/celestiaorg/go-square/v3/share"
+	squarev4 "github.com/celestiaorg/go-square/v4"
+	sharev4 "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	"github.com/cometbft/cometbft/types"
@@ -65,7 +67,9 @@ func NewDataAvailabilityHeader(eds *rsmt2d.ExtendedDataSquare) (DataAvailability
 
 // ConstructEDS constructs an ExtendedDataSquare from the given transactions and app version.
 // If maxSquareSize is less than 0, it will use the upper bound square size for the given app version.
-func ConstructEDS(txs [][]byte, appVersion uint64, maxSquareSize int) (*rsmt2d.ExtendedDataSquare, error) {
+//
+// The handler parameter is required for app versions >= 7.
+func ConstructEDS(txs [][]byte, appVersion uint64, maxSquareSize int, handler squarev4.PayForFibreHandler) (*rsmt2d.ExtendedDataSquare, error) {
 	switch appVersion {
 	case 0:
 		return nil, fmt.Errorf("app version cannot be 0")
@@ -79,7 +83,7 @@ func ConstructEDS(txs [][]byte, appVersion uint64, maxSquareSize int) (*rsmt2d.E
 			return nil, err
 		}
 		return ExtendShares(sharev2.ToBytes(square))
-	default: // assume all other versions are compatible with v3 of the square package
+	case 6: // version 6 used go-square v3
 		if maxSquareSize < 0 {
 			maxSquareSize = appconsts.SquareSizeUpperBound
 		}
@@ -88,13 +92,24 @@ func ConstructEDS(txs [][]byte, appVersion uint64, maxSquareSize int) (*rsmt2d.E
 			return nil, err
 		}
 		return ExtendShares(sharev3.ToBytes(square))
+	default: // assume all other versions are compatible with v4 of the square package
+		if maxSquareSize < 0 {
+			maxSquareSize = appconsts.SquareSizeUpperBound
+		}
+		square, err := squarev4.Construct(txs, maxSquareSize, appconsts.SubtreeRootThreshold, handler)
+		if err != nil {
+			return nil, err
+		}
+		return ExtendShares(sharev4.ToBytes(square))
 	}
 }
 
 // ConstructEDSWithTreePool constructs an ExtendedDataSquare from the given transactions and app version,
 // it uses treePool to optimize allocations.
 // If maxSquareSize is less than 0, it will use the upper bound square size for the given app version.
-func ConstructEDSWithTreePool(txs [][]byte, appVersion uint64, maxSquareSize int, treePool *wrapper.TreePool) (*rsmt2d.ExtendedDataSquare, error) {
+//
+// The handler parameter is required for app versions >= 7.
+func ConstructEDSWithTreePool(txs [][]byte, appVersion uint64, maxSquareSize int, treePool *wrapper.TreePool, handler squarev4.PayForFibreHandler) (*rsmt2d.ExtendedDataSquare, error) {
 	switch appVersion {
 	case 0:
 		return nil, fmt.Errorf("app version cannot be 0")
@@ -108,7 +123,7 @@ func ConstructEDSWithTreePool(txs [][]byte, appVersion uint64, maxSquareSize int
 			return nil, err
 		}
 		return ExtendSharesWithTreePool(sharev2.ToBytes(square), treePool)
-	default: // assume all other versions are compatible with v3 of the square package
+	case 6: // version 6 used go-square v3
 		if maxSquareSize < 0 {
 			maxSquareSize = appconsts.SquareSizeUpperBound
 		}
@@ -117,15 +132,24 @@ func ConstructEDSWithTreePool(txs [][]byte, appVersion uint64, maxSquareSize int
 			return nil, err
 		}
 		return ExtendSharesWithTreePool(sharev3.ToBytes(square), treePool)
+	default: // assume all other versions are compatible with v4 of the square package
+		if maxSquareSize < 0 {
+			maxSquareSize = appconsts.SquareSizeUpperBound
+		}
+		square, err := squarev4.Construct(txs, maxSquareSize, appconsts.SubtreeRootThreshold, handler)
+		if err != nil {
+			return nil, err
+		}
+		return ExtendSharesWithTreePool(sharev4.ToBytes(square), treePool)
 	}
 }
 
 func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 	// Check that the length of the square is a power of 2.
-	if !squarev3.IsPowerOfTwo(len(s)) {
+	if !squarev4.IsPowerOfTwo(len(s)) {
 		return nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(s))
 	}
-	squareSize := squarev3.Size(len(s))
+	squareSize := squarev4.Size(len(s))
 
 	// here we construct a tree
 	// Note: uses the nmt wrapper to construct the tree.
@@ -135,7 +159,7 @@ func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 // ExtendSharesWithTreePool injects tree pool into rsmt2d to reuse allocs in root computation
 func ExtendSharesWithTreePool(s [][]byte, treePool *wrapper.TreePool) (*rsmt2d.ExtendedDataSquare, error) {
 	// Check that the length of the square is a power of 2.
-	if !squarev3.IsPowerOfTwo(len(s)) {
+	if !squarev4.IsPowerOfTwo(len(s)) {
 		return nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(s))
 	}
 	// here we construct a tree
@@ -262,5 +286,5 @@ func MinDataAvailabilityHeader() DataAvailabilityHeader {
 
 // MinShares returns one tail-padded share.
 func MinShares() [][]byte {
-	return sharev3.ToBytes(squarev3.EmptySquare())
+	return sharev4.ToBytes(squarev4.EmptySquare())
 }

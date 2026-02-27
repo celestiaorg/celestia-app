@@ -5,7 +5,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v8/app/encoding"
 	"github.com/celestiaorg/celestia-app/v8/pkg/user"
-	"github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
