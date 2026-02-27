@@ -272,6 +272,7 @@ func TestForwardSingleToken_IGPFeeValidation(t *testing.T) {
 		maxIgpFee         sdk.Coin
 		signerBalance     sdk.Coins
 		expectedSignerBal math.Int
+		expectedErrPart   string
 	}{
 		{
 			name:              "insufficient max_igp_fee",
@@ -279,6 +280,7 @@ func TestForwardSingleToken_IGPFeeValidation(t *testing.T) {
 			maxIgpFee:         sdk.NewCoin(appconsts.BondDenom, math.NewInt(50)), // 50 < 100
 			signerBalance:     sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(200))),
 			expectedSignerBal: math.NewInt(200),
+			expectedErrPart:   appconsts.BondDenom + ":1000",
 		},
 		{
 			name:              "denom mismatch",
@@ -286,6 +288,7 @@ func TestForwardSingleToken_IGPFeeValidation(t *testing.T) {
 			maxIgpFee:         sdk.NewCoin("uother", math.NewInt(100)), // wrong denom
 			signerBalance:     sdk.NewCoins(sdk.NewCoin("uother", math.NewInt(200))),
 			expectedSignerBal: math.NewInt(200),
+			expectedErrPart:   "max_igp_fee denom mismatch",
 		},
 		{
 			name:              "signer insufficient balance",
@@ -293,6 +296,7 @@ func TestForwardSingleToken_IGPFeeValidation(t *testing.T) {
 			maxIgpFee:         sdk.NewCoin(appconsts.BondDenom, math.NewInt(100)),
 			signerBalance:     sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(50))), // 50 < 100
 			expectedSignerBal: math.NewInt(50),
+			expectedErrPart:   "failed to collect IGP fee from relayer: insufficient funds",
 		},
 	}
 
@@ -318,6 +322,7 @@ func TestForwardSingleToken_IGPFeeValidation(t *testing.T) {
 			require.Error(t, err)
 			require.Nil(t, resp)
 			require.ErrorIs(t, err, types.ErrAllTokensFailed)
+			require.ErrorContains(t, err, tc.expectedErrPart)
 
 			// Verify no balance changes (validation failed before transfers)
 			require.Equal(t, math.NewInt(1000), s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, appconsts.BondDenom).Amount)
@@ -354,6 +359,7 @@ func TestForwardSingleToken_IGPFeeSentToFeeCollectorOnWarpFailure(t *testing.T) 
 	require.Error(t, err)
 	require.Nil(t, resp)
 	require.ErrorIs(t, err, types.ErrAllTokensFailed)
+	require.ErrorContains(t, err, "warp transfer failed")
 
 	// Verify: tokens remain at forwardAddr (warp atomic semantics)
 	require.Equal(t, math.NewInt(1000), s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, appconsts.BondDenom).Amount)
@@ -405,4 +411,36 @@ func TestForwardSingleToken_IGPFeeRefundOnSuccess(t *testing.T) {
 	// Final signer balance = 200 - 100 + 20 = 120
 	require.Equal(t, math.NewInt(120), s.bankKeeper.GetBalance(s.ctx, s.signer, appconsts.BondDenom).Amount,
 		"signer should have received refund of excess IGP fee")
+}
+
+func TestForward_AllTokensFailedErrorIncludesPerTokenFailures(t *testing.T) {
+	s := newTestIGPSetup(t)
+
+	// Two failing tokens:
+	// 1) ufoo fails token lookup
+	// 2) utia fails due insufficient max_igp_fee
+	s.bankKeeper.Balances[s.forwardAddr.String()] = sdk.NewCoins(
+		sdk.NewCoin("ufoo", math.NewInt(25)),
+		sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)),
+	)
+	s.bankKeeper.Balances[s.signer.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(200)))
+	s.hyperlaneKeeper.QuotedFee = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(150)))
+
+	msg := types.NewMsgForward(
+		s.signer.String(),
+		s.forwardAddr.String(),
+		s.destDomain,
+		s.destRecipient,
+		sdk.NewCoin(appconsts.BondDenom, math.NewInt(100)),
+	)
+
+	resp, err := s.msgServer.Forward(s.ctx, msg)
+	require.Error(t, err)
+	require.Nil(t, resp)
+	require.ErrorIs(t, err, types.ErrAllTokensFailed)
+
+	errText := err.Error()
+	require.Contains(t, errText, "all 2 tokens failed to forward")
+	require.Contains(t, errText, "ufoo:25 (token lookup failed: unsupported token denom)")
+	require.Contains(t, errText, "utia:1000 (IGP fee provided is less than required")
 }
