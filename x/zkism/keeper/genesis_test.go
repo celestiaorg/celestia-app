@@ -2,7 +2,7 @@ package keeper_test
 
 import (
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
-	"github.com/celestiaorg/celestia-app/v7/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v8/x/zkism/types"
 )
 
 func (suite *KeeperTestSuite) TestInitGenesis() {

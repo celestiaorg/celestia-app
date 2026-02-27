@@ -7,11 +7,11 @@ import (
 
 	"cosmossdk.io/errors"
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v7/app/ante"
-	apperr "github.com/celestiaorg/celestia-app/v7/app/errors"
-	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v7/pkg/da"
-	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v8/app/ante"
+	apperr "github.com/celestiaorg/celestia-app/v8/app/errors"
+	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v8/pkg/da"
+	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
 	blobtx "github.com/celestiaorg/go-square/v3/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -51,6 +51,11 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		app.GovParamFilters(),
 	)
 	blockHeader := ctx.BlockHeader()
+
+	var (
+		nonPFBMessageCount int
+		pfbMessageCount    int
+	)
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
 	// blobTxs have no PFBs present and all txs are less than or equal to the max tx size limit
@@ -94,6 +99,12 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				return reject(), nil
 			}
 
+			nonPFBMessageCount += len(msgs)
+			if nonPFBMessageCount > appconsts.MaxNonPFBMessages {
+				logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max non-PFB message count of %d", appconsts.MaxNonPFBMessages))
+				return reject(), nil
+			}
+
 			// we need to increment the sequence for every transaction so that
 			// the signature check below is accurate. this error only gets hit
 			// if the account in question doesn't exist.
@@ -118,6 +129,12 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		// commitment verification since it was already validated. Otherwise, fall back to full validation.
 		if _, err := app.ValidateBlobTxWithCache(blobTx); err != nil {
 			logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("blob tx validation failed %d", idx), err)
+			return reject(), nil
+		}
+
+		pfbMessageCount += len(sdkTx.GetMsgs())
+		if pfbMessageCount > appconsts.MaxPFBMessages {
+			logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max PFB message count of %d", appconsts.MaxPFBMessages))
 			return reject(), nil
 		}
 

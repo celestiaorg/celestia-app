@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v7/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v8/x/minfee/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
