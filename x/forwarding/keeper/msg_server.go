@@ -3,6 +3,7 @@ package keeper
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
@@ -71,8 +72,7 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 		}
 	}
 	if allFailed && len(results) > 0 {
-		EmitForwardingCompleteEvent(ctx, msg.ForwardAddr, msg.DestDomain, msg.DestRecipient, results)
-		return nil, fmt.Errorf("%w: all %d tokens failed to forward", types.ErrAllTokensFailed, len(results))
+		return nil, allTokensFailedError(results)
 	}
 
 	EmitForwardingCompleteEvent(ctx, msg.ForwardAddr, msg.DestDomain, msg.DestRecipient, results)
@@ -195,4 +195,18 @@ func (m msgServer) forwardSingleToken(
 	}
 
 	return types.NewSuccessResult(balance.Denom, balance.Amount, messageId.String())
+}
+
+func allTokensFailedError(results []types.ForwardingResult) error {
+	failed := make([]string, 0, len(results))
+	for _, result := range results {
+		failed = append(failed, fmt.Sprintf("%s:%s (%s)", result.Denom, result.Amount.String(), result.GetError()))
+	}
+
+	return fmt.Errorf(
+		"%w: all %d tokens failed to forward: %s",
+		types.ErrAllTokensFailed,
+		len(results),
+		strings.Join(failed, "; "),
+	)
 }
