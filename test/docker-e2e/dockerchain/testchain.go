@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/v7/app"
 	"github.com/celestiaorg/celestia-app/v7/app/encoding"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/pkg/user"
 	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
@@ -53,9 +53,6 @@ func NewCelestiaChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.Chai
 	// Create the wallet with all required fields
 	faucetWallet := tastoratypes.NewWallet(addr, addr.String(), "celestia", records[0].Name)
 
-	// always include --force-no-bbr plus any additional args from config
-	startArgs := append([]string{"--force-no-bbr"}, cfg.AdditionalStartArgs...)
-
 	return tastoradockertypes.NewChainBuilder(t).
 		WithName("celestia"). // just influences home directory on the host.
 		WithChainID(cfg.Genesis.ChainID).
@@ -63,7 +60,7 @@ func NewCelestiaChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.Chai
 		WithDockerClient(cfg.DockerClient).
 		WithDockerNetworkID(cfg.DockerNetworkID).
 		WithImage(tastoracontainertypes.NewImage(cfg.Image, cfg.Tag, "10001:10001")).
-		WithAdditionalStartArgs(startArgs...).
+		WithAdditionalStartArgs("--force-no-bbr").
 		WithEncodingConfig(&encodingConfig).
 		WithPostInit(getPostInitModifications("0.025utia", cfg)...).
 		WithFaucetWallet(faucetWallet).
@@ -72,7 +69,7 @@ func NewCelestiaChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.Chai
 }
 
 // getPostInitModifications returns a slice of functions to modify configuration files of a ChainNode post-initialization.
-func getPostInitModifications(gasPrices string, chainCfg *Config) []func(context.Context, *tastoradockertypes.ChainNode) error {
+func getPostInitModifications(gasPrices string) []func(context.Context, *tastoradockertypes.ChainNode) error {
 	var fns []func(context.Context, *tastoradockertypes.ChainNode) error
 
 	fns = append(fns, func(ctx context.Context, node *tastoradockertypes.ChainNode) error {
@@ -82,15 +79,8 @@ func getPostInitModifications(gasPrices string, chainCfg *Config) []func(context
 			cfg.P2P.AllowDuplicateIP = true
 			cfg.P2P.AddrBookStrict = false
 			cfg.Storage.DiscardABCIResponses = false
-			timeoutCommit := 2 * time.Second
-			cfg.Consensus.TimeoutCommit = timeoutCommit
-
-			timeoutPropose := 2 * time.Second
-			if chainCfg.TimeoutPropose > 0 {
-				timeoutPropose = chainCfg.TimeoutPropose
-			}
-			cfg.Consensus.TimeoutPropose = timeoutPropose
-
+			cfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
+			cfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
 			cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
 			cfg.RPC.GRPCListenAddress = "tcp://0.0.0.0:9099"
 			cfg.RPC.CORSAllowedOrigins = []string{"*"}
