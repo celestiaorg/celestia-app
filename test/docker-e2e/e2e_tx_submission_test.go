@@ -27,9 +27,7 @@ func (s *CelestiaTestSuite) TestTxSubmission() {
 		blobSize/(1024*1024), testDuration)
 
 	cfg := dockerchain.DefaultConfig(s.client, s.network).
-		WithTag(dockerchain.GetCelestiaTag()).
-		WithTimeoutPropose(30*time.Second).
-		WithAdditionalStartArgs("--delayed-precommit-timeout", "2500ms")
+		WithTag(dockerchain.GetCelestiaTag())
 
 	celestia, err := dockerchain.NewCelestiaChainBuilder(t, cfg).Build(ctx)
 	require.NoError(t, err, "failed to build chain")

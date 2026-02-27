@@ -21,10 +21,10 @@ const (
 // Config represents the configuration for a docker Celestia setup.
 type Config struct {
 	*testnode.Config
-	Image               string
-	Tag                 string
-	DockerClient        tastoratypes.TastoraDockerClient
-	DockerNetworkID     string
+	Image           string
+	Tag             string
+	DockerClient    tastoratypes.TastoraDockerClient
+	DockerNetworkID string
 }
 
 // DefaultConfig returns a configured instance of Config with a custom genesis and validators.
