@@ -203,7 +203,7 @@ func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []*tx.BlobTx) {
 // IsPayForFibreTx. It is used when Fibre support is not enabled.
 type noOpPayForFibreHandler struct{}
 
-func (h *noOpPayForFibreHandler) IsPayForFibreTx(_ []byte) bool              { return false }
+func (h *noOpPayForFibreHandler) IsPayForFibreTx(_ []byte) bool                  { return false }
 func (h *noOpPayForFibreHandler) CreateSystemBlob(_ []byte) (*share.Blob, error) { return nil, nil }
 
 // NoOpPayForFibreHandler returns a PayForFibreHandler that treats no transactions

@@ -60,7 +60,7 @@ func TestMinDataAvailabilityHeader(t *testing.T) {
 // testPayForFibreHandler is a no-op PayForFibreHandler for testing.
 type testPayForFibreHandler struct{}
 
-func (h *testPayForFibreHandler) IsPayForFibreTx(_ []byte) bool              { return false }
+func (h *testPayForFibreHandler) IsPayForFibreTx(_ []byte) bool               { return false }
 func (h *testPayForFibreHandler) CreateSystemBlob(_ []byte) (*sh.Blob, error) { return nil, nil }
 
 var testHandler squarev4.PayForFibreHandler = &testPayForFibreHandler{}
