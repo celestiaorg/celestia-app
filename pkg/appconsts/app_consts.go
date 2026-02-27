@@ -23,30 +23,30 @@ const (
 	TxSizeCostPerByte       uint64 = 10
 	GasPerBlobByte          uint32 = 8
 	MaxTxSize               int    = 8_388_608 // 8 MiB in bytes
-	TimeoutPropose                 = time.Millisecond * 8500
+	TimeoutPropose                 = time.Millisecond * 4500
 	TimeoutProposeDelta            = time.Millisecond * 500
 	TimeoutPrevote                 = time.Millisecond * 3000
 	TimeoutPrevoteDelta            = time.Millisecond * 500
 	TimeoutPrecommit               = time.Millisecond * 3000
 	TimeoutPrecommitDelta          = time.Millisecond * 500
 	TimeoutCommit                  = time.Millisecond
-	DelayedPrecommitTimeout        = time.Millisecond * 5850
+	DelayedPrecommitTimeout        = time.Millisecond * 2790
 
 	// TestUpgradeHeightDelay is the number of blocks that chain-id "test" waits
 	// after a MsgTryUpgrade to activate the next version.
 	TestUpgradeHeightDelay = int64(3)
 	// ArabicaUpgradeHeightDelay is the number of blocks that Arabica waits
 	// after a MsgTryUpgrade to activate the next version. Assuming a block
-	// interval of 6 seconds, this is 1 day.
-	ArabicaUpgradeHeightDelay = int64(14_400)
+	// interval of 3 seconds, this is 1 day.
+	ArabicaUpgradeHeightDelay = int64(28_800)
 	// MochaUpgradeHeightDelay is the number of blocks that Mocha waits
 	// after a MsgTryUpgrade to activate the next version. Assuming a block
-	// interval of 6 seconds, this is 2 days.
-	MochaUpgradeHeightDelay = int64(28_800)
+	// interval of 3 seconds, this is 2 days.
+	MochaUpgradeHeightDelay = int64(57_600)
 	// MainnetUpgradeHeightDelay is the number of blocks that Mainnet waits
 	// after a MsgTryUpgrade to activate the next version. Assuming a block
-	// interval of 6 seconds, this is 7 days.
-	MainnetUpgradeHeightDelay = int64(100_800)
+	// interval of 3 seconds, this is 7 days.
+	MainnetUpgradeHeightDelay = int64(201_600)
 	// Deprecated: Use MainnetUpgradeHeightDelay instead.
 	UpgradeHeightDelay = MainnetUpgradeHeightDelay
 	// MempoolSize determines the default max mempool size.
