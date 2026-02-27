@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/v8/app"
+	"github.com/celestiaorg/celestia-app/v8/app/encoding"
 	square "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -110,7 +111,7 @@ func TestMaliciousTestNode(t *testing.T) {
 	correctSquare, err := square.Construct(block.Block.Txs.ToSliceOfBytes(),
 		appconsts.SquareSizeUpperBound,
 		appconsts.SubtreeRootThreshold,
-		app.NoOpPayForFibreHandler(),
+		app.NewPayForFibreHandler(encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig),
 	)
 	require.NoError(t, err)
 

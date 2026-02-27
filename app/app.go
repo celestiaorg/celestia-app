@@ -479,7 +479,7 @@ func New(
 	// order begin block, end block and init genesis
 	app.setModuleOrder()
 
-	pfHandler := NoOpPayForFibreHandler()
+	pfHandler := NewPayForFibreHandler(encodingConfig.TxConfig)
 	app.CustomQueryRouter().AddRoute(proof.TxInclusionQueryPath, proof.NewQueryTxInclusionProofHandler(pfHandler))
 	app.CustomQueryRouter().AddRoute(proof.ShareInclusionQueryPath, proof.NewQueryShareInclusionProofHandler(pfHandler))
 

@@ -9,12 +9,19 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v8/app"
+	"github.com/celestiaorg/celestia-app/v8/app/encoding"
 	"github.com/celestiaorg/celestia-app/v8/pkg/da"
 	"github.com/celestiaorg/celestia-app/v8/pkg/wrapper"
+	square "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/spf13/cobra"
 )
+
+func newPayForFibreHandler() square.PayForFibreHandler {
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	return app.NewPayForFibreHandler(encCfg.TxConfig)
+}
 
 func main() {
 	var rpc string
@@ -185,7 +192,7 @@ func compareEDSConstructions(txs [][]byte, appVersion uint64, blockDataHash []by
 		return fmt.Errorf("failed to create DAH: %w", err)
 	}
 
-	handler := app.NoOpPayForFibreHandler()
+	handler := newPayForFibreHandler()
 	edsWithPool, err := da.ConstructEDSWithTreePool(txs, appVersion, -1, treePool, handler)
 	if err != nil {
 		return fmt.Errorf("failed to construct EDS with pool: %w", err)
@@ -215,5 +222,5 @@ func compareEDSConstructions(txs [][]byte, appVersion uint64, blockDataHash []by
 }
 
 func constructEDS(txs [][]byte, appVersion uint64) (*rsmt2d.ExtendedDataSquare, error) {
-	return da.ConstructEDS(txs, appVersion, -1, app.NoOpPayForFibreHandler())
+	return da.ConstructEDS(txs, appVersion, -1, newPayForFibreHandler())
 }

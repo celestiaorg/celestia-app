@@ -484,7 +484,7 @@ func generateSquareRoutine(
 			return err
 		}
 
-		handler := app.NoOpPayForFibreHandler()
+		handler := app.NewPayForFibreHandler(encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig)
 		dataSquare, err := square.Construct(
 			[][]byte{tx},
 			maxSquareSize,

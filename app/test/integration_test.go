@@ -200,10 +200,11 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		require.True(t, isBlobTx)
 
 		// get the blob shares
+		encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 		shareRange, err := square.BlobShareRange(blockRes.Block.Txs.ToSliceOfBytes(), int(txResp.Index), 0,
 			appconsts.SquareSizeUpperBound,
 			appconsts.SubtreeRootThreshold,
-			app.NoOpPayForFibreHandler(),
+			app.NewPayForFibreHandler(encCfg.TxConfig),
 		)
 		require.NoError(t, err)
 

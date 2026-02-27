@@ -129,7 +129,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 	}
 
-	pfHandler := NoOpPayForFibreHandler()
+	pfHandler := NewPayForFibreHandler(app.encodingConfig.TxConfig)
 	eds, err := da.ConstructEDSWithTreePool(req.Txs, appconsts.Version, app.MaxEffectiveSquareSize(ctx), app.TreePool(), pfHandler)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to compute extended data square from transactions:", err)

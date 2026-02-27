@@ -201,7 +201,7 @@ func TestProcessProposal(t *testing.T) {
 				Txs: coretypes.Txs(sendTxs).ToSliceOfBytes(),
 			},
 			mutator: func(d *tmproto.Data) {
-				dataSquare, err := square.Construct(d.Txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold, app.NoOpPayForFibreHandler())
+				dataSquare, err := square.Construct(d.Txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold, app.NewPayForFibreHandler(enc.TxConfig))
 				require.NoError(t, err)
 
 				b := dataSquare[1].ToBytes()
@@ -310,7 +310,8 @@ func TestProcessProposal(t *testing.T) {
 }
 
 func calculateNewDataHash(t *testing.T, txs [][]byte) []byte {
-	dataSquare, err := square.Construct(txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold, app.NoOpPayForFibreHandler())
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	dataSquare, err := square.Construct(txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold, app.NewPayForFibreHandler(encCfg.TxConfig))
 	require.NoError(t, err)
 	eds, err := da.ExtendShares(share.ToBytes(dataSquare))
 	require.NoError(t, err)
