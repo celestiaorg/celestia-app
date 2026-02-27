@@ -1,0 +1,29 @@
+syntax = "proto3";
+package celestia.fibre.v1;
+
+import "gogoproto/gogo.proto";
+import "google/protobuf/duration.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app-fibre/x/fibre/types";
+
+// Params defines the parameters for the fibre module.
+message Params {
+  option (gogoproto.goproto_stringer) = false;
+  uint32 gas_per_blob_byte = 1 [(gogoproto.moretags) = "yaml:\"gas_per_blob_byte\""];
+  google.protobuf.Duration withdrawal_delay = 2 [
+    (gogoproto.moretags) = "yaml:\"withdrawal_delay\"",
+    (gogoproto.stdduration) = true,
+    (gogoproto.nullable) = false
+  ];
+  google.protobuf.Duration payment_promise_timeout = 3 [
+    (gogoproto.moretags) = "yaml:\"payment_promise_timeout\"",
+    (gogoproto.stdduration) = true,
+    (gogoproto.nullable) = false
+  ];
+  google.protobuf.Duration payment_promise_retention_window = 4 [
+    (gogoproto.moretags) = "yaml:\"payment_promise_retention_window\"",
+    (gogoproto.stdduration) = true,
+    (gogoproto.nullable) = false
+  ];
+  uint64 payment_promise_height_window = 5 [(gogoproto.moretags) = "yaml:\"payment_promise_height_window\""];
+}
