@@ -5,7 +5,6 @@ import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 import "cosmos/base/query/v1beta1/pagination.proto";
-import "cosmos/base/v1beta1/coin.proto";
 import "celestia/fibre/v1/params.proto";
 import "celestia/fibre/v1/fibre.proto";
 
