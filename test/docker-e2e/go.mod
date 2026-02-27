@@ -6,6 +6,7 @@ require (
 	cosmossdk.io/math v1.5.3
 	github.com/bcp-innovations/hyperlane-cosmos v1.1.0
 	github.com/celestiaorg/celestia-app/v8 v8.0.0-rc0
+	github.com/celestiaorg/go-square/v3 v3.0.2
 	github.com/celestiaorg/go-square/v4 v4.0.0-rc2.0.20260226200419-0cefae5d2318
 	github.com/celestiaorg/tastora v0.15.0
 	github.com/cometbft/cometbft v0.38.17
@@ -81,7 +82,6 @@ require (
 	github.com/bits-and-blooms/bitset v1.24.0 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/celestiaorg/go-square/v2 v2.3.3 // indirect
-	github.com/celestiaorg/go-square/v3 v3.0.2 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
 	github.com/celestiaorg/nmt v0.24.2 // indirect
 	github.com/celestiaorg/rsmt2d v0.15.1 // indirect

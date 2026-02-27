@@ -14,6 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v8/x/blob/types"
 	"github.com/celestiaorg/go-square/v4/share"
+	sharev3 "github.com/celestiaorg/go-square/v3/share"
 	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	da "github.com/celestiaorg/tastora/framework/docker/dataavailability"
@@ -313,7 +314,10 @@ func (s *CelestiaTestSuite) verifyBlobRetrieval(ctx context.Context, daNetwork *
 		t.Logf("Verifying blob %d retrieval from light node", i)
 
 		// attempt to retrieve blob from light node using GetAllBlobs
-		retrievedBlobs, err := lightNode.GetAllBlobs(ctx, uint64(blob.height), []share.Namespace{blob.namespace})
+		// Convert v4 namespace to v3 for tastora compatibility
+		nsV3, err := sharev3.NewNamespaceFromBytes(blob.namespace.Bytes())
+		s.Require().NoError(err, "failed to convert namespace for blob %d", i)
+		retrievedBlobs, err := lightNode.GetAllBlobs(ctx, uint64(blob.height), []sharev3.Namespace{nsV3})
 		s.Require().NoError(err, "failed to retrieve blob %d from light node", i)
 		s.Require().NotEmpty(retrievedBlobs, "no blobs retrieved for blob %d", i)
 
