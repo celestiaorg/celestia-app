@@ -25,7 +25,6 @@ type Config struct {
 	Tag                 string
 	DockerClient        tastoratypes.TastoraDockerClient
 	DockerNetworkID     string
-	AdditionalStartArgs []string
 }
 
 // DefaultConfig returns a configured instance of Config with a custom genesis and validators.
