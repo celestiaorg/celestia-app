@@ -92,7 +92,6 @@ func (s *CelestiaTestSuite) TestSyncToTipMocha() {
 	syncClient, err := fullNode.GetRPCClient()
 	s.Require().NoError(err, "failed to get RPC client")
 
-	// State sync: wait until the node reaches the trust height.
 	t.Log("Phase 1: Waiting for state sync to reach trust height...")
 	err = s.WaitForSync(ctx, syncClient, syncToTipTimeout, func(info rpctypes.SyncInfo) bool {
 		return info.LatestBlockHeight >= trustHeight
@@ -106,7 +105,6 @@ func (s *CelestiaTestSuite) TestSyncToTipMocha() {
 	dockerNode := fullNode.(*cosmos.ChainNode)
 	verifyStateSync(t, dockerNode)
 
-	// Block sync: wait until the node is fully caught up.
 	t.Log("Phase 2: Waiting for block sync to reach tip...")
 	remainingTimeout := syncToTipTimeout - stateSyncDuration
 	if remainingTimeout <= 0 {
