@@ -5,9 +5,9 @@ import (
 	"net"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v7/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v7/pkg/user"
-	"github.com/celestiaorg/celestia-app/v7/pkg/user/utils"
+	"github.com/celestiaorg/celestia-app/v8/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v8/pkg/user"
+	"github.com/celestiaorg/celestia-app/v8/pkg/user/utils"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
 	sdk "github.com/cosmos/cosmos-sdk/types"

@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# Entrypoint script for a Mocha consensus node with state sync.
+# Entrypoint script for a Mocha consensus node using the multiplexer binary.
+#
 # This script is idempotent: on restart it skips init/config and goes straight
 # to starting the node.
 
@@ -23,29 +24,28 @@ if [ ! -f "${CELESTIA_APP_HOME}/config/config.toml" ]; then
     echo "Downloading genesis file..."
     celestia-appd download-genesis "${CHAIN_ID}" > /dev/null 2>&1
 
-    echo "Fetching latest block height for state sync..."
-    LATEST_HEIGHT=$(curl -s "${RPC}/block" | jq -r .result.block.header.height)
-    BLOCK_HEIGHT=$((LATEST_HEIGHT - 2000))
-    TRUST_HASH=$(curl -s "${RPC}/block?height=${BLOCK_HEIGHT}" | jq -r .result.block_id.hash)
-
-    echo "Latest height: ${LATEST_HEIGHT}"
-    echo "Trust height:  ${BLOCK_HEIGHT}"
-    echo "Trust hash:    ${TRUST_HASH}"
-
     echo "Configuring seeds..."
     sed -i "s/^seeds *=.*/seeds = \"${SEEDS}\"/" "${CELESTIA_APP_HOME}/config/config.toml"
 
     echo "Configuring persistent peers..."
     sed -i "/^\[p2p\]/,/^\[/{s/^[[:space:]]*persistent_peers *=.*/persistent_peers = \"${PEERS}\"/;}" "${CELESTIA_APP_HOME}/config/config.toml"
 
-    echo "Enabling state sync..."
-    sed -i -E "s|^(enable[[:space:]]+=[[:space:]]+).*$|\1true| ; \
-    s|^(rpc_servers[[:space:]]+=[[:space:]]+).*$|\1\"${RPC},${RPC}\"| ; \
-    s|^(trust_height[[:space:]]+=[[:space:]]+).*$|\1${BLOCK_HEIGHT}| ; \
-    s|^(trust_hash[[:space:]]+=[[:space:]]+).*$|\1\"${TRUST_HASH}\"|" "${CELESTIA_APP_HOME}/config/config.toml"
-
     echo "Enabling Prometheus instrumentation..."
     sed -i '/^\[instrumentation\]/,/^\[/{s/^prometheus *=.*/prometheus = true/;}' "${CELESTIA_APP_HOME}/config/config.toml"
+
+    echo "Enabling telemetry in app.toml..."
+    sed -i '/^\[telemetry\]/,/^\[/{s/^enabled *=.*/enabled = true/;}' "${CELESTIA_APP_HOME}/config/app.toml"
+    sed -i '/^\[telemetry\]/,/^\[/{s/^prometheus-retention-time *=.*/prometheus-retention-time = 60/;}' "${CELESTIA_APP_HOME}/config/app.toml"
+
+    echo "Enabling state sync in config.toml..."
+    LATEST_HEIGHT=$(curl -s "${RPC}/block" | jq -r .result.block.header.height)
+    BLOCK_HEIGHT=$((LATEST_HEIGHT - 2000))
+    TRUST_HASH=$(curl -s "${RPC}/block?height=${BLOCK_HEIGHT}" | jq -r .result.block_id.hash)
+    echo "State sync: height=${BLOCK_HEIGHT} hash=${TRUST_HASH}"
+    sed -i -E "s|^(enable[[:space:]]+=[[:space:]]+).*$|\1true| ; \
+s|^(rpc_servers[[:space:]]+=[[:space:]]+).*$|\1\"${RPC},${RPC}\"| ; \
+s|^(trust_height[[:space:]]+=[[:space:]]+).*$|\1${BLOCK_HEIGHT}| ; \
+s|^(trust_hash[[:space:]]+=[[:space:]]+).*$|\1\"${TRUST_HASH}\"|" "${CELESTIA_APP_HOME}/config/config.toml"
 
     echo "Node initialized and configured."
 else

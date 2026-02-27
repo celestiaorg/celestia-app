@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v7/pkg/da"
-	"github.com/celestiaorg/celestia-app/v7/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v8/pkg/da"
+	"github.com/celestiaorg/celestia-app/v8/pkg/wrapper"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/spf13/cobra"

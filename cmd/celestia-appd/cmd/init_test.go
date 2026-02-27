@@ -3,7 +3,7 @@ package cmd
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	"github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -13,7 +13,7 @@ func Test_getConsensusParams(t *testing.T) {
 		Block:     types.BlockParams{MaxBytes: appconsts.DefaultMaxBytes, MaxGas: -1},
 		Evidence:  types.EvidenceParams{MaxAgeNumBlocks: 100000, MaxAgeDuration: 172800000000000, MaxBytes: 1048576},
 		Validator: types.ValidatorParams{PubKeyTypes: []string{"ed25519"}},
-		Version:   types.VersionParams{App: 0x7},
+		Version:   types.VersionParams{App: 0x8},
 		ABCI:      types.ABCIParams{VoteExtensionsEnableHeight: 0},
 	}
 	got := *getConsensusParams()
