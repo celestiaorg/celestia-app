@@ -1,0 +1,870 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Fibre Module - Celestia App Specifications</title>
+        <!-- Custom HTML head -->
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="data_structures.html"><strong aria-hidden="true">1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="namespace.html"><strong aria-hidden="true">2.</strong> Namespace</a></li><li class="chapter-item expanded "><a href="shares.html"><strong aria-hidden="true">3.</strong> Shares</a></li><li class="chapter-item expanded "><a href="consensus.html"><strong aria-hidden="true">4.</strong> Consensus</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="cat_pool.html"><strong aria-hidden="true">4.1.</strong> CAT Pool</a></li></ol></li><li class="chapter-item expanded "><a href="block_proposer.html"><strong aria-hidden="true">5.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="block_validity_rules.html"><strong aria-hidden="true">6.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="ante_handler.html"><strong aria-hidden="true">7.</strong> AnteHandler</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="ante_handler_v1.html"><strong aria-hidden="true">7.1.</strong> AnteHandler v1</a></li><li class="chapter-item expanded "><a href="ante_handler_v2.html"><strong aria-hidden="true">7.2.</strong> AnteHandler v2</a></li><li class="chapter-item expanded "><a href="ante_handler_v3.html"><strong aria-hidden="true">7.3.</strong> AnteHandler v3</a></li><li class="chapter-item expanded "><a href="ante_handler_v4.html"><strong aria-hidden="true">7.4.</strong> AnteHandler v4</a></li><li class="chapter-item expanded "><a href="ante_handler_v5.html"><strong aria-hidden="true">7.5.</strong> AnteHandler v5</a></li><li class="chapter-item expanded "><a href="ante_handler_v6.html"><strong aria-hidden="true">7.6.</strong> AnteHandler v6</a></li><li class="chapter-item expanded "><a href="ante_handler_v7.html"><strong aria-hidden="true">7.7.</strong> AnteHandler v7</a></li></ol></li><li class="chapter-item expanded "><a href="fraud_proofs.html"><strong aria-hidden="true">8.</strong> Fraud Proofs</a></li><li class="chapter-item expanded "><a href="networking.html"><strong aria-hidden="true">9.</strong> Networking</a></li><li class="chapter-item expanded "><a href="public_key_cryptography.html"><strong aria-hidden="true">10.</strong> Public-Key Cryptography</a></li><li class="chapter-item expanded "><a href="data_square_layout.html"><strong aria-hidden="true">11.</strong> Data Square Layout</a></li><li class="chapter-item expanded "><a href="resource_pricing.html"><strong aria-hidden="true">12.</strong> Resource Pricing</a></li><li class="chapter-item expanded "><a href="multisig.html"><strong aria-hidden="true">13.</strong> Multisig</a></li><li class="chapter-item expanded "><a href="state_machine_modules.html"><strong aria-hidden="true">14.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="state_machine_modules_v1.html"><strong aria-hidden="true">14.1.</strong> State Machine Modules v1</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v2.html"><strong aria-hidden="true">14.2.</strong> State Machine Modules v2</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v3.html"><strong aria-hidden="true">14.3.</strong> State Machine Modules v3</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v4.html"><strong aria-hidden="true">14.4.</strong> State Machine Modules v4</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v5.html"><strong aria-hidden="true">14.5.</strong> State Machine Modules v5</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v6.html"><strong aria-hidden="true">14.6.</strong> State Machine Modules v6</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v7.html"><strong aria-hidden="true">14.7.</strong> State Machine Modules v7</a></li></ol></li><li class="chapter-item expanded "><a href="parameters.html"><strong aria-hidden="true">15.</strong> Parameters</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="parameters_v1.html"><strong aria-hidden="true">15.1.</strong> Parameters v1</a></li><li class="chapter-item expanded "><a href="parameters_v2.html"><strong aria-hidden="true">15.2.</strong> Parameters v2</a></li><li class="chapter-item expanded "><a href="parameters_v3.html"><strong aria-hidden="true">15.3.</strong> Parameters v3</a></li><li class="chapter-item expanded "><a href="parameters_v4.html"><strong aria-hidden="true">15.4.</strong> Parameters v4</a></li><li class="chapter-item expanded "><a href="parameters_v5.html"><strong aria-hidden="true">15.5.</strong> Parameters v5</a></li><li class="chapter-item expanded "><a href="parameters_v6.html"><strong aria-hidden="true">15.6.</strong> Parameters v6</a></li><li class="chapter-item expanded "><a href="parameters_v7.html"><strong aria-hidden="true">15.7.</strong> Parameters v7</a></li></ol></li><li class="chapter-item expanded "><a href="types.html"><strong aria-hidden="true">16.</strong> Types</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="types_v5.html"><strong aria-hidden="true">16.1.</strong> Types v5</a></li><li class="chapter-item expanded "><a href="types_v6.html"><strong aria-hidden="true">16.2.</strong> Types v6</a></li><li class="chapter-item expanded "><a href="types_v7.html"><strong aria-hidden="true">16.3.</strong> Types v7</a></li></ol></li><li class="chapter-item expanded "><a href="tx_client.html"><strong aria-hidden="true">17.</strong> TxClient v1</a></li><li class="chapter-item expanded "><a href="tx_client_v2.html"><strong aria-hidden="true">18.</strong> TxClient v2</a></li><li class="chapter-item expanded "><a href="fibre.html"><strong aria-hidden="true">19.</strong> Fibre</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="fibre_client.html"><strong aria-hidden="true">19.1.</strong> Fibre Client</a></li><li class="chapter-item expanded "><a href="fibre_server.html"><strong aria-hidden="true">19.2.</strong> Fibre Server</a></li><li class="chapter-item expanded "><a href="fibre_module.html" class="active"><strong aria-hidden="true">19.3.</strong> Fibre Module</a></li><li class="chapter-item expanded "><a href="fibre_registry_module.html"><strong aria-hidden="true">19.4.</strong> Fibre Registry Module</a></li><li class="chapter-item expanded "><a href="fibre_encoding.html"><strong aria-hidden="true">19.5.</strong> Fibre Encoding</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Celestia App Specifications</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/celestiaorg/celestia-app" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="fibre-sdk-module-xfibre"><a class="header" href="#fibre-sdk-module-xfibre">Fibre SDK Module <code>x/fibre</code></a></h1>
+<h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
+<p><strong>Problem</strong>: Currently, users must wait for a <code>MsgPayForBlob</code> transaction to be included on-chain for a blob to be available on the network. This creates UX friction and delays data availability service.</p>
+<p><strong>Solution</strong>: The <code>x/fibre</code> module enables data availability for Fibre blobs without waiting for a transaction to be included on-chain by using a pre-funded escrow system. Users deposit funds into escrow accounts and then create signed PaymentPromises that guarantee future payment from the escrow account. This enables users to get data availability for the Fibre blob before the PaymentPromise transaction is included on-chain. This also enables validators to start providing data availability service for the Fibre blob before the PaymentPromise transaction is included on-chain.</p>
+<p><strong>How it works</strong>:</p>
+<ol>
+<li>A user funds their escrow account via <code>MsgDepositToEscrow</code></li>
+<li>When a user wants to make data available, they create a PaymentPromise off-chain and submit it along with their blob data to validators.</li>
+<li>Validators verify the PaymentPromise off-chain and immediately start providing service for the data they received.</li>
+<li>Payment settlement occurs later through on-chain transactions (<code>MsgPayForFibre</code>) or a timeout mechanism (<code>MsgPaymentPromiseTimeout</code>)</li>
+</ol>
+<p><strong>Key guarantee</strong>: A valid <a href="#paymentpromise"><code>PaymentPromise</code></a> guarantees payment for a blob, enabling validators to provide immediate service for blob data with confidence that the protocol will charge the user later when the <code>MsgPayForFibre</code> or <code>MsgPaymentPromiseTimeout</code> transactions are submitted on-chain.</p>
+<h2 id="key-concepts"><a class="header" href="#key-concepts">Key Concepts</a></h2>
+<h3 id="fibre-blob"><a class="header" href="#fibre-blob">Fibre Blob</a></h3>
+<p>A Fibre blob is a piece of data that users want to make available through Celestia's data availability network with immediate service. Unlike regular blob submissions that require waiting for transaction confirmation, Fibre blobs use pre-paid escrow accounts to enable instant processing by validators.</p>
+<h3 id="paymentpromise"><a class="header" href="#paymentpromise">PaymentPromise</a></h3>
+<p>A PaymentPromise is an off-chain signed message that commits a user to pay for a specific Fibre blob. It contains the blob commitment, size, namespace, and cryptographic proof that the user has sufficient funds in escrow. Validators can verify this promise instantly without waiting for on-chain transaction confirmation.</p>
+<h3 id="escrow-account"><a class="header" href="#escrow-account">Escrow Account</a></h3>
+<p>An escrow account is a module-controlled account that holds user funds to guarantee payment for PaymentPromises. Users deposit funds in advance, and the module ensures these funds cannot be withdrawn immediately, providing validators with payment assurance so they can process Fibre blobs.</p>
+<h3 id="commitment"><a class="header" href="#commitment">Commitment</a></h3>
+<p>A cryptographic hash that uniquely identifies a Fibre blob's content. Validators sign over this commitment to prove they have received and will make the data available. The commitment is eventually included in Celestia's data square.</p>
+<h3 id="signature-schemes"><a class="header" href="#signature-schemes">Signature Schemes</a></h3>
+<p>The <code>x/fibre</code> module uses two different cryptographic signature schemes, following the same pattern as celestia-app:</p>
+<ol>
+<li>
+<p><strong>User Signatures (secp256k1)</strong>: PaymentPromises are signed by users using secp256k1, the same curve used for transaction submission in celestia-app.</p>
+</li>
+<li>
+<p><strong>Validator Signatures (ed25519)</strong>: Validators sign blob commitments using ed25519, the same curve used for validator consensus signatures in celestia-app.</p>
+</li>
+</ol>
+<h2 id="contents"><a class="header" href="#contents">Contents</a></h2>
+<ol>
+<li><a href="#abstract">Abstract</a></li>
+<li><a href="#key-concepts">Key Concepts</a></li>
+<li><a href="#sequence-diagrams">Sequence Diagram</a></li>
+<li><a href="#state">State</a></li>
+<li><a href="#messages">Messages</a></li>
+<li><a href="#automatic-state-transitions">Automatic State Transitions</a></li>
+<li><a href="#events">Events</a></li>
+<li><a href="#queries">Queries</a></li>
+<li><a href="#parameters">Parameters</a></li>
+<li><a href="#client">Client</a></li>
+</ol>
+<h2 id="sequence-diagrams"><a class="header" href="#sequence-diagrams">Sequence Diagrams</a></h2>
+<h3 id="fibre-blob-flow"><a class="header" href="#fibre-blob-flow">Fibre blob flow</a></h3>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant U as User (client)
+    participant V as Validator (server)
+    participant SM as State Machine
+    participant X as Anyone
+
+    Note over U,SM: 1. Setup Phase
+    U-&gt;&gt;SM: MsgDepositToEscrow(amount)
+    SM-&gt;&gt;SM: Create/update escrow account
+
+    Note over U,V: 2. Fibre Blob Submission
+    U-&gt;&gt;U: Calculate blob commitment
+    U-&gt;&gt;U: Create signed PaymentPromise
+    U-&gt;&gt;V: Send blob data + PaymentPromise
+
+    Note over V,SM: 3. Validator Processing
+    V-&gt;&gt;SM: ValidatePaymentPromise(payment_promise)
+    SM--&gt;&gt;V: ValidationResponse(valid, balance_ok)
+
+    alt PaymentPromise is valid
+        V-&gt;&gt;V: Store blob data &amp; start serving immediately
+        V-&gt;&gt;V: Sign commitment
+        V--&gt;&gt;U: Return validator signature
+    else PaymentPromise is invalid
+        V--&gt;&gt;U: Reject (insufficient funds/invalid signature)
+    end
+
+    Note over U,SM: 4a. Happy Path - User Submits Payment
+    U-&gt;&gt;U: Collect 2/3+ validator signatures
+    U-&gt;&gt;SM: MsgPayForFibre(payment_promise, signatures)
+    SM-&gt;&gt;SM: Verify signatures &amp; deduct payment
+    SM-&gt;&gt;SM: Include commitment in data square
+    Note right of SM: Commitment included in data square
+
+    Note over X,SM: 4b. Fallback - Timeout Processing
+    Note over X,SM: After PaymentPromiseTimeout elapses
+    X-&gt;&gt;SM: MsgPaymentPromiseTimeout(payment_promise)
+    SM-&gt;&gt;SM: Verify timeout &amp; deduct payment
+    Note right of SM: No data square inclusion
+</code></pre>
+<ol>
+<li>
+<p><strong>Setup Phase</strong>: User deposits funds using <a href="#msgdeposittoescrow"><code>MsgDepositToEscrow</code></a>, which creates or updates their escrow account with the specified amount.</p>
+</li>
+<li>
+<p><strong>Fibre Blob Submission</strong>:</p>
+<ul>
+<li>User calculates the cryptographic commitment for their blob data</li>
+<li>User creates a signed <a href="#paymentpromise"><code>PaymentPromise</code></a> containing the commitment, blob size, namespace, and escrow account reference</li>
+<li>User sends the blob data and PaymentPromise to validators</li>
+</ul>
+</li>
+<li>
+<p><strong>Validator Processing</strong>:</p>
+<ul>
+<li>Validators query the state machine using <a href="#validatepaymentpromise"><code>ValidatePaymentPromise</code></a> to validate the PaymentPromise signature, check escrow balance, and confirm the PaymentPromise hasn't been processed</li>
+<li>If valid: validators store the blob data locally, sign the commitment, return their signature to the user, and <strong>immediately start serving the blob data</strong></li>
+<li>If invalid: validators reject the request (insufficient funds, invalid signature, etc.)</li>
+</ul>
+</li>
+<li>
+<p><strong>Payment Settlement</strong> (Two possible paths):</p>
+<p><strong>4a. Happy Path - User Submits Payment</strong>: User collects 2/3+ validator signatures and submits <a href="#msgpayforfibre"><code>MsgPayForFibre</code></a>. The state machine verifies signatures, deducts payment from escrow, and includes the commitment in the data square.</p>
+<p><strong>4b. Fallback - Timeout Processing</strong>: If the user doesn't submit <a href="#msgpayforfibre"><code>MsgPayForFibre</code></a> within the timeout period, anyone can submit <a href="#msgpaymentpromisetimeout"><code>MsgPaymentPromiseTimeout</code></a> to force payment. The state machine deducts payment but does <strong>not</strong> include the commitment in the data square.</p>
+</li>
+</ol>
+<h3 id="key-insights"><a class="header" href="#key-insights">Key Insights</a></h3>
+<ul>
+<li><strong>Immediate Service</strong>: Validators start serving blob data as soon as they verify the PaymentPromise, before any on-chain payment</li>
+<li><strong>Payment Guarantee</strong>: The PaymentPromise guarantees payment will occur either via user submission or timeout mechanism</li>
+<li><strong>Data Square Inclusion</strong>: Only successful <code>MsgPayForFibre</code> submissions result in commitment inclusion in the data square</li>
+</ul>
+<h2 id="withdrawal-processing-flow"><a class="header" href="#withdrawal-processing-flow">Withdrawal Processing Flow</a></h2>
+<p>Users can withdraw funds from their escrow accounts but withdrawals are subject to a delay period to ensure that the protocol can charge user's for any pending PaymentPromises.</p>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant U as User
+    participant SM as State Machine
+
+    Note over U,SM: Withdrawal Request
+    U-&gt;&gt;SM: MsgRequestWithdrawal(amount)
+    SM-&gt;&gt;SM: Verify sufficient available_balance
+    SM-&gt;&gt;SM: Decrease available_balance immediately
+    SM-&gt;&gt;SM: Store withdrawal request with delay
+    Note right of SM: Funds locked for WithdrawalDelay period
+
+    Note over U,SM: Automatic Processing (after delay)
+    SM-&gt;&gt;SM: BeginBlocker checks for available withdrawals
+    SM-&gt;&gt;SM: Find withdrawals past delay period
+    SM-&gt;&gt;SM: Decrease total escrow balance
+    SM-&gt;&gt;U: Transfer funds to user account
+    SM-&gt;&gt;SM: Remove withdrawal request
+    Note right of SM: Withdrawal complete
+</code></pre>
+<h3 id="withdrawal-flow-details"><a class="header" href="#withdrawal-flow-details">Withdrawal Flow Details</a></h3>
+<ol>
+<li><strong>Request Phase</strong>: User submits <a href="#msgrequestwithdrawal"><code>MsgRequestWithdrawal</code></a> specifying the amount to withdraw</li>
+<li><strong>Immediate Lock</strong>: The system immediately decreases the user's <code>available_balance</code> to prevent double-spending, but keeps the funds in the escrow account</li>
+<li><strong>Delay Period</strong>: Funds remain locked for the <code>WithdrawalDelay</code> period (default: 24 hours) to ensure any pending PaymentPromises can still be processed</li>
+<li><strong>Automatic Processing</strong>: The state machine's <code>BeginBlocker</code> automatically processes eligible withdrawals, transferring funds back to the user and updating the escrow account balance</li>
+</ol>
+<p>This delay mechanism ensures that validators can trust PaymentPromises even when users have requested withdrawals, since the funds remain available for the delay period.</p>
+<h2 id="state"><a class="header" href="#state">State</a></h2>
+<p>The fibre module maintains state for <a href="#escrow-accounts">escrow accounts</a>, <a href="#withdrawals">withdrawals</a>, and module <a href="#parameters">parameters</a>.</p>
+<h3 id="escrow-accounts"><a class="header" href="#escrow-accounts">Escrow Accounts</a></h3>
+<p>Escrow accounts help guarantee payment for a signed <a href="#paymentpromise"><code>PaymentPromise</code></a> by ensuring that a user does not remove funds after validators sign over and provide service for a Fibre blob. Each address can only have one escrow account, indexed by their signer address.</p>
+<pre><code class="language-proto">// EscrowAccount helps guarantee payment for a signed PaymentPromise by ensuring
+// that a user does not remove funds directly after validators sign over and
+// provide service for a blob.
+message EscrowAccount {
+  // signer is the address that controls this escrow account
+  string signer = 1 [(cosmos_proto.scalar) = &quot;cosmos.AddressString&quot;];
+  // balance is the total amount currently held in escrow
+  cosmos.base.v1beta1.Coin balance = 2 [(gogoproto.nullable) = false];
+  // available_balance is the amount available for new payments. This is usually
+  // the same as balance except if a user has requested a withdrawal in the past
+  // 24 hours in which case available_balance = balance - pending withdrawal
+  // amount.
+  cosmos.base.v1beta1.Coin available_balance = 3 [(gogoproto.nullable) = false];
+}
+</code></pre>
+<h3 id="withdrawals"><a class="header" href="#withdrawals">Withdrawals</a></h3>
+<p>Withdrawal requests are tracked to implement the delay mechanism.</p>
+<pre><code class="language-proto">// Withdrawal tracks requests to withdraw funds from an escrow account. It is
+// needed to implement a delay mechanism between when a withdrawal is requested
+// and when it is executed. By default the withdrawal delay is 24 hours.
+message Withdrawal {
+  // signer is the address that owns the escrow account this withdrawal is for
+  string signer = 1 [(cosmos_proto.scalar) = &quot;cosmos.AddressString&quot;];
+  // amount is the amount to be withdrawn
+  cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
+  // requested_timestamp is the timestamp when withdrawal was requested
+  google.protobuf.Timestamp requested_timestamp = 3 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+  // available_timestamp is the timestamp when withdrawal becomes available for processing
+  // This is calculated as requested_timestamp + withdrawal_delay at creation time
+  google.protobuf.Timestamp available_timestamp = 4 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+}
+</code></pre>
+<h3 id="processed-payments"><a class="header" href="#processed-payments">Processed Payments</a></h3>
+<p>To prevent double payment, the module tracks which payment promises have been processed. Each processed payment stores the payment promise hash and the timestamp when it was processed.</p>
+<pre><code class="language-proto">// ProcessedPayment represents a PaymentPromise that has been processed and
+// stored in genesis state. ProcessedPayment intentionally omits many fields
+// from the original PaymentPromise to avoid bloating the state. This exists for
+// replay protection.
+message ProcessedPayment {
+  bytes payment_promise_hash = 1;
+  google.protobuf.Timestamp processed_at = 2 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+}
+</code></pre>
+<p>Processed payments use a dual-index pattern for efficient querying and pruning:</p>
+<ul>
+<li><strong>By hash</strong>: <code>processed_payments_by_hash/{payment_promise_hash}</code> → <code>ProcessedPayment</code> (for replay protection)</li>
+<li><strong>By time</strong>: <code>processed_payments_by_time/{processed_at}/{payment_promise_hash}</code> → <code>ProcessedPayment</code> (for time-ordered pruning)</li>
+</ul>
+<h2 id="messages"><a class="header" href="#messages">Messages</a></h2>
+<h3 id="gas-consumption"><a class="header" href="#gas-consumption">Gas Consumption</a></h3>
+<p>All messages use the existing gas consumption mechanism in the cosmos-sdk. In addition to the standard resource pricing, the messages that deduct fees for blobs, <code>MsgPayForFibre</code> and <code>MsgPaymentPromiseTimeout</code>, manually add gas consumption based on Fibre blob size.</p>
+<p><strong>Blob Gas Calculation</strong>:</p>
+<p>Gas cost is calculated using the following formula:</p>
+<pre><code class="language-text">total_gas = (rows * row_size(blob_size) * gas_per_blob_byte)
+</code></pre>
+<p>This means that users pay for padding as well, just like PFBs.</p>
+<p>Where:</p>
+<ul>
+<li><code>rows</code> is the constant number of rows needed for the blob data</li>
+<li><code>row_size(blob_size)</code> is the size of each row in bytes</li>
+<li><code>gas_per_blob_byte</code> is the gas cost per byte parameter</li>
+</ul>
+<h3 id="msgdeposittoescrow"><a class="header" href="#msgdeposittoescrow">MsgDepositToEscrow</a></h3>
+<p>Deposits funds to the signer's escrow account. If no escrow account exists for the signer, one will be created automatically. Deposits are processed instantly.</p>
+<pre><code class="language-proto">// MsgDepositToEscrow deposits funds to the signer's escrow account.
+message MsgDepositToEscrow {
+  option (cosmos.msg.v1.signer) = &quot;signer&quot;;
+  // signer is the bech32 encoded signer address
+  string signer = 1 [(cosmos_proto.scalar) = &quot;cosmos.AddressString&quot;];
+  // amount is the amount to deposit
+  cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
+}
+</code></pre>
+<h4 id="validation-and-processing"><a class="header" href="#validation-and-processing">Validation and Processing</a></h4>
+<p><strong>Stateless Validation</strong>:</p>
+<ul>
+<li>Signer address must be valid</li>
+<li>Amount must be positive</li>
+</ul>
+<p><strong>Stateful Processing</strong>:</p>
+<ol>
+<li>If signer's escrow account doesn't exist, create one with zero balance</li>
+<li>Transfer funds from signer to module account</li>
+<li>Increase both balance and available_balance by deposit amount</li>
+<li>Emit EventDepositToEscrow</li>
+</ol>
+<h3 id="msgrequestwithdrawal"><a class="header" href="#msgrequestwithdrawal">MsgRequestWithdrawal</a></h3>
+<p>Requests withdrawal from the signer's escrow account. Funds are withdrawn after the withdrawal delay.</p>
+<pre><code class="language-proto">// MsgRequestWithdrawal requests withdrawal from the signer's escrow account.
+message MsgRequestWithdrawal {
+  option (cosmos.msg.v1.signer) = &quot;signer&quot;;
+  // signer is the bech32 encoded signer address
+  string signer = 1 [(cosmos_proto.scalar) = &quot;cosmos.AddressString&quot;];
+  // amount is the amount to withdraw
+  cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
+}
+</code></pre>
+<h4 id="validation"><a class="header" href="#validation">Validation</a></h4>
+<p><strong>Stateless Validation</strong>:</p>
+<ul>
+<li>Signer address must be valid</li>
+<li>Amount must be positive</li>
+</ul>
+<p><strong>Stateful Processing</strong>:</p>
+<ol>
+<li>Verify signer's escrow account exists</li>
+<li>Verify sufficient available balance</li>
+<li>Verify no existing withdrawal request at current timestamp (prevents key collision in <code>withdrawals_by_signer/{signer}/{requested_timestamp}</code> index)</li>
+<li>Calculate available_timestamp = requested_timestamp + withdrawal_delay</li>
+<li>Create Withdrawal with both requested_timestamp and available_timestamp</li>
+<li>Decrease available_balance immediately (balance remains unchanged until withdrawal is processed)</li>
+<li>Store withdrawal in both indexes (by signer and by available time)</li>
+<li>Emit EventWithdrawFromEscrowRequest</li>
+</ol>
+<h4 id="withdrawal-processing"><a class="header" href="#withdrawal-processing">Withdrawal Processing</a></h4>
+<p>Withdrawals are automatically processed in <code>BeginBlocker</code> when <code>current_time &gt;= withdrawal.available_timestamp</code>:</p>
+<pre><code class="language-go">func processAvailableWithdrawals(ctx sdk.Context, k Keeper) {
+    currentTime := ctx.BlockTime()
+
+    // Iterate over withdrawals-by-available index starting from earliest timestamp
+    iterator := k.GetWithdrawalsByAvailableIterator(ctx, currentTime)
+    defer iterator.Close()
+
+    for ; iterator.Valid(); iterator.Next() {
+        // Parse key to extract available_at timestamp and signer address
+        availableAt, signer, err := k.ParseWithdrawalsByAvailableKey(iterator.Key())
+        if err != nil {
+            // Log error but continue processing other withdrawals
+            k.Logger(ctx).Error(&quot;failed to parse withdrawals-by-available key&quot;, &quot;error&quot;, err)
+            continue
+        }
+
+        // Stop if we've reached withdrawals not yet available
+        if availableAt.After(currentTime) {
+            break
+        }
+
+        // Get full withdrawal from value
+        var withdrawal types.Withdrawal
+        k.cdc.MustUnmarshal(iterator.Value(), &amp;withdrawal)
+        amount := withdrawal.Amount
+
+        // Convert signer string to AccAddress
+        signerAddr, err := sdk.AccAddressFromBech32(signer)
+        if err != nil {
+            // Log error but continue processing other withdrawals
+            k.Logger(ctx).Error(&quot;failed to parse signer address&quot;, &quot;error&quot;, err, &quot;signer&quot;, signer)
+            continue
+        }
+
+        // Process withdrawal: transfer from module to user account
+        err = k.bankKeeper.SendCoinsFromModuleToAccount(
+            ctx, types.ModuleName, signerAddr, sdk.NewCoins(amount))
+        if err != nil {
+            // Log error but continue processing other withdrawals
+            k.Logger(ctx).Error(&quot;failed to process withdrawal&quot;, &quot;error&quot;, err, &quot;signer&quot;, signer)
+            continue
+        }
+
+        // Update escrow account balance (decrease total balance)
+        escrowAccount, found := k.GetEscrowAccount(ctx, signer)
+        if !found {
+            // This shouldn't happen, but log and continue
+            k.Logger(ctx).Error(&quot;escrow account not found during withdrawal processing&quot;, &quot;signer&quot;, signer)
+            continue
+        }
+        escrowAccount.Balance = escrowAccount.Balance.Sub(amount)
+        k.SetEscrowAccount(ctx, escrowAccount)
+
+        // Remove from both withdrawal indexes using withdrawal.AvailableTimestamp
+        k.DeleteWithdrawal(ctx, withdrawal)
+
+        // Emit event
+        event := types.NewEventWithdrawFromEscrowExecuted(signer, amount)
+        if err := ctx.EventManager().EmitTypedEvent(event); err != nil {
+            // Log error but continue - event emission failure shouldn't stop processing
+            k.Logger(ctx).Error(&quot;failed to emit withdrawal executed event&quot;, &quot;error&quot;, err, &quot;signer&quot;, signer)
+        }
+    }
+}
+</code></pre>
+<!-- markdownlint-disable MD024 -->
+<h3 id="paymentpromise-1"><a class="header" href="#paymentpromise-1">PaymentPromise</a></h3>
+<!-- markdownlint-enable MD024 -->
+<pre><code class="language-proto">// PaymentPromise is a promise to pay for a Fibre blob. It contains the
+// commitment and payment details for the Fibre blob.
+message PaymentPromise {
+  // chain_id is the chain ID that this payment promise is valid for.
+  // Example: arabica-11, mocha-4, or celestia.
+  string chain_id = 1;
+  // namespace is the namespace the blob is associated with.
+  bytes namespace = 2;
+  // blob_size is the size of the blob in bytes
+  uint32 blob_size = 3;
+  // commitment is the hash of the row root and the Random Linear Combination (RLC) root
+  bytes commitment = 4;
+  // fibre_blob_version is the version of the Fibre blob encoding
+  uint32 fibre_blob_version = 5;
+  // height is the height that is used to determine the validator set that is used
+  int64 height = 6;
+  // creation_timestamp is the timestamp when this promise was created. This
+  // is critical for determining which validators sign the commitment and
+  // determining when service stops for this blob.
+  google.protobuf.Timestamp creation_timestamp = 7 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+  // signer_public_key is the public key of the owner of the escrow account to charge
+  google.protobuf.Any signer_public_key = 8 [(cosmos_proto.accepts_interface) = &quot;cosmos.crypto.PubKey&quot;];
+  // signature is the signer (escrow account owner) secp256k1 signature over the sign bytes
+  bytes signature = 9;
+}
+</code></pre>
+<p>Stateless Validation</p>
+<ul>
+<li><code>chain_id</code> must be non-empty.</li>
+<li><code>namespace</code> must be a valid blob namespace. Must be 29 bytes.</li>
+<li><code>blob_size</code> must be positive.</li>
+<li><code>commitment</code> must be 32 bytes.</li>
+<li><code>fibre_blob_version</code> must be a supported Fibre blob version.</li>
+<li><code>height</code> must be positive.</li>
+<li><code>creation_timestamp</code> must be positive.</li>
+<li><code>signer_public_key</code> must be non-empty.</li>
+<li><code>signature</code> must be properly formatted and non-empty.</li>
+</ul>
+<p>Stateful Validation</p>
+<ol>
+<li>
+<p>Verify <code>creation_timestamp</code> is:</p>
+<ul>
+<li>less than or equal to current confirmed timestamp</li>
+<li>greater than (header_timestamp - withdrawal_delay)</li>
+</ul>
+</li>
+<li>
+<p>Verify escrow account exists for <code>signer_public_key</code></p>
+</li>
+<li>
+<p>Verify sufficient available balance for gas cost (see <a href="#gas-consumption">Gas Consumption</a> section). This includes all yet to be processed <code>PaymentPromises</code> that the validator has signed over.</p>
+</li>
+<li>
+<p>Verify PaymentPromise secp256k1 signature by escrow owner over PaymentPromise sign bytes</p>
+</li>
+<li>
+<p>Verify PaymentPromise hasn't been processed already</p>
+</li>
+</ol>
+<h4 id="sign-bytes-format"><a class="header" href="#sign-bytes-format">Sign Bytes Format</a></h4>
+<p>The sign bytes for a PaymentPromise secp256k1 signature are constructed by concatenating a prefix and all fields except the <code>signature</code> field:</p>
+<pre><code class="language-text">sign_bytes = prefix || chain_id || signer_public_key || namespace || blob_size || commitment || fibre_blob_version || height || creation_timestamp
+</code></pre>
+<ul>
+<li><code>prefix</code>: &quot;fibre/pp:v0&quot; (11 bytes)</li>
+<li><code>chain_id</code>: Raw chain ID bytes (variable length)</li>
+<li><code>signer_public_key</code>: Raw bytes of signer public key secp256k1 (33 bytes)</li>
+<li><code>namespace</code>: Raw namespace bytes (29 bytes)</li>
+<li><code>blob_size</code>: Big-endian encoded uint32 (4 bytes)</li>
+<li><code>commitment</code>: Raw commitment bytes (32 bytes)</li>
+<li><code>fibre_blob_version</code>: Big-endian encoded uint32 (4 bytes)</li>
+<li><code>height</code>: Big-endian encoded int64 (8 bytes)</li>
+<li><code>creation_timestamp</code>: UTC timestamp encoded using Go's time.Time.MarshalBinary() (variable but usually 15 bytes)</li>
+</ul>
+<p>The total length of the sign bytes is: 1 + len(chain_id) + 33 + 29 + 4 + 32 + 4 + 8 + len(creation_timestamp) = 111 + len(chain_id) + len(creation_timestamp) bytes.</p>
+<h4 id="payment-promise-hash"><a class="header" href="#payment-promise-hash">Payment Promise Hash</a></h4>
+<p>The PaymentPromise hash is calculated using the following formula:</p>
+<pre><code class="language-text">payment_promise_hash = SHA256(sign_bytes || signature)
+</code></pre>
+<ul>
+<li><code>sign_bytes</code>: Raw sign bytes (variable length)</li>
+<li><code>signature</code>: Raw signature bytes (64 bytes)</li>
+</ul>
+<h4 id="processed-payments-pruning"><a class="header" href="#processed-payments-pruning">Processed Payments Pruning</a></h4>
+<p>Processed payments are automatically pruned in <code>BeginBlocker</code> when <code>current_time &gt;= processed_at + payment_promise_retention_window</code> to prevent unbounded state growth:</p>
+<p>The pruning mechanism ensures that:</p>
+<ul>
+<li>Processed payments outside the retention window are removed to prevent unbounded state growth</li>
+<li>Both indexes (by hash and by time) are deleted atomically</li>
+<li>An event is emitted for each pruned payment for observability</li>
+<li>Errors in parsing or deleting individual entries don't stop the entire pruning process</li>
+</ul>
+<h3 id="msgpayforfibre"><a class="header" href="#msgpayforfibre">MsgPayForFibre</a></h3>
+<p>Contains the original PaymentPromise with validator signatures, submitted by the user. Successful <code>MsgPayForFibre</code> transactions are included in their own reserved namespace. The commitment from the PaymentPromise is also included in the original data square in the namespace specified in the PaymentPromise.</p>
+<pre><code class="language-proto">// MsgPayForFibre contains the original PaymentPromise with validator signatures.
+message MsgPayForFibre {
+  option (cosmos.msg.v1.signer) = &quot;signer&quot;;
+  // signer is the bech32 encoded address submitting this message
+  string signer = 1 [(cosmos_proto.scalar) = &quot;cosmos.AddressString&quot;];
+  // payment_promise is the original PaymentPromise
+  PaymentPromise payment_promise = 2 [(gogoproto.nullable) = false];
+  // validator_signatures contains ed25519 signatures from validators
+  repeated bytes validator_signatures = 3;
+}
+</code></pre>
+<p>Stateless Validation:</p>
+<ul>
+<li><code>signer</code> must be a valid address</li>
+<li><code>PaymentPromise</code> must be valid</li>
+<li>Must have at least one validator signature</li>
+<li>All validator signatures must be non-empty</li>
+</ul>
+<p>Stateful Processing:</p>
+<ol>
+<li>Validate PaymentPromise</li>
+<li>Verify validator ed25519 signatures represent 2/3+ threshold from validator set at <code>promise.height</code> (obtained via historical info query from staking module):
+<ul>
+<li>Signatures must represent 2/3+ of total voting power AND 2/3+ of validator count</li>
+<li>Each signature is verified using the validator's ed25519 public key from the validator set</li>
+</ul>
+</li>
+<li>Calculate gas cost (see <a href="#gas-consumption">Gas Consumption</a> section) and deduct from both escrow balance and available_balance</li>
+<li>Mark promise as processed by storing <code>ProcessedPayment</code> with <code>processed_at</code> timestamp in both indexes:
+<ul>
+<li><code>processed_payments_by_hash/{payment_promise_hash}</code> for replay protection</li>
+<li><code>processed_payments_by_time/{processed_at}/{payment_promise_hash}</code> for time-ordered pruning</li>
+</ul>
+</li>
+<li>Include commitment in data square</li>
+<li>Emit EventPayForFibre</li>
+</ol>
+<p>When processing a successful <code>MsgPayForFibre</code>, two pieces of metadata are written to the original data square:</p>
+<ol>
+<li>The tx containing the <code>MsgPayForFibre</code> is included in the reserved namespace for Fibre transactions.</li>
+<li>A system-level blob is generated with the namespace from the PaymentPromise and the blob data is the Fibre blob commitment.</li>
+</ol>
+<h3 id="msgpaymentpromisetimeout"><a class="header" href="#msgpaymentpromisetimeout">MsgPaymentPromiseTimeout</a></h3>
+<p>Processes a PaymentPromise after the timeout period if no <code>MsgPayForFibre</code> was submitted. This mechanism is critical to guaranteeing that payment occurs. <code>MsgPaymentPromiseTimeout</code> transactions are included in the default transaction reserved namespace. A system-level blob is not generated for this transaction.</p>
+<pre><code class="language-proto">// MsgPaymentPromiseTimeout processes a payment promise after the timeout period.
+message MsgPaymentPromiseTimeout {
+  option (cosmos.msg.v1.signer) = &quot;signer&quot;;
+  // signer is the bech32 encoded address submitting this message (can be anyone)
+  string signer = 1 [(cosmos_proto.scalar) = &quot;cosmos.AddressString&quot;];
+  // payment_promise is the original payment promise
+  PaymentPromise payment_promise = 2 [(gogoproto.nullable) = false];
+}
+</code></pre>
+<p><strong>Stateless Validation</strong>:</p>
+<ul>
+<li><code>signer</code> must be a valid address</li>
+<li><code>PaymentPromise</code> must be valid</li>
+</ul>
+<p><strong>Stateful Processing</strong>:</p>
+<ol>
+<li>Validate PaymentPromise</li>
+<li>Verify <code>promise.creation_timestamp + payment_promise_timeout &lt;= header_timestamp</code> (timeout has passed)</li>
+<li>Calculate gas cost (see <a href="#gas-consumption">Gas Consumption</a> section) and deduct from both escrow balance and available_balance</li>
+<li>Mark promise as processed by storing <code>ProcessedPayment</code> with <code>processed_at</code> timestamp in both indexes:
+<ul>
+<li><code>processed_payments_by_hash/{payment_promise_hash}</code> for replay protection</li>
+<li><code>processed_payments_by_time/{processed_at}/{payment_promise_hash}</code> for time-ordered pruning</li>
+</ul>
+</li>
+<li>DO NOT include commitment in data square (since no validator consensus was reached)</li>
+<li>Emit EventPaymentPromiseTimeout</li>
+</ol>
+<h2 id="automatic-state-transitions"><a class="header" href="#automatic-state-transitions">Automatic State Transitions</a></h2>
+<p>The fibre module requires automatic processing in <code>BeginBlocker</code> to handle time-based state transitions that cannot rely on user-submitted transactions. Two key operations must occur automatically:</p>
+<ol>
+<li><strong>Withdrawal Processing</strong>: Transfer funds from escrow to user accounts when withdrawal delay expires (see <a href="#withdrawal-processing">Withdrawal Processing</a>)</li>
+<li><strong>Processed Payment Pruning</strong>: Remove old processed payments to prevent unbounded state growth (see <a href="#processed-payments-pruning">Processed Payments Pruning</a>)</li>
+</ol>
+<h3 id="beginblocker-implementation"><a class="header" href="#beginblocker-implementation">BeginBlocker Implementation</a></h3>
+<pre><code class="language-go">func BeginBlocker(ctx sdk.Context, k Keeper) error {
+    // Process available withdrawals first (affects escrow balances)
+    if err := k.processAvailableWithdrawals(ctx); err != nil {
+        return err
+    }
+
+    // Prune payment promises that are outside the retention window
+    if err := k.pruneProcessedPayments(ctx); err != nil {
+        return err
+    }
+
+    return nil
+}
+</code></pre>
+<h2 id="events"><a class="header" href="#events">Events</a></h2>
+<h3 id="eventdeposittoescrow"><a class="header" href="#eventdeposittoescrow"><code>EventDepositToEscrow</code></a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Attribute Key</th><th>Attribute Value</th></tr></thead><tbody>
+<tr><td>signer</td><td>{bech32 encoded signer address}</td></tr>
+<tr><td>amount</td><td>{deposit amount}</td></tr>
+</tbody></table>
+</div>
+<h3 id="eventwithdrawfromescrowrequest"><a class="header" href="#eventwithdrawfromescrowrequest"><code>EventWithdrawFromEscrowRequest</code></a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Attribute Key</th><th>Attribute Value</th></tr></thead><tbody>
+<tr><td>signer</td><td>{bech32 encoded signer address}</td></tr>
+<tr><td>amount</td><td>{withdrawal amount}</td></tr>
+<tr><td>requested_at</td><td>{timestamp when requested}</td></tr>
+<tr><td>available_at</td><td>{timestamp when available}</td></tr>
+</tbody></table>
+</div>
+<h3 id="eventwithdrawfromescrowexecuted"><a class="header" href="#eventwithdrawfromescrowexecuted"><code>EventWithdrawFromEscrowExecuted</code></a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Attribute Key</th><th>Attribute Value</th></tr></thead><tbody>
+<tr><td>signer</td><td>{bech32 encoded escrow owner}</td></tr>
+<tr><td>amount</td><td>{withdrawal amount}</td></tr>
+</tbody></table>
+</div>
+<h3 id="eventpayforfibre"><a class="header" href="#eventpayforfibre"><code>EventPayForFibre</code></a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Attribute Key</th><th>Attribute Value</th></tr></thead><tbody>
+<tr><td>signer</td><td>{bech32 encoded submitter address}</td></tr>
+<tr><td>namespace</td><td>{namespace the blob is published to}</td></tr>
+<tr><td>validator_count</td><td>{number of validator signatures}</td></tr>
+</tbody></table>
+</div>
+<h3 id="eventpaymentpromisetimeout"><a class="header" href="#eventpaymentpromisetimeout"><code>EventPaymentPromiseTimeout</code></a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Attribute Key</th><th>Attribute Value</th></tr></thead><tbody>
+<tr><td>processor</td><td>{bech32 encoded processor address}</td></tr>
+<tr><td>signer</td><td>{bech32 encoded escrow owner}</td></tr>
+<tr><td>payment_promise_hash</td><td>{hash for the PaymentPromise that is being timed out}</td></tr>
+</tbody></table>
+</div>
+<h3 id="eventupdatefibreparams"><a class="header" href="#eventupdatefibreparams"><code>EventUpdateFibreParams</code></a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Attribute Key</th><th>Attribute Value</th></tr></thead><tbody>
+<tr><td>signer</td><td>{bech32 encoded authority address}</td></tr>
+<tr><td>params</td><td>{updated fibre module parameters}</td></tr>
+</tbody></table>
+</div>
+<h3 id="eventprocessedpaymentpruned"><a class="header" href="#eventprocessedpaymentpruned"><code>EventProcessedPaymentPruned</code></a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Attribute Key</th><th>Attribute Value</th></tr></thead><tbody>
+<tr><td>payment_promise_hash</td><td>{hash of the PaymentPromise that was pruned}</td></tr>
+<tr><td>processed_at</td><td>{timestamp when the payment was originally processed}</td></tr>
+</tbody></table>
+</div>
+<h2 id="queries"><a class="header" href="#queries">Queries</a></h2>
+<h3 id="escrowaccount"><a class="header" href="#escrowaccount">EscrowAccount</a></h3>
+<p>Queries an <a href="#escrow-accounts">escrow account</a> by signer.</p>
+<p><strong>Request</strong>:</p>
+<pre><code class="language-proto">message QueryEscrowAccountRequest {
+  string signer = 1;
+}
+</code></pre>
+<p><strong>Response</strong>:</p>
+<pre><code class="language-proto">message QueryEscrowAccountResponse {
+  EscrowAccount escrow_account = 1;
+  bool found = 2;
+}
+</code></pre>
+<h3 id="query-withdrawals"><a class="header" href="#query-withdrawals">Query Withdrawals</a></h3>
+<p>Queries <a href="#withdrawals">withdrawals</a> for an escrow account. Since withdrawals are automatically deleted from state when executed, this query returns all pending withdrawals for the specified signer.</p>
+<p><strong>Request</strong>:</p>
+<pre><code class="language-proto">message QueryWithdrawalsRequest {
+  string signer = 1;
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+</code></pre>
+<p><strong>Response</strong>:</p>
+<pre><code class="language-proto">message QueryWithdrawalsResponse {
+  repeated Withdrawal withdrawals = 1;
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+</code></pre>
+<h3 id="ispaymentprocessed"><a class="header" href="#ispaymentprocessed">IsPaymentProcessed</a></h3>
+<p>Queries whether a payment has been processed.</p>
+<p><strong>Request</strong>:</p>
+<pre><code class="language-proto">message QueryIsPaymentProcessedRequest {
+  bytes promise_hash = 1;
+}
+</code></pre>
+<p><strong>Response</strong>:</p>
+<pre><code class="language-proto">message QueryIsPaymentProcessedResponse {
+  google.protobuf.Timestamp processed_at = 1;
+  bool found = 2;
+}
+</code></pre>
+<h3 id="validatepaymentpromise"><a class="header" href="#validatepaymentpromise">ValidatePaymentPromise</a></h3>
+<p>Validates a <a href="#paymentpromise">PaymentPromise</a> for server use, performing all required checks including escrow balance and processing status.</p>
+<p><strong>Request</strong>:</p>
+<pre><code class="language-proto">message QueryValidatePaymentPromiseRequest {
+  PaymentPromise promise = 1;
+}
+</code></pre>
+<p><strong>Response</strong>:</p>
+<pre><code class="language-proto">message QueryValidatePaymentPromiseResponse {
+  bool is_valid = 1;
+}
+</code></pre>
+<p><strong>Validation Checks</strong>:</p>
+<ol>
+<li>Verify escrow account exists and has sufficient available balance for the gas cost (see <a href="#gas-consumption">Gas Consumption</a> section)</li>
+<li>Verify PaymentPromise hasn't been processed already</li>
+<li>Perform all standard PaymentPromise validation</li>
+</ol>
+<h2 id="parameters"><a class="header" href="#parameters">Parameters</a></h2>
+<p>All parameters are modifiable via governance.</p>
+<h3 id="gasperblobbyte"><a class="header" href="#gasperblobbyte"><code>GasPerBlobByte</code></a></h3>
+<p><code>GasPerBlobByte</code> is the amount of gas consumed per byte of blob data when a PaymentPromise is processed. This determines the gas cost for Fibre blob inclusion (default: 1).</p>
+<h3 id="withdrawaldelay"><a class="header" href="#withdrawaldelay"><code>WithdrawalDelay</code></a></h3>
+<p><code>WithdrawalDelay</code> is the duration that must pass between a user requesting a withdrawal and when funds are withdrawn (default: 24 hours).</p>
+<h3 id="paymentpromisetimeout"><a class="header" href="#paymentpromisetimeout"><code>PaymentPromiseTimeout</code></a></h3>
+<p><code>PaymentPromiseTimeout</code> is the duration after which anyone can submit a <code>MsgPaymentPromiseTimeout</code> transaction on-chain if the user hasn't submitted a <a href="#msgpayforfibre"><code>MsgPayForFibre</code></a> for their PaymentPromise (default: 1 hour).</p>
+<h3 id="paymentpromiseretentionwindow"><a class="header" href="#paymentpromiseretentionwindow"><code>PaymentPromiseRetentionWindow</code></a></h3>
+<p><code>PaymentPromiseRetentionWindow</code> is the duration after which a payment promise can be pruned from the state machine (default: 24 hours).</p>
+<h2 id="client"><a class="header" href="#client">Client</a></h2>
+<h3 id="cli"><a class="header" href="#cli">CLI</a></h3>
+<h4 id="transactions"><a class="header" href="#transactions">Transactions</a></h4>
+<pre><code class="language-shell"># Deposit to escrow account
+celestia-appd tx fibre deposit-to-escrow &lt;amount&gt; [flags]
+
+# Request withdrawal from escrow
+celestia-appd tx fibre request-withdrawal &lt;amount&gt; [flags]
+
+# Submit payment with validator signatures (hex-encoded signatures)
+celestia-appd tx fibre pay-for-fibre &lt;payment_promise_json&gt; &lt;hex_validator_signatures&gt; [flags]
+
+# Submit a PaymentPromise timeout
+celestia-appd tx fibre payment-promise-timeout &lt;payment_promise_json&gt; [flags]
+</code></pre>
+<h4 id="cli-queries"><a class="header" href="#cli-queries">CLI Queries</a></h4>
+<pre><code class="language-shell"># Query module parameters
+celestia-appd query fibre params
+
+# Query escrow account
+celestia-appd query fibre escrow-account &lt;signer_address&gt;
+
+# Query withdrawals
+celestia-appd query fibre withdrawals &lt;signer_address&gt;
+
+# Query if PaymentPromise was processed
+celestia-appd query fibre is-payment-processed &lt;payment_promise_hash&gt;
+</code></pre>
+<h2 id="indexing"><a class="header" href="#indexing">Indexing</a></h2>
+<p><strong>Escrow Accounts:</strong></p>
+<ul>
+<li>Primary Index: <code>escrow_accounts/{signer}</code> → <code>EscrowAccount</code></li>
+</ul>
+<p><strong>Withdrawals:</strong></p>
+<p>Withdrawals use a dual-index pattern for efficient querying:</p>
+<ul>
+<li>By signer: <code>withdrawals_by_signer/{signer}/{requested_timestamp}</code> → <code>Withdrawal</code> (complete struct)</li>
+<li>By availability: <code>withdrawals_by_available/{available_timestamp}/{signer}</code> → <code>Withdrawal</code> (complete struct)</li>
+</ul>
+<p>Both indexes store the full <code>Withdrawal</code> struct. The <code>available_timestamp</code> field in the struct is set at creation time and never changes, even if the <code>WithdrawalDelay</code> parameter changes via governance. This ensures correct deletion from both indexes.</p>
+<p><strong>Processed Payments:</strong></p>
+<p>Processed payments use a dual-index pattern for efficient replay protection and time-ordered pruning:</p>
+<ul>
+<li>By hash: <code>processed_payments_by_hash/{payment_promise_hash}</code> → <code>ProcessedPayment</code> (complete struct, for replay protection)</li>
+<li>By time: <code>processed_payments_by_time/{processed_at}/{payment_promise_hash}</code> → <code>ProcessedPayment</code> (complete struct, for time-ordered pruning)</li>
+</ul>
+<p>Both indexes store the full <code>ProcessedPayment</code> struct. This dual-index design enables:</p>
+<ol>
+<li>Fast O(1) lookup by hash to prevent double-processing of payment promises</li>
+<li>Efficient time-ordered iteration for automatic pruning in <code>BeginBlocker</code></li>
+<li>Atomic deletion from both indexes when pruning occurs</li>
+</ol>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="fibre_server.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                            <a rel="next" href="fibre_registry_module.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="fibre_server.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                    <a rel="next" href="fibre_registry_module.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>
