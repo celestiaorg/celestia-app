@@ -40,6 +40,8 @@ v7 enforces a minimum `min-retain-blocks` value of 3000. This ensures nodes reta
 
 The mempool `type` field has been removed from new `config.toml` files because celestia-app only supports the CAT mempool. If your existing `config.toml` still contains a mempool `type`, it will be ignored and overridden to `cat` at startup with a warning. You can safely remove the `type` line from the `[mempool]` section of your `config.toml`.
 
+Notably, the `nop` mempool is no longer supported. If you were using the nop mempool for a specialized setup, please [open an issue](https://github.com/celestiaorg/celestia-app/issues) so we can accommodate your use case.
+
 ### State Machine Changes (v7.0.0)
 
 #### Blocked Module Account Addresses
