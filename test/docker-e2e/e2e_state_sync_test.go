@@ -18,7 +18,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
-	"celestiaorg/celestia-app/test/docker-e2e/networks"
 )
 
 const (
