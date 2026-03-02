@@ -25,9 +25,9 @@ const (
 	MaxTxSize               int    = 8_388_608 // 8 MiB in bytes
 	TimeoutPropose                 = time.Millisecond * 4500
 	TimeoutProposeDelta            = time.Millisecond * 500
-	TimeoutPrevote                 = time.Millisecond * 3000
+	TimeoutPrevote                 = time.Millisecond * 1500
 	TimeoutPrevoteDelta            = time.Millisecond * 500
-	TimeoutPrecommit               = time.Millisecond * 3000
+	TimeoutPrecommit               = time.Millisecond * 1500
 	TimeoutPrecommitDelta          = time.Millisecond * 500
 	TimeoutCommit                  = time.Millisecond
 	DelayedPrecommitTimeout        = time.Millisecond * 2790
