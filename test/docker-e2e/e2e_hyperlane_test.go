@@ -17,6 +17,7 @@ import (
 	sdkmath "cosmossdk.io/math"
 	hyputil "github.com/bcp-innovations/hyperlane-cosmos/util"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
+	v7 "github.com/celestiaorg/celestia-app/v8/pkg/appconsts/v7"
 	forwardingtypes "github.com/celestiaorg/celestia-app/v8/x/forwarding/types"
 	zkismtypes "github.com/celestiaorg/celestia-app/v8/x/zkism/types"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
@@ -177,7 +178,14 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	}
 
 	ctx := context.Background()
-	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), s.celestiaCfg).Build(ctx)
+
+	// Use app version 7 because the Lumina forwarding relayer doesn't support v8 yet.
+	// TODO: revert to s.celestiaCfg after Lumina adds support for app version 8.
+	// See https://github.com/celestiaorg/celestia-app/issues/6650
+	cfg := dockerchain.DefaultConfig(s.client, s.network).WithTag(s.celestiaCfg.Tag)
+	cfg.Genesis = cfg.Genesis.WithAppVersion(v7.Version)
+
+	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
 	s.Require().NoError(err)
 
 	s.T().Cleanup(func() {

@@ -48,6 +48,7 @@ const (
 
 	EvidenceMaxAgeV5Blocks = 120960
 	EvidenceMaxAgeV6Blocks = 242640
+	EvidenceMaxAgeV8Blocks = 485280
 )
 
 // TestAllUpgrades tests all app version upgrades using the signaling mechanism.
@@ -427,6 +428,11 @@ func (s *CelestiaTestSuite) validateParameters(ctx context.Context, node tastora
 	if appVersion == AppVersionV7 {
 		s.validateMinCommissionRate(ctx, node, MinCommissionRateV7, AppVersionV7)
 		s.validateMaxCommissionRate(ctx, node, MaxCommissionRateV7, AppVersionV7)
+		return
+	}
+
+	if appVersion == AppVersionV8 {
+		s.validateEvidenceParams(ctx, node, EvidenceMaxAgeV6Hours, EvidenceMaxAgeV8Blocks, AppVersionV8)
 		return
 	}
 

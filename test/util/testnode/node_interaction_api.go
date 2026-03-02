@@ -114,7 +114,17 @@ func (c *Context) WaitForHeightWithTimeout(h int64, t time.Duration) (int64, err
 				return 0, err
 			}
 			if latestHeight >= h {
-				return latestHeight, nil
+				// Verify the app's multistore has committed this height.
+				// CometBFT's blockStore.Height() advances before the app's
+				// cms.Commit() runs, so gRPC queries can fail with
+				// "please wait for first block" if we return too early.
+				info, err := c.Client.ABCIInfo(ctx)
+				if err != nil {
+					return 0, err
+				}
+				if info.Response.LastBlockHeight >= h {
+					return latestHeight, nil
+				}
 			}
 		}
 	}
