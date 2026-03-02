@@ -12,6 +12,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	icagenesistypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/genesis/types"
+	ibctypes "github.com/cosmos/ibc-go/v8/modules/core/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -110,6 +111,17 @@ func Test_icaDefaultGenesis(t *testing.T) {
 	assert.Equal(t, got.HostGenesisState.Params.AllowMessages, IcaAllowMessages())
 	assert.True(t, got.HostGenesisState.Params.HostEnabled)
 	assert.False(t, got.ControllerGenesisState.Params.ControllerEnabled)
+}
+
+func Test_ibcDefaultGenesis(t *testing.T) {
+	enc := encoding.MakeConfig(ModuleEncodingRegisters...)
+	im := ibcModule{}
+	raw := im.DefaultGenesis(enc.Codec)
+	got := ibctypes.GenesisState{}
+	enc.Codec.MustUnmarshalJSON(raw, &got)
+
+	assert.Equal(t, []string{"06-solomachine", "07-tendermint"}, got.ClientGenesis.Params.AllowedClients)
+	assert.Equal(t, uint64((15 * time.Second).Nanoseconds()), got.ConnectionGenesis.Params.MaxExpectedTimePerBlock)
 }
 
 func TestEvidenceParams(t *testing.T) {

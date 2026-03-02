@@ -14,6 +14,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,6 +31,19 @@ func TestUpgrades(t *testing.T) {
 		require.False(t, testApp.UpgradeKeeper.HasHandler("v7"))
 		require.True(t, testApp.UpgradeKeeper.HasHandler("v8"))
 	})
+}
+
+func TestSetMaxExpectedTimePerBlock(t *testing.T) {
+	consensusParams := app.DefaultConsensusParams()
+	testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
+	ctx := testApp.NewContext(false)
+
+	err := testApp.SetMaxExpectedTimePerBlock(ctx)
+	require.NoError(t, err)
+
+	got := testApp.IBCKeeper.ConnectionKeeper.GetParams(ctx)
+	want := uint64((15 * time.Second).Nanoseconds())
+	assert.Equal(t, want, got.MaxExpectedTimePerBlock)
 }
 
 // createValidatorWithCommission creates a validator with specific commission
