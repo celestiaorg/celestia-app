@@ -38,7 +38,7 @@ const (
 	// 3-5x the expected block time. The expected block time is primarily
 	// determined by DelayedPrecommitTimeout (~3 seconds), so this value is
 	// 15 seconds (5x). If the timeout constants change, this value must be
-	// updated. See TestMaxExpectedTimePerBlock.
+	// updated. 
 	MaxExpectedTimePerBlock = 15 * time.Second
 
 	// TestUpgradeHeightDelay is the number of blocks that chain-id "test" waits
