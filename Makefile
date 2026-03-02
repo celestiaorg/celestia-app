@@ -377,6 +377,11 @@ txsim-build-docker:
 	docker build -t ghcr.io/celestiaorg/txsim -f docker/txsim/Dockerfile  .
 .PHONY: txsim-build-docker
 
+## latency-monitor-build-docker: Build the latency monitor Docker image. Requires Docker.
+latency-monitor-build-docker:
+	docker build -t ghcr.io/celestiaorg/latency-monitor:$(CELESTIA_TAG) -f docker/latency-monitor/Dockerfile .
+.PHONY: latency-monitor-build-docker
+
 ## build-talis-bins: Build celestia-appd, txsim, and Go latency-monitor binaries for talis VMs (ubuntu 22.04 LTS)
 build-talis-bins:
 	mkdir -p build

@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v8/app"
@@ -79,7 +80,7 @@ between submission and commitment, providing detailed latency statistics.`,
 
 			// Handle interrupt signal
 			sigChan := make(chan os.Signal, 1)
-			signal.Notify(sigChan, os.Interrupt)
+			signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 			go func() {
 				sig := <-sigChan
 				fmt.Printf("\nReceived %s, shutting down gracefully...\n", sig)
@@ -203,9 +204,6 @@ func monitorLatency(
 	for {
 		select {
 		case <-ctx.Done():
-			if disableObservability {
-				return nil
-			}
 			return writeResults(results)
 		case <-updateTicker.C:
 			fmt.Printf("Transactions submitted: %d\n", counter)
@@ -310,10 +308,6 @@ func monitorLatency(
 			fmt.Printf("[SUBMIT] tx=%s size=%d bytes time=%s\n",
 				resp.TxHash[:16], randomSize, submitTime.Format("15:04:05.000"))
 			recordSubmit()
-
-			if disableObservability {
-				continue
-			}
 
 			// Launch background goroutine to confirm the transaction
 			go func(txHash string, submitTime time.Time, blobSize int) {
