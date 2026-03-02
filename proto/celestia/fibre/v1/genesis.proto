@@ -1,0 +1,26 @@
+syntax = "proto3";
+package celestia.fibre.v1;
+
+import "gogoproto/gogo.proto";
+import "celestia/fibre/v1/params.proto";
+import "celestia/fibre/v1/fibre.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app-fibre/x/fibre/types";
+
+// GenesisState defines the fibre module's genesis state.
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false];
+  repeated EscrowAccount escrow_accounts = 2 [(gogoproto.nullable) = false];
+  repeated Withdrawal withdrawals = 3 [(gogoproto.nullable) = false];
+  repeated ProcessedPayment processed_payments = 4 [(gogoproto.nullable) = false];
+}
+
+// ProcessedPayment represents a PaymentPromise that has been processed and
+// stored in genesis state. ProcessedPayment intentionally omits many fields
+// from the original PaymentPromise to avoid bloating the state. This exists for
+// replay protection.
+message ProcessedPayment {
+  bytes payment_promise_hash = 1;
+  google.protobuf.Timestamp processed_at = 2 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+}

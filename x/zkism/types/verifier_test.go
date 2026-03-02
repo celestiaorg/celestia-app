@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v7/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v8/x/zkism/types"
 	"github.com/stretchr/testify/require"
 )
 

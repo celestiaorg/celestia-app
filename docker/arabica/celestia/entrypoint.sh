@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Entrypoint script for a Mocha consensus node with state sync.
+# Entrypoint script for an Arabica consensus node with state sync.
 # This script is idempotent: on restart it skips init/config and goes straight
 # to starting the node.
 
@@ -8,11 +8,10 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-CHAIN_ID="mocha-4"
-NODE_NAME="mocha-node"
-SEEDS="b402fe40f3474e9e208840702e1b7aa37f2edc4b@celestia-testnet-seed.itrocket.net:14656"
-PEERS="daf2cecee2bd7f1b3bf94839f993f807c6b15fbf@celestia-testnet-peer.itrocket.net:11656,96b2761729cea90ee7c61206433fc0ba40c245bf@57.128.141.126:11656,f4f75a55bfc5f302ef34435ef096a4551ecb6804@152.53.33.96:12056,31bb1c9c1be7743d1115a8270bd1c83d01a9120a@148.72.141.31:26676,3e30bcfc55e7d351f18144aab4b0973e9e9bf987@65.108.226.183:11656,7a0d5818c0e5b0d4fbd86a9921f413f5e4e4ac1e@65.109.83.40:28656,43e9da043318a4ea0141259c17fcb06ecff816af@164.132.247.253:43656,5a7566aa030f7e5e7114dc9764f944b2b1324bcd@65.109.23.114:11656,c17c0cbf05e98656fee5f60fad469fc528f6d6de@65.109.25.113:11656,fb5e0b9efacc11916c58bbcd3606cbaa7d43c99f@65.108.234.84:28656,45504fb31eb97ea8778c920701fc8076e568a9cd@188.214.133.100:26656,edafdf47c443344fb940a32ab9d2067c482e59df@84.32.71.47:26656,ae7d00d6d70d9b9118c31ac0913e0808f2613a75@177.54.156.69:26656,7c841f59c35d70d9f1472d7d2a76a11eefb7f51f@136.243.69.100:43656"
-RPC="https://celestia-testnet-rpc.itrocket.net:443"
+CHAIN_ID="arabica-11"
+NODE_NAME="arabica-node"
+SEEDS="ae7a366fd79f598b8135f9edef0f2cf875a3d3ba@validator-1.celestia-arabica-11.com:26656,4e38c37e88dcbf7809f6636120a7226621a684dd@validator-2.celestia-arabica-11.com:26656,365b07692fdc8dd996063f970cf6788ef608ddb1@validator-3.celestia-arabica-11.com:26656,4a52f45cf5518aa776f8d7462ab2e593fceb7154@validator-4.celestia-arabica-11.com:26656"
+RPC="https://rpc.celestia-arabica-11.com:443"
 
 CELESTIA_APP_HOME="/home/celestia/.celestia-app"
 
@@ -34,9 +33,6 @@ if [ ! -f "${CELESTIA_APP_HOME}/config/config.toml" ]; then
 
     echo "Configuring seeds..."
     sed -i "s/^seeds *=.*/seeds = \"${SEEDS}\"/" "${CELESTIA_APP_HOME}/config/config.toml"
-
-    echo "Configuring persistent peers..."
-    sed -i "/^\[p2p\]/,/^\[/{s/^[[:space:]]*persistent_peers *=.*/persistent_peers = \"${PEERS}\"/;}" "${CELESTIA_APP_HOME}/config/config.toml"
 
     echo "Enabling state sync..."
     sed -i -E "s|^(enable[[:space:]]+=[[:space:]]+).*$|\1true| ; \

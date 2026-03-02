@@ -36,5 +36,5 @@ tools/talis/talis
 .gocache
 .cache
 .gomodcache
-# Claude Code local settings
-.claude/*.local.json
+# Claude Code 
+.claude/

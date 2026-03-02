@@ -1,0 +1,66 @@
+syntax = "proto3";
+package celestia.fibre.v1;
+
+import "gogoproto/gogo.proto";
+import "cosmos/base/v1beta1/coin.proto";
+import "google/protobuf/timestamp.proto";
+import "cosmos/crypto/secp256k1/keys.proto";
+import "cosmos_proto/cosmos.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app-fibre/x/fibre/types";
+
+// EscrowAccount helps guarantee payment for a signed PaymentPromise by ensuring
+// that a user does not remove funds directly after validators sign over and
+// provide service for a blob.
+message EscrowAccount {
+  // signer is the address that controls this escrow account
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // balance is the total amount currently held in escrow
+  cosmos.base.v1beta1.Coin balance = 2 [(gogoproto.nullable) = false];
+  // available_balance is the amount available for new payments. This is usually
+  // the same as balance except if a user has requested a withdrawal in the past
+  // 24 hours in which case available_balance = balance - pending withdrawal
+  // amount.
+  cosmos.base.v1beta1.Coin available_balance = 3 [(gogoproto.nullable) = false];
+}
+
+// PaymentPromise is a promise to pay for a fibre blob. It contains the
+// commitment and payment details for the fibre blob.
+message PaymentPromise {
+  // chain_id is the chain ID that this payment promise is valid for.
+  // Example: arabica-11, mocha-4, or celestia.
+  string chain_id = 1;
+  // height is the height that is used to determine the validator set that is used
+  int64 height = 2;
+  // namespace is the namespace the blob is associated with.
+  bytes namespace = 3;
+  // blob_size is the size of the blob in bytes
+  uint32 blob_size = 4;
+  // blob_version is the version of the blob format
+  uint32 blob_version = 5;
+  // commitment is the hash of the row root and the Random Linear Combination (RLC) root
+  bytes commitment = 6;
+  // creation_timestamp is the timestamp when this promise was created. This
+  // is critical for determining which validators sign the commitment and
+  // determining when service stops for this blob.
+  google.protobuf.Timestamp creation_timestamp = 7 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+  // signer_public_key is the public key of the owner of the escrow account to charge
+  cosmos.crypto.secp256k1.PubKey signer_public_key = 8 [(gogoproto.nullable) = false];
+  // signature is the signer (escrow account owner) signature over the sign bytes
+  bytes signature = 9;
+}
+
+// Withdrawal tracks requests to withdraw funds from an escrow account. It is
+// needed to implement a delay mechanism between when a withdrawal is requested
+// and when it is executed. By default the withdrawal delay is 24 hours.
+message Withdrawal {
+  // signer is the address that owns the escrow account this withdrawal is for
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // amount is the amount to be withdrawn
+  cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
+  // requested_timestamp is the timestamp when withdrawal was requested
+  google.protobuf.Timestamp requested_timestamp = 3 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+  // available_timestamp is the timestamp when withdrawal becomes available for processing
+  // This is calculated as requested_timestamp + withdrawal_delay at creation time
+  google.protobuf.Timestamp available_timestamp = 4 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+}

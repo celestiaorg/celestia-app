@@ -11,13 +11,13 @@ import (
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
-	"github.com/celestiaorg/celestia-app/v7/app"
+	"github.com/celestiaorg/celestia-app/v8/app"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v7/pkg/user"
-	signaltypes "github.com/celestiaorg/celestia-app/v7/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v8/pkg/user"
+	signaltypes "github.com/celestiaorg/celestia-app/v8/x/signal/types"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
@@ -29,6 +29,7 @@ const (
 	AppVersionV5 uint64 = 5
 	AppVersionV6 uint64 = 6
 	AppVersionV7 uint64 = 7
+	AppVersionV8 uint64 = 8
 
 	InflationRateV5 = "0.0536" // 5.36%
 	InflationRateV6 = "0.0267" // 2.67%
@@ -47,6 +48,7 @@ const (
 
 	EvidenceMaxAgeV5Blocks = 120960
 	EvidenceMaxAgeV6Blocks = 242640
+	EvidenceMaxAgeV8Blocks = 485280
 )
 
 // TestAllUpgrades tests all app version upgrades using the signaling mechanism.
@@ -83,6 +85,10 @@ func (s *CelestiaTestSuite) TestAllUpgrades() {
 		{
 			baseAppVersion:   6,
 			targetAppVersion: 7,
+		},
+		{
+			baseAppVersion:   7,
+			targetAppVersion: 8,
 		},
 	}
 
@@ -422,6 +428,11 @@ func (s *CelestiaTestSuite) validateParameters(ctx context.Context, node tastora
 	if appVersion == AppVersionV7 {
 		s.validateMinCommissionRate(ctx, node, MinCommissionRateV7, AppVersionV7)
 		s.validateMaxCommissionRate(ctx, node, MaxCommissionRateV7, AppVersionV7)
+		return
+	}
+
+	if appVersion == AppVersionV8 {
+		s.validateEvidenceParams(ctx, node, EvidenceMaxAgeV6Hours, EvidenceMaxAgeV8Blocks, AppVersionV8)
 		return
 	}
 

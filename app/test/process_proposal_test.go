@@ -2,21 +2,22 @@ package app_test
 
 import (
 	"bytes"
+	"crypto/rand"
 	"fmt"
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v7/app"
-	"github.com/celestiaorg/celestia-app/v7/app/encoding"
-	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v7/pkg/da"
-	"github.com/celestiaorg/celestia-app/v7/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v7/test/util"
-	"github.com/celestiaorg/celestia-app/v7/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v7/test/util/random"
-	"github.com/celestiaorg/celestia-app/v7/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v8/app"
+	"github.com/celestiaorg/celestia-app/v8/app/encoding"
+	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v8/pkg/da"
+	"github.com/celestiaorg/celestia-app/v8/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v8/test/util"
+	"github.com/celestiaorg/celestia-app/v8/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v8/test/util/random"
+	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
 	"github.com/celestiaorg/go-square/v3"
 	"github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/go-square/v3/tx"
@@ -24,6 +25,7 @@ import (
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -368,4 +370,116 @@ func TestProcessProposal_ProposalWithInconsistentBlobTxFails(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, abci.ResponseProcessProposal_ACCEPT, res.Status, "ProcessProposal should accept original blob")
 	})
+}
+
+func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping process proposal capping number of messages test in short mode.")
+	}
+
+	// Create enough accounts so each sends exactly one tx (avoids sequence collisions).
+	numberOfAccounts := 2000
+	accounts := testfactory.GenerateAccounts(numberOfAccounts)
+	consensusParams := app.DefaultConsensusParams()
+	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+	addrs := make([]sdk.AccAddress, 0, numberOfAccounts)
+	signers := make([]*user.Signer, 0, numberOfAccounts)
+	accs := make([]sdk.AccountI, 0, numberOfAccounts)
+	for index, account := range accounts {
+		addr := testfactory.GetAddress(kr, account)
+		addrs = append(addrs, addr)
+		acc := testutil.DirectQueryAccount(testApp, addrs[index])
+		accs = append(accs, acc)
+		signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
+		require.NoError(t, err)
+		signers = append(signers, signer)
+	}
+
+	accountIndex := 0
+
+	// Generate MaxNonPFBMessages+1 MsgSend txs.
+	numMsgSends := appconsts.MaxNonPFBMessages + 1
+	msgSendTxs := make([][]byte, 0, numMsgSends)
+	for range numMsgSends {
+		msg := banktypes.NewMsgSend(
+			addrs[accountIndex],
+			testnode.RandomAddress().(sdk.AccAddress),
+			sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)),
+		)
+		rawTx, _, err := signers[accountIndex].CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1000000), user.SetFee(10))
+		require.NoError(t, err)
+		msgSendTxs = append(msgSendTxs, rawTx)
+		accountIndex++
+	}
+
+	// Generate MaxPFBMessages+1 PFB blob txs.
+	numPFBs := appconsts.MaxPFBMessages + 1
+	pfbTxs := make([][]byte, 0, numPFBs)
+	randomBytes := make([]byte, 2000)
+	_, err := rand.Read(randomBytes)
+	require.NoError(t, err)
+	for range numPFBs {
+		blob, err := share.NewBlob(share.RandomNamespace(), randomBytes, 1, accs[accountIndex].GetAddress().Bytes())
+		require.NoError(t, err)
+		blobTx, _, err := signers[accountIndex].CreatePayForBlobs(accounts[accountIndex], []*share.Blob{blob}, user.SetGasLimit(2549760000), user.SetFee(10000))
+		require.NoError(t, err)
+		pfbTxs = append(pfbTxs, blobTx)
+		accountIndex++
+	}
+
+	type testCase struct {
+		name           string
+		txs            [][]byte
+		expectedResult abci.ResponseProcessProposal_ProposalStatus
+	}
+
+	testCases := []testCase{
+		{
+			name:           "reject block exceeding MaxNonPFBMessages",
+			txs:            msgSendTxs[:appconsts.MaxNonPFBMessages+1],
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:           "reject block exceeding MaxPFBMessages",
+			txs:            pfbTxs[:appconsts.MaxPFBMessages+1],
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:           "accept block at exactly MaxNonPFBMessages",
+			txs:            msgSendTxs[:appconsts.MaxNonPFBMessages],
+			expectedResult: abci.ResponseProcessProposal_ACCEPT,
+		},
+		{
+			name:           "accept block at exactly MaxPFBMessages",
+			txs:            pfbTxs[:appconsts.MaxPFBMessages],
+			expectedResult: abci.ResponseProcessProposal_ACCEPT,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var dataRootHash []byte
+			var squareSize uint64
+			if tc.expectedResult == abci.ResponseProcessProposal_ACCEPT {
+				dataSquare, err := square.Construct(tc.txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+				require.NoError(t, err)
+				dataRootHash = calculateNewDataHash(t, tc.txs)
+				squareSize = uint64(dataSquare.Size())
+			}
+
+			// ProcessProposal runs on a branched context that is discarded, so
+			// state changes (like sequence increments) do not persist between sub-tests.
+			resp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+				Height:       testApp.LastBlockHeight() + 1,
+				Time:         time.Now(),
+				Txs:          tc.txs,
+				DataRootHash: dataRootHash,
+				SquareSize:   squareSize,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedResult, resp.Status)
+		})
+	}
 }

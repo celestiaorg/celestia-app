@@ -1,0 +1,58 @@
+syntax = "proto3";
+package celestia.fibre.v1;
+
+import "gogoproto/gogo.proto";
+import "google/protobuf/timestamp.proto";
+import "cosmos/base/v1beta1/coin.proto";
+import "cosmos_proto/cosmos.proto";
+import "celestia/fibre/v1/params.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app-fibre/x/fibre/types";
+
+// EventDepositToEscrow is emitted when a deposit is made to an escrow account.
+message EventDepositToEscrow {
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
+}
+
+// EventWithdrawFromEscrowRequest is emitted when a withdrawal is requested from an escrow account.
+message EventWithdrawFromEscrowRequest {
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
+  google.protobuf.Timestamp requested_at = 3 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+  google.protobuf.Timestamp available_at = 4 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+}
+
+// EventWithdrawFromEscrowExecuted is emitted when a withdrawal is processed.
+message EventWithdrawFromEscrowExecuted {
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
+}
+
+// EventPayForFibre is emitted when a payment for fibre is processed.
+message EventPayForFibre {
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  bytes namespace = 2;
+  bytes commitment = 3;
+  uint32 validator_count = 4;
+}
+
+// EventPaymentPromiseTimeout is emitted when a PaymentPromise timeout is processed.
+message EventPaymentPromiseTimeout {
+  string processor = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string escrow_signer = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  bytes payment_promise_hash = 3;
+}
+
+// EventUpdateFibreParams is emitted when fibre parameters are updated.
+message EventUpdateFibreParams {
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  Params params = 2 [(gogoproto.nullable) = false];
+}
+
+// EventProcessedPaymentPruned is emitted when a processed payment is pruned
+// from the state machine due to being outside the retention window.
+message EventProcessedPaymentPruned {
+  bytes payment_promise_hash = 1;
+  google.protobuf.Timestamp processed_at = 2 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+}

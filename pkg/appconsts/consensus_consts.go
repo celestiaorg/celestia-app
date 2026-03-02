@@ -14,6 +14,6 @@ const (
 	MaxAgeDuration = 337 * time.Hour // (14 days + 1 hour)
 
 	// MaxAgeNumBlocks is the maximum number of blocks for which evidence can be
-	// submitted for slashing. See CIP-037.
-	MaxAgeNumBlocks = 242_640
+	// submitted for slashing. See CIP-048.
+	MaxAgeNumBlocks = 485_280
 )

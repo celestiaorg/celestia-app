@@ -1,9 +1,17 @@
-# Download pre-built celestia-appd from the v6.4.10-mocha release.
-# https://github.com/celestiaorg/celestia-app/releases/tag/v6.4.10-mocha
+# Build celestia-appd from source (standalone, from the main branch).
+
+FROM docker.io/golang:1.25-bookworm AS builder
+
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN make build-standalone
+
+# ---
 
 FROM docker.io/debian:trixie-slim
 
-ARG VERSION=v6.4.10-mocha
 ARG UID=10001
 ARG USER_NAME=celestia
 
@@ -18,13 +26,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && groupadd -g ${UID} ${USER_NAME} \
     && useradd -l -m -d ${CELESTIA_APP_HOME} -s /sbin/nologin -u ${UID} -g ${UID} ${USER_NAME}
 
-# Download the pre-built binary. Map Docker's TARGETARCH to the release naming.
-ARG TARGETARCH
-RUN ARCH=$([ "${TARGETARCH}" = "amd64" ] && echo "x86_64" || echo "arm64") \
-    && curl -sL "https://github.com/celestiaorg/celestia-app/releases/download/${VERSION}/celestia-app-standalone_Linux_${ARCH}.tar.gz" \
-    | tar -xz -C /bin celestia-appd
-
-COPY --chown=${USER_NAME}:${USER_NAME} entrypoint.sh /opt/entrypoint.sh
+COPY --from=builder /src/build/celestia-appd /bin/celestia-appd
+COPY --chown=${USER_NAME}:${USER_NAME} docker/arabica/celestia/entrypoint.sh /opt/entrypoint.sh
 RUN chmod +x /opt/entrypoint.sh
 
 USER ${USER_NAME}

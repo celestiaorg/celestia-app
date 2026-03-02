@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
 	"github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"

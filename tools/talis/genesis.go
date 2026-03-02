@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v7/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v8/test/util/genesis"
 	"github.com/spf13/cobra"
 )
 

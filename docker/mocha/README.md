@@ -9,7 +9,7 @@ Docker Compose setup for running a [Mocha testnet](https://docs.celestia.org/how
 ## Quick Start
 
 ```bash
-cd mocha
+cd docker/mocha
 docker compose up -d
 ```
 

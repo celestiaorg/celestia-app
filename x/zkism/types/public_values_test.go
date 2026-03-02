@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
-	"github.com/celestiaorg/celestia-app/v7/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v8/x/zkism/types"
 	"github.com/stretchr/testify/require"
 )
 

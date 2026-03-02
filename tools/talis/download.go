@@ -20,6 +20,7 @@ func downloadCmd() *cobra.Command {
 		nodes      string
 		table      string
 		workers    int
+		noCompress bool
 	)
 
 	cmd := &cobra.Command{
@@ -81,10 +82,17 @@ func downloadCmd() *cobra.Command {
 						fmt.Printf("failed to create directory %s: %v\n", localPath, err)
 						return
 					}
-					for _, remotePath := range remotePaths {
-						err := sftpDownload(remotePath, localPath, "root", node.PublicIP, SSHKeyPath)
-						if err != nil {
+					if noCompress {
+						for _, remotePath := range remotePaths {
+							err := sftpDownload(remotePath, localPath, "root", node.PublicIP, SSHKeyPath)
+							if err != nil {
+								fmt.Printf("failed to download from %s: %v\n", node.PublicIP, err)
+							}
+						}
+					} else {
+						if err := compressAndDownload(table, localPath, "root", node.PublicIP, SSHKeyPath); err != nil {
 							fmt.Printf("failed to download from %s: %v\n", node.PublicIP, err)
+							return
 						}
 					}
 					if table == "logs" {
@@ -118,10 +126,75 @@ func downloadCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&nodes, "nodes", "n", "*", "specify the node(s) to download from. * or specific nodes.")
 	cmd.Flags().StringVarP(&table, "tables", "t", "*", "specify tables to download (comma-separated) or logs to download logs. default is all tables.")
 	cmd.Flags().IntVarP(&workers, "workers", "w", 10, "number of concurrent workers for parallel operations (should be > 0)")
+	cmd.Flags().BoolVar(&noCompress, "no-compress", false, "disable remote compression before download (compression is enabled by default)")
 
 	cmd.AddCommand(downloadS3DataCmd())
 
 	return cmd
+}
+
+// compressAndDownload compresses data on the remote server using xz -6
+// before downloading, then extracts locally. This significantly reduces
+// bandwidth for JSONL trace files which compress very well (often 15-25x).
+func compressAndDownload(table, localPath, user, host, sshKeyPath string) error {
+	baseTracesRemotePath := "/root/.celestia-app/data/traces"
+	remoteArchive := "/tmp/talis-traces.tar.xz"
+
+	var compressCmd string
+	switch table {
+	case "logs":
+		compressCmd = fmt.Sprintf("tar -cf - -C /root logs | xz -6 -T0 > %s", remoteArchive)
+	case "*", "":
+		compressCmd = fmt.Sprintf("tar -cf - -C %s . | xz -6 -T0 > %s", baseTracesRemotePath, remoteArchive)
+	default:
+		var files []string
+		if strings.Contains(table, ",") {
+			for t := range strings.SplitSeq(table, ",") {
+				files = append(files, strings.TrimSpace(t)+".jsonl")
+			}
+		} else {
+			files = append(files, table+".jsonl")
+		}
+		compressCmd = fmt.Sprintf("tar -cf - -C %s %s | xz -6 -T0 > %s",
+			baseTracesRemotePath, strings.Join(files, " "), remoteArchive)
+	}
+
+	fmt.Printf("[%s] Compressing data on remote server...\n", host)
+	out, err := sshExec(user, host, sshKeyPath, compressCmd)
+	if err != nil {
+		return fmt.Errorf("remote compression failed: %v\n%s", err, string(out))
+	}
+
+	fmt.Printf("[%s] Downloading compressed archive...\n", host)
+	if err := sftpDownload(remoteArchive, localPath, user, host, sshKeyPath); err != nil {
+		_, _ = sshExec(user, host, sshKeyPath, "rm -f "+remoteArchive)
+		return fmt.Errorf("download failed: %v", err)
+	}
+
+	localArchive := filepath.Join(localPath, filepath.Base(remoteArchive))
+	fmt.Printf("[%s] Extracting archive...\n", host)
+	extractCmd := exec.Command("tar", "-xJf", localArchive, "-C", localPath)
+	if extractOut, err := extractCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("local extraction failed: %v\n%s", err, string(extractOut))
+	}
+
+	os.Remove(localArchive)
+	_, _ = sshExec(user, host, sshKeyPath, "rm -f "+remoteArchive)
+
+	fmt.Printf("[%s] Download complete.\n", host)
+	return nil
+}
+
+// sshExec runs a command on a remote host via SSH and returns the combined output.
+func sshExec(user, host, sshKeyPath, command string) ([]byte, error) {
+	cmd := exec.Command("ssh",
+		"-o", "StrictHostKeyChecking=no",
+		"-o", "UserKnownHostsFile=/dev/null",
+		"-i", sshKeyPath,
+		fmt.Sprintf("%s@%s", user, host),
+		command,
+	)
+	return cmd.CombinedOutput()
 }
 
 func sftpDownload(remotePath, localPath, user, host, sshKeyPath string) error {

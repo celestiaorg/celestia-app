@@ -4,10 +4,10 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v7/app"
-	"github.com/celestiaorg/celestia-app/v7/test/util"
-	"github.com/celestiaorg/celestia-app/v7/x/minfee/keeper"
-	minfeetypes "github.com/celestiaorg/celestia-app/v7/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v8/app"
+	"github.com/celestiaorg/celestia-app/v8/test/util"
+	"github.com/celestiaorg/celestia-app/v8/x/minfee/keeper"
+	minfeetypes "github.com/celestiaorg/celestia-app/v8/x/minfee/types"
 	"github.com/stretchr/testify/require"
 )
 

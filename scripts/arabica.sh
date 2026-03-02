@@ -10,7 +10,7 @@ set -o nounset
 
 CHAIN_ID="arabica-11"
 NODE_NAME="node-name"
-SEEDS="827583022cc6ce65cf762115642258f937c954cd@validator-1.celestia-arabica-11.com:26656,74e42b39f512f844492ff09e30af23d54579b7bc@validator-2.celestia-arabica-11.com:26656,00d577159b2eb1f524ef9c37cb389c020a2c38d2@validator-3.celestia-arabica-11.com:26656,b2871b6dc2e18916d07264af0e87c456c2bba04f@validator-4.celestia-arabica-11.com:26656"
+SEEDS="ae7a366fd79f598b8135f9edef0f2cf875a3d3ba@validator-1.celestia-arabica-11.com:26656,4e38c37e88dcbf7809f6636120a7226621a684dd@validator-2.celestia-arabica-11.com:26656,365b07692fdc8dd996063f970cf6788ef608ddb1@validator-3.celestia-arabica-11.com:26656,4a52f45cf5518aa776f8d7462ab2e593fceb7154@validator-4.celestia-arabica-11.com:26656"
 RPC="https://rpc.celestia-arabica-11.com:443"
 
 CELESTIA_APP_HOME="${HOME}/.celestia-app"

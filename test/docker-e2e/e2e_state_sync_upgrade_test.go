@@ -2,17 +2,16 @@ package docker_e2e
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	"github.com/celestiaorg/tastora/framework/docker/cosmos"
 	addressutil "github.com/celestiaorg/tastora/framework/testutil/address"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
+	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 )
@@ -123,12 +122,8 @@ func (s *CelestiaTestSuite) TestStateSyncWithAppUpgrade() {
 	s.Require().NoError(err, "failed to get state sync client")
 
 	t.Log("Waiting for node to state sync...")
-	err = wait.ForCondition(ctx, stateSyncTimeout, 1*time.Second, func() (bool, error) {
-		status, err := stateSyncClient.Status(ctx)
-		if err != nil {
-			return false, fmt.Errorf("failed to get node status: %w", err)
-		}
-		return !status.SyncInfo.CatchingUp, nil
+	err = s.WaitForSync(ctx, stateSyncClient, stateSyncTimeout, func(info rpctypes.SyncInfo) bool {
+		return !info.CatchingUp && info.LatestBlockHeight > 0
 	})
 	s.Require().NoError(err, "state sync node failed to complete sync within timeout")
 

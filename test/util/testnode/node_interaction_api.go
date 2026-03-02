@@ -7,13 +7,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v7/app"
-	"github.com/celestiaorg/celestia-app/v7/app/encoding"
-	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v7/pkg/user"
-	"github.com/celestiaorg/celestia-app/v7/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v7/test/util/random"
-	"github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v8/app"
+	"github.com/celestiaorg/celestia-app/v8/app/encoding"
+	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v8/pkg/user"
+	"github.com/celestiaorg/celestia-app/v8/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v8/test/util/random"
+	"github.com/celestiaorg/celestia-app/v8/x/blob/types"
 	"github.com/celestiaorg/go-square/v3/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmconfig "github.com/cometbft/cometbft/config"
@@ -114,7 +114,17 @@ func (c *Context) WaitForHeightWithTimeout(h int64, t time.Duration) (int64, err
 				return 0, err
 			}
 			if latestHeight >= h {
-				return latestHeight, nil
+				// Verify the app's multistore has committed this height.
+				// CometBFT's blockStore.Height() advances before the app's
+				// cms.Commit() runs, so gRPC queries can fail with
+				// "please wait for first block" if we return too early.
+				info, err := c.Client.ABCIInfo(ctx)
+				if err != nil {
+					return 0, err
+				}
+				if info.Response.LastBlockHeight >= h {
+					return latestHeight, nil
+				}
 			}
 		}
 	}

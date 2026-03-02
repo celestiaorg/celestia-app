@@ -1,0 +1,55 @@
+syntax = "proto3";
+package celestia.fibre.v1;
+
+option go_package = "github.com/celestiaorg/celestia-app-fibre/x/fibre/types";
+
+import "celestia/fibre/v1/fibre.proto";
+
+// BlobRow represents a row of data in a Fibre blob.
+message BlobRow {
+  uint32 index = 1;
+  bytes data = 2;
+  repeated bytes proof = 3;
+}
+
+// BlobShard represents a subset of rows of a Fibre blob.
+// With two ways of proving data correctness:
+// 1. Using RLC coefficients when there is not enough rows to reconstruct the data blob. (Upload case)
+// 2. Using a Merkle root of RLC tree, when there is sufficient rows to reconstruct the data blob. (Download case)
+message BlobShard {
+  repeated BlobRow rows = 1;
+  // rlc contains the random linear combination proof data.
+  oneof rlc {
+    bytes coefficients = 2; // flattened rlc coefficients, 16 bytes per original row
+    bytes root = 3; // const len == 32 when present
+  }
+}
+
+// UploadShardRequest is the request message for the UploadShard RPC method.
+message UploadShardRequest {
+  celestia.fibre.v1.PaymentPromise promise = 1;
+  BlobShard shard = 2; // with rlc coefficients
+}
+
+// UploadShardResponse is the response message for the UploadShard RPC method.
+message UploadShardResponse {
+  bytes validator_signature = 1; // const len == 32
+}
+
+// DownloadShardRequest is the request message for the DownloadShard RPC method.
+message DownloadShardRequest {
+  bytes blob_id = 1; // const len == 33 (version + commitment)
+}
+
+// DownloadShardResponse is the response message for the DownloadShard RPC method.
+message DownloadShardResponse {
+  BlobShard shard = 1; // with rlc root
+}
+
+// Fibre defines the gRPC service for uploading and downloading fibre blob shards.
+service Fibre {
+  // UploadShard uploads a blob shard with RLC coefficients to a validator.
+  rpc UploadShard(UploadShardRequest) returns (UploadShardResponse);
+  // DownloadShard downloads a blob shard with RLC root from a validator.
+  rpc DownloadShard(DownloadShardRequest) returns (DownloadShardResponse);
+}

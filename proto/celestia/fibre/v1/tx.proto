@@ -1,0 +1,117 @@
+syntax = "proto3";
+package celestia.fibre.v1;
+
+import "celestia/fibre/v1/params.proto";
+import "celestia/fibre/v1/fibre.proto";
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
+import "cosmos/base/v1beta1/coin.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app-fibre/x/fibre/types";
+
+// Msg defines the fibre Msg service.
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  // DepositToEscrow deposits funds to the signer's escrow account
+  rpc DepositToEscrow(MsgDepositToEscrow) returns (MsgDepositToEscrowResponse) {
+    option (google.api.http) = {
+      post: "/fibre/v1/deposit-to-escrow",
+      body: "*"
+    };
+  }
+
+  // RequestWithdrawal requests withdrawal from the signer's escrow account
+  rpc RequestWithdrawal(MsgRequestWithdrawal) returns (MsgRequestWithdrawalResponse) {
+    option (google.api.http) = {
+      post: "/fibre/v1/request-withdrawal",
+      body: "*"
+    };
+  }
+
+  // PayForFibre contains the original payment promise with validator signatures
+  rpc PayForFibre(MsgPayForFibre) returns (MsgPayForFibreResponse) {
+    option (google.api.http) = {
+      post: "/fibre/v1/pay-for-fibre",
+      body: "*"
+    };
+  }
+
+  // PaymentPromiseTimeout processes a payment promise after the timeout period
+  rpc PaymentPromiseTimeout(MsgPaymentPromiseTimeout) returns (MsgPaymentPromiseTimeoutResponse) {
+    option (google.api.http) = {
+      post: "/fibre/v1/payment-promise-timeout",
+      body: "*"
+    };
+  }
+
+  // UpdateFibreParams defines a rpc handler method for MsgUpdateFibreParams.
+  rpc UpdateFibreParams(MsgUpdateFibreParams) returns (MsgUpdateFibreParamsResponse);
+}
+
+// MsgDepositToEscrow deposits funds to the signer's escrow account.
+message MsgDepositToEscrow {
+  option (cosmos.msg.v1.signer) = "signer";
+  // signer is the bech32 encoded signer address
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // amount is the amount to deposit
+  cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
+}
+
+// MsgDepositToEscrowResponse describes the response returned after depositing to escrow.
+message MsgDepositToEscrowResponse {}
+
+// MsgRequestWithdrawal requests withdrawal from the signer's escrow account.
+message MsgRequestWithdrawal {
+  option (cosmos.msg.v1.signer) = "signer";
+  // signer is the bech32 encoded signer address
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // amount is the amount to withdraw
+  cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
+}
+
+// MsgRequestWithdrawalResponse describes the response returned after requesting withdrawal.
+message MsgRequestWithdrawalResponse {}
+
+// MsgPayForFibre contains the original payment promise with validator signatures.
+message MsgPayForFibre {
+  option (cosmos.msg.v1.signer) = "signer";
+  // signer is the bech32 encoded address submitting this message
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // payment_promise is the original payment promise
+  PaymentPromise payment_promise = 2 [(gogoproto.nullable) = false];
+  // validator_signatures contains signatures from validators
+  repeated bytes validator_signatures = 3;
+}
+
+// MsgPayForFibreResponse describes the response returned after paying for fibre.
+message MsgPayForFibreResponse {}
+
+// MsgPaymentPromiseTimeout processes a payment promise after the timeout period.
+message MsgPaymentPromiseTimeout {
+  option (cosmos.msg.v1.signer) = "signer";
+  // signer is the bech32 encoded address submitting this message (can be anyone)
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // payment_promise is the original payment promise
+  PaymentPromise payment_promise = 2 [(gogoproto.nullable) = false];
+}
+
+// MsgPaymentPromiseTimeoutResponse describes the response returned after
+// processing a payment promise timeout.
+message MsgPaymentPromiseTimeoutResponse {}
+
+// MsgUpdateFibreParams defines the sdk.Msg type to update the fibre parameters.
+message MsgUpdateFibreParams {
+  option (cosmos.msg.v1.signer) = "authority";
+  // authority is the address of the governance account.
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // params defines the fibre parameters to update.
+  //
+  // NOTE: All parameters must be supplied.
+  Params params = 2 [(gogoproto.nullable) = false];
+}
+
+// MsgUpdateFibreParamsResponse defines the MsgUpdateFibreParams response type.
+message MsgUpdateFibreParamsResponse {}
