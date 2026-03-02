@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"time"
 
 	storetypes "cosmossdk.io/store/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
@@ -99,15 +98,13 @@ func (app App) RegisterUpgradeHandlers() {
 }
 
 // SetMaxExpectedTimePerBlock sets the IBC connection MaxExpectedTimePerBlock
-// parameter to 15 seconds (5x the ~3 second expected block time). This
-// corrects the previous value of 75 seconds which was based on an outdated 15
-// second block time.
+// parameter to appconsts.MaxExpectedTimePerBlock. This corrects the previous
+// value of 75 seconds which was based on an outdated 15 second block time.
 func (app App) SetMaxExpectedTimePerBlock(ctx sdk.Context) error {
-	maxExpectedTimePerBlock := 15 * time.Second
 	params := ibcconnectiontypes.Params{
-		MaxExpectedTimePerBlock: uint64(maxExpectedTimePerBlock.Nanoseconds()),
+		MaxExpectedTimePerBlock: uint64(appconsts.MaxExpectedTimePerBlock.Nanoseconds()),
 	}
-	ctx.Logger().Info(fmt.Sprintf("Setting IBC connection MaxExpectedTimePerBlock to %v", maxExpectedTimePerBlock))
+	ctx.Logger().Info(fmt.Sprintf("Setting IBC connection MaxExpectedTimePerBlock to %v", appconsts.MaxExpectedTimePerBlock))
 	app.IBCKeeper.ConnectionKeeper.SetParams(ctx, params)
 	return nil
 }
