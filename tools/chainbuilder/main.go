@@ -484,11 +484,11 @@ func generateSquareRoutine(
 			return err
 		}
 
-		dataSquare, txs, err := square.Build(
-			[][]byte{tx},
-			maxSquareSize,
-			appconsts.SubtreeRootThreshold,
-		)
+		builder, err := square.NewBuilder(maxSquareSize, appconsts.SubtreeRootThreshold, tx)
+		if err != nil {
+			return err
+		}
+		dataSquare, err := builder.Export()
 		if err != nil {
 			return err
 		}
@@ -510,7 +510,7 @@ func generateSquareRoutine(
 
 		select {
 		case dataCh <- &tmproto.Data{
-			Txs:        txs,
+			Txs:        [][]byte{tx},
 			Hash:       dah.Hash(),
 			SquareSize: uint64(ss),
 		}:
