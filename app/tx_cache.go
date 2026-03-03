@@ -4,7 +4,7 @@ import (
 	"crypto/sha256"
 	"sync"
 
-	"github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/go-square/v4/share"
 )
 
 // TxCache caches the transactions

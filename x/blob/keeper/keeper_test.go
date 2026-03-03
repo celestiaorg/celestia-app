@@ -13,7 +13,7 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/v8/test/util"
 	"github.com/celestiaorg/celestia-app/v8/x/blob/keeper"
 	"github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	"github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/go-square/v4/share"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	tmdb "github.com/cosmos/cosmos-db"

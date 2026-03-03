@@ -5,7 +5,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/app/ante"
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v8/pkg/da"
-	"github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	core "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proto/tendermint/version"
@@ -83,11 +83,16 @@ func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci
 		panic(err)
 	}
 
+	squareSize, err := dataSquare.Size()
+	if err != nil {
+		panic(err)
+	}
+
 	// tendermint doesn't need to use any of the erasure data, as only the
 	// protobuf encoded version of the block data is gossiped.
 	return &abci.ResponsePrepareProposal{
 		Txs:          txs,
-		SquareSize:   uint64(dataSquare.Size()),
+		SquareSize:   uint64(squareSize),
 		DataRootHash: dah.Hash(),
 	}, nil
 }

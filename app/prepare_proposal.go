@@ -7,7 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/app/ante"
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v8/pkg/da"
-	"github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -66,12 +66,17 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		return nil, fmt.Errorf("failure to create new data availability header: %w", err)
 	}
 
+	squareSize, err := dataSquare.Size()
+	if err != nil {
+		return nil, fmt.Errorf("failure to get data square size: %w", err)
+	}
+
 	// Tendermint doesn't need to use any of the erasure data because only the
 	// protobuf encoded version of the block data is gossiped. Therefore, the
 	// eds is not returned here.
 	return &abci.ResponsePrepareProposal{
 		Txs:          txs,
-		SquareSize:   uint64(dataSquare.Size()),
+		SquareSize:   uint64(squareSize),
 		DataRootHash: dah.Hash(), // also known as the data root
 	}, nil
 }

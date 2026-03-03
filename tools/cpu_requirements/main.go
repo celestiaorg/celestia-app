@@ -16,7 +16,7 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/v8/test/util"
 	"github.com/celestiaorg/celestia-app/v8/test/util/random"
 	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
-	"github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/go-square/v4/share"
 	dbm "github.com/cometbft/cometbft-db"
 	"github.com/cometbft/cometbft/abci/types"
 	propagationtypes "github.com/cometbft/cometbft/consensus/propagation/types"
