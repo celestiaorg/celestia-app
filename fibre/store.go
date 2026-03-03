@@ -9,11 +9,13 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app-fibre/v6/x/fibre/types"
+	pebbledb "github.com/cockroachdb/pebble/v2"
 	gogoproto "github.com/cosmos/gogoproto/proto"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
 	dssync "github.com/ipfs/go-datastore/sync"
 	badger "github.com/ipfs/go-ds-badger4"
+	pebble "github.com/ipfs/go-ds-pebble"
 )
 
 // ErrStoreNotFound is returned when no shard is found for a [Commitment] in the [Store].
@@ -52,8 +54,20 @@ func NewMemoryStore(cfg StoreConfig) *Store {
 }
 
 // NewBadgerStore creates a new [Store] with a badger4 datastore at the given path.
+// Tuned for FIBRE's use case: large values (32KB rows), bulk writes/reads.
 func NewBadgerStore(cfg StoreConfig) (*Store, error) {
 	opts := badger.DefaultOptions
+
+	// Value log settings - optimized for large values (32KB rows)
+	opts.ValueThreshold = 1024 // Values > 1KB go to value log (default 1MB is too high)
+
+	// Compaction settings - reduce write stalls during bulk writes
+	opts.NumMemtables = 5             // More memtables before stall (default 5)
+	opts.NumLevelZeroTables = 5       // L0 tables before compaction starts (default 5)
+	opts.NumLevelZeroTablesStall = 15 // L0 tables before write stall (default 15)
+	opts.NumCompactors = 4            // Parallel compaction goroutines (default 4)
+
+	// GC settings - for time-based pruning workload
 	opts.GcDiscardRatio = 0.2
 	opts.GcSleep = time.Second
 	opts.GcInterval = time.Minute
@@ -66,6 +80,42 @@ func NewBadgerStore(cfg StoreConfig) (*Store, error) {
 	return &Store{
 		cfg: cfg,
 		ds:  bds,
+	}, nil
+}
+
+// NewPebbleStore creates a new [Store] with a pebble datastore at the given path.
+// Tuned for FIBRE's use case: large values (32KB rows), bulk writes/reads.
+func NewPebbleStore(cfg StoreConfig) (*Store, error) {
+	opts := &pebbledb.Options{}
+
+	// MemTable settings - moderate size for bulk writes
+	opts.MemTableSize = 16 << 20 // 16 MiB memtable (default 4 MiB)
+
+	// L0 compaction settings - reduce write stalls
+	opts.L0CompactionThreshold = 4  // Start compaction at 4 L0 files (default 4)
+	opts.L0StopWritesThreshold = 12 // Stall writes at 12 L0 files (default 12)
+	opts.LBaseMaxBytes = 64 << 20   // 64 MiB base level (default 64 MiB)
+
+	// Value separation for large values (our rows are up to 32KB)
+	// Only enable for values > 4KB to avoid overhead on smaller values
+	opts.Experimental.ValueSeparationPolicy = func() pebbledb.ValueSeparationPolicy {
+		return pebbledb.ValueSeparationPolicy{
+			Enabled:               true,
+			MinimumSize:           4096, // Values > 4KB go to blob files
+			MaxBlobReferenceDepth: 4,    // Limit overlapping blob files
+			TargetGarbageRatio:    0.3,  // Rewrite when 30% garbage
+			RewriteMinimumAge:     0,    // Allow immediate rewrites
+		}
+	}
+
+	pds, err := pebble.NewDatastore(cfg.Path, pebble.WithPebbleOpts(opts))
+	if err != nil {
+		return nil, fmt.Errorf("creating pebble datastore: %w", err)
+	}
+
+	return &Store{
+		cfg: cfg,
+		ds:  pds,
 	}, nil
 }
 
