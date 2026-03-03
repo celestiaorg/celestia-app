@@ -134,7 +134,6 @@ A new `verify_data` option was added to the `[blocksync]` section of `config.tom
 verify_data = true
 ```
 
-without being caught
 
 ## v6.0.0
 
