@@ -119,7 +119,7 @@ After upgrading to 128mb/6s, specific validator hardware specifications are requ
   - Intel Dual Xeon Silver 4116
 </details>
 
-### Config Changes (128mb/6s)
+### Config Changes
 
 #### `verify_data`
 
