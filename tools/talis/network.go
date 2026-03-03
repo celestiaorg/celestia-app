@@ -12,7 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/test/util/genesis"
 	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v8/x/minfee/types"
-	"github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/go-square/v4/share"
 	cmtconfig "github.com/cometbft/cometbft/config"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 	cmtos "github.com/cometbft/cometbft/libs/os"

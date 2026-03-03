@@ -11,8 +11,8 @@ import (
 	daproto "github.com/celestiaorg/celestia-app/v8/proto/celestia/core/v1/da"
 	squarev2 "github.com/celestiaorg/go-square/v2"
 	sharev2 "github.com/celestiaorg/go-square/v2/share"
-	squarev3 "github.com/celestiaorg/go-square/v3"
-	sharev3 "github.com/celestiaorg/go-square/v3/share"
+	squarev3 "github.com/celestiaorg/go-square/v4"
+	sharev3 "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	"github.com/cometbft/cometbft/types"
@@ -125,7 +125,10 @@ func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 	if !squarev3.IsPowerOfTwo(len(s)) {
 		return nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(s))
 	}
-	squareSize := squarev3.Size(len(s))
+	squareSize, err := squarev3.Size(len(s))
+	if err != nil {
+		return nil, err
+	}
 
 	// here we construct a tree
 	// Note: uses the nmt wrapper to construct the tree.

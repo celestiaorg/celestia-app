@@ -54,7 +54,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/x/zkism"
 	zkismkeeper "github.com/celestiaorg/celestia-app/v8/x/zkism/keeper"
 	zkismtypes "github.com/celestiaorg/celestia-app/v8/x/zkism/types"
-	"github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmjson "github.com/cometbft/cometbft/libs/json"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
