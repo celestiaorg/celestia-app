@@ -240,6 +240,11 @@ func TestSelect_AssignRelationship(t *testing.T) {
 		{"power_law", []int64{40, 20, 15, 10, 7, 5, 3}},
 		{"one_dominant", []int64{50, 10, 10, 10, 10, 10}},
 		{"long_tail", append([]int64{30, 20, 10}, makeStakes(40, 1)...)},
+		// 4 equal-stake validators: total=4, floor(4/3)=1, ceil(4/3)=2.
+		// Any single validator covers floor threshold (stake 1 >= 1) so minRequired=1,
+		// but gets only ceil(4096*1*3/4)=3072 rows < 4096. Deterministic failure
+		// without ceiling division on livenessStake.
+		{"liveness_ceil", makeStakes(4, 1)},
 	}
 
 	for _, tc := range cases {
