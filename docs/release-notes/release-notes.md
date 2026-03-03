@@ -134,7 +134,7 @@ A new `verify_data` option was added to the `[blocksync]` section of `config.tom
 verify_data = true
 ```
 
-Setting `verify_data = false` can significantly speed up block sync, especially for large blocks, but reduces security during sync because a malicious peer could send fabricated block data without being caught. Operators should only disable this when syncing from trusted peers.
+without being caught
 
 ## v6.0.0
 
