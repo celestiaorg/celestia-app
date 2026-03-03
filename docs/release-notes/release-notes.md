@@ -134,7 +134,6 @@ A new `verify_data` option was added to the `[blocksync]` section of `config.tom
 verify_data = true
 ```
 
-
 ## v6.0.0
 
 This release contains all the changes from [CIP-042](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-042.md). Notably:
