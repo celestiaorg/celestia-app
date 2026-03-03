@@ -200,7 +200,9 @@ func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*a
 	// set the retain height, used in commit noop
 	a.commitRetainLastHeight = commitResp.RetainHeight
 	// get the app version from the end block response
-	a.endBlockConsensusAppVersion = endBlockResp.GetConsensusParamUpdates().Version.AppVersion
+	if cp := endBlockResp.GetConsensusParamUpdates(); cp != nil && cp.GetVersion() != nil {
+		a.endBlockConsensusAppVersion = cp.GetVersion().AppVersion
+	}
 
 	return &abciv2.ResponseFinalizeBlock{
 		Events:                events,

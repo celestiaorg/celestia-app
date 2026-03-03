@@ -127,13 +127,9 @@ type ibcModule struct {
 
 // DefaultGenesis returns custom x/ibc module genesis state.
 func (ibcModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
-	// per ibc documentation, this value should be 3-5 times the expected block
-	// time. The expected block time is 15 seconds, therefore this value is 75
-	// seconds.
-	maxBlockTime := appconsts.GoalBlockTime * 5
 	gs := ibctypes.DefaultGenesisState()
 	gs.ClientGenesis.Params.AllowedClients = []string{"06-solomachine", "07-tendermint"}
-	gs.ConnectionGenesis.Params.MaxExpectedTimePerBlock = uint64(maxBlockTime.Nanoseconds())
+	gs.ConnectionGenesis.Params.MaxExpectedTimePerBlock = uint64(appconsts.MaxExpectedTimePerBlock.Nanoseconds())
 
 	return cdc.MustMarshalJSON(gs)
 }

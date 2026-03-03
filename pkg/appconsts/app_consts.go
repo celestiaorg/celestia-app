@@ -19,18 +19,27 @@ const (
 	// SubtreeRootThreshold.
 	//
 	// The rationale for this value is described in more detail in ADR-013.
-	SubtreeRootThreshold    int    = 64
-	TxSizeCostPerByte       uint64 = 10
-	GasPerBlobByte          uint32 = 8
-	MaxTxSize               int    = 8_388_608 // 8 MiB in bytes
-	TimeoutPropose                 = time.Millisecond * 4500
-	TimeoutProposeDelta            = time.Millisecond * 500
-	TimeoutPrevote                 = time.Millisecond * 3000
-	TimeoutPrevoteDelta            = time.Millisecond * 500
-	TimeoutPrecommit               = time.Millisecond * 3000
-	TimeoutPrecommitDelta          = time.Millisecond * 500
-	TimeoutCommit                  = time.Millisecond
-	DelayedPrecommitTimeout        = time.Millisecond * 2790
+	SubtreeRootThreshold  int    = 64
+	TxSizeCostPerByte     uint64 = 10
+	GasPerBlobByte        uint32 = 8
+	MaxTxSize             int    = 8_388_608 // 8 MiB in bytes
+	TimeoutPropose               = time.Millisecond * 4500
+	TimeoutProposeDelta          = time.Millisecond * 500
+	TimeoutPrevote               = time.Millisecond * 3000
+	TimeoutPrevoteDelta          = time.Millisecond * 500
+	TimeoutPrecommit             = time.Millisecond * 3000
+	TimeoutPrecommitDelta        = time.Millisecond * 500
+	TimeoutCommit                = time.Millisecond
+	// DelayedPrecommitTimeout is the primary determinant of expected block
+	// time. If this value changes, MaxExpectedTimePerBlock should also be
+	// updated. See TestMaxExpectedTimePerBlock.
+	DelayedPrecommitTimeout = time.Millisecond * 2790
+	// MaxExpectedTimePerBlock is the IBC connection parameter that should be
+	// 3-5x the expected block time. The expected block time is primarily
+	// determined by DelayedPrecommitTimeout (~3 seconds), so this value is
+	// 15 seconds (5x). If the timeout constants change, this value must be
+	// updated.
+	MaxExpectedTimePerBlock = 15 * time.Second
 
 	// TestUpgradeHeightDelay is the number of blocks that chain-id "test" waits
 	// after a MsgTryUpgrade to activate the next version.
