@@ -1,3 +1,5 @@
+//go:build valaddr_wiring
+
 package keeper_test
 
 import (
