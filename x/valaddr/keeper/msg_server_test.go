@@ -4,10 +4,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v6/app"
-	testutil "github.com/celestiaorg/celestia-app/v6/test/util"
-	"github.com/celestiaorg/celestia-app/v6/x/valaddr/keeper"
-	"github.com/celestiaorg/celestia-app/v6/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v8/app"
+	testutil "github.com/celestiaorg/celestia-app/v8/test/util"
+	"github.com/celestiaorg/celestia-app/v8/x/valaddr/keeper"
+	"github.com/celestiaorg/celestia-app/v8/x/valaddr/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 )

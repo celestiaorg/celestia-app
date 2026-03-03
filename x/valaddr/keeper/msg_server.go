@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v6/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v8/x/valaddr/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 

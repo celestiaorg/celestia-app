@@ -6,7 +6,7 @@ import (
 	"cosmossdk.io/core/store"
 	"cosmossdk.io/log"
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v6/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v8/x/valaddr/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
