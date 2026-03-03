@@ -129,7 +129,9 @@ func (s Set) Select(originalRows, minRows int, livenessThreshold cmtmath.Fractio
 	shuffleByStake(validators[splitIdx:], rng)
 
 	// count validators needed to cover livenessThreshold stake
-	livenessStake := s.TotalVotingPower() * int64(livenessThreshold.Numerator) / int64(livenessThreshold.Denominator)
+	livenessNum := s.TotalVotingPower() * int64(livenessThreshold.Numerator)
+	livenessDen := int64(livenessThreshold.Denominator)
+	livenessStake := (livenessNum + livenessDen - 1) / livenessDen // ceil to ensure enough rows for reconstruction
 	coveredStake := int64(0)
 	for _, v := range validators[:splitIdx] {
 		minRequired++
