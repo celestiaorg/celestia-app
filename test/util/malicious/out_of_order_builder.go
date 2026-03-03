@@ -6,10 +6,10 @@ import (
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	"github.com/celestiaorg/go-square/v3"
-	"github.com/celestiaorg/go-square/v3/inclusion"
-	"github.com/celestiaorg/go-square/v3/share"
-	blobtx "github.com/celestiaorg/go-square/v3/tx"
+	"github.com/celestiaorg/go-square/v4"
+	"github.com/celestiaorg/go-square/v4/inclusion"
+	"github.com/celestiaorg/go-square/v4/share"
+	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -33,7 +33,11 @@ func Build(txs [][]byte, _ uint64, maxSquareSize int, efn ExportFn) (square.Squa
 			if err != nil {
 				return nil, nil, fmt.Errorf("unmarshalling blob tx %d: %w", idx, err)
 			}
-			if builder.AppendBlobTx(blobTx) {
+			ok, appendErr := builder.AppendBlobTx(blobTx)
+			if appendErr != nil {
+				return nil, nil, fmt.Errorf("appending blob tx %d: %w", idx, appendErr)
+			}
+			if ok {
 				blobTxs = append(blobTxs, tx)
 			}
 		} else if builder.AppendTx(tx) {
@@ -69,7 +73,10 @@ func OutOfOrderExport(b *square.Builder) (square.Square, error) {
 	// calculate the square size.
 	// NOTE: A future optimization could be to recalculate the currentSize based on the actual
 	// interblob padding used when the blobs are correctly ordered instead of using worst case padding.
-	ss := inclusion.BlobMinSquareSize(b.CurrentSize())
+	ss, err := inclusion.BlobMinSquareSize(b.CurrentSize())
+	if err != nil {
+		return nil, err
+	}
 
 	// sort the blobs in order of namespace. We use slice stable here to respect the
 	// order of multiple blobs within a namespace as per the priority of the PFB
@@ -151,8 +158,9 @@ func OutOfOrderExport(b *square.Builder) (square.Square, error) {
 		return nil, fmt.Errorf("pfbCounter.Size() < pfbWriter.Count(): %d < %d", b.PfbCounter.Size(), pfbWriter.Count())
 	}
 
-	// Write out the square
-	square, err := square.WriteSquare(txWriter, pfbWriter, blobWriter, nonReservedStart, ss)
+	// Write out the square. Pass an empty PayForFibre writer since this malicious builder does not handle fibre txs.
+	pffWriter := share.NewCompactShareSplitter(share.PayForFibreNamespace, share.ShareVersionZero)
+	square, err := square.WriteSquare(txWriter, pfbWriter, pffWriter, blobWriter, nonReservedStart, ss)
 	if err != nil {
 		return nil, fmt.Errorf("writing square: %w", err)
 	}

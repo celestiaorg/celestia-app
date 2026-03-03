@@ -3,7 +3,7 @@ package appconsts
 import (
 	"crypto/sha256"
 
-	"github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 )
 

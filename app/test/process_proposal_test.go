@@ -18,9 +18,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	"github.com/celestiaorg/go-square/v3"
-	"github.com/celestiaorg/go-square/v3/share"
-	"github.com/celestiaorg/go-square/v3/tx"
+	"github.com/celestiaorg/go-square/v4"
+	"github.com/celestiaorg/go-square/v4/share"
+	"github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
@@ -211,7 +211,7 @@ func TestProcessProposal(t *testing.T) {
 				b[share.NamespaceSize] ^= 0x01
 				updatedShare, err := share.NewShare(b)
 				require.NoError(t, err)
-				dataSquare[1] = *updatedShare
+				dataSquare[1] = updatedShare
 
 				eds, err := da.ExtendShares(share.ToBytes(dataSquare))
 				require.NoError(t, err)
@@ -466,7 +466,9 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 				dataSquare, err := square.Construct(tc.txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 				require.NoError(t, err)
 				dataRootHash = calculateNewDataHash(t, tc.txs)
-				squareSize = uint64(dataSquare.Size())
+				ss, err := dataSquare.Size()
+				require.NoError(t, err)
+				squareSize = uint64(ss)
 			}
 
 			// ProcessProposal runs on a branched context that is discarded, so

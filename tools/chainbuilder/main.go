@@ -18,8 +18,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/test/util/random"
 	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	"github.com/celestiaorg/go-square/v3"
-	"github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/go-square/v4"
+	"github.com/celestiaorg/go-square/v4/share"
 	dbm "github.com/cometbft/cometbft-db"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/crypto"
@@ -484,11 +484,11 @@ func generateSquareRoutine(
 			return err
 		}
 
-		dataSquare, txs, err := square.Build(
-			[][]byte{tx},
-			maxSquareSize,
-			appconsts.SubtreeRootThreshold,
-		)
+		builder, err := square.NewBuilder(maxSquareSize, appconsts.SubtreeRootThreshold, tx)
+		if err != nil {
+			return err
+		}
+		dataSquare, err := builder.Export()
 		if err != nil {
 			return err
 		}
@@ -503,11 +503,16 @@ func generateSquareRoutine(
 			return err
 		}
 
+		ss, err := dataSquare.Size()
+		if err != nil {
+			return err
+		}
+
 		select {
 		case dataCh <- &tmproto.Data{
-			Txs:        txs,
+			Txs:        [][]byte{tx},
 			Hash:       dah.Hash(),
-			SquareSize: uint64(dataSquare.Size()),
+			SquareSize: uint64(ss),
 		}:
 		case <-ctx.Done():
 			return ctx.Err()

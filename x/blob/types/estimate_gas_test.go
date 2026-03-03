@@ -15,7 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/test/util/random"
 	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	blobtx "github.com/celestiaorg/go-square/v3/tx"
+	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/stretchr/testify/require"
 )

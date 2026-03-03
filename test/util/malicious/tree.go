@@ -5,8 +5,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v8/pkg/wrapper"
-	"github.com/celestiaorg/go-square/v3"
-	"github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/go-square/v4"
+	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
@@ -64,7 +64,10 @@ func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 	if !square.IsPowerOfTwo(len(s)) {
 		return nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(s))
 	}
-	squareSize := square.Size(len(s))
+	squareSize, err := square.Size(len(s))
+	if err != nil {
+		return nil, err
+	}
 
 	// here we construct a tree
 	// Note: uses the nmt wrapper to construct the tree.
