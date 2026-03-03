@@ -119,6 +119,23 @@ After upgrading to 128mb/6s, specific validator hardware specifications are requ
   - Intel Dual Xeon Silver 4116
 </details>
 
+### Config Changes (128mb/6s)
+
+#### `verify_data`
+
+A new `verify_data` option was added to the `[blocksync]` section of `config.toml`. This option controls whether the node calls `ProcessProposal` to validate application data in each block during block sync. It defaults to `true`.
+
+```toml
+[blocksync]
+
+# If true, the node will verify the application data in the block via ProcessProposal
+# during block sync. If false, this verification is skipped.
+# Default: true
+verify_data = true
+```
+
+Setting `verify_data = false` can significantly speed up block sync, especially for large blocks, but reduces security during sync because a malicious peer could send fabricated block data without being caught. Operators should only disable this when syncing from trusted peers.
+
 ## v6.0.0
 
 This release contains all the changes from [CIP-042](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-042.md). Notably:
