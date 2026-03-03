@@ -3,7 +3,7 @@ package keeper_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v6/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v8/x/valaddr/types"
 	"github.com/stretchr/testify/require"
 )
 
