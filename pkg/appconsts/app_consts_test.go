@@ -2,9 +2,34 @@ package appconsts
 
 import (
 	"testing"
+	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// TestMaxExpectedTimePerBlock fails if MaxExpectedTimePerBlock deviates too
+// much from the expected block time * 5. The expected block time is primarily
+// determined by DelayedPrecommitTimeout. If this test fails, it means that
+// timeout constants were modified without updating MaxExpectedTimePerBlock (or
+// vice versa). All of these values need to be updated together:
+//   - DelayedPrecommitTimeout (and other Timeout* constants)
+//   - MaxExpectedTimePerBlock
+func TestMaxExpectedTimePerBlock(t *testing.T) {
+	expectedBlockTime := DelayedPrecommitTimeout
+	want := expectedBlockTime * 5
+	deviation := MaxExpectedTimePerBlock - want
+	if deviation < 0 {
+		deviation = -deviation
+	}
+	// Allow up to 2 seconds of tolerance to account for the fact that
+	// DelayedPrecommitTimeout (2790ms) isn't exactly 3 seconds.
+	tolerance := 2 * time.Second
+	assert.LessOrEqual(t, deviation, tolerance,
+		"MaxExpectedTimePerBlock (%v) deviates from DelayedPrecommitTimeout * 5 (%v) by more than %v. "+
+			"If you changed timeout constants, also update MaxExpectedTimePerBlock.",
+		MaxExpectedTimePerBlock, want, tolerance)
+}
 
 func TestConsts(t *testing.T) {
 	t.Run("TestUpgradeHeightDelay should be 3", func(t *testing.T) {

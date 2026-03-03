@@ -74,6 +74,12 @@ func (app App) RegisterUpgradeHandlers() {
 		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 			sdkCtx := sdk.UnwrapSDKContext(ctx)
 			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", upgradeName)
+
+			if err := app.SetMaxExpectedTimePerBlock(sdkCtx); err != nil {
+				sdkCtx.Logger().Error("failed to set MaxExpectedTimePerBlock", "error", err)
+				return nil, err
+			}
+
 			return app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
 		},
 	)
@@ -89,4 +95,16 @@ func (app App) RegisterUpgradeHandlers() {
 		// configure store loader that checks if version == upgradeHeight and applies store upgrades
 		app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
 	}
+}
+
+// SetMaxExpectedTimePerBlock sets the IBC connection MaxExpectedTimePerBlock
+// parameter to appconsts.MaxExpectedTimePerBlock. This corrects the previous
+// value of 75 seconds which was based on an outdated 15 second block time.
+func (app App) SetMaxExpectedTimePerBlock(ctx sdk.Context) error {
+	params := ibcconnectiontypes.Params{
+		MaxExpectedTimePerBlock: uint64(appconsts.MaxExpectedTimePerBlock.Nanoseconds()),
+	}
+	ctx.Logger().Info(fmt.Sprintf("Setting IBC connection MaxExpectedTimePerBlock to %v", appconsts.MaxExpectedTimePerBlock))
+	app.IBCKeeper.ConnectionKeeper.SetParams(ctx, params)
+	return nil
 }
