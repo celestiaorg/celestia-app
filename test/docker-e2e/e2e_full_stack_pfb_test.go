@@ -35,7 +35,6 @@ const (
 // TestE2EFullStackPFB is an E2E test which tests the basic functionality of the entire stack.
 // This test does the following:
 // - deploys celestia-app
-// - deploys a celestia-node full node
 // - deploys a celestia-node bridge node
 // - deploys a celestia-node light node
 // - submits multiple PFBs
@@ -93,17 +92,13 @@ func (s *CelestiaTestSuite) TestE2EFullStackPFB() {
 	t.Log("Full stack blob test completed successfully")
 }
 
-// DeployDANetwork deploys a data availability network with bridge, full, and light nodes
+// DeployDANetwork deploys a data availability network with bridge and light nodes
 func (s *CelestiaTestSuite) DeployDANetwork(ctx context.Context, celestia *tastoradockertypes.Chain, dockerClient tastoratypes.TastoraDockerClient, networkID string) *da.Network {
 	t := s.T()
 
 	// Create node configurations
 	bridgeNodeConfig := da.NewNodeBuilder().
 		WithNodeType(tastoratypes.BridgeNode).
-		Build()
-
-	fullNodeConfig := da.NewNodeBuilder().
-		WithNodeType(tastoratypes.FullNode).
 		Build()
 
 	lightNodeConfig := da.NewNodeBuilder().
@@ -123,7 +118,7 @@ func (s *CelestiaTestSuite) DeployDANetwork(ctx context.Context, celestia *tasto
 		WithDockerClient(dockerClient).
 		WithDockerNetworkID(networkID).
 		WithImage(daImage).
-		WithNodes(bridgeNodeConfig, lightNodeConfig, fullNodeConfig).
+		WithNodes(bridgeNodeConfig, lightNodeConfig).
 		Build(ctx)
 	s.Require().NoError(err, "failed to create DA network")
 
@@ -153,36 +148,13 @@ func (s *CelestiaTestSuite) DeployDANetwork(ctx context.Context, celestia *tasto
 		s.Require().NoError(err, "failed to start bridge node")
 	}
 
-	// get P2P info from bridge node for full nodes
+	// get P2P info from bridge node for light nodes
 	var bridgeP2PAddr string
 	if len(bridgeNodes) > 0 {
 		p2pInfo, err := bridgeNodes[0].GetP2PInfo(ctx)
 		s.Require().NoError(err, "failed to get bridge node p2p info")
 		bridgeP2PAddr, err = p2pInfo.GetP2PAddress()
 		s.Require().NoError(err, "failed to get bridge node p2p address")
-	}
-
-	// start full nodes
-	fullNodes := daNetwork.GetFullNodes()
-	for _, node := range fullNodes {
-		err := node.Start(ctx,
-			da.WithChainID(celestia.GetChainID()),
-			da.WithAdditionalStartArguments("--p2p.network", celestia.GetChainID(), "--core.ip", coreNodeHostname, "--rpc.addr", "0.0.0.0"),
-			da.WithEnvironmentVariables(map[string]string{
-				"CELESTIA_CUSTOM": tastoratypes.BuildCelestiaCustomEnvVar(celestia.GetChainID(), genesisHash, bridgeP2PAddr),
-				"P2P_NETWORK":     celestia.GetChainID(),
-			}),
-		)
-		s.Require().NoError(err, "failed to start full node")
-	}
-
-	// get P2P info from full node for light nodes
-	var fullP2PAddr string
-	if len(fullNodes) > 0 {
-		p2pInfo, err := fullNodes[0].GetP2PInfo(ctx)
-		s.Require().NoError(err, "failed to get full node p2p info")
-		fullP2PAddr, err = p2pInfo.GetP2PAddress()
-		s.Require().NoError(err, "failed to get full node p2p address")
 	}
 
 	// start light nodes
@@ -192,7 +164,7 @@ func (s *CelestiaTestSuite) DeployDANetwork(ctx context.Context, celestia *tasto
 			da.WithChainID(celestia.GetChainID()),
 			da.WithAdditionalStartArguments("--p2p.network", celestia.GetChainID(), "--rpc.addr", "0.0.0.0"),
 			da.WithEnvironmentVariables(map[string]string{
-				"CELESTIA_CUSTOM": tastoratypes.BuildCelestiaCustomEnvVar(celestia.GetChainID(), genesisHash, fullP2PAddr),
+				"CELESTIA_CUSTOM": tastoratypes.BuildCelestiaCustomEnvVar(celestia.GetChainID(), genesisHash, bridgeP2PAddr),
 				"P2P_NETWORK":     celestia.GetChainID(),
 			}),
 		)
@@ -369,18 +341,13 @@ func (s *CelestiaTestSuite) getGenesisHash(ctx context.Context, celestia *tastor
 	return genesisHash, nil
 }
 
-// removeDANetwork removes all nodes in the Data Availability Network, including bridge, full, and light nodes.
+// removeDANetwork removes all nodes in the Data Availability Network, including bridge and light nodes.
 // Returns an error if any node fails to remove.
 func removeDANetwork(ctx context.Context, daNetwork *da.Network) error {
 	var errs []error
 	for _, node := range daNetwork.GetBridgeNodes() {
 		if err := node.Remove(ctx); err != nil {
 			errs = append(errs, fmt.Errorf("failed to remove bridge node: %w", err))
-		}
-	}
-	for _, node := range daNetwork.GetFullNodes() {
-		if err := node.Remove(ctx); err != nil {
-			errs = append(errs, fmt.Errorf("failed to remove full node: %w", err))
 		}
 	}
 	for _, node := range daNetwork.GetLightNodes() {
