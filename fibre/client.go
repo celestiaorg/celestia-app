@@ -7,9 +7,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/grpc"
-	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/validator"
-	"github.com/celestiaorg/celestia-app-fibre/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v8/fibre/grpc"
+	"github.com/celestiaorg/celestia-app/v8/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v8/pkg/user"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	clock "github.com/filecoin-project/go-clock"

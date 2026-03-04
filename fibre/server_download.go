@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app-fibre/v6/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
