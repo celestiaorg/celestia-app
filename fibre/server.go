@@ -8,6 +8,7 @@ import (
 	"log/slog"
 
 	fibregrpc "github.com/celestiaorg/celestia-app-fibre/v6/fibre/grpc"
+	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/state"
 	core "github.com/cometbft/cometbft/types"
 	"go.opentelemetry.io/otel/trace"
 	grpclib "google.golang.org/grpc"
@@ -18,7 +19,7 @@ import (
 type Server struct {
 	Config ServerConfig
 
-	state  StateClient
+	state  state.Client
 	store  *Store
 	grpc   *fibregrpc.Server
 	signer core.PrivValidator

@@ -13,6 +13,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre"
 	grpcfibre "github.com/celestiaorg/celestia-app-fibre/v6/fibre/grpc"
+	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/state"
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/validator"
 	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
 	core "github.com/cometbft/cometbft/types"
@@ -327,7 +328,7 @@ func makeTestServers(
 
 		serverCfg := fibre.NewServerConfigFromParams(params)
 		serverCfg.ServerListenAddress = "127.0.0.1:0"
-		serverCfg.StateClientFn = func() (fibre.StateClient, error) {
+		serverCfg.StateClientFn = func() (state.Client, error) {
 			return &mockStateClient{
 				chainID:   "celestia",
 				SetGetter: valSetGetter,
