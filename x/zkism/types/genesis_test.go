@@ -144,7 +144,6 @@ func TestGenesisStateValidate(t *testing.T) {
 
 			err := gs.Validate()
 			if tc.expErr != nil {
-				require.Error(t, err)
 				require.ErrorIs(t, err, tc.expErr)
 			} else {
 				require.NoError(t, err)
