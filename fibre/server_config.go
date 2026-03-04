@@ -89,6 +89,13 @@ func (cfg *ServerConfig) Validate() error {
 		return fmt.Errorf("server listen address is required")
 	}
 
+	if cfg.Log == nil {
+		cfg.Log = slog.Default().WithGroup("fibre-server")
+	}
+	if cfg.Tracer == nil {
+		cfg.Tracer = otel.Tracer("fibre-server")
+	}
+
 	if cfg.StoreFn == nil {
 		if err := cfg.StoreConfig.Validate(); err != nil {
 			return fmt.Errorf("store config: %w", err)
@@ -101,7 +108,7 @@ func (cfg *ServerConfig) Validate() error {
 			return fmt.Errorf("app gRPC address is required for default state client")
 		}
 		cfg.StateClientFn = func() (state.Client, error) {
-			return fibregrpc.NewAppClient(cfg.AppGRPCAddress)
+			return fibregrpc.NewAppClient(cfg.AppGRPCAddress, cfg.Log)
 		}
 	}
 
@@ -110,15 +117,8 @@ func (cfg *ServerConfig) Validate() error {
 			return fmt.Errorf("signer listen address is required for default signer")
 		}
 		cfg.SignerFn = func(chainID string) (core.PrivValidator, error) {
-			return sign.NewRemote(cfg.SignerListenAddress, chainID)
+			return sign.NewRemote(cfg.SignerListenAddress, chainID, cfg.Log)
 		}
-	}
-
-	if cfg.Log == nil {
-		cfg.Log = slog.Default().WithGroup("fibre-server")
-	}
-	if cfg.Tracer == nil {
-		cfg.Tracer = otel.Tracer("fibre-server")
 	}
 	return nil
 }
