@@ -48,16 +48,13 @@ func testClientConcurrentUploads(t *testing.T) {
 	commitments := make(chan rsema1d.Commitment, numConcurrent)
 
 	for range numConcurrent {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
+		wg.Go(func() {
 			blob := makeTestBlobV0(t, 256*1024)
 			result, err := client.Upload(t.Context(), testNamespace, blob)
 			require.NoError(t, err)
 
 			commitments <- result.Commitment
-		}()
+		})
 	}
 
 	wg.Wait()

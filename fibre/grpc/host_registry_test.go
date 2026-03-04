@@ -304,14 +304,12 @@ func TestHostRegistry_ConcurrentAccess(t *testing.T) {
 	require.NoError(t, err)
 
 	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 100 {
+		wg.Go(func() {
 			host, err := registry.GetHost(t.Context(), val)
 			require.NoError(t, err)
 			assert.Equal(t, expectedHost, host.String())
-		}()
+		})
 	}
 	wg.Wait()
 
@@ -321,11 +319,11 @@ func TestHostRegistry_ConcurrentAccess(t *testing.T) {
 }
 
 func TestGetHost_MultipleValidators(t *testing.T) {
-	var vals []*core.Validator
-	var providers []types.FibreProvider
+	vals := make([]*core.Validator, 0, 5)
+	providers := make([]types.FibreProvider, 0, 5)
 
-	for i := 0; i < 5; i++ {
-		val := createTestValidator([]byte(fmt.Sprintf("validator%d", i)))
+	for i := range 5 {
+		val := createTestValidator(fmt.Appendf(nil, "validator%d", i))
 		vals = append(vals, val)
 		providers = append(providers, types.FibreProvider{
 			ValidatorConsensusAddress: getConsAddrString(val),

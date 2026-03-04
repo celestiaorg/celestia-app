@@ -307,10 +307,7 @@ func (h blobHeaderV0) encodeToRows(data []byte, cfg BlobConfig) [][]byte {
 	h.encode(rows[0])
 
 	// Copy as much data as fits in the first row after the header
-	firstRowDataSize := rowSize - blobHeaderLen
-	if firstRowDataSize > len(data) {
-		firstRowDataSize = len(data)
-	}
+	firstRowDataSize := min(rowSize-blobHeaderLen, len(data))
 	copy(rows[0][blobHeaderLen:], data[:firstRowDataSize])
 
 	// Remaining rows: use slices from data (offset by what we already used)

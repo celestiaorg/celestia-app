@@ -223,10 +223,7 @@ func BenchmarkStoreWriteRowsConcurrent(b *testing.B) {
 func benchmarkStoreWriteRows(b *testing.B, params fibre.ProtocolParams, validators int, blobSize int) {
 	cfg := fibre.NewBlobConfigFromParams(0, params)
 
-	dataSize := blobSize
-	if dataSize > cfg.MaxDataSize {
-		dataSize = cfg.MaxDataSize
-	}
+	dataSize := min(blobSize, cfg.MaxDataSize)
 
 	data := make([]byte, dataSize)
 	_, err := rand.Read(data)
@@ -251,7 +248,7 @@ func benchmarkStoreWriteRows(b *testing.B, params fibre.ProtocolParams, validato
 	shards := make([]shardEntry, validators)
 	baseTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	for v := 0; v < validators; v++ {
+	for v := range validators {
 		rows := make([]*types.BlobRow, 0, rowsPerShard)
 		startIdx := v * rowsPerShard
 		for r := 0; r < rowsPerShard && startIdx+r < totalRows; r++ {
@@ -332,10 +329,7 @@ func benchmarkStoreWriteRows(b *testing.B, params fibre.ProtocolParams, validato
 func benchmarkStoreWriteRowsConcurrent(b *testing.B, params fibre.ProtocolParams, validators int, blobSize int, concurrency int) {
 	cfg := fibre.NewBlobConfigFromParams(0, params)
 
-	dataSize := blobSize
-	if dataSize > cfg.MaxDataSize {
-		dataSize = cfg.MaxDataSize
-	}
+	dataSize := min(blobSize, cfg.MaxDataSize)
 
 	data := make([]byte, dataSize)
 	_, err := rand.Read(data)
@@ -360,7 +354,7 @@ func benchmarkStoreWriteRowsConcurrent(b *testing.B, params fibre.ProtocolParams
 	shards := make([]shardEntry, validators)
 	baseTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	for v := 0; v < validators; v++ {
+	for v := range validators {
 		rows := make([]*types.BlobRow, 0, rowsPerShard)
 		startIdx := v * rowsPerShard
 		for r := 0; r < rowsPerShard && startIdx+r < totalRows; r++ {
@@ -556,10 +550,7 @@ func BenchmarkStoreReadRowsConcurrent(b *testing.B) {
 func benchmarkStoreReadRows(b *testing.B, params fibre.ProtocolParams, validators int, blobSize int) {
 	cfg := fibre.NewBlobConfigFromParams(0, params)
 
-	dataSize := blobSize
-	if dataSize > cfg.MaxDataSize {
-		dataSize = cfg.MaxDataSize
-	}
+	dataSize := min(blobSize, cfg.MaxDataSize)
 
 	data := make([]byte, dataSize)
 	_, err := rand.Read(data)
@@ -584,7 +575,7 @@ func benchmarkStoreReadRows(b *testing.B, params fibre.ProtocolParams, validator
 	totalRowsWritten := 0
 	totalBytesWritten := 0
 
-	for v := 0; v < validators; v++ {
+	for v := range validators {
 		rows := make([]*types.BlobRow, 0, rowsPerShard)
 		startIdx := v * rowsPerShard
 		for r := 0; r < rowsPerShard && startIdx+r < totalRows; r++ {
@@ -647,10 +638,7 @@ func benchmarkStoreReadRows(b *testing.B, params fibre.ProtocolParams, validator
 func benchmarkStoreReadRowsConcurrent(b *testing.B, params fibre.ProtocolParams, validators int, blobSize int, concurrency int) {
 	cfg := fibre.NewBlobConfigFromParams(0, params)
 
-	dataSize := blobSize
-	if dataSize > cfg.MaxDataSize {
-		dataSize = cfg.MaxDataSize
-	}
+	dataSize := min(blobSize, cfg.MaxDataSize)
 
 	data := make([]byte, dataSize)
 	_, err := rand.Read(data)
@@ -675,7 +663,7 @@ func benchmarkStoreReadRowsConcurrent(b *testing.B, params fibre.ProtocolParams,
 	totalRowsWritten := 0
 	totalBytesWritten := 0
 
-	for v := 0; v < validators; v++ {
+	for v := range validators {
 		rows := make([]*types.BlobRow, 0, rowsPerShard)
 		startIdx := v * rowsPerShard
 		for r := 0; r < rowsPerShard && startIdx+r < totalRows; r++ {
@@ -809,10 +797,7 @@ func BenchmarkStoreBackendComparison(b *testing.B) {
 func benchmarkStoreWriteRowsWithBackend(b *testing.B, params fibre.ProtocolParams, validators int, blobSize int, backend storeBackend) {
 	cfg := fibre.NewBlobConfigFromParams(0, params)
 
-	dataSize := blobSize
-	if dataSize > cfg.MaxDataSize {
-		dataSize = cfg.MaxDataSize
-	}
+	dataSize := min(blobSize, cfg.MaxDataSize)
 
 	data := make([]byte, dataSize)
 	_, err := rand.Read(data)
@@ -833,7 +818,7 @@ func benchmarkStoreWriteRowsWithBackend(b *testing.B, params fibre.ProtocolParam
 	shards := make([]shardEntry, validators)
 	baseTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	for v := 0; v < validators; v++ {
+	for v := range validators {
 		rows := make([]*types.BlobRow, 0, rowsPerShard)
 		startIdx := v * rowsPerShard
 		for r := 0; r < rowsPerShard && startIdx+r < totalRows; r++ {
@@ -889,10 +874,7 @@ func benchmarkStoreWriteRowsWithBackend(b *testing.B, params fibre.ProtocolParam
 func benchmarkStoreReadRowsWithBackend(b *testing.B, params fibre.ProtocolParams, validators int, blobSize int, backend storeBackend) {
 	cfg := fibre.NewBlobConfigFromParams(0, params)
 
-	dataSize := blobSize
-	if dataSize > cfg.MaxDataSize {
-		dataSize = cfg.MaxDataSize
-	}
+	dataSize := min(blobSize, cfg.MaxDataSize)
 
 	data := make([]byte, dataSize)
 	_, err := rand.Read(data)
@@ -912,7 +894,7 @@ func benchmarkStoreReadRowsWithBackend(b *testing.B, params fibre.ProtocolParams
 
 	totalRowsWritten := 0
 
-	for v := 0; v < validators; v++ {
+	for v := range validators {
 		rows := make([]*types.BlobRow, 0, rowsPerShard)
 		startIdx := v * rowsPerShard
 		for r := 0; r < rowsPerShard && startIdx+r < totalRows; r++ {

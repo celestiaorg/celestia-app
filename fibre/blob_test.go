@@ -82,7 +82,7 @@ func TestBlob_Reconstruct(t *testing.T) {
 
 	totalRows := cfg.OriginalRows + cfg.ParityRows
 	allRows := make([]*rsema1d.RowInclusionProof, totalRows)
-	for i := 0; i < totalRows; i++ {
+	for i := range totalRows {
 		row, err := blob.Row(i)
 		require.NoError(t, err)
 		allRows[i] = row
