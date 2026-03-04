@@ -28,9 +28,6 @@ func TestClientServerUploadDownload(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping TestClientServerUploadDownload in short mode")
 	}
-	if raceEnabled {
-		t.Skip("skipping TestClientServerUploadDownload with race detector: gRPC servers + erasure coding too slow")
-	}
 
 	tests := []struct {
 		name           string
