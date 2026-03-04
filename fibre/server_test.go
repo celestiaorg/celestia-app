@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre"
+	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/state"
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/validator"
-	"github.com/celestiaorg/celestia-app-fibre/v6/x/fibre/types"
 	"github.com/cometbft/cometbft/crypto"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	core "github.com/cometbft/cometbft/types"
@@ -43,7 +43,7 @@ func makeTestServer(t *testing.T) (*fibre.Server, validator.Set, *core.Validator
 
 	cfg := fibre.DefaultServerConfig()
 	cfg.ServerListenAddress = "127.0.0.1:0"
-	cfg.StateClientFn = func() (fibre.StateClient, error) {
+	cfg.StateClientFn = func() (state.Client, error) {
 		return &mockStateClient{
 			chainID:   "celestia",
 			SetGetter: valSetGetter,
@@ -67,7 +67,7 @@ func makeTestServer(t *testing.T) (*fibre.Server, validator.Set, *core.Validator
 	return server, valSet, serverValidator
 }
 
-// mockStateClient implements fibre.StateClient for testing.
+// mockStateClient implements state.Client for testing.
 type mockStateClient struct {
 	validator.SetGetter
 	chainID string
@@ -77,13 +77,13 @@ func (m *mockStateClient) Start(context.Context) error { return nil }
 func (m *mockStateClient) Stop() error                 { return nil }
 func (m *mockStateClient) ChainID() string             { return m.chainID }
 
-func (m *mockStateClient) Verify(_ context.Context, promise *types.PaymentPromise) (time.Time, error) {
+func (m *mockStateClient) VerifyPromise(_ context.Context, promise *state.PaymentPromise) (state.VerifiedPromise, error) {
 	expirationTime := promise.CreationTimestamp.Add(1 * time.Hour)
 	if time.Now().After(expirationTime) || time.Now().Equal(expirationTime) {
-		return time.Time{}, fmt.Errorf("payment promise expired: creation_timestamp %v + timeout %v = %v",
+		return state.VerifiedPromise{}, fmt.Errorf("payment promise expired: creation_timestamp %v + timeout %v = %v",
 			promise.CreationTimestamp, 1*time.Hour, expirationTime)
 	}
-	return expirationTime, nil
+	return state.VerifiedPromise{ExpiresAt: expirationTime}, nil
 }
 
 // testPrivValidator is a simple mock PrivValidator for testing.

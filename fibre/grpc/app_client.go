@@ -4,14 +4,16 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
+	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/state"
 	"github.com/celestiaorg/celestia-app-fibre/v6/x/fibre/types"
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	grpclib "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
+
+var _ state.Client = (*AppClient)(nil)
 
 // AppClient manages a gRPC client connection to a celestia-app node
 // and provides the query methods needed by the Fibre server.
@@ -27,7 +29,6 @@ type AppClient struct {
 // The underlying gRPC connection is lazy — no network I/O happens until the first RPC.
 // Call [Start] to auto-detect the chain ID from the node.
 func NewAppClient(addr string) (*AppClient, error) {
-	// grpc.NewClient is lazy — no network I/O happens here, so this is safe outside of Start.
 	conn, err := grpclib.NewClient(
 		addr,
 		grpclib.WithTransportCredentials(insecure.NewCredentials()),
@@ -61,19 +62,19 @@ func (c *AppClient) Stop() error {
 // ChainID returns the chain ID resolved during [Start].
 func (c *AppClient) ChainID() string { return c.chainID }
 
-// Verify validates a payment promise against on-chain state and returns the expiration time.
-func (c *AppClient) Verify(ctx context.Context, promise *types.PaymentPromise) (time.Time, error) {
+// VerifyPromise validates a payment promise against on-chain state and returns the verification result.
+func (c *AppClient) VerifyPromise(ctx context.Context, promise *state.PaymentPromise) (state.VerifiedPromise, error) {
 	resp, err := c.queryClient.ValidatePaymentPromise(ctx, &types.QueryValidatePaymentPromiseRequest{Promise: *promise})
 	if err != nil {
-		return time.Time{}, err
+		return state.VerifiedPromise{}, err
 	}
 	if !resp.IsValid {
-		return time.Time{}, fmt.Errorf("payment promise is invalid")
+		return state.VerifiedPromise{}, fmt.Errorf("payment promise is invalid")
 	}
 	if resp.ExpirationTime == nil {
-		return time.Time{}, fmt.Errorf("expiration time not provided in validation response")
+		return state.VerifiedPromise{}, fmt.Errorf("expiration time not provided in validation response")
 	}
-	return *resp.ExpirationTime, nil
+	return state.VerifiedPromise{ExpiresAt: *resp.ExpirationTime}, nil
 }
 
 func detectChainID(ctx context.Context, conn *grpclib.ClientConn) (string, error) {

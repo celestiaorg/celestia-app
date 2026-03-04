@@ -118,7 +118,7 @@ func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentProm
 	}
 
 	// validate stateful constraints
-	pruneAt, err := s.state.Verify(ctx, promisePb)
+	verifyResult, err := s.state.VerifyPromise(ctx, promisePb)
 	if err != nil {
 		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("stateful validation: %w", err)
 	}
@@ -128,7 +128,7 @@ func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentProm
 		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("computing payment promise hash: %w", err)
 	}
 
-	return promise, blobCfg, promiseHash, pruneAt, nil
+	return promise, blobCfg, promiseHash, verifyResult.ExpiresAt, nil
 }
 
 // verifyAssignment verifies that the [types.BlobShard] in the request is assigned to this validator.

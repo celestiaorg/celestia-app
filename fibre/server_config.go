@@ -9,6 +9,7 @@ import (
 
 	fibregrpc "github.com/celestiaorg/celestia-app-fibre/v6/fibre/grpc"
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/sign"
+	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/state"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	core "github.com/cometbft/cometbft/types"
 	toml "github.com/pelletier/go-toml/v2"
@@ -48,7 +49,7 @@ type ServerConfig struct {
 	StoreFn func(StoreConfig) (*Store, error) `toml:"-"`
 	// StateClientFn creates a [StateClient] for communicating with a celestia-app node.
 	// It is called during server construction.
-	StateClientFn func() (StateClient, error) `toml:"-"`
+	StateClientFn func() (state.Client, error) `toml:"-"`
 	// SignerFn creates a [core.PrivValidator] for the given chain ID.
 	// It is called during [Server.Start] after the chain ID is auto-detected.
 	// If the returned value implements io.Closer, it will be closed during [Server.Stop].
@@ -99,7 +100,7 @@ func (cfg *ServerConfig) Validate() error {
 		if cfg.AppGRPCAddress == "" {
 			return fmt.Errorf("app gRPC address is required for default state client")
 		}
-		cfg.StateClientFn = func() (StateClient, error) {
+		cfg.StateClientFn = func() (state.Client, error) {
 			return fibregrpc.NewAppClient(cfg.AppGRPCAddress)
 		}
 	}
