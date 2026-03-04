@@ -40,6 +40,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/x/blob"
 	blobkeeper "github.com/celestiaorg/celestia-app/v8/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v8/x/fibre"
+	fibrekeeper "github.com/celestiaorg/celestia-app/v8/x/fibre/keeper"
+	fibretypes "github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 	"github.com/celestiaorg/celestia-app/v8/x/forwarding"
 	forwardingkeeper "github.com/celestiaorg/celestia-app/v8/x/forwarding/keeper"
 	forwardingtypes "github.com/celestiaorg/celestia-app/v8/x/forwarding/types"
@@ -51,6 +54,9 @@ import (
 	minttypes "github.com/celestiaorg/celestia-app/v8/x/mint/types"
 	"github.com/celestiaorg/celestia-app/v8/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v8/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v8/x/valaddr"
+	valaddrkeeper "github.com/celestiaorg/celestia-app/v8/x/valaddr/keeper"
+	valaddrtypes "github.com/celestiaorg/celestia-app/v8/x/valaddr/types"
 	"github.com/celestiaorg/celestia-app/v8/x/zkism"
 	zkismkeeper "github.com/celestiaorg/celestia-app/v8/x/zkism/keeper"
 	zkismtypes "github.com/celestiaorg/celestia-app/v8/x/zkism/types"
@@ -143,6 +149,7 @@ var maccPerms = map[string][]string{
 	stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
 	ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
 	icatypes.ModuleName:            nil,
+	fibretypes.ModuleName:          nil,
 	hyperlanetypes.ModuleName:      nil,
 	warptypes.ModuleName:           {authtypes.Minter, authtypes.Burner},
 	forwardingtypes.ModuleName:     nil, // No special permissions needed - only holds tokens temporarily
@@ -188,11 +195,13 @@ type App struct {
 	ICAHostKeeper       icahostkeeper.Keeper
 	PacketForwardKeeper *packetforwardkeeper.Keeper
 	BlobKeeper          blobkeeper.Keeper
+	FibreKeeper         *fibrekeeper.Keeper
 	CircuitKeeper       circuitkeeper.Keeper
 	HyperlaneKeeper     hyperlanekeeper.Keeper
 	WarpKeeper          warpkeeper.Keeper
 	IsmKeeper           *zkismkeeper.Keeper
 	ForwardingKeeper    forwardingkeeper.Keeper
+	ValAddrKeeper       valaddrkeeper.Keeper
 
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
@@ -427,6 +436,21 @@ func New(
 		&app.HyperlaneKeeper,
 	)
 
+	app.ValAddrKeeper = valaddrkeeper.NewKeeper(
+		encodingConfig.Codec,
+		runtime.NewKVStoreService(keys[valaddrtypes.StoreKey]),
+		logger,
+		app.StakingKeeper,
+	)
+
+	app.FibreKeeper = fibrekeeper.NewKeeper(
+		encodingConfig.Codec,
+		keys[fibretypes.StoreKey],
+		app.BankKeeper,
+		app.StakingKeeper,
+		govModuleAddr,
+	)
+
 	/****  Module Options ****/
 
 	// NOTE: Modules can't be modified or else must be passed by reference to the module manager
@@ -462,6 +486,8 @@ func New(
 		warp.NewAppModule(encodingConfig.Codec, app.WarpKeeper),
 		zkism.NewAppModule(encodingConfig.Codec, app.IsmKeeper),
 		forwarding.NewAppModule(encodingConfig.Codec, app.ForwardingKeeper),
+		valaddr.NewAppModule(encodingConfig.Codec, app.ValAddrKeeper),
+		fibre.NewAppModule(encodingConfig.Codec, *app.FibreKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager is in charge of setting up basic,
