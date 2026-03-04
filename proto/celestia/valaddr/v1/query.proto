@@ -1,0 +1,57 @@
+syntax = "proto3";
+package celestia.valaddr.v1;
+
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/valaddr/types";
+
+// Query defines the gRPC query service for the valaddr module.
+service Query {
+  // FibreProviderInfo queries the fibre provider information for a specific validator
+  rpc FibreProviderInfo(QueryFibreProviderInfoRequest) returns (QueryFibreProviderInfoResponse) {
+    option (google.api.http).get = "/valaddr/v1/fibre-provider-info/{validator_consensus_address}";
+  }
+
+  // AllFibreProviders queries fibre provider information for all validators
+  rpc AllFibreProviders(QueryAllFibreProvidersRequest) returns (QueryAllFibreProvidersResponse) {
+    option (google.api.http).get = "/valaddr/v1/all-fibre-providers";
+  }
+}
+
+// QueryFibreProviderInfoRequest is the request type for the Query/FibreProviderInfo RPC method.
+message QueryFibreProviderInfoRequest {
+  // validator_consensus_address is the validator consensus address (celestiavalcons...)
+  string validator_consensus_address = 1;
+}
+
+// QueryFibreProviderInfoResponse is the response type for the Query/FibreProviderInfo RPC method.
+message QueryFibreProviderInfoResponse {
+  // info contains the fibre provider information
+  FibreProviderInfo info = 1;
+  // found indicates if the validator has registered info
+  bool found = 2;
+}
+
+// QueryAllFibreProvidersRequest is the request type for the Query/AllFibreProviders RPC method.
+message QueryAllFibreProvidersRequest {}
+
+// QueryAllFibreProvidersResponse is the response type for the Query/AllFibreProviders RPC method.
+message QueryAllFibreProvidersResponse {
+  // providers contains all fibre providers with a host defined
+  repeated FibreProvider providers = 1 [(gogoproto.nullable) = false];
+}
+
+// FibreProvider represents a validator and their fibre provider information.
+message FibreProvider {
+  // validator_consensus_address is the validator consensus address (celestiavalcons...)
+  string validator_consensus_address = 1;
+  // info contains the fibre provider information
+  FibreProviderInfo info = 2 [(gogoproto.nullable) = false];
+}
+
+// FibreProviderInfo contains the service details for a fibre provider.
+message FibreProviderInfo {
+  // host is the network address for the fibre service provider
+  string host = 1;
+}

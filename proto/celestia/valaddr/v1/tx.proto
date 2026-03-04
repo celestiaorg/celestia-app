@@ -1,0 +1,33 @@
+syntax = "proto3";
+package celestia.valaddr.v1;
+
+import "google/api/annotations.proto";
+import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/valaddr/types";
+
+// Msg defines the valaddr Msg service.
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  // SetFibreProviderInfo allows a validator to set or update their fibre provider information
+  rpc SetFibreProviderInfo(MsgSetFibreProviderInfo) returns (MsgSetFibreProviderInfoResponse) {
+    option (google.api.http) = {
+      post: "/valaddr/v1/set-fibre-provider-info",
+      body: "*"
+    };
+  }
+}
+
+// MsgSetFibreProviderInfo allows a validator to set or update their fibre provider information.
+message MsgSetFibreProviderInfo {
+  option (cosmos.msg.v1.signer) = "signer";
+  // signer is the validator's operator address (celestiavaloper...)
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.ValidatorAddressString"];
+  // host is the network address for the fibre service provider
+  string host = 2;
+}
+
+// MsgSetFibreProviderInfoResponse describes the response returned after setting fibre provider info.
+message MsgSetFibreProviderInfoResponse {}
