@@ -59,6 +59,7 @@ func TestRun(t *testing.T) {
 
 	appDB, err := tmdbm.NewDB("application", tmdbm.GoLevelDBBackend, tmCfg.DBDir())
 	require.NoError(t, err)
+	t.Cleanup(func() { _ = appDB.Close() })
 
 	app := app.New(
 		log.NewNopLogger(),
