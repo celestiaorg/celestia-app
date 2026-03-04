@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -29,7 +29,7 @@ func initServerConfig(home string) error {
 		return err
 	}
 
-	log.Printf("initialized fibre home dir and config at %s", home)
+	slog.Info("initialized fibre home dir", "path", home)
 	return nil
 }
 
@@ -48,12 +48,11 @@ func startServer(ctx context.Context, cfg fibre.ServerConfig) error {
 		return fmt.Errorf("starting server: %w", err)
 	}
 
-	log.Printf(
-		"server started: listen=%s app_grpc=%s chain_id=%s store=%s",
-		server.ListenAddress(),
-		cfg.AppGRPCAddress,
-		server.ChainID(),
-		cfg.Path,
+	cfg.Log.Info("server started",
+		"listen", server.ListenAddress(),
+		"app_grpc", cfg.AppGRPCAddress,
+		"chain_id", server.ChainID(),
+		"store", cfg.Path,
 	)
 
 	<-startCtx.Done()
@@ -66,6 +65,6 @@ func startServer(ctx context.Context, cfg fibre.ServerConfig) error {
 		return fmt.Errorf("stopping server: %w", err)
 	}
 
-	log.Printf("server stopped")
+	cfg.Log.Info("server stopped")
 	return nil
 }

@@ -3,6 +3,7 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/state"
@@ -21,6 +22,7 @@ type AppClient struct {
 	*SetGetter
 	conn        *grpclib.ClientConn
 	queryClient types.QueryClient
+	log         *slog.Logger
 
 	chainID string // resolved on Start
 }
@@ -28,7 +30,7 @@ type AppClient struct {
 // NewAppClient creates an [AppClient] connected to the given address.
 // The underlying gRPC connection is lazy — no network I/O happens until the first RPC.
 // Call [Start] to auto-detect the chain ID from the node.
-func NewAppClient(addr string) (*AppClient, error) {
+func NewAppClient(addr string, log *slog.Logger) (*AppClient, error) {
 	conn, err := grpclib.NewClient(
 		addr,
 		grpclib.WithTransportCredentials(insecure.NewCredentials()),
@@ -41,6 +43,7 @@ func NewAppClient(addr string) (*AppClient, error) {
 		SetGetter:   NewSetGetter(coregrpc.NewBlockAPIClient(conn)),
 		conn:        conn,
 		queryClient: types.NewQueryClient(conn),
+		log:         log,
 	}, nil
 }
 
@@ -51,6 +54,7 @@ func (c *AppClient) Start(ctx context.Context) error {
 		return fmt.Errorf("detect chain ID: %w", err)
 	}
 	c.chainID = chainID
+	c.log.Info("connected to app node", "chain_id", chainID)
 	return nil
 }
 

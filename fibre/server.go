@@ -91,6 +91,7 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	if err != nil {
 		return fmt.Errorf("creating signer: %w", err)
 	}
+	s.log.Info("signer ready")
 
 	s.store, err = s.Config.StoreFn(s.Config.StoreConfig)
 	if err != nil {
@@ -107,6 +108,7 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	}()
 
 	s.grpc.Serve()
+	s.log.Info("serving gRPC", "addr", s.grpc.ListenAddress())
 	return nil
 }
 
@@ -114,6 +116,7 @@ func (s *Server) Start(ctx context.Context) (err error) {
 // then closes the underlying store and app connection.
 // Cancelling the context forces an immediate stop without waiting for in-flight requests.
 func (s *Server) Stop(ctx context.Context) (err error) {
+	s.log.Info("stopping server")
 	if s.cancel != nil {
 		s.cancel()
 	}
@@ -124,16 +127,19 @@ func (s *Server) Stop(ctx context.Context) (err error) {
 
 	if closer, ok := s.signer.(io.Closer); ok {
 		if closeErr := closer.Close(); closeErr != nil {
+			s.log.Error("closing signer", "error", closeErr)
 			err = errors.Join(err, closeErr)
 		}
 	}
 	if s.store != nil {
 		if closeErr := s.store.Close(); closeErr != nil {
+			s.log.Error("closing store", "error", closeErr)
 			err = errors.Join(err, closeErr)
 		}
 	}
 	if s.state != nil {
 		if closeErr := s.state.Stop(); closeErr != nil {
+			s.log.Error("closing state client", "error", closeErr)
 			err = errors.Join(err, closeErr)
 		}
 	}
