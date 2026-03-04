@@ -28,6 +28,9 @@ func TestClientServerUploadDownload(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping TestClientServerUploadDownload in short mode")
 	}
+	if raceEnabled {
+		t.Skip("skipping TestClientServerUploadDownload with race detector: gRPC servers + erasure coding too slow")
+	}
 
 	tests := []struct {
 		name           string
@@ -73,9 +76,6 @@ func TestClientServerUploadDownload(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.blobSize >= 1<<20 && raceEnabled {
-				t.Skip("skipping large blob test with race detector due to slowness")
-			}
 			env := makeTestEnv(t, tt.numValidators, tt.numClients, nil, nil)
 			defer env.Close()
 
