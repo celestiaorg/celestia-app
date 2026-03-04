@@ -1,18 +1,20 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/spf13/cobra"
 )
 
 const (
-	defaultHome = ".celestia-fibre"
 	envHome     = "FIBRE_HOME"
 	flagHome    = "home"
+	defaultHome = ".celestia-fibre"
 )
 
 func defaultHomePath() string {
@@ -24,20 +26,60 @@ func defaultHomePath() string {
 }
 
 func newRootCmd() *cobra.Command {
+	var (
+		traceShutdown func(context.Context)
+		pprofStop     func()
+		pyroStop      func()
+	)
+
 	rootCmd := &cobra.Command{
 		Use:          "fibre",
 		Short:        "Run the Fibre data availability server",
 		SilenceUsage: true,
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			if err := setupLogging(cmd); err != nil {
+				return err
+			}
+			shutdown, err := setupTracing(cmd.Context(), cmd)
+			if err != nil {
+				return err
+			}
+			traceShutdown = shutdown
+
+			stop, err := setupPProfServer(cmd)
+			if err != nil {
+				return err
+			}
+			pprofStop = stop
+
+			stop, err = setupProfiling(cmd)
+			if err != nil {
+				return err
+			}
+			pyroStop = stop
+
+			return nil
+		},
+		PersistentPostRunE: func(_ *cobra.Command, _ []string) error {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			traceShutdown(ctx)
+			pprofStop()
+			pyroStop()
+			return nil
+		},
 	}
 	rootCmd.PersistentFlags().String(flagHome, defaultHomePath(), fmt.Sprintf("fibre home directory (or set %s)", envHome))
-
 	if home, ok := os.LookupEnv(envHome); ok && home != "" {
-		err := rootCmd.PersistentFlags().Lookup(flagHome).Value.Set(home)
-		if err != nil {
+		if err := rootCmd.PersistentFlags().Lookup(flagHome).Value.Set(home); err != nil {
 			fmt.Printf("Error setting home directory from %s: %v\n", envHome, err)
 			os.Exit(1)
 		}
 	}
+
+	registerLogFlags(rootCmd)
+	registerTracingFlags(rootCmd)
+	registerProfilingFlags(rootCmd)
 
 	rootCmd.AddCommand(
 		newStartCmd(startServer),
