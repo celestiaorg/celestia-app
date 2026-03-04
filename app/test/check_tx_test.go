@@ -308,6 +308,41 @@ func TestCheckTx(t *testing.T) {
 	}
 }
 
+// TestCheckTx_UnknownRequestType verifies that an unknown CheckTxType returns
+// an error response instead of panicking.
+func TestCheckTx_UnknownRequestType(t *testing.T) {
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	namespace1, err := share.NewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
+	require.NoError(t, err)
+
+	accounts := []string{"a"}
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	fetchedAcc := testutil.DirectQueryAccount(testApp, testfactory.GetAddress(kr, "a"))
+	signer := createSigner(t, kr, "a", encodingConfig.TxConfig, fetchedAcc.GetAccountNumber())
+
+	// Create a valid blob transaction.
+	blobTxBytes := blobfactory.RandBlobTxsWithNamespacesAndSigner(
+		signer,
+		[]share.Namespace{namespace1},
+		[]int{100},
+	)[0]
+
+	unknownCheckTxTypes := []abci.CheckTxType{2, 99, -1}
+	for _, unknownType := range unknownCheckTxTypes {
+		t.Run(unknownType.String(), func(t *testing.T) {
+			assert.NotPanics(t, func() {
+				resp, err := testApp.CheckTx(&abci.RequestCheckTx{
+					Type: unknownType,
+					Tx:   blobTxBytes,
+				})
+				require.Error(t, err)
+				assert.NotEqual(t, abci.CodeTypeOK, resp.Code)
+				assert.Contains(t, resp.Log, "unknown RequestCheckTx type")
+			})
+		})
+	}
+}
+
 func createSigner(t *testing.T, kr keyring.Keyring, accountName string, enc client.TxConfig, accNum uint64) *user.Signer {
 	t.Helper()
 
