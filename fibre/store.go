@@ -248,7 +248,7 @@ func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, error) 
 	}
 
 	pruned := 0
-	beforeStr := formatTimestamp(before)
+	beforeStr := formatTimestamp(before.UTC())
 	for result := range results.Next() {
 		if result.Error != nil {
 			return pruned, fmt.Errorf("iterating results: %w", result.Error)
@@ -306,7 +306,7 @@ func shardKey(commitment Commitment, promiseHash []byte) ds.Key {
 }
 
 func pruneKey(pruneAt time.Time, commitment Commitment, promiseHash []byte) ds.Key {
-	return ds.NewKey(fmt.Sprintf("/prune/%s/%s/%s", formatTimestamp(pruneAt), commitment.String(), hex.EncodeToString(promiseHash)))
+	return ds.NewKey(fmt.Sprintf("/prune/%s/%s/%s", formatTimestamp(pruneAt.UTC()), commitment.String(), hex.EncodeToString(promiseHash)))
 }
 
 // parsePruneKey extracts commitment and promise hash from a prune index key.
