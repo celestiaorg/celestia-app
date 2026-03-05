@@ -71,6 +71,33 @@ func TestClientCache(t *testing.T) {
 	assert.True(t, mockClient2.closed)
 }
 
+// TestClientCacheGetCloseConcurrentRace verifies that concurrent calls to GetClient
+// and Close do not produce a data race. Run with -race to catch the regression.
+// The original sync.Once implementation allowed Close to read entry.clientCloser
+// without holding the entry lock, racing with GetClient's write inside Do.
+func TestClientCacheGetCloseConcurrentRace(t *testing.T) {
+	const numGoroutines = 50
+	cache := grpc.NewClientCache(mockClientFn(false), 1)
+	val := &core.Validator{Address: []byte("validator-1")}
+
+	var wg sync.WaitGroup
+	wg.Add(numGoroutines + 1)
+
+	for range numGoroutines {
+		go func() {
+			defer wg.Done()
+			cache.GetClient(t.Context(), val) //nolint:errcheck
+		}()
+	}
+
+	go func() {
+		defer wg.Done()
+		cache.Close() //nolint:errcheck
+	}()
+
+	wg.Wait()
+}
+
 // mockFibreClientCloser is a mock implementation for testing
 type mockFibreClientCloser struct {
 	types.FibreClient
