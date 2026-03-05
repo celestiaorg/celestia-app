@@ -70,10 +70,7 @@ func parallelizeHashing(count int, workerCount int, hashFunc func(i int)) {
 	}
 
 	// Use worker pool pattern for larger trees
-	workers := workerCount
-	if workers > count {
-		workers = count
-	}
+	workers := min(workerCount, count)
 
 	var wg sync.WaitGroup
 	ch := make(chan int, count)

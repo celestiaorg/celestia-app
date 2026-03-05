@@ -3,6 +3,7 @@ package rsema1d
 import (
 	"crypto/sha256"
 	"crypto/sha512"
+	"slices"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/encoding"
@@ -364,13 +365,7 @@ func TestMultipleTamperedRows(t *testing.T) {
 			// Untampered rows should still verify correctly
 			// Pick a safe untampered index
 			untamperedIndex := config.K + min(2, config.N-1)
-			isUntampered := true
-			for _, idx := range tamperedIndices {
-				if idx == untamperedIndex {
-					isUntampered = false
-					break
-				}
-			}
+			isUntampered := !slices.Contains(tamperedIndices, untamperedIndex)
 
 			if isUntampered {
 				proof, err := extData.GenerateRowProof(untamperedIndex)

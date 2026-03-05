@@ -22,14 +22,14 @@ func main() {
 
 	// Create simple test data - all zeros except last byte
 	data1 := make([][]byte, 4)
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		data1[i] = make([]byte, 64)
 		data1[i][63] = byte(i + 1) // Last byte: 0x01, 0x02, 0x03, 0x04
 	}
 
 	// Print input
 	fmt.Println("Input data (4 rows × 64 bytes):")
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		fmt.Printf("Row %d: 0x%s...%02x\n", i,
 			"00000000", data1[i][63])
 	}
@@ -56,14 +56,14 @@ func main() {
 
 	// Create test data - only 3 rows
 	data2 := make([][]byte, 3)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		data2[i] = make([]byte, 256)
 		data2[i][255] = byte(i + 1) // Last byte: 0x01, 0x02, 0x03
 	}
 
 	// Print input
 	fmt.Println("Input data (3 rows × 256 bytes):")
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		fmt.Printf("Row %d: 0x%s...%02x\n", i,
 			"00000000", data2[i][255])
 	}

@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d"
 	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
