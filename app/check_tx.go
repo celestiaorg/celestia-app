@@ -64,7 +64,8 @@ func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) 
 	case abci.CheckTxType_Recheck:
 		// no need to re-validate a blob
 	default:
-		panic(fmt.Sprintf("unknown RequestCheckTx type: %s", req.Type))
+		err := fmt.Errorf("unknown RequestCheckTx type: %s", req.Type)
+		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 	}
 
 	sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(baseReq.Tx)
