@@ -18,7 +18,7 @@ type ClientCache struct {
 
 // clientEntry holds a lazily-initialized [Client].
 type clientEntry struct {
-	sync.Once
+	sync.Mutex
 	clientCloser Client
 	err          error
 }
@@ -44,15 +44,16 @@ func (cc *ClientCache) GetClient(ctx context.Context, val *core.Validator) (Clie
 	}
 	cc.mu.Unlock()
 
-	entry.Do(func() {
-		client, err := cc.newClient(ctx, val)
-		if err != nil {
-			entry.err = err
-			return
-		}
-		entry.clientCloser = client
-	})
+	entry.Lock()
+	defer entry.Unlock()
+	if entry.clientCloser != nil {
+		return entry.clientCloser, nil
+	}
+	if entry.err != nil {
+		return nil, entry.err
+	}
 
+	entry.clientCloser, entry.err = cc.newClient(ctx, val)
 	return entry.clientCloser, entry.err
 }
 
@@ -61,9 +62,11 @@ func (cc *ClientCache) Close() (err error) {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 	for _, entry := range cc.clients {
+		entry.Lock()
 		if entry.clientCloser != nil {
 			err = errors.Join(err, entry.clientCloser.Close())
 		}
+		entry.Unlock()
 	}
 	cc.clients = make(map[string]*clientEntry)
 	return err
