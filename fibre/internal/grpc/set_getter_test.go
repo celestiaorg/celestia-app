@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	fibregrpc "github.com/celestiaorg/celestia-app-fibre/v6/fibre/internal/grpc"
+	fibregrpc "github.com/celestiaorg/celestia-app/v8/fibre/internal/grpc"
 	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	core "github.com/cometbft/cometbft/types"

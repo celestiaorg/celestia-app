@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app-fibre/v6/fibre"
+	"github.com/celestiaorg/celestia-app/v8/fibre"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"

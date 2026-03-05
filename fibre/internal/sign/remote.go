@@ -81,9 +81,10 @@ type slogAdapter struct {
 	log *slog.Logger
 }
 
-func (a slogAdapter) Debug(msg string, keyvals ...any) { a.log.Debug(msg, keyvals...) }
-func (a slogAdapter) Info(msg string, keyvals ...any)  { a.log.Info(msg, keyvals...) }
-func (a slogAdapter) Error(msg string, keyvals ...any) { a.log.Error(msg, keyvals...) }
+func (a slogAdapter) Trace(msg string, keyvals ...any) { a.log.Debug(msg, keyvals...) }
+func (a slogAdapter) Debug(msg string, keyvals ...any)  { a.log.Debug(msg, keyvals...) }
+func (a slogAdapter) Info(msg string, keyvals ...any)   { a.log.Info(msg, keyvals...) }
+func (a slogAdapter) Error(msg string, keyvals ...any)  { a.log.Error(msg, keyvals...) }
 func (a slogAdapter) With(keyvals ...any) cmtlog.Logger {
 	return slogAdapter{a.log.With(keyvals...)}
 }

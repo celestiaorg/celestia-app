@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app-fibre/v6/fibre"
-	"github.com/celestiaorg/celestia-app-fibre/v6/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v8/fibre"
+	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 	"github.com/stretchr/testify/require"
 )
 

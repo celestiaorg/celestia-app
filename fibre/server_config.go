@@ -7,9 +7,9 @@ import (
 	"os"
 	"path/filepath"
 
-	fibregrpc "github.com/celestiaorg/celestia-app-fibre/v6/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/internal/sign"
-	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/state"
+	fibregrpc "github.com/celestiaorg/celestia-app/v8/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v8/fibre/internal/sign"
+	"github.com/celestiaorg/celestia-app/v8/fibre/state"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	core "github.com/cometbft/cometbft/types"
 	toml "github.com/pelletier/go-toml/v2"

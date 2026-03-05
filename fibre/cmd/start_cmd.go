@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app-fibre/v6/fibre"
+	"github.com/celestiaorg/celestia-app/v8/fibre"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )

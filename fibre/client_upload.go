@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/validator"
-	"github.com/celestiaorg/celestia-app-fibre/v6/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v8/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsema1d/field"
 	core "github.com/cometbft/cometbft/types"

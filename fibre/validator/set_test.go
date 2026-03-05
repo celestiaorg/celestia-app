@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app-fibre/v6/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v8/fibre/validator"
 	"github.com/celestiaorg/rsema1d"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
