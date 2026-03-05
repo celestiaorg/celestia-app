@@ -12,6 +12,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v8/pkg/da"
 	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
+	squarev4 "github.com/celestiaorg/go-square/v4"
+	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -60,32 +62,61 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
 	// blobTxs have no PFBs present and all txs are less than or equal to the max tx size limit
 	for idx, rawTx := range req.Txs {
-		tx := rawTx
+		sdkTxBytes := rawTx
 
 		// all txs must be less than or equal to the max tx size limit
-		currentTxSize := len(tx)
+		currentTxSize := len(rawTx)
 		if currentTxSize > appconsts.MaxTxSize {
 			logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with tx %d", idx), errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes", currentTxSize, appconsts.MaxTxSize))
 			return reject(), nil
 		}
 
+		// BlobTx is the most common special type; check it first.
 		blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(rawTx)
 		if isBlobTx {
 			if err != nil {
 				logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with blob tx %d", idx), err)
 				return reject(), nil
 			}
-			tx = blobTx.Tx
+			sdkTxBytes = blobTx.Tx
 		}
-		sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(tx)
+
+		// FibreTx wraps a MsgPayForFibre SDK tx together with its system blob.
+		// Only attempt this decode when the tx is not already a BlobTx.
+		var (
+			fibreTx   *blobtx.FibreTx
+			isFibreTx bool
+		)
+		if !isBlobTx {
+			fibreTx, isFibreTx, err = blobtx.UnmarshalFibreTx(rawTx)
+			if isFibreTx {
+				if err != nil {
+					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with fibre tx %d", idx), err)
+					return reject(), nil
+				}
+				sdkTxBytes = fibreTx.Tx
+			}
+		}
+
+		sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(sdkTxBytes)
 
 		// Set the tx bytes in the context for app version v3 and greater
-		ctx = ctx.WithTxBytes(tx)
+		ctx = ctx.WithTxBytes(sdkTxBytes)
 
 		if err != nil {
 			// An error here means that a tx was included in the block that is not decodable.
 			logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d is not decodable", idx))
 			return reject(), nil
+		}
+
+		if isFibreTx {
+			// Validate the inner SDK tx (signature, nonce, fees).
+			ctx, err = handler(ctx, sdkTx, false)
+			if err != nil {
+				logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("fibre tx %d ante handler validation failed", idx), err)
+				return reject(), nil
+			}
+			continue
 		}
 
 		// handle non-blob transactions first
@@ -146,7 +177,14 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 	}
 
-	eds, err := da.ConstructEDSWithTreePool(req.Txs, appconsts.Version, app.MaxEffectiveSquareSize(ctx), app.TreePool())
+	// Use squarev4.Construct which natively handles BlobTx and FibreTx.
+	dataSquare, err := squarev4.Construct(req.Txs, app.MaxEffectiveSquareSize(ctx), appconsts.SubtreeRootThreshold)
+	if err != nil {
+		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to build data square:", err)
+		return reject(), nil
+	}
+
+	eds, err := da.ExtendSharesWithTreePool(share.ToBytes(dataSquare), app.TreePool())
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to compute extended data square from transactions:", err)
 		return reject(), nil
