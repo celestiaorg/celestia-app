@@ -1,8 +1,8 @@
 package rsema1d
 
 import (
-	"github.com/celestiaorg/rsema1d/field"
-	"github.com/celestiaorg/rsema1d/merkle"
+	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/merkle"
 )
 
 // buildPaddedRowTree creates a padded Merkle tree from extended rows

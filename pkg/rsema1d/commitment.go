@@ -4,7 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 
-	"github.com/celestiaorg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/field"
 )
 
 // deriveCoefficients generates RLC coefficients via Fiat-Shamir (internal)

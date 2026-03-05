@@ -5,8 +5,8 @@ import (
 	"crypto/sha512"
 	"testing"
 
-	"github.com/celestiaorg/rsema1d/encoding"
-	"github.com/celestiaorg/rsema1d/merkle"
+	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/encoding"
+	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/merkle"
 	"github.com/stretchr/testify/assert"
 )
 

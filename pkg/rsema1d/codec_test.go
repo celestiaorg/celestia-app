@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/celestiaorg/rsema1d/encoding"
-	"github.com/celestiaorg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/encoding"
+	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/field"
 )
 
 // testCase represents a common test configuration

@@ -13,7 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/fibre/state"
 	"github.com/celestiaorg/celestia-app/v8/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
-	"github.com/celestiaorg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d"
 	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"

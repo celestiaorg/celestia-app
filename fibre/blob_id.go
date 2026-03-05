@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/celestiaorg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d"
 )
 
 // CommitmentSize is the size of a Commitment in bytes.

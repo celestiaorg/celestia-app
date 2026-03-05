@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/reedsolomon"
-	"github.com/celestiaorg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/field"
 )
 
 // ExtendVertical performs vertical RS extension using Leopard GF16

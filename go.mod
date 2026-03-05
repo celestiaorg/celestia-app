@@ -27,7 +27,7 @@ require (
 	github.com/celestiaorg/go-square/v2 v2.3.3
 	github.com/celestiaorg/go-square/v4 v4.0.0-rc3
 	github.com/celestiaorg/nmt v0.24.2
-	github.com/celestiaorg/rsema1d v0.0.0-20260113121834-51e6165619b0
+	github.com/celestiaorg/reedsolomon v1.12.6-0.20250824224240-8b66bda83fd0
 	github.com/celestiaorg/rsmt2d v0.15.1
 	github.com/cockroachdb/pebble/v2 v2.1.4
 	github.com/cometbft/cometbft v1.0.1
@@ -165,7 +165,6 @@ require (
 	github.com/ccojocar/zxcvbn-go v1.0.4 // indirect
 	github.com/celestiaorg/go-square/v3 v3.0.2 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
-	github.com/celestiaorg/reedsolomon v1.12.6-0.20250824224240-8b66bda83fd0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
