@@ -5,7 +5,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app-fibre/v6/fibre"
+	"github.com/celestiaorg/celestia-app/v8/fibre"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

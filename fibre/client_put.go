@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/celestiaorg/celestia-app-fibre/v6/pkg/user"
-	"github.com/celestiaorg/celestia-app-fibre/v6/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v8/pkg/user"
+	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"go.opentelemetry.io/otel/attribute"
