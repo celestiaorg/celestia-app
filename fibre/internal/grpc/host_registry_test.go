@@ -320,8 +320,8 @@ func TestHostRegistry_ConcurrentAccess(t *testing.T) {
 }
 
 func TestGetHost_MultipleValidators(t *testing.T) {
-	var vals []*core.Validator
-	var providers []types.FibreProvider
+	vals := make([]*core.Validator, 0, 5)
+	providers := make([]types.FibreProvider, 0, 5)
 
 	for i := range 5 {
 		val := createTestValidator(fmt.Appendf(nil, "validator%d", i))
