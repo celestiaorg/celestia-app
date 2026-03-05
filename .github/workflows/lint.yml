@@ -44,6 +44,27 @@ jobs:
         with:
           dockerfile: docker/txsim/Dockerfile
 
+  go-mod-tidy-check:
+    name: go-mod-tidy-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
+        with:
+          go-version-file: "go.mod"
+      - name: Check go mod tidy
+        run: |
+          DIRTY=""
+          for moddir in $(find . -name 'go.mod' -exec dirname {} \;); do
+            echo "Checking $moddir"
+            (cd "$moddir" && go mod tidy -diff) || DIRTY="$DIRTY $moddir"
+          done
+          if [ -n "$DIRTY" ]; then
+            echo "ERROR: go mod tidy produced changes in:$DIRTY"
+            echo "Run 'make mod' and commit the changes."
+            exit 1
+          fi
+
   yamllint:
     runs-on: ubuntu-latest
     steps:
