@@ -1,7 +1,6 @@
 package app_test
 
 import (
-	"encoding/hex"
 	"math/rand"
 	"sort"
 	"sync"
@@ -104,10 +103,8 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 	// note: use rpc types because they contain the tx index
 	heightMap := make(map[int64][]*rpctypes.ResultTx)
 	for hash := range hashes {
-		// use the core rpc type because it contains the tx index
-		hash, err := hex.DecodeString(hash)
-		require.NoError(t, err)
-		coreRes, err := s.cctx.Client.Tx(s.cctx.GoContext(), hash, false)
+		// use WaitForTx to poll until the tx is indexed
+		coreRes, err := s.cctx.WaitForTx(hash, 10)
 		require.NoError(t, err)
 		heightMap[coreRes.Height] = append(heightMap[coreRes.Height], coreRes)
 	}
