@@ -24,5 +24,5 @@ With these restrictions in mind, the block proposer performs the following actio
     1. If adding the blob transaction (including its blobs and [padding required by share commitment rules](./data_square_layout.md)) would cause the total share count to exceed the maximum square capacity, skip it.
     1. Validate the transaction. If validation fails, revert the addition and skip it.
 1. Compute the smallest square size that is a power of 2 that can fit all the accepted transactions and blobs (including any [padding between blobs](./data_square_layout.md)).
-1. Sort blobs by namespace (preserving the priority order of blobs within the same namespace).
+1. Sort blobs by namespace (preserving the mempool-provided order of blobs within the same namespace, which is based on sender-aggregated priority).
 1. Write out the final square: normal transaction shares, then pay-for-blob transaction shares, then reserved padding, then blob shares (with inter-blob padding as needed), then tail padding.
