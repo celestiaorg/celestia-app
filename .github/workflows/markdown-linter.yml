@@ -5,6 +5,9 @@ on:
 
 jobs:
   markdown-lint:
+    # Run only on PRs. Broken markdown doesn't affect the chain so it doesn't
+    # need to gate the merge queue.
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -24,6 +27,7 @@ jobs:
         shell: bash
 
   markdown-link-check:
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

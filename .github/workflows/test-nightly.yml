@@ -97,11 +97,35 @@ jobs:
           CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
           CELESTIA_TAG: ${{ needs.build-e2e-image.outputs.tag }}
 
+  test-race:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+
+      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
+        with:
+          go-version-file: "go.mod"
+
+      - name: Run tests in race mode
+        run: make test-race
+
+  test-fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+
+      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
+        with:
+          go-version-file: "go.mod"
+
+      - name: Run fuzz tests
+        run: make test-fuzz
+
   notify-slack-on-failure:
     name: Notify Slack on failure
     runs-on: ubuntu-latest
-    needs: [test-nightly]
-    if: ${{ always() && needs.test-nightly.result == 'failure' }}
+    needs: [test-nightly, test-race, test-fuzz]
+    if: ${{ always() && (needs.test-nightly.result == 'failure' || needs.test-race.result == 'failure' || needs.test-fuzz.result == 'failure') }}
     steps:
       - name: Slack Notification
         uses: slackapi/slack-github-action@v2.1.1

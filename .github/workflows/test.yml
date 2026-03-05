@@ -4,6 +4,9 @@ on:
 
 jobs:
   test-short:
+    # Run only on PRs for fast feedback. The go-test matrix provides full
+    # coverage in the merge queue so test-short is redundant there.
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
@@ -66,48 +69,10 @@ jobs:
           fi
           echo "All tests passed"
 
-  test-coverage:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
-
-      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
-        with:
-          go-version-file: "go.mod"
-
-      - name: Generate coverage.txt
-        run: make test-coverage
-
-      - name: Upload coverage.txt
-        uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 #v5.5.1
-        with:
-          files: ./coverage.txt
-
-  test-race:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
-
-      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
-        with:
-          go-version-file: "go.mod"
-
-      - name: Run tests in race mode
-        run: make test-race
-
-  test-fuzz:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
-
-      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
-        with:
-          go-version-file: "go.mod"
-
-      - name: Run fuzz tests
-        run: make test-fuzz
-
   test-multiplexer:
+    # Run only in the merge queue and on release branches. Not needed for PR
+    # feedback since unit tests already validate module correctness.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
@@ -120,6 +85,9 @@ jobs:
         run: make test-multiplexer
 
   build-e2e-image:
+    # Run only in the merge queue and on release branches since E2E tests only
+    # run there.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -147,9 +115,9 @@ jobs:
 
   test-docker-e2e:
     needs: build-e2e-image
+    # Run only in the merge queue and on release branches.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    # if one test fails, continue running the rest.
-    continue-on-error: true
     strategy:
       matrix:
         include:
