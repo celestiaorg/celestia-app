@@ -22,6 +22,7 @@ func TestStore(t *testing.T) {
 		{"Get_DeterministicOrdering", testStoreGetDeterministicOrdering},
 		{"PruneBefore_RemovesShardAndPromise", testStorePruneBeforeRemovesShardAndPromise},
 		{"PruneBefore_PreservesOtherPromiseShard", testStorePruneBeforePreservesOtherPromiseShard},
+		{"PruneBefore_NonUTCCutoff_DoesNotPruneUnexpired", testStorePruneBeforeNonUTCCutoffDoesNotPruneUnexpired},
 	}
 
 	for _, tt := range tests {
@@ -208,6 +209,36 @@ func testStorePruneBeforePreservesOtherPromiseShard(t *testing.T, store *fibre.S
 	gotShard, err := store.Get(ctx, blob.ID().Commitment())
 	require.NoError(t, err)
 	require.Equal(t, uint32(2), gotShard.Rows[0].Index)
+}
+
+// testStorePruneBeforeNonUTCCutoffDoesNotPruneUnexpired is a regression test for a timezone bug
+// where PruneBefore would incorrectly prune entries on non-UTC machines.
+func testStorePruneBeforeNonUTCCutoffDoesNotPruneUnexpired(t *testing.T, store *fibre.Store) {
+	ctx := t.Context()
+
+	blob := makeTestBlobV0(t, 256)
+	shard := makeShardFrom(t, blob, 0, 1)
+	promise := makeTestPaymentPromise(100, blob.ID())
+
+	// entry expires at 19:08 UTC
+	pruneAt := time.Date(2025, 1, 1, 19, 8, 0, 0, time.UTC)
+	err := store.Put(ctx, promise, shard, pruneAt)
+	require.NoError(t, err)
+
+	promiseHash, _ := promise.Hash()
+
+	// cutoff is 19:11 UTC+1 = 18:11 UTC, which is before the entry's expiry of 19:08 UTC.
+	// before the fix, PruneBefore compared the UTC key "202501011908" against the local-formatted
+	// string "202501011911", making the entry appear expired and pruning it incorrectly.
+	utcPlusOne := time.FixedZone("UTC+1", 60*60)
+	cutoff := time.Date(2025, 1, 1, 19, 11, 0, 0, utcPlusOne)
+
+	pruned, err := store.PruneBefore(ctx, cutoff)
+	require.NoError(t, err)
+	require.Equal(t, 0, pruned)
+
+	_, err = store.GetPaymentPromise(ctx, promiseHash)
+	require.NoError(t, err)
 }
 
 func testStoreGetDeterministicOrdering(t *testing.T, store *fibre.Store) {
