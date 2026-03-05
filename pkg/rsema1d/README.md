@@ -1,7 +1,5 @@
 # RSEMA1D Codec
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/celestiaorg/rsema1d.svg)](https://pkg.go.dev/github.com/celestiaorg/rsema1d)
-[![Go Report Card](https://goreportcard.com/badge/github.com/celestiaorg/rsema1d)](https://goreportcard.com/report/github.com/celestiaorg/rsema1d)
 
 RSEMA1D (Reed-Solomon Evans-Mohnblatt-Angeris 1D) is a high-performance data availability codec that provides efficient commitment, proof generation, and verification for vertically-extended data matrices. It uses random linear combinations (RLCs) with 128-bit security against forgery attacks.
 
@@ -14,12 +12,6 @@ RSEMA1D (Reed-Solomon Evans-Mohnblatt-Angeris 1D) is a high-performance data ava
 - **Parallel Processing**: Built-in support for concurrent encoding/verification
 - **Efficient Verification**: O(K) operations for extended rows, O(log K) for original rows
 
-## Installation
-
-```bash
-go get github.com/celestiaorg/rsema1d
-```
-
 ## Quick Start
 
 ### Basic Encoding
@@ -29,7 +21,7 @@ package main
 
 import (
     "fmt"
-    "github.com/celestiaorg/rsema1d"
+    "github.com/celestiaorg/celestia-app/v8/pkg/rsema1d"
 )
 
 func main() {
@@ -202,19 +194,19 @@ Applications reading specific rows:
 Run the test suite:
 
 ```bash
-go test ./...
+go test ./pkg/rsema1d/...
 ```
 
 Run with race detection:
 
 ```bash
-go test -race ./...
+go test -race ./pkg/rsema1d/...
 ```
 
 Generate test vectors:
 
 ```bash
-go run cmd/testvectors/main.go
+go run ./pkg/rsema1d/cmd/testvectors/main.go
 ```
 
 ## Benchmarks
@@ -222,17 +214,13 @@ go run cmd/testvectors/main.go
 Run performance benchmarks:
 
 ```bash
-go test -bench=. ./...
+go test -bench=. ./pkg/rsema1d/...
 ```
 
 ## Dependencies
 
 - [celestiaorg/reedsolomon](https://github.com/celestiaorg/reedsolomon): Leopard Reed-Solomon codec
 - Go standard library (crypto/sha256, encoding/binary)
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## References
 
