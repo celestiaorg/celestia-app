@@ -4,7 +4,12 @@ A tool to migrate Celestia App databases from LevelDB to PebbleDB.
 
 ## Overview
 
-This tool migrates all celestia-app databases from LevelDB format to PebbleDB format. PebbleDB offers better performance and scalability compared to LevelDB.
+This tool migrates all celestia-app databases from LevelDB to PebbleDB format:
+
+- **Resumable**: If interrupted (Ctrl-C, crash, reboot), re-run to continue from where it left off
+- **Idempotent**: Running it again after completion is a no-op
+- **Storage-efficient**: `--no-backup` mode deletes source data incrementally as it's migrated
+- **Parallel**: Migrate multiple databases concurrently with `--parallel`
 
 ## Installation
 
@@ -23,35 +28,59 @@ go build -o migrate-db
 
 This will:
 
-1. Create a backup of the entire `data` directory to `data_backup`
-2. Create a `data_pebble` directory in `~/.celestia-app/`
-3. Migrate all databases to PebbleDB format
-4. Verify the integrity of migrated databases
-5. Display instructions for completing the migration
+1. Create a `data_pebble` directory in `~/.celestia-app/`
+2. Migrate all databases to PebbleDB format
+3. Verify integrity via sampling
+4. Display instructions for completing the migration
 
 ### Options
 
-- `--home <path>` - Specify custom home directory (default: `~/.celestia-app`)
-- `--dry-run` - Test the migration without making changes
-- `--no-backup` - Skip creating backup of data directory (not recommended)
+| Flag                   | Default           | Description                                                             |
+|------------------------|-------------------|-------------------------------------------------------------------------|
+| `--home <path>`        | `~/.celestia-app` | Node home directory                                                     |
+| `--dry-run`            | `false`           | Test without making changes                                             |
+| `--no-backup`          | `false`           | Delete source data incrementally as it's migrated                       |
+| `--batch-size <MB>`    | `64`              | Write batch size in MB                                                  |
+| `--sync-interval <MB>` | `1024`            | Fsync every N MB (0 = sync only at DB end)                              |
+| `--parallel <N>`       | `3`               | Migrate N databases concurrently (max 5)                                |
+| `--verify-full`        | `false`           | Exhaustive key-count verification instead of sampling                   |
+| `--skip-verify`        | `false`           | Skip post-migration verification                                        |
+| `--db <name>`          | all               | Migrate only a specific database                                        |
+| `--auto-swap`          | `false`           | Automatically move PebbleDB files into `data/` and update `config.toml` |
 
 ### Examples
 
-**Dry-run (test without changes):**
+**Dry-run:**
 
 ```bash
 ./migrate-db --dry-run
 ```
 
-**Custom home directory:**
+**Fast migration with all resources (parallel, minimal syncing):**
 
 ```bash
-./migrate-db --home /custom/path/.celestia-app
+./migrate-db --parallel 5 --sync-interval 0 --skip-verify
+```
+
+**Storage-efficient migration (deletes source data as it goes):**
+
+```bash
+./migrate-db --no-backup --parallel 3
+```
+
+**Migrate a single database:**
+
+```bash
+./migrate-db --db blockstore
+```
+
+**Full automated migration (including swap and config update):**
+
+```bash
+./migrate-db --no-backup --parallel 3 --auto-swap
 ```
 
 ## Migrated Databases
-
-The tool migrates the following databases:
 
 - `application.db` - Application state (usually the largest)
 - `blockstore.db` - Block storage
@@ -59,12 +88,25 @@ The tool migrates the following databases:
 - `tx_index.db` - Transaction index
 - `evidence.db` - Evidence storage
 
-Files NOT migrated (will remain unchanged):
+Files NOT migrated (remain unchanged): `cs.wal`, `priv_validator_state.json`, `snapshots/`, `traces/`
 
-- `cs.wal` - Consensus write-ahead log (recreated automatically)
-- `priv_validator_state.json` - Validator state file (JSON)
-- `snapshots/` - State sync snapshots directory
-- `traces/` - Trace files directory
+## Resuming Interrupted Migrations
+
+The tool is fully resumable. If a migration is interrupted for any reason:
+
+```bash
+# Just re-run the same command
+./migrate-db --no-backup --parallel 3
+```
+
+The tool will:
+1. Detect the existing `data_pebble/` directory and `.migration_state.json`
+2. Skip databases that are already complete
+3. For in-progress databases, find the last migrated key and continue from there
+
+Progress is tracked at two levels:
+- **Per-database**: A state file tracks which databases are complete
+- **Per-key**: The last key in each PebbleDB is the durable checkpoint (no separate tracking needed)
 
 ## Complete Migration Process
 
@@ -78,32 +120,19 @@ sudo systemctl stop celestia-appd
 
 ```bash
 cd /path/to/celestia-app/tools/migrate-db
-go build
-./migrate-db
+go build -o migrate-db
+./migrate-db --no-backup --parallel 3
 ```
 
-The tool will ask for confirmation before proceeding. Type `y` or `yes` to continue.
+### 3. Swap Databases
 
-### 3. Update Configuration
-
-Edit `~/.celestia-app/config/config.toml`:
-
-```toml
-[db]
-backend = "pebbledb"
-```
-
-### 4. Move Databases
+If you used `--auto-swap`, this is **done automatically**. Otherwise:
 
 ```bash
 cd ~/.celestia-app
 
-# Remove old databases
-rm -rf data/application.db
-rm -rf data/blockstore.db
-rm -rf data/state.db
-rm -rf data/tx_index.db
-rm -rf data/evidence.db
+# Remove old databases (skip if --no-backup already deleted them)
+rm -rf data/application.db data/blockstore.db data/state.db data/tx_index.db data/evidence.db
 
 # Move PebbleDB files
 mv data_pebble/application.db data/application.db
@@ -113,72 +142,51 @@ mv data_pebble/tx_index.db data/tx_index.db
 mv data_pebble/evidence.db data/evidence.db
 ```
 
-### 5. Start Your Node
+### 4. Update Configuration
+
+Edit `~/.celestia-app/config/config.toml`:
+
+```toml
+db_backend = "pebbledb"
+```
+
+### 5. Start and Verify
 
 ```bash
 sudo systemctl start celestia-appd
-```
-
-### 6. Verify
-
-```bash
-# Check status
 celestia-appd status
-
-# Monitor logs
 journalctl -u celestia-appd -f
 ```
 
-### 7. Cleanup (After Verification)
-
-After confirming everything works for a few days:
+### 6. Cleanup
 
 ```bash
-# Remove migration directory
 rm -rf ~/.celestia-app/data_pebble
-
-# Remove backup directory
-rm -rf ~/.celestia-app/data_backup
 ```
 
-## Troubleshooting
+## Crash Recovery
 
-### Migration Fails Mid-Process
+| Scenario                        | What Happens                                                       |
+|---------------------------------|--------------------------------------------------------------------|
+| Ctrl-C mid-batch                | Uncommitted batch is lost. Re-run resumes from last committed key. |
+| Power loss                      | At most `--sync-interval` MB of data re-migrated on restart.       |
+| Crash during source deletion    | Source keys already in PebbleDB. Re-run skips them.                |
+| `data_pebble/` manually deleted | Fresh start — no state to resume from.                             |
+| Crash while lock held           | Kernel automatically releases file lock — no stale lock possible.  |
 
-If migration fails partway through, simply run it again. The tool will create a fresh `data_pebble` directory.
+## Disk Space Requirements
 
-### Node Won't Start After Migration
-
-1. Check logs:
-
-   ```bash
-   journalctl -u celestia-appd -n 100
-   ```
-
-2. Verify config.toml has the correct backend:
-
-   ```bash
-   cat ~/.celestia-app/config/config.toml | grep backend
-   ```
-
-3. Restore from backup if needed:
-
-   ```bash
-   cd ~/.celestia-app
-   rm -rf data
-   mv data_backup data
-   ```
-
-   Then change config.toml back to `backend = "goleveldb"` and restart.
-
-### Insufficient Disk Space
-
-Ensure you have at least 2x your current data size available:
+- **Default mode**: ~2x your data size (source + destination side-by-side)
+- **`--no-backup` mode**: ~1x + 1GB overhead (source keys deleted incrementally every ~1GB)
 
 ```bash
-# Check data size
 du -sh ~/.celestia-app/data
-
-# Check available space
 df -h ~/.celestia-app
 ```
+
+## Performance Tuning
+
+- **`--parallel 5`**: Migrate all 5 databases concurrently (if I/O bandwidth allows)
+- **`--sync-interval 0`**: No intermediate fsyncs (fastest, but more re-work on crash)
+- **`--batch-size 256`**: Larger batches (uses more memory, may improve throughput)
+- **`--skip-verify`**: Skip verification step for maximum speed
