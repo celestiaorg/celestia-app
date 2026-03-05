@@ -243,7 +243,7 @@ func (d *downloadMockClient) DownloadShard(ctx context.Context, req *types.Downl
 	totalRows := blobCfg.OriginalRows + blobCfg.ParityRows
 
 	var rowIndices []int
-	for i := 0; i < totalRows; i++ {
+	for i := range totalRows {
 		if i%d.numValidators == d.valIdx {
 			rowIndices = append(rowIndices, i)
 		}

@@ -218,7 +218,7 @@ func parseRLCCoeffs(rlcCoeffs []byte, expectedCount int) ([]field.GF128, error) 
 	}
 
 	coeffs := make([]field.GF128, expectedCount)
-	for i := 0; i < expectedCount; i++ {
+	for i := range expectedCount {
 		var coeffArray [16]byte
 		copy(coeffArray[:], rlcCoeffs[i*16:(i+1)*16])
 		coeffs[i] = field.FromBytes128(coeffArray)

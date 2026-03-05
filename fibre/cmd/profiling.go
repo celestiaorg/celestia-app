@@ -128,14 +128,14 @@ func setupProfiling(cmd *cobra.Command) (func(), error) {
 // pyroscopeSlogAdapter bridges the pyroscope.Logger interface to slog.
 type pyroscopeSlogAdapter struct{}
 
-func (a *pyroscopeSlogAdapter) Infof(format string, args ...interface{}) {
+func (a *pyroscopeSlogAdapter) Infof(format string, args ...any) {
 	slog.Info(fmt.Sprintf(format, args...))
 }
 
-func (a *pyroscopeSlogAdapter) Debugf(format string, args ...interface{}) {
+func (a *pyroscopeSlogAdapter) Debugf(format string, args ...any) {
 	slog.Debug(fmt.Sprintf(format, args...))
 }
 
-func (a *pyroscopeSlogAdapter) Errorf(format string, args ...interface{}) {
+func (a *pyroscopeSlogAdapter) Errorf(format string, args ...any) {
 	slog.Error(fmt.Sprintf(format, args...))
 }
