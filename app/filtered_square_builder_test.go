@@ -128,7 +128,6 @@ func TestExtractMsgPayForFibre(t *testing.T) {
 	}
 }
 
-
 func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
 	txConfig := encConf.TxConfig

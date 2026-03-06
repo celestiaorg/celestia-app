@@ -278,5 +278,3 @@ func extractMsgPayForFibre(sdkTx sdk.Tx) (*fibretypes.MsgPayForFibre, bool) {
 	}
 	return nil, false
 }
-
-

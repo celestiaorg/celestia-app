@@ -794,8 +794,8 @@ github.com/celestiaorg/go-square/v2 v2.3.3 h1:vhu6Lt39km19Q/Jk4nS3r2cuWJq6jFg+/1
 github.com/celestiaorg/go-square/v2 v2.3.3/go.mod h1:vY5RRv+qRmEVjPF6dAdr0dyLwKmTTDHHffENPQw8pUA=
 github.com/celestiaorg/go-square/v3 v3.0.2 h1:eSQOgNII8inK9IhiBZ+6GADQeWbRq4HYY72BOgcduA4=
 github.com/celestiaorg/go-square/v3 v3.0.2/go.mod h1:oFReMLsSDMRs82ICFEeFQFCqNvwdsbIM1BzCcb0f7dM=
-github.com/celestiaorg/go-square/v4 v4.0.0-rc3 h1:+HYCkfuJ9erK0ciaFOrhCn9oZn71LjKRv3L2QpMJepM=
-github.com/celestiaorg/go-square/v4 v4.0.0-rc3/go.mod h1:A1pVS0oigRquGaiDFi1ArUHFV2OVJd3RibAWQmS9H6Q=
+github.com/celestiaorg/go-square/v4 v4.0.0-rc3.0.20260306040720-eeaef5506dd5 h1:hbu5KLpNiAVkv2UzJqUxuK5frOxjVJWlih/xzbiVJNk=
+github.com/celestiaorg/go-square/v4 v4.0.0-rc3.0.20260306040720-eeaef5506dd5/go.mod h1:7Vc4H3u3gvcfLFp84EqyMVT/9r0ZGUgZP4aYMOYXVsw=
 github.com/celestiaorg/ibc-go/v8 v8.7.2 h1:AWae851fdX7pJWlGnUBKlKJzpr4c2t5m4TLs6vDfmAY=
 github.com/celestiaorg/ibc-go/v8 v8.7.2/go.mod h1:E3WTax+cfyDIehNRpwEI96/0E8GBtU1g9XWr18qUGZ8=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n5MFP2MwK0gSRcOVlDlFdQJO1p+FqdxYzmvc=
@@ -804,6 +804,8 @@ github.com/celestiaorg/nmt v0.24.2 h1:LlpJSPOd6/Lw1Ig6HUhZuqiINHLka/ZSRTBzlNJpch
 github.com/celestiaorg/nmt v0.24.2/go.mod h1:vgLBpWBi8F5KLxTdXSwb7AU4NhiIQ1AQRGa+PzdcLEA=
 github.com/celestiaorg/reedsolomon v1.12.6-0.20250824224240-8b66bda83fd0 h1:nM6tHBLW1Uej4VKe6Zm3+kYnOrvcQ1Q4I1qFBIbC+EU=
 github.com/celestiaorg/reedsolomon v1.12.6-0.20250824224240-8b66bda83fd0/go.mod h1:39naxIQYdj/oxjNZVvWvhRreh3uguAq4v6Ke7mI9cDI=
+github.com/celestiaorg/rsema1d v0.0.0-20260113121834-51e6165619b0 h1:G7ctPrCA0y6zIN2CtWNz8Z37c1fwqDRj8GvX+5/PyFw=
+github.com/celestiaorg/rsema1d v0.0.0-20260113121834-51e6165619b0/go.mod h1:WtDhTrN17IA6ZBLEIZsXv+IAQJD4grchKeodmLbjt+g=
 github.com/celestiaorg/rsmt2d v0.15.1 h1:NF4D0LX501oDjw00RoJrTUrMHrO+Kv0LewL0FKQU7hg=
 github.com/celestiaorg/rsmt2d v0.15.1/go.mod h1:WKkpXoD1foHn4qgFx6GNoz36Wm0fbCh29ze4rA7ZwCs=
 github.com/celestiaorg/tastora v0.15.0 h1:rpXX/y19BzZ6Qf3pCc2YxJid2uwIJbTFf+BgBruOD34=
