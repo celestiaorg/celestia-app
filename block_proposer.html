@@ -164,7 +164,7 @@
 </ol>
 </li>
 <li>Compute the smallest square size that is a power of 2 that can fit all the accepted transactions and blobs (including any <a href="./data_square_layout.html">padding between blobs</a>).</li>
-<li>Sort blobs by namespace (preserving the priority order of blobs within the same namespace).</li>
+<li>Sort blobs by namespace (preserving the mempool-provided order of blobs within the same namespace, which is based on sender-aggregated priority).</li>
 <li>Write out the final square: normal transaction shares, then pay-for-blob transaction shares, then reserved padding, then blob shares (with inter-blob padding as needed), then tail padding.</li>
 </ol>
 
