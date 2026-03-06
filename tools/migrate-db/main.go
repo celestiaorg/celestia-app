@@ -51,7 +51,7 @@ type DBState struct {
 	Status        string    `json:"status"` // "pending", "in_progress", "migrated", "source_deleted"
 	KeysMigrated  int64     `json:"keys_migrated"`
 	BytesMigrated int64     `json:"bytes_migrated"`
-	CompletedAt   time.Time `json:"completed_at,omitempty"`
+	CompletedAt   time.Time `json:"completed_at"`
 }
 
 type migrateOpts struct {
@@ -165,7 +165,11 @@ func migrateDB(ctx context.Context, opts migrateOpts) error {
 	if !locked {
 		return fmt.Errorf("another migration is running (lock held on %s)", lockPath)
 	}
-	defer fileLock.Unlock()
+	defer func() {
+		if err := fileLock.Unlock(); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to release migration lock: %v\n", err)
+		}
+	}()
 
 	// Load or initialize migration state
 	state, err := loadState(pebbleDataDir)
@@ -293,7 +297,6 @@ func migrateDB(ctx context.Context, opts migrateOpts) error {
 	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(opts.parallel)
 	for _, dbName := range databases {
-		dbName := dbName
 		g.Go(func() error {
 			return migrateOne(gctx, dbName)
 		})
@@ -356,7 +359,7 @@ func migrateSingleDB(ctx context.Context, dbName, sourceDir, destDir string, opt
 		fmt.Printf("[%s] Resuming from key (already migrated: %d keys)\n", dbName, resumedKeys)
 	}
 
-	var totalKeys = resumedKeys
+	totalKeys := resumedKeys
 	var totalBytes int64
 	var bytesSinceSync int64
 	var deleteKeys [][]byte
@@ -574,10 +577,7 @@ func verifyDBSample(dbName, sourceDir, destDir string, sampleSize int) error {
 		return nil
 	}
 
-	stride := totalKeys / int64(sampleSize)
-	if stride < 1 {
-		stride = 1
-	}
+	stride := max(totalKeys/int64(sampleSize), 1)
 
 	// Second pass: sample and verify
 	iter, err := sourceDB.Iterator(nil, nil)
