@@ -7,7 +7,7 @@ import (
 
 func TestGF128Zero(t *testing.T) {
 	z := Zero()
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		if z[i] != 0 {
 			t.Errorf("Zero() element %d = %d, expected 0", i, z[i])
 		}
@@ -109,7 +109,7 @@ func TestGF128ScalarMultiplication(t *testing.T) {
 			}
 
 			// Check that each component is multiplied correctly
-			for i := 0; i < 8; i++ {
+			for i := range 8 {
 				expected := Mul16(tt.scalar, tt.vec[i])
 				if result[i] != expected {
 					t.Errorf("Component %d: got %d, expected %d", i, result[i], expected)

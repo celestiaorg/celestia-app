@@ -84,10 +84,10 @@ func TestExtendVertical(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create test data
 			data := make([][]byte, tt.k)
-			for i := 0; i < tt.k; i++ {
+			for i := range tt.k {
 				data[i] = make([]byte, tt.rowSize)
 				// Fill with some pattern
-				for j := 0; j < tt.rowSize; j++ {
+				for j := range tt.rowSize {
 					data[i][j] = byte((i + j) % 256)
 				}
 			}
@@ -113,7 +113,7 @@ func TestExtendVertical(t *testing.T) {
 			}
 
 			// Verify original rows are unchanged
-			for i := 0; i < tt.k; i++ {
+			for i := range tt.k {
 				if !bytes.Equal(extended[i], data[i]) {
 					t.Errorf("ExtendVertical() modified original row %d", i)
 				}
@@ -149,7 +149,7 @@ func TestPackUnpackGF128(t *testing.T) {
 		}
 
 		// Verify the Leopard format
-		for j := 0; j < 8; j++ {
+		for j := range 8 {
 			lowByte := shard[j]
 			highByte := shard[32+j]
 			expectedLow := byte(original[j] & 0xFF)
@@ -239,8 +239,8 @@ func TestExtendRLCResults(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create test RLC values
 			rlcOrig := make([]field.GF128, tt.k)
-			for i := 0; i < tt.k; i++ {
-				for j := 0; j < 8; j++ {
+			for i := range tt.k {
+				for j := range 8 {
 					rlcOrig[i][j] = field.GF16(i*8 + j)
 				}
 			}
@@ -266,7 +266,7 @@ func TestExtendRLCResults(t *testing.T) {
 			}
 
 			// Verify original RLC values are preserved
-			for i := 0; i < tt.k; i++ {
+			for i := range tt.k {
 				if !field.Equal128(extended[i], rlcOrig[i]) {
 					t.Errorf("ExtendRLCResults() modified original RLC value %d", i)
 				}
@@ -312,9 +312,9 @@ func TestReconstruct(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create original data
 			original := make([][]byte, tt.k)
-			for i := 0; i < tt.k; i++ {
+			for i := range tt.k {
 				original[i] = make([]byte, tt.rowSize)
-				for j := 0; j < tt.rowSize; j++ {
+				for j := range tt.rowSize {
 					original[i][j] = byte((i*tt.rowSize + j) % 256)
 				}
 			}
@@ -369,7 +369,7 @@ func TestReconstruct(t *testing.T) {
 						return
 					}
 
-					for i := 0; i < tt.k; i++ {
+					for i := range tt.k {
 						if !bytes.Equal(reconstructed[i], original[i]) {
 							t.Errorf("Reconstruct() row %d doesn't match original", i)
 						}
@@ -387,7 +387,7 @@ func TestReconstructErrors(t *testing.T) {
 
 	// Create some test data
 	rows := make([][]byte, k)
-	for i := 0; i < k; i++ {
+	for i := range k {
 		rows[i] = make([]byte, rowSize)
 	}
 
@@ -464,14 +464,14 @@ func TestRLCPaddingConsistency(t *testing.T) {
 
 	// Create test RLC values
 	rlcOrig := make([]field.GF128, k)
-	for i := 0; i < k; i++ {
-		for j := 0; j < 8; j++ {
+	for i := range k {
+		for j := range 8 {
 			rlcOrig[i][j] = field.GF16(i*8 + j + 1) // Non-zero values
 		}
 	}
 
 	// Pack original RLC values and verify padding
-	for i := 0; i < k; i++ {
+	for i := range k {
 		shard := packGF128ToLeopard(rlcOrig[i])
 		// Check that positions 8-31 and 40-63 are zero
 		for j := 8; j < 32; j++ {
@@ -522,7 +522,7 @@ func mixedIndices(k, n int, seed int) []int {
 	step := total / k
 	offset := seed % step
 
-	for i := 0; i < k; i++ {
+	for i := range k {
 		indices[i] = (i*step + offset) % total
 	}
 

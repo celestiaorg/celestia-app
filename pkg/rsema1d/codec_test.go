@@ -518,7 +518,7 @@ func TestRowInclusionProof(t *testing.T) {
 			}
 
 			// Test all rows (original and parity)
-			for index := 0; index < tc.k+tc.n; index++ {
+			for index := range tc.k+tc.n {
 				// Test via ExtendedData
 				proof, err := extData.GenerateRowInclusionProof(index)
 				if err != nil {

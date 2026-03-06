@@ -135,7 +135,7 @@ func TestExtractSymbols(t *testing.T) {
 	// Set up test data in Leopard format:
 	// bytes 0-31: low bytes of symbols
 	// bytes 32-63: high bytes of symbols
-	for i := 0; i < 32; i++ {
+	for i := range 32 {
 		chunk[i] = byte(i * 2)      // Low byte
 		chunk[32+i] = byte(i*2 + 1) // High byte
 	}
@@ -148,7 +148,7 @@ func TestExtractSymbols(t *testing.T) {
 	}
 
 	// Verify each symbol is correctly formed
-	for i := 0; i < 32; i++ {
+	for i := range 32 {
 		expectedSymbol := field.GF16((i*2+1)<<8 | (i * 2))
 		if symbols[i] != expectedSymbol {
 			t.Errorf("Symbol %d: got %04x, expected %04x", i, symbols[i], expectedSymbol)

@@ -3,8 +3,8 @@ package encoding
 import (
 	"fmt"
 
-	"github.com/celestiaorg/reedsolomon"
 	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/field"
+	"github.com/celestiaorg/reedsolomon"
 )
 
 // ExtendVertical performs vertical RS extension using Leopard GF16
@@ -39,7 +39,7 @@ func ExtendVertical(data [][]byte, n int) ([][]byte, error) {
 	shards := make([][]byte, k+n)
 
 	// Copy data rows
-	for i := 0; i < k; i++ {
+	for i := range k {
 		shards[i] = make([]byte, rowSize)
 		copy(shards[i], data[i])
 	}
@@ -66,7 +66,7 @@ func packGF128ToLeopard(g field.GF128) []byte {
 
 	// Pack 8 GF16 symbols in Leopard interleaved format
 	// Symbols 0-7 from GF128, symbols 8-31 are zero
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		symbol := g[i]
 		shard[i] = byte(symbol & 0xFF)  // Low byte at position i
 		shard[32+i] = byte(symbol >> 8) // High byte at position 32+i
@@ -85,7 +85,7 @@ func unpackGF128FromLeopard(shard []byte) field.GF128 {
 
 	var g field.GF128
 	// Extract first 8 GF16 symbols from Leopard interleaved format
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		lowByte := shard[i]
 		highByte := shard[32+i]
 		g[i] = field.GF16(highByte)<<8 | field.GF16(lowByte)
@@ -108,7 +108,7 @@ func ExtendRLCResults(rlcOriginal []field.GF128, n int) ([]field.GF128, error) {
 	// Each GF128 (8 GF16 symbols) is packed into a 64-byte Leopard shard
 	// with 24 zero symbols for padding
 	shards := make([][]byte, k)
-	for i := 0; i < k; i++ {
+	for i := range k {
 		shards[i] = packGF128ToLeopard(rlcOriginal[i])
 	}
 
@@ -120,7 +120,7 @@ func ExtendRLCResults(rlcOriginal []field.GF128, n int) ([]field.GF128, error) {
 
 	// Extract GF128 values from extended Leopard shards
 	extended := make([]field.GF128, k+n)
-	for i := 0; i < k+n; i++ {
+	for i := range k+n {
 		extended[i] = unpackGF128FromLeopard(extendedShards[i])
 	}
 
@@ -175,7 +175,7 @@ func Reconstruct(rows [][]byte, indices []int, k, n int) ([][]byte, error) {
 
 	// Return only the original k rows
 	original := make([][]byte, k)
-	for i := 0; i < k; i++ {
+	for i := range k {
 		original[i] = shards[i]
 	}
 

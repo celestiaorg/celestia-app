@@ -477,7 +477,7 @@ func TestVerifyRowWithContextWithMultipleOpenings(t *testing.T) {
 	// === PROVER ===
 	// the prover are being malicious, and they hope that no one will open at index 0
 	data := make([][]byte, 8)
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		digest := sha512.Sum512([]byte{byte(i)})
 		data[i] = append(digest[:], 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -532,27 +532,27 @@ func buildAdversarialPaddedRowTree(extended [][]byte) ([][]byte, [][]byte) {
 	nodes := make([][]byte, 31)
 	asNodes := make([][]byte, 31) // adversary subtree nodes
 	// build the adversary subtree
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		digest := sha256.Sum256(append([]byte{0}, extended[i][:256-
 			64]...))
 		asNodes[15+i] = digest[:] // SHA256(00 || data) for leaf nodes
 	}
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		digest := sha256.Sum256(append([]byte{1},
 			append(asNodes[15+2*i], asNodes[15+2*i+1]...)...))
 		asNodes[7+i] = digest[:] // SHA256(01 || left || right) for non-leaf nodes 20 / 28
 	}
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		digest := sha256.Sum256(append([]byte{1},
 			append(asNodes[7+2*i], asNodes[7+2*i+1]...)...))
 		asNodes[3+i] = digest[:]
 	}
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		digest := sha256.Sum256(append([]byte{1},
 			append(asNodes[3+2*i], asNodes[3+2*i+1]...)...))
 		asNodes[1+i] = digest[:]
 	}
-	for i := 0; i < 1; i++ {
+	for i := range 1 {
 		digest := sha256.Sum256(append([]byte{1},
 			append(asNodes[1+2*i], asNodes[1+2*i+1]...)...))
 		asNodes[0+i] = digest[:]
@@ -562,22 +562,22 @@ func buildAdversarialPaddedRowTree(extended [][]byte) ([][]byte, [][]byte) {
 		digest := sha256.Sum256(append([]byte{0}, extended[i][:256]...))
 		nodes[15+i] = digest[:]
 	}
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		digest := sha256.Sum256(append([]byte{1},
 			append(nodes[15+2*i], nodes[15+2*i+1]...)...))
 		nodes[7+i] = digest[:]
 	}
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		digest := sha256.Sum256(append([]byte{1},
 			append(nodes[7+2*i], nodes[7+2*i+1]...)...))
 		nodes[3+i] = digest[:]
 	}
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		digest := sha256.Sum256(append([]byte{1},
 			append(nodes[3+2*i], nodes[3+2*i+1]...)...))
 		nodes[1+i] = digest[:]
 	}
-	for i := 0; i < 1; i++ {
+	for i := range 1 {
 		digest := sha256.Sum256(append([]byte{1},
 			append(nodes[1+2*i], nodes[1+2*i+1]...)...))
 		nodes[0+i] = digest[:]

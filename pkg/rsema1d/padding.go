@@ -30,7 +30,7 @@ func buildPaddedRLCTree(rlcOrig []field.GF128, config *Config) *merkle.Tree {
 	paddedRLCLeaves := make([][]byte, config.kPadded)
 
 	// Fill with K original RLC values
-	for i := 0; i < config.K; i++ {
+	for i := range config.K {
 		bytes := field.ToBytes128(rlcOrig[i])
 		paddedRLCLeaves[i] = bytes[:]
 	}

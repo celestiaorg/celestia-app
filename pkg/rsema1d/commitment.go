@@ -15,7 +15,7 @@ func deriveCoefficients(rowRoot [32]byte, config *Config) []field.GF128 {
 
 	var input [32 + 4]byte
 	copy(input[:32], seed[:])
-	for i := 0; i < numSymbols; i++ {
+	for i := range numSymbols {
 		binary.LittleEndian.PutUint32(input[32:], uint32(i))
 		digest := sha256.Sum256(input[:])
 		coeffs[i] = field.HashToGF128(digest[:])
@@ -28,7 +28,7 @@ func computeRLC(row []byte, coeffs []field.GF128) field.GF128 {
 	result := field.Zero()
 	numChunks := len(row) / chunkSize
 
-	for c := 0; c < numChunks; c++ {
+	for c := range numChunks {
 		chunk := row[c*chunkSize : (c+1)*chunkSize]
 		symbols := extractSymbols(chunk)
 		for j, sym := range symbols {
@@ -49,7 +49,7 @@ func extractSymbols(chunk []byte) []field.GF16 {
 	}
 
 	symbols := make([]field.GF16, 32)
-	for i := 0; i < 32; i++ {
+	for i := range 32 {
 		// Leopard format: bytes 0-31 are low bytes, 32-63 are high bytes
 		symbols[i] = field.GF16(chunk[32+i])<<8 | field.GF16(chunk[i])
 	}
