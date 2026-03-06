@@ -352,7 +352,7 @@ func migrateSingleDB(ctx context.Context, dbName, sourceDir, destDir string, opt
 	}
 	defer destDB.Close()
 
-	resumeKey, resumedKeys, err := findResumePoint(destDB, dbName)
+	resumeKey, err := findResumePoint(destDB, dbName)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -364,46 +364,34 @@ func migrateSingleDB(ctx context.Context, dbName, sourceDir, destDir string, opt
 
 	var totalKeys, totalBytes int64
 	if opts.noBackup {
-		totalKeys, totalBytes, err = copyAndDeleteKeys(ctx, dbName, sourceDB, destDB, srcIter, batchBytes, syncBytes, resumedKeys, startTime)
+		totalKeys, totalBytes, err = copyAndDeleteKeys(ctx, dbName, sourceDB, destDB, srcIter, batchBytes, syncBytes, startTime)
 	} else {
-		totalKeys, totalBytes, err = copyAllKeys(ctx, dbName, destDB, srcIter, batchBytes, syncBytes, resumedKeys, startTime)
+		totalKeys, totalBytes, err = copyAllKeys(ctx, dbName, destDB, srcIter, batchBytes, syncBytes, startTime)
 	}
 	if err != nil {
 		return 0, 0, err
 	}
 
-	newKeys := totalKeys - resumedKeys
 	elapsed := time.Since(startTime)
-	fmt.Printf("[%s] Migration complete: %d keys total (%d new), %s, elapsed %s\n",
-		dbName, totalKeys, newKeys, humanBytes(totalBytes), elapsed.Round(time.Second))
+	fmt.Printf("[%s] Migration complete: %d keys copied, %s, elapsed %s\n",
+		dbName, totalKeys, humanBytes(totalBytes), elapsed.Round(time.Second))
 
 	return totalKeys, totalBytes, nil
 }
 
-func findResumePoint(destDB db.DB, dbName string) (resumeKey []byte, resumedKeys int64, err error) {
+func findResumePoint(destDB db.DB, dbName string) ([]byte, error) {
 	revIter, err := destDB.ReverseIterator(nil, nil)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to create reverse iterator: %w", err)
+		return nil, fmt.Errorf("failed to create reverse iterator: %w", err)
 	}
+	var resumeKey []byte
 	if revIter.Valid() {
 		resumeKey = make([]byte, len(revIter.Key()))
 		copy(resumeKey, revIter.Key())
+		fmt.Printf("[%s] Resuming from previous run\n", dbName)
 	}
 	revIter.Close()
-
-	if resumeKey != nil {
-		countIter, err := destDB.Iterator(nil, nil)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to count existing keys: %w", err)
-		}
-		for ; countIter.Valid(); countIter.Next() {
-			resumedKeys++
-		}
-		countIter.Close()
-		fmt.Printf("[%s] Resuming from key (already migrated: %d keys)\n", dbName, resumedKeys)
-	}
-
-	return resumeKey, resumedKeys, nil
+	return resumeKey, nil
 }
 
 func iteratorFrom(sourceDB db.DB, resumeKey []byte) (db.Iterator, error) {
@@ -451,8 +439,8 @@ func logProgress(dbName string, totalKeys, totalBytes int64, startTime time.Time
 	}
 }
 
-func copyAllKeys(ctx context.Context, dbName string, destDB db.DB, srcIter db.Iterator, batchBytes, syncBytes, startKeys int64, startTime time.Time) (int64, int64, error) {
-	totalKeys := startKeys
+func copyAllKeys(ctx context.Context, dbName string, destDB db.DB, srcIter db.Iterator, batchBytes, syncBytes int64, startTime time.Time) (int64, int64, error) {
+	var totalKeys int64
 	var totalBytes, bytesSinceSync int64
 	lastLogTime := time.Now()
 
@@ -519,8 +507,8 @@ func copyAllKeys(ctx context.Context, dbName string, destDB db.DB, srcIter db.It
 	return totalKeys, totalBytes, nil
 }
 
-func copyAndDeleteKeys(ctx context.Context, dbName string, sourceDB, destDB db.DB, srcIter db.Iterator, batchBytes, syncBytes, startKeys int64, startTime time.Time) (int64, int64, error) {
-	totalKeys := startKeys
+func copyAndDeleteKeys(ctx context.Context, dbName string, sourceDB, destDB db.DB, srcIter db.Iterator, batchBytes, syncBytes int64, startTime time.Time) (int64, int64, error) {
+	var totalKeys int64
 	var totalBytes, bytesSinceSync, bytesSinceDelete int64
 	var deleteKeys [][]byte
 	lastLogTime := time.Now()
